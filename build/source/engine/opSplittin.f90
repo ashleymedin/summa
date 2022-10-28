@@ -628,6 +628,7 @@ contains
 
          ! domain splitting
          else
+           !print*,"split domain"
 
           ! initialize to .false.
           fluxMask%var(iVar)%dat = .false.
@@ -949,17 +950,17 @@ contains
   ! terminate DO loop early if fullyCoupled returns a solution,
   ! so that the loop does not proceed to ixCoupling = stateTypeSplit
   if(ixCoupling==fullyCoupled .and. .not. failure) exit coupling
-  
-  ! if we reach stateTypeSplit, terminating the DO loop here is cleaner 
-  ! than letting the loop complete, because in the latter case the coupling 
-  ! loop will end with ixCoupling = nCoupling+1 = 3 (a FORTRAN loop 
-  ! increments the index variable at the end of each iteration and stops 
-  ! the loop if the index > specified stop value). Variable ixCoupling is 
-  ! used for error reporting in coupled_em.f90 in the balance checks and 
-  ! we thus need to make sure ixCoupling is not incremented to be larger 
+
+  ! if we reach stateTypeSplit, terminating the DO loop here is cleaner
+  ! than letting the loop complete, because in the latter case the coupling
+  ! loop will end with ixCoupling = nCoupling+1 = 3 (a FORTRAN loop
+  ! increments the index variable at the end of each iteration and stops
+  ! the loop if the index > specified stop value). Variable ixCoupling is
+  ! used for error reporting in coupled_em.f90 in the balance checks and
+  ! we thus need to make sure ixCoupling is not incremented to be larger
   ! than nCoupling.
-  if(ixCoupling==stateTypeSplit .and. .not. failure) exit coupling  
-  
+  if(ixCoupling==stateTypeSplit .and. .not. failure) exit coupling
+
  end do coupling ! coupling method
 
  ! check that all state variables were updated
