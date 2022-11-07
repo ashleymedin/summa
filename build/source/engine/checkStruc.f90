@@ -70,19 +70,19 @@ contains
   ! convert the lookup structures to a character string
   ! expect the lookup structures to be a vector (1,2,3,...,n)
   select case(trim(structInfo(iStruct)%structName))
-   case('time');  write(longString,*) iLookTIME
-   case('forc');  write(longString,*) iLookFORCE
-   case('attr');  write(longString,*) iLookATTR
-   case('type');  write(longString,*) iLookTYPE
-   case('id');    write(longString,*) iLookID
-   case('mpar');  write(longString,*) iLookPARAM
-   case('bpar');  write(longString,*) iLookBPAR
-   case('bvar');  write(longString,*) iLookBVAR
-   case('indx');  write(longString,*) iLookINDEX
-   case('prog');  write(longString,*) iLookPROG
-   case('diag');  write(longString,*) iLookDIAG
-   case('flux');  write(longString,*) iLookFLUX
-   case('deriv'); write(longString,*) iLookDERIV
+   case('time');   write(longString,*) iLookTIME
+   case('forc');   write(longString,*) iLookFORCE
+   case('attr');   write(longString,*) iLookATTR
+   case('type');   write(longString,*) iLookTYPE
+   case('id');     write(longString,*) iLookID
+   case('mpar');   write(longString,*) iLookPARAM
+   case('bpar');   write(longString,*) iLookBPAR
+   case('bvar');   write(longString,*) iLookBVAR
+   case('indx');   write(longString,*) iLookINDEX
+   case('prog');   write(longString,*) iLookPROG
+   case('diag');   write(longString,*) iLookDIAG
+   case('flux');   write(longString,*) iLookFLUX
+   case('deriv');  write(longString,*) iLookDERIV
    case default; err=20; message=trim(message)//'unable to identify lookup structure'; return
   end select
   ! check that the length of the lookup structure matches the number of variables in the data structure
@@ -107,19 +107,19 @@ contains
  do iStruct=1,nStruct
   ! check that the metadata is fully populated
   select case(trim(structInfo(iStruct)%structName))
-   case('time');  call checkPopulated(iStruct,time_meta,err,cmessage)
-   case('forc');  call checkPopulated(iStruct,forc_meta,err,cmessage)
-   case('attr');  call checkPopulated(iStruct,attr_meta,err,cmessage)
-   case('type');  call checkPopulated(iStruct,type_meta,err,cmessage)
-   case('id');    call checkPopulated(iStruct,id_meta,  err,cmessage)
-   case('mpar');  call checkPopulated(iStruct,mpar_meta,err,cmessage)
-   case('bpar');  call checkPopulated(iStruct,bpar_meta,err,cmessage)
-   case('bvar');  call checkPopulated(iStruct,bvar_meta,err,cmessage)
-   case('indx');  call checkPopulated(iStruct,indx_meta,err,cmessage)
-   case('prog');  call checkPopulated(iStruct,prog_meta,err,cmessage)
-   case('diag');  call checkPopulated(iStruct,diag_meta,err,cmessage)
-   case('flux');  call checkPopulated(iStruct,flux_meta,err,cmessage)
-   case('deriv'); call checkPopulated(iStruct,deriv_meta,err,cmessage)
+   case('time');   call checkPopulated(iStruct,time_meta,err,cmessage)
+   case('forc');   call checkPopulated(iStruct,forc_meta,err,cmessage)
+   case('attr');   call checkPopulated(iStruct,attr_meta,err,cmessage)
+   case('type');   call checkPopulated(iStruct,type_meta,err,cmessage)
+   case('id');     call checkPopulated(iStruct,id_meta,  err,cmessage)
+   case('mpar');   call checkPopulated(iStruct,mpar_meta,err,cmessage)
+   case('bpar');   call checkPopulated(iStruct,bpar_meta,err,cmessage)
+   case('bvar');   call checkPopulated(iStruct,bvar_meta,err,cmessage)
+   case('indx');   call checkPopulated(iStruct,indx_meta,err,cmessage)
+   case('prog');   call checkPopulated(iStruct,prog_meta,err,cmessage)
+   case('diag');   call checkPopulated(iStruct,diag_meta,err,cmessage)
+   case('flux');   call checkPopulated(iStruct,flux_meta,err,cmessage)
+   case('deriv');  call checkPopulated(iStruct,deriv_meta,err,cmessage)
    case default; err=20; message=trim(message)//'unable to identify lookup structure'; return
   end select
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
@@ -165,7 +165,8 @@ contains
 
    ! check that the variable was found at all
    if (jVar==integerMissing) then
-    message = trim(message)//'cannot find variable '//trim(metadata(iVar)%varname)//' in structure '//trim(structInfo(iStruct)%structName)//'_meta; you need to add variable to get_ix'//trim(structInfo(iStruct)%structName)
+    message = trim(message)//'cannot find variable '//trim(metadata(iVar)%varname)//' in structure '//trim(structInfo(iStruct)%structName)//'_meta; '// &
+    'you need to add variable to get_ix'//trim(structInfo(iStruct)%structName)
     err=20; return
    end if
 
@@ -178,7 +179,8 @@ contains
    ! check that the variable index is correct
    ! This can occur because (1) the code in popMetadat is corrupt (e.g., mis-match in look-up variable); or (2) var_lookup is corrupt.
    if (jVar/=iVar) then
-    write(message,'(a,i0,a,i0,a)') trim(message)//'variable '//trim(metadata(iVar)%varname)//' has index ', iVar, ' (expect index ', jVar, '); problem possible in popMetadat, get_ix'//trim(structInfo(iStruct)%structName)//', or var_lookup'
+    write(message,'(a,i0,a,i0,a)') trim(message)//'variable '//trim(metadata(iVar)%varname)//' has index ', iVar, &
+     ' (expect index ', jVar, '); problem possible in popMetadat, get_ix'//trim(structInfo(iStruct)%structName)//', or var_lookup'
     err=20; return
    end if
 

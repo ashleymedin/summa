@@ -369,9 +369,6 @@ contains
  ! * PRELIMINARIES...
  ! ******************
 
- !print*, '***** nSnowSoilNrg, nSnowOnlyNrg, nSoilOnlyNrg, nSnowSoilHyd, nSnowOnlyHyd, nSoilOnlyHyd = ', &
- !               nSnowSoilNrg, nSnowOnlyNrg, nSoilOnlyNrg, nSnowSoilHyd, nSnowOnlyHyd, nSoilOnlyHyd
-
  ! increment the number of flux calls
  numFluxCalls = numFluxCalls+1
 
@@ -521,7 +518,6 @@ contains
 
  endif  ! if computing energy fluxes throughout the snow+soil domain
 
-
  ! *****
  ! * CALCULATE THE LIQUID FLUX THROUGH VEGETATION...
  ! **************************************************
@@ -601,8 +597,6 @@ contains
   ! calculate net liquid water fluxes for each soil layer (s-1)
   do iLayer=1,nSnow
    mLayerLiqFluxSnow(iLayer) = -(iLayerLiqFluxSnow(iLayer) - iLayerLiqFluxSnow(iLayer-1))/mLayerDepth(iLayer)
-   !write(*,'(a,1x,i4,1x,2(f16.10,1x))')  'iLayer, mLayerLiqFluxSnow(iLayer), iLayerLiqFluxSnow(iLayer-1) = ', &
-   !                                       iLayer, mLayerLiqFluxSnow(iLayer), iLayerLiqFluxSnow(iLayer-1)
   end do
 
   ! compute drainage from the soil zone (needed for mass balance checks)
@@ -678,8 +672,6 @@ contains
   ! calculate net liquid water fluxes for each soil layer (s-1)
   do iLayer=1,nSoil
    mLayerLiqFluxSoil(iLayer) = -(iLayerLiqFluxSoil(iLayer) - iLayerLiqFluxSoil(iLayer-1))/mLayerDepth(iLayer+nSnow)
-   !if(iLayer<8) write(*,'(a,1x,2(i4,1x),3(e20.10),f12.7)') 'iLayerLiqFluxSoil(iLayer-1), iLayerLiqFluxSoil(iLayer), mLayerLiqFluxSoil(iLayer) = ', iLayer-1, iLayer, &
-   !                                                         iLayerLiqFluxSoil(iLayer-1), iLayerLiqFluxSoil(iLayer), mLayerLiqFluxSoil(iLayer), mLayerDepth(iLayer+nSnow)
   end do
 
   ! calculate the soil control on infiltration
