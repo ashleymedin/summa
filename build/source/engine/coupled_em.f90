@@ -226,7 +226,7 @@ contains
  real(rkind)                             :: balanceAquifer0        ! total aquifer storage at the start of the step (kg m-2)
  real(rkind)                             :: balanceAquifer1        ! total aquifer storage at the end of the step (kg m-2)
  ! test balance checks
- logical(lgt), parameter              :: printBalance=.false.   ! flag to print the balance checks
+ logical(lgt), parameter              :: printBalance=.true.   ! flag to print the balance checks
  real(rkind), allocatable                :: liqSnowInit(:)         ! volumetric liquid water conetnt of snow at the start of the time step
  real(rkind), allocatable                :: liqSoilInit(:)         ! soil moisture at the start of the time step
  ! timing information
