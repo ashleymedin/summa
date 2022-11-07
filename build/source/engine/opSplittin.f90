@@ -230,8 +230,6 @@ contains
  logical(lgt),intent(out)        :: stepFailure                    ! flag to denote step failure
  integer(i4b),intent(out)        :: err                            ! error code
  character(*),intent(out)        :: message                        ! error message
- ! *********************************************************************************************************************************************************
- ! *********************************************************************************************************************************************************
  ! ---------------------------------------------------------------------------------------
  ! * general local variables
  ! ---------------------------------------------------------------------------------------
@@ -504,8 +502,6 @@ contains
    ! first try the state type split, then try the domain split within a given state type
    stateThenDomain: do ixStateThenDomain=1,1+tryDomainSplit ! 1=state type split; 2=domain split within a given state type
 
-    !print*, 'start of stateThenDomain loop'
-
     ! keep track of the number of domain splits
     if(iStateTypeSplit==nrgSplit  .and. ixStateThenDomain==subDomain) numberDomainSplitNrg  = numberDomainSplitNrg  + 1
     if(iStateTypeSplit==massSplit .and. ixStateThenDomain==subDomain) numberDomainSplitMass = numberDomainSplitMass + 1
@@ -548,11 +544,6 @@ contains
        case default; err=20; message=trim(message)//'unknown solution method'; return
       end select
 
-      !print*, '*****'
-      !print*, 'computeVegFlux = ', computeVegFlux
-      !print*, '(ixSolution==scalar) = ', (ixSolution==scalar)
-      !print*, 'ixCoupling, iStateTypeSplit, ixStateThenDomain, iDomainSplit, nDomainSplit: ', ixCoupling, iStateTypeSplit, ixStateThenDomain, iDomainSplit, nDomainSplit
-      !print*, 'ixSoilOnlyHyd = ', indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat
 
       ! loop through layers (NOTE: nStateSplit=1 for the vector solution, hence no looping)
       stateSplit: do iStateSplit=1,nStateSplit
@@ -572,20 +563,11 @@ contains
        ! avoid redundant case where vector solution is of length 1
        if(ixSolution==vector .and. count(stateMask)==1) cycle solution
 
-       ! check
-       !print*, 'after stateFilter: stateMask   = ', stateMask
-       !print*, 'count(stateMask) = ', count(stateMask)
 
-       !if(ixSolution==scalar)then
-       ! print*, 'iStateSplit, nStateSplit = ', iStateSplit, nStateSplit
-       ! print*, 'start of scalar solution'
-       ! !print*, 'PAUSE'; read(*,*)
-       !endif
 
        ! -----
        ! * assemble vectors for a given split...
        ! ---------------------------------------
-
        ! get indices for a given split
        call indexSplit(stateMask,                   & ! intent(in)    : logical vector (.true. if state is in the subset)
                        nSnow,nSoil,nLayers,nSubset, & ! intent(in)    : number of snow and soil layers, and total number of layers
@@ -916,17 +898,13 @@ contains
 
     end do domainSplit ! domain type splitting loop
 
-    !print*, 'ixStateThenDomain = ', ixStateThenDomain
-    !print*, 'after domain split loop'
 
    end do stateThenDomain  ! switch between the state and the domain
 
-   !print*, 'after stateThenDomain switch'
 
    ! -----
    ! * reset state variables for the mass split...
    ! ---------------------------------------------
-
    ! modify the state type names associated with the state vector
    if(ixCoupling/=fullyCoupled .and. iStateTypeSplit==massSplit)then
     if(computeVegFlux)then
@@ -1105,8 +1083,6 @@ contains
   ! check
   case default; err=20; message=trim(message)//'unable to identify coupling method'; return
  end select  ! (selecting solution method)
-
- !print*, 'stateMask = ', stateMask
 
  ! identify scalar solutions
  if(ixSolution==scalar)then

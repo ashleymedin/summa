@@ -133,7 +133,7 @@ contains
  ) ! end associate statement
  ! --------------------------------------------------------------------------------------------------------
 
- ! identify algorithmic control parameters to syb-divide and combine snow layers
+ ! identify algorithmic control parameters to sub-divide and combine snow layers
  zminLayer = (/zminLayer1, zminLayer2, zminLayer3, zminLayer4, zminLayer5/)
 
  ! intialize the modified layers flag

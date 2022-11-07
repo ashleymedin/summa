@@ -190,14 +190,10 @@ contains
  ! initialize error control
  err=0; message='mDecisions/'
 
- ! -------------------------------------------------------------------------------------------------
- ! -------------------------------------------------------------------------------------------------
-
  ! read information from model decisions file, and populate model decisions structure
  call readoption(err,cmessage)
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
- ! -------------------------------------------------------------------------------------------------
 
  ! put reference time information into the time structures
  call extractTime(forc_meta(iLookFORCE%time)%varunit,                    & ! date-time string
@@ -291,7 +287,6 @@ contains
  numtim = nint( (dJulianFinsh - dJulianStart)*secprday/data_step ) + 1
  write(*,'(a,1x,i10)') 'number of time steps = ', numtim
 
- ! -------------------------------------------------------------------------------------------------
 
  ! set Noah-MP options
  DVEG=3      ! option for dynamic vegetation
@@ -632,28 +627,6 @@ contains
  ! -----------------------------------------------------------------------------------------------------------------------------------------------
  ! check for consistency among options
  ! -----------------------------------------------------------------------------------------------------------------------------------------------
-
- ! check there is prescribedHead for soil hydrology when zeroFlux or prescribedTemp for thermodynamics
- !select case(model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision)
- ! case(prescribedTemp,zeroFlux)
- !  if(model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision /= prescribedHead)then
- !   message=trim(message)//'upper boundary condition for soil hydology must be presHead with presTemp and zeroFlux options for thermodynamics'
- !   err=20; return
- !  end if
- !end select
-
- ! check there is prescribedTemp or zeroFlux for thermodynamics when using prescribedHead for soil hydrology
- !select case(model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision)
- ! case(prescribedHead)
- !  ! check that upper boundary condition for thermodynamics is presTemp or zeroFlux
- !  select case(model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision)
- !   case(prescribedTemp,zeroFlux) ! do nothing: this is OK
- !   case default
- !    message=trim(message)//'upper boundary condition for thermodynamics must be presTemp or zeroFlux with presHead option for soil hydology'
- !    err=20; return
- !  end select
- !end select
-
  ! check zero flux lower boundary for topmodel baseflow option
  select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
   case(qbaseTopmodel)
