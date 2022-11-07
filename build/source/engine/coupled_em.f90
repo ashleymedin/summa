@@ -363,7 +363,6 @@ contains
  ! NOTE - temporary assignment of minstep to foce something reasonable
  minstep = 10._rkind  ! mpar_data%var(iLookPARAM%minstep)%dat(1)  ! minimum time step (s)
  maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s)
- !print*, 'minstep, maxstep = ', minstep, maxstep
 
  ! compute the number of layers with roots
  nLayersRoots = count(prog_data%var(iLookPROG%iLayerHeight)%dat(nSnow:nLayers-1) < mpar_data%var(iLookPARAM%rootingDepth)%dat(1)-verySmall)
@@ -377,8 +376,7 @@ contains
 
  ! save SWE
  oldSWE = prog_data%var(iLookPROG%scalarSWE)%dat(1)
- !print*, 'nSnow = ', nSnow
- !print*, 'oldSWE = ', oldSWE
+
 
  ! *** compute phenology...
  ! ------------------------
@@ -431,8 +429,6 @@ contains
   case(stickySnow); diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)%dat(1)*4._rkind
   case default; message=trim(message)//'unable to identify option for maximum branch interception capacity'; err=20; return
  end select ! identifying option for maximum branch interception capacity
- !print*, 'diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1) = ', diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1)
- !print*, 'diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = ', diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1)
 
  ! compute wetted fraction of the canopy
  ! NOTE: assume that the wetted fraction is constant over the substep for the radiation calculations
@@ -563,10 +559,6 @@ contains
  substeps: do  ! continuous do statement with exit clause (alternative to "while")
 
   ! print progress
-  !print*, '*** new substep'
-  !write(*,'(a,3(f11.4,1x))') 'dt_sub, dt_init = ', dt_sub, dt_init
-
-  ! print progress
   if(globalPrintFlag)then
    write(*,'(a,1x,4(f13.5,1x))') ' start of step: dt_init, dt_sub, dt_solv, data_step: ', dt_init, dt_sub, dt_solv, data_step
    print*, 'stepFailure = ', stepFailure
@@ -590,7 +582,6 @@ contains
 
   ! save/recover copies of index variables
   do iVar=1,size(indx_data%var)
-   !print*, 'indx_meta(iVar)%varname = ', trim(indx_meta(iVar)%varname)
    select case(stepFailure)
     case(.false.); indx_temp%var(iVar)%dat(:) = indx_data%var(iVar)%dat(:)
     case(.true.);  indx_data%var(iVar)%dat(:) = indx_temp%var(iVar)%dat(:)
@@ -599,7 +590,6 @@ contains
 
   ! save/recover copies of prognostic variables
   do iVar=1,size(prog_data%var)
-   !print*, 'prog_meta(iVar)%varname = ', trim(prog_meta(iVar)%varname)
    select case(stepFailure)
     case(.false.); prog_temp%var(iVar)%dat(:) = prog_data%var(iVar)%dat(:)
     case(.true.);  prog_data%var(iVar)%dat(:) = prog_temp%var(iVar)%dat(:)
@@ -668,7 +658,6 @@ contains
    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
    do iVar=1,size(indx_data%var)
-    !print*, 'indx_meta(iVar)%varname = ', trim(indx_meta(iVar)%varname)
     select case(stepFailure)
      case(.false.); indx_temp%var(iVar)%dat(:) = indx_data%var(iVar)%dat(:)
      case(.true.);  indx_data%var(iVar)%dat(:) = indx_temp%var(iVar)%dat(:)
@@ -696,7 +685,6 @@ contains
                   err,cmessage)              ! intent(out): error control
   if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
 
-
   ! *** compute melt of the "snow without a layer"...
   ! -------------------------------------------------
   ! NOTE: forms a surface melt pond, which drains into the upper-most soil layer through the time step
@@ -718,10 +706,9 @@ contains
 
   ! *** solve model equations...
   ! ----------------------------
-
   ! save input step
   dtSave = dt_sub
-  !write(*,'(a,1x,3(f12.5,1x))') trim(message)//'before opSplittin: dt_init, dt_sub, dt_solv = ', dt_init, dt_sub, dt_solv
+
 
   ! get the new solution
   call opSplittin(&
@@ -753,8 +740,6 @@ contains
 
   ! check for all errors (error recovery within opSplittin)
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-  !print*, 'completed step'
-  !print*, 'PAUSE: '; read(*,*)
 
   ! process the flag for too much melt
   if(tooMuchMelt)then
@@ -767,10 +752,8 @@ contains
   ! handle special case of the step failure
   ! NOTE: need to revert back to the previous state vector that we were happy with and reduce the time step
   if(stepFailure)then
-
    ! halve step
    dt_sub = dtSave/2._rkind
-
    ! check that the step is not tiny
    if(dt_sub < minstep)then
     print*,ixSolution
@@ -778,10 +761,8 @@ contains
     message=trim(message)//'length of the coupled step is below the minimum step length'
     err=20; return
    endif
-
    ! try again
    cycle substeps
-
   endif
 
   ! update first step
@@ -947,14 +928,11 @@ contains
 
   ! adjust length of the sub-step (make sure that we don't exceed the step)
   dt_sub = min(data_step - dt_solv, dt_sub)
-  !print*, 'dt_sub = ', dt_sub
 
  end do  substeps ! (sub-step loop)
- !print*, 'PAUSE: completed time step'; read(*,*)
 
  ! *** add snowfall to the snowpack...
  ! -----------------------------------
-
  ! add new snowfall to the snowpack
  ! NOTE: This needs to be done AFTER the call to canopySnow, since throughfall and unloading are computed in canopySnow
  call newsnwfall(&
@@ -985,7 +963,6 @@ contains
                                                           prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
                                                         * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
  end if
- !print*, 'SWE after snowfall = ',  prog_data%var(iLookPROG%scalarSWE)%dat(1)
 
  ! re-assign dimension lengths
  nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
@@ -1213,8 +1190,6 @@ contains
  end if
 
  iLayer = nSnow+1
- !print*, 'nsub, mLayerTemp(iLayer), mLayerVolFracIce(iLayer) = ', nsub, mLayerTemp(iLayer), mLayerVolFracIce(iLayer)
- !print*, 'nsub = ', nsub
  if(nsub>50000)then
   write(message,'(a,i0)') trim(cmessage)//'number of sub-steps > 50000 for HRU ', hruID
   err=20; return

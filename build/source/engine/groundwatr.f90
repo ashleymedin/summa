@@ -392,9 +392,6 @@ contains
  mLayerColumnOutflow     => flux_data%var(iLookFLUX%mLayerColumnOutflow)%dat          & ! intent(out):[dp(:)] column outflow from each soil layer (m3 s-1)
 
  )  ! end association to variables in data structures
- ! ***********************************************************************************************************************
- ! ***********************************************************************************************************************
- ! start routine here
 
  ! ***********************************************************************************************************************
  ! (1) compute the baseflow flux in each soil layer
@@ -419,8 +416,6 @@ contains
    trTotal(iLayer) = tran0*(zActive(iLayer)/soilDepth)**zScale_TOPMODEL
    trSoil(iLayer)  = trTotal(iLayer) - trTotal(iLayer+1)
   end if
-  !write(*,'(a,1x,i4,1x,10(f20.15,1x))') 'iLayer, mLayerMatricHeadLiq(iLayer), mLayerVolFracLiq(iLayer), zActive(iLayer), trTotal(iLayer), trSoil(iLayer) = ', &
-  !                                       iLayer, mLayerMatricHeadLiq(iLayer), mLayerVolFracLiq(iLayer), zActive(iLayer), trTotal(iLayer), trSoil(iLayer)
  end do  ! looping through soil layers
 
  ! set un-used portions of the vectors to zero
@@ -455,15 +450,9 @@ contains
  ! compute the exfiltartion (m s-1)
  if(totalColumnInflow > totalColumnOutflow .and. logF > tiny(1._rkind))then
   scalarExfiltration = logF*(totalColumnInflow - totalColumnOutflow)  ! m s-1
-  !write(*,'(a,1x,10(f30.20,1x))') 'scalarExfiltration = ', scalarExfiltration
  else
   scalarExfiltration = 0._rkind
  end if
-
- ! check
- !write(*,'(a,1x,10(f30.20,1x))') 'zActive(1), soilDepth, availStorage, logF, scalarExfiltration = ', &
- !                                 zActive(1), soilDepth, availStorage, logF, scalarExfiltration
- !if(scalarExfiltration > tiny(1.0_rkind))  pause 'exfiltrating'
 
  ! compute the baseflow in each layer (m s-1)
  mLayerBaseflow(1:nSoil) = (mLayerColumnOutflow(1:nSoil) - mLayerColumnInflow(1:nSoil))/HRUarea
