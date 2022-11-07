@@ -298,9 +298,6 @@ contains
  ! preliminaries
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
 
- ! define the pethod to compute derivatives
- !print*, 'numerical derivatives = ', (ixDerivMethod==numerical)
-
  ! numerical derivatives are not implemented yet
  if(ixDerivMethod==numerical)then
   message=trim(message)//'numerical derivates do not account for the cross derivatives between hydrology and thermodynamics'
@@ -344,11 +341,6 @@ contains
  do iLayer=1,nSoil ! (loop through soil layers)
   if(mLayerVolFracIceTrial(iLayer) > verySmall) ixIce = iLayer
  end do
- !if(ixIce==nSoil)then; err=20; message=trim(message)//'ice extends to the bottom of the soil profile'; return; end if
-
- ! *************************************************************************************************************************************************
- ! *************************************************************************************************************************************************
-
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
  ! compute the transpiration sink term
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
@@ -377,9 +369,6 @@ contains
 
  endif  ! if need to compute transpiration
 
- ! *************************************************************************************************************************************************
- ! *************************************************************************************************************************************************
-
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
  ! compute diagnostic variables at the nodes throughout the soil profile
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
@@ -400,7 +389,7 @@ contains
                   ! input: soil parameters
                   vGn_alpha(iSoil),                & ! intent(in): van Genutchen "alpha" parameter (m-1)
                   vGn_n(iSoil),                    & ! intent(in): van Genutchen "n" parameter (-)
-                  VGn_m(iSoil),                    & ! intent(in): van Genutchen "m" parameter (-)
+                      vGn_m(iSoil),                    & ! intent(in): van Genutchen "m" parameter (-)
                   mpExp,                           & ! intent(in): empirical exponent in macropore flow equation (-)
                   theta_sat(iSoil),                & ! intent(in): soil porosity (-)
                   theta_res(iSoil),                & ! intent(in): soil residual volumetric water content (-)
@@ -426,9 +415,6 @@ contains
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
  end do  ! (looping through soil layers)
-
- ! *************************************************************************************************************************************************
- ! *************************************************************************************************************************************************
 
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
  ! compute infiltraton at the surface and its derivative w.r.t. mass in the upper soil layer
@@ -505,7 +491,7 @@ contains
                   ! input: soil parameters
                   vGn_alpha(1),                       & ! intent(in): van Genutchen "alpha" parameter (m-1)
                   vGn_n(1),                           & ! intent(in): van Genutchen "n" parameter (-)
-                  VGn_m(1),                           & ! intent(in): van Genutchen "m" parameter (-)
+                      vGn_m(1),                           & ! intent(in): van Genutchen "m" parameter (-)
                   theta_sat(1),                       & ! intent(in): soil porosity (-)
                   theta_res(1),                       & ! intent(in): soil residual volumetric water content (-)
                   qSurfScale,                         & ! intent(in): scaling factor in the surface runoff parameterization (-)
@@ -541,21 +527,12 @@ contains
     case default; err=10; message=trim(message)//"unknown perturbation"; return
    end select
   end if
-
-  !write(*,'(a,1x,10(f30.15))') 'scalarRainPlusMelt, scalarSurfaceInfiltration = ', scalarRainPlusMelt, scalarSurfaceInfiltration
-
  end do  ! (looping through different flux calculations -- one or multiple calls depending if desire for numerical or analytical derivatives)
 
  ! compute numerical derivatives
  if(deriv_desired .and. ixDerivMethod==numerical)then
   dq_dHydStateBelow(0) = (scalarFlux_dStateBelow - scalarFlux)/dx ! change in surface flux w.r.t. change in the soil moisture in the top soil layer (m s-1)
  end if
- !print*, 'scalarSurfaceInfiltration, iLayerLiqFluxSoil(0) = ', scalarSurfaceInfiltration, iLayerLiqFluxSoil(0)
- !print*, '(ixDerivMethod==numerical), dq_dHydStateBelow(0) = ', (ixDerivMethod==numerical), dq_dHydStateBelow(0)
- !pause
-
- ! *************************************************************************************************************************************************
- ! *************************************************************************************************************************************************
 
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
  ! * compute fluxes and derivatives at layer interfaces...
@@ -679,21 +656,7 @@ contains
    dq_dHydStateBelow(iLayer) = (scalarFlux_dStateBelow - scalarFlux)/dx    ! change in drainage flux w.r.t. change in the state in the layer below (m s-1 or s-1)
   end if
 
-  ! check
-  !if(iLayer==6) write(*,'(a,i4,1x,10(e25.15,1x))') 'iLayer, vectorMatricHeadTrial, iLayerHydCond(iLayer), iLayerLiqFluxSoil(iLayer) = ',&
-  !                                                  iLayer, vectorMatricHeadTrial, iLayerHydCond(iLayer), iLayerLiqFluxSoil(iLayer)
-  !if(iLayer==1) write(*,'(a,i4,1x,L1,1x,2(e15.5,1x))') 'iLayer, (ixDerivMethod==numerical), dq_dHydStateBelow(iLayer-1), dq_dHydStateAbove(iLayer) = ', &
-  !                                                      iLayer, (ixDerivMethod==numerical), dq_dHydStateBelow(iLayer-1), dq_dHydStateAbove(iLayer)
-  !pause
-
  end do  ! (looping through soil layers)
-
- ! add infiltration to the upper-most unfrozen layer
- ! NOTE: this is done here rather than in surface runoff
- !iLayerLiqFluxSoil(ixIce) = iLayerLiqFluxSoil(ixIce) + scalarSurfaceInfiltration
-
- ! *************************************************************************************************************************************************
- ! *************************************************************************************************************************************************
 
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
  ! * compute drainage flux from the bottom of the soil profile, and its derivative
@@ -824,11 +787,7 @@ contains
   dq_dHydStateBelow(nSoil) = 0._rkind  ! keep this here in case we want to couple some day....
   dq_dNrgStateBelow(nSoil) = 0._rkind  ! keep this here in case we want to couple some day....
 
-  ! print drainage
-  !print*, 'iLayerLiqFluxSoil(nSoil) = ', iLayerLiqFluxSoil(nSoil)
-
  endif  ! if computing drainage
- ! end of drainage section
 
  ! *****************************************************************************************************************************************************************
  ! *****************************************************************************************************************************************************************
@@ -856,7 +815,7 @@ contains
                        ! input: soil parameters
                        vGn_alpha,             & ! intent(in): van Genutchen "alpha" parameter (m-1)
                        vGn_n,                 & ! intent(in): van Genutchen "n" parameter (-)
-                       VGn_m,                 & ! intent(in): van Genutchen "m" parameter (-)
+                      vGn_m,                 & ! intent(in): van Genutchen "m" parameter (-)
                        mpExp,                 & ! intent(in): empirical exponent in macropore flow equation (-)
                        theta_sat,             & ! intent(in): soil porosity (-)
                        theta_res,             & ! intent(in): soil residual volumetric water content (-)
@@ -1111,7 +1070,7 @@ contains
                        ! input: soil parameters
                        vGn_alpha,                 & ! intent(in): van Genutchen "alpha" parameter (m-1)
                        vGn_n,                     & ! intent(in): van Genutchen "n" parameter (-)
-                       VGn_m,                     & ! intent(in): van Genutchen "m" parameter (-)
+                      vGn_m,                     & ! intent(in): van Genutchen "m" parameter (-)
                        theta_sat,                 & ! intent(in): soil porosity (-)
                        theta_res,                 & ! intent(in): soil residual volumetric water content (-)
                        qSurfScale,                & ! intent(in): scaling factor in the surface runoff parameterization (-)
@@ -1347,9 +1306,6 @@ contains
 
    ! compute surface runoff (m s-1)
    scalarSurfaceRunoff = scalarRainPlusMelt - scalarSurfaceInfiltration
-   !print*, 'scalarRainPlusMelt, xMaxInfilRate = ', scalarRainPlusMelt, xMaxInfilRate
-   !print*, 'scalarSurfaceInfiltration, scalarSurfaceRunoff = ', scalarSurfaceInfiltration, scalarSurfaceRunoff
-   !print*, '(1._rkind - scalarFrozenArea), (1._rkind - scalarFrozenArea)*scalarInfilArea = ', (1._rkind - scalarFrozenArea), (1._rkind - scalarFrozenArea)*scalarInfilArea
 
    ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
    surfaceHydCond = realMissing
@@ -1483,8 +1439,6 @@ contains
  end select
  ! compute the total flux (add gravity flux, positive downwards)
  iLayerLiqFluxSoil = cflux + iLayerHydCond
- !write(*,'(a,1x,10(e20.10,1x))') 'iLayerLiqFluxSoil, dPsi, dz, cflux, iLayerHydCond = ', &
- !                                 iLayerLiqFluxSoil, dPsi, dz, cflux, iLayerHydCond
 
  ! ** compute the derivatives
  if(deriv_desired)then
@@ -1705,9 +1659,6 @@ contains
     dq_dNrgStateUnsat = realMissing
    end if
 
-  ! ---------------------------------------------------------------------------------------------
-  ! * free drainage
-  ! ---------------------------------------------------------------------------------------------
   case(freeDrainage)
 
    ! compute flux
@@ -1728,10 +1679,6 @@ contains
     dq_dNrgStateUnsat = realMissing
    end if
 
-
-  ! ---------------------------------------------------------------------------------------------
-  ! * zero flux
-  ! ---------------------------------------------------------------------------------------------
   case(zeroFlux)
    scalarDrainage = 0._rkind
    if(deriv_desired)then

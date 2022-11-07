@@ -32,8 +32,6 @@ USE data_types,only:var_ilength     ! x%var(:)%dat   (i4b)
 USE multiconst,only:&
                     sb,          & ! Stefan Boltzman constant      (W m-2 K-4)
                     Em_Sno,      & ! emissivity of snow            (-)
-                    Cp_air,      & ! specific heat of air          (J kg-1 K-1)
-                    Cp_water,    & ! specifric heat of water       (J kg-1 K-1)
                     LH_fus,      & ! latent heat of fusion         (J kg-1)
                     LH_vap,      & ! latent heat of vaporization   (J kg-1)
                     LH_sub,      & ! latent heat of sublimation    (J kg-1)
@@ -41,7 +39,15 @@ USE multiconst,only:&
                     Tfreeze,     & ! freezing point of pure water  (K)
                     iden_air,    & ! intrinsic density of air      (kg m-3)
                     iden_ice,    & ! intrinsic density of ice      (kg m-3)
-                    iden_water     ! intrinsic density of water    (kg m-3)
+                    iden_water,  &  ! intrinsic density of water    (kg m-3)
+                    ! specific heat
+                    Cp_air,      & ! specific heat of air          (J kg-1 K-1)
+                    Cp_water,    & ! specific heat of liquid water (J kg-1 K-1)
+                    ! thermal conductivity
+                    lambda_air,  & ! thermal conductivity of air   (J s-1 m-1)
+                    lambda_ice,  & ! thermal conductivity of ice   (J s-1 m-1)
+                    lambda_water   ! thermal conductivity of water (J s-1 m-1)
+
 
 ! missing values
 USE globalData,only:integerMissing  ! missing integer

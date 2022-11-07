@@ -720,7 +720,6 @@ contains
      scalarGroundSnowFraction  = 0._rkind
     end if  ! (if there is snow on the ground)
    end if  ! (if the first flux call)
-   !write(*,'(a,1x,10(f30.10,1x))') 'groundTempTrial, scalarLatHeatSubVapGround = ', groundTempTrial, scalarLatHeatSubVapGround
 
    ! compute the roughness length of the ground (ground below the canopy or non-vegetated surface)
    z0Ground = z0soil*(1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction     ! roughness length (m)
@@ -794,13 +793,6 @@ contains
     dCanopyWetFraction_dWat = 0._rkind  ! derivative in wetted fraction w.r.t. canopy liquid water (kg-1 m2)
     dCanopyWetFraction_dT   = 0._rkind  ! derivative in wetted fraction w.r.t. canopy temperature (K-1)
    end if
-   !write(*,'(a,1x,L1,1x,f25.15,1x))') 'computeVegFlux, scalarCanopyWetFraction = ', computeVegFlux, scalarCanopyWetFraction
-   !print*, 'dCanopyWetFraction_dWat = ', dCanopyWetFraction_dWat
-   !print*, 'dCanopyWetFraction_dT   = ', dCanopyWetFraction_dT
-   !print*, 'canopyLiqTrial = ', canopyLiqTrial
-   !print*, 'canopyIceTrial = ', canopyIceTrial
-   !print*, 'scalarCanopyLiqMax = ', scalarCanopyLiqMax
-   !print*, 'scalarCanopyIceMax = ', scalarCanopyIceMax
 
    ! *******************************************************************************************************************************************************************
    ! *******************************************************************************************************************************************************************
@@ -868,10 +860,6 @@ contains
                    ! output: error control
                    err,cmessage                        ) ! intent(out): error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-   !print*,         scalarLeafResistance,    & ! mean leaf boundary layer resistance per unit leaf area (s m-1)
-   !                scalarGroundResistance,  & ! below canopy aerodynamic resistance (s m-1)
-   !                scalarCanopyResistance,  & ! above canopy aerodynamic resistance (s m-1)
-   !                '(leaf, ground, canopy)'
 
    ! *******************************************************************************************************************************************************************
    ! *******************************************************************************************************************************************************************
@@ -915,10 +903,6 @@ contains
                     scalarTranspireLimAqfr,            & ! intent(out): transpiration limiting factor for the aquifer (-)
                     err,cmessage                       ) ! intent(out): error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-    !print*, 'weighted average of the soil moiture factor controlling stomatal resistance (-) = ', scalarTranspireLim
-
-    !write(*,'(a,1x,10(f20.10,1x))') 'canopyTempTrial, scalarSatVP_CanopyTemp, scalarVP_CanopyAir = ', &
-    !                                 canopyTempTrial, scalarSatVP_CanopyTemp, scalarVP_CanopyAir
 
     ! compute stomatal resistance
     call stomResist(&
@@ -984,7 +968,6 @@ contains
                     ! output: error control
                     err,cmessage                       ) ! intent(out): error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-   !print*, 'dLWNetCanopy_dTGround = ', dLWNetCanopy_dTGround
 
 
    ! *******************************************************************************************************************************************************************
@@ -1069,14 +1052,9 @@ contains
 
       else
        canopyWetFraction = 0._rkind
-      end if
-      !print*, 'wetted fraction derivative = ', (canopyWetFraction - scalarCanopyWetFraction)/dx
-      !pause
+            end if ! (desired computing vegetation flux)
 
-     ! check for an unknown perturbation
-     case default; err=10; message=trim(message)//"unknown perturbation"; return
-
-    end select ! (type of perturbation)
+          end if ! (re-computing wetted fraction for perturbed cases)
 
     ! compute the saturation vapor pressure for vegetation temperature
     ! NOTE: saturated vapor pressure derivatives don't seem that accurate....
@@ -1158,9 +1136,7 @@ contains
      trialCanopyResistance = scalarCanopyResistance
 
     end if  ! (re-computing resistances for perturbed cases)
-    !print*, 'trialLeafResistance = ', trialLeafResistance
-    !print*, 'trialGroundResistance = ', trialGroundResistance
-    !print*, 'trialCanopyResistance = ', trialCanopyResistance
+
 
     ! compute the relative humidity in the top soil layer and the resistance at the ground surface
     ! NOTE: computations are based on start-of-step values, so only compute for the first flux call
@@ -1273,13 +1249,6 @@ contains
                     err,cmessage                          ) ! intent(out): error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
-    !write(*,'(a,f25.15)') 'scalarSenHeatTotal = ', scalarSenHeatTotal
-    !write(*,'(a,f25.15)') 'scalarSenHeatCanopy = ', scalarSenHeatCanopy
-    !write(*,'(a,f25.15)') 'scalarLatHeatCanopyEvap = ', scalarLatHeatCanopyEvap
-    !write(*,'(a,f25.15)') 'scalarLatHeatCanopyTrans = ', scalarLatHeatCanopyTrans
-
-    !print*, 'scalarSenHeatGround = ', scalarSenHeatGround
-    !print*, 'scalarLatHeatGround = ', scalarLatHeatGround
 
     !notUsed_scalarCanopyStabilityCorrection  ! stability correction for the canopy (-)
     !notUsed_scalarGroundStabilityCorrection  ! stability correction for the ground surface (-)
@@ -1324,11 +1293,6 @@ contains
 
    end do  ! (looping through different flux perturbations)
 
-   ! test derivative
-   !if(ix_fDerivMeth == numerical)  print*, 'try0, try1 = ', try0, try1
-   !if(ix_fDerivMeth == numerical)  print*, 'derivative = ', (ix_fDerivMeth == numerical), (try1 - try0)/dx
-   !if(ix_fDerivMeth == analytical) print*, 'derivative = ', (ix_fDerivMeth == numerical), dTurbFluxGround_dTGround
-   !pause
 
    ! compute numerical derivatives
    if(ix_fDerivMeth == numerical)then
@@ -1353,47 +1317,19 @@ contains
     dTurbFluxGround_dCanLiq    = (turbFluxGround_dStateCanLiq  - turbFluxGround) / dx          ! derivative in net ground turbulent fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
     dLatHeatCanopyEvap_dCanLiq = (latHeatCanEvap_dStateCanliq  - scalarLatHeatCanopyEvap) / dx ! derivative in latent heat of canopy evaporation w.r.t. canopy liquid water content (J kg-1 s-1)
    end if
-   !if(heightCanopyBottom < scalarSnowDepth+z0Ground) pause 'bottom of the canopy is covered'
 
-   ! test
-   !print*, (ix_fDerivMeth == numerical)
-   !print*, 'dTurbFluxCanair_dTCanair = ', dTurbFluxCanair_dTCanair
-   !print*, 'dTurbFluxCanair_dTCanopy = ', dTurbFluxCanair_dTCanopy
-   !print*, 'dTurbFluxCanair_dTGround = ', dTurbFluxCanair_dTGround
-   !print*, 'dTurbFluxCanopy_dTCanair = ', dTurbFluxCanopy_dTCanair
-   !print*, 'dTurbFluxCanopy_dTCanopy = ', dTurbFluxCanopy_dTCanopy
-   !print*, 'dTurbFluxCanopy_dTGround = ', dTurbFluxCanopy_dTGround
-   !print*, 'dTurbFluxGround_dTCanair = ', dTurbFluxGround_dTCanair
-   !print*, 'dTurbFluxGround_dTCanopy = ', dTurbFluxGround_dTCanopy
-   !print*, 'dTurbFluxGround_dTGround = ', dTurbFluxGround_dTGround
-   !print*, 'dLatHeatCanopyEvap_dCanLiq = ', dLatHeatCanopyEvap_dCanLiq
-   !print*, 'dLatHeatCanopyEvap_dTCanair = ', dLatHeatCanopyEvap_dTCanair
-   !print*, 'dLatHeatCanopyEvap_dTCanopy = ', dLatHeatCanopyEvap_dTCanopy
-   !print*, 'dLatHeatCanopyEvap_dTGround = ', dLatHeatCanopyEvap_dTGround
-   !print*, 'dTurbFluxCanair_dCanLiq = ', dTurbFluxCanair_dCanLiq
-   !print*, 'dTurbFluxCanopy_dCanLiq = ', dTurbFluxCanopy_dCanLiq
-   !print*, 'dTurbFluxGround_dCanLiq = ', dTurbFluxGround_dCanLiq
-   !print*, '*****'
-   !pause
-
-   !print*, 'scalarRainfall, scalarThroughfallRain, scalarSnowfall, scalarThroughfallSnow, canopyTempTrial, scalarTwetbulb = ', &
-   !         scalarRainfall, scalarThroughfallRain, scalarSnowfall, scalarThroughfallSnow, canopyTempTrial, scalarTwetbulb
 
    ! compute the heat advected with precipitation (W m-2)
    ! NOTE: fluxes are in kg m-2 s-1, so no need to use density of water/ice here
    scalarCanopyAdvectiveHeatFlux = -Cp_water*(scalarRainfall - scalarThroughfallRain)*(canopyTempTrial - scalarTwetbulb) + &
                                    (-Cp_ice)*(scalarSnowfall - scalarThroughfallSnow)*(canopyTempTrial - scalarTwetbulb)
    scalarGroundAdvectiveHeatFlux = -Cp_water*scalarThroughfallRain*(groundTempTrial - scalarTwetbulb)         + &
-                                   (-Cp_ice)*scalarThroughfallSnow*(groundTempTrial - scalarTwetbulb)         !+ &
-   !                                -Cp_water*scalarCanopyLiqDrainage  *(groundTempTrial - canopyTempTrial) + &
-   !                                -Cp_ice  *scalarCanopySnowUnloading*(groundTempTrial - canopyTempTrial)
-   !print*, 'scalarRainfall, scalarThroughfallRain, scalarSnowfall, scalarThroughfallSnow = ', scalarRainfall, scalarThroughfallRain, scalarSnowfall, scalarThroughfallSnow
-   !print*, 'scalarCanopyAdvectiveHeatFlux, scalarGroundAdvectiveHeatFlux = ', scalarCanopyAdvectiveHeatFlux, scalarGroundAdvectiveHeatFlux
+                                        (-Cp_ice)*scalarThroughfallSnow*(groundTempTrial - scalarTwetbulb)
+
 
    ! compute the mass flux associated with transpiration and evaporation/sublimation (J m-2 s-1 --> kg m-2 s-1)
    ! NOTE: remove water from the snow on the ground in preference to removing water from the water in soil pores
-   !print*, 'scalarLatHeatCanopyTrans = ', scalarLatHeatCanopyTrans
-   !print*, 'scalarLatHeatGround      = ', scalarLatHeatGround
+
    ! (canopy transpiration/sublimation)
    if(scalarLatHeatSubVapCanopy > LH_vap+verySmall)then ! sublimation
     scalarCanopyEvaporation = 0._rkind
@@ -1427,9 +1363,7 @@ contains
     scalarGroundEvaporation = scalarLatHeatGround/LH_vap
     scalarSnowSublimation   = 0._rkind  ! no sublimation from snow if no snow layers have formed
    end if
-   !print*, 'scalarSnowSublimation, scalarLatHeatGround = ', scalarSnowSublimation, scalarLatHeatGround
 
-   !print*, 'canopyWetFraction, scalarCanopyEvaporation = ', canopyWetFraction, scalarCanopyEvaporation
 
    ! *******************************************************************************************************************************************************************
    ! *******************************************************************************************************************************************************************
@@ -1445,10 +1379,6 @@ contains
    canairNetFlux = turbFluxCanair
    canopyNetFlux = scalarCanopyAbsorbedSolar + scalarLWNetCanopy + turbFluxCanopy + scalarCanopyAdvectiveHeatFlux
    groundNetFlux = scalarGroundAbsorbedSolar + scalarLWNetGround + turbFluxGround + scalarGroundAdvectiveHeatFlux
-   !write(*,'(a,1x,10(e17.10,1x))') 'canopyNetFlux, groundNetFlux,  scalarLWNetCanopy, turbFluxCanopy, turbFluxGround, scalarLWNetGround, scalarCanopyAdvectiveHeatFlux = ', &
-   !                                 canopyNetFlux, groundNetFlux,  scalarLWNetCanopy, turbFluxCanopy, turbFluxGround, scalarLWNetGround, scalarCanopyAdvectiveHeatFlux
-   !write(*,'(a,1x,10(e20.14,1x))') 'groundNetFlux, scalarGroundAbsorbedSolar,  scalarLWNetGround, turbFluxGround, scalarGroundAdvectiveHeatFlux = ', &
-   !                                 groundNetFlux, scalarGroundAbsorbedSolar,  scalarLWNetGround, turbFluxGround, scalarGroundAdvectiveHeatFlux
 
    ! compute the energy derivatives
    dCanairNetFlux_dCanairTemp = dTurbFluxCanair_dTCanair
@@ -1488,15 +1418,6 @@ contains
    dCanopyNetFlux_dCanLiq = dTurbFluxCanopy_dCanLiq  ! derivative in net canopy fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
    dGroundNetFlux_dCanLiq = dTurbFluxGround_dCanLiq  ! derivative in net ground fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
 
-   !print*, (ix_fDerivMeth == numerical)
-   !print*, 'dGroundNetFlux_dCanairTemp = ', dGroundNetFlux_dCanairTemp
-   !print*, 'dCanopyNetFlux_dCanopyTemp = ', dCanopyNetFlux_dCanopyTemp
-   !print*, 'dGroundNetFlux_dCanopyTemp = ', dGroundNetFlux_dCanopyTemp
-   !print*, 'dCanopyNetFlux_dGroundTemp = ', dCanopyNetFlux_dGroundTemp
-   !print*, 'dGroundNetFlux_dGroundTemp = ', dGroundNetFlux_dGroundTemp
-   !print*, 'dLWNetCanopy_dTGround = ', dLWNetCanopy_dTGround
-   !print*, 'dTurbFluxCanopy_dTGround = ', dTurbFluxCanopy_dTGround
-   !pause
 
   ! * check
   case default; err=10; message=trim(message)//'unable to identify upper boundary condition for thermodynamics'; return
@@ -1629,7 +1550,6 @@ contains
 
  ! compute relative canopy water
  relativeCanopyWater = canopyLiq/canopyMax
- !write(*,'(a,1x,e20.10,1x,2(f20.10,1x))') 'relativeCanopyWater, canopyLiq, canopyMax = ', relativeCanopyWater, canopyLiq, canopyMax
 
  ! compute an initial value of the canopy wet fraction
  ! - canopy below value where canopy is 100% wet
@@ -1814,8 +1734,6 @@ contains
  ! either one or multiple flux calls, depending on if using analytical or numerical derivatives
  do itry=nFlux,1,-1  ! (work backwards to ensure all computed fluxes come from the un-perturbed case)
 
-  !print*, 'perturbation: ', (itry==unperturbed), (itry==perturbStateCanopy), (itry==perturbStateGround)
-
   ! -------------------------------------------------------------------------------------
   ! state perturbations for numerical deriavtives with one-sided finite differences
   ! note: no perturbations performed using analytical derivatives (nFlux=1)
@@ -1875,13 +1793,6 @@ contains
   LWNetCanopy = LWRadUbound2Canopy + LWRadGround2Canopy + LWRadCanopy2Canopy - 2._rkind*LWRadCanopy  ! canopy
   LWNetGround = LWRadUbound2Ground + LWRadCanopy2Ground - LWRadGround                             ! ground surface
   LWNetUbound = LWRadUbound - LWRadUbound2Ubound - LWRadCanopy2Ubound - LWRadGround2Ubound                             ! upper boundary
-
-  !print*, 'LWRadCanopy = ', LWRadCanopy
-  !print*, 'LWRadGround = ', LWRadGround
-
-  !print*, 'LWNetCanopy = ', LWNetCanopy
-  !print*, 'LWNetGround = ', LWNetGround
-  !print*, 'LWNetUbound = ', LWNetUbound
 
   ! check the flux balance
   fluxBalance = LWNetUbound - (LWNetCanopy + LWNetGround)
@@ -2856,32 +2767,16 @@ contains
   ! compute the vapor pressure in the canopy air space (Pa)
   fPart_VP     = canopyConductance*VPair + (evapConductance + transConductance)*satVP_CanopyTemp + groundConductanceLH*satVP_GroundTemp*soilRelHumidity
   VP_CanopyAir = fPart_VP/totalConductanceLH
-  !write(*,'(a,10(f20.10,1x))') 'canopyConductance, evapConductance, transConductance, groundConductanceLH, soilRelHumidity = ', &
-  !                              canopyConductance, evapConductance, transConductance, groundConductanceLH, soilRelHumidity
 
   ! compute sensible heat flux from the canopy air space to the atmosphere
   ! NOTE: canairTemp is a state variable
   senHeatTotal = -volHeatCapacityAir*canopyConductance*(canairTemp - airtemp)
-  !print*, 'canairTemp, airtemp, senHeatTotal = ', canairTemp, airtemp, senHeatTotal
 
   ! compute fluxes
   senHeatCanopy      = -volHeatCapacityAir*leafConductance*(canopyTemp - canairTemp)        ! (positive downwards)
   latHeatCanopyEvap  = -latHeatSubVapCanopy*latentHeatConstant*evapConductance*(satVP_CanopyTemp - VP_CanopyAir)    ! (positive downwards)
   latHeatCanopyTrans =              -LH_vap*latentHeatConstant*transConductance*(satVP_CanopyTemp - VP_CanopyAir)   ! (positive downwards)
-  !write(*,'(a,10(f25.15,1x))') 'latHeatCanopyEvap, VP_CanopyAir = ', latHeatCanopyEvap, VP_CanopyAir
-  !write(*,'(a,10(f25.15,1x))') 'latHeatCanopyTrans, VP_CanopyAir = ', latHeatCanopyTrans, VP_CanopyAir
-  !write(*,'(a,10(f25.15,1x))') 'transConductance = ', transConductance
 
-  ! check that energy for canopy evaporation does not exhaust the available water
-  ! NOTE: do this here, rather than enforcing solution constraints, because energy and mass solutions may be uncoupled
-  !if(latHeatSubVapCanopy > LH_vap+verySmall)then ! (sublimation)
-  ! maxFlux = -canopyIce*LH_sub/dt       ! W m-2
-  !else ! (evaporation)
-  ! maxFlux = -canopyLiquid*LH_vap/dt    ! W m-2
-  !end if
-  ! NOTE: fluxes are positive downwards
-  !if(latHeatCanopyEvap < maxFlux) latHeatCanopyEvap = maxFlux
-  !write(*,'(a,10(f20.10,1x))') 'maxFlux, latHeatCanopyEvap = ', maxFlux, latHeatCanopyEvap
 
  ! * no vegetation, so fluxes are zero
  else
@@ -2937,22 +2832,16 @@ contains
    dSenHeatTotal_dTCanair       = -volHeatCapacityAir*canopyConductance - volHeatCapacityAir*dCanopyCond_dCanairTemp*(canairTemp - airtemp)
    dSenHeatTotal_dTCanopy       = -volHeatCapacityAir*dCanopyCond_dCanopyTemp*(canairTemp - airtemp)
    dSenHeatTotal_dTGround       = 0._rkind
-   !write(*,'(a,3(f20.8,1x))') 'dSenHeatTotal_dTCanair, dSenHeatTotal_dTCanopy, dSenHeatTotal_dTGround                   = ', &
-   !                            dSenHeatTotal_dTCanair, dSenHeatTotal_dTCanopy, dSenHeatTotal_dTGround
 
    ! sensible heat from the canopy to the canopy air space
    dSenHeatCanopy_dTCanair      =  volHeatCapacityAir*leafConductance
    dSenHeatCanopy_dTCanopy      = -volHeatCapacityAir*leafConductance
    dSenHeatCanopy_dTGround      = 0._rkind
-   !write(*,'(a,3(f20.8,1x))') 'dSenHeatCanopy_dTCanair, dSenHeatCanopy_dTCanopy, dSenHeatCanopy_dTGround                = ', &
-   !                            dSenHeatCanopy_dTCanair, dSenHeatCanopy_dTCanopy, dSenHeatCanopy_dTGround
 
    ! sensible heat from the ground to the canopy air space
    dSenHeatGround_dTCanair      = -volHeatCapacityAir*dGroundCondSH_dCanairTemp*(groundTemp - canairTemp) + volHeatCapacityAir*groundConductanceSH
    dSenHeatGround_dTCanopy      = -volHeatCapacityAir*dGroundCondSH_dCanopyTemp*(groundTemp - canairTemp)
    dSenHeatGround_dTGround      = -volHeatCapacityAir*dGroundCondSH_dGroundTemp*(groundTemp - canairTemp) - volHeatCapacityAir*groundConductanceSH
-   !write(*,'(a,3(f20.8,1x))') 'dSenHeatGround_dTCanair, dSenHeatGround_dTCanopy, dSenHeatGround_dTGround                = ', &
-   !                            dSenHeatGround_dTCanair, dSenHeatGround_dTCanopy, dSenHeatGround_dTGround
 
    ! latent heat associated with canopy evaporation
    ! (initial calculations)
@@ -2964,8 +2853,6 @@ contains
    dLatHeatCanopyEvap_dTCanair  = fPart1*(-dVPCanopyAir_dTCanair)
    dLatHeatCanopyEvap_dTCanopy  = fPart1*dpart2 + fPart2*dPart1
    dLatHeatCanopyEvap_dTGround  = fPart1*(-dVPCanopyAir_dTGround)
-   !write(*,'(a,3(f20.8,1x))') 'dLatHeatCanopyEvap_dTCanair, dLatHeatCanopyEvap_dTCanopy, dLatHeatCanopyEvap_dTGround    = ', &
-   !                            dLatHeatCanopyEvap_dTCanair, dLatHeatCanopyEvap_dTCanopy, dLatHeatCanopyEvap_dTGround
 
    ! latent heat associated with canopy transpiration
    ! (initial calculations)
@@ -2975,8 +2862,6 @@ contains
    dLatHeatCanopyTrans_dTCanair = fPart1*(-dVPCanopyAir_dTCanair)
    dLatHeatCanopyTrans_dTCanopy = fPart1*dPart2 + fPart2*dPart1
    dLatHeatCanopyTrans_dTGround = fPart1*(-dVPCanopyAir_dTGround)
-   !write(*,'(a,3(f20.8,1x))') 'dLatHeatCanopyTrans_dTCanair, dLatHeatCanopyTrans_dTCanopy, dLatHeatCanopyTrans_dTGround = ', &
-   !                            dLatHeatCanopyTrans_dTCanair, dLatHeatCanopyTrans_dTCanopy, dLatHeatCanopyTrans_dTGround
 
    ! latent heat flux from the ground
    fPart1 = -latHeatSubVapGround*latentHeatConstant*groundConductanceLH       ! function of the first part
@@ -2984,8 +2869,6 @@ contains
    dLatHeatGroundEvap_dTCanair = -latHeatSubVapGround*latentHeatConstant*dGroundCondLH_dCanairTemp*fPart2 - dVPCanopyAir_dTCanair*fPart1
    dLatHeatGroundEvap_dTCanopy = -latHeatSubVapGround*latentHeatConstant*dGroundCondLH_dCanopyTemp*fPart2 - dVPCanopyAir_dTCanopy*fPart1
    dLatHeatGroundEvap_dTGround = -latHeatSubVapGround*latentHeatConstant*dGroundCondLH_dGroundTemp*fPart2 + (dSVPGround_dGroundTemp*soilRelHumidity - dVPCanopyAir_dTGround)*fPart1
-   !write(*,'(a,3(f20.8,1x))') 'dLatHeatGroundEvap_dTCanair, dLatHeatGroundEvap_dTCanopy, dLatHeatGroundEvap_dTGround                = ', &
-   !                            dLatHeatGroundEvap_dTCanair, dLatHeatGroundEvap_dTCanopy, dLatHeatGroundEvap_dTGround
 
    ! latent heat associated with canopy evaporation w.r.t. wetted fraction of the canopy
    dPart1 = -latHeatSubVapCanopy*latentHeatConstant*leafConductance
@@ -3036,8 +2919,6 @@ contains
    dLatHeatGroundEvap_dTGround = (-latHeatSubVapGround*latentHeatConstant*dGroundCondLH_dGroundTemp)*(satVP_GroundTemp*soilRelHumidity - VPair) + &       ! d(ground latent heat flux)/d(ground temp)
                                  (-latHeatSubVapGround*latentHeatConstant*groundConductanceLH)*dSVPGround_dGroundTemp*soilRelHumidity
 
-   !print*, 'dGroundCondLH_dGroundTemp = ', dGroundCondLH_dGroundTemp
-
   end if   ! (if canopy is defined)
 
  end if  ! (if computing analytical derivatives)
@@ -3051,7 +2932,6 @@ contains
  turbFluxCanair = senHeatTotal - senHeatCanopy - senHeatGround            ! net turbulent flux at the canopy air space (W m-2)
  turbFluxCanopy = senHeatCanopy + latHeatCanopyEvap + latHeatCanopyTrans  ! net turbulent flux at the canopy (W m-2)
  turbFluxGround = senHeatGround + latHeatGround                           ! net turbulent flux at the ground surface (W m-2)
- !write(*,'(a,1x,3(f20.10,1x))') 'senHeatCanopy, latHeatCanopyEvap, latHeatCanopyTrans = ', senHeatCanopy, latHeatCanopyEvap, latHeatCanopyTrans
 
   ! * compute derivatives
  if(ixDerivMethod == analytical)then

@@ -241,12 +241,6 @@ contains
  ! get the start time
  call cpu_time(startTime)
 
- ! check the sundials decision
- if(model_decisions(iLookDECISIONS%num_method)%iDecision==sundials)then
-  message=trim(message)//'still need to implement the sundials solver'
-  err=20; return
- endif
-
  ! check that the decision is supported
  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision==bigBucket .and. &
     model_decisions(iLookDECISIONS%spatial_gw)%iDecision/=localColumn)then
@@ -625,11 +619,12 @@ contains
                   err,cmessage)                  ! intent(out): error control
   if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
 
+
+
   ! save the number of snow and soil layers
   nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
   nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
   nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
-
 
   ! compute the indices for the model state variables
   if(firstSubStep .or. modifiedVegState .or. modifiedLayers)then

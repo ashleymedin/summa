@@ -276,27 +276,34 @@ contains
  ! initialize error control
  err=0; message="eval8summa/"
 
- ! check the feasibility of the solution
+    ! check the feasibility of the solution always with SUMMA BE
+    !  NOTE: we will not print infeasibilities since it does not indicate a failure, just a need to iterate until maxiter
  feasible=.true.
 
  ! check that the canopy air space temperature is reasonable
  if(ixCasNrg/=integerMissing)then
   if(stateVecTrial(ixCasNrg) > canopyTempMax) feasible=.false.
+      !if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVecTrial( ixCasNrg )', feasible, canopyTempMax, stateVecTrial(ixCasNrg)
  endif
 
  ! check that the canopy air space temperature is reasonable
  if(ixVegNrg/=integerMissing)then
   if(stateVecTrial(ixVegNrg) > canopyTempMax) feasible=.false.
+      !if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVecTrial( ixVegNrg )', feasible, canopyTempMax, stateVecTrial(ixVegNrg)
  endif
 
  ! check canopy liquid water is not negative
  if(ixVegHyd/=integerMissing)then
   if(stateVecTrial(ixVegHyd) < 0._rkind) feasible=.false.
+      !if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, min, stateVecTrial( ixVegHyd )', feasible, 0._rkind, stateVecTrial(ixVegHyd)
  end if
 
  ! check snow temperature is below freezing
  if(count(ixSnowOnlyNrg/=integerMissing)>0)then
   if(any(stateVecTrial( pack(ixSnowOnlyNrg,ixSnowOnlyNrg/=integerMissing) ) > Tfreeze)) feasible=.false.
+      !do iLayer=1,nSnow
+      !  if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, max, stateVecTrial( ixSnowOnlyNrg(iLayer) )', iLayer, feasible, Tfreeze, stateVecTrial( ixSnowOnlyNrg(iLayer) )
+      !enddo
  endif
 
  ! loop through non-missing hydrology state variables in the snow+soil domain
@@ -407,20 +414,6 @@ contains
                  err,cmessage)                                ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
- ! print the states in the canopy domain
- !print*, 'dt = ', dt
- !write(*,'(a,1x,10(f20.10,1x))') 'scalarCanopyTempTrial    = ', scalarCanopyTempTrial
- !write(*,'(a,1x,10(f20.10,1x))') 'scalarCanopyWatTrial     = ', scalarCanopyWatTrial
- !write(*,'(a,1x,10(f20.10,1x))') 'scalarCanopyLiqTrial     = ', scalarCanopyLiqTrial
- !write(*,'(a,1x,10(f20.10,1x))') 'scalarCanopyIceTrial     = ', scalarCanopyIceTrial
-
- ! print the states in the snow+soil domain
- !write(*,'(a,1x,10(f20.10,1x))') 'mLayerTempTrial          = ', mLayerTempTrial(iJac1:min(nLayers,iJac2))
- !write(*,'(a,1x,10(f20.10,1x))') 'mLayerVolFracWatTrial    = ', mLayerVolFracWatTrial(iJac1:min(nLayers,iJac2))
- !write(*,'(a,1x,10(f20.10,1x))') 'mLayerVolFracLiqTrial    = ', mLayerVolFracLiqTrial(iJac1:min(nLayers,iJac2))
- !write(*,'(a,1x,10(f20.10,1x))') 'mLayerVolFracIceTrial    = ', mLayerVolFracIceTrial(iJac1:min(nLayers,iJac2))
- !write(*,'(a,1x,10(f20.10,1x))') 'mLayerMatricHeadTrial    = ', mLayerMatricHeadTrial(iJac1:min(nSoil,iJac2))
- !write(*,'(a,1x,10(f20.10,1x))') 'mLayerMatricHeadLiqTrial = ', mLayerMatricHeadLiqTrial(iJac1:min(nSoil,iJac2))
 
  ! print the water content
  if(globalPrintFlag)then

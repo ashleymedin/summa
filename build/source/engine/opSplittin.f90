@@ -479,9 +479,7 @@ contains
   end select  ! operator splitting option
 
   ! state splitting loop
-  stateTypeSplitLoop: do iStateTypeSplit=1,nStateTypeSplit
-
-   !print*, 'iStateTypeSplit, nStateTypeSplit = ', iStateTypeSplit, nStateTypeSplit
+      stateTypeSplit: do iStateTypeSplit=1,nStateTypeSplit
 
    ! -----
    ! * identify state-specific variables for a given state split...
@@ -776,47 +774,17 @@ contains
                        reduceCoupledStep,          & ! intent(out)   : flag to reduce the length of the coupled step
                        tooMuchMelt,                & ! intent(out)   : flag to denote that ice is insufficient to support melt
                        err,cmessage)                 ! intent(out)   : error code and error message
+                              ! check
+                  case default; err=20; message=trim(message)//'expect num_method to be sundials or bEuler (or itertive, which is bEuler)'; return
+                end select
+
        if(err/=0)then
         message=trim(message)//trim(cmessage)
         if(err>0) return
        endif  ! (check for errors)
 
-       !print*, trim(message)//'after varSubstep: scalarSnowDrainage = ', flux_data%var(iLookFLUX%scalarSnowDrainage)%dat
-       !print*, trim(message)//'after varSubstep: iLayerLiqFluxSnow  = ', flux_data%var(iLookFLUX%iLayerLiqFluxSnow)%dat
-       !print*, trim(message)//'after varSubstep: iLayerLiqFluxSoil  = ', flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat
-
-       ! check
-       !if(ixSolution==scalar)then
-       ! print*, 'PAUSE: check scalar'; read(*,*)
-       !endif
-
        ! reduce coupled step if failed the minimum step for the scalar solution
        if(failedMinimumStep .and. ixSolution==scalar) reduceCoupledStep=.true.
-
-       ! check
-       !if(ixCoupling/=fullyCoupled)then
-       ! print*, 'dt = ', dt
-       ! print*, 'after varSubstep: err              = ', err
-       ! print*, 'after varSubstep: cmessage         = ', trim(cmessage)
-       ! print*, 'after varSubstep: computeVegFlux   = ', computeVegFlux
-       ! print*, 'after varSubstep: stateMask        = ', stateMask
-       ! print*, 'after varSubstep: coupling         = ', (ixCoupling==fullyCoupled)
-       ! print*, 'after varSubstep: scalar solve     = ', (ixSolution==scalar)
-       ! print*, 'iStateTypeSplit, nStateTypeSplit = ', iStateTypeSplit, nStateTypeSplit
-       ! print*, 'iDomainSplit,    nDomainSplit    = ', iDomainSplit,    nDomainSplit
-       ! print*, 'nSubset           = ', nSubset
-       ! print*, 'tooMuchMelt       = ', tooMuchMelt
-       ! print*, 'reduceCoupledStep = ', reduceCoupledStep
-       ! print*, 'failedMinimumStep = ', failedMinimumStep, merge('coupled','opSplit',ixCoupling==fullyCoupled)
-       ! if(ixSolution==scalar)then; print*, 'PAUSE'; read(*,*); endif
-       !endif
-
-       !if(ixSolution==scalar)then
-       ! !print*, trim(message)//'stop: checking scalar solution'; stop
-       ! print*, trim(message)//'pause: checking scalar solution'; read(*,*)
-       !endif
-
-       !print*, 'tooMuchMelt, reduceCoupledStep = ', tooMuchMelt, reduceCoupledStep
 
        ! if too much melt (or some other need to reduce the coupled step) then return
        ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
@@ -832,14 +800,12 @@ contains
 
        ! if failed, need to reset the flux counter
        if(failure)then
-        !print*, 'failure!'
         do iVar=1,size(flux_meta)
          iMin=lbound(flux_data%var(iVar)%dat)
          iMax=ubound(flux_data%var(iVar)%dat)
          do iLayer=iMin(1),iMax(1)
           if(fluxMask%var(iVar)%dat(iLayer)) fluxCount%var(iVar)%dat(iLayer) = fluxCount%var(iVar)%dat(iLayer) - nSubsteps
          end do
-         !if(iVar==iLookFLUX%mLayerTranspire) print*, flux_meta(iVar)%varname, fluxCount%var(iVar)%dat
         end do
        endif
 
@@ -885,11 +851,8 @@ contains
        endif  ! success check
 
       end do stateSplit ! solution with split layers
-      !print*, 'after stateSplit'
 
      end do solution ! trial with the full layer solution then the split layer solution
-
-     !print*, 'after solution loop'
 
      ! ***** trial with a given solution method...
      ! *******************************************************************************************************************************
@@ -914,15 +877,7 @@ contains
     where(ixStateType(ixHydLayer) ==iname_lmpLayer)  ixStateType(ixHydLayer) =iname_matLayer
    endif  ! if modifying state variables for the mass split
 
-  end do stateTypeSplitLoop ! state type splitting loop
-
-  ! check
-  !if(ixCoupling/=fullyCoupled)then
-  ! print*, 'PAUSE: end of splitting loop'; read(*,*)
-  !endif
-
-  ! ==========================================================================================================================================
-  ! ==========================================================================================================================================
+      end do stateTypeSplit ! state type splitting loop
 
   ! success = exit the coupling loop
   ! terminate DO loop early if fullyCoupled returns a solution,
