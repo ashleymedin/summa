@@ -235,14 +235,23 @@ contains
  ! canopy and layer depth
  canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,&  ! intent(in):  [dp   ] canopy depth (m)
  mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,&  ! intent(in):  [dp(:)] depth of each layer in the snow-soil sub-domain (m)
- ! model state variables
- scalarSfcMeltPond       => prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)      ,&  ! intent(in):  [dp]    ponded water caused by melt of the "snow without a layer" (kg m-2)
- mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,&  ! intent(in):  [dp(:)] volumetric fraction of liquid water (-)
- mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,&  ! intent(in):  [dp(:)] volumetric fraction of ice (-)
- mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,&  ! intent(in):  [dp(:)] matric potential (m)
- ! model diagnostic variables
- scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,&  ! intent(in):  [dp]    fraction of liquid water on vegetation (-)
- mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,&  ! intent(in):  [dp(:)] fraction of liquid water in each snow layer (-)
+    ! model state variables
+    scalarCanairTemp        => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(in):  [dp]     temperature of the canopy air space (K)
+    scalarCanopyTemp        => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(in):  [dp]     temperature of the vegetation canopy (K)
+    scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)        ,& ! intent(in):  [dp]     mass of total water on the vegetation canopy (kg m-2)
+    mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(in):  [dp(:)]  temperature of each snow/soil layer (K)
+    mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(in):  [dp(:)]  volumetric fraction of total water (-)
+    mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(in):  [dp(:)]  total water matric potential (m)
+    mLayerMatricHeadLiq     => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat       ,& ! intent(in):  [dp(:)]  liquid water matric potential (m)
+    scalarAquiferStorage    => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)   ,& ! intent(in):  [dp]     storage of water in the aquifer (m)
+    ! model diagnostic variables from a previous solution
+    scalarSfcMeltPond       => prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)      ,&  ! intent(in):  [dp]    ponded water caused by melt of the "snow without a layer" (kg m-2)
+    scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,& ! intent(in):  [dp(:)]  mass of liquid water on the vegetation canopy (kg m-2)
+    scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(in):  [dp(:)]  mass of ice on the vegetation canopy (kg m-2)
+    mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in):  [dp(:)]  volumetric fraction of liquid water (-)
+    mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in):  [dp(:)]  volumetric fraction of ice (-)
+    scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,&  ! intent(in):  [dp]    fraction of liquid water on vegetation (-)
+    mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,&  ! intent(in):  [dp(:)] fraction of liquid water in each snow layer (-)
  ! soil compression
  scalarSoilCompress      => diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)     ,&  ! intent(in): [dp]    total change in storage associated with compression of the soil matrix (kg m-2)
  mLayerCompress          => diag_data%var(iLookDIAG%mLayerCompress)%dat            ,&  ! intent(in): [dp(:)] change in storage associated with compression of the soil matrix (-)
@@ -335,31 +344,43 @@ contains
   ixEnd  = nSoil
  endif
 
- ! extract variables from the model state vector
- call varExtract(&
-                 ! input
-                 stateVecTrial,            & ! intent(in):    model state vector (mixed units)
-                 diag_data,                & ! intent(in):    model diagnostic variables for a local HRU
-                 prog_data,                & ! intent(in):    model prognostic variables for a local HRU
-                 indx_data,                & ! intent(in):    indices defining model states and layers
-                 ! output: variables for the vegetation canopy
-                 scalarCanairTempTrial,    & ! intent(out):   trial value of canopy air temperature (K)
-                 scalarCanopyTempTrial,    & ! intent(out):   trial value of canopy temperature (K)
-                 scalarCanopyWatTrial,     & ! intent(out):   trial value of canopy total water (kg m-2)
-                 scalarCanopyLiqTrial,     & ! intent(out):   trial value of canopy liquid water (kg m-2)
-                 scalarCanopyIceTrial,     & ! intent(out):   trial value of canopy ice content (kg m-2)
-                 ! output: variables for the snow-soil domain
-                 mLayerTempTrial,          & ! intent(out):   trial vector of layer temperature (K)
-                 mLayerVolFracWatTrial,    & ! intent(out):   trial vector of volumetric total water content (-)
-                 mLayerVolFracLiqTrial,    & ! intent(out):   trial vector of volumetric liquid water content (-)
-                 mLayerVolFracIceTrial,    & ! intent(out):   trial vector of volumetric ice water content (-)
-                 mLayerMatricHeadTrial,    & ! intent(out):   trial vector of total water matric potential (m)
-                 mLayerMatricHeadLiqTrial, & ! intent(out):   trial vector of liquid water matric potential (m)
-                 ! output: variables for the aquifer
-                 scalarAquiferStorageTrial,& ! intent(out):   trial value of storage of water in the aquifer (m)
-                 ! output: error control
-                 err,cmessage)               ! intent(out):   error control
- if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+    ! initialize to state variable from the last update
+    scalarCanairTempTrial     = scalarCanairTemp
+    scalarCanopyTempTrial     = scalarCanopyTemp
+    scalarCanopyWatTrial      = scalarCanopyWat
+    scalarCanopyLiqTrial      = scalarCanopyLiq
+    scalarCanopyIceTrial      = scalarCanopyIce
+    mLayerTempTrial           = mLayerTemp
+    mLayerVolFracWatTrial     = mLayerVolFracWat
+    mLayerVolFracLiqTrial     = mLayerVolFracLiq
+    mLayerVolFracIceTrial     = mLayerVolFracIce
+    mLayerMatricHeadTrial     = mLayerMatricHead
+    mLayerMatricHeadLiqTrial  = mLayerMatricHeadLiq
+    scalarAquiferStorageTrial = scalarAquiferStorage
+
+    ! extract variables from the model state vector
+    call varExtract(&
+                    ! input
+                    stateVecTrial,            & ! intent(in):    model state vector (mixed units)
+                    diag_data,                & ! intent(in):    model diagnostic variables for a local HRU
+                    prog_data,                & ! intent(in):    model prognostic variables for a local HRU
+                    indx_data,                & ! intent(in):    indices defining model states and layers
+                    ! output: variables for the vegetation canopy
+                    scalarCanairTempTrial,    & ! intent(inout):   trial value of canopy air temperature (K)
+                    scalarCanopyTempTrial,    & ! intent(inout):   trial value of canopy temperature (K)
+                    scalarCanopyWatTrial,     & ! intent(inout):   trial value of canopy total water (kg m-2)
+                    scalarCanopyLiqTrial,     & ! intent(inout):   trial value of canopy liquid water (kg m-2)
+                    ! output: variables for the snow-soil domain
+                    mLayerTempTrial,          & ! intent(inout):   trial vector of layer temperature (K)
+                    mLayerVolFracWatTrial,    & ! intent(inout):   trial vector of volumetric total water content (-)
+                    mLayerVolFracLiqTrial,    & ! intent(inout):   trial vector of volumetric liquid water content (-)
+                    mLayerMatricHeadTrial,    & ! intent(inout):   trial vector of total water matric potential (m)
+                    mLayerMatricHeadLiqTrial, & ! intent(inout):   trial vector of liquid water matric potential (m)
+                    ! output: variables for the aquifer
+                    scalarAquiferStorageTrial,& ! intent(inout):   trial value of storage of water in the aquifer (m)
+                    ! output: error control
+                    err,cmessage)               ! intent(out):   error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  ! update diagnostic variables
  call updateVars(&
