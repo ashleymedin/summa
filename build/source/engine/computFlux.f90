@@ -118,6 +118,7 @@ contains
                        scalarCanopyTempTrial,    & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
                        mLayerTempTrial,          & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
                        mLayerMatricHeadLiqTrial, & ! intent(in):    trial value for the liquid water matric potential in each soil layer (m)
+                      mLayerMatricHeadTrial,    & ! intent(in):    trial vector of total water matric potential (m)
                        scalarAquiferStorageTrial,& ! intent(in):    trial value of storage of water in the aquifer (m)
                        ! input: diagnostic variables defining the liquid water and ice content
                        scalarCanopyLiqTrial,     & ! intent(in):    trial value for the liquid water on the vegetation canopy (kg m-2)
@@ -170,6 +171,7 @@ contains
  real(rkind),intent(in)             :: scalarCanopyTempTrial       ! trial value for temperature of the vegetation canopy (K)
  real(rkind),intent(in)             :: mLayerTempTrial(:)          ! trial value for temperature of each snow/soil layer (K)
  real(rkind),intent(in)             :: mLayerMatricHeadLiqTrial(:) ! trial value for the liquid water matric potential (m)
+  real(rkind),intent(in)             :: mLayerMatricHeadTrial(:)    ! trial value for the total water matric potential (m)
  real(rkind),intent(in)             :: scalarAquiferStorageTrial   ! trial value of aquifer storage (m)
  ! input: diagnostic variables
  real(rkind),intent(in)             :: scalarCanopyLiqTrial        ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
@@ -629,6 +631,7 @@ contains
                   .true.,                                    & ! intent(in):    flag indicating if derivatives are desired
                   ! input: trial state variables
                   mLayerTempTrial(nSnow+1:nLayers),          & ! intent(in):    trial temperature at the current iteration (K)
+                      mLayerMatricHeadTrial(1:nSoil),            & ! intent(in):    matric potential (m)
                   mLayerMatricHeadLiqTrial(1:nSoil),         & ! intent(in):    liquid water matric potential (m)
                   mLayerVolFracLiqTrial(nSnow+1:nLayers),    & ! intent(in):    volumetric fraction of liquid water (-)
                   mLayerVolFracIceTrial(nSnow+1:nLayers),    & ! intent(in):    volumetric fraction of ice (-)

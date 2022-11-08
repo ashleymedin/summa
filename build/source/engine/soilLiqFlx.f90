@@ -97,6 +97,7 @@ contains
                        ! input: trial state variables
                        mLayerTempTrial,              & ! intent(in): temperature (K)
                        mLayerMatricHeadTrial,        & ! intent(in): matric head (m)
+                      mLayerMatricHeadLiqTrial,     & ! intent(in): liquid matric head (m)
                        mLayerVolFracLiqTrial,        & ! intent(in): volumetric fraction of liquid water (-)
                        mLayerVolFracIceTrial,        & ! intent(in): volumetric fraction of ice (-)
                        ! input: pre-computed derivatives
@@ -152,6 +153,7 @@ contains
  ! input: trial model state variables
  real(rkind),intent(in)              :: mLayerTempTrial(:)            ! temperature in each layer at the current iteration (m)
  real(rkind),intent(in)              :: mLayerMatricHeadTrial(:)      ! matric head in each layer at the current iteration (m)
+  real(rkind),intent(in)              :: mLayerMatricHeadLiqTrial(:)   ! liquid matric head in each layer at the current iteration (m)
  real(rkind),intent(in)              :: mLayerVolFracLiqTrial(:)      ! volumetric fraction of liquid water at the current iteration (-)
  real(rkind),intent(in)              :: mLayerVolFracIceTrial(:)      ! volumetric fraction of ice at the current iteration (-)
  ! input: pre-computed derivatves
