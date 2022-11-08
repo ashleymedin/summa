@@ -775,6 +775,11 @@ contains
                    scalarAquiferStorageTrial,    & ! intent(in):  trial value of aquifer storage (m)
                    scalarCanopyTranspiration,    & ! intent(in):  canopy transpiration (kg m-2 s-1)
                    scalarSoilDrainage,           & ! intent(in):  soil drainage (m s-1)
+                        ! input: pre-computed derivatives
+                        dCanopyTrans_dCanWat,         & ! intent(in):  derivative in canopy transpiration w.r.t. canopy total water content (s-1)
+                        dCanopyTrans_dTCanair,        & ! intent(in):  derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+                        dCanopyTrans_dTCanopy,        & ! intent(in):  derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
+                        dCanopyTrans_dTGround,        & ! intent(in):  derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
                    ! input: diagnostic variables and parameters
                    mpar_data,                    & ! intent(in):  model parameter structure
                    diag_data,                    & ! intent(in):  diagnostic variable structure

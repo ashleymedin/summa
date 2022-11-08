@@ -146,7 +146,7 @@ contains
  ! provide access to subroutines
  USE getVectorz_module, only:varExtract           ! extract variables from the state vector
  USE updateVars_module, only:updateVars           ! update prognostic variables
- USE computFlux_module, only:soilCmpres           ! compute soil compression
+  USE computFlux_module, only:soilCmpres           ! compute soil compression, use non-sundials version because sundials version needs mLayerMatricHeadPrime
  USE computFlux_module, only:computFlux           ! compute fluxes given a state vector
  USE computResid_module,only:computResid          ! compute residuals given a state vector
  implicit none
