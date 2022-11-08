@@ -139,7 +139,6 @@ subroutine coupled_em(&
   USE tempAdjust_module,only:tempAdjust      ! adjust snow temperature associated with new snowfall
   USE snwDensify_module,only:snwDensify      ! snow densification (compaction and cavitation)
   USE var_derive_module,only:calcHeight      ! module to calculate height at layer interfaces and layer mid-point
-  USE computSnowDepth_module,only:computSnowDepth
 
   implicit none
   ! model control
