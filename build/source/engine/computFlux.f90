@@ -206,6 +206,10 @@ contains
  logical(lgt)                    :: doVegNrgFlux                ! flag to compute the energy flux over vegetation
  real(rkind),dimension(nSoil)       :: dHydCond_dMatric            ! derivative in hydraulic conductivity w.r.t matric head (s-1)
  character(LEN=256)              :: cmessage                    ! error message of downwind routine
+  real(rkind)                     :: above_soilLiqFluxDeriv      ! derivative in layer above soil (canopy or snow) liquid flux w.r.t. liquid water
+  real(rkind)                     :: above_soildLiq_dTk          ! derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
+  real(rkind)                     :: above_soilFracLiq           ! fraction of liquid water layer above soil (canopy or snow) (-)
+
  ! --------------------------------------------------------------
  ! initialize error control
  err=0; message='computFlux/'
@@ -604,16 +608,37 @@ contains
   ! compute drainage from the soil zone (needed for mass balance checks)
   scalarSnowDrainage = iLayerLiqFluxSnow(nSnow)
 
+      ! save bottom layer of snow derivatives
+      above_soilLiqFluxDeriv = iLayerLiqFluxSnowDeriv(nSnow) ! derivative in vertical liquid water flux at bottom snow layer interface
+      above_soildLiq_dTk     = mLayerdTheta_dTk(nSnow)  ! derivative in volumetric liquid water content in bottom snow layer w.r.t. temperature
+      above_soilFracLiq      = mLayerFracLiqSnow(nSnow) ! fraction of liquid water in bottom snow layer (-)
+
+
  else
 
   ! define forcing for the soil domain for the case of no snow layers
   ! NOTE: in case where nSnowOnlyHyd==0 AND snow layers exist, then scalarRainPlusMelt is taken from the previous flux evaluation
-  if(nSnow==0)then
+      if(nSnow==0)then !no snow layers
    scalarRainPlusMelt = (scalarThroughfallRain + scalarCanopyLiqDrainage)/iden_water &  ! liquid flux from the canopy (m s-1)
                          + drainageMeltPond/iden_water  ! melt of the snow without a layer (m s-1)
-  endif  ! if no snow layers
 
+        if(ixVegHyd/=integerMissing)then
+          ! save canopy derivatives
+          above_soilLiqFluxDeriv = scalarCanopyLiqDeriv/iden_water ! derivative in (throughfall + drainage) w.r.t. canopy liquid water
+          above_soildLiq_dTk     = dCanLiq_dTcanopy     ! derivative of canopy liquid storage w.r.t. temperature
+          above_soilFracLiq      = scalarFracLiqVeg     ! fraction of liquid water in canopy (-)
+        else
+          above_soilLiqFluxDeriv = 0._rkind
+          above_soildLiq_dTk     = 0._rkind
+          above_soilFracLiq      = 0._rkind
  endif
+      else ! snow layers, take from previous flux calculation
+        above_soilLiqFluxDeriv = iLayerLiqFluxSnowDeriv(nSnow) ! derivative in vertical liquid water flux at bottom snow layer interface
+        above_soildLiq_dTk     = mLayerdTheta_dTk(nSnow)  ! derivative in volumetric liquid water content in bottom snow layer w.r.t. temperature
+        above_soilFracLiq      = mLayerFracLiqSnow(nSnow) ! fraction of liquid water in bottom snow layer (-)
+      endif  ! snow layers or not
+
+    endif ! if calculating the liquid flux through snow
 
  ! *****
  ! * CALCULATE THE LIQUID FLUX THROUGH SOIL...
@@ -637,6 +662,9 @@ contains
                   ! input: pre-computed deriavatives
                   mLayerdTheta_dTk(nSnow+1:nLayers),         & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
                   dPsiLiq_dTemp(1:nSoil),                    & ! intent(in):    derivative in liquid water matric potential w.r.t. temperature (m K-1)
+                      above_soilLiqFluxDeriv,                    & ! intent(in): derivative in layer above soil (canopy or snow) liquid flux w.r.t. liquid water
+                      above_soildLiq_dTk,                        & ! intent(in): derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
+                      above_soilFracLiq,                         & ! intent(in): fraction of liquid water layer above soil (canopy or snow) (-)
                   ! input: fluxes
                   scalarCanopyTranspiration,                 & ! intent(in):    canopy transpiration (kg m-2 s-1)
                   scalarGroundEvaporation,                   & ! intent(in):    ground evaporation (kg m-2 s-1)

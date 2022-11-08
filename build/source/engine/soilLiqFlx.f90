@@ -159,6 +159,9 @@ subroutine soilLiqFlx(&
   ! input: pre-computed derivatves
   real(rkind),intent(in)              :: mLayerdTheta_dTk(:)           ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
   real(rkind),intent(in)              :: dPsiLiq_dTemp(:)              ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
+  real(rkind),intent(in)              :: above_soilLiqFluxDeriv        ! derivative in layer above soil (canopy or snow) liquid flux w.r.t. liquid water
+  real(rkind),intent(in)              :: above_soildLiq_dTk            ! derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
+  real(rkind),intent(in)              :: above_soilFracLiq             ! fraction of liquid water layer above soil (canopy or snow) (-)
   ! input: model fluxes
   real(rkind),intent(in)              :: scalarCanopyTranspiration     ! canopy transpiration (kg m-2 s-1)
   real(rkind),intent(in)              :: scalarGroundEvaporation       ! ground evaporation (kg m-2 s-1)
@@ -486,6 +489,9 @@ subroutine soilLiqFlx(&
                       mLayerdTheta_dTk,                   & ! intent(in): derivative in volumetric liquid water content w.r.t. temperature (K-1)
                       mLayerdTheta_dPsi,                  & ! intent(in): derivative in the soil water characteristic w.r.t. psi (m-1)
                       mLayerdPsi_dTheta,                  & ! intent(in): derivative in the soil water characteristic w.r.t. theta (m)
+                      above_soilLiqFluxDeriv,             & ! intent(in): derivative in layer above soil (canopy or snow) liquid flux w.r.t. liquid water
+                      above_soildLiq_dTk,                 & ! intent(in): derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
+                      above_soilFracLiq,                  & ! intent(in): fraction of liquid water layer above soil (canopy or snow) (-)
                       ! input: depth of upper-most soil layer (m)
                       mLayerDepth,                        & ! intent(in): depth of each soil layer (m)
                       iLayerHeight,                       & ! intent(in): height at the interface of each layer (m)
@@ -822,6 +828,9 @@ subroutine diagv_node(&
                       ! input: pre-computed deriavatives
                       dTheta_dTk,            & ! intent(in): derivative in volumetric liquid water content w.r.t. temperature (K-1)
                       dPsiLiq_dTemp,         & ! intent(in): derivative in liquid water matric potential w.r.t. temperature (m K-1)
+                      above_soilLiqFluxDeriv,       & ! intent(in): derivative in layer above soil (canopy or snow) liquid flux w.r.t. liquid water
+                      above_soildLiq_dTk,           & ! intent(in): derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
+                      above_soilFracLiq,            & ! intent(in): fraction of liquid water layer above soil (canopy or snow) (-)
                       ! input: soil parameters
                       vGn_alpha,             & ! intent(in): van Genutchen "alpha" parameter (m-1)
                       vGn_n,                 & ! intent(in): van Genutchen "n" parameter (-)
@@ -1072,6 +1081,9 @@ subroutine surfaceFlx(&
                       dTheta_dTk,                & ! intent(in): derivative in volumetric liquid water content w.r.t. temperature (K-1)
                       dTheta_dPsi,               & ! intent(in): derivative in the soil water characteristic w.r.t. psi (m-1)
                       mLayerdPsi_dTheta,         & ! intent(in): derivative in the soil water characteristic w.r.t. theta (m)
+                      above_soilLiqFluxDeriv,    & ! intent(in): derivative in layer above soil (canopy or snow) liquid flux w.r.t. liquid water
+                      above_soildLiq_dTk,        & ! intent(in): derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
+                      above_soilFracLiq,         & ! intent(in): fraction of liquid water layer above soil (canopy or snow) (-)
                       ! input: depth of upper-most soil layer (m)
                       mLayerDepth,               & ! intent(in): depth of each soil layer (m)
                       iLayerHeight,              & ! intent(in): height at the interface of each layer (m)
@@ -1138,6 +1150,9 @@ subroutine surfaceFlx(&
   real(rkind),intent(in)           :: dTheta_dTk(:)             ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
   real(rkind),intent(in)           :: dTheta_dPsi(:)            ! derivative in the soil water characteristic w.r.t. psi (m-1)
   real(rkind),intent(in)           :: mLayerdPsi_dTheta(:)      ! derivative in the soil water characteristic w.r.t. theta (m)
+  real(rkind),intent(in)           :: above_soilLiqFluxDeriv    ! derivative in layer above soil (canopy or snow) liquid flux w.r.t. liquid water
+  real(rkind),intent(in)           :: above_soildLiq_dTk        ! derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
+  real(rkind),intent(in)           :: above_soilFracLiq         ! fraction of liquid water layer above soil (canopy or snow) (-)
   ! input: depth of upper-most soil layer (m)
   real(rkind),intent(in)           :: mLayerDepth(:)            ! depth of upper-most soil layer (m)
   real(rkind),intent(in)           :: iLayerHeight(0:)          ! height at the interface of each layer (m)
