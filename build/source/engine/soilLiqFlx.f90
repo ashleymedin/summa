@@ -103,6 +103,9 @@ subroutine soilLiqFlx(&
                       ! input: pre-computed derivatives
                       mLayerdTheta_dTk,             & ! intent(in): derivative in volumetric liquid water content w.r.t. temperature (K-1)
                       dPsiLiq_dTemp,                & ! intent(in): derivative in liquid water matric potential w.r.t. temperature (m K-1)
+                      above_soilLiqFluxDeriv,       & ! intent(in): derivative in layer above soil (canopy or snow) liquid flux w.r.t. liquid water
+                      above_soildLiq_dTk,           & ! intent(in): derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
+                      above_soilFracLiq,            & ! intent(in): fraction of liquid water layer above soil (canopy or snow) (-)
                       ! input: fluxes
                       scalarCanopyTranspiration,    & ! intent(in): canopy transpiration (kg m-2 s-1)
                       scalarGroundEvaporation,      & ! intent(in): ground evaporation (kg m-2 s-1)
