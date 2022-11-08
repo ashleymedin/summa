@@ -293,7 +293,7 @@ subroutine vegNrgFlux(&
   integer(i4b),parameter         :: perturbStateGround=2             ! named variable to identify the case where we perturb the ground temperature
   integer(i4b),parameter         :: perturbStateCanopy=3             ! named variable to identify the case where we perturb the canopy temperature
   integer(i4b),parameter         :: perturbStateCanair=4             ! named variable to identify the case where we perturb the canopy air temperature
- integer(i4b),parameter         :: perturbStateCanLiq=5             ! named variable to identify the case where we perturb the canopy liquid water content
+ integer(i4b),parameter         :: perturbStateCanWat=5             ! named variable to identify the case where we perturb the canopy liquid water content
   integer(i4b)                   :: itry                             ! index of flux evaluation
   integer(i4b)                   :: nFlux                            ! number of flux evaluations
   real(rkind)                       :: groundTemp                       ! value of ground temperature used in flux calculations (may be perturbed)
@@ -1035,7 +1035,7 @@ subroutine vegNrgFlux(&
               canopyWat         = totalCanopyWater
 
             ! perturb canopy liquid water content
-            case(perturbStateCanLiq)
+            case(perturbStateCanWat)
               groundTemp        = groundTempTrial
               canopyTemp        = canopyTempTrial
               canairTemp        = canairTempTrial
@@ -1307,7 +1307,7 @@ subroutine vegNrgFlux(&
             turbFluxCanopy_dStateGround = turbFluxCanopy          ! total turbulent heat fluxes from the canopy to the canopy air space (W m-2)
             turbFluxGround_dStateGround = turbFluxGround          ! total turbulent heat fluxes from the ground to the canopy air space (W m-2)
             latHeatCanEvap_dStateGround = scalarLatHeatCanopyEvap ! perturbed value for the latent heat associated with canopy evaporation (W m-2)
-      case(perturbStateCanLiq)
+      case(perturbStateCanWat)
        turbFluxCanair_dStateCanliq = turbFluxCanair          ! turbulent exchange from the canopy air space to the atmosphere (W m-2)
        turbFluxCanopy_dStateCanLiq = turbFluxCanopy          ! total turbulent heat fluxes from the canopy to the canopy air space (W m-2)
        turbFluxGround_dStateCanLiq = turbFluxGround          ! total turbulent heat fluxes from the ground to the canopy air space (W m-2)
@@ -2849,7 +2849,9 @@ subroutine turbFluxes(&
       dPart1 = (leafConductance - leafConductanceTr)*satVP_CanopyTemp
       dPart2 = -(leafConductance - leafConductanceTr)/(totalConductanceLH**2._rkind)
       dVPCanopyAir_dWetFrac = dPart1/totalConductanceLH + fPart_VP*dPart2
-      dVPCanopyAir_dCanWat  = dVPCanopyAir_dWetFrac*dCanopyWetFraction_dWat
+   dVPCanopyAir_dCanLiq  = dVPCanopyAir_dWetFrac*dCanopyWetFraction_dWat
+   !write(*,'(a,5(f20.8,1x))') 'dVPCanopyAir_dTCanair, dVPCanopyAir_dTCanopy, dVPCanopyAir_dTGround, dVPCanopyAir_dWetFrac, dVPCanopyAir_dCanLiq = ', &
+   !                            dVPCanopyAir_dTCanair, dVPCanopyAir_dTCanopy, dVPCanopyAir_dTGround, dVPCanopyAir_dWetFrac, dVPCanopyAir_dCanLiq
 
       ! sensible heat from the canopy to the atmosphere
       dSenHeatTotal_dTCanair       = -volHeatCapacityAir*canopyConductance - volHeatCapacityAir*dCanopyCond_dCanairTemp*(canairTemp - airtemp)
@@ -2902,10 +2904,11 @@ subroutine turbFluxes(&
       dPart1 = LH_vap*latentHeatConstant*leafConductanceTr  ! NOTE: positive, since (1 - wetFrac)
       fPart1 = -dPart1*(1._rkind - canopyWetFraction)
       dLatHeatCanopyTrans_dWetFrac = dPart1*(satVP_CanopyTemp - VP_CanopyAir) + fPart1*(-dVPCanopyAir_dWetFrac)
+   !print*, 'dLatHeatCanopyTrans_dWetFrac = ', dLatHeatCanopyTrans_dWetFrac
 
-      ! latent heat associated with canopy transpiration w.r.t. canopy total water
-      dLatHeatCanopyTrans_dCanWat = dLatHeatCanopyTrans_dWetFrac*dCanopyWetFraction_dWat ! (J s-1 kg-1)
-
+   ! latent heat associated with canopy transpiration w.r.t. canopy liquid water
+   dLatHeatCanopyTrans_dCanLiq = dLatHeatCanopyTrans_dWetFrac*dCanopyWetFraction_dWat ! (J s-1 kg-1)
+   !print*, 'dLatHeatCanopyTrans_dCanLiq = ', dLatHeatCanopyTrans_dCanLiq
 
     else  ! canopy is undefined
 
