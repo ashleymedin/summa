@@ -299,6 +299,8 @@ contains
  scalarSoilControl            => diag_data%var(iLookDIAG%scalarSoilControl )%dat(1)              ,&  ! intent(out): [dp] soil control on infiltration, zero or one
  scalarMaxInfilRate           => flux_data%var(iLookFLUX%scalarMaxInfilRate)%dat(1)              ,&  ! intent(out): [dp] maximum infiltration rate (m s-1)
  scalarInfiltration           => flux_data%var(iLookFLUX%scalarInfiltration)%dat(1)              ,&  ! intent(out): [dp] infiltration of water into the soil profile (m s-1)
+    scalarFracLiqVeg             => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)                ,& ! intent(inout): [dp] fraction of liquid water on vegetation (-)
+    mLayerFracLiqSnow            => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat                  ,& ! intent(inout): [dp(:)] fraction of liquid water in each snow layer (-)
 
  ! boundary fluxes in the soil domain
  scalarThroughfallRain        => flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1)           ,&  ! intent(out): [dp] rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
@@ -656,6 +658,7 @@ contains
                   .true.,                                    & ! intent(in):    flag indicating if derivatives are desired
                   ! input: trial state variables
                   mLayerTempTrial(nSnow+1:nLayers),          & ! intent(in):    trial temperature at the current iteration (K)
+                      mLayerMatricHeadTrial(1:nSoil),            & ! intent(in):    matric potential (m)
                   mLayerMatricHeadLiqTrial(1:nSoil),         & ! intent(in):    liquid water matric potential (m)
                   mLayerVolFracLiqTrial(nSnow+1:nLayers),    & ! intent(in):    volumetric fraction of liquid water (-)
                   mLayerVolFracIceTrial(nSnow+1:nLayers),    & ! intent(in):    volumetric fraction of ice (-)
