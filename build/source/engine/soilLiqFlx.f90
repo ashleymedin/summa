@@ -217,7 +217,7 @@ subroutine soilLiqFlx(&
   integer(i4b)                        :: ixPerturb                    ! index of element in 2-element vector to perturb
   integer(i4b)                        :: ixOriginal                   ! index of perturbed element in the original vector
   real(rkind)                         :: scalarVolFracLiqTrial        ! trial value of volumetric liquid water content (-)
- real(rkind)                         :: scalarMatricHeadTrial        ! trial value of matric head (m)
+  real(rkind)                         :: scalarMatricHeadLiqTrial        ! trial value of matric head (m)
   real(rkind)                         :: scalarHydCondTrial           ! trial value of hydraulic conductivity (m s-1)
   real(rkind)                         :: scalarHydCondMicro           ! trial value of hydraulic conductivity of micropores (m s-1)
   real(rkind)                         :: scalarHydCondMacro           ! trial value of hydraulic conductivity of macropores (m s-1)
@@ -700,17 +700,17 @@ subroutine soilLiqFlx(&
           ! un-perturbed case
           case(unperturbed)
             scalarVolFracLiqTrial   = mLayerVolFracLiqTrial(nSoil)
-     scalarMatricHeadTrial   = mLayerMatricHeadTrial(nSoil)
+            scalarMatricHeadLiqTrial   = mLayerMatricHeadLiqTrial(nSoil)
 
           ! perturb soil state (one-sided finite differences)
           case(perturbStateAbove)
             select case(ixRichards)  ! (perturbation depends on the form of Richards' equation)
               case(moisture)
                 scalarVolFracLiqTrial = mLayerVolFracLiqTrial(nSoil) + dx
-       scalarMatricHeadTrial = mLayerMatricHeadTrial(nSoil)
+                scalarMatricHeadLiqTrial = mLayerMatricHeadLiqTrial(nSoil)
               case(mixdform)
                 scalarVolFracLiqTrial = mLayerVolFracLiqTrial(nSoil)
-       scalarMatricHeadTrial = mLayerMatricHeadTrial(nSoil) + dx
+                scalarMatricHeadLiqTrial = mLayerMatricHeadLiqTrial(nSoil) + dx
               case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
             end select ! (form of Richards' equation)
 
@@ -1246,6 +1246,7 @@ subroutine surfaceFlx(&
  ! compute derivative in the energy state
  ! NOTE: revisit the need to do this
  dq_dNrgState = 0._rkind
+ dq_dHydState = 0._rkind
 
   ! *****
   ! compute the surface flux and its derivative
@@ -1276,19 +1277,9 @@ subroutine surfaceFlx(&
       end select  ! (form of Richards' eqn)
       ! compute the total flux
       scalarSurfaceInfiltration = cflux + surfaceHydCond
-      ! compute the derivative
-      if(deriv_desired)then
-        ! compute the hydrology derivative at the surface
-        select case(ixRichards)  ! (form of Richards' equation)
-          case(moisture); dq_dHydStateVec(1) = -surfaceDiffuse/(mLayerDepth(1)/2._rkind)
-          case(mixdform); dq_dHydStateVec(1) = -surfaceHydCond/(mLayerDepth(1)/2._rkind)
-          case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
-        end select
-        ! compute the energy derivative at the surface
-        dq_dNrgStateVec(1) = -(dHydCond_dTemp/2._rkind)*(scalarMatricHeadLiq - upperBoundHead)/(mLayerDepth(1)*0.5_rkind) + dHydCond_dTemp/2._rkind
-      else
-        dNum         = 0._rkind
-      end if
+
+      dNum         = 0._rkind
+
 
     ! flux condition
     case(liquidFlux)
