@@ -288,13 +288,21 @@ subroutine ssdNrgFlux(&
       ixTop = ixLayerDesired(1)
       ixBot = ixLayerDesired(1)
     else
-  ixTop = 1
+  ixTop = 0
       ixBot = nLayers
     endif
 
     ! -------------------------------------------------------------------------------------------------------------------------
     ! ***** compute the conductive fluxes at layer interfaces *****
     ! -------------------------------------------------------------------------------------------------------------------------
+    ! initialize un-used elements
+    ! ***** the upper boundary
+    dFlux_dTempAbove(0) = 0._rkind ! this will be in canopy
+
+    ! ***** the lower boundary
+    dFlux_dTempBelow(nLayers) = -huge(lowerBoundTemp)  ! don't expect this to be used, so deliberately set to a ridiculous value to cause problems
+
+    ! loop through INTERFACES...
     do iLayer=ixTop,ixBot ! (loop through model layers)
 
   ! compute fluxes at the lower boundary -- positive downwards
@@ -316,10 +324,43 @@ subroutine ssdNrgFlux(&
  end do
 
     ! -------------------------------------------------------------------------------------------------------------------------
+    ! ***** compute the conductive fluxes at layer interfaces *****
+    ! Compute flux after the derivatives, because need iLayerThermal as calculated above
+    ! -------------------------------------------------------------------------------------------------------------------------
+    do iLayer=ixTop,ixBot ! (loop through model layers)
+
+      if(iLayer==0)then  ! (upper boundary fluxes -- positive downwards)
+      ! flux depends on the type of upper boundary condition
+      select case(ix_bcUpprTdyn) ! (identify the upper boundary condition for thermodynamics
+        case(prescribedTemp); iLayerConductiveFlux(iLayer) = -iLayerThermalC(iLayer)*( mLayerTempTrial(iLayer+1) - upperBoundTemp )/ &
+                                        (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
+        case(zeroFlux);       iLayerConductiveFlux(iLayer) = 0._rkind
+        case(energyFlux);     iLayerConductiveFlux(iLayer) = groundNetFlux !from vegNrgFlux module
+      end select  ! (identifying the lower boundary condition for thermodynamics)
+
+      else if(iLayer==nLayers)then ! (lower boundary fluxes -- positive downwards)
+      ! flux depends on the type of lower boundary condition
+      select case(ix_bcLowrTdyn) ! (identify the lower boundary condition for thermodynamics
+        case(prescribedTemp); iLayerConductiveFlux(iLayer) = -iLayerThermalC(iLayer)*(lowerBoundTemp - mLayerTempTrial(iLayer))/(mLayerDepth(iLayer)*0.5_rkind)
+        case(zeroFlux);       iLayerConductiveFlux(iLayer) = 0._rkind
+      end select  ! (identifying the lower boundary condition for thermodynamics)
+
+      else ! (domain boundary fluxes -- positive downwards)
+        iLayerConductiveFlux(iLayer)  = -iLayerThermalC(iLayer)*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer)) / &
+                                        (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
+
+        !write(*,'(a,i4,1x,2(f9.3,1x))') 'iLayer, iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer) = ', iLayer, iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer)
+      end if ! (the type of layer)
+    end do  ! looping through layers
+
+    ! -------------------------------------------------------------------------------------------------------------------------
     ! ***** compute the advective fluxes at layer interfaces *****
     ! -------------------------------------------------------------------------------------------------------------------------
- do iLayer=ixTop,ixBot
-  ! get the liquid flux at layer interfaces
+    do iLayer=ixTop,ixBot  !(loop through model layers)
+
+      if (iLayer==0) then
+        iLayerAdvectiveFlux(iLayer) = realMissing !advective flux at the upper boundary is included in the ground heat flux
+      else ! get the liquid flux at layer interfaces
         select case(layerType(iLayer))
           case(iname_snow); qFlux = iLayerLiqFluxSnow(iLayer)
           case(iname_soil); qFlux = iLayerLiqFluxSoil(iLayer-nSnow)
@@ -332,15 +373,14 @@ subroutine ssdNrgFlux(&
         else
           iLayerAdvectiveFlux(iLayer) = -Cp_water*iden_water*qFlux*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer))
         end if
+      end if ! (all layers except surface)
     end do  ! looping through layers
 
     ! -------------------------------------------------------------------------------------------------------------------------
     ! ***** compute the total fluxes at layer interfaces *****
     ! -------------------------------------------------------------------------------------------------------------------------
     ! NOTE: ignore advective fluxes for now
- iLayerNrgFlux(0)           = groundNetFlux
     iLayerNrgFlux(ixTop:ixBot) = iLayerConductiveFlux(ixTop:ixBot)
- !print*, 'iLayerNrgFlux(0:4) = ', iLayerNrgFlux(0:4)
 
  ! -------------------------------------------------------------------------------------------------------------------------
  ! ***** compute the derivative in fluxes at layer interfaces w.r.t temperature in the layer above and the layer below *****
