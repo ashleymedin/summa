@@ -297,33 +297,9 @@ subroutine ssdNrgFlux(&
     ! -------------------------------------------------------------------------------------------------------------------------
     ! initialize un-used elements
     ! ***** the upper boundary
-    dFlux_dTempAbove(0) = 0._rkind ! this will be in canopy
 
-    ! ***** the lower boundary
-    dFlux_dTempBelow(nLayers) = -huge(lowerBoundTemp)  ! don't expect this to be used, so deliberately set to a ridiculous value to cause problems
 
-    ! loop through INTERFACES...
-    do iLayer=ixTop,ixBot ! (loop through model layers)
-
-  ! compute fluxes at the lower boundary -- positive downwards
-  if(iLayer==nLayers)then
-      ! flux depends on the type of lower boundary condition
-      select case(ix_bcLowrTdyn) ! (identify the lower boundary condition for thermodynamics
-    case(prescribedTemp); iLayerConductiveFlux(nLayers) = -iLayerThermalC(iLayer)*(lowerBoundTemp - mLayerTempTrial(iLayer))/(mLayerDepth(iLayer)*0.5_rkind)
-    case(zeroFlux);       iLayerConductiveFlux(nLayers) = 0._rkind
-    case default;         err=20; message=trim(message)//'unable to identify lower boundary condition for thermodynamics'; return
-      end select  ! (identifying the lower boundary condition for thermodynamics)
-
-  ! compute fluxes within the domain -- positive downwards
-  else
-        iLayerConductiveFlux(iLayer)  = -iLayerThermalC(iLayer)*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer)) / &
-                                        (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
-
-        !write(*,'(a,i4,1x,2(f9.3,1x))') 'iLayer, iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer) = ', iLayer, iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer)
-      end if ! (the type of layer)
- end do
-
-    ! -------------------------------------------------------------------------------------------------------------------------
+     ! -------------------------------------------------------------------------------------------------------------------------
     ! ***** compute the conductive fluxes at layer interfaces *****
     ! Compute flux after the derivatives, because need iLayerThermal as calculated above
     ! -------------------------------------------------------------------------------------------------------------------------
@@ -331,12 +307,7 @@ subroutine ssdNrgFlux(&
 
       if(iLayer==0)then  ! (upper boundary fluxes -- positive downwards)
       ! flux depends on the type of upper boundary condition
-      select case(ix_bcUpprTdyn) ! (identify the upper boundary condition for thermodynamics
-        case(prescribedTemp); iLayerConductiveFlux(iLayer) = -iLayerThermalC(iLayer)*( mLayerTempTrial(iLayer+1) - upperBoundTemp )/ &
-                                        (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
-        case(zeroFlux);       iLayerConductiveFlux(iLayer) = 0._rkind
-        case(energyFlux);     iLayerConductiveFlux(iLayer) = groundNetFlux !from vegNrgFlux module
-      end select  ! (identifying the lower boundary condition for thermodynamics)
+      iLayerConductiveFlux(iLayer) = groundNetFlux !from vegNrgFlux module
 
       else if(iLayer==nLayers)then ! (lower boundary fluxes -- positive downwards)
       ! flux depends on the type of lower boundary condition
@@ -380,6 +351,7 @@ subroutine ssdNrgFlux(&
     ! ***** compute the total fluxes at layer interfaces *****
     ! -------------------------------------------------------------------------------------------------------------------------
     ! NOTE: ignore advective fluxes for now
+    iLayerNrgFlux(0)           = groundNetFlux !setting this exen if not in ixTop:ixBot
     iLayerNrgFlux(ixTop:ixBot) = iLayerConductiveFlux(ixTop:ixBot)
 
  ! -------------------------------------------------------------------------------------------------------------------------
@@ -389,14 +361,17 @@ subroutine ssdNrgFlux(&
  ! initialize un-used elements
  dFlux_dTempBelow(nLayers) = -huge(lowerBoundTemp)  ! don't expect this to be used, so deliberately set to a ridiculous value to cause problems
 
- ! ***** the upper boundary
- dFlux_dTempBelow(0) = dGroundNetFlux_dGroundTemp
 
  ! loop through INTERFACES...
  do iLayer=ixTop,ixBot
 
+  ! ***** the upper boundary
+  if(iLayer==0)then
+     dFlux_dTempBelow(iLayer) = dGroundNetFlux_dGroundTemp
+     dFlux_dTempAbove(iLayer) = 0._rkind ! this will be in canopy
+
   ! ***** the lower boundary
-  if(iLayer==nLayers)then  ! (lower boundary)
+  else if(iLayer==nLayers)then  ! (lower boundary)
 
    ! identify the lower boundary condition
    select case(ix_bcLowrTdyn)
