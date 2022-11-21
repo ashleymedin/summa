@@ -24,8 +24,8 @@ module ssdNrgFlux_module
 USE nrtype
 
 ! data types
-USE data_types,only:var_d           ! x%var(:)       (dp)
-USE data_types,only:var_dlength     ! x%var(:)%dat   (dp)
+USE data_types,only:var_d           ! x%var(:)       (rkind)
+USE data_types,only:var_dlength     ! x%var(:)%dat   (rkind)
 USE data_types,only:var_ilength     ! x%var(:)%dat   (i4b)
 
 ! physical constants
@@ -100,9 +100,10 @@ public::ssdNrgFlux
 real(rkind),parameter            :: dx=1.e-10_rkind             ! finite difference increment (K)
 contains
 
- ! ************************************************************************************************
+
+! **********************************************************************************************************
 ! public subroutine ssdNrgFlux: compute energy fluxes and derivatives at layer interfaces
- ! ************************************************************************************************
+! **********************************************************************************************************
 subroutine ssdNrgFlux(&
                       ! input: model control
                       scalarSolution,                     & ! intent(in):    flag to indicate the scalar solution
@@ -292,9 +293,10 @@ subroutine ssdNrgFlux(&
       ixBot = nLayers
     endif
 
-    ! -------------------------------------------------------------------------------------------------------------------------
-    ! ***** compute the conductive fluxes at layer interfaces *****
-    ! -------------------------------------------------------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------------------------------------------------
+    ! ***** compute the derivative in fluxes at layer interfaces w.r.t state in the layer above and the layer below *****
+    ! -------------------------------------------------------------------------------------------------------------------
+
     ! initialize un-used elements
     ! ***** the upper boundary
 
@@ -306,7 +308,6 @@ subroutine ssdNrgFlux(&
     do iLayer=ixTop,ixBot ! (loop through model layers)
 
       if(iLayer==0)then  ! (upper boundary fluxes -- positive downwards)
-      ! flux depends on the type of upper boundary condition
       iLayerConductiveFlux(iLayer) = groundNetFlux !from vegNrgFlux module
 
       else if(iLayer==nLayers)then ! (lower boundary fluxes -- positive downwards)

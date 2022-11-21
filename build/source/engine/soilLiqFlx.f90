@@ -23,9 +23,9 @@ module soilLiqFlx_module
 
 ! data types
 USE nrtype
-USE data_types,only:var_d                  ! x%var(:)       (dp)
+USE data_types,only:var_d                  ! x%var(:)       (rkind)
 USE data_types,only:var_ilength            ! x%var(:)%dat   (i4b)
-USE data_types,only:var_dlength            ! x%var(:)%dat   (dp)
+USE data_types,only:var_dlength            ! x%var(:)%dat   (rkind)
 
 ! missing values
 USE globalData,only:integerMissing  ! missing integer
@@ -217,7 +217,7 @@ subroutine soilLiqFlx(&
   integer(i4b)                        :: ixPerturb                    ! index of element in 2-element vector to perturb
   integer(i4b)                        :: ixOriginal                   ! index of perturbed element in the original vector
   real(rkind)                         :: scalarVolFracLiqTrial        ! trial value of volumetric liquid water content (-)
-  real(rkind)                         :: scalarMatricHeadLiqTrial        ! trial value of matric head (m)
+  real(rkind)                         :: scalarMatricHeadLiqTrial     ! trial value of liquid matric head (m)
   real(rkind)                         :: scalarHydCondTrial           ! trial value of hydraulic conductivity (m s-1)
   real(rkind)                         :: scalarHydCondMicro           ! trial value of hydraulic conductivity of micropores (m s-1)
   real(rkind)                         :: scalarHydCondMacro           ! trial value of hydraulic conductivity of macropores (m s-1)
@@ -808,10 +808,6 @@ subroutine soilLiqFlx(&
 
     endif  ! if computing drainage
 
- ! *****************************************************************************************************************************************************************
- ! *****************************************************************************************************************************************************************
-
- ! end association between local variables and the information in the data structures
   end associate
 
 end subroutine soilLiqFlx
@@ -1428,7 +1424,7 @@ subroutine surfaceFlx(&
 
       end if ! (if desire to compute infiltration)
 
-   ! compute infiltration (m s-1)
+      ! compute infiltration (m s-1), if after first flux call in a splitting operation does not change
       scalarSurfaceInfiltration = (1._rkind - scalarFrozenArea)*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
 
       ! compute surface runoff (m s-1)
@@ -1810,18 +1806,10 @@ subroutine qDrainFlux(&
         dq_dNrgStateUnsat = realMissing
       end if
 
-  ! ---------------------------------------------------------------------------------------------
-  ! * error check
-  ! ---------------------------------------------------------------------------------------------
     case default; err=20; message=trim(message)//'unknown lower boundary condition for soil hydrology'; return
 
   end select ! (type of boundary condition)
 
 end subroutine qDrainFlux
-
-
- ! *******************************************************************************************************************************************************************************
- ! *******************************************************************************************************************************************************************************
-
 
 end module soilLiqFlx_module

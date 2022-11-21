@@ -64,9 +64,9 @@ USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decisi
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (dp)
+                    var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength,  & ! data vector with variable length dimension (dp)
+                    var_dlength,  & ! data vector with variable length dimension (rkind)
                     model_options   ! defines the model decisions
 
 ! look-up values for the choice of groundwater parameterization
@@ -635,7 +635,7 @@ contains
 
    ! get brackets if they do not exist
    if( ieee_is_nan(xMin) .or. ieee_is_nan(xMax) )then
-    call getBrackets(stateVecTrial,stateVecNew,xMin,xMax,err,cmessage)
+    call getBrackets(stateVecTrial,stateVecNew,xMin,xMax,err,message)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
    endif
 
@@ -653,7 +653,7 @@ contains
    ! compute the iteration increment
    stateVecNew = stateVecTrial + xInc
 
-  endif  ! if the iteration increment is the same sign as the residual vector
+  endif  ! if the iteration increment is the same sign as the residual vecto
 
   ! bi-section
   bracketsDefined = ( .not.ieee_is_nan(xMin) .and. .not.ieee_is_nan(xMax) )  ! check that the brackets are defined
@@ -668,7 +668,7 @@ contains
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
   ! check feasibility (should be feasible because of the call to imposeConstraints
-  if(.not.feasible)then; err=20; message=trim(message)//'infeasible solution'; return; endif
+  if(.not.feasible)then; err=20; message=trim(message)//'state vector not feasible'; return; endif
 
   ! check convergence
   converged = checkConv(resVecNew,xInc,stateVecNew)
@@ -721,7 +721,7 @@ contains
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
    ! check that the trial value is feasible (should not happen because of the call to impose constraints)
-   if(.not.feasible)then; message=trim(message)//'state vector is not feasible'; err=20; return; endif
+   if(.not.feasible)then; message=trim(message)//'state vector not feasible'; err=20; return; endif
 
    ! update brackets
    if(real(resVecNew(1), rkind)<0._rkind)then

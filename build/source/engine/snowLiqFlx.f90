@@ -35,8 +35,8 @@ USE var_lookup,only:iLookPROG       ! named variables for structure elements
 USE var_lookup,only:iLookDIAG       ! named variables for structure elements
 
 ! data types
-USE data_types,only:var_d           ! x%var(:)       (dp)
-USE data_types,only:var_dlength     ! x%var(:)%dat   (dp)
+USE data_types,only:var_d           ! x%var(:)       (rkind)
+USE data_types,only:var_dlength     ! x%var(:)%dat   (rkind)
 USE data_types,only:var_ilength     ! x%var(:)%dat   (i4b)
 
 ! privacy
@@ -133,15 +133,6 @@ contains
  ! get the indices for the snow+soil layers
  ixTop = integerMissing
  if(scalarSolution)then
-  ! WARNING: Previously this was implemented as:
-  !    ixLayerDesired = pack(ixLayerState, ixSnowOnlyHyd/=integerMissing)
-  !    ixTop = ixLayerDesired(1)
-  !    ixBot = ixLayerDesired(1)
-  ! This implementation can result in a segfault when using JRDN layering.
-  ! The segfault occurs when trying to access `mw_exp` in:
-  !    iLayerLiqFluxSnow(iLayer)      = k_snow*relSaturn**mw_exp
-  ! Debugging found that the `pack` statement caused `mw_exp` to no longer be accessible.
-  ! We have not been able to determine the underlying reason for this segfault.
   do i=1,size(ixSnowOnlyHyd)
     if(ixSnowOnlyHyd(i) /= integerMissing)then
       ixTop=ixLayerState(i)
@@ -159,7 +150,7 @@ contains
 
  ! define the liquid flux at the upper boundary (m s-1)
  iLayerLiqFluxSnow(0)      = (scalarThroughfallRain + scalarCanopyLiqDrainage)/iden_water
- iLayerLiqFluxSnowDeriv(0) = 0._rkind
+    iLayerLiqFluxSnowDeriv(0) = 0._rkind !computed inside computJacobSundials_module
 
  ! compute properties fixed over the time step
  if(firstFluxCall)then

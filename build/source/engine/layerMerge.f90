@@ -41,9 +41,9 @@ USE multiconst,only:&
 
 ! access the derived types to define the data structures
 USE data_types,only:&
-                    var_d,            & ! data vector (dp)
+                    var_d,            & ! data vector (rkind)
                     var_ilength,      & ! data vector with variable length dimension (i4b)
-                    var_dlength,      & ! data vector with variable length dimension (dp)
+                    var_dlength,      & ! data vector with variable length dimension (rkind)
                     model_options       ! defines the model decisions
 
 ! access named variables defining elements in the data structures
