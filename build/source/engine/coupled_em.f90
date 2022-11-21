@@ -34,9 +34,9 @@ USE multiconst,only:&
 ! data types
 USE data_types,only:&
                     var_i,               & ! x%var(:)                (i4b)
-                    var_d,               & ! x%var(:)            (dp)
+                    var_d,               & ! x%var(:)                (rkind)
                     var_ilength,         & ! x%var(:)%dat            (i4b)
-                    var_dlength            ! x%var(:)%dat        (dp)
+                    var_dlength,         & ! x%var(:)%dat            (rkind)
 
 ! named variables for parent structures
 USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
@@ -671,7 +671,7 @@ subroutine coupled_em(&
       call diagn_evar(&
                       ! input: control variables
                       computeVegFlux,          & ! intent(in): flag to denote if computing the vegetation flux
-                  canopyDepth,             & ! intent(in): canopy depth (m)
+                      diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1),             & ! intent(in): canopy depth (m)
                       ! input/output: data structures
                       mpar_data,               & ! intent(in):    model parameters
                       indx_data,               & ! intent(in):    model layer indices
