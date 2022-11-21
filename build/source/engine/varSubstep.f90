@@ -43,10 +43,10 @@ USE globalData,only:flux_meta       ! metadata on the model fluxes
 ! derived types to define the data structures
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (dp)
+                    var_d,        & ! data vector (rkind)
                     var_flagVec,  & ! data vector with variable length dimension (i4b)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength,  & ! data vector with variable length dimension (dp)
+                    var_dlength,  & ! data vector with variable length dimension (rkind)
                     model_options   ! defines the model decisions
 
 ! provide access to indices that define elements of the data structures
@@ -488,7 +488,6 @@ contains
         flux_data%var(iVar)%dat(ixLayer) = flux_data%var(iVar)%dat(ixLayer) + flux_temp%var(iVar)%dat(ixLayer)*dt_wght
        endif
        fluxCount%var(iVar)%dat(ixLayer) = fluxCount%var(iVar)%dat(ixLayer) + 1
-
       endif
      end do
     endif  ! (domain splitting)

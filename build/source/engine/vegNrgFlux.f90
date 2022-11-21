@@ -26,9 +26,9 @@ USE nrtype
 ! derived types to define the data structures
 USE data_types,only:&
                     var_i,            & ! data vector (i4b)
-                    var_d,            & ! data vector (dp)
+                    var_d,            & ! data vector (rkind)
                     var_ilength,      & ! data vector with variable length dimension (i4b)
-                    var_dlength,      & ! data vector with variable length dimension (dp)
+                    var_dlength,      & ! data vector with variable length dimension (rkind)
                     model_options       ! defines the model decisions
 
 ! indices that define elements of the data structures
@@ -214,7 +214,6 @@ subroutine vegNrgFlux(&
   logical(lgt),intent(in)            :: firstSubStep                    ! flag to indicate if we are processing the first sub-step
   logical(lgt),intent(in)            :: firstFluxCall                   ! flag to indicate if we are processing the first flux call
   logical(lgt),intent(in)            :: computeVegFlux                  ! flag to indicate if computing fluxes over vegetation
-
   ! input: model state variables
   real(rkind),intent(in)             :: upperBoundTemp                  ! temperature of the upper boundary (K) --> NOTE: use air temperature
   real(rkind),intent(in)             :: canairTempTrial                 ! trial value of canopy air space temperature (K)
@@ -665,11 +664,11 @@ subroutine vegNrgFlux(&
         dGroundEvaporation_dTCanopy= 0._rkind    ! derivative in ground evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
         dGroundEvaporation_dTGround= 0._rkind    ! derivative in ground evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
 
-   ! compute fluxes and derivatives -- separate approach for prescribed temperature and zero flux
+        ! compute fluxes and derivatives -- separate approach for prescribed temperature and zero flux,
         if(ix_bcUpprTdyn == prescribedTemp)then
           ! compute ground net flux (W m-2)
           groundNetFlux = -diag_data%var(iLookDIAG%iLayerThermalC)%dat(0)*(groundTempTrial - upperBoundTemp)/(prog_data%var(iLookPROG%mLayerDepth)%dat(1)*0.5_rkind)
-    ! compute derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+          ! compute derivative in net ground flux w.r.t. ground temperature (W m-2 K-1) inside soil and snow (ssd) energy flux routine
     dGroundNetFlux_dGroundTemp = -diag_data%var(iLookDIAG%iLayerThermalC)%dat(0)/(prog_data%var(iLookPROG%mLayerDepth)%dat(1)*0.5_rkind)
    elseif(model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision == zeroFlux)then
           groundNetFlux              = 0._rkind
@@ -1034,7 +1033,7 @@ subroutine vegNrgFlux(&
               canairTemp        = canairTempTrial + dx
               canopyWat         = totalCanopyWater
 
-            ! perturb canopy liquid water content
+            ! perturb canopy total water content
             case(perturbStateCanWat)
               groundTemp        = groundTempTrial
               canopyTemp        = canopyTempTrial
@@ -1178,7 +1177,6 @@ subroutine vegNrgFlux(&
               soilRelHumidity_noSnow = 0._rkind
             end if ! (if matric head is very low)
             scalarSoilRelHumidity  = scalarGroundSnowFraction*1._rkind + (1._rkind - scalarGroundSnowFraction)*soilRelHumidity_noSnow
-     !print*, 'mLayerMatricHead(1), scalarSoilRelHumidity = ', mLayerMatricHead(1), scalarSoilRelHumidity
           end if  ! (if the first flux call)
 
           ! compute turbulent heat fluxes
