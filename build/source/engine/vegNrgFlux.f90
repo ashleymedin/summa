@@ -672,7 +672,7 @@ subroutine vegNrgFlux(&
     dGroundNetFlux_dGroundTemp = -diag_data%var(iLookDIAG%iLayerThermalC)%dat(0)/(prog_data%var(iLookPROG%mLayerDepth)%dat(1)*0.5_rkind)
    elseif(model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision == zeroFlux)then
           groundNetFlux              = 0._rkind
-    dGroundNetFlux_dGroundTemp = 0._rkind
+          ! dGroundNetFlux_dGroundTemp = missingValue
         else
           err=20; message=trim(message)//'unable to identify upper boundary condition for thermodynamics: expect the case to be prescribedTemp or zeroFlux'; return
         end if
@@ -1264,6 +1264,11 @@ subroutine vegNrgFlux(&
                           dLatHeatGroundEvap_dTCanair,          & ! intent(out): derivative in latent heat of ground evaporation w.r.t. canopy air temperature
                           dLatHeatGroundEvap_dTCanopy,          & ! intent(out): derivative in latent heat of ground evaporation w.r.t. canopy temperature
                           dLatHeatGroundEvap_dTGround,          & ! intent(out): derivative in latent heat of ground evaporation w.r.t. ground temperature
+                          ! output: latent heat flux derivatives (canopy trans)
+                          dLatHeatCanopyTrans_dCanWat,          & ! intent(out): derivative in the latent heat of canopy transpiration w.r.t. canopy total water (J kg-1 s-1)
+                          dLatHeatCanopyTrans_dTCanair,         & ! intent(out): derivative in the latent heat of canopy transpiration w.r.t. canopy air temperature
+                          dLatHeatCanopyTrans_dTCanopy,         & ! intent(out): derivative in the latent heat of canopy transpiration w.r.t. canopy temperature
+                          dLatHeatCanopyTrans_dTGround,         & ! intent(out): derivative in the latent heat of canopy transpiration w.r.t. ground temperature
                           ! output: cross derivatives
                           dTurbFluxCanair_dCanWat,              & ! intent(out): derivative in net canopy air space fluxes w.r.t. canopy total water content (J kg-1 s-1)
                           dTurbFluxCanopy_dCanWat,              & ! intent(out): derivative in net canopy turbulent fluxes w.r.t. canopy total water content (J kg-1 s-1)
@@ -2537,6 +2542,11 @@ subroutine turbFluxes(&
                       dLatHeatGroundEvap_dTCanair,   & ! intent(out): derivative in latent heat of ground evaporation w.r.t. canopy air temperature
                       dLatHeatGroundEvap_dTCanopy,   & ! intent(out): derivative in latent heat of ground evaporation w.r.t. canopy temperature
                       dLatHeatGroundEvap_dTGround,   & ! intent(out): derivative in latent heat of ground evaporation w.r.t. ground temperature
+                      ! output: latent heat flux derivatives (canopy trans)
+                      dLatHeatCanopyTrans_dCanWat,   & ! intent(out): derivative in the latent heat of canopy transpiration w.r.t. canopy total water (J kg-1 s-1)
+                      dLatHeatCanopyTrans_dTCanair,  & ! intent(out): derivative in the latent heat of canopy transpiration w.r.t. canopy air temperature
+                      dLatHeatCanopyTrans_dTCanopy,  & ! intent(out): derivative in the latent heat of canopy transpiration w.r.t. canopy temperature
+                      dLatHeatCanopyTrans_dTGround,  & ! intent(out): derivative in the latent heat of canopy transpiration w.r.t. ground temperature
                       ! output: cross derivatives
                       dTurbFluxCanair_dCanWat,       & ! intent(out): derivative in net canopy air space fluxes w.r.t. canopy total water content (J kg-1 s-1)
                       dTurbFluxCanopy_dCanWat,       & ! intent(out): derivative in net canopy turbulent fluxes w.r.t. canopy total water content (J kg-1 s-1)
@@ -2629,6 +2639,11 @@ subroutine turbFluxes(&
   real(rkind),intent(out)          :: dLatHeatGroundEvap_dTCanair  ! derivative in latent heat of ground evaporation w.r.t. canopy air temperature (W m-2 K-1)
   real(rkind),intent(out)          :: dLatHeatGroundEvap_dTCanopy  ! derivative in latent heat of ground evaporation w.r.t. canopy temperature (W m-2 K-1)
   real(rkind),intent(out)          :: dLatHeatGroundEvap_dTGround  ! derivative in latent heat of ground evaporation w.r.t. ground temperature (W m-2 K-1)
+  ! output: latent heat flux derivatives (canopy trans)
+  real(rkind)                      :: dLatHeatCanopyTrans_dCanWat  ! derivative in the latent heat of canopy transpiration w.r.t. canopy total water (J kg-1 s-1)
+  real(rkind)                      :: dLatHeatCanopyTrans_dTCanair ! derivative in the latent heat of canopy transpiration w.r.t. canopy air temperature
+  real(rkind)                      :: dLatHeatCanopyTrans_dTCanopy ! derivative in the latent heat of canopy transpiration w.r.t. canopy temperature
+  real(rkind)                      :: dLatHeatCanopyTrans_dTGround ! derivative in the latent heat of canopy transpiration flux w.r.t. ground temperature
   ! output: cross derivatives
   real(rkind),intent(out)          :: dTurbFluxCanair_dCanWat      ! derivative in net canopy air space fluxes w.r.t. canopy total water content (J kg-1 s-1)
   real(rkind),intent(out)          :: dTurbFluxCanopy_dCanWat      ! derivative in net canopy turbulent fluxes w.r.t. canopy total water content (J kg-1 s-1)
@@ -2673,14 +2688,9 @@ subroutine turbFluxes(&
   real(rkind)                      :: dSenHeatGround_dTCanair      ! derivative in the ground sensible heat flux w.r.t. canopy air temperature
   real(rkind)                      :: dSenHeatGround_dTCanopy      ! derivative in the ground sensible heat flux w.r.t. canopy temperature
   real(rkind)                      :: dSenHeatGround_dTGround      ! derivative in the ground sensible heat flux w.r.t. ground temperature
- ! local variables -- latent heat flux derivatives
- real(rkind)                      :: dLatHeatCanopyTrans_dTCanair ! derivative in the canopy transpiration flux w.r.t. canopy air temperature
- real(rkind)                      :: dLatHeatCanopyTrans_dTCanopy ! derivative in the canopy transpiration flux w.r.t. canopy temperature
- real(rkind)                      :: dLatHeatCanopyTrans_dTGround ! derivative in the canopy transpiration flux w.r.t. ground temperature
   ! local variables -- wetted fraction derivatives
   real(rkind)                      :: dLatHeatCanopyEvap_dWetFrac  ! derivative in the latent heat of canopy evaporation w.r.t. canopy wet fraction (W m-2)
   real(rkind)                      :: dLatHeatCanopyTrans_dWetFrac ! derivative in the latent heat of canopy transpiration w.r.t. canopy wet fraction (W m-2)
- real(rkind)                      :: dLatHeatCanopyTrans_dCanWat  ! derivative in the latent heat of canopy transpiration w.r.t. canopy liquid water (J kg-1 s-1)
   ! -----------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message='turbFluxes/'
