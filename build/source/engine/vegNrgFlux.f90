@@ -428,6 +428,12 @@ subroutine vegNrgFlux(&
   real(rkind)                       :: dLatHeatGroundEvap_dTCanopy      ! derivative in latent heat of ground evaporation w.r.t. canopy temperature (W m-2 K-1)
   real(rkind)                       :: dLatHeatGroundEvap_dTGround      ! derivative in latent heat of ground evaporation w.r.t. ground temperature (W m-2 K-1)
 
+  ! output: latent heat flux derivatives (canopy trans)
+  real(rkind)                      :: dLatHeatCanopyTrans_dCanWat       ! derivative in the latent heat of canopy transpiration w.r.t. canopy total water (J kg-1 s-1)
+  real(rkind)                      :: dLatHeatCanopyTrans_dTCanair      ! derivative in the latent heat of canopy transpiration w.r.t. canopy air temperature
+  real(rkind)                      :: dLatHeatCanopyTrans_dTCanopy      ! derivative in the latent heat of canopy transpiration w.r.t. canopy temperature
+  real(rkind)                      :: dLatHeatCanopyTrans_dTGround      ! derivative in the latent heat of canopy transpiration w.r.t. ground temperature
+
   ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structure
   ! ---------------------------------------------------------------------------------------
