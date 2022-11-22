@@ -38,7 +38,7 @@ USE data_types,only:&
                     hru_int8,        & ! x%hru(:)%var(:)     integer(8)
                     hru_double,      & ! x%hru(:)%var(:)     (rkind)
                     hru_intVec,      & ! x%hru(:)%var(:)%dat (i4b)
-                    hru_doubleVec,   & ! x%hru(:)%var(:)%dat (rkind)
+                    hru_doubleVec      ! x%hru(:)%var(:)%dat (rkind)
 
 ! provide access to the named variables that describe elements of parameter structures
 USE var_lookup,only:iLookTYPE          ! look-up values for classification of veg, soils etc.

@@ -28,7 +28,7 @@ USE data_types,only:&
                var_i,                    & ! x%var(:)            (i4b)
                var_d,                    & ! x%var(:)                (rkind)
                var_ilength,              & ! x%var(:)%dat        (i4b)
-               var_dlength,              & ! x%var(:)%dat            (rkind)
+               var_dlength                 ! x%var(:)%dat            (rkind)
 
 ! access vegetation data
 USE globalData,only:greenVegFrac_monthly   ! fraction of green vegetation in each month (0-1)
@@ -111,7 +111,7 @@ contains
  implicit none
 
  ! ----- define dummy variables ------------------------------------------------------------------------------------------
- 
+
  ! model control
  integer(8)        , intent(in)    :: hruId               ! hruId
  real(rkind)          , intent(inout) :: dt_init             ! used to initialize the length of the sub-step for each HRU
@@ -141,7 +141,7 @@ contains
 
  ! initialize error control
  err=0; write(message, '(A20,I0,A2)' ) 'run_oneHRU (hruId = ',hruId,')/'
- 
+
  ! ----- hru initialization ---------------------------------------------------------------------------------------------
 
  ! water pixel: do nothing
