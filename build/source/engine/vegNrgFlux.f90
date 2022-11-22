@@ -379,24 +379,24 @@ subroutine vegNrgFlux(&
   real(rkind)                       :: turbFluxCanair_dStateCanair      ! turbulent exchange from the canopy air space to the atmosphere, after canopy air temperature is perturbed (W m-2)
   real(rkind)                       :: turbFluxCanair_dStateCanopy      ! turbulent exchange from the canopy air space to the atmosphere, after canopy temperature is perturbed (W m-2)
   real(rkind)                       :: turbFluxCanair_dStateGround      ! turbulent exchange from the canopy air space to the atmosphere, after ground temperature is perturbed (W m-2)
- real(rkind)                       :: turbFluxCanair_dStateCanliq      ! turbulent exchange from the canopy air space to the atmosphere, after canopy liquid water content is perturbed (W m-2)
+  real(rkind)                       :: turbFluxCanair_dStateCanWat      ! turbulent exchange from the canopy air space to the atmosphere, after canopy total water content is perturbed (W m-2)
   ! (fluxes after perturbations in model states -- vegetation canopy)
   real(rkind)                       :: turbFluxCanopy_dStateCanair      ! total turbulent heat fluxes from the canopy to the canopy air space, after canopy air temperature is perturbed (W m-2)
   real(rkind)                       :: turbFluxCanopy_dStateCanopy      ! total turbulent heat fluxes from the canopy to the canopy air space, after canopy temperature is perturbed (W m-2)
   real(rkind)                       :: turbFluxCanopy_dStateGround      ! total turbulent heat fluxes from the canopy to the canopy air space, after ground temperature is perturbed (W m-2)
- real(rkind)                       :: turbFluxCanopy_dStateCanLiq      ! total turbulent heat fluxes from the canopy to the canopy air space, after canopy liquid water content is perturbed (W m-2)
+  real(rkind)                       :: turbFluxCanopy_dStateCanWat      ! total turbulent heat fluxes from the canopy to the canopy air space, after canopy total water content is perturbed (W m-2)
 
   ! (fluxes after perturbations in model states -- ground surface)
   real(rkind)                       :: turbFluxGround_dStateCanair      ! total turbulent heat fluxes from the ground to the canopy air space, after canopy air temperature is perturbed (W m-2)
   real(rkind)                       :: turbFluxGround_dStateCanopy      ! total turbulent heat fluxes from the ground to the canopy air space, after canopy temperature is perturbed (W m-2)
   real(rkind)                       :: turbFluxGround_dStateGround      ! total turbulent heat fluxes from the ground to the canopy air space, after ground temperature is perturbed (W m-2)
- real(rkind)                       :: turbFluxGround_dStateCanLiq      ! total turbulent heat fluxes from the ground to the canopy air space, after canopy liquid water content is perturbed (W m-2)
+  real(rkind)                       :: turbFluxGround_dStateCanWat      ! total turbulent heat fluxes from the ground to the canopy air space, after canopy total water content is perturbed (W m-2)
 
   ! (fluxes after perturbations in model states -- canopy evaporation)
   real(rkind)                       :: latHeatCanEvap_dStateCanair      ! canopy evaporation after canopy air temperature is perturbed (W m-2)
   real(rkind)                       :: latHeatCanEvap_dStateCanopy      ! canopy evaporation after canopy temperature is perturbed (W m-2)
   real(rkind)                       :: latHeatCanEvap_dStateGround      ! canopy evaporation after ground temperature is perturbed (W m-2)
- real(rkind)                       :: latHeatCanEvap_dStateCanLiq      ! canopy evaporation after canopy liquid water content is perturbed (W m-2)
+  real(rkind)                       :: latHeatCanEvap_dStateCanWat      ! canopy evaporation after canopy total water content is perturbed (W m-2)
 
   ! (flux derivatives -- canopy air space)
   real(rkind)                       :: dTurbFluxCanair_dTCanair         ! derivative in net canopy air space fluxes w.r.t. canopy air temperature (W m-2 K-1)
@@ -1306,10 +1306,10 @@ subroutine vegNrgFlux(&
             turbFluxGround_dStateGround = turbFluxGround          ! total turbulent heat fluxes from the ground to the canopy air space (W m-2)
             latHeatCanEvap_dStateGround = scalarLatHeatCanopyEvap ! perturbed value for the latent heat associated with canopy evaporation (W m-2)
       case(perturbStateCanWat)
-       turbFluxCanair_dStateCanliq = turbFluxCanair          ! turbulent exchange from the canopy air space to the atmosphere (W m-2)
-       turbFluxCanopy_dStateCanLiq = turbFluxCanopy          ! total turbulent heat fluxes from the canopy to the canopy air space (W m-2)
-       turbFluxGround_dStateCanLiq = turbFluxGround          ! total turbulent heat fluxes from the ground to the canopy air space (W m-2)
-       latHeatCanEvap_dStateCanliq = scalarLatHeatCanopyEvap ! perturbed value for the latent heat associated with canopy evaporation (W m-2)
+            turbFluxCanair_dStateCanWat = turbFluxCanair          ! turbulent exchange from the canopy air space to the atmosphere (W m-2)
+            turbFluxCanopy_dStateCanWat = turbFluxCanopy          ! total turbulent heat fluxes from the canopy to the canopy air space (W m-2)
+            turbFluxGround_dStateCanWat = turbFluxGround          ! total turbulent heat fluxes from the ground to the canopy air space (W m-2)
+            latHeatCanEvap_dStateCanWat = scalarLatHeatCanopyEvap ! perturbed value for the latent heat associated with canopy evaporation (W m-2)
             case default; err=10; message=trim(message)//"unknown perturbation"; return
           end select ! (type of perturbation)
           end if ! (if numerical)
@@ -1334,11 +1334,11 @@ subroutine vegNrgFlux(&
           dTurbFluxCanopy_dTGround    = (turbFluxCanopy_dStateGround - turbFluxCanopy) / dx          ! derivative in net canopy turbulent fluxes w.r.t. ground temperature (W m-2 K-1)
           dTurbFluxGround_dTGround    = (turbFluxGround_dStateGround - turbFluxGround) / dx          ! derivative in net ground turbulent fluxes w.r.t. ground temperature (W m-2 K-1)
           dLatHeatCanopyEvap_dTGround = (latHeatCanEvap_dStateGround - scalarLatHeatCanopyEvap) / dx ! derivative in latent heat of canopy evaporation w.r.t. ground temperature (W m-2 K-1)
-    ! derivatives w.r.t. canopy liquid water content
-    dTurbFluxCanair_dCanWat    = (turbFluxCanair_dStateCanliq  - turbFluxCanair) / dx          ! derivative in net canopy air space fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
-    dTurbFluxCanopy_dCanWat    = (turbFluxCanopy_dStateCanLiq  - turbFluxCanopy) / dx          ! derivative in net canopy turbulent fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
-    dTurbFluxGround_dCanWat    = (turbFluxGround_dStateCanLiq  - turbFluxGround) / dx          ! derivative in net ground turbulent fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
-    dLatHeatCanopyEvap_dCanWat = (latHeatCanEvap_dStateCanliq  - scalarLatHeatCanopyEvap) / dx ! derivative in latent heat of canopy evaporation w.r.t. canopy liquid water content (J kg-1 s-1)
+          ! derivatives w.r.t. canopy total water content
+          dTurbFluxCanair_dCanWat    = (turbFluxCanair_dStateCanWat  - turbFluxCanair) / dx          ! derivative in net canopy air space fluxes w.r.t. canopy total water content (J kg-1 s-1)
+          dTurbFluxCanopy_dCanWat    = (turbFluxCanopy_dStateCanWat  - turbFluxCanopy) / dx          ! derivative in net canopy turbulent fluxes w.r.t. canopy total water content (J kg-1 s-1)
+          dTurbFluxGround_dCanWat    = (turbFluxGround_dStateCanWat  - turbFluxGround) / dx          ! derivative in net ground turbulent fluxes w.r.t. canopy total water content (J kg-1 s-1)
+          dLatHeatCanopyEvap_dCanWat = (latHeatCanEvap_dStateCanWat  - scalarLatHeatCanopyEvap) / dx ! derivative in latent heat of canopy evaporation w.r.t. canopy total water content (J kg-1 s-1)
         end if
 
 
