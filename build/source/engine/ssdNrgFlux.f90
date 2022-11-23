@@ -835,7 +835,7 @@ subroutine iLayerThermalConduct(&
   ! input: snow parameters
   real(rkind),intent(in)           :: fixedThermalCond_snow     ! intent(in): temporally constant thermal conductivity of snow (W m-1 K-1)
   ! output: thermal conductivity at layer interfaces
-  real(rkind),intent(inout)        :: iLayerThermalC            ! thermal conductivity at the interface of each layer (W m-1 K-1)
+  real(rkind),intent(in)        :: iLayerThermalC            ! thermal conductivity at the interface of each layer (W m-1 K-1)
   ! output: thermal conductivity derivatives at all layer interfaces
   real(rkind),intent(out)          :: dThermalC_dHydStateAbove  ! derivatives in the thermal conductivity w.r.t. matric head or volumetric liquid water in the layer above
   real(rkind),intent(out)          :: dThermalC_dHydStateBelow  ! derivatives in the thermal conductivity w.r.t. matric head or volumetric liquid water in the layer below
