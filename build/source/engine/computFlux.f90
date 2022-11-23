@@ -97,7 +97,9 @@ implicit none
 private
 public::computFlux
 public::soilCmpres
+public::soilCmpresSundials
 contains
+
 
 ! *********************************************************************************************************
 ! public subroutine computFlux: compute model fluxes
@@ -112,6 +114,7 @@ subroutine computFlux(&
                       firstSplitOper,           & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
                       computeVegFlux,           & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                       scalarSolution,           & ! intent(in):    flag to indicate the scalar solution
+                      checkLWBalance,           & ! intent(in):    flag to check longwave balance
                       drainageMeltPond,         & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
                       ! input: state variables
                       scalarCanairTempTrial,    & ! intent(in):    trial value for the temperature of the canopy air space (K)
@@ -165,6 +168,7 @@ subroutine computFlux(&
   logical(lgt),intent(in)            :: firstSplitOper              ! flag to indicate if we are processing the first flux call in a splitting operation
   logical(lgt),intent(in)            :: computeVegFlux              ! flag to indicate if computing fluxes over vegetation
   logical(lgt),intent(in)            :: scalarSolution              ! flag to denote if implementing the scalar solution
+  logical(lgt),intent(in)            :: checkLWBalance              ! flag to check longwave balance
   real(rkind),intent(in)             :: drainageMeltPond            ! drainage from the surface melt pond (kg m-2 s-1)
   ! input: state variables
   real(rkind),intent(in)             :: scalarCanairTempTrial       ! trial value for temperature of the canopy air space (K)
@@ -325,21 +329,21 @@ subroutine computFlux(&
     dCanopyNetFlux_dCanairTemp   => deriv_data%var(iLookDERIV%dCanopyNetFlux_dCanairTemp  )%dat(1)  ,&  ! intent(out): [dp] derivative in net canopy flux w.r.t. canopy air temperature
     dCanopyNetFlux_dCanopyTemp   => deriv_data%var(iLookDERIV%dCanopyNetFlux_dCanopyTemp  )%dat(1)  ,&  ! intent(out): [dp] derivative in net canopy flux w.r.t. canopy temperature
     dCanopyNetFlux_dGroundTemp   => deriv_data%var(iLookDERIV%dCanopyNetFlux_dGroundTemp  )%dat(1)  ,&  ! intent(out): [dp] derivative in net canopy flux w.r.t. ground temperature
- dCanopyNetFlux_dCanWat       => deriv_data%var(iLookDERIV%dCanopyNetFlux_dCanWat      )%dat(1)  ,&  ! intent(out): [dp] derivative in net canopy fluxes w.r.t. canopy liquid water content
+    dCanopyNetFlux_dCanWat       => deriv_data%var(iLookDERIV%dCanopyNetFlux_dCanWat      )%dat(1)  ,&  ! intent(out): [dp] derivative in net canopy fluxes w.r.t. canopy total water content
     dGroundNetFlux_dCanairTemp   => deriv_data%var(iLookDERIV%dGroundNetFlux_dCanairTemp  )%dat(1)  ,&  ! intent(out): [dp] derivative in net ground flux w.r.t. canopy air temperature
     dGroundNetFlux_dCanopyTemp   => deriv_data%var(iLookDERIV%dGroundNetFlux_dCanopyTemp  )%dat(1)  ,&  ! intent(out): [dp] derivative in net ground flux w.r.t. canopy temperature
     dGroundNetFlux_dGroundTemp   => deriv_data%var(iLookDERIV%dGroundNetFlux_dGroundTemp  )%dat(1)  ,&  ! intent(out): [dp] derivative in net ground flux w.r.t. ground temperature
- dGroundNetFlux_dCanWat       => deriv_data%var(iLookDERIV%dGroundNetFlux_dCanWat      )%dat(1)  ,&  ! intent(out): [dp] derivative in net ground fluxes w.r.t. canopy liquid water content
+    dGroundNetFlux_dCanWat       => deriv_data%var(iLookDERIV%dGroundNetFlux_dCanWat      )%dat(1)  ,&  ! intent(out): [dp] derivative in net ground fluxes w.r.t. canopy total water content
 
     ! derivatives in evaporative fluxes w.r.t. relevant state variables
     dCanopyEvaporation_dTCanair  => deriv_data%var(iLookDERIV%dCanopyEvaporation_dTCanair )%dat(1)  ,&  ! intent(out): [dp] derivative in canopy evaporation w.r.t. canopy air temperature
     dCanopyEvaporation_dTCanopy  => deriv_data%var(iLookDERIV%dCanopyEvaporation_dTCanopy )%dat(1)  ,&  ! intent(out): [dp] derivative in canopy evaporation w.r.t. canopy temperature
     dCanopyEvaporation_dTGround  => deriv_data%var(iLookDERIV%dCanopyEvaporation_dTGround )%dat(1)  ,&  ! intent(out): [dp] derivative in canopy evaporation w.r.t. ground temperature
- dCanopyEvaporation_dCanWat   => deriv_data%var(iLookDERIV%dCanopyEvaporation_dCanWat  )%dat(1)  ,&  ! intent(out): [dp] derivative in canopy evaporation w.r.t. canopy liquid water content
+    dCanopyEvaporation_dCanWat   => deriv_data%var(iLookDERIV%dCanopyEvaporation_dCanWat  )%dat(1)  ,&  ! intent(out): [dp] derivative in canopy evaporation w.r.t. canopy total water content
     dGroundEvaporation_dTCanair  => deriv_data%var(iLookDERIV%dGroundEvaporation_dTCanair )%dat(1)  ,&  ! intent(out): [dp] derivative in ground evaporation w.r.t. canopy air temperature
     dGroundEvaporation_dTCanopy  => deriv_data%var(iLookDERIV%dGroundEvaporation_dTCanopy )%dat(1)  ,&  ! intent(out): [dp] derivative in ground evaporation w.r.t. canopy temperature
     dGroundEvaporation_dTGround  => deriv_data%var(iLookDERIV%dGroundEvaporation_dTGround )%dat(1)  ,&  ! intent(out): [dp] derivative in ground evaporation w.r.t. ground temperature
- dGroundEvaporation_dCanWat   => deriv_data%var(iLookDERIV%dGroundEvaporation_dCanWat  )%dat(1)  ,&  ! intent(out): [dp] derivative in ground evaporation w.r.t. canopy liquid water content
+    dGroundEvaporation_dCanWat   => deriv_data%var(iLookDERIV%dGroundEvaporation_dCanWat  )%dat(1)  ,&  ! intent(out): [dp] derivative in ground evaporation w.r.t. canopy total water content
 
     ! derivatives in canopy water w.r.t canopy temperature
     dCanLiq_dTcanopy             => deriv_data%var(iLookDERIV%dCanLiq_dTcanopy            )%dat(1)  ,&  ! intent(out): [dp] derivative of canopy liquid storage w.r.t. temperature
@@ -369,7 +373,7 @@ subroutine computFlux(&
 
     ! derivative in liquid water fluxes for the soil domain w.r.t energy state variables
     dq_dNrgStateAbove            => deriv_data%var(iLookDERIV%dq_dNrgStateAbove           )%dat     ,&  ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer above
- dq_dNrgStateBelow            => deriv_data%var(iLookDERIV%dq_dNrgStateBelow           )%dat      &  ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer below
+    dq_dNrgStateBelow            => deriv_data%var(iLookDERIV%dq_dNrgStateBelow           )%dat     ,&  ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer below
 
     )  ! association to data in structures
 
@@ -413,6 +417,7 @@ subroutine computFlux(&
                       firstSubStep,                           & ! intent(in): flag to indicate if we are processing the first sub-step
                       firstFluxCall,                          & ! intent(in): flag to indicate if we are processing the first flux call
                       computeVegFlux,                         & ! intent(in): flag to indicate if we need to compute fluxes over vegetation
+                      checkLWBalance,                         & ! intent(in): flag to check longwave balance
                       ! input: model state variables
                       upperBoundTemp,                         & ! intent(in): temperature of the upper boundary (K) --> NOTE: use air temperature
                       scalarCanairTempTrial,                  & ! intent(in): trial value of the canopy air space temperature (K)
@@ -451,18 +456,18 @@ subroutine computFlux(&
                       dGroundNetFlux_dCanopyTemp,             & ! intent(out): derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
                       dGroundNetFlux_dGroundTemp,             & ! intent(out): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
                       ! output: liquid water flux derivatives (canopy evap)
-                  dCanopyEvaporation_dCanWat,             & ! intent(out): derivative in canopy evaporation w.r.t. canopy liquid water content (s-1)
+                      dCanopyEvaporation_dCanWat,             & ! intent(out): derivative in canopy evaporation w.r.t. canopy total water content (s-1)
                       dCanopyEvaporation_dTCanair,            & ! intent(out): derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
                       dCanopyEvaporation_dTCanopy,            & ! intent(out): derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
                       dCanopyEvaporation_dTGround,            & ! intent(out): derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
                       ! output: liquid water flux derivatives (ground evap)
-                  dGroundEvaporation_dCanWat,             & ! intent(out): derivative in ground evaporation w.r.t. canopy liquid water content (s-1)
+                      dGroundEvaporation_dCanWat,             & ! intent(out): derivative in ground evaporation w.r.t. canopy total water content (s-1)
                       dGroundEvaporation_dTCanair,            & ! intent(out): derivative in ground evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
                       dGroundEvaporation_dTCanopy,            & ! intent(out): derivative in ground evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
                       dGroundEvaporation_dTGround,            & ! intent(out): derivative in ground evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
                       ! output: cross derivative terms
-                  dCanopyNetFlux_dCanWat,                 & ! intent(out): derivative in net canopy fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
-                  dGroundNetFlux_dCanWat,                 & ! intent(out): derivative in net ground fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
+                      dCanopyNetFlux_dCanWat,                 & ! intent(out): derivative in net canopy fluxes w.r.t. canopy total water content (J kg-1 s-1)
+                      dGroundNetFlux_dCanWat,                 & ! intent(out): derivative in net ground fluxes w.r.t. canopy total water content (J kg-1 s-1)
                       ! output: error control
                       err,cmessage)                             ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
@@ -609,7 +614,7 @@ subroutine computFlux(&
       ! define forcing for the soil domain
       scalarRainPlusMelt = iLayerLiqFluxSnow(nSnow)    ! drainage from the base of the snowpack
 
-  ! calculate net liquid water fluxes for each soil layer (s-1)
+      ! calculate net liquid water fluxes for each snow layer (s-1)
       do iLayer=1,nSnow
         mLayerLiqFluxSnow(iLayer) = -(iLayerLiqFluxSnow(iLayer) - iLayerLiqFluxSnow(iLayer-1))/mLayerDepth(iLayer)
       end do
@@ -621,7 +626,6 @@ subroutine computFlux(&
       above_soilLiqFluxDeriv = iLayerLiqFluxSnowDeriv(nSnow) ! derivative in vertical liquid water flux at bottom snow layer interface
       above_soildLiq_dTk     = mLayerdTheta_dTk(nSnow)  ! derivative in volumetric liquid water content in bottom snow layer w.r.t. temperature
       above_soilFracLiq      = mLayerFracLiqSnow(nSnow) ! fraction of liquid water in bottom snow layer (-)
-
 
     else
 
@@ -727,7 +731,7 @@ subroutine computFlux(&
         scalarSoilControl = 1._rkind
       endif
 
-  ! compute drainage from the soil zone (needed for mass balance checks)
+      ! compute drainage from the soil zone (needed for mass balance checks and in aquifer recharge)
       scalarSoilDrainage = iLayerLiqFluxSoil(nSoil)
 
       ! expand derivatives to the total water matric potential
@@ -935,5 +939,57 @@ subroutine soilCmpres(&
     dCompress_dPsi(:) = 0._rkind
   end if
 end subroutine soilCmpres
+
+
+! **********************************************************************************************************
+! public subroutine soilCmpres: compute soil compressibility (-) and its derivative w.r.t matric head (m-1)
+! **********************************************************************************************************
+subroutine soilCmpresSundials(&
+                          ! input:
+                          ixRichards,                         & ! intent(in): choice of option for Richards' equation
+                          ixBeg,ixEnd,                        & ! intent(in): start and end indices defining desired layers
+                          mLayerMatricHeadPrime,              & ! intent(in): matric head at the start of the time step (m)
+                          mLayerVolFracLiqTrial,              & ! intent(in): trial value for the volumetric liquid water content in each soil layer (-)
+                          mLayerVolFracIceTrial,              & ! intent(in): trial value for the volumetric ice content in each soil layer (-)
+                          specificStorage,                    & ! intent(in): specific storage coefficient (m-1)
+                          theta_sat,                          & ! intent(in): soil porosity (-)
+                          ! output:
+                          compress,                           & ! intent(out): compressibility of the soil matrix (-)
+                          dCompress_dPsi,                     & ! intent(out): derivative in compressibility w.r.t. matric head (m-1)
+                          err,message)                          ! intent(out): error code and error message
+  implicit none
+  ! input:
+  integer(i4b),intent(in)           :: ixRichards                ! choice of option for Richards' equation
+  integer(i4b),intent(in)           :: ixBeg,ixEnd               ! start and end indices defining desired layers
+  real(rkind),intent(in)            :: mLayerMatricHeadPrime(:)       ! matric head at the start of the time step (m)
+  real(rkind),intent(in)            :: mLayerVolFracLiqTrial(:)  ! trial value for volumetric fraction of liquid water (-)
+  real(rkind),intent(in)            :: mLayerVolFracIceTrial(:)  ! trial value for volumetric fraction of ice (-)
+  real(rkind),intent(in)            :: specificStorage           ! specific storage coefficient (m-1)
+  real(rkind),intent(in)            :: theta_sat(:)              ! soil porosity (-)
+  ! output:
+  real(rkind),intent(inout)         :: compress(:)               ! soil compressibility (-)
+  real(rkind),intent(inout)         :: dCompress_dPsi(:)         ! derivative in soil compressibility w.r.t. matric head (m-1)
+  integer(i4b),intent(out)          :: err                       ! error code
+  character(*),intent(out)          :: message                   ! error message
+  ! local variables
+  integer(i4b)                      :: iLayer                    ! index of soil layer
+  ! --------------------------------------------------------------
+  ! initialize error control
+  err=0; message='soilCmpresSundials/'
+  ! (only compute for the mixed form of Richards' equation)
+  if(ixRichards==mixdform)then
+    do iLayer=1,size(mLayerMatricHeadPrime)
+      if(iLayer>=ixBeg .and. iLayer<=ixEnd)then
+          ! compute the derivative for the compressibility term (m-1)
+          dCompress_dPsi(iLayer) = specificStorage*(mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer))/theta_sat(iLayer)
+          ! compute the compressibility term (-)
+          compress(iLayer)       =   mLayerMatricHeadPrime(iLayer) * dCompress_dPsi(iLayer)
+      endif
+    end do
+  else
+    compress(:)       = 0._rkind
+    dCompress_dPsi(:) = 0._rkind
+  end if
+end subroutine soilCmpresSundials
 
 end module computFlux_module

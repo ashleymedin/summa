@@ -280,7 +280,9 @@ contains
    call paramCheck(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! calculate a look-up table for the temperature-enthalpy conversion
+   ! calculate a look-up table for the temperature-enthalpy conversion: snow
+   ! NOTE1: this should eventually be replaced by the more general routine below
+   ! NOTE2: this does not actually need to be called for each HRU and GRU
    call E2T_lookup(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 

@@ -738,15 +738,15 @@ subroutine opSplittin(&
                 ! * solve variable subset for one time step...
                 ! --------------------------------------------
 
-       !print*, trim(message)//'before varSubstep: nSubset = ', nSubset
-
                 ! keep track of the number of scalar solutions
                 if(ixSolution==scalar) numberScalarSolutions = numberScalarSolutions + 1
 
                 ! solve variable subset for one full time step
+                select case(ixNumericalMethod)
+                  case(bEuler)
                     call varSubstep(&
                                 ! input: model control
-                                dt,                         & ! intent(inout) : time step (s)
+                                dt,                         & ! intent(in)    : time step (s)
                                 dtInit,                     & ! intent(in)    : initial time step (seconds)
                                 dt_min,                     & ! intent(in)    : minimum time step (seconds)
                                 nSubset,                    & ! intent(in)    : total number of variables in the state subset
@@ -779,6 +779,8 @@ subroutine opSplittin(&
                                 tooMuchMelt,                & ! intent(out)   : flag to denote that ice is insufficient to support melt
                                 err,cmessage)                 ! intent(out)   : error code and error message
                               ! check
+                  case default; err=20; message=trim(message)//'expect num_method to be sundials or bEuler (or itertive, which is bEuler)'; return
+                end select
 
                 if(err/=0)then
                   message=trim(message)//trim(cmessage)

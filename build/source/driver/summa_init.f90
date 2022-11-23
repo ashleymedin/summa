@@ -114,7 +114,6 @@ contains
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(&
-
   ! statistics structures
   forcStat             => summa1_struc%forcStat            , & ! x%gru(:)%hru(:)%var(:)%dat -- model forcing data
   progStat             => summa1_struc%progStat            , & ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
@@ -310,7 +309,6 @@ contains
  ! *****************************************************************************
  ! *** define the suffix for the model output file
  ! *****************************************************************************
-
  ! set up the output file names as: OUTPUT_PREFIX'_'output_fileSuffix'_'startGRU-endGRU_outfreq.nc or OUTPUT_PREFIX'_'output_fileSuffix'_'HRU_outfreq.nc;
  if (output_fileSuffix(1:1) /= '_') output_fileSuffix='_'//trim(output_fileSuffix)   ! separate output_fileSuffix from others by underscores
  if (output_fileSuffix(len_trim(output_fileSuffix):len_trim(output_fileSuffix)) == '_') output_fileSuffix(len_trim(output_fileSuffix):len_trim(output_fileSuffix)) = ' '

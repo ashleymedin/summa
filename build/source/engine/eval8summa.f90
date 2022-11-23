@@ -100,6 +100,7 @@ public::eval8summa
 
 contains
 
+
 ! **********************************************************************************************************
 ! public subroutine eval8summa: compute the residual vector and the Jacobian matrix
 ! **********************************************************************************************************
@@ -390,7 +391,7 @@ subroutine eval8summa(&
                     err,cmessage)               ! intent(out):   error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
- ! update diagnostic variables
+    ! update diagnostic variables and derivatives
     call updateVars(&
                     ! input
                     .false.,                                   & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
@@ -437,6 +438,7 @@ subroutine eval8summa(&
                     firstSplitOper,            & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
                     computeVegFlux,            & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                     scalarSolution,            & ! intent(in):    flag to indicate the scalar solution
+                    .true.,                    & ! intent(in):    check longwave balance
                     scalarSfcMeltPond/dt,      & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
                     ! input: state variables
                     scalarCanairTempTrial,     & ! intent(in):    trial value for the temperature of the canopy air space (K)
@@ -473,6 +475,7 @@ subroutine eval8summa(&
 
     ! compute soil compressibility (-) and its derivative w.r.t. matric head (m)
     ! NOTE: we already extracted trial matrix head and volumetric liquid water as part of the flux calculations
+    ! use non-sundials version because sundials version needs mLayerMatricHeadPrime
     call soilCmpres(&
                     ! input:
                     ixRichards,                             & ! intent(in): choice of option for Richards' equation
@@ -541,4 +544,5 @@ subroutine eval8summa(&
   end associate
 
 end subroutine eval8summa
+
 end module eval8summa_module

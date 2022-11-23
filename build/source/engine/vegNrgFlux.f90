@@ -131,6 +131,7 @@ subroutine vegNrgFlux(&
                       firstSubStep,                            & ! intent(in): flag to indicate if we are processing the first sub-step
                       firstFluxCall,                           & ! intent(in): flag to indicate if we are processing the first flux call
                       computeVegFlux,                          & ! intent(in): flag to indicate if we need to compute fluxes over vegetation
+                      checkLWBalance,                          & ! intent(in): flag to check longwave balance
 
                       ! input: model state variables
                       upperBoundTemp,                          & ! intent(in): temperature of the upper boundary (K) --> NOTE: use air temperature
@@ -214,6 +215,7 @@ subroutine vegNrgFlux(&
   logical(lgt),intent(in)            :: firstSubStep                    ! flag to indicate if we are processing the first sub-step
   logical(lgt),intent(in)            :: firstFluxCall                   ! flag to indicate if we are processing the first flux call
   logical(lgt),intent(in)            :: computeVegFlux                  ! flag to indicate if computing fluxes over vegetation
+  logical(lgt),intent(in)            :: checkLWBalance                  ! flag to check longwave balance
   ! input: model state variables
   real(rkind),intent(in)             :: upperBoundTemp                  ! temperature of the upper boundary (K) --> NOTE: use air temperature
   real(rkind),intent(in)             :: canairTempTrial                 ! trial value of canopy air space temperature (K)
@@ -441,7 +443,7 @@ subroutine vegNrgFlux(&
 
     ! input: model decisions
     ix_bcUpprTdyn                   => model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision,           & ! intent(in): [i4b] choice of upper boundary condition for thermodynamics
- ix_fDerivMeth                   => model_decisions(iLookDECISIONS%fDerivMeth)%iDecision,           & ! intent(in): [i4b] choice of method to compute derivatives
+    ixDerivMethod                   => model_decisions(iLookDECISIONS%fDerivMeth)%iDecision,           & ! intent(in): [i4b] choice of method to compute derivatives
     ix_veg_traits                   => model_decisions(iLookDECISIONS%veg_traits)%iDecision,           & ! intent(in): [i4b] choice of parameterization for vegetation roughness length and displacement height
     ix_canopyEmis                   => model_decisions(iLookDECISIONS%canopyEmis)%iDecision,           & ! intent(in): [i4b] choice of parameterization for canopy emissivity
     ix_windPrfile                   => model_decisions(iLookDECISIONS%windPrfile)%iDecision,           & ! intent(in): [i4b] choice of canopy wind profile
@@ -676,7 +678,7 @@ subroutine vegNrgFlux(&
           groundNetFlux = -diag_data%var(iLookDIAG%iLayerThermalC)%dat(0)*(groundTempTrial - upperBoundTemp)/(prog_data%var(iLookPROG%mLayerDepth)%dat(1)*0.5_rkind)
           ! compute derivative in net ground flux w.r.t. ground temperature (W m-2 K-1) inside soil and snow (ssd) energy flux routine
     dGroundNetFlux_dGroundTemp = -diag_data%var(iLookDIAG%iLayerThermalC)%dat(0)/(prog_data%var(iLookPROG%mLayerDepth)%dat(1)*0.5_rkind)
-   elseif(model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision == zeroFlux)then
+        elseif(ix_bcUpprTdyn == zeroFlux)then
           groundNetFlux              = 0._rkind
           ! dGroundNetFlux_dGroundTemp = missingValue
         else
@@ -785,7 +787,7 @@ subroutine vegNrgFlux(&
           call wettedFrac(&
                           ! input
                           .true.,                                         & ! flag to denote if derivative is desired
-                    (ix_fDerivMeth == numerical),                   & ! flag to denote that numerical derivatives are required (otherwise, analytical derivatives are calculated)
+                          (ixDerivMethod == numerical),                   & ! flag to denote that numerical derivatives are required (otherwise, analytical derivatives are calculated)
                           (scalarLatHeatSubVapCanopy > LH_vap+verySmall), & ! flag to denote if the canopy is frozen
                           dCanLiq_dTcanopy,                               & ! derivative in canopy liquid w.r.t. canopy temperature (kg m-2 K-1)
                           fracLiquidCanopy,                               & ! fraction of liquid water on the canopy (-)
@@ -823,7 +825,7 @@ subroutine vegNrgFlux(&
         call aeroResist(&
                         ! input: model control
                         computeVegFlux,                     & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
-                   (ix_fDerivMeth == analytical),      & ! intent(in): logical flag if would like to compute analytical derivaties
+                        (ixDerivMethod == analytical),      & ! intent(in): logical flag if would like to compute analytical derivaties
                         ix_veg_traits,                      & ! intent(in): choice of parameterization for vegetation roughness length and displacement height
                         ix_windPrfile,                      & ! intent(in): choice of canopy wind profile
                         ix_astability,                      & ! intent(in): choice of stability function
@@ -948,8 +950,9 @@ subroutine vegNrgFlux(&
         ! compute canopy longwave radiation balance
         call longwaveBal(&
                           ! input: model control
-                    ix_fDerivMeth,                     & ! intent(in): method used to calculate flux derivatives
+                          ixDerivMethod,                     & ! intent(in): method used to calculate flux derivatives
                           computeVegFlux,                    & ! intent(in): flag to compute fluxes over vegetation
+                          checkLWBalance,                    & ! intent(in): flag to check longwave balance
                           ! input: canopy and ground temperature
                           canopyTempTrial,                   & ! intent(in): temperature of the vegetation canopy (K)
                           groundTempTrial,                   & ! intent(in): temperature of the ground surface (K)
@@ -991,7 +994,7 @@ subroutine vegNrgFlux(&
         ! *******************************************************************************************************************************************************************
 
         ! check the need to compute numerical derivatives
-   if(ix_fDerivMeth == numerical)then
+        if(ixDerivMethod == numerical)then
           nFlux=5  ! compute the derivatives using one-sided finite differences
         else
           nFlux=1  ! compute analytical derivatives
@@ -1063,7 +1066,7 @@ subroutine vegNrgFlux(&
               call wettedFrac(&
                               ! input
                               .false.,                                        & ! flag to denote if derivative is desired
-                       (ix_fDerivMeth == numerical),                   & ! flag to denote that numerical derivatives are required (otherwise, analytical derivatives are calculated)
+                              (ixDerivMethod == numerical),                   & ! flag to denote that numerical derivatives are required (otherwise, analytical derivatives are calculated)
                               (scalarLatHeatSubVapCanopy > LH_vap+verySmall), & ! flag to denote if the canopy is frozen
                               dCanLiq_dTcanopy,                               & ! derivative in canopy liquid w.r.t. canopy temperature (kg m-2 K-1)
                               fracLiquidCanopy,                               & ! fraction of liquid water on the canopy (-)
@@ -1189,7 +1192,7 @@ subroutine vegNrgFlux(&
           call turbFluxes(&
                           ! input: model control
                           computeVegFlux,                       & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
-                    ix_fDerivMeth,                        & ! intent(in): method used to calculate flux derivatives
+                          ixDerivMethod,                        & ! intent(in): method used to calculate flux derivatives
                           ! input: above-canopy forcing data
                           airtemp,                              & ! intent(in): air temperature at some height above the surface (K)
                           airpres,                              & ! intent(in): air pressure of the air above the vegetation canopy (Pa)
@@ -1295,7 +1298,7 @@ subroutine vegNrgFlux(&
           !trialCanopyResistance                    ! above canopy aerodynamic resistance (s m-1)
 
           ! save perturbed fluxes
-    if(ix_fDerivMeth == numerical)then
+          if(ixDerivMethod == numerical)then
           select case(itry) ! (select type of perturbation)
             case(unperturbed)
             try0 = turbFluxGround
@@ -1329,7 +1332,7 @@ subroutine vegNrgFlux(&
 
 
         ! compute numerical derivatives
-   if(ix_fDerivMeth == numerical)then
+        if(ixDerivMethod == numerical)then
           ! derivatives w.r.t. canopy air temperature
           dTurbFluxCanair_dTCanair    = (turbFluxCanair_dStateCanair - turbFluxCanair) / dx          ! derivative in net canopy air space fluxes w.r.t. canopy air temperature (W m-2 K-1)
           dTurbFluxCanopy_dTCanair    = (turbFluxCanopy_dStateCanair - turbFluxCanopy) / dx          ! derivative in net canopy turbulent fluxes w.r.t. canopy air temperature (W m-2 K-1)
@@ -1663,6 +1666,7 @@ subroutine longwaveBal(&
                       ! input: model control
                       ixDerivMethod,                  & ! intent(in): choice of method used to compute derivative (analytical or numerical)
                       computeVegFlux,                 & ! intent(in): flag to compute fluxes over vegetation
+                      checkLWBalance,                 & ! intent(in): flag to check longwave balance
                       ! input: canopy and ground temperature
                       canopyTemp,                     & ! intent(in): canopy temperature (K)
                       groundTemp,                     & ! intent(in): ground temperature (K)
@@ -1699,6 +1703,7 @@ subroutine longwaveBal(&
   ! input: model control
   integer(i4b),intent(in)          :: ixDerivMethod            ! choice of method used to compute derivative (analytical or numerical)
   logical(lgt),intent(in)          :: computeVegFlux           ! flag to indicate if computing fluxes over vegetation
+  logical(lgt),intent(in)          :: checkLWBalance           ! flag to check longwave balance
   ! input: canopy and ground temperature
   real(rkind),intent(in)           :: canopyTemp               ! canopy temperature (K)
   real(rkind),intent(in)           :: groundTemp               ! ground temperature (K)
@@ -1824,7 +1829,7 @@ subroutine longwaveBal(&
 
     ! check the flux balance
     fluxBalance = LWNetUbound - (LWNetCanopy + LWNetGround)
-  if(abs(fluxBalance) > fluxTolerance)then
+    if(abs(fluxBalance) > fluxTolerance .and. checkLWBalance)then
       print*, 'fluxBalance = ', fluxBalance
       print*, 'emg, emc = ', emg, emc
       print*, 'TCan, TGnd = ', TCan, TGnd

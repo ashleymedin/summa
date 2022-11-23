@@ -85,7 +85,9 @@ USE mDecisions_module,only:         &
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:         &
+                      sundials     ,&      ! SUNDIALS/IDA solution
                       bEuler               ! home-grown backward Euler solution with long time step
+
 ! privacy
 implicit none
 private
@@ -671,7 +673,7 @@ subroutine coupled_em(&
       call diagn_evar(&
                       ! input: control variables
                       computeVegFlux,          & ! intent(in): flag to denote if computing the vegetation flux
-                  canopyDepth,             & ! intent(in): canopy depth (m)
+                      diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1),             & ! intent(in): canopy depth (m)
                       ! input/output: data structures
                       mpar_data,               & ! intent(in):    model parameters
                       indx_data,               & ! intent(in):    model layer indices
@@ -806,6 +808,7 @@ subroutine coupled_em(&
         endif
 
       end if  ! (if computing the vegetation flux)
+
 
       ! * compute change in ice content of the top snow layer due to sublimation...
       ! ---------------------------------------------------------------------------
@@ -1031,6 +1034,8 @@ subroutine coupled_em(&
       ! ----------------------------------
 
       if (model_decisions(iLookDECISIONS%num_method)%iDecision==bEuler) checkMassBalance = .true.    ! convergence criteria for bEuler
+      if (model_decisions(iLookDECISIONS%num_method)%iDecision==sundials) checkMassBalance = .false. ! sundials does not use this criteria
+
       ! if computing the vegetation flux
       if(computeVegFlux)then
 
