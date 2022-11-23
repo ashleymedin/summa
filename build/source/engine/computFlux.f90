@@ -363,6 +363,10 @@ subroutine computFlux(&
     dNrgFlux_dTempAbove          => deriv_data%var(iLookDERIV%dNrgFlux_dTempAbove         )%dat     ,&  ! intent(out): [dp(:)] derivatives in the flux w.r.t. temperature in the layer above
     dNrgFlux_dTempBelow          => deriv_data%var(iLookDERIV%dNrgFlux_dTempBelow         )%dat     ,&  ! intent(out): [dp(:)] derivatives in the flux w.r.t. temperature in the layer below
 
+    ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. water state in layers above and below
+    dNrgFlux_dWatAbove           => deriv_data%var(iLookDERIV%dNrgFlux_dWatAbove          )%dat     ,& ! intent(out): [dp(:)]  derivatives in the flux w.r.t. water state in the layer above
+    dNrgFlux_dWatBelow           => deriv_data%var(iLookDERIV%dNrgFlux_dWatBelow          )%dat     ,& ! intent(out): [dp(:)]  derivatives in the flux w.r.t. water state in the layer below
+
     ! derivative in liquid water fluxes at the interface of snow layers w.r.t. volumetric liquid water content in the layer above
     iLayerLiqFluxSnowDeriv       => deriv_data%var(iLookDERIV%iLayerLiqFluxSnowDeriv      )%dat     ,&  ! intent(out): [dp(:)] derivative in vertical liquid water flux at layer interfaces
 
@@ -546,6 +550,8 @@ subroutine computFlux(&
                       iLayerNrgFlux,                             & ! intent(out): energy flux at the layer interfaces (W m-2)
                       dNrgFlux_dTempAbove,                       & ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (W m-2 K-1)
                       dNrgFlux_dTempBelow,                       & ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (W m-2 K-1)
+                      dNrgFlux_dWatAbove,                        & ! intent(out): derivatives in the flux w.r.t. water state in the layer above
+                      dNrgFlux_dWatBelow,                        & ! intent(out): derivatives in the flux w.r.t. water state in the layer below
                       ! output: error control
                       err,cmessage)                                ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
