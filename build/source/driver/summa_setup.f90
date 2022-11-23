@@ -29,7 +29,9 @@ USE globalData,only:realMissing      ! missing double precision number
 USE var_lookup,only:iLookATTR                               ! look-up values for local attributes
 USE var_lookup,only:iLookTYPE                               ! look-up values for classification of veg, soils etc.
 USE var_lookup,only:iLookPARAM                              ! look-up values for local column model parameters
-USE var_lookup,only:iLookID                              ! look-up values for local column model parameters
+USE var_lookup,only:iLookINDEX                              ! look-up values for local column model indices
+USE var_lookup,only:iLookLOOKUP                             ! look-up values for local column lookup tables
+USE var_lookup,only:iLookID                                 ! look-up values for local column model ids
 USE var_lookup,only:iLookBVAR                               ! look-up values for basin-average model variables
 USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
 USE globalData,only:urbanVegCategory                        ! vegetation category for urban areas
@@ -46,6 +48,11 @@ USE mDecisions_module,only:&
 USE mDecisions_module,only:&
  monthlyTable,& ! LAI/SAI taken directly from a monthly table for different vegetation classes
  specified      ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
+
+! look-up values for the numerical method
+USE mDecisions_module,only:         &
+ bEuler,                            &      ! home-grown backward Euler solution with long time steps
+ sundials                                  ! SUNDIALS/IDA solution
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -126,6 +133,9 @@ contains
   ! basin-average structures
   bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)            -- basin-average parameters
   bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat        -- basin-average variables
+
+  ! lookup table structure
+  lookupStruct         => summa1_struc%lookupStruct        , & ! x%gru(:)%hru(:)%z(:)%var(:)%lookup    -- lookup-tables
 
   ! miscellaneous variables
   upArea               => summa1_struc%upArea              , & ! area upslope of each HRU
