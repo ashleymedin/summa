@@ -47,6 +47,7 @@ USE data_types,only:&
                     var_flagVec,  & ! data vector with variable length dimension (i4b)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
                     var_dlength,  & ! data vector with variable length dimension (rkind)
+                    zLookup,      & ! data vector with variable length dimension (rkind)
                     model_options   ! defines the model decisions
 
 ! provide access to indices that define elements of the data structures
@@ -97,6 +98,7 @@ contains
                        fluxCount,         & ! intent(inout) : number of times that fluxes are updated (should equal nSubsteps)
                        ! input/output: data structures
                        model_decisions,   & ! intent(in)    : model decisions
+                       lookup_data,       & ! intent(in)    : lookup tables
                        type_data,         & ! intent(in)    : type of vegetation and soil
                        attr_data,         & ! intent(in)    : spatial attributes
                        forc_data,         & ! intent(in)    : model forcing data
@@ -144,6 +146,7 @@ contains
  type(var_ilength),intent(inout) :: fluxCount                     ! number of times that the flux is updated (should equal nSubsteps)
  ! input/output: data structures
  type(model_options),intent(in)  :: model_decisions(:)            ! model decisions
+ type(zLookup),intent(in)        :: lookup_data                   ! lookup tables
  type(var_i),intent(in)          :: type_data                     ! type of vegetation and soil
  type(var_d),intent(in)          :: attr_data                     ! spatial attributes
  type(var_d),intent(in)          :: forc_data                     ! model forcing data
@@ -310,6 +313,7 @@ contains
                   computeVegFlux,    & ! intent(in):    flag to denote if computing energy flux over vegetation
                   scalarSolution,    & ! intent(in):    flag to denote if implementing the scalar solution
                   ! input/output: data structures
+                  lookup_data,       & ! intent(in):    lookup tables
                   type_data,         & ! intent(in):    type of vegetation and soil
                   attr_data,         & ! intent(in):    spatial attributes
                   forc_data,         & ! intent(in):    model forcing data
@@ -398,8 +402,8 @@ contains
 
   ! update prognostic variables
   call updateProg(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,checkMassBalance, & ! input: model control
-                  mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                                          & ! input-output: data structures
-                  waterBalanceError,nrgFluxModified,tooMuchMelt,err,cmessage)                                              ! output: flags and error control
+                  lookup_data,mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                              & ! input-output: data structures
+                  waterBalanceError,nrgFluxModified,tooMuchMelt,err,cmessage)                                                           ! output: flags and error control
   if(err/=0)then
    message=trim(message)//trim(cmessage)
    if(err>0) return
@@ -485,7 +489,7 @@ contains
 
        ! standard case
        else
-        flux_data%var(iVar)%dat(ixLayer) = flux_data%var(iVar)%dat(ixLayer) + flux_temp%var(iVar)%dat(ixLayer)*dt_wght
+         flux_data%var(iVar)%dat(ixLayer) = flux_data%var(iVar)%dat(ixLayer) + flux_temp%var(iVar)%dat(ixLayer)*dt_wght
        endif
        fluxCount%var(iVar)%dat(ixLayer) = fluxCount%var(iVar)%dat(ixLayer) + 1
       endif
@@ -545,8 +549,8 @@ contains
  ! private subroutine updateProg: update prognostic variables
  ! **********************************************************************************************************
  subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,checkMassBalance, & ! input: model control
-                       mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,                                   & ! input-output: data structures
-                       waterBalanceError,nrgFluxModified,tooMuchMelt,err,message)                                        ! output: flags and error control
+                       lookup_data,mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,                       & ! input-output: data structures
+                       waterBalanceError,nrgFluxModified,tooMuchMelt,err,message)                                                    ! output: flags and error control
  USE getVectorz_module,only:varExtract                             ! extract variables from the state vector
  USE updateVars_module,only:updateVars                             ! update prognostic variables
  implicit none
@@ -561,6 +565,7 @@ contains
  real(rkind)         ,intent(in)    :: stateVecTrial(:)               ! trial state vector (mixed units)
  logical(lgt)     ,intent(in)    :: checkMassBalance               ! flag to check the mass balance
  ! data structures
+ type(zLookup),    intent(in)    :: lookup_data                    ! lookup tables
  type(var_dlength),intent(in)    :: mpar_data                      ! model parameters
  type(var_ilength),intent(in)    :: indx_data                      ! indices for a local HRU
  type(var_dlength),intent(inout) :: flux_data                      ! model fluxes for a local HRU
@@ -669,7 +674,7 @@ contains
  ! * update states...
  ! ------------------
 
-  ! initialize to state variable from the last update
+ ! initialize to state variable from the last update
  scalarCanairTempTrial     = scalarCanairTemp
  scalarCanopyTempTrial     = scalarCanopyTemp
  scalarCanopyWatTrial      = scalarCanopyWat
@@ -719,6 +724,7 @@ contains
  call updateVars(&
                  ! input
                  doAdjustTemp,             & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
+                 lookup_data,              & ! intent(in):    lookup tables for a local HRU
                  mpar_data,                & ! intent(in):    model parameters for a local HRU
                  indx_data,                & ! intent(in):    indices defining model states and layers
                  prog_data,                & ! intent(in):    model prognostic variables for a local HRU

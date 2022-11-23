@@ -345,6 +345,12 @@ subroutine computFlux(&
     dGroundEvaporation_dTGround  => deriv_data%var(iLookDERIV%dGroundEvaporation_dTGround )%dat(1)  ,&  ! intent(out): [dp] derivative in ground evaporation w.r.t. ground temperature
     dGroundEvaporation_dCanWat   => deriv_data%var(iLookDERIV%dGroundEvaporation_dCanWat  )%dat(1)  ,&  ! intent(out): [dp] derivative in ground evaporation w.r.t. canopy total water content
 
+    ! derivatives in transpiration
+    dCanopyTrans_dTCanair        => deriv_data%var(iLookDERIV%dCanopyTrans_dTCanair       )%dat(1)  ,&  ! intent(out): [dp] derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+    dCanopyTrans_dTCanopy        => deriv_data%var(iLookDERIV%dCanopyTrans_dTCanopy       )%dat(1)  ,&  ! intent(out): [dp] derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
+    dCanopyTrans_dTGround        => deriv_data%var(iLookDERIV%dCanopyTrans_dTGround       )%dat(1)  ,&  ! intent(out): [dp] derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
+    dCanopyTrans_dCanWat         => deriv_data%var(iLookDERIV%dCanopyTrans_dCanWat        )%dat(1)  ,&  ! intent(out): [dp] derivative in canopy transpiration w.r.t. canopy total water content (s-1)
+
     ! derivatives in canopy water w.r.t canopy temperature
     dCanLiq_dTcanopy             => deriv_data%var(iLookDERIV%dCanLiq_dTcanopy            )%dat(1)  ,&  ! intent(out): [dp] derivative of canopy liquid storage w.r.t. temperature
 
@@ -373,7 +379,18 @@ subroutine computFlux(&
 
     ! derivative in liquid water fluxes for the soil domain w.r.t energy state variables
     dq_dNrgStateAbove            => deriv_data%var(iLookDERIV%dq_dNrgStateAbove           )%dat     ,&  ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer above
-    dq_dNrgStateBelow            => deriv_data%var(iLookDERIV%dq_dNrgStateBelow           )%dat      &  ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer below
+    dq_dNrgStateBelow            => deriv_data%var(iLookDERIV%dq_dNrgStateBelow           )%dat     ,&  ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer below
+    ! derivatives in soil transpiration w.r.t. canopy state variables
+    mLayerdTrans_dTCanair        => deriv_data%var(iLookDERIV%mLayerdTrans_dTCanair       )%dat     ,&  !intent(out): derivatives in the soil layer transpiration flux w.r.t. canopy air temperature
+    mLayerdTrans_dTCanopy        => deriv_data%var(iLookDERIV%mLayerdTrans_dTCanopy       )%dat     ,&  ! intent(out): derivatives in the soil layer transpiration flux w.r.t. canopy temperature
+    mLayerdTrans_dTGround        => deriv_data%var(iLookDERIV%mLayerdTrans_dTGround       )%dat     ,&  ! intent(out): derivatives in the soil layer transpiration flux w.r.t. ground temperature
+    mLayerdTrans_dCanWat         => deriv_data%var(iLookDERIV%mLayerdTrans_dCanWat        )%dat     ,&  ! intent(out): derivatives in the soil layer transpiration flux w.r.t. canopy total water
+
+    ! derivatives in aquifer transpiration w.r.t. canopy state variables
+    dAquiferTrans_dTCanair       => deriv_data%var(iLookDERIV%dAquiferTrans_dTCanair      )%dat(1)  ,&  !intent(out): derivatives in the aquifer transpiration flux w.r.t. canopy air temperature
+    dAquiferTrans_dTCanopy       => deriv_data%var(iLookDERIV%dAquiferTrans_dTCanopy      )%dat(1)  ,&  ! intent(out): derivatives in the aquifer transpiration flux w.r.t. canopy temperature
+    dAquiferTrans_dTGround       => deriv_data%var(iLookDERIV%dAquiferTrans_dTGround      )%dat(1)  ,&  ! intent(out): derivatives in the aquifer transpiration flux w.r.t. ground temperature
+    dAquiferTrans_dCanWat        => deriv_data%var(iLookDERIV%dAquiferTrans_dCanWat       )%dat(1)   &  ! intent(out): derivatives in the aquifer transpiration flux w.r.t. canopy total water
 
     )  ! association to data in structures
 
@@ -465,6 +482,11 @@ subroutine computFlux(&
                       dGroundEvaporation_dTCanair,            & ! intent(out): derivative in ground evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
                       dGroundEvaporation_dTCanopy,            & ! intent(out): derivative in ground evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
                       dGroundEvaporation_dTGround,            & ! intent(out): derivative in ground evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
+                      ! output: transpiration derivatives
+                      dCanopyTrans_dCanWat,                   & ! intent(out): derivative in canopy transpiration w.r.t. canopy total water content (s-1)
+                      dCanopyTrans_dTCanair,                  & ! intent(out): derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+                      dCanopyTrans_dTCanopy,                  & ! intent(out): derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
+                      dCanopyTrans_dTGround,                  & ! intent(out): derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
                       ! output: cross derivative terms
                       dCanopyNetFlux_dCanWat,                 & ! intent(out): derivative in net canopy fluxes w.r.t. canopy total water content (J kg-1 s-1)
                       dGroundNetFlux_dCanWat,                 & ! intent(out): derivative in net ground fluxes w.r.t. canopy total water content (J kg-1 s-1)
@@ -676,6 +698,10 @@ subroutine computFlux(&
                       ! input: pre-computed deriavatives
                       mLayerdTheta_dTk(nSnow+1:nLayers),         & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
                       dPsiLiq_dTemp(1:nSoil),                    & ! intent(in):    derivative in liquid water matric potential w.r.t. temperature (m K-1)
+                      dCanopyTrans_dCanWat,                      & ! intent(in):    derivative in canopy transpiration w.r.t. canopy total water content (s-1)
+                      dCanopyTrans_dTCanair,                     & ! intent(in):    derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+                      dCanopyTrans_dTCanopy,                     & ! intent(in):    derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
+                      dCanopyTrans_dTGround,                     & ! intent(in):    derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
                       above_soilLiqFluxDeriv,                    & ! intent(in): derivative in layer above soil (canopy or snow) liquid flux w.r.t. liquid water
                       above_soildLiq_dTk,                        & ! intent(in): derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
                       above_soilFracLiq,                         & ! intent(in): fraction of liquid water layer above soil (canopy or snow) (-)
@@ -709,6 +735,11 @@ subroutine computFlux(&
                       ! output: derivatives in fluxes w.r.t. energy state variables -- now just temperature -- in the layer above and layer below (m s-1 K-1)
                       dq_dNrgStateAbove,                         & ! intent(inout): derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
                       dq_dNrgStateBelow,                         & ! intent(inout): derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
+                      ! output: derivatives in transpiration w.r.t. canopy state variables
+                      mLayerdTrans_dTCanair,                     & ! intent(inout): derivatives in the soil layer transpiration flux w.r.t. canopy air temperature
+                      mLayerdTrans_dTCanopy,                     & ! intent(inout): derivatives in the soil layer transpiration flux w.r.t. canopy temperature
+                      mLayerdTrans_dTGround,                     & ! intent(inout): derivatives in the soil layer transpiration flux w.r.t. ground temperature
+                      mLayerdTrans_dCanWat,                      & ! intent(inout): derivatives in the soil layer transpiration flux w.r.t. canopy total water
                       ! output: error control
                       err,cmessage)                                ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -819,6 +850,11 @@ subroutine computFlux(&
                         scalarAquiferStorageTrial,    & ! intent(in):  trial value of aquifer storage (m)
                         scalarCanopyTranspiration,    & ! intent(in):  canopy transpiration (kg m-2 s-1)
                         scalarSoilDrainage,           & ! intent(in):  soil drainage (m s-1)
+                        ! input: pre-computed derivatives
+                        dCanopyTrans_dCanWat,         & ! intent(in):  derivative in canopy transpiration w.r.t. canopy total water content (s-1)
+                        dCanopyTrans_dTCanair,        & ! intent(in):  derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+                        dCanopyTrans_dTCanopy,        & ! intent(in):  derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
+                        dCanopyTrans_dTGround,        & ! intent(in):  derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
                         ! input: diagnostic variables and parameters
                         mpar_data,                    & ! intent(in):  model parameter structure
                         diag_data,                    & ! intent(in):  diagnostic variable structure
@@ -827,6 +863,11 @@ subroutine computFlux(&
                         scalarAquiferRecharge,        & ! intent(out): recharge to the aquifer (m s-1)
                         scalarAquiferBaseflow,        & ! intent(out): total baseflow from the aquifer (m s-1)
                         dBaseflow_dAquifer,           & ! intent(out): change in baseflow flux w.r.t. aquifer storage (s-1)
+                        ! output: derivatives in transpiration w.r.t. canopy state variables
+                        dAquiferTrans_dTCanair,       & ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy air temperature
+                        dAquiferTrans_dTCanopy,       & ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy temperature
+                        dAquiferTrans_dTGround,       & ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. ground temperature
+                        dAquiferTrans_dCanWat,        & ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy total water
                         ! output: error control
                         err,cmessage)                   ! intent(out): error control
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
