@@ -1032,11 +1032,11 @@ subroutine iLayerThermalConduct(&
   if (ixLayerDesired==0) then
     ! special case of hansson
     if(ixThCondSoil==hanssonVZJ)then
-      iLayerThermalC = 28._rkind*(0.5_rkind*(node_iHeight(ixLower) - node_iHeight(ixUpper))) ! these are indices 1,0 since was passed with 0:1
+      !iLayerThermalC = 28._rkind*(0.5_rkind*(node_iHeight(ixLower) - node_iHeight(ixUpper))) ! these are indices 1,0 since was passed with 0:1
       dThermalC_dHydStateBelow = 0._rkind
       dThermalC_dNrgStateBelow = 0._rkind
     else
-      iLayerThermalC = mLayerThermalC(ixUpper) ! index was passed with 1:1
+      !iLayerThermalC = mLayerThermalC(ixUpper) ! index was passed with 1:1
       dThermalC_dHydStateBelow = dThermalC_dWat(ixUpper)
       dThermalC_dNrgStateBelow = dThermalC_dNrg(ixUpper)
     end if
@@ -1044,7 +1044,7 @@ subroutine iLayerThermalConduct(&
     dThermalC_dNrgStateAbove = realMissing
   else if (ixLayerDesired==nLayers ) then
     ! assume the thermal conductivity at the domain boundaries is equal to the thermal conductivity of the layer
-    iLayerThermalC = mLayerThermalC(ixLower) ! index was passed with iLayers:iLayers
+    !iLayerThermalC = mLayerThermalC(ixLower) ! index was passed with iLayers:iLayers
     dThermalC_dHydStateAbove = dThermalC_dWat(ixLower)
     dThermalC_dNrgStateAbove = dThermalC_dNrg(ixLower)
     dThermalC_dHydStateBelow = realMissing
@@ -1058,13 +1058,13 @@ subroutine iLayerThermalConduct(&
     den = TCn*zdp + TCp*zdn  ! denominator
     ! compute thermal conductivity
     if(TCn+TCp > epsilon(TCn))then
-      iLayerThermalC = (TCn*TCp*(zdn + zdp)) / den
+      !iLayerThermalC = (TCn*TCp*(zdn + zdp)) / den
       dThermalC_dHydStateBelow = ( TCn*(zdn + zdp) - iLayerThermalC*zdn ) / den * dThermalC_dWat(ixLower)
       dThermalC_dHydStateAbove = ( TCp*(zdn + zdp) - iLayerThermalC*zdp ) / den * dThermalC_dWat(ixUpper)
       dThermalC_dNrgStateBelow = ( TCn*(zdn + zdp) - iLayerThermalC*zdn ) / den * dThermalC_dNrg(ixLower)
       dThermalC_dNrgStateAbove = ( TCp*(zdn + zdp) - iLayerThermalC*zdp ) / den * dThermalC_dNrg(ixUpper)
     else
-      iLayerThermalC = (TCn*zdn +  TCp*zdp) / (zdn + zdp)
+      !iLayerThermalC = (TCn*zdn +  TCp*zdp) / (zdn + zdp)
       dThermalC_dHydStateBelow = zdp / (zdn + zdp) * dThermalC_dWat(ixLower)
       dThermalC_dHydStateAbove = zdn / (zdn + zdp) * dThermalC_dWat(ixUpper)
       dThermalC_dNrgStateBelow = zdp / (zdn + zdp) * dThermalC_dNrg(ixLower)
