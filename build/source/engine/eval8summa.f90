@@ -120,7 +120,7 @@ subroutine eval8summa(&
                       ! input: state vectors
                       stateVecTrial,           & ! intent(in):    model state vector
                       fScale,                  & ! intent(in):    function scaling vector
-                      sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
+                      sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                       ! input: data structures
                       model_decisions,         & ! intent(in):    model decisions
                       lookup_data,             & ! intent(in):    lookup tables
@@ -169,7 +169,7 @@ subroutine eval8summa(&
   ! input: state vectors
   real(rkind),intent(in)             :: stateVecTrial(:)       ! model state vector
   real(rkind),intent(in)             :: fScale(:)              ! function scaling vector
-  real(rkind),intent(in)             :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
+  real(rkind),intent(inout)       :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
   ! input: data structures
   type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
   type(zLookup),      intent(in)  :: lookup_data            ! lookup tables
@@ -249,12 +249,12 @@ subroutine eval8summa(&
     mLayerMatricHeadLiq     => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat       ,& ! intent(in):  [dp(:)]  liquid water matric potential (m)
     scalarAquiferStorage    => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)   ,& ! intent(in):  [dp]     storage of water in the aquifer (m)
     ! model diagnostic variables from a previous solution
-    scalarSfcMeltPond       => prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)      ,&  ! intent(in):  [dp]    ponded water caused by melt of the "snow without a layer" (kg m-2)
     scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,& ! intent(in):  [dp(:)]  mass of liquid water on the vegetation canopy (kg m-2)
     scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(in):  [dp(:)]  mass of ice on the vegetation canopy (kg m-2)
+    scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,& ! intent(out): [dp]    fraction of liquid water on vegetation (-)
+    scalarSfcMeltPond       => prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)      ,&  ! intent(in): [dp]    ponded water caused by melt of the "snow without a layer" (kg m-2)
     mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in):  [dp(:)]  volumetric fraction of liquid water (-)
     mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in):  [dp(:)]  volumetric fraction of ice (-)
-    scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,&  ! intent(in):  [dp]    fraction of liquid water on vegetation (-)
     mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,&  ! intent(in):  [dp(:)] fraction of liquid water in each snow layer (-)
     ! enthalpy
     scalarCanairEnthalpy    => diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1)   ,&  ! intent(out): [dp]    enthalpy of the canopy air space (J m-3)
@@ -278,7 +278,7 @@ subroutine eval8summa(&
     ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat              ,&  ! intent(in): [i4b(:)] indices defining the type of the state (iname_nrgLayer...)
     ixHydCanopy             => indx_data%var(iLookINDEX%ixHydCanopy)%dat              ,&  ! intent(in): [i4b(:)] index of the hydrology states in the canopy domain
     ixHydType               => indx_data%var(iLookINDEX%ixHydType)%dat                ,&  ! intent(in): [i4b(:)] index of the type of hydrology states in snow+soil domain
-    layerType               => indx_data%var(iLookINDEX%layerType)%dat                 &  ! intent(in): [i4b(:)] layer type (iname_soil or iname_snow)
+    layerType               => indx_data%var(iLookINDEX%layerType)%dat                ,&  ! intent(in): [i4b(:)] layer type (iname_soil or iname_snow)
     ) ! association to variables in the data structures
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
