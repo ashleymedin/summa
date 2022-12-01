@@ -147,16 +147,16 @@ subroutine eval8summa(&
                       err,message)               ! intent(out):   error control
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! provide access to subroutines
-  USE getVectorz_module, only:varExtract           ! extract variables from the state vector
-  USE updateVars_module, only:updateVars           ! update prognostic variables
-  USE computFlux_module, only:soilCmpres           ! compute soil compression, use non-sundials version because sundials version needs mLayerMatricHeadPrime
-  USE computFlux_module, only:computFlux           ! compute fluxes given a state vector
-  USE computResid_module,only:computResid          ! compute residuals given a state vector
+  USE getVectorz_module, only:varExtract                ! extract variables from the state vector
+  USE updateVars_module, only:updateVars                ! update prognostic variables
+  USE computFlux_module, only:soilCmpres                ! compute soil compression, use non-sundials version because sundials version needs mLayerMatricHeadPrime
+  USE computFlux_module, only:computFlux                ! compute fluxes given a state vector
+  USE computResid_module,only:computResid               ! compute residuals given a state vector
   implicit none
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! input: model control
-  real(rkind),intent(in)             :: dt                     ! length of the time step (seconds)
+  real(rkind),intent(in)          :: dt                     ! length of the time step (seconds)
   integer(i4b),intent(in)         :: nSnow                  ! number of snow layers
   integer(i4b),intent(in)         :: nSoil                  ! number of soil layers
   integer(i4b),intent(in)         :: nLayers                ! total number of layers
@@ -167,8 +167,8 @@ subroutine eval8summa(&
   logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
   logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
   ! input: state vectors
-  real(rkind),intent(in)             :: stateVecTrial(:)       ! model state vector
-  real(rkind),intent(in)             :: fScale(:)              ! function scaling vector
+  real(rkind),intent(in)          :: stateVecTrial(:)       ! model state vector
+  real(rkind),intent(in)          :: fScale(:)              ! function scaling vector
   real(rkind),intent(inout)       :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
   ! input: data structures
   type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
@@ -186,13 +186,13 @@ subroutine eval8summa(&
   type(var_dlength),intent(inout) :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
   ! input-output: baseflow
   integer(i4b),intent(inout)      :: ixSaturation           ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
-  real(rkind),intent(out)            :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
+  real(rkind),intent(out)         :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
   ! output: flux and residual vectors
   logical(lgt),intent(out)        :: feasible               ! flag to denote the feasibility of the solution
-  real(rkind),intent(out)            :: fluxVec(:)             ! flux vector
-  real(rkind),intent(out)            :: resSink(:)             ! sink terms on the RHS of the flux equation
-  real(rkind),intent(out)            :: resVec(:) ! NOTE: qp   ! residual vector
-  real(rkind),intent(out)            :: fEval                  ! function evaluation
+  real(rkind),intent(out)         :: fluxVec(:)             ! flux vector
+  real(rkind),intent(out)         :: resSink(:)             ! sink terms on the RHS of the flux equation
+  real(rkind),intent(out)         :: resVec(:) ! NOTE: qp   ! residual vector
+  real(rkind),intent(out)         :: fEval                  ! function evaluation
   ! output: error control
   integer(i4b),intent(out)        :: err                    ! error code
   character(*),intent(out)        :: message                ! error message
@@ -214,16 +214,16 @@ subroutine eval8summa(&
   real(rkind),dimension(nLayers)     :: mLayerVolFracLiqTrial     ! trial value for volumetric fraction of liquid water (-)
   real(rkind),dimension(nLayers)     :: mLayerVolFracIceTrial     ! trial value for volumetric fraction of ice (-)
   ! other local variables
-  integer(i4b)                    :: iLayer                    ! index of model layer in the snow+soil domain
-  integer(i4b)                    :: jState(1)                 ! index of model state for the scalar solution within the soil domain
-  integer(i4b)                    :: ixBeg,ixEnd               ! index of indices for the soil compression routine
-  integer(i4b),parameter          :: ixVegVolume=1             ! index of the desired vegetation control volumne (currently only one veg layer)
+  integer(i4b)                       :: iLayer                    ! index of model layer in the snow+soil domain
+  integer(i4b)                       :: jState(1)                 ! index of model state for the scalar solution within the soil domain
+  integer(i4b)                       :: ixBeg,ixEnd               ! index of indices for the soil compression routine
+  integer(i4b),parameter             :: ixVegVolume=1             ! index of the desired vegetation control volumne (currently only one veg layer)
   real(rkind)                        :: xMin,xMax                 ! minimum and maximum values for water content
   real(rkind)                        :: scalarCanopyHydTrial      ! trial value for mass of water on the vegetation canopy (kg m-2)
-  real(rkind),parameter              :: canopyTempMax=500._rkind     ! expected maximum value for the canopy temperature (K)
+  real(rkind),parameter              :: canopyTempMax=500._rkind  ! expected maximum value for the canopy temperature (K)
   real(rkind),dimension(nLayers)     :: mLayerVolFracHydTrial     ! trial value for volumetric fraction of water (-), general vector merged from Wat and Liq
   real(rkind),dimension(nState)      :: rVecScaled                ! scaled residual vector
-  character(LEN=256)              :: cmessage                  ! error message of downwind routine
+  character(LEN=256)                 :: cmessage                  ! error message of downwind routine
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
   ! --------------------------------------------------------------------------------------------------------------------------------
@@ -255,7 +255,7 @@ subroutine eval8summa(&
     scalarSfcMeltPond       => prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)      ,&  ! intent(in): [dp]    ponded water caused by melt of the "snow without a layer" (kg m-2)
     mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in):  [dp(:)]  volumetric fraction of liquid water (-)
     mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in):  [dp(:)]  volumetric fraction of ice (-)
-    mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,&  ! intent(in):  [dp(:)] fraction of liquid water in each snow layer (-)
+    mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,&  ! intent(in): [dp(:)] fraction of liquid water in each snow layer (-)
     ! enthalpy
     scalarCanairEnthalpy    => diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1)   ,&  ! intent(out): [dp]    enthalpy of the canopy air space (J m-3)
     scalarCanopyEnthalpy    => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)   ,&  ! intent(out): [dp]    enthalpy of the vegetation canopy (J m-3)
@@ -278,7 +278,7 @@ subroutine eval8summa(&
     ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat              ,&  ! intent(in): [i4b(:)] indices defining the type of the state (iname_nrgLayer...)
     ixHydCanopy             => indx_data%var(iLookINDEX%ixHydCanopy)%dat              ,&  ! intent(in): [i4b(:)] index of the hydrology states in the canopy domain
     ixHydType               => indx_data%var(iLookINDEX%ixHydType)%dat                ,&  ! intent(in): [i4b(:)] index of the type of hydrology states in snow+soil domain
-    layerType               => indx_data%var(iLookINDEX%layerType)%dat                ,&  ! intent(in): [i4b(:)] layer type (iname_soil or iname_snow)
+    layerType               => indx_data%var(iLookINDEX%layerType)%dat                 &  ! intent(in): [i4b(:)] layer type (iname_soil or iname_snow)
     ) ! association to variables in the data structures
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
@@ -430,7 +430,7 @@ subroutine eval8summa(&
       if(iJac1<nSnow) write(*,'(a,10(f16.10,1x))') 'mLayerVolFracWatTrial = ', mLayerVolFracWatTrial(iJac1:min(iJac2,nSnow))
       if(iJac1<nSnow) write(*,'(a,10(f16.10,1x))') 'mLayerVolFracLiqTrial = ', mLayerVolFracLiqTrial(iJac1:min(iJac2,nSnow))
       if(iJac1<nSnow) write(*,'(a,10(f16.10,1x))') 'mLayerVolFracIceTrial = ', mLayerVolFracIceTrial(iJac1:min(iJac2,nSnow))
-    endif
+      endif
 
     ! save the number of flux calls per time step
     indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) = indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) + 1
