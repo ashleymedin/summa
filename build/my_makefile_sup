@@ -15,11 +15,11 @@
 # To troubleshoot your paths and setup, type 'make check'
 #
 # At a minimum you will need to set the following:
-#  * F_MASTER         - top level summa directory
+#  * F_MASTER_TOP     - top level directory
 #  * FC               - compiler suite
 #  * FC_EXE           - compiler executable
 #  * INCLUDES         - path to include files
-#  * LDFLAGS          - path to libraries to include
+#  * LDFLAGS         - path to libraries to include
 #  * LIBRARIES        - libraries to include
 # 
 # Some further options can be specified for OpenMP, etc. See in Part 0 of
@@ -39,7 +39,8 @@
 
 # Define core directory below which everything resides. This is the
 # parent directory of the 'build' directory
-F_MASTER =/globalhome/gwu479/HPC/SummaDevelop/summa
+F_MASTER_TOP =../../
+F_MASTER = $(F_MASTER_TOP)/summa
 
 # Define the Fortran Compiler. If you are using gfortran, then this needs
 # to be version 6 or higher. This variable is simply used to select the right
