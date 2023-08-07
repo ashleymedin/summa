@@ -98,6 +98,8 @@ contains
  err=0; message='volicePack/'
 
  ! divide snow layers if too thick
+ ! THIS IS A BUG FIX TO WITH IF STATEMENT TO AVOID EXCESSIVE LAYER CREATION/DELETION (don't do it if need to merge)
+ !if (.not.tooMuchMelt)then
  call layerDivide(&
                   ! input/output: model data structures
                   model_decisions,             & ! intent(in):    model decisions
@@ -110,6 +112,7 @@ contains
                   divideLayer,                 & ! intent(out): flag to denote that layers were modified
                   err,cmessage)                  ! intent(out): error control
  if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; end if
+ !end if
 
  ! merge snow layers if they are too thin
  call layerMerge(&

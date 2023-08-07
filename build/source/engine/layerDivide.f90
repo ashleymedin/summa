@@ -184,8 +184,10 @@ contains
   ! check if create the first snow layer
   select case(ix_snowLayers)
    case(sameRulesAllLayers);    createLayer = (scalarSnowDepth > zmax)
+   ! THIS IS A BUG, MAYBE JUST NOT EFFICIENT WAY TO AVOID EXCESSIVE LAYER CREATION/DELETION
    case(rulesDependLayerIndex); createLayer = (scalarSnowDepth > (zminLayer1 + zmaxLayer1_lower)/2._rkind) ! Initialize the first layer if we're halfway between the minimum and maximum depth for this layer. This gives some room for the layer to change depth in either direction and avoids excessive layer creation/deletion
-   case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
+   !case(rulesDependLayerIndex); createLayer = (scalarSnowDepth > zmaxLayer1_lower)
+  case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
   end select ! (option to combine/sub-divide snow layers)
 
   ! ** create a new snow layer

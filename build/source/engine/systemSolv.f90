@@ -306,7 +306,9 @@ contains
 
  ! identify the matrix solution method
  ! (the type of matrix used to solve the linear system A.X=B)
+ ! THIS IS A BUG, WITH VEGETATION FLUXES, THE FULL MATRIX IS NEEDED
  if(local_ixGroundwater==qbaseTopmodel .or. scalarSolution .or. forceFullMatrix)then
+ !if(local_ixGroundwater==qbaseTopmodel .or. scalarSolution .or. forceFullMatrix .or. computeVegFlux)then
   nLeadDim=nState         ! length of the leading dimension
   ixMatrix=ixFullMatrix   ! named variable to denote the full Jacobian matrix
  else
