@@ -323,6 +323,12 @@ contains
      progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMax)%dat(1)
     endif
 
+    ! THIS IS A BUG, IF DO NOT INITIALIZE HERE (AND INSTEAD INITIALIZE AT THE START OF EVERY TIME STEP IN systemSolv)
+    ! make sure canopy water is positive
+    !if( progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyLiq)%dat(1) < 0.0001_rkind)then
+    !  progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyLiq)%dat(1) = 0.0001_rkind
+    !endif
+
     ! initialize the spectral albedo
     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1:nBand) = progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1)
 
