@@ -325,8 +325,8 @@ contains
 
     ! THIS IS A BUG, IF DO NOT INITIALIZE HERE (AND INSTEAD INITIALIZE AT THE START OF EVERY TIME STEP IN systemSolv)
     ! make sure canopy water is positive
-    !if( progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyLiq)%dat(1) < 0.0001_rkind)then
-    !  progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyLiq)%dat(1) = 0.0001_rkind
+    !if( progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyWat)%dat(1) < 0.0001_rkind)then
+    !  progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyWat)%dat(1) = 0.0001_rkind
     !endif
 
     ! initialize the spectral albedo
