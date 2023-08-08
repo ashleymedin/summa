@@ -454,9 +454,10 @@ contains
     if(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(iSoil)/=integerMissing)&
     sumLayerCompress(iSoil) = sumLayerCompress(iSoil) + diag_data%var(iLookDIAG%mLayerCompress)%dat(iSoil) ! soil compression in layers
    end do
-  else ! THIS IS A BUG TO NOT HAVE THIS ELSE STATEMENT
-    sumSoilCompress = diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)
-    sumLayerCompress(1:nSoil) = diag_data%var(iLookDIAG%mLayerCompress)%dat(1:nSoil)
+  ! THIS IS A BUG, IF REMOVE THIS ELSE STATEMENT
+  !else
+  !  sumSoilCompress = diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)
+  !  sumLayerCompress(1:nSoil) = diag_data%var(iLookDIAG%mLayerCompress)%dat(1:nSoil)
   endif
 
   ! print progress

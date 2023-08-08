@@ -184,7 +184,7 @@ contains
   ! check if create the first snow layer
   select case(ix_snowLayers)
    case(sameRulesAllLayers);    createLayer = (scalarSnowDepth > zmax)
-   ! THIS IS A BUG, MAYBE JUST NOT EFFICIENT WAY TO AVOID EXCESSIVE LAYER CREATION/DELETION
+   ! THIS IS A BUG, OR JUST NOT AN EFFICIENT WAY TO AVOID EXCESSIVE LAYER CREATION/DELETION, DO IN volicePack
    case(rulesDependLayerIndex); createLayer = (scalarSnowDepth > (zminLayer1 + zmaxLayer1_lower)/2._rkind) ! Initialize the first layer if we're halfway between the minimum and maximum depth for this layer. This gives some room for the layer to change depth in either direction and avoids excessive layer creation/deletion
    !case(rulesDependLayerIndex); createLayer = (scalarSnowDepth > zmaxLayer1_lower)
   case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return

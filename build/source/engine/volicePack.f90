@@ -98,7 +98,7 @@ contains
  err=0; message='volicePack/'
 
  ! divide snow layers if too thick
- ! THIS IS A BUG FIX TO WITH IF STATEMENT TO AVOID EXCESSIVE LAYER CREATION/DELETION (don't do it if need to merge)
+ ! THIS IS A BUG, SHOULD ADD THIS IF STATEMENT TO AVOID EXCESSIVE LAYER CREATION/DELETION (don't do divide if need to merge)
  !if (.not.tooMuchMelt)then
  call layerDivide(&
                   ! input/output: model data structures

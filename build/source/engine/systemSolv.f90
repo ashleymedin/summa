@@ -306,7 +306,7 @@ contains
 
  ! identify the matrix solution method
  ! (the type of matrix used to solve the linear system A.X=B)
- ! THIS IS A BUG, WITH VEGETATION FLUXES, THE FULL MATRIX IS NEEDED
+ ! THIS IS A BUG, WITH VEGETATION FLUXES THE FULL MATRIX IS NEEDED
  if(local_ixGroundwater==qbaseTopmodel .or. scalarSolution .or. forceFullMatrix)then
  !if(local_ixGroundwater==qbaseTopmodel .or. scalarSolution .or. forceFullMatrix .or. computeVegFlux)then
   nLeadDim=nState         ! length of the leading dimension
@@ -353,6 +353,7 @@ contains
  ! initialize the trial state vectors
  stateVecTrial = stateVecInit
 
+ ! THIS IS A BUG, SHOULD INITIALIZE IN read_icond ONLY OR THE CANOPY WATER WILL KEEP GETTING BUMPED UP
  ! need to intialize canopy water at a positive value
  if(ixVegHyd/=integerMissing)then
   if(stateVecTrial(ixVegHyd) < xMinCanopyWater) stateVecTrial(ixVegHyd) = stateVecTrial(ixVegHyd) + xMinCanopyWater
