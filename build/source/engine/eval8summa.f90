@@ -298,7 +298,8 @@ contains
 
    ! --> minimum
    if (layerType(iLayer) == iname_soil) then
-    xMin = theta_sat(iLayer-nSnow) ! THIS IS A BUG TO USE SATURATION AS MINIMUM
+    !THIS IS A BUG, RESIDUAL SHOULD BE MINIMUM NOT SATURATION
+    xMin = theta_sat(iLayer-nSnow)
     !xMin = theta_res(iLayer-nSnow)
    else
     xMin = 0._rkind
