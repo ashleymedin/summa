@@ -97,7 +97,9 @@ contains
  flux2state_orig(iLookFLUX%scalarGroundResistance)          = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
  flux2state_orig(iLookFLUX%scalarCanopyResistance)          = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarLeafResistance)            = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
+ ! THIS IS A BUG, SOIL RESISTANCE SHOULD BE CALCULATED WHEN THE SOIL ENERGY STATE VARIABLE IS ACTIVE
  flux2state_orig(iLookFLUX%scalarSoilResistance)            = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
+ !flux2state_orig(iLookFLUX%scalarSoilResistance)            = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
  flux2state_orig(iLookFLUX%scalarSenHeatTotal)              = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
  flux2state_orig(iLookFLUX%scalarSenHeatCanopy)             = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarSenHeatGround)             = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
