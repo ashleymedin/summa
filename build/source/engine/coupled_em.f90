@@ -917,6 +917,9 @@ contains
    prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
                                                            prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
                                                          * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
+   ! THIS IS A BUG,? IF DO NOT RECOMPUTE THE VOLUMETRIC FRACTION OF WATER IN THE TOP LAYER AFTER SUBLIMINATION (MAYBE CAN DO ONLY AFTER SNOWFALL, END OF STEP)                                             
+   !prog_data%var(iLookPROG%mLayerVolFracWat)%dat(1) = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1) &
+   !                                                      + prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1)*iden_ice/iden_water
   end if
 
   ! increment fluxes
