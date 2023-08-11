@@ -666,6 +666,10 @@ contains
  ! initialize water balance error
  waterBalanceError=.false.
 
+ ! THIS IS A BUG, IF ENERGY FLUX MODIFICATION IS NEVER INITIALIZED
+ ! initalize flag for checking if energy fluxes have been modified
+ !nrgFluxModified = .false.
+
  ! get storage at the start of the step
  canopyBalance0 = merge(scalarCanopyWat, realMissing, computeVegFlux)
  soilBalance0   = sum( (mLayerVolFracLiq(nSnow+1:nLayers)  + mLayerVolFracIce(nSnow+1:nLayers)  )*mLayerDepth(nSnow+1:nLayers) )

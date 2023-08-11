@@ -1124,7 +1124,9 @@ contains
   newSWE      = prog_data%var(iLookPROG%scalarSWE)%dat(1)
   delSWE      = newSWE - (oldSWE - sfcMeltPond)
   massBalance = delSWE - (effSnowfall + effRainfall + averageSnowSublimation - averageSnowDrainage*iden_water)*data_step
+  !THIS IS A BUG, SHOULD USE SET TOLERANCES TO CHECK MASS BALANCE NOT 1.d-6
   if(abs(massBalance) > 1.d-6)then
+  !if(abs(massBalance) > absConvTol_liquid*iden_water*10._rkind)then
    print*,                  'nSnow       = ', nSnow
    print*,                  'nSub        = ', nSub
    write(*,'(a,1x,f20.10)') 'data_step   = ', data_step
