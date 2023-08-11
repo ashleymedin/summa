@@ -465,7 +465,7 @@ contains
                  ixBeg,ixEnd,                            & ! intent(in): start and end indices defining desired layers
                  ! THIS IS A BUG, SHOULD USE FULL MATRIC HEAD NOT LIQUID MATRIC HEAD
                  mLayerMatricHeadLiq(1:nSoil),           & ! intent(in): matric head at the start of the time step (m)
-                 mLayerMatricHeadTrialLiq(1:nSoil),      & ! intent(in): trial value of matric head (m)
+                 mLayerMatricHeadLiqTrial(1:nSoil),      & ! intent(in): trial value of matric head (m)
                  !mLayerMatricHead(1:nSoil),              & ! intent(in): matric head at the start of the time step (m)
                  !mLayerMatricHeadTrial(1:nSoil),         & ! intent(in): trial value of matric head (m)
                  mLayerVolFracLiqTrial(nSnow+1:nLayers), & ! intent(in): trial value for the volumetric liquid water content in each soil layer (-)
