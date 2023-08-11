@@ -463,12 +463,11 @@ contains
                  ! input:
                  ixRichards,                             & ! intent(in): choice of option for Richards' equation
                  ixBeg,ixEnd,                            & ! intent(in): start and end indices defining desired layers
-                 ! THIS IS A BUG TO USE THE LIQ FORMULATION OF THE MATRIC HEAD
+                 ! THIS IS A BUG, SHOULD USE FULL MATRIC HEAD NOT LIQUID MATRIC HEAD
                  mLayerMatricHeadLiq(1:nSoil),           & ! intent(in): matric head at the start of the time step (m)
                  mLayerMatricHeadTrialLiq(1:nSoil),      & ! intent(in): trial value of matric head (m)
                  !mLayerMatricHead(1:nSoil),              & ! intent(in): matric head at the start of the time step (m)
                  !mLayerMatricHeadTrial(1:nSoil),         & ! intent(in): trial value of matric head (m)
-                 ! THIS IS A BUG, SHOULD USE FULL MATRIC HEAD NOT LIQUID MATRIC HEAD
                  mLayerVolFracLiqTrial(nSnow+1:nLayers), & ! intent(in): trial value for the volumetric liquid water content in each soil layer (-)
                  mLayerVolFracIceTrial(nSnow+1:nLayers), & ! intent(in): trial value for the volumetric ice content in each soil layer (-)
                  specificStorage,                        & ! intent(in): specific storage coefficient (m-1)

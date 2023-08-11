@@ -667,7 +667,6 @@ contains
  waterBalanceError=.false.
 
  ! THIS IS A BUG, IF ENERGY FLUX MODIFICATION IS NEVER INITIALIZED
- ! initalize flag for checking if energy fluxes have been modified
  !nrgFluxModified = .false.
 
  ! get storage at the start of the step
