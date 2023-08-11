@@ -799,6 +799,7 @@ contains
    scalarSenHeatGround     => flux_data%var(iLookFLUX%scalarSenHeatGround)%dat(1),     & ! sensible heat flux from ground surface below vegetation (W m-2)
    scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),         & ! liquid water stored on the vegetation canopy (kg m-2)
    scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),         & ! ice          stored on the vegetation canopy (kg m-2)
+   scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1),         & ! canopy ice content (kg m-2)
    mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,           & ! volumetric fraction of ice in the snow+soil domain (-)
    mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,           & ! volumetric fraction of liquid water in the snow+soil domain (-)
    mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat                 & ! depth of each snow+soil layer (m)
@@ -828,6 +829,9 @@ contains
     scalarSenHeatCanopy     = scalarSenHeatCanopy - superflousNrg
     scalarCanopyLiq         = 0._rkind
    endif
+
+  ! THIS IS A BUG IF DO NOT RECOMPUTE CANOPY WATER AFTER SUBLIMINATION                                           
+  !scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce
 
   end if  ! (if computing the vegetation flux)
 
@@ -988,6 +992,9 @@ contains
   prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
                                                           prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
                                                         * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
+  ! THIS IS A BUG, IF DO NOT RECOMPUTE THE VOLUMETRIC FRACTION OF WATER IN THE TOP LAYER AFTER SUBLIMINATION AND SNOWFALL                                             
+  !prog_data%var(iLookPROG%mLayerVolFracWat)%dat(1) = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1) &
+  !                                                      + prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1)*iden_ice/iden_water
  end if
  !print*, 'SWE after snowfall = ',  prog_data%var(iLookPROG%scalarSWE)%dat(1)
 
