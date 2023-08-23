@@ -307,8 +307,8 @@ contains
  ! identify the matrix solution method
  ! (the type of matrix used to solve the linear system A.X=B)
  ! THIS IS A BUG, WITH VEGETATION FLUXES THE FULL MATRIX IS NEEDED
- if(local_ixGroundwater==qbaseTopmodel .or. scalarSolution .or. forceFullMatrix)then
- !if(local_ixGroundwater==qbaseTopmodel .or. scalarSolution .or. forceFullMatrix .or. computeVegFlux)then
+ !if(local_ixGroundwater==qbaseTopmodel .or. scalarSolution .or. forceFullMatrix)then
+ if(local_ixGroundwater==qbaseTopmodel .or. scalarSolution .or. forceFullMatrix .or. computeVegFlux)then
   nLeadDim=nState         ! length of the leading dimension
   ixMatrix=ixFullMatrix   ! named variable to denote the full Jacobian matrix
  else
@@ -355,9 +355,9 @@ contains
 
  ! THIS IS A BUG, SHOULD INITIALIZE IN read_icond ONLY OR THE CANOPY WATER WILL KEEP GETTING BUMPED UP
  ! need to intialize canopy water at a positive value
- if(ixVegHyd/=integerMissing)then
-  if(stateVecTrial(ixVegHyd) < xMinCanopyWater) stateVecTrial(ixVegHyd) = stateVecTrial(ixVegHyd) + xMinCanopyWater
- endif
+ !if(ixVegHyd/=integerMissing)then
+ ! if(stateVecTrial(ixVegHyd) < xMinCanopyWater) stateVecTrial(ixVegHyd) = stateVecTrial(ixVegHyd) + xMinCanopyWater
+ !endif
 
  ! try to accelerate solution for energy
  if(ixCasNrg/=integerMissing) stateVecTrial(ixCasNrg) = stateVecInit(ixCasNrg) + (airtemp - stateVecInit(ixCasNrg))*tempAccelerate
@@ -540,22 +540,22 @@ contains
 
  ! THIS IS A BUG/ILL-ADVISED TO USE THIS FIX AND PROGAGATE WRONG SOLUTION INSTEAD OF ACCEPTING ERROR AS SOLVED
  ! update temperatures (ensure new temperature is consistent with the fluxes)
- if(nSnowSoilNrg>0)then
-  do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
-   iState = ixSnowSoilNrg(iLayer)
-   stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt + resSinkNew(iState))/real(sMul(iState), rkind)
-  end do  ! looping through non-missing energy state variables in the snow+soil domain
- endif
+ !if(nSnowSoilNrg>0)then
+ ! do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
+ !  iState = ixSnowSoilNrg(iLayer)
+ !  stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt + resSinkNew(iState))/real(sMul(iState), rkind)
+ ! end do  ! looping through non-missing energy state variables in the snow+soil domain
+ !endif
 
  ! THIS IS A BUG/ILL-ADVISED TO USE THIS FIX AND PROGAGATE WRONG SOLUTION INSTEAD OF ACCEPTING ERROR AS SOLVED
  ! update volumetric water content in the snow (ensure change in state is consistent with the fluxes)
  ! NOTE: for soil water balance is constrained within the iteration loop
- if(nSnowSoilHyd>0)then
-  do concurrent (iLayer=1:nSnow,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing water state variables in the snow domain)
-   iState = ixSnowSoilHyd(iLayer)
-   stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt + resSinkNew(iState))
-  end do  ! looping through non-missing water state variables in the soil domain
- endif
+ !if(nSnowSoilHyd>0)then
+ ! do concurrent (iLayer=1:nSnow,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing water state variables in the snow domain)
+ !  iState = ixSnowSoilHyd(iLayer)
+ !  stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt + resSinkNew(iState))
+ ! end do  ! looping through non-missing water state variables in the soil domain
+ !endif
 
  ! end associate statements
  end associate globalVars

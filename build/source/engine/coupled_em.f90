@@ -831,7 +831,7 @@ contains
    endif
 
   ! THIS IS A BUG IF DO NOT RECOMPUTE CANOPY WATER AFTER SUBLIMINATION                                           
-  !scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce
+  scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce
 
   end if  ! (if computing the vegetation flux)
 
@@ -918,8 +918,8 @@ contains
                                                            prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
                                                          * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
    ! THIS IS A BUG,? IF DO NOT RECOMPUTE THE VOLUMETRIC FRACTION OF WATER IN THE TOP LAYER AFTER SUBLIMINATION (MAYBE CAN DO ONLY AFTER SNOWFALL, END OF STEP)                                             
-   !prog_data%var(iLookPROG%mLayerVolFracWat)%dat(1) = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1) &
-   !                                                      + prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1)*iden_ice/iden_water
+   prog_data%var(iLookPROG%mLayerVolFracWat)%dat(1) = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1) &
+                                                         + prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1)*iden_ice/iden_water
   end if
 
   ! increment fluxes
@@ -996,8 +996,8 @@ contains
                                                           prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
                                                         * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
   ! THIS IS A BUG, IF DO NOT RECOMPUTE THE VOLUMETRIC FRACTION OF WATER IN THE TOP LAYER AFTER SUBLIMINATION AND SNOWFALL                                             
-  !prog_data%var(iLookPROG%mLayerVolFracWat)%dat(1) = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1) &
-  !                                                      + prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1)*iden_ice/iden_water
+  prog_data%var(iLookPROG%mLayerVolFracWat)%dat(1) = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1) &
+                                                        + prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1)*iden_ice/iden_water
  end if
  !print*, 'SWE after snowfall = ',  prog_data%var(iLookPROG%scalarSWE)%dat(1)
 
@@ -1135,8 +1135,8 @@ contains
   delSWE      = newSWE - (oldSWE - sfcMeltPond)
   massBalance = delSWE - (effSnowfall + effRainfall + averageSnowSublimation - averageSnowDrainage*iden_water)*data_step
   ! THIS IS A BUG, SHOULD USE SET TOLERANCES TO CHECK MASS BALANCE NOT 1.d-6
-  if(abs(massBalance) > 1.d-6)then
-  !if(abs(massBalance) > absConvTol_liquid*iden_water*10._rkind)then
+  !if(abs(massBalance) > 1.d-6)then
+  if(abs(massBalance) > absConvTol_liquid*iden_water*10._rkind)then
    print*,                  'nSnow       = ', nSnow
    print*,                  'nSub        = ', nSub
    write(*,'(a,1x,f20.10)') 'data_step   = ', data_step

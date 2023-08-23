@@ -404,8 +404,8 @@ contains
    if(xTemp<Tcrit)then
     select case(ixDomainType)
      ! THIS IS A BUG, SHOULD BE COMPUTED OFF NEW CANOPY WATER NOT PREVIOUS SOLUTION
-     case(iname_veg);  dTheta_dTkCanopy         = dFracLiq_dTk(xTemp,snowfrz_scale)*scalarCanopyWat/(iden_water*canopyDepth)
-     !case(iname_veg);  dTheta_dTkCanopy         = dFracLiq_dTk(xTemp,snowfrz_scale)*scalarCanopyWatTrial/(iden_water*canopyDepth)
+     !case(iname_veg);  dTheta_dTkCanopy         = dFracLiq_dTk(xTemp,snowfrz_scale)*scalarCanopyWat/(iden_water*canopyDepth)
+     case(iname_veg);  dTheta_dTkCanopy         = dFracLiq_dTk(xTemp,snowfrz_scale)*scalarCanopyWatTrial/(iden_water*canopyDepth)
      case(iname_snow); mLayerdTheta_dTk(iLayer) = dFracLiq_dTk(xTemp,snowfrz_scale)*mLayerVolFracWatTrial(iLayer)
      case(iname_soil); mLayerdTheta_dTk(iLayer) = dTheta_dTk(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
      case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return

@@ -455,9 +455,9 @@ contains
     sumLayerCompress(iSoil) = sumLayerCompress(iSoil) + diag_data%var(iLookDIAG%mLayerCompress)%dat(iSoil) ! soil compression in layers
    end do
   ! THIS IS A BUG, IF REMOVE THIS ELSE STATEMENT
-  !else
-  !  sumSoilCompress = diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)
-  !  sumLayerCompress(1:nSoil) = diag_data%var(iLookDIAG%mLayerCompress)%dat(1:nSoil)
+  else
+    sumSoilCompress = diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)
+    sumLayerCompress(1:nSoil) = diag_data%var(iLookDIAG%mLayerCompress)%dat(1:nSoil)
   endif
 
   ! print progress
@@ -667,7 +667,7 @@ contains
  waterBalanceError=.false.
 
  ! THIS IS A BUG, IF ENERGY FLUX MODIFICATION IS NEVER INITIALIZED
- !nrgFluxModified = .false.
+ nrgFluxModified = .false.
 
  ! get storage at the start of the step
  canopyBalance0 = merge(scalarCanopyWat, realMissing, computeVegFlux)

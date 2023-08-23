@@ -230,6 +230,7 @@ contains
  snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)         ,&  ! intent(in):  [dp]    scaling parameter for the snow freezing curve (K-1)
  ! soil parameters
  theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat                ,&  ! intent(in):  [dp(:)] soil porosity (-)
+ theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat                ,&  ! intent(in):  [dp(:)] residual volumetric water content (-)
  specificStorage         => mpar_data%var(iLookPARAM%specificStorage)%dat(1)       ,&  ! intent(in):  [dp]    specific storage coefficient (m-1)
  ! canopy and layer depth
  canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,&  ! intent(in):  [dp   ] canopy depth (m)
@@ -299,8 +300,8 @@ contains
    ! --> minimum
    if (layerType(iLayer) == iname_soil) then
     ! THIS IS A BUG, RESIDUAL SHOULD BE MINIMUM NOT SATURATION
-    xMin = theta_sat(iLayer-nSnow)
-    !xMin = theta_res(iLayer-nSnow)
+    !xMin = theta_sat(iLayer-nSnow)
+    xMin = theta_res(iLayer-nSnow)
    else
     xMin = 0._rkind
    endif
@@ -464,10 +465,10 @@ contains
                  ixRichards,                             & ! intent(in): choice of option for Richards' equation
                  ixBeg,ixEnd,                            & ! intent(in): start and end indices defining desired layers
                  ! THIS IS A BUG, SHOULD USE FULL MATRIC HEAD NOT LIQUID MATRIC HEAD
-                 mLayerMatricHeadLiq(1:nSoil),           & ! intent(in): matric head at the start of the time step (m)
-                 mLayerMatricHeadLiqTrial(1:nSoil),      & ! intent(in): trial value of matric head (m)
-                 !mLayerMatricHead(1:nSoil),              & ! intent(in): matric head at the start of the time step (m)
-                 !mLayerMatricHeadTrial(1:nSoil),         & ! intent(in): trial value of matric head (m)
+                 !mLayerMatricHeadLiq(1:nSoil),           & ! intent(in): matric head at the start of the time step (m)
+                 !mLayerMatricHeadLiqTrial(1:nSoil),      & ! intent(in): trial value of matric head (m)
+                 mLayerMatricHead(1:nSoil),              & ! intent(in): matric head at the start of the time step (m)
+                 mLayerMatricHeadTrial(1:nSoil),         & ! intent(in): trial value of matric head (m)
                  mLayerVolFracLiqTrial(nSnow+1:nLayers), & ! intent(in): trial value for the volumetric liquid water content in each soil layer (-)
                  mLayerVolFracIceTrial(nSnow+1:nLayers), & ! intent(in): trial value for the volumetric ice content in each soil layer (-)
                  specificStorage,                        & ! intent(in): specific storage coefficient (m-1)
