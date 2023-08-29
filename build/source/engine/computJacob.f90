@@ -96,7 +96,7 @@ subroutine computJacob(&
 					   indx_data,                  & ! intent(in):    index data
 					   prog_data,                  & ! intent(in):    model prognostic variables for a local HRU
 					   diag_data,                  & ! intent(in):    model diagnostic variables for a local HRU
-					   deriv_data,                 & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
+					   deriv_data,                 & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
 					   dBaseflow_dMatric,          & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
 					   ! input-output: Jacobian and its diagonal
 					   dMat,                       & ! intent(inout): diagonal of the Jacobian matrix
@@ -117,7 +117,7 @@ subroutine computJacob(&
   type(var_ilength),intent(in)      :: indx_data       ! indices defining model states and layers
   type(var_dlength),intent(in)      :: prog_data       ! prognostic variables for a local HRU
   type(var_dlength),intent(in)      :: diag_data       ! diagnostic variables for a local HRU
-  type(var_dlength),intent(in)      :: deriv_data      ! derivatives in model fluxes w.r.t. relevant state variables
+  type(var_dlength),intent(inout)   :: deriv_data      ! derivatives in model fluxes w.r.t. relevant state variables
   real(rkind),intent(in)            :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
   ! input-output: Jacobian and its diagonal
   real(rkind),intent(inout)         :: dMat(:)         ! diagonal of the Jacobian matrix
