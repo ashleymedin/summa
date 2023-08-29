@@ -17,7 +17,7 @@ c-2)  eval8summa.f90 soil min water is now theta_res, commit c19473df Apr 12 202
   7)  throughout, made “indian bread” terminology for NaN say it’s not a number for advised clarity, and there might be other other spaces and comments changed (e.g. tabs deleted and comments deleted or clarified), does not effect code results
 c-8)  flxMapping.f90 flux mapping of soil resistance as an energy variable corrected (was missing and messed up splitting), commit 315583df June 5, 2023
 c-9)  runOneGRU.f90 fixed basin aquifer recharge was summing incorrectly the HRU soil drainage instead of the HRU aquifer recharge, commit cd6f07f1 June 20, 2023 (only affects basin aquifer recharge so does not influence results except this basin variable)
-c-10) read_icond.f90 canopy water only initialized to be 1e-4 positive at the start of the simulation (through canopy liquid), commit c0f7fa26 Jan 30, 2023, and commit 0f2e9df2 Aug 15, 2023
+c-10) read_icond.f90 canopy water only initialized to be 1e-4 positive at the start of the simulation if it is smaller (through canopy liquid), commit c0f7fa26 Jan 30, 2023, and commit 0f2e9df2 Aug 15, 2023
       The canopy water was being bumped up to at least 1e-4 at the start of every substep.
   11) SUNDIALS IDA and KINSOL, ACTORS, and BMI/NGEN -- adds new files and some compiler directives in code
        num_method                    [numrec or kinsol or ida]        ! (07) choice of numerical method
