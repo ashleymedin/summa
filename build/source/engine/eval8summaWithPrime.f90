@@ -151,7 +151,7 @@ subroutine eval8summaWithPrime(&
   ! input: state vectors
   real(rkind),intent(in)          :: stateVec(:)                 ! model state vector
   real(rkind),intent(in)          :: stateVecPrime(:)            ! model state vector
-  real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp        ! state vector multiplier (used in the residual calculations)
+  real(rkind),intent(inout)          :: sMul(:)   ! NOTE: qp        ! state vector multiplier (used in the residual calculations)
   ! input: data structures
   type(model_options),intent(in)  :: model_decisions(:)          ! model decisions
   type(zLookup),      intent(in)  :: lookup_data                 ! lookup tables
@@ -203,7 +203,7 @@ subroutine eval8summaWithPrime(&
   logical(lgt),intent(out)        :: feasible                    ! flag to denote the feasibility of the solution
   real(rkind),intent(out)         :: fluxVec(:)                  ! flux vector
   real(rkind),intent(out)         :: resSink(:)                  ! sink terms on the RHS of the flux equation
-  real(qp),intent(out)            :: resVec(:) ! NOTE: qp        ! residual vector
+  real(rkind),intent(out)            :: resVec(:) ! NOTE: qp        ! residual vector
   ! output: error control
   integer(i4b),intent(out)        :: err                         ! error code
   character(*),intent(out)        :: message                     ! error message
@@ -621,8 +621,8 @@ subroutine eval8summaWithPrime(&
                       mLayerCmTrial,            & ! intent(out): Cm for soil and snow
                       err,cmessage)               ! intent(out): error control
     else
-      scalarCanopyCmTrial = 0._qp
-      mLayerCmTrial = 0._qp
+      scalarCanopyCmTrial = 0._rkind
+      mLayerCmTrial = 0._rkind
     endif ! needCm
 
     ! save the number of flux calls per time step
@@ -698,7 +698,7 @@ subroutine eval8summaWithPrime(&
 
     ! compute the residual vector
     if (insideSUN)then
-      dt1 = 1._qp ! always 1 for IDA since using Prime derivatives
+      dt1 = 1._rkind ! always 1 for IDA since using Prime derivatives
 
       call computResidWithPrime(&
                       ! input: model control
@@ -737,7 +737,7 @@ subroutine eval8summaWithPrime(&
       if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
     else !currently not using residuals outside Sundials!
-      dt1 = 1._qp
+      dt1 = 1._rkind
     endif
 
   ! end association with the information in the data structures

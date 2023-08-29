@@ -158,8 +158,8 @@ subroutine computHeatCap(&
   real(rkind),intent(in)          :: dEnthalpy_dTk(:)          ! derivatives in layer enthalpy w.r.t. temperature
   real(rkind),intent(in)          :: dEnthalpy_dWat(:)         ! derivatives in layer enthalpy w.r.t. water state
   ! output:
-  real(qp),intent(out)            :: heatCapVeg                ! heat capacity for canopy
-  real(qp),intent(out)            :: mLayerHeatCap(:)          ! heat capacity for snow and soil
+  real(rkind),intent(out)            :: heatCapVeg                ! heat capacity for canopy
+  real(rkind),intent(out)            :: mLayerHeatCap(:)          ! heat capacity for snow and soil
   real(rkind),intent(out)         :: dVolHtCapBulk_dPsi0(:)    ! derivative in bulk heat capacity w.r.t. matric potential
   real(rkind),intent(out)         :: dVolHtCapBulk_dTheta(:)   ! derivative in bulk heat capacity w.r.t. volumetric water content
   real(rkind),intent(out)         :: dVolHtCapBulk_dCanWat     ! derivative in bulk heat capacity w.r.t. volumetric water content
@@ -296,12 +296,12 @@ USE nr_utility_module,only:arth                   ! get a sequence of numbers ar
 USE f2008funcs_module,only:findIndex              ! finds the index of the first value within a vector
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! input: data structures
-  real(qp),intent(out)            :: heatCapVeg
-  real(qp),intent(out)            :: mLayerHeatCap(:)
+  real(rkind),intent(out)            :: heatCapVeg
+  real(rkind),intent(out)            :: mLayerHeatCap(:)
   type(var_dlength),intent(in)    :: diag_data              ! diagnostic variables for a local HRU
   type(var_ilength),intent(in)    :: indx_data              ! indices defining model states and layers
   ! output: state vectors
-  real(qp),intent(out)            :: sMul(:)    ! NOTE: qp  ! multiplier for state vector (used in the residual calculations)
+  real(rkind),intent(out)            :: sMul(:)    ! NOTE: qp  ! multiplier for state vector (used in the residual calculations)
   ! output: error control
   integer(i4b),intent(out)        :: err                    ! error code
   character(*),intent(out)        :: message                ! error message
@@ -436,8 +436,8 @@ subroutine computHeatCapAnalytic(&
   type(var_ilength),intent(in)    :: indx_data               ! model layer indices
   type(var_dlength),intent(inout) :: diag_data               ! diagnostic variables for a local HRU
   ! output 
-  real(qp),intent(out)            :: heatCapVeg              ! heat capacity for canopy
-  real(qp),intent(out)            :: mLayerHeatCap(:)        ! heat capacity for snow and soil
+  real(rkind),intent(out)            :: heatCapVeg              ! heat capacity for canopy
+  real(rkind),intent(out)            :: mLayerHeatCap(:)        ! heat capacity for snow and soil
   real(rkind),intent(out)         :: dVolHtCapBulk_dPsi0(:)  ! derivative in bulk heat capacity w.r.t. matric potential
   real(rkind),intent(out)         :: dVolHtCapBulk_dTheta(:) ! derivative in bulk heat capacity w.r.t. volumetric water content
   real(rkind),intent(out)         :: dVolHtCapBulk_dCanWat   ! derivative in bulk heat capacity w.r.t. volumetric water content
@@ -572,8 +572,8 @@ subroutine computCm(&
   type(var_dlength),intent(in)         :: mpar_data              ! model parameters
   type(var_ilength),intent(in)         :: indx_data              ! model layer indices
   ! output: error control
-  real(qp),intent(out)                 :: scalarCanopyCm         ! Cm for vegetation
-  real(qp),intent(out)                 :: mLayerCm(:)            ! Cm for soil and snow
+  real(rkind),intent(out)                 :: scalarCanopyCm         ! Cm for vegetation
+  real(rkind),intent(out)                 :: mLayerCm(:)            ! Cm for soil and snow
   integer(i4b),intent(out)             :: err                    ! error code
   character(*),intent(out)             :: message                ! error message
   ! --------------------------------------------------------------------------------------------------------------------------------

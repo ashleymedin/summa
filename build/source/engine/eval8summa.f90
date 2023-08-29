@@ -155,7 +155,7 @@ subroutine eval8summa(&
   ! input: state vectors
   real(rkind),intent(in)          :: stateVec(:)            ! model state vector
   real(rkind),intent(in)          :: fScale(:)              ! characteristic scale of the function evaluations
-  real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
+  real(rkind),intent(inout)          :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
   ! input: data structures
   type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
   type(zLookup),      intent(in)  :: lookup_data            ! lookup tables
@@ -177,7 +177,7 @@ subroutine eval8summa(&
   logical(lgt),intent(out)        :: feasible               ! flag to denote the feasibility of the solution
   real(rkind),intent(out)         :: fluxVec(:)             ! flux vector
   real(rkind),intent(out)         :: resSink(:)             ! sink terms on the RHS of the flux equation
-  real(qp),intent(out)            :: resVec(:) ! NOTE: qp   ! residual vector
+  real(rkind),intent(out)            :: resVec(:) ! NOTE: qp   ! residual vector
   real(rkind),intent(out)         :: fEval                  ! function evaluation
   ! output: error control
   integer(i4b),intent(out)        :: err                    ! error code
@@ -574,8 +574,8 @@ subroutine eval8summa(&
                       mLayerCmTrial,            & ! intent(out): Cm for soil and snow
                       err,cmessage)               ! intent(out): error control
     else
-      scalarCanopyCmTrial = 0._qp
-      mLayerCmTrial = 0._qp
+      scalarCanopyCmTrial = 0._rkind
+      mLayerCmTrial = 0._rkind
     endif ! needCm
 
     ! save the number of flux calls per time step
@@ -830,7 +830,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
   ! -----------------------------------------------------------------------------------------------------
   ! temporary variables for model constraints
   real(rkind)                              :: cInc                       ! constrained temperature increment (K) -- simplified bi-section
-  real(qp),dimension(nState)               :: xInc                       ! iteration increment
+  real(rkind),dimension(nState)               :: xInc                       ! iteration increment
   real(rkind)                              :: xIncFactor                 ! scaling factor for the iteration increment (-)
   integer(i4b)                             :: iMax(1)                    ! index of maximum temperature
   real(rkind)                              :: scalarTemp                 ! temperature of an individual snow layer (K)
@@ -903,7 +903,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
     err=0; message='imposeConstraints/'
 
     ! calculate proposed increment in state vector
-    xInc(1:nState) = stateVec(1:nState)*1._qp - stateVecPrev(1:nState)*1._qp
+    xInc(1:nState) = stateVec(1:nState)*1._rkind - stateVecPrev(1:nState)*1._rkind
   
     ! identify which constraints to impose
     select case(ixNumericalMethod)

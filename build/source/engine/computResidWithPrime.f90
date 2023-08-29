@@ -98,7 +98,7 @@ subroutine computResidWithPrime(&
   integer(i4b),intent(in)         :: nSoil                     ! number of soil layers
   integer(i4b),intent(in)         :: nLayers                   ! total number of layers in the snow+soil domain
   ! input: flux vectors
-  real(qp),intent(in)             :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
+  real(rkind),intent(in)             :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
   real(rkind),intent(in)          :: fVec(:)                   ! flux vector
   ! input: state variables (already disaggregated into scalars and vectors)
   real(rkind),intent(in)          :: scalarCanopyTempTrial     ! trial value for temperature of the vegetation canopy (K)
@@ -114,8 +114,8 @@ subroutine computResidWithPrime(&
   real(rkind),intent(in)          :: mLayerVolFracIcePrime(:)  ! Prime value for volumetric fraction of ice (s-1)
   real(rkind),intent(in)          :: mLayerVolFracWatPrime(:)  ! Prime value for the volumetric water in each snow and soil layer (s-1)
   real(rkind),intent(in)          :: mLayerVolFracLiqPrime(:)  ! Prime value for the volumetric water in each snow and soil layer (s-1)
-  real(qp),intent(in)             :: scalarCanopyCmTrial       ! Cm of vegetation canopy (-)
-  real(qp),intent(in)             :: mLayerCmTrial(:)          ! Cm of each snow and soil layer (-)
+  real(rkind),intent(in)             :: scalarCanopyCmTrial       ! Cm of vegetation canopy (-)
+  real(rkind),intent(in)             :: mLayerCmTrial(:)          ! Cm of each snow and soil layer (-)
   ! input: data structures
   type(var_dlength),intent(in)    :: prog_data                 ! prognostic variables for a local HRU
   type(var_dlength),intent(in)    :: diag_data                 ! diagnostic variables for a local HRU
@@ -123,7 +123,7 @@ subroutine computResidWithPrime(&
   type(var_ilength),intent(in)    :: indx_data                 ! indices defining model states and layers
   ! output
   real(rkind),intent(out)         :: rAdd(:)                   ! additional (sink) terms on the RHS of the state equation
-  real(qp),intent(out)            :: rVec(:)   ! NOTE: qp      ! residual vector
+  real(rkind),intent(out)            :: rVec(:)   ! NOTE: qp      ! residual vector
   integer(i4b),intent(out)        :: err                       ! error code
   character(*),intent(out)        :: message                   ! error message
   ! --------------------------------------------------------------------------------------------------------------------------------
@@ -273,7 +273,7 @@ subroutine printResidDAE( &
   type(var_ilength),intent(in)    :: indx_data                 ! indices defining model states and layers
   ! output
   real(rkind),intent(in)          :: rAdd(:)                   ! additional (sink) terms on the RHS of the state equation
-  real(qp),intent(in)             :: rVec(:)   ! NOTE: qp      ! residual vector
+  real(rkind),intent(in)             :: rVec(:)   ! NOTE: qp      ! residual vector
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! local variables
   ! --------------------------------------------------------------------------------------------------------------------------------

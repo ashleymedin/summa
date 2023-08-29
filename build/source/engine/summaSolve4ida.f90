@@ -159,9 +159,9 @@ subroutine summaSolve4ida(                         &
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! input: model control
   real(rkind),intent(in)          :: dt_cur                 ! current stepsize
-  real(qp),intent(in)             :: dt                     ! data time step
-  real(qp),intent(inout)          :: atol(:)                ! vector of absolute tolerances
-  real(qp),intent(inout)          :: rtol(:)                ! vector of relative tolerances
+  real(rkind),intent(in)             :: dt                     ! data time step
+  real(rkind),intent(inout)          :: atol(:)                ! vector of absolute tolerances
+  real(rkind),intent(inout)          :: rtol(:)                ! vector of relative tolerances
   integer(i4b),intent(in)         :: nSnow                  ! number of snow layers
   integer(i4b),intent(in)         :: nSoil                  ! number of soil layers
   integer(i4b),intent(in)         :: nLayers                ! total number of layers
@@ -172,7 +172,7 @@ subroutine summaSolve4ida(                         &
   logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
   ! input: state vectors
   real(rkind),intent(in)          :: stateVecInit(:)        ! model state vector
-  real(qp),intent(in)             :: sMul(:)                ! state vector multiplier (used in the residual calculations)
+  real(rkind),intent(in)             :: sMul(:)                ! state vector multiplier (used in the residual calculations)
   real(rkind), intent(inout)      :: dMat(:)                ! diagonal of the Jacobian matrix (excludes fluxes)
   ! input: data structures
   type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
@@ -214,16 +214,16 @@ subroutine summaSolve4ida(                         &
   type(data4ida),           target  :: eqns_data            ! IDA type
   integer(i4b)                      :: retval, retvalr      ! return value
   logical(lgt)                      :: feasible             ! feasibility flag
-  real(qp)                          :: t0                   ! starting time
-  real(qp)                          :: dt_last(1)           ! last time step
-  real(qp)                          :: dt_diff              ! difference from previous timestep
+  real(rkind)                          :: t0                   ! starting time
+  real(rkind)                          :: dt_last(1)           ! last time step
+  real(rkind)                          :: dt_diff              ! difference from previous timestep
   integer(c_long)                   :: mu, lu               ! in banded matrix mode in SUNDIALS type
   integer(c_long)                   :: nState               ! total number of state variables in SUNDIALS type
   real(rkind)                       :: rVec(nStat)          ! residual vector
   integer(i4b)                      :: iVar, i              ! indices
   integer(i4b)                      :: nRoot                ! total number of roots (events) to find
-  real(qp)                          :: tret(1)              ! time in data window
-  real(qp)                          :: tretPrev             ! previous time in data window
+  real(rkind)                          :: tret(1)              ! time in data window
+  real(rkind)                          :: tretPrev             ! previous time in data window
   integer(i4b),allocatable          :: rootsfound(:)        ! crossing direction of discontinuities
   integer(i4b),allocatable          :: rootdir(:)           ! forced crossing direction of discontinuities
   logical(lgt)                      :: tinystep             ! if step goes below small size
@@ -645,12 +645,12 @@ subroutine setSolverParams(dt_cur,nonlin_iter,ida_mem,retval)
 
   !======= Internals ============
   integer,parameter           :: max_order = 5      ! maximum BDF order,  default = 5
-  real(qp),parameter          :: coef_nonlin = 0.33 ! Coeff. in the nonlinear convergence test, default = 0.33
+  real(rkind),parameter          :: coef_nonlin = 0.33 ! Coeff. in the nonlinear convergence test, default = 0.33
   integer,parameter           :: acurtest_fail = 50 ! maximum number of error test failures, default = 10
   integer,parameter           :: convtest_fail = 50 ! maximum number of convergence test failures, default = 10
   integer(c_long),parameter   :: max_step = 999999  ! maximum number of steps,  default = 500
-  real(qp)                    :: h_max              ! maximum stepsize,  default = infinity
-  real(qp),parameter          :: h_init = 0         ! initial stepsize
+  real(rkind)                    :: h_max              ! maximum stepsize,  default = infinity
+  real(rkind),parameter          :: h_init = 0         ! initial stepsize
  
   ! Set the maximum BDF order
   retval = FIDASetMaxOrd(ida_mem, max_order)

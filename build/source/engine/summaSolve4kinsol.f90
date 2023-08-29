@@ -163,7 +163,7 @@ subroutine summaSolve4kinsol(&
   logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
   ! input: state vectors
   real(rkind),intent(in)          :: stateVecInit(:)        ! model state vector
-  real(qp),intent(in)             :: sMul(:)                ! state vector multiplier (used in the residual calculations)
+  real(rkind),intent(in)             :: sMul(:)                ! state vector multiplier (used in the residual calculations)
   real(rkind), intent(inout)      :: dMat(:)                ! diagonal of the Jacobian matrix (excludes fluxes)
   ! input: data structures
   type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
@@ -458,8 +458,8 @@ subroutine setSolverParams(nonlin_iter,kinsol_mem,retval)
   integer(c_long),parameter   :: msubset = 1        ! maximum number of nonlinear iterations between checks by the residual monitoring algorithm, default=5
   integer(c_long),parameter   :: maa = 0            ! maximum number of prior residuals to use acceleration, default = 0
   integer(c_long),parameter   :: beta_fail = 10     ! maximum number of beta condition failures, default = 10
-  real(qp),parameter          :: fnormtol = 0.0     ! stopping tolerance on the scaled maximum norm of the system function, pass 0 to give default of unit_roundoff**(1/3)
-  real(qp),parameter          :: scsteptol = 0.0    ! stopping tolerance on the minimum scaled step length, pass 0 to give default of unit_roundoff**(2/3)
+  real(rkind),parameter          :: fnormtol = 0.0     ! stopping tolerance on the scaled maximum norm of the system function, pass 0 to give default of unit_roundoff**(1/3)
+  real(rkind),parameter          :: scsteptol = 0.0    ! stopping tolerance on the minimum scaled step length, pass 0 to give default of unit_roundoff**(2/3)
       
   ! Set maximum number of times the linear solver is called without a Jacobian update
   retval = FKINSetMaxSetupCalls(kinsol_mem, mset)

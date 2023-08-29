@@ -224,8 +224,8 @@ subroutine systemSolv(&
   real(rkind)                     :: stateVecNew(nState)           ! new state vector (mixed units)
   real(rkind)                     :: fluxVec0(nState)              ! flux vector (mixed units)
   real(rkind)                     :: dMat(nState)                  ! diagonal matrix (excludes flux derivatives)
-  real(qp)                        :: sMul(nState)    ! NOTE: qp    ! multiplier for state vector for the residual calculations
-  real(qp)                        :: rVec(nState)    ! NOTE: qp    ! residual vector
+  real(rkind)                        :: sMul(nState)    ! NOTE: qp    ! multiplier for state vector for the residual calculations
+  real(rkind)                        :: rVec(nState)    ! NOTE: qp    ! residual vector
   real(rkind)                     :: rAdd(nState)                  ! additional terms in the residual vector
   logical(lgt)                    :: feasible                      ! feasibility flag
   logical(lgt)                    :: sunSucceeds                   ! flag to indicate if SUNDIALS successfully solved the problem in current data step
@@ -246,7 +246,7 @@ subroutine systemSolv(&
   logical(lgt)                    :: converged                     ! convergence flag numrec
   real(rkind)                     :: resSinkNew(nState)            ! additional terms in the residual vector numrec
   real(rkind)                     :: fluxVecNew(nState)            ! new flux vector numrec
-  real(qp)                        :: resVecNew(nState)  ! NOTE: qp ! new residual vector numrec
+  real(rkind)                        :: resVecNew(nState)  ! NOTE: qp ! new residual vector numrec
   logical(lgt), parameter         :: post_massCons=.false.         ! “perfectly” conserve mass by pushing the errors into the states, turn off for now to agree with SUNDIALS
   ! enthalpy derivatives
   real(rkind)                     :: dCanEnthalpy_dTk              ! derivatives in canopy enthalpy w.r.t. temperature

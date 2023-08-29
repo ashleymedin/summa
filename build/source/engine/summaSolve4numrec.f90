@@ -166,8 +166,8 @@ contains
  real(rkind),intent(inout)       :: xMin,xMax                ! brackets of the root
  real(rkind),intent(in)          :: fScale(:)                ! characteristic scale of the function evaluations
  real(rkind),intent(in)          :: xScale(:)                ! characteristic scale of the state vector
- real(qp),intent(in)             :: rVec(:)   ! NOTE: qp     ! residual vector
- real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp     ! state vector multiplier (used in the residual calculations)
+ real(rkind),intent(in)             :: rVec(:)   ! NOTE: qp     ! residual vector
+ real(rkind),intent(inout)          :: sMul(:)   ! NOTE: qp     ! state vector multiplier (used in the residual calculations)
  real(rkind),intent(inout)       :: dMat(:)                  ! diagonal matrix (excludes flux derivatives)
  real(rkind),intent(in)          :: fOld                     ! old function evaluation
  ! input: data structures
@@ -191,7 +191,7 @@ contains
  real(rkind),intent(out)         :: stateVecNew(:)           ! new state vector
  real(rkind),intent(out)         :: fluxVecNew(:)            ! new flux vector
  real(rkind),intent(out)         :: resSinkNew(:)            ! sink terms on the RHS of the flux equation
- real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp  ! new residual vector
+ real(rkind),intent(out)            :: resVecNew(:) ! NOTE: qp  ! new residual vector
  real(rkind),intent(out)         :: fNew                     ! new function evaluation
  logical(lgt),intent(out)        :: converged                ! convergence flag
  ! output: error control
@@ -370,7 +370,7 @@ contains
   ! output
   real(rkind),intent(out)        :: stateVecNew(:)           ! new state vector
   real(rkind),intent(out)        :: fluxVecNew(:)            ! new flux vector
-  real(qp),intent(out)           :: resVecNew(:) ! NOTE: qp  ! new residual vector
+  real(rkind),intent(out)           :: resVecNew(:) ! NOTE: qp  ! new residual vector
   real(rkind),intent(out)        :: fNew                     ! new function evaluation
   logical(lgt),intent(out)       :: converged                ! convergence flag
   integer(i4b),intent(out)       :: err                      ! error code
@@ -537,7 +537,7 @@ contains
   ! output
   real(rkind),intent(out)        :: stateVecNew(:)           ! new state vector
   real(rkind),intent(out)        :: fluxVecNew(:)            ! new flux vector
-  real(qp),intent(out)           :: resVecNew(:) ! NOTE: qp  ! new residual vector
+  real(rkind),intent(out)           :: resVecNew(:) ! NOTE: qp  ! new residual vector
   real(rkind),intent(out)        :: fNew                     ! new function evaluation
   logical(lgt),intent(out)       :: converged                ! convergence flag
   integer(i4b),intent(out)       :: err                      ! error code
@@ -598,7 +598,7 @@ contains
   ! output
   real(rkind),intent(out)        :: stateVecNew(:)           ! new state vector
   real(rkind),intent(out)        :: fluxVecNew(:)            ! new flux vector
-  real(qp),intent(out)           :: resVecNew(:) ! NOTE: qp  ! new residual vector
+  real(rkind),intent(out)           :: resVecNew(:) ! NOTE: qp  ! new residual vector
   real(rkind),intent(out)        :: fNew                     ! new function evaluation
   logical(lgt),intent(out)       :: converged                ! convergence flag
   integer(i4b),intent(out)       :: err                      ! error code
@@ -779,7 +779,7 @@ contains
   real(rkind),parameter          :: dx=1.e-8_rkind             ! finite difference increment
   real(rkind),dimension(nState)  :: stateVecPerturbed          ! perturbed state vector
   real(rkind),dimension(nState)  :: fluxVecInit,fluxVecJac     ! flux vector (mized units)
-  real(qp),dimension(nState)     :: resVecInit,resVecJac ! qp  ! residual vector (mixed units)
+  real(rkind),dimension(nState)     :: resVecInit,resVecJac ! qp  ! residual vector (mixed units)
   real(rkind)                    :: func                       ! function value
   logical(lgt)                   :: feasible                   ! flag to denote the feasibility of the solution
   integer(i4b)                   :: iJac                       ! index of row of the Jacobian matrix
@@ -921,7 +921,7 @@ contains
   real(rkind),intent(in)         :: stateVecNew(:)           ! updated state vector
   ! output
   real(rkind),intent(out)        :: fluxVecNew(:)            ! updated flux vector
-  real(qp),intent(out)           :: resVecNew(:) ! NOTE: qp  ! updated residual vector
+  real(rkind),intent(out)           :: resVecNew(:) ! NOTE: qp  ! updated residual vector
   real(rkind),intent(out)        :: fNew                     ! new function value
   logical(lgt),intent(out)       :: feasible                 ! flag to denote the feasibility of the solution
   integer(i4b),intent(out)       :: err                      ! error code

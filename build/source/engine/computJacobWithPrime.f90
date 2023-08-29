@@ -1106,7 +1106,7 @@ integer(c_int) function computJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
   call computJacobWithPrime(&
                 ! input: model control
                 cj,                                       & ! intent(in):    this scalar changes whenever the step size or method order changes
-                1._qp,                                    & ! intent(in):    length of the time step (seconds)
+                1._rkind,                                    & ! intent(in):    length of the time step (seconds)
                 eqns_data%nSnow,                          & ! intent(in):    number of snow layers
                 eqns_data%nSoil,                          & ! intent(in):    number of soil layers
                 eqns_data%nLayers,                        & ! intent(in):    total number of layers

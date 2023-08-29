@@ -60,7 +60,7 @@ subroutine computSnowDepth(&
   USE snwDensify_module,only:snwDensify      ! snow densification (compaction and cavitation)
 
   implicit none
-  real(qp),intent(in)                  :: dt_sub
+  real(rkind),intent(in)                  :: dt_sub
   integer(i4b),intent(in)              :: nSnow                  ! number of snow layers
   real(rkind),intent(in)               :: scalarSnowSublimation
   real(rkind),intent(inout)            :: mLayerVolFracLiq(:)
