@@ -14,7 +14,7 @@ c-2)  eval8summa.f90 soil min water is now theta_res, commit c19473df Apr 12 202
  - )   Fix aquifer recharge depends on soil drainage from interface above
  - )   Fix soil infiltration at surface depends on all layers below and above water and temp, not huge effect (but some) if banded Jacobian
 c-7)  Jacobian, scalarCanopyLiq derivatives were getting overwritten and thus zeroed out in calculations, commit cd5002c Jul 6, 2023
-  8)  throughout, made “indian bread” terminology for NaN say it’s not a number for advised clarity, and there might be other other spaces and comments changed (e.g. tabs deleted and comments deleted or clarified), does not effect code results
+  8)  Throughout, made “indian bread” terminology for NaN say it’s not a number for advised clarity, and there might be other other spaces and comments changed (e.g. tabs deleted and comments deleted or clarified), does not effect code results
 c-9)  flxMapping.f90 flux mapping of soil resistance as an energy variable corrected (was missing and messed up splitting), commit 315583df June 5, 2023
 c-10) runOneGRU.f90 fixed basin aquifer recharge was summing incorrectly the HRU soil drainage instead of the HRU aquifer recharge, commit cd6f07f1 June 20, 2023 (only affects basin aquifer recharge so does not influence results except this basin variable)
 c-11) read_icond.f90 canopy water only initialized to be 1e-4 positive at the start of the simulation if it is smaller (through canopy liquid), commit c0f7fa26 Jan 30, 2023, and commit 0f2e9df2 Aug 15, 2023
@@ -51,7 +51,9 @@ c-24) After new snowfall, need to update the volume fraction water in the top la
       This is true for canopy water and sublimation also, commit 4ff60baa Jan 30, 2023
       All layers have their water updated from their liq and ice at the start of the next step, so this just affects the water output (not the solution)
 c-25) Remove post-processing that changes solution to perfectly conserves mass and push errors into the state variables
-  26) The residual vector is now quadruple precision. Change was by Reza, sometime 2021
+ -26) The residual vector is now quadruple precision. Change was by Reza, sometime 2021. Makes a difference when residuals are large in step direction (I'm seeing differences especially in temperature)
+c-27) Wrong precision for parameter used in canopy air space, fixed in Sean's refactoring
+ -28) Reorder terms in residual calculations to have (paramTrial - param) so if same will give a zero, and to be more like the prime construction, commit 5f5a6f1a Aug 30, 2023
 
 
 

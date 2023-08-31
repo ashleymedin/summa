@@ -538,7 +538,7 @@ contains
  ! set untapped melt energy to zero
  untappedMelt(:) = 0._rkind
 
- ! THIS IS A BUG/ILL-ADVISED TO USE THIS FIX AND PROGAGATE WRONG SOLUTION INSTEAD OF ACCEPTING ERROR AS SOLVED
+ ! THIS IS A BUG/ILL-ADVISED TO USE THIS FIX AND POTENTIALLY PUSH LARGE RESIDUAL INTO STATE VECTOR
  ! update temperatures (ensure new temperature is consistent with the fluxes)
  !if(nSnowSoilNrg>0)then
  ! do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
@@ -547,7 +547,7 @@ contains
  ! end do  ! looping through non-missing energy state variables in the snow+soil domain
  !endif
 
- ! THIS IS A BUG/ILL-ADVISED TO USE THIS FIX AND PROGAGATE WRONG SOLUTION INSTEAD OF ACCEPTING ERROR AS SOLVED
+ ! THIS IS A BUG/ILL-ADVISED TO USE THIS FIX AND POTENTIALLY PUSH LARGE RESIDUAL INTO STATE VECTOR
  ! update volumetric water content in the snow (ensure change in state is consistent with the fluxes)
  ! NOTE: for soil water balance is constrained within the iteration loop
  !if(nSnowSoilHyd>0)then
