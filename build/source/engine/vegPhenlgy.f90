@@ -72,7 +72,7 @@ contains
                        type_data,                   & ! intent(in):    type of vegetation and soil
                        attr_data,                   & ! intent(in):    spatial attributes
                        mpar_data,                   & ! intent(in):    model parameters
-                       prog_data,                   & ! intent(in):    prognostic variables for a local HRU
+                       prog_data,                   & ! intent(inout): prognostic variables for a local HRU
                        diag_data,                   & ! intent(inout): diagnostic variables for a local HRU
                        ! output
                        computeVegFlux,              & ! intent(out): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
@@ -89,7 +89,7 @@ contains
  type(var_i),intent(in)          :: type_data           ! type of vegetation and soil
  type(var_d),intent(in)          :: attr_data           ! spatial attributes
  type(var_dlength),intent(in)    :: mpar_data           ! model parameters
- type(var_dlength),intent(in)    :: prog_data           ! prognostic variables for a local HRU
+ type(var_dlength),intent(inout) :: prog_data           ! prognostic variables for a local HRU
  type(var_dlength),intent(inout) :: diag_data           ! diagnostic variables for a local HRU
  ! output
  logical(lgt),intent(out)        :: computeVegFlux      ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
@@ -118,6 +118,7 @@ contains
  ! model state variables
  scalarSnowDepth                 => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),           & ! intent(in):    [dp] snow depth on the ground surface (m)
  scalarCanopyTemp                => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1),          & ! intent(in):    [dp] temperature of the vegetation canopy at the start of the sub-step (K)
+ scalarCanopyLiq                 => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),           & ! intent(inout): [dp] liquid water in the vegetation canopy at the start of the sub-step
 
  ! diagnostic variables and parameters (input)
  heightCanopyTop                 => mpar_data%var(iLookPARAM%heightCanopyTop)%dat(1),          & ! intent(in):    [dp] height of the top of the canopy layer (m)
@@ -184,6 +185,10 @@ contains
   computeVegFlux  = (exposedVAI > 0.05_rkind .and. heightAboveSnow > 0.05_rkind)
   !write(*,'(a,1x,i2,1x,L1,1x,10(f12.5,1x))') 'vegTypeIndex, computeVegFlux, heightCanopyTop, heightAboveSnow, scalarSnowDepth = ', &
   !                                            vegTypeIndex, computeVegFlux, heightCanopyTop, heightAboveSnow, scalarSnowDepth
+
+  ! THIS IS A BUG, part of initialization of scalarCanopyWat in the correct spot
+  ! if no vegetation ever, should not have initialized scalarCanopyLiq to 0.0001 in read_icond.f90
+  !if((scalarLAI + scalarSAI) == 0.0_rkind) scalarCanopyLiq = 0.0_rkind
 
  end if  ! (check if the snow-soil column is isolated)
 

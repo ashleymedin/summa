@@ -325,7 +325,7 @@ contains
 
     ! THIS IS A BUG, IF DO NOT INITIALIZE HERE (AND INSTEAD INITIALIZE AT THE START OF EVERY TIME STEP IN systemSolv)
     ! make sure canopy water is positive, otherwise add liquid water to canopy and make total water consistent later
-    !if( progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyWat)%dat(1) < 0.0001_rkind)then
+    !if( (progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyLiq)%dat(1) + progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyIce)%dat(1)) < 0.0001_rkind)then
     !  progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyLiq)%dat(1) = 0.0001_rkind
     !endif
 

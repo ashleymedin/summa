@@ -397,7 +397,7 @@ contains
                  type_data,                   & ! intent(in):    type of vegetation and soil
                  attr_data,                   & ! intent(in):    spatial attributes
                  mpar_data,                   & ! intent(in):    model parameters
-                 prog_data,                   & ! intent(in):    model prognostic variables for a local HRU
+                 prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
                  diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
                  ! output
                  computeVegFlux,              & ! intent(out): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
