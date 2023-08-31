@@ -1109,7 +1109,8 @@ contains
   real(rkind)                        :: xIncFactor                   ! scaling factor for the iteration increment (-)
   integer(i4b)                    :: iMax(1)                      ! index of maximum temperature
   real(rkind)                        :: scalarTemp                   ! temperature of an individual snow layer (K)
-  real(rkind)                        :: volFracLiq                   ! volumetric liquid water content of an individual snow layer (-)
+  real(rkind)                        :: scalarIce                    ! volumetric ice content of an individual layer (-)
+  real(rkind)                        :: volFracLiq                   ! volumetric liquid water content of an individual layer (-)
   logical(lgt),dimension(nSnow)   :: drainFlag                    ! flag to denote when drainage exceeds available capacity
   logical(lgt),dimension(nSoil)   :: crosFlag                     ! flag to denote temperature crossing from unfrozen to frozen (or vice-versa)
   logical(lgt)                    :: crosTempVeg                  ! flag to denoote where temperature crosses the freezing point
@@ -1131,6 +1132,7 @@ contains
   ixMatOnly               => indx_data%var(iLookINDEX%ixMatOnly)%dat                ,& ! intent(in): [i4b(:)] list of indices in the state subset for matric head states
   ixMassOnly              => indx_data%var(iLookINDEX%ixMassOnly)%dat               ,& ! intent(in): [i4b(:)] list of indices in the state subset for canopy storage states
   ixStateType_subset      => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in): [i4b(:)] named variables defining the states in the subset
+  ixHydType               => indx_data%var(iLookINDEX%ixHydType)%dat                ,& ! intent(in): [i4b(:)] index of the type of hydrology states in snow+soil domain
   ! indices for specific state variables
   ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in): [i4b] index of canopy air space energy state variable
   ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in): [i4b] index of canopy energy state variable
@@ -1154,8 +1156,12 @@ contains
   nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in): [i4b]    number of hydrology variables in the snow+soil domain
   nSnowOnlyHyd            => indx_data%var(iLookINDEX%nSnowOnlyHyd )%dat(1)         ,& ! intent(in): [i4b]    number of hydrology variables in the snow domain
   nSoilOnlyHyd            => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)         ,& ! intent(in): [i4b]    number of hydrology variables in the soil domain
+  ! soil parameters
+  theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat                ,& ! intent(in): [dp(:)]  soil porosity (-)
+  theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat                ,& ! intent(in): [dp(:)]  residual volumetric water content (-)
   ! state variables at the start of the time step
-  mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat           & ! intent(in): [dp(:)] matric head (m)
+  mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(in): [dp(:)] matric head (m)
+  mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat           & ! intent(in): [dp(:)] volumetric fraction of ice (-)
   ) ! associating variables with indices of model state variables
   ! -----------------------------------------------------------------------------------------------------
   ! initialize error control
@@ -1261,22 +1267,47 @@ contains
      scalarTemp = prog_data%var(iLookPROG%mLayerTemp)%dat(iLayer)
     endif
 
-    ! * get the volumetric fraction of liquid water
+    ! * get the volumetric fraction of liquid water and ice
     select case( ixStateType_subset( ixSnowOnlyHyd(iLayer) ) )
      case(iname_watLayer); volFracLiq = fracliquid(scalarTemp,mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)) * stateVecTrial(ixSnowOnlyHyd(iLayer))
      case(iname_liqLayer); volFracLiq = stateVecTrial(ixSnowOnlyHyd(iLayer))
      case default; err=20; message=trim(message)//'expect ixStateType_subset to be iname_watLayer or iname_liqLayer for snow hydrology'; return
     end select
-
+    scalarIce = mLayerVolFracIce(iLayer)
+  
     ! * check that the iteration increment does not exceed volumetric liquid water content
     if(-xInc(ixSnowOnlyHyd(iLayer)) > volFracLiq)then
      drainFlag(iLayer) = .true.
      xInc(ixSnowOnlyHyd(iLayer)) = -0.5_rkind*volFracLiq
+    ! THIS IS A BUG, IF REMOVE THIS ELSEIF STATEMENT THEN CAN GO INFEASIBLE
+    !elseif(xInc(ixSnowOnlyHyd(iLayer)) > 1._rkind - scalarIce - volFracLiq)then
+    !  xInc(ixSnowOnlyHyd(iLayer)) = 0.5_rkind*(1._rkind - scalarIce - volFracLiq)
     endif
 
    end do  ! looping through snow layers
 
   endif   ! if there are state variables for liquid water in the snow domain
+
+  ! THIS IS A BUG, IF REMOVE THIS IF AND DO LOOPS THEN CAN GO INFEASIBLE
+  ! impose bounds for soil water, change in total water is only due to liquid flux
+  !if(nSoilOnlyHyd>0)then
+  !  ! loop through soil layers
+  !  do iLayer=1,nSoil
+  !    ! check if the layer is included
+  !    if(ixSoilOnlyHyd(iLayer)==integerMissing) cycle
+  !    if(ixHydType(ixSoilOnlyHyd(iLayer))==iname_watLayer .or. ixHydType(ixSoilOnlyHyd(iLayer))==iname_liqLayer)then
+  !      ! get the volumetric fraction of liquid water and ice
+  !      volFracLiq = stateVecTrial(ixSoilOnlyHyd(iLayer))
+  !      scalarIce = merge(0._rkind, mLayerVolFracIce(iLayer+nSnow), ixHydType(ixSoilOnlyHyd(iLayer))==iname_watLayer)
+  !      ! checking if drain more than what is available or add more than possible
+  !      if(-xInc(ixSoilOnlyHyd(iLayer)) > volFracLiq - theta_res(iLayer))then 
+  !        xInc(ixSoilOnlyHyd(iLayer)) = -0.5_rkind*(volFracLiq - theta_res(iLayer))
+  !      elseif(xInc(ixSoilOnlyHyd(iLayer)) > theta_sat(iLayer) - scalarIce - volFracLiq)then
+  !        xInc(ixSoilOnlyHyd(iLayer)) = -0.5_rkind*(theta_sat(iLayer) - scalarIce - volFracLiq)
+  !      endif
+  !    endif ! (if the state variable is not matric head)
+  !  end do ! (looping through soil layers)
+  !endif ! (if there are state variables for liquid water in the soil domain)
 
   ! --------------------------------------------------------------------------------------------------------------------
   ! ** impose solution constraints for soil temperature

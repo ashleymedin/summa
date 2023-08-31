@@ -2078,7 +2078,9 @@ contains
  ! local variables: vegetation roughness and dispalcement height
  real(rkind),parameter            :: oneThird=1._rkind/3._rkind          ! 1/3
  real(rkind),parameter            :: twoThirds=2._rkind/3._rkind         ! 2/3
- real(rkind),parameter            :: C_r = 0.3                     ! roughness element drag coefficient (-) from Raupach (BLM, 1994)
+ ! THIS IS A BUG, C_r should be 0.3_rkind
+ real(rkind),parameter            :: C_r = 0.3                 ! roughness element drag coefficient (-) from Raupach (BLM, 1994)
+ !real(rkind),parameter            :: C_r = 0.3_rkind                  ! roughness element drag coefficient (-) from Raupach (BLM, 1994)
  real(rkind),parameter            :: C_s = 0.003_rkind                ! substrate surface drag coefficient (-) from Raupach (BLM, 1994)
  real(rkind),parameter            :: approxDragCoef_max = 0.3_rkind   ! maximum value of the approximate drag coefficient (-) from Raupach (BLM, 1994)
  real(rkind),parameter            :: psi_h = 0.193_rkind              ! roughness sub-layer influence function (-) from Raupach (BLM, 1994)
@@ -2145,7 +2147,7 @@ contains
     approxDragCoef   = min( sqrt(C_s + C_r*exposedVAI/2._rkind), approxDragCoef_max)
     z0Canopy         = (1._rkind - fracCanopyHeight) * exp(-vkc*approxDragCoef - psi_h) * (heightCanopyTopAboveSnow-heightCanopyBottomAboveSnow)
 
-   ! Choudhury and Monteith (QJRMS 1988) "A four layer model for the heat budget..."
+       ! Choudhury and Monteith (QJRMS 1988) "A four layer model for the heat budget..."
    case(CM_QJRMS1988)
     funcLAI =  cd_CM*exposedVAI
     zeroPlaneDisplacement = 1.1_rkind*heightCanopyTopAboveSnow*log(1._rkind + funcLAI**0.25_rkind)

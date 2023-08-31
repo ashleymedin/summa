@@ -10,55 +10,57 @@ c-2)  eval8summa.f90 soil min water is now theta_res, commit c19473df Apr 12 202
  -6)  Jacobian fixes, computed in various subroutines and then included in computJacob.f90:
  	   Fix bulk heat capacity depends on frac ice/liq if updateCp, not needed it don't updateCp
  	   Fix thermal conductivity at snow soil layer interfaces depends on frac ice/liq (ssdNrgFlux) if updateCp, not needed it don't updateCp
- 	   Fix soil layer and aquifer transpiration depends on canopy nrg and wat (canopy transpiration), no effect if banded Jacobian
-       Fix scalarCanopyLiq derivatives were getting zeroed out in calculations
-       Fix aquifer recharge depends on soil drainage from interface above
-       Fix soil infiltration at surface depends on all layers below and above water and temp, not huge effect (but some) if banded Jacobian
-  7)  throughout, made “indian bread” terminology for NaN say it’s not a number for advised clarity, and there might be other other spaces and comments changed (e.g. tabs deleted and comments deleted or clarified), does not effect code results
-c-8)  flxMapping.f90 flux mapping of soil resistance as an energy variable corrected (was missing and messed up splitting), commit 315583df June 5, 2023
-c-9)  runOneGRU.f90 fixed basin aquifer recharge was summing incorrectly the HRU soil drainage instead of the HRU aquifer recharge, commit cd6f07f1 June 20, 2023 (only affects basin aquifer recharge so does not influence results except this basin variable)
-c-10) read_icond.f90 canopy water only initialized to be 1e-4 positive at the start of the simulation if it is smaller (through canopy liquid), commit c0f7fa26 Jan 30, 2023, and commit 0f2e9df2 Aug 15, 2023
+ - )   Fix soil layer and aquifer transpiration depends on canopy nrg and wat (canopy transpiration), no effect if banded Jacobian
+ - )   Fix aquifer recharge depends on soil drainage from interface above
+ - )   Fix soil infiltration at surface depends on all layers below and above water and temp, not huge effect (but some) if banded Jacobian
+c-7)  Jacobian, scalarCanopyLiq derivatives were getting overwritten and thus zeroed out in calculations, commit cd5002c Jul 6, 2023
+  8)  Throughout, made “indian bread” terminology for NaN say it’s not a number for advised clarity, and there might be other other spaces and comments changed (e.g. tabs deleted and comments deleted or clarified), does not effect code results
+c-9)  flxMapping.f90 flux mapping of soil resistance as an energy variable corrected (was missing and messed up splitting), commit 315583df June 5, 2023
+c-10) runOneGRU.f90 fixed basin aquifer recharge was summing incorrectly the HRU soil drainage instead of the HRU aquifer recharge, commit cd6f07f1 June 20, 2023 (only affects basin aquifer recharge so does not influence results except this basin variable)
+c-11) read_icond.f90 canopy water only initialized to be 1e-4 positive at the start of the simulation if it is smaller (through canopy liquid), commit c0f7fa26 Jan 30, 2023, and commit 0f2e9df2 Aug 15, 2023
       The canopy water was being bumped up to at least 1e-4 at the start of every substep.
-  11) SUNDIALS IDA and KINSOL, ACTORS, and BMI/NGEN -- adds new files and some compiler directives in code
+  12) SUNDIALS IDA and KINSOL, ACTORS, and BMI/NGEN -- adds new files and some compiler directives in code
        num_method                    [numrec or kinsol or ida]        ! (07) choice of numerical method
       Choice 'itertive' is backwards compatible to numrec
-  12) Working on enthalpy conservation formulation, this work is not yet complete but is in there (and runs)
+  13) Working on enthalpy conservation formulation, this work is not yet complete but is in there (and runs)
       The choice is in the howHeatCap, with backwards compatibility 'closedForm' which will always run if you choose 'itertive'
        howHeatCap                      [closedForm or enthalpyFD]      ! (30)
-  13) Build with cmake now
-  14) Added possible parameters for BEXX and SUNDIALS, commit 0619a403 May 31, 2023
+  14) Build with cmake now
+  15) Added possible parameters for BEXX and SUNDIALS, commit 0619a403 May 31, 2023
        be_steps                  |       1.0000 |       1.0000 |     512.0000
        relErrTol_ida             |       1.0d-6 |       1.0d-10|       1.0d-3
        absErrTol_ida             |       1.0d-6 |       1.0d-10|       1.0d-3
       This is backwards compatible to give default values if not put in.
-  15) ascii_util.f90 memory leak, commit 44933953 May 9, 2023
-  16) Took out all calculation of numerical derivatives in flux routines, commit 9e5b703 Jun 28, 2023
+  16) ascii_util.f90 memory leak, commit 44933953 May 9, 2023
+  17) Took out all calculation of numerical derivatives in flux routines, commit 9e5b703 Jun 28, 2023
       We can do that better with Sundials and a lot of them were wrong/not completely calculated. It made some of the flux routines very long to include that.
       So now model decision choice
        fDerivMeth                      [analytic or numericl]       ! (08) method used to calculate flux derivatives
       refers to whether or not you want Sundials to use the provided analytical Jacobian or a finite difference one that it calculates.
       (the numrec num_method choice will not have numerical derivatives as an option). commit 9e5b703, Jun 28, 2023
-c-17) Use dense matrix as default with vegetation (so transpiration derivatives are accounted for). commit	8d15e4e2, Aug 7, 2023
-  18) Soil matrix compression per layer and total (mLayerCompres and scalarSoilCompress) are now outputted as averages over the data window (kg m-2 s-1) like all fluxes are,
+c-18) Use dense matrix as default with vegetation (so transpiration derivatives are accounted for). commit	8d15e4e2, Aug 7, 2023
+  19) Soil matrix compression per layer and total (mLayerCompres and scalarSoilCompress) are now outputted as averages over the data window (kg m-2 s-1) like all fluxes are,
       Soil matrix compression is used in the balance computations, so to have instantaneous values outputted did not make sense. Does not affect solution.
-c-19) If split to a scalar solution, soil compressibility was outputting as 0. Refactor for BE >1 fixes this since save inner splitting steps.
+c-20) If split to a scalar solution, soil compressibility was outputting as 0. Refactor for BE >1 fixes this since save inner splitting steps.
       Or, if wanted to fix the old code would need to modify part of varSubStep.
-c-20) Need to compute dTheta_dTkCanopy off of trial canopy water instead of previous canopy water, affects Jacobian and temperature adjustment in splitting operations, commit 19fca2ba Jun 7, 2023
-c-21) Flux modification flag was not initialized in varSubstep, commit 312004fd Sep 20, 2022, and commit 0c5af7db Aug 11, 2023
-c-22) SWE mass balance error should fail based on tolerance absConvTol_liquid*iden_water*10._rkind, not 1e-6. commit ? Reza changed this around June 16, 2021.
+c-21) Need to compute dTheta_dTkCanopy off of trial canopy water instead of previous canopy water, affects Jacobian and temperature adjustment in splitting operations, commit 19fca2ba Jun 7, 2023
+c-22) Flux modification flag was not initialized in varSubstep, commit 312004fd Sep 20, 2022, and commit 0c5af7db Aug 11, 2023
+c-23) SWE mass balance error should fail based on tolerance absConvTol_liquid*iden_water*10._rkind, not 1e-6. commit ? Reza changed this around June 16, 2021.
       This will not affect solution, just might fail the test (and kill, throwing the error "SWE does not balance" at a different time/run)
-c-23) After new snowfall, need to update the volume fraction water in the top layer of snow from changed liq and ice if there is a layer of snow, commit 9943858b Jan 30, 2023
+c-24) After new snowfall, need to update the volume fraction water in the top layer of snow from changed liq and ice if there is a layer of snow, commit 9943858b Jan 30, 2023
       This is true for canopy water and sublimation also, commit 4ff60baa Jan 30, 2023
       All layers have their water updated from their liq and ice at the start of the next step, so this just affects the water output (not the solution)
-c-24) Remove post-processing that changes solution to perfectly conserves mass and push errors into the state variables
-  25) The residual vector is now quadruple precision. Change was by Reza, sometime 2021
+c-25) Remove post-processing that changes solution to perfectly conserves mass and push errors into the state variables
+ -26) The residual vector is now quadruple precision. Change was by Reza, sometime 2021. Makes a difference when residuals are large in step direction (I'm seeing differences especially in temperature)
+c-27) Wrong precision for parameter used in canopy air space, fixed in Sean's refactoring
+ -28) Reorder terms in residual calculations to have (paramTrial - param) so if same will give a zero, and to be more like the prime construction, commit 5f5a6f1a Aug 30, 2023
 
 
 
 
 Jacobian fixes:
 Fix bulk heat capacity depends on frac ice/liq if updateCp
-Fix thermal conductivity at snow soil layer interfaces depends on frac ice/liq (ssdNrgFlux) if updateCp
+Fix thermal conductivity at snow soil layer interfaces depends on frac ice/liq (ssdNrgFlux) if updateCp, no updateCp don't need to fix
 Fix soil layer and aquifer transpiration depends on canopy nrg and wat (canopy transpiration)
     mLayerdTrans_dTCanair        = 0._rkind
     mLayerdTrans_dTCanopy        = 0._rkind
