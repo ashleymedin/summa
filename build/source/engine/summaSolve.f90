@@ -1295,7 +1295,7 @@ contains
     do iLayer=1,nSoil
       ! check if the layer is included
       if(ixSoilOnlyHyd(iLayer)==integerMissing) cycle
-      if(ixHydType(ixSoilOnlyHyd(iLayer))==iname_watLayer .or. ixHydType(ixSoilOnlyHyd(iLayer))==iname_liqLayer)then
+      if(ixHydType(iLayer+nSnow)==iname_watLayer .or. ixHydType(iLayer+nSnow)==iname_liqLayer)then
         ! get the volumetric fraction of liquid water and ice
         volFracLiq = stateVecTrial(ixSoilOnlyHyd(iLayer))
         scalarIce = merge(0._rkind, mLayerVolFracIce(iLayer+nSnow), ixHydType(ixSoilOnlyHyd(iLayer))==iname_watLayer)
