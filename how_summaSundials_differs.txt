@@ -1,4 +1,3 @@
-
 These are my changes: (- for effects BE, c- for put commented fix in)
 c-1)  eval8summa.f90 calling subroutine soilCmpres with mLayerMatricHead not mLayerMatricHeadLiq version, commit ce60d55d Aug 25 2022 (makes a lot less compressibility because the water changes less than the liquid)
 c-2)  eval8summa.f90 soil min water is now theta_res, commit c19473df Apr 12 2022
@@ -8,11 +7,11 @@ c-2)  eval8summa.f90 soil min water is now theta_res, commit c19473df Apr 12 202
   4)  paramCheck.f90 check k_macropore>k_soil, makes code fail right away if not true, commit 00a10bd7 Dec 7 2022
   5)  run_oneHRU.f90 and run_onGRU.f90 correct error readout id’s, does not effect code results, commit d3904b51 Dec 6 2022
  -6)  Jacobian fixes, computed in various subroutines and then included in computJacob.f90:
- 	   Fix bulk heat capacity depends on frac ice/liq if updateCp, not needed it don't updateCp
- 	   Fix thermal conductivity at snow soil layer interfaces depends on frac ice/liq (ssdNrgFlux) if updateCp, not needed it don't updateCp
- - )   Fix soil layer and aquifer transpiration depends on canopy nrg and wat (canopy transpiration), no effect if banded Jacobian
- - )   Fix aquifer recharge depends on soil drainage from interface above
- - )   Fix soil infiltration at surface depends on all layers below and above water and temp, not huge effect (but some) if banded Jacobian
+       1) Fix bulk heat capacity depends on frac ice/liq if updateCp, not needed it don't updateCp
+       2) Fix thermal conductivity at snow soil layer interfaces depends on frac ice/liq (ssdNrgFlux) if updateCp, not needed it don't updateCp
+      -3) Fix soil layer and aquifer transpiration depends on canopy nrg and wat (canopy transpiration), no effect if banded Jacobian
+      -4) Fix aquifer recharge depends on soil drainage from interface above
+      -5) Fix soil infiltration at surface depends on all layers below and above water and temp, not huge effect (but some) if banded Jacobian
 c-7)  Jacobian, scalarCanopyLiq derivatives were getting overwritten and thus zeroed out in calculations, commit cd5002c Jul 6, 2023
   8)  Throughout, made “indian bread” terminology for NaN say it’s not a number for advised clarity, and there might be other other spaces and comments changed (e.g. tabs deleted and comments deleted or clarified), does not effect code results
 c-9)  flxMapping.f90 flux mapping of soil resistance as an energy variable corrected (was missing and messed up splitting), commit 315583df June 5, 2023
@@ -50,13 +49,16 @@ c-23) SWE mass balance error should fail based on tolerance absConvTol_liquid*id
 c-24) After new snowfall, need to update the volume fraction water in the top layer of snow from changed liq and ice if there is a layer of snow, commit 9943858b Jan 30, 2023
       This is true for canopy water and sublimation also, commit 4ff60baa Jan 30, 2023
       All layers have their water updated from their liq and ice at the start of the next step, so this just affects the water output (not the solution)
-c-25) Remove post-processing that changes solution to perfectly conserves mass and push errors into the state variables
+c-25) Remove post-processing that changes solution to perfectly conserve mass and push errors into the state variables
  -26) The residual vector is now quadruple precision. Change was by Reza, sometime 2021. Makes a difference when residuals are large in step direction (I'm seeing differences especially in temperature)
 c-27) Wrong precision for parameter used in canopy air space, fixed in Sean's refactoring
  -28) Reorder terms in residual calculations to have (paramTrial - param) so if same will give a zero, and to be more like the prime construction, commit 5f5a6f1a Aug 30, 2023
-  29) Added buffers so IDA can deal with small negatives as agreeing with Sundials theory on how much error is acceptd, commit cf659c5e Sep 12, 2023
-c-30) Made zMax increment on temperature and matric head 10 instead of 1 in a timestep to allow for more rapid changes, such as at after a cold start (and other times comes into play, results in more stable solution) commit cbaa747b Sep 11, 2023
-c-31) Made the number of backtracks allowed on the linesearch, maxLineSearch be 100 instead of 5 since was running into this barrier a lot, commit cbaa747b Sep 11, 2023
+c-29) Check upper bounds for water fractions (ie 1, or saturation) in feasibility checks, so will cut step if infeasible. commit a58ec0d1, Aug 31, 2023
+      Before, when the solution went over the upper bound, usually a residual was large, and because of the post-processing, the residual make the state vector very off which resulted in a failure to converge.
+      Now, should be more efficiently catching these errors.
+  30) Added buffers so IDA can deal with small negatives as agreeing with Sundials theory on how much error is acceptd, commit cf659c5e Sep 12, 2023
+c-31) Made zMax increment on temperature and matric head 10 instead of 1 in a timestep to allow for more rapid changes, such as at after a cold start (and other times comes into play, results in more stable solution) commit cbaa747b Sep 11, 2023
+c-32) Made the number of backtracks allowed on the linesearch, maxLineSearch be 100 instead of 5 since was running into this barrier a lot, commit cbaa747b Sep 11, 2023
       When we fail the backtrack loop, we accept the whole step of the linesearch, so this can make a large difference in the solution
 
 
