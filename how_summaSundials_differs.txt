@@ -7,13 +7,11 @@ c-2)  eval8summa.f90 soil min water is now theta_res, commit c19473df Apr 12 202
   4)  paramCheck.f90 check k_macropore>k_soil, makes code fail right away if not true, commit 00a10bd7 Dec 7 2022
   5)  run_oneHRU.f90 and run_onGRU.f90 correct error readout id’s, does not effect code results, commit d3904b51 Dec 6 2022
  -6)  Jacobian fixes, computed in various subroutines and then included in computJacob.f90:
-
--    )  Fix bulk heat capacity depends on frac ice/liq if updateCp, not needed it don't updateCp
--    )  Fix thermal conductivity at snow soil layer interfaces depends on frac ice/liq (ssdNrgFlux) if updateCp, not needed it don't updateCp
--  - )   Fix soil layer and aquifer transpiration depends on canopy nrg and wat (canopy transpiration), no effect if banded Jacobian
--  - )   Fix aquifer recharge depends on soil drainage from interface above
--  - )   Fix soil infiltration at surface depends on all layers below and above water and temp, not huge effect (but some) if banded Jacobian
-
+       1) Fix bulk heat capacity depends on frac ice/liq if updateCp, not needed it don't updateCp
+       2) Fix thermal conductivity at snow soil layer interfaces depends on frac ice/liq (ssdNrgFlux) if updateCp, not needed it don't updateCp
+      -3) Fix soil layer and aquifer transpiration depends on canopy nrg and wat (canopy transpiration), no effect if banded Jacobian
+      -4) Fix aquifer recharge depends on soil drainage from interface above
+      -5) Fix soil infiltration at surface depends on all layers below and above water and temp, not huge effect (but some) if banded Jacobian
 c-7)  Jacobian, scalarCanopyLiq derivatives were getting overwritten and thus zeroed out in calculations, commit cd5002c Jul 6, 2023
   8)  Throughout, made “indian bread” terminology for NaN say it’s not a number for advised clarity, and there might be other other spaces and comments changed (e.g. tabs deleted and comments deleted or clarified), does not effect code results
 c-9)  flxMapping.f90 flux mapping of soil resistance as an energy variable corrected (was missing and messed up splitting), commit 315583df June 5, 2023
