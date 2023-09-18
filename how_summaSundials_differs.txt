@@ -54,7 +54,10 @@ c-25) Remove post-processing that changes solution to perfectly conserves mass a
  -26) The residual vector is now quadruple precision. Change was by Reza, sometime 2021. Makes a difference when residuals are large in step direction (I'm seeing differences especially in temperature)
 c-27) Wrong precision for parameter used in canopy air space, fixed in Sean's refactoring
  -28) Reorder terms in residual calculations to have (paramTrial - param) so if same will give a zero, and to be more like the prime construction, commit 5f5a6f1a Aug 30, 2023
-
+  29) Added buffers so IDA can deal with small negatives as agreeing with Sundials theory on how much error is acceptd, commit cf659c5e Sep 12, 2023
+c-30) Made zMax increment on temperature and matric head 10 instead of 1 in a timestep to allow for more rapid changes, such as at after a cold start (and other times comes into play, results in more stable solution) commit cbaa747b Sep 11, 2023
+c-31) Made the number of backtracks allowed on the linesearch, maxLineSearch be 100 instead of 5 since was running into this barrier a lot, commit cbaa747b Sep 11, 2023
+      When we fail the backtrack loop, we accept the whole step of the linesearch, so this can make a large difference in the solution
 
 
 
