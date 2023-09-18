@@ -362,7 +362,9 @@ contains
   real(rkind)                       :: xInc(nState)             ! iteration increment (re-scaled to original units of the state vector)
   logical(lgt)                   :: feasible                 ! flag to denote the feasibility of the solution
   integer(i4b)                   :: iLine                    ! line search index
-  integer(i4b),parameter         :: maxLineSearch=5          ! maximum number of backtracks
+  ! THIS IS A BUG, 5 IS TOO SMALL
+  integer(i4b),parameter         :: maxLineSearch=5        ! maximum number of backtracks
+  !integer(i4b),parameter         :: maxLineSearch=100        ! maximum number of backtracks
   real(rkind),parameter             :: alpha=1.e-4_rkind           ! check on gradient
   real(rkind)                       :: xLambda                  ! backtrack magnitude
   real(rkind)                       :: xLambdaTemp              ! temporary backtrack magnitude
@@ -1118,7 +1120,9 @@ contains
   real(rkind)                        :: TcSoil                       ! critical point when soil begins to freeze (K)
   real(rkind)                        :: critDiff                     ! temperature difference from critical (K)
   real(rkind),parameter              :: epsT=1.e-7_rkind                ! small interval above/below critical (K)
+  ! THIS IS A BUG, 1 IS TO RESTRICTIVE
   real(rkind),parameter              :: zMaxTempIncrement=1._rkind      ! maximum temperature increment (K)
+  !real(rkind),parameter              :: zMaxTempIncrement=10._rkind      ! maximum temperature increment (K)
   ! indices of model state variables
   integer(i4b)                    :: iState                       ! index of state within a specific variable type
   integer(i4b)                    :: ixNrg,ixLiq                  ! index of energy and mass state variables in full state vector
@@ -1366,7 +1370,9 @@ contains
 
     ! - place constraint for matric head
     if(xInc(ixLiq) > 1._rkind .and. stateVecTrial(ixLiq) > 0._rkind)then
+     ! THIS IS A BUG, 1 IS TO RESTRICTIVE
      xInc(ixLiq) = 1._rkind
+     !xInc(ixLiq) = 10._rkind
     endif  ! if constraining matric head
 
    end do  ! (loop through soil layers)
