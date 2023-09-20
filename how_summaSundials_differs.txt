@@ -58,8 +58,6 @@ c-29) Check upper bounds for water fractions (ie 1, or saturation) in feasibilit
       Now, should be more efficiently catching these errors.
   30) Added buffers so IDA can deal with small negatives as agreeing with Sundials theory on how much error is acceptd, commit cf659c5e Sep 12, 2023
 c-31) Made zMax increment on temperature and matric head 10 instead of 1 in a timestep to allow for more rapid changes, such as at after a cold start (and other times comes into play, results in more stable solution) commit cbaa747b Sep 11, 2023
-c-32) Made the number of backtracks allowed on the linesearch, maxLineSearch be 100 instead of 5 since was running into this barrier a lot, commit cbaa747b Sep 11, 2023
-      When we fail the backtrack loop, we accept the whole step of the linesearch, so this can make a large difference in the solution
 
 
 
