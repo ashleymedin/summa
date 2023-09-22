@@ -2800,34 +2800,34 @@ contains
  groundConductanceLH = 1._rkind/(groundResistance + soilResistance)  ! NOTE: soilResistance accounts for fractional snow, and =0 when snow cover is 100%
  totalConductanceLH  = evapConductance + transConductance + groundConductanceLH + canopyConductance
 
-! THIS IS A BUG, BETTER TO SET TO ZERO AND GET A LARGE RESIDUAL THAN BE NEGATIVE
-! check sensible heat conductance
-!if(totalConductanceSH < -tinyVal .or. groundConductanceSH < -tinyVal .or. canopyConductance < -tinyVal)then
-! message=trim(message)//'negative conductance for sensible heat'
-! err=20; return
-!endif
-if(totalConductanceSH < tinyVal .or. groundConductanceSH < -tinyVal .or. canopyConductance < -tinyVal)then
-  if(groundConductanceSH < -tinyVal) groundConductanceSH = 0._rkind
-  if(canopyConductance   < -tinyVal) canopyConductance   = 0._rkind
-  totalConductanceSH  = leafConductance + groundConductanceSH + canopyConductance
-  if(totalConductanceSH  < tinyVal) totalConductanceSH  = 0._rkind
-  message=trim(message)//'negative conductance for sensible heat'
-  !err=20; return
-endif
-
-! THIS IS A BUG, BETTER TO SET TO ZERO AND GET A LARGE RESIDUAL THAN BE NEGATIVE
-! check latent heat conductance
-!if(totalConductanceLH < tinyVal .or. groundConductanceLH < -tinyVal)then
-! message=trim(message)//'negative conductance for latent heat'
-! err=20; return
-!endif
-if(totalConductanceLH < tinyVal .or. groundConductanceLH < -tinyVal)then
-  if(groundConductanceLH < -tinyVal) groundConductanceLH = 0._rkind
-  totalConductanceLH  = evapConductance + transConductance + groundConductanceLH + canopyConductance
-  if(totalConductanceLH  < tinyVal) totalConductanceLH  = 0._rkind
-  message=trim(message)//'negative conductance for latent heat'
-  !err=20; return
-endif
+ ! THIS IS A BUG, BETTER TO SET TO ZERO AND GET A LARGE RESIDUAL THAN BE NEGATIVE
+ ! check sensible heat conductance
+ !if(totalConductanceSH < -tinyVal .or. groundConductanceSH < -tinyVal .or. canopyConductance < -tinyVal)then
+ ! message=trim(message)//'negative conductance for sensible heat'
+ ! err=20; return
+ !endif
+ if(totalConductanceSH < tinyVal .or. groundConductanceSH < -tinyVal .or. canopyConductance < -tinyVal)then
+   if(groundConductanceSH < -tinyVal) groundConductanceSH = 0._rkind
+   if(canopyConductance   < -tinyVal) canopyConductance   = 0._rkind
+   totalConductanceSH  = leafConductance + groundConductanceSH + canopyConductance
+   if(totalConductanceSH  < tinyVal) totalConductanceSH  = 0._rkind
+   message=trim(message)//'negative conductance for sensible heat'
+   !err=20; return
+ endif
+ 
+ ! THIS IS A BUG, BETTER TO SET TO ZERO AND GET A LARGE RESIDUAL THAN BE NEGATIVE
+ ! check latent heat conductance
+ !if(totalConductanceLH < tinyVal .or. groundConductanceLH < -tinyVal)then
+ ! message=trim(message)//'negative conductance for latent heat'
+ ! err=20; return
+ !endif
+ if(totalConductanceLH < tinyVal .or. groundConductanceLH < -tinyVal)then
+   if(groundConductanceLH < -tinyVal) groundConductanceLH = 0._rkind
+   totalConductanceLH  = evapConductance + transConductance + groundConductanceLH + canopyConductance
+   if(totalConductanceLH  < tinyVal) totalConductanceLH  = 0._rkind
+   message=trim(message)//'negative conductance for latent heat'
+   !err=20; return
+ endif
 
  ! * compute derivatives
  ! NOTE: it may be more efficient to compute these derivatives when computing resistances
