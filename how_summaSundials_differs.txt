@@ -38,7 +38,7 @@ c-11) read_icond.f90 canopy water only initialized to be 1e-4 positive at the st
       refers to whether or not you want Sundials to use the provided analytical Jacobian or a finite difference one that it calculates.
       (the numrec num_method choice will not have numerical derivatives as an option). commit 9e5b703, Jun 28, 2023
 c-18) Use dense matrix as default with vegetation (so transpiration derivatives are accounted for). commit	8d15e4e2, Aug 7, 2023
-  19) Soil matrix compression per layer and total (mLayerCompres and scalarSoilCompress) are now outputted as averages over the data window (kg m-2 s-1) like all fluxes are,
+  19) Soil matrix compression per layer and total (mLayerCompres and scalarSoilCompress) are now outputted as averages over the data window (kg m-2 s-1) like all fluxes are done
       Soil matrix compression is used in the balance computations, so to have instantaneous values outputted did not make sense. Does not affect solution.
 c-20) If split to a scalar solution, soil compressibility was outputting as 0. Refactor for BE >1 fixes this since save inner splitting steps.
       Or, if wanted to fix the old code would need to modify part of varSubStep.
@@ -56,8 +56,9 @@ c-27) Wrong precision for parameter used in canopy air space, fixed in Sean's re
 c-29) Check upper bounds for water fractions (ie 1, or saturation) in feasibility checks, so will cut step if infeasible. commit a58ec0d1, Aug 31, 2023
       Before, when the solution went over the upper bound, usually a residual was large, and because of the post-processing, the residual make the state vector very off which resulted in a failure to converge.
       Now, should be more efficiently catching these errors.
-  30) Added buffers so IDA can deal with small negatives as agreeing with Sundials theory on how much error is acceptd, commit cf659c5e Sep 12, 2023
+  30) Added buffers so IDA can deal with small negatives as agreeing with Sundials theory on how much error is accepted, commit cf659c5e Sep 12, 2023
 c-31) Made zMax increment on temperature and matric head 10 instead of 1 in a timestep to allow for more rapid changes, such as at after a cold start (and other times comes into play, results in more stable solution) commit cbaa747b Sep 11, 2023
+c-32) Better to have large residual than NaNs (and failures) in residual, changes for canopy energy commit 19c9bc Aug 18, 2022, and commit cf659c5e Sep 12, 2023
 
 
 
