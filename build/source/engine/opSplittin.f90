@@ -610,6 +610,17 @@ contains
         ! * identify flux mask for the fully coupled solution
         if(ixCoupling==fullyCoupled)then
          desiredFlux            = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2)
+
+         ! THIS IS A BUG TO NOT HAVE THIS IF STATEMENT
+         ! make sure firstFluxCall fluxes are included in the mask
+         !if (firstFluxCall) then 
+         ! if (iVar==iLookFlux%scalarSoilResistance) desiredFlux = .true.
+         ! if (iVar==iLookFlux%scalarStomResistSunlit) desiredFlux = .true.
+         ! if (iVar==iLookFlux%scalarStomResistShaded) desiredFlux = .true.
+         ! if (iVar==iLookFlux%scalarPhotosynthesisSunlit) desiredFlux = .true.
+         ! if (iVar==iLookFlux%scalarPhotosynthesisShaded) desiredFlux = .true.
+         !endif
+
          fluxMask%var(iVar)%dat = desiredFlux
 
         ! * identify flux mask for the split solution
@@ -621,6 +632,16 @@ contains
           case(massSplit); desiredFlux = any(ixStateType_subset==flux2state_liq(iVar)%state1)  .or. any(ixStateType_subset==flux2state_liq(iVar)%state2)
           case default; err=20; message=trim(message)//'unable to identify split based on state type'; return
          end select
+
+         ! THIS IS A BUG TO NOT HAVE THIS IF STATEMENT
+         ! make sure firstFluxCall fluxes are included in the mask
+         !if (firstFluxCall) then 
+         ! if (iVar==iLookFlux%scalarSoilResistance) desiredFlux = .true.
+         ! if (iVar==iLookFlux%scalarStomResistSunlit) desiredFlux = .true.
+         ! if (iVar==iLookFlux%scalarStomResistShaded) desiredFlux = .true.
+         ! if (iVar==iLookFlux%scalarPhotosynthesisSunlit) desiredFlux = .true.
+         ! if (iVar==iLookFlux%scalarPhotosynthesisShaded) desiredFlux = .true.
+         !endif
 
          ! no domain splitting
          if(nDomains==1)then
