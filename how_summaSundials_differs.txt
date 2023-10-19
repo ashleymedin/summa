@@ -59,7 +59,7 @@ c-29) Check upper bounds for water fractions (ie 1, or saturation) in feasibilit
   30) Added buffers so IDA can deal with small negatives as agreeing with Sundials theory on how much error is accepted, commit cf659c5e Sep 12, 2023
 c-31) Made zMax increment on temperature and matric head 10 instead of 1 in a timestep to allow for more rapid changes, such as at after a cold start (and other times comes into play, results in more stable solution) commit cbaa747b Sep 11, 2023
 c-32) Better to have large residual than NaNs (and failures) in residual, changes for canopy energy commit 19c9bc7 Aug 18, 2022, and commit cf659c5e Sep 12, 2023
-c-33) First flux call fluxes need be added to the mask in the first flux call, otherwise can delete values if splits to scalar solution and solves canopy air before canopy (and canopy fluxes)	commit 3637f3a0 Oct 13, 2023 and commit 2c018c10 Oct 18, 2023
+c-33) First flux call fluxes need be added to the mask in the first flux call, otherwise can delete values if splits to scalar solution and solves canopy air before canopy (and canopy fluxes), commit 3637f3a0 Oct 13, 2023, and commit 2c018c10 Oct 18, 2023, and commit b5656281 Oct 19, 2023
   34) New variable for output, meanStepSize (seconds over data window)	commit 02baeba0	Oct 17, 2023
 
 
