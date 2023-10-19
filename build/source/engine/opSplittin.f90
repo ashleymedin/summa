@@ -291,6 +291,7 @@ contains
  logical(lgt)                    :: doAdjustTemp                   ! flag to adjust temperature after the mass split
  logical(lgt)                    :: failedMinimumStep              ! flag to denote failure of substepping for a given split
  integer(i4b)                    :: ixSaturation                   ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
+ logical(lgt)                    :: addFirstFlux                   ! flag to add the first flux to the mask
  ! ---------------------------------------------------------------------------------------
  ! point to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -523,6 +524,8 @@ contains
      err=20; return
     endif
 
+    addFirstFlux = .true.     ! flag to add the first flux
+
     ! domain splitting loop
     domainSplit: do iDomainSplit=1,nDomainSplit
 
@@ -593,6 +596,15 @@ contains
                        err,cmessage)                  ! intent(out)   : error control
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+       ! check that we do not attempt the scalar solution for the fully coupled case
+       if(ixCoupling==fullyCoupled .and. ixSolution==scalar)then
+        message=trim(message)//'only apply the scalar solution to the fully split coupling strategy'
+        err=20; return
+       endif
+
+       ! reset the flag for the first flux call
+       if(.not.firstSuccess) firstFluxCall=.true.
+
        ! -----
        ! * define the mask of the fluxes used...
        ! ---------------------------------------
@@ -613,12 +625,13 @@ contains
 
          ! THIS IS A BUG TO NOT HAVE THIS IF STATEMENT
          ! make sure firstFluxCall fluxes are included in the mask
-         if (firstFluxCall) then 
+         if (firstFluxCall .and. addFirstFlux) then
           if (iVar==iLookFlux%scalarSoilResistance) desiredFlux = .true.
           if (iVar==iLookFlux%scalarStomResistSunlit) desiredFlux = .true.
           if (iVar==iLookFlux%scalarStomResistShaded) desiredFlux = .true.
           if (iVar==iLookFlux%scalarPhotosynthesisSunlit) desiredFlux = .true.
           if (iVar==iLookFlux%scalarPhotosynthesisShaded) desiredFlux = .true.
+          addFirstFlux = .false.
          endif
 
          fluxMask%var(iVar)%dat = desiredFlux
@@ -635,12 +648,13 @@ contains
 
          ! THIS IS A BUG TO NOT HAVE THIS IF STATEMENT
          ! make sure firstFluxCall fluxes are included in the mask
-         if (firstFluxCall) then 
+         if (firstFluxCall .and. addFirstFlux) then 
           if (iVar==iLookFlux%scalarSoilResistance) desiredFlux = .true.
           if (iVar==iLookFlux%scalarStomResistSunlit) desiredFlux = .true.
           if (iVar==iLookFlux%scalarStomResistShaded) desiredFlux = .true.
           if (iVar==iLookFlux%scalarPhotosynthesisSunlit) desiredFlux = .true.
           if (iVar==iLookFlux%scalarPhotosynthesisShaded) desiredFlux = .true.
+          addFirstFlux = .false.
          endif
 
          ! no domain splitting
@@ -711,6 +725,10 @@ contains
               endif    ! if the layer is active
              end do   ! looping through layers
 
+            ! fluxes through aquifer
+            case(aquiferSplit)
+                fluxMask%var(iVar)%dat(:) = desiredFlux ! only would be firstFluxCall variables, no aquifer fluxes
+
             ! check
             case default; err=20; message=trim(message)//'unable to identify split based on domain type'; return
            end select  ! domain split
@@ -736,15 +754,6 @@ contains
        ! *******************************************************************************************************************************
        ! *******************************************************************************************************************************
        ! ***** trial with a given solution method...
-
-       ! check that we do not attempt the scalar solution for the fully coupled case
-       if(ixCoupling==fullyCoupled .and. ixSolution==scalar)then
-        message=trim(message)//'only apply the scalar solution to the fully split coupling strategy'
-        err=20; return
-       endif
-
-       ! reset the flag for the first flux call
-       if(.not.firstSuccess) firstFluxCall=.true.
 
        ! save/recover copies of prognostic variables
        do iVar=1,size(prog_data%var)
