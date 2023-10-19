@@ -291,6 +291,7 @@ contains
  logical(lgt)                    :: doAdjustTemp                   ! flag to adjust temperature after the mass split
  logical(lgt)                    :: failedMinimumStep              ! flag to denote failure of substepping for a given split
  integer(i4b)                    :: ixSaturation                   ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
+ logical(lgt)                    :: addFirstFlux                   ! flag to add the first flux to the mask
  ! ---------------------------------------------------------------------------------------
  ! point to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -480,6 +481,8 @@ contains
    case default; err=20; message=trim(message)//'coupling case not found'; return
   end select  ! operator splitting option
 
+  addFirstFlux = .true.     ! flag to add the first flux to the mask
+
   ! state splitting loop
   stateTypeSplitLoop: do iStateTypeSplit=1,nStateTypeSplit
 
@@ -582,6 +585,43 @@ contains
        ! !print*, 'PAUSE'; read(*,*)
        !endif
 
+       ! check that we do not attempt the scalar solution for the fully coupled case
+       if(ixCoupling==fullyCoupled .and. ixSolution==scalar)then
+        message=trim(message)//'only apply the scalar solution to the fully split coupling strategy'
+        err=20; return
+       endif
+
+       ! reset the flag for the first flux call
+       if(.not.firstSuccess) firstFluxCall=.true.
+
+       ! save/recover copies of prognostic variables
+       do iVar=1,size(prog_data%var)
+        select case(failure)
+         case(.false.); prog_temp%var(iVar)%dat(:) = prog_data%var(iVar)%dat(:)
+         case(.true.);  prog_data%var(iVar)%dat(:) = prog_temp%var(iVar)%dat(:)
+        end select
+       end do  ! looping through variables
+
+       ! save/recover copies of diagnostic variables
+       do iVar=1,size(diag_data%var)
+        select case(failure)
+         case(.false.); diag_temp%var(iVar)%dat(:) = diag_data%var(iVar)%dat(:)
+         case(.true.);  diag_data%var(iVar)%dat(:) = diag_temp%var(iVar)%dat(:)
+        end select
+       end do  ! looping through variables
+
+       ! save/recover copies of model fluxes
+       do iVar=1,size(flux_data%var)
+        select case(failure)
+         case(.false.) 
+            flux_temp%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:)
+            addFirstFlux = .false.
+         case(.true.)  
+            flux_data%var(iVar)%dat(:) = flux_temp%var(iVar)%dat(:)
+            if(addFirstFlux) addFirstFlux = .true.
+        end select
+       end do  ! looping through variables
+
        ! -----
        ! * assemble vectors for a given split...
        ! ---------------------------------------
@@ -613,7 +653,7 @@ contains
 
          ! THIS IS A BUG TO NOT HAVE THIS IF STATEMENT
          ! make sure firstFluxCall fluxes are included in the mask
-         !if (firstFluxCall) then 
+         !if (firstFluxCall .and. addFirstFlux) then
          ! if (iVar==iLookFlux%scalarSoilResistance) desiredFlux = .true.
          ! if (iVar==iLookFlux%scalarStomResistSunlit) desiredFlux = .true.
          ! if (iVar==iLookFlux%scalarStomResistShaded) desiredFlux = .true.
@@ -635,7 +675,7 @@ contains
 
          ! THIS IS A BUG TO NOT HAVE THIS IF STATEMENT
          ! make sure firstFluxCall fluxes are included in the mask
-         !if (firstFluxCall) then 
+         !if (firstFluxCall .and. addFirstFlux) then 
          ! if (iVar==iLookFlux%scalarSoilResistance) desiredFlux = .true.
          ! if (iVar==iLookFlux%scalarStomResistSunlit) desiredFlux = .true.
          ! if (iVar==iLookFlux%scalarStomResistShaded) desiredFlux = .true.
@@ -711,6 +751,10 @@ contains
               endif    ! if the layer is active
              end do   ! looping through layers
 
+            ! fluxes through aquifer
+            case(aquiferSplit)
+                fluxMask%var(iVar)%dat(:) = desiredFlux ! only would be firstFluxCall variables, no aquifer fluxes
+
             ! check
             case default; err=20; message=trim(message)//'unable to identify split based on domain type'; return
            end select  ! domain split
@@ -736,39 +780,6 @@ contains
        ! *******************************************************************************************************************************
        ! *******************************************************************************************************************************
        ! ***** trial with a given solution method...
-
-       ! check that we do not attempt the scalar solution for the fully coupled case
-       if(ixCoupling==fullyCoupled .and. ixSolution==scalar)then
-        message=trim(message)//'only apply the scalar solution to the fully split coupling strategy'
-        err=20; return
-       endif
-
-       ! reset the flag for the first flux call
-       if(.not.firstSuccess) firstFluxCall=.true.
-
-       ! save/recover copies of prognostic variables
-       do iVar=1,size(prog_data%var)
-        select case(failure)
-         case(.false.); prog_temp%var(iVar)%dat(:) = prog_data%var(iVar)%dat(:)
-         case(.true.);  prog_data%var(iVar)%dat(:) = prog_temp%var(iVar)%dat(:)
-        end select
-       end do  ! looping through variables
-
-       ! save/recover copies of diagnostic variables
-       do iVar=1,size(diag_data%var)
-        select case(failure)
-         case(.false.); diag_temp%var(iVar)%dat(:) = diag_data%var(iVar)%dat(:)
-         case(.true.);  diag_data%var(iVar)%dat(:) = diag_temp%var(iVar)%dat(:)
-        end select
-       end do  ! looping through variables
-
-       ! save/recover copies of model fluxes
-       do iVar=1,size(flux_data%var)
-        select case(failure)
-         case(.false.); flux_temp%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:)
-         case(.true.);  flux_data%var(iVar)%dat(:) = flux_temp%var(iVar)%dat(:)
-        end select
-       end do  ! looping through variables
 
        ! -----
        ! * solve variable subset for one time step...
