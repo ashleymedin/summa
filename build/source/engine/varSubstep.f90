@@ -604,7 +604,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
   integer(i4b)                    :: ixFullVector                   ! index within full state vector
   integer(i4b)                    :: ixControlIndex                 ! index within a given domain
   real(rkind)                     :: volMelt                        ! volumetric melt (kg m-3)
-  real(rkind),parameter           :: verySmall=epsilon(1._rkind)*2._rkind ! a very small number (deal with precision issues)
+  real(rkind),parameter           :: verySmall= 1.e-2_rkind !epsilon(1._rkind)*2._rkind ! a very small number (deal with precision issues)
   ! mass balance
   real(rkind)                     :: canopyBalance0,canopyBalance1  ! canopy storage at start/end of time step
   real(rkind)                     :: soilBalance0,soilBalance1      ! soil storage at start/end of time step

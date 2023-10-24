@@ -2218,16 +2218,21 @@ subroutine turbFluxes(&
   totalConductanceLH  = evapConductance + transConductance + groundConductanceLH + canopyConductance
 
   ! check sensible heat conductance
-  if(totalConductanceSH < -tinyVal .or. groundConductanceSH < -tinyVal .or. canopyConductance < -tinyVal)then
-    message=trim(message)//'negative conductance for sensible heat'
-    err=20; return
-  endif
+  !if(totalConductanceSH < -tinyVal .or. groundConductanceSH < -tinyVal .or. canopyConductance < -tinyVal)then
+  !  message=trim(message)//'negative conductance for sensible heat'
+  !  err=20; return
+  !endif
+  if(totalConductanceSH  < tinyVal) totalConductanceSH  = 0._rkind
+  if(groundConductanceSH < tinyVal) groundConductanceSH = 0._rkind
+  if(canopyConductance   < tinyVal) canopyConductance   = 0._rkind
 
   ! check latent heat conductance
-  if(totalConductanceLH < tinyVal .or. groundConductanceLH < -tinyVal)then
-    message=trim(message)//'negative conductance for latent heat'
-    err=20; return
-  endif
+  !if(totalConductanceLH < tinyVal .or. groundConductanceLH < -tinyVal)then
+  !  message=trim(message)//'negative conductance for latent heat'
+  !  err=20; return
+  !endif
+  if(totalConductanceLH  < tinyVal) totalConductanceLH  = 0._rkind
+  if(groundConductanceLH < tinyVal) groundConductanceLH = 0._rkind
 
   ! compute derivatives in individual conductances for sensible heat w.r.t. canopy temperature (m s-1 K-1)
   ! NOTE: it may be more efficient to compute these derivatives when computing resistances
