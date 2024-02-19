@@ -1367,7 +1367,7 @@ contains
     ixLiq = ixMatOnly(iState)
 
     ! - place constraint for matric head
-    if(xInc(ixLiq) > 1._rkind .and. stateVecTrial(ixLiq) > 0._rkind)then
+    if(xInc(ixLiq) > 10._rkind .and. stateVecTrial(ixLiq) > 0._rkind)then
      ! THIS IS A BUG, 1 IS TO RESTRICTIVE
      !xInc(ixLiq) = 1._rkind
      xInc(ixLiq) = 10._rkind
