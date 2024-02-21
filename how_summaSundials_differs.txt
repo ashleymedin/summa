@@ -60,8 +60,28 @@ c-29) Check upper bounds for water fractions (ie 1, or saturation) in feasibilit
 c-31) Made zMax increment on temperature and matric head 10 instead of 1 in a timestep to allow for more rapid changes, such as at after a cold start (and other times comes into play, results in more stable solution) commit cbaa747b Sep 11, 2023
 c-32) Better to have large residual than NaNs (and failures) in residual, changes for canopy energy commit 19c9bc7 Aug 18, 2022, and commit cf659c5e Sep 12, 2023
 c-33) First flux call fluxes need be added to the mask in the first flux call, otherwise can delete values if splits to scalar solution and solves canopy air before canopy (and canopy fluxes), commit 3637f3a0 Oct 13, 2023, and commit 2c018c10 Oct 18, 2023, and commit b5656281 Oct 19, 2023
-  34) New variable for output, meanStepSize (seconds over data window)	commit 02baeba0	Oct 17, 2023
+  34) New variable for output, meanStepSize (seconds over data window), commit 02baeba0	Oct 17, 2023
 
+AFTER tag of 4.0.0
+   1) Enthalpy formulation, new decision (renamed from howHeatCap)
+       nrgConserv       [closedForm or enthalpyFD or enthalpyFDlu]      ! (30) choice of variable in energy conservation backward Euler residual
+     refers to if you want the numrec or kinsol residual to be computed with closed form heat capacity (does not conserve energy) or enthalpy finite difference, with enthalpy calculated in the soil with the analytical solution or the lookup tables.
+     New output values of the balances, inputted to the outputControl.txt as:
+       balanceCasNrg         | 1
+       balanceVegNrg         | 1
+       balanceSnowNrg        | 1
+       balanceSoilNrg        | 1
+       balanceVegMass        | 1
+       balanceSnowMass       | 1
+       balanceSoilMass       | 1
+       balanceAqMass         | 1
+   2) Cm derivatives, will be used if needCm is on in eval8summa or eval8summaPrime
+   3) Sean's refactor and object-orientated work
+ c-4) six allocation errors commits c0624a68, b2709388, 0b921c65, a23ac832, e43c766d, 6d3ac180 Feb 21, 2024
+ c-5) two uninitialized variables fixes, commit 11a47b2b, 6b130053 Feb 15, 13, 2024
+ c-6) snow water upper bound should be 1, not iden_ice, commit 265721b5 Feb 13, 2024
+  -7) constraints now just scale the state variable they effect, commit 24bae32c Feb 13, 2024
+  -8) constraint corrections for state variable changes in liq_layer vs wat_layer, commit 523774e1 Feb 15, 2024
 
 
 Jacobian fixes:
