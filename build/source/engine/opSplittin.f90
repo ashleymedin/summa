@@ -1142,6 +1142,10 @@ contains
  ! identify scalar solutions
  if(ixSolution==scalar)then
 
+  ! THIS IS A BUG IF DO NOT INITIALIZE ixSubset
+  allocate(ixSubset(1_i4b))
+  ixSubset = 0._rkind
+
   ! get the subset of indices
   call indxSubset(ixSubset, ixAllState, stateMask, err, cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif

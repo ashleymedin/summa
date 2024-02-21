@@ -375,6 +375,8 @@ contains
   ! --------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message='lineSearchRefinement/'
+  ! THIS IS A BUG IF DO NOT INITIALIZE converged
+  converged =.false.
 
   ! check the need to compute the line search
   if(doLineSearch)then
@@ -531,6 +533,8 @@ contains
 
   ! --------------------------------------------------------------------------------------------------------
   err=0; message='trustRegionRefinement/'
+  ! THIS IS A BUG IF DO NOT INITIALIZE converged
+  converged =.false.
 
   ! check the need to refine the step
   if(doTrustRefinement)then
@@ -603,6 +607,8 @@ contains
   !real(rkind)                      :: xIncrement(nState)       ! trial increment (not used)
   ! --------------------------------------------------------------------------------------------------------
   err=0; message='safeRootfinder/'
+  ! THIS IS A BUG IF DO NOT INITIALIZE converged
+  converged = .false.
 
   ! check scalar
   if(size(stateVecTrial)/=1 .or. size(rVecScaled)/=1 .or. size(newtStepScaled)/=1)then
