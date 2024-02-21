@@ -462,6 +462,8 @@ contains
    end do ! (looping through future time steps)
 
    ! check that we have enough bins
+   ! THIS IS A BUG IF DO NOT USE (1:nTDH)
+   !sumFrac  = sum(fractionFuture)
    sumFrac  = sum(fractionFuture(1:nTDH))
    if(abs(1._rkind - sumFrac) > tolerFrac)then
     write(*,*) 'WARNING: The fraction of basin runoff histogram being accounted for by time delay vector is ', sumFrac
