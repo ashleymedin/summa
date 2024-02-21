@@ -438,7 +438,9 @@ contains
  totalColumnOutflow = sum(mLayerColumnOutflow(1:nSoil))/HRUarea
 
  ! compute the available storage (m)
+ ! THIS IS A BUG, NEED theta_sat(1:nSoil)
  availStorage = sum(mLayerDepth(1:nSoil)*(theta_sat - (mLayerVolFracLiq(1:nSoil)+mLayerVolFracIce(1:nSoil))) )
+ !availStorage = sum(mLayerDepth(1:nSoil)*(theta_sat(1:nSoil) - (mLayerVolFracLiq(1:nSoil)+mLayerVolFracIce(1:nSoil))))
 
  ! compute the smoothing function (-)
  if(availStorage < xMinEval)then

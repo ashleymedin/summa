@@ -381,7 +381,9 @@ contains
  ! -------------------------------------------
 
  ! get different masks
+ ! THIS IS A BUG, NEED TO USE (1:nLayers)
  volFracWat_mask = (ixHydType==iname_watLayer .or. ixHydType==iname_liqLayer)
+ !volFracWat_mask = (ixHydType(      1:nLayers)==iname_watLayer .or. ixHydType(      1:nLayers)==iname_liqLayer)
  matricHead_mask = (ixHydType(nSnow+1:nLayers)==iname_matLayer .or. ixHydType(nSnow+1:nLayers)==iname_lmpLayer)
 
  ! get state subsets for desired variables
