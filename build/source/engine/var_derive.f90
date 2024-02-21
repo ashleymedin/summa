@@ -476,8 +476,8 @@ contains
    end if
    ! ensure the fraction sums to one
    ! THIS IS A BUG IF DO NOT USE (1:nTDH)
-   !fractionFuture = fractionFuture/sumFrac
-   fractionFuture(1:nTDH) = fractionFuture(1:nTDH)/sumFrac
+   fractionFuture = fractionFuture/sumFrac
+   !fractionFuture(1:nTDH) = fractionFuture(1:nTDH)/sumFrac
 
   ! ** error checking
   case default; err=20; message=trim(message)//'cannot find option for sub-grid routing'; return
