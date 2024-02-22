@@ -1,4 +1,4 @@
-These are my changes: (- for effects BE, c- for put commented fix in)
+These are the changes: (- for effects BE, c- for put commented fix in personal branches
 c-1)  eval8summa.f90 calling subroutine soilCmpres with mLayerMatricHead not mLayerMatricHeadLiq version, commit ce60d55d Aug 25 2022 (makes a lot less compressibility because the water changes less than the liquid)
 c-2)  eval8summa.f90 soil min water is now theta_res, commit c19473df Apr 12 2022
   3)  eval8summa.f90 updateCp (update heat capacity true or false) and needCm flag, with setup to use heat capacity based on enthalpy calculation in a flag that’s not working yet, commit b69592b0 Nov 30 2022
@@ -25,10 +25,22 @@ c-11) read_icond.f90 canopy water only initialized to be 1e-4 positive at the st
       The choice is in the howHeatCap, with backwards compatibility 'closedForm' which will always run if you choose 'itertive'
        howHeatCap                      [closedForm or enthalpyFD]      ! (30)
   14) Build with cmake now
-  15) Added possible parameters for BEXX and SUNDIALS, commit 0619a403 May 31, 2023
+  15) Added possible parameters for adding more steps for BEXX and SUNDIALS tolerances, commit 0619a403 May 31, 2023
        be_steps                  |       1.0000 |       1.0000 |     512.0000
-       relErrTol_ida             |       1.0d-6 |       1.0d-10|       1.0d-3
-       absErrTol_ida             |       1.0d-6 |       1.0d-10|       1.0d-3
+       relTolTempCas             |       1.0d-6 |       1.0d-10|       1.0d-1
+       absTolTempCas             |       1.0d-6 |       1.0d-10|       1.0d-1
+       relTolTempVeg             |       1.0d-6 |       1.0d-10|       1.0d-1
+       absTolTempVeg             |       1.0d-6 |       1.0d-10|       1.0d-1
+       relTolWatVeg              |       1.0d-6 |       1.0d-10|       1.0d-1
+       absTolWatVeg              |       1.0d-6 |       1.0d-10|       1.0d-1
+       relTolTempSoilSnow        |       1.0d-6 |       1.0d-10|       1.0d-1
+       absTolTempSoilSnow        |       1.0d-6 |       1.0d-10|       1.0d-1
+       relTolWatSnow             |       1.0d-6 |       1.0d-10|       1.0d-1
+       absTolWatSnow             |       1.0d-6 |       1.0d-10|       1.0d-1
+       relTolMatric              |       1.0d-6 |       1.0d-10|       1.0d-1
+       absTolMatric              |       1.0d-6 |       1.0d-10|       1.0d-1
+       relTolAquifr              |       1.0d-6 |       1.0d-10|       1.0d-1
+       absTolAquifr              |       1.0d-6 |       1.0d-10|       1.0d-1
       This is backwards compatible to give default values if not put in.
   16) ascii_util.f90 memory leak, commit 44933953 May 9, 2023
   17) Took out all calculation of numerical derivatives in flux routines, commit 9e5b703 Jun 28, 2023
@@ -61,8 +73,10 @@ c-31) Made zMax increment on temperature and matric head 10 instead of 1 in a ti
 c-32) Better to have large residual than NaNs (and failures) in residual, changes for canopy energy commit 19c9bc7 Aug 18, 2022, and commit cf659c5e Sep 12, 2023
 c-33) First flux call fluxes need be added to the mask in the first flux call, otherwise can delete values if splits to scalar solution and solves canopy air before canopy (and canopy fluxes), commit 3637f3a0 Oct 13, 2023, and commit 2c018c10 Oct 18, 2023, and commit b5656281 Oct 19, 2023
   34) New variable for output, meanStepSize (seconds over data window), commit 02baeba0	Oct 17, 2023
+  35) compiles with cmake now
+  36) compilation under NexGen and able to read NexGen forcing, main driver is BMIed
 
-AFTER tag of 4.0.0
+AFTER tag of v4.0.0-exp-sundials
    1) Enthalpy formulation, new decision (renamed from howHeatCap)
        nrgConserv       [closedForm or enthalpyFD or enthalpyFDlu]      ! (30) choice of variable in energy conservation backward Euler residual
      refers to if you want the numrec or kinsol residual to be computed with closed form heat capacity (does not conserve energy) or enthalpy finite difference, with enthalpy calculated in the soil with the analytical solution or the lookup tables.
@@ -76,28 +90,10 @@ AFTER tag of 4.0.0
        balanceSoilMass       | 1
        balanceAqMass         | 1
    2) Cm derivatives, will be used if needCm is on in eval8summa or eval8summaPrime
-   3) Sean's refactor and object-orientated work
+   3) Sean's refactor and object-orientated work, numerous and ongoing changes effecting conciseness and speed
  c-4) six allocation errors commits c0624a68, b2709388, 0b921c65, a23ac832, e43c766d, 6d3ac180 Feb 21, 2024
  c-5) two uninitialized variables fixes, commit 11a47b2b, 6b130053 Feb 15, 13, 2024
  c-6) snow water upper bound should be 1, not iden_ice, commit 265721b5 Feb 13, 2024
   -7) constraints now just scale the state variable they effect, commit 24bae32c Feb 13, 2024
   -8) constraint corrections for state variable changes in liq_layer vs wat_layer, commit 523774e1 Feb 15, 2024
-
-Jacobian fixes:
-Fix bulk heat capacity depends on frac ice/liq if updateCp
-Fix thermal conductivity at snow soil layer interfaces depends on frac ice/liq (ssdNrgFlux) if updateCp, no updateCp don't need to fix
-Fix soil layer and aquifer transpiration depends on canopy nrg and wat (canopy transpiration)
-    mLayerdTrans_dTCanair        = 0._rkind
-    mLayerdTrans_dTCanopy        = 0._rkind
-    mLayerdTrans_dTGround        = 0._rkind
-    mLayerdTrans_dCanWat         = 0._rkind
-    dAquiferTrans_dTCanair       = 0._rkind
-    dAquiferTrans_dTCanopy       = 0._rkind
-    dAquiferTrans_dTGround       = 0._rkind
-    dAquiferTrans_dCanWat        = 0._rkind
-Fix aquifer recharge depends on soil drainage from interface above
-    !dq_dNrgStateAbove(nSoil), Used correctly elsewhere: zero out in aquifer equations a bit later
-    !dq_dHydStateAbove(nSoil), Used correctly elsewhere: zero out in aquifer equations a bit later
-Fix soil infiltration at surface depends on all layers below and above water and temp
-    dq_dHydStateLayerSurfVec     = 0._rkind
-    dq_dNrgStateLayerSurfVec     = 0._rkind
+   9) Kyle's actors work, ongoing changes
