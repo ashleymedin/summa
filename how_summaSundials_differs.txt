@@ -1,20 +1,20 @@
 These are the changes: (- for effects BE, c- for put commented fix in personal branches
-c-1)  eval8summa.f90 calling subroutine soilCmpres with mLayerMatricHead not mLayerMatricHeadLiq version, commit ce60d55d Aug 25 2022 (makes a lot less compressibility because the water changes less than the liquid)
-c-2)  eval8summa.f90 soil min water is now theta_res, commit c19473df Apr 12 2022
-  3)  eval8summa.f90 updateCp (update heat capacity true or false) and needCm flag, commit b69592b0 Nov 30 2022
+c-01) eval8summa.f90 calling subroutine soilCmpres with mLayerMatricHead not mLayerMatricHeadLiq version, commit ce60d55d Aug 25 2022 (makes a lot less compressibility because the water changes less than the liquid)
+c-02) eval8summa.f90 soil min water is now theta_res, commit c19473df Apr 12 2022
+  03) eval8summa.f90 updateCp (update heat capacity true or false) and needCm flag, commit b69592b0 Nov 30 2022
  	  Original Summa BE equivalent to updateCp==.false. needCm==.false. which is currently hard coded if decision nrgConserv=closedForm
       These are both hard-coded to .true. if nrgConserv=enthalpyFD or enthalpyFDlu.
-  4)  paramCheck.f90 check k_macropore>k_soil, makes code fail right away if not true, commit 00a10bd7 Dec 7 2022
-  5)  run_oneHRU.f90 and run_onGRU.f90 correct error readout id’s, does not effect code results, commit d3904b51 Dec 6 2022
- -6)  Jacobian fixes, computed in various subroutines and then included in computJacob.f90:
+  04) paramCheck.f90 check k_macropore>k_soil, makes code fail right away if not true, commit 00a10bd7 Dec 7 2022
+  05) run_oneHRU.f90 and run_onGRU.f90 correct error readout id’s, does not effect code results, commit d3904b51 Dec 6 2022
+ -06) Jacobian fixes, computed in various subroutines and then included in computJacob.f90:
        1) Fix bulk heat capacity depends on frac ice/liq if updateCp, not needed it don't updateCp
        2) Fix thermal conductivity at snow soil layer interfaces depends on frac ice/liq (ssdNrgFlux) if updateCp, not needed it don't updateCp
       -3) Fix soil layer and aquifer transpiration depends on canopy nrg and wat (canopy transpiration), no effect if banded Jacobian
       -4) Fix aquifer recharge depends on soil drainage from interface above
       -5) Fix soil infiltration at surface depends on all layers below and above water and temp, not huge effect (but some) if banded Jacobian
-c-7)  Jacobian, scalarCanopyLiq derivatives were getting overwritten and thus zeroed out in calculations, commit cd5002c Jul 6, 2023
-  8)  Throughout, made “indian bread” terminology for NaN say it’s not a number for advised clarity, and there might be other other spaces and comments changed (e.g. tabs deleted and comments deleted or clarified), does not effect code results
-c-9)  flxMapping.f90 flux mapping of soil resistance as an energy variable corrected (was missing and messed up splitting), commit 315583df June 5, 2023
+c-07) Jacobian, scalarCanopyLiq derivatives were getting overwritten and thus zeroed out in calculations, commit cd5002c Jul 6, 2023
+  08) Throughout, made “indian bread” terminology for NaN say it’s not a number for advised clarity, and there might be other other spaces and comments changed (e.g. tabs deleted and comments deleted or clarified), does not effect code results
+c-09) flxMapping.f90 flux mapping of soil resistance as an energy variable corrected (was missing and messed up splitting), commit 315583df June 5, 2023
 c-10) runOneGRU.f90 fixed basin aquifer recharge was summing incorrectly the HRU soil drainage instead of the HRU aquifer recharge, commit cd6f07f1 June 20, 2023 (only affects basin aquifer recharge so does not influence results except this basin variable)
 c-11) read_icond.f90 canopy water only initialized to be 1e-4 positive at the start of the simulation if it is smaller (through canopy liquid), commit c0f7fa26 Jan 30, 2023, and commit 0f2e9df2 Aug 15, 2023
       The canopy water was being bumped up to at least 1e-4 at the start of every substep.
@@ -81,12 +81,12 @@ c-32) First flux call fluxes need be added to the mask in the first flux call, o
   33) New variable for output, meanStepSize (seconds over data window), commit 02baeba0	Oct 17, 2023
 
 AFTER tag of v4.0.0-exp-Sundials
-   1) Enthalpy formulation, new decision (renamed from howHeatCap)
+  01) Enthalpy formulation, new decision (renamed from howHeatCap)
        nrgConserv       [closedForm or enthalpyFD or enthalpyFDlu]      ! (30) choice of variable in energy conservation backward Euler residual
-     refers to if you want the numrec or kinsol residual to be computed with closed form heat capacity (does not conserve energy)
-     or enthalpy finite difference, with enthalpy calculated in the soil with the analytical solution or the lookup tables.
-     Decision of numMethod=itertive will give give set nrgConserv=closedForm for backwards compatibility.
-   2) New output values of the balances, inputted to the outputControl.txt as:
+      refers to if you want the numrec or kinsol residual to be computed with closed form heat capacity (does not conserve energy)
+      or enthalpy finite difference, with enthalpy calculated in the soil with the analytical solution or the lookup tables.
+      Decision of numMethod=itertive will give give set nrgConserv=closedForm for backwards compatibility.
+  02) New output values of the balances, inputted to the outputControl.txt as:
        balanceCasNrg         | 1
        balanceVegNrg         | 1
        balanceSnowNrg        | 1
@@ -95,11 +95,11 @@ AFTER tag of v4.0.0-exp-Sundials
        balanceSnowMass       | 1
        balanceSoilMass       | 1
        balanceAqMass         | 1
-   3) Cm derivatives, will be used if needCm is on in eval8summa or eval8summaPrime
-   4) Sean's refactor and object-orientated work, numerous and ongoing changes effecting conciseness and speed
- c-5) six allocation errors commits c0624a68, b2709388, 0b921c65, a23ac832, e43c766d, 6d3ac180 Feb 21, 2024
- c-6) two uninitialized variables fixes, commit 11a47b2b, 6b130053 Feb 15, 13, 2024
- c-7) snow water upper bound should be 1, not iden_ice, commit 265721b5 Feb 13, 2024
-  -8) constraints now just scale the state variable they effect, commit 24bae32c Feb 13, 2024
-  -9) constraint corrections for state variable changes in liq_layer vs wat_layer, commit 523774e1 Feb 15, 2024
+  03) Cm derivatives, will be used if needCm is on in eval8summa or eval8summaPrime
+  04) Sean's refactor and object-orientated work, numerous and ongoing changes affecting conciseness and speed
+c-05) six allocation errors commits c0624a68, b2709388, 0b921c65, a23ac832, e43c766d, 6d3ac180 Feb 21, 2024
+c-06) two uninitialized variables fixes, commit 11a47b2b, 6b130053 Feb 15, 13, 2024
+c-07) snow water upper bound should be 1, not iden_ice, commit 265721b5 Feb 13, 2024
+ -08) constraints now just scale the state variable they effect, commit 24bae32c Feb 13, 2024
+ -09) constraint corrections for state variable changes in liq_layer vs wat_layer, commit 523774e1 Feb 15, 2024
   10) Kyle's actors work, ongoing changes
