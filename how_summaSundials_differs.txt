@@ -95,6 +95,16 @@ AFTER tag of v4.0.0-exp-Sundials
        balanceSnowMass       | 1
        balanceSoilMass       | 1
        balanceAqMass         | 1
+       scaledBalanceCasNrg   | 1
+       scaledBalanceVegNrg   | 1
+       scaledBalanceSnowNrg  | 1
+       scaledBalanceSoilNrg  | 1
+       scaledBalanceVegMass  | 1
+       scaledBalanceSnowMass | 1
+       scaledBalanceSoilMass | 1
+       scaledBalanceAqMass   | 1
+      The balance*Nrg are in units of W/m^3 and the balance*Mass are in units of kg/m^2/s.
+      The scaledBalance* are in units of 1/s, as they are all scaled by their relavent state type variable (in J/m^3 or kg/m^2) for the hourly data window.
   03) Cm derivatives, will be used if needCm is on in eval8summa or eval8summaPrime
   04) Sean's refactor and object-orientated work, numerous and ongoing changes affecting conciseness and speed
 c-05) six allocation errors commits c0624a68, b2709388, 0b921c65, a23ac832, e43c766d, 6d3ac180 Feb 21, 2024
