@@ -17,6 +17,7 @@ implicit none
 
 type data4ida
   type(c_ptr)                     :: ida_mem                         ! IDA memory
+  type(c_ptr)                     :: cvode_mem                         ! CVODE memory
   real(rkind)                     :: dt                              ! data step
   integer(i4b)                    :: nSnow                           ! number of snow layers
   integer(i4b)                    :: nSoil                           ! number of soil layers

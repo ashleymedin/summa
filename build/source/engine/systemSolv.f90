@@ -521,7 +521,7 @@ subroutine systemSolv(&
         ! * solving F(y,y') = 0 by IDA, y is the state vector and y' is the time derivative vector dy/dt
         !---------------------------
         ! iterations and updates to trial state vector, fluxes, and derivatives are done inside IDA solver
-        call summaSolve4ida(&
+        call summaSolve4cvode(&
                           dt_cur,                  & ! intent(in):    current stepsize
                           dt,                      & ! intent(in):    entire time step for drainage pond rate
                           atol,                    & ! intent(in):    absolute tolerance
