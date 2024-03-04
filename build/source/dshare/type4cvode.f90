@@ -1,4 +1,4 @@
-module type4ida
+module type4cvode
 
 ! data types
 USE nrtype
@@ -15,8 +15,8 @@ USE data_types,only:&
 
 implicit none
 
-type data4ida
-  type(c_ptr)                     :: ida_mem                         ! IDA memory
+type data4cvode
+  type(c_ptr)                     :: cvode_mem                       ! CVode memory
   real(rkind)                     :: dt                              ! data step
   integer(i4b)                    :: nSnow                           ! number of snow layers
   integer(i4b)                    :: nSoil                           ! number of soil layers
@@ -67,10 +67,10 @@ type data4ida
   real(rkind), allocatable        :: mLayerMatricHeadLiqPrime(:)     ! prime vector of liquid matric head of each snow and soil layer (m s-1)
   real(rkind), allocatable        :: mLayerVolFracWatPrime(:)        ! prime vector of volumetric total water content of each snow and soil layer (s-1)
   real(rkind), allocatable        :: mLayerVolFracIcePrime(:)        ! prime vector of volumetric fraction of ice (s-1)
- end type data4ida
+ end type data4cvode
 
 
-end module type4ida
+end module type4cvode
 
 
 
