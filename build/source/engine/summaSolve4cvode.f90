@@ -86,7 +86,7 @@ contains
 
 
 ! ************************************************************************************
-! * public subroutine summaSolve4cvode: solve F(y,y') = 0 by CVODE (y is the state vector)
+! * public subroutine summaSolve4cvode: solve F(y,y') = 0 by CVode (y is the state vector)
 ! ************************************************************************************
 subroutine summaSolve4cvode(&
                       dt_cur,                  & ! intent(in):    current stepsize
@@ -124,7 +124,7 @@ subroutine summaSolve4cvode(&
                       mLayerCmpress_sum,       & ! intent(inout): sum of compression of the soil matrix
                       ! output
                       ixSaturation,            & ! intent(inout)  index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                      cvodeSucceeds,           & ! intent(out):   flag to indicate if CVODE successfully solved the problem in current data step
+                      cvodeSucceeds,           & ! intent(out):   flag to indicate if CVode successfully solved the problem in current data step
                       tooMuchMelt,             & ! intent(inout): lag to denote that there was too much melt
                       nSteps,                  & ! intent(out):   number of time steps taken in solver
                       stateVec,                & ! intent(out):   model state vector
@@ -133,7 +133,7 @@ subroutine summaSolve4cvode(&
                       err,message)               ! intent(out):   error control
 
   !======= Inclusions ===========
-  USE fcvode_mod                                              ! Fortran interface to CVODE
+  USE fcvode_mod                                              ! Fortran interface to CVode
   USE fsundials_core_mod                                      ! Fortran interface to SUNContext
   USE fnvector_serial_mod                                     ! Fortran interface to serial N_Vector
   USE fsunmatrix_dense_mod                                    ! Fortran interface to dense SUNMatrix
@@ -143,9 +143,8 @@ subroutine summaSolve4cvode(&
   USE fsunnonlinsol_newton_mod                                ! Fortran interface to Newton SUNNonlinearSolver
   USE allocspace_module,only:allocLocal                       ! allocate local data structures
   USE getVectorz_module, only:checkFeas                       ! check feasibility of state vector
-  USE eval8summaWithPrime_module,only:eval8summa4ida        ! DAE/ODE functions
-  USE eval8summaWithPrime_module,only:eval8summaWithPrime     ! residual of DAE
-  USE computJacobWithPrime_module,only:computJacob4ida      ! system Jacobian
+  USE eval8summa_module,only:eval8summa4cvode        ! DAE/ODE functions
+  USE computJacob_module,only:computJacob4kinsol      ! system Jacobian
   USE tol4ida_module,only:computWeight4ida                ! weight required for tolerances
   USE var_lookup,only:maxvarDecisions                         ! maximum number of decisions
   !======= Declarations =========
@@ -193,7 +192,7 @@ subroutine summaSolve4cvode(&
   integer(i4b),intent(out)        :: nSteps                 ! number of time steps taken in solver
   real(rkind),intent(inout)       :: stateVec(:)            ! model state vector (y)
   real(rkind),intent(inout)       :: stateVecPrime(:)       ! model state vector (y')
-  logical(lgt),intent(out)        :: cvodeSucceeds          ! flag to indicate if CVODE is successful
+  logical(lgt),intent(out)        :: cvodeSucceeds          ! flag to indicate if CVode is successful
   logical(lgt),intent(inout)      :: tooMuchMelt            ! flag to denote that there was too much melt
   ! output: residual terms and balances
   real(rkind),intent(inout)       :: balance(:)             ! balance per state
@@ -210,9 +209,9 @@ subroutine summaSolve4cvode(&
   type(SUNMatrix),          pointer :: sunmat_A                               ! sundials matrix
   type(SUNLinearSolver),    pointer :: sunlinsol_LS                           ! sundials linear solver
   type(SUNNonLinearSolver), pointer :: sunnonlin_NLS                          ! sundials nonlinear solver
-  type(c_ptr)                       :: cvode_mem                              ! CVODE memory
+  type(c_ptr)                       :: cvode_mem                              ! CVode memory
   type(c_ptr)                       :: sunctx                                 ! SUNDIALS simulation context
-  type(data4ida),           target  :: eqns_data                            ! CVODE type
+  type(data4cvode),         target  :: eqns_data                              ! CVode type
   integer(i4b)                      :: retval, retvalr                        ! return value
   logical(lgt)                      :: feasible                               ! feasibility flag
   real(qp)                          :: t0                                     ! starting time
@@ -234,7 +233,7 @@ subroutine summaSolve4cvode(&
   real(rkind),allocatable           :: dCompress_dPsiPrev(:)                  ! previous derivative value soil compression
   ! flags
   logical(lgt)                      :: use_fdJac                              ! flag to use finite difference Jacobian, controlled by decision fDerivMeth
-  logical(lgt),parameter            :: offErrWarnMessage = .true.             ! flag to turn CVODE warnings off, default true
+  logical(lgt),parameter            :: offErrWarnMessage = .true.             ! flag to turn CVode warnings off, default true
   logical(lgt),parameter            :: detect_events = .true.                 ! flag to do event detection and restarting, default true
   ! -----------------------------------------------------------------------------------------------------
   ! link to the necessary variables
@@ -268,7 +267,7 @@ subroutine summaSolve4cvode(&
     nState = nStat ! total number of state variables in SUNDIALS type
     cvodeSucceeds = .true.
     
-    ! fill eqns_data which will be required later to call eval8summaWithPrime
+    ! fill eqns_data which will be required later to call eval8summa4cvode
     eqns_data%dt             = dt
     eqns_data%nSnow          = nSnow
     eqns_data%nSoil          = nSoil
@@ -344,21 +343,21 @@ subroutine summaSolve4cvode(&
     call setInitialCondition(nState, stateVecInit, sunvec_y, sunvec_yp)
     
     ! create memory
-    cvode_mem = FCVODECreate(sunctx)
+    cvode_mem = FCVodeCreate(sunctx)
     if (.not. c_associated(cvode_mem)) then; err=20; message=trim(message)//'cvode_mem = NULL'; return; endif
     
     ! Attach user data to memory
-    retval = FCVODESetUserData(cvode_mem, c_loc(eqns_data))
-    if (retval /= 0) then; err=20; message=trim(message)//'error in FCVODESetUserData'; return; endif
+    retval = FCVodeSetUserData(cvode_mem, c_loc(eqns_data))
+    if (retval /= 0) then; err=20; message=trim(message)//'error in FCVodeSetUserData'; return; endif
     
-    ! Set the function CVODE will use to advance the state
+    ! Set the function CVode will use to advance the state
     t0 = 0._rkind
-    retval = FCVODEInit(cvode_mem, c_funloc(eval8summa4ida), t0, sunvec_y, sunvec_yp)
-    if (retval /= 0) then; err=20; message=trim(message)//'error in FCVODEInit'; return; endif
+    retval = FCVodeInit(cvode_mem, c_funloc(eval8summa4cvode), t0, sunvec_y, sunvec_yp)
+    if (retval /= 0) then; err=20; message=trim(message)//'error in FCVodeInit'; return; endif
     
     ! set tolerances
-    retval = FCVODEWFtolerances(cvode_mem, c_funloc(computWeight4ida))
-    if (retval /= 0) then; err=20; message=trim(message)//'error in FCVODEWFtolerances'; return; endif
+    retval = FCVodeWFtolerances(cvode_mem, c_funloc(computWeight4ida))
+    if (retval /= 0) then; err=20; message=trim(message)//'error in FCVodeWFtolerances'; return; endif
     
     ! initialize rootfinding problem and allocate space, counting roots
     if(detect_events)then
@@ -378,8 +377,8 @@ subroutine summaSolve4cvode(&
       allocate( rootsfound(nRoot) )
       allocate( rootdir(nRoot) )
       rootdir = 0
-      retval = FCVODERootInit(cvode_mem, nRoot, c_funloc(layerDisCont4cvode))
-      if (retval /= 0) then; err=20; message=trim(message)//'error in FCVODERootInit'; return; endif
+      retval = FCVodeRootInit(cvode_mem, nRoot, c_funloc(layerDisCont4cvode))
+      if (retval /= 0) then; err=20; message=trim(message)//'error in FCVodeRootInit'; return; endif
     else ! will not use, allocate at something
       nRoot = 1
       allocate( rootsfound(nRoot) )
@@ -413,19 +412,19 @@ subroutine summaSolve4cvode(&
     end select  ! form of matrix
     
     ! Attach the matrix and linear solver
-    ! For the nonlinear solver, CVODE uses a Newton SUNNonlinearSolver-- it is not necessary to create and attach it
-    retval = FCVODESetLinearSolver(cvode_mem, sunlinsol_LS, sunmat_A);
-    if (retval /= 0) then; err=20; message=trim(message)//'error in FCVODESetLinearSolver'; return; endif
+    ! For the nonlinear solver, CVode uses a Newton SUNNonlinearSolver-- it is not necessary to create and attach it
+    retval = FCVodeSetLinearSolver(cvode_mem, sunlinsol_LS, sunmat_A);
+    if (retval /= 0) then; err=20; message=trim(message)//'error in FCVodeSetLinearSolver'; return; endif
     
     ! Set the user-supplied Jacobian routine
     if(.not.use_fdJac)then
-      retval = FCVODESetJacFn(cvode_mem, c_funloc(computJacob4ida))
-      if (retval /= 0) then; err=20; message=trim(message)//'error in FCVODESetJacFn'; return; endif
+      retval = FCVodeSetJacFn(cvode_mem, c_funloc(computJacob4kinsol))
+      if (retval /= 0) then; err=20; message=trim(message)//'error in FCVodeSetJacFn'; return; endif
     endif
     
     ! Enforce the solver to stop at end of the time step
-    retval = FCVODESetStopTime(cvode_mem, dt_cur)
-    if (retval /= 0) then; err=20; message=trim(message)//'error in FCVODESetStopTime'; return; endif
+    retval = FCVodeSetStopTime(cvode_mem, dt_cur)
+    if (retval /= 0) then; err=20; message=trim(message)//'error in FCVodeSetStopTime'; return; endif
     
     ! Set solver parameters at end of setup
     call setSolverParams(dt_cur, cvode_mem, retval)
@@ -435,7 +434,7 @@ subroutine summaSolve4cvode(&
     if(offErrWarnMessage) then
       retval = FSUNLogger_SetErrorFilename(cvode_mem, c_null_char)
       retval = FSUNLogger_SetWarningFilename(cvode_mem, c_null_char)
-      retval = FCVODESetNoInactiveRootWarn(cvode_mem)
+      retval = FCVodeSetNoInactiveRootWarn(cvode_mem)
     endif
     
     !*********************** Main Solver * loop on one_step mode *****************************
@@ -449,16 +448,18 @@ subroutine summaSolve4cvode(&
       ! call this at beginning of step to reduce root bouncing (only looking in one direction)
       if(detect_events .and. .not.tinystep)then
         call find_rootdir(eqns_data, rootdir)
-        retval = FCVODESetRootDirection(cvode_mem, rootdir)
-        if (retval /= 0) then; err=20; message=trim(message)//'error in FCVODESetRootDirection'; return; endif
+        retval = FCVodeSetRootDirection(cvode_mem, rootdir)
+        if (retval /= 0) then; err=20; message=trim(message)//'error in FCVodeSetRootDirection'; return; endif
       endif
     
       eqns_data%firstFluxCall = .false. ! already called for initial
       eqns_data%firstSplitOper = .true. ! always true at start of dt_cur since no splitting
     
-      ! call CVODESolve, advance solver just one internal step
-      retvalr = FCVODESolve(cvode_mem, dt_cur, tret, sunvec_y, sunvec_yp, CVODE_ONE_STEP)
-      ! early return if CVODESolve failed
+      ! call CVodeSolve, advance solver just one internal step
+      retvalr = FCVodeSolve(cvode_mem, dt_cur, tret, sunvec_y, sunvec_yp, CVode_ONE_STEP)
+      retvalr = FCVode(cvode_mem, dt_cur, sunvec_y, tret, CV_ONE_STEP)
+
+      ! early return if CVodeSolve failed
       if( retvalr < 0 )then
         cvodeSucceeds = .false.
         call getErrMessage(retvalr,cmessage)
@@ -475,7 +476,7 @@ subroutine summaSolve4cvode(&
       if(tooMuchMelt)exit
     
       ! get the last stepsize and difference from previous end time, not necessarily the same
-      retval = FCVODEGetLastStep(cvode_mem, dt_last)
+      retval = FCVodeGetLastStep(cvode_mem, dt_last)
       dt_diff = tret(1) - tretPrev
       nSteps = nSteps + 1 ! number of time steps taken in solver
     
@@ -513,7 +514,7 @@ subroutine summaSolve4cvode(&
       !------------------------
       if(computNrgBalance)then    
     
-        ! compute energy balance mean, resVec is the instanteous residual vector from the solver
+        ! compute energy balance mean, resVec is the instantaneous residual vector from the solver
         if(ixCasNrg/=integerMissing) balance(ixCasNrg) = balance(ixCasNrg) + ( eqns_data%resVec(ixCasNrg) + resVecPrev(ixCasNrg) )*dt_diff/2._rkind/dt
         if(ixVegNrg/=integerMissing) balance(ixVegNrg) = balance(ixVegNrg) + ( eqns_data%resVec(ixVegNrg) + resVecPrev(ixVegNrg) )*dt_diff/2._rkind/dt
         if(nSnowSoilNrg>0)then
@@ -528,7 +529,7 @@ subroutine summaSolve4cvode(&
       !------------------------
       if(computMassBalance)then
     
-        ! compute mass balance mean, resVec is the instanteous residual vector from the solver
+        ! compute mass balance mean, resVec is the instantaneous residual vector from the solver
         if(ixVegHyd/=integerMissing) balance(ixVegHyd) = balance(ixVegHyd) + ( eqns_data%resVec(ixVegHyd) + resVecPrev(ixVegHyd) )*dt_diff/2._rkind/dt
         if(nSnowSoilHyd>0)then
           do concurrent (i=1:nLayers,ixSnowSoilHyd(i)/=integerMissing) 
@@ -549,22 +550,22 @@ subroutine summaSolve4cvode(&
     
       ! Restart for where vegetation and layers cross freezing point
       if(detect_events)then
-        if (retvalr .eq. CVODE_ROOT_RETURN) then !CVODESolve succeeded and found one or more roots at tret(1)
+        if (retvalr .eq. CV_ROOT_RETURN) then ! CVodeSolve succeeded and found one or more roots at tret(1)
           ! rootsfound[i]= +1 indicates that gi is increasing, -1 g[i] decreasing, 0 no root
-          !retval = FCVODEGetRootInfo(cvode_mem, rootsfound)
-          !if (retval < 0) then; err=20; message=trim(message)//'error in FCVODEGetRootInfo'; return; endif
+          !retval = FCVodeGetRootInfo(cvode_mem, rootsfound)
+          !if (retval < 0) then; err=20; message=trim(message)//'error in FCVodeGetRootInfo'; return; endif
           !print '(a,f15.7,2x,17(i2,2x))', "time, rootsfound[] = ", tret(1), rootsfound
           ! Reininitialize solver for running after discontinuity and restart
-          retval = FCVODEReInit(cvode_mem, tret(1), sunvec_y, sunvec_yp)
-          if (retval /= 0) then; err=20; message=trim(message)//'error in FCVODEReInit'; return; endif
+          retval = FCVodeReInit(cvode_mem, tret(1), sunvec_y, sunvec_yp)
+          if (retval /= 0) then; err=20; message=trim(message)//'error in FCVodeReInit'; return; endif
           if(dt_last(1) < 0.1_rkind)then ! don't keep calling if step is small (more accurate with this tiny but getting hung up)
-            retval = FCVODERootInit(cvode_mem, 0, c_funloc(layerDisCont4cvode))
+            retval = FCVodeRootInit(cvode_mem, 0, c_funloc(layerDisCont4cvode))
             tinystep = .true.
           else
-            retval = FCVODERootInit(cvode_mem, nRoot, c_funloc(layerDisCont4cvode))
+            retval = FCVodeRootInit(cvode_mem, nRoot, c_funloc(layerDisCont4cvode))
             tinystep = .false.
           endif
-          if (retval /= 0) then; err=20; message=trim(message)//'error in FCVODERootInit'; return; endif
+          if (retval /= 0) then; err=20; message=trim(message)//'error in FCVodeRootInit'; return; endif
         endif
       endif
     
@@ -604,7 +605,7 @@ subroutine summaSolve4cvode(&
     deallocate( rootsfound )
     deallocate( rootdir )
     
-    call FCVODEFree(cvode_mem)
+    call FCVodeFree(cvode_mem)
     retval = FSUNLinSolFree(sunlinsol_LS)
     if(retval /= 0)then; err=20; message=trim(message)//'unable to free the linear solver'; return; endif
     call FSUNMatDestroy(sunmat_A)
@@ -650,20 +651,20 @@ subroutine setInitialCondition(neq, y, sunvec_u, sunvec_up)
 end subroutine setInitialCondition
 
 ! ----------------------------------------------------------------
-! setSolverParams: private routine to set parameters in CVODE solver
+! setSolverParams: private routine to set parameters in CVode solver
 ! ----------------------------------------------------------------
 subroutine setSolverParams(dt_cur,cvode_mem,retval)
 
   !======= Inclusions ===========
   USE, intrinsic :: iso_c_binding
-  USE fcvode_mod   ! Fortran interface to CVODE
+  USE fcvode_mod   ! Fortran interface to CVode
 
   !======= Declarations =========
   implicit none
 
   ! calling variables
   real(rkind),intent(in)      :: dt_cur             ! current whole time step
-  type(c_ptr),intent(inout)   :: cvode_mem            ! CVODE memory
+  type(c_ptr),intent(inout)   :: cvode_mem            ! CVode memory
   integer(i4b),intent(out)    :: retval             ! return value
 
   !======= Internals ============
@@ -676,36 +677,36 @@ subroutine setSolverParams(dt_cur,cvode_mem,retval)
   real(qp),parameter          :: h_init = 0         ! initial stepsize
  
   ! Set the maximum BDF order
-  retval = FCVODESetMaxOrd(cvode_mem, max_order)
+  retval = FCVodeSetMaxOrd(cvode_mem, max_order)
   if (retval /= 0) return
 
   ! Set coefficient in the nonlinear convergence test
-  retval = FCVODESetNonlinConvCoef(cvode_mem, coef_nonlin)
+  retval = FCVodeSetNonlinConvCoef(cvode_mem, coef_nonlin)
   if (retval /= 0) return
 
   ! Set maximun number of nonliear iterations, maybe should just make 4 (instead of SUMMA parameter)
-  retval = FCVODESetMaxNonlinIters(cvode_mem, nonlin_iter)
+  retval = FCVodeSetMaxNonlinIters(cvode_mem, nonlin_iter)
   if (retval /= 0) return
 
   !  Set maximum number of convergence test failures
-  retval = FCVODESetMaxConvFails(cvode_mem, fail_iter)
+  retval = FCVodeSetMaxConvFails(cvode_mem, fail_iter)
   if (retval /= 0) return
 
   !  Set maximum number of error test failures
-  retval = FCVODESetMaxErrTestFails(cvode_mem, fail_iter)
+  retval = FCVodeSetMaxErrTestFails(cvode_mem, fail_iter)
   if (retval /= 0) return
 
   ! Set maximum number of steps
-  retval = FCVODESetMaxNumSteps(cvode_mem, max_step)
+  retval = FCVodeSetMaxNumSteps(cvode_mem, max_step)
   if (retval /= 0) return
 
   ! Set maximum stepsize
   h_max = dt_cur
-  retval = FCVODESetMaxStep(cvode_mem, h_max)
+  retval = FCVodeSetMaxStep(cvode_mem, h_max)
   if (retval /= 0) return
 
   ! Set initial stepsize
-  retval = FCVODESetInitStep(cvode_mem, h_init)
+  retval = FCVodeSetInitStep(cvode_mem, h_init)
   if (retval /= 0) return
 
 end subroutine setSolverParams
@@ -730,7 +731,7 @@ subroutine find_rootdir(eqns_data,rootdir)
   implicit none
 
   ! calling variables
-  type(data4ida),intent(in)  :: eqns_data  ! equations data
+  type(data4cvode),intent(in)  :: eqns_data  ! equations data
   integer(i4b),intent(inout) :: rootdir(:)   ! root function directions to search
 
   ! local variables
@@ -829,7 +830,7 @@ integer(c_int) function layerDisCont4cvode(t, sunvec_u, sunvec_up, gout, user_da
 
   ! pointers to data in SUNDIALS vectors
   real(c_double), pointer :: uu(:)
-  type(data4ida), pointer :: eqns_data  ! equations data
+  type(data4cvode), pointer :: eqns_data  ! equations data
 
   !======= Internals ============
   ! get equations data from user-defined data
@@ -886,7 +887,7 @@ integer(c_int) function layerDisCont4cvode(t, sunvec_u, sunvec_up, gout, user_da
 end function layerDisCont4cvode
 
 ! ----------------------------------------------------------------
-! getErrMessage: private routine to get error message for CVODE solver
+! getErrMessage: private routine to get error message for CVode solver
 ! ----------------------------------------------------------------
 subroutine getErrMessage(retval,message)
 
@@ -894,7 +895,7 @@ subroutine getErrMessage(retval,message)
   implicit none
 
   ! calling variables
-  integer(i4b),intent(in)    :: retval              ! return value from CVODE
+  integer(i4b),intent(in)    :: retval              ! return value from CVode
   character(*),intent(out)   :: message             ! error message
 
   ! get message
@@ -917,7 +918,7 @@ subroutine getErrMessage(retval,message)
    if( retval==-20) message = 'CV_MEM_NULL'         ! The cvode_mem argument was NULL.
    if( retval==-21) message = 'CV_MEM_FAIL'         ! A memory allocation failed.
    if( retval==-22) message = 'CV_ILL_INPUT'        ! One of the function inputs is illegal.
-   if( retval==-23) message = 'CV_NO_MALLOC'        ! The CVODE memory was not allocated by a call to CVODEInit.
+   if( retval==-23) message = 'CV_NO_MALLOC'        ! The CVode memory was not allocated by a call to CVodeInit.
    if( retval==-24) message = 'CV_BAD_EWT'          ! Zero value of some error weight component.
    if( retval==-25) message = 'CV_BAD_K'            ! The k-th derivative is not available.
    if( retval==-26) message = 'CV_BAD_T'            ! The time t is outside the last step taken.
