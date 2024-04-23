@@ -1157,9 +1157,8 @@ integer(c_int) function computJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
   !======= Inclusions ===========
   use, intrinsic :: iso_c_binding
   use fsundials_core_mod
-  use fnvector_serial_mod
-  use fsunmatrix_band_mod
-  use fsunmatrix_dense_mod
+  use fnvector_cuda_mod
+  use fsunmatrix_magmadense_mod
   use type4ida
 
   !======= Declarations =========
@@ -1186,8 +1185,7 @@ integer(c_int) function computJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
   call c_f_pointer(user_data, eqns_data)
 
   ! get data arrays from SUNDIALS vectors
-  if (eqns_data%ixMatrix==ixBandMatrix) Jac(1:nBands, 1:eqns_data%nState) => FSUNBandMatrix_Data(sunmat_J)
-  if (eqns_data%ixMatrix==ixFullMatrix) Jac(1:eqns_data%nState, 1:eqns_data%nState) => FSUNDenseMatrix_Data(sunmat_J)
+  if (eqns_data%ixMatrix==ixFullMatrix) Jac(1:eqns_data%nState, 1:eqns_data%nState) => FSUNMatrix_MagmaDense_Data(sunmat_J)
 
   ! compute the analytical Jacobian matrix
   ! NOTE: The derivatives were computed in the previous call to computFlux

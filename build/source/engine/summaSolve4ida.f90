@@ -142,11 +142,9 @@ subroutine summaSolve4ida(&
   !======= Inclusions ===========
   USE fida_mod                                                ! Fortran interface to IDA
   USE fsundials_core_mod                                      ! Fortran interface to SUNContext
-  USE fnvector_serial_mod                                     ! Fortran interface to serial N_Vector
-  USE fsunmatrix_dense_mod                                    ! Fortran interface to dense SUNMatrix
-  USE fsunmatrix_band_mod                                     ! Fortran interface to banded SUNMatrix
-  USE fsunlinsol_dense_mod                                    ! Fortran interface to dense SUNLinearSolver
-  USE fsunlinsol_band_mod                                     ! Fortran interface to banded SUNLinearSolver
+  USE fnvector_cuda_mod                                       ! Fortran interface to CUDAs N_Vector
+  USE fsunmatrix_magmadense_mod                               ! Fortran interface to MAGMA dense SUNMatrix
+  USE fsunlinsol_magmadense_mod                               ! Fortran interface to MAGMA dense SUNLinearSolver
   USE fsunnonlinsol_newton_mod                                ! Fortran interface to Newton SUNNonlinearSolver
   USE allocspace_module,only:allocLocal                       ! allocate local data structures
   USE getVectorz_module, only:checkFeas                       ! check feasibility of state vector
@@ -342,9 +340,9 @@ subroutine summaSolve4ida(&
     retval = FSUNContext_Create(SUN_COMM_NULL, sunctx)
     
     ! create serial vectors
-    sunvec_y => FN_VMake_Serial(nState, stateVec, sunctx)
+    sunvec_y => FN_VMake_Cuda(nState, stateVec, sunctx)
     if (.not. associated(sunvec_y)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
-    sunvec_yp => FN_VMake_Serial(nState, stateVecPrime, sunctx)
+    sunvec_yp => FN_VMake_Cuda(nState, stateVecPrime, sunctx)
     if (.not. associated(sunvec_yp)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
     
     ! initialize solution vectors
@@ -395,23 +393,15 @@ subroutine summaSolve4ida(&
     
     ! define the form of the matrix
     select case(ixMatrix)
-      case(ixBandMatrix)
-        mu = ku; lu = kl;
-        ! Create banded SUNMatrix for use in linear solves
-        sunmat_A => FSUNBandMatrix(nState, mu, lu, sunctx)
-        if (.not. associated(sunmat_A)) then; err=20; message=trim(message)//'sunmat = NULL'; return; endif
-    
-        ! Create banded SUNLinearSolver object
-        sunlinsol_LS => FSUNLinSol_Band(sunvec_y, sunmat_A, sunctx)
-        if (.not. associated(sunlinsol_LS)) then; err=20; message=trim(message)//'sunlinsol = NULL'; return; endif
+      case(ixBandMatrix); err=20; message=trim(message)//'Running on GPU cannot handle banded matrix form yet'; return
     
       case(ixFullMatrix)
         ! Create dense SUNMatrix for use in linear solves
-        sunmat_A => FSUNDenseMatrix(nState, nState, sunctx)
+        sunmat_A => FSUNMatrix_MagmaDense(nState, nState, sunctx)
         if (.not. associated(sunmat_A)) then; err=20; message=trim(message)//'sunmat = NULL'; return; endif
     
         ! Create dense SUNLinearSolver object
-        sunlinsol_LS => FSUNLinSol_Dense(sunvec_y, sunmat_A, sunctx)
+        sunlinsol_LS => FSUNLinSol_MagmaDense(sunvec_y, sunmat_A, sunctx)
         if (.not. associated(sunlinsol_LS)) then; err=20; message=trim(message)//'sunlinsol = NULL'; return; endif
     
         ! check
@@ -614,9 +604,9 @@ subroutine summaSolve4ida(&
     deallocate( rootdir )
     
     call FIDAFree(ida_mem)
-    retval = FSUNLinSolFree(sunlinsol_LS)
+    retval = FSUNLinSolFree_MagmaDense(sunlinsol_LS)
     if(retval /= 0)then; err=20; message=trim(message)//'unable to free the linear solver'; return; endif
-    call FSUNMatDestroy(sunmat_A)
+    call FSUNMatDestroy_MagmaDense(sunmat_A)
     call FN_VDestroy(sunvec_y)
     call FN_VDestroy(sunvec_yp)
     retval = FSUNContext_Free(sunctx)
@@ -634,7 +624,7 @@ subroutine setInitialCondition(neq, y, sunvec_u, sunvec_up)
   !======= Inclusions ===========
   USE, intrinsic :: iso_c_binding
   USE fsundials_core_mod
-  USE fnvector_serial_mod
+  USE fnvector_cuda_mod
 
   !======= Declarations =========
   implicit none
@@ -650,8 +640,8 @@ subroutine setInitialCondition(neq, y, sunvec_u, sunvec_up)
   real(c_double), pointer :: up(:)
 
   ! get data arrays from SUNDIALS vectors
-  uu(1:neq) => FN_VGetArrayPointer(sunvec_u)
-  up(1:neq) => FN_VGetArrayPointer(sunvec_up)
+  uu(1:neq) => FN_VGetArrayPointer_Cuda(sunvec_u)
+  up(1:neq) => FN_VGetArrayPointer_Cuda(sunvec_up)
 
   uu = y
   up = 0._rkind
@@ -730,7 +720,7 @@ subroutine find_rootdir(eqns_data,rootdir)
   !======= Inclusions ===========
   use, intrinsic :: iso_c_binding
   use fsundials_core_mod
-  use fnvector_serial_mod
+  use fnvector_cuda_mod
   use soil_utils_module,only:crit_soilT  ! compute the critical temperature below which ice exists
   use globalData,only:integerMissing     ! missing integer
   use var_lookup,only:iLookINDEX         ! named variables for structure elements
@@ -813,7 +803,7 @@ integer(c_int) function layerDisCont4ida(t, sunvec_u, sunvec_up, gout, user_data
   !======= Inclusions ===========
   use, intrinsic :: iso_c_binding
   use fsundials_core_mod
-  use fnvector_serial_mod
+  use fnvector_cuda_mod
   use soil_utils_module,only:crit_soilT  ! compute the critical temperature below which ice exists
   use globalData,only:integerMissing     ! missing integer
   use var_lookup,only:iLookINDEX         ! named variables for structure elements
@@ -852,7 +842,7 @@ integer(c_int) function layerDisCont4ida(t, sunvec_u, sunvec_up, gout, user_data
 
 
   ! get data array from SUNDIALS vector
-  uu(1:nState) => FN_VGetArrayPointer(sunvec_u)
+  uu(1:nState) => FN_VGetArrayPointer_Cuda(sunvec_u)
 
   ! initialize
   ind = 0

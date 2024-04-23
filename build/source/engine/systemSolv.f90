@@ -313,6 +313,7 @@ contains
   reduceCoupledStep  = .false.   ! need to reduce the length of the coupled step
 
   associate(&
+   ixNumericalMethod => model_decisions(iLookDECISIONS%num_method)%iDecision,&    ! intent(in): [i4b] choice of numerical solver
    ixSpatialGroundwater => model_decisions(iLookDECISIONS%spatial_gw)%iDecision,& ! intent(in): [i4b] spatial representation of groundwater (local-column or single-basin)
    ixGroundwater        => model_decisions(iLookDECISIONS%groundwatr)%iDecision & ! intent(in): [i4b] groundwater parameterization
    &)
@@ -329,7 +330,8 @@ contains
 
    ! identify the matrix solution method, using the full matrix can be slow in many-layered systems
    ! (the type of matrix used to solve the linear system A.X=B)
-   if (local_ixGroundwater==qbaseTopmodel .or. scalarSolution .or. forceFullMatrix .or. computeVegFlux) then
+   ! NOTE: the full matrix is needed for IDA if we are running on GPUs
+   if (local_ixGroundwater==qbaseTopmodel .or. scalarSolution .or. forceFullMatrix .or. computeVegFlux .or. ixNumericalMethod==ida) then
      nLeadDim=nState         ! length of the leading dimension
      ixMatrix=ixFullMatrix   ! named variable to denote the full Jacobian matrix
    else
