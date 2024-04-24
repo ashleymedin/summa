@@ -215,6 +215,7 @@ subroutine summaSolve4ida(&
   type(SUNMatrix),          pointer :: sunmat_A                               ! sundials matrix
   type(SUNLinearSolver),    pointer :: sunlinsol_LS                           ! sundials linear solver
   type(SUNNonLinearSolver), pointer :: sunnonlin_NLS                          ! sundials nonlinear solver
+  integer(cuda_stream_kind)         :: stream                                 ! CUDA stream
   type(c_ptr)                       :: ida_mem                                ! IDA memory
   type(c_ptr)                       :: sunctx                                 ! SUNDIALS simulation context
   type(data4ida),           target  :: eqns_data                              ! IDA type
@@ -337,6 +338,9 @@ subroutine summaSolve4ida(&
     dCompress_dPsiPrev(:)             = 0._rkind
     resVecPrev(:)                     = 0._rkind
     
+    ! Create CUDA streams and SUNDIALS Context
+    retval = cudaStreamCreate(stream)
+    if( retval /= 0) then; err=20; message=trim(message)//'error in cudaStreamCreate '//cudaGetErrorString(cuerr); return; endif
     retval = FSUNContext_Create(SUN_COMM_NULL, sunctx)
     
     ! create serial vectors
@@ -345,6 +349,13 @@ subroutine summaSolve4ida(&
     sunvec_yp => FN_VMake_Cuda(nState, stateVecPrime, sunctx)
     if (.not. associated(sunvec_yp)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
     
+    ! Map each CUDA thread to a work unit: 128 threads per block and a user provided CUDA stream
+    FSUNCudaThreadDirectExecPolicy thread_direct(128, stream)
+    ! Reduction across indvidual thread blocks, second argument 0 means grid size will be chosen so that there is enough threads for one thread per work unit
+    FSUNCudaBlockReduceExecPolicy block_reduce(128, 0, stream)
+    retval = FN_VSetKernelExecPolicy_Cuda(sunvec_y, thread_direct, block_reduce)
+
+
     ! initialize solution vectors
     call setInitialCondition(nState, stateVecInit, sunvec_y, sunvec_yp)
     
@@ -611,6 +622,8 @@ subroutine summaSolve4ida(&
     call FN_VDestroy(sunvec_yp)
     retval = FSUNContext_Free(sunctx)
     if(retval /= 0)then; err=20; message=trim(message)//'unable to free the SUNDIALS context'; return; endif
+    retval = cudaStreamDestroy(stream)
+    if(retval /= 0)then; err=20; message=trim(message)//'unable to destroy the CUDA stream'; return; endif
 
   end associate
 
