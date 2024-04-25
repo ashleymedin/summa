@@ -10,7 +10,7 @@ module load netcdf-fortran/4.5.2
 export FLAGS_OPT="-flto=1;-fuse-linker-plugin"
 
 # for NexGen
-module load boost
+module load boost/1.72.0
 module load udunits/2.2.28
 
 cmake -B extern/iso_c_fortran_bmi/cmake_build -S extern/iso_c_fortran_bmi
