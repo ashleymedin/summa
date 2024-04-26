@@ -33,6 +33,7 @@ if testing:
     stat = 'rmnz'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
     method_name=['be1en']
+    plt_name=['BE1 mixed']
 else:
     import sys
     # The first input argument specifies the run where the files are
