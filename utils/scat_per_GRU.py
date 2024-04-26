@@ -22,7 +22,7 @@ import pandas as pd
 
 viz_dir = Path('/home/avanb/scratch/statistics')
 nbatch_hrus = 518 # number of HRUs per batch
-do_rel = True # plot relative to the benchmark simulation
+do_rel = False # plot relative to the benchmark simulation
 
 # which statistics to plot
 do_vars = True

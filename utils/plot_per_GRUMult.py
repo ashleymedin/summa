@@ -34,10 +34,10 @@ import pandas as pd
 stat = sys.argv[1]
 #method_name=['be1','be16','be32','sundials_1en6'] #maybe make this an argument
 #plt_name=['(a) SUMMA-BE1','(b) SUMMA-BE16','(c) SUMMA-BE32','(d) SUMMA-SUNDIALS'] #maybe make this an argument
-method_name=['be1','be1en','sundials_1en6','be1en']#,'be1lu'] #maybe make this an argument
+method_name=['be1','be1en','sundials_1en6','diff']#,'be1lu'] #maybe make this an argument
 plt_name=['(a) SUMMA-BE1 Energy Temperature Form','(b) SUMMA-BE1 Energy Mixed Form','(c) SUMMA-SUNDIALS','(d) SUMMA-BE1 Mixed Form - Temperature Form']#, #maybe make this an argument
-d_ind = 3 # index of the difference simulation
-sub_ind = 0 # index of the simulation to subtract from the difference simulation
+from_meth = 'be1en' # index of the first simulation in the difference simulation, only used if a method_name is 'diff'
+sub_meth = 'be1' # index of the simulation to subtract in the difference simulation, only used if a method_name is 'diff'
 
 # Simulation statistics file locations
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
@@ -179,8 +179,7 @@ if plot_lakes:
 summa = {}
 for i, m in enumerate(method_name):
     # Get the aggregated statistics of SUMMA simulations
-    summa[m] = xr.open_dataset(viz_dir/viz_fil[i])
-    if i==d_ind: subtract_en = xr.open_dataset(viz_dir/viz_fil[sub_ind])
+    if m!='diff': summa[m] = xr.open_dataset(viz_dir/viz_fil[i])
 
 # Match the accummulated values to the correct HRU IDs in the shapefile
 hru_ids_shp = bas_albers[hm_hruid].astype(int) # hru order in shapefile
@@ -196,14 +195,13 @@ for plot_var in plot_vars:
         if plot_var == 'wallClockTime': stat0 = 'amax'
         statr = 'amax_ben'
 
-    if do_rel: s_rel = summa[method_name[0]][plot_var].sel(stat=statr)
+    if do_rel: s_rel = np.fabs(summa[method_name[0]][plot_var].sel(stat=statr))
     for m in method_name:
-        s = summa[m][plot_var].sel(stat=stat0)
-        if i==3: s = s - subtract_en[plot_var].sel(stat=stat0)
+        if m=='diff': 
+            s = np.fabs(summa[from_meth][plot_var].sel(stat=stat0)) - np.fabs(summa[sub_meth][plot_var].sel(stat=stat0))
+        else:
+            s = np.fabs(summa[m][plot_var].sel(stat=stat0))
         if do_rel and plot_var != 'wallClockTime': s = s/s_rel
-
-        # Make absolute value norm, not all positive
-        s = np.fabs(s) 
 
         # Replace inf values with NaN in the s DataArray
         s = s.where(~np.isinf(s), np.nan)
@@ -256,10 +254,9 @@ def run_loop(j,var,the_max):
 
     my_cmap2 = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
     my_cmap2.set_bad(color='white') #nan color white
-    vmin,vmax = -the_max/5, the_max/5
+    vmin,vmax = -the_max/10, the_max/4
     norm2 = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
     
-
     if stat0 == 'rmse': stat_word = 'RMSE'
     if stat0 == 'rmnz': stat_word = 'RMSE' # no 0s'
     if stat0 == 'maxe': stat_word = 'max abs error'
@@ -272,7 +269,6 @@ def run_loop(j,var,the_max):
     if statr == 'mnnz_ben': statr_word = 'mean' # no 0s'
     if statr == 'amax_ben': statr_word = 'max'
     
-
     # colorbar axes
     f_x_mat = [0.46,0.96,0.46,0.96]
     f_y_mat = [0.55,0.55,0.07,0.07]
@@ -282,25 +278,22 @@ def run_loop(j,var,the_max):
         c = i-r*2
 
         # Plot the data with the full extent of the bas_albers shape
-        if i==d_ind:
+        if m=='diff':
             bas_albers.plot(ax=axs[r,c], column=var+m, edgecolor='none', legend=False, cmap=my_cmap2, norm=norm2,zorder=0)
+            stat_word0 = stat_word+' difference'
         else:
             bas_albers.plot(ax=axs[r,c], column=var+m, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
+            stat_word0 = stat_word
 
         axs[r,c].set_title(plt_name[i])
         axs[r,c].axis('off')
         axs[r,c].set_xlim(xmin, xmax)
         axs[r,c].set_ylim(ymin, ymax)
 
-        if i==d_ind:
-            stat_word0 = stat_word+' difference'
-        else:
-            stat_word0 = stat_word
-
         # Custom colorbar
         cax = fig.add_axes([f_x,f_y,0.02,0.375])
-        if i==d_ind:
-            sm = matplotlib.cm.ScalarMappable(cmap=my_cmap2, norm=norm)
+        if m=='diff':
+            sm = matplotlib.cm.ScalarMappable(cmap=my_cmap2, norm=norm2)
         else:
             sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
         sm._A = []
