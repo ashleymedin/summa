@@ -337,6 +337,7 @@ subroutine summaSolve4ida(&
     eqns_data%mLayerMatricHeadPrev(:) = prog_data%var(iLookPROG%mLayerMatricHead)%dat(:)
     dCompress_dPsiPrev(:)             = 0._rkind
     resVecPrev(:)                     = 0._rkind
+    balance(:)                        = 0._rkind
     
     ! Create CUDA streams and SUNDIALS Context
     retval = cudaStreamCreate(stream)

@@ -311,6 +311,8 @@ contains
   ! initialize the flags
   tooMuchMelt        = .false.   ! too much melt
   reduceCoupledStep  = .false.   ! need to reduce the length of the coupled step
+  ! initialize balances
+  balance(:) = realMissing
 
   associate(&
    ixNumericalMethod => model_decisions(iLookDECISIONS%num_method)%iDecision,&    ! intent(in): [i4b] choice of numerical solver
