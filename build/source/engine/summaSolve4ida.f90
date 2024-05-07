@@ -356,7 +356,6 @@ subroutine summaSolve4ida(&
     FSUNCudaBlockReduceExecPolicy block_reduce(128, 0, stream)
     retval = FN_VSetKernelExecPolicy_Cuda(sunvec_y, thread_direct, block_reduce)
 
-
     ! initialize solution vectors
     call setInitialCondition(nState, stateVecInit, sunvec_y, sunvec_yp)
     
