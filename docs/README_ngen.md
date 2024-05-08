@@ -47,33 +47,49 @@ Note that this will be done in the NGen repo configuration, so it can then be co
 
 ## Building Libraries
 
-First, cd into the outer directory containing the submodule:
+For reference, let the main NexGen directory be contained in the folder `top_dir`
 
-    cd extern/summa
-
-If you want to use Sundials IDA or BE Kinsol, set -DCMAKE_BUILD_TYPE=Sundials_NexGen in the build script.  Then, before summa can be built, Sundials needs to be installed. 
+If you want to use Sundials IDA or BE Kinsol, set -DCMAKE_BUILD_TYPE=Sundials_NexGen* in the build script instead of BE*.  Then, before summa can be built, Sundials needs to be installed. 
+ 
+### Installing SUNDIALS
 Download the latest release of IDA solver from SUNDIALS package in https://computing.llnl.gov/projects/sundials/sundials-software, using X.Y.Z as the latest version
-
-    wget "https://github.com/LLNL/sundials/releases/download/vX.Y.Z/sundials-X.Y.Z.tar.gz"
+    within `top_dir`:
+    $ wget "https://github.com/LLNL/sundials/releases/download/vX.Y.Z/sundials-X.Y.Z.tar.gz"
 
 Extract the corresponding compressed file, rename
+    $ tar -xzf sundials-X.Y.Z.tar.gz && mv sundials-X.Y.Z sundials-software
 
-    tar -xzf sundials-X.Y.Z.tar.gz && mv sundials-X.Y.Z sundials-software
+The sundials-X.Y.Z.tar.gz can now be deleted. We suggest you periodically update to the latest version-- you can also install through github
+    within `top_dir`: 
+    $ git clone https://github.com/LLNL/sundials.git sundials-software
+    $ cd sundials-software
+    $ git fetch --all --tags --prune
+    $ git checkout tags/vX.Y.Z
 
-We suggest you periodically update to the latest version-- you can also install through github 
-    git clone https://github.com/LLNL/sundials.git sundials-software
-    cd sundials-software
-    git fetch --all --tags --prune
-    git checkout tags/vX.Y.Z
-    
-An example build_cmake file is at summa/build/cmake_external/build_cmakeSundials.bash which you can copy to builddir as build_cmake. Then, enter the buildir and run
+Create new empty directories to prep for SUNDIALS installation
+    within `top_dir`: 
+    $ mkdir sundials
+    $ cd sundials`
+    $ mkdir builddir instdir`
 
-    cd sundials/buildir
-    ./build_cmake
-    make
-    make install
+Copy CMake build script from SUMMA files to properly configure SUNDIALS
+    $ cd builddir
+    $ cp ../../ngen/extern/summa/build/cmake_external/build_cmakeSundials.bash .
+
+Build SUNDIALS configured for SUMMA
+    within `builddir`: 
+    $ ./build_cmakeSundials.bash
+    $ make
+    $ make install
     
 Note if you need to recompile after a system upgrade, delete the contents of sundials/instdir and sundials/buildir EXCEPT sundials/buildir/build_cmake before building and installing.
+
+Note that when there is an existing directory, it may sometimes be necessary to clear it and regenerate, especially if any changes were made to the CMakeLists.txt file.
+
+### Building SUMMA
+First,enter outer directory containing the submodule:
+
+    cd ngen/extern/summa
 
 Before ngen library files can be built, a CMake build system must be generated.  E.g.:
 
@@ -85,7 +101,7 @@ After there is build system directory, the shared library can be built using the
 
     cmake --build extern/summa/cmake_build --target all
 
-This will build a `cmake_build/libsummabmi.<version>.<ext>` file, where the version is configured within the CMake config, and the extension depends on the local machine's operating system.    
+This will build a `cmake_build/libsummabmi.<ext>` file, where the extension depends on the local machine's operating system.    
 
 There is an example of a bash script to build the ngen libraries at ngen/extern/summa/summa/build/cmake/build_ngen.[system_type].bash. Sundials is turned off here. These need to be run in the main ngen directory.
 
