@@ -70,14 +70,14 @@ Create new empty directories to prep for SUNDIALS installation
     within `top_dir`: 
     $ mkdir sundials
     $ cd sundials`
-    $ mkdir builddir instdir`
+    $ mkdir buildir instdir`
 
 Copy CMake build script from SUMMA files to properly configure SUNDIALS
-    $ cd builddir
+    $ cd buildir
     $ cp ../../ngen/extern/summa/build/cmake_external/build_cmakeSundials.bash .
 
 Build SUNDIALS configured for SUMMA
-    within `builddir`: 
+    within `buildir`: 
     $ ./build_cmakeSundials.bash
     $ make
     $ make install

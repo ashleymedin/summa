@@ -47,15 +47,15 @@ We maintain a Sundials version that is compatible with running on GPU and using 
 Create new empty directories to prep for SUNDIALS installation
     within `top_dir`: 
     $ mkdir sundials
-    $ cd sundials`
-    $ mkdir builddir instdir`
+    $ cd sundials
+    $ mkdir builddir instdir
 
 Copy CMake build script from SUMMA files to properly configure SUNDIALS
-    $ cd builddir
+    $ cd buildir
     $ cp ../../summa/build/cmake_external/build_cmakeSundials.bash .
 
 Build SUNDIALS configured for SUMMA
-    within `builddir`: 
+    within `buildir`: 
     $ ./build_cmakeSundials.bash
     $ make
     $ make install
@@ -65,7 +65,6 @@ Note if you need to recompile after a system upgrade, delete the contents of sun
 Note that when there is an existing directory, it may sometimes be necessary to clear it and regenerate, especially if any changes were made to the CMakeLists.txt file.
 
 ### Building SUMMA
-
 After there is build system directory, the shared library can be built using the `summa[actors]` CMake target. For example, the SummaSundials shared library file (i.e., the build config's `summa` target) can be built using:
 
     $ cmake --build ../cmake_build --target all

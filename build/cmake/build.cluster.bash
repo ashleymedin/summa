@@ -2,12 +2,14 @@
   
 # build on Copernicus or Graham, from cmake directory run this as ./build.cluster.bash
 # for Summa
-module load StdEnv/2020
-module load gcc/9.3.0
-module load openblas/0.3.17
-module load netcdf-fortran/4.5.2
-module load cuda/11.0
-module load magma/2.5.4
+
+module load StdEnv/2023
+module load gcc/12.3
+module load openblas/0.3.24
+module load openmpi/4.1.5
+module load netcdf-fortran/4.6.1
+module load cuda/12.2
+module load magma/2.7.2
 
 export FLAGS_OPT="-flto=1;-fuse-linker-plugin"
 
