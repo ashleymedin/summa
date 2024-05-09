@@ -94,8 +94,8 @@ integer(c_int) function computWeight4ida(sunvec_y, sunvec_ewt, user_data) &
   call c_f_pointer(user_data, tol_data)
 
   ! get data arrays from SUNDIALS vectors
-  stateVec(1:tol_data%nState)  => FN_VGetHostArrayPointer(sunvec_y)
-  weightVec(1:tol_data%nState)  => FN_VGetHostArrayPointer(sunvec_ewt)
+  stateVec(1:tol_data%nState)  => FN_VGetHostArrayPointer_Cuda(sunvec_y)
+  weightVec(1:tol_data%nState)  => FN_VGetHostArrayPointer_Cuda(sunvec_ewt)
 
   do iState = 1,tol_data%nState
     weightVec(iState) = tol_data%rtol(iState) * abs( stateVec(iState) ) + tol_data%atol(iState)

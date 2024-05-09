@@ -654,8 +654,8 @@ subroutine setInitialCondition(neq, y, sunvec_u, sunvec_up)
   real(c_double), pointer :: up(:)
 
   ! get data arrays from SUNDIALS vectors
-  uu(1:neq) => FN_VGetHostArrayPointer(sunvec_u)
-  up(1:neq) => FN_VGetHostArrayPointer(sunvec_up)
+  uu(1:neq) => FN_VGetHostArrayPointer_Cuda(sunvec_u)
+  up(1:neq) => FN_VGetHostArrayPointer_Cuda(sunvec_up)
 
   uu = y
   up = 0._rkind
