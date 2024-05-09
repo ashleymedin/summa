@@ -145,6 +145,8 @@ if(CMAKE_BUILD_TYPE MATCHES Cluster)
 
     # Packages that are required
     find_package(LAPACK REQUIRED)
+    find_package(CUDA REQUIRED)
+    set(CUDA_LIBRARIES PUBLIC ${CUDA_LIBRARIES})
 
     # Set include directories
     set(INCLUDES $ENV{EBROOTNETCDFMINFORTRAN}/include ${netCDF_INCLUDES} ${LAPACK_INCLUDES} ${CUDA_INCLUDES})
@@ -387,7 +389,7 @@ set(SOLVER_SUNDIALS
     ${ENGINE_DIR}/computJacobWithPrime.f90
     ${ENGINE_DIR}/computResidWithPrime.f90
     ${ENGINE_DIR}/eval8summaWithPrime.f90
-    ${ENGINE_DIR}/summaSolve4ida.cuf
+    ${ENGINE_DIR}/summaSolve4ida.f90
     ${ENGINE_DIR}/summaSolve4kinsol.f90)
 
 # Driver support modules
