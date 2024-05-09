@@ -147,8 +147,8 @@ if(CMAKE_BUILD_TYPE MATCHES Cluster)
     find_package(LAPACK REQUIRED)
 
     # Set include directories
-    set(INCLUDES $ENV{EBROOTNETCDFMINFORTRAN}/include ${netCDF_INCLUDES} ${LAPACK_INCLUDES})
-    set(LIBRARIES SUMMA_NOAHMP ${netCDF_LIBRARIES} ${LAPACK_LIBRARIES} -lnetcdff -lopenblas)
+    set(INCLUDES $ENV{EBROOTNETCDFMINFORTRAN}/include ${netCDF_INCLUDES} ${LAPACK_INCLUDES} ${CUDA_INCLUDES})
+    set(LIBRARIES SUMMA_NOAHMP ${netCDF_LIBRARIES} ${LAPACK_LIBRARIES} ${CUDA_LIBRARIES} -lnetcdff -lopenblas -lcuda)
 
     if(CMAKE_BUILD_TYPE MATCHES Sundials)
         link_directories(${DIR_SUNDIALS}/lib64)
