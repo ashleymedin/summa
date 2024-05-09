@@ -345,16 +345,16 @@ subroutine summaSolve4ida(&
     retval = FSUNContext_Create(SUN_COMM_NULL, sunctx)
     
     ! create serial vectors
-    sunvec_y => FN_VMake_Cuda(nState, stateVec, sunctx)
+    sunvec_y => FN_VMake(nState, stateVec, sunctx)
     if (.not. associated(sunvec_y)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
-    sunvec_yp => FN_VMake_Cuda(nState, stateVecPrime, sunctx)
+    sunvec_yp => FN_VMake(nState, stateVecPrime, sunctx)
     if (.not. associated(sunvec_yp)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
     
     ! Map each CUDA thread to a work unit: 128 threads per block and a user provided CUDA stream
     FSUNCudaThreadDirectExecPolicy thread_direct(128, stream)
     ! Reduction across indvidual thread blocks, second argument 0 means grid size will be chosen so that there is enough threads for one thread per work unit
     FSUNCudaBlockReduceExecPolicy block_reduce(128, 0, stream)
-    retval = FN_VSetKernelExecPolicy_Cuda(sunvec_y, thread_direct, block_reduce)
+    retval = FN_VSetKernelExecPolicy(sunvec_y, thread_direct, block_reduce)
 
     ! initialize solution vectors
     call setInitialCondition(nState, stateVecInit, sunvec_y, sunvec_yp)
@@ -654,8 +654,8 @@ subroutine setInitialCondition(neq, y, sunvec_u, sunvec_up)
   real(c_double), pointer :: up(:)
 
   ! get data arrays from SUNDIALS vectors
-  uu(1:neq) => FN_VGetArrayPointer_Cuda(sunvec_u)
-  up(1:neq) => FN_VGetArrayPointer_Cuda(sunvec_up)
+  uu(1:neq) => FN_VGetHostArrayPointer(sunvec_u)
+  up(1:neq) => FN_VGetHostArrayPointer(sunvec_up)
 
   uu = y
   up = 0._rkind
@@ -856,7 +856,7 @@ integer(c_int) function layerDisCont4ida(t, sunvec_u, sunvec_up, gout, user_data
 
 
   ! get data array from SUNDIALS vector
-  uu(1:nState) => FN_VGetArrayPointer_Cuda(sunvec_u)
+  uu(1:nState) => FN_VGetDeviceArrayPointer\(sunvec_u)
 
   ! initialize
   ind = 0
