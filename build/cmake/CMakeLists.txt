@@ -387,7 +387,6 @@ set(SOLVER_SUNDIALS
     ${ENGINE_DIR}/computJacobWithPrime.f90
     ${ENGINE_DIR}/computResidWithPrime.f90
     ${ENGINE_DIR}/eval8summaWithPrime.f90
-    ${ENGINE_DIR}/summaSolve4ida.f90
     ${ENGINE_DIR}/summaSolve4kinsol.f90)
 
 # Driver support modules
@@ -601,6 +600,7 @@ elseif(CMAKE_BUILD_TYPE MATCHES Actors)
 # For other cases, build SUMMA Shared Library and add the executable
 else()
     add_library(summa SHARED ${SUMMA_ALL})
+    cuda_add_library(summa SHARED ${ENGINE_DIR}/summaSolve4ida.cuf)
     target_compile_options(summa PRIVATE ${FLAGS_ALL})
 
     if(CMAKE_BUILD_TYPE MATCHES Sundials)
