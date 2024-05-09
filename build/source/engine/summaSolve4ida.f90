@@ -140,6 +140,7 @@ subroutine summaSolve4ida(&
                       err,message)               ! intent(out):   error control
 
   !======= Inclusions ===========
+  USE cudafor                                                 ! CUDA fortran interface
   USE fida_mod                                                ! Fortran interface to IDA
   USE fsundials_core_mod                                      ! Fortran interface to SUNContext
   USE fnvector_cuda_mod                                       ! Fortran interface to CUDAs N_Vector
