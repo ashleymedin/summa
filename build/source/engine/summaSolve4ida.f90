@@ -140,7 +140,7 @@ subroutine summaSolve4ida(&
                       err,message)               ! intent(out):   error control
 
   !======= Inclusions ===========
-  USE cudafor                                                 ! CUDA fortran interface
+  USE cuda_c_binding                                          ! CUDA fortran interface
   USE fida_mod                                                ! Fortran interface to IDA
   USE fsundials_core_mod                                      ! Fortran interface to SUNContext
   USE fnvector_cuda_mod                                       ! Fortran interface to CUDAs N_Vector
@@ -216,7 +216,8 @@ subroutine summaSolve4ida(&
   type(SUNMatrix),          pointer :: sunmat_A                               ! sundials matrix
   type(SUNLinearSolver),    pointer :: sunlinsol_LS                           ! sundials linear solver
   type(SUNNonLinearSolver), pointer :: sunnonlin_NLS                          ! sundials nonlinear solver
-  integer(cuda_stream_kind)         :: stream                                 ! CUDA stream
+  type(c_ptr)                       :: stream                                 ! CUDA 
+  type(c_int)                       :: cuerr                                  ! CUDA error code
   type(c_ptr)                       :: ida_mem                                ! IDA memory
   type(c_ptr)                       :: sunctx                                 ! SUNDIALS simulation context
   type(data4ida),           target  :: eqns_data                              ! IDA type
@@ -341,8 +342,8 @@ subroutine summaSolve4ida(&
     balance(:)                        = 0._rkind
     
     ! Create CUDA streams and SUNDIALS Context
-    retval = cudaStreamCreate(stream)
-    if( retval /= 0) then; err=20; message=trim(message)//'error in cudaStreamCreate '//cudaGetErrorString(cuerr); return; endif
+    cuerr = cudaStreamCreate(stream)
+    if( cudaGetErrorString(cuerr) /= "cudaSucess") then; err=20; message=trim(message)//'error in cudaStreamCreate '//cudaGetErrorString(cuerr); return; endif
     retval = FSUNContext_Create(SUN_COMM_NULL, sunctx)
     
     ! create serial vectors
@@ -624,8 +625,8 @@ subroutine summaSolve4ida(&
     call FN_VDestroy(sunvec_yp)
     retval = FSUNContext_Free(sunctx)
     if(retval /= 0)then; err=20; message=trim(message)//'unable to free the SUNDIALS context'; return; endif
-    retval = cudaStreamDestroy(stream)
-    if(retval /= 0)then; err=20; message=trim(message)//'unable to destroy the CUDA stream'; return; endif
+    cuerr = cudaStreamDestroy(stream)
+    if( cudaGetErrorString(cuerr) /= "cudaSucess"))then; err=20; message=trim(message)//'unable to destroy the CUDA stream'; return; endif
 
   end associate
 
@@ -954,6 +955,40 @@ subroutine getErrMessage(retval,message)
    if( retval==-27) message = 'IDA_BAD_DKY'         ! The vector argument where derivative should be stored is NULL.
 
 end subroutine getErrMessage
+
+! ----------------------------------------------------------------------------------------
+! Interface to cuda C subroutines
+! ----------------------------------------------------------------------------------------
+module cuda_c_interface
+
+  use iso_c_binding
+
+  interface
+
+     function cudaStreamCreate(pstream) result(ierr) bind(c, name="cudaStreamCreate")
+       use iso_c_binding
+       implicit none
+       type(c_ptr) :: pstream
+       integer(c_int) :: ierr
+     end function cudaStreamCreate
+
+     function cudaStreamDestroy(pstream) result(ierr) bind(c, name="cudaStreamDestroy")
+       use iso_c_binding
+       implicit none
+       type(c_ptr), value :: pstream
+       integer(c_int) :: ierr
+     end function cudaStreamDestroy
+     
+     function cudaGetErrorString(ierr) bind(c, name="cudaGetErrorString")
+       use iso_c_binding
+       implicit none
+       integer(c_int), value :: ierr
+       character(len=*) :: cudaGetErrorString
+     end function cudaGetErrorString
+    
+  end interface
+
+end module cuda_c_interface
 
 
 end module summaSolve4ida_module
