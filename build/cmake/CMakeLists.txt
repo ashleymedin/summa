@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
-enable_language(C Fortran)
+enable_language(C Fortran CUDA)
 set (CMAKE_Fortran_COMPILER $ENV{FC})  #for NexGen need, works for others
 #set (CMAKE_Fortran_COMPILER gfortran) # for others may work
 
@@ -608,7 +608,7 @@ else()
         target_link_libraries(summa PUBLIC ${LIBRARIES} ${LIB_SUNDIALS} SUMMA_NOAHMP SUMMA_COMM)
     else()
         target_include_directories(summa PUBLIC ${INCLUDES})
-	target_link_libraries(summa PUBLIC ${LIBRARIES} SUMMA_NOAHMP SUMMA_COMM ${FLAGS_ALL}) # added flags to the link step
+	    target_link_libraries(summa PUBLIC ${LIBRARIES} SUMMA_NOAHMP SUMMA_COMM ${FLAGS_ALL}) # added flags to the link step
     endif()
 
     add_executable(${EXEC_NAME} ${MAIN_SUMMA})
