@@ -348,7 +348,7 @@ subroutine summaSolve4ida(&
     
     ! Create CUDA streams and SUNDIALS Context
     cuerr = cudaStreamCreate(stream)
-    if( cudaGetErrorString(cuerr) /= "cudaSucess") then; err=20; message=trim(message)//'error in cudaStreamCreate '//cudaGetErrorString(cuerr); return; endif
+    if(c_f_string(cudaGetErrorString(cuerr)) /= "cudaSucess") then; err=20; message=trim(message)//'error in cudaStreamCreate '//cudaGetErrorString(cuerr); return; endif
     retval = FSUNContext_Create(SUN_COMM_NULL, sunctx)
     
     ! create serial vectors
@@ -358,7 +358,7 @@ subroutine summaSolve4ida(&
     if (.not. associated(sunvec_yp)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
     
     ! Map each CUDA thread to a work unit: 128 threads per block and a user provided CUDA stream
-    t!hread_direct = SUNCudaThreadDirectExecPolicy(128, stream)
+    !thread_direct = SUNCudaThreadDirectExecPolicy(128, stream)
     ! Reduction across indvidual thread blocks, second argument 0 means grid size will be chosen so that there is enough threads for one thread per work unit
     !block_reduce = SUNCudaBlockReduceExecPolicy(128, 0, stream)
     retval = FN_VSetKernelExecPolicy(sunvec_y) !, thread_direct, block_reduce)
@@ -631,7 +631,7 @@ subroutine summaSolve4ida(&
     retval = FSUNContext_Free(sunctx)
     if(retval /= 0)then; err=20; message=trim(message)//'unable to free the SUNDIALS context'; return; endif
     cuerr = cudaStreamDestroy(stream)
-    if( cudaGetErrorString(cuerr) /= "cudaSucess"))then; err=20; message=trim(message)//'unable to destroy the CUDA stream'; return; endif
+    if(c_f_string(cudaGetErrorString(cuerr)) /= "cudaSucess") then; err=20; message=trim(message)//'unable to destroy the CUDA stream'; return; endif
 
   end associate
 
@@ -863,7 +863,7 @@ integer(c_int) function layerDisCont4ida(t, sunvec_u, sunvec_up, gout, user_data
 
 
   ! get data array from SUNDIALS vector
-  uu(1:nState) => FN_VGetDeviceArrayPointer\(sunvec_u)
+  uu(1:nState) => FN_VGetDeviceArrayPointer(sunvec_u)
 
   ! initialize
   ind = 0
@@ -968,21 +968,19 @@ integer(c_int) function cudaStreamCreate(pstream) result(ierr) bind(c, name="cud
   use iso_c_binding
   implicit none
   type(c_ptr) :: pstream
-  integer(c_int) :: ierr
 end function cudaStreamCreate
 
 integer(c_int) function cudaStreamDestroy(pstream) result(ierr) bind(c, name="cudaStreamDestroy")
   use iso_c_binding
   implicit none
   type(c_ptr), value :: pstream
-  integer(c_int) :: ierr
 end function cudaStreamDestroy
      
 function cudaGetErrorString(ierr) result(estring) bind(c, name="cudaGetErrorString")
   use iso_c_binding
   implicit none
   integer(c_int) :: ierr
-  character(len=*) :: estring
+  type(c_ptr) :: estring
 end function cudaGetErrorString
 
 function SUNCudaThreadDirectExecPolicy(blockDim, pstream) result(policy) bind(c, name="SUNCudaBlockReduceExecPolicy")
