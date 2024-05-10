@@ -215,8 +215,9 @@ subroutine summaSolve4ida(&
   type(SUNMatrix),          pointer :: sunmat_A                               ! sundials matrix
   type(SUNLinearSolver),    pointer :: sunlinsol_LS                           ! sundials linear solver
   type(SUNNonLinearSolver), pointer :: sunnonlin_NLS                          ! sundials nonlinear solver
+  type(SUNCudaThreadDirectExecPolicy),pointer :: thread_direct                ! thread direct execution policy
+  type(SUNCudaBlockReduceExecPolicy), pointer :: block_reduce                 ! block reduce execution policy
   type(c_ptr)                       :: stream                                 ! CUDA 
-  type(c_int)                       :: cuerr                                  ! CUDA error code
   type(c_ptr)                       :: ida_mem                                ! IDA memory
   type(c_ptr)                       :: sunctx                                 ! SUNDIALS simulation context
   type(data4ida),           target  :: eqns_data                              ! IDA type
@@ -352,9 +353,9 @@ subroutine summaSolve4ida(&
     if (.not. associated(sunvec_yp)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
     
     ! Map each CUDA thread to a work unit: 128 threads per block and a user provided CUDA stream
-    FSUNCudaThreadDirectExecPolicy thread_direct(128, stream)
+    thread_direct = SUNCudaThreadDirectExecPolicy(128, stream)
     ! Reduction across indvidual thread blocks, second argument 0 means grid size will be chosen so that there is enough threads for one thread per work unit
-    FSUNCudaBlockReduceExecPolicy block_reduce(128, 0, stream)
+    block_reduce = SUNCudaBlockReduceExecPolicy(128, 0, stream)
     retval = FN_VSetKernelExecPolicy(sunvec_y, thread_direct, block_reduce)
 
     ! initialize solution vectors
@@ -968,16 +969,33 @@ end function cudaStreamCreate
 integer(c_int) function cudaStreamDestroy(pstream) result(ierr) bind(c, name="cudaStreamDestroy")
   use iso_c_binding
   implicit none
-  type(c_ptr), value :: pstream
+  type(c_ptr) :: pstream
   integer(c_int) :: ierr
 end function cudaStreamDestroy
      
-integer(c_int) function cudaGetErrorString(ierr) bind(c, name="cudaGetErrorString")
+function cudaGetErrorString(ierr) result(estring) bind(c, name="cudaGetErrorString")
   use iso_c_binding
   implicit none
-  integer(c_int), value :: ierr
-  character(len=*) :: cudaGetErrorString
+  integer(c_int) :: ierr
+  character(len=*) :: estring
 end function cudaGetErrorString
+
+function SUNCudaBlockReduceExecPolicy(blockDim, pstream) result(policy) bind(c, name="SUNCudaBlockReduceExecPolicy")
+  use iso_c_binding
+  implicit none
+  integer(c_int), value :: blockDim
+  type(c_ptr) :: pstream
+  integer(c_int) :: policy
+end function SUNCudaBlockReduceExecPolicy
+
+function SUNCudaBlockReduceExecPolicy(blockDim, gridDim, pstream) result(policy) bind(c, name="SUNCudaBlockReduceExecPolicy")
+  use iso_c_binding
+  implicit none
+  integer(c_int) :: blockDim
+  integer(c_int) :: gridDim
+  type(c_ptr) :: pstream
+  integer(c_int) :: policy
+end function SUNCudaBlockReduceExecPolicy
 
 
 end module summaSolve4ida_module
