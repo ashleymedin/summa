@@ -361,7 +361,7 @@ subroutine summaSolve4ida(&
     !thread_direct = SUNCudaThreadDirectExecPolicy(128, stream)
     ! Reduction across indvidual thread blocks, second argument 0 means grid size will be chosen so that there is enough threads for one thread per work unit
     !block_reduce = SUNCudaBlockReduceExecPolicy(128, 0, stream)
-    retval = FN_VSetKernelExecPolicy(sunvec_y) !, thread_direct, block_reduce)
+    retval = FN_VSetKernelExecPolicy_Cuda(sunvec_y) !, thread_direct, block_reduce)
 
     ! initialize solution vectors
     call setInitialCondition(nState, stateVecInit, sunvec_y, sunvec_yp)
@@ -482,7 +482,7 @@ subroutine summaSolve4ida(&
         exit
       end if
       
-      stateVec(1:eqns_data%nState)  => FN_VGetHostArrayPointer(sunvec_y)
+      stateVec(1:eqns_data%nState)  => FN_VGetHostArrayPointer_Cuda(sunvec_y)
        
       tooMuchMelt = .false.
       ! loop through non-missing energy state variables in the snow domain to see if need to merge
@@ -593,8 +593,8 @@ subroutine summaSolve4ida(&
     
     enddo ! while loop on one_step mode until time dt_cur
     !****************************** End of Main Solver ***************************************
-    
-    stateVecPrime(1:eqns_data%nState) => FN_VGetHostArrayPointer(sunvec_yp)
+
+    stateVecPrime(1:eqns_data%nState) => FN_VGetHostArrayPointer_Cuda(sunvec_yp)
 
     if(idaSucceeds)then
       ! copy to output data
