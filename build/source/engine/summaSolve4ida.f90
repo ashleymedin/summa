@@ -140,7 +140,6 @@ subroutine summaSolve4ida(&
                       err,message)               ! intent(out):   error control
 
   !======= Inclusions ===========
-  USE cuda_c_binding                                          ! CUDA fortran interface
   USE fida_mod                                                ! Fortran interface to IDA
   USE fsundials_core_mod                                      ! Fortran interface to SUNContext
   USE fnvector_cuda_mod                                       ! Fortran interface to CUDAs N_Vector
@@ -959,36 +958,26 @@ end subroutine getErrMessage
 ! ----------------------------------------------------------------------------------------
 ! Interface to cuda C subroutines
 ! ----------------------------------------------------------------------------------------
-module cuda_c_interface
-
+integer(c_int) function cudaStreamCreate(pstream) result(ierr) bind(c, name="cudaStreamCreate")
   use iso_c_binding
+  implicit none
+  type(c_ptr) :: pstream
+  integer(c_int) :: ierr
+end function cudaStreamCreate
 
-  interface
-
-     function cudaStreamCreate(pstream) result(ierr) bind(c, name="cudaStreamCreate")
-       use iso_c_binding
-       implicit none
-       type(c_ptr) :: pstream
-       integer(c_int) :: ierr
-     end function cudaStreamCreate
-
-     function cudaStreamDestroy(pstream) result(ierr) bind(c, name="cudaStreamDestroy")
-       use iso_c_binding
-       implicit none
-       type(c_ptr), value :: pstream
-       integer(c_int) :: ierr
-     end function cudaStreamDestroy
+integer(c_int) function cudaStreamDestroy(pstream) result(ierr) bind(c, name="cudaStreamDestroy")
+  use iso_c_binding
+  implicit none
+  type(c_ptr), value :: pstream
+  integer(c_int) :: ierr
+end function cudaStreamDestroy
      
-     function cudaGetErrorString(ierr) bind(c, name="cudaGetErrorString")
-       use iso_c_binding
-       implicit none
-       integer(c_int), value :: ierr
-       character(len=*) :: cudaGetErrorString
-     end function cudaGetErrorString
-    
-  end interface
-
-end module cuda_c_interface
+integer(c_int) function cudaGetErrorString(ierr) bind(c, name="cudaGetErrorString")
+  use iso_c_binding
+  implicit none
+  integer(c_int), value :: ierr
+  character(len=*) :: cudaGetErrorString
+end function cudaGetErrorString
 
 
 end module summaSolve4ida_module
