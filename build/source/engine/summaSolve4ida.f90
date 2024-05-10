@@ -86,6 +86,11 @@ USE mDecisions_module,only:       &
  private::find_rootdir
  public::layerDisCont4ida
  private::getErrMessage
+ private::cudaStreamCreate
+ private::cudaStreamDestroy
+ private::cudaGetErrorString
+ private::SUNCudaThreadDirectExecPolicy
+ private::SUNCudaBlockReduceExecPolicy
  public::summaSolve4ida
 
 contains
@@ -969,7 +974,7 @@ end function cudaStreamCreate
 integer(c_int) function cudaStreamDestroy(pstream) result(ierr) bind(c, name="cudaStreamDestroy")
   use iso_c_binding
   implicit none
-  type(c_ptr) :: pstream
+  type(c_ptr), value :: pstream
   integer(c_int) :: ierr
 end function cudaStreamDestroy
      
@@ -980,13 +985,13 @@ function cudaGetErrorString(ierr) result(estring) bind(c, name="cudaGetErrorStri
   character(len=*) :: estring
 end function cudaGetErrorString
 
-function SUNCudaBlockReduceExecPolicy(blockDim, pstream) result(policy) bind(c, name="SUNCudaBlockReduceExecPolicy")
+function SUNCudaThreadDirectExecPolicy(blockDim, pstream) result(policy) bind(c, name="SUNCudaBlockReduceExecPolicy")
   use iso_c_binding
   implicit none
-  integer(c_int), value :: blockDim
+  integer(c_int) :: blockDim
   type(c_ptr) :: pstream
   integer(c_int) :: policy
-end function SUNCudaBlockReduceExecPolicy
+end function SUNCudaThreadDirectExecPolicy
 
 function SUNCudaBlockReduceExecPolicy(blockDim, gridDim, pstream) result(policy) bind(c, name="SUNCudaBlockReduceExecPolicy")
   use iso_c_binding
