@@ -88,7 +88,6 @@ USE mDecisions_module,only:       &
  private::getErrMessage
  private::cudaStreamCreate
  private::cudaStreamDestroy
- private::cudaGetErrorString
  private::SUNCudaThreadDirectExecPolicy
  private::SUNCudaBlockReduceExecPolicy
  public::summaSolve4ida
@@ -222,6 +221,7 @@ subroutine summaSolve4ida(&
   type(SUNNonLinearSolver), pointer :: sunnonlin_NLS                          ! sundials nonlinear solver
   !type(SUNCudaThreadDirectExecPolicy),pointer :: thread_direct                ! thread direct execution policy
   !type(SUNCudaBlockReduceExecPolicy), pointer :: block_reduce                 ! block reduce execution policy
+  integer(c_int)                    :: cuerr                                  ! CUDA error code
   type(c_ptr)                       :: stream                                 ! CUDA 
   type(c_ptr)                       :: ida_mem                                ! IDA memory
   type(c_ptr)                       :: sunctx                                 ! SUNDIALS simulation context
@@ -348,7 +348,7 @@ subroutine summaSolve4ida(&
     
     ! Create CUDA streams and SUNDIALS Context
     cuerr = cudaStreamCreate(stream)
-    if(c_f_string(cudaGetErrorString(cuerr)) /= "cudaSucess") then; err=20; message=trim(message)//'error in cudaStreamCreate '//cudaGetErrorString(cuerr); return; endif
+    if(cuerr /=0) then; err=20; message=trim(message)//'error in cudaStreamCreate'; return; endif
     retval = FSUNContext_Create(SUN_COMM_NULL, sunctx)
     
     ! create serial vectors
@@ -631,7 +631,7 @@ subroutine summaSolve4ida(&
     retval = FSUNContext_Free(sunctx)
     if(retval /= 0)then; err=20; message=trim(message)//'unable to free the SUNDIALS context'; return; endif
     cuerr = cudaStreamDestroy(stream)
-    if(c_f_string(cudaGetErrorString(cuerr)) /= "cudaSucess") then; err=20; message=trim(message)//'unable to destroy the CUDA stream'; return; endif
+    if(cuerr /= 0) then; err=20; message=trim(message)//'unable to destroy the CUDA stream'; return; endif
 
   end associate
 
@@ -975,15 +975,8 @@ integer(c_int) function cudaStreamDestroy(pstream) result(ierr) bind(c, name="cu
   implicit none
   type(c_ptr), value :: pstream
 end function cudaStreamDestroy
-     
-function cudaGetErrorString(ierr) result(estring) bind(c, name="cudaGetErrorString")
-  use iso_c_binding
-  implicit none
-  integer(c_int) :: ierr
-  type(c_ptr) :: estring
-end function cudaGetErrorString
 
-function SUNCudaThreadDirectExecPolicy(blockDim, pstream) result(policy) bind(c, name="SUNCudaBlockReduceExecPolicy")
+function SUNCudaThreadDirectExecPolicy(blockDim, pstream) result(policy) bind(c, name="SUNCudaThreadDirectExecPolicy")
   use iso_c_binding
   implicit none
   integer(c_int) :: blockDim
