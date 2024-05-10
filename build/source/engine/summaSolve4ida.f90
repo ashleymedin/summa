@@ -352,9 +352,9 @@ subroutine summaSolve4ida(&
     retval = FSUNContext_Create(SUN_COMM_NULL, sunctx)
     
     ! create serial vectors
-    sunvec_y => FN_VMake(nState, stateVec, sunctx)
+    sunvec_y => FN_VNew_Cuda(nState, sunctx)
     if (.not. associated(sunvec_y)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
-    sunvec_yp => FN_VMake(nState, stateVecPrime, sunctx)
+    sunvec_yp => FN_VNew_Cuda(nState, sunctx)
     if (.not. associated(sunvec_yp)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
     
     ! Map each CUDA thread to a work unit: 128 threads per block and a user provided CUDA stream
@@ -481,7 +481,9 @@ subroutine summaSolve4ida(&
         !if(retvalr==-1) err = -20 ! max iterations failure, exit and reduce the data window time in varSubStep
         exit
       end if
-    
+      
+      stateVec(1:eqns_data%nState)  => FN_VGetHostArrayPointer(sunvec_y)
+       
       tooMuchMelt = .false.
       ! loop through non-missing energy state variables in the snow domain to see if need to merge
       do concurrent (i=1:nSnow,ixSnowOnlyNrg(i)/=integerMissing)
@@ -592,6 +594,8 @@ subroutine summaSolve4ida(&
     enddo ! while loop on one_step mode until time dt_cur
     !****************************** End of Main Solver ***************************************
     
+    stateVecPrime(1:eqns_data%nState) => FN_VGetHostArrayPointer(sunvec_yp)
+
     if(idaSucceeds)then
       ! copy to output data
       diag_data     = eqns_data%diag_data
