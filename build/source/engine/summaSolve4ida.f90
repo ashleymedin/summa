@@ -219,8 +219,8 @@ subroutine summaSolve4ida(&
   type(SUNMatrix),          pointer :: sunmat_A                               ! sundials matrix
   type(SUNLinearSolver),    pointer :: sunlinsol_LS                           ! sundials linear solver
   type(SUNNonLinearSolver), pointer :: sunnonlin_NLS                          ! sundials nonlinear solver
-  type(SWIGTYPE_p_SUNCudaExecPolicy),pointer :: thread_direct                ! thread direct execution policy
-  type(SWIGTYPE_p_SUNCudaExecPolicy), pointer :: block_reduce                 ! block reduce execution policy
+  type(SUNCudaExecPolicy),  pointer :: thread_direct                          ! thread direct execution policy
+  type(SUNCudaExecPolicy),  pointer :: block_reduce                           ! block reduce execution policy
   integer(c_int)                    :: cuerr                                  ! CUDA error code
   type(c_ptr)                       :: stream                                 ! CUDA 
   type(c_ptr)                       :: ida_mem                                ! IDA memory
@@ -985,7 +985,7 @@ function SUNCudaThreadDirectExecPolicy(blockDim, pstream) result(policy) bind(c,
   implicit none
   integer(c_int) :: blockDim
   type(c_ptr) :: pstream
-  type(SWIGTYPE_p_SUNCudaExecPolicy) :: policy
+  type(SUNCudaExecPolicy) :: policy
 end function SUNCudaThreadDirectExecPolicy
 
 function SUNCudaBlockReduceExecPolicy(blockDim, gridDim, pstream) result(policy) bind(c, name="SUNCudaBlockReduceExecPolicy")
@@ -994,7 +994,7 @@ function SUNCudaBlockReduceExecPolicy(blockDim, gridDim, pstream) result(policy)
   integer(c_int) :: blockDim
   integer(c_int) :: gridDim
   type(c_ptr) :: pstream
-  type(SWIGTYPE_p_SUNCudaExecPolicy) :: policy
+  type(SUNCudaExecPolicy) :: policy
 end function SUNCudaBlockReduceExecPolicy
 
 
