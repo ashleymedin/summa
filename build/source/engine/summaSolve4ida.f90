@@ -146,6 +146,7 @@ subroutine summaSolve4ida(&
   !======= Inclusions ===========
   USE fida_mod                                                ! Fortran interface to IDA
   USE fsundials_core_mod                                      ! Fortran interface to SUNContext
+  USE fsundials_cuda_policies_mod                             ! Fortran interface to CUDA execution policies
   USE fnvector_cuda_mod                                       ! Fortran interface to CUDAs N_Vector
   USE fsunmatrix_magmadense_mod                               ! Fortran interface to MAGMA dense SUNMatrix
   USE fsunlinsol_magmadense_mod                               ! Fortran interface to MAGMA dense SUNLinearSolver
@@ -219,8 +220,8 @@ subroutine summaSolve4ida(&
   type(SUNMatrix),          pointer :: sunmat_A                               ! sundials matrix
   type(SUNLinearSolver),    pointer :: sunlinsol_LS                           ! sundials linear solver
   type(SUNNonLinearSolver), pointer :: sunnonlin_NLS                          ! sundials nonlinear solver
-  type(SUNCudaExecPolicy),  pointer :: thread_direct                          ! thread direct execution policy
-  type(SUNCudaExecPolicy),  pointer :: block_reduce                           ! block reduce execution policy
+  type(ExecPolicy),         pointer :: thread_direct                          ! thread direct execution policy
+  type(ExecPolicy),         pointer :: block_reduce                           ! block reduce execution policy
   integer(c_int)                    :: cuerr                                  ! CUDA error code
   type(c_ptr)                       :: stream                                 ! CUDA 
   type(c_ptr)                       :: ida_mem                                ! IDA memory
@@ -358,9 +359,9 @@ subroutine summaSolve4ida(&
     if (.not. associated(sunvec_yp)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
     
     ! Map each CUDA thread to a work unit: 128 threads per block and a user provided CUDA stream
-    thread_direct = SUNCudaThreadDirectExecPolicy(128, stream)
+    thread_direct = ThreadDirectExecPolicy(128, stream)
     ! Reduction across indvidual thread blocks, second argument 0 means grid size will be chosen so that there is enough threads for one thread per work unit
-    block_reduce = SUNCudaBlockReduceExecPolicy(128, 0, stream)
+    block_reduce = BlockReduceExecPolicy(128, 0, stream)
     retval = FN_VSetKernelExecPolicy_Cuda(sunvec_y, thread_direct, block_reduce)
 
     ! initialize solution vectors
@@ -979,23 +980,6 @@ integer(c_int) function cudaStreamDestroy(pstream) result(ierr) bind(c, name="cu
   implicit none
   type(c_ptr), value :: pstream
 end function cudaStreamDestroy
-
-function SUNCudaThreadDirectExecPolicy(blockDim, pstream) result(policy) bind(c, name="SUNCudaThreadDirectExecPolicy")
-  use iso_c_binding
-  implicit none
-  integer(c_int) :: blockDim
-  type(c_ptr) :: pstream
-  type(SUNCudaExecPolicy) :: policy
-end function SUNCudaThreadDirectExecPolicy
-
-function SUNCudaBlockReduceExecPolicy(blockDim, gridDim, pstream) result(policy) bind(c, name="SUNCudaBlockReduceExecPolicy")
-  use iso_c_binding
-  implicit none
-  integer(c_int) :: blockDim
-  integer(c_int) :: gridDim
-  type(c_ptr) :: pstream
-  type(SUNCudaExecPolicy) :: policy
-end function SUNCudaBlockReduceExecPolicy
 
 
 end module summaSolve4ida_module
