@@ -745,9 +745,9 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
   call c_f_pointer(user_data, eqns_data)
 
   ! get data arrays from SUNDIALS vectors
-  stateVec(1:eqns_data%nState)  => FN_VGetDeviceArrayPointer(sunvec_y)
-  stateVecPrime(1:eqns_data%nState) => FN_VGetDeviceArrayPointer(sunvec_yp)
-  rVec(1:eqns_data%nState)  => FN_VGetDeviceArrayPointer(sunvec_r)
+  stateVec(1:eqns_data%nState)  => FN_VGetDeviceArrayPointer_Cuda(sunvec_y)
+  stateVecPrime(1:eqns_data%nState) => FN_VGetDeviceArrayPointer_Cuda(sunvec_yp)
+  rVec(1:eqns_data%nState)  => FN_VGetDeviceArrayPointer_Cuda(sunvec_r)
 
   ! compute the flux and the residual vector for a given state vector
   call eval8summaWithPrime(&

@@ -88,8 +88,6 @@ USE mDecisions_module,only:       &
  private::getErrMessage
  private::cudaStreamCreate
  private::cudaStreamDestroy
- private::SUNCudaThreadDirectExecPolicy
- private::SUNCudaBlockReduceExecPolicy
  public::summaSolve4ida
 
 contains
@@ -214,42 +212,42 @@ subroutine summaSolve4ida(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! local variables
   ! --------------------------------------------------------------------------------------------------------------------------------
-  type(N_Vector),           pointer :: sunvec_y                               ! sundials solution vector
-  type(N_Vector),           pointer :: sunvec_yp                              ! sundials derivative vector
-  type(N_Vector),           pointer :: sunvec_av                              ! sundials tolerance vector
-  type(SUNMatrix),          pointer :: sunmat_A                               ! sundials matrix
-  type(SUNLinearSolver),    pointer :: sunlinsol_LS                           ! sundials linear solver
-  type(SUNNonLinearSolver), pointer :: sunnonlin_NLS                          ! sundials nonlinear solver
-  type(ExecPolicy),         pointer :: thread_direct                          ! thread direct execution policy
-  type(ExecPolicy),         pointer :: block_reduce                           ! block reduce execution policy
-  integer(c_int)                    :: cuerr                                  ! CUDA error code
-  type(c_ptr)                       :: stream                                 ! CUDA 
-  type(c_ptr)                       :: ida_mem                                ! IDA memory
-  type(c_ptr)                       :: sunctx                                 ! SUNDIALS simulation context
-  type(data4ida),           target  :: eqns_data                              ! IDA type
-  integer(i4b)                      :: retval, retvalr                        ! return value
-  logical(lgt)                      :: feasible                               ! feasibility flag
-  real(qp)                          :: t0                                     ! starting time
-  real(qp)                          :: dt_last(1)                             ! last time step
-  real(qp)                          :: dt_diff                                ! difference from previous timestep
-  integer(c_long)                   :: mu, lu                                 ! in banded matrix mode in SUNDIALS type
-  integer(c_long)                   :: nState                                 ! total number of state variables in SUNDIALS type
-  integer(i4b)                      :: iVar, i                                ! indices
-  integer(i4b)                      :: nRoot                                  ! total number of roots (events) to find
-  real(qp)                          :: tret(1)                                ! time in data window
-  real(qp)                          :: tretPrev                               ! previous time in data window
-  integer(i4b),allocatable          :: rootsfound(:)                          ! crossing direction of discontinuities
-  integer(i4b),allocatable          :: rootdir(:)                             ! forced crossing direction of discontinuities
-  logical(lgt)                      :: tinystep                               ! if step goes below small size
-  type(var_dlength)                 :: flux_prev                              ! previous model fluxes for a local HRU
-  character(LEN=256)                :: cmessage                               ! error message of downwind routine
-  real(rkind),allocatable           :: mLayerMatricHeadPrimePrev(:)           ! previous derivative value for total water matric potential (m s-1)
-  real(rkind),allocatable           :: resVecPrev(:)                          ! previous value for residuals
-  real(rkind),allocatable           :: dCompress_dPsiPrev(:)                  ! previous derivative value soil compression
+  type(N_Vector),                     pointer :: sunvec_y                       ! sundials solution vector
+  type(N_Vector),                     pointer :: sunvec_yp                      ! sundials derivative vector
+  type(N_Vector),                     pointer :: sunvec_av                      ! sundials tolerance vector
+  type(SUNMatrix),                    pointer :: sunmat_A                       ! sundials matrix
+  type(SUNLinearSolver),              pointer :: sunlinsol_LS                   ! sundials linear solver
+  type(SUNNonLinearSolver),           pointer :: sunnonlin_NLS                  ! sundials nonlinear solver
+  type(SUNCudaThreadDirectExecPolicy),pointer :: thread_direct                  ! thread direct execution policy
+  type(SUNCudaBlockReduceExecPolicy), pointer :: block_reduce                   ! block reduce execution policy
+  integer(c_int)                              :: cuerr                          ! CUDA error code
+  type(cudastream_t)                          :: stream                         ! CUDA stream
+  type(c_ptr)                                 :: ida_mem                        ! IDA memory
+  type(c_ptr)                                 :: sunctx                         ! SUNDIALS simulation context
+  type(data4ida),target                       :: eqns_data                      ! IDA type
+  integer(i4b)                                :: retval, retvalr                ! return value
+  logical(lgt)                                :: feasible                       ! feasibility flag
+  real(qp)                                    :: t0                             ! starting time
+  real(qp)                                    :: dt_last(1)                     ! last time step
+  real(qp)                                    :: dt_diff                        ! difference from previous timestep
+  integer(c_long)                             :: mu, lu                         ! in banded matrix mode in SUNDIALS type
+  integer(c_long)                             :: nState                         ! total number of state variables in SUNDIALS type
+  integer(i4b)                                :: iVar, i                        ! indices
+  integer(i4b)                                :: nRoot                          ! total number of roots (events) to find
+  real(qp)                                    :: tret(1)                        ! time in data window
+  real(qp)                                    :: tretPrev                       ! previous time in data window
+  integer(i4b),allocatable                    :: rootsfound(:)                  ! crossing direction of discontinuities
+  integer(i4b),allocatable                    :: rootdir(:)                     ! forced crossing direction of discontinuities
+  logical(lgt)                                :: tinystep                       ! if step goes below small size
+  type(var_dlength)                           :: flux_prev                      ! previous model fluxes for a local HRU
+  character(LEN=256)                          :: cmessage                       ! error message of downwind routine
+  real(rkind),allocatable                     :: mLayerMatricHeadPrimePrev(:)   ! previous derivative value for total water matric potential (m s-1)
+  real(rkind),allocatable                     :: resVecPrev(:)                  ! previous value for residuals
+  real(rkind),allocatable                     :: dCompress_dPsiPrev(:)          ! previous derivative value soil compression
   ! flags
-  logical(lgt)                      :: use_fdJac                              ! flag to use finite difference Jacobian, controlled by decision fDerivMeth
-  logical(lgt),parameter            :: offErrWarnMessage = .true.             ! flag to turn IDA warnings off, default true
-  logical(lgt),parameter            :: detect_events = .true.                 ! flag to do event detection and restarting, default true
+  logical(lgt)                                :: use_fdJac                      ! flag to use finite difference Jacobian, controlled by decision fDerivMeth
+  logical(lgt),parameter                      :: offErrWarnMessage = .true.     ! flag to turn IDA warnings off, default true
+  logical(lgt),parameter                      :: detect_events = .true.         ! flag to do event detection and restarting, default true
   ! -----------------------------------------------------------------------------------------------------
   ! link to the necessary variables
   associate(&
@@ -352,16 +350,19 @@ subroutine summaSolve4ida(&
     if(cuerr /=0) then; err=20; message=trim(message)//'error in cudaStreamCreate'; return; endif
     retval = FSUNContext_Create(SUN_COMM_NULL, sunctx)
     
-    ! create serial vectors
+    ! create Cuda vectors
     sunvec_y => FN_VNew_Cuda(nState, sunctx)
     if (.not. associated(sunvec_y)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
     sunvec_yp => FN_VNew_Cuda(nState, sunctx)
     if (.not. associated(sunvec_yp)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
     
     ! Map each CUDA thread to a work unit: 128 threads per block and a user provided CUDA stream
-    thread_direct = ThreadDirectExecPolicy(128, stream)
+    thread_direct%blockDim_ = 128
+    thread_direct%stream = stream
     ! Reduction across indvidual thread blocks, second argument 0 means grid size will be chosen so that there is enough threads for one thread per work unit
-    block_reduce = BlockReduceExecPolicy(128, 0, stream)
+    block_reduce%blockDim_ = 128
+    block_reduce%gridDim_ = 0
+    block_reduce%stream = stream
     retval = FN_VSetKernelExecPolicy_Cuda(sunvec_y, thread_direct, block_reduce)
 
     ! initialize solution vectors
@@ -868,7 +869,7 @@ integer(c_int) function layerDisCont4ida(t, sunvec_u, sunvec_up, gout, user_data
 
 
   ! get data array from SUNDIALS vector
-  uu(1:nState) => FN_VGetDeviceArrayPointer(sunvec_u)
+  uu(1:nState) => FN_VGetDeviceArrayPointer_Cuda(sunvec_u)
 
   ! initialize
   ind = 0
@@ -969,16 +970,18 @@ end subroutine getErrMessage
 ! ----------------------------------------------------------------------------------------
 ! Interface to cuda C subroutines
 ! ----------------------------------------------------------------------------------------
-integer(c_int) function cudaStreamCreate(pstream) result(ierr) bind(c, name="cudaStreamCreate")
+integer(c_int) function cudaStreamCreate(stream) result(ierr) bind(c, name="cudaStreamCreate")
   use iso_c_binding
+  use fsundials_cuda_policies_mod, only: cudaStream_t
   implicit none
-  type(c_ptr) :: pstream
+  type(cudastream_t) :: stream
 end function cudaStreamCreate
 
-integer(c_int) function cudaStreamDestroy(pstream) result(ierr) bind(c, name="cudaStreamDestroy")
+integer(c_int) function cudaStreamDestroy(stream) result(ierr) bind(c, name="cudaStreamDestroy")
   use iso_c_binding
+  use fsundials_cuda_policies_mod, only: cudaStream_t
   implicit none
-  type(c_ptr), value :: pstream
+  type(cudastream_t), value :: stream
 end function cudaStreamDestroy
 
 
