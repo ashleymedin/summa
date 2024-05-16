@@ -220,6 +220,8 @@ subroutine summaSolve4ida(&
   type(SUNNonLinearSolver),           pointer :: sunnonlin_NLS                  ! sundials nonlinear solver
   type(SUNCudaThreadDirectExecPolicy),pointer :: thread_direct                  ! thread direct execution policy
   type(SUNCudaBlockReduceExecPolicy), pointer :: block_reduce                   ! block reduce execution policy
+  type(SUNMemoryHelper),              target  :: mem_helper                     ! sundials memory helper
+  type(SUNMemoryType),                target  :: mem_type                       ! sundials memory type
   integer(c_int)                              :: cuerr                          ! CUDA error code
   type(cudastream_t)                          :: stream                         ! CUDA stream
   type(c_ptr)                                 :: ida_mem                        ! IDA memory
@@ -355,6 +357,11 @@ subroutine summaSolve4ida(&
     if (.not. associated(sunvec_y)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
     sunvec_yp => FN_VNew_Cuda(nState, sunctx)
     if (.not. associated(sunvec_yp)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
+
+    ! create SUNDIALS memory helper
+    mem_helper = FSUNMemoryHelper_Cuda(sunctx)
+    if (.not. associated(mem_helper)) then; err=20; message=trim(message)//'mem_helper = NULL'; return; endif
+    mem_type = SUNMEMTYPE_DEVICE ! memory is allocated with a call to cudaMalloc
     
     ! Map each CUDA thread to a work unit: 128 threads per block and a user provided CUDA stream
     thread_direct%blockDim_ = 128
@@ -417,7 +424,7 @@ subroutine summaSolve4ida(&
     
       case(ixFullMatrix)
         ! Create dense SUNMatrix for use in linear solves
-        sunmat_A => FSUNMatrix_MagmaDense(nState, nState, sunctx)
+        sunmat_A => FSUNMatrix_MagmaDense(nState, nState, mem_type, mem_helper, NULL, sunctx)
         if (.not. associated(sunmat_A)) then; err=20; message=trim(message)//'sunmat = NULL'; return; endif
     
         ! Create dense SUNLinearSolver object
