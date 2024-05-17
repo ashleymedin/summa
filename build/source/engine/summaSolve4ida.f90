@@ -162,52 +162,52 @@ subroutine summaSolve4ida(&
   ! calling variables
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! input: model control
-  real(rkind),intent(in)          :: dt_cur                 ! current stepsize
-  real(qp),intent(in)             :: dt                     ! data time step
-  real(qp),intent(inout)          :: atol(:)                ! vector of absolute tolerances
-  real(qp),intent(inout)          :: rtol(:)                ! vector of relative tolerances
-  integer(i4b),intent(in)         :: nSnow                  ! number of snow layers
-  integer(i4b),intent(in)         :: nSoil                  ! number of soil layers
-  integer(i4b),intent(in)         :: nLayers                ! total number of layers
-  integer(i4b),intent(in)         :: nStat                  ! total number of state variables
-  integer(i4b),intent(in)         :: ixMatrix               ! form of matrix (dense or banded)
-  logical(lgt),intent(in)         :: firstSubStep           ! flag to indicate if we are processing the first sub-step
-  logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
-  logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
-  logical(lgt),intent(in)         :: computMassBalance      ! flag to compute mass balance
-  logical(lgt),intent(in)         :: computNrgBalance       ! flag to compute energy balance
+  real(rkind),intent(in)            :: dt_cur                 ! current stepsize
+  real(qp),intent(in)               :: dt                     ! data time step
+  real(qp),intent(inout)            :: atol(:)                ! vector of absolute tolerances
+  real(qp),intent(inout)            :: rtol(:)                ! vector of relative tolerances
+  integer(i4b),intent(in)           :: nSnow                  ! number of snow layers
+  integer(i4b),intent(in)           :: nSoil                  ! number of soil layers
+  integer(i4b),intent(in)           :: nLayers                ! total number of layers
+  integer(i4b),intent(in)           :: nStat                  ! total number of state variables
+  integer(i4b),intent(in)           :: ixMatrix               ! form of matrix (dense or banded)
+  logical(lgt),intent(in)           :: firstSubStep           ! flag to indicate if we are processing the first sub-step
+  logical(lgt),intent(in)           :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
+  logical(lgt),intent(in)           :: scalarSolution         ! flag to denote if implementing the scalar solution
+  logical(lgt),intent(in)           :: computMassBalance      ! flag to compute mass balance
+  logical(lgt),intent(in)           :: computNrgBalance       ! flag to compute energy balance
   ! input: state vectors
-  real(rkind),intent(in)          :: stateVecInit(:)        ! model state vector
-  real(qp),intent(in)             :: sMul(:)                ! state vector multiplier (used in the residual calculations)
-  real(rkind), intent(inout)      :: dMat(:)                ! diagonal of the Jacobian matrix (excludes fluxes)
+  real(rkind),intent(in)            :: stateVecInit(:)        ! model state vector
+  real(qp),intent(in)               :: sMul(:)                ! state vector multiplier (used in the residual calculations)
+  real(rkind), intent(inout)        :: dMat(:)                ! diagonal of the Jacobian matrix (excludes fluxes)
   ! input: data structures
-  type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
-  type(zLookup),      intent(in)  :: lookup_data            ! lookup tables
-  type(var_i),        intent(in)  :: type_data              ! type of vegetation and soil
-  type(var_d),        intent(in)  :: attr_data              ! spatial attributes
-  type(var_dlength),  intent(in)  :: mpar_data              ! model parameters
-  type(var_d),        intent(in)  :: forc_data              ! model forcing data
-  type(var_dlength),  intent(in)  :: bvar_data              ! model variables for the local basin
-  type(var_dlength),  intent(in)  :: prog_data              ! prognostic variables for a local HRU
+  type(model_options),intent(in)    :: model_decisions(:)     ! model decisions
+  type(zLookup),      intent(in)    :: lookup_data            ! lookup tables
+  type(var_i),        intent(in)    :: type_data              ! type of vegetation and soil
+  type(var_d),        intent(in)    :: attr_data              ! spatial attributes
+  type(var_dlength),  intent(in)    :: mpar_data              ! model parameters
+  type(var_d),        intent(in)    :: forc_data              ! model forcing data
+  type(var_dlength),  intent(in)    :: bvar_data              ! model variables for the local basin
+  type(var_dlength),  intent(in)    :: prog_data              ! prognostic variables for a local HRU
    ! input-output: data structures
-  type(var_ilength),intent(inout) :: indx_data              ! indices defining model states and layers
-  type(var_dlength),intent(inout) :: diag_data              ! diagnostic variables for a local HRU
-  type(var_dlength),intent(inout) :: flux_data              ! model fluxes for a local HRU
-  type(var_dlength),intent(inout) :: flux_sum               ! sum of fluxes model fluxes for a local HRU over a dt_cur
-  type(var_dlength),intent(inout) :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
-  real(rkind),intent(inout)       :: mLayerCmpress_sum(:)   ! sum of soil compress
+  type(var_ilength),intent(inout)   :: indx_data              ! indices defining model states and layers
+  type(var_dlength),intent(inout)   :: diag_data              ! diagnostic variables for a local HRU
+  type(var_dlength),intent(inout)   :: flux_data              ! model fluxes for a local HRU
+  type(var_dlength),intent(inout)   :: flux_sum               ! sum of fluxes model fluxes for a local HRU over a dt_cur
+  type(var_dlength),intent(inout)   :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
+  real(rkind),intent(inout)         :: mLayerCmpress_sum(:)   ! sum of soil compress
   ! output: state vectors
-  integer(i4b),intent(inout)      :: ixSaturation           ! index of the lowest saturated layer
-  integer(i4b),intent(out)        :: nSteps                 ! number of time steps taken in solver
+  integer(i4b),intent(inout)        :: ixSaturation           ! index of the lowest saturated layer
+  integer(i4b),intent(out)          :: nSteps                 ! number of time steps taken in solver
   real(rkind),intent(inout),pointer :: stateVec(:)            ! model state vector (y)
   real(rkind),intent(inout),pointer :: stateVecPrime(:)       ! model state vector (y')
-  logical(lgt),intent(out)        :: idaSucceeds            ! flag to indicate if IDA is successful
-  logical(lgt),intent(inout)      :: tooMuchMelt            ! flag to denote that there was too much melt
+  logical(lgt),intent(out)          :: idaSucceeds            ! flag to indicate if IDA is successful
+  logical(lgt),intent(inout)        :: tooMuchMelt            ! flag to denote that there was too much melt
   ! output: residual terms and balances
-  real(rkind),intent(inout)       :: balance(:)             ! balance per state
+  real(rkind),intent(inout)         :: balance(:)             ! balance per state
   ! output: error control
-  integer(i4b),intent(out)        :: err                    ! error code
-  character(*),intent(out)        :: message                ! error message
+  integer(i4b),intent(out)          :: err                    ! error code
+  character(*),intent(out)          :: message                ! error message
 
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! local variables
