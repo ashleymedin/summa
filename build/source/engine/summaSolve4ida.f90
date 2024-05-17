@@ -363,9 +363,9 @@ subroutine summaSolve4ida(&
     if (.not. associated(sunvec_yp)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
 
     ! create serial vectors
-    sunvec_y => FN_VMake_Serial(nState, stateVec, stateVec_device, sunctx)
+    sunvec_y => FN_VMake_Cuda(nState, stateVec, stateVec_device, sunctx)
     if (.not. associated(sunvec_y)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
-    sunvec_yp => FN_VMake_Serial(nState, stateVecPrime, stateVecPrime_device, sunctx)
+    sunvec_yp => FN_VMake_Cuda(nState, stateVecPrime, stateVecPrime_device, sunctx)
     if (.not. associated(sunvec_yp)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
     
     ! create SUNDIALS memory helper, used underneath the Arrays and the Magma solver
