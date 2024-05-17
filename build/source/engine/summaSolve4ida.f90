@@ -199,8 +199,8 @@ subroutine summaSolve4ida(&
   ! output: state vectors
   integer(i4b),intent(inout)        :: ixSaturation           ! index of the lowest saturated layer
   integer(i4b),intent(out)          :: nSteps                 ! number of time steps taken in solver
-  real(rkind),intent(inout)         :: stateVec(:)            ! model state vector (y)
-  real(rkind),intent(inout)         :: stateVecPrime(:)       ! model state vector (y')
+  real(rkind),intent(inout)         :: stateVec(:)            ! model state vector on host (y)
+  real(rkind),intent(inout)         :: stateVecPrime(:)       ! model state vector on host (y')
   logical(lgt),intent(out)          :: idaSucceeds            ! flag to indicate if IDA is successful
   logical(lgt),intent(inout)        :: tooMuchMelt            ! flag to denote that there was too much melt
   ! output: residual terms and balances
@@ -226,6 +226,8 @@ subroutine summaSolve4ida(&
   type(c_ptr)                                 :: ida_mem                        ! IDA memory
   type(c_ptr)                                 :: sunctx                         ! SUNDIALS simulation context
   type(data4ida),target                       :: eqns_data                      ! IDA type
+  real(rkind)                                 :: stateVec_device(nStat)         ! model state vector on device (y)
+  real(rkind)                                 :: stateVecPrime_device(nStat)    ! model state vector on device (y')
   integer(i4b)                                :: retval, retvalr                ! return value
   logical(lgt)                                :: feasible                       ! feasibility flag
   real(qp)                                    :: t0                             ! starting time
@@ -353,9 +355,17 @@ subroutine summaSolve4ida(&
     if (retval /= 0) then; err=20; message=trim(message)//'error in FSUNContext_Create'; return; endif
 
     ! provide host and device data CUDA arrays
-    sunvec_y => FN_VMake_Cuda(nState, stateVec, sunctx)
+    stateVec_device = stateVec
+    stateVecPrime_device = stateVecPrime
+    sunvec_y => FN_VMake_Cuda(nState, stateVec, stateVec_device, sunctx)
     if (.not. associated(sunvec_y)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
-    sunvec_yp => FN_VMake_Cuda(nState, stateVecPrime, sunctx)
+    sunvec_yp => FN_VMake_Cuda(nState, stateVecPrime, stateVecPrime_device, sunctx)
+    if (.not. associated(sunvec_yp)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
+
+    ! create serial vectors
+    sunvec_y => FN_VMake_Serial(nState, stateVec, stateVec_device, sunctx)
+    if (.not. associated(sunvec_y)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
+    sunvec_yp => FN_VMake_Serial(nState, stateVecPrime, stateVecPrime_device, sunctx)
     if (.not. associated(sunvec_yp)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
     
     ! create SUNDIALS memory helper, used underneath the Arrays and the Magma solver
