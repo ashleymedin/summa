@@ -199,8 +199,8 @@ subroutine summaSolve4ida(&
   ! output: state vectors
   integer(i4b),intent(inout)      :: ixSaturation           ! index of the lowest saturated layer
   integer(i4b),intent(out)        :: nSteps                 ! number of time steps taken in solver
-  real(rkind),intent(inout)       :: stateVec(:)            ! model state vector (y)
-  real(rkind),intent(inout)       :: stateVecPrime(:)       ! model state vector (y')
+  real(rkind),intent(inout),pointer :: stateVec(:)            ! model state vector (y)
+  real(rkind),intent(inout),pointer :: stateVecPrime(:)       ! model state vector (y')
   logical(lgt),intent(out)        :: idaSucceeds            ! flag to indicate if IDA is successful
   logical(lgt),intent(inout)      :: tooMuchMelt            ! flag to denote that there was too much melt
   ! output: residual terms and balances
@@ -220,8 +220,7 @@ subroutine summaSolve4ida(&
   type(SUNNonLinearSolver),           pointer :: sunnonlin_NLS                  ! sundials nonlinear solver
   type(SUNCudaThreadDirectExecPolicy),pointer :: thread_direct                  ! thread direct execution policy
   type(SUNCudaBlockReduceExecPolicy), pointer :: block_reduce                   ! block reduce execution policy
-  type(SUNMemoryHelper),              target  :: mem_helper                     ! sundials memory helper
-  type(SUNMemoryType),                target  :: mem_type                       ! sundials memory type
+  type(SUNMemoryHelper_),             pointer :: mem_helper                     ! sundials memory helper
   integer(c_int)                              :: cuerr                          ! CUDA error code
   type(cudastream_t)                          :: stream                         ! CUDA stream
   type(c_ptr)                                 :: ida_mem                        ! IDA memory
@@ -351,18 +350,20 @@ subroutine summaSolve4ida(&
     cuerr = cudaStreamCreate(stream)
     if(cuerr /=0) then; err=20; message=trim(message)//'error in cudaStreamCreate'; return; endif
     retval = FSUNContext_Create(SUN_COMM_NULL, sunctx)
-    
+    if (retval /= 0) then; err=20; message=trim(message)//'error in FSUNContext_Create'; return; endif
+
     ! create Cuda vectors
     sunvec_y => FN_VNew_Cuda(nState, sunctx)
     if (.not. associated(sunvec_y)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
+    stateVec(1:eqns_data%nState) => FN_VGetHostArrayPointer_Cuda(sunvec_y)
     sunvec_yp => FN_VNew_Cuda(nState, sunctx)
     if (.not. associated(sunvec_yp)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
-
-    ! create SUNDIALS memory helper
+    stateVecPrime(1:eqns_data%nState) => FN_VGetHostArrayPointer_Cuda(sunvec_yp)
+    
+    ! create SUNDIALS memory helper, used underneath the Arrays and the Magma solver
     mem_helper = FSUNMemoryHelper_Cuda(sunctx)
     if (.not. associated(mem_helper)) then; err=20; message=trim(message)//'mem_helper = NULL'; return; endif
-    mem_type = SUNMEMTYPE_DEVICE ! memory is allocated with a call to cudaMalloc
-    
+
     ! Map each CUDA thread to a work unit: 128 threads per block and a user provided CUDA stream
     thread_direct%blockDim_ = 128
     thread_direct%stream = stream
@@ -391,7 +392,7 @@ subroutine summaSolve4ida(&
     ! set tolerances
     retval = FIDAWFtolerances(ida_mem, c_funloc(computWeight4ida))
     if (retval /= 0) then; err=20; message=trim(message)//'error in FIDAWFtolerances'; return; endif
-    
+
     ! initialize rootfinding problem and allocate space, counting roots
     if(detect_events)then
       nRoot = 0
@@ -424,7 +425,7 @@ subroutine summaSolve4ida(&
     
       case(ixFullMatrix)
         ! Create dense SUNMatrix for use in linear solves
-        sunmat_A => FSUNMatrix_MagmaDense(nState, nState, mem_type, mem_helper, NULL, sunctx)
+        sunmat_A => FSUNMatrix_MagmaDense(nState, nState, SUNMEMTYPE_DEVICE, mem_helper, c_null_ptr, sunctx)
         if (.not. associated(sunmat_A)) then; err=20; message=trim(message)//'sunmat = NULL'; return; endif
     
         ! Create dense SUNLinearSolver object
@@ -490,8 +491,6 @@ subroutine summaSolve4ida(&
         !if(retvalr==-1) err = -20 ! max iterations failure, exit and reduce the data window time in varSubStep
         exit
       end if
-      
-      stateVec(1:eqns_data%nState)  => FN_VGetHostArrayPointer_Cuda(sunvec_y)
        
       tooMuchMelt = .false.
       ! loop through non-missing energy state variables in the snow domain to see if need to merge
@@ -602,9 +601,6 @@ subroutine summaSolve4ida(&
     
     enddo ! while loop on one_step mode until time dt_cur
     !****************************** End of Main Solver ***************************************
-
-    stateVecPrime(1:eqns_data%nState) => FN_VGetHostArrayPointer_Cuda(sunvec_yp)
-
     if(idaSucceeds)then
       ! copy to output data
       diag_data     = eqns_data%diag_data
@@ -668,6 +664,7 @@ subroutine setInitialCondition(neq, y, sunvec_u, sunvec_up)
   type(N_Vector)  :: sunvec_up ! derivative N_Vector
   integer(c_long) :: neq
   real(rkind)     :: y(neq)
+  integer(i4b) :: retval
 
   ! pointers to data in SUNDIALS vectors
   real(c_double), pointer :: uu(:)
@@ -676,9 +673,12 @@ subroutine setInitialCondition(neq, y, sunvec_u, sunvec_up)
   ! get data arrays from SUNDIALS vectors
   uu(1:neq) => FN_VGetHostArrayPointer_Cuda(sunvec_u)
   up(1:neq) => FN_VGetHostArrayPointer_Cuda(sunvec_up)
-
   uu = y
   up = 0._rkind
+
+  ! copy data to device
+  retval = FN_VCopyToDevice_Cuda(u)
+  retval = FN_VCopyToDevice_Cuda(up)
 
 end subroutine setInitialCondition
 
