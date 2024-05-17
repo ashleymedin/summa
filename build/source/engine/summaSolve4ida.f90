@@ -199,8 +199,8 @@ subroutine summaSolve4ida(&
   ! output: state vectors
   integer(i4b),intent(inout)        :: ixSaturation           ! index of the lowest saturated layer
   integer(i4b),intent(out)          :: nSteps                 ! number of time steps taken in solver
-  real(rkind),intent(inout),pointer :: stateVec(:)            ! model state vector (y)
-  real(rkind),intent(inout),pointer :: stateVecPrime(:)       ! model state vector (y')
+  real(rkind),intent(inout)         :: stateVec(:)            ! model state vector (y)
+  real(rkind),intent(inout)         :: stateVecPrime(:)       ! model state vector (y')
   logical(lgt),intent(out)          :: idaSucceeds            ! flag to indicate if IDA is successful
   logical(lgt),intent(inout)        :: tooMuchMelt            ! flag to denote that there was too much melt
   ! output: residual terms and balances
@@ -675,8 +675,8 @@ subroutine setInitialCondition(neq, y, sunvec_u, sunvec_up)
   up = 0._rkind
 
   ! copy data to device
-  retval = FN_VCopyToDevice_Cuda(uu)
-  retval = FN_VCopyToDevice_Cuda(up)
+  call FN_VCopyToDevice_Cuda(sunvec_u)
+  call FN_VCopyToDevice_Cuda(sunvec_up)
 
 end subroutine setInitialCondition
 
