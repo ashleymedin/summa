@@ -352,13 +352,11 @@ subroutine summaSolve4ida(&
     retval = FSUNContext_Create(SUN_COMM_NULL, sunctx)
     if (retval /= 0) then; err=20; message=trim(message)//'error in FSUNContext_Create'; return; endif
 
-    ! create Cuda vectors
-    sunvec_y => FN_VNew_Cuda(nState, sunctx)
+    ! provide host and device data CUDA arrays
+    sunvec_y => FN_VMake_Cuda(nState, stateVec, sunctx)
     if (.not. associated(sunvec_y)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
-    stateVec(1:eqns_data%nState) => FN_VGetHostArrayPointer_Cuda(sunvec_y)
-    sunvec_yp => FN_VNew_Cuda(nState, sunctx)
+    sunvec_yp => FN_VMake_Cuda(nState, stateVecPrime, sunctx)
     if (.not. associated(sunvec_yp)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
-    stateVecPrime(1:eqns_data%nState) => FN_VGetHostArrayPointer_Cuda(sunvec_yp)
     
     ! create SUNDIALS memory helper, used underneath the Arrays and the Magma solver
     mem_helper = FSUNMemoryHelper_Cuda(sunctx)
@@ -677,7 +675,7 @@ subroutine setInitialCondition(neq, y, sunvec_u, sunvec_up)
   up = 0._rkind
 
   ! copy data to device
-  retval = FN_VCopyToDevice_Cuda(u)
+  retval = FN_VCopyToDevice_Cuda(uu)
   retval = FN_VCopyToDevice_Cuda(up)
 
 end subroutine setInitialCondition
