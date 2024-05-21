@@ -707,7 +707,7 @@ end subroutine eval8summaWithPrime
 
 
 ! **********************************************************************************************************
-! public function eval8summa4ida: compute the residual vector F(t,y,y') required for IDA solver
+! public function eval8summa4ida: start the kernel for the IDA solver computation of the residual vector F(t,y,y')
 ! **********************************************************************************************************
 ! Return values:
 !    0 = success,
@@ -738,7 +738,11 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
   real(rkind), pointer        :: stateVec(:)      ! solution vector
   real(rkind), pointer        :: stateVecPrime(:) ! derivative vector
   real(rkind), pointer        :: rVec(:)          ! residual vector
-  logical(lgt)                :: feasible         ! feasibility of state vector
+
+  ! kernel variables
+  integer(c_int)              :: blockDim         ! number of threads per block
+  integer(c_int)              :: gridDim          ! number of blocks
+
   !======= Internals ============
 
   ! get equations data from user-defined data
@@ -749,69 +753,110 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
   stateVecPrime(1:eqns_data%nState) => FN_VGetDeviceArrayPointer_Cuda(sunvec_yp)
   rVec(1:eqns_data%nState)  => FN_VGetDeviceArrayPointer_Cuda(sunvec_r)
 
-  ! compute the flux and the residual vector for a given state vector
-  call eval8summaWithPrime(&
-                ! input: model control
-                eqns_data%dt,                            & ! intent(in):    data step
-                eqns_data%nSnow,                         & ! intent(in):    number of snow layers
-                eqns_data%nSoil,                         & ! intent(in):    number of soil layers
-                eqns_data%nLayers,                       & ! intent(in):    number of layers
-                eqns_data%nState,                        & ! intent(in):    number of state variables in the current subset
-                .true.,                                  & ! intent(in):    inside SUNDIALS solver
-                eqns_data%firstSubStep,                  & ! intent(in):    flag to indicate if we are processing the first sub-step
-                eqns_data%firstFluxCall,                 & ! intent(inout): flag to indicate if we are processing the first flux call
-                eqns_data%firstSplitOper,                & ! intent(inout): flag to indicate if we are processing the first flux call in a splitting operation
-                eqns_data%computeVegFlux,                & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                eqns_data%scalarSolution,                & ! intent(in):    flag to indicate the scalar solution
-                ! input: state vectors
-                stateVec,                                & ! intent(in):    model state vector
-                stateVecPrime,                           & ! intent(in):    model state vector
-                eqns_data%sMul,                          & ! intent(inout): state vector multiplier (used in the residual calculations)
-                ! input: data structures
-                eqns_data%model_decisions,               & ! intent(in):    model decisions
-                eqns_data%lookup_data,                   & ! intent(in):    lookup data
-                eqns_data%type_data,                     & ! intent(in):    type of vegetation and soil
-                eqns_data%attr_data,                     & ! intent(in):    spatial attributes
-                eqns_data%mpar_data,                     & ! intent(in):    model parameters
-                eqns_data%forc_data,                     & ! intent(in):    model forcing data
-                eqns_data%bvar_data,                     & ! intent(in):    average model variables for the entire basin
-                eqns_data%prog_data,                     & ! intent(in):    model prognostic variables for a local HRU
-                ! input-output: data structures
-                eqns_data%indx_data,                     & ! intent(inout): index data
-                eqns_data%diag_data,                     & ! intent(inout): model diagnostic variables for a local HRU
-                eqns_data%flux_data,                     & ! intent(inout): model fluxes for a local HRU (initial flux structure)
-                eqns_data%deriv_data,                    & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                ! input-output: values needed in case canopy gets buried
-                eqns_data%scalarCanopyEnthalpyTrial,     & ! intent(inout): trial value for enthalpy of the vegetation canopy (J m-3)
-                eqns_data%scalarCanopyTempTrial,         & ! intent(inout): trial value for temperature of the vegetation canopy (K), also used to start enthalpy calculations
-                eqns_data%scalarCanopyWatTrial,          & ! intent(inout): trial value for total water content of the vegetation canopy (kg m-2)
-                ! output: new values of variables needed in data window outside of internal IDA for rootfinding and to start enthalpy calculations
-                eqns_data%mLayerTempTrial,               & ! intent(inout): trial vector of layer temperature (K)
-                eqns_data%mLayerMatricHeadTrial,         & ! intent(out):   trial value for total water matric potential (m)
-                ! output: new prime values of variables needed in data window outside of internal IDA
-                eqns_data%scalarCanopyTempPrime,         & ! intent(out):   prime value for temperature of the vegetation canopy (K s-1)
-                eqns_data%scalarCanopyWatPrime,          & ! intent(out):   prime value for total water content of the vegetation canopy (kg m-2 s-1)
-                eqns_data%mLayerTempPrime,               & ! intent(out):   prime vector of temperature of each snow and soil layer (K s-1)
-                eqns_data%mLayerMatricHeadPrime,         & ! intent(out):   prime vector of matric head of each snow and soil layer (m s-1)
-                eqns_data%mLayerVolFracWatPrime,         & ! intent(out):   prime vector of volumetric total water content of each snow and soil layer (s-1)
-                ! input-output: baseflow
-                eqns_data%ixSaturation,                  & ! intent(inout): index of the lowest saturated layer
-                eqns_data%dBaseflow_dMatric,             & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
-                 ! output: flux and residual vectors
-                feasible,                                & ! intent(out):   flag to denote the feasibility of the solution always true inside SUNDIALS
-                eqns_data%fluxVec,                       & ! intent(out):   flux vector
-                eqns_data%resSink,                       & ! intent(out):   additional (sink) terms on the RHS of the state equation
-                rVec,                                    & ! intent(out):   residual vector
-                eqns_data%err,eqns_data%message)           ! intent(out):   error control
-  if(eqns_data%err > 0)then; eqns_data%message=trim(eqns_data%message); ierr=-1; return; endif
-  if(eqns_data%err < 0)then; eqns_data%message=trim(eqns_data%message); ierr=1; return; endif
+  blockDim = 1
+  gridDim = (eqns_data%nState + blockDim - 1) / blockDim
 
-  ! save residual and return success
-  eqns_data%resVec = rVec
+  eval8summa4idaKernel<<<gridDim, blockDim>>>(stateVec, stateVecPrime, rVec, eqns_data);
+
   ierr = 0
+
   return
 
 end function eval8summa4ida
+
+! **********************************************************************************************************
+! private function eval8summa4idaKernel: compute the residual vector F(t,y,y') on the kernel for the IDA solver
+! **********************************************************************************************************
+attributes(global) subroutine eval8summa4idaKernel(stateVec, stateVecPrime, rVec, eqns_data)
+
+  !======= Inclusions ===========
+  use, intrinsic :: iso_c_binding
+  use type4ida
+
+  !======= Declarations =========
+  implicit none
+
+  ! calling variables
+  real(rkind), device         :: stateVec(:)      ! solution vector
+  real(rkind), device         :: stateVecPrime(:) ! derivative vector
+  real(rkind), device         :: rVec(:)          ! residual vector
+  type(data4ida), device      :: eqns_data        ! equations data
+
+  logical(lgt)                :: feasible         ! feasibility of state vector
+  ! kernel variables
+  integer(c_int)              :: blockDim         ! number of threads per block
+  integer(c_int)              :: gridDim          ! number of blocks
+
+  !======= Internals ============
+
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+  if (i < eqns_data->nState) then
+    ! compute the flux and the residual vector for a given state vector
+    call eval8summaWithPrime(&
+                  ! input: model control
+                  eqns_data%dt,                            & ! intent(in):    data step
+                  eqns_data%nSnow,                         & ! intent(in):    number of snow layers
+                  eqns_data%nSoil,                         & ! intent(in):    number of soil layers
+                  eqns_data%nLayers,                       & ! intent(in):    number of layers
+                  eqns_data%nState,                        & ! intent(in):    number of state variables in the current subset
+                  .true.,                                  & ! intent(in):    inside SUNDIALS solver
+                  eqns_data%firstSubStep,                  & ! intent(in):    flag to indicate if we are processing the first sub-step
+                  eqns_data%firstFluxCall,                 & ! intent(inout): flag to indicate if we are processing the first flux call
+                  eqns_data%firstSplitOper,                & ! intent(inout): flag to indicate if we are processing the first flux call in a splitting operation
+                  eqns_data%computeVegFlux,                & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
+                  eqns_data%scalarSolution,                & ! intent(in):    flag to indicate the scalar solution
+                  ! input: state vectors
+                  stateVec,                                & ! intent(in):    model state vector
+                  stateVecPrime,                           & ! intent(in):    model state vector
+                  eqns_data%sMul,                          & ! intent(inout): state vector multiplier (used in the residual calculations)
+                  ! input: data structures
+                  eqns_data%model_decisions,               & ! intent(in):    model decisions
+                  eqns_data%lookup_data,                   & ! intent(in):    lookup data
+                  eqns_data%type_data,                     & ! intent(in):    type of vegetation and soil
+                  eqns_data%attr_data,                     & ! intent(in):    spatial attributes
+                  eqns_data%mpar_data,                     & ! intent(in):    model parameters
+                  eqns_data%forc_data,                     & ! intent(in):    model forcing data
+                  eqns_data%bvar_data,                     & ! intent(in):    average model variables for the entire basin
+                  eqns_data%prog_data,                     & ! intent(in):    model prognostic variables for a local HRU
+                  ! input-output: data structures
+                  eqns_data%indx_data,                     & ! intent(inout): index data
+                  eqns_data%diag_data,                     & ! intent(inout): model diagnostic variables for a local HRU
+                  eqns_data%flux_data,                     & ! intent(inout): model fluxes for a local HRU (initial flux structure)
+                  eqns_data%deriv_data,                    & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                  ! input-output: values needed in case canopy gets buried
+                  eqns_data%scalarCanopyEnthalpyTrial,     & ! intent(inout): trial value for enthalpy of the vegetation canopy (J m-3)
+                  eqns_data%scalarCanopyTempTrial,         & ! intent(inout): trial value for temperature of the vegetation canopy (K), also used to start enthalpy calculations
+                  eqns_data%scalarCanopyWatTrial,          & ! intent(inout): trial value for total water content of the vegetation canopy (kg m-2)
+                  ! output: new values of variables needed in data window outside of internal IDA for rootfinding and to start enthalpy calculations
+                  eqns_data%mLayerTempTrial,               & ! intent(inout): trial vector of layer temperature (K)
+                  eqns_data%mLayerMatricHeadTrial,         & ! intent(out):   trial value for total water matric potential (m)
+                  ! output: new prime values of variables needed in data window outside of internal IDA
+                  eqns_data%scalarCanopyTempPrime,         & ! intent(out):   prime value for temperature of the vegetation canopy (K s-1)
+                  eqns_data%scalarCanopyWatPrime,          & ! intent(out):   prime value for total water content of the vegetation canopy (kg m-2 s-1)
+                  eqns_data%mLayerTempPrime,               & ! intent(out):   prime vector of temperature of each snow and soil layer (K s-1)
+                  eqns_data%mLayerMatricHeadPrime,         & ! intent(out):   prime vector of matric head of each snow and soil layer (m s-1)
+                  eqns_data%mLayerVolFracWatPrime,         & ! intent(out):   prime vector of volumetric total water content of each snow and soil layer (s-1)
+                  ! input-output: baseflow
+                  eqns_data%ixSaturation,                  & ! intent(inout): index of the lowest saturated layer
+                  eqns_data%dBaseflow_dMatric,             & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
+                   ! output: flux and residual vectors
+                  feasible,                                & ! intent(out):   flag to denote the feasibility of the solution always true inside SUNDIALS
+                  eqns_data%fluxVec,                       & ! intent(out):   flux vector
+                  eqns_data%resSink,                       & ! intent(out):   additional (sink) terms on the RHS of the state equation
+                  rVec,                                    & ! intent(out):   residual vector
+                  eqns_data%err,eqns_data%message)           ! intent(out):   error control
+    if(eqns_data%err > 0)then; eqns_data%message=trim(eqns_data%message); ierr=-1; return; endif
+    if(eqns_data%err < 0)then; eqns_data%message=trim(eqns_data%message); ierr=1; return; endif
+  
+    ! save residual and return success
+    eqns_data%resVec = rVec
+    ierr = 0
+  
+    return
+  end if
+
+end subroutine eval8summa4idaKernel
 
 
 end module eval8summaWithPrime_module

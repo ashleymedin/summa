@@ -1143,7 +1143,7 @@ subroutine computJacobWithPrime(&
 end subroutine computJacobWithPrime
 
 ! **********************************************************************************************************
-! public function computJacob4ida: the interface to compute the Jacobian matrix dF/dy + c dF/dy' for IDA solver
+! public function computJacob4ida: start the kernel for the IDA solver computation of the Jacobian matrix dF/dy + c dF/dy'
 ! **********************************************************************************************************
 ! Return values:
 !    0 = success,
@@ -1186,6 +1186,35 @@ integer(c_int) function computJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
 
   ! get data arrays from SUNDIALS vectors
   if (eqns_data%ixMatrix==ixFullMatrix) Jac(1:eqns_data%nState, 1:eqns_data%nState) => FSUNMatrix_MagmaDense_Data(sunmat_J)
+
+  blockDim = 1
+  gridDim = (eqns_data%nState + blockDim - 1) / blockDim
+
+  computJacob4idaKernel<<<gridDim, blockDim>>>(cj, Jac, eqns_data);
+
+  ierr = 0
+
+  return
+
+end function computJacob4ida
+
+
+! **********************************************************************************************************
+! private function computJacob4idaKernel: compute the residual vector F(t,y,y') on the kernel for the IDA solver
+! **********************************************************************************************************
+attributes(global) subroutine computJacob4idaKernel(cj, Jac, eqns_data)
+
+  !======= Inclusions ===========
+  use, intrinsic :: iso_c_binding
+  use type4ida
+
+  !======= Declarations =========
+  implicit none
+
+  real(rkind), device          :: cj             ! step size scaling factor
+    ! pointers to data in SUNDIALS vectors
+  real(rkind), device          :: Jac(:,:)       ! Jacobian matrix
+  type(data4ida), device       :: eqns_data      ! equations data
 
   ! compute the analytical Jacobian matrix
   ! NOTE: The derivatives were computed in the previous call to computFlux
@@ -1230,7 +1259,7 @@ integer(c_int) function computJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
   ierr = 0
   return
 
-end function computJacob4ida
+end subroutine computJacob4idaKernel
 
 ! **********************************************************************************************************
 ! private function: get the off-diagonal index in the band-diagonal matrix
