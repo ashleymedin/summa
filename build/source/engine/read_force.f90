@@ -95,8 +95,8 @@ contains
  integer(i4b)                      :: iGRU,iHRU        ! index of GRU and HRU
  character(len=256),save           :: infile           ! filename
  character(len=256)                :: cmessage         ! error message for downwind routine
- real(rkind)                          :: startJulDay      ! julian day at the start of the year
- real(rkind)                          :: currentJulDay    ! Julian day of current time step
+ real(rkind)                       :: startJulDay      ! julian day at the start of the year
+ real(rkind)                       :: currentJulDay    ! Julian day of current time step
  logical(lgt),parameter            :: checkTime=.false.  ! flag to check the time
  ! Start procedure here
  err=0; message="read_force/"

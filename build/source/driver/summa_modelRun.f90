@@ -180,7 +180,9 @@ contains
  do jGRU=1,nGRU
   totalFluxCalls(jGRU) = 0._rkind
   do iHRU=1,gru_struc(jGRU)%hruCount
-   totalFluxCalls(jGRU) = totalFluxCalls(jGRU) + indxStruct%gru(jGRU)%hru(iHRU)%var(iLookINDEX%numberFluxCalc)%dat(1)
+   totalFluxCalls(jGRU) = totalFluxCalls(jGRU) + indxStruct%gru(jGRU)%hru(iHRU)%var(iLookINDEX%numberFluxCalc)%dat(1) &
+                          + indxStruct_glAcc%gru(jGRU)%hru(iHRU)%var(iLookINDEX%numberFluxCalc)%dat(1) &
+                          + indxStruct_glAbl%gru(jGRU)%hru(iHRU)%var(iLookINDEX%numberFluxCalc)%dat(1)
   end do
  end do
 
@@ -204,7 +206,7 @@ contains
   !$omp          shared(timeGRUstart, timeGRUcompleted, timeGRU, ixExpense, kGRU)  & ! time variables shared
   !$omp          shared(summa1_struc, gru_struc) &
   !$omp          private(err, cmessage)
- ! associate to elements in the data structur, gru_struce
+ ! associate to elements in the data structure, gru_struc
  ! need to associate again for the parallelism to work
  summaVars2: associate(&
 
@@ -262,7 +264,7 @@ contains
                   attrStruct%gru(iGRU),         & ! intent(in):    local attributes for each HRU
                   lookupStruct%gru(iGRU),       & ! intent(in):    local lookup tables for each HRU
                   ! data structures (input-output)
-                  mparStruct%gru(iGRU),         & ! intent(inout): local model parameters
+                  mparStruct%gru(iGRU),         & ! intent(in):    local model parameters
                   indxStruct%gru(iGRU),         & ! intent(inout): model indices
                   forcStruct%gru(iGRU),         & ! intent(inout): model forcing data
                   progStruct%gru(iGRU),         & ! intent(inout): prognostic variables for a local HRU

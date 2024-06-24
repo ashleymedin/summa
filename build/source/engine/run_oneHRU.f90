@@ -90,6 +90,8 @@ contains
                        hruId,               & ! intent(in):    hruId
                        dt_init,             & ! intent(inout): used to initialize the length of the sub-step for each HRU
                        computeVegFlux,      & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
+                       onGlacAcc,           & ! intent(in):    flag to indicate if the states are on a glacier accumulation zone
+                       onGlacAbl,           & ! intent(in):    flag to indicate if the states are on a glacier ablation zone
                        nSnow,nSoil,nLayers, & ! intent(inout): number of snow and soil layers
                        ! data structures (input)
                        timeVec,             & ! intent(in):    model time data
@@ -121,6 +123,8 @@ contains
  integer(8)        , intent(in)    :: hruId               ! hruId
  real(rkind)       , intent(inout) :: dt_init             ! used to initialize the length of the sub-step for each HRU
  logical(lgt)      , intent(inout) :: computeVegFlux      ! flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
+ logical(lgt)      , intent(in)    :: onGlacAcc           ! flag to indicate if the states are on a glacier accumulation zone
+ logical(lgt)      , intent(in)    :: onGlacAbl           ! flag to indicate if the states are on a glacier ablation zone
  integer(i4b)      , intent(inout) :: nSnow,nSoil,nLayers ! number of snow and soil layers
  ! data structures (input)
  integer(i4b)      , intent(in)    :: timeVec(:)          ! int vector               -- model time data
@@ -129,7 +133,7 @@ contains
  type(zLookup)     , intent(in)    :: lookupData          ! x%z(:)%var(:)%lookup(:)  -- local lookup tables for each HRU
  type(var_dlength) , intent(in)    :: bvarData            ! x%var(:)%dat -- basin-average variables
  ! data structures (input-output)
- type(var_dlength) , intent(inout) :: mparData            ! x%var(:)%dat -- local (HRU) model parameters
+ type(var_dlength) , intent(in)    :: mparData            ! x%var(:)%dat -- local (HRU) model parameters
  type(var_ilength) , intent(inout) :: indxData            ! x%var(:)%dat -- model indices
  type(var_d)       , intent(inout) :: forcData            ! x%var(:)     -- model forcing data
  type(var_dlength) , intent(inout) :: progData            ! x%var(:)%dat -- model prognostic (state) variables
@@ -143,7 +147,7 @@ contains
 
  ! local variables
  character(len=256)                :: cmessage            ! error message
- real(rkind)          , allocatable   :: zSoilReverseSign(:) ! height at bottom of each soil layer, negative downwards (m)
+ real(rkind)       , allocatable   :: zSoilReverseSign(:) ! height at bottom of each soil layer, negative downwards (m)
 
  ! initialize error control
  err=0; write(message, '(A21,I0,A10,I0,A2)' ) 'run_oneHRU (hru nc = ',hru_nc -1 ,', hruId = ',hruId,')/' !netcdf index starts with 0 if want to subset
@@ -194,15 +198,15 @@ contains
  ! ----- hru forcing ----------------------------------------------------------------------------------------------------
 
  ! compute derived forcing variables
- call derivforce(timeVec,            & ! vector of time information
-                 forcData%var,       & ! vector of model forcing data
-                 attrData%var,       & ! vector of model attributes
-                 mparData,           & ! data structure of model parameters
-                 progData,           & ! data structure of model prognostic variables
-                 diagData,           & ! data structure of model diagnostic variables
-                 fluxData,           & ! data structure of model fluxes
-                 tmZoneOffsetFracDay,& ! time zone offset in fractional days
-                 err,cmessage)         ! error control
+ call derivforce(timeVec,            & ! intent(in):    vector of time information
+                 forcData%var,       & ! intent(inout): vector of model forcing data
+                 attrData%var,       & ! intent(in):    vector of model attributes
+                 mparData,           & ! intent(in):    data structure of model parameters
+                 progData,           & ! intent(in):    data structure of model prognostic variables
+                 diagData,           & ! intent(inout): data structure of model diagnostic variables
+                 fluxData,           & ! intent(inout): data structure of model fluxes
+                 tmZoneOffsetFracDay,& ! intent(inout): time zone offset in fractional days
+                 err,cmessage)         ! intent(out):   error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
  ! ----- run the model --------------------------------------------------------------------------------------------------

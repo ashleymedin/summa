@@ -83,7 +83,7 @@ contains
                        attrHRU,            & ! intent(in):    local attributes for each HRU
                        lookupHRU,          & ! intent(in):    local lookup tables for each HRU
                        ! data structures (input-output)
-                       mparHRU,            & ! intent(inout):    local model parameters
+                       mparHRU,            & ! intent(in):    local model parameters
                        indxHRU,            & ! intent(inout): model indices
                        forcHRU,            & ! intent(inout): model forcing data
                        progHRU,            & ! intent(inout): prognostic variables for a local HRU
@@ -99,36 +99,46 @@ contains
  ! ----- define dummy variables ------------------------------------------------------------------------------------------
  implicit none
  ! model control
- type(gru2hru_map)   , intent(inout) :: gruInfo              ! HRU information for given GRU (# HRUs, #snow+soil layers)
- real(rkind)            , intent(inout) :: dt_init(:)           ! used to initialize the length of the sub-step for each HRU
- integer(i4b)        , intent(inout) :: ixComputeVegFlux(:)  ! flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
+ type(gru2hru_map)       , intent(inout) :: gruInfo              ! HRU information for given GRU (# HRUs, #snow+soil layers)
+ real(rkind)             , intent(inout) :: dt_init(:)           ! used to initialize the length of the sub-step for each HRU
+ integer(i4b)            , intent(inout) :: ixComputeVegFlux(:)  ! flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
  ! data structures (input)
- integer(i4b)        , intent(in)    :: timeVec(:)           ! integer vector      -- model time data
- type(hru_int)       , intent(in)    :: typeHRU              ! x%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
- type(hru_int8)      , intent(in)    :: idHRU                ! x%hru(:)%var(:)     -- local classification of hru and gru IDs
- type(hru_double)    , intent(in)    :: attrHRU              ! x%hru(:)%var(:)     -- local attributes for each HRU
- type(hru_z_vLookup) , intent(in)    :: lookupHRU            ! x%hru(:)%z(:)%var(:)%lookup(:) -- lookup values for each HRU
+ integer(i4b)            , intent(in)    :: timeVec(:)           ! integer vector             -- model time data
+ type(hru_int)           , intent(in)    :: typeHRU              ! x%hru(:)%var(:)            -- local classification of soil veg etc. for each HRU
+ type(hru_int8)          , intent(in)    :: idHRU                ! x%hru(:)%var(:)            -- local classification of hru and gru IDs
+ type(hru_double)        , intent(in)    :: attrHRU              ! x%hru(:)%var(:)            -- local attributes for each HRU
+ type(hru_z_vLookup)     , intent(in)    :: lookupHRU            ! x%hru(:)%z(:)%var(:)%lookup(:) -- lookup values for each HRU
  ! data structures (input-output)
- type(hru_doubleVec) , intent(inout) :: mparHRU              ! x%hru(:)%var(:)%dat -- local (HRU) model parameters
- type(hru_intVec)    , intent(inout) :: indxHRU              ! x%hru(:)%var(:)%dat -- model indices
- type(hru_double)    , intent(inout) :: forcHRU              ! x%hru(:)%var(:)     -- model forcing data
- type(hru_doubleVec) , intent(inout) :: progHRU              ! x%hru(:)%var(:)%dat -- model prognostic (state) variables
- type(hru_doubleVec) , intent(inout) :: diagHRU              ! x%hru(:)%var(:)%dat -- model diagnostic variables
- type(hru_doubleVec) , intent(inout) :: fluxHRU              ! x%hru(:)%var(:)%dat -- model fluxes
- type(var_dlength)   , intent(inout) :: bvarData             ! x%var(:)%dat        -- basin-average variables
+ type(hru_doubleVec)     , intent(in)    :: mparHRU              ! x%hru(:)%var(:)%dat        -- local (HRU) model parameters
+ type(hru_dom_intVec)    , intent(inout) :: indxHRU              ! x%hru(:)%dom(:)%var(:)%dat -- model indices
+ type(hru_dom_double)    , intent(inout) :: forcHRU              ! x%hru(:)%dom(:)%var(:)     -- model forcing data
+ type(hru_dom_doubleVec) , intent(inout) :: progHRU              ! x%hru(:)%dom(:)%var(:)%dat -- model prognostic (state) variables
+ type(hru_dom_doubleVec) , intent(inout) :: diagHRU              ! x%hru(:)%dom(:)%var(:)%dat -- model diagnostic variables
+ type(hru_dom_doubleVec) , intent(inout) :: fluxHRU              ! x%hru(:)%dom(:)%var(:)%dat -- model fluxes
+ type(var_dlength)       , intent(inout) :: bvarData             ! x%var(:)%dat               -- basin-average variables
  ! error control
- integer(i4b)        , intent(out)   :: err                  ! error code
- character(*)        , intent(out)   :: message              ! error message
+ integer(i4b)            , intent(out)   :: err                  ! error code
+ character(*)            , intent(out)   :: message              ! error message
  ! ----- define local variables ------------------------------------------------------------------------------------------
  ! general local variables
- character(len=256)                      :: cmessage               ! error message
- integer(i4b)                            :: iHRU                   ! HRU index
- integer(i4b)                            :: jHRU,kHRU              ! index of the hydrologic response unit
- integer(i4b)                            :: nSnow                  ! number of snow layers
- integer(i4b)                            :: nSoil                  ! number of soil layers
- integer(i4b)                            :: nLayers                ! total number of layers
- real(rkind)                             :: fracHRU                ! fractional area of a given HRU (-)
- logical(lgt)                            :: computeVegFluxFlag     ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+ character(len=256)                  :: cmessage               ! error message
+ integer(i4b)                        :: iHRU                   ! HRU index
+ integer(i4b)                        :: jHRU,kHRU              ! index of the hydrologic response unit
+ integer(i4b)                        :: nSnow                  ! number of snow layers
+ integer(i4b)                        :: nSoil                  ! number of soil layers
+ integer(i4b)                        :: nLayers                ! total number of layers
+ real(rkind)                         :: fracHRU                ! fractional area of a given HRU (-)
+ logical(lgt)                        :: computeVegFluxFlag     ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+ ! glacier local variables
+ logical(lgt)                        :: has_land               ! flag to indicate if the HRU has land
+ logical(lgt)                        :: has_glacier            ! flag to indicate if the HRU has glacier
+ integer(i4b)                        :: nSnow_glAcc            ! number of snow layers in the glacier accumulation zone
+ integer(i4b)                        :: nSoil_glAcc            ! number of soil layers in the glacier accumulation zone
+ integer(i4b)                        :: nLayers_glAcc          ! total number of layers in the glacier accumulation zone
+ integer(i4b)                        :: nSnow_glAbl            ! number of snow layers in the glacier ablation zone
+ integer(i4b)                        :: nSoil_glAbl            ! number of soil layers in the glacier ablation zone
+ integer(i4b)                        :: nLayers_glacc          ! total number of layers in the glacier ablation zone
+ logical(lgt)                        :: noVegFluxFlag          ! flag that is false since there are no vegetation fluxes for glaciers
 
  ! initialize error control
  err=0; write(message, '(A21,I0,A10,I0,A2)' ) 'run_oneGRU (gru nc = ',gruInfo%gru_nc -1,', gruId = ',gruInfo%gru_id,')/' !netcdf index starts with 0 if want to subset
@@ -153,52 +163,155 @@ contains
 
  ! ********** RUN FOR ONE HRU ********************************************************************************************
  ! loop through HRUs
- do iHRU=1,gruInfo%hruCount
+ nhru = gruInfo%hruCount
 
+ do iHRU=1,gruInfo%hruCount
+  ! initialize domain type flags, can change
+  has_land = .false.
+  has_glacier = .false.
+  if (diagHRU%hru(iHRU)%var(iLookDIAG%glacFracArea)%dat(1) < 1._rkind) has_land = .true.
+  if (diagHRU%hru(iHRU)%var(iLookDIAG%glacFracArea)%dat(1) > 0._rkind) has_glacier = .true.
+
+  if (has_land)then
   ! ----- hru initialization ---------------------------------------------------------------------------------------------
 
-  ! update the number of layers
-  nSnow   = indxHRU%hru(iHRU)%var(iLookINDEX%nSnow)%dat(1)    ! number of snow layers
-  nSoil   = indxHRU%hru(iHRU)%var(iLookINDEX%nSoil)%dat(1)    ! number of soil layers
-  nLayers = indxHRU%hru(iHRU)%var(iLookINDEX%nLayers)%dat(1)  ! total number of layers
+    ! update the number of layers
+    nSnow   = indxHRU%hru(iHRU)%dom(1)%var(iLookINDEX%nSnow)%dat(1)    ! number of snow layers
+    nSoil   = indxHRU%hru(iHRU)%dom(1)%var(iLookINDEX%nSoil)%dat(1)    ! number of soil layers
+    nLayers = indxHRU%hru(iHRU)%dom(1)%var(iLookINDEX%nLayers)%dat(1)  ! total number of layers
 
-  ! set the flag to compute the vegetation flux
-  computeVegFluxFlag = (ixComputeVegFlux(iHRU) == yes)
+    ! set the flag to compute the vegetation flux
+    computeVegFluxFlag = (ixComputeVegFlux(iHRU) == yes)
 
-  ! ----- run the model --------------------------------------------------------------------------------------------------
+    ! ----- run the model --------------------------------------------------------------------------------------------------
 
-  ! simulation for a single HRU
-  call run_oneHRU(&
-                  ! model control
-                  gruInfo%hruInfo(iHRU)%hru_nc,    & ! intent(in):    hru count Id
-                  gruInfo%hruInfo(iHRU)%hru_id,    & ! intent(in):    hruId
-                  dt_init(iHRU),                   & ! intent(inout): initial time step
-                  computeVegFluxFlag,              & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
-                  nSnow,nSoil,nLayers,             & ! intent(inout): number of snow and soil layers
-                  ! data structures (input)
-                  timeVec,                         & ! intent(in):    model time data
-                  typeHRU%hru(iHRU),               & ! intent(in):    local classification of soil veg etc. for each HRU
-                  attrHRU%hru(iHRU),               & ! intent(in):    local attributes for each HRU
-                  lookupHRU%hru(iHRU),             & ! intent(in):    local lookup tables for each HRU
-                  bvarData,                        & ! intent(in):    basin-average model variables
-                  ! data structures (input-output)
-                  mparHRU%hru(iHRU),               & ! intent(inout): model parameters
-                  indxHRU%hru(iHRU),               & ! intent(inout): model indices
-                  forcHRU%hru(iHRU),               & ! intent(inout): model forcing data
-                  progHRU%hru(iHRU),               & ! intent(inout): model prognostic variables for a local HRU
-                  diagHRU%hru(iHRU),               & ! intent(inout): model diagnostic variables for a local HRU
-                  fluxHRU%hru(iHRU),               & ! intent(inout): model fluxes for a local HRU
-                  ! error control
-                  err,cmessage)                      ! intent(out):   error control
-  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+    ! simulation for a single HRU
+    call run_oneHRU(&
+                    ! model control
+                    gruInfo%hruInfo(iHRU)%hru_nc,    & ! intent(in):    hru count Id
+                    gruInfo%hruInfo(iHRU)%hru_id,    & ! intent(in):    hruId
+                    dt_init(iHRU),                   & ! intent(inout): initial time step
+                    computeVegFluxFlag,              & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
+                    .false.,                         & ! intent(in)   : flag to indicate if we are on a glacier (false=no, true=yes)
+                    nSnow,nSoil,nLayers,             & ! intent(inout): number of snow and soil layers
+                    ! data structures (input)
+                    timeVec,                         & ! intent(in):    model time data
+                    typeHRU%hru(iHRU),               & ! intent(in):    local classification of soil veg etc. for each HRU
+                    attrHRU%hru(iHRU),               & ! intent(in):    local attributes for each HRU
+                    lookupHRU%hru(iHRU),             & ! intent(in):    local lookup tables for each HRU
+                    bvarData,                        & ! intent(in):    basin-average model variables
+                    ! data structures (input-output)
+                    mparHRU%hru(iHRU),               & ! intent(in):    model parameters
+                    indxHRU%hru(iHRU)%dom(1),        & ! intent(inout): model indices
+                    forcHRU%hru(iHRU)%dom(1),        & ! intent(inout): model forcing data
+                    progHRU%hru(iHRU)%dom(1),        & ! intent(inout): model prognostic variables for a local HRU
+                    diagHRU%hru(iHRU)%dom(1),        & ! intent(inout): model diagnostic variables for a local HRU
+                    fluxHRU%hru(iHRU)%dom(1),        & ! intent(inout): model fluxes for a local HRU
+                    ! error control
+                    err,cmessage)                      ! intent(out):   error control
+    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-  ! update layer numbers that could be changed in run_oneHRU -- needed for model output
-  gruInfo%hruInfo(iHRU)%nSnow = nSnow
-  gruInfo%hruInfo(iHRU)%nSoil = nSoil
+    ! update layer numbers that could be changed in run_oneHRU -- needed for model output
+    gruInfo%hruInfo(iHRU)%dom(1)%nSnow = nSnow
+    gruInfo%hruInfo(iHRU)%dom(1)%nSoil = nSoil
 
-  ! save the flag for computing the vegetation fluxes
-  if(computeVegFluxFlag)       ixComputeVegFlux(iHRU) = yes
-  if(.not. computeVegFluxFlag) ixComputeVegFlux(iHRU) = no
+    ! save the flag for computing the vegetation fluxes
+    if(computeVegFluxFlag)       ixComputeVegFlux(iHRU) = yes
+    if(.not. computeVegFluxFlag) ixComputeVegFlux(iHRU) = no
+  endif ! land
+
+  if (has_glacier)then
+    ! no vegetation fluxes for glaciers and no aquifer
+    noVegFluxFlag = .false.
+
+    if(diagHRU%hru(iHRU)%var(iLookDIAG%glacAAR_hru)%dat(1) > 0._rkind)then 
+    ! glacier accumulation zone exists in this HRU, from accumulation area ratio in this HRU (could be different than entire glacier)
+
+      ! ----- glacier accumulation zone initialization ---------------------------------------------------------------------------------------------
+      ! update the number of layers
+      nSnow   = indxHRU%hru(iHRU)%dom(2)%var(iLookINDEX%nSnow)%dat(1)    ! number of snow layers
+      nSoil   = 0     ! number of soil layers, could be 1 for debris-covered glaciers?
+      nLayers = indxHRU%hru(iHRU)%dom(2)%var(iLookINDEX%nLayers)%dat(1)  ! total number of layers, plus a semi-infinite ice layer
+  
+      ! ----- run the model --------------------------------------------------------------------------------------------------
+  
+      ! simulation for a single HRU glacier accumulation zone
+      call run_oneHRU(&
+                      ! model control
+                      gruInfo%hruInfo(iHRU)%hru_nc,    & ! intent(in):    hru count Id
+                      gruInfo%hruInfo(iHRU)%hru_id,    & ! intent(in):    hruId
+                      dt_init(iHRU),                   & ! intent(inout): initial time step
+                      noVegFluxFlag,                   & ! intent(inout): no fluxes over vegetation on glaciers
+                      .true.,                          & ! intent(in):    flag to indicate if we are on a glacier accumulation zone (false=no, true=yes)
+                      .false.,                         & ! intent(in):    flag to indicate if we are on a glacier ablation zone (false=no, true=yes)      
+                      nSnow,nSoil,nLayers,             & ! intent(inout): number of snow and soil layers
+                      ! data structures (input)
+                      timeVec,                         & ! intent(in):    model time data
+                      typeHRU%hru(iHRU),               & ! intent(in):    local classification of soil veg etc. for each HRU
+                      attrHRU%hru(iHRU),               & ! intent(in):    local attributes for each HRU
+                      lookupHRU%hru(iHRU),             & ! intent(in):    local lookup tables for each HRU
+                      bvarData,                        & ! intent(in):    basin-average model variables
+                      ! data structures (input-output)
+                      mparHRU%hru(iHRU),               & ! intent(in):    model parameters
+                      indxHRU%hru(iHRU)%dom(2),        & ! intent(inout): model indices
+                      forcHRU%hru(iHRU)%dom(2),        & ! intent(inout): model forcing data
+                      progHRU%hru(iHRU)%dom(2),        & ! intent(inout): model prognostic variables for a local HRU
+                      diagHRU%hru(iHRU)%dom(2),        & ! intent(inout): model diagnostic variables for a local HRU
+                      fluxHRU%hru(iHRU)%dom(2),        & ! intent(inout): model fluxes for a local HRU
+                      ! error control
+                      err,cmessage)                      ! intent(out):   error control
+      if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+      ! update layer numbers that could be changed in run_oneHRU -- needed for model output
+      gruInfo%hruInfo(iHRU)%dom(2)%nSnow = nSnow
+      gruInfo%hruInfo(iHRU)%dom(2)%nSoil = nSoil
+
+    endif ! glacier accumulation zone
+
+    if(diagHRU%hru(iHRU)%var(iLookDIAG%glacAAR_hru)%dat(1) < 1._rkind)then 
+    ! glacier ablation zone exists in this HRU, from accumulation area ratio in this HRU (could be different than entire glacier)
+        
+      ! ----- glacier accumulation zone initialization ---------------------------------------------------------------------------------------------
+      ! update the number of layers
+        nSnow   = indxHRU%hru(iHRU)%dom(3)%var(iLookINDEX%nSnow)%dat(1)    ! number of snow layers
+        nSoil   = 0     ! number of soil layers, could be 1 for debris-covered glaciers?
+        nLayers = indxHRU%hru(iHRU)%dom(3)%var(iLookINDEX%nLayers)%dat(1)  ! total number of layers, plus a semi-infinite ice layer
+  
+      ! ----- run the model --------------------------------------------------------------------------------------------------
+  
+      ! simulation for a single HRU glacier accumulation zone
+      call run_oneHRU(&
+                      ! model control
+                      gruInfo%hruInfo(iHRU)%hru_nc,    & ! intent(in):    hru count Id
+                      gruInfo%hruInfo(iHRU)%hru_id,    & ! intent(in):    hruId
+                      dt_init(iHRU),                   & ! intent(inout): initial time step
+                      noVegFluxFlag,                   & ! intent(inout): no fluxes over vegetation on glaciers
+                      .false.,                         & ! intent(in):    flag to indicate if we are on a glacier accumulation zone (false=no, true=yes)
+                      .true.,                          & ! intent(in):    flag to indicate if we are on a glacier ablation zone (false=no, true=yes)                   
+                      nSnow,nSoil,nLayers,             & ! intent(inout): number of snow and soil layers
+                      ! data structures (input)
+                      timeVec,                         & ! intent(in):    model time data
+                      typeHRU%hru(iHRU),               & ! intent(in):    local classification of soil veg etc. for each HRU
+                      attrHRU%hru(iHRU),               & ! intent(in):    local attributes for each HRU
+                      lookupHRU%hru(iHRU),             & ! intent(in):    local lookup tables for each HRU
+                      bvarData,                        & ! intent(in):    basin-average model variables
+                      ! data structures (input-output)
+                      mparHRU%hru(iHRU),               & ! intent(in):    model parameters
+                      indxHRU%hru(iHRU)%dom(3),        & ! intent(inout): model indices
+                      forcHRU%hru(iHRU)%dom(3),        & ! intent(inout): model forcing data
+                      progHRU%hru(iHRU)%dom(3),        & ! intent(inout): model prognostic variables for a local HRU
+                      diagHRU%hru(iHRU)%dom(3),        & ! intent(inout): model diagnostic variables for a local HRU
+                      fluxHRU%hru(iHRU)%dom(3),        & ! intent(inout): model fluxes for a local HRU
+                      ! error control
+                      err,cmessage)                      ! intent(out):   error control
+      if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+      ! update layer numbers that could be changed in run_oneHRU -- needed for model output
+      gruInfo%hruInfo(iHRU)%dom(3)%nSnow = nSnow
+      gruInfo%hruInfo(iHRU)%dom(3)%nSoil = nSoil
+
+    endif ! glacier ablation zone
+  endif ! glacier
 
   ! identify the area covered by the current HRU
   fracHRU = attrHRU%hru(iHRU)%var(iLookATTR%HRUarea) / bvarData%var(iLookBVAR%basin__totalArea)%dat(1)
