@@ -105,13 +105,20 @@ MODULE data_types
  ! Define data types to map between GRUs and HRUs
  ! ***********************************************************************************************************
 
+  ! hru info data structure
+ type, public :: dom_info
+  integer(i4b)                           :: dom_type                      ! type = 1 for upland, 2 for glacier accumulation, 3 for glacier ablation, (4 for lake)
+  integer(i4b)                           :: nSnow                         ! number of snow layers
+  integer(i4b)                           :: nSoil                         ! number of soil layers
+ endtype dom_info
+
  ! hru info data structure
  type, public :: hru_info
   integer(i4b)                           :: hru_nc                        ! index of the hru in the netcdf file
   integer(i4b)                           :: hru_ix                        ! index of the hru in the run domain
   integer(8)                             :: hru_id                        ! id (non-sequential number) of the hru
-  integer(i4b)                           :: nSnow                         ! number of snow layers
-  integer(i4b)                           :: nSoil                         ! number of soil layers
+  integer(i4b)                           :: domCount                      ! number of domains in the hru
+  type(dom_info), allocatable            :: domInfo(:)                    ! basic information of domains within the gru
  endtype hru_info
 
  ! define mapping from GRUs to the HRUs

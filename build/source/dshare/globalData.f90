@@ -201,6 +201,11 @@ MODULE globalData
   type(hru2gru_map),allocatable,save,public      :: index_map(:)                      ! hru2gru map
   ! define variables used for the vegetation phenology
   real(rkind),dimension(12),save,public          :: greenVegFrac_monthly              ! fraction of green vegetation in each month (0-1)
+  ! define variables used for domain type        
+  integer(i4b),save,public                       :: upland=1                          ! upland domain
+  integer(i4b),save,public                       :: glacAcc=2                         ! glacier accumulation domain
+  integer(i4b),save,public                       :: glacAbl=3                         ! glacier ablation domain
+  integer(i4b),save,public                       :: wetland=4                         ! wetland/lake domain
   ! define the model output file
   character(len=256),save,public                 :: fileout=''                        ! output filename
   character(len=256),save,public                 :: output_fileSuffix=''              ! suffix for the output file

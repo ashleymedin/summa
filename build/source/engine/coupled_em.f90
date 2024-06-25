@@ -115,6 +115,7 @@ subroutine coupled_em(&
                       computeVegFlux,    & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
                       fracJulDay,        & ! intent(in):    fractional julian days since the start of year
                       yearLength,        & ! intent(in):    number of days in the current year
+                      isGlacier,         & ! intent(in):    flag to indicate if the states are on a glacier
                       ! data structures (input)
                       type_data,         & ! intent(in):    local classification of soil veg etc. for each HRU
                       attr_data,         & ! intent(in):    local attributes for each HRU
@@ -162,6 +163,9 @@ subroutine coupled_em(&
   real(rkind),intent(inout)            :: dt_init                ! used to initialize the size of the sub-step
   integer(i4b),intent(in)              :: dt_init_factor         ! Used to adjust the length of the timestep in the event of a failure
   logical(lgt),intent(inout)           :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+  real(rkind),intent(in)               :: fracJulDay             ! fractional julian days since the start of year
+  integer(i4b),intent(in)              :: yearLength             ! number of days in the current year
+  logical(lgt),intent(in)              :: isGlacier              ! flag to indicate if the states are on a glacier
   ! data structures (input)
   type(var_i),intent(in)               :: type_data              ! type of vegetation and soil
   type(var_d),intent(in)               :: attr_data              ! spatial attributes
@@ -174,12 +178,9 @@ subroutine coupled_em(&
   type(var_dlength),intent(inout)      :: prog_data              ! prognostic variables for a local HRU
   type(var_dlength),intent(inout)      :: diag_data              ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout)      :: flux_data              ! model fluxes for a local HRU
-  real(rkind),intent(in)               :: fracJulDay             ! fractional julian days since the start of year
-  integer(i4b),intent(in)              :: yearLength             ! number of days in the current year
   ! error control
   integer(i4b),intent(out)             :: err                    ! error code
   character(*),intent(out)             :: message                ! error message
-  ! =====================================================================================================================================================
   ! =====================================================================================================================================================
   ! local variables
   character(len=256)                   :: cmessage               ! error message
