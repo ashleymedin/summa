@@ -17,11 +17,7 @@ echo "$SLURM_ARRAY_TASK_ID"
 # sbatch --array=201-201 process_statBatch.sh
 # ----------------------------------------------------------------------------------------------
 
-module load StdEnv/2020
-module load gcc/9.3.0
-module load geo-stack/2022c
-virtualenv --no-download $SLURM_TMPDIR/env
-source $SLURM_TMPDIR/env/bin/activate
+module load  StdEnv/2023  gcc/12.3  openmpi/4.1.5  geo-stack/2023a
 
 python timeseries_to_statistics.py sundials_1en6 $SLURM_ARRAY_TASK_ID 200
 python timeseries_to_statistics.py be1 $SLURM_ARRAY_TASK_ID 200
