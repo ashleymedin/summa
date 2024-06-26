@@ -80,7 +80,7 @@ contains
  ! output variables
  type(var_dlength),intent(inout) :: diag_data                  ! data structure of model diagnostic variables for a local HRU
  type(var_dlength),intent(inout) :: flux_data                  ! data structure of model fluxes for a local HRU
- real(rkind),intent(inout)       :: tmZoneOffsetFracDay
+ real(rkind),intent(inout)       :: tmZoneOffsetFracDay        ! time zone offset in fraction of days
  integer(i4b),intent(out)        :: err                        ! error code
  character(*),intent(out)        :: message                    ! error message
  ! local time

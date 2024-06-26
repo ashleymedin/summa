@@ -47,7 +47,7 @@ module summabmi
   USE summa_util, only: handle_err                            ! used to process errors
   ! global data
   USE globalData, only: numtim                                ! number of model time steps
-  USE globalData, only: print_step_freq
+  USE globalData, only: print_step_freq                       ! frequency of printing model output
   USE globalData, only: dJulianStart                          ! julian day of start time of simulation
   USE globalData, only: dJulianFinsh                          ! julian day of end time of simulation
   USE globalData, only: data_step                             ! length of time steps for the outermost timeloop

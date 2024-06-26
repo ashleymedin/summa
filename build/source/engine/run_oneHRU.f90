@@ -138,7 +138,7 @@ subroutine run_oneHRU(&
   type(var_i)        , intent(in)    :: typeData            ! x%var(:)                 -- local classification of soil veg etc. for each HRU
   type(var_d)        , intent(in)    :: attrData            ! x%var(:)                 -- local attributes for each HRU
   type(zLookup)      , intent(in)    :: lookupData          ! x%z(:)%var(:)%lookup(:)  -- local lookup tables for each HRU
-  type(var_dlength)  , intent(in)    :: bvarData            ! x%var(:)%dat -- basin-average variables
+  type(var_dlength)  , intent(in)    :: bvarData            ! x%var(:)%dat             -- basin-average variables
   ! data structures (input-output)
   type(var_dlength)  , intent(in)    :: mparData            ! x%var(:)%dat        -- local (HRU) model parameters
   type(dom_intVec)   , intent(inout) :: indxData            ! x%dom(:)%var(:)%dat -- model indices
