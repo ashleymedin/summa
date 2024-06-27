@@ -131,12 +131,11 @@ subroutine run_oneGRU(&
   integer(i4b)                        :: iHRU                   ! HRU index
   integer(i4b)                        :: jHRU,kHRU              ! index of the hydrologic response unit
   integer(i4b)                        :: iDOM                   ! domain index
-  real(rkind)                         :: fracDOM                ! fractional area of a given HRU domain in GRU (-)
+  real(rkind)                         :: fracHRU                ! fractional area of a given HRU (-)
   integer(i4b)                        :: ndom_glacGRU           ! number of glacier domains in the GRU
   real(rkind), allocatable            :: elev(:)                ! median elevation of the each glacier cell (m)
   real(rkind), allocatable            :: GWE_deltaYr(:)         ! change in glacier water equivalent per year (m) in each glacier cell
   logical(lgt)                        :: computeVegFluxFlag     ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
-  logical(lgt)                        :: updateGlacArea         ! flag to update glacier area
 
   ! initialize error control
   err=0; write(message, '(A21,I0,A10,I0,A2)' ) 'run_oneGRU (gru nc = ',gruInfo%gru_nc -1,', gruId = ',gruInfo%gru_id,')/' !netcdf index starts with 0 if want to subset
@@ -153,39 +152,17 @@ subroutine run_oneGRU(&
   bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = 0._rkind ! baseflow from the aquifer (m s-1)
   bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = 0._rkind ! transpiration loss from the aquifer (m s-1)
 
-  updateGlacArea = .false. ! initialize updateGlacArea flag
-  if (timeVec(1) - bvarData%var(iLookBVAR%basin__lastGlacierUpdate)%dat(1) > 365.0_rkind) updateGlacArea = .true. ! update glacier area if a year passed from last update
-
-  ! initialize total inflow for each layer in a soil column and glacier size allocation
-  ndom_glacGRU = 0 ! initialize number of glacier domains in the GRU
+  ! initialize total inflow for each layer in a soil column
   do iHRU=1,gruInfo%hruCount
-    do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
-      fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = 0._rkind
-      if (updateGlacierArea) then ! allocate space for glacier area and GWE_deltaYr
-        if (progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)==0._rkind) cycle ! skip domains with no area
-        if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAbl)then
-          ndom_glacGRU = ndom_glacGRU + 1
-        endif
-      else
-        ndom_glacGRU = 1 ! allocate at some size
-      endif
-    end do
+    fluxHRU%hru(iHRU)%dom(:)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = 0._rkind
   end do
-  allocate(elev(ndom_glacGRU), GWE_deltaYr(ndom_glacGRU))
 
   ! ********** RUN FOR ONE HRU ********************************************************************************************
   ! loop through HRUs
+  nhru = gruInfo%hruCount
   ndom_glacGRU = 0 ! initialize number of glacier domains in the GRU
 
   do iHRU=1,gruInfo%hruCount
-    
-    ! skip HRUs with no area
-    runHRU = .false.
-    do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
-      if (progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)>0._rkind) runHRU = .true.
-    end do
-    if (.not. runHRU) cycle
-
     computeVegFluxFlag = (ixComputeVegFlux(iHRU) == yes)  ! initialize the flag to compute the vegetation flux
     ! ----- run the model --------------------------------------------------------------------------------------------------
 
@@ -223,13 +200,17 @@ subroutine run_oneGRU(&
     if(computeVegFluxFlag)       ixComputeVegFlux(iHRU) = yes
     if(.not. computeVegFluxFlag) ixComputeVegFlux(iHRU) = no
 
+    ! identify the area covered by the current HRU
+    fracHRU = attrHRU%hru(iHRU)%var(iLookATTR%HRUarea) / bvarData%var(iLookBVAR%basin__totalArea)%dat(1)
+    ! (Note:  for efficiency, this could this be done as a setup task, not every timestep)
+
     ! ----- compute fluxes across HRUs --------------------------------------------------------------------------------------------------
     ! identify lateral connectivity
     ! (Note:  for efficiency, this could this be done as a setup task, not every timestep)
     kHRU = 0
     ! identify the downslope HRU
     dsHRU: do jHRU=1,gruInfo%hruCount
-      if(typeHRU%hru(iHRU)%var(iLookTYPE%dowgruInfo%hruCountindex) == idHRU%hru(jHRU)%var(iLookID%hruId))then
+      if(typeHRU%hru(iHRU)%var(iLookTYPE%downHRUindex) == idHRU%hru(jHRU)%var(iLookID%hruId))then
         if(kHRU==0)then  ! check there is a unique match
           kHRU=jHRU
           exit dsHRU
@@ -238,11 +219,8 @@ subroutine run_oneGRU(&
     end do dsHRU
 
     do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
-      if (progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)==0._rkind) cycle ! skip domains with no area
-      associate(typeDOM => gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type)
-
-      ! identify the area covered by the current domain
-      fracDOM = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)/ bvarData%var(iLookBVAR%basin__totalArea)%dat(1)
+      associate(fracDOM => diagHRU%hru(iHRU)%dom(iDOM)%var(iLookDIAG%fracDOM)%dat(1), &
+                typeDOM => gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type)
 
       ! if lateral flows are active, add inflow to the downslope HRU (not active on glacier)
       if(kHRU > 0)then  ! if there is a downslope HRU
@@ -254,28 +232,27 @@ subroutine run_oneGRU(&
       ! ----- calculate weighted basin (GRU) fluxes --------------------------------------------------------------------------------------
       if (typeDOM==upland)then
          ! increment basin surface runoff (m s-1)
-        bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)  = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)*fracDOM
+        bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)  = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)*fracHRU*fracDom
 
         ! increment basin soil drainage (m s-1)
-        bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)   = bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSoilDrainage)%dat(1) *fracDOM
+        bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)   = bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSoilDrainage)%dat(1) *fracHRU*fracDom
 
         ! increment aquifer variables -- ONLY if aquifer baseflow is computed individually for each HRU and aquifer is run
         ! NOTE: groundwater computed later for singleBasin
         ! NOTE: no groundwater for glacier
         if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == localColumn .and. model_decisions(iLookDECISIONS%groundwatr)%iDecision == bigBucket) then
-          bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferRecharge)%dat(1) *fracDOM
-          bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferTranspire)%dat(1)*fracDOM
-          bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) *fracDOM
+          bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferRecharge)%dat(1) *fracHRU*fracDom
+          bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferTranspire)%dat(1)*fracHRU*fracDom
+          bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) *fracHRU*fracDom
         end if
       else if (typeDOM==glacAcc .or. typeDOM==glacAbl)then
         if (typeDOM==glacAcc)then ! collect glacier accumulation melt
-          bvarData%var(iLookBVAR%basin__GlacierAccMelt)%dat(1)  = bvarData%var(iLookBVAR%basin__GlacAccMelt)%dat(1)  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1) *fracDOM
+          bvarData%var(iLookBVAR%basin__GlacierAccMelt)%dat(1)  = bvarData%var(iLookBVAR%basin__GlacAccMelt)%dat(1)  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1) *fracHRU*fracDom
         else if (typeDOM==glacAbl)then ! collect glacier ablation melt
-          bvarData%var(iLookBVAR%basin__GlacierAblMelt)%dat(1)  = bvarData%var(iLookBVAR%basin__GlacAblMelt)%dat(1)  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1) *fracDOM
+          bvarData%var(iLookBVAR%basin__GlacierAblMelt)%dat(1)  = bvarData%var(iLookBVAR%basin__GlacAblMelt)%dat(1)  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1) *fracHRU*fracDom
         end if
         ! if a year passed from last glacier area update, write fluxes to the output file so that the glacier area can be updated
-        if (updateGlacArea) then
-          ! save the glacier mass balance associated with this elevation
+        if (timeVec(1) - bvarData%var(iLookBVAR%basin__lastGlacierUpdate)%dat(1) > 365.0_rkind) then
           ndom_glacGRU = ndom_glacGRU + 1
           elev(ndom_glacGRU) = diagHRU%hru(iHRU)%dom(iDOM)%var(iLookDIAG%elevMedian)%dat(1)
           GWE_deltaYr(ndom_glacGRU) = fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSWE)%dat(1) - fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSWE_yrend)%dat(1) 
@@ -285,7 +262,7 @@ subroutine run_oneGRU(&
         print*, 'WARNING:  wetland fluxes not yet implemented'
       end if
       end associate
-    end do ! (looping through domains)
+    end do
 
     ! averaging more fluxes (and/or states) can be added to this section as desired
 
@@ -329,11 +306,12 @@ subroutine run_oneGRU(&
 
   end associate
 
-  ! Need to update the glacier area
-  if (updateGlacArea) then
+  ! if a year passed from last glacier area update, update the glacier area
+  if (timeVec(1) - bvarData%var(iLookBVAR%basin__lastGlacierUpdate)%dat(1) > 365.0_rkind) then
     bvarData%var(iLookBVAR%basin__lastGlacierUpdate)%dat(1) = timeVec(1)
     ! need to save length, bottom topo, and elevation of glacier from the end of previous update for this GRU in file associated with gruInfo%gru_id
     ! need lengths and max/min elevations associated with each HRU in the GRU
+    allocate(elev(ndom_glacGRU), GWE_deltaYr(ndom_glacGRU))
     call flow_MUSCL(& 
                    ! input
                    gruInfo%gru_id, & ! intent(in): GRU ID
@@ -346,15 +324,18 @@ subroutine run_oneGRU(&
                    err,message)      ! intent(out): error control
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
+    deallocate(elev, GWE_deltaYr)
+
     ! update the glacier area and elevation by HRU, need to do this inside flow_MUSCL somehow
+    !gruInfo%hruInfo(iHRU)%domCount
+    !gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type
     !diagHRU%hru(iHRU)%dom(iDOM)%var(iLookDIAG%elevMedian)%dat(1)
-    !progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
+    !diagHRU%hru(iHRU)%dom(iDOM)%var(iLookDIAG%fracDOM)%dat(1), &
 
     ! STUB:  glacier area update not yet implemented
     ! call glacier flow model here using the file above ...
-    ! get new fracDOM for each HRU and domain, and new glacier area and new elevMedians
+    ! get new fracDom for each HRU and domain, and new glacier area and new elevMedians
   end if
-  deallocate(elev, GWE_deltaYr)
 
 end subroutine run_oneGRU
 

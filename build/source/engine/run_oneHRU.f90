@@ -165,8 +165,8 @@ subroutine run_oneHRU(&
   err=0; write(message, '(A21,I0,A10,I0,A2)' ) 'run_oneHRU (hru nc = ',hru_nc -1 ,', hruId = ',hruId,')/' !netcdf index starts with 0 if want to subset
 
   do i = 1, ndom
-    ! if water pixel or if the fraction of the domain is zero, do not run the model but update the number of layers
-    if ( typeData%var(iLookTYPE%vegTypeIndex) .ne. isWater .and. progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) > 0._rkind )then
+    ! if water pixel or if the fraction of the domain is zero, do not run the model
+    if ( typeData%var(iLookTYPE%vegTypeIndex) .ne. isWater .and. diagData%dom(i)%var(iLookDIAG%fracDOM)%dat(1) > 0._rkind )then
 
       if (domType(i) == upland) then
         ! get height at bottom of each soil layer, negative downwards (used in Noah MP)
@@ -259,7 +259,7 @@ subroutine run_oneHRU(&
 
       if(domType(i) == upland) computeVegFlux = use_computeVegFlux ! update the flag for the next domain on upland areas
 
-    endif ! not a water pixel and area of the domain is greater than zero
+    endif ! not a water pixel and fraction of the domain is greater than zero
 
     ! update the number of layers regardless of whether the model was run
     nSnow(i)   = indxHRU%dom(i)%var(iLookINDEX%nSnow)%dat(1)    ! number of snow layers

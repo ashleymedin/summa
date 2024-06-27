@@ -290,7 +290,7 @@ subroutine computeBaseflow(&
     surfaceHydCond          => flux_data%var(iLookFLUX%mLayerSatHydCondMP)%dat(1),       & ! intent(in):  [dp]    saturated hydraulic conductivity at the surface (m s-1)
     mLayerColumnInflow      => flux_data%var(iLookFLUX%mLayerColumnInflow)%dat,          & ! intent(in):  [dp(:)] inflow into each soil layer (m3/s)
     ! input: local attributes
-    DOMarea                 => prog_data%var(iLookPROG%DOMarea),                         & ! intent(in):  [dp]    Domain area in HRU (m2)
+    HRUarea                 => attr_data%var(iLookATTR%HRUarea),                         & ! intent(in):  [dp]    HRU area (m2)
     tan_slope               => attr_data%var(iLookATTR%tan_slope),                       & ! intent(in):  [dp]    tan water table slope, taken as tan local ground surface slope (-)
     contourLength           => attr_data%var(iLookATTR%contourLength),                   & ! intent(in):  [dp]    length of contour at downslope edge of HRU (m)
     ! input: baseflow parameters
@@ -339,8 +339,8 @@ subroutine computeBaseflow(&
     mLayerColumnOutflow(1:nSoil) = trSoil(1:nSoil)*tan_slope*contourLength
 
     ! compute total column inflow and total column outflow (m s-1)
-    totalColumnInflow  = sum(mLayerColumnInflow(1:nSoil))/DOMarea
-    totalColumnOutflow = sum(mLayerColumnOutflow(1:nSoil))/DOMarea
+    totalColumnInflow  = sum(mLayerColumnInflow(1:nSoil))/HRUarea
+    totalColumnOutflow = sum(mLayerColumnOutflow(1:nSoil))/HRUarea
 
     ! compute the available storage (m)
     availStorage = sum(mLayerDepth(1:nSoil)*(theta_sat(1:nSoil) - (mLayerVolFracLiq(1:nSoil)+mLayerVolFracIce(1:nSoil))))
@@ -365,26 +365,26 @@ subroutine computeBaseflow(&
     end if
 
     ! compute the baseflow in each layer (m s-1)
-    mLayerBaseflow(1:nSoil) = (mLayerColumnOutflow(1:nSoil) - mLayerColumnInflow(1:nSoil))/DOMarea
+    mLayerBaseflow(1:nSoil) = (mLayerColumnOutflow(1:nSoil) - mLayerColumnInflow(1:nSoil))/HRUarea
 
     ! compute the total baseflow
     qbTotal = sum(mLayerBaseflow)
 
     ! add exfiltration to the baseflow flux at the top layer
     mLayerBaseflow(1)      = mLayerBaseflow(1) + scalarExfiltration
-    mLayerColumnOutflow(1) = mLayerColumnOutflow(1) + scalarExfiltration*DOMarea
+    mLayerColumnOutflow(1) = mLayerColumnOutflow(1) + scalarExfiltration*HRUarea
 
     ! test
     if (printFlag) then
       xDepth = sum(mLayerDepth(ixSaturation:nSoil)*(mLayerVolFracLiq(ixSaturation:nSoil) - fieldCapacity))/sum(theta_sat(ixSaturation:nSoil) - fieldCapacity)  ! "effective" water table thickness (m)
       xTran  = tran0*(xDepth/soilDepth)**zScale_TOPMODEL  ! transmissivity for the entire aquifer (m2 s-1)
-      xFlow  = xTran*tan_slope*contourLength/DOMarea   ! total column outflow (m s-1)
+      xFlow  = xTran*tan_slope*contourLength/HRUarea   ! total column outflow (m s-1)
       print*, 'ixSaturation = ', ixSaturation
       write(*,'(a,1x,5(f30.20,1x))') 'tran0, soilDepth                 = ', tran0, soilDepth
       write(*,'(a,1x,5(f30.20,1x))') 'surfaceHydCond, zScale_TOPMODEL  = ', surfaceHydCond, zScale_TOPMODEL
       write(*,'(a,1x,5(f30.20,1x))') 'xDepth, zActive(ixSaturation)    = ', xDepth, zActive(ixSaturation)
       write(*,'(a,1x,5(f30.20,1x))') 'xTran, trTotal(ixSaturation)     = ', xTran, trTotal(ixSaturation)
-      write(*,'(a,1x,5(f30.20,1x))') 'xFlow, totalColumnOutflow        = ', xFlow, sum(mLayerColumnOutflow(:))/DOMarea
+      write(*,'(a,1x,5(f30.20,1x))') 'xFlow, totalColumnOutflow        = ', xFlow, sum(mLayerColumnOutflow(:))/HRUarea
       !pause 'check groundwater'
     end if
 
@@ -399,7 +399,7 @@ subroutine computeBaseflow(&
     if (.not.derivDesired) return
 
     ! compute ratio of hillslope width to hillslope area (m m-2)
-    length2area = tan_slope*contourLength/DOMarea
+    length2area = tan_slope*contourLength/HRUarea
 
     ! compute the ratio of layer depth to maximum water holding capacity (-)
     depth2capacity(1:nSoil) = mLayerDepth(1:nSoil)/sum( (theta_sat(1:nSoil) - fieldCapacity)*mLayerDepth(1:nSoil) )
