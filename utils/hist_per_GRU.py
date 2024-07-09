@@ -20,32 +20,30 @@ import matplotlib.pyplot as plt
 import copy
 import pandas as pd
 
-viz_dir = Path('/home/avanb/scratch/statistics')
-nbatch_hrus = 518 # number of HRUs per batch
-num_bins = 1000
-do_rel = True # plot relative to the benchmark simulation
+do_rel = True # true is plot relative to the benchmark simulation
+do_hist = False # true is plot histogram instead of CDF
+run_local = True # true is run on local machine, false is run on cluster
 
-testing = False
-do_hist = False # plot histogram instead of CDF
-if testing: 
+if run_local: 
     stat = 'rmnz'
-    viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
-    method_name=['be1en']
-    plt_name=['BE1 mixed']
-    method_name2=method_name
-    plt_name2=plt_name
+    viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics_en')
 else:
     import sys
-    # The first input argument specifies the run where the files are
     stat = sys.argv[1]
-    #method_name=['be1','sundials_1en4','be4','be8','be16','be32','sundials_1en6'] #maybe make this an argument
-    #plt_name=['BE1','IDAe-4','BE4','BE8','BE16','BE32','IDAe-6'] #maybe make this an argument
-    #method_name=['be1','be16','be32','sundials_1en6'] #maybe make this an argument
-    #plt_name=['BE1','BE16','BE32','SUNDIALS'] #maybe make this an argument
-    method_name=['be1','be1cm','be1en','sundials_1en6cm'] 
-    plt_name=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp']
-    method_name2=method_name+['sundials_1en8cm']
-    plt_name2=plt_name+['reference solution']
+    viz_dir = Path('/home/avanb/scratch/statistics')
+    
+
+#method_name=['be1','sundials_1en4','be4','be8','be16','be32','sundials_1en6'] #maybe make this an argument
+#plt_name=['BE1','IDAe-4','BE4','BE8','BE16','BE32','IDAe-6'] #maybe make this an argument
+#method_name=['be1','be16','be32','sundials_1en6'] #maybe make this an argument
+#plt_name=['BE1','BE16','BE32','SUNDIALS'] #maybe make this an argument
+method_name=['be1','be1cm','be1en','sundials_1en6cm'] 
+plt_name=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp']
+method_name2=method_name+['sundials_1en8cm']
+plt_name2=plt_name+['reference solution']
+
+num_bins = 1000
+
 if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
 # Define the power transformation function
@@ -57,7 +55,6 @@ use_vars = [1]
 rep = [0] # mark the repeats
 #use_vars = [0,1,2,3,4]
 #rep = [0,0,0,0,0] # mark the repeats
-
 settings0= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
 settings = [settings0[i] for i in use_vars]
 
@@ -98,11 +95,7 @@ else:
     if do_rel: fig_fil = 'Hrly_diff_cdf_{}_{}_zoom_rel_compressed.png'
 fig_fil = fig_fil.format(','.join(settings),stat)
 
-if stat == 'rmse':
-    stat2 = 'mean'
-    maxes = [2,15,250,0.08,200,20e-3]
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,20e-3]
-if stat == 'rmnz':
+if stat == 'rmse' or stat=='rmnz':
     stat2 = 'mean'
     maxes = [2,15,250,0.08,200,20e-3]
     if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,20e-3]
@@ -122,7 +115,6 @@ if stat2 == 'amax':
 maxes2 = [maxes2[i] for i in use_vars2]
 for i in range(len(maxes2)):
     if rep2[i]==2: maxes2[i] = maxes2[i]*1e2 #clunky way to increase the range for the second repeat
-
 
 summa = {}
 summa1 = {}
@@ -229,7 +221,7 @@ def run_loop(i,var,mx,rep):
 
     if do_hist: 
         axs[r,c].set_ylabel('GRU count')
-        if var != 'wallClockTime' and not testing: axs[r,c].set_ylim([0, 25000])
+        if var != 'wallClockTime' and not run_local: axs[r,c].set_ylim([0, 25000])
  
     else:
         axs[r,c].set_ylabel('cumulative distribution')
@@ -287,7 +279,7 @@ def run_loopb(i,var,mx,rep):
     if do_hist: 
         axs[r,c].set_ylabel('GRU count')
         if(c==1): axs[r, c].set_ylabel('')
-        if var != 'wallClockTime' and not testing: axs[r,c].set_ylim([0, 25000])
+        if var != 'wallClockTime' and not run_local: axs[r,c].set_ylim([0, 25000])
  
     else:
         axs[r,c].set_ylabel('cumulative distribution')
