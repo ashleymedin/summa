@@ -93,7 +93,7 @@ USE mDecisions_module,only:&
  ! local variables
  character(LEN=256)                    :: cmessage           ! error message of downwind routine
  character(LEN=256)                    :: restartFile        ! restart file name
- integer(i4b)                          :: iGRU,iHRU          ! looping variables
+ integer(i4b)                          :: iGRU,iHRU,iDOM     ! looping variables
  logical(lgt)                          :: checkEnthalpy      ! flag if checking enthalpy for consistency
  logical(lgt)                          :: use_lookup         ! flag to use the lookup table for soil enthalpy, otherwise use analytical solution
   real(rkind)                          :: aquifer_start      ! initial aquifer storage
@@ -106,13 +106,13 @@ USE mDecisions_module,only:&
   spatial_gw           => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,& !choice of method for the spatial representation of groundwater
   aquiferIni           => model_decisions(iLookDECISIONS%aquiferIni)%iDecision   ,& !choice of full or empty aquifer at start
   ! lookup table data structure
-  lookupStruct         => summa1_struc%lookupStruct        , & ! x%gru(:)%hru(:)%z(:)%var(:)%lookup(:) -- lookup tables
+  lookupStruct         => summa1_struc%lookupStruct        , & ! x%gru(:)%hru(:)%dom(:)%z(:)%var(:)%lookup(:) -- lookup tables
   ! primary data structures (variable length vectors)
-  indxStruct           => summa1_struc%indxStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model indices
-  mparStruct           => summa1_struc%mparStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model parameters
-  progStruct           => summa1_struc%progStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
-  diagStruct           => summa1_struc%diagStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
-  fluxStruct           => summa1_struc%fluxStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
+  indxStruct           => summa1_struc%indxStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model indices
+  mparStruct           => summa1_struc%mparStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model parameters
+  progStruct           => summa1_struc%progStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model prognostic (state) variables
+  diagStruct           => summa1_struc%diagStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model diagnostic variables
+  fluxStruct           => summa1_struc%fluxStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model fluxes
   ! basin-average structures
   bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)            -- basin-average parameters
   bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat        -- basin-average variables
@@ -175,39 +175,42 @@ USE mDecisions_module,only:&
 
   ! loop through HRUs
   do iHRU=1,gru_struc(iGRU)%hruCount
+   ! loop through domains
+   do iDOM=1,indxStruct%gru(iGRU)%hruInfo(iHRU)%domCount
 
-   ! re-calculate height of each layer
-   call calcHeight(indxStruct%gru(iGRU)%hru(iHRU),   & ! layer type
-                   progStruct%gru(iGRU)%hru(iHRU),   & ! model prognostic (state) variables for a local HRU
-                   err,cmessage)                       ! error control
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    ! re-calculate height of each layer
+    call calcHeight(indxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! layer type
+                    progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! model prognostic (state) variables for a local HRU
+                    err,cmessage)                                 ! error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! calculate vertical distribution of root density
-   call rootDensty(mparStruct%gru(iGRU)%hru(iHRU),   & ! vector of model parameters
-                   indxStruct%gru(iGRU)%hru(iHRU),   & ! data structure of model indices
-                   progStruct%gru(iGRU)%hru(iHRU),   & ! data structure of model prognostic (state) variables
-                   diagStruct%gru(iGRU)%hru(iHRU),   & ! data structure of model diagnostic variables
-                   err,cmessage)                       ! error control
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    ! calculate vertical distribution of root density
+    call rootDensty(mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! vector of model parameters
+                    indxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! data structure of model indices
+                    progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! data structure of model prognostic (state) variables
+                    diagStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! data structure of model diagnostic variables
+                    err,cmessage)                                 ! error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! calculate saturated hydraulic conductivity in each soil layer
-   call satHydCond(mparStruct%gru(iGRU)%hru(iHRU),   & ! vector of model parameters
-                   indxStruct%gru(iGRU)%hru(iHRU),   & ! data structure of model indices
-                   progStruct%gru(iGRU)%hru(iHRU),   & ! data structure of model prognostic (state) variables
-                   fluxStruct%gru(iGRU)%hru(iHRU),   & ! data structure of model fluxes
-                   err,cmessage)                       ! error control
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    ! calculate saturated hydraulic conductivity in each soil layer
+    call satHydCond(mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! vector of model parameters
+                    indxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! data structure of model indices
+                    progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! data structure of model prognostic (state) variables
+                    fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! data structure of model fluxes
+                    err,cmessage)                                 ! error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! calculate "short-cut" variables such as volumetric heat capacity
-   call v_shortcut(mparStruct%gru(iGRU)%hru(iHRU),   & ! vector of model parameters
-                   diagStruct%gru(iGRU)%hru(iHRU),   & ! data structure of model diagnostic variables
-                   err,cmessage)                       ! error control
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    ! calculate "short-cut" variables such as volumetric heat capacity
+    call v_shortcut(mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! vector of model parameters
+                    diagStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! data structure of model diagnostic variables
+                    err,cmessage)                                 ! error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! initialize canopy drip
-   ! NOTE: canopy drip from the previous time step is used to compute throughfall for the current time step
-   fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._rkind  ! not used
+    ! initialize canopy drip
+    ! NOTE: canopy drip from the previous time step is used to compute throughfall for the current time step
+    fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._rkind  ! not used
 
+   end do  ! end looping through domains
   end do  ! end looping through HRUs
 
   ! *****************************************************************************
@@ -241,7 +244,9 @@ USE mDecisions_module,only:&
    case(localColumn)
     bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 0._rkind ! set to zero to be clear that there is no basin-average aquifer storage in this configuration
     do iHRU=1,gru_struc(iGRU)%hruCount
-      if(aquiferIni==emptyStart) progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarAquiferStorage)%dat(1) = aquifer_start ! leave at initialized values if fullStart
+     do iDOM=1,indxStruct%gru(iGRU)%hruInfo(iHRU)%domCount
+      if(aquiferIni==emptyStart) progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAquiferStorage)%dat(1) = aquifer_start ! leave at initialized values if fullStart
+     end do
     end do
 
    ! the local column aquifer storage is not used if the groundwater is basin-average
@@ -249,7 +254,9 @@ USE mDecisions_module,only:&
    case(singleBasin)
     bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = aquifer_start 
     do iHRU=1,gru_struc(iGRU)%hruCount
-     progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarAquiferStorage)%dat(1) = 0._rkind  ! set to zero to be clear that there is no local aquifer storage in this configuration
+     do iDOM=1,indxStruct%gru(iGRU)%hruInfo(iHRU)%domCount
+      progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAquiferStorage)%dat(1) = 0._rkind  ! set to zero to be clear that there is no local aquifer storage in this configuration
+     enddo
     end do
 
    ! error check
@@ -265,7 +272,9 @@ USE mDecisions_module,only:&
 
   ! initialize time step length for each HRU
   do iHRU=1,gru_struc(iGRU)%hruCount
-   dt_init%gru(iGRU)%hru(iHRU) = progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%dt_init)%dat(1) ! seconds
+   do iDOM=1,indxStruct%gru(iGRU)%hruInfo(iHRU)%domCount
+    dt_init%gru(iGRU)%hru(iHRU)%dom(iDOM) = progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%dt_init)%dat(1) ! seconds
+   end do
   end do
 
  end do  ! end looping through GRUs

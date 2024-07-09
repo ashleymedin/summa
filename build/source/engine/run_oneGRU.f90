@@ -113,9 +113,9 @@ subroutine run_oneGRU(&
   type(hru_int)           , intent(in)    :: typeHRU              ! x%hru(:)%var(:)            -- local classification of soil veg etc. for each HRU
   type(hru_int8)          , intent(in)    :: idHRU                ! x%hru(:)%var(:)            -- local classification of hru and gru IDs
   type(hru_double)        , intent(in)    :: attrHRU              ! x%hru(:)%var(:)            -- local attributes for each HRU
-  type(hru_z_vLookup)     , intent(in)    :: lookupHRU            ! x%hru(:)%z(:)%var(:)%lookup(:) -- lookup values for each HRU
+  type(hru_dom_z_vLookup) , intent(in)    :: lookupHRU            ! x%hru(:)%dom(:)%z(:)%var(:)%lookup(:) -- lookup values for each HRU
   ! data structures (input-output)
-  type(hru_doubleVec)     , intent(in)    :: mparHRU              ! x%hru(:)%var(:)%dat        -- local (HRU) model parameters
+  type(hru_dom_doubleVec) , intent(in)    :: mparHRU              ! x%hru(:)%dom(:)%var(:)%dat -- local (HRU) model parameters
   type(hru_dom_intVec)    , intent(inout) :: indxHRU              ! x%hru(:)%dom(:)%var(:)%dat -- model indices
   type(hru_dom_double)    , intent(inout) :: forcHRU              ! x%hru(:)%dom(:)%var(:)     -- model forcing data
   type(hru_dom_doubleVec) , intent(inout) :: progHRU              ! x%hru(:)%dom(:)%var(:)%dat -- model prognostic (state) variables
@@ -194,7 +194,7 @@ subroutine run_oneGRU(&
                    ! model control
                    gruInfo%hruInfo(iHRU)%hru_nc,              & ! intent(in):    hru count Id
                    gruInfo%hruInfo(iHRU)%hru_id,              & ! intent(in):    hruId
-                   dt_init(iHRU),                             & ! intent(inout): initial time step
+                   dt_init(iHRU)%dom,                         & ! intent(inout): initial time step
                    computeVegFluxFlag,                        & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
                    gruInfo%hruInfo(iHRU)%domCount,            & ! intent(in):    total number of domains
                    gruInfo%hruInfo(iHRU)%domInfo(:)%dom_type, & ! intent(in):    domain type, (upland, glacAcc, glacAbl, wetland)

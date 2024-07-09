@@ -109,7 +109,7 @@ subroutine summa_initialize(summa1_struc, err, message)
   character(len=256)                    :: restartFile        ! restart file name
   character(len=256)                    :: attrFile           ! attributes file name
   character(len=128)                    :: fmtGruOutput       ! a format string used to write start and end GRU in output file names
-  integer(i4b)                          :: iStruct,iGRU       ! looping variables
+  integer(i4b)                          :: iStruct,iGRU,iHRU  ! looping variables
   integer(i4b)                          :: fileGRU            ! [used for filenames] number of GRUs in the input file
   integer(i4b)                          :: fileHRU            ! [used for filenames] number of HRUs in the input file
   ! ---------------------------------------------------------------------------------------
@@ -126,18 +126,18 @@ subroutine summa_initialize(summa1_struc, err, message)
     bvarStat             => summa1_struc%bvarStat            , & ! x%gru(:)%var(:)%dat        -- basin-average variables
 
     ! primary data structures (scalars)
-    timeStruct           => summa1_struc%timeStruct          , & ! x%var(:)                   -- model time data
-    forcStruct           => summa1_struc%forcStruct          , & ! x%gru(:)%hru(:)%var(:)     -- model forcing data
-    attrStruct           => summa1_struc%attrStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
-    typeStruct           => summa1_struc%typeStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
-    idStruct             => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:)     --
+    timeStruct           => summa1_struc%timeStruct          , & ! x%var(:)                      -- model time data
+    forcStruct           => summa1_struc%forcStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:) -- model forcing data
+    attrStruct           => summa1_struc%attrStruct          , & ! x%gru(:)%hru(:)%var(:)        -- local attributes for each HRU
+    typeStruct           => summa1_struc%typeStruct          , & ! x%gru(:)%hru(:)%var(:)        -- local classification of soil veg etc. for each HRU
+    idStruct             => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:)        -- local values of hru and gru IDs
 
     ! primary data structures (variable length vectors)
-    indxStruct           => summa1_struc%indxStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model indices
-    mparStruct           => summa1_struc%mparStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model parameters
-    progStruct           => summa1_struc%progStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
-    diagStruct           => summa1_struc%diagStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
-    fluxStruct           => summa1_struc%fluxStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
+    indxStruct           => summa1_struc%indxStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model indices
+    mparStruct           => summa1_struc%mparStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model parameters
+    progStruct           => summa1_struc%progStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model prognostic (state) variables
+    diagStruct           => summa1_struc%diagStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model diagnostic variables
+    fluxStruct           => summa1_struc%fluxStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model fluxes
 
     ! basin-average structures
     bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)            -- basin-average parameters
@@ -148,7 +148,7 @@ subroutine summa_initialize(summa1_struc, err, message)
 
     ! run time variables
     computeVegFlux       => summa1_struc%computeVegFlux      , & ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
-    dt_init              => summa1_struc%dt_init             , & ! used to initialize the length of the sub-step for each HRU
+    dt_init              => summa1_struc%dt_init             , & ! used to initialize the length of the sub-step for each HRU and DOM
     upArea               => summa1_struc%upArea              , & ! area upslope of each HRU
 
     ! miscellaneous variables
@@ -157,7 +157,9 @@ subroutine summa_initialize(summa1_struc, err, message)
     ts                   => summa1_struc%ts                  , & ! model time step ??
     nGRU                 => summa1_struc%nGRU                , & ! number of grouped response units
     nHRU                 => summa1_struc%nHRU                , & ! number of global hydrologic response units
+    nDOM                 => summa1_struc%nDOM                , & ! number of global domains
     hruCount             => summa1_struc%hruCount            , & ! number of local hydrologic response units
+    domCount             => summa1_struc%domCount            , & ! number of local domains
     greenVegFrac_monthly => summa1_struc%greenVegFrac_monthly, & ! fraction of green vegetation in each month (0-1)
     summaFileManagerFile => summa1_struc%summaFileManagerFile  & ! path/name of file defining directories and files
 
@@ -199,9 +201,9 @@ subroutine summa_initialize(summa1_struc, err, message)
     ! obtain the HRU and GRU dimensions in the LocalAttribute file
     attrFile = trim(SETTINGS_PATH)//trim(LOCAL_ATTRIBUTES)
     select case (iRunMode)
-      case(iRunModeFull); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,err,cmessage)
-      case(iRunModeGRU ); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,err,cmessage,startGRU=startGRU)
-      case(iRunModeHRU ); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,err,cmessage,checkHRU=checkHRU)
+      case(iRunModeFull); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,nDOM,err,cmessage)
+      case(iRunModeGRU ); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,nDOM,err,cmessage,startGRU=startGRU)
+      case(iRunModeHRU ); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,nDOM,err,cmessage,checkHRU=checkHRU)
     end select
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -282,11 +284,19 @@ subroutine summa_initialize(summa1_struc, err, message)
         message='problem allocating space for dt_init, upArea, or computeVegFlux [HRU]'
       return
       endif
+      do iHRU=1,hruCount
+        domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount  ! gru_struc populated in "read_dimension"
+        allocate(dt_init%gru(iGRU)%hruInfo(iHRU)%dom(domCount),stat=err)
+        if(err/=0)then
+          message='problem allocating space for dt_init [DOM]'
+          return
+        endif
+      end do
     end do
 
-      ! *****************************************************************************
-      ! *** allocate space for output statistics data structures
-      ! *****************************************************************************
+    ! *****************************************************************************
+    ! *** allocate space for output statistics data structures
+    ! *****************************************************************************
 
     ! loop through data structures
     do iStruct=1,size(structInfo)

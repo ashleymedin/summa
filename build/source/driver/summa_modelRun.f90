@@ -36,6 +36,9 @@ USE summa_util,only:handle_err
 USE globalData,only:fracJulDay       ! fractional julian days since the start of year
 USE globalData,only:yearLength       ! number of days in the current year
 
+! access domain types
+USE globalData,only:upland             ! domain type for upland areas
+
 ! safety: set private unless specified otherwise
 implicit none
 private
@@ -125,41 +128,47 @@ contains
  ! *****************************************************************************************************
 
  ! if computeVegFlux changes, then the number of state variables changes, and we need to reoranize the data structures
- ! NOTE: upland domain is domain 1 if it exists. If there is no upland domain, then these variables are computed but not not used.
  if(modelTimeStep==1)then
   do iGRU=1,nGRU
    do iHRU=1,gru_struc(iGRU)%hruCount
+    ! initialize the flag to compute the vegetation fluxes and the green vegetation fraction
+    computeVegFlux%gru(iGRU)%hru(iHRU) = no
+    diagStruct%gru(iGRU)%hru(iHRU)%dom(1)%var(iLookDIAG%scalarGreenVegFraction)%dat(1) = realMissing
 
-    ! get vegetation phenology
-    ! (compute the exposed LAI and SAI and whether veg is buried by snow)
-    call vegPhenlgy(&
-                    ! model control
-                    model_decisions,                       & ! intent(in):    model decisions
-                    fracJulDay,                            & ! intent(in):    fractional julian days since the start of year
-                    yearLength,                            & ! intent(in):    number of days in the current year
-                    ! input/output: data structures        
-                    typeStruct%gru(iGRU)%hru(iHRU),        & ! intent(in):    type of vegetation and soil
-                    attrStruct%gru(iGRU)%hru(iHRU),        & ! intent(in):    spatial attributes
-                    mparStruct%gru(iGRU)%hru(iHRU),        & ! intent(in):    model parameters
-                    progStruct%gru(iGRU)%hru(iHRU)%dom(1), & ! intent(inout): model prognostic variables for a local HRU
-                    diagStruct%gru(iGRU)%hru(iHRU)%dom(1), & ! intent(inout): model diagnostic variables for a local HRU
-                    ! output
-                    computeVegFluxFlag,                    & ! intent(out): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
-                    notUsed_canopyDepth,                   & ! intent(out): NOT USED: canopy depth (m)
-                    notUsed_exposedVAI,                    & ! intent(out): NOT USED: exposed vegetation area index (m2 m-2)
-                    err,cmessage)                            ! intent(out): error control
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
+     if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==upland) then
+      ! get vegetation phenology
+      ! (compute the exposed LAI and SAI and whether veg is buried by snow)
+      call vegPhenlgy(&
+                      ! model control
+                      model_decisions,                          & ! intent(in):    model decisions
+                      fracJulDay,                               & ! intent(in):    fractional julian days since the start of year
+                      yearLength,                               & ! intent(in):    number of days in the current year
+                      ! input/output: data structures        
+                      typeStruct%gru(iGRU)%hru(iHRU),           & ! intent(in):    type of vegetation and soil
+                      attrStruct%gru(iGRU)%hru(iHRU),           & ! intent(in):    spatial attributes
+                      mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM), & ! intent(in):    model parameters
+                      progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM), & ! intent(inout): model prognostic variables for a local HRU
+                      diagStruct%gru(iGRU)%hru(iHRU)%dom(iDOM), & ! intent(inout): model diagnostic variables for a local HRU
+                      ! output
+                      computeVegFluxFlag,                       & ! intent(out): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+                      notUsed_canopyDepth,                      & ! intent(out): NOT USED: canopy depth (m)
+                      notUsed_exposedVAI,                       & ! intent(out): NOT USED: exposed vegetation area index (m2 m-2)
+                      err,cmessage)                               ! intent(out): error control
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! save the flag for computing the vegetation fluxes
-    if(computeVegFluxFlag)      computeVegFlux%gru(iGRU)%hru(iHRU) = yes
-    if(.not.computeVegFluxFlag) computeVegFlux%gru(iGRU)%hru(iHRU) = no
+      ! save the flag for computing the vegetation fluxes
+      if(computeVegFluxFlag)      computeVegFlux%gru(iGRU)%hru(iHRU) = yes
+      if(.not.computeVegFluxFlag) computeVegFlux%gru(iGRU)%hru(iHRU) = no
 
-    ! define the green vegetation fraction of the grid box (used to compute LAI)
-    diagStruct%gru(iGRU)%hru(iHRU)%dom(1)%var(iLookDIAG%scalarGreenVegFraction)%dat(1) = greenVegFrac_monthly(timeStruct%var(iLookTIME%im))
+      ! define the green vegetation fraction of the grid box (used to compute LAI)
+      diagStruct%gru(iGRU)%hru(iHRU)%dom(1)%var(iLookDIAG%scalarGreenVegFraction)%dat(1) = greenVegFrac_monthly(timeStruct%var(iLookTIME%im))
 
-   end do  ! looping through HRUs
-  end do  ! looping through GRUs
- end if  ! if the first time step
+     end if
+    end do ! looping through domains
+   end do ! looping through HRUs
+  end do ! looping through GRUs
+ end if ! if the first time step
 
  ! ****************************************************************************
  ! *** model simulation
@@ -236,7 +245,7 @@ contains
   ! run time variables
   greenVegFrac_monthly => summa1_struc%greenVegFrac_monthly, & ! fraction of green vegetation in each month (0-1)
   computeVegFlux       => summa1_struc%computeVegFlux      , & ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
-  dt_init              => summa1_struc%dt_init             , & ! used to initialize the length of the sub-step for each HRU
+  dt_init              => summa1_struc%dt_init             , & ! used to initialize the length of the sub-step for each HRU and DOM
   nGRU                 => summa1_struc%nGRU                  & ! number of grouped response units
 
  ) ! assignment to variables in the data structures

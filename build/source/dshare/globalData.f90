@@ -213,6 +213,8 @@ MODULE globalData
   logical(lgt),dimension(maxvarFreq),save,public :: finalizeStats=.false.             ! flags to reset statistics
   integer(i4b),save,public                       :: maxLayers                         ! maximum number of layers
   integer(i4b),save,public                       :: maxSnowLayers                     ! maximum number of snow layers
+  integer(i4b),save,public                       :: maxIceLayers=1                    ! maximum number of ice layers on glacier
+  integer(i4b),save,public                       :: maxLakeLayers=3                   ! maximum number of lake layers
   ! define control variables
   integer(i4b),save,public                       :: startGRU                          ! index of the starting GRU for parallelization run
   integer(i4b),save,public                       :: checkHRU                          ! index of the HRU for a single HRU run

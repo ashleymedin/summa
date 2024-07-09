@@ -137,10 +137,10 @@ subroutine run_oneHRU(&
   integer(i4b)       , intent(in)    :: timeVec(:)          ! int vector               -- model time data
   type(var_i)        , intent(in)    :: typeData            ! x%var(:)                 -- local classification of soil veg etc. for each HRU
   type(var_d)        , intent(in)    :: attrData            ! x%var(:)                 -- local attributes for each HRU
-  type(zLookup)      , intent(in)    :: lookupData          ! x%z(:)%var(:)%lookup(:)  -- local lookup tables for each HRU
+  type(dom_zLookup)  , intent(in)    :: lookupData          ! x%dom(:)%z(:)%var(:)%lookup(:) -- local lookup tables for each HRU
   type(var_dlength)  , intent(in)    :: bvarData            ! x%var(:)%dat             -- basin-average variables
   ! data structures (input-output)
-  type(var_dlength)  , intent(in)    :: mparData            ! x%var(:)%dat        -- local (HRU) model parameters
+  type(dom_doubleVec), intent(in)    :: mparData            ! x%dom(:)%var(:)%dat -- local (HRU domain) model parameters
   type(dom_intVec)   , intent(inout) :: indxData            ! x%dom(:)%var(:)%dat -- model indices
   type(dom_double)   , intent(inout) :: forcData            ! x%dom(:)%var(:)     -- model forcing data
   type(dom_doubleVec), intent(inout) :: progData            ! x%dom(:)%var(:)%dat -- model prognostic (state) variables
@@ -166,7 +166,7 @@ subroutine run_oneHRU(&
 
   do i = 1, ndom
     ! if water pixel or if the fraction of the domain is zero, do not run the model but update the number of layers
-    if ( typeData%var(iLookTYPE%vegTypeIndex) .ne. isWater .and. progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) > 0._rkind )then
+    if ( typeData%var(iLookTYPE%vegTypeIndex) .ne. isWater .and. progData%dom(i)%var(iLookPROG%DOMarea)%dat(1) > 0._rkind )then
 
       if (domType(i) == upland) then
         ! get height at bottom of each soil layer, negative downwards (used in Noah MP)
@@ -175,7 +175,7 @@ subroutine run_oneHRU(&
           message=trim(message)//'problem allocating space for zSoilReverseSign'
           err=20; return
         endif
-        zSoilReverseSign(:) = -progData%var(iLookPROG%iLayerHeight)%dat(nSnow+1:nLayers)
+        zSoilReverseSign(:) = -progData%dom(i)%var(iLookPROG%iLayerHeight)%dat(nSnow+1:nLayers)
 
         ! populate parameters in Noah-MP modules
         ! Passing a maxSoilLayer in order to pass the check for NROOT, that is done to avoid making any changes to Noah-MP code.
@@ -197,13 +197,13 @@ subroutine run_oneHRU(&
         ! overwrite the minimum resistance
         if(overwriteRSMIN) RSMIN = mparData%var(iLookPARAM%minStomatalResistance)%dat(1)
         ! overwrite the vegetation height
-        HVT(typeData%var(iLookTYPE%vegTypeIndex)) = mparData%var(iLookPARAM%heightCanopyTop)%dat(1)
-        HVB(typeData%var(iLookTYPE%vegTypeIndex)) = mparData%var(iLookPARAM%heightCanopyBottom)%dat(1)
+        HVT(typeData%var(iLookTYPE%vegTypeIndex)) = mparData%dom(i)%var(iLookPARAM%heightCanopyTop)%dat(1)
+        HVB(typeData%var(iLookTYPE%vegTypeIndex)) = mparData%dom(i)%var(iLookPARAM%heightCanopyBottom)%dat(1)
 
         ! overwrite the tables for LAI and SAI
         if(model_decisions(iLookDECISIONS%LAI_method)%iDecision == specified)then
-          SAIM(typeData%var(iLookTYPE%vegTypeIndex),:) = mparData%var(iLookPARAM%winterSAI)%dat(1)
-          LAIM(typeData%var(iLookTYPE%vegTypeIndex),:) = mparData%var(iLookPARAM%summerLAI)%dat(1)*greenVegFrac_monthly
+          SAIM(typeData%var(iLookTYPE%vegTypeIndex),:) = mparData%dom(i)%var(iLookPARAM%winterSAI)%dat(1)
+          LAIM(typeData%var(iLookTYPE%vegTypeIndex),:) = mparData%dom(i)%var(iLookPARAM%summerLAI)%dat(1)*greenVegFrac_monthly
         end if
 
         use_computeVegFlux = computeVegFlux
@@ -219,7 +219,7 @@ subroutine run_oneHRU(&
       call derivforce(timeVec,             & ! intent(in):    vector of time information
                       forcData%dom(i)%var, & ! intent(inout): vector of model forcing data
                       attrData%var,        & ! intent(in):    vector of model attributes
-                      mparData,            & ! intent(in):    data structure of model parameters
+                      mparData%dom(i),     & ! intent(in):    data structure of model parameters
                       progData%dom(i),     & ! intent(in):    data structure of model prognostic variables
                       diagData%dom(i),     & ! intent(inout): data structure of model diagnostic variables
                       fluxData%dom(i),     & ! intent(inout): data structure of model fluxes
@@ -235,7 +235,7 @@ subroutine run_oneHRU(&
       call coupled_em(&
                      ! model control
                      hruId,              & ! intent(in):    hruId
-                     dt_init,            & ! intent(inout): initial time step
+                     dt_init%dom(i),     & ! intent(inout): initial time step
                      1,                  & ! intent(in):    used to adjust the length of the timestep with failure in Actors (non-Actors here, always 1)
                      use_computeVegFlux, & ! intent(inout): flag to indicate if we are computing fluxes over vegetation
                      fracJulDay,         & ! intent(in):    fractional julian days since the start of year
@@ -245,9 +245,9 @@ subroutine run_oneHRU(&
                      typeData,           & ! intent(in):    local classification of soil veg etc. for each HRU
                      attrData,           & ! intent(in):    local attributes for each HRU
                      forcData%dom(i),    & ! intent(in):    model forcing data
-                     mparData,           & ! intent(in):    model parameters
+                     mparData%dom(i),    & ! intent(in):    model parameters
                      bvarData,           & ! intent(in):    basin-average model variables
-                     lookupData,         & ! intent(in):    lookup tables
+                     lookupData%dom(i),  & ! intent(in):    lookup tables
                      ! data structures (input-output)
                      indxData%dom(i),    & ! intent(inout): model indices
                      progData%dom(i),    & ! intent(inout): model prognostic variables for a local HRU
@@ -257,7 +257,9 @@ subroutine run_oneHRU(&
                      err,cmessage)         ! intent(out):   error control
       if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-      if(domType(i) == upland) computeVegFlux = use_computeVegFlux ! update the flag for the next domain on upland areas
+      if(domType(i) == upland)then
+        computeVegFlux = use_computeVegFlux ! update the flag for the next domain on upland areas
+      end if
 
     endif ! not a water pixel and area of the domain is greater than zero
 

@@ -39,6 +39,12 @@ USE var_lookup,only:iLookBVAR           ! look-up values for basin-average model
 USE var_lookup,only:iLookDECISIONS      ! look-up values for model decisions
 USE globalData,only:urbanVegCategory    ! vegetation category for urban areas
 
+! access domain types
+USE globalData,only:upland             ! domain type for upland areas
+USE globalData,only:glacAcc            ! domain type for glacier accumulation areas
+USE globalData,only:glacAbl            ! domain type for glacier ablation areas
+USE globalData,only:wetland            ! domain type for wetland areas
+
 ! metadata structures
 USE globalData,only:mpar_meta,bpar_meta ! parameter metadata structures
 
@@ -64,11 +70,11 @@ private
 public::summa_paramSetup
 contains
 
- ! initializes parameter data structures (e.g. vegetation and soil parameters).
- subroutine summa_paramSetup(summa1_struc, err, message)
- ! ---------------------------------------------------------------------------------------
- ! * desired modules
- ! ---------------------------------------------------------------------------------------
+! initializes parameter data structures (e.g. vegetation and soil parameters).
+subroutine summa_paramSetup(summa1_struc, err, message)
+! ---------------------------------------------------------------------------------------
+! * desired modules
+! ---------------------------------------------------------------------------------------
  USE nrtype                                                  ! variable types, etc.
  USE summa_type, only:summa1_type_dec                        ! master summa data type
  ! subroutines and functions
@@ -97,6 +103,8 @@ contains
  ! output constraints
  USE globalData,only:maxLayers                               ! maximum number of layers
  USE globalData,only:maxSnowLayers                           ! maximum number of snow layers
+ USE globalData,only:maxIceLayers                            ! maximum number of ice layers
+ USE globalData,only:maxLakeLayers                           ! maximum number of lake layers
  ! timing variables
  USE globalData,only:startSetup,endSetup                     ! date/time for the start and end of the parameter setup
  USE globalData,only:elapsedSetup                            ! elapsed time for the parameter setup
@@ -120,9 +128,11 @@ contains
  character(len=256)                    :: cmessage           ! error message of downwind routine
  character(len=256)                    :: attrFile           ! attributes file name
  integer(i4b)                          :: jHRU,kHRU          ! HRU indices
- integer(i4b)                          :: iGRU,iHRU          ! looping variables
+ integer(i4b)                          :: iGRU,iHRU,iDOM     ! looping variables
  integer(i4b)                          :: iVar               ! looping variables
  logical                               :: needLookup_soil    ! logical to decide if computing soil enthalpy lookup tables
+ integer(i4b)                          :: maxLayers_glac     ! maximum number of layers for glacier
+ integer(i4b)                          :: maxLayers_wtld     ! maximum number of layers for wetland
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(&
@@ -130,18 +140,18 @@ contains
   ! primary data structures (scalars)
   attrStruct           => summa1_struc%attrStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
   typeStruct           => summa1_struc%typeStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
-  idStruct             => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
+  idStruct             => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:)     -- model ids
 
   ! primary data structures (variable length vectors)
-  mparStruct           => summa1_struc%mparStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model parameters
-  dparStruct           => summa1_struc%dparStruct          , & ! x%gru(:)%hru(:)%var(:)     -- default model parameters
+  mparStruct           => summa1_struc%mparStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model parameters
+  dparStruct           => summa1_struc%dparStruct          , & ! x%gru(:)%hru(:)%var(:)            -- default model parameters
 
   ! basin-average structures
   bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)            -- basin-average parameters
   bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat        -- basin-average variables
 
   ! lookup table structure
-  lookupStruct         => summa1_struc%lookupStruct        , & ! x%gru(:)%hru(:)%z(:)%var(:)%lookup    -- lookup-tables
+  lookupStruct         => summa1_struc%lookupStruct        , & ! x%gru(:)%hru(:))%dom(:)%z(:)%var(:)%lookup -- lookup-tables
 
   ! miscellaneous variables
   upArea               => summa1_struc%upArea              , & ! area upslope of each HRU
@@ -190,7 +200,26 @@ contains
  end select ! (option to combine/sub-divide snow layers)
 
  ! get the maximum number of layers
- maxLayers = gru_struc(1)%hruInfo(1)%nSoil + maxSnowLayers
+ ! this assumes that the number of soil layers is the same for all HRU (by domain type) in the model 
+ maxLayers = -1
+ maxLayers_glac = -1
+ maxLayers_wtld = -1
+ gruLoop: do iGRU=1,nGRU
+  do iHRU=1,gru_struc(iGRU)%hruCount
+   do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
+    if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==upland)then
+     maxLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + maxSnowLayers
+    else if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAbl .or. gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc)then
+      maxLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + maxIceLayers + maxSnowLayers
+    else if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==wetland)then
+      maxLayers_wtld = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + maxLakeLayers + maxSnowLayers
+    endif
+    if (maxLayers>0 .and. maxLayers_glac>0 .and. maxLayers_wtld>0) exit gruLoop ! exit the loop if all values are found
+   end do
+  end do 
+ end do gruLoop
+ ! Determine the maximum of the three variables
+ maxLayers = max(maxLayers, maxLayers_glac, maxLayers_wtld)
 
  ! *****************************************************************************
  ! *** read local attributes for each HRU
@@ -248,7 +277,6 @@ contains
  ! set default model parameters
  do iGRU=1,nGRU
   do iHRU=1,gru_struc(iGRU)%hruCount
-
    ! set parmameters to their default value
    dparStruct%gru(iGRU)%hru(iHRU)%var(:) = localParFallback(:)%default_val         ! x%hru(:)%var(:)
 
@@ -260,11 +288,14 @@ contains
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! copy over to the parameter structure
-   ! NOTE: constant for the dat(:) dimension (normally depth)
-   do ivar=1,size(localParFallback)
-    mparStruct%gru(iGRU)%hru(iHRU)%var(ivar)%dat(:) = dparStruct%gru(iGRU)%hru(iHRU)%var(ivar)
-   end do  ! looping through variables
+   do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
 
+    ! NOTE: constant for the dat(:) dimension (normally depth)
+    do ivar=1,size(localParFallback)
+     mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(ivar)%dat(:) = dparStruct%gru(iGRU)%hru(iHRU)%var(ivar)
+    end do  ! looping through variables
+ 
+   end do  ! looping through domains
   end do  ! looping through HRUs
 
   ! set default for basin-average parameters
@@ -305,26 +336,29 @@ contains
     end if  ! (if identified a downslope HRU)
    end do
 
-   ! check that the parameters are consistent
-   call paramCheck(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
+    ! check that the parameters are consistent
+    call paramCheck(mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! calculate a look-up table for the temperature-enthalpy conversion of snow for future snow layer merging
-   ! NOTE1: might be able to make this more efficient by only doing this for the HRUs that have snow
-   ! NOTE2: H is the mixture enthalpy of snow liquid and ice
-   call T2H_lookup_snWat(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    ! calculate a look-up table for the temperature-enthalpy conversion of snow for future snow layer merging
+    ! NOTE1: might be able to make this more efficient by only doing this for the HRUs that have snow
+    ! NOTE2: H is the mixture enthalpy of snow liquid and ice
+    call T2H_lookup_snWat(mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! calculate a lookup table for the temperature-enthalpy conversion of soil 
-   ! NOTE: L is the integral of soil Clapeyron equation liquid water matric potential from temperature
-   !       multiply by Cp_liq*iden_water to get temperature component of enthalpy
-   if(needLookup_soil)then
-     call T2L_lookup_soil(gru_struc(iGRU)%hruInfo(iHRU)%nSoil,   &   ! intent(in):    number of soil layers
-                          mparStruct%gru(iGRU)%hru(iHRU),        &   ! intent(in):    parameter data structure
-                          lookupStruct%gru(iGRU)%hru(iHRU),      &   ! intent(inout): lookup table data structure
-                          err,cmessage)                              ! intent(out):   error control
-     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  
-   endif
+    ! calculate a lookup table for the temperature-enthalpy conversion of soil 
+    ! NOTE: L is the integral of soil Clapeyron equation liquid water matric potential from temperature
+    !       multiply by Cp_liq*iden_water to get temperature component of enthalpy
+    !       If nSoil is 0, then nothing will be done
+    if(needLookup_soil)then
+      call T2L_lookup_soil(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil, &   ! intent(in):    number of soil layers
+                           mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),          &   ! intent(in):    parameter data structure
+                           lookupStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),        &   ! intent(inout): lookup table data structure
+                           err,cmessage)                                          ! intent(out):   error control
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  
+    endif
+   enddo ! looping through domains
 
    ! overwrite the vegetation height
    HVT(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyTop)%dat(1)

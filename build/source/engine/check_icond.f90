@@ -117,8 +117,8 @@ contains
    if(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1) < mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMinWinter)%dat(1)) &
       progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMinWinter)%dat(1)
    ! ensure the visible albedo is realistic
-   if(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1) > mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMaxVisible)%dat(1)) &
-      progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMaxVisible)%dat(1)
+   if(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%)%dat(1) > mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMaxVisible)%dat(1)) &
+      progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMaxVisible)%dat(1)
    if(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1) < mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMinVisible)%dat(1)) &
       progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMinVisible)%dat(1)
    ! ensure the nearIR albedo is realistic

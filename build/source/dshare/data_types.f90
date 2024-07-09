@@ -151,14 +151,18 @@ MODULE data_types
  type, public :: zLookup
   type(vLookup),allocatable              :: z(:)                          ! z(:)%var(:)%lookup(:)
  endtype zLookup
+  ! ** double precision type for a variable number of soil layers
+ type, public :: dom_z_vLookup
+  type(zLookup),allocatable              :: dom(:)                        ! dom(:)%z(:)%var(:)%lookup(:)
+ endtype dom_z_vLookup
  ! ** double precision type for a variable number of soil layers
- type, public :: hru_z_vLookup
-  type(zLookup),allocatable              :: hru(:)                        ! hru(:)%z(:)%var(:)%lookup(:)
- endtype hru_z_vLookup
+ type, public :: hru_dom_z_vLookup
+  type(dom_zLookup),allocatable          :: hru(:)                        ! hru(:)%dom(:)%z(:)%var(:)%lookup(:)
+ endtype hru_dom_z_vLookup
  ! ** double precision type for a variable number of soil layers
- type, public :: gru_hru_z_vLookup
-  type(hru_z_vLookup),allocatable        :: gru(:)                        ! gru(:)%hru(:)%z(:)%var(:)%lookup(:)
- endtype gru_hru_z_vLookup
+ type, public :: gru_hru_dom_z_vLookup
+  type(hru_dom_z_vLookup),allocatable     :: gru(:)                        ! gru(:)%hru(:)%dom(:)%z(:)%var(:)%lookup(:)
+ endtype gru_hru_dom_z_vLookup
  ! define derived types to hold multivariate data for a single variable (different variables have different length)
  ! NOTE: use derived types here to facilitate adding the "variable" dimension
  ! ** double precision type
@@ -395,40 +399,6 @@ MODULE data_types
  type, public :: gru_hru_i
   type(hru_i),allocatable                :: gru(:)                        ! gru(:)%hru(:)
  endtype gru_hru_i
-
- ! define derived types to hold JUST the GRU and DOM dimension
- ! ** double precision type of variable length
- type, public :: gru_dom_doubleVec
-  type(dom_doubleVec),allocatable        :: gru(:)                        ! gru(:)%dom(:)%var(:)%dat
- endtype gru_dom_doubleVec
- ! ** integer type of variable length (4 byte)
- type, public :: gru_dom_intVec
-  type(dom_intVec),allocatable           :: gru(:)                        ! gru(:)%dom(:)%var(:)%dat
- endtype gru_dom_intVec
- ! ** integer type of variable length (8 byte)
- type, public :: gru_dom_int8Vec
-  type(dom_int8Vec),allocatable          :: gru(:)                        ! gru(:)%dom(:)%var(:)%dat
- endtype gru_dom_int8Vec
- ! ** double precision type of fixed length
- type, public :: gru_dom_double
-  type(dom_double),allocatable           :: gru(:)                        ! gru(:)%dom(:)%var(:)
- endtype gru_dom_double
- ! ** integer type of variable length (4 byte)
- type, public :: gru_dom_int
-  type(dom_int),allocatable              :: gru(:)                        ! gru(:)%dom(:)%var(:)
- endtype gru_dom_int
- ! ** integer type of variable length (8 byte)
- type, public :: gru_dom_int8
-  type(dom_int8),allocatable             :: gru(:)                        ! gru(:)%dom(:)%var(:)
- endtype gru_dom_int8
- ! ** double precision type of fixed length
- type, public :: gru_dom_d
-  type(dom_d),allocatable                :: gru(:)                        ! gru(:)%dom(:)
- endtype gru_dom_d
- ! ** integer type of fixed length
- type, public :: gru_dom_i
-  type(dom_i),allocatable                :: gru(:)                        ! gru(:)%dom(:)
- endtype gru_dom_i
 
  ! define derived types to hold the GRU, HRU, and DOM dimension
  ! ** double precision type of variable length
