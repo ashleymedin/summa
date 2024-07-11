@@ -54,7 +54,7 @@ contains
  ! variable declarations
  ! dummies
  character(*)        ,intent(in)     :: iconFile       ! name of input (restart) file
- integer(i4b)        ,intent(in)     :: nGRU           ! total # of GRUs in run domain
+ integer(i4b)        ,intent(in)     :: nGRU           ! total # of GRUs in run space
  type(var_info)      ,intent(in)     :: indx_meta(:)   ! metadata
  integer(i4b)        ,intent(out)    :: err            ! error code
  character(*)        ,intent(out)    :: message        ! returned error message

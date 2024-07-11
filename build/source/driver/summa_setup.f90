@@ -102,6 +102,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  USE globalData,only:iRunMode                                ! define the current running mode
  ! output constraints
  USE globalData,only:maxLayers                               ! maximum number of layers
+ USE globalData,only:maxSoilLayers                           ! maximum number of soil layers
  USE globalData,only:maxSnowLayers                           ! maximum number of snow layers
  USE globalData,only:maxIceLayers                            ! maximum number of ice layers
  USE globalData,only:maxLakeLayers                           ! maximum number of lake layers
@@ -133,6 +134,8 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  logical                               :: needLookup_soil    ! logical to decide if computing soil enthalpy lookup tables
  integer(i4b)                          :: maxLayers_glac     ! maximum number of layers for glacier
  integer(i4b)                          :: maxLayers_wtld     ! maximum number of layers for wetland
+ integer(i4b)                          :: maxSoilLayers_glac ! maximum number of soil layers for glacier (0)
+ integer(i4b)                          :: maxSoilLayers_wtld ! maximum number of soil layers for wetland
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(&
@@ -156,7 +159,8 @@ subroutine summa_paramSetup(summa1_struc, err, message)
   ! miscellaneous variables
   upArea               => summa1_struc%upArea              , & ! area upslope of each HRU
   nGRU                 => summa1_struc%nGRU                , & ! number of grouped response units
-  nHRU                 => summa1_struc%nHRU                  & ! number of global hydrologic response units
+  nHRU                 => summa1_struc%nHRU                , & ! number of global hydrologic response units
+  nDOM                 => summa1_struc%nDOM                  & ! number of global domains
 
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -209,10 +213,13 @@ subroutine summa_paramSetup(summa1_struc, err, message)
    do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
     if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==upland)then
      maxLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + maxSnowLayers
+     maxSoilLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
     else if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAbl .or. gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc)then
-      maxLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + maxIceLayers + maxSnowLayers
+     maxLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + maxIceLayers + maxSnowLayers
+     maxSoilLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
     else if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==wetland)then
-      maxLayers_wtld = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + maxLakeLayers + maxSnowLayers
+     maxLayers_wtld = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + maxLakeLayers + maxSnowLayers
+     maxSoilLayers_wtld = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
     endif
     if (maxLayers>0 .and. maxLayers_glac>0 .and. maxLayers_wtld>0) exit gruLoop ! exit the loop if all values are found
    end do
@@ -220,6 +227,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  end do gruLoop
  ! Determine the maximum of the three variables
  maxLayers = max(maxLayers, maxLayers_glac, maxLayers_wtld)
+ maxSoilLayers = max(maxSoilLayers, maxSoilLayers_glac, maxSoilLayers_wtld)
 
  ! *****************************************************************************
  ! *** read local attributes for each HRU
@@ -306,7 +314,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  ! *****************************************************************************
  ! *** read trial model parameter values for each HRU, and populate initial data structures
  ! *****************************************************************************
- call read_param(iRunMode,checkHRU,startGRU,nHRU,nGRU,idStruct,mparStruct,bparStruct,err,cmessage)
+ call read_param(iRunMode,checkHRU,startGRU,nDOM,nHRU,nGRU,idStruct,mparStruct,bparStruct,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! *****************************************************************************

@@ -118,8 +118,7 @@ USE mDecisions_module,only:&
   bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat        -- basin-average variables
   ! miscellaneous variables
   dt_init              => summa1_struc%dt_init             , & ! used to initialize the length of the sub-step for each HRU
-  nGRU                 => summa1_struc%nGRU                , & ! number of grouped response units
-  nHRU                 => summa1_struc%nHRU                  & ! number of global hydrologic response units
+  nGRU                 => summa1_struc%nGRU                  & ! number of grouped response units
  ) ! assignment to variables in the data structures
  
  ! ---------------------------------------------------------------------------------------

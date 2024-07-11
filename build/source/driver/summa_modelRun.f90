@@ -95,15 +95,15 @@ contains
  summaVars: associate(&
 
   ! primary data structures (scalars)
-  timeStruct           => summa1_struc%timeStruct          , & ! x%var(:)                   -- model time data
-  forcStruct           => summa1_struc%forcStruct          , & ! x%gru(:)%hru(:)%var(:)     -- model forcing data
-  attrStruct           => summa1_struc%attrStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
-  typeStruct           => summa1_struc%typeStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
-  idStruct             => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
+  timeStruct           => summa1_struc%timeStruct          , & ! x%var(:)               -- model time data
+  forcStruct           => summa1_struc%forcStruct          , & ! x%gru(:)%hru(:)%var(:) -- model forcing data
+  attrStruct           => summa1_struc%attrStruct          , & ! x%gru(:)%hru(:)%var(:) -- local attributes for each HRU
+  typeStruct           => summa1_struc%typeStruct          , & ! x%gru(:)%hru(:)%var(:) -- local classification of soil veg etc. for each HRU
+  idStruct             => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:) -- local classification of soil veg etc. for each HRU
 
   ! primary data structures (variable length vectors)
   indxStruct           => summa1_struc%indxStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model indices
-  mparStruct           => summa1_struc%mparStruct          , & ! x%gru(:)%hru(:)%var(:)%dat        -- model parameters
+  mparStruct           => summa1_struc%mparStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model parameters
   progStruct           => summa1_struc%progStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model prognostic (state) variables
   diagStruct           => summa1_struc%diagStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model diagnostic variables
   fluxStruct           => summa1_struc%fluxStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model fluxes
@@ -222,15 +222,15 @@ contains
  summaVars2: associate(&
 
   ! primary data structures (scalars)
-  timeStruct           => summa1_struc%timeStruct          , & ! x%var(:)                   -- model time data
-  forcStruct           => summa1_struc%forcStruct          , & ! x%gru(:)%hru(:)%dom{:}%var(:)     -- model forcing data
-  attrStruct           => summa1_struc%attrStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
-  typeStruct           => summa1_struc%typeStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
-  idStruct             => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
+  timeStruct           => summa1_struc%timeStruct          , & ! x%var(:)               -- model time data
+  forcStruct           => summa1_struc%forcStruct          , & ! x%gru(:)%hru(:)%var(:) -- model forcing data
+  attrStruct           => summa1_struc%attrStruct          , & ! x%gru(:)%hru(:)%var(:) -- local attributes for each HRU
+  typeStruct           => summa1_struc%typeStruct          , & ! x%gru(:)%hru(:)%var(:) -- local classification of soil veg etc. for each HRU
+  idStruct             => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:) -- local classification of soil veg etc. for each HRU
 
   ! primary data structures (variable length vectors)
   indxStruct           => summa1_struc%indxStruct          , & ! x%gru(:)%hru(:)%dom{:}%var(:)%dat -- model indices
-  mparStruct           => summa1_struc%mparStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model parameters
+  mparStruct           => summa1_struc%mparStruct          , & ! x%gru(:)%hru(:)%dom{:}%var(:)%dat -- model parameters
   progStruct           => summa1_struc%progStruct          , & ! x%gru(:)%hru(:)%dom{:}%var(:)%dat -- model prognostic (state) variables
   diagStruct           => summa1_struc%diagStruct          , & ! x%gru(:)%hru(:)%dom{:}%var(:)%dat -- model diagnostic variables
   fluxStruct           => summa1_struc%fluxStruct          , & ! x%gru(:)%hru(:)%dom{:}%var(:)%dat -- model fluxes

@@ -217,7 +217,7 @@ subroutine run_oneHRU(&
 
       ! compute derived forcing variables, different for each domain type
       call derivforce(timeVec,             & ! intent(in):    vector of time information
-                      forcData%dom(i)%var, & ! intent(inout): vector of model forcing data
+                      forcData%var,        & ! intent(inout): vector of model forcing data (only change if domain type is upland, used in vegetation routines)
                       attrData%var,        & ! intent(in):    vector of model attributes
                       mparData%dom(i),     & ! intent(in):    data structure of model parameters
                       progData%dom(i),     & ! intent(in):    data structure of model prognostic variables

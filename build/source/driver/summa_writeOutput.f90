@@ -106,51 +106,53 @@ contains
  USE summaFileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
  USE summaFileManager,only:STATE_PATH                        ! optional path to state output files (defaults to OUTPUT_PATH)
  USE globalData,only:output_fileSuffix                       ! suffix for the output & state files (optional summa argument)
- USE globalData,only:nHRUrun                                 ! number of HRU in the run
- USE globalData,only:nGRUrun                                 ! number of GRU in the run
+ USE globalData,only:nDOMrun                                 ! number of domains (every HRU may have multiple) in the run space
+ USE globalData,only:nHRUrun                                 ! number of HRU in the run space
+ USE globalData,only:nGRUrun                                 ! number of GRU in the run space
  ! ---------------------------------------------------------------------------------------
  ! * variables
  ! ---------------------------------------------------------------------------------------
  implicit none
  ! dummy variables
- integer(i4b),intent(in)               :: modelTimeStep      ! time step index
- type(summa1_type_dec),intent(inout)   :: summa1_struc       ! master summa data structure
- integer(i4b),intent(out)              :: err                ! error code
- character(*),intent(out)              :: message            ! error message
+ integer(i4b),intent(in)               :: modelTimeStep            ! time step index
+ type(summa1_type_dec),intent(inout)   :: summa1_struc             ! master summa data structure
+ integer(i4b),intent(out)              :: err                      ! error code
+ character(*),intent(out)              :: message                  ! error message
  ! local variables
- character(LEN=256)                    :: cmessage           ! error message of downwind routine
- character(len=256)                    :: timeString                 ! portion of restart file name that contains the write-out time
- character(len=256)                    :: restartFile                ! restart file name
- logical(lgt)                          :: printRestart=.false.       ! flag to print a re-start file
- logical(lgt)                          :: printProgress=.false.      ! flag to print simulation progress
- logical(lgt)                          :: defNewOutputFile=.false.   ! flag to define new output files
- integer(i4b)                          :: iGRU,iHRU          ! indices of GRUs and HRUs
- integer(i4b)                          :: iStruct            ! index of model structure
- integer(i4b)                          :: iFreq              ! index of the output frequency
+ character(LEN=256)                    :: cmessage                 ! error message of downwind routine
+ character(len=256)                    :: timeString               ! portion of restart file name that contains the write-out time
+ character(len=256)                    :: restartFile              ! restart file name
+ logical(lgt)                          :: printRestart=.false.     ! flag to print a re-start file
+ logical(lgt)                          :: printProgress=.false.    ! flag to print simulation progress
+ logical(lgt)                          :: defNewOutputFile=.false. ! flag to define new output files
+ integer(i4b)                          :: iGRU,iHRU                ! indices of GRUs and HRUs
+ integer(i4b)                          :: iStruct                  ! index of model structure
+ integer(i4b)                          :: iFreq                    ! index of the output frequency
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(&
 
   ! statistics structures
-  forcStat             => summa1_struc%forcStat    , & ! x%gru(:)%hru(:)%var(:)%dat -- model forcing data
-  progStat             => summa1_struc%progStat    , & ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
-  diagStat             => summa1_struc%diagStat    , & ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
-  fluxStat             => summa1_struc%fluxStat    , & ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
-  indxStat             => summa1_struc%indxStat    , & ! x%gru(:)%hru(:)%var(:)%dat -- model indices
-  bvarStat             => summa1_struc%bvarStat    , & ! x%gru(:)%var(:)%dat        -- basin-average variabl
+  forcStat             => summa1_struc%forcStat    , & ! x%gru(:)%hru(:)%var(:)%dat        -- model forcing data
+  progStat             => summa1_struc%progStat    , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model prognostic (state) variables
+  diagStat             => summa1_struc%diagStat    , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model diagnostic variables
+  fluxStat             => summa1_struc%fluxStat    , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model fluxes
+  indxStat             => summa1_struc%indxStat    , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model indices
+  bvarStat             => summa1_struc%bvarStat    , & ! x%gru(:)%var(:)%dat               -- basin-average variabl
 
   ! primary data structures
-  timeStruct           => summa1_struc%timeStruct  , & ! x%var(:)                   -- model time data
-  forcStruct           => summa1_struc%forcStruct  , & ! x%gru(:)%hru(:)%var(:)     -- model forcing data
-  indxStruct           => summa1_struc%indxStruct  , & ! x%gru(:)%hru(:)%var(:)%dat -- model indices
-  progStruct           => summa1_struc%progStruct  , & ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
-  diagStruct           => summa1_struc%diagStruct  , & ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
-  fluxStruct           => summa1_struc%fluxStruct  , & ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
-  bvarStruct           => summa1_struc%bvarStruct  , & ! x%gru(:)%var(:)%dat        -- basin-average variables
+  timeStruct           => summa1_struc%timeStruct  , & ! x%var(:)                          -- model time data
+  forcStruct           => summa1_struc%forcStruct  , & ! x%gru(:)%hru(:)%var(:)            -- model forcing data
+  indxStruct           => summa1_struc%indxStruct  , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model indices
+  progStruct           => summa1_struc%progStruct  , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model prognostic (state) variables
+  diagStruct           => summa1_struc%diagStruct  , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model diagnostic variables
+  fluxStruct           => summa1_struc%fluxStruct  , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model fluxes
+  bvarStruct           => summa1_struc%bvarStruct  , & ! x%gru(:)%var(:)%dat               -- basin-average variables
 
   ! miscellaneous variables
   nGRU                 => summa1_struc%nGRU        , & ! number of grouped response units
-  nHRU                 => summa1_struc%nHRU          & ! number of global hydrologic response units
+  nHRU                 => summa1_struc%nHRU        , & ! number of global hydrologic response units
+  nDOM                 => summa1_struc%nDOM          & ! number of global domains
 
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -178,9 +180,10 @@ contains
   ! set stats flag for the timestep-level output
   finalizeStats(iLookFREQ%timestep)=.true.
 
-  ! initialize number of hru and gru in global data
+  ! initialize number of domains, hru, and gru in global data
   nGRUrun = nGRU
   nHRUrun = nHRU
+  nDOMrun = nDOM
  endif  ! if the first time step
 
  ! *****************************************************************************
@@ -228,10 +231,22 @@ contains
    do iStruct=1,size(structInfo)
     select case(trim(structInfo(iStruct)%structName))
      case('forc'); call calcStats(forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,statForc_meta,resetStats,finalizeStats,statCounter,err,cmessage)
-     case('prog'); call calcStats(progStat%gru(iGRU)%hru(iHRU)%var,progStruct%gru(iGRU)%hru(iHRU)%var,statProg_meta,resetStats,finalizeStats,statCounter,err,cmessage)
-     case('diag'); call calcStats(diagStat%gru(iGRU)%hru(iHRU)%var,diagStruct%gru(iGRU)%hru(iHRU)%var,statDiag_meta,resetStats,finalizeStats,statCounter,err,cmessage)
-     case('flux'); call calcStats(fluxStat%gru(iGRU)%hru(iHRU)%var,fluxStruct%gru(iGRU)%hru(iHRU)%var,statFlux_meta,resetStats,finalizeStats,statCounter,err,cmessage)
-     case('indx'); call calcStats(indxStat%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,statIndx_meta,resetStats,finalizeStats,statCounter,err,cmessage)
+     case('prog')
+      do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
+       call calcStats(progStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statProg_meta,resetStats,finalizeStats,statCounter,err,cmessage)
+      end do
+     case('diag')
+      do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
+       call calcStats(diagStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,diagStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statDiag_meta,resetStats,finalizeStats,statCounter,err,cmessage)
+      end do
+     case('flux')
+      do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
+       call calcStats(fluxStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statFlux_meta,resetStats,finalizeStats,statCounter,err,cmessage)
+      end do
+     case('indx')
+      do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
+       call calcStats(indxStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,indxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statIndx_meta,resetStats,finalizeStats,statCounter,err,cmessage)
+      end do
     end select
     if(err/=0)then; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; return; endif
    end do  ! (looping through structures)
@@ -252,8 +267,9 @@ contains
  ! *** write data
  ! ****************************************************************************
 
- ! get the number of HRUs in the run domain
+ ! get the number of HRUs and the the number of domains in the run space
  nHRUrun = sum(gru_struc%hruCount)
+ nDOMrun = sum(gru_struc%hruInfo%domCount)
 
  ! write time information
  call writeTime(finalizeStats,outputTimeStep,time_meta,timeStruct%var,err,message)
@@ -265,10 +281,10 @@ contains
  do iStruct=1,size(structInfo)
   select case(trim(structInfo(iStruct)%structName))
    case('forc'); call writeData(finalizeStats,outputTimeStep,nHRUrun,maxLayers,forc_meta,forcStat,forcStruct,forcChild_map,indxStruct,err,cmessage)
-   case('prog'); call writeData(finalizeStats,outputTimeStep,nHRUrun,maxLayers,prog_meta,progStat,progStruct,progChild_map,indxStruct,err,cmessage)
-   case('diag'); call writeData(finalizeStats,outputTimeStep,nHRUrun,maxLayers,diag_meta,diagStat,diagStruct,diagChild_map,indxStruct,err,cmessage)
-   case('flux'); call writeData(finalizeStats,outputTimeStep,nHRUrun,maxLayers,flux_meta,fluxStat,fluxStruct,fluxChild_map,indxStruct,err,cmessage)
-   case('indx'); call writeData(finalizeStats,outputTimeStep,nHRUrun,maxLayers,indx_meta,indxStat,indxStruct,indxChild_map,indxStruct,err,cmessage)
+   case('prog'); call writeData(finalizeStats,outputTimeStep,nDOMrun,maxLayers,prog_meta,progStat,progStruct,progChild_map,indxStruct,err,cmessage)
+   case('diag'); call writeData(finalizeStats,outputTimeStep,nDOMrun,maxLayers,diag_meta,diagStat,diagStruct,diagChild_map,indxStruct,err,cmessage)
+   case('flux'); call writeData(finalizeStats,outputTimeStep,nDOMrun,maxLayers,flux_meta,fluxStat,fluxStruct,fluxChild_map,indxStruct,err,cmessage)
+   case('indx'); call writeData(finalizeStats,outputTimeStep,nDOMrun,maxLayers,indx_meta,indxStat,indxStruct,indxChild_map,indxStruct,err,cmessage)
   end select
   if(err/=0)then; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; return; endif
  end do  ! (looping through structures)

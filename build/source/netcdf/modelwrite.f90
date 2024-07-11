@@ -60,7 +60,14 @@ USE data_types,only:&
                     gru_hru_int8,        & ! x%gru(:)%hru(:)%var(:)     integer(8)
                     gru_hru_double,      & ! x%gru(:)%hru(:)%var(:)     (dp)
                     gru_hru_intVec,      & ! x%gru(:)%hru(:)%var(:)%dat (i4b)
-                    gru_hru_doubleVec      ! x%gru(:)%hru(:)%var(:)%dat (dp)
+                    gru_hru_doubleVec    &  ! x%gru(:)%hru(:)%var(:)%dat (dp)
+                    ! gru+hru+dom dimension
+                    gru_hru_dom_int,     & ! x%gru(:)%hru(:)%dom(:)%var(:)     (i4b)
+                    gru_hru_dom_int8,    & ! x%gru(:)%hru(:)%dom(:)%var(:)     integer(8)
+                    gru_hru_dom_double,  & ! x%gru(:)%hru(:)%dom(:)%var(:)     (dp)
+                    gru_hru_dom_intVec,  & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat (i4b)
+                    gru_hru_dom_doubleVec  ! x%gru(:)%hru(:)%dom(:)%var(:)%dat (dp)
+
 
 ! vector lengths
 USE var_lookup, only: maxvarFreq ! number of output frequencies
@@ -160,7 +167,7 @@ contains
  ! declare dummy variables
  logical(lgt)  ,intent(in)        :: finalizeStats(:)  ! flags to finalize statistics
  integer(i4b)  ,intent(in)        :: outputTimestep(:) ! output time step
- integer(i4b)  ,intent(in)        :: nHRUrun           ! number of HRUs in the run domain
+ integer(i4b)  ,intent(in)        :: nHRUrun           ! number of HRUs in the run space
  integer(i4b)  ,intent(in)        :: maxLayers         ! maximum number of layers
  type(var_info),intent(in)        :: meta(:)           ! meta data
  class(*)      ,intent(in)        :: stat              ! stats data
@@ -182,9 +189,9 @@ contains
  ! output arrays
  integer(i4b)                     :: datLength         ! length of each data vector
  integer(i4b)                     :: maxLength         ! maximum length of each data vector
- real(rkind)                      :: realVec(nHRUrun)  ! real vector for all HRUs in the run domain
- real(rkind)                      :: realArray(nHRUrun,maxLayers+1)  ! real array for all HRUs in the run domain
- integer(i4b)                     :: intArray(nHRUrun,maxLayers+1)   ! integer array for all HRUs in the run domain
+ real(rkind)                      :: realVec(nHRUrun)  ! real vector for all HRUs in the run space
+ real(rkind)                      :: realArray(nHRUrun,maxLayers+1)  ! real array for all HRUs in the run space
+ integer(i4b)                     :: intArray(nHRUrun,maxLayers+1)   ! integer array for all HRUs in the run space
  integer(i4b)                     :: dataType          ! type of data
  integer(i4b),parameter           :: ixInteger=1001    ! named variable for integer
  integer(i4b),parameter           :: ixReal=1002       ! named variable for real
@@ -234,7 +241,9 @@ contains
       ! loop through HRUs and GRUs, and place data in the single vector
       do iGRU=1,size(gru_struc)
        do iHRU=1,gru_struc(iGRU)%hruCount
-        realVec(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix) = stat%gru(iGRU)%hru(iHRU)%var(map(iVar))%dat(iFreq)
+        do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
+         realVec(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix) = stat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(map(iVar))%dat(iFreq)
+        end do
        end do
       end do
 
@@ -249,41 +258,42 @@ contains
 
     ! initialize the data vectors
     select type (dat)
-     class is (gru_hru_doubleVec); realArray(:,:) = realMissing;    dataType=ixReal
-     class is (gru_hru_intVec);     intArray(:,:) = integerMissing; dataType=ixInteger
-     class default; err=20; message=trim(message)//'data must not be scalarv and either of type gru_hru_doubleVec or gru_hru_intVec'; return
+     class is (gru_hru_dom_doubleVec); realArray(:,:) = realMissing;    dataType=ixReal
+     class is (gru_hru_dom_intVec);     intArray(:,:) = integerMissing; dataType=ixInteger
+     class default; err=20; message=trim(message)//'data must not be scalarv and either of type gru_hru_dom_doubleVec or gru_hru_dom_intVec'; return
     end select
 
     ! loop thru GRUs and HRUs
     do iGRU=1,size(gru_struc)
      do iHRU=1,gru_struc(iGRU)%hruCount
+      do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
 
-      ! get the model layers
-      nSoil   = indx%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSoil)%dat(1)
-      nSnow   = indx%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSnow)%dat(1)
-      nLayers = indx%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nLayers)%dat(1)
+       ! get the model layers
+       nSoil   = indx%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSoil)%dat(1)
+       nSnow   = indx%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSnow)%dat(1)
+       nLayers = indx%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLayers)%dat(1)
 
-      ! get the length of each data vector
-      select case (meta(iVar)%varType)
-       case(iLookVarType%wLength); datLength = maxSpectral
-       case(iLookVarType%midToto); datLength = nLayers
-       case(iLookVarType%midSnow); datLength = nSnow
-       case(iLookVarType%midSoil); datLength = nSoil
-       case(iLookVarType%ifcToto); datLength = nLayers+1
-       case(iLookVarType%ifcSnow); datLength = nSnow+1
-       case(iLookVarType%ifcSoil); datLength = nSoil+1
-       case default; cycle
-      end select ! vartype
+       ! get the length of each data vector
+       select case (meta(iVar)%varType)
+        case(iLookVarType%wLength); datLength = maxSpectral
+        case(iLookVarType%midToto); datLength = nLayers
+        case(iLookVarType%midSnow); datLength = nSnow
+        case(iLookVarType%midSoil); datLength = nSoil
+        case(iLookVarType%ifcToto); datLength = nLayers+1
+        case(iLookVarType%ifcSnow); datLength = nSnow+1
+        case(iLookVarType%ifcSoil); datLength = nSoil+1
+        case default; cycle
+       end select ! vartype
 
-      ! get the data vectors
-      select type (dat)
-       class is (gru_hru_doubleVec); realArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = dat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
-       class is (gru_hru_intVec);     intArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = dat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
-       class default; err=20; message=trim(message)//'data must not be scalarv and either of type gru_hru_doubleVec or gru_hru_intVec'; return
-      end select
+       ! get the data vectors
+       select type (dat)
+        class is (gru_hru_dom_doubleVec); realArray(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_ix,1:datLength) = dat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
+        class is (gru_hru_dom_intVec);     intArray(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_ix,1:datLength) = dat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
+       end select
 
-     end do  ! HRU loop
-    end do  ! GRU loop
+      end do ! DOM loop
+     end do ! HRU loop
+    end do ! GRU loop
 
     ! get the maximum length of each data vector
     select case (meta(iVar)%varType)

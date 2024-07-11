@@ -126,11 +126,11 @@ subroutine summa_initialize(summa1_struc, err, message)
     bvarStat             => summa1_struc%bvarStat            , & ! x%gru(:)%var(:)%dat        -- basin-average variables
 
     ! primary data structures (scalars)
-    timeStruct           => summa1_struc%timeStruct          , & ! x%var(:)                      -- model time data
-    forcStruct           => summa1_struc%forcStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:) -- model forcing data
-    attrStruct           => summa1_struc%attrStruct          , & ! x%gru(:)%hru(:)%var(:)        -- local attributes for each HRU
-    typeStruct           => summa1_struc%typeStruct          , & ! x%gru(:)%hru(:)%var(:)        -- local classification of soil veg etc. for each HRU
-    idStruct             => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:)        -- local values of hru and gru IDs
+    timeStruct           => summa1_struc%timeStruct          , & ! x%var(:)               -- model time data
+    forcStruct           => summa1_struc%forcStruct          , & ! x%gru(:)%hru(:)%var(:) -- model forcing data
+    attrStruct           => summa1_struc%attrStruct          , & ! x%gru(:)%hru(:)%var(:) -- local attributes for each HRU
+    typeStruct           => summa1_struc%typeStruct          , & ! x%gru(:)%hru(:)%var(:) -- local classification of soil veg etc. for each HRU
+    idStruct             => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:) -- local values of hru and gru IDs
 
     ! primary data structures (variable length vectors)
     indxStruct           => summa1_struc%indxStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model indices
@@ -157,7 +157,6 @@ subroutine summa_initialize(summa1_struc, err, message)
     ts                   => summa1_struc%ts                  , & ! model time step ??
     nGRU                 => summa1_struc%nGRU                , & ! number of grouped response units
     nHRU                 => summa1_struc%nHRU                , & ! number of global hydrologic response units
-    nDOM                 => summa1_struc%nDOM                , & ! number of global domains
     hruCount             => summa1_struc%hruCount            , & ! number of local hydrologic response units
     domCount             => summa1_struc%domCount            , & ! number of local domains
     greenVegFrac_monthly => summa1_struc%greenVegFrac_monthly, & ! fraction of green vegetation in each month (0-1)
@@ -201,9 +200,9 @@ subroutine summa_initialize(summa1_struc, err, message)
     ! obtain the HRU and GRU dimensions in the LocalAttribute file
     attrFile = trim(SETTINGS_PATH)//trim(LOCAL_ATTRIBUTES)
     select case (iRunMode)
-      case(iRunModeFull); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,nDOM,err,cmessage)
-      case(iRunModeGRU ); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,nDOM,err,cmessage,startGRU=startGRU)
-      case(iRunModeHRU ); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,nDOM,err,cmessage,checkHRU=checkHRU)
+      case(iRunModeFull); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,err,cmessage)
+      case(iRunModeGRU ); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,err,cmessage,startGRU=startGRU)
+      case(iRunModeHRU ); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,err,cmessage,checkHRU=checkHRU)
     end select
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 

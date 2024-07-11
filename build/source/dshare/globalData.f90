@@ -212,9 +212,11 @@ MODULE globalData
   ! define controls on model output
   logical(lgt),dimension(maxvarFreq),save,public :: finalizeStats=.false.             ! flags to reset statistics
   integer(i4b),save,public                       :: maxLayers                         ! maximum number of layers
+  integer(i4b),save,public                       :: maxSoilLayers                     ! maximum number of soil layers
   integer(i4b),save,public                       :: maxSnowLayers                     ! maximum number of snow layers
   integer(i4b),save,public                       :: maxIceLayers=1                    ! maximum number of ice layers on glacier
   integer(i4b),save,public                       :: maxLakeLayers=3                   ! maximum number of lake layers
+
   ! define control variables
   integer(i4b),save,public                       :: startGRU                          ! index of the starting GRU for parallelization run
   integer(i4b),save,public                       :: checkHRU                          ! index of the HRU for a single HRU run
@@ -225,8 +227,9 @@ MODULE globalData
   integer(i4b),save,public                       :: newOutputFile=noNewFiles          ! define option for new output files
   ! define common variables
   integer(i4b),save,public                       :: numtim                            ! number of time steps
-  integer(i4b),save,public                       :: nHRUrun                           ! number of HRUs in the run domain
-  integer(i4b),save,public                       :: nGRUrun                           ! number of GRUs in the run domain
+  integer(i4b),save,public                       :: nDOMrun                           ! number of domains (every HRU may have multiple) in the run space
+  integer(i4b),save,public                       :: nHRUrun                           ! number of HRUs in the run space
+  integer(i4b),save,public                       :: nGRUrun                           ! number of GRUs in the run space
   real(rkind),save,public                        :: data_step                         ! length of the time_step
   real(rkind),save,public                        :: refJulDay                         ! reference time in fractional julian days
   real(rkind),save,public                        :: refJulDay_data                    ! reference time in fractional julian days (data files)

@@ -76,7 +76,7 @@ contains
  character(*),intent(out)              :: message            ! error message
  ! local variables
  character(LEN=256)                    :: cmessage           ! error message of downwind routine
- integer(i4b)                          :: iGRU,iHRU          ! indices of GRUs and HRUs
+ integer(i4b)                          :: iGRU,iHRU,iDOM     ! indices of GRUs, HRUs, and domains
  integer(i4b)                          :: iStruct            ! index of model structure
  ! version information generated during compiling
  INCLUDE 'summaversion.inc'
@@ -87,10 +87,11 @@ contains
   attrStruct           => summa1_struc%attrStruct        , & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
   typeStruct           => summa1_struc%typeStruct        , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
   idStruct             => summa1_struc%idStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
-  mparStruct           => summa1_struc%mparStruct        , & ! x%gru(:)%hru(:)%var(:)%dat -- model parameters
+  mparStruct           => summa1_struc%mparStruct        , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model parameters
   bparStruct           => summa1_struc%bparStruct        , & ! x%gru(:)%var(:)            -- basin-average parameters
   nGRU                 => summa1_struc%nGRU              , & ! number of grouped response units
-  nHRU                 => summa1_struc%nHRU                & ! number of global hydrologic response units
+  nHRU                 => summa1_struc%nHRU              , & ! number of global hydrologic response units
+  nDOM                 => summa1_struc%nDOM                & ! number of global domains
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
  ! initialize error control
@@ -121,8 +122,9 @@ contains
  ! *** define the model output file and write parameters
  ! *****************************************************************************
 
+
  ! define the file
- call def_output(summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,cmessage)
+ call def_output(summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,nDOM,fileout,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! write parameters for each HRU
@@ -134,7 +136,10 @@ contains
     select case(trim(structInfo(iStruct)%structName))
      case('attr'); call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,attrStruct%gru(iGRU)%hru(iHRU),attr_meta,err,cmessage)
      case('type'); call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,cmessage)
-     case('mpar'); call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,mparStruct%gru(iGRU)%hru(iHRU),mpar_meta,err,cmessage)
+     case('mpar')
+      do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
+       call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_ix,mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),mpar_meta,err,cmessage)
+      end do
     end select
     if(err/=0)then; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; return; endif
    end do  ! (looping through structures)

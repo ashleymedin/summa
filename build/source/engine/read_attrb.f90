@@ -42,8 +42,8 @@ contains
  character(*),intent(in)              :: attrFile           ! name of attributed file
  integer(i4b),intent(out)             :: fileGRU            ! number of GRUs in the input file
  integer(i4b),intent(out)             :: fileHRU            ! number of HRUs in the input file
- integer(i4b),intent(inout)           :: nGRU               ! number of GRUs in the run domain
- integer(i4b),intent(inout)           :: nHRU               ! number of HRUs in the run domain
+ integer(i4b),intent(inout)           :: nGRU               ! number of GRUs in the run space
+ integer(i4b),intent(inout)           :: nHRU               ! number of HRUs in the run space
  integer(i4b),intent(out)             :: err                ! error code
  character(*),intent(out)             :: message            ! error message
  integer(i4b),intent(in),optional     :: startGRU           ! index of the starting GRU for parallelization run
@@ -141,10 +141,12 @@ if (present(checkHRU)) then                                                     
  gru_struc(iGRU)%hruCount             = 1                                                      ! number of HRUs in each GRU
  gru_struc(iGRU)%gru_id               = hru2gru_id(checkHRU)                                   ! set gru id
  gru_struc(iGRU)%gru_nc               = sGRU                                                   ! set gru index within the netcdf file
+
  allocate(gru_struc(iGRU)%hruInfo(gru_struc(iGRU)%hruCount))                                   ! allocate second level of gru to hru map
  gru_struc(iGRU)%hruInfo(iGRU)%hru_nc = checkHRU                                               ! set hru id in attributes netcdf file
- gru_struc(iGRU)%hruInfo(iGRU)%hru_ix = 1                                                      ! set index of hru in run domain
+ gru_struc(iGRU)%hruInfo(iGRU)%hru_ix = 1                                                      ! set index of hru in run space
  gru_struc(iGRU)%hruInfo(iGRU)%hru_id = hru_id(checkHRU)                                       ! set id of hru
+ gru_struc(iGRU)%hruInfo(iGRU)
 
 else ! allocate space for anything except a single HRU run
 
@@ -158,7 +160,7 @@ else ! allocate space for anything except a single HRU run
 
   allocate(gru_struc(iGRU)%hruInfo(gru_struc(iGRU)%hruCount))                                  ! allocate second level of gru to hru map
   gru_struc(iGRU)%hruInfo(:)%hru_nc = pack(hru_ix,hru2gru_id == gru_struc(iGRU)%gru_id)        ! set hru id in attributes netcdf file
-  gru_struc(iGRU)%hruInfo(:)%hru_ix = arth(iHRU,1,gru_struc(iGRU)%hruCount)                    ! set index of hru in run domain
+  gru_struc(iGRU)%hruInfo(:)%hru_ix = arth(iHRU,1,gru_struc(iGRU)%hruCount)                    ! set index of hru in run space
   gru_struc(iGRU)%hruInfo(:)%hru_id = hru_id(gru_struc(iGRU)%hruInfo(:)%hru_nc)                ! set id of hru
   iHRU = iHRU + gru_struc(iGRU)%hruCount
  enddo ! iGRU = 1,nGRU
@@ -172,12 +174,12 @@ allocate(index_map(nHRU))                                                       
 if (present(checkHRU)) then                                                                    ! allocate space for single-HRU run
  if (nHRU/=1) then; err=-20; message=trim(message)//'wrong # of HRUs for checkHRU run'; return; end if
  iGRU = 1;
- index_map(1)%gru_ix   = iGRU                                                                  ! index of gru in run domain to which the hru belongs
+ index_map(1)%gru_ix   = iGRU                                                                  ! index of gru in run space to which the hru belongs
  index_map(1)%localHRU_ix = hru_ix(1)                                                          ! index of hru within the gru
 
 else ! anything other than a single HRU run
  do iGRU = 1,nGRU
-  index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%gru_ix   = iGRU                                 ! index of gru in run domain to which the hru belongs
+  index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%gru_ix   = iGRU                                 ! index of gru in run space to which the hru belongs
   index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%localHRU_ix = hru_ix(1:gru_struc(iGRU)%hruCount)! index of hru within the gru
  enddo ! iGRU = 1,nGRU
 
@@ -240,7 +242,7 @@ end subroutine read_dimension
  integer(i4b),parameter               :: numerical=102      ! named variable to denote numerical data
  integer(i4b),parameter               :: idrelated=103      ! named variable to denote ID related data
  integer(i4b)                         :: categorical_var(1) ! temporary categorical variable from local attributes netcdf file
- real(rkind)                             :: numeric_var(1)     ! temporary numeric variable from local attributes netcdf file
+ real(rkind)                          :: numeric_var(1)     ! temporary numeric variable from local attributes netcdf file
  integer(8)                           :: idrelated_var(1)   ! temporary ID related variable from local attributes netcdf file
 
  ! define mapping variables
