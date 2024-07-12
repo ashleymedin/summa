@@ -214,7 +214,7 @@ MODULE globalData
   integer(i4b),save,public                       :: maxLayers                         ! maximum number of layers
   integer(i4b),save,public                       :: maxSoilLayers                     ! maximum number of soil layers
   integer(i4b),save,public                       :: maxSnowLayers                     ! maximum number of snow layers
-  integer(i4b),save,public                       :: maxIceLayers=1                    ! maximum number of ice layers on glacier
+  integer(i4b),save,public                       :: maxIceLayers=3                    ! maximum number of ice layers on glacier
   integer(i4b),save,public                       :: maxLakeLayers=3                   ! maximum number of lake layers
 
   ! define control variables

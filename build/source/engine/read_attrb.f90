@@ -29,7 +29,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_dimension: read HRU and GRU dimension information on local attributes
  ! ************************************************************************************************
- subroutine read_dimension(attrFile,fileGRU,fileHRU,nGRU,nHRU,err,message,startGRU,checkHRU)
+ subroutine read_dimension(attrFile,fileGRU,fileHRU,nGRU,nHRU,nDOM,err,message,startGRU,checkHRU)
  USE netcdf
  USE netcdf_util_module,only:nc_file_open                   ! open netcdf file
  USE netcdf_util_module,only:nc_file_close                  ! close netcdf file
@@ -37,6 +37,11 @@ contains
  ! provide access to global data
  USE globalData,only:gru_struc                              ! gru->hru mapping structure
  USE globalData,only:index_map                              ! hru->gru mapping structure
+ ! access domain types
+ USE globalData,only:upland                                 ! domain type for upland areas
+ USE globalData,only:glacAcc                                ! domain type for glacier accumulation areas
+ USE globalData,only:glacAbl                                ! domain type for glacier ablation areas
+ USE globalData,only:wetland                                ! domain type for wetland areas
  implicit none
 
  character(*),intent(in)              :: attrFile           ! name of attributed file
@@ -44,6 +49,7 @@ contains
  integer(i4b),intent(out)             :: fileHRU            ! number of HRUs in the input file
  integer(i4b),intent(inout)           :: nGRU               ! number of GRUs in the run space
  integer(i4b),intent(inout)           :: nHRU               ! number of HRUs in the run space
+ integer(i4b),intent(inout)           :: nDOM               ! number of domains in the run space
  integer(i4b),intent(out)             :: err                ! error code
  character(*),intent(out)             :: message            ! error message
  integer(i4b),intent(in),optional     :: startGRU           ! index of the starting GRU for parallelization run
@@ -51,17 +57,21 @@ contains
 
  ! locals
  integer(i4b)                         :: sGRU               ! starting GRU
- integer(i4b)                         :: iHRU               ! HRU couinting index
+ integer(i4b)                         :: iDOM,i             ! domain counting index
+ integer(i4b)                         :: iHRU               ! HRU counting index
  integer(i4b)                         :: iGRU               ! GRU loop index
  integer(8),allocatable               :: gru_id(:),hru_id(:)! read gru/hru IDs in from attributes file
  integer(8),allocatable               :: hru2gru_id(:)      ! read hru->gru mapping in from attributes file
  integer(i4b),allocatable             :: hru_ix(:)          ! hru index for search
+ integer(i4b),allocatable             :: dom_ix(:)          ! domain index for search
 
  ! define variables for NetCDF file operation
  integer(i4b)                         :: ncID               ! NetCDF file ID
  integer(i4b)                         :: varID              ! NetCDF variable ID
  integer(i4b)                         :: gruDimId           ! variable id of GRU dimension from netcdf file
  integer(i4b)                         :: hruDimId           ! variable id of HRU dimension from netcdf file
+ integer(i4b)                         :: has_glacier        ! flag for glacier presence
+ integer(i4b)                         :: has_lake           ! flag for lake presence
  character(len=256)                   :: cmessage           ! error message for downwind routine
 
  ! Start procedure here
@@ -86,7 +96,7 @@ contains
  err = nf90_inquire_dimension(ncID, hruDimId, len = fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if
 
  ! get runtime GRU dimensions
- if     (present(startGRU)) then
+ if (present(startGRU)) then
   if (nGRU < 1) then; err=20; message=trim(message)//'nGRU < 1 for a startGRU run'; return; end if
   sGRU = startGRU
  elseif (present(checkHRU)) then
@@ -123,72 +133,134 @@ contains
  err = nf90_inq_varid(ncID,"hru2gruId",varID); if (err/=0) then; message=trim(message)//'problem finding hru2gruId'; return; end if
  err = nf90_get_var(ncID,varID,hru2gru_id);    if (err/=0) then; message=trim(message)//'problem reading hru2gruId'; return; end if
 
+ ! read domain information from netcdf file
+ err = nf90_inq_varid(ncID,"glacier",varID)
+ if (err/=0) then
+   has_glacier = 0 ! backwards compatibility
+ else
+   err = nf90_get_var(ncID,varID,has_glacier);   if (err/=0) then; message=trim(message)//'problem reading glacier'; return; end if
+ end if
+ err = nf90_inq_varid(ncID,"lake",varID) 
+ if (err/=0) then
+   has_lake = 0 ! backwards compatibility
+ else
+   err = nf90_get_var(ncID,varID,has_lake);      if (err/=0) then; message=trim(message)//'problem reading lake'; return; end if
+ end if
+
  ! array from 1 to total # of HRUs in attributes file
  hru_ix=arth(1,1,fileHRU)
 
-! check that the mappings are not alreaday allocated
-if (allocated(gru_struc)) then; message=trim(message)//'gru_struc is unexpectedly allocated'; return; end if
-if (allocated(index_map)) then; message=trim(message)//'index_map is unexpectedly allocated'; return; end if
+ ! check that the mappings are not already allocated
+ if (allocated(gru_struc)) then; message=trim(message)//'gru_struc is unexpectedly allocated'; return; end if
+ if (allocated(index_map)) then; message=trim(message)//'index_map is unexpectedly allocated'; return; end if
 
-! allocate first level of gru to hru mapping
-allocate(gru_struc(nGRU))
+ ! allocate first level of gru to hru mapping
+ allocate(gru_struc(nGRU))
 
-! set gru to hru mapping
-if (present(checkHRU)) then                                                                    ! allocate space for single-HRU run
+ ! set gru to hru mapping
+ if (present(checkHRU)) then                                                                    ! allocate space for single-HRU run
 
- ! gru to hru mapping
- iGRU = 1
- gru_struc(iGRU)%hruCount             = 1                                                      ! number of HRUs in each GRU
- gru_struc(iGRU)%gru_id               = hru2gru_id(checkHRU)                                   ! set gru id
- gru_struc(iGRU)%gru_nc               = sGRU                                                   ! set gru index within the netcdf file
+  ! gru to hru mapping
+  iGRU = 1
+  gru_struc(iGRU)%hruCount             = 1                                                      ! number of HRUs in each GRU
+  gru_struc(iGRU)%gru_id               = hru2gru_id(checkHRU)                                   ! set gru id
+  gru_struc(iGRU)%gru_nc               = sGRU                                                   ! set gru index within the netcdf file
 
- allocate(gru_struc(iGRU)%hruInfo(gru_struc(iGRU)%hruCount))                                   ! allocate second level of gru to hru map
- gru_struc(iGRU)%hruInfo(iGRU)%hru_nc = checkHRU                                               ! set hru id in attributes netcdf file
- gru_struc(iGRU)%hruInfo(iGRU)%hru_ix = 1                                                      ! set index of hru in run space
- gru_struc(iGRU)%hruInfo(iGRU)%hru_id = hru_id(checkHRU)                                       ! set id of hru
- gru_struc(iGRU)%hruInfo(iGRU)
+  allocate(gru_struc(iGRU)%hruInfo(gru_struc(iGRU)%hruCount))                                   ! allocate second level of gru to hru map
+  gru_struc(iGRU)%hruInfo(iGRU)%hru_nc = checkHRU                                               ! set hru id in attributes netcdf file
+  gru_struc(iGRU)%hruInfo(iGRU)%hru_ix = 1                                                      ! set index of hru in run space
+  gru_struc(iGRU)%hruInfo(iGRU)%hru_id = hru_id(checkHRU)                                       ! set id of hru
 
-else ! allocate space for anything except a single HRU run
+  gru_struc(iGRU)%hruInfo(iGRU)%domCount = 1                                   ! upland domain always present, for changing size glaciers and lakes
+  if (has_glacier > 0) gru_struc(iGRU)%hruInfo(iGRU)%domCount = gru_struc(iGRU)%hruInfo(iGRU)%domCount + 2 ! accumulation and ablation domains possible
+  if (has_lake > 0) gru_struc(iGRU)%hruInfo(iGRU)%domCount = gru_struc(iGRU)%hruInfo(iGRU)%domCount + 1    ! wetland domain possible
+  allocate(gru_struc(iGRU)%hruInfo(iGRU)%domInfo(gru_struc(iGRU)%hruInfo(iGRU)%domCount))              ! allocate third level of gru to hru map
+  do i = 1, gru_struc(iGRU)%hruInfo(iGRU)%domCount
+   gru_struc(iGRU)%hruInfo(iGRU)%domInfo(i)%dom_nc = checkHRU               ! set hru id in attributes netcdf file
+  end do
 
- iHRU = 1
- do iGRU = 1,nGRU
+  ! set type of domain
+  gru_struc(iGRU)%hruInfo(iGRU)%domInfo(1)%dom_type = upland
+  if (has_glacier) then 
+   gru_struc(iGRU)%hruInfo(iGRU)%domInfo(2)%dom_type = glacAcc
+   gru_struc(iGRU)%hruInfo(iGRU)%domInfo(3)%dom_type = glacAbl
+   if (has_lake) gru_struc(iGRU)%hruInfo(iGRU)%domInfo(4)%dom_type = wetland
+  else
+   gru_struc(iGRU)%hruInfo(iGRU)%domInfo(2)%dom_type = wetland 
+  end if
+  gru_struc(iGRU)%hruInfo(iGRU)%domInfo(:)%dom_ix = arth(1,1,gru_struc(iGRU)%hruInfo(iGRU)%domCount) ! set index of domain in run space
+  
+ else ! allocate space for anything except a single HRU run
+  iHRU = 1
+  iDOM = 1
+  do iGRU = 1,nGRU
 
-  if (count(hru2gru_Id == gru_id(iGRU+sGRU-1)) < 1) then; err=20; message=trim(message)//'problem finding HRUs belonging to GRU'; return; end if
-  gru_struc(iGRU)%hruCount          = count(hru2gru_Id == gru_id(iGRU+sGRU-1))                 ! number of HRUs in each GRU
-  gru_struc(iGRU)%gru_id            = gru_id(iGRU+sGRU-1)                                      ! set gru id
-  gru_struc(iGRU)%gru_nc            = iGRU+sGRU-1                                              ! set gru index in the netcdf file
+    if (count(hru2gru_Id == gru_id(iGRU+sGRU-1)) < 1) then; err=20; message=trim(message)//'problem finding HRUs belonging to GRU'; return; end if
+    gru_struc(iGRU)%hruCount          = count(hru2gru_Id == gru_id(iGRU+sGRU-1))                 ! number of HRUs in each GRU
+    gru_struc(iGRU)%gru_id            = gru_id(iGRU+sGRU-1)                                      ! set gru id
+    gru_struc(iGRU)%gru_nc            = iGRU+sGRU-1                                              ! set gru index in the netcdf file
+ 
+    allocate(gru_struc(iGRU)%hruInfo(gru_struc(iGRU)%hruCount))                                  ! allocate second level of gru to hru map
+    gru_struc(iGRU)%hruInfo(:)%hru_nc = pack(hru_ix,hru2gru_id == gru_struc(iGRU)%gru_id)        ! set hru id in attributes netcdf file
+    gru_struc(iGRU)%hruInfo(:)%hru_ix = arth(iHRU,1,gru_struc(iGRU)%hruCount)                    ! set index of hru in run space
+    gru_struc(iGRU)%hruInfo(:)%hru_id = hru_id(gru_struc(iGRU)%hruInfo(:)%hru_nc)                ! set id of hru
+ 
+    do iHRU = 1,gru_struc(iGRU)%hruCount
+      gru_struc(iGRU)%hruInfo(iHRU)%domCount = 1                                   ! upland domain always present, for changing size glaciers and lakes
+      if (has_glacier > 0) gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 2 ! accumulation and ablation domains possible
+      if (has_lake > 0) gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 1    ! wetland domain possible
+      allocate(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(gru_struc(iGRU)%hruInfo(iHRU)%domCount))                  ! allocate third level of gru to hru map
+      do i = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
+       gru_struc(iGRU)%hruInfo(iHRU)%domInfo(i)%dom_nc = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc                  ! set hru id in attributes netcdf file
+      end do
 
-  allocate(gru_struc(iGRU)%hruInfo(gru_struc(iGRU)%hruCount))                                  ! allocate second level of gru to hru map
-  gru_struc(iGRU)%hruInfo(:)%hru_nc = pack(hru_ix,hru2gru_id == gru_struc(iGRU)%gru_id)        ! set hru id in attributes netcdf file
-  gru_struc(iGRU)%hruInfo(:)%hru_ix = arth(iHRU,1,gru_struc(iGRU)%hruCount)                    ! set index of hru in run space
-  gru_struc(iGRU)%hruInfo(:)%hru_id = hru_id(gru_struc(iGRU)%hruInfo(:)%hru_nc)                ! set id of hru
-  iHRU = iHRU + gru_struc(iGRU)%hruCount
- enddo ! iGRU = 1,nGRU
+      ! set type of domain
+      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(1)%dom_type = upland
+      if (gru_struc(iGRU)%hruInfo(iHRU)%domCount>1) then
+       if (has_glacier) then 
+        gru_struc(iGRU)%hruInfo(iHRU)%domInfo(2)%dom_type = glacAcc
+        gru_struc(iGRU)%hruInfo(iHRU)%domInfo(3)%dom_type = glacAbl
+        if (has_lake) gru_struc(iGRU)%hruInfo(iHRU)%domInfo(4)%dom_type = wetland
+       else
+         gru_struc(iGRU)%hruInfo(iHRU)%domInfo(2)%dom_type = wetland
+       end if
+      end if
+      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(:)%dom_ix = arth(iDOM,1,gru_struc(iGRU)%hruInfo(iHRU)%domCount) ! set index of domain in run space
+  
+      iDOM = iDOM + gru_struc(iGRU)%hruInfo(iHRU)%domCount
+    enddo
+ 
+    iHRU = iHRU + gru_struc(iGRU)%hruCount
+   enddo ! iGRU = 1,nGRU
 
-end if ! not checkHRU
+ end if ! not checkHRU
 
-! set hru to gru mapping
-nHRU = sum(gru_struc%hruCount)                                                                 ! total number of HRUs
-allocate(index_map(nHRU))                                                                      ! allocate first level of hru to gru mapping
+ ! set domain id to domain type
+ gru_struc(:)%hruInfo(:)%domInfo(:)%dom_id = gru_struc(:)%hruInfo(:)%domInfo(:)%dom_type 
 
-if (present(checkHRU)) then                                                                    ! allocate space for single-HRU run
- if (nHRU/=1) then; err=-20; message=trim(message)//'wrong # of HRUs for checkHRU run'; return; end if
- iGRU = 1;
- index_map(1)%gru_ix   = iGRU                                                                  ! index of gru in run space to which the hru belongs
- index_map(1)%localHRU_ix = hru_ix(1)                                                          ! index of hru within the gru
+ ! set hru to gru mapping
+ nHRU = sum(gru_struc%hruCount)                                                                 ! total number of HRUs
+ nDOM = sum(gru_struc%hruInfo%domCount)                                                         ! total number of domains
+ allocate(index_map(nHRU))                                                                      ! allocate first level of hru to gru mapping
 
-else ! anything other than a single HRU run
- do iGRU = 1,nGRU
-  index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%gru_ix   = iGRU                                 ! index of gru in run space to which the hru belongs
-  index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%localHRU_ix = hru_ix(1:gru_struc(iGRU)%hruCount)! index of hru within the gru
- enddo ! iGRU = 1,nGRU
+ if (present(checkHRU)) then                                                                    ! allocate space for single-HRU run
+  if (nHRU/=1) then; err=-20; message=trim(message)//'wrong # of HRUs for checkHRU run'; return; end if
+  iGRU = 1;
+  index_map(1)%gru_ix   = iGRU                                                                  ! index of gru in run space to which the hru belongs
+  index_map(1)%localHRU_ix = hru_ix(1)                                                          ! index of hru within the gru
 
-end if ! not checkHRU
+ else ! anything other than a single HRU run
+  do iGRU = 1,nGRU
+   index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%gru_ix   = iGRU                                 ! index of gru in run space to which the hru belongs
+   index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%localHRU_ix = hru_ix(1:gru_struc(iGRU)%hruCount)! index of hru within the gru
+  enddo ! iGRU = 1,nGRU
 
-deallocate(gru_id, hru_ix, hru_id, hru2gru_id)
-! close netcdf file
-call nc_file_close(ncID,err,cmessage)
-if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
+ end if ! not checkHRU
+
+ deallocate(gru_id, hru_ix, hru_id, hru2gru_id)
+ ! close netcdf file
+ call nc_file_close(ncID,err,cmessage)
+ if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
 end subroutine read_dimension
 
@@ -354,6 +426,19 @@ end subroutine read_dimension
  end do ! (looping through netcdf local attribute file)
  
  ! ** now handle the optional aspect variable if it's missing
+ varIndx = get_ixAttr('aspect')
+ ! check that the variable was not found in the attribute file
+ if(.not. checkAttr(varIndx)) then
+   write(*,*) NEW_LINE('A')//'INFO: aspect not found in the input attribute file, continuing ...'//NEW_LINE('A')
+
+   do iGRU=1,nGRU
+    do iHRU = 1, gru_struc(iGRU)%hruCount
+     attrStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = nr_realMissing      ! populate variable with out-of-range value, used later
+    end do
+   end do
+   checkAttr(varIndx) = .true.
+ endif
+  ! glacier fraction
  varIndx = get_ixAttr('aspect')
  ! check that the variable was not found in the attribute file
  if(.not. checkAttr(varIndx)) then

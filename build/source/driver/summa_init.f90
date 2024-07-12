@@ -157,6 +157,7 @@ subroutine summa_initialize(summa1_struc, err, message)
     ts                   => summa1_struc%ts                  , & ! model time step ??
     nGRU                 => summa1_struc%nGRU                , & ! number of grouped response units
     nHRU                 => summa1_struc%nHRU                , & ! number of global hydrologic response units
+    nDOM                 => summa1_struc%nDOM                , & ! number of global domains
     hruCount             => summa1_struc%hruCount            , & ! number of local hydrologic response units
     domCount             => summa1_struc%domCount            , & ! number of local domains
     greenVegFrac_monthly => summa1_struc%greenVegFrac_monthly, & ! fraction of green vegetation in each month (0-1)
@@ -200,9 +201,9 @@ subroutine summa_initialize(summa1_struc, err, message)
     ! obtain the HRU and GRU dimensions in the LocalAttribute file
     attrFile = trim(SETTINGS_PATH)//trim(LOCAL_ATTRIBUTES)
     select case (iRunMode)
-      case(iRunModeFull); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,err,cmessage)
-      case(iRunModeGRU ); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,err,cmessage,startGRU=startGRU)
-      case(iRunModeHRU ); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,err,cmessage,checkHRU=checkHRU)
+      case(iRunModeFull); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,nDOM,err,cmessage)
+      case(iRunModeGRU ); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,nDOM,err,cmessage,startGRU=startGRU)
+      case(iRunModeHRU ); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,nDOM,err,cmessage,checkHRU=checkHRU)
     end select
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 

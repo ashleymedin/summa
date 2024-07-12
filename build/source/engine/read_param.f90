@@ -37,7 +37,7 @@ USE netcdf_util_module,only:netcdf_err     ! netcdf error handling function
 ! data types
 USE data_types,only:gru_double             ! spatial double data type:  x%gru(:)%var(:)
 USE data_types,only:gru_hru_int8           ! spatial integer data type: x%gru(:)%hru(:)%var(:)
-USE data_types,only:gru_hru_doubleVec      ! spatial double data type:  x%gru(:)%hru(:)%var(:)%dat(:)
+USE data_types,only:gru_hru_dom_doubleVec  ! spatial double data type:  x%gru(:)%hru(:)%dom(:)%var(:)%dat(:)
 
 implicit none
 private
@@ -64,7 +64,7 @@ contains
  integer(i4b),        intent(in)       :: nGRU             ! number of global GRUs
  type(gru_hru_int8),  intent(in)       :: idStruct         ! local labels for hru and gru IDs
  ! define output
- type(gru_hru_doubleVec),intent(inout) :: mparStruct       ! model parameters
+ type(gru_hru_dom_doubleVec),intent(inout) :: mparStruct   ! model parameters
  type(gru_double)    ,intent(inout)    :: bparStruct       ! basin parameters
  integer(i4b),        intent(out)      :: err              ! error code
  character(*),        intent(out)      :: message          ! error message

@@ -29,18 +29,21 @@ USE globalData,only:yes,no             ! .true. and .false.
 ! define data types
 USE data_types,only:&
                     ! GRU-to-HRU mapping
-                    gru2hru_map,     & ! HRU info
+                    gru2hru_map,       & ! HRU info
                     ! no spatial dimension
-                    var_ilength,     & ! x%var(:)%dat        (i4b)
-                    var_dlength,     & ! x%var(:)%dat        (rkind)
+                    var_ilength,       & ! x%var(:)%dat        (i4b)
+                    var_dlength,       & ! x%var(:)%dat        (rkind)
                     ! hru dimension
-                    hru_int,         & ! x%hru(:)%var(:)     (i4b)
-                    hru_int8,        & ! x%hru(:)%var(:)     integer(8)
-                    hru_double,      & ! x%hru(:)%var(:)     (rkind)
-                    hru_intVec,      & ! x%hru(:)%var(:)%dat (i4b)
-                    hru_doubleVec,   & ! x%hru(:)%var(:)%dat (rkind)
-                    ! hru+z dimension
-                    hru_z_vLookup      ! x%hru(:)%z(:)%var(:)%lookup(:)
+                    hru_int,           & ! x%hru(:)%var(:)     (i4b)
+                    hru_int8,          & ! x%hru(:)%var(:)     integer(8)
+                    hru_double,        & ! x%hru(:)%var(:)     (rkind)
+                    hru_intVec,        & ! x%hru(:)%var(:)%dat (i4b)
+                    !hru+dom dimension
+                    hru_dom_intVec,    & ! x%hru(:)%dom(:)%var(:)%dat (i4b)
+                    hru_dom_double,    & ! x%hru(:)%dom(:)%var(:)     (rkind)
+                    hru_dom_doubleVec, & ! x%hru(:)%dom(:)%var(:)%dat (rkind)
+                    ! hru+dom+ z dimension
+                    hru_dom_z_vLookup    ! x%hru(:)%z(:)%var(:)%lookup(:)
 
 ! provide access to the named variables that describe elements of parameter structures
 USE var_lookup,only:iLookTYPE          ! look-up values for classification of veg, soils etc.
@@ -229,7 +232,7 @@ subroutine run_oneGRU(&
     kHRU = 0
     ! identify the downslope HRU
     dsHRU: do jHRU=1,gruInfo%hruCount
-      if(typeHRU%hru(iHRU)%var(iLookTYPE%dowgruInfo%hruCountindex) == idHRU%hru(jHRU)%var(iLookID%hruId))then
+      if(typeHRU%hru(iHRU)%var(iLookTYPE%downHRUindex) == idHRU%hru(jHRU)%var(iLookID%hruId))then
         if(kHRU==0)then  ! check there is a unique match
           kHRU=jHRU
           exit dsHRU
