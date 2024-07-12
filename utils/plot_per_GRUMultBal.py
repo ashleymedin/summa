@@ -44,7 +44,7 @@ else:
 
 
 method_name=['be1','be1cm','be1en','sundials_1en6cm','sundials_1en8cm']  #maybe make this an argument
-plt_name0=['SUMMA-BE1 common form of heat eq.','SUMMA-BE1 temperature form of heat eq.','SUMMA-BE1 mixed form of heat eq.','SUMMA-SUNDIALS temperature form of heat eq.','reference solution']
+plt_name0=['SUMMA-BE1 common heat eq.','SUMMA-BE1 temperature heat eq.','SUMMA-BE1 mixed heat eq.','SUMMA-SUNDIALS temperature heat eq.','reference solution']
 
 # Simulation statistics file locations
 settings= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
@@ -251,6 +251,7 @@ if one_plot:
     use_meth = [0,2,4]
 else:
     use_vars = [0,1,2,3,4,5,6,7]
+    use_vars = [3]
     use_meth = [0,1,2,3]
 plot_vars = [plot_vars[i] for i in use_vars]
 plt_titl = [plt_titl[i] for i in use_vars]

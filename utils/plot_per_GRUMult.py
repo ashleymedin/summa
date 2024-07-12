@@ -50,7 +50,8 @@ else:
 method_name=['be1','be16','be32','sundials_1en6','ref']
 plt_name0=['SUMMA-BE1','SUMMA-BE16','SUMMA-BE32','SUMMA-SUNDIALS','reference solution']
 method_name=['be1','be1cm','be1en','sundials_1en6cm','diff']
-plt_name0=['SUMMA-BE1 Common Form Heat Eq.','SUMMA-BE1 Temp. Form Heat Eq.','SUMMA-BE1 Mixed Form Heat Eq.','SUMMA-SUNDIALS Temp. Form Heat Eq.','SUMMA-BE1 Mixed Form - Temp. Form']
+plt_name0=['SUMMA-BE1 common heat eq.','SUMMA-BE1 temperature heat eq.','SUMMA-BE1 mixed heat eq.','SUMMA-SUNDIALS temperature heat eq.','SUMMA-BE1 mixed - temperature ']
+
 from_meth = 'be1en' # name of the first simulation in the difference simulation, only used if a method_name is 'diff'
 sub_meth = 'be1' # name of the simulation to subtract in the difference simulation, only used if a method_name is 'diff'
 
@@ -341,6 +342,7 @@ if one_plot:
     use_meth = [0,3,4]
 else:
     use_vars = [0,1,2,3,4,5]
+    use_vars = [1,5]
     use_meth = [0,1,2,3]
 plot_vars = [plot_vars[i] for i in use_vars]
 plt_titl = [plt_titl[i] for i in use_vars]
