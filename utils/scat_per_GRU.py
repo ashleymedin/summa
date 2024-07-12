@@ -32,8 +32,8 @@ do_vars = True
 do_balance = False
 
 if run_local: 
-    stat = 'rmnz'
-    viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
+    stat = 'mnnz'
+    viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics_en')
 else:
     import sys
     stat = sys.argv[1]
@@ -44,8 +44,8 @@ else:
 #plt_name=['BE1','IDAe-4','BE4','BE8','BE16','BE32','IDAe-6']
 method_name=['be1','be16','be32','sundials_1en6']
 plt_name=['BE1','BE16','BE32','SUNDIALS']
-#method_name=['be1','be1cm','be1en','sundials_1en6cm'] 
-#plt_name=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp']
+method_name=['be1','be1cm','be1en','sundials_1en6cm'] 
+plt_name=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp']
 method_name2=method_name+['sundials_1en8cm']
 plt_name2=plt_name+['reference solution']
 
@@ -441,10 +441,10 @@ plt.rcParams['ytick.major.width'] = 2
 if do_vars:
     # Specify variables of interest
     if do_heat:
-        use_vars = [1,2,4]
-        use_meth = [0,3]
+        use_vars = [0,1,2,3,4]
+        use_meth = [0,2]
         logx = np.zeros(len(use_vars)) # no log scale x axis
-        logy = [0,0,1] # log scale y axis
+        logy = np.zeros(len(use_vars)) # log scale y axis
     else:
         use_vars = [0,1,2,3,4]
         use_meth = [0,1,2,3]

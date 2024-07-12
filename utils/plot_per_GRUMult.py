@@ -37,7 +37,7 @@ run_local = False # true is run on local machine (only does testing), false is r
 
 if run_local: 
     stat = 'mnnz'
-    viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
+    viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics_en')
 else:
     import sys
     stat = sys.argv[1]
@@ -49,8 +49,8 @@ else:
 
 method_name=['be1','be16','be32','sundials_1en6','ref']
 plt_name0=['SUMMA-BE1','SUMMA-BE16','SUMMA-BE32','SUMMA-SUNDIALS','reference solution']
-#method_name=['be1','be1cm','be1en','sundials_1en6cm','diff']
-#plt_name0=['SUMMA-BE1 Common Form of Heat Eq.','SUMMA-BE1 Temperature Form of Heat Eq.','SUMMA-BE1 Mixed Form of Heat Eq.','SUMMA-SUNDIALS Temperature Form of Heat Eq.','SUMMA-BE1 Mixed Form - Temperature Form']
+method_name=['be1','be1cm','be1en','sundials_1en6cm','diff']
+plt_name0=['SUMMA-BE1 Common Form Heat Eq.','SUMMA-BE1 Temp. Form Heat Eq.','SUMMA-BE1 Mixed Form Heat Eq.','SUMMA-SUNDIALS Temp. Form Heat Eq.','SUMMA-BE1 Mixed Form - Temp. Form']
 from_meth = 'be1en' # name of the first simulation in the difference simulation, only used if a method_name is 'diff'
 sub_meth = 'be1' # name of the simulation to subtract in the difference simulation, only used if a method_name is 'diff'
 
@@ -207,7 +207,7 @@ for plot_var in plot_vars:
     if do_rel: s_rel = np.fabs(summa[method_name[0]][plot_var].sel(stat=statr))
     for m in method_name:
         if m=='diff': 
-            s = np.fabs(summa[from_meth][plot_var].sel(stat=stat0)) - np.fabs(summa[sub_meth][plot_var].sel(stat=stat0))
+            s = summa[from_meth][plot_var].sel(stat=stat0) - summa[sub_meth][plot_var].sel(stat=stat0)
         elif m=='ref':
             s = np.fabs(summa[method_name[0]][plot_var].sel(stat=statr))
         else:
@@ -270,7 +270,7 @@ def run_loop(j,var,the_max):
 
     my_cmap2 = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
     my_cmap2.set_bad(color='white') #nan color white
-    vmin,vmax = -the_max/10, the_max/4
+    vmin,vmax = -the_max/20, the_max/20
     norm2 = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
     
     if stat0 == 'rmse': stat_word = 'RMSE'
@@ -303,15 +303,17 @@ def run_loop(j,var,the_max):
         axs[r,c].set_ylim(ymin, ymax)
 
         # Custom colorbar
-        if i==len(method_name)-1:
+        if i==len(method_name)-1 or (i==len(method_name)-2 and method_name[-1]=='diff'):
             if m=='diff':
                 sm = matplotlib.cm.ScalarMappable(cmap=my_cmap2, norm=norm2)
             else:
                 sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
             sm.set_array([])
             if one_plot:
-                cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/3)
+                if m=='diff': cbr = fig.colorbar(sm, ax=axs_list[r*(len(method_name)):(r+1)*len(method_name)],aspect=27/3)
+                if m!='diff': cbr = fig.colorbar(sm, ax=axs_list[r*(len(method_name)):(r+1)*len(method_name)-1],aspect=27/3)
             else:
+                # will be wonky with m=='diff' choice
                 cbr = fig.colorbar(sm, ax=axs_list,aspect=27/3*nrow)
             if stat == 'kgem': 
                 cbr.ax.set_ylabel(stat_word0)
@@ -321,7 +323,7 @@ def run_loop(j,var,the_max):
                 else:
                     cbr.ax.set_ylabel(stat_word0 + ' [{}]'.format(leg_titl[j]))
 
-            if var=='scalarTotalET' and (stat =='mean' or stat =='mnnz'):
+            if var=='scalarTotalET' and (stat =='mean' or stat =='mnnz') and m!='diff':
                 # Customizing the tick labels to include negative signs
                 def format_tick(value, tick_number):
                     rounded_value = int(round(value,-2))
@@ -378,7 +380,8 @@ for i,(var,the_max) in enumerate(zip(plot_vars,maxes)):
     if one_plot:
         # Reset the names
         base_row = i
-        plt_name = [f"({chr(97+n+i*len(use_meth))}) {plt_titl[i] + ' ' + plt_name0[j]}" for n,j in enumerate(use_meth)]
+        if (len(use_vars)>1): plt_name = [f"({chr(97+n+i*len(use_meth))}) {plt_titl[i] + ' ' + plt_name0[j]}" for n,j in enumerate(use_meth)]
+        if (len(use_vars)==1): plt_name = [f"({chr(97+n+i*len(use_meth))}) {plt_name0[j]}" for n,j in enumerate(use_meth)]
     else:
         # Set the font size: we need this to be huge so we can also make our plotting area huge, to avoid a gnarly plotting bug
         if 'compressed' in fig_fil:
