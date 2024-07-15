@@ -49,8 +49,12 @@ else:
 
 method_name=['be1','be16','be32','sundials_1en6','ref']
 plt_name0=['SUMMA-BE1','SUMMA-BE16','SUMMA-BE32','SUMMA-SUNDIALS','reference solution']
-method_name=['be1','be1cm','be1en','sundials_1en6cm','diff']
-plt_name0=['SUMMA-BE1 common heat eq.','SUMMA-BE1 temperature heat eq.','SUMMA-BE1 mixed heat eq.','SUMMA-SUNDIALS temperature heat eq.','SUMMA-BE1 mixed - temperature ']
+plt_nameshort=plt_name0
+method_name=['be1','be1cm','be1en','sundials_1en6cm','diff','ref']
+plt_name0=['BE1 common heat eq.','SUMMA-BE1 temperature heat eq.','SUMMA-BE1 mixed heat eq.','SUMMA-SUNDIALS temperature heat eq.','SUMMA-BE1 mixed - temperature','reference solution']
+plt_nameshort=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp','BE1 mixed - temp','reference soln']
+
+if one_plot: plt_name0 = plt_nameshort
 
 from_meth = 'be1en' # name of the first simulation in the difference simulation, only used if a method_name is 'diff'
 sub_meth = 'be1' # name of the simulation to subtract in the difference simulation, only used if a method_name is 'diff'
@@ -238,8 +242,8 @@ if plot_lakes:
                 (lak_albers['Country'] == 'Mexico')
     out_domain = (lak_albers['Pour_long'] > -80) & (lak_albers['Pour_lat'] > 65) # Exclude Baffin Island
     large_lakes_albers = lak_albers.loc[(lak_albers['Lake_area'] > minSize) & in_domain & (~out_domain) ]
-    lake_col = (8/255,81/255,156/255)
-
+    lake_col = (8/255,81/255,156/255)   
+        
 
 
 # Figure
@@ -271,8 +275,10 @@ def run_loop(j,var,the_max):
 
     my_cmap2 = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
     my_cmap2.set_bad(color='white') #nan color white
-    vmin,vmax = -the_max/20, the_max/20
-    norm2 = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
+    #vmin,vmax = -the_max/100, the_max/100
+    vmin,vmax = -15,15
+    #norm2 = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
+    norm2 = matplotlib.colors.SymLogNorm(vmin=vmin,vmax=vmax,linthresh=0.01,base=2)
     
     if stat0 == 'rmse': stat_word = 'RMSE'
     if stat0 == 'rmnz': stat_word = 'RMSE' # no 0s'
@@ -294,6 +300,7 @@ def run_loop(j,var,the_max):
         if m=='diff':
             bas_albers.plot(ax=axs[r,c], column=var+m, edgecolor='none', legend=False, cmap=my_cmap2, norm=norm2,zorder=0)
             stat_word0 = stat_word+' difference'
+            stat_word2 = stat_word
         else:
             bas_albers.plot(ax=axs[r,c], column=var+m, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
             stat_word0 = stat_word
@@ -304,15 +311,20 @@ def run_loop(j,var,the_max):
         axs[r,c].set_ylim(ymin, ymax)
 
         # Custom colorbar
-        if i==len(method_name)-1 or (i==len(method_name)-2 and method_name[-1]=='diff'):
+        if i==len(method_name)-1:
             if m=='diff':
                 sm = matplotlib.cm.ScalarMappable(cmap=my_cmap2, norm=norm2)
+                sm2 = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
             else:
                 sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
             sm.set_array([])
             if one_plot:
-                if m=='diff': cbr = fig.colorbar(sm, ax=axs_list[r*(len(method_name)):(r+1)*len(method_name)],aspect=27/3)
-                if m!='diff': cbr = fig.colorbar(sm, ax=axs_list[r*(len(method_name)):(r+1)*len(method_name)-1],aspect=27/3)
+                if m=='diff': 
+                    cbr = fig.colorbar(sm, ax=axs_list[r*(len(method_name)):(r+1)*len(method_name)],aspect=39/3,location='right')
+                    cbr2 = fig.colorbar(sm2, ax=axs_list[(r+1)*len(method_name)-1:(r+1)*len(method_name)],aspect=39/3,location='left')
+                    cbr2.ax.yaxis.set_ticks_position('right')
+                    cbr2.ax.yaxis.set_label_position('right')
+                if m!='diff': cbr = fig.colorbar(sm, ax=axs_list[r*(len(method_name)):(r+1)*len(method_name)-1],aspect=27/3,location='left')
             else:
                 # will be wonky with m=='diff' choice
                 cbr = fig.colorbar(sm, ax=axs_list,aspect=27/3*nrow)
@@ -321,8 +333,10 @@ def run_loop(j,var,the_max):
             else:
                 if do_rel and var!='wallClockTime': 
                     cbr.ax.set_ylabel('relative '+ stat_word0)
+                    if m=='diff': cbr2.ax.set_ylabel('relative '+ stat_word2)
                 else:
                     cbr.ax.set_ylabel(stat_word0 + ' [{}]'.format(leg_titl[j]))
+                    if m=='diff': cbr2.ax.set_ylabel(stat_word2 + ' [{}]'.format(leg_titl[j]))
 
             if var=='scalarTotalET' and (stat =='mean' or stat =='mnnz') and m!='diff':
                 # Customizing the tick labels to include negative signs
@@ -338,8 +352,8 @@ def run_loop(j,var,the_max):
 
 # Specify plotting options
 if one_plot:
-    use_vars = [1,2,4]
-    use_meth = [0,3,4]
+    use_vars = [0,1]
+    use_meth = [0,2,4]
 else:
     use_vars = [0,1,2,3,4,5]
     use_vars = [1,5]
