@@ -33,6 +33,8 @@ import pandas as pd
 
 one_plot = False # true is one plot, false is multiple plots (one per variable)
 run_local = False # true is run on local machine (only does testing), false is run on cluster
+fixed_Mass_units = False # true is convert mass balance units to kg m-2 s-1, if ran new code with depth in calculation
+
 
 if run_local: 
     stat = 'mean'
@@ -57,15 +59,16 @@ nbatch_hrus = 518 # number of HRUs per batch
 
 # Specify variables in files
 plt_titl = ['canopy air space energy balance','vegetation energy balance','snow energy balance','soil energy balance','vegetation mass balance','snow mass balance','soil mass balance','aquifer mass balance', 'wall clock time']
-leg_titl = ['$W~m^{-3}$'] * 4 +['$num$'] + ['$kg~m^{-2}~s^{-1}$'] * 4
+leg_titl = ['$W~m^{-3}$'] * 4 + ['$kg~m^{-2}~s^{-1}$'] * 4 + ['$s$']
+if fixed_Mass_units: leg_titl = ['$W~m^{-3}$'] * 4 + ['s^{-1}$'] * 3 + ['m~s^{-1}$'] + ['$s$']
 
 fig_fil= '_hrly_balance_{}_compressed.png'
 plot_vars = settings.copy()
 
 if stat == 'mean': 
-    maxes = [1e-3,1e1,1e1,1e1]+[1e-12,1e-11,1e-10,1e-13] + [20e-3]
-if stat == 'amax': 
-    maxes = [1e-2,1e4,1e4,1e3]+[1e-11,1e-6,1e-7,1e-8] + [2.0]
+    maxes = [1e-1,1e1,1e1,1e1]+[1e-7,1e-7,1e-7,1e-9] + [20e-3]
+if stat == 'amax':
+    maxes = [1e1,1e3,1e3,1e3]+[1e-5,1e-5,1e-5,1e-7] + [2.0]
 
 # Get simulation statistics
 summa = {}
@@ -177,6 +180,7 @@ for plot_var in plot_vars:
 
     for m in method_name:
         s = summa[m][plot_var].sel(stat=stat0)
+        if fixed_Mass_units and 'Mass' in plot_var: s = s/1000 # /density for mass balance
 
         # Make absolute value norm, not all positive
         s = np.fabs(s) 
@@ -207,10 +211,13 @@ def run_loop(j,var,the_max):
 
     my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
     my_cmap.set_bad(color='white') #nan color white
-    vmin,vmax = the_max*1e-4, the_max
+    vmin,vmax = the_max*1e-9, the_max
     if any(substring in var for substring in ['VegNrg', 'SnowNrg', 'SoilNrg']):
         vmin, vmax = the_max * 1e-9, the_max
     if var in ['wallClockTime',]: vmin,vmax = the_max*1e-1, the_max
+    if fixed_Mass_units and 'Mass' in var: # / density for mass balance
+        vmin = vmin/1000
+        vmax = vmax/1000
  
     norm = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
 

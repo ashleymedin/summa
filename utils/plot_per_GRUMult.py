@@ -29,6 +29,8 @@ import fiona
 import geopandas as gpd
 import pandas as pd
 import matplotlib.ticker as ticker
+import matplotlib.colors as mcolors
+from matplotlib.ticker import ScalarFormatter
 
 
 do_rel = False # true is plot relative to the benchmark simulation
@@ -36,7 +38,7 @@ one_plot = True # true is one plot, false is multiple plots (one per variable)
 run_local = False # true is run on local machine (only does testing), false is run on cluster
 
 if run_local: 
-    stat = 'mnnz'
+    stat = 'mean'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics_en')
 else:
     import sys
@@ -51,13 +53,13 @@ method_name=['be1','be16','be32','sundials_1en6','ref']
 plt_name0=['SUMMA-BE1','SUMMA-BE16','SUMMA-BE32','SUMMA-SUNDIALS','reference solution']
 plt_nameshort=plt_name0
 method_name=['be1','be1cm','be1en','sundials_1en6cm','diff','ref']
-plt_name0=['BE1 common heat eq.','SUMMA-BE1 temperature heat eq.','SUMMA-BE1 mixed heat eq.','SUMMA-SUNDIALS temperature heat eq.','SUMMA-BE1 mixed - temperature','reference solution']
-plt_nameshort=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp','BE1 mixed - temp','reference soln']
+plt_name0=['BE1 common heat eq.','SUMMA-BE1 temperature heat eq.','SUMMA-BE1 mixed heat eq.','SUMMA-SUNDIALS temperature heat eq.','SUMMA-BE1 common - mixed','reference solution']
+plt_nameshort=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp','BE1 common - mixed','reference soln']
 
 if one_plot: plt_name0 = plt_nameshort
 
-from_meth = 'be1en' # name of the first simulation in the difference simulation, only used if a method_name is 'diff'
-sub_meth = 'be1' # name of the simulation to subtract in the difference simulation, only used if a method_name is 'diff'
+from_meth = 'be1' # name of the first simulation in the difference simulation, only used if a method_name is 'diff'
+sub_meth = 'be1en' # name of the simulation to subtract in the difference simulation, only used if a method_name is 'diff'
 
 # Simulation statistics file locations
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
@@ -70,27 +72,28 @@ nbatch_hrus = 518 # number of HRUs per batch
 if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
 # Specify variables in files
-plot_vars = settings.copy()
-plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','average routed runoff','wall clock time']
-leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$s$']
+plot_vars = settings.copy() + ['scalarSWE']
+plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','average routed runoff','wall clock time', 'melt water equivalent']
+leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$s$','$kg~m^{-2}$']
+calc = [0,0,0,0,0,0,1] # 1 if variable needs to be calculated from other variables
 
 fig_fil= '_hrly_diff_stats_{}_compressed.png'
 if do_rel: fig_fil = '_hrly_diff_stats_{}_rel_compressed.png'
 
 if stat == 'rmse' or stat == 'rmnz': 
-    maxes = [2,15,250,0.08,200,10e-3] 
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,10e-3]
+    maxes = [2,15,250,0.08,200,10e-3,2] 
+    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,10e-3,0.6]
 if stat == 'maxe': 
-    maxes = [15,25,0.8,2,0.3,0.2] #[15,25,25e-5,2,1e-7,0.2]
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,0.2]
+    maxes = [15,25,0.8,2,0.3,0.2,15] #[15,25,25e-5,2,1e-7,0.2]
+    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,0.2,0.6]
 if stat == 'kgem': 
-    maxes = [0.9,0.9,0.9,0.9,0.9,10e-3]
+    maxes = [0.9,0.9,0.9,0.9,0.9,10e-3,0.9]
 if stat == 'mean' or stat == 'mnnz': 
-    maxes = [80,1700,2000,8,5000,10e-3] #[80,1500,5e-5,8,1e-7,10e-3]
-    if do_rel: maxes = [1.1,1.1,1.1,1.1,1.1,10e-3]
+    maxes = [100,1700,2000,8,5000,10e-3,100] #[80,1500,5e-5,8,1e-7,10e-3]
+    if do_rel: maxes = [1.1,1.1,1.1,1.1,1.1,10e-3,1.1]
 if stat == 'amax': 
-    maxes = [240,1800,3.5,25,7.5,0.2] #[240,1800,1e-3,25,2e-6,0.2]
-    if do_rel: maxes = [1.1,1.1,1.1,1.1,1.1,0.2]
+    maxes = [240,1800,3.5,25,7.5,0.2,240] #[240,1800,1e-3,25,2e-6,0.2]
+    if do_rel: maxes = [1.1,1.1,1.1,1.1,1.1,0.2,1.1]
 
 # Get simulation statistics
 summa = {}
@@ -210,13 +213,29 @@ for plot_var in plot_vars:
         statr = 'amax_ben'
 
     if do_rel: s_rel = np.fabs(summa[method_name[0]][plot_var].sel(stat=statr))
+
+    if calc[plot_vars.index(plot_var)]:
+        if stat != 'mean' and stat != 'mnnz': 
+            print('Only mean and mnnz are supported for calculated variables')
+            sys.exit()
+        if do_rel: s_rel = np.fabs(summa[method_name[0]][plot_var].sel(stat='mean_ben') - summa[method_name[0]][plot_var].sel(stat='mnnz_ben'))
+
+
     for m in method_name:
-        if m=='diff': 
-            s = summa[from_meth][plot_var].sel(stat=stat0) - summa[sub_meth][plot_var].sel(stat=stat0)
-        elif m=='ref':
-            s = np.fabs(summa[method_name[0]][plot_var].sel(stat=statr))
+        if calc[plot_vars.index(plot_var)]:
+            if m=='diff': 
+                s = summa[from_meth][plot_var].sel(stat='mean') - summa[from_meth][plot_var].sel(stat='mnnz') - (summa[sub_meth][plot_var].sel(stat='mean') - summa[sub_meth][plot_var].sel(stat='mnnz'))
+            elif m=='ref':
+                s = np.fabs(summa[method_name[0]][plot_var].sel(stat='mean_ben') - summa[method_name[0]][plot_var].sel(stat='mnnz_ben'))
+            else:
+                s = np.fabs(summa[m][plot_var].sel(stat='mean') - summa[m][plot_var].sel(stat='mnnz'))
         else:
-            s = np.fabs(summa[m][plot_var].sel(stat=stat0))
+            if m=='diff': 
+                s = summa[from_meth][plot_var].sel(stat=stat0) - summa[sub_meth][plot_var].sel(stat=stat0)
+            elif m=='ref':
+                s = np.fabs(summa[method_name[0]][plot_var].sel(stat=statr))
+            else:
+                s = np.fabs(summa[m][plot_var].sel(stat=stat0))
         if do_rel and plot_var != 'wallClockTime': s = s/s_rel
 
         # Replace inf and 9999 values with NaN in the s DataArray
@@ -242,8 +261,8 @@ if plot_lakes:
                 (lak_albers['Country'] == 'Mexico')
     out_domain = (lak_albers['Pour_long'] > -80) & (lak_albers['Pour_lat'] > 65) # Exclude Baffin Island
     large_lakes_albers = lak_albers.loc[(lak_albers['Lake_area'] > minSize) & in_domain & (~out_domain) ]
-    lake_col = (8/255,81/255,156/255)   
-        
+    lake_col = (8/255,81/255,156/255)
+    
 
 
 # Figure
@@ -276,9 +295,9 @@ def run_loop(j,var,the_max):
     my_cmap2 = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
     my_cmap2.set_bad(color='white') #nan color white
     #vmin,vmax = -the_max/100, the_max/100
-    vmin,vmax = -15,15
-    #norm2 = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
-    norm2 = matplotlib.colors.SymLogNorm(vmin=vmin,vmax=vmax,linthresh=0.01,base=2)
+    vmin,vmax =  -the_max**0.33,the_max**0.33,
+    norm2 = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
+    #norm2 = matplotlib.colors.SymLogNorm(vmin=vmin,vmax=vmax,linthresh=0.01,base=1.2)
     
     if stat0 == 'rmse': stat_word = 'RMSE'
     if stat0 == 'rmnz': stat_word = 'RMSE' # no 0s'
@@ -344,6 +363,10 @@ def run_loop(j,var,the_max):
                     rounded_value = int(round(value,-2))
                     return f"-{rounded_value}"
                 cbr.ax.yaxis.set_major_formatter(ticker.FuncFormatter(format_tick))
+            if m=='diff':
+                # Customizing the tick labels
+                cbr.ax.yaxis.set_major_formatter(ScalarFormatter())
+
 
         # lakes
         if plot_lakes: large_lakes_albers.plot(ax=axs[r,c], color=lake_col, zorder=1)
@@ -352,7 +375,7 @@ def run_loop(j,var,the_max):
 
 # Specify plotting options
 if one_plot:
-    use_vars = [0,1]
+    use_vars = [6,1]
     use_meth = [0,2,4]
 else:
     use_vars = [0,1,2,3,4,5]

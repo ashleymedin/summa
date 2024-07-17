@@ -26,6 +26,8 @@ do_rel = False # true is plot relative to the benchmark simulation
 do_heat = True # true is plot heatmaps instead of scatterplots
 run_local = True # true is run on local machine, false is run on cluster
 inferno_col= True # Set to True if want to match geographic plots, False if want rainbow colormap (does not matter if do_heat is False)
+fixed_Mass_units = False # true is convert mass balance units to kg m-2 s-1, if ran new code with depth in calculation
+
 
 # which statistics to plot, can do both
 do_vars = True
@@ -362,6 +364,7 @@ def run_loopb(i,var,comp,lx,ly,leg_t,leg_t0,plt_t,repy):
         # Get the statistics, remove 9999 (should be nan, but just in case)
         s = np.fabs(summa1[m][var].sel(stat=stat0)).where(lambda x: x != 9999, np.nan)
         s0 = np.fabs(summa1[m][comp].sel(stat=stat0)).where(lambda x: x != 9999, np.nan)
+        if fixed_Mass_units and 'Mass' in comp: s0 = s0/1000 # / density for mass balance
 
         if do_heat:
             x_points = []
@@ -559,6 +562,8 @@ if do_balance:
     plt_titl = ['vegetation balance','snow balance','soil balance', 'canopy air space and aquifer balance', 'wall clock time']
     leg_titl = ['$W~m^{-3}$'] * 4 + ['$s$']
     leg_titl0 =['$kg~m^{-2}~s^{-1}$'] * 4 + ['$num$']
+    if fixed_Mass_units: leg_titl0 = ['s^{-1}$'] * 3 + ['m~s^{-1}$'] + ['$num$']
+
 
     plot_vars = [plot_vars[i] for i in use_vars]
     comp_vars = [comp_vars[i] for i in use_vars]
