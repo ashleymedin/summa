@@ -73,9 +73,10 @@ if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulat
 
 # Specify variables in files
 plot_vars = settings.copy() + ['scalarSWE']
-plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','average routed runoff','wall clock time', 'melt water equivalent']
+plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','average routed runoff','wall clock time', 'melt with seasonal snow']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$s$','$kg~m^{-2}$']
 calc = [0,0,0,0,0,0,1] # 1 if variable needs to be calculated from other variables
+melt_thresh = 1.01 # threshold for melt water equivalent calculation
 
 fig_fil= '_hrly_diff_stats_{}_compressed.png'
 if do_rel: fig_fil = '_hrly_diff_stats_{}_rel_compressed.png'
@@ -147,8 +148,8 @@ if run_local:
 
     s = summa[method_name[0]][plot_vars[0]].sel(stat=stat)
     mock_data = {
-        'hm_hruid': s.hru.values[range(100)],  # Example HRU IDs
-        'geometry': [Point(x, y) for x, y in zip(range(100), range(100))]  # Simple geometries
+        'hm_hruid': np.concatenate(([81029662], s.hru.values[-100:])), #s.hru.values[-100:],  # Example HRU IDs
+        'geometry': [Point(x, y) for x, y in zip(range(101), range(101))]  # Simple geometries
     }
     bas_albers = gpd.GeoDataFrame(mock_data, geometry='geometry')    
     hm_hruid = 'hm_hruid'  # Correctly define the variable name in the shapefile
@@ -200,7 +201,7 @@ else:
 
 # Match the accummulated values to the correct HRU IDs in the shapefile
 hru_ids_shp = bas_albers[hm_hruid].astype(int) # hru order in shapefile
-for plot_var in plot_vars:
+for i,plot_var in enumerate(plot_vars):
     stat0 = stat
     if stat == 'rmse' or stat == 'kgem' or stat == 'mean': 
         if plot_var == 'wallClockTime': stat0 = 'mean'
@@ -213,29 +214,32 @@ for plot_var in plot_vars:
         statr = 'amax_ben'
 
     if do_rel: s_rel = np.fabs(summa[method_name[0]][plot_var].sel(stat=statr))
-
-    if calc[plot_vars.index(plot_var)]:
+    
+    if calc[i]:
         if stat != 'mean' and stat != 'mnnz': 
             print('Only mean and mnnz are supported for calculated variables')
             sys.exit()
-        if do_rel: s_rel = np.fabs(summa[method_name[0]][plot_var].sel(stat='mean_ben') - summa[method_name[0]][plot_var].sel(stat='mnnz_ben'))
+        if do_rel: s_rel = s_rel.where(summa[method_name[0]][plot_var].sel(stat='mnnz_ben') > melt_thresh*summa[method_name[0]][plot_var].sel(stat='mean_ben'))
 
 
     for m in method_name:
-        if calc[plot_vars.index(plot_var)]:
-            if m=='diff': 
-                s = summa[from_meth][plot_var].sel(stat='mean') - summa[from_meth][plot_var].sel(stat='mnnz') - (summa[sub_meth][plot_var].sel(stat='mean') - summa[sub_meth][plot_var].sel(stat='mnnz'))
-            elif m=='ref':
-                s = np.fabs(summa[method_name[0]][plot_var].sel(stat='mean_ben') - summa[method_name[0]][plot_var].sel(stat='mnnz_ben'))
-            else:
-                s = np.fabs(summa[m][plot_var].sel(stat='mean') - summa[m][plot_var].sel(stat='mnnz'))
+        if m=='diff': 
+            s = summa[from_meth][plot_var].sel(stat=stat0) - summa[sub_meth][plot_var].sel(stat=stat0)
+        elif m=='ref':
+            s = np.fabs(summa[method_name[0]][plot_var].sel(stat=statr))
         else:
+            s = np.fabs(summa[m][plot_var].sel(stat=stat0))
+        if calc[i]:
             if m=='diff': 
-                s = summa[from_meth][plot_var].sel(stat=stat0) - summa[sub_meth][plot_var].sel(stat=stat0)
+                s_from = summa[from_meth][plot_var].sel(stat=stat0)
+                s_from = s_from.where(summa[from_meth][plot_var].sel(stat='mnnz') > melt_thresh*summa[from_meth][plot_var].sel(stat='mean'))
+                s_sub  = summa[sub_meth][plot_var].sel(stat=stat0)
+                s_sub  = s_sub.where(summa[sub_meth][plot_var].sel(stat='mnnz') > melt_thresh*summa[sub_meth][plot_var].sel(stat='mean'))
+                s = s_from - s_sub
             elif m=='ref':
-                s = np.fabs(summa[method_name[0]][plot_var].sel(stat=statr))
+                s =s.where(summa[method_name[0]][plot_var].sel(stat='mnnz_ben') > melt_thresh*summa[method_name[0]][plot_var].sel(stat='mean_ben'))
             else:
-                s = np.fabs(summa[m][plot_var].sel(stat=stat0))
+                s = s.where(summa[m][plot_var].sel(stat='mnnz') > melt_thresh*summa[m][plot_var].sel(stat='mean'))
         if do_rel and plot_var != 'wallClockTime': s = s/s_rel
 
         # Replace inf and 9999 values with NaN in the s DataArray
@@ -249,9 +253,14 @@ for plot_var in plot_vars:
             if stat =='maxe' or stat=='amax': s = s*3600*1000 # make hourly max
 
         # Create a new column in the shapefile for each method, and fill it with the statistics
-        bas_albers[plot_var+m] = np.nan
+        if calc[i]: 
+            plot_var1 = plot_var + '_calc'
+        else:
+            plot_var1 = plot_var
+        bas_albers[plot_var1+m] = np.nan
         hru_ind = [i for i, hru_id in enumerate(hru_ids_shp.values) if hru_id in s.hru.values] # if some missing
-        bas_albers.loc[hru_ind, plot_var+m] = s.sel(hru=hru_ids_shp.values[hru_ind]).values 
+        bas_albers.loc[hru_ind, plot_var1+m] = s.sel(hru=hru_ids_shp.values[hru_ind]).values
+
 
 # Select lakes of a certain size for plotting
 if plot_lakes:
@@ -295,9 +304,9 @@ def run_loop(j,var,the_max):
     my_cmap2 = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
     my_cmap2.set_bad(color='white') #nan color white
     #vmin,vmax = -the_max/100, the_max/100
-    vmin,vmax =  -the_max**0.33,the_max**0.33,
+    vmin,vmax =  -the_max**0.25,the_max**0.25,
     norm2 = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
-    #norm2 = matplotlib.colors.SymLogNorm(vmin=vmin,vmax=vmax,linthresh=0.01,base=1.2)
+    #norm2 = matplotlib.colors.SymLogNorm(vmin=vmin,vmax=vmax,linthresh=0.01,base=1.1)
     
     if stat0 == 'rmse': stat_word = 'RMSE'
     if stat0 == 'rmnz': stat_word = 'RMSE' # no 0s'
@@ -323,6 +332,7 @@ def run_loop(j,var,the_max):
         else:
             bas_albers.plot(ax=axs[r,c], column=var+m, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
             stat_word0 = stat_word
+        print(f"{'all HRU mean for '}{var+m:<35}{np.nanmean(bas_albers[var+m].values):<10.5f}")  
 
         axs[r,c].set_title(plt_name[i])
         axs[r,c].axis('off')
@@ -339,11 +349,11 @@ def run_loop(j,var,the_max):
             sm.set_array([])
             if one_plot:
                 if m=='diff': 
-                    cbr = fig.colorbar(sm, ax=axs_list[r*(len(method_name)):(r+1)*len(method_name)],aspect=39/3,location='right')
-                    cbr2 = fig.colorbar(sm2, ax=axs_list[(r+1)*len(method_name)-1:(r+1)*len(method_name)],aspect=39/3,location='left')
+                    cbr = fig.colorbar(sm, ax=axs_list[r*(len(method_name)):(r+1)*len(method_name)],aspect=27/nrow,location='right')
+                    cbr2 = fig.colorbar(sm2, ax=axs_list[(r+1)*len(method_name)-1:(r+1)*len(method_name)],aspect=27/nrow,location='left')
                     cbr2.ax.yaxis.set_ticks_position('right')
                     cbr2.ax.yaxis.set_label_position('right')
-                if m!='diff': cbr = fig.colorbar(sm, ax=axs_list[r*(len(method_name)):(r+1)*len(method_name)-1],aspect=27/3,location='left')
+                if m!='diff': cbr = fig.colorbar(sm, ax=axs_list[r*(len(method_name)):(r+1)*len(method_name)],aspect=27/nrow,location='right')
             else:
                 # will be wonky with m=='diff' choice
                 cbr = fig.colorbar(sm, ax=axs_list,aspect=27/3*nrow)
@@ -381,6 +391,8 @@ else:
     use_vars = [0,1,2,3,4,5]
     use_vars = [1,5]
     use_meth = [0,1,2,3]
+
+plot_vars = [var + '_calc' if c == 1 else var for var, c in zip(plot_vars, calc)]
 plot_vars = [plot_vars[i] for i in use_vars]
 plt_titl = [plt_titl[i] for i in use_vars]
 leg_titl = [leg_titl[i] for i in use_vars]

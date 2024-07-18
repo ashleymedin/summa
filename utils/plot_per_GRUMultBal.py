@@ -230,6 +230,7 @@ def run_loop(j,var,the_max):
 
         # Plot the data with the full extent of the bas_albers shape
         bas_albers.plot(ax=axs[r,c], column=var+m, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
+        print(f"{'all HRU mean for '}{var+m:<35}{np.nanmean(bas_albers[var+m].values):<10.5f}")  
 
         axs[r,c].set_title(plt_name[i])
         axs[r,c].axis('off')
@@ -242,7 +243,7 @@ def run_loop(j,var,the_max):
             sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
             sm.set_array([])
             if one_plot:
-                cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/3)
+                cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/nrow)
             else:
                 cbr = fig.colorbar(sm, ax=axs_list,aspect=27/3*nrow)
             cbr.ax.set_ylabel(stat_word + ' [{}]'.format(leg_titl[j]))
