@@ -54,8 +54,8 @@ def power_transform(x):
 # Simulation statistics file locations
 use_vars = []
 rep = [] # mark the repeats
-#use_vars = [1,5]
-#rep = [0,0] # mark the repeats
+use_vars = [1]
+rep = [0] # mark the repeats
 #use_vars = [0,1,2,3,4]
 #rep = [0,0,0,0,0] # mark the repeats
 settings0= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
@@ -66,8 +66,8 @@ settings = [settings0[i] for i in use_vars]
 #rep2 = [1,2,1,2,1,2,1,2] # mark the repeats
 use_vars2 = [0,0,1,1,2,2]
 rep2 = [1,2,1,2,1,2] # mark the repeats
-#use_vars2 = [3,3]
-#rep2 = [1,2] # mark the repeats
+use_vars2 = [8,3,3]
+rep2 = [0,1,2] # mark the repeats
 #use_vars2 = [8]
 #rep2 = [0] # mark the repeats
 settings20= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']

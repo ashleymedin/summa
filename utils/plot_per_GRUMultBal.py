@@ -230,8 +230,7 @@ def run_loop(j,var,the_max):
 
         # Plot the data with the full extent of the bas_albers shape
         bas_albers.plot(ax=axs[r,c], column=var+m, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
-        print(f"{'all HRU mean for '}{var+m:<35}{np.nanmean(bas_albers[var+m].values):<10.5f}")  
-
+        print(f"{'all HRU mean for '}{var+m:<35}{np.nanmean(bas_albers[var+m].values):<10.5f}{' max: '}{np.nanmax(bas_albers[var+m].values):<10.5f}")
         axs[r,c].set_title(plt_name[i])
         axs[r,c].axis('off')
         axs[r,c].set_xlim(xmin, xmax)
