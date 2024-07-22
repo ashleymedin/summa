@@ -76,7 +76,7 @@ contains
  message = 'read_icond_nlayers/'
 
  ! open netcdf file
- call nc_file_open(iconFile,nf90_nowrite,ncid,err,cmessage);
+ call nc_file_open(iconFile,nf90_nowrite,ncID,err,cmessage);
  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
  ! get number of HRUs in file (the GRU variable(s), if present, are processed at the end)
@@ -89,13 +89,13 @@ contains
  snowData = 0
  soilData = 0
 
- ! get netcdf ids for the variables holding number of snow and soil layers in each hru
- err = nf90_inq_varid(ncid,trim(indx_meta(iLookINDEX%nSnow)%varName),snowid); call netcdf_err(err,message)
- err = nf90_inq_varid(ncid,trim(indx_meta(iLookINDEX%nSoil)%varName),soilid); call netcdf_err(err,message)
+ ! get netcdf ids for the variables holding number of snow and soil layers in each hru and domain
+ err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nSnow)%varName),snowid); call netcdf_err(err,message)
+ err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nSoil)%varName),soilid); call netcdf_err(err,message)
 
  ! get nSnow and nSoil data (reads entire state file)
- err = nf90_get_var(ncid,snowid,snowData); call netcdf_err(err,message)
- err = nf90_get_var(ncid,soilid,soilData); call netcdf_err(err,message)
+ err = nf90_get_var(ncID,snowid,snowData); call netcdf_err(err,message)
+ err = nf90_get_var(ncID,soilid,soilData); call netcdf_err(err,message)
 
  ixHRUfile_min=huge(1)
  ixHRUfile_max=0
@@ -124,7 +124,7 @@ contains
  end do
 
  ! close file
- call nc_file_close(ncid,err,cmessage)
+ call nc_file_close(ncID,err,cmessage)
  if(err/=0)then;message=trim(message)//trim(cmessage);return;end if
 
  ! cleanup

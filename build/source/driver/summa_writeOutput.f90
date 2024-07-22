@@ -98,7 +98,6 @@ contains
  USE globalData,only:outputTimeStep                          ! timestep in output files
  ! output constraints
  USE globalData,only:maxLayers                               ! maximum number of layers
- USE globalData,only:maxSnowLayers                           ! maximum number of snow layers
  ! timing variables
  USE globalData,only:startWrite,endWrite                     ! date/time for the start and end of the model writing
  USE globalData,only:elapsedWrite                            ! elapsed time to write data
@@ -303,7 +302,7 @@ contains
     restartFile=trim(STATE_PATH)//trim(OUTPUT_PREFIX)//'_restart_'//trim(timeString)//trim(output_fileSuffix)//'.nc'
   endif
 
-  call writeRestart(restartFile,nGRU,nHRU,prog_meta,progStruct,bvar_meta,bvarStruct,maxLayers,maxSnowLayers,indx_meta,indxStruct,err,cmessage)  
+  call writeRestart(restartFile,nGRU,nHRU,prog_meta,progStruct,bvar_meta,bvarStruct,maxLayers,indx_meta,indxStruct,err,cmessage)  
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
