@@ -35,7 +35,7 @@ from matplotlib.ticker import ScalarFormatter
 
 do_rel = False # true is plot relative to the benchmark simulation
 one_plot = True # true is one plot, false is multiple plots (one per variable)
-run_local = False # true is run on local machine (only does testing), false is run on cluster
+run_local = True # true is run on local machine (only does testing), false is run on cluster
 more_mean = True # true is plot mean/amax extra variables in a balance file
 
 if run_local: 
@@ -74,12 +74,13 @@ if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulat
 
 if more_mean: # extra vars in a balance file
     plot_vars_exVar = ['scalarRainPlusMelt','scalarRootZoneTemp','airtemp','scalarSWE']
+    plot_vars_exVar = ['balanceCasNrg','balanceSoilNrg','balanceVegNrg','balanceSnowNrg']
     viz_file_exVar = 'exVar_hrly_diff_bals_balance.nc'
     plt_name0_exVar = 'SUMMA-BE1 temperature heat eq.'
     plt_nameshort_exVar = 'BE1 temp' # identify method here
     plt_titl_exVar = ['rain plus melt','root zone temperature','air temperature','snow water equivalent']
     leg_titl_exVar = ['$mm~y^{-1}$','$K$','$K$','$kg~m^{-2}$']
-    maxes_exVar = [5000,280,280,100]
+    maxes_exVar = [4000,285,285,100]
     if one_plot: plt_name0_exVar = plt_nameshort_exVar
 
 # Specify variables in files
@@ -387,7 +388,7 @@ def run_loop(j,var,the_max):
                     sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
                 sm.set_array([])
                 if one_plot:
-                    if m=='diff': 
+                    if m=='diff': # only works if diff is last on list
                         cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/nrow,location='right')
                         cbr2 = fig.colorbar(sm2, ax=axs_list[(r+1)*len(method_name)-1:(r+1)*len(method_name)],aspect=27/nrow,location='left')
                         cbr2.ax.yaxis.set_ticks_position('right')
@@ -415,18 +416,31 @@ def run_loop(j,var,the_max):
                 if m=='diff':
                     # Customizing the tick labels
                     cbr.ax.yaxis.set_major_formatter(ScalarFormatter())
+
+            # lakes
+            if plot_lakes: large_lakes_albers.plot(ax=axs[r,c], color=lake_col, zorder=1)
+
     else: # extra mean/amax variables
         for i,v in enumerate(plot_vars_exVar):
             vmin,vmax = 0, maxes_exVar[i]
-            if (v=='airtemp' or v== 'scalarRootZoneTemp'): vmin,vmax = 260, maxes_exVar[i]
-            norm=matplotlib.colors.PowerNorm(vmin=vmin,vmax=vmax,gamma=0.5)
+            if (v=='airtemp' or v== 'scalarRootZoneTemp' or v=='balanceSoilNrg'): 
+                #vmin,vmax = 260, maxes_exVar[i]
+                my_cmap2 = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
+                my_cmap2.set_bad(color='white') #nan color white
+                vmin,vmax =  (273.16-(maxes_exVar[i]-273.16)),maxes_exVar[i],
+                norm2 = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=273.16, vmax=vmax)            
+            else:
+                norm=matplotlib.colors.PowerNorm(vmin=vmin,vmax=vmax,gamma=0.5)
 
             r = i//ncol + base_row
             c = i - (r-base_row)*ncol
             m = 'exVar'
 
             # Plot the data with the full extent of the bas_albers shape
-            bas_albers.plot(ax=axs[r,c], column=v+m, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
+            if (v=='airtemp' or v== 'scalarRootZoneTemp' or v=='balanceSoilNrg'): 
+                bas_albers.plot(ax=axs[r,c], column=v+m, edgecolor='none', legend=False, cmap=my_cmap2, norm=norm2,zorder=0)
+            else:
+                bas_albers.plot(ax=axs[r,c], column=v+m, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
             stat_word0 = stat_word
             print(f"{'all HRU mean for '}{v+m:<35}{np.nanmean(bas_albers[v+m].values):<10.5f}{' max: '}{np.nanmax(bas_albers[v+m].values):<10.5f}")
             axs[r,c].set_title(plt_name[i])
@@ -434,16 +448,42 @@ def run_loop(j,var,the_max):
             axs[r,c].set_xlim(xmin, xmax)
             axs[r,c].set_ylim(ymin, ymax)
 
-            sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
-            sm.set_array([])
-            if one_plot:
-                cbr = fig.colorbar(sm,ax=axs_list[r*ncol:(c+1)],aspect=27/nrow)
-            else:
-                cbr = fig.colorbar(sm,ax=axs_list[r*ncol:(i+1)],aspect=27/nrow)
-            cbr.ax.set_ylabel(stat_word0 + ' [{}]'.format(leg_titl_exVar[i]))
+            #sm.set_array([])
+            #if one_plot:
+            #    cbr = fig.colorbar(sm,ax=axs_list[r*ncol:(c+1)],aspect=27/nrow)
+            #else:
+            #    cbr = fig.colorbar(sm,ax=axs_list[r*ncol:(i+1)],aspect=27/nrow)
+            #cbr.ax.set_ylabel(stat_word0 + ' [{}]'.format(leg_titl_exVar[i]))
 
-        # lakes
-        if plot_lakes: large_lakes_albers.plot(ax=axs[r,c], color=lake_col, zorder=1)
+
+
+            if i==len(plot_vars_exVar)-1:
+                if 'diff' in method_name: # only works if temp is last on list, same as diff
+                    sm = matplotlib.cm.ScalarMappable(cmap=my_cmap2, norm=norm2)
+                    sm2 = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
+                else:
+                    sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
+                sm.set_array([])
+                print(v)
+                if one_plot: 
+                    if (v=='airtemp' or v== 'scalarRootZoneTemp' or v=='balanceSoilNrg'):
+                        cbr = fig.colorbar(sm, ax=axs_list[r*len(plot_vars_exVar):(r+1)*len(method_name)],aspect=27/nrow,location='right')
+                        cbr2 = fig.colorbar(sm2, ax=axs_list[(r+1)*len(plot_vars_exVar)-1:(r+1)*len(plot_vars_exVar)],aspect=27/nrow,location='left')
+                        cbr2.ax.yaxis.set_ticks_position('right')
+                        cbr2.ax.yaxis.set_label_position('right')
+                    else: 
+                        cbr = fig.colorbar(sm, ax=axs_list[r*len(plot_vars_exVar):(r+1)*len(plot_vars_exVar)],aspect=27/nrow,location='right')
+
+                else:
+                    # will be wonky with m=='diff' choice
+                    cbr = fig.colorbar(sm, ax=axs_list,aspect=27/3*nrow)
+                cbr.ax.set_ylabel(stat_word0 + ' [{}]'.format(leg_titl_exVar[i]))
+                if (v=='airtemp' or v== 'scalarRootZoneTemp' or v=='balanceSoilNrg'): 
+                    cbr2.ax.set_ylabel(stat_word0 + ' [{}]'.format(leg_titl_exVar[i-1]))
+                    cbr.ax.yaxis.set_major_formatter(ScalarFormatter())
+
+            # lakes
+            if plot_lakes: large_lakes_albers.plot(ax=axs[r,c], color=lake_col, zorder=1)
 
 
 
@@ -481,10 +521,17 @@ if one_plot:
     # Set the font size: we need this to be huge so we can also make our plotting area huge, to avoid a gnarly plotting bug
     if 'compressed' in fig_fil:
         plt.rcParams.update({'font.size': 33})
-        fig,axs = plt.subplots(nrow,ncol,figsize=(15*ncol,13*nrow),constrained_layout=True)
+        if more_mean: 
+            fig,axs = plt.subplots(nrow,ncol,figsize=(16.9*ncol,13*nrow),constrained_layout=True)
+        else:
+            fig,axs = plt.subplots(nrow,ncol,figsize=(15*ncol,13*nrow),constrained_layout=True)
+
     else:
         plt.rcParams.update({'font.size': 120})
-        fig,axs = plt.subplots(nrow,ncol,figsize=(67*ncol,58*nrow),constrained_layout=True)
+        if more_mean: 
+            fig,axs = plt.subplots(nrow,ncol,figsize=(80*ncol,58*nrow),constrained_layout=True)
+        else:
+            fig,axs = plt.subplots(nrow,ncol,figsize=(67*ncol,58*nrow),constrained_layout=True)
 
     axs_list = axs.ravel().tolist()
     fig.suptitle('hourly statistics', fontsize=40,y=1.05)
