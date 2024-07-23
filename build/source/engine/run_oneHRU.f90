@@ -100,7 +100,7 @@ subroutine run_oneHRU(&
                       dt_init,             & ! intent(inout): used to initialize the length of the sub-step for each HRU
                       computeVegFlux,      & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
                       ndom,                & ! intent(in):    number of domains
-                      domType,             & ! intent(in):    domain type
+                      dom_type,             & ! intent(in):    domain type
                       ! data structures (input)
                       timeVec,             & ! intent(in):    model time data
                       typeData,            & ! intent(in):    local classification of soil veg etc. for each HRU
@@ -117,6 +117,8 @@ subroutine run_oneHRU(&
                       ! needed for model output
                       nSnow,               & ! intent(out):   number of snow layers
                       nSoil,               & ! intent(out):   number of soil layers
+                      nIce,                & ! intent(out):   number of ice layers
+                      nLake,               & ! intent(out):   number of lake layers
                       nLayers,             & ! intent(out):   total number of layers
                       ! error control
                       err,message)           ! intent(out):   error control
@@ -132,7 +134,7 @@ subroutine run_oneHRU(&
   real(rkind)        , intent(inout) :: dt_init             ! used to initialize the length of the sub-step for each HRU
   logical(lgt)       , intent(inout) :: computeVegFlux      ! flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
   integer(i4b)       , intent(in)    :: ndom                ! number of domains
-  integer(dom_i)     , intent(in)    :: domType(:)          ! domain type
+  integer(dom_i)     , intent(in)    :: dom_type(:)          ! domain type
   ! data structures (input)
   integer(i4b)       , intent(in)    :: timeVec(:)          ! int vector               -- model time data
   type(var_i)        , intent(in)    :: typeData            ! x%var(:)                 -- local classification of soil veg etc. for each HRU
@@ -150,6 +152,8 @@ subroutine run_oneHRU(&
   integer(dom_i)     , intent(out)   :: nSnow               ! x%dom(:) -- number of snow layers
   integer(dom_i)     , intent(out)   :: nSoil               ! x%dom(:) -- number of soil layers
   integer(dom_i)     , intent(out)   :: nLayers             ! x%dom(:) -- total number of layers
+  integer(dom_i)     , intent(out)   :: nIce                ! x%dom(:) -- number of ice layers
+  integer(dom_i)     , intent(out)   :: nLake               ! x%dom(:) -- number of lake layers
   ! error control
   integer(i4b)       , intent(out)   :: err                 ! error code
   character(*)       , intent(out)   :: message             ! error message
@@ -168,7 +172,7 @@ subroutine run_oneHRU(&
     ! if water pixel or if the fraction of the domain is zero, do not run the model but update the number of layers
     if ( typeData%var(iLookTYPE%vegTypeIndex) .ne. isWater .and. progData%dom(i)%var(iLookPROG%DOMarea)%dat(1) > 0._rkind )then
 
-      if (domType(i) == upland) then
+      if (dom_type(i) == upland) then
         ! get height at bottom of each soil layer, negative downwards (used in Noah MP)
         allocate(zSoilReverseSign(nSoil),stat=err)
         if(err/=0)then
@@ -208,7 +212,7 @@ subroutine run_oneHRU(&
 
         use_computeVegFlux = computeVegFlux
 
-      elseif ( domType(i) == glacAcc .or. domType(i) == glacAbl)then ! don't need vegetation parameters for glaciers
+      elseif ( dom_type(i) == glacAcc .or. dom_type(i) == glacAbl)then ! don't need vegetation parameters for glaciers
         isGlacier = .true.
         use_computeVegFlux = .false.
       endif
@@ -257,16 +261,18 @@ subroutine run_oneHRU(&
                      err,cmessage)         ! intent(out):   error control
       if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-      if(domType(i) == upland)then
+      if(dom_type(i) == upland)then
         computeVegFlux = use_computeVegFlux ! update the flag for the next domain on upland areas
       end if
-
     endif ! not a water pixel and area of the domain is greater than zero
 
     ! update the number of layers regardless of whether the model was run
-    nSnow(i)   = indxHRU%dom(i)%var(iLookINDEX%nSnow)%dat(1)    ! number of snow layers
-    nSoil(i)   = indxHRU%dom(i)%var(iLookINDEX%nSoil)%dat(1)    ! number of soil layers
-    nLayers(i) = indxHRU%dom(i)%var(iLookINDEX%nLayers)%dat(1)  ! total number of layers
+    nSnow%dom(i)   = indxHRU%dom(i)%var(iLookINDEX%nSnow)%dat(1)    ! number of snow layers
+    nSoil%dom(i)   = indxHRU%dom(i)%var(iLookINDEX%nSoil)%dat(1)    ! number of soil layers
+    nIce%dom(i)    = indxHRU%dom(i)%var(iLookINDEX%nIce)%dat(1)     ! number of ice layers
+    nLake%dom(i)   = indxHRU%dom(i)%var(iLookINDEX%nLake)%dat(1)    ! number of lake layers
+    nLayers%dom(i) = indxHRU%dom(i)%var(iLookINDEX%nLayers)%dat(1)  ! total number of layers
+
   end do
 
 end subroutine run_oneHRU

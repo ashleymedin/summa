@@ -217,6 +217,8 @@ subroutine run_oneGRU(&
                    ! update layer numbers that could be changed in run_oneHRU -- needed for model output
                    gruInfo%hruInfo(iHRU)%domInfo(:)%nSnow,    & ! intent(out):   number of snow layers
                    gruInfo%hruInfo(iHRU)%domInfo(:)%nSoil,    & ! intent(out):   number of soil layers
+                   gruInfo%hruInfo(iHRU)%domInfo(:)%nIce,     & ! intent(out):   number of ice layers
+                   gruInfo%hruInfo(iHRU)%domInfo(:)%nLake,    & ! intent(out):   number of lake layers
                    gruInfo%hruInfo(iHRU)%domInfo(:)%nLayers,  & ! intent(out):   total number of layers
                    ! error control
                    err,cmessage)                      ! intent(out):   error control

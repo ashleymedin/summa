@@ -49,12 +49,14 @@ USE multiconst,only:&
                     lambda_water   ! thermal conductivity of water (J s-1 m-1)
 
 ! missing values
-USE globalData,only:integerMissing ! missing integer
-USE globalData,only:realMissing    ! missing real number
+USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:realMissing     ! missing real number
 
 ! named variables that define the layer type
-USE globalData,only:iname_snow     ! snow
-USE globalData,only:iname_soil     ! soil
+USE globalData,only:iname_snow      ! named variables for snow
+USE globalData,only:iname_soil      ! named variables for soil
+USE globalData,only:iname_ice       ! named variables for ice
+USE globalData,only:iname_lake      ! named variables for lake
 
 ! provide access to named variables for thermal conductivity of soil
 USE globalData,only:model_decisions  ! model decision structure
@@ -191,7 +193,7 @@ contains
  do iLayer=1,nLayers
 
   ! get the soil layer
-  if(iLayer>nSnow) iSoil = iLayer-nSnow
+  if(iLayer>nSnow+nLake) iSoil = iLayer-nSnow-nLake
 
   ! compute the thermal conductivity of dry and wet soils (W m-1)
   ! NOTE: this is actually constant over the simulation, and included here for clarity

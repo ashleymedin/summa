@@ -53,10 +53,10 @@ contains
  USE data_types,only:gru_hru_doubleVec                   ! actual data
  USE data_types,only:gru_hru_intVec                      ! actual data
  USE data_types,only:gru_hru_z_vLookup                   ! actual data
- USE globalData,only:iname_soil,iname_snow               ! named variables to describe the type of layer
+ USE globalData,only:iname_soil,iname_snow,iname_ice,iname_lake ! named variables to describe the type of layer
  USE multiconst,only:&
                        LH_fus,    &                      ! latent heat of fusion                (J kg-1)
-                       iden_ice,  &                      ! intrinsic density of ice             (kg m-3)
+                       iden_ice,  &                      ! i,trinsic density of ice             (kg m-3)
                        iden_water,&                      ! intrinsic density of liquid water    (kg m-3)
                        gravity,   &                      ! gravitational acceleration           (m s-2)
                        Tfreeze                           ! freezing point of pure water         (K)
@@ -85,7 +85,7 @@ contains
  character(*),intent(out)                  :: message        ! returned error message
  ! locals
  character(len=256)             :: cmessage              ! downstream error message
- integer(i4b)                   :: i,iGRU,iHRU,iDO       ! loop index
+ integer(i4b)                   :: i,iGRU,iHRU,iDOM      ! loop index
  ! temporary variables for realism checks
  integer(i4b)                   :: iLayer                ! index of model layer
  integer(i4b)                   :: iSoil                 ! index of soil layer
@@ -97,6 +97,8 @@ contains
  real(rkind)                    :: kappa                 ! constant in the freezing curve function (m K-1)
  integer(i4b)                   :: nSoil                 ! number of soil layers
  integer(i4b)                   :: nSnow                 ! number of snow layers
+ integer(i4b)                   :: nIce                  ! number of ice layers
+ integer(i4b)                   :: nLake                 ! number of lake layers
  integer(i4b)                   :: nLayers               ! total number of layers
  integer(i4b)                   :: nState                ! total number of states
  real(rkind),parameter          :: xTol=1.e-10_rkind     ! small tolerance to address precision issues
@@ -211,14 +213,16 @@ contains
     ! number of layers
     nSoil   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
     nSnow   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
-    nLayers = nSoil + nSnow
+    nIce    = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce
+    nLake   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake
+    nLayers = nSoil + nSnow + nIce + nLake
 
     ! loop through all layers
     do iLayer=1,nLayers
 
      ! compute liquid water equivalent of total water (liquid plus ice)
-     if (iLayer>nSnow) then ! soil layer = no volume expansion
-      iSoil       = iLayer - nSnow
+     if (iLayer>nSnow+nLake) then ! soil layer = no volume expansion
+      iSoil       = iLayer - nSnow - iLake
       vGn_m       = 1._rkind - 1._rkind/vGn_n(iSoil)
       scalarTheta = mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)
      else ! snow layer = volume expansion allowed
@@ -309,7 +313,7 @@ contains
        call updateSoil(&
                       ! input
                       mLayerTemp(iLayer),              & ! intent(in): layer temperature (K)
-                      mLayerMatricHead(iLayer-nSnow),  & ! intent(in): matric head (m)
+                      mLayerMatricHead(iLayer-nSnow-iLake),  & ! intent(in): matric head (m)
                       vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m, & ! intent(in): van Genutchen soil parameters
                       ! output
                       scalarTheta,                     & ! intent(out): volumetric fraction of total water (-)
@@ -328,7 +332,7 @@ contains
                       lookupData%gru(iGRU)%hru(iHRU)%dom(iDOM),  & ! intent(in):  lookup table data structure
                       realMissing,                     & ! intent(in):  lower value of integral (not computed)
                       mLayerTemp(iLayer),              & ! intent(in):  layer temperature (K)
-                      mLayerMatricHead(iLayer-nSnow),  & ! intent(in):  matric head (m)
+                      mLayerMatricHead(iLayer-nSnow-nLake),  & ! intent(in):  matric head (m)
                      ! output
                       mLayerEnthTemp(iLayer),          & ! intent(out): temperature component of enthalpy soil layer (J m-3)
                       err,cmessage)                      ! intent(out): error control      

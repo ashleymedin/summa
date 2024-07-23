@@ -118,7 +118,9 @@ USE mDecisions_module,only:&
   bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat        -- basin-average variables
   ! miscellaneous variables
   dt_init              => summa1_struc%dt_init             , & ! used to initialize the length of the sub-step for each HRU
-  nGRU                 => summa1_struc%nGRU                  & ! number of grouped response units
+  nGRU                 => summa1_struc%nGRU                , & ! number of grouped response units
+  nHRU                 => summa1_struc%nHRU                , & ! number of hydrological response units
+  nDOM                 => summa1_struc%nDOM                  & ! number of domains
  ) ! assignment to variables in the data structures
  
  ! ---------------------------------------------------------------------------------------
@@ -142,6 +144,8 @@ USE mDecisions_module,only:&
  ! read initial conditions
  call read_icond(restartFile,                   & ! intent(in):    name of initial conditions file
                  nGRU,                          & ! intent(in):    number of response units
+                 nHRU,                          & ! intent(in):    number of hydrological response units
+                 nDOM,                          & ! intent(in):    number of domains
                  mparStruct,                    & ! intent(in):    model parameters
                  progStruct,                    & ! intent(inout): model prognostic variables
                  bvarStruct,                    & ! intent(inout): model basin (GRU) variables

@@ -23,6 +23,13 @@ USE nrtype
 USE netcdf
 USE globalData,only: ixHRUfile_min,ixHRUfile_max
 USE globalData,only: nTimeDelay   ! number of hours in the time delay histogram
+
+! access domain types
+USE globalData,only:upland             ! domain type for upland areas
+USE globalData,only:glacAcc            ! domain type for glacier accumulation areas
+USE globalData,only:glacAbl            ! domain type for glacier ablation areas
+USE globalData,only:wetland            ! domain type for wetland areas
+
 implicit none
 private
 public::read_icond
@@ -36,7 +43,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_icond_nlayers: read model initial conditions file for number of snow/soil layers
  ! ************************************************************************************************
- subroutine read_icond_nlayers(iconFile,nGRU,indx_meta,err,message)
+ subroutine read_icond_nlayers(iconFile,nGRU,nHRU,nDOM,indx_meta,err,message)
  ! --------------------------------------------------------------------------------------------------------
  ! modules
  USE nrtype
@@ -53,27 +60,40 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! variable declarations
  ! dummies
- character(*)        ,intent(in)     :: iconFile       ! name of input (restart) file
- integer(i4b)        ,intent(in)     :: nGRU           ! total # of GRUs in run space
- type(var_info)      ,intent(in)     :: indx_meta(:)   ! metadata
- integer(i4b)        ,intent(out)    :: err            ! error code
- character(*)        ,intent(out)    :: message        ! returned error message
+ character(*)  ,intent(in)   :: iconFile           ! name of input (restart) file
+ integer(i4b)  ,intent(in)   :: nGRU               ! total # of GRUs in run space
+ integer(i4b)  ,intent(in)   :: nHRU               ! total # of HRUs in run space
+ integer(i4b)  ,intent(in)   :: nDOM               ! total # of domains in run space
+ type(var_info),intent(in)   :: indx_meta(:)       ! metadata
+ integer(i4b)  ,intent(out)  :: err                ! error code
+ character(*)  ,intent(out)  :: message            ! returned error message
  ! locals
- integer(i4b)             :: ncID                      ! netcdf file id
- integer(i4b)             :: dimID                     ! netcdf file dimension id
- integer(i4b)             :: fileHRU                   ! number of HRUs in netcdf file
- integer(i4b)             :: snowID, soilID            ! netcdf variable ids
- integer(i4b)             :: iGRU, iHRU                ! loop indexes
- integer(i4b)             :: iHRU_local                ! index of HRU in the data subset
- integer(i4b)             :: iHRU_global               ! index of HRU in the netcdf file
- integer(i4b),allocatable :: snowData(:)               ! number of snow layers in all HRUs
- integer(i4b),allocatable :: soilData(:)               ! number of soil layers in all HRUs
- character(len=256)       :: cmessage                  ! downstream error message
+ integer(i4b)                :: ncID               ! netcdf file id
+ integer(i4b)                :: ixFile             ! index in file
+ integer(i4b)                :: dimID              ! netcdf file dimension id
+ integer(i4b)                :: fileHRU            ! number of HRUs in netcdf file
+ integer(i4b)                :: fileDOM            ! number of domains in netcdf file
+ integer(i4b)                :: snowID, soilID     ! netcdf variable ids
+ integer(i4b)                :: iceID, lakeID      ! netcdf variable ids
+ integer(i4b)                :: iGRU, iHRU, iDOM   ! loop indexes
+ integer(i4b)                :: iHRU_global        ! index of HRU in the netcdf file
+ integer(i4b)                :: iDOM_global        ! index of domain in the netcdf file
+ logical(lgt)                :: repeatDomains      ! flag to repeat conditions for all domains
+ logical(lgt)                :: no_iceData         ! flag that no ice data in icond
+ logical(lgt)                :: no_lakeData        ! flag that no lake data in icond
+ integer(i4b),allocatable    :: snowData(:)        ! number of snow layers in all HRUs
+ integer(i4b),allocatable    :: soilData(:)        ! number of soil layers in all HRUs
+ integer(i4b),allocatable    :: iceData(:)         ! number of ice layers in all HRUs
+ integer(i4b),allocatable    :: lakeData(:)        ! number of lake layers in all HRUs
+ character(len=256)          :: cmessage           ! downstream error message
 
  ! --------------------------------------------------------------------------------------------------------
  ! initialize error message
  err=0
  message = 'read_icond_nlayers/'
+ repeatDomains = .false.
+ no_iceData = .false.
+ no_lakeData = .false.
 
  ! open netcdf file
  call nc_file_open(iconFile,nf90_nowrite,ncID,err,cmessage);
@@ -83,19 +103,41 @@ contains
  err = nf90_inq_dimid(ncID,"hru",dimId);               if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru dimension/'//trim(nf90_strerror(err)); return; end if
  err = nf90_inquire_dimension(ncID,dimId,len=fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if
 
+! get number of DOMs in file, if present
+ err = nf90_inq_dimid(ncID,"dom",dimId)               
+ if(err/=nf90_noerr)then
+  if(nDOM>nHRU)then
+    write(*,*) 'WARNING: no domain dimension in initial condition file but multiple domains, will repeat conitions for all domains'
+    repeatDomains=.true.
+  endif
+  fileDOM = nDOM
+ else
+  err = nf90_inquire_dimension(ncID,dimId,len=fileDOM); if(err/=nf90_noerr)then; message=trim(message)//'problem reading dom dimension/'//trim(nf90_strerror(err)); return; end if
+ end if
+
  ! allocate storage for reading from file (allocate entire file size, even when doing subdomain run)
- allocate(snowData(fileHRU))
- allocate(soilData(fileHRU))
+ allocate(snowData(fileDOM))
+ allocate(soilData(fileDOM))
+ allocate(iceData(fileDOM))
+ allocate(lakeData(fileDOM))
  snowData = 0
  soilData = 0
+ iceData  = 0
+ lakeData = 0
 
- ! get netcdf ids for the variables holding number of snow and soil layers in each hru and domain
- err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nSnow)%varName),snowid); call netcdf_err(err,message)
- err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nSoil)%varName),soilid); call netcdf_err(err,message)
+ ! get netcdf ids for the variables holding number of snow and soil layers in each domain or hru
+ err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nSnow)%varName),snowID); call netcdf_err(err,message)
+ err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nSoil)%varName),soilID); call netcdf_err(err,message)
+ err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nIce)%varName),iceID)
+ if(err/=nf90_noerr) no_iceData = .true.  
+ err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nLake)%varName),lakeID)
+ if(err/=nf90_noerr) no_lakeData = .true.  
 
  ! get nSnow and nSoil data (reads entire state file)
- err = nf90_get_var(ncID,snowid,snowData); call netcdf_err(err,message)
- err = nf90_get_var(ncID,soilid,soilData); call netcdf_err(err,message)
+ err = nf90_get_var(ncID,snowID,snowData); call netcdf_err(err,message)
+ err = nf90_get_var(ncID,soilID,soilData); call netcdf_err(err,message)
+ if (.not. no_iceData)  err = nf90_get_var(ncID,iceID,iceData);   call netcdf_err(err,message)
+ if (.not. no_lakeData) err = nf90_get_var(ncID,lakeID,lakeData); call netcdf_err(err,message)
 
  ixHRUfile_min=huge(1)
  ixHRUfile_max=0
@@ -111,15 +153,41 @@ contains
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
    iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
-   ! single HRU (Note: 'restartFileType' is hardwired above to multiHRU)
-   if(restartFileType==singleHRU) then
-    gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(1)
-    gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(1)
-   ! multi HRU
-   else
-    gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(iHRU_global)
-    gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(iHRU_global)
-   endif
+   do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
+    iDOM_global = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_nc
+    ! single HRU (Note: 'restartFileType' is hardwired above to multiHRU)
+    if(restartFileType==singleHRU) then
+     if (repeatDomains)then
+      ixFile = 1  ! use for single HRU restart file
+     else
+      ixFile = iDOM
+     endif
+    else ! get the index in the file: multi HRU
+     if (repeatDomains)then
+      ixFile = iHRU_global
+     else
+      ixFile = iDOM_global
+     endif
+    endif
+    gru_struc(iGRU)%hruInfo(iHRU)domInfo(iDOM)%nSnow = snowData(ixFile)
+    gru_struc(iGRU)%hruInfo(iHRU)domInfo(iDOM)%nSoil = soilData(ixFile)
+    gru_struc(iGRU)%hruInfo(iHRU)domInfo(iDOM)%nIce  = iceData(ixFile)
+    gru_struc(iGRU)%hruInfo(iHRU)domInfo(iDOM)%nLake = lakeData(ixFile)
+    if (repeatDomains)then ! assume coldstart written for upland
+     if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type == upland) then
+      gru_struc(iGRU)%hruInfo(iHRU)domInfo(iDOM)%nIce = 0
+      gru_struc(iGRU)%hruInfo(iHRU)domInfo(iDOM)%nLake = 0
+     elseif (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type == glacAcc .or. &
+             gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type == glacAbl) then
+      gru_struc(iGRU)%hruInfo(iHRU)domInfo(iDOM)%nSoil = 1 ! debris layer, could be 0
+      gru_struc(iGRU)%hruInfo(iHRU)domInfo(iDOM)%nIce = 2
+      gru_struc(iGRU)%hruInfo(iHRU)domInfo(iDOM)%nLake = 0
+     elseif (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type == lake) then
+      gru_struc(iGRU)%hruInfo(iHRU)domInfo(iDOM)%nIce = 0
+      gru_struc(iGRU)%hruInfo(iHRU)domInfo(iDOM)%nLake = 3
+     endif 
+    endif
+   end do
   end do
  end do
 
@@ -138,6 +206,8 @@ contains
  ! ************************************************************************************************
  subroutine read_icond(iconFile,                      & ! intent(in):    name of initial conditions file
                        nGRU,                          & ! intent(in):    number of GRUs
+                       nHRU,                          & ! intent(in):    number of HRUs
+                       nDOM,                          & ! intent(in):    number of domains
                        mparData,                      & ! intent(in):    model parameters
                        progData,                      & ! intent(inout): model prognostic variables
                        bvarData,                      & ! intent(inout): model basin (GRU) variables
@@ -154,8 +224,8 @@ contains
  USE globalData,only:prog_meta                          ! metadata for prognostic variables
  USE globalData,only:bvar_meta                          ! metadata for basin (GRU) variables
  USE globalData,only:gru_struc                          ! gru-hru mapping structures
- USE globalData,only:startGRU                          ! index of first gru for parallel runs
- USE globalData,only:iname_soil,iname_snow              ! named variables to describe the type of layer
+ USE globalData,only:startGRU                           ! index of first gru for parallel runs
+ USE globalData,only:iname_soil,iname_snow,iname_ice,iname_lake ! named variables to describe the type of layer
  USE netcdf_util_module,only:nc_file_open               ! open netcdf file
  USE netcdf_util_module,only:nc_file_close              ! close netcdf file
  USE netcdf_util_module,only:netcdf_err                 ! netcdf error handling
@@ -171,45 +241,51 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! variable declarations
  ! dummies
- character(*)           ,intent(in)     :: iconFile     ! name of netcdf file containing the initial conditions
- integer(i4b)           ,intent(in)     :: nGRU         ! number of grouped response units in simulation domain
- type(gru_hru_doubleVec),intent(in)     :: mparData     ! model parameters
- type(gru_hru_doubleVec),intent(inout)  :: progData     ! model prognostic variables
- type(gru_doubleVec)    ,intent(inout)  :: bvarData     ! model basin (GRU) variables
- type(gru_hru_intVec)   ,intent(inout)  :: indxData     ! model indices
- integer(i4b)           ,intent(out)    :: err          ! error code
- character(*)           ,intent(out)    :: message      ! returned error message
+ character(*)           ,intent(in)        :: iconFile                 ! name of netcdf file containing the initial conditions
+ integer(i4b)           ,intent(in)        :: nGRU                     ! number of grouped response units in simulation domain
+ integer(i4b)           ,intent(in)        :: nHRU                     ! number of hydrological response units in simulation domain
+ integer(i4b)           ,intent(in)        :: nDOM                     ! number of domains in simulation domain
+ type(gru_hru_dom_doubleVec),intent(in)    :: mparData                 ! model parameters
+ type(gru_hru_dom_doubleVec),intent(inout) :: progData                 ! model prognostic variables
+ type(gru_doubleVec)    ,intent(inout)     :: bvarData                 ! model basin (GRU) variables
+ type(gru_hru_dom_intVec),intent(inout)    :: indxData                 ! model indices
+ integer(i4b)           ,intent(out)       :: err                      ! error code
+ character(*)           ,intent(out)       :: message                  ! returned error message
  ! locals
- character(len=256)                     :: cmessage     ! downstream error message
- integer(i4b)                           :: fileHRU      ! number of HRUs in file
- integer(i4b)                           :: fileGRU      ! number of GRUs in file
- integer(i4b)                           :: iVar, i      ! loop indices
- integer(i4b),dimension(1)              :: ndx          ! intermediate array of loop indices
- integer(i4b)                           :: iGRU         ! loop index
- integer(i4b)                           :: iHRU         ! loop index
- integer(i4b)                           :: dimID        ! varible dimension ids
- integer(i4b)                           :: ncVarID      ! variable ID in netcdf file
- character(256)                         :: dimName      ! not used except as a placeholder in call to inq_dim function
- integer(i4b)                           :: dimLen       ! data dimensions
- integer(i4b)                           :: ncID         ! netcdf file ID
- integer(i4b)                           :: ixFile       ! index in file
- integer(i4b)                           :: iHRU_local   ! index of HRU in the data subset
- integer(i4b)                           :: iHRU_global  ! index of HRU in the netcdf file
- real(rkind),allocatable                :: varData(:,:) ! variable data storage
- integer(i4b)                           :: nSoil, nSnow, nToto ! # layers
- integer(i4b)                           :: nTDH          ! number of points in time-delay histogram
- integer(i4b)                           :: iLayer,jLayer ! layer indices
- integer(i4b),parameter                 :: nBand=2       ! number of spectral bands
- integer(i4b)                           :: nProgVars     ! number of prognostic variables written to state file
- character(len=32),parameter            :: scalDimName   ='scalarv'  ! dimension name for scalar data
- character(len=32),parameter            :: midSoilDimName='midSoil'  ! dimension name for soil-only layers
- character(len=32),parameter            :: midTotoDimName='midToto'  ! dimension name for layered varaiables
- character(len=32),parameter            :: ifcTotoDimName='ifcToto'  ! dimension name for layered varaiables
- character(len=32),parameter            :: tdhDimName    ='tdh'      ! dimension name for time-delay basin variables
+ character(len=256)                        :: cmessage                 ! downstream error message
+ integer(i4b)                              :: fileHRU                  ! number of HRUs in file
+ integer(i4b)                              :: fileGRU                  ! number of GRUs in file
+ integer(i4b)                              :: iVar, i                  ! loop indices
+ integer(i4b),dimension(1)                 :: ndx                      ! intermediate array of loop indices
+ integer(i4b)                              :: iGRU                     ! loop index
+ integer(i4b)                              :: iHRU                     ! loop index
+ integer(i4b)                              :: iDOM                     ! loop index
+ integer(i4b)                              :: dimID                    ! varible dimension ids
+ integer(i4b)                              :: ncVarID                  ! variable ID in netcdf file
+ character(256)                            :: dimName                  ! not used except as a placeholder in call to inq_dim function
+ integer(i4b)                              :: dimLen                   ! data dimensions
+ integer(i4b)                              :: ncID                     ! netcdf file ID
+ integer(i4b)                              :: ixFile                   ! index in file
+ integer(i4b)                              :: iHRU_global              ! index of HRU in the netcdf file
+ integer(i4b)                              :: iDOM_global              ! index of domain in the netcdf file
+ logical(lgt)                              :: repeatDomains            ! flag to repeat conditions for all domains
+ real(rkind),allocatable                   :: varData(:,:)             ! variable data storage
+ integer(i4b)                              :: nSoil, nSnow, nToto      ! # layers
+ integer(i4b)                              :: nIce, nLake              ! # layers
+ integer(i4b)                              :: nTDH                     ! number of points in time-delay histogram
+ integer(i4b)                              :: iLayer,jLayer            ! layer indices
+ integer(i4b),parameter                    :: nBand=2                  ! number of spectral bands
+ integer(i4b)                              :: nProgVars                ! number of prognostic variables written to state file
+ character(len=32),parameter               :: scalDimName   ='scalarv' ! dimension name for scalar data
+ character(len=32),parameter               :: midSoilDimName='midSoil' ! dimension name for soil-only layers
+ character(len=32),parameter               :: midTotoDimName='midToto' ! dimension name for layered varaiables
+ character(len=32),parameter               :: ifcTotoDimName='ifcToto' ! dimension name for layered varaiables
+ character(len=32),parameter               :: tdhDimName    ='tdh'     ! dimension name for time-delay basin variables
 
  ! --------------------------------------------------------------------------------------------------------
  ! Start procedure here
  err=0; message="read_icond/"
+ repeatDomains = .false.
 
  ! --------------------------------------------------------------------------------------------------------
  ! (1) read the file
@@ -221,6 +297,18 @@ contains
  ! get number of HRUs in file
  err = nf90_inq_dimid(ncID,"hru",dimID);               if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru dimension/'//trim(nf90_strerror(err)); return; end if
  err = nf90_inquire_dimension(ncID,dimID,len=fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if
+
+ ! get number of DOMs in file, if present
+ err = nf90_inq_dimid(ncID,"dom",dimId)               
+ if(err/=nf90_noerr)then
+  if(nDOM>nHRU)then
+    !write(*,*) 'WARNING: no domain dimension in initial condition file but multiple domains, will repeat conitions for all domains' ! already wa
+    repeatDomains=.true.
+  endif
+  fileDOM = nDOM
+ else
+  err = nf90_inquire_dimension(ncID,dimId,len=fileDOM); if(err/=nf90_noerr)then; message=trim(message)//'problem reading dom dimension/'//trim(nf90_strerror(err)); return; end if
+ end if
 
  ! loop through prognostic variables
  do iVar = 1,size(prog_meta)
@@ -272,57 +360,67 @@ contains
   ! loop through GRUs
   do iGRU = 1,nGRU
    do iHRU = 1,gru_struc(iGRU)%hruCount
-
     iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
-    iHRU_local = (iHRU_global - ixHRUfile_min) + 1
+    do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
+     iDOM_global = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_nc
+     ! get the number of layers
+     nSnow = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
+     nSoil = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
+     nIce  = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce
+     nLake = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake
+     nToto = nSnow + nSoil + nIce + nLake
 
-    ! get the number of layers
-    nSnow = gru_struc(iGRU)%hruInfo(iHRU)%nSnow
-    nSoil = gru_struc(iGRU)%hruInfo(iHRU)%nSoil
-    nToto = nSnow + nSoil
+     iDOM_global = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_nc
+     ! single HRU (Note: 'restartFileType' is hardwired above to multiHRU)
+     if(restartFileType==singleHRU) then
+      if (repeatDomains)then
+       ixFile = 1  ! use for single HRU restart file
+      else
+       ixFile = iDOM
+      endif
+     else ! get the index in the file: multi HRU
+      if (repeatDomains)then
+       ixFile = iHRU_global
+      else
+       ixFile = iDOM_global
+      endif
+     endif
 
-    ! get the index in the file: single HRU
-    if(restartFileType==singleHRU)then
-     ixFile = 1  ! use for single HRU restart file
-    ! get the index in the file: multi HRU
-    else
-     ixFile = iHRU_global
-    endif
+     ! put the data into data structures and check that none of the values are set to nf90_fill_double
+     select case (prog_meta(iVar)%varType)
+      case (iLookVarType%scalarv)
+       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1)       = varData(ixFile,1)
+       if(abs(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1) - nf90_fill_double) < epsilon(varData))then; err=20; endif
+      case (iLookVarType%midSoil)
+       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nSoil) = varData(ixFile,1:nSoil)
+       if(any(abs(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nSoil) - nf90_fill_double) < epsilon(varData)))then; err=20; endif   
+      case (iLookVarType%midToto)
+       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nToto) = varData(ixFile,1:nToto)
+       if(any(abs(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nToto) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
+      case (iLookVarType%ifcToto)
+       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(0:nToto) = varData(ixFile,1:nToto+1)
+       if(any(abs(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(0:nToto) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
+      case default
+       message=trim(message)//"unexpectedVariableType[name='"//trim(prog_meta(iVar)%varName)//"';type='"//trim(get_varTypeName(prog_meta(iVar)%varType))//"']"
+       err=20; return
+     end select
 
-    ! put the data into data structures and check that none of the values are set to nf90_fill_double
-    select case (prog_meta(iVar)%varType)
-     case (iLookVarType%scalarv)
-      progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1)       = varData(ixFile,1)
-      if(abs(progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1) - nf90_fill_double) < epsilon(varData))then; err=20; endif
-     case (iLookVarType%midSoil)
-      progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nSoil) = varData(ixFile,1:nSoil)
-      if(any(abs(progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nSoil) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
-     case (iLookVarType%midToto)
-      progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nToto) = varData(ixFile,1:nToto)
-      if(any(abs(progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nToto) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
-     case (iLookVarType%ifcToto)
-      progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nToto) = varData(ixFile,1:nToto+1)
-      if(any(abs(progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nToto) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
-     case default
-      message=trim(message)//"unexpectedVariableType[name='"//trim(prog_meta(iVar)%varName)//"';type='"//trim(get_varTypeName(prog_meta(iVar)%varType))//"']"
-      err=20; return
-    end select
+     if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(prog_meta(iVar)%varName)//"')"; return; endif
 
-    if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(prog_meta(iVar)%varName)//"')"; return; endif
+     ! make sure snow albedo is not negative
+     if(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowAlbedo)%dat(1) < 0._rkind)then
+      progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowAlbedo)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMax)%dat(1)
+     endif
 
-    ! make sure snow albedo is not negative
-    if(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1) < 0._rkind)then
-     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMax)%dat(1)
-    endif
+     ! make sure canopy ice + liq is positive, otherwise add liquid water to canopy and make total water consistent later
+     if( (progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyLiq)%dat(1) + progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyIce)%dat(1)) < 0.0001_rkind)then
+      progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyLiq)%dat(1) = 0.0001_rkind
+     endif
 
-    ! make sure canopy ice + liq is positive, otherwise add liquid water to canopy and make total water consistent later
-    if( (progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyLiq)%dat(1) + progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyIce)%dat(1)) < 0.0001_rkind)then
-     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyLiq)%dat(1) = 0.0001_rkind
-    endif
+     ! initialize the spectral albedo
+     progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1:nBand) = progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowAlbedo)%dat(1)
 
-    ! initialize the spectral albedo
-    progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1:nBand) = progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1)
-
+    end do ! iDOM
    end do ! iHRU
   end do ! iGRU
 
@@ -337,16 +435,26 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
+   do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
 
-   ! save the number of layers
-   indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSnow)%dat(1)   = gru_struc(iGRU)%hruInfo(iHRU)%nSnow
-   indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSoil)%dat(1)   = gru_struc(iGRU)%hruInfo(iHRU)%nSoil
-   indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nLayers)%dat(1) = gru_struc(iGRU)%hruInfo(iHRU)%nSnow + gru_struc(iGRU)%hruInfo(iHRU)%nSoil
+    ! save the number of layers
+    nSnow = gru_struc(iGRU)%hruInfo(iHRU)%nSnow
+    nSoil = gru_struc(iGRU)%hruInfo(iHRU)%nSoil
+    nIce  = gru_struc(iGRU)%hruInfo(iHRU)%nIce
+    nLake = gru_struc(iGRU)%hruInfo(iHRU)%nLake
+    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSnow)%dat(1)   = nSnow
+    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSoil)%dat(1)   = nSoil
+    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nIce)%dat(1)    = nIce
+    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nLake)%dat(1)   = nLake
+    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nLayers)%dat(1) = nSnow + nSoil + nIce + nLake
 
-   ! set layer type
-   indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat(1:gru_struc(iGRU)%hruInfo(iHRU)%nSnow) = iname_snow
-   indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat((gru_struc(iGRU)%hruInfo(iHRU)%nSnow+1):(gru_struc(iGRU)%hruInfo(iHRU)%nSnow+gru_struc(iGRU)%hruInfo(iHRU)%nSoil)) = iname_soil
+    ! set layer type
+    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat(1:nSnow) = iname_snow
+    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat((nSnow+nLake+1):(nSnow+nLake+nSoil)) = iname_soil
+    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat((nSnow+nSoil+1):(nSnow+nSoil+nIce)) = iname_ice
+    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat((nSnow+1):(nSnow+nLake)) = iname_lake
 
+   end do
   end do
  end do
 
@@ -356,15 +464,16 @@ contains
  ! loop through GRUs and HRUs
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
+   do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
 
-   ! loop through soil layers
-   do iLayer = 1,indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSoil)%dat(1)
+    ! loop through soil layers
+    do iLayer = 1,indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSoil)%dat(1)
 
-    ! get layer in the total vector
-    jLayer = iLayer+indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSnow)%dat(1)
+     ! get layer in the total vector
+     jLayer = iLayer+indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSnow)%dat(1)+indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nLake)%dat(1)
 
-    ! update soil layers
-    call updateSoil(&
+     ! update soil layers
+     call updateSoil(&
                     ! input
                     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerTemp          )%dat(jLayer),& ! intent(in): temperature vector (K)
                     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerMatricHead    )%dat(iLayer),& ! intent(in): matric head (m)
@@ -378,9 +487,10 @@ contains
                     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracLiq    )%dat(jLayer),& ! intent(out): volumetric fraction of liquid water (-)
                     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracIce    )%dat(jLayer),& ! intent(out): volumetric fraction of ice (-)
                     err,message)                                                                   ! intent(out): error control
-    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
+     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
-   end do  ! looping through soil layers
+    end do  ! looping through soil layers
+   end do  ! looping through DOMs
   end do  ! looping through HRUs
  end do  ! looping through GRUs
 

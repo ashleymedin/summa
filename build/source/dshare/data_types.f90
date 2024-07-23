@@ -112,6 +112,9 @@ MODULE data_types
   integer(i4b)                           :: dom_type                      ! type = 1 for upland, 2 for glacier accumulation, 3 for glacier ablation, (4 for lake)
   integer(i4b)                           :: nSnow                         ! number of snow layers
   integer(i4b)                           :: nSoil                         ! number of soil layers
+  integer(i4b)                           :: nLayers                       ! total number of layers
+  integer(i4b)                           :: nIce                          ! number of glacier ice layers
+  integer(i4b)                           :: nLake                         ! number of lake layers
  endtype dom_info
 
  ! hru info data structure
@@ -159,11 +162,11 @@ MODULE data_types
  endtype dom_z_vLookup
  ! ** double precision type for a variable number of soil layers
  type, public :: hru_dom_z_vLookup
-  type(dom_zLookup),allocatable          :: hru(:)                        ! hru(:)%dom(:)%z(:)%var(:)%lookup(:)
+  type(dom_z_vLookup),allocatable        :: hru(:)                        ! hru(:)%dom(:)%z(:)%var(:)%lookup(:)
  endtype hru_dom_z_vLookup
  ! ** double precision type for a variable number of soil layers
  type, public :: gru_hru_dom_z_vLookup
-  type(hru_dom_z_vLookup),allocatable     :: gru(:)                        ! gru(:)%hru(:)%dom(:)%z(:)%var(:)%lookup(:)
+  type(hru_dom_z_vLookup),allocatable    :: gru(:)                        ! gru(:)%hru(:)%dom(:)%z(:)%var(:)%lookup(:)
  endtype gru_hru_dom_z_vLookup
  ! define derived types to hold multivariate data for a single variable (different variables have different length)
  ! NOTE: use derived types here to facilitate adding the "variable" dimension

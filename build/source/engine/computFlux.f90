@@ -55,6 +55,8 @@ USE globalData,only:realMissing     ! missing real number
 ! layer types
 USE globalData,only:iname_snow      ! named variables for snow
 USE globalData,only:iname_soil      ! named variables for soil
+USE globalData,only:iname_ice       ! named variables for ice
+USE globalData,only:iname_lake      ! named variables for lake
 
 ! access the global print flag
 USE globalData,only:globalPrintFlag
@@ -457,7 +459,7 @@ contains
        if (ixSnowSoilHyd(iLayer)/=integerMissing) then   ! check if a given hydrology state exists
          select case(layerType(iLayer))
            case(iname_snow); fluxVec(ixSnowSoilHyd(iLayer)) = mLayerLiqFluxSnow(iLayer)
-           case(iname_soil); fluxVec(ixSnowSoilHyd(iLayer)) = mLayerLiqFluxSoil(iLayer-nSnow)
+           case(iname_soil); fluxVec(ixSnowSoilHyd(iLayer)) = mLayerLiqFluxSoil(iLayer-nSnow-nLake)
            case default; err=20; message=trim(message)//'expect layerType to be either iname_snow or iname_soil'; return
          end select
        end if  ! end if a given hydrology state exists

@@ -156,8 +156,8 @@ contains
  endif
 
  ! check DOM dimension exists, repeat params for each domain if not
- if(nDOM_file==integerMissing)then
-    message=trim(message)//'will replicate domain parameters since unable to identify DOM dimension in file '//trim(infile)
+ if(nDOM_file==integerMissing .and. nDOM>nHRU)then
+   write(*,*) 'WARNING: will replicate domain parameters since unable to identify DOM dimension in file '//trim(infile)
  endif
 
  ! check have the correct number of HRUs

@@ -31,6 +31,8 @@ USE globalData,only: iJac2          ! last layer of the Jacobian to print
 USE globalData,only:iname_veg       ! named variables for vegetation
 USE globalData,only:iname_snow      ! named variables for snow
 USE globalData,only:iname_soil      ! named variables for soil
+USE globalData,only:iname_ice       ! named variables for ice
+USE globalData,only:iname_lake      ! named variables for lake
 
 ! named variables to describe the state variable type
 USE globalData,only:iname_nrgCanair ! named variable defining the energy of the canopy air space

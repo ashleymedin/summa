@@ -43,6 +43,8 @@ USE globalData,only:realMissing     ! missing real number
 ! named variables for snow and soil
 USE globalData,only:iname_snow      ! named variables for snow
 USE globalData,only:iname_soil      ! named variables for soil
+USE globalData,only:iname_ice       ! named variables for ice
+USE globalData,only:iname_lake      ! named variables for lake
 
 ! named variables
 USE var_lookup,only:iLookPROG       ! named variables for structure elements
@@ -203,7 +205,7 @@ subroutine ssdNrgFlux(&
     do iLayer=ixTop,ixBot
       select case(layerType(iLayer)) ! get the liquid flux at layer interfaces
         case(iname_snow); qFlux = iLayerLiqFluxSnow(iLayer)
-        case(iname_soil); qFlux = iLayerLiqFluxSoil(iLayer-nSnow)
+        case(iname_soil); qFlux = iLayerLiqFluxSoil(iLayer-nSnow-nLake)
         case default; err=20; message=trim(message)//'unable to identify layer type'; return
       end select
       if (iLayer==nLayers) then ! compute fluxes at the lower boundary -- positive downwards

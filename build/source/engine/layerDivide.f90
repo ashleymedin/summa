@@ -31,6 +31,8 @@ USE multiconst,only:&
 ! access named variables for snow and soil
 USE globalData,only:iname_snow        ! named variables for snow
 USE globalData,only:iname_soil        ! named variables for soil
+USE globalData,only:iname_ice         ! named variables for ice
+USE globalData,only:iname_lake        ! named variables for lake
 
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer

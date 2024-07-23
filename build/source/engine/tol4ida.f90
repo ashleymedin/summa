@@ -12,23 +12,13 @@ USE globalData,only:realMissing     ! missing real number
 ! access the global print flag
 USE globalData,only:globalPrintFlag
 
-! domain types
-USE globalData,only:iname_cas        ! named variables for canopy air space
-USE globalData,only:iname_veg        ! named variables for vegetation canopy
-USE globalData,only:iname_snow       ! named variables for snow
-USE globalData,only:iname_soil       ! named variables for soil
-
 ! named variables to describe the state variable type
-USE globalData,only:iname_nrgCanair  ! named variable defining the energy of the canopy air space
-USE globalData,only:iname_nrgCanopy  ! named variable defining the energy of the vegetation canopy
 USE globalData,only:iname_watCanopy  ! named variable defining the mass of total water on the vegetation canopy
 USE globalData,only:iname_liqCanopy  ! named variable defining the mass of liquid water on the vegetation canopy
-USE globalData,only:iname_nrgLayer   ! named variable defining the energy state variable for snow+soil layers
 USE globalData,only:iname_watLayer   ! named variable defining the total water state variable for snow+soil layers
 USE globalData,only:iname_liqLayer   ! named variable defining the liquid  water state variable for snow+soil layers
 USE globalData,only:iname_matLayer   ! named variable defining the matric head state variable for soil layers
 USE globalData,only:iname_lmpLayer   ! named variable defining the liquid matric potential state variable for soil layers
-USE globalData,only:iname_watAquifer ! named variable defining the water storage in the aquifer
 
 ! metadata for information in the data structures
 USE globalData,only:indx_meta       ! metadata for the variables in the index structure

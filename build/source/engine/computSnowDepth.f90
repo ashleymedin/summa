@@ -23,9 +23,6 @@ USE var_lookup,only:iLookDIAG        ! named variables for structure elements
 USE var_lookup,only:iLookFLUX        ! named variables for structure elements
 USE var_lookup,only:iLookPARAM       ! named variables for structure elements
 USE var_lookup,only:iLookINDEX       ! named variables for structure elements
-USE globalData,only:iname_snow       ! named variables for snow
-USE globalData,only:iname_soil       ! named variables for soil
-
 
 ! privacy
 implicit none

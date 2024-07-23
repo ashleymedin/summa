@@ -36,6 +36,8 @@ USE globalData,only:iname_cas       ! named variables for the canopy air space
 USE globalData,only:iname_veg       ! named variables for vegetation
 USE globalData,only:iname_snow      ! named variables for snow
 USE globalData,only:iname_soil      ! named variables for soil
+USE globalData,only:iname_ice       ! named variables for ice
+USE globalData,only:iname_lake      ! named variables for lake
 
 ! global metadata
 USE globalData,only:flux_meta       ! metadata on the model fluxes

@@ -31,20 +31,14 @@ USE globalData,only:integerMissing   ! missing integer
 USE globalData,only:realMissing      ! missing double precision number
 USE globalData,only:quadMissing      ! missing quadruple precision number
 
-! domain types
-USE globalData,only:iname_cas        ! named variables for the canopy air space
-USE globalData,only:iname_veg        ! named variables for vegetation
-USE globalData,only:iname_snow       ! named variables for snow
-USE globalData,only:iname_soil       ! named variables for soil
-
 ! state variable type
 USE globalData,only:iname_nrgCanair  ! named variable defining the energy of the canopy air space
 USE globalData,only:iname_nrgCanopy  ! named variable defining the energy of the vegetation canopy
 USE globalData,only:iname_watCanopy  ! named variable defining the mass of total water on the vegetation canopy
 USE globalData,only:iname_liqCanopy  ! named variable defining the mass of liquid water on the vegetation canopy
-USE globalData,only:iname_nrgLayer   ! named variable defining the energy state variable for snow+soil layers
-USE globalData,only:iname_watLayer   ! named variable defining the total water state variable for snow+soil layers
-USE globalData,only:iname_liqLayer   ! named variable defining the liquid  water state variable for snow+soil layers
+USE globalData,only:iname_nrgLayer   ! named variable defining the energy state variable for snow+soil+ice+lake layers
+USE globalData,only:iname_watLayer   ! named variable defining the total water state variable for snow+soil+ice+lake layers
+USE globalData,only:iname_liqLayer   ! named variable defining the liquid  water state variable for snow+soil+ice+lake layers
 USE globalData,only:iname_matLayer   ! named variable defining the matric head state variable for soil layers
 USE globalData,only:iname_lmpLayer   ! named variable defining the liquid matric potential state variable for soil layers
 USE globalData,only:iname_watAquifer ! named variable defining the water storage in the aquifer
@@ -110,7 +104,9 @@ integer(i4b),parameter  :: massSplit=2                ! order in sequence for th
 integer(i4b),parameter  :: vegSplit=1                 ! order in sequence for the vegetation split
 integer(i4b),parameter  :: snowSplit=2                ! order in sequence for the snow split
 integer(i4b),parameter  :: soilSplit=3                ! order in sequence for the soil split
-integer(i4b),parameter  :: aquiferSplit=4             ! order in sequence for the aquifer split
+integer(i4b),parameter  :: iceSplit=4                 ! order in sequence for the ice split
+integer(i4b),parameter  :: lakeSplit=5                ! order in sequence for the lake split
+integer(i4b),parameter  :: aquiferSplit=6             ! order in sequence for the aquifer split
 
 ! named variables for the solution method
 integer(i4b),parameter  :: vector=1                   ! vector solution method
@@ -123,7 +119,7 @@ integer(i4b),parameter  :: subDomain=2                ! sub domain (veg, snow, s
 
 ! maximum number of possible splits
 integer(i4b),parameter  :: nStateTypes=2              ! number of state types (energy, water)
-integer(i4b),parameter  :: nDomains=4                 ! number of domains (vegetation, snow, soil, and aquifer)
+integer(i4b),parameter  :: nDomains=6                 ! number of domains (vegetation, snow, soil, ice, lake, and aquifer), but no more than 4 exist in one domain
 
 ! control parameters
 real(rkind),parameter   :: valueMissing=-9999._rkind     ! missing value
@@ -200,6 +196,8 @@ subroutine opSplittin(&
                       ! input: model control
                       nSnow,                & ! intent(in):    number of snow layers
                       nSoil,                & ! intent(in):    number of soil layers
+                      nIce,                 & ! intent(in):    number of ice layers
+                      nLake,                & ! intent(in):    number of lake layers
                       nLayers,              & ! intent(in):    total number of layers
                       nState,               & ! intent(in):    total number of state variables
                       dt,                   & ! intent(in):    time step (s)
@@ -241,6 +239,8 @@ subroutine opSplittin(&
   ! input: model control
   integer(i4b),intent(in)         :: nSnow                          ! number of snow layers
   integer(i4b),intent(in)         :: nSoil                          ! number of soil layers
+  integer(i4b),intent(in)         :: nIce                           ! number of ice layers
+  integer(i4b),intent(in)         :: nLake                          ! number of lake layers
   integer(i4b),intent(in)         :: nLayers                        ! total number of layers
   integer(i4b),intent(in)         :: nState                         ! total number of state variables
   real(rkind),intent(in)          :: dt                             ! time step (seconds)
@@ -619,35 +619,35 @@ subroutine opSplittin(&
    return_flag=.false. ! initialize flag
 
    ! allocate space for the flux mask (used to define when fluxes are updated)
-   call allocLocal(flux_meta(:),fluxMask,nSnow,nSoil,err,cmessage)
+   call allocLocal(flux_meta(:),fluxMask,nSnow,nSoilnIce,nLake,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the flux count (used to check that fluxes are only updated once)
-   call allocLocal(flux_meta(:),fluxCount,nSnow,nSoil,err,cmessage)
+   call allocLocal(flux_meta(:),fluxCount,nSnow,nSoil,nIce,nLake,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary prognostic variable structure
-   call allocLocal(prog_meta(:),prog_temp,nSnow,nSoil,err,cmessage)
+   call allocLocal(prog_meta(:),prog_temp,nSnow,nSoil,nIce,nLake,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary diagnostic variable structure
-   call allocLocal(diag_meta(:),diag_temp,nSnow,nSoil,err,cmessage)
+   call allocLocal(diag_meta(:),diag_temp,nSnow,nSoil,nIce,nLake,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary flux variable structure
-   call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,err,cmessage)
+   call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,nIce,nLake,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the mean flux variable structure
-   call allocLocal(flux_meta(:),flux_mean,nSnow,nSoil,err,cmessage)
+   call allocLocal(flux_meta(:),flux_mean,nSnow,nSoil,nIce,nLake,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary mean flux variable structure
-   call allocLocal(flux_meta(:),flux_mntemp,nSnow,nSoil,err,cmessage)
+   call allocLocal(flux_meta(:),flux_mntemp,nSnow,nSoil,nIce,nLake,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the derivative structure
-   call allocLocal(deriv_meta(:),deriv_data,nSnow,nSoil,err,cmessage)
+   call allocLocal(deriv_meta(:),deriv_data,nSnow,nSoil,nIce,nLake,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end subroutine allocate_memory
 

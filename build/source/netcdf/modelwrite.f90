@@ -479,9 +479,9 @@ contains
  ! public subroutine printRestartFile: print a re-start file
  ! *********************************************************************************************************
  subroutine writeRestart(filename,         & ! intent(in): name of restart file
-                         nGRU,             & ! intent(in): number of GRUs
-                         nHRU,             & ! intent(in): number of HRUs
-                         nDOM,             & ! intent(in): number of DOMs
+                         nGRU,             & ! intent(in): number of global GRUs
+                         nHRU,             & ! intent(in): number of global HRUs
+                         nDOM,             & ! intent(in): number of global DOMs
                          prog_meta,        & ! intent(in): prognostics metadata
                          prog_data,        & ! intent(in): prognostics data
                          bvar_meta,        & ! intent(in): basin (gru) variable metadata
@@ -509,9 +509,9 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! input
  character(len=256),intent(in)          :: filename      ! name of the restart file
- integer(i4b),intent(in)                :: nGRU          ! number of GRUs
- integer(i4b),intent(in)                :: nHRU          ! number of HRUs
- integer(i4b),intent(in)                :: nDOM          ! number of DOMs
+ integer(i4b),intent(in)                :: nGRU          ! number of global GRUs
+ integer(i4b),intent(in)                :: nHRU          ! number of global HRUs
+ integer(i4b),intent(in)                :: nDOM          ! number of global DOMs
  type(var_info),intent(in)              :: prog_meta(:)  ! prognostic variable metadata
  type(gru_hru_dom_doubleVec),intent(in) :: prog_data     ! prognostic vars
  type(var_info),intent(in)              :: bvar_meta(:)  ! basin variable metadata
@@ -530,7 +530,8 @@ contains
  integer(i4b),allocatable           :: ncVarID(:)    ! netcdf variable id
  integer(i4b)                       :: ncSnowID      ! index variable id
  integer(i4b)                       :: ncSoilID      ! index variable id
-
+ integer(i4b)                       :: ncIceID       ! index variable id
+ integer(i4b)                       :: ncLakeID      ! index variable id
  integer(i4b)                       :: nSoil         ! number of soil layers
  integer(i4b)                       :: nSnow         ! number of snow layers
  integer(i4b)                       :: nIce          ! number of glacier ice layers
@@ -539,7 +540,6 @@ contains
  integer(i4b),parameter             :: nSpectral=2   ! number of spectal bands
  integer(i4b),parameter             :: nScalar=1     ! size of a scalar
  integer(i4b)                       :: nProgVars     ! number of prognostic variables written to state file
-
  integer(i4b)                       :: hruDimID      ! variable dimension ID
  integer(i4b)                       :: gruDimID      ! variable dimension ID
  integer(i4b)                       :: domDimID      ! variable dimension ID
@@ -556,7 +556,6 @@ contains
  integer(i4b)                       :: ifcIceDimID   ! variable dimension ID
  integer(i4b)                       :: midLakeDimID  ! variable dimension ID
  integer(i4b)                       :: ifcLakeDimID  ! variable dimension ID
-
  character(len=32),parameter        :: hruDimName    ='hru'      ! dimension name for HRUs
  character(len=32),parameter        :: gruDimName    ='gru'      ! dimension name for GRUs
  character(len=32),parameter        :: domDimName    ='dom'      ! dimension name for DOMs
@@ -595,22 +594,22 @@ contains
  message='iCreate[create]'; call netcdf_err(err,message); if(err/=0)return
 
  ! define dimensions
-                      err = nf90_def_dim(ncid,trim(hruDimName)    ,nHRU             ,    hruDimID); message='iCreate[hru]'     ; call netcdf_err(err,message); if(err/=0)return
-                      err = nf90_def_dim(ncid,trim(gruDimName)    ,nGRU             ,    gruDimID); message='iCreate[gru]'     ; call netcdf_err(err,message); if(err/=0)return
-                      err = nf90_def_dim(ncid,trim(domDimName)    ,nDOM             ,    domDimID); message='iCreate[dom]'     ; call netcdf_err(err,message); if(err/=0)return
-                      err = nf90_def_dim(ncid,trim(tdhDimName)    ,nTimeDelay       ,    tdhDimID); message='iCreate[tdh]'     ; call netcdf_err(err,message); if(err/=0)return
-                      err = nf90_def_dim(ncid,trim(scalDimName)   ,nScalar          ,   scalDimID); message='iCreate[scalar]'  ; call netcdf_err(err,message); if(err/=0)return
-                      err = nf90_def_dim(ncid,trim(specDimName)   ,nSpectral        ,   specDimID); message='iCreate[spectral]'; call netcdf_err(err,message); if(err/=0)return
-                      err = nf90_def_dim(ncid,trim(midTotoDimName),maxLayers        ,midTotoDimID); message='iCreate[midToto]' ; call netcdf_err(err,message); if(err/=0)return
-                      err = nf90_def_dim(ncid,trim(ifcTotoDimName),maxLayers+1      ,ifcTotoDimID); message='iCreate[ifcToto]' ; call netcdf_err(err,message); if(err/=0)return
- if (maxSnowLayers>0) err = nf90_def_dim(ncid,trim(midSoilDimName),maxSoilLayers    ,midSoilDimID); message='iCreate[midSoil]' ; call netcdf_err(err,message); if(err/=0)return
- if (maxSnowLayers>0) err = nf90_def_dim(ncid,trim(ifcSoilDimName),maxSoilLayers+1  ,ifcSoilDimID); message='iCreate[ifcSoil]' ; call netcdf_err(err,message); if(err/=0)return
- if (maxSnowLayers>0) err = nf90_def_dim(ncid,trim(midSnowDimName),maxSnowLayers    ,midSnowDimID); message='iCreate[midSnow]' ; call netcdf_err(err,message); if(err/=0)return
- if (maxSnowLayers>0) err = nf90_def_dim(ncid,trim(ifcSnowDimName),maxSnowLayers+1  ,ifcSnowDimID); message='iCreate[ifcSnow]' ; call netcdf_err(err,message); if(err/=0)return
- if (maxIceLayers>0)  err = nf90_def_dim(ncid,trim(midIceDimName) ,maxIceLayers     ,midIceDimID);  message='iCreate[midIce]'  ; call netcdf_err(err,message); if(err/=0)return
- if (maxIceLayers>0)  err = nf90_def_dim(ncid,trim(ifcIceDimName) ,maxIceLayers+1   ,ifcIceDimID);  message='iCreate[ifcIce]'  ; call netcdf_err(err,message); if(err/=0)return
- if (maxLakeLayers>0) err = nf90_def_dim(ncid,trim(midLakeDimName),maxLakeLayers    ,midLakeDimID); message='iCreate[midLake]' ; call netcdf_err(err,message); if(err/=0)return
- if (maxLakeLayers>0) err = nf90_def_dim(ncid,trim(ifcLakeDimName),maxLakeLayers+1  ,ifcLakeDimID); message='iCreate[ifcLake]' ; call netcdf_err(err,message); if(err/=0)return
+                      err = nf90_def_dim(ncid,trim(hruDimName)    ,nHRU           ,    hruDimID); message='iCreate[hru]'     ; call netcdf_err(err,message); if(err/=0)return
+                      err = nf90_def_dim(ncid,trim(gruDimName)    ,nGRU           ,    gruDimID); message='iCreate[gru]'     ; call netcdf_err(err,message); if(err/=0)return
+                      err = nf90_def_dim(ncid,trim(domDimName)    ,nDOM           ,    domDimID); message='iCreate[dom]'     ; call netcdf_err(err,message); if(err/=0)return
+                      err = nf90_def_dim(ncid,trim(tdhDimName)    ,nTimeDelay     ,    tdhDimID); message='iCreate[tdh]'     ; call netcdf_err(err,message); if(err/=0)return
+                      err = nf90_def_dim(ncid,trim(scalDimName)   ,nScalar        ,   scalDimID); message='iCreate[scalar]'  ; call netcdf_err(err,message); if(err/=0)return
+                      err = nf90_def_dim(ncid,trim(specDimName)   ,nSpectral      ,   specDimID); message='iCreate[spectral]'; call netcdf_err(err,message); if(err/=0)return
+                      err = nf90_def_dim(ncid,trim(midTotoDimName),maxLayers      ,midTotoDimID); message='iCreate[midToto]' ; call netcdf_err(err,message); if(err/=0)return
+                      err = nf90_def_dim(ncid,trim(ifcTotoDimName),maxLayers+1    ,ifcTotoDimID); message='iCreate[ifcToto]' ; call netcdf_err(err,message); if(err/=0)return
+ if (maxSoilLayers>0) err = nf90_def_dim(ncid,trim(midSoilDimName),maxSoilLayers  ,midSoilDimID); message='iCreate[midSoil]' ; call netcdf_err(err,message); if(err/=0)return
+ if (maxSoilLayers>0) err = nf90_def_dim(ncid,trim(ifcSoilDimName),maxSoilLayers+1,ifcSoilDimID); message='iCreate[ifcSoil]' ; call netcdf_err(err,message); if(err/=0)return
+ if (maxSnowLayers>0) err = nf90_def_dim(ncid,trim(midSnowDimName),maxSnowLayers  ,midSnowDimID); message='iCreate[midSnow]' ; call netcdf_err(err,message); if(err/=0)return
+ if (maxSnowLayers>0) err = nf90_def_dim(ncid,trim(ifcSnowDimName),maxSnowLayers+1,ifcSnowDimID); message='iCreate[ifcSnow]' ; call netcdf_err(err,message); if(err/=0)return
+ if (maxIceLayers>0)  err = nf90_def_dim(ncid,trim(midIceDimName) ,maxIceLayers   ,midIceDimID);  message='iCreate[midIce]'  ; call netcdf_err(err,message); if(err/=0)return
+ if (maxIceLayers>0)  err = nf90_def_dim(ncid,trim(ifcIceDimName) ,maxIceLayers+1 ,ifcIceDimID);  message='iCreate[ifcIce]'  ; call netcdf_err(err,message); if(err/=0)return
+ if (maxLakeLayers>0) err = nf90_def_dim(ncid,trim(midLakeDimName),maxLakeLayers  ,midLakeDimID); message='iCreate[midLake]' ; call netcdf_err(err,message); if(err/=0)return
+ if (maxLakeLayers>0) err = nf90_def_dim(ncid,trim(ifcLakeDimName),maxLakeLayers+1,ifcLakeDimID); message='iCreate[ifcLake]' ; call netcdf_err(err,message); if(err/=0)return
  ! re-initialize error control
  err=0; message='writeRestart/'
 
@@ -624,8 +623,8 @@ contains
    case(iLookvarType%wLength);                      err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,  specDimID /),ncVarID(iVar))
    case(iLookvarType%midToto);                      err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,midTotoDimID/),ncVarID(iVar))
    case(iLookvarType%ifcToto);                      err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,ifcTotoDimID/),ncVarID(iVar))
-   case(iLookvarType%midSoil); if (maxSnowLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,midSoilDimID/),ncVarID(iVar))
-   case(iLookvarType%ifcSoil); if (maxSnowLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,ifcSoilDimID/),ncVarID(iVar))
+   case(iLookvarType%midSoil); if (maxSoilLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,midSoilDimID/),ncVarID(iVar))
+   case(iLookvarType%ifcSoil); if (maxSoilLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,ifcSoilDimID/),ncVarID(iVar))
    case(iLookvarType%midSnow); if (maxSnowLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,midSnowDimID/),ncVarID(iVar))
    case(iLookvarType%ifcSnow); if (maxSnowLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,ifcSnowDimID/),ncVarID(iVar))
    case(iLookvarType%midIce);  if (maxIceLayers>0)  err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,midIceDimID /),ncVarID(iVar))
@@ -656,14 +655,24 @@ contains
  err = nf90_put_att(ncid,ncVarID(nProgVars+1),'units'    ,trim(bvar_meta(iLookBVAR%routingRunoffFuture)%varunit));   call netcdf_err(err,message)
 
  ! define index variables - snow
- err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nSnow)%varName),nf90_int,(/hruDimID/),ncSnowID); call netcdf_err(err,message)
+ err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nSnow)%varName),nf90_int,(/domDimID/),ncSnowID); call netcdf_err(err,message)
  err = nf90_put_att(ncid,ncSnowID,'long_name',trim(indx_meta(iLookINDEX%nSnow)%vardesc));           call netcdf_err(err,message)
  err = nf90_put_att(ncid,ncSnowID,'units'    ,trim(indx_meta(iLookINDEX%nSnow)%varunit));           call netcdf_err(err,message)
 
  ! define index variables - soil
- err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nSoil)%varName),nf90_int,(/hruDimID/),ncSoilID); call netcdf_err(err,message)
+ err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nSoil)%varName),nf90_int,(/domDimID/),ncSoilID); call netcdf_err(err,message)
  err = nf90_put_att(ncid,ncSoilID,'long_name',trim(indx_meta(iLookINDEX%nSoil)%vardesc));           call netcdf_err(err,message)
  err = nf90_put_att(ncid,ncSoilID,'units'    ,trim(indx_meta(iLookINDEX%nSoil)%varunit));           call netcdf_err(err,message)
+
+ ! define index variables - ice
+ err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nIce)%varName),nf90_int,(/domDimID/),ncIceID); call netcdf_err(err,message)
+ err = nf90_put_att(ncid,ncIceID,'long_name',trim(indx_meta(iLookINDEX%nIce)%vardesc));           call netcdf_err(err,message)
+ err = nf90_put_att(ncid,ncIceID,'units'    ,trim(indx_meta(iLookINDEX%nIce)%varunit));           call netcdf_err(err,message)
+ 
+ ! define index variables - lake
+ err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nLake)%varName),nf90_int,(/domDimID/),ncLakeID); call netcdf_err(err,message)
+ err = nf90_put_att(ncid,ncLakeID,'long_name',trim(indx_meta(iLookINDEX%nLake)%vardesc));           call netcdf_err(err,message)
+ err = nf90_put_att(ncid,ncLakeID,'units'    ,trim(indx_meta(iLookINDEX%nLake)%varunit));           call netcdf_err(err,message)
 
  ! end definition phase
  err = nf90_enddef(ncid); call netcdf_err(err,message); if (err/=0) return

@@ -216,7 +216,7 @@ subroutine summa_initialize(summa1_struc, err, message)
     else
         restartFile = trim(STATE_PATH)//trim(MODEL_INITCOND)
     endif
-    call read_icond_nlayers(trim(restartFile),nGRU,indx_meta,err,cmessage)
+    call read_icond_nlayers(trim(restartFile),nGRU,nHRU,nDOM,indx_meta,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! *****************************************************************************

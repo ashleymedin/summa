@@ -31,11 +31,13 @@ USE data_types,only:in_type_indexSplit,out_type_indexSplit ! classes for indexSp
 USE globalData,only:integerMissing  ! missing integer
 
 ! named variables for domain types
-USE globalData,only:iname_cas       ! canopy air space
-USE globalData,only:iname_veg       ! vegetation
-USE globalData,only:iname_snow      ! snow
-USE globalData,only:iname_soil      ! soil
-USE globalData,only:iname_aquifer   ! aquifer
+USE globalData,only:iname_cas        ! named variables for canopy air space
+USE globalData,only:iname_veg        ! named variables for vegetation canopy
+USE globalData,only:iname_snow       ! named variables for snow
+USE globalData,only:iname_soil       ! named variables for soil
+USE globalData,only:iname_ice        ! named variables for ice
+USE globalData,only:iname_lake       ! named variables for lake
+USE globalData,only:iname_aquifer    ! named variables for the aquifer
 
 ! named variables to describe the state variable type
 USE globalData,only:iname_nrgCanair  ! named variable defining the energy of the canopy air space
@@ -67,24 +69,24 @@ contains
  ! **********************************************************************************************************
  ! public subroutine indexState: define list of indices for each state variable
  ! **********************************************************************************************************
- subroutine indexState(computeVegFlux,          & ! intent(in):    flag to denote if computing the vegetation flux
-                       includeAquifer,          & ! intent(in):    flag to denote if an aquifer is included
-                       nSnow,nSoil,nLayers,     & ! intent(in):    number of snow and soil layers, and total number of layers
-                       indx_data,               & ! intent(inout): indices defining model states and layers
-                       err,message)               ! intent(out):   error control
+ subroutine indexState(computeVegFlux,                     & ! intent(in):    flag to denote if computing the vegetation flux
+                       includeAquifer,                     & ! intent(in):    flag to denote if an aquifer is included
+                       nSnow,nSoil,nIce,nLake,nLayers,     & ! intent(in):    number of snow and soil layers, and total number of layers
+                       indx_data,                          & ! intent(inout): indices defining model states and layers
+                       err,message)                          ! intent(out):   error control
  ! provide access to the numerical recipes utility modules
  USE nr_utility_module,only:arth                           ! creates a sequence of numbers (start, incr, n)
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input
- logical(lgt),intent(in)         :: computeVegFlux         ! flag to denote if computing the vegetation flux
- logical(lgt),intent(in)         :: includeAquifer         ! flag to denote if an aquifer is included
- integer(i4b),intent(in)         :: nSnow,nSoil,nLayers    ! number of snow and soil layers, and total number of layers
- type(var_ilength),intent(inout) :: indx_data              ! indices defining model states and layers
+ logical(lgt),intent(in)         :: computeVegFlux                 ! flag to denote if computing the vegetation flux
+ logical(lgt),intent(in)         :: includeAquifer                 ! flag to denote if an aquifer is included
+ integer(i4b),intent(in)         :: nSnow,nSoil,nIce,nLake,nLayers ! number of snow and soil layers, and total number of layers
+ type(var_ilength),intent(inout) :: indx_data                      ! indices defining model states and layers
  ! output: error control
- integer(i4b),intent(out)        :: err                    ! error code
- character(*),intent(out)        :: message                ! error message
+ integer(i4b),intent(out)        :: err                            ! error code
+ character(*),intent(out)        :: message                        ! error message
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! general local variables
  character(len=256)              :: cmessage               ! message of downwind routine

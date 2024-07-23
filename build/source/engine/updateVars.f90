@@ -35,6 +35,8 @@ USE globalData,only:iname_cas       ! named variables for canopy air space
 USE globalData,only:iname_veg       ! named variables for vegetation canopy
 USE globalData,only:iname_snow      ! named variables for snow
 USE globalData,only:iname_soil      ! named variables for soil
+USE globalData,only:iname_ice       ! named variables for ice
+USE globalData,only:iname_lake      ! named variables for lake
 USE globalData,only:iname_aquifer   ! named variables for the aquifer
 
 ! named variables to describe the state variable type

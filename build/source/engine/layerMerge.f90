@@ -30,6 +30,8 @@ USE globalData,only:realMissing     ! missing double precision number
 ! access named variables for snow and soil
 USE globalData,only:iname_snow        ! named variables for snow
 USE globalData,only:iname_soil        ! named variables for soil
+USE globalData,only:iname_ice         ! named variables for ice
+USE globalData,only:iname_lake        ! named variables for lake
 
 ! access metadata
 USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta   ! metadata
@@ -100,7 +102,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! define local variables
  character(LEN=256)              :: cmessage            ! error message of downwind routine
- real(rkind),dimension(5)           :: zminLayer           ! minimum layer depth in each layer (m)
+ real(rkind),dimension(5)        :: zminLayer           ! minimum layer depth in each layer (m)
  logical(lgt)                    :: removeLayer         ! flag to indicate need to remove a layer
  integer(i4b)                    :: nCheck              ! number of layers to check for combination
  integer(i4b)                    :: iSnow               ! index of snow layers (looping)

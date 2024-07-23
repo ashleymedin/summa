@@ -33,6 +33,8 @@ USE data_types,only:&
 ! named variables for snow and soil
 USE globalData,only:iname_snow          ! named variables for snow
 USE globalData,only:iname_soil          ! named variables for soil
+USE globalData,only:iname_ice           ! named variables for ice
+USE globalData,only:iname_lake          ! named variables for lake
 
 ! named variables for parent structures
 USE var_lookup,only:iLookINDEX          ! named variables for structure elements
@@ -126,7 +128,10 @@ contains
  ! update the number of layers
  indx_data%var(iLookINDEX%nSnow)%dat(1)   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
  indx_data%var(iLookINDEX%nSoil)%dat(1)   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
- indx_data%var(iLookINDEX%nLayers)%dat(1) = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nSoil)%dat(1)
+ indx_data%var(iLookINDEX%nIce)%dat(1)    = count(indx_data%var(iLookINDEX%layerType)%dat==iname_ice)
+ indx_data%var(iLookINDEX%nLake)%dat(1)   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_lake)
+ indx_data%var(iLookINDEX%nLayers)%dat(1) = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nSoil)%dat(1) &
+                                            + indx_data%var(iLookINDEX%nIce)%dat(1) + indx_data%var(iLookINDEX%nLake)%dat(1)
 
  ! flag if layers were modified
  modifiedLayers = (mergedLayers .or. divideLayer)
