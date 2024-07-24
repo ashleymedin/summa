@@ -127,7 +127,7 @@ subroutine groundwatr(&
     ! input: model control
     nSnow               => in_groundwatr % nSnow,                              & ! intent(in):    [i4b] number of snow layers
     nSoil               => in_groundwatr % nSoil,                              & ! intent(in):    [i4b] number of soil layers
-    nLayers             => in_groundwatr % nLayers,                            & ! intent(in):    [i4b] total number of layers
+    nLake               => in_groundwatr % nLake,                              & ! intent(in):    [i4b] number of lake layers
     getSatDepth         => in_groundwatr % firstFluxCall,                      & ! intent(in):    [lgt] logical flag to compute index of the lowest saturated layer
     ! input: state and diagnostic variables
     mLayerdTheta_dPsi   => in_groundwatr % mLayerdTheta_dPsi,                  & ! intent(in):    [dp] derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
@@ -183,7 +183,7 @@ subroutine groundwatr(&
                           ! input: control and state variables
                           nSnow,                   & ! intent(in):    number of snow layers
                           nSoil,                   & ! intent(in):    number of soil layers
-                          nLayers,                 & ! intent(in):    total number of layers
+                          nLake,                   & ! intent(in):    number of lake layers
                           .true.,                  & ! intent(in):    .true. if analytical derivatives are desired
                           ixSaturation,            & ! intent(in):    index of upper-most "saturated" layer
                           mLayerVolFracLiq,        & ! intent(in):    volumetric fraction of liquid water in each soil layer (-)
@@ -216,7 +216,7 @@ subroutine computeBaseflow(&
                           ! input: control and state variables
                           nSnow,                         & ! intent(in):    number of snow layers
                           nSoil,                         & ! intent(in):    number of soil layers
-                          nLayers,                       & ! intent(in):    total number of layers
+                          nLake,                         & ! intent(in):    number of lake layers
                           derivDesired,                  & ! intent(in):    .true. if derivatives are desired
                           ixSaturation,                  & ! intent(in):    index of upper-most "saturated" layer
                           mLayerVolFracLiq,              & ! intent(in):    volumetric fraction of liquid water in each soil layer (-)
@@ -236,7 +236,7 @@ subroutine computeBaseflow(&
   ! input: control and state variables
   integer(i4b),intent(in)          :: nSnow                   ! number of snow layers
   integer(i4b),intent(in)          :: nSoil                   ! number of soil layers
-  integer(i4b),intent(in)          :: nLayers                 ! total number of layers
+  integer(i4b),intent(in)          :: nLake                   ! number of lake layers
   logical(lgt),intent(in)          :: derivDesired            ! .true. if derivatives are desired
   integer(i4b),intent(in)          :: ixSaturation            ! index of upper-most "saturated" layer
   real(rkind),intent(in)           :: mLayerVolFracLiq(:)     ! volumetric fraction of liquid water (-)
@@ -284,8 +284,8 @@ subroutine computeBaseflow(&
   ! ---------------------------------------------------------------------------------------
   associate(&
     ! input: coordinate variables
-    soilDepth               => prog_data%var(iLookPROG%iLayerHeight)%dat(nLayers),       & ! intent(in):  [dp]    total soil depth (m)
-    mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+1:nLayers),& ! intent(in):  [dp(:)] depth of each soil layer (m)
+    soilDepth               => prog_data%var(iLookPROG%iLayerHeight)%dat(nSnow+nLake+nSoil),             & ! intent(in):  [dp]    total soil depth (m)
+    mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+1:nSnow+nLake+nSoil),& ! intent(in):  [dp(:)] depth of each soil layer (m)
     ! input: diagnostic variables
     surfaceHydCond          => flux_data%var(iLookFLUX%mLayerSatHydCondMP)%dat(1),       & ! intent(in):  [dp]    saturated hydraulic conductivity at the surface (m s-1)
     mLayerColumnInflow      => flux_data%var(iLookFLUX%mLayerColumnInflow)%dat,          & ! intent(in):  [dp(:)] inflow into each soil layer (m3/s)

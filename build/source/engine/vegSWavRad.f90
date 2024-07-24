@@ -128,7 +128,7 @@ contains
   scalarSnowAge              => diag_data%var(iLookDIAG%scalarSnowAge)%dat(1),                    & ! intent(inout): non-dimensional snow age (-)
   scalarCosZenith            => diag_data%var(iLookDIAG%scalarCosZenith)%dat(1),                  & ! intent(in): cosine of the solar zenith angle (0-1)
   spectralSnowAlbedoDirect   => diag_data%var(iLookDIAG%spectralSnowAlbedoDirect)%dat(1:nBands),  & ! intent(in): direct albedo of snow in each spectral band (-)
-  ! input: vegetation characteristix
+  ! input: vegetation characteristics
   scalarExposedLAI           => diag_data%var(iLookDIAG%scalarExposedLAI)%dat(1),                 & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
   scalarExposedSAI           => diag_data%var(iLookDIAG%scalarExposedSAI)%dat(1),                 & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
   scalarCanopyWetFraction    => diag_data%var(iLookDIAG%scalarCanopyWetFraction)%dat(1),          & ! intent(in): canopy wetted fraction (-)

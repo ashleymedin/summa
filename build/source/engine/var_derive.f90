@@ -159,6 +159,8 @@ contains
  ! associate the model index structures
  nSoil                 =>indx_data%var(iLookINDEX%nSoil)%dat(1),                & ! number of soil layers
  nSnow                 =>indx_data%var(iLookINDEX%nSnow)%dat(1),                & ! number of snow layers
+ nIce                  =>indx_data%var(iLookINDEX%nIce)%dat(1),                 & ! number of ice layers
+ nLake                 =>indx_data%var(iLookINDEX%nLake)%dat(1),                & ! number of lake layers
  nLayers               =>indx_data%var(iLookINDEX%nLayers)%dat(1),              & ! total number of layers
  iLayerHeight          =>prog_data%var(iLookPROG%iLayerHeight)%dat,             & ! height of the layer interface (m)
  ! associate the values in the model variable structures

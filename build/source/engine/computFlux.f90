@@ -107,6 +107,8 @@ subroutine computFlux(&
                       ! input-output: model control
                       nSnow,                    & ! intent(in):    number of snow layers
                       nSoil,                    & ! intent(in):    number of soil layers
+                      nIce,                     & ! intent(in):    number of ice layers
+                      nLake,                    & ! intent(in):    number of lake layers
                       nLayers,                  & ! intent(in):    total number of layers
                       firstSubStep,             & ! intent(in):    flag to indicate if we are processing the first sub-step
                       firstFluxCall,            & ! intent(inout): flag to denote the first flux call
@@ -161,6 +163,8 @@ subroutine computFlux(&
   ! input-output: control
   integer(i4b),intent(in)            :: nSnow                       ! number of snow layers
   integer(i4b),intent(in)            :: nSoil                       ! number of soil layers
+  integer(i4b),intent(in)            :: nIce                        ! number of ice layers
+  integer(i4b),intent(in)            :: nLake                       ! number of lake layers
   integer(i4b),intent(in)            :: nLayers                     ! total number of layers
   logical(lgt),intent(in)            :: firstSubStep                ! flag to indicate if we are processing the first sub-step
   logical(lgt),intent(inout)         :: firstFluxCall               ! flag to indicate if we are processing the first flux call

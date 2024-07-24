@@ -1022,9 +1022,13 @@ contains
   case('wLength'); get_ixVarType = iLookVarType%wLength
   case('midSnow'); get_ixVarType = iLookVarType%midSnow
   case('midSoil'); get_ixVarType = iLookVarType%midSoil
+  case('midLake'); get_ixVarType = iLookVarType%midLake
+  case('midIce');  get_ixVarType = iLookVarType%midIce
   case('midToto'); get_ixVarType = iLookVarType%midToto
   case('ifcSnow'); get_ixVarType = iLookVarType%ifcSnow
   case('ifcSoil'); get_ixVarType = iLookVarType%ifcSoil
+  case('ifcLake'); get_ixVarType = iLookVarType%ifcLake
+  case('ifcIce' ); get_ixVarType = iLookVarType%ifcIce
   case('ifcToto'); get_ixVarType = iLookVarType%ifcToto
   case('parSoil'); get_ixVarType = iLookVarType%parSoil
   case('routing'); get_ixVarType = iLookVarType%routing
@@ -1050,9 +1054,13 @@ contains
   case(iLookVarType%wLength);get_varTypeName='wLength'
   case(iLookVarType%midSnow);get_varTypeName='midSnow'
   case(iLookVarType%midSoil);get_varTypeName='midSoil'
+  case(iLookVarType%midLake);get_varTypeName='midLake'
+  case(iLookVarType%midIce);get_varTypeName='midIce'
   case(iLookVarType%midToto);get_varTypeName='midToto'
   case(iLookVarType%ifcSnow);get_varTypeName='ifcSnow'
   case(iLookVarType%ifcSoil);get_varTypeName='ifcSoil'
+  case(iLookVarType%ifcLake);get_varTypeName='ifcLake'
+  case(iLookVarType%ifcIce); get_varTypeName='ifcIce'
   case(iLookVarType%ifcToto);get_varTypeName='ifcToto'
   case(iLookVarType%parSoil);get_varTypeName='parSoil'
   case(iLookVarType%routing);get_varTypeName='routing'

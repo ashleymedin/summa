@@ -19,6 +19,8 @@ type data4kinsol
   real(rkind)                     :: dt                           ! data step
   integer(i4b)                    :: nSnow                        ! number of snow layers
   integer(i4b)                    :: nSoil                        ! number of soil layers
+  integer(i4b)                    :: nIce                         ! number of ice layers
+  integer(i4b)                    :: nLake                        ! number of lake layers
   integer(i4b)                    :: nLayers                      ! total number of layers
   integer(i4b)                    :: nState                       ! total number of state variables
   integer(i4b)                    :: ixMatrix                     ! form of matrix (dense or banded)

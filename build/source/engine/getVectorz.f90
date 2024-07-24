@@ -167,6 +167,8 @@ subroutine popStateVec(&
     ! number of layers
     nSnow                => indx_data%var(iLookINDEX%nSnow)%dat(1)               ,& ! intent(in) : [i4b]    number of snow layers
     nSoil                => indx_data%var(iLookINDEX%nSoil)%dat(1)               ,& ! intent(in) : [i4b]    number of soil layers
+    nLake                => indx_data%var(iLookINDEX%nLake)%dat(1)               ,& ! intent(in) : [i4b]    number of lake layers
+    nIce                 => indx_data%var(iLookINDEX%nIce)%dat(1)                ,& ! intent(in) : [i4b]    number of ice layers
     nLayers              => indx_data%var(iLookINDEX%nLayers)%dat(1)              & ! intent(in) : [i4b]    total number of layers
     )  ! end association with variables in the data structures
     ! --------------------------------------------------------------------------------------------------------------------------------

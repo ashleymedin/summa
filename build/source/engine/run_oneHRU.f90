@@ -179,7 +179,7 @@ subroutine run_oneHRU(&
           message=trim(message)//'problem allocating space for zSoilReverseSign'
           err=20; return
         endif
-        zSoilReverseSign(:) = -progData%dom(i)%var(iLookPROG%iLayerHeight)%dat(nSnow+1:nLayers)
+        zSoilReverseSign(:) = -progData%dom(i)%var(iLookPROG%iLayerHeight)%dat(nSnow%dom(i)+1:nLayers%dom(i))
 
         ! populate parameters in Noah-MP modules
         ! Passing a maxSoilLayer in order to pass the check for NROOT, that is done to avoid making any changes to Noah-MP code.

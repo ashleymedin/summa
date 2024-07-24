@@ -839,9 +839,13 @@ MODULE var_lookup
   integer(i4b)    :: wLength   = integerMissing ! # spectral bands
   integer(i4b)    :: midSnow   = integerMissing ! mid-layer snow variables
   integer(i4b)    :: midSoil   = integerMissing ! mid-layer soil variables
+  integer(i4b)    :: midIce    = integerMissing ! mid-layer ice variables
+  integer(i4b)    :: midLake   = integerMissing ! mid-layer lake variables
   integer(i4b)    :: midToto   = integerMissing ! mid-layer, both snow and soil
   integer(i4b)    :: ifcSnow   = integerMissing ! interface snow variables
   integer(i4b)    :: ifcSoil   = integerMissing ! interface soil variables
+  integer(i4b)    :: ifcIce    = integerMissing ! interface ice variables
+  integer(i4b)    :: ifcLake   = integerMissing ! interface lake variables
   integer(i4b)    :: ifcToto   = integerMissing ! interface, snow and soil
   integer(i4b)    :: parSoil   = integerMissing ! soil depth
   integer(i4b)    :: routing   = integerMissing ! routing variables
@@ -970,7 +974,7 @@ MODULE var_lookup
                                                                          11, 12, 13)
  ! named variables in varibale type structure
  type(iLook_varType), public,parameter :: iLookVarType  =ilook_varType (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
-                                                                         11, 12)
+                                                                         11, 12, 13, 14, 15, 16)
  ! number of possible output statistics
  type(iLook_stat),    public,parameter :: iLookSTAT     =ilook_stat    (  1,  2,  3,  4,  5,  6,  7)
  ! number of possible output frequencies

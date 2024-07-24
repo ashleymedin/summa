@@ -93,6 +93,8 @@ subroutine summaSolve4kinsol(&
                       xScale,                  & ! intent(in):    characteristic scale of the state vector (mixed units)
                       nSnow,                   & ! intent(in):    number of snow layers
                       nSoil,                   & ! intent(in):    number of soil layers
+                      nIce,                    & ! intent(in):    number of ice layers
+                      nLake,                   & ! intent(in):    number of lake layers
                       nLayers,                 & ! intent(in):    total number of layers
                       nStat,                   & ! intent(in):    total number of state variables
                       ixMatrix,                & ! intent(in):    type of matrix (dense or banded)
@@ -155,6 +157,8 @@ subroutine summaSolve4kinsol(&
   real(rkind),intent(inout)       :: xScale(:)              ! characteristic scale of the state vector (mixed units)
   integer(i4b),intent(in)         :: nSnow                  ! number of snow layers
   integer(i4b),intent(in)         :: nSoil                  ! number of soil layers
+  integer(i4b),intent(in)         :: nIce                   ! number of ice layers
+  integer(i4b),intent(in)         :: nLake                  ! number of lake layers
   integer(i4b),intent(in)         :: nLayers                ! total number of layers
   integer(i4b),intent(in)         :: nStat                  ! total number of state variables
   integer(i4b),intent(in)         :: ixMatrix               ! form of matrix (dense or banded)
@@ -229,6 +233,8 @@ subroutine summaSolve4kinsol(&
   eqns_data%dt                      = dt
   eqns_data%nSnow                   = nSnow
   eqns_data%nSoil                   = nSoil
+  eqns_data%nIce                    = nIce
+  eqns_data%nLake                   = nLake
   eqns_data%nLayers                 = nLayers
   eqns_data%nState                  = nState
   eqns_data%ixMatrix                = ixMatrix

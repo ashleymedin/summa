@@ -143,6 +143,9 @@ subroutine ssdNrgFlux(&
     ix_bcLowrTdyn           => model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision, & ! intent(in):  method used to calculate the lower boundary condition for thermodynamics
     ! input: coordinate variables
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),               & ! intent(in):  number of snow layers
+    nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1),               & ! intent(in):  number of soil layers
+    nIce                    => indx_data%var(iLookINDEX%nIce)%dat(1),                & ! intent(in):  number of ice layers
+    nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1),               & ! intent(in):  number of lake layers
     layerType               => indx_data%var(iLookINDEX%layerType)%dat,              & ! intent(in):  layer type (iname_soil or iname_snow)
     ixLayerState            => indx_data%var(iLookINDEX%ixLayerState)%dat,           & ! intent(in):  list of indices for all model layers
     ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat,          & ! intent(in):  index in the state subset for energy state variables in the snow+soil domain

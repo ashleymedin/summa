@@ -136,6 +136,8 @@ subroutine computJacob(&
     dt                           => in_computJacob % dt              ,& ! intent(in): length of the time step (seconds)
     nSnow                        => in_computJacob % nSnow           ,& ! intent(in): number of snow layers
     nSoil                        => in_computJacob % nSoil           ,& ! intent(in): number of soil layers
+    nIce                         => in_computJacob % nIce            ,& ! intent(in): number of ice layers
+    nLake                        => in_computJacob % nLake           ,& ! intent(in): number of lake layers
     nLayers                      => in_computJacob % nLayers         ,& ! intent(in): total number of layers in the snow+soil domain
     computeVegFlux               => in_computJacob % computeVegFlux  ,& ! intent(in): flag to indicate if computing fluxes over vegetation
     computeBaseflow              => in_computJacob % computeBaseflow ,& ! intent(in): flag to indicate if computing baseflow

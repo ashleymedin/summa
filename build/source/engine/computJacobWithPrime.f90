@@ -102,6 +102,8 @@ subroutine computJacobWithPrime(&
                       dt,                         & ! intent(in):    length of the time step (seconds)
                       nSnow,                      & ! intent(in):    number of snow layers
                       nSoil,                      & ! intent(in):    number of soil layers
+                      nIce,                       & ! intent(in):    number of ice layers
+                      nLake,                      & ! intent(in):    number of lake layers
                       nLayers,                    & ! intent(in):    total number of layers
                       computeVegFlux,             & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                       computeBaseflow,            & ! intent(in):    flag to indicate if we need to compute baseflow
@@ -135,6 +137,8 @@ subroutine computJacobWithPrime(&
   real(rkind),intent(in)               :: dt                         ! length of the time step (seconds)
   integer(i4b),intent(in)              :: nSnow                      ! number of snow layers
   integer(i4b),intent(in)              :: nSoil                      ! number of soil layers
+  integer(i4b),intent(in)              :: nIce                       ! number of ice layers
+  integer(i4b),intent(in)              :: nLake                      ! number of lake layers
   integer(i4b),intent(in)              :: nLayers                    ! total number of layers in the snow+soil domain
   logical(lgt),intent(in)              :: computeVegFlux             ! flag to indicate if computing fluxes over vegetation
   logical(lgt),intent(in)              :: computeBaseflow            ! flag to indicate if computing baseflow
@@ -1199,6 +1203,8 @@ integer(c_int) function computJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
                 1._qp,                                    & ! intent(in):    length of the time step (seconds)
                 eqns_data%nSnow,                          & ! intent(in):    number of snow layers
                 eqns_data%nSoil,                          & ! intent(in):    number of soil layers
+                eqns_data%nIce,                           & ! intent(in):    number of ice layers
+                eqns_data%nLake,                          & ! intent(in):    number of lake layers
                 eqns_data%nLayers,                        & ! intent(in):    total number of layers
                 eqns_data%computeVegFlux,                 & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                 eqns_data%model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel, & ! intent(in): flag to indicate if we need to compute baseflow

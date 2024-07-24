@@ -150,6 +150,8 @@ contains
  ! input: coordinate variables
  nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),                    & ! intent(in): number of snow layers
  nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1),                    & ! intent(in): number of soil layers
+ nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1),                    & ! intent(in): number of lake layers
+ nIce                    => indx_data%var(iLookINDEX%nIce)%dat(1),                     & ! intent(in): number of ice layers
  nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1),                  & ! intent(in): total number of layers
  layerType               => indx_data%var(iLookINDEX%layerType)%dat,                   & ! intent(in): layer type (iname_soil or iname_snow)
  mLayerHeight            => prog_data%var(iLookPROG%mLayerHeight)%dat,                 & ! intent(in): height at the mid-point of each layer (m)

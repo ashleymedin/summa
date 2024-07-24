@@ -4,13 +4,7 @@ implicit none
 ! define indices in metadata structures
 integer(i4b),parameter   :: nameIndex=1     ! index of the variable name
 integer(i4b),parameter   :: freqIndex=3     ! index of the output frequency
-! define indices in flag vectors
-integer(i4b),parameter   :: indexMidSnow=1  ! index of flag vector: midSnow
-integer(i4b),parameter   :: indexMidSoil=2  ! index of flag vector: midSoil
-integer(i4b),parameter   :: indexMidToto=3  ! index of flag vector: midToto
-integer(i4b),parameter   :: indexIfcSnow=4  ! index of flag vector: ifcSnow
-integer(i4b),parameter   :: indexIfcSoil=5  ! index of flag vector: ifcSoil
-integer(i4b),parameter   :: indexIfcToto=6  ! index of flag vector: ifcToto
+
 private
 public::popMetadat
 contains
