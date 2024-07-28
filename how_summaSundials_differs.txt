@@ -96,7 +96,7 @@ AFTER tag of v4.0.0-exp-Sundials
        balanceSoilMass       | 1
        balanceAqMass         | 1
        scaledBalanceCasNrg   | 1
-      The balance*Nrg are in units of W/m^3 and the balance*Mass are in units of kg/m^2/s.
+      The balance*Nrg are in units of W/m^3 and the balance*Mass are in units of kg/m^3/s.
   03) Cm derivatives, will be used if needCm is on in eval8summa or eval8summaPrime
   04) Sean's refactor and object-orientated work, numerous and ongoing changes affecting conciseness and speed
 c-05) six allocation errors commits c0624a68, b2709388, 0b921c65, a23ac832, e43c766d, 6d3ac180 Feb 21, 2024
