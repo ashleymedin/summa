@@ -105,3 +105,4 @@ c-07) snow water upper bound should be 1, not iden_ice, commit 265721b5 Feb 13, 
  -08) constraints now just scale the state variable they effect, commit 24bae32c Feb 13, 2024
  -09) constraint corrections for state variable changes in liq_layer vs wat_layer, commit 523774e1 Feb 15, 2024
   10) Kyle's actors work, ongoing changes
+  11) Default is now to calculate heat capacity every increment and also the Cm term, since major energy violations are found without this.
