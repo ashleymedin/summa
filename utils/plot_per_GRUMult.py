@@ -454,11 +454,11 @@ def run_loop(j,var,the_max):
                 sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
             sm.set_array([])
             if i==len(plot_vars_exVar)-1: 
-                pad = 0.04
+                pad = 0.05
             elif i==len(plot_vars_exVar)-2: 
-                pad = -0.01
+                pad = -0.05
             else: 
-                pad = -0.1
+                pad = -0.3
             if one_plot:
                 cbr = fig.colorbar(sm,ax=axs_list[r*ncol:r*ncol+c+1],aspect=27/nrow, pad=pad)
             else:
