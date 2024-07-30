@@ -78,7 +78,7 @@ if more_mean: # extra vars in a balance file
     viz_file_exVar = 'exVar_hrly_diff_bals_balance.nc'
     plt_name0_exVar = 'SUMMA-BE1 temperature heat eq.'
     plt_nameshort_exVar = 'BE1 temp' # identify method here
-    plt_titl_exVar = ['rain plus melt','root zone temperature','air temperature','snow water equivalent']
+    plt_titl_exVar = ['rain plus melt','top 4m soil temperature','air temperature','snow water equivalent']
     leg_titl_exVar = ['$mm~y^{-1}$','$K$','$K$','$kg~m^{-2}$']
     maxes_exVar = [3000,290,290,100]
     if one_plot: plt_name0_exVar = plt_nameshort_exVar
@@ -474,7 +474,7 @@ def run_loop(j,var,the_max):
 if one_plot:
     use_vars = [1]
     use_meth = [0,2,4]
-    use_vars_exVar = [3,0,2]
+    use_vars_exVar = [3,0,1]
 else:
     use_vars = [0,1,2,3,4,5]
     use_vars = [1,5]
