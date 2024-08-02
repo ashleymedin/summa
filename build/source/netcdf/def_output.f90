@@ -73,14 +73,14 @@ contains
  ! **********************************************************************************************************
  ! public subroutine def_output: define model output file
  ! **********************************************************************************************************
- subroutine def_output(summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,nDOM,maxLayers,infile,err,message)
+ subroutine def_output(summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,nDOM,infile,err,message)
  USE globalData,only:structInfo                               ! information on the data structures
  USE globalData,only:forc_meta,attr_meta,type_meta            ! metaData structures
  USE globalData,only:prog_meta,diag_meta,flux_meta,deriv_meta ! metaData structures
  USE globalData,only:mpar_meta,indx_meta                      ! metaData structures
  USE globalData,only:bpar_meta,bvar_meta,time_meta            ! metaData structures
  USE globalData,only:model_decisions                          ! model decisions
- USE globalData,only:ncid
+ USE globalData,only:ncid                                     ! netcdf file id
  USE globalData,only:outFreq                                  ! output frequencies
  USE var_lookup,only:maxVarFreq                               ! # of available output frequencies
  USE get_ixname_module,only:get_freqName                      ! get name of frequency from frequency index
@@ -207,7 +207,6 @@ contains
  integer(i4b)                :: maxRouting=1000            ! maximum length of routing vector
  integer(i4b),parameter      :: maxSpectral=2              ! maximum number of spectral bands
  integer(i4b),parameter      :: scalarLength=1             ! length of scalar variable
- integer(i4b)                :: maxSnowLayers              ! maximum number of snow layers
 
  ! initialize error control
  err=0;message="f-iniCreate/"
@@ -230,7 +229,7 @@ contains
  err = nf90_def_dim(ncid, trim( midSoil_DimName), maxSoilLayers,         midSoil_DimID); message='iCreate[midSoil]';  call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim( midToto_DimName), maxLayers,             midToto_DimID); message='iCreate[midToto]';  call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim( ifcSnow_DimName), maxSnowLayers+1,       ifcSnow_DimID); message='iCreate[ifcSnow]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( ifcSoil_DimName), maxSoilLayer           ifcSoil_DimID); message='iCreate[ifcSoil]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( ifcSoil_DimName), maxSoilLayers,         ifcSoil_DimID); message='iCreate[ifcSoil]';  call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim( ifcToto_DimName), maxLayers+1, ifcToto_DimID); message='iCreate[ifcToto]';  call netcdf_err(err,message); if (err/=0) return
 
  ! Leave define mode of NetCDF files

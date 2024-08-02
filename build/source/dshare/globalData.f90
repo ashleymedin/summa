@@ -144,7 +144,6 @@ MODULE globalData
                    struct_info('lookup','LOOKUP',maxvarLookup)  /)                  ! the lookup table data structure
   ! fixed model decisions
   logical(lgt)          , parameter, public   :: overwriteRSMIN=.false.             ! flag to overwrite RSMIN
-  integer(i4b)          , parameter, public   :: maxSoilLayers=10000                ! Maximum Number of Soil Layers
 
   ! ----------------------------------------------------------------------------------------------------------------
   ! * part 2: globally constant variables/structures that require initialization

@@ -290,7 +290,7 @@ subroutine computeBaseflow(&
     surfaceHydCond          => flux_data%var(iLookFLUX%mLayerSatHydCondMP)%dat(1),       & ! intent(in):  [dp]    saturated hydraulic conductivity at the surface (m s-1)
     mLayerColumnInflow      => flux_data%var(iLookFLUX%mLayerColumnInflow)%dat,          & ! intent(in):  [dp(:)] inflow into each soil layer (m3/s)
     ! input: local attributes
-    DOMarea                 => prog_data%var(iLookPROG%DOMarea),                         & ! intent(in):  [dp]    Domain area in HRU (m2)
+    DOMarea                 => prog_data%var(iLookPROG%DOMarea)%dat(1),                  & ! intent(in):  [dp]    Domain area in HRU (m2)
     tan_slope               => attr_data%var(iLookATTR%tan_slope),                       & ! intent(in):  [dp]    tan water table slope, taken as tan local ground surface slope (-)
     contourLength           => attr_data%var(iLookATTR%contourLength),                   & ! intent(in):  [dp]    length of contour at downslope edge of HRU (m)
     ! input: baseflow parameters

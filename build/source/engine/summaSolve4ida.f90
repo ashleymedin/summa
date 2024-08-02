@@ -323,7 +323,7 @@ subroutine summaSolve4ida(&
     allocate( eqns_data%dMat(nState) ); eqns_data%dMat = dMat
     
     ! allocate space for the to save previous fluxes
-    call allocLocal(flux_meta(:),flux_prev,nSnow,nSoil,err,cmessage)
+    call allocLocal(flux_meta(:),flux_prev,nSnow,nSoil,nIce,nLake,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
     
     ! allocate space for other variables

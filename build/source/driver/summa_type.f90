@@ -33,8 +33,9 @@ USE data_types,only:&
                     ! no variable dimension
                     hru_i,                 & ! x%hru(:)            (i4b)
                     hru_d,                 & ! x%hru(:)            (dp)
-                    gru_i,                 & ! x%gru(:)%hru(:)     (i4b)
-                    gru_d,                 & ! x%gru(:)%hru(:)     (dp)
+                    gru_hru_i,             & ! x%gru(:)%hru(:)     (i4b)
+                    gru_hru_d,             & ! x%gru(:)%hru(:)     (dp)
+                    gru_hru_dom_d,         & ! x%gru(:)%hru(:)%dom(:) (dp)
                     ! gru dimension
                     gru_int,               & ! x%gru(:)%var(:)     (i4b)
                     gru_double,            & ! x%gru(:)%var(:)     (dp)
@@ -65,7 +66,7 @@ type, public :: summa1_type_dec
     type(gru_hru_dom_z_vLookup)      :: lookupStruct               ! x%gru(:)%hru(:)%dom(:)%z(:)%var(:)%lookup(:) -- lookup tables
     
     ! define the statistics structures
-    type(gru_hru_dom_doubleVec)      :: forcStat                   ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model forcing data
+    type(gru_hru_doubleVec)          :: forcStat                   ! x%gru(:)%hru(:)%var(:)%dat        -- model forcing data, does not need %dat but use so can use same structure as other data
     type(gru_hru_dom_doubleVec)      :: progStat                   ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model prognostic (state) variables
     type(gru_hru_dom_doubleVec)      :: diagStat                   ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model diagnostic variables
     type(gru_hru_dom_doubleVec)      :: fluxStat                   ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model fluxes
@@ -94,9 +95,9 @@ type, public :: summa1_type_dec
     type(gru_hru_double)             :: dparStruct                 ! x%gru(:)%hru(:)%var(:)     -- default model parameters
 
     ! define the run-time variables
-    type(gru_i)                      :: computeVegFlux             ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
-    type(gru_d)                      :: dt_init                    ! used to initialize the length of the sub-step for each HRU
-    type(gru_d)                      :: upArea                     ! area upslope of each HRU
+    type(gru_hru_i)                  :: computeVegFlux             ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+    type(gru_hru_dom_d)              :: dt_init                    ! used to initialize the length of the sub-step for each HRU
+    type(gru_hru_d)                  :: upArea                     ! area upslope of each HRU
 
     ! define miscellaneous variables
     integer(i4b)                     :: summa1open                 ! flag to define if the summa file is open??
@@ -104,7 +105,9 @@ type, public :: summa1_type_dec
     real(rkind)                      :: ts                         ! model time step ??
     integer(i4b)                     :: nGRU                       ! number of grouped response units
     integer(i4b)                     :: nHRU                       ! number of global hydrologic response units
+    integer(i4b)                     :: nDOM                       ! number of global domains
     integer(i4b)                     :: hruCount                   ! number of local hydrologic response units
+    integer(i4b)                     :: domCount                   ! number of local domains
     real(rkind),dimension(12)        :: greenVegFrac_monthly       ! fraction of green vegetation in each month (0-1)
     character(len=256)               :: summaFileManagerFile       ! path/name of file defining directories and files
 

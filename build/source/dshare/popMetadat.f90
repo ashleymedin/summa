@@ -334,6 +334,8 @@ subroutine popMetadat(err,message)
   prog_meta(iLookPROG%mLayerDepth)                     = var_info('mLayerDepth'                    , 'depth of each layer'                                              , 'm'               , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   prog_meta(iLookPROG%mLayerHeight)                    = var_info('mLayerHeight'                   , 'height of the layer mid-point (top of soil = 0)'                  , 'm'               , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   prog_meta(iLookPROG%iLayerHeight)                    = var_info('iLayerHeight'                   , 'height of the layer interface (top of soil = 0)'                  , 'm'               , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
+  prog_meta(iLookPROG%DOMarea)                         = var_info('DOMarea'                        , 'area of the domain'                                               , 'm2'              , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  prog_meta(iLookPROG%DOMelev)                         = var_info('DOMelev'                        , 'elevation of the domain'                                          , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * local model diagnostic variables...
   ! -------------------------------------
@@ -675,19 +677,26 @@ subroutine popMetadat(err,message)
   ! -----
   ! * basin-wide runoff and aquifer fluxes...
   ! -----------------------------------------
-  bvar_meta(iLookBVAR%basin__TotalArea)        = var_info('basin__TotalArea'       , 'total basin area'                                       , 'm2'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  bvar_meta(iLookBVAR%basin__SurfaceRunoff)    = var_info('basin__SurfaceRunoff'   , 'surface runoff'                                         , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  bvar_meta(iLookBVAR%basin__ColumnOutflow)    = var_info('basin__ColumnOutflow'   , 'outflow from all "outlet" HRUs (with no downstream HRU)', 'm3 s-1', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  bvar_meta(iLookBVAR%basin__AquiferStorage)   = var_info('basin__AquiferStorage'  , 'aquifer storage'                                        , 'm'     , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  bvar_meta(iLookBVAR%basin__AquiferRecharge)  = var_info('basin__AquiferRecharge' , 'recharge to the aquifer'                                , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  bvar_meta(iLookBVAR%basin__AquiferBaseflow)  = var_info('basin__AquiferBaseflow' , 'baseflow from the aquifer'                              , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  bvar_meta(iLookBVAR%basin__AquiferTranspire) = var_info('basin__AquiferTranspire', 'transpiration loss from the aquifer'                    , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  bvar_meta(iLookBVAR%basin__TotalRunoff)      = var_info('basin__TotalRunoff'     , 'total runoff to channel from all active components'     , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  bvar_meta(iLookBVAR%basin__SoilDrainage)     = var_info('basin__SoilDrainage'    , 'soil drainage'                                          , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  bvar_meta(iLookBVAR%routingRunoffFuture)     = var_info('routingRunoffFuture'    , 'runoff in future time steps'                            , 'm s-1' , get_ixVarType('routing'), iMissVec, iMissVec, .false.)
-  bvar_meta(iLookBVAR%routingFractionFuture)   = var_info('routingFractionFuture'  , 'fraction of runoff in future time steps'                , '-'     , get_ixVarType('routing'), iMissVec, iMissVec, .false.)
-  bvar_meta(iLookBVAR%averageInstantRunoff)    = var_info('averageInstantRunoff'   , 'instantaneous runoff'                                   , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  bvar_meta(iLookBVAR%averageRoutedRunoff)     = var_info('averageRoutedRunoff'    , 'routed runoff'                                          , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%basin__TotalArea)        = var_info('basin__TotalArea'       , 'total basin area'                                          , 'm2'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%basin__SurfaceRunoff)    = var_info('basin__SurfaceRunoff'   , 'surface runoff'                                            , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%basin__ColumnOutflow)    = var_info('basin__ColumnOutflow'   , 'outflow from all "outlet" HRUs (with no downstream HRU)'   , 'm3 s-1', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%basin__AquiferStorage)   = var_info('basin__AquiferStorage'  , 'aquifer storage'                                           , 'm'     , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%basin__AquiferRecharge)  = var_info('basin__AquiferRecharge' , 'recharge to the aquifer'                                   , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%basin__AquiferBaseflow)  = var_info('basin__AquiferBaseflow' , 'baseflow from the aquifer'                                 , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%basin__AquiferTranspire) = var_info('basin__AquiferTranspire', 'transpiration loss from the aquifer'                       , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%basin__TotalRunoff)      = var_info('basin__TotalRunoff'     , 'total runoff to channel from all active components'        , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%basin__SoilDrainage)     = var_info('basin__SoilDrainage'    , 'soil drainage'                                             , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%basin__GlacAblMelt)      = var_info('basin__GlacAblMelt'     , 'glacier ablation zone melt'                                , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%basin__GlacAccMelt)      = var_info('basin__GlacAccMelt'     , 'glacier accumulation zone melt'                            , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%routingRunoffFuture)     = var_info('routingRunoffFuture'    , 'runoff in future time steps'                               , 'm s-1' , get_ixVarType('routing'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%routingFractionFuture)   = var_info('routingFractionFuture'  , 'fraction of runoff in future time steps'                   , '-'     , get_ixVarType('routing'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%averageInstantRunoff)    = var_info('averageInstantRunoff'   , 'instantaneous runoff'                                      , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%averageRoutedRunoff)     = var_info('averageRoutedRunoff'    , 'routed runoff'                                             , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%glacAblRunoffFuture)     = var_info('glacAblRunoffFuture'    , 'glacier ablation reservoir runoff in future time steps'    , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%glacAccRunoffFuture)     = var_info('glacAccRunoffFuture'    , 'glacier accumulation reservoir runoff in future time steps', 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%glacierRoutedRunoff)     = var_info('glacierRoutedRunoff'    , 'lapsed glacier runoff'                                     , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+
+ 
   ! -----
   ! * temperature and enthalpy lookup tables...
   ! -------------------------------------------
@@ -700,6 +709,8 @@ subroutine popMetadat(err,message)
   ! number of model layers, and layer indices
   indx_meta(iLookINDEX%nSnow)                 = var_info('nSnow'                , 'number of snow layers'                                                   , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%nSoil)                 = var_info('nSoil'                , 'number of soil layers'                                                   , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  indx_meta(iLookINDEX%nIce)                  = var_info('nIce'                 , 'number of ice layers'                                                    , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  indx_meta(iLookINDEX%nLake)                 = var_info('nLake'                , 'number of lake layers'                                                   , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%nLayers)               = var_info('nLayers'              , 'total number of layers'                                                  , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%layerType)             = var_info('layerType'            , 'index defining type of layer (snow or soil)'                             , '-', get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   ! number of state variables of different type

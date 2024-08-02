@@ -53,7 +53,6 @@ contains
  USE netcdf_util_module,only:nc_file_close             ! close netcdf file
  USE netcdf_util_module,only:nc_file_open              ! close netcdf file
  USE netcdf_util_module,only:netcdf_err                ! netcdf error handling
- USE data_types,only:gru_hru_intVec                    ! actual data
  USE data_types,only:var_info                          ! metadata
  implicit none
 
@@ -169,22 +168,22 @@ contains
       ixFile = iDOM_global
      endif
     endif
-    gru_struc(iGRU)%hruInfo(iHRU)domInfo(iDOM)%nSnow = snowData(ixFile)
-    gru_struc(iGRU)%hruInfo(iHRU)domInfo(iDOM)%nSoil = soilData(ixFile)
-    gru_struc(iGRU)%hruInfo(iHRU)domInfo(iDOM)%nIce  = iceData(ixFile)
-    gru_struc(iGRU)%hruInfo(iHRU)domInfo(iDOM)%nLake = lakeData(ixFile)
+    gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow = snowData(ixFile)
+    gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil = soilData(ixFile)
+    gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce  = iceData(ixFile)
+    gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake = lakeData(ixFile)
     if (repeatDomains)then ! assume coldstart written for upland
      if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type == upland) then
-      gru_struc(iGRU)%hruInfo(iHRU)domInfo(iDOM)%nIce = 0
-      gru_struc(iGRU)%hruInfo(iHRU)domInfo(iDOM)%nLake = 0
+      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce = 0
+      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake = 0
      elseif (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type == glacAcc .or. &
              gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type == glacAbl) then
-      gru_struc(iGRU)%hruInfo(iHRU)domInfo(iDOM)%nSoil = 1 ! debris layer, could be 0
-      gru_struc(iGRU)%hruInfo(iHRU)domInfo(iDOM)%nIce = 2
-      gru_struc(iGRU)%hruInfo(iHRU)domInfo(iDOM)%nLake = 0
-     elseif (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type == lake) then
-      gru_struc(iGRU)%hruInfo(iHRU)domInfo(iDOM)%nIce = 0
-      gru_struc(iGRU)%hruInfo(iHRU)domInfo(iDOM)%nLake = 3
+      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil = 1 ! debris layer, could be 0
+      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce = 2
+      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake = 0
+     elseif (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type == wetland) then
+      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce = 0
+      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake = 3
      endif 
     endif
    end do
@@ -229,8 +228,8 @@ contains
  USE netcdf_util_module,only:nc_file_open               ! open netcdf file
  USE netcdf_util_module,only:nc_file_close              ! close netcdf file
  USE netcdf_util_module,only:netcdf_err                 ! netcdf error handling
- USE data_types,only:gru_hru_doubleVec                  ! full double precision structure
- USE data_types,only:gru_hru_intVec                     ! full integer structure
+ USE data_types,only:gru_hru_dom_doubleVec              ! full double precision structure
+ USE data_types,only:gru_hru_dom_intVec                 ! full integer structure
  USE data_types,only:gru_doubleVec                      ! gru-length double precision structure (basin variables)
  USE data_types,only:var_dlength                        ! double precision structure for a single HRU
  USE data_types,only:var_info                           ! metadata
@@ -255,6 +254,7 @@ contains
  character(len=256)                        :: cmessage                 ! downstream error message
  integer(i4b)                              :: fileHRU                  ! number of HRUs in file
  integer(i4b)                              :: fileGRU                  ! number of GRUs in file
+ integer(i4b)                              :: fileDOM                  ! number of domains in netcdf file
  integer(i4b)                              :: iVar, i                  ! loop indices
  integer(i4b),dimension(1)                 :: ndx                      ! intermediate array of loop indices
  integer(i4b)                              :: iGRU                     ! loop index
@@ -302,7 +302,7 @@ contains
  err = nf90_inq_dimid(ncID,"dom",dimId)               
  if(err/=nf90_noerr)then
   if(nDOM>nHRU)then
-    !write(*,*) 'WARNING: no domain dimension in initial condition file but multiple domains, will repeat conitions for all domains' ! already wa
+    !write(*,*) 'WARNING: no domain dimension in initial condition file but multiple domains, will repeat conitions for all domains'
     repeatDomains=.true.
   endif
   fileDOM = nDOM
@@ -409,7 +409,7 @@ contains
 
      ! make sure snow albedo is not negative
      if(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowAlbedo)%dat(1) < 0._rkind)then
-      progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowAlbedo)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMax)%dat(1)
+      progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowAlbedo)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%albedoMax)%dat(1)
      endif
 
      ! make sure canopy ice + liq is positive, otherwise add liquid water to canopy and make total water consistent later
@@ -438,21 +438,21 @@ contains
    do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
 
     ! save the number of layers
-    nSnow = gru_struc(iGRU)%hruInfo(iHRU)%nSnow
-    nSoil = gru_struc(iGRU)%hruInfo(iHRU)%nSoil
-    nIce  = gru_struc(iGRU)%hruInfo(iHRU)%nIce
-    nLake = gru_struc(iGRU)%hruInfo(iHRU)%nLake
-    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSnow)%dat(1)   = nSnow
-    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSoil)%dat(1)   = nSoil
-    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nIce)%dat(1)    = nIce
-    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nLake)%dat(1)   = nLake
-    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nLayers)%dat(1) = nSnow + nSoil + nIce + nLake
+    nSnow = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
+    nSoil = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
+    nIce  = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce
+    nLake = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake
+    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSnow)%dat(1)   = nSnow
+    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSoil)%dat(1)   = nSoil
+    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nIce)%dat(1)    = nIce
+    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLake)%dat(1)   = nLake
+    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLayers)%dat(1) = nSnow + nSoil + nIce + nLake
 
     ! set layer type
-    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat(1:nSnow) = iname_snow
-    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat((nSnow+nLake+1):(nSnow+nLake+nSoil)) = iname_soil
-    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat((nSnow+nSoil+1):(nSnow+nSoil+nIce)) = iname_ice
-    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat((nSnow+1):(nSnow+nLake)) = iname_lake
+    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%layerType)%dat(1:nSnow) = iname_snow
+    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%layerType)%dat((nSnow+nLake+1):(nSnow+nLake+nSoil)) = iname_soil
+    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%layerType)%dat((nSnow+nSoil+1):(nSnow+nSoil+nIce)) = iname_ice
+    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%layerType)%dat((nSnow+1):(nSnow+nLake)) = iname_lake
 
    end do
   end do
@@ -467,25 +467,25 @@ contains
    do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
 
     ! loop through soil layers
-    do iLayer = 1,indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSoil)%dat(1)
+    do iLayer = 1,indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSoil)%dat(1)
 
      ! get layer in the total vector
-     jLayer = iLayer+indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSnow)%dat(1)+indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nLake)%dat(1)
+     jLayer = iLayer+indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSnow)%dat(1)+indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLake)%dat(1)
 
      ! update soil layers
      call updateSoil(&
                     ! input
-                    progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerTemp          )%dat(jLayer),& ! intent(in): temperature vector (K)
-                    progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerMatricHead    )%dat(iLayer),& ! intent(in): matric head (m)
-                    mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%vGn_alpha          )%dat(iLayer),& ! intent(in): van Genutchen "alpha" parameter
-                    mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%vGn_n              )%dat(iLayer),& ! intent(in): van Genutchen "n" parameter
-                    mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_sat          )%dat(iLayer),& ! intent(in): soil porosity (-)
-                    mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_res          )%dat(iLayer),& ! intent(in): soil residual volumetric water content (-)
-                    1._rkind - 1._rkind/mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%vGn_n)%dat(iLayer),& ! intent(in): van Genutchen "m" parameter (-)
+                    progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerTemp          )%dat(jLayer),& ! intent(in): temperature vector (K)
+                    progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerMatricHead    )%dat(iLayer),& ! intent(in): matric head (m)
+                    mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%vGn_alpha          )%dat(iLayer),& ! intent(in): van Genutchen "alpha" parameter
+                    mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%vGn_n              )%dat(iLayer),& ! intent(in): van Genutchen "n" parameter
+                    mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%theta_sat          )%dat(iLayer),& ! intent(in): soil porosity (-)
+                    mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%theta_res          )%dat(iLayer),& ! intent(in): soil residual volumetric water content (-)
+                    1._rkind - 1._rkind/mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%vGn_n)%dat(iLayer),& ! intent(in): van Genutchen "m" parameter (-)
                     ! output
-                    progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracWat    )%dat(jLayer),& ! intent(out): volumetric fraction of total water (-)
-                    progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracLiq    )%dat(jLayer),& ! intent(out): volumetric fraction of liquid water (-)
-                    progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracIce    )%dat(jLayer),& ! intent(out): volumetric fraction of ice (-)
+                    progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerVolFracWat    )%dat(jLayer),& ! intent(out): volumetric fraction of total water (-)
+                    progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerVolFracLiq    )%dat(jLayer),& ! intent(out): volumetric fraction of liquid water (-)
+                    progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerVolFracIce    )%dat(jLayer),& ! intent(out): volumetric fraction of ice (-)
                     err,message)                                                                   ! intent(out): error control
      if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 

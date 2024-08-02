@@ -25,15 +25,15 @@ USE nrtype
 
 ! data types
 USE data_types,only:&
-               dom_i,                    & ! x%dom(:)                       (i4b)
+               dom_info,                 & ! domain info                    (i4b)
+               dom_d,                    & ! x%dom(:)                       (rkind)
                dom_double,               & ! x%dom(:)%var(:)                (rkind)
                dom_intVec,               & ! x%dom(:)%var(:)%dat            (i4b)
                dom_doubleVec,            & ! x%dom(:)%var(:)%dat            (rkind)
+               dom_z_vLookup,            & ! x%dom(:)%z(:)%var(:)%lookup(:) (rkind)
                var_i,                    & ! x%var(:)                (i4b)
                var_d,                    & ! x%var(:)                (rkind)
-               var_ilength,              & ! x%var(:)%dat            (i4b)
-               var_dlength,              & ! x%var(:)%dat            (rkind)
-               zLookup                     ! x%z(:)%var(:)%lookup(:) (rkind)
+               var_dlength                 ! x%var(:)%dat            (rkind)
 
 ! access vegetation data
 USE globalData,only:greenVegFrac_monthly   ! fraction of green vegetation in each month (0-1)
@@ -100,7 +100,7 @@ subroutine run_oneHRU(&
                       dt_init,             & ! intent(inout): used to initialize the length of the sub-step for each HRU
                       computeVegFlux,      & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
                       ndom,                & ! intent(in):    number of domains
-                      dom_type,             & ! intent(in):    domain type
+                      domInfo,             & ! intent(inout):    domain type and number of layers
                       ! data structures (input)
                       timeVec,             & ! intent(in):    model time data
                       typeData,            & ! intent(in):    local classification of soil veg etc. for each HRU
@@ -114,12 +114,6 @@ subroutine run_oneHRU(&
                       progData,            & ! intent(inout): prognostic variables for a local HRU
                       diagData,            & ! intent(inout): diagnostic variables for a local HRU
                       fluxData,            & ! intent(inout): model fluxes for a local HRU
-                      ! needed for model output
-                      nSnow,               & ! intent(out):   number of snow layers
-                      nSoil,               & ! intent(out):   number of soil layers
-                      nIce,                & ! intent(out):   number of ice layers
-                      nLake,               & ! intent(out):   number of lake layers
-                      nLayers,             & ! intent(out):   total number of layers
                       ! error control
                       err,message)           ! intent(out):   error control
   ! ----- define downstream subroutines -----------------------------------------------------------------------------------
@@ -131,37 +125,32 @@ subroutine run_oneHRU(&
   ! model control
   integer(i4b)       , intent(in)    :: hru_nc              ! hru index in netcdf
   integer(8)         , intent(in)    :: hruId               ! hruId
-  real(rkind)        , intent(inout) :: dt_init             ! used to initialize the length of the sub-step for each HRU
+  type(dom_d)        , intent(inout) :: dt_init             ! used to initialize the length of the sub-step for each HRU
   logical(lgt)       , intent(inout) :: computeVegFlux      ! flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
   integer(i4b)       , intent(in)    :: ndom                ! number of domains
-  integer(dom_i)     , intent(in)    :: dom_type(:)          ! domain type
+  type(dom_info)     , intent(inout) :: domInfo(:)          ! domain type
   ! data structures (input)
-  integer(i4b)       , intent(in)    :: timeVec(:)          ! int vector               -- model time data
+  type(var_i)        , intent(in)    :: timeVec             ! x%var(:)                 -- model time data
   type(var_i)        , intent(in)    :: typeData            ! x%var(:)                 -- local classification of soil veg etc. for each HRU
   type(var_d)        , intent(in)    :: attrData            ! x%var(:)                 -- local attributes for each HRU
-  type(dom_zLookup)  , intent(in)    :: lookupData          ! x%dom(:)%z(:)%var(:)%lookup(:) -- local lookup tables for each HRU
+  type(dom_z_vLookup), intent(in)    :: lookupData          ! x%dom(:)%z(:)%var(:)%lookup(:) -- local lookup tables for each HRU
   type(var_dlength)  , intent(in)    :: bvarData            ! x%var(:)%dat             -- basin-average variables
   ! data structures (input-output)
   type(dom_doubleVec), intent(in)    :: mparData            ! x%dom(:)%var(:)%dat -- local (HRU domain) model parameters
   type(dom_intVec)   , intent(inout) :: indxData            ! x%dom(:)%var(:)%dat -- model indices
-  type(dom_double)   , intent(inout) :: forcData            ! x%dom(:)%var(:)     -- model forcing data
+  type(var_d)        , intent(inout) :: forcData            ! x%var(:)            -- model forcing data
   type(dom_doubleVec), intent(inout) :: progData            ! x%dom(:)%var(:)%dat -- model prognostic (state) variables
   type(dom_doubleVec), intent(inout) :: diagData            ! x%dom(:)%var(:)%dat -- model diagnostic variables
   type(dom_doubleVec), intent(inout) :: fluxData            ! x%dom(:)%var(:)%dat -- model fluxes
-  ! needed for model output
-  integer(dom_i)     , intent(out)   :: nSnow               ! x%dom(:) -- number of snow layers
-  integer(dom_i)     , intent(out)   :: nSoil               ! x%dom(:) -- number of soil layers
-  integer(dom_i)     , intent(out)   :: nLayers             ! x%dom(:) -- total number of layers
-  integer(dom_i)     , intent(out)   :: nIce                ! x%dom(:) -- number of ice layers
-  integer(dom_i)     , intent(out)   :: nLake               ! x%dom(:) -- number of lake layers
   ! error control
   integer(i4b)       , intent(out)   :: err                 ! error code
   character(*)       , intent(out)   :: message             ! error message
   ! ----- define local variables ------------------------------------------------------------------------------------------
   integer(i4b)                      :: i                   ! domain loop index
+  integer(i4b)                      :: ibeg                ! index of the first soil layer
+  integer(i4b)                      :: iend                ! index of the last soil layer
   logical(lgt)                      :: use_computeVegFlux  ! computeVegFlux flag for the current domain
   character(len=256)                :: cmessage            ! error message
-  logical(lgt)                      :: isGlacier           ! flag to indicate if the states are on a glacier
   real(rkind)       , allocatable   :: zSoilReverseSign(:) ! height at bottom of each soil layer, negative downwards (m)
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -172,17 +161,19 @@ subroutine run_oneHRU(&
     ! if water pixel or if the fraction of the domain is zero, do not run the model but update the number of layers
     if ( typeData%var(iLookTYPE%vegTypeIndex) .ne. isWater .and. progData%dom(i)%var(iLookPROG%DOMarea)%dat(1) > 0._rkind )then
 
-      if (dom_type(i) == upland) then
+      if (domInfo(i)%dom_type == upland) then
         ! get height at bottom of each soil layer, negative downwards (used in Noah MP)
-        allocate(zSoilReverseSign(nSoil),stat=err)
+        allocate(zSoilReverseSign(domInfo(i)%nSoil),stat=err)
         if(err/=0)then
           message=trim(message)//'problem allocating space for zSoilReverseSign'
           err=20; return
         endif
-        zSoilReverseSign(:) = -progData%dom(i)%var(iLookPROG%iLayerHeight)%dat(nSnow%dom(i)+1:nLayers%dom(i))
+        ibeg = domInfo(i)%nSnow + domInfo(i)%nLake + 1
+        iend = domInfo(i)%nSnow + domInfo(i)%nLake + domInfo(i)%nSoil
+        zSoilReverseSign(:) = -progData%dom(i)%var(iLookPROG%iLayerHeight)%dat(ibeg:iend)
 
         ! populate parameters in Noah-MP modules
-        ! Passing a maxSoilLayer in order to pass the check for NROOT, that is done to avoid making any changes to Noah-MP code.
+        ! Passing a maxSoilLayers in order to pass the check for NROOT, that is done to avoid making any changes to Noah-MP code.
         !  --> NROOT from Noah-MP veg tables (as read here) is not used in SUMMA
         call REDPRM(typeData%var(iLookTYPE%vegTypeIndex),      & ! vegetation type index
                     typeData%var(iLookTYPE%soilTypeIndex),     & ! soil type
@@ -199,7 +190,7 @@ subroutine run_oneHRU(&
         endif
 
         ! overwrite the minimum resistance
-        if(overwriteRSMIN) RSMIN = mparData%var(iLookPARAM%minStomatalResistance)%dat(1)
+        if(overwriteRSMIN) RSMIN = mparData%dom(i)%var(iLookPARAM%minStomatalResistance)%dat(1)
         ! overwrite the vegetation height
         HVT(typeData%var(iLookTYPE%vegTypeIndex)) = mparData%dom(i)%var(iLookPARAM%heightCanopyTop)%dat(1)
         HVB(typeData%var(iLookTYPE%vegTypeIndex)) = mparData%dom(i)%var(iLookPARAM%heightCanopyBottom)%dat(1)
@@ -212,17 +203,17 @@ subroutine run_oneHRU(&
 
         use_computeVegFlux = computeVegFlux
 
-      elseif ( dom_type(i) == glacAcc .or. dom_type(i) == glacAbl)then ! don't need vegetation parameters for glaciers
-        isGlacier = .true.
+      elseif ( domInfo(i)%dom_type == glacAcc .or. domInfo(i)%dom_type == glacAbl .or. domInfo(i)%dom_type == wetland )then ! don't need vegetation parameters for glaciers
         use_computeVegFlux = .false.
+      else
+        err=20; message=trim(message)//'domain type not recognized';return
       endif
 
       ! ----- hru forcing ----------------------------------------------------------------------------------------------------
 
       ! compute derived forcing variables, different for each domain type
-      call derivforce(timeVec,             & ! intent(in):    vector of time information
-                      forcData%var,        & ! intent(inout): vector of model forcing data (only change if domain type is upland, used in vegetation routines)
-                      attrData%var,        & ! intent(in):    vector of model attributes
+      call derivforce(forcData,            & ! intent(inout): vector of model forcing data (only change if domain type is upland, used in vegetation routines)
+                      attrData,            & ! intent(in):    vector of model attributes
                       mparData%dom(i),     & ! intent(in):    data structure of model parameters
                       progData%dom(i),     & ! intent(in):    data structure of model prognostic variables
                       diagData%dom(i),     & ! intent(inout): data structure of model diagnostic variables
@@ -233,7 +224,7 @@ subroutine run_oneHRU(&
       ! ----- run the model --------------------------------------------------------------------------------------------------
 
       ! initialize the number of flux calls
-      diagData%var(iLookDIAG%numFluxCalls)%dat(1) = 0._rkind
+      diagData%dom(i)%var(iLookDIAG%numFluxCalls)%dat(1) = 0._rkind
 
       ! run the model for a single HRU
       call coupled_em(&
@@ -244,11 +235,10 @@ subroutine run_oneHRU(&
                      use_computeVegFlux, & ! intent(inout): flag to indicate if we are computing fluxes over vegetation
                      fracJulDay,         & ! intent(in):    fractional julian days since the start of year
                      yearLength,         & ! intent(in):    number of days in the current year
-                     isGlacier,          & ! intent(in):    flag to indicate if the states are on a glacier
                      ! data structures (input)
                      typeData,           & ! intent(in):    local classification of soil veg etc. for each HRU
                      attrData,           & ! intent(in):    local attributes for each HRU
-                     forcData%dom(i),    & ! intent(in):    model forcing data
+                     forcData,           & ! intent(in):    model forcing data
                      mparData%dom(i),    & ! intent(in):    model parameters
                      bvarData,           & ! intent(in):    basin-average model variables
                      lookupData%dom(i),  & ! intent(in):    lookup tables
@@ -261,17 +251,17 @@ subroutine run_oneHRU(&
                      err,cmessage)         ! intent(out):   error control
       if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-      if(dom_type(i) == upland)then
+      if(domInfo(i)%dom_type == upland)then
         computeVegFlux = use_computeVegFlux ! update the flag for the next domain on upland areas
       end if
     endif ! not a water pixel and area of the domain is greater than zero
 
     ! update the number of layers regardless of whether the model was run
-    nSnow%dom(i)   = indxHRU%dom(i)%var(iLookINDEX%nSnow)%dat(1)    ! number of snow layers
-    nSoil%dom(i)   = indxHRU%dom(i)%var(iLookINDEX%nSoil)%dat(1)    ! number of soil layers
-    nIce%dom(i)    = indxHRU%dom(i)%var(iLookINDEX%nIce)%dat(1)     ! number of ice layers
-    nLake%dom(i)   = indxHRU%dom(i)%var(iLookINDEX%nLake)%dat(1)    ! number of lake layers
-    nLayers%dom(i) = indxHRU%dom(i)%var(iLookINDEX%nLayers)%dat(1)  ! total number of layers
+    domInfo(i)%nSnow   = indxData%dom(i)%var(iLookINDEX%nSnow)%dat(1)    ! number of snow layers
+    domInfo(i)%nSoil   = indxData%dom(i)%var(iLookINDEX%nSoil)%dat(1)    ! number of soil layers
+    domInfo(i)%nIce    = indxData%dom(i)%var(iLookINDEX%nIce)%dat(1)     ! number of ice layers
+    domInfo(i)%nLake   = indxData%dom(i)%var(iLookINDEX%nLake)%dat(1)    ! number of lake layers
+    domInfo(i)%nLayers = indxData%dom(i)%var(iLookINDEX%nLayers)%dat(1)  ! total number of layers
 
   end do
 

@@ -75,7 +75,7 @@ contains
  subroutine read_force(istep,iFile,iRead,ncid,time_data,forcStruct,err,message)
  ! provide access to subroutines
  USE netcdf                                            ! netcdf capability
- USE time_utils_module,only:compJulDay                 ! convert calendar date to julian day
+ USE time_utils_module,only:compjulday                 ! convert calendar date to julian day
  USE time_utils_module,only:compcalday                 ! convert julian day to calendar date
  USE time_utils_module,only:elapsedSec                 ! calculate the elapsed time
  implicit none
@@ -184,8 +184,8 @@ contains
 
  ! compute the julian day at the start of the year
  call compjulday(time_data(iLookTIME%iyyy),          & ! input  = year
-                 1, 1, 1, 1, 0._rkind,                  & ! input  = month, day, hour, minute, second
-                 startJulDay,err,cmessage)                 ! output = julian day (fraction of day) + error control
+                 1, 1, 1, 1, 0._rkind,               & ! input  = month, day, hour, minute, second
+                 startJulDay,err,cmessage)             ! output = julian day (fraction of day) + error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
  ! compute the fractional julian day for the current time step
@@ -193,7 +193,7 @@ contains
                  time_data(iLookTIME%im),             & ! input  = month
                  time_data(iLookTIME%id),             & ! input  = day
                  time_data(iLookTIME%ih),             & ! input  = hour
-                 time_data(iLookTIME%imin),0._rkind,     & ! input  = minute/second
+                 time_data(iLookTIME%imin),0._rkind,  & ! input  = minute/second
                  currentJulDay,err,cmessage)            ! output = julian day (fraction of day) + error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
  ! compute the time since the start of the year (in fractional days)
@@ -343,7 +343,7 @@ contains
  USE netcdf_util_module,only:nc_file_open                ! open netcdf file
  USE time_utils_module,only:fracDay                      ! compute fractional day
  USE time_utils_module,only:extractTime                  ! extract time info from units string
- USE time_utils_module,only:compJulDay                   ! convert calendar date to julian day
+ USE time_utils_module,only:compjulday                   ! convert calendar date to julian day
  USE globalData,only:tmZoneOffsetFracDay                 ! time zone offset in fractional days
  USE globalData,only:ncTime                              ! time zone information from NetCDF file (timeOffset = longitude/15. - ncTimeOffset)
  USE globalData,only:utcTime                             ! all times in UTC (timeOffset = longitude/15. hours)
@@ -417,7 +417,7 @@ contains
  subroutine readForcingData(currentJulDay,ncId,iFile,iRead,nHRUlocal,time_data,forcStruct,err,message)
  USE netcdf                                            ! netcdf capability
  USE time_utils_module,only:compcalday                 ! convert julian day to calendar date
- USE time_utils_module,only:compJulDay                 ! convert calendar date to julian day
+ USE time_utils_module,only:compjulday                 ! convert calendar date to julian day
  USE get_ixname_module,only:get_ixForce                ! identify index of named variable
  ! dummy variables
  real(rkind),intent(in)            :: currentJulDay    ! Julian day of current time step

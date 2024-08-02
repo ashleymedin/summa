@@ -113,6 +113,7 @@ USE mDecisions_module,only:&
   progStruct           => summa1_struc%progStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model prognostic (state) variables
   diagStruct           => summa1_struc%diagStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model diagnostic variables
   fluxStruct           => summa1_struc%fluxStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model fluxes
+  attrStruct           => summa1_struc%attrStruct          , & ! x%gru(:)%hru(:)%var(:)%dat        -- model attributes
   ! basin-average structures
   bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)            -- basin-average parameters
   bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat        -- basin-average variables
@@ -164,6 +165,7 @@ USE mDecisions_module,only:&
                   mparStruct,                   & ! intent(in):    model parameters
                   indxStruct,                   & ! intent(in):    layer indexes
                   lookupStruct,                 & ! intent(in):    lookup tables
+                  attrStruct,                   & ! intent(in):    model attributes
                   checkEnthalpy,                & ! intent(in):    flag if need to start with consistent enthalpy
                   use_lookup,                   & ! intent(in):    flag to use the lookup table for soil enthalpy
                   err,cmessage)                   ! intent(out):   error control
@@ -179,7 +181,7 @@ USE mDecisions_module,only:&
   ! loop through HRUs
   do iHRU=1,gru_struc(iGRU)%hruCount
    ! loop through domains
-   do iDOM=1,indxStruct%gru(iGRU)%hruInfo(iHRU)%domCount
+   do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
 
     ! re-calculate height of each layer
     call calcHeight(indxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! layer type
@@ -247,7 +249,7 @@ USE mDecisions_module,only:&
    case(localColumn)
     bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 0._rkind ! set to zero to be clear that there is no basin-average aquifer storage in this configuration
     do iHRU=1,gru_struc(iGRU)%hruCount
-     do iDOM=1,indxStruct%gru(iGRU)%hruInfo(iHRU)%domCount
+     do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
       if(aquiferIni==emptyStart) progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAquiferStorage)%dat(1) = aquifer_start ! leave at initialized values if fullStart
      end do
     end do
@@ -257,7 +259,7 @@ USE mDecisions_module,only:&
    case(singleBasin)
     bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = aquifer_start 
     do iHRU=1,gru_struc(iGRU)%hruCount
-     do iDOM=1,indxStruct%gru(iGRU)%hruInfo(iHRU)%domCount
+     do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
       progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAquiferStorage)%dat(1) = 0._rkind  ! set to zero to be clear that there is no local aquifer storage in this configuration
      enddo
     end do
@@ -275,7 +277,7 @@ USE mDecisions_module,only:&
 
   ! initialize time step length for each HRU
   do iHRU=1,gru_struc(iGRU)%hruCount
-   do iDOM=1,indxStruct%gru(iGRU)%hruInfo(iHRU)%domCount
+   do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
     dt_init%gru(iGRU)%hru(iHRU)%dom(iDOM) = progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%dt_init)%dat(1) ! seconds
    end do
   end do

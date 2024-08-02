@@ -23,6 +23,8 @@ module derivforce_module
 ! data types
 USE nrtype
 USE data_types,only:var_dlength                             ! data structure: x%var(:)%dat (rkind)
+USE data_types,only:var_d                                   ! data structure: x%var(:)     (rkind)
+USE data_types,only:var_i                                   ! data structure: x%var(:)     (i4b)
 
 ! model constants
 USE multiconst,only:Tfreeze                                 ! freezing point of pure water (K)
@@ -62,7 +64,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine derivforce: compute derived forcing data
  ! ************************************************************************************************
- subroutine derivforce(time_data,forc_data,attr_data,mpar_data,prog_data,diag_data,flux_data,tmZoneOffsetFracDay,err,message)
+ subroutine derivforce(forc_data,attr_data,mpar_data,prog_data,diag_data,flux_data,tmZoneOffsetFracDay,err,message)
  USE sunGeomtry_module,only:clrsky_rad                         ! compute cosine of the solar zenith angle
  USE conv_funcs_module,only:vapPress                           ! compute vapor pressure of air (Pa)
  USE conv_funcs_module,only:SPHM2RELHM,RELHM2SPHM,WETBULBTMP   ! conversion functions
@@ -72,9 +74,8 @@ contains
  ! compute derived forcing data variables
  implicit none
  ! input variables
- integer(i4b),intent(in)         :: time_data(:)               ! vector of time data for a given time step
- real(rkind),intent(inout)       :: forc_data(:)               ! vector of forcing data for a given time step
- real(rkind),intent(in)          :: attr_data(:)               ! vector of model attributes
+ type(var_d),intent(inout)       :: forc_data                  ! vector of forcing data for a given time step
+ type(var_d),intent(in)          :: attr_data                  ! vector of model attributes
  type(var_dlength),intent(in)    :: mpar_data                  ! vector of model parameters
  type(var_dlength),intent(in)    :: prog_data                  ! data structure of model prognostic variables for a local HRU
  ! output variables
@@ -135,30 +136,25 @@ contains
  newSnowDenMultAnd       => mpar_data%var(iLookPARAM%newSnowDenMultAnd)%dat(1)    , & ! Anderson 1976, multiplier for new snow density for Anderson function (K-1)
  newSnowDenBase          => mpar_data%var(iLookPARAM%newSnowDenBase)%dat(1)       , & ! Anderson 1976, base value that is rasied to the (3/2) power (K)
  ! radiation geometry variables
- iyyy                    => time_data(iLookTIME%iyyy)                             , & ! year
- im                      => time_data(iLookTIME%im)                               , & ! month
- id                      => time_data(iLookTIME%id)                               , & ! day
- ih                      => time_data(iLookTIME%ih)                               , & ! hour
- imin                    => time_data(iLookTIME%imin)                             , & ! minute
- latitude                => attr_data(iLookATTR%latitude)                         , & ! latitude (degrees north)
- longitude               => attr_data(iLookATTR%longitude)                        , & ! longitude (degrees east)
- tan_slope               => attr_data(iLookATTR%tan_slope)                        , & ! tan HRU ground surface slope (-)
- aspect                  => attr_data(iLookATTR%aspect)                           , & ! mean azimuth of HRU in degrees E of N (degrees)
+ latitude                => attr_data%var(iLookATTR%latitude)                     , & ! latitude (degrees north)
+ longitude               => attr_data%var(iLookATTR%longitude)                    , & ! longitude (degrees east)
+ tan_slope               => attr_data%var(iLookATTR%tan_slope)                    , & ! tan HRU ground surface slope (-)
+ aspect                  => attr_data%var(iLookATTR%aspect)                       , & ! mean azimuth of HRU in degrees E of N (degrees)
  cosZenith               => diag_data%var(iLookDIAG%scalarCosZenith)%dat(1)       , & ! average cosine of the zenith angle over time step DT
  ! measurement height
- mHeight                 => attr_data(iLookATTR%mHeight)                          , & ! latitude (degrees north)
+ mHeight                 => attr_data%var(iLookATTR%mHeight)                      , & ! latitude (degrees north)
  adjMeasHeight           => diag_data%var(iLookDIAG%scalarAdjMeasHeight)%dat(1)   , & ! adjusted measurement height (m)
  scalarSnowDepth         => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1)       , & ! snow depth on the ground surface (m)
  heightCanopyTop         => mpar_data%var(iLookPARAM%heightCanopyTop)%dat(1)      , & ! height of the top of the canopy layer (m)
  ! model time
- secondsSinceRefTime     => forc_data(iLookFORCE%time)                            , & ! time = seconds since reference time
+ secondsSinceRefTime     => forc_data%var(iLookFORCE%time)                        , & ! time = seconds since reference time
  ! model forcing data
- SWRadAtm                => forc_data(iLookFORCE%SWRadAtm)                        , & ! downward shortwave radiation (W m-2)
- airtemp                 => forc_data(iLookFORCE%airtemp)                         , & ! air temperature at 2 meter height (K)
- windspd                 => forc_data(iLookFORCE%windspd)                         , & ! wind speed at 10 meter height (m s-1)
- airpres                 => forc_data(iLookFORCE%airpres)                         , & ! air pressure at 2 meter height (Pa)
- spechum                 => forc_data(iLookFORCE%spechum)                         , & ! specific humidity at 2 meter height (g g-1)
- pptrate                 => forc_data(iLookFORCE%pptrate)                         , & ! precipitation rate (kg m-2 s-1)
+ SWRadAtm                => forc_data%var(iLookFORCE%SWRadAtm)                    , & ! downward shortwave radiation (W m-2)
+ airtemp                 => forc_data%var(iLookFORCE%airtemp)                     , & ! air temperature at 2 meter height (K)
+ windspd                 => forc_data%var(iLookFORCE%windspd)                     , & ! wind speed at 10 meter height (m s-1)
+ airpres                 => forc_data%var(iLookFORCE%airpres)                     , & ! air pressure at 2 meter height (Pa)
+ spechum                 => forc_data%var(iLookFORCE%spechum)                     , & ! specific humidity at 2 meter height (g g-1)
+ pptrate                 => forc_data%var(iLookFORCE%pptrate)                     , & ! precipitation rate (kg m-2 s-1)
  ! derived model forcing data
  scalarO2air             => diag_data%var(iLookDIAG%scalarO2air)%dat(1)           , & ! atmospheric o2 concentration (Pa)
  scalarCO2air            => diag_data%var(iLookDIAG%scalarCO2air)%dat(1)          , & ! atmospheric co2 concentration (Pa)

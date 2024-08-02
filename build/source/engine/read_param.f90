@@ -339,7 +339,7 @@ contains
      if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
      ! populate parameter structures with the data using the appropriate size of nSoil, and repeating if necessary
-     nSoil = gru_struc(iGRU)hruInfo(iHRU)%domInfo(:)%nSoil
+     nSoil = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
      select case(nDims)
       case(1); mparStruct%gru(iGRU)%hru(localHRU_ix)%dom(iDOM)%var(ixParam)%dat(1:nSoil) = parVector(1)  ! also distributes scalar across depth dimension
       case(2)

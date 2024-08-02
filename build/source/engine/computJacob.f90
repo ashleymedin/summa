@@ -1095,7 +1095,7 @@ integer(c_int) function computJacob4kinsol(sunvec_y, sunvec_r, sunmat_J, &
 
   subroutine initialize_computJacob
    ! *** Transfer data to in_computJacob class object from local variables ***
-   call in_computJacob % initialize(eqns_data%dt_cur,eqns_data%nSnow,eqns_data%nSoil,eqns_data%nLayers,eqns_data%computeVegFlux,(eqns_data%model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel),eqns_data%ixMatrix)
+   call in_computJacob % initialize(eqns_data%dt_cur,eqns_data%nSnow,eqns_data%nSoil,eqns_data%nIce,eqns_data%nLake,eqns_data%nLayers,eqns_data%computeVegFlux,(eqns_data%model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel),eqns_data%ixMatrix)
   end subroutine initialize_computJacob
 
   subroutine finalize_computJacob

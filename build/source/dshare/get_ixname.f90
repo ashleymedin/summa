@@ -471,6 +471,8 @@ contains
   case('mLayerDepth'                    ); get_ixProg = iLookPROG%mLayerDepth                      ! depth of each layer (m)
   case('mLayerHeight'                   ); get_ixProg = iLookPROG%mLayerHeight                     ! height at the midpoint of each layer (m)
   case('iLayerHeight'                   ); get_ixProg = iLookPROG%iLayerHeight                     ! height at the interface of each layer (m)
+  case('DOMarea'                        ); get_ixProg = iLookPROG%DOMarea                          ! area of the domain (m2)
+  case('DOMelev'                        ); get_ixProg = iLookPROG%DOMelev                          ! elevation of the domain (m)
   ! get to here if cannot find the variable
   case default
    get_ixProg = integerMissing
@@ -872,6 +874,8 @@ contains
   ! number of model layers, and layer indices
   case('nSnow'                ); get_ixINDEX = iLookINDEX%nSnow                 ! number of snow layers                                                    (-)
   case('nSoil'                ); get_ixINDEX = iLookINDEX%nSoil                 ! number of soil layers                                                    (-)
+  case('nIce'                 ); get_ixINDEX = iLookINDEX%nIce                  ! number of ice layers                                                     (-)
+  case('nLake'                ); get_ixINDEX = iLookINDEX%nLake                 ! number of lake layers                                                    (-)
   case('nLayers'              ); get_ixINDEX = iLookINDEX%nLayers               ! total number of layers                                                   (-)
   case('layerType'            ); get_ixINDEX = iLookINDEX%layerType             ! index defining type of layer (snow or soil)                              (-)
   ! number of state variables of different type
@@ -996,11 +1000,17 @@ contains
   case('basin__AquiferTranspire'       ); get_ixBvar = iLookBVAR%basin__AquiferTranspire         ! transpiration from the aquifer (m s-1)
   case('basin__TotalRunoff'            ); get_ixBvar = iLookBVAR%basin__TotalRunoff              ! total runoff to channel from all active components (m s-1)
   case('basin__SoilDrainage'           ); get_ixBvar = iLookBVAR%basin__SoilDrainage             ! soil drainage (m s-1)
+  case('basin__GlacAblMelt'            ); get_ixBvar = iLookBVAR%basin__GlacAblMelt              ! glacier ablation zone melt (m s-1)
+  case('basin__GlacAccMelt'            ); get_ixBvar = iLookBVAR%basin__GlacAccMelt              ! glacier accumulation zone melt (m s-1)
   ! variables to compute runoff
   case('routingRunoffFuture'           ); get_ixBvar = iLookBVAR%routingRunoffFuture             ! runoff in future time steps (m s-1)
   case('routingFractionFuture'         ); get_ixBvar = iLookBVAR%routingFractionFuture           ! fraction of runoff in future time steps (-)
   case('averageInstantRunoff'          ); get_ixBvar = iLookBVAR%averageInstantRunoff            ! instantaneous runoff (m s-1)
   case('averageRoutedRunoff'           ); get_ixBvar = iLookBVAR%averageRoutedRunoff             ! routed runoff (m s-1)
+  ! variables to compute glacier runoff
+  case('glacAblRunoffFuture'           ); get_ixBvar = iLookBVAR%glacAblRunoffFuture             ! glacier ablation reservoir runoff in future time steps (m s-1)
+  case('glacAccRunoffFuture'           ); get_ixBvar = iLookBVAR%glacAccRunoffFuture             ! glacier accumulation reservoir runoff in future time steps (m s-1)
+  case('glacierRoutedRunoff'           ); get_ixBvar = iLookBVAR%glacierRoutedRunoff             ! lapsed glacier runoff (m s-1)
   ! get to here if cannot find the variable
   case default
    get_ixBvar = integerMissing

@@ -136,7 +136,7 @@ subroutine soilLiqFlx(&
   real(rkind),dimension(0:in_soilLiqFlx % nSoil)  :: iLayerHydCond           ! hydraulic conductivity at layer interface (m s-1)
   real(rkind),dimension(0:in_soilLiqFlx % nSoil)  :: iLayerDiffuse           ! diffusivity at layer interface (m2 s-1)
   ! compute surface flux
-  integer(i4b)                                    :: nRoots                  ! number of soil layers with roots
+  integer(i4b)                                    :: nRoots                  ! number of soil layers with roots or layers that take infiltration
   integer(i4b)                                    :: ixIce                   ! index of the lowest soil layer that contains ice
   real(rkind),dimension(0:in_soilLiqFlx % nSoil)  :: iLayerHeight            ! height of the layer interfaces (m)
   ! compute fluxes and derivatives at layer interfaces
@@ -266,7 +266,7 @@ subroutine soilLiqFlx(&
       ixBot = nSoil
     end if
 
-    ! identify the number of layers that contain roots
+    ! identify the number of layers that contain roots or take infiltration
     nRoots = count(iLayerHeight(0:nSoil-1) < rootingDepth-verySmall)
     if (nRoots==0) then
       message=trim(message)//'no layers with roots'
@@ -378,7 +378,7 @@ subroutine soilLiqFlx(&
                     deriv_desired,                      & ! intent(in):    flag indicating if derivatives are desired
                     ixRichards,                         & ! intent(in):    index defining the form of Richards' equation (moisture or mixdform)
                     ixBcUpperSoilHydrology,             & ! intent(in):    index defining the type of boundary conditions (neumann or diriclet)
-                    nRoots,                             & ! intent(in):    number of layers that contain roots
+                    nRoots,                             & ! intent(in):    number of layers that contain roots or take infiltration
                     ixIce,                              & ! intent(in):    index of lowest ice layer
                     nSoil,                              & ! intent(in):    number of soil layers
                     ! input: state variables
@@ -759,7 +759,7 @@ subroutine surfaceFlx(&
                       deriv_desired,             & ! intent(in):    flag indicating if derivatives are desired
                       ixRichards,                & ! intent(in):    index defining the form of Richards' equation (moisture or mixdform)
                       bc_upper,                  & ! intent(in):    index defining the type of boundary conditions (neumann or diriclet)
-                      nRoots,                    & ! intent(in):    number of layers that contain roots
+                      nRoots,                    & ! intent(in):    number of layers that contain roots or take infiltration
                       ixIce,                     & ! intent(in):    index of lowest ice layer
                       nSoil,                     & ! intent(in):    number of soil layers
                       ! input: state variables
@@ -828,7 +828,7 @@ subroutine surfaceFlx(&
   logical(lgt),intent(in)          :: deriv_desired             ! flag to indicate if derivatives are desired
   integer(i4b),intent(in)          :: bc_upper                  ! index defining the type of boundary conditions
   integer(i4b),intent(in)          :: ixRichards                ! index defining the option for Richards' equation (moisture or mixdform)
-  integer(i4b),intent(in)          :: nRoots                    ! number of layers that contain roots
+  integer(i4b),intent(in)          :: nRoots                    ! number of layers that contain roots or take infiltration
   integer(i4b),intent(in)          :: ixIce                     ! index of lowest ice layer
   integer(i4b),intent(in)          :: nSoil                     ! number of soil layers
   ! input: state and diagnostic variables
@@ -977,7 +977,7 @@ subroutine surfaceFlx(&
         ! compute the energy derivative at the surface
         dq_dNrgStateVec(1) = -(dHydCond_dTemp/2._rkind)*(scalarMatricHeadLiq - upperBoundHead)/(mLayerDepth(1)*0.5_rkind) + dHydCond_dTemp/2._rkind
       else
-        dNum         = 0._rkind
+        dNum = 0._rkind
       end if
 
     ! *****
@@ -1019,7 +1019,7 @@ subroutine surfaceFlx(&
         dRootZoneLiq_dTk(:)  = 0._rkind
         dRootZoneIce_dTk(:)  = 0._rkind
 
-        ! process layers where the roots extend to the bottom of the layer
+        ! process layers where the roots or infiltration zone extend to the bottom of the layer
         if (nRoots > 1) then
           do iLayer=1,nRoots-1
             rootZoneLiq = rootZoneLiq + mLayerVolFracLiq(iLayer)*mLayerDepth(iLayer)
@@ -1097,8 +1097,9 @@ subroutine surfaceFlx(&
         if (rootZoneIce > tiny(rootZoneIce)) then  ! (avoid divide by zero)
           alpha            = 1._rkind/(soilIceCV**2_i4b)        ! shape parameter in the Gamma distribution
           xLimg            = alpha*soilIceScale/rootZoneIce  ! upper limit of the integral
-
-          !if we use this, we will have a derivative of scalarFrozenArea w.r.t. water and temperature in each layer (through mLayerVolFracIce)
+          !If we use this line below, we will have a derivative of scalarFrozenArea w.r.t. water and temperature in each layer (through mLayerVolFracIce)
+          ! Should fix to deal with frozen area in the root zone
+          !scalarFrozenArea = 1._rkind - gammp(alpha,xLimg)      ! fraction of frozen area
           scalarFrozenArea = 0._rkind
           dFrozenArea_dWat(1:nSoil) = 0._rkind
           dFrozenArea_dTk(1:nSoil)  = 0._rkind
@@ -1110,7 +1111,7 @@ subroutine surfaceFlx(&
         dFrozenArea_dWat(0) = 0._rkind
         dFrozenArea_dTk(0)  = 0._rkind
 
-
+        ! Note, if this is a lake, will not be scalarRainPlusMelt, but the lake flux
         if (xMaxInfilRate < scalarRainPlusMelt) then ! = dxMaxInfilRate_d, dependent on layers not at surface
           dInfilRate_dWat(0) = 0._rkind
           dInfilRate_dTk(0)  = 0._rkind

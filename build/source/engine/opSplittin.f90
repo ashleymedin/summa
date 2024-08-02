@@ -619,7 +619,7 @@ subroutine opSplittin(&
    return_flag=.false. ! initialize flag
 
    ! allocate space for the flux mask (used to define when fluxes are updated)
-   call allocLocal(flux_meta(:),fluxMask,nSnow,nSoilnIce,nLake,err,cmessage)
+   call allocLocal(flux_meta(:),fluxMask,nSnow,nSoil,nIce,nLake,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the flux count (used to check that fluxes are only updated once)
@@ -846,7 +846,7 @@ subroutine opSplittin(&
 
   ! **** indexSplit ****
   subroutine initialize_indexSplit
-   call in_indexSplit % initialize(nSnow,nSoil,nLayers,nSubset)
+   call in_indexSplit % initialize(nSnow,nSoil,nIce,nLake,nLayers,nSubset)
   end subroutine initialize_indexSplit
 
   subroutine finalize_indexSplit

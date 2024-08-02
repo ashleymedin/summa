@@ -648,7 +648,7 @@ contains
    end do
 
    ! calculate the soil control on infiltration
-   if (nSnow==0) then
+   if (nSnow==0) then ! logic will not work for lakes
      ! * case of infiltration into soil
      if (scalarMaxInfilRate > scalarRainPlusMelt) then  ! infiltration is not rate-limited
        scalarSoilControl = (1._rkind - scalarFrozenArea)*scalarInfilArea

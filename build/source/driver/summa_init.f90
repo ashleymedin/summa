@@ -286,7 +286,7 @@ subroutine summa_initialize(summa1_struc, err, message)
       endif
       do iHRU=1,hruCount
         domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount  ! gru_struc populated in "read_dimension"
-        allocate(dt_init%gru(iGRU)%hruInfo(iHRU)%dom(domCount),stat=err)
+        allocate(dt_init%gru(iGRU)%hru(iHRU)%dom(domCount),stat=err)
         if(err/=0)then
           message='problem allocating space for dt_init [DOM]'
           return

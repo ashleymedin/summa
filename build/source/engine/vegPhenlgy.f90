@@ -69,6 +69,7 @@ contains
                        model_decisions,             & ! intent(in):    model decisions
                        fracJulDay,                  & ! intent(in):    fractional julian days since the start of year
                        yearLength,                  & ! intent(in):    number of days in the current year
+                       noVeg,                       & ! intent(in):    flag to indicate if there is no vegetation (lake or glacier)
                        ! input/output: data structures
                        type_data,                   & ! intent(in):    type of vegetation and soil
                        attr_data,                   & ! intent(in):    spatial attributes
@@ -90,6 +91,7 @@ contains
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
  real(rkind),intent(in)          :: fracJulDay          ! fractional julian days since the start of year
  integer(i4b),intent(in)         :: yearLength          ! number of days in the current year
+ logical(lgt),intent(in)         :: noVeg               ! flag to indicate if there is no vegetation (lake or glacier)
  type(var_i),intent(in)          :: type_data           ! type of vegetation and soil
  type(var_d),intent(in)          :: attr_data           ! spatial attributes
  type(var_dlength),intent(in)    :: mpar_data           ! model parameters
@@ -135,7 +137,7 @@ contains
  ! ----------------------------------------------------------------------------------------------------------------------------------
 
  ! check if we have isolated the snow-soil domain (used in test cases)
- if(ix_bcUpprTdyn == prescribedTemp .or. ix_bcUpprTdyn == zeroFlux .or. ix_bcUpprSoiH == prescribedHead)then
+ if(ix_bcUpprTdyn == prescribedTemp .or. ix_bcUpprTdyn == zeroFlux .or. ix_bcUpprSoiH == prescribedHead .or. noVeg) then
 
   ! isolated snow-soil domain: do not compute fluxes over vegetation
   computeVegFlux = .false.

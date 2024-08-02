@@ -107,8 +107,9 @@ MODULE data_types
 
   ! hru info data structure
  type, public :: dom_info
+  integer(i4b)                           :: dom_nc                        ! index of the domain in the netcdf file
   integer(i4b)                           :: dom_ix                        ! index of the domain in the run space
-  integer(8)                             :: dom_id                        ! id (non-sequential number) of the domain
+  integer(i4b)                           :: dom_id                        ! id (non-sequential number) of the domain
   integer(i4b)                           :: dom_type                      ! type = 1 for upland, 2 for glacier accumulation, 3 for glacier ablation, (4 for lake)
   integer(i4b)                           :: nSnow                         ! number of snow layers
   integer(i4b)                           :: nSoil                         ! number of soil layers
@@ -408,35 +409,35 @@ MODULE data_types
  ! define derived types to hold the GRU, HRU, and DOM dimension
  ! ** double precision type of variable length
  type, public :: gru_hru_dom_doubleVec
-  type(hru_doubleVec),allocatable        :: gru(:)                        ! gru(:)%hru(:)%dom(:)%var(:)%dat
+  type(hru_dom_doubleVec),allocatable    :: gru(:)                        ! gru(:)%hru(:)%dom(:)%var(:)%dat
  endtype gru_hru_dom_doubleVec
  ! ** integer type of variable length (4 byte)
  type, public :: gru_hru_dom_intVec
-  type(hru_intVec),allocatable           :: gru(:)                        ! gru(:)%hru(:)%dom(:)%var(:)%dat
+  type(hru_dom_intVec),allocatable       :: gru(:)                        ! gru(:)%hru(:)%dom(:)%var(:)%dat
  endtype gru_hru_dom_intVec
  ! ** integer type of variable length (8 byte)
  type, public :: gru_hru_dom_int8Vec
-  type(hru_int8Vec),allocatable          :: gru(:)                        ! gru(:)%hru(:)%dom(:)%var(:)%dat
+  type(hru_dom_int8Vec),allocatable      :: gru(:)                        ! gru(:)%hru(:)%dom(:)%var(:)%dat
  endtype gru_hru_dom_int8Vec
  ! ** double precision type of fixed length
  type, public :: gru_hru_dom_double
-  type(hru_double),allocatable           :: gru(:)                        ! gru(:)%hru(:)%dom(:)%var(:)
+  type(hru_dom_double),allocatable       :: gru(:)                        ! gru(:)%hru(:)%dom(:)%var(:)
  endtype gru_hru_dom_double
  ! ** integer type of variable length (4 byte)
  type, public :: gru_hru_dom_int
-  type(hru_int),allocatable              :: gru(:)                        ! gru(:)%hru(:)%dom(:)%var(:)
+  type(hru_dom_int),allocatable          :: gru(:)                        ! gru(:)%hru(:)%dom(:)%var(:)
  endtype gru_hru_dom_int
  ! ** integer type of variable length (8 byte)
  type, public :: gru_hru_dom_int8
-  type(hru_int8),allocatable             :: gru(:)                        ! gru(:)%hru(:)%dom(:)%var(:)
+  type(hru_dom_int8),allocatable         :: gru(:)                        ! gru(:)%hru(:)%dom(:)%var(:)
  endtype gru_hru_dom_int8
  ! ** double precision type of fixed length
  type, public :: gru_hru_dom_d
-  type(hru_d),allocatable                :: gru(:)                        ! gru(:)%hru(:)%dom(:)
+  type(hru_dom_d),allocatable            :: gru(:)                        ! gru(:)%hru(:)%dom(:)
  endtype gru_hru_dom_d
  ! ** integer type of fixed length
  type, public :: gru_hru_dom_i
-  type(hru_i),allocatable                :: gru(:)                        ! gru(:)%hru(:)%dom(:)
+  type(hru_dom_i),allocatable            :: gru(:)                        ! gru(:)%hru(:)%dom(:)
  endtype gru_hru_dom_i
 
 
@@ -1170,7 +1171,7 @@ contains
  ! **** end snowLiqFlx ****
 
  ! **** soilLiqFlx ****
- subroutine initialize_in_soilLiqFlx(in_soilLiqFlx,nsnow,nSoil,nLake,firstSplitOper,scalarSolution,firstFluxCall,&
+ subroutine initialize_in_soilLiqFlx(in_soilLiqFlx,nSnow,nSoil,nLake,firstSplitOper,scalarSolution,firstFluxCall,&
                                      mLayerTempTrial,mLayerMatricHeadTrial,mLayerMatricHeadLiqTrial,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,&
                                      above_soilLiqFluxDeriv,above_soildLiq_dTk,above_soilFracLiq,flux_data,deriv_data)
   class(in_type_soilLiqFlx),intent(out) :: in_soilLiqFlx               ! class object for intent(in) soilLiqFlx arguments

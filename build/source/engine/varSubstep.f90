@@ -232,6 +232,8 @@ subroutine varSubstep(&
     ! number of layers
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):    [i4b]    number of snow layers
     nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):    [i4b]    number of soil layers
+    nIce                    => indx_data%var(iLookINDEX%nIce)%dat(1)                  ,& ! intent(in):    [i4b]    number of ice layers
+    nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1)                 ,& ! intent(in):    [i4b]    number of lake layers
     nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)               ,& ! intent(in):    [i4b]    total number of layers
     nSoilOnlyHyd            => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology variables in the soil domain
     mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):    [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
@@ -294,7 +296,7 @@ subroutine varSubstep(&
     maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s).
 
     ! allocate space for the temporary model flux structure
-    call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,err,cmessage)
+    call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,nIce,nLake,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
     ! initialize the model fluxes (some model fluxes are not computed in the iterations)

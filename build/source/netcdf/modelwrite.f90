@@ -63,7 +63,7 @@ USE data_types,only:&
                     gru_hru_int8,        & ! x%gru(:)%hru(:)%var(:)     integer(8)
                     gru_hru_double,      & ! x%gru(:)%hru(:)%var(:)     (dp)
                     gru_hru_intVec,      & ! x%gru(:)%hru(:)%var(:)%dat (i4b)
-                    gru_hru_doubleVec    &  ! x%gru(:)%hru(:)%var(:)%dat (dp)
+                    gru_hru_doubleVec,   & ! x%gru(:)%hru(:)%var(:)%dat (dp)
                     ! gru+hru+dom dimension
                     gru_hru_dom_int,     & ! x%gru(:)%hru(:)%dom(:)%var(:)     (i4b)
                     gru_hru_dom_int8,    & ! x%gru(:)%hru(:)%dom(:)%var(:)     integer(8)
@@ -182,6 +182,7 @@ contains
  ! local variables
  integer(i4b)                         :: iGRU              ! grouped response unit counter
  integer(i4b)                         :: iHRU              ! hydrologic response unit counter
+ integer(i4b)                         :: iDOM              ! domain counter
  integer(i4b)                         :: iVar              ! variable index
  integer(i4b)                         :: iStat             ! statistics index
  integer(i4b)                         :: iFreq             ! frequency index
@@ -310,8 +311,8 @@ contains
 
        ! get the data vectors
        select type (dat)
-        class is (gru_hru_dom_doubleVec); realArray(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_ix,1:datLength) = dat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
-        class is (gru_hru_dom_intVec);     intArray(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_ix,1:datLength) = dat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
+        class is (gru_hru_dom_doubleVec); realArray(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_ix,1:datLength) = dat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(:)
+        class is (gru_hru_dom_intVec);     intArray(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_ix,1:datLength) = dat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(:)
        end select
 
       end do ! DOM loop
@@ -680,7 +681,7 @@ contains
  ! write variables
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
-    do iDOM = 1,gru_struc(iGRU)%hruInfo(iHRU)%domCount(iDOM)
+    do iDOM = 1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
      cDOM = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_ix
      do iVar = 1,size(prog_meta)
 

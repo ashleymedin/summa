@@ -124,7 +124,7 @@ contains
  logical(lgt)                          :: printRestart=.false.     ! flag to print a re-start file
  logical(lgt)                          :: printProgress=.false.    ! flag to print simulation progress
  logical(lgt)                          :: defNewOutputFile=.false. ! flag to define new output files
- integer(i4b)                          :: iGRU,iHRU                ! indices of GRUs and HRUs
+ integer(i4b)                          :: iGRU,iHRU,iDOM           ! indices of GRUs and HRUs
  integer(i4b)                          :: iStruct                  ! index of model structure
  integer(i4b)                          :: iFreq                    ! index of the output frequency
  ! ---------------------------------------------------------------------------------------
@@ -267,8 +267,14 @@ contains
  ! ****************************************************************************
 
  ! get the number of HRUs and the the number of domains in the run space
- nHRUrun = sum(gru_struc%hruCount)
- nDOMrun = sum(gru_struc%hruInfo%domCount)
+ nHRUrun = 0
+ nDOMrun = 0
+ do iGRU = 1, nGRU
+  nHRUrun = nHRUrun + gru_struc(iGRU)%hruCount ! total number of HRUs
+   do iHRU = 1, gru_struc(iGRU)%hruCount
+    nDOMrun = nDOMrun + gru_struc(iGRU)%hruInfo(iHRU)%domCount ! total number of domains
+   end do
+ end do
 
  ! write time information
  call writeTime(finalizeStats,outputTimeStep,time_meta,timeStruct%var,err,message)

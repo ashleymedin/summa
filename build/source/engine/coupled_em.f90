@@ -117,7 +117,6 @@ subroutine coupled_em(&
                       computeVegFlux,    & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
                       fracJulDay,        & ! intent(in):    fractional julian days since the start of year
                       yearLength,        & ! intent(in):    number of days in the current year
-                      isGlacier,         & ! intent(in):    flag to indicate if the states are on a glacier
                       ! data structures (input)
                       type_data,         & ! intent(in):    local classification of soil veg etc. for each HRU
                       attr_data,         & ! intent(in):    local attributes for each HRU
@@ -167,7 +166,6 @@ subroutine coupled_em(&
   logical(lgt),intent(inout)           :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
   real(rkind),intent(in)               :: fracJulDay             ! fractional julian days since the start of year
   integer(i4b),intent(in)              :: yearLength             ! number of days in the current year
-  logical(lgt),intent(in)              :: isGlacier              ! flag to indicate if the states are on a glacier
   ! data structures (input)
   type(var_i),intent(in)               :: type_data              ! type of vegetation and soil
   type(var_d),intent(in)               :: attr_data              ! spatial attributes
@@ -232,6 +230,7 @@ subroutine coupled_em(&
   type(var_dlength)                    :: prog_temp              ! temporary model prognostic variables
   type(var_dlength)                    :: diag_temp              ! temporary model diagnostic variables
   real(rkind),allocatable              :: mLayerVolFracIceInit(:)! initial vector for volumetric fraction of ice (-)
+  logical(lgt)                         :: noVeg                  ! flag to denote that there is no vegetation (lake or glacier)
   ! check SWE
   real(rkind)                          :: oldSWE                 ! SWE at the start of the substep
   real(rkind)                          :: delSWE                 ! change in SWE over the subtep
@@ -440,7 +439,7 @@ subroutine coupled_em(&
 
       ! compute total soil moisture and ice at the *START* of the step (kg m-2)
       if(nSoil>0) scalarTotalSoilLiq = sum(iden_water*mLayerVolFracLiq(nSnow+nLake+1:nSnow+nLake+nSoil)*mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil))
-      if(nSoil>0) scalarTotalSoilIce = sum(iden_water*mLayerVolFracIce(nSnow+nLake+1:nSnow+nLake+nSoil)*mLayerDepth(1nSnow+nLake+1:nSnow+nLake+nSoil))  ! NOTE: no expansion and hence use iden_water
+      if(nSoil>0) scalarTotalSoilIce = sum(iden_water*mLayerVolFracIce(nSnow+nLake+1:nSnow+nLake+nSoil)*mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil))  ! NOTE: no expansion and hence use iden_water
 
       ! compute storage of water in the canopy and the soil
       balanceCanopyWater0 = scalarCanopyLiq + scalarCanopyIce
@@ -471,7 +470,7 @@ subroutine coupled_em(&
     maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s)
     maxstep_op = mpar_data%var(iLookPARAM%maxstep)%dat(1)/NINT(mpar_data%var(iLookPARAM%be_steps)%dat(1))  ! maximum time step (s) to run opSplittin over
 
-    ! compute the number of layers with roots
+    ! compute the number of layers with roots or layers that take infiltration
     nLayersRoots = count(prog_data%var(iLookPROG%iLayerHeight)%dat(nSnow:(nSnow+nSoil-1)) < mpar_data%var(iLookPARAM%rootingDepth)%dat(1)-verySmall)
     if(nLayersRoots == 0)then
       message=trim(message)//'no roots within the soil profile'
@@ -493,13 +492,17 @@ subroutine coupled_em(&
     ! remember if we compute the vegetation flux on the previous sub-step
     computeVegFluxOld = computeVegFlux
 
+    noVeg = .false.  ! assume that vegetation exists
+    if(nLake>0 .or. nIce>0) noVeg = .true.  ! no vegetation if lake or glacier
+
     ! compute the exposed LAI and SAI and whether veg is buried by snow
     call vegPhenlgy(&
                     ! model control
                     model_decisions,             & ! intent(in):    model decisions
-                    ! input/output: data structures
                     fracJulDay,                  & ! intent(in):    fractional julian days since the start of year
                     yearLength,                  & ! intent(in):    number of days in the current year
+                    noVeg,                       & ! intent(out):   flag to denote that no vegetation exists (lake or glacier)
+                    ! input/output: data structures
                     type_data,                   & ! intent(in):    type of vegetation and soil
                     attr_data,                   & ! intent(in):    spatial attributes
                     mpar_data,                   & ! intent(in):    model parameters

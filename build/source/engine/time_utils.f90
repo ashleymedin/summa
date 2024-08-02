@@ -46,9 +46,9 @@ contains
  ! dummy variables
  character(*),intent(in)    :: refdate             ! units string (time since...)
  integer(i4b),intent(out)   :: iyyy,im,id,ih,imin  ! time (year/month/day/hour/minute)
- real(rkind),intent(out)       :: dsec                ! seconds
+ real(rkind),intent(out)    :: dsec                ! seconds
  integer(i4b),intent(out)   :: ih_tz,imin_tz       ! time zone information (hour/minute)
- real(rkind),intent(out)       :: dsec_tz             ! time zone information (seconds)
+ real(rkind),intent(out)    :: dsec_tz             ! time zone information (seconds)
  integer(i4b),intent(out)   :: err                 ! error code
  character(*),intent(out)   :: message             ! error message
  ! local variables

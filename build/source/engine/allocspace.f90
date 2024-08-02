@@ -165,13 +165,13 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
     do iHRU=1,gru_struc(iGRU)%hruCount
       select type(dataStruct)
         ! gru+hru+dom dimensions
-        class is (gru_hru_dom_int);       if(allocated(dataStruct%gru(iGRU)%hru(iHRU)%dom))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(iHRU)%dom(gru_struc(iGRU)%hru_info(iHRU)%domCount),stat=err); end if
-        class is (gru_hru_dom_int8);      if(allocated(dataStruct%gru(iGRU)%hru(iHRU)%dom))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(iHRU)%dom(gru_struc(iGRU)%hru_info(iHRU)%domCount),stat=err); end if
-        class is (gru_hru_dom_intVec);    if(allocated(dataStruct%gru(iGRU)%hru(iHRU)%dom))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(iHRU)%dom(gru_struc(iGRU)%hru_info(iHRU)%domCount),stat=err); end if
-        class is (gru_hru_dom_double);    if(allocated(dataStruct%gru(iGRU)%hru(iHRU)%dom))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(iHRU)%dom(gru_struc(iGRU)%hru_info(iHRU)%domCount),stat=err); end if
-        class is (gru_hru_dom_doubleVec); if(allocated(dataStruct%gru(iGRU)%hru(iHRU)%dom))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(iHRU)%dom(gru_struc(iGRU)%hru_info(iHRU)%domCount),stat=err); end if
+        class is (gru_hru_dom_int);       if(allocated(dataStruct%gru(iGRU)%hru(iHRU)%dom))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(iHRU)%dom(gru_struc(iGRU)%hruInfo(iHRU)%domCount),stat=err); end if
+        class is (gru_hru_dom_int8);      if(allocated(dataStruct%gru(iGRU)%hru(iHRU)%dom))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(iHRU)%dom(gru_struc(iGRU)%hruInfo(iHRU)%domCount),stat=err); end if
+        class is (gru_hru_dom_intVec);    if(allocated(dataStruct%gru(iGRU)%hru(iHRU)%dom))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(iHRU)%dom(gru_struc(iGRU)%hruInfo(iHRU)%domCount),stat=err); end if
+        class is (gru_hru_dom_double);    if(allocated(dataStruct%gru(iGRU)%hru(iHRU)%dom))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(iHRU)%dom(gru_struc(iGRU)%hruInfo(iHRU)%domCount),stat=err); end if
+        class is (gru_hru_dom_doubleVec); if(allocated(dataStruct%gru(iGRU)%hru(iHRU)%dom))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(iHRU)%dom(gru_struc(iGRU)%hruInfo(iHRU)%domCount),stat=err); end if
         ! gru+hru+dom+z dimensions
-        class is (gru_hru_dom_z_vLookup); if(allocated(dataStruct%gru(iGRU)%hru(iHRU)%dom))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(iHRU)%dom(gru_struc(iGRU)%hru_info(iHRU)%domCount),stat=err); end if
+        class is (gru_hru_dom_z_vLookup); if(allocated(dataStruct%gru(iGRU)%hru(iHRU)%dom))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(iHRU)%dom(gru_struc(iGRU)%hruInfo(iHRU)%domCount),stat=err); end if
         class default  ! do nothing: It is acceptable to not be any of these specified cases
       end select
       ! check errors
@@ -215,8 +215,8 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
 
       ! allocate space for structures *WITHOUT* a DOM dimension
       select type(dataStruct)
-        class is (gru_hru_intVec);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow=0,nSoil=0,,nIce=0,nLake=0,err=err,message=cmessage); spatial=.true.
-        class is (gru_hru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow=0,nSoil=0,,nIce=0,nLake=0,err=err,message=cmessage); spatial=.true.
+        class is (gru_hru_intVec);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow=0,nSoil=0,nIce=0,nLake=0,err=err,message=cmessage); spatial=.true.
+        class is (gru_hru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow=0,nSoil=0,nIce=0,nLake=0,err=err,message=cmessage); spatial=.true.
         class default
         if(.not.spatial) exit hruLoop  ! no need to allocate spatial dimensions if none exist for a given variable
         cycle hruLoop  ! can have an DOM dimension if we get to here
@@ -226,8 +226,8 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
 
   ! allocate space for structures *WITHOUT* an HRU dimension
   select type(dataStruct)
-   class is (gru_intVec);    call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nSoil=0,,nIce=0,nLake=0,err=err,message=cmessage); spatial=.true.
-   class is (gru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nSoil=0,,nIce=0,nLake=0,err=err,message=cmessage); spatial=.true.
+   class is (gru_intVec);    call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nSoil=0,nIce=0,nLake=0,err=err,message=cmessage); spatial=.true.
+   class is (gru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nSoil=0,nIce=0,nLake=0,err=err,message=cmessage); spatial=.true.
    class default
     if(.not.spatial) exit gruLoop  ! no need to allocate spatial dimensions if none exist for a given variable
     cycle gruLoop  ! can have an HRU dimension if we get to here

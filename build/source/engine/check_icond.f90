@@ -25,6 +25,12 @@ USE nrtype
 USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing double precision number
 
+! access domain types
+USE globalData,only:upland          ! domain type for upland areas
+USE globalData,only:glacAcc         ! domain type for glacier accumulation areas
+USE globalData,only:glacAbl         ! domain type for glacier ablation areas
+USE globalData,only:wetland         ! domain type for wetland areas
+
 implicit none
 private
 public::check_icond
@@ -39,6 +45,7 @@ contains
                         mparData,                      & ! model parameters
                         indxData,                      & ! layer index data
                         lookupData,                    & ! lookup table data
+                        attrData,                      & ! model attributes
                         checkEnthalpy,                 & ! flag if to check enthalpy for consistency
                         use_lookup,                    & ! flag to use the lookup table for soil enthalpy                             
                         err,message)                     ! error control
@@ -49,10 +56,12 @@ contains
  USE var_lookup,only:iLookPROG                           ! variable lookup structure
  USE var_lookup,only:iLookDIAG                           ! variable lookup structure
  USE var_lookup,only:iLookINDEX                          ! variable lookup structure
+ USE var_lookup,only:iLookATTR                           ! variable lookup structure
  USE globalData,only:gru_struc                           ! gru-hru mapping structures
- USE data_types,only:gru_hru_doubleVec                   ! actual data
- USE data_types,only:gru_hru_intVec                      ! actual data
- USE data_types,only:gru_hru_z_vLookup                   ! actual data
+ USE data_types,only:gru_hru_dom_doubleVec               ! full double precision structure
+ USE data_types,only:gru_hru_dom_intVec                  ! full integer structure
+ USE data_types,only:gru_hru_dom_z_vLookup               ! full lookup structure
+ USE data_types,only:gru_hru_double                      ! double precision structure no domain no depth
  USE globalData,only:iname_soil,iname_snow,iname_ice,iname_lake ! named variables to describe the type of layer
  USE multiconst,only:&
                        LH_fus,    &                      ! latent heat of fusion                (J kg-1)
@@ -79,6 +88,7 @@ contains
  type(gru_hru_dom_doubleVec),intent(in)    :: mparData       ! parameters
  type(gru_hru_dom_intVec),intent(in)       :: indxData       ! layer indexes
  type(gru_hru_dom_z_vLookup),intent(in)    :: lookupData     ! lookup table data
+ type(gru_hru_double),intent(in)           :: attrData       ! attributes
  logical(lgt),intent(in)                   :: checkEnthalpy  ! if true either need enthTemp as starting residual value, or for state variable initialization
  logical(lgt),intent(in)                   :: use_lookup     ! flag to use the lookup table for soil enthalpy, otherwise use hypergeometric function
  integer(i4b),intent(out)                  :: err            ! error code
@@ -103,6 +113,8 @@ contains
  integer(i4b)                   :: nState                ! total number of states
  real(rkind),parameter          :: xTol=1.e-10_rkind     ! small tolerance to address precision issues
  real(rkind),parameter          :: canIceTol=1.e-3_rkind ! small tolerance to allow existence of canopy ice for above-freezing temperatures (kg m-2)
+ real(rkind)                    :: remaining_area        ! remaining area of the HRU
+ real(rkind)                    :: remaining_elev        ! remaining elevation of the HRU
  ! --------------------------------------------------------------------------------------------------------
 
  ! Start procedure here
@@ -111,6 +123,35 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! Check that the initial conditions do not conflict with parameters, structure, etc.
  ! --------------------------------------------------------------------------------------------------------
+
+ ! check and correct domain area and elevation, and ensure that the area is positive, and make backwards compatible
+ do iGRU = 1,nGRU
+   do iHRU=1,gru_struc(iGRU)%hruCount
+     ! update the HRU area and elevation
+     remaining_area = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)
+     remaining_elev = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)*attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%elevation)
+     do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
+       if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type.ne.upland) then
+         remaining_area = remaining_area - progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
+         remaining_elev = remaining_elev - progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) * progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1)
+       end if
+     end do
+     do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
+       if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==upland) then
+         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) = remaining_area
+         if(remaining_area>0.0_rkind) then 
+           progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1) = remaining_elev/remaining_area
+         else
+           if (remaining_area<0) write(*,'(A,E22.16,A)') 'Warning: area of upland HRU (=', remaining_area, ') < 0. Resetting to 0.0'
+           progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1) = 0.0_rkind
+           progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%elevation)
+         end if
+       end if
+     end do
+   end do
+ enddo
+
+ ! check for realistic values of albedo
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
    do iDOM = 1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
@@ -120,8 +161,8 @@ contains
     if(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowAlbedo)%dat(1) < mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%albedoMinWinter)%dat(1)) &
        progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowAlbedo)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%albedoMinWinter)%dat(1)
     ! ensure the visible albedo is realistic
-    if(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%)%dat(1) > mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%albedoMaxVisible)%dat(1)) &
-       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%albedoMaxVisible)%dat(1)
+    if(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1) > mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%albedoMaxVisible)%dat(1)) &
+       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%albedoMaxVisible)%dat(1)
     if(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1) < mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%albedoMinVisible)%dat(1)) &
        progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%albedoMinVisible)%dat(1)
     ! ensure the nearIR albedo is realistic
@@ -222,7 +263,7 @@ contains
 
      ! compute liquid water equivalent of total water (liquid plus ice)
      if (iLayer>nSnow+nLake) then ! soil layer = no volume expansion
-      iSoil       = iLayer - nSnow - iLake
+      iSoil       = iLayer - nSnow - nLake
       vGn_m       = 1._rkind - 1._rkind/vGn_n(iSoil)
       scalarTheta = mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)
      else ! snow layer = volume expansion allowed
@@ -313,7 +354,7 @@ contains
        call updateSoil(&
                       ! input
                       mLayerTemp(iLayer),              & ! intent(in): layer temperature (K)
-                      mLayerMatricHead(iLayer-nSnow-iLake),  & ! intent(in): matric head (m)
+                      mLayerMatricHead(iLayer-nSnow-nLake),  & ! intent(in): matric head (m)
                       vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m, & ! intent(in): van Genutchen soil parameters
                       ! output
                       scalarTheta,                     & ! intent(out): volumetric fraction of total water (-)

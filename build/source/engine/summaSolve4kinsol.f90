@@ -137,7 +137,6 @@ subroutine summaSolve4kinsol(&
   USE fsunmatrix_band_mod                         ! Fortran interface to banded SUNMatrix
   USE fsunlinsol_dense_mod                        ! Fortran interface to dense SUNLinearSolver
   USE fsunlinsol_band_mod                         ! Fortran interface to banded SUNLinearSolver
-  USE allocspace_module,only:allocLocal           ! allocate local data structures
   USE getVectorz_module,only:checkFeas            ! check feasibility of state vector
   USE eval8summa_module,only:eval8summa4kinsol    ! DAE/ODE functions
   USE eval8summa_module,only:eval8summa           ! residual of DAE

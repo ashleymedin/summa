@@ -31,6 +31,7 @@ USE mDecisions_module,only:      &
 implicit none
 private
 public::qOverland
+public::qGlacier
 contains
 
 
@@ -97,8 +98,53 @@ contains
  ! Coast may be similarly large and negative
  !if (averageRoutedRunoff < 0._rkind) averageRoutedRunoff = valueMissing
 
-
  end subroutine qOverland
+
+
+ ! *************************************************************************************************************
+ ! public subroutine qGlacier: compute the time delay in glacier melt to route to stream in a basin (places runoff in future time steps)
+ !      Note: might want to divide ablation reservoir into the standard two parts: one for snow melt and one for ice melt
+ !            and then route each separately.  Also should make k_abl and k_acc parameters in the input file.
+ ! *************************************************************************************************************
+ subroutine qGlacier(&
+                     ! input
+                     glacAblMelt,           &  ! total melt into ablation reservoir (m s-1)
+                     glacAccMelt,           &  ! total melt into accumulation reservoir (m s-1)
+                     qAblFuture,            &  ! glacier ablation reservoir runoff in future time steps (m s-1)
+                     qAccFuture,            &  ! glacier accumlation reservoir runoff in future time steps (m s-1)
+                     ! output
+                     glacierRoutedRunoff,   &  ! routed glacier runoff (m s-1)
+                     err,message)              ! error control
+ implicit none
+ ! input
+ real(rkind),intent(in)     :: glacAblMelt               ! total melt into ablation reservoir (m s-1)
+ real(rkind),intent(in)     :: glacAccMelt               ! total melt into accumulation reservoir (m s-1)
+ real(rkind),intent(inout)  :: qAblFuture                ! glacier ablation reservoir runoff in future time steps (m s-1)
+ real(rkind),intent(inout)  :: qAccFuture                ! glacier accumlation reservoir runoff in future time steps (m s-1)
+ ! output
+ real(rkind),intent(out)    :: glacierRoutedRunoff       ! routed glacier runoff (m s-1)
+ integer(i4b),intent(out)   :: err                       ! error code
+ character(*),intent(out)   :: message                   ! error message
+ ! internal
+ real(rkind)                :: qAbl                      ! glacier ablation reservoir runoff (m s-1)
+ real(rkind)                :: qAcc                      ! glacier accumulation reservoir runoff (m s-1)
+ real(rkind),parameter      :: k_abl=10                  ! time delay coefficient ablation reservoir
+ real(rkind),parameter      :: k_acc=400                 ! time delay coefficient accumulation reservoir
+ ! initialize error control
+ err=0; message='qGlacier/' 
+
+ ! ablation reservoir runoff (m s-1)
+ qAbl = qAblFuture + glacAblMelt - glacAblMelt*exp(-1._rkind/k_abl)
+ qAblFuture = qAbl*exp(-1._rkind/k_abl) ! place runoff in future time steps 
+
+ ! accumulation reservoir runoff (m s-1)
+ qAcc = qAccFuture + glacAccMelt - glacAccMelt*exp(-1._rkind/k_acc)
+ qAccFuture = qAcc*exp(-1._rkind/k_acc) ! place runoff in future time steps 
+
+ ! routed glacier runoff (m s-1)
+ glacierRoutedRunoff = qAbl + qAcc 
+
+ end subroutine qGlacier
 
 
 end module qTimeDelay_module

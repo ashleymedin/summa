@@ -180,10 +180,10 @@ contains
 
   ! set type of domain
   gru_struc(iGRU)%hruInfo(iGRU)%domInfo(1)%dom_type = upland
-  if (has_glacier) then 
+  if (has_glacier > 0) then 
    gru_struc(iGRU)%hruInfo(iGRU)%domInfo(2)%dom_type = glacAcc
    gru_struc(iGRU)%hruInfo(iGRU)%domInfo(3)%dom_type = glacAbl
-   if (has_lake) gru_struc(iGRU)%hruInfo(iGRU)%domInfo(4)%dom_type = wetland
+   if (has_lake > 0) gru_struc(iGRU)%hruInfo(iGRU)%domInfo(4)%dom_type = wetland
   else
    gru_struc(iGRU)%hruInfo(iGRU)%domInfo(2)%dom_type = wetland 
   end if
@@ -209,17 +209,17 @@ contains
       if (has_glacier > 0) gru_struc(iGRU)%hruInfo(i)%domCount = gru_struc(iGRU)%hruInfo(i)%domCount + 2 ! accumulation and ablation domains possible
       if (has_lake > 0) gru_struc(iGRU)%hruInfo(i)%domCount = gru_struc(iGRU)%hruInfo(i)%domCount + 1    ! wetland domain possible
       allocate(gru_struc(iGRU)%hruInfo(i)%domInfo(gru_struc(iGRU)%hruInfo(i)%domCount))                  ! allocate third level of gru to hru map
-      do j = 1, gru_struc(iGRU)%hruInfo(iU)%domCount
-        gru_struc(iGRU)%hruInfo(iH)%domInfo(j)%dom_nc = iDOM + j-1                        ! set id for output
+      do j = 1, gru_struc(iGRU)%hruInfo(i)%domCount
+        gru_struc(iGRU)%hruInfo(i)%domInfo(j)%dom_nc = iDOM + j-1                        ! set id for output
       end do
 
       ! set type of domain
       gru_struc(iGRU)%hruInfo(i)%domInfo(1)%dom_type = upland
       if (gru_struc(iGRU)%hruInfo(i)%domCount>1) then
-       if (has_glacier) then 
+       if (has_glacier > 0) then 
         gru_struc(iGRU)%hruInfo(i)%domInfo(2)%dom_type = glacAcc
         gru_struc(iGRU)%hruInfo(i)%domInfo(3)%dom_type = glacAbl
-        if (has_lake) gru_struc(iGRU)%hruInfo(i)%domInfo(4)%dom_type = wetland
+        if (has_lake > 0) gru_struc(iGRU)%hruInfo(i)%domInfo(4)%dom_type = wetland
        else
          gru_struc(iGRU)%hruInfo(i)%domInfo(2)%dom_type = wetland
        end if
@@ -235,11 +235,19 @@ contains
  end if ! not checkHRU
 
  ! set domain id to domain type
- gru_struc(:)%hruInfo(:)%domInfo(:)%dom_id = gru_struc(:)%hruInfo(:)%domInfo(:)%dom_type 
+ nDOM = 0
+ nHRU = 0
+ do iGRU = 1, nGRU
+   nHRU = nHRU + gru_struc(iGRU)%hruCount ! total number of HRUs
+   do iHRU = 1, gru_struc(iGRU)%hruCount
+     nDOM = nDOM + gru_struc(iGRU)%hruInfo(iHRU)%domCount ! total number of domains
+     do iDOM = 1, gru_struc(iGRU)%hruInfo(i)%domCount
+       gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_id = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type
+     end do
+   end do
+ end do
 
  ! set hru to gru mapping
- nHRU = sum(gru_struc%hruCount)                                                                 ! total number of HRUs
- nDOM = sum(gru_struc%hruInfo%domCount)                                                         ! total number of domains
  allocate(index_map(nHRU))                                                                      ! allocate first level of hru to gru mapping
 
  if (present(checkHRU)) then                                                                    ! allocate space for single-HRU run

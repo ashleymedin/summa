@@ -323,8 +323,6 @@ subroutine getScaling(&
     ! type of model state variabless
     ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in) : [i4b(:)] [state subset] type of desired model state variables
     ! number of layers
-    nSnow               => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in) : [i4b]    number of snow layers
-    nSoil               => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in) : [i4b]    number of soil layers
     nLayers             => indx_data%var(iLookINDEX%nLayers)%dat(1)                & ! intent(in) : [i4b]    total number of layers
     )  ! end association with variables in the data structures
     ! --------------------------------------------------------------------------------------------------------------------------------
@@ -457,6 +455,8 @@ subroutine checkFeas(&
     ! number of model layers, and layer type
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)        ,& ! intent(in):  [i4b]    total number of snow layers
     nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)        ,& ! intent(in):  [i4b]    total number of soil layers
+    nIce                    => indx_data%var(iLookINDEX%nIce)%dat(1)         ,& ! intent(in):  [i4b]    total number of ice layers
+    nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1)        ,& ! intent(in):  [i4b]    total number of lake layers
     nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)      ,& ! intent(in):  [i4b]    total number of snow and soil layers
     ! indices defining model states and layers
     ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)     ,& ! intent(in):  [i4b]    index of canopy air space energy state variable
@@ -607,6 +607,8 @@ subroutine varExtract(&
     ! number of model layers, and layer type
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):  [i4b]    total number of snow layers
     nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):  [i4b]    total number of soil layers
+    nIce                    => indx_data%var(iLookINDEX%nIce)%dat(1)                  ,& ! intent(in):  [i4b]    total number of ice layers
+    nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1)                 ,& ! intent(in):  [i4b]    total number of lake layers
     nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)               ,& ! intent(in):  [i4b]    total number of snow and soil layers
     ! indices defining model states and layers
     ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy air space energy state variable

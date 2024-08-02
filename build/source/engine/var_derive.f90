@@ -273,6 +273,8 @@ contains
  ! associate the model index structures
  nSnow              => indx_data%var(iLookINDEX%nSnow)%dat(1),          & ! number of snow layers
  nSoil              => indx_data%var(iLookINDEX%nSoil)%dat(1),          & ! number of soil layers
+ nIce               => indx_data%var(iLookINDEX%nIce)%dat(1),           & ! number of ice layers
+ nLake              => indx_data%var(iLookINDEX%nLake)%dat(1),          & ! number of lake layers
  nLayers            => indx_data%var(iLookINDEX%nLayers)%dat(1),        & ! total number of layers
  ! associate the coordinate variables
  mLayerHeight       => prog_data%var(iLookPROG%mLayerHeight)%dat,       & ! height at the mid-point of each layer (m)
@@ -302,7 +304,7 @@ contains
       iLayerSatHydCond(iLayer-nSnow-nLake)   = 0.5_rkind * (k_soil(iLayer-nSnow-nLake) + k_soil(iLayer+1-nSnow) )
      endif
      ! - conductivity at layer midpoints
-     mLayerSatHydCond(iLayer-nSnow-nLake)   = k_soil(iLayer-nSno-nLake)
+     mLayerSatHydCond(iLayer-nSnow-nLake)   = k_soil(iLayer-nSnow-nLake)
      mLayerSatHydCondMP(iLayer-nSnow-nLake) = k_macropore(iLayer-nSnow-nLake)
     end if ! if iLayer>nSnow
 

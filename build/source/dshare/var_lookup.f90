@@ -364,6 +364,8 @@ MODULE var_lookup
   integer(i4b)    :: mLayerDepth                 = integerMissing    ! depth of each layer (m)
   integer(i4b)    :: mLayerHeight                = integerMissing    ! height at the mid-point of each layer (m)
   integer(i4b)    :: iLayerHeight                = integerMissing    ! height of the layer interface; top of soil = 0 (m)
+  integer(i4b)    :: DOMarea                     = integerMissing    ! area of the domain (m2)
+  integer(i4b)    :: DOMelev                     = integerMissing    ! elevation of the domain (m)
  endtype iLook_prog
 
  ! ***********************************************************************************************************
@@ -719,6 +721,8 @@ MODULE var_lookup
  ! number of model layers, and layer indices
  integer(i4b)     :: nSnow                 = integerMissing  ! number of snow layers                                                    (-)
  integer(i4b)     :: nSoil                 = integerMissing  ! number of soil layers                                                    (-)
+ integer(i4b)     :: nIce                  = integerMissing  ! number of ice layers                                                     (-)
+ integer(i4b)     :: nLake                 = integerMissing  ! number of lake layers                                                    (-)
  integer(i4b)     :: nLayers               = integerMissing  ! total number of layers                                                   (-)
  integer(i4b)     :: layerType             = integerMissing  ! index defining type of layer (snow or soil)                              (-)
  ! number of state variables of different type
@@ -819,11 +823,17 @@ MODULE var_lookup
   integer(i4b)    :: basin__AquiferTranspire    = integerMissing ! transpiration from the aquifer (m s-1)
   integer(i4b)    :: basin__TotalRunoff         = integerMissing ! total runoff to channel from all active components (m s-1)
   integer(i4b)    :: basin__SoilDrainage        = integerMissing ! soil drainage (m s-1)
+  integer(i4b)    :: basin__GlacAblMelt         = integerMissing ! glacier ablation zone melt (m s-1)
+  integer(i4b)    :: basin__GlacAccMelt         = integerMissing ! glacier accumulation zone melt (m s-1)
   ! define variables for runoff
   integer(i4b)    :: routingRunoffFuture        = integerMissing ! runoff in future time steps (m s-1)
   integer(i4b)    :: routingFractionFuture      = integerMissing ! fraction of runoff in future time steps (-)
   integer(i4b)    :: averageInstantRunoff       = integerMissing ! instantaneous runoff (m s-1)
   integer(i4b)    :: averageRoutedRunoff        = integerMissing ! routed runoff (m s-1)
+  ! define variables to compute glacier runoff
+  integer(i4b)    :: glacAblRunoffFuture        = integerMissing ! glacier ablation reservoir runoff in future time steps (m s-1)
+  integer(i4b)    :: glacAccRunoffFuture        = integerMissing ! glacier accumulation reservoir runoff in future time steps (m s-1)
+  integer(i4b)    :: glacierRoutedRunoff        = integerMissing ! lapsed glacier runoff (m s-1)
  endtype iLook_bvar
 
  ! ***********************************************************************************************************
@@ -926,7 +936,7 @@ MODULE var_lookup
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
-                                                                         21)
+                                                                         21, 22, 23)
  ! named variables: model diagnostic variables
  type(iLook_diag),    public,parameter :: iLookDIAG     =iLook_diag    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -966,12 +976,13 @@ MODULE var_lookup
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
                                                                          31, 32, 33, 34, 35, 36, 37, 38, 39, 40,&
                                                                          41, 42, 43, 44, 45, 46, 47, 48, 49, 50,&
-                                                                         51, 52, 53, 54, 55, 56, 57, 58, 59, 60)
+                                                                         51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
+                                                                         61, 62)
  ! named variables: basin-average parameters
  type(iLook_bpar),    public,parameter :: iLookBPAR     =ilook_bpar    (  1,  2,  3,  4,  5)
  ! named variables: basin-average variables
  type(iLook_bvar),    public,parameter :: iLookBVAR     =ilook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
-                                                                         11, 12, 13)
+                                                                         11, 12, 13, 14, 15, 16, 17, 18)
  ! named variables in varibale type structure
  type(iLook_varType), public,parameter :: iLookVarType  =ilook_varType (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16)

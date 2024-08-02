@@ -355,11 +355,13 @@ contains
   associate(&
    nSnow             => indx_data%var(iLookINDEX%nSnow)%dat(1)              ,& ! intent(in): [i4b] number of snow layers
    nSoil             => indx_data%var(iLookINDEX%nSoil)%dat(1)              ,& ! intent(in): [i4b] number of soil layers
+   nIce              => indx_data%var(iLookINDEX%nIce)%dat(1)               ,& ! intent(in): [i4b] number of ice layers
+   nLake             => indx_data%var(iLookINDEX%nLake)%dat(1)              ,& ! intent(in): [i4b] number of lake layers
    ixNumericalMethod => model_decisions(iLookDECISIONS%num_method)%iDecision,& ! intent(in): [i4b] choice of numerical solver
    ixGroundwater     => model_decisions(iLookDECISIONS%groundwatr)%iDecision & ! intent(in): [i4b] groundwater parameterization
    &)
    ! allocate space for the model fluxes at the start of the time step
-   call allocLocal(flux_meta(:),flux_init,nSnow,nSoil,err,cmessage)
+   call allocLocal(flux_meta(:),flux_init,nSnow,nSoil,nIce,nLake,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for mLayerCmpress_sum at the start of the time step
@@ -663,7 +665,7 @@ contains
    )
 
    ! allocate space for the temporary flux_sum structure
-   call allocLocal(flux_meta(:),flux_sum,nSnow,nSoil,err,cmessage)
+   call allocLocal(flux_meta(:),flux_sum,nSnow,nSoil,nIce,nLake,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
 
    ! initialize flux_sum
