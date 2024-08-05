@@ -23,6 +23,10 @@ module qTimeDelay_module
 ! data types
 USE nrtype
 
+! constants, time information
+USE multiconst,only:secprhour  ! number of seconds in an hour
+USE globalData,only:data_step  ! length of the data step (s)
+
 ! look-up values for the sub-grid routing method
 USE mDecisions_module,only:      &
  timeDelay,&  ! time-delay histogram
@@ -110,39 +114,59 @@ contains
                      ! input
                      glacAblMelt,           &  ! total melt into ablation reservoir (m s-1)
                      glacAccMelt,           &  ! total melt into accumulation reservoir (m s-1)
-                     qAblFuture,            &  ! glacier ablation reservoir runoff in future time steps (m s-1)
-                     qAccFuture,            &  ! glacier accumlation reservoir runoff in future time steps (m s-1)
+                     glacAblArea,           &  ! per glacier acumulation area (m2)
+                     glacAccArea,           &  ! per glacier ablation area (m2)
+                     qAblFuture,            &  ! per glacier ablation reservoir runoff in future time steps (m s-1)
+                     qAccFuture,            &  ! per glacier accumlation reservoir runoff in future time steps (m s-1)
                      ! output
                      glacierRoutedRunoff,   &  ! routed glacier runoff (m s-1)
                      err,message)              ! error control
  implicit none
  ! input
+ real(rkind),intent(in)     :: data_step                 ! time step for the data (s)
  real(rkind),intent(in)     :: glacAblMelt               ! total melt into ablation reservoir (m s-1)
  real(rkind),intent(in)     :: glacAccMelt               ! total melt into accumulation reservoir (m s-1)
- real(rkind),intent(inout)  :: qAblFuture                ! glacier ablation reservoir runoff in future time steps (m s-1)
- real(rkind),intent(inout)  :: qAccFuture                ! glacier accumlation reservoir runoff in future time steps (m s-1)
+ real(rkind),intent(in)     :: glacAblArea(:)            ! per glacier acumulation area (m2)
+ real(rkind),intent(in)     :: glacAccArea(:)            ! per glacier ablation area (m2)
+ real(rkind),intent(inout)  :: qAblFuture(:)             ! per glacier ablation reservoir runoff in future time steps (m s-1)
+ real(rkind),intent(inout)  :: qAccFuture(:)             ! per glacier accumlation reservoir runoff in future time steps (m s-1)
  ! output
  real(rkind),intent(out)    :: glacierRoutedRunoff       ! routed glacier runoff (m s-1)
  integer(i4b),intent(out)   :: err                       ! error code
  character(*),intent(out)   :: message                   ! error message
  ! internal
- real(rkind)                :: qAbl                      ! glacier ablation reservoir runoff (m s-1)
- real(rkind)                :: qAcc                      ! glacier accumulation reservoir runoff (m s-1)
- real(rkind),parameter      :: k_abl=10                  ! time delay coefficient ablation reservoir
- real(rkind),parameter      :: k_acc=400                 ! time delay coefficient accumulation reservoir
+ real(rkind)                :: qAbl                      ! hourly ablation reservoir runoff (m s-1)
+ real(rkind)                :: qAcc                      ! hourly accumulation reservoir runoff (m s-1)
+ real(rkind)                :: frac                      ! fraction of glacier area
+ real(rkind)                :: glacAblTotal              ! total ablation area (m2)
+ real(rkind)                :: glacAccTotal              ! total accumulation area (m2)
+ integer(i4b)               :: nGlacier                  ! number of glaciers in the basin
+ integer(i4b)               :: iGlacier                  ! index for glaciers
+ real(rkind),parameter      :: k_abl=10                  ! storage coefficient ablation reservoir (hours)
+ real(rkind),parameter      :: k_acc=400                 ! storage coefficient accumulation reservoir (hours)
  ! initialize error control
  err=0; message='qGlacier/' 
 
- ! ablation reservoir runoff (m s-1)
- qAbl = qAblFuture + glacAblMelt - glacAblMelt*exp(-1._rkind/k_abl)
- qAblFuture = qAbl*exp(-1._rkind/k_abl) ! place runoff in future time steps 
+ nGlacier = size(qAblFuture) ! number of glaciers in the basin
+ glacierRoutedRunoff = 0._rkind
 
- ! accumulation reservoir runoff (m s-1)
- qAcc = qAccFuture + glacAccMelt - glacAccMelt*exp(-1._rkind/k_acc)
- qAccFuture = qAcc*exp(-1._rkind/k_acc) ! place runoff in future time steps 
+ glacAblTotal = sum(glacAblArea)
+ glacAccTotal = sum(glacAccArea)
 
- ! routed glacier runoff (m s-1)
- glacierRoutedRunoff = qAbl + qAcc 
+ do iGlacier=1,nGlacier
+   ! ablation reservoir runoff (m s-1)
+   frac = glacAblArea(iGlacier)/glacAblTotal
+   qAbl = qAblFuture(iGlacier) + glacAblMelt*frac - glacAblMelt*frac*exp(-1._rkind/k_abl)
+   qAblFuture(iGlacier) = qAbl*exp(-data_step/secprhour/k_abl) ! place runoff in future time steps 
+
+   ! accumulation reservoir runoff (m s-1)
+   frac = glacAccArea(iGlacier)/glacAccTotal
+   qAcc = qAccFuture(iGlacier) + glacAccMelt(iGlacier)*frac - glacAccMelt(iGlacier)*frac*exp(-1._rkind/k_acc)
+   qAccFuture(iGlacier) = qAcc*exp(-data_step/secprhour/k_acc) ! place runoff in future time steps 
+
+   ! routed glacier runoff (m s-1)
+   glacierRoutedRunoff = glacierRoutedRunoff + qAbl + qAcc 
+ end do
 
  end subroutine qGlacier
 

@@ -71,7 +71,7 @@ contains
  integer(i4b),        intent(in)           :: nGRU             ! number of global GRUs
  type(gru_hru_int8),  intent(in)           :: idStruct         ! local labels for hru and gru IDs
  ! define output
- type(gru_hru_dom_doubleVec),intent(inout) :: mparStruct   ! model parameters
+ type(gru_hru_dom_doubleVec),intent(inout) :: mparStruct       ! model parameters
  type(gru_double),    intent(inout)        :: bparStruct       ! basin parameters
  integer(i4b),        intent(out)          :: err              ! error code
  character(*),        intent(out)          :: message          ! error message

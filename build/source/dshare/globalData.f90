@@ -215,8 +215,9 @@ MODULE globalData
   integer(i4b),save,public                       :: maxLayers                         ! maximum number of layers
   integer(i4b),save,public                       :: maxSoilLayers                     ! maximum number of soil layers
   integer(i4b),save,public                       :: maxSnowLayers                     ! maximum number of snow layers
+  integer(i4b),save,public                       :: maxGlaciers=10                    ! maximum number of glaciers in a GRU
   integer(i4b),save,public                       :: maxIceLayers=3                    ! maximum number of ice layers on glacier
-  integer(i4b),save,public                       :: maxLakeLayers=3                   ! maximum number of lake layers
+  integer(i4b),save,public                       :: maxLakeLayers=5                   ! maximum number of lake layers
 
   ! define control variables
   integer(i4b),save,public                       :: startGRU                          ! index of the starting GRU for parallelization run
@@ -284,7 +285,7 @@ MODULE globalData
   real(rkind),save,public                        :: tmZoneOffsetFracDay               ! time zone offset in fractional days
   integer(i4b),save,public                       :: yearLength                        ! number of days in the current year
   ! define fixed dimensions
-  integer(i4b),parameter,public                  :: nBand=2                           ! number of spectral bands
+  integer(i4b),parameter,public                  :: nSpecBand=2                       ! number of spectral bands
   integer(i4b),parameter,public                  :: nTimeDelay=2000                   ! number of time steps in the time delay histogram (default: ~1 season = 24*365/4)
   ! printing step frequency
   integer(i4b),parameter,public                  :: print_step_freq=1000              ! frequency to print progress

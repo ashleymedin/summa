@@ -127,6 +127,9 @@ contains
  integer(i4b)                          :: iGRU,iHRU,iDOM           ! indices of GRUs and HRUs
  integer(i4b)                          :: iStruct                  ! index of model structure
  integer(i4b)                          :: iFreq                    ! index of the output frequency
+ integer(i4b)                          :: has_glacier              ! flag for glacier presence
+ integer(i4b)                          :: has_lake                 ! flag for lake presence
+
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(&
@@ -269,10 +272,20 @@ contains
  ! get the number of HRUs and the the number of domains in the run space
  nHRUrun = 0
  nDOMrun = 0
+ has_glacier = 0
+ has_lake = 0
  do iGRU = 1, nGRU
-  nHRUrun = nHRUrun + gru_struc(iGRU)%hruCount ! total number of HRUs
-   do iHRU = 1, gru_struc(iGRU)%hruCount
-    nDOMrun = nDOMrun + gru_struc(iGRU)%hruInfo(iHRU)%domCount ! total number of domains
+   nHRUrun = nHRUrun + gru_struc(iGRU)%hruCount ! total number of HRUs
+    do iHRU = 1, gru_struc(iGRU)%hruCount
+      nDOMrun = nDOMrun + gru_struc(iGRU)%hruInfo(iHRU)%domCount ! total number of domains
+      domLoop: do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
+       ! check for glacier and lake
+        if (has_glacier > 0 .and. has_lake > 0) exit domLoop ! found a lake and glacier in the GRU, need to process
+        nIce  = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce
+        nLake = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake
+        if(nIce>0) has_glacier = 1
+        if(nLake>0) has_lake = 1
+      end do domLoop
    end do
  end do
 
@@ -308,7 +321,7 @@ contains
     restartFile=trim(STATE_PATH)//trim(OUTPUT_PREFIX)//'_restart_'//trim(timeString)//trim(output_fileSuffix)//'.nc'
   endif
 
-  call writeRestart(restartFile,nGRU,nHRU,nDOM,prog_meta,progStruct,bvar_meta,bvarStruct,maxLayers,indx_meta,indxStruct,err,cmessage)  
+  call writeRestart(restartFile,has_glacier,has_lake,nGRU,nHRU,nDOM,prog_meta,progStruct,bvar_meta,bvarStruct,maxLayers,indx_meta,indxStruct,err,cmessage)  
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 

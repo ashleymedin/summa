@@ -23,6 +23,7 @@ USE nrtype
 USE netcdf
 USE globalData,only: ixHRUfile_min,ixHRUfile_max
 USE globalData,only: nTimeDelay   ! number of hours in the time delay histogram
+USE globalData,only: nSpecBand    ! number of spectral bands
 
 ! access domain types
 USE globalData,only:upland             ! domain type for upland areas
@@ -274,13 +275,15 @@ contains
  integer(i4b)                              :: nIce, nLake              ! # layers
  integer(i4b)                              :: nTDH                     ! number of points in time-delay histogram
  integer(i4b)                              :: iLayer,jLayer            ! layer indices
- integer(i4b),parameter                    :: nBand=2                  ! number of spectral bands
- integer(i4b)                              :: nProgVars                ! number of prognostic variables written to state file
+ integer(i4b)                              :: has_glacier              ! flag for glacier presence
+ integer(i4b)                              :: has_lake                 ! flag for lake presence
+ ! currently only writing restart for progressive variables with these dimensions
  character(len=32),parameter               :: scalDimName   ='scalarv' ! dimension name for scalar data
  character(len=32),parameter               :: midSoilDimName='midSoil' ! dimension name for soil-only layers
  character(len=32),parameter               :: midTotoDimName='midToto' ! dimension name for layered varaiables
  character(len=32),parameter               :: ifcTotoDimName='ifcToto' ! dimension name for layered varaiables
  character(len=32),parameter               :: tdhDimName    ='tdh'     ! dimension name for time-delay basin variables
+ character(len=32),parameter               :: nglDimName    ='ngl'     ! dimension name for glacier variables
 
  ! --------------------------------------------------------------------------------------------------------
  ! Start procedure here
@@ -323,6 +326,7 @@ contains
   ! get variable id
   err = nf90_inq_varid(ncID,trim(prog_meta(iVar)%varName),ncVarID); call netcdf_err(err,message)
   if(err/=0)then
+   if (prog_meta(iVar)%varName=='DOMarea' .or. prog_meta(iVar)%varName=='DOMelev') cycle ! backwards compatible, may be missing, correct in check_icond
    message=trim(message)//': problem with getting variable id, var='//trim(prog_meta(iVar)%varName)
    return
   endif
@@ -358,6 +362,8 @@ contains
 
   ! store data in prognostics structure
   ! loop through GRUs
+  has_glacier = 0
+  has_lake = 0
   do iGRU = 1,nGRU
    do iHRU = 1,gru_struc(iGRU)%hruCount
     iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
@@ -369,6 +375,8 @@ contains
      nIce  = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce
      nLake = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake
      nToto = nSnow + nSoil + nIce + nLake
+     if(nIce>0) has_glacier = 1
+     if(nLake>0) has_lake = 1
 
      iDOM_global = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_nc
      ! single HRU (Note: 'restartFileType' is hardwired above to multiHRU)
@@ -418,7 +426,7 @@ contains
      endif
 
      ! initialize the spectral albedo
-     progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1:nBand) = progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowAlbedo)%dat(1)
+     progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1:nSpecBand) = progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowAlbedo)%dat(1)
 
     end do ! iDOM
    end do ! iHRU
@@ -498,6 +506,10 @@ contains
  ! (2) now get the basin variable(s)
  ! --------------------------------------------------------------------------------------------------------
 
+ ! get number of GRUs in file
+ err = nf90_inq_dimid(ncID,"gru",dimID);               if(err/=nf90_noerr)then; message=trim(message)//'problem finding gru dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inquire_dimension(ncID,dimID,len=fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
+
  ! get the index in the file: single HRU
  if(restartFileType/=singleHRU)then
 
@@ -511,10 +523,6 @@ contains
    ! the state file *does* have the basin variable(s), so process them
    err = nf90_inquire_dimension(ncID,dimID,len=nTDH);
    if(err/=nf90_noerr)then; message=trim(message)//'problem reading tdh dimension from initial condition file/'//trim(nf90_strerror(err)); return; end if
-
-   ! get number of GRUs in file
-   err = nf90_inq_dimid(ncID,"gru",dimID);               if(err/=nf90_noerr)then; message=trim(message)//'problem finding gru dimension/'//trim(nf90_strerror(err)); return; end if
-   err = nf90_inquire_dimension(ncID,dimID,len=fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
 
    ! check vs hardwired value set in globalData.f90
    if(nTDH /= nTimeDelay)then
@@ -566,6 +574,64 @@ contains
    end do ! end looping through basin variables
   endif  ! end if case for tdh variables being in init. cond. file
  endif  ! end if case for not being a singleHRU run
+
+ if (has_glacier > 0) then
+  ! get dimension of basin glacier variables from initial conditions file
+  err = nf90_inq_dimid(ncID,"ngl",dimID);
+  if(err/=nf90_noerr)then
+   write(*,*) 'WARNING: glac(Abl,Acc)RunoffFuture is not in the initial conditions file ... using zeros'  ! previously created in var_derive.f90
+   err=nf90_noerr    ! reset this err
+  
+  else
+   ! the state file *does* have the basin variable(s), so process them
+   err = nf90_inquire_dimension(ncID,dimID,len=nGlaciers);
+   if(err/=nf90_noerr)then; message=trim(message)//'problem reading ngl dimension from initial condition file/'//trim(nf90_strerror(err)); return; end if
+
+   ! loop through specific basin variables
+   ndx = (/iLookBVAR%glacAblRunoffFuture,iLookBVAR%glacAccRunoffFuture,iLookBVAR%glacAblArea,iLookBVAR%glacAccArea/)   ! array of desired variable indices
+   do i = 1,size(ndx)
+    iVar = ndx(i)
+
+    ! get ngl dimension Id in file (should be 'ngl')
+    err = nf90_inq_dimid(ncID,trim(nglDimName), dimID);
+    if(err/=0)then; message=trim(message)//': problem with dimension ids for ngl vars'; return; endif
+
+    ! get the ngl dimension length (dimName and dimLen are outputs of this call)
+    err = nf90_inquire_dimension(ncID,dimID,dimName,dimLen); call netcdf_err(err,message)
+    if(err/=0)then; message=trim(message)//': problem getting the dimension length for ngl vars'; return; endif
+
+    ! get ngl-based variable id
+    err = nf90_inq_varid(ncID,trim(bvar_meta(iVar)%varName),ncVarID); call netcdf_err(err,message)
+    if(err/=0)then; message=trim(message)//': problem with getting basin variable id, var='//trim(bvar_meta(iVar)%varName); return; endif
+
+    ! initialize the ngl variable data
+    allocate(varData(fileGRU,dimLen),stat=err)
+    if(err/=0)then; print*, 'err= ',err; message=trim(message)//'problem allocating GRU variable data'; return; endif
+
+    ! get data
+    err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message)
+    if(err/=0)then; message=trim(message)//': problem getting the data'; return; endif
+
+    ! store data in basin var (bvar) structure
+    do iGRU = 1,nGRU
+
+     ! put the data into data structures
+     bvarData%gru(iGRU)%var(iVar)%dat(1:nGlacier) = varData((iGRU+startGRU-1),1:nGlacier)
+     ! check whether the first values is set to nf90_fill_double
+     if(any(abs(bvarData%gru(iGRU)%var(iVar)%dat(1:nGlacier) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
+     if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(bvar_meta(iVar)%varName)//"')"; return; endif
+
+    end do ! end iGRU loop
+
+    ! deallocate temporary data array for next variable
+    deallocate(varData, stat=err)
+    if(err/=0)then; message=trim(message)//'problem deallocating GRU variable data'; return; endif
+   endif  ! end if case for variables being in init. cond. file
+
+   end do ! end looping through basin variables
+  end if ! end if case for ngl variables being in init. cond. file
+ endif ! if has glacier
+
 
  end subroutine read_icond
 

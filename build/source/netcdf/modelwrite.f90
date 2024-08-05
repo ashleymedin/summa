@@ -34,6 +34,9 @@ USE globalData,only: maxSnowLayers      ! maximum number of snow layers
 USE globalData,only: maxSoilLayers      ! maximum number of soil layers
 USE globalData,only: maxIceLayers       ! maximum number of ice layers
 USE globalData,only: maxLakeLayers      ! maximum number of lake layers
+USE globalData,only: maxGlaciers        ! maximum number of glaciers
+USE globalData,only: nTimeDelay         ! maximum number of time delay routing vectors
+USE globalData,only: nSpecBand         ! maximum number of spectral bands
 ! provide access to global data
 USE globalData,only: gru_struc          ! gru->hru mapping structure
 ! netcdf deflate level
@@ -84,8 +87,6 @@ public::writeData
 public::writeBasin
 public::writeTime
 public::writeRestart
-! define dimension lengths
-integer(i4b),parameter      :: maxSpectral=2              ! maximum number of spectral bands
 
 
 contains
@@ -295,7 +296,7 @@ contains
 
        ! get the length of each data vector
        select case (meta(iVar)%varType)
-        case(iLookVarType%wLength); datLength = maxSpectral
+        case(iLookVarType%wLength); datLength = nSpecBand
         case(iLookVarType%midToto); datLength = nLayers
         case(iLookVarType%midSnow); datLength = nSnow
         case(iLookVarType%midSoil); datLength = nSoil
@@ -321,7 +322,7 @@ contains
 
     ! get the maximum length of each data vector over all domains
     select case (meta(iVar)%varType)
-     case(iLookVarType%wLength); maxLength = maxSpectral
+     case(iLookVarType%wLength); maxLength = nSpecBand
      case(iLookVarType%midToto); maxLength = maxLayers
      case(iLookVarType%midSnow); maxLength = maxSnowLayers
      case(iLookVarType%midSoil); maxLength = maxSoilLayers
@@ -408,7 +409,7 @@ contains
 
     case (iLookVarType%routing)
      if (iFreq==1 .and. outputTimestep(iFreq)==1) then
-      err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),(/dat(iVar)%dat/),start=(/1/),count=(/1000/))
+      err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),(/dat(iVar)%dat/),start=(/1/),count=(/nTimeDelay/))
      end if
 
     case default
@@ -480,6 +481,8 @@ contains
  ! public subroutine printRestartFile: print a re-start file
  ! *********************************************************************************************************
  subroutine writeRestart(filename,         & ! intent(in): name of restart file
+                         has_glacier,      & ! intent(in): flag for glacier presence
+                         has_lake,         & ! intent(in): flag for lake presence
                          nGRU,             & ! intent(in): number of global GRUs
                          nHRU,             & ! intent(in): number of global HRUs
                          nDOM,             & ! intent(in): number of global DOMs
@@ -505,11 +508,14 @@ contains
  USE netcdf_util_module,only:nc_file_close  ! close netcdf file
  USE netcdf_util_module,only:nc_file_open   ! open netcdf file
  USE globalData,only:nTimeDelay             ! number of timesteps in the time delay histogram
+ USE globalData,only:maxGlaciers            ! maximum number of glaciers
  
  implicit none
  ! --------------------------------------------------------------------------------------------------------
  ! input
  character(len=256),intent(in)          :: filename      ! name of the restart file
+ integer(i4b),intent(in)                :: has_glacier   ! flag for glacier presence
+ integer(i4b),intent(in)                :: has_lake      ! flag for lake presence
  integer(i4b),intent(in)                :: nGRU          ! number of global GRUs
  integer(i4b),intent(in)                :: nHRU          ! number of global HRUs
  integer(i4b),intent(in)                :: nDOM          ! number of global DOMs
@@ -538,13 +544,13 @@ contains
  integer(i4b)                       :: nIce          ! number of glacier ice layers
  integer(i4b)                       :: nLake         ! number of lake layers
  integer(i4b)                       :: nLayers       ! number of total layers
- integer(i4b),parameter             :: nSpectral=2   ! number of spectal bands
  integer(i4b),parameter             :: nScalar=1     ! size of a scalar
  integer(i4b)                       :: nProgVars     ! number of prognostic variables written to state file
  integer(i4b)                       :: hruDimID      ! variable dimension ID
  integer(i4b)                       :: gruDimID      ! variable dimension ID
  integer(i4b)                       :: domDimID      ! variable dimension ID
  integer(i4b)                       :: tdhDimID      ! variable dimension ID
+ integer(i4b)                       :: nglDimName    ! variable dimension ID
  integer(i4b)                       :: scalDimID     ! variable dimension ID
  integer(i4b)                       :: specDimID     ! variable dimension ID
  integer(i4b)                       :: midTotoDimID  ! variable dimension ID
@@ -561,6 +567,7 @@ contains
  character(len=32),parameter        :: gruDimName    ='gru'      ! dimension name for GRUs
  character(len=32),parameter        :: domDimName    ='dom'      ! dimension name for DOMs
  character(len=32),parameter        :: tdhDimName    ='tdh'      ! dimension name for time-delay basin variables
+ character(len=32),parameter        :: nglDimName    ='ngl'      ! dimension name for global variables
  character(len=32),parameter        :: scalDimName   ='scalarv'  ! dimension name for scalar data
  character(len=32),parameter        :: specDimName   ='spectral' ! dimension name for spectral bands
  character(len=32),parameter        :: midTotoDimName='midToto'  ! dimension name for layered varaiables
@@ -588,7 +595,8 @@ contains
 
  ! size of prognostic variable vector
  nProgVars = size(prog_meta)
- allocate(ncVarID(nProgVars+1))     ! include 1 additional basin variable in ID array (possibly more later)
+ allocate(ncVarID(nProgVars+1)) ! include additional basin variable in ID array
+ if (has_glacier) allocate(ncVarID(nProgVars+2),ncVarID(nProgVars+3),ncVarID(nProgVars+4),ncVarID(nProgVars+5)) ! include additional basin variable in ID array
 
  ! create file
  err = nf90_create(trim(filename),nf90_classic_model,ncid)
@@ -599,18 +607,19 @@ contains
                       err = nf90_def_dim(ncid,trim(gruDimName)    ,nGRU           ,    gruDimID); message='iCreate[gru]'     ; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(domDimName)    ,nDOM           ,    domDimID); message='iCreate[dom]'     ; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(tdhDimName)    ,nTimeDelay     ,    tdhDimID); message='iCreate[tdh]'     ; call netcdf_err(err,message); if(err/=0)return
+                      err = nf90_def_dim(ncid,trim(nglDimName)    ,maxGlaciers    ,    nglDimID); message='iCreate[ngl]'     ; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(scalDimName)   ,nScalar        ,   scalDimID); message='iCreate[scalar]'  ; call netcdf_err(err,message); if(err/=0)return
-                      err = nf90_def_dim(ncid,trim(specDimName)   ,nSpectral      ,   specDimID); message='iCreate[spectral]'; call netcdf_err(err,message); if(err/=0)return
+                      err = nf90_def_dim(ncid,trim(specDimName)   ,nSpecBand      ,   specDimID); message='iCreate[spectral]'; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(midTotoDimName),maxLayers      ,midTotoDimID); message='iCreate[midToto]' ; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(ifcTotoDimName),maxLayers+1    ,ifcTotoDimID); message='iCreate[ifcToto]' ; call netcdf_err(err,message); if(err/=0)return
  if (maxSoilLayers>0) err = nf90_def_dim(ncid,trim(midSoilDimName),maxSoilLayers  ,midSoilDimID); message='iCreate[midSoil]' ; call netcdf_err(err,message); if(err/=0)return
  if (maxSoilLayers>0) err = nf90_def_dim(ncid,trim(ifcSoilDimName),maxSoilLayers+1,ifcSoilDimID); message='iCreate[ifcSoil]' ; call netcdf_err(err,message); if(err/=0)return
  if (maxSnowLayers>0) err = nf90_def_dim(ncid,trim(midSnowDimName),maxSnowLayers  ,midSnowDimID); message='iCreate[midSnow]' ; call netcdf_err(err,message); if(err/=0)return
  if (maxSnowLayers>0) err = nf90_def_dim(ncid,trim(ifcSnowDimName),maxSnowLayers+1,ifcSnowDimID); message='iCreate[ifcSnow]' ; call netcdf_err(err,message); if(err/=0)return
- if (maxIceLayers>0)  err = nf90_def_dim(ncid,trim(midIceDimName) ,maxIceLayers   ,midIceDimID);  message='iCreate[midIce]'  ; call netcdf_err(err,message); if(err/=0)return
- if (maxIceLayers>0)  err = nf90_def_dim(ncid,trim(ifcIceDimName) ,maxIceLayers+1 ,ifcIceDimID);  message='iCreate[ifcIce]'  ; call netcdf_err(err,message); if(err/=0)return
- if (maxLakeLayers>0) err = nf90_def_dim(ncid,trim(midLakeDimName),maxLakeLayers  ,midLakeDimID); message='iCreate[midLake]' ; call netcdf_err(err,message); if(err/=0)return
- if (maxLakeLayers>0) err = nf90_def_dim(ncid,trim(ifcLakeDimName),maxLakeLayers+1,ifcLakeDimID); message='iCreate[ifcLake]' ; call netcdf_err(err,message); if(err/=0)return
+ if (has_glacier > 0) err = nf90_def_dim(ncid,trim(midIceDimName),maxIceLayers    ,midIceDimID);  message='iCreate[midIce]'  ; call netcdf_err(err,message); if(err/=0)return
+ if (has_glacier > 0) err = nf90_def_dim(ncid,trim(ifcIceDimName),maxIceLayers+1  ,ifcIceDimID);  message='iCreate[ifcIce]'  ; call netcdf_err(err,message); if(err/=0)return
+ if (   has_lake > 0) err = nf90_def_dim(ncid,trim(midLakeDimName),maxLakeLayers  ,midLakeDimID); message='iCreate[midLake]' ; call netcdf_err(err,message); if(err/=0)return
+ if (   has_lake > 0) err = nf90_def_dim(ncid,trim(ifcLakeDimName),maxLakeLayers+1,ifcLakeDimID); message='iCreate[ifcLake]' ; call netcdf_err(err,message); if(err/=0)return
  ! re-initialize error control
  err=0; message='writeRestart/'
 
@@ -628,10 +637,10 @@ contains
    case(iLookvarType%ifcSoil); if (maxSoilLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,ifcSoilDimID/),ncVarID(iVar))
    case(iLookvarType%midSnow); if (maxSnowLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,midSnowDimID/),ncVarID(iVar))
    case(iLookvarType%ifcSnow); if (maxSnowLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,ifcSnowDimID/),ncVarID(iVar))
-   case(iLookvarType%midIce);  if (maxIceLayers>0)  err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,midIceDimID /),ncVarID(iVar))
-   case(iLookvarType%ifcIce);  if (maxIceLayers>0)  err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,ifcIceDimID /),ncVarID(iVar))
-   case(iLookvarType%midLake); if (maxLakeLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,midLakeDimID/),ncVarID(iVar))
-   case(iLookvarType%ifcLake); if (maxLakeLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,ifcLakeDimID/),ncVarID(iVar))
+   case(iLookvarType%midIce);  if (has_glacier > 0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,midIceDimID /),ncVarID(iVar))
+   case(iLookvarType%ifcIce);  if (has_glacier > 0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,ifcIceDimID /),ncVarID(iVar))
+   case(iLookvarType%midLake); if (   has_lake > 0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,midLakeDimID/),ncVarID(iVar))
+   case(iLookvarType%ifcLake); if (   has_lake > 0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,ifcLakeDimID/),ncVarID(iVar))
   end select
 
   ! check errors
@@ -650,11 +659,39 @@ contains
 
  end do ! iVar
  
- ! define selected basin variables (derived) -- e.g., hillslope routing
+ ! define selected basin variables (derived) -- e.g., hillslope routing, number of glaciers, area of glaciers, etc.
  err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%routingRunoffFuture)%varName), nf90_double, (/gruDimID, tdhDimID /), ncVarID(nProgVars+1))
  err = nf90_put_att(ncid,ncVarID(nProgVars+1),'long_name',trim(bvar_meta(iLookBVAR%routingRunoffFuture)%vardesc));   call netcdf_err(err,message)
  err = nf90_put_att(ncid,ncVarID(nProgVars+1),'units'    ,trim(bvar_meta(iLookBVAR%routingRunoffFuture)%varunit));   call netcdf_err(err,message)
 
+ if (has_glacier > 0)then
+   err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%glacAblRunoffFuture)%varName), nf90_double, (/gruDimID, nglDimID/), ncVarID(nProgVars+2))
+   err = nf90_put_att(ncid,ncVarID(nProgVars+2),'long_name',trim(bvar_meta(iLookBVAR%glacAblRunoffFuture)%vardesc));   call netcdf_err(err,message)
+   err = nf90_put_att(ncid,ncVarID(nProgVars+2),'units'    ,trim(bvar_meta(iLookBVAR%glacAblRunoffFuture)%varunit));   call netcdf_err(err,message)
+   
+   err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%glacAccRunoffFuture)%varName), nf90_double, (/gruDimID, nglDimID/), ncVarID(nProgVars+3))
+   err = nf90_put_att(ncid,ncVarID(nProgVars+3),'long_name',trim(bvar_meta(iLookBVAR%glacAccRunoffFuture)%vardesc));   call netcdf_err(err,message)
+   err = nf90_put_att(ncid,ncVarID(nProgVars+3),'units'    ,trim(bvar_meta(iLookBVAR%glacAccRunoffFuture)%varunit));   call netcdf_err(err,message)
+   
+   err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%glacAblArea)%varName), nf90_double, (/gruDimID, nglDimID/), ncVarID(nProgVars+4))
+   err = nf90_put_att(ncid,ncVarID(nProgVars+4),'long_name',trim(bvar_meta(iLookBVAR%glacAblArea)%vardesc));   call netcdf_err(err,message)
+   err = nf90_put_att(ncid,ncVarID(nProgVars+4),'units'    ,trim(bvar_meta(iLookBVAR%glacAblArea)%varunit));   call netcdf_err(err,message)
+   
+   err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%glacAccArea)%varName), nf90_double, (/gruDimID, nglDimID/), ncVarID(nProgVars+5))
+   err = nf90_put_att(ncid,ncVarID(nProgVars+5),'long_name',trim(bvar_meta(iLookBVAR%glacAccArea)%vardesc));   call netcdf_err(err,message)
+   err = nf90_put_att(ncid,ncVarID(nProgVars+5),'units'    ,trim(bvar_meta(iLookBVAR%glacAccArea)%varunit));   call netcdf_err(err,message)
+  endif
+
+ ! define index variables - ice, 0 if no glacier in HRU
+ err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nIce)%varName),nf90_int,(/domDimID/),ncIceID); call netcdf_err(err,message)
+ err = nf90_put_att(ncid,ncIceID,'long_name',trim(indx_meta(iLookINDEX%nIce)%vardesc));           call netcdf_err(err,message)
+ err = nf90_put_att(ncid,ncIceID,'units'    ,trim(indx_meta(iLookINDEX%nIce)%varunit));           call netcdf_err(err,message)
+
+ ! define index variables - lake, 0 if no lake in HRU
+ err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nLake)%varName),nf90_int,(/domDimID/),ncLakeID); call netcdf_err(err,message)
+ err = nf90_put_att(ncid,ncLakeID,'long_name',trim(indx_meta(iLookINDEX%nLake)%vardesc));           call netcdf_err(err,message)
+ err = nf90_put_att(ncid,ncLakeID,'units'    ,trim(indx_meta(iLookINDEX%nLake)%varunit));           call netcdf_err(err,message)
+  
  ! define index variables - snow
  err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nSnow)%varName),nf90_int,(/domDimID/),ncSnowID); call netcdf_err(err,message)
  err = nf90_put_att(ncid,ncSnowID,'long_name',trim(indx_meta(iLookINDEX%nSnow)%vardesc));           call netcdf_err(err,message)
@@ -664,16 +701,6 @@ contains
  err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nSoil)%varName),nf90_int,(/domDimID/),ncSoilID); call netcdf_err(err,message)
  err = nf90_put_att(ncid,ncSoilID,'long_name',trim(indx_meta(iLookINDEX%nSoil)%vardesc));           call netcdf_err(err,message)
  err = nf90_put_att(ncid,ncSoilID,'units'    ,trim(indx_meta(iLookINDEX%nSoil)%varunit));           call netcdf_err(err,message)
-
- ! define index variables - ice
- err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nIce)%varName),nf90_int,(/domDimID/),ncIceID); call netcdf_err(err,message)
- err = nf90_put_att(ncid,ncIceID,'long_name',trim(indx_meta(iLookINDEX%nIce)%vardesc));           call netcdf_err(err,message)
- err = nf90_put_att(ncid,ncIceID,'units'    ,trim(indx_meta(iLookINDEX%nIce)%varunit));           call netcdf_err(err,message)
- 
- ! define index variables - lake
- err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nLake)%varName),nf90_int,(/domDimID/),ncLakeID); call netcdf_err(err,message)
- err = nf90_put_att(ncid,ncLakeID,'long_name',trim(indx_meta(iLookINDEX%nLake)%vardesc));           call netcdf_err(err,message)
- err = nf90_put_att(ncid,ncLakeID,'units'    ,trim(indx_meta(iLookINDEX%nLake)%varunit));           call netcdf_err(err,message)
 
  ! end definition phase
  err = nf90_enddef(ncid); call netcdf_err(err,message); if (err/=0) return
@@ -700,7 +727,7 @@ contains
       okLength=.true.
       select case (prog_meta(iVar)%varType)
        case(iLookVarType%scalarv);              okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat) == nScalar  )
-       case(iLookVarType%wlength);              okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat) == nSpectral)
+       case(iLookVarType%wlength);              okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat) == nSpecBand)
        case(iLookVarType%midToto);              okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat) == nLayers  )
        case(iLookVarType%ifcToto);              okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat) == nLayers+1)
        case(iLookVarType%midSoil); if (nSoil>0) okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat) == nSoil    )
@@ -723,7 +750,7 @@ contains
       ! write data
       select case (prog_meta(iVar)%varType)
        case(iLookVarType%scalarv);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/cDOM,1/),count=(/1,nScalar  /))
-       case(iLookVarType%wlength);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/cDOM,1/),count=(/1,nSpectral/))
+       case(iLookVarType%wlength);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/cDOM,1/),count=(/1,nSpecBand/))
        case(iLookVarType%midToto);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/cDOM,1/),count=(/1,nLayers  /))
        case(iLookVarType%ifcToto);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/cDOM,1/),count=(/1,nLayers+1/))
        case(iLookVarType%midSoil); if (nSoil>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/cDOM,1/),count=(/1,nSoil    /))
@@ -747,12 +774,20 @@ contains
     ! write index variables
     err=nf90_put_var(ncid,ncSnowID,(/indx_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSnow)%dat/),start=(/cDOM/),count=(/1/))
     err=nf90_put_var(ncid,ncSoilID,(/indx_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSoil)%dat/),start=(/cDOM/),count=(/1/))
+    err=nf90_put_var(ncid,ncIceID,(/indx_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nIce)%dat/),start=(/cDOM/),count=(/1/))
+    err=nf90_put_var(ncid,ncLakeID,(/indx_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLake)%dat/),start=(/cDOM/),count=(/1/))
   
    end do ! iDOM loop
   end do ! iHRU loop
   
   ! write selected basin variables
-  err=nf90_put_var(ncid,ncVarID(nProgVars+1),(/bvar_data%gru(iGRU)%var(iLookBVAR%routingRunoffFuture)%dat/),  start=(/iGRU/),count=(/1,nTimeDelay/))
+  err=nf90_put_var(ncid,ncVarID(nProgVars+1),(/bvar_data%gru(iGRU)%var(iLookBVAR%routingRunoffFuture)%dat/), start=(/iGRU/),count=(/1,nTimeDelay/))
+  if (has_glacier > 0)then
+    err=nf90_put_var(ncid,ncVarID(nProgVars+2),(/bvar_data%gru(iGRU)%var(iLookBVAR%glacAblRunoffFuture)%dat/), start=(/iGRU/),count=(/1,maxGlaciers/))
+    err=nf90_put_var(ncid,ncVarID(nProgVars+3),(/bvar_data%gru(iGRU)%var(iLookBVAR%glacAccRunoffFuture)%dat/), start=(/iGRU/),count=(/1,maxGlaciers/))
+    err=nf90_put_var(ncid,ncVarID(nProgVars+4),(/bvar_data%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat/),         start=(/iGRU/),count=(/1,maxGlaciers/))
+    err=nf90_put_var(ncid,ncVarID(nProgVars+5),(/bvar_data%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat/),         start=(/iGRU/),count=(/1,maxGlaciers/))
+  endif
   
  end do  ! iGRU loop
 

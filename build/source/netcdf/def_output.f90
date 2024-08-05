@@ -41,6 +41,7 @@ character(len=32),parameter :: scalar_DimName   = 'scalar'           ! dimension
 character(len=32),parameter :: wLength_dimName  = 'spectral_bands'   ! dimension name for the number of spectral bands
 character(len=32),parameter :: timestep_DimName = 'time'             ! dimension name for the time step
 character(len=32),parameter :: routing_DimName  = 'timeDelayRouting' ! dimension name for the time delay routing vectors
+character(len=32),parameter :: glacier_DimName  = 'glacier'          ! dimension name for the number of glaciers
 character(len=32),parameter :: midSnow_DimName  = 'midSnow'          ! dimension name for midSnow
 character(len=32),parameter :: midSoil_DimName  = 'midSoil'          ! dimension name for midSoil
 character(len=32),parameter :: midToto_DimName  = 'midToto'          ! dimension name for midToto
@@ -57,6 +58,7 @@ integer(i4b)                :: scalar_DimID                          ! dimension
 integer(i4b)                :: wLength_dimID                         ! dimension name for the number of spectral bands
 integer(i4b)                :: timestep_DimID                        ! dimension name for the time step
 integer(i4b)                :: routing_DimID                         ! dimension name for thetime delay routing vectors
+integer(i4b)                :: glacier_DimID                         ! dimension name for the number of glaciers
 integer(i4b)                :: midSnow_DimID                         ! dimension name for midSnow
 integer(i4b)                :: midSoil_DimID                         ! dimension name for midSoil
 integer(i4b)                :: midToto_DimID                         ! dimension name for midToto
@@ -194,6 +196,11 @@ contains
  USE globalData,only:maxSnowLayers      ! maximum number of snow layers
  USE globalData,only:maxIceLayers       ! maximum number of ice layers
  USE globalData,only:maxLakeLayers      ! maximum number of lake layers
+ USE globalData,only:maxGlaciers        ! maximum number of glaciers in a GRU
+ USE globalData,only:nTimeDelay         ! maximum number of time delay routing vectors
+ USE globalData,only:nSpecBand          ! maximum number of spectral bands
+
+
  implicit none
  ! declare dummy variables
  integer(i4b),intent(in)     :: nGRU                       ! number of GRUs
@@ -204,8 +211,6 @@ contains
  integer(i4b),intent(out)    :: err                        ! error code
  character(*),intent(out)    :: message                    ! error message
  ! define local variables
- integer(i4b)                :: maxRouting=1000            ! maximum length of routing vector
- integer(i4b),parameter      :: maxSpectral=2              ! maximum number of spectral bands
  integer(i4b),parameter      :: scalarLength=1             ! length of scalar variable
 
  ! initialize error control
@@ -223,14 +228,15 @@ contains
  err = nf90_def_dim(ncid, trim(timestep_DimName), nf90_unlimited,       timestep_DimID); message='iCreate[time]';     call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim(   depth_DimName), maxSoilLayers,           depth_DimID); message='iCreate[depth]';    call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim(  scalar_DimName), scalarLength,           scalar_DimID); message='iCreate[scalar]';   call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( wLength_DimName), maxSpectral,           wLength_DimID); message='iCreate[spectral]'; call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( routing_DimName), maxRouting,            routing_DimID); message='iCreate[routing]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( wLength_DimName), nSpecBand,             wLength_DimID); message='iCreate[spectral]'; call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( routing_DimName), nTimeDelay,            routing_DimID); message='iCreate[routing]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( glacier_DimName), maxGlaciers,           glacier_DimID); message='iCreate[glacier]';  call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim( midSnow_DimName), maxSnowLayers,         midSnow_DimID); message='iCreate[midSnow]';  call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim( midSoil_DimName), maxSoilLayers,         midSoil_DimID); message='iCreate[midSoil]';  call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim( midToto_DimName), maxLayers,             midToto_DimID); message='iCreate[midToto]';  call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim( ifcSnow_DimName), maxSnowLayers+1,       ifcSnow_DimID); message='iCreate[ifcSnow]';  call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim( ifcSoil_DimName), maxSoilLayers,         ifcSoil_DimID); message='iCreate[ifcSoil]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( ifcToto_DimName), maxLayers+1, ifcToto_DimID); message='iCreate[ifcToto]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( ifcToto_DimName), maxLayers+1,           ifcToto_DimID); message='iCreate[ifcToto]';  call netcdf_err(err,message); if (err/=0) return
 
  ! Leave define mode of NetCDF files
  err = nf90_enddef(ncid);  message='nf90_enddef'; call netcdf_err(err,message); if (err/=0) return
@@ -348,6 +354,7 @@ contains
     case(iLookvarType%ifcToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/dom_DimID, ifcToto_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ domChunk, layerChunk, int(timeChunk/domChunk)+1 /)
     case(iLookvarType%parSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/dom_DimID, depth_DimID                  /), err=err, message=cmessage); writechunk=(/ domChunk, layerChunk/)
     case(iLookvarType%routing); call cloneStruc(dimensionIDs, lowerBound=1, source=(/routing_DimID                           /), err=err, message=cmessage); writechunk=(/ layerChunk /)
+    case(iLookvarType%glacier); call cloneStruc(dimensionIDs, lowerBound=1, source=(/glacier_DimID                           /), err=err, message=cmessage); writechunk=(/ layerChunk /)
    end select
    ! check errors
    if(err/=0)then

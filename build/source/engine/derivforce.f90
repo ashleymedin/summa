@@ -35,6 +35,7 @@ USE multiconst,only:minprhour                               ! number of minutes 
 ! global time information
 USE globalData,only:refJulDay                               ! reference time (fractional julian days)
 USE globalData,only:data_step                               ! length of the data step (s)
+USE glboalData,only:nSpecBand                              ! number of spectral bands
 
 ! model decisions
 USE globalData,only:model_decisions                         ! model decision structure
@@ -98,7 +99,6 @@ contains
  real(rkind)                     :: hri                        ! average radiation index over time step DT
  ! general local variables
  character(len=256)              :: cmessage                   ! error message for downwind routine
- integer(i4b),parameter          :: nBands=2                   ! number of spectral bands
  real(rkind),parameter           :: valueMissing=-9999._rkind  ! missing value
  real(rkind),parameter           :: co2Factor=355.e-6_rkind    ! empirical factor to obtain partial pressure of co2
  real(rkind),parameter           :: o2Factor=0.209_rkind       ! empirical factor to obtain partial pressure of o2
@@ -185,8 +185,8 @@ contains
 #endif
 
  ! check spectral dimension
- if(size(spectralIncomingDirect) /= nBands .or. size(spectralIncomingDiffuse) /= nBands)then
-  write(message,'(a,i0,a)') trim(message)//'expect ', nBands, 'spectral classes for radiation'
+ if(size(spectralIncomingDirect) /= nSpecB .or. size(spectralIncomingDiffuse) /= nSpecB)then
+  write(message,'(a,i0,a)') trim(message)//'expect ', nSpecB, 'spectral classes for radiation'
   err=20; return
  end if
 

@@ -96,8 +96,6 @@ implicit none
 private
 public :: vegNrgFlux
 public :: wettedFrac
-! dimensions
-integer(i4b),parameter        :: nBands  = 2                 ! number of spectral bands for shortwave radiation
 ! named variables
 integer(i4b),parameter        :: ist     = 1                 ! Surface type:  IST=1 => soil;  IST=2 => lake
 integer(i4b),parameter        :: isc     = 4                 ! Soil color type

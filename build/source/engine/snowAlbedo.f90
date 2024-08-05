@@ -56,8 +56,6 @@ implicit none
 private
 public::snowAlbedo
 
-! dimensions
-integer(i4b),parameter        :: nBands=2      ! number of spectral bands for shortwave radiation
 contains
 
 

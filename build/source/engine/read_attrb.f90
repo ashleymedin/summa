@@ -241,7 +241,7 @@ contains
    nHRU = nHRU + gru_struc(iGRU)%hruCount ! total number of HRUs
    do iHRU = 1, gru_struc(iGRU)%hruCount
      nDOM = nDOM + gru_struc(iGRU)%hruInfo(iHRU)%domCount ! total number of domains
-     do iDOM = 1, gru_struc(iGRU)%hruInfo(i)%domCount
+     do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
        gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_id = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type
      end do
    end do

@@ -825,14 +825,18 @@ MODULE var_lookup
   integer(i4b)    :: basin__SoilDrainage        = integerMissing ! soil drainage (m s-1)
   integer(i4b)    :: basin__GlacAblMelt         = integerMissing ! glacier ablation zone melt (m s-1)
   integer(i4b)    :: basin__GlacAccMelt         = integerMissing ! glacier accumulation zone melt (m s-1)
+  integer(i4b)    :: basin__GlacierStorage     = integerMissing ! glacier storage (m s-1)
+  integer(i4b)    :: basin__GlacierArea        = integerMissing ! glacier area (m2)
   ! define variables for runoff
   integer(i4b)    :: routingRunoffFuture        = integerMissing ! runoff in future time steps (m s-1)
   integer(i4b)    :: routingFractionFuture      = integerMissing ! fraction of runoff in future time steps (-)
   integer(i4b)    :: averageInstantRunoff       = integerMissing ! instantaneous runoff (m s-1)
   integer(i4b)    :: averageRoutedRunoff        = integerMissing ! routed runoff (m s-1)
   ! define variables to compute glacier runoff
-  integer(i4b)    :: glacAblRunoffFuture        = integerMissing ! glacier ablation reservoir runoff in future time steps (m s-1)
-  integer(i4b)    :: glacAccRunoffFuture        = integerMissing ! glacier accumulation reservoir runoff in future time steps (m s-1)
+  integer(i4b)    :: glacAblRunoffFuture        = integerMissing ! per glacier ablation reservoir runoff in future time steps (m s-1)
+  integer(i4b)    :: glacAccRunoffFuture        = integerMissing ! per glacier accumulation reservoir runoff in future time steps (m s-1)
+  integer(i4b)    :: glacAblArea                = integerMissing ! per glacier ablation area (m2)
+  integer(i4b)    :: glacAccArea                = integerMissing ! per glacier accumulation area (m2)
   integer(i4b)    :: glacierRoutedRunoff        = integerMissing ! lapsed glacier runoff (m s-1)
  endtype iLook_bvar
 
@@ -982,7 +986,8 @@ MODULE var_lookup
  type(iLook_bpar),    public,parameter :: iLookBPAR     =ilook_bpar    (  1,  2,  3,  4,  5)
  ! named variables: basin-average variables
  type(iLook_bvar),    public,parameter :: iLookBVAR     =ilook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
-                                                                         11, 12, 13, 14, 15, 16, 17, 18)
+                                                                         11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
+                                                                         21, 22)
  ! named variables in varibale type structure
  type(iLook_varType), public,parameter :: iLookVarType  =ilook_varType (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16)
