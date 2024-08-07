@@ -215,10 +215,10 @@ MODULE globalData
   integer(i4b),save,public                       :: maxLayers                         ! maximum number of layers
   integer(i4b),save,public                       :: maxSoilLayers                     ! maximum number of soil layers
   integer(i4b),save,public                       :: maxSnowLayers                     ! maximum number of snow layers
-  integer(i4b),save,public                       :: maxGlaciers=10                    ! maximum number of glaciers in a GRU
-  integer(i4b),save,public                       :: maxIceLayers=3                    ! maximum number of ice layers on glacier
-  integer(i4b),save,public                       :: maxLakeLayers=5                   ! maximum number of lake layers
-
+  integer(i4b),save,public                       :: maxGlaciers                       ! maximum number of glaciers in a GRU
+  integer(i4b),save,public                       :: maxIceLayers                      ! maximum number of ice layers on glacier
+  integer(i4b),save,public                       :: maxWetlands                       ! maximum number of wetlands in a GRU
+  integer(i4b),save,public                       :: maxLakeLayers                     ! maximum number of lake layers
   ! define control variables
   integer(i4b),save,public                       :: startGRU                          ! index of the starting GRU for parallelization run
   integer(i4b),save,public                       :: checkHRU                          ! index of the HRU for a single HRU run

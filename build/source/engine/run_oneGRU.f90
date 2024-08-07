@@ -23,8 +23,9 @@ module run_oneGRU_module
 ! numerical recipes data types
 USE nrtype
 
-! access integers to define "yes" and "no"
-USE globalData,only:yes,no             ! .true. and .false.
+! global constants
+USE globalData,only: yes,no             ! .true. and .false.
+USE globalData,only: data_step          ! length of data step (s)
 
 ! define data types
 USE data_types,only:&
@@ -32,6 +33,7 @@ USE data_types,only:&
                     gru2hru_map,       & ! HRU info
                     ! no spatial dimension
                     var_i,             & ! x%var(:)            (i4b)
+                    var_d,             & ! x%var(:)            (rkind)
                     var_ilength,       & ! x%var(:)%dat        (i4b)
                     var_dlength,       & ! x%var(:)%dat        (rkind)
                     ! no variable dimension
@@ -55,6 +57,7 @@ USE var_lookup,only:iLookID            ! look-up values for hru and gru IDs
 USE var_lookup,only:iLookATTR          ! look-up values for local attributes
 USE var_lookup,only:iLookINDEX         ! look-up values for local column index variables
 USE var_lookup,only:iLookFLUX          ! look-up values for local column model fluxes
+USE var_lookup,only:iLookBPAR          ! look-up values for basin-average model parameters
 USE var_lookup,only:iLookBVAR          ! look-up values for basin-average model variables
 USE var_lookup,only:iLookTIME          ! look-up values for model time data
 USE var_lookup,only:iLookPROG          ! look-up values for model prognostic (state) variables
@@ -99,6 +102,7 @@ subroutine run_oneGRU(&
                       lookupHRU,          & ! intent(in):    local lookup tables for each HRU
                       ! data structures (input-output)
                       mparHRU,            & ! intent(in):    local model parameters
+                      bparData,           & ! intent(in):    basin model parameters
                       indxHRU,            & ! intent(inout): model indices
                       forcHRU,            & ! intent(inout): model forcing data
                       progHRU,            & ! intent(inout): prognostic variables for a local HRU
@@ -127,6 +131,7 @@ subroutine run_oneGRU(&
   type(hru_dom_z_vLookup) , intent(in)    :: lookupHRU            ! x%hru(:)%dom(:)%z(:)%var(:)%lookup(:) -- lookup values for each HRU
   ! data structures (input-output)
   type(hru_dom_doubleVec) , intent(in)    :: mparHRU              ! x%hru(:)%dom(:)%var(:)%dat -- local (HRU) model parameters
+  type(var_d)             , intent(in)    :: bparData             ! x%var                      -- basin-average parameters
   type(hru_dom_intVec)    , intent(inout) :: indxHRU              ! x%hru(:)%dom(:)%var(:)%dat -- model indices
   type(hru_double)        , intent(inout) :: forcHRU              ! x%hru(:)%dom(:)%var(:)     -- model forcing data
   type(hru_dom_doubleVec) , intent(inout) :: progHRU              ! x%hru(:)%dom(:)%var(:)%dat -- model prognostic (state) variables
@@ -155,6 +160,9 @@ subroutine run_oneGRU(&
   real(rkind)                         :: remaining_elev         ! remaining elevation to be distributed
   logical(lgt)                        :: runHRU                 ! flag to run the HRU
   logical(lgt)                        :: check_updateGlacArea   ! flag to check if glacier area needs to be updated
+  real(rkind)                         :: glacIceMelt            ! glacier ice reservoir melt (m3 s-1)
+  real(rkind)                         :: glacSnowMelt           ! glacier snow reservoir melt (m3 s-1)
+  real(rkind)                         :: glacFirnMelt           ! glacier firn reservoir melt (m3 s-1)
 
   ! initialize error control
   err=0; write(message, '(A21,I0,A10,I0,A2)' ) 'run_oneGRU (gru nc = ',gruInfo%gru_nc -1,', gruId = ',gruInfo%gru_id,')/' !netcdf index starts with 0 if want to subset
@@ -172,8 +180,10 @@ subroutine run_oneGRU(&
   bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = 0._rkind ! transpiration loss from the aquifer (m s-1)
 
   ! initialize glacier variables
-  bvarData%var(iLookBVAR%basin__GlacAccMelt)%dat(1)      = 0._rkind ! glacier accumulation melt (m s-1)
-  bvarData%var(iLookBVAR%basin__GlacAblMelt)%dat(1)      = 0._rkind ! glacier ablation melt (m s-1)
+  glacIceMelt  = 0._rkind ! glacier ice reservoir melt (m3 s-1)
+  glacSnowMelt = 0._rkind ! glacier snow reservoir melt (m3 s-1)
+  glacFirnMelt = 0._rkind ! glacier firn reservoir melt (m3 s-1)
+  bvarData%var(iLookBVAR%basin__GlacierArea)%dat(1) = 0._rkind ! basin glacier area (m2)
 
   updateGlacArea = .false. ! initialize updateGlacArea flag
   updateLakeArea = .false. ! initialize updateLakeArea flag
@@ -235,25 +245,25 @@ subroutine run_oneGRU(&
     ! simulation for a single HRU
     call run_oneHRU(&
                    ! model control
-                   gruInfo%hruInfo(iHRU)%hru_nc,              & ! intent(in):    hru count Id
-                   gruInfo%hruInfo(iHRU)%hru_id,              & ! intent(in):    hruId
-                   dt_init%hru(iHRU),                         & ! intent(inout): initial time step
-                   computeVegFluxFlag,                        & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
-                   gruInfo%hruInfo(iHRU)%domCount,            & ! intent(in):    total number of domains
-                   gruInfo%hruInfo(iHRU)%domInfo,             & ! intent(inout): domain type and layer information
+                   gruInfo%hruInfo(iHRU)%hru_nc,   & ! intent(in):    hru count Id
+                   gruInfo%hruInfo(iHRU)%hru_id,   & ! intent(in):    hruId
+                   dt_init%hru(iHRU),              & ! intent(inout): initial time step
+                   computeVegFluxFlag,             & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
+                   gruInfo%hruInfo(iHRU)%domCount, & ! intent(in):    total number of domains
+                   gruInfo%hruInfo(iHRU)%domInfo,  & ! intent(inout): domain type and layer information
                    ! data structures (input)
-                   timeVec,                                   & ! intent(in):    model time data
-                   typeHRU%hru(iHRU),                         & ! intent(in):    local classification of soil veg etc. for each HRU
-                   attrHRU%hru(iHRU),                         & ! intent(in):    local attributes for each HRU
-                   lookupHRU%hru(iHRU),                       & ! intent(in):    local lookup tables for each HRU
-                   bvarData,                                  & ! intent(in):    basin-average model variables
+                   timeVec,                        & ! intent(in):    model time data
+                   typeHRU%hru(iHRU),              & ! intent(in):    local classification of soil veg etc. for each HRU
+                   attrHRU%hru(iHRU),              & ! intent(in):    local attributes for each HRU
+                   lookupHRU%hru(iHRU),            & ! intent(in):    local lookup tables for each HRU
+                   bvarData,                       & ! intent(in):    basin-average model variables
                    ! data structures (input-output)
-                   mparHRU%hru(iHRU),                         & ! intent(in):    model parameters
-                   indxHRU%hru(iHRU),                         & ! intent(inout): model indices
-                   forcHRU%hru(iHRU),                         & ! intent(inout): model forcing data
-                   progHRU%hru(iHRU),                         & ! intent(inout): model prognostic variables for a local HRU
-                   diagHRU%hru(iHRU),                         & ! intent(inout): model diagnostic variables for a local HRU
-                   fluxHRU%hru(iHRU),                         & ! intent(inout): model fluxes for a local HRU
+                   mparHRU%hru(iHRU),              & ! intent(in):    model parameters
+                   indxHRU%hru(iHRU),              & ! intent(inout): model indices
+                   forcHRU%hru(iHRU),              & ! intent(inout): model forcing data
+                   progHRU%hru(iHRU),              & ! intent(inout): model prognostic variables for a local HRU
+                   diagHRU%hru(iHRU),              & ! intent(inout): model diagnostic variables for a local HRU
+                   fluxHRU%hru(iHRU),              & ! intent(inout): model fluxes for a local HRU
                    ! error control
                    err,cmessage)                      ! intent(out):   error control
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
@@ -307,20 +317,24 @@ subroutine run_oneGRU(&
           bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) *fracDOM
         end if
       else if (typeDOM==glacAcc .or. typeDOM==glacAbl)then
-        if (typeDOM==glacAcc)then ! collect glacier accumulation melt
-          bvarData%var(iLookBVAR%basin__GlacAccMelt)%dat(1)  = bvarData%var(iLookBVAR%basin__GlacAccMelt)%dat(1)  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1) *fracDOM
-        else if (typeDOM==glacAbl)then ! collect glacier ablation melt
-          bvarData%var(iLookBVAR%basin__GlacAblMelt)%dat(1)  = bvarData%var(iLookBVAR%basin__GlacAblMelt)%dat(1)  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1) *fracDOM
+        if (typeDOM==glacAcc)then ! collect glacier accumulation melt m s-1
+          glacFirnMelt = glacFirnMelt + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1) *fracDOM
+        else if (typeDOM==glacAbl)then ! collect glacier ablation melt m s-1
+          if (progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowDepth)%dat(1)>0._rkind)then
+            glacSnowMelt = glacSnowMelt + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1) *fracDOM
+          else
+            glacIceMelt  = glacIceMelt  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1) *fracDOM
+          endif
         end if
-        ! placeholder line
         bvarData%var(iLookBVAR%basin__GlacierArea)%dat(1) = bvarData%var(iLookBVAR%basin__GlacierArea)%dat(1) + progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
+        ! placeholder line, add actual kg/m2 of glacier storage instead of SWE
         bvarData%var(iLookBVAR%basin__GlacierStorage)%dat(1) = bvarData%var(iLookBVAR%basin__GlacierStorage)%dat(1) + progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSWE)%dat(1) * progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
         ! if a year passed from last glacier area update, write fluxes to the output file so that the glacier area can be updated
         if (updateGlacArea) then
           ! save the glacier mass balance associated with this elevation
           ndom_glacGRU = ndom_glacGRU + 1
           elev(ndom_glacGRU) = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1)
-          ! placeholder line
+          ! placeholder line, add actual kg/m2 of glacier storage instead of SWE
           GWE_deltaYr(ndom_glacGRU) = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSWE)%dat(1) !- progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSWE_yrend)%dat(1) 
         end if
       else if (typeDOM==wetland)then ! collect wetland fluxes
@@ -337,18 +351,22 @@ subroutine run_oneGRU(&
   ! lapse glacier fluxes to the basin by routing through each glacier
   call qGlacier(&
                 ! input
-                bvarData%var(iLookBVAR%basin__GlacAblMelt)%dat(1),             &  ! total melt into ablation reservoirs (m s-1)
-                bvarData%var(iLookBVAR%basin__GlacAccMelt)%dat(1),             &  ! total melt into accumulation reservoirs (m s-1)
-                bvarData%var(iLookBVAR%glacAblArea)%dat,                       &  ! glacier ablation area for each glacier (m2)
-                bvarData%var(iLookBVAR%glacAccArea)%dat,                       &  ! glacier accumulation area for each glacier (m2)
-                bvarData%var(iLookBVAR%glacAblRunoffFuture)%dat,               &  ! glacier ablation reservoir runoff for each glacier in future time steps (m s-1)
-                bvarData%var(iLookBVAR%glacAccRunoffFuture)%dat,               &  ! glacier accumlation reservoirrunoff for each glacier in future time steps (m s-1)
+                data_step,                                          & ! intent(in):    length of data step (s)
+                bparData%var(iLookBPAR%glacStor_kIce),              & ! intent(in):    storage coefficient ice reservoir (hours)
+                bparData%var(iLookBPAR%glacStor_kFirn),             & ! intent(in):    storage coefficient snow reservoir (hours)
+                bparData%var(iLookBPAR%glacStor_kFirn),             & ! intent(in):    storage coefficient firn reservoir (hours)
+                glacIceMelt,                                        & ! intent(in):    total melt into ice reservoirs (m s-1)
+                glacSnowMelt,                                       & ! intent(in):    total melt into snow reservoirs (m s-1)
+                glacFirnMelt,                                       & ! intent(in):    total melt into firn reservoirs (m s-1)
+                bvarData%var(iLookBVAR%glacAblArea)%dat,            & ! intent(in):    per glacier ablation area (m2)
+                bvarData%var(iLookBVAR%glacAccArea)%dat,            & ! intent(in):    per glacier accumulation area (m2)
                 ! output
-                bvarData%var(iLookBVAR%glacierRoutedRunoff)%dat(1),            &  ! routed glacier runoff (m s-1)
+                bvarData%var(iLookBVAR%glacIceRunoffFuture)%dat,    & ! intent(inout): per glacier ice reservoir runoff in future time steps (m s-1)
+                bvarData%var(iLookBVAR%glacSnowRunoffFuture)%dat,   & ! intent(inout): per glacier snow reservoir runoff in future time steps (m s-1)
+                bvarData%var(iLookBVAR%glacFirnRunoffFuture)%dat,   & ! intent(inout): per glacier firn reservoir runoff in future time steps (m s-1)
+                bvarData%var(iLookBVAR%glacierRoutedRunoff)%dat(1), & ! intent(out):   routed glacier runoff (m s-1)
                 err,message)              ! error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
-  bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) = bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) + bvarData%var(iLookBVAR%glacierRoutedRunoff)%dat(1)
  
   ! perform the routing
   associate(totalArea => bvarData%var(iLookBVAR%basin__totalArea)%dat(1) )
@@ -367,19 +385,22 @@ subroutine run_oneGRU(&
     ! no aquifer
     bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1)/totalArea + bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)
   endif
-  bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) = bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) + bvarData%var(iLookBVAR%basin__GlacAccMelt)%dat(1) + bvarData%var(iLookBVAR%basin__GlacAblMelt)%dat(1)
-
+ 
   call qOverland(&
                  ! input
-                 model_decisions(iLookDECISIONS%subRouting)%iDecision,          &  ! intent(in): index for routing method
-                 bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1),             &  ! intent(in): total runoff to the channel from all active components (m s-1)
-                 bvarData%var(iLookBVAR%routingFractionFuture)%dat,             &  ! intent(in): fraction of runoff in future time steps (m s-1)
-                 bvarData%var(iLookBVAR%routingRunoffFuture)%dat,               &  ! intent(in): runoff in future time steps (m s-1)
+                 model_decisions(iLookDECISIONS%subRouting)%iDecision, & ! intent(in):    index for routing method
+                 bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1),    & ! intent(in):    total runoff to the channel from all active components (m s-1)
+                 bvarData%var(iLookBVAR%routingFractionFuture)%dat,    & ! intent(in):    fraction of runoff in future time steps (m s-1)
+                 bvarData%var(iLookBVAR%routingRunoffFuture)%dat,      & ! intent(inout): runoff in future time steps (m s-1)
                  ! output
-                 bvarData%var(iLookBVAR%averageInstantRunoff)%dat(1),           &  ! intent(out): instantaneous runoff (m s-1)
-                 bvarData%var(iLookBVAR%averageRoutedRunoff)%dat(1),            &  ! intent(out): routed runoff (m s-1)
-                 err,message)                                                      ! intent(out): error control
+                 bvarData%var(iLookBVAR%averageInstantRunoff)%dat(1),  & ! intent(out):   instantaneous runoff (m s-1)
+                 bvarData%var(iLookBVAR%averageRoutedRunoff)%dat(1),   & ! intent(out):   routed runoff (m s-1)
+                 err,message)                                            ! intent(out):   error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+  ! add glacier runoff to overland runoff
+  bvarData%var(iLookBVAR%averageInstantRunoff)%dat(1) = bvarData%var(iLookBVAR%averageInstantRunoff)%dat(1) + bvarData%var(iLookBVAR%glacierRoutedRunoff)%dat(1)
+  bvarData%var(iLookBVAR%averageRoutedRunoff)%dat(1) = bvarData%var(iLookBVAR%averageRoutedRunoff)%dat(1) + bvarData%var(iLookBVAR%glacierRoutedRunoff)%dat(1)
 
   end associate
 
@@ -387,6 +408,7 @@ subroutine run_oneGRU(&
   if (updateGlacArea) then
     ! need to save length, bottom topo, and elevation of glaciers from the end of previous update for this GRU in file associated with gruInfo%gru_id
     ! need to associate each glacier with an HRU and domain
+    ! for nGlacier  = gru_struc(iGRU)%nGlacier, skip if no area
     !call flow_MUSCL(& 
     !               ! input
     !               gruInfo%gru_id, & ! intent(in): GRU ID

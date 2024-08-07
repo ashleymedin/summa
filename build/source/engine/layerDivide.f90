@@ -43,7 +43,6 @@ USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta   ! metadata
 
 ! access the derived types to define the data structures
 USE data_types,only:&
-                    var_d,            & ! data vector (rkind)
                     var_ilength,      & ! data vector with variable length dimension (i4b)
                     var_dlength,      & ! data vector with variable length dimension (rkind)
                     model_options       ! defines the model decisions

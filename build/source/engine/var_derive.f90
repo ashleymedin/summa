@@ -24,6 +24,7 @@ module var_derive_module
 USE nrtype
 
 ! derived types to define the data structures
+USE data_types,only:var_d          ! x%var(:)     (rkind)
 USE data_types,only:var_ilength    ! x%var(:)%dat (i4b)
 USE data_types,only:var_dlength    ! x%var(:)%dat (rkind)
 ! named variables for snow
@@ -370,7 +371,7 @@ contains
 
  implicit none
  ! input variables
- real(rkind),intent(in)          :: bpar_data(:)         ! vector of basin-average model parameters
+ type(var_d),intent(in)          :: bpar_data            ! vector of basin-average model parameters
  ! output variables
  type(var_dlength),intent(inout) :: bvar_data            ! data structure of basin-average model variables
  integer(i4b),intent(out)        :: err                  ! error code
@@ -390,8 +391,8 @@ contains
  ! associate variables in data structure
  associate(&
  ixRouting         => model_decisions(iLookDECISIONS%subRouting)%iDecision, & ! index for routing method
- routingGammaShape => bpar_data(iLookBPAR%routingGammaShape),               & ! shape parameter in Gamma distribution used for sub-grid routing (-)
- routingGammaScale => bpar_data(iLookBPAR%routingGammaScale),               & ! scale parameter in Gamma distribution used for sub-grid routing (s)
+ routingGammaShape => bpar_data%var(iLookBPAR%routingGammaShape),           & ! shape parameter in Gamma distribution used for sub-grid routing (-)
+ routingGammaScale => bpar_data%var(iLookBPAR%routingGammaScale),           & ! scale parameter in Gamma distribution used for sub-grid routing (s)
  runoffFuture      => bvar_data%var(iLookBVAR%routingRunoffFuture)%dat,     & ! runoff in future time steps (m s-1)
  fractionFuture    => bvar_data%var(iLookBVAR%routingFractionFuture)%dat    & ! fraction of runoff in future time steps (-)
  ) ! end associate

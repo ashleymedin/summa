@@ -609,16 +609,16 @@ contains
   case('balanceSoilMass'                ); get_ixDiag = iLookDIAG%balanceSoilMass                  ! balance of water in the soil (kg m-3 s-1)
   case('balanceAqMass'                  ); get_ixDiag = iLookDIAG%balanceAqMass                    ! balance of water in the aquifer (kg m-2 s-1) (no depth to aquifer)
   ! sundials integrator stats
-  case('numSteps'                       ); get_ixDiag = iLookDIAG%numSteps
-  case('numResEvals'                    ); get_ixDiag = iLookDIAG%numResEvals
-  case('numLinSolvSetups'               ); get_ixDiag = iLookDIAG%numLinSolvSetups
-  case('numErrTestFails'                ); get_ixDiag = iLookDIAG%numErrTestFails
-  case('kLast'                          ); get_ixDiag = iLookDIAG%kLast
-  case('kCur'                           ); get_ixDiag = iLookDIAG%kCur
-  case('hInitUsed'                      ); get_ixDiag = iLookDIAG%hInitUsed
-  case('hLast'                          ); get_ixDiag = iLookDIAG%hLast
-  case('hCur'                           ); get_ixDiag = iLookDIAG%hCur
-  case('tCur'                           ); get_ixDiag = iLookDIAG%tCur
+  case('numSteps'                       ); get_ixDiag = iLookDIAG%numSteps                         ! number of steps taken by the integrator
+  case('numResEvals'                    ); get_ixDiag = iLookDIAG%numResEvals                      ! number of residual evaluations
+  case('numLinSolvSetups'               ); get_ixDiag = iLookDIAG%numLinSolvSetups                 ! number of linear solver setups
+  case('numErrTestFails'                ); get_ixDiag = iLookDIAG%numErrTestFails                  ! number of error test failures
+  case('kLast'                          ); get_ixDiag = iLookDIAG%kLast                            ! method order used on the last internal step
+  case('kCur'                           ); get_ixDiag = iLookDIAG%kCur                             ! method order to be used on the next internal step
+  case('hInitUsed'                      ); get_ixDiag = iLookDIAG%hInitUsed                        ! step size used on the first internal step
+  case('hLast'                          ); get_ixDiag = iLookDIAG%hLast                            ! step size used on the last internal step
+  case('hCur'                           ); get_ixDiag = iLookDIAG%hCur                             ! step size to be used on the next internal step
+  case('tCur'                           ); get_ixDiag = iLookDIAG%tCur                             ! current time reached by the integrator
   ! get to here if cannot find the variable
   case default
    get_ixDiag = integerMissing
@@ -971,6 +971,10 @@ contains
   ! sub-grid routing
   case('routingGammaShape'        ); get_ixBpar = iLookBPAR%routingGammaShape         ! shape parameter in Gamma distribution used for sub-grid routing (-)
   case('routingGammaScale'        ); get_ixBpar = iLookBPAR%routingGammaScale         ! scale parameter in Gamma distribution used for sub-grid routing (s)
+  ! glacier melt
+  case('glacStor_kIce'            ); get_ixBpar = iLookBPAR%glacStor_kIce             ! storage coefficient glacier ice reservoir (hours)
+  case('glacStor_kSnow'           ); get_ixBpar = iLookBPAR%glacStor_kSnow            ! storage coefficient glacier snow reservoir (hours)
+  case('glacStor_kFirn'           ); get_ixBpar = iLookBPAR%glacStor_kFirn            ! storage coefficient glacier firn reservoir (hours)
   ! get to here if cannot find the variable
   case default
    get_ixBpar = integerMissing
@@ -1000,8 +1004,6 @@ contains
   case('basin__AquiferTranspire'       ); get_ixBvar = iLookBVAR%basin__AquiferTranspire         ! transpiration from the aquifer (m s-1)
   case('basin__TotalRunoff'            ); get_ixBvar = iLookBVAR%basin__TotalRunoff              ! total runoff to channel from all active components (m s-1)
   case('basin__SoilDrainage'           ); get_ixBvar = iLookBVAR%basin__SoilDrainage             ! soil drainage (m s-1)
-  case('basin__GlacAblMelt'            ); get_ixBvar = iLookBVAR%basin__GlacAblMelt              ! glacier ablation zone melt (m s-1)
-  case('basin__GlacAccMelt'            ); get_ixBvar = iLookBVAR%basin__GlacAccMelt              ! glacier accumulation zone melt (m s-1)
   case('basin__GlacierStorage'         ); get_ixBvar = iLookBVAR%basin__GlacierStorage           ! glacier storage (m s-1)
   case('basin__GlacierArea'            ); get_ixBvar = iLookBVAR%basin__GlacierArea              ! glacier area (m2) 
   ! variables to compute runoff
@@ -1010,10 +1012,11 @@ contains
   case('averageInstantRunoff'          ); get_ixBvar = iLookBVAR%averageInstantRunoff            ! instantaneous runoff (m s-1)
   case('averageRoutedRunoff'           ); get_ixBvar = iLookBVAR%averageRoutedRunoff             ! routed runoff (m s-1)
   ! variables to compute glacier runoff
-  case('glacAblRunoffFuture'           ); get_ixBvar = iLookBVAR%glacAblRunoffFuture             ! per glacier ablation reservoir runoff in future time steps (m s-1)
-  case('glacAccRunoffFuture'           ); get_ixBvar = iLookBVAR%glacAccRunoffFuture             ! per glacier accumulation reservoir runoff in future time steps (m s-1)
   case('glacAblArea'                   ); get_ixBvar = iLookBVAR%glacAblArea                     ! per glacier ablation area (m2)
   case('glacAccArea'                   ); get_ixBvar = iLookBVAR%glacAccArea                     ! per glacier accumulation area (m2)
+  case('glacIceRunoffFuture'           ); get_ixBvar = iLookBVAR%glacIceRunoffFuture             ! per glacier ice reservoir runoff in future time steps (m s-1)
+  case('glacSnowRunoffFuture'          ); get_ixBvar = iLookBVAR%glacSnowRunoffFuture            ! per glacier snow reservoir runoff in future time steps (m s-1)
+  case('glacFirnRunoffFuture'          ); get_ixBvar = iLookBVAR%glacFirnRunoffFuture            ! per glacier firn reservoir runoff in future time steps (m s-1)
   case('glacierRoutedRunoff'           ); get_ixBvar = iLookBVAR%glacierRoutedRunoff             ! lapsed glacier runoff (m s-1)
   ! get to here if cannot find the variable
   case default
@@ -1046,6 +1049,7 @@ contains
   case('ifcToto'); get_ixVarType = iLookVarType%ifcToto
   case('parSoil'); get_ixVarType = iLookVarType%parSoil
   case('routing'); get_ixVarType = iLookVarType%routing
+  case('glacier'); get_ixVarType = iLookVarType%glacier
   case('unknown'); get_ixVarType = iLookVarType%unknown
   ! get to here if cannot find the variable
   case default
@@ -1069,7 +1073,7 @@ contains
   case(iLookVarType%midSnow);get_varTypeName='midSnow'
   case(iLookVarType%midSoil);get_varTypeName='midSoil'
   case(iLookVarType%midLake);get_varTypeName='midLake'
-  case(iLookVarType%midIce);get_varTypeName='midIce'
+  case(iLookVarType%midIce); get_varTypeName='midIce'
   case(iLookVarType%midToto);get_varTypeName='midToto'
   case(iLookVarType%ifcSnow);get_varTypeName='ifcSnow'
   case(iLookVarType%ifcSoil);get_varTypeName='ifcSoil'

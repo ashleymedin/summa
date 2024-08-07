@@ -131,22 +131,22 @@ contains
  real(rkind),intent(in)             :: scalarSatVP_VegTemp       ! saturation vapor pressure at vegetation temperature (Pa)
  real(rkind),intent(in)             :: scalarVP_CanopyAir        ! canopy air vapor pressure (Pa)
  ! input: data structures
- type(var_i),intent(in)          :: type_data                    ! type of vegetation and soil
- type(var_d),intent(in)          :: forc_data                    ! model forcing data
- type(var_dlength),intent(in)    :: mpar_data                    ! model parameters
- type(model_options),intent(in)  :: model_decisions(:)           ! model decisions
- ! input-output: data structures
- type(var_dlength),intent(inout) :: diag_data                    ! diagnostic variables for a local HRU
- type(var_dlength),intent(inout) :: flux_data                    ! model fluxes for a local HRU
+ type(var_i),intent(in)             :: type_data                 ! type of vegetation and soil
+ type(var_d),intent(in)             :: forc_data                 ! model forcing data
+ type(var_dlength),intent(in)       :: mpar_data                 ! model parameters
+ type(model_options),intent(in)     :: model_decisions(:)        ! model decisions
+ ! input-output: data structures    
+ type(var_dlength),intent(inout)    :: diag_data                 ! diagnostic variables for a local HRU
+ type(var_dlength),intent(inout)    :: flux_data                 ! model fluxes for a local HRU
  ! output: error control
- integer(i4b),intent(out)        :: err                          ! error code
- character(*),intent(out)        :: message                      ! error message
+ integer(i4b),intent(out)           :: err                       ! error code
+ character(*),intent(out)           :: message                   ! error message
  ! -----------------------------------------------------------------------------------------------------------------------------------------------------
  ! local variables
- character(LEN=256)              :: cmessage                     ! error message of downwind routine
- integer(i4b),parameter          :: ixSunlit=1                   ! named variable for sunlit leaves
- integer(i4b),parameter          :: ixShaded=2                   ! named variable for shaded leaves
- integer(i4b)                    :: iSunShade                    ! index defining sunlit or shaded leaves
+ character(LEN=256)                 :: cmessage                  ! error message of downwind routine
+ integer(i4b),parameter             :: ixSunlit=1                ! named variable for sunlit leaves
+ integer(i4b),parameter             :: ixShaded=2                ! named variable for shaded leaves
+ integer(i4b)                       :: iSunShade                 ! index defining sunlit or shaded leaves
  real(rkind)                        :: absorbedPAR               ! absorbed PAR (W m-2)
  real(rkind)                        :: scalarStomResist          ! stomatal resistance (s m-1)
  real(rkind)                        :: scalarPhotosynthesis      ! photosynthesis (umol CO2 m-2 s-1)

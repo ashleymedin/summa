@@ -106,6 +106,8 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  USE globalData,only:maxSnowLayers                           ! maximum number of snow layers
  USE globalData,only:maxIceLayers                            ! maximum number of ice layers
  USE globalData,only:maxLakeLayers                           ! maximum number of lake layers
+ USE globalData,only:maxGlaciers                             ! maximum number of glaciers
+ USE globalData,only:maxWetlands                             ! maximum number of wetlands
  ! timing variables
  USE globalData,only:startSetup,endSetup                     ! date/time for the start and end of the parameter setup
  USE globalData,only:elapsedSetup                            ! elapsed time for the parameter setup
@@ -136,6 +138,8 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  integer(i4b)                          :: maxLayers_wtld     ! maximum number of layers for wetland
  integer(i4b)                          :: maxSoilLayers_glac ! maximum number of soil layers for glacier (0)
  integer(i4b)                          :: maxSoilLayers_wtld ! maximum number of soil layers for wetland
+ integer(i4b)                          :: maxSnowLayers_glac ! maximum number of snow layers for glacier (0)
+ integer(i4b)                          :: maxSnowLayers_wtld ! maximum number of snow layers for wetland
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(&
@@ -205,21 +209,34 @@ subroutine summa_paramSetup(summa1_struc, err, message)
 
  ! get the maximum number of layers
  ! this assumes that the number of soil layers is the same for all HRU (by domain type) in the model 
- maxLayers = -1
- maxLayers_glac = -1
- maxLayers_wtld = -1
+ maxLayers          = 0
+ maxLayers_glac     = 0
+ maxLayers_wtld     = 0
+ maxSoilLayers      = 0
+ maxSoilLayers_glac = 0
+ maxSoilLayers_wtld = 0
+ maxSnowLayers      = 0
+ maxSnowLayers_glac = 0
+ maxSnowLayers_wtld = 0
+ maxIceLayers       = 0
+ maxLakeLayers      = 0
  gruLoop: do iGRU=1,nGRU
   do iHRU=1,gru_struc(iGRU)%hruCount
    do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
     if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==upland)then
-     maxLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + maxSnowLayers
+     maxLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
      maxSoilLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
+     maxSnowLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
     else if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAbl .or. gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc)then
-     maxLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + maxIceLayers + maxSnowLayers
+     maxLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce + gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
      maxSoilLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
+     maxIceLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce
+     maxSnowLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
     else if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==wetland)then
-     maxLayers_wtld = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + maxLakeLayers + maxSnowLayers
+     maxLayers_wtld = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake + gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
      maxSoilLayers_wtld = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
+     maxLakeLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake
+     maxSnowLayers_wtld = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
     endif
     if (maxLayers>0 .and. maxLayers_glac>0 .and. maxLayers_wtld>0) exit gruLoop ! exit the loop if all values are found
    end do
@@ -228,6 +245,14 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  ! Determine the maximum of the three variables
  maxLayers = max(maxLayers, maxLayers_glac, maxLayers_wtld)
  maxSoilLayers = max(maxSoilLayers, maxSoilLayers_glac, maxSoilLayers_wtld)
+ maxSnowLayers = max(maxSnowLayers, maxSnowLayers_glac, maxSnowLayers_wtld)
+
+ maxGlaciers = 0
+ maxWetlands = 0
+ do iGRU=1,nGRU
+   maxGlaciers = max(maxGlaciers, gru_struc(iGRU)%nGlacier)
+   maxWetlands = max(maxWetlands, gru_struc(iGRU)%nWetland)
+ end do
 
  ! *****************************************************************************
  ! *** read local attributes for each HRU
@@ -324,7 +349,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  do iGRU=1,nGRU
 
   ! calculate the fraction of runoff in future time steps
-  call fracFuture(bparStruct%gru(iGRU)%var,    &  ! vector of basin-average model parameters
+  call fracFuture(bparStruct%gru(iGRU),        &  ! vector of basin-average model parameters
                   bvarStruct%gru(iGRU),        &  ! data structure of basin-average variables
                   err,cmessage)                   ! error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif

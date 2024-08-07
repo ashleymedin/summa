@@ -302,8 +302,13 @@ subroutine popMetadat(err,message)
   bpar_meta(iLookBPAR%basin__aquiferHydCond)           = var_info('basin__aquiferHydCond'          , 'hydraulic conductivity of the aquifer'                            , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bpar_meta(iLookBPAR%basin__aquiferScaleFactor)       = var_info('basin__aquiferScaleFactor'      , 'scaling factor for aquifer storage in the big bucket'             , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bpar_meta(iLookBPAR%basin__aquiferBaseflowExp)       = var_info('basin__aquiferBaseflowExp'      , 'baseflow exponent for the big bucket'                             , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! sub-grid routing
   bpar_meta(iLookBPAR%routingGammaShape)               = var_info('routingGammaShape'              , 'shape parameter in Gamma distribution used for sub-grid routing'  , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bpar_meta(iLookBPAR%routingGammaScale)               = var_info('routingGammaScale'              , 'scale parameter in Gamma distribution used for sub-grid routing'  , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! glacier melt
+  bpar_meta(iLookBPAR%glacStor_kIce)                   = var_info('glacStor_kIce'                  , 'storage coefficient glacier ice reservoir'                        , 'hours'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bpar_meta(iLookBPAR%glacStor_kSnow)                  = var_info('glacStor_kSnow'                 , 'storage coefficient glacier snow reservoir'                       , 'hours'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bpar_meta(iLookBPAR%glacStor_kFirn)                  = var_info('glacStor_kFirn'                 , 'storage coefficient glacier firn reservoir'                       , 'hours'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * local model prognostic (state) variables...
   ! ---------------------------------------------
@@ -678,6 +683,7 @@ subroutine popMetadat(err,message)
   ! * basin-wide runoff and aquifer fluxes...
   ! -----------------------------------------
   bvar_meta(iLookBVAR%basin__TotalArea)        = var_info('basin__TotalArea'       , 'total basin area'                                              , 'm2'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! scalar variables -- basin-average runoff and aquifer fluxes
   bvar_meta(iLookBVAR%basin__SurfaceRunoff)    = var_info('basin__SurfaceRunoff'   , 'surface runoff'                                                , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%basin__ColumnOutflow)    = var_info('basin__ColumnOutflow'   , 'outflow from all "outlet" HRUs (with no downstream HRU)'       , 'm3 s-1', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%basin__AquiferStorage)   = var_info('basin__AquiferStorage'  , 'aquifer storage'                                               , 'm'     , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
@@ -686,18 +692,19 @@ subroutine popMetadat(err,message)
   bvar_meta(iLookBVAR%basin__AquiferTranspire) = var_info('basin__AquiferTranspire', 'transpiration loss from the aquifer'                           , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%basin__TotalRunoff)      = var_info('basin__TotalRunoff'     , 'total runoff to channel from all active components'            , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%basin__SoilDrainage)     = var_info('basin__SoilDrainage'    , 'soil drainage'                                                 , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  bvar_meta(iLookBVAR%basin__GlacAblMelt)      = var_info('basin__GlacAblMelt'     , 'glacier ablation zone melt'                                    , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  bvar_meta(iLookBVAR%basin__GlacAccMelt)      = var_info('basin__GlacAccMelt'     , 'glacier accumulation zone melt'                                , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%basin__GlacierStorage)   = var_info('basin__GlacierStorage'  , 'glacier storage'                                               , 'kg'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%basin__GlacierArea)      = var_info('basin__GlacierArea'     , 'glacier area'                                                  , 'm2'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! variables to compute runoff
   bvar_meta(iLookBVAR%routingRunoffFuture)     = var_info('routingRunoffFuture'    , 'runoff in future time steps'                                   , 'm s-1' , get_ixVarType('routing'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%routingFractionFuture)   = var_info('routingFractionFuture'  , 'fraction of runoff in future time steps'                       , '-'     , get_ixVarType('routing'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%averageInstantRunoff)    = var_info('averageInstantRunoff'   , 'instantaneous runoff'                                          , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%averageRoutedRunoff)     = var_info('averageRoutedRunoff'    , 'routed runoff'                                                 , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  bvar_meta(iLookBVAR%glacAblRunoffFuture)     = var_info('glacAblRunoffFuture'    , 'per glacier ablation reservoir runoff in future time steps'    , 'm s-1' , get_ixVarType('glacier'), iMissVec, iMissVec, .false.)
-  bvar_meta(iLookBVAR%glacAccRunoffFuture)     = var_info('glacAccRunoffFuture'    , 'per glacier accumulation reservoir runoff in future time steps', 'm s-1' , get_ixVarType('glacier'), iMissVec, iMissVec, .false.)
+  ! variables to compute glacier runoff
   bvar_meta(iLookBVAR%glacAblArea)             = var_info('glacAblArea'            , 'per glacier ablation area'                                     , 'm2'    , get_ixVarType('glacier'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%glacAccArea)             = var_info('glacAccArea'            , 'per glacier accumulation area'                                 , 'm2'    , get_ixVarType('glacier'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%glacIceRunoffFuture)     = var_info('glacIceRunoffFuture'    , 'per glacier ice reservoir runoff in future time steps'         , 'm s-1' , get_ixVarType('glacier'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%glacSnowRunoffFuture)    = var_info('glacSnowRunoffFuture'   , 'per glacier snow reservoir runoff in future time steps'        , 'm s-1' , get_ixVarType('glacier'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%glacFirnRunoffFuture)    = var_info('glacFirnRunoffFuture'   , 'per glacier firn reservoir runoff in future time steps'        , 'm s-1' , get_ixVarType('glacier'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%glacierRoutedRunoff)     = var_info('glacierRoutedRunoff'    , 'lapsed glacier runoff'                                         , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
 
  

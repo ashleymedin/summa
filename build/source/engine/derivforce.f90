@@ -35,7 +35,7 @@ USE multiconst,only:minprhour                               ! number of minutes 
 ! global time information
 USE globalData,only:refJulDay                               ! reference time (fractional julian days)
 USE globalData,only:data_step                               ! length of the data step (s)
-USE glboalData,only:nSpecBand                              ! number of spectral bands
+USE globalData,only:nSpecBand                               ! number of spectral bands
 
 ! model decisions
 USE globalData,only:model_decisions                         ! model decision structure
@@ -185,8 +185,8 @@ contains
 #endif
 
  ! check spectral dimension
- if(size(spectralIncomingDirect) /= nSpecB .or. size(spectralIncomingDiffuse) /= nSpecB)then
-  write(message,'(a,i0,a)') trim(message)//'expect ', nSpecB, 'spectral classes for radiation'
+ if(size(spectralIncomingDirect) /= nSpecBand .or. size(spectralIncomingDiffuse) /= nSpecBand)then
+  write(message,'(a,i0,a)') trim(message)//'expect ', nSpecBand, 'spectral classes for radiation'
   err=20; return
  end if
 

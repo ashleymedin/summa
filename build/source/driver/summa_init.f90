@@ -112,6 +112,8 @@ subroutine summa_initialize(summa1_struc, err, message)
   integer(i4b)                          :: iStruct,iGRU,iHRU  ! looping variables
   integer(i4b)                          :: fileGRU            ! [used for filenames] number of GRUs in the input file
   integer(i4b)                          :: fileHRU            ! [used for filenames] number of HRUs in the input file
+  integer(i4b)                          :: hruCount           ! number of local hydrologic response units
+  integer(i4b)                          :: domCount           ! number of local domains
   ! ---------------------------------------------------------------------------------------
   ! associate to elements in the data structure
   summaVars: associate(&
@@ -158,8 +160,6 @@ subroutine summa_initialize(summa1_struc, err, message)
     nGRU                 => summa1_struc%nGRU                , & ! number of grouped response units
     nHRU                 => summa1_struc%nHRU                , & ! number of global hydrologic response units
     nDOM                 => summa1_struc%nDOM                , & ! number of global domains
-    hruCount             => summa1_struc%hruCount            , & ! number of local hydrologic response units
-    domCount             => summa1_struc%domCount            , & ! number of local domains
     greenVegFrac_monthly => summa1_struc%greenVegFrac_monthly, & ! fraction of green vegetation in each month (0-1)
     summaFileManagerFile => summa1_struc%summaFileManagerFile  & ! path/name of file defining directories and files
 

@@ -280,6 +280,7 @@ contains
                   lookupStruct%gru(iGRU),       & ! intent(in):    local lookup tables for each HRU
                   ! data structures (input-output)
                   mparStruct%gru(iGRU),         & ! intent(in):    local model parameters
+                  bparStruct%gru(iGRU),         & ! intent(in):    basin-average parameters
                   indxStruct%gru(iGRU),         & ! intent(inout): model indices
                   forcStruct%gru(iGRU),         & ! intent(inout): model forcing data
                   progStruct%gru(iGRU),         & ! intent(inout): prognostic variables for a local HRU

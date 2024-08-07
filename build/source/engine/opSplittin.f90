@@ -287,6 +287,7 @@ subroutine opSplittin(&
   type(var_dlength)               :: flux_mean                      ! mean model fluxes
   type(var_dlength)               :: flux_mntemp                    ! temporary mean model fluxes
   type(var_dlength)               :: deriv_data                     ! derivatives in model fluxes w.r.t. relevant state variables
+  integer(i4b),parameter          :: zero=0                         ! zero value
   ! ------------------------------------------------------------------------------------------------------
   ! * operator splitting
   ! ------------------------------------------------------------------------------------------------------
@@ -619,35 +620,35 @@ subroutine opSplittin(&
    return_flag=.false. ! initialize flag
 
    ! allocate space for the flux mask (used to define when fluxes are updated)
-   call allocLocal(flux_meta(:),fluxMask,nSnow,nSoil,nIce,nLake,err,cmessage)
+   call allocLocal(flux_meta(:),fluxMask,nSnow,nSoil,nIce,nLake,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the flux count (used to check that fluxes are only updated once)
-   call allocLocal(flux_meta(:),fluxCount,nSnow,nSoil,nIce,nLake,err,cmessage)
+   call allocLocal(flux_meta(:),fluxCount,nSnow,nSoil,nIce,nLake,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary prognostic variable structure
-   call allocLocal(prog_meta(:),prog_temp,nSnow,nSoil,nIce,nLake,err,cmessage)
+   call allocLocal(prog_meta(:),prog_temp,nSnow,nSoil,nIce,nLake,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary diagnostic variable structure
-   call allocLocal(diag_meta(:),diag_temp,nSnow,nSoil,nIce,nLake,err,cmessage)
+   call allocLocal(diag_meta(:),diag_temp,nSnow,nSoil,nIce,nLake,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary flux variable structure
-   call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,nIce,nLake,err,cmessage)
+   call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,nIce,nLake,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the mean flux variable structure
-   call allocLocal(flux_meta(:),flux_mean,nSnow,nSoil,nIce,nLake,err,cmessage)
+   call allocLocal(flux_meta(:),flux_mean,nSnow,nSoil,nIce,nLake,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary mean flux variable structure
-   call allocLocal(flux_meta(:),flux_mntemp,nSnow,nSoil,nIce,nLake,err,cmessage)
+   call allocLocal(flux_meta(:),flux_mntemp,nSnow,nSoil,nIce,nLake,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the derivative structure
-   call allocLocal(deriv_meta(:),deriv_data,nSnow,nSoil,nIce,nLake,err,cmessage)
+   call allocLocal(deriv_meta(:),deriv_data,nSnow,nSoil,nIce,nLake,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end subroutine allocate_memory
 

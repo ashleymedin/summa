@@ -160,6 +160,7 @@ USE mDecisions_module,only:&
  if(ixNrgConserv .ne. closedForm) checkEnthalpy = .true. ! check enthalpy either for mixed form energy equation or enthalpy state variable
  if(ixNrgConserv==enthalpyFormLU) use_lookup = .true.    ! use lookup tables for soil temperature-enthalpy instead of analytical solution
  call check_icond(nGRU,                         & ! intent(in):    number of response units
+                  bvarStruct,                   & ! intent(inout): model basin (GRU) variables
                   progStruct,                   & ! intent(inout): model prognostic variables
                   diagStruct,                   & ! intent(inout): model diagnostic variables
                   mparStruct,                   & ! intent(in):    model parameters

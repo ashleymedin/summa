@@ -163,6 +163,7 @@ subroutine varSubstep(&
   integer(i4b)                       :: iSoil                                  ! index of soil layers
   integer(i4b)                       :: ixLayer                                ! index in a given domain
   integer(i4b),dimension(1)          :: ixMin,ixMax                            ! bounds of a given flux vector
+  integer(i4b),parameter             :: zero=0                                 ! zero value
   ! time stepping
   real(rkind)                        :: dtSum                                  ! sum of time from successful steps (seconds)
   real(rkind)                        :: dt_wght                                ! weight given to a given flux calculation
@@ -296,7 +297,7 @@ subroutine varSubstep(&
     maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s).
 
     ! allocate space for the temporary model flux structure
-    call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,nIce,nLake,err,cmessage)
+    call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,nIce,nLake,zero,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
     ! initialize the model fluxes (some model fluxes are not computed in the iterations)

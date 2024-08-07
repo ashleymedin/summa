@@ -244,16 +244,17 @@ subroutine summaSolve4ida(&
   real(rkind),allocatable           :: mLayerMatricHeadPrimePrev(:)           ! previous derivative value for total water matric potential (m s-1)
   real(rkind),allocatable           :: resVecPrev(:)                          ! previous value for residuals
   real(rkind),allocatable           :: dCompress_dPsiPrev(:)                  ! previous derivative value soil compression
-  integer(c_long)                   :: nStepsSun(1)
-  integer(c_long)                   :: nREvals(1)
-  integer(c_long)                   :: nLinSetups(1)
-  integer(c_long)                   :: netFails(1)
-  integer(c_int)                    :: qLast(1)
-  integer(c_int)                    :: qCur(1)
-  real(c_double)                    :: hInitUsed(1)
-  real(c_double)                    :: hLast(1)
-  real(c_double)                    :: hCur(1)
-  real(c_double)                    :: tCur(1)
+  integer(c_long)                   :: nStepsSun(1)                           ! number of steps taken by the integrator
+  integer(c_long)                   :: nREvals(1)                             ! number of residual evaluations
+  integer(c_long)                   :: nLinSetups(1)                          ! number of linear solver setups
+  integer(c_long)                   :: netFails(1)                            ! number of error test failures
+  integer(c_int)                    :: qLast(1)                               ! method order used on the last internal step
+  integer(c_int)                    :: qCur(1)                                ! method order to be used on the next internal step
+  real(c_double)                    :: hInitUsed(1)                           ! step size used on the first internal step
+  real(c_double)                    :: hLast(1)                               ! step size used on the last internal step
+  real(c_double)                    :: hCur(1)                                ! step size to be used on the next internal step
+  real(c_double)                    :: tCur(1)                                ! current time reached by the integrator
+  integer(i4b),parameter            :: zero=0                                 ! zero value
   ! flags
   logical(lgt)                      :: use_fdJac                              ! flag to use finite difference Jacobian, controlled by decision fDerivMeth
   logical(lgt),parameter            :: offErrWarnMessage = .true.             ! flag to turn IDA warnings off, default true
@@ -323,7 +324,7 @@ subroutine summaSolve4ida(&
     allocate( eqns_data%dMat(nState) ); eqns_data%dMat = dMat
     
     ! allocate space for the to save previous fluxes
-    call allocLocal(flux_meta(:),flux_prev,nSnow,nSoil,nIce,nLake,err,cmessage)
+    call allocLocal(flux_meta(:),flux_prev,nSnow,nSoil,nIce,nLake,zero,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
     
     ! allocate space for other variables

@@ -70,8 +70,8 @@ contains
  integer(i4b)                         :: varID              ! NetCDF variable ID
  integer(i4b)                         :: gruDimId           ! variable id of GRU dimension from netcdf file
  integer(i4b)                         :: hruDimId           ! variable id of HRU dimension from netcdf file
- integer(i4b)                         :: has_glacier        ! flag for glacier presence
- integer(i4b)                         :: has_lake           ! flag for lake presence
+ integer(i4b),allocatable             :: nGlac_HRU(:)       ! number of glaciers in hru
+ integer(i4b),allocatable             :: nWtld_HRU(:)       ! number of wetlands/lakes in hru
  character(len=256)                   :: cmessage           ! error message for downwind routine
 
  ! Start procedure here
@@ -119,7 +119,7 @@ contains
  ! **********************************************************************************************
  ! allocate space for GRU indices
  allocate(gru_id(fileGRU))
- allocate(hru_ix(fileHRU),hru_id(fileHRU),hru2gru_id(fileHRU))
+ allocate(hru_ix(fileHRU),hru_id(fileHRU),hru2gru_id(fileHRU),nGlac_HRU(fileHRU),nWtld_HRU(fileHRU))
 
  ! read gru_id from netcdf file
  err = nf90_inq_varid(ncID,"gruId",varID);     if (err/=0) then; message=trim(message)//'problem finding gruId'; return; end if
@@ -134,17 +134,17 @@ contains
  err = nf90_get_var(ncID,varID,hru2gru_id);    if (err/=0) then; message=trim(message)//'problem reading hru2gruId'; return; end if
 
  ! read domain information from netcdf file
- err = nf90_inq_varid(ncID,"glacier",varID)
+ err = nf90_inq_varid(ncID,"nGlacier",varID)
  if (err/=0) then
-   has_glacier = 0 ! backwards compatibility
+   nGlac_HRU = 0 ! backwards compatibility
  else
-   err = nf90_get_var(ncID,varID,has_glacier);   if (err/=0) then; message=trim(message)//'problem reading glacier'; return; end if
+   err = nf90_get_var(ncID,varID,nGlac_HRU);   if (err/=0) then; message=trim(message)//'problem reading glacier'; return; end if
  end if
- err = nf90_inq_varid(ncID,"lake",varID) 
+ err = nf90_inq_varid(ncID,"nWetland",varID) 
  if (err/=0) then
-   has_lake = 0 ! backwards compatibility
+   nWtld_HRU = 0 ! backwards compatibility
  else
-   err = nf90_get_var(ncID,varID,has_lake);      if (err/=0) then; message=trim(message)//'problem reading lake'; return; end if
+   err = nf90_get_var(ncID,varID,nWtld_HRU);      if (err/=0) then; message=trim(message)//'problem reading lake'; return; end if
  end if
 
  ! array from 1 to total # of HRUs in attributes file
@@ -171,8 +171,10 @@ contains
   gru_struc(iGRU)%hruInfo(iGRU)%hru_id = hru_id(checkHRU)     ! set id of hru
 
   gru_struc(iGRU)%hruInfo(iGRU)%domCount = 1                  ! upland domain always present, for changing size glaciers and lakes
-  if (has_glacier > 0) gru_struc(iGRU)%hruInfo(iGRU)%domCount = gru_struc(iGRU)%hruInfo(iGRU)%domCount + 2 ! accumulation and ablation domains possible
-  if (has_lake > 0) gru_struc(iGRU)%hruInfo(iGRU)%domCount = gru_struc(iGRU)%hruInfo(iGRU)%domCount + 1    ! wetland domain possible
+  gru_struc(iGRU)%nGlacier = nGlac_HRU(checkHRU)            ! set number of glaciers in the gru
+  gru_struc(iGRU)%nWetland = nWtld_HRU(checkHRU)               ! set number of wetlands in the gru
+  if (nGlac_HRU(checkHRU) > 0) gru_struc(iGRU)%hruInfo(iGRU)%domCount = gru_struc(iGRU)%hruInfo(iGRU)%domCount + 2 ! accumulation and ablation domains possible
+  if (nWtld_HRU(checkHRU) > 0) gru_struc(iGRU)%hruInfo(iGRU)%domCount = gru_struc(iGRU)%hruInfo(iGRU)%domCount + 1    ! wetland domain possible
   allocate(gru_struc(iGRU)%hruInfo(iGRU)%domInfo(gru_struc(iGRU)%hruInfo(iGRU)%domCount))                  ! allocate third level of gru to hru map
   do i = 1, gru_struc(iGRU)%hruInfo(iGRU)%domCount
    gru_struc(iGRU)%hruInfo(iGRU)%domInfo(i)%dom_nc = i         ! set hru id in attributes netcdf file
@@ -180,10 +182,10 @@ contains
 
   ! set type of domain
   gru_struc(iGRU)%hruInfo(iGRU)%domInfo(1)%dom_type = upland
-  if (has_glacier > 0) then 
+  if (nGlac_HRU(checkHRU) > 0) then 
    gru_struc(iGRU)%hruInfo(iGRU)%domInfo(2)%dom_type = glacAcc
    gru_struc(iGRU)%hruInfo(iGRU)%domInfo(3)%dom_type = glacAbl
-   if (has_lake > 0) gru_struc(iGRU)%hruInfo(iGRU)%domInfo(4)%dom_type = wetland
+   if (nWtld_HRU(checkHRU) > 0) gru_struc(iGRU)%hruInfo(iGRU)%domInfo(4)%dom_type = wetland
   else
    gru_struc(iGRU)%hruInfo(iGRU)%domInfo(2)%dom_type = wetland 
   end if
@@ -203,23 +205,25 @@ contains
     gru_struc(iGRU)%hruInfo(:)%hru_nc = pack(hru_ix,hru2gru_id == gru_struc(iGRU)%gru_id) ! set hru id in attributes netcdf file
     gru_struc(iGRU)%hruInfo(:)%hru_ix = arth(iHRU,1,gru_struc(iGRU)%hruCount)             ! set index of hru in run space
     gru_struc(iGRU)%hruInfo(:)%hru_id = hru_id(gru_struc(iGRU)%hruInfo(:)%hru_nc)         ! set id of hru
+    gru_struc(iGRU)%nGlacier = sum(nGlac_HRU(gru_struc(iGRU)%hruInfo(:)%hru_nc))        ! set number of glaciers in the gru
+    gru_struc(iGRU)%nWetland = sum(nWtld_HRU(gru_struc(iGRU)%hruInfo(:)%hru_nc))           ! set number of wetlands in the gru
  
     do i = 1,gru_struc(iGRU)%hruCount
       gru_struc(iGRU)%hruInfo(i)%domCount = 1                                             ! upland domain always present, for changing size glaciers and lakes
-      if (has_glacier > 0) gru_struc(iGRU)%hruInfo(i)%domCount = gru_struc(iGRU)%hruInfo(i)%domCount + 2 ! accumulation and ablation domains possible
-      if (has_lake > 0) gru_struc(iGRU)%hruInfo(i)%domCount = gru_struc(iGRU)%hruInfo(i)%domCount + 1    ! wetland domain possible
-      allocate(gru_struc(iGRU)%hruInfo(i)%domInfo(gru_struc(iGRU)%hruInfo(i)%domCount))                  ! allocate third level of gru to hru map
+      if (nGlac_HRU(gru_struc(iGRU)%hruInfo(i)%hru_nc) > 0) gru_struc(iGRU)%hruInfo(i)%domCount = gru_struc(iGRU)%hruInfo(i)%domCount + 2 ! accumulation and ablation domains possible
+      if (nWtld_HRU(gru_struc(iGRU)%hruInfo(i)%hru_nc) > 0)    gru_struc(iGRU)%hruInfo(i)%domCount = gru_struc(iGRU)%hruInfo(i)%domCount + 1 ! wetland domain possible
+      allocate(gru_struc(iGRU)%hruInfo(i)%domInfo(gru_struc(iGRU)%hruInfo(i)%domCount))   ! allocate third level of gru to hru map
       do j = 1, gru_struc(iGRU)%hruInfo(i)%domCount
-        gru_struc(iGRU)%hruInfo(i)%domInfo(j)%dom_nc = iDOM + j-1                        ! set id for output
+        gru_struc(iGRU)%hruInfo(i)%domInfo(j)%dom_nc = iDOM + j-1                         ! set id for output
       end do
 
       ! set type of domain
       gru_struc(iGRU)%hruInfo(i)%domInfo(1)%dom_type = upland
       if (gru_struc(iGRU)%hruInfo(i)%domCount>1) then
-       if (has_glacier > 0) then 
+       if (nGlac_HRU(gru_struc(iGRU)%hruInfo(i)%hru_nc) > 0) then 
         gru_struc(iGRU)%hruInfo(i)%domInfo(2)%dom_type = glacAcc
         gru_struc(iGRU)%hruInfo(i)%domInfo(3)%dom_type = glacAbl
-        if (has_lake > 0) gru_struc(iGRU)%hruInfo(i)%domInfo(4)%dom_type = wetland
+        if (nWtld_HRU(gru_struc(iGRU)%hruInfo(i)%hru_nc) > 0) gru_struc(iGRU)%hruInfo(i)%domInfo(4)%dom_type = wetland
        else
          gru_struc(iGRU)%hruInfo(i)%domInfo(2)%dom_type = wetland
        end if

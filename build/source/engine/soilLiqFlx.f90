@@ -23,7 +23,6 @@ module soilLiqFlx_module
 
 ! data types
 USE nrtype
-USE data_types,only:var_d                  ! x%var(:)       (rkind)
 USE data_types,only:var_ilength            ! x%var(:)%dat   (i4b)
 USE data_types,only:var_dlength            ! x%var(:)%dat   (rkind)
 USE data_types,only:in_type_soilLiqFlx     ! derived type for intent(in) arguments

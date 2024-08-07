@@ -40,6 +40,7 @@ contains
  ! public subroutine check_icond: read model initial conditions
  ! ************************************************************************************************
  subroutine check_icond(nGRU,                          & ! number of GRUs
+                        bvarData,                      & ! model basin variables
                         progData,                      & ! model prognostic (state) variables
                         diagData,                      & ! model diagnostic variables
                         mparData,                      & ! model parameters
@@ -52,16 +53,19 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! modules
  USE nrtype
+ USE var_lookup,only:iLookBVAR                           ! variable lookup structure
  USE var_lookup,only:iLookPARAM                          ! variable lookup structure
  USE var_lookup,only:iLookPROG                           ! variable lookup structure
  USE var_lookup,only:iLookDIAG                           ! variable lookup structure
  USE var_lookup,only:iLookINDEX                          ! variable lookup structure
  USE var_lookup,only:iLookATTR                           ! variable lookup structure
  USE globalData,only:gru_struc                           ! gru-hru mapping structures
+ USE data_types,only:gru_doubleVec                       ! gru double precision structure no hru no domain
+ USE data_types,only:gru_hru_doubleVec                   ! hru double precision structure no domain
  USE data_types,only:gru_hru_dom_doubleVec               ! full double precision structure
  USE data_types,only:gru_hru_dom_intVec                  ! full integer structure
  USE data_types,only:gru_hru_dom_z_vLookup               ! full lookup structure
- USE data_types,only:gru_hru_double                      ! double precision structure no domain no depth
+ USE data_types,only:gru_hru_double                      ! hru double precision structure no domain no depth
  USE globalData,only:iname_soil,iname_snow,iname_ice,iname_lake ! named variables to describe the type of layer
  USE multiconst,only:&
                        LH_fus,    &                      ! latent heat of fusion                (J kg-1)
@@ -83,8 +87,9 @@ contains
  ! variable declarations
  ! dummies
  integer(i4b),intent(in)                   :: nGRU           ! number of grouped response units
- type(gru_hru_dom_doubleVec),intent(inout) :: diagData       ! diagnostic vars
+ type(gru_doubleVec),intent(inout)         :: bvarData       ! basin variables
  type(gru_hru_dom_doubleVec),intent(inout) :: progData       ! prognostic vars
+ type(gru_hru_dom_doubleVec),intent(inout) :: diagData       ! diagnostic vars
  type(gru_hru_dom_doubleVec),intent(in)    :: mparData       ! parameters
  type(gru_hru_dom_intVec),intent(in)       :: indxData       ! layer indexes
  type(gru_hru_dom_z_vLookup),intent(in)    :: lookupData     ! lookup table data
@@ -115,6 +120,8 @@ contains
  real(rkind),parameter          :: canIceTol=1.e-3_rkind ! small tolerance to allow existence of canopy ice for above-freezing temperatures (kg m-2)
  real(rkind)                    :: remaining_area        ! remaining area of the HRU
  real(rkind)                    :: remaining_elev        ! remaining elevation of the HRU
+ real(rkind)                    :: glacAblAreaTot       ! total basin glacier ablation area from bvarData (m2)
+ real(rkind)                    :: glacAccAreaTot       ! total basin glacier accumulation area from bvarData (m2)
  ! --------------------------------------------------------------------------------------------------------
 
  ! Start procedure here
@@ -126,6 +133,8 @@ contains
 
  ! check and correct domain area and elevation, and ensure that the area is positive, and make backwards compatible
  do iGRU = 1,nGRU
+   glacAblAreaTot = 0.0_rkind
+   glacAccAreaTot = 0.0_rkind
    do iHRU=1,gru_struc(iGRU)%hruCount
      ! update the HRU area and elevation
      remaining_area = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)
@@ -134,6 +143,11 @@ contains
        if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type.ne.upland) then
          remaining_area = remaining_area - progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
          remaining_elev = remaining_elev - progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) * progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1)
+         if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAbl) then
+           glacAblAreaTot = glacAblAreaTot + progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
+         else if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc) then
+           glacAccAreaTot = glacAccAreaTot + progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) 
+         end if
        end if
      end do
      do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
@@ -142,13 +156,22 @@ contains
          if(remaining_area>0.0_rkind) then 
            progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1) = remaining_elev/remaining_area
          else
-           if (remaining_area<0) write(*,'(A,E22.16,A)') 'Warning: area of upland HRU (=', remaining_area, ') < 0. Resetting to 0.0'
+           if (remaining_area<-xTol) write(*,'(A,E22.16,A)') 'Warning: area of upland HRU (=', remaining_area, ') < 0. Resetting to 0.0'
            progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1) = 0.0_rkind
            progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%elevation)
          end if
        end if
      end do
    end do
+   if (abs(glacAblAreaTot-sum(bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat))>xTol) then
+     write(*,'(A,E22.16,A,E22.16,A)') 'Warning: glacier ablation domain area (=', glacAblAreaTot, ') does not match the sum of the basin areas (=', sum(bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat), '). Resetting basin areas to be equal.'
+     bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat(:) = glacAblAreaTot/size(bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat)
+   end if
+   if (abs(glacAccAreaTot-sum(bvarData%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat))>xTol) then
+     write(*,'(A,E22.16,A,E22.16,A)') 'Warning: glacier accumulation domain area (=', glacAccAreaTot, ') does not match the sum of the basin areas (=', sum(bvarData%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat), '). Resetting basin areas to be equal.'
+     bvarData%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat(:) = glacAccAreaTot/size(bvarData%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat)
+   end if
+
  enddo
 
  ! check for realistic values of albedo

@@ -24,7 +24,7 @@ USE nrtype
 USE mDecisions_module,only: unDefined
 USE globalData,only:model_decisions
 USE globalData,only:realMissing
-USE var_lookup,only:iLookDECISIONS,iLookPARAM
+USE var_lookup,only:iLookDECISIONS,iLookPARAM,iLookBPAR
 implicit none
 private
 public::read_pinit
@@ -131,14 +131,23 @@ contains
  end do  ! (looping through lines in the file)
 
  ! add these defaults for backwards compatibility pre Sundials
- if (isLocal) then ! dealing with parameters for local column -- fix this !!!!
+ if (isLocal) then ! dealing with parameters for local column
   if (parFallback(iLookPARAM%be_steps)%default_val < 0.99_rkind*realMissing) then
    parFallback(iLookPARAM%be_steps)%default_val = 1._rkind
   end if
-
   call set_ida_defaults(parFallback, err, cmessage)
   if (err /= 0) then; message = trim(message)//trim(cmessage); return; end if
-
+ else
+  ! glacier parameters
+  if (parFallback(iLookBPAR%glacStor_kIce)%default_val < 0.99_rkind*realMissing) then
+   parFallback(iLookBPAR%glacStor_kIce)%default_val = 10._rkind
+  end if
+  if (parFallback(iLookBPAR%glacStor_kSnow)%default_val < 0.99_rkind*realMissing) then
+   parFallback(iLookBPAR%glacStor_kIce)%default_val = 40._rkind
+  end if
+  if (parFallback(iLookBPAR%glacStor_kFirn)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookBPAR%glacStor_kFirn)%default_val = 400._rkind
+  endif
  end if
 
  ! check we have populated all variables

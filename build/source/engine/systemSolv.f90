@@ -225,6 +225,7 @@ subroutine systemSolv(&
   real(rkind)                     :: bulkDensity                   ! bulk density of a given layer (kg m-3)
   real(rkind)                     :: volEnthalpy                   ! volumetric enthalpy of a given layer (J m-3)
   real(rkind),parameter           :: tinyStep=0.000001_rkind       ! stupidly small time step (s)
+  integer(i4b),parameter          :: zero=0                        ! zero value
   ! ------------------------------------------------------------------------------------------------------
   ! * model solver
   ! ------------------------------------------------------------------------------------------------------
@@ -361,7 +362,7 @@ contains
    ixGroundwater     => model_decisions(iLookDECISIONS%groundwatr)%iDecision & ! intent(in): [i4b] groundwater parameterization
    &)
    ! allocate space for the model fluxes at the start of the time step
-   call allocLocal(flux_meta(:),flux_init,nSnow,nSoil,nIce,nLake,err,cmessage)
+   call allocLocal(flux_meta(:),flux_init,nSnow,nSoil,nIce,nLake,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for mLayerCmpress_sum at the start of the time step
@@ -665,7 +666,7 @@ contains
    )
 
    ! allocate space for the temporary flux_sum structure
-   call allocLocal(flux_meta(:),flux_sum,nSnow,nSoil,nIce,nLake,err,cmessage)
+   call allocLocal(flux_meta(:),flux_sum,nSnow,nSoil,nIce,nLake,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
 
    ! initialize flux_sum
