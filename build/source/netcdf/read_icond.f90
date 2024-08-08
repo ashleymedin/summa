@@ -35,10 +35,8 @@ implicit none
 private
 public::read_icond
 public::read_icond_nlayers
-! define single HRU restart file
-integer(i4b), parameter :: singleHRU=1001
-integer(i4b), parameter :: multiHRU=1002
-integer(i4b), parameter :: restartFileType=multiHRU
+
+
 contains
 
  ! ************************************************************************************************
@@ -155,19 +153,10 @@ contains
    iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
    do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
     iDOM_global = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_nc
-    ! single HRU (Note: 'restartFileType' is hardwired above to multiHRU)
-    if(restartFileType==singleHRU) then
-     if (repeatDomains)then
-      ixFile = 1  ! use for single HRU restart file
-     else
-      ixFile = iDOM
-     endif
-    else ! get the index in the file: multi HRU
-     if (repeatDomains)then
-      ixFile = iHRU_global
-     else
-      ixFile = iDOM_global
-     endif
+    if (repeatDomains)then
+     ixFile = iHRU_global
+    else
+     ixFile = iDOM_global
     endif
     gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow = snowData(ixFile)
     gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil = soilData(ixFile)
@@ -327,11 +316,16 @@ contains
      prog_meta(iVar)%varName=='mLayerHeight'                   ) cycle
 
   ! get variable id
-  err = nf90_inq_varid(ncID,trim(prog_meta(iVar)%varName),ncVarID); call netcdf_err(err,message)
-  if(err/=0)then
-   if (prog_meta(iVar)%varName=='DOMarea' .or. prog_meta(iVar)%varName=='DOMelev') cycle ! backwards compatible, may be missing, correct in check_icond
-   message=trim(message)//': problem with getting variable id, var='//trim(prog_meta(iVar)%varName)
-   return
+  err = nf90_inq_varid(ncID,trim(prog_meta(iVar)%varName),ncVarID)
+  if(err/=0 .and. (prog_meta(iVar)%varName=='DOMarea' .or. prog_meta(iVar)%varName=='DOMelev')) then 
+    err=nf90_noerr    ! reset this err
+    cycle             ! backwards compatible, may be missing, correct in check_icond
+  else 
+   call netcdf_err(err,message)
+   if(err/=0)then
+     message=trim(message)//': problem with getting variable id, var='//trim(prog_meta(iVar)%varName)
+     return
+   endif
   endif
 
   ! get variable dimension IDs
@@ -382,19 +376,10 @@ contains
      if(nLake>0) has_wetland = .true.
 
      iDOM_global = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_nc
-     ! single HRU (Note: 'restartFileType' is hardwired above to multiHRU)
-     if(restartFileType==singleHRU) then
-      if (repeatDomains)then
-       ixFile = 1  ! use for single HRU restart file
-      else
-       ixFile = iDOM
-      endif
-     else ! get the index in the file: multi HRU
-      if (repeatDomains)then
-       ixFile = iHRU_global
-      else
-       ixFile = iDOM_global
-      endif
+     if (repeatDomains)then
+      ixFile = iHRU_global
+     else
+      ixFile = iDOM_global
      endif
 
      ! put the data into data structures and check that none of the values are set to nf90_fill_double
@@ -497,7 +482,7 @@ contains
                     progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerVolFracWat    )%dat(jLayer),& ! intent(out): volumetric fraction of total water (-)
                     progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerVolFracLiq    )%dat(jLayer),& ! intent(out): volumetric fraction of liquid water (-)
                     progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerVolFracIce    )%dat(jLayer),& ! intent(out): volumetric fraction of ice (-)
-                    err,message)                                                                   ! intent(out): error control
+                    err,cmessage)                                                                            ! intent(out): error control
      if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
     end do  ! looping through soil layers
@@ -508,75 +493,75 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! (2) now get the basin variable(s)
  ! --------------------------------------------------------------------------------------------------------
-
- ! get number of GRUs in file
- err = nf90_inq_dimid(ncID,"gru",dimID);               if(err/=nf90_noerr)then; message=trim(message)//'problem finding gru dimension/'//trim(nf90_strerror(err)); return; end if
- err = nf90_inquire_dimension(ncID,dimID,len=fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
-
- ! get the index in the file: single HRU
- if(restartFileType/=singleHRU)then
-
-  ! get dimension of time delay histogram (TDH) from initial conditions file
-  err = nf90_inq_dimid(ncID,"tdh",dimID);
-  if(err/=nf90_noerr)then
-   write(*,*) 'WARNING: routingRunoffFuture is not in the initial conditions file ... using zeros'  ! previously created in var_derive.f90
-   err=nf90_noerr    ! reset this err
-
+  ! check if the file has the GRU dimension
+  err = nf90_inq_dimid(ncID,"gru",dimID);    
+  if(err/=nf90_noerr)then         
+    write(*,*) 'WARNING: GRU is not in the initial conditions file ... assuming 1 GRU'
+    fileGRU = 1
   else
-   ! the state file *does* have the basin variable(s), so process them
-   err = nf90_inquire_dimension(ncID,dimID,len=nTDH);
-   if(err/=nf90_noerr)then; message=trim(message)//'problem reading tdh dimension from initial condition file/'//trim(nf90_strerror(err)); return; end if
+    err = nf90_inquire_dimension(ncID,dimID,len=fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
+  end if
 
-   ! check vs hardwired value set in globalData.f90
-   if(nTDH /= nTimeDelay)then
-    write(*,*) 'tdh=',nTDH,' nTimeDelay=',nTimeDelay
-    message=trim(message)//': state file time delay dimension tdh does not match summa expectation of nTimeDelay set in globalData()'
-    return
-   endif
+ ! get dimension of time delay histogram (TDH) from initial conditions file
+ err = nf90_inq_dimid(ncID,"tdh",dimID);
+ if(err/=nf90_noerr)then
+  write(*,*) 'WARNING: routingRunoffFuture is not in the initial conditions file ... using zeros'  ! previously created in var_derive.f90
+  err=nf90_noerr    ! reset this err
 
-   ! loop through specific basin variables (currently 1 but loop provided to enable inclusion of others)
-   nrdx = (/iLookBVAR%routingRunoffFuture/)   ! array of desired variable indices
-   do i = 1,size(nrdx)
-    iVar = nrdx(i)
+ else
+  ! the state file *does* have the basin variable(s), so process them
+  err = nf90_inquire_dimension(ncID,dimID,len=nTDH);
+  if(err/=nf90_noerr)then; message=trim(message)//'problem reading tdh dimension from initial condition file/'//trim(nf90_strerror(err)); return; end if
 
-    ! get tdh dimension Id in file (should be 'tdh')
-    err = nf90_inq_dimid(ncID,trim(tdhDimName), dimID);
-    if(err/=0)then; message=trim(message)//': problem with dimension ids for tdh vars'; return; endif
+  ! check vs hardwired value set in globalData.f90
+  if(nTDH /= nTimeDelay)then
+   write(*,*) 'tdh=',nTDH,' nTimeDelay=',nTimeDelay
+   message=trim(message)//': state file time delay dimension tdh does not match summa expectation of nTimeDelay set in globalData()'
+   return
+  endif
 
-    ! get the tdh dimension length (dimName and dimLen are outputs of this call)
-    err = nf90_inquire_dimension(ncID,dimID,dimName,dimLen); call netcdf_err(err,message)
-    if(err/=0)then; message=trim(message)//': problem getting the dimension length for tdh vars'; return; endif
+  ! loop through specific basin variables (currently 1 but loop provided to enable inclusion of others)
+  nrdx = (/iLookBVAR%routingRunoffFuture/)   ! array of desired variable indices
+  do i = 1,size(nrdx)
+   iVar = nrdx(i)
 
-    ! get tdh-based variable id
-    err = nf90_inq_varid(ncID,trim(bvar_meta(iVar)%varName),ncVarID); call netcdf_err(err,message)
-    if(err/=0)then; message=trim(message)//': problem with getting basin variable id, var='//trim(bvar_meta(iVar)%varName); return; endif
+   ! get tdh dimension Id in file (should be 'tdh')
+   err = nf90_inq_dimid(ncID,trim(tdhDimName), dimID);
+   if(err/=0)then; message=trim(message)//': problem with dimension ids for tdh vars'; return; endif
 
-    ! initialize the tdh variable data
-    allocate(varData(fileGRU,dimLen),stat=err)
-    if(err/=0)then; print*, 'err= ',err; message=trim(message)//'problem allocating GRU variable data'; return; endif
+   ! get the tdh dimension length (dimName and dimLen are outputs of this call)
+   err = nf90_inquire_dimension(ncID,dimID,dimName,dimLen); call netcdf_err(err,message)
+   if(err/=0)then; message=trim(message)//': problem getting the dimension length for tdh vars'; return; endif
 
-    ! get data
-    err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message)
-    if(err/=0)then; message=trim(message)//': problem getting the data'; return; endif
+   ! get tdh-based variable id
+   err = nf90_inq_varid(ncID,trim(bvar_meta(iVar)%varName),ncVarID); call netcdf_err(err,message)
+   if(err/=0)then; message=trim(message)//': problem with getting basin variable id, var='//trim(bvar_meta(iVar)%varName); return; endif
 
-    ! store data in basin var (bvar) structure
-    do iGRU = 1,nGRU
+   ! initialize the tdh variable data
+   allocate(varData(fileGRU,dimLen),stat=err)
+   if(err/=0)then; print*, 'err= ',err; message=trim(message)//'problem allocating GRU variable data'; return; endif
 
-     ! put the data into data structures
-     bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) = varData((iGRU+startGRU-1),1:nTDH)
-     ! check whether the first values is set to nf90_fill_double
-     if(any(abs(bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
-     if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(bvar_meta(iVar)%varName)//"')"; return; endif
+   ! get data
+   err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message)
+   if(err/=0)then; message=trim(message)//': problem getting the data'; return; endif
 
-    end do ! end iGRU loop
+   ! store data in basin var (bvar) structure
+   do iGRU = 1,nGRU
 
-    ! deallocate temporary data array for next variable
-    deallocate(varData, stat=err)
-    if(err/=0)then; message=trim(message)//'problem deallocating GRU variable data'; return; endif
+    ! put the data into data structures
+    bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) = varData((iGRU+startGRU-1),1:nTDH)
+    ! check whether the first values is set to nf90_fill_double
+    if(any(abs(bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
+    if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(bvar_meta(iVar)%varName)//"')"; return; endif
 
-   end do ! end looping through basin variables
-  endif  ! end if case for tdh variables being in init. cond. file
- endif  ! end if case for not being a singleHRU run
+   end do ! end iGRU loop
+
+   ! deallocate temporary data array for next variable
+   deallocate(varData, stat=err)
+   if(err/=0)then; message=trim(message)//'problem deallocating GRU variable data'; return; endif
+
+  end do ! end looping through basin variables
+ endif  ! end if case for tdh variables being in init. cond. file
 
  if (has_glacier)then
   ! get dimension of basin glacier variables from initial conditions file

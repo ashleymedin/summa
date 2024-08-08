@@ -144,8 +144,8 @@ subroutine soilLiqFlx(&
   nSoil = in_soilLiqFlx % nSoil ! get number of soil layers from input arguments
 
   ! get indices for the data structures
-  ibeg = indx_data%var(iLookINDEX%nSnow)%dat(1) + 1
-  iend = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nSoil)%dat(1)
+  ibeg = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nLake)%dat(1) + 1
+  iend = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nLake)%dat(1) + indx_data%var(iLookINDEX%nSoil)%dat(1)
 
   ! get a copy of iLayerHeight
   ! NOTE: performance hit, though cannot define the shape (0:) with the associate construct
