@@ -138,8 +138,6 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  integer(i4b)                          :: maxLayers_wtld     ! maximum number of layers for wetland
  integer(i4b)                          :: maxSoilLayers_glac ! maximum number of soil layers for glacier (0)
  integer(i4b)                          :: maxSoilLayers_wtld ! maximum number of soil layers for wetland
- integer(i4b)                          :: maxSnowLayers_glac ! maximum number of snow layers for glacier (0)
- integer(i4b)                          :: maxSnowLayers_wtld ! maximum number of snow layers for wetland
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(&
@@ -207,36 +205,31 @@ subroutine summa_paramSetup(summa1_struc, err, message)
   case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
  end select ! (option to combine/sub-divide snow layers)
 
- ! get the maximum number of layers
- ! this assumes that the number of soil layers is the same for all HRU (by domain type) in the model 
+ ! get the maximum number of layers for soil, ice, and lake
+ ! this assumes that the number of soil, ice, and lake layers is the same for all HRU (by domain type) in the model 
+ !  AND they do not change (and max snow layers are fixed as above, snow layers may change)
  maxLayers          = 0
  maxLayers_glac     = 0
  maxLayers_wtld     = 0
  maxSoilLayers      = 0
  maxSoilLayers_glac = 0
  maxSoilLayers_wtld = 0
- maxSnowLayers      = 0
- maxSnowLayers_glac = 0
- maxSnowLayers_wtld = 0
  maxIceLayers       = 0
  maxLakeLayers      = 0
  gruLoop: do iGRU=1,nGRU
   do iHRU=1,gru_struc(iGRU)%hruCount
    do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
     if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==upland)then
-     maxLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
+     maxLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + maxSnowLayers
      maxSoilLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
-     maxSnowLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
     else if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAbl .or. gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc)then
-     maxLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce + gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
+     maxLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce + maxSnowLayers
      maxSoilLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
      maxIceLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce
-     maxSnowLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
     else if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==wetland)then
-     maxLayers_wtld = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake + gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
+     maxLayers_wtld = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake + maxSnowLayers
      maxSoilLayers_wtld = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
      maxLakeLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake
-     maxSnowLayers_wtld = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
     endif
     if (maxLayers>0 .and. maxLayers_glac>0 .and. maxLayers_wtld>0) exit gruLoop ! exit the loop if all values are found
    end do
@@ -245,7 +238,6 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  ! Determine the maximum of the three variables
  maxLayers = max(maxLayers, maxLayers_glac, maxLayers_wtld)
  maxSoilLayers = max(maxSoilLayers, maxSoilLayers_glac, maxSoilLayers_wtld)
- maxSnowLayers = max(maxSnowLayers, maxSnowLayers_glac, maxSnowLayers_wtld)
 
  maxGlaciers = 0
  maxWetlands = 0

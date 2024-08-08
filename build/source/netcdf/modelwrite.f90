@@ -309,7 +309,7 @@ contains
         case(iLookVarType%ifcIce ); datLength = nIce+1
         case default; cycle
        end select ! vartype
-
+       
        ! get the data vectors
        select type (dat)
         class is (gru_hru_dom_doubleVec); realArray(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_ix,1:datLength) = dat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(:)
