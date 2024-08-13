@@ -122,7 +122,7 @@ if __name__ == '__main__':
     if testing:
         # hardwired for testing
         nc_example_name = 'trialParams.nc'
-        nc_out_name = 'coldstateGlacier.nc'
+        nc_out_name = 'coldstate.nc'
         hru_type = 'int'
 
     else:
@@ -180,6 +180,10 @@ if __name__ == '__main__':
     # dT
     newVarVals = np.full((1,nOutPolygons), dT)        
     writeNC_state_vars(nc_out, 'dt_init', 'scalarv', 'f8', newVarVals)
+
+    # area
+    newVarVals = np.full((1,nOutPolygons), 0.0)
+    writeNC_state_vars(nc_out, 'DOMarea', 'scalarv', 'f8', newVarVals)
 
     # SWE, SnowDepth, SfcMeltPond, SnowAlbedo, CanopyLiq, CanopyIce
     newVarVals = np.zeros((1,nOutPolygons))
