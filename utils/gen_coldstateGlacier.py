@@ -23,9 +23,13 @@ import time
 import getopt
 import numpy as np
 import netCDF4 as nc4
+from netCDF4 import Dataset
+import shutil
 #import xarray as xr
 
 testing = True
+glac_dom = True 
+wtld_dom = False
 ########################################################################
 #                                Subroutines                           #
 ########################################################################
@@ -53,41 +57,46 @@ def getOutputPolyIDs(nc_file):
     hru_elev = getNetCDFData(nc_file, 'elevation')
     hru_area = getNetCDFData(nc_file, 'HRUarea')
     gruIDs = getNetCDFData(nc_file, 'gruId')
-    print("read output outPolyIds ('hruId') from example domain file")
-    return outPolyIDs,hru_elev,hru_area, gruIDs
+    hru2gru = getNetCDFData(nc_file, 'hru2gruId')
+    print("read data from attribute file")
+    return outPolyIDs,hru_elev,hru_area, gruIDs,hru2gru
 
-
-# write dom, hru, variables to netcdf output file
-def writeNC_state_vars(nc_out, newVarName, newVarDim, newVarType, newVarVals):
-
+# write hru, variables to netcdf output file
+def writeNC_state_vars_HRU(nc_out, newVarName, newVarType, newVarVals):
     """ Write <vars>[hru] array in netCDF4 file,<fn> and variable of
         <varname> """
+    print("adding attribute  data")
+    ncvar = nc_out.createVariable(newVarName, newVarType, ('hru',),fill_value='-999')    
+    ncvar[:] = newVarVals   # store data in netcdf file
 
-    print("adding data")
+# write dom, hru, variables to netcdf output file
+def writeNC_state_vars_HRU_DOM(nc_out, newVarName, newVarDim, newVarType, newVarVals):
+    """ Write <vars>[hru dom] array in netCDF4 file,<fn> and variable of
+        <varname> """
+    print("adding HRU_DOM data")
     ncvar = nc_out.createVariable(newVarName, newVarType, (newVarDim,'dom','hru',),fill_value='-999.0')    
     ncvar[:] = newVarVals   # store data in netcdf file
 
 # write ngl, gru, variables to netcdf output file
-def writeNC_state_varsGL(nc_out, newVarName, newVarDim, newVarType, newVarVals):
+def writeNC_state_vars_GRU_NGL(nc_out, newVarName, newVarDim, newVarType, newVarVals):
 
-    """ Write <vars>[hru] array in netCDF4 file,<fn> and variable of
+    """ Write <vars>[gru] array in netCDF4 file,<fn> and variable of
         <varname> """
 
-    print("adding data")
+    print("adding GRU_NGL data")
     ncvar = nc_out.createVariable(newVarName, newVarType, (newVarDim,'ngl','gru',),fill_value='-999.0')    
     ncvar[:] = newVarVals   # store data in netcdf file
 
 # write dimensions and dimension variables to netcdf output file
-def writeNC_dims(fn,  scalarv, midSoil, midToto, ifcToto, hrus, gruIDs, hru_type, ndom, ngl):    
+def writeNC_dims(fn,  scalarv, midSoil, midToto, ifcToto, hrus, grus, hru_type, ndom, ngl):    
     """ Write <vars>[hru] array in netCDF4 file,<fn> and variable of
         <varname> """
-
     print("writing output file")
     nc_out = nc4.Dataset(fn, 'w', format='NETCDF4')
 
     # Create dimensions
     dim_hru = nc_out.createDimension('hru', len(hrus))
-    dim_gru = nc_out.createDimension('gru', len(np.unique(gruIDs)))
+    dim_gru = nc_out.createDimension('gru', len(grus))
     dim_scalarv = nc_out.createDimension('scalarv', scalarv)
     dim_midSoil = nc_out.createDimension('midSoil', midSoil)
     dim_midToto = nc_out.createDimension('midToto', midToto)
@@ -104,7 +113,7 @@ def writeNC_dims(fn,  scalarv, midSoil, midToto, ifcToto, hrus, gruIDs, hru_type
         hruId[:] = nc4.stringtochar(np.asarray(hrus,
                                   dtype='S{}'.format(max_strlen)))     
         gruId = nc_out.createVariable('gruId', 'S1', ('gru', 'strlen'),fill_value='-999')
-        gruId[:] = nc4.stringtochar(np.asarray(np.unique(gruIDs),
+        gruId[:] = nc4.stringtochar(np.asarray(np.unique(grus),
                                   dtype='S{}'.format(max_strlen)))
 
     elif hru_type == 'int64':
@@ -113,7 +122,7 @@ def writeNC_dims(fn,  scalarv, midSoil, midToto, ifcToto, hrus, gruIDs, hru_type
         hruId[:] = hrus
         #hruId[:] = np.asarray(hrus, dtype='int')
         gruId = nc_out.createVariable('gruId', 'i8', ('gru', ),fill_value='-999')
-        gruId[:] = np.unique(gruIDs)
+        gruId[:] = grus
 
     elif hru_type == 'int':
         # integer HRU
@@ -121,7 +130,7 @@ def writeNC_dims(fn,  scalarv, midSoil, midToto, ifcToto, hrus, gruIDs, hru_type
         hruId[:] = hrus
         #hruId[:] = np.asarray(hrus, dtype='int')
         gruId = nc_out.createVariable('gruId', 'int', ('gru', ),fill_value='-999')
-        gruId[:] = np.unique(gruIDs)
+        gruId[:] = grus
 
     else:
         # not recognized
@@ -145,7 +154,7 @@ import getopt
 if __name__ == '__main__':
     if testing:
         # hardwired for testing
-        nc_example_name = 'attributes.nc'
+        nc_attribute_name = 'attributes.nc'
         nc_out_name = 'coldstate_glac.nc'
         hru_type = 'int'
 
@@ -168,31 +177,134 @@ if __name__ == '__main__':
 
         if len(args) != 3:
             usage()
-        nc_example_name = args[0]   # template file (param file, etc)
-        nc_out_name = args[1]   # output cold-state file
-        hru_type = args[2]   # 'int' or 'string'
+        nc_attribute_name = args[0]     # attribute file with HRU index
+        nc_out_name = args[1]           # output cold-state file
+        hru_type = args[2]              # 'int' or 'string'
  
     # hardwired to forcing formats (hru index rather than grid)
-    outPolyIDs, hru_elev, hru_area, gruIDs = getOutputPolyIDs(nc_example_name)        
+    outPolyIDs, hru_elev, hru_area, gruIDs, hru2gru = getOutputPolyIDs(nc_attribute_name)        
     nOutPolygonsHRU = len(outPolyIDs)
     nOutPolygonsGRU = len(gruIDs)
 
+    # === create the modified attribute netcdf file ===
+    nc_attribute_name_new = nc_attribute_name[:-3] + '_glac.nc'
+    shutil.copy(nc_attribute_name, nc_attribute_name_new)
+    print("created new attribute file")
+
+    nGlacier0 = 0
+    nWetland0 = 0
+    if glac_dom: # add glaciers to every HRU for testing, SHOULD BE READ FROM FILE
+        nGlacier0 = 2 
+    if wtld_dom: # add wetlands to every HRU for testing, SHOULD BE READ FROM FILE
+        nWetland0 = 1
+
+    with Dataset(nc_attribute_name_new, 'a') as nc_out:
+        nGlacier = np.full((nOutPolygonsHRU), nGlacier0, dtype='i4')
+        writeNC_state_vars_HRU(nc_out, 'nGlacier', 'i4', nGlacier)
+        nWetland = np.full((nOutPolygonsHRU), nWetland0, dtype='i4')
+        writeNC_state_vars_HRU(nc_out, 'nWetland', 'i4', nWetland)
+
+    ngl0 = np.zeros(nOutPolygonsGRU, dtype=int)
+    for i,g in enumerate(gruIDs):
+        ngl0[i] = int(nGlacier[hru2gru==g].sum())
+    ngl = max(ngl0)
+
     # === now start to create the cold state variables using the variable template ===
+    dT = 3600 # timestep of forcings in seconds
 
     # settings 8 layer soil, 0 snow
     scalarv = 1
     midSoil = 8
-    midToto = 8
-    ifcToto = 9
-    midIce = 3
+    midSoil_glac = 0
+    midSoil_wtld = 0
     midLake = 0
+    midIce = 0
     midSnow = 0
-    dT = 3600 # timestep of forcings in seconds
-    lyrDepth  = [0.025, 0.075, 0.15, 0.25, 0.5, 0.5, 1.0, 1.5]
-    lyrHeight = [0.0, 0.025, 0.1, 0.25, 0.5, 1.0, 1.5, 2.5, 4.0]
+    ndom = 1
+    midToto = 8
+    midToto_glac = 0
+    midToto_wtld = 0
+    lyrHeight0 = [0.0, 0.025, 0.1, 0.25, 0.5, 1.0, 1.5, 2.5, 4.0]
+    lyrHeight0_np = np.array(lyrHeight0)
+    lyrDepth0 = lyrHeight0_np[1:] - lyrHeight0_np[:-1]
 
-    ndom = 3
-    ngl = 2
+    # domain order has to be upland, glacier ablation, glacier accumulation, wetland
+    #   adjust these values as needed SHOULD READ FROM A FILE
+    inld_frac = 1.0
+    glac_frac = 0.5
+    wtld_frac = 0.25
+    indxWtld = 1
+    if glac_dom: 
+        ndom += 2
+        midIce = 3
+        midSoil_glac = 2
+        midToto_glac = 7
+        lyrHeight_glac = [0.0, 0.025, 0.125, 0.275, 0.575, 2.375, 7.125, 30.125]
+        lyrHeight_glacnp = np.array(lyrHeight_glac)
+        lyrDepth_glac = lyrHeight_glacnp[1:] - lyrHeight_glacnp[:-1]
+        indxWtld += 2
+        inld_frac = inld_frac - glac_frac
+    if wtld_dom: 
+        ndom += 1
+        midLake = 5
+        midSoil_wtld = 5
+        midToto_wtld = 9
+        lyrHeight_wtld = [0.0, 0.05, 0.2, 0.5, 1, 2.0, 3.0, 4.0, 5.0, 8.0]
+        lyrHeight_wtldnp = np.array(lyrHeight_wtld)
+        lyrDepth_wtld = lyrHeight_wtldnp[1:] - lyrHeight_wtldnp[:-1]
+        inld_frac = inld_frac - wtld_frac
+
+    midToto = max(midToto_glac, midToto_wtld,midToto)
+    midSoil = max(midSoil_glac, midSoil_wtld,midSoil)
+    ifcToto = midToto + 1
+
+    # initialize layer variables
+    toto0       = np.full((midToto,ndom,nOutPolygonsHRU), 0.0, dtype='f8')
+    totopoint2  = np.full((midToto,ndom,nOutPolygonsHRU), 0.2, dtype='f8')
+    soilneg1    = np.full((midSoil,ndom,nOutPolygonsHRU), -1.0, dtype='f8')
+    toto283     = np.full((midToto,ndom,nOutPolygonsHRU), 283.16, dtype='f8')
+
+    scalar0     = np.full((1, ndom, nOutPolygonsHRU), 0.0, dtype='f8')
+    scalar283   = np.full((1, ndom, nOutPolygonsHRU), 283.16, dtype='f8')
+    scalar1     = np.full((1, ndom, nOutPolygonsHRU), 1.0, dtype='f8')
+
+    # layer Depth, Height, layer types adjust for glacier and wetland
+    lyrDepth = np.zeros((nOutPolygonsHRU,ndom,midToto), dtype='f8')
+    lyrDepth[:,0,0:len(lyrDepth0)]  = lyrDepth0
+    lyrHeight = np.zeros((nOutPolygonsHRU,ndom,ifcToto), dtype='f8')
+    lyrHeight[:,0,0:len(lyrHeight0)] = lyrHeight0
+    midSoil_dom = np.full((1, ndom, nOutPolygonsHRU), midSoil, dtype='f8')
+    midIce_dom = scalar0.copy()
+    midLake_dom = scalar0.copy()
+    dom_area = np.full((1,ndom,nOutPolygonsHRU), hru_area, dtype='f8')
+    dom_area[0,0,:] = hru_area * inld_frac
+    dom_elev = np.full((1,ndom,nOutPolygonsHRU), hru_elev, dtype='f8')
+
+
+    if glac_dom: # NOTE, if HRU glacier area is 0, midIce_dom should be 0
+        lyrDepth[:,1,0:len(lyrDepth_glac)] = lyrDepth_glac
+        lyrDepth[:,2,0:len(lyrDepth_glac)] = lyrDepth_glac
+        lyrHeight[:,1,0:len(lyrHeight_glac)] = lyrHeight_glac
+        lyrHeight[:,2,0:len(lyrHeight_glac)] = lyrHeight_glac
+        midIce_dom[0,1,:] = midIce
+        midIce_dom[0,2,:] = midIce
+        midSoil_dom[0,1,:] = midSoil_glac
+        midSoil_dom[0,2,:] = midSoil_glac
+        dom_area[0,1,:] = hru_area * glac_frac*0.5  # glacier ablation 50% of glacier, SHOULD BE READ FROM FILE
+        dom_area[0,2,:] = hru_area * glac_frac*0.5  # glacier accumulation 50% of glacier, SHOULD BE READ FROM FILE
+        dom_elev[0,1,:] = hru_elev * 0.5            # for testing, SHOULD BE READ FROM FILE
+        dom_elev[0,2,:] = hru_elev * 1.5            # for testing, SHOULD BE READ FROM FILE
+
+    if wtld_dom: # NOTE, if HRU wetland area is 0, midLake_dom should be 0
+        lyrDepth[:,indxWtld,0:len(lyrDepth_wtld)] = lyrDepth_wtld
+        lyrHeight[:,indxWtld,0:len(lyrHeight_wtld)] = lyrHeight_wtld
+        midLake_dom[0,indxWtld,:] = midLake
+        midSoil_dom[0,indxWtld,:] = midSoil_wtld
+        dom_area[0,indxWtld,:] = hru_area * wtld_frac 
+        dom_elev[0,indxWtld,:] = hru_elev           # assume wetland elev same as upland
+
+    lyrDepth = lyrDepth.transpose()
+    lyrHeight = lyrHeight.transpose()
 
     # initialize netcdf file by storing dimensions and hru variable
     nc_out = writeNC_dims(nc_out_name, scalarv, midSoil, midToto, ifcToto,
@@ -203,71 +315,66 @@ if __name__ == '__main__':
     #  domain order has to be upland, glacier ablation, glacier accumulation, wetland
     #   has to have upland, then if has glacier has to have ablation and accumulation
 
+    # layer Depth, Height
+    writeNC_state_vars_HRU_DOM(nc_out, 'mLayerDepth', 'midToto', 'f8', lyrDepth)        # Depth
+    writeNC_state_vars_HRU_DOM(nc_out, 'iLayerHeight', 'ifcToto', 'f8', lyrHeight)      # Height
+
     # nSoil, nSnow, nIce, nLake
-    newVarVals = np.full((1, ndom, nOutPolygonsHRU), midSoil, dtype='f8')
-    writeNC_state_vars(nc_out, 'nSoil', 'scalarv', 'f8', newVarVals)
-    newVarVals = np.full((1, ndom, nOutPolygonsHRU), midSnow, dtype='f8')
-    writeNC_state_vars(nc_out, 'nSnow', 'scalarv', 'f8', newVarVals)
-    newVarVals = np.full((1, ndom, nOutPolygonsHRU), midIce,  dtype='f8')
-    writeNC_state_vars(nc_out, 'nIce', 'scalarv', 'f8', newVarVals)
-    newVarVals = np.full((1, ndom, nOutPolygonsHRU), midLake, dtype='f8')
-    writeNC_state_vars(nc_out, 'nLake', 'scalarv', 'f8', newVarVals)
+    writeNC_state_vars_HRU_DOM(nc_out, 'nSoil', 'scalarv', 'f8', midSoil_dom)           # nSoil
+    writeNC_state_vars_HRU_DOM(nc_out, 'nSnow', 'scalarv', 'f8', scalar0 )              # nSnow start at 0
+    writeNC_state_vars_HRU_DOM(nc_out, 'nIce', 'scalarv', 'f8', midIce_dom)             # nIce
+    writeNC_state_vars_HRU_DOM(nc_out, 'nLake', 'scalarv', 'f8', midLake_dom)           # nLake
 
     # dT
     newVarVals = np.full((1, ndom, nOutPolygonsHRU), dT, dtype='f8')
-    writeNC_state_vars(nc_out, 'dt_init', 'scalarv', 'f8', newVarVals)
+    writeNC_state_vars_HRU_DOM(nc_out, 'dt_init', 'scalarv', 'f8', newVarVals)
 
-    # area
-    newVarVals = np.full((1, ndom, nOutPolygonsHRU), hru_area / 3, dtype='f8')
-    writeNC_state_vars(nc_out, 'DOMarea', 'scalarv', 'f8', newVarVals)
-
-    # elevation
-    newVarVals = np.full((1, nOutPolygonsHRU), hru_elev, dtype='f8')
-    writeNC_state_vars(nc_out, 'DOMelev', 'scalarv', 'f8', newVarVals)
+    # area and elevation
+    writeNC_state_vars_HRU_DOM(nc_out, 'DOMarea', 'scalarv', 'f8', dom_area)           # DOMarea
+    writeNC_state_vars_HRU_DOM(nc_out, 'DOMelev', 'scalarv', 'f8', dom_elev)           # DOMelev
 
     # SWE, SnowDepth, SfcMeltPond, SnowAlbedo, CanopyLiq, CanopyIce
-    newVarVals = np.full((1, ndom, nOutPolygonsGRU), 0.0, dtype='f8')
-    writeNC_state_vars(nc_out, 'scalarSWE', 'scalarv', 'f8', newVarVals)
-    writeNC_state_vars(nc_out, 'scalarSnowDepth', 'scalarv', 'f8', newVarVals)
-    writeNC_state_vars(nc_out, 'scalarSfcMeltPond', 'scalarv', 'f8', newVarVals)
-    writeNC_state_vars(nc_out, 'scalarSnowAlbedo', 'scalarv', 'f8', newVarVals)
-    writeNC_state_vars(nc_out, 'scalarCanopyLiq', 'scalarv', 'f8', newVarVals)
+    writeNC_state_vars_HRU_DOM(nc_out, 'scalarSWE', 'scalarv', 'f8', scalar0)           # SWE
+    writeNC_state_vars_HRU_DOM(nc_out, 'scalarSnowDepth', 'scalarv', 'f8', scalar0)     # SnowDepth
+    writeNC_state_vars_HRU_DOM(nc_out, 'scalarSfcMeltPond', 'scalarv', 'f8', scalar0)   # SfcMeltPond
+    writeNC_state_vars_HRU_DOM(nc_out, 'scalarSnowAlbedo', 'scalarv', 'f8', scalar0)    # SnowAlbedo
+    writeNC_state_vars_HRU_DOM(nc_out, 'scalarCanopyLiq', 'scalarv', 'f8', scalar0)     # CanopyLiq
 
-    # glacier area
-    newVarVals = np.full((1,ngl,nOutPolygonsHRU), 0.0, dtype='f8')
-    writeNC_state_varsGL(nc_out, 'glacAblArea', 'scalarv', 'f8', newVarVals)     
-    writeNC_state_varsGL(nc_out, 'glacAccArea', 'scalarv', 'f8', newVarVals)
+    # glacier area, just divide by ngl for testing, SHOULD BE READ FROM FILE
+    totAblArea = np.zeros(nOutPolygonsGRU)
+    totAccArea = np.zeros(nOutPolygonsGRU)
+    ablArea = np.zeros((1,ngl, nOutPolygonsGRU), dtype='f8')
+    accArea = np.zeros((1,ngl, nOutPolygonsGRU), dtype='f8')
+    for i,g in enumerate(gruIDs):
+        totAblArea[i] = dom_area[0,1,hru2gru==g].sum()
+        totAccArea[i] = dom_area[0,2,hru2gru==g].sum()
+        if ngl0[i]>0: 
+            ablArea[0,:ngl0[i],i] = totAblArea[i]/ngl0[i]
+            accArea[0,:ngl0[i],i] = totAccArea[i]/ngl0[i]
+    
 
-    # CanairTemp, CanopyTemp
-    newVarVals = np.full((1,ndom, nOutPolygonsHRU), 283.16, dtype='f8')     
-    writeNC_state_vars(nc_out, 'scalarCanairTemp', 'scalarv', 'f8', newVarVals)
-    writeNC_state_vars(nc_out, 'scalarCanopyTemp', 'scalarv', 'f8', newVarVals)
+    newVarVals = np.full((1,ngl,nOutPolygonsGRU), ablArea, dtype='f8')
+    writeNC_state_vars_GRU_NGL(nc_out, 'glacAblArea', 'scalarv', 'f8', newVarVals)
+    newVarVals = np.full((1,ngl,nOutPolygonsGRU), accArea, dtype='f8')     
+    writeNC_state_vars_GRU_NGL(nc_out, 'glacAccArea', 'scalarv', 'f8', newVarVals)
 
-    # AquiferStorage
-    newVarVals = np.full((1,ndom,nOutPolygonsHRU), 1.0, dtype='f8')      
-    writeNC_state_vars(nc_out, 'scalarAquiferStorage', 'scalarv', 'f8', newVarVals)
+    # scalar CanairTemp, CanopyTemp, AquiferStorage
+    writeNC_state_vars_HRU_DOM(nc_out, 'scalarCanairTemp', 'scalarv', 'f8', scalar283)  # CanairTemp, does not exist for glacier or lake
+    writeNC_state_vars_HRU_DOM(nc_out, 'scalarCanopyTemp', 'scalarv', 'f8', scalar283)  # CanopyTemp, does not exist for glacier or lake
+    writeNC_state_vars_HRU_DOM(nc_out, 'scalarAquiferStorage', 'scalarv', 'f8',scalar1) # AquiferStorage, does not exist for glacier
 
-    # layer MatricHead
-    newVarVals = np.full((midSoil,ndom,nOutPolygonsHRU), -1.0, dtype='f8')
-    writeNC_state_vars(nc_out, 'mLayerMatricHead', 'midSoil', 'f8', newVarVals)
+    # layer MatricHead, Temp, VolFracLiq, VolFracIce
+    if glac_dom:
+        for i in range(ndom): # put ice layers at -5 C and all ice similar to Giese et al. 2020, otherwise need to spin up 40 yrs
+            if i>0 and i<3: 
+                toto283[midSoil_glac:(midIce+midSoil_glac),i,:] = 268.16 # or 273.16?
+                toto0[midSoil_glac:(midIce+midSoil_glac),i,:] = 1.0
+                totopoint2[midSoil_glac:(midIce+midSoil_glac),i,:] = 0.0
+    writeNC_state_vars_HRU_DOM(nc_out, 'mLayerMatricHead', 'midSoil', 'f8', soilneg1)   # MatricHead
+    writeNC_state_vars_HRU_DOM(nc_out, 'mLayerTemp', 'midToto', 'f8', toto283)          # Temp
+    writeNC_state_vars_HRU_DOM(nc_out, 'mLayerVolFracLiq', 'midToto', 'f8', totopoint2) # VolFracLiq
+    writeNC_state_vars_HRU_DOM(nc_out, 'mLayerVolFracIce', 'midToto', 'f8', toto0)      # VolFracIce
 
-    # layer Temp
-    newVarVals = np.full((midToto,ndom,nOutPolygonsHRU), 283.16, dtype='f8')
-    writeNC_state_vars(nc_out, 'mLayerTemp', 'midToto', 'f8', newVarVals)
-
-    # layer VolFracLiq
-    newVarVals = np.full((midToto,ndom,nOutPolygonsHRU), 0.2, dtype='f8')
-    writeNC_state_vars(nc_out, 'mLayerVolFracLiq', 'midToto', 'f8', newVarVals)
-
-    # layer VolFracIce
-    newVarVals = np.full((midToto,ndom,nOutPolygonsHRU), 0.0, dtype='f8')
-    writeNC_state_vars(nc_out, 'mLayerVolFracIce', 'midToto', 'f8', newVarVals)
-
-    # layer Depth, Height
-    newVarVals = np.full((nOutPolygonsHRU,ndom,midToto), lyrDepth, dtype='f8').transpose()
-    writeNC_state_vars(nc_out, 'mLayerDepth', 'midToto', 'f8', newVarVals)
-    newVarVals = np.full((nOutPolygonsHRU,ndom,ifcToto), lyrHeight, dtype='f8').transpose()
-    writeNC_state_vars(nc_out, 'iLayerHeight', 'ifcToto', 'f8', newVarVals)        
 
     nc_out.close()
 

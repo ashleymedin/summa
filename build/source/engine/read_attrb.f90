@@ -171,10 +171,10 @@ contains
   gru_struc(iGRU)%hruInfo(iGRU)%hru_id = hru_id(checkHRU)     ! set id of hru
 
   gru_struc(iGRU)%hruInfo(iGRU)%domCount = 1                  ! upland domain always present, for changing size glaciers and lakes
-  gru_struc(iGRU)%nGlacier = nGlac_HRU(checkHRU)            ! set number of glaciers in the gru
-  gru_struc(iGRU)%nWetland = nWtld_HRU(checkHRU)               ! set number of wetlands in the gru
+  gru_struc(iGRU)%nGlacier = nGlac_HRU(checkHRU)              ! set number of glaciers in the gru
+  gru_struc(iGRU)%nWetland = nWtld_HRU(checkHRU)              ! set number of wetlands in the gru
   if (nGlac_HRU(checkHRU) > 0) gru_struc(iGRU)%hruInfo(iGRU)%domCount = gru_struc(iGRU)%hruInfo(iGRU)%domCount + 2 ! accumulation and ablation domains possible
-  if (nWtld_HRU(checkHRU) > 0) gru_struc(iGRU)%hruInfo(iGRU)%domCount = gru_struc(iGRU)%hruInfo(iGRU)%domCount + 1    ! wetland domain possible
+  if (nWtld_HRU(checkHRU) > 0) gru_struc(iGRU)%hruInfo(iGRU)%domCount = gru_struc(iGRU)%hruInfo(iGRU)%domCount + 1 ! wetland domain possible
   allocate(gru_struc(iGRU)%hruInfo(iGRU)%domInfo(gru_struc(iGRU)%hruInfo(iGRU)%domCount))                  ! allocate third level of gru to hru map
   do i = 1, gru_struc(iGRU)%hruInfo(iGRU)%domCount
    gru_struc(iGRU)%hruInfo(iGRU)%domInfo(i)%dom_nc = i         ! set hru id in attributes netcdf file
