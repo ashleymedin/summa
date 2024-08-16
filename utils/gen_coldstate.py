@@ -14,7 +14,7 @@
 #         check: nSoil and nSnow might have to be 'int' instead of 'int64' in output
 #
 # Requirements:  run with a python (eg miniconda) 2.7 that includes netCDF4
-# Run as: python gen_coldstate.py <existing_inputfile_with_hruId> <output_netCDF> <hru_type (int|int64|str)>
+# Run as: python gen_coldstate.py <existing_attributeFile_with_hruId> <output_netCDF> <hru_type (int|int64|str)>
 # =========================================================================
 
 import sys
@@ -121,8 +121,8 @@ import getopt
 if __name__ == '__main__':
     if testing:
         # hardwired for testing
-        nc_example_name = 'trialParams.nc'
-        nc_out_name = 'coldstateGlacier.nc'
+        nc_example_name = 'attributes.nc'
+        nc_out_name = 'coldstate.nc'
         hru_type = 'int'
 
     else:

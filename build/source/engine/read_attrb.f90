@@ -181,7 +181,7 @@ contains
   end do
 
   ! set type of domain
-  gru_struc(iGRU)%hruInfo(iGRU)%domInfo(1)%dom_type = upland
+  gru_struc(iGRU)%hruInfo(iGRU)%domInfo(1)%dom_type = upland ! has to have upland domain, could be area 0
   if (nGlac_HRU(checkHRU) > 0) then 
    gru_struc(iGRU)%hruInfo(iGRU)%domInfo(2)%dom_type = glacAcc
    gru_struc(iGRU)%hruInfo(iGRU)%domInfo(3)%dom_type = glacAbl
