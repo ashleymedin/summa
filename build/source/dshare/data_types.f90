@@ -107,9 +107,6 @@ MODULE data_types
 
   ! hru info data structure
  type, public :: dom_info
-  integer(i4b)                           :: dom_nc                        ! index of the domain in the netcdf file
-  integer(i4b)                           :: dom_ix                        ! index of the domain in the run space
-  integer(i4b)                           :: dom_id                        ! id (non-sequential number) of the domain
   integer(i4b)                           :: dom_type                      ! type = 1 for upland, 2 for glacier accumulation, 3 for glacier ablation, (4 for lake)
   integer(i4b)                           :: nSnow                         ! number of snow layers
   integer(i4b)                           :: nSoil                         ! number of soil layers

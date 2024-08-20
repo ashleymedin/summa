@@ -162,7 +162,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
   upArea               => summa1_struc%upArea              , & ! area upslope of each HRU
   nGRU                 => summa1_struc%nGRU                , & ! number of grouped response units
   nHRU                 => summa1_struc%nHRU                , & ! number of global hydrologic response units
-  nDOM                 => summa1_struc%nDOM                  & ! number of global domains
+  nDOM                 => summa1_struc%nDOM                  & ! number of global domains (max in any HRU)
 
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------

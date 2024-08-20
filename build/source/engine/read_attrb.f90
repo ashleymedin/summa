@@ -49,7 +49,7 @@ contains
  integer(i4b),intent(out)             :: fileHRU            ! number of HRUs in the input file
  integer(i4b),intent(inout)           :: nGRU               ! number of GRUs in the run space
  integer(i4b),intent(inout)           :: nHRU               ! number of HRUs in the run space
- integer(i4b),intent(inout)           :: nDOM               ! number of domains in the run space
+ integer(i4b),intent(inout)           :: nDOM               ! maximum number of domains in any HRU
  integer(i4b),intent(out)             :: err                ! error code
  character(*),intent(out)             :: message            ! error message
  integer(i4b),intent(in),optional     :: startGRU           ! index of the starting GRU for parallelization run
@@ -63,7 +63,6 @@ contains
  integer(8),allocatable               :: gru_id(:),hru_id(:)! read gru/hru IDs in from attributes file
  integer(8),allocatable               :: hru2gru_id(:)      ! read hru->gru mapping in from attributes file
  integer(i4b),allocatable             :: hru_ix(:)          ! hru index for search
- integer(i4b),allocatable             :: dom_ix(:)          ! domain index for search
 
  ! define variables for NetCDF file operation
  integer(i4b)                         :: ncID               ! NetCDF file ID
@@ -176,9 +175,6 @@ contains
   if (nGlac_HRU(checkHRU) > 0) gru_struc(iGRU)%hruInfo(iGRU)%domCount = gru_struc(iGRU)%hruInfo(iGRU)%domCount + 2 ! accumulation and ablation domains possible
   if (nWtld_HRU(checkHRU) > 0) gru_struc(iGRU)%hruInfo(iGRU)%domCount = gru_struc(iGRU)%hruInfo(iGRU)%domCount + 1 ! wetland domain possible
   allocate(gru_struc(iGRU)%hruInfo(iGRU)%domInfo(gru_struc(iGRU)%hruInfo(iGRU)%domCount))                  ! allocate third level of gru to hru map
-  do i = 1, gru_struc(iGRU)%hruInfo(iGRU)%domCount
-   gru_struc(iGRU)%hruInfo(iGRU)%domInfo(i)%dom_nc = i         ! set hru id in attributes netcdf file
-  end do
 
   ! set type of domain
   gru_struc(iGRU)%hruInfo(iGRU)%domInfo(1)%dom_type = upland ! has to have upland domain, could be area 0
@@ -189,11 +185,9 @@ contains
   else
    gru_struc(iGRU)%hruInfo(iGRU)%domInfo(2)%dom_type = wetland 
   end if
-  gru_struc(iGRU)%hruInfo(iGRU)%domInfo(:)%dom_ix = arth(1,1,gru_struc(iGRU)%hruInfo(iGRU)%domCount) ! set index of domain in run space
   
  else ! allocate space for anything except a single HRU run
   iHRU = 1
-  iDOM = 1
   do iGRU = 1,nGRU
 
     if (count(hru2gru_Id == gru_id(iGRU+sGRU-1)) < 1) then; err=20; message=trim(message)//'problem finding HRUs belonging to GRU'; return; end if
@@ -213,9 +207,6 @@ contains
       if (nGlac_HRU(gru_struc(iGRU)%hruInfo(i)%hru_nc) > 0) gru_struc(iGRU)%hruInfo(i)%domCount = gru_struc(iGRU)%hruInfo(i)%domCount + 2 ! accumulation and ablation domains possible
       if (nWtld_HRU(gru_struc(iGRU)%hruInfo(i)%hru_nc) > 0)    gru_struc(iGRU)%hruInfo(i)%domCount = gru_struc(iGRU)%hruInfo(i)%domCount + 1 ! wetland domain possible
       allocate(gru_struc(iGRU)%hruInfo(i)%domInfo(gru_struc(iGRU)%hruInfo(i)%domCount))   ! allocate third level of gru to hru map
-      do j = 1, gru_struc(iGRU)%hruInfo(i)%domCount
-        gru_struc(iGRU)%hruInfo(i)%domInfo(j)%dom_nc = iDOM + j-1                         ! set id for output
-      end do
 
       ! set type of domain
       gru_struc(iGRU)%hruInfo(i)%domInfo(1)%dom_type = upland
@@ -228,9 +219,7 @@ contains
          gru_struc(iGRU)%hruInfo(i)%domInfo(2)%dom_type = wetland
        end if
       end if
-      gru_struc(iGRU)%hruInfo(i)%domInfo(:)%dom_ix = arth(iDOM,1,gru_struc(iGRU)%hruInfo(i)%domCount) ! set index of domain in run space
   
-      iDOM = iDOM + gru_struc(iGRU)%hruInfo(i)%domCount
     enddo
  
     iHRU = iHRU + gru_struc(iGRU)%hruCount
@@ -239,15 +228,12 @@ contains
  end if ! not checkHRU
 
  ! set domain id to domain type
- nDOM = 0
+ nDOM = 1
  nHRU = 0
  do iGRU = 1, nGRU
    nHRU = nHRU + gru_struc(iGRU)%hruCount ! total number of HRUs
    do iHRU = 1, gru_struc(iGRU)%hruCount
-     nDOM = nDOM + gru_struc(iGRU)%hruInfo(iHRU)%domCount ! total number of domains
-     do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
-       gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_id = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type
-     end do
+     nDOM = max(nDOM,gru_struc(iGRU)%hruInfo(iHRU)%domCount)
    end do
  end do
 

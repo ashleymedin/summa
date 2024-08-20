@@ -91,7 +91,7 @@ contains
   bparStruct           => summa1_struc%bparStruct        , & ! x%gru(:)%var(:)            -- basin-average parameters
   nGRU                 => summa1_struc%nGRU              , & ! number of grouped response units
   nHRU                 => summa1_struc%nHRU              , & ! number of global hydrologic response units
-  nDOM                 => summa1_struc%nDOM                & ! number of global domains
+  nDOM                 => summa1_struc%nDOM                & ! number of global domains (max in any HRU)
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
  ! initialize error control
@@ -134,11 +134,11 @@ contains
   do iHRU=1,gru_struc(iGRU)%hruCount
    do iStruct=1,size(structInfo)
     select case(trim(structInfo(iStruct)%structName))
-     case('attr'); call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,attrStruct%gru(iGRU)%hru(iHRU),attr_meta,err,cmessage)
-     case('type'); call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,cmessage)
+     case('attr'); call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,0,attrStruct%gru(iGRU)%hru(iHRU),attr_meta,err,cmessage)
+     case('type'); call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,0,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,cmessage)
      case('mpar')
       do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
-       call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_ix,mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),mpar_meta,err,cmessage)
+       call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iDOM,mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),mpar_meta,err,cmessage)
       end do
     end select
     if(err/=0)then; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; return; endif
@@ -146,7 +146,7 @@ contains
   end do  ! (looping through HRUs)
 
   ! write GRU parameters
-  call writeParm(iGRU,bparStruct%gru(iGRU),bpar_meta,err,cmessage)
+  call writeParm(iGRU,0,bparStruct%gru(iGRU),bpar_meta,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end do  ! (looping through GRUs)

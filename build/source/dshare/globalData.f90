@@ -229,7 +229,7 @@ MODULE globalData
   integer(i4b),save,public                       :: newOutputFile=noNewFiles          ! define option for new output files
   ! define common variables
   integer(i4b),save,public                       :: numtim                            ! number of time steps
-  integer(i4b),save,public                       :: nDOMrun                           ! number of domains (every HRU may have multiple) in the run space
+  integer(i4b),save,public                       :: maxDOM                            ! number of domains (every HRU may have multiple) in the run space
   integer(i4b),save,public                       :: nHRUrun                           ! number of HRUs in the run space
   integer(i4b),save,public                       :: nGRUrun                           ! number of GRUs in the run space
   real(rkind),save,public                        :: data_step                         ! length of the time_step

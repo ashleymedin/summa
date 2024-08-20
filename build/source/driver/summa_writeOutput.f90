@@ -105,7 +105,7 @@ contains
  USE summaFileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
  USE summaFileManager,only:STATE_PATH                        ! optional path to state output files (defaults to OUTPUT_PATH)
  USE globalData,only:output_fileSuffix                       ! suffix for the output & state files (optional summa argument)
- USE globalData,only:nDOMrun                                 ! number of domains (every HRU may have multiple) in the run space
+ USE globalData,only:maxDOM                                  ! maximum number of domains in any HRU
  USE globalData,only:nHRUrun                                 ! number of HRU in the run space
  USE globalData,only:nGRUrun                                 ! number of GRU in the run space
  ! ---------------------------------------------------------------------------------------
@@ -152,7 +152,7 @@ contains
   ! miscellaneous variables
   nGRU                 => summa1_struc%nGRU        , & ! number of grouped response units
   nHRU                 => summa1_struc%nHRU        , & ! number of global hydrologic response units
-  nDOM                 => summa1_struc%nDOM          & ! number of global domains
+  nDOM                 => summa1_struc%nDOM          & ! number of global domains (max in any HRU)
 
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -183,7 +183,6 @@ contains
   ! initialize number of domains, hru, and gru in global data
   nGRUrun = nGRU
   nHRUrun = nHRU
-  nDOMrun = nDOM
  endif  ! if the first time step
 
  ! *****************************************************************************
@@ -269,11 +268,11 @@ contains
 
  ! get the number of HRUs and the the number of domains in the run space
  nHRUrun = 0
- nDOMrun = 0
+ maxDOM = 1
  do iGRU = 1, nGRU
    nHRUrun = nHRUrun + gru_struc(iGRU)%hruCount ! total number of HRUs
     do iHRU = 1, gru_struc(iGRU)%hruCount
-      nDOMrun = nDOMrun + gru_struc(iGRU)%hruInfo(iHRU)%domCount ! total number of domains
+      maxDOM = max(maxDOM,gru_struc(iGRU)%hruInfo(iHRU)%domCount) ! maximum number of domains in any HRU
    end do
  end do
 
@@ -286,11 +285,11 @@ contains
  !  Thus, we must also pass the stats parent->child maps from childStruct.
  do iStruct=1,size(structInfo)
   select case(trim(structInfo(iStruct)%structName))
-   case('forc'); call writeData(finalizeStats,outputTimeStep,nHRUrun,maxLayers,forc_meta,forcStat,forcStruct,forcChild_map,indxStruct,err,cmessage)
-   case('prog'); call writeData(finalizeStats,outputTimeStep,nDOMrun,maxLayers,prog_meta,progStat,progStruct,progChild_map,indxStruct,err,cmessage)
-   case('diag'); call writeData(finalizeStats,outputTimeStep,nDOMrun,maxLayers,diag_meta,diagStat,diagStruct,diagChild_map,indxStruct,err,cmessage)
-   case('flux'); call writeData(finalizeStats,outputTimeStep,nDOMrun,maxLayers,flux_meta,fluxStat,fluxStruct,fluxChild_map,indxStruct,err,cmessage)
-   case('indx'); call writeData(finalizeStats,outputTimeStep,nDOMrun,maxLayers,indx_meta,indxStat,indxStruct,indxChild_map,indxStruct,err,cmessage)
+   case('forc'); call writeData(finalizeStats,outputTimeStep,nHRUrun,maxDOM,maxLayers,forc_meta,forcStat,forcStruct,forcChild_map,indxStruct,err,cmessage)
+   case('prog'); call writeData(finalizeStats,outputTimeStep,nHRUrun,maxDOM,maxLayers,prog_meta,progStat,progStruct,progChild_map,indxStruct,err,cmessage)
+   case('diag'); call writeData(finalizeStats,outputTimeStep,nHRUrun,maxDOM,maxLayers,diag_meta,diagStat,diagStruct,diagChild_map,indxStruct,err,cmessage)
+   case('flux'); call writeData(finalizeStats,outputTimeStep,nHRUrun,maxDOM,maxLayers,flux_meta,fluxStat,fluxStruct,fluxChild_map,indxStruct,err,cmessage)
+   case('indx'); call writeData(finalizeStats,outputTimeStep,nHRUrun,maxDOM,maxLayers,indx_meta,indxStat,indxStruct,indxChild_map,indxStruct,err,cmessage)
   end select
   if(err/=0)then; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; return; endif
  end do  ! (looping through structures)

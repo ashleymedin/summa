@@ -78,7 +78,6 @@ contains
  summaVars: associate(&
   nGRU                 => summa1_struc%nGRU                ,& ! number of grouped response units
   nHRU                 => summa1_struc%nHRU                ,& ! number of global hydrologic response units
-  nDOM                 => summa1_struc%nDOM                ,& ! number of global domains
   summaFileManagerFile => summa1_struc%summaFileManagerFile & ! path/name of file defining directories and files
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------

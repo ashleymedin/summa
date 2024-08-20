@@ -105,7 +105,7 @@ type, public :: summa1_type_dec
     real(rkind)                      :: ts                         ! model time step ??
     integer(i4b)                     :: nGRU                       ! number of grouped response units
     integer(i4b)                     :: nHRU                       ! number of global hydrologic response units
-    integer(i4b)                     :: nDOM                       ! number of global domains
+    integer(i4b)                     :: nDOM                       ! number of global domains (max in any HRU)
     real(rkind),dimension(12)        :: greenVegFrac_monthly       ! fraction of green vegetation in each month (0-1)
     character(len=256)               :: summaFileManagerFile       ! path/name of file defining directories and files
 

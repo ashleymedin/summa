@@ -54,7 +54,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_param: read trial model parameter values
  ! ************************************************************************************************
- subroutine read_param(iRunMode,checkHRU,startGRU,nDOM,nHRU,nGRU,idStruct,mparStruct,bparStruct,err,message)
+ subroutine read_param(iRunMode,checkHRU,startGRU,maxDOM,nHRU,nGRU,idStruct,mparStruct,bparStruct,err,message)
  ! used to read model initial conditions
  USE summaFileManager,only:SETTINGS_PATH             ! path for metadata files
  USE summaFileManager,only:PARAMETER_TRIAL           ! file with parameter trial values
@@ -66,7 +66,7 @@ contains
  integer(i4b),        intent(in)           :: iRunMode         ! run mode
  integer(i4b),        intent(in)           :: checkHRU         ! index of single HRU if runMode = checkHRU
  integer(i4b),        intent(in)           :: startGRU         ! index of single GRU if runMode = startGRU
- integer(i4b),        intent(in)           :: nDOM             ! number of model domains
+ integer(i4b),        intent(in)           :: maxDOM           ! maximum number of domains in any HRU
  integer(i4b),        intent(in)           :: nHRU             ! number of global HRUs
  integer(i4b),        intent(in)           :: nGRU             ! number of global GRUs
  type(gru_hru_int8),  intent(in)           :: idStruct         ! local labels for hru and gru IDs
@@ -103,7 +103,6 @@ contains
  real(rkind),allocatable                   :: parVector(:)     ! model parameter vector
  logical                                   :: fexist           ! inquire whether the parmTrial file exists
  integer(i4b)                              :: fHRU             ! index of HRU in input file
- integer(i4b)                              :: fDOM             ! index of domain in input file
 
  ! Start procedure here
  err=0; message="read_param/"
@@ -156,7 +155,7 @@ contains
  endif
 
  ! check DOM dimension exists, repeat params for each domain if not
- if(nDOM_file==integerMissing .and. nDOM>nHRU)then
+ if(nDOM_file==integerMissing .and. maxDOM>nHRU)then
    write(*,*) 'WARNING: will replicate domain parameters since unable to identify DOM dimension in file '//trim(infile)
  endif
 
@@ -314,13 +313,12 @@ contains
 
    ! loop through HRUs and domains
    do iHRU=1,nHRU
-    do iDOM=1,nDOM
+    do iDOM=1,maxDOM
 
      ! map to the GRUs and HRUs
      iGRU=index_map(iHRU)%gru_ix
      localHRU_ix=index_map(iHRU)%localHRU_ix
      fHRU = gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc
-     fDOM = gru_struc(iGRU)%hruInfo(localHRU_ix)%domInfo(iDOM)%dom_nc
 
      ! read parameter data
      select case(nDims)
@@ -329,9 +327,9 @@ contains
        if(nDOM_file==integerMissing)then
         err=nf90_get_var(ncid, ivarid, parVector, start=(/fHRU,1/), count=(/1,nSoil_file/) )
        else
-        err=nf90_get_var(ncid, ivarid, parVector, start=(/fHRU,fDOM/), count=(/1,1/) )
+        err=nf90_get_var(ncid, ivarid, parVector, start=(/fHRU,iDOM/), count=(/1,1/) )
        endif
-      case(3); err=nf90_get_var(ncid, ivarid, parVector, start=(/fHRU,fDOM,1/), count=(/1,1,nSoil_file/) )
+      case(3); err=nf90_get_var(ncid, ivarid, parVector, start=(/fHRU,iDOM,1/), count=(/1,1,nSoil_file/) )
       case default; err=20; message=trim(message)//'unexpected number of dimensions for parameter '//trim(parName)
      end select
 

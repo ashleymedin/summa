@@ -75,21 +75,18 @@ contains
  integer(i4b)                :: iceID, lakeID      ! netcdf variable ids
  integer(i4b)                :: iGRU, iHRU, iDOM   ! loop indexes
  integer(i4b)                :: iHRU_global        ! index of HRU in the netcdf file
- integer(i4b)                :: iDOM_global        ! index of domain in the netcdf file
- logical(lgt)                :: repeatDomains      ! flag to repeat conditions for all domains
  logical(lgt)                :: no_iceData         ! flag that no ice data in icond
  logical(lgt)                :: no_lakeData        ! flag that no lake data in icond
- integer(i4b),allocatable    :: snowData(:)        ! number of snow layers in all HRUs
- integer(i4b),allocatable    :: soilData(:)        ! number of soil layers in all HRUs
- integer(i4b),allocatable    :: iceData(:)         ! number of ice layers in all HRUs
- integer(i4b),allocatable    :: lakeData(:)        ! number of lake layers in all HRUs
+ integer(i4b),allocatable    :: snowData(:,:)      ! number of snow layers in all HRUs
+ integer(i4b),allocatable    :: soilData(:,:)      ! number of soil layers in all HRUs
+ integer(i4b),allocatable    :: iceData(:,:)       ! number of ice layers in all HRUs
+ integer(i4b),allocatable    :: lakeData(:,:)      ! number of lake layers in all HRUs
  character(len=256)          :: cmessage           ! downstream error message
 
  ! --------------------------------------------------------------------------------------------------------
  ! initialize error message
  err=0
  message = 'read_icond_nlayers/'
- repeatDomains = .false.
  no_iceData = .false.
  no_lakeData = .false.
 
@@ -104,20 +101,17 @@ contains
 ! get number of DOMs in file, if present
  err = nf90_inq_dimid(ncID,"dom",dimId)               
  if(err/=nf90_noerr)then
-  if(nDOM>nHRU)then
-    write(*,*) 'WARNING: no domain dimension in initial condition file but multiple domains, will repeat conitions for all domains'
-    repeatDomains=.true.
-  endif
+  if(nDOM>nHRU)then; message=trim(message)//'no domain dimension in initial condition file but multiple domains set in attributes'; return; end if
   fileDOM = nDOM
  else
   err = nf90_inquire_dimension(ncID,dimId,len=fileDOM); if(err/=nf90_noerr)then; message=trim(message)//'problem reading dom dimension/'//trim(nf90_strerror(err)); return; end if
  end if
 
  ! allocate storage for reading from file (allocate entire file size, even when doing subdomain run)
- allocate(snowData(fileDOM))
- allocate(soilData(fileDOM))
- allocate(iceData(fileDOM))
- allocate(lakeData(fileDOM))
+ allocate(snowData(fileHRU,fileDOM))
+ allocate(soilData(fileHRU,fileDOM))
+ allocate(iceData(fileHRU,fileDOM))
+ allocate(lakeData(fileHRU,fileDOM))
  snowData = 0
  soilData = 0
  iceData  = 0
@@ -127,16 +121,15 @@ contains
  err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nSnow)%varName),snowID); call netcdf_err(err,message)
  err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nSoil)%varName),soilID); call netcdf_err(err,message)
  err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nIce)%varName),iceID)
- if(err/=nf90_noerr) no_iceData = .true.  
+ if(err/=nf90_noerr) no_iceData = .true.
  err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nLake)%varName),lakeID)
- if(err/=nf90_noerr) no_lakeData = .true.  
+ if(err/=nf90_noerr ) no_lakeData = .true.
 
  ! get nSnow and nSoil data (reads entire state file)
  err = nf90_get_var(ncID,snowID,snowData); call netcdf_err(err,message)
  err = nf90_get_var(ncID,soilID,soilData); call netcdf_err(err,message)
  if (.not. no_iceData)  err = nf90_get_var(ncID,iceID,iceData);   call netcdf_err(err,message)
  if (.not. no_lakeData) err = nf90_get_var(ncID,lakeID,lakeData); call netcdf_err(err,message)
-
  ixHRUfile_min=huge(1)
  ixHRUfile_max=0
  ! find the min and max hru indices in the state file
@@ -152,30 +145,11 @@ contains
   do iHRU = 1,gru_struc(iGRU)%hruCount
    iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
    do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
-    iDOM_global = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_nc
-    if (repeatDomains)then
-     ixFile = iHRU_global
-    else
-     ixFile = iDOM_global
-    endif
-    gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow = snowData(ixFile)
-    gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil = soilData(ixFile)
-    gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce  = iceData(ixFile)
-    gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake = lakeData(ixFile)
-    if (repeatDomains)then ! assume coldstart written for upland
-     if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type == upland) then
-      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce = 0
-      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake = 0
-     elseif (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type == glacAcc .or. &
-             gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type == glacAbl) then
-      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil = 1 ! debris layer, could be 0
-      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce = 2
-      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake = 0
-     elseif (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type == wetland) then
-      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce = 0
-      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake = 3
-     endif 
-    endif
+    ixFile = iHRU_global
+    gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow = snowData(ixFile,iDOM)
+    gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil = soilData(ixFile,iDOM)
+    gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce  = iceData(ixFile,iDOM)
+    gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake = lakeData(ixFile,iDOM)
    end do
   end do
  end do
@@ -258,9 +232,8 @@ contains
  integer(i4b)                              :: ncID                     ! netcdf file ID
  integer(i4b)                              :: ixFile                   ! index in file
  integer(i4b)                              :: iHRU_global              ! index of HRU in the netcdf file
- integer(i4b)                              :: iDOM_global              ! index of domain in the netcdf file
- logical(lgt)                              :: repeatDomains            ! flag to repeat conditions for all domains
- real(rkind),allocatable                   :: varData(:,:)             ! variable data storage
+ real(rkind),allocatable                   :: varData2(:,:)            ! variable data storage
+ real(rkind),allocatable                   :: varData3(:,:,:)          ! variable data storage
  integer(i4b)                              :: nSoil, nSnow, nToto      ! # layers
  integer(i4b)                              :: nIce, nLake              ! # layers
  integer(i4b)                              :: nTDH                     ! number of points in time-delay 
@@ -280,7 +253,6 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! Start procedure here
  err=0; message="read_icond/"
- repeatDomains = .false.
 
  ! --------------------------------------------------------------------------------------------------------
  ! (1) read the file
@@ -296,10 +268,6 @@ contains
  ! get number of DOMs in file, if present
  err = nf90_inq_dimid(ncID,"dom",dimId)               
  if(err/=nf90_noerr)then
-  if(nDOM>nHRU)then
-    !write(*,*) 'WARNING: no domain dimension in initial condition file but multiple domains, will repeat conitions for all domains'
-    repeatDomains=.true.
-  endif
   fileDOM = nDOM
  else
   err = nf90_inquire_dimension(ncID,dimId,len=fileDOM); if(err/=nf90_noerr)then; message=trim(message)//'problem reading dom dimension/'//trim(nf90_strerror(err)); return; end if
@@ -350,11 +318,11 @@ contains
   if(err/=0)then; message=trim(message)//': problem getting the dimension length'; return; endif
 
   ! initialize the variable data
-  allocate(varData(fileDOM,dimLen),stat=err)
+  allocate(varData3(fileHRU,fileDOM,dimLen),stat=err)
   if(err/=0)then; message=trim(message)//'problem allocating HRU variable data'; return; endif
 
   ! get data
-  err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message)
+  err = nf90_get_var(ncID,ncVarID,varData3); call netcdf_err(err,message)
   if(err/=0)then; message=trim(message)//': problem getting the data for variable '//trim(prog_meta(iVar)%varName); return; endif
 
   ! store data in prognostics structure
@@ -365,7 +333,6 @@ contains
    do iHRU = 1,gru_struc(iGRU)%hruCount
     iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
     do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
-     iDOM_global = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_nc
      ! get the number of layers
      nSnow = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
      nSoil = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
@@ -375,27 +342,21 @@ contains
      if(nIce>0) has_glacier = .true.
      if(nLake>0) has_wetland = .true.
 
-     iDOM_global = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_nc
-     if (repeatDomains)then
-      ixFile = iHRU_global
-     else
-      ixFile = iDOM_global
-     endif
-
+     ixFile = iHRU_global
      ! put the data into data structures and check that none of the values are set to nf90_fill_double
      select case (prog_meta(iVar)%varType)
       case (iLookVarType%scalarv)
-       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1)       = varData(ixFile,1)
-       if(abs(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1) - nf90_fill_double) < epsilon(varData))then; err=20; endif
+       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1)       = varData3(ixFile,iDOM,1)
+       if(abs(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1) - nf90_fill_double) < epsilon(varData3))then; err=20; endif
       case (iLookVarType%midSoil)
-       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nSoil) = varData(ixFile,1:nSoil)
-       if(any(abs(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nSoil) - nf90_fill_double) < epsilon(varData)))then; err=20; endif   
+       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nSoil) = varData3(ixFile,iDOM,1:nSoil)
+       if(any(abs(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nSoil) - nf90_fill_double) < epsilon(varData3)))then; err=20; endif   
       case (iLookVarType%midToto)
-       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nToto) = varData(ixFile,1:nToto)
-       if(any(abs(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nToto) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
+       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nToto) = varData3(ixFile,iDOM,1:nToto)
+       if(any(abs(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nToto) - nf90_fill_double) < epsilon(varData3)))then; err=20; endif
       case (iLookVarType%ifcToto)
-       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(0:nToto) = varData(ixFile,1:nToto+1)
-       if(any(abs(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(0:nToto) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
+       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(0:nToto) = varData3(ixFile,iDOM,1:nToto+1)
+       if(any(abs(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(0:nToto) - nf90_fill_double) < epsilon(varData3)))then; err=20; endif
       case default
        message=trim(message)//"unexpectedVariableType[name='"//trim(prog_meta(iVar)%varName)//"';type='"//trim(get_varTypeName(prog_meta(iVar)%varType))//"']"
        err=20; return
@@ -421,7 +382,7 @@ contains
   end do ! iGRU
 
   ! deallocate storage vector for next variable
-  deallocate(varData, stat=err)
+  deallocate(varData3, stat=err)
   if(err/=0)then; message=trim(message)//'problem deallocating HRU variable data'; return; endif
 
  end do ! end looping through prognostic variables (iVar)
@@ -538,26 +499,26 @@ contains
    if(err/=0)then; message=trim(message)//': problem with getting basin variable id, var='//trim(bvar_meta(iVar)%varName); return; endif
 
    ! initialize the tdh variable data
-   allocate(varData(fileGRU,dimLen),stat=err)
+   allocate(varData2(fileGRU,dimLen),stat=err)
    if(err/=0)then; print*, 'err= ',err; message=trim(message)//'problem allocating GRU variable data'; return; endif
 
    ! get data
-   err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message)
+   err = nf90_get_var(ncID,ncVarID,varData2); call netcdf_err(err,message)
    if(err/=0)then; message=trim(message)//': problem getting the data'; return; endif
 
    ! store data in basin var (bvar) structure
    do iGRU = 1,nGRU
 
     ! put the data into data structures
-    bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) = varData((iGRU+startGRU-1),1:nTDH)
+    bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) = varData2((iGRU+startGRU-1),1:nTDH)
     ! check whether the first values is set to nf90_fill_double
-    if(any(abs(bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
+    if(any(abs(bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) - nf90_fill_double) < epsilon(varData2)))then; err=20; endif
     if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(bvar_meta(iVar)%varName)//"')"; return; endif
 
    end do ! end iGRU loop
 
    ! deallocate temporary data array for next variable
-   deallocate(varData, stat=err)
+   deallocate(varData2, stat=err)
    if(err/=0)then; message=trim(message)//'problem deallocating GRU variable data'; return; endif
 
   end do ! end looping through basin variables
@@ -593,25 +554,25 @@ contains
     if(err/=0)then; message=trim(message)//': problem with getting basin variable id, var='//trim(bvar_meta(iVar)%varName); return; endif
 
     ! initialize the ngl variable data
-    allocate(varData(fileGRU,dimLen),stat=err)
+    allocate(varData2(fileGRU,dimLen),stat=err)
     if(err/=0)then; print*, 'err= ',err; message=trim(message)//'problem allocating GRU variable data'; return; endif
 
     ! get data
-    err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message)
+    err = nf90_get_var(ncID,ncVarID,varData2); call netcdf_err(err,message)
     if(err/=0)then; message=trim(message)//': problem getting the data'; return; endif
 
     ! store data in basin var (bvar) structure
     do iGRU = 1,nGRU
       nGlacier = gru_struc(iGRU)%nGlacier
      ! put the data into data structures
-     bvarData%gru(iGRU)%var(iVar)%dat(1:nGlacier) = varData((iGRU+startGRU-1),1:nGlacier)
+     bvarData%gru(iGRU)%var(iVar)%dat(1:nGlacier) = varData2((iGRU+startGRU-1),1:nGlacier)
      ! check whether the first values is set to nf90_fill_double
-     if(any(abs(bvarData%gru(iGRU)%var(iVar)%dat(1:nGlacier) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
+     if(any(abs(bvarData%gru(iGRU)%var(iVar)%dat(1:nGlacier) - nf90_fill_double) < epsilon(varData2)))then; err=20; endif
      if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(bvar_meta(iVar)%varName)//"')"; return; endif
     end do ! end iGRU loop
 
     ! deallocate temporary data array for next variable
-    deallocate(varData, stat=err)
+    deallocate(varData2, stat=err)
     if(err/=0)then; message=trim(message)//'problem deallocating GRU variable data'; return; endif
    enddo ! end looping through basin variables
   endif  ! end if case for variables being in init. cond. file
