@@ -74,7 +74,7 @@ def writeNC_state_vars_HRU_DOM(nc_out, newVarName, newVarDim, newVarType, newVar
     """ Write <vars>[hru dom] array in netCDF4 file,<fn> and variable of
         <varname> """
     print("adding HRU_DOM data")
-    ncvar = nc_out.createVariable(newVarName, newVarType, (newVarDim,'dom','hru',),fill_value='-999.0')    
+    ncvar = nc_out.createVariable(newVarName, newVarType, (newVarDim,'hru','dom',),fill_value='-999.0')   
     ncvar[:] = newVarVals   # store data in netcdf file
 
 # write ngl, gru, variables to netcdf output file
@@ -84,7 +84,7 @@ def writeNC_state_vars_GRU_NGL(nc_out, newVarName, newVarDim, newVarType, newVar
         <varname> """
 
     print("adding GRU_NGL data")
-    ncvar = nc_out.createVariable(newVarName, newVarType, (newVarDim,'ngl','gru',),fill_value='-999.0')    
+    ncvar = nc_out.createVariable(newVarName, newVarType, (newVarDim,'gru',),fill_value='-999.0')    
     ncvar[:] = newVarVals   # store data in netcdf file
 
 # write dimensions and dimension variables to netcdf output file
@@ -259,49 +259,49 @@ if __name__ == '__main__':
     ifcToto = midToto + 1
 
     # initialize layer variables
-    toto0       = np.full((midToto,ndom,nOutPolygonsHRU), 0.0, dtype='f8')
-    totopoint2  = np.full((midToto,ndom,nOutPolygonsHRU), 0.2, dtype='f8')
-    soilneg1    = np.full((midSoil,ndom,nOutPolygonsHRU), -1.0, dtype='f8')
-    toto283     = np.full((midToto,ndom,nOutPolygonsHRU), 283.16, dtype='f8')
+    toto0       = np.full((midToto, nOutPolygonsHRU, ndom), 0.0, dtype='f8')
+    totopoint2  = np.full((midToto, nOutPolygonsHRU, ndom), 0.2, dtype='f8')
+    soilneg1    = np.full((midSoil, nOutPolygonsHRU, ndom), -1.0, dtype='f8')
+    toto283     = np.full((midToto, nOutPolygonsHRU, ndom), 283.16, dtype='f8')
 
-    scalar0     = np.full((1, ndom, nOutPolygonsHRU), 0.0, dtype='f8')
-    scalar283   = np.full((1, ndom, nOutPolygonsHRU), 283.16, dtype='f8')
-    scalar1     = np.full((1, ndom, nOutPolygonsHRU), 1.0, dtype='f8')
+    scalar0     = np.full((1, nOutPolygonsHRU, ndom), 0.0, dtype='f8')
+    scalar283   = np.full((1, nOutPolygonsHRU, ndom), 283.16, dtype='f8')
+    scalar1     = np.full((1, nOutPolygonsHRU, ndom), 1.0, dtype='f8')
 
     # layer Depth, Height, layer types adjust for glacier and wetland
-    lyrDepth = np.zeros((nOutPolygonsHRU,ndom,midToto), dtype='f8')
-    lyrDepth[:,0,0:len(lyrDepth0)]  = lyrDepth0
-    lyrHeight = np.zeros((nOutPolygonsHRU,ndom,ifcToto), dtype='f8')
-    lyrHeight[:,0,0:len(lyrHeight0)] = lyrHeight0
-    midSoil_dom = np.full((1, ndom, nOutPolygonsHRU), midSoil, dtype='f8')
+    lyrDepth = np.zeros((ndom, nOutPolygonsHRU, midToto), dtype='f8')
+    lyrDepth[0,:,0:len(lyrDepth0)]  = lyrDepth0
+    lyrHeight = np.zeros((ndom, nOutPolygonsHRU, ifcToto), dtype='f8')
+    lyrHeight[0,:,0:len(lyrHeight0)] = lyrHeight0
+    midSoil_dom = np.full((1, nOutPolygonsHRU, ndom), midSoil, dtype='f8')
     midIce_dom = scalar0.copy()
     midLake_dom = scalar0.copy()
-    dom_area = np.full((1,ndom,nOutPolygonsHRU), hru_area, dtype='f8')
+    dom_area = np.full((1, nOutPolygonsHRU, ndom), hru_area, dtype='f8')
     dom_area[0,0,:] = hru_area * inld_frac
-    dom_elev = np.full((1,ndom,nOutPolygonsHRU), hru_elev, dtype='f8')
+    dom_elev = np.full((1, nOutPolygonsHRU, ndom), hru_elev, dtype='f8')
 
 
     if glac_dom: # NOTE, if HRU glacier area is 0, midIce_dom should be 0
-        lyrDepth[:,1,0:len(lyrDepth_glac)] = lyrDepth_glac
-        lyrDepth[:,2,0:len(lyrDepth_glac)] = lyrDepth_glac
-        lyrHeight[:,1,0:len(lyrHeight_glac)] = lyrHeight_glac
-        lyrHeight[:,2,0:len(lyrHeight_glac)] = lyrHeight_glac
-        midIce_dom[0,1,:] = midIce
-        midIce_dom[0,2,:] = midIce
-        midSoil_dom[0,1,:] = midSoil_glac
-        midSoil_dom[0,2,:] = midSoil_glac
-        dom_area[0,1,:] = hru_area * glac_frac*0.5  # glacier ablation 50% of glacier, SHOULD BE READ FROM FILE
-        dom_area[0,2,:] = hru_area * glac_frac*0.5  # glacier accumulation 50% of glacier, SHOULD BE READ FROM FILE
-        dom_elev[0,1,:] = hru_elev * 0.5            # for testing, SHOULD BE READ FROM FILE
-        dom_elev[0,2,:] = hru_elev * 1.5            # for testing, SHOULD BE READ FROM FILE
+        lyrDepth[1,:,0:len(lyrDepth_glac)] = lyrDepth_glac
+        lyrDepth[2,:,0:len(lyrDepth_glac)] = lyrDepth_glac
+        lyrHeight[1,:,0:len(lyrHeight_glac)] = lyrHeight_glac
+        lyrHeight[2,:,0:len(lyrHeight_glac)] = lyrHeight_glac
+        midIce_dom[:,0,1] = midIce
+        midIce_dom[:,0,2] = midIce
+        midSoil_dom[:,0,1] = midSoil_glac
+        midSoil_dom[:,0,2] = midSoil_glac
+        dom_area[:,0,1] = hru_area * glac_frac*0.5  # glacier ablation 50% of glacier, SHOULD BE READ FROM FILE
+        dom_area[:,0,2] = hru_area * glac_frac*0.5  # glacier accumulation 50% of glacier, SHOULD BE READ FROM FILE
+        dom_elev[:,0,1] = hru_elev * 0.5            # for testing, SHOULD BE READ FROM FILE
+        dom_elev[:,0,2] = hru_elev * 1.5            # for testing, SHOULD BE READ FROM FILE
 
     if wtld_dom: # NOTE, if HRU wetland area is 0, midLake_dom should be 0
-        lyrDepth[:,indxWtld,0:len(lyrDepth_wtld)] = lyrDepth_wtld
-        lyrHeight[:,indxWtld,0:len(lyrHeight_wtld)] = lyrHeight_wtld
-        midLake_dom[0,indxWtld,:] = midLake
-        midSoil_dom[0,indxWtld,:] = midSoil_wtld
-        dom_area[0,indxWtld,:] = hru_area * wtld_frac 
-        dom_elev[0,indxWtld,:] = hru_elev           # assume wetland elev same as upland
+        lyrDepth[ indxWtld,:,0:len(lyrDepth_wtld)] = lyrDepth_wtld
+        lyrHeight[indxWtld,:,0:len(lyrHeight_wtld)] = lyrHeight_wtld
+        midLake_dom[:,0,indxWtld] = midLake
+        midSoil_dom[:,0,indxWtld] = midSoil_wtld
+        dom_area[:,0,indxWtld] = hru_area * wtld_frac 
+        dom_elev[:,0,indxWtld] = hru_elev           # assume wetland elev same as upland
 
     lyrDepth = lyrDepth.transpose()
     lyrHeight = lyrHeight.transpose()
@@ -326,7 +326,7 @@ if __name__ == '__main__':
     writeNC_state_vars_HRU_DOM(nc_out, 'nLake', 'scalarv', 'f8', midLake_dom)           # nLake
 
     # dT
-    newVarVals = np.full((1, ndom, nOutPolygonsHRU), dT, dtype='f8')
+    newVarVals = np.full((ndom, 1, nOutPolygonsHRU), dT, dtype='f8')
     writeNC_state_vars_HRU_DOM(nc_out, 'dt_init', 'scalarv', 'f8', newVarVals)
 
     # area and elevation
@@ -343,20 +343,20 @@ if __name__ == '__main__':
     # glacier area, just divide by ngl for testing, SHOULD BE READ FROM FILE
     totAblArea = np.zeros(nOutPolygonsGRU)
     totAccArea = np.zeros(nOutPolygonsGRU)
-    ablArea = np.zeros((1,ngl, nOutPolygonsGRU), dtype='f8')
-    accArea = np.zeros((1,ngl, nOutPolygonsGRU), dtype='f8')
+    ablArea = np.zeros((1, ngl, nOutPolygonsGRU), dtype='f8')
+    accArea = np.zeros((1, ngl, nOutPolygonsGRU), dtype='f8')
     for i,g in enumerate(gruIDs):
-        totAblArea[i] = dom_area[0,1,hru2gru==g].sum()
-        totAccArea[i] = dom_area[0,2,hru2gru==g].sum()
+        totAblArea[i] = dom_area[0,hru2gru==g,1].sum()
+        totAccArea[i] = dom_area[0,hru2gru==g,2].sum()
         if ngl0[i]>0: 
             ablArea[0,:ngl0[i],i] = totAblArea[i]/ngl0[i]
             accArea[0,:ngl0[i],i] = totAccArea[i]/ngl0[i]
     
 
-    newVarVals = np.full((1,ngl,nOutPolygonsGRU), ablArea, dtype='f8')
-    writeNC_state_vars_GRU_NGL(nc_out, 'glacAblArea', 'scalarv', 'f8', newVarVals)
-    newVarVals = np.full((1,ngl,nOutPolygonsGRU), accArea, dtype='f8')     
-    writeNC_state_vars_GRU_NGL(nc_out, 'glacAccArea', 'scalarv', 'f8', newVarVals)
+    newVarVals = np.full((ngl,nOutPolygonsGRU), ablArea, dtype='f8')
+    writeNC_state_vars_GRU_NGL(nc_out, 'glacAblArea', 'ngl', 'f8', newVarVals)
+    newVarVals = np.full((ngl,nOutPolygonsGRU), accArea, dtype='f8')     
+    writeNC_state_vars_GRU_NGL(nc_out, 'glacAccArea', 'ngl', 'f8', newVarVals)
 
     # scalar CanairTemp, CanopyTemp, AquiferStorage
     writeNC_state_vars_HRU_DOM(nc_out, 'scalarCanairTemp', 'scalarv', 'f8', scalar283)  # CanairTemp, does not exist for glacier or lake
@@ -367,9 +367,9 @@ if __name__ == '__main__':
     if glac_dom:
         for i in range(ndom): # put ice layers at -5 C and all ice similar to Giese et al. 2020, otherwise need to spin up 40 yrs
             if i>0 and i<3: 
-                toto283[midSoil_glac:(midIce+midSoil_glac),i,:] = 268.16 # or 273.16?
-                toto0[midSoil_glac:(midIce+midSoil_glac),i,:] = 1.0
-                totopoint2[midSoil_glac:(midIce+midSoil_glac),i,:] = 0.0
+                toto283[   midSoil_glac:(midIce+midSoil_glac),:,i] = 268.16 # or 273.16?
+                toto0[     midSoil_glac:(midIce+midSoil_glac),:,i] = 1.0
+                totopoint2[midSoil_glac:(midIce+midSoil_glac),:,i] = 0.0
     writeNC_state_vars_HRU_DOM(nc_out, 'mLayerMatricHead', 'midSoil', 'f8', soilneg1)   # MatricHead
     writeNC_state_vars_HRU_DOM(nc_out, 'mLayerTemp', 'midToto', 'f8', toto283)          # Temp
     writeNC_state_vars_HRU_DOM(nc_out, 'mLayerVolFracLiq', 'midToto', 'f8', totopoint2) # VolFracLiq

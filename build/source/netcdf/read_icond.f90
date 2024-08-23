@@ -318,7 +318,7 @@ contains
   if(err/=0)then; message=trim(message)//': problem getting the dimension length'; return; endif
 
   ! initialize the variable data
-  allocate(varData3(fileHRU,fileDOM,dimLen),stat=err)
+  allocate(varData3(fileHRU,dimLen,fileDOM),stat=err)
   if(err/=0)then; message=trim(message)//'problem allocating HRU variable data'; return; endif
 
   ! get data
@@ -346,16 +346,17 @@ contains
      ! put the data into data structures and check that none of the values are set to nf90_fill_double
      select case (prog_meta(iVar)%varType)
       case (iLookVarType%scalarv)
-       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1)       = varData3(ixFile,iDOM,1)
+       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1)       = varData3(ixFile,1,iDOM)
        if(abs(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1) - nf90_fill_double) < epsilon(varData3))then; err=20; endif
       case (iLookVarType%midSoil)
-       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nSoil) = varData3(ixFile,iDOM,1:nSoil)
+       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nSoil) = varData3(ixFile,1:nSoil,iDOM)
        if(any(abs(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nSoil) - nf90_fill_double) < epsilon(varData3)))then; err=20; endif   
       case (iLookVarType%midToto)
-       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nToto) = varData3(ixFile,iDOM,1:nToto)
+       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nToto) = varData3(ixFile,1:nToto,iDOM)
+       print*,prog_meta(iVar)%varName, ixFile, iDOM, varData3(ixFile,1:nToto,iDOM)
        if(any(abs(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nToto) - nf90_fill_double) < epsilon(varData3)))then; err=20; endif
       case (iLookVarType%ifcToto)
-       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(0:nToto) = varData3(ixFile,iDOM,1:nToto+1)
+       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(0:nToto) = varData3(ixFile,1:nToto+1,iDOM)
        if(any(abs(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(0:nToto) - nf90_fill_double) < epsilon(varData3)))then; err=20; endif
       case default
        message=trim(message)//"unexpectedVariableType[name='"//trim(prog_meta(iVar)%varName)//"';type='"//trim(get_varTypeName(prog_meta(iVar)%varType))//"']"
