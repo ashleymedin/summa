@@ -94,7 +94,7 @@ contains
  ! **********************************************************************************************************
  ! public subroutine writeParm: write model parameters
  ! **********************************************************************************************************
- subroutine writeParm(iSpatial,struct,iDOM,meta,err,message)
+ subroutine writeParm(iDOM,iSpatial,struct,meta,err,message)
  USE globalData,only:ncid                        ! netcdf file ids
  USE data_types,only:var_info                    ! metadata info
  USE var_lookup,only:iLookSTAT                   ! index in statistics vector
@@ -102,9 +102,9 @@ contains
  implicit none
 
  ! declare input variables
+ integer(i4b)  ,intent(in)   :: iDOM             ! domain index
  integer(i4b)  ,intent(in)   :: iSpatial         ! hydrologic response unit
  class(*)      ,intent(in)   :: struct           ! data structure
- integer(i4b)  ,intent(in)   :: iDOM             ! domain
  type(var_info),intent(in)   :: meta(:)          ! metadata structure
  integer(i4b)  ,intent(out)  :: err              ! error code
  character(*)  ,intent(out)  :: message          ! error message
@@ -126,16 +126,16 @@ contains
   select type (struct)
    class is (var_i)
      if (iDOM==0) err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
-     if (iDOM>0)  err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iSpatial,iDOM/),count=(/1,1/))
+     if (iDOM>0)  err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iDOM,iSpatial/),count=(/1,1/))
     class is (var_i8)
      if (iDOM==0) err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
-     if (iDOM>0)  err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iSpatial,iDOM/),count=(/1,1/))
+     if (iDOM>0)  err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iDOM,iSpatial/),count=(/1,1/))
     class is (var_d)
      if (iDOM==0) err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
-     if (iDOM>0)  err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iSpatial,iDOM/),count=(/1,1/))
+     if (iDOM>0)  err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iDOM,iSpatial/),count=(/1,1/))
     class is (var_dlength)
      if (iDOM==0) err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)%dat/),start=(/iSpatial,1/),count=(/1,size(struct%var(iVar)%dat)/))
-     if (iDOM>0)  err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)%dat/),start=(/iSpatial,1,iDOM/),count=(/1,size(struct%var(iVar)%dat),1/))
+     if (iDOM>0)  err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)%dat/),start=(/iDOM,iSpatial,1/),count=(/1,size(struct%var(iVar)%dat),1/))
    class default; err=20; message=trim(message)//'unknown variable type'; return
   end select
   call netcdf_err(err,message); if (err/=0) return
@@ -149,7 +149,7 @@ contains
  ! **************************************************************************************
  ! public subroutine writeData: write model time-dependent data
  ! **************************************************************************************
- subroutine writeData(finalizeStats,outputTimestep,nUNITrun,maxLayers,maxDOM,meta,stat,dat,map,indx,err,message)
+ subroutine writeData(finalizeStats,outputTimestep,maxDOM,nUNITrun,maxLayers,meta,stat,dat,map,indx,err,message)
  USE data_types,only:var_info                       ! metadata type
  USE var_lookup,only:maxVarStat                     ! index into stats structure
  USE var_lookup,only:iLookVarType                   ! index into type structure
@@ -162,9 +162,9 @@ contains
  ! declare dummy variables
  logical(lgt)  ,intent(in)            :: finalizeStats(:)  ! flags to finalize statistics
  integer(i4b)  ,intent(in)            :: outputTimestep(:) ! output time step
+ integer(i4b)  ,intent(in)            :: maxDOM            ! maximum number of domains in any HRU
  integer(i4b)  ,intent(in)            :: nUNITrun          ! number of HRUs in the run space (for var)
  integer(i4b)  ,intent(in)            :: maxLayers         ! maximum number of layers
- integer(i4b)  ,intent(in)            :: maxDOM            ! maximum number of domains in any HRU
  type(var_info),intent(in)            :: meta(:)           ! meta data
  class(*)      ,intent(in)            :: stat              ! stats data
  class(*)      ,intent(in)            :: dat               ! timestep data
@@ -189,9 +189,9 @@ contains
  integer(i4b)                         :: datLength         ! length of each data vector
  integer(i4b)                         :: maxLength         ! maximum length of each data vector
  real(rkind)                          :: realVec(nUNITrun) ! real vector for all HRUs in the run space
- real(rkind)                          :: realVecDom(nUNITrun,maxDOM)  ! real array for all HRUs and DOMs in the run space
- real(rkind)                          :: realArray(nUNITrun,maxLayers+1,maxDOM)  ! real array for all HRUs and DOMs in the run space
- integer(i4b)                         :: intArray(nUNITrun,maxLayers+1,maxDOM)   ! integer array for all HRUs and DOMs in the run space
+ real(rkind)                          :: realVecDom(maxDOM,nUNITrun)  ! real array for all HRUs and DOMs in the run space
+ real(rkind)                          :: realArray(maxDOM,nUNITrun,maxLayers+1)  ! real array for all HRUs and DOMs in the run space
+ integer(i4b)                         :: intArray(maxDOM,nUNITrun,maxLayers+1)   ! integer array for all HRUs and DOMs in the run space
  integer(i4b)                         :: dataType          ! type of data
  integer(i4b),parameter               :: ixInteger=1001    ! named variable for integer
  integer(i4b),parameter               :: ixReal=1002       ! named variable for real
@@ -306,8 +306,8 @@ contains
        
        ! get the data vectors
        select type (dat)
-        class is (gru_hru_dom_doubleVec); realArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength,iDOM) = dat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(:)
-        class is (gru_hru_dom_intVec);     intArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength,iDOM) = dat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(:)
+        class is (gru_hru_dom_doubleVec); realArray(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = dat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(:)
+        class is (gru_hru_dom_intVec);     intArray(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = dat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(:)
        end select
 
       end do ! DOM loop
@@ -332,8 +332,8 @@ contains
 
     ! write the data vectors
     select case(dataType)
-     case(ixReal);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realArray(1:nUNITrun,1:maxLength,1:maxDOM),start=(/1,1,1,outputTimestep(iFreq)/),count=(/nUNITrun,maxLength,maxDOM,1/))
-     case(ixInteger); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq), intArray(1:nUNITrun,1:maxLength,1:maxDOM),start=(/1,1,1,outputTimestep(iFreq)/),count=(/nUNITrun,maxLength,maxDOM,1/))
+     case(ixReal);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realArray(1:maxDOM,1:nUNITrun,1:maxLength),start=(/1,1,1,outputTimestep(iFreq)/),count=(/maxDOM,nUNITrun,maxLength,1/))
+     case(ixInteger); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq), intArray(1:maxDOM,1:nUNITrun,1:maxLength),start=(/1,1,1,outputTimestep(iFreq)/),count=(/maxDOM,nUNITrun,maxLength,1/))
      case default; err=20; message=trim(message)//'data must be of type integer or real'; return
     end select ! data type
 
@@ -624,18 +624,18 @@ contains
 
   ! define variable
   select case(prog_meta(iVar)%varType)
-   case(iLookvarType%scalarv);                      err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,domDimID,  scalDimID /),ncVarID(iVar))
-   case(iLookvarType%wLength);                      err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,domDimID,  specDimID /),ncVarID(iVar))
-   case(iLookvarType%midToto);                      err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,domDimID,midTotoDimID/),ncVarID(iVar))
-   case(iLookvarType%ifcToto);                      err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,domDimID,ifcTotoDimID/),ncVarID(iVar))
-   case(iLookvarType%midSoil); if (maxSoilLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,domDimID,midSoilDimID/),ncVarID(iVar))
-   case(iLookvarType%ifcSoil); if (maxSoilLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,domDimID,ifcSoilDimID/),ncVarID(iVar))
-   case(iLookvarType%midSnow); if (maxSnowLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,domDimID,midSnowDimID/),ncVarID(iVar))
-   case(iLookvarType%ifcSnow); if (maxSnowLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,domDimID,ifcSnowDimID/),ncVarID(iVar))
-   case(iLookvarType%midIce);  if (maxIceLayers >0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,domDimID,midIceDimID /),ncVarID(iVar))
-   case(iLookvarType%ifcIce);  if (maxIceLayers >0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,domDimID,ifcIceDimID /),ncVarID(iVar))
-   case(iLookvarType%midLake); if (maxLakeLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,domDimID,midLakeDimID/),ncVarID(iVar))
-   case(iLookvarType%ifcLake); if (maxLakeLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,domDimID,ifcLakeDimID/),ncVarID(iVar))
+   case(iLookvarType%scalarv);                      err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,  scalDimID /),ncVarID(iVar))
+   case(iLookvarType%wLength);                      err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,  specDimID /),ncVarID(iVar))
+   case(iLookvarType%midToto);                      err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,midTotoDimID/),ncVarID(iVar))
+   case(iLookvarType%ifcToto);                      err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,ifcTotoDimID/),ncVarID(iVar))
+   case(iLookvarType%midSoil); if (maxSoilLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,midSoilDimID/),ncVarID(iVar))
+   case(iLookvarType%ifcSoil); if (maxSoilLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,ifcSoilDimID/),ncVarID(iVar))
+   case(iLookvarType%midSnow); if (maxSnowLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,midSnowDimID/),ncVarID(iVar))
+   case(iLookvarType%ifcSnow); if (maxSnowLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,ifcSnowDimID/),ncVarID(iVar))
+   case(iLookvarType%midIce);  if (maxIceLayers >0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,midIceDimID /),ncVarID(iVar))
+   case(iLookvarType%ifcIce);  if (maxIceLayers >0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,ifcIceDimID /),ncVarID(iVar))
+   case(iLookvarType%midLake); if (maxLakeLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,midLakeDimID/),ncVarID(iVar))
+   case(iLookvarType%ifcLake); if (maxLakeLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,ifcLakeDimID/),ncVarID(iVar))
   end select
 
   ! check errors
@@ -748,18 +748,18 @@ contains
 
       ! write data
       select case (prog_meta(iVar)%varType)
-       case(iLookVarType%scalarv);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/cHRU,1,iDOM/),count=(/1,nScalar  ,1/))
-       case(iLookVarType%wlength);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/cHRU,1,iDOM/),count=(/1,nSpecBand,1/))
-       case(iLookVarType%midToto);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/cHRU,1,iDOM/),count=(/1,nLayers  ,1/))
-       case(iLookVarType%ifcToto);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/cHRU,1,iDOM/),count=(/1,nLayers+1,1/))
-       case(iLookVarType%midSoil); if (nSoil>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/cHRU,1,iDOM/),count=(/1,nSoil    ,1/))
-       case(iLookVarType%ifcSoil); if (nSoil>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/cHRU,1,iDOM/),count=(/1,nSoil+1  ,1/))
-       case(iLookVarType%midSnow); if (nSnow>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/cHRU,1,iDOM/),count=(/1,nSnow    ,1/))
-       case(iLookVarType%ifcSnow); if (nSnow>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/cHRU,1,iDOM/),count=(/1,nSnow+1  ,1/))
-       case(iLookVarType%midIce);  if (nIce>0)  err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/cHRU,1,iDOM/),count=(/1,nIce     ,1/))
-       case(iLookVarType%ifcIce);  if (nIce>0)  err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/cHRU,1,iDOM/),count=(/1,nIce+1   ,1/))
-       case(iLookVarType%midLake); if (nLake>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/cHRU,1,iDOM/),count=(/1,nLake    ,1/))
-       case(iLookVarType%ifcLake); if (nLake>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/cHRU,1,iDOM/),count=(/1,nLake+1  ,1/))
+       case(iLookVarType%scalarv);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU,1/),count=(/1,1,nScalar  /))
+       case(iLookVarType%wlength);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU,1/),count=(/1,1,nSpecBand/))
+       case(iLookVarType%midToto);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU,1/),count=(/1,1,nLayers  /))
+       case(iLookVarType%ifcToto);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU,1/),count=(/1,1,nLayers+1/))
+       case(iLookVarType%midSoil); if (nSoil>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU,1/),count=(/1,1,nSoil    /))
+       case(iLookVarType%ifcSoil); if (nSoil>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU,1/),count=(/1,1,nSoil+1  /))
+       case(iLookVarType%midSnow); if (nSnow>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU,1/),count=(/1,1,nSnow    /))
+       case(iLookVarType%ifcSnow); if (nSnow>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU,1/),count=(/1,1,nSnow+1  /))
+       case(iLookVarType%midIce);  if (nIce>0)  err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU,1/),count=(/1,1,nIce     /))
+       case(iLookVarType%ifcIce);  if (nIce>0)  err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU,1/),count=(/1,1,nIce+1   /))
+       case(iLookVarType%midLake); if (nLake>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU,1/),count=(/1,1,nLake    /))
+       case(iLookVarType%ifcLake); if (nLake>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU,1/),count=(/1,1,nLake+1  /))
        case default; err=20; message=trim(message)//'unknown var type'; return
   end select
 
@@ -771,10 +771,10 @@ contains
     end do ! iVar loop
 
     ! write index variables
-    err=nf90_put_var(ncid,ncSnowID,(/indx_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSnow)%dat/),start=(/cHRU,iDOM/),count=(/1,1/))
-    err=nf90_put_var(ncid,ncSoilID,(/indx_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSoil)%dat/),start=(/cHRU,iDOM/),count=(/1,1/))
-    err=nf90_put_var(ncid,ncIceID, (/indx_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nIce)%dat/), start=(/cHRU,iDOM/),count=(/1,1/))
-    err=nf90_put_var(ncid,ncLakeID,(/indx_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLake)%dat/),start=(/cHRU,iDOM/),count=(/1,1/))
+    err=nf90_put_var(ncid,ncSnowID,(/indx_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSnow)%dat/),start=(/iDOM,cHRU/),count=(/1,1/))
+    err=nf90_put_var(ncid,ncSoilID,(/indx_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSoil)%dat/),start=(/iDOM,cHRU/),count=(/1,1/))
+    err=nf90_put_var(ncid,ncIceID, (/indx_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nIce)%dat/), start=(/iDOM,cHRU/),count=(/1,1/))
+    err=nf90_put_var(ncid,ncLakeID,(/indx_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLake)%dat/),start=(/iDOM,cHRU/),count=(/1,1/))
   
    end do ! iDOM loop
   end do ! iHRU loop
