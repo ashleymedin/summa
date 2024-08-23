@@ -149,7 +149,7 @@ contains
  ! **************************************************************************************
  ! public subroutine writeData: write model time-dependent data
  ! **************************************************************************************
- subroutine writeData(finalizeStats,outputTimestep,nUNITrun,maxDOM,maxLayers,meta,stat,dat,map,indx,err,message)
+ subroutine writeData(finalizeStats,outputTimestep,nUNITrun,maxLayers,maxDOM,meta,stat,dat,map,indx,err,message)
  USE data_types,only:var_info                       ! metadata type
  USE var_lookup,only:maxVarStat                     ! index into stats structure
  USE var_lookup,only:iLookVarType                   ! index into type structure
@@ -163,8 +163,8 @@ contains
  logical(lgt)  ,intent(in)            :: finalizeStats(:)  ! flags to finalize statistics
  integer(i4b)  ,intent(in)            :: outputTimestep(:) ! output time step
  integer(i4b)  ,intent(in)            :: nUNITrun          ! number of HRUs in the run space (for var)
- integer(i4b)  ,intent(in)            :: maxDOM            ! maximum number of domains in any HRU
  integer(i4b)  ,intent(in)            :: maxLayers         ! maximum number of layers
+ integer(i4b)  ,intent(in)            :: maxDOM            ! maximum number of domains in any HRU
  type(var_info),intent(in)            :: meta(:)           ! meta data
  class(*)      ,intent(in)            :: stat              ! stats data
  class(*)      ,intent(in)            :: dat               ! timestep data
@@ -190,8 +190,8 @@ contains
  integer(i4b)                         :: maxLength         ! maximum length of each data vector
  real(rkind)                          :: realVec(nUNITrun) ! real vector for all HRUs in the run space
  real(rkind)                          :: realVecDom(nUNITrun,maxDOM)  ! real array for all HRUs and DOMs in the run space
- real(rkind)                          :: realArray(nUNITrun,maxDOM,maxLayers+1)  ! real array for all HRUs and DOMs in the run space
- integer(i4b)                         :: intArray(nUNITrun,maxDOM,maxLayers+1)   ! integer array for all HRUs and DOMs in the run space
+ real(rkind)                          :: realArray(nUNITrun,maxLayers+1,maxDOM)  ! real array for all HRUs and DOMs in the run space
+ integer(i4b)                         :: intArray(nUNITrun,maxLayers+1,maxDOM)   ! integer array for all HRUs and DOMs in the run space
  integer(i4b)                         :: dataType          ! type of data
  integer(i4b),parameter               :: ixInteger=1001    ! named variable for integer
  integer(i4b),parameter               :: ixReal=1002       ! named variable for real
@@ -261,7 +261,7 @@ contains
       end do
 
       ! write data
-      err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realVecDom(1:nUNITrun,1:maxDOM),start=(/1,1,outputTimestep(iFreq)/),count=(/nUNITrun,1,1/))
+      err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realVecDom(1:nUNITrun,1:maxDOM),start=(/1,1,outputTimestep(iFreq)/),count=(/nUNITrun,maxDOM,1/))
 
      class default; err=20; message=trim(message)//'stats must be scalarv and of type gru_hru_dom_doubleVec'; return
     end select  ! stat
@@ -332,8 +332,8 @@ contains
 
     ! write the data vectors
     select case(dataType)
-     case(ixReal);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realArray(1:nUNITrun,1:maxDOM,1:maxLength),start=(/1,1,1,outputTimestep(iFreq)/),count=(/nUNITrun,maxDOM,maxLength,1/))
-     case(ixInteger); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),intArray(1:nUNITrun,1:maxDOM,1:maxLength),start=(/1,1,1,outputTimestep(iFreq)/),count=(/nUNITrun,maxDOM,maxLength,1/))
+     case(ixReal);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realArray(1:nUNITrun,1:maxLength,1:maxDOM),start=(/1,1,1,outputTimestep(iFreq)/),count=(/nUNITrun,maxLength,maxDOM,1/))
+     case(ixInteger); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq), intArray(1:nUNITrun,1:maxLength,1:maxDOM),start=(/1,1,1,outputTimestep(iFreq)/),count=(/nUNITrun,maxLength,maxDOM,1/))
      case default; err=20; message=trim(message)//'data must be of type integer or real'; return
     end select ! data type
 
@@ -455,6 +455,7 @@ contains
    if (meta(iVar)%statIndex(iFreq)/=iLookSTAT%inst) cycle
 
    ! get variable id in file
+
    err = nf90_inq_varid(ncid(iFreq),trim(meta(iVar)%varName),ncVarID)
    if (err/=0) message=trim(message)//trim(meta(iVar)%varName)
    call netcdf_err(err,message)
@@ -463,6 +464,7 @@ contains
    ! add to file
    err = nf90_put_var(ncid(iFreq),ncVarID,(/dat(iVar)/),start=(/outputTimestep(iFreq)/),count=(/1/))
    if (err/=0) message=trim(message)//trim(meta(iVar)%varName)
+   print*, err, trim(meta(iVar)%varName)
    call netcdf_err(err,message)
    if (err/=0) then; err=20; return; end if
 

@@ -277,7 +277,7 @@ contains
  end do
 
  ! write time information
- call writeTime(finalizeStats,outputTimeStep,time_meta,timeStruct%var,err,message)
+ call writeTime(finalizeStats,outputTimeStep,time_meta,timeStruct%var,err,cmessage)
 
  ! write the model output to the NetCDF file
  ! Passes the full metadata structure rather than the stats metadata structure because
@@ -285,11 +285,11 @@ contains
  !  Thus, we must also pass the stats parent->child maps from childStruct.
  do iStruct=1,size(structInfo)
   select case(trim(structInfo(iStruct)%structName))
-   case('forc'); call writeData(finalizeStats,outputTimeStep,nHRUrun,maxDOM,maxLayers,forc_meta,forcStat,forcStruct,forcChild_map,indxStruct,err,cmessage)
-   case('prog'); call writeData(finalizeStats,outputTimeStep,nHRUrun,maxDOM,maxLayers,prog_meta,progStat,progStruct,progChild_map,indxStruct,err,cmessage)
-   case('diag'); call writeData(finalizeStats,outputTimeStep,nHRUrun,maxDOM,maxLayers,diag_meta,diagStat,diagStruct,diagChild_map,indxStruct,err,cmessage)
-   case('flux'); call writeData(finalizeStats,outputTimeStep,nHRUrun,maxDOM,maxLayers,flux_meta,fluxStat,fluxStruct,fluxChild_map,indxStruct,err,cmessage)
-   case('indx'); call writeData(finalizeStats,outputTimeStep,nHRUrun,maxDOM,maxLayers,indx_meta,indxStat,indxStruct,indxChild_map,indxStruct,err,cmessage)
+   case('forc'); call writeData(finalizeStats,outputTimeStep,nHRUrun,maxLayers,maxDOM,forc_meta,forcStat,forcStruct,forcChild_map,indxStruct,err,cmessage)
+   case('prog'); call writeData(finalizeStats,outputTimeStep,nHRUrun,maxLayers,maxDOM,prog_meta,progStat,progStruct,progChild_map,indxStruct,err,cmessage)
+   case('diag'); call writeData(finalizeStats,outputTimeStep,nHRUrun,maxLayers,maxDOM,diag_meta,diagStat,diagStruct,diagChild_map,indxStruct,err,cmessage)
+   case('flux'); call writeData(finalizeStats,outputTimeStep,nHRUrun,maxLayers,maxDOM,flux_meta,fluxStat,fluxStruct,fluxChild_map,indxStruct,err,cmessage)
+   case('indx'); call writeData(finalizeStats,outputTimeStep,nHRUrun,maxLayers,maxDOM,indx_meta,indxStat,indxStruct,indxChild_map,indxStruct,err,cmessage)
   end select
   if(err/=0)then; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; return; endif
  end do  ! (looping through structures)

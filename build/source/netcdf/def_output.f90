@@ -164,7 +164,7 @@ contains
     case('indx'  ); call def_variab(ncid(iFreq),iFreq,needDOM,needTime,indx_meta, nf90_int,        err,cmessage)  ! model variables
     case('deriv' ); call def_variab(ncid(iFreq),iFreq,needDOM,needTime,deriv_meta,outputPrecision, err,cmessage)  ! model derivatives
     case('time'  ); call def_variab(ncid(iFreq),iFreq,  noHRU,needTime,time_meta, nf90_int,        err,cmessage)  ! model time data
-    case('forc'  ); call def_variab(ncid(iFreq),iFreq,needDOM,needTime,forc_meta, outputPrecision, err,cmessage)  ! model forcing data
+    case('forc'  ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,forc_meta, outputPrecision, err,cmessage)  ! model forcing data
     case('prog'  ); call def_variab(ncid(iFreq),iFreq,needDOM,needTime,prog_meta, outputPrecision, err,cmessage)  ! model prognostics
     case('diag'  ); call def_variab(ncid(iFreq),iFreq,needDOM,needTime,diag_meta, outputPrecision, err,cmessage)  ! model diagnostic variables
     case('flux'  ); call def_variab(ncid(iFreq),iFreq,needDOM,needTime,flux_meta, outputPrecision, err,cmessage)  ! model fluxes
@@ -224,7 +224,7 @@ contains
  ! create dimensions
  err = nf90_def_dim(ncid, trim(     gru_DimName), nGRU,                      gru_DimID); message='iCreate[GRU]';      call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim(     hru_DimName), nHRU,                      hru_DimID); message='iCreate[HRU]';      call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim(     dom_DimName), maxDOM,                      dom_DimID); message='iCreate[DOM]';      call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(     dom_DimName), maxDOM,                    dom_DimID); message='iCreate[DOM]';      call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim(timestep_DimName), nf90_unlimited,       timestep_DimID); message='iCreate[time]';     call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim(   depth_DimName), maxSoilLayers,           depth_DimID); message='iCreate[depth]';    call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim(  scalar_DimName), scalarLength,           scalar_DimID); message='iCreate[scalar]';   call netcdf_err(err,message); if (err/=0) return
@@ -345,16 +345,16 @@ contains
      if(spatialDesire==needDOM .and. timeDesire==  noTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID,dom_DimID/)               , err=err, message=cmessage); writechunk=(/ hruChunk, domChunk /); endif
 
     ! (other variables)
-    case(iLookvarType%wLength); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, dom_DimID, wLength_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, domChunk, layerChunk, int(timeChunk/domChunk)+1 /)
-    case(iLookvarType%midSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, dom_DimID, midSnow_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, domChunk, layerChunk, int(timeChunk/domChunk)+1 /)
-    case(iLookvarType%midSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, dom_DimID, midSoil_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, domChunk, layerChunk, int(timeChunk/domChunk)+1 /)
-    case(iLookvarType%midToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, dom_DimID, midToto_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, domChunk, layerChunk, int(timeChunk/domChunk)+1 /)
-    case(iLookvarType%ifcSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, dom_DimID, ifcSnow_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, domChunk, layerChunk, int(timeChunk/domChunk)+1 /)
-    case(iLookvarType%ifcSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, dom_DimID, ifcSoil_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, domChunk, layerChunk, int(timeChunk/domChunk)+1 /)
-    case(iLookvarType%ifcToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, dom_DimID, ifcToto_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, domChunk, layerChunk, int(timeChunk/domChunk)+1 /)
-    case(iLookvarType%parSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, dom_DimID, depth_DimID                  /), err=err, message=cmessage); writechunk=(/ hruChunk, domChunk, layerChunk/)
-    case(iLookvarType%routing); call cloneStruc(dimensionIDs, lowerBound=1, source=(/routing_DimID                           /), err=err, message=cmessage); writechunk=(/ layerChunk /)
-    case(iLookvarType%glacier); call cloneStruc(dimensionIDs, lowerBound=1, source=(/glacier_DimID                           /), err=err, message=cmessage); writechunk=(/ layerChunk /)
+    case(iLookvarType%wLength); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, wLength_DimID, dom_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, domChunk, int(timeChunk/domChunk)+1 /)
+    case(iLookvarType%midSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midSnow_DimID, dom_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, domChunk, int(timeChunk/domChunk)+1 /)
+    case(iLookvarType%midSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midSoil_DimID, dom_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, domChunk, int(timeChunk/domChunk)+1 /)
+    case(iLookvarType%midToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midToto_DimID, dom_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, domChunk, int(timeChunk/domChunk)+1 /)
+    case(iLookvarType%ifcSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSnow_DimID, dom_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, domChunk, int(timeChunk/domChunk)+1 /)
+    case(iLookvarType%ifcSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSoil_DimID, dom_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, domChunk, int(timeChunk/domChunk)+1 /)
+    case(iLookvarType%ifcToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcToto_DimID, dom_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, domChunk, int(timeChunk/domChunk)+1 /)
+    case(iLookvarType%parSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, depth_DimID,   dom_DimID                /), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, domChunk/)
+    case(iLookvarType%routing); call cloneStruc(dimensionIDs, lowerBound=1, source=(/routing_DimID                                      /), err=err, message=cmessage); writechunk=(/ layerChunk /)
+    case(iLookvarType%glacier); call cloneStruc(dimensionIDs, lowerBound=1, source=(/glacier_DimID                                      /), err=err, message=cmessage); writechunk=(/ layerChunk /)
    end select
    ! check errors
    if(err/=0)then
