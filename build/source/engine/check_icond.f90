@@ -284,37 +284,42 @@ contains
     ! loop through all layers
     do iLayer=1,nLayers
 
-     ! compute liquid water equivalent of total water (liquid plus ice)
-     if (iLayer>nSnow+nLake) then ! soil layer = no volume expansion
-      iSoil       = iLayer - nSnow - nLake
-      vGn_m       = 1._rkind - 1._rkind/vGn_n(iSoil)
-      scalarTheta = mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)
-     else ! snow layer = volume expansion allowed
-      iSoil       = integerMissing
-      vGn_m       = realMissing
-      scalarTheta = mLayerVolFracIce(iLayer)*(iden_ice/iden_water) + mLayerVolFracLiq(iLayer)
-     end if
-
      ! *****
      ! * check that the initial volumetric fraction of liquid water and ice is reasonable...
      ! *************************************************************************************
      select case(mlayerLayerType(iLayer))
 
-      ! ***** snow
-      case(iname_snow)
+      ! ***** snow, ice, lake, volume expansion allowed
+      case(iname_snow, iname_lake, iname_ice)
+       iSoil       = integerMissing
+       vGn_m       = realMissing
+       scalarTheta = mLayerVolFracIce(iLayer)*(iden_ice/iden_water) + mLayerVolFracLiq(iLayer)
        ! (check liquid water)
        if(mLayerVolFracLiq(iLayer) < 0._rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water < 0: layer = ',iLayer; err=20; return; end if
        if(mLayerVolFracLiq(iLayer) > 1._rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water > 1: layer = ',iLayer; err=20; return; end if
        ! (check ice)
-       if(mLayerVolFracIce(iLayer) > 0.80_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice > 0.80: layer = ',iLayer; err=20; return; end if
-       if(mLayerVolFracIce(iLayer) < 0.05_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0.05: layer = ',iLayer; err=20; return; end if
+       if (mlayerLayerType(iLayer)==iname_snow) then
+         if(mLayerVolFracIce(iLayer) > 0.80_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice > 0.80: layer = ',iLayer; err=20; return; end if
+         if(scalarTheta > 0.80_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] > 0.80: layer = '    ,iLayer; err=20; return; end if
+       else ! glacier ice or lake (could be all ice)
+         if(mLayerVolFracIce(iLayer) > 1._rkind  )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice > 1: layer = ',iLayer; err=20; return; end if
+         if(scalarTheta > 1._rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] > 1: layer = '      ,iLayer; err=20; return; end if
+       end if
+       if (mlayerLayerType(iLayer)==iname_lake) then ! lake could be all liquid
+         if(mLayerVolFracIce(iLayer) < 0._rkind  )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0: layer = '   ,iLayer; err=20; return; end if
+       else if (mlayerLayerType(iLayer)==iname_ice) then ! glacier ice should be mostly ice
+         if(mLayerVolFracIce(iLayer) < 0.80_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0.80: layer = ',iLayer; err=20; return; end if
+       else if (mlayerLayerType(iLayer)==iname_snow) then ! 
+         if(mLayerVolFracIce(iLayer) < 0.05_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0.05: layer = ',iLayer; err=20; return; end if
+       end if
        ! check total water
-       if(scalarTheta > 0.80_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] > 0.80: layer = ',iLayer; err=20; return; end if
        if(scalarTheta < 0.05_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] < 0.05: layer = ',iLayer; err=20; return; end if
 
-      ! ***** soil
+      ! ***** soil, no volume expansion
       case(iname_soil)
-
+       iSoil       = iLayer - nSnow - nLake
+       vGn_m       = 1._rkind - 1._rkind/vGn_n(iSoil)
+       scalarTheta = mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)
        ! (check liquid water)
        if(mLayerVolFracLiq(iLayer) < theta_res(iSoil)-xTol)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water < theta_res: layer = ',iLayer; err=20; return; end if
        if(mLayerVolFracLiq(iLayer) > theta_sat(iSoil)+xTol)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water > theta_sat: layer = ',iLayer; err=20; return; end if
@@ -336,7 +341,7 @@ contains
      select case(mLayerLayerType(iLayer))
 
       ! ** snow
-      case(iname_snow)
+      case(iname_snow, iname_lake, iname_ice)
 
        ! check that snow temperature is less than freezing
        if(mLayerTemp(iLayer) > Tfreeze)then

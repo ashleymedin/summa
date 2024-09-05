@@ -413,7 +413,7 @@ end subroutine read_dimension
     end do
 
    ! for mapping varibles, do nothing (information read above)
-   case('hru2gruId','gruId'); cycle
+   case('hru2gruId','gruId','nGlacier','nWetland'); cycle
 
    ! check that variables are what we expect
    case default; message=trim(message)//'unknown variable ['//trim(varName)//'] in local attributes file'; err=20; return

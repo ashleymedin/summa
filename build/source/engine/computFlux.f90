@@ -450,9 +450,11 @@ contains
    ixAqWat                      => indx_data%var(iLookINDEX%ixAqWat)%dat(1),               & ! intent(in): [i4b] index of water storage in the aquifer
    ixSnowSoilHyd                => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat,            & ! intent(in): [i4b(:)] indices for hydrology states in the snow+soil subdomain
    nSnowSoilHyd                 => indx_data%var(iLookINDEX%nSnowSoilHyd)%dat(1),          & ! intent(in): [i4b] number of hydrology variables in the snow+soil domain
-   layerType                    => indx_data%var(iLookINDEX%layerType)%dat,                & ! intent(in): [i4b(:)] type of layer (iname_soil or iname_snow)
+   layerType                    => indx_data%var(iLookINDEX%layerType)%dat,                & ! intent(in): [i4b(:)] type of layer (iname_*)
    mLayerLiqFluxSnow            => flux_data%var(iLookFLUX%mLayerLiqFluxSnow)%dat,         & ! intent(out): [dp] net liquid water flux for each snow layer (s-1)
+   !mLayerLiqFluxLake            => flux_data%var(iLookFLUX%mLayerLiqFluxLake)%dat,         & ! intent(out): [dp] net liquid water flux for each lake layer (s-1)
    mLayerLiqFluxSoil            => flux_data%var(iLookFLUX%mLayerLiqFluxSoil)%dat,         & ! intent(out): [dp] net liquid water flux for each soil layer (s-1)
+   !mLayerLiqFluxIce             => flux_data%var(iLookFLUX%mLayerLiqFluxIce)%dat,          & ! intent(out): [dp] net liquid water flux for each ice layer (s-1)
    scalarAquiferTranspire       => flux_data%var(iLookFLUX%scalarAquiferTranspire)%dat(1), & ! intent(out): [dp] transpiration loss from the aquifer (m s-1)
    scalarAquiferRecharge        => flux_data%var(iLookFLUX%scalarAquiferRecharge)%dat(1),  & ! intent(out): [dp] recharge to the aquifer (m s-1)
    scalarAquiferBaseflow        => flux_data%var(iLookFLUX%scalarAquiferBaseflow)%dat(1)   ) ! intent(out): [dp] total baseflow from the aquifer (m s-1)
@@ -463,8 +465,10 @@ contains
        if (ixSnowSoilHyd(iLayer)/=integerMissing) then   ! check if a given hydrology state exists
          select case(layerType(iLayer))
            case(iname_snow); fluxVec(ixSnowSoilHyd(iLayer)) = mLayerLiqFluxSnow(iLayer)
+           case(iname_lake); fluxVec(ixSnowSoilHyd(iLayer)) = 0._rkind !mLayerLiqFluxLake(iLayer-nSnow)
            case(iname_soil); fluxVec(ixSnowSoilHyd(iLayer)) = mLayerLiqFluxSoil(iLayer-nSnow-nLake)
-           case default; err=20; message=trim(message)//'expect layerType to be either iname_snow or iname_soil'; return
+           case(iname_ice);  fluxVec(ixSnowSoilHyd(iLayer)) = 0._rkind !mLayerLiqFluxIce(iLayer-nSnow-nLake-nSoil)
+           case default; err=20; message=trim(message)//'expect layerType to be iname_snow, iname_lake, iname_soil, or iname_ice'; return
          end select
        end if  ! end if a given hydrology state exists
      end do

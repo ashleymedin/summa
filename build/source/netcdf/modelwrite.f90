@@ -682,22 +682,22 @@ contains
   endif
 
  ! define index variables - ice, 0 if no glacier in HRU
- err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nIce)%varName),nf90_int,(/domDimID/),ncIceID); call netcdf_err(err,message)
+ err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nIce)%varName),nf90_int,(/domDimID,hruDimID/),ncIceID); call netcdf_err(err,message)
  err = nf90_put_att(ncid,ncIceID,'long_name',trim(indx_meta(iLookINDEX%nIce)%vardesc));           call netcdf_err(err,message)
  err = nf90_put_att(ncid,ncIceID,'units'    ,trim(indx_meta(iLookINDEX%nIce)%varunit));           call netcdf_err(err,message)
 
  ! define index variables - lake, 0 if no lake in HRU
- err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nLake)%varName),nf90_int,(/domDimID/),ncLakeID); call netcdf_err(err,message)
+ err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nLake)%varName),nf90_int,(/domDimID,hruDimID/),ncLakeID); call netcdf_err(err,message)
  err = nf90_put_att(ncid,ncLakeID,'long_name',trim(indx_meta(iLookINDEX%nLake)%vardesc));           call netcdf_err(err,message)
  err = nf90_put_att(ncid,ncLakeID,'units'    ,trim(indx_meta(iLookINDEX%nLake)%varunit));           call netcdf_err(err,message)
   
  ! define index variables - snow
- err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nSnow)%varName),nf90_int,(/domDimID/),ncSnowID); call netcdf_err(err,message)
+ err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nSnow)%varName),nf90_int,(/domDimID,hruDimID/),ncSnowID); call netcdf_err(err,message)
  err = nf90_put_att(ncid,ncSnowID,'long_name',trim(indx_meta(iLookINDEX%nSnow)%vardesc));           call netcdf_err(err,message)
  err = nf90_put_att(ncid,ncSnowID,'units'    ,trim(indx_meta(iLookINDEX%nSnow)%varunit));           call netcdf_err(err,message)
 
  ! define index variables - soil
- err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nSoil)%varName),nf90_int,(/domDimID/),ncSoilID); call netcdf_err(err,message)
+ err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nSoil)%varName),nf90_int,(/domDimID,hruDimID/),ncSoilID); call netcdf_err(err,message)
  err = nf90_put_att(ncid,ncSoilID,'long_name',trim(indx_meta(iLookINDEX%nSoil)%vardesc));           call netcdf_err(err,message)
  err = nf90_put_att(ncid,ncSoilID,'units'    ,trim(indx_meta(iLookINDEX%nSoil)%varunit));           call netcdf_err(err,message)
 
@@ -761,9 +761,9 @@ contains
        case(iLookVarType%midLake); if (nLake>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU,1/),count=(/1,1,nLake    /))
        case(iLookVarType%ifcLake); if (nLake>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU,1/),count=(/1,1,nLake+1  /))
        case default; err=20; message=trim(message)//'unknown var type'; return
-  end select
+      end select
 
-   ! erro,1r check
+      ! error check
       if (err.ne.0) message=trim(message)//'writing variable:'//trim(prog_meta(iVar)%varName)
       call netcdf_err(err,message); if (err/=0) return
       err=0; message='writeRestart/'

@@ -208,8 +208,8 @@ contains
   ! * compute the volumetric fraction of air in each layer...
   ! *********************************************************
   select case(layerType(iLayer))
-   case(iname_soil); mLayerVolFracAir(iLayer) = theta_sat(iSoil) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
-   case(iname_snow); mLayerVolFracAir(iLayer) = 1._rkind - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
+   case(iname_soil);                        mLayerVolFracAir(iLayer) = theta_sat(iSoil) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
+   case(iname_snow, iname_lake, iname_ice); mLayerVolFracAir(iLayer) = 1._rkind - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
    case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute volumetric fraction of air'; return
   end select
 
@@ -224,7 +224,7 @@ contains
                                  iden_water        * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
                                  iden_air          * Cp_air   * mLayerVolFracAir(iLayer)         ! air component
    ! * snow
-   case(iname_snow)
+   case(iname_snow, iname_lake, iname_ice)
     mLayerVolHtCapBulk(iLayer) = iden_ice          * Cp_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
                                  iden_water        * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
                                  iden_air          * Cp_air   * mLayerVolFracAir(iLayer)         ! air component
@@ -288,11 +288,18 @@ contains
      if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
     endif
 
+   ! ***** lake, ice
+   case(iname_lake, iname_ice)
+    if (mLayerTemp(iLayer) < Tfreeze) then
+     mLayerThermalC(iLayer) = lambda_ice
+    else
+     mLayerThermalC(iLayer) = lambda_water
+    end if
+
    ! * error check
-   case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute thermal conductivity'; return
+   case default; err=20; message=trim(message)//'unable to identify type of layer to compute thermal conductivity'; return
 
   end select
-  !print*, 'iLayer, mLayerThermalC(iLayer) = ', iLayer, mLayerThermalC(iLayer)
 
  end do  ! looping through layers
 

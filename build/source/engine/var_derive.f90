@@ -139,6 +139,7 @@ contains
  character(*),intent(out)        :: message         ! error message
  ! declare local variables
  integer(i4b)                    :: iLayer          ! loop through layers
+ integer(i4b)                    :: iSoil           ! index for soil layers
  real(rkind)                     :: fracRootLower   ! fraction of the rooting depth at the lower interface
  real(rkind)                     :: fracRootUpper   ! fraction of the rooting depth at the upper interface
  real(rkind), parameter          :: rootTolerance = 0.05_rkind ! tolerance for error in doubleExp rooting option
@@ -160,9 +161,7 @@ contains
  ! associate the model index structures
  nSoil                 =>indx_data%var(iLookINDEX%nSoil)%dat(1),                & ! number of soil layers
  nSnow                 =>indx_data%var(iLookINDEX%nSnow)%dat(1),                & ! number of snow layers
- nIce                  =>indx_data%var(iLookINDEX%nIce)%dat(1),                 & ! number of ice layers
  nLake                 =>indx_data%var(iLookINDEX%nLake)%dat(1),                & ! number of lake layers
- nLayers               =>indx_data%var(iLookINDEX%nLayers)%dat(1),              & ! total number of layers
  iLayerHeight          =>prog_data%var(iLookPROG%iLayerHeight)%dat,             & ! height of the layer interface (m)
  ! associate the values in the model variable structures
  scalarAquiferRootFrac =>diag_data%var(iLookDIAG%scalarAquiferRootFrac)%dat(1), & ! fraction of roots below the soil profile (in the aquifer)
@@ -171,8 +170,8 @@ contains
  ! ----------------------------------------------------------------------------------
 
  ! compute the fraction of roots in each soil layer
- do iLayer=nSnow+1,(nSnow+nLake+nSoil)
-
+ do iLayer=(nSnow+nLake+1),(nSnow+nLake+nSoil)
+  iSoil = iLayer-nSnow-nLake
   ! different options for the rooting profile
   select case(ixRootProfile)
 
@@ -180,7 +179,7 @@ contains
    case(powerLaw)
     if(iLayerHeight(iLayer-1)<rootingDepth)then
      ! compute the fraction of the rooting depth at the lower and upper interfaces
-     if(iLayer==nSnow+1)then  ! height=0; avoid precision issues
+     if(iLayer==nSnow+nLake+1)then  ! height=0; avoid precision issues
       fracRootLower = 0._rkind
      else
       fracRootLower = iLayerHeight(iLayer-1)/rootingDepth
@@ -188,9 +187,9 @@ contains
      fracRootUpper = iLayerHeight(iLayer)/rootingDepth
      if(fracRootUpper>1._rkind) fracRootUpper=1._rkind
      ! compute the root density
-     mLayerRootDensity(iLayer-nSnow-nLake) = fracRootUpper**rootDistExp - fracRootLower**rootDistExp
+     mLayerRootDensity(iSoil) = fracRootUpper**rootDistExp - fracRootLower**rootDistExp
     else
-     mLayerRootDensity(iLayer-nSnow-nLake) = 0._rkind
+     mLayerRootDensity(iSoil) = 0._rkind
     end if
 
    ! ** option 2: double expoential profile of Zeng et al. (JHM 2001)
@@ -199,7 +198,7 @@ contains
     fracRootLower = 1._rkind - 0.5_rkind*(exp(-iLayerHeight(iLayer-1)*rootScaleFactor1) + exp(-iLayerHeight(iLayer-1)*rootScaleFactor2) )
     fracRootUpper = 1._rkind - 0.5_rkind*(exp(-iLayerHeight(iLayer  )*rootScaleFactor1) + exp(-iLayerHeight(iLayer  )*rootScaleFactor2) )
     ! compute the root density
-    mLayerRootDensity(iLayer-nSnow-nLake) = fracRootUpper - fracRootLower
+    mLayerRootDensity(iSoil) = fracRootUpper - fracRootLower
     
    ! ** check
    case default; err=20; message=trim(message)//'unable to identify option for rooting profile'; return
@@ -259,6 +258,7 @@ contains
  character(*),intent(out)        :: message             ! error message
  ! declare local variables
  integer(i4b)                    :: iLayer              ! loop through layers
+  integer(i4b)                   :: iSoil               ! index for soil layers
  real(rkind)                     :: ifcDepthScaleFactor ! depth scaling factor (layer interfaces)
  real(rkind)                     :: midDepthScaleFactor ! depth scaling factor (layer midpoints)
  ! initialize error control
@@ -274,9 +274,7 @@ contains
  ! associate the model index structures
  nSnow              => indx_data%var(iLookINDEX%nSnow)%dat(1),          & ! number of snow layers
  nSoil              => indx_data%var(iLookINDEX%nSoil)%dat(1),          & ! number of soil layers
- nIce               => indx_data%var(iLookINDEX%nIce)%dat(1),           & ! number of ice layers
  nLake              => indx_data%var(iLookINDEX%nLake)%dat(1),          & ! number of lake layers
- nLayers            => indx_data%var(iLookINDEX%nLayers)%dat(1),        & ! total number of layers
  ! associate the coordinate variables
  mLayerHeight       => prog_data%var(iLookPROG%mLayerHeight)%dat,       & ! height at the mid-point of each layer (m)
  iLayerHeight       => prog_data%var(iLookPROG%iLayerHeight)%dat,       & ! height at the interface of each layer (m)
@@ -289,24 +287,25 @@ contains
 
  ! loop through soil layers
  ! NOTE: could do constant profile with the power-law profile with exponent=1, but keep constant profile decision for clarity
- do iLayer=nSnow,(nSnow+nLake+nSoil)
+ do iLayer=(nSnow+nLake),(nSnow+nLake+nSoil)
+  iSoil = iLayer-nSnow-nLake
   select case(model_decisions(iLookDECISIONS%hc_profile)%iDecision)
 
    ! constant hydraulic conductivity with depth
    case(constant)
     ! - conductivity at layer interfaces
     !   --> NOTE: Do we need a weighted average based on layer depth for interior layers?
-    if(iLayer==nSnow)then
-     iLayerSatHydCond(iLayer-nSnow-nLake) = k_soil(1)
+    if(iLayer==nSnow+nLake)then
+     iLayerSatHydCond(iSoil) = k_soil(1)
     else
-     if(iLayer==nLayers)then
-      iLayerSatHydCond(iLayer-nSnow-nLake) = k_soil(nSoil)
+     if(iLayer==nSnow+nLake+nSoil)then
+      iLayerSatHydCond(iSoil) = k_soil(nSoil)
      else
-      iLayerSatHydCond(iLayer-nSnow-nLake)   = 0.5_rkind * (k_soil(iLayer-nSnow-nLake) + k_soil(iLayer+1-nSnow) )
+      iLayerSatHydCond(iSoil) = 0.5_rkind * (k_soil(iSoil) + k_soil(iSoil+1) )
      endif
      ! - conductivity at layer midpoints
-     mLayerSatHydCond(iLayer-nSnow-nLake)   = k_soil(iLayer-nSnow-nLake)
-     mLayerSatHydCondMP(iLayer-nSnow-nLake) = k_macropore(iLayer-nSnow-nLake)
+     mLayerSatHydCond(iSoil)   = k_soil(iSoil)
+     mLayerSatHydCondMP(iSoil) = k_macropore(iSoil)
     end if ! if iLayer>nSnow
 
    ! power-law profile
@@ -314,29 +313,29 @@ contains
     ! - conductivity at layer interfaces
     !   --> NOTE: Do we need a weighted average based on layer depth for interior layers?
 
-    if(compactedDepth/iLayerHeight(nLayers) /= 1._rkind) then    ! avoid divide by zero
-     ifcDepthScaleFactor = ( (1._rkind - iLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._rkind) ) / &
-                           ( (1._rkind -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._rkind) )
+    if(compactedDepth/iLayerHeight(nSnow+nLake+nSoil) /= 1._rkind) then    ! avoid divide by zero
+     ifcDepthScaleFactor = ( (1._rkind - iLayerHeight(iLayer)/iLayerHeight(nSnow+nLake+nSoil))**(zScale_TOPMODEL - 1._rkind) ) / &
+                           ( (1._rkind -       compactedDepth/iLayerHeight(nSnow+nLake+nSoil))**(zScale_TOPMODEL - 1._rkind) )
     else
      ifcDepthScaleFactor = 1.0_rkind
     endif
     if(iLayer==nSnow+nLake)then
-     iLayerSatHydCond(iLayer-nSnow-nLake) = k_soil(1) * ifcDepthScaleFactor
+     iLayerSatHydCond(iSoil) = k_soil(1) * ifcDepthScaleFactor
     else   ! if the mid-point of a layer
-     if(iLayer==nLayers)then
-      iLayerSatHydCond(iLayer-nSnow-nLake) = k_soil(nSoil) * ifcDepthScaleFactor
+     if(iLayer==nSnow+nLake+nSoil)then
+      iLayerSatHydCond(iSoil) = k_soil(nSoil) * ifcDepthScaleFactor
      else
-      iLayerSatHydCond(iLayer-nSnow-nLake)   = 0.5_rkind * (k_soil(iLayer-nSnow-nLake) + k_soil(iLayer+1-nSnow-nLake) ) * ifcDepthScaleFactor
+      iLayerSatHydCond(iSoil)   = 0.5_rkind * (k_soil(iSoil) + k_soil(iSoil+1) ) * ifcDepthScaleFactor
      endif
      ! - conductivity at layer midpoints
-     if(compactedDepth/iLayerHeight(nLayers) /= 1._rkind) then    ! avoid divide by zero
-      midDepthScaleFactor = ( (1._rkind - mLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._rkind) ) / &
-                            ( (1._rkind -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._rkind) )
+     if(compactedDepth/iLayerHeight(nSnow+nLake+nSoil) /= 1._rkind) then    ! avoid divide by zero
+      midDepthScaleFactor = ( (1._rkind - mLayerHeight(iLayer)/iLayerHeight(nSnow+nLake+nSoil))**(zScale_TOPMODEL - 1._rkind) ) / &
+                            ( (1._rkind -       compactedDepth/iLayerHeight(nSnow+nLake+nSoil))**(zScale_TOPMODEL - 1._rkind) )
      else
       midDepthScaleFactor = 1.0_rkind
      endif
-     mLayerSatHydCond(iLayer-nSnow-nLake)   = k_soil(iLayer-nSnow-nLake)      * midDepthScaleFactor
-     mLayerSatHydCondMP(iLayer-nSnow-nLake) = k_macropore(iLayer-nSnow-nLake) * midDepthScaleFactor
+     mLayerSatHydCond(iSoil)   = k_soil(iSoil)      * midDepthScaleFactor
+     mLayerSatHydCondMP(iSoil) = k_macropore(iSoil) * midDepthScaleFactor
     end if
 
    ! error check (errors checked earlier also, so should not get here)
@@ -348,11 +347,11 @@ contains
 
   ! check that the hydraulic conductivity for macropores is greater than for micropores
   if (iLayer > nSnow+nLake) then
-   if( mLayerSatHydCondMP(iLayer-nSnow-nLake) < mLayerSatHydCond(iLayer-nSnow-nLake) )then
-    write(*,'(2(a,e12.6),a,i0)')trim(message)//'WARNING: hydraulic conductivity for macropores [', mLayerSatHydCondMP(iLayer-nSnow-nLake), &
-                                               '] is less than the hydraulic conductivity for micropores [', mLayerSatHydCond(iLayer-nSnow-nLake), &
+   if( mLayerSatHydCondMP(iSoil) < mLayerSatHydCond(iSoil) )then
+    write(*,'(2(a,e12.6),a,i0)')trim(message)//'WARNING: hydraulic conductivity for macropores [', mLayerSatHydCondMP(iSoil), &
+                                               '] is less than the hydraulic conductivity for micropores [', mLayerSatHydCond(iSoil), &
                                                ']: resetting macropore conductivity to equal micropore value. Layer = ', iLayer
-    mLayerSatHydCondMP(iLayer-nSnow-nLake) = mLayerSatHydCond(iLayer-nSnow-nLake)
+    mLayerSatHydCondMP(iSoil) = mLayerSatHydCond(iSoil)
    endif  ! if mLayerSatHydCondMP < mLayerSatHydCond
   end if ! if iLayer > nSnow
  end do  ! looping through soil layers

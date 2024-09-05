@@ -225,8 +225,8 @@ subroutine computResid(&
     if(nSnowSoilNrg>0)then
       do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
         select case( layerType(iLayer) )
-          case(iname_snow); rAdd( ixSnowSoilNrg(iLayer) ) = rAdd( ixSnowSoilNrg(iLayer) ) + LH_fus*iden_ice  *( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIce(iLayer) )
-          case(iname_soil); rAdd( ixSnowSoilNrg(iLayer) ) = rAdd( ixSnowSoilNrg(iLayer) ) + LH_fus*iden_water*( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIce(iLayer) )
+          case(iname_snow, iname_lake, iname_ice); rAdd( ixSnowSoilNrg(iLayer) ) = rAdd( ixSnowSoilNrg(iLayer) ) + LH_fus*iden_ice  *( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIce(iLayer) )
+          case(iname_soil)                       ; rAdd( ixSnowSoilNrg(iLayer) ) = rAdd( ixSnowSoilNrg(iLayer) ) + LH_fus*iden_water*( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIce(iLayer) )
         end select
       end do  ! looping through non-missing energy state variables in the snow+soil domain
     endif

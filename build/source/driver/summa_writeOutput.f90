@@ -183,6 +183,7 @@ contains
   ! initialize number of domains, hru, and gru in global data
   nGRUrun = nGRU
   nHRUrun = nHRU
+  maxDOM  = nDOM
  endif  ! if the first time step
 
  ! *****************************************************************************

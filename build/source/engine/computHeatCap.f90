@@ -242,6 +242,8 @@ subroutine computHeatCapAnalytic(&
   associate(&
     ! input: coordinate variables
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)             ,& ! intent(in): number of snow layers
+    nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1)             ,& ! intent(in): number of lake layers
+    nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)             ,& ! intent(in): number of soil layers
     ! mapping between the full state vector and the state subset
     ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat     ,& ! intent(in): [i4b(:)] list of indices in the state subset for each state in the full state vector
     ixMapSubset2Full        => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat     ,& ! intent(in): [i4b(:)] [state subset] list of indices of the full state vector in the state subset
@@ -280,9 +282,11 @@ subroutine computHeatCapAnalytic(&
           case(iname_cas);     cycle ! canopy air space, do nothing (no water stored in canopy air space)
           case(iname_veg);     iLayer = integerMissing
           case(iname_snow);    iLayer = ixControlIndex
-          case(iname_soil);    iLayer = ixControlIndex + nSnow
+          case(iname_lake);    iLayer = ixControlIndex + nSnow
+          case(iname_soil);    iLayer = ixControlIndex + nSnow + nLake
+          case(iname_ice);     iLayer = ixControlIndex + nSnow + nLake + nSoil
           case(iname_aquifer); cycle ! aquifer: do nothing (no thermodynamics in the aquifer)
-          case default; err=20; message=trim(message)//'expect case to be iname_cas, iname_veg, iname_snow, iname_soil, iname_aquifer'; return
+          case default; err=20; message=trim(message)//'expect case to be iname_cas, iname_veg, iname_snow, iname_lake, iname_soil, iname_ice, iname_soil, or iname_aquifer'; return
         end select
 
         ! identify domain
@@ -302,7 +306,7 @@ subroutine computHeatCapAnalytic(&
               dVolHtCapBulk_dTkCanopy = 0._rkind
             endif
 
-          case(iname_snow)
+          case(iname_snow, iname_lake, iname_ice)
             mLayerHeatCap(iLayer) =  iden_ice   * Cp_ice   * mLayerVolFracIce(iLayer) + & ! ice component
                                      iden_water * Cp_water * mLayerVolFracLiq(iLayer) + & ! liquid water component
                                      iden_air   * Cp_air   * ( 1._rkind - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) ) ! air component
@@ -426,9 +430,11 @@ subroutine computCm(&
           case(iname_cas);     cycle ! canopy air space, do nothing (no water stored in canopy air space)
           case(iname_veg);     iLayer = integerMissing
           case(iname_snow);    iLayer = ixControlIndex
-          case(iname_soil);    iLayer = ixControlIndex + nSnow
+          case(iname_lake);    iLayer = ixControlIndex + nSnow
+          case(iname_soil);    iLayer = ixControlIndex + nSnow + nLake
+          case(iname_ice);     iLayer = ixControlIndex + nSnow + nLake + nSoil
           case(iname_aquifer); cycle ! aquifer: do nothing (no thermodynamics in the aquifer)
-          case default; err=20; message=trim(message)//'expect case to be iname_cas, iname_veg, iname_snow, iname_soil, iname_aquifer'; return
+          case default; err=20; message=trim(message)//'expect case to be iname_cas, iname_veg, iname_lake, iname_soil, iname_ice, iname_soil, or iname_aquifer'; return
         end select
 
         ! identify domain
@@ -449,15 +455,21 @@ subroutine computCm(&
               dCm_dTkCanopy = Cp_water * d_integral_dTk + Cp_ice * (1._rkind - d_integral_dTk)
             end if
 
-          case(iname_snow)
+          case(iname_snow, iname_lake, iname_ice)
             diffT = mLayerTemp(iLayer) - Tfreeze
-            integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-            mLayerCm(iLayer) = (iden_water * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( diffT - integral ) &
-                    +  (iden_water * Cp_water - iden_air * Cp_air) * integral
-            ! derivatives
-            d_integral_dTk = 1._rkind / (1._rkind + (snowfrz_scale * diffT)**2_i4b)
-            dCm_dTk(iLayer) = (iden_water * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( 1._rkind - d_integral_dTk ) &
-                    +  (iden_water * Cp_water - iden_air * Cp_air) * d_integral_dTk
+            if(diffT>=0._rkind)then
+              mLayerCm(iLayer) = (iden_water * Cp_water - iden_air * Cp_air) * diffT
+              ! derivatives
+              dCm_dTk(iLayer) = iden_water * Cp_water - iden_air * Cp_air
+            else
+              integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
+              mLayerCm(iLayer) = (iden_water * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( diffT - integral ) &
+                      +  (iden_water * Cp_water - iden_air * Cp_air) * integral
+              ! derivatives
+              d_integral_dTk = 1._rkind / (1._rkind + (snowfrz_scale * diffT)**2_i4b)
+              dCm_dTk(iLayer) = (iden_water * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( 1._rkind - d_integral_dTk ) &
+                      +  (iden_water * Cp_water - iden_air * Cp_air) * d_integral_dTk
+            end if
 
           case(iname_soil)
             diffT = mLayerTemp(iLayer) - Tfreeze

@@ -233,8 +233,8 @@ subroutine computThermConduct(&
       ! * compute the volumetric fraction of air in each layer...
       ! *********************************************************
       select case(layerType(iLayer))
-        case(iname_soil); mLayerVolFracAir(iLayer) = theta_sat(iSoil) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
-        case(iname_snow); mLayerVolFracAir(iLayer) = 1._rkind - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
+        case(iname_soil);                        mLayerVolFracAir(iLayer) = theta_sat(iSoil) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
+        case(iname_snow, iname_lake, iname_ice); mLayerVolFracAir(iLayer) = 1._rkind - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
         case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute volumetric fraction of air'; return
       end select
 
@@ -351,8 +351,20 @@ subroutine computThermConduct(&
             end select  ! option for the thermal conductivity of snow
           end if
 
+        ! ***** lake, ice
+        case(iname_lake, iname_ice)
+          if (mLayerTemp(iLayer) < Tfreeze) then
+            mLayerThermalC(iLayer) = lambda_ice
+            dThermalC_dWat(iLayer) = 0._rkind
+            dThermalC_dNrg(iLayer) = 0._rkind
+          else
+            mLayerThermalC(iLayer) = lambda_water
+            dThermalC_dWat(iLayer) = 0._rkind
+            dThermalC_dNrg(iLayer) = 0._rkind
+          end if
+
         ! * error check
-        case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute thermal conductivity'; return
+        case default; err=20; message=trim(message)//'unable to identify type of layer to compute thermal conductivity'; return
 
       end select
 

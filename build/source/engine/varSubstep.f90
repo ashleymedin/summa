@@ -454,7 +454,7 @@ subroutine varSubstep(&
       endif
 
       ! update prognostic variables, update balances, and check them for possible step reduction if homegrown or kinsol solver
-      call updateProg(dtSubstep,nSnow,nSoil,nLayers,untappedMelt,stateVecTrial,stateVecPrime,                                    & ! input: states
+      call updateProg(dtSubstep,nSnow,nLake,nSoil,nLayers,untappedMelt,stateVecTrial,stateVecPrime,                              & ! input: states
                       doAdjustTemp,computeVegFlux,computMassBalance,computNrgBalance,computeEnthTemp,enthalpyStateVec,use_lookup,& ! input: model control
                       model_decisions,lookup_data,mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                  & ! input-output: data structures
                       fluxVec,resVec,balance,waterBalanceError,nrgFluxModified,err,message)                                        ! input-output: balances, flags, and error control
@@ -631,7 +631,7 @@ end subroutine varSubstep
 ! **********************************************************************************************************
 ! private subroutine updateProg: update prognostic variables
 ! **********************************************************************************************************
-subroutine updateProg(dt,nSnow,nSoil,nLayers,untappedMelt,stateVecTrial,stateVecPrime,                                           & ! input: states
+subroutine updateProg(dt,nSnow,nLake,nSoil,nLayers,untappedMelt,stateVecTrial,stateVecPrime,                                     & ! input: states
                       doAdjustTemp,computeVegFlux,computMassBalance,computNrgBalance,computeEnthTemp,enthalpyStateVec,use_lookup,& ! input: model control
                       model_decisions,lookup_data,mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,                  & ! input-output: data structures
                       fluxVec,resVec,balance,waterBalanceError,nrgFluxModified,err,message)                                        ! input-output: balances, flags, and error control
@@ -645,6 +645,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
   ! model control
   real(rkind)      ,intent(in)    :: dt                            ! time step (s)
   integer(i4b)     ,intent(in)    :: nSnow                         ! number of snow layers
+  integer(i4b)     ,intent(in)    :: nLake                         ! number of lake layers
   integer(i4b)     ,intent(in)    :: nSoil                         ! number of soil layers
   integer(i4b)     ,intent(in)    :: nLayers                       ! total number of layers
   logical(lgt)     ,intent(in)    :: doAdjustTemp                  ! flag to indicate if we adjust the temperature
@@ -676,7 +677,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
   character(*)     ,intent(out)   :: message                       ! error message
   ! ==================================================================================================================
   ! general
-  integer(i4b)                    :: i                             ! indices
+  integer(i4b)                    :: i,iLayer                      ! indices
   integer(i4b)                    :: iState                        ! index of model state variable
   integer(i4b)                    :: ixSubset                      ! index within the state subset
   integer(i4b)                    :: ixFullVector                  ! index within full state vector
@@ -1214,21 +1215,28 @@ USE getVectorz_module,only:varExtract                              ! extract var
         ! compute volumetric melt (kg m-3)
         volMelt = dt*untappedMelt(ixSubset)/LH_fus  ! (kg m-3)
 
+        select case( ixDomainType(ixFullVector) )
+         case(iname_cas);     cycle ! canopy air space, do nothing (no snow stored in canopy air space)
+         case(iname_veg);     iLayer = integerMissing
+         case(iname_snow);    iLayer = ixControlIndex
+         case(iname_lake);    iLayer = ixControlIndex + nSnow
+         case(iname_soil);    iLayer = ixControlIndex + nSnow + nLake
+         case(iname_ice);     iLayer = ixControlIndex + nSnow + nLake + nSoil
+        end select
+
         ! update ice content
         select case( ixDomainType(ixFullVector) )
-          case(iname_cas);  cycle ! do nothing, since there is no snow stored in the canopy air space
-          case(iname_veg);  scalarCanopyIceTrial                        = scalarCanopyIceTrial                        - volMelt*canopyDepth  ! (kg m-2)
-          case(iname_snow); mLayerVolFracIceTrial(ixControlIndex)       = mLayerVolFracIceTrial(ixControlIndex)       - volMelt/iden_ice     ! (-)
-          case(iname_soil); mLayerVolFracIceTrial(ixControlIndex+nSnow) = mLayerVolFracIceTrial(ixControlIndex+nSnow) - volMelt/iden_water   ! (-)
+          case(iname_veg);                         scalarCanopyIceTrial          = scalarCanopyIceTrial          - volMelt*canopyDepth  ! (kg m-2)
+          case(iname_snow, iname_lake, iname_ice); mLayerVolFracIceTrial(iLayer) = mLayerVolFracIceTrial(iLayer) - volMelt/iden_ice     ! (-)
+          case(iname_soil);                        mLayerVolFracIceTrial(iLayer) = mLayerVolFracIceTrial(iLayer) - volMelt/iden_water   ! (-)
           case default; err=20; message=trim(message)//'unable to identify domain type [remove untapped melt energy]'; return
         end select
 
         ! update liquid water content
         select case( ixDomainType(ixFullVector) )
-          case(iname_cas);  cycle ! do nothing, since there is no snow stored in the canopy air space
-          case(iname_veg);  scalarCanopyLiqTrial                        = scalarCanopyLiqTrial                        + volMelt*canopyDepth  ! (kg m-2)
-          case(iname_snow); mLayerVolFracLiqTrial(ixControlIndex)       = mLayerVolFracLiqTrial(ixControlIndex)       + volMelt/iden_water   ! (-)
-          case(iname_soil); mLayerVolFracLiqTrial(ixControlIndex+nSnow) = mLayerVolFracLiqTrial(ixControlIndex+nSnow) + volMelt/iden_water   ! (-)
+          case(iname_veg);                         scalarCanopyLiqTria           = scalarCanopyLiqTrial          + volMelt*canopyDepth  ! (kg m-2)
+          case(iname_snow, iname_lake, iname_ice); mLayerVolFracLiqTrial(iLayer) = mLayerVolFracLiqTrial(iLayer) + volMelt/iden_water   ! (-)
+          case(iname_soil);                        mLayerVolFracLiqTrial(iLayer) = mLayerVolFracLiqTrial(iLayer) + volMelt/iden_water   ! (-)
           case default; err=20; message=trim(message)//'unable to identify domain type [remove untapped melt energy]'; return
         end select
 

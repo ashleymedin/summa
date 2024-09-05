@@ -540,12 +540,12 @@ subroutine T2enthTemp_snow(&
   ! initialize error control
   err=0; message="T2enthTemp_snow/"
 
-  diffT    = mLayerTemp - Tfreeze  ! diffT<0._rkind because snow is frozen
+  diffT    = mLayerTemp - Tfreeze  ! diffT<0._rkind if in snow or ice, but may use for water
 
-  if(diffT==0._rkind)then ! only need for upper bound
-    enthLiq = 0._rkind
+  if(diffT>=0._rkind)then ! only need for upper bound
+    enthLiq = iden_water * Cp_water * mLayerVolFracWat * diffT
     enthIce = 0._rkind
-    enthAir = 0._rkind
+    enthAir = - iden_air * Cp_air * mLayerVolFracWat * diffT
   else
     integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
     enthLiq  = iden_water * Cp_water * mLayerVolFracWat * integral
@@ -747,6 +747,8 @@ subroutine enthTemp_or_enthalpy(&
   associate(&
     ! number of model layers, and layer type
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)            ,& ! intent(in): [i4b]    total number of snow layers
+    nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1)            ,& ! intent(in): [i4b]    total number of lake layers
+    nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)            ,& ! intent(in): [i4b]    total number of soil layers
     ! mapping between the full state vector and the state subset
     ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat    ,& ! intent(in): [i4b(:)] list of indices in the state subset for each state in the full state vector
     ixMapSubset2Full        => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat    ,& ! intent(in): [i4b(:)] [state subset] list of indices of the full state vector in the state subset
@@ -779,22 +781,31 @@ subroutine enthTemp_or_enthalpy(&
 
         ! get the layer index
         select case(ixDomainType)
-          case(iname_cas); cycle ! canopy air space: do nothing (no water stored in canopy air space)
+          case(iname_cas);     cycle ! canopy air space, do nothing (no water stored in canopy air space)
+          case(iname_veg);     iLayer = integerMissing
+          case(iname_snow);    iLayer = ixControlIndex
+          case(iname_lake);    iLayer = ixControlIndex + nSnow
+          case(iname_soil);    iLayer = ixControlIndex + nSnow + nLake
+          case(iname_ice);     iLayer = ixControlIndex + nSnow + nLake + nSoil
+          case(iname_aquifer); cycle ! aquifer: do nothing (no thermodynamics in the aquifer)
+          case default; err=20; message=trim(message)//'expect case to be iname_cas, iname_veg, iname_snow, iname_lake, iname_soil, iname_ice, iname_soil, or iname_aquifer'; return
+        end select
+
+        ! get the layer index
+        select case(ixDomainType)
           case(iname_veg)
             if (do_enthTemp2enthalpy)then
               scalarCanopyH = scalarCanopyH - LH_fus * scalarCanopyIce/ canopyDepth
             else 
               scalarCanopyH = scalarCanopyH + LH_fus * scalarCanopyIce/ canopyDepth
             end if
-          case(iname_snow)
-            iLayer = ixControlIndex
+          case(iname_snow, iname_lake, iname_ice)
             if (do_enthTemp2enthalpy)then
               mLayerH(iLayer) = mLayerH(iLayer) - iden_ice * LH_fus * mLayerVolFracIce(iLayer)
             else
               mLayerH(iLayer) = mLayerH(iLayer) + iden_ice * LH_fus * mLayerVolFracIce(iLayer)
             end if
           case(iname_soil)
-            iLayer = ixControlIndex + nSnow
             if (do_enthTemp2enthalpy)then
               mLayerH(iLayer) = mLayerH(iLayer) - iden_water * LH_fus * mLayerVolFracIce(iLayer)
             else

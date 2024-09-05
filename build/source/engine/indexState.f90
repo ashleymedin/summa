@@ -234,9 +234,22 @@ contains
   ixDomainType( ixHydLayer(1:nSnow) ) = iname_snow
  endif
 
+ if(nLake>0)then
+  ixDomainType( ixNrgLayer((nSnow+1):(nSnow+nLake)) ) = iname_lake
+  ixDomainType( ixHydLayer((nSnow+1):(nSnow+nLake)) ) = iname_lake
+ endif
+
  ! define the domain type for soil
- ixDomainType( ixNrgLayer(nSnow+1:nLayers) ) = iname_soil
- ixDomainType( ixHydLayer(nSnow+1:nLayers) ) = iname_soil
+ if (nSoil>0)then
+  ixDomainType( ixNrgLayer((nSnow+nLake+1):(nSnow+nLake+nSoil)) ) = iname_soil
+  ixDomainType( ixHydLayer((nSnow+nLake+1):(nSnow+nLake+nSoil)) ) = iname_soil
+ endif
+
+ ! define the domain type for ice
+ if(nIce>0)then
+   ixDomainType( ixNrgLayer((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nIce)) ) = iname_ice
+   ixDomainType( ixHydLayer((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nIce)) ) = iname_ice
+ endif
 
  ! define the domain type for the aquifer
  if(includeAquifer) ixDomainType( ixWatAquifer(1) ) = iname_aquifer

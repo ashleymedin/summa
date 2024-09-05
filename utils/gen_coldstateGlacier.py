@@ -101,8 +101,8 @@ def writeNC_dims(fn,  scalarv, midSoil, midToto, ifcToto, hrus, grus, hru_type, 
     dim_midSoil = nc_out.createDimension('midSoil', midSoil)
     dim_midToto = nc_out.createDimension('midToto', midToto)
     dim_ifcToto = nc_out.createDimension('ifcToto', ifcToto)    
-    dim_ndom = nc_out.createDimension('dom', ndom)
-    dim_ngl = nc_out.createDimension('ngl', ngl)
+    dim_ndom = nc_out.createDimension('dom', ndom) # max number of domains in any HRU
+    dim_ngl = nc_out.createDimension('ngl', ngl) # max number of glaciers in any GRU
 
     # --- Create HRU ID variable (can be either int or string)
     if hru_type == 'str':
@@ -193,7 +193,7 @@ if __name__ == '__main__':
 
     nGlacier0 = 0
     nWetland0 = 0
-    if glac_dom: # add glaciers to every HRU for testing, SHOULD BE READ FROM FILE
+    if glac_dom: # add glaciers to every GRU for testing, SHOULD BE READ FROM FILE
         nGlacier0 = 2 
     if wtld_dom: # add wetlands to every HRU for testing, SHOULD BE READ FROM FILE
         nWetland0 = 1
@@ -339,6 +339,7 @@ if __name__ == '__main__':
     writeNC_state_vars_HRU_DOM(nc_out, 'scalarSfcMeltPond', 'scalarv', 'f8', scalar0)   # SfcMeltPond
     writeNC_state_vars_HRU_DOM(nc_out, 'scalarSnowAlbedo', 'scalarv', 'f8', scalar0)    # SnowAlbedo
     writeNC_state_vars_HRU_DOM(nc_out, 'scalarCanopyLiq', 'scalarv', 'f8', scalar0)     # CanopyLiq
+    writeNC_state_vars_HRU_DOM(nc_out, 'scalarCanopyIce', 'scalarv', 'f8', scalar0)     # CanopyIce
 
     # glacier area, just divide by ngl for testing, SHOULD BE READ FROM FILE
     totAblArea = np.zeros(nOutPolygonsGRU)
@@ -368,7 +369,11 @@ if __name__ == '__main__':
         for i in range(ndom): # put ice layers at -5 C and all ice similar to Giese et al. 2020, otherwise need to spin up 40 yrs
             if i>0 and i<3: 
                 toto283[   midSoil_glac:(midIce+midSoil_glac),:,i] = 268.16 # or 273.16?
-                toto0[     midSoil_glac:(midIce+midSoil_glac),:,i] = 1.0
+                toto0[     midSoil_glac  ,:,i] = 0.90 # could be 0.9 per Bradford et al. 2009, less air as go deeper
+                toto0[     midSoil_glac+1,:,i] = 0.91
+                toto0[     midSoil_glac+2,:,i] = 0.93
+                toto0[     midSoil_glac+3,:,i] = 0.95 
+                toto0[     midSoil_glac+4,:,i] = 0.98
                 totopoint2[midSoil_glac:(midIce+midSoil_glac),:,i] = 0.0
     writeNC_state_vars_HRU_DOM(nc_out, 'mLayerMatricHead', 'midSoil', 'f8', soilneg1)   # MatricHead
     writeNC_state_vars_HRU_DOM(nc_out, 'mLayerTemp', 'midToto', 'f8', toto283)          # Temp
