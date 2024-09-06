@@ -201,7 +201,12 @@ contains
 
  ! define indices for state variables
  ixAllState   = arth(1,1,nState)
- ixSoilState  = arth(1,1,nSoil)
+ if (nSoil > 0) then
+  ixSoilState = arth(1,1,nSoil)
+ else
+  ! Handle the case where nSoil is 0, e.g., set ixSoilState to a default value
+  ixSoilState = 0  ! or another appropriate default value
+endif
  ixLayerState = arth(1,1,nLayers)
 
  ! define the state type for the vegetation canopy
@@ -214,9 +219,9 @@ contains
  ! define the state type for the snow+soil domain (energy)
  ixStateType(ixNrgLayer) = iname_nrgLayer
 
- ! define the state type for the snow+soil domain (hydrology)
- if(nSnow>0) ixStateType( ixHydLayer(      1:nSnow)   ) = iname_watLayer
-             ixStateType( ixHydLayer(nSnow+1:nLayers) ) = iname_matLayer ! refine later to be either iname_watLayer or iname_matLayer
+ ! define the state type for the domain (hydrology)
+ ixStateType( ixHydLayer(1:nLayers) ) = iname_watLayer
+ if(nSoil>0) ixStateType( ixHydLayer(nSnow+nLake+1:nSnow+nLake+nSoil) ) = iname_matLayer ! refine later to be either iname_watLayer or iname_matLayer
 
  ! define the state type for the aquifer
  if(includeAquifer) ixStateType( ixWatAquifer(1) ) = iname_watAquifer
@@ -240,7 +245,7 @@ contains
  endif
 
  ! define the domain type for soil
- if (nSoil>0)then
+ if(nSoil>0)then
   ixDomainType( ixNrgLayer((nSnow+nLake+1):(nSnow+nLake+nSoil)) ) = iname_soil
   ixDomainType( ixHydLayer((nSnow+nLake+1):(nSnow+nLake+nSoil)) ) = iname_soil
  endif
@@ -267,17 +272,26 @@ contains
   ixControlVolume( ixHydLayer(1:nSnow) ) = ixLayerState(1:nSnow)
  endif
 
+ ! define the index of the each control volume in the lake domain
+ if(nLake>0)then
+  ixControlVolume( ixNrgLayer(nSnow+1:nSnow+nLake) ) = ixLayerState(nSnow+1:nSnow+nLake)
+  ixControlVolume( ixHydLayer(nSnow+1:nSnow+nLake) ) = ixLayerState(nSnow+1:nSnow+nLake)
+ endif
+
  ! define the index of the each control volume in the soil domain
- ixControlVolume( ixNrgLayer(nSnow+1:nLayers) ) = ixSoilState(1:nSoil)
- ixControlVolume( ixHydLayer(nSnow+1:nLayers) ) = ixSoilState(1:nSoil)
+ if(nSoil>0)then
+  ixControlVolume( ixNrgLayer(nSnow+nLake+1:nSnow+nLake+nSoil) ) = ixSoilState(1:nSoil)
+  ixControlVolume( ixHydLayer(nSnow+nLake+1:nSnow+nLake+nSoil) ) = ixSoilState(1:nSoil)
+ endif
+
+ ! define the index of the each control volume in the ice domain
+ if(nIce>0)then
+  ixControlVolume( ixNrgLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nIce) ) = ixLayerState(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nIce)
+  ixControlVolume( ixHydLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nIce) ) = ixLayerState(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nIce)
+ endif
 
  ! define the index for the control volumes in the aquifer
  if(includeAquifer) ixControlVolume( ixWatAquifer(1) ) = 1
-
- !print*, 'ixControlVolume = ', ixControlVolume
- !print*, 'ixDomainType    = ', ixDomainType
- !print*, 'ixStateType     = ', ixStateType
- !print*, 'PAUSE: '; read(*,*)
 
  ! end association to the ALLOCATABLE variables in the data structures
  end associate
@@ -327,7 +341,9 @@ contains
  fullState: associate(&
  ! number of snow and soil layers, total number of layers, and number of states in the subset
  nSnow            => in_indexSplit % nSnow                          ,& ! intent(in):  [i4b]    number of snow layers 
+ nLake            => in_indexSplit % nLake                          ,& ! intent(in):  [i4b]    number of lake layers
  nSoil            => in_indexSplit % nSoil                          ,& ! intent(in):  [i4b]    number of soil layers 
+ nIce             => in_indexSplit % nIce                           ,& ! intent(in):  [i4b]    number of ice layers
  nLayers          => in_indexSplit % nLayers                        ,& ! intent(in):  [i4b]    total number of layers
  nSubset          => in_indexSplit % nSubset                        ,& ! intent(in):  [i4b]    number of states in the subset
  ! indices of model state variables for the vegetation domain
@@ -403,8 +419,12 @@ contains
  ! -------------------------------------------
 
  ! get different masks
- volFracWat_mask = (ixHydType(      1:nLayers)==iname_watLayer .or. ixHydType(      1:nLayers)==iname_liqLayer)
- matricHead_mask = (ixHydType(nSnow+1:nLayers)==iname_matLayer .or. ixHydType(nSnow+1:nLayers)==iname_lmpLayer)
+ volFracWat_mask = (ixHydType(1:nLayers)==iname_watLayer .or. ixHydType(1:nLayers)==iname_liqLayer)
+ if(nSoil>0)then
+  matricHead_mask = (ixHydType(nSnow+nLake+1:nSnow+nLake+nSoil) == iname_matLayer .or. ixHydType(nSnow+nLake+1:nSnow+nLake+nSoil) == iname_lmpLayer)
+ else
+  matricHead_mask = .false.  ! or another appropriate default value
+ endif
 
  ! get state subsets for desired variables
  do iVar=1,size(indx_data%var)   ! loop through index variables
@@ -498,15 +518,15 @@ contains
 
  ! get list of indices for energy
  ! NOTE: layers not in the state subset will be missing
- ixSnowSoilNrg = ixMapFull2Subset(ixNrgLayer)                    ! both snow and soil layers
- ixSnowOnlyNrg = ixMapFull2Subset(ixNrgLayer(      1:nSnow  ))   ! snow layers only
- ixSoilOnlyNrg = ixMapFull2Subset(ixNrgLayer(nSnow+1:nLayers))   ! soil layers only
+ ixSnowSoilNrg = ixMapFull2Subset(ixNrgLayer)                                  ! all layers
+ ixSnowOnlyNrg = ixMapFull2Subset(ixNrgLayer(      1:nSnow  ))                 ! snow layers only
+ ixSoilOnlyNrg = ixMapFull2Subset(ixNrgLayer(nSnow+nLake+1:nSnow+nLake+nSoil)) ! soil layers only
 
  ! get list of indices for hydrology
  ! NOTE: layers not in the state subset will be missing
- ixSnowSoilHyd = ixMapFull2Subset(ixHydLayer)                    ! both snow and soil layers
- ixSnowOnlyHyd = ixMapFull2Subset(ixHydLayer(      1:nSnow  ))   ! snow layers only
- ixSoilOnlyHyd = ixMapFull2Subset(ixHydLayer(nSnow+1:nLayers))   ! soil layers only
+ ixSnowSoilHyd = ixMapFull2Subset(ixHydLayer)                                  ! all layers
+ ixSnowOnlyHyd = ixMapFull2Subset(ixHydLayer(      1:nSnow  ))                 ! snow layers only
+ ixSoilOnlyHyd = ixMapFull2Subset(ixHydLayer(nSnow+nLake+1:nSnow+nLake+nSoil)) ! soil layers only
 
  ! define active layers (regardless if the splitting operation is energy or mass)
  ixLayerActive =  merge(ixSnowSoilNrg, ixSnowSoilHyd, ixSnowSoilNrg/=integerMissing)

@@ -112,12 +112,12 @@ contains
   ix_canopySrad              => model_decisions(iLookDECISIONS%canopySrad)%iDecision,             & ! intent(in): index defining method for canopy shortwave radiation
   ! input: forcing at the upper boundary
   scalarSnowfall             => flux_data%var(iLookFLUX%scalarSnowfall)%dat(1),                   & ! intent(in): computed snowfall rate (kg m-2 s-1)
-  spectralIncomingDirect     => flux_data%var(iLookFLUX%spectralIncomingDirect)%dat(1:nSpecBand),    & ! intent(in): incoming direct solar radiation in each wave band (w m-2)
-  spectralIncomingDiffuse    => flux_data%var(iLookFLUX%spectralIncomingDiffuse)%dat(1:nSpecBand),   & ! intent(in): incoming diffuse solar radiation in each wave band (w m-2)
+  spectralIncomingDirect     => flux_data%var(iLookFLUX%spectralIncomingDirect)%dat(1:nSpecBand), & ! intent(in): incoming direct solar radiation in each wave band (w m-2)
+  spectralIncomingDiffuse    => flux_data%var(iLookFLUX%spectralIncomingDiffuse)%dat(1:nSpecBand),& ! intent(in): incoming diffuse solar radiation in each wave band (w m-2)
   ! input: snow states
   scalarSWE                  => prog_data%var(iLookPROG%scalarSWE)%dat(1),                        & ! intent(in): snow water equivalent on the ground (kg m-2)
   scalarSnowDepth            => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),                  & ! intent(in): snow depth on the ground surface (m)
-  mLayerVolFracLiq           => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(nSnow+1:nLayers),   & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
+  mLayerVolFracLiq           => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(nSnow+1:nSnow+nSoil),  & ! intent(in): volumetric fraction of liquid water in each soil layer (-), no lake layer if vegetation is present
   spectralSnowAlbedoDiffuse  => prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1:nSpecBand), & ! intent(in): diffuse albedo of snow in each spectral band (-)
   scalarSnowAlbedo           => prog_data%var(iLookPROG%scalarSnowAlbedo)%dat(1),                 & ! intent(inout): snow albedo (-)
   ! input: ground and canopy temperature

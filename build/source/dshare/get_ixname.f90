@@ -572,7 +572,7 @@ contains
   case('scalarSnowAge'                  ); get_ixDiag = iLookDIAG%scalarSnowAge                    ! non-dimensional snow age (-)
   case('scalarGroundSnowFraction'       ); get_ixDiag = iLookDIAG%scalarGroundSnowFraction         ! fraction of ground that is covered with snow (-)
   case('spectralSnowAlbedoDirect'       ); get_ixDiag = iLookDIAG%spectralSnowAlbedoDirect         ! direct snow albedo for individual spectral bands (-)
-  case('mLayerFracLiqSnow'              ); get_ixDiag = iLookDIAG%mLayerFracLiqSnow                ! fraction of liquid water in each snow layer (-)
+  case('mLayerFracLiq'                  ); get_ixDiag = iLookDIAG%mLayerFracLiq                    ! fraction of liquid water in each snow, lake, or ice layer (-)
   case('mLayerThetaResid'               ); get_ixDiag = iLookDIAG%mLayerThetaResid                 ! residual volumetric water content in each snow layer (-)
   case('mLayerPoreSpace'                ); get_ixDiag = iLookDIAG%mLayerPoreSpace                  ! total pore space in each snow layer (-)
   case('mLayerMeltFreeze'               ); get_ixDiag = iLookDIAG%mLayerMeltFreeze                 ! ice content change from melt/freeze in each layer (kg m-3)
@@ -600,11 +600,11 @@ contains
   ! balances
   case('balanceCasNrg'                  ); get_ixDiag = iLookDIAG%balanceCasNrg                    ! balance of energy in the canopy air space (W m-3)
   case('balanceVegNrg'                  ); get_ixDiag = iLookDIAG%balanceVegNrg                    ! balance of energy in the vegetation canopy (W m-3)
-  case('balanceLayerNrg'                ); get_ixDiag = iLookDIAG%balanceLayerNrg                  ! balance of energy in each snow+soil layer (W m-3)
+  case('balanceLayerNrg'                ); get_ixDiag = iLookDIAG%balanceLayerNrg                  ! balance of energy in each layer (W m-3)
   case('balanceSnowNrg'                 ); get_ixDiag = iLookDIAG%balanceSnowNrg                   ! balance of energy in the snow (W m-3)
   case('balanceSoilNrg'                 ); get_ixDiag = iLookDIAG%balanceSoilNrg                   ! balance of energy in the soil (W m-3)
   case('balanceVegMass'                 ); get_ixDiag = iLookDIAG%balanceVegMass                   ! balance of water in the vegetation canopy (kg m-3 s-1)
-  case('balanceLayerMass'               ); get_ixDiag = iLookDIAG%balanceLayerMass                 ! balance of water in each snow+soil layer (kg m-3 s-1)
+  case('balanceLayerMass'               ); get_ixDiag = iLookDIAG%balanceLayerMass                 ! balance of water in each layer (kg m-3 s-1)
   case('balanceSnowMass'                ); get_ixDiag = iLookDIAG%balanceSnowMass                  ! balance of water in the snow (kg m-3 s-1)
   case('balanceSoilMass'                ); get_ixDiag = iLookDIAG%balanceSoilMass                  ! balance of water in the soil (kg m-3 s-1)
   case('balanceAqMass'                  ); get_ixDiag = iLookDIAG%balanceAqMass                    ! balance of water in the aquifer (kg m-2 s-1) (no depth to aquifer)
@@ -837,8 +837,8 @@ contains
   case('dAquiferTrans_dTCanopy'         ); get_ixDeriv = iLookDERIV%dAquiferTrans_dTCanopy         ! derivative in the aquifer transpiration flux w.r.t. canopy temperature
   case('dAquiferTrans_dTGround'         ); get_ixDeriv = iLookDERIV%dAquiferTrans_dTGround         ! derivative in the aquifer transpiration flux w.r.t. ground temperature
   case('dAquiferTrans_dCanWat'          ); get_ixDeriv = iLookDERIV%dAquiferTrans_dCanWat          ! derivative in the aquifer transpiration flux w.r.t. canopy total water
- ! derivative in liquid water fluxes for the soil and snow domain w.r.t temperature
-  case('dFracLiqSnow_dTk'               ); get_ixDeriv = iLookDERIV%dFracLiqSnow_dTk               ! derivative in fraction of liquid snow w.r.t. temperature
+ ! derivative in liquid water fluxes for the layer domains w.r.t temperature
+  case('dFracLiqWat_dTk'                ); get_ixDeriv = iLookDERIV%dFracLiqWat_dTk                ! derivative in fraction of liquid w.r.t. temperature (not computed for soil)
   case('mLayerdTheta_dTk'               ); get_ixDeriv = iLookDERIV%mLayerdTheta_dTk               ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
   case('mLayerd2Theta_dTk2'             ); get_ixDeriv = iLookDERIV%mLayerd2Theta_dTk2             ! second derivative of volumetric liquid water content w.r.t. temperature
   ! derivatives in time

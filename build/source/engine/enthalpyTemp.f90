@@ -67,12 +67,12 @@ public::enthalpy2T_snwWat
 public::T2enthalpy_snwWat
 public::T2enthTemp_cas
 public::T2enthTemp_veg
-public::T2enthTemp_snow
+public::T2enthTemp_slic
 public::T2enthTemp_soil
 public::enthTemp_or_enthalpy
 public::enthalpy2T_cas
 public::enthalpy2T_veg
-public::enthalpy2T_snow
+public::enthalpy2T_slic
 public::enthalpy2T_soil
 private::hyp_2F1_real
 private::brent, brent0, diff_H_veg, diff_H_snow, diff_H_soil
@@ -507,9 +507,9 @@ subroutine T2enthTemp_veg(&
 end subroutine T2enthTemp_veg
 
 ! ************************************************************************************************************************
-! public subroutine T2enthTemp_snow: compute temperature component of enthalpy from temperature and total water content, snow layer
+! public subroutine T2enthTemp_slic: compute temperature component of enthalpy from temperature and total water content, snow, lake, ice layer
 ! ************************************************************************************************************************
-subroutine T2enthTemp_snow(&
+subroutine T2enthTemp_slic(&
                       snowfrz_scale,          & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                       mLayerTemp,             & ! intent(in):  layer temperature (K)
                       mLayerVolFracWat,       & ! intent(in):  volumetric total water content (-)
@@ -538,14 +538,14 @@ subroutine T2enthTemp_snow(&
   real(rkind)                      :: enthAir               ! enthalpy of air (J m-3)
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
-  err=0; message="T2enthTemp_snow/"
+  err=0; message="T2enthTemp_slic/"
 
-  diffT    = mLayerTemp - Tfreeze  ! diffT<0._rkind if in snow or ice, but may use for water
+  diffT    = mLayerTemp - Tfreeze
 
-  if(diffT>=0._rkind)then ! only need for upper bound
+  if(diffT>=0._rkind)then ! diffT<0._rkind if in snow or ice, but may use for lake
     enthLiq = iden_water * Cp_water * mLayerVolFracWat * diffT
     enthIce = 0._rkind
-    enthAir = - iden_air * Cp_air * mLayerVolFracWat * diffT
+    enthAir = iden_air * Cp_air * ( 1._rkind - mLayerVolFracWat ) * diffT
   else
     integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
     enthLiq  = iden_water * Cp_water * mLayerVolFracWat * integral
@@ -555,7 +555,7 @@ subroutine T2enthTemp_snow(&
 
   mLayerEnthTemp = enthLiq + enthIce + enthAir
 
-end subroutine T2enthTemp_snow
+end subroutine T2enthTemp_slic
 
 
 ! ************************************************************************************************************************
@@ -920,7 +920,7 @@ subroutine enthalpy2T_veg(&
   err=0; message="enthalpy2T_veg/"
  
   ! ***** get temperature if unfrozen vegetation
-  T            = scalarCanopyEnthalpy * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat ) + Tfreeze
+  T = scalarCanopyEnthalpy * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat ) + Tfreeze
   if(computJac)then  
     dT_dEnthalpy = canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat )
     dT_dWat      = -Cp_water * scalarCanopyEnthalpy * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat )**2_i4b
@@ -972,9 +972,9 @@ subroutine enthalpy2T_veg(&
 end subroutine enthalpy2T_veg
 
 ! ************************************************************************************************************************
-! public subroutine enthalpy2T_snow: compute temperature from enthalpy and total water content, snow layer
+! public subroutine enthalpy2T_slic: compute temperature from enthalpy and total water content, snow, lake, ice layer
 ! ************************************************************************************************************************
-subroutine enthalpy2T_snow(&
+subroutine enthalpy2T_slic(&
                       computJac,         & ! intent(in):    flag if computing for Jacobian update
                       snowfrz_scale,     & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
                       mLayerEnthalpy,    & ! intent(in):    enthalpy of snow+soil layer (J m-3)
@@ -1029,50 +1029,60 @@ subroutine enthalpy2T_snow(&
   real(rkind)                      :: denthAir_dWat      ! derivative of enthalpy of air with water state variable
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
-  err=0; message="enthalpy2T_snow/"
+  err=0; message="enthalpy2T_slic/"
 
-  ! ***** iterate to find temperature, ice always exists
-  T  = mLayerTemp ! initial guess, will be less than Tfreeze since was a solution
+  ! ***** get temperature if unfrozen lake (will not happen in snow or ice)
+  T = mLayerEnthalpy / ( iden_water * Cp_water * mLayerVolFracWat + iden_air * Cp_air * (1._rkind - mLayerVolFracWat) ) + Tfreeze
+  if(computJac)then  
+    dT_dEnthalpy = 1._rkind / ( iden_water * Cp_water * mLayerVolFracWat + iden_air * Cp_air * (1._rkind - mLayerVolFracWat) )
+    dT_dWat      = -( iden_water * Cp_water - iden_air * Cp_air ) &
+                    * mLayerEnthalpy / ( iden_water * Cp_water * mLayerVolFracWat + iden_air * Cp_air * (1._rkind - mLayerVolFracWat) )**2_i4b
+  endif
 
-  ! find the root of the function
-  ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
-  ! and the vector of parameters, snow_layer
-  vec = 0._rkind
-  vec(1:3) = (/mLayerEnthalpy, snowfrz_scale, mLayerVolFracWat/)
-  if(mLayerEnthalpy>0._rkind)then
-    T = Tfreeze+ 0.1_rkind ! need to merge layers, trigger the merge
-  else
-    l_bound = diff_H_snow(200._rkind, vec)
-    if (l_bound > 0._rkind) then
-      T = Tfreeze + 0.1_rkind ! need to merge layers, trigger the merge
+  ! ***** iterate to find temperature if ice exists
+  if( T<Tfreeze )then
+    T  = min(mLayerTemp,Tfreeze) ! initial guess
+
+    ! find the root of the function
+    ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
+    ! and the vector of parameters, snow_layer
+    vec = 0._rkind
+    vec(1:3) = (/mLayerEnthalpy, snowfrz_scale, mLayerVolFracWat/)
+    if(mLayerEnthalpy>0._rkind)then
+      T = Tfreeze+ 0.1_rkind ! need to merge layers, trigger the merge
     else
-      T = brent(diff_H_snow, T, 200._rkind, Tfreeze, vec)
-    end if
-  endif
+      l_bound = diff_H_snow(200._rkind, vec)
+      if (l_bound > 0._rkind) then
+        T = Tfreeze + 0.1_rkind ! need to merge layers, trigger the merge
+      else
+        T = brent(diff_H_snow, T, 200._rkind, Tfreeze, vec)
+      end if
+    endif
 
-  ! compute Jacobian terms
-  if(computJac)then
-    ! NOTE: dintegral_dT = fLiq
-    diffT    = T - Tfreeze
-    integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-    fLiq     = fracLiquid(T, snowfrz_scale)
- 
-    ! w.r.t. temperature, NOTE: dintegral_dT = fLiq
-    dfLiq_dT    = dFracLiq_dTk(T,snowfrz_scale)
-    denthLiq_dT = iden_water * Cp_water * mLayerVolFracWat * fLiq
-    denthIce_dT = iden_water * Cp_ice * mLayerVolFracWat * (1._rkind - fLiq)
-    denthAir_dT = iden_air * Cp_air * (1._rkind - mLayerVolFracWat * ( (iden_water/iden_ice)*(1._rkind-fLiq) + fLiq ) )
-    dH_dT       = denthLiq_dT + denthIce_dT + denthAir_dT + iden_water * LH_fus * dfLiq_dT * mLayerVolFracWat
+    ! compute Jacobian terms
+    if(computJac)then
+      ! NOTE: dintegral_dT = fLiq
+      diffT    = T - Tfreeze
+      integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
+      fLiq     = fracLiquid(T, snowfrz_scale)
+    
+      ! w.r.t. temperature, NOTE: dintegral_dT = fLiq
+      dfLiq_dT    = dFracLiq_dTk(T,snowfrz_scale)
+      denthLiq_dT = iden_water * Cp_water * mLayerVolFracWat * fLiq
+      denthIce_dT = iden_water * Cp_ice * mLayerVolFracWat * (1._rkind - fLiq)
+      denthAir_dT = iden_air * Cp_air * (1._rkind - mLayerVolFracWat * ( (iden_water/iden_ice)*(1._rkind-fLiq) + fLiq ) )
+      dH_dT       = denthLiq_dT + denthIce_dT + denthAir_dT + iden_water * LH_fus * dfLiq_dT * mLayerVolFracWat
 
-    ! w.r.t. layer water content
-    denthLiq_dWat = iden_water * Cp_water * integral
-    denthIce_dWat = iden_water * Cp_ice * ( diffT - integral )
-    denthAir_dWat = -iden_air * Cp_air * ( (iden_water/iden_ice)*(diffT-integral) + integral )
-    dH_dWat       = denthLiq_dWat + denthIce_dWat + denthAir_dWat - iden_water * LH_fus * (1._rkind - fLiq)
+      ! w.r.t. layer water content
+      denthLiq_dWat = iden_water * Cp_water * integral
+      denthIce_dWat = iden_water * Cp_ice * ( diffT - integral )
+      denthAir_dWat = -iden_air * Cp_air * ( (iden_water/iden_ice)*(diffT-integral) + integral )
+      dH_dWat       = denthLiq_dWat + denthIce_dWat + denthAir_dWat - iden_water * LH_fus * (1._rkind - fLiq)
 
-    dT_dEnthalpy = 1._rkind / dH_dT
-    dT_dWat      = dH_dWat / dH_dT
-  endif
+      dT_dEnthalpy = 1._rkind / dH_dT
+      dT_dWat      = dH_dWat / dH_dT
+    endif
+  endif ! (if ice exists)
 
   ! update temperature and derivatives
   mLayerTemp = T
@@ -1081,7 +1091,7 @@ subroutine enthalpy2T_snow(&
     dTemp_dTheta    = dT_dWat
   endif
 
-end subroutine enthalpy2T_snow
+end subroutine enthalpy2T_slic
 
 ! ************************************************************************************************************************
 ! public subroutine enthalpy2T_soil: compute temperature from enthalpy and total water content, soil layer
@@ -1187,8 +1197,8 @@ subroutine enthalpy2T_soil(&
   dvolFracWat_dPsi0 = dTheta_dPsi(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) 
 
   ! ***** get temperature if unfrozen soil
-  T            = mLayerEnthalpy / ( iden_water * Cp_water * volFracWat + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) &
-                                   + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) ) + Tfreeze
+  T  = mLayerEnthalpy / ( iden_water * Cp_water * volFracWat + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) &
+                         + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) ) + Tfreeze
   if(computJac)then  
     dT_dEnthalpy = 1._rkind / ( iden_water * Cp_water * volFracWat + soil_dens_intr*Cp_soil*(1._rkind - theta_sat) &
                                + iden_air*Cp_air*(1._rkind - theta_sat - volFracWat) )
@@ -1668,7 +1678,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, use_lookup, l
     snowfrz_scale    = vec(2)
     mLayerVolFracWat = vec(3)
   
-    call T2enthTemp_snow(snowfrz_scale, mLayerTemp, mLayerVolFracWat, mLayerEnthTemp, err, cmessage)
+    call T2enthTemp_slic(snowfrz_scale, mLayerTemp, mLayerVolFracWat, mLayerEnthTemp, err, cmessage)
     fLiq   = fracliquid(mLayerTemp, snowfrz_scale)
     diff_H_snow = mLayerEnthTemp - iden_water * LH_fus * mLayerVolFracWat * (1._rkind - fLiq) - mLayerEnthalpy
   

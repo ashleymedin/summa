@@ -248,7 +248,7 @@ subroutine computJacob(&
     scalarFracLiqVeg             => diag_data%var(iLookDIAG%scalarFracLiqVeg              )%dat(1)  ,& ! intent(in): [dp]     fraction of liquid water on vegetation (-)
     scalarBulkVolHeatCapVeg      => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg       )%dat(1)  ,& ! intent(in): [dp]     bulk volumetric heat capacity of vegetation (J m-3 K-1)
     scalarCanopyCm               => diag_data%var(iLookDIAG%scalarCanopyCm                )%dat(1)  ,& ! intent(in): [dp]     Cm of canopy (J kg-1 K-1)
-    mLayerFracLiqSnow            => diag_data%var(iLookDIAG%mLayerFracLiqSnow             )%dat     ,& ! intent(in): [dp(:)]  fraction of liquid water in each snow layer (-)
+    mLayerFracLiq                => diag_data%var(iLookDIAG%mLayerFracLiq                 )%dat     ,& ! intent(in): [dp(:)]  fraction of liquid water in each snow, lake, or ice layer (-)
     mLayerVolHtCapBulk           => diag_data%var(iLookDIAG%mLayerVolHtCapBulk            )%dat     ,& ! intent(in): [dp(:)]  bulk volumetric heat capacity in each snow and soil layer (J m-3 K-1)
     mLayerCm                     => diag_data%var(iLookDIAG%mLayerCm                      )%dat     ,& ! intent(in): [dp(:)]  Cm in each snow and soil layer (J kg-1 K-1)
     scalarSoilControl            => diag_data%var(iLookDIAG%scalarSoilControl             )%dat(1)  ,& ! intent(in): [dp]     soil control on infiltration, zero or one
@@ -408,7 +408,7 @@ subroutine computJacob(&
 
             ! compute factor to convert liquid water derivative to total water derivative
             select case( ixHydType(iLayer) )
-              case(iname_watLayer); convLiq2tot = mLayerFracLiqSnow(iLayer)
+              case(iname_watLayer); convLiq2tot = mLayerFracLiq(iLayer)
               case default;         convLiq2tot = 1._rkind
             end select
 
@@ -446,7 +446,7 @@ subroutine computJacob(&
             if(watstate/=integerMissing)then       ! (energy state for the current layer is within the state subset)
 
               ! - include derivatives of energy fluxes w.r.t water fluxes for current layer
-              aJac(ixOffDiag(nrgState,watState),watState) = (-1._rkind + mLayerFracLiqSnow(iLayer))*LH_fus*iden_water  &
+              aJac(ixOffDiag(nrgState,watState),watState) = (-1._rkind + mLayerFracLiq(iLayer))*LH_fus*iden_water  &
                                          + dVolHtCapBulk_dTheta(iLayer) * mLayerdTemp_dt(iLayer) + mLayerCm(iLayer) &
                                          + (dt/mLayerDepth(iLayer))*(-dNrgFlux_dWatBelow(iLayer-1) + dNrgFlux_dWatAbove(iLayer))
 
@@ -759,7 +759,7 @@ subroutine computJacob(&
 
             ! compute factor to convert liquid water derivative to total water derivative
             select case( ixHydType(iLayer) )
-              case(iname_watLayer); convLiq2tot = mLayerFracLiqSnow(iLayer)
+              case(iname_watLayer); convLiq2tot = mLayerFracLiq(iLayer)
               case default;         convLiq2tot = 1._rkind
             end select
 
@@ -797,7 +797,7 @@ subroutine computJacob(&
             if(watstate/=integerMissing)then       ! (energy state for the current layer is within the state subset)
 
              ! - include derivatives of energy fluxes w.r.t water fluxes for current layer
-             aJac(nrgState,watState) = (-1._rkind + mLayerFracLiqSnow(iLayer))*LH_fus*iden_water &
+             aJac(nrgState,watState) = (-1._rkind + mLayerFracLiq(iLayer))*LH_fus*iden_water &
                                        + dVolHtCapBulk_dTheta(iLayer) * mLayerdTemp_dt(iLayer) + mLayerCm(iLayer) &
                                        + (dt/mLayerDepth(iLayer))*(-dNrgFlux_dWatBelow(iLayer-1) + dNrgFlux_dWatAbove(iLayer))
 

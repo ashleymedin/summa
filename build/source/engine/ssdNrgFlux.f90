@@ -145,7 +145,7 @@ subroutine ssdNrgFlux(&
     nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1),               & ! intent(in):  number of soil layers
     nIce                    => indx_data%var(iLookINDEX%nIce)%dat(1),                & ! intent(in):  number of ice layers
     nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1),               & ! intent(in):  number of lake layers
-    layerType               => indx_data%var(iLookINDEX%layerType)%dat,              & ! intent(in):  layer type (iname_soil or iname_snow)
+    layerType               => indx_data%var(iLookINDEX%layerType)%dat,              & ! intent(in):  layer type
     ixLayerState            => indx_data%var(iLookINDEX%ixLayerState)%dat,           & ! intent(in):  list of indices for all model layers
     ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat,          & ! intent(in):  index in the state subset for energy state variables in the snow+soil domain
     mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat,             & ! intent(in):  depth of each layer (m)
@@ -207,7 +207,9 @@ subroutine ssdNrgFlux(&
     do iLayer=ixTop,ixBot
       select case(layerType(iLayer)) ! get the liquid flux at layer interfaces
         case(iname_snow); qFlux = iLayerLiqFluxSnow(iLayer)
+        case(iname_lake); qFlux = 0._rkind !iLayerLiqFluxLake(iLayer-nSnow)
         case(iname_soil); qFlux = iLayerLiqFluxSoil(iLayer-nSnow-nLake)
+        case(iname_ice);  qFlux = 0._rkind !iLayerLiqFluxIce(iLayer-nSnow-nLake-nSoil)
         case default; err=20; message=trim(message)//'unable to identify layer type'; return
       end select
       if (iLayer==nLayers) then ! compute fluxes at the lower boundary -- positive downwards

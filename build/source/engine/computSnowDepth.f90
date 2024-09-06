@@ -35,34 +35,33 @@ contains
 ! public subroutine computSnowDepth: compute snow depth for one sub timestep
 ! ************************************************************************************************
 subroutine computSnowDepth(&
-                        dt_sub,                 &
-                        nSnow,                  & ! intent(in)
-                        scalarSnowSublimation,  & ! intent(in)
-                        mLayerVolFracLiq,       & ! intent(inout)
-                        mLayerVolFracIce,       & ! intent(inout)
-                        mLayerTemp,             & ! intent(in)
-                        mLayerMeltFreeze,       & ! intent(in)
-                        mpar_data,              & ! intent(in)
+                        dt_sub,                 & ! intent(in):    time step (s)
+                        nSnow,                  & ! intent(in):    number of snow layers
+                        scalarSnowSublimation,  & ! intent(in):    scalar sublimation of snow (kg m-2)
+                        mLayerVolFracLiq,       & ! intent(inout): volumetric fraction of liquid water
+                        mLayerVolFracIce,       & ! intent(inout): volumetric fraction of ice
+                        mLayerTemp,             & ! intent(in):    temperature of each layer (K)
+                        mLayerMeltFreeze,       & ! intent(in):    volumetric melt in each layer (kg m-3)
+                        mpar_data,              & ! intent(in):    model parameters
                         ! output
-                        tooMuchSublim,          & ! intent(out): flag to denote that there was too much sublimation in a given time step
-                        mLayerDepth,            & ! intent(inout)
+                        tooMuchSublim,          & ! intent(out):   flag to denote that there was too much sublimation in a given time step
+                        mLayerDepth,            & ! intent(inout): depth of each layer (m)
                         ! error control
                         err,message)              ! intent(out):   error control
 
   USE snwDensify_module,only:snwDensify      ! snow densification (compaction and cavitation)
 
   implicit none
-  real(qp),intent(in)                  :: dt_sub
+  real(qp),intent(in)                  :: dt_sub                 ! time step (s)
   integer(i4b),intent(in)              :: nSnow                  ! number of snow layers
-  real(rkind),intent(in)               :: scalarSnowSublimation
-  real(rkind),intent(inout)            :: mLayerVolFracLiq(:)
-  real(rkind),intent(inout)            :: mLayerVolFracIce(:)
-  real(rkind),intent(in)               :: mLayerTemp(:)
-  real(rkind),intent(in)               :: mLayerMeltFreeze(:)
+  real(rkind),intent(in)               :: scalarSnowSublimation  ! scalar sublimation of snow (kg m-2)
+  real(rkind),intent(inout)            :: mLayerVolFracLiq(:)    ! volumetric fraction of liquid water
+  real(rkind),intent(inout)            :: mLayerVolFracIce(:)    ! volumetric fraction of ice
+  real(rkind),intent(in)               :: mLayerTemp(:)          ! temperature of each layer (K)
+  real(rkind),intent(in)               :: mLayerMeltFreeze(:)    ! volumetric melt in each layer (kg m-3)
   type(var_dlength),intent(in)         :: mpar_data              ! model parameters
   logical(lgt)                         :: tooMuchSublim          ! flag to denote that there was too much sublimation in a given time step
-  real(rkind),intent(inout)            :: mLayerDepth(:)
-
+  real(rkind),intent(inout)            :: mLayerDepth(:)         ! depth of each layer (m)
   integer(i4b),intent(out)             :: err                    ! error code
   character(*),intent(out)             :: message                ! error message
 

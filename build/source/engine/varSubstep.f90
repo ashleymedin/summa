@@ -814,7 +814,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
 
     ! get storage at the start of the step
     canopyBalance0 = merge(scalarCanopyLiq + scalarCanopyIce, realMissing, computeVegFlux)
-    soilBalance0   = sum( (mLayerVolFracLiq(nSnow+1:nLayers) + mLayerVolFracIce(nSnow+1:nLayers)  )*mLayerDepth(nSnow+1:nLayers) )
+    if(nSoil>0) soilBalance0 = sum( (mLayerVolFracLiq(nSnow+nLake+1:nSnow+nLake+nSoil) + mLayerVolFracIce(nSnow+nLake+1:nSnow+nLake+nSoil)  )*mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil) )
 
     ! -----
     ! * update states...
@@ -1155,12 +1155,12 @@ USE getVectorz_module,only:varExtract                              ! extract var
           endif  ! if veg canopy
 
           ! check mass balance for soil domain for step reduction (ida and kinsol should have done this already 
-          if(count(ixSoilOnlyHyd/=integerMissing)==nSoil)then
-            soilBalance1 = sum( (mLayerVolFracLiqTrial(nSnow+1:nLayers) + mLayerVolFracIceTrial(nSnow+1:nLayers) )*mLayerDepth(nSnow+1:nLayers) )
+          if(count(ixSoilOnlyHyd/=integerMissing)==nSoil .and. nSoil>0)then
+            soilBalance1 = sum( (mLayerVolFracLiqTrial(nSnow+nLake+1:nSnow+nLake+nSoil) + mLayerVolFracIceTrial(nSnow+nLake+1:nSnow+nLake+nSoil) )*mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil) )
             vertFlux     = -(iLayerLiqFluxSoil(nSoil) - iLayerLiqFluxSoil(0))*dt           ! m s-1 --> m
             tranSink     = sum(mLayerTranspire)*dt                                         ! m s-1 --> m
             baseSink     = sum(mLayerBaseflow)*dt                                          ! m s-1 --> m
-            compSink     = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+1:nLayers) )*dt ! m s-1 --> m
+            compSink     = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil) )*dt ! m s-1 --> m
             liqError     = soilBalance1 - (soilBalance0 + vertFlux + tranSink - baseSink - compSink)
             if(abs(liqError) > absConvTol_liquid*10._rkind)then   ! *10 because of precision issues
               !write(*,'(a,1x,f20.10)') 'dt = ', dt
@@ -1234,7 +1234,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
 
         ! update liquid water content
         select case( ixDomainType(ixFullVector) )
-          case(iname_veg);                         scalarCanopyLiqTria           = scalarCanopyLiqTrial          + volMelt*canopyDepth  ! (kg m-2)
+          case(iname_veg);                         scalarCanopyLiqTrial          = scalarCanopyLiqTrial          + volMelt*canopyDepth  ! (kg m-2)
           case(iname_snow, iname_lake, iname_ice); mLayerVolFracLiqTrial(iLayer) = mLayerVolFracLiqTrial(iLayer) + volMelt/iden_water   ! (-)
           case(iname_soil);                        mLayerVolFracLiqTrial(iLayer) = mLayerVolFracLiqTrial(iLayer) + volMelt/iden_water   ! (-)
           case default; err=20; message=trim(message)//'unable to identify domain type [remove untapped melt energy]'; return

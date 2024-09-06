@@ -13,7 +13,7 @@ USE globalData,only:realMissing    ! missing real number
 
 implicit none
 private
-public::updateSnowPrime
+public::updateSlicPrime
 public::updateSoilPrime
 
 real(rkind),parameter     :: verySmall=1e-14_rkind ! a very small number (used to avoid divide by zero)
@@ -22,9 +22,9 @@ contains
 
 
 ! *************************************************************************************************************
-! public subroutine updateSnowPrime: compute phase change impacts on volumetric liquid water and ice
+! public subroutine updateSlicPrime: compute phase change impacts on volumetric liquid water and ice (veg, snow, lake, ice domain)
 ! *************************************************************************************************************
-subroutine updateSnowPrime(&
+subroutine updateSlicPrime(&
                       ! input
                       mLayerTemp             ,& ! intent(in):  temperature (K)
                       mLayerTheta            ,& ! intent(in):  volume fraction of total water (-)
@@ -58,7 +58,7 @@ subroutine updateSnowPrime(&
   integer(i4b),intent(out)      :: err                   ! error code
   character(*),intent(out)      :: message               ! error message
   ! initialize error control
-  err=0; message="updateSnowPrime/"
+  err=0; message="updateSlicPrime/"
 
   ! compute the volumetric fraction of liquid water and ice (-)
   fLiq = fracliquid(mLayerTemp,snowfrz_scale)
@@ -73,7 +73,7 @@ subroutine updateSnowPrime(&
     mLayerVolFracIcePrime=realMissing
   end if
 
-end subroutine updateSnowPrime
+end subroutine updateSlicPrime
 
 ! ***********************************************************************************************************************************
 ! public subroutine updateSoilPrime: compute phase change impacts on matric head and volumetric liquid water and ice (veg or soil)

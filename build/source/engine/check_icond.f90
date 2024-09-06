@@ -74,11 +74,11 @@ contains
                        gravity,   &                      ! gravitational acceleration           (m s-2)
                        Tfreeze                           ! freezing point of pure water         (K)
  USE snow_utils_module,only:fracliquid                   ! compute volumetric fraction of liquid water in snow based on temperature
- USE updatState_module,only:updateSnow                   ! update snow states
+ USE updatState_module,only:updateSlic                   ! update snow states
  USE updatState_module,only:updateSoil                   ! update soil states
  USE enthalpyTemp_module,only:T2enthTemp_cas             ! convert temperature to enthalpy for canopy air space
  USE enthalpyTemp_module,only:T2enthTemp_veg             ! convert temperature to enthalpy for vegetation
- USE enthalpyTemp_module,only:T2enthTemp_snow            ! convert temperature to enthalpy for snow
+ USE enthalpyTemp_module,only:T2enthTemp_slic            ! convert temperature to enthalpy for snow
  USE enthalpyTemp_module,only:T2enthTemp_soil            ! convert temperature to enthalpy for soil
  
  implicit none
@@ -340,7 +340,7 @@ contains
      ! *************************************************************************************
      select case(mLayerLayerType(iLayer))
 
-      ! ** snow
+      ! ** snow, lake, ice
       case(iname_snow, iname_lake, iname_ice)
 
        ! check that snow temperature is less than freezing
@@ -350,7 +350,7 @@ contains
        end if
 
        ! ensure consistency among state variables
-       call updateSnow(&
+       call updateSlic(&
                        ! input
                        mLayerTemp(iLayer),             & ! intent(in): temperature (K)
                        scalarTheta,                    & ! intent(in): volumetric fraction of total water (-)
@@ -363,7 +363,7 @@ contains
        if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
        if(checkEnthalpy)then ! enthalpy as state variable (cold start often only has temperature)
-          call T2enthTemp_snow(&
+          call T2enthTemp_slic(&
                        ! input
                        snowfrz_scale,                  & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                        mLayerTemp(iLayer),             & ! intent(in):  layer temperature (K)

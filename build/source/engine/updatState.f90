@@ -29,15 +29,15 @@ USE multiconst,only:&
                     LH_fus         ! latent heat of fusion         (J kg-1)
 implicit none
 private
-public::updateSnow
+public::updateSlic
 public::updateSoil
 contains
 
 
 ! *************************************************************************************************************
-! public subroutine updateSnow: compute phase change impacts on volumetric liquid water and ice (veg or soil)
+! public subroutine updateSlic: compute phase change impacts on volumetric liquid water and ice (veg, snow, lake, ice domain)
 ! *************************************************************************************************************
-subroutine updateSnow(&
+subroutine updateSlic(&
                   ! input
                   mLayerTemp       ,& ! intent(in): temperature (K)
                   mLayerTheta      ,& ! intent(in): volume fraction of total water (-)
@@ -62,13 +62,13 @@ subroutine updateSnow(&
   integer(i4b),intent(out)      :: err                     ! error code
   character(*),intent(out)      :: message                 ! error message
   ! initialize error control
-  err=0; message="updateSnow/"
+  err=0; message="updateSlic/"
 
   ! compute the volumetric fraction of liquid water and ice (-)
   fLiq = fracliquid(mLayerTemp,snowfrz_scale)
   mLayerVolFracLiq = fLiq*mLayerTheta
   mLayerVolFracIce = (1._rkind - fLiq)*mLayerTheta*(iden_water/iden_ice)
-end subroutine updateSnow
+end subroutine updateSlic
 
 ! *************************************************************************************************************
 ! public subroutine updateSoil: compute phase change impacts on matric head and volumetric liquid water and ice

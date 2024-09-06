@@ -709,7 +709,7 @@ subroutine vegNrgFlux(&
                           ix_groundwatr,                     & ! intent(in):  groundwater parameterization
                           ! input (state variables)
                           mLayerMatricHead(1:nSoil),         & ! intent(in):  matric head in each soil layer (m)
-                          mLayerVolFracLiq(nSnow+1:nLayers), & ! intent(in):  volumetric fraction of liquid water in each soil layer (-)
+                          mLayerVolFracLiq(nSnow+1:nSnow+nSoil), & ! intent(in):  volumetric fraction of liquid water in each soil layer (-), no lake layer if vegetation is present
                           scalarAquiferStorage,              & ! intent(in):  aquifer storage (m)
                           ! input (diagnostic variables)
                           mLayerRootDensity(1:nSoil),        & ! intent(in):  root density in each layer (-)
@@ -800,7 +800,7 @@ subroutine vegNrgFlux(&
         ! NOTE: computations are based on start-of-step values, so only compute for the first flux call
         if (firstFluxCall) then
         ! soil water evaporation factor [0-1]
-          soilEvapFactor = mLayerVolFracLiq(nSnow+1)/(theta_sat - theta_res)
+          soilEvapFactor = mLayerVolFracLiq(nSnow+1)/(theta_sat - theta_res) ! no lake layer if vegetation is present
           ! resistance from the soil [s m-1]
           scalarSoilResistance = scalarGroundSnowFraction*1._rkind + (1._rkind - scalarGroundSnowFraction)*EXP(8.25_rkind - 4.225_rkind*soilEvapFactor)  ! Sellers (1992)
           !scalarSoilResistance = scalarGroundSnowFraction*0._rkind + (1._rkind - scalarGroundSnowFraction)*exp(8.25_rkind - 6.0_rkind*soilEvapFactor)    ! Niu adjustment to decrease resitance for wet soil

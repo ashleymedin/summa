@@ -755,7 +755,11 @@ contains
     scalarSoilCompress => diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) & ! total change in storage associated with compression of the soil matrix (kg m-2 s-1)
     )
     mLayerCompress = mLayerCmpress_sum /  dt_cur
-    scalarSoilCompress = sum(mLayerCompress(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water
+    if(nSoil>0)then
+      scalarSoilCompress = sum(mLayerCompress(1:nSoil)*mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil))*iden_water
+    else
+      scalarSoilCompress = 0._rkind
+    end if
    end associate soilVars
   end associate layerGeometry
 #endif

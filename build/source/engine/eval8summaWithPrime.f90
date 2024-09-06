@@ -238,7 +238,7 @@ subroutine eval8summaWithPrime(&
     ! model diagnostic variables, will be updated before used
     scalarFracLiqVeg          => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)          ,& ! intent(in):  [dp]     fraction of liquid water on vegetation (-)
     scalarSfcMeltPond         => prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)         ,& ! intent(in):  [dp]     ponded water caused by melt of the "snow without a layer" (kg m-2)
-    mLayerFracLiqSnow         => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat            ,& ! intent(in):  [dp(:)]  fraction of liquid water in each snow layer (-)
+    mLayerFracLiq             => diag_data%var(iLookDIAG%mLayerFracLiq)%dat                ,& ! intent(in):  [dp(:)]  fraction of liquid water in each snow, lake, or ice layer (-)
     ! soil compression
     scalarSoilCompress        => diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)        ,& ! intent(in):  [dp]     total change in storage associated with compression of the soil matrix (kg m-2 s-1)
     mLayerCompress            => diag_data%var(iLookDIAG%mLayerCompress)%dat               ,& ! intent(in):  [dp(:)]  change in volumetric water content due to compression of soil (s-1)
@@ -488,7 +488,7 @@ subroutine eval8summaWithPrime(&
                   dTheta_dTkCanopy,        & ! intent(in):    derivative in canopy volumetric liquid water content w.r.t. temperature (K-1)
                   scalarFracLiqVeg,        & ! intent(in):    fraction of canopy liquid water (-)
                   mLayerdTheta_dTk,        & ! intent(in):    derivative of volumetric liquid water content w.r.t. temperature (K-1)
-                  mLayerFracLiqSnow,       & ! intent(in):    fraction of liquid water (-)
+                  mLayerFracLiq,           & ! intent(in):    fraction of liquid water (-)
                   dVolTot_dPsi0,           & ! intent(in):    derivative in total water content w.r.t. total water matric potential (m-1)
                   ! input output data structures
                   mpar_data,               & ! intent(in):    model parameters
@@ -540,7 +540,7 @@ subroutine eval8summaWithPrime(&
                           mLayerVolFracLiqTrial, & ! intent(in):    volumetric fraction of liquid water at the start of the sub-step (-)
                          ! input: pre-computed derivatives
                           mLayerdTheta_dTk,      & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
-                          mLayerFracLiqSnow,     & ! intent(in):    fraction of liquid water (-)
+                          mLayerFracLiq,         & ! intent(in):    fraction of liquid water (-)
                           ! input/output: data structures
                           mpar_data,             & ! intent(in):    model parameters
                           indx_data,             & ! intent(in):    model layer indices
@@ -641,23 +641,27 @@ subroutine eval8summaWithPrime(&
 
     ! compute soil compressibility (-) and its derivative w.r.t. matric head (m)
     ! NOTE: we already extracted trial matrix head and volumetric liquid water as part of the flux calculations
-    call soilCmpresPrime(&
-                    ! input:
-                    ixRichards,                             & ! intent(in):    choice of option for Richards' equation
-                    ixBeg,ixEnd,                            & ! intent(in):    start and end indices defining desired layers
-                    mLayerMatricHeadPrime(1:nSoil),         & ! intent(in):    matric head at the start of the time step (m s-1)
-                    mLayerVolFracLiqTrial(nSnow+1:nLayers), & ! intent(in):    trial value for the volumetric liquid water content in each soil layer (-)
-                    mLayerVolFracIceTrial(nSnow+1:nLayers), & ! intent(in):    trial value for the volumetric ice content in each soil layer (-)
-                    specificStorage,                        & ! intent(in):    specific storage coefficient (m-1)
-                    theta_sat,                              & ! intent(in):    soil porosity (-)
-                    ! output:
-                    mLayerCompress,                         & ! intent(inout): compressibility of the soil matrix (-)
-                    dCompress_dPsi,                         & ! intent(inout): derivative in compressibility w.r.t. matric head (m-1)
-                    err,cmessage)                             ! intent(out):   error code and error message
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+    if(nSoil>0)then
+      call soilCmpresPrime(&
+                      ! input:
+                      ixRichards,                             & ! intent(in):    choice of option for Richards' equation
+                      ixBeg,ixEnd,                            & ! intent(in):    start and end indices defining desired layers
+                      mLayerMatricHeadPrime(1:nSoil),         & ! intent(in):    matric head at the start of the time step (m s-1)
+                      mLayerVolFracLiqTrial(nSnow+nLake+1:nSnow+nLake+nSoil), & ! intent(in):    trial value for the volumetric liquid water content in each soil layer (-)
+                      mLayerVolFracIceTrial(nSnow+nLake+1:nSnow+nLake+nSoil), & ! intent(in):    trial value for the volumetric ice content in each soil layer (-)
+                      specificStorage,                        & ! intent(in):    specific storage coefficient (m-1)
+                      theta_sat,                              & ! intent(in):    soil porosity (-)
+                      ! output:
+                      mLayerCompress,                         & ! intent(inout): compressibility of the soil matrix (-)
+                      dCompress_dPsi,                         & ! intent(inout): derivative in compressibility w.r.t. matric head (m-1)
+                      err,cmessage)                             ! intent(out):   error code and error message
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
-    ! compute the total change in storage associated with compression of the soil matrix (kg m-2 s-1)
-    scalarSoilCompress = sum(mLayerCompress(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water
+      ! compute the total change in storage associated with compression of the soil matrix (kg m-2 s-1)
+      scalarSoilCompress = sum(mLayerCompress(1:nSoil)*mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil))*iden_water
+    else
+      scalarSoilCompress = 0._qp
+    endif
 
     ! compute the residual vector
     if (insideSUN)then

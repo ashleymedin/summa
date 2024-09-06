@@ -115,7 +115,9 @@ contains
  ! define local variables
  character(LEN=256)              :: cmessage               ! error message of downwind routine
  integer(i4b)                    :: nSnow                  ! number of snow layers
+ integer(i4b)                    :: nLake                  ! number of lake layers
  integer(i4b)                    :: nSoil                  ! number of soil layers
+ integer(i4b)                    :: nIce                   ! number of ice layers
  integer(i4b)                    :: nLayers                ! total number of layers
  integer(i4b)                    :: iLayer                 ! layer index
  integer(i4b)                    :: jLayer                 ! layer index
@@ -177,7 +179,9 @@ contains
 
  ! initialize the number of snow layers
  nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
+ nLake   = indx_data%var(iLookINDEX%nLake)%dat(1)
  nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
+ nIce    = indx_data%var(iLookINDEX%nIce)%dat(1)
  nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
 
  ! ***** special case of no snow layers
@@ -323,18 +327,24 @@ contains
   iLayerHeight     => prog_data%var(iLookPROG%iLayerHeight)%dat       ,& ! height of the layer interface (m)
   layerType        => indx_data%var(iLookINDEX%layerType)%dat         ,& ! type of each layer (iname_snow or iname_soil)
   nSnow            => indx_data%var(iLookINDEX%nSnow)%dat(1)          ,& ! number of snow layers
+  nLake            => indx_data%var(iLookINDEX%nLake)%dat(1)          ,& ! number of lake layers
   nSoil            => indx_data%var(iLookINDEX%nSoil)%dat(1)          ,& ! number of soil layers
+  nIce             => indx_data%var(iLookINDEX%nIce)%dat(1)           ,& ! number of ice layers
   nLayers          => indx_data%var(iLookINDEX%nLayers)%dat(1)         & ! total number of layers
   )  ! (association of local variables with coordinate variab;es in data structures)
 
   ! update the layer type
-  layerType(1:nSnow+1)         = iname_snow
-  layerType(nSnow+2:nLayers+1) = iname_soil
+  layerType(1:nSnow+1)                                                = iname_snow
+  if(nLake>0) layerType(nSnow+2:nSnow+nLake+1)                        = iname_lake
+  if(nSoil>0) layerType(nSnow+nLake+2:nSnow+nLake+nSoil+1)            = iname_soil
+  if(nIce>0)  layerType(nSnow+nLake+nSoil+2:nSnow+nLake+nSoil+nIce+1) = iname_ice
 
   ! identify the number of snow and soil layers, and check all is a-OK
   nSnow   = count(layerType(1:nLayers+1)==iname_snow)
+  nLake   = count(layerType(1:nLayers+1)==iname_lake)
   nSoil   = count(layerType(1:nLayers+1)==iname_soil)
-  nLayers = nSnow + nSoil
+  nIce    = count(layerType(1:nLayers+1)==iname_ice)
+  nLayers = nSnow + nLake + nSoil + nIce
 
   ! re-set coordinate variables
   iLayerHeight(0) = -scalarSnowDepth

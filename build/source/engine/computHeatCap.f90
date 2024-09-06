@@ -180,7 +180,7 @@ subroutine computHeatCapAnalytic(&
                       dTheta_dTkCanopy,        & ! intent(in):    derivative in canopy volumetric liquid water content w.r.t. temperature (K-1)
                       scalarFracLiqVeg,        & ! intent(in):    fraction of canopy liquid water (-)
                       mLayerdTheta_dTk,        & ! intent(in):    derivative of volumetric liquid water content w.r.t. temperature (K-1)
-                      mLayerFracLiqSnow,       & ! intent(in):    fraction of liquid water (-)
+                      mLayerFracLiq,           & ! intent(in):    fraction of liquid water (-)
                       dVolTot_dPsi0,           & ! intent(in):    derivative in total water content w.r.t. total water matric potential (m-1)
                       ! input output data structures
                       mpar_data,               & ! intent(in):    model parameters
@@ -212,7 +212,7 @@ subroutine computHeatCapAnalytic(&
   real(rkind),intent(in)          :: dTheta_dTkCanopy        ! derivative in canopy volumetric liquid water content w.r.t. temperature (K-1)
   real(rkind),intent(in)          :: scalarFracLiqVeg        ! fraction of canopy liquid water (-)
   real(rkind),intent(in)          :: mLayerdTheta_dTk(:)     ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
-  real(rkind),intent(in)          :: mLayerFracLiqSnow(:)    ! fraction of liquid water (-)
+  real(rkind),intent(in)          :: mLayerFracLiq(:)        ! fraction of liquid water (-)
   real(rkind),intent(in)          :: dVolTot_dPsi0(:)        ! derivative in total water content w.r.t. total water matric potential (m-1)
   ! input/output: data structures 
   type(var_dlength),intent(in)    :: mpar_data               ! model parameters
@@ -311,7 +311,7 @@ subroutine computHeatCapAnalytic(&
                                      iden_water * Cp_water * mLayerVolFracLiq(iLayer) + & ! liquid water component
                                      iden_air   * Cp_air   * ( 1._rkind - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) ) ! air component
             ! derivatives
-            fLiq = mLayerFracLiqSnow(iLayer)
+            fLiq = mLayerFracLiq(iLayer)
             dVolHtCapBulk_dTheta(iLayer) = iden_water * ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq ) + iden_air * ( ( fLiq-1._rkind )*iden_water/iden_ice - fLiq ) * Cp_air
             if( mLayerTemp(iLayer) < Tfreeze)then
               dVolHtCapBulk_dTk(iLayer) = ( iden_water * (-Cp_ice + Cp_water) + iden_air * (iden_water/iden_ice - 1._rkind) * Cp_air ) * mLayerdTheta_dTk(iLayer)
@@ -397,6 +397,8 @@ subroutine computCm(&
   associate(&
     ! input: coordinate variables
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)             ,& ! intent(in): number of snow layers
+    nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1)             ,& ! intent(in): number of lake layers
+    nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)             ,& ! intent(in): number of soil layers
     snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)     ,& ! intent(in):  [dp] scaling parameter for the snow freezing curve (K-1)
     ! mapping between the full state vector and the state subset
     ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat     ,& ! intent(in): [i4b(:)] list of indices in the state subset for each state in the full state vector

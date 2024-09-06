@@ -6,21 +6,22 @@ USE nrtype
 
 ! derived types to define the data structures
 USE data_types,only:&
-                    var_ilength,      & ! data vector with variable length dimension (i4b)
-                    var_dlength         ! data vector with variable length dimension (rkind)
+                    var_ilength,  & ! data vector with variable length dimension (i4b)
+                    var_dlength     ! data vector with variable length dimension (rkind)
 
 ! physical constants
 USE multiconst,only:&
-                    iden_ice,    & ! intrinsic density of ice      (kg m-3)
-                    iden_water,  & ! intrinsic density of water    (kg m-3)
+                    iden_ice,     & ! intrinsic density of ice      (kg m-3)
+                    iden_water,   & ! intrinsic density of water    (kg m-3)
                     ! thermal conductivity
-                    lambda_air,  & ! thermal conductivity of air   (J s-1 m-1)
-                    lambda_ice,  & ! thermal conductivity of ice   (J s-1 m-1)
-                    lambda_water   ! thermal conductivity of water (J s-1 m-1)
+                    lambda_air,   & ! thermal conductivity of air   (J s-1 m-1)
+                    lambda_ice,   & ! thermal conductivity of ice   (J s-1 m-1)
+                    lambda_water, & ! thermal conductivity of water (J s-1 m-1)
+                    Tfreeze         ! freezing point of pure water         (K)
 
 ! missing values
-USE globalData,only:integerMissing ! missing integer
-USE globalData,only:realMissing    ! missing real number
+USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:realMissing     ! missing real number
 
 ! named variables that define the layer type
 USE globalData,only:iname_snow      ! named variables for snow
@@ -85,7 +86,7 @@ subroutine computThermConduct(&
                     mLayerVolFracLiq,        & ! intent(in):    volumetric fraction of liquid water at the start of the sub-step (-)
                     ! input: pre-computed derivatives
                     mLayerdTheta_dTk,        & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
-                    mLayerFracLiqSnow,       & ! intent(in):    fraction of liquid water (-)
+                    mLayerFracLiq,           & ! intent(in):    fraction of liquid water (-)
                     ! input/output: data structures
                     mpar_data,               & ! intent(in):    model parameters
                     indx_data,               & ! intent(in):    model layer indices
@@ -120,7 +121,7 @@ subroutine computThermConduct(&
   real(rkind),intent(in)               :: mLayerVolFracLiq(:)      ! volumetric fraction of liquid at the current iteration (-)
   ! input: pre-computed derivatives
   real(rkind),intent(in)               :: mLayerdTheta_dTk(:)      ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
-  real(rkind),intent(in)               :: mLayerFracLiqSnow(:)     ! fraction of liquid water (-)
+  real(rkind),intent(in)               :: mLayerFracLiq(:)     ! fraction of liquid water (-)
   ! input/output: data structures
   type(var_dlength),intent(in)         :: mpar_data                ! model parameters
   type(var_ilength),intent(in)         :: indx_data                ! model layer indices
@@ -324,7 +325,7 @@ subroutine computThermConduct(&
 
         ! ***** snow
         case(iname_snow)
-          dVolFracIce_dWat = ( 1._rkind - mLayerFracLiqSnow(iLayer) )*(iden_water/iden_ice)
+          dVolFracIce_dWat = ( 1._rkind - mLayerFracLiq(iLayer) )*(iden_water/iden_ice)
           dVolFracIce_dTk = -mLayerdTheta_dTk(iLayer)*(iden_water/iden_ice)
 
           ! temporally constant thermal conductivity
@@ -354,14 +355,20 @@ subroutine computThermConduct(&
         ! ***** lake, ice
         case(iname_lake, iname_ice)
           if (mLayerTemp(iLayer) < Tfreeze) then
-            mLayerThermalC(iLayer) = lambda_ice
-            dThermalC_dWat(iLayer) = 0._rkind
-            dThermalC_dNrg(iLayer) = 0._rkind
+            dVolFracIce_dWat = ( 1._rkind - mLayerFracLiq(iLayer) )*(iden_water/iden_ice)
+            dVolFracIce_dTk  = -mLayerdTheta_dTk(iLayer)*(iden_water/iden_ice)
           else
-            mLayerThermalC(iLayer) = lambda_water
-            dThermalC_dWat(iLayer) = 0._rkind
-            dThermalC_dNrg(iLayer) = 0._rkind
+            dVolFracIce_dWat = 0._rkind
+            dVolFracIce_dTk  = 0._rkind
           end if
+          dVolFracLiq_dWat = mLayerFracLiq(iLayer)
+          dVolFracLiq_dTk  = mLayerdTheta_dTk(iLayer)
+          mLayerThermalC(iLayer) = lambda_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
+                                   lambda_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
+                                   lambda_air   * mLayerVolFracAir(iLayer)         ! air component
+          ! compute derivatives
+          dThermalC_dWat(iLayer) = lambda_ice*dVolFracIce_dWat + lambda_water*dVolFracLiq_dWat + lambda_air*(-dVolFracIce_dWat - dVolFracLiq_dWat)
+          dThermalC_dNrg(iLayer) = (lambda_ice - lambda_water) * dVolFracIce_dTk
 
         ! * error check
         case default; err=20; message=trim(message)//'unable to identify type of layer to compute thermal conductivity'; return

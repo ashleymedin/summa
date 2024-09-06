@@ -453,7 +453,7 @@ MODULE var_lookup
   integer(i4b)    :: scalarSnowAge                   = integerMissing ! non-dimensional snow age (-)
   integer(i4b)    :: scalarGroundSnowFraction        = integerMissing ! fraction of ground that is covered with snow (-)
   integer(i4b)    :: spectralSnowAlbedoDirect        = integerMissing ! direct snow albedo for individual spectral bands (-)
-  integer(i4b)    :: mLayerFracLiqSnow               = integerMissing ! fraction of liquid water in each snow layer (-)
+  integer(i4b)    :: mLayerFracLiq                   = integerMissing ! fraction of liquid water in each snow, lake, or ice layer (-)
   integer(i4b)    :: mLayerThetaResid                = integerMissing ! residual volumetric water content in each snow layer (-)
   integer(i4b)    :: mLayerPoreSpace                 = integerMissing ! total pore space in each snow layer (-)
   integer(i4b)    :: mLayerMeltFreeze                = integerMissing ! change in ice content due to melt/freeze in each layer (kg m-3)
@@ -695,8 +695,8 @@ MODULE var_lookup
   integer(i4b)    :: dAquiferTrans_dTCanopy          = integerMissing ! derivative in the aquifer transpiration flux w.r.t. canopy temperature
   integer(i4b)    :: dAquiferTrans_dTGround          = integerMissing ! derivative in the aquifer transpiration flux w.r.t. ground temperature
   integer(i4b)    :: dAquiferTrans_dCanWat           = integerMissing ! derivative in the aquifer transpiration flux w.r.t. canopy total water
- ! derivative in liquid water fluxes for the soil and snow domain w.r.t temperature
-  integer(i4b)    :: dFracLiqSnow_dTk                = integerMissing ! derivative in fraction of liquid snow w.r.t. temperature
+ ! derivative in liquid water fluxes for the layer domains w.r.t temperature
+  integer(i4b)    :: dFracLiqWat_dTk                 = integerMissing ! derivative in fraction of liquid w.r.t. temperature (not computed for soil)
   integer(i4b)    :: mLayerdTheta_dTk                = integerMissing ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
   integer(i4b)    :: mLayerd2Theta_dTk2              = integerMissing ! second derivative of volumetric liquid water content w.r.t. temperature
  ! derivatives in time

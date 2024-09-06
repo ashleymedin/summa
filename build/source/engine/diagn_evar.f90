@@ -290,11 +290,9 @@ contains
 
    ! ***** lake, ice
    case(iname_lake, iname_ice)
-    if (mLayerTemp(iLayer) < Tfreeze) then
-     mLayerThermalC(iLayer) = lambda_ice
-    else
-     mLayerThermalC(iLayer) = lambda_water
-    end if
+     mLayerThermalC(iLayer) = lambda_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
+                              lambda_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
+                              lambda_air   * mLayerVolFracAir(iLayer)         ! air component
 
    ! * error check
    case default; err=20; message=trim(message)//'unable to identify type of layer to compute thermal conductivity'; return
