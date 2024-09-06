@@ -80,6 +80,7 @@ subroutine computResid(&
                       ! input: model control
                       dt,                        & ! intent(in):  length of the time step (seconds)
                       nSnow,                     & ! intent(in):  number of snow layers
+                      nLake,                     & ! intent(in):  number of lake layers
                       nSoil,                     & ! intent(in):  number of soil layers
                       nLayers,                   & ! intent(in):  total number of layers
                       mixdformNrg,               & ! intent(in):  flag to use enthalpy formulation
@@ -118,6 +119,7 @@ subroutine computResid(&
   ! input: model control
   real(rkind),intent(in)             :: dt                        ! length of the time step (seconds)
   integer(i4b),intent(in)            :: nSnow                     ! number of snow layers
+  integer(i4b),intent(in)            :: nLake                     ! number of lake layers
   integer(i4b),intent(in)            :: nSoil                     ! number of soil layers
   integer(i4b),intent(in)            :: nLayers                   ! total number of layers in the layer domains
   logical(lgt),intent(in)            :: mixdformNrg               ! flag to use enthalpy formulation
@@ -234,11 +236,11 @@ subroutine computResid(&
     ! sink terms soil hydrology (-)
     ! NOTE 1: state variable is volumetric water content, so melt-freeze is not included
     ! NOTE 2: ground evaporation was already included in the flux at the upper boundary
-    ! NOTE 3: rAdd(ixSnowOnlyWat)=0, and is defined in the initialization above
+    ! NOTE 3: rAdd for all other Hyd is =0, and is defined in the initialization above
     ! NOTE 4: same sink terms for matric head and liquid matric potential
     if(nSoilOnlyHyd>0)then
       do concurrent (iLayer=1:nSoil,ixSoilOnlyHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the layer domains)
-        rAdd( ixSoilOnlyHyd(iLayer) ) = rAdd( ixSoilOnlyHyd(iLayer) ) + ( ( mLayerTranspire(iLayer) - mLayerBaseflow(iLayer) )/mLayerDepth(iLayer+nSnow) - mLayerCompress(iLayer) )*dt
+        rAdd( ixSoilOnlyHyd(iLayer) ) = rAdd( ixSoilOnlyHyd(iLayer) ) + ( ( mLayerTranspire(iLayer) - mLayerBaseflow(iLayer) )/mLayerDepth(iLayer+nSnow+nLake) - mLayerCompress(iLayer) )*dt
       end do  ! looping through non-missing energy state variables in the layer domains
     endif
 

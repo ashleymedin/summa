@@ -616,6 +616,7 @@ subroutine eval8summa(&
                       ! input: model control
                       dt_cur,                     & ! intent(in):  length of the time step (seconds)
                       nSnow,                      & ! intent(in):  number of snow layers
+                      nLake,                      & ! intent(in):  number of lake layers
                       nSoil,                      & ! intent(in):  number of soil layers
                       nLayers,                    & ! intent(in):  total number of layers
                       ixNrgConserv.ne.closedForm, & ! intent(in):  flag to use enthalpy form of residual

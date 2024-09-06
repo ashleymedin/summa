@@ -671,6 +671,7 @@ subroutine eval8summaWithPrime(&
                        ! input: model control
                       dt1,                        & ! intent(in):  length of the residual time step (seconds)
                       nSnow,                      & ! intent(in):  number of snow layers
+                      nLake,                      & ! intent(in):  number of lake layers
                       nSoil,                      & ! intent(in):  number of soil layers
                       nLayers,                    & ! intent(in):  total number of layers
                       ixNrgConserv.ne.closedForm, & ! intent(in):  flag if enthalpy is state variable
