@@ -131,7 +131,7 @@ contains
  flux2state_orig(iLookFLUX%scalarCanopyLiqDrainage)         = flux2state(state1=iname_watCanopy, state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarCanopyMeltFreeze)          = flux2state(state1=integerMissing,  state2=integerMissing)
 
- ! energy fluxes and for the snow and soil domains
+ ! energy fluxes and for the layer domains
  flux2state_orig(iLookFLUX%iLayerConductiveFlux)            = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%iLayerAdvectiveFlux)             = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%iLayerNrgFlux)                   = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
@@ -196,10 +196,10 @@ contains
   ! (mass of total water on the vegetation canopy --> mass of liquid water)
   if(flux2state_liq(iVar)%state1==iname_watCanopy) flux2state_liq(iVar)%state1=iname_liqCanopy
   if(flux2state_liq(iVar)%state2==iname_watCanopy) flux2state_liq(iVar)%state2=iname_liqCanopy
-  ! (volumetric total water in the snow+soil domain --> volumetric liquid water)
+  ! (volumetric total water in the layer domains --> volumetric liquid water)
   if(flux2state_liq(iVar)%state1==iname_watLayer)  flux2state_liq(iVar)%state1=iname_liqLayer
   if(flux2state_liq(iVar)%state2==iname_watLayer)  flux2state_liq(iVar)%state2=iname_liqLayer
-  ! (total water matric potential in the snow+soil domain --> liquid water matric potential)
+  ! (total water matric potential in the layer domains --> liquid water matric potential)
   if(flux2state_liq(iVar)%state1==iname_matLayer)  flux2state_liq(iVar)%state1=iname_lmpLayer
   if(flux2state_liq(iVar)%state2==iname_matLayer)  flux2state_liq(iVar)%state2=iname_lmpLayer
  end do

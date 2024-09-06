@@ -208,9 +208,9 @@ subroutine summa_initialize(summa1_struc, err, message)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! *****************************************************************************
-    ! *** read the number of snow and soil layers
+    ! *** read the number of layers
     ! *****************************************************************************
-    ! set restart filename and read the number of snow and soil layers from the initial conditions (restart) file
+    ! set restart filename and read the number of layers from the initial conditions (restart) file
     if(STATE_PATH == '') then
       restartFile = trim(SETTINGS_PATH)//trim(MODEL_INITCOND)
     else

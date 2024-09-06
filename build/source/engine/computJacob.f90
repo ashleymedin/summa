@@ -138,7 +138,7 @@ subroutine computJacob(&
     nSoil                        => in_computJacob % nSoil           ,& ! intent(in): number of soil layers
     nIce                         => in_computJacob % nIce            ,& ! intent(in): number of ice layers
     nLake                        => in_computJacob % nLake           ,& ! intent(in): number of lake layers
-    nLayers                      => in_computJacob % nLayers         ,& ! intent(in): total number of layers in the snow+soil domain
+    nLayers                      => in_computJacob % nLayers         ,& ! intent(in): total number of layers in the layer domains
     computeVegFlux               => in_computJacob % computeVegFlux  ,& ! intent(in): flag to indicate if computing fluxes over vegetation
     computeBaseflow              => in_computJacob % computeBaseflow ,& ! intent(in): flag to indicate if computing baseflow
     ixMatrix                     => in_computJacob % ixMatrix        ,& ! intent(in): form of the Jacobian matrix
@@ -150,26 +150,26 @@ subroutine computJacob(&
     ixTopHyd                     => indx_data%var(iLookINDEX%ixTopHyd)%dat(1) ,& ! intent(in): [i4b] index of upper-most hydrology state in the snow+soil subdomain
     ixAqWat                      => indx_data%var(iLookINDEX%ixAqWat)%dat(1)  ,& ! intent(in): [i4b] index of water storage in the aquifer
     ! vectors of indices for specfic state types within specific sub-domains IN THE FULL STATE VECTOR
-    ixNrgLayer                   => indx_data%var(iLookINDEX%ixNrgLayer)%dat                        ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the snow+soil domain
-    ! vector of energy indices for the snow and soil domains
+    ixNrgLayer                   => indx_data%var(iLookINDEX%ixNrgLayer)%dat                        ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the layer domains
+    ! vector of energy indices for the layer domains
     ! NOTE: states not in the subset are equal to integerMissing
-    ixSnowSoilNrg                => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
+    ixSlicSoilNrg                => indx_data%var(iLookINDEX%ixSlicSoilNrg)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the layer domains
     ixSnowOnlyNrg                => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the snow domain
     ixSoilOnlyNrg                => indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the soil domain
-    ! vector of hydrology indices for the snow and soil domains
+    ! vector of hydrology indices for the layer domains
     ! NOTE: states not in the subset are equal to integerMissing
-    ixSnowSoilHyd                => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
+    ixSlicSoilHyd                => indx_data%var(iLookINDEX%ixSlicSoilHyd)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the layer domains
     ixSnowOnlyHyd                => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the snow domain
     ixSoilOnlyHyd                => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the soil domain
     ! number of state variables of a specific type
-    nSnowSoilNrg                 => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)                  ,& ! intent(in): [i4b]    number of energy state variables in the snow+soil domain
+    nSlicSoilNrg                 => indx_data%var(iLookINDEX%nSlicSoilNrg )%dat(1)                  ,& ! intent(in): [i4b]    number of energy state variables in the layer domains
     nSnowOnlyNrg                 => indx_data%var(iLookINDEX%nSnowOnlyNrg )%dat(1)                  ,& ! intent(in): [i4b]    number of energy state variables in the snow domain
     nSoilOnlyNrg                 => indx_data%var(iLookINDEX%nSoilOnlyNrg )%dat(1)                  ,& ! intent(in): [i4b]    number of energy state variables in the soil domain
-    nSnowSoilHyd                 => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)                  ,& ! intent(in): [i4b]    number of hydrology variables in the snow+soil domain
+    nSlicSoilHyd                 => indx_data%var(iLookINDEX%nSlicSoilHyd )%dat(1)                  ,& ! intent(in): [i4b]    number of hydrology variables in the layer domains
     nSnowOnlyHyd                 => indx_data%var(iLookINDEX%nSnowOnlyHyd )%dat(1)                  ,& ! intent(in): [i4b]    number of hydrology variables in the snow domain
     nSoilOnlyHyd                 => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)                  ,& ! intent(in): [i4b]    number of hydrology variables in the soil domain
     ! type and index of model control volume
-    ixHydType                    => indx_data%var(iLookINDEX%ixHydType)%dat                         ,& ! intent(in): [i4b(:)] index of the type of hydrology states in snow+soil domain
+    ixHydType                    => indx_data%var(iLookINDEX%ixHydType)%dat                         ,& ! intent(in): [i4b(:)] index of the type of hydrology states in layer domains
     ! mapping between states and model layers
     ixMapSubset2Full             => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat                  ,& ! intent(in): [i4b(:)] list of indices in the full state vector that are in the state subset
     ixMapFull2Subset             => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat                  ,& ! intent(in): [i4b(:)] list of indices in the state subset in each element of the full state vector
@@ -249,8 +249,8 @@ subroutine computJacob(&
     scalarBulkVolHeatCapVeg      => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg       )%dat(1)  ,& ! intent(in): [dp]     bulk volumetric heat capacity of vegetation (J m-3 K-1)
     scalarCanopyCm               => diag_data%var(iLookDIAG%scalarCanopyCm                )%dat(1)  ,& ! intent(in): [dp]     Cm of canopy (J kg-1 K-1)
     mLayerFracLiq                => diag_data%var(iLookDIAG%mLayerFracLiq                 )%dat     ,& ! intent(in): [dp(:)]  fraction of liquid water in each snow, lake, or ice layer (-)
-    mLayerVolHtCapBulk           => diag_data%var(iLookDIAG%mLayerVolHtCapBulk            )%dat     ,& ! intent(in): [dp(:)]  bulk volumetric heat capacity in each snow and soil layer (J m-3 K-1)
-    mLayerCm                     => diag_data%var(iLookDIAG%mLayerCm                      )%dat     ,& ! intent(in): [dp(:)]  Cm in each snow and soil layer (J kg-1 K-1)
+    mLayerVolHtCapBulk           => diag_data%var(iLookDIAG%mLayerVolHtCapBulk            )%dat     ,& ! intent(in): [dp(:)]  bulk volumetric heat capacity in each layer (J m-3 K-1)
+    mLayerCm                     => diag_data%var(iLookDIAG%mLayerCm                      )%dat     ,& ! intent(in): [dp(:)]  Cm in each layer (J kg-1 K-1)
     scalarSoilControl            => diag_data%var(iLookDIAG%scalarSoilControl             )%dat(1)  ,& ! intent(in): [dp]     soil control on infiltration, zero or one
     ! canopy and layer depth
     canopyDepth                  => diag_data%var(iLookDIAG%scalarCanopyDepth             )%dat(1)  ,& ! intent(in): [dp   ]  canopy depth (m)
@@ -285,8 +285,8 @@ subroutine computJacob(&
     ! compute additional terms for the Jacobian for the snow-soil domain (excluding fluxes)
     ! NOTE: energy for snow+soil is computed *within* the iteration loop as it includes phase change
     do iLayer=1,nLayers
-      if(ixSnowSoilNrg(iLayer)/=integerMissing)then
-       dMat(ixSnowSoilNrg(iLayer)) = mLayerVolHtCapBulk(iLayer) + LH_fus*iden_water*mLayerdTheta_dTk(iLayer) &
+      if(ixSlicSoilNrg(iLayer)/=integerMissing)then
+       dMat(ixSlicSoilNrg(iLayer)) = mLayerVolHtCapBulk(iLayer) + LH_fus*iden_water*mLayerdTheta_dTk(iLayer) &
                                      + dVolHtCapBulk_dTk(iLayer) * mLayerdTemp_dt(iLayer) &
                                      + dCm_dTk(iLayer) * mLayerdWat_dt(iLayer)
       endif
@@ -367,32 +367,32 @@ subroutine computJacob(&
         endif  ! if there is a need to compute energy fluxes within vegetation
 
         ! -----
-        ! * energy fluxes for the snow+soil domain...
+        ! * energy fluxes for the layer domains...
         ! -------------------------------------------
-        if(nSnowSoilNrg>0)then
-          do iLayer=1,nLayers  ! loop through all layers in the snow+soil domain
+        if(nSlicSoilNrg>0)then
+          do iLayer=1,nLayers  ! loop through all layers in the layer domains
 
             ! check if the state is in the subset
-            if(ixSnowSoilNrg(iLayer)==integerMissing) cycle
+            if(ixSlicSoilNrg(iLayer)==integerMissing) cycle
 
             ! - define index within the state subset and the full state vector
-            jState = ixSnowSoilNrg(iLayer)        ! index within the state subset
+            jState = ixSlicSoilNrg(iLayer)        ! index within the state subset
 
             ! - diagonal elements
             aJac(ixDiag,jState)   = (dt/mLayerDepth(iLayer))*(-dNrgFlux_dTempBelow(iLayer-1) + dNrgFlux_dTempAbove(iLayer)) + dMat(jState)
 
             ! - lower-diagonal elements
             if(iLayer>1)then
-              if(ixSnowSoilNrg(iLayer-1)/=integerMissing) aJac(ixOffDiag(ixSnowSoilNrg(iLayer-1),jState),jState) = (dt/mLayerDepth(iLayer-1))*( dNrgFlux_dTempBelow(iLayer-1) )
+              if(ixSlicSoilNrg(iLayer-1)/=integerMissing) aJac(ixOffDiag(ixSlicSoilNrg(iLayer-1),jState),jState) = (dt/mLayerDepth(iLayer-1))*( dNrgFlux_dTempBelow(iLayer-1) )
             endif
 
             ! - upper diagonal elements
             if(iLayer<nLayers)then
-              if(ixSnowSoilNrg(iLayer+1)/=integerMissing) aJac(ixOffDiag(ixSnowSoilNrg(iLayer+1),jState),jState) = (dt/mLayerDepth(iLayer+1))*(-dNrgFlux_dTempAbove(iLayer  ) )
+              if(ixSlicSoilNrg(iLayer+1)/=integerMissing) aJac(ixOffDiag(ixSlicSoilNrg(iLayer+1),jState),jState) = (dt/mLayerDepth(iLayer+1))*(-dNrgFlux_dTempAbove(iLayer  ) )
             endif
 
-          end do  ! (looping through energy states in the snow+soil domain)
-        endif   ! (if the subset includes energy state variables in the snow+soil domain)
+          end do  ! (looping through energy states in the layer domains)
+        endif   ! (if the subset includes energy state variables in the layer domains)
 
         ! -----
         ! * liquid water fluxes for the snow domain...
@@ -718,32 +718,32 @@ subroutine computJacob(&
          endif  ! if there is a need to compute energy fluxes within vegetation
 
         ! -----
-        ! * energy fluxes for the snow+soil domain...
+        ! * energy fluxes for the layer domains...
         ! -------------------------------------------
-        if(nSnowSoilNrg>0)then
-          do iLayer=1,nLayers  ! loop through all layers in the snow+soil domain
+        if(nSlicSoilNrg>0)then
+          do iLayer=1,nLayers  ! loop through all layers in the layer domains
 
             ! check if the state is in the subset
-            if(ixSnowSoilNrg(iLayer)==integerMissing) cycle
+            if(ixSlicSoilNrg(iLayer)==integerMissing) cycle
 
             ! - define index within the state subset and the full state vector
-            jState = ixSnowSoilNrg(iLayer)        ! index within the state subset
+            jState = ixSlicSoilNrg(iLayer)        ! index within the state subset
 
             ! - diagonal elements
             aJac(jState,jState)   = (dt/mLayerDepth(iLayer))*(-dNrgFlux_dTempBelow(iLayer-1) + dNrgFlux_dTempAbove(iLayer)) + dMat(jState)
 
             ! - lower-diagonal elements
             if(iLayer>1)then
-              if(ixSnowSoilNrg(iLayer-1)/=integerMissing) aJac(ixSnowSoilNrg(iLayer-1),jState) = (dt/mLayerDepth(iLayer-1))*( dNrgFlux_dTempBelow(iLayer-1) )
+              if(ixSlicSoilNrg(iLayer-1)/=integerMissing) aJac(ixSlicSoilNrg(iLayer-1),jState) = (dt/mLayerDepth(iLayer-1))*( dNrgFlux_dTempBelow(iLayer-1) )
             endif
 
             ! - upper diagonal elements
             if(iLayer<nLayers)then
-              if(ixSnowSoilNrg(iLayer+1)/=integerMissing) aJac(ixSnowSoilNrg(iLayer+1),jState) = (dt/mLayerDepth(iLayer+1))*(-dNrgFlux_dTempAbove(iLayer  ) )
+              if(ixSlicSoilNrg(iLayer+1)/=integerMissing) aJac(ixSlicSoilNrg(iLayer+1),jState) = (dt/mLayerDepth(iLayer+1))*(-dNrgFlux_dTempAbove(iLayer  ) )
             endif
 
-          end do  ! (looping through energy states in the snow+soil domain)
-        endif   ! (if the subset includes energy state variables in the snow+soil domain)
+          end do  ! (looping through energy states in the layer domains)
+        endif   ! (if the subset includes energy state variables in the layer domains)
 
         ! -----
         ! * liquid water fluxes for the snow domain...

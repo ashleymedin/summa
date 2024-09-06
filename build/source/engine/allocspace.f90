@@ -190,7 +190,7 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
       spatial=.false.
       domLoop: do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
 
-        ! get the number of snow and soil layers
+        ! get the number of layers
         associate(&
         nSnow => gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow, & ! number of snow layers for each domain
         nSoil => gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil, & ! number of soil layers for each domain

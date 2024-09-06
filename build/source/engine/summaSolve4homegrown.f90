@@ -408,7 +408,9 @@ contains
    fOld         => in_LSR % fOld                ,& ! old function value
    ! local variables
    nSnow        => in_SS4HG % nSnow             ,& ! number of snow layers
+   nLake        => in_SS4HG % nLake             ,& ! number of lake layers
    nSoil        => in_SS4HG % nSoil             ,& ! number of soil layers
+   nIce         => in_SS4HG % nIce              ,& ! number of ice layers
    nState       => in_SS4HG % nState            ,& ! total number of state variables
    ixMatrix     => in_SS4HG % ixMatrix          ,& ! type of matrix (full or band diagonal)
    ! intent(out) variables
@@ -454,7 +456,7 @@ contains
 
     ! impose solution constraints adjusting state vector and iteration increment
     ! NOTE: We may not need to do this (or at least, do ALL of this), as we can probably rely on the line search here
-    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecTrial,nState,nSoil,nSnow,cmessage,err)
+    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecTrial,nState,nSnow,nLake,nSoil,nIce,cmessage,err)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
     xInc = stateVecNew - stateVecTrial
 
@@ -653,7 +655,9 @@ contains
   associate(&
    iter           => in_SS4HG % iter           ,& ! intent(in): iteration index
    nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
+   nLake          => in_SS4HG % nLake          ,& ! intent(in): number of lake layers
    nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
+   nIce           => in_SS4HG % nIce           ,& ! intent(in): number of ice layers
    nState         => in_SS4HG % nState         ,& ! intent(in): total number of state
    xMin           => io_SS4HG % xMin           ,& ! intent(inout): bracket of the root   
    xMax           => io_SS4HG % xMax           ,& ! intent(inout): bracket of the root  
@@ -712,7 +716,7 @@ contains
     stateVecNew = stateVecTrial + xInc
      
     ! impose solution constraints adjusting state vector and iteration increment
-    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecTrial,nState,nSoil,nSnow,cmessage,err)
+    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecTrial,nState,nSnow,nLake,nSoil,nIce,cmessage,err)
     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
     xInc = stateVecNew - stateVecTrial
 
@@ -778,10 +782,12 @@ contains
    ! impose solution constraints adjusting state vector and iteration increment
    associate(&
     nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
+    nLake          => in_SS4HG % nLake          ,& ! intent(in): number of lake layers
     nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
+    nIce           => in_SS4HG % nIce           ,& ! intent(in): number of ice layers
     nState         => in_SS4HG % nState          & ! intent(in): total number of state variables
    &)
-    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecPrev,nState,nSoil,nSnow,cmessage,err)
+    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecPrev,nState,nSnow,nLake,nSoil,nIce,cmessage,err)
    end associate
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
    xIncrement = stateVecNew - stateVecPrev

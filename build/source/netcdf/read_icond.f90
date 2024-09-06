@@ -117,7 +117,7 @@ contains
  iceData  = 0
  lakeData = 0
 
- ! get netcdf ids for the variables holding number of snow and soil layers in each domain or hru
+ ! get netcdf ids for the variables holding number of layers in each domain or hru
  err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nSnow)%varName),snowID); call netcdf_err(err,message)
  err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nSoil)%varName),soilID); call netcdf_err(err,message)
  err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nIce)%varName),iceID)

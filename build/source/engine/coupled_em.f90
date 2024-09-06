@@ -346,8 +346,8 @@ subroutine coupled_em(&
     firstInnerStep = .true.
     lastInnerStep = .false.
 
-    ! count the number of snow and soil layers
-    ! NOTE: need to recompute the number of snow and soil layers at the start of each sub-step because the number of layers may change
+    ! count the number of layers
+    ! NOTE: need to recompute the number of layers at the start of each sub-step because the number of layers may change
     !         (nSnow and nSoil are shared in the data structure)
     nSnow = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
     nSoil = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
@@ -780,7 +780,7 @@ subroutine coupled_em(&
                         err,cmessage)                 ! intent(out): error control
         if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
 
-        ! save the number of snow and soil layers
+        ! save the number of layers
         nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
         nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
         nIce    = indx_data%var(iLookINDEX%nIce)%dat(1)
@@ -791,7 +791,7 @@ subroutine coupled_em(&
         if(firstSubStep .or. modifiedVegState .or. modifiedLayers)then
           call indexState(computeVegFlux,                    & ! intent(in):    flag to denote if computing the vegetation flux
                           includeAquifer,                    & ! intent(in):    flag to denote if included the aquifer
-                          nSnow,nSoil,nIce,nLake,nLayers,    & ! intent(in):    number of snow and soil layers, and total number of layers
+                          nSnow,nSoil,nIce,nLake,nLayers,    & ! intent(in):    number of layers, and total number of layers
                           indx_data,                         & ! intent(inout): indices defining model states and layers
                           err,cmessage)                        ! intent(out):   error control
           if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
@@ -801,7 +801,7 @@ subroutine coupled_em(&
         if( (enthalpyStateVec .or. computeEnthalpy) .and. modifiedLayers )then
           ! associate local variables with variables in the data structures
           enthalpySnow: associate(&
-            ! variables in the snow and soil domains
+            ! variables in the layer domains
             mLayerTemp           => prog_data%var(iLookPROG%mLayerTemp)%dat              ,& ! temperature (K)
             mLayerEnthTemp       => diag_data%var(iLookDIAG%mLayerEnthTemp)%dat          ,& ! temperature component of enthalpy (J m-3)
             mLayerEnthalpy       => diag_data%var(iLookDIAG%mLayerEnthalpy)%dat          ,& ! enthalpy (J m-3)
@@ -939,7 +939,7 @@ subroutine coupled_em(&
           scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(in):    [dp]     mass of ice on the vegetation canopy (kg m-2)
           scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,& ! intent(in):    [dp]     mass of liquid water on the vegetation canopy (kg m-2)
           scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)        ,& ! intent(out):   [dp]     mass of total water on the vegetation canopy (kg m-2)
-          ! variables in the snow and soil domains
+          ! variables in the layer domains
           mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in):    [dp(:)]  volumetric fraction of ice (-)
           mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in):    [dp(:)]  volumetric fraction of liquid water (-)
           mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(out):   [dp(:)]  volumetric fraction of total water (-)
@@ -1104,17 +1104,17 @@ subroutine coupled_em(&
         ! NOTE: In the future this should be moved into the solver, makes a big difference
         ! --------------------------------------------------------------
         sublime: associate(&
-          mLayerMeltFreeze        => diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat,           & ! melt-freeze in each snow and soil layer (kg m-3)
+          mLayerMeltFreeze        => diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat,           & ! melt-freeze in each layer (kg m-3)
           scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),         & ! liquid water stored on the vegetation canopy (kg m-2)
           scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),         & ! ice          stored on the vegetation canopy (kg m-2)
           scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1),         & ! canopy ice content (kg m-2)
-          mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,           & ! volumetric fraction of ice in the snow+soil domain (-)
-          mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,           & ! volumetric fraction of liquid water in the snow+soil domain (-)
+          mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,           & ! volumetric fraction of ice in the layer domains (-)
+          mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,           & ! volumetric fraction of liquid water in the layer domains (-)
           mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat,           & ! volumetric fraction of total water (-)
           mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat                 & ! depth of each snow+soil layer (m)
           ) ! associations to variables in data structures
 
-          ! compute the melt in each snow and soil layer
+          ! compute the melt in each layer
           if(nSnow>0) mLayerMeltFreeze(1:nSnow) = -( mLayerVolFracIce(1:nSnow) - mLayerVolFracIceInit(1:nSnow) )*iden_ice
           if(nSoil>0) mLayerMeltFreeze(nSnow+nLake+1:nSnow+nLake+nSoil) = -( mLayerVolFracIce(nSnow+nLake+1:nSnow+nLake+nSoil) - mLayerVolFracIceInit(nSnow+nLake+1:nSnow+nLake+nSoil) )*iden_water
           
@@ -1455,7 +1455,7 @@ subroutine coupled_em(&
       scalarCanopyIce            => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)                               ,& ! ice content of the vegetation canopy (kg m-2)
       scalarCanopyEnthTemp       => diag_data%var(iLookDIAG%scalarCanopyEnthTemp)%dat(1)                          ,& ! temperature component of enthalpy of the vegetation canopy (K)
       scalarCanopyEnthalpy       => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)                          ,& ! enthalpy of the vegetation canopy (J m-3)
-       ! state variables in the snow+soil domains
+       ! state variables in the layer domains
       scalarSWE                  => prog_data%var(iLookPROG%scalarSWE)%dat(1)                                     ,&  ! snow water equivalent (kg m-2)
       mLayerDepth                => prog_data%var(iLookPROG%mLayerDepth)%dat                                      ,&  ! depth of each layer (m)
       mLayerVolFracIce           => prog_data%var(iLookPROG%mLayerVolFracIce)%dat                                 ,&  ! volumetric ice content in each layer (-)

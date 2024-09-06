@@ -126,8 +126,8 @@ subroutine popTol4ida(&
   ! local variables
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! state subsets
-  integer(i4b)                       :: iState                    ! index of state within the snow+soil domain
-  integer(i4b)                       :: iLayer                    ! index of layer within the snow+soil domain
+  integer(i4b)                       :: iState                    ! index of state within the layer domains
+  integer(i4b)                       :: iLayer                    ! index of layer within the layer domains
   integer(i4b)                       :: ixStateSubset             ! index within the state subset
   logical(lgt),dimension(nState)     :: tolFlag                   ! flag to denote that the state is populated
   real(rkind)                        :: absTolTempCas
@@ -166,14 +166,14 @@ subroutine popTol4ida(&
     ixVegNrg            => indx_data%var(iLookINDEX%ixVegNrg)%dat                 ,& ! intent(in) : [i4b(:)] [length=1] index of canopy energy state variable
     ixVegHyd            => indx_data%var(iLookINDEX%ixVegHyd)%dat                 ,& ! intent(in) : [i4b(:)] [length=1] index of canopy hydrology state variable (mass)
     ixAqWat             => indx_data%var(iLookINDEX%ixAqWat)%dat                  ,& ! intent(in) : [i4b(:)] [length=1] index of aquifer storage state variable
-    ! vector of energy and hydrology indices for the snow and soil domains
-    ixSnowSoilNrg       => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
-    ixSnowSoilHyd       => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
-    nSnowSoilNrg        => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in) : [i4b]    number of energy state variables in the snow+soil domain
-    nSnowSoilHyd        => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in) : [i4b]    number of hydrology state variables in the snow+soil domain
+    ! vector of energy and hydrology indices for the layer domains
+    ixSlicSoilNrg       => indx_data%var(iLookINDEX%ixSlicSoilNrg)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for energy state variables in the layer domains
+    ixSlicSoilHyd       => indx_data%var(iLookINDEX%ixSlicSoilHyd)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for hydrology state variables in the layer domains
+    nSlicSoilNrg        => indx_data%var(iLookINDEX%nSlicSoilNrg )%dat(1)         ,& ! intent(in) : [i4b]    number of energy state variables in the layer domains
+    nSlicSoilHyd        => indx_data%var(iLookINDEX%nSlicSoilHyd )%dat(1)         ,& ! intent(in) : [i4b]    number of hydrology state variables in the layer domains
     ! type of model state variabless
     ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in) : [i4b(:)] [state subset] type of desired model state variables
-    ixHydType           => indx_data%var(iLookINDEX%ixHydType)%dat                ,& ! intent(in) : [i4b(:)] index of the type of hydrology states in snow+soil domain
+    ixHydType           => indx_data%var(iLookINDEX%ixHydType)%dat                ,& ! intent(in) : [i4b(:)] index of the type of hydrology states in layer domains
     ! number of layers
     nSnow               => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in) : [i4b]    number of snow layers
     nSoil               => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in) : [i4b]    number of soil layers
@@ -230,19 +230,19 @@ subroutine popTol4ida(&
     end do
 
     ! tolerance for tempreture of the snow and soil domain
-    if(nSnowSoilNrg>0)then
-      do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
-        ixStateSubset            = ixSnowSoilNrg(iLayer)  ! index within the state vector
+    if(nSlicSoilNrg>0)then
+      do concurrent (iLayer=1:nLayers,ixSlicSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the layer domains)
+        ixStateSubset            = ixSlicSoilNrg(iLayer)  ! index within the state vector
         absTol(ixStateSubset)  = absTolTempSoilSnow    ! transfer temperature from a layer to the state vector
         relTol(ixStateSubset)  = relTolTempSoilSnow
         tolFlag(ixStateSubset) = .true.                 ! flag to denote that tolerances are populated
-      end do  ! looping through non-missing energy state variables in the snow+soil domain
+      end do  ! looping through non-missing energy state variables in the layer domains
     endif
 
     ! NOTE: ixVolFracWat  and ixVolFracLiq can also include states in the soil domain, hence enable primary variable switching
-    if(nSnowSoilHyd>0)then
-      do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the snow+soil domain)
-        ixStateSubset            = ixSnowSoilHyd(iLayer)   ! index within the state vector
+    if(nSlicSoilHyd>0)then
+      do concurrent (iLayer=1:nLayers,ixSlicSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the layer domains)
+        ixStateSubset            = ixSlicSoilHyd(iLayer)   ! index within the state vector
         tolFlag(ixStateSubset) = .true.                  ! flag to denote that tolerances are populated
         select case( ixHydType(iLayer) )
           case(iname_watLayer); absTol(ixStateSubset) = absTolWatSnow ;  relTol(ixStateSubset) = relTolWatSnow
@@ -251,7 +251,7 @@ subroutine popTol4ida(&
           case(iname_lmpLayer); absTol(ixStateSubset) = absTolMatric ;  relTol(ixStateSubset) = relTolMatric
           case default; tolFlag(ixStateSubset) = .false.  ! flag to denote that tolerances are populated
         end select
-      end do  ! looping through non-missing energy state variables in the snow+soil domain
+      end do  ! looping through non-missing energy state variables in the layer domains
     endif
 
     ! build the state vector for the aquifer storage

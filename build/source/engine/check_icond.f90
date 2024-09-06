@@ -217,7 +217,7 @@ contains
     heightCanopyBottom   => mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%heightCanopyBottom)%dat(1)  ,& ! height of the bottom of the canopy layer (m)
     specificHeatVeg      => mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%specificHeatVeg)%dat(1)     ,& ! specific heat of vegetation (J kg-1 K-1)
     maxMassVegetation    => mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%maxMassVegetation)%dat(1)   ,& ! maximum mass of vegetation (kg m-2)
-    ! state variables in the snow+soil domain
+    ! state variables in the layer domains
     mLayerTemp           => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerTemp)%dat              ,& ! temperature (K)
     mLayerEnthTemp       => diagData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookDIAG%mLayerEnthTemp)%dat          ,& ! temperature component of enthalpy (J m-3)
     mLayerEnthalpy       => diagData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookDIAG%mLayerEnthalpy)%dat          ,& ! enthalpy (J m-3)

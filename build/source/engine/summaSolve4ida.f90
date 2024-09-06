@@ -263,19 +263,21 @@ subroutine summaSolve4ida(&
   ! link to the necessary variables
   associate(&
     ! number of state variables of a specific type
-    nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1) ,& ! intent(in): [i4b]    number of energy state variables in the snow+soil domain
-    nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1) ,& ! intent(in): [i4b]    number of hydrology variables in the snow+soil domain
+    nSlicSoilNrg            => indx_data%var(iLookINDEX%nSlicSoilNrg )%dat(1) ,& ! intent(in): [i4b]    number of energy state variables in the layer domains
+    nSlicSoilHyd            => indx_data%var(iLookINDEX%nSlicSoilHyd )%dat(1) ,& ! intent(in): [i4b]    number of hydrology variables in the layer domains
     ! model indices
     ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)      ,& ! intent(in): [i4b]    index of canopy air space energy state variable
     ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)      ,& ! intent(in): [i4b]    index of canopy energy state variable
     ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)      ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
     ixAqWat                 => indx_data%var(iLookINDEX%ixAqWat)%dat(1)       ,& ! intent(in): [i4b]    index of water storage in the aquifer
-    ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
-    ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat    ,& ! intent(in): [i4b(:)] indices for hydrology states in the snow+soil subdomain
+    ixSlicSoilNrg           => indx_data%var(iLookINDEX%ixSlicSoilNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
+    ixSlicSoilHyd           => indx_data%var(iLookINDEX%ixSlicSoilHyd)%dat    ,& ! intent(in): [i4b(:)] indices for hydrology states in the snow+soil subdomain
     ixSnowOnlyNrg           => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the snow subdomain
+    ixLakeOnlyNrg           => indx_data%var(iLookINDEX%ixLakeOnlyNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the lake subdomain
     ixSoilOnlyNrg           => indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the soil subdomain
+    ixIceOnlyNrg            => indx_data%var(iLookINDEX%ixIceOnlyNrg)%dat     ,& ! intent(in): [i4b(:)] indices for energy states in the ice subdomain
     ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat    ,& ! intent(in): [i4b(:)] indices for hydrology states in the soil subdomain
-    layerType               => indx_data%var(iLookINDEX%layerType)%dat         & ! intent(in): [i4b(:)] named variables defining the type of layer in snow+soil domain
+    layerType               => indx_data%var(iLookINDEX%layerType)%dat         & ! intent(in): [i4b(:)] named variables defining the type of layer in layer domains
     ) ! association to necessary variables for the residual computations
 
     ! initialize error control
@@ -398,10 +400,20 @@ subroutine summaSolve4ida(&
           if(ixSnowOnlyNrg(i)/=integerMissing) nRoot = nRoot+1
         enddo
       endif
+      if(nLake>0)then
+        do i = 1,nLake
+          if(ixLakeOnlyNrg(i)/=integerMissing) nRoot = nRoot+1
+        enddo
+      endif
       if(nSoil>0)then
         do i = 1,nSoil
           if(ixSoilOnlyHyd(i)/=integerMissing) nRoot = nRoot+1
           if(ixSoilOnlyNrg(i)/=integerMissing) nRoot = nRoot+1
+        enddo
+      endif
+      if(nIce>0)then
+        do i = 1,nIce
+          if(ixIceOnlyNrg(i)/=integerMissing) nRoot = nRoot+1
         enddo
       endif
       allocate( rootsfound(nRoot) )
@@ -557,9 +569,9 @@ subroutine summaSolve4ida(&
         ! note, if needCm and/or updateCp are false in eval8summaWithPrime, then the energy balance is not accurate
         if(ixCasNrg/=integerMissing) balance(ixCasNrg) = balance(ixCasNrg) + ( eqns_data%resVec(ixCasNrg) + resVecPrev(ixCasNrg) )*dt_mult/dt
         if(ixVegNrg/=integerMissing) balance(ixVegNrg) = balance(ixVegNrg) + ( eqns_data%resVec(ixVegNrg) + resVecPrev(ixVegNrg) )*dt_mult/dt
-        if(nSnowSoilNrg>0)then
-          do concurrent (i=1:nLayers,ixSnowSoilNrg(i)/=integerMissing) 
-            balance(ixSnowSoilNrg(i)) = balance(ixSnowSoilNrg(i)) + ( eqns_data%resVec(ixSnowSoilNrg(i)) + resVecPrev(ixSnowSoilNrg(i)) )*dt_mult/dt
+        if(nSlicSoilNrg>0)then
+          do concurrent (i=1:nLayers,ixSlicSoilNrg(i)/=integerMissing) 
+            balance(ixSlicSoilNrg(i)) = balance(ixSlicSoilNrg(i)) + ( eqns_data%resVec(ixSlicSoilNrg(i)) + resVecPrev(ixSlicSoilNrg(i)) )*dt_mult/dt
           enddo
         endif
       endif
@@ -571,9 +583,9 @@ subroutine summaSolve4ida(&
     
         ! compute mass balance mean, resVec is the instantaneous residual vector from the solver
         if(ixVegHyd/=integerMissing) balance(ixVegHyd) = balance(ixVegHyd) + ( eqns_data%resVec(ixVegHyd) + resVecPrev(ixVegHyd) )*dt_mult/dt
-        if(nSnowSoilHyd>0)then
-          do concurrent (i=1:nLayers,ixSnowSoilHyd(i)/=integerMissing) 
-            balance(ixSnowSoilHyd(i)) = balance(ixSnowSoilHyd(i)) + ( eqns_data%resVec(ixSnowSoilHyd(i)) + resVecPrev(ixSnowSoilHyd(i)) )*dt_mult/dt
+        if(nSlicSoilHyd>0)then
+          do concurrent (i=1:nLayers,ixSlicSoilHyd(i)/=integerMissing) 
+            balance(ixSlicSoilHyd(i)) = balance(ixSlicSoilHyd(i)) + ( eqns_data%resVec(ixSlicSoilHyd(i)) + resVecPrev(ixSlicSoilHyd(i)) )*dt_mult/dt
           enddo
         endif
         if(ixAqWat/=integerMissing) balance(ixAqWat) = balance(ixAqWat) + ( eqns_data%resVec(ixAqWat) + resVecPrev(ixAqWat) )*dt_mult/dt
@@ -802,14 +814,18 @@ subroutine find_rootdir(eqns_data,rootdir)
   integer(i4b)               :: i,ind     ! indices
   integer(i4b)               :: nState    ! number of states
   integer(i4b)               :: nSnow     ! number of snow layers
+  integer(i4b)               :: nLake     ! number of lake layers
   integer(i4b)               :: nSoil     ! number of soil layers
+  integer(i4b)               :: nIce      ! number of ice layers
   real(rkind)                :: xPsi      ! matric head at layer (m)
   real(rkind)                :: TcSoil    ! critical point when soil begins to freeze (K)
 
   ! get equations data variables
   nState = eqns_data%nState
   nSnow = eqns_data%nSnow
+  nLake = eqns_data%nLake
   nSoil = eqns_data%nSoil
+  nIce = eqns_data%nIce
  
   ! initialize
   ind = 0
@@ -832,6 +848,17 @@ subroutine find_rootdir(eqns_data,rootdir)
     end do
   endif
 
+  if(nLake>0)then
+    do i = 1,nSnow
+      ! identify the critical point when the lake layer begins to freeze
+      if(eqns_data%indx_data%var(iLookINDEX%ixLakeOnlyNrg)%dat(i)/=integerMissing)then
+        ind = ind+1
+        rootdir(ind) = 1
+        if(eqns_data%mLayerTempPrev(i) > Tfreeze) rootdir(ind) = -1
+      endif
+    end do
+  endif
+
   if(nSoil>0)then
     do i = 1,nSoil
       xPsi = eqns_data%mLayerMatricHeadPrev(i)
@@ -847,6 +874,17 @@ subroutine find_rootdir(eqns_data,rootdir)
         TcSoil = crit_soilT(xPsi)
         rootdir(ind) = 1
         if(eqns_data%mLayerTempPrev(i+nSnow) > TcSoil) rootdir(ind) = -1
+      endif
+    end do
+  endif
+
+  if(nIce>0)then
+    do i = 1,nIce
+      ! identify the critical point when the ice layer begins to freeze
+      if(eqns_data%indx_data%var(iLookINDEX%ixIceOnlyNrg)%dat(i)/=integerMissing)then
+        ind = ind+1
+        rootdir(ind) = 1
+        if(eqns_data%mLayerTempPrev(i) > Tfreeze) rootdir(ind) = -1
       endif
     end do
   endif

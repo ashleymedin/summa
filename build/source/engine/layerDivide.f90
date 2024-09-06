@@ -339,7 +339,7 @@ contains
   if(nSoil>0) layerType(nSnow+nLake+2:nSnow+nLake+nSoil+1)            = iname_soil
   if(nIce>0)  layerType(nSnow+nLake+nSoil+2:nSnow+nLake+nSoil+nIce+1) = iname_ice
 
-  ! identify the number of snow and soil layers, and check all is a-OK
+  ! identify the number of layers, and check all is a-OK
   nSnow   = count(layerType(1:nLayers+1)==iname_snow)
   nLake   = count(layerType(1:nLayers+1)==iname_lake)
   nSoil   = count(layerType(1:nLayers+1)==iname_soil)

@@ -246,10 +246,10 @@ subroutine varSubstep(&
     ixTopHyd                => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)              ,& ! intent(in):    [i4b]    index of upper-most hydrology state in the snow+soil subdomain
     ixAqWat                 => indx_data%var(iLookINDEX%ixAqWat)%dat(1)               ,& ! intent(in):    [i4b]    index of water storage in the aquifer
     ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the soil domain
-    ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
-    ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
-    nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg)%dat(1)          ,& ! intent(in):    [i4b]    number of energy state variables in the snow+soil domain
-    nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd)%dat(1)          ,& ! intent(in):    [i4b]    number of hydrology state variables in the snow+soil domain
+    ixSlicSoilHyd           => indx_data%var(iLookINDEX%ixSlicSoilHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the layer domains
+    ixSlicSoilNrg           => indx_data%var(iLookINDEX%ixSlicSoilNrg)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for energy state variables in the layer domains
+    nSlicSoilNrg            => indx_data%var(iLookINDEX%nSlicSoilNrg)%dat(1)          ,& ! intent(in):    [i4b]    number of energy state variables in the layer domains
+    nSlicSoilHyd            => indx_data%var(iLookINDEX%nSlicSoilHyd)%dat(1)          ,& ! intent(in):    [i4b]    number of hydrology state variables in the layer domains
     ! mapping between state vectors and control volumes
     ixLayerActive           => indx_data%var(iLookINDEX%ixLayerActive)%dat            ,& ! intent(in):    [i4b(:)] list of indices for all active layers (inactive=integerMissing)
     ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat         ,& ! intent(in):    [i4b(:)] mapping of full state vector to the state subset
@@ -260,7 +260,7 @@ subroutine varSubstep(&
     scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(inout): [dp]     mass of ice on the vegetation canopy (kg m-2)
     scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,& ! intent(inout): [dp]     mass of liquid water on the vegetation canopy (kg m-2)
     scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)        ,& ! intent(inout): [dp]     mass of total water on the vegetation canopy (kg m-2)
-    ! model state variables (snow and soil domains)
+    ! model state variables (layer domains)
     mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(inout): [dp(:)]  temperature of each snow/soil layer (K)
     mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(inout): [dp(:)]  volumetric fraction of ice (-)
     mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(inout): [dp(:)]  volumetric fraction of liquid water (-)
@@ -495,15 +495,15 @@ subroutine varSubstep(&
       ! add balances to the total balances
       if(ixCasNrg/=integerMissing) sumBalance(ixCasNrg) = sumBalance(ixCasNrg) + dtSubstep*balance(ixCasNrg)
       if(ixVegNrg/=integerMissing) sumBalance(ixVegNrg) = sumBalance(ixVegNrg) + dtSubstep*balance(ixVegNrg)
-      if(nSnowSoilNrg>0) then
-        do concurrent (ixLayer=1:nLayers,ixSnowSoilNrg(ixLayer)/=integerMissing)
-          if(ixSnowSoilNrg(ixLayer)/=integerMissing) sumBalance(ixSnowSoilNrg(ixLayer)) = sumBalance(ixSnowSoilNrg(ixLayer)) + dtSubstep*balance(ixSnowSoilNrg(ixLayer))
+      if(nSlicSoilNrg>0) then
+        do concurrent (ixLayer=1:nLayers,ixSlicSoilNrg(ixLayer)/=integerMissing)
+          if(ixSlicSoilNrg(ixLayer)/=integerMissing) sumBalance(ixSlicSoilNrg(ixLayer)) = sumBalance(ixSlicSoilNrg(ixLayer)) + dtSubstep*balance(ixSlicSoilNrg(ixLayer))
         end do
       endif
       if(ixVegHyd/=integerMissing) sumBalance(ixVegHyd) = sumBalance(ixVegHyd) + dtSubstep*balance(ixVegHyd)
-      if(nSnowSoilHyd>0) then
-        do concurrent (ixLayer=1:nLayers,ixSnowSoilHyd(ixLayer)/=integerMissing)
-          if(ixSnowSoilHyd(ixLayer)/=integerMissing) sumBalance(ixSnowSoilHyd(ixLayer)) = sumBalance(ixSnowSoilHyd(ixLayer)) + dtSubstep*balance(ixSnowSoilHyd(ixLayer))
+      if(nSlicSoilHyd>0) then
+        do concurrent (ixLayer=1:nLayers,ixSlicSoilHyd(ixLayer)/=integerMissing)
+          if(ixSlicSoilHyd(ixLayer)/=integerMissing) sumBalance(ixSlicSoilHyd(ixLayer)) = sumBalance(ixSlicSoilHyd(ixLayer)) + dtSubstep*balance(ixSlicSoilHyd(ixLayer))
         end do
       endif
       if(ixAqWat/=integerMissing) sumBalance(ixAqWat) = sumBalance(ixAqWat) + dtSubstep*balance(ixAqWat)
@@ -605,15 +605,15 @@ subroutine varSubstep(&
     ! save the balance diagnostics as averages
     if(ixCasNrg/=integerMissing) diag_data%var(iLookDIAG%balanceCasNrg)%dat(1) = sumBalance(ixCasNrg)/dt
     if(ixVegNrg/=integerMissing) diag_data%var(iLookDIAG%balanceVegNrg)%dat(1) = sumBalance(ixVegNrg)/dt
-    if(nSnowSoilNrg>0) then
-      do concurrent (ixLayer=1:nLayers,ixSnowSoilNrg(ixLayer)/=integerMissing)
-        diag_data%var(iLookDIAG%balanceLayerNrg)%dat(ixLayer) = sumBalance(ixSnowSoilNrg(ixLayer))/dt
+    if(nSlicSoilNrg>0) then
+      do concurrent (ixLayer=1:nLayers,ixSlicSoilNrg(ixLayer)/=integerMissing)
+        diag_data%var(iLookDIAG%balanceLayerNrg)%dat(ixLayer) = sumBalance(ixSlicSoilNrg(ixLayer))/dt
       end do
     endif
     if(ixVegHyd/=integerMissing) diag_data%var(iLookDIAG%balanceVegMass)%dat(1) = sumBalance(ixVegHyd)/dt
-    if(nSnowSoilHyd>0) then
-      do concurrent (ixLayer=1:nLayers,ixSnowSoilHyd(ixLayer)/=integerMissing)
-        diag_data%var(iLookDIAG%balanceLayerMass)%dat(ixLayer) = sumBalance(ixSnowSoilHyd(ixLayer))/dt
+    if(nSlicSoilHyd>0) then
+      do concurrent (ixLayer=1:nLayers,ixSlicSoilHyd(ixLayer)/=integerMissing)
+        diag_data%var(iLookDIAG%balanceLayerMass)%dat(ixLayer) = sumBalance(ixSlicSoilHyd(ixLayer))/dt
       end do
     endif 
     if(ixAqWat/=integerMissing) diag_data%var(iLookDIAG%balanceAqMass)%dat(1) = sumBalance(ixAqWat)/dt
@@ -700,7 +700,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
   real(rkind)                     :: scalarCanairTempTrial         ! trial value for temperature of the canopy air space (K)
   real(rkind)                     :: scalarCanopyTempTrial         ! trial value for temperature of the vegetation canopy (K)
   real(rkind)                     :: scalarCanopyWatTrial          ! trial value for liquid water storage in the canopy (kg m-2)
-  real(rkind),dimension(nLayers)  :: mLayerTempTrial               ! trial vector of temperature of layers in the snow and soil domains (K)
+  real(rkind),dimension(nLayers)  :: mLayerTempTrial               ! trial vector of temperature of layers in the layer domains (K)
   real(rkind),dimension(nLayers)  :: mLayerVolFracWatTrial         ! trial vector of volumetric fraction of total water (-)
   real(rkind),dimension(nSoil)    :: mLayerMatricHeadTrial         ! trial vector of total water matric potential (m)
   real(rkind),dimension(nSoil)    :: mLayerMatricHeadLiqTrial      ! trial vector of liquid water matric potential (m)
@@ -709,7 +709,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
   real(rkind)                     :: scalarCanopyEnthTempTrial     ! trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
   real(rkind),dimension(nLayers)  :: mLayerEnthTempTrial           ! trial vector of temperature component of enthalpy of snow + soil (J m-3)
   real(rkind)                     :: scalarCanopyEnthalpyTrial     ! trial value for enthalpy of the vegetation canopy (J m-3)
-  real(rkind),dimension(nLayers)  :: mLayerEnthalpyTrial           ! trial vector of enthalpy of each snow and soil layer (J m-3)
+  real(rkind),dimension(nLayers)  :: mLayerEnthalpyTrial           ! trial vector of enthalpy of each layer (J m-3)
   ! diagnostic variables
   real(rkind)                     :: scalarCanopyLiqTrial          ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
   real(rkind)                     :: scalarCanopyIceTrial          ! trial value for mass of ice on the vegetation canopy (kg m-2)
@@ -719,7 +719,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
   real(rkind)                     :: scalarCanairTempPrime         ! trial value for temperature of the canopy air space (K)
   real(rkind)                     :: scalarCanopyTempPrime         ! trial value for temperature of the vegetation canopy (K)
   real(rkind)                     :: scalarCanopyWatPrime          ! trial value for liquid water storage in the canopy (kg m-2)
-  real(rkind),dimension(nLayers)  :: mLayerTempPrime               ! trial vector of temperature of layers in the snow and soil domains (K)
+  real(rkind),dimension(nLayers)  :: mLayerTempPrime               ! trial vector of temperature of layers in the layer domains (K)
   real(rkind),dimension(nLayers)  :: mLayerVolFracWatPrime         ! trial vector of volumetric fraction of total water (-)
   real(rkind),dimension(nSoil)    :: mLayerMatricHeadPrime         ! trial vector of total water matric potential (m)
   real(rkind),dimension(nSoil)    :: mLayerMatricHeadLiqPrime      ! trial vector of liquid water matric potential (m)
@@ -736,10 +736,10 @@ USE getVectorz_module,only:varExtract                              ! extract var
   ! dummy state variables
   real(rkind)                     :: scalarCanairNrgTrial        ! trial value for energy of the canopy air space
   real(rkind)                     :: scalarCanopyNrgTrial        ! trial value for energy of the vegetation canopy
-  real(rkind),dimension(nLayers)  :: mLayerNrgTrial              ! trial vector of energy of each snow and soil layer
+  real(rkind),dimension(nLayers)  :: mLayerNrgTrial              ! trial vector of energy of each layer
   real(rkind)                     :: scalarCanairNrgPrime        ! prime value for energy of the canopy air space
   real(rkind)                     :: scalarCanopyNrgPrime        ! prime value for energy of the vegetation canopy
-  real(rkind),dimension(nLayers)  :: mLayerNrgPrime              ! prime vector of energy of each snow and soil layer
+  real(rkind),dimension(nLayers)  :: mLayerNrgPrime              ! prime vector of energy of each layer
   ! -------------------------------------------------------------------------------------------------------------------
   ! -------------------------------------------------------------------------------------------------------------------
   ! point to flux variables in the data structure
@@ -754,10 +754,10 @@ USE getVectorz_module,only:varExtract                              ! extract var
     ixTopHyd                  => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)                  ,& ! intent(in)   : [i4b]    index of upper-most hydrology state in the snow+soil subdomain
     ixAqWat                   => indx_data%var(iLookINDEX%ixAqWat)%dat(1)                   ,& ! intent(in)   : [i4b]    index of water storage in the aquifer
     ixSoilOnlyHyd             => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat                ,& ! intent(in)   : [i4b(:)] index in the state subset for hydrology state variables in the soil domain
-    ixSnowSoilNrg             => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat                ,& ! intent(in)   : [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
-    ixSnowSoilHyd             => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat                ,& ! intent(in)   : [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
-    nSnowSoilNrg              => indx_data%var(iLookINDEX%nSnowSoilNrg)%dat(1)              ,& ! intent(in)   : [i4b]    number of energy state variables in the snow+soil domain
-    nSnowSoilHyd              => indx_data%var(iLookINDEX%nSnowSoilHyd)%dat(1)              ,& ! intent(in)   : [i4b]    number of hydrology state variables in the snow+soil domain
+    ixSlicSoilNrg             => indx_data%var(iLookINDEX%ixSlicSoilNrg)%dat                ,& ! intent(in)   : [i4b(:)] index in the state subset for energy state variables in the layer domains
+    ixSlicSoilHyd             => indx_data%var(iLookINDEX%ixSlicSoilHyd)%dat                ,& ! intent(in)   : [i4b(:)] index in the state subset for hydrology state variables in the layer domains
+    nSlicSoilNrg              => indx_data%var(iLookINDEX%nSlicSoilNrg)%dat(1)              ,& ! intent(in)   : [i4b]    number of energy state variables in the layer domains
+    nSlicSoilHyd              => indx_data%var(iLookINDEX%nSlicSoilHyd)%dat(1)              ,& ! intent(in)   : [i4b]    number of hydrology state variables in the layer domains
     ! get indices for the un-tapped melt
     ixNrgOnly                 => indx_data%var(iLookINDEX%ixNrgOnly)%dat                    ,& ! intent(in)   : [i4b(:)] list of indices for all energy states
     ixDomainType              => indx_data%var(iLookINDEX%ixDomainType)%dat                 ,& ! intent(in)   : [i4b(:)] indices defining the domain of the state (iname_veg, iname_snow, iname_soil)
@@ -770,7 +770,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
     scalarCanopyLiqDrainage   => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1)    ,& ! intent(in)   : [dp]     drainage liquid water from vegetation canopy (kg m-2 s-1)
     iLayerLiqFluxSoil         => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat             ,& ! intent(in)   : [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
     iLayerNrgFlux             => flux_data%var(iLookFLUX%iLayerNrgFlux)%dat                 ,& ! intent(in)   :
-    mLayerNrgFlux             => flux_data%var(iLookFLUX%mLayerNrgFlux)%dat                 ,& ! intent(out)  : [dp]     net energy flux for each layer within the snow+soil domain (J m-3 s-1)
+    mLayerNrgFlux             => flux_data%var(iLookFLUX%mLayerNrgFlux)%dat                 ,& ! intent(out)  : [dp]     net energy flux for each layer within the layer domains (J m-3 s-1)
     mLayerTranspire           => flux_data%var(iLookFLUX%mLayerTranspire)%dat               ,& ! intent(in)   : [dp(:)]  transpiration loss from each soil layer (m s-1)
     mLayerBaseflow            => flux_data%var(iLookFLUX%mLayerBaseflow)%dat                ,& ! intent(in)   : [dp(:)]  baseflow from each soil layer (m s-1)
     mLayerCompress            => diag_data%var(iLookDIAG%mLayerCompress)%dat                ,& ! intent(in)   : [dp(:)]  change in storage associated with compression of the soil matrix (-)
@@ -786,7 +786,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
     scalarCanopyIce           => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)            ,& ! intent(inout): [dp]     mass of ice on the vegetation canopy (kg m-2)
     scalarCanopyLiq           => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)            ,& ! intent(inout): [dp]     mass of liquid water on the vegetation canopy (kg m-2)
     scalarCanopyWat           => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)            ,& ! intent(inout): [dp]     mass of total water on the vegetation canopy (kg m-2)
-    ! model state variables (snow and soil domains)
+    ! model state variables (layer domains)
     mLayerTemp                => prog_data%var(iLookPROG%mLayerTemp)%dat                    ,& ! intent(inout): [dp(:)]  temperature of each snow/soil layer (K)
     mLayerVolFracIce          => prog_data%var(iLookPROG%mLayerVolFracIce)%dat              ,& ! intent(inout): [dp(:)]  volumetric fraction of ice (-)
     mLayerVolFracLiq          => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat              ,& ! intent(inout): [dp(:)]  volumetric fraction of liquid water (-)
@@ -921,7 +921,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
                   scalarCanopyWatPrime,      & ! intent(inout): derivative of canopy total water (kg m-2 s-1)
                   scalarCanopyLiqPrime,      & ! intent(inout): derivative of canopy liquid water (kg m-2 s-1)
                   ! output: variables for the snow-soil domain
-                  mLayerNrgPrime,            & ! intent(inout): derivative of energy of each snow and soil layer, temperature (K s-1) or enthalpy (W m-3)
+                  mLayerNrgPrime,            & ! intent(inout): derivative of energy of each layer, temperature (K s-1) or enthalpy (W m-3)
                   mLayerVolFracWatPrime,     & ! intent(inout):   derivative of volumetric total water content (-)
                   mLayerVolFracLiqPrime,     & ! intent(inout):   derivative of volumetric liquid water content (-)
                   mLayerMatricHeadPrime,     & ! intent(inout):   derivative of total water matric potential (m)
@@ -1054,17 +1054,17 @@ USE getVectorz_module,only:varExtract                              ! extract var
           ! compute energy balance, maybe should use to check for step reduction
           if(ixCasNrg/=integerMissing) balance(ixCasNrg) = (scalarCanairEnthalpyTrial - scalarCanairEnthalpy)/dt - fluxVec(ixCasNrg)
           if(ixVegNrg/=integerMissing) balance(ixVegNrg) = scalarCanopyHDelta/dt - fluxVec(ixVegNrg)
-          if(nSnowSoilNrg>0)then
-            do concurrent (i=1:nLayers,ixSnowSoilNrg(i)/=integerMissing)
-              balance(ixSnowSoilNrg(i)) = mLayerHDelta(i)/dt - fluxVec(ixSnowSoilNrg(i))
+          if(nSlicSoilNrg>0)then
+            do concurrent (i=1:nLayers,ixSlicSoilNrg(i)/=integerMissing)
+              balance(ixSlicSoilNrg(i)) = mLayerHDelta(i)/dt - fluxVec(ixSlicSoilNrg(i))
             enddo
           endif
           ! This is equivalent to above if, and only if, ixNrgConserv.ne.closedForm
           !!if(ixCasNrg/=integerMissing) balance(ixCasNrg) = resVec(ixCasNrg)/dt
           !if(ixVegNrg/=integerMissing) balance(ixVegNrg) = resVec(ixVegNrg)/dt
-          !if(nSnowSoilNrg>0)then
-          !  do concurrent (i=1:nLayers,ixSnowSoilNrg(i)/=integerMissing)
-          !    balance(ixSnowSoilNrg(i)) = resVec(ixSnowSoilNrg(i))/dt
+          !if(nSlicSoilNrg>0)then
+          !  do concurrent (i=1:nLayers,ixSlicSoilNrg(i)/=integerMissing)
+          !    balance(ixSlicSoilNrg(i)) = resVec(ixSlicSoilNrg(i))/dt
           !  enddo
           !endif
 
@@ -1072,9 +1072,9 @@ USE getVectorz_module,only:varExtract                              ! extract var
     else ! if not checking energy balance set balance to missing
       if(ixCasNrg/=integerMissing) balance(ixCasNrg) = realMissing
       if(ixVegNrg/=integerMissing) balance(ixVegNrg) = realMissing
-      if(nSnowSoilNrg>0)then
-        do concurrent (i=1:nLayers,ixSnowSoilNrg(i)/=integerMissing)
-          balance(ixSnowSoilNrg(i)) = realMissing
+      if(nSlicSoilNrg>0)then
+        do concurrent (i=1:nLayers,ixSlicSoilNrg(i)/=integerMissing)
+          balance(ixSlicSoilNrg(i)) = realMissing
         enddo
       endif
     endif  ! if checking energy balance
@@ -1179,9 +1179,9 @@ USE getVectorz_module,only:varExtract                              ! extract var
           ! compute mass balance, maybe should use to check for step reduction
           ! resVec is the residual vector from the solver over dt
           if(ixVegHyd/=integerMissing) balance(ixVegHyd) = resVec(ixVegHyd)/dt
-          if(nSnowSoilHyd>0)then
-            do concurrent (i=1:nLayers,ixSnowSoilHyd(i)/=integerMissing)
-              balance(ixSnowSoilHyd(i)) = resVec(ixSnowSoilHyd(i))/dt
+          if(nSlicSoilHyd>0)then
+            do concurrent (i=1:nLayers,ixSlicSoilHyd(i)/=integerMissing)
+              balance(ixSlicSoilHyd(i)) = resVec(ixSlicSoilHyd(i))/dt
             end do
           endif
           if(ixAqWat/=integerMissing) balance(ixAqWat) = resVec(ixAqWat)/dt
@@ -1189,9 +1189,9 @@ USE getVectorz_module,only:varExtract                              ! extract var
       end select
     else ! if not checking mass balance set balance to missing
       if(ixVegHyd/=integerMissing) balance(ixVegHyd) = realMissing
-      if(nSnowSoilHyd>0)then
-        do concurrent (i=1:nLayers,ixSnowSoilHyd(i)/=integerMissing)
-          balance(ixSnowSoilHyd(i)) = realMissing
+      if(nSlicSoilHyd>0)then
+        do concurrent (i=1:nLayers,ixSlicSoilHyd(i)/=integerMissing)
+          balance(ixSlicSoilHyd(i)) = realMissing
         end do
       endif
       if(ixAqWat/=integerMissing) balance(ixAqWat) = realMissing
@@ -1370,7 +1370,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
     scalarCanopyLiq     = scalarCanopyLiqTrial     ! trial value of canopy liquid water (kg m-2)
     scalarCanopyIce     = scalarCanopyIceTrial     ! trial value of canopy ice content (kg m-2)
 
-    ! update state variables for the snow+soil domain
+    ! update state variables for the layer domains
     mLayerTemp          = mLayerTempTrial          ! trial vector of layer temperature (K)
     mLayerVolFracWat    = mLayerVolFracWatTrial    ! trial vector of volumetric total water content (-)
     mLayerVolFracLiq    = mLayerVolFracLiqTrial    ! trial vector of volumetric liquid water content (-)

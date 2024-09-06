@@ -196,7 +196,7 @@ subroutine updateVarsWithPrime(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! general local variables
   integer(i4b)                       :: iState                          ! index of model state variable
-  integer(i4b)                       :: iLayer                          ! index of layer within the snow+soil domain
+  integer(i4b)                       :: iLayer                          ! index of layer within the layer domains
   integer(i4b)                       :: ixFullVector                    ! index within full state vector
   integer(i4b)                       :: ixDomainType                    ! name of a given model domain
   integer(i4b)                       :: ixControlIndex                  ! index within a given model domain
@@ -237,7 +237,7 @@ subroutine updateVarsWithPrime(&
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                    ,& ! intent(in):  [i4b]    total number of snow layers
     nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1)                    ,& ! intent(in):  [i4b]    total number of lake layers
     nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                    ,& ! intent(in):  [i4b]    total number of soil layers
-    nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)                  ,& ! intent(in):  [i4b]    total number of snow and soil layers
+    nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)                  ,& ! intent(in):  [i4b]    total number of layers
     mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat                  ,& ! intent(in):  [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
     ! indices defining model states and layers
     ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)                 ,& ! intent(in):  [i4b]    index of canopy energy state variable
@@ -246,8 +246,8 @@ subroutine updateVarsWithPrime(&
     ixNrgCanair             => indx_data%var(iLookINDEX%ixNrgCanair)%dat                 ,& ! intent(in):  [i4b(:)] indices IN THE FULL VECTOR for energy states in canopy air space domain
     ixNrgCanopy             => indx_data%var(iLookINDEX%ixNrgCanopy)%dat                 ,& ! intent(in):  [i4b(:)] indices IN THE FULL VECTOR for energy states in the canopy domain
     ixHydCanopy             => indx_data%var(iLookINDEX%ixHydCanopy)%dat                 ,& ! intent(in):  [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the canopy domain
-    ixNrgLayer              => indx_data%var(iLookINDEX%ixNrgLayer)%dat                  ,& ! intent(in):  [i4b(:)] indices IN THE FULL VECTOR for energy states in the snow+soil domain
-    ixHydLayer              => indx_data%var(iLookINDEX%ixHydLayer)%dat                  ,& ! intent(in):  [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the snow+soil domain
+    ixNrgLayer              => indx_data%var(iLookINDEX%ixNrgLayer)%dat                  ,& ! intent(in):  [i4b(:)] indices IN THE FULL VECTOR for energy states in the layer domains
+    ixHydLayer              => indx_data%var(iLookINDEX%ixHydLayer)%dat                  ,& ! intent(in):  [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the layer domains
     ! mapping between the full state vector and the state subset  
     ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat            ,& ! intent(in):  [i4b(:)] list of indices in the state subset for each state in the full state vector
     ixMapSubset2Full        => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat            ,& ! intent(in):  [i4b(:)] [state subset] list of indices of the full state vector in the state subset

@@ -63,9 +63,9 @@ type data4ida
   real(rkind), allocatable        :: mLayerMatricHeadTrial(:)        ! trial value for total water matric potential (m)
   real(rkind)                     :: scalarCanopyTempPrime           ! prime value for temperature of the vegetation canopy (K s-1)
   real(rkind)                     :: scalarCanopyWatPrime            ! prime value for mass of total water on the vegetation canopy (kg m-2 s-1)
-  real(rkind), allocatable        :: mLayerTempPrime(:)              ! prime vector of temperature of each snow and soil layer (K s-1)
-  real(rkind), allocatable        :: mLayerMatricHeadPrime(:)        ! prime vector of matric head of each snow and soil layer (m s-1)
-  real(rkind), allocatable        :: mLayerVolFracWatPrime(:)        ! prime vector of volumetric total water content of each snow and soil layer (s-1)
+  real(rkind), allocatable        :: mLayerTempPrime(:)              ! prime vector of temperature of each layer (K s-1)
+  real(rkind), allocatable        :: mLayerMatricHeadPrime(:)        ! prime vector of matric head of each layer (m s-1)
+  real(rkind), allocatable        :: mLayerVolFracWatPrime(:)        ! prime vector of volumetric total water content of each layer (s-1)
  end type data4ida
 
 

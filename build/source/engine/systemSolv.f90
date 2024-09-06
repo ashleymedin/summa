@@ -218,7 +218,7 @@ subroutine systemSolv(&
   character(LEN=256)              :: cmessage                      ! error message of downwind routine
   integer(i4b)                    :: iter                          ! iteration index
   integer(i4b)                    :: iVar                          ! index of variable
-  integer(i4b)                    :: iLayer                        ! index of layer in the snow+soil domain
+  integer(i4b)                    :: iLayer                        ! index of layer in the layer domains
   integer(i4b)                    :: iState                        ! index of model state
   integer(i4b)                    :: nLeadDim                      ! length of the leading dimension of the Jacobian matrix (nBands or nState)
   integer(i4b)                    :: local_ixGroundwater           ! local index for groundwater representation
@@ -249,9 +249,9 @@ subroutine systemSolv(&
   logical(lgt)                    :: firstSplitOper0               ! flag to indicate if we are processing the first flux call in a splitting operation, changed inside eval8summaWithPrime
   real(rkind)                     :: scalarCanopyTempPrime         ! prime value for temperature of the vegetation canopy (K s-1)
   real(rkind)                     :: scalarCanopyWatPrime          ! prime value for total water content of the vegetation canopy (kg m-2 s-1)
-  real(rkind)                     :: mLayerTempPrime(nLayers)      ! prime vector of temperature of each snow and soil layer (K s-1)
-  real(rkind), allocatable        :: mLayerMatricHeadPrime(:)      ! prime vector of matric head of each snow and soil layer (m s-1)
-  real(rkind)                     :: mLayerVolFracWatPrime(nLayers)! prime vector of volumetric total water content of each snow and soil layer (s-1)
+  real(rkind)                     :: mLayerTempPrime(nLayers)      ! prime vector of temperature of each layer (K s-1)
+  real(rkind), allocatable        :: mLayerMatricHeadPrime(:)      ! prime vector of matric head of each layer (m s-1)
+  real(rkind)                     :: mLayerVolFracWatPrime(nLayers)! prime vector of volumetric total water content of each layer (s-1)
   ! kinsol and homegrown solver variables
   real(rkind)                     :: fScale(nState)                ! characteristic scale of the function evaluations (mixed units)
   real(rkind)                     :: xScale(nState)                ! characteristic scale of the state vector (mixed units)
@@ -549,9 +549,9 @@ contains
                   ! output: new prime values of variables needed in data window outside of internal IDA for Jacobian
                     scalarCanopyTempPrime,   & ! intent(out):   prime value for temperature of the vegetation canopy (K s-1)
                     scalarCanopyWatPrime,    & ! intent(out):   prime value for total water content of the vegetation canopy (kg m-2 s-1)
-                    mLayerTempPrime,         & ! intent(out):   prime vector of temperature of each snow and soil layer (K s-1)
-                    mLayerMatricHeadPrime,   & ! intent(out):   prime vector of matric head of each snow and soil layer (m s-1)
-                    mLayerVolFracWatPrime,   & ! intent(out):   prime vector of volumetric total water content of each snow and soil layer (s-1)
+                    mLayerTempPrime,         & ! intent(out):   prime vector of temperature of each layer (K s-1)
+                    mLayerMatricHeadPrime,   & ! intent(out):   prime vector of matric head of each layer (m s-1)
+                    mLayerVolFracWatPrime,   & ! intent(out):   prime vector of volumetric total water content of each layer (s-1)
                     ! input-output: baseflow    
                     ixSaturation,            & ! intent(inout): index of the lowest saturated layer
                     dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
@@ -614,27 +614,27 @@ contains
   ! NOTE: if the residual is large this will cause the state variables to be pushed outside of their bounds
   layerVars: associate(&
     nSnow        => indx_data%var(iLookINDEX%nSnow)%dat(1)         ,& ! intent(in): [i4b] number of snow layers
-    ! vector of energy and hydrology indices for the snow and soil domains
-    ixSnowSoilNrg => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat   ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
-    ixSnowSoilHyd => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat   ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
-    nSnowSoilNrg  => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1),& ! intent(in): [i4b] number of energy state variables in the snow+soil domain
-    nSnowSoilHyd  => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1) & ! intent(in): [i4b] number of hydrology state variables in the snow+soil domain
+    ! vector of energy and hydrology indices for the layer domains
+    ixSlicSoilNrg => indx_data%var(iLookINDEX%ixSlicSoilNrg)%dat   ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the layer domains
+    ixSlicSoilHyd => indx_data%var(iLookINDEX%ixSlicSoilHyd)%dat   ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the layer domains
+    nSlicSoilNrg  => indx_data%var(iLookINDEX%nSlicSoilNrg )%dat(1),& ! intent(in): [i4b] number of energy state variables in the layer domains
+    nSlicSoilHyd  => indx_data%var(iLookINDEX%nSlicSoilHyd )%dat(1) & ! intent(in): [i4b] number of hydrology state variables in the layer domains
     )
   
     ! update temperatures (ensure new temperature is consistent with the fluxes)
-    if (nSnowSoilNrg>0) then
-      do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing) ! loop through non-missing energy state variables in the snow+soil domain
-        iState = ixSnowSoilNrg(iLayer)
+    if (nSlicSoilNrg>0) then
+      do concurrent (iLayer=1:nLayers,ixSlicSoilNrg(iLayer)/=integerMissing) ! loop through non-missing energy state variables in the layer domains
+        iState = ixSlicSoilNrg(iLayer)
         stateVecTrial(iState) = stateVecInit(iState) + (fluxVec(iState)*dt_cur + resSink(iState))/real(sMul(iState), rkind)
         resVec(iState) = 0._qp
-      end do  ! looping through non-missing energy state variables in the snow+soil domain
+      end do  ! looping through non-missing energy state variables in the layer domains
     end if
     
     ! update volumetric water content in the snow (ensure change in state is consistent with the fluxes)
     ! NOTE: for soil water balance is constrained within the iteration loop
-    if (nSnowSoilHyd>0) then
-      do concurrent (iLayer=1:nSnow,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing water state variables in the snow domain)
-        iState = ixSnowSoilHyd(iLayer)
+    if (nSlicSoilHyd>0) then
+      do concurrent (iLayer=1:nSnow,ixSlicSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing water state variables in the snow domain)
+        iState = ixSlicSoilHyd(iLayer)
         stateVecTrial(iState) = stateVecInit(iState) + (fluxVec(iState)*dt_cur + resSink(iState))
         resVec(iState) = 0._qp
       end do  ! looping through non-missing water state variables in the soil domain

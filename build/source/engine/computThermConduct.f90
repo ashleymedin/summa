@@ -110,7 +110,7 @@ subroutine computThermConduct(&
   ! --------------------------------------------------------------------------------------------------------------------------------------
   ! input: model control
   logical(lgt),intent(in)              :: computeVegFlux           ! logical flag to denote if computing the vegetation flux
-  integer(i4b),intent(in)              :: nLayers                  ! total number of layers in the snow+soil domain
+  integer(i4b),intent(in)              :: nLayers                  ! total number of layers in the layer domains
   real(rkind),intent(in)               :: canopyDepth              ! depth of the vegetation canopy (m)
   ! input: trial model state variables
   real(rkind),intent(in)               :: scalarCanopyIce          ! trial value of canopy ice content (kg m-2)

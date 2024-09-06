@@ -105,17 +105,17 @@ USE f2008funcs_module,only:findIndex             ! finds the index of the first 
   ! local variables
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! state subsets
-  integer(i4b)                    :: iLayer                 ! index of layer within the snow+soil domain
+  integer(i4b)                    :: iLayer                 ! index of layer within the layer domains
   integer(i4b)                    :: ixStateSubset          ! index within the state subset
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! make association with variables in the data structures
   associate(&
-    ! vector of energy and hydrology indices for the snow and soil domains
-    ixSnowSoilNrg       => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
-    ixSnowSoilHyd       => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
-    nSnowSoilNrg        => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in) : [i4b]    number of energy state variables in the snow+soil domain
-    nSnowSoilHyd        => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in) : [i4b]    number of hydrology state variables in the snow+soil domain
+    ! vector of energy and hydrology indices for the layer domains
+    ixSlicSoilNrg       => indx_data%var(iLookINDEX%ixSlicSoilNrg)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for energy state variables in the layer domains
+    ixSlicSoilHyd       => indx_data%var(iLookINDEX%ixSlicSoilHyd)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for hydrology state variables in the layer domains
+    nSlicSoilNrg        => indx_data%var(iLookINDEX%nSlicSoilNrg )%dat(1)         ,& ! intent(in) : [i4b]    number of energy state variables in the layer domains
+    nSlicSoilHyd        => indx_data%var(iLookINDEX%nSlicSoilHyd )%dat(1)         ,& ! intent(in) : [i4b]    number of hydrology state variables in the layer domains
     ! type of model state variabless
     ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in) : [i4b(:)] [state subset] type of desired model state variables
     ! number of layers
@@ -137,19 +137,19 @@ USE f2008funcs_module,only:findIndex             ! finds the index of the first 
     where(ixStateType_subset==iname_liqCanopy) sMul = 1._rkind        ! nothing else on the left hand side
 
     ! define the energy multiplier for the state vector for residual calculations (snow-soil domain)
-    if(nSnowSoilNrg>0)then
-      do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing) ! (loop through non-missing energy state variables in the snow+soil domain)
-        ixStateSubset        = ixSnowSoilNrg(iLayer) ! index within the state vector
+    if(nSlicSoilNrg>0)then
+      do concurrent (iLayer=1:nLayers,ixSlicSoilNrg(iLayer)/=integerMissing) ! (loop through non-missing energy state variables in the layer domains)
+        ixStateSubset        = ixSlicSoilNrg(iLayer) ! index within the state vector
         sMul(ixStateSubset)  = mLayerHeatCap(iLayer) ! transfer volumetric heat capacity to the state multiplier
-      end do  ! looping through non-missing energy state variables in the snow+soil domain
+      end do  ! looping through non-missing energy state variables in the layer domains
     endif
 
     ! define the hydrology multiplier and diagonal elements for the state vector for residual calculations (snow-soil domain)
-    if(nSnowSoilHyd>0)then
-      do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing) ! (loop through non-missing energy state variables in the snow+soil domain)
-        ixStateSubset        = ixSnowSoilHyd(iLayer) ! index within the state vector
+    if(nSlicSoilHyd>0)then
+      do concurrent (iLayer=1:nLayers,ixSlicSoilHyd(iLayer)/=integerMissing) ! (loop through non-missing energy state variables in the layer domains)
+        ixStateSubset        = ixSlicSoilHyd(iLayer) ! index within the state vector
         sMul(ixStateSubset)  = 1._rkind              ! state multiplier = 1 (nothing else on the left-hand-side)
-      end do  ! looping through non-missing energy state variables in the snow+soil domain
+      end do  ! looping through non-missing energy state variables in the layer domains
     endif
 
     ! define the scaling factor and diagonal elements for the aquifer

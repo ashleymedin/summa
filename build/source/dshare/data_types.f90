@@ -806,7 +806,7 @@ MODULE data_types
    integer(i4b)             :: nSoil                       ! intent(in): number of soil layers
    integer(i4b)             :: nIce                        ! intent(in): number of ice layers
    integer(i4b)             :: nLake                       ! intent(in): number of lake layers
-   integer(i4b)             :: nLayers                     ! intent(in): total number of layers in the snow+soil domain
+   integer(i4b)             :: nLayers                     ! intent(in): total number of layers in the domains
    logical(lgt)             :: computeVegFlux              ! intent(in): flag to indicate if computing fluxes over vegetation
    logical(lgt)             :: computeBaseflow             ! intent(in): flag to indicate if computing baseflow
    integer(i4b)             :: ixMatrix                    ! intent(in): form of the Jacobian matrix
@@ -900,7 +900,7 @@ contains
   type(var_d),intent(in)                :: forc_data                   ! model forcing data
   type(var_dlength),intent(in)          :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
   associate(&
-   upperBoundTemp               => forc_data%var(iLookFORCE%airtemp),                 & ! intent(in): [dp]     temperature of the upper boundary of the snow and soil domains (K)
+   upperBoundTemp               => forc_data%var(iLookFORCE%airtemp),                 & ! intent(in): [dp]     temperature of the upper boundary of the layer domains (K)
    dCanLiq_dTcanopy             => deriv_data%var(iLookDERIV%dCanLiq_dTcanopy)%dat(1) ) ! intent(out): [dp] derivative of canopy liquid storage w.r.t. temperature
    ! intent(in) arguments
    in_vegNrgFlux % firstSubStep=firstSubStep                      ! intent(in): flag to indicate if we are processing the first sub-step
@@ -1060,7 +1060,7 @@ contains
   integer(i4b),intent(out)              :: err                         ! error code
   character(*),intent(out)              :: cmessage                    ! error message from ssdNrgFlux
   associate(&
-   iLayerNrgFlux                => flux_data%var(iLookFLUX%iLayerNrgFlux)%dat,         & ! intent(out): [dp(0:)] vertical energy flux at the interface of snow and soil layers
+   iLayerNrgFlux                => flux_data%var(iLookFLUX%iLayerNrgFlux)%dat,         & ! intent(out): [dp(0:)] vertical energy flux at the interface of layers
    dNrgFlux_dTempAbove          => deriv_data%var(iLookDERIV%dNrgFlux_dTempAbove)%dat, & ! intent(out): [dp(:)] derivatives in the flux w.r.t. temperature in the layer above
    dNrgFlux_dTempBelow          => deriv_data%var(iLookDERIV%dNrgFlux_dTempBelow)%dat, & ! intent(out): [dp(:)] derivatives in the flux w.r.t. temperature in the layer below
    dNrgFlux_dWatAbove           => deriv_data%var(iLookDERIV%dNrgFlux_dWatAbove)%dat,  & ! intent(out):  [dp(:)] derivatives in the flux w.r.t. water state in the layer above

@@ -93,9 +93,9 @@ subroutine eval8summaWithPrime(&
                       ! output: new prime values of variables needed in data window outside of internal IDA for Jacobian
                       scalarCanopyTempPrime,         & ! intent(out):   prime value for temperature of the vegetation canopy (K s-1)
                       scalarCanopyWatPrime,          & ! intent(out):   prime value for total water content of the vegetation canopy (kg m-2 s-1)
-                      mLayerTempPrime,               & ! intent(out):   prime vector of temperature of each snow and soil layer (K s-1)
-                      mLayerMatricHeadPrime,         & ! intent(out):   prime vector of matric head of each snow and soil layer (m s-1)
-                      mLayerVolFracWatPrime,         & ! intent(out):   prime vector of volumetric total water content of each snow and soil layer (s-1)
+                      mLayerTempPrime,               & ! intent(out):   prime vector of temperature of each layer (K s-1)
+                      mLayerMatricHeadPrime,         & ! intent(out):   prime vector of matric head of each layer (m s-1)
+                      mLayerVolFracWatPrime,         & ! intent(out):   prime vector of volumetric total water content of each layer (s-1)
                       ! input-output: baseflow    
                       ixSaturation,                  & ! intent(inout): index of the lowest saturated layer
                       dBaseflow_dMatric,             & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
@@ -162,9 +162,9 @@ subroutine eval8summaWithPrime(&
   ! output: new prime values of variables needed in data window outside of internal IDA for Jacobian
   real(rkind),intent(out)         :: scalarCanopyTempPrime       ! prime value for temperature of the vegetation canopy (K s-1)
   real(rkind),intent(out)         :: scalarCanopyWatPrime        ! prime value for total water content of the vegetation canopy (kg m-2 s-1)
-  real(rkind),intent(out)         :: mLayerTempPrime(:)          ! prime vector of temperature of each snow and soil layer (K s-1)
-  real(rkind),intent(out)         :: mLayerMatricHeadPrime(:)    ! prime vector of matric head of each snow and soil layer (m s-1)
-  real(rkind),intent(out)         :: mLayerVolFracWatPrime(:)    ! prime vector of volumetric total water content of each snow and soil layer (s-1)
+  real(rkind),intent(out)         :: mLayerTempPrime(:)          ! prime vector of temperature of each layer (K s-1)
+  real(rkind),intent(out)         :: mLayerMatricHeadPrime(:)    ! prime vector of matric head of each layer (m s-1)
+  real(rkind),intent(out)         :: mLayerVolFracWatPrime(:)    ! prime vector of volumetric total water content of each layer (s-1)
   ! input-output: baseflow    
   integer(i4b),intent(inout)      :: ixSaturation                ! index of the lowest saturated layer
   real(rkind),intent(out)         :: dBaseflow_dMatric(:,:)      ! derivative in baseflow w.r.t. matric head (s-1)
@@ -186,7 +186,7 @@ subroutine eval8summaWithPrime(&
   real(rkind)                     :: scalarCanopyLiqTrial        ! trial value for liquid water storage in the canopy (kg m-2)
   real(rkind)                     :: scalarCanopyIceTrial        ! trial value for ice storage in the canopy (kg m-2)
   real(rkind),dimension(nSoil)    :: mLayerMatricHeadLiqTrial    ! trial value for liquid water matric potential (m)
-  real(rkind),dimension(nLayers)  :: mLayerEnthalpyTrial         ! trial vector of enthalpy of each snow and soil layer (J m-3)
+  real(rkind),dimension(nLayers)  :: mLayerEnthalpyTrial         ! trial vector of enthalpy of each layer (J m-3)
   real(rkind),dimension(nLayers)  :: mLayerVolFracWatTrial       ! trial vector of volumetric total water content (-)
   real(rkind),dimension(nLayers)  :: mLayerVolFracLiqTrial       ! trial vector of volumetric liquid water content (-)
   real(rkind),dimension(nLayers)  :: mLayerVolFracIceTrial       ! trial vector of volumetric fraction of ice (-)
@@ -197,7 +197,7 @@ subroutine eval8summaWithPrime(&
   real(rkind)                     :: scalarCanopyEnthalpyPrime   ! prime value for enthalpy of the vegetation canopy (W m-3)
   real(rkind)                     :: scalarCanopyLiqPrime        ! prime value for liquid water storage in the canopy (kg m-2 s-1)
   real(rkind)                     :: scalarCanopyIcePrime        ! prime value for mass of ice on the vegetation canopy (kg m-2 s-1)
-  real(rkind),dimension(nLayers)  :: mLayerEnthalpyPrime         ! prime vector of enthalpy of each snow and soil layer (W m-3)
+  real(rkind),dimension(nLayers)  :: mLayerEnthalpyPrime         ! prime vector of enthalpy of each layer (W m-3)
   real(rkind),dimension(nLayers)  :: mLayerVolFracLiqPrime       ! prime vector of volumetric liquid water content (s-1)
   real(rkind),dimension(nLayers)  :: mLayerVolFracIcePrime       ! prime vector of volumetric fraction of ice (s-1)
   real(rkind),dimension(nSoil)    :: mLayerMatricHeadLiqPrime    ! prime vector of liquid water matric potential (m s-1)
@@ -205,12 +205,12 @@ subroutine eval8summaWithPrime(&
   ! dummy state variables
   real(rkind)                     :: scalarCanairNrgTrial        ! trial value for energy of the canopy air space
   real(rkind)                     :: scalarCanopyNrgTrial        ! trial value for energy of the vegetation canopy
-  real(rkind),dimension(nLayers)  :: mLayerNrgTrial              ! trial vector of energy of each snow and soil layer
+  real(rkind),dimension(nLayers)  :: mLayerNrgTrial              ! trial vector of energy of each layer
   real(rkind)                     :: scalarCanairNrgPrime        ! prime value for energy of the canopy air space
   real(rkind)                     :: scalarCanopyNrgPrime        ! prime value for energy of the vegetation canopy
-  real(rkind),dimension(nLayers)  :: mLayerNrgPrime              ! prime vector of energy of each snow and soil layer
+  real(rkind),dimension(nLayers)  :: mLayerNrgPrime              ! prime vector of energy of each layer
   ! other local variables
-  integer(i4b)                    :: iLayer                      ! index of model layer in the snow+soil domain
+  integer(i4b)                    :: iLayer                      ! index of model layer in the layer domains
   integer(i4b)                    :: jState(1)                   ! index of model state for the scalar solution within the soil domain
   integer(i4b)                    :: ixBeg,ixEnd                 ! index of indices for the soil compression routine
   character(LEN=256)              :: cmessage                    ! error message of downwind routine
@@ -388,7 +388,7 @@ subroutine eval8summaWithPrime(&
                   scalarCanopyWatPrime,      & ! intent(inout): derivative of canopy total water (kg m-2 s-1)
                   scalarCanopyLiqPrime,      & ! intent(inout): derivative of canopy liquid water (kg m-2 s-1)
                   ! output: variables for the snow-soil domain
-                  mLayerNrgPrime,            & ! intent(inout): derivative of energy of each snow and soil layer, temperature (K s-1) or enthalpy (W m-3)
+                  mLayerNrgPrime,            & ! intent(inout): derivative of energy of each layer, temperature (K s-1) or enthalpy (W m-3)
                   mLayerVolFracWatPrime,     & ! intent(inout): derivative of volumetric total water content (s-1)
                   mLayerVolFracLiqPrime,     & ! intent(inout): derivative of volumetric liquid water content (s-1)
                   mLayerMatricHeadPrime,     & ! intent(inout): derivative of total water matric potential (m s-1)
@@ -607,15 +607,15 @@ subroutine eval8summaWithPrime(&
                     ! input: state variables
                     scalarCanairTempTrial,     & ! intent(in):    trial value for the temperature of the canopy air space (K)
                     scalarCanopyTempTrial,     & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
-                    mLayerTempTrial,           & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
+                    mLayerTempTrial,           & ! intent(in):    trial value for the temperature of each layer (K)
                     mLayerMatricHeadLiqTrial,  & ! intent(in):    trial value for the liquid water matric potential in each soil layer (m)
                     mLayerMatricHeadTrial,     & ! intent(in):    trial vector of total water matric potential (m)
                     scalarAquiferStorageTrial, & ! intent(in):    trial value of storage of water in the aquifer (m)
                     ! input: diagnostic variables defining the liquid water and ice content
                     scalarCanopyLiqTrial,      & ! intent(in):    trial value for the liquid water on the vegetation canopy (kg m-2)
                     scalarCanopyIceTrial,      & ! intent(in):    trial value for the ice on the vegetation canopy (kg m-2)
-                    mLayerVolFracLiqTrial,     & ! intent(in):    trial value for the volumetric liquid water content in each snow and soil layer (-)
-                    mLayerVolFracIceTrial,     & ! intent(in):    trial value for the volumetric ice in each snow and soil layer (-)
+                    mLayerVolFracLiqTrial,     & ! intent(in):    trial value for the volumetric liquid water content in each layer (-)
+                    mLayerVolFracIceTrial,     & ! intent(in):    trial value for the volumetric ice in each layer (-)
                     ! input: data structures
                     model_decisions,           & ! intent(in):    model decisions
                     type_data,                 & ! intent(in):    type of vegetation and soil
@@ -681,20 +681,20 @@ subroutine eval8summaWithPrime(&
                       scalarCanairTempPrime,      & ! intent(in):  prime value for the temperature of the canopy air space (K s-1)
                       scalarCanopyTempPrime,      & ! intent(in):  prime value for the temperature of the vegetation canopy (K s-1)
                       scalarCanopyWatPrime,       & ! intent(in):  prime value for the water on the vegetation canopy (kg m-2 s-1)
-                      mLayerTempPrime,            & ! intent(in):  prime vector of the temperature of each snow and soil layer (K s-1)
+                      mLayerTempPrime,            & ! intent(in):  prime vector of the temperature of each layer (K s-1)
                       scalarAquiferStoragePrime,  & ! intent(in):  prime value for storage of water in the aquifer (m s-1)
                       ! input: diagnostic variables defining the liquid water and ice content (function of state variables)
                       scalarCanopyIcePrime,       & ! intent(in):  prime value for the ice on the vegetation canopy (kg m-2 s-1)
                       scalarCanopyLiqPrime,       & ! intent(in):  prime value for the liq on the vegetation canopy (kg m-2 s-1)
-                      mLayerVolFracIcePrime,      & ! intent(in):  prime vector of the volumetric ice in each snow and soil layer (s-1)
-                      mLayerVolFracWatPrime,      & ! intent(in):  prime vector of the volumetric water in each snow and soil layer (s-1)
-                      mLayerVolFracLiqPrime,      & ! intent(in):  prime vector of the volumetric liq in each snow and soil layer (s-1)
+                      mLayerVolFracIcePrime,      & ! intent(in):  prime vector of the volumetric ice in each layer (s-1)
+                      mLayerVolFracWatPrime,      & ! intent(in):  prime vector of the volumetric water in each layer (s-1)
+                      mLayerVolFracLiqPrime,      & ! intent(in):  prime vector of the volumetric liq in each layer (s-1)
                       ! input: enthalpy terms
                       canopyCmTrial,              & ! intent(in):  Cm of vegetation canopy (-)
-                      mLayerCmTrial,              & ! intent(in):  Cm of each snow and soil layer (-)
+                      mLayerCmTrial,              & ! intent(in):  Cm of each layer (-)
                       scalarCanairEnthalpyPrime,  & ! intent(in):  prime value for the enthalpy of the canopy air space (W m-3)
                       scalarCanopyEnthalpyPrime,  & ! intent(in):  prime value for the of enthalpy of the vegetation canopy (W m-3)
-                      mLayerEnthalpyPrime,        & ! intent(in):  prime vector of the of enthalpy of each snow and soil layer (W m-3)
+                      mLayerEnthalpyPrime,        & ! intent(in):  prime vector of the of enthalpy of each layer (W m-3)
                       ! input: data structures
                       prog_data,                  & ! intent(in):  model prognostic variables for a local HRU
                       diag_data,                  & ! intent(in):  model diagnostic variables for a local HRU
@@ -803,9 +803,9 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
                 ! output: new prime values of variables needed in data window outside of internal IDA
                 eqns_data%scalarCanopyTempPrime,         & ! intent(out):   prime value for temperature of the vegetation canopy (K s-1)
                 eqns_data%scalarCanopyWatPrime,          & ! intent(out):   prime value for total water content of the vegetation canopy (kg m-2 s-1)
-                eqns_data%mLayerTempPrime,               & ! intent(out):   prime vector of temperature of each snow and soil layer (K s-1)
-                eqns_data%mLayerMatricHeadPrime,         & ! intent(out):   prime vector of matric head of each snow and soil layer (m s-1)
-                eqns_data%mLayerVolFracWatPrime,         & ! intent(out):   prime vector of volumetric total water content of each snow and soil layer (s-1)
+                eqns_data%mLayerTempPrime,               & ! intent(out):   prime vector of temperature of each layer (K s-1)
+                eqns_data%mLayerMatricHeadPrime,         & ! intent(out):   prime vector of matric head of each layer (m s-1)
+                eqns_data%mLayerVolFracWatPrime,         & ! intent(out):   prime vector of volumetric total water content of each layer (s-1)
                 ! input-output: baseflow
                 eqns_data%ixSaturation,                  & ! intent(inout): index of the lowest saturated layer
                 eqns_data%dBaseflow_dMatric,             & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
