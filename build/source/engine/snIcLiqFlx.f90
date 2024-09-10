@@ -107,14 +107,14 @@ subroutine snIcLiqFlx(&
     ixSnowOnlyHyd    => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat,            & ! intent(in):    index in the state subset for hydrology state variables in the snow domain
     ixIceOnlyHyd     => indx_data%var(iLookINDEX%ixIceOnlyHyd)%dat,             & ! intent(in):    index in the state subset for hydrology state variables in the ice domain
     ! input: snow properties and parameters
-    mLayerVolFracIce => prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nStart:nStart+nLayers+1), & ! intent(in):    volumetric ice content at the start of the time step (-)
+    mLayerVolFracIce => prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nStart+1:nStart+nLayers), & ! intent(in):    volumetric ice content at the start of the time step (-)
     Fcapil           => mpar_data%var(iLookPARAM%Fcapil)%dat(1),                & ! intent(in):    capillary retention as a fraction of the total pore volume (-)
     k_snow           => mpar_data%var(iLookPARAM%k_snow)%dat(1),                & ! intent(in):    hydraulic conductivity of snow (m s-1)    
     k_ice            => mpar_data%var(iLookPARAM%k_ice)%dat(1),                 & ! intent(in):    hydraulic conductivity of ice (m s-1)
     mw_exp           => mpar_data%var(iLookPARAM%mw_exp)%dat(1),                & ! intent(in):    exponent for meltwater flow (-)
     ! input-output: diagnostic variables -- only computed for the first iteration
-    mLayerPoreSpace  => diag_data%var(iLookDIAG%mLayerPoreSpace)%dat(nStart:nStart+nLayers+1),  & ! intent(inout): pore space in each layer (-)
-    mLayerThetaResid => diag_data%var(iLookDIAG%mLayerThetaResid)%dat(nStart:nStart+nLayers+1), & ! intent(inout): residual volumetric liquid water content in each layer (-)
+    mLayerPoreSpace  => diag_data%var(iLookDIAG%mLayerPoreSpace)%dat(nStart+1:nStart+nLayers),  & ! intent(inout): pore space in each layer (-)
+    mLayerThetaResid => diag_data%var(iLookDIAG%mLayerThetaResid)%dat(nStart+1:nStart+nLayers), & ! intent(inout): residual volumetric liquid water content in each layer (-)
     ! input-output: fluxes and derivatives
     iLayerLiqFluxSnIc      => io_snIcLiqFlx % iLayerLiqFluxSnIc,                & ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
     iLayerLiqFluxSnIcDeriv => io_snIcLiqFlx % iLayerLiqFluxSnIcDeriv,           & ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
