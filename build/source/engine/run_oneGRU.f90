@@ -318,12 +318,12 @@ subroutine run_oneGRU(&
         end if
       else if (typeDOM==glacAcc .or. typeDOM==glacAbl)then
         if (typeDOM==glacAcc)then ! collect glacier accumulation melt m s-1
-          glacFirnMelt = glacFirnMelt + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1) *fracDOM
+          glacFirnMelt = glacFirnMelt + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarTotalRunoff)%dat(1) *fracDOM
         else if (typeDOM==glacAbl)then ! collect glacier ablation melt m s-1
           if (progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowDepth)%dat(1)>0._rkind)then
-            glacSnowMelt = glacSnowMelt + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1) *fracDOM
+            glacSnowMelt = glacSnowMelt + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarTotalRunoff)%dat(1) *fracDOM
           else
-            glacIceMelt  = glacIceMelt  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1) *fracDOM
+            glacIceMelt  = glacIceMelt  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarTotalRunoff)%dat(1) *fracDOM
           endif
         end if
         bvarData%var(iLookBVAR%basin__GlacierArea)%dat(1) = bvarData%var(iLookBVAR%basin__GlacierArea)%dat(1) + progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)

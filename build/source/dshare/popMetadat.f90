@@ -634,18 +634,18 @@ subroutine popMetadat(err,message)
   deriv_meta(iLookDERIV%dNrgFlux_dWatBelow)            = var_info('dNrgFlux_dWatBelow'           , 'derivatives in the flux w.r.t. water state in the layer below'        , 'unknown'        , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   ! derivative in liquid water fluxes at the interface of snow layers w.r.t. volumetric liquid water content in the layer above
   deriv_meta(iLookDERIV%iLayerLiqFluxSnowDeriv)        = var_info('iLayerLiqFluxSnowDeriv'       , 'derivative in vertical liquid water flux at layer interfaces'         , 'm s-1'          , get_ixVarType('ifcSnow'), iMissVec, iMissVec, .false.)
-  ! derivative in liquid water fluxes for the lake soil ice layers w.r.t hydrology state variables
+  ! derivative in liquid water fluxes for the soil layers w.r.t hydrology state variables
   deriv_meta(iLookDERIV%dVolTot_dPsi0)                 = var_info('dVolTot_dPsi0'                , 'derivative in total water content w.r.t. total water matric potential', 'm-1'            , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%d2VolTot_dPsi02)               = var_info('d2VolTot_dPsi02'              , 'second derivative in total water content w.r.t. total water matric potential', 'm-1'     , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dCompress_dPsi)                = var_info('dCompress_dPsi'               , 'derivative in compressibility w.r.t matric head'                      , 'm-1'            , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%mLayerdTheta_dPsi)             = var_info('mLayerdTheta_dPsi'            , 'derivative in the soil water characteristic w.r.t. psi'               , 'm-1'            , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%mLayerdPsi_dTheta)             = var_info('mLayerdPsi_dTheta'            , 'derivative in the soil water characteristic w.r.t. theta'             , 'm'              , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
-  deriv_meta(iLookDERIV%dq_dHydStateAbove)             = var_info('dq_dHydStateAbove'            , 'change in flux at layer interfaces w.r.t. states in the layer above'  , 'unknown'        , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
-  deriv_meta(iLookDERIV%dq_dHydStateBelow)             = var_info('dq_dHydStateBelow'            , 'change in flux at layer interfaces w.r.t. states in the layer below'  , 'unknown'        , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dq_dHydStateAbove)             = var_info('dq_dHydStateAbove'            , 'change in flux at layer interfaces w.r.t. states in the layer above'  , 'unknown'        , get_ixVarType('ifcSoil'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dq_dHydStateBelow)             = var_info('dq_dHydStateBelow'            , 'change in flux at layer interfaces w.r.t. states in the layer below'  , 'unknown'        , get_ixVarType('ifcSoil'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dq_dHydStateLayerSurfVec)      = var_info('dq_dHydStateLayerSurfVec'     , 'change in the flux in soil surface interface w.r.t. state variables in layers','unknown' , get_ixVarType('ifcSoil'), iMissVec, iMissVec, .false.)
   ! derivative in baseflow flux w.r.t. aquifer storage
   deriv_meta(iLookDERIV%dBaseflow_dAquifer)            = var_info('dBaseflow_dAquifer'           , 'derivative in baseflow flux w.r.t. aquifer storage'                   , 's-1'            , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  ! derivative in liquid water fluxes for the soil domain w.r.t energy state variables
+  ! derivative in liquid water fluxes for the soil w.r.t energy state variables
   deriv_meta(iLookDERIV%dq_dNrgStateAbove)             = var_info('dq_dNrgStateAbove'            , 'change in flux at layer interfaces w.r.t. states in the layer above'  , 'unknown'        , get_ixVarType('ifcSoil'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dq_dNrgStateBelow)             = var_info('dq_dNrgStateBelow'            , 'change in flux at layer interfaces w.r.t. states in the layer below'  , 'unknown'        , get_ixVarType('ifcSoil'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dq_dNrgStateLayerSurfVec)      = var_info('dq_dNrgStateLayerSurfVec'     , 'change in the flux in soil surface interface w.r.t. state variables in layers','unknown' , get_ixVarType('ifcSoil'), iMissVec, iMissVec, .false.)

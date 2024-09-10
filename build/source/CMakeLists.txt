@@ -126,7 +126,9 @@ set(SOLVER
     ${ENGINE_DIR}/run_oneHRU.f90
     ${ENGINE_DIR}/snowLiqFlx.f90
     ${ENGINE_DIR}/soilLiqFlx.f90
-    ${ENGINE_DIR}/ssdNrgFlux.f90
+    ${ENGINE_DIR}/iceLiqFlx.f90
+
+    ${ENGINE_DIR}/snLaSoIcNrgFlux.f90
     ${ENGINE_DIR}/stomResist.f90
     ${ENGINE_DIR}/summaSolve4homegrown.f90
     ${ENGINE_DIR}/systemSolv.f90

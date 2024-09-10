@@ -142,6 +142,8 @@ subroutine soilLiqFlx(&
   real(rkind)                         :: scalardPsi_dTheta ! derivative in soil water characteristix, used for perturbations when computing numerical derivatives
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   nSoil = in_soilLiqFlx % nSoil ! get number of soil layers from input arguments
+  nLake = in_soilLiqFlx % nLake ! get number of lake layers from input arguments
+  nIce  = in_soilLiqFlx % nIce  ! get number of ice layers from input arguments
 
   ! get indices for the data structures
   ibeg = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nLake)%dat(1) + 1
@@ -268,7 +270,7 @@ subroutine soilLiqFlx(&
     ! identify the number of layers that contain roots or take infiltration
     nRoots = count(iLayerHeight(0:nSoil-1) < rootingDepth-verySmall)
     if (nRoots==0) then
-      message=trim(message)//'no layers with roots'
+      message=trim(message)//'no layers with roots/infiltration'
       err=20; return
     end if
 
@@ -283,7 +285,7 @@ subroutine soilLiqFlx(&
     ! compute the transpiration sink term
     ! -------------------------------------------------------------------------------------------------------------------------------------------------
 
-    if ( .not. (scalarSolution .and. ixTop>1) ) then ! check the need to compute transpiration (NOTE: intent=inout)
+    if ( .not. (scalarSolution .and. ixTop>1) .and. nLake==0 .and. nIce==0) then ! check the need to compute transpiration (NOTE: intent=inout)
       
       ! compute the fraction of transpiration loss from each soil layer
       if (scalarTranspireLim > tiny(scalarTranspireLim)) then ! (transpiration may be non-zero even if the soil moisture limiting factor is zero)
@@ -364,6 +366,7 @@ subroutine soilLiqFlx(&
 
     ! -------------------------------------------------------------------------------------------------------------------------------------------------
     ! compute infiltraton at the surface and its derivative w.r.t. mass in the upper soil layer
+    ! NOTE: this needs to change if nLake>0
     ! -------------------------------------------------------------------------------------------------------------------------------------------------
   
     ! set derivative w.r.t. state above to zero (does not exist)
@@ -532,7 +535,7 @@ subroutine soilLiqFlx(&
                       err,cmessage)                      ! intent(out): error control
       if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
-      ! no dependence on the aquifer for drainage
+      ! no dependence on the aquifer or ice? for drainage
       dq_dHydStateBelow(nSoil) = 0._rkind  ! keep this here in case we want to couple some day....
       dq_dNrgStateBelow(nSoil) = 0._rkind  ! keep this here in case we want to couple some day....
 
@@ -1094,7 +1097,7 @@ subroutine surfaceFlx(&
 
         ! define the impermeable area and derivatives due to frozen ground
         if (rootZoneIce > tiny(rootZoneIce)) then  ! (avoid divide by zero)
-          alpha            = 1._rkind/(soilIceCV**2_i4b)        ! shape parameter in the Gamma distribution
+          alpha            = 1._rkind/(soilIceCV**2_i4b)     ! shape parameter in the Gamma distribution
           xLimg            = alpha*soilIceScale/rootZoneIce  ! upper limit of the integral
           !If we use this line below, we will have a derivative of scalarFrozenArea w.r.t. water and temperature in each layer (through mLayerVolFracIce)
           ! Should fix to deal with frozen area in the root zone
