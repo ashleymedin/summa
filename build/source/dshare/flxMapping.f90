@@ -139,8 +139,8 @@ contains
 
  ! liquid water fluxes for the snow domain
  flux2state_orig(iLookFLUX%scalarSnowDrainage)              = flux2state(state1=iname_watLayer,  state2=integerMissing)
- flux2state_orig(iLookFLUX%iLayerLiqFluxSnow)               = flux2state(state1=iname_watLayer,  state2=integerMissing)
- flux2state_orig(iLookFLUX%mLayerLiqFluxSnow)               = flux2state(state1=iname_watLayer,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%iLayerLiqFluxSnIc)               = flux2state(state1=iname_watLayer,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%mLayerLiqFluxSnIc)               = flux2state(state1=iname_watLayer,  state2=integerMissing)
 
  ! liquid water fluxes for the soil domain
  flux2state_orig(iLookFLUX%scalarRainPlusMelt)              = flux2state(state1=iname_matLayer,  state2=integerMissing)

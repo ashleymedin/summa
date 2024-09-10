@@ -283,6 +283,7 @@ contains
   ! water flow through snow
   case('Fcapil'                   ); get_ixParam = iLookPARAM%Fcapil                 ! capillary retention as a fraction of the total pore volume (-)
   case('k_snow'                   ); get_ixParam = iLookPARAM%k_snow                 ! hydraulic conductivity of snow (m s-1), 0.0055 = approx. 20 m/hr, from UEB
+  case('k_ice'                    ); get_ixParam = iLookPARAM%k_ice                  ! hydraulic conductivity of ice (m s-1), 2.1e-6 = approx. 0.00005 m/hr, from Stevens et al. 2018
   case('mw_exp'                   ); get_ixParam = iLookPARAM%mw_exp                 ! exponent for meltwater flow (-)
   ! turbulent heat fluxes
   case('z0Snow'                   ); get_ixParam = iLookPARAM%z0Snow                 ! roughness length of snow (m)
@@ -572,7 +573,7 @@ contains
   case('scalarSnowAge'                  ); get_ixDiag = iLookDIAG%scalarSnowAge                    ! non-dimensional snow age (-)
   case('scalarGroundSnowFraction'       ); get_ixDiag = iLookDIAG%scalarGroundSnowFraction         ! fraction of ground that is covered with snow (-)
   case('spectralSnowAlbedoDirect'       ); get_ixDiag = iLookDIAG%spectralSnowAlbedoDirect         ! direct snow albedo for individual spectral bands (-)
-  case('mLayerFracLiq'                  ); get_ixDiag = iLookDIAG%mLayerFracLiq                    ! fraction of liquid water in each snow, lake, or ice layer (-)
+  case('mLayerFracLiq'                  ); get_ixDiag = iLookDIAG%mLayerFracLiq                    ! fraction of liquid water in each snow layer (-)
   case('mLayerThetaResid'               ); get_ixDiag = iLookDIAG%mLayerThetaResid                 ! residual volumetric water content in each snow layer (-)
   case('mLayerPoreSpace'                ); get_ixDiag = iLookDIAG%mLayerPoreSpace                  ! total pore space in each snow layer (-)
   case('mLayerMeltFreeze'               ); get_ixDiag = iLookDIAG%mLayerMeltFreeze                 ! ice content change from melt/freeze in each layer (kg m-3)
@@ -711,8 +712,8 @@ contains
   case('mLayerNrgFlux'                  ); get_ixFlux = iLookFLUX%mLayerNrgFlux                    ! net energy flux for each layer in the layer domains (J m-3 s-1)
   ! liquid water fluxes for the snow
   case('scalarSnowDrainage'             ); get_ixFlux = iLookFLUX%scalarSnowDrainage               ! drainage from the bottom of the snow profile (m s-1)
-  case('iLayerLiqFluxSnow'              ); get_ixFlux = iLookFLUX%iLayerLiqFluxSnow                ! liquid flux at snow layer interfaces at the end of the time step (m s-1)
-  case('mLayerLiqFluxSnow'              ); get_ixFlux = iLookFLUX%mLayerLiqFluxSnow                ! net liquid water flux for each snow layer (s-1)
+  case('iLayerLiqFluxSnIc'              ); get_ixFlux = iLookFLUX%iLayerLiqFluxSnIc                ! liquid flux at snow ice layer interfaces at the end of the time step (m s-1)
+  case('mLayerLiqFluxSnIc'              ); get_ixFlux = iLookFLUX%mLayerLiqFluxSnIc                ! net liquid water flux for each snow ice layer (s-1)
   ! liquid water fluxes for the soil
   case('scalarRainPlusMelt'             ); get_ixFlux = iLookFLUX%scalarRainPlusMelt               ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
   case('scalarMaxInfilRate'             ); get_ixFlux = iLookFLUX%scalarMaxInfilRate               ! maximum infiltration rate (m s-1)
@@ -808,8 +809,8 @@ contains
   ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. water state in layers above and below
   case('dNrgFlux_dWatAbove'             ); get_ixDeriv = iLookDERIV%dNrgFlux_dWatAbove             ! derivatives in the flux w.r.t. water state temperature in the layer above
   case('dNrgFlux_dWatBelow'             ); get_ixDeriv = iLookDERIV%dNrgFlux_dWatBelow             ! derivatives in the flux w.r.t. water state in the layer below
-  ! derivative in liquid water fluxes at the interface of snow layers w.r.t. volumetric liquid water content in the layer above
-  case('iLayerLiqFluxSnowDeriv'         ); get_ixDeriv = iLookDERIV%iLayerLiqFluxSnowDeriv         ! derivative in vertical liquid water flux at layer interfaces (m s-1)
+  ! derivative in liquid water fluxes at the interface of snow ice layers w.r.t. volumetric liquid water content in the layer above
+  case('iLayerLiqFluxSnIcDeriv'         ); get_ixDeriv = iLookDERIV%iLayerLiqFluxSnIcDeriv         ! derivative in vertical liquid water flux at layer interfaces (m s-1)
   ! derivative in liquid water fluxes for the soil domain w.r.t hydrology state variables
   case('dVolTot_dPsi0'                  ); get_ixDeriv = iLookDERIV%dVolTot_dPsi0                  ! derivative in total water content w.r.t. total water matric potential (m-1)
   case('d2VolTot_dPsi02'                ); get_ixDeriv = iLookDERIV%d2VolTot_dPsi02                ! second derivative in total water content w.r.t. total water matric potential

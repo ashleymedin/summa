@@ -128,7 +128,7 @@ subroutine snLaSoIcNrgFlux(&
     groundNetFlux              => in_snLaSoIcNrgFlux % scalarGroundNetNrgFlux,     & ! intent(in):    net energy flux for the ground surface (W m-2)
     dGroundNetFlux_dGroundTemp => io_snLaSoIcNrgFlux % dGroundNetFlux_dGroundTemp, & ! intent(inout): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
     ! input: liquid water fluxes
-    iLayerLiqFluxSnow          => in_snLaSoIcNrgFlux % iLayerLiqFluxSnow,          & ! intent(in):    liquid flux at the interface of each snow layer (m s-1)
+    iLayerLiqFluxSnIc          => in_snLaSoIcNrgFlux % iLayerLiqFluxSnIc,          & ! intent(in):    liquid flux at the interface of each snow layer (m s-1)
     iLayerLiqFluxSoil          => in_snLaSoIcNrgFlux % iLayerLiqFluxSoil,          & ! intent(in):    liquid flux at the interface of each soil layer (m s-1)
     ! input: trial model state variables
     mLayerTempTrial            => in_snLaSoIcNrgFlux % mLayerTempTrial,            & ! intent(in):     temperature in each layer at the current iteration (m)
@@ -206,10 +206,10 @@ subroutine snLaSoIcNrgFlux(&
     ! -------------------------------------------------------------------------------------------------------------------------
     do iLayer=ixTop,ixBot
       select case(layerType(iLayer)) ! get the liquid flux at layer interfaces
-        case(iname_snow); qFlux = iLayerLiqFluxSnow(iLayer)
+        case(iname_snow); qFlux = iLayerLiqFluxSnIc(iLayer)
         case(iname_lake); qFlux = 0._rkind !iLayerLiqFluxLake(iLayer-nSnow)
         case(iname_soil); qFlux = iLayerLiqFluxSoil(iLayer-nSnow-nLake)
-        case(iname_ice);  qFlux = 0._rkind !iLayerLiqFluxIce(iLayer-nSnow-nLake-nSoil)
+        case(iname_ice);  qFlux = 0._rkind !iLayerLiqFluxSnIc(iLayer-nSnow-nLake-nSoil)
         case default; err=20; message=trim(message)//'unable to identify layer type'; return
       end select
       if (iLayer==nLayers) then ! compute fluxes at the lower boundary -- positive downwards

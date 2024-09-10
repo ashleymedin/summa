@@ -188,6 +188,7 @@ MODULE var_lookup
   ! water flow within snow
   integer(i4b)    :: Fcapil                = integerMissing    ! capillary retention as a fraction of the total pore volume (-)
   integer(i4b)    :: k_snow                = integerMissing    ! hydraulic conductivity of snow (m s-1), 0.0055 = approx. 20 m/hr, from UEB
+  integer(i4b)    :: k_ice                 = integerMissing    ! hydraulic conductivity of ice (m s-1), 2.1e-6 = approx. 0.00005 m/hr, from Stevens et al. 2018
   integer(i4b)    :: mw_exp                = integerMissing    ! exponent for meltwater flow (-)
   ! turbulent heat fluxes
   integer(i4b)    :: z0Snow                = integerMissing    ! roughness length of snow (m)
@@ -580,8 +581,8 @@ MODULE var_lookup
   integer(i4b)    :: mLayerNrgFlux                   = integerMissing ! net energy flux for each layer in the layer domains (J m-3 s-1)
   ! liquid water fluxes for the snow
   integer(i4b)    :: scalarSnowDrainage              = integerMissing ! drainage from the bottom of the snow profile (m s-1)
-  integer(i4b)    :: iLayerLiqFluxSnow               = integerMissing ! liquid flux at snow layer interfaces (m s-1)
-  integer(i4b)    :: mLayerLiqFluxSnow               = integerMissing ! net liquid water flux for each snow layer (s-1)
+  integer(i4b)    :: iLayerLiqFluxSnIc               = integerMissing ! liquid flux at snow ice layer interfaces (m s-1)
+  integer(i4b)    :: mLayerLiqFluxSnIc               = integerMissing ! net liquid water flux for each snow ice layer (s-1)
   ! liquid water fluxes for the soil
   integer(i4b)    :: scalarRainPlusMelt              = integerMissing ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
   integer(i4b)    :: scalarMaxInfilRate              = integerMissing ! maximum infiltration rate (m s-1)
@@ -666,8 +667,8 @@ MODULE var_lookup
   ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. water state in layers above and below
   integer(i4b)    :: dNrgFlux_dWatAbove              = integerMissing ! derivatives in the flux w.r.t. water state in the layer above
   integer(i4b)    :: dNrgFlux_dWatBelow              = integerMissing ! derivatives in the flux w.r.t. water state in the layer below
-  ! derivative in liquid water fluxes at the interface of snow layers w.r.t. volumetric liquid water content in the layer above
-  integer(i4b)    :: iLayerLiqFluxSnowDeriv          = integerMissing ! derivative in vertical liquid water flux at layer interfaces (m s-1)
+  ! derivative in liquid water fluxes at the interface of snow ice layers w.r.t. volumetric liquid water content in the layer above
+  integer(i4b)    :: iLayerLiqFluxSnIcDeriv          = integerMissing ! derivative in vertical liquid water flux at layer interfaces (m s-1)
   ! derivative in liquid water fluxes for the soil domain w.r.t hydrology state variables
   integer(i4b)    :: dVolTot_dPsi0                   = integerMissing ! derivative in total water content w.r.t. total water matric potential (m-1)
   integer(i4b)    :: d2VolTot_dPsi02                 = integerMissing ! second derivative in total water content w.r.t. total water matric potential
@@ -948,7 +949,8 @@ MODULE var_lookup
                                                                         141,142,143,144,145,146,147,148,149,150,&
                                                                         151,152,153,154,155,156,157,158,159,160,&
                                                                         161,162,163,164,165,166,167,168,169,170,&
-                                                                        171,172,173,174,175,176,177,178,179,180)
+                                                                        171,172,173,174,175,176,177,178,179,180,&
+                                                                        181)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

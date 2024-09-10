@@ -259,8 +259,8 @@ subroutine computJacobWithPrime(&
     dAquiferTrans_dTCanopy       => deriv_data%var(iLookDERIV%dAquiferTrans_dTCanopy      )%dat(1)  ,& ! intent(in): [dp]     derivatives in the aquifer transpiration flux w.r.t. canopy temperature
     dAquiferTrans_dTGround       => deriv_data%var(iLookDERIV%dAquiferTrans_dTGround      )%dat(1)  ,& ! intent(in): [dp]     derivatives in the aquifer transpiration flux w.r.t. ground temperature
     dAquiferTrans_dCanWat        => deriv_data%var(iLookDERIV%dAquiferTrans_dCanWat       )%dat(1)  ,& ! intent(in): [dp]     derivatives in the aquifer transpiration flux w.r.t. canopy total water
-    ! derivative in liquid water fluxes at the interface of snow layers w.r.t. volumetric liquid water content in the layer above
-    iLayerLiqFluxSnowDeriv       => deriv_data%var(iLookDERIV%iLayerLiqFluxSnowDeriv      )%dat     ,& ! intent(in): [dp(:)]  derivative in vertical liquid water flux at layer interfaces
+    ! derivative in liquid water fluxes at the interface of snow ice layers w.r.t. volumetric liquid water content in the layer above
+    iLayerLiqFluxSnIcDeriv       => deriv_data%var(iLookDERIV%iLayerLiqFluxSnIcDeriv      )%dat     ,& ! intent(in): [dp(:)]  derivative in vertical liquid water flux at layer interfaces
     ! derivative in liquid water fluxes for the soil domain w.r.t hydrology state variables
     dVolTot_dPsi0                => deriv_data%var(iLookDERIV%dVolTot_dPsi0               )%dat     ,& ! intent(in): [dp(:)]  derivative in total water content w.r.t. total water matric potential
     d2VolTot_dPsi02              => deriv_data%var(iLookDERIV%d2VolTot_dPsi02             )%dat     ,& ! intent(in): [dp(:)]  second derivative in total water content w.r.t. total water matric potential
@@ -482,7 +482,7 @@ subroutine computJacobWithPrime(&
             end select
 
             ! - diagonal elements
-            aJac(ixDiag,watState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnowDeriv(iLayer)*convLiq2tot + dMat(watState) * cj
+            aJac(ixDiag,watState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnIcDeriv(iLayer)*convLiq2tot + dMat(watState) * cj
 
             ! - lower-diagonal elements
             if(iLayer>1)then
@@ -491,7 +491,7 @@ subroutine computJacobWithPrime(&
 
             ! - upper diagonal elements
             if(iLayer<nSnow)then
-              if(ixSnowOnlyHyd(iLayer+1)/=integerMissing) aJac(ixOffDiag(ixSnowOnlyHyd(iLayer+1),watState),watState) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnowDeriv(iLayer)*convLiq2tot       ! dVol(below)/dLiq(above) -- (-)
+              if(ixSnowOnlyHyd(iLayer+1)/=integerMissing) aJac(ixOffDiag(ixSnowOnlyHyd(iLayer+1),watState),watState) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnIcDeriv(iLayer)*convLiq2tot       ! dVol(below)/dLiq(above) -- (-)
             endif
 
           end do  ! (looping through liquid water states in the snow domain)
@@ -521,11 +521,11 @@ subroutine computJacobWithPrime(&
                                           + LH_fu0*iden_water * mLayerTempPrime(iLayer) * dFracLiqWat_dTk(iLayer)    ! (dF/dLiq)
 
               ! - include derivatives of water fluxes w.r.t energy fluxes for current layer
-              aJac(ixOffDiag(watState,nrgState),nrgState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)  ! (dVol/dT)
+              aJac(ixOffDiag(watState,nrgState),nrgState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnIcDeriv(iLayer)*mLayerdTheta_dTk(iLayer)  ! (dVol/dT)
 
               ! (cross-derivative terms for the layer be_low)
               if(iLayer<nSnow)then
-                aJac(ixOffDiag(ixSnowOnlyHyd(iLayer+1),nrgState),nrgState) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)    ! dVol(below)/dT(above) -- K-1
+                aJac(ixOffDiag(ixSnowOnlyHyd(iLayer+1),nrgState),nrgState) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnIcDeriv(iLayer)*mLayerdTheta_dTk(iLayer)    ! dVol(below)/dT(above) -- K-1
               endif ! (if there is a water state in the layer below the current layer in the given state subset)
 
               ! - include derivatives of heat capacity w.r.t water fluxes for surrounding layers starting with layer above
@@ -836,7 +836,7 @@ subroutine computJacobWithPrime(&
             end select
 
             ! - diagonal elements
-            aJac(watState,watState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnowDeriv(iLayer)*convLiq2tot + dMat(watState) * cj
+            aJac(watState,watState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnIcDeriv(iLayer)*convLiq2tot + dMat(watState) * cj
 
             ! - lower-diagonal elements
             if(iLayer>1)then
@@ -845,7 +845,7 @@ subroutine computJacobWithPrime(&
 
             ! - upper diagonal elements
             if(iLayer<nSnow)then
-              if(ixSnowOnlyHyd(iLayer+1)/=integerMissing) aJac(ixSnowOnlyHyd(iLayer+1),watState) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnowDeriv(iLayer)*convLiq2tot       ! dVol(below)/dLiq(above) -- (-)
+              if(ixSnowOnlyHyd(iLayer+1)/=integerMissing) aJac(ixSnowOnlyHyd(iLayer+1),watState) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnIcDeriv(iLayer)*convLiq2tot       ! dVol(below)/dLiq(above) -- (-)
             endif
 
           end do  ! (looping through liquid water states in the snow domain)
@@ -875,11 +875,11 @@ subroutine computJacobWithPrime(&
                                           + LH_fu0*iden_water * mLayerTempPrime(iLayer) * dFracLiqWat_dTk(iLayer)    ! (dF/dLiq)
 
               ! - include derivatives of water fluxes w.r.t energy fluxes for current layer
-              aJac(watState,nrgState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)  ! (dVol/dT)
+              aJac(watState,nrgState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnIcDeriv(iLayer)*mLayerdTheta_dTk(iLayer)  ! (dVol/dT)
 
               ! (cross-derivative terms for the layer below)
               if(iLayer<nSnow)then
-                aJac(ixSnowOnlyHyd(iLayer+1),nrgState) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)    ! dVol(below)/dT(above) -- K-1
+                aJac(ixSnowOnlyHyd(iLayer+1),nrgState) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnIcDeriv(iLayer)*mLayerdTheta_dTk(iLayer)    ! dVol(below)/dT(above) -- K-1
               endif ! (if there is a water state in the layer below the current layer in the given state subset)
 
               ! - include derivatives of heat capacity w.r.t water fluxes for surrounding layers starting with layer above

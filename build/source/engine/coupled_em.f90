@@ -1528,8 +1528,8 @@ subroutine coupled_em(&
       if(printBalance .and. nSnow>0)then
         write(*,'(a,1x,10(f12.8,1x))') 'liqSnowInit       = ', liqSnowInit
         write(*,'(a,1x,10(f12.8,1x))') 'volFracLiq        = ', mLayerVolFracLiq(1:nSnow)
-        write(*,'(a,1x,10(f12.8,1x))') 'iLayerLiqFluxSnow = ', flux_data%var(iLookFLUX%iLayerLiqFluxSnow)%dat*iden_water*data_step
-        write(*,'(a,1x,10(f12.8,1x))') 'mLayerLiqFluxSnow = ', flux_data%var(iLookFLUX%mLayerLiqFluxSnow)%dat*data_step
+        write(*,'(a,1x,10(f12.8,1x))') 'iLayerLiqFluxSnIc = ', flux_data%var(iLookFLUX%iLayerLiqFluxSnIc)%dat*iden_water*data_step
+        write(*,'(a,1x,10(f12.8,1x))') 'mLayerLiqFluxSnIc = ', flux_data%var(iLookFLUX%mLayerLiqFluxSnIc)%dat*data_step
         write(*,'(a,1x,10(f12.8,1x))') 'change volFracLiq = ', mLayerVolFracLiq(1:nSnow) - liqSnowInit
         deallocate(liqSnowInit, stat=err)
         if(err/=0)then
