@@ -768,7 +768,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
     scalarThroughfallRain     => flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1)      ,& ! intent(in)   : [dp]     rain reaches ground without touching the canopy (kg m-2 s-1)
     scalarCanopyEvaporation   => flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)    ,& ! intent(in)   : [dp]     canopy evaporation/condensation (kg m-2 s-1)
     scalarCanopyLiqDrainage   => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1)    ,& ! intent(in)   : [dp]     drainage liquid water from vegetation canopy (kg m-2 s-1)
-    iLayerLiqFlux         => flux_data%var(iLookFLUX%iLayerLiqFlux)%dat             ,& ! intent(in)   : [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
+    iLayerLiqFluxSoil         => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat             ,& ! intent(in)   : [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
     iLayerNrgFlux             => flux_data%var(iLookFLUX%iLayerNrgFlux)%dat                 ,& ! intent(in)   :
     mLayerNrgFlux             => flux_data%var(iLookFLUX%mLayerNrgFlux)%dat                 ,& ! intent(out)  : [dp]     net energy flux for each layer within the layer domains (J m-3 s-1)
     mLayerTranspire           => flux_data%var(iLookFLUX%mLayerTranspire)%dat               ,& ! intent(in)   : [dp(:)]  transpiration loss from each soil layer (m s-1)
@@ -1157,7 +1157,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
           ! check mass balance for soil domain for step reduction (ida and kinsol should have done this already 
           if(count(ixSoilOnlyHyd/=integerMissing)==nSoil .and. nSoil>0)then
             soilBalance1 = sum( (mLayerVolFracLiqTrial(nSnow+nLake+1:nSnow+nLake+nSoil) + mLayerVolFracIceTrial(nSnow+nLake+1:nSnow+nLake+nSoil) )*mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil) )
-            vertFlux     = -(iLayerLiqFlux(nSoil) - iLayerLiqFlux(0))*dt           ! m s-1 --> m
+            vertFlux     = -(iLayerLiqFluxSoil(nSoil) - iLayerLiqFluxSoil(0))*dt           ! m s-1 --> m
             tranSink     = sum(mLayerTranspire)*dt                                         ! m s-1 --> m
             baseSink     = sum(mLayerBaseflow)*dt                                          ! m s-1 --> m
             compSink     = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil) )*dt ! m s-1 --> m

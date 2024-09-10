@@ -147,7 +147,7 @@ subroutine snLaSoIcNrgFlux(&
     nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1),               & ! intent(in):  number of lake layers
     layerType               => indx_data%var(iLookINDEX%layerType)%dat,              & ! intent(in):  layer type
     ixLayerState            => indx_data%var(iLookINDEX%ixLayerState)%dat,           & ! intent(in):  list of indices for all model layers
-    ixSlicSoilNrg           => indx_data%var(iLookINDEX%ixSlicSoilNrg)%dat,          & ! intent(in):  index in the state subset for energy state variables in the layer domains
+    ixSnLaIcSoNrg           => indx_data%var(iLookINDEX%ixSnLaIcSoNrg)%dat,          & ! intent(in):  index in the state subset for energy state variables in the layer domains
     mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat,             & ! intent(in):  depth of each layer (m)
     mLayerHeight            => prog_data%var(iLookPROG%mLayerHeight)%dat,            & ! intent(in):  height at the mid-point of each layer (m)
     ! input: thermal properties
@@ -177,7 +177,7 @@ subroutine snLaSoIcNrgFlux(&
 
     ! get the indices for the snow+soil layers
     if (scalarSolution) then
-      ixLayerDesired = pack(ixLayerState, ixSlicSoilNrg/=integerMissing)
+      ixLayerDesired = pack(ixLayerState, ixSnLaIcSoNrg/=integerMissing)
       ixTop = ixLayerDesired(1)
       ixBot = ixLayerDesired(1)
     else

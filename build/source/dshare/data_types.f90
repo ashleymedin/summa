@@ -591,7 +591,6 @@ MODULE data_types
  type, public :: in_type_soilLiqFlx ! class for intent(in) arguments in soilLiqFlx call
    integer(i4b)             :: nLake                             ! intent(in):    number of lake layers
    integer(i4b)             :: nSoil                             ! intent(in):    number of soil layers
-   integer(i4b)             :: nIce                              ! intent(in):    number of ice layers
    logical(lgt)             :: firstSplitOper                    ! intent(in):    flag indicating first flux call in a splitting operation
    logical(lgt)             :: scalarSolution                    ! intent(in):    flag to indicate the scalar solution
    logical(lgt)             :: deriv_desired                     ! intent(in):    flag indicating if derivatives are desired
@@ -1201,6 +1200,7 @@ contains
 
   ! intent(in) arguments: model control
   in_soilLiqFlx % nSoil         =nSoil                                         ! intent(in): number of soil layers
+  in_soilLiqFlx % nLake         =nLake                                         ! intent(in): number of lake layers
   in_soilLiqFlx % firstSplitOper=firstSplitOper                                ! intent(in): flag indicating first flux call in a splitting operation
   in_soilLiqFlx % scalarSolution=(scalarSolution .and. .not.firstFluxCall)     ! intent(in): flag to indicate the scalar solution
   in_soilLiqFlx % deriv_desired =.true.                                        ! intent(in): flag indicating if derivatives are desired

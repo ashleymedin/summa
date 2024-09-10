@@ -39,7 +39,7 @@ USE data_types,only:var_dlength            ! x%var(:)%dat [rkind]
 USE data_types,only:var_ilength            ! x%var(:)%dat [i4b]
 USE data_types,only:in_type_snIcLiqFlx     ! data type for intent(in) arguments
 USE data_types,only:io_type_snIcLiqFlx     ! data type for intent(inout) arguments
-USE data_types,only:out_type_snowLiqFlx    ! data type for intent(out) arguments
+USE data_types,only:out_type_snIcLiqFlx    ! data type for intent(out) arguments
 
 ! privacy
 implicit none
@@ -60,7 +60,7 @@ subroutine snIcLiqFlx(&
                       ! input-output: fluxes and derivatives
                       io_snIcLiqFlx,           & ! intent(inout): fluxes and derivatives
                       ! output: error control
-                      out_snowLiqFlx)            ! intent(out):   error control
+                      out_snIcLiqFlx)            ! intent(out):   error control
   implicit none
   ! input: model control, forcing, and model state vector
   type(in_type_snIcLiqFlx)          :: in_snIcLiqFlx              ! model control, forcing, and model state vector
@@ -72,10 +72,10 @@ subroutine snIcLiqFlx(&
   ! input-output: fluxes and derivatives
   type(io_type_snIcLiqFlx)          :: io_snIcLiqFlx              ! fluxes and derivatives
   ! output: error control
-  type(out_type_snowLiqFlx)         :: out_snowLiqFlx             ! error control
+  type(out_type_snIcLiqFlx)         :: out_snIcLiqFlx             ! error control
   ! ------------------------------  ------------------------------------------------------------------------------------------------------------
   ! local variables
-  integer(i4b)                      :: nLayers                    ! number of snow/ice layers
+  integer(i4b)                      :: nLayers,nStart             ! number of snow/ice layers and starting layer
   integer(i4b)                      :: i                          ! search index for scalar solution
   integer(i4b)                      :: iLayer                     ! layer index
   integer(i4b)                      :: ixTop                      ! top layer in subroutine call
@@ -87,11 +87,13 @@ subroutine snIcLiqFlx(&
   real(rkind)                       :: availCap                   ! available storage capacity [0,1] (-)
   real(rkind)                       :: relSaturn                  ! relative saturation [0,1] (-)
   real(rkind)                       :: k_param                    ! hydraulic conductivity parameter (m s-1)
+  logical(lgt)                      :: do_snow                    ! flag to denote if snow is present
   ! ------------------------------------------------------------------------------------------------------------------------------------------
   ! make association of local variables with information in the data structures
   do_snow = in_snIcLiqFlx % do_snow ! flag to denote if snow is present
   nLayers = in_snIcLiqFlx % nLayers ! get number of snow/ice layers
   nStart = in_snIcLiqFlx % nStart ! get the start index for the layers
+  
   associate(&
     ! input: model control
     firstFluxCall           => in_snIcLiqFlx % firstFluxCall,           & ! intent(in): the first flux call
@@ -117,8 +119,8 @@ subroutine snIcLiqFlx(&
     iLayerLiqFluxSnIc      => io_snIcLiqFlx % iLayerLiqFluxSnIc,                & ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
     iLayerLiqFluxSnIcDeriv => io_snIcLiqFlx % iLayerLiqFluxSnIcDeriv,           & ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
     ! output: error control
-    err                    => out_snowLiqFlx % err,                             & ! intent(out):   error code
-    message                => out_snowLiqFlx % cmessage                         & ! intent(out):   error message
+    err                    => out_snIcLiqFlx % err,                             & ! intent(out):   error code
+    message                => out_snIcLiqFlx % cmessage                         & ! intent(out):   error message
     ) ! end association of local variables with information in the data structures
     ! ------------------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
@@ -163,8 +165,8 @@ subroutine snIcLiqFlx(&
         err=20; message=trim(message)//'Unable to identify snow/ice layer for scalar solution!'; return
       end if
     else
-      ixTop = 1
-      ixBot = nLayers
+      ixTop = nStart+1
+      ixBot = nStart+nLayers
     end if
 
     ! define the liquid flux at the upper boundary (m s-1)

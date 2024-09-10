@@ -119,6 +119,7 @@ subroutine soilLiqFlx(&
   ! local variables: general
   character(LEN=256)                  :: cmessage                      ! error message of downwind routine
   integer(i4b)                        :: nSoil                         ! number of soil layers
+  integer(i4b)                        :: nLake                         ! number of lake layers
   integer(i4b)                        :: ibeg,iend                     ! start and end indices of the soil layers in concatanated snow-soil vector
   integer(i4b)                        :: iLayer,iSoil                  ! index of soil layer
   integer(i4b)                        :: ixLayerDesired(1)             ! layer desired (scalar solution)
@@ -143,8 +144,7 @@ subroutine soilLiqFlx(&
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   nSoil = in_soilLiqFlx % nSoil ! get number of soil layers from input arguments
   nLake = in_soilLiqFlx % nLake ! get number of lake layers from input arguments
-  nIce  = in_soilLiqFlx % nIce  ! get number of ice layers from input arguments
-
+ 
   ! get indices for the data structures
   ibeg = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nLake)%dat(1) + 1
   iend = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nLake)%dat(1) + indx_data%var(iLookINDEX%nSoil)%dat(1)
@@ -285,7 +285,7 @@ subroutine soilLiqFlx(&
     ! compute the transpiration sink term
     ! -------------------------------------------------------------------------------------------------------------------------------------------------
 
-    if ( .not. (scalarSolution .and. ixTop>1) .and. nLake==0 .and. nIce==0) then ! check the need to compute transpiration (NOTE: intent=inout)
+    if ( .not. (scalarSolution .and. ixTop>1) ) then ! check the need to compute transpiration (NOTE: intent=inout)
       
       ! compute the fraction of transpiration loss from each soil layer
       if (scalarTranspireLim > tiny(scalarTranspireLim)) then ! (transpiration may be non-zero even if the soil moisture limiting factor is zero)
