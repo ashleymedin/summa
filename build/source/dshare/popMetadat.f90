@@ -542,7 +542,7 @@ subroutine popMetadat(err,message)
   flux_meta(iLookFLUX%scalarCanopySnowUnloading)       = var_info('scalarCanopySnowUnloading'      , 'unloading of snow from the vegetation canopy'                     , 'kg m-2 s-1'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%scalarCanopyLiqDrainage)         = var_info('scalarCanopyLiqDrainage'        , 'drainage of liquid water from the vegetation canopy'              , 'kg m-2 s-1'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%scalarCanopyMeltFreeze)          = var_info('scalarCanopyMeltFreeze'         , 'melt/freeze of water stored in the canopy'                        , 'kg m-2 s-1'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  ! energy fluxes and for the layer domains
+  ! energy fluxes and for the layers
   flux_meta(iLookFLUX%iLayerConductiveFlux)            = var_info('iLayerConductiveFlux'           , 'conductive energy flux at layer interfaces'                       , 'W m-2'           , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%iLayerAdvectiveFlux)             = var_info('iLayerAdvectiveFlux'            , 'advective energy flux at layer interfaces'                        , 'W m-2'           , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%iLayerNrgFlux)                   = var_info('iLayerNrgFlux'                  , 'energy flux at layer interfaces'                                  , 'W m-2'           , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
@@ -551,7 +551,7 @@ subroutine popMetadat(err,message)
   flux_meta(iLookFLUX%scalarSnowDrainage)              = var_info('scalarSnowDrainage'             , 'drainage from the bottom of the snow profile'                     , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%iLayerLiqFluxSnow)               = var_info('iLayerLiqFluxSnow'              , 'liquid flux at snow layer interfaces'                             , 'm s-1'           , get_ixVarType('ifcSnow'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%mLayerLiqFluxSnow)               = var_info('mLayerLiqFluxSnow'              , 'net liquid water flux for each snow layer'                        , 's-1'             , get_ixVarType('midSnow'), iMissVec, iMissVec, .false.)
-  ! liquid water fluxes for the soil domain
+  ! liquid water fluxes for the soil
   flux_meta(iLookFLUX%scalarRainPlusMelt)              = var_info('scalarRainPlusMelt'             , 'rain plus melt, used as input to soil before surface runoff'      , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%scalarMaxInfilRate)              = var_info('scalarMaxInfilRate'             , 'maximum infiltration rate'                                        , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%scalarInfiltration)              = var_info('scalarInfiltration'             , 'infiltration of water into the soil profile'                      , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
@@ -626,22 +626,22 @@ subroutine popMetadat(err,message)
   ! energy derivatives that might be treated as constant if Cm not updated
   deriv_meta(iLookDERIV%dCm_dTk)                       = var_info('dCm_dTk'                      , 'derivative in Cm w.r.t. temperature'                                 , 'J kg K-2'        , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dCm_dTkCanopy)                 = var_info('dCm_dTkCanopy'                , 'derivative in Cm w.r.t. canopy temperature'                          , 'J kg K-2'        , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. temperature in layers above and below
+  ! derivatives in energy fluxes at the interface of snow lake soil ice layers w.r.t. temperature in layers above and below
   deriv_meta(iLookDERIV%dNrgFlux_dTempAbove)           = var_info('dNrgFlux_dTempAbove'          , 'derivatives in the flux w.r.t. temperature in the layer above'        , 'J m-2 s-1 K-1'  , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dNrgFlux_dTempBelow)           = var_info('dNrgFlux_dTempBelow'          , 'derivatives in the flux w.r.t. temperature in the layer below'        , 'J m-2 s-1 K-1'  , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
-  ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. water state in layers above and below
+  ! derivatives in energy fluxes at the interface of snow lake soil ice layers w.r.t. water state in layers above and below
   deriv_meta(iLookDERIV%dNrgFlux_dWatAbove)            = var_info('dNrgFlux_dWatAbove'           , 'derivatives in the flux w.r.t. water state in the layer above'        , 'unknown'        , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dNrgFlux_dWatBelow)            = var_info('dNrgFlux_dWatBelow'           , 'derivatives in the flux w.r.t. water state in the layer below'        , 'unknown'        , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   ! derivative in liquid water fluxes at the interface of snow layers w.r.t. volumetric liquid water content in the layer above
   deriv_meta(iLookDERIV%iLayerLiqFluxSnowDeriv)        = var_info('iLayerLiqFluxSnowDeriv'       , 'derivative in vertical liquid water flux at layer interfaces'         , 'm s-1'          , get_ixVarType('ifcSnow'), iMissVec, iMissVec, .false.)
-  ! derivative in liquid water fluxes for the soil domain w.r.t hydrology state variables
+  ! derivative in liquid water fluxes for the lake soil ice layers w.r.t hydrology state variables
   deriv_meta(iLookDERIV%dVolTot_dPsi0)                 = var_info('dVolTot_dPsi0'                , 'derivative in total water content w.r.t. total water matric potential', 'm-1'            , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%d2VolTot_dPsi02)               = var_info('d2VolTot_dPsi02'              , 'second derivative in total water content w.r.t. total water matric potential', 'm-1'     , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dCompress_dPsi)                = var_info('dCompress_dPsi'               , 'derivative in compressibility w.r.t matric head'                      , 'm-1'            , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%mLayerdTheta_dPsi)             = var_info('mLayerdTheta_dPsi'            , 'derivative in the soil water characteristic w.r.t. psi'               , 'm-1'            , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%mLayerdPsi_dTheta)             = var_info('mLayerdPsi_dTheta'            , 'derivative in the soil water characteristic w.r.t. theta'             , 'm'              , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
-  deriv_meta(iLookDERIV%dq_dHydStateAbove)             = var_info('dq_dHydStateAbove'            , 'change in flux at layer interfaces w.r.t. states in the layer above'  , 'unknown'        , get_ixVarType('ifcSoil'), iMissVec, iMissVec, .false.)
-  deriv_meta(iLookDERIV%dq_dHydStateBelow)             = var_info('dq_dHydStateBelow'            , 'change in flux at layer interfaces w.r.t. states in the layer below'  , 'unknown'        , get_ixVarType('ifcSoil'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dq_dHydStateAbove)             = var_info('dq_dHydStateAbove'            , 'change in flux at layer interfaces w.r.t. states in the layer above'  , 'unknown'        , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dq_dHydStateBelow)             = var_info('dq_dHydStateBelow'            , 'change in flux at layer interfaces w.r.t. states in the layer below'  , 'unknown'        , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dq_dHydStateLayerSurfVec)      = var_info('dq_dHydStateLayerSurfVec'     , 'change in the flux in soil surface interface w.r.t. state variables in layers','unknown' , get_ixVarType('ifcSoil'), iMissVec, iMissVec, .false.)
   ! derivative in baseflow flux w.r.t. aquifer storage
   deriv_meta(iLookDERIV%dBaseflow_dAquifer)            = var_info('dBaseflow_dAquifer'           , 'derivative in baseflow flux w.r.t. aquifer storage'                   , 's-1'            , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
@@ -661,7 +661,7 @@ subroutine popMetadat(err,message)
   deriv_meta(iLookDERIV%dAquiferTrans_dTCanopy)        = var_info('dAquiferTrans_dTCanopy'       , 'derivative in the aquifer transpiration flux w.r.t. canopy temperature',    'm s-1 K-1'  , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dAquiferTrans_dTGround)        = var_info('dAquiferTrans_dTGround'       , 'derivative in the aquifer transpiration flux w.r.t. ground temperature',    'm s-1 K-1'  , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dAquiferTrans_dCanWat)         = var_info('dAquiferTrans_dCanWat'        , 'derivative in the aquifer transpiration flux w.r.t. canopy total water',   'm-1 s-1 kg-1', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  ! derivative in liquid water fluxes for the layer domains w.rt temperature
+  ! derivative in liquid water fluxes for the layers w.rt temperature
   deriv_meta(iLookDERIV%dFracLiqWat_dTk)               = var_info('dFracLiqWat_dTk'              , 'derivative in fraction of liquid w.r.t. temperature (not computed for soil)', 'K-1'      , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%mLayerdTheta_dTk)              = var_info('mLayerdTheta_dTk'             , 'derivative of volumetric liquid water content w.r.t. temperature'     , 'K-1'            , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%mLayerd2Theta_dTk2)            = var_info('mLayerd2Theta_dTk2'           , 'second derivative of volumetric liquid water content w.r.t. temperature','K-2'           , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
@@ -735,12 +735,12 @@ subroutine popMetadat(err,message)
   indx_meta(iLookINDEX%nMassState)            = var_info('nMassState'           , 'number of hydrology state variables (mass of water)'                     , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%nState)                = var_info('nState'               , 'total number of model state variables'                                   , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! number of state variables within different domains in the snow+soil system
-  indx_meta(iLookINDEX%nSlicSoilNrg)          = var_info('nSlicSoilNrg'         , 'number of energy states in the layer domains'                            , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  indx_meta(iLookINDEX%nSnLaIcSoNrg)          = var_info('nSnLaIcSoNrg'         , 'number of energy states in the layer domains'                            , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%nSnowOnlyNrg)          = var_info('nSnowOnlyNrg'         , 'number of energy states in the snow domain'                              , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%nLakeOnlyNrg)          = var_info('nLakeOnlyNrg'         , 'number of energy states in the lake domain'                              , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%nSoilOnlyNrg)          = var_info('nSoilOnlyNrg'         , 'number of energy states in the soil domain'                              , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%nIceOnlyNrg)           = var_info('nIceOnlyNrg'          , 'number of energy states in the ice domain'                               , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  indx_meta(iLookINDEX%nSlicSoilHyd)          = var_info('nSlicSoilHyd'         , 'number of hydrology states in the layer domains'                         , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  indx_meta(iLookINDEX%nSnLaIcSoHyd)          = var_info('nSnLaIcSoHyd'         , 'number of hydrology states in the layer domains'                         , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%nSnowOnlyHyd)          = var_info('nSnowOnlyHyd'         , 'number of hydrology states in the snow domain'                           , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%nLakeOnlyHyd)          = var_info('nLakeOnlyHyd'         , 'number of hydrology states in the lake domain'                           , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%nSoilOnlyHyd)          = var_info('nSoilOnlyHyd'         , 'number of hydrology states in the soil domain'                           , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
@@ -769,12 +769,12 @@ subroutine popMetadat(err,message)
   indx_meta(iLookINDEX%ixMatOnly)             = var_info('ixMatOnly'            , 'indices IN THE STATE SUBSET for matric head state variables'             , '-', get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%ixMassOnly)            = var_info('ixMassOnly'           , 'indices IN THE STATE SUBSET for hydrology states (mass of water)'        , '-', get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
   ! vectors of indices for specific state types within specific sub-domains
-  indx_meta(iLookINDEX%ixSlicSoilNrg)         = var_info('ixSlicSoilNrg'        , 'indices IN THE STATE SUBSET for energy states in the layer domains'      , '-', get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+  indx_meta(iLookINDEX%ixSnLaIcSoNrg)         = var_info('ixSnLaIcSoNrg'        , 'indices IN THE STATE SUBSET for energy states in the layer domains'      , '-', get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%ixSnowOnlyNrg)         = var_info('ixSnowOnlyNrg'        , 'indices IN THE STATE SUBSET for energy states in the snow domain'        , '-', get_ixVarType('midSnow'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%ixLakeOnlyNrg)         = var_info('ixLakeOnlyNrg'        , 'indices IN THE STATE SUBSET for energy states in the lake domain'        , '-', get_ixVarType('midLake'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%ixSoilOnlyNrg)         = var_info('ixSoilOnlyNrg'        , 'indices IN THE STATE SUBSET for energy states in the soil domain'        , '-', get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%ixIceOnlyNrg)          = var_info('ixIceOnlyNrg'         , 'indices IN THE STATE SUBSET for energy states in the ice domain'         , '-', get_ixVarType('midIce') , iMissVec, iMissVec, .false.)
-  indx_meta(iLookINDEX%ixSlicSoilHyd)         = var_info('ixSlicSoilHyd'        , 'indices IN THE STATE SUBSET for hydrology states in the layer domains'   , '-', get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+  indx_meta(iLookINDEX%ixSnLaIcSoHyd)         = var_info('ixSnLaIcSoHyd'        , 'indices IN THE STATE SUBSET for hydrology states in the layer domains'   , '-', get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%ixSnowOnlyHyd)         = var_info('ixSnowOnlyHyd'        , 'indices IN THE STATE SUBSET for hydrology states in the snow domain'     , '-', get_ixVarType('midSnow'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%ixLakeOnlyHyd)         = var_info('ixLakeOnlyHyd'        , 'indices IN THE STATE SUBSET for hydrology states in the lake domain'     , '-', get_ixVarType('midLake'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%ixSoilOnlyHyd)         = var_info('ixSoilOnlyHyd'        , 'indices IN THE STATE SUBSET for hydrology states in the soil domain'     , '-', get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)

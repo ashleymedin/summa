@@ -246,10 +246,10 @@ subroutine varSubstep(&
     ixTopHyd                => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)              ,& ! intent(in):    [i4b]    index of upper-most hydrology state in the snow+soil subdomain
     ixAqWat                 => indx_data%var(iLookINDEX%ixAqWat)%dat(1)               ,& ! intent(in):    [i4b]    index of water storage in the aquifer
     ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the soil domain
-    ixSlicSoilHyd           => indx_data%var(iLookINDEX%ixSlicSoilHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the layer domains
-    ixSlicSoilNrg           => indx_data%var(iLookINDEX%ixSlicSoilNrg)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for energy state variables in the layer domains
-    nSlicSoilNrg            => indx_data%var(iLookINDEX%nSlicSoilNrg)%dat(1)          ,& ! intent(in):    [i4b]    number of energy state variables in the layer domains
-    nSlicSoilHyd            => indx_data%var(iLookINDEX%nSlicSoilHyd)%dat(1)          ,& ! intent(in):    [i4b]    number of hydrology state variables in the layer domains
+    ixSnLaIcSoHyd           => indx_data%var(iLookINDEX%ixSnLaIcSoHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the layer domains
+    ixSnLaIcSoNrg           => indx_data%var(iLookINDEX%ixSnLaIcSoNrg)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for energy state variables in the layer domains
+    nSnLaIcSoNrg            => indx_data%var(iLookINDEX%nSnLaIcSoNrg)%dat(1)          ,& ! intent(in):    [i4b]    number of energy state variables in the layer domains
+    nSnLaIcSoHyd            => indx_data%var(iLookINDEX%nSnLaIcSoHyd)%dat(1)          ,& ! intent(in):    [i4b]    number of hydrology state variables in the layer domains
     ! mapping between state vectors and control volumes
     ixLayerActive           => indx_data%var(iLookINDEX%ixLayerActive)%dat            ,& ! intent(in):    [i4b(:)] list of indices for all active layers (inactive=integerMissing)
     ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat         ,& ! intent(in):    [i4b(:)] mapping of full state vector to the state subset
@@ -495,15 +495,15 @@ subroutine varSubstep(&
       ! add balances to the total balances
       if(ixCasNrg/=integerMissing) sumBalance(ixCasNrg) = sumBalance(ixCasNrg) + dtSubstep*balance(ixCasNrg)
       if(ixVegNrg/=integerMissing) sumBalance(ixVegNrg) = sumBalance(ixVegNrg) + dtSubstep*balance(ixVegNrg)
-      if(nSlicSoilNrg>0) then
-        do concurrent (ixLayer=1:nLayers,ixSlicSoilNrg(ixLayer)/=integerMissing)
-          if(ixSlicSoilNrg(ixLayer)/=integerMissing) sumBalance(ixSlicSoilNrg(ixLayer)) = sumBalance(ixSlicSoilNrg(ixLayer)) + dtSubstep*balance(ixSlicSoilNrg(ixLayer))
+      if(nSnLaIcSoNrg>0) then
+        do concurrent (ixLayer=1:nLayers,ixSnLaIcSoNrg(ixLayer)/=integerMissing)
+          if(ixSnLaIcSoNrg(ixLayer)/=integerMissing) sumBalance(ixSnLaIcSoNrg(ixLayer)) = sumBalance(ixSnLaIcSoNrg(ixLayer)) + dtSubstep*balance(ixSnLaIcSoNrg(ixLayer))
         end do
       endif
       if(ixVegHyd/=integerMissing) sumBalance(ixVegHyd) = sumBalance(ixVegHyd) + dtSubstep*balance(ixVegHyd)
-      if(nSlicSoilHyd>0) then
-        do concurrent (ixLayer=1:nLayers,ixSlicSoilHyd(ixLayer)/=integerMissing)
-          if(ixSlicSoilHyd(ixLayer)/=integerMissing) sumBalance(ixSlicSoilHyd(ixLayer)) = sumBalance(ixSlicSoilHyd(ixLayer)) + dtSubstep*balance(ixSlicSoilHyd(ixLayer))
+      if(nSnLaIcSoHyd>0) then
+        do concurrent (ixLayer=1:nLayers,ixSnLaIcSoHyd(ixLayer)/=integerMissing)
+          if(ixSnLaIcSoHyd(ixLayer)/=integerMissing) sumBalance(ixSnLaIcSoHyd(ixLayer)) = sumBalance(ixSnLaIcSoHyd(ixLayer)) + dtSubstep*balance(ixSnLaIcSoHyd(ixLayer))
         end do
       endif
       if(ixAqWat/=integerMissing) sumBalance(ixAqWat) = sumBalance(ixAqWat) + dtSubstep*balance(ixAqWat)
@@ -605,15 +605,15 @@ subroutine varSubstep(&
     ! save the balance diagnostics as averages
     if(ixCasNrg/=integerMissing) diag_data%var(iLookDIAG%balanceCasNrg)%dat(1) = sumBalance(ixCasNrg)/dt
     if(ixVegNrg/=integerMissing) diag_data%var(iLookDIAG%balanceVegNrg)%dat(1) = sumBalance(ixVegNrg)/dt
-    if(nSlicSoilNrg>0) then
-      do concurrent (ixLayer=1:nLayers,ixSlicSoilNrg(ixLayer)/=integerMissing)
-        diag_data%var(iLookDIAG%balanceLayerNrg)%dat(ixLayer) = sumBalance(ixSlicSoilNrg(ixLayer))/dt
+    if(nSnLaIcSoNrg>0) then
+      do concurrent (ixLayer=1:nLayers,ixSnLaIcSoNrg(ixLayer)/=integerMissing)
+        diag_data%var(iLookDIAG%balanceLayerNrg)%dat(ixLayer) = sumBalance(ixSnLaIcSoNrg(ixLayer))/dt
       end do
     endif
     if(ixVegHyd/=integerMissing) diag_data%var(iLookDIAG%balanceVegMass)%dat(1) = sumBalance(ixVegHyd)/dt
-    if(nSlicSoilHyd>0) then
-      do concurrent (ixLayer=1:nLayers,ixSlicSoilHyd(ixLayer)/=integerMissing)
-        diag_data%var(iLookDIAG%balanceLayerMass)%dat(ixLayer) = sumBalance(ixSlicSoilHyd(ixLayer))/dt
+    if(nSnLaIcSoHyd>0) then
+      do concurrent (ixLayer=1:nLayers,ixSnLaIcSoHyd(ixLayer)/=integerMissing)
+        diag_data%var(iLookDIAG%balanceLayerMass)%dat(ixLayer) = sumBalance(ixSnLaIcSoHyd(ixLayer))/dt
       end do
     endif 
     if(ixAqWat/=integerMissing) diag_data%var(iLookDIAG%balanceAqMass)%dat(1) = sumBalance(ixAqWat)/dt
@@ -754,10 +754,10 @@ USE getVectorz_module,only:varExtract                              ! extract var
     ixTopHyd                  => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)                  ,& ! intent(in)   : [i4b]    index of upper-most hydrology state in the snow+soil subdomain
     ixAqWat                   => indx_data%var(iLookINDEX%ixAqWat)%dat(1)                   ,& ! intent(in)   : [i4b]    index of water storage in the aquifer
     ixSoilOnlyHyd             => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat                ,& ! intent(in)   : [i4b(:)] index in the state subset for hydrology state variables in the soil domain
-    ixSlicSoilNrg             => indx_data%var(iLookINDEX%ixSlicSoilNrg)%dat                ,& ! intent(in)   : [i4b(:)] index in the state subset for energy state variables in the layer domains
-    ixSlicSoilHyd             => indx_data%var(iLookINDEX%ixSlicSoilHyd)%dat                ,& ! intent(in)   : [i4b(:)] index in the state subset for hydrology state variables in the layer domains
-    nSlicSoilNrg              => indx_data%var(iLookINDEX%nSlicSoilNrg)%dat(1)              ,& ! intent(in)   : [i4b]    number of energy state variables in the layer domains
-    nSlicSoilHyd              => indx_data%var(iLookINDEX%nSlicSoilHyd)%dat(1)              ,& ! intent(in)   : [i4b]    number of hydrology state variables in the layer domains
+    ixSnLaIcSoNrg             => indx_data%var(iLookINDEX%ixSnLaIcSoNrg)%dat                ,& ! intent(in)   : [i4b(:)] index in the state subset for energy state variables in the layer domains
+    ixSnLaIcSoHyd             => indx_data%var(iLookINDEX%ixSnLaIcSoHyd)%dat                ,& ! intent(in)   : [i4b(:)] index in the state subset for hydrology state variables in the layer domains
+    nSnLaIcSoNrg              => indx_data%var(iLookINDEX%nSnLaIcSoNrg)%dat(1)              ,& ! intent(in)   : [i4b]    number of energy state variables in the layer domains
+    nSnLaIcSoHyd              => indx_data%var(iLookINDEX%nSnLaIcSoHyd)%dat(1)              ,& ! intent(in)   : [i4b]    number of hydrology state variables in the layer domains
     ! get indices for the un-tapped melt
     ixNrgOnly                 => indx_data%var(iLookINDEX%ixNrgOnly)%dat                    ,& ! intent(in)   : [i4b(:)] list of indices for all energy states
     ixDomainType              => indx_data%var(iLookINDEX%ixDomainType)%dat                 ,& ! intent(in)   : [i4b(:)] indices defining the domain of the state (iname_veg, iname_snow, iname_soil)
@@ -768,7 +768,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
     scalarThroughfallRain     => flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1)      ,& ! intent(in)   : [dp]     rain reaches ground without touching the canopy (kg m-2 s-1)
     scalarCanopyEvaporation   => flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)    ,& ! intent(in)   : [dp]     canopy evaporation/condensation (kg m-2 s-1)
     scalarCanopyLiqDrainage   => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1)    ,& ! intent(in)   : [dp]     drainage liquid water from vegetation canopy (kg m-2 s-1)
-    iLayerLiqFluxSoil         => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat             ,& ! intent(in)   : [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
+    iLayerLiqFlux         => flux_data%var(iLookFLUX%iLayerLiqFlux)%dat             ,& ! intent(in)   : [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
     iLayerNrgFlux             => flux_data%var(iLookFLUX%iLayerNrgFlux)%dat                 ,& ! intent(in)   :
     mLayerNrgFlux             => flux_data%var(iLookFLUX%mLayerNrgFlux)%dat                 ,& ! intent(out)  : [dp]     net energy flux for each layer within the layer domains (J m-3 s-1)
     mLayerTranspire           => flux_data%var(iLookFLUX%mLayerTranspire)%dat               ,& ! intent(in)   : [dp(:)]  transpiration loss from each soil layer (m s-1)
@@ -1054,17 +1054,17 @@ USE getVectorz_module,only:varExtract                              ! extract var
           ! compute energy balance, maybe should use to check for step reduction
           if(ixCasNrg/=integerMissing) balance(ixCasNrg) = (scalarCanairEnthalpyTrial - scalarCanairEnthalpy)/dt - fluxVec(ixCasNrg)
           if(ixVegNrg/=integerMissing) balance(ixVegNrg) = scalarCanopyHDelta/dt - fluxVec(ixVegNrg)
-          if(nSlicSoilNrg>0)then
-            do concurrent (i=1:nLayers,ixSlicSoilNrg(i)/=integerMissing)
-              balance(ixSlicSoilNrg(i)) = mLayerHDelta(i)/dt - fluxVec(ixSlicSoilNrg(i))
+          if(nSnLaIcSoNrg>0)then
+            do concurrent (i=1:nLayers,ixSnLaIcSoNrg(i)/=integerMissing)
+              balance(ixSnLaIcSoNrg(i)) = mLayerHDelta(i)/dt - fluxVec(ixSnLaIcSoNrg(i))
             enddo
           endif
           ! This is equivalent to above if, and only if, ixNrgConserv.ne.closedForm
           !!if(ixCasNrg/=integerMissing) balance(ixCasNrg) = resVec(ixCasNrg)/dt
           !if(ixVegNrg/=integerMissing) balance(ixVegNrg) = resVec(ixVegNrg)/dt
-          !if(nSlicSoilNrg>0)then
-          !  do concurrent (i=1:nLayers,ixSlicSoilNrg(i)/=integerMissing)
-          !    balance(ixSlicSoilNrg(i)) = resVec(ixSlicSoilNrg(i))/dt
+          !if(nSnLaIcSoNrg>0)then
+          !  do concurrent (i=1:nLayers,ixSnLaIcSoNrg(i)/=integerMissing)
+          !    balance(ixSnLaIcSoNrg(i)) = resVec(ixSnLaIcSoNrg(i))/dt
           !  enddo
           !endif
 
@@ -1072,9 +1072,9 @@ USE getVectorz_module,only:varExtract                              ! extract var
     else ! if not checking energy balance set balance to missing
       if(ixCasNrg/=integerMissing) balance(ixCasNrg) = realMissing
       if(ixVegNrg/=integerMissing) balance(ixVegNrg) = realMissing
-      if(nSlicSoilNrg>0)then
-        do concurrent (i=1:nLayers,ixSlicSoilNrg(i)/=integerMissing)
-          balance(ixSlicSoilNrg(i)) = realMissing
+      if(nSnLaIcSoNrg>0)then
+        do concurrent (i=1:nLayers,ixSnLaIcSoNrg(i)/=integerMissing)
+          balance(ixSnLaIcSoNrg(i)) = realMissing
         enddo
       endif
     endif  ! if checking energy balance
@@ -1157,7 +1157,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
           ! check mass balance for soil domain for step reduction (ida and kinsol should have done this already 
           if(count(ixSoilOnlyHyd/=integerMissing)==nSoil .and. nSoil>0)then
             soilBalance1 = sum( (mLayerVolFracLiqTrial(nSnow+nLake+1:nSnow+nLake+nSoil) + mLayerVolFracIceTrial(nSnow+nLake+1:nSnow+nLake+nSoil) )*mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil) )
-            vertFlux     = -(iLayerLiqFluxSoil(nSoil) - iLayerLiqFluxSoil(0))*dt           ! m s-1 --> m
+            vertFlux     = -(iLayerLiqFlux(nSoil) - iLayerLiqFlux(0))*dt           ! m s-1 --> m
             tranSink     = sum(mLayerTranspire)*dt                                         ! m s-1 --> m
             baseSink     = sum(mLayerBaseflow)*dt                                          ! m s-1 --> m
             compSink     = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil) )*dt ! m s-1 --> m
@@ -1179,9 +1179,9 @@ USE getVectorz_module,only:varExtract                              ! extract var
           ! compute mass balance, maybe should use to check for step reduction
           ! resVec is the residual vector from the solver over dt
           if(ixVegHyd/=integerMissing) balance(ixVegHyd) = resVec(ixVegHyd)/dt
-          if(nSlicSoilHyd>0)then
-            do concurrent (i=1:nLayers,ixSlicSoilHyd(i)/=integerMissing)
-              balance(ixSlicSoilHyd(i)) = resVec(ixSlicSoilHyd(i))/dt
+          if(nSnLaIcSoHyd>0)then
+            do concurrent (i=1:nLayers,ixSnLaIcSoHyd(i)/=integerMissing)
+              balance(ixSnLaIcSoHyd(i)) = resVec(ixSnLaIcSoHyd(i))/dt
             end do
           endif
           if(ixAqWat/=integerMissing) balance(ixAqWat) = resVec(ixAqWat)/dt
@@ -1189,9 +1189,9 @@ USE getVectorz_module,only:varExtract                              ! extract var
       end select
     else ! if not checking mass balance set balance to missing
       if(ixVegHyd/=integerMissing) balance(ixVegHyd) = realMissing
-      if(nSlicSoilHyd>0)then
-        do concurrent (i=1:nLayers,ixSlicSoilHyd(i)/=integerMissing)
-          balance(ixSlicSoilHyd(i)) = realMissing
+      if(nSnLaIcSoHyd>0)then
+        do concurrent (i=1:nLayers,ixSnLaIcSoHyd(i)/=integerMissing)
+          balance(ixSnLaIcSoHyd(i)) = realMissing
         end do
       endif
       if(ixAqWat/=integerMissing) balance(ixAqWat) = realMissing

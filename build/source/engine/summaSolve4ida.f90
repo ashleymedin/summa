@@ -263,15 +263,15 @@ subroutine summaSolve4ida(&
   ! link to the necessary variables
   associate(&
     ! number of state variables of a specific type
-    nSlicSoilNrg            => indx_data%var(iLookINDEX%nSlicSoilNrg )%dat(1) ,& ! intent(in): [i4b]    number of energy state variables in the layer domains
-    nSlicSoilHyd            => indx_data%var(iLookINDEX%nSlicSoilHyd )%dat(1) ,& ! intent(in): [i4b]    number of hydrology variables in the layer domains
+    nSnLaIcSoNrg            => indx_data%var(iLookINDEX%nSnLaIcSoNrg )%dat(1) ,& ! intent(in): [i4b]    number of energy state variables in the layer domains
+    nSnLaIcSoHyd            => indx_data%var(iLookINDEX%nSnLaIcSoHyd )%dat(1) ,& ! intent(in): [i4b]    number of hydrology variables in the layer domains
     ! model indices
     ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)      ,& ! intent(in): [i4b]    index of canopy air space energy state variable
     ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)      ,& ! intent(in): [i4b]    index of canopy energy state variable
     ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)      ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
     ixAqWat                 => indx_data%var(iLookINDEX%ixAqWat)%dat(1)       ,& ! intent(in): [i4b]    index of water storage in the aquifer
-    ixSlicSoilNrg           => indx_data%var(iLookINDEX%ixSlicSoilNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
-    ixSlicSoilHyd           => indx_data%var(iLookINDEX%ixSlicSoilHyd)%dat    ,& ! intent(in): [i4b(:)] indices for hydrology states in the snow+soil subdomain
+    ixSnLaIcSoNrg           => indx_data%var(iLookINDEX%ixSnLaIcSoNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
+    ixSnLaIcSoHyd           => indx_data%var(iLookINDEX%ixSnLaIcSoHyd)%dat    ,& ! intent(in): [i4b(:)] indices for hydrology states in the snow+soil subdomain
     ixSnowOnlyNrg           => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the snow subdomain
     ixLakeOnlyNrg           => indx_data%var(iLookINDEX%ixLakeOnlyNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the lake subdomain
     ixSoilOnlyNrg           => indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the soil subdomain
@@ -569,9 +569,9 @@ subroutine summaSolve4ida(&
         ! note, if needCm and/or updateCp are false in eval8summaWithPrime, then the energy balance is not accurate
         if(ixCasNrg/=integerMissing) balance(ixCasNrg) = balance(ixCasNrg) + ( eqns_data%resVec(ixCasNrg) + resVecPrev(ixCasNrg) )*dt_mult/dt
         if(ixVegNrg/=integerMissing) balance(ixVegNrg) = balance(ixVegNrg) + ( eqns_data%resVec(ixVegNrg) + resVecPrev(ixVegNrg) )*dt_mult/dt
-        if(nSlicSoilNrg>0)then
-          do concurrent (i=1:nLayers,ixSlicSoilNrg(i)/=integerMissing) 
-            balance(ixSlicSoilNrg(i)) = balance(ixSlicSoilNrg(i)) + ( eqns_data%resVec(ixSlicSoilNrg(i)) + resVecPrev(ixSlicSoilNrg(i)) )*dt_mult/dt
+        if(nSnLaIcSoNrg>0)then
+          do concurrent (i=1:nLayers,ixSnLaIcSoNrg(i)/=integerMissing) 
+            balance(ixSnLaIcSoNrg(i)) = balance(ixSnLaIcSoNrg(i)) + ( eqns_data%resVec(ixSnLaIcSoNrg(i)) + resVecPrev(ixSnLaIcSoNrg(i)) )*dt_mult/dt
           enddo
         endif
       endif
@@ -583,9 +583,9 @@ subroutine summaSolve4ida(&
     
         ! compute mass balance mean, resVec is the instantaneous residual vector from the solver
         if(ixVegHyd/=integerMissing) balance(ixVegHyd) = balance(ixVegHyd) + ( eqns_data%resVec(ixVegHyd) + resVecPrev(ixVegHyd) )*dt_mult/dt
-        if(nSlicSoilHyd>0)then
-          do concurrent (i=1:nLayers,ixSlicSoilHyd(i)/=integerMissing) 
-            balance(ixSlicSoilHyd(i)) = balance(ixSlicSoilHyd(i)) + ( eqns_data%resVec(ixSlicSoilHyd(i)) + resVecPrev(ixSlicSoilHyd(i)) )*dt_mult/dt
+        if(nSnLaIcSoHyd>0)then
+          do concurrent (i=1:nLayers,ixSnLaIcSoHyd(i)/=integerMissing) 
+            balance(ixSnLaIcSoHyd(i)) = balance(ixSnLaIcSoHyd(i)) + ( eqns_data%resVec(ixSnLaIcSoHyd(i)) + resVecPrev(ixSnLaIcSoHyd(i)) )*dt_mult/dt
           enddo
         endif
         if(ixAqWat/=integerMissing) balance(ixAqWat) = balance(ixAqWat) + ( eqns_data%resVec(ixAqWat) + resVecPrev(ixAqWat) )*dt_mult/dt

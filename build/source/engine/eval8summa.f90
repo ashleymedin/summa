@@ -846,25 +846,25 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
     ixTopHyd           => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)            ,& ! intent(in): [i4b]    index of upper-most hydrology state in the snow-soil subdomain
     ! vector of energy indices for the layer domains
     ! NOTE: states not in the subset are equal to integerMissing
-    ixSlicSoilNrg      => indx_data%var(iLookINDEX%ixSlicSoilNrg)%dat          ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the layer domains
+    ixSnLaIcSoNrg      => indx_data%var(iLookINDEX%ixSnLaIcSoNrg)%dat          ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the layer domains
     ixSnowOnlyNrg      => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat          ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the snow domain
     ixLakeOnlyNrg      => indx_data%var(iLookINDEX%ixLakeOnlyNrg)%dat          ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the lake domain
     ixSoilOnlyNrg      => indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat          ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the soil domain
     ixIceOnlyNrg       => indx_data%var(iLookINDEX%ixIceOnlyNrg)%dat           ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the ice domain
     ! vector of hydrology indices for the layer domains
     ! NOTE: states not in the subset are equal to integerMissing
-    ixSlicSoilHyd      => indx_data%var(iLookINDEX%ixSlicSoilHyd)%dat          ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the layer domains
+    ixSnLaIcSoHyd      => indx_data%var(iLookINDEX%ixSnLaIcSoHyd)%dat          ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the layer domains
     ixSnowOnlyHyd      => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat          ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the snow domain
     ixLakeOnlyHyd      => indx_data%var(iLookINDEX%ixLakeOnlyHyd)%dat          ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the lake domain
     ixSoilOnlyHyd      => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat          ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the soil domain
     ixIceOnlyHyd       => indx_data%var(iLookINDEX%ixIceOnlyHyd)%dat           ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the ice domain
     ! number of state variables of a specific type
-    nSlicSoilNrg       => indx_data%var(iLookINDEX%nSlicSoilNrg )%dat(1)       ,& ! intent(in): [i4b]    number of energy state variables in the layer domains
+    nSnLaIcSoNrg       => indx_data%var(iLookINDEX%nSnLaIcSoNrg )%dat(1)       ,& ! intent(in): [i4b]    number of energy state variables in the layer domains
     nSnowOnlyNrg       => indx_data%var(iLookINDEX%nSnowOnlyNrg )%dat(1)       ,& ! intent(in): [i4b]    number of energy state variables in the snow domain
     nLakeOnlyNrg       => indx_data%var(iLookINDEX%nLakeOnlyNrg )%dat(1)       ,& ! intent(in): [i4b]    number of energy state variables in the lake domain
     nSoilOnlyNrg       => indx_data%var(iLookINDEX%nSoilOnlyNrg )%dat(1)       ,& ! intent(in): [i4b]    number of energy state variables in the soil domain
     nIceOnlyNrg        => indx_data%var(iLookINDEX%nIceOnlyNrg  )%dat(1)       ,& ! intent(in): [i4b]    number of energy state variables in the ice domain
-    nSlicSoilHyd       => indx_data%var(iLookINDEX%nSlicSoilHyd )%dat(1)       ,& ! intent(in): [i4b]    number of hydrology variables in the layer domains
+    nSnLaIcSoHyd       => indx_data%var(iLookINDEX%nSnLaIcSoHyd )%dat(1)       ,& ! intent(in): [i4b]    number of hydrology variables in the layer domains
     nSnowOnlyHyd       => indx_data%var(iLookINDEX%nSnowOnlyHyd )%dat(1)       ,& ! intent(in): [i4b]    number of hydrology variables in the snow domain
     nLakeOnlyHyd       => indx_data%var(iLookINDEX%nLakeOnlyHyd )%dat(1)       ,& ! intent(in): [i4b]    number of hydrology variables in the lake domain
     nSoilOnlyHyd       => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)       ,& ! intent(in): [i4b]    number of hydrology variables in the soil domain

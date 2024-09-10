@@ -87,8 +87,8 @@ USE soil_utils_module,only:volFracLiq          ! compute volumetric fraction of 
 USE soil_utils_module,only:crit_soilT          ! compute critical temperature below which ice exists
 USE soil_utils_module,only:liquidHead          ! compute the liquid water matric potential
 USE enthalpyTemp_module,only:T2enthTemp_cas    ! convert temperature to enthalpy for canopy air space
-USE enthalpyTemp_module,only:T2enthTemp_veg   ! convert temperature to enthalpy for vegetation
-USE enthalpyTemp_module,only:T2enthTemp_slic   ! convert temperature to enthalpy for snow
+USE enthalpyTemp_module,only:T2enthTemp_veg    ! convert temperature to enthalpy for vegetation
+USE enthalpyTemp_module,only:T2enthTemp_snLaIc ! convert temperature to enthalpy for snow
 USE enthalpyTemp_module,only:T2enthTemp_soil   ! convert temperature to enthalpy for soil 
 
 ! IEEE check
@@ -687,7 +687,7 @@ subroutine updateVars(&
         endif
       elseif(ixDomainType==iname_snow .or. ixDomainType==iname_lake  .or. ixDomainType==iname_ice)then
         if(computeEnthTemp)then
-          call T2enthTemp_slic(&
+          call T2enthTemp_snLaIc(&
                       ! input
                       snowfrz_scale,                   & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                       mLayerTempTrial(iLayer),         & ! intent(in):  layer temperature (K)

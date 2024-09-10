@@ -93,7 +93,7 @@ USE soil_utilsAddPrime_module,only:d2Theta_dPsi2   ! second derivative in the so
 USE soil_utilsAddPrime_module,only:d2Theta_dTk2    ! second derivative in the freezing curve w.r.t. temperature (soil)
 USE enthalpyTemp_module,only:enthalpy2T_cas        ! compute canopy air space temperature from enthalpy
 USE enthalpyTemp_module,only:enthalpy2T_veg        ! compute canopy temperature from enthalpy and water content
-USE enthalpyTemp_module,only:enthalpy2T_slic       ! compute snow layer temperature from enthalpy and water content
+USE enthalpyTemp_module,only:enthalpy2T_snLaIc     ! compute snow layer temperature from enthalpy and water content
 USE enthalpyTemp_module,only:enthalpy2T_soil       ! compute soil layer temperature from enthalpy and matric potential
 
 ! IEEE checks
@@ -455,7 +455,7 @@ subroutine updateVarsWithPrime(&
         endif
       elseif(ixDomainType==iname_snow .or. ixDomainType==iname_lake .or. ixDomainType==iname_ice)then
         if(enthalpyStateVec)then
-          call enthalpy2T_slic(&
+          call enthalpy2T_snLaIc(&
                    computJac,                      & ! intent(in):    flag if computing for Jacobian update       
                    snowfrz_scale,                  & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
                    mLayerEnthalpyTrial(iLayer),    & ! intent(in):    enthalpy of snow+soil layer (J m-3)

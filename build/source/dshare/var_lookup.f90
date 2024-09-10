@@ -573,16 +573,16 @@ MODULE var_lookup
   integer(i4b)    :: scalarCanopySnowUnloading       = integerMissing ! unloading of snow from the vegetion canopy (kg m-2 s-1)
   integer(i4b)    :: scalarCanopyLiqDrainage         = integerMissing ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
   integer(i4b)    :: scalarCanopyMeltFreeze          = integerMissing ! melt/freeze of water stored in the canopy (kg m-2 s-1)
-  ! energy fluxes and for the layer domains
+  ! energy fluxes and for the layers
   integer(i4b)    :: iLayerConductiveFlux            = integerMissing ! conductive energy flux at layer interfaces (W m-2)
   integer(i4b)    :: iLayerAdvectiveFlux             = integerMissing ! advective energy flux at layer interfaces (W m-2)
   integer(i4b)    :: iLayerNrgFlux                   = integerMissing ! energy flux at layer interfaces (W m-2)
   integer(i4b)    :: mLayerNrgFlux                   = integerMissing ! net energy flux for each layer in the layer domains (J m-3 s-1)
-  ! liquid water fluxes for the snow domain
+  ! liquid water fluxes for the snow
   integer(i4b)    :: scalarSnowDrainage              = integerMissing ! drainage from the bottom of the snow profile (m s-1)
   integer(i4b)    :: iLayerLiqFluxSnow               = integerMissing ! liquid flux at snow layer interfaces (m s-1)
   integer(i4b)    :: mLayerLiqFluxSnow               = integerMissing ! net liquid water flux for each snow layer (s-1)
-  ! liquid water fluxes for the soil domain
+  ! liquid water fluxes for the soil
   integer(i4b)    :: scalarRainPlusMelt              = integerMissing ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
   integer(i4b)    :: scalarMaxInfilRate              = integerMissing ! maximum infiltration rate (m s-1)
   integer(i4b)    :: scalarInfiltration              = integerMissing ! infiltration of water into the soil profile (m s-1)
@@ -736,12 +736,12 @@ MODULE var_lookup
   integer(i4b)     :: nMassState            = integerMissing  ! number of hydrology state variables (mass of water)                      (-)
   integer(i4b)     :: nState                = integerMissing  ! total number of model state variables                                    (-)
   ! number of state variables within different domains in the snow+soil system
-  integer(i4b)     :: nSlicSoilNrg          = integerMissing  ! number of energy states in the layer domains                             (-)
+  integer(i4b)     :: nSnLaIcSoNrg          = integerMissing  ! number of energy states in the layer domains                             (-)
   integer(i4b)     :: nSnowOnlyNrg          = integerMissing  ! number of energy states in the snow domain                               (-)
   integer(i4b)     :: nLakeOnlyNrg          = integerMissing  ! number of energy states in the lake domain                               (-)
   integer(i4b)     :: nSoilOnlyNrg          = integerMissing  ! number of energy states in the soil domain                               (-)
   integer(i4b)     :: nIceOnlyNrg           = integerMissing  ! number of energy states in the ice domain                                (-)
-  integer(i4b)     :: nSlicSoilHyd          = integerMissing  ! number of hydrology states in the layer domains                          (-)
+  integer(i4b)     :: nSnLaIcSoHyd          = integerMissing  ! number of hydrology states in the layer domains                          (-)
   integer(i4b)     :: nSnowOnlyHyd          = integerMissing  ! number of hydrology states in the snow domain                            (-)
   integer(i4b)     :: nLakeOnlyHyd          = integerMissing  ! number of hydrology states in the lake domain                            (-)
   integer(i4b)     :: nSoilOnlyHyd          = integerMissing  ! number of hydrology states in the soil domain                            (-)
@@ -770,12 +770,12 @@ MODULE var_lookup
   integer(i4b)     :: ixMatOnly             = integerMissing  ! indices IN THE STATE SUBSET for matric head state variables              (-)
   integer(i4b)     :: ixMassOnly            = integerMissing  ! indices IN THE STATE SUBSET for hydrology states (mass of water)         (-)
   ! vectors of indices for specific state types within specific sub-domains
-  integer(i4b)     :: ixSlicSoilNrg         = integerMissing  ! indices of model layers for energy states in the layer domains           (-)
+  integer(i4b)     :: ixSnLaIcSoNrg         = integerMissing  ! indices of model layers for energy states in the layer domains           (-)
   integer(i4b)     :: ixSnowOnlyNrg         = integerMissing  ! indices of model layers for energy states in the snow domain             (-)
   integer(i4b)     :: ixLakeOnlyNrg         = integerMissing  ! indices of model layers for energy states in the lake domain             (-)
   integer(i4b)     :: ixIceOnlyNrg          = integerMissing  ! indices of model layers for energy states in the ice domain              (-)
   integer(i4b)     :: ixSoilOnlyNrg         = integerMissing  ! indices of model layers for energy states in the soil domain             (-)
-  integer(i4b)     :: ixSlicSoilHyd         = integerMissing  ! indices of model layers for hydrology states in the layer domains        (-)
+  integer(i4b)     :: ixSnLaIcSoHyd         = integerMissing  ! indices of model layers for hydrology states in the layer domains        (-)
   integer(i4b)     :: ixSnowOnlyHyd         = integerMissing  ! indices of model layers for hydrology states in the snow domain          (-)
   integer(i4b)     :: ixLakeOnlyHyd         = integerMissing  ! indices of model layers for hydrology states in the lake domain          (-)
   integer(i4b)     :: ixSoilOnlyHyd         = integerMissing  ! indices of model layers for hydrology states in the soil domain          (-)

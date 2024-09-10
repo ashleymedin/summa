@@ -111,12 +111,13 @@ contains
 ! ************************************************************************************************
 subroutine coupled_em(&
                       ! model control
-                      hruId,             & ! intent(in):    hruId
+                       hruId,             & ! intent(in):    hruId
                       dt_init,           & ! intent(inout): used to initialize the size of the sub-step
                       dt_init_factor,    & ! intent(in):    Used to adjust the length of the timestep in the event of a failure
                       computeVegFlux,    & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
                       fracJulDay,        & ! intent(in):    fractional julian days since the start of year
                       yearLength,        & ! intent(in):    number of days in the current year
+                      glacierDomain,     & ! intent(in):    flag to denote that the domain is a glacier
                       ! data structures (input)
                       type_data,         & ! intent(in):    local classification of soil veg etc. for each HRU
                       attr_data,         & ! intent(in):    local attributes for each HRU
@@ -154,18 +155,21 @@ subroutine coupled_em(&
   USE var_derive_module,only:calcHeight             ! module to calculate height at layer interfaces and layer mid-point
   USE computSnowDepth_module,only:computSnowDepth   ! compute snow depth
   USE enthalpyTemp_module,only:T2enthTemp_veg       ! convert temperature to enthalpy for vegetation
-  USE enthalpyTemp_module,only:T2enthTemp_slic      ! convert temperature to enthalpy for snow
+  USE enthalpyTemp_module,only:T2enthTemp_snLaIc    ! convert temperature to enthalpy for snow, lake, and ice
   USE enthalpyTemp_module,only:T2enthTemp_soil      ! convert temperature to enthalpy for soil
   USE enthalpyTemp_module,only:enthTemp_or_enthalpy ! add phase change terms to delta temperature component of enthalpy or vice versa
-
   implicit none
-
+  ! -------------------------------------------------------------------------------------------------------------------------
+  ! * dummy variables
+  ! -------------------------------------------------------------------------------------------------------------------------
+  ! input-output: control
   integer(8),intent(in)                :: hruId                  ! hruId
   real(rkind),intent(inout)            :: dt_init                ! used to initialize the size of the sub-step
   integer(i4b),intent(in)              :: dt_init_factor         ! Used to adjust the length of the timestep in the event of a failure
   logical(lgt),intent(inout)           :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
   real(rkind),intent(in)               :: fracJulDay             ! fractional julian days since the start of year
   integer(i4b),intent(in)              :: yearLength             ! number of days in the current year
+  logical(lgt),intent(in)              :: glacierDomain          ! flag to denote that the domain is a glacier
   ! data structures (input)
   type(var_i),intent(in)               :: type_data              ! type of vegetation and soil
   type(var_d),intent(in)               :: attr_data              ! spatial attributes
@@ -314,6 +318,7 @@ subroutine coupled_em(&
 
   ! check if the aquifer is included
   includeAquifer = (model_decisions(iLookDECISIONS%groundwatr)%iDecision==bigBucket)
+  if (glacierDomain) includeAquifer = .false. ! no aquifer in glacier domain
 
   ! initialize the numerix tracking variables
   indx_data%var(iLookINDEX%numberFluxCalc       )%dat(1) = 0  ! number of flux calculations                     (-)
@@ -822,7 +827,7 @@ subroutine coupled_em(&
               do iLayer=1,nSnow
                 mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)*(iden_ice/iden_water)
                 ! compute enthalpy for snow layers
-                call T2enthTemp_slic(&
+                call T2enthTemp_snLaIc(&
                              snowfrz_scale,             & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                              mLayerTemp(iLayer),        & ! intent(in):  layer temperature (K)
                              mLayerVolFracWat(iLayer),  & ! intent(in):  volumetric total water content (-)
@@ -1226,7 +1231,7 @@ subroutine coupled_em(&
             mLayerVolFracWat(1:nSnow) = mLayerVolFracLiq(1:nSnow) + mLayerVolFracIce(1:nSnow)*iden_ice/iden_water
             if(enthalpyStateVec .or. computeEnthalpy)then ! recompute enthalpy of layers if changed water and ice content
               do iLayer=1,nSnow
-                call T2enthTemp_slic(&
+                call T2enthTemp_snLaIc(&
                              snowfrz_scale,                                       & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                              prog_data%var(iLookPROG%mLayerTemp)%dat(iLayer),     & ! intent(in):  layer temperature (K)
                              mLayerVolFracWat(iLayer),                            & ! intent(in):  volumetric total water content (-)
@@ -1382,7 +1387,7 @@ subroutine coupled_em(&
       prog_data%var(iLookPROG%mLayerVolFracWat)%dat(1) = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1) &
                                                         + prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1)*iden_ice/iden_water
       if(enthalpyStateVec .or. computeEnthalpy)then ! compute enthalpy of the top snow layer
-        call T2enthTemp_slic(&
+        call T2enthTemp_snLaIc(&
                        snowfrz_scale,                                     & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                        prog_data%var(iLookPROG%mLayerTemp)%dat(1),        & ! temperature of the top layer (K)
                        prog_data%var(iLookPROG%mLayerVolFracWat)%dat(1),  & ! intent(in):  volumetric total water content (-)
@@ -1582,8 +1587,8 @@ subroutine coupled_em(&
         if(printBalance)then
           write(*,'(a,1x,10(f12.8,1x))') 'liqSoilInit       = ', liqSoilInit
           write(*,'(a,1x,10(f12.8,1x))') 'volFracLiq        = ', mLayerVolFracLiq(nSnow+nLake+1:nSnow+nLake+nSoil)
-          write(*,'(a,1x,10(f12.8,1x))') 'iLayerLiqFluxSoil = ', flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat*iden_water*data_step
-          write(*,'(a,1x,10(f12.8,1x))') 'mLayerLiqFluxSoil = ', flux_data%var(iLookFLUX%mLayerLiqFluxSoil)%dat*data_step
+          write(*,'(a,1x,10(f12.8,1x))') 'iLayerLiqFlux = ', flux_data%var(iLookFLUX%iLayerLiqFlux)%dat*iden_water*data_step
+          write(*,'(a,1x,10(f12.8,1x))') 'mLayerLiqFlux = ', flux_data%var(iLookFLUX%mLayerLiqFlux)%dat*data_step
           write(*,'(a,1x,10(f12.8,1x))') 'change volFracLiq = ', mLayerVolFracLiq(nSnow+nLake+1:nSnow+nLake+nSoil) - liqSoilInit
           deallocate(liqSoilInit, stat=err)
           if(err/=0)then

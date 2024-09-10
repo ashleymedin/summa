@@ -150,6 +150,7 @@ subroutine run_oneHRU(&
   integer(i4b)                      :: ibeg                ! index of the first soil layer
   integer(i4b)                      :: iend                ! index of the last soil layer
   logical(lgt)                      :: use_computeVegFlux  ! computeVegFlux flag for the current domain
+  logical(lgt)                      :: glacierDomain       ! flag to indicate if the domain is a glacier
   character(len=256)                :: cmessage            ! error message
   real(rkind)       , allocatable   :: zSoilReverseSign(:) ! height at bottom of each soil layer, negative downwards (m)
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -158,6 +159,8 @@ subroutine run_oneHRU(&
   err=0; write(message, '(A21,I0,A10,I0,A2)' ) 'run_oneHRU (hru nc = ',hru_nc -1 ,', hruId = ',hruId,')/' !netcdf index starts with 0 if want to subset
 
   do i = 1, ndom
+    glacierDomain = .false. ! reset the flag for the next domain
+
     ! if water pixel or if the fraction of the domain is zero, do not run the model but update the number of layers
     if ( typeData%var(iLookTYPE%vegTypeIndex) .ne. isWater .and. progData%dom(i)%var(iLookPROG%DOMarea)%dat(1) > 0._rkind )then
 
@@ -205,6 +208,7 @@ subroutine run_oneHRU(&
 
       elseif ( domInfo(i)%dom_type == glacAcc .or. domInfo(i)%dom_type == glacAbl .or. domInfo(i)%dom_type == wetland )then ! don't need vegetation parameters for glaciers
         use_computeVegFlux = .false.
+        if (domInfo(i)%dom_type == glacAcc .or. domInfo(i)%dom_type == glacAbl) glacierDomain = .true.
       else
         err=20; message=trim(message)//'domain type not recognized';return
       endif
@@ -235,6 +239,7 @@ subroutine run_oneHRU(&
                      use_computeVegFlux, & ! intent(inout): flag to indicate if we are computing fluxes over vegetation
                      fracJulDay,         & ! intent(in):    fractional julian days since the start of year
                      yearLength,         & ! intent(in):    number of days in the current year
+                     glacierDomain,      & ! intent(in):    flag to indicate if the domain is a glacier
                      ! data structures (input)
                      typeData,           & ! intent(in):    local classification of soil veg etc. for each HRU
                      attrData,           & ! intent(in):    local attributes for each HRU
