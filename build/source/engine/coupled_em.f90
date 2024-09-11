@@ -918,9 +918,9 @@ subroutine coupled_em(&
                           prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),         & ! intent(inout): snow depth (m)
                           prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1),       & ! intent(inout): surface melt pond (kg m-2)
                           ! input/output: properties of the upper-most soil layer
-                          prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+nLake+1),        & ! intent(inout): surface layer temperature (K)
-                          prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+1),       & ! intent(inout): surface layer depth (m)
-                          diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat(nSnow+nLake+1),& ! intent(inout): surface layer volumetric heat capacity (J m-3 K-1)
+                          prog_data%var(iLookPROG%mLayerTemp)%dat(nLake+1),        & ! intent(inout): surface layer temperature (K)
+                          prog_data%var(iLookPROG%mLayerDepth)%dat(nLake+1),       & ! intent(inout): surface layer depth (m)
+                          diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat(nLake+1),& ! intent(inout): surface layer volumetric heat capacity (J m-3 K-1)
                           ! output: error control
                           err,cmessage                                        ) ! intent(out): error control
           if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if

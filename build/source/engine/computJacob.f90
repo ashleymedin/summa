@@ -127,6 +127,8 @@ subroutine computJacob(&
   integer(i4b)                      :: iLayer          ! index of model layer
   integer(i4b)                      :: jLayer          ! index of model layer within the full state vector (hydrology)
   integer(i4b)                      :: pLayer          ! indices of soil layers (used for the baseflow derivatives)
+  integer(i4b)                      :: qLayer          ! indices of snow+ice layers
+  integer(i4b)                      :: endLayer        ! index of the last layer 
   ! conversion factors
   real(rkind)                       :: convLiq2tot     ! factor to convert liquid water derivative to total water derivative
   ! --------------------------------------------------------------
@@ -156,18 +158,22 @@ subroutine computJacob(&
     ixSnLaIcSoNrg                => indx_data%var(iLookINDEX%ixSnLaIcSoNrg)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the layer domains
     ixSnowOnlyNrg                => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the snow domain
     ixSoilOnlyNrg                => indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the soil domain
+    ixIceOnlyNrg                 => indx_data%var(iLookINDEX%ixIceOnlyNrg)%dat                      ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the ice domain 
     ! vector of hydrology indices for the layer domains
     ! NOTE: states not in the subset are equal to integerMissing
     ixSnLaIcSoHyd                => indx_data%var(iLookINDEX%ixSnLaIcSoHyd)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the layer domains
     ixSnowOnlyHyd                => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the snow domain
     ixSoilOnlyHyd                => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the soil domain
+    ixIceOnlyHyd
     ! number of state variables of a specific type
     nSnLaIcSoNrg                 => indx_data%var(iLookINDEX%nSnLaIcSoNrg )%dat(1)                  ,& ! intent(in): [i4b]    number of energy state variables in the layer domains
     nSnowOnlyNrg                 => indx_data%var(iLookINDEX%nSnowOnlyNrg )%dat(1)                  ,& ! intent(in): [i4b]    number of energy state variables in the snow domain
     nSoilOnlyNrg                 => indx_data%var(iLookINDEX%nSoilOnlyNrg )%dat(1)                  ,& ! intent(in): [i4b]    number of energy state variables in the soil domain
+    nIceOnlyNrg                  => indx_data%var(iLookINDEX%nIceOnlyNrg  )%dat(1)                  ,& ! intent(in): [i4b]    number of energy state variables in the ice domain
     nSnLaIcSoHyd                 => indx_data%var(iLookINDEX%nSnLaIcSoHyd )%dat(1)                  ,& ! intent(in): [i4b]    number of hydrology variables in the layer domains
     nSnowOnlyHyd                 => indx_data%var(iLookINDEX%nSnowOnlyHyd )%dat(1)                  ,& ! intent(in): [i4b]    number of hydrology variables in the snow domain
     nSoilOnlyHyd                 => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)                  ,& ! intent(in): [i4b]    number of hydrology variables in the soil domain
+    nIceOnlyHyd                  => indx_data%var(iLookINDEX%nIceOnlyHyd  )%dat(1)                  ,& ! intent(in): [i4b]    number of hydrology variables in the ice domain
     ! type and index of model control volume
     ixHydType                    => indx_data%var(iLookINDEX%ixHydType)%dat                         ,& ! intent(in): [i4b(:)] index of the type of hydrology states in layer domains
     ! mapping between states and model layers
@@ -395,67 +401,104 @@ subroutine computJacob(&
         endif   ! (if the subset includes energy state variables in the layer domains)
 
         ! -----
-        ! * liquid water fluxes for the snow domain...
+        ! * liquid water fluxes for the snow ice domain...
         ! --------------------------------------------
-        if(nSnowOnlyHyd>0)then
-          do iLayer=1,nSnow  ! loop through layers in the snow domain
+        if(nSnowOnlyHyd>0 .or. nIceOnlyHyd>0)then
+          do qLayer=1,nSnow+nIce  ! loop through layers in the snow ice domain
 
+            if (qLayer <= nSnow) then
             ! - check that the snow layer is desired
-            if(ixSnowOnlyHyd(iLayer)==integerMissing) cycle
-
-            ! - define state indices for the current layer
-            watState = ixSnowOnlyHyd(iLayer)   ! hydrology state index within the state subset
+              jLayer = iLayer
+              iLayer = iLayer
+              endLayer = nSnow
+              if(ixSnowOnlyHyd(iLayer)==integerMissing) cycle
+              ! - define state indices for the current layer
+              watState = ixSnowOnlyHyd(iLayer)   ! hydrology state index within the state subset
+            else
+              ! - check that the ice layer is desired
+              jLayer = iLayer + nLake + nSoil
+              iLayer = iLayer - nSnow
+              endLayer = nIce
+              if(ixIceOnlyHyd(iLayer)==integerMissing) cycle
+              ! - define state indices for the current layer
+              watState = ixIceOnlyHyd(iLayer)   ! hydrology state index within the state subset
+            end if
 
             ! compute factor to convert liquid water derivative to total water derivative
-            select case( ixHydType(iLayer) )
-              case(iname_watLayer); convLiq2tot = mLayerFracLiq(iLayer)
+            select case( ixHydType(jLayer) )
+              case(iname_watLayer); convLiq2tot = mLayerFracLiq(jLayer)
               case default;         convLiq2tot = 1._rkind
             end select
 
             ! - diagonal elements
-            aJac(ixDiag,watState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnIcDeriv(iLayer)*convLiq2tot + dMat(watState)
+            aJac(ixDiag,watState) = (dt/mLayerDepth(jLayer))*iLayerLiqFluxSnIcDeriv(jLayer)*convLiq2tot + dMat(watState)
 
             ! - lower-diagonal elements
             if(iLayer>1)then
-              if(ixSnowOnlyHyd(iLayer-1)/=integerMissing) aJac(ixOffDiag(ixSnowOnlyHyd(iLayer-1),watState),watState) = 0._rkind  ! sub-diagonal: no dependence on other layers
-            endif
+              if (qLayer<=nSnow) then
+                if(ixSnowOnlyHyd(iLayer-1)/=integerMissing) aJac(ixOffDiag(ixSnowOnlyHyd(iLayer-1),watState),watState) = 0._rkind  ! sub-diagonal: no dependence on other layers
+              else
+                if(ixIceOnlyHyd(iLayer-1)/=integerMissing)  aJac(ixOffDiag(ixIceOnlyHyd(iLayer-1),watState),watState)  = 0._rkind  ! sub-diagonal: no dependence on other layers
+              end if
+             endif
 
             ! - upper diagonal elements
-            if(iLayer<nSnow)then
-              if(ixSnowOnlyHyd(iLayer+1)/=integerMissing) aJac(ixOffDiag(ixSnowOnlyHyd(iLayer+1),watState),watState) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnIcDeriv(iLayer)*convLiq2tot       ! dVol(below)/dLiq(above) -- (-)
+            if(iLayer<endLayer)then
+              if (qLayer<=nSnow) then
+                if(ixSnowOnlyHyd(iLayer+1)/=integerMissing) aJac(ixOffDiag(ixSnowOnlyHyd(iLayer+1),watState),watState) = -(dt/mLayerDepth(jLayer+1))*iLayerLiqFluxSnIcDeriv(jLayer)*convLiq2tot  ! dVol(below)/dLiq(above) -- (-)
+              else
+                if(ixIceOnlyHyd(iLayer+1)/=integerMissing)  aJac(ixOffDiag(ixIceOnlyHyd(iLayer+1),watState),watState)  = -(dt/mLayerDepth(jLayer+1))*iLayerLiqFluxSnIcDeriv(jLayer)*convLiq2tot  ! dVol(below)/dLiq(above) -- (-)
+              end if
             endif
 
-          end do  ! (looping through liquid water states in the snow domain)
-        endif   ! (if the subset includes hydrology state variables in the snow domain)
+          end do  ! (looping through liquid water states in the snow ice domain)
+        endif   ! (if the subset includes hydrology state variables in the snow ice domain)
 
         ! -----
-        ! * cross derivatives in the snow domain...
+        ! * cross derivatives in the snow ice domain...
         ! ----------------------------------------
-        if(nSnowOnlyHyd>0 .and. nSnowOnlyNrg>0)then
-          do iLayer=1,nSnow  ! loop through layers in the snow domain
+        if((nSnowOnlyHyd>0 .and. nSnowOnlyNrg>0) .or. (nIceOnlyHyd>0 .and. nIceOnlyNrg>0))then
+          do qLayer=1,nSnow+nIce  ! loop through layers in the snow ice domain
 
-            ! - check that the snow layer is desired
-            if(ixSnowOnlyNrg(iLayer)==integerMissing) cycle
-
-            ! (define the energy state)
-            nrgState = ixSnowOnlyNrg(iLayer)       ! index within the full state vector
-
-            ! - define state indices for the current layer
-            watState = ixSnowOnlyHyd(iLayer)   ! hydrology state index within the state subset
+            if (qLayer <= nSnow) then
+              ! - check that the snow layer is desired
+              jLayer = iLayer
+              iLayer = iLayer
+              endLayer = nSnowd
+              if(ixSnowOnlyNrg(iLayer)==integerMissing) cycle
+              ! (define the energy state)
+              nrgState = ixSnowOnlyNrg(iLayer)       ! index within the full state vector
+              ! - define state indices for the current layer
+              watState = ixSnowOnlyHyd(iLayer)   ! hydrology state index within the state subset
+            else
+              jLayer = iLayer + nLake + nSoil
+              iLayer = iLayer - nSnow
+              endLayer = nIce
+              ! - check that the ice layer is desired
+              if(ixIceOnlyNrg(iLayer)==integerMissing) cycle
+              ! (define the energy state)
+              nrgState = ixIceOnlyNrg(iLayer)       ! index within the full state vector
+              ! - define state indices for the current layer
+              watState = ixIceOnlyHyd(iLayer)   ! hydrology state index within the state subset
+            end if
 
             if(watstate/=integerMissing)then       ! (energy state for the current layer is within the state subset)
 
               ! - include derivatives of energy fluxes w.r.t water fluxes for current layer
-              aJac(ixOffDiag(nrgState,watState),watState) = (-1._rkind + mLayerFracLiq(iLayer))*LH_fus*iden_water  &
-                                         + dVolHtCapBulk_dTheta(iLayer) * mLayerdTemp_dt(iLayer) + mLayerCm(iLayer) &
-                                         + (dt/mLayerDepth(iLayer))*(-dNrgFlux_dWatBelow(iLayer-1) + dNrgFlux_dWatAbove(iLayer))
+              aJac(ixOffDiag(nrgState,watState),watState) = (-1._rkind + mLayerFracLiq(jLayer))*LH_fus*iden_water  &
+                                         + dVolHtCapBulk_dTheta(jLayer) * mLayerdTemp_dt(jLayer) + mLayerCm(jLayer) &
+                                         + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer))
 
               ! - include derivatives of water fluxes w.r.t energy fluxes for current layer
-              aJac(ixOffDiag(watState,nrgState),nrgState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnIcDeriv(iLayer)*mLayerdTheta_dTk(iLayer)  ! (dVol/dT)
+              aJac(ixOffDiag(watState,nrgState),nrgState) = (dt/mLayerDepth(jLayer))*iLayerLiqFluxSnIcDeriv(jLayer)*mLayerdTheta_dTk(jLayer)  ! (dVol/dT)
 
               ! (cross-derivative terms for the layer below)
-              if(iLayer < nSnow)then
-                aJac(ixOffDiag(ixSnowOnlyHyd(iLayer+1),nrgState),nrgState) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnIcDeriv(iLayer)*mLayerdTheta_dTk(iLayer)        ! dVol(below)/dT(above) -- K-1
+              if(iLayer<endLayer)then
+                if (qLayer<=nSnow) then
+                  if(ixSnowOnlyNrg(iLayer+1)/=integerMissing) aJac(ixOffDiag(ixSnowOnlyHyd(iLayer+1),nrgState),nrgState) = -(dt/mLayerDepth(jLayer+1))*iLayerLiqFluxSnIcDeriv(jLayer)*mLayerdTheta_dTk(jLayer)    ! dVol(below)/dT(above) -- K-1
+                else
+                  if(ixIceOnlyNrg(iLayer+1)/=integerMissing)  aJac(ixOffDiag(ixIceOnlyHyd(iLayer+1),nrgState),nrgState)  = -(dt/mLayerDepth(jLayer+1))*iLayerLiqFluxSnIcDeriv(jLayer)*mLayerdTheta_dTk(jLayer)    ! dVol(below)/dT(above) -- K-1
+                end if
               endif ! (if there is a water state in the layer below the current layer in the given state subset)
 
               ! - include derivatives of heat capacity w.r.t water fluxes for surrounding layers starting with layer above
@@ -746,68 +789,105 @@ subroutine computJacob(&
         endif   ! (if the subset includes energy state variables in the layer domains)
 
         ! -----
-        ! * liquid water fluxes for the snow domain...
+        ! * liquid water fluxes for the snow ice domain...
         ! --------------------------------------------
-        if(nSnowOnlyHyd>0)then
-          do iLayer=1,nSnow  ! loop through layers in the snow domain
+        if(nSnowOnlyHyd>0 .or. nIceOnlyHyd>0)then
+          do qLayer=1,nSnow+nIce  ! loop through layers in the snow ice domain
 
+            if (qLayer <= nSnow) then
             ! - check that the snow layer is desired
-            if(ixSnowOnlyHyd(iLayer)==integerMissing) cycle
-
-            ! - define state indices for the current layer
-            watState = ixSnowOnlyHyd(iLayer)   ! hydrology state index within the state subset
+              jLayer = iLayer
+              iLayer = iLayer
+              endLayer = nSnow
+              if(ixSnowOnlyHyd(iLayer)==integerMissing) cycle
+              ! - define state indices for the current layer
+              watState = ixSnowOnlyHyd(iLayer)   ! hydrology state index within the state subset
+            else
+              jLayer = iLayer + nLake + nSoil
+              iLayer = iLayer - nSnow
+              endLayer = nIce
+              ! - check that the ice layer is desired
+              if(ixIceOnlyHyd(iLayer)==integerMissing) cycle
+              ! - define state indices for the current layer
+              watState = ixIceOnlyHyd(iLayer)   ! hydrology state index within the state subset
+            end if
 
             ! compute factor to convert liquid water derivative to total water derivative
-            select case( ixHydType(iLayer) )
-              case(iname_watLayer); convLiq2tot = mLayerFracLiq(iLayer)
+            select case( ixHydType(jLayer) )
+              case(iname_watLayer); convLiq2tot = mLayerFracLiq(jLayer)
               case default;         convLiq2tot = 1._rkind
             end select
 
             ! - diagonal elements
-            aJac(watState,watState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnIcDeriv(iLayer)*convLiq2tot + dMat(watState)
+            aJac(watState,watState) = (dt/mLayerDepth(jLayer))*iLayerLiqFluxSnIcDeriv(jLayer)*convLiq2tot + dMat(watState)
 
             ! - lower-diagonal elements
             if(iLayer>1)then
-              if(ixSnowOnlyHyd(iLayer-1)/=integerMissing) aJac(ixSnowOnlyHyd(iLayer-1),watState) = 0._rkind  ! sub-diagonal: no dependence on other layers
-            endif
+              if (qLayer<=nSnow) then
+                if(ixSnowOnlyHyd(iLayer-1)/=integerMissing) aJac(ixSnowOnlyHyd(iLayer-1),watState) = 0._rkind  ! sub-diagonal: no dependence on other layers
+              else
+                if(ixIceOnlyHyd(iLayer-1)/=integerMissing)  aJac(ixIceOnlyHyd(iLayer-1),watState)  = 0._rkind  ! sub-diagonal: no dependence on other layers
+              end if
+             endif
 
             ! - upper diagonal elements
-            if(iLayer<nSnow)then
-              if(ixSnowOnlyHyd(iLayer+1)/=integerMissing) aJac(ixSnowOnlyHyd(iLayer+1),watState) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnIcDeriv(iLayer)*convLiq2tot       ! dVol(below)/dLiq(above) -- (-)
+            if(iLayer<endLayer)then
+              if (qLayer<=nSnow) then
+                if(ixSnowOnlyHyd(iLayer+1)/=integerMissing) aJac(ixSnowOnlyHyd(iLayer+1),watState) = -(dt/mLayerDepth(jLayer+1))*iLayerLiqFluxSnIcDeriv(jLayer)*convLiq2tot  ! dVol(below)/dLiq(above) -- (-)
+              else
+                if(ixIceOnlyHyd(iLayer+1)/=integerMissing)  aJac(ixIceOnlyHyd(iLayer+1),watState)  = -(dt/mLayerDepth(jLayer+1))*iLayerLiqFluxSnIcDeriv(jLayer)*convLiq2tot  ! dVol(below)/dLiq(above) -- (-)
+              end if
             endif
 
-           end do  ! (looping through liquid water states in the snow domain)
-         endif   ! (if the subset includes hydrology state variables in the snow domain)
+          end do  ! (looping through liquid water states in the snow ice domain)
+        endif   ! (if the subset includes hydrology state variables in the snow ice domain)
 
         ! -----
-        ! * cross derivatives in the snow domain...
+        ! * cross derivatives in the snow ice domain...
         ! ----------------------------------------
-        if(nSnowOnlyHyd>0 .and. nSnowOnlyNrg>0)then
-          do iLayer=1,nSnow  ! loop through layers in the snow domain
+        if((nSnowOnlyHyd>0 .and. nSnowOnlyNrg>0) .or. (nIceOnlyHyd>0 .and. nIceOnlyNrg>0))then
+          do qLayer=1,nSnow+nIce  ! loop through layers in the snow ice domain
 
-            ! - check that the snow layer is desired
-            if(ixSnowOnlyNrg(iLayer)==integerMissing) cycle
-
-            ! (define the energy state)
-            nrgState = ixSnowOnlyNrg(iLayer)       ! index within the full state vector
-
-            ! - define state indices for the current layer
-            watState = ixSnowOnlyHyd(iLayer)   ! hydrology state index within the state subset
+            if (qLayer <= nSnow) then
+              ! - check that the snow layer is desired
+              jLayer = iLayer
+              iLayer = iLayer
+              endLayer = nSnowd
+              if(ixSnowOnlyNrg(iLayer)==integerMissing) cycle
+              ! (define the energy state)
+              nrgState = ixSnowOnlyNrg(iLayer)       ! index within the full state vector
+              ! - define state indices for the current layer
+              watState = ixSnowOnlyHyd(iLayer)   ! hydrology state index within the state subset
+            else
+              jLayer = iLayer + nLake + nSoil
+              iLayer = iLayer - nSnow
+              endLayer = nIce
+              ! - check that the ice layer is desired
+              if(ixIceOnlyNrg(iLayer)==integerMissing) cycle
+              ! (define the energy state)
+              nrgState = ixIceOnlyNrg(iLayer)       ! index within the full state vector
+              ! - define state indices for the current layer
+              watState = ixIceOnlyHyd(iLayer)   ! hydrology state index within the state subset
+            end if
 
             if(watstate/=integerMissing)then       ! (energy state for the current layer is within the state subset)
 
              ! - include derivatives of energy fluxes w.r.t water fluxes for current layer
-             aJac(nrgState,watState) = (-1._rkind + mLayerFracLiq(iLayer))*LH_fus*iden_water &
-                                       + dVolHtCapBulk_dTheta(iLayer) * mLayerdTemp_dt(iLayer) + mLayerCm(iLayer) &
-                                       + (dt/mLayerDepth(iLayer))*(-dNrgFlux_dWatBelow(iLayer-1) + dNrgFlux_dWatAbove(iLayer))
+             aJac(nrgState,watState) = (-1._rkind + mLayerFracLiq(jLayer))*LH_fus*iden_water &
+                                       + dVolHtCapBulk_dTheta(jLayer) * mLayerdTemp_dt(jLayer) + mLayerCm(jLayer) &
+                                       + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer))
 
              ! - include derivatives of water fluxes w.r.t energy fluxes for current layer
-             aJac(watState,nrgState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnIcDeriv(iLayer)*mLayerdTheta_dTk(iLayer)  ! (dVol/dT)
+             aJac(watState,nrgState) = (dt/mLayerDepth(jLayer))*iLayerLiqFluxSnIcDeriv(jLayer)*mLayerdTheta_dTk(jLayer)  ! (dVol/dT)
 
              ! (cross-derivative terms for the layer below)
-             if(iLayer < nSnow)then
-               aJac(ixSnowOnlyHyd(iLayer+1),nrgState) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnIcDeriv(iLayer)*mLayerdTheta_dTk(iLayer)        ! dVol(below)/dT(above) -- K-1
-             endif ! (if there is a water state in the layer below the current layer in the given state subset)
+             if(iLayer<endLayer)then
+              if (qLayer<=nSnow) then
+                if(ixSnowOnlyNrg(iLayer+1)/=integerMissing) aJac(ixSnowOnlyHyd(iLayer+1),nrgState) = -(dt/mLayerDepth(jLayer+1))*iLayerLiqFluxSnIcDeriv(jLayer)*mLayerdTheta_dTk(jLayer)    ! dVol(below)/dT(above) -- K-1
+              else
+                if(ixIceOnlyNrg(iLayer+1)/=integerMissing)  aJac(ixIceOnlyHyd(iLayer+1),nrgState)  = -(dt/mLayerDepth(jLayer+1))*iLayerLiqFluxSnIcDeriv(jLayer)*mLayerdTheta_dTk(jLayer)    ! dVol(below)/dT(above) -- K-1
+              end if
+            endif ! (if there is a water state in the layer below the current layer in the given state subset)
 
              ! - include derivatives of heat capacity w.r.t water fluxes for surrounding layers starting with layer above
              if(iLayer>1)then
