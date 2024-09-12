@@ -145,7 +145,7 @@ contains
 
  ! define the number state variables of different type
  nNrgState  = nCasNrg + nVegNrg + nLayers  ! number of energy state variables
- nWatState  = nSnow                        ! number of "total water" state variables -- will be modified later if using primary variable switching
+ nWatState  = nSnow + nLake + nIce         ! number of "total water" state variables -- will be modified later if using primary variable switching
  nMatState  = nSoil                        ! number of matric head state variables -- will be modified later if using primary variable switching
  nMassState = nVegMass                     ! number of mass state variables -- currently restricted to canopy water
 
@@ -221,7 +221,7 @@ endif
 
  ! define the state type for the domain (hydrology)
  ixStateType( ixHydLayer(1:nLayers) ) = iname_watLayer
- if(nSoil>0) ixStateType( ixHydLayer(nSnow+nLake+1:nSnow+nLake+nSoil) ) = iname_matLayer ! refine later to be either iname_watLayer or iname_matLayer
+ if(nSoil>0) ixStateType( ixHydLayer((nSnow+nLake+1):(nSnow+nLake+nSoil)) ) = iname_matLayer ! refine later to be either iname_watLayer or iname_matLayer
 
  ! define the state type for the aquifer
  if(includeAquifer) ixStateType( ixWatAquifer(1) ) = iname_watAquifer
@@ -274,20 +274,20 @@ endif
 
  ! define the index of the each control volume in the lake domain
  if(nLake>0)then
-  ixControlVolume( ixNrgLayer(nSnow+1:nSnow+nLake) ) = ixLayerState(nSnow+1:nSnow+nLake)
-  ixControlVolume( ixHydLayer(nSnow+1:nSnow+nLake) ) = ixLayerState(nSnow+1:nSnow+nLake)
+  ixControlVolume( ixNrgLayer((nSnow+1):(nSnow+nLake)) ) = ixLayerState((nSnow+1):(nSnow+nLake)) - nSnow
+  ixControlVolume( ixHydLayer((nSnow+1):(nSnow+nLake)) ) = ixLayerState((nSnow+1):(nSnow+nLake)) - nSnow
  endif
 
  ! define the index of the each control volume in the soil domain
  if(nSoil>0)then
-  ixControlVolume( ixNrgLayer(nSnow+nLake+1:nSnow+nLake+nSoil) ) = ixSoilState(1:nSoil)
-  ixControlVolume( ixHydLayer(nSnow+nLake+1:nSnow+nLake+nSoil) ) = ixSoilState(1:nSoil)
+  ixControlVolume( ixNrgLayer((nSnow+nLake+1):(nSnow+nLake+nSoil)) ) = ixSoilState(1:nSoil)
+  ixControlVolume( ixHydLayer((nSnow+nLake+1):(nSnow+nLake+nSoil)) ) = ixSoilState(1:nSoil)
  endif
 
  ! define the index of the each control volume in the ice domain
  if(nIce>0)then
-  ixControlVolume( ixNrgLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nIce) ) = ixLayerState(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nIce)
-  ixControlVolume( ixHydLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nIce) ) = ixLayerState(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nIce)
+  ixControlVolume( ixNrgLayer((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nIce)) ) = ixLayerState((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nIce)) - (nSnow+nLake+nSoil)
+  ixControlVolume( ixHydLayer((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nIce)) ) = ixLayerState((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nIce)) - (nSnow+nLake+nSoil)
  endif
 
  ! define the index for the control volumes in the aquifer
@@ -296,7 +296,7 @@ endif
  ! end association to the ALLOCATABLE variables in the data structures
  end associate
 
- ! --------------------------------------------------------------------------------------------------------------------------------
+ ! -----------------------------------------------------ixControlVolume---------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
 
  end associate  ! end association to variables in the data structures
