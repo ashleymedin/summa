@@ -76,7 +76,7 @@ USE var_lookup,only:iLookPARAM            ! named variables for structure elemen
 USE var_lookup,only:iLookINDEX            ! named variables for structure elements
 
 ! provide access to routines to update states
-USE updatStateWithPrime_module,only:updateSlicPrime     ! update snow states
+USE updatStateWithPrime_module,only:updateSnLaIcPrime   ! update snow states
 USE updatStateWithPrime_module,only:updateSoilPrime     ! update soil states
 
 ! provide access to functions for the constitutive functions and derivatives
@@ -615,7 +615,7 @@ subroutine updateVarsWithPrime(&
             case(iname_veg)
 
               ! compute volumetric fraction of liquid water and ice
-              call updateSlicPrime(&
+              call updateSnLaIcPrime(&
                               xTemp,                                        & ! intent(in):  temperature (K)
                               scalarCanopyWatTrial/(iden_water*canopyDepth),& ! intent(in):  volumetric fraction of total water (-)
                               snowfrz_scale,                                & ! intent(in):  scaling parameter for the snow freezing curve (K-1)
@@ -640,7 +640,7 @@ subroutine updateVarsWithPrime(&
             case(iname_snow, iname_lake, iname_ice)
 
               ! compute volumetric fraction of liquid water and ice
-              call updateSlicPrime(&
+              call updateSnLaIcPrime(&
                               xTemp,                          & ! intent(in):  temperature (K)
                               mLayerVolFracWatTrial(iLayer),  & ! intent(in):  mass state variable = trial volumetric fraction of water (-)
                               snowfrz_scale,                  & ! intent(in):  scaling parameter for the snow freezing curve (K-1)
