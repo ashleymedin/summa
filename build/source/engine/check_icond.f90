@@ -74,7 +74,7 @@ contains
                        gravity,   &                      ! gravitational acceleration           (m s-2)
                        Tfreeze                           ! freezing point of pure water         (K)
  USE snow_utils_module,only:fracliquid                   ! compute volumetric fraction of liquid water in snow based on temperature
- USE updatState_module,only:updateSlic                   ! update snow states
+ USE updatState_module,only:updateSnLaIc                   ! update snow states
  USE updatState_module,only:updateSoil                   ! update soil states
  USE enthalpyTemp_module,only:T2enthTemp_cas             ! convert temperature to enthalpy for canopy air space
  USE enthalpyTemp_module,only:T2enthTemp_veg             ! convert temperature to enthalpy for vegetation
@@ -350,7 +350,7 @@ contains
        end if
 
        ! ensure consistency among state variables
-       call updateSlic(&
+       call updateSnLaIc(&
                        ! input
                        mLayerTemp(iLayer),             & ! intent(in): temperature (K)
                        scalarTheta,                    & ! intent(in): volumetric fraction of total water (-)

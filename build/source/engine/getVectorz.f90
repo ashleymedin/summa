@@ -73,7 +73,7 @@ USE var_lookup,only:iLookPARAM            ! named variables for structure elemen
 USE var_lookup,only:iLookINDEX            ! named variables for structure elements
 
 ! provide access to routines to update states
-USE updatState_module,only:updateSlic     ! update snow states
+USE updatState_module,only:updateSnLaIc     ! update snow states
 USE updatState_module,only:updateSoil     ! update soil states
 
 ! provide access to functions for the constitutive functions and derivatives
@@ -517,7 +517,7 @@ subroutine checkFeas(&
       if(any(stateVec( pack(ixIceOnlyNrg,ixIceOnlyNrg/=integerMissing) ) > Tfreeze) .and. .not.enthalpyStateVec)then
         feasible=.false.
         message=trim(message)//'ice temp high/'
-        !do iLayer=1,nSnow
+        !do iLayer=1,nIce
         !  if(stateVec(ixIceOnlyNrg(iLayer)) > Tfreeze) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, max, stateVec( ixIceOnlyNrg(iLayer) )', iLayer, feasible, Tfreeze, stateVec( ixIceOnlyNrg(iLayer) )
         !enddo
       endif

@@ -74,7 +74,7 @@ USE var_lookup,only:iLookPARAM            ! named variables for structure elemen
 USE var_lookup,only:iLookINDEX            ! named variables for structure elements
 
 ! provide access to routines to update states
-USE updatState_module,only:updateSlic     ! update snow states
+USE updatState_module,only:updateSnLaIc     ! update snow states
 USE updatState_module,only:updateSoil     ! update soil states
 
 ! provide access to functions for the constitutive functions and derivatives
@@ -492,7 +492,8 @@ subroutine updateVars(&
             case(iname_veg)
 
               ! compute volumetric fraction of liquid water and ice
-              call updateSlic(xTemp,                                        & ! intent(in):  temperature (K)
+              call updateSnLaIc(&
+                              xTemp,                                        & ! intent(in):  temperature (K)
                               scalarCanopyWatTrial/(iden_water*canopyDepth),& ! intent(in):  volumetric fraction of total water (-)
                               snowfrz_scale,                                & ! intent(in):  scaling parameter for the snow freezing curve (K-1)
                               scalarVolFracLiq,                             & ! intent(out): trial volumetric fraction of liquid water (-)
@@ -510,7 +511,8 @@ subroutine updateVars(&
             case(iname_snow, iname_lake, iname_ice)
 
               ! compute volumetric fraction of liquid water and ice
-              call updateSlic(xTemp,                          & ! intent(in):  temperature (K)
+              call updateSnLaIc(&
+                              xTemp,                        & ! intent(in):  temperature (K)
                               mLayerVolFracWatTrial(iLayer),  & ! intent(in):  mass state variable = trial volumetric fraction of water (-)
                               snowfrz_scale,                  & ! intent(in):  scaling parameter for the snow freezing curve (K-1)
                               mLayerVolFracLiqTrial(iLayer),  & ! intent(out): trial volumetric fraction of liquid water (-)
@@ -523,7 +525,8 @@ subroutine updateVars(&
             case(iname_soil)
 
               ! compute volumetric fraction of liquid water and ice
-              call updateSoil(xTemp,                                  & ! intent(in):  temperature (K)
+              call updateSoil(&
+                              xTemp,                                  & ! intent(in):  temperature (K)
                               mLayerMatricHeadTrial(ixControlIndex),  & ! intent(in):  total water matric potential (m)
                               vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),theta_sat(ixControlIndex),theta_res(ixControlIndex),vGn_m(ixControlIndex), & ! intent(in): soil parameters
                               mLayerVolFracWatTrial(iLayer),          & ! intent(in):  mass state variable = trial volumetric fraction of water (-)
