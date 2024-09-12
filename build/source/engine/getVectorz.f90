@@ -543,7 +543,8 @@ subroutine checkFeas(&
           feasible=.false.
           message=trim(message)//'layer water out of bounds/'
           !if(stateVec( ixSnLaIcSoHyd(iLayer) ) < xMin .or. stateVec( ixSnLaIcSoHyd(iLayer) ) > xMax) &
-          !write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, stateVec( ixSnLaIcSoHyd(iLayer) ), xMin, xMax = ', iLayer, feasible, stateVec( ixSnLaIcSoHyd(iLayer) ), xMin, xMax
+          !write(*,'(a,1x,i4,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, layerType, feasible, stateVec( ixSnLaIcSoHyd(iLayer) ), xMin, xMax = ', &
+          ! iLayer, layerType(iLayer), feasible, stateVec( ixSnLaIcSoHyd(iLayer) ), xMin, xMax
         endif
       endif  ! if water states
 

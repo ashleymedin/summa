@@ -216,7 +216,7 @@ subroutine coupled_em(&
   real(rkind),parameter                :: varNotUsed1=-9999._rkind ! variables used to calculate derivatives (not needed here)
   real(rkind),parameter                :: varNotUsed2=-9999._rkind ! variables used to calculate derivatives (not needed here)
   integer(i4b)                         :: iSnow                  ! index of snow layers
-  integer(i4b)                         :: iLayer                 ! index of model layers
+  integer(i4b)                         :: iLayer,jLayer          ! index of model layers
   real(rkind)                          :: massLiquid             ! mass liquid water (kg m-2)
   real(rkind)                          :: superflousSub          ! superflous sublimation (kg m-2 s-1)
   real(rkind)                          :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
@@ -823,8 +823,13 @@ subroutine coupled_em(&
             theta_res            => mpar_data%var(iLookPARAM%theta_res)%dat               & ! soil residual volumetric water content (-)
             )  ! (associate local variables with model parameters)    
             
-            if(nSnow>0)then 
-              do iLayer=1,nSnow
+            if(nSnow+nLake+nIce>0)then 
+              do jLayer=1,(nSnow+nLake+nIce)
+                if (jLayer<=nSnow+nLake)then
+                  iLayer = jLayer
+                else
+                  iLayer = jLayer + nSoil
+                end if
                 mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)*(iden_ice/iden_water)
                 ! compute enthalpy for snow layers
                 call T2enthTemp_snLaIc(&
@@ -838,7 +843,7 @@ subroutine coupled_em(&
               end do  ! looping through snow layers
             endif
             if(nSoil>0)then             
-              do iLayer=nSnow+nLake+1,(nSnow+nLake+nSoil)
+              do iLayer=(nSnow+nLake+1),(nSnow+nLake+nSoil)
                 mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)
                 ! compute enthalpy for soil layers
                 iSoil = iLayer - nSnow - nLake
@@ -908,7 +913,7 @@ subroutine coupled_em(&
 
         ! *** compute melt of the "snow without a layer"...
         ! -------------------------------------------------
-        ! NOTE: forms a surface melt pond, which drains into the upper-most soil layer through the time step
+        ! NOTE: forms a surface melt pond, which drains into the upper-most soil/lake/ice layer through the time step
         ! (check for the special case of "snow without a layer")
         ! this pond melts evenly over entire time of maxstep until it gets recomputed because based on SWE when computed
         if(nSnow==0) then
@@ -917,10 +922,10 @@ subroutine coupled_em(&
                           prog_data%var(iLookPROG%scalarSWE)%dat(1),               & ! intent(inout): snow water equivalent (kg m-2)
                           prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),         & ! intent(inout): snow depth (m)
                           prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1),       & ! intent(inout): surface melt pond (kg m-2)
-                          ! input/output: properties of the upper-most soil layer
-                          prog_data%var(iLookPROG%mLayerTemp)%dat(nLake+1),        & ! intent(inout): surface layer temperature (K)
-                          prog_data%var(iLookPROG%mLayerDepth)%dat(nLake+1),       & ! intent(inout): surface layer depth (m)
-                          diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat(nLake+1),& ! intent(inout): surface layer volumetric heat capacity (J m-3 K-1)
+                          ! input/output: properties of the layer below snow
+                          prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1),        & ! intent(inout): surface layer temperature (K)
+                          prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+1),       & ! intent(inout): surface layer depth (m)
+                          diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat(nSnow+1),& ! intent(inout): surface layer volumetric heat capacity (J m-3 K-1)
                           ! output: error control
                           err,cmessage                                        ) ! intent(out): error control
           if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
@@ -955,38 +960,53 @@ subroutine coupled_em(&
           ! compute the total water content in the vegetation canopy
           scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce  ! kg m-2
 
-          ! compute the total water content in snow and soil
-          ! NOTE: no ice expansion allowed for soil
-          if(nSnow>0) mLayerVolFracWat(1:nSnow) = mLayerVolFracLiq(1:nSnow) + mLayerVolFracIce(1:nSnow)*(iden_ice/iden_water)
-          if(nSoil>0) mLayerVolFracWat(nSnow+nLake+1:nSnow+nLake+nSoil)   = mLayerVolFracLiq(nSnow+nLake+1:nSnow+nLake+nSoil) + mLayerVolFracIce(nSnow+nLake+1:nSnow+nLake+nSoil)
+          ! compute the total water content in layers, no ice expansion allowed for soil
+          do iLayer=1,nLayers
+            if(iLayer<=nSnow+nLake .or. iLayer>nSoil)then
+              mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)*iden_ice/iden_water
+            else
+              mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)
+            end if
+          end do  ! looping through layers
 
-          ! compute enthalpy of the top soil layer if changed with surface melt pond
-          if( (enthalpyStateVec .or. computeEnthalpy) .and. nSnow==0 .and. prog_data%var(iLookPROG%scalarSWE)%dat(1)>0._rkind .and. nSoil>0)then
-            call T2enthTemp_soil(&
-                     ! input
-                      use_lookup,                                               & ! intent(in):  flag to use the lookup table for soil enthalpy
-                      soil_dens_intr,                                           & ! intent(in):  intrinsic soil density (kg m-3)
-                      vGn_alpha(1),vGn_n(1),theta_sat(1),theta_res(1),vGn_m(1), & ! intent(in):  van Genutchen soil parameters
-                      1_i4b,                                                    & ! intent(in):  index of the control volume within the domain
-                      lookup_data,                                              & ! intent(in):  lookup table data structure
-                      realMissing,                                              & ! intent(in):  lower value of integral (not computed)
-                      prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+nLake+1),         & ! intent(in):  surface layer temperature (K)
-                      mLayerMatricHead(1),                                      & ! intent(in):  surface layer matric head (m)
-                     ! output
-                      diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(nSnow+nLake+1),     & ! intent(out): temperature component of enthalpy soil layer (J m-3)
-                      err,cmessage)                      ! intent(out): error control
-            if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-            diag_data%var(iLookDIAG%mLayerEnthalpy)%dat(nSnow+nLake+1) = diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(nSnow+nLake+1) - iden_water * LH_fus * mLayerVolFracIce(nSnow+nLake+1)
+          ! compute enthalpy of the top layer if changed with surface melt pond
+          if( (enthalpyStateVec .or. computeEnthalpy) .and. nSnow==0 .and. prog_data%var(iLookPROG%scalarSWE)%dat(1)>0._rkind)then 
+            if (nLake>0 .or. (nLake==0 .and. nSoil==0 .and. nIce>0))then
+              call T2enthTemp_snLaIc(&
+                       snowfrz_scale,             & ! intent(in):  scaling parameter for the lake freezing curve  (K-1)
+                       prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1), & ! intent(in):  layer temperature (K)
+                       mLayerVolFracWat(nSnow+1),  & ! intent(in):  volumetric total water content (-)
+                       diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(nSnow+1), & ! intent(out): temperature component of enthalpy of each lake layer (J m-3)
+                       err,cmessage)                ! intent(out): error control
+              if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+              diag_data%var(iLookDIAG%mLayerEnthalpy)%dat(nSnow+1) = diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(nSnow+1) - iden_ice * LH_fus * mLayerVolFracIce(nSnow+1)
+            elseif(nSoil>0)then
+              call T2enthTemp_soil(&
+                       ! input
+                        use_lookup,                                               & ! intent(in):  flag to use the lookup table for soil enthalpy
+                        soil_dens_intr,                                           & ! intent(in):  intrinsic soil density (kg m-3)
+                        vGn_alpha(1),vGn_n(1),theta_sat(1),theta_res(1),vGn_m(1), & ! intent(in):  van Genutchen soil parameters
+                        1_i4b,                                                    & ! intent(in):  index of the control volume within the domain
+                        lookup_data,                                              & ! intent(in):  lookup table data structure
+                        realMissing,                                              & ! intent(in):  lower value of integral (not computed)
+                        prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+nLake+1),         & ! intent(in):  surface layer temperature (K)
+                        mLayerMatricHead(1),                                      & ! intent(in):  surface layer matric head (m)
+                       ! output
+                        diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(nSnow+nLake+1),     & ! intent(out): temperature component of enthalpy soil layer (J m-3)
+                        err,cmessage)                      ! intent(out): error control
+              if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+              diag_data%var(iLookDIAG%mLayerEnthalpy)%dat(nSnow+nLake+1) = diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(nSnow+nLake+1) - iden_water * LH_fus * mLayerVolFracIce(nSnow+nLake+1)
+            endif
           end if
     
           ! compute the liquid water matric potential (m)
           ! NOTE: include ice content as part of the solid porosity - major effect of ice is to reduce the pore size; ensure that effSat=1 at saturation
           ! (from Zhao et al., J. Hydrol., 1997: Numerical analysis of simultaneous heat and mass transfer...)
           do iSoil=1,nSoil
-            call liquidHead(mLayerMatricHead(iSoil),mLayerVolFracLiq(nSnow+iSoil),mLayerVolFracIce(nSnow+iSoil), & ! input:  state variables
-                      vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m(iSoil),              & ! input:  parameters
-                      matricHeadLiq=mLayerMatricHeadLiq(iSoil),                                                  & ! output: liquid water matric potential (m)
-                      err=err,message=cmessage)                                                                    ! output: error control
+            call liquidHead(mLayerMatricHead(iSoil),mLayerVolFracLiq(nSnow+iSoil),mLayerVolFracIce(nSnow+nLake+iSoil), & ! input:  state variables
+                      vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m(iSoil),                    & ! input:  parameters
+                      matricHeadLiq=mLayerMatricHeadLiq(iSoil),                                                        & ! output: liquid water matric potential (m)
+                      err=err,message=cmessage)                                                                          ! output: error control
             if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
           end do  ! looping through soil layers (computing liquid water matric potential)
 
@@ -1119,10 +1139,16 @@ subroutine coupled_em(&
           mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat                 & ! depth of each snow+soil layer (m)
           ) ! associations to variables in data structures
 
-          ! compute the melt in each layer
-          if(nSnow>0) mLayerMeltFreeze(1:nSnow) = -( mLayerVolFracIce(1:nSnow) - mLayerVolFracIceInit(1:nSnow) )*iden_ice
-          if(nSoil>0) mLayerMeltFreeze(nSnow+nLake+1:nSnow+nLake+nSoil) = -( mLayerVolFracIce(nSnow+nLake+1:nSnow+nLake+nSoil) - mLayerVolFracIceInit(nSnow+nLake+1:nSnow+nLake+nSoil) )*iden_water
-          
+          ! compute the melt in each layer, no ice expansion allowed for soil
+          do iLayer=1,nLayers
+            if(iLayer<=nSnow+nLake .or. iLayer>nSoil)then
+              mLayerMeltFreeze(iLayer) = -( mLayerVolFracIce(iLayer) - mLayerVolFracIceInit(iLayer) )*iden_ice
+            else
+              mLayerMeltFreeze(iLayer) = -( mLayerVolFracIce(iLayer) - mLayerVolFracIceInit(iLayer) )*iden_water
+            end if
+          end do  ! looping through layers
+
+
           deallocate(mLayerVolFracIceInit)
 
           ! * compute change in canopy ice content due to sublimation...
