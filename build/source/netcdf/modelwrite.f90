@@ -255,13 +255,13 @@ contains
       do iGRU=1,size(gru_struc)
        do iHRU=1,gru_struc(iGRU)%hruCount
         do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
-         realVecDom(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iDOM) = stat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(map(iVar))%dat(iFreq)
+         realVecDom(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix) = stat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(map(iVar))%dat(iFreq)
         end do
        end do
       end do
 
       ! write data
-      err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realVecDom(1:nUNITrun,1:maxDOM),start=(/1,1,outputTimestep(iFreq)/),count=(/nUNITrun,maxDOM,1/))
+      err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realVecDom(1:maxDOM,1:nUNITrun),start=(/1,1,outputTimestep(iFreq)/),count=(/maxDOM,nUNITrun,1/))
 
      class default; err=20; message=trim(message)//'stats must be scalarv and of type gru_hru_dom_doubleVec'; return
     end select  ! stat
