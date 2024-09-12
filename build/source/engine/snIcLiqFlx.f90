@@ -88,18 +88,20 @@ subroutine snIcLiqFlx(&
   real(rkind)                       :: relSaturn                  ! relative saturation [0,1] (-)
   real(rkind)                       :: k_param                    ! hydraulic conductivity parameter (m s-1)
   logical(lgt)                      :: do_snow                    ! flag to denote if snow is present
+  real(rkind)                       :: iLayerLiqFluxSnIc(0:in_snIcLiqFlx % nLayers)
+  real(rkind)                       :: iLayerLiqFluxSnIcDeriv(0:in_snIcLiqFlx % nLayers)  
   ! ------------------------------------------------------------------------------------------------------------------------------------------
   ! make association of local variables with information in the data structures
   do_snow = in_snIcLiqFlx % do_snow ! flag to denote if snow is present
   nLayers = in_snIcLiqFlx % nLayers ! get number of snow/ice layers
   nStart = in_snIcLiqFlx % nStart ! get the start index for the layers
-  
+
   associate(&
     ! input: model control
     firstFluxCall           => in_snIcLiqFlx % firstFluxCall,           & ! intent(in): the first flux call
     scalarSolution          => in_snIcLiqFlx % scalarSolution,          & ! intent(in): flag to denote if implementing the scalar solution
     ! input: forcing for the top layer
-    surface_flux            => in_snIcLiqFlx % surface_flux,                & ! intent(in): liquid water flux at the surface (m s-1)
+    surface_flux            => in_snIcLiqFlx % surface_flux,            & ! intent(in): liquid water flux at the surface (m s-1)
     ! input: model state vector
     mLayerVolFracLiqTrial   => in_snIcLiqFlx % mLayerVolFracLiqTrial,   & ! intent(in): trial value of volumetric fraction of liquid water at the current iteration (-)
     ! input: layer indices
@@ -116,8 +118,8 @@ subroutine snIcLiqFlx(&
     mLayerPoreSpace  => diag_data%var(iLookDIAG%mLayerPoreSpace)%dat(nStart+1:nStart+nLayers),  & ! intent(inout): pore space in each layer (-)
     mLayerThetaResid => diag_data%var(iLookDIAG%mLayerThetaResid)%dat(nStart+1:nStart+nLayers), & ! intent(inout): residual volumetric liquid water content in each layer (-)
     ! input-output: fluxes and derivatives
-    iLayerLiqFluxSnIc      => io_snIcLiqFlx % iLayerLiqFluxSnIc,                & ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
-    iLayerLiqFluxSnIcDeriv => io_snIcLiqFlx % iLayerLiqFluxSnIcDeriv,           & ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
+    iLayerLiqFluxSnIc0      => io_snIcLiqFlx % iLayerLiqFluxSnIc,                & ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
+    iLayerLiqFluxSnIcDeriv0 => io_snIcLiqFlx % iLayerLiqFluxSnIcDeriv,           & ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
     ! output: error control
     err                    => out_snIcLiqFlx % err,                             & ! intent(out):   error code
     message                => out_snIcLiqFlx % cmessage                         & ! intent(out):   error message
@@ -125,6 +127,8 @@ subroutine snIcLiqFlx(&
     ! ------------------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
     err=0; message='snIcLiqFlx/'
+    iLayerLiqFluxSnIc = iLayerLiqFluxSnIc0
+    iLayerLiqFluxSnIcDeriv = iLayerLiqFluxSnIcDeriv0
 
     ! check that the input vectors match nLayers
     if (size(mLayerVolFracLiqTrial)/=nLayers .or. size(mLayerVolFracIce)/=nLayers .or. &
@@ -144,7 +148,7 @@ subroutine snIcLiqFlx(&
         k_param = k_snow
         do i=1,size(ixSnowOnlyHyd)
           if (ixSnowOnlyHyd(i) /= integerMissing) then
-            ixTop=ixLayerState(i)
+            ixTop=ixLayerState(i) - nStart
             ixBot=ixTop
             exit  ! break out of loop once found
           end if
@@ -155,7 +159,7 @@ subroutine snIcLiqFlx(&
         k_param = k_ice
         do i=1,size(ixIceOnlyHyd)
           if (ixIceOnlyHyd(i) /= integerMissing) then
-            ixTop=ixLayerState(i)
+            ixTop=ixLayerState(i) - nStart
             ixBot=ixTop
             exit  ! break out of loop once found
           end if
@@ -165,8 +169,8 @@ subroutine snIcLiqFlx(&
         err=20; message=trim(message)//'Unable to identify snow/ice layer for scalar solution!'; return
       end if
     else
-      ixTop = nStart+1
-      ixBot = nStart+nLayers
+      ixTop = 1
+      ixBot = nLayers
     end if
 
     ! define the liquid flux at the upper boundary (m s-1)

@@ -355,14 +355,14 @@ contains
   ! ** Allocate arrays used in systemSolv subroutine **
   associate(&
    nSnow             => indx_data%var(iLookINDEX%nSnow)%dat(1)              ,& ! intent(in): [i4b] number of snow layers
+   nLake             => indx_data%var(iLookINDEX%nLake)%dat(1)              ,& ! intent(in): [i4b] number of lake layers
    nSoil             => indx_data%var(iLookINDEX%nSoil)%dat(1)              ,& ! intent(in): [i4b] number of soil layers
    nIce              => indx_data%var(iLookINDEX%nIce)%dat(1)               ,& ! intent(in): [i4b] number of ice layers
-   nLake             => indx_data%var(iLookINDEX%nLake)%dat(1)              ,& ! intent(in): [i4b] number of lake layers
    ixNumericalMethod => model_decisions(iLookDECISIONS%num_method)%iDecision,& ! intent(in): [i4b] choice of numerical solver
    ixGroundwater     => model_decisions(iLookDECISIONS%groundwatr)%iDecision & ! intent(in): [i4b] groundwater parameterization
    &)
    ! allocate space for the model fluxes at the start of the time step
-   call allocLocal(flux_meta(:),flux_init,nSnow,nSoil,nIce,nLake,zero,err,cmessage)
+   call allocLocal(flux_meta(:),flux_init,nSnow,nLake,nSoil,nIce,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for mLayerCmpress_sum at the start of the time step
@@ -436,18 +436,18 @@ contains
   ! Note: prime initial values are 0 so it's fine to run the regular eval8summa with every solver choice
   associate(&
    nSnow => indx_data%var(iLookINDEX%nSnow)%dat(1),& ! intent(in): [i4b] number of snow layers
+   nLake => indx_data%var(iLookINDEX%nLake)%dat(1),& ! intent(in): [i4b] number of lake layers
    nSoil => indx_data%var(iLookINDEX%nSoil)%dat(1),& ! intent(in): [i4b] number of soil layers
-   nIce  => indx_data%var(iLookINDEX%nIce)%dat(1) ,& ! intent(in): [i4b] number of ice layers
-   nLake => indx_data%var(iLookINDEX%nLake)%dat(1) & ! intent(in): [i4b] number of lake layers
-   &)
+   nIce  => indx_data%var(iLookINDEX%nIce)%dat(1)  & ! intent(in): [i4b] number of ice layers
+   )
    call eval8summa(&
                     ! input: model control
                     dt_cur,                  & ! intent(in):    current stepsize
                     dt,                      & ! intent(in):    length of the entire time step (seconds) for drainage pond rate
                     nSnow,                   & ! intent(in):    number of snow layers
+                    nLake,                   & ! intent(in):    number of lake layers
                     nSoil,                   & ! intent(in):    number of soil layers
                     nIce,                    & ! intent(in):    number of ice layers
-                    nLake,                   & ! intent(in):    number of lake layers
                     nLayers,                 & ! intent(in):    number of layers
                     nState,                  & ! intent(in):    number of state variables in the current subset
                     .false.,                 & ! intent(in):    not inside Sundials solver
@@ -495,9 +495,9 @@ contains
   !       If we implement it in the regular version, we can remove this subroutine
   associate(&
    nSnow            => indx_data%var(iLookINDEX%nSnow)%dat(1)                  , & ! intent(in):    [i4b]   number of snow layers
+   nLake           => indx_data%var(iLookINDEX%nLake)%dat(1)                   , & ! intent(in):    [i4b]   number of lake layers
    nSoil            => indx_data%var(iLookINDEX%nSoil)%dat(1)                  , & ! intent(in):    [i4b]   number of soil layers
    nIce             => indx_data%var(iLookINDEX%nIce)%dat(1)                   , & ! intent(in):    [i4b]   number of ice layers
-   nLake           => indx_data%var(iLookINDEX%nLake)%dat(1)                   , & ! intent(in):    [i4b]   number of lake layers
    scalarCanopyEnthalpy => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1), & ! intent(inout): [dp]    enthalpy of the vegetation canopy (J m-2)
    scalarCanopyTemp => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)        , & ! intent(inout): [dp]    temperature of the vegetation canopy (K)
    scalarCanopyWat  => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)         , & ! intent(inout): [dp]    total water content of the vegetation canopy (kg m-2)
@@ -510,9 +510,9 @@ contains
                     ! input: model control
                     dt,                      & ! intent(in):    length of the entire time step (seconds) for drainage pond rate
                     nSnow,                   & ! intent(in):    number of snow layers
+                    nLake,                   & ! intent(in):    number of lake layers
                     nSoil,                   & ! intent(in):    number of soil layers
                     nIce,                    & ! intent(in):    number of ice layers
-                    nLake,                   & ! intent(in):    number of lake layers
                     nLayers,                 & ! intent(in):    total number of layers
                     nState,                  & ! intent(in):    total number of state variables in the current subset
                     .false.,                 & ! intent(in):    not inside Sundials solver                    
@@ -571,11 +571,11 @@ contains
   associate(&
    ! layer geometry
    nSnow => indx_data%var(iLookINDEX%nSnow)%dat(1),& ! intent(in): [i4b] number of snow layers
+   nLake => indx_data%var(iLookINDEX%nLake)%dat(1),& ! intent(in): [i4b] number of lake layers
    nSoil => indx_data%var(iLookINDEX%nSoil)%dat(1),& ! intent(in): [i4b] number of soil layers
-   nIce => indx_data%var(iLookINDEX%nIce)%dat(1)  ,& ! intent(in): [i4b] number of ice layers
-   nLake => indx_data%var(iLookINDEX%nLake)%dat(1) & ! intent(in): [i4b] number of lake layers
+   nIce => indx_data%var(iLookINDEX%nIce)%dat(1)   & ! intent(in): [i4b] number of ice layers
    )
-   call in_SS4HG % initialize(dt_cur,dt,iter,nSnow,nSoil,nIce,nLake,nLayers,nLeadDim,nState,ixMatrix,firstSubStep,computeVegFlux,scalarSolution,fOld)
+   call in_SS4HG % initialize(dt_cur,dt,iter,nSnow,nLake,nSoil,nIce,nLayers,nLeadDim,nState,ixMatrix,firstSubStep,computeVegFlux,scalarSolution,fOld)
    call io_SS4HG % initialize(firstFluxCall,xMin,xMax,ixSaturation)
    call summaSolve4homegrown(in_SS4HG,&                                                                                ! input: model control
                             &stateVecTrial,fScale,xScale,resVec,sMul,dMat,&                                            ! input: state vectors
@@ -615,16 +615,16 @@ contains
   layerVars: associate(&
     nSnow        => indx_data%var(iLookINDEX%nSnow)%dat(1)         ,& ! intent(in): [i4b] number of snow layers
     ! vector of energy and hydrology indices for the layer domains
-    ixSnLaIcSoNrg => indx_data%var(iLookINDEX%ixSnLaIcSoNrg)%dat   ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the layer domains
-    ixSnLaIcSoHyd => indx_data%var(iLookINDEX%ixSnLaIcSoHyd)%dat   ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the layer domains
-    nSnLaIcSoNrg  => indx_data%var(iLookINDEX%nSnLaIcSoNrg )%dat(1),& ! intent(in): [i4b] number of energy state variables in the layer domains
-    nSnLaIcSoHyd  => indx_data%var(iLookINDEX%nSnLaIcSoHyd )%dat(1) & ! intent(in): [i4b] number of hydrology state variables in the layer domains
+    ixSnLaSoIcNrg => indx_data%var(iLookINDEX%ixSnLaSoIcNrg)%dat   ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the layer domains
+    ixSnLaSoIcHyd => indx_data%var(iLookINDEX%ixSnLaSoIcHyd)%dat   ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the layer domains
+    nSnLaSoIcNrg  => indx_data%var(iLookINDEX%nSnLaSoIcNrg )%dat(1),& ! intent(in): [i4b] number of energy state variables in the layer domains
+    nSnLaSoIcHyd  => indx_data%var(iLookINDEX%nSnLaSoIcHyd )%dat(1) & ! intent(in): [i4b] number of hydrology state variables in the layer domains
     )
   
     ! update temperatures (ensure new temperature is consistent with the fluxes)
-    if (nSnLaIcSoNrg>0) then
-      do concurrent (iLayer=1:nLayers,ixSnLaIcSoNrg(iLayer)/=integerMissing) ! loop through non-missing energy state variables in the layer domains
-        iState = ixSnLaIcSoNrg(iLayer)
+    if (nSnLaSoIcNrg>0) then
+      do concurrent (iLayer=1:nLayers,ixSnLaSoIcNrg(iLayer)/=integerMissing) ! loop through non-missing energy state variables in the layer domains
+        iState = ixSnLaSoIcNrg(iLayer)
         stateVecTrial(iState) = stateVecInit(iState) + (fluxVec(iState)*dt_cur + resSink(iState))/real(sMul(iState), rkind)
         resVec(iState) = 0._qp
       end do  ! looping through non-missing energy state variables in the layer domains
@@ -632,9 +632,9 @@ contains
     
     ! update volumetric water content in the snow (ensure change in state is consistent with the fluxes)
     ! NOTE: for soil water balance is constrained within the iteration loop
-    if (nSnLaIcSoHyd>0) then
-      do concurrent (iLayer=1:nSnow,ixSnLaIcSoHyd(iLayer)/=integerMissing)   ! (loop through non-missing water state variables in the snow domain)
-        iState = ixSnLaIcSoHyd(iLayer)
+    if (nSnLaSoIcHyd>0) then
+      do concurrent (iLayer=1:nSnow,ixSnLaSoIcHyd(iLayer)/=integerMissing)   ! (loop through non-missing water state variables in the snow domain)
+        iState = ixSnLaSoIcHyd(iLayer)
         stateVecTrial(iState) = stateVecInit(iState) + (fluxVec(iState)*dt_cur + resSink(iState))
         resVec(iState) = 0._qp
       end do  ! looping through non-missing water state variables in the soil domain
@@ -660,13 +660,12 @@ contains
 
   layerGeometry: associate(&
    nSnow => indx_data%var(iLookINDEX%nSnow)%dat(1),& ! intent(in): [i4b] number of snow layers
+   nLake => indx_data%var(iLookINDEX%nLake)%dat(1),& ! intent(in): [i4b] number of lake layers
    nSoil => indx_data%var(iLookINDEX%nSoil)%dat(1),& ! intent(in): [i4b] number of soil layers
-   nIce  => indx_data%var(iLookINDEX%nIce)%dat(1) ,& ! intent(in): [i4b] number of ice layers
-   nLake => indx_data%var(iLookINDEX%nLake)%dat(1) & ! intent(in): [i4b] number of lake layers
+   nIce  => indx_data%var(iLookINDEX%nIce)%dat(1)  & ! intent(in): [i4b] number of ice layers
    )
-
    ! allocate space for the temporary flux_sum structure
-   call allocLocal(flux_meta(:),flux_sum,nSnow,nSoil,nIce,nLake,zero,err,cmessage)
+   call allocLocal(flux_meta(:),flux_sum,nSnow,nLake,nSoil,nIce,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
 
    ! initialize flux_sum
@@ -688,9 +687,9 @@ contains
                        atol,                    & ! intent(in):    absolute tolerance
                        rtol,                    & ! intent(in):    relative tolerance
                        nSnow,                   & ! intent(in):    number of snow layers
+                       nLake,                   & ! intent(in):    number of lake layers
                        nSoil,                   & ! intent(in):    number of soil layers
                        nIce,                    & ! intent(in):    number of ice layers
-                       nLake,                   & ! intent(in):    number of lake layers
                        nLayers,                 & ! intent(in):    number of snow+soil layers
                        nState,                  & ! intent(in):    number of state variables in the current subset
                        ixMatrix,                & ! intent(in):    type of matrix (dense or banded)
@@ -769,9 +768,9 @@ contains
 #ifdef SUNDIALS_ACTIVE
   associate(&
    nSnow => indx_data%var(iLookINDEX%nSnow)%dat(1),& ! intent(in): [i4b] number of snow layers
+   nLake => indx_data%var(iLookINDEX%nLake)%dat(1),& ! intent(in): [i4b] number of lake layers
    nSoil => indx_data%var(iLookINDEX%nSoil)%dat(1),& ! intent(in): [i4b] number of soil layers
-   nIce  => indx_data%var(iLookINDEX%nIce)%dat(1) ,& ! intent(in): [i4b] number of ice layers
-   nLake => indx_data%var(iLookINDEX%nLake)%dat(1) & ! intent(in): [i4b] number of lake layers
+   nIce  => indx_data%var(iLookINDEX%nIce)%dat(1)  & ! intent(in): [i4b] number of ice layers
    )
    !---------------------------
    ! * solving F(y) = 0 from Backward Euler with KINSOL, y is the state vector 
@@ -784,9 +783,9 @@ contains
                           fScale,                  & ! intent(in):    characteristic scale of the function evaluations
                           xScale,                  & ! intent(in):    characteristic scale of the state vector
                           nSnow,                   & ! intent(in):    number of snow layers
+                          nLake,                   & ! intent(in):    number of lake layers
                           nSoil,                   & ! intent(in):    number of soil layers
                           nIce,                    & ! intent(in):    number of ice layers
-                          nLake,                   & ! intent(in):    number of lake layers
                           nLayers,                 & ! intent(in):    number of snow+soil layers
                           nState,                  & ! intent(in):    number of state variables in the current subset
                           ixMatrix,                & ! intent(in):    type of matrix (dense or banded)

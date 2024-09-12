@@ -159,9 +159,9 @@ contains
  rootingDepth          =>mpar_data%var(iLookPARAM%rootingDepth)%dat(1),         & ! rooting depth (m)
  rootDistExp           =>mpar_data%var(iLookPARAM%rootDistExp)%dat(1),          & ! root distribution exponent (-)
  ! associate the model index structures
- nSoil                 =>indx_data%var(iLookINDEX%nSoil)%dat(1),                & ! number of soil layers
  nSnow                 =>indx_data%var(iLookINDEX%nSnow)%dat(1),                & ! number of snow layers
  nLake                 =>indx_data%var(iLookINDEX%nLake)%dat(1),                & ! number of lake layers
+ nSoil                 =>indx_data%var(iLookINDEX%nSoil)%dat(1),                & ! number of soil layers
  iLayerHeight          =>prog_data%var(iLookPROG%iLayerHeight)%dat,             & ! height of the layer interface (m)
  ! associate the values in the model variable structures
  scalarAquiferRootFrac =>diag_data%var(iLookDIAG%scalarAquiferRootFrac)%dat(1), & ! fraction of roots below the soil profile (in the aquifer)
@@ -273,8 +273,8 @@ contains
  zScale_TOPMODEL    => mpar_data%var(iLookPARAM%zScale_TOPMODEL)%dat(1),& ! exponent for the TOPMODEL-ish baseflow parameterization (-)
  ! associate the model index structures
  nSnow              => indx_data%var(iLookINDEX%nSnow)%dat(1),          & ! number of snow layers
- nSoil              => indx_data%var(iLookINDEX%nSoil)%dat(1),          & ! number of soil layers
  nLake              => indx_data%var(iLookINDEX%nLake)%dat(1),          & ! number of lake layers
+ nSoil              => indx_data%var(iLookINDEX%nSoil)%dat(1),          & ! number of soil layers
  ! associate the coordinate variables
  mLayerHeight       => prog_data%var(iLookPROG%mLayerHeight)%dat,       & ! height at the mid-point of each layer (m)
  iLayerHeight       => prog_data%var(iLookPROG%iLayerHeight)%dat,       & ! height at the interface of each layer (m)

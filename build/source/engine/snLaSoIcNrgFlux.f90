@@ -142,12 +142,12 @@ subroutine snLaSoIcNrgFlux(&
     ix_bcLowrTdyn           => model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision, & ! intent(in):  method used to calculate the lower boundary condition for thermodynamics
     ! input: coordinate variables
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),               & ! intent(in):  number of snow layers
+    nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1),               & ! intent(in):  number of lake layers
     nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1),               & ! intent(in):  number of soil layers
     nIce                    => indx_data%var(iLookINDEX%nIce)%dat(1),                & ! intent(in):  number of ice layers
-    nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1),               & ! intent(in):  number of lake layers
     layerType               => indx_data%var(iLookINDEX%layerType)%dat,              & ! intent(in):  layer type
     ixLayerState            => indx_data%var(iLookINDEX%ixLayerState)%dat,           & ! intent(in):  list of indices for all model layers
-    ixSnLaIcSoNrg           => indx_data%var(iLookINDEX%ixSnLaIcSoNrg)%dat,          & ! intent(in):  index in the state subset for energy state variables in the layer domains
+    ixSnLaSoIcNrg           => indx_data%var(iLookINDEX%ixSnLaSoIcNrg)%dat,          & ! intent(in):  index in the state subset for energy state variables in the layer domains
     mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat,             & ! intent(in):  depth of each layer (m)
     mLayerHeight            => prog_data%var(iLookPROG%mLayerHeight)%dat,            & ! intent(in):  height at the mid-point of each layer (m)
     ! input: thermal properties
@@ -177,7 +177,7 @@ subroutine snLaSoIcNrgFlux(&
 
     ! get the indices for the snow+soil layers
     if (scalarSolution) then
-      ixLayerDesired = pack(ixLayerState, ixSnLaIcSoNrg/=integerMissing)
+      ixLayerDesired = pack(ixLayerState, ixSnLaSoIcNrg/=integerMissing)
       ixTop = ixLayerDesired(1)
       ixBot = ixLayerDesired(1)
     else
@@ -206,10 +206,9 @@ subroutine snLaSoIcNrgFlux(&
     ! -------------------------------------------------------------------------------------------------------------------------
     do iLayer=ixTop,ixBot
       select case(layerType(iLayer)) ! get the liquid flux at layer interfaces
-        case(iname_snow); qFlux = iLayerLiqFluxSnIc(iLayer)
+        case(iname_snow,iname_ice); qFlux = iLayerLiqFluxSnIc(iLayer)
         case(iname_lake); qFlux = 0._rkind !iLayerLiqFluxLake(iLayer-nSnow)
         case(iname_soil); qFlux = iLayerLiqFluxSoil(iLayer-nSnow-nLake)
-        case(iname_ice);  qFlux = 0._rkind !iLayerLiqFluxSnIc(iLayer-nSnow-nLake-nSoil)
         case default; err=20; message=trim(message)//'unable to identify layer type'; return
       end select
       if (iLayer==nLayers) then ! compute fluxes at the lower boundary -- positive downwards

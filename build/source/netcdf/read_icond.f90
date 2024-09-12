@@ -119,11 +119,11 @@ contains
 
  ! get netcdf ids for the variables holding number of layers in each domain or hru
  err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nSnow)%varName),snowID); call netcdf_err(err,message)
+ err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nLake)%varName),lakeID)
+ if(err/=nf90_noerr ) no_lakeData = .true.
  err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nSoil)%varName),soilID); call netcdf_err(err,message)
  err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nIce)%varName),iceID)
  if(err/=nf90_noerr) no_iceData = .true.
- err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nLake)%varName),lakeID)
- if(err/=nf90_noerr ) no_lakeData = .true.
 
  ! get nSnow and nSoil data (reads entire state file)
  err = nf90_get_var(ncID,snowID,snowData); call netcdf_err(err,message)
@@ -147,9 +147,9 @@ contains
    do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
     ixFile = iHRU_global
     gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow = snowData(iDOM,ixFile)
+    gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake = lakeData(iDOM,ixFile)
     gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil = soilData(iDOM,ixFile)
     gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce  =  iceData(iDOM,ixFile)
-    gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake = lakeData(iDOM,ixFile)
    end do
   end do
  end do
@@ -234,8 +234,7 @@ contains
  integer(i4b)                              :: iHRU_global              ! index of HRU in the netcdf file
  real(rkind),allocatable                   :: varData2(:,:)            ! variable data storage
  real(rkind),allocatable                   :: varData3(:,:,:)          ! variable data storage
- integer(i4b)                              :: nSoil, nSnow, nToto      ! # layers
- integer(i4b)                              :: nIce, nLake              ! # layers
+ integer(i4b)                              :: nSnow,nLake,nSoil,nIce,nToto !# layers
  integer(i4b)                              :: nTDH                     ! number of points in time-delay 
  integer(i4b)                              :: nGlacier                 ! number of glaciers in basin (attribute files
  integer(i4b)                              :: nGlacier_max             ! max number of glaciers in any GRU
@@ -336,10 +335,10 @@ contains
     do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
      ! get the number of layers
      nSnow = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
+     nLake = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake
      nSoil = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
      nIce  = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce
-     nLake = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake
-     nToto = nSnow + nSoil + nIce + nLake
+     nToto = nSnow + nLake + nSoil + nIce
      if(nIce>0) has_glacier = .true.
      if(nLake>0) has_wetland = .true.
 
@@ -397,20 +396,20 @@ contains
 
     ! save the number of layers
     nSnow = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
+    nLake = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake
     nSoil = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
     nIce  = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce
-    nLake = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSnow)%dat(1)   = nSnow
+    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLake)%dat(1)   = nLake
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSoil)%dat(1)   = nSoil
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nIce)%dat(1)    = nIce
-    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLake)%dat(1)   = nLake
-    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLayers)%dat(1) = nSnow + nSoil + nIce + nLake
+    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLayers)%dat(1) = nSnow + nLake + nSoil + nIce
 
     ! set layer type
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%layerType)%dat(1:nSnow) = iname_snow
-    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%layerType)%dat((nSnow+nLake+1):(nSnow+nLake+nSoil)) = iname_soil
-    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%layerType)%dat((nSnow+nSoil+1):(nSnow+nSoil+nIce)) = iname_ice
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%layerType)%dat((nSnow+1):(nSnow+nLake)) = iname_lake
+    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%layerType)%dat((nSnow+nLake+1):(nSnow+nLake+nSoil)) = iname_soil
+    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%layerType)%dat((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nIce)) = iname_ice
 
    end do
   end do

@@ -963,13 +963,13 @@ contains
    associate(&
     dt_cur         => in_SS4HG % dt_cur         ,& ! intent(in): current stepsize
     nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
+    nLake          => in_SS4HG % nLake          ,& ! intent(in): number of lake layers
     nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
     nIce           => in_SS4HG % nIce           ,& ! intent(in): number of ice layers
-    nLake          => in_SS4HG % nLake          ,& ! intent(in): number of lake layers
     nLayers        => in_SS4HG % nLayers        ,& ! intent(in): total number of layers
     computeVegFlux => in_SS4HG % computeVegFlux  & ! intent(in): flag to indicate if computing fluxes over vegetation
    &)
-    call in_computJacob % initialize(dt_cur,nSnow,nSoil,nIce,nLake,nLayers,computeVegFlux,.false.,ixFullMatrix)
+    call in_computJacob % initialize(dt_cur,nSnow,nLake,nSoil,nIce,nLayers,computeVegFlux,.false.,ixFullMatrix)
    end associate
   end subroutine initialize_computJacob_testBandMat
 
@@ -987,14 +987,14 @@ contains
     ixGroundwater  => model_decisions(iLookDECISIONS%groundwatr)%iDecision,&  ! intent(in): [i4b] groundwater parameterization
     dt_cur         => in_SS4HG % dt_cur         ,& ! intent(in): current stepsize
     nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
+    nLake          => in_SS4HG % nLake          ,& ! intent(in): number of lake layers
     nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
     nIce           => in_SS4HG % nIce           ,& ! intent(in): number of ice layers
-    nLake          => in_SS4HG % nLake          ,& ! intent(in): number of lake layers
     nLayers        => in_SS4HG % nLayers        ,& ! intent(in): total number of layers
     ixMatrix       => in_SS4HG % ixMatrix       ,& ! intent(in): type of matrix (full or band diagonal)
     computeVegFlux => in_SS4HG % computeVegFlux  & ! intent(in): flag to indicate if computing fluxes over vegetation
    &)   
-    call in_computJacob % initialize(dt_cur,nSnow,nSoil,nIce,nLake,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel),ixMatrix)
+    call in_computJacob % initialize(dt_cur,nSnow,nLake,nSoil,nIce,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel),ixMatrix)
    end associate
   end subroutine initialize_computJacob_summaSolve4homegrown
 
@@ -1033,9 +1033,9 @@ contains
    dt_cur         => in_SS4HG % dt_cur         ,& ! intent(in): current stepsize
    dt             => in_SS4HG % dt             ,& ! intent(in): entire time step for drainage pond rate
    nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
+   nLake          => in_SS4HG % nLake          ,& ! intent(in): number of lake layers
    nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
    nIce           => in_SS4HG % nIce           ,& ! intent(in): number of ice layers
-   nLake          => in_SS4HG % nLake          ,& ! intent(in): number of lake layers
    nLayers        => in_SS4HG % nLayers        ,& ! intent(in): total number of layers
    nState         => in_SS4HG % nState         ,& ! intent(in): total number of state variables
    firstSubStep   => in_SS4HG % firstSubStep   ,& ! intent(in): flag to indicate if we are processing the first sub-step
@@ -1050,9 +1050,9 @@ contains
                    dt_cur,                  & ! intent(in):    current stepsize
                    dt,                      & ! intent(in):    length of the time step (seconds)
                    nSnow,                   & ! intent(in):    number of snow layers
+                   nLake,                   & ! intent(in):    number of lake layers
                    nSoil,                   & ! intent(in):    number of soil layers
                    nIce,                    & ! intent(in):    number of ice layers
-                   nLake,                   & ! intent(in):    number of lake layers
                    nLayers,                 & ! intent(in):    total number of layers
                    nState,                  & ! intent(in):    total number of state variables
                    .false.,                 & ! intent(in):    not inside Sundials solver

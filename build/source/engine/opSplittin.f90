@@ -195,9 +195,9 @@ contains
 subroutine opSplittin(&
                       ! input: model control
                       nSnow,                & ! intent(in):    number of snow layers
+                      nLake,                & ! intent(in):    number of lake layers
                       nSoil,                & ! intent(in):    number of soil layers
                       nIce,                 & ! intent(in):    number of ice layers
-                      nLake,                & ! intent(in):    number of lake layers
                       nLayers,              & ! intent(in):    total number of layers
                       nState,               & ! intent(in):    total number of state variables
                       dt,                   & ! intent(in):    time step (s)
@@ -238,9 +238,9 @@ subroutine opSplittin(&
   ! ---------------------------------------------------------------------------------------
   ! input: model control
   integer(i4b),intent(in)         :: nSnow                          ! number of snow layers
+  integer(i4b),intent(in)         :: nLake                          ! number of lake layers
   integer(i4b),intent(in)         :: nSoil                          ! number of soil layers
   integer(i4b),intent(in)         :: nIce                           ! number of ice layers
-  integer(i4b),intent(in)         :: nLake                          ! number of lake layers
   integer(i4b),intent(in)         :: nLayers                        ! total number of layers
   integer(i4b),intent(in)         :: nState                         ! total number of state variables
   real(rkind),intent(in)          :: dt                             ! time step (seconds)
@@ -620,35 +620,35 @@ subroutine opSplittin(&
    return_flag=.false. ! initialize flag
 
    ! allocate space for the flux mask (used to define when fluxes are updated)
-   call allocLocal(flux_meta(:),fluxMask,nSnow,nSoil,nIce,nLake,zero,err,cmessage)
+   call allocLocal(flux_meta(:),fluxMask,nSnow,nLake,nSoil,nIce,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the flux count (used to check that fluxes are only updated once)
-   call allocLocal(flux_meta(:),fluxCount,nSnow,nSoil,nIce,nLake,zero,err,cmessage)
+   call allocLocal(flux_meta(:),fluxCount,nSnow,nLake,nSoil,nIce,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary prognostic variable structure
-   call allocLocal(prog_meta(:),prog_temp,nSnow,nSoil,nIce,nLake,zero,err,cmessage)
+   call allocLocal(prog_meta(:),prog_temp,nSnow,nLake,nSoil,nIce,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary diagnostic variable structure
-   call allocLocal(diag_meta(:),diag_temp,nSnow,nSoil,nIce,nLake,zero,err,cmessage)
+   call allocLocal(diag_meta(:),diag_temp,nSnow,nLake,nSoil,nIce,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary flux variable structure
-   call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,nIce,nLake,zero,err,cmessage)
+   call allocLocal(flux_meta(:),flux_temp,nSnow,nLake,nSoil,nIce,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the mean flux variable structure
-   call allocLocal(flux_meta(:),flux_mean,nSnow,nSoil,nIce,nLake,zero,err,cmessage)
+   call allocLocal(flux_meta(:),flux_mean,nSnow,nLake,nSoil,nIce,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary mean flux variable structure
-   call allocLocal(flux_meta(:),flux_mntemp,nSnow,nSoil,nIce,nLake,zero,err,cmessage)
+   call allocLocal(flux_meta(:),flux_mntemp,nSnow,nLake,nSoil,nIce,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the derivative structure
-   call allocLocal(deriv_meta(:),deriv_data,nSnow,nSoil,nIce,nLake,zero,err,cmessage)
+   call allocLocal(deriv_meta(:),deriv_data,nSnow,nLake,nSoil,nIce,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end subroutine allocate_memory
 
@@ -847,7 +847,7 @@ subroutine opSplittin(&
 
   ! **** indexSplit ****
   subroutine initialize_indexSplit
-   call in_indexSplit % initialize(nSnow,nSoil,nIce,nLake,nLayers,nSubset)
+   call in_indexSplit % initialize(nSnow,nLake,nSoil,nIce,nLayers,nSubset)
   end subroutine initialize_indexSplit
 
   subroutine finalize_indexSplit

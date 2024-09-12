@@ -54,9 +54,9 @@ subroutine eval8summaWithPrime(&
                       ! input: model control
                       dt,                            & ! intent(in):    entire time step for drainage pond rate
                       nSnow,                         & ! intent(in):    number of snow layers
+                      nLake,                         & ! intent(in):    number of lake layers
                       nSoil,                         & ! intent(in):    number of soil layers
                       nIce,                          & ! intent(in):    number of ice layers
-                      nLake,                         & ! intent(in):    number of lake layers
                       nLayers,                       & ! intent(in):    total number of layers
                       nState,                        & ! intent(in):    total number of state variables
                       insideSUN,                     & ! intent(in):    flag to indicate if we are inside Sundials solver
@@ -123,9 +123,9 @@ subroutine eval8summaWithPrime(&
   ! input: model control
   real(rkind),intent(in)          :: dt                          ! entire time step for drainage pond rate
   integer(i4b),intent(in)         :: nSnow                       ! number of snow layers
+  integer(i4b),intent(in)         :: nLake                       ! number of lake layers
   integer(i4b),intent(in)         :: nSoil                       ! number of soil layers
   integer(i4b),intent(in)         :: nIce                        ! number of ice layers
-  integer(i4b),intent(in)         :: nLake                       ! number of lake layers
   integer(i4b),intent(in)         :: nLayers                     ! total number of layers
   integer,intent(in)              :: nState                      ! total number of state variables
   logical(lgt),intent(in)         :: insideSUN                   ! flag to indicate if we are inside Sundials solver
@@ -593,9 +593,9 @@ subroutine eval8summaWithPrime(&
     call computFlux(&
                     ! input-output: model control
                     nSnow,                     & ! intent(in):    number of snow layers
+                    nLake,                     & ! intent(in):    number of lake layers
                     nSoil,                     & ! intent(in):    number of soil layers
                     nIce,                      & ! intent(in):    number of ice layers
-                    nLake,                     & ! intent(in):    number of lake layers
                     nLayers,                   & ! intent(in):    total number of layers
                     firstSubStep,              & ! intent(in):    flag to indicate if we are processing the first sub-step
                     firstFluxCall,             & ! intent(inout): flag to denote the first flux call
@@ -765,9 +765,9 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
                 ! input: model control
                 eqns_data%dt,                            & ! intent(in):    data step
                 eqns_data%nSnow,                         & ! intent(in):    number of snow layers
+                eqns_data%nLake,                         & ! intent(in):    number of lake layers
                 eqns_data%nSoil,                         & ! intent(in):    number of soil layers
                 eqns_data%nIce,                          & ! intent(in):    number of ice layers
-                eqns_data%nLake,                         & ! intent(in):    number of lake layers
                 eqns_data%nLayers,                       & ! intent(in):    number of layers
                 eqns_data%nState,                        & ! intent(in):    number of state variables in the current subset
                 .true.,                                  & ! intent(in):    inside SUNDIALS solver

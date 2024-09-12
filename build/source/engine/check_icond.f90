@@ -110,10 +110,10 @@ contains
  real(rkind)                    :: scalarTheta           ! liquid water equivalent of total water [liquid water + ice] (-)
  real(rkind)                    :: h1,h2                 ! used to check depth and height are consistent
  real(rkind)                    :: kappa                 ! constant in the freezing curve function (m K-1)
- integer(i4b)                   :: nSoil                 ! number of soil layers
  integer(i4b)                   :: nSnow                 ! number of snow layers
- integer(i4b)                   :: nIce                  ! number of ice layers
  integer(i4b)                   :: nLake                 ! number of lake layers
+ integer(i4b)                   :: nSoil                 ! number of soil layers
+ integer(i4b)                   :: nIce                  ! number of ice layers
  integer(i4b)                   :: nLayers               ! total number of layers
  integer(i4b)                   :: nState                ! total number of states
  real(rkind),parameter          :: xTol=1.e-10_rkind     ! small tolerance to address precision issues
@@ -275,11 +275,11 @@ contains
     end if
 
     ! number of layers
-    nSoil   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
     nSnow   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
-    nIce    = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce
     nLake   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake
-    nLayers = nSoil + nSnow + nIce + nLake
+    nSoil   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
+    nIce    = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce
+    nLayers = nSnow + nLake + nSoil + nIce
 
     ! loop through all layers
     do iLayer=1,nLayers

@@ -119,7 +119,6 @@ subroutine soilLiqFlx(&
   ! local variables: general
   character(LEN=256)                  :: cmessage                      ! error message of downwind routine
   integer(i4b)                        :: nSoil                         ! number of soil layers
-  integer(i4b)                        :: nLake                         ! number of lake layers
   integer(i4b)                        :: ibeg,iend                     ! start and end indices of the soil layers in concatanated snow-soil vector
   integer(i4b)                        :: iLayer,iSoil                  ! index of soil layer
   integer(i4b)                        :: ixLayerDesired(1)             ! layer desired (scalar solution)
@@ -143,11 +142,10 @@ subroutine soilLiqFlx(&
   real(rkind)                         :: scalardPsi_dTheta ! derivative in soil water characteristix, used for perturbations when computing numerical derivatives
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   nSoil = in_soilLiqFlx % nSoil ! get number of soil layers from input arguments
-  nLake = in_soilLiqFlx % nLake ! get number of lake layers from input arguments
  
   ! get indices for the data structures
   ibeg = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nLake)%dat(1) + 1
-  iend = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nLake)%dat(1) + indx_data%var(iLookINDEX%nSoil)%dat(1)
+  iend = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nLake)%dat(1) + nSoil
 
   ! get a copy of iLayerHeight
   ! NOTE: performance hit, though cannot define the shape (0:) with the associate construct

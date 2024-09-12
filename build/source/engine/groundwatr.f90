@@ -126,8 +126,8 @@ subroutine groundwatr(&
   associate(&
     ! input: model control
     nSnow               => in_groundwatr % nSnow,                              & ! intent(in):    [i4b] number of snow layers
-    nSoil               => in_groundwatr % nSoil,                              & ! intent(in):    [i4b] number of soil layers
     nLake               => in_groundwatr % nLake,                              & ! intent(in):    [i4b] number of lake layers
+    nSoil               => in_groundwatr % nSoil,                              & ! intent(in):    [i4b] number of soil layers
     getSatDepth         => in_groundwatr % firstFluxCall,                      & ! intent(in):    [lgt] logical flag to compute index of the lowest saturated layer
     ! input: state and diagnostic variables
     mLayerdTheta_dPsi   => in_groundwatr % mLayerdTheta_dPsi,                  & ! intent(in):    [dp] derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
@@ -182,8 +182,8 @@ subroutine groundwatr(&
     call computeBaseflow(&
                           ! input: control and state variables
                           nSnow,                   & ! intent(in):    number of snow layers
-                          nSoil,                   & ! intent(in):    number of soil layers
                           nLake,                   & ! intent(in):    number of lake layers
+                          nSoil,                   & ! intent(in):    number of soil layers
                           .true.,                  & ! intent(in):    .true. if analytical derivatives are desired
                           ixSaturation,            & ! intent(in):    index of upper-most "saturated" layer
                           mLayerVolFracLiq,        & ! intent(in):    volumetric fraction of liquid water in each soil layer (-)
@@ -215,8 +215,8 @@ end subroutine groundwatr
 subroutine computeBaseflow(&
                           ! input: control and state variables
                           nSnow,                         & ! intent(in):    number of snow layers
-                          nSoil,                         & ! intent(in):    number of soil layers
                           nLake,                         & ! intent(in):    number of lake layers
+                          nSoil,                         & ! intent(in):    number of soil layers
                           derivDesired,                  & ! intent(in):    .true. if derivatives are desired
                           ixSaturation,                  & ! intent(in):    index of upper-most "saturated" layer
                           mLayerVolFracLiq,              & ! intent(in):    volumetric fraction of liquid water in each soil layer (-)
@@ -235,8 +235,8 @@ subroutine computeBaseflow(&
   ! ---------------------------------------------------------------------------------------
   ! input: control and state variables
   integer(i4b),intent(in)          :: nSnow                   ! number of snow layers
-  integer(i4b),intent(in)          :: nSoil                   ! number of soil layers
   integer(i4b),intent(in)          :: nLake                   ! number of lake layers
+  integer(i4b),intent(in)          :: nSoil                   ! number of soil layers
   logical(lgt),intent(in)          :: derivDesired            ! .true. if derivatives are desired
   integer(i4b),intent(in)          :: ixSaturation            ! index of upper-most "saturated" layer
   real(rkind),intent(in)           :: mLayerVolFracLiq(:)     ! volumetric fraction of liquid water (-)

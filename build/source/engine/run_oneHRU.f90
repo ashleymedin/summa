@@ -263,9 +263,9 @@ subroutine run_oneHRU(&
 
     ! update the number of layers regardless of whether the model was run
     domInfo(i)%nSnow   = indxData%dom(i)%var(iLookINDEX%nSnow)%dat(1)    ! number of snow layers
+    domInfo(i)%nLake   = indxData%dom(i)%var(iLookINDEX%nLake)%dat(1)    ! number of lake layers
     domInfo(i)%nSoil   = indxData%dom(i)%var(iLookINDEX%nSoil)%dat(1)    ! number of soil layers
     domInfo(i)%nIce    = indxData%dom(i)%var(iLookINDEX%nIce)%dat(1)     ! number of ice layers
-    domInfo(i)%nLake   = indxData%dom(i)%var(iLookINDEX%nLake)%dat(1)    ! number of lake layers
     domInfo(i)%nLayers = indxData%dom(i)%var(iLookINDEX%nLayers)%dat(1)  ! total number of layers
 
   end do

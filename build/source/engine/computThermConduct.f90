@@ -181,8 +181,8 @@ subroutine computThermConduct(&
     ixThCondSoil            => model_decisions(iLookDECISIONS%thCondSoil)%iDecision,      & ! intent(in):  [i4b]   choice of method for thermal conductivity of soil
     ! input: coordinate variables
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),                    & ! intent(in):  [dp]    number of snow layers
-    nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1),                    & ! intent(in):  [dp]    number of soil layers
     nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1),                    & ! intent(in):  [dp]    number of lake layers
+    nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1),                    & ! intent(in):  [dp]    number of soil layers
     nIce                    => indx_data%var(iLookINDEX%nIce)%dat(1),                     & ! intent(in):  [dp]    number of ice layers
     layerType               => indx_data%var(iLookINDEX%layerType)%dat,                   & ! intent(in):  [dp(:)] layer type (iname_soil or iname_snow)
     mLayerHeight            => prog_data%var(iLookPROG%mLayerHeight)%dat,                 & ! intent(in):  [dp(:)] height at the mid-point of each layer (m)

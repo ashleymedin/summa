@@ -189,9 +189,9 @@ subroutine coupled_em(&
   ! local variables
   character(len=256)                   :: cmessage               ! error message
   integer(i4b)                         :: nSnow                  ! number of snow layers
+  integer(i4b)                         :: nLake                  ! number of lake layers
   integer(i4b)                         :: nSoil                  ! number of soil layers
   integer(i4b)                         :: nIce                   ! number of ice layers
-  integer(i4b)                         :: nLake                  ! number of lake layers
   integer(i4b)                         :: nLayers                ! total number of layers
   integer(i4b)                         :: nState                 ! total number of state variables
   real(rkind)                          :: dtSave                 ! length of last input model whole sub-step (seconds)
@@ -355,10 +355,10 @@ subroutine coupled_em(&
     ! NOTE: need to recompute the number of layers at the start of each sub-step because the number of layers may change
     !         (nSnow and nSoil are shared in the data structure)
     nSnow = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
+    nLake = count(indx_data%var(iLookINDEX%layerType)%dat==iname_lake)
     nSoil = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
     nIce  = count(indx_data%var(iLookINDEX%layerType)%dat==iname_ice)
-    nLake = count(indx_data%var(iLookINDEX%layerType)%dat==iname_lake)
-    nLayers = nSnow + nSoil + nIce + nLake
+    nLayers = nSnow + nLake + nSoil + nIce
 
     ! create temporary data structures for prognostic variables
     call resizeData(prog_meta(:),prog_data,prog_temp,err=err,message=cmessage)
@@ -374,9 +374,9 @@ subroutine coupled_em(&
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
     ! allocate space for the local fluxes
-    call allocLocal(averageFlux_meta(:)%var_info,flux_mean,nSnow,nSoil,nIce,nLake,zero,err,cmessage)
+    call allocLocal(averageFlux_meta(:)%var_info,flux_mean,nSnow,nLake,nSoil,nIce,zero,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-    call allocLocal(averageFlux_meta(:)%var_info,flux_inner,nSnow,nSoil,nIce,nLake,zero,err,cmessage)
+    call allocLocal(averageFlux_meta(:)%var_info,flux_inner,nSnow,nLake,nSoil,nIce,zero,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
     ! initialize surface melt pond
@@ -787,16 +787,16 @@ subroutine coupled_em(&
 
         ! save the number of layers
         nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
+        nLake   = indx_data%var(iLookINDEX%nLake)%dat(1)
         nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
         nIce    = indx_data%var(iLookINDEX%nIce)%dat(1)
-        nLake   = indx_data%var(iLookINDEX%nLake)%dat(1)
         nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
 
         ! compute the indices for the model state variables
         if(firstSubStep .or. modifiedVegState .or. modifiedLayers)then
           call indexState(computeVegFlux,                    & ! intent(in):    flag to denote if computing the vegetation flux
                           includeAquifer,                    & ! intent(in):    flag to denote if included the aquifer
-                          nSnow,nSoil,nIce,nLake,nLayers,    & ! intent(in):    number of layers, and total number of layers
+                          nSnow,nLake,nSoil,nIce,nLayers,    & ! intent(in):    number of layers, and total number of layers
                           indx_data,                         & ! intent(inout): indices defining model states and layers
                           err,cmessage)                        ! intent(out):   error control
           if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
@@ -1044,8 +1044,8 @@ subroutine coupled_em(&
       call opSplittin(&
                       ! input: model control
                       nSnow,                                  & ! intent(in):    number of snow layers
-                      nSoil,                                  & ! intent(in):    number of soil layers
                       nLake,                                  & ! intent(in):    number of ice layers
+                      nSoil,                                  & ! intent(in):    number of soil layers
                       nIce,                                   & ! intent(in):    number of lake layers
                       nLayers,                                & ! intent(in):    total number of layers
                       nState,                                 & ! intent(in):    total number of layers
@@ -1426,10 +1426,10 @@ subroutine coupled_em(&
 
     ! re-assign dimension lengths
     nSnow = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
+    nLake = count(indx_data%var(iLookINDEX%layerType)%dat==iname_lake)
     nSoil = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
     nIce  = count(indx_data%var(iLookINDEX%layerType)%dat==iname_ice)
-    nLake = count(indx_data%var(iLookINDEX%layerType)%dat==iname_lake)
-    nLayers = nSnow + nSoil + nIce + nLake
+    nLayers = nSnow + nLake + nSoil + nIce
 
     ! update coordinate variables
     call calcHeight(&

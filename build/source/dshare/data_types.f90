@@ -109,10 +109,10 @@ MODULE data_types
  type, public :: dom_info
   integer(i4b)                           :: dom_type                      ! type = 1 for upland, 2 for glacier accumulation, 3 for glacier ablation, (4 for lake)
   integer(i4b)                           :: nSnow                         ! number of snow layers
-  integer(i4b)                           :: nSoil                         ! number of soil layers
-  integer(i4b)                           :: nLayers                       ! total number of layers
-  integer(i4b)                           :: nIce                          ! number of glacier ice layers
   integer(i4b)                           :: nLake                         ! number of lake layers
+  integer(i4b)                           :: nSoil                         ! number of soil layers
+  integer(i4b)                           :: nIce                          ! number of glacier ice layers
+  integer(i4b)                           :: nLayers                       ! total number of layers
  endtype dom_info
 
  ! hru info data structure
@@ -504,7 +504,7 @@ MODULE data_types
  type, public :: in_type_snLaSoIcNrgFlux ! class for intent(in) arguments in snLaSoIcNrgFlux call
    logical(lgt)             :: scalarSolution                    ! intent(in): flag to denote if implementing the scalar solution
    real(rkind)              :: scalarGroundNetNrgFlux            ! intent(in): net energy flux for the ground surface (W m-2)
-   real(rkind), allocatable :: iLayerLiqFluxSnIc(:)              ! intent(in): liquid flux at the interface of each snow layer (m s-1)
+   real(rkind), allocatable :: iLayerLiqFluxSnIc(:)              ! intent(in): liquid flux at the interface of each snow ice layer (m s-1)
    real(rkind), allocatable :: iLayerLiqFluxSoil(:)              ! intent(in): liquid flux at the interface of each soil layer (m s-1)
    real(rkind), allocatable :: mLayerTempTrial(:)                ! intent(in): temperature in each layer at the current iteration (m)
    real(rkind), allocatable :: dThermalC_dWatAbove(:)            ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
@@ -653,8 +653,8 @@ MODULE data_types
  ! ** groundwatr
  type, public :: in_type_groundwatr  ! class for intent(in) arguments in groundwatr call
    integer(i4b)             :: nSnow                             ! intent(in):    number of snow layers
-   integer(i4b)             :: nSoil                             ! intent(in):    number of soil layers
    integer(i4b)             :: nLake                             ! intent(in):    number of lake layers
+   integer(i4b)             :: nSoil                             ! intent(in):    number of soil layers
    logical(lgt)             :: firstFluxCall                     ! intent(in):    logical flag to compute index of the lowest saturated layer
    real(rkind), allocatable :: mLayerdTheta_dPsi(:)              ! intent(in):    derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
    real(rkind), allocatable :: mLayerMatricHeadLiqTrial(:)       ! intent(in):    liquid water matric potential (m)
@@ -743,9 +743,9 @@ MODULE data_types
  ! ** indexSplit
  type, public :: in_type_indexSplit  ! class for intent(in) arguments in indexSplit call
    integer(i4b)             :: nSnow                       ! intent(in): number of snow layers
+   integer(i4b)             :: nLake                       ! intent(in): number of lake layers
    integer(i4b)             :: nSoil                       ! intent(in): number of soil layers
    integer(i4b)             :: nIce                        ! intent(in): number of ice layers
-   integer(i4b)             :: nLake                       ! intent(in): number of lake layers
    integer(i4b)             :: nLayers                     ! intent(in): total number of layers
    integer(i4b)             :: nSubset                     ! intent(in): number of states in the subset
   contains
@@ -807,9 +807,9 @@ MODULE data_types
    ! input: model control
    real(rkind)              :: dt                          ! intent(in): length of the time step (seconds)
    integer(i4b)             :: nSnow                       ! intent(in): number of snow layers
+   integer(i4b)             :: nLake                       ! intent(in): number of lake layers
    integer(i4b)             :: nSoil                       ! intent(in): number of soil layers
    integer(i4b)             :: nIce                        ! intent(in): number of ice layers
-   integer(i4b)             :: nLake                       ! intent(in): number of lake layers
    integer(i4b)             :: nLayers                     ! intent(in): total number of layers in the domains
    logical(lgt)             :: computeVegFlux              ! intent(in): flag to indicate if computing fluxes over vegetation
    logical(lgt)             :: computeBaseflow             ! intent(in): flag to indicate if computing baseflow
@@ -852,9 +852,9 @@ MODULE data_types
    real(rkind)              :: dt                       ! intent(in): entire time step for drainage pond rate
    integer(i4b)             :: iter                     ! intent(in): iteration index
    integer(i4b)             :: nSnow                    ! intent(in): number of snow layers
+   integer(i4b)             :: nLake                    ! intent(in): number of lake layers
    integer(i4b)             :: nSoil                    ! intent(in): number of soil layers
    integer(i4b)             :: nIce                     ! intent(in): number of ice layers
-   integer(i4b)             :: nLake                    ! intent(in): number of lake layers
    integer(i4b)             :: nLayers                  ! intent(in): total number of layers
    integer(i4b)             :: nLeadDim                 ! intent(in): length of the leading dimension of the Jacobian matrix (nBands or nState)
    integer(i4b)             :: nState                   ! intent(in): total number of state variables
@@ -1144,8 +1144,8 @@ contains
   type(var_dlength),intent(in)            :: flux_data                   ! model fluxes for a local HRU
   type(var_dlength),intent(in)            :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
   associate(&
-   iLayerLiqFluxSnIc            => flux_data%var(iLookFLUX%iLayerLiqFluxSnIc)%dat(nStart+1:nStart+nLayers),       & ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
-   iLayerLiqFluxSnIcDeriv       => deriv_data%var(iLookDERIV%iLayerLiqFluxSnIcDeriv)%dat(nStart+1:nStart+nLayers) ) ! intent(out): [dp(:)] derivative in vertical liquid water flux at layer interfaces
+   iLayerLiqFluxSnIc            => flux_data%var(iLookFLUX%iLayerLiqFluxSnIc)%dat(nStart:nStart+nLayers),       & ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
+   iLayerLiqFluxSnIcDeriv       => deriv_data%var(iLookDERIV%iLayerLiqFluxSnIcDeriv)%dat(nStart:nStart+nLayers) ) ! intent(out): [dp(:)] derivative in vertical liquid water flux at layer interfaces
    io_snIcLiqFlx % iLayerLiqFluxSnIc      =iLayerLiqFluxSnIc       ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
    io_snIcLiqFlx % iLayerLiqFluxSnIcDeriv =iLayerLiqFluxSnIcDeriv  ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
   end associate
@@ -1158,8 +1158,8 @@ contains
   type(var_dlength),intent(inout)         :: flux_data                   ! model fluxes for a local HRU
   type(var_dlength),intent(inout)         :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
   associate(&
-   iLayerLiqFluxSnIc            => flux_data%var(iLookFLUX%iLayerLiqFluxSnIc)%dat(nStart+1:nStart+nLayers),       & ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
-   iLayerLiqFluxSnIcDeriv       => deriv_data%var(iLookDERIV%iLayerLiqFluxSnIcDeriv)%dat(nStart+1:nStart+nLayers) ) ! intent(out): [dp(:)] derivative in vertical liquid water flux at layer interfaces
+   iLayerLiqFluxSnIc            => flux_data%var(iLookFLUX%iLayerLiqFluxSnIc)%dat(nStart:nStart+nLayers),       & ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
+   iLayerLiqFluxSnIcDeriv       => deriv_data%var(iLookDERIV%iLayerLiqFluxSnIcDeriv)%dat(nStart:nStart+nLayers) ) ! intent(out): [dp(:)] derivative in vertical liquid water flux at layer interfaces
    ! intent(inout) arguments
    iLayerLiqFluxSnIc     =io_snIcLiqFlx % iLayerLiqFluxSnIc               ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
    iLayerLiqFluxSnIcDeriv=io_snIcLiqFlx % iLayerLiqFluxSnIcDeriv          ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
@@ -1177,13 +1177,13 @@ contains
  ! **** end snIcLiqFlx ****
 
  ! **** soilLiqFlx ****
- subroutine initialize_in_soilLiqFlx(in_soilLiqFlx,nSnow,nSoil,nLake,firstSplitOper,scalarSolution,firstFluxCall,&
+ subroutine initialize_in_soilLiqFlx(in_soilLiqFlx,nSnow,nLake,nSoil,firstSplitOper,scalarSolution,firstFluxCall,&
                                      mLayerTempTrial,mLayerMatricHeadTrial,mLayerMatricHeadLiqTrial,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,&
                                      above_soilLiqFluxDeriv,above_soildLiq_dTk,above_soilFracLiq,flux_data,deriv_data)
   class(in_type_soilLiqFlx),intent(out) :: in_soilLiqFlx               ! class object for intent(in) soilLiqFlx arguments
   integer(i4b),intent(in)               :: nSnow                       ! number of snow layers
-  integer(i4b),intent(in)               :: nSoil                       ! number of soil layers
   integer(i4b),intent(in)               :: nLake                       ! number of lake layers
+  integer(i4b),intent(in)               :: nSoil                       ! number of soil layers
   logical(lgt),intent(in)               :: firstSplitOper              ! flag to indicate if we are processing the first flux call in a splitting operation
   logical(lgt),intent(in)               :: scalarSolution              ! flag to denote if implementing the scalar solution
   logical(lgt),intent(in)               :: firstFluxCall               ! flag to indicate if we are processing the first flux call
@@ -1200,7 +1200,6 @@ contains
 
   ! intent(in) arguments: model control
   in_soilLiqFlx % nSoil         =nSoil                                         ! intent(in): number of soil layers
-  in_soilLiqFlx % nLake         =nLake                                         ! intent(in): number of lake layers
   in_soilLiqFlx % firstSplitOper=firstSplitOper                                ! intent(in): flag indicating first flux call in a splitting operation
   in_soilLiqFlx % scalarSolution=(scalarSolution .and. .not.firstFluxCall)     ! intent(in): flag to indicate the scalar solution
   in_soilLiqFlx % deriv_desired =.true.                                        ! intent(in): flag indicating if derivatives are desired
@@ -1391,11 +1390,11 @@ contains
  ! **** end soilLiqFlx ****
 
  ! **** groundwatr ****
- subroutine initialize_in_groundwatr(in_groundwatr,nSnow,nSoil,nLake,firstFluxCall,mLayerMatricHeadLiqTrial,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,deriv_data)
+ subroutine initialize_in_groundwatr(in_groundwatr,nSnow,nLake,nSoil,firstFluxCall,mLayerMatricHeadLiqTrial,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,deriv_data)
   class(in_type_groundwatr),intent(out) :: in_groundwatr               ! class object for intent(in) groundwatr arguments
   integer(i4b),intent(in)               :: nSnow                       ! number of snow layers
-  integer(i4b),intent(in)               :: nSoil                       ! number of soil layers
   integer(i4b),intent(in)               :: nLake                       ! number of lake layers
+  integer(i4b),intent(in)               :: nSoil                       ! number of soil layers
   logical(lgt),intent(in)               :: firstFluxCall               ! logical flag to compute index of the lowest saturated layer
   real(rkind),intent(in)                :: mLayerMatricHeadLiqTrial(:) ! trial value for the liquid water matric potential (m)
   real(rkind),intent(in)                :: mLayerVolFracLiqTrial(:)    ! trial value for volumetric fraction of liquid water (-)
@@ -1406,8 +1405,8 @@ contains
    mLayerdTheta_dPsi            => deriv_data%var(iLookDERIV%mLayerdTheta_dPsi)%dat )! intent(out): [dp(:)] derivative in the soil water characteristic w.r.t. psi
    ! intent(in) arguments
    in_groundwatr % nSnow                    = nSnow                                  ! intent(in):    number of snow layers
-   in_groundwatr % nSoil                    = nSoil                                  ! intent(in):    number of soil layers
    in_groundwatr % nLake                    = nLake                                  ! intent(in):    total number of layers
+   in_groundwatr % nSoil                    = nSoil                                  ! intent(in):    number of soil layers
    in_groundwatr % firstFluxCall            = firstFluxCall                          ! intent(in):    logical flag to compute index of the lowest saturated layer
    in_groundwatr % mLayerdTheta_dPsi        = mLayerdTheta_dPsi                      ! intent(in):    derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
    in_groundwatr % mLayerMatricHeadLiqTrial = mLayerMatricHeadLiqTrial               ! intent(in):    liquid water matric potential (m)
@@ -1554,18 +1553,18 @@ contains
  ! **** end stateFilter ****
 
  ! **** indexSplit ****
- subroutine initialize_in_indexSplit(in_indexSplit,nSnow,nSoil,nIce,nLake,nLayers,nSubset)
+ subroutine initialize_in_indexSplit(in_indexSplit,nSnow,nLake,nSoil,nIce,nLayers,nSubset)
   class(in_type_indexSplit),intent(out) :: in_indexSplit    ! class object for intent(in) indexSplit arguments
   integer(i4b),intent(in)               :: nSnow            ! intent(in): number of snow layers
+  integer(i4b),intent(in)               :: nLake            ! intent(in): number of lake layers
   integer(i4b),intent(in)               :: nSoil            ! intent(in): number of soil layers
   integer(i4b),intent(in)               :: nIce             ! intent(in): number of ice layers
-  integer(i4b),intent(in)               :: nLake            ! intent(in): number of lake layers
   integer(i4b),intent(in)               :: nLayers          ! intent(in): total number of layers
   integer(i4b),intent(in)               :: nSubset          ! intent(in): number of states in the subset
-  in_indexSplit % nSnow   = nSnow                           ! intent(in): number of snow layers          
+  in_indexSplit % nSnow   = nSnow                           ! intent(in): number of snow layers     
+  in_indexSplit % nLake   = nLake                           ! intent(in): number of lake layers     
   in_indexSplit % nSoil   = nSoil                           ! intent(in): number of soil layers
   in_indexSplit % nIce    = nIce                            ! intent(in): number of ice layers
-  in_indexSplit % nLake   = nLake                           ! intent(in): number of lake layers
   in_indexSplit % nLayers = nLayers                         ! intent(in): total number of layers
   in_indexSplit % nSubset = nSubset                         ! intent(in): number of states in the subset
  end subroutine initialize_in_indexSplit
@@ -1656,13 +1655,13 @@ contains
  ! **** end varSubstep ****
 
  ! **** computJacob ****
- subroutine initialize_in_computJacob(in_computJacob,dt,nSnow,nSoil,nIce,nLake,nLayers,computeVegFlux,computeBaseflow,ixMatrix)
+ subroutine initialize_in_computJacob(in_computJacob,dt,nSnow,nLake,nSoil,nIce,nLayers,computeVegFlux,computeBaseflow,ixMatrix)
   class(in_type_computJacob),intent(out) :: in_computJacob           ! class object for intent(in) computJacob arguments
   real(rkind),intent(in)              :: dt                          ! intent(in): length of the time step (seconds)
   integer(i4b),intent(in)             :: nSnow                       ! intent(in): number of snow layers
+  integer(i4b),intent(in)             :: nLake                       ! intent(in): number of lake layers
   integer(i4b),intent(in)             :: nSoil                       ! intent(in): number of soil layers
   integer(i4b),intent(in)             :: nIce                        ! intent(in): number of ice layers
-  integer(i4b),intent(in)             :: nLake                       ! intent(in): number of lake layers
   integer(i4b),intent(in)             :: nLayers                     ! intent(in): total number of layers in the domain
   logical(lgt),intent(in)             :: computeVegFlux              ! intent(in): flag to indicate if computing fluxes over vegetation
   logical(lgt),intent(in)             :: computeBaseflow             ! intent(in): flag to indicate if computing baseflow
@@ -1671,9 +1670,9 @@ contains
   ! intent(in) arguments
   in_computJacob % dt               =  dt                            ! intent(in): length of the time step (seconds)                    
   in_computJacob % nSnow            =  nSnow                         ! intent(in): number of snow layers
+  in_computJacob % nLake            =  nLake                         ! intent(in): number of lake layers
   in_computJacob % nSoil            =  nSoil                         ! intent(in): number of soil layers
   in_computJacob % nIce             =  nIce                          ! intent(in): number of ice layers
-  in_computJacob % nLake            =  nLake                         ! intent(in): number of lake layers
   in_computJacob % nLayers          =  nLayers                       ! intent(in): total number of layers in the domain
   in_computJacob % computeVegFlux   =  computeVegFlux                ! intent(in): flag to indicate if computing fluxes over vegetation
   in_computJacob % computeBaseflow  =  computeBaseflow               ! intent(in): flag to indicate if computing baseflow
@@ -1712,15 +1711,15 @@ contains
 
  ! **** summaSolve4homegrown ****
 
- subroutine initialize_in_summaSolve4homegrown(in_SS4HG,dt_cur,dt,iter,nSnow,nSoil,nIce,nLake,nLayers,nLeadDim,nState,ixMatrix,firstSubStep,computeVegFlux,scalarSolution,fOld)
+ subroutine initialize_in_summaSolve4homegrown(in_SS4HG,dt_cur,dt,iter,nSnow,nLake,nSoil,nIce,nLayers,nLeadDim,nState,ixMatrix,firstSubStep,computeVegFlux,scalarSolution,fOld)
   class(in_type_summaSolve4homegrown),intent(out)    :: in_SS4HG   ! class object for intent(out) arguments
   real(rkind) ,intent(in) :: dt_cur                   ! intent(in): current stepsize
   real(rkind) ,intent(in) :: dt                       ! intent(in): entire time step for drainage pond rate
   integer(i4b),intent(in) :: iter                     ! intent(in): iteration index
   integer(i4b),intent(in) :: nSnow                    ! intent(in): number of snow layers
+  integer(i4b),intent(in) :: nLake                    ! intent(in): number of lake layers
   integer(i4b),intent(in) :: nSoil                    ! intent(in): number of soil layers
   integer(i4b),intent(in) :: nIce                     ! intent(in): number of ice layers
-  integer(i4b),intent(in) :: nLake                    ! intent(in): number of lake layers
   integer(i4b),intent(in) :: nLayers                  ! intent(in): total number of layers
   integer(i4b),intent(in) :: nLeadDim                 ! intent(in): length of the leading dimension of the Jacobian matrix (nBands or nState)
   integer(i4b),intent(in) :: nState                   ! intent(in): total number of state variables
@@ -1733,10 +1732,10 @@ contains
   in_SS4HG % dt_cur         = dt_cur        
   in_SS4HG % dt             = dt            
   in_SS4HG % iter           = iter          
-  in_SS4HG % nSnow          = nSnow         
+  in_SS4HG % nSnow          = nSnow   
+  in_SS4HG % nLake          = nLake      
   in_SS4HG % nSoil          = nSoil         
   in_SS4HG % nIce           = nIce
-  in_SS4HG % nLake          = nLake
   in_SS4HG % nLayers        = nLayers       
   in_SS4HG % nLeadDim       = nLeadDim      
   in_SS4HG % nState         = nState        
