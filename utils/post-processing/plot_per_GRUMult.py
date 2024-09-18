@@ -73,7 +73,7 @@ nbatch_hrus = 518 # number of HRUs per batch
 if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
 if more_mean: # extra vars in a balance file
-    plot_vars_exVar = ['scalarRainPlusMelt','scalarRootZoneTemp','airtemp','scalarSWE']
+    plt_titl_exVar = ['rain plus melt','top 4m soil temperature','air temperature','snow water equivalent']
     #plot_vars_exVar = ['balanceCasNrg','balanceSoilNrg','balanceVegNrg','balanceSnowNrg']
     viz_file_exVar = 'exVar_hrly_diff_bals_balance.nc'
     plt_name0_exVar = 'SUMMA-BE1 temperature thermo. eq..'
