@@ -159,6 +159,7 @@ subroutine run_oneHRU(&
   err=0; write(message, '(A21,I0,A10,I0,A2)' ) 'run_oneHRU (hru nc = ',hru_nc -1 ,', hruId = ',hruId,')/' !netcdf index starts with 0 if want to subset
 
   do i = 1, ndom
+    print*,'domain = ',i
     glacierDomain = .false. ! reset the flag for the next domain
 
     ! if water pixel or if the fraction of the domain is zero, do not run the model but update the number of layers
