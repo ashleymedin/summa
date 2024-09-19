@@ -250,27 +250,19 @@ contains
     end if
     scalarTheta = scalarCanopyIce + scalarCanopyLiq
 
-    if(checkEnthalpy)then ! enthalpy as state variable (cold start often only has temperature)
-     call T2enthTemp_cas(&
-                   ! input
-                   scalarCanairTemp,       & ! intent(in): canopy air temperature (K)
-                   ! output
-                   scalarCanairEnthalpy,   & ! intent(out): enthalpy of the canopy air space (J m-3)
-                   err,cmessage)             ! intent(out):   error control
-     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-
-     call T2enthTemp_veg(&
-                  ! input
+   if(checkEnthalpy)then ! enthalpy as state variable (cold start often only has temperature)
+      call T2enthTemp_cas(&
+                  scalarCanairTemp,       & ! intent(in): canopy air temperature (K)
+                  scalarCanairEnthalpy)     ! intent(out): enthalpy of the canopy air space (J m-3)
+ 
+      call T2enthTemp_veg(&
                   (heightCanopyTop-heightCanopyBottom), & ! intent(in): canopy depth (m)
                   specificHeatVeg,        & ! intent(in): specific heat of vegetation (J kg-1 K-1)
                   maxMassVegetation,      & ! intent(in): maximum mass of vegetation (kg m-2)
                   snowfrz_scale,          & ! intent(in): scaling parameter for the snow freezing curve  (K-1)
                   scalarCanopyTemp,       & ! intent(in): canopy temperature (K)
                   scalarTheta,            & ! intent(in): canopy water content (kg m-2)
-                  ! output
-                  scalarCanopyEnthTemp,   & ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
-                  err,cmessage)             ! intent(out):   error control
-     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+                  scalarCanopyEnthTemp)     ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
      scalarCanopyEnthalpy = scalarCanopyEnthTemp - LH_fus * scalarCanopyIce/ (heightCanopyTop-heightCanopyBottom)
     end if
 
@@ -379,21 +371,52 @@ contains
       case(iname_soil)
 
       ! ensure consistency among state variables
+<<<<<<< HEAD
        call updateSoil(&
                       ! input
+=======
+      call updateSnow(&
+                      mLayerTemp(iLayer),             & ! intent(in): temperature (K)
+                      scalarTheta,                    & ! intent(in): volumetric fraction of total water (-)
+                      snowfrz_scale,                  & ! intent(in): scaling parameter for the snow freezing curve (K-1)
+                      mLayerVolFracLiq(iLayer),       & ! intent(out): volumetric fraction of liquid water (-)
+                      mLayerVolFracIce(iLayer),       & ! intent(out): volumetric fraction of ice (-)
+                      fLiq,                           & ! intent(out): fraction of liquid water (-)
+                      err,cmessage)                     ! intent(out): error control
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+
+      if(checkEnthalpy)then ! enthalpy as state variable (cold start often only has temperature)
+         call T2enthTemp_snow(&
+                      snowfrz_scale,                  & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
+                      mLayerTemp(iLayer),             & ! intent(in):  layer temperature (K)
+                      scalarTheta,                    & ! intent(in):  volumetric total water content (-)
+                      mLayerEnthTemp(iLayer))           ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
+         mLayerEnthalpy(iLayer) = mLayerEnthTemp(iLayer) - iden_ice * LH_fus * mLayerVolFracIce(iLayer)
+      endif
+
+     ! ** soil
+     case(iname_soil)
+
+      ! ensure consistency among state variables
+      call updateSoil(&
+>>>>>>> develop
                       mLayerTemp(iLayer),              & ! intent(in): layer temperature (K)
                       mLayerMatricHead(iLayer-nSnow-nLake),  & ! intent(in): matric head (m)
                       vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m, & ! intent(in): van Genutchen soil parameters
-                      ! output
                       scalarTheta,                     & ! intent(out): volumetric fraction of total water (-)
                       mLayerVolFracLiq(iLayer),        & ! intent(out): volumetric fraction of liquid water (-)
                       mLayerVolFracIce(iLayer),        & ! intent(out): volumetric fraction of ice (-)
                       err,cmessage)                      ! intent(out): error control
        if(err/=0)then; message=trim(cmessage)//trim(cmessage); return; end if  ! (check for errors)
 
+<<<<<<< HEAD
        if(checkEnthalpy)then ! enthalpy as state variable (cold start often only has temperature)
         call T2enthTemp_soil(&
                       ! input
+=======
+      if(checkEnthalpy)then ! enthalpy as state variable (cold start often only has temperature)
+         call T2enthTemp_soil(&
+>>>>>>> develop
                       use_lookup,                      & ! intent(in):  flag to use the lookup table for soil enthalpy
                       soil_dens_intr(iSoil),           & ! intent(in):  intrinsic soil density (kg m-3)
                       vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m, & ! intent(in): van Genutchen soil parameters
@@ -401,6 +424,7 @@ contains
                       lookupData%gru(iGRU)%hru(iHRU)%dom(iDOM),  & ! intent(in):  lookup table data structure
                       realMissing,                     & ! intent(in):  lower value of integral (not computed)
                       mLayerTemp(iLayer),              & ! intent(in):  layer temperature (K)
+<<<<<<< HEAD
                       mLayerMatricHead(iLayer-nSnow-nLake),  & ! intent(in):  matric head (m)
                      ! output
                       mLayerEnthTemp(iLayer),          & ! intent(out): temperature component of enthalpy soil layer (J m-3)
@@ -408,6 +432,12 @@ contains
         if(err/=0)then; message=trim(cmessage)//trim(cmessage); return; end if  ! (check for errors)
         mLayerEnthalpy(iLayer) = mLayerEnthTemp(iLayer) - iden_water * LH_fus * mLayerVolFracIce(iLayer)
        endif
+=======
+                      mLayerMatricHead(iLayer-nSnow),  & ! intent(in):  matric head (m)
+                      mLayerEnthTemp(iLayer))            ! intent(out): temperature component of enthalpy soil layer (J m-3)
+         mLayerEnthalpy(iLayer) = mLayerEnthTemp(iLayer) - iden_water * LH_fus * mLayerVolFracIce(iLayer)
+      endif
+>>>>>>> develop
 
       case default; err=10; message=trim(message)//'unknown case for model layer'; return
      end select
