@@ -457,6 +457,7 @@ subroutine updateVarsWithPrime(&
         if(enthalpyStateVec)then
           call enthalpy2T_snLaIc(&
                    computJac,                      & ! intent(in):    flag if computing for Jacobian update       
+                   ixDomainType==iname_lake,       & ! intent(in):    flag if is lake layer
                    snowfrz_scale,                  & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
                    mLayerEnthalpyTrial(iLayer),    & ! intent(in):    enthalpy of snow+soil layer (J m-3)
                    mLayerVolFracWatTrial(iLayer),  & ! intent(in):    volumetric total water content (-)

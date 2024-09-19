@@ -874,7 +874,7 @@ subroutine enthalpy2T_veg(&
   ! -------------------------------------------------------------------------------------------------------------------------
    ! declare local variables
   character(len=256)               :: cmessage           ! error message of downwind routine
-  real(rkind)                      :: T                  ! temperature (K)
+  real(rkind)                      :: T,T_out            ! temperature (K)
   real(rkind)                      :: H                  ! enthalpy (J m-3)
   real(rkind)                      :: diffT              ! temperature difference of temp from Tfreeze
   real(rkind)                      :: integral           ! integral of snow freezing curve
@@ -897,14 +897,15 @@ subroutine enthalpy2T_veg(&
   err=0; message="enthalpy2T_veg/"
  
   ! ***** get temperature if unfrozen vegetation
-  T = scalarCanopyEnthalpy * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat ) + Tfreeze
-  if(computJac)then  
-    dT_dEnthalpy = canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat )
-    dT_dWat      = -Cp_water * scalarCanopyEnthalpy * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat )**2_i4b
-  endif
-
+  if (scalarCanopyEnthalpy>=0)then
+    T            = scalarCanopyEnthalpy * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat ) + Tfreeze
+    if(computJac)then  
+      dT_dEnthalpy = canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat )
+      dT_dWat      = -Cp_water * scalarCanopyEnthalpy * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat )**2_i4b
+    endif
+  
   ! ***** iterate to find temperature if ice exists
-  if( T<Tfreeze )then
+  else
     T = min(scalarCanopyTemp,Tfreeze) ! initial guess
 
     ! find the root of the function
@@ -912,7 +913,8 @@ subroutine enthalpy2T_veg(&
     ! and the vector of parameters, not.snow_layers
     vec      = 0._rkind
     vec(1:6) = (/scalarCanopyEnthalpy, canopyDepth, specificHeatVeg, maxMassVegetation, snowfrz_scale, scalarCanopyWat/)
-    T = brent(diff_H_veg, T, 0._rkind, Tfreeze, vec, err, cmessage)
+    call brent(diff_H_veg, T, T_out, -1.e6_rkind, Tfreeze, vec, err, cmessage)
+    T = T_out
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! compute Jacobian terms
@@ -954,6 +956,7 @@ end subroutine enthalpy2T_veg
 ! ************************************************************************************************************************
 subroutine enthalpy2T_snLaIc(&
                       computJac,         & ! intent(in):    flag if computing for Jacobian update
+                      isLake,            & ! intent(in):    flag if is lake layer
                       snowfrz_scale,     & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
                       mLayerEnthalpy,    & ! intent(in):    enthalpy of snow+soil layer (J m-3)
                       mLayerVolFracWat,  & ! intent(in):    volumetric total water content (-)
@@ -970,6 +973,7 @@ subroutine enthalpy2T_snLaIc(&
   ! delare dummy variables
   ! -------------------------------------------------------------------------------------------------------------------------
   logical(lgt),intent(in)          :: computJac          ! flag if computing for Jacobian update
+  logical(lgt),intent(in)          :: isLake             ! flag if is lake layer
   ! input: data structures
   real(rkind),intent(in)           :: snowfrz_scale      ! scaling parameter for the snow freezing curve  (K-1)
   ! input: enthalpy state variables
@@ -987,7 +991,7 @@ subroutine enthalpy2T_snLaIc(&
   ! -------------------------------------------------------------------------------------------------------------------------
   ! declare local variables
   character(len=256)               :: cmessage           ! error message of downwind routine
-  real(rkind)                      :: T                  ! temperature (K)
+  real(rkind)                      :: T,T_out            ! temperature (K)
   real(rkind)                      :: H                  ! enthalpy (J m-3)
   real(rkind)                      :: diffT              ! temperature difference of temp from Tfreeze
   real(rkind)                      :: integral           ! integral of snow freezing curve
@@ -1011,15 +1015,16 @@ subroutine enthalpy2T_snLaIc(&
   err=0; message="enthalpy2T_snLaIc/"
 
   ! ***** get temperature if unfrozen lake (will not happen in snow or ice)
-  T = mLayerEnthalpy / ( iden_water * Cp_water * mLayerVolFracWat + iden_air * Cp_air * (1._rkind - mLayerVolFracWat) ) + Tfreeze
-  if(computJac)then  
-    dT_dEnthalpy = 1._rkind / ( iden_water * Cp_water * mLayerVolFracWat + iden_air * Cp_air * (1._rkind - mLayerVolFracWat) )
-    dT_dWat      = -( iden_water * Cp_water - iden_air * Cp_air ) &
-                    * mLayerEnthalpy / ( iden_water * Cp_water * mLayerVolFracWat + iden_air * Cp_air * (1._rkind - mLayerVolFracWat) )**2_i4b
-  endif
+  if (mLayerEnthalpy>=0)then
+    T = mLayerEnthalpy / ( iden_water * Cp_water * mLayerVolFracWat + iden_air * Cp_air * (1._rkind - mLayerVolFracWat) ) + Tfreeze
+    if(computJac)then  
+      dT_dEnthalpy = 1._rkind / ( iden_water * Cp_water * mLayerVolFracWat + iden_air * Cp_air * (1._rkind - mLayerVolFracWat) )
+      dT_dWat      = -( iden_water * Cp_water - iden_air * Cp_air ) &
+                      * mLayerEnthalpy / ( iden_water * Cp_water * mLayerVolFracWat + iden_air * Cp_air * (1._rkind - mLayerVolFracWat) )**2_i4b
+    endif
 
   ! ***** iterate to find temperature if ice exists
-  if( T<Tfreeze )then
+  else
     T  = min(mLayerTemp,Tfreeze) ! initial guess
 
     ! find the root of the function
@@ -1027,15 +1032,16 @@ subroutine enthalpy2T_snLaIc(&
     ! and the vector of parameters, snow_layer
     vec = 0._rkind
     vec(1:3) = (/mLayerEnthalpy, snowfrz_scale, mLayerVolFracWat/)
-    if(mLayerEnthalpy>0._rkind)then
+    if(mLayerEnthalpy>0._rkind .and. .not.(isLake))then
       T = Tfreeze+ 0.1_rkind ! need to merge layers, trigger the merge
     else
       l_bound = diff_H_snLaIc(0._rkind, vec)
-      if (l_bound > 0._rkind) then
+      if (l_bound > 0._rkind .and. .not.(isLake)) then
         T = Tfreeze + 0.1_rkind ! need to merge layers, trigger the merge
       else
-        T = brent(diff_H_snLaIc, T, 0._rkind, Tfreeze, vec, err, cmessage)
+        call brent(diff_H_snLaIc, T, T_out, -1.e6_rkind,Tfreeze, vec, err, cmessage)
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+        T = T_out
       end if
     endif
 
@@ -1132,7 +1138,8 @@ subroutine enthalpy2T_soil(&
   ! -------------------------------------------------------------------------------------------------------------------------
   ! declare local variables
   character(len=256)               :: cmessage               ! error message in downwind routine
-  real(rkind)                      :: Tcrit                  ! temperature where all water is unfrozen (K)
+  real(rkind)                      :: Tcrit                  ! temperature above which all water is unfrozen (K)
+  real(rkind)                      :: entCrit                ! enthalpy above which all water is unfrozen (J m-3)
   real(rkind)                      :: volFracWat             ! volumetric fraction of total water, liquid+ice (-)
   real(rkind)                      :: diff0                  ! temperature difference of Tcrit from Tfreeze
   real(rkind)                      :: dTcrit_dPsi0           ! derivative of temperature where all water is unfrozen (K) with matric head
@@ -1141,7 +1148,7 @@ subroutine enthalpy2T_soil(&
   real(rkind)                      :: integral_frz_low       ! lower limit of integral of frozen soil water content (from Tfreeze to Tcrit)
   real(rkind)                      :: xConst                 ! constant in the freezing curve function (m K-1)
   real(rkind)                      :: mLayerPsiLiq           ! liquid water matric potential (m)
-  real(rkind)                      :: T                      ! temperature (K)
+  real(rkind)                      :: T, T_out               ! temperature (K)
   real(rkind)                      :: H                      ! enthalpy (J m-3)
   real(rkind)                      :: diffT                  ! temperature difference of temp from Tfreeze
   real(rkind)                      :: fLiq                   ! fraction liquid water
@@ -1149,7 +1156,7 @@ subroutine enthalpy2T_soil(&
   real(rkind)                      :: arg                    ! argument of soil hypergeometric function
   real(rkind)                      :: gauss_hg_T             ! soil hypergeometric function result
   real(rkind)                      :: vec(9)                 ! vector of parameters for the enthalpy function
-  ! variable derivatives
+  ! variable derivatives    
   real(rkind)                      :: dvolFracWat_dPsi0      ! derivative of the soil water content w.r.t. matric head
   real(rkind)                      :: dintegral_unf_dWat     ! derivative of integral of unfrozen soil water content with water content
   real(rkind)                      :: dintegral_frz_low_dWat ! derivative of integral of frozen soil water content with water content
@@ -1175,19 +1182,22 @@ subroutine enthalpy2T_soil(&
   volFracWat        = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
   dTcrit_dPsi0      = merge(gravity*Tfreeze/LH_fus,0._rkind,mLayerMatricHead<=0._rkind)
   dvolFracWat_dPsi0 = dTheta_dPsi(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) 
+  entCrit           = ( iden_water * Cp_water * volFracWat + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) &
+                       + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) ) * (Tcrit - Tfreeze)
 
   ! ***** get temperature if unfrozen soil
-  T  = mLayerEnthalpy / ( iden_water * Cp_water * volFracWat + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) &
-                         + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) ) + Tfreeze
-  if(computJac)then  
-    dT_dEnthalpy = 1._rkind / ( iden_water * Cp_water * volFracWat + soil_dens_intr*Cp_soil*(1._rkind - theta_sat) &
-                               + iden_air*Cp_air*(1._rkind - theta_sat - volFracWat) )
-    dT_dWat      = -iden_water * Cp_water * dvolFracWat_dPsi0 * mLayerEnthalpy / ( iden_water * Cp_water * volFracWat &
-                                     + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) )**2_i4b
-  endif
+  if (mLayerEnthalpy>=entCrit )then
+    T  = mLayerEnthalpy / ( iden_water * Cp_water * volFracWat + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) &
+                           + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) ) + Tfreeze
+    if(computJac)then  
+      dT_dEnthalpy = 1._rkind / ( iden_water * Cp_water * volFracWat + soil_dens_intr*Cp_soil*(1._rkind - theta_sat) &
+                                 + iden_air*Cp_air*(1._rkind - theta_sat - volFracWat) )
+      dT_dWat      = -iden_water * Cp_water * dvolFracWat_dPsi0 * mLayerEnthalpy / ( iden_water * Cp_water * volFracWat &
+                                       + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) )**2_i4b
+    endif
 
   ! ***** iterate to find temperature if ice exists
-  if( T<Tcrit )then
+  else
     T = min(mLayerTemp,Tcrit) ! initial guess
 
     ! *** compute integral of mLayerPsiLiq from Tfreeze to layer temperature
@@ -1228,8 +1238,9 @@ subroutine enthalpy2T_soil(&
     ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
     ! and the vector of parameters, not.snow_layer, lookup data
     vec(1:9) = (/mLayerEnthalpy, soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, integral_frz_low, mLayerMatricHead/)
-    T = brent(diff_H_soil, T, 0._rkind, Tcrit, vec, err, cmessage, use_lookup, lookup_data, ixControlIndex)
+    call brent(diff_H_soil, T, T_out, -1.e6_rkind, Tcrit, vec, err, cmessage, use_lookup, lookup_data, ixControlIndex)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    T = T_out
 
   ! compute Jacobian terms
     if(computJac)then
@@ -1490,9 +1501,9 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
   end function brent0
 
 !----------------------------------------------------------------------
-! private function: Find an initial guess of bracket and call brent0
+! private subroutine: Find an initial guess of bracket and call brent0
 !----------------------------------------------------------------------
-  function brent (fun, x0, LowerBound, UpperBound, vec, err, message, use_lookup, lookup_data, ixControlIndex)
+  subroutine brent (fun, x0, brent_out, LowerBound, UpperBound, vec, err, message, use_lookup, lookup_data, ixControlIndex)
     ! 
     ! Inputs
     !   fun: function to evaluate
@@ -1500,11 +1511,11 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     !   LowerBound, UpperBound : Lower and upper bound of the function 
     
     implicit none
-    real(rkind) :: brent
     integer, parameter :: d = rkind
-    real(rkind), intent(IN) :: x0, vec(9)
+    real(rkind), intent(in) :: x0, vec(9)
     real(rkind), external :: fun
-    real(rkind), intent(IN) :: LowerBound, UpperBound
+    real(rkind), intent(out) :: brent_out
+    real(rkind), intent(in) :: LowerBound, UpperBound
     logical(lgt), intent(in), optional :: use_lookup
     type(zLookup),intent(in), optional :: lookup_data
     integer(i4b), intent(in), optional :: ixControlIndex
@@ -1543,8 +1554,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     fb = sgn
 
     if(abs(sgn) <= tol_f ) then ! if solution didn't change, initial guess is the solution
-      brent = x0
-      return
+      brent_out = x0; return
     end if  
     
     ! set initial change dx
@@ -1608,11 +1618,12 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     
     ! case for non convergence
     if (exitflag /=  1 ) then   
-      write(*,*) ' Error (temperature from enthalpy computation): Proper initial value for Brents method could not be found in between bounds'
-      write(*,*) '  i           x1               x2            f(x1)            f(x2)'
-      write(*,"(1I4,4F17.6)") iter, a, b, fa, fb
-      write(*,*) 'vec=',vec
-      err = 20;message = trim(message)//'proper initial value could not be found'; return
+      !write(*,*) ' Error (temperature from enthalpy computation): Proper initial value for Brents method could not be found in between bounds'
+      !write(*,*) '  i           x1               x2            f(x1)            f(x2)'
+      !write(*,"(1I4,4F17.6)") iter, a, b, fa, fb
+      !write(*,*) 'vec=',vec
+      !err = 20;message = trim(message)//'proper initial value could not be found'; return
+      brent_out = LowerBound; return ! if bracket is not found, use lower bound
     else if (disp == 1) then
       write(*,*) '  Initial guess was found.'
       write(*,*) ''
@@ -1620,13 +1631,13 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     
     ! call brent0
     if(present(use_lookup))then
-      brent = brent0(fun, a, b, fa, fb, tol_x, tol_f, detail, vec, err, cmessage, use_lookup, lookup_data, ixControlIndex)
+      brent_out = brent0(fun, a, b, fa, fb, tol_x, tol_f, detail, vec, err, cmessage, use_lookup, lookup_data, ixControlIndex)
     else
-      brent = brent0(fun, a, b, fa, fb, tol_x, tol_f, detail, vec, err, cmessage)
+      brent_out = brent0(fun, a, b, fa, fb, tol_x, tol_f, detail, vec, err, cmessage)
     end if
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     
-    end function brent  
+  end subroutine brent  
 
   !----------------------------------------------------------------------
   ! private functions for temperature to enthalpy conversion for Brent's method
