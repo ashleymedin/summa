@@ -75,7 +75,7 @@ public::enthalpy2T_veg
 public::enthalpy2T_snLaIc
 public::enthalpy2T_soil
 private::hyp_2F1_real
-private::brent, brent0, diff_H_veg, diff_H_snow, diff_H_soil
+private::brent, brent0, diff_H_veg, diff_H_snLaIc, diff_H_soil
 
 ! define the snow look-up table used to compute temperature based on enthalpy
 integer(i4b),parameter               :: nlook=10001       ! number of elements in the lookup table
@@ -1030,11 +1030,11 @@ subroutine enthalpy2T_snLaIc(&
     if(mLayerEnthalpy>0._rkind)then
       T = Tfreeze+ 0.1_rkind ! need to merge layers, trigger the merge
     else
-      l_bound = diff_H_snow(0._rkind, vec)
+      l_bound = diff_H_snLaIc(0._rkind, vec)
       if (l_bound > 0._rkind) then
         T = Tfreeze + 0.1_rkind ! need to merge layers, trigger the merge
       else
-        T = brent(diff_H_snow, T, 0._rkind, Tfreeze, vec, err, cmessage)
+        T = brent(diff_H_snLaIc, T, 0._rkind, Tfreeze, vec, err, cmessage)
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       end if
     endif
@@ -1653,10 +1653,10 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
   
   end function diff_H_veg
   !----------------------------------------------------------------------
-  function diff_H_snow ( mLayerTemp, vec)
+  function diff_H_snLaIc ( mLayerTemp, vec)
     USE snow_utils_module,only:fracliquid     ! compute volumetric fraction of liquid water
     implicit none
-    real(rkind) :: diff_H_snow
+    real(rkind) :: diff_H_snLaIc
     real(rkind) , intent(IN) :: mLayerTemp, vec(9) 
     real(rkind) :: mLayerEnthalpy, mLayerEnthTemp, mLayerVolFracWat, mLayerVolFracIce, snowfrz_scale, fLiq
   
@@ -1666,9 +1666,9 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
   
     call T2enthTemp_snLaIc(snowfrz_scale, mLayerTemp, mLayerVolFracWat, mLayerEnthTemp)
     fLiq   = fracliquid(mLayerTemp, snowfrz_scale)
-    diff_H_snow = mLayerEnthTemp - iden_water * LH_fus * mLayerVolFracWat * (1._rkind - fLiq) - mLayerEnthalpy
+    diff_H_snLaIc = mLayerEnthTemp - iden_water * LH_fus * mLayerVolFracWat * (1._rkind - fLiq) - mLayerEnthalpy
   
-  end function diff_H_snow
+  end function diff_H_snLaIc
   !----------------------------------------------------------------------
   function diff_H_soil ( mLayerTemp, vec, use_lookup, lookup_data, ixControlIndex)
     USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water based on matric head
