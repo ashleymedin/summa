@@ -76,7 +76,7 @@ if (USE_OPENWQ)
     else()
         set(EXEC_NAME summa_openwq.exe)
     endif()
-endif() 
+endif()
 
 
 get_filename_component(F_MASTER "${F_MASTER}" REALPATH)
@@ -92,15 +92,29 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${EXEC_DIR})
 find_package(NetCDF REQUIRED)
 list(APPEND EXT_TARGETS NetCDF::NetCDF)
 
-# OpenBLAS (MAY HAVE OpenMP enabled which slows execution) 
-# USE LAPACK INSTEAD TO AVOID THIS ISSUE
-# set(BLA_VENDOR OpenBLAS) # MKL
-# find_package(OpenBLAS REQUIRED)
-# list(APPEND EXT_TARGETS OpenBLAS::OpenBLAS)
+if(APPLE)
+	# Set link directories and include directories from environment variables to get most optimized lapack
+	set(LINK_DIRS $ENV{LINK_DIRS})
+	set(INCLUDES_DIRS $ENV{INCLUDES_DIRS})
+	set(LIBRARY_LINKS $ENV{LIBRARY_LINKS})
 
-# LAPACK
-find_package(LAPACK REQUIRED)
-list(APPEND EXT_TARGETS LAPACK::LAPACK)
+	# Add link directories
+	link_directories(${LINK_DIRS})
+	include_directories(${INCLUDES_DIRS})
+
+else()
+	# OpenBLAS (MAY HAVE OpenMP enabled which slows execution)
+	# USE LAPACK INSTEAD TO AVOID THIS ISSUE
+    # set($ENV{OMP_NUM_THREADS} 1)
+    # message("\nOpenMp number of threads (OMP_NUM_THREADS) =1, to ward off bad behavior assuming not using multithreading")
+	# set(BLA_VENDOR OpenBLAS) # MKL
+	# find_package(OpenBLAS REQUIRED)
+	# list(APPEND EXT_TARGETS OpenBLAS::OpenBLAS)
+
+	# LAPACK
+    find_package(LAPACK REQUIRED)
+    list(APPEND EXT_TARGETS LAPACK::LAPACK)
+endif()
 
 # Set compiler flags
 set(FLAGS_OPT $ENV{FLAGS_OPT}) # get optional user-specified flags from environment variables
@@ -189,7 +203,11 @@ target_compile_options(SUMMA_NOAHMP PRIVATE ${FLAGS_NOAH})
 # Build SUMMA_COMM Object
 add_library(SUMMA_COMM OBJECT ${COMM_ALL})
 target_compile_options(SUMMA_COMM PRIVATE ${FLAGS_ALL})
-target_link_libraries(SUMMA_COMM PUBLIC SUMMA_NOAHMP ${EXT_TARGETS}) # added flags to the link step
+if(LIBRARY_LINKS)
+	target_link_libraries(SUMMA_COMM PUBLIC SUMMA_NOAHMP ${EXT_TARGETS} ${LIBRARY_LINKS})
+else()
+	target_link_libraries(SUMMA_COMM PUBLIC SUMMA_NOAHMP ${EXT_TARGETS})
+endif()
 
 # For NextGen, build SUMMA Shared Library and add the outside BMI libraries
 if(USE_NEXTGEN)
@@ -213,9 +231,17 @@ if(USE_NEXTGEN)
 else()
 	add_library(summa SHARED ${SUMMA_ALL})
 	target_compile_options(summa PRIVATE ${FLAGS_ALL})
-	target_link_libraries(summa PUBLIC ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM)
+	if(LIBRARY_LINKS)
+		target_link_libraries(summa PUBLIC ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM ${LIBRARY_LINKS})
+	else()
+		target_link_libraries(summa PUBLIC ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM )
+	endif()
     add_executable(${EXEC_NAME} ${MAIN_SUMMA})
     target_compile_options(${EXEC_NAME} PRIVATE ${FLAGS_ALL})
     set_property(TARGET ${EXEC_NAME} PROPERTY LINKER_LANGUAGE Fortran)
-    target_link_libraries(${EXEC_NAME} summa ${EXT_TARGETS}) # added flags to the link step
+	if(LIBRARY_LINKS)
+    	target_link_libraries(${EXEC_NAME} summa ${EXT_TARGETS} ${LIBRARY_LINKS})
+	else()
+    	target_link_libraries(${EXEC_NAME} summa ${EXT_TARGETS})
+	endif()
 endif()

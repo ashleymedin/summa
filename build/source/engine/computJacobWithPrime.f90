@@ -1161,7 +1161,7 @@ subroutine computJacobWithPrime(&
     deallocate(watRows,nrgRows)
     
     ! print the Jacobian
-    if(globalPrintFlag)then
+    if(globalPrintFlag .or. any(isNan(aJac)))then
       select case(ixMatrix)
         case(ixBandMatrix)
           print*, '** banded analytical Jacobian:'
@@ -1179,9 +1179,7 @@ subroutine computJacobWithPrime(&
     endif
 
     if(any(isNan(aJac)))then
-      print *, '******************************* WE FOUND NAN IN JACOBIAN ************************************'
-      stop 1
-      message=trim(message)//'we found NaN'
+      message=trim(message)//'NaN in Jacobian'
       err=20; return
     endif
 
