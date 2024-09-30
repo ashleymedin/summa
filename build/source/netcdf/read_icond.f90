@@ -175,6 +175,7 @@ contains
                        progData,                      & ! intent(inout): model prognostic variables
                        bvarData,                      & ! intent(inout): model basin (GRU) variables
                        indxData,                      & ! intent(inout): model indices
+                       no_icond_enth,                 & ! intent(out):   flag that enthalpy variables are not in the file
                        err,message)                     ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------
  ! modules
@@ -212,6 +213,7 @@ contains
  type(gru_hru_dom_doubleVec),intent(inout) :: progData                 ! model prognostic variables
  type(gru_doubleVec)    ,intent(inout)     :: bvarData                 ! model basin (GRU) variables
  type(gru_hru_dom_intVec),intent(inout)    :: indxData                 ! model indices
+ logical                ,intent(out)       :: no_icond_enth            ! flag that enthalpy variables are not in the file
  integer(i4b)           ,intent(out)       :: err                      ! error code
  character(*)           ,intent(out)       :: message                  ! returned error message
  ! locals
@@ -274,6 +276,7 @@ contains
  end if
 
  ! loop through prognostic variables
+ no_icond_enth=.false.
  do iVar = 1,size(prog_meta)
 
   ! skip variables that are computed later
@@ -281,19 +284,19 @@ contains
      prog_meta(iVar)%varName=='spectralSnowAlbedoDiffuse' .or. &
      prog_meta(iVar)%varName=='scalarSurfaceTemp'         .or. &
      prog_meta(iVar)%varName=='mLayerVolFracWat'          .or. &
-     prog_meta(iVar)%varName=='mLayerHeight'                   ) cycle
+     prog_meta(iVar)%varName=='mLayerHeight'                   ) err=nf90_noerr; cycle
 
   ! get variable id
   err = nf90_inq_varid(ncID,trim(prog_meta(iVar)%varName),ncVarID)
-  if(err/=0 .and. (prog_meta(iVar)%varName=='DOMarea' .or. prog_meta(iVar)%varName=='DOMelev')) then 
-    err=nf90_noerr    ! reset this err
-    cycle             ! backwards compatible, may be missing, correct in check_icond
-  else 
+  if(err/=nf90_noerr)then
+   if(prog_meta(iVar)%varName=='DOMarea'              .or. &
+      prog_meta(iVar)%varName=='DOMelev'                   ) err=nf90_noerr; cycle ! backwards compatible, may be missing, correct in check_icond
+   if(prog_meta(iVar)%varName=='scalarCanairEnthalpy' .or. &
+      prog_meta(iVar)%varName=='scalarCanopyEnthalpy' .or. &  
+      prog_meta(iVar)%varName=='mLayerEnthalpy'            ) err=nf90_noerr; no_icond_enth=.true.; cycle ! skip enthalpy variables if not in file
    call netcdf_err(err,message)
-   if(err/=0)then
-     message=trim(message)//': problem with getting variable id, var='//trim(prog_meta(iVar)%varName)
-     return
-   endif
+   message=trim(message)//': problem with getting variable id, var='//trim(prog_meta(iVar)%varName)
+   return
   endif
 
   ! get variable dimension IDs

@@ -494,15 +494,15 @@ contains
   ! Note: Need this extra subroutine to handle the case of enthalpy as a state variable, currently only implemented in the prime version
   !       If we implement it in the regular version, we can remove this subroutine
   associate(&
-   nSnow            => indx_data%var(iLookINDEX%nSnow)%dat(1)                  , & ! intent(in):    [i4b]   number of snow layers
-   nLake           => indx_data%var(iLookINDEX%nLake)%dat(1)                   , & ! intent(in):    [i4b]   number of lake layers
-   nSoil            => indx_data%var(iLookINDEX%nSoil)%dat(1)                  , & ! intent(in):    [i4b]   number of soil layers
-   nIce             => indx_data%var(iLookINDEX%nIce)%dat(1)                   , & ! intent(in):    [i4b]   number of ice layers
-   scalarCanopyEnthalpy => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1), & ! intent(inout): [dp]    enthalpy of the vegetation canopy (J m-2)
-   scalarCanopyTemp => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)        , & ! intent(inout): [dp]    temperature of the vegetation canopy (K)
-   scalarCanopyWat  => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)         , & ! intent(inout): [dp]    total water content of the vegetation canopy (kg m-2)
-   mLayerTemp       => prog_data%var(iLookPROG%mLayerTemp)%dat                 , & ! intent(inout): [dp(:)] temperature of each snow/soil layer (K)
-   mLayerMatricHead => prog_data%var(iLookPROG%mLayerMatricHead)%dat             & ! intent(out):   [dp(:)] matric head (m) 
+   nSnow                => indx_data%var(iLookINDEX%nSnow)%dat(1)                  , & ! intent(in):    [i4b]   number of snow layers
+   nLake                => indx_data%var(iLookINDEX%nLake)%dat(1)                  , & ! intent(in):    [i4b]   number of lake layers
+   nSoil                => indx_data%var(iLookINDEX%nSoil)%dat(1)                  , & ! intent(in):    [i4b]   number of soil layers
+   nIce                 => indx_data%var(iLookINDEX%nIce)%dat(1)                   , & ! intent(in):    [i4b]   number of ice layers
+   scalarCanopyEnthalpy => prog_data%var(iLookPROG%scalarCanopyEnthalpy)%dat(1)    , & ! intent(inout): [dp]    enthalpy of the vegetation canopy (J m-2)
+   scalarCanopyTemp     => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)        , & ! intent(inout): [dp]    temperature of the vegetation canopy (K)
+   scalarCanopyWat      => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)         , & ! intent(inout): [dp]    total water content of the vegetation canopy (kg m-2)
+   mLayerTemp           => prog_data%var(iLookPROG%mLayerTemp)%dat                 , & ! intent(inout): [dp(:)] temperature of each snow/soil layer (K)
+   mLayerMatricHead     => prog_data%var(iLookPROG%mLayerMatricHead)%dat             & ! intent(out):   [dp(:)] matric head (m) 
    &)
    stateVecPrime(:) = 0._rkind ! prime initial values are 0
    firstSplitOper0 = firstSplitOper ! set the flag for the first split operation, do not want to reset it here

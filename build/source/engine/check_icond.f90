@@ -41,15 +41,15 @@ contains
  ! ************************************************************************************************
  subroutine check_icond(nGRU,                          & ! number of GRUs
                         bvarData,                      & ! model basin variables
-                        progData,                      & ! model prognostic (state) variables
-                        diagData,                      & ! model diagnostic variables
-                        mparData,                      & ! model parameters
-                        indxData,                      & ! layer index data
-                        lookupData,                    & ! lookup table data
-                        attrData,                      & ! model attributes
-                        checkEnthalpy,                 & ! flag if to check enthalpy for consistency
-                        use_lookup,                    & ! flag to use the lookup table for soil enthalpy                             
-                        err,message)                     ! error control
+                        progData,                      & ! intent(inout): model prognostic (state) variables
+                        diagData,                      & ! intent(inout): model diagnostic variables
+                        mparData,                      & ! intent(in):    model parameters
+                        indxData,                      & ! intent(in):    layer index data
+                        lookupData,                    & ! intent(in):    lookup table data
+                        checkEnthalpy,                 & ! intent(in):    flag if to check enthalpy for consistency
+                        no_icond_enth,                 & ! intent(in):    flag that enthalpy not in initial conditions
+                        use_lookup,                    & ! intent(in):    flag to use the lookup table for soil enthalpy                             
+                        err,message)                     ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------
  ! modules
  USE nrtype
@@ -86,42 +86,43 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! variable declarations
  ! dummies
- integer(i4b),intent(in)                   :: nGRU           ! number of grouped response units
- type(gru_doubleVec),intent(inout)         :: bvarData       ! basin variables
- type(gru_hru_dom_doubleVec),intent(inout) :: progData       ! prognostic vars
- type(gru_hru_dom_doubleVec),intent(inout) :: diagData       ! diagnostic vars
- type(gru_hru_dom_doubleVec),intent(in)    :: mparData       ! parameters
- type(gru_hru_dom_intVec),intent(in)       :: indxData       ! layer indexes
- type(gru_hru_dom_z_vLookup),intent(in)    :: lookupData     ! lookup table data
- type(gru_hru_double),intent(in)           :: attrData       ! attributes
- logical(lgt),intent(in)                   :: checkEnthalpy  ! if true either need enthTemp as starting residual value, or for state variable initialization
- logical(lgt),intent(in)                   :: use_lookup     ! flag to use the lookup table for soil enthalpy, otherwise use hypergeometric function
- integer(i4b),intent(out)                  :: err            ! error code
- character(*),intent(out)                  :: message        ! returned error message
+ integer(i4b),intent(in)                   :: nGRU                  ! number of grouped response units
+ type(gru_doubleVec),intent(inout)         :: bvarData              ! basin variables
+ type(gru_hru_dom_doubleVec),intent(inout) :: progData              ! prognostic vars
+ type(gru_hru_dom_doubleVec),intent(inout) :: diagData              ! diagnostic vars
+ type(gru_hru_dom_doubleVec),intent(in)    :: mparData              ! parameters
+ type(gru_hru_dom_intVec),intent(in)       :: indxData              ! layer indexes
+ type(gru_hru_dom_z_vLookup),intent(in)    :: lookupData            ! lookup table data
+ type(gru_hru_double),intent(in)           :: attrData              ! attributes
+ logical(lgt),intent(in)                   :: checkEnthalpy         ! if true either need enthTemp as starting residual value, or for state variable initialization
+ logical(lgt),intent(in)                   :: no_icond_enth         ! if true, no enthalpy in icond file
+ logical(lgt),intent(in)                   :: use_lookup            ! flag to use the lookup table for soil enthalpy, otherwise use hypergeometric function
+ integer(i4b),intent(out)                  :: err                   ! error code
+ character(*),intent(out)                  :: message               ! returned error message
  ! locals
- character(len=256)             :: cmessage              ! downstream error message
- integer(i4b)                   :: i,iGRU,iHRU,iDOM      ! loop index
+ character(len=256)                        :: cmessage              ! downstream error message
+ integer(i4b)                              :: i,iGRU,iHRU,iDOM      ! loop index
  ! temporary variables for realism checks
- integer(i4b)                   :: iLayer                ! index of model layer
- integer(i4b)                   :: iSoil                 ! index of soil layer
- real(rkind)                    :: fLiq                  ! fraction of liquid water on the vegetation canopy (-)
- real(rkind)                    :: vGn_m                 ! van Genutchen "m" parameter (-)
- real(rkind)                    :: tWat                  ! total water on the vegetation canopy (kg m-2)
- real(rkind)                    :: scalarTheta           ! liquid water equivalent of total water [liquid water + ice] (-)
- real(rkind)                    :: h1,h2                 ! used to check depth and height are consistent
- real(rkind)                    :: kappa                 ! constant in the freezing curve function (m K-1)
- integer(i4b)                   :: nSnow                 ! number of snow layers
- integer(i4b)                   :: nLake                 ! number of lake layers
- integer(i4b)                   :: nSoil                 ! number of soil layers
- integer(i4b)                   :: nIce                  ! number of ice layers
- integer(i4b)                   :: nLayers               ! total number of layers
- integer(i4b)                   :: nState                ! total number of states
- real(rkind),parameter          :: xTol=1.e-10_rkind     ! small tolerance to address precision issues
- real(rkind),parameter          :: canIceTol=1.e-3_rkind ! small tolerance to allow existence of canopy ice for above-freezing temperatures (kg m-2)
- real(rkind)                    :: remaining_area        ! remaining area of the HRU
- real(rkind)                    :: remaining_elev        ! remaining elevation of the HRU
- real(rkind)                    :: glacAblAreaTot       ! total basin glacier ablation area from bvarData (m2)
- real(rkind)                    :: glacAccAreaTot       ! total basin glacier accumulation area from bvarData (m2)
+ integer(i4b)                              :: iLayer                ! index of model layer
+ integer(i4b)                              :: iSoil                 ! index of soil layer
+ real(rkind)                               :: fLiq                  ! fraction of liquid water on the vegetation canopy (-)
+ real(rkind)                               :: vGn_m                 ! van Genutchen "m" parameter (-)
+ real(rkind)                               :: tWat                  ! total water on the vegetation canopy (kg m-2)
+ real(rkind)                               :: scalarTheta           ! liquid water equivalent of total water [liquid water + ice] (-)
+ real(rkind)                               :: h1,h2                 ! used to check depth and height are consistent
+ real(rkind)                               :: kappa                 ! constant in the freezing curve function (m K-1)
+ integer(i4b)                              :: nSnow                 ! number of snow layers
+ integer(i4b)                              :: nLake                 ! number of lake layers
+ integer(i4b)                              :: nSoil                 ! number of soil layers
+ integer(i4b)                              :: nIce                  ! number of ice layers
+ integer(i4b)                              :: nLayers               ! total number of layers
+ integer(i4b)                              :: nState                ! total number of states
+ real(rkind),parameter                     :: xTol=1.e-10_rkind     ! small tolerance to address precision issues
+ real(rkind),parameter                     :: canIceTol=1.e-3_rkind ! small tolerance to allow existence of canopy ice for above-freezing temperatures (kg m-2)
+ real(rkind)                               :: remaining_area        ! remaining area of the HRU
+ real(rkind)                               :: remaining_elev        ! remaining elevation of the HRU
+ real(rkind)                               :: glacAblAreaTot       ! total basin glacier ablation area from bvarData (m2)
+ real(rkind)                               :: glacAccAreaTot       ! total basin glacier accumulation area from bvarData (m2)
  ! --------------------------------------------------------------------------------------------------------
 
  ! Start procedure here
@@ -206,11 +207,11 @@ contains
     associate(&
     ! state variables in the canopy air space
     scalarCanairTemp     => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanairTemp)%dat(1)     ,& ! canopy air temperature (K)
-    scalarCanairEnthalpy => diagData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookDIAG%scalarCanairEnthalpy)%dat(1) ,& ! canopy air enthalpy (J m-3)
+    scalarCanairEnthalpy => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanairEnthalpy)%dat(1) ,& ! canopy air enthalpy (J m-3)
     ! state variables in the vegetation canopy
     scalarCanopyTemp     => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyTemp)%dat(1)     ,& ! canopy temperature (K)
     scalarCanopyEnthTemp => diagData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookDIAG%scalarCanopyEnthTemp)%dat(1) ,& ! canopy temperature component of enthalpy (J m-3)
-    scalarCanopyEnthalpy => diagData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1) ,& ! canopy enthalpy (J m-3)
+    scalarCanopyEnthalpy => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyEnthalpy)%dat(1) ,& ! canopy enthalpy (J m-3)
     scalarCanopyLiq      => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyLiq)%dat(1)      ,& ! mass of liquid water on the vegetation canopy (kg m-2)
     scalarCanopyIce      => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyIce)%dat(1)      ,& ! mass of ice on the vegetation canopy (kg m-2)
     heightCanopyTop      => mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%heightCanopyTop)%dat(1)     ,& ! height of the top of the canopy layer (m)
@@ -220,7 +221,7 @@ contains
     ! state variables in the layer domains
     mLayerTemp           => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerTemp)%dat              ,& ! temperature (K)
     mLayerEnthTemp       => diagData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookDIAG%mLayerEnthTemp)%dat          ,& ! temperature component of enthalpy (J m-3)
-    mLayerEnthalpy       => diagData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookDIAG%mLayerEnthalpy)%dat          ,& ! enthalpy (J m-3)
+    mLayerEnthalpy       => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerEnthalpy)%dat          ,& ! enthalpy (J m-3)
     mLayerVolFracLiq     => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerVolFracLiq)%dat        ,& ! volumetric fraction of liquid water in each snow layer (-)
     mLayerVolFracIce     => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerVolFracIce)%dat        ,& ! volumetric fraction of ice in each snow layer (-)
     mLayerMatricHead     => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerMatricHead)%dat        ,& ! matric head (m)
@@ -250,20 +251,24 @@ contains
     end if
     scalarTheta = scalarCanopyIce + scalarCanopyLiq
 
-   if(checkEnthalpy)then ! enthalpy as state variable (cold start often only has temperature)
-      call T2enthTemp_cas(&
-                  scalarCanairTemp,       & ! intent(in): canopy air temperature (K)
-                  scalarCanairEnthalpy)     ! intent(out): enthalpy of the canopy air space (J m-3)
+    if(checkEnthalpy)then ! enthalpy as state variable or in residual
+      if(no_icond_enth)then ! no enthalpy in icond file
+        call T2enthTemp_cas(&
+                   scalarCanairTemp,       & ! intent(in): canopy air temperature (K)
+                   scalarCanairEnthalpy)     ! intent(out): enthalpy of the canopy air space (J m-3)
  
-      call T2enthTemp_veg(&
-                  (heightCanopyTop-heightCanopyBottom), & ! intent(in): canopy depth (m)
-                  specificHeatVeg,        & ! intent(in): specific heat of vegetation (J kg-1 K-1)
-                  maxMassVegetation,      & ! intent(in): maximum mass of vegetation (kg m-2)
-                  snowfrz_scale,          & ! intent(in): scaling parameter for the snow freezing curve  (K-1)
-                  scalarCanopyTemp,       & ! intent(in): canopy temperature (K)
-                  scalarTheta,            & ! intent(in): canopy water content (kg m-2)
-                  scalarCanopyEnthTemp)     ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
-     scalarCanopyEnthalpy = scalarCanopyEnthTemp - LH_fus * scalarCanopyIce/ (heightCanopyTop-heightCanopyBottom)
+        call T2enthTemp_veg(&
+                   (heightCanopyTop-heightCanopyBottom), & ! intent(in): canopy depth (m)
+                   specificHeatVeg,        & ! intent(in): specific heat of vegetation (J kg-1 K-1)
+                   maxMassVegetation,      & ! intent(in): maximum mass of vegetation (kg m-2)
+                   snowfrz_scale,          & ! intent(in): scaling parameter for the snow freezing curve  (K-1)
+                   scalarCanopyTemp,       & ! intent(in): canopy temperature (K)
+                   scalarTheta,            & ! intent(in): canopy water content (kg m-2)
+                   scalarCanopyEnthTemp)     ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
+        scalarCanopyEnthalpy = scalarCanopyEnthTemp - LH_fus * scalarCanopyIce/ (heightCanopyTop-heightCanopyBottom)
+      else ! enthalpy is in the icond file
+        scalarCanopyEnthTemp = scalarCanopyEnthalpy + LH_fus * scalarCanopyIce/ (heightCanopyTop-heightCanopyBottom)
+      end if    
     end if
 
     ! number of layers
@@ -352,14 +357,17 @@ contains
                        err,cmessage)                     ! intent(out): error control
        if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
-       if(checkEnthalpy)then ! enthalpy as state variable (cold start often only has temperature)
-          call T2enthTemp_snLaIc(&
+       if(checkEnthalpy)then ! enthalpy as state variable or in residual
+         if(no_icond_enth)then ! no enthalpy in icond file
+           call T2enthTemp_snLaIc(&
                        snowfrz_scale,                  & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                        mLayerTemp(iLayer),             & ! intent(in):  layer temperature (K)
                        scalarTheta,                    & ! intent(in):  volumetric total water content (-)
                        mLayerEnthTemp(iLayer))           ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
-          if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-          mLayerEnthalpy(iLayer) = mLayerEnthTemp(iLayer) - iden_ice * LH_fus * mLayerVolFracIce(iLayer)
+           mLayerEnthalpy(iLayer) = mLayerEnthTemp(iLayer) - iden_ice * LH_fus * mLayerVolFracIce(iLayer)
+         else
+           mLayerEnthTemp(iLayer) = mLayerEnthalpy(iLayer) + iden_ice * LH_fus * mLayerVolFracIce(iLayer)
+         end if
        endif
 
       ! ** soil
@@ -376,8 +384,9 @@ contains
                       err,cmessage)                      ! intent(out): error control
        if(err/=0)then; message=trim(cmessage)//trim(cmessage); return; end if  ! (check for errors)
 
-      if(checkEnthalpy)then ! enthalpy as state variable (cold start often only has temperature)
-         call T2enthTemp_soil(&
+      if(checkEnthalpy)then ! enthalpy as state variable or in residual
+        if(no_icond_enth)then ! no enthalpy in icond file
+          call T2enthTemp_soil(&
                       use_lookup,                      & ! intent(in):  flag to use the lookup table for soil enthalpy
                       soil_dens_intr(iSoil),           & ! intent(in):  intrinsic soil density (kg m-3)
                       vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m, & ! intent(in): van Genutchen soil parameters
@@ -387,8 +396,11 @@ contains
                       mLayerTemp(iLayer),              & ! intent(in):  layer temperature (K)
                       mLayerMatricHead(iLayer-nSnow-nLake),  & ! intent(in):  matric head (m)
                       mLayerEnthTemp(iLayer))            ! intent(out): temperature component of enthalpy soil layer (J m-3)
-        mLayerEnthalpy(iLayer) = mLayerEnthTemp(iLayer) - iden_water * LH_fus * mLayerVolFracIce(iLayer)
-       endif
+          mLayerEnthalpy(iLayer) = mLayerEnthTemp(iLayer) - iden_water * LH_fus * mLayerVolFracIce(iLayer)
+        else
+          mLayerEnthTemp(iLayer) = mLayerEnthalpy(iLayer) + iden_water * LH_fus * mLayerVolFracIce(iLayer)
+        end if
+      endif
 
       case default; err=10; message=trim(message)//'unknown case for model layer'; return
      end select
