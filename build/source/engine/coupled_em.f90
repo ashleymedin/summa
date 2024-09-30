@@ -978,7 +978,7 @@ subroutine coupled_em(&
                         realMissing,                                                & ! intent(in):  lower value of integral (not computed)
                         prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+nLake+1),     & ! intent(in):  surface layer temperature (K)
                         mLayerMatricHead(1),                                        & ! intent(in):  surface layer matric head (m)
-                        diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(nSnow+nLake+1)) & ! intent(out): temperature component of enthalpy soil layer (J m-3)
+                        diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(nSnow+nLake+1))   ! intent(out): temperature component of enthalpy soil layer (J m-3)
               diag_data%var(iLookDIAG%mLayerEnthalpy)%dat(nSnow+nLake+1) = diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(nSnow+nLake+1) - iden_water * LH_fus * mLayerVolFracIce(nSnow+nLake+1)
             endif
           end if

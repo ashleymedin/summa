@@ -343,11 +343,9 @@ contains
 
        ! ensure consistency among state variables
        call updateSnLaIc(&
-                       ! input
                        mLayerTemp(iLayer),             & ! intent(in): temperature (K)
                        scalarTheta,                    & ! intent(in): volumetric fraction of total water (-)
                        snowfrz_scale,                  & ! intent(in): scaling parameter for the snow freezing curve (K-1)
-                       ! output
                        mLayerVolFracLiq(iLayer),       & ! intent(out): volumetric fraction of liquid water (-)
                        mLayerVolFracIce(iLayer),       & ! intent(out): volumetric fraction of ice (-)
                        fLiq,                           & ! intent(out): fraction of liquid water (-)
@@ -356,13 +354,10 @@ contains
 
        if(checkEnthalpy)then ! enthalpy as state variable (cold start often only has temperature)
           call T2enthTemp_snLaIc(&
-                       ! input
                        snowfrz_scale,                  & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                        mLayerTemp(iLayer),             & ! intent(in):  layer temperature (K)
                        scalarTheta,                    & ! intent(in):  volumetric total water content (-)
-                       ! output
-                       mLayerEnthTemp(iLayer),         & ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
-                       err,cmessage)                     ! intent(out): error control
+                       mLayerEnthTemp(iLayer))           ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
           if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
           mLayerEnthalpy(iLayer) = mLayerEnthTemp(iLayer) - iden_ice * LH_fus * mLayerVolFracIce(iLayer)
        endif
@@ -372,7 +367,6 @@ contains
 
       ! ensure consistency among state variables
        call updateSoil(&
-                      ! input
                       mLayerTemp(iLayer),              & ! intent(in): layer temperature (K)
                       mLayerMatricHead(iLayer-nSnow-nLake),  & ! intent(in): matric head (m)
                       vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m, & ! intent(in): van Genutchen soil parameters
