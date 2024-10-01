@@ -46,6 +46,7 @@ contains
                         mparData,                      & ! intent(in):    model parameters
                         indxData,                      & ! intent(in):    layer index data
                         lookupData,                    & ! intent(in):    lookup table data
+                        attrData,                      & ! intent(in):    model attributes
                         checkEnthalpy,                 & ! intent(in):    flag if to check enthalpy for consistency
                         no_icond_enth,                 & ! intent(in):    flag that enthalpy not in initial conditions
                         use_lookup,                    & ! intent(in):    flag to use the lookup table for soil enthalpy                             
