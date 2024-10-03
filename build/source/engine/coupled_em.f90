@@ -1235,16 +1235,22 @@ subroutine coupled_em(&
       if (nSnow>0) innerEffRainfall = innerEffRainfall + ( flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1) + flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) )*dt_wght
 
       ! sum the balance of energy and water per state
-      if(computeVegFlux)then
-        innerBalance(1) = innerBalance(1) + diag_data%var(iLookDIAG%balanceCasNrg)%dat(1)*dt_wght ! W m-3
-        innerBalance(2) = innerBalance(2) + diag_data%var(iLookDIAG%balanceVegNrg)%dat(1)*dt_wght ! W m-3
-        innerBalance(3) = innerBalance(3) + diag_data%var(iLookDIAG%balanceVegMass)%dat(1)*dt_wght/diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)  ! kg m-3 s-1
-        bal_veg = .true.
-      endif
+      !if(computeVegFlux)then
+      !  innerBalance(1) = innerBalance(1) + diag_data%var(iLookDIAG%balanceCasNrg)%dat(1)*dt_wght ! W m-3
+      !  innerBalance(2) = innerBalance(2) + diag_data%var(iLookDIAG%balanceVegNrg)%dat(1)*dt_wght ! W m-3
+      !  innerBalance(3) = innerBalance(3) + diag_data%var(iLookDIAG%balanceVegMass)%dat(1)*dt_wght/diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)  ! kg m-3 s-1
+      !  bal_veg = .true.
+      !endif
+      !innerBalanceLayerMass(:) = innerBalanceLayerMass(:) + diag_data%var(iLookDIAG%balanceLayerMass)%dat(:)*dt_wght * iden_water ! kg m-3 s-1
+
+      ! old way of doing this, now done as kg m-3 s-1 and missing if non-compute (see above commented out code)
+      innerBalance(1) = innerBalance(1) + diag_data%var(iLookDIAG%balanceCasNrg)%dat(1)*dt_wght ! W m-3
+      innerBalance(2) = innerBalance(2) + diag_data%var(iLookDIAG%balanceVegNrg)%dat(1)*dt_wght ! W m-3
+      innerBalance(3) = innerBalance(3) + diag_data%var(iLookDIAG%balanceVegMass)%dat(1)*dt_wght              ! kg m-2 s-1
+      innerBalanceLayerMass(:) = innerBalanceLayerMass(:) + diag_data%var(iLookDIAG%balanceLayerMass)%dat(:)*dt_wght * prog_data%var(iLookPROG%mLayerDepth)%dat(:) * iden_water ! kg m-2 s-1
+      
       innerBalance(4) = innerBalance(4) + diag_data%var(iLookDIAG%balanceAqMass)%dat(1)*dt_wght * iden_water  ! kg m-2 s-1 (no depth to aquifer)
       innerBalanceLayerNrg(:) = innerBalanceLayerNrg(:) + diag_data%var(iLookDIAG%balanceLayerNrg)%dat(:)*dt_wght ! W m-3
-      innerBalanceLayerMass(:) = innerBalanceLayerMass(:) + diag_data%var(iLookDIAG%balanceLayerMass)%dat(:)*dt_wght * iden_water ! kg m-3 s-1
-
       ! save balance of energy and water per snow+soil layer after inner step, since can change nLayers with outer steps
       diag_data%var(iLookDIAG%balanceLayerNrg)%dat(:) = innerBalanceLayerNrg(:)
       diag_data%var(iLookDIAG%balanceLayerMass)%dat(:) = innerBalanceLayerMass(:)
@@ -1269,6 +1275,11 @@ subroutine coupled_em(&
         end select
       end do
       if (model_decisions(iLookDECISIONS%groundwatr)%iDecision == bigBucket) bal_aq = .true. ! aquifer does not change existance with time steps
+
+      ! make always true in compliance with the old code
+      bal_veg = .true.
+      bal_soil = .true.
+      bal_aq = .true.
 
       if(do_outer)then
         deallocate(innerBalanceLayerNrg)
