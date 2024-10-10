@@ -111,7 +111,7 @@ contains
 ! ************************************************************************************************
 subroutine coupled_em(&
                       ! model control
-                       hruId,             & ! intent(in):    hruId
+                      hruId,             & ! intent(in):    hruId
                       dt_init,           & ! intent(inout): used to initialize the size of the sub-step
                       dt_init_factor,    & ! intent(in):    Used to adjust the length of the timestep in the event of a failure
                       computeVegFlux,    & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
@@ -163,7 +163,7 @@ subroutine coupled_em(&
   ! * dummy variables
   ! -------------------------------------------------------------------------------------------------------------------------
   ! input-output: control
-  integer(8),intent(in)                :: hruId                  ! hruId
+  integer(i8b),intent(in)              :: hruId                  ! hruId
   real(rkind),intent(inout)            :: dt_init                ! used to initialize the size of the sub-step
   integer(i4b),intent(in)              :: dt_init_factor         ! Used to adjust the length of the timestep in the event of a failure
   logical(lgt),intent(inout)           :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)

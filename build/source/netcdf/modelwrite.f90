@@ -39,8 +39,6 @@ USE globalData,only: nTimeDelay         ! maximum number of time delay routing v
 USE globalData,only: nSpecBand          ! maximum number of spectral bands
 ! provide access to global data
 USE globalData,only: gru_struc          ! gru->hru mapping structure
-! netcdf deflate level
-USE globalData,only: outputCompressionLevel   
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
@@ -49,7 +47,7 @@ USE data_types,only:&
                     ilength,             & ! var%dat
                     ! no spatial dimension
                     var_i,               & ! x%var(:)            (i4b)
-                    var_i8,              & ! x%var(:)            integer(8)
+                    var_i8,              & ! x%var(:)            (i8b)
                     var_d,               & ! x%var(:)            (dp)
                     var_ilength,         & ! x%var(:)%dat        (i4b)
                     var_dlength,         & ! x%var(:)%dat        (dp)
@@ -63,7 +61,7 @@ USE data_types,only:&
                     gru_doubleVec,       & ! x%gru(:)%var(:)%dat (dp)
                     ! gru+hru dimension
                     gru_hru_int,         & ! x%gru(:)%hru(:)%var(:)     (i4b)
-                    gru_hru_int8,        & ! x%gru(:)%hru(:)%var(:)     integer(8)
+                    gru_hru_int8,        & ! x%gru(:)%hru(:)%var(:)     (i8b)
                     gru_hru_double,      & ! x%gru(:)%hru(:)%var(:)     (dp)
                     gru_hru_intVec,      & ! x%gru(:)%hru(:)%var(:)%dat (i4b)
                     gru_hru_doubleVec,   & ! x%gru(:)%hru(:)%var(:)%dat (dp)
@@ -503,6 +501,7 @@ contains
  USE netcdf_util_module,only:nc_file_open   ! open netcdf file
  USE globalData,only:nTimeDelay             ! number of timesteps in the time delay histogram
  USE globalData,only:maxGlaciers            ! maximum number of glaciers
+ USE def_output_module,only: write_hru_info ! write HRU information to netcdf file
  
  implicit none
  ! --------------------------------------------------------------------------------------------------------
@@ -594,12 +593,12 @@ contains
  end if
 
  ! create file
- err = nf90_create(trim(filename),nf90_classic_model,ncid)
+ err = nf90_create(trim(filename),NF90_NETCDF4,ncid)
  message='iCreate[create]'; call netcdf_err(err,message); if(err/=0)return
 
  ! define dimensions
-                      err = nf90_def_dim(ncid,trim(hruDimName)    ,nHRU           ,    hruDimID); message='iCreate[hru]'     ; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(gruDimName)    ,nGRU           ,    gruDimID); message='iCreate[gru]'     ; call netcdf_err(err,message); if(err/=0)return
+                      err = nf90_def_dim(ncid,trim(hruDimName)    ,nHRU           ,    hruDimID); message='iCreate[hru]'     ; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(domDimName)    ,maxDOM         ,    domDimID); message='iCreate[dom]'     ; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(tdhDimName)    ,nTimeDelay     ,    tdhDimID); message='iCreate[tdh]'     ; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(nglDimName)    ,maxGlaciers    ,    nglDimID); message='iCreate[ngl]'     ; call netcdf_err(err,message); if(err/=0)return
@@ -791,6 +790,9 @@ contains
   endif
   
  end do  ! iGRU loop
+
+ ! write HRU dimension and ID for file
+ call write_hru_info(ncid, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
  ! close file
  call nc_file_close(ncid,err,cmessage)

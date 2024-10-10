@@ -41,7 +41,7 @@ USE data_types,only:&
                     hru_dom_d,         & ! x%hru(:)%dom(:)     (rkind)
                     ! hru dimension
                     hru_int,           & ! x%hru(:)%var(:)     (i4b)
-                    hru_int8,          & ! x%hru(:)%var(:)     integer(8)
+                    hru_int8,          & ! x%hru(:)%var(:)     (i8b)
                     hru_double,        & ! x%hru(:)%var(:)     (rkind)
                     hru_intVec,        & ! x%hru(:)%var(:)%dat (i4b)
                     !hru+dom dimension
@@ -165,7 +165,7 @@ subroutine run_oneGRU(&
   real(rkind)                         :: glacFirnMelt           ! glacier firn reservoir melt (m3 s-1)
 
   ! initialize error control
-  err=0; write(message, '(A21,I0,A10,I0,A2)' ) 'run_oneGRU (gru nc = ',gruInfo%gru_nc -1,', gruId = ',gruInfo%gru_id,')/' !netcdf index starts with 0 if want to subset
+  err=0; write(message, '(A21,I0,A10,I0,A2)' ) 'run_oneGRU (gru_nc = ',gruInfo%gru_nc,', gruId = ',gruInfo%gru_id,')/'
 
   ! ----- basin initialization --------------------------------------------------------------------------------------------
   ! initialize runoff variables

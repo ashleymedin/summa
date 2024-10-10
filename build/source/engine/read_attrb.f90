@@ -60,8 +60,8 @@ contains
  integer(i4b)                         :: iDOM,i,j           ! domain counting index
  integer(i4b)                         :: iHRU               ! HRU counting index
  integer(i4b)                         :: iGRU               ! GRU loop index
- integer(8),allocatable               :: gru_id(:),hru_id(:)! read gru/hru IDs in from attributes file
- integer(8),allocatable               :: hru2gru_id(:)      ! read hru->gru mapping in from attributes file
+ integer(i8b),allocatable             :: gru_id(:),hru_id(:)! read gru/hru IDs in from attributes file
+ integer(i8b),allocatable             :: hru2gru_id(:)      ! read hru->gru mapping in from attributes file
  integer(i4b),allocatable             :: hru_ix(:)          ! hru index for search
 
  ! define variables for NetCDF file operation
@@ -69,8 +69,8 @@ contains
  integer(i4b)                         :: varID              ! NetCDF variable ID
  integer(i4b)                         :: gruDimId           ! variable id of GRU dimension from netcdf file
  integer(i4b)                         :: hruDimId           ! variable id of HRU dimension from netcdf file
- integer(i4b),allocatable             :: nGlac_HRU(:)       ! number of glaciers in hru
- integer(i4b),allocatable             :: nWtld_HRU(:)       ! number of wetlands/lakes in hru
+ integer(i4b),allocatable             :: nGlac_GRU(:)       ! number of glaciers in gru
+ integer(i4b),allocatable             :: nWtld_GRU(:)       ! number of wetlands/lakes in gru
  character(len=256)                   :: cmessage           ! error message for downwind routine
 
  ! Start procedure here
@@ -118,7 +118,7 @@ contains
  ! **********************************************************************************************
  ! allocate space for GRU indices
  allocate(gru_id(fileGRU))
- allocate(hru_ix(fileHRU),hru_id(fileHRU),hru2gru_id(fileHRU),nGlac_HRU(fileHRU),nWtld_HRU(fileHRU))
+ allocate(hru_ix(fileHRU),hru_id(fileHRU),hru2gru_id(fileHRU),nGlac_GRU(fileGRU),nWtld_GRU(fileGRU))
 
  ! read gru_id from netcdf file
  err = nf90_inq_varid(ncID,"gruId",varID);     if (err/=0) then; message=trim(message)//'problem finding gruId'; return; end if
@@ -132,18 +132,22 @@ contains
  err = nf90_inq_varid(ncID,"hru2gruId",varID); if (err/=0) then; message=trim(message)//'problem finding hru2gruId'; return; end if
  err = nf90_get_var(ncID,varID,hru2gru_id);    if (err/=0) then; message=trim(message)//'problem reading hru2gruId'; return; end if
 
+ ! read dom_type from netcdf file
+ err = nf90_inq_varid(ncID,"domType",varID);  if (err/=0) then; message=trim(message)//'problem finding domType'; return; end if
+ err = nf90_get_var(ncID,varID,dom_type);      if (err/=0) then; message=trim(message)//'problem reading domType'; return; end if
+
  ! read domain information from netcdf file
  err = nf90_inq_varid(ncID,"nGlacier",varID)
  if (err/=0) then
-   nGlac_HRU = 0 ! backwards compatibility
+   nGlac_GRU = 0 ! backwards compatibility
  else
-   err = nf90_get_var(ncID,varID,nGlac_HRU);   if (err/=0) then; message=trim(message)//'problem reading glacier'; return; end if
+   err = nf90_get_var(ncID,varID,nGlac_GRU);   if (err/=0) then; message=trim(message)//'problem reading glacier'; return; end if
  end if
  err = nf90_inq_varid(ncID,"nWetland",varID) 
  if (err/=0) then
-   nWtld_HRU = 0 ! backwards compatibility
+   nWtld_GRU = 0 ! backwards compatibility
  else
-   err = nf90_get_var(ncID,varID,nWtld_HRU);      if (err/=0) then; message=trim(message)//'problem reading lake'; return; end if
+   err = nf90_get_var(ncID,varID,nWtld_GRU);      if (err/=0) then; message=trim(message)//'problem reading lake'; return; end if
  end if
 
  ! array from 1 to total # of HRUs in attributes file
@@ -170,21 +174,13 @@ contains
   gru_struc(iGRU)%hruInfo(iGRU)%hru_id = hru_id(checkHRU)     ! set id of hru
 
   gru_struc(iGRU)%hruInfo(iGRU)%domCount = 1                  ! upland domain always present, for changing size glaciers and lakes
-  gru_struc(iGRU)%nGlacier = nGlac_HRU(checkHRU)              ! set number of glaciers in the gru
-  gru_struc(iGRU)%nWetland = nWtld_HRU(checkHRU)              ! set number of wetlands in the gru
-  if (nGlac_HRU(checkHRU) > 0) gru_struc(iGRU)%hruInfo(iGRU)%domCount = gru_struc(iGRU)%hruInfo(iGRU)%domCount + 2 ! accumulation and ablation domains possible
-  if (nWtld_HRU(checkHRU) > 0) gru_struc(iGRU)%hruInfo(iGRU)%domCount = gru_struc(iGRU)%hruInfo(iGRU)%domCount + 1 ! wetland domain possible
+  if (any(domType(:,checkHRU))==glacAcc) gru_struc(iGRU)%hruInfo(iGRU)%domCount = gru_struc(iGRU)%hruInfo(iGRU)%domCount + 2 ! accumulation and ablation domains possible, if have one have other
+  if (any(domType(:,checkHRU))==wetland) gru_struc(iGRU)%hruInfo(iGRU)%domCount = gru_struc(iGRU)%hruInfo(iGRU)%domCount + 1 ! wetland domain possible
   allocate(gru_struc(iGRU)%hruInfo(iGRU)%domInfo(gru_struc(iGRU)%hruInfo(iGRU)%domCount))                  ! allocate third level of gru to hru map
+  gru_struc(iGRU)%nGlacier = nGlac_GRU(iGRU)              ! set number of glaciers in the gru
+  gru_struc(iGRU)%nWetland = nWtld_GRU(iGRU)              ! set number of wetlands in the gru
+  gru_struc(iGRU)%hruInfo(iGRU)%domInfo(:)%dom_type = dom_type(:,checkHRU)
 
-  ! set type of domain
-  gru_struc(iGRU)%hruInfo(iGRU)%domInfo(1)%dom_type = upland ! has to have upland domain, could be area 0
-  if (nGlac_HRU(checkHRU) > 0) then 
-   gru_struc(iGRU)%hruInfo(iGRU)%domInfo(2)%dom_type = glacAcc
-   gru_struc(iGRU)%hruInfo(iGRU)%domInfo(3)%dom_type = glacAbl
-   if (nWtld_HRU(checkHRU) > 0) gru_struc(iGRU)%hruInfo(iGRU)%domInfo(4)%dom_type = wetland
-  else
-   gru_struc(iGRU)%hruInfo(iGRU)%domInfo(2)%dom_type = wetland 
-  end if
   
  else ! allocate space for anything except a single HRU run
   iHRU = 1
@@ -199,26 +195,15 @@ contains
     gru_struc(iGRU)%hruInfo(:)%hru_nc = pack(hru_ix,hru2gru_id == gru_struc(iGRU)%gru_id) ! set hru id in attributes netcdf file
     gru_struc(iGRU)%hruInfo(:)%hru_ix = arth(iHRU,1,gru_struc(iGRU)%hruCount)             ! set index of hru in run space
     gru_struc(iGRU)%hruInfo(:)%hru_id = hru_id(gru_struc(iGRU)%hruInfo(:)%hru_nc)         ! set id of hru
-    gru_struc(iGRU)%nGlacier = sum(nGlac_HRU(gru_struc(iGRU)%hruInfo(:)%hru_nc))        ! set number of glaciers in the gru
-    gru_struc(iGRU)%nWetland = sum(nWtld_HRU(gru_struc(iGRU)%hruInfo(:)%hru_nc))           ! set number of wetlands in the gru
- 
+\
     do i = 1,gru_struc(iGRU)%hruCount
       gru_struc(iGRU)%hruInfo(i)%domCount = 1                                             ! upland domain always present, for changing size glaciers and lakes
-      if (nGlac_HRU(gru_struc(iGRU)%hruInfo(i)%hru_nc) > 0) gru_struc(iGRU)%hruInfo(i)%domCount = gru_struc(iGRU)%hruInfo(i)%domCount + 2 ! accumulation and ablation domains possible
-      if (nWtld_HRU(gru_struc(iGRU)%hruInfo(i)%hru_nc) > 0)    gru_struc(iGRU)%hruInfo(i)%domCount = gru_struc(iGRU)%hruInfo(i)%domCount + 1 ! wetland domain possible
+      if (any(domType(:,gru_struc(iGRU)%hruInfo(:)%hru_nc))==glacAcc) gru_struc(iGRU)%hruInfo(i)%domCount = gru_struc(iGRU)%hruInfo(i)%domCount + 2 ! accumulation and ablation domains possible
+      if (any(domType(:,gru_struc(iGRU)%hruInfo(:)%hru_nc))==wetland) gru_struc(iGRU)%hruInfo(i)%domCount = gru_struc(iGRU)%hruInfo(i)%domCount + 1 ! wetland domain possible
       allocate(gru_struc(iGRU)%hruInfo(i)%domInfo(gru_struc(iGRU)%hruInfo(i)%domCount))   ! allocate third level of gru to hru map
-
-      ! set type of domain
-      gru_struc(iGRU)%hruInfo(i)%domInfo(1)%dom_type = upland
-      if (gru_struc(iGRU)%hruInfo(i)%domCount>1) then
-       if (nGlac_HRU(gru_struc(iGRU)%hruInfo(i)%hru_nc) > 0) then 
-        gru_struc(iGRU)%hruInfo(i)%domInfo(2)%dom_type = glacAcc
-        gru_struc(iGRU)%hruInfo(i)%domInfo(3)%dom_type = glacAbl
-        if (nWtld_HRU(gru_struc(iGRU)%hruInfo(i)%hru_nc) > 0) gru_struc(iGRU)%hruInfo(i)%domInfo(4)%dom_type = wetland
-       else
-         gru_struc(iGRU)%hruInfo(i)%domInfo(2)%dom_type = wetland
-       end if
-      end if
+      gru_struc(iGRU)%nGlacier = nGlac_GRU(iGRU)              ! set number of glaciers in the gru
+      gru_struc(iGRU)%nWetland = nWtld_GRU(iGRU)              ! set number of wetlands in the gru
+      gru_struc(iGRU)%hruInfo(i)%domInfo(:)%dom_type = = dom_type(:,gru_struc(iGRU)%hruInfo(:)%hru_nc)
   
     enddo
  
@@ -272,7 +257,7 @@ end subroutine read_dimension
  USE netcdf_util_module,only:netcdf_err                     ! netcdf error handling function
  ! provide access to derived data types
  USE data_types,only:gru_hru_int                            ! x%gru(:)%hru(:)%var(:)     (i4b)
- USE data_types,only:gru_hru_int8                           ! x%gru(:)%hru(:)%var(:)     integer(8)
+ USE data_types,only:gru_hru_int8                           ! x%gru(:)%hru(:)%var(:)     (i8b)
  USE data_types,only:gru_hru_double                         ! x%gru(:)%hru(:)%var(:)     (rkind)
  ! provide access to global data
  USE globalData,only:gru_struc                              ! gru-hru mapping structure
@@ -312,7 +297,7 @@ end subroutine read_dimension
  integer(i4b),parameter               :: idrelated=103      ! named variable to denote ID related data
  integer(i4b)                         :: categorical_var(1) ! temporary categorical variable from local attributes netcdf file
  real(rkind)                          :: numeric_var(1)     ! temporary numeric variable from local attributes netcdf file
- integer(8)                           :: idrelated_var(1)   ! temporary ID related variable from local attributes netcdf file
+ integer(i8b)                         :: idrelated_var(1)   ! temporary ID related variable from local attributes netcdf file
 
  ! define mapping variables
 
@@ -412,8 +397,15 @@ end subroutine read_dimension
      end do
     end do
 
-   ! for mapping varibles, do nothing (information read above)
-   case('hru2gruId','gruId','nGlacier','nWetland'); cycle
+   ! for GRU domain quantity variables, do nothing (information read above)
+   case('nGlacier','nWetland'); cycle
+
+   ! for mapping variables, do nothing (information read above in read_dimension)   
+   case('hru2gruId','gruId','domType')
+    ! get the index of the variable
+    varType = idrelated
+    varIndx = get_ixId(varName)
+    checkId(varIndx) = .true.
 
    ! check that variables are what we expect
    case default; message=trim(message)//'unknown variable ['//trim(varName)//'] in local attributes file'; err=20; return

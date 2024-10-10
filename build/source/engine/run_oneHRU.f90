@@ -124,7 +124,7 @@ subroutine run_oneHRU(&
   ! ----- define dummy variables ------------------------------------------------------------------------------------------
   ! model control
   integer(i4b)       , intent(in)    :: hru_nc              ! hru index in netcdf
-  integer(8)         , intent(in)    :: hruId               ! hruId
+  integer(i8b)       , intent(in)    :: hruId               ! hruId
   type(dom_d)        , intent(inout) :: dt_init             ! used to initialize the length of the sub-step for each HRU
   logical(lgt)       , intent(inout) :: computeVegFlux      ! flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
   integer(i4b)       , intent(in)    :: ndom                ! number of domains
@@ -154,11 +154,10 @@ subroutine run_oneHRU(&
   character(len=256)                :: cmessage            ! error message
   real(rkind)       , allocatable   :: zSoilReverseSign(:) ! height at bottom of each soil layer, negative downwards (m)
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
-
-  ! initialize error control
-  err=0; write(message, '(A21,I0,A10,I0,A2)' ) 'run_oneHRU (hru nc = ',hru_nc -1 ,', hruId = ',hruId,')/' !netcdf index starts with 0 if want to subset
-
   do i = 1, ndom
+    ! initialize error control
+    err=0; write(message, '(A21,I0,A10,I0,A13,I0,A2,)' ) 'run_oneHRU (hru_nc = ',hru_nc,', hruId = ',hruId', dom_type = ',domInfo(i)%dom_type,')/'
+
     glacierDomain = .false. ! reset the flag for the next domain
 
     ! if water pixel or if the fraction of the domain is zero, do not run the model but update the number of layers

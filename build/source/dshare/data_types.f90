@@ -119,14 +119,14 @@ MODULE data_types
  type, public :: hru_info
   integer(i4b)                           :: hru_nc                        ! index of the hru in the netcdf file
   integer(i4b)                           :: hru_ix                        ! index of the hru in the run space
-  integer(8)                             :: hru_id                        ! id (non-sequential number) of the hru
+  integer(i8b)                           :: hru_id                        ! id (non-sequential number) of the hru
   integer(i4b)                           :: domCount                      ! number of domains in the hru
   type(dom_info), allocatable            :: domInfo(:)                    ! basic information of domains within the gru
  endtype hru_info
 
  ! define mapping from GRUs to the HRUs
  type, public :: gru2hru_map
-  integer(8)                             :: gru_id                        ! id of the gru
+  integer(i8b)                           :: gru_id                        ! id of the gru
   integer(i4b)                           :: nGlacier                      ! number of glaciers in the basin
   integer(i4b)                           :: nWetland                      ! number of wetlands in the basin
   integer(i4b)                           :: hruCount                      ! total number of hrus in the gru
@@ -180,7 +180,7 @@ MODULE data_types
  endtype ilength
  ! ** integer type (8 byte)
  type, public :: i8length
-  integer(8),allocatable                 :: dat(:)                        ! dat(:)
+  integer(i8b),allocatable               :: dat(:)                        ! dat(:)
  endtype i8length
  ! ** logical type
  type, public :: flagVec
@@ -217,7 +217,7 @@ MODULE data_types
  endtype var_i
  ! ** integer type of fixed length (8 byte)
  type, public :: var_i8
-  integer(8),allocatable                 :: var(:)                        ! var(:)
+  integer(i8b),allocatable               :: var(:)                        ! var(:)
  endtype var_i8
 
  ! ** double precision type of fixed length
@@ -230,7 +230,7 @@ MODULE data_types
  endtype dom_i
  ! ** integer type of fixed length (8 byte)
  type, public :: dom_i8
-  integer(8),allocatable                 :: dom(:)                        ! dom(:)
+  integer(i8b),allocatable                 :: dom(:)                        ! dom(:)
  endtype dom_i8
 
   ! ** double precision type of fixed length
@@ -243,7 +243,7 @@ MODULE data_types
  endtype hru_i
  ! ** integer type of fixed length (8 byte)
  type, public :: hru_i8
-  integer(8),allocatable                 :: hru(:)                        ! hru(:)
+  integer(i8b),allocatable               :: hru(:)                        ! hru(:)
  endtype hru_i8
 
  ! ** double precision type of fixed length
@@ -256,7 +256,7 @@ MODULE data_types
  endtype gru_i
  ! ** integer type of fixed length (8 byte)
  type, public :: gru_i8
-  integer(8),allocatable                 :: gru(:)                        ! gru(:)
+  integer(i8b),allocatable                 :: gru(:)                        ! gru(:)
  endtype gru_i8
 
  ! define derived types to hold JUST the DOM dimension

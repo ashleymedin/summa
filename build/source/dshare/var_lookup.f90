@@ -28,7 +28,7 @@ MODULE var_lookup
  private
  ! local variables
  integer(i4b),parameter            :: ixVal =1                      ! an example 4 byte integer
- integer(8),parameter              :: ix8Val=2                      ! an example 8 byte integer
+ integer(i8b),parameter            :: ix8Val=2                      ! an example 8 byte integer
  integer(i4b),parameter            :: iLength =storage_size(ixVal)   ! size of the example 4 byte integer
  integer(i4b),parameter            :: i8Length=storage_size(ix8Val)  ! size of the example 8 byte integer
 
@@ -131,7 +131,10 @@ MODULE var_lookup
  end type iLook_type
 
  type, public  ::  iLook_id
-  integer(8)    :: hruId         = integerMissing  ! ID label defining hydrologic response unit (-)
+  integer(i8b)    :: hruId         = integerMissing  ! ID label defining hydrologic response unit (-)
+  integer(i8b)    :: gruId         = integerMissing  ! ID label defining grouped response unit (-)
+  integer(i8b)    :: hru2gruId     = integerMissing  ! ID label defining GRU to which HRU belongs (-)
+  integer(i4b)    :: domType       = integerMissing  ! domain type (1=upland, 2=glacAcc, 3=glacAbl, 4=icemelt)
  end type iLook_id
 
  ! ***********************************************************************************************************
@@ -929,9 +932,9 @@ MODULE var_lookup
  ! named variables: model attributes
  type(iLook_attr),    public,parameter :: iLookATTR     =iLook_attr    (  1,  2,  3,  4,  5,  6,  7,  8)
  ! named variables: soil and vegetation types
- type(iLook_type),    public,parameter :: iLookTYPE     =iLook_type    (  1,  2,  3,  4)
+ type(iLook_type),    public,parameter :: iLookTYPE     =iLook_type    (  1,  2,  3,  4, 5)
  ! named variables: hru and gru IDs and associated information
- type(iLook_id),      public,parameter :: iLookID       =iLook_id      (  1)
+ type(iLook_id),      public,parameter :: iLookID       =iLook_id      (  1,  2, 3)
  ! named variables: model parameters
  type(iLook_param),   public,parameter :: iLookPARAM    =iLook_param   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

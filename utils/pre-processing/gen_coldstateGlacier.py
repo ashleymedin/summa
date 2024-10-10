@@ -65,7 +65,7 @@ def getOutputPolyIDs(nc_file):
 def writeNC_state_vars_HRU(nc_out, newVarName, newVarType, newVarVals):
     """ Write <vars>[hru] array in netCDF4 file,<fn> and variable of
         <varname> """
-    print("adding attribute  data")
+    print("adding attribute data")
     ncvar = nc_out.createVariable(newVarName, newVarType, ('hru',),fill_value='-999')    
     ncvar[:] = newVarVals   # store data in netcdf file
 
