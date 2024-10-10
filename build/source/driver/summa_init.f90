@@ -112,6 +112,7 @@ subroutine summa_initialize(summa1_struc, err, message)
   integer(i4b)                          :: iStruct,iGRU,iHRU  ! looping variables
   integer(i4b)                          :: fileGRU            ! [used for filenames] number of GRUs in the input file
   integer(i4b)                          :: fileHRU            ! [used for filenames] number of HRUs in the input file
+  integer(i4b)                          :: fileDOM            ! [used for filenames] number of domains in the input file
   integer(i4b)                          :: hruCount           ! number of local hydrologic response units
   integer(i4b)                          :: domCount           ! number of local domains
   ! ---------------------------------------------------------------------------------------
@@ -201,9 +202,9 @@ subroutine summa_initialize(summa1_struc, err, message)
     ! obtain the HRU and GRU dimensions in the LocalAttribute file
     attrFile = trim(SETTINGS_PATH)//trim(LOCAL_ATTRIBUTES)
     select case (iRunMode)
-      case(iRunModeFull); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,nDOM,err,cmessage)
-      case(iRunModeGRU ); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,nDOM,err,cmessage,startGRU=startGRU)
-      case(iRunModeHRU ); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,nDOM,err,cmessage,checkHRU=checkHRU)
+      case(iRunModeFull); call read_dimension(trim(attrFile),fileGRU,fileHRU,fileDOM,nGRU,nHRU,nDOM,err,cmessage)
+      case(iRunModeGRU ); call read_dimension(trim(attrFile),fileGRU,fileHRU,fileDOM,nGRU,nHRU,nDOM,err,cmessage,startGRU=startGRU)
+      case(iRunModeHRU ); call read_dimension(trim(attrFile),fileGRU,fileHRU,fileDOM,nGRU,nHRU,nDOM,err,cmessage,checkHRU=checkHRU)
     end select
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 

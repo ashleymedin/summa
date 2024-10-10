@@ -20,6 +20,17 @@
 
 module read_attrb_module
 USE nrtype
+! provide access to global data
+USE globalData,only:gru_struc                              ! gru->hru mapping structure
+USE globalData,only:index_map                              ! hru->gru mapping structure
+USE globalData,only:attr_meta,type_meta,id_meta            ! metadata structures
+
+! access domain types
+USE globalData,only:upland                                 ! domain type for upland areas
+USE globalData,only:glacAcc                                ! domain type for glacier accumulation areas
+USE globalData,only:glacAbl                                ! domain type for glacier ablation areas
+USE globalData,only:wetland                                ! domain type for wetland areas
+
 implicit none
 private
 public::read_dimension
@@ -29,24 +40,17 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_dimension: read HRU and GRU dimension information on local attributes
  ! ************************************************************************************************
- subroutine read_dimension(attrFile,fileGRU,fileHRU,nGRU,nHRU,nDOM,err,message,startGRU,checkHRU)
+ subroutine read_dimension(attrFile,fileGRU,fileHRU,fileDOM,nGRU,nHRU,nDOM,err,message,startGRU,checkHRU)
  USE netcdf
  USE netcdf_util_module,only:nc_file_open                   ! open netcdf file
  USE netcdf_util_module,only:nc_file_close                  ! close netcdf file
  USE nr_utility_module ,only:arth
- ! provide access to global data
- USE globalData,only:gru_struc                              ! gru->hru mapping structure
- USE globalData,only:index_map                              ! hru->gru mapping structure
- ! access domain types
- USE globalData,only:upland                                 ! domain type for upland areas
- USE globalData,only:glacAcc                                ! domain type for glacier accumulation areas
- USE globalData,only:glacAbl                                ! domain type for glacier ablation areas
- USE globalData,only:wetland                                ! domain type for wetland areas
  implicit none
 
  character(*),intent(in)              :: attrFile           ! name of attributed file
  integer(i4b),intent(out)             :: fileGRU            ! number of GRUs in the input file
  integer(i4b),intent(out)             :: fileHRU            ! number of HRUs in the input file
+ integer(i4b),intent(out)             :: fileDOM            ! maximum number of domains in any HRU
  integer(i4b),intent(inout)           :: nGRU               ! number of GRUs in the run space
  integer(i4b),intent(inout)           :: nHRU               ! number of HRUs in the run space
  integer(i4b),intent(inout)           :: nDOM               ! maximum number of domains in any HRU
@@ -62,13 +66,15 @@ contains
  integer(i4b)                         :: iGRU               ! GRU loop index
  integer(i8b),allocatable             :: gru_id(:),hru_id(:)! read gru/hru IDs in from attributes file
  integer(i8b),allocatable             :: hru2gru_id(:)      ! read hru->gru mapping in from attributes file
+ integer(i8b),allocatable             :: dom_type(:,:)      ! read domain type in from attributes file
  integer(i4b),allocatable             :: hru_ix(:)          ! hru index for search
 
  ! define variables for NetCDF file operation
  integer(i4b)                         :: ncID               ! NetCDF file ID
  integer(i4b)                         :: varID              ! NetCDF variable ID
- integer(i4b)                         :: gruDimId           ! variable id of GRU dimension from netcdf file
- integer(i4b)                         :: hruDimId           ! variable id of HRU dimension from netcdf file
+ integer(i4b)                         :: gruDimId           ! variable id of gru dimension from netcdf file
+ integer(i4b)                         :: hruDimId           ! variable id of hru dimension from netcdf file
+ integer(i4b)                         :: domDimId           ! variable id of dom dimension from netcdf file
  integer(i4b),allocatable             :: nGlac_GRU(:)       ! number of glaciers in gru
  integer(i4b),allocatable             :: nWtld_GRU(:)       ! number of wetlands/lakes in gru
  character(len=256)                   :: cmessage           ! error message for downwind routine
@@ -94,6 +100,10 @@ contains
  err = nf90_inq_dimid(ncID,"hru",hruDimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru dimension/'//trim(nf90_strerror(err)); return; end if
  err = nf90_inquire_dimension(ncID, hruDimId, len = fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if
 
+ ! get dom dimension of whole file
+ err = nf90_inq_dimid(ncID,"dom",domDimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding dom dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inquire_dimension(ncID, domDimId, len = fileDOM); if(err/=nf90_noerr)then; message=trim(message)//'problem reading dom dimension/'//trim(nf90_strerror(err)); return; end if
+
  ! get runtime GRU dimensions
  if (present(startGRU)) then
   if (nGRU < 1) then; err=20; message=trim(message)//'nGRU < 1 for a startGRU run'; return; end if
@@ -116,9 +126,10 @@ contains
  ! *********************************************************************************************
  ! read mapping vectors and populate mapping structures
  ! **********************************************************************************************
- ! allocate space for GRU indices
- allocate(gru_id(fileGRU))
- allocate(hru_ix(fileHRU),hru_id(fileHRU),hru2gru_id(fileHRU),nGlac_GRU(fileGRU),nWtld_GRU(fileGRU))
+ ! allocate space for indices and types
+ allocate(gru_id(fileGRU),nGlac_GRU(fileGRU),nWtld_GRU(fileGRU))
+ allocate(hru_ix(fileHRU),hru_id(fileHRU),hru2gru_id(fileHRU))
+ allocate(dom_type(fileDOM,fileHRU))
 
  ! read gru_id from netcdf file
  err = nf90_inq_varid(ncID,"gruId",varID);     if (err/=0) then; message=trim(message)//'problem finding gruId'; return; end if
@@ -134,7 +145,7 @@ contains
 
  ! read dom_type from netcdf file
  err = nf90_inq_varid(ncID,"domType",varID);  if (err/=0) then; message=trim(message)//'problem finding domType'; return; end if
- err = nf90_get_var(ncID,varID,dom_type);      if (err/=0) then; message=trim(message)//'problem reading domType'; return; end if
+ err = nf90_get_var(ncID,varID,dom_type);     if (err/=0) then; message=trim(message)//'problem reading domType'; return; end if
 
  ! read domain information from netcdf file
  err = nf90_inq_varid(ncID,"nGlacier",varID)
@@ -172,13 +183,13 @@ contains
   gru_struc(iGRU)%hruInfo(iGRU)%hru_nc = checkHRU             ! set hru id in attributes netcdf file
   gru_struc(iGRU)%hruInfo(iGRU)%hru_ix = 1                    ! set index of hru in run space
   gru_struc(iGRU)%hruInfo(iGRU)%hru_id = hru_id(checkHRU)     ! set id of hru
+  gru_struc(iGRU)%nGlacier = nGlac_GRU(iGRU)                  ! set number of glaciers in the gru
+  gru_struc(iGRU)%nWetland = nWtld_GRU(iGRU)                  ! set number of wetlands in the gru
 
   gru_struc(iGRU)%hruInfo(iGRU)%domCount = 1                  ! upland domain always present, for changing size glaciers and lakes
-  if (any(domType(:,checkHRU))==glacAcc) gru_struc(iGRU)%hruInfo(iGRU)%domCount = gru_struc(iGRU)%hruInfo(iGRU)%domCount + 2 ! accumulation and ablation domains possible, if have one have other
-  if (any(domType(:,checkHRU))==wetland) gru_struc(iGRU)%hruInfo(iGRU)%domCount = gru_struc(iGRU)%hruInfo(iGRU)%domCount + 1 ! wetland domain possible
+  if (any(dom_type(1:fileDOM,checkHRU)==glacAcc)) gru_struc(iGRU)%hruInfo(iGRU)%domCount = gru_struc(iGRU)%hruInfo(iGRU)%domCount + 2 ! accumulation and ablation domains possible, if have one have other
+  if (any(dom_type(1:fileDOM,checkHRU)==wetland)) gru_struc(iGRU)%hruInfo(iGRU)%domCount = gru_struc(iGRU)%hruInfo(iGRU)%domCount + 1 ! wetland domain possible
   allocate(gru_struc(iGRU)%hruInfo(iGRU)%domInfo(gru_struc(iGRU)%hruInfo(iGRU)%domCount))                  ! allocate third level of gru to hru map
-  gru_struc(iGRU)%nGlacier = nGlac_GRU(iGRU)              ! set number of glaciers in the gru
-  gru_struc(iGRU)%nWetland = nWtld_GRU(iGRU)              ! set number of wetlands in the gru
   gru_struc(iGRU)%hruInfo(iGRU)%domInfo(:)%dom_type = dom_type(:,checkHRU)
 
   
@@ -195,16 +206,15 @@ contains
     gru_struc(iGRU)%hruInfo(:)%hru_nc = pack(hru_ix,hru2gru_id == gru_struc(iGRU)%gru_id) ! set hru id in attributes netcdf file
     gru_struc(iGRU)%hruInfo(:)%hru_ix = arth(iHRU,1,gru_struc(iGRU)%hruCount)             ! set index of hru in run space
     gru_struc(iGRU)%hruInfo(:)%hru_id = hru_id(gru_struc(iGRU)%hruInfo(:)%hru_nc)         ! set id of hru
+    gru_struc(iGRU)%nGlacier = nGlac_GRU(iGRU)              ! set number of glaciers in the gru
+    gru_struc(iGRU)%nWetland = nWtld_GRU(iGRU)              ! set number of wetlands in the gru
 \
     do i = 1,gru_struc(iGRU)%hruCount
       gru_struc(iGRU)%hruInfo(i)%domCount = 1                                             ! upland domain always present, for changing size glaciers and lakes
-      if (any(domType(:,gru_struc(iGRU)%hruInfo(:)%hru_nc))==glacAcc) gru_struc(iGRU)%hruInfo(i)%domCount = gru_struc(iGRU)%hruInfo(i)%domCount + 2 ! accumulation and ablation domains possible
-      if (any(domType(:,gru_struc(iGRU)%hruInfo(:)%hru_nc))==wetland) gru_struc(iGRU)%hruInfo(i)%domCount = gru_struc(iGRU)%hruInfo(i)%domCount + 1 ! wetland domain possible
+      if (any(dom_type(1:fileDOM,gru_struc(iGRU)%hruInfo(i)%hru_nc)==glacAcc)) gru_struc(iGRU)%hruInfo(i)%domCount = gru_struc(iGRU)%hruInfo(i)%domCount + 2 ! accumulation and ablation domains possible
+      if (any(dom_type(1:fileDOM,gru_struc(iGRU)%hruInfo(i)%hru_nc)==wetland)) gru_struc(iGRU)%hruInfo(i)%domCount = gru_struc(iGRU)%hruInfo(i)%domCount + 1 ! wetland domain possible
       allocate(gru_struc(iGRU)%hruInfo(i)%domInfo(gru_struc(iGRU)%hruInfo(i)%domCount))   ! allocate third level of gru to hru map
-      gru_struc(iGRU)%nGlacier = nGlac_GRU(iGRU)              ! set number of glaciers in the gru
-      gru_struc(iGRU)%nWetland = nWtld_GRU(iGRU)              ! set number of wetlands in the gru
-      gru_struc(iGRU)%hruInfo(i)%domInfo(:)%dom_type = = dom_type(:,gru_struc(iGRU)%hruInfo(:)%hru_nc)
-  
+      gru_struc(iGRU)%hruInfo(i)%domInfo(:)%dom_type = dom_type(:,gru_struc(iGRU)%hruInfo(i)%hru_nc)
     enddo
  
     iHRU = iHRU + gru_struc(iGRU)%hruCount
@@ -259,9 +269,6 @@ end subroutine read_dimension
  USE data_types,only:gru_hru_int                            ! x%gru(:)%hru(:)%var(:)     (i4b)
  USE data_types,only:gru_hru_int8                           ! x%gru(:)%hru(:)%var(:)     (i8b)
  USE data_types,only:gru_hru_double                         ! x%gru(:)%hru(:)%var(:)     (rkind)
- ! provide access to global data
- USE globalData,only:gru_struc                              ! gru-hru mapping structure
- USE globalData,only:attr_meta,type_meta,id_meta            ! metadata structures
  USE get_ixname_module,only:get_ixAttr,get_ixType,get_ixId  ! access function to find index of elements in structure
  implicit none
 

@@ -156,7 +156,7 @@ subroutine run_oneHRU(&
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
   do i = 1, ndom
     ! initialize error control
-    err=0; write(message, '(A21,I0,A10,I0,A13,I0,A2,)' ) 'run_oneHRU (hru_nc = ',hru_nc,', hruId = ',hruId', dom_type = ',domInfo(i)%dom_type,')/'
+    err=0; write(message, '(A21,I0,A10,I0,A13,I0,A2)' ) 'run_oneHRU (hru_nc = ',hru_nc,', hruId = ',hruId,', dom_type = ',domInfo(i)%dom_type,')/'
 
     glacierDomain = .false. ! reset the flag for the next domain
 

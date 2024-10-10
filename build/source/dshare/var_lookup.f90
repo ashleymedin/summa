@@ -932,9 +932,9 @@ MODULE var_lookup
  ! named variables: model attributes
  type(iLook_attr),    public,parameter :: iLookATTR     =iLook_attr    (  1,  2,  3,  4,  5,  6,  7,  8)
  ! named variables: soil and vegetation types
- type(iLook_type),    public,parameter :: iLookTYPE     =iLook_type    (  1,  2,  3,  4, 5)
+ type(iLook_type),    public,parameter :: iLookTYPE     =iLook_type    (  1,  2,  3,  4)
  ! named variables: hru and gru IDs and associated information
- type(iLook_id),      public,parameter :: iLookID       =iLook_id      (  1,  2, 3)
+ type(iLook_id),      public,parameter :: iLookID       =iLook_id      (  1,  2,  3,  4)
  ! named variables: model parameters
  type(iLook_param),   public,parameter :: iLookPARAM    =iLook_param   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
