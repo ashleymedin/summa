@@ -361,9 +361,9 @@ if __name__ == '__main__':
     for i,g in enumerate(gruIDs):
         totAccArea[i] = dom_area[0,hru2gru==g,1].sum()
         totAblArea[i] = dom_area[0,hru2gru==g,2].sum()
-        if ngl0[i]>0: 
-            accArea[0,:ngl0[i],i] = totAccArea[i]/ngl0[i]
-            ablArea[0,:ngl0[i],i] = totAblArea[i]/ngl0[i]
+        if nGlacier[i]>0: 
+            accArea[0,:nGlacier[i],i] = totAccArea[i]/nGlacier[i]
+            ablArea[0,:nGlacier[i],i] = totAblArea[i]/nGlacier[i]
     
 
     newVarVals = np.full((ngl,nOutPolygonsGRU), ablArea, dtype='f8')

@@ -488,7 +488,7 @@ contains
  err = nf90_put_att(ncid, gruIdVarID, 'units',     '-'                  ); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruIdVar_unit';   call netcdf_err(err,message); return; end if
 
  ! Leave define mode of NetCDF files
- err = nf90_enddef(ncid);  message=trim(message)//'nf90_enddef'; call netcdf_err(err,message); if (err/=nf90_NoErr) return
+ err = nf90_enddef(ncid); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_enddef'; call netcdf_err(err,message); return; end if
 
  ! write the 'hru' and 'gru' records from the input netcdf file, and hruId and gruId
  do iGRU = 1, size(gru_struc)
@@ -508,9 +508,9 @@ contains
 
     ! DOM info
     do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
-     err = nf90_put_var(ncid, domVarID, iDOM, start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iDOM/))
+     err = nf90_put_var(ncid, domVarID, iDOM, start=(/iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix/))
      if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_domVar'; call netcdf_err(err,message); return; end if
-     err = nf90_put_var(ncid, domIdVarID, gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type, start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iDOM/))
+     err = nf90_put_var(ncid, domIdVarID, gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type, start=(/iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix/))
      if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_domTypeVar'; call netcdf_err(err,message); return; end if
     end do
   end do
