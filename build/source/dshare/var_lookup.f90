@@ -134,7 +134,6 @@ MODULE var_lookup
   integer(i8b)    :: hruId         = integerMissing  ! ID label defining hydrologic response unit (-)
   integer(i8b)    :: gruId         = integerMissing  ! ID label defining grouped response unit (-)
   integer(i8b)    :: hru2gruId     = integerMissing  ! ID label defining GRU to which HRU belongs (-)
-  integer(i4b)    :: domType       = integerMissing  ! domain type (1=upland, 2=glacAcc, 3=glacAbl, 4=icemelt)
  end type iLook_id
 
  ! ***********************************************************************************************************
@@ -934,7 +933,7 @@ MODULE var_lookup
  ! named variables: soil and vegetation types
  type(iLook_type),    public,parameter :: iLookTYPE     =iLook_type    (  1,  2,  3,  4)
  ! named variables: hru and gru IDs and associated information
- type(iLook_id),      public,parameter :: iLookID       =iLook_id      (  1,  2,  3,  4)
+ type(iLook_id),      public,parameter :: iLookID       =iLook_id      (  1,  2,  3)
  ! named variables: model parameters
  type(iLook_param),   public,parameter :: iLookPARAM    =iLook_param   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

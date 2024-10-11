@@ -31,7 +31,6 @@ USE globalData, only: newFileEveryOct1        ! create a new file on Oct 1 every
 ! metadata structures
 USE globalData,only:attr_meta                 ! attributes metadata structure
 USE globalData,only:type_meta                 ! veg/soil type metadata structure
-USE globalData,only:id_meta                   ! hru and gru Id metadata structure
 USE globalData,only:mpar_meta                 ! local parameter metadata structure
 USE globalData,only:bpar_meta                 ! basin parameter metadata structure
 

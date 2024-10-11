@@ -371,11 +371,11 @@ end subroutine read_dimension
      end do
     end do
 
-   ! for GRU domain quantity variables, do nothing (information read above)
+   ! for GRU domain quantity variables, do nothing (information read above in read_dimension)
    case('nGlacier','nWetland'); cycle
 
    ! for mapping variables, do nothing (information read above in read_dimension)   
-   case('hru2gruId','gruId','domType')
+   case('hru2gruId','gruId')
     ! get the index of the variable
     varType = idrelated
     varIndx = get_ixId(varName)
@@ -401,7 +401,7 @@ end subroutine read_dimension
    end do
    checkAttr(varIndx) = .true.
  endif
-  ! glacier fraction
+ ! glacier fraction
  varIndx = get_ixAttr('aspect')
  ! check that the variable was not found in the attribute file
  if(.not. checkAttr(varIndx)) then

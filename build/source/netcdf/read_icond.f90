@@ -67,7 +67,6 @@ contains
  character(*)  ,intent(out)  :: message            ! returned error message
  ! locals
  integer(i4b)                :: ncID               ! netcdf file id
- integer(i4b)                :: ixFile             ! index in file
  integer(i4b)                :: dimID              ! netcdf file dimension id
  integer(i4b)                :: varID              ! netcdf variable id
  integer(i4b)                :: fileHRU            ! number of HRUs in netcdf file
@@ -128,13 +127,14 @@ contains
  ! count domains and set domain type
  do iGRU = 1,nGRU
    do iHRU = 1,gru_struc(iGRU)%hruCount
+     iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
      gru_struc(iGRU)%hruInfo(iHRU)%domCount = 1                                              ! upland domain always present, for changing size glaciers and lakes
-     if (any(dom_type(1:fileDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)==glacAcc)) &
+     if (any(dom_type(1:fileDOM,iHRU_global)==glacAcc)) &
        gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 2   ! accumulation and ablation domains possible
-     if (any(dom_type(1:fileDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)==wetland)) &
+     if (any(dom_type(1:fileDOM,iHRU_global)==wetland)) &
        gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 1   ! wetland domain possible
      allocate(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(gru_struc(iGRU)%hruInfo(iHRU)%domCount)) ! allocate third level of gru to hru map
-     gru_struc(iGRU)%hruInfo(iHRU)%domInfo(:)%dom_type = dom_type(:,gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
+     gru_struc(iGRU)%hruInfo(iHRU)%domInfo(:)%dom_type = dom_type(:,iHRU_global)
    enddo
  enddo
 
@@ -146,7 +146,7 @@ contains
  err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nIce)%varName),iceID)
  if(err/=nf90_noerr) no_iceData = .true.
 
- ! get nSnow and nSoil data (reads entire state file)
+ ! get nLayer data (reads entire state file)
  err = nf90_get_var(ncID,snowID,snowData); call netcdf_err(err,message)
  err = nf90_get_var(ncID,soilID,soilData); call netcdf_err(err,message)
  if (.not. no_iceData)  err = nf90_get_var(ncID,iceID,iceData);   call netcdf_err(err,message)
@@ -156,8 +156,9 @@ contains
  ! find the min and max hru indices in the state file
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
-   if(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc < ixHRUfile_min) ixHRUfile_min = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
-   if(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc > ixHRUfile_max) ixHRUfile_max = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
+   iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
+   if(iHRU_global < ixHRUfile_min) ixHRUfile_min = iHRU_global
+   if(iHRU_global > ixHRUfile_max) ixHRUfile_max = iHRU_global
   end do
  end do
 
@@ -166,11 +167,10 @@ contains
   do iHRU = 1,gru_struc(iGRU)%hruCount
    iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
    do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
-    ixFile = iHRU_global
-    gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow = snowData(iDOM,ixFile)
-    gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake = lakeData(iDOM,ixFile)
-    gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil = soilData(iDOM,ixFile)
-    gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce  =  iceData(iDOM,ixFile)
+    gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow = snowData(iDOM,iHRU_global)
+    gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake = lakeData(iDOM,iHRU_global)
+    gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil = soilData(iDOM,iHRU_global)
+    gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce  =  iceData(iDOM,iHRU_global)
    end do
   end do
  end do
@@ -253,7 +253,6 @@ contains
  character(256)                            :: dimName                  ! not used except as a placeholder in call to inq_dim function
  integer(i4b)                              :: dimLen                   ! data dimensions
  integer(i4b)                              :: ncID                     ! netcdf file ID
- integer(i4b)                              :: ixFile                   ! index in file
  integer(i4b)                              :: iHRU_global              ! index of HRU in the netcdf file
  real(rkind),allocatable                   :: varData2(:,:)            ! variable data storage
  real(rkind),allocatable                   :: varData3(:,:,:)          ! variable data storage
@@ -300,22 +299,21 @@ contains
  ! loop through prognostic variables
  no_icond_enth=.false.
  do iVar = 1,size(prog_meta)
-
+   print*,prog_meta(iVar)%varName
   ! skip variables that are computed later
   if(prog_meta(iVar)%varName=='scalarCanopyWat'           .or. &
      prog_meta(iVar)%varName=='spectralSnowAlbedoDiffuse' .or. &
      prog_meta(iVar)%varName=='scalarSurfaceTemp'         .or. &
      prog_meta(iVar)%varName=='mLayerVolFracWat'          .or. &
-     prog_meta(iVar)%varName=='mLayerHeight'                   ) err=nf90_noerr; cycle
-
+     prog_meta(iVar)%varName=='mLayerHeight'                   )then; err=nf90_noerr; cycle; endif
   ! get variable id
   err = nf90_inq_varid(ncID,trim(prog_meta(iVar)%varName),ncVarID)
   if(err/=nf90_noerr)then
    if(prog_meta(iVar)%varName=='DOMarea'              .or. &
-      prog_meta(iVar)%varName=='DOMelev'                   ) err=nf90_noerr; cycle ! backwards compatible, may be missing, correct in check_icond
+      prog_meta(iVar)%varName=='DOMelev'                   )then; err=nf90_noerr; cycle; endif ! backwards compatible, may be missing, correct in check_icond
    if(prog_meta(iVar)%varName=='scalarCanairEnthalpy' .or. &
       prog_meta(iVar)%varName=='scalarCanopyEnthalpy' .or. &  
-      prog_meta(iVar)%varName=='mLayerEnthalpy'            ) err=nf90_noerr; no_icond_enth=.true.; cycle ! skip enthalpy variables if not in file
+      prog_meta(iVar)%varName=='mLayerEnthalpy'            )then; err=nf90_noerr; no_icond_enth=.true.; cycle; endif ! skip enthalpy variables if not in file
    call netcdf_err(err,message)
    message=trim(message)//': problem with getting variable id, var='//trim(prog_meta(iVar)%varName)
    return
@@ -367,20 +365,19 @@ contains
      if(nIce>0) has_glacier = .true.
      if(nLake>0) has_wetland = .true.
 
-     ixFile = iHRU_global
      ! put the data into data structures and check that none of the values are set to nf90_fill_double
      select case (prog_meta(iVar)%varType)
       case (iLookVarType%scalarv)
-       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1)       = varData3(iDOM,ixFile,1)
+       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1)       = varData3(iDOM,iHRU_global,1)
        if(abs(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1) - nf90_fill_double) < epsilon(varData3))then; err=20; endif
       case (iLookVarType%midSoil)
-       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nSoil) = varData3(iDOM,ixFile,1:nSoil)
+       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nSoil) = varData3(iDOM,iHRU_global,1:nSoil)
        if(any(abs(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nSoil) - nf90_fill_double) < epsilon(varData3)))then; err=20; endif   
       case (iLookVarType%midToto)
-       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nToto) = varData3(iDOM,ixFile,1:nToto)
+       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nToto) = varData3(iDOM,iHRU_global,1:nToto)
        if(any(abs(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nToto) - nf90_fill_double) < epsilon(varData3)))then; err=20; endif
       case (iLookVarType%ifcToto)
-       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(0:nToto) = varData3(iDOM,ixFile,1:nToto+1)
+       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(0:nToto) = varData3(iDOM,iHRU_global,1:nToto+1)
        if(any(abs(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(0:nToto) - nf90_fill_double) < epsilon(varData3)))then; err=20; endif
       case default
        message=trim(message)//"unexpectedVariableType[name='"//trim(prog_meta(iVar)%varName)//"';type='"//trim(get_varTypeName(prog_meta(iVar)%varType))//"']"
