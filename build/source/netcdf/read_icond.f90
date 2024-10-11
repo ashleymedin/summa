@@ -106,13 +106,13 @@ contains
   fileDOM = 1 ! backwards compatible, just upland domain
   allocate(dom_type(1,fileHRU))
   dom_type = upland
+  err=nf90_noerr    ! reset this err
  else
   err = nf90_inquire_dimension(ncID,dimId,len=fileDOM); if(err/=nf90_noerr)then; message=trim(message)//'problem reading dom dimension/'//trim(nf90_strerror(err)); return; end if
   ! read dom_type from netcdf file
   allocate(dom_type(fileDOM,fileHRU))
   err = nf90_inq_varid(ncID,"domType",varID);  if (err/=0) then; message=trim(message)//'problem finding domType'; return; end if
   err = nf90_get_var(ncID,varID,dom_type);     if (err/=0) then; message=trim(message)//'problem reading domType'; return; end if
-
  end if
 
  ! allocate storage for reading from file (allocate entire file size, even when doing subdomain run)
@@ -125,15 +125,18 @@ contains
  iceData  = 0
  lakeData = 0
 
- do iHRU = 1,gru_struc(iGRU)%hruCount
-  gru_struc(iGRU)%hruInfo(iHRU)%domCount = 1                                              ! upland domain always present, for changing size glaciers and lakes
-  if (any(dom_type(1:fileDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)==glacAcc)) &
-    gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 2   ! accumulation and ablation domains possible
-  if (any(dom_type(1:fileDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)==wetland)) &
-    gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 1   ! wetland domain possible
-  allocate(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(gru_struc(iGRU)%hruInfo(iHRU)%domCount)) ! allocate third level of gru to hru map
-  gru_struc(iGRU)%hruInfo(iHRU)%domInfo(:)%dom_type = dom_type(:,gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
-enddo
+ ! count domains and set domain type
+ do iGRU = 1,nGRU
+   do iHRU = 1,gru_struc(iGRU)%hruCount
+     gru_struc(iGRU)%hruInfo(iHRU)%domCount = 1                                              ! upland domain always present, for changing size glaciers and lakes
+     if (any(dom_type(1:fileDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)==glacAcc)) &
+       gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 2   ! accumulation and ablation domains possible
+     if (any(dom_type(1:fileDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)==wetland)) &
+       gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 1   ! wetland domain possible
+     allocate(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(gru_struc(iGRU)%hruInfo(iHRU)%domCount)) ! allocate third level of gru to hru map
+     gru_struc(iGRU)%hruInfo(iHRU)%domInfo(:)%dom_type = dom_type(:,gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
+   enddo
+ enddo
 
  ! get netcdf ids for the variables holding number of layers in each domain or hru
  err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nSnow)%varName),snowID); call netcdf_err(err,message)
@@ -289,6 +292,7 @@ enddo
  err = nf90_inq_dimid(ncID,"dom",dimId)               
  if(err/=nf90_noerr)then
   fileDOM = nDOM
+  err=nf90_noerr    ! reset this err
  else
   err = nf90_inquire_dimension(ncID,dimId,len=fileDOM); if(err/=nf90_noerr)then; message=trim(message)//'problem reading dom dimension/'//trim(nf90_strerror(err)); return; end if
  end if

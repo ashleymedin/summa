@@ -205,12 +205,12 @@ contains
  if (present(checkHRU)) then                                                                    ! allocate space for single-HRU run
   if (nHRU/=1) then; err=-20; message=trim(message)//'wrong # of HRUs for checkHRU run'; return; end if
   iGRU = 1;
-  index_map(1)%gru_ix   = iGRU                                                                  ! index of gru in run space to which the hru belongs
+  index_map(1)%gru_ix      = iGRU                                                               ! index of gru in run space to which the hru belongs
   index_map(1)%localHRU_ix = hru_ix(1)                                                          ! index of hru within the gru
 
  else ! anything other than a single HRU run
   do iGRU = 1,nGRU
-   index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%gru_ix   = iGRU                                 ! index of gru in run space to which the hru belongs
+   index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%gru_ix      = iGRU                              ! index of gru in run space to which the hru belongs
    index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%localHRU_ix = hru_ix(1:gru_struc(iGRU)%hruCount)! index of hru within the gru
   enddo ! iGRU = 1,nGRU
 

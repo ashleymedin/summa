@@ -226,7 +226,7 @@ contains
 
      ! check to see if hruId exists as a variable, this is a required variable
      err = nf90_inq_varid(ncid,trim(varname),varId)
-     if(err/=0)then; message=trim(message)//'hruID variable not present'; return; endif
+     if(err/=0)then; message=trim(message)//'hruId variable not present'; return; endif
 
      ! check that the hruId is what we expect
      ! NOTE: we enforce that the HRU order in the forcing files is the same as in the zLocalAttributes files (too slow otherwise)
