@@ -61,7 +61,7 @@ contains
  character(*)  ,intent(in)   :: iconFile           ! name of input (restart) file
  integer(i4b)  ,intent(in)   :: nGRU               ! total # of GRUs in run space
  integer(i4b)  ,intent(in)   :: nHRU               ! total # of HRUs in run space
- integer(i4b)  ,intent(inout):: nDOM               ! total # of domains in run space
+ integer(i4b)  ,intent(inout):: nDOM               ! max number of domains in any HRU
  type(var_info),intent(in)   :: indx_meta(:)       ! metadata
  integer(i4b)  ,intent(out)  :: err                ! error code
  character(*)  ,intent(out)  :: message            ! returned error message
@@ -113,6 +113,7 @@ contains
   err = nf90_inq_varid(ncID,"domType",varID);  if (err/=0) then; message=trim(message)//'problem finding domType'; return; end if
   err = nf90_get_var(ncID,varID,dom_type);     if (err/=0) then; message=trim(message)//'problem reading domType'; return; end if
  end if
+ nDOM = fileDOM
 
  ! allocate storage for reading from file (allocate entire file size, even when doing subdomain run)
  allocate(snowData(fileDOM,fileHRU))
@@ -290,7 +291,7 @@ contains
  ! get max number of DOMs any HRU in file, if present
  err = nf90_inq_dimid(ncID,"dom",dimId)               
  if(err/=nf90_noerr)then
-  fileDOM = nDOM
+  fileDOM = 1
   err=nf90_noerr    ! reset this err
  else
   err = nf90_inquire_dimension(ncID,dimId,len=fileDOM); if(err/=nf90_noerr)then; message=trim(message)//'problem reading dom dimension/'//trim(nf90_strerror(err)); return; end if
@@ -375,6 +376,7 @@ contains
       case (iLookVarType%midToto)
        progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nToto) = varData3(iDOM,iHRU_global,1:nToto)
        if(any(abs(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nToto) - nf90_fill_double) < epsilon(varData3)))then; err=20; endif
+       print*,prog_meta(iVar)%varName,progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(1:nToto),"oh",iGRU,iHRU,iDOM
       case (iLookVarType%ifcToto)
        progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(0:nToto) = varData3(iDOM,iHRU_global,1:nToto+1)
        if(any(abs(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(0:nToto) - nf90_fill_double) < epsilon(varData3)))then; err=20; endif
