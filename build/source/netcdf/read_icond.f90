@@ -299,13 +299,12 @@ contains
  ! loop through prognostic variables
  no_icond_enth=.false.
  do iVar = 1,size(prog_meta)
-   print*,prog_meta(iVar)%varName
   ! skip variables that are computed later
   if(prog_meta(iVar)%varName=='scalarCanopyWat'           .or. &
      prog_meta(iVar)%varName=='spectralSnowAlbedoDiffuse' .or. &
      prog_meta(iVar)%varName=='scalarSurfaceTemp'         .or. &
      prog_meta(iVar)%varName=='mLayerVolFracWat'          .or. &
-     prog_meta(iVar)%varName=='mLayerHeight'                   )then; err=nf90_noerr; cycle; endif
+     prog_meta(iVar)%varName=='mLayerHeight'                   ) cycle
   ! get variable id
   err = nf90_inq_varid(ncID,trim(prog_meta(iVar)%varName),ncVarID)
   if(err/=nf90_noerr)then
