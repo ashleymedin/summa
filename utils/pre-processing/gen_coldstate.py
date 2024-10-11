@@ -50,9 +50,12 @@ def getNetCDFData(fn, varname):
 
 def getOutputPolyIDs(nc_file):
     outPolyIDs  = getNetCDFData(nc_file, 'hruId')    
-    print("read output outPolyIds ('hruId') from example domain file")
-    return outPolyIDs
-
+    hru_elev = getNetCDFData(nc_file, 'elevation')
+    hru_area = getNetCDFData(nc_file, 'HRUarea')
+    gruIDs = getNetCDFData(nc_file, 'gruId')
+    hru2gru = getNetCDFData(nc_file, 'hru2gruId')
+    print("read data from attribute file")
+    return outPolyIDs,hru_elev,hru_area, gruIDs,hru2gru
 
 # write variables to netcdf output file
 def writeNC_state_vars(nc_out, newVarName, newVarDim, newVarType, newVarVals):
@@ -66,15 +69,15 @@ def writeNC_state_vars(nc_out, newVarName, newVarDim, newVarType, newVarVals):
 
 
 # write dimensions and dimension variables to netcdf output file
-def writeNC_dims(fn,  scalarv, midSoil, midToto, ifcToto, hrus, hru_type):    
+def writeNC_dims(fn,  scalarv, midSoil, midToto, ifcToto, hrus, grus, hru_type):    
     """ Write <vars>[hru] array in netCDF4 file,<fn> and variable of
         <varname> """
-
     print("writing output file")
     nc_out = nc4.Dataset(fn, 'w', format='NETCDF4')
 
     # Create dimensions
     dim_hru = nc_out.createDimension('hru', len(hrus))
+    dim_gru = nc_out.createDimension('gru', len(grus))
     dim_scalarv = nc_out.createDimension('scalarv', scalarv)
     dim_midSoil = nc_out.createDimension('midSoil', midSoil)
     dim_midToto = nc_out.createDimension('midToto', midToto)
@@ -87,18 +90,26 @@ def writeNC_dims(fn,  scalarv, midSoil, midToto, ifcToto, hrus, hru_type):
         dim_str = nc_out.createDimension('strlen', max_strlen)
         hruId = nc_out.createVariable('hruId', 'S1', ('hru', 'strlen'),fill_value='-999')  
         hruId[:] = nc4.stringtochar(np.asarray(hrus,
-                                  dtype='S{}'.format(max_strlen)))         
+                                  dtype='S{}'.format(max_strlen)))     
+        gruId = nc_out.createVariable('gruId', 'S1', ('gru', 'strlen'),fill_value='-999')
+        gruId[:] = nc4.stringtochar(np.asarray(np.unique(grus),
+                                  dtype='S{}'.format(max_strlen)))
+
     elif hru_type == 'int64':
         # integer HRU
         hruId = nc_out.createVariable('hruId', 'i8', ('hru', ),fill_value='-999')   
         hruId[:] = hrus
         #hruId[:] = np.asarray(hrus, dtype='int')
+        gruId = nc_out.createVariable('gruId', 'i8', ('gru', ),fill_value='-999')
+        gruId[:] = grus
 
     elif hru_type == 'int':
         # integer HRU
         hruId = nc_out.createVariable('hruId', 'int', ('hru', ),fill_value='-999')   
         hruId[:] = hrus
         #hruId[:] = np.asarray(hrus, dtype='int')
+        gruId = nc_out.createVariable('gruId', 'int', ('gru', ),fill_value='-999')
+        gruId[:] = grus
 
     else:
         # not recognized
@@ -106,6 +117,7 @@ def writeNC_dims(fn,  scalarv, midSoil, midToto, ifcToto, hrus, hru_type):
 
     # add attribute    
     hruId.long_name = 'USGS HUC12 ID'
+    gruId.long_name = 'GRU ID'
 
     return nc_out
     # leave netcdf file open
@@ -144,13 +156,14 @@ if __name__ == '__main__':
 
         if len(args) != 3:
             usage()
-        nc_example_name = args[0]   # template file (param file, etc)
-        nc_out_name = args[1]   # output cold-state file
-        hru_type = args[2]   # 'int' or 'string'
+        nc_attribute_name = args[0]    # attribute file with HRU index
+        nc_out_name = args[1]          # output cold-state file
+        hru_type = args[2]             # 'int' or 'string'
  
     # hardwired to forcing formats (hru index rather than grid)
-    outPolyIDs=getOutputPolyIDs(nc_example_name)        
+    outPolyIDs, hru_elev, hru_area, gruIDs, hru2gru = getOutputPolyIDs(nc_attribute_name)
     nOutPolygons = len(outPolyIDs)
+    nOutPolygonsGRU = len(gruIDs)
 
     # === now start to create the cold state variables using the variable template ===
 
@@ -165,7 +178,7 @@ if __name__ == '__main__':
 
     # initialize netcdf file by storing dimensions and hru variable
     nc_out = writeNC_dims(nc_out_name, scalarv, midSoil, midToto, ifcToto,
-                          outPolyIDs, hru_type)
+                          outPolyIDs, gruIDs, hru_type,)
 
     # === now loop through variables and write
     #  this could be done by looping through the input state file and xferring values

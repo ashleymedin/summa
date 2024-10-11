@@ -40,7 +40,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_dimension: read HRU and GRU dimension information on local attributes
  ! ************************************************************************************************
- subroutine read_dimension(attrFile,fileGRU,fileHRU,fileDOM,nGRU,nHRU,nDOM,err,message,startGRU,checkHRU)
+ subroutine read_dimension(attrFile,fileGRU,fileHRU,nGRU,nHRU,err,message,startGRU,checkHRU)
  USE netcdf
  USE netcdf_util_module,only:nc_file_open                   ! open netcdf file
  USE netcdf_util_module,only:nc_file_close                  ! close netcdf file
@@ -50,10 +50,8 @@ contains
  character(*),intent(in)              :: attrFile           ! name of attributed file
  integer(i4b),intent(out)             :: fileGRU            ! number of GRUs in the input file
  integer(i4b),intent(out)             :: fileHRU            ! number of HRUs in the input file
- integer(i4b),intent(out)             :: fileDOM            ! maximum number of domains in any HRU
  integer(i4b),intent(inout)           :: nGRU               ! number of GRUs in the run space
  integer(i4b),intent(inout)           :: nHRU               ! number of HRUs in the run space
- integer(i4b),intent(inout)           :: nDOM               ! maximum number of domains in any HRU
  integer(i4b),intent(out)             :: err                ! error code
  character(*),intent(out)             :: message            ! error message
  integer(i4b),intent(in),optional     :: startGRU           ! index of the starting GRU for parallelization run
@@ -61,20 +59,16 @@ contains
 
  ! locals
  integer(i4b)                         :: sGRU               ! starting GRU
- integer(i4b)                         :: iDOM,i,j           ! domain counting index
  integer(i4b)                         :: iHRU               ! HRU counting index
  integer(i4b)                         :: iGRU               ! GRU loop index
  integer(i8b),allocatable             :: gru_id(:),hru_id(:)! read gru/hru IDs in from attributes file
  integer(i8b),allocatable             :: hru2gru_id(:)      ! read hru->gru mapping in from attributes file
- integer(i8b),allocatable             :: dom_type(:,:)      ! read domain type in from attributes file
  integer(i4b),allocatable             :: hru_ix(:)          ! hru index for search
 
  ! define variables for NetCDF file operation
  integer(i4b)                         :: ncID               ! NetCDF file ID
  integer(i4b)                         :: varID              ! NetCDF variable ID
- integer(i4b)                         :: gruDimId           ! variable id of gru dimension from netcdf file
- integer(i4b)                         :: hruDimId           ! variable id of hru dimension from netcdf file
- integer(i4b)                         :: domDimId           ! variable id of dom dimension from netcdf file
+ integer(i4b)                         :: dimID              ! netcdf file dimension id
  integer(i4b),allocatable             :: nGlac_GRU(:)       ! number of glaciers in gru
  integer(i4b),allocatable             :: nWtld_GRU(:)       ! number of wetlands/lakes in gru
  character(len=256)                   :: cmessage           ! error message for downwind routine
@@ -93,16 +87,12 @@ contains
  ! read and set GRU dimensions
  ! **********************************************************************************************
  ! get gru dimension of whole file
- err = nf90_inq_dimid(ncID,"gru",gruDimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding gru dimension/'//trim(nf90_strerror(err)); return; end if
- err = nf90_inquire_dimension(ncID, gruDimId, len = fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inq_dimid(ncID,"gru",dimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding gru dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inquire_dimension(ncID, dimId, len = fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
 
  ! get hru dimension of whole file
- err = nf90_inq_dimid(ncID,"hru",hruDimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru dimension/'//trim(nf90_strerror(err)); return; end if
- err = nf90_inquire_dimension(ncID, hruDimId, len = fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if
-
- ! get dom dimension of whole file
- err = nf90_inq_dimid(ncID,"dom",domDimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding dom dimension/'//trim(nf90_strerror(err)); return; end if
- err = nf90_inquire_dimension(ncID, domDimId, len = fileDOM); if(err/=nf90_noerr)then; message=trim(message)//'problem reading dom dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inq_dimid(ncID,"hru",dimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inquire_dimension(ncID, dimId, len = fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if
 
  ! get runtime GRU dimensions
  if (present(startGRU)) then
@@ -129,7 +119,6 @@ contains
  ! allocate space for indices and types
  allocate(gru_id(fileGRU),nGlac_GRU(fileGRU),nWtld_GRU(fileGRU))
  allocate(hru_ix(fileHRU),hru_id(fileHRU),hru2gru_id(fileHRU))
- allocate(dom_type(fileDOM,fileHRU))
 
  ! read gru_id from netcdf file
  err = nf90_inq_varid(ncID,"gruId",varID);     if (err/=0) then; message=trim(message)//'problem finding gruId'; return; end if
@@ -142,10 +131,6 @@ contains
  ! read hru2gru_id from netcdf file
  err = nf90_inq_varid(ncID,"hru2gruId",varID); if (err/=0) then; message=trim(message)//'problem finding hru2gruId'; return; end if
  err = nf90_get_var(ncID,varID,hru2gru_id);    if (err/=0) then; message=trim(message)//'problem reading hru2gruId'; return; end if
-
- ! read dom_type from netcdf file
- err = nf90_inq_varid(ncID,"domType",varID);  if (err/=0) then; message=trim(message)//'problem finding domType'; return; end if
- err = nf90_get_var(ncID,varID,dom_type);     if (err/=0) then; message=trim(message)//'problem reading domType'; return; end if
 
  ! read domain information from netcdf file
  err = nf90_inq_varid(ncID,"nGlacier",varID)
@@ -186,12 +171,6 @@ contains
   gru_struc(iGRU)%nGlacier = nGlac_GRU(iGRU)                  ! set number of glaciers in the gru
   gru_struc(iGRU)%nWetland = nWtld_GRU(iGRU)                  ! set number of wetlands in the gru
 
-  gru_struc(iGRU)%hruInfo(iGRU)%domCount = 1                  ! upland domain always present, for changing size glaciers and lakes
-  if (any(dom_type(1:fileDOM,checkHRU)==glacAcc)) gru_struc(iGRU)%hruInfo(iGRU)%domCount = gru_struc(iGRU)%hruInfo(iGRU)%domCount + 2 ! accumulation and ablation domains possible, if have one have other
-  if (any(dom_type(1:fileDOM,checkHRU)==wetland)) gru_struc(iGRU)%hruInfo(iGRU)%domCount = gru_struc(iGRU)%hruInfo(iGRU)%domCount + 1 ! wetland domain possible
-  allocate(gru_struc(iGRU)%hruInfo(iGRU)%domInfo(gru_struc(iGRU)%hruInfo(iGRU)%domCount))                  ! allocate third level of gru to hru map
-  gru_struc(iGRU)%hruInfo(iGRU)%domInfo(:)%dom_type = dom_type(:,checkHRU)
-
   
  else ! allocate space for anything except a single HRU run
   iHRU = 1
@@ -208,28 +187,16 @@ contains
     gru_struc(iGRU)%hruInfo(:)%hru_id = hru_id(gru_struc(iGRU)%hruInfo(:)%hru_nc)         ! set id of hru
     gru_struc(iGRU)%nGlacier = nGlac_GRU(iGRU)              ! set number of glaciers in the gru
     gru_struc(iGRU)%nWetland = nWtld_GRU(iGRU)              ! set number of wetlands in the gru
-\
-    do i = 1,gru_struc(iGRU)%hruCount
-      gru_struc(iGRU)%hruInfo(i)%domCount = 1                                             ! upland domain always present, for changing size glaciers and lakes
-      if (any(dom_type(1:fileDOM,gru_struc(iGRU)%hruInfo(i)%hru_nc)==glacAcc)) gru_struc(iGRU)%hruInfo(i)%domCount = gru_struc(iGRU)%hruInfo(i)%domCount + 2 ! accumulation and ablation domains possible
-      if (any(dom_type(1:fileDOM,gru_struc(iGRU)%hruInfo(i)%hru_nc)==wetland)) gru_struc(iGRU)%hruInfo(i)%domCount = gru_struc(iGRU)%hruInfo(i)%domCount + 1 ! wetland domain possible
-      allocate(gru_struc(iGRU)%hruInfo(i)%domInfo(gru_struc(iGRU)%hruInfo(i)%domCount))   ! allocate third level of gru to hru map
-      gru_struc(iGRU)%hruInfo(i)%domInfo(:)%dom_type = dom_type(:,gru_struc(iGRU)%hruInfo(i)%hru_nc)
-    enddo
  
     iHRU = iHRU + gru_struc(iGRU)%hruCount
    enddo ! iGRU = 1,nGRU
 
  end if ! not checkHRU
 
- ! set domain id to domain type
- nDOM = 1
+ ! count total number of HRUs
  nHRU = 0
  do iGRU = 1, nGRU
    nHRU = nHRU + gru_struc(iGRU)%hruCount ! total number of HRUs
-   do iHRU = 1, gru_struc(iGRU)%hruCount
-     nDOM = max(nDOM,gru_struc(iGRU)%hruInfo(iHRU)%domCount)
-   end do
  end do
 
  ! set hru to gru mapping

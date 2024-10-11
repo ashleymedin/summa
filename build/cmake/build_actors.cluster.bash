@@ -12,7 +12,7 @@ module load netcdf-fortran/4.6.1
 module load caf
 
 export FLAGS_OPT="-flto=1;-fuse-linker-plugin"
-export SUNDIALS_PATH=/globalhome/kck540/HPC/Libraries/sundials/v7.0/instdir
+export SUNDIALS_DIR=/globalhome/kck540/HPC/Libraries/sundials/v7.0/instdir
 
 cmake -B ../cmake_build -S ../. -DUSE_SUNDIALS=ON -DUSE_ACTORS=ON
 cmake --build ../cmake_build --target all -j

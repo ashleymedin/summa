@@ -61,6 +61,14 @@ def getOutputPolyIDs(nc_file):
     print("read data from attribute file")
     return outPolyIDs,hru_elev,hru_area, gruIDs,hru2gru
 
+# write gru, variables to netcdf output file
+def writeNC_state_vars_GRU(nc_out, newVarName, newVarType, newVarVals):
+    """ Write <vars>[gru] array in netCDF4 file,<fn> and variable of
+        <varname> """
+    print("adding attribute data")
+    ncvar = nc_out.createVariable(newVarName, newVarType, ('gru',),fill_value='-999')    
+    ncvar[:] = newVarVals   # store data in netcdf file
+
 # write hru, variables to netcdf output file
 def writeNC_state_vars_HRU(nc_out, newVarName, newVarType, newVarVals):
     """ Write <vars>[hru] array in netCDF4 file,<fn> and variable of
@@ -191,6 +199,7 @@ if __name__ == '__main__':
     shutil.copy(nc_attribute_name, nc_attribute_name_new)
     print("created new attribute file")
 
+    # add nGlacier and nWetland to attribute file
     nGlacier0 = 0
     nWetland0 = 0
     if glac_dom: # add glaciers to every GRU for testing, SHOULD BE READ FROM FILE
@@ -199,15 +208,12 @@ if __name__ == '__main__':
         nWetland0 = 1
 
     with Dataset(nc_attribute_name_new, 'a') as nc_out:
-        nGlacier = np.full((nOutPolygonsHRU), nGlacier0, dtype='i4')
-        writeNC_state_vars_HRU(nc_out, 'nGlacier', 'i4', nGlacier)
-        nWetland = np.full((nOutPolygonsHRU), nWetland0, dtype='i4')
-        writeNC_state_vars_HRU(nc_out, 'nWetland', 'i4', nWetland)
+        nGlacier = np.full((nOutPolygonsGRU), nGlacier0, dtype='i4')
+        writeNC_state_vars_GRU(nc_out, 'nGlacier', 'i4', nGlacier)
+        nWetland = np.full((nOutPolygonsGRU), nWetland0, dtype='i4')
+        writeNC_state_vars_GRU(nc_out, 'nWetland', 'i4', nWetland)
 
-    ngl0 = np.zeros(nOutPolygonsGRU, dtype=int)
-    for i,g in enumerate(gruIDs):
-        ngl0[i] = int(nGlacier[hru2gru==g].sum())
-    ngl = max(ngl0)
+    ngl = max(nGlacier)
 
     # === now start to create the cold state variables using the variable template ===
     dT = 3600 # timestep of forcings in seconds
@@ -228,9 +234,9 @@ if __name__ == '__main__':
     lyrHeight0_np = np.array(lyrHeight0)
     lyrDepth0 = lyrHeight0_np[1:] - lyrHeight0_np[:-1]
 
-    # domain order has to be upland, glacier ablation, glacier accumulation, wetland
+    # domain order here is 1)upland, 2)glacier accumulation, 3)glacier ablation, 4)wetland
     #   adjust these values as needed SHOULD READ FROM A FILE
-    inld_frac = 1.0
+    upld_frac = 1.0
     glac_frac = 0.5
     wtld_frac = 0.25
     indxWtld = 1
@@ -243,7 +249,7 @@ if __name__ == '__main__':
         lyrHeight_glacnp = np.array(lyrHeight_glac)
         lyrDepth_glac = lyrHeight_glacnp[1:] - lyrHeight_glacnp[:-1]
         indxWtld += 2
-        inld_frac = inld_frac - glac_frac
+        upld_frac = upld_frac - glac_frac
     if wtld_dom: 
         ndom += 1
         midLake = 5
@@ -252,7 +258,7 @@ if __name__ == '__main__':
         lyrHeight_wtld = [0.0, 0.05, 0.2, 0.5, 1, 2.0, 3.0, 4.0, 5.0, 8.0]
         lyrHeight_wtldnp = np.array(lyrHeight_wtld)
         lyrDepth_wtld = lyrHeight_wtldnp[1:] - lyrHeight_wtldnp[:-1]
-        inld_frac = inld_frac - wtld_frac
+        upld_frac = upld_frac - wtld_frac
 
     midToto = max(midToto_glac, midToto_wtld,midToto)
     midSoil = max(midSoil_glac, midSoil_wtld,midSoil)
@@ -277,10 +283,10 @@ if __name__ == '__main__':
     midIce_dom = scalar0.copy()
     midLake_dom = scalar0.copy()
     dom_area = np.full((1, nOutPolygonsHRU, ndom), hru_area, dtype='f8')
-    dom_area[0,0,:] = hru_area * inld_frac
+    dom_area[0,0,:] = hru_area * upld_frac
     dom_elev = np.full((1, nOutPolygonsHRU, ndom), hru_elev, dtype='f8')
 
-
+    domType = np.full((1, nOutPolygonsHRU, ndom), 1, dtype='i4')
     if glac_dom: # NOTE, if HRU glacier area is 0, midIce_dom should be 0
         lyrDepth[1,:,0:len(lyrDepth_glac)] = lyrDepth_glac
         lyrDepth[2,:,0:len(lyrDepth_glac)] = lyrDepth_glac
@@ -290,16 +296,19 @@ if __name__ == '__main__':
         midIce_dom[:,0,2] = midIce
         midSoil_dom[:,0,1] = midSoil_glac
         midSoil_dom[:,0,2] = midSoil_glac
-        dom_area[:,0,1] = hru_area * glac_frac*0.5  # glacier ablation 50% of glacier, SHOULD BE READ FROM FILE
-        dom_area[:,0,2] = hru_area * glac_frac*0.5  # glacier accumulation 50% of glacier, SHOULD BE READ FROM FILE
-        dom_elev[:,0,1] = hru_elev * 0.5            # for testing, SHOULD BE READ FROM FILE
-        dom_elev[:,0,2] = hru_elev * 1.5            # for testing, SHOULD BE READ FROM FILE
+        domType[:,0,1] = 2 # glacier accumulation
+        dom_area[:,0,1] = hru_area * glac_frac*0.5  # glacier accumulation 50% of glacier, SHOULD BE READ FROM FILE
+        dom_elev[:,0,1] = hru_elev * 1.5            # for testing, SHOULD BE READ FROM FILE
+        domType[:,0,2] = 3 # glacier ablation
+        dom_area[:,0,2] = hru_area * glac_frac*0.5  # glacier ablation 50% of glacier, SHOULD BE READ FROM FILE
+        dom_elev[:,0,2] = hru_elev * 0.5            # for testing, SHOULD BE READ FROM FILE
 
     if wtld_dom: # NOTE, if HRU wetland area is 0, midLake_dom should be 0
-        lyrDepth[ indxWtld,:,0:len(lyrDepth_wtld)] = lyrDepth_wtld
+        lyrDepth[indxWtld,:,0:len(lyrDepth_wtld)] = lyrDepth_wtld
         lyrHeight[indxWtld,:,0:len(lyrHeight_wtld)] = lyrHeight_wtld
         midLake_dom[:,0,indxWtld] = midLake
         midSoil_dom[:,0,indxWtld] = midSoil_wtld
+        domType[:,0,indxWtld] = 4
         dom_area[:,0,indxWtld] = hru_area * wtld_frac 
         dom_elev[:,0,indxWtld] = hru_elev           # assume wetland elev same as upland
 
@@ -314,6 +323,9 @@ if __name__ == '__main__':
     #  this could be done by looping through the input state file and xferring values
     #  domain order has to be upland, glacier ablation, glacier accumulation, wetland
     #   has to have upland, then if has glacier has to have ablation and accumulation
+
+    # domType
+    writeNC_state_vars_HRU_DOM(nc_out, 'domType', 'scalarv', 'f8', domType)
 
     # layer Depth, Height
     writeNC_state_vars_HRU_DOM(nc_out, 'mLayerDepth', 'midToto', 'f8', lyrDepth)        # Depth
@@ -342,16 +354,16 @@ if __name__ == '__main__':
     writeNC_state_vars_HRU_DOM(nc_out, 'scalarCanopyIce', 'scalarv', 'f8', scalar0)     # CanopyIce
 
     # glacier area, just divide by ngl for testing, SHOULD BE READ FROM FILE
-    totAblArea = np.zeros(nOutPolygonsGRU)
     totAccArea = np.zeros(nOutPolygonsGRU)
-    ablArea = np.zeros((1, ngl, nOutPolygonsGRU), dtype='f8')
+    totAblArea = np.zeros(nOutPolygonsGRU)
     accArea = np.zeros((1, ngl, nOutPolygonsGRU), dtype='f8')
+    ablArea = np.zeros((1, ngl, nOutPolygonsGRU), dtype='f8')
     for i,g in enumerate(gruIDs):
-        totAblArea[i] = dom_area[0,hru2gru==g,1].sum()
-        totAccArea[i] = dom_area[0,hru2gru==g,2].sum()
+        totAccArea[i] = dom_area[0,hru2gru==g,1].sum()
+        totAblArea[i] = dom_area[0,hru2gru==g,2].sum()
         if ngl0[i]>0: 
-            ablArea[0,:ngl0[i],i] = totAblArea[i]/ngl0[i]
             accArea[0,:ngl0[i],i] = totAccArea[i]/ngl0[i]
+            ablArea[0,:ngl0[i],i] = totAblArea[i]/ngl0[i]
     
 
     newVarVals = np.full((ngl,nOutPolygonsGRU), ablArea, dtype='f8')

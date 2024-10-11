@@ -61,7 +61,7 @@ contains
  character(*)  ,intent(in)   :: iconFile           ! name of input (restart) file
  integer(i4b)  ,intent(in)   :: nGRU               ! total # of GRUs in run space
  integer(i4b)  ,intent(in)   :: nHRU               ! total # of HRUs in run space
- integer(i4b)  ,intent(in)   :: nDOM               ! total # of domains in run space
+ integer(i4b)  ,intent(inout):: nDOM               ! total # of domains in run space
  type(var_info),intent(in)   :: indx_meta(:)       ! metadata
  integer(i4b)  ,intent(out)  :: err                ! error code
  character(*)  ,intent(out)  :: message            ! returned error message
@@ -69,6 +69,7 @@ contains
  integer(i4b)                :: ncID               ! netcdf file id
  integer(i4b)                :: ixFile             ! index in file
  integer(i4b)                :: dimID              ! netcdf file dimension id
+ integer(i4b)                :: varID              ! netcdf variable id
  integer(i4b)                :: fileHRU            ! number of HRUs in netcdf file
  integer(i4b)                :: fileDOM            ! number of domains in netcdf file
  integer(i4b)                :: snowID, soilID     ! netcdf variable ids
@@ -81,6 +82,7 @@ contains
  integer(i4b),allocatable    :: soilData(:,:)      ! number of soil layers in all HRUs
  integer(i4b),allocatable    :: iceData(:,:)       ! number of ice layers in all HRUs
  integer(i4b),allocatable    :: lakeData(:,:)      ! number of lake layers in all HRUs
+ integer(i8b),allocatable    :: dom_type(:,:)      ! read domain type in from netcdf file
  character(len=256)          :: cmessage           ! downstream error message
 
  ! --------------------------------------------------------------------------------------------------------
@@ -98,13 +100,19 @@ contains
  err = nf90_inq_dimid(ncID,"hru",dimId);               if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru dimension/'//trim(nf90_strerror(err)); return; end if
  err = nf90_inquire_dimension(ncID,dimId,len=fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if
 
-! get number of DOMs in file, if present
+! get number of domains with type in file, if present
  err = nf90_inq_dimid(ncID,"dom",dimId)               
  if(err/=nf90_noerr)then
-  if(nDOM>nHRU)then; message=trim(message)//'no domain dimension in initial condition file but multiple domains set in attributes'; return; end if
-  fileDOM = nDOM
+  fileDOM = 1 ! backwards compatible, just upland domain
+  allocate(dom_type(1,fileHRU))
+  dom_type = upland
  else
   err = nf90_inquire_dimension(ncID,dimId,len=fileDOM); if(err/=nf90_noerr)then; message=trim(message)//'problem reading dom dimension/'//trim(nf90_strerror(err)); return; end if
+  ! read dom_type from netcdf file
+  allocate(dom_type(fileDOM,fileHRU))
+  err = nf90_inq_varid(ncID,"domType",varID);  if (err/=0) then; message=trim(message)//'problem finding domType'; return; end if
+  err = nf90_get_var(ncID,varID,dom_type);     if (err/=0) then; message=trim(message)//'problem reading domType'; return; end if
+
  end if
 
  ! allocate storage for reading from file (allocate entire file size, even when doing subdomain run)
@@ -116,6 +124,16 @@ contains
  soilData = 0
  iceData  = 0
  lakeData = 0
+
+ do iHRU = 1,gru_struc(iGRU)%hruCount
+  gru_struc(iGRU)%hruInfo(iHRU)%domCount = 1                                              ! upland domain always present, for changing size glaciers and lakes
+  if (any(dom_type(1:fileDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)==glacAcc)) &
+    gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 2   ! accumulation and ablation domains possible
+  if (any(dom_type(1:fileDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)==wetland)) &
+    gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 1   ! wetland domain possible
+  allocate(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(gru_struc(iGRU)%hruInfo(iHRU)%domCount)) ! allocate third level of gru to hru map
+  gru_struc(iGRU)%hruInfo(iHRU)%domInfo(:)%dom_type = dom_type(:,gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
+enddo
 
  ! get netcdf ids for the variables holding number of layers in each domain or hru
  err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nSnow)%varName),snowID); call netcdf_err(err,message)
@@ -159,7 +177,7 @@ contains
  if(err/=0)then;message=trim(message)//trim(cmessage);return;end if
 
  ! cleanup
- deallocate(snowData,soilData)
+ deallocate(snowData,lakeData,soilData,iceData,dom_type)
 
  end subroutine read_icond_nlayers
 

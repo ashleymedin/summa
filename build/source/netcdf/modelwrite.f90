@@ -574,8 +574,8 @@ contains
  integer(i4b)                       :: iHRU          ! index of HRUs
  integer(i4b)                       :: iGRU          ! index of GRUs
  integer(i4b)                       :: iVar          ! variable index
- integer(i4b)                       :: nGlacier      ! number of glaciers
- integer(i4b)                       :: nWetland      ! number of wetlands
+ integer(i4b)                       :: nGlacier      ! number of glaciers in GRU
+ integer(i4b)                       :: nWetland      ! number of wetlands in GRU
  logical(lgt)                       :: okLength      ! flag to check if the vector length is OK
  character(len=256)                 :: cmessage      ! downstream error message
  ! --------------------------------------------------------------------------------------------------------
