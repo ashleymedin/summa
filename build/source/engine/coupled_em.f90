@@ -993,7 +993,7 @@ subroutine coupled_em(&
           ! NOTE: include ice content as part of the solid porosity - major effect of ice is to reduce the pore size; ensure that effSat=1 at saturation
           ! (from Zhao et al., J. Hydrol., 1997: Numerical analysis of simultaneous heat and mass transfer...)
           do iSoil=1,nSoil
-            call liquidHead(mLayerMatricHead(iSoil),mLayerVolFracLiq(nSnow+iSoil),mLayerVolFracIce(nSnow+nLake+iSoil), & ! input:  state variables
+            call liquidHead(mLayerMatricHead(iSoil),mLayerVolFracLiq(nSnow+nLake+iSoil),mLayerVolFracIce(nSnow+nLake+iSoil), & ! input:  state variables
                       vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m(iSoil),                    & ! input:  parameters
                       matricHeadLiq=mLayerMatricHeadLiq(iSoil),                                                        & ! output: liquid water matric potential (m)
                       err=err,message=cmessage)                                                                          ! output: error control
