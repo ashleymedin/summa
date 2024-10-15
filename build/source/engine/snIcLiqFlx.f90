@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module snowLiqFlx_module
+module snIcLiqFlx_module
 
 ! access modules
 USE nrtype                                 ! numerical recipes data types
@@ -209,4 +209,4 @@ subroutine snIcLiqFlx(&
 
 end subroutine snIcLiqFlx
 
-end module snowLiqFlx_module
+end module snIcLiqFlx_module
