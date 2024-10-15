@@ -1137,13 +1137,13 @@ subroutine computJacobWithPrime(&
           watState = ixSnLaSoIcHyd(iLayer)
           if(watstate/=integerMissing)then 
             if(ixMatrix==ixBandMatrix)then
-              if(iLayer<=nSnow+nLake .or. iLayer>nSoil)then
+              if(iLayer<=nSnow+nLake .or. iLayer>nSnow+nLake+nSoil)then
                 aJac(watRows,watState) = aJac(watRows,watState) + aJac(nrgRows,nrgState) * dTemp_dTheta(iLayer)
               else
                 aJac(watRows,watState) = aJac(watRows,watState) + aJac(nrgRows,nrgState) * dTemp_dPsi0(iLayer-nSnow-nLake)
               endif
             else if(ixMatrix==ixFullMatrix)then
-              if(iLayer<=nSnow+nLake .or. iLayer>nSoil)then
+              if(iLayer<=nSnow+nLake .or. iLayer>nSnow+nLake+nSoil)then
                 aJac(:,watState) = aJac(:,watState) + aJac(:,nrgState) * dTemp_dTheta(iLayer)
               else
                 aJac(:,watState) = aJac(:,watState) + aJac(:,nrgState) * dTemp_dPsi0(iLayer-nSnow-nLake)

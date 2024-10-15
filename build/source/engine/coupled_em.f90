@@ -958,7 +958,7 @@ subroutine coupled_em(&
 
           ! compute the total water content in layers, no ice expansion allowed for soil
           do iLayer=1,nLayers
-            if(iLayer<=nSnow+nLake .or. iLayer>nSoil)then
+            if(iLayer<=nSnow+nLake .or. iLayer>nSnow+nLake+nSoil)then
               mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)*iden_ice/iden_water
             else
               mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)
@@ -1131,7 +1131,7 @@ subroutine coupled_em(&
 
           ! compute the melt in each layer, no ice expansion allowed for soil
           do iLayer=1,nLayers
-            if(iLayer<=nSnow+nLake .or. iLayer>nSoil)then
+            if(iLayer<=nSnow+nLake .or. iLayer>nSnow+nLake+nSoil)then
               mLayerMeltFreeze(iLayer) = -( mLayerVolFracIce(iLayer) - mLayerVolFracIceInit(iLayer) )*iden_ice
             else
               mLayerMeltFreeze(iLayer) = -( mLayerVolFracIce(iLayer) - mLayerVolFracIceInit(iLayer) )*iden_water
