@@ -92,10 +92,24 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${EXEC_DIR})
 find_package(NetCDF REQUIRED)
 list(APPEND EXT_TARGETS NetCDF::NetCDF)
 
-# OpenBLAS
-set(BLA_VENDOR OpenBLAS)
-find_package(OpenBLAS REQUIRED)
-list(APPEND EXT_TARGETS OpenBLAS::OpenBLAS)
+# Find LAPACK with user-specified links or automatic detection
+option(SPECIFY_LAPACK_LINKS "Use specified LAPACK links" OFF)
+if(SPECIFY_LAPACK_LINKS)
+	message("Using LAPACK links from LIBRARY_LINKS environment variable")
+	if(DEFINED ENV{LIBRARY_LINKS})
+		set(LIBRARY_LINKS $ENV{LIBRARY_LINKS})
+	else()
+		message(FATAL_ERROR "LIBRARY_LINKS environment variable not found. Set this variable or try -DSPECIFY_LAPACK_LINKS=OFF in build file.")
+	endif()
+else()
+	message("Automatically detect LAPACK links")
+	set(LIBRARY_LINKS "")
+
+	# OpenBLAS
+	set(BLA_VENDOR OpenBLAS)
+	find_package(OpenBLAS REQUIRED COMPONENTS serial)
+	list(APPEND EXT_TARGETS OpenBLAS::OpenBLAS)
+endif()
 
 # Set compiler flags
 set(FLAGS_OPT $ENV{FLAGS_OPT}) # get optional user-specified flags from environment variables
@@ -106,10 +120,16 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     set(FLAGS_ALL -g -O0 -fbacktrace -fbounds-check -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors -cpp ${FLAGS_OPT})
     set(FLAGS_CXX -g -O0 -fbounds-check -Wfatal-errors -std=c++17 ${FLAGS_OPT})
 else()
-    message("\nSetting SUMMA Release Options")
-    set(FLAGS_NOAH -O3 -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors ${FLAGS_OPT})
-    set(FLAGS_ALL  -O3 -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors -cpp ${FLAGS_OPT})
-    set(FLAGS_CXX  -O3 -Wfatal-errors -std=c++17 ${FLAGS_OPT})
+	message("\nSetting SUMMA Release Options")
+	if (CMAKE_Fortran_COMPILER MATCHES gfortran)
+		set(FLAGS_NOAH -O3 -Wfatal-errors -ffree-line-length-none -fPIC -ffree-form ${FLAGS_OPT})
+		set(FLAGS_ALL  -O3 -Wfatal-errors -ffree-line-length-none -fPIC -cpp        ${FLAGS_OPT})
+		set(FLAGS_CXX  -O3 -Wfatal-errors -std=c++17 ${FLAGS_OPT})
+	else(CMAKE_Fortran_COMPILER MATCHES ifx) # ifx does not currently compile SUMMA -- derived type modifications needed in source code
+		set(FLAGS_NOAH -O3 -fPIC -free   ${FLAGS_OPT})
+		set(FLAGS_ALL  -O3 -fPIC -cxxlib ${FLAGS_OPT})
+		set(FLAGS_CXX  -O3 -std=c++17    ${FLAGS_OPT})
+	endif()
 endif()
 
 #=========================================================================================
