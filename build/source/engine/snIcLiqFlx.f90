@@ -118,8 +118,8 @@ subroutine snIcLiqFlx(&
     mLayerPoreSpace  => diag_data%var(iLookDIAG%mLayerPoreSpace)%dat(nStart+1:nStart+nLayers),  & ! intent(inout): pore space in each layer (-)
     mLayerThetaResid => diag_data%var(iLookDIAG%mLayerThetaResid)%dat(nStart+1:nStart+nLayers), & ! intent(inout): residual volumetric liquid water content in each layer (-)
     ! input-output: fluxes and derivatives
-    iLayerLiqFluxSnIc0      => io_snIcLiqFlx % iLayerLiqFluxSnIc,                & ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
-    iLayerLiqFluxSnIcDeriv0 => io_snIcLiqFlx % iLayerLiqFluxSnIcDeriv,           & ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
+    iLayerLiqFluxSnIc0      => io_snIcLiqFlx % iLayerLiqFluxSnIc,               & ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
+    iLayerLiqFluxSnIcDeriv0 => io_snIcLiqFlx % iLayerLiqFluxSnIcDeriv,          & ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
     ! output: error control
     err                    => out_snIcLiqFlx % err,                             & ! intent(out):   error code
     message                => out_snIcLiqFlx % cmessage                         & ! intent(out):   error message
@@ -127,6 +127,8 @@ subroutine snIcLiqFlx(&
     ! ------------------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
     err=0; message='snIcLiqFlx/'
+
+    ! initialize with index 0
     iLayerLiqFluxSnIc = iLayerLiqFluxSnIc0
     iLayerLiqFluxSnIcDeriv = iLayerLiqFluxSnIcDeriv0
 
@@ -139,13 +141,21 @@ subroutine snIcLiqFlx(&
     ! check the meltwater exponent is >=1
     if (mw_exp<1._rkind) then; err=20; message=trim(message)//'meltwater exponent < 1'; return; end if
 
-    ! get the indices and inputs for the layers
+    ! get the inputs for the layers
+    if (do_snow)then
+      residThrs = 550._rkind
+      maxVolIceContent = 0.7_rkind
+      k_param = k_snow
+    else ! ice
+      residThrs = 800._rkind
+      maxVolIceContent = 0.9_rkind
+      k_param = k_ice
+    end if
+
+    ! get the indices for the layers
     ixTop = integerMissing
     if (scalarSolution) then
       if (do_snow)then
-        residThrs = 550._rkind
-        maxVolIceContent = 0.7_rkind
-        k_param = k_snow
         do i=1,size(ixSnowOnlyHyd)
           if (ixSnowOnlyHyd(i) /= integerMissing) then
             ixTop=ixLayerState(i) - nStart
@@ -154,9 +164,6 @@ subroutine snIcLiqFlx(&
           end if
         end do
       else ! ice
-        residThrs = 800._rkind
-        maxVolIceContent = 0.9_rkind
-        k_param = k_ice
         do i=1,size(ixIceOnlyHyd)
           if (ixIceOnlyHyd(i) /= integerMissing) then
             ixTop=ixLayerState(i) - nStart
@@ -204,6 +211,10 @@ subroutine snIcLiqFlx(&
         iLayerLiqFluxSnIcDeriv(iLayer) = 0._rkind
       end if  ! storage above residual content
     end do  ! end loop through snow/ice layers
+
+    ! save the results with index 0
+    iLayerLiqFluxSnIc0 = iLayerLiqFluxSnIc
+    iLayerLiqFluxSnIcDeriv0 = iLayerLiqFluxSnIcDeriv
 
   end associate ! end association of local variables with information in the data structures
 

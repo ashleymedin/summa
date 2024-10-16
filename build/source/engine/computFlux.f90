@@ -271,9 +271,9 @@ subroutine computFlux(&
   ! *** CALCULATE THE LIQUID FLUX THROUGH SNOW ***
   associate(nSnowOnlyHyd => indx_data%var(iLookINDEX%nSnowOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the snow
     if (nSnowOnlyHyd>0) then ! if necessary, compute liquid fluxes through snow
-      call initialize_snIcLiqFlx
+      call initialize_snowLiqFlx
       call snIcLiqFlx(in_snIcLiqFlx,mpar_data,indx_data,prog_data,diag_data,io_snIcLiqFlx,out_snIcLiqFlx)
-      call finalize_snIcLiqFlx; if(err/=0)then; return; endif
+      call finalize_snowLiqFlx; if(err/=0)then; return; endif
     else
       call forcingNoSnow ! define forcing for the domain beneath for the case of no snow layers
     end if
@@ -615,7 +615,7 @@ contains
  ! **** end vegLiqFlux ****
 
  ! **** snIcLiqFlx ****
- subroutine initialize_snIcLiqFlx
+ subroutine initialize_snowLiqFlx
   associate(&
    scalarThroughfallRain        => flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1),   & ! intent(out): [dp] rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
    scalarCanopyLiqDrainage      => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1))   ! intent(out): [dp] drainage of liquid water from the vegetation canopy (kg m-2 s-1)
@@ -624,9 +624,9 @@ contains
    call in_snIcLiqFlx%initialize(nSnow,nStart,.true.,surface_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
    call io_snIcLiqFlx%initialize(nSnow,nStart,flux_data,deriv_data)
   end associate
- end subroutine initialize_snIcLiqFlx
+ end subroutine initialize_snowLiqFlx
 
- subroutine finalize_snIcLiqFlx
+ subroutine finalize_snowLiqFlx
   nStart = 0
   call io_snIcLiqFlx%finalize(nSnow,nStart,flux_data,deriv_data)
   call out_snIcLiqFlx%finalize(err,cmessage) 
@@ -654,7 +654,7 @@ contains
    above_dLiq_dTk     = mLayerdTheta_dTk(nSnow)       ! derivative in volumetric liquid water content in bottom snow layer w.r.t. temperature
    above_FracLiq      = mLayerFracLiq(nSnow)          ! fraction of liquid water in bottom snow layer (-)
   end associate
- end subroutine finalize_snIcLiqFlx
+ end subroutine finalize_snowLiqFlx
  ! **** end snIcLiqFlx ****
 
  ! **** lakeLiqFlx ****
