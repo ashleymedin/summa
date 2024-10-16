@@ -305,7 +305,7 @@ subroutine computFlux(&
     if (nIceOnlyHyd>0) then ! if necessary, calculate the liquid flux through ice
       call initialize_iceLiqFlx
       call snIcLiqFlx(in_snIcLiqFlx,mpar_data,indx_data,prog_data,diag_data,io_snIcLiqFlx,out_snIcLiqFlx)
-      call finalize_iceLiqFlx
+      call finalize_iceLiqFlx; if(err/=0)then; return; endif
     end if 
   end associate
 
@@ -520,6 +520,8 @@ contains
 
  subroutine finalize_vegNrgFlux
   call out_vegNrgFlux%finalize(flux_data,deriv_data,err,cmessage)
+  ! error control
+  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
   associate(&
    canopyDepth                  => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1),      & ! intent(in): [dp   ]  canopy depth (m)
    mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth)%dat,               & ! intent(in): [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
@@ -527,8 +529,6 @@ contains
    scalarCanopyNetNrgFlux       => flux_data%var(iLookFLUX%scalarCanopyNetNrgFlux)%dat(1), & ! intent(out): [dp] net energy flux for the vegetation canopy (W m-2)
    scalarGroundNetNrgFlux       => flux_data%var(iLookFLUX%scalarGroundNetNrgFlux)%dat(1), & ! intent(out): [dp] net energy flux for the ground surface    (W m-2)
    dGroundNetFlux_dGroundTemp   => deriv_data%var(iLookDERIV%dGroundNetFlux_dGroundTemp)%dat(1) ) ! intent(out): [dp] derivative in net ground flux w.r.t. ground temperature
-   ! error control
-   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
    ! check fluxes
    if (globalPrintFlag) then
     print*, '**'
@@ -555,12 +555,12 @@ contains
  subroutine finalize_snLaSoIcNrgFlux
   call io_snLaSoIcNrgFlux%finalize(deriv_data)
   call out_snLaSoIcNrgFlux%finalize(flux_data,deriv_data,err,cmessage)
+  ! error control
+  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
   associate(&
    mLayerNrgFlux                => flux_data%var(iLookFLUX%mLayerNrgFlux)%dat, & ! intent(out): [dp] net energy flux for each layer within the layer domains (J m-3 s-1)
    iLayerNrgFlux                => flux_data%var(iLookFLUX%iLayerNrgFlux)%dat, & ! intent(out): [dp(0:)] vertical energy flux at the interface of layers
    mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth)%dat    ) ! intent(in): [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
-   ! error control
-   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
    ! calculate net energy fluxes for each layer (J m-3 s-1)
    do iLayer=1,nLayers
      mLayerNrgFlux(iLayer) = -(iLayerNrgFlux(iLayer) - iLayerNrgFlux(iLayer-1))/mLayerDepth(iLayer)
@@ -579,6 +579,8 @@ contains
  
  subroutine finalize_vegLiqFlux
   call out_vegLiqFlux%finalize(flux_data,deriv_data,err,cmessage)
+  ! error control
+  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
   associate( &
    scalarThroughfallRain        => flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1),         & ! intent(out): [dp] rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
    scalarCanopyLiqDrainage      => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1),       & ! intent(out): [dp] drainage of liquid water from the vegetation canopy (kg m-2 s-1)
@@ -590,8 +592,6 @@ contains
    scalarRainfall               => flux_data%var(iLookFLUX%scalarRainfall)%dat(1),                & ! intent(in):  [dp] rainfall rate (kg m-2 s-1)
    scalarCanopyEvaporation      => flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1),       & ! intent(out): [dp] canopy evaporation/condensation (kg m-2 s-1)
    scalarCanopyLiqDeriv         => deriv_data%var(iLookDERIV%scalarCanopyLiqDeriv        )%dat(1) ) ! intent(out): [dp] derivative in (throughfall + drainage) w.r.t. canopy liquid water
-   ! error control
-   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
    ! calculate the net liquid water flux for the vegetation canopy
    scalarCanopyNetLiqFlux = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
    ! calculate the total derivative in the downward liquid flux
@@ -633,14 +633,14 @@ contains
   ! error control
   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
   associate(&
-   scalarRainPlusMelt     => flux_data%var(iLookFLUX%scalarRainPlusMelt)%dat(1),   & ! intent(out): [dp] rain plus melt (m s-1)
-   mLayerLiqFluxSnIc      => flux_data%var(iLookFLUX%mLayerLiqFluxSnIc)%dat,       & ! intent(inout): [dp] net liquid water flux for each snow layer (s-1)
-   iLayerLiqFluxSnIc      => flux_data%var(iLookFLUX%iLayerLiqFluxSnIc)%dat,       & ! intent(inout): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
-   mLayerDepth            => prog_data%var(iLookPROG%mLayerDepth)%dat,             & ! intent(in): [dp(:)]  depth of each layer (m)
-   scalarSnowDrainage     => flux_data%var(iLookFLUX%scalarSnowDrainage)%dat(1),   & ! intent(out): [dp] drainage from the snow profile (m s-1)
-   iLayerLiqFluxSnIcDeriv => deriv_data%var(iLookDERIV%iLayerLiqFluxSnIcDeriv)%dat,& ! intent(out): [dp(:)] derivative in vertical liquid water flux at layer interfaces
-   mLayerdTheta_dTk       => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat,      & ! intent(in):  [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
-   mLayerFracLiq          => diag_data%var(iLookDIAG%mLayerFracLiq)%dat)             ! intent(inout): [dp(:)] fraction of liquid water in each snow, lake, or ice layer (-)
+   scalarRainPlusMelt     => flux_data%var(iLookFLUX%scalarRainPlusMelt)%dat(1),    & ! intent(out): [dp] rain plus melt (m s-1)
+   mLayerLiqFluxSnIc      => flux_data%var(iLookFLUX%mLayerLiqFluxSnIc)%dat,        & ! intent(inout): [dp] net liquid water flux for each snow layer (s-1)
+   iLayerLiqFluxSnIc      => flux_data%var(iLookFLUX%iLayerLiqFluxSnIc)%dat,        & ! intent(inout): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
+   mLayerDepth            => prog_data%var(iLookPROG%mLayerDepth)%dat,              & ! intent(in): [dp(:)]  depth of each layer (m)
+   scalarSnowDrainage     => flux_data%var(iLookFLUX%scalarSnowDrainage)%dat(1),    & ! intent(out): [dp] drainage from the snow profile (m s-1)
+   iLayerLiqFluxSnIcDeriv => deriv_data%var(iLookDERIV%iLayerLiqFluxSnIcDeriv)%dat, & ! intent(out): [dp(:)] derivative in vertical liquid water flux at layer interfaces
+   mLayerdTheta_dTk       => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat,       & ! intent(in):  [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
+   mLayerFracLiq          => diag_data%var(iLookDIAG%mLayerFracLiq)%dat             ) ! intent(inout): [dp(:)] fraction of liquid water in each snow, lake, or ice layer (-)
    ! define forcing for the beneath domain
    scalarRainPlusMelt = iLayerLiqFluxSnIc(nSnow)          ! drainage from the base of the snowpack
    ! calculate net liquid water fluxes for each snow layer (s-1)
@@ -670,7 +670,6 @@ contains
   !call out_lakeLiqFlx%finalize(err,cmessage)
   !! error control
   !if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
-
   !associate(&
   ! mLayerLiqFluxLake            => flux_data%var(iLookFLUX%mLayerLiqFluxLake)%dat,     & ! intent(out): [dp] net liquid water flux for each lake layer (s-1)
   ! iLayerLiqFluxLake            => flux_data%var(iLookFLUX%iLayerLiqFluxLake)%dat,     & ! intent(out): [dp(0:)] vertical liquid water flux at lake layer interfaces (-)
@@ -700,7 +699,6 @@ contains
   call out_soilLiqFlx%finalize(err,cmessage)
   ! error control
   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
-
   associate(&
    mLayerLiqFluxSoil            => flux_data%var(iLookFLUX%mLayerLiqFluxSoil)%dat,     & ! intent(out): [dp] net liquid water flux for each soil layer (s-1)
    iLayerLiqFluxSoil            => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat,     & ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
@@ -813,12 +811,12 @@ contains
  subroutine finalize_bigAquifer
   call io_bigAquifer%finalize(deriv_data)
   call out_bigAquifer%finalize(flux_data,deriv_data,err,cmessage)
+  ! error control
+  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
   associate(&
-   scalarTotalRunoff            => flux_data%var(iLookFLUX%scalarTotalRunoff)%dat(1)               ,&  ! intent(out): [dp] total runoff (m s-1)
-   scalarSurfaceRunoff          => flux_data%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)             ,&  ! intent(out): [dp] surface runoff (m s-1)
-   scalarAquiferBaseflow        => flux_data%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) )             ! intent(out): [dp] total baseflow from the aquifer (m s-1)
-   ! error control
-   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
+   scalarTotalRunoff            => flux_data%var(iLookFLUX%scalarTotalRunoff)%dat(1)     ,&  ! intent(out): [dp] total runoff (m s-1)
+   scalarSurfaceRunoff          => flux_data%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)   ,&  ! intent(out): [dp] surface runoff (m s-1)
+   scalarAquiferBaseflow        => flux_data%var(iLookFLUX%scalarAquiferBaseflow)%dat(1)  )  ! intent(out): [dp] total baseflow from the aquifer (m s-1)
    ! compute total runoff (overwrite previously calculated value before considering aquifer).
    !   (Note:  SoilDrainage goes into aquifer, not runoff)
    scalarTotalRunoff  = scalarSurfaceRunoff + scalarAquiferBaseflow     
