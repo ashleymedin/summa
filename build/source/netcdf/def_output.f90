@@ -458,7 +458,7 @@ contains
  err = nf90_redef(ncid); call netcdf_err(err, message); if (err/=nf90_NoErr) return
 
  ! define DOM var
- err = nf90_def_var(ncid, trim(dom_DimName), nf90_int, (/dom_DimID,hru_DimID/), domVarID, deflate_level=outputCompressionLevel);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_domVar'  ;  call netcdf_err(err,message); return; end if
+ err = nf90_def_var(ncid, trim(dom_DimName), nf90_int, (/dom_DimID/), domVarID, deflate_level=outputCompressionLevel);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_domVar'  ;  call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, domVarID, 'long_name', 'domId in the input file'); if (err/=nf90_NoErr) then; message=trim(message)//'write_domVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, domVarID, 'units',     '-'                          ); if (err/=nf90_NoErr) then; message=trim(message)//'write_domVar_unit';     call netcdf_err(err,message); return; end if
 
