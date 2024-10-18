@@ -1044,7 +1044,7 @@ contains
  implicit none
  ! define dummy variables
  character(*), intent(in) :: varType                 ! variable type name
- integer(i4b)             :: get_ixVarType          ! index of the named variable type list
+ integer(i4b)             :: get_ixVarType           ! index of the named variable type list
  ! get the index of the named variables
  select case(trim(varType))
   case('scalarv'); get_ixVarType = iLookVarType%scalarv

@@ -695,6 +695,7 @@ contains
  end subroutine initialize_soilLiqFlx
 
  subroutine finalize_soilLiqFlx
+  nStart = nSnow + nLake
   call io_soilLiqFlx%finalize(nSoil,dHydCond_dMatric,flux_data,diag_data,deriv_data)
   call out_soilLiqFlx%finalize(err,cmessage)
   ! error control
@@ -702,6 +703,8 @@ contains
   associate(&
    mLayerLiqFluxSoil            => flux_data%var(iLookFLUX%mLayerLiqFluxSoil)%dat,     & ! intent(out): [dp] net liquid water flux for each soil layer (s-1)
    iLayerLiqFluxSoil            => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat,     & ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
+   mLayerLiqFluxSnIc            => flux_data%var(iLookFLUX%mLayerLiqFluxSnIc)%dat,     & ! intent(out): [dp] net liquid water flux for each snow ice layer, 0 in soil (s-1)
+   iLayerLiqFluxSnIc            => flux_data%var(iLookFLUX%iLayerLiqFluxSnIc)%dat,     & ! intent(out): [dp(0:)] vertical liquid water flux at snow ice layer interfaces, 0 in soil (-) 
    mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth)%dat,           & ! intent(in): [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
    scalarMaxInfilRate           => flux_data%var(iLookFLUX%scalarMaxInfilRate)%dat(1), & ! intent(out): [dp] maximum infiltration rate (m s-1)
    scalarRainPlusMelt           => flux_data%var(iLookFLUX%scalarRainPlusMelt)%dat(1), & ! intent(out): [dp] rain plus melt (m s-1)
@@ -712,6 +715,8 @@ contains
 
    ! calculate net liquid water fluxes for each soil layer (s-1)
    do iLayer=1,nSoil
+     iLayerLiqFluxSnIc(iLayer+nStart) = 0._rkind ! no liquid snow ice flux in soil
+     mLayerLiqFluxSnIc(iLayer+nStart) = 0._rkind ! no liquid snow ice flux in soil
      mLayerLiqFluxSoil(iLayer) = -(iLayerLiqFluxSoil(iLayer) - iLayerLiqFluxSoil(iLayer-1))/mLayerDepth(iLayer+nSnow+nLake)
    end do
 
@@ -767,10 +772,10 @@ contains
   ! error control
   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
   associate(&
-   mLayerLiqFluxSnIc      => flux_data%var(iLookFLUX%mLayerLiqFluxSnIc)%dat,        & ! intent(inout): [dp] net liquid water flux for each ice layer (s-1)
-   iLayerLiqFluxSnIc      => flux_data%var(iLookFLUX%iLayerLiqFluxSnIc)%dat,        & ! intent(inout): [dp(0:)] vertical liquid water flux at ice layer interfaces (-)
-   mLayerDepth            => prog_data%var(iLookPROG%mLayerDepth)%dat,              & ! intent(in): [dp(:)]  depth of each layer (m)
-   scalarTotalRunoff      => flux_data%var(iLookFLUX%scalarTotalRunoff)%dat(1)      ) ! intent(out): [dp] total runoff (m s-1)
+   mLayerLiqFluxSnIc            => flux_data%var(iLookFLUX%mLayerLiqFluxSnIc)%dat,        & ! intent(inout): [dp] net liquid water flux for each ice layer (s-1)
+   iLayerLiqFluxSnIc            => flux_data%var(iLookFLUX%iLayerLiqFluxSnIc)%dat,        & ! intent(inout): [dp(0:)] vertical liquid water flux at ice layer interfaces (-)
+   mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth)%dat,              & ! intent(in): [dp(:)]  depth of each layer (m)
+   scalarTotalRunoff            => flux_data%var(iLookFLUX%scalarTotalRunoff)%dat(1)      ) ! intent(out): [dp] total runoff (m s-1)
 
    ! calculate net liquid water fluxes for each ice layer (s-1)
    do iLayer=1,nIce
