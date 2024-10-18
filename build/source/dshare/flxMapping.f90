@@ -137,7 +137,7 @@ contains
  flux2state_orig(iLookFLUX%iLayerNrgFlux)                   = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%mLayerNrgFlux)                   = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
 
- ! liquid water fluxes for the snow domain
+ ! liquid water fluxes for the snow ice domain
  flux2state_orig(iLookFLUX%scalarSnowDrainage)              = flux2state(state1=iname_watLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%iLayerLiqFluxSnIc)               = flux2state(state1=iname_watLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%mLayerLiqFluxSnIc)               = flux2state(state1=iname_watLayer,  state2=integerMissing)

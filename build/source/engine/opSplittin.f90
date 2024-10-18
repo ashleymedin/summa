@@ -372,6 +372,7 @@ subroutine opSplittin(&
               if (cycle_coupling)        cycle split_select_loop     ! if needed, proceed to next iteration of coupling method
               if (cycle_stateThenDomain) cycle split_select_loop     ! if needed, proceed to next iteration of stateThenDomain method
               if (cycle_solution)        cycle split_select_loop     ! if needed, proceed to next iteration of solution method 
+print*, 'split_select_loop done', split_select % iDomainSplit 
               call confirm_variable_updates; if (return_flag) return ! check that state variables are updated - return if error 
               call success_check                                     ! check for success
               call check_exit_stateThenDomain                        ! check exit criterion for stateThenDomain split
@@ -961,6 +962,7 @@ subroutine opSplittin(&
    cycle_solution=.false.
    return_flag=.false.
    nSubset = split_select % nSubset
+   print*, 'nSubset = ', nSubset
 
    ! check that state variables exist
    if (nSubset==0) then
@@ -1129,6 +1131,7 @@ subroutine opSplittin(&
          end if
         case(snowSplit,lakeSplit,soilSplit,iceSplit) ! fluxes through layers
 
+        print*, 'nLayers = ', nLayers,iDomainSplit
          do iLayer=1,nLayers! loop through layers
           associate(ixLayerActive => indx_data%var(iLookINDEX%ixLayerActive)%dat) ! intent(in): [i4b(:)] indices for all active layers (inactive=integerMissing)
            if (ixLayerActive(iLayer)/=integerMissing) then

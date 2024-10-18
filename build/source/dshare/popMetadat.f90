@@ -551,7 +551,7 @@ subroutine popMetadat(err,message)
   flux_meta(iLookFLUX%iLayerAdvectiveFlux)             = var_info('iLayerAdvectiveFlux'            , 'advective energy flux at layer interfaces'                        , 'W m-2'           , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%iLayerNrgFlux)                   = var_info('iLayerNrgFlux'                  , 'energy flux at layer interfaces'                                  , 'W m-2'           , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%mLayerNrgFlux)                   = var_info('mLayerNrgFlux'                  , 'net energy flux for each layer within the layer domains'       , 'J m-3 s-1'       , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
-  ! liquid water fluxes for the snow domain
+  ! liquid water fluxes for the snow ice
   flux_meta(iLookFLUX%scalarSnowDrainage)              = var_info('scalarSnowDrainage'             , 'drainage from the bottom of the snow profile'                     , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%iLayerLiqFluxSnIc)               = var_info('iLayerLiqFluxSnIc'              , 'liquid flux at snow ice layer interfaces'                         , 'm s-1'           , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%mLayerLiqFluxSnIc)               = var_info('mLayerLiqFluxSnIc'              , 'net liquid water flux for each snow ice layer'                    , 's-1'             , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
