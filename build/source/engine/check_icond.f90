@@ -70,7 +70,7 @@ contains
  USE globalData,only:iname_soil,iname_snow,iname_ice,iname_lake ! named variables to describe the type of layer
  USE multiconst,only:&
                        LH_fus,    &                      ! latent heat of fusion                (J kg-1)
-                       iden_ice,  &                      ! i,trinsic density of ice             (kg m-3)
+                       iden_ice,  &                      ! intrinsic density of ice             (kg m-3)
                        iden_water,&                      ! intrinsic density of liquid water    (kg m-3)
                        gravity,   &                      ! gravitational acceleration           (m s-2)
                        Tfreeze                           ! freezing point of pure water         (K)
@@ -102,13 +102,12 @@ contains
  character(*),intent(out)                  :: message               ! returned error message
  ! locals
  character(len=256)                        :: cmessage              ! downstream error message
- integer(i4b)                              :: i,iGRU,iHRU,iDOM      ! loop index
+ integer(i4b)                              :: iGRU,iHRU,iDOM      ! loop index
  ! temporary variables for realism checks
  integer(i4b)                              :: iLayer                ! index of model layer
  integer(i4b)                              :: iSoil                 ! index of soil layer
  real(rkind)                               :: fLiq                  ! fraction of liquid water on the vegetation canopy (-)
  real(rkind)                               :: vGn_m                 ! van Genutchen "m" parameter (-)
- real(rkind)                               :: tWat                  ! total water on the vegetation canopy (kg m-2)
  real(rkind)                               :: scalarTheta           ! liquid water equivalent of total water [liquid water + ice] (-)
  real(rkind)                               :: h1,h2                 ! used to check depth and height are consistent
  real(rkind)                               :: kappa                 ! constant in the freezing curve function (m K-1)
@@ -117,7 +116,6 @@ contains
  integer(i4b)                              :: nSoil                 ! number of soil layers
  integer(i4b)                              :: nIce                  ! number of ice layers
  integer(i4b)                              :: nLayers               ! total number of layers
- integer(i4b)                              :: nState                ! total number of states
  real(rkind),parameter                     :: xTol=1.e-10_rkind     ! small tolerance to address precision issues
  real(rkind),parameter                     :: canIceTol=1.e-3_rkind ! small tolerance to allow existence of canopy ice for above-freezing temperatures (kg m-2)
  real(rkind)                               :: remaining_area        ! remaining area of the HRU
@@ -248,7 +246,7 @@ contains
      err=20; return
     else if(scalarCanopyIce > 0._rkind .and. scalarCanopyTemp > Tfreeze)then
      ! if here, ice content < threshold. Could be sublimation on previous timestep or simply wrong input. Print a warning
-	  write(*,'(A,E22.16,A,F7.3,A,F7.3,A)') 'Warning: canopy ice content in restart file (=',scalarCanopyIce,') > 0 when canopy temperature (=',scalarCanopyTemp,') > Tfreeze (=',Tfreeze,'). Continuing.',NEW_LINE('a')
+	   write(*,'(A,E22.16,A,F7.3,A,F7.3,A)') 'Warning: canopy ice content in restart file (=',scalarCanopyIce,') > 0 when canopy temperature (=',scalarCanopyTemp,') > Tfreeze (=',Tfreeze,'). Continuing.',NEW_LINE('a')
     end if
     scalarTheta = scalarCanopyIce + scalarCanopyLiq
 
