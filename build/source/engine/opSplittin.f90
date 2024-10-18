@@ -362,23 +362,17 @@ subroutine opSplittin(&
               call validate_split                                    ! verify that the split is valid
               if (cycle_domainSplit) cycle split_select_loop         ! if needed, proceed to next iteration of domainSplit method 
               if (cycle_solution)    cycle split_select_loop         ! if needed, proceed to next iteration of solution method 
-              if (return_flag)       return                          ! return for a non-zero error code
-              
+              if (return_flag)       return                          ! return for a non-zero error code              
               call save_recover                                      ! save/recover copies of variables and fluxes
-
               call get_split_indices; if (return_flag) return        ! get indices for a given split - return for a non-zero error code
               call update_fluxMask;   if (return_flag) return        ! define the mask for the fluxes used - return for a non-zero error code
-
               call solve_subset;      if (return_flag) return        ! solve variable subset for one time step - return for a positive error code
               call assess_solution;   if (return_flag) return        ! is solution a success or failure? - return for a recovering solution
-
               call try_other_solution_methods                        ! if solution failed to converge, try other splitting methods 
               if (cycle_coupling)        cycle split_select_loop     ! if needed, proceed to next iteration of coupling method
               if (cycle_stateThenDomain) cycle split_select_loop     ! if needed, proceed to next iteration of stateThenDomain method
               if (cycle_solution)        cycle split_select_loop     ! if needed, proceed to next iteration of solution method 
-
               call confirm_variable_updates; if (return_flag) return ! check that state variables are updated - return if error 
-
               call success_check                                     ! check for success
               call check_exit_stateThenDomain                        ! check exit criterion for stateThenDomain split
               call check_exit_solution; if (return_flag) return      ! check exit criterion for solution split - return if error 
@@ -966,6 +960,7 @@ subroutine opSplittin(&
    cycle_domainSplit=.false.
    cycle_solution=.false.
    return_flag=.false.
+   nSubset = split_select % nSubset
 
    ! check that state variables exist
    if (nSubset==0) then
@@ -1139,8 +1134,9 @@ subroutine opSplittin(&
            if (ixLayerActive(iLayer)/=integerMissing) then
 
             ! get the offset (ixLayerActive=1,2,3,...nLayers, and soil vectors nSnow+nLake+1, nSnow+nLake+2, ..., nSnow+nLake+nSoil)
-            iOffset = merge(nSnow+nLake, 0, flux_meta(iVar)%vartype==iLookVarType%midSoil .or. flux_meta(iVar)%vartype==iLookVarType%ifcSoil)
+            iOffset = 0 ! initialize offset, true for snow
             if(flux_meta(iVar)%vartype==iLookVarType%midLake .or. flux_meta(iVar)%vartype==iLookVarType%ifcLake) iOffset = nSnow
+            if(flux_meta(iVar)%vartype==iLookVarType%midSoil .or. flux_meta(iVar)%vartype==iLookVarType%ifcSoil) iOffset = nSnow+nLake
             if(flux_meta(iVar)%vartype==iLookVarType%midIce  .or. flux_meta(iVar)%vartype==iLookVarType%ifcIce)  iOffset = nSnow+nLake+nSoil
             jLayer  = iLayer-iOffset
 
@@ -1604,7 +1600,7 @@ contains
    nSoil           => indx_data%var(iLookINDEX%nSoil)%dat(1)    ,& ! intent(in): [i4b] number of soil layers
    nIce            => indx_data%var(iLookINDEX%nIce)%dat(1)     ,& ! intent(in): [i4b] number of ice layers
    ixNrgLayer      => indx_data%var(iLookINDEX%ixNrgLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the layer domain
-   stateMask(ixNrgLayer(max(2,nSnow+nLake+nSoil+1):nSnow+nLake+nSoil+nLake)) = .true. ! NOTE: (2:) because the top layer in the layer domain included in vegSplit
+   stateMask(ixNrgLayer(max(2,nSnow+nLake+nSoil+1):nSnow+nLake+nSoil+nIce)) = .true. ! NOTE: (2:) because the top layer in the layer domain included in vegSplit
   end associate
  end subroutine stateTypeSplit_subDomain_nrgSplit_iceSplit_stateMask
 
@@ -1672,7 +1668,7 @@ contains
    nSoil           => indx_data%var(iLookINDEX%nSoil)%dat(1)    ,& ! intent(in): [i4b] number of soil layers
    nIce            => indx_data%var(iLookINDEX%nIce)%dat(1)     ,& ! intent(in): [i4b] number of ice layers
    ixHydLayer      => indx_data%var(iLookINDEX%ixHydLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the lake domain
-   stateMask(ixHydLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nLake)) = .true.  ! soil hydrology
+   stateMask(ixHydLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nIce)) = .true.  ! soil hydrology
   end associate
  end subroutine stateTypeSplit_subDomain_massSplit_iceSplit_stateMask
 
