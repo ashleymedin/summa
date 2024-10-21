@@ -87,7 +87,6 @@ subroutine groundwatr(&
                       attr_data,                              & ! intent(in):    spatial attributes
                       mpar_data,                              & ! intent(in):    model parameters
                       prog_data,                              & ! intent(in):    model prognostic variables for a local HRU
-                      diag_data,                              & ! intent(in):    model diagnostic variables for a local HRU
                       flux_data,                              & ! intent(inout): model fluxes for a local HRU
                       ! input-output: baseflow
                       io_groundwatr,                          & ! intent(inout): index of lowest saturated layer (NOTE: only computed on the first iteration)
@@ -107,7 +106,6 @@ subroutine groundwatr(&
   type(var_d),intent(in)                 :: attr_data         ! spatial attributes
   type(var_dlength),intent(in)           :: mpar_data         ! model parameters
   type(var_dlength),intent(in)           :: prog_data         ! prognostic variables for a local HRU
-  type(var_dlength),intent(in)           :: diag_data         ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout)        :: flux_data         ! model fluxes for a local HRU
   ! input-output: baseflow
   type(io_type_groundwatr),intent(inout) :: io_groundwatr     ! index of lowest saturated layer (NOTE: only computed on the first iteration)

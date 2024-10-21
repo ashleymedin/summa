@@ -514,7 +514,6 @@ contains
                     nSoil,                   & ! intent(in):    number of soil layers
                     nIce,                    & ! intent(in):    number of ice layers
                     nLayers,                 & ! intent(in):    total number of layers
-                    nState,                  & ! intent(in):    total number of state variables in the current subset
                     .false.,                 & ! intent(in):    not inside Sundials solver                    
                     firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                     firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call

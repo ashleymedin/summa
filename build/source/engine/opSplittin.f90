@@ -1090,6 +1090,13 @@ subroutine opSplittin(&
       if (iVar==iLookFLUX%scalarPhotosynthesisShaded) desiredFlux = .true.
      end if
 
+     ! remove the flux mask for scalar variables in snow lake ice if they do not exist
+     if (nSnow==0 .and. iVar==iLookFLUX%scalarSnowDrainage) desiredFlux = .false.
+     if (nLake==0 .and. iVar==iLookFLUX%scalarLakeInflux) desiredFlux = .false.
+     if (nLake==0 .and. iVar==iLookFLUX%scalarLakeDrainage) desiredFlux = .false.
+     if (nIce==0  .and. iVar==iLookFLUX%scalarIceInflux) desiredFlux = .false.
+     if (nIce==0  .and. iVar==iLookFLUX%scalarGlacierMelt) desiredFlux = .false.
+
      fluxMask%var(iVar)%dat = desiredFlux
 
     else ! * identify flux mask for the split solution
@@ -1110,6 +1117,13 @@ subroutine opSplittin(&
       if (iVar==iLookFLUX%scalarPhotosynthesisSunlit) desiredFlux = .true.
       if (iVar==iLookFLUX%scalarPhotosynthesisShaded) desiredFlux = .true.
      end if
+
+     ! remove the flux mask for scalar variables snow lake ice if they do not exist
+     if (nSnow==0 .and. iVar==iLookFLUX%scalarSnowDrainage) desiredFlux = .false.
+     if (nLake==0 .and. iVar==iLookFLUX%scalarLakeInflux) desiredFlux = .false.
+     if (nLake==0 .and. iVar==iLookFLUX%scalarLakeDrainage) desiredFlux = .false.
+     if (nIce==0  .and. iVar==iLookFLUX%scalarIceInflux) desiredFlux = .false.
+     if (nIce==0  .and. iVar==iLookFLUX%scalarGlacierMelt) desiredFlux = .false.
 
      if (nDomains==1) then ! no domain splitting
       fluxMask%var(iVar)%dat = desiredFlux
@@ -1159,10 +1173,21 @@ subroutine opSplittin(&
             ! add hydrology states for scalar variables
             if (iStateTypeSplit==massSplit .and. flux_meta(iVar)%vartype==iLookVarType%scalarv) then
              select case(iDomainSplit)
-              case(snowSplit); if(iLayer==nSnow)               fluxMask%var(iVar)%dat = desiredFlux
-              case(lakeSplit); if(iLayer==nSnow+1)             fluxMask%var(iVar)%dat = desiredFlux
-              case(soilSplit); if(iLayer==nSnow+nLake+1)       fluxMask%var(iVar)%dat = desiredFlux
-              case(iceSplit);  if(iLayer==nSnow+nLake+nSoil+1) fluxMask%var(iVar)%dat = desiredFlux
+              case(snowSplit); if(iLayer==nSnow .and. &
+                iVar/=iLookFLUX%scalarLakeInflux   .and. &
+                iVar/=iLookFLUX%scalarLakeDrainage .and. &
+                iVar/=iLookFLUX%scalarIceInflux    .and. &          
+                iVar/=iLookFLUX%scalarGlacierMelt)       fluxMask%var(iVar)%dat = desiredFlux
+              case(lakeSplit); if(iLayer==nSnow+nLake .and. nLake>0 .and. &
+                iVar/=iLookFLUX%scalarSnowDrainage .and. &
+                iVar/=iLookFLUX%scalarIceInflux    .and. &          
+                iVar/=iLookFLUX%scalarGlacierMelt)       fluxMask%var(iVar)%dat = desiredFlux
+              case(soilSplit); if(iLayer==nSnow+nLake+1 .and. nSoil>0) &
+                                                         fluxMask%var(iVar)%dat = desiredFlux
+              case(iceSplit);  if(iLayer==nSnow+nLake+nSoil+nIce .and. nIce>0 .and. &
+                iVar/=iLookFLUX%scalarSnowDrainage .and. &
+                iVar/=iLookFLUX%scalarLakeInflux   .and. &
+                iVar/=iLookFLUX%scalarLakeDrainage)      fluxMask%var(iVar)%dat = desiredFlux
              end select
             end if  ! if hydrology split and scalar
 

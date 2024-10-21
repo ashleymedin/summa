@@ -124,7 +124,7 @@ set(SOLVER
     ${ENGINE_DIR}/opSplittin.f90
     ${ENGINE_DIR}/run_oneGRU.f90
     ${ENGINE_DIR}/run_oneHRU.f90
-    ${ENGINE_DIR}/snIcLiqFlx.f90
+    ${ENGINE_DIR}/snLaIcLiqFlx.f90
     ${ENGINE_DIR}/soilLiqFlx.f90
 
     ${ENGINE_DIR}/snLaSoIcNrgFlux.f90

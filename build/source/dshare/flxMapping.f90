@@ -137,10 +137,13 @@ contains
  flux2state_orig(iLookFLUX%iLayerNrgFlux)                   = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%mLayerNrgFlux)                   = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
 
- ! liquid water fluxes for the snow ice domain
+ ! liquid water fluxes for the snow lake ice domain
  flux2state_orig(iLookFLUX%scalarSnowDrainage)              = flux2state(state1=iname_watLayer,  state2=integerMissing)
- flux2state_orig(iLookFLUX%iLayerLiqFluxSnIc)               = flux2state(state1=iname_watLayer,  state2=iname_matLayer)
- flux2state_orig(iLookFLUX%mLayerLiqFluxSnIc)               = flux2state(state1=iname_watLayer,  state2=iname_matLayer)
+ flux2state_orig(iLookFLUX%scalarLakeDrainage)              = flux2state(state1=iname_watLayer,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarLakeInflux)                = flux2state(state1=iname_watLayer,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarIceInflux)                 = flux2state(state1=iname_watLayer,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%iLayerLiqFluxSnLaIc)             = flux2state(state1=iname_watLayer,  state2=iname_matLayer)
+ flux2state_orig(iLookFLUX%mLayerLiqFluxSnLaIc)             = flux2state(state1=iname_watLayer,  state2=iname_matLayer)
 
  ! liquid water fluxes for the soil domain
  flux2state_orig(iLookFLUX%scalarRainPlusMelt)              = flux2state(state1=iname_matLayer,  state2=integerMissing)
@@ -166,6 +169,7 @@ contains
  ! derived variables
  flux2state_orig(iLookFLUX%scalarTotalET)                   = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
  flux2state_orig(iLookFLUX%scalarTotalRunoff)               = flux2state(state1=iname_matLayer,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarGlacierMelt)               = flux2state(state1=iname_watLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarNetRadiation)              = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
 
  ! ** copy across flux metadata

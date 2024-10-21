@@ -42,13 +42,12 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_icond_nlayers: read model initial conditions file for number of snow/soil layers
  ! ************************************************************************************************
- subroutine read_icond_nlayers(iconFile,nGRU,nHRU,nDOM,indx_meta,err,message)
+ subroutine read_icond_nlayers(iconFile,nGRU,nDOM,indx_meta,err,message)
  ! --------------------------------------------------------------------------------------------------------
  ! modules
  USE nrtype
  USE var_lookup,only:iLookINDEX                        ! variable lookup structure
  USE globalData,only:gru_struc                         ! gru-hru mapping structures
- USE globalData,only:startGRU                          ! index of first gru for parallel runs
  USE netcdf_util_module,only:nc_file_close             ! close netcdf file
  USE netcdf_util_module,only:nc_file_open              ! close netcdf file
  USE netcdf_util_module,only:netcdf_err                ! netcdf error handling
@@ -60,7 +59,6 @@ contains
  ! dummies
  character(*)  ,intent(in)   :: iconFile           ! name of input (restart) file
  integer(i4b)  ,intent(in)   :: nGRU               ! total # of GRUs in run space
- integer(i4b)  ,intent(in)   :: nHRU               ! total # of HRUs in run space
  integer(i4b)  ,intent(inout):: nDOM               ! max number of domains in any HRU
  type(var_info),intent(in)   :: indx_meta(:)       ! metadata
  integer(i4b)  ,intent(out)  :: err                ! error code
@@ -216,8 +214,6 @@ contains
  ! ************************************************************************************************
  subroutine read_icond(iconFile,                      & ! intent(in):    name of initial conditions file
                        nGRU,                          & ! intent(in):    number of GRUs
-                       nHRU,                          & ! intent(in):    number of HRUs
-                       nDOM,                          & ! intent(in):    number of domains
                        mparData,                      & ! intent(in):    model parameters
                        progData,                      & ! intent(inout): model prognostic variables
                        bvarData,                      & ! intent(inout): model basin (GRU) variables
@@ -254,8 +250,6 @@ contains
  ! dummies
  character(*)           ,intent(in)        :: iconFile                 ! name of netcdf file containing the initial conditions
  integer(i4b)           ,intent(in)        :: nGRU                     ! number of grouped response units in simulation domain
- integer(i4b)           ,intent(in)        :: nHRU                     ! number of hydrological response units in simulation domain
- integer(i4b)           ,intent(in)        :: nDOM                     ! number of domains in simulation domain
  type(gru_hru_dom_doubleVec),intent(in)    :: mparData                 ! model parameters
  type(gru_hru_dom_doubleVec),intent(inout) :: progData                 ! model prognostic variables
  type(gru_doubleVec)    ,intent(inout)     :: bvarData                 ! model basin (GRU) variables

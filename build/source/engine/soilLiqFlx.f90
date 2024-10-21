@@ -174,7 +174,7 @@ subroutine soilLiqFlx(&
     ! input: model fluxes
     scalarCanopyTranspiration => in_soilLiqFlx % scalarCanopyTranspiration, & ! intent(in): canopy transpiration (kg m-2 s-1)
     scalarGroundEvaporation   => in_soilLiqFlx % scalarGroundEvaporation,   & ! intent(in): ground evaporation (kg m-2 s-1)
-    scalarRainPlusMelt        => in_soilLiqFlx % scalarRainPlusMelt,        & ! intent(in): rain plus melt (m s-1)
+    scalarRainPlusMelt        => in_soilLiqFlx % scalarRainPlusMelt,        & ! intent(in): rain plus melt plus lake drainage (m s-1)
     ! input: model control
     ixRichards             => model_decisions(iLookDECISIONS%f_Richards)%iDecision,   & ! intent(in): index of the form of Richards' equation
     ixBcUpperSoilHydrology => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision,   & ! intent(in): index of the upper boundary conditions for soil hydrology
@@ -324,7 +324,6 @@ subroutine soilLiqFlx(&
                       deriv_desired,                   & ! intent(in):  flag indicating if derivatives are desired
                       ixRichards,                      & ! intent(in):  index defining the option for Richards' equation (moisture or mixdform)
                       ! input: state variables
-                      mLayerTempTrial(iSoil),          & ! intent(in):  temperature (K)
                       mLayerMatricHeadLiqTrial(iSoil), & ! intent(in):  liquid  matric head in each layer (m)
                       mLayerVolFracLiqTrial(iSoil),    & ! intent(in):  volumetric liquid water content in each soil layer (-)
                       mLayerVolFracIceTrial(iSoil),    & ! intent(in):  volumetric ice content in each soil layer (-)
@@ -400,7 +399,7 @@ subroutine soilLiqFlx(&
                     upperBoundHead,                     & ! intent(in):    upper boundary condition (m)
                     upperBoundTheta,                    & ! intent(in):    upper boundary condition (-)
                     ! input: flux at the upper boundary
-                    scalarRainPlusMelt,                 & ! intent(in):    rain plus melt (m s-1)
+                    scalarRainPlusMelt,                 & ! intent(in):    rain plus melt plus lake drainage (m s-1)
                     ! input: transmittance
                     iLayerSatHydCond(0),                & ! intent(in):    saturated hydraulic conductivity at the surface (m s-1)
                     dHydCond_dTemp(1),                  & ! intent(in):    derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
@@ -549,7 +548,6 @@ subroutine diagv_node(&
                       deriv_desired,            & ! intent(in):  flag indicating if derivatives are desired
                       ixRichards,               & ! intent(in):  index defining the option for Richards' equation (moisture or mixdform)
                       ! input: state variables
-                      scalarTempTrial,          & ! intent(in):  temperature (K)
                       scalarMatricHeadLiqTrial, & ! intent(in):  liquid matric head in a given layer (m)
                       scalarVolFracLiqTrial,    & ! intent(in):  volumetric liquid water content in a given soil layer (-)
                       scalarVolFracIceTrial,    & ! intent(in):  volumetric ice content in a given soil layer (-)
@@ -600,7 +598,6 @@ subroutine diagv_node(&
   logical(lgt),intent(in)          :: deriv_desired             ! flag indicating if derivatives are desired
   integer(i4b),intent(in)          :: ixRichards                ! index defining the option for Richards' equation (moisture or mixdform)
   ! input: state and diagnostic variables
-  real(rkind),intent(in)           :: scalarTempTrial           ! temperature in each layer (K)
   real(rkind),intent(in)           :: scalarMatricHeadLiqTrial  ! liquid matric head in each layer (m)
   real(rkind),intent(in)           :: scalarVolFracLiqTrial     ! volumetric fraction of liquid water in a given layer (-)
   real(rkind),intent(in)           :: scalarVolFracIceTrial     ! volumetric fraction of ice in a given layer (-)
@@ -781,7 +778,7 @@ subroutine surfaceFlx(&
                       upperBoundHead,            & ! intent(in):    upper boundary condition (m)
                       upperBoundTheta,           & ! intent(in):    upper boundary condition (-)
                       ! input: flux at the upper boundary
-                      scalarRainPlusMelt,        & ! intent(in):    rain plus melt (m s-1)
+                      scalarRainPlusMelt,        & ! intent(in):    rain plus melt plus lake drainage (m s-1)
                       ! input: transmittance
                       surfaceSatHydCond,         & ! intent(in):    saturated hydraulic conductivity at the surface (m s-1)
                       dHydCond_dTemp,            & ! intent(in):    derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
@@ -1109,7 +1106,7 @@ subroutine surfaceFlx(&
         dFrozenArea_dWat(0) = 0._rkind
         dFrozenArea_dTk(0)  = 0._rkind
 
-        ! Note, if this is a lake, will not be scalarRainPlusMelt, but the lake flux
+        ! Note, if there is a lake then scalarRainPlusMelt will include lake drainage
         if (xMaxInfilRate < scalarRainPlusMelt) then ! = dxMaxInfilRate_d, dependent on layers not at surface
           dInfilRate_dWat(0) = 0._rkind
           dInfilRate_dTk(0)  = 0._rkind

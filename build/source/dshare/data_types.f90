@@ -504,7 +504,7 @@ MODULE data_types
  type, public :: in_type_snLaSoIcNrgFlux ! class for intent(in) arguments in snLaSoIcNrgFlux call
    logical(lgt)             :: scalarSolution                    ! intent(in): flag to denote if implementing the scalar solution
    real(rkind)              :: scalarGroundNetNrgFlux            ! intent(in): net energy flux for the ground surface (W m-2)
-   real(rkind), allocatable :: iLayerLiqFluxSnIc(:)              ! intent(in): liquid flux at the interface of each snow ice layer (m s-1)
+   real(rkind), allocatable :: iLayerLiqFluxSnLaIc(:)            ! intent(in): liquid flux at the interface of each snow ice layer (m s-1)
    real(rkind), allocatable :: iLayerLiqFluxSoil(:)              ! intent(in): liquid flux at the interface of each soil layer (m s-1)
    real(rkind), allocatable :: mLayerTempTrial(:)                ! intent(in): temperature in each layer at the current iteration (m)
    real(rkind), allocatable :: dThermalC_dWatAbove(:)            ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
@@ -556,8 +556,8 @@ MODULE data_types
  end type out_type_vegLiqFlux
  ! ** end vegLiqFlux
 
- ! ** snIcLiqFlx
- type, public :: in_type_snIcLiqFlx ! class for intent(in) arguments in snIcLiqFlx call
+ ! ** snLaIcLiqFlx
+ type, public :: in_type_snLaIcLiqFlx ! class for intent(in) arguments in snLaIcLiqFlx call
    integer(i4b)             :: nLayers                           ! intent(in):    number of layers
    integer(i4b)             :: nStart                            ! intent(in):    starting index for layers
    logical(lgt)             :: do_snow                           ! intent(in):    flag to indicate if snow layers
@@ -568,24 +568,24 @@ MODULE data_types
    real(rkind)              :: scalarCanopyLiqDrainage           ! intent(in):    liquid drainage from the vegetation canopy (kg m-2 s-1)
    real(rkind), allocatable :: mLayerVolFracLiqTrial(:)          ! intent(in):    trial value of volumetric fraction of liquid water at the current iteration (-)
   contains
-   procedure :: initialize => initialize_in_snIcLiqFlx
- end type in_type_snIcLiqFlx
+   procedure :: initialize => initialize_in_snLaIcLiqFlx
+ end type in_type_snLaIcLiqFlx
 
- type, public :: io_type_snIcLiqFlx ! class for intent(inout) arguments in snIcLiqFlx call
-   real(rkind), allocatable :: iLayerLiqFluxSnIc(:)              ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
-   real(rkind), allocatable :: iLayerLiqFluxSnIcDeriv(:)         ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
+ type, public :: io_type_snLaIcLiqFlx ! class for intent(inout) arguments in snLaIcLiqFlx call
+   real(rkind), allocatable :: iLayerLiqFluxSnLaIc(:)            ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
+   real(rkind), allocatable :: iLayerLiqFluxSnLaIcDeriv(:)       ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
   contains
-   procedure :: initialize => initialize_io_snIcLiqFlx
-   procedure :: finalize   => finalize_io_snIcLiqFlx
- end type io_type_snIcLiqFlx
+   procedure :: initialize => initialize_io_snLaIcLiqFlx
+   procedure :: finalize   => finalize_io_snLaIcLiqFlx
+ end type io_type_snLaIcLiqFlx
 
- type, public :: out_type_snIcLiqFlx ! class for intent(out) arguments in snIcLiqFlx call
+ type, public :: out_type_snLaIcLiqFlx ! class for intent(out) arguments in snLaIcLiqFlx call
    integer(i4b)             :: err                               ! intent(out):   error code
    character(len=len_msg)   :: cmessage                          ! intent(out):   error message
   contains
-   procedure :: finalize => finalize_out_snIcLiqFlx
- end type out_type_snIcLiqFlx
- ! ** end snIcLiqFlx
+   procedure :: finalize => finalize_out_snLaIcLiqFlx
+ end type out_type_snLaIcLiqFlx
+ ! ** end snLaIcLiqFlx
 
  ! ** soilLiqFlx
  type, public :: in_type_soilLiqFlx ! class for intent(in) arguments in soilLiqFlx call
@@ -610,7 +610,7 @@ MODULE data_types
    real(rkind)              :: above_soilFracLiq                 ! intent(in):    fraction of liquid water layer above soil (canopy or snow) (-)
    real(rkind)              :: scalarCanopyTranspiration         ! intent(in):    canopy transpiration (kg m-2 s-1)
    real(rkind)              :: scalarGroundEvaporation           ! intent(in):    ground evaporation (kg m-2 s-1)
-   real(rkind)              :: scalarRainPlusMelt                ! intent(in):    rain plus melt (m s-1)
+   real(rkind)              :: scalarRainPlusMelt                ! intent(in):    rain plus melt plus lake drainage (m s-1)
   contains
    procedure :: initialize => initialize_in_soilLiqFlx
  end type in_type_soilLiqFlx
@@ -1018,7 +1018,7 @@ contains
   type(var_dlength),intent(in)          :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
   associate(&
    scalarGroundNetNrgFlux       => flux_data%var(iLookFLUX%scalarGroundNetNrgFlux)%dat(1), & ! intent(out): [dp] net energy flux for the ground surface (W m-2)
-   iLayerLiqFluxSnIc            => flux_data%var(iLookFLUX%iLayerLiqFluxSnIc)%dat,         & ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
+   iLayerLiqFluxSnLaIc          => flux_data%var(iLookFLUX%iLayerLiqFluxSnLaIc)%dat,       & ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
    iLayerLiqFluxSoil            => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat,         & ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
    dThermalC_dWatAbove          => deriv_data%var(iLookDERIV%dThermalC_dWatAbove)%dat,     & ! intent(in):  [dp(:)] derivative in the thermal conductivity w.r.t. water state in the layer above
    dThermalC_dWatBelow          => deriv_data%var(iLookDERIV%dThermalC_dWatBelow)%dat,     & ! intent(in):  [dp(:)] derivative in the thermal conductivity w.r.t. water state in the layer above
@@ -1027,7 +1027,7 @@ contains
    ! intent(in) arguments
    in_snLaSoIcNrgFlux % scalarSolution=scalarSolution .and. .not.firstFluxCall ! intent(in): flag to denote if implementing the scalar solution
    in_snLaSoIcNrgFlux % scalarGroundNetNrgFlux=scalarGroundNetNrgFlux          ! intent(in): net energy flux for the ground surface (W m-2)
-   in_snLaSoIcNrgFlux % iLayerLiqFluxSnIc=iLayerLiqFluxSnIc                    ! intent(in): liquid flux at the interface of each snow layer (m s-1)
+   in_snLaSoIcNrgFlux % iLayerLiqFluxSnLaIc=iLayerLiqFluxSnLaIc                ! intent(in): liquid flux at the interface of each snow layer (m s-1)
    in_snLaSoIcNrgFlux % iLayerLiqFluxSoil=iLayerLiqFluxSoil                    ! intent(in): liquid flux at the interface of each soil layer (m s-1)
    in_snLaSoIcNrgFlux % mLayerTempTrial=mLayerTempTrial                        ! intent(in): temperature in each layer at the current iteration (m)
    in_snLaSoIcNrgFlux % dThermalC_dWatAbove=dThermalC_dWatAbove                ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
@@ -1117,9 +1117,9 @@ contains
  end subroutine finalize_out_vegLiqFlux
  ! **** end vegLiqFlux ****
 
- ! **** snIcLiqFlx ****
- subroutine initialize_in_snIcLiqFlx(in_snIcLiqFlx,nLayers,nStart,do_snow,surface_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
-  class(in_type_snIcLiqFlx),intent(out)   :: in_snIcLiqFlx               ! class object for intent(in) snIcLiqFlx arguments            
+ ! **** snLaIcLiqFlx ****
+ subroutine initialize_in_snLaIcLiqFlx(in_snLaIcLiqFlx,nLayers,nStart,do_snow,surface_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+  class(in_type_snLaIcLiqFlx),intent(out)   :: in_snLaIcLiqFlx               ! class object for intent(in) snLaIcLiqFlx arguments            
   integer(i4b),intent(in)                 :: nLayers                     ! number of layers
   integer(i4b),intent(in)                 :: nStart                      ! starting index for layers
   logical(lgt),intent(in)                 :: do_snow                     ! flag to denote if processing snow layers
@@ -1128,53 +1128,53 @@ contains
   logical(lgt),intent(in)                 :: scalarSolution              ! flag to denote if implementing the scalar solution
   real(rkind),intent(in)                  :: mLayerVolFracLiqTrial(:)    ! trial value for volumetric fraction of liquid water (-)
    ! intent(in) arguments
-   in_snIcLiqFlx % nLayers                =nLayers                        ! intent(in): number of layers
-   in_snIcLiqFlx % nStart                 =nStart                         ! intent(in): starting index for layers
-   in_snIcLiqFlx % do_snow                =do_snow                        ! intent(in): flag to denote if processing snow layers
-   in_snIcLiqFlx % surface_flux           =surface_flux                   ! intent(in): surface fluxes (kg m-2 s-1)
-   in_snIcLiqFlx % firstFluxCall          =firstFluxCall                  ! intent(in): the first flux call (compute variables that are constant over the iterations)
-   in_snIcLiqFlx % scalarSolution         =(scalarSolution .and. .not.firstFluxCall) ! intent(in): flag to indicate the scalar solution
-   in_snIcLiqFlx % mLayerVolFracLiqTrial  =mLayerVolFracLiqTrial(nStart+1:nStart+nLayers) ! intent(in): trial value of volumetric fraction of liquid water at the current iteration (-)
- end subroutine initialize_in_snIcLiqFlx 
+   in_snLaIcLiqFlx % nLayers                =nLayers                        ! intent(in): number of layers
+   in_snLaIcLiqFlx % nStart                 =nStart                         ! intent(in): starting index for layers
+   in_snLaIcLiqFlx % do_snow                =do_snow                        ! intent(in): flag to denote if processing snow layers
+   in_snLaIcLiqFlx % surface_flux           =surface_flux                   ! intent(in): surface fluxes (kg m-2 s-1)
+   in_snLaIcLiqFlx % firstFluxCall          =firstFluxCall                  ! intent(in): the first flux call (compute variables that are constant over the iterations)
+   in_snLaIcLiqFlx % scalarSolution         =(scalarSolution .and. .not.firstFluxCall) ! intent(in): flag to indicate the scalar solution
+   in_snLaIcLiqFlx % mLayerVolFracLiqTrial  =mLayerVolFracLiqTrial(nStart+1:nStart+nLayers) ! intent(in): trial value of volumetric fraction of liquid water at the current iteration (-)
+ end subroutine initialize_in_snLaIcLiqFlx 
 
- subroutine initialize_io_snIcLiqFlx(io_snIcLiqFlx,nLayers,nStart,flux_data,deriv_data)
-  class(io_type_snIcLiqFlx),intent(out)   :: io_snIcLiqFlx               ! class object for intent(inout) snIcLiqFlx arguments
+ subroutine initialize_io_snLaIcLiqFlx(io_snLaIcLiqFlx,nLayers,nStart,flux_data,deriv_data)
+  class(io_type_snLaIcLiqFlx),intent(out)   :: io_snLaIcLiqFlx               ! class object for intent(inout) snLaIcLiqFlx arguments
   integer(i4b),intent(in)                 :: nLayers                     ! number of snow layers
   integer(i4b),intent(in)                 :: nStart                      ! starting index for snow layers
   type(var_dlength),intent(in)            :: flux_data                   ! model fluxes for a local HRU
   type(var_dlength),intent(in)            :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
   associate(&
-   iLayerLiqFluxSnIc            => flux_data%var(iLookFLUX%iLayerLiqFluxSnIc)%dat(nStart:nStart+nLayers),       & ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
-   iLayerLiqFluxSnIcDeriv       => deriv_data%var(iLookDERIV%iLayerLiqFluxSnIcDeriv)%dat(nStart:nStart+nLayers) ) ! intent(out): [dp(:)] derivative in vertical liquid water flux at layer interfaces
-   io_snIcLiqFlx % iLayerLiqFluxSnIc      =iLayerLiqFluxSnIc       ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
-   io_snIcLiqFlx % iLayerLiqFluxSnIcDeriv =iLayerLiqFluxSnIcDeriv  ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
+   iLayerLiqFluxSnLaIc            => flux_data%var(iLookFLUX%iLayerLiqFluxSnLaIc)%dat(nStart:nStart+nLayers),       & ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
+   iLayerLiqFluxSnLaIcDeriv       => deriv_data%var(iLookDERIV%iLayerLiqFluxSnLaIcDeriv)%dat(nStart:nStart+nLayers) ) ! intent(out): [dp(:)] derivative in vertical liquid water flux at layer interfaces
+   io_snLaIcLiqFlx % iLayerLiqFluxSnLaIc      =iLayerLiqFluxSnLaIc       ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
+   io_snLaIcLiqFlx % iLayerLiqFluxSnLaIcDeriv =iLayerLiqFluxSnLaIcDeriv  ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
   end associate
- end subroutine initialize_io_snIcLiqFlx
+ end subroutine initialize_io_snLaIcLiqFlx
 
- subroutine finalize_io_snIcLiqFlx(io_snIcLiqFlx,nLayers,nStart,flux_data,deriv_data)
-  class(io_type_snIcLiqFlx),intent(in)    :: io_snIcLiqFlx               ! class object for intent(inout) snIcLiqFlx arguments
+ subroutine finalize_io_snLaIcLiqFlx(io_snLaIcLiqFlx,nLayers,nStart,flux_data,deriv_data)
+  class(io_type_snLaIcLiqFlx),intent(in)    :: io_snLaIcLiqFlx               ! class object for intent(inout) snLaIcLiqFlx arguments
   integer(i4b),intent(in)                 :: nLayers                     ! number of snow layers
   integer(i4b),intent(in)                 :: nStart                      ! starting index for snow layers
   type(var_dlength),intent(inout)         :: flux_data                   ! model fluxes for a local HRU
   type(var_dlength),intent(inout)         :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
   associate(&
-   iLayerLiqFluxSnIc            => flux_data%var(iLookFLUX%iLayerLiqFluxSnIc)%dat(nStart:nStart+nLayers),       & ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
-   iLayerLiqFluxSnIcDeriv       => deriv_data%var(iLookDERIV%iLayerLiqFluxSnIcDeriv)%dat(nStart:nStart+nLayers) ) ! intent(out): [dp(:)] derivative in vertical liquid water flux at layer interfaces
+   iLayerLiqFluxSnLaIc            => flux_data%var(iLookFLUX%iLayerLiqFluxSnLaIc)%dat(nStart:nStart+nLayers),       & ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
+   iLayerLiqFluxSnLaIcDeriv       => deriv_data%var(iLookDERIV%iLayerLiqFluxSnLaIcDeriv)%dat(nStart:nStart+nLayers) ) ! intent(out): [dp(:)] derivative in vertical liquid water flux at layer interfaces
    ! intent(inout) arguments
-   iLayerLiqFluxSnIc     =io_snIcLiqFlx % iLayerLiqFluxSnIc               ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
-   iLayerLiqFluxSnIcDeriv=io_snIcLiqFlx % iLayerLiqFluxSnIcDeriv          ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
+   iLayerLiqFluxSnLaIc     =io_snLaIcLiqFlx % iLayerLiqFluxSnLaIc               ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
+   iLayerLiqFluxSnLaIcDeriv=io_snLaIcLiqFlx % iLayerLiqFluxSnLaIcDeriv          ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
   end associate
- end subroutine finalize_io_snIcLiqFlx
+ end subroutine finalize_io_snLaIcLiqFlx
 
- subroutine finalize_out_snIcLiqFlx(out_snIcLiqFlx,err,cmessage)
-  class(out_type_snIcLiqFlx),intent(in)   :: out_snIcLiqFlx              ! class object for intent(out) snIcLiqFlx arguments
+ subroutine finalize_out_snLaIcLiqFlx(out_snLaIcLiqFlx,err,cmessage)
+  class(out_type_snLaIcLiqFlx),intent(in)   :: out_snLaIcLiqFlx              ! class object for intent(out) snLaIcLiqFlx arguments
   integer(i4b),intent(out)                :: err                         ! error code
-  character(*),intent(out)                :: cmessage                    ! error message from snIcLiqFlx
+  character(*),intent(out)                :: cmessage                    ! error message from snLaIcLiqFlx
   ! intent(out) arguments
-  err     =out_snIcLiqFlx % err                                          ! intent(out):   error code
-  cmessage=out_snIcLiqFlx % cmessage                                     ! intent(out):   error message
- end subroutine finalize_out_snIcLiqFlx
- ! **** end snIcLiqFlx ****
+  err     =out_snLaIcLiqFlx % err                                          ! intent(out):   error code
+  cmessage=out_snLaIcLiqFlx % cmessage                                     ! intent(out):   error message
+ end subroutine finalize_out_snLaIcLiqFlx
+ ! **** end snLaIcLiqFlx ****
 
  ! **** soilLiqFlx ****
  subroutine initialize_in_soilLiqFlx(in_soilLiqFlx,nSnow,nLake,nSoil,firstSplitOper,scalarSolution,firstFluxCall,&
@@ -1240,10 +1240,10 @@ contains
   associate(&
    scalarCanopyTranspiration    => flux_data%var(iLookFLUX%scalarCanopyTranspiration)%dat(1), & ! intent(out): [dp] canopy transpiration (kg m-2 s-1)
    scalarGroundEvaporation      => flux_data%var(iLookFLUX%scalarGroundEvaporation)%dat(1),   & ! intent(out): [dp] ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
-   scalarRainPlusMelt           => flux_data%var(iLookFLUX%scalarRainPlusMelt)%dat(1)         ) ! intent(out): [dp] rain plus melt (m s-1)
+   scalarRainPlusMelt           => flux_data%var(iLookFLUX%scalarRainPlusMelt)%dat(1)         ) ! intent(out): [dp] rain plus melt plus lake drainage (m s-1)
    in_soilLiqFlx % scalarCanopyTranspiration=scalarCanopyTranspiration                          ! intent(in): canopy transpiration (kg m-2 s-1)
    in_soilLiqFlx % scalarGroundEvaporation  =scalarGroundEvaporation                            ! intent(in): ground evaporation (kg m-2 s-1)
-   in_soilLiqFlx % scalarRainPlusMelt       =scalarRainPlusMelt                                 ! intent(in): rain plus melt (m s-1)
+   in_soilLiqFlx % scalarRainPlusMelt       =scalarRainPlusMelt                                 ! intent(in): rain plus melt plus lake drainage (m s-1)
   end associate
  end subroutine initialize_in_soilLiqFlx
 

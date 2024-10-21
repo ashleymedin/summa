@@ -849,8 +849,6 @@ USE getVectorz_module,only:varExtract                              ! extract var
     call varExtract(&
                     ! input
                     stateVecTrial,             & ! intent(in):    model state vector (mixed units)
-                    diag_data,                 & ! intent(in):    model diagnostic variables for a local HRU
-                    prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
                     indx_data,                 & ! intent(in):    indices defining model states and layers
                     ! output: variables for the vegetation canopy
                     scalarCanairNrgTrial,      & ! intent(inout): trial value of energy of the canopy air space, temperature (K) or enthalpy (J m-3)
@@ -908,8 +906,6 @@ USE getVectorz_module,only:varExtract                              ! extract var
         call varExtract(&
                   ! input
                   stateVecPrime,             & ! intent(in):    derivative of model state vector (mixed units)
-                  diag_data,                 & ! intent(in):    model diagnostic variables for a local HRU
-                  prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
                   indx_data,                 & ! intent(in):    indices defining model states and layers
                   ! output: variables for the vegetation canopy
                   scalarCanairNrgPrime,      & ! intent(inout): derivative of energy of the canopy air space, temperature (K s-1) or enthalpy (W m-3)
@@ -918,12 +914,12 @@ USE getVectorz_module,only:varExtract                              ! extract var
                   scalarCanopyLiqPrime,      & ! intent(inout): derivative of canopy liquid water (kg m-2 s-1)
                   ! output: variables for the snow-soil domain
                   mLayerNrgPrime,            & ! intent(inout): derivative of energy of each layer, temperature (K s-1) or enthalpy (W m-3)
-                  mLayerVolFracWatPrime,     & ! intent(inout):   derivative of volumetric total water content (-)
-                  mLayerVolFracLiqPrime,     & ! intent(inout):   derivative of volumetric liquid water content (-)
-                  mLayerMatricHeadPrime,     & ! intent(inout):   derivative of total water matric potential (m)
-                  mLayerMatricHeadLiqPrime,  & ! intent(inout):   derivative of liquid water matric potential (m)
+                  mLayerVolFracWatPrime,     & ! intent(inout): derivative of volumetric total water content (-)
+                  mLayerVolFracLiqPrime,     & ! intent(inout): derivative of volumetric liquid water content (-)
+                  mLayerMatricHeadPrime,     & ! intent(inout): derivative of total water matric potential (m)
+                  mLayerMatricHeadLiqPrime,  & ! intent(inout): derivative of liquid water matric potential (m)
                   ! output: variables for the aquifer
-                  scalarAquiferStoragePrime, & ! intent(inout):   derivative of storage of water in the aquifer (m)
+                  scalarAquiferStoragePrime, & ! intent(inout): derivative of storage of water in the aquifer (m)
                   ! output: error control
                   err,cmessage)               ! intent(out):   error control
         if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)

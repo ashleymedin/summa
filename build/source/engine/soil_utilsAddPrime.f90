@@ -85,7 +85,7 @@ subroutine liquidHeadPrime(&
   real(rkind),intent(in)            :: volFracIcePrime                           ! volumetric fraction of ice time derivative ()
   ! output
   real(rkind),intent(out)           :: matricHeadLiq                             ! liquid water matric potential (m)
-    real(rkind),intent(out)         :: matricHeadLiqPrime                        ! liquid water matric potential time derivative (m s-1)
+  real(rkind),intent(out)           :: matricHeadLiqPrime                        ! liquid water matric potential time derivative (m s-1)
   real(rkind),intent(out) ,optional :: dPsiLiq_dPsi0                             ! derivative in the liquid water matric potential w.r.t. the total water matric potential (-)
   real(rkind),intent(out) ,optional :: dPsiLiq_dTemp                             ! derivative in the liquid water matric potential w.r.t. temperature (m K-1)
   ! output: error control
@@ -141,10 +141,8 @@ subroutine liquidHeadPrime(&
         message=trim(message)//'dVolTot_dPsi0 argument is missing'
         err=20; return
       endif
-
       ! (compute derivative in the liquid water matric potential w.r.t. the total water matric potential)
       dPsiLiq_dPsi0 = dVolTot_dPsi0*dPsiLiq_dEffSat*xNum/(xDen**2_i4b)
-
     endif  ! if dPsiLiq_dTemp is desired
 
     ! -----
@@ -153,7 +151,6 @@ subroutine liquidHeadPrime(&
 
     ! check if the derivative is desired
     if(present(dPsiLiq_dTemp))then
-
       ! (check required input derivative is present)
       if(.not.present(dTheta_dT))then
         message=trim(message)//'dTheta_dT argument is missing'

@@ -44,10 +44,14 @@ character(len=32),parameter :: timestep_DimName = 'time'             ! dimension
 character(len=32),parameter :: routing_DimName  = 'timeDelayRouting' ! dimension name for the time delay routing vectors
 character(len=32),parameter :: glacier_DimName  = 'glacier'          ! dimension name for the number of glaciers
 character(len=32),parameter :: midSnow_DimName  = 'midSnow'          ! dimension name for midSnow
+character(len=32),parameter :: midLake_DimName  = 'midLake'          ! dimension name for midLake
 character(len=32),parameter :: midSoil_DimName  = 'midSoil'          ! dimension name for midSoil
+character(len=32),parameter :: midIce_DimName   = 'midIce'           ! dimension name for midIce
 character(len=32),parameter :: midToto_DimName  = 'midToto'          ! dimension name for midToto
 character(len=32),parameter :: ifcSnow_DimName  = 'ifcSnow'          ! dimension name for ifcSnow
+character(len=32),parameter :: ifcLake_DimName  = 'ifcLake'          ! dimension name for ifcLake
 character(len=32),parameter :: ifcSoil_DimName  = 'ifcSoil'          ! dimension name for ifcSoil
+character(len=32),parameter :: ifcIce_DimName   = 'ifcIce'           ! dimension name for ifcIce
 character(len=32),parameter :: ifcToto_DimName  = 'ifcToto'          ! dimension name for ifcToto
 
 ! define the dimension IDs
@@ -61,10 +65,14 @@ integer(i4b)                :: timestep_DimID                        ! dimension
 integer(i4b)                :: routing_DimID                         ! dimension name for thetime delay routing vectors
 integer(i4b)                :: glacier_DimID                         ! dimension name for the number of glaciers
 integer(i4b)                :: midSnow_DimID                         ! dimension name for midSnow
+integer(i4b)                :: midLake_DimID                         ! dimension name for midLake
 integer(i4b)                :: midSoil_DimID                         ! dimension name for midSoil
+integer(i4b)                :: midIce_DimID                          ! dimension name for midIce
 integer(i4b)                :: midToto_DimID                         ! dimension name for midToto
 integer(i4b)                :: ifcSnow_DimID                         ! dimension name for ifcSnow
+integer(i4b)                :: ifcLake_DimID                         ! dimension name for ifcLake
 integer(i4b)                :: ifcSoil_DimID                         ! dimension name for ifcSoil
+integer(i4b)                :: ifcIce_DimID                          ! dimension name for ifcIce
 integer(i4b)                :: ifcToto_DimID                         ! dimension name for ifcToto
 
 ! define named variables to specify dimensions
@@ -233,10 +241,14 @@ contains
  err = nf90_def_dim(ncid, trim( routing_DimName), nTimeDelay,            routing_DimID); message='iCreate[routing]';  call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim( glacier_DimName), maxGlaciers,           glacier_DimID); message='iCreate[glacier]';  call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim( midSnow_DimName), maxSnowLayers,         midSnow_DimID); message='iCreate[midSnow]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( midLake_DimName), maxLakeLayers,         midLake_DimID); message='iCreate[midLake]';  call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim( midSoil_DimName), maxSoilLayers,         midSoil_DimID); message='iCreate[midSoil]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(  midIce_DimName), maxIceLayers,           midIce_DimID); message='iCreate[midIce]';   call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim( midToto_DimName), maxLayers,             midToto_DimID); message='iCreate[midToto]';  call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim( ifcSnow_DimName), maxSnowLayers+1,       ifcSnow_DimID); message='iCreate[ifcSnow]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( ifcLake_DimName), maxLakeLayers+1,       ifcLake_DimID); message='iCreate[ifcLake]';  call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim( ifcSoil_DimName), maxSoilLayers,         ifcSoil_DimID); message='iCreate[ifcSoil]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(  ifcIce_DimName), maxIceLayers+1,         ifcIce_DimID); message='iCreate[ifcIce]';   call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim( ifcToto_DimName), maxLayers+1,           ifcToto_DimID); message='iCreate[ifcToto]';  call netcdf_err(err,message); if (err/=0) return
 
  ! Leave define mode of NetCDF files

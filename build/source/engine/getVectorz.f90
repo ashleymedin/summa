@@ -534,8 +534,8 @@ subroutine checkFeas(&
 
         ! --> maximum
         select case( layerType(iLayer) )
-          case(iname_snow,iname_lake, iname_ice); xMax = merge(1._rkind, 1._rkind - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
-          case(iname_soil);                       xMax = merge(theta_sat(iLayer-nSnow-nLake), theta_sat(iLayer-nSnow-nLake) - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
+          case(iname_snow,iname_lake,iname_ice); xMax = merge(1._rkind, 1._rkind - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
+          case(iname_soil);                      xMax = merge(theta_sat(iLayer-nSnow-nLake), theta_sat(iLayer-nSnow-nLake) - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
         end select
 
         ! --> check
@@ -561,8 +561,6 @@ end subroutine checkFeas
 subroutine varExtract(&
                        ! input
                        stateVec,                                  & ! intent(in):    model state vector (mixed units)
-                       diag_data,                                 & ! intent(in):    model diagnostic variables for a local HRU
-                       prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
                        indx_data,                                 & ! intent(in):    indices defining model states and layers
                        ! output: variables for the vegetation canopy
                        scalarCanairNrgTrial,                      & ! intent(inout):   trial value of canopy air energy, temperature (K) or enthalpy (J m-3)
@@ -584,8 +582,6 @@ subroutine varExtract(&
   implicit none
   ! input
   real(rkind),intent(in)             :: stateVec(:)                     ! model state vector (mixed units)
-  type(var_dlength),intent(in)       :: diag_data                       ! diagnostic variables for a local HRU
-  type(var_dlength),intent(in)       :: prog_data                       ! prognostic variables for a local HRU
   type(var_ilength),intent(in)       :: indx_data                       ! indices defining model states and layers
   ! output: variables for the vegetation canopy
   real(rkind),intent(inout)          :: scalarCanairNrgTrial            ! trial value of canopy air energy, temperature (K) or enthalpy (J m-3)

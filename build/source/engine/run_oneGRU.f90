@@ -252,7 +252,6 @@ subroutine run_oneGRU(&
                    gruInfo%hruInfo(iHRU)%domCount, & ! intent(in):    total number of domains
                    gruInfo%hruInfo(iHRU)%domInfo,  & ! intent(inout): domain type and layer information
                    ! data structures (input)
-                   timeVec,                        & ! intent(in):    model time data
                    typeHRU%hru(iHRU),              & ! intent(in):    local classification of soil veg etc. for each HRU
                    attrHRU%hru(iHRU),              & ! intent(in):    local attributes for each HRU
                    lookupHRU%hru(iHRU),            & ! intent(in):    local lookup tables for each HRU
@@ -318,16 +317,16 @@ subroutine run_oneGRU(&
         end if
       else if (typeDOM==glacAcc .or. typeDOM==glacAbl)then
         if (typeDOM==glacAcc)then ! collect glacier accumulation melt m s-1
-          glacFirnMelt = glacFirnMelt + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarTotalRunoff)%dat(1) *fracDOM
+          glacFirnMelt = glacFirnMelt + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarGlacierMelt)%dat(1) *fracDOM
         else if (typeDOM==glacAbl)then ! collect glacier ablation melt m s-1
           if (progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowDepth)%dat(1)>0._rkind)then
-            glacSnowMelt = glacSnowMelt + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarTotalRunoff)%dat(1) *fracDOM
+            glacSnowMelt = glacSnowMelt + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarGlacierMelt)%dat(1) *fracDOM
           else
-            glacIceMelt  = glacIceMelt  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarTotalRunoff)%dat(1) *fracDOM
+            glacIceMelt  = glacIceMelt  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarGlacierMelt)%dat(1) *fracDOM
           endif
         end if
         bvarData%var(iLookBVAR%basin__GlacierArea)%dat(1) = bvarData%var(iLookBVAR%basin__GlacierArea)%dat(1) + progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
-        ! placeholder line, add actual kg/m2 of glacier storage instead of SWE
+        ! placeholder line, add actual kg/m2 of glacier storage instead of SWE, or is it delSWE + snowMelt + scalarGlacierMelt
         bvarData%var(iLookBVAR%basin__GlacierStorage)%dat(1) = bvarData%var(iLookBVAR%basin__GlacierStorage)%dat(1) + progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSWE)%dat(1) * progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
         ! if a year passed from last glacier area update, write fluxes to the output file so that the glacier area can be updated
         if (updateGlacArea) then

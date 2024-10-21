@@ -102,7 +102,6 @@ subroutine run_oneHRU(&
                       ndom,                & ! intent(in):    number of domains
                       domInfo,             & ! intent(inout):    domain type and number of layers
                       ! data structures (input)
-                      timeVec,             & ! intent(in):    model time data
                       typeData,            & ! intent(in):    local classification of soil veg etc. for each HRU
                       attrData,            & ! intent(in):    local attributes for each HRU
                       lookupData,          & ! intent(in):    local lookup tables for each HRU
@@ -130,7 +129,6 @@ subroutine run_oneHRU(&
   integer(i4b)       , intent(in)    :: ndom                ! number of domains
   type(dom_info)     , intent(inout) :: domInfo(:)          ! domain type
   ! data structures (input)
-  type(var_i)        , intent(in)    :: timeVec             ! x%var(:)                 -- model time data
   type(var_i)        , intent(in)    :: typeData            ! x%var(:)                 -- local classification of soil veg etc. for each HRU
   type(var_d)        , intent(in)    :: attrData            ! x%var(:)                 -- local attributes for each HRU
   type(dom_z_vLookup), intent(in)    :: lookupData          ! x%dom(:)%z(:)%var(:)%lookup(:) -- local lookup tables for each HRU

@@ -582,10 +582,13 @@ MODULE var_lookup
   integer(i4b)    :: iLayerAdvectiveFlux             = integerMissing ! advective energy flux at layer interfaces (W m-2)
   integer(i4b)    :: iLayerNrgFlux                   = integerMissing ! energy flux at layer interfaces (W m-2)
   integer(i4b)    :: mLayerNrgFlux                   = integerMissing ! net energy flux for each layer in the layer domains (J m-3 s-1)
-  ! liquid water fluxes for the snow ice
+  ! liquid water fluxes for the snow lake ice
   integer(i4b)    :: scalarSnowDrainage              = integerMissing ! drainage from the bottom of the snow profile (m s-1)
-  integer(i4b)    :: iLayerLiqFluxSnIc               = integerMissing ! liquid flux at snow ice layer interfaces (m s-1)
-  integer(i4b)    :: mLayerLiqFluxSnIc               = integerMissing ! net liquid water flux for each snow ice layer (s-1)
+  integer(i4b)    :: scalarLakeDrainage              = integerMissing ! drainage from the bottom of the lake profile (m s-1)
+  integer(i4b)    :: scalarLakeInflux                = integerMissing ! iinflux to the lake, rain plus melt plus lake drainage (m s-1)
+  integer(i4b)    :: scalarIceInflux                 = integerMissing ! influx to ice, rain plus melt plus debri drainage (m s-1)
+  integer(i4b)    :: iLayerLiqFluxSnLaIc             = integerMissing ! liquid flux at snow ice layer interfaces (m s-1)
+  integer(i4b)    :: mLayerLiqFluxSnLaIc             = integerMissing ! net liquid water flux for each snow ice layer (s-1)
   ! liquid water fluxes for the soil
   integer(i4b)    :: scalarRainPlusMelt              = integerMissing ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
   integer(i4b)    :: scalarMaxInfilRate              = integerMissing ! maximum infiltration rate (m s-1)
@@ -609,6 +612,7 @@ MODULE var_lookup
   ! derived variables
   integer(i4b)    :: scalarTotalET                   = integerMissing ! total ET (kg m-2 s-1)
   integer(i4b)    :: scalarTotalRunoff               = integerMissing ! total runoff (m s-1)
+  integer(i4b)    :: scalarGlacierMelt               = integerMissing ! glacier melt (goes into glacier internal reservoir) (m s-1)
   integer(i4b)    :: scalarNetRadiation              = integerMissing ! net radiation (W m-2)
  endtype iLook_flux
 
@@ -670,8 +674,8 @@ MODULE var_lookup
   ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. water state in layers above and below
   integer(i4b)    :: dNrgFlux_dWatAbove              = integerMissing ! derivatives in the flux w.r.t. water state in the layer above
   integer(i4b)    :: dNrgFlux_dWatBelow              = integerMissing ! derivatives in the flux w.r.t. water state in the layer below
-  ! derivative in liquid water fluxes at the interface of snow ice layers w.r.t. volumetric liquid water content in the layer above
-  integer(i4b)    :: iLayerLiqFluxSnIcDeriv          = integerMissing ! derivative in vertical liquid water flux at layer interfaces (m s-1)
+  ! derivative in liquid water fluxes at the interface of snow lake ice layers w.r.t. volumetric liquid water content in the layer above
+  integer(i4b)    :: iLayerLiqFluxSnLaIcDeriv        = integerMissing ! derivative in vertical liquid water flux at layer interfaces (m s-1)
   ! derivative in liquid water fluxes for the soil domain w.r.t hydrology state variables
   integer(i4b)    :: dVolTot_dPsi0                   = integerMissing ! derivative in total water content w.r.t. total water matric potential (m-1)
   integer(i4b)    :: d2VolTot_dPsi02                 = integerMissing ! second derivative in total water content w.r.t. total water matric potential
@@ -980,7 +984,8 @@ MODULE var_lookup
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
-                                                                         81, 82, 83, 84, 85, 86, 87, 88, 89)
+                                                                         81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
+                                                                         91, 92, 93)
  ! named variables: derivatives in model fluxes w.r.t. relevant state variables
  type(iLook_deriv),   public,parameter :: iLookDERIV    =iLook_deriv   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

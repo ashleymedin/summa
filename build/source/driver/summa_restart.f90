@@ -146,8 +146,6 @@ USE mDecisions_module,only:&
  ! read initial conditions
  call read_icond(restartFile,                   & ! intent(in):    name of initial conditions file
                  nGRU,                          & ! intent(in):    number of response units
-                 nHRU,                          & ! intent(in):    number of hydrological response units
-                 nDOM,                          & ! intent(in):    number of domains (max in any HRU)
                  mparStruct,                    & ! intent(in):    model parameters
                  progStruct,                    & ! intent(inout): model prognostic variables
                  bvarStruct,                    & ! intent(inout): model basin (GRU) variables

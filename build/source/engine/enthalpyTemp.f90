@@ -172,7 +172,6 @@ subroutine T2L_lookup_soil(nSoil,                         &  ! intent(in):    nu
   real(rkind),dimension(nLook)  :: xTemp                ! temporary vector
   real(rkind)                   :: xIncr                ! temporary increment
   real(rkind)                   :: T_incr               ! temperature increment
-  real(rkind)                   :: dL                   ! derivative of integral with temperature at T_test
   integer(i4b)                  :: iVar                 ! loop through variables
   integer(i4b)                  :: iSoil                ! loop through soil layers
   integer(i4b)                  :: iLook                ! loop through lookup table
@@ -875,7 +874,6 @@ subroutine enthalpy2T_veg(&
    ! declare local variables
   character(len=256)               :: cmessage           ! error message of downwind routine
   real(rkind)                      :: T,T_out            ! temperature (K)
-  real(rkind)                      :: H                  ! enthalpy (J m-3)
   real(rkind)                      :: diffT              ! temperature difference of temp from Tfreeze
   real(rkind)                      :: integral           ! integral of snow freezing curve
   real(rkind)                      :: fLiq               ! fraction liquid 
@@ -993,7 +991,6 @@ subroutine enthalpy2T_snLaIc(&
   ! declare local variables
   character(len=256)               :: cmessage           ! error message of downwind routine
   real(rkind)                      :: T,T_out            ! temperature (K)
-  real(rkind)                      :: H                  ! enthalpy (J m-3)
   real(rkind)                      :: diffT              ! temperature difference of temp from Tfreeze
   real(rkind)                      :: integral           ! integral of snow freezing curve
   real(rkind)                      :: fLiq               ! fraction liquid 
@@ -1145,7 +1142,6 @@ subroutine enthalpy2T_soil(&
   real(rkind)                      :: xConst                 ! constant in the freezing curve function (m K-1)
   real(rkind)                      :: mLayerPsiLiq           ! liquid water matric potential (m)
   real(rkind)                      :: T, T_out               ! temperature (K)
-  real(rkind)                      :: H                      ! enthalpy (J m-3)
   real(rkind)                      :: diffT                  ! temperature difference of temp from Tfreeze
   real(rkind)                      :: fLiq                   ! fraction liquid water
   real(rkind)                      :: integral_frz_upp       ! upper limit of integral of frozen soil water content (from Tfreeze to soil temperature)
@@ -1662,7 +1658,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     implicit none
     real(rkind) :: diff_H_veg
     real(rkind) , intent(IN) :: scalarCanopyTemp, vec(8) 
-    real(rkind) :: scalarCanopyEnthalpy, scalarCanopyEnthTemp, scalarCanopyWat, scalarCanopyIce
+    real(rkind) :: scalarCanopyEnthalpy, scalarCanopyEnthTemp, scalarCanopyWat
     real(rkind) :: canopyDepth, specificHeatVeg, maxMassVegetation, snowfrz_scale, fLiq
   
     scalarCanopyEnthalpy = vec(1)
@@ -1684,7 +1680,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     implicit none
     real(rkind) :: diff_H_snLaIc
     real(rkind) , intent(IN) :: mLayerTemp, vec(9) 
-    real(rkind) :: mLayerEnthalpy, mLayerEnthTemp, mLayerVolFracWat, mLayerVolFracIce, snowfrz_scale, fLiq
+    real(rkind) :: mLayerEnthalpy, mLayerEnthTemp, mLayerVolFracWat, snowfrz_scale, fLiq
   
     mLayerEnthalpy   = vec(1)
     snowfrz_scale    = vec(2)

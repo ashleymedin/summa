@@ -71,7 +71,6 @@ contains
                        dt,                           & ! intent(in):    time step (s) -- only used in Noah-MP radiation, to compute albedo
                        nSnow,                        & ! intent(in):    number of snow layers
                        nSoil,                        & ! intent(in):    number of soil layers
-                       nLayers,                      & ! intent(in):    total number of layers
                        computeVegFlux,               & ! intent(in):    logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                        type_data,                    & ! intent(in):    classification of veg, soil etc. for a local HRU
                        prog_data,                    & ! intent(inout): model prognostic variables for a local HRU
@@ -82,10 +81,9 @@ contains
  USE NOAHMP_ROUTINES,only:radiation                                ! subroutine to calculate albedo and shortwave radiaiton in the canopy
  implicit none
  ! dummy variables
- real(rkind),intent(in)             :: dt                             ! time step (s) -- only used in Noah-MP radiation, to compute albedo
+ real(rkind),intent(in)          :: dt                             ! time step (s) -- only used in Noah-MP radiation, to compute albedo
  integer(i4b),intent(in)         :: nSnow                          ! number of snow layers
  integer(i4b),intent(in)         :: nSoil                          ! number of soil layers
- integer(i4b),intent(in)         :: nLayers                        ! total number of layers
  logical(lgt),intent(in)         :: computeVegFlux                 ! logical flag to compute vegetation fluxes (.false. if veg buried by snow)
  type(var_i),intent(in)          :: type_data                      ! classification of veg, soil etc. for a local HRU
  type(var_dlength),intent(inout) :: prog_data                      ! model prognostic variables for a local HRU
@@ -95,15 +93,15 @@ contains
  character(*),intent(out)        :: message                        ! error message
  ! local variables
  character(LEN=256)              :: cmessage                       ! error message of downwind routine
- real(rkind)                        :: snowmassPlusNewsnow            ! sum of snow mass and new snowfall (kg m-2 [mm])
- real(rkind)                        :: scalarGroundSnowFraction       ! snow cover fraction on the ground surface (-)
- real(rkind),parameter              :: scalarVegFraction=1._rkind        ! vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
- real(rkind)                        :: scalarTotalReflectedSolar      ! total reflected solar radiation (W m-2)
- real(rkind)                        :: scalarTotalAbsorbedSolar       ! total absorbed solar radiation (W m-2)
- real(rkind)                        :: scalarCanopyReflectedSolar     ! solar radiation reflected from the canopy (W m-2)
- real(rkind)                        :: scalarGroundReflectedSolar     ! solar radiation reflected from the ground (W m-2)
- real(rkind)                        :: scalarBetweenCanopyGapFraction ! between canopy gap fraction for beam (-)
- real(rkind)                        :: scalarWithinCanopyGapFraction  ! within canopy gap fraction for beam (-)
+ real(rkind)                     :: snowmassPlusNewsnow            ! sum of snow mass and new snowfall (kg m-2 [mm])
+ real(rkind)                     :: scalarGroundSnowFraction       ! snow cover fraction on the ground surface (-)
+ real(rkind),parameter           :: scalarVegFraction=1._rkind     ! vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
+ real(rkind)                     :: scalarTotalReflectedSolar      ! total reflected solar radiation (W m-2)
+ real(rkind)                     :: scalarTotalAbsorbedSolar       ! total absorbed solar radiation (W m-2)
+ real(rkind)                     :: scalarCanopyReflectedSolar     ! solar radiation reflected from the canopy (W m-2)
+ real(rkind)                     :: scalarGroundReflectedSolar     ! solar radiation reflected from the ground (W m-2)
+ real(rkind)                     :: scalarBetweenCanopyGapFraction ! between canopy gap fraction for beam (-)
+ real(rkind)                     :: scalarWithinCanopyGapFraction  ! within canopy gap fraction for beam (-)
  ! ----------------------------------------------------------------------------------------------------------------------------------
  ! make association between local variables and the information in the data structures
  associate(&
