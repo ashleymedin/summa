@@ -438,8 +438,9 @@ contains
       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowAlbedo)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%albedoMax)%dat(1)
      endif
 
-     ! make sure canopy ice + liq is positive, otherwise add liquid water to canopy and make total water consistent later
-     if( (progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyLiq)%dat(1) + progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyIce)%dat(1)) < 0.0001_rkind)then
+     ! make sure canopy ice + liq is positive if could have vegetation, otherwise add liquid water to canopy and make total water consistent later
+     if( (progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyLiq)%dat(1) + progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyIce)%dat(1)) < 0.0001_rkind &
+          .and. nIce==0 .and. nLake==0 )then
       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyLiq)%dat(1) = 0.0001_rkind
      endif
 
