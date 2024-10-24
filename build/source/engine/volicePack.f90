@@ -130,7 +130,7 @@ contains
  indx_data%var(iLookINDEX%nIce)%dat(1)    = count(indx_data%var(iLookINDEX%layerType)%dat==iname_ice)
  indx_data%var(iLookINDEX%nLake)%dat(1)   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_lake)
  indx_data%var(iLookINDEX%nLayers)%dat(1) = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nSoil)%dat(1) &
-                                            + indx_data%var(iLookINDEX%nIce)%dat(1) + indx_data%var(iLookINDEX%nLake)%dat(1)
+                                           + indx_data%var(iLookINDEX%nIce)%dat(1) + indx_data%var(iLookINDEX%nLake)%dat(1)
 
  ! flag if layers were modified
  modifiedLayers = (mergedLayers .or. divideLayer)

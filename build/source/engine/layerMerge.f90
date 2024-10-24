@@ -362,7 +362,9 @@ contains
 
  ! initialize the number of snow layers
  nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
+ nLake   = indx_data%var(iLookINDEX%nLake)%dat(1)
  nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
+ nIce    = indx_data%var(iLookINDEX%nIce)%dat(1)
  nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
 
  ! compute combined depth
@@ -423,7 +425,8 @@ contains
  indx_data%var(iLookINDEX%nLake)%dat(1)   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_lake)
  indx_data%var(iLookINDEX%nSoil)%dat(1)   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
  indx_data%var(iLookINDEX%nIce)%dat(1)    = count(indx_data%var(iLookINDEX%layerType)%dat==iname_ice)
- indx_data%var(iLookINDEX%nLayers)%dat(1) = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nSoil)%dat(1)
+ indx_data%var(iLookINDEX%nLayers)%dat(1) = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nSoil)%dat(1) &
+                                           + indx_data%var(iLookINDEX%nIce)%dat(1) + indx_data%var(iLookINDEX%nLake)%dat(1)
 
  ! update the number of snow layers
  nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
