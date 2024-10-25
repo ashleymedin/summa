@@ -24,6 +24,7 @@ USE multiconst                             ! fixed parameters (lh vapzn, etc.)
 implicit none
 private
 public::RELHM2SPHM,SPHM2RELHM,WETBULBTMP,satVapPress,vapPress,getLatentHeatValue
+public::MSLP2AIRP,AIRP2MSLP
 contains
 
 ! ----------------------------------------------------------------------
@@ -38,6 +39,7 @@ function getLatentHeatValue(T)
 implicit none
 real(rkind),intent(in)   :: T                    ! temperature (K)
 real(rkind)              :: getLatentHeatValue   ! latent heat of sublimation/vaporization (J kg-1)
+!---------------------------------------------------------------------------------------------------
 if(T > Tfreeze)then
  getLatentHeatValue = LH_vap     ! latent heat of vaporization          (J kg-1)
 else
@@ -45,23 +47,19 @@ else
 end if
 end function getLatentHeatValue
 
-
 ! ***************************************************************************************************************
 ! public function vapPress: convert specific humidity (g g-1) to vapor pressure (Pa)
 ! ***************************************************************************************************************
 function vapPress(q,p)
 implicit none
-! input
 real(rkind),intent(in)   :: q        ! specific humidity (g g-1)
 real(rkind),intent(in)   :: p        ! pressure (Pa)
-! output
 real(rkind)              :: vapPress ! vapor pressure (Pa)
-! local
 real(rkind)              :: w        ! mixing ratio
+!---------------------------------------------------------------------------------------------------
 w = q / (1._rkind - q)                ! mixing ratio (-)
 vapPress = (w/(w + w_ratio))*p     ! vapor pressure (Pa)
 end function vapPress
-
 
 ! ***************************************************************************************************************
 ! public subroutine satVapPress: Uses Teten's formula to compute saturated vapor pressure (Pa)
@@ -70,21 +68,16 @@ end function vapPress
 ! ***************************************************************************************************************
 subroutine satVapPress(TC, SVP, dSVP_dT)
 IMPLICIT NONE
-! input
 real(rkind), intent(in)            :: TC       ! temperature (C)
-! output
 real(rkind), intent(out)           :: SVP      ! saturation vapor pressure (Pa)
 real(rkind), intent(out)           :: dSVP_dT  ! d(SVP)/dT
-! local
 real(rkind), parameter             :: X1 = 17.27_rkind
 real(rkind), parameter             :: X2 = 237.30_rkind
-! local (use to test derivative calculations)
 real(rkind),parameter              :: dx = 1.e-8_rkind  ! finite difference increment
 logical(lgt),parameter             :: testDeriv=.false. ! flag to test the derivative
 !---------------------------------------------------------------------------------------------------
 ! Units note :              Pa = N m-2 = kg m-1 s-2
 ! SATVPFRZ=     610.8       ! Saturation water vapour pressure at 273.16K (Pa)
-
 if(X2 + TC <= 0.0_rkind)then ! will fail if divide by 0, but will blow up if negative top and bottom of fraction
  !print*, "error, canopy temperature is very low, satVapPress=Inf" 
  SVP     = tiny(1.0_rkind)
@@ -96,28 +89,39 @@ end if
 if(testDeriv) print*, 'dSVP_dT check... ', SVP, dSVP_dT, (SATVPRESS(TC+dx) - SVP)/dx
 END SUBROUTINE satVapPress
 
-
 ! ***************************************************************************************************************
-! private function MSLP2AIRP: compute air pressure using mean sea level pressure and elevation
+! public function MSLP2AIRP: compute air pressure using mean sea level pressure and elevation
 ! ***************************************************************************************************************
 ! (after Shuttleworth, 1993)
 !
 ! -- actually returns MSLP2AIRP in the same units as MSLP, because
 !    ( (293.-0.0065*ELEV) / 293. )**5.256 is dimensionless
-!
 ! ***************************************************************************************************************
 FUNCTION MSLP2AIRP(MSLP, ELEV)
 IMPLICIT NONE
-
 real(rkind), INTENT(IN)         :: MSLP      ! base pressure (Pa)
 real(rkind), INTENT(IN)         :: ELEV      ! elevation difference from base (m)
-
 real(rkind)                     :: MSLP2AIRP ! Air pressure (Pa)
-
+!---------------------------------------------------------------------------------------------------
 MSLP2AIRP = MSLP * ( (293.-0.0065*ELEV) / 293. )**5.256
-
 END FUNCTION MSLP2AIRP
 
+! ***************************************************************************************************************
+! public function AIRP2MSLP: compute mean sea level pressure using air pressure and elevation
+! ***************************************************************************************************************
+! (after Shuttleworth, 1993)
+!
+! -- actually returns AIRP2MSLP in the same units as AIRP, because
+!    ( (293.-0.0065*ELEV) / 293. )**5.256 is dimensionless
+! ***************************************************************************************************************
+FUNCTION AIRP2MSLP(AIRP, ELEV)
+IMPLICIT NONE
+real(rkind), INTENT(IN)         :: AIRP      ! air pressure (Pa)
+real(rkind), INTENT(IN)         :: ELEV      ! elevation difference from base (m)
+real(rkind)                     :: AIRP2MSLP ! base pressure (Pa)
+!---------------------------------------------------------------------------------------------------
+AIRP2MSLP = AIRP / ( (293.-0.0065*ELEV) / 293. )**5.256
+END FUNCTION AIRP2MSLP
 
 ! ***************************************************************************************************************
 ! private function RLHUM2DEWPT: compute dewpoint temperature from relative humidity
@@ -128,29 +132,21 @@ END FUNCTION MSLP2AIRP
 ! Based on Tetens' formula (1930)
 ! ***************************************************************************************************************
 FUNCTION RLHUM2DEWPT(T, RLHUM)
-! Compute Dewpoint temperature from Relative Humidity
 IMPLICIT NONE
-
 real(rkind), INTENT(IN)         :: T         ! Temperature           (K)
 real(rkind), INTENT(IN)         :: RLHUM     ! Relative Humidity     (%)
-
-
 real(rkind)                     :: RLHUM2DEWPT     ! Dewpoint Temp   (K)
-
 real(rkind)                     :: VPSAT     ! Sat. vapour pressure at T (Pa)
 real(rkind)                     :: TDCEL     ! Dewpoint temp Celcius (C)
-
+!---------------------------------------------------------------------------------------------------
 ! Units note :              Pa = N m-2 = kg m-1 s-2
 ! SATVPFRZ=     610.8       ! Saturation water vapour pressure at 273.16K (Pa)
 ! W_RATIO =       0.622     ! molecular weight ratio of water to dry air (-)
-
 VPSAT = SATVPFRZ * EXP( (17.27*(T-TFREEZE)) / (237.30 + (T-TFREEZE)) ) ! sat vapor press at grid cell (Pa)
 TDCEL = 237.30 * LOG( (VPSAT/SATVPFRZ)*(RLHUM/100.) ) / &              ! dewpoint temperature         (C)
         (17.27 - LOG( (VPSAT/SATVPFRZ)*(RLHUM/100.) ) )
 RLHUM2DEWPT = TDCEL + TFREEZE
-
 END FUNCTION RLHUM2DEWPT
-
 
 ! ***************************************************************************************************************
 ! private function DEWPT2RLHUM: compute relative humidity from dewpoint temperature
@@ -162,24 +158,18 @@ END FUNCTION RLHUM2DEWPT
 ! ***************************************************************************************************************
 FUNCTION DEWPT2RLHUM(T, DEWPT)
 IMPLICIT NONE
-
 real(rkind), INTENT(IN)         :: T         ! Temperature           (K)
 real(rkind), INTENT(IN)         :: DEWPT     ! Dewpoint temp         (K)
-
 real(rkind)                     :: DEWPT2RLHUM ! Relative Humidity   (%)
-
 real(rkind)                     :: VPSAT     ! Sat. vapour pressure at T (Pa)
 real(rkind)                     :: TDCEL     ! Dewpt in celcius      (C)
-
+!---------------------------------------------------------------------------------------------------
 ! Units note :              Pa = N m-2 = kg m-1 s-2
 ! SATVPFRZ=     610.8       ! Saturation water vapour pressure at 273.16K (Pa)
-
 TDCEL = DEWPT-TFREEZE
 VPSAT = SATVPFRZ * EXP( (17.27*(T-TFREEZE)) / (237.30 + (T-TFREEZE)) )      ! Sat vapor press (Pa)
 DEWPT2RLHUM = 100. * (SATVPFRZ/VPSAT) * EXP((17.27*TDCEL)/(237.30+TDCEL))   ! Relative Humidity (%)
-
 END FUNCTION DEWPT2RLHUM
-
 
 ! ***************************************************************************************************************
 ! private function DEWPT2SPHM: compute specific humidity from dewpoint temperature
@@ -192,24 +182,18 @@ END FUNCTION DEWPT2RLHUM
 ! ***************************************************************************************************************
 FUNCTION DEWPT2SPHM(DEWPT, PRESS)
 IMPLICIT NONE
-
 real(rkind), INTENT(IN)         :: DEWPT     ! Dewpoint temp         (K)
 real(rkind), INTENT(IN)         :: PRESS     ! Pressure              (Pa)
-
 real(rkind)                     :: DEWPT2SPHM ! Specific Humidity    (g/g)
-
 real(rkind)                     :: VPAIR     ! vapour pressure at T  (Pa)
 real(rkind)                     :: TDCEL     ! Dewpt in celcius      (C)
-
+!---------------------------------------------------------------------------------------------------
 ! Units note :              Pa = N m-2 = kg m-1 s-2
 ! SATVPFRZ=     610.8       ! Saturation water vapour pressure at 273.16K (Pa)
-
 TDCEL = DEWPT-TFREEZE
 VPAIR = SATVPFRZ * EXP( (17.27*TDCEL) / (237.30 + TDCEL) )        ! Vapour Press           (Pa)
 DEWPT2SPHM = (VPAIR * W_RATIO)/(PRESS - (1.-W_RATIO)*VPAIR)       ! Specific humidity (g/g)
-
 END FUNCTION DEWPT2SPHM
-
 
 ! ***************************************************************************************************************
 ! private function DEWPT2VPAIR: compute vapor pressure of air from dewpoint temperature
@@ -222,20 +206,15 @@ END FUNCTION DEWPT2SPHM
 ! ***************************************************************************************************************
 FUNCTION DEWPT2VPAIR(DEWPT)
 IMPLICIT NONE
-
 real(rkind), INTENT(IN)         :: DEWPT     ! Dewpoint temp         (K)
 real(rkind)                     :: TDCEL     ! Dewpt in celcius      (C)
-
 real(rkind)                     :: DEWPT2VPAIR ! Vapour Press  (Pa)
-
+!---------------------------------------------------------------------------------------------------
 ! Units note :              Pa = N m-2 = kg m-1 s-2
 ! SATVPFRZ=     610.8       ! Saturation water vapour pressure at 273.16K (Pa)
-
 TDCEL = DEWPT-TFREEZE
 DEWPT2VPAIR = SATVPFRZ * EXP( (17.27*TDCEL) / (237.30 + TDCEL) )   ! Vapour Press  (Pa)
-
 END FUNCTION DEWPT2VPAIR
-
 
 ! ***************************************************************************************************************
 ! public function SPHM2RELHM: compute relative humidity from specific humidity
@@ -247,25 +226,19 @@ END FUNCTION DEWPT2VPAIR
 ! ***************************************************************************************************************
 FUNCTION SPHM2RELHM(SPHM, PRESS, TAIR)
 IMPLICIT NONE
-
 real(rkind), INTENT(IN)         :: SPHM      ! Specific Humidity (g/g)
 real(rkind), INTENT(IN)         :: PRESS     ! Pressure              (Pa)
 real(rkind), INTENT(IN)         :: TAIR      ! Air temp
-
 real(rkind)                     :: SPHM2RELHM ! Dewpoint Temp (K)
-
 real(rkind)                     :: VPSAT     ! vapour pressure at T  (Pa)
 real(rkind)                     :: TDCEL     ! Dewpt in celcius      (C)
-
+!---------------------------------------------------------------------------------------------------
 ! Units note :              Pa = N m-2 = kg m-1 s-2
 ! SATVPFRZ=     610.8       ! Saturation water vapour pressure at 273.16K (Pa)
-
 TDCEL = TAIR-TFREEZE
 VPSAT = SATVPFRZ * EXP( (17.27*TDCEL) / (237.30 + TDCEL) )       ! Vapour Press      (Pa)
 SPHM2RELHM = (SPHM * PRESS)/(VPSAT * (W_RATIO + SPHM*(1.-W_RATIO)))
-
 END FUNCTION SPHM2RELHM
-
 
 ! ***************************************************************************************************************
 ! public function RELHM2SPHM: compute specific humidity from relative humidity
@@ -277,38 +250,29 @@ END FUNCTION SPHM2RELHM
 ! ***************************************************************************************************************
 FUNCTION RELHM2SPHM(RELHM, PRESS, TAIR)
 IMPLICIT NONE
-
 real(rkind), INTENT(IN)         :: RELHM     ! Relative Humidity     (%)
 real(rkind), INTENT(IN)         :: PRESS     ! Pressure              (Pa)
 real(rkind), INTENT(IN)         :: TAIR      ! Air temp
-
 real(rkind)                     :: RELHM2SPHM ! Specific Humidity (g/g)
-
 real(rkind)                     :: PVP       ! Partial vapour pressure at T  (Pa)
 real(rkind)                     :: TDCEL     ! Dewpt in celcius      (C)
-
+!---------------------------------------------------------------------------------------------------
 ! Units note :              Pa = N m-2 = kg m-1 s-2
 ! SATVPFRZ=     610.8       ! Saturation water vapour pressure at 273.16K (Pa)
-
 TDCEL = TAIR-TFREEZE
 PVP = RELHM * SATVPFRZ * EXP( (17.27*TDCEL)/(237.30 + TDCEL) ) ! Partial Vapour Press (Pa)
 RELHM2SPHM = (PVP * W_RATIO)/(PRESS - (1. - W_RATIO)*PVP)
-
 END FUNCTION RELHM2SPHM
-
 
 ! ***************************************************************************************************************
 ! public function WETBULBTMP: compute wet bulb temperature based on humidity and pressure
 ! ***************************************************************************************************************
 FUNCTION WETBULBTMP(TAIR, RELHM, PRESS)
 IMPLICIT NONE
-! input
-real(rkind), INTENT(IN)         :: TAIR      ! Air temp              (K)
-real(rkind), INTENT(IN)         :: RELHM     ! Relative Humidity     (-)
-real(rkind), INTENT(IN)         :: PRESS     ! Pressure              (Pa)
-! output
-real(rkind)                     :: WETBULBTMP ! Wet bulb temperature (K)
-! locals
+real(rkind), INTENT(IN)         :: TAIR           ! Air temp              (K)
+real(rkind), INTENT(IN)         :: RELHM          ! Relative Humidity     (-)
+real(rkind), INTENT(IN)         :: PRESS          ! Pressure              (Pa)
+real(rkind)                     :: WETBULBTMP     ! Wet bulb temperature (K)
 real(rkind)                     :: Tcel           ! Temperature in celcius      (C)
 real(rkind)                     :: PVP            ! Partial vapor pressure (Pa)
 real(rkind)                     :: TWcel          ! Wet bulb temperature in celcius (C)
@@ -318,10 +282,11 @@ real(rkind)                     :: Twet_trial1    ! trial value for wet bulb tem
 real(rkind)                     :: f0,f1          ! function evaluations (C)
 real(rkind)                     :: df_dT          ! derivative (-)
 real(rkind)                     :: TWinc          ! wet bulb temperature increment (C)
-INTEGER(I4B)                 :: iter           ! iterattion index
+INTEGER(I4B)                    :: iter           ! iterattion index
 real(rkind),PARAMETER           :: Xoff=1.E-5_DP  ! finite difference increment (C)
 real(rkind),PARAMETER           :: Xtol=1.E-8_DP  ! convergence tolerance (C)
-INTEGER(I4B)                 :: maxiter=15     ! maximum number of iterations
+INTEGER(I4B)                    :: maxiter=15     ! maximum number of iterations
+!---------------------------------------------------------------------------------------------------
 ! convert temperature to Celcius
 Tcel = TAIR-TFREEZE
 ! compute partial vapor pressure based on temperature (Pa)
@@ -346,12 +311,9 @@ do iter=1,maxiter
  ! check convergence
  if(iter==maxiter)stop 'failed to converge in WETBULBTMP'
 end do  ! (iterating)
-
 ! return value in K
 WETBULBTMP = TWcel + TFREEZE
-
 END FUNCTION WETBULBTMP
-
 
 ! ***************************************************************************************************************
 ! private function SATVPRESS: compute saturated vapor pressure (Pa)
@@ -363,6 +325,7 @@ FUNCTION SATVPRESS(TCEL)
 IMPLICIT NONE
 real(rkind),INTENT(IN) :: TCEL      ! Temperature (C)
 real(rkind)            :: SATVPRESS ! Saturated vapor pressure (Pa)
+!---------------------------------------------------------------------------------------------------
 SATVPRESS = SATVPFRZ * EXP( (17.27_rkind*TCEL)/(237.30_rkind + TCEL) ) ! Saturated Vapour Press (Pa)
 END FUNCTION SATVPRESS
 

@@ -66,54 +66,58 @@ contains
  ! public subroutine derivforce: compute derived forcing data
  ! ************************************************************************************************
  subroutine derivforce(forc_data,attr_data,mpar_data,prog_data,diag_data,flux_data,tmZoneOffsetFracDay,err,message)
- USE sunGeomtry_module,only:clrsky_rad                         ! compute cosine of the solar zenith angle
- USE conv_funcs_module,only:vapPress                           ! compute vapor pressure of air (Pa)
- USE conv_funcs_module,only:SPHM2RELHM,RELHM2SPHM,WETBULBTMP   ! conversion functions
- USE snow_utils_module,only:fracliquid,templiquid              ! functions to compute temperature/liquid water
- USE time_utils_module,only:compcalday                         ! convert julian day to calendar date
- USE summaFileManager,only: NC_TIME_ZONE                       ! time zone option from control file
+ USE sunGeomtry_module,only:clrsky_rad                            ! compute cosine of the solar zenith angle
+ USE conv_funcs_module,only:vapPress                              ! compute vapor pressure of air (Pa)
+ USE conv_funcs_module,only:SPHM2RELHM,RELHM2SPHM,WETBULBTMP      ! conversion functions
+ USE conv_funcs_module,only:MSLP2AIRP,AIRP2MSLP                   ! compute air pressure using mean sea level pressure and elevation
+ USE snow_utils_module,only:fracliquid,templiquid                 ! functions to compute temperature/liquid water
+ USE time_utils_module,only:compcalday                            ! convert julian day to calendar date
+ USE summaFileManager,only: NC_TIME_ZONE                          ! time zone option from control file
  ! compute derived forcing data variables
  implicit none
  ! input variables
- type(var_d),intent(inout)       :: forc_data                  ! vector of forcing data for a given time step
- type(var_d),intent(in)          :: attr_data                  ! vector of model attributes
- type(var_dlength),intent(in)    :: mpar_data                  ! vector of model parameters
- type(var_dlength),intent(in)    :: prog_data                  ! data structure of model prognostic variables for a local HRU
+ type(var_d),intent(inout)       :: forc_data                     ! vector of forcing data for a given time step
+ type(var_d),intent(in)          :: attr_data                     ! vector of model attributes
+ type(var_dlength),intent(in)    :: mpar_data                     ! vector of model parameters
+ type(var_dlength),intent(in)    :: prog_data                     ! data structure of model prognostic variables for a local HRU
  ! output variables
- type(var_dlength),intent(inout) :: diag_data                  ! data structure of model diagnostic variables for a local HRU
- type(var_dlength),intent(inout) :: flux_data                  ! data structure of model fluxes for a local HRU
- real(rkind),intent(inout)       :: tmZoneOffsetFracDay        ! time zone offset in fraction of days
- integer(i4b),intent(out)        :: err                        ! error code
- character(*),intent(out)        :: message                    ! error message
+ type(var_dlength),intent(inout) :: diag_data                     ! data structure of model diagnostic variables for a local HRU
+ type(var_dlength),intent(inout) :: flux_data                     ! data structure of model fluxes for a local HRU
+ real(rkind),intent(inout)       :: tmZoneOffsetFracDay           ! time zone offset in fraction of days
+ integer(i4b),intent(out)        :: err                           ! error code
+ character(*),intent(out)        :: message                       ! error message
  ! local time
- integer(i4b)                    :: jyyy,jm,jd                 ! year, month, day
- integer(i4b)                    :: jh,jmin                    ! hour, minute
- real(rkind)                     :: dsec                       ! double precision seconds (not used)
- real(rkind)                     :: timeOffset                 ! time offset from Grenwich (days)
- real(rkind)                     :: julianTime                 ! local julian time
+ integer(i4b)                    :: jyyy,jm,jd                    ! year, month, day
+ integer(i4b)                    :: jh,jmin                       ! hour, minute
+ real(rkind)                     :: dsec                          ! double precision seconds (not used)
+ real(rkind)                     :: timeOffset                    ! time offset from Grenwich (days)
+ real(rkind)                     :: julianTime                    ! local julian time
  ! cosine of the solar zenith angle
- real(rkind)                     :: ahour                      ! hour at start of time step
- real(rkind)                     :: dataStep                   ! data step (hours)
- real(rkind)                     :: slope                      ! terrain slope (assume flat)
- real(rkind)                     :: azimuth                    ! terrain azimuth (assume zero)
- real(rkind)                     :: hri                        ! average radiation index over time step DT
+ real(rkind)                     :: ahour                         ! hour at start of time step
+ real(rkind)                     :: dataStep                      ! data step (hours)
+ real(rkind)                     :: slope                         ! terrain slope (assume flat)
+ real(rkind)                     :: azimuth                       ! terrain azimuth (assume zero)
+ real(rkind)                     :: hri                           ! average radiation index over time step DT
  ! general local variables
- character(len=256)              :: cmessage                   ! error message for downwind routine
- real(rkind),parameter           :: valueMissing=-9999._rkind  ! missing value
- real(rkind),parameter           :: co2Factor=355.e-6_rkind    ! empirical factor to obtain partial pressure of co2
- real(rkind),parameter           :: o2Factor=0.209_rkind       ! empirical factor to obtain partial pressure of o2
- real(rkind),parameter           :: minMeasHeight=1._rkind     ! minimum measurement height (m)
- real(rkind)                     :: relhum                     ! relative humidity (-)
- real(rkind)                     :: fracrain                   ! fraction of precipitation that falls as rain
- real(rkind)                     :: maxFrozenSnowTemp          ! maximum temperature of snow when the snow is predominantely frozen (K)
- real(rkind),parameter           :: unfrozenLiq=0.01_rkind     ! unfrozen liquid water used to compute maxFrozenSnowTemp (-)
- real(rkind),parameter           :: eps=epsilon(fracrain)      ! a number that is almost negligible
- real(rkind)                     :: Tmin,Tmax                  ! minimum and maximum wet bulb temperature in the time step (K)
+ character(len=256)              :: cmessage                      ! error message for downwind routine
+ real(rkind),parameter           :: valueMissing=-9999._rkind     ! missing value
+ real(rkind),parameter           :: co2Factor=355.e-6_rkind       ! empirical factor to obtain partial pressure of co2
+ real(rkind),parameter           :: o2Factor=0.209_rkind          ! empirical factor to obtain partial pressure of o2
+ real(rkind),parameter           :: minMeasHeight=1._rkind        ! minimum measurement height (m)
+ real(rkind)                     :: relhum                        ! relative humidity (-)
+ real(rkind)                     :: fracrain                      ! fraction of precipitation that falls as rain
+ real(rkind)                     :: maxFrozenSnowTemp             ! maximum temperature of snow when the snow is predominantely frozen (K)
+ real(rkind),parameter           :: unfrozenLiq=0.01_rkind        ! unfrozen liquid water used to compute maxFrozenSnowTemp (-)
+ real(rkind),parameter           :: eps=epsilon(fracrain)         ! a number that is almost negligible
+ real(rkind)                     :: Tmin,Tmax                     ! minimum and maximum wet bulb temperature in the time step (K)
  real(rkind),parameter           :: pomNewSnowDenMax=150._rkind   ! Upper limit for new snow density limit in Hedstrom and Pomeroy 1998. 150 was used because at was the highest observed density at air temperatures used in this study. See Figure 4 of Hedstrom and Pomeroy (1998).
  real(rkind),parameter           :: andersonWarmDenLimit=2._rkind ! Upper air temperature limit in Anderson (1976) new snow density (C)
  real(rkind),parameter           :: andersonColdDenLimit=15._rkind! Lower air temperature limit in Anderson (1976) new snow density (C)
  real(rkind),parameter           :: andersonDenScal=1.5_rkind     ! Scalar parameter in Anderson (1976) new snow density function (-)
  real(rkind),parameter           :: pahautDenWindScal=0.5_rkind   ! Scalar parameter for wind impacts on density using Pahaut (1976) function (-)
+ real(rkind)                     :: airpres_base,airpres_dom      ! air pressure at the base elevation and domain mean elevation (Pa)
+ real(rkind)                     :: airtemp_dom                   ! air temperature at the domain mean elevation (K)
+ real(rkind),parameter           :: lapseRate=0.0065_rkind        ! lapse rate (K m-1), 6.5C/1km is the standard environmental lapse rate
  ! ************************************************************************************************
  ! associate local variables with the information in the data structures
  associate(&
@@ -141,6 +145,9 @@ contains
  tan_slope               => attr_data%var(iLookATTR%tan_slope)                    , & ! tan HRU ground surface slope (-)
  aspect                  => attr_data%var(iLookATTR%aspect)                       , & ! mean azimuth of HRU in degrees E of N (degrees)
  cosZenith               => diag_data%var(iLookDIAG%scalarCosZenith)%dat(1)       , & ! average cosine of the zenith angle over time step DT
+ ! elevation variables to adjust forcings (assuming forcings are at the HRU mean elevation)
+ elevation               => attr_data%var(iLookATTR%elevation)                    , & ! mean elevation of HRU (m)
+ DOMelev                 => prog_data%var(iLookPROG%DOMelev)%dat(1)               , & ! mean elevation of the domain in the HRU (m)
  ! measurement height
  mHeight                 => attr_data%var(iLookATTR%mHeight)                      , & ! latitude (degrees north)
  adjMeasHeight           => diag_data%var(iLookDIAG%scalarAdjMeasHeight)%dat(1)   , & ! adjusted measurement height (m)
@@ -203,10 +210,14 @@ contains
  if(adjMeasHeight < scalarSnowDepth+minMeasHeight)then
   adjMeasHeight = scalarSnowDepth+minMeasHeight  ! measurement height at least minMeasHeight above the snow surface
  endif
+ 
+ ! Air pressure is assumed to be at the HRU mean elevation, so adjust to the domain mean elevation
+ airpres_base = AIRP2MSLP(airpres, elevation)
+ airpres_dom = MSLP2AIRP(airpres_base, DOMelev)
 
  ! compute the partial pressure of o2 and co2
- scalarCO2air = co2Factor * airpres  ! atmospheric co2 concentration (Pa)
- scalarO2air  = o2Factor * airpres   ! atmospheric o2 concentration (Pa)
+ scalarCO2air = co2Factor * airpres_dom  ! atmospheric co2 concentration (Pa)
+ scalarO2air  = o2Factor * airpres_dom   ! atmospheric o2 concentration (Pa)
 
  ! determine timeOffset based on tmZoneInfo option number`
  select case(trim(NC_TIME_ZONE))
@@ -278,19 +289,23 @@ contains
 
  ! ensure wind speed is above a prescribed minimum value
  if(windspd < minwind) windspd=minwind
+
+ ! adjust the air temperature to the domain mean elevation
+ airtemp_dom = airtemp - (DOMelev - elevation) * lapseRate
+
  ! compute relative humidity (-)
- relhum   = SPHM2RELHM(spechum, airpres, airtemp)
+ relhum   = SPHM2RELHM(spechum, airpres_dom, airtemp_dom)
  ! if relative humidity exceeds saturation, then set relative and specific humidity to saturation
  if(relhum > 1._rkind)then
   relhum  = 1._rkind
-  spechum = RELHM2SPHM(relhum, airpres, airtemp)
+  spechum = RELHM2SPHM(relhum, airpres_dom, airtemp_dom)
  end if
 
  ! compute vapor pressure of the air above the vegetation canopy (Pa)
- VPair = vapPress(spechum,airpres)
+ VPair = vapPress(spechum,airpres_dom)
 
  ! compute wet bulb temperature (K)
- twetbulb = WETBULBTMP(airtemp, relhum, airpres)
+ twetbulb = WETBULBTMP(airtemp_dom, relhum, airpres_dom)
 
  ! compute the maximum temperature of snow when the snow is predominantely frozen (K)
  maxFrozenSnowTemp = templiquid(unfrozenLiq,fc_param)
@@ -329,18 +344,18 @@ contains
   select case(model_decisions(iLookDECISIONS%snowDenNew)%iDecision)
    ! Hedstrom and Pomeroy 1998
    case(hedAndPom)
-    newSnowDensity = min(pomNewSnowDenMax,newSnowDenMin + newSnowDenMult*exp((airtemp-Tfreeze)/newSnowDenScal))  ! new snow density (kg m-3)
+    newSnowDensity = min(pomNewSnowDenMax,newSnowDenMin + newSnowDenMult*exp((airtemp_dom-Tfreeze)/newSnowDenScal))  ! new snow density (kg m-3)
    ! Pahaut 1976 (Boone et al. 2002)
    case(pahaut_76)
-    newSnowDensity = max(newSnowDenMin,newSnowDenAdd + (newSnowDenMultTemp * (airtemp-Tfreeze))+(newSnowDenMultWind*((windspd)**pahautDenWindScal))); ! new snow density (kg m-3)
+    newSnowDensity = max(newSnowDenMin,newSnowDenAdd + (newSnowDenMultTemp * (airtemp_dom-Tfreeze))+(newSnowDenMultWind*((windspd)**pahautDenWindScal))); ! new snow density (kg m-3)
    ! Anderson 1976
    case(anderson)
-    if(airtemp>(Tfreeze+andersonWarmDenLimit))then
+    if(airtemp_dom>(Tfreeze+andersonWarmDenLimit))then
      newSnowDensity = newSnowDenMin + newSnowDenMultAnd*(newSnowDenBase)**(andersonDenScal) ! new snow density (kg m-3)
-    elseif(airtemp<=(Tfreeze-andersonColdDenLimit))then
+    elseif(airtemp_dom<=(Tfreeze-andersonColdDenLimit))then
      newSnowDensity = newSnowDenMin ! new snow density (kg m-3)
     else
-     newSnowDensity = newSnowDenMin + newSnowDenMultAnd*(airtemp-Tfreeze+newSnowDenBase)**(andersonDenScal) ! new snow density (kg m-3)
+     newSnowDensity = newSnowDenMin + newSnowDenMultAnd*(airtemp_dom-Tfreeze+newSnowDenBase)**(andersonDenScal) ! new snow density (kg m-3)
     end if
    ! Constant new snow density
    case(constDens)
