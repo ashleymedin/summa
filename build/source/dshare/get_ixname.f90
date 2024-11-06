@@ -1020,7 +1020,7 @@ contains
   case('basin__AquiferTranspire'       ); get_ixBvar = iLookBVAR%basin__AquiferTranspire         ! transpiration from the aquifer (m s-1)
   case('basin__TotalRunoff'            ); get_ixBvar = iLookBVAR%basin__TotalRunoff              ! total runoff to channel from all active components (m s-1)
   case('basin__SoilDrainage'           ); get_ixBvar = iLookBVAR%basin__SoilDrainage             ! soil drainage (m s-1)
-  case('basin__GlacierStorage'         ); get_ixBvar = iLookBVAR%basin__GlacierStorage           ! glacier storage (m s-1)
+  case('basin__GlacierStorage'         ); get_ixBvar = iLookBVAR%basin__GlacierStorage           ! glacier storage (Gt)
   case('basin__GlacierArea'            ); get_ixBvar = iLookBVAR%basin__GlacierArea              ! glacier area (m2) 
   ! variables to compute runoff
   case('routingRunoffFuture'           ); get_ixBvar = iLookBVAR%routingRunoffFuture             ! runoff in future time steps (m s-1)

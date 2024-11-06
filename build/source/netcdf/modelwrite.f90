@@ -587,7 +587,7 @@ contains
  nProgVars = size(prog_meta)
  ! include additional basin variable in ID array
  if (maxIceLayers > 0)then
-   allocate(ncVarID(nProgVars+6))
+   allocate(ncVarID(nProgVars+7))
  else
    allocate(ncVarID(nProgVars+1))
  end if
@@ -667,17 +667,21 @@ contains
    err = nf90_put_att(ncid,ncVarID(nProgVars+3),'long_name',trim(bvar_meta(iLookBVAR%glacAccArea)%vardesc));   call netcdf_err(err,message)
    err = nf90_put_att(ncid,ncVarID(nProgVars+3),'units'    ,trim(bvar_meta(iLookBVAR%glacAccArea)%varunit));   call netcdf_err(err,message)
 
-   err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%glacIceRunoffFuture)%varName), nf90_double, (/gruDimID, nglDimID/), ncVarID(nProgVars+4))
-   err = nf90_put_att(ncid,ncVarID(nProgVars+4),'long_name',trim(bvar_meta(iLookBVAR%glacIceRunoffFuture)%vardesc));   call netcdf_err(err,message)
-   err = nf90_put_att(ncid,ncVarID(nProgVars+4),'units'    ,trim(bvar_meta(iLookBVAR%glacIceRunoffFuture)%varunit));   call netcdf_err(err,message)
+   err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%basin__GlacierStorage)%varName), nf90_double, (/gruDimID/), ncVarID(nProgVars+4))
+   err = nf90_put_att(ncid,ncVarID(nProgVars+4),'long_name',trim(bvar_meta(iLookBVAR%basin__GlacierStorage)%vardesc));   call netcdf_err(err,message)
+   err = nf90_put_att(ncid,ncVarID(nProgVars+4),'units'    ,trim(bvar_meta(iLookBVAR%basin__GlacierStorage)%varunit));   call netcdf_err(err,message)
 
-   err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%glacSnowRunoffFuture)%varName), nf90_double, (/gruDimID, nglDimID/), ncVarID(nProgVars+5))
-   err = nf90_put_att(ncid,ncVarID(nProgVars+5),'long_name',trim(bvar_meta(iLookBVAR%glacSnowRunoffFuture)%vardesc));   call netcdf_err(err,message)
-   err = nf90_put_att(ncid,ncVarID(nProgVars+5),'units'    ,trim(bvar_meta(iLookBVAR%glacSnowRunoffFuture)%varunit));   call netcdf_err(err,message)  
+   err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%glacIceRunoffFuture)%varName), nf90_double, (/gruDimID, nglDimID/), ncVarID(nProgVars+5))
+   err = nf90_put_att(ncid,ncVarID(nProgVars+5),'long_name',trim(bvar_meta(iLookBVAR%glacIceRunoffFuture)%vardesc));   call netcdf_err(err,message)
+   err = nf90_put_att(ncid,ncVarID(nProgVars+5),'units'    ,trim(bvar_meta(iLookBVAR%glacIceRunoffFuture)%varunit));   call netcdf_err(err,message)
+
+   err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%glacSnowRunoffFuture)%varName), nf90_double, (/gruDimID, nglDimID/), ncVarID(nProgVars+6))
+   err = nf90_put_att(ncid,ncVarID(nProgVars+6),'long_name',trim(bvar_meta(iLookBVAR%glacSnowRunoffFuture)%vardesc));   call netcdf_err(err,message)
+   err = nf90_put_att(ncid,ncVarID(nProgVars+6),'units'    ,trim(bvar_meta(iLookBVAR%glacSnowRunoffFuture)%varunit));   call netcdf_err(err,message)  
    
-   err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%glacFirnRunoffFuture)%varName), nf90_double, (/gruDimID, nglDimID/), ncVarID(nProgVars+6))
-   err = nf90_put_att(ncid,ncVarID(nProgVars+6),'long_name',trim(bvar_meta(iLookBVAR%glacFirnRunoffFuture)%vardesc));   call netcdf_err(err,message)
-   err = nf90_put_att(ncid,ncVarID(nProgVars+6),'units'    ,trim(bvar_meta(iLookBVAR%glacFirnRunoffFuture)%varunit));   call netcdf_err(err,message)  
+   err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%glacFirnRunoffFuture)%varName), nf90_double, (/gruDimID, nglDimID/), ncVarID(nProgVars+7))
+   err = nf90_put_att(ncid,ncVarID(nProgVars+7),'long_name',trim(bvar_meta(iLookBVAR%glacFirnRunoffFuture)%vardesc));   call netcdf_err(err,message)
+   err = nf90_put_att(ncid,ncVarID(nProgVars+7),'units'    ,trim(bvar_meta(iLookBVAR%glacFirnRunoffFuture)%varunit));   call netcdf_err(err,message)  
   endif
   
  ! define index variables - snow
@@ -784,9 +788,10 @@ contains
     nGlacier = gru_struc(iGRU)%nGlacier
     err=nf90_put_var(ncid,ncVarID(nProgVars+2),(/bvar_data%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat/), start=(/iGRU,1/),count=(/1,nGlacier/))
     err=nf90_put_var(ncid,ncVarID(nProgVars+3),(/bvar_data%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat/), start=(/iGRU,1/),count=(/1,nGlacier/))
-    err=nf90_put_var(ncid,ncVarID(nProgVars+4),(/bvar_data%gru(iGRU)%var(iLookBVAR%glacIceRunoffFuture)%dat/),  start=(/iGRU,1/),count=(/1,nGlacier/))
-    err=nf90_put_var(ncid,ncVarID(nProgVars+5),(/bvar_data%gru(iGRU)%var(iLookBVAR%glacSnowRunoffFuture)%dat/), start=(/iGRU,1/),count=(/1,nGlacier/))
-    err=nf90_put_var(ncid,ncVarID(nProgVars+6),(/bvar_data%gru(iGRU)%var(iLookBVAR%glacFirnRunoffFuture)%dat/), start=(/iGRU,1/),count=(/1,nGlacier/))
+    err=nf90_put_var(ncid,ncVarID(nProgVars+4),(/bvar_data%gru(iGRU)%var(iLookBVAR%basin__GlacierStorage)%dat/), start=(/iGRU/),count=(/1/))
+    err=nf90_put_var(ncid,ncVarID(nProgVars+5),(/bvar_data%gru(iGRU)%var(iLookBVAR%glacIceRunoffFuture)%dat/),  start=(/iGRU,1/),count=(/1,nGlacier/))
+    err=nf90_put_var(ncid,ncVarID(nProgVars+6),(/bvar_data%gru(iGRU)%var(iLookBVAR%glacSnowRunoffFuture)%dat/), start=(/iGRU,1/),count=(/1,nGlacier/))
+    err=nf90_put_var(ncid,ncVarID(nProgVars+7),(/bvar_data%gru(iGRU)%var(iLookBVAR%glacFirnRunoffFuture)%dat/), start=(/iGRU,1/),count=(/1,nGlacier/))
   endif
   
  end do  ! iGRU loop

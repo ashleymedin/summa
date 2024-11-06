@@ -43,3 +43,5 @@ build/cmake_build
 runinfo.txt
 # OpenWQ source code
 build/source/openwq/openwq
+attributes_base_topo_glac.nc
+attributes_surf_topo_glac.nc

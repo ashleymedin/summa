@@ -843,7 +843,7 @@ MODULE var_lookup
   integer(i4b)    :: basin__AquiferTranspire    = integerMissing ! transpiration from the aquifer (m s-1)
   integer(i4b)    :: basin__TotalRunoff         = integerMissing ! total runoff to channel from all active components (m s-1)
   integer(i4b)    :: basin__SoilDrainage        = integerMissing ! soil drainage (m s-1)
-  integer(i4b)    :: basin__GlacierStorage      = integerMissing ! glacier storage (m s-1)
+  integer(i4b)    :: basin__GlacierStorage      = integerMissing ! glacier storage (Gt)
   integer(i4b)    :: basin__GlacierArea         = integerMissing ! glacier area (m2)
   ! define variables for runoff
   integer(i4b)    :: routingRunoffFuture        = integerMissing ! runoff in future time steps (m s-1)
