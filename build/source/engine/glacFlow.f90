@@ -45,96 +45,209 @@ contains
 ! public subroutine glacFlow: flow of glacier to get new glacier area and elevation
 ! NOTE: This will eventually run in parallel as a program, but for now it is serial
 ! ************************************************************************************************
-subroutine glacFlow()
+subroutine glacFlow(&
+                    ! model control
+                    gruId,              & ! intent(in):    gruId
+                    nDOM,               & ! intent(in):    number of glacier domains
+                    hruId,              & ! intent(in):    hruId of each glacier domain
+                    ! glacier topography
+                    nGlacier,           & ! intent(in):    number of glaciers
+                    surface,            & ! intent(in):    surface elevation of each glacier domain (m)
+                    dx, dy,             & ! intent(in):    grid spacing (m) by glacier
+                    Ny0, Nx0,           & ! intent(in):    number of grid cells in x and y directions by glacier
+                    maxNx, maxNy,       & ! intent(in):    max number of grid cells in x and y directions by glacier
+                    bed,                & ! intent(in):    bed elevation of each glacier domain (m)
+                    cell2hru,           & ! intent(in):    map of glacier cell to hru
+                    glacierMask,        & ! intent(in):    mask of glacier domain
+                    ! mass balance
+                    GWE_delta,          & ! intent(in):    change in glacier water equivalent (m s-1) in each glacier domain
+                    elev,               & ! intent(inout): elevation of each glacier domain (m)
+                    ! area
+                    glacAblArea,        & ! intent(out):   per glacier ablation area (m2)
+                    glacAccArea,        & ! intent(out):   per glacier accumulation area (m2)
+                    area,           & ! intent(out):   area of each domain (m2)
+                    elev,           & ! intent(out):   elev of each domain (m2)
+                    ! error handling
+                    err, message)         ! intent(out):   error control
+   ! ---------------------------------------------------------------------------------------------
   implicit none
   ! model control
-  integer(i8b), intent(in)    :: gruId(:)             ! gruId
-  integer(i4b), intent(in)    :: nDOM                 ! number of domains
-  integer(i8b), intent(in)    :: hruId(:)             ! hruId
-  ! mass balance
-  real(rkind), intent(in)     :: GWE_deltaYr(:)       ! change in glacier water equivalent (m s-1) in each glacier domain
-  real(rkind), intent(inout)  :: elev(:)              ! elevation of each glacier domain (m)
+  integer(i8b), intent(in)    :: gruId(:)                  ! gruId
+  integer(i4b), intent(in)    :: nDOM                      ! number of glacier domains
+  integer(i8b), intent(in)    :: hruId(:)                  ! hruId of each glacier domain
+  ! glacier topography
+  integer(i4b), intent(in)    :: nGlacier                  ! number of glaciers
+  real(rkind), intent(in)     :: surface(:,:,:)            ! surface elevation of each glacier domain (m)
+  real(rkind), intent(in)     :: dx(:), dy(:)              ! grid spacing (m) by glacier
+  integer(i4b), intent(in)    :: Ny0(:), Nx0(:)            ! number of grid cells in x and y directions by glacier
+  real(rkind), intent(in)     :: maxNx,maxNy               ! max number of grid cells in x and y directions by glacier
+  real(rkind), intent(in)     :: bed(:,:,:)                ! bed elevation of each glacier domain (m)
+  real(rkind), intent(in)     :: cell2hru(:,:,:)           ! map of glacier cell to hru
+  real(rkind), intent(in)     :: glacierMask(:,:,:)        ! mask of glacier domain
+  ! mass balance, realMissing value if domain is missing (i.e. a glacier does not have one of ablation or accumulation)
+  real(rkind), intent(in)     :: GWE_delta(:)              ! change in glacier water equivalent (m s-1) in each glacier domain
+  real(rkind), intent(inout)  :: elev(:)                   ! elevation of each glacier domain (m)
   ! area 
-  real(rkind), intent(inout)  :: glacAblArea(:)       ! per glacier ablation area (m2)
-  real(rkind), intent(inout)  :: glacAccArea(:)       ! per glacier accumulation area (m2)
-  real(rkind), intent(out)    :: area(nDOM)           ! area of each glacier domain (m2)
+  real(rkind), intent(out)    :: glacAblArea(nGlacier)     ! per glacier ablation area (m2)
+  real(rkind), intent(out)    :: glacAccArea(nGlacier)     ! per glacier accumulation area (m2)
+  real(rkind), intent(out)    :: area(nDOM)                ! area of each glacier domain (m2)
+  integer(i4b),intent(out)    :: err                       ! error code
+  character(*),intent(out)    :: message                   ! error message 
   ! locals
-  integer(i4b)                :: i,j
-  integer(i4b)                :: nGlacier
-  integer(i4b),parameter      :: Ny==1, Nx==100, nYr = 1
-  real(rkind)                 :: volume ! volume of glacier km3
-  real                        :: surface(Ny,Nx),base(Ny,Nx), mb(Ny,Nx)
+  integer(i4b)                :: i,j,k                     ! loop indices
+  integer(i4b),parameter      :: nYr = 1                   ! number of years to run
+  real(rkind)                 :: Ny, Nx                    ! number of grid cells in x and y directions
+  real(rkind)                 :: volume                    ! volume of each glacier km3
+  real(rkind)                 :: totVolume                 ! total volume of all glaciers km3, might want to send out of routine
+  real(rkind)                 :: mb(maxNy,maxNx)           ! mass balance in each glacier domain (m s-1)
+  real(rkind)                 :: ELA_elev                  ! ELA in each glacier domain (m s-1)
+  real(rkind)                 :: hgt(maxNy,maxNx)          ! height of each glacier domain (m)
+  real(rkind)                 :: dly                       ! area of each grid cell (m2)
+  integer(i4b)                :: validCount                ! number of valid points
+  real(rkind), allocatable    :: validElev(:)              ! filter out points where equal to realMissing
+  real(rkind), allocatable    :: validGWE_delta(:)         ! filter out points where equal to realMissing
+  real(rkind)                 :: temp_elev, temp_GWE       ! temporary variables for sorting
+  real(rkind)                 :: slope, intercept          ! slope and intercept for linear extrapolation of GWE
+  ! ----------------------------------------------------------------------------------------------
+  ! initialize
+  err=0; message='glacFlow/'
+  glacAblArea = 0._rkind
+  glacAccArea = 0._rkind
+  totVolume = 0._rkind
+  validCount = count(elev /= realMissing)
+  allocate(validElev(validCount))
+  allocate(validGWE_delta(validCount))
   
-  ! get starting surface and base from file and number of glaciers
-  ! This logic makes sense if assuming multiple glaciers in each HRU and one HRU per GRU, or one glacier in each GRU with multiple HRUs
-  ! If some glaciers are not in a particular glacier HRU, this logic will not capture that
+  ! Filter out points where no area and elevation is missing
+  j = 1
+  do i = 1, nDOM
+    if (elev(i) /= realMissing) then
+      validElev(j) = elev(i)
+      validGWE_delta(j) = GWE_delta(i)
+      j = j + 1
+    end if
+  end do
+  
+  ! Simple bubble sort to sort the valid elevations in descending order
+  do i = 1, validCount-1
+    do j = 1, validCount-i
+      if (validElev(j) < validElev(j+1)) then
+        ! Swap elevations
+        temp_elev = validElev(j)
+        validElev(j) = validElev(j+1)
+        validElev(j+1) = temp_elev
+        ! Swap corresponding GWE_delta values
+        temp_GWE = validGWE_delta(j)
+        validGWE_delta(j) = validGWE_delta(j+1)
+        validGWE_delta(j+1) = temp_GWE
+      end if
+    end do
+  end do
+  
+  ! Calculate the elevation where GWE_delta would be zero
+  if (validGWE_delta(1) <= 0.0) then
+    ! Extrapolate above the first point
+    slope = (validGWE_delta(2) - validGWE_delta(1)) / (validElev(2) - validElev(1))
+    intercept = validGWE_delta(1) - slope * validElev(1)
+    ELA_elev = -intercept / slope
+  else if (validGWE_delta(validCount) >= 0.0) then
+    ! Extrapolate below the last point
+    slope = (validGWE_delta(validCount) - validGWE_delta(validCount-1)) / (validElev(validCount) - validElev(validCount-1))
+    intercept = validGWE_delta(validCount) - slope * validElev(validCount)
+    ELA_elev = -intercept / slope
+  else
+    do i = 1, validCount-1
+      if ((validGWE_delta(i) > 0.0 .and. validGWE_delta(i+1) < 0.0) .or. (validGWE_delta(i) < 0.0 .and. validGWE_delta(i+1) > 0.0)) then
+        ! Linear interpolation to find the zero crossing
+        slope = (validGWE_delta(i+1) - validGWE_delta(i)) / (validElev(i+1) - validElev(i))
+        intercept = validGWE_delta(i) - slope * validElev(i)
+        ELA_elev = -intercept / slope
+        exit
+      end if
+    end do
+  end if
+  deallocate(validElev, validGWE_delta)
 
-  nGlacier = size(glacAblArea)
-  ! get by gruID()
-  area_all(1:nGlacier) = 
-  surface_all
-  base_all
-  hruCount_all
-  ! starting values can get from shapefile
-  ! maybe call this with a flag to initialize progressive? Or read into coldState_glac
-  abl_elev = (zmin_m + zmed_m)/2._rkind
-  acc_elev = (zmax_m + zmed_m)/2._rkind
-  abl_area = area_km2/2._rkind * 1.e6_rkind
-  acc_area = abl_area
-
+  ! Initialize domain areas and elevations
+  do i = 1,nDOM
+    area(i) = 0._rkind
+    elev(i) = 0._rkind
+  end do
 
   ! run flow for each glacier
   do i = 1,nGlacier
-    hruCount = 0
-    if(glacAblArea(i)+glacAccArea(i)==0._rkind) cycle ! not growing glaciers
+    ! set up glacier
+    Nx = Nx0(i)
+    Ny = Ny0(i)
+    mb = 0._rkind
+    hgt = 0._rkind
 
-    do k = 1,nGlacier
-      if (area_all(k).ne. glacAblArea(i)+glacAccArea(i))cycle
-      surface = surface_all(:,:,k)
-      base = base_all(:,:,k)
-      hruCount = hruCount_all(k) ! number of HRUs in glacier
-      exit
-    enddo
-    if(hruCount==0)then
-      message = trim(message)//"cannot find glacier topography info in file"
-      err=20; return
-    endif
-    
-    allocate(hruGlac(hruCount),mb0(hruCount*2),elev0(hruCount*2))
-    hruGlac =  ! get these
-    do j = 1,nDOM
-      if (any(hruGlac)==hruId(j))then
-        if(elev(j).ne.realMissing)then
-          !use to extrapolate
-
-        endif
-      endif
-    enddo
-
-    ! distribute mass balance over surface
-    ! Build mass balance gradient from elev, mb_in, 
-    ! If use elevation of domains outside of HRU in glacier, then storage change won't map correctly
-    ! Map to surface, extrapolate linearly
-    ! Order will go HRU 1: Acc, Abl, HRU 2: Acc, Abl unless have zero area then skip
-    mb =
-    m_dot = ! convert to m/s
-    do j = 1, Ny
-      do k = 1, Nx
-        if (.not. glacierMask(j, k)) then
-          m_dot(j, k) = 0._rkind
+    ! distribute mass balance over surface, using all points in GRU
+    do j = 1, Nx
+      do k = 1, Ny
+        ! Find the interval in which surface(k,j,i) lies
+        if (surface(k,j,i) >= elev(1)) then
+            ! Extrapolate above the first point
+          slope = (GWE_delta(2) - GWE_delta(1)) / (elev(2) - elev(1))
+          intercept = GWE_delta(1) - slope * elev(1)
+          mb(k,j) = slope * surface(k,j,i) + intercept
+        else if (surface(j) <= elev(nDOM)) then
+          ! Extrapolate below the last point
+          slope = (GWE_delta(nDOM) - GWE_delta(nDOM-1)) / (elev(nDOM) - elev(nDOM-1))
+          intercept = GWE_delta(nDOM) - slope * elev(nDOM)
+          mb(k,j) = slope * surface(k,j,i) + intercept
+        else
+          ! Interpolate between points
+          do n = 1, nDOM-1
+            if (surface(k,j,i) <= elev(n) .and. surface(k,j,i) >= elev(n+1)) then
+              slope = (GWE_delta(n+1) - GWE_delta(n)) / (elev(n+1) - elev(n))
+              intercept = GWE_delta(n) - slope * elev(n)
+              mb(k,j) = slope * surface(k,j,i) + intercept
+              exit
+            end if
+          end do
+        end if
+        ! Set mass balance to zero if not on glacier
+        if (glacierMask(k,j,i)==0) then
+          mb(k,j) = 0._rkind
         end if
       end do
     end do
 
-    call run_year(nYr,surface, base, mb, glacierMask, x, Ny, Nx, dx, dy, volume)
-
-    ! based on mass balance, use width to get accumulation area and ablation area and elevations
-
-
-    ! HOW MAP THIS BACK TO HRUS?
-
-
+    ! compute flow
+    call run_year(nYr,surface(1:Ny,1:Nx,i), bed(1:Ny,1:Nx,i), mb(1:Ny,1:Nx), glacierMask(1:Ny,1:Nx,i), Ny, Nx, dx(i), dy(i), volume)
+    totVolume = totVolume+volume
+    
+    ! Initialize variables
+    hgt(1:Ny,1:Nx) = surface(1:Ny,1:Nx,i) - bed(1:Ny,1:Nx,i)
+    dly = dx(i) * dy(i)
+    
+    ! Calculate glacier ablation and accumulation areas
+    glacAblArea(i) = sum(merge(dly, 0.0, (hgt(1:Ny,1:Nx)>0) .and. (surface(1:Ny,1:Nx,i)<  ELA_elev)))
+    glacAccArea(i) = sum(merge(dly, 0.0, (hgt(1:Ny,1:Nx)>0) .and. (surface(1:Ny,1:Nx,i)>= ELA_elev)))
+    
+    ! Loop through HRUs and calculate domain areas and elevations
+    ! Order of domains will go HRU 1: Acc, Abl, HRU 2: Acc, Abl, etc.
+    do k = 1, nDOM / 2
+      area(2*k-1) = area(2*k-1) + sum(merge(dly, 0.0, (cell2hru(1:Ny,1:Nx,i)==hruId(k)) .and. (hgt(1:Ny,1:Nx)>0) .and. (surface(1:Ny,1:Nx,i)>= ELA_elev)))
+      area(2*k)   = area(2*k)   + sum(merge(dly, 0.0, (cell2hru(1:Ny,1:Nx,i)==hruId(k)) .and. (hgt(1:Ny,1:Nx)>0) .and. (surface(1:Ny,1:Nx,i)<  ELA_elev)))
+      
+      ! Calculate mean elevation for accumulation and ablation areas
+      if (count((cell2hru(1:Ny,1:Nx,i)==hruId(k)) .and. (surface(1:Ny,1:Nx,i)>=ELA_elev)) > 0) then
+        elev(2*k-1) = elev(2*k-1) + sum(surface(1:Ny,1:Nx,i) * merge(1.0, 0.0, (cell2hru(1:Ny,1:Nx,i)==hruId(k)) .and. (surface(1:Ny,1:Nx,i) >= ELA_elev))) / &
+                          count((cell2hru(1:Ny,1:Nx,i)==hruId(k)) .and. (surface(1:Ny,1:Nx,i)>=ELA_elev))
+      end if
+      if (count((cell2hru(1:Ny,1:Nx,i)==hruId(k)) .and. (surface(1:Ny,1:Nx,i) <ELA_elev)) > 0) then
+        elev(2*k)   = elev(2*k)   + sum(surface(1:Ny,1:Nx,i) * merge(1.0, 0.0, (cell2hru(1:Ny,1:Nx,i)==hruId(k)) .and. (surface(1:Ny,1:Nx,i) < ELA_elev))) / &
+                          count((cell2hru(1:Ny,1:Nx,i)==hruId(k)) .and. (surface(1:Ny,1:Nx,i)< ELA_elev))
+      end if
+    end do
   enddo ! end of glacier loop
+
+  ! Set elevations to realMissing if no area
+  do i = 1,nDOM
+    if (elev(i)==0._rkind) elev(i)=realMissing
+  end do
 
 end subroutine glacFlow
 
@@ -142,13 +255,12 @@ end subroutine glacFlow
 ! ************************************************************************************************
 ! private subroutine run_year for setting up flow model and running for each glacier for time period
 ! ************************************************************************************************
-  subroutine run_year(y_end, S, B, m_dot, glacierMask, x, Ny, Nx, dx, dy, volume)
+  subroutine run_year(y_end, S, B, m_dot, glacierMask, Ny, Nx, dx, dy, volume)
     ! Arguments
     real(rkind), intent(in) :: y_end, dx, dy
     real(rkind), intent(inout) :: S(:,:), B(:,:), m_dot(:,:)
     integer(i4b), intent(in) :: Nx, Ny
     logical(lgt), intent(in) :: glacierMask(:)
-    real(rkind), intent(in) :: x(:)
     real(rkind), intent(out) :: volume
 
     ! Local variables

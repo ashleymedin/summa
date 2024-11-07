@@ -261,9 +261,8 @@ if __name__ == '__main__':
         accArea = np.zeros((ngl,nOutPolygonsGRU), dtype='f8')
         totVolume = np.zeros(nOutPolygonsGRU, dtype='f8')
         for i,g in enumerate(gruIDs):
-            hru_area[hru2gru==g]
             for j in range(nGlacier[i]):
-                totVolume[i] = glacVol_km3[j,i]+totVolume
+                totVolume[i] = totVolume[i] + glacVol_km3[j,i]
                 bed_elev_m0 = bed_elev_m[:,:,j,i]
                 surface_elev_m0 = surface_elev_m[:,:,j,i]
                 hgt = surface_elev_m0 - bed_elev_m0

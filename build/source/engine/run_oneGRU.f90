@@ -153,7 +153,7 @@ subroutine run_oneGRU(&
   real(rkind)                         :: fracDOM                ! fractional area of a given HRU domain in GRU (-)
   integer(i4b)                        :: nDOM_glacGRU           ! number of glacier domains in the GRU
   real(rkind), allocatable            :: glac_elev(:)           ! elevation of each glacier domain (m)
-  real(rkind), allocatable            :: GWE_deltaYr(:)         ! change in glacier water equivalent per year (m) in each glacier cell
+  real(rkind), allocatable            :: GWE_delta(:)         ! change in glacier water equivalent per year (m) in each glacier cell
   integer(i8b), allocatable           :: glac_hru(:)            ! HRU id of the each glacier cell
   real(rkind), allocatable            :: glac_area(:)           ! area of each glacier domain (m2)
   logical(lgt)                        :: computeVegFluxFlag     ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
@@ -235,7 +235,7 @@ subroutine run_oneGRU(&
     end do
   endif
   if(nDOM_glacGRU==0) nDOM_glacGRU=1 ! allocate at some size
-  allocate(glac_elev(nDOM_glacGRU),glac_area(nDOM_glacGRU),GWE_deltaYr(nDOM_glacGRU),glac_hru(nDOM_glacGRU))
+  allocate(glac_elev(nDOM_glacGRU),glac_area(nDOM_glacGRU),GWE_delta(nDOM_glacGRU),glac_hru(nDOM_glacGRU))
 
   ! ********** RUN FOR ONE HRU ********************************************************************************************
   ! loop through HRUs
@@ -339,7 +339,7 @@ subroutine run_oneGRU(&
           endif
         end if
         bvarData%var(iLookBVAR%basin__GlacierArea)%dat(1) = bvarData%var(iLookBVAR%basin__GlacierArea)%dat(1) + progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
-        ! placeholder line, add actual Gt of glacier storage instead of SWE, or is it delSWE + snowMelt + scalarGlacierMelt, scalarYrSWEplusMelt?
+        ! placeholder line, add actual Gt of glacier storage instead of SWE, or is it delSWE + snowMelt + scalarGlacierMelt, scalarGWE_delta?
         bvarData%var(iLookBVAR%basin__GlacierStorage)%dat(1) = bvarData%var(iLookBVAR%basin__GlacierStorage)%dat(1) &
                                                                + progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSWE)%dat(1) * progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)*1.e-12_rkind
       else if (typeDOM==wetland)then ! collect wetland fluxes
@@ -360,10 +360,10 @@ subroutine run_oneGRU(&
             if(progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)>0._rkind)then 
               glac_elev(nDOM_glacGRU) = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1)
               ! placeholder line, add actual kg/m2 of glacier storage instead of SWE
-              GWE_deltaYr(nDOM_glacGRU) = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarYrSWEplusMelt)%dat(1) !- progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSWE_yrend)%dat(1) 
+              GWE_delta(nDOM_glacGRU) = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarGWE_delta)%dat(1) !- progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSWE_yrend)%dat(1) 
             else
               glac_elev(nDOM_glacGRU) = realMissing
-              GWE_deltaYr(nDOM_glacGRU) = realMissing
+              GWE_delta(nDOM_glacGRU) = realMissing
             endif
           endif
         end do
@@ -434,18 +434,29 @@ subroutine run_oneGRU(&
   if (updateGlacArea) then
     ! need to save length, bottom topo, and elevation of glaciers from the end of previous update for this GRU in file associated with gruInfo%gru_id
     ! need to associate each glacier with an HRU and domain
-    call glacFlow(& 
-                   ! input
-                   gruInfo%gru_id,                          & ! intent(in):    GRU ID
-                   nDOM_glacGRU,                            & ! intent(in):    number of domains that have GWE
-                   glac_hru,                                & ! intent(in):    HRU ID of GWE point
-                   GWE_deltaYr,                             & ! intent(in):    change in glacier water equivalent (m s-1) in each glacier domain
-                   glac_elev,                               & ! intent(inout): elevation of each glacier domain (m) per HRU
-                   ! output                
-                   bvarData%var(iLookBVAR%glacAblArea)%dat, & ! intent(out):   per glacier ablation area (m2)
-                   bvarData%var(iLookBVAR%glacAccArea)%dat, & ! intent(out):   per glacier accumulation area (m2)
-                   glac_area,                               & ! intent(out):   area of the glacier domain (m2) per HRU domain
-                   err,message)                               ! intent(out):   error control
+    call glacFlow(&
+                  ! model control
+                  gruInfo%gru_id,                          & ! intent(in):    GRU ID
+                  nDOM_glacGRU,                            & ! intent(in):    number of domains that have GWE
+                  glac_hru,                                & ! intent(in):    HRU ID of GWE point
+                  ! glacier topography
+                  nGlacier,                                & ! intent(in):    number of glaciers
+                  surface,                                 & ! intent(in):    surface elevation of each glacier domain (m)
+                  dx, dy,                                  & ! intent(in):    grid spacing (m) by glacier
+                  Ny0, Nx0,                                & ! intent(in):    number of grid cells in x and y directions by glacier
+                  maxNx, maxNy,                            & ! intent(in):    max number of grid cells in x and y directions by glacier
+                  bed,                                     & ! intent(in):    bed elevation of each glacier domain (m)
+                  cell2hru,                                & ! intent(in):    map of glacier cell to hru
+                  glacierMask,                             & ! intent(in):    mask of glacier domain
+                  ! mass balance
+                  GWE_delta,                               & ! intent(in):    change in glacier water equivalent (m s-1) in each glacier domain
+                  glac_elev,                               & ! intent(inout): elevation of each glacier domain (m) per HRU
+                  ! area
+                  bvarData%var(iLookBVAR%glacAblArea)%dat, & ! intent(out):   per glacier ablation area (m2)
+                  bvarData%var(iLookBVAR%glacAccArea)%dat, & ! intent(out):   per glacier accumulation area (m2)
+                  glac_area,                               & ! intent(out):   area of each domain (m2)
+                  ! error handling
+                  err, message)                             ! intent(out):   error control
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
     nDOM_glacGRU = 0 ! initialize number of glacier domains in the GRU
@@ -454,17 +465,17 @@ subroutine run_oneGRU(&
         if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAbl)then
           nDOM_glacGRU = nDOM_glacGRU + 1
           progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1) = glac_elev(nDOM_glacGRU) ! realMissing if no area
-          progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1) = glac_area(nDOM_glacGRU) ! may be 0
-          progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarYrSWEplusMelt)%dat(1) = 0._rkind ! reset
-        endif
+          progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) = glac_area(nDOM_glacGRU) ! may be 0
+          progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarGWE_delta)%dat(1) = 0._rkind ! reset
+        end if
       enddo
     enddo
   end if
-  deallocate(glac_elev,glac_area,GWE_deltaYr,glac_hru)
+  deallocate(glac_elev,glac_area,GWE_delta,glac_hru)
 
   if (updateGlacArea .or. updateLakeArea) then
     do iHRU=1,gruInfo%hruCount
-      ! update the HRU area and elevation
+      ! update the upland area and elevation
       remaining_area = attrHRU%hru(iHRU)%var(iLookATTR%HRUarea)
       remaining_elev = attrHRU%hru(iHRU)%var(iLookATTR%HRUarea)*attrHRU%hru(iHRU)%var(iLookATTR%elevation)
       do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
