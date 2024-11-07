@@ -54,8 +54,8 @@ subroutine glacFlow(&
                     nGlacier,           & ! intent(in):    number of glaciers
                     surface,            & ! intent(in):    surface elevation of each glacier domain (m)
                     dx, dy,             & ! intent(in):    grid spacing (m) by glacier
-                    Ny0, Nx0,           & ! intent(in):    number of grid cells in x and y directions by glacier
-                    maxNx, maxNy,       & ! intent(in):    max number of grid cells in x and y directions by glacier
+                    Nx0, Ny0,           & ! intent(in):    number of grid cells in x and y directions by glacier
+                    nxgrid, nygrid,     & ! intent(in):    max number of grid cells in x and y directions by glacier
                     bed,                & ! intent(in):    bed elevation of each glacier domain (m)
                     cell2hru,           & ! intent(in):    map of glacier cell to hru
                     glacierMask,        & ! intent(in):    mask of glacier domain
@@ -79,8 +79,8 @@ subroutine glacFlow(&
   integer(i4b), intent(in)    :: nGlacier                  ! number of glaciers
   real(rkind), intent(in)     :: surface(:,:,:)            ! surface elevation of each glacier domain (m)
   real(rkind), intent(in)     :: dx(:), dy(:)              ! grid spacing (m) by glacier
-  integer(i4b), intent(in)    :: Ny0(:), Nx0(:)            ! number of grid cells in x and y directions by glacier
-  real(rkind), intent(in)     :: maxNx,maxNy               ! max number of grid cells in x and y directions by glacier
+  integer(i4b), intent(in)    :: Nx0(:), Ny0(:)            ! number of grid cells in x and y directions by glacier
+  real(rkind), intent(in)     :: nxgrid,nygrid             ! max number of grid cells in x and y directions by glacier
   real(rkind), intent(in)     :: bed(:,:,:)                ! bed elevation of each glacier domain (m)
   real(rkind), intent(in)     :: cell2hru(:,:,:)           ! map of glacier cell to hru
   real(rkind), intent(in)     :: glacierMask(:,:,:)        ! mask of glacier domain
@@ -99,9 +99,9 @@ subroutine glacFlow(&
   real(rkind)                 :: Ny, Nx                    ! number of grid cells in x and y directions
   real(rkind)                 :: volume                    ! volume of each glacier km3
   real(rkind)                 :: totVolume                 ! total volume of all glaciers km3, might want to send out of routine
-  real(rkind)                 :: mb(maxNy,maxNx)           ! mass balance in each glacier domain (m s-1)
+  real(rkind)                 :: mb(nygrid,nxgrid)         ! mass balance in each glacier domain (m s-1)
   real(rkind)                 :: ELA_elev                  ! ELA in each glacier domain (m s-1)
-  real(rkind)                 :: hgt(maxNy,maxNx)          ! height of each glacier domain (m)
+  real(rkind)                 :: hgt(nygrid,nxgrid)          ! height of each glacier domain (m)
   real(rkind)                 :: dly                       ! area of each grid cell (m2)
   integer(i4b)                :: validCount                ! number of valid points
   real(rkind), allocatable    :: validElev(:)              ! filter out points where equal to realMissing

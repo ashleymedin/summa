@@ -443,8 +443,8 @@ subroutine run_oneGRU(&
                   nGlacier,                                & ! intent(in):    number of glaciers
                   surface,                                 & ! intent(in):    surface elevation of each glacier domain (m)
                   dx, dy,                                  & ! intent(in):    grid spacing (m) by glacier
-                  Ny0, Nx0,                                & ! intent(in):    number of grid cells in x and y directions by glacier
-                  maxNx, maxNy,                            & ! intent(in):    max number of grid cells in x and y directions by glacier
+                  Nx, Ny,                                  & ! intent(in):    number of grid cells in x and y directions by glacier
+                  nxgrid,nygrid,                           & ! intent(in):    max number of grid cells in x and y directions by glacier
                   bed,                                     & ! intent(in):    bed elevation of each glacier domain (m)
                   cell2hru,                                & ! intent(in):    map of glacier cell to hru
                   glacierMask,                             & ! intent(in):    mask of glacier domain
