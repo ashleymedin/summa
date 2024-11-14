@@ -58,19 +58,28 @@ def getOutputPolyIDs(nc_file):
     print("read data from attribute file")
     return outPolyIDs,hru_elev,hru_area, gruIDs,hru2gru
 
-def getOutputGlacs(nc_file, nc_fileS):
+def getOutputGlac_bed(nc_file):
     nGlacier  = getNetCDFData(nc_file, 'nGlacier')
+    gruIDs = getNetCDFData(nc_file, 'gruId')
+    glacIDs  = getNetCDFData(nc_file, 'glacId')
     Ny = getNetCDFData(nc_file, 'Ny')
     Nx = getNetCDFData(nc_file, 'Nx')
     dy  = getNetCDFData(nc_file, 'dy')
     dx  = getNetCDFData(nc_file, 'dx')
-    cell2hru  = getNetCDFData(nc_file, 'cell2hru')
+    cell2hruId  = getNetCDFData(nc_file, 'cell2hruId')
     bed_elev_m  = getNetCDFData(nc_file, 'bed_elev_m')
-    glacVol_km3  = getNetCDFData(nc_fileS, 'glacVol_km3')
-    ELA_elev_m  = getNetCDFData(nc_fileS, 'ELA_elev_m')
-    surface_elev_m  = getNetCDFData(nc_fileS, 'surface_elev_m')
-    print("read data from glacier file")
-    return nGlacier,Ny,Nx,dy,dx,cell2hru,bed_elev_m,glacVol_km3,ELA_elev_m,surface_elev_m
+    debris_thick_m  = getNetCDFData(nc_file, 'debris_thick_m')
+    stage = getNetCDFData(nc_file, 'stage')
+    print("read data from glacier bed file")
+    return nGlacier,gruIDs,glacIDs,Ny,Nx,dy,dx,cell2hruId,bed_elev_m,debris_thick_m,stage
+
+def getOutputGlac_surf(nc_file):
+    gruIDs = getNetCDFData(nc_file, 'gruId')
+    glacIDs  = getNetCDFData(nc_file, 'glacId')
+    AAR = getNetCDFData(nc_file, 'AAR')
+    surface_elev_m  = getNetCDFData(nc_file, 'surface_elev_m')
+    print("read data from glacier surface file")
+    return gruIDs,glacIDs,AAR,surface_elev_m
 
 # write gru variables to netcdf output file
 def writeNC_state_vars_GRU(nc_out, newVarName, newVarType, newVarVals):
@@ -99,7 +108,7 @@ def writeNC_state_vars_GRU_VEC(nc_out, newVarName, newVarDim, newVarType, newVar
     ncvar[:] = newVarVals   # store data in netcdf file
 
 # write dimensions and dimension variables to netcdf output file
-def writeNC_dims(fn,  scalarv, midSoil, midToto, ifcToto, hrus, grus, hru_type, ndom, ngl):    
+def writeNC_dims(fn,  scalarv, midSoil, midToto, ifcToto, hrus, grus, hru_type, ndom, glac):    
     """ Write <vars>[hru] array in netCDF4 file,<fn> and variable of
         <varname> """
     print("writing output file")
@@ -113,7 +122,7 @@ def writeNC_dims(fn,  scalarv, midSoil, midToto, ifcToto, hrus, grus, hru_type, 
     dim_midToto = nc_out.createDimension('midToto', midToto)
     dim_ifcToto = nc_out.createDimension('ifcToto', ifcToto)    
     dim_ndom = nc_out.createDimension('dom', ndom) # max number of domains in any HRU
-    dim_ngl = nc_out.createDimension('ngl', ngl) # max number of glaciers in any GRU
+    dim_ngl = nc_out.createDimension('glac', glac) # max number of glaciers in any GRU
 
     # --- Create HRU ID variable (can be either int or string)
     if hru_type == 'str':
@@ -162,7 +171,7 @@ if __name__ == '__main__':
     if testing:
         # hardwired for testing
         nc_attribute_name = 'attributes.nc'
-        nc_out_name = 'coldstate_glac.nc'
+        nc_out_name0 = 'coldstate.nc'
         hru_type = 'int'
 
     else:
@@ -185,19 +194,54 @@ if __name__ == '__main__':
         if len(args) != 3:
             usage()
         nc_attribute_name = args[0]     # attribute file with HRU index
-        nc_out_name = args[1]           # output cold-state file
+        nc_out_name0 = args[1]           # output cold-state file
         hru_type = args[2]              # 'int' or 'string'
  
     # hardwired to forcing formats (hru index rather than grid)
     outPolyIDs, hru_elev, hru_area, gruIDs, hru2gru = getOutputPolyIDs(nc_attribute_name)        
     nOutPolygonsHRU = len(outPolyIDs)
     nOutPolygonsGRU = len(gruIDs)
+    nc_out_name = nc_out_name0[:-3] + '_glac.nc'
 
     # === read glacier data ===
     if glac_dom:
-        nc_glacier_name = nc_attribute_name[:-3] + '_base_topo_glac.nc'
-        nc_glacierS_name = nc_attribute_name[:-3] + '_surf_topo_glac.nc'
-        nGlacier,Ny,Nx,dy,dx,cell2hru,bed_elev_m,glacVol_km3,ELA_elev_m,surface_elev_m = getOutputGlacs(nc_glacier_name, nc_glacierS_name)
+        nc_glacier_name = nc_attribute_name[:-3] + '_glacBedTopo.nc'
+        nc_glacierS_name = nc_out_name0[:-3] + '_glacSurfTopo.nc'
+        nGlacier, gruIDs2, glacIDs, Ny, Nx, dy, dx, cell2hruId, bed_elev_m, debris_thick_m, stage = getOutputGlac_bed(nc_glacier_name)
+        gruIDs3, glacIDs2, AAR, surface_elev_m = getOutputGlac_surf(nc_glacierS_name)
+        glac = max(nGlacier)
+
+        # Mapping to gruIDs
+        gruID_map = {gru: i for i, gru in enumerate(gruIDs)}
+
+        # Remap gruIDs2 and gruIDs3 to match gruIDs
+        gruIDs2_mapped = np.array([gruID_map[gru] for gru in gruIDs2])
+        gruIDs3_mapped = np.array([gruID_map[gru] for gru in gruIDs3])
+
+        # Remap all variables to match gruIDs
+        nGlacier = nGlacier[gruIDs2_mapped]
+        glacIDs  = glacIDs[:,gruIDs2_mapped]
+        Ny = Ny[:,gruIDs2_mapped]
+        Nx = Nx[:,gruIDs2_mapped]
+        dy = dy[:,gruIDs2_mapped]
+        dx = dx[:,gruIDs2_mapped]
+        cell2hruId     = cell2hruId[:,:,:,gruIDs2_mapped]
+        bed_elev_m     = bed_elev_m[:,:,:,gruIDs2_mapped]
+        debris_thick_m = debris_thick_m[:,gruIDs2_mapped]
+        stage          = stage[:,gruIDs2_mapped]
+        glacIDs2       = glacIDs2[:,gruIDs3_mapped]
+        AAR            = AAR[:,gruIDs3_mapped]
+        surface_elev_m = surface_elev_m[:,:,:,gruIDs3_mapped]
+
+        # Remap glacIDs2 to glacIDs for each gru
+        for i, g in enumerate(gruIDs):
+            glacIDs_map = {glac: j for j, glac in enumerate(glacIDs[:,i])}
+            glacIDs2_mapped = np.array([glacIDs_map[glac] for glac in glacIDs2[:,i]])
+
+            # Remap all variables to match glacIDs
+            AAR[:,i] = AAR[glacIDs2_mapped,i]
+            surface_elev_m[:,:,:,i] = surface_elev_m[:,:,glacIDs2_mapped,i]
+
     else:
         nGlacier = np.zeros(nOutPolygonsGRU, dtype='i4')
 
@@ -216,23 +260,21 @@ if __name__ == '__main__':
         nWetland = np.full((nOutPolygonsGRU), nWetland0, dtype='i4')
         writeNC_state_vars_GRU(nc_out, 'nWetland', 'i4', nWetland)
 
-    ngl = max(nGlacier)
-
     # === now start to create the cold state variables using the variable template ===
     dT = 3600 # timestep of forcings in seconds
 
     # settings 8 layer soil, 0 snow
     scalarv = 1
     midSoil = 8
-    midSoil_glac = 0
-    midSoil_wtld = 0
-    midLake = 0
-    midIce = 0
+    midSoil_glac = np.zeros(nOutPolygonsHRU,dtype='i4')
+    midSoil_wtld = np.zeros(nOutPolygonsHRU,dtype='i4')
+    midLake = 0     # assume same number of ice layers for every glacier
+    midIce = 0      # assume same number of lake layers for every lake
     midSnow = 0
     ndom = 1
     midToto = 8
-    midToto_glac = 0
-    midToto_wtld = 0
+    midToto_glac = np.zeros(nOutPolygonsHRU,dtype='i4')
+    midToto_wtld = np.zeros(nOutPolygonsHRU,dtype='i4')
     lyrHeight0 = [0.0, 0.025, 0.1, 0.25, 0.5, 1.0, 1.5, 2.5, 4.0]
     lyrHeight0_np = np.array(lyrHeight0)
     lyrDepth0 = lyrHeight0_np[1:] - lyrHeight0_np[:-1]
@@ -247,41 +289,90 @@ if __name__ == '__main__':
     glacAcc_elev = np.zeros(nOutPolygonsHRU, dtype='f8')
     glacAbl_elev = np.zeros(nOutPolygonsHRU, dtype='f8')
     wtld_elev = np.zeros(nOutPolygonsHRU, dtype='f8')
+    debris_thick = np.zeros(nOutPolygonsHRU, dtype='f8')
+    count_thick = np.zeros(nOutPolygonsHRU, dtype='f8')
+    glacDeb_frac = np.zeros(nOutPolygonsHRU, dtype='f8')
+    glacDeb_elev = np.zeros(nOutPolygonsHRU, dtype='f8')
+    glacNoDeb_frac = np.zeros(nOutPolygonsHRU, dtype='f8')
+    glacNoDeb_elev = np.zeros(nOutPolygonsHRU, dtype='f8')
     indxWtld = 1
     if glac_dom: 
-        ndom += 2
-        midIce = 3
-        midSoil_glac = 2
-        midToto_glac = 7
-        lyrHeight_glac = [0.0, 0.025, 0.125, 0.275, 0.575, 2.375, 7.125, 30.125]
-        lyrHeight_glacnp = np.array(lyrHeight_glac)
-        lyrDepth_glac = lyrHeight_glacnp[1:] - lyrHeight_glacnp[:-1]
-        indxWtld += 2
-        ablArea = np.zeros((ngl,nOutPolygonsGRU), dtype='f8')
-        accArea = np.zeros((ngl,nOutPolygonsGRU), dtype='f8')
+        ablArea = np.zeros((glac,nOutPolygonsGRU), dtype='f8')
+        accArea = np.zeros((glac,nOutPolygonsGRU), dtype='f8')
         totVolume = np.zeros(nOutPolygonsGRU, dtype='f8')
         for i,g in enumerate(gruIDs):
             for j in range(nGlacier[i]):
-                totVolume[i] = totVolume[i] + glacVol_km3[j,i]
                 bed_elev_m0 = bed_elev_m[:,:,j,i]
                 surface_elev_m0 = surface_elev_m[:,:,j,i]
                 hgt = surface_elev_m0 - bed_elev_m0
-                cell2hru0 = cell2hru[:,:,j,i]
+                cell2hruId0 = cell2hruId[:,:,j,i]
                 dly = dx[j,i]*dy[j,i]
-                ablArea[j,i] = np.sum(np.where((hgt>0) & (surface_elev_m0 <ELA_elev_m[j,i]), dly, 0))
-                accArea[j,i] = np.sum(np.where((hgt>0) & (surface_elev_m0>=ELA_elev_m[j,i]), dly, 0))
+                
+                # calculate area and volume
+                glac_area = np.sum(np.where((hgt>0), dly, 0))
+                accArea[j,i] = glac_area * AAR[j,i]
+                ablArea[j,i] = glac_area - accArea[j,i]
+                glac_vol = np.sum(np.where((hgt>0), hgt*dly, 0))    # m^9 of ice
+                totVolume[i] = totVolume[i] + glac_vol
+
+                # calculate the ELA
+                # Sort the elevations and corresponding areas from lowest elev to highest
+                sorted_indices = np.argsort(surface_elev_m0[hgt>0].flatten())
+                sorted_elevations = surface_elev_m0[hgt>0].flatten()[sorted_indices]
+                # Initialize the accumulated area
+                accumulated_area = 0
+                ELA_elev_m = -999.0
+                # Loop through the sorted elevations and areas
+                for idx in range(len(sorted_elevations)):
+                    accumulated_area += dly
+                    if accumulated_area >= ablArea[j, i]:
+                        ELA_elev_m = sorted_elevations[idx]
+                        print('Glacier ', glacIDs[j, i], ' ELA, area, vol:', ELA_elev_m, glac_area, glac_vol)
+                        break
+                if ELA_elev_m == -999.:
+                    print('Glacier ', glacIDs[j,i],' ELA not found')
+                
+                # calculate area and elevation by HRU
                 for k,h in enumerate(outPolyIDs):
                     if hru2gru[k] == g:
-                        glacAbl_frac[k] = glacAbl_frac[k]+ np.sum(np.where((cell2hru0==h) & (hgt>0) & (surface_elev_m0 <ELA_elev_m[j,i]), dly, 0))/hru_area[k]   
-                        glacAcc_frac[k] = glacAcc_frac[k]+ np.sum(np.where((cell2hru0==h) & (hgt>0) & (surface_elev_m0>=ELA_elev_m[j,i]), dly, 0))/hru_area[k]
-                        glacAbl_elev[k] = glacAbl_elev[k] + surface_elev_m0[(cell2hru0==h) & (surface_elev_m0< ELA_elev_m[j,i])].mean()
-                        glacAcc_elev[k] = glacAcc_elev[k] + surface_elev_m0[(cell2hru0==h) & (surface_elev_m0>=ELA_elev_m[j,i])].mean()
+                        debris_thick[k] = debris_thick[k] + debris_thick_m[j,i]
+                        count_thick[k] = count_thick[k] + 1
+                        glacAbl_frac[k] = glacAbl_frac[k] + np.sum(np.where((cell2hruId0==h) & (hgt>0) & (surface_elev_m0 <ELA_elev_m), dly, 0))/hru_area[k]   
+                        glacAcc_frac[k] = glacAcc_frac[k] + np.sum(np.where((cell2hruId0==h) & (hgt>0) & (surface_elev_m0>=ELA_elev_m), dly, 0))/hru_area[k]
+                        glacAbl_elev[k] = glacAbl_elev[k] + surface_elev_m0[(cell2hruId0==h) & (hgt>0) & (surface_elev_m0< ELA_elev_m)].mean()/nGlacier[i]
+                        glacAcc_elev[k] = glacAcc_elev[k] + surface_elev_m0[(cell2hruId0==h) & (hgt>0) & (surface_elev_m0>=ELA_elev_m)].mean()/nGlacier[i]
+                        glacDeb_frac[k] = glacAbl_frac[k]*stage[j,i]
+                        glacDeb_elev[k] = glacAbl_elev[k]
+                        glacNoDeb_frac[k] = glacAbl_frac[k]*(1.0-stage[j,i])
+                        glacNoDeb_elev[k] = glacAbl_elev[k]
+        ndom += 2
+        midIce = 5
+        midSoil_glac0 = 2
+        midToto_glac0 = midIce + midSoil_glac0
+        lyrHeight_glac = np.zeros((nOutPolygonsHRU,midToto_glac0+1), dtype='f8')
+        # EVENTUALLY SHOULD ONLY GIVE SOIL TO DEBRIS ABLATION ZONE (STAGE FRACTION, NOT ACC OR OTHER ABL)
+        for k,h in enumerate(outPolyIDs):
+            if count_thick[k]>0:
+                debris_thick[k] = debris_thick[k]/count_thick[k]
+                midSoil_glac[k] = midSoil_glac0
+                for layer in range(1, midSoil_glac[k] + 1):
+                    lyrHeight_glac[k, layer] = debris_thick[k] * (layer ** 2 / midSoil_glac[k] ** 2)
+            for layer in range(midSoil_glac[k]+1, midIce+midSoil_glac[k]+1):
+                ice_depth = 30.0
+                ice_layDepth = [0.15, 0.45, 2.25, 7.0, 30.0]
+                lyrHeight_glac[k, layer] = debris_thick[k] + ice_layDepth[layer-midSoil_glac[k]-1]
+            midToto_glac[k] = midIce+midSoil_glac[k]
+                
+        lyrHeight_glacnp = np.array(lyrHeight_glac)
+        lyrDepth_glac = lyrHeight_glacnp[:,1:] - lyrHeight_glacnp[:,:-1]
+        indxWtld += 2
 
     if wtld_dom: 
         ndom += 1
-        midLake = 5
+        # These should be by HRU
+        midLake = 4
         midSoil_wtld = 5
-        midToto_wtld = 9
+        midToto_wtld = midLake + midSoil_wtld
         lyrHeight_wtld = [0.0, 0.05, 0.2, 0.5, 1, 2.0, 3.0, 4.0, 5.0, 8.0]
         lyrHeight_wtldnp = np.array(lyrHeight_wtld)
         lyrDepth_wtld = lyrHeight_wtldnp[1:] - lyrHeight_wtldnp[:-1]
@@ -319,10 +410,10 @@ if __name__ == '__main__':
 
     domType = np.full((1, nOutPolygonsHRU, ndom), 1, dtype='i4')
     if glac_dom: # NOTE, if HRU glacier area is 0, midIce_dom should be 0
-        lyrDepth[1,:,0:len(lyrDepth_glac)] = lyrDepth_glac
-        lyrDepth[2,:,0:len(lyrDepth_glac)] = lyrDepth_glac
-        lyrHeight[1,:,0:len(lyrHeight_glac)] = lyrHeight_glac
-        lyrHeight[2,:,0:len(lyrHeight_glac)] = lyrHeight_glac
+        lyrDepth[1,:,0:midToto_glac0] = lyrDepth_glac
+        lyrDepth[2,:,0:midToto_glac0] = lyrDepth_glac
+        lyrHeight[1,:,0:midToto_glac0+1] = lyrHeight_glac
+        lyrHeight[2,:,0:midToto_glac0+1] = lyrHeight_glac
         midIce_dom[:,0,1] = midIce
         midIce_dom[:,0,2] = midIce
         midSoil_dom[:,0,1] = midSoil_glac
@@ -335,8 +426,8 @@ if __name__ == '__main__':
         dom_elev[:,0,2] = glacAbl_elev
 
     if wtld_dom: # NOTE, if HRU wetland area is 0, midLake_dom should be 0
-        lyrDepth[indxWtld,:,0:len(lyrDepth_wtld)] = lyrDepth_wtld
-        lyrHeight[indxWtld,:,0:len(lyrHeight_wtld)] = lyrHeight_wtld
+        lyrDepth[indxWtld,:,0:midToto_wtld] = lyrDepth_wtld
+        lyrHeight[indxWtld,:,0:midToto_wtld+1] = lyrHeight_wtld
         midLake_dom[:,0,indxWtld] = midLake
         midSoil_dom[:,0,indxWtld] = midSoil_wtld
         domType[:,0,indxWtld] = 4
@@ -352,7 +443,7 @@ if __name__ == '__main__':
 
     # initialize netcdf file by storing dimensions and hru variable
     nc_out = writeNC_dims(nc_out_name, scalarv, midSoil, midToto, ifcToto,
-                        outPolyIDs, gruIDs, hru_type, ndom, ngl)
+                        outPolyIDs, gruIDs, hru_type, ndom, glac)
 
     # === now loop through variables and write
     #  this could be done by looping through the input state file and xferring values
@@ -389,8 +480,8 @@ if __name__ == '__main__':
     writeNC_state_vars_HRU_DOM(nc_out, 'scalarCanopyIce', 'scalarv', 'f8', scalar0)     # CanopyIce
 
     # glacier area
-    writeNC_state_vars_GRU_VEC(nc_out, 'glacAblArea', 'ngl', 'f8', ablArea)  
-    writeNC_state_vars_GRU_VEC(nc_out, 'glacAccArea', 'ngl', 'f8', accArea)
+    writeNC_state_vars_GRU_VEC(nc_out, 'glacAblArea', 'glac', 'f8', ablArea)  
+    writeNC_state_vars_GRU_VEC(nc_out, 'glacAccArea', 'glac', 'f8', accArea)
 
     # glacier volume
     writeNC_state_vars_GRU(nc_out, 'basin__GlacierStorage', 'f8', totVolume*0.9167)     # GlacierStorage in Gt
@@ -402,15 +493,16 @@ if __name__ == '__main__':
 
     # layer MatricHead, Temp, VolFracLiq, VolFracIce
     if glac_dom:
-        for i in range(ndom): # put ice layers at -5 C and all ice similar to Giese et al. 2020, otherwise need to spin up 40 yrs
-            if i>0 and i<3: 
-                toto283[   midSoil_glac:(midIce+midSoil_glac),:,i] = 268.16 # or 273.16?
-                toto0[     midSoil_glac  ,:,i] = 0.90 # could be 0.9 per Bradford et al. 2009, less air as go deeper
-                toto0[     midSoil_glac+1,:,i] = 0.91
-                toto0[     midSoil_glac+2,:,i] = 0.93
-                toto0[     midSoil_glac+3,:,i] = 0.95 
-                toto0[     midSoil_glac+4,:,i] = 0.98
-                totopoint2[midSoil_glac:(midIce+midSoil_glac),:,i] = 0.0
+        for k,h in enumerate(outPolyIDs):
+            for i in range(ndom): # put ice layers at -5 C and all ice similar to Giese et al. 2020, otherwise need to spin up 40 yrs
+                if i>0 and i<3: 
+                    toto283[   midSoil_glac[k]:(midIce+midSoil_glac[k]),:,i] = 268.16 # or 273.16?
+                    toto0[     midSoil_glac[k]  ,:,i] = 0.90 # could be 0.9 per Bradford et al. 2009, less air as go deeper
+                    toto0[     midSoil_glac[k]+1,:,i] = 0.91
+                    toto0[     midSoil_glac[k]+2,:,i] = 0.93
+                    toto0[     midSoil_glac[k]+3,:,i] = 0.95 
+                    toto0[     midSoil_glac[k]+4,:,i] = 0.98
+                    totopoint2[midSoil_glac[k]:(midIce+midSoil_glac[k]),:,i] = 0.0
     writeNC_state_vars_HRU_DOM(nc_out, 'mLayerMatricHead', 'midSoil', 'f8', soilneg1)   # MatricHead
     writeNC_state_vars_HRU_DOM(nc_out, 'mLayerTemp', 'midToto', 'f8', toto283)          # Temp
     writeNC_state_vars_HRU_DOM(nc_out, 'mLayerVolFracLiq', 'midToto', 'f8', totopoint2) # VolFracLiq
