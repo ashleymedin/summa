@@ -51,6 +51,7 @@ MODULE globalData
   USE var_lookup,only:maxvarMpar      ! model parameters:         maximum number variables
   USE var_lookup,only:maxvarBvar      ! basin-average variables:  maximum number variables
   USE var_lookup,only:maxvarBpar      ! basin-average parameters: maximum number variables
+  USE var_lookup,only:maxvarGrid      ! glacier grid variables:   maximum number variables
   USE var_lookup,only:maxvarDecisions ! maximum number of decisions
   USE var_lookup,only:maxvarFreq      ! maximum number of output files
   USE var_lookup,only:maxvarLookup    ! maximum number of variables in the lookup
@@ -136,6 +137,7 @@ MODULE globalData
                    struct_info('mpar',  'PARAM', maxvarMpar ), &                    ! the model parameter data structure
                    struct_info('bpar',  'BPAR' , maxvarBpar ), &                    ! the basin parameter data structure
                    struct_info('bvar',  'BVAR' , maxvarBvar ), &                    ! the basin variable data structure
+                   struct_info('grid',  'GRID' , maxvarGrid ), &                    ! the glacier grid data structure
                    struct_info('indx',  'INDEX', maxvarIndx ), &                    ! the model index data structure
                    struct_info('prog',  'PROG',  maxvarProg ), &                    ! the prognostic (state) variable data structure
                    struct_info('diag',  'DIAG' , maxvarDiag ), &                    ! the diagnostic variable data structure
@@ -169,6 +171,7 @@ MODULE globalData
   type(var_info),save,public                  :: lookup_meta(maxvarLookup)    ! local lookup tables for each HRU
   type(var_info),save,public                  :: bpar_meta(maxvarBpar)        ! basin parameters for aggregated processes
   type(var_info),save,public                  :: bvar_meta(maxvarBvar)        ! basin variables for aggregated processes
+  type(var_info),save,public                  :: grid_meta(maxvarGrid)        ! glacier grid variables
   ! ancillary metadata structures
   type(flux2state),   save,public             :: flux2state_orig(maxvarFlux)  ! named variables for the states affected by each flux (original)
   type(flux2state),   save,public             :: flux2state_liq(maxvarFlux)   ! named variables for the states affected by each flux (liquid water)
@@ -216,6 +219,8 @@ MODULE globalData
   integer(i4b),save,public                       :: maxSoilLayers                     ! maximum number of soil layers
   integer(i4b),save,public                       :: maxSnowLayers                     ! maximum number of snow layers
   integer(i4b),save,public                       :: maxGlaciers                       ! maximum number of glaciers in a GRU
+  integer(i4b),save,public                       :: maxGridX                          ! maximum number of grid cells in the x-direction
+  integer(i4b),save,public                       :: maxGridY                          ! maximum number of grid cells in the y-direction
   integer(i4b),save,public                       :: maxIceLayers                      ! maximum number of ice layers on glacier
   integer(i4b),save,public                       :: maxWetlands                       ! maximum number of wetlands in a GRU
   integer(i4b),save,public                       :: maxLakeLayers                     ! maximum number of lake layers

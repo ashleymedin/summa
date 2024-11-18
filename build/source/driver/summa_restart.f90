@@ -48,7 +48,7 @@ contains
  USE summa_type, only:summa1_type_dec                        ! master summa data type
  ! functions and subroutines
  USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time
- USE read_icond_module,only:read_icond                       ! module to read initial conditions
+ USE read_icond_module,only:read_icond,read_icondGlac        ! module to read initial conditions
  USE check_icond_module,only:check_icond                     ! module to check initial conditions
  USE var_derive_module,only:calcHeight                       ! module to calculate height at layer interfaces and layer mid-point
  USE var_derive_module,only:v_shortcut                       ! module to calculate "short-cut" variables
@@ -60,25 +60,26 @@ contains
  ! file paths
  USE summaFileManager,only:SETTINGS_PATH                     ! path to settings files (e.g., Noah vegetation tables)
  USE summaFileManager,only:STATE_PATH                        ! optional path to state/init. condition files (defaults to SETTINGS_PATH)
- USE summaFileManager,only:MODEL_INITCOND                    ! name of model initial conditions file
+ USE summaFileManager,only:MODEL_INITCOND                    ! name of model initial conditions file (defaults to 'none')
+ USE summaFileManager,only:MODEL_INITGLAC                    ! name of glacier initial conditions file, surface topography
  ! timing variables
  USE globalData,only:startRestart,endRestart                 ! date/time for the start and end of reading model restart files
  USE globalData,only:elapsedRestart                          ! elapsed time to read model restart files
  ! model decisions
  USE mDecisions_module,only:&                                ! look-up values for the choice of method for the spatial representation of groundwater
-  localColumn,     & ! separate groundwater representation in each local soil column
-  singleBasin        ! single groundwater store over the entire basin
-! look-up values for the numerical method
-USE mDecisions_module,only:&
-  homegrown,       & ! homegrown backward Euler solution using concepts from numerical recipes
-  kinsol,          & ! SUNDIALS backward Euler solution using Kinsol
-  ida                ! SUNDIALS solution using IDA
+   localColumn,     & ! separate groundwater representation in each local soil column
+   singleBasin        ! single groundwater store over the entire basin
+ ! look-up values for the numerical method
+ USE mDecisions_module,only:&
+   homegrown,       & ! homegrown backward Euler solution using concepts from numerical recipes
+   kinsol,          & ! SUNDIALS backward Euler solution using Kinsol
+   ida                ! SUNDIALS solution using IDA
  ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
  USE mDecisions_module,only:&
    closedForm,     & ! use temperature with closed form heat capacity
    enthalpyFormLU, & ! use enthalpy with soil temperature-enthalpy lookup tables
    enthalpyForm      ! use enthalpy with soil temperature-enthalpy analytical solution
-! look-up values for the choice of full or empty aquifer at start
+ ! look-up values for the choice of full or empty aquifer at start
  USE mDecisions_module,only:&
    fullStart,      & ! start with full aquifer
    emptyStart        ! start with empty aquifer
@@ -93,6 +94,7 @@ USE mDecisions_module,only:&
  ! local variables
  character(LEN=256)                    :: cmessage           ! error message of downwind routine
  character(LEN=256)                    :: restartFile        ! restart file name
+ character(LEN=256)                    :: restartGlacFile    ! glacier restart file name
  integer(i4b)                          :: iGRU,iHRU,iDOM     ! looping variables
  logical(lgt)                          :: checkEnthalpy      ! flag if checking enthalpy for consistency
  logical(lgt)                          :: no_icond_enth      ! flag that enthalpy not in initial conditions
@@ -118,6 +120,7 @@ USE mDecisions_module,only:&
   ! basin-average structures
   bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)            -- basin-average parameters
   bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat        -- basin-average variables
+  gridStruct           => summa1_struc%gridStruct          , & ! xgru(:)%glac(:)%var(:)%grid(:,:) -- grid information for each glacier in basin
   ! miscellaneous variables
   dt_init              => summa1_struc%dt_init             , & ! used to initialize the length of the sub-step for each HRU
   nGRU                 => summa1_struc%nGRU                , & ! number of grouped response units
@@ -153,6 +156,25 @@ USE mDecisions_module,only:&
                  no_icond_enth,                 & ! intent(in):    flag that enthalpy not in initial conditions
                  err,cmessage)                    ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! define restart glacier file path/name
+ if (MODEL_INITGLAC == 'none') then
+  restartGlacFile = 'none'
+ else
+  if(STATE_PATH == '') then
+    restartGlacFile = trim(SETTINGS_PATH)//trim(MODEL_INITGLAC)
+  else
+    restartGlacFile = trim(STATE_PATH)//trim(MODEL_INITGLAC)
+  endif
+
+  ! read initial conditions
+  call read_icondGlac(restartGlacFile,               & ! intent(in):    name of glacier initial conditions file (surface topography)
+                      nGRU,                          & ! intent(in):    number of response units
+                      gridStruct,                    & ! intent(inout): grid information for each glacier in basin
+                      err,cmessage)                    ! intent(out):   error control
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+endif
 
 ! check initial conditions
  checkEnthalpy = .false.

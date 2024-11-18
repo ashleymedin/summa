@@ -860,7 +860,18 @@ MODULE var_lookup
  endtype iLook_bvar
 
  ! ***********************************************************************************************************
- ! (13) structure for looking up the type of a model variable (this is only needed for backward
+ ! (13) define basin-grid model variables
+ ! ***********************************************************************************************************
+ type, public :: iLook_grid
+ ! define variables for glacier
+  integer(i4b)    :: bed                     = integerMissing ! bed elevation (m)
+  integer(i4b)    :: cell2hru                = integerMissing ! cell to HRU mapping (-)
+  integer(i4b)    :: glacierMask             = integerMissing ! glacier mask (-)
+  integer(i4b)    :: surface                 = integerMissing ! surface elevation (m)
+ endtype iLook_grid
+
+ ! ***********************************************************************************************************
+ ! (14) structure for looking up the type of a model variable (this is only needed for backward
  ! compatability, and should be removed eventually)
  ! ***********************************************************************************************************
 #ifdef ACTORS_ACTIVE
@@ -888,7 +899,7 @@ MODULE var_lookup
  endtype iLook_varType
 
  ! ***********************************************************************************************************
- ! (14) structure for looking up statistics
+ ! (15) structure for looking up statistics
  ! ***********************************************************************************************************
  type, public :: iLook_stat
   integer(i4b)    :: totl = integerMissing ! summation
@@ -901,7 +912,7 @@ MODULE var_lookup
  endtype iLook_stat
 
  ! ***********************************************************************************************************
- ! (15) structure for looking up output frequencies
+ ! (16) structure for looking up output frequencies
  ! ***********************************************************************************************************
  type, public :: iLook_freq
   integer(i4b)    :: day      = integerMissing ! daily aggregation
@@ -911,7 +922,7 @@ MODULE var_lookup
  endtype iLook_freq
 
  ! ***********************************************************************************************************
- ! (16) structure for looking up lookup tables
+ ! (17) structure for looking up lookup tables
  ! ***********************************************************************************************************
  type, public :: iLook_vLookup
   integer(i4b)    :: temperature = integerMissing ! temperature (K)
@@ -1010,6 +1021,8 @@ MODULE var_lookup
  type(iLook_bvar),    public,parameter :: iLookBVAR     =ilook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21)
+ ! named variables: basin-grid variables
+ type(iLook_grid),    public,parameter :: iLookGRID     =ilook_grid    (  1,  2,  3,  4)
  ! named variables in varibale type structure
  type(iLook_varType), public,parameter :: iLookVarType  =ilook_varType (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17)
@@ -1034,6 +1047,7 @@ MODULE var_lookup
  integer(i4b),parameter,public :: maxvarIndx      = storage_size(iLookINDEX)/iLength
  integer(i4b),parameter,public :: maxvarBpar      = storage_size(iLookBPAR)/iLength
  integer(i4b),parameter,public :: maxvarBvar      = storage_size(iLookBVAR)/iLength
+ integer(i4b),parameter,public :: maxvarGrid      = storage_size(iLookGRID)/iLength
  integer(i4b),parameter,public :: maxvarVarType   = storage_size(iLookVarType)/iLength
  integer(i4b),parameter,public :: maxvarStat      = storage_size(iLookSTAT)/iLength
  integer(i4b),parameter,public :: maxvarFreq      = storage_size(iLookFREQ)/iLength

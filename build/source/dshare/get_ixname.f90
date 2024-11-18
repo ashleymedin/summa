@@ -37,6 +37,7 @@ public::get_ixDeriv
 public::get_ixIndex
 public::get_ixBpar
 public::get_ixBvar
+public::get_ixGrid
 public::get_ixVarType
 public::get_varTypeName
 public::get_ixUnknown
@@ -1039,6 +1040,30 @@ contains
    get_ixBvar = integerMissing
  end select
  end function get_ixBvar
+
+ 
+ ! *******************************************************************************************************************
+ ! public function get_ixGrid: get the index of the named variables for the grid variables
+ ! *******************************************************************************************************************
+ function get_ixGrid(varName)
+  USE var_lookup,only:iLookGRID                       ! indices of the named variables
+  implicit none
+  ! define dummy variables
+  character(*), intent(in) :: varName                 ! parameter name
+  integer(i4b)             :: get_ixGrid              ! index of the named variable
+   ! get the index of the named variables
+   select case(trim(varName))
+    ! variables for glacier
+    case('bed'                   ); get_ixGrid = iLookGRID%bed                      ! bed elevation (m)
+    case('cell2hru'              ); get_ixGrid = iLookGRID%cell2hru                 ! mapping from grid cells to HRUs
+    case('glacierMask'           ); get_ixGrid = iLookGRID%glacierMask              ! glacier mask
+    case('surface'               ); get_ixGrid = iLookGRID%surface                  ! glacier surface elevation (m)
+    ! get to here if cannot find the variable
+    case default
+     get_ixGrid = integerMissing
+   end select
+  end function get_ixGrid
+
 
  ! *********************************************************************************************************
  ! public function get_ixVarType: get the index of the named variable type

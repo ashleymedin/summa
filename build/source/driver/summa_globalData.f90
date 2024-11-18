@@ -31,13 +31,11 @@ USE var_lookup,only:maxvarProg      ! prognostic variables:     maximum number v
 USE var_lookup,only:maxvarDiag      ! diagnostic variables:     maximum number variables
 USE var_lookup,only:maxvarFlux      ! model fluxes:             maximum number variables
 USE var_lookup,only:maxvarIndx      ! model indices:            maximum number variables
-USE var_lookup,only:maxvarBvar      ! basin-average variables:  maximum number variables
+USE var_lookup,only:maxvarGrid      ! grid variables:           maximum number variables
 
 ! metadata structures
-USE globalData,only:time_meta,forc_meta,attr_meta,type_meta ! metadata structures
-USE globalData,only:prog_meta,diag_meta,flux_meta           ! metadata structures
-USE globalData,only:mpar_meta,indx_meta                     ! metadata structures
-USE globalData,only:bpar_meta,bvar_meta                     ! metadata structures
+USE globalData,only:forc_meta,prog_meta,diag_meta,          ! metadata structures
+USE globalData,only:flux_meta,indx_meta,bvar_meta           ! metadata structures
 USE globalData,only:averageFlux_meta                        ! metadata for time-step average fluxes
 
 ! statistics metadata structures

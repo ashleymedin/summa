@@ -35,6 +35,8 @@ USE globalData,only: maxSoilLayers      ! maximum number of soil layers
 USE globalData,only: maxIceLayers       ! maximum number of ice layers
 USE globalData,only: maxLakeLayers      ! maximum number of lake layers
 USE globalData,only: maxGlaciers        ! maximum number of glaciers
+USE globalData,only: maxGridX           ! maximum number of grid cells in the x-direction
+USE globalData,only: maxGridY           ! maximum number of grid cells in the y-direction
 USE globalData,only: nTimeDelay         ! maximum number of time delay routing vectors
 USE globalData,only: nSpecBand          ! maximum number of spectral bands
 ! provide access to global data
@@ -43,36 +45,37 @@ USE globalData,only: gru_struc          ! gru->hru mapping structure
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
                     ! final data vectors
-                    dlength,             & ! var%dat
-                    ilength,             & ! var%dat
+                    dlength,               & ! var%dat
+                    ilength,               & ! var%dat
                     ! no spatial dimension
-                    var_i,               & ! x%var(:)            (i4b)
-                    var_i8,              & ! x%var(:)            (i8b)
-                    var_d,               & ! x%var(:)            (dp)
-                    var_ilength,         & ! x%var(:)%dat        (i4b)
-                    var_dlength,         & ! x%var(:)%dat        (dp)
+                    var_i,                 & ! x%var(:)            (i4b)
+                    var_i8,                & ! x%var(:)            (i8b)
+                    var_d,                 & ! x%var(:)            (dp)
+                    var_ilength,           & ! x%var(:)%dat        (i4b)
+                    var_dlength,           & ! x%var(:)%dat        (dp)
                     ! no variable dimension
-                    hru_i,               & ! x%hru(:)            (i4b)
-                    hru_d,               & ! x%hru(:)            (dp)
+                    hru_i,                 & ! x%hru(:)            (i4b)
+                    hru_d,                 & ! x%hru(:)            (dp)
                     ! gru dimension
-                    gru_int,             & ! x%gru(:)%var(:)     (i4b)
-                    gru_double,          & ! x%gru(:)%var(:)     (dp)
-                    gru_intVec,          & ! x%gru(:)%var(:)%dat (i4b)
-                    gru_doubleVec,       & ! x%gru(:)%var(:)%dat (dp)
+                    gru_int,               & ! x%gru(:)%var(:)     (i4b)
+                    gru_double,            & ! x%gru(:)%var(:)     (dp)
+                    gru_intVec,            & ! x%gru(:)%var(:)%dat (i4b)
+                    gru_doubleVec,         & ! x%gru(:)%var(:)%dat (dp)
                     ! gru+hru dimension
-                    gru_hru_int,         & ! x%gru(:)%hru(:)%var(:)     (i4b)
-                    gru_hru_int8,        & ! x%gru(:)%hru(:)%var(:)     (i8b)
-                    gru_hru_double,      & ! x%gru(:)%hru(:)%var(:)     (dp)
-                    gru_hru_intVec,      & ! x%gru(:)%hru(:)%var(:)%dat (i4b)
-                    gru_hru_doubleVec,   & ! x%gru(:)%hru(:)%var(:)%dat (dp)
+                    gru_hru_int,           & ! x%gru(:)%hru(:)%var(:)     (i4b)
+                    gru_hru_int8,          & ! x%gru(:)%hru(:)%var(:)     (i8b)
+                    gru_hru_double,        & ! x%gru(:)%hru(:)%var(:)     (dp)
+                    gru_hru_intVec,        & ! x%gru(:)%hru(:)%var(:)%dat (i4b)
+                    gru_hru_doubleVec,     & ! x%gru(:)%hru(:)%var(:)%dat (dp)
                     ! gru+hru+dom dimension
-                    gru_hru_dom_int,     & ! x%gru(:)%hru(:)%dom(:)%var(:)     (i4b)
-                    gru_hru_dom_int8,    & ! x%gru(:)%hru(:)%dom(:)%var(:)     integer(8)
-                    gru_hru_dom_double,  & ! x%gru(:)%hru(:)%dom(:)%var(:)     (dp)
-                    gru_hru_dom_intVec,  & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat (i4b)
-                    gru_hru_dom_doubleVec  ! x%gru(:)%hru(:)%dom(:)%var(:)%dat (dp)
-
-
+                    gru_hru_dom_int,       & ! x%gru(:)%hru(:)%dom(:)%var(:)     (i4b)
+                    gru_hru_dom_int8,      & ! x%gru(:)%hru(:)%dom(:)%var(:)     integer(8)
+                    gru_hru_dom_double,    & ! x%gru(:)%hru(:)%dom(:)%var(:)     (dp)
+                    gru_hru_dom_intVec,    & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat (i4b)
+                    gru_hru_dom_doubleVec, & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat (dp)
+                     ! gru+glac+grid dimension
+                    gru_glac_dgrid           ! x%gru(:)%glac(:)%var(:)%grid(:,:) (dp)
+          
 ! vector lengths
 USE var_lookup, only: maxvarFreq ! number of output frequencies
 USE var_lookup, only: maxvarStat ! number of statistics
@@ -85,6 +88,7 @@ public::writeData
 public::writeBasin
 public::writeTime
 public::writeRestart
+public::writeRestartGlac
 
 
 contains
@@ -499,8 +503,6 @@ contains
  ! external routines
  USE netcdf_util_module,only:nc_file_close  ! close netcdf file
  USE netcdf_util_module,only:nc_file_open   ! open netcdf file
- USE globalData,only:nTimeDelay             ! number of timesteps in the time delay histogram
- USE globalData,only:maxGlaciers            ! maximum number of glaciers
  USE def_output_module,only: write_hru_info ! write HRU information to netcdf file
  
  implicit none
@@ -524,10 +526,9 @@ contains
  ! local variables
  integer(i4b)                       :: ncid          ! netcdf file id
  integer(i4b),allocatable           :: ncVarID(:)    ! netcdf variable id
- integer(i4b)                       :: ncSnowID      ! index variable id
- integer(i4b)                       :: ncSoilID      ! index variable id
- integer(i4b)                       :: ncIceID       ! index variable id
- integer(i4b)                       :: ncLakeID      ! index variable id
+ integer(i4b),dimension(5)          :: ngdx          ! intermediate array of loop indices
+ integer(i4b),dimension(4)          :: ncIndID       ! index variable id
+ integer(i4b),dimension(4)          :: nidx          ! intermediate array of loop indices
  integer(i4b)                       :: nSnow         ! number of snow layers
  integer(i4b)                       :: nLake         ! number of lake layers
  integer(i4b)                       :: nSoil         ! number of soil layers
@@ -556,7 +557,7 @@ contains
  character(len=32),parameter        :: gruDimName    ='gru'      ! dimension name for GRUs
  character(len=32),parameter        :: domDimName    ='dom'      ! dimension name for DOMs
  character(len=32),parameter        :: tdhDimName    ='tdh'      ! dimension name for time-delay basin variables
- character(len=32),parameter        :: nglDimName    ='ngl'      ! dimension name for global variables
+ character(len=32),parameter        :: nglDimName    ='glac'     ! dimension name for glaciers variables
  character(len=32),parameter        :: scalDimName   ='scalarv'  ! dimension name for scalar data
  character(len=32),parameter        :: specDimName   ='spectral' ! dimension name for spectral bands
  character(len=32),parameter        :: midTotoDimName='midToto'  ! dimension name for layered varaiables
@@ -573,6 +574,7 @@ contains
  integer(i4b)                       :: iDOM          ! index of DOMs
  integer(i4b)                       :: iHRU          ! index of HRUs
  integer(i4b)                       :: iGRU          ! index of GRUs
+ integer(i4b)                       :: i             ! loop index
  integer(i4b)                       :: iVar          ! variable index
  integer(i4b)                       :: nGlacier      ! number of glaciers in GRU
  integer(i4b)                       :: nWetland      ! number of wetlands in GRU
@@ -587,10 +589,14 @@ contains
  nProgVars = size(prog_meta)
  ! include additional basin variable in ID array
  if (maxIceLayers > 0)then
-   allocate(ncVarID(nProgVars+7))
+   ngdx = (/iLookBVAR%glacAblArea, iLookBVAR%glacAccArea, iLookBVAR%glacIceRunoffFuture, iLookBVAR%glacSnowRunoffFuture, iLookBVAR%glacFirnRunoffFuture/)
+   allocate(ncVarID(nProgVars+2+size(ngdx)))
  else
    allocate(ncVarID(nProgVars+1))
  end if
+
+ ! index variables
+ nidx = (/iLookINDEX%nSnow, iLookINDEX%nLake, iLookINDEX%nSoil, iLookINDEX%nIce/)
 
  ! create file
  err = nf90_create(trim(filename),NF90_NETCDF4,ncid)
@@ -601,7 +607,7 @@ contains
                       err = nf90_def_dim(ncid,trim(hruDimName)    ,nHRU           ,    hruDimID); message='iCreate[hru]'     ; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(domDimName)    ,maxDOM         ,    domDimID); message='iCreate[dom]'     ; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(tdhDimName)    ,nTimeDelay     ,    tdhDimID); message='iCreate[tdh]'     ; call netcdf_err(err,message); if(err/=0)return
-                      err = nf90_def_dim(ncid,trim(nglDimName)    ,maxGlaciers    ,    nglDimID); message='iCreate[ngl]'     ; call netcdf_err(err,message); if(err/=0)return
+                      err = nf90_def_dim(ncid,trim(nglDimName)    ,maxGlaciers    ,    nglDimID); message='iCreate[glac]'    ; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(scalDimName)   ,nScalar        ,   scalDimID); message='iCreate[scalar]'  ; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(specDimName)   ,nSpecBand      ,   specDimID); message='iCreate[spectral]'; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(midTotoDimName),maxLayers      ,midTotoDimID); message='iCreate[midToto]' ; call netcdf_err(err,message); if(err/=0)return
@@ -659,50 +665,25 @@ contains
  err = nf90_put_att(ncid,ncVarID(nProgVars+1),'units'    ,trim(bvar_meta(iLookBVAR%routingRunoffFuture)%varunit));   call netcdf_err(err,message)
 
  if (maxIceLayers > 0)then
-   err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%glacAblArea)%varName), nf90_double, (/gruDimID, nglDimID/), ncVarID(nProgVars+2))
-   err = nf90_put_att(ncid,ncVarID(nProgVars+2),'long_name',trim(bvar_meta(iLookBVAR%glacAblArea)%vardesc));   call netcdf_err(err,message)
-   err = nf90_put_att(ncid,ncVarID(nProgVars+2),'units'    ,trim(bvar_meta(iLookBVAR%glacAblArea)%varunit));   call netcdf_err(err,message)
+   do i=1,size(ngdx)
+     iVar = ngdx(i)
+     err = nf90_def_var(ncid, trim(bvar_meta(iVar)%varName), nf90_double, (/gruDimID, nglDimID/), ncVarID(nProgVars+i+1))
+     err = nf90_put_att(ncid,ncVarID(nProgVars+i),'long_name',trim(bvar_meta(iVar)%vardesc));   call netcdf_err(err,message)
+     err = nf90_put_att(ncid,ncVarID(nProgVars+i),'units'    ,trim(bvar_meta(iVar)%varunit));   call netcdf_err(err,message)
+   end do
 
-   err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%glacAccArea)%varName), nf90_double, (/gruDimID, nglDimID/), ncVarID(nProgVars+3))
-   err = nf90_put_att(ncid,ncVarID(nProgVars+3),'long_name',trim(bvar_meta(iLookBVAR%glacAccArea)%vardesc));   call netcdf_err(err,message)
-   err = nf90_put_att(ncid,ncVarID(nProgVars+3),'units'    ,trim(bvar_meta(iLookBVAR%glacAccArea)%varunit));   call netcdf_err(err,message)
-
-   err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%basin__GlacierStorage)%varName), nf90_double, (/gruDimID/), ncVarID(nProgVars+4))
-   err = nf90_put_att(ncid,ncVarID(nProgVars+4),'long_name',trim(bvar_meta(iLookBVAR%basin__GlacierStorage)%vardesc));   call netcdf_err(err,message)
-   err = nf90_put_att(ncid,ncVarID(nProgVars+4),'units'    ,trim(bvar_meta(iLookBVAR%basin__GlacierStorage)%varunit));   call netcdf_err(err,message)
-
-   err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%glacIceRunoffFuture)%varName), nf90_double, (/gruDimID, nglDimID/), ncVarID(nProgVars+5))
-   err = nf90_put_att(ncid,ncVarID(nProgVars+5),'long_name',trim(bvar_meta(iLookBVAR%glacIceRunoffFuture)%vardesc));   call netcdf_err(err,message)
-   err = nf90_put_att(ncid,ncVarID(nProgVars+5),'units'    ,trim(bvar_meta(iLookBVAR%glacIceRunoffFuture)%varunit));   call netcdf_err(err,message)
-
-   err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%glacSnowRunoffFuture)%varName), nf90_double, (/gruDimID, nglDimID/), ncVarID(nProgVars+6))
-   err = nf90_put_att(ncid,ncVarID(nProgVars+6),'long_name',trim(bvar_meta(iLookBVAR%glacSnowRunoffFuture)%vardesc));   call netcdf_err(err,message)
-   err = nf90_put_att(ncid,ncVarID(nProgVars+6),'units'    ,trim(bvar_meta(iLookBVAR%glacSnowRunoffFuture)%varunit));   call netcdf_err(err,message)  
-   
-   err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%glacFirnRunoffFuture)%varName), nf90_double, (/gruDimID, nglDimID/), ncVarID(nProgVars+7))
-   err = nf90_put_att(ncid,ncVarID(nProgVars+7),'long_name',trim(bvar_meta(iLookBVAR%glacFirnRunoffFuture)%vardesc));   call netcdf_err(err,message)
-   err = nf90_put_att(ncid,ncVarID(nProgVars+7),'units'    ,trim(bvar_meta(iLookBVAR%glacFirnRunoffFuture)%varunit));   call netcdf_err(err,message)  
-  endif
+   err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%basin__GlacierStorage)%varName), nf90_double, (/gruDimID/), ncVarID(nProgVars+size(ngdx)+2))
+   err = nf90_put_att(ncid,ncVarID(nProgVars+size(ngdx)+2),'long_name',trim(bvar_meta(iLookBVAR%basin__GlacierStorage)%vardesc));   call netcdf_err(err,message)
+   err = nf90_put_att(ncid,ncVarID(nProgVars+size(ngdx)+2),'units'    ,trim(bvar_meta(iLookBVAR%basin__GlacierStorage)%varunit));   call netcdf_err(err,message)
+ endif
   
- ! define index variables - snow
- err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nSnow)%varName),nf90_int,(/domDimID,hruDimID/),ncSnowID); call netcdf_err(err,message)
- err = nf90_put_att(ncid,ncSnowID,'long_name',trim(indx_meta(iLookINDEX%nSnow)%vardesc));           call netcdf_err(err,message)
- err = nf90_put_att(ncid,ncSnowID,'units'    ,trim(indx_meta(iLookINDEX%nSnow)%varunit));           call netcdf_err(err,message)
-
-! define index variables - lake, 0 if no lake in HRU
- err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nLake)%varName),nf90_int,(/domDimID,hruDimID/),ncLakeID); call netcdf_err(err,message)
- err = nf90_put_att(ncid,ncLakeID,'long_name',trim(indx_meta(iLookINDEX%nLake)%vardesc));           call netcdf_err(err,message)
- err = nf90_put_att(ncid,ncLakeID,'units'    ,trim(indx_meta(iLookINDEX%nLake)%varunit));           call netcdf_err(err,message)
-
- ! define index variables - soil
- err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nSoil)%varName),nf90_int,(/domDimID,hruDimID/),ncSoilID); call netcdf_err(err,message)
- err = nf90_put_att(ncid,ncSoilID,'long_name',trim(indx_meta(iLookINDEX%nSoil)%vardesc));           call netcdf_err(err,message)
- err = nf90_put_att(ncid,ncSoilID,'units'    ,trim(indx_meta(iLookINDEX%nSoil)%varunit));           call netcdf_err(err,message)
-
- ! define index variables - ice, 0 if no glacier in HRU
- err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nIce)%varName),nf90_int,(/domDimID,hruDimID/),ncIceID); call netcdf_err(err,message)
- err = nf90_put_att(ncid,ncIceID,'long_name',trim(indx_meta(iLookINDEX%nIce)%vardesc));           call netcdf_err(err,message)
- err = nf90_put_att(ncid,ncIceID,'units'    ,trim(indx_meta(iLookINDEX%nIce)%varunit));           call netcdf_err(err,message)
+ ! define index variables
+  do i=1,size(nidx)
+    iVar = nidx(i)
+    err = nf90_def_var(ncid,trim(indx_meta(iVar)%varName),nf90_int,(/domDimID,hruDimID/),ncIndID(i))
+    err = nf90_put_att(ncid,ncVarID(nProgVars+size(ngdx)+i),'long_name',trim(indx_meta(iVar)%vardesc));   call netcdf_err(err,message)
+    err = nf90_put_att(ncid,ncVarID(nProgVars+size(ngdx)+i),'units'    ,trim(indx_meta(iVar)%varunit));   call netcdf_err(err,message)
+  end do
 
  ! end definition phase
  err = nf90_enddef(ncid); call netcdf_err(err,message); if (err/=0) return
@@ -774,10 +755,10 @@ contains
     end do ! iVar loop
 
     ! write index variables
-    err=nf90_put_var(ncid,ncSnowID,(/indx_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSnow)%dat/),start=(/iDOM,cHRU/),count=(/1,1/))
-    err=nf90_put_var(ncid,ncLakeID,(/indx_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLake)%dat/),start=(/iDOM,cHRU/),count=(/1,1/))
-    err=nf90_put_var(ncid,ncSoilID,(/indx_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSoil)%dat/),start=(/iDOM,cHRU/),count=(/1,1/))
-    err=nf90_put_var(ncid,ncIceID, (/indx_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nIce)%dat/), start=(/iDOM,cHRU/),count=(/1,1/))
+    do i=1,size(nidx)
+      iVar = nidx(i)
+      err=nf90_put_var(ncid,ncIndID(i),(/indx_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU/),count=(/1,1/))
+    end do
   
    end do ! iDOM loop
   end do ! iHRU loop
@@ -786,13 +767,12 @@ contains
   err=nf90_put_var(ncid,ncVarID(nProgVars+1),(/bvar_data%gru(iGRU)%var(iLookBVAR%routingRunoffFuture)%dat/), start=(/iGRU,1/),count=(/1,nTimeDelay/))
   if (maxIceLayers > 0)then
     nGlacier = gru_struc(iGRU)%nGlacier
-    err=nf90_put_var(ncid,ncVarID(nProgVars+2),(/bvar_data%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat/), start=(/iGRU,1/),count=(/1,nGlacier/))
-    err=nf90_put_var(ncid,ncVarID(nProgVars+3),(/bvar_data%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat/), start=(/iGRU,1/),count=(/1,nGlacier/))
-    err=nf90_put_var(ncid,ncVarID(nProgVars+4),(/bvar_data%gru(iGRU)%var(iLookBVAR%basin__GlacierStorage)%dat/), start=(/iGRU/),count=(/1/))
-    err=nf90_put_var(ncid,ncVarID(nProgVars+5),(/bvar_data%gru(iGRU)%var(iLookBVAR%glacIceRunoffFuture)%dat/),  start=(/iGRU,1/),count=(/1,nGlacier/))
-    err=nf90_put_var(ncid,ncVarID(nProgVars+6),(/bvar_data%gru(iGRU)%var(iLookBVAR%glacSnowRunoffFuture)%dat/), start=(/iGRU,1/),count=(/1,nGlacier/))
-    err=nf90_put_var(ncid,ncVarID(nProgVars+7),(/bvar_data%gru(iGRU)%var(iLookBVAR%glacFirnRunoffFuture)%dat/), start=(/iGRU,1/),count=(/1,nGlacier/))
-  endif
+    do i=1,size(ngdx)
+      iVar = ngdx(i)
+      err=nf90_put_var(ncid,ncVarID(nProgVars+i+1),(/bvar_data%gru(iGRU)%var(iVar)%dat/), start=(/iGRU,1/),count=(/1,nGlacier/))
+    end do
+    err=nf90_put_var(ncid,ncVarID(nProgVars+size(ngdx)+2),(/bvar_data%gru(iGRU)%var(iLookBVAR%basin__GlacierStorage)%dat/), start=(/iGRU/),count=(/1/))
+   endif
   
  end do  ! iGRU loop
 
@@ -807,5 +787,126 @@ contains
  deallocate(ncVarID)
 
  end subroutine writeRestart
+
+ ! *********************************************************************************************************
+ ! public subroutine printRestartFile: print a re-start file
+ ! *********************************************************************************************************
+ subroutine writeRestartGlac(filename,         & ! intent(in): name of restart file
+                             nGRU,             & ! intent(in): number of global GRUs
+                             grid_meta,        & ! intent(in): grid metadata
+                             grid_data,        & ! intent(in): grid data
+                             err,message)        ! intent(out): error control
+ ! --------------------------------------------------------------------------------------------------------
+ ! --------------------------------------------------------------------------------------------------------
+ ! access the derived types to define the data structures
+ USE data_types,only:var_info                ! metadata
+ ! access named variables defining elements in the data structures
+ USE var_lookup,only:iLookINDEX              ! named variables for structure elements
+ USE var_lookup,only:iLookVarType            ! named variables for structure elements
+ USE var_lookup,only:iLookGRID               ! named variables for structure elements
+ ! constants
+ USE globalData,only:gru_struc               ! gru-hru mapping structures
+ ! external routines
+ USE netcdf_util_module,only:nc_file_close   ! close netcdf file
+ USE netcdf_util_module,only:nc_file_open    ! open netcdf file
+ USE def_output_module,only: write_glac_info ! write glacier information to netcdf file
+ 
+ implicit none
+ ! --------------------------------------------------------------------------------------------------------
+ ! input
+ character(len=256),intent(in)          :: filename      ! name of the restart file
+ integer(i4b),intent(in)                :: nGRU          ! number of global GRUs
+ type(var_info),intent(in)              :: grid_meta     ! grid metadata
+ type(gru_glac_dgrid),intent(in)        :: grid_data     ! grid data
+ ! output: error control
+ integer(i4b),intent(out)               :: err           ! error code
+ character(*),intent(out)               :: message       ! error message
+ ! --------------------------------------------------------------------------------------------------------
+ ! local variables
+ integer(i4b)                       :: ncid          ! netcdf file id
+ integer(i4b),dimension(1)          :: ncVarID       ! netcdf variable id, only one variable currently
+ integer(i4b),dimension(1)          :: ngdx          ! intermediate array of loop indices
+ integer(i4b)                       :: hruDimID      ! variable dimension ID
+ integer(i4b)                       :: gruDimID      ! variable dimension ID
+ integer(i4b)                       :: nglDimID      ! variable dimension ID
+ integer(i4b)                       :: xDimID        ! variable dimension ID
+ integer(i4b)                       :: yDimID        ! variable dimension ID
+ character(len=32),parameter        :: gruDimName='gru'   ! dimension name for GRUs
+ character(len=32),parameter        :: nglDimName='glac'  ! dimension name for glacier variables
+ character(len=32),parameter        :: xDimName  ='xgrid' ! dimension name for xgrid
+ character(len=32),parameter        :: yDimName  ='ygrid' ! dimension name for ygrid
+ integer(i4b)                       :: iGRU          ! index of GRUs
+ integer(i4b)                       :: iGlac         ! index of glaciers
+ integer(i4b)                       :: i             ! loop index
+ integer(i4b)                       :: Nx,Ny         ! grid dimensions
+ integer(i4b)                       :: iVar          ! variable index
+ integer(i4b)                       :: nGlacier      ! number of glaciers in GRU
+ logical(lgt)                       :: okLength      ! flag to check if the vector length is OK
+ character(len=256)                 :: cmessage      ! downstream error message
+ ! --------------------------------------------------------------------------------------------------------
+
+ ! initialize error control
+ err=0; message='writeRestartGlac/'
+
+ ! grid variables
+ ngdx = (/iLookGRID%surface/) ! array of desired variable indices, currently only surface elevation
+
+ ! create file
+ err = nf90_create(trim(filename),NF90_NETCDF4,ncid)
+ message='iCreate[create]'; call netcdf_err(err,message); if(err/=0)return
+
+ ! define dimensions
+ err = nf90_def_dim(ncid,trim(gruDimName)    ,nGRU        , gruDimID); message='iCreate[gru]'     ; call netcdf_err(err,message); if(err/=0)return
+ err = nf90_def_dim(ncid,trim(nglDimName)    ,maxGlaciers , nglDimID); message='iCreate[glac]'    ; call netcdf_err(err,message); if(err/=0)return
+ err = nf90_def_dim(ncid,trim(xDimName)      ,maxGridX    , xDimID);   message='iCreate[xgrid]'   ; call netcdf_err(err,message); if(err/=0)return
+ err = nf90_def_dim(ncid,trim(yDimName)      ,maxGridY    , yDimID);   message='iCreate[ygrid]'   ; call netcdf_err(err,message); if(err/=0)return
+ ! re-initialize error control
+ err=0; message='writeRestartGlac/'
+
+ ! define grid variables
+ do i = 1,size(ngdx)
+  iVar = ngdx(i)
+  err = nf90_def_var(ncid, trim(grid_meta(iVar)%varName), nf90_double, (/gruDimID, nglDimID, xDimID, yDimID/), ncVarID(i))
+
+  ! check errors
+  if(err/=0)then
+   message=trim(message)//' [variable '//trim(grid_meta(iVar)%varName)//']'
+   return
+  end if
+
+  ! add parameter description
+  err = nf90_put_att(ncid,ncVarID(i),'long_name',trim(grid_meta(iVar)%vardesc))
+  call netcdf_err(err,message)
+
+  ! add parameter units
+  err = nf90_put_att(ncid,ncVarID(i),'units',trim(grid_meta(iVar)%varunit))
+  call netcdf_err(err,message)
+
+end do ! iVar
+
+! end definition phase
+err = nf90_enddef(ncid); call netcdf_err(err,message); if (err/=0) return
+
+! write variables
+do iGRU = 1,nGRU
+  nGlacier = gru_struc(iGRU)%nGlacier
+  do iGlac = 1,nGlacier
+    do i = 1,size(ngdx)
+      iVar = ngdx(i)
+      Nx = gru_struc(iGRU)%glacInfo(iGlac)%Nx
+      Ny = gru_struc(iGRU)%glacInfo(iGlac)%Ny
+      err=nf90_put_var(ncid,ncVarID(i),(/grid_data%gru(iGRU)glac%(iGlac)%var(iVar)%grid/), start=(/iGRU,1,1,1/),count=(/1,nGlacier,Nx,Ny/))
+    end do
+  end do
+end do  ! iGRU loop
+
+! write Glac dimension and ID for file
+call write_glac_info(ncid, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+
+! close file
+call nc_file_close(ncid,err,cmessage)
+if(err/=0)then;message=trim(message)//trim(cmessage);return;end if
+
+end subroutine writeRestartGlac
 
 end module modelwrite_module

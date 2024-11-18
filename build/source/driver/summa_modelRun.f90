@@ -112,6 +112,7 @@ contains
   ! basin-average structures
   bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)            -- basin-average parameters
   bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat        -- basin-average variables
+  gridStruct           => summa1_struc%gridStruct          , & ! xgru(:)%glac(:)%var(:)%grid(:,:) -- grid information for each glacier in basin
 
   ! run time variables
   greenVegFrac_monthly => summa1_struc%greenVegFrac_monthly, & ! fraction of green vegetation in each month (0-1)
@@ -242,6 +243,7 @@ contains
   ! basin-average structures
   bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)            -- basin-average parameters
   bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat        -- basin-average variables
+  gridStruct           => summa1_struc%gridStruct          , & ! xgru(:)%glac(:)%var(:)%grid(:,:) -- grid information for each glacier in basin
 
   ! lookup table structure
   lookupStruct         => summa1_struc%lookupStruct        , & ! x%gru(:)%hru(:)%z(:)%var(:)%lookup    -- lookup-tables
@@ -287,6 +289,7 @@ contains
                   diagStruct%gru(iGRU),         & ! intent(inout): diagnostic variables for a local HRU
                   fluxStruct%gru(iGRU),         & ! intent(inout): model fluxes for a local HRU
                   bvarStruct%gru(iGRU),         & ! intent(inout): basin-average variables
+                  gridStruct%gru(iGRU),         & ! intent(inout): grid information for each glacier in basin
                   ! error control
                   err,cmessage)                   ! intent(out):   error control
 

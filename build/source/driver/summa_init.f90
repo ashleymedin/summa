@@ -32,7 +32,7 @@ USE globalData,only:iRunModeFull,iRunModeGRU,iRunModeHRU
 USE globalData,only:time_meta,forc_meta,attr_meta,type_meta ! metadata structures
 USE globalData,only:prog_meta,diag_meta,flux_meta,id_meta   ! metadata structures
 USE globalData,only:mpar_meta,indx_meta                     ! metadata structures
-USE globalData,only:bpar_meta,bvar_meta                     ! metadata structures
+USE globalData,only:bpar_meta,bvar_meta,grid_meta           ! metadata structures
 USE globalData,only:averageFlux_meta                        ! metadata for time-step average fluxes
 USE globalData,only:lookup_meta
 
@@ -142,8 +142,9 @@ subroutine summa_initialize(summa1_struc, err, message)
     fluxStruct           => summa1_struc%fluxStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model fluxes
 
     ! basin-average structures
-    bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)            -- basin-average parameters
-    bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat        -- basin-average variables
+    bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)                    -- basin-average parameters
+    bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat                -- basin-average variables
+    gridStruct           => summa1_struc%gridStruct          , & ! xgru(:)%glac(:)%var(:)%grid(:,:) -- grid information for each glacier in basin
 
     ! ancillary data structures
     dparStruct           => summa1_struc%dparStruct          , & ! x%gru(:)%hru(:)%var(:)     -- default model parameters
@@ -214,7 +215,7 @@ subroutine summa_initialize(summa1_struc, err, message)
     if(STATE_PATH == '') then
       restartFile = trim(SETTINGS_PATH)//trim(MODEL_INITCOND)
     else
-        restartFile = trim(STATE_PATH)//trim(MODEL_INITCOND)
+      restartFile = trim(STATE_PATH)//trim(MODEL_INITCOND)
     endif
     call read_icond_nlayers(trim(restartFile),nGRU,nDOM,indx_meta,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -250,6 +251,7 @@ subroutine summa_initialize(summa1_struc, err, message)
         case('flux'  ); call allocGlobal(flux_meta,    fluxStruct,    err, cmessage)   ! model fluxes
         case('bpar'  ); call allocGlobal(bpar_meta,    bparStruct,    err, cmessage)   ! basin-average parameters
         case('bvar'  ); call allocGlobal(bvar_meta,    bvarStruct,    err, cmessage)   ! basin-average variables
+        case('grid'  ); call allocGlobal(grid_meta,    gridStruct,    err, cmessage)   ! grid information for each glacier in basin
         case('lookup'); call allocGlobal(lookup_meta,  lookupStruct,  err, cmessage)   ! basin-average variables
         case('deriv' ); cycle
         case default; err=20; message='unable to find structure name: '//trim(structInfo(iStruct)%structName)

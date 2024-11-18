@@ -35,6 +35,7 @@ subroutine popMetadat(err,message)
   USE var_lookup, only: iLookPARAM          ! named variables for local parameter data structure
   USE var_lookup, only: iLookBPAR           ! named variables for basin parameter data structure
   USE var_lookup, only: iLookBVAR           ! named variables for basin model variable data structure
+  USE var_lookup, only: iLookGRID           ! named variables for grid data structure
   USE var_lookup, only: iLookINDEX          ! named variables for index variable data structure
   USE var_lookup, only: iLookPROG           ! named variables for local state variables
   USE var_lookup, only: iLookDIAG           ! named variables for local diagnostic variables
@@ -685,8 +686,6 @@ subroutine popMetadat(err,message)
   deriv_meta(iLookDERIV%dCanopyTemp_dCanWat)           = var_info('dCanopyTemp_dCanWat'          , 'derivative of canopy temperature w.r.t. volumetric water content'     , 'K'              , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dTemp_dTheta)                  = var_info('dTemp_dTheta'                 , 'derivative of temperature w.r.t. volumetric water content'            , 'K'              , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dTemp_dPsi0)                   = var_info('dTemp_dPsi0'                  , 'derivative of temperature w.r.t. total water matric potential'        , 'K m-1'          , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
-
-
   ! -----
   ! * basin-wide runoff and aquifer fluxes...
   ! -----------------------------------------
@@ -714,8 +713,13 @@ subroutine popMetadat(err,message)
   bvar_meta(iLookBVAR%glacSnowRunoffFuture)    = var_info('glacSnowRunoffFuture'   , 'per glacier snow reservoir runoff in future time steps'        , 'm s-1' , get_ixVarType('glacier'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%glacFirnRunoffFuture)    = var_info('glacFirnRunoffFuture'   , 'per glacier firn reservoir runoff in future time steps'        , 'm s-1' , get_ixVarType('glacier'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%glacierRoutedRunoff)     = var_info('glacierRoutedRunoff'    , 'lapsed glacier runoff'                                         , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-
- 
+  ! -----
+  ! * basin glacier grids
+  ! -----------------------------------------
+  grid_meta(iLookGRID%bed)                    = var_info('bed'                     , 'glacier bed elevation'                                     , 'm'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
+  grid_meta(iLookGRID%cell2hru)               = var_info('cell2hru'                , 'HRU id each grid point belongs to'                         , '-'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)   
+  grid_meta(iLookGRID%glacierMask)            = var_info('glacierMask'             , 'binary mask of grid that glacier can grow into'            , '-'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
+  grid_meta(iLookGRID%surface)                = var_info('surface'                 , 'glacier surface elevation'                                 , 'm'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
   ! -----
   ! * temperature and enthalpy lookup tables...
   ! -------------------------------------------
@@ -757,7 +761,7 @@ subroutine popMetadat(err,message)
   indx_meta(iLookINDEX%ixControlVolume)       = var_info('ixControlVolume'      , 'index of the control volume for different domains (veg, snow, soil)'     , '-', get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%ixDomainType)          = var_info('ixDomainType'         , 'index of the type of domain (iname_veg, iname_snow, iname_soil)'         , '-', get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%ixStateType)           = var_info('ixStateType'          , 'index of the type of every state variable (iname_nrgCanair, ...)'        , '-', get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
-  indx_meta(iLookINDEX%ixHydType)             = var_info('ixHydType'            , 'index of the type of hydrology states in layer domains'               , '-', get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+  indx_meta(iLookINDEX%ixHydType)             = var_info('ixHydType'            , 'index of the type of hydrology states in layer domains'                  , '-', get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   ! type of model state variables (state subset)
   indx_meta(iLookINDEX%ixDomainType_subset)   = var_info('ixDomainType_subset'  , '[state subset] id of domain for desired model state variables'           , '-', get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%ixStateType_subset)    = var_info('ixStateType_subset'   , '[state subset] type of desired model state variables'                    , '-', get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
@@ -773,7 +777,7 @@ subroutine popMetadat(err,message)
   indx_meta(iLookINDEX%ixAqWat)               = var_info('ixAqWat'              , 'index of storage of water in the aquifer'                                , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! vectors of indices for specific state types
   indx_meta(iLookINDEX%ixNrgOnly)             = var_info('ixNrgOnly'            , 'indices IN THE STATE SUBSET for energy states'                           , '-', get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
-  indx_meta(iLookINDEX%ixHydOnly)             = var_info('ixHydOnly'            , 'indices IN THE STATE SUBSET for hydrology states in the layer domains', '-', get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
+  indx_meta(iLookINDEX%ixHydOnly)             = var_info('ixHydOnly'            , 'indices IN THE STATE SUBSET for hydrology states in the layer domains'   , '-', get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%ixMatOnly)             = var_info('ixMatOnly'            , 'indices IN THE STATE SUBSET for matric head state variables'             , '-', get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%ixMassOnly)            = var_info('ixMassOnly'           , 'indices IN THE STATE SUBSET for hydrology states (mass of water)'        , '-', get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
   ! vectors of indices for specific state types within specific sub-domains
@@ -791,8 +795,8 @@ subroutine popMetadat(err,message)
   indx_meta(iLookINDEX%ixNrgCanair)           = var_info('ixNrgCanair'          , 'indices IN THE FULL VECTOR for energy states in canopy air space domain' , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%ixNrgCanopy)           = var_info('ixNrgCanopy'          , 'indices IN THE FULL VECTOR for energy states in the canopy domain'       , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%ixHydCanopy)           = var_info('ixHydCanopy'          , 'indices IN THE FULL VECTOR for hydrology states in the canopy domain'    , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  indx_meta(iLookINDEX%ixNrgLayer)            = var_info('ixNrgLayer'           , 'indices IN THE FULL VECTOR for energy states in the layer domains'    , '-', get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
-  indx_meta(iLookINDEX%ixHydLayer)            = var_info('ixHydLayer'           , 'indices IN THE FULL VECTOR for hydrology states in the layer domains' , '-', get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+  indx_meta(iLookINDEX%ixNrgLayer)            = var_info('ixNrgLayer'           , 'indices IN THE FULL VECTOR for energy states in the layer domains'       , '-', get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+  indx_meta(iLookINDEX%ixHydLayer)            = var_info('ixHydLayer'           , 'indices IN THE FULL VECTOR for hydrology states in the layer domains'    , '-', get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%ixWatAquifer)          = var_info('ixWatAquifer'         , 'indices IN THE FULL VECTOR for storage of water in the aquifer'          , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! vectors of indices for specific state types IN SPECIFIC SUB-DOMAINS
   indx_meta(iLookINDEX%ixVolFracWat)          = var_info('ixVolFracWat'         , 'indices IN THE SNOW+SOIL VECTOR for hyd states'                          , '-', get_ixVarType('unknown'), iMissVec, iMissVec, .false.)

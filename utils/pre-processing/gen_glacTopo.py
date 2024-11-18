@@ -87,7 +87,7 @@ def writeNC_state_vars_GRU_GRID(nc_out, newVarName, newVarDim1,newVarDim2, newVa
     ncvar[:,:] = newVarVals   # store data in netcdf file
 
 # write dimensions and dimension variables to netcdf output file
-def writeNC_dims(fn, grus, hru_type, glac, Ny, Nx):    
+def writeNC_dims(fn, grus, hru_type, glac, Nx, Ny):    
     """ Write <vars> array in netCDF4 file,<fn> and variable of
         <varname> """
     print("writing output file")
@@ -96,8 +96,8 @@ def writeNC_dims(fn, grus, hru_type, glac, Ny, Nx):
     # Create dimensions
     dim_gru = nc_out.createDimension('gru', len(grus))
     dim_ngl = nc_out.createDimension('glac', glac) # max number of glaciers in any GRU
-    dim_ny = nc_out.createDimension('ygrid', Ny) # max number of cells in glacier bed
     dim_nx = nc_out.createDimension('xgrid', Nx) # max number of cells in glacier bed
+    dim_ny = nc_out.createDimension('ygrid', Ny) # max number of cells in glacier bed
 
     # --- Create HRU ID variable (can be either int or string)
     if hru_type == 'str':
@@ -128,23 +128,23 @@ def writeNC_dims(fn, grus, hru_type, glac, Ny, Nx):
     return nc_out
     # leave netcdf file open
 
-def make_base_elevation(height_file,widehead_use,dx,dy,max_elev,min_elev,x_max,y_max):
+def make_base_elevation(height_file,widehead_use,dy,dx,max_elev,min_elev,y_max,x_max):
     """ Create a base elevation array for each glacier in a GRU"""
-    #x_max = 200*100. # meters, max length of the glacier bed
-    #max_elev = 3000. # meters, max elevation of glacier bed (at x=0)
-    #min_elev = 1000. # meters, min elevation of glacier bed (at x=x_max)
-    #y_max = 400. # meters, width of glacier bed at terminus
-    #DEM grid spacing, best if evenly divides x_max and y_max
-    #dx = 100.        # DEM grid spacing down glacier, default 100m
-    #dy = 50.         # DEM grid spacing across glacier, default 25m
+    #y_max = 200*100. # meters, max length of the glacier bed
+    #max_elev = 3000. # meters, max elevation of glacier bed (at y=0)
+    #min_elev = 1000. # meters, min elevation of glacier bed (at y=y_max)
+    #x_max = 400. # meters, width of glacier bed at terminus
+    #DEM grid spacing, best if evenly divides y_max and x_max
+    #dy = 100.        # DEM grid spacing down glacier, default 100m
+    #dx = 50.         # DEM grid spacing across glacier, default 25m
 
     # Pick Bed Shape, choose constant, cliff, parabolic, trapezoid
     bed_shape = "parabolic"
 
-    # Choose if how far from the head of main stem glacier the y_max width should be different than terminus, can be 0 
+    # Choose if how far from the head of main stem glacier the x_max width should be different than terminus, can be 0 
     # Since there are currently no boundaries, just high walls, this is unstable
     if widehead_use:
-        widehead = 50.*dx # meters, 0 for no change
+        widehead = 50.*dy # meters, 0 for no change
     else:
         widehead = 0.
 
@@ -157,10 +157,10 @@ def make_base_elevation(height_file,widehead_use,dx,dy,max_elev,min_elev,x_max,y
     n_trib = 0
 
     # give a value per tributary, will not be used if n_trib==0
-    trib_x_max = np.ones(n_trib)*5*dx     # meters, max length of the tributary
+    trib_y_max = np.ones(n_trib)*5*dy     # meters, max length of the tributary
     trib_max_elev = np.ones(n_trib)*3000. # meters, max elevation of tributary
     trib_min_elev = np.ones(n_trib)*2800. # meters, min elevation of tributary (where joins the glacier)
-    trib_y_max = np.ones(n_trib)*200.     # meters, width of tributary at terminus
+    trib_x_max = np.ones(n_trib)*200.     # meters, width of tributary at terminus
 
     # glacier side tributary joins the main stem 
     # -1 is left looking toward the terminus
@@ -170,71 +170,70 @@ def make_base_elevation(height_file,widehead_use,dx,dy,max_elev,min_elev,x_max,y
     # Can change these bed_shape specific values, some need to be fixed to match OGGM
     # Can change these bed_shape specific values, some need to be fixed to match OGGM
     if bed_shape=="constant": 
-        y_max = y_max      # constant bed parameters set in every bed_shape, set above
+        x_max = x_max      # constant bed parameters set in every bed_shape, set above
     elif bed_shape=="cliff": 
         cliff_hgt = 250.   # cliff drop (meters)
-        upcliff = 30.*dx   # cliff distance down glacier from head (meters)
+        upcliff = 30.*dy   # cliff distance down glacier from head (meters)
     elif bed_shape=="parabolic": 
         shape = 5.e-3      # parabola shape, default 5.e-3 which is flattish, if use 5.e-2 very curved
     elif bed_shape=="trapezoid": 
         lambdas = 0.25     # default 2, or atan(2/lambdas)=angle of side wall from horizontal, 2 is 45 deg, 0.25 very steep
-        bot_wid = y_max/2. # bottom width of trapezoid (m)
+        bot_wid = x_max/2. # bottom width of trapezoid (m)
     else:
         raise ValueError("Invalid bed_shape: {}".format(bed_shape))
 
     # Can change these and input to OGGM, can test tributaries with widehead>0. and n_trib>=0
     if widehead>0.:
-        head_y_max = y_max*2. # (meters) width at head, could be smaller than y_max
+        head_x_max = x_max*2. # (meters) width at head, could be smaller than x_max
     else:
-        head_y_max = y_max # set these equal if no widehead
+        head_x_max = x_max # set these equal if no widehead
 
     # Make the grid
-    Nx = int(np.ceil(x_max/dx))
-    dly=dx*dy
-    x = np.arange(0.5, Nx + 0.5, 1)*dx
-    dist = x
-
     Ny = int(np.ceil(y_max/dy))
-    if widehead>0.: Ny = int(np.ceil(head_y_max/dy))
-    y = np.arange(0.5, Ny+0.5, 1)*dy
+    dly=dy*dx
+    y = np.arange(0.5, Ny + 0.5, 1)*dy
+
+    Nx = int(np.ceil(x_max/dx))
+    if widehead>0.: Nx = int(np.ceil(head_x_max/dx))
+    x = np.arange(0.5, Nx+0.5, 1)*dx
 
     # Bed array initialize
-    B = np.zeros((Ny,Nx)) 
-    glacierMask = np.ones((Ny, Nx), dtype=bool) # glacier mask of True values
-    xm, ym = np.meshgrid(x, y) # meshgrid of x and y
+    B = np.zeros((Nx,Ny)) 
+    glacierMask = np.ones((Nx, Ny), dtype=bool) # glacier mask of True values
+    ym, xm = np.meshgrid(y, x) # meshgrid of y and x
 
     # elevation[m] of constant slope bedrock at the flowline grid points
-    slope_h = np.linspace(max_elev,min_elev,Nx) 
+    slope_h = np.linspace(max_elev,min_elev,Ny) 
 
     # specify the bed elevation at each grid point
     if bed_shape == "constant" or bed_shape == "cliff":
-        B = np.tile(slope_h, (Ny, 1))
+        B = np.tile(slope_h, (Nx, 1))
         if bed_shape == "cliff":
-            icliff = int(upcliff/dx)
+            icliff = int(upcliff/dy)
             B[:, icliff:] -= cliff_hgt
 
     elif bed_shape == "trapezoid":
-        y0_max = np.maximum(head_y_max, y_max)
-        base = np.zeros_like(y)
-        base[y <= (y0_max-bot_wid)/2.] = (y0_max-bot_wid)/2. - y[y <= (y0_max-bot_wid)/2.]
-        base[y >= (y0_max-bot_wid)/2. + bot_wid] = -( (y0_max+bot_wid)/2.-y[y >= (y0_max-bot_wid)/2. + bot_wid] )
+        x0_max = np.maximum(head_x_max, x_max)
+        base = np.zeros_like(x)
+        base[x <= (x0_max-bot_wid)/2.] = (x0_max-bot_wid)/2. - x[x <= (x0_max-bot_wid)/2.]
+        base[x >= (x0_max-bot_wid)/2. + bot_wid] = -( (x0_max+bot_wid)/2.-x[x >= (x0_max-bot_wid)/2. + bot_wid] )
         B = base[:, np.newaxis]*(2./lambdas) + slope_h[np.newaxis, :]
 
     elif bed_shape == "parabolic":
-        y0_max = np.maximum(head_y_max, y_max)
-        base = np.abs(y - y0_max/2.)
+        x0_max = np.maximum(head_x_max, x_max)
+        base = np.abs(x - x0_max/2.)
         B = shape*(base[:,np.newaxis]**2.) + slope_h[np.newaxis,:]
         
-    y_flow = int(Ny/2.) #if odd Ny, this will be center FD coordinate, otherwise will not be center
-    #bed_flow = B[y_flow]
+    x_flow = int(Nx/2.) #if odd Nx, this will be center FD coordinate, otherwise will not be center
+    #bed_flow = B[x_flow]
 
     # cut off bed if out of bounds for plotting and for MB calculations
-    y0_max = np.maximum(head_y_max, y_max)
-    center = y[y_flow] # center of glacier grid, needs to be in the middle of a grid cell
+    x0_max = np.maximum(head_x_max, x_max)
+    center = x[x_flow] # center of glacier grid, needs to be in the middle of a grid cell
 
     # cut off the bed outside of width
-    wid_max_xm = head_y_max * (xm <= widehead) + y_max * (xm > widehead)
-    glacierMask[(ym > center + wid_max_xm/2.) | (ym < center - wid_max_xm/2.)] = False
+    wid_max_ym = head_x_max * (ym <= widehead) + x_max * (ym > widehead)
+    glacierMask[(xm > center + wid_max_ym/2.) | (xm < center - wid_max_ym/2.)] = False
 
     # initialize to make sure it doesn't grow out of bounds
     B = np.where(glacierMask, B, B + 1000)
@@ -251,7 +250,7 @@ def make_base_elevation(height_file,widehead_use,dx,dy,max_elev,min_elev,x_max,y
     area = np.sum(np.where(H>0, dly, 0))*1.e-6 # glacier area km2
     volume = np.sum(np.where(H>0, H*dly, 0))*1.e-9 # glacier volume km3
 
-    return Ny, Nx, B, S, glacierMask, area, volume
+    return Nx, Ny, B, S, glacierMask, area, volume
 
 
 ############################################
@@ -301,38 +300,38 @@ if __name__ == '__main__':
 
     # hardwired for testing, get from RGI2000-v7.0-G overlay on GRUs
     glac = 2 # max glaciers in any GRU
-    dim_ny = 10 # max number of cells in glacier bed across glacier
-    dim_nx = 200 # max number of cells in glacier bed down glacier
+    dim_nx = 10 # max number of cells in glacier bed across glacier
+    dim_ny = 200 # max number of cells in glacier bed down glacier
     # initialize netcdf file by storing dimensions and hru variable
     widehead_use = True
     if widehead_use: 
-        nc_out = writeNC_dims(nc_out_name, gruIDs, hru_type, glac, 2*dim_ny, dim_nx)
-        nc_outS = writeNC_dims(nc_outS_name, gruIDs, hru_type, glac, 2*dim_ny, dim_nx)
+        nc_out = writeNC_dims(nc_out_name, gruIDs, hru_type, glac, 2*dim_nx, dim_ny)
+        nc_outS = writeNC_dims(nc_outS_name, gruIDs, hru_type, glac, 2*dim_nx, dim_ny)
     else:
-        nc_out = writeNC_dims(nc_out_name, gruIDs, hru_type, glac, dim_ny, dim_nx)
-        nc_outS = writeNC_dims(nc_outS_name, gruIDs, hru_type, glac, dim_ny, dim_nx)    
+        nc_out = writeNC_dims(nc_out_name, gruIDs, hru_type, glac, dim_nx, dim_ny)
+        nc_outS = writeNC_dims(nc_outS_name, gruIDs, hru_type, glac, dim_nx, dim_ny)    
     height_file = '/Users/amedin/Research/USask/GlacierPython/my_code/mymodel_height_linear100.npz' # 'none' if no surface height file
     totArea = np.zeros(nOutPolygonsGRU, dtype='f8')
     nGlacier = np.zeros(nOutPolygonsGRU, dtype='i4')
     glacId = np.zeros((1, glac, nOutPolygonsGRU), dtype='i8')
-    Ny = np.zeros((1, glac, nOutPolygonsGRU), dtype='i4')
     Nx = np.zeros((1, glac, nOutPolygonsGRU), dtype='i4')
-    dy = np.zeros((1, glac, nOutPolygonsGRU), dtype='f8')
+    Ny = np.zeros((1, glac, nOutPolygonsGRU), dtype='i4')
     dx = np.zeros((1, glac, nOutPolygonsGRU), dtype='f8')
+    dy = np.zeros((1, glac, nOutPolygonsGRU), dtype='f8')
     debris_thick = np.zeros((1, glac, nOutPolygonsGRU), dtype='f8')
     AAR_frac = np.zeros((1, glac, nOutPolygonsGRU), dtype='f8')
     stage_frac = np.zeros((1, glac, nOutPolygonsGRU), dtype='f8')
 
     if widehead_use: 
-        B = np.zeros((2*dim_ny, dim_nx, glac, nOutPolygonsGRU), dtype='f8')
-        S = np.zeros((2*dim_ny, dim_nx, glac, nOutPolygonsGRU), dtype='f8')
-        glacierMask = np.zeros((2*dim_ny, dim_nx, glac, nOutPolygonsGRU), dtype='i4')
-        cell2hruId = np.zeros((2*dim_ny, dim_nx, glac, nOutPolygonsGRU), dtype='i8')
+        B = np.zeros((dim_ny, 2*dim_nx, glac, nOutPolygonsGRU), dtype='f8')
+        S = np.zeros((dim_ny, 2*dim_nx, glac, nOutPolygonsGRU), dtype='f8')
+        glacierMask = np.zeros((dim_ny, 2*dim_nx, glac, nOutPolygonsGRU), dtype='i4')
+        cell2hruId  = np.zeros((dim_ny, 2*dim_nx, glac, nOutPolygonsGRU), dtype='i8')
     else:
         B = np.zeros((dim_ny, dim_nx, glac, nOutPolygonsGRU), dtype='f8')
         S = np.zeros((dim_ny, dim_nx, glac, nOutPolygonsGRU), dtype='f8')
         glacierMask = np.zeros((dim_ny, dim_nx, glac, nOutPolygonsGRU), dtype='i4')
-        cell2hruId = np.zeros((dim_ny, dim_nx, glac, nOutPolygonsGRU), dtype='i8')
+        cell2hruId  = np.zeros((dim_ny, dim_nx, glac, nOutPolygonsGRU), dtype='i8')
     totElev = np.zeros(nOutPolygonsGRU)
     np.random.seed(13) # for reproducibility
     for i,g in enumerate(gruIDs):
@@ -356,16 +355,16 @@ if __name__ == '__main__':
                 RGI_ID = 'RGI60-01.00004'
                 glacId0 = int(RGI_ID.split('-')[1].split('.')[0]+RGI_ID.split('-')[1].split('.')[1])
                 #area_km2 = 129.1 # km^2, glacier area
-                max_elev = 2776.3 # meters, max elevation of glacier (bed at x=0) 
-                min_elev = 136.8 # meters, min elevation of glacier (bed at x=x_max)
+                max_elev = 2776.3 # meters, max elevation of glacier (bed at y=0) 
+                min_elev = 136.8 # meters, min elevation of glacier (bed at y=y_max)
                 # should get the glacier thickness from Millan et al. 2022, and surface from DEM
                 # then, calculate bed elevation and a grid over it
                 # for now, just make a simple glacier bed
-                x_max = 35366.*fac # meters, max length of the glacier bed
-                y_max = 3000.*fac # meters, width of glacier bed at terminus
-                #DEM grid spacing, best if evenly divides x_max and y_max
-                dx0 = x_max/dim_nx        # DEM grid spacing down glacier, default 100m
-                dy0 = y_max/dim_ny        # DEM grid spacing across glacier, default 25m
+                y_max = 35366.*fac # meters, max length of the glacier bed
+                x_max = 3000.*fac # meters, width of glacier bed at terminus
+                #DEM grid spacing, best if evenly divides y_max and x_max
+                dy0 = y_max/dim_ny        # DEM grid spacing down glacier, default 100m
+                dx0 = x_max/dim_nx        # DEM grid spacing across glacier, default 25m
                 debris_m = 0.25 # if debris covered, need to add a debris thickness
                 AAR = 0.5 # acculation area ratio, percent of glacier area that is accumulation area
                 stage = 0.3 # percent of ablation area that is debris covered
@@ -374,31 +373,31 @@ if __name__ == '__main__':
                 RGI_ID = 'RGI60-01.00005'
                 glacId0 = int(RGI_ID.split('-')[1].split('.')[0]+RGI_ID.split('-')[1].split('.')[1])
                 #area_km2 = 47.7 # km^2, glacier area
-                max_elev = 2290.1 # meters, max elevation of glacier (bed at x=0)
-                min_elev =309.7 # meters, min elevation of glacier (bed at x=x_max)
-                x_max = 19715.*fac # meters, max length of the glacier bed
-                y_max = 2000.*fac # meters, width of glacier bed at terminus
-                dx0 = x_max/dim_nx        # DEM grid spacing down glacier, default 100m
-                dy0 = y_max/dim_ny        # DEM grid spacing across glacier, default 25m
+                max_elev = 2290.1 # meters, max elevation of glacier (bed at y=0)
+                min_elev =309.7 # meters, min elevation of glacier (bed at y=y_max)
+                y_max = 19715.*fac # meters, max length of the glacier bed
+                x_max = 2000.*fac # meters, width of glacier bed at terminus
+                dy0 = y_max/dim_ny        # DEM grid spacing down glacier, default 100m
+                dx0 = x_max/dim_nx        # DEM grid spacing across glacier, default 25m
                 debris_m = 0.15 # if debris covered, need to add a debris thickness
                 AAR = 0.5 # acculation area ratio, percent of glacier area that is accumulation area
                 stage = 0.3 # percent of ablation area that is debris covered
             
-            Ny0, Nx0, B0, S0, glacierMask0, area_km2, volume = make_base_elevation(height_file,widehead_use,dx0,dy0,max_elev,min_elev,x_max,y_max)
+            Nx0, Ny0, B0, S0, glacierMask0, area_km2, volume = make_base_elevation(height_file,widehead_use,dy0,dx0,max_elev,min_elev,y_max,x_max)
 
             # need to define each grid cell to an hruID "cell2hruId", 
             # grid cells have vars X,Y coordinates, B, S, glacierMask, and cell2hruId, (dim glacierID, dim gruID) xxx[:nCells,j,i]
             glacId[0,j,i] = glacId0
-            Ny[0,j,i] = Ny0
             Nx[0,j,i] = Nx0
-            dx[0,j,i] = dx0
+            Ny[0,j,i] = Ny0
             dy[0,j,i] = dy0
-            B[:Ny0,:Nx0,j,i] = B0
-            S[:Ny0,:Nx0,j,i] = S0
+            dx[0,j,i] = dx0
+            B[:Ny0,:Nx0,j,i] = B0.transpose()
+            S[:Ny0,:Nx0,j,i] = S0.transpose()
             debris_thick[0,j,i] = debris_m
             AAR_frac[0,j,i] = AAR
             stage_frac[0,j,i] = stage
-            glacierMask[:Ny0,:Nx0,j,i] = np.where(glacierMask0, 1, glacierMask[:Ny0, :Nx0, j, i])
+            glacierMask[:Ny0,:Nx0,j,i] = np.where(glacierMask0.transpose(), 1, glacierMask[:Ny0,:Nx0, j, i])
             if nOutPolygonsGRU==nOutPolygonsHRU:
                 cell2hruId[:Ny0,:Nx0,j,i] = hru2gru[hru2gru==g] 
             else:
@@ -406,20 +405,20 @@ if __name__ == '__main__':
 
     writeNC_state_vars_GRU(nc_out, 'nGlacier', 'i4', nGlacier)
     writeNC_state_vars_GRU_VEC(nc_out, 'glacId', 'glac', 'i8', glacId)
-    writeNC_state_vars_GRU_VEC(nc_out, 'Ny', 'glac', 'i4', Ny)
     writeNC_state_vars_GRU_VEC(nc_out, 'Nx', 'glac', 'i4', Nx)
-    writeNC_state_vars_GRU_VEC(nc_out, 'dx', 'glac', 'f8', dx)
+    writeNC_state_vars_GRU_VEC(nc_out, 'Ny', 'glac', 'i4', Ny)
     writeNC_state_vars_GRU_VEC(nc_out, 'dy', 'glac', 'f8', dy)
+    writeNC_state_vars_GRU_VEC(nc_out, 'dx', 'glac', 'f8', dx)
     writeNC_state_vars_GRU_VEC(nc_out, 'debris_thick_m', 'glac', 'f8', debris_thick)    # not needed for SUMMA attributes, but need for layer setup
     writeNC_state_vars_GRU_VEC(nc_out, 'stage', 'glac', 'f8', stage_frac)               # not needed for SUMMA attributes, but need for domain setup
-    writeNC_state_vars_GRU_GRID(nc_out, 'bed_elev_m', 'ygrid','xgrid','f8', B)
-    writeNC_state_vars_GRU_GRID(nc_out, 'glacierMask', 'ygrid','xgrid','i4', glacierMask)
-    writeNC_state_vars_GRU_GRID(nc_out, 'cell2hruId', 'ygrid','xgrid','i8', cell2hruId)
+    writeNC_state_vars_GRU_GRID(nc_out, 'bed_elev_m','ygrid','xgrid','f8', B)
+    writeNC_state_vars_GRU_GRID(nc_out, 'glacierMask','ygrid','xgrid','i4', glacierMask)
+    writeNC_state_vars_GRU_GRID(nc_out, 'cell2hruId','ygrid','xgrid','i8', cell2hruId)
 
     # cells with S above median elevation are accumulation area, below are ablation area
     writeNC_state_vars_GRU_VEC(nc_outS, 'glacId', 'glac', 'i8', glacId)
     writeNC_state_vars_GRU_VEC(nc_outS, 'AAR', 'glac', 'f8', AAR_frac)      # not needed for SUMMA initial conditions, but need to calculate initial HRU area
-    writeNC_state_vars_GRU_GRID(nc_outS, 'surface_elev_m', 'ygrid','xgrid','f8', S)
+    writeNC_state_vars_GRU_GRID(nc_outS, 'surface_elev_m','ygrid','xgrid','f8', S)
 
     nc_out.close()
     nc_outS.close()

@@ -119,6 +119,7 @@ contains
                      glacFirnMelt,          & ! total melt into firn reservoir (m s-1)
                      glacAblArea,           & ! per glacier ablation area (m2)
                      glacAccArea,           & ! per glacier acumulation area (m2)   
+                     nGlacier,              & ! number of glaciers in the basin
                      ! output        
                      qIceFuture,            & ! per glacier ice reservoir runoff in future time steps (m3 s-1)
                      qSnowFuture,           & ! per glacier snow reservoir runoff in future time steps (m3 s-1)
@@ -136,6 +137,7 @@ contains
  real(rkind),intent(in)     :: glacFirnMelt              ! total melt into firn reservoir (m s-1)
  real(rkind),intent(in)     :: glacAblArea(:)            ! per glacier ablation area (m2)
  real(rkind),intent(in)     :: glacAccArea(:)            ! per glacier acumulation area (m2)
+integer(i4b),intent(in)     :: nGlacier                  ! number of glaciers in the basin
  real(rkind),intent(inout)  :: qIceFuture(:)             ! per glacier ice reservoir runoff in future time steps (m s-1)
  real(rkind),intent(inout)  :: qSnowFuture(:)            ! per glacier snow reservoir runoff in future time steps (m s-1)
  real(rkind),intent(inout)  :: qFirnFuture(:)            ! per glacier firn reservoir runoff in future time steps (m s-1)
@@ -150,16 +152,14 @@ contains
  real(rkind)                :: frac                      ! fraction of glacier area
  real(rkind)                :: glacAblTotal              ! total ablation area (m2)
  real(rkind)                :: glacAccTotal              ! total accumulation area (m2)
- integer(i4b)               :: nGlacier                  ! number of glaciers in the basin
  integer(i4b)               :: iGlacier                  ! index for glaciers
  ! initialize error control
  err=0; message='qGlacier/' 
 
- nGlacier = size(qIceFuture) ! number of glaciers in the basin
  glacierRoutedRunoff = 0._rkind
 
- glacAblTotal = sum(glacAblArea)
- glacAccTotal = sum(glacAccArea)
+ glacAblTotal = sum(glacAblArea(1:nGlacier))
+ glacAccTotal = sum(glacAccArea(1:nGlacier))
 
  do iGlacier=1,nGlacier
    ! ice reservoir runoff (m3 s-1)

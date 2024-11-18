@@ -62,16 +62,16 @@ def getOutputGlac_bed(nc_file):
     nGlacier  = getNetCDFData(nc_file, 'nGlacier')
     gruIDs = getNetCDFData(nc_file, 'gruId')
     glacIDs  = getNetCDFData(nc_file, 'glacId')
-    Ny = getNetCDFData(nc_file, 'Ny')
     Nx = getNetCDFData(nc_file, 'Nx')
-    dy  = getNetCDFData(nc_file, 'dy')
+    Ny = getNetCDFData(nc_file, 'Ny')
     dx  = getNetCDFData(nc_file, 'dx')
+    dy  = getNetCDFData(nc_file, 'dy')
     cell2hruId  = getNetCDFData(nc_file, 'cell2hruId')
     bed_elev_m  = getNetCDFData(nc_file, 'bed_elev_m')
     debris_thick_m  = getNetCDFData(nc_file, 'debris_thick_m')
     stage = getNetCDFData(nc_file, 'stage')
     print("read data from glacier bed file")
-    return nGlacier,gruIDs,glacIDs,Ny,Nx,dy,dx,cell2hruId,bed_elev_m,debris_thick_m,stage
+    return nGlacier,gruIDs,glacIDs,Nx,Ny,dx,dy,cell2hruId,bed_elev_m,debris_thick_m,stage
 
 def getOutputGlac_surf(nc_file):
     gruIDs = getNetCDFData(nc_file, 'gruId')
@@ -207,7 +207,7 @@ if __name__ == '__main__':
     if glac_dom:
         nc_glacier_name = nc_attribute_name[:-3] + '_glacBedTopo.nc'
         nc_glacierS_name = nc_out_name0[:-3] + '_glacSurfTopo.nc'
-        nGlacier, gruIDs2, glacIDs, Ny, Nx, dy, dx, cell2hruId, bed_elev_m, debris_thick_m, stage = getOutputGlac_bed(nc_glacier_name)
+        nGlacier, gruIDs2, glacIDs, Nx, Ny, dx, dy, cell2hruId, bed_elev_m, debris_thick_m, stage = getOutputGlac_bed(nc_glacier_name)
         gruIDs3, glacIDs2, AAR, surface_elev_m = getOutputGlac_surf(nc_glacierS_name)
         glac = max(nGlacier)
 
@@ -221,10 +221,10 @@ if __name__ == '__main__':
         # Remap all variables to match gruIDs
         nGlacier = nGlacier[gruIDs2_mapped]
         glacIDs  = glacIDs[:,gruIDs2_mapped]
-        Ny = Ny[:,gruIDs2_mapped]
         Nx = Nx[:,gruIDs2_mapped]
-        dy = dy[:,gruIDs2_mapped]
+        Ny = Ny[:,gruIDs2_mapped]
         dx = dx[:,gruIDs2_mapped]
+        dy = dy[:,gruIDs2_mapped]
         cell2hruId     = cell2hruId[:,:,:,gruIDs2_mapped]
         bed_elev_m     = bed_elev_m[:,:,:,gruIDs2_mapped]
         debris_thick_m = debris_thick_m[:,gruIDs2_mapped]
@@ -295,7 +295,7 @@ if __name__ == '__main__':
     glacDeb_elev = np.zeros(nOutPolygonsHRU, dtype='f8')
     glacNoDeb_frac = np.zeros(nOutPolygonsHRU, dtype='f8')
     glacNoDeb_elev = np.zeros(nOutPolygonsHRU, dtype='f8')
-    indxWtld = 1
+    indyWtld = 1
     if glac_dom: 
         ablArea = np.zeros((glac,nOutPolygonsGRU), dtype='f8')
         accArea = np.zeros((glac,nOutPolygonsGRU), dtype='f8')
@@ -306,7 +306,7 @@ if __name__ == '__main__':
                 surface_elev_m0 = surface_elev_m[:,:,j,i]
                 hgt = surface_elev_m0 - bed_elev_m0
                 cell2hruId0 = cell2hruId[:,:,j,i]
-                dly = dx[j,i]*dy[j,i]
+                dly = dy[j,i]*dx[j,i]
                 
                 # calculate area and volume
                 glac_area = np.sum(np.where((hgt>0), dly, 0))
@@ -323,10 +323,10 @@ if __name__ == '__main__':
                 accumulated_area = 0
                 ELA_elev_m = -999.0
                 # Loop through the sorted elevations and areas
-                for idx in range(len(sorted_elevations)):
+                for idy in range(len(sorted_elevations)):
                     accumulated_area += dly
                     if accumulated_area >= ablArea[j, i]:
-                        ELA_elev_m = sorted_elevations[idx]
+                        ELA_elev_m = sorted_elevations[idy]
                         print('Glacier ', glacIDs[j, i], ' ELA, area, vol:', ELA_elev_m, glac_area, glac_vol)
                         break
                 if ELA_elev_m == -999.:
@@ -365,7 +365,7 @@ if __name__ == '__main__':
                 
         lyrHeight_glacnp = np.array(lyrHeight_glac)
         lyrDepth_glac = lyrHeight_glacnp[:,1:] - lyrHeight_glacnp[:,:-1]
-        indxWtld += 2
+        indyWtld += 2
 
     if wtld_dom: 
         ndom += 1
@@ -426,14 +426,14 @@ if __name__ == '__main__':
         dom_elev[:,0,2] = glacAbl_elev
 
     if wtld_dom: # NOTE, if HRU wetland area is 0, midLake_dom should be 0
-        lyrDepth[indxWtld,:,0:midToto_wtld] = lyrDepth_wtld
-        lyrHeight[indxWtld,:,0:midToto_wtld+1] = lyrHeight_wtld
-        midLake_dom[:,0,indxWtld] = midLake
-        midSoil_dom[:,0,indxWtld] = midSoil_wtld
-        domType[:,0,indxWtld] = 4
+        lyrDepth[indyWtld,:,0:midToto_wtld] = lyrDepth_wtld
+        lyrHeight[indyWtld,:,0:midToto_wtld+1] = lyrHeight_wtld
+        midLake_dom[:,0,indyWtld] = midLake
+        midSoil_dom[:,0,indyWtld] = midSoil_wtld
+        domType[:,0,indyWtld] = 4
         wtld_elev = hru_elev  # assume wetland elev same as upland
-        dom_area[:,0,indxWtld] = hru_area * wtld_frac 
-        dom_elev[:,0,indxWtld] = wtld_elev           # assume wetland elev same as upland
+        dom_area[:,0,indyWtld] = hru_area * wtld_frac 
+        dom_elev[:,0,indyWtld] = wtld_elev           # assume wetland elev same as upland
 
     dom_area[:,0,0] = hru_area * upld_frac
     dom_elev[:,0,0] = upld_elev

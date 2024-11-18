@@ -45,7 +45,7 @@ contains
  USE var_lookup,only:iLookTIME,iLookFORCE,iLookATTR,iLookTYPE,iLookID ! named variables showing the elements of each data structure
  USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX,iLookDERIV         ! named variables showing the elements of each data structure
  USE var_lookup,only:iLookPARAM,iLookINDEX                            ! named variables showing the elements of each data structure
- USE var_lookup,only:iLookBPAR,iLookBVAR                              ! named variables showing the elements of each data structure
+ USE var_lookup,only:iLookBPAR,iLookBVAR,iLookGRID                    ! named variables showing the elements of each data structure
  USE var_lookup,only:iLookLOOKUP                                      ! named variables showing the elements of each data structure
  implicit none
  ! dummy variables
@@ -80,6 +80,7 @@ contains
    case('mpar');   write(longString,*) iLookPARAM
    case('bpar');   write(longString,*) iLookBPAR
    case('bvar');   write(longString,*) iLookBVAR
+   case('grid');   write(longString,*) iLookGRID
    case('indx');   write(longString,*) iLookINDEX
    case('prog');   write(longString,*) iLookPROG
    case('diag');   write(longString,*) iLookDIAG
@@ -118,6 +119,7 @@ contains
    case('mpar');   call checkPopulated(iStruct,mpar_meta,err,cmessage)
    case('bpar');   call checkPopulated(iStruct,bpar_meta,err,cmessage)
    case('bvar');   call checkPopulated(iStruct,bvar_meta,err,cmessage)
+   case('grid');   call checkPopulated(iStruct,grid_meta,err,cmessage)
    case('indx');   call checkPopulated(iStruct,indx_meta,err,cmessage)
    case('prog');   call checkPopulated(iStruct,prog_meta,err,cmessage)
    case('diag');   call checkPopulated(iStruct,diag_meta,err,cmessage)

@@ -54,7 +54,9 @@ USE data_types,only:&
                     gru_hru_dom_intVec,    & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat (i4b)
                     gru_hru_dom_doubleVec, & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat (dp)
                     ! gru+hru+dom+z dimension
-                    gru_hru_dom_z_vLookup    ! x%gru(:)%hru(:)%dom(:)%z(:)%var(:)%lookup(:)  (dp)
+                    gru_hru_dom_z_vLookup, & ! x%gru(:)%hru(:)%dom(:)%z(:)%var(:)%lookup(:)  (dp)
+                    ! gru+glac+grid dimension
+                    gru_glac_dgrid           ! x%gru(:)%glac(:)%var(:)%grid(:,:) (dp)
 implicit none
 private
 
@@ -90,6 +92,7 @@ type, public :: summa1_type_dec
     ! define the basin-average structures
     type(gru_double)                 :: bparStruct                 ! x%gru(:)%var(:)            -- basin-average parameters
     type(gru_doubleVec)              :: bvarStruct                 ! x%gru(:)%var(:)%dat        -- basin-average variables
+    type(gru_glac_dgrid)             :: gridStruct                 ! xgru(:)%glac(:)%var(:)%grid(:,:) -- grid information for each glacier in basin
 
     ! define the ancillary data structures
     type(gru_hru_double)             :: dparStruct                 ! x%gru(:)%hru(:)%var(:)     -- default model parameters

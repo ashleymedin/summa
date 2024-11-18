@@ -105,7 +105,7 @@ MODULE data_types
  ! Define data types to map between GRUs and HRUs
  ! ***********************************************************************************************************
 
-  ! hru info data structure
+ ! hru info data structure
  type, public :: dom_info
   integer(i4b)                           :: dom_type                      ! type = 1 for upland, 2 for glacier accumulation, 3 for glacier ablation, (4 for lake)
   integer(i4b)                           :: nSnow                         ! number of snow layers
@@ -115,7 +115,7 @@ MODULE data_types
   integer(i4b)                           :: nLayers                       ! total number of layers
  endtype dom_info
 
- ! hru info data structure
+ ! dom info data structure
  type, public :: hru_info
   integer(i4b)                           :: hru_nc                        ! index of the hru in the netcdf file
   integer(i4b)                           :: hru_ix                        ! index of the hru in the run space
@@ -124,13 +124,23 @@ MODULE data_types
   type(dom_info), allocatable            :: domInfo(:)                    ! basic information of domains within the gru
  endtype hru_info
 
- ! define mapping from GRUs to the HRUs
+ ! glacier info data structure
+ type, public :: glac_info
+  integer(i4b)                           :: Nx                            ! number of grid cells in the x-direction
+  integer(i4b)                           :: Ny                            ! number of grid cells in the y-direction
+  real(rkind)                            :: dx                            ! grid cell size in the x-direction
+  real(rkind)                            :: dy                            ! grid cell size in the y-direction
+  integer(i4b)                           :: glac_id                       ! RGI id (non-sequential number) of the glacier (eg region 1 glacier 00001 is 100001)
+ endtype glac_info
+
+ ! define mapping from GRUs to the HRUs, also includes GRU-wide information
  type, public :: gru2hru_map
   integer(i8b)                           :: gru_id                        ! id of the gru
   integer(i4b)                           :: nGlacier                      ! number of glaciers in the basin
   integer(i4b)                           :: nWetland                      ! number of wetlands in the basin
   integer(i4b)                           :: hruCount                      ! total number of hrus in the gru
   type(hru_info), allocatable            :: hruInfo(:)                    ! basic information of HRUs within the gru
+  type(glac_info), allocatable           :: glacInfo(:)                   ! basic information of glaciers within the gru
   integer(i4b)                           :: gru_nc                        ! index of gru in the netcdf file
  endtype gru2hru_map
 
@@ -168,6 +178,25 @@ MODULE data_types
  type, public :: gru_hru_dom_z_vLookup
   type(hru_dom_z_vLookup),allocatable    :: gru(:)                        ! gru(:)%hru(:)%dom(:)%z(:)%var(:)%lookup(:)
  endtype gru_hru_dom_z_vLookup
+
+ ! define derived types to hold grids for each glacier
+ ! ** double precision type 
+ type, public :: dgrid
+  real(rkind),allocatable                :: grid(:,:)                     ! grid(:,:)
+ endtype dgrid
+ ! ** double precision type for a variable number of grid cells; variable length
+ type, public :: var_dgrid
+  type(dgrid),allocatable                :: var(:)                        ! var(:)%grid(:,:)
+ endtype var_dgrid
+ ! ** double precision type for a variable number of grid cells, glaciers length
+ type, public :: glac_dgrid
+  type(var_dgrid),allocatable            :: glac(:)                       ! %glac(:)%var(:)%grid(:,:)
+ endtype glac_dgrid
+! ** full double precision type for a variable number of grid cells
+ type, public :: gru_glac_dgrid
+  type(glac_dgrid),allocatable           :: gru(:)                        ! gru(:)%glac(:)%var(:)%grid(:,:)
+ endtype gru_glac_dgrid
+
  ! define derived types to hold multivariate data for a single variable (different variables have different length)
  ! NOTE: use derived types here to facilitate adding the "variable" dimension
  ! ** double precision type
@@ -230,7 +259,7 @@ MODULE data_types
  endtype dom_i
  ! ** integer type of fixed length (8 byte)
  type, public :: dom_i8
-  integer(i8b),allocatable                 :: dom(:)                        ! dom(:)
+  integer(i8b),allocatable               :: dom(:)                        ! dom(:)
  endtype dom_i8
 
   ! ** double precision type of fixed length
@@ -256,7 +285,7 @@ MODULE data_types
  endtype gru_i
  ! ** integer type of fixed length (8 byte)
  type, public :: gru_i8
-  integer(i8b),allocatable                 :: gru(:)                        ! gru(:)
+  integer(i8b),allocatable               :: gru(:)                        ! gru(:)
  endtype gru_i8
 
  ! define derived types to hold JUST the DOM dimension

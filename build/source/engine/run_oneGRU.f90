@@ -49,7 +49,10 @@ USE data_types,only:&
                     hru_dom_double,    & ! x%hru(:)%dom(:)%var(:)     (rkind)
                     hru_dom_doubleVec, & ! x%hru(:)%dom(:)%var(:)%dat (rkind)
                     ! hru+dom+ z dimension
-                    hru_dom_z_vLookup    ! x%hru(:)%z(:)%var(:)%lookup(:)
+                    hru_dom_z_vLookup, & ! x%hru(:)%z(:)%var(:)%lookup(:)
+                    ! glac+grid dimension
+                    glac_v_grid       ! xgru(:)%glac(:)%var(:)%grid(:,:) (dp)
+        
 
 ! provide access to the named variables that describe elements of parameter structures
 USE var_lookup,only:iLookTYPE          ! look-up values for classification of veg, soils etc.
@@ -112,6 +115,7 @@ subroutine run_oneGRU(&
                       diagHRU,            & ! intent(inout): diagnostic variables for a local HRU
                       fluxHRU,            & ! intent(inout): model fluxes for a local HRU
                       bvarData,           & ! intent(inout): basin-average variables
+                      gridData,           & ! intent(inout): basin glacier grids, may be null
                       ! error control
                       err,message)          ! intent(out):   error control
 
@@ -127,20 +131,21 @@ subroutine run_oneGRU(&
   type(hru_dom_d)         , intent(inout) :: dt_init              ! used to initialize the length of the sub-step for each domain
   type(hru_i)             , intent(inout) :: ixComputeVegFlux     ! flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
   ! data structures (input)
-  type(var_i)             , intent(in)    :: timeVec              ! x%var(:)                   -- model time data
-  type(hru_int)           , intent(in)    :: typeHRU              ! x%hru(:)%var(:)            -- local classification of soil veg etc. for each HRU
-  type(hru_int8)          , intent(in)    :: idHRU                ! x%hru(:)%var(:)            -- local classification of hru and gru IDs
-  type(hru_double)        , intent(in)    :: attrHRU              ! x%hru(:)%var(:)            -- local attributes for each HRU
+  type(var_i)             , intent(in)    :: timeVec              ! x%var(:)                               -- model time data
+  type(hru_int)           , intent(in)    :: typeHRU              ! x%hru(:)%var(:)                        -- local classification of soil veg etc. for each HRU
+  type(hru_int8)          , intent(in)    :: idHRU                ! x%hru(:)%var(:)                        -- local classification of hru and gru IDs
+  type(hru_double)        , intent(in)    :: attrHRU              ! x%hru(:)%var(:)                        -- local attributes for each HRU
   type(hru_dom_z_vLookup) , intent(in)    :: lookupHRU            ! x%hru(:)%dom(:)%z(:)%var(:)%lookup(:) -- lookup values for each HRU
   ! data structures (input-output)
-  type(hru_dom_doubleVec) , intent(in)    :: mparHRU              ! x%hru(:)%dom(:)%var(:)%dat -- local (HRU) model parameters
-  type(var_d)             , intent(in)    :: bparData             ! x%var                      -- basin-average parameters
-  type(hru_dom_intVec)    , intent(inout) :: indxHRU              ! x%hru(:)%dom(:)%var(:)%dat -- model indices
-  type(hru_double)        , intent(inout) :: forcHRU              ! x%hru(:)%dom(:)%var(:)     -- model forcing data
-  type(hru_dom_doubleVec) , intent(inout) :: progHRU              ! x%hru(:)%dom(:)%var(:)%dat -- model prognostic (state) variables
-  type(hru_dom_doubleVec) , intent(inout) :: diagHRU              ! x%hru(:)%dom(:)%var(:)%dat -- model diagnostic variables
-  type(hru_dom_doubleVec) , intent(inout) :: fluxHRU              ! x%hru(:)%dom(:)%var(:)%dat -- model fluxes
-  type(var_dlength)       , intent(inout) :: bvarData             ! x%var(:)%dat               -- basin-average variables
+  type(hru_dom_doubleVec) , intent(in)    :: mparHRU              ! x%hru(:)%dom(:)%var(:)%dat   -- local (HRU) model parameters
+  type(var_d)             , intent(in)    :: bparData             ! x%var                        -- basin-average parameters
+  type(hru_dom_intVec)    , intent(inout) :: indxHRU              ! x%hru(:)%dom(:)%var(:)%dat   -- model indices
+  type(hru_double)        , intent(inout) :: forcHRU              ! x%hru(:)%dom(:)%var(:)       -- model forcing data
+  type(hru_dom_doubleVec) , intent(inout) :: progHRU              ! x%hru(:)%dom(:)%var(:)%dat   -- model prognostic (state) variables
+  type(hru_dom_doubleVec) , intent(inout) :: diagHRU              ! x%hru(:)%dom(:)%var(:)%dat   -- model diagnostic variables
+  type(hru_dom_doubleVec) , intent(inout) :: fluxHRU              ! x%hru(:)%dom(:)%var(:)%dat   -- model fluxes
+  type(var_dlength)       , intent(inout) :: bvarData             ! x%var(:)%dat                 -- basin-average variables
+  type(glac_v_grid)     , intent(inout) :: gridData             ! x%glac(:)%var(:)%grid(:,:) -- basin glacier grids, may be null
   ! error control
   integer(i4b)            , intent(out)   :: err                  ! error code
   character(*)            , intent(out)   :: message              ! error message
@@ -153,8 +158,8 @@ subroutine run_oneGRU(&
   real(rkind)                         :: fracDOM                ! fractional area of a given HRU domain in GRU (-)
   integer(i4b)                        :: nDOM_glacGRU           ! number of glacier domains in the GRU
   real(rkind), allocatable            :: glac_elev(:)           ! elevation of each glacier domain (m)
-  real(rkind), allocatable            :: GWE_delta(:)         ! change in glacier water equivalent per year (m) in each glacier cell
-  integer(i8b), allocatable           :: glac_hru(:)            ! HRU id of the each glacier cell
+  real(rkind), allocatable            :: GWE_delta(:)           ! change in glacier water equivalent per year (m) in each glacier cell
+  integer(i8b), allocatable           :: glac_hru(:)            ! HRU index of the each glacier cell
   real(rkind), allocatable            :: glac_area(:)           ! area of each glacier domain (m2)
   logical(lgt)                        :: computeVegFluxFlag     ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
   logical(lgt)                        :: updateGlacArea         ! flag to update glacier area
@@ -356,7 +361,7 @@ subroutine run_oneGRU(&
         do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
           if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAbl)then
             nDOM_glacGRU = nDOM_glacGRU + 1
-            glac_hru(nDOM_glacGRU) = gruInfo%hruInfo(iHRU)%hru_id
+            glac_hru(nDOM_glacGRU) = iHRU
             if(progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)>0._rkind)then 
               glac_elev(nDOM_glacGRU) = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1)
               ! placeholder line, add actual kg/m2 of glacier storage instead of SWE
@@ -386,6 +391,7 @@ subroutine run_oneGRU(&
                 glacFirnMelt,                                       & ! intent(in):    total melt into firn reservoirs (m s-1)
                 bvarData%var(iLookBVAR%glacAblArea)%dat,            & ! intent(in):    per glacier ablation area (m2)
                 bvarData%var(iLookBVAR%glacAccArea)%dat,            & ! intent(in):    per glacier accumulation area (m2)
+                gru_struc(iGRU)%nGlacier,                           & ! intent(in):    number of glaciers in GRU
                 ! output
                 bvarData%var(iLookBVAR%glacIceRunoffFuture)%dat,    & ! intent(inout): per glacier ice reservoir runoff in future time steps (m s-1)
                 bvarData%var(iLookBVAR%glacSnowRunoffFuture)%dat,   & ! intent(inout): per glacier snow reservoir runoff in future time steps (m s-1)
@@ -436,27 +442,21 @@ subroutine run_oneGRU(&
     ! need to associate each glacier with an HRU and domain
     call glacFlow(&
                   ! model control
-                  gruInfo%gru_id,                          & ! intent(in):    GRU ID
-                  nDOM_glacGRU,                            & ! intent(in):    number of domains that have GWE
-                  glac_hru,                                & ! intent(in):    HRU ID of GWE point
+                  nDOM_glacGRU,                               & ! intent(in):    number of domains that have GWE
+                  glac_hru,                                   & ! intent(in):    HRU index of GWE point
                   ! glacier topography
-                  nGlacier,                                & ! intent(in):    number of glaciers
-                  surface,                                 & ! intent(in):    surface elevation of each glacier domain (m)
-                  dx, dy,                                  & ! intent(in):    grid spacing (m) by glacier
-                  Nx, Ny,                                  & ! intent(in):    number of grid cells in x and y directions by glacier
-                  nxgrid,nygrid,                           & ! intent(in):    max number of grid cells in x and y directions by glacier
-                  bed,                                     & ! intent(in):    bed elevation of each glacier domain (m)
-                  cell2hru,                                & ! intent(in):    map of glacier cell to hru
-                  glacierMask,                             & ! intent(in):    mask of glacier domain
-                  ! mass balance
-                  GWE_delta,                               & ! intent(in):    change in glacier water equivalent (m s-1) in each glacier domain
-                  glac_elev,                               & ! intent(inout): elevation of each glacier domain (m) per HRU
+                  gru_struc(iGRU)%nGlacier,                   & ! intent(in):    number of glaciers in GRU
+                  gruInfo%glac_info,                          & ! intent(in):    grid cells info in x and y directions by glacier
+                  gridData,                                   & ! intent(inout): elevations on grid for each glacier domain (m)
+                  ! mass balance per glacier domain
+                  GWE_delta,                                  & ! intent(in):    change in glacier water equivalent (m s-1) in each glacier domain
+                  glac_elev,                                  & ! intent(inout): elevation of each glacier domain (m) per HRU
                   ! area
-                  bvarData%var(iLookBVAR%glacAblArea)%dat, & ! intent(out):   per glacier ablation area (m2)
-                  bvarData%var(iLookBVAR%glacAccArea)%dat, & ! intent(out):   per glacier accumulation area (m2)
-                  glac_area,                               & ! intent(out):   area of each domain (m2)
+                  bvarData%var(iLookBVAR%glacAblArea)%dat,    & ! intent(out):   per glacier ablation area (m2)
+                  bvarData%var(iLookBVAR%glacAccArea)%dat,    & ! intent(out):   per glacier accumulation area (m2)
+                  glac_area,                                  & ! intent(out):   area of each domain (m2)
                   ! error handling
-                  err, message)                             ! intent(out):   error control
+                  err, message)                                ! intent(out):   error control
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
     nDOM_glacGRU = 0 ! initialize number of glacier domains in the GRU

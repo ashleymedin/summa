@@ -33,6 +33,7 @@ USE globalData,only:prog_meta                 ! metadata on the model prognostic
 USE globalData,only:flux_meta                 ! metadata on the model fluxes
 USE globalData,only:indx_meta                 ! metadata on the model index variables
 USE globalData,only:bvar_meta                 ! metadata on basin-average variables
+USE globalData,only:grid_meta                 ! metadata on the glacier grid information
 
 ! child metadata for stats
 USE globalData,only:statForc_meta             ! child metadata for stats
@@ -57,6 +58,7 @@ USE var_lookup,only:iLookDIAG                 ! named variables for local column
 USE var_lookup,only:iLookPROG                 ! named variables for local column model prognostic variables
 USE var_lookup,only:iLookINDEX                ! named variables for local column index variables
 USE var_lookup,only:iLookFREQ                 ! named variables for the frequency structure
+USE var_lookup,only:iLookGRID                 ! named variables for the glacier grid information
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -76,7 +78,7 @@ contains
  USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time
  USE summa_alarms,only:summa_setWriteAlarms                  ! set alarms to control model output
  USE summa_defineOutput,only:summa_defineOutputFiles         ! define summa output files
- USE modelwrite_module,only:writeRestart                     ! module to write model Restart
+ USE modelwrite_module,only:writeRestart,writeRestartGlac    ! module to write model Restart
  USE modelwrite_module,only:writeData,writeBasin             ! module to write model output
  USE modelwrite_module,only:writeTime                        ! module to write model time
  USE output_stats,only:calcStats                             ! module for compiling output statistics
@@ -98,6 +100,7 @@ contains
  USE globalData,only:outputTimeStep                          ! timestep in output files
  ! output constraints
  USE globalData,only:maxLayers                               ! maximum number of layers
+ USE globalData,only:maxGlaciers                             ! maximum number of glaciers in any GRU
  ! timing variables
  USE globalData,only:startWrite,endWrite                     ! date/time for the start and end of the model writing
  USE globalData,only:elapsedWrite                            ! elapsed time to write data
@@ -148,6 +151,7 @@ contains
   diagStruct           => summa1_struc%diagStruct  , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model diagnostic variables
   fluxStruct           => summa1_struc%fluxStruct  , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model fluxes
   bvarStruct           => summa1_struc%bvarStruct  , & ! x%gru(:)%var(:)%dat               -- basin-average variables
+  gridStruct           => summa1_struc%gridStruct  , & ! xgru(:)%glac(:)%var(:)%grid(:,:) -- grid information for each glacier in basin
 
   ! miscellaneous variables
   nGRU                 => summa1_struc%nGRU        , & ! number of grouped response units
@@ -311,6 +315,16 @@ contains
 
   call writeRestart(restartFile,nGRU,nHRU,nDOM,prog_meta,progStruct,bvar_meta,bvarStruct,maxLayers,indx_meta,indxStruct,err,cmessage)  
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  if(maxGlaciers>0)then
+    if(STATE_PATH == '') then
+      restartGlacFile=trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_restartGlac_'//trim(timeString)//trim(output_fileSuffix)//'.nc'
+    else
+      restartGlacFile=trim(STATE_PATH)//trim(OUTPUT_PREFIX)//'_restartGlac_'//trim(timeString)//trim(output_fileSuffix)//'.nc'
+    endif
+    call writeRestartGlac(restartGlacFile,nGRU,grid_meta,gridStruct,err,cmessage) 
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
  end if
 
  ! *****************************************************************************
