@@ -278,8 +278,8 @@ subroutine summa_paramSetup(summa1_struc, err, message)
 
   ! determine the maximum grid size
   do iGRU=1,nGRU
-    maxGridX = max(maxGridX, gru_struc(iGRU)%glacInfo(:)%Nx)
-    maxGridY = max(maxGridY, gru_struc(iGRU)%glacInfo(:)%Ny)
+    maxGridX = max(maxGridX, gru_struc(iGRU)%gridInfo(:)%nx)
+    maxGridY = max(maxGridY, gru_struc(iGRU)%gridInfo(:)%ny)
   end do
 endif
 

@@ -55,8 +55,8 @@ USE data_types,only:&
                     gru_hru_dom_doubleVec, & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat (rkind)
                     ! gru+hru+dom+z dimension
                     gru_hru_dom_z_vLookup, & ! x%gru(:)%hru(:)%dom(:)%z(:)%var(:)%lookup (rkind)
-                    ! gru+glac+grid dimension
-                    gru_glac_dgrid           ! x%gru(:)%glac(:)%var(:)%grid(:,:) (dp)
+                    ! gru+grid dimension
+                    gru_grid_double          ! x%gru(:)%grid(:)%var(:)%dat2(:,:) (dp)
 
 
 ! metadata structure
@@ -104,7 +104,7 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
   integer(i4b)                    :: nGlac          ! number of glaciers in GRU
   integer(i4b)                    :: iGlac          ! loop index through glaciers
   integer(i4b)                    :: iVar           ! loop index through variables
-  real(rkind)                     :: Nx, Ny         ! number of grid cells in the x and y directions
+  real(rkind)                     :: nx, ny         ! number of grid cells in the x and y directions
   integer(i4b),parameter          :: zero=0         ! zero value
   character(len=256)              :: cmessage       ! error message of the downwind routine
   ! initialize error control
@@ -139,7 +139,7 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
     ! gru+hru+dom+z dimensions
     class is (gru_hru_dom_z_vLookup); if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
     ! gru+glacier+grid dimensions
-    class is (gru_glac_dgrid);        if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+    class is (gru_grid_double);        if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
   end select
 
    ! check errors
@@ -246,19 +246,19 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
    class is (gru_intVec);        call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nLake=0,nSoil=0,nIce=0,nGlacier=nGlac,err=err,message=cmessage); spatial=.true.
    class is (gru_double);        call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nLake=0,nSoil=0,nIce=0,nGlacier=nGlac,err=err,message=cmessage); spatial=.true.
    class is (gru_doubleVec);     call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nLake=0,nSoil=0,nIce=0,nGlacier=nGlac,err=err,message=cmessage); spatial=.true.
-   class is (gru_glac_dgrid)
-     if(.not.allocated(dataStruct%gru(iGRU)%glac))then; allocate(dataStruct%gru(iGRU)%glac(nGlac),stat=err); end if
+   class is (gru_grid_double)
+     if(.not.allocated(dataStruct%gru(iGRU)%grid))then; allocate(dataStruct%gru(iGRU)%grid(nGlac),stat=err); end if
      if(err/=0)then; err=20; message=trim(message)//'problem allocating glacier dimension in grid structure'; return; end if
      do iGlac=1,nGlac
        ! get the number of grid cells in the x and y directions
        associate(&
-        Nx => gru_struc(iGRU)%glacInfo(iGlac)%Nx,     & ! number of grid cells in the x-direction
-        Ny => gru_struc(iGRU)%glacInfo(iGlac)%Ny      & ! number of grid cells in the y-direction
+        nx => gru_struc(iGRU)%gridInfo(iGlac)%nx,     & ! number of grid cells in the x-direction
+        ny => gru_struc(iGRU)%gridInfo(iGlac)%ny      & ! number of grid cells in the y-direction
         )
-        if(.not.allocated(dataStruct%gru(iGRU)%glac(iGlac)%var))then; allocate(dataStruct%gru(iGRU)%glac(iGlac)%var(size(metaStruct)),stat=err); end if
+        if(.not.allocated(dataStruct%gru(iGRU)%grid(iGlac)%var))then; allocate(dataStruct%gru(iGRU)%grid(iGlac)%var(size(metaStruct)),stat=err); end if
         do iVar=1,size(metaStruct)
-          if(.not.allocated(dataStruct%gru(iGRU)%glac(iGlac)%var(iVar)%grid))then;  allocate(dataStruct%gru(iGRU)%glac(iGlac)%var(iVar)%grid(Nx,Ny),stat=err); end if
-          if(err/=0)then; err=20; message=trim(message)//'problem allocating grid dimension for variable '//trim(metadata(iVar)%varname); return; end if
+          if(.not.allocated(dataStruct%gru(iGRU)%grid(iGlac)%var(iVar)%dat2))then;  allocate(dataStruct%gru(iGRU)%grid(iGlac)%var(iVar)%dat2(nx,ny),stat=err); end if
+          if(err/=0)then; err=20; message=trim(message)//'problem allocating grid dimension for variable '//trim(metaStruct(iVar)%varname); return; end if
         end do
        end associate
       enddo

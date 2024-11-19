@@ -20,6 +20,7 @@ subroutine popMetadat(err,message)
   USE globalData, only: mpar_meta           ! data structure for local parameter metadata
   USE globalData, only: bpar_meta           ! data structure for basin parameter metadata
   USE globalData, only: bvar_meta           ! data structure for basin model variable metadata
+  USE globalData, only: grid_meta           ! data structure for grid metadata
   USE globalData, only: indx_meta           ! data structure for index metadata
   USE globalData, only: prog_meta           ! data structure for local prognostic (state) variables
   USE globalData, only: diag_meta           ! data structure for local diagnostic variables
@@ -716,10 +717,10 @@ subroutine popMetadat(err,message)
   ! -----
   ! * basin glacier grids
   ! -----------------------------------------
-  grid_meta(iLookGRID%bed)                    = var_info('bed'                     , 'glacier bed elevation'                                     , 'm'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
+  grid_meta(iLookGRID%bed_elev)               = var_info('bed_elev'                , 'glacier bed elevation'                                     , 'm'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
   grid_meta(iLookGRID%cell2hru)               = var_info('cell2hru'                , 'HRU id each grid point belongs to'                         , '-'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)   
   grid_meta(iLookGRID%glacierMask)            = var_info('glacierMask'             , 'binary mask of grid that glacier can grow into'            , '-'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
-  grid_meta(iLookGRID%surface)                = var_info('surface'                 , 'glacier surface elevation'                                 , 'm'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
+  grid_meta(iLookGRID%surface_elev)           = var_info('surface_elev'            , 'glacier surface elevation'                                 , 'm'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
   ! -----
   ! * temperature and enthalpy lookup tables...
   ! -------------------------------------------
@@ -839,6 +840,7 @@ subroutine read_output_file(err,message)
   USE globalData, only: mpar_meta               ! data structure for local parameter metadata
   USE globalData, only: bpar_meta               ! data structure for basin parameter metadata
   USE globalData, only: bvar_meta               ! data structure for basin model variable metadata
+  USE globalData, only: grid_meta               ! data structure for grid metadata
   USE globalData, only: indx_meta               ! data structure for index metadata
   USE globalData, only: prog_meta               ! data structure for local prognostic (state) variables
   USE globalData, only: diag_meta               ! data structure for local diagnostic variables
@@ -975,7 +977,7 @@ subroutine read_output_file(err,message)
 
     ! process time-varying variables
     select case(trim(structName))
-      case('indx','forc','prog','diag','flux','bvar','deriv')
+      case('indx','forc','prog','diag','flux','bvar','deriv','grid')
 
         ! * ensure that the frequency index exists for time varying variables
         if(nWords<freqIndex)then
@@ -1079,7 +1081,7 @@ subroutine read_output_file(err,message)
       case('attr' ); attr_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; attr_meta(vDex)%varDesire=.true.   ! local attributes
       case('type' ); type_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; type_meta(vDex)%varDesire=.true.   ! local classification
       case('mpar' ); mpar_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; mpar_meta(vDex)%varDesire=.true.   ! model parameters
-
+      
       ! index structures -- can only be output at the model time step
       case('indx' ); indx_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; indx_meta(vDex)%varDesire=.true.
       if(iFreq/=iLookFREQ%timestep)then
@@ -1095,6 +1097,7 @@ subroutine read_output_file(err,message)
       case('flux' ); call popStat(flux_meta(vDex) , iFreq, iStat, err, cmessage)    ! model fluxes
       case('bvar' ); call popStat(bvar_meta(vDex) , iFreq, iStat, err, cmessage)    ! basin variables
       case('deriv'); call popStat(deriv_meta(vDex), iFreq, iStat, err, cmessage)    ! model derivs
+      case('grid' ); call popStat(grid_meta(vDex), iFreq, iStat, err, cmessage)    ! model grid data
 
       ! error control
       case default;  err=20;message=trim(message)//'unable to identify lookup structure';return

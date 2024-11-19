@@ -71,7 +71,7 @@ MODULE data_types
  ! ***********************************************************************************************************
  ! define derived type for model variables, including name, description, and units
  type,public :: var_info
-  character(len=64)                      :: varname   = 'empty'           ! variable name
+  character(len=64)                      :: varName   = 'empty'           ! variable name
   character(len=128)                     :: vardesc   = 'empty'           ! variable description
   character(len=64)                      :: varunit   = 'empty'           ! variable units
   integer(i4b)                           :: vartype   = integerMissing    ! variable type
@@ -125,13 +125,18 @@ MODULE data_types
  endtype hru_info
 
  ! glacier info data structure
- type, public :: glac_info
-  integer(i4b)                           :: Nx                            ! number of grid cells in the x-direction
-  integer(i4b)                           :: Ny                            ! number of grid cells in the y-direction
+  type, public :: glac_info
+   integer(i8b)                          :: glac_id                       ! RGI id (non-sequential number) of the glacier (eg region 1 glacier 00001 is 100001)
+  endtype glac_info
+
+ ! grid info data structure
+ type, public :: grid_info
+  integer(i4b)                           :: nx                            ! number of grid cells in the x-direction
+  integer(i4b)                           :: ny                            ! number of grid cells in the y-direction
   real(rkind)                            :: dx                            ! grid cell size in the x-direction
   real(rkind)                            :: dy                            ! grid cell size in the y-direction
-  integer(i4b)                           :: glac_id                       ! RGI id (non-sequential number) of the glacier (eg region 1 glacier 00001 is 100001)
- endtype glac_info
+  integer(i8b)                           :: grid_id                       ! grid id (non-sequential number) of the grid, matches the glac_id if a glacier
+ endtype grid_info
 
  ! define mapping from GRUs to the HRUs, also includes GRU-wide information
  type, public :: gru2hru_map
@@ -140,7 +145,8 @@ MODULE data_types
   integer(i4b)                           :: nWetland                      ! number of wetlands in the basin
   integer(i4b)                           :: hruCount                      ! total number of hrus in the gru
   type(hru_info), allocatable            :: hruInfo(:)                    ! basic information of HRUs within the gru
-  type(glac_info), allocatable           :: glacInfo(:)                   ! basic information of glaciers within the gru
+  type(grid_info), allocatable           :: gridInfo(:)                   ! basic information of grids within the gru
+  type(glac_info), allocatable           :: glacInfo(:)                   ! basic information of glaciers within the gru 
   integer(i4b)                           :: gru_nc                        ! index of gru in the netcdf file
  endtype gru2hru_map
 
@@ -181,21 +187,21 @@ MODULE data_types
 
  ! define derived types to hold grids for each glacier
  ! ** double precision type 
- type, public :: dgrid
-  real(rkind),allocatable                :: grid(:,:)                     ! grid(:,:)
- endtype dgrid
+ type, public :: dlength2
+  real(rkind),allocatable                :: dat2(:,:)                     ! dat2(:,:)
+ endtype dlength2
  ! ** double precision type for a variable number of grid cells; variable length
- type, public :: var_dgrid
-  type(dgrid),allocatable                :: var(:)                        ! var(:)%grid(:,:)
- endtype var_dgrid
+ type, public :: var_dlength2
+  type(dlength2),allocatable             :: var(:)                        ! var(:)%dat2(:,:)
+ endtype var_dlength2
  ! ** double precision type for a variable number of grid cells, glaciers length
- type, public :: glac_dgrid
-  type(var_dgrid),allocatable            :: glac(:)                       ! %glac(:)%var(:)%grid(:,:)
- endtype glac_dgrid
+ type, public :: grid_double
+  type(var_dlength2),allocatable         :: grid(:)                       ! grid(:)%var(:)%dat2(:,:)
+ endtype grid_double
 ! ** full double precision type for a variable number of grid cells
- type, public :: gru_glac_dgrid
-  type(glac_dgrid),allocatable           :: gru(:)                        ! gru(:)%glac(:)%var(:)%grid(:,:)
- endtype gru_glac_dgrid
+ type, public :: gru_grid_double
+  type(grid_double),allocatable          :: gru(:)                        ! gru(:)%grid:)%var(:)%dat2(:,:)
+ endtype gru_grid_double
 
  ! define derived types to hold multivariate data for a single variable (different variables have different length)
  ! NOTE: use derived types here to facilitate adding the "variable" dimension

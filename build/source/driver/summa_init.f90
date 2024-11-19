@@ -144,7 +144,7 @@ subroutine summa_initialize(summa1_struc, err, message)
     ! basin-average structures
     bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)                    -- basin-average parameters
     bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat                -- basin-average variables
-    gridStruct           => summa1_struc%gridStruct          , & ! xgru(:)%glac(:)%var(:)%grid(:,:) -- grid information for each glacier in basin
+    gridStruct           => summa1_struc%gridStruct          , & ! x%gru(:)%grid(:)%var(:)%dat2(:,:)  -- basin grid parameters and variables
 
     ! ancillary data structures
     dparStruct           => summa1_struc%dparStruct          , & ! x%gru(:)%hru(:)%var(:)     -- default model parameters
@@ -251,7 +251,7 @@ subroutine summa_initialize(summa1_struc, err, message)
         case('flux'  ); call allocGlobal(flux_meta,    fluxStruct,    err, cmessage)   ! model fluxes
         case('bpar'  ); call allocGlobal(bpar_meta,    bparStruct,    err, cmessage)   ! basin-average parameters
         case('bvar'  ); call allocGlobal(bvar_meta,    bvarStruct,    err, cmessage)   ! basin-average variables
-        case('grid'  ); call allocGlobal(grid_meta,    gridStruct,    err, cmessage)   ! grid information for each glacier in basin
+        case('grid'  ); call allocGlobal(grid_meta,    gridStruct,    err, cmessage)   ! basin grid parameters and variables
         case('lookup'); call allocGlobal(lookup_meta,  lookupStruct,  err, cmessage)   ! basin-average variables
         case('deriv' ); cycle
         case default; err=20; message='unable to find structure name: '//trim(structInfo(iStruct)%structName)

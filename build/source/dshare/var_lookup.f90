@@ -864,10 +864,10 @@ MODULE var_lookup
  ! ***********************************************************************************************************
  type, public :: iLook_grid
  ! define variables for glacier
-  integer(i4b)    :: bed                     = integerMissing ! bed elevation (m)
+  integer(i4b)    :: bed_elev                = integerMissing ! bed elevation (m)
   integer(i4b)    :: cell2hru                = integerMissing ! cell to HRU mapping (-)
   integer(i4b)    :: glacierMask             = integerMissing ! glacier mask (-)
-  integer(i4b)    :: surface                 = integerMissing ! surface elevation (m)
+  integer(i4b)    :: surface_elev            = integerMissing ! surface elevation (m)
  endtype iLook_grid
 
  ! ***********************************************************************************************************

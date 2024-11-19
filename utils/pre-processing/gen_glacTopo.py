@@ -81,13 +81,13 @@ def writeNC_state_vars_GRU_GRID(nc_out, newVarName, newVarDim1,newVarDim2, newVa
 
     print("adding GRU_GRID data")
     if newVarType=='i4' or newVarType=='i8':
-        ncvar = nc_out.createVariable(newVarName, newVarType, (newVarDim1,newVarDim2,'glac','gru',),fill_value='-999')    
+        ncvar = nc_out.createVariable(newVarName, newVarType, (newVarDim1,newVarDim2,'grid','gru',),fill_value='-999')    
     else:
-        ncvar = nc_out.createVariable(newVarName, newVarType, (newVarDim1,newVarDim2,'glac','gru',),fill_value='-999.0')    
+        ncvar = nc_out.createVariable(newVarName, newVarType, (newVarDim1,newVarDim2,'grid','gru',),fill_value='-999.0')    
     ncvar[:,:] = newVarVals   # store data in netcdf file
 
 # write dimensions and dimension variables to netcdf output file
-def writeNC_dims(fn, grus, hru_type, glac, Nx, Ny):    
+def writeNC_dims(fn, grus, hru_type, glac, nx, ny):    
     """ Write <vars> array in netCDF4 file,<fn> and variable of
         <varname> """
     print("writing output file")
@@ -95,9 +95,9 @@ def writeNC_dims(fn, grus, hru_type, glac, Nx, Ny):
 
     # Create dimensions
     dim_gru = nc_out.createDimension('gru', len(grus))
-    dim_ngl = nc_out.createDimension('glac', glac) # max number of glaciers in any GRU
-    dim_nx = nc_out.createDimension('xgrid', Nx) # max number of cells in glacier bed
-    dim_ny = nc_out.createDimension('ygrid', Ny) # max number of cells in glacier bed
+    dim_ngl = nc_out.createDimension('grid', glac) # max number of glaciers in any GRU
+    dim_nx = nc_out.createDimension('xgrid', nx) # max number of cells in glacier bed
+    dim_ny = nc_out.createDimension('ygrid', ny) # max number of cells in glacier bed
 
     # --- Create HRU ID variable (can be either int or string)
     if hru_type == 'str':
@@ -189,25 +189,25 @@ def make_base_elevation(height_file,widehead_use,dy,dx,max_elev,min_elev,y_max,x
         head_x_max = x_max # set these equal if no widehead
 
     # Make the grid
-    Ny = int(np.ceil(y_max/dy))
+    ny = int(np.ceil(y_max/dy))
     dly=dy*dx
-    y = np.arange(0.5, Ny + 0.5, 1)*dy
+    y = np.arange(0.5, ny + 0.5, 1)*dy
 
-    Nx = int(np.ceil(x_max/dx))
-    if widehead>0.: Nx = int(np.ceil(head_x_max/dx))
-    x = np.arange(0.5, Nx+0.5, 1)*dx
+    nx = int(np.ceil(x_max/dx))
+    if widehead>0.: nx = int(np.ceil(head_x_max/dx))
+    x = np.arange(0.5, nx+0.5, 1)*dx
 
     # Bed array initialize
-    B = np.zeros((Nx,Ny)) 
-    glacierMask = np.ones((Nx, Ny), dtype=bool) # glacier mask of True values
+    B = np.zeros((nx,ny)) 
+    glacierMask = np.ones((nx, ny), dtype=bool) # glacier mask of True values
     ym, xm = np.meshgrid(y, x) # meshgrid of y and x
 
     # elevation[m] of constant slope bedrock at the flowline grid points
-    slope_h = np.linspace(max_elev,min_elev,Ny) 
+    slope_h = np.linspace(max_elev,min_elev,ny) 
 
     # specify the bed elevation at each grid point
     if bed_shape == "constant" or bed_shape == "cliff":
-        B = np.tile(slope_h, (Nx, 1))
+        B = np.tile(slope_h, (nx, 1))
         if bed_shape == "cliff":
             icliff = int(upcliff/dy)
             B[:, icliff:] -= cliff_hgt
@@ -224,7 +224,7 @@ def make_base_elevation(height_file,widehead_use,dy,dx,max_elev,min_elev,y_max,x
         base = np.abs(x - x0_max/2.)
         B = shape*(base[:,np.newaxis]**2.) + slope_h[np.newaxis,:]
         
-    x_flow = int(Nx/2.) #if odd Nx, this will be center FD coordinate, otherwise will not be center
+    x_flow = int(nx/2.) #if odd nx, this will be center FD coordinate, otherwise will not be center
     #bed_flow = B[x_flow]
 
     # cut off bed if out of bounds for plotting and for MB calculations
@@ -250,7 +250,7 @@ def make_base_elevation(height_file,widehead_use,dy,dx,max_elev,min_elev,y_max,x
     area = np.sum(np.where(H>0, dly, 0))*1.e-6 # glacier area km2
     volume = np.sum(np.where(H>0, H*dly, 0))*1.e-9 # glacier volume km3
 
-    return Nx, Ny, B, S, glacierMask, area, volume
+    return nx, ny, B, S, glacierMask, area, volume
 
 
 ############################################
@@ -313,9 +313,9 @@ if __name__ == '__main__':
     height_file = '/Users/amedin/Research/USask/GlacierPython/my_code/mymodel_height_linear100.npz' # 'none' if no surface height file
     totArea = np.zeros(nOutPolygonsGRU, dtype='f8')
     nGlacier = np.zeros(nOutPolygonsGRU, dtype='i4')
-    glacId = np.zeros((1, glac, nOutPolygonsGRU), dtype='i8')
-    Nx = np.zeros((1, glac, nOutPolygonsGRU), dtype='i4')
-    Ny = np.zeros((1, glac, nOutPolygonsGRU), dtype='i4')
+    gridId = np.zeros((1, glac, nOutPolygonsGRU), dtype='i8')
+    nx = np.zeros((1, glac, nOutPolygonsGRU), dtype='i4')
+    ny = np.zeros((1, glac, nOutPolygonsGRU), dtype='i4')
     dx = np.zeros((1, glac, nOutPolygonsGRU), dtype='f8')
     dy = np.zeros((1, glac, nOutPolygonsGRU), dtype='f8')
     debris_thick = np.zeros((1, glac, nOutPolygonsGRU), dtype='f8')
@@ -353,7 +353,7 @@ if __name__ == '__main__':
             if j==0:
                 #   these numbers are from Wernike Glacier, Alaska
                 RGI_ID = 'RGI60-01.00004'
-                glacId0 = int(RGI_ID.split('-')[1].split('.')[0]+RGI_ID.split('-')[1].split('.')[1])
+                gridId0 = int(RGI_ID.split('-')[1].split('.')[0]+RGI_ID.split('-')[1].split('.')[1])
                 #area_km2 = 129.1 # km^2, glacier area
                 max_elev = 2776.3 # meters, max elevation of glacier (bed at y=0) 
                 min_elev = 136.8 # meters, min elevation of glacier (bed at y=y_max)
@@ -371,7 +371,7 @@ if __name__ == '__main__':
             if j>=1:
                 #   these numbers are from Van Cleve Glacier, Alaska
                 RGI_ID = 'RGI60-01.00005'
-                glacId0 = int(RGI_ID.split('-')[1].split('.')[0]+RGI_ID.split('-')[1].split('.')[1])
+                gridId0 = int(RGI_ID.split('-')[1].split('.')[0]+RGI_ID.split('-')[1].split('.')[1])
                 #area_km2 = 47.7 # km^2, glacier area
                 max_elev = 2290.1 # meters, max elevation of glacier (bed at y=0)
                 min_elev =309.7 # meters, min elevation of glacier (bed at y=y_max)
@@ -380,45 +380,45 @@ if __name__ == '__main__':
                 dy0 = y_max/dim_ny        # DEM grid spacing down glacier, default 100m
                 dx0 = x_max/dim_nx        # DEM grid spacing across glacier, default 25m
                 debris_m = 0.15 # if debris covered, need to add a debris thickness
-                AAR = 0.5 # acculation area ratio, percent of glacier area that is accumulation area
+                AAR = 0.5 # acculation area ratiox, percent of glacier area that is accumulation area
                 stage = 0.3 # percent of ablation area that is debris covered
             
-            Nx0, Ny0, B0, S0, glacierMask0, area_km2, volume = make_base_elevation(height_file,widehead_use,dy0,dx0,max_elev,min_elev,y_max,x_max)
+            nx0, ny0, B0, S0, glacierMask0, area_km2, volume = make_base_elevation(height_file,widehead_use,dy0,dx0,max_elev,min_elev,y_max,x_max)
 
             # need to define each grid cell to an hruID "cell2hruId", 
             # grid cells have vars X,Y coordinates, B, S, glacierMask, and cell2hruId, (dim glacierID, dim gruID) xxx[:nCells,j,i]
-            glacId[0,j,i] = glacId0
-            Nx[0,j,i] = Nx0
-            Ny[0,j,i] = Ny0
+            gridId[0,j,i] = gridId0
+            nx[0,j,i] = nx0
+            ny[0,j,i] = ny0
             dy[0,j,i] = dy0
             dx[0,j,i] = dx0
-            B[:Ny0,:Nx0,j,i] = B0.transpose()
-            S[:Ny0,:Nx0,j,i] = S0.transpose()
+            B[:ny0,:nx0,j,i] = B0.transpose()
+            S[:ny0,:nx0,j,i] = S0.transpose()
             debris_thick[0,j,i] = debris_m
             AAR_frac[0,j,i] = AAR
             stage_frac[0,j,i] = stage
-            glacierMask[:Ny0,:Nx0,j,i] = np.where(glacierMask0.transpose(), 1, glacierMask[:Ny0,:Nx0, j, i])
+            glacierMask[:ny0,:nx0,j,i] = np.where(glacierMask0.transpose(), 1, glacierMask[:ny0,:nx0, j, i])
             if nOutPolygonsGRU==nOutPolygonsHRU:
-                cell2hruId[:Ny0,:Nx0,j,i] = hru2gru[hru2gru==g] 
+                cell2hruId[:ny0,:nx0,j,i] = hru2gru[hru2gru==g] 
             else:
                 sys.exit("ERROR, nOutPolygonsGRU must equal nOutPolygonsHRU or need to define cell2hruId")
 
     writeNC_state_vars_GRU(nc_out, 'nGlacier', 'i4', nGlacier)
-    writeNC_state_vars_GRU_VEC(nc_out, 'glacId', 'glac', 'i8', glacId)
-    writeNC_state_vars_GRU_VEC(nc_out, 'Nx', 'glac', 'i4', Nx)
-    writeNC_state_vars_GRU_VEC(nc_out, 'Ny', 'glac', 'i4', Ny)
-    writeNC_state_vars_GRU_VEC(nc_out, 'dy', 'glac', 'f8', dy)
-    writeNC_state_vars_GRU_VEC(nc_out, 'dx', 'glac', 'f8', dx)
-    writeNC_state_vars_GRU_VEC(nc_out, 'debris_thick_m', 'glac', 'f8', debris_thick)    # not needed for SUMMA attributes, but need for layer setup
-    writeNC_state_vars_GRU_VEC(nc_out, 'stage', 'glac', 'f8', stage_frac)               # not needed for SUMMA attributes, but need for domain setup
-    writeNC_state_vars_GRU_GRID(nc_out, 'bed_elev_m','ygrid','xgrid','f8', B)
+    writeNC_state_vars_GRU_VEC(nc_out, 'gridId', 'grid', 'i8', gridId)
+    writeNC_state_vars_GRU_VEC(nc_out, 'nx', 'grid', 'i4', nx)
+    writeNC_state_vars_GRU_VEC(nc_out, 'ny', 'grid', 'i4', ny)
+    writeNC_state_vars_GRU_VEC(nc_out, 'dy', 'grid', 'f8', dy)
+    writeNC_state_vars_GRU_VEC(nc_out, 'dx', 'grid', 'f8', dx)
+    writeNC_state_vars_GRU_VEC(nc_out, 'debris_thick', 'grid', 'f8', debris_thick)    # not needed for SUMMA attributes, but need for layer setup
+    writeNC_state_vars_GRU_VEC(nc_out, 'stage', 'grid', 'f8', stage_frac)               # not needed for SUMMA attributes, but need for domain setup
+    writeNC_state_vars_GRU_GRID(nc_out, 'bed_elev','ygrid','xgrid','f8', B)
     writeNC_state_vars_GRU_GRID(nc_out, 'glacierMask','ygrid','xgrid','i4', glacierMask)
     writeNC_state_vars_GRU_GRID(nc_out, 'cell2hruId','ygrid','xgrid','i8', cell2hruId)
 
     # cells with S above median elevation are accumulation area, below are ablation area
-    writeNC_state_vars_GRU_VEC(nc_outS, 'glacId', 'glac', 'i8', glacId)
-    writeNC_state_vars_GRU_VEC(nc_outS, 'AAR', 'glac', 'f8', AAR_frac)      # not needed for SUMMA initial conditions, but need to calculate initial HRU area
-    writeNC_state_vars_GRU_GRID(nc_outS, 'surface_elev_m','ygrid','xgrid','f8', S)
+    writeNC_state_vars_GRU_VEC(nc_outS, 'gridId', 'grid', 'i8', gridId)
+    writeNC_state_vars_GRU_VEC(nc_outS, 'AAR', 'grid', 'f8', AAR_frac)      # not needed for SUMMA initial conditions, but need to calculate initial HRU area
+    writeNC_state_vars_GRU_GRID(nc_outS, 'surface_elev','ygrid','xgrid','f8', S)
 
     nc_out.close()
     nc_outS.close()

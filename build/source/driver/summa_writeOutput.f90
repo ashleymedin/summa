@@ -151,7 +151,7 @@ contains
   diagStruct           => summa1_struc%diagStruct  , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model diagnostic variables
   fluxStruct           => summa1_struc%fluxStruct  , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model fluxes
   bvarStruct           => summa1_struc%bvarStruct  , & ! x%gru(:)%var(:)%dat               -- basin-average variables
-  gridStruct           => summa1_struc%gridStruct  , & ! xgru(:)%glac(:)%var(:)%grid(:,:) -- grid information for each glacier in basin
+  gridStruct           => summa1_struc%gridStruct  , & ! x%gru(:)%grid(:)%var(:)%dat2(:,:) -- basin grid parameters and variables
 
   ! miscellaneous variables
   nGRU                 => summa1_struc%nGRU        , & ! number of grouped response units

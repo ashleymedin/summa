@@ -66,6 +66,7 @@ MODULE globalData
   real(rkind),parameter,public                :: quadMissing    = nr_quadMissing    ! (from nrtype) missing quadruple precision number
   real(rkind),parameter,public                :: realMissing    = nr_realMissing    ! (from nrtype) missing double precision number
   integer(i4b),parameter,public               :: integerMissing = nr_integerMissing ! (from nrtype) missing integer
+  integer(i4b),parameter,public               :: int8Missing    = nr_int8Missing    ! (from nrtype) missing 8-bit integer
   ! define run modes
   integer(i4b),parameter,public               :: iRunModeFull=1                     ! named variable defining running mode as full run (all GRUs)
   integer(i4b),parameter,public               :: iRunModeGRU=2                      ! named variable defining running mode as GRU-parallelization run (GRU subset)
@@ -127,7 +128,7 @@ MODULE globalData
   ! define algorithmic control parameters
   real(rkind),parameter,public                :: dx = 1.e-8_rkind                   ! finite difference increment
   ! define summary information on all data structures
-  integer(i4b),parameter                      :: nStruct=14                         ! number of data structures
+  integer(i4b),parameter                      :: nStruct=15                         ! number of data structures
   type(struct_info),parameter,public,dimension(nStruct) :: structInfo=(/&
                    struct_info('time',  'TIME' , maxvarTime ), &                    ! the time data structure
                    struct_info('forc',  'FORCE', maxvarForc ), &                    ! the forcing data structure

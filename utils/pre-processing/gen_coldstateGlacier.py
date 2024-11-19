@@ -61,25 +61,25 @@ def getOutputPolyIDs(nc_file):
 def getOutputGlac_bed(nc_file):
     nGlacier  = getNetCDFData(nc_file, 'nGlacier')
     gruIDs = getNetCDFData(nc_file, 'gruId')
-    glacIDs  = getNetCDFData(nc_file, 'glacId')
-    Nx = getNetCDFData(nc_file, 'Nx')
-    Ny = getNetCDFData(nc_file, 'Ny')
+    gridIDs  = getNetCDFData(nc_file, 'gridId')
+    nx = getNetCDFData(nc_file, 'nx')
+    ny = getNetCDFData(nc_file, 'ny')
     dx  = getNetCDFData(nc_file, 'dx')
     dy  = getNetCDFData(nc_file, 'dy')
     cell2hruId  = getNetCDFData(nc_file, 'cell2hruId')
-    bed_elev_m  = getNetCDFData(nc_file, 'bed_elev_m')
-    debris_thick_m  = getNetCDFData(nc_file, 'debris_thick_m')
+    bed_elev  = getNetCDFData(nc_file, 'bed_elev')
+    debris_thick  = getNetCDFData(nc_file, 'debris_thick')
     stage = getNetCDFData(nc_file, 'stage')
     print("read data from glacier bed file")
-    return nGlacier,gruIDs,glacIDs,Nx,Ny,dx,dy,cell2hruId,bed_elev_m,debris_thick_m,stage
+    return nGlacier,gruIDs,gridIDs,nx,ny,dx,dy,cell2hruId,bed_elev,debris_thick,stage
 
 def getOutputGlac_surf(nc_file):
     gruIDs = getNetCDFData(nc_file, 'gruId')
-    glacIDs  = getNetCDFData(nc_file, 'glacId')
+    gridIDs  = getNetCDFData(nc_file, 'gridId')
     AAR = getNetCDFData(nc_file, 'AAR')
-    surface_elev_m  = getNetCDFData(nc_file, 'surface_elev_m')
+    surface_elev  = getNetCDFData(nc_file, 'surface_elev')
     print("read data from glacier surface file")
-    return gruIDs,glacIDs,AAR,surface_elev_m
+    return gruIDs,gridIDs,AAR,surface_elev
 
 # write gru variables to netcdf output file
 def writeNC_state_vars_GRU(nc_out, newVarName, newVarType, newVarVals):
@@ -104,7 +104,10 @@ def writeNC_state_vars_GRU_VEC(nc_out, newVarName, newVarDim, newVarType, newVar
         <varname> """
 
     print("adding GRU_VEC data")
-    ncvar = nc_out.createVariable(newVarName, newVarType, (newVarDim,'gru',),fill_value='-999.0')    
+    if newVarType=='i4' or newVarType=='i8':
+        ncvar = nc_out.createVariable(newVarName, newVarType, (newVarDim,'gru',),fill_value='-999')  
+    else:
+        ncvar = nc_out.createVariable(newVarName, newVarType, (newVarDim,'gru',),fill_value='-999.0')  
     ncvar[:] = newVarVals   # store data in netcdf file
 
 # write dimensions and dimension variables to netcdf output file
@@ -207,8 +210,8 @@ if __name__ == '__main__':
     if glac_dom:
         nc_glacier_name = nc_attribute_name[:-3] + '_glacBedTopo.nc'
         nc_glacierS_name = nc_out_name0[:-3] + '_glacSurfTopo.nc'
-        nGlacier, gruIDs2, glacIDs, Nx, Ny, dx, dy, cell2hruId, bed_elev_m, debris_thick_m, stage = getOutputGlac_bed(nc_glacier_name)
-        gruIDs3, glacIDs2, AAR, surface_elev_m = getOutputGlac_surf(nc_glacierS_name)
+        nGlacier, gruIDs2, gridIDs, nx, ny, dx, dy, cell2hruId, bed_elev, debris_thick0, stage = getOutputGlac_bed(nc_glacier_name)
+        gruIDs3, gridIDs2, AAR, surface_elev = getOutputGlac_surf(nc_glacierS_name)
         glac = max(nGlacier)
 
         # Mapping to gruIDs
@@ -220,27 +223,27 @@ if __name__ == '__main__':
 
         # Remap all variables to match gruIDs
         nGlacier = nGlacier[gruIDs2_mapped]
-        glacIDs  = glacIDs[:,gruIDs2_mapped]
-        Nx = Nx[:,gruIDs2_mapped]
-        Ny = Ny[:,gruIDs2_mapped]
+        gridIDs  = gridIDs[:,gruIDs2_mapped]
+        nx = nx[:,gruIDs2_mapped]
+        ny = ny[:,gruIDs2_mapped]
         dx = dx[:,gruIDs2_mapped]
         dy = dy[:,gruIDs2_mapped]
-        cell2hruId     = cell2hruId[:,:,:,gruIDs2_mapped]
-        bed_elev_m     = bed_elev_m[:,:,:,gruIDs2_mapped]
-        debris_thick_m = debris_thick_m[:,gruIDs2_mapped]
-        stage          = stage[:,gruIDs2_mapped]
-        glacIDs2       = glacIDs2[:,gruIDs3_mapped]
-        AAR            = AAR[:,gruIDs3_mapped]
-        surface_elev_m = surface_elev_m[:,:,:,gruIDs3_mapped]
+        cell2hruId   = cell2hruId[:,:,:,gruIDs2_mapped]
+        bed_elev     = bed_elev[:,:,:,gruIDs2_mapped]
+        debris_thick0 = debris_thick0[:,gruIDs2_mapped]
+        stage        = stage[:,gruIDs2_mapped]
+        gridIDs2     = gridIDs2[:,gruIDs3_mapped]
+        AAR          = AAR[:,gruIDs3_mapped]
+        surface_elev = surface_elev[:,:,:,gruIDs3_mapped]
 
-        # Remap glacIDs2 to glacIDs for each gru
+        # Remap gridIDs2 to gridIDs for each gru
         for i, g in enumerate(gruIDs):
-            glacIDs_map = {glac: j for j, glac in enumerate(glacIDs[:,i])}
-            glacIDs2_mapped = np.array([glacIDs_map[glac] for glac in glacIDs2[:,i]])
+            gridIDs_map = {glac: j for j, glac in enumerate(gridIDs[:,i])}
+            gridIDs2_mapped = np.array([gridIDs_map[glac] for glac in gridIDs2[:,i]])
 
-            # Remap all variables to match glacIDs
-            AAR[:,i] = AAR[glacIDs2_mapped,i]
-            surface_elev_m[:,:,:,i] = surface_elev_m[:,:,glacIDs2_mapped,i]
+            # Remap all variables to match gridIDs
+            AAR[:,i] = AAR[gridIDs2_mapped,i]
+            surface_elev[:,:,:,i] = surface_elev[:,:,gridIDs2_mapped,i]
 
     else:
         nGlacier = np.zeros(nOutPolygonsGRU, dtype='i4')
@@ -302,9 +305,9 @@ if __name__ == '__main__':
         totVolume = np.zeros(nOutPolygonsGRU, dtype='f8')
         for i,g in enumerate(gruIDs):
             for j in range(nGlacier[i]):
-                bed_elev_m0 = bed_elev_m[:,:,j,i]
-                surface_elev_m0 = surface_elev_m[:,:,j,i]
-                hgt = surface_elev_m0 - bed_elev_m0
+                bed_elev0 = bed_elev[:,:,j,i]
+                surface_elev0 = surface_elev[:,:,j,i]
+                hgt = surface_elev0 - bed_elev0
                 cell2hruId0 = cell2hruId[:,:,j,i]
                 dly = dy[j,i]*dx[j,i]
                 
@@ -317,30 +320,30 @@ if __name__ == '__main__':
 
                 # calculate the ELA
                 # Sort the elevations and corresponding areas from lowest elev to highest
-                sorted_indices = np.argsort(surface_elev_m0[hgt>0].flatten())
-                sorted_elevations = surface_elev_m0[hgt>0].flatten()[sorted_indices]
+                sorted_indices = np.argsort(surface_elev0[hgt>0].flatten())
+                sorted_elevations = surface_elev0[hgt>0].flatten()[sorted_indices]
                 # Initialize the accumulated area
                 accumulated_area = 0
-                ELA_elev_m = -999.0
+                ELA_elev = -999.0
                 # Loop through the sorted elevations and areas
                 for idy in range(len(sorted_elevations)):
                     accumulated_area += dly
                     if accumulated_area >= ablArea[j, i]:
-                        ELA_elev_m = sorted_elevations[idy]
-                        print('Glacier ', glacIDs[j, i], ' ELA, area, vol:', ELA_elev_m, glac_area, glac_vol)
+                        ELA_elev = sorted_elevations[idy]
+                        print('Glacier ', gridIDs[j, i], ' ELA, area, vol:', ELA_elev, glac_area, glac_vol)
                         break
-                if ELA_elev_m == -999.:
-                    print('Glacier ', glacIDs[j,i],' ELA not found')
+                if ELA_elev == -999.:
+                    print('Glacier ', gridIDs[j,i],' ELA not found')
                 
                 # calculate area and elevation by HRU
                 for k,h in enumerate(outPolyIDs):
                     if hru2gru[k] == g:
-                        debris_thick[k] = debris_thick[k] + debris_thick_m[j,i]
-                        count_thick[k] = count_thick[k] + 1
-                        glacAbl_frac[k] = glacAbl_frac[k] + np.sum(np.where((cell2hruId0==h) & (hgt>0) & (surface_elev_m0 <ELA_elev_m), dly, 0))/hru_area[k]   
-                        glacAcc_frac[k] = glacAcc_frac[k] + np.sum(np.where((cell2hruId0==h) & (hgt>0) & (surface_elev_m0>=ELA_elev_m), dly, 0))/hru_area[k]
-                        glacAbl_elev[k] = glacAbl_elev[k] + surface_elev_m0[(cell2hruId0==h) & (hgt>0) & (surface_elev_m0< ELA_elev_m)].mean()/nGlacier[i]
-                        glacAcc_elev[k] = glacAcc_elev[k] + surface_elev_m0[(cell2hruId0==h) & (hgt>0) & (surface_elev_m0>=ELA_elev_m)].mean()/nGlacier[i]
+                        debris_thick[k] = debris_thick[k] + debris_thick0[j,i]
+                        count_thick[k]  = count_thick[k] + 1
+                        glacAbl_frac[k] = glacAbl_frac[k] + np.sum(np.where((cell2hruId0==h) & (hgt>0) & (surface_elev0 <ELA_elev), dly, 0))/hru_area[k]   
+                        glacAcc_frac[k] = glacAcc_frac[k] + np.sum(np.where((cell2hruId0==h) & (hgt>0) & (surface_elev0>=ELA_elev), dly, 0))/hru_area[k]
+                        glacAbl_elev[k] = glacAbl_elev[k] + surface_elev0[(cell2hruId0==h) & (hgt>0) & (surface_elev0< ELA_elev)].mean()/nGlacier[i]
+                        glacAcc_elev[k] = glacAcc_elev[k] + surface_elev0[(cell2hruId0==h) & (hgt>0) & (surface_elev0>=ELA_elev)].mean()/nGlacier[i]
                         glacDeb_frac[k] = glacAbl_frac[k]*stage[j,i]
                         glacDeb_elev[k] = glacAbl_elev[k]
                         glacNoDeb_frac[k] = glacAbl_frac[k]*(1.0-stage[j,i])
@@ -482,6 +485,7 @@ if __name__ == '__main__':
     # glacier area
     writeNC_state_vars_GRU_VEC(nc_out, 'glacAblArea', 'glac', 'f8', ablArea)  
     writeNC_state_vars_GRU_VEC(nc_out, 'glacAccArea', 'glac', 'f8', accArea)
+    writeNC_state_vars_GRU_VEC(nc_out, 'glacId', 'glac', 'i8', gridIDs)
 
     # glacier volume
     writeNC_state_vars_GRU(nc_out, 'basin__GlacierStorage', 'f8', totVolume*0.9167)     # GlacierStorage in Gt

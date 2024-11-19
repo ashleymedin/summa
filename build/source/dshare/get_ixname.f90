@@ -1054,10 +1054,10 @@ contains
    ! get the index of the named variables
    select case(trim(varName))
     ! variables for glacier
-    case('bed'                   ); get_ixGrid = iLookGRID%bed                      ! bed elevation (m)
+    case('bed_elev'              ); get_ixGrid = iLookGRID%bed_elev                 ! bed elevation (m)
     case('cell2hru'              ); get_ixGrid = iLookGRID%cell2hru                 ! mapping from grid cells to HRUs
     case('glacierMask'           ); get_ixGrid = iLookGRID%glacierMask              ! glacier mask
-    case('surface'               ); get_ixGrid = iLookGRID%surface                  ! glacier surface elevation (m)
+    case('surface_elev'          ); get_ixGrid = iLookGRID%surface_elev             ! glacier surface elevation (m)
     ! get to here if cannot find the variable
     case default
      get_ixGrid = integerMissing

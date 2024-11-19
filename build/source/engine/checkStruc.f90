@@ -39,7 +39,7 @@ contains
  USE globalData,only:time_meta,forc_meta,attr_meta,type_meta,id_meta  ! metadata structures
  USE globalData,only:prog_meta,diag_meta,flux_meta,deriv_meta         ! metadata structures
  USE globalData,only:mpar_meta,indx_meta                              ! metadata structures
- USE globalData,only:bpar_meta,bvar_meta                              ! metadata structures
+ USE globalData,only:bpar_meta,bvar_meta,grid_meta                    ! metadata structures
  USE globalData,only:lookup_meta                                      ! metadata structures
   ! named variables defining strructure elements
  USE var_lookup,only:iLookTIME,iLookFORCE,iLookATTR,iLookTYPE,iLookID ! named variables showing the elements of each data structure

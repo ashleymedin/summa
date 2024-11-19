@@ -118,9 +118,9 @@ contains
   fluxStruct           => summa1_struc%fluxStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model fluxes
   attrStruct           => summa1_struc%attrStruct          , & ! x%gru(:)%hru(:)%var(:)%dat        -- model attributes
   ! basin-average structures
-  bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)            -- basin-average parameters
-  bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat        -- basin-average variables
-  gridStruct           => summa1_struc%gridStruct          , & ! xgru(:)%glac(:)%var(:)%grid(:,:) -- grid information for each glacier in basin
+  bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)                   -- basin-average parameters
+  bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat               -- basin-average variables
+  gridStruct           => summa1_struc%gridStruct          , & ! x%gru(:)%grid(:)%var(:)%dat2(:,:) -- basin grid parameters and variables
   ! miscellaneous variables
   dt_init              => summa1_struc%dt_init             , & ! used to initialize the length of the sub-step for each HRU
   nGRU                 => summa1_struc%nGRU                , & ! number of grouped response units
@@ -170,7 +170,7 @@ contains
   ! read initial conditions
   call read_icondGlac(restartGlacFile,               & ! intent(in):    name of glacier initial conditions file (surface topography)
                       nGRU,                          & ! intent(in):    number of response units
-                      gridStruct,                    & ! intent(inout): grid information for each glacier in basin
+                      gridStruct,                    & ! intent(inout): basin grid parameters and variables
                       err,cmessage)                    ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 

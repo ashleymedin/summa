@@ -48,10 +48,10 @@ USE data_types,only:&
                     hru_dom_intVec,    & ! x%hru(:)%dom(:)%var(:)%dat (i4b)
                     hru_dom_double,    & ! x%hru(:)%dom(:)%var(:)     (rkind)
                     hru_dom_doubleVec, & ! x%hru(:)%dom(:)%var(:)%dat (rkind)
-                    ! hru+dom+ z dimension
+                    ! hru+dom+z dimension
                     hru_dom_z_vLookup, & ! x%hru(:)%z(:)%var(:)%lookup(:)
-                    ! glac+grid dimension
-                    glac_v_grid       ! xgru(:)%glac(:)%var(:)%grid(:,:) (dp)
+                    ! grid dimension
+                    grid_double       ! x%grid(:)%var(:)%dat2(:,:) (dp)
         
 
 ! provide access to the named variables that describe elements of parameter structures
@@ -145,7 +145,7 @@ subroutine run_oneGRU(&
   type(hru_dom_doubleVec) , intent(inout) :: diagHRU              ! x%hru(:)%dom(:)%var(:)%dat   -- model diagnostic variables
   type(hru_dom_doubleVec) , intent(inout) :: fluxHRU              ! x%hru(:)%dom(:)%var(:)%dat   -- model fluxes
   type(var_dlength)       , intent(inout) :: bvarData             ! x%var(:)%dat                 -- basin-average variables
-  type(glac_v_grid)     , intent(inout) :: gridData             ! x%glac(:)%var(:)%grid(:,:) -- basin glacier grids, may be null
+  type(grid_double)       , intent(inout) :: gridData             ! x%grid(:)%var(:)%dat2(:,:)   -- basin grids, currently used for glaciers only
   ! error control
   integer(i4b)            , intent(out)   :: err                  ! error code
   character(*)            , intent(out)   :: message              ! error message
@@ -354,30 +354,29 @@ subroutine run_oneGRU(&
       end associate
     end do ! (looping through domains)
 
-    ! if a year passed from last glacier area update, collect fluxes so that the glacier area can be updated
-    if (updateGlacArea) then
-      nDOM_glacGRU = 0 ! initialize number of glacier domains in the GRU
-      do iHRU=1,gruInfo%hruCount
-        do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
-          if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAbl)then
-            nDOM_glacGRU = nDOM_glacGRU + 1
-            glac_hru(nDOM_glacGRU) = iHRU
-            if(progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)>0._rkind)then 
-              glac_elev(nDOM_glacGRU) = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1)
-              ! placeholder line, add actual kg/m2 of glacier storage instead of SWE
-              GWE_delta(nDOM_glacGRU) = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarGWE_delta)%dat(1) !- progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSWE_yrend)%dat(1) 
-            else
-              glac_elev(nDOM_glacGRU) = realMissing
-              GWE_delta(nDOM_glacGRU) = realMissing
-            endif
-          endif
-        end do
-      end do
-    endif
-
     ! averaging more fluxes (and/or states) can be added to this section as desired
-
   end do  ! (looping through HRUs)
+
+  ! if a year passed from last glacier area update, collect fluxes so that the glacier area can be updated
+  if (updateGlacArea) then
+    nDOM_glacGRU = 0 ! initialize number of glacier domains in the GRU
+    do iHRU=1,gruInfo%hruCount
+      do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
+        if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAbl)then
+          nDOM_glacGRU = nDOM_glacGRU + 1
+          glac_hru(nDOM_glacGRU) = iHRU
+          if(progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)>0._rkind)then 
+            glac_elev(nDOM_glacGRU) = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1)
+            ! placeholder line, add actual kg/m2 of glacier storage instead of SWE
+            GWE_delta(nDOM_glacGRU) = 0.0 !progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarGWE_delta)%dat(1) !- progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSWE_yrend)%dat(1) 
+          else
+            glac_elev(nDOM_glacGRU) = realMissing
+            GWE_delta(nDOM_glacGRU) = realMissing
+          endif
+        endif
+      end do
+    end do
+  endif
   ! ********** END LOOP THROUGH HRUS **************************************************************************************
   ! lapse glacier fluxes to the basin by routing through each glacier
   call qGlacier(&
@@ -391,7 +390,7 @@ subroutine run_oneGRU(&
                 glacFirnMelt,                                       & ! intent(in):    total melt into firn reservoirs (m s-1)
                 bvarData%var(iLookBVAR%glacAblArea)%dat,            & ! intent(in):    per glacier ablation area (m2)
                 bvarData%var(iLookBVAR%glacAccArea)%dat,            & ! intent(in):    per glacier accumulation area (m2)
-                gru_struc(iGRU)%nGlacier,                           & ! intent(in):    number of glaciers in GRU
+                gruInfo%nGlacier,                                   & ! intent(in):    number of glaciers in GRU
                 ! output
                 bvarData%var(iLookBVAR%glacIceRunoffFuture)%dat,    & ! intent(inout): per glacier ice reservoir runoff in future time steps (m s-1)
                 bvarData%var(iLookBVAR%glacSnowRunoffFuture)%dat,   & ! intent(inout): per glacier snow reservoir runoff in future time steps (m s-1)
@@ -445,9 +444,10 @@ subroutine run_oneGRU(&
                   nDOM_glacGRU,                               & ! intent(in):    number of domains that have GWE
                   glac_hru,                                   & ! intent(in):    HRU index of GWE point
                   ! glacier topography
-                  gru_struc(iGRU)%nGlacier,                   & ! intent(in):    number of glaciers in GRU
-                  gruInfo%glac_info,                          & ! intent(in):    grid cells info in x and y directions by glacier
-                  gridData,                                   & ! intent(inout): elevations on grid for each glacier domain (m)
+                  gruInfo%nGlacier,                           & ! intent(in):    number of glaciers in GRU
+                  gruInfo%glacInfo,                           & ! intent(in):    glacier information for each glacier
+                  gruInfo%gridInfo,                           & ! intent(in):    grid information for each glacier grid
+                  gridData,                                   & ! intent(inout): grid data for each glacier
                   ! mass balance per glacier domain
                   GWE_delta,                                  & ! intent(in):    change in glacier water equivalent (m s-1) in each glacier domain
                   glac_elev,                                  & ! intent(inout): elevation of each glacier domain (m) per HRU
@@ -466,7 +466,7 @@ subroutine run_oneGRU(&
           nDOM_glacGRU = nDOM_glacGRU + 1
           progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1) = glac_elev(nDOM_glacGRU) ! realMissing if no area
           progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) = glac_area(nDOM_glacGRU) ! may be 0
-          progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarGWE_delta)%dat(1) = 0._rkind ! reset
+          !progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarGWE_delta)%dat(1) = 0._rkind ! reset
         end if
       enddo
     enddo

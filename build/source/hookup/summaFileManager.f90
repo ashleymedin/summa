@@ -138,7 +138,7 @@ subroutine summa_SetTimesDirsAndFiles(summaFileManagerIn,err,message)
       case('forcingListFile'    ); FORCING_FILELIST = trim(varEntry)              ! file listing forcing filenames
       case('initConditionFile'  ); MODEL_INITCOND = trim(varEntry)                ! initial conditions file (cold State)
       case('outFilePrefix'      ); OUTPUT_PREFIX = trim(varEntry)                 ! filename root for output files
-      case('bedTopoFile'        ); BASIN_ATTBEDGLAC = trim(varEntry)          ! glacier bed topography file
+      case('bedTopoFile'        ); BASIN_ATTBEDGLAC = trim(varEntry)              ! glacier bed topography file
       case('initGlacierFile'    ); MODEL_INITGLAC = trim(varEntry)                ! glacier initial conditions file (surface topography)
       ! get to here if cannot find the variable
       case default

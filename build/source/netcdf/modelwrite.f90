@@ -73,8 +73,8 @@ USE data_types,only:&
                     gru_hru_dom_double,    & ! x%gru(:)%hru(:)%dom(:)%var(:)     (dp)
                     gru_hru_dom_intVec,    & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat (i4b)
                     gru_hru_dom_doubleVec, & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat (dp)
-                     ! gru+glac+grid dimension
-                    gru_glac_dgrid           ! x%gru(:)%glac(:)%var(:)%grid(:,:) (dp)
+                     ! gru+grid dimension
+                    gru_grid_double           ! x%gru(:)%grid(:)%var(:)%dat2(:,:) (dp)
           
 ! vector lengths
 USE var_lookup, only: maxvarFreq ! number of output frequencies
@@ -503,7 +503,7 @@ contains
  ! external routines
  USE netcdf_util_module,only:nc_file_close  ! close netcdf file
  USE netcdf_util_module,only:nc_file_open   ! open netcdf file
- USE def_output_module,only: write_hru_info ! write HRU information to netcdf file
+ USE def_output_module,only: write_id_info ! write HRU information to netcdf file
  
  implicit none
  ! --------------------------------------------------------------------------------------------------------
@@ -557,7 +557,7 @@ contains
  character(len=32),parameter        :: gruDimName    ='gru'      ! dimension name for GRUs
  character(len=32),parameter        :: domDimName    ='dom'      ! dimension name for DOMs
  character(len=32),parameter        :: tdhDimName    ='tdh'      ! dimension name for time-delay basin variables
- character(len=32),parameter        :: nglDimName    ='glac'     ! dimension name for glaciers variables
+ character(len=32),parameter        :: nglDimName    ='grid'     ! dimension name for grid variables
  character(len=32),parameter        :: scalDimName   ='scalarv'  ! dimension name for scalar data
  character(len=32),parameter        :: specDimName   ='spectral' ! dimension name for spectral bands
  character(len=32),parameter        :: midTotoDimName='midToto'  ! dimension name for layered varaiables
@@ -607,7 +607,7 @@ contains
                       err = nf90_def_dim(ncid,trim(hruDimName)    ,nHRU           ,    hruDimID); message='iCreate[hru]'     ; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(domDimName)    ,maxDOM         ,    domDimID); message='iCreate[dom]'     ; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(tdhDimName)    ,nTimeDelay     ,    tdhDimID); message='iCreate[tdh]'     ; call netcdf_err(err,message); if(err/=0)return
-                      err = nf90_def_dim(ncid,trim(nglDimName)    ,maxGlaciers    ,    nglDimID); message='iCreate[glac]'    ; call netcdf_err(err,message); if(err/=0)return
+                      err = nf90_def_dim(ncid,trim(nglDimName)    ,maxGlaciers    ,    nglDimID); message='iCreate[grid]'    ; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(scalDimName)   ,nScalar        ,   scalDimID); message='iCreate[scalar]'  ; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(specDimName)   ,nSpecBand      ,   specDimID); message='iCreate[spectral]'; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(midTotoDimName),maxLayers      ,midTotoDimID); message='iCreate[midToto]' ; call netcdf_err(err,message); if(err/=0)return
@@ -645,7 +645,7 @@ contains
 
   ! check errors
   if(err/=0)then
-   message=trim(message)//trim(cmessage)//' [variable '//trim(prog_meta(iVar)%varName)//']'
+   message=trim(message)//' [variable '//trim(prog_meta(iVar)%varName)//']'
    return
   end if
 
@@ -777,7 +777,7 @@ contains
  end do  ! iGRU loop
 
  ! write HRU dimension and ID for file
- call write_hru_info(ncid, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+ call write_id_info(ncid, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
  ! close file
  call nc_file_close(ncid,err,cmessage)
@@ -809,7 +809,7 @@ contains
  ! external routines
  USE netcdf_util_module,only:nc_file_close   ! close netcdf file
  USE netcdf_util_module,only:nc_file_open    ! open netcdf file
- USE def_output_module,only: write_glac_info ! write glacier information to netcdf file
+ USE def_output_module,only: write_gridid_info ! write glacier grid information to netcdf file
  
  implicit none
  ! --------------------------------------------------------------------------------------------------------
@@ -817,39 +817,40 @@ contains
  character(len=256),intent(in)          :: filename      ! name of the restart file
  integer(i4b),intent(in)                :: nGRU          ! number of global GRUs
  type(var_info),intent(in)              :: grid_meta     ! grid metadata
- type(gru_glac_dgrid),intent(in)        :: grid_data     ! grid data
+ type(gru_grid_double),intent(in)       :: grid_data     ! grid data
  ! output: error control
  integer(i4b),intent(out)               :: err           ! error code
  character(*),intent(out)               :: message       ! error message
  ! --------------------------------------------------------------------------------------------------------
  ! local variables
- integer(i4b)                       :: ncid          ! netcdf file id
- integer(i4b),dimension(1)          :: ncVarID       ! netcdf variable id, only one variable currently
- integer(i4b),dimension(1)          :: ngdx          ! intermediate array of loop indices
- integer(i4b)                       :: hruDimID      ! variable dimension ID
- integer(i4b)                       :: gruDimID      ! variable dimension ID
- integer(i4b)                       :: nglDimID      ! variable dimension ID
- integer(i4b)                       :: xDimID        ! variable dimension ID
- integer(i4b)                       :: yDimID        ! variable dimension ID
+ integer(i4b)                       :: ncid               ! netcdf file id
+ integer(i4b),dimension(1)          :: ncVarID            ! netcdf variable id, only one variable currently
+ integer(i4b),dimension(1)          :: ngdx               ! intermediate array of loop indices
+ integer(i4b)                       :: hruDimID           ! variable dimension ID
+ integer(i4b)                       :: gruDimID           ! variable dimension ID
+ integer(i4b)                       :: nglDimID           ! variable dimension ID
+ integer(i4b)                       :: xDimID             ! variable dimension ID
+ integer(i4b)                       :: yDimID             ! variable dimension ID
  character(len=32),parameter        :: gruDimName='gru'   ! dimension name for GRUs
- character(len=32),parameter        :: nglDimName='glac'  ! dimension name for glacier variables
+ character(len=32),parameter        :: nglDimName='grid'  ! dimension name for grid variables
  character(len=32),parameter        :: xDimName  ='xgrid' ! dimension name for xgrid
  character(len=32),parameter        :: yDimName  ='ygrid' ! dimension name for ygrid
- integer(i4b)                       :: iGRU          ! index of GRUs
- integer(i4b)                       :: iGlac         ! index of glaciers
- integer(i4b)                       :: i             ! loop index
- integer(i4b)                       :: Nx,Ny         ! grid dimensions
- integer(i4b)                       :: iVar          ! variable index
- integer(i4b)                       :: nGlacier      ! number of glaciers in GRU
- logical(lgt)                       :: okLength      ! flag to check if the vector length is OK
- character(len=256)                 :: cmessage      ! downstream error message
+ integer(i4b)                       :: iGRU               ! index of GRUs
+ integer(i4b)                       :: iGlac              ! index of glaciers
+ integer(i4b)                       :: i                  ! loop index
+ integer(i4b)                       :: nx,ny              ! grid dimensions
+ integer(i4b)                       :: iVar               ! variable index
+ integer(i4b)                       :: nGlacier           ! number of glaciers in GRU
+ logical(lgt)                       :: okLength           ! flag to check if the vector length is OK
+ character(len=256)                 :: cmessage           ! downstream error message
+
  ! --------------------------------------------------------------------------------------------------------
 
  ! initialize error control
  err=0; message='writeRestartGlac/'
 
  ! grid variables
- ngdx = (/iLookGRID%surface/) ! array of desired variable indices, currently only surface elevation
+ ngdx = (/iLookGRID%surface_elev/) ! array of desired variable indices, currently only surface elevation
 
  ! create file
  err = nf90_create(trim(filename),NF90_NETCDF4,ncid)
@@ -857,7 +858,7 @@ contains
 
  ! define dimensions
  err = nf90_def_dim(ncid,trim(gruDimName)    ,nGRU        , gruDimID); message='iCreate[gru]'     ; call netcdf_err(err,message); if(err/=0)return
- err = nf90_def_dim(ncid,trim(nglDimName)    ,maxGlaciers , nglDimID); message='iCreate[glac]'    ; call netcdf_err(err,message); if(err/=0)return
+ err = nf90_def_dim(ncid,trim(nglDimName)    ,maxGlaciers , nglDimID); message='iCreate[grid]'    ; call netcdf_err(err,message); if(err/=0)return
  err = nf90_def_dim(ncid,trim(xDimName)      ,maxGridX    , xDimID);   message='iCreate[xgrid]'   ; call netcdf_err(err,message); if(err/=0)return
  err = nf90_def_dim(ncid,trim(yDimName)      ,maxGridY    , yDimID);   message='iCreate[ygrid]'   ; call netcdf_err(err,message); if(err/=0)return
  ! re-initialize error control
@@ -870,8 +871,8 @@ contains
 
   ! check errors
   if(err/=0)then
-   message=trim(message)//' [variable '//trim(grid_meta(iVar)%varName)//']'
-   return
+    message=trim(message)//' [variable '//trim(grid_meta(iVar)%varName)//']'
+    return
   end if
 
   ! add parameter description
@@ -893,15 +894,21 @@ do iGRU = 1,nGRU
   do iGlac = 1,nGlacier
     do i = 1,size(ngdx)
       iVar = ngdx(i)
-      Nx = gru_struc(iGRU)%glacInfo(iGlac)%Nx
-      Ny = gru_struc(iGRU)%glacInfo(iGlac)%Ny
-      err=nf90_put_var(ncid,ncVarID(i),(/grid_data%gru(iGRU)glac%(iGlac)%var(iVar)%grid/), start=(/iGRU,1,1,1/),count=(/1,nGlacier,Nx,Ny/))
+      nx = gru_struc(iGRU)%gridInfo(iGlac)%nx
+      ny = gru_struc(iGRU)%gridInfo(iGlac)%ny
+      err=nf90_put_var(ncid,ncVarID(i),(/grid_data%gru(iGRU)grid%(iGlac)%var(iVar)%dat2/), start=(/iGRU,1,1,1/),count=(/1,nGlacier,nx,ny/))
+
+      ! error check
+      if (err.ne.0) message=trim(message)//'writing variable:'//trim(grid_meta(iVar)%varName)
+      call netcdf_err(err,message); if (err/=0) return
+      message = 'writeRestartGlac/'
     end do
   end do
+
 end do  ! iGRU loop
 
 ! write Glac dimension and ID for file
-call write_glac_info(ncid, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+call write_gridid_info(ncid, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
 ! close file
 call nc_file_close(ncid,err,cmessage)

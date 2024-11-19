@@ -24,6 +24,7 @@ USE nrtype
 USE globalData,only:gru_struc                              ! gru->hru mapping structure
 USE globalData,only:index_map                              ! hru->gru mapping structure
 USE globalData,only:attr_meta,type_meta,id_meta            ! metadata structures
+USE globalData,only:int8Missing                            ! missing long integer
 
 ! access domain types
 USE globalData,only:upland                                 ! domain type for upland areas
@@ -74,7 +75,7 @@ contains
  integer(i4b),allocatable             :: nGlac_GRU(:)       ! number of glaciers in gru
  integer(i4b),allocatable             :: nWtld_GRU(:)       ! number of wetlands/lakes in gru
  real(rkind),allocatable              :: dx(:,:),dy(:,:)    ! glacier grid information (spacing)
- integer(i4b),allocatable             :: Nx(:,:),Ny(:,:)    ! glacier grid information (size)
+ integer(i4b),allocatable             :: nx(:,:),ny(:,:)    ! glacier grid information (size)
  character(len=256)                   :: cmessage           ! error message for downwind routine
 
  ! Start procedure here
@@ -244,7 +245,6 @@ end subroutine read_dimension
 
  ! io vars
  character(*)                         :: attrFile           ! input filename
- character(*)                         :: attrGlacFile       ! input filename for glacier attributes
  integer(i4b),intent(in)              :: nGRU               ! number of grouped response units
  type(gru_hru_double),intent(inout)   :: attrStruct         ! local attributes for each HRU
  type(gru_hru_int),intent(inout)      :: typeStruct         ! local classification of soil veg etc. for each HRU
@@ -459,7 +459,7 @@ end subroutine read_dimension
  ! ************************************************************************************************
  ! public subroutine read_attrGlac: read information on glacier attributes
  ! ************************************************************************************************
- subroutine read_attrGlac(attrGlacFile,nGRU,err,message)
+ subroutine read_attrGlac(attrGlacFile,nGRU,gridStruct,err,message)
  ! provide access to subroutines
  USE netcdf
  USE netcdf_util_module,only:nc_file_open                   ! open netcdf file
@@ -467,7 +467,7 @@ end subroutine read_dimension
  USE netcdf_util_module,only:netcdf_err                     ! netcdf error handling function
  ! provide access to derived data types
  USE var_lookup,only:iLookGRID                              ! named variables for the glacier grid information
- USE data_types,only:gru_glac_dgrid                         ! x%gru(:)%glac(:)%var(:)%grid(:)     (rkind)
+ USE data_types,only:gru_grid_double                        ! x%gru(:)%grid(:)%var(:)%dat2(:,:)     (rkind)
  USE get_ixname_module,only:get_ixGrid                      ! access function to find index of elements in structure
 
  implicit none
@@ -475,27 +475,30 @@ end subroutine read_dimension
  ! io vars
  character(*)                         :: attrGlacFile         ! input filename for glacier attributes
  integer(i4b),intent(in)              :: nGRU                 ! number of grouped response units
- type(gru_glac_dgrid),intent(inout)   :: gridStruct           ! glacier grid information
+ type(gru_grid_double),intent(inout)  :: gridStruct           ! glacier grid information
  integer(i4b),intent(out)             :: err                  ! error code
  character(*),intent(out)             :: message              ! error message
 
  ! define local variables
  character(len=256)                   :: cmessage             ! error message for downwind routine
  integer(i4b)                         :: iVar                 ! loop through varibles in the netcdf file
- integer(i4b)                         :: iGRU,i               ! index of an GRU
+ integer(i4b)                         :: iGRU,iGlac,i,iHRU    ! loop indices
  integer(i4b)                         :: ncID                 ! NetCDF file ID
  integer(i4b)                         :: varID                ! NetCDF variable ID
  integer(i4b)                         :: dimID                ! netcdf file dimension id
  integer(i4b)                         :: fileGRU              ! number of GRUs in the input file
- integer(i4b)                         :: fileglac             ! number of glaciers in the input file
+ integer(i4b)                         :: filegrid             ! number of grids in the input file
+ integer(i4b)                         :: filexgrid            ! number of x grid points in the input file
+ integer(i4b)                         :: fileygrid            ! number of y grid points in the input file
  integer(i4b),allocatable             :: gru_id(:)            ! read gru IDs in from attributes file
- integer(i4b),allocatable             :: glac_id(:)           ! read glac IDs in from attributes file
+ integer(i4b),allocatable             :: grid_id(:,:)         ! read glacier grid IDs in from attributes file
  real(rkind),allocatable              :: dx(:,:),dy(:,:)      ! glacier grid information (spacing)
- integer(i4b),allocatable             :: Nx(:,:),Ny(:,:)      ! glacier grid information (size)
+ integer(i4b),allocatable             :: nx(:,:),ny(:,:)      ! glacier grid information (size)
  integer(i4b),allocatable             :: gruid_to_index(:)    ! mapping from gru_id to index in gru_struc
  integer(i4b),allocatable             :: glacierMask(:,:,:,:) ! glacier mask, 1=glacier, 0=non-glacier
- integer(i4b),allocatable             :: bed_elev_m(:,:,:,:)  ! bed elevation in meters
+ integer(i4b),allocatable             :: bed_elev(:,:,:,:)    ! bed elevation in meters
  integer(i8b),allocatable             :: cell2hruId(:,:,:,:)  ! mapping from cell to hru id
+ integer(i4b)                         :: nGlacier             ! number of glaciers in a GRU
 
 
  ! Start procedure here
@@ -506,29 +509,29 @@ end subroutine read_dimension
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! *********************************************************************************************
- ! read and set GRU and glac dimensions
+ ! read and set GRU and grid dimensions
  ! **********************************************************************************************
  ! get gru dimension of whole file (might only contain a subset of the GRUs)
  err = nf90_inq_dimid(ncID,"gru",dimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding gru dimension/'//trim(nf90_strerror(err)); return; end if
  err = nf90_inquire_dimension(ncID, dimId, len = fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
 
- ! get glac dimension of whole file
- err = nf90_inq_dimid(ncID,"glac",dimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding glac dimension/'//trim(nf90_strerror(err)); return; end if
- err = nf90_inquire_dimension(ncID, dimId, len = fileglac); if(err/=nf90_noerr)then; message=trim(message)//'problem reading glac dimension/'//trim(nf90_strerror(err)); return; end if
+ ! get grid dimension of whole file
+ err = nf90_inq_dimid(ncID,"grid",dimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding grid dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inquire_dimension(ncID, dimId, len = filegrid); if(err/=nf90_noerr)then; message=trim(message)//'problem reading grid dimension/'//trim(nf90_strerror(err)); return; end if
 
  ! *********************************************************************************************
  ! read glacier grid information and populate structures
  ! **********************************************************************************************
  ! allocate space for indices
- allocate(gru_id(fileGRU),glac_id(fileGRU,fileglac),dx(fileGRU,fileglac),dy(fileGRU,fileglac),Nx(fileGRU,fileglac),Ny(fileGRU,fileglac))
+ allocate(gru_id(fileGRU),grid_id(fileGRU,filegrid),dx(fileGRU,filegrid),dy(fileGRU,filegrid),nx(fileGRU,filegrid),ny(fileGRU,filegrid))
 
  ! read gru_id from netcdf file
  err = nf90_inq_varid(ncID,"gruId",varID);   if (err/=0) then; message=trim(message)//'problem finding gruId'; return; end if
  err = nf90_get_var(ncID,varID,gru_id);      if (err/=0) then; message=trim(message)//'problem reading gruId'; return; end if
 
- ! read glac_id from netcdf file
- err = nf90_inq_varid(ncID,"glacId",varID); if (err/=0) then; message=trim(message)//'problem finding glacId'; return; end if
- err = nf90_get_var(ncID,varID,glac_id);    if (err/=0) then; message=trim(message)//'problem reading glacId'; return; end if
+ ! read grid_id from netcdf file
+ err = nf90_inq_varid(ncID,"gridId",varID); if (err/=0) then; message=trim(message)//'problem finding gridId'; return; end if
+ err = nf90_get_var(ncID,varID,grid_id);    if (err/=0) then; message=trim(message)//'problem reading gridId'; return; end if
 
  ! read dx from netcdf file
  err = nf90_inq_varid(ncID,"dx",varID);      if (err/=0) then; message=trim(message)//'problem finding dx'; return; end if
@@ -538,13 +541,13 @@ end subroutine read_dimension
  err = nf90_inq_varid(ncID,"dy",varID);      if (err/=0) then; message=trim(message)//'problem finding dy'; return; end if
  err = nf90_get_var(ncID,varID,dy);          if (err/=0) then; message=trim(message)//'problem reading dy'; return; end if
 
- ! read Nx from netcdf file
- err = nf90_inq_varid(ncID,"Nx",varID);      if (err/=0) then; message=trim(message)//'problem finding Nx'; return; end if
- err = nf90_get_var(ncID,varID,Nx);          if (err/=0) then; message=trim(message)//'problem reading Nx'; return; end if
+ ! read nx from netcdf file
+ err = nf90_inq_varid(ncID,"nx",varID);      if (err/=0) then; message=trim(message)//'problem finding nx'; return; end if
+ err = nf90_get_var(ncID,varID,nx);          if (err/=0) then; message=trim(message)//'problem reading nx'; return; end if
 
- ! read Ny from netcdf file
- err = nf90_inq_varid(ncID,"Ny",varID);      if (err/=0) then; message=trim(message)//'problem finding Ny'; return; end if
- err = nf90_get_var(ncID,varID,Ny);          if (err/=0) then; message=trim(message)//'problem reading Ny'; return; end if
+ ! read ny from netcdf file
+ err = nf90_inq_varid(ncID,"ny",varID);      if (err/=0) then; message=trim(message)//'problem finding ny'; return; end if
+ err = nf90_get_var(ncID,varID,ny);          if (err/=0) then; message=trim(message)//'problem reading ny'; return; end if
 
 ! Allocate the mapping array
  allocate(gruid_to_index(fileGRU))
@@ -564,14 +567,24 @@ end subroutine read_dimension
  do i = 1, fileGRU
   iGRU = gruid_to_index(i)
   if (iGRU /= -1 .and. gru_struc(iGRU)%nGlacier > 0) then
+    nGlacier = gru_struc(iGRU)%nGlacier
     if (.not. allocated(gru_struc(iGRU)%gridInfo)) then
-      allocate(gru_struc(iGRU)%gridInfo(gru_struc(iGRU)%nGlacier))
+      allocate(gru_struc(iGRU)%gridInfo(nGlacier))
     endif
-    gru_struc(iGRU)%glacInfo(:)%glac_id = glac_id(i,:)  ! set glacier grid information (id)
-    gru_struc(iGRU)%glacInfo(:)%dx      = dx(i,:)       ! set glacier grid information (spacing)
-    gru_struc(iGRU)%glacInfo(:)%dy      = dy(i,:)       ! set glacier grid information (spacing)
-    gru_struc(iGRU)%glacInfo(:)%Nx      = Nx(i,:)       ! set glacier grid information (size)
-    gru_struc(iGRU)%glacInfo(:)%Ny      = Ny(i,:)       ! set glacier grid information (size)
+    gru_struc(iGRU)%gridInfo(:)%grid_id = grid_id(i,1:nGlacier)  ! set grid information (id)
+    gru_struc(iGRU)%gridInfo(:)%dx      = dx(i,1:nGlacier)       ! set grid information (spacing)
+    gru_struc(iGRU)%gridInfo(:)%dy      = dy(i,1:nGlacier)       ! set grid information (spacing)
+    gru_struc(iGRU)%gridInfo(:)%nx      = nx(i,1:nGlacier)       ! set grid information (size)
+    gru_struc(iGRU)%gridInfo(:)%ny      = ny(i,1:nGlacier)       ! set grid information (size)
+    do iGlac = 1, nGlacier
+      if (gru_struc(iGRU)%glacInfo(iGlac)%glac_id==int8Missing) then
+        gru_struc(iGRU)%glacInfo(iGlac)%glac_id = grid_id(i,iGlac)
+      else
+        if (.not. any(gru_struc(iGRU)%glacInfo(iGlac)%glac_id == grid_id(i,1:nGlacier))) then
+          message=trim(message)//'glacier glacId needs to match a gridId'; err=20; return
+        endif
+      endif
+    end do
   endif
  end do
 
@@ -584,33 +597,38 @@ end subroutine read_dimension
  err = nf90_inquire_dimension(ncID, dimId, len = filexgrid); if(err/=nf90_noerr)then; message=trim(message)//'problem reading xgrid dimension/'//trim(nf90_strerror(err)); return; end if
 
  ! allocate space for glacier grid information
- allocate(bed(fileGRU,fileglac,filexgrid,fileygrid), glacierMask(fileGRU,fileglac,filexgrid,fileygrid),cell2hru(fileGRU,fileglac,filexgrid,fileygrid))
+ allocate(bed_elev(fileGRU,filegrid,filexgrid,fileygrid),glacierMask(fileGRU,filegrid,filexgrid,fileygrid),cell2hruId(fileGRU,filegrid,filexgrid,fileygrid))
 
  ! read glacier bed data from netcdf file
- err = nf90_inq_varid(ncID,"bed_elev_m",varID);     if (err/=0) then; message=trim(message)//'problem finding bed_elev_m'; return; end if
- err = nf90_get_var(ncID,varID,bed);                if (err/=0) then; message=trim(message)//'problem reading bed_elev_m'; return; end if
+ err = nf90_inq_varid(ncID,"bed_elev",varID);       if (err/=0) then; message=trim(message)//'problem finding bed_elev'; return; end if
+ err = nf90_get_var(ncID,varID,bed_elev);           if (err/=0) then; message=trim(message)//'problem reading bed_elev'; return; end if
 
  ! read glacier mask data from netcdf file
  err = nf90_inq_varid(ncID,"glacierMask",varID);     if (err/=0) then; message=trim(message)//'problem finding glacierMask'; return; end if
  err = nf90_get_var(ncID,varID,glacierMask);         if (err/=0) then; message=trim(message)//'problem reading glacierMask'; return; end if
 
+ ! read cell2hruId data from netcdf file
+ err = nf90_inq_varid(ncID,"cell2hruId",varID);     if (err/=0) then; message=trim(message)//'problem finding cell2hruId'; return; end if
+ err = nf90_get_var(ncID,varID,cell2hruId);         if (err/=0) then; message=trim(message)//'problem reading cell2hruId'; return; end if
+
  ! fill structure with data
  do i = 1, fileGRU
    iGRU = gruid_to_index(i)
    if (iGRU /= -1 .and. gru_struc(iGRU)%nGlacier > 0) then
-     gridStruct%gru(iGRU)%glac(:)var(iLookGRID%bed)%grid(1:Nx,1:Ny) = bed(i,1:nGlacier,1:Nx,1:Ny)  ! set bed elevation
-     gridStruct%gru(iGRU)%glac(:)var(iLookGRID%glacierMask)%grid(1:Nx,1:Ny) = glacierMask(i,1:nGlacier,1:Nx,1:Ny)  ! set glacier mask
-     gridStruct%gru(iGRU)%glac(:)var(iLookGRID%cell2hru)%grid(1:Nx,1:Ny) = -1  ! Initialize with an invalid index
-      do j = 1, gru_struc(iGRU)%hruCount
-        do k = gru_struc(iGRU)%nGlacier
-         gridStruct%gru(iGRU)%glac(k)%cell2hru(1:Nx,1:Ny) = merge(j, gridStruct%gru(iGRU)%glac(k)%cell2hru(1:Nx,1:Ny), cell2hruId(i,k,1:Nx,1:Ny) == gru_struc(iGRU)%hruInfo(j)%hru_id)
-        enddo
+     gridStruct%gru(iGRU)%grid(:)%var(iLookGRID%bed_elev)%dat2(1:nx,1:ny)    = bed_elev(i,1:nGlacier,1:nx,1:ny)     ! set bed_elev elevation
+     gridStruct%gru(iGRU)%grid(:)%var(iLookGRID%glacierMask)%dat2(1:nx,1:ny) = glacierMask(i,1:nGlacier,1:nx,1:ny)  ! set glacier mask
+     gridStruct%gru(iGRU)%grid(:)%var(iLookGRID%cell2hru)%dat2(1:nx,1:ny)    = -1                                   ! initialize with an invalid index
+      do iHRU = 1, gru_struc(iGRU)%hruCount
+        do iGlac = 1, gru_struc(iGRU)%nGlacier
+         gridStruct%gru(iGRU)%grid(iGlac)%var(iLookGRID%cell2hru)%dat2(1:nx,1:ny) = &
+             merge(iHRU, gridStruct%gru(iGRU)%grid(iGlac)%var(iLookGRID%cell2hru)%dat2(1:nx,1:ny), cell2hruId(i,iHRU,1:nx,1:ny) == gru_struc(iGRU)%hruInfo(iHRU)%hru_id)
+        enddo 
       end do
    endif
  end do
 
  ! free memory
- deallocate(gru_id, dx, dy, Nx, Ny, gruid_to_index, bed, glacierMask)
+ deallocate(gru_id, dx, dy, nx, ny, gruid_to_index, bed_elev, glacierMask)
 
  ! close netcdf file
  call nc_file_close(ncID,err,cmessage)
