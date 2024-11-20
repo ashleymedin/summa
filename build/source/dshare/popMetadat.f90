@@ -719,7 +719,7 @@ subroutine popMetadat(err,message)
   ! -----------------------------------------
   grid_meta(iLookGRID%bed_elev)               = var_info('bed_elev'                , 'glacier bed elevation'                                     , 'm'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
   grid_meta(iLookGRID%cell2hru)               = var_info('cell2hru'                , 'HRU id each grid point belongs to'                         , '-'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)   
-  grid_meta(iLookGRID%glacierMask)            = var_info('glacierMask'             , 'binary mask of grid that glacier can grow into'            , '-'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
+  grid_meta(iLookGRID%glacierMask)            = var_info('glacierMask'             , 'binary mask of area grid that glacier can grow into'       , '-'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
   grid_meta(iLookGRID%surface_elev)           = var_info('surface_elev'            , 'glacier surface elevation'                                 , 'm'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
   ! -----
   ! * temperature and enthalpy lookup tables...

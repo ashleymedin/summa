@@ -578,7 +578,6 @@ contains
  integer(i4b)                       :: i             ! loop index
  integer(i4b)                       :: iVar          ! variable index
  integer(i4b)                       :: nGlacier      ! number of glaciers in GRU
- integer(i4b)                       :: nWetland      ! number of wetlands in GRU
  logical(lgt)                       :: okLength      ! flag to check if the vector length is OK
  character(len=256)                 :: cmessage      ! downstream error message
  ! --------------------------------------------------------------------------------------------------------
@@ -827,7 +826,6 @@ contains
  integer(i4b)                       :: ncid               ! netcdf file id
  integer(i4b),dimension(1)          :: ncVarID            ! netcdf variable id, only one variable currently
  integer(i4b),dimension(1)          :: ngdx               ! intermediate array of loop indices
- integer(i4b)                       :: hruDimID           ! variable dimension ID
  integer(i4b)                       :: gruDimID           ! variable dimension ID
  integer(i4b)                       :: ngriDimID           ! variable dimension ID
  integer(i4b)                       :: xDimID             ! variable dimension ID
@@ -842,7 +840,6 @@ contains
  integer(i4b)                       :: nx,ny              ! grid dimensions
  integer(i4b)                       :: iVar               ! variable index
  integer(i4b)                       :: nGlacier           ! number of glaciers in GRU
- logical(lgt)                       :: okLength           ! flag to check if the vector length is OK
  character(len=256)                 :: cmessage           ! downstream error message
 
  ! --------------------------------------------------------------------------------------------------------
@@ -897,7 +894,7 @@ do iGRU = 1,nGRU
       iVar = ngdx(i)
       nx = gru_struc(iGRU)%gridInfo(iGlac)%nx
       ny = gru_struc(iGRU)%gridInfo(iGlac)%ny
-      err=nf90_put_var(ncid,ncVarID(i),(/grid_data%gru(iGRU)grid%(iGlac)%var(iVar)%dat2/), start=(/iGRU,1,1,1/),count=(/1,nGlacier,nx,ny/))
+      err=nf90_put_var(ncid,ncVarID(i),(/grid_data%gru(iGRU)%grid(iGlac)%var(iVar)%dat2/), start=(/iGRU,1,1,1/),count=(/1,nGlacier,nx,ny/))
 
       ! error check
       if (err.ne.0) message=trim(message)//'writing variable:'//trim(grid_meta(iVar)%varName)
