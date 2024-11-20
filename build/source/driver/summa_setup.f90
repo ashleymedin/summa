@@ -108,6 +108,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  USE globalData,only:maxLakeLayers                           ! maximum number of lake layers
  USE globalData,only:maxGlaciers                             ! maximum number of glaciers
  USE globalData,only:maxWetlands                             ! maximum number of wetlands
+ USE globalData,only:maxGrid                                 ! maximum number of grids in a GRU
  USE globalData,only:maxGridX                                ! maximum grid size in x-direction
  USE globalData,only:maxGridY                                ! maximum grid size in y-direction
  ! timing variables
@@ -144,29 +145,24 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(&
-
   ! primary data structures (scalars)
   attrStruct           => summa1_struc%attrStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
   typeStruct           => summa1_struc%typeStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
   idStruct             => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:)     -- model ids
-
   ! primary data structures (variable length vectors)
   mparStruct           => summa1_struc%mparStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model parameters
   dparStruct           => summa1_struc%dparStruct          , & ! x%gru(:)%hru(:)%var(:)            -- default model parameters
-
   ! basin-average structures
-  bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)            -- basin-average parameters
-  bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat        -- basin-average variables
-
+  bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)                   -- basin-average parameters
+  bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat               -- basin-average variables
+  gridStruct           => summa1_struc%gridStruct          , & ! x%gru(:)%grid(:)%var(:)%dat2(:,:) -- basin grid parameters and variables
   ! lookup table structure
   lookupStruct         => summa1_struc%lookupStruct        , & ! x%gru(:)%hru(:))%dom(:)%z(:)%var(:)%lookup -- lookup-tables
-
   ! miscellaneous variables
   upArea               => summa1_struc%upArea              , & ! area upslope of each HRU
   nGRU                 => summa1_struc%nGRU                , & ! number of grouped response units
   nHRU                 => summa1_struc%nHRU                , & ! number of global hydrologic response units
   nDOM                 => summa1_struc%nDOM                  & ! number of global domains (max in any HRU)
-
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
  ! initialize error control
@@ -265,21 +261,23 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  ! *****************************************************************************
 
  ! define the basin glacier attributes file
+ maxGrid = 0
  maxGridX = 0
  maxGridY = 0
  if (BASIN_ATTBEDGLAC == 'none') then
-   restartGlacFile = 'none'
+   attrGlacFile = 'none'
  else
    attrGlacFile = trim(SETTINGS_PATH)//trim(BASIN_ATTBEDGLAC)
 
   ! basin glacier attributes for each GRU
-  call read_attrGlac(trim(attrGlacFile),nGRU,gridStruct,err,cmessage)
+  call read_attrbGlac(trim(attrGlacFile),nGRU,gridStruct,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! determine the maximum grid size
   do iGRU=1,nGRU
-    maxGridX = max(maxGridX, gru_struc(iGRU)%gridInfo(:)%nx)
-    maxGridY = max(maxGridY, gru_struc(iGRU)%gridInfo(:)%ny)
+    maxGrid = max(maxGrid,size(gru_struc(iGRU)%gridInfo(:)%grid_id))
+    maxGridX = max(maxGridX,maxval(gru_struc(iGRU)%gridInfo(:)%nx))
+    maxGridY = max(maxGridY,maxval(gru_struc(iGRU)%gridInfo(:)%ny))
   end do
 endif
 

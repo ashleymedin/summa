@@ -66,7 +66,6 @@ private
 type, public :: summa1_type_dec    
     ! define the lookup tables
     type(gru_hru_dom_z_vLookup)      :: lookupStruct               ! x%gru(:)%hru(:)%dom(:)%z(:)%var(:)%lookup(:) -- lookup tables
-    
     ! define the statistics structures
     type(gru_hru_doubleVec)          :: forcStat                   ! x%gru(:)%hru(:)%var(:)%dat        -- model forcing data, does not need %dat but use so can use same structure as other data
     type(gru_hru_dom_doubleVec)      :: progStat                   ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model prognostic (state) variables
@@ -74,34 +73,28 @@ type, public :: summa1_type_dec
     type(gru_hru_dom_doubleVec)      :: fluxStat                   ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model fluxes
     type(gru_hru_dom_doubleVec)      :: indxStat                   ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model indices
     type(gru_doubleVec)              :: bvarStat                   ! x%gru(:)%var(:)%dat               -- basin-average variables
-
     ! define the primary data structures (scalars)
     type(var_i)                      :: timeStruct                 ! x%var(:)                   -- model time data
     type(gru_hru_double)             :: forcStruct                 ! x%gru(:)%hru(:)%var(:)     -- model forcing data
     type(gru_hru_double)             :: attrStruct                 ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
     type(gru_hru_int)                :: typeStruct                 ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
     type(gru_hru_int8)               :: idStruct                   ! x%gru(:)%hru(:)%var(:)     --
-
     ! define the primary data structures (variable length vectors)
     type(gru_hru_dom_intVec)         :: indxStruct                 ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model indices
     type(gru_hru_dom_doubleVec)      :: mparStruct                 ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model parameters
     type(gru_hru_dom_doubleVec)      :: progStruct                 ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model prognostic (state) variables
     type(gru_hru_dom_doubleVec)      :: diagStruct                 ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model diagnostic variables
     type(gru_hru_dom_doubleVec)      :: fluxStruct                 ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model fluxes
-
     ! define the basin-average structures
     type(gru_double)                 :: bparStruct                 ! x%gru(:)%var(:)                   -- basin-average parameters
     type(gru_doubleVec)              :: bvarStruct                 ! x%gru(:)%var(:)%dat               -- basin-average variables
     type(gru_grid_double)            :: gridStruct                 ! x%gru(:)%grid(:)%var(:)%dat2(:,:) -- basin grid parameters and variables
-
     ! define the ancillary data structures
     type(gru_hru_double)             :: dparStruct                 ! x%gru(:)%hru(:)%var(:)     -- default model parameters
-
     ! define the run-time variables
     type(gru_hru_i)                  :: computeVegFlux             ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
     type(gru_hru_dom_d)              :: dt_init                    ! used to initialize the length of the sub-step for each HRU
     type(gru_hru_d)                  :: upArea                     ! area upslope of each HRU
-
     ! define miscellaneous variables
     integer(i4b)                     :: summa1open                 ! flag to define if the summa file is open??
     integer(i4b)                     :: numout                     ! number of output variables??
@@ -111,7 +104,6 @@ type, public :: summa1_type_dec
     integer(i4b)                     :: nDOM                       ! number of global domains (max in any HRU)
     real(rkind),dimension(12)        :: greenVegFrac_monthly       ! fraction of green vegetation in each month (0-1)
     character(len=256)               :: summaFileManagerFile       ! path/name of file defining directories and files
-
 end type summa1_type_dec
 
 END MODULE summa_type

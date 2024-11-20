@@ -170,6 +170,7 @@ contains
   ! read initial conditions
   call read_icondGlac(restartGlacFile,               & ! intent(in):    name of glacier initial conditions file (surface topography)
                       nGRU,                          & ! intent(in):    number of response units
+                      bvarStruct,                    & ! intent(in):    model basin (GRU) variables
                       gridStruct,                    & ! intent(inout): basin grid parameters and variables
                       err,cmessage)                    ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif

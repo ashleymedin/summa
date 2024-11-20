@@ -1923,7 +1923,7 @@ contains
 !    IF (VEGTYP .eq. BARE) SHDFAC = 0.0
 
     IF (NROOT .gt. NSOIL) THEN
-       WRITE (*,*) 'Warning: too many root layers'
+       WRITE (*,*) 'WARNING: too many root layers'
        write (*,*) 'NROOT = ', nroot
        write (*,*) 'NSOIL = ', nsoil
        call wrf_error_fatal("STOP in Noah-MP")

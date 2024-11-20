@@ -102,7 +102,7 @@ contains
  character(*),intent(out)                  :: message               ! returned error message
  ! locals
  character(len=256)                        :: cmessage              ! downstream error message
- integer(i4b)                              :: iGRU,iHRU,iDOM      ! loop index
+ integer(i4b)                              :: iGRU,iHRU,iDOM,iGlac  ! loop index
  ! temporary variables for realism checks
  integer(i4b)                              :: iLayer                ! index of model layer
  integer(i4b)                              :: iSoil                 ! index of soil layer
@@ -120,8 +120,9 @@ contains
  real(rkind),parameter                     :: canIceTol=1.e-3_rkind ! small tolerance to allow existence of canopy ice for above-freezing temperatures (kg m-2)
  real(rkind)                               :: remaining_area        ! remaining area of the HRU
  real(rkind)                               :: remaining_elev        ! remaining elevation of the HRU
- real(rkind)                               :: glacAblAreaTot       ! total basin glacier ablation area from bvarData (m2)
- real(rkind)                               :: glacAccAreaTot       ! total basin glacier accumulation area from bvarData (m2)
+ real(rkind)                               :: glacAblAreaTot        ! total basin glacier ablation area from bvarData (m2)
+ real(rkind)                               :: glacAccAreaTot        ! total basin glacier accumulation area from bvarData (m2)
+ real(rkind)                               :: area                  ! glacier area for a single glacier (m2)
  ! --------------------------------------------------------------------------------------------------------
 
  ! Start procedure here
@@ -156,7 +157,7 @@ contains
          if(remaining_area>0.0_rkind) then 
            progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1) = remaining_elev/remaining_area
          else
-           if (remaining_area<-xTol) write(*,'(A,E22.16,A)') 'Warning: area of upland HRU (=', remaining_area, ') < 0. Resetting to 0.0'
+           if (remaining_area<-xTol) write(*,'(A,E22.16,A)') 'WARNING: area of upland HRU (=', remaining_area, ') < 0. Resetting to 0.0'
            progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1) = 0.0_rkind
            progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%elevation)
          end if
@@ -164,15 +165,20 @@ contains
      end do
    end do
    if (abs(glacAblAreaTot-sum(bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat))>xTol) then
-     write(*,'(A,E22.16,A,E22.16,A)') 'Warning: glacier ablation domain area (=', glacAblAreaTot, ') does not match the sum of the basin areas (=', sum(bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat), '). Resetting basin areas to be equal.'
+     write(*,'(A,E22.16,A,E22.16,A)') 'WARNING: glacier ablation domain area (=', glacAblAreaTot, ') does not match the sum of the basin areas (=', sum(bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat), '). Correcting basin areas.'
      bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat(:) = glacAblAreaTot/size(bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat)
    end if
    if (abs(glacAccAreaTot-sum(bvarData%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat))>xTol) then
-     write(*,'(A,E22.16,A,E22.16,A)') 'Warning: glacier accumulation domain area (=', glacAccAreaTot, ') does not match the sum of the basin areas (=', sum(bvarData%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat), '). Resetting basin areas to be equal.'
+     write(*,'(A,E22.16,A,E22.16,A)') 'WARNING: glacier accumulation domain area (=', glacAccAreaTot, ') does not match the sum of the basin areas (=', sum(bvarData%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat), '). Correcting basin areas.'
      bvarData%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat(:) = glacAccAreaTot/size(bvarData%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat)
    end if
 
- enddo
+   ! check that the glacier areas are positive
+   do iGlac = 1, gru_struc(iGRU)%nGlacier
+     area = bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat(iGlac) + bvarData%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat(iGlac)
+     if (area<=0.0_rkind) write(*,*) 'WARNING: zero area for glacier ',iGlac,' in GRU ',iGRU,', need to set area to a postive value if want to build a glacier.'
+   end do
+ enddo ! iGRU loop
 
  ! check for realistic values of albedo
  do iGRU = 1,nGRU
@@ -246,7 +252,7 @@ contains
      err=20; return
     else if(scalarCanopyIce > 0._rkind .and. scalarCanopyTemp > Tfreeze)then
      ! if here, ice content < threshold. Could be sublimation on previous timestep or simply wrong input. Print a warning
-     write(*,'(A,E22.16,A,F7.3,A,F7.3,A)') 'Warning: canopy ice content in restart file (=',scalarCanopyIce,') > 0 when canopy temperature (=',scalarCanopyTemp,') > Tfreeze (=',Tfreeze,'). Continuing.',NEW_LINE('a')
+     write(*,'(A,E22.16,A,F7.3,A,F7.3,A)') 'WARNING: canopy ice content in restart file (=',scalarCanopyIce,') > 0 when canopy temperature (=',scalarCanopyTemp,') > Tfreeze (=',Tfreeze,'). Continuing.',NEW_LINE('a')
     end if
     scalarTheta = scalarCanopyIce + scalarCanopyLiq
 

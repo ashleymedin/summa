@@ -124,6 +124,7 @@ contains
  character(LEN=256)                    :: cmessage                 ! error message of downwind routine
  character(len=256)                    :: timeString               ! portion of restart file name that contains the write-out time
  character(len=256)                    :: restartFile              ! restart file name
+ character(len=256)                    :: restartGlacFile          ! glacier restart file name
  logical(lgt)                          :: printRestart=.false.     ! flag to print a re-start file
  logical(lgt)                          :: printProgress=.false.    ! flag to print simulation progress
  logical(lgt)                          :: defNewOutputFile=.false. ! flag to define new output files
@@ -134,7 +135,6 @@ contains
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(&
-
   ! statistics structures
   forcStat             => summa1_struc%forcStat    , & ! x%gru(:)%hru(:)%var(:)%dat        -- model forcing data
   progStat             => summa1_struc%progStat    , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model prognostic (state) variables
@@ -142,7 +142,6 @@ contains
   fluxStat             => summa1_struc%fluxStat    , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model fluxes
   indxStat             => summa1_struc%indxStat    , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model indices
   bvarStat             => summa1_struc%bvarStat    , & ! x%gru(:)%var(:)%dat               -- basin-average variabl
-
   ! primary data structures
   timeStruct           => summa1_struc%timeStruct  , & ! x%var(:)                          -- model time data
   forcStruct           => summa1_struc%forcStruct  , & ! x%gru(:)%hru(:)%var(:)            -- model forcing data
@@ -152,12 +151,10 @@ contains
   fluxStruct           => summa1_struc%fluxStruct  , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model fluxes
   bvarStruct           => summa1_struc%bvarStruct  , & ! x%gru(:)%var(:)%dat               -- basin-average variables
   gridStruct           => summa1_struc%gridStruct  , & ! x%gru(:)%grid(:)%var(:)%dat2(:,:) -- basin grid parameters and variables
-
   ! miscellaneous variables
   nGRU                 => summa1_struc%nGRU        , & ! number of grouped response units
   nHRU                 => summa1_struc%nHRU        , & ! number of global hydrologic response units
   nDOM                 => summa1_struc%nDOM          & ! number of global domains (max in any HRU)
-
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
  ! initialize error control

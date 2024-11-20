@@ -220,6 +220,7 @@ MODULE globalData
   integer(i4b),save,public                       :: maxSoilLayers                     ! maximum number of soil layers
   integer(i4b),save,public                       :: maxSnowLayers                     ! maximum number of snow layers
   integer(i4b),save,public                       :: maxGlaciers                       ! maximum number of glaciers in a GRU
+  integer(i4b),save,public                       :: maxGrid                           ! maximum number of grids in a GRU
   integer(i4b),save,public                       :: maxGridX                          ! maximum number of grid cells in the x-direction
   integer(i4b),save,public                       :: maxGridY                          ! maximum number of grid cells in the y-direction
   integer(i4b),save,public                       :: maxIceLayers                      ! maximum number of ice layers on glacier

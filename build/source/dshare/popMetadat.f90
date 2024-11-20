@@ -977,7 +977,7 @@ subroutine read_output_file(err,message)
 
     ! process time-varying variables
     select case(trim(structName))
-      case('indx','forc','prog','diag','flux','bvar','deriv','grid')
+      case('indx','forc','prog','diag','flux','bvar','deriv')
 
         ! * ensure that the frequency index exists for time varying variables
         if(nWords<freqIndex)then
@@ -1004,12 +1004,50 @@ subroutine read_output_file(err,message)
           err=20; return
         endif
 
-      ! temporally constant variables use timestep-level output (no aggregation)
-      case default
-        freqName = trim(lineWords(freqIndex))
-        write(*,*)'WARNING: temporally constant variable '//trim(varName)//': outputting variable in timestep file and will be the same value throughout file'
-        iFreq    = iLookFREQ%timestep
+      ! * grid variables do not change on less than annual-level
+      case('grid')
+        if(nWords<freqIndex) then
+          freqName = 'empty'
+        else
+          freqName = trim(lineWords(freqIndex))
+        endif
+        if (freqName/='annual') then
+          write(*,*)'WARNING: grid variable '//trim(varName)//': outputting variable in annual file as it does not change on less than annual level [entered "'//trim(freqName)//'"]'
+        endif
+        iFreq = iLookFREQ%annual
+        freqName = 'annual'
+
+      ! temporally constant variables use annual-level output (no aggregation)
+      case ('bpar','attr','type','mpar')
+        if(nWords<freqIndex) then
+          freqName = 'empty'
+        else
+          freqName = trim(lineWords(freqIndex))
+        endif
+        if (freqName/='annual') then
+          write(*,*)'WARNING: temporally constant variable '//trim(varName)//': outputting variable at annual level and will be the same value throughout file [entered "'//trim(freqName)//'"]'
+        else
+          write(*,*)'WARNING: temporally constant variable '//trim(varName)//': will be the same value throughout file'
+        endif
+        iFreq = iLookFREQ%annual
+        freqName = 'annual'
+
+      ! time variable is always outputted at timestep level (no aggregation)
+      case('time')
+        if(nWords<freqIndex) then
+          freqName = 'empty'
+        else
+          freqName = trim(lineWords(freqIndex))
+        endif
+        if (freqName/='timestep'.or. freqName/='1') then
+          write(*,*)'WARNING: time variable '//trim(varName)//': outputting variable at timestep level since it cannot be aggregated [entered "'//trim(freqName)//'"]'
+        endif
+        iFreq = iLookFREQ%timestep
         freqName = 'timestep'
+
+      ! error control
+      case default;  err=20;message=trim(message)//'unable to identify lookup structure';return
+
     end select
 
     ! --- identify the desired statistic in the metadata structure  -----------
@@ -1075,12 +1113,14 @@ subroutine read_output_file(err,message)
     ! identify data structure
     select case (trim(structName))
 
-      ! temporally constant structures -- request instantaneous timestep-level output (no aggregation)
+      ! temporally constant structures -- request instantaneous, timestep-level output (no aggregation)
       case('time' ); time_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; time_meta(vDex)%varDesire=.true.   ! timing data
-      case('bpar' ); bpar_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; bpar_meta(vDex)%varDesire=.true.   ! basin parameters
-      case('attr' ); attr_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; attr_meta(vDex)%varDesire=.true.   ! local attributes
-      case('type' ); type_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; type_meta(vDex)%varDesire=.true.   ! local classification
-      case('mpar' ); mpar_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; mpar_meta(vDex)%varDesire=.true.   ! model parameters
+
+      ! temporally constant structures -- request instantaneous, annual-level output at annual (no aggregation, does not change)        
+      case('bpar' ); bpar_meta(vDex)%statIndex(iLookFREQ%annual) = iLookSTAT%inst; bpar_meta(vDex)%varDesire=.true.   ! basin parameters
+      case('attr' ); attr_meta(vDex)%statIndex(iLookFREQ%annual) = iLookSTAT%inst; attr_meta(vDex)%varDesire=.true.   ! local attributes
+      case('type' ); type_meta(vDex)%statIndex(iLookFREQ%annual) = iLookSTAT%inst; type_meta(vDex)%varDesire=.true.   ! local classification
+      case('mpar' ); mpar_meta(vDex)%statIndex(iLookFREQ%annual) = iLookSTAT%inst; mpar_meta(vDex)%varDesire=.true.   ! model parameters
       
       ! index structures -- can only be output at the model time step
       case('indx' ); indx_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; indx_meta(vDex)%varDesire=.true.
@@ -1097,7 +1137,9 @@ subroutine read_output_file(err,message)
       case('flux' ); call popStat(flux_meta(vDex) , iFreq, iStat, err, cmessage)    ! model fluxes
       case('bvar' ); call popStat(bvar_meta(vDex) , iFreq, iStat, err, cmessage)    ! basin variables
       case('deriv'); call popStat(deriv_meta(vDex), iFreq, iStat, err, cmessage)    ! model derivs
-      case('grid' ); call popStat(grid_meta(vDex), iFreq, iStat, err, cmessage)    ! model grid data
+
+      ! grid structures -- request instantaneous, annual-level output (no aggregation)
+      case('grid' ); grid_meta(vDex)%statIndex(iLookFREQ%annual) = iLookSTAT%inst; grid_meta(vDex)%varDesire=.true.   !  grid data
 
       ! error control
       case default;  err=20;message=trim(message)//'unable to identify lookup structure';return

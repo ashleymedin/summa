@@ -87,7 +87,7 @@ contains
  integer(i4b),allocatable    :: soilData2(:,:)      ! number of soil layers in all HRUs
  integer(i4b),allocatable    :: iceData2(:,:)       ! number of ice layers in all HRUs
  integer(i4b),allocatable    :: lakeData2(:,:)      ! number of lake layers in all HRUs
- integer(i8b),allocatable    :: dom_type(:,:)       ! read domain type in from netcdf file
+ integer(i4b),allocatable    :: dom_type(:,:)       ! read domain type in from netcdf file
  character(len=256)          :: cmessage            ! downstream error message
  integer(i8b),allocatable    :: gru_id(:)           ! GRU id
  integer(i8b),allocatable    :: hru_id(:)           ! HRU id
@@ -150,7 +150,7 @@ contains
  end if
 
  ! Allocate the mapping arrays
- allocate(gruid_to_index(fileGRU), hrunc_to_index(fileGRU,max(gru_struc(:)%hruCount)))
+ allocate(gruid_to_index(fileGRU), hrunc_to_index(fileGRU,maxval(gru_struc(:)%hruCount)))
 
  ! Populate the mapping arrays
  do i = 1, fileGRU
@@ -160,13 +160,13 @@ contains
        gruid_to_index(i) = iGRU
        do j = 1, gru_struc(iGRU)%hruCount
          hrunc_to_index(i,j) = -1 
-         do iHRU = 1, fileHRU
+         do iHRU = 1, fileHRU ! assumes HRUs are in GRU order
            if (gru_struc(iGRU)%hruInfo(j)%hru_id == hru_id(iHRU)) then
              hrunc_to_index(i,j) = iHRU
              exit
            endif
          end do
-       end do
+       end do ! HRU id loop
        exit
      endif
    end do
@@ -187,10 +187,10 @@ contains
  lakeData2 = 0
 
  ! count domains and set domain type
- do i = 1,nGRU
+ do i = 1,fileGRU
    iGRU = gruid_to_index(i)
    do j = 1,gru_struc(iGRU)%hruCount
-     iHRU = hrunc_to_index(i,j)- min(hrunc_to_index(i,:)) + 1 ! assumes HRUs are in GRU order
+     iHRU = hrunc_to_index(i,j)- minval(hrunc_to_index(i,:)) + 1 ! assumes HRUs are in GRU order
      iHRU_global = hrunc_to_index(i,j)
      gru_struc(iGRU)%hruInfo(iHRU)%domCount = 1                                              ! upland domain always present, for changing size glaciers and lakes
      if (any(dom_type(1:fileDOM,iHRU_global)==glacAcc)) &
@@ -207,7 +207,7 @@ contains
  err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nLake)%varName),lakeID)
  if(err/=nf90_noerr ) no_lakeData = .true.
  err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nSoil)%varName),soilID); call netcdf_err(err,message)
- err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nIce)%varName),iceID)
+ err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nIce)%varName), iceID)
  if(err/=nf90_noerr) no_iceData = .true.
 
  ! get nLayer data (reads entire state file)
@@ -234,10 +234,10 @@ contains
  end do
 
  ! loop over grus in current run to update snow/soil layer information
- do i = 1,nGRU
+ do i = 1,fileGRU
   iGRU = gruid_to_index(i)
   do j = 1,gru_struc(iGRU)%hruCount
-   iHRU = hrunc_to_index(i,j)- min(hrunc_to_index(i,:)) + 1 ! assumes HRUs are in GRU order
+   iHRU = hrunc_to_index(i,j)- minval(hrunc_to_index(i,:)) + 1 ! assumes HRUs are in GRU order
    iHRU_global = hrunc_to_index(i,j)
    do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
     if(no_dom)then
@@ -329,13 +329,13 @@ contains
  integer(i4b)                              :: dimLen                   ! data dimensions
  integer(i4b)                              :: ncID                     ! netcdf file ID
  integer(i4b)                              :: iHRU_global              ! index of HRU in the netcdf file
+ real(rkind),allocatable                   :: varData(:)              ! variable data storage
  real(rkind),allocatable                   :: varData2(:,:)            ! variable data storage
  real(rkind),allocatable                   :: varData3(:,:,:)          ! variable data storage
  integer(i4b)                              :: nSnow,nLake,nSoil,nIce,nToto !# layers
  integer(i4b)                              :: nTDH                     ! number of points in time-delay 
  integer(i4b)                              :: nGlacier                 ! number of glaciers in basin (attribute files
  integer(i4b)                              :: fileglac                 ! max number of glaciers in any GRU
- integer(i4b)                              :: nWetland                 ! number of wetlands in basin
  integer(i4b)                              :: iLayer,jLayer            ! layer indices
  logical(lgt)                              :: has_glacier              ! flag for glacier presence in at least one GRU
  logical(lgt)                              :: has_wetland              ! flag for wetland/lake presence in at least one GRU
@@ -401,7 +401,7 @@ contains
  end if
 
  ! Allocate the mapping arrays
- allocate(gruid_to_index(fileGRU), hrunc_to_index(fileGRU,max(gru_struc(:)%hruCount)))
+ allocate(gruid_to_index(fileGRU), hrunc_to_index(fileGRU,maxval(gru_struc(:)%hruCount)))
 
  ! Populate the mapping arrays
  do i = 1, fileGRU
@@ -411,13 +411,13 @@ contains
        gruid_to_index(i) = iGRU
        do j = 1, gru_struc(iGRU)%hruCount
          hrunc_to_index(i,j) = -1 
-         do iHRU = 1, fileHRU
+         do iHRU = 1, fileHRU ! assumes HRUs are in GRU order
            if (gru_struc(iGRU)%hruInfo(j)%hru_id == hru_id(iHRU)) then
              hrunc_to_index(i,j) = iHRU
              exit
            endif
          end do
-       end do
+       end do ! HRU id loop
        exit
      endif
    end do
@@ -483,10 +483,10 @@ contains
   ! loop through GRUs
   has_glacier = .false.
   has_wetland = .false.
-  do i = 1,nGRU
+  do i = 1,fileGRU
    iGRU = gruid_to_index(i)
    do j = 1,gru_struc(iGRU)%hruCount
-    iHRU = hrunc_to_index(i,j)- min(hrunc_to_index(i,:)) + 1 ! assumes HRUs are in GRU order
+    iHRU = hrunc_to_index(i,j)- minval(hrunc_to_index(i,:)) + 1 ! assumes HRUs are in GRU order
     iHRU_global = hrunc_to_index(i,j)
     do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
      ! get the number of layers
@@ -566,10 +566,10 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! (2) set number of layers
  ! --------------------------------------------------------------------------------------------------------
- do i = 1,nGRU
+ do i = 1,fileGRU
   iGRU = gruid_to_index(i)
   do j = 1,gru_struc(iGRU)%hruCount
-   iHRU = hrunc_to_index(i,j)- min(hrunc_to_index(i,:)) + 1 ! assumes HRUs are in GRU order
+   iHRU = hrunc_to_index(i,j)- minval(hrunc_to_index(i,:)) + 1 ! assumes HRUs are in GRU order
    do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
 
     ! save the number of layers
@@ -588,7 +588,6 @@ contains
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%layerType)%dat((nSnow+1):(nSnow+nLake)) = iname_lake
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%layerType)%dat((nSnow+nLake+1):(nSnow+nLake+nSoil)) = iname_soil
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%layerType)%dat((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nIce)) = iname_ice
-
    end do
   end do
  end do
@@ -597,10 +596,10 @@ contains
  ! (3) update soil layers (diagnostic variables)
  ! --------------------------------------------------------------------------------------------------------
  ! loop through GRUs and HRUs
- do i = 1,nGRU
+ do i = 1,fileGRU
   iGRU = gruid_to_index(i)
   do j = 1,gru_struc(iGRU)%hruCount
-   iHRU = hrunc_to_index(i,j)- min(hrunc_to_index(i,:)) + 1 ! assumes HRUs are in GRU order
+   iHRU = hrunc_to_index(i,j)- minval(hrunc_to_index(i,:)) + 1 ! assumes HRUs are in GRU order
    do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
 
     ! loop through soil layers
@@ -671,31 +670,55 @@ contains
    if(err/=0)then; message=trim(message)//': problem with getting basin variable id, var='//trim(bvar_meta(iVar)%varName); return; endif
 
    ! initialize the tdh variable data
-   allocate(varData2(fileGRU,dimLen),stat=err)
-   if(err/=0)then; print*, 'err= ',err; message=trim(message)//'problem allocating GRU variable data'; return; endif
+   allocate(varData2(fileGRU,dimLen))
 
    ! get data
    err = nf90_get_var(ncID,ncVarID,varData2); call netcdf_err(err,message)
    if(err/=0)then; message=trim(message)//': problem getting the data'; return; endif
 
    ! store data in basin var (bvar) structure
-   do j = 1,nGRU
+   do j = 1,fileGRU
     iGRU = gruid_to_index(j)
     ! put the data into data structures
-    bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) = varData2((iGRU+startGRU-1),1:nTDH)
+    bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) = varData2((j+startGRU-1),1:nTDH)
     ! check whether the first values is set to nf90_fill_double
     if(any(abs(bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) - nf90_fill_double) < epsilon(varData2)))then; err=20; endif
     if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(bvar_meta(iVar)%varName)//"')"; return; endif
    end do ! end iGRU loop
 
    ! deallocate temporary data array for next variable
-   deallocate(varData2, stat=err)
-   if(err/=0)then; message=trim(message)//'problem deallocating GRU variable data'; return; endif
+   deallocate(varData2)
 
   end do ! end looping through basin variables
  endif  ! end if case for tdh variables being in init. cond. file
 
  if (has_glacier)then
+
+  ! get variables that are specific to glaciers but not by glacier (by GRU)
+  iVar = iLookBVAR%basin__GlacierStorage
+  err = nf90_inq_varid(ncID,trim(bvar_meta(iVar)%varName),ncVarID)
+  if(err/=0)then; message=trim(message)//': problem with getting basin variable id, var='//trim(bvar_meta(iVar)%varName); return; endif
+
+  ! initialize the glac variable data
+  allocate(varData(fileGRU))
+
+  ! get data
+  err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message)
+  if(err/=0)then; message=trim(message)//': problem getting the data'; return; endif
+
+  ! store data in basin var (bvar) structure
+  do j = 1,fileGRU
+    iGRU = gruid_to_index(j)
+    ! put the data into data structures
+    bvarData%gru(iGRU)%var(iVar)%dat(1) = varData(j+startGRU-1)
+    ! check whether the first values is set to nf90_fill_double
+    if(abs(bvarData%gru(iGRU)%var(iVar)%dat(1) - nf90_fill_double) < epsilon(varData))then; err=20; endif
+    if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(bvar_meta(iVar)%varName)//"')"; return; endif
+   end do ! end iGRU loop
+
+   ! deallocate temporary data array for next variable
+   deallocate(varData)
+
   ! get dimension of basin glac variables from initial conditions file (glaciers)
   err = nf90_inq_dimid(ncID,"glac",dimID) ! max number of glaciers in any GRU
 
@@ -718,7 +741,7 @@ contains
    if(err/=nf90_noerr)then; message=trim(message)//'problem reading glac dimension from initial condition file/'//trim(nf90_strerror(err)); return; end if
 
    ! read glac_id from netcdf file
-   allocate(glac_id(fileglac))
+   allocate(glac_id(filegru,fileglac))
    err = nf90_inq_varid(ncID,"glacId",ncVarID);   if (err/=0) then; message=trim(message)//'problem finding glacId'; return; end if
    err = nf90_get_var(ncID,ncVarID,glac_id);      if (err/=0) then; message=trim(message)//'problem reading glacId'; return; end if
 
@@ -731,7 +754,7 @@ contains
    end do
 
    ! loop through specific basin variables
-   ngdx = (/iLookBVAR%glacAblArea,iLookBVAR%glacAccArea,iLookBVAR%basin__GlacierStorage,iLookBVAR%glacIceRunoffFuture,iLookBVAR%glacSnowRunoffFuture,iLookBVAR%glacFirnRunoffFuture/)   ! array of desired variable indices
+   ngdx = (/iLookBVAR%glacAblArea,iLookBVAR%glacAccArea,iLookBVAR%glacIceRunoffFuture,iLookBVAR%glacSnowRunoffFuture,iLookBVAR%glacFirnRunoffFuture/)   ! array of desired variable indices
    do i = 1,size(ngdx)
     iVar = ngdx(i)
 
@@ -748,27 +771,26 @@ contains
     endif
 
     ! initialize the glac variable data
-    allocate(varData2(fileGRU,fileglac),stat=err)
-    if(err/=0)then; print*, 'err= ',err; message=trim(message)//'problem allocating GRU variable data'; return; endif
+    allocate(varData2(fileGRU,fileglac))
 
     ! get data
     err = nf90_get_var(ncID,ncVarID,varData2); call netcdf_err(err,message)
     if(err/=0)then; message=trim(message)//': problem getting the data'; return; endif
 
     ! store data in basin var (bvar) structure
-    do j = 1,nGRU
+    do j = 1,fileGRU
      iGRU = gruid_to_index(j)
      nGlacier = gru_struc(iGRU)%nGlacier ! get dimension of basin glacier variables from attribute file, per GRU
      ! put the data into data structures
-     bvarData%gru(iGRU)%var(iVar)%dat(1:nGlacier) = varData2(iGRU+startGRU-1,1:nGlacier)
+     bvarData%gru(iGRU)%var(iVar)%dat(1:nGlacier) = varData2(j+startGRU-1,1:nGlacier)
      ! check whether the first values is set to nf90_fill_double
      if(any(abs(bvarData%gru(iGRU)%var(iVar)%dat(1:nGlacier) - nf90_fill_double) < epsilon(varData2)))then; err=20; endif
      if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(bvar_meta(iVar)%varName)//"')"; return; endif
     end do ! end iGRU loop
 
     ! deallocate temporary data array for next variable
-    deallocate(varData2, stat=err)
-    if(err/=0)then; message=trim(message)//'problem deallocating GRU variable data'; return; endif
+    deallocate(varData2)
+
    enddo ! end looping through basin variables
   endif  ! end if case for variables being in init. cond. file
  endif ! end if has glacier
@@ -782,20 +804,24 @@ contains
  ! ************************************************************************************************
  subroutine read_icondGlac(iconGlacFile,                  & ! intent(in):    name of glacier initial conditions file (surface topography)
                            nGRU,                          & ! intent(in):    number of GRUs
+                           bvarData,                      & ! intent(inout): basin variable data structure
                            gridData,                      & ! intent(inout): grid data structure
                            err,message)                     ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------
  ! modules
  USE nrtype
  USE var_lookup,only:iLookVarType                       ! variable lookup structure
- USE var_lookup,only:iLookGRID                          ! variable glacier grid structure
+ USE var_lookup,only:iLookGRID                          ! variable glacier grid 
+ USE var_lookup,only:iLookBVAR                          ! variable basin variables
  USE globalData,only:grid_meta                          ! metadata for grid variables
  USE globalData,only:gru_struc                          ! gru-hru mapping structures
  USE globalData,only:startGRU                           ! index of first gru for parallel runs
+ USE globalData,only:maxGlaciers                        ! maximum number of glaciers in any GRU
  USE netcdf_util_module,only:nc_file_open               ! open netcdf file
  USE netcdf_util_module,only:nc_file_close              ! close netcdf file
  USE netcdf_util_module,only:netcdf_err                 ! netcdf error handling
  USE data_types,only:gru_grid_double                    ! full double precision structure
+ USE data_types,only:gru_doubleVec                      ! gru-length double precision structure (basin variables)
  USE get_ixName_module,only:get_varTypeName             ! to access type strings for error messages
 
  implicit none
@@ -804,7 +830,8 @@ contains
  ! dummies
  character(*)           ,intent(in)        :: iconGlacFile             ! name of netcdf file containing the glacier initial conditions
  integer(i4b)           ,intent(in)        :: nGRU                     ! number of grouped response units in simulation domain
- type(gru_grid_double)  ,intent(in)        :: gridData                 ! grid data structure
+ type(gru_doubleVec)    ,intent(in)        :: bvarData                 ! basin variable data structure
+ type(gru_grid_double)  ,intent(inout)     :: gridData                 ! grid data structure
  integer(i4b)           ,intent(out)       :: err                      ! error code
  character(*)           ,intent(out)       :: message                  ! returned error message
  ! locals
@@ -816,20 +843,18 @@ contains
  integer(i4b)                              :: filegrid                 ! max number of glacier grids in any GRU
  integer(i4b)                              :: iVar,i,j,k               ! loop indices
  integer(i4b),dimension(1)                 :: ngdx                     ! intermediate array of loop indices
- integer(i4b)                              :: iGRU, iGlac              ! loop index
+ integer(i4b)                              :: iGRU,iGlac,iGrid         ! loop index
  integer(i4b)                              :: dimID                    ! varible dimension ids
  integer(i4b)                              :: ncVarID                  ! variable ID in netcdf file
- character(256)                            :: dimName                  ! not used except as a placeholder in call to inq_dim function
- integer(i4b)                              :: dimLen                   ! data dimensions
  integer(i4b)                              :: ncID                     ! netcdf file ID
  real(rkind),allocatable                   :: varData(:,:,:,:)         ! variable data storage
- integer(i4b)                              :: nGlacier                 ! number of glaciers in basin (attribute files
  integer(i8b),allocatable                  :: gru_id(:)                ! GRU id
  integer(i8b),allocatable                  :: grid_id(:,:)             ! Glacier id
- integer(i4b),allocatable                  :: gruid_to_index(:)        ! mapping from gru_id to index in gru_struc
- integer(i4b),allocatable                  :: glacid_to_index(:,:)     ! mapping form grid_id to index in gru_struc
- character(len=32)                         :: varName                  ! variable name
- 
+ integer(i4b),allocatable                  :: gruid_to_index(:)        ! mapping from gru_id to index in gridData
+ integer(i4b),allocatable                  :: glacid_to_index(:,:)     ! mapping from glac_id to index in gridData
+ integer(i4b),allocatable                  :: gridid_to_index(:,:)     ! mapping from grid_id to index in gridData
+ real(rkind),parameter                     :: xTol=1.e-10_rkind        ! small tolerance to address precision issues
+ real(rkind)                               :: area,area_grid           ! glacier area for a single glacier (m2)
  ! --------------------------------------------------------------------------------------------------------
  ! Start procedure here
  err=0; message="read_icondGlac/"
@@ -851,94 +876,129 @@ contains
  err = nf90_get_var(ncID,ncVarID,gru_id);      if (err/=0) then; message=trim(message)//'problem reading gruId'; return; end if
     
  ! get dimension of basin glacier variables from initial conditions file
- err = nf90_inq_dimid(ncID,"grid",dimID) ! max number of glaciers in any GRU
- if(err/=nf90_noerr)then
-   write(*,*) 'WARNING: grid is not in the initial glacier conditions file ... assuming number of glaciers is the same as in attribute file and surface elevation infinitesimally close to bed elevation for all glaciers (nonzero area possible but depth is zero)'
-     do iGRU = 1,nGRU
-       nGlacier = gru_struc(iGRU)%nGlacier ! get dimension of basin glacier variables from attribute file, per GRU
-       gridData%gru(iGRU)%grid(:)%var(iLookGRID%surface_elev)%dat2(:,:) = gridData%gru(iGRU)%grid(1:nGlacier)%var(iLookGRID%bed_elev)%dat2(:,:)
-   end do
-   err=nf90_noerr    ! reset this err
-  
- else
-   ! the state file *does* have the basin variable(s), so process them
-   err = nf90_inquire_dimension(ncID,dimID,len=filegrid);
-   if(err/=nf90_noerr)then; message=trim(message)//'problem reading grid dimension from initial condition file/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inq_dimid(ncID,"grid",dimID) ! max number of grids in any GRU
+ err = nf90_inquire_dimension(ncID,dimID,len=filegrid);
+ if(err/=nf90_noerr)then; message=trim(message)//'problem reading grid dimension from initial condition file/'//trim(nf90_strerror(err)); return; end if
 
-   ! read grid_id from netcdf file
-   allocate(grid_id(fileGRU,filegrid))
-   err = nf90_inq_varid(ncID,"gridId",ncVarID); if (err/=0) then; message=trim(message)//'problem finding gridId'; return; end if
-   err = nf90_get_var(ncID,ncVarID,grid_id);    if (err/=0) then; message=trim(message)//'problem reading gridId'; return; end if
+ ! read grid_id from netcdf file
+ allocate(grid_id(fileGRU,filegrid))
+ err = nf90_inq_varid(ncID,"gridId",ncVarID); if (err/=0) then; message=trim(message)//'problem finding gridId'; return; end if
+ err = nf90_get_var(ncID,ncVarID,grid_id);    if (err/=0) then; message=trim(message)//'problem reading gridId'; return; end if
 
-   ! get ygrid dimension of whole file
-   err = nf90_inq_dimid(ncID,"ygrid",dimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding ygrid dimension/'//trim(nf90_strerror(err)); return; end if
-   err = nf90_inquire_dimension(ncID, dimId, len = fileygrid); if(err/=nf90_noerr)then; message=trim(message)//'problem reading ygrid dimension/'//trim(nf90_strerror(err)); return; end if
-   ! get xgrid dimension of whole file
-   err = nf90_inq_dimid(ncID,"xgrid",dimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding xgrid dimension/'//trim(nf90_strerror(err)); return; end if
-   err = nf90_inquire_dimension(ncID, dimId, len = filexgrid); if(err/=nf90_noerr)then; message=trim(message)//'problem reading xgrid dimension/'//trim(nf90_strerror(err)); return; end if
+ ! get ygrid dimension of whole file
+ err = nf90_inq_dimid(ncID,"ygrid",dimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding ygrid dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inquire_dimension(ncID, dimId, len = fileygrid); if(err/=nf90_noerr)then; message=trim(message)//'problem reading ygrid dimension/'//trim(nf90_strerror(err)); return; end if
+ ! get xgrid dimension of whole file
+ err = nf90_inq_dimid(ncID,"xgrid",dimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding xgrid dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inquire_dimension(ncID, dimId, len = filexgrid); if(err/=nf90_noerr)then; message=trim(message)//'problem reading xgrid dimension/'//trim(nf90_strerror(err)); return; end if
 
-   ! Allocate the mapping array
-   allocate(gruid_to_index(fileGRU),glacid_to_index(fileGRU,filegrid))
+ ! Allocate the mapping array
+ allocate(gruid_to_index(fileGRU),glacid_to_index(fileGRU,maxGlaciers),gridid_to_index(fileGRU,filegrid))
 
-   ! Populate the mapping array
-   do i = 1, fileGRU
-     gruid_to_index(i) = -1  ! Initialize with an invalid index
-     do iGRU = 1, nGRU
-       if (gru_struc(iGRU)%gru_id == gru_id(i)) then
-         gruid_to_index(i) = iGRU
-         do j = 1, gru_struc(iGRU)%nGlacier
-           glacid_to_index(i,j) = -1
-           do iGlac = 1, gru_struc(iGRU)%nGlacier
-             if (gru_struc(iGRU)%gridInfo(j)%grid_id == grid_id(i,iGlac)) then
-               glacid_to_index(i,j) = iGlac
+ ! Populate the mapping arrays
+ do i = 1, fileGRU
+   gruid_to_index(i) = -1  ! Initialize with an invalid index
+   do iGRU = 1, nGRU
+     if (gru_struc(iGRU)%gru_id == gru_id(i)) then
+       gruid_to_index(i) = iGRU
+       do j = 1, gru_struc(iGRU)%nGlacier
+         glacid_to_index(i,j) = -1
+         if (gru_struc(iGRU)%glacInfo(j)%glac_id==int8Missing) then
+           gru_struc(iGRU)%glacInfo(j)%glac_id = grid_id(i,j) ! if there is no glac_id in the intial conditions file, use grid_id
+           glacid_to_index(i,j) = j
+         else
+           do iGrid = 1, size(gru_struc(iGRU)%gridInfo(:)%grid_id)
+             if (gru_struc(iGRU)%glacInfo(j)%glac_id == grid_id(i,iGrid)) then
+               glacid_to_index(i,j) = iGrid
                exit
              endif
-           end do  
-         end do
-         exit
-       endif
-     end do
+           end do
+         endif
+         if (glacid_to_index(i,j) == -1) then
+           message=trim(message)//'glacier glacId needs to match a gridId'; err=20; return
+         endif
+       end do ! glac id loop
+       do j = 1, size(gru_struc(iGRU)%gridInfo(:)%grid_id)
+         gridid_to_index(i,j) = -1
+         do iGrid = 1, size(gru_struc(iGRU)%gridInfo(:)%grid_id)
+           if (gru_struc(iGRU)%gridInfo(j)%grid_id == grid_id(i,iGrid)) then
+             gridid_to_index(i,j) = iGrid
+             exit
+           endif
+         end do  !
+       end do ! grid id loop
+       exit
+     endif
    end do
+ end do
 
-   ! loop through specific basin grid variables
-   ngdx = (/iLookGRID%surface_elev/)   ! array of desired variable indices, currently only surface elevation
-   do i = 1,size(ngdx)
-    iVar = ngdx(i)
+ ! loop through specific basin grid variables
+ ngdx = (/iLookGRID%surface_elev/)   ! array of desired variable indices, currently only surface elevation
+ do i = 1,size(ngdx)
+  iVar = ngdx(i)
 
-    ! get grid-based variable id
-    err = nf90_inq_varid(ncID,trim(grid_meta(iVar)%varName),ncVarID)
-    if(err/=0)then; message=trim(message)//': problem with getting grid variable id, var= '//trim(grid_meta(iVar)%varName); return; endif
+  ! get grid-based variable id
+  err = nf90_inq_varid(ncID,trim(grid_meta(iVar)%varName),ncVarID)
+  if(err/=0)then; message=trim(message)//': problem with getting grid variable id, var= '//trim(grid_meta(iVar)%varName); return; endif
 
-    ! initialize the grid variable data
-    allocate(varData(fileGRU,filegrid,fileygrid,filexgrid),stat=err)
-    if(err/=0)then; print*, 'err= ',err; message=trim(message)//'problem allocating GRU variable data'; return; endif
+  ! initialize the grid variable data
+  allocate(varData(fileGRU,filegrid,fileygrid,filexgrid),stat=err)
+  if(err/=0)then; print*, 'err= ',err; message=trim(message)//'problem allocating GRU variable data'; return; endif
 
-    ! get data
-    err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message)
-    if(err/=0)then; message=trim(message)//': problem getting the data'; return; endif
-     
-    ! store data in grid structure
-    do k = 1,nGRU
-      iGRU = gruid_to_index(k)
+  ! get data
+  err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message)
+  if(err/=0)then; message=trim(message)//': problem getting the data'; return; endif
+   
+  ! store data in grid structure
+  do k = 1, fileGRU
+    iGRU = gruid_to_index(k)
+    do j = 1, size(gru_struc(iGRU)%gridInfo(:)%grid_id)
+      iGrid = gridid_to_index(k,j)
+      ny = gru_struc(iGRU)%gridInfo(iGrid)%ny
+      nx = gru_struc(iGRU)%gridInfo(iGrid)%nx
+      ! put the data into data structures
+      gridData%gru(iGRU)%grid(iGrid)%var(iVar)%dat2(1:nx,1:ny) = varData(k+startGRU-1,j,1:nx,1:ny) 
+    enddo
+    ! correct for negative glacier thickness and note area differences with grid approximation
+    if (iVar==iLookGRID%surface_elev) then
       do j = 1, gru_struc(iGRU)%nGlacier
-        iGlac = glacid_to_index(k,j)
-        ny = gru_struc(iGRU)%gridInfo(iGlac)%ny
-        nx = gru_struc(iGRU)%gridInfo(iGlac)%nx
-        ! put the data into data structures
-        gridData%gru(iGRU)%grid(iGlac)%var(iVar)%dat2(1:nx,1:ny) = varData(k,j,1:nx,1:ny) 
+        iGrid = glacid_to_index(k,j)   
+        ny = gru_struc(iGRU)%gridInfo(iGrid)%ny
+        nx = gru_struc(iGRU)%gridInfo(iGrid)%nx
+        associate(& 
+          area_abl     => bvarData%gru(k)%var(iLookBVAR%glacAblArea)%dat(j)                          ,&
+          area_acc     => bvarData%gru(k)%var(iLookBVAR%glacAccArea)%dat(j)                          ,&
+          bed_elev     => gridData%gru(iGRU)%grid(iGrid)%var(iLookGRID%bed_elev)%dat2(1:nx,1:ny)     ,&
+          surface_elev => gridData%gru(iGRU)%grid(iGrid)%var(iLookGRID%surface_elev)%dat2(1:nx,1:ny) ,&
+          dx           => gru_struc(iGRU)%gridInfo(iGrid)%dx                                         ,&
+          dy           => gru_struc(iGRU)%gridInfo(iGrid)%dy                                          &
+          )
+          area = area_abl + area_acc
+          ! correct if glacier thickness is negative
+          surface_elev = merge(bed_elev, surface_elev, surface_elev - bed_elev <= 0._rkind)
+          area_grid = sum(merge(0._rkind, dx*dy, surface_elev - bed_elev <= 0._rkind))
+          ! check if area is significantly different from grid approximation
+          ! this is okay for the first year as it is considered spin up, subsequent years will use the grid data to compute the area
+          if (area_grid>0.0_rkind) then 
+            if (abs(area/area_grid-1._rkind) >xTol) then
+              write(*,*) 'WARNING: Area of glacier ',iGlac,' in GRU ',iGRU,' starts at ', area/area_grid, ' times the grid approximation but will be calculated from the grid data after a year.'
+              write(*,*) 'If this is not expected, check the glacier grid data in the initial grid conditions file (perhaps the grid should be refined or the glacier area should be adjusted).'
+            endif      
+          endif
+        end associate
       end do
-      ! check whether the first values is set to nf90_fill_double
-      if(any(abs(gridData%gru(iGRU)%grid(iGlac)%var(iVar)%dat2(1:nx,1:ny) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
-      if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(grid_meta(iVar)%varName)//"')"; return; endif
-    end do ! end iGRU loop
+    endif
+    ! check whether the first values is set to nf90_fill_double
+    if(any(abs(gridData%gru(iGRU)%grid(iGlac)%var(iVar)%dat2(1:nx,1:ny) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
+    if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(grid_meta(iVar)%varName)//"')"; return; endif
+  end do ! end iGRU loop
 
-    ! deallocate temporary data array for next variable
-    deallocate(varData, stat=err)
-    if(err/=0)then; message=trim(message)//'problem deallocating GRU variable data'; return; endif
-   enddo ! end looping through basin variables
- endif ! end if has glacier
+  ! deallocate temporary data array for next variable
+  deallocate(varData, stat=err)
+  if(err/=0)then; message=trim(message)//'problem deallocating GRU variable data'; return; endif
+ enddo ! end looping through basin variables
 
- deallocate(gru_id,grid_id,gruid_to_index,glacid_to_index)
+ deallocate(gru_id,grid_id,gruid_to_index,glacid_to_index,gridid_to_index)
 
  end subroutine read_icondGlac
 

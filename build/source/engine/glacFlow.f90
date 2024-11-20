@@ -93,17 +93,18 @@ subroutine glacFlow(&
   ! locals
   real(rkind), allocatable           :: surface(:,:)              ! surface elevation of each glacier domain (m)
   real(rkind), allocatable           :: bed(:,:)                  ! bed elevation of each glacier domain (m)
-  real(rkind), allocatable           :: cell2hru(:,:)             ! map of glacier cell to hru index
-  real(rkind), allocatable           :: glacierMask(:,:)          ! mask of glacier domain
-  integer(i4b)                       :: i,j,k,n,iGlac             ! loop indices
+  integer(i4b), allocatable          :: cell2hru(:,:)             ! map of glacier cell to hru index
+  integer(i4b), allocatable          :: glacierMask(:,:)          ! 1-0 mask of glacier domain
+  integer(i4b), allocatable          :: zeros(:,:)                ! zeros array for masking
+  integer(i4b)                       :: i,j,k,n,iGlac,iGrid,iDOM  ! loop indices
   integer(i4b),parameter             :: nYr = 1                   ! number of years to run
-  real(rkind)                        :: nx, ny                    ! number of grid cells in x and y directions
+  integer(i4b)                       :: nx, ny                    ! number of grid cells in x and y directions
+  real(rkind)                        :: dx, dy                    ! grid cell size in x and y directions
   real(rkind)                        :: volume                    ! volume of each glacier km3
   real(rkind)                        :: totVolume                 ! total volume of all glaciers km3, might want to send out of routine
   real(rkind), allocatable           :: mb(:,:)                   ! mass balance in each glacier domain (m s-1)
   real(rkind)                        :: ELA_elev                  ! ELA in each glacier domain (m s-1)
   real(rkind), allocatable           :: hgt(:,:)                  ! height of each glacier domain (m)
-  real(rkind)                        :: dly                       ! area of each grid cell (m2)
   integer(i4b)                       :: validCount                ! number of valid points
   real(rkind), allocatable           :: validElev(:)              ! filter out points where equal to realMissing
   real(rkind), allocatable           :: validGWE_delta(:)         ! filter out points where equal to realMissing
@@ -122,10 +123,10 @@ subroutine glacFlow(&
   
   ! Filter out points where no area and elevation is missing
   j = 1
-  do i = 1, nDOM
-    if (elev(i) /= realMissing) then
-      validElev(j) = elev(i)
-      validGWE_delta(j) = GWE_delta(i)
+  do iDOM = 1, nDOM
+    if (elev(iDOM) /= realMissing) then
+      validElev(j) = elev(iDOM)
+      validGWE_delta(j) = GWE_delta(iDOM)
       j = j + 1
     end if
   end do
@@ -180,35 +181,38 @@ subroutine glacFlow(&
   allocate(glacid_to_index(nGlacier))
 
   ! Populate the mapping array
-  do i = 1, nGlacier
-    glacid_to_index(i) = -1  ! Initialize with an invalid index
-    do iGlac = 1, nGlacier
-      if (gridInfo(iGlac)%grid_id==glacInfo(i)%glac_id) then
-        glacid_to_index(i) = iGlac
+  do iGlac = 1, nGlacier
+    glacid_to_index(iGlac) = -1  ! Initialize with an invalid index
+    do iGrid = 1, size(gridInfo(:)%grid_id)
+      if (gridInfo(iGrid)%grid_id==glacInfo(iGlac)%glac_id) then
+        glacid_to_index(iGlac) = iGrid
         exit
       endif
     end do
   end do
 
   ! run flow for each glacier
-  do iGlac = 1,nGlacier
-    i = glacid_to_index(iGlac)
+  do iGlac = 1, nGlacier
+    iGrid = glacid_to_index(iGlac)
 
     ! set up glacier grid
-    ny = gridInfo(i)%ny
-    nx = gridInfo(i)%nx
+    ny = gridInfo(iGrid)%ny
+    nx = gridInfo(iGrid)%nx
+    dx = gridInfo(iGrid)%dx
+    dy = gridInfo(iGrid)%dy
 
     ! set up mass balance and height arrays
-    allocate(mb(nx,ny), hgt(nx,ny))
+    allocate(mb(nx,ny), hgt(nx,ny), zeros(nx,ny))
     mb = 0._rkind
     hgt = 0._rkind
+    zeros = 0
 
     ! set up grid data
     allocate(surface(nx,ny), bed(nx,ny), cell2hru(nx,ny), glacierMask(nx,ny))
-    surface = gridData%grid(i)%var(iLookGRID%surface_elev)%dat2(1:nx,1:ny)
-    bed = gridData%grid(i)%var(iLookGRID%bed_elev)%dat2(1:nx,1:ny)
-    cell2hru = gridData%grid(i)%var(iLookGRID%cell2hru)%dat2(1:nx,1:ny)
-    glacierMask = gridData%grid(i)%var(iLookGRID%glacierMask)%dat2(1:nx,1:ny)
+    surface = gridData%grid(iGrid)%var(iLookGRID%surface_elev)%dat2(1:nx,1:ny)
+    bed = gridData%grid(iGrid)%var(iLookGRID%bed_elev)%dat2(1:nx,1:ny)
+    cell2hru = int(gridData%grid(iGrid)%var(iLookGRID%cell2hru)%dat2(1:nx,1:ny))
+    glacierMask = int(gridData%grid(iGrid)%var(iLookGRID%glacierMask)%dat2(1:nx,1:ny))
 
     ! distribute mass balance over surface, using all points in GRU
     do k = 1, nx
@@ -219,11 +223,11 @@ subroutine glacFlow(&
           slope = (GWE_delta(2) - GWE_delta(1)) / (elev(2) - elev(1))
           intercept = GWE_delta(1) - slope * elev(1)
           mb(k,j) = slope * surface(k,j) + intercept
-        else if (surface(j) <= elev(nDOM)) then
+        else if (surface(k,j) <= elev(nDOM)) then
           ! Extrapolate below the last point
           slope = (GWE_delta(nDOM) - GWE_delta(nDOM-1)) / (elev(nDOM) - elev(nDOM-1))
           intercept = GWE_delta(nDOM) - slope * elev(nDOM)
-          mb(k,j) = slope * surface(k,j,i) + intercept
+          mb(k,j) = slope * surface(k,j) + intercept
         else
           ! Interpolate between points
           do n = 1, nDOM-1
@@ -243,43 +247,42 @@ subroutine glacFlow(&
     end do
 
     ! compute flow
-    call run_year(nYr,surface, bed, mb, glacierMask, nx, ny, gridInfo(i)%dy, gridInfo(i)%dx, volume)
+    call run_year(nYr,surface, bed, mb, glacierMask, nx, ny, dx, dy, volume)
     totVolume = totVolume+volume
     
     ! Initialize variables
     hgt = surface - bed
-    dly = dy(i) * dx(i)
     
     ! Calculate glacier ablation and accumulation areas
-    glacAblArea(i) = sum(merge(dly, 0.0, (hgt>0) .and. (surface<  ELA_elev)))
-    glacAccArea(i) = sum(merge(dly, 0.0, (hgt>0) .and. (surface>= ELA_elev)))
-    
+    glacAblArea(iGlac) = sum(merge(glacierMask, zeros, hgt>0 .and. surface<  ELA_elev))*dx*dy
+    glacAccArea(iGlac) = sum(merge(glacierMask, zeros, hgt>0 .and. surface>= ELA_elev))*dx*dy
+
     ! Loop through HRUs and calculate domain areas and elevations for each HRU
     ! Order of domains will go HRU 1: Acc, Abl, HRU 2: Acc, Abl, etc.
     do k = 1, nDOM / 2
-      area(2*k-1) = area(2*k-1) + sum(merge(dly, 0.0, (cell2hru==hruInd(k)) .and. (hgt>0) .and. (surface>=ELA_elev)))
-      area(2*k)   = area(2*k)   + sum(merge(dly, 0.0, (cell2hru==hruInd(k)) .and. (hgt>0) .and. (surface< ELA_elev)))
+      area(2*k-1) = area(2*k-1) + sum(merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>0 .and. surface>=ELA_elev))*dx*dy
+      area(2*k)   = area(2*k)   + sum(merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>0 .and. surface< ELA_elev))*dx*dy
       
       ! Calculate mean elevation for accumulation and ablation areas
-      if (count((cell2hru==hruInd(k)) .and. (hgt>0) .and. (surface>=ELA_elev)) > 0) then
-        elev(2*k-1) = elev(2*k-1) + sum(surface * merge(1.0, 0.0, (cell2hru==hruInd(k)) .and. (hgt>0) .and. (surface>=ELA_elev))) / &
-                          count((cell2hru==hruInd(k)) .and. (hgt>0) .and. (surface>=ELA_elev)) /nGlacier
+      if (count(cell2hru==hruInd(k) .and. hgt>0 .and. surface>=ELA_elev) > 0) then
+        elev(2*k-1) = elev(2*k-1) + sum(surface * merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>0 .and. surface>=ELA_elev)) / &
+                          count(cell2hru==hruInd(k) .and. hgt>0 .and. surface>=ELA_elev) /nGlacier
       end if
-      if (count((cell2hru==hruInd(k)) .and. (hgt>0) .and. (surface <ELA_elev)) > 0) then
-        elev(2*k)   = elev(2*k)   + sum(surface * merge(1.0, 0.0, (cell2hru==hruInd(k)) .and. (hgt>0) .and. (surface< ELA_elev))) / &
-                          count((cell2hru==hruInd(k)) .and. (hgt>0) .and. (surface< ELA_elev)) /nGlacier
+      if (count(cell2hru==hruInd(k) .and. hgt>0 .and. surface< ELA_elev) > 0) then
+        elev(2*k)   = elev(2*k)   + sum(surface * merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>0 .and. surface< ELA_elev)) / &
+                          count(cell2hru==hruInd(k) .and. hgt>0 .and. surface< ELA_elev) /nGlacier
       end if
     end do
 
     ! update gridData and deallocate
-    gridData%grid(i)%var(iLookGRID%surface_elev)%dat2(1:nx,1:ny) = surface
-    deallocate(mb, hgt, surface, bed, cell2hru, glacierMask)
+    gridData%grid(iGrid)%var(iLookGRID%surface_elev)%dat2(1:nx,1:ny) = surface
+    deallocate(mb, hgt, zeros, surface, bed, cell2hru, glacierMask)
 
   enddo ! end of glacier loop
 
   ! Set elevations to realMissing if no area in domain
-  do i = 1,nDOM
-    if (elev(i)==0._rkind) elev(i)=realMissing
+  do iDOM = 1,nDOM
+    if (elev(iDOM)==0._rkind) elev(iDOM)=realMissing
   end do
 
   deallocate(glacid_to_index)
@@ -290,18 +293,17 @@ end subroutine glacFlow
 ! ************************************************************************************************
 ! private subroutine run_year for setting up flow model and running for each glacier for time period
 ! ************************************************************************************************
-  subroutine run_year(y_end, S, B, m_dot, glacierMask, nx, ny, dy, dx, volume)
+  subroutine run_year(y_end, S, B, m_dot, glacierMask, nx, ny, dx, dy, volume)
     ! Arguments
-    real(rkind), intent(in) :: y_end, dy, dx
+    real(rkind), intent(in) :: dx, dy
     real(rkind), intent(inout) :: S(:,:), B(:,:), m_dot(:,:)
-    integer(i4b), intent(in) :: ny, nx
-    logical(lgt), intent(in) :: glacierMask(:)
+    integer(i4b), intent(in) :: y_end, ny, nx, glacierMask(:,:)
     real(rkind), intent(out) :: volume
 
     ! Local variables
-    real(rkind) :: t_total, dt, max_dt, min_dt, deltat, div_q(nx, ny), dt_cfl
-    real(rkind) :: gamma, t
-    integer(i4b) :: i, j
+    real(rkind) :: t_total, dt, max_dt, min_dt, deltat, div_q(nx,ny), dt_cfl
+    real(rkind) :: gamma, t, zeros(nx,ny)
+    integer(i4b) :: i
     integer(i4b),parameter :: n=3 ! Glen's flow law exponent,
     real(rkind),parameter :: A=2.4e-24 ! Modern Glen parameter
     real(rkind),parameter :: cfl=0.124 ! Courant-Friedrichs-Lewy condition
@@ -340,9 +342,9 @@ end subroutine glacFlow
 
       ! Select diffusion method and call step
       if (method == "MUSCL") then
-        call diffusion_MUSCL(S, B, gamma, n, cfl, max_dt, nx, ny, k, kp, km, kpp, kmm, l, lp, lm, lpp, lmm, dy, dx, div_q, dt_cfl)
+        call diffusion_MUSCL(S, B, gamma, n, cfl, max_dt, nx, ny, k, kp, km, kpp, kmm, l, lp, lm, lpp, lmm, dx, dy, div_q, dt_cfl)
       else if (method == "upstream") then
-        call diffusion_upstream(S, B, gamma, n, cfl, max_dt, nx, ny, k, kp, km, l, lp, lm, dy, dx, div_q, dt_cfl)
+        call diffusion_upstream(S, B, gamma, n, cfl, max_dt, nx, ny, k, kp, km, l, lp, lm, dx, dy, div_q, dt_cfl)
       end if
   
       ! update time step
@@ -353,16 +355,18 @@ end subroutine glacFlow
   
       ! Update S
       S = S + (m_dot + div_q) * deltat
-      S = max(S, B)
+      S = merge(S, B, S < B)
   
-  ! Check that the glacier is in boundaries, fix small violations
-      if (any((S - B) > 0._rkind .and. .not. glacierMask)) then
-        if (any((S - B) > 10.0 .and. .not. glacierMask)) stop 'Glacier exceeds boundaries'
-        S(.not. glacierMask) = B(.not. glacierMask)
+      ! Check that the glacier is in boundaries, fix small violations
+      if (any((S - B) > 0._rkind .and. glacierMask==0)) then
+        if (any((S - B) > 10.0 .and. glacierMask==0)) stop 'Glacier exceeds boundaries'
+        S = merge(B, S, (S - B) > 0._rkind .and. glacierMask==0)
       end if
     end do
 
-    volume = sum(S(glacierMask)-B(glacierMask)) * dy * dx * 1.e-9_rkind ! km3
+    ! Calculate volume, not currently used but could be useful
+    zeros = 0._rkind
+    volume = sum(merge(S-B,zeros,glacierMask==1)) * dx * dy * 1.e-9_rkind ! km3
 
   end subroutine run_year
 
@@ -373,23 +377,23 @@ end subroutine glacFlow
 ! ************************************************************************************************
 ! upwind diffusion scheme
 ! ************************************************************************************************
-subroutine diffusion_upstream(S, B, gamma, n, cfl, max_dt, nx, ny, k, kp, km, l, lp, lm, dy, dx, div_q, dt_cfl)
+subroutine diffusion_upstream(S, B, gamma, n, cfl, max_dt, nx, ny, k, kp, km, l, lp, lm, dx, dy, div_q, dt_cfl)
   implicit none
-  real(rkind), intent(in) :: S(:,:), B(:,:), dy, dx, gamma, cfl, max_dt
+  real(rkind), intent(in) :: S(:,:), B(:,:), dx, dy, gamma, cfl, max_dt
   integer(i4b), intent(in) :: nx, ny, k(:), kp(:), km(:), l(:), lp(:), lm(:), n
-  real(rkind), intent(out) :: div_q(nx, ny), dt_cfl
-  real(rkind) :: H(nx, ny)
-  real(rkind) :: Sklp(nx), Sklm(nx), Skplp(nx), Skplm(nx), Skpl(nx), Skl(nx), Skmlp(nx), Skmlm(nx), Skml(nx)
-  real(rkind) :: Hkpl(nx), Hkml(nx), Hkl(nx), Hklp(nx), Hklm(nx)
-  real(rkind) :: H_l_up(nx, ny), H_l_down(nx, ny)
-  real(rkind) :: H_l_upstream_up(nx, ny), H_l_upstream_down(nx, ny)
-  real(rkind) :: f_l_plus(nx, ny), f_l_min(nx, ny)
-  real(rkind) :: D_l_up(nx, ny), D_l_dn(nx, ny)
-  real(rkind) :: H_k_up(nx, ny), H_k_down(nx, ny)
-  real(rkind) :: H_k_upstream_up(nx, ny), H_k_upstream_down(nx, ny)
-  real(rkind) :: f_k_plus(nx, ny), f_k_min(nx, ny)
-  real(rkind) :: D_k_up(nx, ny), D_k_dn(nx, ny)
-  real(rkind) :: div_l(nx, ny), div_k(nx, ny)
+  real(rkind), intent(out) :: div_q(nx,ny), dt_cfl
+  real(rkind) :: H(nx,ny)
+  real(rkind) :: Sklp(nx,ny), Sklm(nx,ny), Skplp(nx,ny), Skplm(nx,ny), Skpl(nx,ny), Skl(nx,ny), Skmlp(nx,ny), Skmlm(nx,ny), Skml(nx,ny)
+  real(rkind) :: Hkpl(nx,ny), Hkml(nx,ny), Hkl(nx,ny), Hklp(nx,ny), Hklm(nx,ny)
+  real(rkind) :: H_l_up(nx,ny), H_l_down(nx,ny)
+  real(rkind) :: H_l_upstream_up(nx,ny), H_l_upstream_down(nx,ny)
+  real(rkind) :: f_l_plus(nx,ny), f_l_min(nx,ny)
+  real(rkind) :: D_l_up(nx,ny), D_l_dn(nx,ny)
+  real(rkind) :: H_k_up(nx,ny), H_k_down(nx,ny)
+  real(rkind) :: H_k_upstream_up(nx,ny), H_k_upstream_down(nx,ny)
+  real(rkind) :: f_k_plus(nx,ny), f_k_min(nx,ny)
+  real(rkind) :: D_k_up(nx,ny), D_k_dn(nx,ny)
+  real(rkind) :: div_l(nx,ny), div_k(nx,ny)
   real(rkind) :: divisor
   integer(i4b) :: i, j
 
@@ -413,80 +417,81 @@ subroutine diffusion_upstream(S, B, gamma, n, cfl, max_dt, nx, ny, k, kp, km, l,
   Hklm  = H(k ,lm)
 
   ! calculate l upstream
-  call H_index(Hklp, Hkl, H_l_up)
-  call H_index(Hkl, Hklm, H_l_down)
+  H_l_up   = H_index(Hklp, Hkl)
+  H_l_down = H_index(Hkl, Hklm)
   H_l_upstream_up = 0._rkind
   do j = 1, nx
     do i = 1, ny
-      if (Sklp(j, i) > Skl(j, i)) then
-        H_l_upstream_up(j, i) = Hklp(j, i)
+      if (Sklp(j,i) > Skl(j,i)) then
+        H_l_upstream_up(j,i) = Hklp(j,i)
       else
-        H_l_upstream_up(j, i) = Hkl(j, i)
+        H_l_upstream_up(j,i) = Hkl(j,i)
       end if
     end do
   end do
   H_l_upstream_down = 0._rkind
   do j = 1, nx
     do i = 1, ny
-      if (Skl(j, i) > Sklm(j, i)) then
-        H_l_upstream_down(j, i) = Hkl(j, i)
+      if (Skl(j,i) > Sklm(j,i)) then
+        H_l_upstream_down(j,i) = Hkl(j,i)
       else
-        H_l_upstream_down(j, i) = Hklm(j, i)
+        H_l_upstream_down(j,i) = Hklm(j,i)
       end if
     end do
   end do
 
   ! calculate l flux
-  call flux(Skpl, Skml, Skplp, Skmlp, Sklp, Skl, dy, dx, f_l_plus)
-  call flux(Skpl, Skml, Skplm, Skmlm, Skl, Sklm, dy, dx, f_l_min)
+  f_l_plus = flux(Skpl, Skml, Skplp, Skmlp, Sklp, Skl, dy, dx, n)
+  f_l_min  = flux(Skpl, Skml, Skplm, Skmlm, Skl, Sklm, dy, dx, n)
 
   ! calculate l Diffusivity
   D_l_up = gamma * H_l_up**(n+1_i4b) * H_l_upstream_up * f_l_plus
   D_l_dn = gamma * H_l_down**(n+1_i4b) * H_l_upstream_down * f_l_min
 
   ! calculate k upstream 
-  call H_index(Hkpl, Hkl, H_k_up)
-  call H_index(Hkl, Hkml, H_k_down)
+  H_k_up   = H_index(Hkpl, Hkl)
+  H_k_down = H_index(Hkl, Hkml)
   H_k_upstream_up = 0._rkind
   do j = 1, nx
     do i = 1, ny
-      if (Skpl(j, i) > Skl(j, i)) then
-        H_k_upstream_up(j, i) = Hkpl(j, i)
+      if (Skpl(j,i) > Skl(j,i)) then
+        H_k_upstream_up(j,i) = Hkpl(j,i)
       else
-        H_k_upstream_up(j, i) = Hkl(j, i)
+        H_k_upstream_up(j,i) = Hkl(j,i)
       end if
     end do
   end do
   H_k_upstream_down = 0._rkind
   do j = 1, nx
     do i = 1, ny
-      if (Skl(j, i) > Skml(j, i)) then
-        H_k_upstream_down(j, i) = Hkl(j, i)
+      if (Skl(j,i) > Skml(j,i)) then
+        H_k_upstream_down(j,i) = Hkl(j,i)
       else
-        H_k_upstream_down(j, i) = Hkml(j, i)
+        H_k_upstream_down(j,i) = Hkml(j,i)
       end if
     end do
   end do
 
   ! calculate k flux
-  call flux(Sklp, Sklm, Skplp, Skplm, Skpl, Skl, dx, dy, f_k_plus)
-  call flux(Sklp, Sklm, Skmlp, Skmlm, Skl, Skml, dx, dy, f_k_min)
+  f_k_plus = flux(Sklp, Sklm, Skplp, Skplm, Skpl, Skl, dx, dy, n)
+  f_k_min  = flux(Sklp, Sklm, Skmlp, Skmlm, Skl, Skml, dx, dy, n)
 
   ! calculate k Diffusivity
   D_k_up = gamma * H_k_up**(n+1_i4b) * H_k_upstream_up * f_k_plus
   D_k_dn = gamma * H_k_down**(n+1_i4b) * H_k_upstream_down * f_k_min
 
   ! calculate delta t and t
-  divisor = maxval(abs(D_k_up), abs(D_k_dn), abs(D_l_up), abs(D_l_dn))
+  divisor = max(maxval(abs(D_k_up)), maxval(abs(D_k_dn)), maxval(abs(D_l_up)), maxval(abs(D_l_dn)))
+
   if (divisor == 0._rkind) then
     dt_cfl = max_dt
   else
-    dt_cfl = cfl * min(dy**2_i4b, dx**2_i4b) / divisor
+    dt_cfl = cfl * min(dx**2_i4b, dy**2_i4b) / divisor
   end if
 
   ! Calculate the time step values
-  call SIA(D_l_up, Sklp, Skl, D_l_dn, Sklm, dy, div_l)
-  call SIA(D_k_up, Skpl, Skl, D_k_dn, Skml, dx, div_k)
+  div_l = SIA(D_l_up, Sklp, Skl, D_l_dn, Sklm, dy)
+  div_k = SIA(D_k_up, Skpl, Skl, D_k_dn, Skml, dx)
   div_q = div_k + div_l
 
 end subroutine diffusion_upstream
@@ -494,27 +499,27 @@ end subroutine diffusion_upstream
 ! ************************************************************************************************
 ! MUSCL scheme
 ! ************************************************************************************************
-subroutine diffusion_MUSCL(S, B, gamma, n, cfl, max_dt, nx, ny, k, kp, km, kpp, kmm, l, lp, lm, lpp, lmm, dy, dx, div_q, dt_cfl)
+subroutine diffusion_MUSCL(S, B, gamma, n, cfl, max_dt, nx, ny, k, kp, km, kpp, kmm, l, lp, lm, lpp, lmm, dx, dy, div_q, dt_cfl)
   implicit none
-  real(rkind), intent(in) :: S(:,:), B(:,:), dy, dx, gamma, cfl, max_dt
+  real(rkind), intent(in) :: S(:,:), B(:,:), dx, dy, gamma, cfl, max_dt
   integer(i4b), intent(in) :: nx, ny, k(:), kp(:), km(:), kpp(:), kmm(:), l(:), lp(:), lm(:), lpp(:), lmm(:), n
-  real(rkind), intent(out) :: div_q(nx, ny), dt_cfl
-  real(rkind) :: H(nx, ny)
-  real(rkind) :: Sklp(nx), Sklm(nx), Skplp(nx), Skplm(nx), Skpl(nx), Skl(nx), Skmlp(nx), Skmlm(nx), Skml(nx)
-  real(rkind) :: Hkpl(nx), Hkppl(nx), Hkml(nx), Hkmml(nx), Hkl(nx), Hklp(nx), Hklpp(nx), Hklm(nx), Hklmm(nx)
-  real(rkind) :: H_l_min_up(nx, ny), H_l_plus_up(nx, ny)
-  real(rkind) :: H_l_min_down(nx, ny), H_l_plus_down(nx, ny)
-  real(rkind) :: f_l_plus(nx, ny), f_l_min(nx, ny)
-  real(rkind) :: D_l_up_m(nx, ny), D_l_up_p(nx, ny), D_l_up_min(nx, ny), D_l_up_max(nx, ny)
-  real(rkind) :: D_l_dn_m(nx, ny), D_l_dn_p(nx, ny), D_l_dn_min(nx, ny), D_l_dn_max(nx, ny)
-  real(rkind) :: D_l_up(nx, ny), D_l_dn(nx, ny)
-  real(rkind) :: H_k_min_up(nx, ny), H_k_plus_up(nx, ny)
-  real(rkind) :: H_k_min_down(nx, ny), H_k_plus_down(nx, ny)
-  real(rkind) :: f_k_plus(nx, ny), f_k_min(nx, ny)
-  real(rkind) :: D_k_up_m(nx, ny), D_k_up_p(nx, ny), D_k_up_min(nx, ny), D_k_up_max(nx, ny)
-  real(rkind) :: D_k_dn_m(nx, ny), D_k_dn_p(nx, ny), D_k_dn_min(nx, ny), D_k_dn_max(nx, ny)
-  real(rkind) :: D_k_up(nx, ny), D_k_dn(nx, ny)
-  real(rkind) :: div_l(nx, ny), div_k(nx, ny)
+  real(rkind), intent(out) :: div_q(nx,ny), dt_cfl
+  real(rkind) :: H(nx,ny)
+  real(rkind) :: Sklp(nx,ny), Sklm(nx,ny), Skplp(nx,ny), Skplm(nx,ny), Skpl(nx,ny), Skl(nx,ny), Skmlp(nx,ny), Skmlm(nx,ny), Skml(nx,ny)
+  real(rkind) :: Hkpl(nx,ny), Hkppl(nx,ny), Hkml(nx,ny), Hkmml(nx,ny), Hkl(nx,ny), Hklp(nx,ny), Hklpp(nx,ny), Hklm(nx,ny), Hklmm(nx,ny)
+  real(rkind) :: H_l_min_up(nx,ny), H_l_plus_up(nx,ny)
+  real(rkind) :: H_l_min_down(nx,ny), H_l_plus_down(nx,ny)
+  real(rkind) :: f_l_plus(nx,ny), f_l_min(nx,ny)
+  real(rkind) :: D_l_up_m(nx,ny), D_l_up_p(nx,ny), D_l_up_min(nx,ny), D_l_up_max(nx,ny)
+  real(rkind) :: D_l_dn_m(nx,ny), D_l_dn_p(nx,ny), D_l_dn_min(nx,ny), D_l_dn_max(nx,ny)
+  real(rkind) :: D_l_up(nx,ny), D_l_dn(nx,ny)
+  real(rkind) :: H_k_min_up(nx,ny), H_k_plus_up(nx,ny)
+  real(rkind) :: H_k_min_down(nx,ny), H_k_plus_down(nx,ny)
+  real(rkind) :: f_k_plus(nx,ny), f_k_min(nx,ny)
+  real(rkind) :: D_k_up_m(nx,ny), D_k_up_p(nx,ny), D_k_up_min(nx,ny), D_k_up_max(nx,ny)
+  real(rkind) :: D_k_dn_m(nx,ny), D_k_dn_p(nx,ny), D_k_dn_min(nx,ny), D_k_dn_max(nx,ny)
+  real(rkind) :: D_k_up(nx,ny), D_k_dn(nx,ny)
+  real(rkind) :: div_l(nx,ny), div_k(nx,ny)
   real(rkind) :: divisor
   integer(i4b) :: i, j
 
@@ -542,113 +547,113 @@ subroutine diffusion_MUSCL(S, B, gamma, n, cfl, max_dt, nx, ny, k, kp, km, kpp, 
   Hklmm = H(k  ,lmm)
 
   ! calculate l+1/2 index
-  call H_min(Hklm, Hkl, Hklp, H_l_min_up)
-  call H_plus(Hkl, Hklp, Hklpp, H_l_plus_up)
+  H_l_min_up  = H_min(Hklm, Hkl, Hklp)
+  H_l_plus_up = H_plus(Hkl, Hklp, Hklpp)
 
   ! calculate l-1/2 index
-  call H_min(Hklmm, Hklm, Hkl, H_l_min_down)
-  call H_plus(Hklm, Hkl, Hklp, H_l_plus_down)
+  H_l_min_down  = H_min(Hklmm, Hklm, Hkl)
+  H_l_plus_down = H_plus(Hklm, Hkl, Hklp)
 
   ! calculate l flux
-  call flux(Skpl, Skml, Skplp, Skmlp, Sklp, Skl, dy, dx, f_l_plus)
-  call flux(Skpl, Skml, Skplm, Skmlm, Skl, Sklm, dy, dx, f_l_min)
+  f_l_plus = flux(Skpl, Skml, Skplp, Skmlp, Sklp, Skl, dy, dx, n)
+  f_l_min  = flux(Skpl, Skml, Skplm, Skmlm, Skl, Sklm, dy, dx, n)
 
   ! calculate l Diffusivity
   D_l_up_m = gamma * H_l_min_up**(n+2_i4b) * f_l_plus   ! equation 30 Jarosh 2013
   D_l_up_p = gamma * H_l_plus_up**(n+2_i4b) * f_l_plus  ! equation 30 Jarosh 2013
-  D_l_up_min = min(D_l_up_m, D_l_up_p)                ! equation 31 Jarosh 2013
-  D_l_up_max = max(D_l_up_m, D_l_up_p)                ! equation 32 Jarosh 2013
+  D_l_up_min = min(D_l_up_m, D_l_up_p)                  ! equation 31 Jarosh 2013
+  D_l_up_max = max(D_l_up_m, D_l_up_p)                  ! equation 32 Jarosh 2013
   !
   D_l_dn_m = gamma * H_l_min_down**(n+2_i4b) * f_l_min  ! equation 30 Jarosh 2013
   D_l_dn_p = gamma * H_l_plus_down**(n+2_i4b) * f_l_min ! equation 30 Jarosh 2013
-  D_l_dn_min = min(D_l_dn_m, D_l_dn_p)                ! equation 31 Jarosh 2013
-  D_l_dn_max = max(D_l_dn_m, D_l_dn_p)                ! equation 32 Jarosh 2013
+  D_l_dn_min = min(D_l_dn_m, D_l_dn_p)                  ! equation 31 Jarosh 2013
+  D_l_dn_max = max(D_l_dn_m, D_l_dn_p)                  ! equation 32 Jarosh 2013
 
   ! equation 33 Jarosh 2013
   D_l_up = 0._rkind
   do j = 1, nx
     do i = 1, ny
-      if (Sklp(j, i) <= Skl(j, i) .and. H_l_min_up(j, i) <= H_l_plus_up(j, i)) then
-        D_l_up(j, i) = D_l_up_min(j, i)
-      else if (Sklp(j, i) <= Skl(j, i) .and. H_l_min_up(j, i) > H_l_plus_up(j, i)) then
-        D_l_up(j, i) = D_l_up_max(j, i)
-      else if (Sklp(j, i) > Skl(j, i) .and. H_l_min_up(j, i) <= H_l_plus_up(j, i)) then
-        D_l_up(j, i) = D_l_up_max(j, i)
-      else if (Sklp(j, i) > Skl(j, i) .and. H_l_min_up(j, i) > H_l_plus_up(j, i)) then
-        D_l_up(j, i) = D_l_up_min(j, i)
+      if (Sklp(j,i) <= Skl(j,i) .and. H_l_min_up(j,i) <= H_l_plus_up(j,i)) then
+        D_l_up(j,i) = D_l_up_min(j,i)
+      else if (Sklp(j,i) <= Skl(j,i) .and. H_l_min_up(j,i) > H_l_plus_up(j,i)) then
+        D_l_up(j,i) = D_l_up_max(j,i)
+      else if (Sklp(j,i) > Skl(j,i) .and. H_l_min_up(j,i) <= H_l_plus_up(j,i)) then
+        D_l_up(j,i) = D_l_up_max(j,i)
+      else if (Sklp(j,i) > Skl(j,i) .and. H_l_min_up(j,i) > H_l_plus_up(j,i)) then
+        D_l_up(j,i) = D_l_up_min(j,i)
       end if
     end do
   end do
   D_l_dn = 0._rkind
   do j = 1, nx
     do i = 1, ny
-      if (Skl(j, i) <= Sklm(j, i) .and. H_l_min_down(j, i) <= H_l_plus_down(j, i)) then
-        D_l_dn(j, i) = D_l_dn_min(j, i)
-      else if (Skl(j, i) <= Sklm(j, i) .and. H_l_min_down(j, i) > H_l_plus_down(j, i)) then
-        D_l_dn(j, i) = D_l_dn_max(j, i)
-      else if (Skl(j, i) > Sklm(j, i) .and. H_l_min_down(j, i) <= H_l_plus_down(j, i)) then
-        D_l_dn(j, i) = D_l_dn_max(j, i)
-      else if (Skl(j, i) > Sklm(j, i) .and. H_l_min_down(j, i) > H_l_plus_down(j, i)) then
-        D_l_dn(j, i) = D_l_dn_min(j, i)
+      if (Skl(j,i) <= Sklm(j,i) .and. H_l_min_down(j,i) <= H_l_plus_down(j,i)) then
+        D_l_dn(j,i) = D_l_dn_min(j,i)
+      else if (Skl(j,i) <= Sklm(j,i) .and. H_l_min_down(j,i) > H_l_plus_down(j,i)) then
+        D_l_dn(j,i) = D_l_dn_max(j,i)
+      else if (Skl(j,i) > Sklm(j,i) .and. H_l_min_down(j,i) <= H_l_plus_down(j,i)) then
+        D_l_dn(j,i) = D_l_dn_max(j,i)
+      else if (Skl(j,i) > Sklm(j,i) .and. H_l_min_down(j,i) > H_l_plus_down(j,i)) then
+        D_l_dn(j,i) = D_l_dn_min(j,i)
       end if
     end do
   end do
 
   ! calculate k+1/2 index
-  call H_min(Hkml, Hkl, Hkpl, H_k_min_up)
-  call H_plus(Hkl, Hkpl, Hkppl, H_k_plus_up)
+  H_k_min_up  = H_min(Hkml, Hkl, Hkpl)
+  H_k_plus_up = H_plus(Hkl, Hkpl, Hkppl)
 
   ! calculate k-1/2 index
-  call H_min(Hkmml, Hkml, Hkl, H_k_min_down)
-  call H_plus(Hkml, Hkl, Hkpl, H_k_plus_down)
+  H_k_min_down  = H_min(Hkmml, Hkml, Hkl)
+  H_k_plus_down = H_plus(Hkml, Hkl, Hkpl)
 
   ! calculate k flux
-  call flux(Sklp, Sklm, Skplp, Skplm, Skpl, Skl, dx, dy, f_k_plus)
-  call flux(Sklp, Sklm, Skmlp, Skmlm, Skl, Skml, dx, dy, f_k_min)
+  f_k_plus = flux(Sklp, Sklm, Skplp, Skplm, Skpl, Skl, dx, dy, n)
+  f_k_min  = flux(Sklp, Sklm, Skmlp, Skmlm, Skl, Skml, dx, dy, n)
 
   ! calculate k Diffusivity
   D_k_up_m = gamma * H_k_min_up**(n+2_i4b) * f_k_plus   ! equation 30 Jarosh 2013
   D_k_up_p = gamma * H_k_plus_up**(n+2_i4b) * f_k_plus  ! equation 30 Jarosh 2013
-  D_k_up_min = min(D_k_up_m, D_k_up_p)                ! equation 31 Jarosh 2013
-  D_k_up_max = max(D_k_up_m, D_k_up_p)                ! equation 32 Jarosh 2013
+  D_k_up_min = min(D_k_up_m, D_k_up_p)                  ! equation 31 Jarosh 2013
+  D_k_up_max = max(D_k_up_m, D_k_up_p)                  ! equation 32 Jarosh 2013
   !
   D_k_dn_m = gamma * H_k_min_down**(n+2_i4b) * f_k_min  ! equation 30 Jarosh 2013
   D_k_dn_p = gamma * H_k_plus_down**(n+2_i4b) * f_k_min ! equation 30 Jarosh 2013
-  D_k_dn_min = min(D_k_dn_m, D_k_dn_p)                ! equation 31 Jarosh 2013
-  D_k_dn_max = max(D_k_dn_m, D_k_dn_p)                ! equation 32 Jarosh 2013
+  D_k_dn_min = min(D_k_dn_m, D_k_dn_p)                  ! equation 31 Jarosh 2013
+  D_k_dn_max = max(D_k_dn_m, D_k_dn_p)                  ! equation 32 Jarosh 2013
 
   ! equation 33 Jarosh 2013
   D_k_up = 0._rkind
   do j = 1, nx
     do i = 1, ny
-      if (Skpl(j, i) <= Skl(j, i) .and. H_k_min_up(j, i) <= H_k_plus_up(j, i)) then
-        D_k_up(j, i) = D_k_up_min(j, i)
-      else if (Skpl(j, i) <= Skl(j, i) .and. H_k_min_up(j, i) > H_k_plus_up(j, i)) then
-        D_k_up(j, i) = D_k_up_max(j, i)
-      else if (Skpl(j, i) > Skl(j, i) .and. H_k_min_up(j, i) <= H_k_plus_up(j, i)) then
-        D_k_up(j, i) = D_k_up_max(j, i)
-      else if (Skpl(j, i) > Skl(j, i) .and. H_k_min_up(j, i) > H_k_plus_up(j, i)) then
-        D_k_up(j, i) = D_k_up_min(j, i)
+      if (Skpl(j,i) <= Skl(j,i) .and. H_k_min_up(j,i) <= H_k_plus_up(j,i)) then
+        D_k_up(j,i) = D_k_up_min(j,i)
+      else if (Skpl(j,i) <= Skl(j,i) .and. H_k_min_up(j,i) > H_k_plus_up(j,i)) then
+        D_k_up(j,i) = D_k_up_max(j,i)
+      else if (Skpl(j,i) > Skl(j,i) .and. H_k_min_up(j,i) <= H_k_plus_up(j,i)) then
+        D_k_up(j,i) = D_k_up_max(j,i)
+      else if (Skpl(j,i) > Skl(j,i) .and. H_k_min_up(j,i) > H_k_plus_up(j,i)) then
+        D_k_up(j,i) = D_k_up_min(j,i)
       end if
     end do
   end do
   D_k_dn = 0._rkind
   do j = 1, nx
     do i = 1, ny
-      if (Skl(j, i) <= Skml(j, i) .and. H_k_min_down(j, i) <= H_k_plus_down(j, i)) then
-        D_k_dn(j, i) = D_k_dn_min(j, i)
-      else if (Skl(j, i) <= Skml(j, i) .and. H_k_min_down(j, i) > H_k_plus_down(j, i)) then
-        D_k_dn(j, i) = D_k_dn_max(j, i)
-      else if (Skl(j, i) > Skml(j, i) .and. H_k_min_down(j, i) <= H_k_plus_down(j, i)) then
-        D_k_dn(j, i) = D_k_dn_max(j, i)
-      else if (Skl(j, i) > Skml(j, i) .and. H_k_min_down(j, i) > H_k_plus_down(j, i)) then
-        D_k_dn(j, i) = D_k_dn_min(j, i)
+      if (Skl(j,i) <= Skml(j,i) .and. H_k_min_down(j,i) <= H_k_plus_down(j,i)) then
+        D_k_dn(j,i) = D_k_dn_min(j,i)
+      else if (Skl(j,i) <= Skml(j,i) .and. H_k_min_down(j,i) > H_k_plus_down(j,i)) then
+        D_k_dn(j,i) = D_k_dn_max(j,i)
+      else if (Skl(j,i) > Skml(j,i) .and. H_k_min_down(j,i) <= H_k_plus_down(j,i)) then
+        D_k_dn(j,i) = D_k_dn_max(j,i)
+      else if (Skl(j,i) > Skml(j,i) .and. H_k_min_down(j,i) > H_k_plus_down(j,i)) then
+        D_k_dn(j,i) = D_k_dn_min(j,i)
       end if
     end do
   end do
 
   ! calculate delta t and t
-  divisor = maxval(abs(D_k_up), abs(D_k_dn), abs(D_l_dn), abs(D_l_dn))
+  divisor = max(maxval(abs(D_k_up)), maxval(abs(D_k_dn)), maxval(abs(D_l_up)), maxval(abs(D_l_dn)))
   if (divisor == 0._rkind) then
     dt_cfl = max_dt
   else
@@ -656,8 +661,8 @@ subroutine diffusion_MUSCL(S, B, gamma, n, cfl, max_dt, nx, ny, k, kp, km, kpp, 
   end if
 
   ! Calculate the time step values
-  call SIA(D_l_up, Sklp, Skl, D_l_dn, Sklm, dy, div_l) ! equation 36 Jarosh 2013
-  call SIA(D_k_up, Skpl, Skl, D_k_dn, Skml, dx, div_k) ! equation 36 Jarosh 2013
+  div_l = SIA(D_l_up, Sklp, Skl, D_l_dn, Sklm, dy) ! equation 36 Jarosh 2013
+  div_k = SIA(D_k_up, Skpl, Skl, D_k_dn, Skml, dx) ! equation 36 Jarosh 2013
   div_q = div_k + div_l
 
 end subroutine diffusion_MUSCL
@@ -668,76 +673,93 @@ end subroutine diffusion_MUSCL
 ! ************************************************************************************************
 function minmod(a, b) result(minmod_result)
   implicit none
-  real(rkind), intent(in) :: a, b
-  real(rkind) :: minmod_result
-  real(rkind) :: sign_ab
+  real(rkind), intent(in) :: a(:,:), b(:,:)
+  real(rkind), allocatable :: minmod_result(:,:)
+  real(rkind), allocatable :: sign_ab(:,:)
 
+  allocate(minmod_result(size(a,1), size(a,2)))
+  allocate(sign_ab(size(a,1), size(a,2)))
   sign_ab = sign(1.0_rkind, a) + sign(1.0_rkind, b)
   minmod_result = sign_ab / 2._rkind * min(abs(a), abs(b))
 end function minmod
 
 function superbee(r) result(superbee_result)
   implicit none
-  real(rkind), intent(in) :: r
-  real(rkind) :: superbee_result
+  real(rkind), intent(in) :: r(:,:)
+  real(rkind), allocatable :: superbee_result(:,:)
 
+  allocate(superbee_result(size(r,1), size(r,2)))
   superbee_result = max(0._rkind, min(2._rkind * r, 1._rkind), min(r, 2._rkind))
 end function superbee
 
 function flux(sjpl, sjml, sjplp, sjmlp, sjlp, sjl, dj, dl, n) result(flux_result)
   implicit none
-  real(rkind), intent(in) :: sjpl, sjml, sjplp, sjmlp, sjlp, sjl, dj, dl, n
-  real(rkind) :: flux_result
+  real(rkind), intent(in) :: sjpl(:,:), sjml(:,:), sjplp(:,:), sjmlp(:,:), sjlp(:,:), sjl(:,:), dj, dl
+  integer(i4b), intent(in) :: n
+  real(rkind), allocatable :: flux_result(:,:)
 
-  flux_result = ((sjpl - sjml + sjplp - sjmlp)**2_i4b / (4._rkind * dj)**2_i4b + (sjlp - sjl)**2_i4b / dl**2_i4b)**((n - 1.0) / 2._rkind)
+  allocate(flux_result(size(sjpl,1), size(sjpl,2)))
+  flux_result = ( (sjpl - sjml + sjplp - sjmlp)**2_i4b / (4._rkind * dj)**2_i4b & 
+                 + (sjlp - sjl)**2_i4b / dl**2_i4b )**((n - 1.0) / 2._rkind)
 end function flux
 
 function SIA(Dup, Sup, S, Ddn, Sdn, d) result(SIA_result)
   implicit none
-  real(rkind), intent(in) :: Dup, Sup, S, Ddn, Sdn, d
-  real(rkind) :: SIA_result
+  real(rkind), intent(in) :: Dup(:,:), Sup(:,:), S(:,:), Ddn(:,:), Sdn(:,:), d
+  real(rkind), allocatable :: SIA_result(:,:)
 
+  allocate(SIA_result(size(Dup,1), size(Dup,2)))
   SIA_result = (Dup * (Sup - S) / d - Ddn * (S - Sdn) / d) / d
 end function SIA
 
 function H_index(h1, h2) result(H_index_result)
   implicit none
-  real(rkind), intent(in) :: h1, h2
-  real(rkind) :: H_index_result
+  real(rkind), intent(in) :: h1(:,:), h2(:,:)
+  real(rkind), allocatable :: H_index_result(:,:)
 
+  allocate(H_index_result(size(h1,1), size(h1,2)))
   H_index_result = 0.5_rkind * (h1 + h2)
 end function H_index
 
 function H_plus(Hm, H, Hp) result(H_plus_result)
   implicit none
-  real(rkind), intent(in) :: Hm, H, Hp
-  real(rkind) :: H_plus_result
+  real(rkind), intent(in) :: Hm(:,:), H(:,:), Hp(:,:)
+  real(rkind), allocatable :: H_plus_result(:,:)
+  logical, allocatable :: mask(:,:)
+  real(rkind), allocatable :: divisor(:,:), ones(:,:)
 
+  allocate(H_plus_result(size(Hm,1), size(Hm,2)))
+  allocate(mask(size(Hm,1), size(Hm,2)),divisor(size(Hm,1), size(Hm,2)),ones(size(Hm,1), size(Hm,2)))
+  ones = 1.0_rkind
   if (limiter == "minmod") then
     H_plus_result = H - 0.5_rkind * minmod(H - Hm, Hp - H) * (Hp - H)
   else if (limiter == "superbee") then
-    if (Hp /= H .and. Hp /= Hm .and. H /= Hm) then
-      H_plus_result = H - 0.5_rkind * superbee(abs((H - Hm) / (Hp - H))) * (Hp - H)
-    else
-      H_plus_result = H
-    end if
+    mask = (Hp /= H) .and. (Hp /= Hm) .and. (H /= Hm)
+    divisor = merge(Hp - H, ones, mask)
+    H_plus_result = merge(H - 0.5_rkind * superbee(abs((H - Hm) / divisor)) * (Hp - H), H, mask)
   end if
+  deallocate(mask,divisor,ones)
 end function H_plus
 
 function H_min(Hm, H, Hp) result(H_min_result)
   implicit none
-  real(rkind), intent(in) :: Hm, H, Hp
-  real(rkind) :: H_min_result
+  real(rkind), intent(in) :: Hm(:,:), H(:,:), Hp(:,:)
+  real(rkind), allocatable :: H_min_result(:,:)
+  logical, allocatable :: mask(:,:)
+  real(rkind), allocatable :: divisor(:,:), ones(:,:)
 
+  allocate(H_min_result(size(Hm,1), size(Hm,2)))
+  allocate(mask(size(Hm,1), size(Hm,2)),divisor(size(Hm,1), size(Hm,2)),ones(size(Hm,1), size(Hm,2)))
+  ones = 1.0_rkind
   if (limiter == "minmod") then
     H_min_result = H + 0.5_rkind * minmod(H - Hm, Hp - H) * (Hp - H)
   else if (limiter == "superbee") then
-    if (Hp /= H .and. Hp /= Hm .and. H /= Hm) then
-      H_min_result = H + 0.5_rkind * superbee(abs((Hp - H) / (H - Hm))) * (H - Hm)
-    else
-      H_min_result = H
-    end if
+    mask = (Hp /= H) .and. (Hp /= Hm) .and. (H /= Hm)
+    divisor = merge(Hp - H, ones, mask)
+    H_min_result = merge(H + 0.5_rkind * superbee(abs((Hp - H) / divisor)) * (H - Hm), H, mask)
   end if
+  deallocate(mask,divisor,ones)
 end function H_min
+
 
 end module glacFlow_module

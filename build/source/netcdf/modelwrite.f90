@@ -35,6 +35,7 @@ USE globalData,only: maxSoilLayers      ! maximum number of soil layers
 USE globalData,only: maxIceLayers       ! maximum number of ice layers
 USE globalData,only: maxLakeLayers      ! maximum number of lake layers
 USE globalData,only: maxGlaciers        ! maximum number of glaciers
+USE globalData,only: maxGrid            ! maximum number of grids in a GRU
 USE globalData,only: maxGridX           ! maximum number of grid cells in the x-direction
 USE globalData,only: maxGridY           ! maximum number of grid cells in the y-direction
 USE globalData,only: nTimeDelay         ! maximum number of time delay routing vectors
@@ -557,7 +558,7 @@ contains
  character(len=32),parameter        :: gruDimName    ='gru'      ! dimension name for GRUs
  character(len=32),parameter        :: domDimName    ='dom'      ! dimension name for DOMs
  character(len=32),parameter        :: tdhDimName    ='tdh'      ! dimension name for time-delay basin variables
- character(len=32),parameter        :: nglDimName    ='grid'     ! dimension name for grid variables
+ character(len=32),parameter        :: nglDimName    ='glac'     ! dimension name for glacvariables
  character(len=32),parameter        :: scalDimName   ='scalarv'  ! dimension name for scalar data
  character(len=32),parameter        :: specDimName   ='spectral' ! dimension name for spectral bands
  character(len=32),parameter        :: midTotoDimName='midToto'  ! dimension name for layered varaiables
@@ -607,7 +608,7 @@ contains
                       err = nf90_def_dim(ncid,trim(hruDimName)    ,nHRU           ,    hruDimID); message='iCreate[hru]'     ; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(domDimName)    ,maxDOM         ,    domDimID); message='iCreate[dom]'     ; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(tdhDimName)    ,nTimeDelay     ,    tdhDimID); message='iCreate[tdh]'     ; call netcdf_err(err,message); if(err/=0)return
-                      err = nf90_def_dim(ncid,trim(nglDimName)    ,maxGlaciers    ,    nglDimID); message='iCreate[grid]'    ; call netcdf_err(err,message); if(err/=0)return
+                      err = nf90_def_dim(ncid,trim(nglDimName)    ,maxGlaciers    ,    nglDimID); message='iCreate[glac]'    ; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(scalDimName)   ,nScalar        ,   scalDimID); message='iCreate[scalar]'  ; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(specDimName)   ,nSpecBand      ,   specDimID); message='iCreate[spectral]'; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(midTotoDimName),maxLayers      ,midTotoDimID); message='iCreate[midToto]' ; call netcdf_err(err,message); if(err/=0)return
@@ -828,11 +829,11 @@ contains
  integer(i4b),dimension(1)          :: ngdx               ! intermediate array of loop indices
  integer(i4b)                       :: hruDimID           ! variable dimension ID
  integer(i4b)                       :: gruDimID           ! variable dimension ID
- integer(i4b)                       :: nglDimID           ! variable dimension ID
+ integer(i4b)                       :: ngriDimID           ! variable dimension ID
  integer(i4b)                       :: xDimID             ! variable dimension ID
  integer(i4b)                       :: yDimID             ! variable dimension ID
  character(len=32),parameter        :: gruDimName='gru'   ! dimension name for GRUs
- character(len=32),parameter        :: nglDimName='grid'  ! dimension name for grid variables
+ character(len=32),parameter        :: ngriDimName='grid' ! dimension name for grid variables
  character(len=32),parameter        :: xDimName  ='xgrid' ! dimension name for xgrid
  character(len=32),parameter        :: yDimName  ='ygrid' ! dimension name for ygrid
  integer(i4b)                       :: iGRU               ! index of GRUs
@@ -858,7 +859,7 @@ contains
 
  ! define dimensions
  err = nf90_def_dim(ncid,trim(gruDimName)    ,nGRU        , gruDimID); message='iCreate[gru]'     ; call netcdf_err(err,message); if(err/=0)return
- err = nf90_def_dim(ncid,trim(nglDimName)    ,maxGlaciers , nglDimID); message='iCreate[grid]'    ; call netcdf_err(err,message); if(err/=0)return
+ err = nf90_def_dim(ncid,trim(ngriDimName)   ,maxGrid     , ngriDimID);message='iCreate[grid]'    ; call netcdf_err(err,message); if(err/=0)return
  err = nf90_def_dim(ncid,trim(xDimName)      ,maxGridX    , xDimID);   message='iCreate[xgrid]'   ; call netcdf_err(err,message); if(err/=0)return
  err = nf90_def_dim(ncid,trim(yDimName)      ,maxGridY    , yDimID);   message='iCreate[ygrid]'   ; call netcdf_err(err,message); if(err/=0)return
  ! re-initialize error control
@@ -867,7 +868,7 @@ contains
  ! define grid variables
  do i = 1,size(ngdx)
   iVar = ngdx(i)
-  err = nf90_def_var(ncid, trim(grid_meta(iVar)%varName), nf90_double, (/gruDimID, nglDimID, xDimID, yDimID/), ncVarID(i))
+  err = nf90_def_var(ncid, trim(grid_meta(iVar)%varName), nf90_double, (/gruDimID, ngriDimID, xDimID, yDimID/), ncVarID(i))
 
   ! check errors
   if(err/=0)then
