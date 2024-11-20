@@ -124,6 +124,7 @@ subroutine run_oneGRU(&
   USE time_utils_module,only:compjulday                       ! convert calendar date to julian day
   USE qTimeDelay_module,only:qGlacier                         ! module to route water through glacier (time lapse)
   USE qTimeDelay_module,only:qOverland                        ! module to route water through an "unresolved" river network
+  USE glacFlow_module,only:glacFlow                           ! module to change glacier area with ice flow model
   ! ----- define dummy variables ------------------------------------------------------------------------------------------
   implicit none
   ! model control

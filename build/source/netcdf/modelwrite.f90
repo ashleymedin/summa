@@ -816,7 +816,7 @@ contains
  ! input
  character(len=256),intent(in)          :: filename      ! name of the restart file
  integer(i4b),intent(in)                :: nGRU          ! number of global GRUs
- type(var_info),intent(in)              :: grid_meta     ! grid metadata
+ type(var_info),intent(in)              :: grid_meta(:)  ! grid metadata
  type(gru_grid_double),intent(in)       :: grid_data     ! grid data
  ! output: error control
  integer(i4b),intent(out)               :: err           ! error code
@@ -866,7 +866,7 @@ contains
  do i = 1,size(ngdx)
   iVar = ngdx(i)
   err = nf90_def_var(ncid, trim(grid_meta(iVar)%varName), nf90_double, (/gruDimID, ngriDimID, xDimID, yDimID/), ncVarID(i))
-
+ 
   ! check errors
   if(err/=0)then
     message=trim(message)//' [variable '//trim(grid_meta(iVar)%varName)//']'
