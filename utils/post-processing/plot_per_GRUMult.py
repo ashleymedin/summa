@@ -53,8 +53,8 @@ else:
 method_name=['be1','be16','be32','sundials_1en6','ref']
 plt_name0=['SUMMA-BE1','SUMMA-BE16','SUMMA-BE32','SUMMA-SUNDIALS','reference solution']
 plt_nameshort=plt_name0
-method_name=['be1','be1cm','be1en','sundials_1en6cm','sundials_1en6en','diff','ref']
-plt_name0=['BE1 common thermo. eq.','SUMMA-BE1 temperature thermo. eq.','SUMMA-BE1 mixed thermo. eq.','SUMMA-SUNDIALS temperature thermo. eq.','SUMMA-SUNDIALS enthalpy thermo. eq.','SUMMA-BE1 common - mixed','reference solution']
+method_name=['be8','be8cm','be8en','sundials_1en5cm','sundials_1en5en','diff','ref']
+plt_name0=['BE8 common thermo. eq.','SUMMA-BE1 temperature thermo. eq.','SUMMA-BE1 mixed thermo. eq.','SUMMA-SUNDIALS temperature thermo. eq.','SUMMA-SUNDIALS enthalpy thermo. eq.','SUMMA-BE1 common - mixed','reference solution']
 plt_nameshort=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp','SUNDIALS enth','BE1 common - mixed','reference soln']
 
 if one_plot: plt_name0 = plt_nameshort
@@ -63,7 +63,7 @@ from_meth = 'be1' # name of the first simulation in the difference simulation, o
 sub_meth = 'be1en' # name of the simulation to subtract in the difference simulation, only used if a method_name is 'diff'
 
 # Simulation statistics file locations
-settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
+settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','scalarRootZoneTemp','wallClockTime']
 
 viz_fil = method_name.copy()
 for i, m in enumerate(method_name):
@@ -84,8 +84,8 @@ if more_mean: # extra vars in a balance file
 
 # Specify variables in files
 plot_vars = settings.copy() + ['scalarSWE']
-plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','average routed runoff','wall clock time', 'melt with seasonal snow']
-leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$s$','$kg~m^{-2}$']
+plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','top 4m soil temperature','wall clock time', 'melt with seasonal snow']
+leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$K$','$s$','$kg~m^{-2}$']
 calc = [0,0,0,0,0,0,1] # 1 if variable needs to be calculated from other variables
 melt_thresh = 1/(0.75) # threshold for melt water calculation (divisor is percentage of year no snow, if only melts once)
 

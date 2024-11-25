@@ -354,6 +354,8 @@ MODULE var_lookup
   integer(i4b)    :: scalarSnowDepth             = integerMissing    ! total snow depth (m)
   integer(i4b)    :: scalarSWE                   = integerMissing    ! snow water equivalent (kg m-2)
   integer(i4b)    :: scalarSfcMeltPond           = integerMissing    ! ponded water caused by melt of the "snow without a layer" (kg m-2)
+  ! state variables for glacier
+  integer(i4b)    :: glacMass4AreaChange         = integerMissing    ! since updateJulDay mean rate glacier layers together mass change (kg m-2 s-1)
   ! state variables for the layer domains
   integer(i4b)    :: mLayerTemp                  = integerMissing    ! temperature of each layer (K)
   integer(i4b)    :: mLayerVolFracIce            = integerMissing    ! volumetric fraction of ice in each layer (-)
@@ -461,6 +463,9 @@ MODULE var_lookup
   integer(i4b)    :: mLayerThetaResid                = integerMissing ! residual volumetric water content in each snow layer (-)
   integer(i4b)    :: mLayerPoreSpace                 = integerMissing ! total pore space in each snow layer (-)
   integer(i4b)    :: mLayerMeltFreeze                = integerMissing ! change in ice content due to melt/freeze in each layer (kg m-3)
+  ! glacier ice mass/hydrology
+  integer(i4b)    :: scalarIceWE                     = integerMissing ! glacier ice (not snow) water equivalent (kg m-2)
+  integer(i4b)    :: scalarLayersMassChange          = integerMissing ! mass change of all layers together (kg m-2 s-1)
   ! soil hydrology
   integer(i4b)    :: scalarInfilArea                 = integerMissing ! fraction of unfrozen area where water can infiltrate (-)
   integer(i4b)    :: scalarFrozenArea                = integerMissing ! fraction of area that is considered impermeable due to soil ice (-)
@@ -972,7 +977,7 @@ MODULE var_lookup
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
-                                                                         21, 22, 23, 24, 25, 26)
+                                                                         21, 22, 23, 24, 25, 26, 27)
  ! named variables: model diagnostic variables
  type(iLook_diag),    public,parameter :: iLookDIAG     =iLook_diag    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -985,7 +990,7 @@ MODULE var_lookup
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
                                                                          91, 92, 93, 94, 95, 96, 97, 98, 99,100,&
                                                                         101,102,103,104,105,106,107,108,109,110,&
-                                                                        111)
+                                                                        111,112,113)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

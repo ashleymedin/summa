@@ -471,16 +471,17 @@ if __name__ == '__main__':
     writeNC_state_vars_HRU_DOM(nc_out, 'dt_init', 'scalarv', 'f8', newVarVals)
 
     # area and elevation
-    writeNC_state_vars_HRU_DOM(nc_out, 'DOMarea', 'scalarv', 'f8', dom_area)           # DOMarea
-    writeNC_state_vars_HRU_DOM(nc_out, 'DOMelev', 'scalarv', 'f8', dom_elev)           # DOMelev
+    writeNC_state_vars_HRU_DOM(nc_out, 'DOMarea', 'scalarv', 'f8', dom_area)            # DOMarea
+    writeNC_state_vars_HRU_DOM(nc_out, 'DOMelev', 'scalarv', 'f8', dom_elev)            # DOMelev
 
-    # SWE, SnowDepth, SfcMeltPond, SnowAlbedo, CanopyLiq, CanopyIce
+    # SWE, SnowDepth, SfcMeltPond, SnowAlbedo, CanopyLiq, CanopyIce, glacMass4AreaChange
     writeNC_state_vars_HRU_DOM(nc_out, 'scalarSWE', 'scalarv', 'f8', scalar0)           # SWE
     writeNC_state_vars_HRU_DOM(nc_out, 'scalarSnowDepth', 'scalarv', 'f8', scalar0)     # SnowDepth
     writeNC_state_vars_HRU_DOM(nc_out, 'scalarSfcMeltPond', 'scalarv', 'f8', scalar0)   # SfcMeltPond
     writeNC_state_vars_HRU_DOM(nc_out, 'scalarSnowAlbedo', 'scalarv', 'f8', scalar0)    # SnowAlbedo
     writeNC_state_vars_HRU_DOM(nc_out, 'scalarCanopyLiq', 'scalarv', 'f8', scalar0)     # CanopyLiq
     writeNC_state_vars_HRU_DOM(nc_out, 'scalarCanopyIce', 'scalarv', 'f8', scalar0)     # CanopyIce
+    writeNC_state_vars_HRU_DOM(nc_out, 'glacMass4AreaChange','scalarv', 'f8', scalar0)  # glacMass4AreaChange
 
     # glacier area
     writeNC_state_vars_GRU_VEC(nc_out, 'glacAblArea', 'glac', 'f8', ablArea)  

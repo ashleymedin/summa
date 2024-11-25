@@ -462,6 +462,8 @@ contains
   case('scalarSnowDepth'                ); get_ixProg = iLookPROG%scalarSnowDepth                  ! total snow depth (m)
   case('scalarSWE'                      ); get_ixProg = iLookPROG%scalarSWE                        ! snow water equivalent (kg m-2)
   case('scalarSfcMeltPond'              ); get_ixProg = iLookPROG%scalarSfcMeltPond                ! ponded water caused by melt of the "snow without a layer" (kg m-2)
+  ! state variables for glacier
+  case('glacMass4AreaChange'            ); get_ixProg = iLookPROG%glacMass4AreaChange              ! since updateJulDay mean rate glacier layers together mass change (kg m-2 s-1)    
   ! state variables for the layer domains
   case('mLayerTemp'                     ); get_ixProg = iLookPROG%mLayerTemp                       ! temperature of each layer (K)
   case('mLayerVolFracIce'               ); get_ixProg = iLookPROG%mLayerVolFracIce                 ! volumetric fraction of icein each layer (-)
@@ -581,6 +583,9 @@ contains
   case('mLayerThetaResid'               ); get_ixDiag = iLookDIAG%mLayerThetaResid                 ! residual volumetric water content in each snow layer (-)
   case('mLayerPoreSpace'                ); get_ixDiag = iLookDIAG%mLayerPoreSpace                  ! total pore space in each snow layer (-)
   case('mLayerMeltFreeze'               ); get_ixDiag = iLookDIAG%mLayerMeltFreeze                 ! ice content change from melt/freeze in each layer (kg m-3)
+  ! glacier ice mass/hydrology
+  case('scalarIceWE'                    ); get_ixDiag = iLookDIAG%scalarIceWE                      ! glacier ice (not snow) water equivalent (kg m-2)
+  case('scalarLayersMassChange'         ); get_ixDiag = iLookDIAG%scalarLayersMassChange           ! mass change of all layers together (kg m-2 s-1)
   ! soil hydrology
   case('scalarInfilArea'                ); get_ixDiag = iLookDIAG%scalarInfilArea                  ! fraction of unfrozen area where water can infiltrate (-)
   case('scalarFrozenArea'               ); get_ixDiag = iLookDIAG%scalarFrozenArea                 ! fraction of area that is considered impermeable due to soil ice (-)
@@ -1169,6 +1174,7 @@ contains
    case ('flux' );  vDex = get_ixFlux(trim(varName))
    case ('bpar' );  vDex = get_ixBpar(trim(varName))
    case ('bvar' );  vDex = get_ixBvar(trim(varName))
+   case ('grid' );  vDex = get_ixGrid(trim(varName))
    case ('deriv');  vDex = get_ixDeriv(trim(varName))
    case ('lookup'); vDex = get_ixLookup(trim(varName))
   end select

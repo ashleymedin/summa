@@ -45,8 +45,8 @@ else:
     viz_dir = Path('/home/avanb/scratch/statistics')
 
 
-method_name=['be1','be1cm','be1en','sundials_1en6cm','sundials_1en6en','sundials_1en8cm']  #maybe make this an argument
-plt_name0=['SUMMA-BE1 common thermo. eq.','SUMMA-BE1 temperature thermo. eq.','SUMMA-BE1 mixed thermo. eq.','SUMMA-SUNDIALS temperature thermo. eq.','SUMMA-SUNDIALS enthalpy thermo. eq.','reference solution']
+method_name=['be1','be8cm','be8en','sundials_1en5cm','sundials_1en5en','sundials_1en8en']  #maybe make this an argument
+plt_name0=['SUMMA-BE8 common thermo. eq.','SUMMA-BE8 temperature thermo. eq.','SUMMA-BE8 mixed thermo. eq.','SUMMA-SUNDIALS temperature thermo. eq.','SUMMA-SUNDIALS enthalpy thermo. eq.','reference solution']
 
 # Simulation statistics file locations
 settings= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']

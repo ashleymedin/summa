@@ -48,7 +48,7 @@ USE globalData,only:statBvar_meta                           ! child metadata for
 USE summaFileManager,only:SETTINGS_PATH                     ! define path to settings files (e.g., parameters, soil and veg. tables)
 USE summaFileManager,only:STATE_PATH                        ! optional path to state/init. condition files (defaults to SETTINGS_PATH)
 USE summaFileManager,only:MODEL_INITCOND                    ! name of model initial conditions file
-USE summaFileManager,only:LOCAL_ATTRIBUTES                  ! name of model initial attributes file
+USE summaFileManager,only:LOCAL_ATTRIBUTES,BASIN_ATTBEDGLAC ! name of model attributes files, local and basin glacier bed topography
 USE summaFileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
 
 ! safety: set private unless specified otherwise
@@ -63,39 +63,39 @@ subroutine summa_initialize(summa1_struc, err, message)
   ! * desired modules
   ! ---------------------------------------------------------------------------------------
   ! data types
-  USE nrtype                                                  ! variable types, etc.
-  USE summa_type, only:summa1_type_dec                        ! master summa data type
+  USE nrtype                                                   ! variable types, etc.
+  USE summa_type, only:summa1_type_dec                         ! master summa data type
   ! subroutines and functions: initial priming
-  USE summa_util, only:getCommandArguments                    ! process command line arguments
-  USE summaFileManager,only:summa_SetTimesDirsAndFiles       ! sets directories and filenames
-  USE summa_globalData,only:summa_defineGlobalData            ! used to define global summa data structures
-  USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time
+  USE summa_util, only:getCommandArguments                     ! process command line arguments
+  USE summaFileManager,only:summa_SetTimesDirsAndFiles         ! sets directories and filenames
+  USE summa_globalData,only:summa_defineGlobalData             ! used to define global summa data structures
+  USE time_utils_module,only:elapsedSec                        ! calculate the elapsed time
   ! subroutines and functions: read dimensions (NOTE: NetCDF)
-  USE read_attrb_module,only:read_dimension                   ! module to read dimensions of GRU and HRU
-  USE read_icond_module,only:read_icond_nlayers               ! module to read initial condition dimensions
+  USE read_attrb_module,only:read_dimension,read_dimensionGrid ! module to read dimensions of GRU and HRU
+  USE read_icond_module,only:read_icond_nlayers                ! module to read initial condition dimensions
   ! subroutines and functions: allocate space
-  USE allocspace_module,only:allocGlobal                      ! module to allocate space for global data structures
-  USE allocspace_module,only:allocLocal                       ! module to allocate space for local data structures
+  USE allocspace_module,only:allocGlobal                       ! module to allocate space for global data structures
+  USE allocspace_module,only:allocLocal                        ! module to allocate space for local data structures
   ! timing variables
-  USE globalData,only:startInit,endInit                       ! date/time for the start and end of the initialization
-  USE globalData,only:elapsedInit                             ! elapsed time for the initialization
-  USE globalData,only:elapsedRead                             ! elapsed time for the data read
-  USE globalData,only:elapsedWrite                            ! elapsed time for the stats/write
-  USE globalData,only:elapsedPhysics                          ! elapsed time for the physics
+  USE globalData,only:startInit,endInit                        ! date/time for the start and end of the initialization
+  USE globalData,only:elapsedInit                              ! elapsed time for the initialization
+  USE globalData,only:elapsedRead                              ! elapsed time for the data read
+  USE globalData,only:elapsedWrite                             ! elapsed time for the stats/write
+  USE globalData,only:elapsedPhysics                           ! elapsed time for the physics
   ! model time structures
-  USE globalData,only:startTime                               ! start time
-  USE globalData,only:finshTime                               ! end time
-  USE globalData,only:refTime                                 ! reference time
-  USE globalData,only:oldTime                                 ! time from previous step
+  USE globalData,only:startTime                                ! start time
+  USE globalData,only:finshTime                                ! end time
+  USE globalData,only:refTime                                  ! reference time
+  USE globalData,only:oldTime                                  ! time from previous step
   ! run time options
-  USE globalData,only:startGRU                                ! index of the starting GRU for parallelization run
-  USE globalData,only:checkHRU                                ! index of the HRU for a single HRU run
-  USE globalData,only:iRunMode                                ! define the current running mode
+  USE globalData,only:startGRU                                 ! index of the starting GRU for parallelization run
+  USE globalData,only:checkHRU                                 ! index of the HRU for a single HRU run
+  USE globalData,only:iRunMode                                 ! define the current running mode
   ! miscellaneous global data
-  USE globalData,only:ncid                                    ! file id of netcdf output file
-  USE globalData,only:gru_struc                               ! gru-hru mapping structures
-  USE globalData,only:structInfo                              ! information on the data structures
-  USE globalData,only:output_fileSuffix                       ! suffix for the output file
+  USE globalData,only:ncid                                     ! file id of netcdf output file
+  USE globalData,only:gru_struc                                ! gru-hru mapping structures
+  USE globalData,only:structInfo                               ! information on the data structures
+  USE globalData,only:output_fileSuffix                        ! suffix for the output file
   ! ---------------------------------------------------------------------------------------
   ! * variables
   ! ---------------------------------------------------------------------------------------
@@ -108,6 +108,7 @@ subroutine summa_initialize(summa1_struc, err, message)
   character(LEN=256)                    :: cmessage           ! error message of downwind routine
   character(len=256)                    :: restartFile        ! restart file name
   character(len=256)                    :: attrFile           ! attributes file name
+  character(len=256)                    :: attrGlacFile       ! glacier attributes file name
   character(len=128)                    :: fmtGruOutput       ! a format string used to write start and end GRU in output file names
   integer(i4b)                          :: iStruct,iGRU,iHRU  ! looping variables
   integer(i4b)                          :: fileGRU            ! [used for filenames] number of GRUs in the input file
@@ -200,6 +201,16 @@ subroutine summa_initialize(summa1_struc, err, message)
       case(iRunModeHRU ); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,err,cmessage,checkHRU=checkHRU)
     end select
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    if (BASIN_ATTBEDGLAC == 'none') then
+      attrGlacFile = 'none'
+    else
+      attrGlacFile = trim(SETTINGS_PATH)//trim(BASIN_ATTBEDGLAC)
+
+      ! basin glacier dimensions for each GRU
+      call read_dimensionGrid(trim(attrGlacFile),nGRU,err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
 
     ! *****************************************************************************
     ! *** read the number of layers

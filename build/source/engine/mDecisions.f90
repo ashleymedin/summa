@@ -166,10 +166,13 @@ subroutine mDecisions(err,message)
   USE multiconst,only:secprday               ! number of seconds in a day
   USE var_lookup,only:iLookTIME              ! named variables that identify indices in the time structures
   USE globalData,only:refTime,refJulDay      ! reference time
+  USE globalData,only:realMissing            ! missing value for real numbers
   USE globalData,only:oldTime                ! time from the previous time step
   USE globalData,only:startTime,finshTime    ! start/end time of simulation
   USE globalData,only:dJulianStart           ! julian day of start time of simulation
   USE globalData,only:dJulianFinsh           ! julian day of end time of simulation
+  USE globalData,only:updateJulday           ! julian day the glaciers grids were updated
+  USE globalData,only:updateJuldayNext       ! julian day the glaciers grids will be updated next
   USE globalData,only:data_step              ! length of data step (s)
   USE globalData,only:numtim                 ! number of time steps in the simulation
   ! model decision structures
@@ -255,6 +258,10 @@ subroutine mDecisions(err,message)
                   dJulianStart,                                            & ! julian date for the start of the simulation
                   err, cmessage)                                             ! error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+
+  ! put the glacier area update time as realMissing
+  updateJulDay     = realMissing
+  updateJulDayNext = realMissing
 
   ! put simulation end time information into the time structures
   call extractTime(trim(SIM_END_TM),                                       & ! date-time string

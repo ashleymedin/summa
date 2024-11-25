@@ -38,9 +38,9 @@ else:
 #plt_name=['BE1','IDAe-4','BE4','BE8','BE16','BE32','IDAe-6'] #maybe make this an argument
 #method_name=['be1','be16','be32','sundials_1en6'] #maybe make this an argument
 #plt_name=['BE1','BE16','BE32','SUNDIALS'] #maybe make this an argument
-method_name=['be1','be1cm','be1en','sundials_1en6cm','sundials_1en6en'] 
-plt_name=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp', 'SUNDIALS enth']
-method_name2=method_name+['sundials_1en8cm']
+method_name=['be8','be8cm','be8en','sundials_1en8cm','sundials_1en8en'] 
+plt_name=['BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp', 'SUNDIALS enth']
+method_name2=method_name+['sundials_1en8en']
 plt_name2=plt_name+['reference solution']
 
 num_bins = 1000
@@ -58,7 +58,7 @@ use_vars = [1]
 rep = [0] # mark the repeats
 #use_vars = [0,1,2,3,4,5]
 #rep = [0,0,0,0,0,0] # mark the repeats
-settings0= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
+settings0= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','scalarRootZoneTemp','wallClockTime']
 settings = [settings0[i] for i in use_vars]
 
 #use_vars2 = [0,0,1,1,2,2]
@@ -83,8 +83,8 @@ for i, m in enumerate(method_name2):
 
 # Specify variables of interest
 plot_vars = settings.copy()
-plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','average routed runoff','wall clock time']
-leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$s$']
+plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','top 4m soil temperature','wall clock time']
+leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~y^{-1}$','$kg~m^{-2}$','$K$','$s$']
 plt_titl = [f"({chr(97+n)}) {plt_titl[i]}" for n,i in enumerate(use_vars)]
 leg_titl = [leg_titl[i] for i in use_vars]
 

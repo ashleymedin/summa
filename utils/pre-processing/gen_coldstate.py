@@ -201,7 +201,7 @@ if __name__ == '__main__':
     writeNC_state_vars(nc_out, 'scalarSfcMeltPond', 'scalarv', 'f8', newVarVals)
     writeNC_state_vars(nc_out, 'scalarSnowAlbedo', 'scalarv', 'f8', newVarVals)
     writeNC_state_vars(nc_out, 'scalarCanopyLiq', 'scalarv', 'f8', newVarVals)
-    writeNC_state_vars(nc_out, 'scalarCanopyIce', 'scalarv', 'f8', newVarVals)        
+    writeNC_state_vars(nc_out, 'scalarCanopyIce', 'scalarv', 'f8', newVarVals)       
 
     # CanairTemp, CanopyTemp
     newVarVals = np.full((1,nOutPolygons), 283.16)        

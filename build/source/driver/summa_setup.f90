@@ -133,7 +133,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  ! local variables
  character(len=256)                    :: cmessage           ! error message of downwind routine
  character(len=256)                    :: attrFile           ! attributes file name
-  character(len=256)                   :: attrGlacFile       ! glacier attributes file name
+ character(len=256)                    :: attrGlacFile       ! glacier attributes file name
  integer(i4b)                          :: jHRU,kHRU          ! HRU indices
  integer(i4b)                          :: iGRU,iHRU,iDOM     ! looping variables
  integer(i4b)                          :: iVar               ! looping variables

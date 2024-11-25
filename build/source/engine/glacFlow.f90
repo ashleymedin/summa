@@ -37,6 +37,7 @@ USE data_types,only:&
 USE multiconst,only:&
                     secprday,      & ! seconds per day
                     gravity,       & ! gravitational acceleration    (m s-2)
+                    iden_water,    & ! intrinsic density of water    (kg m-3)
                     iden_ice         ! intrinsic density of ice      (kg m-3)
 
 implicit none
@@ -55,22 +56,23 @@ contains
 ! ************************************************************************************************
 subroutine glacFlow(&
                     ! model control
-                    nDOM,               & ! intent(in):    number of glacier domains
-                    hruInd,             & ! intent(in):    hruInd of each glacier domain
-                    ! glacier topography
-                    nGlacier,           & ! intent(in):    number of glaciers
-                    glacInfo,           & ! intent(in):    information for each glacier
-                    gridInfo,           & ! intent(in):    information for each grid
-                    gridData,           & ! intent(inout): grid data for each glacier
+                    nDOM,                    & ! intent(in):    number of glacier domains
+                    hruInd,                  & ! intent(in):    hruInd of each glacier domain
+                    ! glacier topography      
+                    nGlacier,                & ! intent(in):    number of glaciers
+                    glacInfo,                & ! intent(in):    information for each glacier
+                    gridInfo,                & ! intent(in):    information for each grid
+                    gridData,                & ! intent(inout): grid data for each glacier
                     ! mass balance
-                    GWE_delta,          & ! intent(in):    change in glacier water equivalent (m s-1) in each glacier domain
-                    elev,               & ! intent(inout): elevation of each glacier domain (m)
+                    nYears,                  & ! intent(in):    number of years to run
+                    massChange,              & ! intent(in):    rate of change in glacier water equivalent (kg m-2 s-1) in each glacier domain over the nYears
+                    elev,                    & ! intent(inout): elevation of each glacier domain (m)
                     ! area
-                    glacAblArea,        & ! intent(out):   per glacier ablation area (m2)
-                    glacAccArea,        & ! intent(out):   per glacier accumulation area (m2)
-                    area,               & ! intent(out):   area of each domain (m2)
+                    glacAblArea,             & ! intent(out):   per glacier ablation area (m2)
+                    glacAccArea,             & ! intent(out):   per glacier accumulation area (m2)
+                    area,                    & ! intent(out):   area of each domain (m2)
                     ! error handling
-                    err, message)         ! intent(out):   error control
+                    err, message)              ! intent(out):   error control
    ! ---------------------------------------------------------------------------------------------
   implicit none
   ! model control
@@ -82,7 +84,8 @@ subroutine glacFlow(&
   type(grid_info), intent(in)        :: gridInfo(:)               ! information for each grid
   type(grid_double), intent(inout)   :: gridData                  ! data for each grid
    ! mass balance, realMissing value if domain is missing (i.e. a glacier does not have one of ablation or accumulation)
-  real(rkind), intent(in)            :: GWE_delta(:)              ! change in glacier water equivalent (m s-1) in each glacier domain
+  integer(i4b), intent(in)           :: nYears                    ! number of years to run
+  real(rkind), intent(in)            :: massChange(:)             ! rate of change in glacier water equivalent (kg m-2 s-1) in each glacier domain over the nYears
   real(rkind), intent(inout)         :: elev(:)                   ! elevation of each glacier domain (m)
   ! area 
   real(rkind), intent(out)           :: glacAblArea(nGlacier)     ! per glacier ablation area (m2)
@@ -97,17 +100,16 @@ subroutine glacFlow(&
   integer(i4b), allocatable          :: glacierMask(:,:)          ! 1-0 mask of glacier domain
   integer(i4b), allocatable          :: zeros(:,:)                ! zeros array for masking
   integer(i4b)                       :: i,j,k,n,iGlac,iGrid,iDOM  ! loop indices
-  integer(i4b),parameter             :: nYr = 1                   ! number of years to run
   integer(i4b)                       :: nx, ny                    ! number of grid cells in x and y directions
   real(rkind)                        :: dx, dy                    ! grid cell size in x and y directions
   real(rkind)                        :: volume                    ! volume of each glacier km3
   real(rkind)                        :: totVolume                 ! total volume of all glaciers km3, might want to send out of routine
-  real(rkind), allocatable           :: mb(:,:)                   ! mass balance in each glacier domain (m s-1)
+  real(rkind), allocatable           :: mb(:,:)                   ! mass balance in each glacier cell over the nYears (m s-1)
   real(rkind)                        :: ELA_elev                  ! ELA in each glacier domain (m s-1)
   real(rkind), allocatable           :: hgt(:,:)                  ! height of each glacier domain (m)
   integer(i4b)                       :: validCount                ! number of valid points
   real(rkind), allocatable           :: validElev(:)              ! filter out points where equal to realMissing
-  real(rkind), allocatable           :: validGWE_delta(:)         ! filter out points where equal to realMissing
+  real(rkind), allocatable           :: validMassChange(:)           ! filter out points where equal to realMissing
   real(rkind)                        :: temp_elev, temp_GWE       ! temporary variables for sorting
   real(rkind)                        :: slope, intercept          ! slope and intercept for linear extrapolation of GWE
   integer(i4b), allocatable          :: glacid_to_index(:)        ! mapping array from glacier id to index in gridInfo
@@ -119,14 +121,14 @@ subroutine glacFlow(&
   totVolume = 0._rkind
   validCount = count(elev /= realMissing)
   allocate(validElev(validCount))
-  allocate(validGWE_delta(validCount))
+  allocate(validMassChange(validCount))
   
   ! Filter out points where no area and elevation is missing
   j = 1
   do iDOM = 1, nDOM
     if (elev(iDOM) /= realMissing) then
       validElev(j) = elev(iDOM)
-      validGWE_delta(j) = GWE_delta(iDOM)
+      validMassChange(j) = massChange(iDOM)
       j = j + 1
     end if
   end do
@@ -139,37 +141,38 @@ subroutine glacFlow(&
         temp_elev = validElev(j)
         validElev(j) = validElev(j+1)
         validElev(j+1) = temp_elev
-        ! Swap corresponding GWE_delta values
-        temp_GWE = validGWE_delta(j)
-        validGWE_delta(j) = validGWE_delta(j+1)
-        validGWE_delta(j+1) = temp_GWE
+        ! Swap corresponding massChange values
+        temp_GWE = validMassChange(j)
+        validMassChange(j) = validMassChange(j+1)
+        validMassChange(j+1) = temp_GWE
       end if
     end do
   end do
   
-  ! Calculate the elevation where GWE_delta would be zero
-  if (validGWE_delta(1) <= 0.0) then
+  ! Calculate the elevation where massChange would be zero
+  if (validMassChange(1) <= 0.0) then
     ! Extrapolate above the first point
-    slope = (validGWE_delta(2) - validGWE_delta(1)) / (validElev(2) - validElev(1))
-    intercept = validGWE_delta(1) - slope * validElev(1)
+    slope = (validMassChange(2) - validMassChange(1)) / (validElev(2) - validElev(1))
+    intercept = validMassChange(1) - slope * validElev(1)
     ELA_elev = -intercept / slope
-  else if (validGWE_delta(validCount) >= 0.0) then
+  else if (validMassChange(validCount) >= 0.0) then
     ! Extrapolate below the last point
-    slope = (validGWE_delta(validCount) - validGWE_delta(validCount-1)) / (validElev(validCount) - validElev(validCount-1))
-    intercept = validGWE_delta(validCount) - slope * validElev(validCount)
+    slope = (validMassChange(validCount) - validMassChange(validCount-1)) / (validElev(validCount) - validElev(validCount-1))
+    intercept = validMassChange(validCount) - slope * validElev(validCount)
     ELA_elev = -intercept / slope
   else
     do i = 1, validCount-1
-      if ((validGWE_delta(i) > 0.0 .and. validGWE_delta(i+1) < 0.0) .or. (validGWE_delta(i) < 0.0 .and. validGWE_delta(i+1) > 0.0)) then
+      if ( (validMassChange(i) > 0.0 .and. validMassChange(i+1) < 0.0) .or. &
+           (validMassChange(i) < 0.0 .and. validMassChange(i+1) > 0.0) ) then
         ! Linear interpolation to find the zero crossing
-        slope = (validGWE_delta(i+1) - validGWE_delta(i)) / (validElev(i+1) - validElev(i))
-        intercept = validGWE_delta(i) - slope * validElev(i)
+        slope = (validMassChange(i+1) - validMassChange(i)) / (validElev(i+1) - validElev(i))
+        intercept = validMassChange(i) - slope * validElev(i)
         ELA_elev = -intercept / slope
         exit
       end if
     end do
   end if
-  deallocate(validElev, validGWE_delta)
+  deallocate(validElev, validMassChange)
 
   ! Initialize domain areas and elevations
   do i = 1,nDOM
@@ -220,20 +223,20 @@ subroutine glacFlow(&
         ! Find the interval in which surface(k,j) lies
         if (surface(k,j) >= elev(1)) then
             ! Extrapolate above the first point
-          slope = (GWE_delta(2) - GWE_delta(1)) / (elev(2) - elev(1))
-          intercept = GWE_delta(1) - slope * elev(1)
+          slope = (massChange(2) - massChange(1)) / (elev(2) - elev(1))
+          intercept = massChange(1) - slope * elev(1)
           mb(k,j) = slope * surface(k,j) + intercept
         else if (surface(k,j) <= elev(nDOM)) then
           ! Extrapolate below the last point
-          slope = (GWE_delta(nDOM) - GWE_delta(nDOM-1)) / (elev(nDOM) - elev(nDOM-1))
-          intercept = GWE_delta(nDOM) - slope * elev(nDOM)
+          slope = (massChange(nDOM) - massChange(nDOM-1)) / (elev(nDOM) - elev(nDOM-1))
+          intercept = massChange(nDOM) - slope * elev(nDOM)
           mb(k,j) = slope * surface(k,j) + intercept
         else
           ! Interpolate between points
           do n = 1, nDOM-1
             if (surface(k,j) <= elev(n) .and. surface(k,j) >= elev(n+1)) then
-              slope = (GWE_delta(n+1) - GWE_delta(n)) / (elev(n+1) - elev(n))
-              intercept = GWE_delta(n) - slope * elev(n)
+              slope = (massChange(n+1) - massChange(n)) / (elev(n+1) - elev(n))
+              intercept = massChange(n) - slope * elev(n)
               mb(k,j) = slope * surface(k,j) + intercept
               exit
             end if
@@ -245,9 +248,11 @@ subroutine glacFlow(&
         end if
       end do
     end do
+    ! convert mass balance to m s-1 from kg m-2 s-1
+    mb = mb / iden_water
 
     ! compute flow
-    call run_year(nYr,surface, bed, mb, glacierMask, nx, ny, dx, dy, volume)
+    call run_year(nYears,surface, bed, mb, glacierMask, nx, ny, dx, dy, volume)
     totVolume = totVolume+volume
     
     ! Initialize variables

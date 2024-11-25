@@ -96,15 +96,15 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
   character(*),intent(out)        :: message        ! error message
   ! local variables
   logical(lgt)                    :: check          ! .true. if structure is already allocated
+  integer(i4b)                    :: iGrid          ! loop index through grids
   integer(i4b)                    :: iDOM           ! loop index through domains
   integer(i4b)                    :: iHRU           ! loop index through HRUs
   integer(i4b)                    :: iGRU           ! loop index through GRUs
   integer(i4b)                    :: nGRU           ! number of GRUs
   logical(lgt)                    :: spatial        ! spatial flag
   integer(i4b)                    :: nGlac          ! number of glaciers in GRU
-  integer(i4b)                    :: iGlac          ! loop index through glaciers
+  integer(i4b)                    :: nGrid          ! number of grids in GRU
   integer(i4b)                    :: iVar           ! loop index through variables
-  real(rkind)                     :: nx, ny         ! number of grid cells in the x and y directions
   integer(i4b),parameter          :: zero=0         ! zero value
   character(len=256)              :: cmessage       ! error message of the downwind routine
   ! initialize error control
@@ -240,6 +240,7 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
 
   ! allocate space for structures *WITHOUT* an HRU dimension
   nGlac = gru_struc(iGRU)%nGlacier
+  nGrid = size(gru_struc(iGRU)%gridInfo(:)%grid_id)
   select type(dataStruct)
    class is (gru_int);           call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nLake=0,nSoil=0,nIce=0,nGlacier=nGlac,err=err,message=cmessage); spatial=.true.
    class is (gru_int8);          call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nLake=0,nSoil=0,nIce=0,nGlacier=nGlac,err=err,message=cmessage); spatial=.true.
@@ -247,17 +248,17 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
    class is (gru_double);        call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nLake=0,nSoil=0,nIce=0,nGlacier=nGlac,err=err,message=cmessage); spatial=.true.
    class is (gru_doubleVec);     call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nLake=0,nSoil=0,nIce=0,nGlacier=nGlac,err=err,message=cmessage); spatial=.true.
    class is (gru_grid_double)
-     if(.not.allocated(dataStruct%gru(iGRU)%grid))then; allocate(dataStruct%gru(iGRU)%grid(nGlac),stat=err); end if
+     if(.not.allocated(dataStruct%gru(iGRU)%grid))then; allocate(dataStruct%gru(iGRU)%grid(nGrid),stat=err); end if
      if(err/=0)then; err=20; message=trim(message)//'problem allocating glacier dimension in grid structure'; return; end if
-     do iGlac=1,nGlac
+     do iGrid=1,nGrid
        ! get the number of grid cells in the x and y directions
        associate(&
-        nx => gru_struc(iGRU)%gridInfo(iGlac)%nx,     & ! number of grid cells in the x-direction
-        ny => gru_struc(iGRU)%gridInfo(iGlac)%ny      & ! number of grid cells in the y-direction
+        nx => gru_struc(iGRU)%gridInfo(iGrid)%nx,     & ! number of grid cells in the x-direction
+        ny => gru_struc(iGRU)%gridInfo(iGrid)%ny      & ! number of grid cells in the y-direction
         )
-        if(.not.allocated(dataStruct%gru(iGRU)%grid(iGlac)%var))then; allocate(dataStruct%gru(iGRU)%grid(iGlac)%var(size(metaStruct)),stat=err); end if
+        if(.not.allocated(dataStruct%gru(iGRU)%grid(iGrid)%var))then; allocate(dataStruct%gru(iGRU)%grid(iGrid)%var(size(metaStruct)),stat=err); end if
         do iVar=1,size(metaStruct)
-          if(.not.allocated(dataStruct%gru(iGRU)%grid(iGlac)%var(iVar)%dat2))then;  allocate(dataStruct%gru(iGRU)%grid(iGlac)%var(iVar)%dat2(nx,ny),stat=err); end if
+          if(.not.allocated(dataStruct%gru(iGRU)%grid(iGrid)%var(iVar)%dat2))then;  allocate(dataStruct%gru(iGRU)%grid(iGrid)%var(iVar)%dat2(nx,ny),stat=err); end if
           if(err/=0)then; err=20; message=trim(message)//'problem allocating grid dimension for variable '//trim(metaStruct(iVar)%varname); return; end if
         end do
        end associate

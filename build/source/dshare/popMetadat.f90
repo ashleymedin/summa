@@ -331,6 +331,8 @@ subroutine popMetadat(err,message)
   prog_meta(iLookPROG%scalarSnowDepth)                 = var_info('scalarSnowDepth'                , 'total snow depth'                                                 , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   prog_meta(iLookPROG%scalarSWE)                       = var_info('scalarSWE'                      , 'snow water equivalent'                                            , 'kg m-2'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   prog_meta(iLookPROG%scalarSfcMeltPond)               = var_info('scalarSfcMeltPond'              , 'ponded water caused by melt of the "snow without a layer"'        , 'kg m-2'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! state variables for glacier
+  prog_meta(iLookPROG%glacMass4AreaChange)             = var_info('glacMass4AreaChange'            , 'since updateJulDay mean rate glacier layers together mass change'        , 'kg m-2 s-1'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! define state variables for the layer domains
   prog_meta(iLookPROG%mLayerTemp)                      = var_info('mLayerTemp'                     , 'temperature of each layer'                                        , 'K'               , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   prog_meta(iLookPROG%mLayerVolFracIce)                = var_info('mLayerVolFracIce'               , 'volumetric fraction of ice in each layer'                         , '-'               , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
@@ -435,6 +437,9 @@ subroutine popMetadat(err,message)
   diag_meta(iLookDIAG%mLayerThetaResid)                = var_info('mLayerThetaResid'               , 'residual volumetric water content in each snow or ice layer'      , '-'               , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%mLayerPoreSpace)                 = var_info('mLayerPoreSpace'                , 'total pore space in each snow or ice layer'                       , '-'               , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%mLayerMeltFreeze)                = var_info('mLayerMeltFreeze'               , 'ice content change from melt/freeze in each layer'                , 'kg m-3'          , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+  ! glacier ice mass/hydrology
+  diag_meta(iLookDIAG%scalarIceWE)                     = var_info('scalarIceWE'                    , 'glacier ice (not snow) water equivalent'                          , 'kg m-2'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%scalarLayersMassChange)          = var_info('scalarLayersMassChange'         , 'mass change of all layers together (kg m-2 s-1)'                  , 'kg m-2 s-1'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! soil hydrology
   diag_meta(iLookDIAG%scalarInfilArea)                 = var_info('scalarInfilArea'                , 'fraction of unfrozen area where water can infiltrate'             , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarFrozenArea)                = var_info('scalarFrozenArea'               , 'fraction of area that is considered impermeable due to soil ice'  , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
