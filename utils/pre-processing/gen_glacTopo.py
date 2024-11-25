@@ -380,7 +380,7 @@ if __name__ == '__main__':
                 dy0 = y_max/dim_ny        # DEM grid spacing down glacier, default 100m
                 dx0 = x_max/dim_nx        # DEM grid spacing across glacier, default 25m
                 debris_m = 0.15 # if debris covered, need to add a debris thickness
-                AAR = 0.5 # acculation area ratiox, percent of glacier area that is accumulation area
+                AAR = 0.5 # acculation area ratio, percent of glacier area that is accumulation area
                 stage = 0.3 # percent of ablation area that is debris covered
             
             nx0, ny0, B0, S0, glacierMask0, area_km2, volume = make_base_elevation(height_file,widehead_use,dy0,dx0,max_elev,min_elev,y_max,x_max)

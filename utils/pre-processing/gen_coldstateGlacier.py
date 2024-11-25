@@ -312,7 +312,7 @@ if __name__ == '__main__':
                 dly = dy[j,i]*dx[j,i]
                 
                 # calculate area and volume
-                glac_area = np.sum(np.where((hgt>0), dly, 0))
+                glac_area = np.sum(np.where((hgt>1.0), dly, 0))
                 accArea[j,i] = glac_area * AAR[j,i]
                 ablArea[j,i] = glac_area - accArea[j,i]
                 glac_vol = np.sum(np.where((hgt>0), hgt*dly, 0))    # m^9 of ice

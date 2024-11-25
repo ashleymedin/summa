@@ -843,7 +843,7 @@ contains
  integer(i4b)                              :: filegrid                 ! max number of glacier grids in any GRU
  integer(i4b)                              :: iVar,i,j,k               ! loop indices
  integer(i4b),dimension(1)                 :: ngdx                     ! intermediate array of loop indices
- integer(i4b)                              :: iGRU,iGlac,iGrid         ! loop index
+ integer(i4b)                              :: iGRU,iGrid               ! loop index
  integer(i4b)                              :: dimID                    ! varible dimension ids
  integer(i4b)                              :: ncVarID                  ! variable ID in netcdf file
  integer(i4b)                              :: ncID                     ! netcdf file ID
@@ -853,7 +853,7 @@ contains
  integer(i4b),allocatable                  :: gruid_to_index(:)        ! mapping from gru_id to index in gridData
  integer(i4b),allocatable                  :: glacid_to_index(:,:)     ! mapping from glac_id to index in gridData
  integer(i4b),allocatable                  :: gridid_to_index(:,:)     ! mapping from grid_id to index in gridData
- real(rkind),parameter                     :: xTol=1.e-10_rkind        ! small tolerance to address precision issues
+ real(rkind),parameter                     :: areaTol=1.e-2_rkind      ! tolerance to address precision issues in glacier area summation
  real(rkind)                               :: area,area_grid           ! glacier area for a single glacier (m2)
  ! --------------------------------------------------------------------------------------------------------
  ! Start procedure here
@@ -942,13 +942,13 @@ contains
   if(err/=0)then; message=trim(message)//': problem with getting grid variable id, var= '//trim(grid_meta(iVar)%varName); return; endif
 
   ! initialize the grid variable data
-  allocate(varData(fileGRU,filegrid,fileygrid,filexgrid),stat=err)
+  allocate(varData(fileGRU,filegrid,filexgrid,fileygrid),stat=err)
   if(err/=0)then; print*, 'err= ',err; message=trim(message)//'problem allocating GRU variable data'; return; endif
 
   ! get data
   err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message)
   if(err/=0)then; message=trim(message)//': problem getting the data'; return; endif
-   
+
   ! store data in grid structure
   do k = 1, fileGRU
     iGRU = gruid_to_index(k)
@@ -975,13 +975,13 @@ contains
           )
           area = area_abl + area_acc
           ! correct if glacier thickness is negative
-          surface_elev = merge(bed_elev, surface_elev, surface_elev - bed_elev <= 0._rkind)
+          surface_elev = merge(bed_elev, surface_elev, surface_elev - bed_elev <= 1.0_rkind) ! note, this is arbitrary, but should be a small number
           area_grid = sum(merge(0._rkind, dx*dy, surface_elev - bed_elev <= 0._rkind))
           ! check if area is significantly different from grid approximation
           ! this is okay for the first year as it is considered spin up, subsequent years will use the grid data to compute the area
           if (area_grid>0.0_rkind) then 
-            if (abs(area/area_grid-1._rkind) >xTol) then
-              write(*,*) 'WARNING: Area of glacier ',iGlac,' in GRU ',iGRU,' starts at ', area/area_grid, ' times the grid approximation but will be calculated from the grid data after a year.'
+            if (abs(area/area_grid-1._rkind) >areaTol) then
+              write(*,*) 'WARNING: Area of glacier ',iGrid,' in GRU ',iGRU,' starts at ', area/area_grid, ' times the grid approximation but will be calculated from the grid data after a year.'
               write(*,*) 'If this is not expected, check the glacier grid data in the initial grid conditions file (perhaps the grid should be refined or the glacier area should be adjusted).'
             endif      
           endif
@@ -989,7 +989,7 @@ contains
       end do
     endif
     ! check whether the first values is set to nf90_fill_double
-    if(any(abs(gridData%gru(iGRU)%grid(iGlac)%var(iVar)%dat2(1:nx,1:ny) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
+    if(any(abs(gridData%gru(iGRU)%grid(iGrid)%var(iVar)%dat2(1:nx,1:ny) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
     if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(grid_meta(iVar)%varName)//"')"; return; endif
   end do ! end iGRU loop
 

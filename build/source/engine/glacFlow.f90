@@ -259,23 +259,23 @@ subroutine glacFlow(&
     hgt = surface - bed
     
     ! Calculate glacier ablation and accumulation areas
-    glacAblArea(iGlac) = sum(merge(glacierMask, zeros, hgt>0 .and. surface<  ELA_elev))*dx*dy
-    glacAccArea(iGlac) = sum(merge(glacierMask, zeros, hgt>0 .and. surface>= ELA_elev))*dx*dy
+    glacAblArea(iGlac) = sum(merge(glacierMask, zeros, hgt>1._rkind .and. surface<  ELA_elev))*dx*dy
+    glacAccArea(iGlac) = sum(merge(glacierMask, zeros, hgt>1._rkind .and. surface>= ELA_elev))*dx*dy
 
     ! Loop through HRUs and calculate domain areas and elevations for each HRU
     ! Order of domains will go HRU 1: Acc, Abl, HRU 2: Acc, Abl, etc.
     do k = 1, nDOM / 2
-      area(2*k-1) = area(2*k-1) + sum(merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>0 .and. surface>=ELA_elev))*dx*dy
-      area(2*k)   = area(2*k)   + sum(merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>0 .and. surface< ELA_elev))*dx*dy
+      area(2*k-1) = area(2*k-1) + sum(merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>1._rkind .and. surface>=ELA_elev))*dx*dy
+      area(2*k)   = area(2*k)   + sum(merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>1._rkind .and. surface< ELA_elev))*dx*dy
       
       ! Calculate mean elevation for accumulation and ablation areas
-      if (count(cell2hru==hruInd(k) .and. hgt>0 .and. surface>=ELA_elev) > 0) then
-        elev(2*k-1) = elev(2*k-1) + sum(surface * merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>0 .and. surface>=ELA_elev)) / &
-                          count(cell2hru==hruInd(k) .and. hgt>0 .and. surface>=ELA_elev) /nGlacier
+      if (count(cell2hru==hruInd(k) .and. hgt>1._rkind .and. surface>=ELA_elev) > 0) then
+        elev(2*k-1) = elev(2*k-1) + sum(surface * merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>1._rkind .and. surface>=ELA_elev)) / &
+                          count(cell2hru==hruInd(k) .and. hgt>1._rkind .and. surface>=ELA_elev) /nGlacier
       end if
-      if (count(cell2hru==hruInd(k) .and. hgt>0 .and. surface< ELA_elev) > 0) then
-        elev(2*k)   = elev(2*k)   + sum(surface * merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>0 .and. surface< ELA_elev)) / &
-                          count(cell2hru==hruInd(k) .and. hgt>0 .and. surface< ELA_elev) /nGlacier
+      if (count(cell2hru==hruInd(k) .and. hgt>1._rkind .and. surface< ELA_elev) > 0) then
+        elev(2*k)   = elev(2*k)   + sum(surface * merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>1._rkind .and. surface< ELA_elev)) / &
+                          count(cell2hru==hruInd(k) .and. hgt>1._rkind .and. surface< ELA_elev) /nGlacier
       end if
     end do
 
