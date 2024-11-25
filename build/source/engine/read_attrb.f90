@@ -243,7 +243,7 @@ subroutine read_dimensionGrid(attrGlacFile,nGRU,err,message)
   character(*),intent(out)             :: message                 ! error message
   ! define local variables
   character(len=256)                   :: cmessage                ! error message for downwind routine
-  integer(i4b)                         :: iGRU,i,iGrid            ! loop indices
+  integer(i4b)                         :: iGRU,i                  ! loop indices
   integer(i4b)                         :: ncID                    ! NetCDF file ID
   integer(i4b)                         :: varID                   ! NetCDF variable ID
   integer(i4b)                         :: dimID                   ! netcdf file dimension id
@@ -604,7 +604,7 @@ subroutine read_attrb(attrFile,nGRU,attrStruct,typeStruct,idStruct,err,message)
  integer(i4b),allocatable             :: gru_id(:)               ! read gru IDs in from attributes file
  integer(i4b),allocatable             :: gruid_to_index(:)       ! mapping from gru_id to index in gru_struc
  integer(i4b),allocatable             :: glacierMask(:,:,:,:)    ! glacier mask, 1=glacier, 0=non-glacier
- integer(i4b),allocatable             :: bed_elev(:,:,:,:)       ! bed elevation in meters
+ real(i4b),allocatable                :: bed_elev(:,:,:,:)       ! bed elevation in meters
  integer(i8b),allocatable             :: cell2hruId(:,:,:,:)     ! mapping from cell to hru id
  integer(i4b)                         :: nGrid                   ! number of grids in a GRU
  integer(i4b)                         :: nx0,ny0                 ! number of grid points in a glacier

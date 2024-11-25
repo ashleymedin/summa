@@ -854,6 +854,7 @@ contains
  integer(i4b),allocatable                  :: glacid_to_index(:,:)     ! mapping from glac_id to index in gridData
  integer(i4b),allocatable                  :: gridid_to_index(:,:)     ! mapping from grid_id to index in gridData
  real(rkind),parameter                     :: areaTol=1.e-2_rkind      ! tolerance to address precision issues in glacier area summation
+ real(rkind),parameter                     :: thick4area=0.1_rkind ! an arbitrary small threshold for glacier thickness to be considered as glacier area
  real(rkind)                               :: area,area_grid           ! glacier area for a single glacier (m2)
  ! --------------------------------------------------------------------------------------------------------
  ! Start procedure here
@@ -975,7 +976,7 @@ contains
           )
           area = area_abl + area_acc
           ! correct if glacier thickness is negative
-          surface_elev = merge(bed_elev, surface_elev, surface_elev - bed_elev <= 1.0_rkind) ! note, this is arbitrary, but should be a small number
+          surface_elev = merge(bed_elev, surface_elev, surface_elev - bed_elev <= thick4area)
           area_grid = sum(merge(0._rkind, dx*dy, surface_elev - bed_elev <= 0._rkind))
           ! check if area is significantly different from grid approximation
           ! this is okay for the first year as it is considered spin up, subsequent years will use the grid data to compute the area
