@@ -310,7 +310,7 @@ if __name__ == '__main__':
     else:
         nc_out = writeNC_dims(nc_out_name, gruIDs, hru_type, glac, dim_nx, dim_ny)
         nc_outS = writeNC_dims(nc_outS_name, gruIDs, hru_type, glac, dim_nx, dim_ny)    
-    height_file = '/Users/amedin/Research/USask/GlacierPython/my_code/mymodel_height_linear100.npz' # 'none' if no surface height file
+    height_file = '/Users/amedin/Research/USask/GlacierPython/my_code/mymodel_height_linear100Save.npz' # 'none' if no surface height file
     totArea = np.zeros(nOutPolygonsGRU, dtype='f8')
     nGlacier = np.zeros(nOutPolygonsGRU, dtype='i4')
     gridId = np.zeros((1, glac, nOutPolygonsGRU), dtype='i8')
@@ -362,6 +362,7 @@ if __name__ == '__main__':
                 # for now, just make a simple glacier bed
                 y_max = 35366.*fac # meters, max length of the glacier bed
                 x_max = 3000.*fac # meters, width of glacier bed at terminus
+                print(y_max, x_max)
                 #DEM grid spacing, best if evenly divides y_max and x_max
                 dy0 = y_max/dim_ny        # DEM grid spacing down glacier, default 100m
                 dx0 = x_max/dim_nx        # DEM grid spacing across glacier, default 25m
@@ -377,6 +378,7 @@ if __name__ == '__main__':
                 min_elev =309.7 # meters, min elevation of glacier (bed at y=y_max)
                 y_max = 19715.*fac # meters, max length of the glacier bed
                 x_max = 2000.*fac # meters, width of glacier bed at terminus
+                print(y_max, x_max)
                 dy0 = y_max/dim_ny        # DEM grid spacing down glacier, default 100m
                 dx0 = x_max/dim_nx        # DEM grid spacing across glacier, default 25m
                 debris_m = 0.15 # if debris covered, need to add a debris thickness

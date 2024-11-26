@@ -378,7 +378,7 @@ contains
  integer(i4b)                  :: iStat             ! statistics index
  integer(i4b)                  :: iFreq             ! frequency index
  ! initialize error control
- err=0;message="f-writeBasin/"
+ err=0;message="writeBasin/"
 
  ! loop through output frequencies
  do iFreq=1,maxvarFreq
@@ -408,6 +408,11 @@ contains
      if (iFreq==1 .and. outputTimestep(iFreq)==1) then
       err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),(/dat(iVar)%dat/),start=(/1/),count=(/nTimeDelay/))
      end if
+
+    case (iLookVarType%glacier)
+      if (iFreq==1 .and. outputTimestep(iFreq)==1) then
+        err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),(/dat(iVar)%dat/),start=(/1/),count=(/maxGlaciers/))
+       end if
 
     case default
      err=40; message=trim(message)//"unknownVariableType[name='"//trim(meta(iVar)%varName)//"';type='"//trim(get_varTypeName(meta(iVar)%varType))//    "']"; return
@@ -443,7 +448,7 @@ contains
  integer(i4b)                  :: iFreq             ! frequency index
  integer(i4b)                  :: ncVarID           ! used only for time
  ! initialize error control
- err=0;message="f-writeTime/"
+ err=0;message="writeTime/"
 
  ! loop through output frequencies
  do iFreq=1,maxvarFreq

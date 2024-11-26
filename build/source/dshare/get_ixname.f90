@@ -1128,6 +1128,7 @@ contains
   case(iLookVarType%ifcToto);get_varTypeName='ifcToto'
   case(iLookVarType%parSoil);get_varTypeName='parSoil'
   case(iLookVarType%routing);get_varTypeName='routing'
+  case(iLookVarType%glacier);get_varTypeName='glacier'
   case(iLookVarType%unknown);get_varTypeName='unknown'
   ! get to here if cannot find the variable
   case default
