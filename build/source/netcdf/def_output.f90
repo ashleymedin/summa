@@ -181,6 +181,7 @@ contains
     case('diag'  ); call def_variab(ncid(iFreq),iFreq,needDOM,needTime,diag_meta, outputPrecision, err,cmessage)  ! model diagnostic variables
     case('flux'  ); call def_variab(ncid(iFreq),iFreq,needDOM,needTime,flux_meta, outputPrecision, err,cmessage)  ! model fluxes
     case('bvar'  ); call def_variab(ncid(iFreq),iFreq,needGRU,needTime,bvar_meta, outputPrecision, err,cmessage)  ! basin-average variables
+    case('grid'  ); cycle !call def_variab(ncid(iFreq),iFreq,  noHRU,needTime,grid_meta, nf90_int,        err,cmessage)  ! grid information
     case('id'    ); cycle                                                                                         ! ids -- see write_id_info()
     case('lookup'); cycle                                                                                         ! ids -- see write_id_info()
     case default; err=20; message=trim(message)//'unable to identify lookup structure';
@@ -452,6 +453,7 @@ contains
  ! **********************************************************************************************************
  subroutine write_id_info(ncid, err, message)
  use globalData,only:gru_struc                    ! gru-hru mapping structures
+ USE globalData,only:maxGlaciers                  ! maximum number of glaciers
  ! input
  integer(i4b),intent(in)     :: ncid              ! netcdf file id
  ! output
@@ -504,7 +506,7 @@ contains
  err = nf90_put_att(ncid, gruIdVarID, 'long_name', 'ID defining the grouped (basin) response unit'); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruIdVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, gruIdVarID, 'units',     '-'                  ); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruIdVar_unit';   call netcdf_err(err,message); return; end if
 
- if (gru_struc(iGRU)%nGlacier>0) then
+ if (maxGlaciers>0) then
   ! define glac var
   err = nf90_def_var(ncid, trim(glacier_DimName), nf90_int, (/glacier_DimID/), glacVarID, deflate_level=outputCompressionLevel);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_glacVar'  ;  call netcdf_err(err,message); return; end if
   err = nf90_put_att(ncid, glacVarID, 'long_name', 'glacId in the input file'); if (err/=nf90_NoErr) then; message=trim(message)//'write_glacVar_longname'; call netcdf_err(err,message); return; end if

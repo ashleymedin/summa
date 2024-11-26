@@ -302,8 +302,8 @@ end subroutine glacFlow
   subroutine run_year(y_end, S, B, m_dot, glacierMask, nx, ny, dx, dy, volume)
     ! Arguments
     real(rkind), intent(in) :: dx, dy
-    real(rkind), intent(inout) :: S(:,:), B(:,:), m_dot(:,:)
-    integer(i4b), intent(in) :: y_end, ny, nx, glacierMask(:,:)
+    real(rkind), intent(inout) :: S(nx,ny), B(nx,ny), m_dot(nx,ny)
+    integer(i4b), intent(in) :: y_end, ny, nx, glacierMask(nx,ny)
     real(rkind), intent(out) :: volume
 
     ! Local variables
@@ -317,25 +317,25 @@ end subroutine glacFlow
     integer(i4b) :: k(nx), kp(nx), kpp(nx), km(nx), kmm(nx)
 
     ! y direction indices
-    l = [(i, i=0, ny-1)]
-    lp = [(i, i=1, ny-1), ny-1]
-    lpp = [(i, i=2, ny-1), ny-1, ny-1]
-    lm = [0, (i, i=0, ny-2)]
-    lmm = [0, 0, (i, i=0, ny-3)]
+    l = [(i, i=1, ny)]
+    lp = [(i, i=2, ny), ny]
+    lpp = [(i, i=3, ny), ny, ny]
+    lm = [1, (i, i=1, ny-1)]
+    lmm = [1, 1, (i, i=1, ny-2)]
     if (ny == 1) then
-      lpp = [0]
-      lmm = [0]
+      lpp = [1]
+      lmm = [1]
     end if
     
     ! x direction indices
-    k = [(i, i=0, nx-1)]
-    kp = [(i, i=1, nx-1), nx-1]
-    kpp = [(i, i=2, nx-1), nx-1, nx-1]
-    km = [0, (i, i=0, nx-2)]
-    kmm = [0, 0, (i, i=0, nx-3)]
+    k = [(i, i=1, nx)]
+    kp = [(i, i=2, nx), nx]
+    kpp = [(i, i=3, nx), nx, nx]
+    km = [1, (i, i=1, nx-1)]
+    kmm = [1, 1, (i, i=1, nx-2)]
     if (nx == 1) then
-      kpp = [0]
-      kmm = [0]
+      kpp = [1]
+      kmm = [1]
     end if
 
     t_total = y_end * secprday* 365._rkind
@@ -385,8 +385,8 @@ end subroutine glacFlow
 ! ************************************************************************************************
 subroutine diffusion_upstream(S, B, gamma, n, cfl, max_dt, nx, ny, k, kp, km, l, lp, lm, dx, dy, div_q, dt_cfl)
   implicit none
-  real(rkind), intent(in) :: S(:,:), B(:,:), dx, dy, gamma, cfl, max_dt
-  integer(i4b), intent(in) :: nx, ny, k(:), kp(:), km(:), l(:), lp(:), lm(:), n
+  real(rkind), intent(in) :: S(nx,ny), B(nx,ny), dx, dy, gamma, cfl, max_dt
+  integer(i4b), intent(in) :: nx, ny, k(nx), kp(nx), km(nx), l(ny), lp(ny), lm(ny), n
   real(rkind), intent(out) :: div_q(nx,ny), dt_cfl
   real(rkind) :: H(nx,ny)
   real(rkind) :: Sklp(nx,ny), Sklm(nx,ny), Skplp(nx,ny), Skplm(nx,ny), Skpl(nx,ny), Skl(nx,ny), Skmlp(nx,ny), Skmlm(nx,ny), Skml(nx,ny)
@@ -507,8 +507,8 @@ end subroutine diffusion_upstream
 ! ************************************************************************************************
 subroutine diffusion_MUSCL(S, B, gamma, n, cfl, max_dt, nx, ny, k, kp, km, kpp, kmm, l, lp, lm, lpp, lmm, dx, dy, div_q, dt_cfl)
   implicit none
-  real(rkind), intent(in) :: S(:,:), B(:,:), dx, dy, gamma, cfl, max_dt
-  integer(i4b), intent(in) :: nx, ny, k(:), kp(:), km(:), kpp(:), kmm(:), l(:), lp(:), lm(:), lpp(:), lmm(:), n
+  real(rkind), intent(in) :: S(nx,ny), B(nx,ny), dx, dy, gamma, cfl, max_dt
+  integer(i4b), intent(in) :: nx, ny, k(nx), kp(nx), km(nx), kpp(nx), kmm(nx), l(ny), lp(ny), lm(ny), lpp(ny), lmm(ny), n
   real(rkind), intent(out) :: div_q(nx,ny), dt_cfl
   real(rkind) :: H(nx,ny)
   real(rkind) :: Sklp(nx,ny), Sklm(nx,ny), Skplp(nx,ny), Skplm(nx,ny), Skpl(nx,ny), Skl(nx,ny), Skmlp(nx,ny), Skmlm(nx,ny), Skml(nx,ny)
