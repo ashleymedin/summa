@@ -363,7 +363,7 @@ end subroutine glacFlow
   
       ! Update S
       S = S + (m_dot + div_q) * deltat
-      S = merge(S, B, S < B)
+      S = merge(S, B, S > B)
   
       ! Check that the glacier is in boundaries, fix small violations
       if (any((S - B) > 0._rkind .and. glacierMask==0)) then
@@ -763,7 +763,7 @@ function H_min(Hm, H, Hp) result(H_min_result)
     H_min_result = H + 0.5_rkind * minmod(H - Hm, Hp - H) * (Hp - H)
   else if (limiter == "superbee") then
     mask = (Hp /= H) .and. (Hp /= Hm) .and. (H /= Hm)
-    divisor = merge(Hp - H, ones, mask)
+    divisor = merge(H - Hm, ones, mask)
     H_min_result = merge(H + 0.5_rkind * superbee(abs((Hp - H) / divisor)) * (H - Hm), H, mask)
   end if
   deallocate(mask,divisor,ones)
