@@ -264,6 +264,7 @@ subroutine glacFlow(&
     ! Calculate glacier ablation and accumulation areas
     glacAblArea(iGlac) = sum(merge(glacierMask, zeros, hgt>thick4area .and. surface<  ELA_elev))*dx*dy
     glacAccArea(iGlac) = sum(merge(glacierMask, zeros, hgt>thick4area .and. surface>= ELA_elev))*dx*dy
+    print*, 'glacAblArea = ', glacAblArea(iGlac), ' glacAccArea = ', glacAccArea(iGlac)
 
     ! Loop through HRUs and calculate domain areas and elevations for each HRU
     ! Order of domains will go HRU 1: Acc, Abl, HRU 2: Acc, Abl, etc.
@@ -347,7 +348,8 @@ end subroutine glacFlow
     t = 0._rkind
     do while (t < t_total)
       dt = t_total - t
-
+    print*, sum(m_dot * merge(1._rkind, 0._rkind, glacierMask==1)) / count(glacierMask==1),&
+    sum((S-B) * merge(1._rkind, 0._rkind, glacierMask==1)) / count(glacierMask==1),t
       ! Select diffusion method and call step
       if (method == "MUSCL") then
         call diffusion_MUSCL(S, B, gamma, n, cfl, max_dt, nx, ny, k, kp, km, kpp, kmm, l, lp, lm, lpp, lmm, dx, dy, div_q, dt_cfl)
