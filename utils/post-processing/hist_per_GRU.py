@@ -52,10 +52,10 @@ def power_transform(x):
     return x ** 0.5  # Adjust the exponent as needed
 
 # Simulation statistics file locations
-use_vars = []
-rep = [] # mark the repeats
-#use_vars = [4,1]
-#rep = [0,0] # mark the repeats
+#use_vars = []
+#rep = [] # mark the repeats
+use_vars = [4,1]
+rep = [0,0] # mark the repeats
 #use_vars = [0,1,2,3,4]
 #rep = [0,0,0,0,0] # mark the repeats
 settings0= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','scalarRootZoneTemp']
@@ -63,10 +63,10 @@ settings = [settings0[i] for i in use_vars]
 
 #use_vars2 = [0,0,1,1,2,2]
 #rep2 = [1,2,1,2,1,2] # mark the repeats
-use_vars2 = [4,4,5,5,6,6,7,7]
-rep2 = [1,2,1,2,1,2,1,2] # mark the repeats
-#use_vars2 = [3,3,8]
-#rep2 = [1,2,0] # mark the repeats
+#use_vars2 = [4,4,5,5,6,6,7,7]
+#rep2 = [1,2,1,2,1,2,1,2] # mark the repeats
+use_vars2 = [3,3,8]
+rep2 = [1,2,0] # mark the repeats
 #use_vars2 = []
 #rep2 = [] # mark the repeats
 settings20= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
@@ -117,7 +117,7 @@ if stat == 'kgem':
 maxes = [maxes[i] for i in use_vars]
 
 if stat2 == 'mean':
-    maxes2 = [1e2,1e2,1e2,1e2]+[1e-7,1e-5,1e-7,1e-8] + [20e-3]
+    maxes2 = [1e2,1e2,1e2,1e2]+[1e-7,1e-5,1e-7,1e-8] + [5e-2]
 if stat2 == 'amax':
     maxes2 = [1e4,1e4,1e4,1e4]+[1e-5,1e-3,1e-5,1e-6] + [2.0]
 maxes2 = [maxes2[i] for i in use_vars2]
