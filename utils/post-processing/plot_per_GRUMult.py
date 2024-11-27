@@ -39,7 +39,7 @@ run_local = False # true is run on local machine (only does testing), false is r
 more_mean = False # true is plot mean/amax extra variables in a balance file
 
 if run_local: 
-    stat = 'mean'
+    stat = 'rmnz'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics_en')
 else:
     import sys
@@ -54,13 +54,13 @@ method_name=['be1','be16','be32','sundials_1en6','ref']
 plt_name0=['SUMMA-BE1','SUMMA-BE16','SUMMA-BE32','SUMMA-SUNDIALS','reference solution']
 plt_nameshort=plt_name0
 method_name=['be8','be8cm','be8en','sundials_1en5cm','sundials_1en5en','diff','ref']
-plt_name0=['BE8 common thermo. eq.','SUMMA-BE1 temperature thermo. eq.','SUMMA-BE1 mixed thermo. eq.','SUMMA-SUNDIALS temperature thermo. eq.','SUMMA-SUNDIALS enthalpy thermo. eq.','SUMMA-BE1 common - mixed','reference solution']
-plt_nameshort=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp','SUNDIALS enth','BE1 common - mixed','reference soln']
+plt_name0=['BE8 common thermo. eq.','SUMMA-BE8 temperature thermo. eq.','SUMMA-BE8 mixed thermo. eq.','SUMMA-SUNDIALS temperature thermo. eq.','SUMMA-SUNDIALS enthalpy thermo. eq.','SUMMA-BE8 common - mixed','reference solution']
+plt_nameshort=['BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp','SUNDIALS enth','BE8 common - mixed','reference soln']
 
 if one_plot: plt_name0 = plt_nameshort
 
-from_meth = 'be1' # name of the first simulation in the difference simulation, only used if a method_name is 'diff'
-sub_meth = 'be1en' # name of the simulation to subtract in the difference simulation, only used if a method_name is 'diff'
+from_meth = method_name[0] # name of the first simulation in the difference simulation, only used if a method_name is 'diff'
+sub_meth = method_name[2] # name of the simulation to subtract in the difference simulation, only used if a method_name is 'diff'
 
 # Simulation statistics file locations
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','scalarRootZoneTemp']
@@ -483,7 +483,7 @@ if one_plot:
     use_vars_exVar = [3,0,1]
 else:
     use_vars = [0,1,2,3,4,5]
-    use_vars = [1,5]
+    use_vars = [1,4]
     use_meth = [0,1,2,3,4,6]
     use_vars_exVar = [3,0,2,1]
 if more_mean: 

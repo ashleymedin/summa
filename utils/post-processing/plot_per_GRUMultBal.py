@@ -35,7 +35,6 @@ one_plot = False # true is one plot, false is multiple plots (one per variable)
 run_local = False # true is run on local machine (only does testing), false is run on cluster
 fixed_Mass_units = False # true is convert mass balance units to kg m-2 s-1, if ran new code with depth in calculation
 
-
 if run_local: 
     stat = 'mean'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics_en')
@@ -45,7 +44,7 @@ else:
     viz_dir = Path('/home/avanb/scratch/statistics')
 
 
-method_name=['be1','be8cm','be8en','sundials_1en5cm','sundials_1en5en','sundials_1en8en']  #maybe make this an argument
+method_name=['be8','be8cm','be8en','sundials_1en5cm','sundials_1en5en','sundials_1en8en']  #maybe make this an argument
 plt_name0=['SUMMA-BE8 common thermo. eq.','SUMMA-BE8 temperature thermo. eq.','SUMMA-BE8 mixed thermo. eq.','SUMMA-SUNDIALS temperature thermo. eq.','SUMMA-SUNDIALS enthalpy thermo. eq.','reference solution']
 
 # Simulation statistics file locations
@@ -66,9 +65,9 @@ fig_fil= '_hrly_balance_{}_compressed.png'
 plot_vars = settings.copy()
 
 if stat == 'mean': 
-    maxes2 = [1e2,1e2,1e2,1e2]+[1e-7,1e-5,1e-7,1e-8] + [20e-3]
+    maxes = [1e2,1e2,1e2,1e2]+[1e-7,1e-5,1e-7,1e-8] + [5e-2]
 if stat == 'amax':
-    maxes2 = [1e4,1e4,1e4,1e4]+[1e-5,1e-3,1e-5,1e-6] + [2.0]
+    maxes = [1e4,1e4,1e4,1e4]+[1e-5,1e-3,1e-5,1e-6] + [2.0]
 
 # Get simulation statistics
 summa = {}
@@ -237,7 +236,6 @@ def run_loop(j,var,the_max):
         axs[r,c].set_ylim(ymin, ymax)
 
         # Custom colorbar
-        # Custom colorbar
         if i==len(method_name)-1:
             sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
             sm.set_array([])
@@ -258,7 +256,7 @@ if one_plot:
     use_meth = [0,2,4]
 else:
     use_vars = [0,1,2,3,4,5,6,7]
-    use_vars = [3]
+    use_vars = [3,8]
     use_meth = [0,1,2,3,4,5]
 plot_vars = [plot_vars[i] for i in use_vars]
 plt_titl = [plt_titl[i] for i in use_vars]
@@ -285,9 +283,9 @@ if one_plot:
 else:
     #size hardwired to 2x3 for now
     ncol = 3
-    nrow = 4
-    if len(method_name)>6:
-        print('Too many methods for 3x2 plot')
+    nrow = 2
+    if len(method_name)>ncol*nrow:
+        print('Too many methods for '+ nrow + 'x' + ncol + 'plotting')
         sys.exit()
 
     base_row = 0
