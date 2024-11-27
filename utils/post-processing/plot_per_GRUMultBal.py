@@ -59,16 +59,16 @@ nbatch_hrus = 518 # number of HRUs per batch
 
 # Specify variables in files
 plt_titl = ['canopy air space enthalpy balance','vegetation enthalpy balance','snow enthalpy balance','soil enthalpy balance','vegetation mass balance','snow mass balance','soil mass balance','aquifer mass balance', 'wall clock time']
-leg_titl = ['$W~m^{-3}$'] * 4 + ['$kg~m^{-3}~s^{-1}$'] * 4 + ['$s$']
+leg_titl = ['$W~m^{-3}$'] * 4 + ['$kg~m^{-3}~s^{-1}$'] * 3 + ['$kg~m^{-2}~s^{-1}$']+ ['$s$']
 if fixed_Mass_units: leg_titl = ['$W~m^{-3}$'] * 4 + ['s^{-1}$'] * 3 + ['m~s^{-1}$'] + ['$s$']
 
 fig_fil= '_hrly_balance_{}_compressed.png'
 plot_vars = settings.copy()
 
 if stat == 'mean': 
-    maxes = [1e-1,1e1,1e1,1e1]+[1e-7,1e-7,1e-7,1e-9] + [20e-3]
+    maxes2 = [1e2,1e2,1e2,1e2]+[1e-7,1e-5,1e-7,1e-8] + [20e-3]
 if stat == 'amax':
-    maxes = [1e1,1e3,1e3,1e3]+[1e-5,1e-5,1e-5,1e-7] + [2.0]
+    maxes2 = [1e4,1e4,1e4,1e4]+[1e-5,1e-3,1e-5,1e-6] + [2.0]
 
 # Get simulation statistics
 summa = {}
