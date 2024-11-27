@@ -100,6 +100,9 @@ subroutine glacFlow(&
   integer(i4b), allocatable          :: glacierMask(:,:)          ! 1-0 mask of glacier domain
   integer(i4b), allocatable          :: zeros(:,:)                ! zeros array for masking
   integer(i4b)                       :: i,j,k,n,iGlac,iGrid,iDOM  ! loop indices
+  integer(i4b)                       :: i1, i2                    ! indices for mass balance interpolation
+  real(rkind)                        :: slope, intercept          ! slope and intercept for linear extrapolation of mass balance
+  real(rkind)                        :: sum_mass                  ! sum of mass balance values for averaging
   integer(i4b)                       :: nx, ny                    ! number of grid cells in x and y directions
   real(rkind)                        :: dx, dy                    ! grid cell size in x and y directions
   real(rkind)                        :: volume                    ! volume of each glacier km3
@@ -110,8 +113,7 @@ subroutine glacFlow(&
   integer(i4b)                       :: validCount                ! number of valid points
   real(rkind), allocatable           :: validElev(:)              ! filter out points where equal to realMissing
   real(rkind), allocatable           :: validMassChange(:)        ! filter out points where equal to realMissing
-  real(rkind)                        :: temp_elev, temp_GWE       ! temporary variables for sorting
-  real(rkind)                        :: slope, intercept          ! slope and intercept for linear extrapolation of GWE
+  real(rkind)                        :: temp_elev, temp_mass      ! temporary variables for sorting
   integer(i4b), allocatable          :: glacid_to_index(:)        ! mapping array from glacier id to index in gridInfo
   real(rkind),parameter              :: thick4area=0.1_rkind      ! an arbitrary small threshold for glacier thickness to be considered as glacier area
   ! ----------------------------------------------------------------------------------------------
@@ -123,7 +125,7 @@ subroutine glacFlow(&
   validCount = count(elev /= realMissing)
   allocate(validElev(validCount))
   allocate(validMassChange(validCount))
-  
+
   ! Filter out points where no area and elevation is missing
   j = 1
   do iDOM = 1, nDOM
@@ -143,35 +145,69 @@ subroutine glacFlow(&
         validElev(j) = validElev(j+1)
         validElev(j+1) = temp_elev
         ! Swap corresponding massChange values
-        temp_GWE = validMassChange(j)
+        temp_mass = validMassChange(j)
         validMassChange(j) = validMassChange(j+1)
-        validMassChange(j+1) = temp_GWE
+        validMassChange(j+1) = temp_mass
       end if
     end do
   end do
-  
-  ! Calculate the elevation where massChange would be zero
-  if (validMassChange(1) <= 0.0) then
-    ! Extrapolate above the first point
-    slope = (validMassChange(2) - validMassChange(1)) / (validElev(2) - validElev(1))
-    intercept = validMassChange(1) - slope * validElev(1)
-    ELA_elev = -intercept / slope
-  else if (validMassChange(validCount) >= 0.0) then
-    ! Extrapolate below the last point
-    slope = (validMassChange(validCount) - validMassChange(validCount-1)) / (validElev(validCount) - validElev(validCount-1))
-    intercept = validMassChange(validCount) - slope * validElev(validCount)
-    ELA_elev = -intercept / slope
-  else
-    do i = 1, validCount-1
-      if ( (validMassChange(i) > 0.0 .and. validMassChange(i+1) < 0.0) .or. &
-           (validMassChange(i) < 0.0 .and. validMassChange(i+1) > 0.0) ) then
-        ! Linear interpolation to find the zero crossing
-        slope = (validMassChange(i+1) - validMassChange(i)) / (validElev(i+1) - validElev(i))
-        intercept = validMassChange(i) - slope * validElev(i)
-        ELA_elev = -intercept / slope
+
+  ! Combine points with the same elevation into a single point that is the average of those points
+  i = 1
+  do while (i <= validCount)
+    n = 1
+    sum_mass = validMassChange(i)
+    do j = i+1, validCount
+      if (validElev(i) == validElev(j)) then
+        sum_mass = sum_mass + validMassChange(j)
+        n = n + 1
+      else
         exit
       end if
     end do
+    if (n > 1) then
+      validMassChange(i) = sum_mass / n
+      ! Shift remaining elements to the left
+      do k = i+1, validCount-n
+        validElev(k) = validElev(k+n)
+        validMassChange(k) = validMassChange(k+n)
+      end do
+      validCount = validCount - n + 1
+    end if
+    i = i + 1
+  end do
+  
+  ! Calculate the elevation where massChange would be zero
+  if (validCount==1) then
+    if (validMassChange(1)>0)then
+      ELA_elev = 0._rkind ! all points are above ELA
+    else
+      ELA_elev = 1.e10_rkind ! all points are below ELA
+    end if
+  else ! find zero crossing indices
+    if (validMassChange(1) <= 0.0) then
+      ! Extrapolate above the first point
+      i1 = 1
+      i2 = 2
+    else if (validMassChange(validCount) >= 0.0) then
+      ! Extrapolate below the last point
+      i1 = validCount - 1
+      i2 = validCount
+    else
+      do i = 1, validCount-1
+        if ((validMassChange(i) > 0.0 .and. validMassChange(i+1) < 0.0) .or. &
+            (validMassChange(i) < 0.0 .and. validMassChange(i+1) > 0.0)) then
+          ! Linear interpolation to find the zero crossing
+          i1 = i
+          i2 = i + 1
+          exit
+        end if
+      end do
+    end if
+    ! Calculate slope and intercept for ELA
+    slope = (validMassChange(i2) - validMassChange(i1)) / (validElev(i2) - validElev(i1))
+    intercept = validMassChange(i1) - slope * validElev(i1)    
+    ELA_elev = -intercept / slope
   end if
 
   ! Initialize new domain areas and elevations
@@ -224,29 +260,34 @@ subroutine glacFlow(&
         if (glacierMask(k,j)==0) then
           mb(k,j) = 0._rkind
         else
-          !! Find the interval in which surface(k,j) lies
-          !if (surface(k,j) >= validElev(1)) then
-          !    ! Extrapolate above the first point
-          !  slope = (validMassChange(2) - validMassChange(1)) / (validElev(2) - validElev(1))
-          !  intercept = validMassChange(1) - slope * validElev(1)
-          !  mb(k,j) = slope * surface(k,j) + intercept
-          !else if (surface(k,j) <= validElev(nDOM)) then
-          !  ! Extrapolate below the last point
-          !  slope = (validMassChange(nDOM) - validMassChange(nDOM-1)) / (validElev(nDOM) - validElev(nDOM-1))
-          !  intercept = validMassChange(nDOM) - slope * validElev(nDOM)
-          !  mb(k,j) = slope * surface(k,j) + intercept
-          !else
-          !  ! Interpolate between points
-          !  do n = 1, nDOM-1
-          !    if (surface(k,j) <= validElev(n) .and. surface(k,j) >= validElev(n+1)) then
-          !      slope = (validMassChange(n+1) - validMassChange(n)) / (validElev(n+1) - validElev(n))
-          !      intercept = validMassChange(n) - slope * validElev(n)
-          !      mb(k,j) = slope * surface(k,j) + intercept
-          !      exit
-          !    end if
-          !  end do
-          !end if 
-          mb(k,j) = 3.0_rkind/365.0_rkind/secprday/900.0_rkind ! 3 kg/m2 ice /year to m s-1 to match the test case
+          if (validCount==1) then
+            mb(k,j) = validMassChange(1)
+          else ! find the interval in which surface(k,j) lies
+            if (surface(k,j) >= validElev(1)) then
+              ! Extrapolate above the first point
+              i1 = 1
+              i2 = 2
+            else if (surface(k,j) <= validElev(validCount)) then
+              ! Extrapolate below the last point
+              i1 = validCount - 1
+              i2 = validCount
+            else
+              ! Interpolate between points
+              do n = 1, validCount-1
+                if (surface(k,j) <= validElev(n) .and. surface(k,j) >= validElev(n+1)) then
+                  i1 = n
+                  i2 = n + 1
+                  exit
+                end if
+              end do
+            end if
+            ! Calculate slope and intercept for mass balance
+            slope = (validMassChange(i2) - validMassChange(i1)) / (validElev(i2) - validElev(i1))
+            intercept = validMassChange(i1) - slope * validElev(i1)
+            
+            mb(k,j) = slope * surface(k,j) + intercept 
+          end if
+          !mb(k,j) = 3.0_rkind/365.0_rkind/secprday/900.0_rkind ! 3 kg/m2 ice /year to m s-1 to match the test case
         end if ! end of glacier mask check
       end do ! end of ny loop
     end do ! end of nx loop
@@ -264,7 +305,7 @@ subroutine glacFlow(&
     ! Calculate glacier ablation and accumulation areas
     glacAblArea(iGlac) = sum(merge(glacierMask, zeros, hgt>thick4area .and. surface<  ELA_elev))*dx*dy
     glacAccArea(iGlac) = sum(merge(glacierMask, zeros, hgt>thick4area .and. surface>= ELA_elev))*dx*dy
-    print*, 'glacAblArea = ', glacAblArea(iGlac), ' glacAccArea = ', glacAccArea(iGlac)
+    print*, 'glacAblArea = ', glacAblArea(iGlac), ' glacAccArea = ', glacAccArea(iGlac),ELA_elev
 
     ! Loop through HRUs and calculate domain areas and elevations for each HRU
     ! Order of domains will go HRU 1: Acc, Abl, HRU 2: Acc, Abl, etc.
@@ -293,6 +334,7 @@ subroutine glacFlow(&
   do iDOM = 1,nDOM
     if (elev(iDOM)==0._rkind) elev(iDOM)=realMissing
   end do
+  print*,"elev ", elev, "area", area, "massChange", massChange
 
   deallocate(glacid_to_index, validElev, validMassChange)
 
@@ -348,8 +390,6 @@ end subroutine glacFlow
     t = 0._rkind
     do while (t < t_total)
       dt = t_total - t
-    print*, sum(m_dot * merge(1._rkind, 0._rkind, glacierMask==1)) / count(glacierMask==1),&
-    sum((S-B) * merge(1._rkind, 0._rkind, glacierMask==1)) / count(glacierMask==1),t
       ! Select diffusion method and call step
       if (method == "MUSCL") then
         call diffusion_MUSCL(S, B, gamma, n, cfl, max_dt, nx, ny, k, kp, km, kpp, kmm, l, lp, lm, lpp, lmm, dx, dy, div_q, dt_cfl)
