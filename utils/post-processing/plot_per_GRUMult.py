@@ -63,7 +63,7 @@ from_meth = 'be1' # name of the first simulation in the difference simulation, o
 sub_meth = 'be1en' # name of the simulation to subtract in the difference simulation, only used if a method_name is 'diff'
 
 # Simulation statistics file locations
-settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
+settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','scalarRootZoneTemp']
 
 viz_fil = method_name.copy()
 for i, m in enumerate(method_name):
@@ -84,8 +84,8 @@ if more_mean: # extra vars in a balance file
 
 # Specify variables in files
 plot_vars = settings.copy() + ['scalarSWE']
-plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','average routed runoff','wall clock time', 'melt with seasonal snow']
-leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$s$','$kg~m^{-2}$']
+plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','top 4m soil temperature','melt with seasonal snow']
+leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$K$','$kg~m^{-2}$']
 calc = [0,0,0,0,0,0,1] # 1 if variable needs to be calculated from other variables
 melt_thresh = 1/(0.75) # threshold for melt water calculation (divisor is percentage of year no snow, if only melts once)
 
@@ -93,19 +93,19 @@ fig_fil= '_hrly_diff_stats_{}_compressed.png'
 if do_rel: fig_fil = '_hrly_diff_stats_{}_rel_compressed.png'
 
 if stat == 'rmse' or stat == 'rmnz': 
-    maxes = [2,15,250,0.08,200,10e-3,2] 
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,10e-3,0.6]
+    maxes = [2,15,250,0.08,200,2] 
+    if do_rel: maxes = [0.4,0.009,0.6,0.15,0.002,0.2,0.6]
 if stat == 'maxe': 
-    maxes = [15,25,0.8,2,0.3,0.2,15] #[15,25,25e-5,2,1e-7,0.2]
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,0.2,0.6]
+    maxes = [15,25,0.8,2,0.3,0.2] #[15,25,25e-5,2,1e-7,0.2]
+    if do_rel: maxes = [0.4,0.009,0.6,0.15,0.002,0.2,0.6]
 if stat == 'kgem': 
     maxes = [0.9,0.9,0.9,0.9,0.9,10e-3,0.9]
 if stat == 'mean' or stat == 'mnnz': 
     maxes = [100,1700,2000,8,4000,10e-3,100] #[80,1500,5e-5,8,1e-7,10e-3]
-    if do_rel: maxes = [1.1,1.1,1.1,1.1,1.1,10e-3,1.1]
+    if do_rel: maxes = [1.1,1.1,1.1,1.1,1.1,1.1]
 if stat == 'amax': 
     maxes = [240,1800,3.5,25,7.5,0.2,240] #[240,1800,1e-3,25,2e-6,0.2]
-    if do_rel: maxes = [1.1,1.1,1.1,1.1,1.1,0.2,1.1]
+    if do_rel: maxes = [1.1,1.1,1.1,1.1,1.1,1.1]
 
 # Get simulation statistics
 summa = {}
