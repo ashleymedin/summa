@@ -28,7 +28,8 @@ USE globalData,only:realMissing     ! missing double precision number
 ! access domain types
 USE globalData,only:upland          ! domain type for upland areas
 USE globalData,only:glacAcc         ! domain type for glacier accumulation areas
-USE globalData,only:glacAbl         ! domain type for glacier ablation areas
+USE globalData,only:glacCln         ! domain type for glacier ablation clean areas
+USE globalData,only:glacDbr         ! domain type for glacier ablation debris areas
 USE globalData,only:wetland         ! domain type for wetland areas
 
 implicit none
@@ -146,7 +147,7 @@ contains
        if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type.ne.upland) then
          remaining_area = remaining_area - progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
          remaining_elev = remaining_elev - progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) * progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1)
-         if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAbl) then
+         if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln .or. gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr) then
            glacAblAreaTot = glacAblAreaTot + progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
          else if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc) then
            glacAccAreaTot = glacAccAreaTot + progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) 

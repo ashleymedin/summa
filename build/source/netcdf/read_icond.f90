@@ -29,7 +29,8 @@ USE globalData,only: int8Missing     ! missing integer
 ! access domain types
 USE globalData,only:upland             ! domain type for upland areas
 USE globalData,only:glacAcc            ! domain type for glacier accumulation areas
-USE globalData,only:glacAbl            ! domain type for glacier ablation areas
+USE globalData,only:glacCln            ! domain type for glacier ablation clean areas
+USE globalData,only:glacDbr            ! domain type for glacier ablation debris areas
 USE globalData,only:wetland            ! domain type for wetland areas
 
 implicit none
@@ -194,7 +195,9 @@ contains
      iHRU_global = hrunc_to_index(i,j)
      gru_struc(iGRU)%hruInfo(iHRU)%domCount = 1                                              ! upland domain always present, for changing size glaciers and lakes
      if (any(dom_type(1:fileDOM,iHRU_global)==glacAcc)) &
-       gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 2   ! accumulation and ablation domains possible
+       gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 2   ! accumulation and ablation domains need to be possible
+     if (any(dom_type(1:fileDOM,iHRU_global)==glacCln) .and. any(dom_type(1:fileDOM,iHRU_global)==glacDbr)) &
+       gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 1   ! will only have debris and clean domains if start with both
      if (any(dom_type(1:fileDOM,iHRU_global)==wetland)) &
        gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 1   ! wetland domain possible
      allocate(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(gru_struc(iGRU)%hruInfo(iHRU)%domCount)) ! allocate third level of gru to hru map

@@ -79,7 +79,8 @@ USE globalData,only:realMissing         ! missing double precision number
 ! access domain types
 USE globalData,only:upland             ! domain type for upland areas
 USE globalData,only:glacAcc            ! domain type for glacier accumulation areas
-USE globalData,only:glacAbl            ! domain type for glacier ablation areas
+USE globalData,only:glacCln            ! domain type for glacier ablation clean areas
+USE globalData,only:glacDbr            ! domain type for glacier ablation debris areas
 USE globalData,only:wetland            ! domain type for wetland areas
 
 ! provide access to the named variables that describe model decisions
@@ -210,7 +211,8 @@ subroutine run_oneGRU(&
     do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
       fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = 0._rkind
       if (progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)==0._rkind) cycle ! skip domains with no area
-      if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAbl)then        
+      if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc .or. &
+          gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr)then        
         if (check_updateGlacArea) then ! update glacier area every October 1st of mod year
           ! compute the fractional julian day for the current time step
           call compjulday(timeVec%var(iLookTIME%iyyy),           & ! input  = year
@@ -256,7 +258,7 @@ subroutine run_oneGRU(&
     nDOM_glacGRU = 0 ! initialize number of glacier domains in the GRU
     do iHRU=1,gruInfo%hruCount
       do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
-        if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAbl)then
+        if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln)then
           nDOM_glacGRU = nDOM_glacGRU + 1
         endif
       end do
@@ -354,7 +356,7 @@ subroutine run_oneGRU(&
           bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferTranspire)%dat(1)*fracDOM
           bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) *fracDOM
         end if
-      else if (typeDOM==glacAcc .or. typeDOM==glacAbl)then
+      else if (typeDOM==glacAcc .or. typeDOM==glacCln)then
         ! average layers mass change for each domain over time since last update
         if (sec_since_last_update>0._rkind) progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%glacMass4AreaChange)%dat(1) = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%glacMass4AreaChange)%dat(1)/sec_since_last_update
 
@@ -362,7 +364,7 @@ subroutine run_oneGRU(&
         ! If some glaciers are not in a particular glacier HRU, this logic will not capture that
         if (typeDOM==glacAcc)then ! collect glacier accumulation melt m s-1
           glacFirnMelt = glacFirnMelt + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarGlacierMelt)%dat(1) *fracDOM
-        else if (typeDOM==glacAbl)then ! collect glacier ablation melt m s-1
+        else if (typeDOM==glacCln .or. typeDOM==glacDbr)then ! collect glacier ablation melt m s-1
           if (progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowDepth)%dat(1)>0._rkind)then
             glacSnowMelt = glacSnowMelt + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarGlacierMelt)%dat(1) *fracDOM
           else
@@ -390,7 +392,8 @@ subroutine run_oneGRU(&
     nDOM_glacGRU = 0 ! initialize number of glacier domains in the GRU
     do iHRU=1,gruInfo%hruCount
       do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
-        if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAbl)then
+        if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc .or. &
+            gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr)then
           nDOM_glacGRU = nDOM_glacGRU + 1
           glac_hru(nDOM_glacGRU) = iHRU
           if(progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)>0._rkind)then 
@@ -490,7 +493,8 @@ subroutine run_oneGRU(&
     nDOM_glacGRU = 0 ! initialize number of glacier domains in the GRU
     do iHRU=1,gruInfo%hruCount
       do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
-        if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAbl)then
+        if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc .or. &
+            gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr)then
           nDOM_glacGRU = nDOM_glacGRU + 1
           progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1) = glac_elev(nDOM_glacGRU) ! realMissing if no area
           progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) = glac_area(nDOM_glacGRU) ! may be 0

@@ -43,7 +43,8 @@ USE globalData,only:maxSoilLayers          ! Maximum Number of Soil Layers
 ! access domain types
 USE globalData,only:upland                 ! domain type for upland areas
 USE globalData,only:glacAcc                ! domain type for glacier accumulation areas
-USE globalData,only:glacAbl                ! domain type for glacier ablation areas
+USE globalData,only:glacCln                ! domain type for glacier ablation clean areas
+USE globalData,only:glacDbr                ! domain type for glacier ablation debris areas
 USE globalData,only:wetland                ! domain type for wetland areas
 
 ! provide access to Noah-MP constants
@@ -203,9 +204,10 @@ subroutine run_oneHRU(&
 
         use_computeVegFlux = computeVegFlux
 
-      elseif ( domInfo(i)%dom_type == glacAcc .or. domInfo(i)%dom_type == glacAbl .or. domInfo(i)%dom_type == wetland )then ! don't need vegetation parameters for glaciers
+      elseif ( domInfo(i)%dom_type == glacAcc .or. domInfo(i)%dom_type == glacCln .or. 
+               domInfo(i)%dom_type == glacDbr .or. domInfo(i)%dom_type == wetland )then ! don't need vegetation parameters for glaciers
         use_computeVegFlux = .false.
-        if (domInfo(i)%dom_type == glacAcc .or. domInfo(i)%dom_type == glacAbl) glacierDomain = .true.
+        if (domInfo(i)%dom_type == glacAcc .or. domInfo(i)%dom_type == glacCln .or. domInfo(i)%dom_type == glacDbr) glacierDomain = .true.
       else
         err=20; message=trim(message)//'domain type not recognized';return
       endif

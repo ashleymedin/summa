@@ -42,7 +42,8 @@ USE globalData,only:urbanVegCategory    ! vegetation category for urban areas
 ! access domain types
 USE globalData,only:upland             ! domain type for upland areas
 USE globalData,only:glacAcc            ! domain type for glacier accumulation areas
-USE globalData,only:glacAbl            ! domain type for glacier ablation areas
+USE globalData,only:glacCln            ! domain type for glacier ablation clean areas
+USE globalData,only:glacDbr            ! domain type for glacier ablation debris areas
 USE globalData,only:wetland            ! domain type for wetland areas
 
 ! metadata structures
@@ -221,10 +222,12 @@ subroutine summa_paramSetup(summa1_struc, err, message)
     if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==upland)then
      maxLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + maxSnowLayers
      maxSoilLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
-    else if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAbl .or. gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc)then
+    else if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln .or. gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr &
+       .or. gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc)then
      maxLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce + maxSnowLayers
-     maxSoilLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
      maxIceLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce
+    else if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr)then
+     maxSoilLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
     else if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==wetland)then
      maxLayers_wtld = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake + maxSnowLayers
      maxSoilLayers_wtld = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil

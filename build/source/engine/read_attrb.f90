@@ -29,7 +29,8 @@ USE globalData,only:int8Missing                            ! missing long intege
 ! access domain types
 USE globalData,only:upland                                 ! domain type for upland areas
 USE globalData,only:glacAcc                                ! domain type for glacier accumulation areas
-USE globalData,only:glacAbl                                ! domain type for glacier ablation areas
+USE globalData,only:glacCln                                ! domain type for glacier ablation clean areas
+USE globalData,only:glacDbr                                ! domain type for glacier ablation debris areas
 USE globalData,only:wetland                                ! domain type for wetland areas
 
 implicit none
