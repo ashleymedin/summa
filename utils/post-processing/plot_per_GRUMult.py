@@ -33,13 +33,13 @@ import matplotlib.colors as mcolors
 from matplotlib.ticker import ScalarFormatter
 
 
-do_rel = True # true is plot relative to the benchmark simulation
-one_plot = False # true is one plot, false is multiple plots (one per variable)
+do_rel = False # true is plot relative to the benchmark simulation
+one_plot = True # true is one plot, false is multiple plots (one per variable)
 run_local = False # true is run on local machine (only does testing), false is run on cluster
-more_mean = False # true is plot mean/amax extra variables in a balance file
+more_mean = True # true is plot mean/amax extra variables in a balance file
 
 if run_local: 
-    stat = 'rmnz'
+    stat = 'mean'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics_en')
 else:
     import sys
@@ -56,11 +56,14 @@ plt_nameshort=plt_name0
 method_name=['be8','be8cm','be8en','sundials_1en5cm','sundials_1en5en','diff','ref']
 plt_name0=['BE8 common thermo. eq.','SUMMA-BE8 temperature thermo. eq.','SUMMA-BE8 mixed thermo. eq.','SUMMA-SUNDIALS temperature thermo. eq.','SUMMA-SUNDIALS enthalpy thermo. eq.','SUMMA-BE8 common - mixed','reference solution']
 plt_nameshort=['BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp','SUNDIALS enth','BE8 common - mixed','reference soln']
+method_name=['sundials_1en5en']
+plt_name0=['reference solution']
+plt_nameshort=['']
 
 if one_plot: plt_name0 = plt_nameshort
 
 from_meth = method_name[0] # name of the first simulation in the difference simulation, only used if a method_name is 'diff'
-sub_meth = method_name[2] # name of the simulation to subtract in the difference simulation, only used if a method_name is 'diff'
+sub_meth = method_name[0] # name of the simulation to subtract in the difference simulation, only used if a method_name is 'diff'
 
 # Simulation statistics file locations
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','scalarRootZoneTemp']
@@ -73,13 +76,14 @@ nbatch_hrus = 518 # number of HRUs per batch
 if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
 if more_mean: # extra vars in a balance file
-    plt_titl_exVar = ['rain plus melt','top 4m soil temperature','air temperature','snow water equivalent']
+    plt_titl_exVar = ['rain plus melt into soil','top 4m soil temperature','air temperature','snow water equivalent']
     plot_vars_exVar = ['scalarRainPlusMelt','scalarRootZoneTemp','airtemp','scalarSWE']
+    #plot_vars_exVar = ['balanceAqMass','balanceSoilNrg','balanceSoilMass','balanceVegMass']
     viz_file_exVar = 'exVar_hrly_diff_bals_balance.nc'
     plt_name0_exVar = 'SUMMA-BE1 temperature thermo. eq.'
     plt_nameshort_exVar = 'BE1 temp' # identify method here
     leg_titl_exVar = ['$mm~y^{-1}$','$K$','$K$','$kg~m^{-2}$']
-    maxes_exVar = [3000,290,290,100]
+    maxes_exVar = [3000,295,295,100]
     if one_plot: plt_name0_exVar = plt_nameshort_exVar
 
 # Specify variables in files
@@ -101,7 +105,7 @@ if stat == 'maxe':
 if stat == 'kgem': 
     maxes = [0.9,0.9,0.9,0.9,0.9,10e-3,0.9]
 if stat == 'mean' or stat == 'mnnz': 
-    maxes = [100,1700,2000,8,4000,10e-3,100] #[80,1500,5e-5,8,1e-7,10e-3]
+    maxes = [100,1700,2000,8,295,3000,100] #[80,1500,5e-5,8,1e-7,10e-3]
     if do_rel: maxes = [1.1,1.1,1.1,1.1,1.1,1.1]
 if stat == 'amax': 
     maxes = [240,1800,3.5,25,7.5,0.2,240] #[240,1800,1e-3,25,2e-6,0.2]
@@ -158,7 +162,6 @@ if run_local:
 
     # Create a mock DataFrame
     from shapely.geometry import Point
-
     s = summa[method_name[0]][plot_vars[0]].sel(stat=stat)
     mock_data = {
         'hm_hruid': np.concatenate(([81029662], s.hru.values[-100:])), #s.hru.values[-100:],  # Example HRU IDs
@@ -261,6 +264,9 @@ for i,plot_var in enumerate(plot_vars):
         if plot_var == 'averageRoutedRunoff' and not do_rel:
             if stat =='rmse' or stat =='rmnz' or stat=='mnnz' or stat=='mean': s = s*31557600*1000 # make annual total
             if stat =='maxe' or stat=='amax': s = s*3600*1000 # make hourly max
+        if plot_var == 'scalarRainPlusMelt' and not do_rel:
+            if stat =='rmse' or stat =='rmnz' or stat=='mnnz' or stat=='mean': s = s*31557600*1000 # make annual total
+            if stat =='maxe' or stat=='amax': s = s*3600*1000 # make hourly max
 
         # Create a new column in the shapefile for each method, and fill it with the statistics
         if calc[i]: 
@@ -353,13 +359,25 @@ def run_loop(j,var,the_max):
 
         my_cmap2 = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
         my_cmap2.set_bad(color='white') #nan color white
-        vmin,vmax =  -the_max/250,the_max/250,
+        vmin,vmax =  -the_max/250,the_max/250
         norm2 = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
         #norm2 = matplotlib.colors.SymLogNorm(vmin=vmin,vmax=vmax,linthresh=0.01,base=1.1)
+
+        if stat == 'mean' and var== 'scalarRootZoneTemp':
+            my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
+            my_cmap.set_bad(color='white') #nan color white
+            vmin,vmax =  (280-(the_max-280)),the_max
+            norm = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=273.16, vmax=vmax)  
 
         for i,m in enumerate(method_name):
             r = i//ncol + base_row
             c = i - (r-base_row)*ncol
+            if len(method_name)==1: 
+                r = base_row//ncol
+                c = base_row-r*ncol
+            else:
+                r = i//ncol + base_row
+                c = i - (r-base_row)*ncol               
 
             # Plot the data with the full extent of the bas_albers shape
             if m=='diff':
@@ -394,7 +412,11 @@ def run_loop(j,var,the_max):
                         cbr2 = fig.colorbar(sm2, ax=axs_list[(r+1)*len(method_name)-1:(r+1)*len(method_name)],aspect=27/nrow,location='left')
                         cbr2.ax.yaxis.set_ticks_position('right')
                         cbr2.ax.yaxis.set_label_position('right')
-                    if m!='diff': cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/nrow,location='right')
+                    else: 
+                        if len(method_name)==1:
+                            cbr = fig.colorbar(sm, ax=axs_list[base_row:base_row+1],aspect=27/1,location='right')
+                        else:
+                            cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/nrow,location='right')
                 else:
                     # will be wonky with m=='diff' choice
                     cbr = fig.colorbar(sm, ax=axs_list,aspect=27/3*nrow)
@@ -429,7 +451,7 @@ def run_loop(j,var,the_max):
     else: # extra mean/amax variables
         for i,v in enumerate(plot_vars_exVar):
             vmin,vmax = 0, maxes_exVar[i]
-            if (v=='airtemp' or v== 'scalarRootZoneTemp' or v=='balanceSoilNrg'): 
+            if (v=='airtemp' or v== 'scalarRootZoneTemp'): 
                 #vmin,vmax = 260, maxes_exVar[i]
                 my_cmap2 = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
                 my_cmap2.set_bad(color='white') #nan color white
@@ -466,7 +488,10 @@ def run_loop(j,var,the_max):
             else: 
                 pad = -0.5
             if one_plot:
-                cbr = fig.colorbar(sm,ax=axs_list[r*ncol:r*ncol+c+1],aspect=27/nrow, pad=pad)
+                if len(method_name)==1:
+                    cbr = fig.colorbar(sm,ax=axs_list[r*ncol:r*ncol+c+1],aspect=27/1, pad=pad)
+                else:
+                    cbr = fig.colorbar(sm,ax=axs_list[r*ncol:r*ncol+c+1],aspect=27/nrow, pad=pad)
             else:
                 cbr = fig.colorbar(sm,ax=axs_list[r*ncol:r*ncol+c+1],aspect=27/nrow, pad=pad)
             cbr.ax.set_ylabel(stat_word0 + ' [{}]'.format(leg_titl_exVar[i]))
@@ -478,9 +503,9 @@ def run_loop(j,var,the_max):
 
 # Specify plotting options
 if one_plot:
-    use_vars = [1]
-    use_meth = [0,2,4]
-    use_vars_exVar = [3,0,1]
+    use_vars = [0,4,1] #[0,5,4,1]
+    use_meth = [0]
+    use_vars_exVar = [0]
 else:
     use_vars = [0,1,2,3,4,5]
     use_vars = [1,4]
@@ -505,18 +530,21 @@ method_name = [method_name[i] for i in use_meth]
 if one_plot:
     ncol = len(use_meth)
     nrow = len(use_vars)
+    if len(use_meth)==1:
+        ncol = len(use_vars)
+        nrow = 2
 
     # Set the font size: we need this to be huge so we can also make our plotting area huge, to avoid a gnarly plotting bug
     if 'compressed' in fig_fil:
         plt.rcParams.update({'font.size': 33})
-        if more_mean:
+        if more_mean and len(use_meth)>1:
             fig,axs = plt.subplots(nrow,ncol,figsize=(16.9*ncol,13*nrow),constrained_layout=True)
         else:
             fig,axs = plt.subplots(nrow,ncol,figsize=(15*ncol,13*nrow),constrained_layout=True)
 
     else:
         plt.rcParams.update({'font.size': 120})
-        if more_mean:
+        if more_mean and len(use_meth)>1:
             fig,axs = plt.subplots(nrow,ncol,figsize=(80*ncol,58*nrow),constrained_layout=True)
         else:
             fig,axs = plt.subplots(nrow,ncol,figsize=(67*ncol,58*nrow),constrained_layout=True)
@@ -574,6 +602,13 @@ for i,(var,the_max) in enumerate(zip(plot_vars,maxes)):
         plt.savefig(viz_dir/fig_fil1, bbox_inches='tight', transparent=True)
 
 if one_plot:
+    # Remove the extra subplots
+    if len(method_name)*len(plot_vars) < nrow*ncol:
+        for j in range(len(method_name)*len(plot_vars),nrow*ncol):
+                r = j//ncol
+                c = j-r*ncol
+                fig.delaxes(axs[r, c])
+
     # Save the figure
     fig_fil1 = ('all'+fig_fil).format(stat)
     plt.savefig(viz_dir/fig_fil1, bbox_inches='tight', transparent=True)
