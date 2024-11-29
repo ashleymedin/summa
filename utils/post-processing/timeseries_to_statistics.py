@@ -26,13 +26,13 @@ import warnings
 warnings.simplefilter("ignore") #deal with correlation warnings from variance 0 in kgem, both have no snow
 
 # Settings
-bench_name  = 'sundials_1en8cm'
+bench_name  = 'sundials_1en8en'
 
 not_parallel = True # run as true with batch mode, or false, with `python timeseries_to_statistics.py sundials_1en6 1 1` for single batch, and `python timeseries_to_statistics.py sundials_1en6 2 1` to merge
 run_local = False
 
 # which statistics to compute
-do_vars = False
+do_vars = True
 do_steps = False
 do_balance = True
 do_wall = False
@@ -65,9 +65,9 @@ des_fil  = method_name + '_hrly_diff_stats_{}_{}.nc'
 des_fl2 = method_name + '_hrly_diff_steps_{}_{}.nc'
 des_fl3 = method_name + '_hrly_diff_bals_{}_{}.nc'
 des_fl4 = method_name + '_hrly_diff_wall_{}_{}.nc'
-settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
+settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','scalarRootZoneTemp']
 stepsets= ['numberStateSplit','numberDomainSplitNrg','numberDomainSplitMass','numberScalarSolutions','meanStepSize']
-balssets= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime', 'numberFluxCalc']
+balssets= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
 #balssets= ['scalarRainPlusMelt','scalarRootZoneTemp','airtemp','scalarSWE']
 wallsets= ['wallClockTime']
 
@@ -154,7 +154,7 @@ def run_loop(file,bench,processed_files_path0):
     # sometimes gives -9999 the whole run (non-compute), make these nan and plot as lowest value 0 in geographic
     dat = dat.where(dat!=-9999)
     # some weird negative values in runoff if not routed
-    if do_vars: dat['averageRoutedRunoff'] = dat['averageRoutedRunoff'].where(dat['averageRoutedRunoff']>=0)
+    #if do_vars: dat['averageRoutedRunoff'] = dat['averageRoutedRunoff'].where(dat['averageRoutedRunoff']>=0)
     # get rid of gru dimension, assuming hru and gru are one to one (everything now as hruId)
     dat = dat.drop_vars(['hruId','gruId'])
     m = dat.drop_dims('hru')
@@ -165,7 +165,7 @@ def run_loop(file,bench,processed_files_path0):
     
     if do_vars:
         ben = ben.where(ben!=-9999)
-        ben['averageRoutedRunoff'] = ben['averageRoutedRunoff'].where(ben['averageRoutedRunoff']>=0) 
+        #ben['averageRoutedRunoff'] = ben['averageRoutedRunoff'].where(ben['averageRoutedRunoff']>=0) 
         ben = ben.drop_vars(['hruId','gruId'])
         m = ben.drop_dims('hru')
         m = m.rename({'gru': 'hru'})
