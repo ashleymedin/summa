@@ -40,8 +40,8 @@ else:
 #plt_name=['BE1','BE16','BE32','SUNDIALS'] #maybe make this an argument
 method_name=['be8','be8cm','be8en','sundials_1en5cm','sundials_1en5en'] 
 plt_name=['BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp', 'SUNDIALS enth']
-method_name2=method_name #+['sundials_1en8en']
-plt_name2=plt_name #+['reference solution']
+method_name2=method_name +['sundials_1en8en']
+plt_name2=plt_name +['reference solution']
 
 num_bins = 1000
 
@@ -106,11 +106,11 @@ fig_fil = fig_fil.format(','.join(settings),stat)
 if stat == 'rmse' or stat=='rmnz':
     stat2 = 'mean'
     maxes = [2,15,250,0.08,200]
-    if do_rel: maxes = [0.4,0.009,0.6,0.15,0.002]
+    if do_rel: maxes = [0.4,0.007,0.6,0.15,0.0015]
 if stat == 'maxe':
     stat2 = 'amax'
     maxes = [15,25,0.8,2,0.3]
-    if do_rel: maxes = [0.4,0.009,0.6,0.15,0.002]
+    if do_rel: maxes = [0.4,0.007,0.6,0.15,0.0015]
 if stat == 'kgem':
     stat2 = 'mean'
     maxes = [0.9,0.9,0.9,0.9,0.9]
