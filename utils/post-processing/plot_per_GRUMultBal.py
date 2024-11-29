@@ -65,7 +65,7 @@ fig_fil= '_hrly_balance_{}_compressed.png'
 plot_vars = settings.copy()
 
 if stat == 'mean': 
-    maxes = [1e2,1e2,1e2,1e2]+[1e-7,1e-5,1e-7,1e-8] + [5e-2]
+    maxes = [1e2,1e2,1e2,1e2]+[1e-7,1e-5,1e-7,1e-8] + [1e-2]
 if stat == 'amax':
     maxes = [1e4,1e4,1e4,1e4]+[1e-5,1e-3,1e-5,1e-6] + [2.0]
 

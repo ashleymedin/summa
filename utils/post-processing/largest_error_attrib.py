@@ -8,14 +8,14 @@ from pathlib import Path
 
 nBig = 10
 do_rel = True # stat relative to the benchmark simulation
-do_var = False # do vars, if False do bals
+do_var = True # do vars, if False do bals
 
 run_local = True
 if run_local:
     top_fold = '/Users/amedin/Research/USask/test_py/'
     attr_fold = '/Users/amedin/Research/USask/test_py/settings/'
-    method_name= 'sundials_1en6cm'
-    stat = 'mean'
+    method_name= 'be8'
+    stat = 'rmnz'
 else:
     import sys
     top_fold    = '/home/avanb/scratch/'
@@ -27,7 +27,7 @@ des_dir =  top_fold + 'statistics_en'
 des_dir = Path(des_dir)
 
 if do_var:
-    settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
+    settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','scalarRootZoneTemp']
     viz_fil = method_name + '_hrly_diff_stats_{}.nc'
     viz_fil = viz_fil.format(','.join(settings))
     src_file =  des_dir / viz_fil
@@ -36,7 +36,7 @@ if do_var:
                  'soilWat ',
                  'ET      ',
                  'canWat  ',
-                 'runoff  ']
+                 'rootTemp']
 else:
     do_rel = False
     settings= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
@@ -96,14 +96,18 @@ for var in plot_vars:
         print(f"\n{var} raw error values of largest {stat} values:")
     # Print all the raw values of the largest nBig values
     raw_vals = summa.sel(stat=stat0, hru=hru_big)
-    for i,var0 in enumerate(plot_vars[:-1]):
+    if do_var: 
+        plot_var = plot_vars
+    else: 
+        plot_var = plot_vars[:-1]
+    for i,var0 in enumerate(plot_var):
         print(f"{short_name[i]}: [{' '.join(f'{val:8.1e}' for val in raw_vals[var0].values)}]")
     var0 = 'wallClockTime'
     if stat == 'rmse' or stat == 'kgem' or stat == 'mean': stat00 = 'mean'
     if stat == 'rmnz' or stat == 'mnnz': stat00 = 'mnnz'
     if stat == 'maxe' or stat == 'amax': stat00 = 'amax'
     raw_vals = summa.sel(stat=stat00, hru=hru_big)
-    print("wall"f"{stat00}: [{' '.join(f'{val:8.1e}' for val in raw_vals[var0].values)}]")
+    if not do_var: print("wall"f"{stat00}: [{' '.join(f'{val:8.1e}' for val in raw_vals[var0].values)}]")
 
     # Open the netCDF file with local attributes
     attr = xr.open_dataset(attr_fil)

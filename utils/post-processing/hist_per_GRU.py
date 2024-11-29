@@ -106,11 +106,11 @@ fig_fil = fig_fil.format(','.join(settings),stat)
 if stat == 'rmse' or stat=='rmnz':
     stat2 = 'mean'
     maxes = [2,15,250,0.08,200]
-    if do_rel: maxes = [0.4,0.009,0.6,0.15,0.002]
+    if do_rel: maxes = [0.4,0.007,0.6,0.15,0.0015]
 if stat == 'maxe':
     stat2 = 'amax'
     maxes = [15,25,0.8,2,0.3]
-    if do_rel: maxes = [0.4,0.009,0.6,0.15,0.002]
+    if do_rel: maxes = [0.4,0.007,0.6,0.15,0.0015]
 if stat == 'kgem':
     stat2 = 'mean'
     maxes = [0.9,0.9,0.9,0.9,0.9]

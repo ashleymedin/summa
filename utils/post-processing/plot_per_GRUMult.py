@@ -94,10 +94,10 @@ if do_rel: fig_fil = '_hrly_diff_stats_{}_rel_compressed.png'
 
 if stat == 'rmse' or stat == 'rmnz': 
     maxes = [2,15,250,0.08,200,2] 
-    if do_rel: maxes = [0.4,0.009,0.6,0.15,0.002,0.2,0.6]
+    if do_rel: maxes = [0.4,0.007,0.6,0.15,0.0015,0.2,0.6]
 if stat == 'maxe': 
     maxes = [15,25,0.8,2,0.3,0.2] #[15,25,25e-5,2,1e-7,0.2]
-    if do_rel: maxes = [0.4,0.009,0.6,0.15,0.002,0.2,0.6]
+    if do_rel: maxes = [0.4,0.007,0.6,0.15,0.0015,0.2,0.6]
 if stat == 'kgem': 
     maxes = [0.9,0.9,0.9,0.9,0.9,10e-3,0.9]
 if stat == 'mean' or stat == 'mnnz': 
