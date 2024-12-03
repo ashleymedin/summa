@@ -27,6 +27,7 @@ do_heat = True # true is plot heatmaps instead of scatterplots
 run_local = True # true is run on local machine, false is run on cluster
 inferno_col= True # Set to True if want to match geographic plots, False if want rainbow colormap (does not matter if do_heat is False)
 fixed_Mass_units = False # true is convert mass balance units to kg m-2 s-1, if ran new code with depth in calculation
+no_snow = False # true is only plot snow free simulations
 
 # which statistics to plot, can do both
 do_vars = False
@@ -86,6 +87,14 @@ if do_balance:
         summa1[m] = xr.open_dataset(viz_dir/viz_fl2[i])
     hru_size = summa1[m].sizes['hru']
 
+if no_snow:
+    summa[method_name[0]] = xr.open_dataset(viz_dir/viz_fil[0]) # will be a problem if this does not exist
+    if do_vars:
+        for m in method_name:
+            summa[m] = summa[m].where(summa[method_name[0]]['scalarSWE'].sel(stat='mean_ben') == 0)
+    if do_balance: 
+        for m in method_name2:
+            summa1[m] = summa1[m].where(summa[method_name[0]]['scalarSWE'].sel(stat='mean_ben') == 0)
 
 numbin = int(np.sqrt(hru_size/10))
 maxcolor = numbin**2/75
@@ -264,8 +273,9 @@ def run_loop(i,var,lx,ly,plt_t,leg_t,leg_t0,leg_tm,rep,mx):
                 mxy = y_points.max()
             else:
                 if mx:
-                    if lx: mx = np.log10(mx)
-                    mnx = 0.0
+                    if lx: 
+                        mx = np.log10(mx)
+                        mnx = max(mnx,-10)
                     mxx = mx
             x_edges = np.linspace(mnx,mxx, num=numbin)
             y_edges = np.linspace(mny,mxy, num=numbin)            
@@ -302,6 +312,7 @@ def run_loop(i,var,lx,ly,plt_t,leg_t,leg_t0,leg_tm,rep,mx):
             else: 
                 axs[r,c].scatter(x=np.fabs(s.sel(stat=stat).values),y=s.sel(stat=stat0).values,s=1,zorder=0,label=m)        
 
+    if no_snow: plt_t = plt_t + ' (snow-free GRUs)'
     if do_heat:
         axs[r,c].set_title(plt_t + ' '+ plt_name[0] + ' heatmap')
     elif not(do_heat):
@@ -425,12 +436,13 @@ def run_loopb(i,var,comp,lx,ly,leg_t,leg_t0,plt_t,rep,mx):
                 mxy = y_points.max()
             else:
                 if mx:
-                    if lx: mx = np.log10(mx)
-                    mnx = 0.0
+                    if lx: 
+                        mx = np.log10(mx)
+                        mnx = max(mnx,-10)
                     mxx = mx
-                    if stat == 'etcomp':
-                        mny = 0.0
-                        mxy = mx
+                if stat == 'etcomp':
+                    mnx = mny
+                    mxy = mxx
             x_edges = np.linspace(mnx,mxx, num=numbin)
             y_edges = np.linspace(mny,mxy, num=numbin)
             zi, _, _ = np.histogram2d(x_points, y_points, bins=[x_edges, y_edges])
@@ -463,6 +475,7 @@ def run_loopb(i,var,comp,lx,ly,leg_t,leg_t0,plt_t,rep,mx):
         stat0_word = 'balance abs value'
         stat_word = 'balance abs value'
 
+    if no_snow: plt_t = plt_t + ' (snow-free GRUs)'
     if do_heat:
         axs[r,c].set_title(plt_t + ' '+ plt_name2[0] + ' heatmap')
     elif not(do_heat):
@@ -542,6 +555,7 @@ if do_vars:
 
     fig_fil = 'Hrly_diff_scat_{}_{}'
     if do_rel: fig_fil = fig_fil + '_rel'
+    if no_snow: fig_fil = fig_fil + '_nosnow'
     if do_heat:
         fig_fil = '{}'+fig_fil + '_heat'
         if sum(maxes)>0: fig_fil = fig_fil + '_zoom'
@@ -617,10 +631,10 @@ if do_balance:
      #to zoom the heat x axis set these
     maxes = [0.0,0.0,0.0,0.0,0.0] #initialize
     if stat == 'etcomp':
-        maxes = [0.0,0.0,0.0,0.0,0.005] #initialize
+        maxes = [0.0,0.0,0.0,0.0,0.02] #initialize
     if stat == 'mean' or stat == 'amax':
         maxes = [0.0,0.0,0.0,0.0,0.0] # turn off zoom
-    maxes = [0.0,0.0,0.0,0.0,0.0] # turn off zoom
+    #maxes = [0.0,0.0,0.0,0.0,0.0] # turn off zoom
 
     plot_vars = [plot_vars[i] for i in use_vars]
     comp_vars = [comp_vars[i] for i in use_vars]
@@ -644,6 +658,7 @@ if do_balance:
     if nrow == 1: nrow = 2
 
     fig_fil = 'Hrly_balance_scat_{}'
+    if no_snow: fig_fil = fig_fil + '_nosnow'
     if do_heat:
         fig_fil = '{}'+fig_fil + '_heat'
         fig_fil = fig_fil.format(','.join(method_name2),','.join(plot_vars),stat)

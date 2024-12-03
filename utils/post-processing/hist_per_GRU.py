@@ -24,6 +24,7 @@ do_rel = True # true is plot relative to the benchmark simulation
 do_hist = False # true is plot histogram instead of CDF
 run_local = True # true is run on local machine, false is run on cluster
 fixed_Mass_units = False # true is convert mass balance units to kg m-2 s-1, if ran new code with depth in calculation
+no_snow = False # true is only plot snow free simulations
 
 if run_local: 
     stat = 'rmnz'
@@ -96,11 +97,12 @@ plt_titl2 = [f"({chr(97+n + len(use_vars))}) {plt_titl2[i]}" for n,i in enumerat
 leg_titl2 = [leg_titl2[i] for i in use_vars2]
 
 if do_hist:
-    fig_fil = 'Hrly_diff_hist_{}_{}_zoom_compressed.png'
-    if do_rel: fig_fil = 'Hrly_diff_hist_{}_{}_zoom_rel_compressed.png'
+    fig_fil = 'Hrly_diff_hist_{}_{}_zoom'
 else:
-    fig_fil = 'Hrly_diff_cdf_{}_{}_zoom_compressed.png'
-    if do_rel: fig_fil = 'Hrly_diff_cdf_{}_{}_zoom_rel_compressed.png'
+    fig_fil = 'Hrly_diff_cdf_{}_{}_zoom'
+if do_rel: fig_fil = fig_fil+'_rel'
+if no_snow: fig_fil = fig_fil + '_nosnow'
+fig_fil = fig_fil +'_compressed.png'
 fig_fil = fig_fil.format(','.join(settings),stat)
 
 if stat == 'rmse' or stat=='rmnz':
@@ -133,6 +135,15 @@ if len(use_vars)>0:
 if len(use_vars2)>0:
     for i, m in enumerate(method_name2):
         summa1[m] = xr.open_dataset(viz_dir/viz_fl2[i])
+
+if no_snow:
+    summa[method_name[0]] = xr.open_dataset(viz_dir/viz_fil[0]) # will be a problem if this does not exist
+    if len(use_vars)>0:
+        for m in method_name:
+            summa[m] = summa[m].where(summa[method_name[0]]['scalarSWE'].sel(stat='mean_ben') == 0)
+    if len(use_vars2)>0:
+        for m in method_name2:
+            summa1[m] = summa1[m].where(summa[method_name[0]]['scalarSWE'].sel(stat='mean_ben') == 0)
     
 ##Figure
 
@@ -221,8 +232,10 @@ def run_loop(i,var,mx,rep):
     if statr == 'amax_ben': statr_word = 'max'
     
     axs[r,c].legend(plt_name)
-    axs[r,c].set_title(plt_titl[i])
-    if rep>0: axs[r,c].set_title(plt_titl[i] + ' '+ stat_word)
+    titl = plt_titl[i]
+    if no_snow: titl = titl + ' (snow-free GRUs)'
+    if rep>0: titl = titl + ' '+ stat_word
+    axs[r,c].set_title(titl)
     if stat == 'rmse' or stat == 'rmnz' or stat == 'maxe': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titl[i]))
     if stat == 'kgem': axs[r,c].set_xlabel(stat_word)
     if do_rel and var!='wallClockTime': axs[r,c].set_xlabel('relative '+ stat_word)
@@ -284,8 +297,10 @@ def run_loopb(i,var,mx,rep):
     if stat0 == 'amax': stat_word = 'max'
 
     axs[r,c].legend(plt_name2)
-    axs[r,c].set_title(plt_titl2[i])
-    if rep>0: axs[r,c].set_title(plt_titl2[i] + ' '+ stat_word)
+    titl = plt_titl2[i]
+    if no_snow: titl = titl + ' (snow-free GRUs)'
+    if rep>0: titl = titl + ' '+ stat_word
+    axs[r,c].set_title(titl)
     axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titl2[i]))   
 
     if do_hist: 
