@@ -1290,11 +1290,13 @@ subroutine longwaveBal(&
   ! compute longwave fluxes from canopy and the ground
   ! NOTE: emc should be set to zero when not computing canopy fluxes
   if (computeVegFlux) then
-    LWRadCanopy = emc*sb*canopyTemp**4_i4b                                           ! longwave radiation emitted from the canopy (W m-2)
+    LWRadCanopy = emc*sb*canopyTemp**4_i4b                                            ! longwave radiation emitted from the canopy (W m-2)
   else
     LWRadCanopy = 0._rkind
   end if
-  LWRadGround = emg*sb*groundTemp**4_i4b                                           ! longwave radiation emitted at the ground surface (W m-2)
+  LWRadGround = emg*sb*groundTemp**4_i4b                                              ! longwave radiation emitted at the ground surface (W m-2)
+  if (canopyTemp<0._rkind) LWRadCanopy = 0._rkind
+  if (groundTemp<0._rkind) LWRadGround = 0._rkind
 
   ! compute fluxes originating from the atmosphere
   LWRadUbound2Canopy = (emc + (1._rkind - emc)*(1._rkind - emg)*emc)*LWRadUbound      ! downward atmospheric longwave radiation absorbed by the canopy (W m-2)
@@ -1342,6 +1344,9 @@ subroutine longwaveBal(&
   ! compute initial derivatives
   dLWRadCanopy_dTCanopy = 4._rkind*emc*sb*canopyTemp**3_i4b
   dLWRadGround_dTGround = 4._rkind*emg*sb*groundTemp**3_i4b
+  if (canopyTemp<0) dLWRadCanopy_dTCanopy = 0._rkind
+  if (groundTemp<0) dLWRadGround_dTGround = 0._rkind
+
   ! compute analytical derivatives
   dLWNetCanopy_dTCanopy = (emc*(1._rkind - emg) - 2._rkind)*dLWRadCanopy_dTCanopy ! derivative in net canopy radiation w.r.t. canopy temperature (W m-2 K-1)
   dLWNetGround_dTGround = -dLWRadGround_dTGround                                  ! derivative in net ground radiation w.r.t. ground temperature (W m-2 K-1)
@@ -2193,11 +2198,18 @@ subroutine turbFluxes(&
     ! compute sensible heat flux from the canopy air space to the atmosphere
     ! NOTE: canairTemp is a state variable
     senHeatTotal = -volHeatCapacityAir*canopyConductance*(canairTemp - airtemp)
+    if (canairTemp<0._rkind) senHeatTotal = volHeatCapacityAir*canopyConductance*airtemp ! cap function to prevent blowing up
 
     ! compute fluxes
     senHeatCanopy      = -volHeatCapacityAir*leafConductance*(canopyTemp - canairTemp)                                ! positive downwards
     latHeatCanopyEvap  = -latHeatSubVapCanopy*latentHeatConstant*evapConductance*(satVP_CanopyTemp - VP_CanopyAir)    ! positive downwards
     latHeatCanopyTrans =              -LH_vap*latentHeatConstant*transConductance*(satVP_CanopyTemp - VP_CanopyAir)   ! positive downwards
+    if (canopyTemp<0._rkind) then ! cap function to prevent blowing up
+      senHeatCanopy = volHeatCapacityAir*leafConductance*canairTemp
+      if (canairTemp<0._rkind) senHeatCanopy = 0._rkind
+    else if (canairTemp<0._rkind) then
+      senHeatCanopy = -volHeatCapacityAir*leafConductance*canopyTemp
+    end if
   ! * no vegetation, so fluxes are zero
   else
     senHeatCanopy      = 0._rkind
@@ -2209,10 +2221,17 @@ subroutine turbFluxes(&
   if (computeVegFlux) then
     senHeatGround      = -volHeatCapacityAir*groundConductanceSH*(groundTemp - canairTemp)                                              ! positive downwards
     latHeatGround      = -latHeatSubVapGround*latentHeatConstant*groundConductanceLH*(satVP_GroundTemp*soilRelHumidity - VP_CanopyAir)  ! positive downwards
+    if (groundTemp<0._rkind) then ! cap function to prevent blowing up
+      senHeatGround = volHeatCapacityAir*groundConductanceSH*canairTemp
+      if (canairTemp<0._rkind) senHeatGround = 0._rkind
+    else if (canairTemp<0._rkind) then
+      senHeatGround = -volHeatCapacityAir*groundConductanceSH*groundTemp
+    end if
   else
     senHeatGround      = -volHeatCapacityAir*groundConductanceSH*(groundTemp - airtemp)                                                 ! positive downwards
     latHeatGround      = -latHeatSubVapGround*latentHeatConstant*groundConductanceLH*(satVP_GroundTemp*soilRelHumidity - VPair)         ! positive downwards
     senHeatTotal       = senHeatGround
+    if (groundTemp<0._rkind) senHeatGround = volHeatCapacityAir*groundConductanceSH*airtemp ! cap function to prevent blowing up
   end if
 
   ! compute latent heat flux from the canopy air space to the atmosphere
@@ -2246,16 +2265,40 @@ subroutine turbFluxes(&
     dSenHeatTotal_dTCanair       = -volHeatCapacityAir*canopyConductance - volHeatCapacityAir*dCanopyCond_dCanairTemp*(canairTemp - airtemp)
     dSenHeatTotal_dTCanopy       = -volHeatCapacityAir*dCanopyCond_dCanopyTemp*(canairTemp - airtemp)
     dSenHeatTotal_dTGround       = 0._rkind
+    if (canairTemp<0._rkind) then ! cap function to prevent blowing up
+      dSenHeatTotal_dTCanair = volHeatCapacityAir*dCanopyCond_dCanairTemp*airtemp
+      dSenHeatTotal_dTCanopy = volHeatCapacityAir*dCanopyCond_dCanopyTemp*airtemp
+    end if
 
     ! sensible heat from the canopy to the canopy air space
     dSenHeatCanopy_dTCanair      =  volHeatCapacityAir*leafConductance
     dSenHeatCanopy_dTCanopy      = -volHeatCapacityAir*leafConductance
     dSenHeatCanopy_dTGround      = 0._rkind
+    if (canopyTemp<0._rkind) then ! cap function to prevent blowing up
+      dSenHeatCanopy_dTCanopy = 0._rkind
+      if (canairTemp<0._rkind) dSenHeatCanopy_dTCanair = 0._rkind
+    else if (canairTemp<0._rkind) then
+      dSenHeatCanopy_dTCanair = 0._rkind
+    end if
 
     ! sensible heat from the ground to the canopy air space
     dSenHeatGround_dTCanair      = -volHeatCapacityAir*dGroundCondSH_dCanairTemp*(groundTemp - canairTemp) + volHeatCapacityAir*groundConductanceSH
     dSenHeatGround_dTCanopy      = -volHeatCapacityAir*dGroundCondSH_dCanopyTemp*(groundTemp - canairTemp)
     dSenHeatGround_dTGround      = -volHeatCapacityAir*dGroundCondSH_dGroundTemp*(groundTemp - canairTemp) - volHeatCapacityAir*groundConductanceSH
+    if (groundTemp<0._rkind) then ! cap function to prevent blowing up
+      dSenHeatGround_dTCanair = volHeatCapacityAir*dGroundCondSH_dCanairTemp*canairTemp + volHeatCapacityAir*groundConductanceSH
+      dSenHeatGround_dTCanopy = volHeatCapacityAir*dGroundCondSH_dCanopyTemp*canairTemp
+      dSenHeatGround_dTGround = volHeatCapacityAir*dGroundCondSH_dGroundTemp*canairTemp
+      if (canairTemp<0._rkind) then
+        dSenHeatGround_dTCanair = 0._rkind
+        dSenHeatGround_dTCanopy = 0._rkind
+        dSenHeatGround_dTGround = 0._rkind
+      endif
+    else if (canairTemp<0._rkind) then
+      dSenHeatGround_dTCanair = -volHeatCapacityAir*dGroundCondSH_dCanairTemp*groundTemp
+      dSenHeatGround_dTCanopy = -volHeatCapacityAir*dGroundCondSH_dCanopyTemp*groundTemp
+      dSenHeatGround_dTGround = -volHeatCapacityAir*dGroundCondSH_dGroundTemp*groundTemp - volHeatCapacityAir*groundConductanceSH
+    end if
 
     ! latent heat associated with canopy evaporation
     ! initial calculations
