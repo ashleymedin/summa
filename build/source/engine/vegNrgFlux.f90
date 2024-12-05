@@ -1295,6 +1295,7 @@ subroutine longwaveBal(&
     LWRadCanopy = 0._rkind
   end if
   LWRadGround = emg*sb*groundTemp**4_i4b                                              ! longwave radiation emitted at the ground surface (W m-2)
+  ! cap function to prevent blowing up
   if (canopyTemp<0._rkind) LWRadCanopy = 0._rkind
   if (groundTemp<0._rkind) LWRadGround = 0._rkind
 
@@ -1344,6 +1345,7 @@ subroutine longwaveBal(&
   ! compute initial derivatives
   dLWRadCanopy_dTCanopy = 4._rkind*emc*sb*canopyTemp**3_i4b
   dLWRadGround_dTGround = 4._rkind*emg*sb*groundTemp**3_i4b
+  ! cap function to prevent blowing up
   if (canopyTemp<0) dLWRadCanopy_dTCanopy = 0._rkind
   if (groundTemp<0) dLWRadGround_dTGround = 0._rkind
 
@@ -2578,6 +2580,7 @@ real(rkind)                   :: RiMult                 ! dimensionless scaling 
   ! compute the derivative in the Richardson number
   dRiBulk_dAirTemp =  RiMult/T_mean - RiMult*T_grad/(0.5_rkind*((airtemp + sfcTemp)**2_i4b))
   dRiBulk_dSfcTemp = -RiMult/T_mean - RiMult*T_grad/(0.5_rkind*((airtemp + sfcTemp)**2_i4b))
+  ! cap function to prevent blowing up
   if (sfcTemp < 0._rkind) then
     dRiBulk_dAirTemp = 0._rkind
     dRiBulk_dSfcTemp = 0._rkind
