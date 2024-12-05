@@ -2173,6 +2173,15 @@ subroutine turbFluxes(&
     dGroundCondSH_dCanopyTemp = 0._rkind                                                    ! derivative in ground conductance w.r.t. canopy temperature
     dGroundCondSH_dGroundTemp = -dGroundResistance_dTGround/groundResistance**2_i4b         ! derivative in ground conductance w.r.t. ground temperature
   endif
+  if(groundConductanceSH <= 0._rkind) then
+    dGroundCondSH_dCanairTemp = 0._rkind
+    dGroundCondSH_dCanopyTemp = 0._rkind
+    dGroundCondSH_dGroundTemp = 0._rkind
+  end if
+  if(canopyConductance <= 0._rkind) then
+    dCanopyCond_dCanairTemp = 0._rkind
+    dCanopyCond_dCanopyTemp = 0._rkind
+  end if
 
   ! compute derivatives in individual conductances for latent heat w.r.t. canopy temperature (m s-1 K-1)
   if (computeVegFlux) then
@@ -2183,6 +2192,11 @@ subroutine turbFluxes(&
     dGroundCondLH_dCanairTemp = 0._rkind  ! derivative in ground conductance w.r.t. canopy air temperature
     dGroundCondLH_dCanopyTemp = 0._rkind  ! derivative in ground conductance w.r.t. canopy temperature
     dGroundCondLH_dGroundTemp = -dGroundResistance_dTGround/(groundResistance+soilResistance)**2_i4b ! derivative in ground conductance w.r.t. ground temperature
+  end if
+  if(groundConductanceLH <= 0._rkind) then
+    dGroundCondLH_dCanairTemp = 0._rkind
+    dGroundCondLH_dCanopyTemp = 0._rkind
+    dGroundCondLH_dGroundTemp = 0._rkind
   end if
 
   ! *****
@@ -2554,12 +2568,20 @@ real(rkind)                   :: RiMult                 ! dimensionless scaling 
   ! compute local variables
   T_grad = airtemp - sfcTemp
   T_mean = 0.5_rkind*(airtemp + sfcTemp)
+  if (sfcTemp < 0._rkind) then ! cap function to prevent blowing up
+    T_grad = airtemp
+    T_mean = 0.5_rkind*airtemp
+  endif
   RiMult = (gravity*mHeight)/(windspd*windspd)
   ! compute the Richardson number
   RiBulk = (T_grad/T_mean) * RiMult
   ! compute the derivative in the Richardson number
   dRiBulk_dAirTemp =  RiMult/T_mean - RiMult*T_grad/(0.5_rkind*((airtemp + sfcTemp)**2_i4b))
   dRiBulk_dSfcTemp = -RiMult/T_mean - RiMult*T_grad/(0.5_rkind*((airtemp + sfcTemp)**2_i4b))
+  if (sfcTemp < 0._rkind) then
+    dRiBulk_dAirTemp = 0._rkind
+    dRiBulk_dSfcTemp = 0._rkind
+  endif
 
 end subroutine bulkRichardson
 
