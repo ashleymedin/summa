@@ -272,16 +272,16 @@ contains
  ! input variables
  integer(i4b),intent(in)   :: iyyy,mm,id   ! year, month, day
  integer(i4b),intent(in)   :: ih,imin      ! hour, minute
- real(rkind),intent(in)       :: dsec         ! seconds
+ real(rkind),intent(in)    :: dsec         ! seconds
  ! output
- real(rkind),intent(out)      :: juldayss
-  integer(i4b),intent(out) :: err          ! error code
-  character(*),intent(out) :: message      ! error message
+ real(rkind),intent(out)   :: juldayss
+ integer(i4b),intent(out)  :: err          ! error code
+ character(*),intent(out)  :: message      ! error message
  ! local variables
  integer(i4b)              :: julday       ! julian day
  integer(i4b),parameter    :: igreg=15+31*(10+12*1582)  !IGREG = 588829
  integer(i4b)              :: ja,jm,jy
- real(rkind)                  :: jfrac        ! fraction of julian day
+ real(rkind)               :: jfrac        ! fraction of julian day
 
  ! initialize errors
  err=0; message="juldayss"

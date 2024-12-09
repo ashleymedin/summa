@@ -57,6 +57,8 @@ contains
 subroutine glacFlow(&
                     ! model control
                     nDOM,                    & ! intent(in):    number of glacier domains
+                    has_clean,               & ! intent(in):    flag for clean ice
+                    has_debris,              & ! intent(in):    flag for debris cover
                     hruInd,                  & ! intent(in):    hruInd of each glacier domain
                     ! glacier topography      
                     nGlacier,                & ! intent(in):    number of glaciers
@@ -67,6 +69,7 @@ subroutine glacFlow(&
                     nYears,                  & ! intent(in):    number of years to run
                     massChange,              & ! intent(in):    rate of change in glacier water equivalent (kg m-2 s-1) in each glacier domain over the nYears
                     elev,                    & ! intent(inout): elevation of each glacier domain (m)
+                    debris_thick_dom,        & ! intent(out):   debris thickness in glacier domain (m)
                     ! area
                     glacAblArea,             & ! intent(out):   per glacier ablation area (m2)
                     glacAccArea,             & ! intent(out):   per glacier accumulation area (m2)
@@ -77,6 +80,8 @@ subroutine glacFlow(&
   implicit none
   ! model control
   integer(i4b), intent(in)           :: nDOM                      ! number of glacier domains
+  logical, intent(in)                :: has_clean                 ! flag for clean ice
+  logical, intent(in)                :: has_debris                ! flag for debris cover
   integer(i8b), intent(in)           :: hruInd(:)                 ! hruInd of each glacier domain
   ! glacier topograpy
   integer(i4b), intent(in)           :: nGlacier                  ! number of glaciers
@@ -87,6 +92,7 @@ subroutine glacFlow(&
   integer(i4b), intent(in)           :: nYears                    ! number of years to run
   real(rkind), intent(in)            :: massChange(:)             ! rate of change in glacier water equivalent (kg m-2 s-1) in each glacier domain over the nYears
   real(rkind), intent(inout)         :: elev(:)                   ! elevation of each glacier domain (m)
+  real(rkind), intent(out)           :: debris_thick_dom(nDOM)    ! debris thickness in glacier domain (m)
   ! area 
   real(rkind), intent(out)           :: glacAblArea(nGlacier)     ! per glacier ablation area (m2)
   real(rkind), intent(out)           :: glacAccArea(nGlacier)     ! per glacier accumulation area (m2)
@@ -99,12 +105,15 @@ subroutine glacFlow(&
   integer(i4b), allocatable          :: cell2hru(:,:)             ! map of glacier cell to hru index
   integer(i4b), allocatable          :: glacierMask(:,:)          ! 1-0 mask of glacier domain
   integer(i4b), allocatable          :: zeros(:,:)                ! zeros array for masking
+  real(rkind)                        :: debris_vol_hru(nDOM)      ! debris volume in each HRU (m3)
   integer(i4b)                       :: i,j,k,n,iGlac,iGrid,iDOM  ! loop indices
   integer(i4b)                       :: i1, i2                    ! indices for mass balance interpolation
   real(rkind)                        :: slope, intercept          ! slope and intercept for linear extrapolation of mass balance
   real(rkind)                        :: sum_mass                  ! sum of mass balance values for averaging
   integer(i4b)                       :: nx, ny                    ! number of grid cells in x and y directions
   real(rkind)                        :: dx, dy                    ! grid cell size in x and y directions
+  real(rkind)                        :: stage                     ! fraction of glacier ablation zone covered by debris
+  real(rkind)                        :: debris_thick              ! debris thickness for each glacier ablation zone (m)
   real(rkind)                        :: volume                    ! volume of each glacier km3
   real(rkind)                        :: totVolume                 ! total volume of all glaciers km3, might want to send out of routine
   real(rkind), allocatable           :: mb(:,:)                   ! mass balance in each glacier cell over the nYears (m s-1)
@@ -214,6 +223,7 @@ subroutine glacFlow(&
   do i = 1,nDOM
     area(i) = 0._rkind
     elev(i) = 0._rkind
+    debris_vol_hru(i) = 0._rkind
   end do
 
   ! Allocate the mapping array from glacier id to index in gridInfo
@@ -239,6 +249,8 @@ subroutine glacFlow(&
     nx = gridInfo(iGrid)%nx
     dx = gridInfo(iGrid)%dx
     dy = gridInfo(iGrid)%dy
+    stage = gridInfo(iGrid)%stage
+    debris_thick = gridInfo(iGrid)%debris_thick
 
     ! set up mass balance and height arrays
     allocate(mb(nx,ny), hgt(nx,ny), zeros(nx,ny))
@@ -308,22 +320,29 @@ subroutine glacFlow(&
     print*, 'glacAblArea = ', glacAblArea(iGlac), ' glacAccArea = ', glacAccArea(iGlac),ELA_elev
 
     ! Loop through HRUs and calculate domain areas and elevations for each HRU
-    ! Order of domains will go HRU 1: Acc, Abl, HRU 2: Acc, Abl, etc.
-    do k = 1, nDOM / 2
-      area(2*k-1) = area(2*k-1) + sum(merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>thick4area .and. surface>=ELA_elev))*dx*dy
-      area(2*k)   = area(2*k)   + sum(merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>thick4area .and. surface< ELA_elev))*dx*dy
+    ! Order of domains will go HRU 1: Acc, Abl clean, Abl debris HRU 2: Acc, Abl clean, Abl debris etc.
+    ! It is possible one of the ablation domains is missing if there is no clean or debris cover
+    n = 1
+    if (has_clean)  n=n+1
+    if (has_debris) n=n+1
+    do k = 1, nDOM / n
+      area(n*(k-1)+1) = area(n*(k-1)+1) + sum(merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>thick4area .and. surface>=ELA_elev))*dx*dy
+      if (has_clean) area(n*(k-1)+2) = area(n*(k-1)+2) + sum(merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>thick4area .and. surface< ELA_elev))*dx*dy*(1.0_rkind-stage)
+      if (has_debris) area(n*(k-1)+n) = area(n*(k-1)+n) + sum(merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>thick4area .and. surface< ELA_elev))*dx*dy*stage
       
       ! Calculate mean elevation for accumulation and ablation areas
       if (count(cell2hru==hruInd(k) .and. hgt>thick4area .and. surface>=ELA_elev) > 0) then
-        elev(2*k-1) = elev(2*k-1) + sum(surface * merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>thick4area .and. surface>=ELA_elev)) / &
+        elev(n*(k-1)+1) = elev(n*(k-1)+1) + sum(surface * merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>thick4area .and. surface>=ELA_elev)) / &
                           count(cell2hru==hruInd(k) .and. hgt>thick4area .and. surface>=ELA_elev) /nGlacier
       end if
       if (count(cell2hru==hruInd(k) .and. hgt>thick4area .and. surface< ELA_elev) > 0) then
-        elev(2*k)   = elev(2*k)   + sum(surface * merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>thick4area .and. surface< ELA_elev)) / &
+        elev(n*(k-1)+n)  = elev(n*(k-1)+n) + sum(surface * merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>thick4area .and. surface< ELA_elev)) / &
                           count(cell2hru==hruInd(k) .and. hgt>thick4area .and. surface< ELA_elev) /nGlacier
+        if (has_clean) elev(n*(k-1)+2) =  elev(n*(k-1)+n)  ! only one of debris or clean, then already set        
       end if
+      ! thickness of average debris cover in HRU changes with area change if there is more than one glacier in an HRU and they have different debris thickness 
+      debris_vol_hru(k) = debris_vol_hru(k) + sum(merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>thick4area .and. surface>=ELA_elev))*dx*dy*stage*debris_thick
     end do
-
     ! update gridData and deallocate
     gridData%grid(iGrid)%var(iLookGRID%surface_elev)%dat2(1:nx,1:ny) = surface
     deallocate(mb, hgt, zeros, surface, bed, cell2hru, glacierMask)
@@ -333,8 +352,17 @@ subroutine glacFlow(&
   ! Set elevations to realMissing if no area in domain
   do iDOM = 1,nDOM
     if (elev(iDOM)==0._rkind) elev(iDOM)=realMissing
+    if (has_debris) then ! debris thickness is calculated for each HRU
+      if (area(iDOM)>0._rkind)then 
+        debris_thick_dom(iDOM) = debris_vol_hru(iDOM) / area(iDOM) ! if ablation clean or accumulation, will be 0
+      else
+        debris_thick_dom(iDOM) = 0._rkind ! will skip this domain
+      end if
+    else
+      debris_thick_dom(iDOM) = 0._rkind
+    end if
   end do
-  print*,"elev ", elev, "area", area, "massChange", massChange
+  print*,"elev ", elev, "area", area, "massChange", massChange, "debris_thick_dom", debris_thick_dom
 
   deallocate(glacid_to_index, validElev, validMassChange)
 

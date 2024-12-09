@@ -135,6 +135,8 @@ MODULE data_types
   integer(i4b)                           :: ny                            ! number of grid cells in the y-direction
   real(rkind)                            :: dx                            ! grid cell size in the x-direction
   real(rkind)                            :: dy                            ! grid cell size in the y-direction
+  real(rkind)                            :: stage                         ! fraction of ablation zone covered by debris for each grid
+  real(rkind)                            :: debris_thick                  ! debris thickness for each grid (m)
   integer(i8b)                           :: grid_id                       ! grid id (non-sequential number) of the grid, matches the glac_id if a glacier
  endtype grid_info
 
