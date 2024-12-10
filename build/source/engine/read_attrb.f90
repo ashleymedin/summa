@@ -282,7 +282,7 @@ subroutine read_dimensionGrid(attrGlacFile,nGRU,err,message)
   ! read glacier grid information and populate structures
   ! **********************************************************************************************
   ! allocate space for indices
-  allocate(gru_id(fileGRU),grid_id(fileGRU,filegrid),dx(fileGRU,filegrid),dy(fileGRU,filegrid),nx(fileGRU,filegrid),ny(fileGRU,filegrid))
+  allocate(gru_id(fileGRU),grid_id(fileGRU,filegrid),dx(fileGRU,filegrid),dy(fileGRU,filegrid),nx(fileGRU,filegrid),ny(fileGRU,filegrid),debris_thick(fileGRU,filegrid),stage(fileGRU,filegrid))
  
   ! read gru_id from netcdf file
   err = nf90_inq_varid(ncID,"gruId",varID);   if (err/=0) then; message=trim(message)//'problem finding gruId'; return; end if

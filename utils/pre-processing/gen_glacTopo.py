@@ -341,13 +341,12 @@ if __name__ == '__main__':
         glac_frac = 0.5 # fraction of glacier area in each GRU, for testing
         fac = np.sqrt(totArea[i]*glac_frac/((129.1+47.7)*1e6))
 
-        # Should get these from RGI2000-v7.0-G RGI_ID, zmax_m, zmin_m from RGI2000-v7.0-G-01_alaska-attributes.csv
+        # Can get these from RGI2000-v7.0-G RGI_ID, zmax_m, zmin_m from RGI2000-v7.0-G-01_alaska-attributes.csv
         # Can get S from DEM and B from tif files here https://www.sedoo.fr/theia-publication-products/?uuid=55acbdd5-3982-4eac-89b2-46703557938c
-        # Should have two ablation zones, one with debri (~30% often in alaska) and one without
-        # Can get AAR and stage(deb_area/abl_area) or deb_km2, abl_km2, gl_km2 by RGI ID in Pelicotti product, if >2km2 glacier, and just debri maps if 1-2 km2 ... would have to calculate areas (only calculated by region) https://zenodo.org/records/3866466
-	    #   - How would you recalculate debri area and mean elevation as glacier melted? keep it always the same percentage?? (==stage)
-	    #   - What is thickness? Rounce has thickness tif files here https://nsidc.org/data/hma_dte/versions/1#anchor-data-access-tools
-        #   - maybe leave thickness and percent of HRU domain ablation area as a constant in attributes per glacier, per HRU?
+        # Can get AAR and stage(deb_area/abl_area) or deb_km2, abl_km2, gl_km2 by RGI ID in Pelicotti product, 
+        #   - if >2km2 glacier, and just debri maps if 1-2 km2 https://zenodo.org/records/3866466
+	    #   - Rounce has thickness tif files here https://nsidc.org/data/hma_dte/versions/1#anchor-data-access-tools
+        #   - leave thickness and percent of HRU domain ablation area as a constant in attributes per glacier
 
         for j in range(nGlacier[i]):
             if j==0:
