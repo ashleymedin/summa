@@ -700,7 +700,7 @@ contains
 
 ! --------------------------------------------------------------------------------------------------
 
-! surface abeldo
+! surface albedo
 
    CALL ALBEDO (VEGTYP ,IST    ,ISC    ,ICE    ,NSOIL  , & !in
                 DT     ,COSZ   ,FAGE   ,ELAI   ,ESAI   , & !in

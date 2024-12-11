@@ -140,7 +140,7 @@ subroutine coupled_em(&
   ! preliminary subroutines
   USE vegPhenlgy_module,only:vegPhenlgy             ! compute vegetation phenology
   USE vegNrgFlux_module,only:wettedFrac             ! compute wetted fraction of the canopy (used in sw radiation fluxes)
-  USE snowAlbedo_module,only:snowAlbedo             ! compute snow albedo
+  USE snLaIcAlbedo_module,only:snLaIcAlbedo             ! compute snow albedo
   USE vegSWavRad_module,only:vegSWavRad             ! compute canopy sw radiation fluxes
   USE canopySnow_module,only:canopySnow             ! compute interception and unloading of snow from the vegetation canopy
   USE volicePack_module,only:newsnwfall             ! compute change in the top snow layer due to throughfall and unloading
@@ -455,11 +455,13 @@ subroutine coupled_em(&
     maxstep_op = mpar_data%var(iLookPARAM%maxstep)%dat(1)/NINT(mpar_data%var(iLookPARAM%be_steps)%dat(1))  ! maximum time step (s) to run opSplittin over
 
     ! compute the number of layers with roots or layers that take infiltration
-    nLayersRoots = count(prog_data%var(iLookPROG%iLayerHeight)%dat(nSnow:(nSnow+nSoil-1)) < mpar_data%var(iLookPARAM%rootingDepth)%dat(1)-verySmall)
-    if(nLayersRoots == 0)then
-      message=trim(message)//'no roots within the soil profile'
-      err=20; return
-    end if
+    if (nSoil>0) then
+      nLayersRoots = count(prog_data%var(iLookPROG%iLayerHeight)%dat(nSnow:(nSnow+nSoil-1)) < mpar_data%var(iLookPARAM%rootingDepth)%dat(1)-verySmall)
+      if(nLayersRoots == 0)then
+        message=trim(message)//'no roots within the soil profile'
+        err=20; return
+      end if
+    endif
 
     ! define the foliage nitrogen factor
     diag_data%var(iLookDIAG%scalarFoliageNitrogenFactor)%dat(1) = 1._rkind  ! foliage nitrogen concentration (1.0 = saturated)
@@ -471,7 +473,8 @@ subroutine coupled_em(&
     ! ------------------------
 
     ! compute the temperature of the root zone: used in vegetation phenology
-    diag_data%var(iLookDIAG%scalarRootZoneTemp)%dat(1) = sum(prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+nLake+1:nSnow+nLake+nLayersRoots)) / real(nLayersRoots, kind(rkind))
+    if (nSoil>0) diag_data%var(iLookDIAG%scalarRootZoneTemp)%dat(1) = sum(prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+nLake+1:nSnow+nLake+nLayersRoots)) &
+                                                                      / real(nLayersRoots, kind(rkind))
 
     ! remember if we compute the vegetation flux on the previous sub-step
     computeVegFluxOld = computeVegFlux
@@ -557,11 +560,11 @@ subroutine coupled_em(&
       dCanopyWetFraction_dT                                   = 0._rkind
     end if
 
-    ! *** compute snow albedo...
+    ! *** compute snow, lake, ice albedo...
     ! --------------------------
     ! NOTE: this should be done before the radiation calculations
     ! NOTE: uses snowfall; should really use canopy throughfall + canopy unloading
-    call snowAlbedo(&
+    call snLaIcAlbedo(&
                     ! input: model control
                     data_step,                   & ! intent(in): model time step (s)
                     (nSnow > 0),                 & ! intent(in): logical flag to denote if snow is present
@@ -580,7 +583,9 @@ subroutine coupled_em(&
     call vegSWavRad(&
                     data_step,                    & ! intent(in):    time step (s) -- only used in Noah-MP radiation, to compute albedo
                     nSnow,                        & ! intent(in):    number of snow layers
+                    nLake,                        & ! intent(in):    number of lake layers
                     nSoil,                        & ! intent(in):    number of soil layers
+                    nIce,                         & ! intent(in):    number of ice layers
                     computeVegFlux,               & ! intent(in):    logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                     type_data,                    & ! intent(in):    type of vegetation and soil
                     prog_data,                    & ! intent(inout): model prognostic variables for a local HRU
@@ -910,7 +915,7 @@ subroutine coupled_em(&
         ! associate local variables with information in the data structures
         init: associate(&
           ! depth-varying soil parameters
-          soil_dens_intr          => mpar_data%var(iLookPARAM%soil_dens_intr)%dat(1)        ,& ! intent(in):    [dp]   surface layer  intrinsic soil density (kg m-3)
+          soil_dens_intr          => mpar_data%var(iLookPARAM%soil_dens_intr)%dat           ,& ! intent(in):    [dp(:)]  intrinsic soil density (kg m-3)
           vGn_m                   => diag_data%var(iLookDIAG%scalarVGn_m)%dat               ,& ! intent(in):    [dp(:)]  van Genutchen "m" parameter (-)
           vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)%dat                    ,& ! intent(in):    [dp(:)]  van Genutchen "n" parameter (-)
           vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)%dat                ,& ! intent(in):    [dp(:)]  van Genutchen "alpha" parameter (m-1)
@@ -952,7 +957,7 @@ subroutine coupled_em(&
             elseif(nSoil>0)then
               call T2enthTemp_soil(&
                         use_lookup,                                                 & ! intent(in):  flag to use the lookup table for soil enthalpy
-                        soil_dens_intr,                                             & ! intent(in):  intrinsic soil density (kg m-3)
+                        soil_dens_intr(1),                                          & ! intent(in):  intrinsic soil density (kg m-3)
                         vGn_alpha(1),vGn_n(1),theta_sat(1),theta_res(1),vGn_m(1),   & ! intent(in):  van Genutchen soil parameters
                         1_i4b,                                                      & ! intent(in):  index of the control volume within the domain
                         lookup_data,                                                & ! intent(in):  lookup table data structure
@@ -967,13 +972,15 @@ subroutine coupled_em(&
           ! compute the liquid water matric potential (m)
           ! NOTE: include ice content as part of the solid porosity - major effect of ice is to reduce the pore size; ensure that effSat=1 at saturation
           ! (from Zhao et al., J. Hydrol., 1997: Numerical analysis of simultaneous heat and mass transfer...)
-          do iSoil=1,nSoil
-            call liquidHead(mLayerMatricHead(iSoil),mLayerVolFracLiq(nSnow+nLake+iSoil),mLayerVolFracIce(nSnow+nLake+iSoil), & ! input:  state variables
-                      vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m(iSoil),                    & ! input:  parameters
-                      matricHeadLiq=mLayerMatricHeadLiq(iSoil),                                                        & ! output: liquid water matric potential (m)
-                      err=err,message=cmessage)                                                                          ! output: error control
-            if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-          end do  ! looping through soil layers (computing liquid water matric potential)
+          if (nSoil>0)then
+            do iSoil=1,nSoil
+              call liquidHead(mLayerMatricHead(iSoil),mLayerVolFracLiq(nSnow+nLake+iSoil),mLayerVolFracIce(nSnow+nLake+iSoil), & ! input:  state variables
+                        vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m(iSoil),                    & ! input:  parameters
+                        matricHeadLiq=mLayerMatricHeadLiq(iSoil),                                                        & ! output: liquid water matric potential (m)
+                        err=err,message=cmessage)                                                                          ! output: error control
+              if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+            end do  ! looping through soil layers (computing liquid water matric potential)
+          end if
 
         end associate init
 

@@ -154,7 +154,7 @@ MODULE var_lookup
   ! snow properties
   integer(i4b)    :: snowfrz_scale         = integerMissing    ! scaling parameter for the freezing curve for snow (K-1)
   integer(i4b)    :: fixedThermalCond_snow = integerMissing    ! fixed thermal conductivity for snow (W m-1 K-1)
-  ! snow albedo
+  ! snow, lake, ice albedo
   integer(i4b)    :: albedoMax             = integerMissing    ! maximum snow albedo for a single spectral band (-)
   integer(i4b)    :: albedoMinWinter       = integerMissing    ! minimum snow albedo during winter for a single spectral band (-)
   integer(i4b)    :: albedoMinSpring       = integerMissing    ! minimum snow albedo during spring for a single spectral band (-)
@@ -165,6 +165,10 @@ MODULE var_lookup
   integer(i4b)    :: albedoDecayRate       = integerMissing    ! albedo decay rate (s)
   integer(i4b)    :: albedoSootLoad        = integerMissing    ! soot load factor (-)
   integer(i4b)    :: albedoRefresh         = integerMissing    ! critical mass necessary for albedo refreshment (kg m-2)
+  integer(i4b)    :: albedoFrznWatVisible  = integerMissing    ! albedo of frozen water in the visible part of the spectrum (-)
+  integer(i4b)    :: albedoFrznWatNearIR   = integerMissing    ! albedo of frozen water in the near infra-red part of the spectrum (-)
+  integer(i4b)    :: albedoOpenWatVisible  = integerMissing    ! albedo of open water in the visible part of the spectrum (-)
+  integer(i4b)    :: albedoOpenWatNearIR   = integerMissing    ! albedo of open water in the near infra-red part of the spectrum (-)
   ! radiation transfer within snow
   integer(i4b)    :: radExt_snow           = integerMissing    ! extinction coefficient for radiation penetration into the snowpack (m-1)
   integer(i4b)    :: directScale           = integerMissing    ! scaling factor for fractional driect radiaion parameterization (-)
@@ -463,9 +467,11 @@ MODULE var_lookup
   integer(i4b)    :: mLayerThetaResid                = integerMissing ! residual volumetric water content in each snow layer (-)
   integer(i4b)    :: mLayerPoreSpace                 = integerMissing ! total pore space in each snow layer (-)
   integer(i4b)    :: mLayerMeltFreeze                = integerMissing ! change in ice content due to melt/freeze in each layer (kg m-3)
-  ! glacier ice mass/hydrology
+  ! lake, glacier ice mass/hydrology
   integer(i4b)    :: scalarIceWE                     = integerMissing ! glacier ice (not snow) water equivalent (kg m-2)
   integer(i4b)    :: scalarLayersMassChange          = integerMissing ! mass change of all layers together (kg m-2 s-1)
+  integer(i4b)    :: spectralFrznWatAlbedo           = integerMissing ! albedo of frozen water in each spectral band (-)
+  integer(i4b)    :: spectralOpenWatAlbedo           = integerMissing ! albedo of open water in each spectral band (-)
   ! soil hydrology
   integer(i4b)    :: scalarInfilArea                 = integerMissing ! fraction of unfrozen area where water can infiltrate (-)
   integer(i4b)    :: scalarFrozenArea                = integerMissing ! fraction of area that is considered impermeable due to soil ice (-)
@@ -973,7 +979,7 @@ MODULE var_lookup
                                                                         151,152,153,154,155,156,157,158,159,160,&
                                                                         161,162,163,164,165,166,167,168,169,170,&
                                                                         171,172,173,174,175,176,177,178,179,180,&
-                                                                        181)
+                                                                        181,182,183,184,185)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -990,7 +996,7 @@ MODULE var_lookup
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
                                                                          91, 92, 93, 94, 95, 96, 97, 98, 99,100,&
                                                                         101,102,103,104,105,106,107,108,109,110,&
-                                                                        111,112,113)
+                                                                        111,112,113,114,115)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

@@ -250,7 +250,7 @@ contains
   ! freezing curve for snow
   case('snowfrz_scale'            ); get_ixParam = iLookPARAM%snowfrz_scale          ! scaling parameter for the freezing curve for snow (K-1)
   case('fixedThermalCond_snow'    ); get_ixParam = iLookPARAM%fixedThermalCond_snow  ! temporally constant thermal conductivity for snow (W m-1 K-1)
-  ! snow albedo
+  ! snow lake, ice albedo
   case('albedoMax'                ); get_ixParam = iLookPARAM%albedoMax              ! maximum snow albedo for a single spectral band (-)
   case('albedoMinWinter'          ); get_ixParam = iLookPARAM%albedoMinWinter        ! minimum snow albedo during winter for a single spectral band (-)
   case('albedoMinSpring'          ); get_ixParam = iLookPARAM%albedoMinSpring        ! minimum snow albedo during spring for a single spectral band (-)
@@ -261,6 +261,10 @@ contains
   case('albedoDecayRate'          ); get_ixParam = iLookPARAM%albedoDecayRate        ! albedo decay rate (s)
   case('albedoSootLoad'           ); get_ixParam = iLookPARAM%albedoSootLoad         ! soot load factor (-)
   case('albedoRefresh'            ); get_ixParam = iLookPARAM%albedoRefresh          ! critical mass necessary for albedo refreshment (kg m-2)
+  case('albedoFrznWatVisible'     ); get_ixParam = iLookPARAM%albedoFrznWatVisible   ! albedo of frozen water in the visible part of the spectrum (-) 
+  case('albedoFrznWatNearIR'      ); get_ixParam = iLookPARAM%albedoFrznWatNearIR    ! albedo of frozen water in the near infra-red part of the spectrum (-)
+  case('albedoOpenWatVisible'     ); get_ixParam = iLookPARAM%albedoOpenWatVisible   ! albedo of open water in the visible part of the spectrum (-)
+  case('albedoOpenWatNearIR'      ); get_ixParam = iLookPARAM%albedoOpenWatNearIR    ! albedo of open water in the near infra-red part of the spectrum (-)     
   ! radiation transfer
   case('radExt_snow'              ); get_ixParam = iLookPARAM%radExt_snow            ! extinction coefficient for radiation penetration within the snowpack (m-1)
   case('directScale'              ); get_ixParam = iLookPARAM%directScale            ! scaling factor for fractional driect radiaion parameterization (-)
@@ -583,9 +587,11 @@ contains
   case('mLayerThetaResid'               ); get_ixDiag = iLookDIAG%mLayerThetaResid                 ! residual volumetric water content in each snow layer (-)
   case('mLayerPoreSpace'                ); get_ixDiag = iLookDIAG%mLayerPoreSpace                  ! total pore space in each snow layer (-)
   case('mLayerMeltFreeze'               ); get_ixDiag = iLookDIAG%mLayerMeltFreeze                 ! ice content change from melt/freeze in each layer (kg m-3)
-  ! glacier ice mass/hydrology
+  ! lake, glacier ice mass/hydrology
   case('scalarIceWE'                    ); get_ixDiag = iLookDIAG%scalarIceWE                      ! glacier ice (not snow) water equivalent (kg m-2)
   case('scalarLayersMassChange'         ); get_ixDiag = iLookDIAG%scalarLayersMassChange           ! mass change of all layers together (kg m-2 s-1)
+  case('spectralFrznWatAlbedo'          ); get_ixDiag = iLookDIAG%spectralFrznWatAlbedo            ! albedo of frozen water in each spectral band (-)
+  case('spectralOpenWatAlbedo'          ); get_ixDiag = iLookDIAG%spectralOpenWatAlbedo            ! albedo of open water in each spectral band (-)    
   ! soil hydrology
   case('scalarInfilArea'                ); get_ixDiag = iLookDIAG%scalarInfilArea                  ! fraction of unfrozen area where water can infiltrate (-)
   case('scalarFrozenArea'               ); get_ixDiag = iLookDIAG%scalarFrozenArea                 ! fraction of area that is considered impermeable due to soil ice (-)

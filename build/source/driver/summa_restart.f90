@@ -29,6 +29,7 @@ USE globalData,only:realMissing      ! missing double precision number
 USE var_lookup,only:iLookPROG                               ! look-up values for local column model prognostic (state) variables
 USE var_lookup,only:iLookDIAG                               ! look-up values for local column model diagnostic variables
 USE var_lookup,only:iLookFLUX                               ! look-up values for local column model fluxes
+USE var_lookup,only:iLookINDEX                              ! look-up values for model indices
 USE var_lookup,only:iLookBVAR                               ! look-up values for basin-average model variables
 USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
 
@@ -214,21 +215,23 @@ endif
                     err,cmessage)                                 ! error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! calculate vertical distribution of root density
-    call rootDensty(mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! vector of model parameters
-                    indxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! data structure of model indices
-                    progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! data structure of model prognostic (state) variables
-                    diagStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! data structure of model diagnostic variables
-                    err,cmessage)                                 ! error control
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    if (indxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSoil)%dat(1)>0)then
+      ! calculate vertical distribution of root density
+      call rootDensty(mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! vector of model parameters
+                      indxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! data structure of model indices
+                      progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! data structure of model prognostic (state) variables
+                      diagStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! data structure of model diagnostic variables
+                      err,cmessage)                                 ! error control
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! calculate saturated hydraulic conductivity in each soil layer
-    call satHydCond(mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! vector of model parameters
-                    indxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! data structure of model indices
-                    progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! data structure of model prognostic (state) variables
-                    fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! data structure of model fluxes
-                    err,cmessage)                                 ! error control
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      ! calculate saturated hydraulic conductivity in each soil layer
+      call satHydCond(mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! vector of model parameters
+                      indxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! data structure of model indices
+                      progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! data structure of model prognostic (state) variables
+                      fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! data structure of model fluxes
+                      err,cmessage)                                 ! error control
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
 
     ! calculate "short-cut" variables such as volumetric heat capacity
     call v_shortcut(mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! vector of model parameters

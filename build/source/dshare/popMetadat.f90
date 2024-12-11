@@ -120,7 +120,7 @@ subroutine popMetadat(err,message)
   ! snow properties
   mpar_meta(iLookPARAM%snowfrz_scale)                 = var_info('snowfrz_scale'                   , 'scaling parameter for the freezing curve for snow'                , 'K-1'             , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%fixedThermalCond_snow)         = var_info('fixedThermalCond_snow'           , 'temporally constant thermal conductivity for snow'                , 'W m-1 K-1'       , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  ! snow albedo
+  ! snow, lake, ice albedo
   mpar_meta(iLookPARAM%albedoMax)                     = var_info('albedoMax'                       , 'maximum snow albedo (single spectral band)'                       , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%albedoMinWinter)               = var_info('albedoMinWinter'                 , 'minimum snow albedo during winter (single spectral band)'         , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%albedoMinSpring)               = var_info('albedoMinSpring'                 , 'minimum snow albedo during spring (single spectral band)'         , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
@@ -131,6 +131,10 @@ subroutine popMetadat(err,message)
   mpar_meta(iLookPARAM%albedoDecayRate)               = var_info('albedoDecayRate'                 , 'albedo decay rate'                                                , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%albedoSootLoad)                = var_info('albedoSootLoad'                  , 'soot load factor'                                                 , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%albedoRefresh)                 = var_info('albedoRefresh'                   , 'critical mass necessary for albedo refreshment'                   , 'kg m-2'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%albedoFrznWatVisible)          = var_info('albedoFrznWatVisible'            , 'albedo of frozen water in the visible part of the spectrum'       , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%albedoFrznWatNearIR)           = var_info('albedoFrznWatNearIR'             , 'albedo of frozen water in the near infra-red part of the spectrum', '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%albedoOpenWatVisible)          = var_info('albedoOpenWatVisible'            , 'albedo of open water in the visible part of the spectrum'         , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%albedoOpenWatNearIR)           = var_info('albedoOpenWatNearIR'             , 'albedo of open water in the near infra-red part of the spectrum'  , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! radiation transfer
   mpar_meta(iLookPARAM%radExt_snow)                   = var_info('radExt_snow'                     , 'extinction coefficient for radiation penetration into snowpack'   , 'm-1'             , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%directScale)                   = var_info('directScale'                     , 'scaling factor for fractional driect radiaion parameterization'   , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
@@ -437,9 +441,11 @@ subroutine popMetadat(err,message)
   diag_meta(iLookDIAG%mLayerThetaResid)                = var_info('mLayerThetaResid'               , 'residual volumetric water content in each snow or ice layer'      , '-'               , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%mLayerPoreSpace)                 = var_info('mLayerPoreSpace'                , 'total pore space in each snow or ice layer'                       , '-'               , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%mLayerMeltFreeze)                = var_info('mLayerMeltFreeze'               , 'ice content change from melt/freeze in each layer'                , 'kg m-3'          , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
-  ! glacier ice mass/hydrology
+  ! lake, glacier ice mass/hydrology
   diag_meta(iLookDIAG%scalarIceWE)                     = var_info('scalarIceWE'                    , 'glacier ice (not snow) water equivalent'                          , 'kg m-2'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarLayersMassChange)          = var_info('scalarLayersMassChange'         , 'mass change of all layers together (kg m-2 s-1)'                  , 'kg m-2 s-1'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%spectralFrznWatAlbedo)           = var_info('spectralFrznWatAlbedo'          , 'albedo of frozen water in each spectral band'                     , '-'               , get_ixVarType('wLength'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%spectralOpenWatAlbedo)           = var_info('spectralOpenWatAlbedo'          , 'albedo of open water in each spectral band'                       , '-'               , get_ixVarType('wLength'), iMissVec, iMissVec, .false.)
   ! soil hydrology
   diag_meta(iLookDIAG%scalarInfilArea)                 = var_info('scalarInfilArea'                , 'fraction of unfrozen area where water can infiltrate'             , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarFrozenArea)                = var_info('scalarFrozenArea'               , 'fraction of area that is considered impermeable due to soil ice'  , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)

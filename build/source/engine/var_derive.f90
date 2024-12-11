@@ -287,6 +287,7 @@ contains
 
  ! loop through soil layers
  ! NOTE: could do constant profile with the power-law profile with exponent=1, but keep constant profile decision for clarity
+
  do iLayer=(nSnow+nLake),(nSnow+nLake+nSoil)
   iSoil = iLayer-nSnow-nLake
   select case(model_decisions(iLookDECISIONS%hc_profile)%iDecision)

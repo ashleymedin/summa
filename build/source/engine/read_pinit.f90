@@ -130,13 +130,29 @@ contains
   end if
  end do  ! (looping through lines in the file)
 
- ! add these defaults for backwards compatibility pre Sundials
+ ! add these defaults for backwards compatibility pre Sundials and glacier, lake domains
  if (isLocal) then ! dealing with parameters for local column
   if (parFallback(iLookPARAM%be_steps)%default_val < 0.99_rkind*realMissing) then
    parFallback(iLookPARAM%be_steps)%default_val = 1._rkind
   end if
   call set_ida_defaults(parFallback, err, cmessage)
   if (err /= 0) then; message = trim(message)//trim(cmessage); return; end if
+  ! glacier and lake parameters
+  if (parFallback(iLookPARAM%k_ice)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%k_ice)%default_val = 2.1e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%albedoFrznWatVisible)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%albedoFrznWatVisible)%default_val = 0.6_rkind
+  end if
+  if (parFallback(iLookPARAM%albedoFrznWatNearIR)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%albedoFrznWatNearIR)%default_val = 0.4_rkind
+  end if
+  if (parFallback(iLookPARAM%albedoOpenWatVisible)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%albedoOpenWatVisible)%default_val = 0.06_rkind
+  end if
+  if (parFallback(iLookPARAM%albedoOpenWatNearIR)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%albedoOpenWatNearIR)%default_val = 0.06_rkind
+  end if
  else
   ! glacier parameters
   if (parFallback(iLookBPAR%glacStor_kIce)%default_val < 0.99_rkind*realMissing) then

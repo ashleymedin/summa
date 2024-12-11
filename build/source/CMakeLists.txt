@@ -96,7 +96,7 @@ set(MODRUN
     ${ENGINE_DIR}/layerDivide.f90
     ${ENGINE_DIR}/qTimeDelay.f90
     ${ENGINE_DIR}/read_force.f90
-    ${ENGINE_DIR}/snowAlbedo.f90
+    ${ENGINE_DIR}/snLaIcAlbedo.f90
     ${ENGINE_DIR}/snwCompact.f90
     ${ENGINE_DIR}/tempAdjust.f90
     ${ENGINE_DIR}/updateVars.f90

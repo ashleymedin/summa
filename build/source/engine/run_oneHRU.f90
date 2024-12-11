@@ -228,7 +228,8 @@ subroutine run_oneHRU(&
 
       ! initialize the number of flux calls
       diagData%dom(i)%var(iLookDIAG%numFluxCalls)%dat(1) = 0._rkind
-
+      print*, 'run_oneHRU: hruId = ', hruId, ' hru_nc = ', hru_nc, ' dom_type = ', domInfo(i)%dom_type, ' nSnow = ', domInfo(i)%nSnow, &
+       ' nLake = ', domInfo(i)%nLake, ' nSoil = ', domInfo(i)%nSoil, ' nIce = ', domInfo(i)%nIce
       ! run the model for a single HRU
       call coupled_em(&
                      ! model control
