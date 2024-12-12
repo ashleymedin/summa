@@ -153,6 +153,12 @@ contains
   if (parFallback(iLookPARAM%albedoOpenWatNearIR)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%albedoOpenWatNearIR)%default_val = 0.06_rkind
   end if
+  if (parFallback(iLookPARAM%z0Water)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%z0Water)%default_val = 0.0005_rkind
+  end if
+  if (parFallback(iLookPARAM%z0Ice)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%z0Ice)%default_val = 0.0010_rkind
+  end if
  else
   ! glacier parameters
   if (parFallback(iLookBPAR%glacStor_kIce)%default_val < 0.99_rkind*realMissing) then

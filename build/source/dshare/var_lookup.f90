@@ -197,6 +197,8 @@ MODULE var_lookup
   integer(i4b)    :: k_ice                 = integerMissing    ! hydraulic conductivity of ice (m s-1), 2.1e-6 = approx. 0.00005 m/hr, from Stevens et al. 2018
   integer(i4b)    :: mw_exp                = integerMissing    ! exponent for meltwater flow (-)
   ! turbulent heat fluxes
+  integer(i4b)    :: z0Water               = integerMissing    ! roughness length of water (m)
+  integer(i4b)    :: z0Ice                 = integerMissing    ! roughness length of ice (m)
   integer(i4b)    :: z0Snow                = integerMissing    ! roughness length of snow (m)
   integer(i4b)    :: z0Soil                = integerMissing    ! roughness length of bare soil below the canopy (m)
   integer(i4b)    :: z0Canopy              = integerMissing    ! roughness length of the canopy (m)
@@ -979,7 +981,7 @@ MODULE var_lookup
                                                                         151,152,153,154,155,156,157,158,159,160,&
                                                                         161,162,163,164,165,166,167,168,169,170,&
                                                                         171,172,173,174,175,176,177,178,179,180,&
-                                                                        181,182,183,184,185)
+                                                                        181,182,183,184,185,186,187)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

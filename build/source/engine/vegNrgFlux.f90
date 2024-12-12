@@ -277,7 +277,9 @@ subroutine vegNrgFlux(&
     ix_spatial_gw                   => model_decisions(iLookDECISIONS%spatial_gw)%iDecision,           & ! intent(in): [i4b] choice of groundwater representation (local, basin)
     ! input: layer geometry
     nSnow                           => indx_data%var(iLookINDEX%nSnow)%dat(1),                         & ! intent(in): [i4b] number of snow layers
+    nLake                           => indx_data%var(iLookINDEX%nLake)%dat(1),                         & ! intent(in): [i4b] number of lake layers
     nSoil                           => indx_data%var(iLookINDEX%nSoil)%dat(1),                         & ! intent(in): [i4b] number of soil layers
+    nIce                            => indx_data%var(iLookINDEX%nIce)%dat(1),                          & ! intent(in): [i4b] number of ice layers
     nLayers                         => indx_data%var(iLookINDEX%nLayers)%dat(1),                       & ! intent(in): [i4b] total number of layers
     ! input: physical attributes
     vegTypeIndex                    => type_data%var(iLookTYPE%vegTypeIndex),                          & ! intent(in): [i4b] vegetation type index
@@ -298,7 +300,9 @@ subroutine vegNrgFlux(&
     scalarFoliageNitrogenFactor     => diag_data%var(iLookDIAG%scalarFoliageNitrogenFactor)%dat(1),    & ! intent(in): [dp] foliage nitrogen concentration (1.0 = saturated)
     ! input: aerodynamic resistance parameters
     z0Snow                          => mpar_data%var(iLookPARAM%z0Snow)%dat(1),                        & ! intent(in): [dp] roughness length of snow (m)
+    z0Water                         => mpar_data%var(iLookPARAM%z0Water)%dat(1),                       & ! intent(in): [dp] roughness length of unfrozen water (m)
     z0Soil                          => mpar_data%var(iLookPARAM%z0Soil)%dat(1),                        & ! intent(in): [dp] roughness length of soil (m)
+    z0Ice                           => mpar_data%var(iLookPARAM%z0Ice)%dat(1),                         & ! intent(in): [dp] roughness length of ice (m), on glacier or lake ice
     z0CanopyParam                   => mpar_data%var(iLookPARAM%z0Canopy)%dat(1),                      & ! intent(in): [dp] roughness length of the canopy (m)
     zpdFraction                     => mpar_data%var(iLookPARAM%zpdFraction)%dat(1),                   & ! intent(in): [dp] zero plane displacement / canopy height (-)
     critRichNumber                  => mpar_data%var(iLookPARAM%critRichNumber)%dat(1),                & ! intent(in): [dp] critical value for the bulk Richardson number where turbulence ceases (-)
@@ -515,7 +519,7 @@ subroutine vegNrgFlux(&
         if (ix_bcUpprTdyn == prescribedTemp) then
           ! compute ground net flux (W m-2)
           groundNetFlux = -diag_data%var(iLookDIAG%iLayerThermalC)%dat(0)*(groundTempTrial - upperBoundTemp)/(prog_data%var(iLookPROG%mLayerDepth)%dat(1)*0.5_rkind)
-          ! compute derivative in net ground flux w.r.t. ground temperature (W m-2 K-1) inside soil and snow (ssd) energy flux routine
+          ! compute derivative in net ground flux w.r.t. ground temperature (W m-2 K-1) inside snow lake soil ice (snLaSoIc) energy flux routine
           ! dGroundNetFlux_dGroundTemp = missingValue
         elseif (ix_bcUpprTdyn == zeroFlux) then
           groundNetFlux              = 0._rkind
@@ -563,13 +567,33 @@ subroutine vegNrgFlux(&
             scalarGroundSnowFraction  = 1._rkind
             ! case when the ground is snow-free
           else
-            scalarLatHeatSubVapGround = LH_vap  ! evaporation of water in the soil pores: this occurs even if frozen because of super-cooled water
+            if (nLake>0)then
+              if (groundTempTrial> Tfreeze) scalarLatHeatSubVapGround = LH_vap  ! evaporation of water
+              if (groundTempTrial<=Tfreeze) scalarLatHeatSubVapGround = LH_sub  ! sublimation from lake ice
+            else if (nSoil>0)then
+              scalarLatHeatSubVapGround = LH_vap  ! evaporation of water in the soil pores: this occurs even if frozen because of super-cooled water
+            else if (nIce>0)then
+              scalarLatHeatSubVapGround = LH_sub  ! sublimation from glacier ice
+            else
+              err=20; message=trim(message)//'unable to identify snow-free ground surface'; return
+            end if
             scalarGroundSnowFraction  = 0._rkind
           end if  ! end if there is snow on the ground
         end if  ! end if the first flux call
 
-        ! compute the roughness length of the ground (ground below the canopy or non-vegetated surface)
-        z0Ground = z0soil*(1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction     ! roughness length (m)
+        ! compute the roughness length (m) of the ground (ground below the canopy or non-vegetated surface)
+        if (nLake>0)then
+          ! NOTE: these should eventually be adjusted to account for fetch
+          if (groundTempTrial> Tfreeze) z0Ground = z0Water*(1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction ! depends on surface waves
+          if (groundTempTrial<=Tfreeze) z0Ground = z0Ice*  (1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction
+        else if (nSoil>0)then
+          z0Ground = z0Soil*(1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction
+        else if (nIce>0)then
+          ! NOTE: may want to take into account size of glacier
+          z0Ground = z0Ice*(1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction
+        else
+          err=20; message=trim(message)//'unable to identify ground surface under potential snow'; return
+        end if
 
         ! compute the total vegetation area index (leaf plus stem)
         VAI        = scalarLAI + scalarSAI  ! vegetation area index
@@ -601,8 +625,6 @@ subroutine vegNrgFlux(&
           groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._rkind - scalarGroundSnowFraction)*soilEmissivity
         else if (nIce>0)then
           groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._rkind - scalarGroundSnowFraction)*iceEmissivity
-        else
-          err=20; message=trim(message)//'unable to identify ground surface type'; return
         end if
 
         ! compute the fraction of canopy that is wet
@@ -816,18 +838,21 @@ subroutine vegNrgFlux(&
         TG_celcius = groundTempTrial - Tfreeze
         call satVapPress(TG_celcius, scalarSatVP_GroundTemp, dSVPGround_dGroundTemp)
 
-        ! compute the relative humidity in the top soil layer and the resistance at the ground surface
-        !   or the resistance from the lake, ice
+        ! compute the relative humidity in the top soil layer and the soil resistance at the ground surface
         ! NOTE: computations are based on start-of-step values, so only compute for the first flux call
         if (firstFluxCall) then
-          ! soil water evaporation factor [0-1]
-          soilEvapFactor = mLayerVolFracLiq(nSnow+1)/(theta_sat(1) - theta_res(1)) ! no lake layer if vegetation is present
-          ! resistance from the soil [s m-1]
-          scalarSoilResistance = scalarGroundSnowFraction*1._rkind + (1._rkind - scalarGroundSnowFraction)*EXP(8.25_rkind - 4.225_rkind*soilEvapFactor)  ! Sellers (1992)
-          !scalarSoilResistance = scalarGroundSnowFraction*0._rkind + (1._rkind - scalarGroundSnowFraction)*exp(8.25_rkind - 6.0_rkind*soilEvapFactor)    ! Niu adjustment to decrease resitance for wet soil
-scalarSurfResistance FIX!
-
-
+          ! soil resistance from the first layer under the canopy [s m-1] (whether canopy is present or not)
+          if (nLake>0)then
+            scalarSoilResistance = 0._rkind         
+          else if (nSoil>0)then
+            ! soil water evaporation factor [0-1]
+            soilEvapFactor = mLayerVolFracLiq(nSnow+1)/(theta_sat(1) - theta_res(1))
+            ! resistance from the soil [s m-1]
+            scalarSoilResistance = scalarGroundSnowFraction*1._rkind + (1._rkind - scalarGroundSnowFraction)*EXP(8.25_rkind - 4.225_rkind*soilEvapFactor)  ! Sellers (1992)
+            !scalarSoilResistance = scalarGroundSnowFraction*0._rkind + (1._rkind - scalarGroundSnowFraction)*exp(8.25_rkind - 6.0_rkind*soilEvapFactor)    ! Niu adjustment to decrease resistance for wet soil
+          else if (nIce>0)then ! ice below snow
+            scalarSoilResistance = 0._rkind
+          end if
 
           ! relative humidity in the soil pores [0-1], only need if computing vegetation fluxes ever, so not if lake or ice
           if (nLake==0 .and. nIce==0) then

@@ -293,6 +293,8 @@ contains
   case('k_ice'                    ); get_ixParam = iLookPARAM%k_ice                  ! hydraulic conductivity of ice (m s-1), 2.1e-6 = approx. 0.00005 m/hr, from Stevens et al. 2018
   case('mw_exp'                   ); get_ixParam = iLookPARAM%mw_exp                 ! exponent for meltwater flow (-)
   ! turbulent heat fluxes
+  case('z0Water'                  ); get_ixParam = iLookPARAM%z0Water                ! roughness length of open water (m)
+  case('z0Ice'                    ); get_ixParam = iLookPARAM%z0Ice                  ! roughness length of ice (m), 
   case('z0Snow'                   ); get_ixParam = iLookPARAM%z0Snow                 ! roughness length of snow (m)
   case('z0Soil'                   ); get_ixParam = iLookPARAM%z0Soil                 ! roughness length of bare soil below the canopy (m)
   case('z0Canopy'                 ); get_ixParam = iLookPARAM%z0Canopy               ! roughness length of the canopy (m)
