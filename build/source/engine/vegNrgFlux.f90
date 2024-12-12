@@ -184,8 +184,10 @@ subroutine vegNrgFlux(&
   real(rkind)                        :: scaleLAI                        ! scaled LAI (computing diffuse transmissivity)
   real(rkind)                        :: diffuseTrans                    ! diffuse transmissivity (-)
   real(rkind)                        :: groundEmissivity                ! emissivity of the ground surface (-)
-  real(rkind),parameter              :: vegEmissivity=0.98_rkind        ! emissivity of vegetation (0.9665 in JULES) (-)
-  real(rkind),parameter              :: soilEmissivity=0.98_rkind       ! emmisivity of the soil (0.9665 in JULES) (-)
+  real(rkind),parameter              :: vegEmissivity=0.97_rkind        ! emissivity of vegetation (-)
+  real(rkind),parameter              :: soilEmissivity=0.96_rkind       ! emmisivity of the soil (-)
+  real(rkind),parameter              :: watEmissivity=0.98_rkind        ! emissivity of unfrozen water (-)
+  real(rkind),parameter              :: iceEmissivity=0.99_rkind        ! emissivity of frozen water (-)
   real(rkind),parameter              :: snowEmissivity=0.99_rkind       ! emissivity of snow (-)
   real(rkind)                        :: dLWNetCanopy_dTCanopy           ! derivative in net canopy radiation w.r.t. canopy temperature (W m-2 K-1)
   real(rkind)                        :: dLWNetGround_dTGround           ! derivative in net ground radiation w.r.t. ground temperature (W m-2 K-1)
@@ -307,8 +309,8 @@ subroutine vegNrgFlux(&
     leafExchangeCoeff               => mpar_data%var(iLookPARAM%leafExchangeCoeff)%dat(1),             & ! intent(in): [dp] turbulent exchange coeff between canopy surface and canopy air ( m s-(1/2) )
     leafDimension                   => mpar_data%var(iLookPARAM%leafDimension)%dat(1),                 & ! intent(in): [dp] characteristic leaf dimension (m)
     ! input: soil stress parameters
-    theta_sat                       => mpar_data%var(iLookPARAM%theta_sat)%dat(1),                     & ! intent(in): [dp] soil porosity (-)
-    theta_res                       => mpar_data%var(iLookPARAM%theta_res)%dat(1),                     & ! intent(in): [dp] residual volumetric liquid water content (-)
+    theta_sat                       => mpar_data%var(iLookPARAM%theta_sat)%dat,                        & ! intent(in): [dp] soil porosity (-)
+    theta_res                       => mpar_data%var(iLookPARAM%theta_res)%dat,                        & ! intent(in): [dp] residual volumetric liquid water content (-)
     plantWiltPsi                    => mpar_data%var(iLookPARAM%plantWiltPsi)%dat(1),                  & ! intent(in): [dp] matric head at wilting point (m)
     soilStressParam                 => mpar_data%var(iLookPARAM%soilStressParam)%dat(1),               & ! intent(in): [dp] parameter in the exponential soil stress function (-)
     critSoilWilting                 => mpar_data%var(iLookPARAM%critSoilWilting)%dat(1),               & ! intent(in): [dp] critical vol. liq. water content when plants are wilting (-)
@@ -592,7 +594,16 @@ subroutine vegNrgFlux(&
         if (.not.computeVegFlux) scalarCanopyEmissivity=0._rkind
 
         ! compute emissivity of the ground surface (-)
-        groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._rkind - scalarGroundSnowFraction)*soilEmissivity  ! emissivity of the ground surface (-)
+        if (nLake>0)then
+          if (groundTempTrial> Tfreeze) groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._rkind - scalarGroundSnowFraction)*watEmissivity
+          if (groundTempTrial<=Tfreeze) groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._rkind - scalarGroundSnowFraction)*iceEmissivity
+        else if (nSoil>0)then
+          groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._rkind - scalarGroundSnowFraction)*soilEmissivity
+        else if (nIce>0)then
+          groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._rkind - scalarGroundSnowFraction)*iceEmissivity
+        else
+          err=20; message=trim(message)//'unable to identify ground surface type'; return
+        end if
 
         ! compute the fraction of canopy that is wet
         ! NOTE: we either sublimate or evaporate over the entire substep
@@ -690,59 +701,69 @@ subroutine vegNrgFlux(&
         if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
         ! ***** STOMATAL RESISTANCE ******************************************************************************************************************************
-        ! stomatal resistance is constant over the SUBSTEP
+        ! stomatal resistance is constant over the SUBSTEP, only need if computing vegetation fluxes ever, so not if lake or ice
         ! NOTE: This is a simplification, as stomatal resistance does depend on canopy temperature
         !       This is a "short-cut" made because:
         !         (1) computations are expensive;
         !         (2) derivative calculations are rather complex (iterations within the Ball-Berry routine); and
         !         (3) stomatal resistance does not change rapidly
         if (firstFluxCall) then
-          ! compute the saturation vapor pressure for vegetation temperature
-          TV_celcius = canopyTempTrial - Tfreeze
-          call satVapPress(TV_celcius, scalarSatVP_CanopyTemp, dSVPCanopy_dCanopyTemp)
-
-          ! compute soil moisture factor controlling stomatal resistance
-          call soilResist(&
-                          ! input (model decisions)
-                          ix_soilStress,                     & ! intent(in):  choice of function for the soil moisture control on stomatal resistance
-                          ix_groundwatr,                     & ! intent(in):  groundwater parameterization
-                          ! input (state variables)
-                          mLayerMatricHead(1:nSoil),         & ! intent(in):  matric head in each soil layer (m)
-                          mLayerVolFracLiq(nSnow+1:nSnow+nSoil), & ! intent(in):  volumetric fraction of liquid water in each soil layer (-), no lake layer if vegetation is present
-                          scalarAquiferStorage,              & ! intent(in):  aquifer storage (m)
-                          ! input (diagnostic variables)
-                          mLayerRootDensity(1:nSoil),        & ! intent(in):  root density in each layer (-)
-                          scalarAquiferRootFrac,             & ! intent(in):  fraction of roots below the lowest soil layer (-)
-                          ! input (parameters)
-                          plantWiltPsi,                      & ! intent(in):  matric head at wilting point (m)
-                          soilStressParam,                   & ! intent(in):  parameter in the exponential soil stress function (-)
-                          critSoilWilting,                   & ! intent(in):  critical vol. liq. water content when plants are wilting (-)
-                          critSoilTranspire,                 & ! intent(in):  critical vol. liq. water content when transpiration is limited (-)
-                          critAquiferTranspire,              & ! intent(in):  critical aquifer storage value when transpiration is limited (m)
-                          ! output
-                          scalarTranspireLim,                & ! intent(out): weighted average of the transpiration limiting factor (-)
-                          mLayerTranspireLim(1:nSoil),       & ! intent(out): transpiration limiting factor in each layer (-)
-                          scalarTranspireLimAqfr,            & ! intent(out): transpiration limiting factor for the aquifer (-)
-                          err,cmessage                       ) ! intent(out): error control
-          if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
-
-          ! compute stomatal resistance
-          call stomResist(&
-                          ! input (state and diagnostic variables)
-                          canopyTempTrial,                   & ! intent(in):    temperature of the vegetation canopy (K)
-                          scalarSatVP_CanopyTemp,            & ! intent(in):    saturation vapor pressure at the temperature of the veg canopy (Pa)
-                          scalarVP_CanopyAir,                & ! intent(in):    canopy air vapor pressure (Pa)
-                          ! input: data structures
-                          type_data,                         & ! intent(in):    type of vegetation and soil
-                          forc_data,                         & ! intent(in):    model forcing data
-                          mpar_data,                         & ! intent(in):    model parameters
-                          model_decisions,                   & ! intent(in):    model decisions
-                          ! input-output: data structures
-                          diag_data,                         & ! intent(inout): model diagnostic variables for a local HRU
-                          flux_data,                         & ! intent(inout): model fluxes for a local HRU
-                          ! output: error control
-                          err,cmessage                       ) ! intent(out):   error control
-          if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
+          if (nSoil>0) then ! could have soil with lake, need values for aquifer
+            ! compute soil moisture factor controlling stomatal resistance, and for transpiration limiting factor in aquifer and soil
+            call soilResist(&
+                            ! input (model decisions)
+                            ix_soilStress,                     & ! intent(in):  choice of function for the soil moisture control on stomatal resistance
+                            ix_groundwatr,                     & ! intent(in):  groundwater parameterization
+                            ! input (state variables)
+                            mLayerMatricHead(1:nSoil),         & ! intent(in):  matric head in each soil layer (m)
+                            mLayerVolFracLiq(nSnow+nLake+1:nSnow+nLake+nSoil), & ! intent(in):  volumetric fraction of liquid water in each soil layer (-), no lake layer if vegetation is present
+                            scalarAquiferStorage,              & ! intent(in):  aquifer storage (m)
+                            ! input (diagnostic variables)
+                            mLayerRootDensity(1:nSoil),        & ! intent(in):  root density in each layer (-)
+                            scalarAquiferRootFrac,             & ! intent(in):  fraction of roots below the lowest soil layer (-)
+                            ! input (parameters)
+                            plantWiltPsi,                      & ! intent(in):  matric head at wilting point (m)
+                            soilStressParam,                   & ! intent(in):  parameter in the exponential soil stress function (-)
+                            critSoilWilting,                   & ! intent(in):  critical vol. liq. water content when plants are wilting (-)
+                            critSoilTranspire,                 & ! intent(in):  critical vol. liq. water content when transpiration is limited (-)
+                            critAquiferTranspire,              & ! intent(in):  critical aquifer storage value when transpiration is limited (m)
+                            ! output
+                            scalarTranspireLim,                & ! intent(out): weighted average of the transpiration limiting factor (-)
+                            mLayerTranspireLim(1:nSoil),       & ! intent(out): transpiration limiting factor in each layer (-)
+                            scalarTranspireLimAqfr,            & ! intent(out): transpiration limiting factor for the aquifer (-)
+                            err,cmessage                       ) ! intent(out): error control
+            if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
+          else
+            ! set transpiration limiting factor in the case of aquifer with no soil
+            scalarTranspireLim     = 1._rkind ! no soil
+            scalarTranspireLimAqfr = 0._rkind ! no roots in aquifer
+          endif
+          if (nLake==0 .and. nIce==0) then
+            ! compute the saturation vapor pressure for vegetation temperature
+            TV_celcius = canopyTempTrial - Tfreeze
+            call satVapPress(TV_celcius, scalarSatVP_CanopyTemp, dSVPCanopy_dCanopyTemp)
+            ! compute stomatal resistance
+            call stomResist(&
+                            ! input (state and diagnostic variables)
+                            canopyTempTrial,                   & ! intent(in):    temperature of the vegetation canopy (K)
+                            scalarSatVP_CanopyTemp,            & ! intent(in):    saturation vapor pressure at the temperature of the veg canopy (Pa)
+                            scalarVP_CanopyAir,                & ! intent(in):    canopy air vapor pressure (Pa)
+                            ! input: data structures
+                            type_data,                         & ! intent(in):    type of vegetation and soil
+                            forc_data,                         & ! intent(in):    model forcing data
+                            mpar_data,                         & ! intent(in):    model parameters
+                            model_decisions,                   & ! intent(in):    model decisions
+                            ! input-output: data structures
+                            diag_data,                         & ! intent(inout): model diagnostic variables for a local HRU
+                            flux_data,                         & ! intent(inout): model fluxes for a local HRU
+                            ! output: error control
+                            err,cmessage                       ) ! intent(out):   error control
+            if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
+          else
+            ! set saturated vapor pressure to zero
+            scalarSatVP_CanopyTemp = 0._rkind
+            dSVPCanopy_dCanopyTemp = 0._rkind
+          end if
         end if  ! end if the first flux call in a given sub-step
 
         ! ***** LONGWAVE RADIATION  ****************************************************************************************************************************
@@ -796,26 +817,36 @@ subroutine vegNrgFlux(&
         call satVapPress(TG_celcius, scalarSatVP_GroundTemp, dSVPGround_dGroundTemp)
 
         ! compute the relative humidity in the top soil layer and the resistance at the ground surface
+        !   or the resistance from the lake, ice
         ! NOTE: computations are based on start-of-step values, so only compute for the first flux call
         if (firstFluxCall) then
-        ! soil water evaporation factor [0-1]
-          soilEvapFactor = mLayerVolFracLiq(nSnow+1)/(theta_sat - theta_res) ! no lake layer if vegetation is present
+          ! soil water evaporation factor [0-1]
+          soilEvapFactor = mLayerVolFracLiq(nSnow+1)/(theta_sat(1) - theta_res(1)) ! no lake layer if vegetation is present
           ! resistance from the soil [s m-1]
           scalarSoilResistance = scalarGroundSnowFraction*1._rkind + (1._rkind - scalarGroundSnowFraction)*EXP(8.25_rkind - 4.225_rkind*soilEvapFactor)  ! Sellers (1992)
           !scalarSoilResistance = scalarGroundSnowFraction*0._rkind + (1._rkind - scalarGroundSnowFraction)*exp(8.25_rkind - 6.0_rkind*soilEvapFactor)    ! Niu adjustment to decrease resitance for wet soil
-          ! relative humidity in the soil pores [0-1]
-          if (mLayerMatricHead(1) > -1.e+6_rkind) then  ! avoid problems with numerical precision when soil is very dry
-            if (groundTempTrial < 0._rkind) then
-              soilRelHumidity_noSnow = exp( (mLayerMatricHead(1)*gravity) / (groundTempTrial*R_wv) )
-              if (soilRelHumidity_noSnow > 1._rkind) then; soilRelHumidity_noSnow = 1._rkind; end if
+scalarSurfResistance FIX!
+
+
+
+          ! relative humidity in the soil pores [0-1], only need if computing vegetation fluxes ever, so not if lake or ice
+          if (nLake==0 .and. nIce==0) then
+            ! compute the relative humidity in the soil pores
+            if (mLayerMatricHead(1) > -1.e+6_rkind) then  ! avoid problems with numerical precision when soil is very dry
+              if (groundTempTrial < 0._rkind) then
+                soilRelHumidity_noSnow = exp( (mLayerMatricHead(1)*gravity) / (groundTempTrial*R_wv) )
+                if (soilRelHumidity_noSnow > 1._rkind) then; soilRelHumidity_noSnow = 1._rkind; end if
+              else
+                soilRelHumidity_noSnow = 1._rkind
+              end if ! end if ground temperature is positive
             else
-              soilRelHumidity_noSnow = 1._rkind
-            end if ! end if ground temperature is positive
+              soilRelHumidity_noSnow = 0._rkind
+            end if ! end if matric head is very low
+            ! scalarSoilRelHumidity  = scalarGroundSnowFraction*1._rkind + (1._rkind - scalarGroundSnowFraction)*soilRelHumidity_noSnow ! original
+            scalarSoilRelHumidity  = scalarGroundSnowFraction + (1._rkind - scalarGroundSnowFraction)*soilRelHumidity_noSnow ! factor of unity removed for speed
           else
-            soilRelHumidity_noSnow = 0._rkind
-          end if ! end if matric head is very low
-          ! scalarSoilRelHumidity  = scalarGroundSnowFraction*1._rkind + (1._rkind - scalarGroundSnowFraction)*soilRelHumidity_noSnow ! original
-          scalarSoilRelHumidity  = scalarGroundSnowFraction + (1._rkind - scalarGroundSnowFraction)*soilRelHumidity_noSnow ! factor of unity removed for speed
+            scalarSoilRelHumidity = 0._rkind
+          end if
         end if  ! end if the first flux call
 
         ! compute turbulent heat fluxes

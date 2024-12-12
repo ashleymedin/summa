@@ -266,9 +266,6 @@ contains
      case default; err=20; message=trim(message)//'unable to identify case for sunlit/shaded leaves'; return
     end select
 
-    ! print progress
-    !write(*,'(a,1x,20(f12.5,1x))') 'leafTemp, par, psn, rs = ', scalarVegetationTemp, absorbedPAR, scalarPhotosynthesis, scalarStomResist
-
    end do  ! looping through sunlit and shaded leaves
 
 
@@ -314,22 +311,11 @@ contains
 
  end select  ! (identifying option for stomatal resistance)
 
- ! print progress
- !write(*,'(a,1x,L1,1x,20(f16.8,1x))') 'ix_StomResist==BallBerryFlex, scalarPhotosynthesisSunlit, scalarPhotosynthesisShaded, scalarStomResistSunlit, scalarPhotosynthesisShaded = ', &
- !                                      ix_StomResist==BallBerryFlex, scalarPhotosynthesisSunlit, scalarPhotosynthesisShaded, scalarStomResistSunlit, scalarPhotosynthesisShaded
- !pause
-
  ! end association to variables in the data structures
  end associate
 
  end subroutine stomResist
 
-
- ! *******************************************************************************************************
- ! *******************************************************************************************************
- ! *** PRIVATE SUBROUTINES *******************************************************************************
- ! *******************************************************************************************************
- ! *******************************************************************************************************
 
  ! *******************************************************************************************************
  ! private subroutine stomResist_flex: flexible stomatal resistance routine to evaluate different options
@@ -352,8 +338,6 @@ contains
                             scalarPhotosynthesis,                & ! intent(out): photosynthesis (umol CO2 m-2 s-1)
                             ! output: error control
                             err,message)                           ! intent(out): error control
- ! ------------------------------------------------------------------------------------------------------------------------------------------------------
- ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! input: state and diagnostic variables
  real(rkind),intent(in)             :: scalarVegetationTemp          ! vegetation temperature (K)
