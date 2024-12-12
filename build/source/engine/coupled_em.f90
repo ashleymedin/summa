@@ -310,7 +310,6 @@ subroutine coupled_em(&
   ! This is the start of a data step for a local HRU
 
   ! get the start time
- ! get the start time
   CALL system_clock(count_rate=count_rate)
   CALL system_clock(i_start)
 
@@ -1181,8 +1180,8 @@ subroutine coupled_em(&
                     tooMuchSublim,                            & ! intent(out): flag to denote that there was too much sublimation in a given time step
                     mLayerDepth,                              & ! intent(inout)
                     ! error control
-                    err,message)                                ! intent(out):   error control
-          if(err/=0)then; err=55; return; end if
+                    err,cmessage)                                ! intent(out):   error control
+          if(err/=0)then; message=trim(message)//trim(cmessage); return; end if ! err could be 20 or 55 here
 
           ! process the flag for too much sublimation
           if(tooMuchSublim)then

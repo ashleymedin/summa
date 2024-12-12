@@ -69,6 +69,9 @@ subroutine computSnowDepth(&
   character(len=256)                   :: cmessage               ! error message
   integer(i4b)                         :: iSnow                  ! index of snow layers
   real(rkind)                          :: massLiquid             ! mass liquid water (kg m-2)
+  ! ----------------------------------------------------------------------------------------------------------------------------------------------
+  ! initialize error control
+  err=0; message="computSnowDepth/"
 
   ! * compute change in ice content of the top snow layer due to sublimation...
   ! ---------------------------------------------------------------------------
