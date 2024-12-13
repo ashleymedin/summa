@@ -140,7 +140,7 @@ subroutine coupled_em(&
   ! preliminary subroutines
   USE vegPhenlgy_module,only:vegPhenlgy             ! compute vegetation phenology
   USE vegNrgFlux_module,only:wettedFrac             ! compute wetted fraction of the canopy (used in sw radiation fluxes)
-  USE snLaGlAlbedo_module,only:snLaGlAlbedo             ! compute snow albedo
+  USE snLaGlAlbedo_module,only:snLaGlAlbedo         ! compute snow albedo
   USE vegSWavRad_module,only:vegSWavRad             ! compute canopy sw radiation fluxes
   USE canopySnow_module,only:canopySnow             ! compute interception and unloading of snow from the vegetation canopy
   USE volicePack_module,only:newsnwfall             ! compute change in the top snow layer due to throughfall and unloading
@@ -1865,6 +1865,9 @@ contains
   meanLatHeatCanopyEvap = 0._rkind ! mean latent heat flux for evaporation from the canopy
   meanSenHeatCanopy     = 0._rkind ! mean sensible heat flux from the canopy
   effRainfall           = 0._rkind ! mean total effective rainfall over snow
+  averageSnowSublimation= 0._rkind ! mean sublimation from the snow surface
+  averageLakeSublimation= 0._rkind ! mean sublimation from the lake ice surface
+  averageGlceSublimation= 0._rkind ! mean sublimation from the glacier ice surface
 
   diag_data%var(iLookDIAG%meanStepSize)%dat(1) = 0._rkind ! mean step size over data_step
 
