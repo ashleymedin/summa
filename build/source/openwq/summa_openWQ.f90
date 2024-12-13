@@ -33,7 +33,7 @@ subroutine openwq_init(err)
   integer(i4b)                                    :: hruCount
   integer(i4b)                                    :: nSoil
   ! OpenWQ dimensions
-  integer(i4b)                                    :: nCanopy_2openwq =  1    ! Canopy has only 1 layer
+  integer(i4b)                                    :: nCanopy_2openwq =  1   ! Canopy has only 1 layer
   integer(i4b)                                    :: nRunoff_2openwq  = 1   ! Runoff has only 1 layer (not a summa variable - openWQ keeps track of this)
   integer(i4b)                                    :: nAquifer_2openwq = 1   ! GW has only 1 layer
   integer(i4b)                                    :: nYdirec_2openwq  = 1   ! number of layers in the y-dir (not used in summa)
@@ -54,10 +54,10 @@ subroutine openwq_init(err)
     hruCount,             & ! num HRU
     nCanopy_2openwq,      & ! num layers of canopy (fixed to 1)
     maxSnowLayers,        & ! num layers of snow (fixed to max of 5 because it varies)
-    nSoil,                & ! num layers of snoil (variable)
+    nSoil,                & ! num layers of soil (variable)
     nRunoff_2openwq,      & ! num layers of runoff (fixed to 1)
     nAquifer_2openwq,     & ! num layers of aquifer (fixed to 1)
-    nYdirec_2openwq)             ! num of layers in y-dir (set to 1 because not used in summa)
+    nYdirec_2openwq)        ! num of layers in y-dir (set to 1 because not used in summa)
 
   
   ! Create copy of state information, needed for passing to openWQ with fluxes that require

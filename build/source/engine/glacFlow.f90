@@ -186,38 +186,30 @@ subroutine glacFlow(&
     i = i + 1
   end do
   
-  ! Calculate the elevation where massChange would be zero
-  if (validCount==1) then
-    if (validMassChange(1)>0)then
-      ELA_elev = 0._rkind ! all points are above ELA
-    else
-      ELA_elev = 1.e10_rkind ! all points are below ELA
-    end if
-  else ! find zero crossing indices
-    if (validMassChange(1) <= 0.0) then
-      ! Extrapolate above the first point
-      i1 = 1
-      i2 = 2
-    else if (validMassChange(validCount) >= 0.0) then
-      ! Extrapolate below the last point
-      i1 = validCount - 1
-      i2 = validCount
-    else
-      do i = 1, validCount-1
-        if ((validMassChange(i) > 0.0 .and. validMassChange(i+1) < 0.0) .or. &
-            (validMassChange(i) < 0.0 .and. validMassChange(i+1) > 0.0)) then
-          ! Linear interpolation to find the zero crossing
-          i1 = i
-          i2 = i + 1
-          exit
-        end if
-      end do
-    end if
-    ! Calculate slope and intercept for ELA
-    slope = (validMassChange(i2) - validMassChange(i1)) / (validElev(i2) - validElev(i1))
-    intercept = validMassChange(i1) - slope * validElev(i1)    
-    ELA_elev = -intercept / slope
+  ! Calculate the elevation where massChange would be zero, always has 2 points at least
+  if (validMassChange(1) <= 0.0) then
+    ! Extrapolate above the first point
+    i1 = 1
+    i2 = 2
+  else if (validMassChange(validCount) >= 0.0) then
+    ! Extrapolate below the last point
+    i1 = validCount - 1
+    i2 = validCount
+  else
+    do i = 1, validCount-1
+      if ((validMassChange(i) > 0.0 .and. validMassChange(i+1) < 0.0) .or. &
+          (validMassChange(i) < 0.0 .and. validMassChange(i+1) > 0.0)) then
+        ! Linear interpolation to find the zero crossing
+        i1 = i
+        i2 = i + 1
+        exit
+      end if
+    end do
   end if
+  ! Calculate slope and intercept for ELA
+  slope = (validMassChange(i2) - validMassChange(i1)) / (validElev(i2) - validElev(i1))
+  intercept = validMassChange(i1) - slope * validElev(i1)    
+  ELA_elev = -intercept / slope
 
   ! Initialize new domain areas and elevations
   do i = 1,nDOM
@@ -313,10 +305,17 @@ subroutine glacFlow(&
     
     ! Initialize variables
     hgt = surface - bed
+
+    ! Force glacier to have an accumulation area and ablation area, even if they are tiny, so that the domain is always defined
+    if (ELA_elev > maxval(surface)) then
+      ELA_elev = maxval(surface)-0.1_rkind
+    else if (ELA_elev < minval(surface)) then
+      ELA_elev = minval(surface)+0.1_rkind
+    end if
     
-    ! Calculate glacier ablation and accumulation areas
-    glacAblArea(iGlac) = sum(merge(glacierMask, zeros, hgt>thick4area .and. surface<  ELA_elev))*dx*dy
+    ! Calculate glacier accumulation and ablation areas
     glacAccArea(iGlac) = sum(merge(glacierMask, zeros, hgt>thick4area .and. surface>= ELA_elev))*dx*dy
+    glacAblArea(iGlac) = sum(merge(glacierMask, zeros, hgt>thick4area .and. surface<  ELA_elev))*dx*dy
     print*, 'glacAblArea = ', glacAblArea(iGlac), ' glacAccArea = ', glacAccArea(iGlac),ELA_elev
 
     ! Loop through HRUs and calculate domain areas and elevations for each HRU

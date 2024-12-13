@@ -29,9 +29,6 @@ USE globalData,only:iRunModeFull,iRunModeGRU,iRunModeHRU ! run modes
 
 ! input sizes
 USE globalData,only:maxSoilLayers          ! maximum number of soil layers
-USE globalData,only:maxSnowLayers          ! maximum number of snow layers
-USE globalData,only:maxIceLayers           ! maximum number of ice layers
-USE globalData,only:maxLakeLayers          ! maximum number of lake layers
 
 ! common modules
 USE nrtype
