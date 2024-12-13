@@ -1224,7 +1224,7 @@ module summabmi
             case('land_vegetation_water__transpiration_mass_flux')
               target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarCanopyTranspiration)%dat(1)
             case('snowpack__sublimation_mass_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarSnowSublimation)%dat(1)
+              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarGroundSublimation)%dat(1)
             case('land_vegetation_water__sublimation_mass_flux')
               target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarCanopySublimation)%dat(1)
             case('snowpack_mass')

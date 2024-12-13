@@ -35,7 +35,7 @@ USE globalData,only:iname_cas       ! named variables for canopy air space
 USE globalData,only:iname_veg       ! named variables for vegetation canopy
 USE globalData,only:iname_snow      ! named variables for snow
 USE globalData,only:iname_soil      ! named variables for soil
-USE globalData,only:iname_ice       ! named variables for ice
+USE globalData,only:iname_glce      ! named variables for glacier ice
 USE globalData,only:iname_lake      ! named variables for lake
 USE globalData,only:iname_aquifer   ! named variables for the aquifer
 
@@ -74,7 +74,7 @@ USE var_lookup,only:iLookPARAM            ! named variables for structure elemen
 USE var_lookup,only:iLookINDEX            ! named variables for structure elements
 
 ! provide access to routines to update states
-USE updatState_module,only:updateSnLaIc     ! update snow states
+USE updatState_module,only:updateSnLaGl     ! update snow states
 USE updatState_module,only:updateSoil     ! update soil states
 
 ! provide access to functions for the constitutive functions and derivatives
@@ -88,7 +88,7 @@ USE soil_utils_module,only:crit_soilT          ! compute critical temperature be
 USE soil_utils_module,only:liquidHead          ! compute the liquid water matric potential
 USE enthalpyTemp_module,only:T2enthTemp_cas    ! convert temperature to enthalpy for canopy air space
 USE enthalpyTemp_module,only:T2enthTemp_veg    ! convert temperature to enthalpy for vegetation
-USE enthalpyTemp_module,only:T2enthTemp_snLaIc ! convert temperature to enthalpy for snow
+USE enthalpyTemp_module,only:T2enthTemp_SnLaGl ! convert temperature to enthalpy for snow
 USE enthalpyTemp_module,only:T2enthTemp_soil   ! convert temperature to enthalpy for soil 
 
 ! IEEE check
@@ -297,7 +297,7 @@ subroutine updateVars(&
         case(iname_snow);    iLayer = ixControlIndex
         case(iname_lake);    iLayer = ixControlIndex + nSnow
         case(iname_soil);    iLayer = ixControlIndex + nSnow + nLake
-        case(iname_ice);     iLayer = ixControlIndex + nSnow + nLake + nSoil
+        case(iname_glce);    iLayer = ixControlIndex + nSnow + nLake + nSoil
         case(iname_aquifer); cycle ! aquifer: do nothing
         case default; err=20; message=trim(message)//'expect case to be iname_cas, iname_veg, iname_snow, iname_soil, iname_aquifer'; return
       end select
@@ -306,7 +306,7 @@ subroutine updateVars(&
       select case(ixDomainType)
         case(iname_cas);                                     ixOther = integerMissing
         case(iname_veg);                                     ixOther = merge(ixHydCanopy(1),    ixNrgCanopy(1),    ixStateType(ixFullVector)==iname_nrgCanopy)
-        case(iname_snow, iname_lake, iname_soil, iname_ice); ixOther = merge(ixHydLayer(iLayer),ixNrgLayer(iLayer),ixStateType(ixFullVector)==iname_nrgLayer)
+        case(iname_snow, iname_lake, iname_soil, iname_glce);ixOther = merge(ixHydLayer(iLayer),ixNrgLayer(iLayer),ixStateType(ixFullVector)==iname_nrgLayer)
         case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
       end select
 
@@ -355,9 +355,9 @@ subroutine updateVars(&
         if(ixStateType(ixFullVector)==iname_liqCanopy .or. ixStateType(ixFullVector)==iname_liqLayer)then
           select case(ixDomainType)
             case(iname_veg);                           scalarCanopyWatTrial          = scalarCanopyLiqTrial          + scalarCanopyIceTrial
-            case(iname_snow, iname_lake, iname_ice);   mLayerVolFracWatTrial(iLayer) = mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer)*iden_ice/iden_water
+            case(iname_snow, iname_lake, iname_glce);  mLayerVolFracWatTrial(iLayer) = mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer)*iden_ice/iden_water
             case(iname_soil);                          mLayerVolFracWatTrial(iLayer) = mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer) ! no volume expansion
-            case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_ice'; return
+            case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_glce'; return
           end select
         endif
 
@@ -386,16 +386,16 @@ subroutine updateVars(&
 
       ! compute the critical soil temperature below which ice exists
       select case(ixDomainType)
-        case(iname_veg, iname_snow, iname_lake, iname_ice); Tcrit = Tfreeze
-        case(iname_soil);                                   Tcrit = crit_soilT( mLayerMatricHeadTrial(ixControlIndex) )
-        case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_ice'; return
+        case(iname_veg, iname_snow, iname_lake, iname_glce); Tcrit = Tfreeze
+        case(iname_soil);                                    Tcrit = crit_soilT( mLayerMatricHeadTrial(ixControlIndex) )
+        case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_glce'; return
       end select
 
       ! initialize temperature
       select case(ixDomainType)
-        case(iname_veg);                                     xTemp = scalarCanopyTempTrial
-        case(iname_snow, iname_lake, iname_soil, iname_ice); xTemp = mLayerTempTrial(iLayer)
-        case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_ice'; return
+        case(iname_veg);                                      xTemp = scalarCanopyTempTrial
+        case(iname_snow, iname_lake, iname_soil, iname_glce); xTemp = mLayerTempTrial(iLayer)
+        case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_glce'; return
       end select
 
       ! define brackets for the root
@@ -423,8 +423,8 @@ subroutine updateVars(&
 
         ! compute temperature time derivatives
         select case(ixDomainType)
-          case(iname_veg);                                     scalarCanopydTemp_dt = xTemp - scalarCanopyTemp
-          case(iname_snow, iname_lake, iname_soil, iname_ice); mLayerdTemp_dt(iLayer) = xTemp - mLayerTemp(iLayer)
+          case(iname_veg);                                      scalarCanopydTemp_dt   = xTemp - scalarCanopyTemp
+          case(iname_snow, iname_lake, iname_soil, iname_glce); mLayerdTemp_dt(iLayer) = xTemp - mLayerTemp(iLayer)
         end select
 
         ! compute the derivative in total water content w.r.t. total water matric potential (m-1)
@@ -441,18 +441,18 @@ subroutine updateVars(&
         ! --> partially frozen: dependence of liquid water on temperature
         if(xTemp<Tcrit)then
           select case(ixDomainType)
-            case(iname_veg);                         dTheta_dTkCanopy         = dFracLiq_dTk(xTemp,snowfrz_scale)*scalarCanopyWatTrial/(iden_water*canopyDepth)
-            case(iname_snow, iname_lake, iname_ice); mLayerdTheta_dTk(iLayer) = dFracLiq_dTk(xTemp,snowfrz_scale)*mLayerVolFracWatTrial(iLayer)
-            case(iname_soil);                        mLayerdTheta_dTk(iLayer) = dTheta_dTk(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
-            case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_ice'; return
+            case(iname_veg);                          dTheta_dTkCanopy         = dFracLiq_dTk(xTemp,snowfrz_scale)*scalarCanopyWatTrial/(iden_water*canopyDepth)
+            case(iname_snow, iname_lake, iname_glce); mLayerdTheta_dTk(iLayer) = dFracLiq_dTk(xTemp,snowfrz_scale)*mLayerVolFracWatTrial(iLayer)
+            case(iname_soil);                         mLayerdTheta_dTk(iLayer) = dTheta_dTk(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
+            case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_glce'; return
           end select  ! domain type
 
         ! --> unfrozen: no dependence of liquid water on temperature
         else
           select case(ixDomainType)
-            case(iname_veg);                                     dTheta_dTkCanopy         = 0._rkind
-            case(iname_snow, iname_lake, iname_soil, iname_ice); mLayerdTheta_dTk(iLayer) = 0._rkind
-            case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_ice'; return
+            case(iname_veg);                                      dTheta_dTkCanopy         = 0._rkind
+            case(iname_snow, iname_lake, iname_soil, iname_glce); mLayerdTheta_dTk(iLayer) = 0._rkind
+            case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_glce'; return
           end select  ! domain type
         endif
 
@@ -466,10 +466,10 @@ subroutine updateVars(&
 
           ! compute the fraction of snow
           select case(ixDomainType)
-            case(iname_veg);                         scalarFracLiqVeg      = fracliquid(xTemp,snowfrz_scale)
-            case(iname_snow, iname_lake, iname_ice); mLayerFracLiq(iLayer) = fracliquid(xTemp,snowfrz_scale)
+            case(iname_veg);                          scalarFracLiqVeg      = fracliquid(xTemp,snowfrz_scale)
+            case(iname_snow, iname_lake, iname_glce); mLayerFracLiq(iLayer) = fracliquid(xTemp,snowfrz_scale)
             case(iname_soil)  ! do nothing
-            case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_ice'; return
+            case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_glce'; return
           end select  ! domain type
 
           ! -----
@@ -487,7 +487,7 @@ subroutine updateVars(&
             case(iname_veg)
 
               ! compute volumetric fraction of liquid water and ice
-              call updateSnLaIc(&
+              call updateSnLaGl(&
                               xTemp,                                        & ! intent(in):  temperature (K)
                               scalarCanopyWatTrial/(iden_water*canopyDepth),& ! intent(in):  volumetric fraction of total water (-)
                               snowfrz_scale,                                & ! intent(in):  scaling parameter for the snow freezing curve (K-1)
@@ -503,10 +503,10 @@ subroutine updateVars(&
               scalarCanopyIceTrial = (1._rkind - scalarFracLiqVeg)*scalarCanopyWatTrial !(kg m-2), scalarVolFracIce* iden_ice *canopyDepth
 
             ! *** snow layers
-            case(iname_snow, iname_lake, iname_ice)
+            case(iname_snow, iname_lake, iname_glce)
 
               ! compute volumetric fraction of liquid water and ice
-              call updateSnLaIc(&
+              call updateSnLaGl(&
                               xTemp,                        & ! intent(in):  temperature (K)
                               mLayerVolFracWatTrial(iLayer),  & ! intent(in):  mass state variable = trial volumetric fraction of water (-)
                               snowfrz_scale,                  & ! intent(in):  scaling parameter for the snow freezing curve (K-1)
@@ -531,7 +531,7 @@ subroutine updateVars(&
               if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
               ! check
-              case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_ice'; return
+              case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_glce'; return
 
           end select  ! domain type
 
@@ -552,7 +552,7 @@ subroutine updateVars(&
         ! compute water time derivatives
         select case(ixDomainType)
           case(iname_veg);                                     scalarCanopydWat_dt = scalarCanopyWatTrial - scalarCanopyWat
-          case(iname_snow, iname_lake, iname_soil, iname_ice); mLayerdWat_dt(iLayer) = mLayerVolFracWatTrial(iLayer) - mLayerVolFracWat(iLayer)
+          case(iname_snow, iname_lake, iname_soil, iname_glce); mLayerdWat_dt(iLayer) = mLayerVolFracWatTrial(iLayer) - mLayerVolFracWat(iLayer)
         end select
 
         ! -----
@@ -585,7 +585,7 @@ subroutine updateVars(&
                               derivative      = derivative                               )  ! intent(out):   derivative (J m-3 K-1)
 
                     ! * snow and soil
-            case(iname_snow, iname_lake, iname_soil, iname_ice)
+            case(iname_snow, iname_lake, iname_soil, iname_glce)
               call xTempSolve(&
                               ! constant over iterations
                               meltNrg         = meltNrg                        ,&  ! intent(in):    energy for melt+freeze (J m-3)
@@ -601,7 +601,7 @@ subroutine updateVars(&
                               derivative      = derivative                      )  ! intent(out):   derivative (J m-3 K-1)
 
             ! * check
-            case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_ice'; return
+            case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_glce'; return
 
           end select  ! domain type
 
@@ -629,7 +629,7 @@ subroutine updateVars(&
           if(abs(residual) < nrgConvTol .or. abs(tempInc) < tempConvTol) exit iterations
 
           ! add constraints for snow/ice temperature
-          if(ixDomainType==iname_veg .or. ixDomainType==iname_snow  .or. ixDomainType==iname_lake  .or. ixDomainType==iname_ice)then
+          if(ixDomainType==iname_veg .or. ixDomainType==iname_snow  .or. ixDomainType==iname_lake  .or. ixDomainType==iname_glce)then
             if(tempInc > Tcrit - xTemp) tempInc=(Tcrit - xTemp)*0.5_rkind  ! simple bi-section method
           endif  ! if the domain is vegetation, snow, lake, or ice
 
@@ -662,7 +662,7 @@ subroutine updateVars(&
       ! save temperature
       select case(ixDomainType)
         case(iname_veg);                                      scalarCanopyTempTrial   = xTemp
-        case(iname_snow,  iname_lake, iname_soil, iname_ice); mLayerTempTrial(iLayer) = xTemp
+        case(iname_snow,  iname_lake, iname_soil, iname_glce); mLayerTempTrial(iLayer) = xTemp
       end select
 
       ! calculate temperature component of enthalpy for remaining domains
@@ -679,9 +679,9 @@ subroutine updateVars(&
         else
           scalarCanopyEnthTempTrial = realMissing
         endif
-      elseif(ixDomainType==iname_snow .or. ixDomainType==iname_lake  .or. ixDomainType==iname_ice)then
+      elseif(ixDomainType==iname_snow .or. ixDomainType==iname_lake  .or. ixDomainType==iname_glce)then
         if(computeEnthTemp)then
-          call T2enthTemp_snLaIc(&
+          call T2enthTemp_SnLaGl(&
                       snowfrz_scale,                   & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                       mLayerTempTrial(iLayer),         & ! intent(in):  layer temperature (K)
                       mLayerVolFracWatTrial(iLayer),   & ! intent(in):  volumetric total water content (-)

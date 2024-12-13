@@ -31,7 +31,7 @@ USE multiconst,only:&
 ! access named variables for snow and soil
 USE globalData,only:iname_snow        ! named variables for snow
 USE globalData,only:iname_soil        ! named variables for soil
-USE globalData,only:iname_ice         ! named variables for ice
+USE globalData,only:iname_glce         ! named variables for glacier ice
 USE globalData,only:iname_lake        ! named variables for lake
 
 ! access missing values
@@ -117,7 +117,7 @@ contains
  integer(i4b)                    :: nSnow                  ! number of snow layers
  integer(i4b)                    :: nLake                  ! number of lake layers
  integer(i4b)                    :: nSoil                  ! number of soil layers
- integer(i4b)                    :: nIce                   ! number of ice layers
+ integer(i4b)                    :: nGlce                  ! number of glacier ice layers
  integer(i4b)                    :: nLayers                ! total number of layers
  integer(i4b)                    :: iLayer                 ! layer index
  integer(i4b)                    :: jLayer                 ! layer index
@@ -181,7 +181,7 @@ contains
  nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
  nLake   = indx_data%var(iLookINDEX%nLake)%dat(1)
  nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
- nIce    = indx_data%var(iLookINDEX%nIce)%dat(1)
+ nGlce   = indx_data%var(iLookINDEX%nGlce)%dat(1)
  nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
 
  ! ***** special case of no snow layers
@@ -329,7 +329,7 @@ contains
   nSnow            => indx_data%var(iLookINDEX%nSnow)%dat(1)          ,& ! number of snow layers
   nLake            => indx_data%var(iLookINDEX%nLake)%dat(1)          ,& ! number of lake layers
   nSoil            => indx_data%var(iLookINDEX%nSoil)%dat(1)          ,& ! number of soil layers
-  nIce             => indx_data%var(iLookINDEX%nIce)%dat(1)           ,& ! number of ice layers
+  nGlce            => indx_data%var(iLookINDEX%nGlce)%dat(1)          ,& ! number of glacier ice layers
   nLayers          => indx_data%var(iLookINDEX%nLayers)%dat(1)         & ! total number of layers
   )  ! (association of local variables with coordinate variab;es in data structures)
 
@@ -337,14 +337,14 @@ contains
   layerType(1:nSnow+1)                                                = iname_snow
   if(nLake>0) layerType(nSnow+2:nSnow+nLake+1)                        = iname_lake
   if(nSoil>0) layerType(nSnow+nLake+2:nSnow+nLake+nSoil+1)            = iname_soil
-  if(nIce>0)  layerType(nSnow+nLake+nSoil+2:nSnow+nLake+nSoil+nIce+1) = iname_ice
+  if(nGlce>0) layerType(nSnow+nLake+nSoil+2:nSnow+nLake+nSoil+nGlce+1)= iname_glce
 
   ! identify the number of layers, and check all is a-OK
   nSnow   = count(layerType(1:nLayers+1)==iname_snow)
   nLake   = count(layerType(1:nLayers+1)==iname_lake)
   nSoil   = count(layerType(1:nLayers+1)==iname_soil)
-  nIce    = count(layerType(1:nLayers+1)==iname_ice)
-  nLayers = nSnow + nLake + nSoil + nIce
+  nGlce   = count(layerType(1:nLayers+1)==iname_glce)
+  nLayers = nSnow + nLake + nSoil + nGlce
 
   ! re-set coordinate variables
   iLayerHeight(0) = -scalarSnowDepth

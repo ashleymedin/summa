@@ -63,7 +63,7 @@ USE globalData,only:iname_cas        ! named variables for canopy air space
 USE globalData,only:iname_veg        ! named variables for vegetation canopy
 USE globalData,only:iname_snow       ! named variables for snow
 USE globalData,only:iname_soil       ! named variables for soil
-USE globalData,only:iname_ice        ! named variables for ice
+USE globalData,only:iname_glce       ! named variables for glacier ice
 USE globalData,only:iname_lake       ! named variables for lake
 USE globalData,only:iname_aquifer    ! named variables for the aquifer
 
@@ -112,10 +112,10 @@ USE f2008funcs_module,only:findIndex             ! finds the index of the first 
   ! make association with variables in the data structures
   associate(&
     ! vector of energy and hydrology indices for the layer domains
-    ixSnLaSoIcNrg       => indx_data%var(iLookINDEX%ixSnLaSoIcNrg)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for energy state variables in the layer domains
-    ixSnLaSoIcHyd       => indx_data%var(iLookINDEX%ixSnLaSoIcHyd)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for hydrology state variables in the layer domains
-    nSnLaSoIcNrg        => indx_data%var(iLookINDEX%nSnLaSoIcNrg )%dat(1)         ,& ! intent(in) : [i4b]    number of energy state variables in the layer domains
-    nSnLaSoIcHyd        => indx_data%var(iLookINDEX%nSnLaSoIcHyd )%dat(1)         ,& ! intent(in) : [i4b]    number of hydrology state variables in the layer domains
+    ixSnLaSoGlNrg       => indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for energy state variables in the layer domains
+    ixSnLaSoGlHyd       => indx_data%var(iLookINDEX%ixSnLaSoGlHyd)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for hydrology state variables in the layer domains
+    nSnLaSoGlNrg        => indx_data%var(iLookINDEX%nSnLaSoGlNrg )%dat(1)         ,& ! intent(in) : [i4b]    number of energy state variables in the layer domains
+    nSnLaSoGlHyd        => indx_data%var(iLookINDEX%nSnLaSoGlHyd )%dat(1)         ,& ! intent(in) : [i4b]    number of hydrology state variables in the layer domains
     ! type of model state variabless
     ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in) : [i4b(:)] [state subset] type of desired model state variables
     ! number of layers
@@ -137,17 +137,17 @@ USE f2008funcs_module,only:findIndex             ! finds the index of the first 
     where(ixStateType_subset==iname_liqCanopy) sMul = 1._rkind        ! nothing else on the left hand side
 
     ! define the energy multiplier for the state vector for residual calculations (snow-soil domain)
-    if(nSnLaSoIcNrg>0)then
-      do concurrent (iLayer=1:nLayers,ixSnLaSoIcNrg(iLayer)/=integerMissing) ! (loop through non-missing energy state variables in the layer domains)
-        ixStateSubset        = ixSnLaSoIcNrg(iLayer) ! index within the state vector
+    if(nSnLaSoGlNrg>0)then
+      do concurrent (iLayer=1:nLayers,ixSnLaSoGlNrg(iLayer)/=integerMissing) ! (loop through non-missing energy state variables in the layer domains)
+        ixStateSubset        = ixSnLaSoGlNrg(iLayer) ! index within the state vector
         sMul(ixStateSubset)  = mLayerHeatCap(iLayer) ! transfer volumetric heat capacity to the state multiplier
       end do  ! looping through non-missing energy state variables in the layer domains
     endif
 
     ! define the hydrology multiplier and diagonal elements for the state vector for residual calculations (snow-soil domain)
-    if(nSnLaSoIcHyd>0)then
-      do concurrent (iLayer=1:nLayers,ixSnLaSoIcHyd(iLayer)/=integerMissing) ! (loop through non-missing energy state variables in the layer domains)
-        ixStateSubset        = ixSnLaSoIcHyd(iLayer) ! index within the state vector
+    if(nSnLaSoGlHyd>0)then
+      do concurrent (iLayer=1:nLayers,ixSnLaSoGlHyd(iLayer)/=integerMissing) ! (loop through non-missing energy state variables in the layer domains)
+        ixStateSubset        = ixSnLaSoGlHyd(iLayer) ! index within the state vector
         sMul(ixStateSubset)  = 1._rkind              ! state multiplier = 1 (nothing else on the left-hand-side)
       end do  ! looping through non-missing energy state variables in the layer domains
     endif
@@ -284,9 +284,9 @@ subroutine computHeatCapAnalytic(&
           case(iname_snow);    iLayer = ixControlIndex
           case(iname_lake);    iLayer = ixControlIndex + nSnow
           case(iname_soil);    iLayer = ixControlIndex + nSnow + nLake
-          case(iname_ice);     iLayer = ixControlIndex + nSnow + nLake + nSoil
+          case(iname_glce);    iLayer = ixControlIndex + nSnow + nLake + nSoil
           case(iname_aquifer); cycle ! aquifer: do nothing (no thermodynamics in the aquifer)
-          case default; err=20; message=trim(message)//'expect case to be iname_cas, iname_veg, iname_snow, iname_lake, iname_soil, iname_ice, iname_soil, or iname_aquifer'; return
+          case default; err=20; message=trim(message)//'expect case to be iname_cas, iname_veg, iname_snow, iname_lake, iname_soil, iname_glce, iname_soil, or iname_aquifer'; return
         end select
 
         ! identify domain
@@ -306,7 +306,7 @@ subroutine computHeatCapAnalytic(&
               dVolHtCapBulk_dTkCanopy = 0._rkind
             endif
 
-          case(iname_snow, iname_lake, iname_ice)
+          case(iname_snow, iname_lake, iname_glce)
             mLayerHeatCap(iLayer) =  iden_ice   * Cp_ice   * mLayerVolFracIce(iLayer) + & ! ice component
                                      iden_water * Cp_water * mLayerVolFracLiq(iLayer) + & ! liquid water component
                                      iden_air   * Cp_air   * ( 1._rkind - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) ) ! air component
@@ -434,9 +434,9 @@ subroutine computCm(&
           case(iname_snow);    iLayer = ixControlIndex
           case(iname_lake);    iLayer = ixControlIndex + nSnow
           case(iname_soil);    iLayer = ixControlIndex + nSnow + nLake
-          case(iname_ice);     iLayer = ixControlIndex + nSnow + nLake + nSoil
+          case(iname_glce);    iLayer = ixControlIndex + nSnow + nLake + nSoil
           case(iname_aquifer); cycle ! aquifer: do nothing (no thermodynamics in the aquifer)
-          case default; err=20; message=trim(message)//'expect case to be iname_cas, iname_veg, iname_lake, iname_soil, iname_ice, iname_soil, or iname_aquifer'; return
+          case default; err=20; message=trim(message)//'expect case to be iname_cas, iname_veg, iname_lake, iname_soil, iname_glce, iname_soil, or iname_aquifer'; return
         end select
 
         ! identify domain
@@ -457,7 +457,7 @@ subroutine computCm(&
               dCm_dTkCanopy = Cp_water * d_integral_dTk + Cp_ice * (1._rkind - d_integral_dTk)
             end if
 
-          case(iname_snow, iname_lake, iname_ice)
+          case(iname_snow, iname_lake, iname_glce)
             diffT = mLayerTemp(iLayer) - Tfreeze
             if(diffT>=0._rkind)then
               mLayerCm(iLayer) = (iden_water * Cp_water - iden_air * Cp_air) * diffT

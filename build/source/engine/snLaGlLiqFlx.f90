@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module snLaIcLiqFlx_module
+module snLaGlLiqFlx_module
 
 ! access modules
 USE nrtype                                 ! numerical recipes data types
@@ -37,45 +37,45 @@ USE var_lookup,only:iLookDIAG              ! named variables for structure eleme
 ! data types
 USE data_types,only:var_dlength            ! x%var(:)%dat [rkind]
 USE data_types,only:var_ilength            ! x%var(:)%dat [i4b]
-USE data_types,only:in_type_snLaIcLiqFlx     ! data type for intent(in) arguments
-USE data_types,only:io_type_snLaIcLiqFlx     ! data type for intent(inout) arguments
-USE data_types,only:out_type_snLaIcLiqFlx    ! data type for intent(out) arguments
+USE data_types,only:in_type_snLaGlLiqFlx     ! data type for intent(in) arguments
+USE data_types,only:io_type_snLaGlLiqFlx     ! data type for intent(inout) arguments
+USE data_types,only:out_type_snLaGlLiqFlx    ! data type for intent(out) arguments
 
 ! privacy
 implicit none
 private
-public :: snLaIcLiqFlx
+public :: snLaGlLiqFlx
 contains
 ! ************************************************************************************************
-! public subroutine snLaIcLiqFlx: compute liquid water flux through the snowpack
+! public subroutine snLaGlLiqFlx: compute liquid water flux through the snowpack
 ! ************************************************************************************************
-subroutine snLaIcLiqFlx(&
+subroutine snLaGlLiqFlx(&
                       ! input: model control, forcing, and model state vector
-                      in_snLaIcLiqFlx,           & ! intent(in):    model control, forcing, and model state vector
+                      in_snLaGlLiqFlx,           & ! intent(in):    model control, forcing, and model state vector
                       ! input-output: data structures
                       mpar_data,               & ! intent(in):    model parameters
                       indx_data,               & ! intent(in):    model indices
                       prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                       diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                       ! input-output: fluxes and derivatives
-                      io_snLaIcLiqFlx,           & ! intent(inout): fluxes and derivatives
+                      io_snLaGlLiqFlx,           & ! intent(inout): fluxes and derivatives
                       ! output: error control
-                      out_snLaIcLiqFlx)            ! intent(out):   error control
+                      out_snLaGlLiqFlx)            ! intent(out):   error control
   implicit none
   ! input: model control, forcing, and model state vector
-  type(in_type_snLaIcLiqFlx)          :: in_snLaIcLiqFlx              ! model control, forcing, and model state vector
+  type(in_type_snLaGlLiqFlx)          :: in_snLaGlLiqFlx              ! model control, forcing, and model state vector
   ! input-output: data structures
   type(var_dlength),intent(in)      :: mpar_data                  ! model parameters
   type(var_ilength),intent(in)      :: indx_data                  ! model indices
   type(var_dlength),intent(in)      :: prog_data                  ! prognostic variables for a local HRU
   type(var_dlength),intent(inout)   :: diag_data                  ! diagnostic variables for a local HRU
   ! input-output: fluxes and derivatives
-  type(io_type_snLaIcLiqFlx)          :: io_snLaIcLiqFlx              ! fluxes and derivatives
+  type(io_type_snLaGlLiqFlx)          :: io_snLaGlLiqFlx              ! fluxes and derivatives
   ! output: error control
-  type(out_type_snLaIcLiqFlx)         :: out_snLaIcLiqFlx             ! error control
+  type(out_type_snLaGlLiqFlx)         :: out_snLaGlLiqFlx             ! error control
   ! ------------------------------  ------------------------------------------------------------------------------------------------------------
   ! local variables
-  integer(i4b)                      :: nLayers,nStart             ! number of snow/ice layers and starting layer
+  integer(i4b)                      :: nLayers,nStart             ! number of snow/glce layers and starting layer
   integer(i4b)                      :: iLayer                     ! layer index
   integer(i4b)                      :: ixLayerDesired(1)          ! layer desired (scalar solution)
   integer(i4b)                      :: ixTop                      ! top layer in subroutine call
@@ -88,26 +88,26 @@ subroutine snLaIcLiqFlx(&
   real(rkind)                       :: relSaturn                  ! relative saturation [0,1] (-)
   real(rkind)                       :: k_param                    ! hydraulic conductivity parameter (m s-1)
   logical(lgt)                      :: do_snow                    ! flag to denote if snow is present
-  real(rkind)                       :: iLayerLiqFluxSnLaIc(0:in_snLaIcLiqFlx % nLayers)
-  real(rkind)                       :: iLayerLiqFluxSnLaIcDeriv(0:in_snLaIcLiqFlx % nLayers)  
+  real(rkind)                       :: iLayerLiqFluxSnLaGl(0:in_snLaGlLiqFlx % nLayers)
+  real(rkind)                       :: iLayerLiqFluxSnLaGlDeriv(0:in_snLaGlLiqFlx % nLayers)  
   ! ------------------------------------------------------------------------------------------------------------------------------------------
   ! make association of local variables with information in the data structures
-  do_snow = in_snLaIcLiqFlx % do_snow ! flag to denote if snow is present
-  nLayers = in_snLaIcLiqFlx % nLayers ! get number of snow/ice layers
-  nStart = in_snLaIcLiqFlx % nStart ! get the start index for the layers
+  do_snow = in_snLaGlLiqFlx % do_snow ! flag to denote if snow is present
+  nLayers = in_snLaGlLiqFlx % nLayers ! get number of snow/glce layers
+  nStart = in_snLaGlLiqFlx % nStart ! get the start index for the layers
 
   associate(&
     ! input: model control
-    firstFluxCall           => in_snLaIcLiqFlx % firstFluxCall,           & ! intent(in): the first flux call
-    scalarSolution          => in_snLaIcLiqFlx % scalarSolution,          & ! intent(in): flag to denote if implementing the scalar solution
+    firstFluxCall           => in_snLaGlLiqFlx % firstFluxCall,           & ! intent(in): the first flux call
+    scalarSolution          => in_snLaGlLiqFlx % scalarSolution,          & ! intent(in): flag to denote if implementing the scalar solution
     ! input: forcing for the top layer
-    surface_flux            => in_snLaIcLiqFlx % surface_flux,            & ! intent(in): liquid water flux at the surface (m s-1)
+    surface_flux            => in_snLaGlLiqFlx % surface_flux,            & ! intent(in): liquid water flux at the surface (m s-1)
     ! input: model state vector
-    mLayerVolFracLiqTrial   => in_snLaIcLiqFlx % mLayerVolFracLiqTrial,   & ! intent(in): trial value of volumetric fraction of liquid water at the current iteration (-)
+    mLayerVolFracLiqTrial   => in_snLaGlLiqFlx % mLayerVolFracLiqTrial,   & ! intent(in): trial value of volumetric fraction of liquid water at the current iteration (-)
     ! input: layer indices
     ixLayerState     => indx_data%var(iLookINDEX%ixLayerState)%dat,             & ! intent(in):    list of indices for all model layers
     ixSnowOnlyHyd    => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat,            & ! intent(in):    index in the state subset for hydrology state variables in the snow domain
-    ixIceOnlyHyd     => indx_data%var(iLookINDEX%ixIceOnlyHyd)%dat,             & ! intent(in):    index in the state subset for hydrology state variables in the ice domain
+    ixGlceOnlyHyd    => indx_data%var(iLookINDEX%ixGlceOnlyHyd)%dat,            & ! intent(in):    index in the state subset for hydrology state variables in the glacier ice domain
     ! input: snow properties and parameters
     mLayerVolFracIce => prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nStart+1:nStart+nLayers), & ! intent(in):    volumetric ice content at the start of the time step (-)
     Fcapil           => mpar_data%var(iLookPARAM%Fcapil)%dat(1),                & ! intent(in):    capillary retention as a fraction of the total pore volume (-)
@@ -118,23 +118,23 @@ subroutine snLaIcLiqFlx(&
     mLayerPoreSpace  => diag_data%var(iLookDIAG%mLayerPoreSpace)%dat(nStart+1:nStart+nLayers),  & ! intent(inout): pore space in each layer (-)
     mLayerThetaResid => diag_data%var(iLookDIAG%mLayerThetaResid)%dat(nStart+1:nStart+nLayers), & ! intent(inout): residual volumetric liquid water content in each layer (-)
     ! input-output: fluxes and derivatives
-    iLayerLiqFluxSnLaIc0      => io_snLaIcLiqFlx % iLayerLiqFluxSnLaIc,               & ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
-    iLayerLiqFluxSnLaIcDeriv0 => io_snLaIcLiqFlx % iLayerLiqFluxSnLaIcDeriv,          & ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
+    iLayerLiqFluxSnLaGl0      => io_snLaGlLiqFlx % iLayerLiqFluxSnLaGl,               & ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
+    iLayerLiqFluxSnLaGlDeriv0 => io_snLaGlLiqFlx % iLayerLiqFluxSnLaGlDeriv,          & ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
     ! output: error control
-    err                    => out_snLaIcLiqFlx % err,                             & ! intent(out):   error code
-    message                => out_snLaIcLiqFlx % cmessage                         & ! intent(out):   error message
+    err                    => out_snLaGlLiqFlx % err,                             & ! intent(out):   error code
+    message                => out_snLaGlLiqFlx % cmessage                         & ! intent(out):   error message
     ) ! end association of local variables with information in the data structures
     ! ------------------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
-    err=0; message='snLaIcLiqFlx/'
+    err=0; message='snLaGlLiqFlx/'
 
     ! initialize with index 0
-    iLayerLiqFluxSnLaIc = iLayerLiqFluxSnLaIc0
-    iLayerLiqFluxSnLaIcDeriv = iLayerLiqFluxSnLaIcDeriv0
+    iLayerLiqFluxSnLaGl = iLayerLiqFluxSnLaGl0
+    iLayerLiqFluxSnLaGlDeriv = iLayerLiqFluxSnLaGlDeriv0
 
     ! check that the input vectors match nLayers
     if (size(mLayerVolFracLiqTrial)/=nLayers .or. size(mLayerVolFracIce)/=nLayers .or. &
-        size(iLayerLiqFluxSnLaIc)/=nLayers+1 .or. size(iLayerLiqFluxSnLaIcDeriv)/=nLayers+1) then
+        size(iLayerLiqFluxSnLaGl)/=nLayers+1 .or. size(iLayerLiqFluxSnLaGlDeriv)/=nLayers+1) then
       err=20; message=trim(message)//'size mismatch of input/output vectors'; return
     end if
 
@@ -158,7 +158,7 @@ subroutine snLaIcLiqFlx(&
       if (do_snow)then
         ixLayerDesired = pack(ixLayerState, ixSnowOnlyHyd/=integerMissing)
       else
-        ixLayerDesired = pack(ixLayerState, ixIceOnlyHyd/=integerMissing)
+        ixLayerDesired = pack(ixLayerState, ixGlceOnlyHyd/=integerMissing)
       end if
       ixTop = ixLayerDesired(1)
       ixBot = ixLayerDesired(1)
@@ -168,43 +168,43 @@ subroutine snLaIcLiqFlx(&
     end if
 
     ! define the liquid flux at the upper boundary (m s-1)
-    iLayerLiqFluxSnLaIc(0)      = surface_flux
-    iLayerLiqFluxSnLaIcDeriv(0) = 0._rkind !computed inside computJacob
+    iLayerLiqFluxSnLaGl(0)      = surface_flux
+    iLayerLiqFluxSnLaGlDeriv(0) = 0._rkind !computed inside computJacob
 
     ! compute properties fixed over the time step
     if (firstFluxCall) then
-      ! loop through snow/ice layers
-      do iLayer=1,nLayers ! loop through snow/ice layers
+      ! loop through snow/glce layers
+      do iLayer=1,nLayers ! loop through snow/glce layers
         multResid = 1._rkind/(1._rkind + exp((mLayerVolFracIce(iLayer)*iden_ice - residThrs)/residScal)) ! compute the reduction in liquid water holding capacity at high snow/ice density (-)
         mLayerPoreSpace(iLayer)  = 1._rkind - mLayerVolFracIce(iLayer) ! compute the pore space (-)
         mLayerThetaResid(iLayer) = Fcapil*mLayerPoreSpace(iLayer)*multResid ! compute the residual volumetric liquid water content (-)
-      end do  ! end looping through snow/ice layers
+      end do  ! end looping through snow/glce layers
     end if  ! end if the first flux call
      
     ! compute fluxes
-    do iLayer=ixTop,ixBot  ! loop through snow/ice layers
+    do iLayer=ixTop,ixBot  ! loop through snow/glce layers
       if (mLayerVolFracLiqTrial(iLayer) > mLayerThetaResid(iLayer)) then ! check that flow occurs
         ! compute the relative saturation (-)
         availCap  = mLayerPoreSpace(iLayer) - mLayerThetaResid(iLayer)                 ! available capacity
         relSaturn = (mLayerVolFracLiqTrial(iLayer) - mLayerThetaResid(iLayer)) / availCap    ! relative saturation
-        iLayerLiqFluxSnLaIc(iLayer)      = k_param*relSaturn**mw_exp
-        iLayerLiqFluxSnLaIcDeriv(iLayer) = ( (k_param*mw_exp)/availCap ) * relSaturn**(mw_exp - 1._rkind)
+        iLayerLiqFluxSnLaGl(iLayer)      = k_param*relSaturn**mw_exp
+        iLayerLiqFluxSnLaGlDeriv(iLayer) = ( (k_param*mw_exp)/availCap ) * relSaturn**(mw_exp - 1._rkind)
         if (mLayerVolFracIce(iLayer) > maxVolIceContent) then ! NOTE: use start-of-step ice content, to avoid convergence problems
           ! ** allow liquid water to pass through under very high ice density
-          iLayerLiqFluxSnLaIc(iLayer) = iLayerLiqFluxSnLaIc(iLayer) + iLayerLiqFluxSnLaIc(iLayer-1) !NOTE: derivative may need to be updated in future.
+          iLayerLiqFluxSnLaGl(iLayer) = iLayerLiqFluxSnLaGl(iLayer) + iLayerLiqFluxSnLaGl(iLayer-1) !NOTE: derivative may need to be updated in future.
         end if
       else  ! flow does not occur
-        iLayerLiqFluxSnLaIc(iLayer)      = 0._rkind
-        iLayerLiqFluxSnLaIcDeriv(iLayer) = 0._rkind
+        iLayerLiqFluxSnLaGl(iLayer)      = 0._rkind
+        iLayerLiqFluxSnLaGlDeriv(iLayer) = 0._rkind
       end if  ! storage above residual content
-    end do  ! end loop through snow/ice layers
+    end do  ! end loop through snow/glce layers
 
     ! save the results with index 0
-    iLayerLiqFluxSnLaIc0 = iLayerLiqFluxSnLaIc
-    iLayerLiqFluxSnLaIcDeriv0 = iLayerLiqFluxSnLaIcDeriv
+    iLayerLiqFluxSnLaGl0 = iLayerLiqFluxSnLaGl
+    iLayerLiqFluxSnLaGlDeriv0 = iLayerLiqFluxSnLaGlDeriv
 
   end associate ! end association of local variables with information in the data structures
 
-end subroutine snLaIcLiqFlx
+end subroutine snLaGlLiqFlx
 
-end module snLaIcLiqFlx_module
+end module snLaGlLiqFlx_module

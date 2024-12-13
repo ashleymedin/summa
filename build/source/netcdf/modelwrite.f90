@@ -32,7 +32,7 @@ USE globalData,only: integerMissing, realMissing
 ! output constraints
 USE globalData,only: maxSnowLayers      ! maximum number of snow layers
 USE globalData,only: maxSoilLayers      ! maximum number of soil layers
-USE globalData,only: maxIceLayers       ! maximum number of ice layers
+USE globalData,only: maxGlceLayers      ! maximum number of glacier ice layers
 USE globalData,only: maxLakeLayers      ! maximum number of lake layers
 USE globalData,only: maxGlaciers        ! maximum number of glaciers
 USE globalData,only: maxGrid            ! maximum number of grids in a GRU
@@ -186,7 +186,7 @@ contains
  integer(i4b)                         :: nSnow             ! number of snow layers
  integer(i4b)                         :: nLake             ! number of lake layers
  integer(i4b)                         :: nSoil             ! number of soil layers
- integer(i4b)                         :: nIce              ! number of glacier ice layers
+ integer(i4b)                         :: nGlce             ! number of glacier ice layers
  integer(i4b)                         :: nLayers           ! total number of layers
  ! output arrays
  integer(i4b)                         :: datLength         ! length of each data vector
@@ -288,7 +288,7 @@ contains
        nSnow   = indx%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSnow)%dat(1)
        nLake   = indx%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLake)%dat(1)
        nSoil   = indx%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSoil)%dat(1)
-       nIce    = indx%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nIce)%dat(1)
+       nGlce   = indx%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1)
        nLayers = indx%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLayers)%dat(1)
 
        ! get the length of each data vector
@@ -298,12 +298,12 @@ contains
         case(iLookVarType%midSnow); datLength = nSnow
         case(iLookVarType%midLake); datLength = nLake
         case(iLookVarType%midSoil); datLength = nSoil
-        case(iLookVarType%midIce ); datLength = nIce
+        case(iLookVarType%midGlce); datLength = nGlce
         case(iLookVarType%ifcToto); datLength = nLayers+1
         case(iLookVarType%ifcSnow); datLength = nSnow+1
         case(iLookVarType%ifcLake); datLength = nLake+1
         case(iLookVarType%ifcSoil); datLength = nSoil+1
-        case(iLookVarType%ifcIce ); datLength = nIce+1
+        case(iLookVarType%ifcGlce); datLength = nGlce+1
         case default; cycle
        end select ! vartype
        
@@ -324,12 +324,12 @@ contains
      case(iLookVarType%midSnow); maxLength = maxSnowLayers
      case(iLookVarType%midSoil); maxLength = maxSoilLayers
      case(iLookVarType%midLake); maxLength = maxLakeLayers
-     case(iLookVarType%midIce ); maxLength = maxIceLayers
+     case(iLookVarType%midGlce); maxLength = maxGlceLayers
      case(iLookVarType%ifcToto); maxLength = maxLayers+1
      case(iLookVarType%ifcSnow); maxLength = maxSnowLayers+1
      case(iLookVarType%ifcSoil); maxLength = maxSoilLayers+1
      case(iLookVarType%ifcLake); maxLength = maxLakeLayers+1
-     case(iLookVarType%ifcIce ); maxLength = maxIceLayers+1
+     case(iLookVarType%ifcGlce); maxLength = maxGlceLayers+1
      case default; cycle
     end select ! vartype
 
@@ -538,7 +538,7 @@ contains
  integer(i4b)                       :: nSnow         ! number of snow layers
  integer(i4b)                       :: nLake         ! number of lake layers
  integer(i4b)                       :: nSoil         ! number of soil layers
- integer(i4b)                       :: nIce          ! number of glacier ice layers
+ integer(i4b)                       :: nGlce         ! number of glacier ice layers
  integer(i4b)                       :: nLayers       ! number of total layers
  integer(i4b),parameter             :: nScalar=1     ! size of a scalar
  integer(i4b)                       :: nProgVars     ! number of prognostic variables written to state file
@@ -555,8 +555,8 @@ contains
  integer(i4b)                       :: ifcSoilDimID  ! variable dimension ID
  integer(i4b)                       :: midSnowDimID  ! variable dimension ID
  integer(i4b)                       :: ifcSnowDimID  ! variable dimension ID
- integer(i4b)                       :: midIceDimID   ! variable dimension ID
- integer(i4b)                       :: ifcIceDimID   ! variable dimension ID
+ integer(i4b)                       :: midGlceDimID  ! variable dimension ID
+ integer(i4b)                       :: ifcGlceDimID  ! variable dimension ID
  integer(i4b)                       :: midLakeDimID  ! variable dimension ID
  integer(i4b)                       :: ifcLakeDimID  ! variable dimension ID
  character(len=32),parameter        :: hruDimName    ='hru'      ! dimension name for HRUs
@@ -572,8 +572,8 @@ contains
  character(len=32),parameter        :: ifcSoilDimName='ifcSoil'  ! dimension name for soil-only layers
  character(len=32),parameter        :: midSnowDimName='midSnow'  ! dimension name for snow-only layers
  character(len=32),parameter        :: ifcSnowDimName='ifcSnow'  ! dimension name for snow-only layers
- character(len=32),parameter        :: midIceDimName ='midIce'   ! dimension name for glacier ice-only layers
- character(len=32),parameter        :: ifcIceDimName ='ifcIce'   ! dimension name for glacier ice-only layers
+ character(len=32),parameter        :: midGlceDimName='midGlce'  ! dimension name for glacier ice-only layers
+ character(len=32),parameter        :: ifcGlceDimName='ifcGlce'  ! dimension name for glacier ice-only layers
  character(len=32),parameter        :: midLakeDimName='midLake'  ! dimension name for lake-only layers
  character(len=32),parameter        :: ifcLakeDimName='ifcLake'  ! dimension name for lake-only layers
  integer(i4b)                       :: cHRU          ! count of HRUs
@@ -593,7 +593,7 @@ contains
  ! size of prognostic variable vector
  nProgVars = size(prog_meta)
  ! include additional basin variable in ID array
- if (maxIceLayers > 0)then
+ if (maxGlceLayers > 0)then
    ngdx = (/iLookBVAR%glacAblArea, iLookBVAR%glacAccArea, iLookBVAR%glacIceRunoffFuture, iLookBVAR%glacSnowRunoffFuture, iLookBVAR%glacFirnRunoffFuture/)
    allocate(ncVarID(nProgVars+2+size(ngdx)))
  else
@@ -601,7 +601,7 @@ contains
  end if
 
  ! index variables
- nidx = (/iLookINDEX%nSnow, iLookINDEX%nLake, iLookINDEX%nSoil, iLookINDEX%nIce/)
+ nidx = (/iLookINDEX%nSnow, iLookINDEX%nLake, iLookINDEX%nSoil, iLookINDEX%nGlce/)
 
  ! create file
  err = nf90_create(trim(filename),NF90_NETCDF4,ncid)
@@ -621,8 +621,8 @@ contains
  if (maxSoilLayers>0) err = nf90_def_dim(ncid,trim(ifcSoilDimName),maxSoilLayers+1,ifcSoilDimID); message='iCreate[ifcSoil]' ; call netcdf_err(err,message); if(err/=0)return
  if (maxSnowLayers>0) err = nf90_def_dim(ncid,trim(midSnowDimName),maxSnowLayers  ,midSnowDimID); message='iCreate[midSnow]' ; call netcdf_err(err,message); if(err/=0)return
  if (maxSnowLayers>0) err = nf90_def_dim(ncid,trim(ifcSnowDimName),maxSnowLayers+1,ifcSnowDimID); message='iCreate[ifcSnow]' ; call netcdf_err(err,message); if(err/=0)return
- if (maxIceLayers >0) err = nf90_def_dim(ncid,trim(midIceDimName) ,maxIceLayers   ,midIceDimID);  message='iCreate[midIce]'  ; call netcdf_err(err,message); if(err/=0)return
- if (maxIceLayers >0) err = nf90_def_dim(ncid,trim(ifcIceDimName) ,maxIceLayers+1 ,ifcIceDimID);  message='iCreate[ifcIce]'  ; call netcdf_err(err,message); if(err/=0)return
+ if (maxGlceLayers>0) err = nf90_def_dim(ncid,trim(midGlceDimName),maxGlceLayers  ,midGlceDimID); message='iCreate[midGlce]' ; call netcdf_err(err,message); if(err/=0)return
+ if (maxGlceLayers>0) err = nf90_def_dim(ncid,trim(ifcGlceDimName),maxGlceLayers+1,ifcGlceDimID); message='iCreate[ifcGlce]' ; call netcdf_err(err,message); if(err/=0)return
  if (maxLakeLayers>0) err = nf90_def_dim(ncid,trim(midLakeDimName),maxLakeLayers  ,midLakeDimID); message='iCreate[midLake]' ; call netcdf_err(err,message); if(err/=0)return
  if (maxLakeLayers>0) err = nf90_def_dim(ncid,trim(ifcLakeDimName),maxLakeLayers+1,ifcLakeDimID); message='iCreate[ifcLake]' ; call netcdf_err(err,message); if(err/=0)return
  ! re-initialize error control
@@ -642,8 +642,8 @@ contains
    case(iLookvarType%ifcSoil); if (maxSoilLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,ifcSoilDimID/),ncVarID(iVar))
    case(iLookvarType%midSnow); if (maxSnowLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,midSnowDimID/),ncVarID(iVar))
    case(iLookvarType%ifcSnow); if (maxSnowLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,ifcSnowDimID/),ncVarID(iVar))
-   case(iLookvarType%midIce);  if (maxIceLayers >0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,midIceDimID /),ncVarID(iVar))
-   case(iLookvarType%ifcIce);  if (maxIceLayers >0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,ifcIceDimID /),ncVarID(iVar))
+   case(iLookvarType%midGlce); if (maxGlceLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,midGlceDimID /),ncVarID(iVar))
+   case(iLookvarType%ifcGlce); if (maxGlceLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,ifcGlceDimID /),ncVarID(iVar))
    case(iLookvarType%midLake); if (maxLakeLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,midLakeDimID/),ncVarID(iVar))
    case(iLookvarType%ifcLake); if (maxLakeLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,ifcLakeDimID/),ncVarID(iVar))
   end select
@@ -669,7 +669,7 @@ contains
  err = nf90_put_att(ncid,ncVarID(nProgVars+1),'long_name',trim(bvar_meta(iLookBVAR%routingRunoffFuture)%vardesc));   call netcdf_err(err,message)
  err = nf90_put_att(ncid,ncVarID(nProgVars+1),'units'    ,trim(bvar_meta(iLookBVAR%routingRunoffFuture)%varunit));   call netcdf_err(err,message)
 
- if (maxIceLayers > 0)then
+ if (maxGlceLayers > 0)then
    do i=1,size(ngdx)
      iVar = ngdx(i)
      err = nf90_def_var(ncid, trim(bvar_meta(iVar)%varName), nf90_double, (/gruDimID, nglDimID/), ncVarID(nProgVars+i+1))
@@ -707,8 +707,8 @@ contains
       nSnow = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
       nLake = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake
       nSoil = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
-      nIce  = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce
-      nLayers = nSnow + nLake + nSoil + nIce
+      nGlce = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce
+      nLayers = nSnow + nLake + nSoil + nGlce
 
       ! check size
       ! NOTE: this may take time that we do not wish to use
@@ -724,8 +724,8 @@ contains
        case(iLookVarType%ifcLake); if (nLake>0) okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat) == nLake+1  )
        case(iLookVarType%midSoil); if (nSoil>0) okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat) == nSoil    )
        case(iLookVarType%ifcSoil); if (nSoil>0) okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat) == nSoil+1  )
-       case(iLookVarType%midIce);  if (nIce>0)  okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat) == nIce     )
-       case(iLookVarType%ifcIce);  if (nIce>0)  okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat) == nIce+1   )
+       case(iLookVarType%midGlce); if (nGlce>0) okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat) == nGlce    )
+       case(iLookVarType%ifcGlce); if (nGlce>0) okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat) == nGlce+1  )
        case default; err=20; message=trim(message)//'unknown var type'; return
       end select
 
@@ -747,8 +747,8 @@ contains
        case(iLookVarType%ifcLake); if (nLake>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU,1/),count=(/1,1,nLake+1  /))
        case(iLookVarType%midSoil); if (nSoil>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU,1/),count=(/1,1,nSoil    /))
        case(iLookVarType%ifcSoil); if (nSoil>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU,1/),count=(/1,1,nSoil+1  /))
-       case(iLookVarType%midIce);  if (nIce>0)  err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU,1/),count=(/1,1,nIce     /))
-       case(iLookVarType%ifcIce);  if (nIce>0)  err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU,1/),count=(/1,1,nIce+1   /))
+       case(iLookVarType%midGlce); if (nGlce>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU,1/),count=(/1,1,nGlce    /))
+       case(iLookVarType%ifcGlce); if (nGlce>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU,1/),count=(/1,1,nGlce+1  /))
        case default; err=20; message=trim(message)//'unknown var type'; return
       end select
 
@@ -770,7 +770,7 @@ contains
   
   ! write selected basin variables
   err=nf90_put_var(ncid,ncVarID(nProgVars+1),(/bvar_data%gru(iGRU)%var(iLookBVAR%routingRunoffFuture)%dat/), start=(/iGRU,1/),count=(/1,nTimeDelay/))
-  if (maxIceLayers > 0)then
+  if (maxGlceLayers > 0)then
     nGlacier = gru_struc(iGRU)%nGlacier
     do i=1,size(ngdx)
       iVar = ngdx(i)

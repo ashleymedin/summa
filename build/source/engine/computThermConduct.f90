@@ -26,7 +26,7 @@ USE globalData,only:realMissing     ! missing real number
 ! named variables that define the layer type
 USE globalData,only:iname_snow      ! named variables for snow
 USE globalData,only:iname_soil      ! named variables for soil
-USE globalData,only:iname_ice       ! named variables for ice
+USE globalData,only:iname_glce      ! named variables for glacier ice
 USE globalData,only:iname_lake      ! named variables for lake
 
 ! named variables
@@ -175,7 +175,7 @@ subroutine computThermConduct(&
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),                    & ! intent(in):  [dp]    number of snow layers
     nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1),                    & ! intent(in):  [dp]    number of lake layers
     nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1),                    & ! intent(in):  [dp]    number of soil layers
-    nIce                    => indx_data%var(iLookINDEX%nIce)%dat(1),                     & ! intent(in):  [dp]    number of ice layers
+    nGlce                   => indx_data%var(iLookINDEX%nGlce)%dat(1),                    & ! intent(in):  [dp]    number of glacier ice layers
     layerType               => indx_data%var(iLookINDEX%layerType)%dat,                   & ! intent(in):  [dp(:)] layer type (iname_soil or iname_snow)
     mLayerHeight            => prog_data%var(iLookPROG%mLayerHeight)%dat,                 & ! intent(in):  [dp(:)] height at the mid-point of each layer (m)
     iLayerHeight            => prog_data%var(iLookPROG%iLayerHeight)%dat,                 & ! intent(in):  [dp(:)] height at the interface of each layer (m)
@@ -224,8 +224,8 @@ subroutine computThermConduct(&
       ! * compute the volumetric fraction of air in each layer...
       ! *********************************************************
       select case(layerType(iLayer))
-        case(iname_soil);                        mLayerVolFracAir(iLayer) = theta_sat(iSoil) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
-        case(iname_snow, iname_lake, iname_ice); mLayerVolFracAir(iLayer) = 1._rkind - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
+        case(iname_soil);                         mLayerVolFracAir(iLayer) = theta_sat(iSoil) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
+        case(iname_snow, iname_lake, iname_glce); mLayerVolFracAir(iLayer) = 1._rkind - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
         case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute volumetric fraction of air'; return
       end select
 
@@ -343,7 +343,7 @@ subroutine computThermConduct(&
           end if
 
         ! ***** lake, ice
-        case(iname_lake, iname_ice)
+        case(iname_lake, iname_glce)
           if (mLayerTemp(iLayer) < Tfreeze) then
             dVolFracIce_dWat = ( 1._rkind - mLayerFracLiq(iLayer) )*(iden_water/iden_ice)
             dVolFracIce_dTk  = -mLayerdTheta_dTk(iLayer)*(iden_water/iden_ice)

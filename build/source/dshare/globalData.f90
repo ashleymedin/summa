@@ -94,7 +94,7 @@ MODULE globalData
   integer(i4b),parameter,public               :: iname_veg =1001                    ! named variable to denote a vegetation state variable
   integer(i4b),parameter,public               :: iname_soil=1002                    ! named variable to denote a soil layer
   integer(i4b),parameter,public               :: iname_snow=1003                    ! named variable to denote a snow layer
-  integer(i4b),parameter,public               :: iname_ice=1004                     ! named variable to denote an ice layer
+  integer(i4b),parameter,public               :: iname_glce=1004                     ! named variable to denote an ice layer
   integer(i4b),parameter,public               :: iname_lake=1005                    ! named variable to denote a lake layer
   integer(i4b),parameter,public               :: iname_aquifer=1006                 ! named variable to denote an aquifer state variable
   ! define named variables to describe the state variable type
@@ -224,7 +224,7 @@ MODULE globalData
   integer(i4b),save,public                       :: maxGrid                           ! maximum number of grids in a GRU
   integer(i4b),save,public                       :: maxGridX                          ! maximum number of grid cells in the x-direction
   integer(i4b),save,public                       :: maxGridY                          ! maximum number of grid cells in the y-direction
-  integer(i4b),save,public                       :: maxIceLayers                      ! maximum number of ice layers on glacier
+  integer(i4b),save,public                       :: maxGlceLayers                     ! maximum number of glacier ice layers on any glacier
   integer(i4b),save,public                       :: maxWetlands                       ! maximum number of wetlands in a GRU
   integer(i4b),save,public                       :: maxLakeLayers                     ! maximum number of lake layers
   ! define control variables

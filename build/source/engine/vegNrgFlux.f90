@@ -279,7 +279,7 @@ subroutine vegNrgFlux(&
     nSnow                           => indx_data%var(iLookINDEX%nSnow)%dat(1),                         & ! intent(in): [i4b] number of snow layers
     nLake                           => indx_data%var(iLookINDEX%nLake)%dat(1),                         & ! intent(in): [i4b] number of lake layers
     nSoil                           => indx_data%var(iLookINDEX%nSoil)%dat(1),                         & ! intent(in): [i4b] number of soil layers
-    nIce                            => indx_data%var(iLookINDEX%nIce)%dat(1),                          & ! intent(in): [i4b] number of ice layers
+    nGlce                           => indx_data%var(iLookINDEX%nGlce)%dat(1),                         & ! intent(in): [i4b] number of glacier ice layers
     nLayers                         => indx_data%var(iLookINDEX%nLayers)%dat(1),                       & ! intent(in): [i4b] total number of layers
     ! input: physical attributes
     vegTypeIndex                    => type_data%var(iLookTYPE%vegTypeIndex),                          & ! intent(in): [i4b] vegetation type index
@@ -413,7 +413,7 @@ subroutine vegNrgFlux(&
     scalarGroundAdvectiveHeatFlux   => flux_data%var(iLookFLUX%scalarGroundAdvectiveHeatFlux)%dat(1),  & ! intent(out): [dp] heat advected to the ground surface with throughfall (W m-2)
     ! output: mass fluxes
     scalarCanopySublimation         => flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1),        & ! intent(out): [dp] canopy sublimation/frost (kg m-2 s-1)
-    scalarSnowSublimation           => flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1),          & ! intent(out): [dp] snow sublimation/frost -- below canopy or non-vegetated (kg m-2 s-1)
+    scalarGroundSublimation         => flux_data%var(iLookFLUX%scalarGroundSublimation)%dat(1),        & ! intent(out): [dp] ground (or lake or glacier) sublimation/frost -- below canopy or non-vegetated (kg m-2 s-1)
     ! input/output: canopy air space variables
     scalarVP_CanopyAir              => diag_data%var(iLookDIAG%scalarVP_CanopyAir)%dat(1),             & ! intent(inout): [dp] vapor pressure of the canopy air space (Pa)
     scalarCanopyStabilityCorrection => diag_data%var(iLookDIAG%scalarCanopyStabilityCorrection)%dat(1),& ! intent(inout): [dp] stability correction for the canopy (-)
@@ -486,7 +486,7 @@ subroutine vegNrgFlux(&
         scalarGroundEvaporation   = 0._rkind    ! ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
         ! solid water fluxes associated with sublimation/frost
         scalarCanopySublimation   = 0._rkind    ! sublimation from the vegetation canopy ((kg m-2 s-1)
-        scalarSnowSublimation     = 0._rkind    ! sublimation from the snow surface ((kg m-2 s-1)
+        scalarGroundSublimation   = 0._rkind    ! sublimation from the ground (or lake or glacier) surface ((kg m-2 s-1)
         ! set canopy fluxes to zero (no canopy)
         canairNetFlux             = 0._rkind    ! net energy flux for the canopy air space (W m-2)
         canopyNetFlux             = 0._rkind    ! net energy flux for the vegetation canopy (W m-2)
@@ -519,7 +519,7 @@ subroutine vegNrgFlux(&
         if (ix_bcUpprTdyn == prescribedTemp) then
           ! compute ground net flux (W m-2)
           groundNetFlux = -diag_data%var(iLookDIAG%iLayerThermalC)%dat(0)*(groundTempTrial - upperBoundTemp)/(prog_data%var(iLookPROG%mLayerDepth)%dat(1)*0.5_rkind)
-          ! compute derivative in net ground flux w.r.t. ground temperature (W m-2 K-1) inside snow lake soil ice (snLaSoIc) energy flux routine
+          ! compute derivative in net ground flux w.r.t. ground temperature (W m-2 K-1) inside snow lake soil ice (snLaSoGl) energy flux routine
           ! dGroundNetFlux_dGroundTemp = missingValue
         elseif (ix_bcUpprTdyn == zeroFlux) then
           groundNetFlux              = 0._rkind
@@ -572,7 +572,7 @@ subroutine vegNrgFlux(&
               if (groundTempTrial<=Tfreeze) scalarLatHeatSubVapGround = LH_sub  ! sublimation from lake ice
             else if (nSoil>0)then
               scalarLatHeatSubVapGround = LH_vap  ! evaporation of water in the soil pores: this occurs even if frozen because of super-cooled water
-            else if (nIce>0)then
+            else if (nGlce>0)then
               scalarLatHeatSubVapGround = LH_sub  ! sublimation from glacier ice
             else
               err=20; message=trim(message)//'unable to identify snow-free ground surface'; return
@@ -588,7 +588,7 @@ subroutine vegNrgFlux(&
           if (groundTempTrial<=Tfreeze) z0Ground = z0Ice*  (1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction
         else if (nSoil>0)then
           z0Ground = z0Soil*(1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction
-        else if (nIce>0)then
+        else if (nGlce>0)then
           ! NOTE: may want to take into account size of glacier
           z0Ground = z0Ice*(1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction
         else
@@ -623,7 +623,7 @@ subroutine vegNrgFlux(&
           if (groundTempTrial<=Tfreeze) groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._rkind - scalarGroundSnowFraction)*iceEmissivity
         else if (nSoil>0)then
           groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._rkind - scalarGroundSnowFraction)*soilEmissivity
-        else if (nIce>0)then
+        else if (nGlce>0)then
           groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._rkind - scalarGroundSnowFraction)*iceEmissivity
         end if
 
@@ -760,7 +760,7 @@ subroutine vegNrgFlux(&
             scalarTranspireLim     = 1._rkind ! no soil
             scalarTranspireLimAqfr = 0._rkind ! no roots in aquifer
           endif
-          if (nLake==0 .and. nIce==0) then
+          if (nLake==0 .and. nGlce==0) then
             ! compute the saturation vapor pressure for vegetation temperature
             TV_celcius = canopyTempTrial - Tfreeze
             call satVapPress(TV_celcius, scalarSatVP_CanopyTemp, dSVPCanopy_dCanopyTemp)
@@ -850,12 +850,12 @@ subroutine vegNrgFlux(&
             ! resistance from the soil [s m-1]
             scalarSoilResistance = scalarGroundSnowFraction*1._rkind + (1._rkind - scalarGroundSnowFraction)*EXP(8.25_rkind - 4.225_rkind*soilEvapFactor)  ! Sellers (1992)
             !scalarSoilResistance = scalarGroundSnowFraction*0._rkind + (1._rkind - scalarGroundSnowFraction)*exp(8.25_rkind - 6.0_rkind*soilEvapFactor)    ! Niu adjustment to decrease resistance for wet soil
-          else if (nIce>0)then ! ice below snow
+          else if (nGlce>0)then ! ice below snow
             scalarSoilResistance = 0._rkind
           end if
 
           ! relative humidity in the soil pores [0-1], only need if computing vegetation fluxes ever, so not if lake or ice
-          if (nLake==0 .and. nIce==0) then
+          if (nLake==0 .and. nGlce==0) then
             ! compute the relative humidity in the soil pores
             if (mLayerMatricHead(1) > -1.e+6_rkind) then  ! avoid problems with numerical precision when soil is very dry
               if (groundTempTrial < 0._rkind) then
@@ -1000,15 +1000,17 @@ subroutine vegNrgFlux(&
           end if
         end if
         if (scalarLatHeatSubVapGround > LH_vap+verySmall) then ! ground sublimation
-          ! NOTE: this should only occur when we have formed snow layers, so check
-          if (nSnow == 0) then; err=20; message=trim(message)//'only expect snow sublimation when we have formed some snow layers'; return; end if
-          scalarGroundEvaporation = 0._rkind  ! ground evaporation is zero once the snowpack has formed
-          scalarSnowSublimation   = scalarLatHeatGround/LH_sub
+          ! NOTE: this should only occur when we have formed snow or glce layers, so check
+          if (nSnow == 0 .and. nGlce==0 .and. (nLake==0 .or. (nLake>0 .and. groundTempTrial>Tfreeze))) then; 
+            err=20; message=trim(message)//'only expect sublimation when we have formed some snow or glce layers'; return; end if
+          scalarGroundEvaporation = 0._rkind  ! ground evaporation is zero once the snow or ice has formed
+          scalarGroundSublimation = scalarLatHeatGround/LH_sub
         else
-          ! NOTE: this should only occur when we have no snow layers, so check
-          if (nSnow > 0) then; err=20; message=trim(message)//'only expect ground evaporation when there are no snow layers'; return; end if
+          ! NOTE: this should only occur when we have no snow or lake (?) layers and a soil layer, so check
+          if (nSnow > 0 .or. (nLake>0 .and. groundTempTrial<=Tfreeze)) then; 
+            err=20; message=trim(message)//'only expect ground evaporation when there are no snow or frozen lake layers'; return; end if
           scalarGroundEvaporation = scalarLatHeatGround/LH_vap
-          scalarSnowSublimation   = 0._rkind  ! no sublimation from snow if no snow layers have formed
+          scalarGroundSublimation = 0._rkind  ! no sublimation from snow if no snow or glce layers have formed
         end if
 
         ! ***** AND STITCH EVERYTHING TOGETHER  *****************************************************************************************************************

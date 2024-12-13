@@ -229,7 +229,7 @@ subroutine run_oneHRU(&
       ! initialize the number of flux calls
       diagData%dom(i)%var(iLookDIAG%numFluxCalls)%dat(1) = 0._rkind
       print*, 'run_oneHRU: hruId = ', hruId, ' hru_nc = ', hru_nc, ' dom_type = ', domInfo(i)%dom_type, ' nSnow = ', domInfo(i)%nSnow, &
-       ' nLake = ', domInfo(i)%nLake, ' nSoil = ', domInfo(i)%nSoil, ' nIce = ', domInfo(i)%nIce
+       ' nLake = ', domInfo(i)%nLake, ' nSoil = ', domInfo(i)%nSoil, ' nGlce = ', domInfo(i)%nGlce
       ! run the model for a single HRU
       call coupled_em(&
                      ! model control
@@ -265,7 +265,7 @@ subroutine run_oneHRU(&
     domInfo(i)%nSnow   = indxData%dom(i)%var(iLookINDEX%nSnow)%dat(1)    ! number of snow layers
     domInfo(i)%nLake   = indxData%dom(i)%var(iLookINDEX%nLake)%dat(1)    ! number of lake layers
     domInfo(i)%nSoil   = indxData%dom(i)%var(iLookINDEX%nSoil)%dat(1)    ! number of soil layers
-    domInfo(i)%nIce    = indxData%dom(i)%var(iLookINDEX%nIce)%dat(1)     ! number of ice layers
+    domInfo(i)%nGlce   = indxData%dom(i)%var(iLookINDEX%nGlce)%dat(1)    ! number of glacier ice layers
     domInfo(i)%nLayers = indxData%dom(i)%var(iLookINDEX%nLayers)%dat(1)  ! total number of layers
 
   end do

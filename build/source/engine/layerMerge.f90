@@ -30,7 +30,7 @@ USE globalData,only:realMissing     ! missing double precision number
 ! access named variables for snow and soil
 USE globalData,only:iname_snow        ! named variables for snow
 USE globalData,only:iname_soil        ! named variables for soil
-USE globalData,only:iname_ice         ! named variables for ice
+USE globalData,only:iname_glce        ! named variables for glacier ice
 USE globalData,only:iname_lake        ! named variables for lake
 
 ! access metadata
@@ -111,7 +111,7 @@ contains
  integer(i4b)                    :: nSnow               ! number of snow layers
  integer(i4b)                    :: nLake               ! number of lake layers
  integer(i4b)                    :: nSoil               ! number of soil layers
- integer(i4b)                    :: nIce                ! number of ice layers
+ integer(i4b)                    :: nGlce               ! number of glacier ice layers
  integer(i4b)                    :: nLayers             ! total number of layers
  ! initialize error control
  err=0; message="layerMerge/"
@@ -147,7 +147,7 @@ contains
  nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
  nLake   = indx_data%var(iLookINDEX%nLake)%dat(1)
  nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
- nIce    = indx_data%var(iLookINDEX%nIce)%dat(1)
+ nGlce   = indx_data%var(iLookINDEX%nGlce)%dat(1)
  nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
 
  kSnow=0 ! initialize first layer to test (top layer)
@@ -205,13 +205,13 @@ contains
      nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
      nLake   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_lake)
      nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
-     nIce    = count(indx_data%var(iLookINDEX%layerType)%dat==iname_ice)
-     nLayers = nSnow + nLake + nSoil + nIce
+     nGlce   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_glce)
+     nLayers = nSnow + nLake + nSoil + nGlce
      ! save the number of layers
      indx_data%var(iLookINDEX%nSnow)%dat(1)   = nSnow
      indx_data%var(iLookINDEX%nLake)%dat(1)   = nLake
      indx_data%var(iLookINDEX%nSoil)%dat(1)   = nSoil
-     indx_data%var(iLookINDEX%nIce)%dat(1)    = nIce
+     indx_data%var(iLookINDEX%nGlce)%dat(1)   = nGlce
      indx_data%var(iLookINDEX%nLayers)%dat(1) = nLayers
      ! update coordinate variables
      call calcHeight(&
@@ -245,7 +245,7 @@ contains
     nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
     nLake   = indx_data%var(iLookINDEX%nLake)%dat(1)
     nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
-    nIce    = indx_data%var(iLookINDEX%nIce)%dat(1)
+    nGlce   = indx_data%var(iLookINDEX%nGlce)%dat(1)
     nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
 
     ! exit the loop to try again
@@ -277,7 +277,7 @@ contains
   nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
   nLake   = indx_data%var(iLookINDEX%nLake)%dat(1)
   nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
-  nIce    = indx_data%var(iLookINDEX%nIce)%dat(1)
+  nGlce   = indx_data%var(iLookINDEX%nGlce)%dat(1)
   nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
   if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; end if
   ! another check
@@ -343,7 +343,7 @@ contains
  integer(i4b)                    :: nSnow                    ! number of snow layers
  integer(i4b)                    :: nLake                    ! number of lake layers
  integer(i4b)                    :: nSoil                    ! number of soil layers
- integer(i4b)                    :: nIce                     ! number of ice layers
+ integer(i4b)                    :: nGlce                    ! number of glacier ice layers
  integer(i4b)                    :: nLayers                  ! total number of layers
 
  ! initialize error control
@@ -364,7 +364,7 @@ contains
  nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
  nLake   = indx_data%var(iLookINDEX%nLake)%dat(1)
  nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
- nIce    = indx_data%var(iLookINDEX%nIce)%dat(1)
+ nGlce   = indx_data%var(iLookINDEX%nGlce)%dat(1)
  nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
 
  ! compute combined depth
@@ -424,15 +424,15 @@ contains
  indx_data%var(iLookINDEX%nSnow)%dat(1)   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
  indx_data%var(iLookINDEX%nLake)%dat(1)   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_lake)
  indx_data%var(iLookINDEX%nSoil)%dat(1)   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
- indx_data%var(iLookINDEX%nIce)%dat(1)    = count(indx_data%var(iLookINDEX%layerType)%dat==iname_ice)
+ indx_data%var(iLookINDEX%nGlce)%dat(1)   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_glce)
  indx_data%var(iLookINDEX%nLayers)%dat(1) = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nSoil)%dat(1) &
-                                           + indx_data%var(iLookINDEX%nIce)%dat(1) + indx_data%var(iLookINDEX%nLake)%dat(1)
+                                          + indx_data%var(iLookINDEX%nGlce)%dat(1) + indx_data%var(iLookINDEX%nLake)%dat(1)
 
  ! update the number of snow layers
  nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
  nLake   = indx_data%var(iLookINDEX%nLake)%dat(1)
  nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
- nIce    = indx_data%var(iLookINDEX%nIce)%dat(1)
+ nGlce   = indx_data%var(iLookINDEX%nGlce)%dat(1)
  nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
 
  ! ***** put state variables for the combined layer in the appropriate place

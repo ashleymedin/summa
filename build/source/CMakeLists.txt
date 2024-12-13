@@ -96,7 +96,7 @@ set(MODRUN
     ${ENGINE_DIR}/layerDivide.f90
     ${ENGINE_DIR}/qTimeDelay.f90
     ${ENGINE_DIR}/read_force.f90
-    ${ENGINE_DIR}/snLaIcAlbedo.f90
+    ${ENGINE_DIR}/snLaGlAlbedo.f90
     ${ENGINE_DIR}/snwCompact.f90
     ${ENGINE_DIR}/tempAdjust.f90
     ${ENGINE_DIR}/updateVars.f90
@@ -125,9 +125,9 @@ set(SOLVER
     ${ENGINE_DIR}/opSplittin.f90
     ${ENGINE_DIR}/run_oneGRU.f90
     ${ENGINE_DIR}/run_oneHRU.f90
-    ${ENGINE_DIR}/snLaIcLiqFlx.f90
+    ${ENGINE_DIR}/snLaGlLiqFlx.f90
     ${ENGINE_DIR}/soilLiqFlx.f90
-    ${ENGINE_DIR}/snLaSoIcNrgFlux.f90
+    ${ENGINE_DIR}/snLaSoGlNrgFlux.f90
     ${ENGINE_DIR}/stomResist.f90
     ${ENGINE_DIR}/summaSolve4homegrown.f90
     ${ENGINE_DIR}/systemSolv.f90

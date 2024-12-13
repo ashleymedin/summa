@@ -74,19 +74,19 @@ contains
  integer(i4b)                :: fileHRU             ! number of HRUs in netcdf file
  integer(i4b)                :: fileDOM             ! number of domains in netcdf file
  integer(i4b)                :: snowID, soilID      ! netcdf variable ids
- integer(i4b)                :: iceID, lakeID       ! netcdf variable ids
+ integer(i4b)                :: glceID, lakeID      ! netcdf variable ids
  integer(i4b)                :: iGRU, iHRU, iDOM    ! loop indexes
  integer(i4b)                :: iHRU_global         ! index of HRU in the netcdf file
- logical(lgt)                :: no_iceData          ! flag that no ice data in icond
+ logical(lgt)                :: no_glceData         ! flag that no ice data in icond
  logical(lgt)                :: no_lakeData         ! flag that no lake data in icond
  logical(lgt)                :: no_dom              ! flag that no domain variable in file
  integer(i4b),allocatable    :: snowData1(:)        ! number of snow layers in all HRUs
  integer(i4b),allocatable    :: soilData1(:)        ! number of soil layers in all HRUs
- integer(i4b),allocatable    :: iceData1(:)         ! number of ice layers in all HRUs
+ integer(i4b),allocatable    :: glceData1(:)        ! number of glacier ice layers in all HRUs
  integer(i4b),allocatable    :: lakeData1(:)        ! number of lake layers in all HRUs
  integer(i4b),allocatable    :: snowData2(:,:)      ! number of snow layers in all HRUs
  integer(i4b),allocatable    :: soilData2(:,:)      ! number of soil layers in all HRUs
- integer(i4b),allocatable    :: iceData2(:,:)       ! number of ice layers in all HRUs
+ integer(i4b),allocatable    :: glceData2(:,:)      ! number of glacier ice layers in all HRUs
  integer(i4b),allocatable    :: lakeData2(:,:)      ! number of lake layers in all HRUs
  integer(i4b),allocatable    :: dom_type(:,:)       ! read domain type in from netcdf file
  character(len=256)          :: cmessage            ! downstream error message
@@ -100,7 +100,7 @@ contains
  ! initialize error message
  err=0
  message = 'read_icond_nlayers/'
- no_iceData = .false.
+ no_glceData = .false.
  no_lakeData = .false.
  no_dom = .false.
 
@@ -176,15 +176,15 @@ contains
  ! allocate storage for reading from file (allocate entire file size, even when doing subdomain run)
  allocate(snowData1(fileHRU),snowData2(fileDOM,fileHRU))
  allocate(soilData1(fileHRU),soilData2(fileDOM,fileHRU))
- allocate( iceData1(fileHRU), iceData2(fileDOM,fileHRU))
+ allocate(glceData1(fileHRU),glceData2(fileDOM,fileHRU))
  allocate(lakeData1(fileHRU),lakeData2(fileDOM,fileHRU))
  snowData1 = 0
  soilData1 = 0
- iceData1  = 0
+ glceData1 = 0
  lakeData1 = 0
  snowData2 = 0
  soilData2 = 0
- iceData2  = 0
+ glceData2 = 0
  lakeData2 = 0
 
  ! count domains and set domain type
@@ -210,19 +210,19 @@ contains
  err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nLake)%varName),lakeID)
  if(err/=nf90_noerr ) no_lakeData = .true.
  err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nSoil)%varName),soilID); call netcdf_err(err,message)
- err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nIce)%varName), iceID)
- if(err/=nf90_noerr) no_iceData = .true.
+ err = nf90_inq_varid(ncID,trim(indx_meta(iLookINDEX%nGlce)%varName), glceID)
+ if(err/=nf90_noerr) no_glceData = .true.
 
  ! get nLayer data (reads entire state file)
  if(no_dom)then
    err = nf90_get_var(ncID,snowID,snowData1); call netcdf_err(err,message)
    err = nf90_get_var(ncID,soilID,soilData1); call netcdf_err(err,message)
-   if (.not. no_iceData)  err = nf90_get_var(ncID,iceID,iceData1);   call netcdf_err(err,message)
+   if (.not. no_glceData) err = nf90_get_var(ncID,glceID,glceData1); call netcdf_err(err,message)
    if (.not. no_lakeData) err = nf90_get_var(ncID,lakeID,lakeData1); call netcdf_err(err,message)
  else
    err = nf90_get_var(ncID,snowID,snowData2); call netcdf_err(err,message)
    err = nf90_get_var(ncID,soilID,soilData2); call netcdf_err(err,message)
-   if (.not. no_iceData)  err = nf90_get_var(ncID,iceID,iceData2);   call netcdf_err(err,message)
+   if (.not. no_glceData) err = nf90_get_var(ncID,glceID,glceData2); call netcdf_err(err,message)
    if (.not. no_lakeData) err = nf90_get_var(ncID,lakeID,lakeData2); call netcdf_err(err,message)
  endif
  ixHRUfile_min=huge(1)
@@ -247,12 +247,12 @@ contains
       gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow = snowData1(iHRU_global)
       gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake = lakeData1(iHRU_global)
       gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil = soilData1(iHRU_global)
-      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce  =  iceData1(iHRU_global)
+      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce = glceData1(iHRU_global)
     else
      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow = snowData2(iDOM,iHRU_global)
      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake = lakeData2(iDOM,iHRU_global)
      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil = soilData2(iDOM,iHRU_global)
-     gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce  =  iceData2(iDOM,iHRU_global)
+     gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce = glceData2(iDOM,iHRU_global)
     endif
    end do
   end do
@@ -263,7 +263,7 @@ contains
  if(err/=0)then;message=trim(message)//trim(cmessage);return;end if
 
  ! cleanup
- deallocate(snowData1,lakeData1,soilData1,iceData1,snowData2,lakeData2,soilData2,iceData2,dom_type)
+ deallocate(snowData1,lakeData1,soilData1,glceData1,snowData2,lakeData2,soilData2,glceData2,dom_type)
  deallocate(gru_id,hru_id,gruid_to_index,hrunc_to_index)
 
  end subroutine read_icond_nlayers
@@ -292,7 +292,7 @@ contains
  USE globalData,only:bvar_meta                          ! metadata for basin (GRU) variables
  USE globalData,only:gru_struc                          ! gru-hru mapping structures
  USE globalData,only:startGRU                           ! index of first gru for parallel runs
- USE globalData,only:iname_soil,iname_snow,iname_ice,iname_lake ! named variables to describe the type of layer
+ USE globalData,only:iname_soil,iname_snow,iname_glce,iname_lake ! named variables to describe the type of layer
  USE netcdf_util_module,only:nc_file_open               ! open netcdf file
  USE netcdf_util_module,only:nc_file_close              ! close netcdf file
  USE netcdf_util_module,only:netcdf_err                 ! netcdf error handling
@@ -335,7 +335,7 @@ contains
  real(rkind),allocatable                   :: varData(:)              ! variable data storage
  real(rkind),allocatable                   :: varData2(:,:)            ! variable data storage
  real(rkind),allocatable                   :: varData3(:,:,:)          ! variable data storage
- integer(i4b)                              :: nSnow,nLake,nSoil,nIce,nToto !# layers
+ integer(i4b)                              :: nSnow,nLake,nSoil,nGlce,nToto !# layers
  integer(i4b)                              :: nTDH                     ! number of points in time-delay 
  integer(i4b)                              :: nGlacier                 ! number of glaciers in basin (attribute files
  integer(i4b)                              :: fileglac                 ! max number of glaciers in any GRU
@@ -496,9 +496,9 @@ contains
      nSnow = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
      nLake = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake
      nSoil = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
-     nIce  = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce
-     nToto = nSnow + nLake + nSoil + nIce
-     if(nIce>0) has_glacier = .true.
+     nGlce = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce
+     nToto = nSnow + nLake + nSoil + nGlce
+     if(nGlce>0) has_glacier = .true.
      if(nLake>0) has_wetland = .true.
 
      ! put the data into data structures and check that none of the values are set to nf90_fill_double
@@ -549,7 +549,7 @@ contains
 
      ! make sure canopy ice + liq is positive if could have vegetation, otherwise add liquid water to canopy and make total water consistent later
      if( (progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyLiq)%dat(1) + progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyIce)%dat(1)) < 0.0001_rkind &
-          .and. nIce==0 .and. nLake==0 )then
+          .and. nGlce==0 .and. nLake==0 )then
       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyLiq)%dat(1) = 0.0001_rkind
      endif
 
@@ -579,18 +579,18 @@ contains
     nSnow = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
     nLake = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake
     nSoil = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
-    nIce  = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce
+    nGlce = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSnow)%dat(1)   = nSnow
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLake)%dat(1)   = nLake
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSoil)%dat(1)   = nSoil
-    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nIce)%dat(1)    = nIce
-    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLayers)%dat(1) = nSnow + nLake + nSoil + nIce
+    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1)   = nGlce
+    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLayers)%dat(1) = nSnow + nLake + nSoil + nGlce
 
     ! set layer type
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%layerType)%dat(1:nSnow) = iname_snow
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%layerType)%dat((nSnow+1):(nSnow+nLake)) = iname_lake
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%layerType)%dat((nSnow+nLake+1):(nSnow+nLake+nSoil)) = iname_soil
-    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%layerType)%dat((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nIce)) = iname_ice
+    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%layerType)%dat((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nGlce)) = iname_glce
    end do
   end do
  end do

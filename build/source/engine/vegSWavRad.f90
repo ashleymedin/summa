@@ -71,7 +71,7 @@ contains
                        nSnow,                        & ! intent(in):    number of snow layers
                        nLake,                        & ! intent(in):    number of lake layers
                        nSoil,                        & ! intent(in):    number of soil layers
-                       nIce,                         & ! intent(in):    number of glacier ice layers
+                       nGlce,                        & ! intent(in):    number of glacier ice layers
                        computeVegFlux,               & ! intent(in):    logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                        type_data,                    & ! intent(in):    classification of veg, soil etc. for a local HRU
                        prog_data,                    & ! intent(inout): model prognostic variables for a local HRU
@@ -86,7 +86,7 @@ contains
  integer(i4b),intent(in)         :: nSnow                          ! number of snow layers
  integer(i4b),intent(in)         :: nLake                          ! number of lake layers
  integer(i4b),intent(in)         :: nSoil                          ! number of soil layers
- integer(i4b),intent(in)         :: nIce                           ! number of glacier ice layers
+ integer(i4b),intent(in)         :: nGlce                          ! number of glacier ice layers
  logical(lgt),intent(in)         :: computeVegFlux                 ! logical flag to compute vegetation fluxes (.false. if veg buried by snow)
  type(var_i),intent(in)          :: type_data                      ! classification of veg, soil etc. for a local HRU
  type(var_dlength),intent(inout) :: prog_data                      ! model prognostic variables for a local HRU
@@ -122,7 +122,7 @@ contains
   ! input: snow states
   scalarSWE                  => prog_data%var(iLookPROG%scalarSWE)%dat(1),                           & ! intent(in): snow water equivalent on the ground (kg m-2)
   scalarSnowDepth            => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),                     & ! intent(in): snow depth on the ground surface (m)
-  mLayerVolFracLiq           => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(nSnow+1:nSnow+nLake+nSoil+nIce),  & ! intent(in): volumetric fraction of liquid water in each layer below snow (-)
+  mLayerVolFracLiq           => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(nSnow+1:nSnow+nLake+nSoil+nGlce),  & ! intent(in): volumetric fraction of liquid water in each layer below snow (-)
   spectralSnowAlbedoDiffuse  => prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1:nSpecBand), & ! intent(in): diffuse albedo of snow in each spectral band (-)
   scalarSnowAlbedo           => prog_data%var(iLookPROG%scalarSnowAlbedo)%dat(1),                    & ! intent(inout): snow albedo (-)
   ! input: ground and canopy temperature
@@ -168,7 +168,7 @@ contains
    mLayerVolFracLiq_use = 0.5_rkind ! arbitrary value
  endif
  ! if surface type is water or ice, set ist to 2
- if ((nSoil==0 .and. nIce>0) .or. nLake>0) ist = 2
+ if ((nSoil==0 .and. nGlce>0) .or. nLake>0) ist = 2
 
  ! * preliminaries...
  ! ------------------
@@ -235,7 +235,7 @@ contains
 
    call canopy_SW(&
                   ! input: model control
-                  nLake, nSoil, nIce,                                 & ! intent(in): number of lake soil, ice layers
+                  nLake, nSoil, nGlce,                                & ! intent(in): number of lake soil, glce layers
                   vegTypeIndex,                                       & ! intent(in): index of vegetation type
                   ist, isc,                                           & ! intent(in): indices to define surface type, soil color
                   computeVegFlux,                                     & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
@@ -290,7 +290,7 @@ contains
  ! ************************************************************************************************
  subroutine canopy_SW(&
                       ! input: model control
-                      nLake, nSoil, nIce,                                 & ! intent(in): number of lake soil, ice layers                      vegTypeIndex,                                       & ! intent(in): index of vegetation type
+                      nLake, nSoil, nGlce,                                & ! intent(in): number of lake soil, glce layers                      vegTypeIndex,                                       & ! intent(in): index of vegetation type
                       vegTypeIndex,                                       & ! intent(in): index of vegetation type
                       ist, isc,                                           & ! intent(in): indices to define surface type, soil color
                       computeVegFlux,                                     & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
@@ -334,7 +334,7 @@ contains
  USE NOAHMP_VEG_PARAMETERS, only: RHOS,RHOL                                  ! Noah-MP: stem and leaf reflectance for each wave band
  USE NOAHMP_VEG_PARAMETERS, only: TAUS,TAUL                                  ! Noah-MP: stem and leaf transmittance for each wave band
  ! input
- integer(i4b),intent(in)           :: nLake, nSoil, nIce                        ! number of lake, soil, and ice layers
+ integer(i4b),intent(in)           :: nLake, nSoil, nGlce                       ! number of lake, soil, and glce layers
  integer(i4b),intent(in)           :: vegTypeIndex                              ! vegetation type index
  integer(i4b),intent(in)           :: ist, isc                                  ! indices to define surface type, soil color
  logical(lgt),intent(in)           :: computeVegFlux                            ! logical flag to compute vegetation fluxes (.false. if veg buried by snow)
@@ -453,7 +453,7 @@ contains
  ! compute the albedo of the ground surface (may be lake or ice)
  call gndAlbedo(&
                 ! input
-                nLake, nSoil, nIce,                    & ! intent(in): number of lake soil, ice layers
+                nLake, nSoil, nGlce,                   & ! intent(in): number of lake soil, glce layers
                 isc,                                   & ! intent(in): index of soil color
                 scalarGroundSnowFraction,              & ! intent(in): fraction of ground that is snow covered (-)
                 scalarVolFracLiqUpper,                 & ! intent(in): volumetric liquid water content in upper-most non-snow layer (-)
@@ -937,7 +937,7 @@ contains
  ! *************************************************************************************************************************************
  subroutine gndAlbedo(&
                       ! input
-                      nLake, nSoil, nIce,                    & ! intent(in): number of lake soil, ice layers
+                      nLake, nSoil, nGlce,                   & ! intent(in): number of lake soil, glce layers
                       isc,                                   & ! intent(in): index of soil color
                       scalarGroundSnowFraction,              & ! intent(in): fraction of ground that is snow covered (-)
                       scalarVolFracLiqUpper,                 & ! intent(in): volumetric liquid water content in upper-most non-snow layer (-)
@@ -955,7 +955,7 @@ contains
  USE NOAHMP_RAD_PARAMETERS, only: ALBSAT,ALBDRY  ! Noah-MP: saturated and dry soil albedos for each wave band
  ! --------------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
- integer(i4b),intent(in)            :: nLake, nSoil, nIce           ! number of lake, soil, ice layers
+ integer(i4b),intent(in)            :: nLake, nSoil, nGlce          ! number of lake, soil, glce layers
  integer(i4b),intent(in)            :: isc                          ! index of soil color
  real(rkind),intent(in)             :: scalarGroundSnowFraction     ! fraction of ground that is snow covered (-)
  real(rkind),intent(in)             :: scalarVolFracLiqUpper        ! volumetric liquid water content in upper-most non-snow layer (-)
@@ -983,7 +983,7 @@ contains
  if (nLake>0) then ! compute lake albedo
     if (scalarTemperatureUpper<=Tfreeze) then
       spectralLakeAlbedo = spectralFrznWatAlbedo
-    else if (nIce>0) then
+    else if (nGlce>0) then
       spectralLakeAlbedo = spectralOpenWatAlbedo
     end if
  else if (nSoil>0) then
@@ -1000,7 +1000,7 @@ contains
     belowAlbedo = spectralLakeAlbedo(iBand)
   else if (nSoil>0) then
     belowAlbedo = spectralSoilAlbedo(iBand)
-  else if (nIce>0) then
+  else if (nGlce>0) then
     belowAlbedo = spectralFrznWatAlbedo(iBand) 
   else
     message=trim(message)//'gndAlbedo: no valid surface type under snow'

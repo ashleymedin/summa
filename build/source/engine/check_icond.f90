@@ -68,7 +68,7 @@ contains
  USE data_types,only:gru_hru_dom_intVec                  ! full integer structure
  USE data_types,only:gru_hru_dom_z_vLookup               ! full lookup structure
  USE data_types,only:gru_hru_double                      ! hru double precision structure no domain no depth
- USE globalData,only:iname_soil,iname_snow,iname_ice,iname_lake ! named variables to describe the type of layer
+ USE globalData,only:iname_soil,iname_snow,iname_glce,iname_lake ! named variables to describe the type of layer
  USE multiconst,only:&
                        LH_fus,    &                      ! latent heat of fusion                (J kg-1)
                        iden_ice,  &                      ! intrinsic density of ice             (kg m-3)
@@ -76,11 +76,11 @@ contains
                        gravity,   &                      ! gravitational acceleration           (m s-2)
                        Tfreeze                           ! freezing point of pure water         (K)
  USE snow_utils_module,only:fracliquid                   ! compute volumetric fraction of liquid water in snow based on temperature
- USE updatState_module,only:updateSnLaIc                   ! update snow states
+ USE updatState_module,only:updateSnLaGl                   ! update snow states
  USE updatState_module,only:updateSoil                   ! update soil states
  USE enthalpyTemp_module,only:T2enthTemp_cas             ! convert temperature to enthalpy for canopy air space
  USE enthalpyTemp_module,only:T2enthTemp_veg             ! convert temperature to enthalpy for vegetation
- USE enthalpyTemp_module,only:T2enthTemp_snLaIc          ! convert temperature to enthalpy for snow, lake, and ice
+ USE enthalpyTemp_module,only:T2enthTemp_SnLaGl          ! convert temperature to enthalpy for snow, lake, and ice
  USE enthalpyTemp_module,only:T2enthTemp_soil            ! convert temperature to enthalpy for soil
  
  implicit none
@@ -115,7 +115,7 @@ contains
  integer(i4b)                              :: nSnow                 ! number of snow layers
  integer(i4b)                              :: nLake                 ! number of lake layers
  integer(i4b)                              :: nSoil                 ! number of soil layers
- integer(i4b)                              :: nIce                  ! number of ice layers
+ integer(i4b)                              :: nGlce                 ! number of glacier ice layers
  integer(i4b)                              :: nLayers               ! total number of layers
  real(rkind),parameter                     :: xTol=1.e-10_rkind     ! small tolerance to address precision issues
  real(rkind),parameter                     :: areaTol=1.e-2_rkind   ! tolerance to address precision issues in glacier area summation
@@ -296,8 +296,8 @@ contains
     nSnow   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
     nLake   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake
     nSoil   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
-    nIce    = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce
-    nLayers = nSnow + nLake + nSoil + nIce
+    nGlce   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce
+    nLayers = nSnow + nLake + nSoil + nGlce
 
     ! loop through all layers
     do iLayer=1,nLayers
@@ -308,7 +308,7 @@ contains
      select case(mlayerLayerType(iLayer))
 
       ! ***** snow, ice, lake, volume expansion allowed
-      case(iname_snow, iname_lake, iname_ice)
+      case(iname_snow, iname_lake, iname_glce)
        iSoil       = integerMissing
        vGn_m       = realMissing
        scalarTheta = mLayerVolFracIce(iLayer)*(iden_ice/iden_water) + mLayerVolFracLiq(iLayer)
@@ -325,7 +325,7 @@ contains
        end if
        if (mlayerLayerType(iLayer)==iname_lake) then ! lake could be all liquid
          if(mLayerVolFracIce(iLayer) < 0._rkind  )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0: layer = '   ,iLayer; err=20; return; end if
-       else if (mlayerLayerType(iLayer)==iname_ice) then ! glacier ice should be mostly ice
+       else if (mlayerLayerType(iLayer)==iname_glce) then ! glacier ice should be mostly ice
          if(mLayerVolFracIce(iLayer) < 0.80_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0.80: layer = ',iLayer; err=20; return; end if
        else if (mlayerLayerType(iLayer)==iname_snow) then ! 
          if(mLayerVolFracIce(iLayer) < 0.05_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0.05: layer = ',iLayer; err=20; return; end if
@@ -359,7 +359,7 @@ contains
      select case(mLayerLayerType(iLayer))
 
       ! ** snow, lake, ice
-      case(iname_snow, iname_lake, iname_ice)
+      case(iname_snow, iname_lake, iname_glce)
 
        ! check that snow temperature is less than freezing
        if(mLayerTemp(iLayer) > Tfreeze)then
@@ -368,7 +368,7 @@ contains
        end if
 
        ! ensure consistency among state variables
-       call updateSnLaIc(&
+       call updateSnLaGl(&
                        mLayerTemp(iLayer),             & ! intent(in): temperature (K)
                        scalarTheta,                    & ! intent(in): volumetric fraction of total water (-)
                        snowfrz_scale,                  & ! intent(in): scaling parameter for the snow freezing curve (K-1)
@@ -380,7 +380,7 @@ contains
 
        if(checkEnthalpy)then ! enthalpy as state variable or in residual
          if(no_icond_enth)then ! no enthalpy in icond file
-           call T2enthTemp_snLaIc(&
+           call T2enthTemp_SnLaGl(&
                        snowfrz_scale,                  & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                        mLayerTemp(iLayer),             & ! intent(in):  layer temperature (K)
                        scalarTheta,                    & ! intent(in):  volumetric total water content (-)

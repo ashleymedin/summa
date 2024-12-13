@@ -340,7 +340,7 @@ subroutine openwq_run_space_step(summa1_struc)
   real(rkind)                            :: mLayerLiqFluxSnow_summa_m3
   real(rkind)                            :: iLayerLiqFluxSoil_summa_m3
   real(rkind)                            :: mLayerVolFracWat_summa_m3
-  real(rkind)                            :: scalarSnowSublimation_summa_m3
+  real(rkind)                            :: scalarGroundSublimation_summa_m3
   real(rkind)                            :: scalarSfcMeltPond_summa_m3
   real(rkind)                            :: scalarGroundEvaporation_summa_m3
   real(rkind)                            :: scalarExfiltration_summa_m3
@@ -420,7 +420,7 @@ subroutine openwq_run_space_step(summa1_struc)
         mLayerDepth_summa_m                       => progStruct_timestep_start%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerDepth)%dat(:)      ,&
         mLayerVolFracWat_summa_frac               => progStruct_timestep_start%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracWat)%dat(:) ,&
         ! Snow Fluxes
-        scalarSnowSublimation_summa_kg_m2_s       => fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarSnowSublimation)%dat(1)           ,&
+        scalarGroundSublimation_summa_kg_m2_s     => fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarGroundSublimation)%dat(1)           ,&
         scalarSfcMeltPond_kg_m2                   => summa1_struc%progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSfcMeltPond)%dat(1)  ,&
         iLayerLiqFluxSnow_summa_m_s               => fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%iLayerLiqFluxSnow)%dat(:)               ,&
         
@@ -470,7 +470,7 @@ subroutine openwq_run_space_step(summa1_struc)
 
       ! Snow_SoilVars (unlayered variables)
       ! Other variables are layered and added below as needed
-      scalarSnowSublimation_summa_m3 = scalarSnowSublimation_summa_kg_m2_s      * hru_area_m2 * data_step / iden_water
+      scalarGroundSublimation_summa_m3 = scalarGroundSublimation_summa_kg_m2_s  * hru_area_m2 * data_step / iden_water
       scalarGroundEvaporation_summa_m3 = scalarGroundEvaporation_summa_kg_m2_s  * hru_area_m2 * data_step / iden_water
       scalarSfcMeltPond_summa_m3 = scalarSfcMeltPond_kg_m2                      * hru_area_m2 / iden_water
       scalarExfiltration_summa_m3 = scalarExfiltration_summa_m_s                * hru_area_m2 * data_step
@@ -626,9 +626,9 @@ subroutine openwq_run_space_step(summa1_struc)
         iz_r          = -1
         ! *Flux*
         ! snow sublimation
-        wflux_s2r = scalarSnowSublimation_summa_m3
+        wflux_s2r = scalarGroundSublimation_summa_m3
         ! *Call openwq_run_space* if wflux_s2r not 0
-        err=openwq_obj%openwq_run_space(                       &
+        err=openwq_obj%openwq_run_space(                &
           simtime,                                      &
           OpenWQindex_s, hru_index, iy_s, iz_s,         &
           OpenWQindex_r, hru_index, iy_r, iz_r,         &

@@ -31,7 +31,7 @@ USE globalData,only: iJac2          ! last layer of the Jacobian to print
 USE globalData,only:iname_veg       ! named variables for vegetation
 USE globalData,only:iname_snow      ! named variables for snow
 USE globalData,only:iname_soil      ! named variables for soil
-USE globalData,only:iname_ice       ! named variables for ice
+USE globalData,only:iname_glce      ! named variables for glacier ice
 USE globalData,only:iname_lake      ! named variables for lake
 
 ! named variables to describe the state variable type
@@ -154,16 +154,16 @@ subroutine computResidWithPrime(&
     mLayerBaseflow          => flux_data%var(iLookFLUX%mLayerBaseflow)%dat            ,& ! intent(in): [dp(:)]  baseflow from each soil layer (m s-1)
     mLayerCompress          => diag_data%var(iLookDIAG%mLayerCompress)%dat            ,& ! intent(in): [dp(:)]  change in storage associated with compression of the soil matrix (-)
     ! number of state variables of a specific type
-    nSnLaSoIcNrg            => indx_data%var(iLookINDEX%nSnLaSoIcNrg )%dat(1)         ,& ! intent(in): [i4b]    number of energy state variables in the layer domains
-    nSnLaSoIcHyd            => indx_data%var(iLookINDEX%nSnLaSoIcHyd )%dat(1)         ,& ! intent(in): [i4b]    number of hydrology variables in the layer domains
+    nSnLaSoGlNrg            => indx_data%var(iLookINDEX%nSnLaSoGlNrg )%dat(1)         ,& ! intent(in): [i4b]    number of energy state variables in the layer domains
+    nSnLaSoGlHyd            => indx_data%var(iLookINDEX%nSnLaSoGlHyd )%dat(1)         ,& ! intent(in): [i4b]    number of hydrology variables in the layer domains
     nSoilOnlyHyd            => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)         ,& ! intent(in): [i4b]    number of hydrology variables in the soil domain
     ! model indices
     ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in): [i4b]    index of canopy air space energy state variable
     ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in): [i4b]    index of canopy energy state variable
     ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
     ixAqWat                 => indx_data%var(iLookINDEX%ixAqWat)%dat(1)               ,& ! intent(in): [i4b]    index of water storage in the aquifer
-    ixSnLaSoIcNrg           => indx_data%var(iLookINDEX%ixSnLaSoIcNrg)%dat            ,& ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
-    ixSnLaSoIcHyd           => indx_data%var(iLookINDEX%ixSnLaSoIcHyd)%dat            ,& ! intent(in): [i4b(:)] indices for hydrology states in the snow+soil subdomain
+    ixSnLaSoGlNrg           => indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat            ,& ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
+    ixSnLaSoGlHyd           => indx_data%var(iLookINDEX%ixSnLaSoGlHyd)%dat            ,& ! intent(in): [i4b(:)] indices for hydrology states in the snow+soil subdomain
     ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat            ,& ! intent(in): [i4b(:)] indices for hydrology states in the soil subdomain
     ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat              ,& ! intent(in): [i4b(:)] indices defining the type of the state (iname_nrgLayer...)
     ixHydCanopy             => indx_data%var(iLookINDEX%ixHydCanopy)%dat              ,& ! intent(in): [i4b(:)] index of the hydrology states in the canopy domain
@@ -189,11 +189,11 @@ subroutine computResidWithPrime(&
  
       ! compute energy associated with melt/freeze for snow
       ! NOTE: allow expansion of ice during melt-freeze for snow; deny expansion of ice during melt-freeze for soil
-      if(nSnLaSoIcNrg>0)then
-        do concurrent (iLayer=1:nLayers,ixSnLaSoIcNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the layer domains)
+      if(nSnLaSoGlNrg>0)then
+        do concurrent (iLayer=1:nLayers,ixSnLaSoGlNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the layer domains)
           select case( layerType(iLayer) )
-            case(iname_snow, iname_lake, iname_ice); rAdd( ixSnLaSoIcNrg(iLayer) ) = rAdd( ixSnLaSoIcNrg(iLayer) ) + LH_fus*iden_ice * mLayerVolFracIcePrime(iLayer)
-            case(iname_soil);                        rAdd( ixSnLaSoIcNrg(iLayer) ) = rAdd( ixSnLaSoIcNrg(iLayer) ) + LH_fus*iden_water * mLayerVolFracIcePrime(iLayer)
+            case(iname_snow, iname_lake, iname_glce); rAdd( ixSnLaSoGlNrg(iLayer) ) = rAdd( ixSnLaSoGlNrg(iLayer) ) + LH_fus*iden_ice * mLayerVolFracIcePrime(iLayer)
+            case(iname_soil);                         rAdd( ixSnLaSoGlNrg(iLayer) ) = rAdd( ixSnLaSoGlNrg(iLayer) ) + LH_fus*iden_water * mLayerVolFracIcePrime(iLayer)
           end select
         end do  ! looping through non-missing energy state variables in the layer domains
       endif
@@ -233,25 +233,25 @@ subroutine computResidWithPrime(&
     endif
 
     ! compute the residual vector for the snow and soil sub-domains for energy
-    if(nSnLaSoIcNrg>0)then
-      do concurrent (iLayer=1:nLayers,ixSnLaSoIcNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the layer domains)
+    if(nSnLaSoGlNrg>0)then
+      do concurrent (iLayer=1:nLayers,ixSnLaSoGlNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the layer domains)
         if(enthalpyStateVec)then
-          rVec( ixSnLaSoIcNrg(iLayer) ) = mLayerEnthalpyPrime(iLayer) - ( fVec( ixSnLaSoIcNrg(iLayer) )*dt + rAdd( ixSnLaSoIcNrg(iLayer) ) )
+          rVec( ixSnLaSoGlNrg(iLayer) ) = mLayerEnthalpyPrime(iLayer) - ( fVec( ixSnLaSoGlNrg(iLayer) )*dt + rAdd( ixSnLaSoGlNrg(iLayer) ) )
         else
-          rVec( ixSnLaSoIcNrg(iLayer) ) = sMul( ixSnLaSoIcNrg(iLayer) ) * mLayerTempPrime(iLayer) + mLayerCmTrial(iLayer) * mLayerVolFracWatPrime(iLayer) &
-                                         - ( fVec( ixSnLaSoIcNrg(iLayer) )*dt + rAdd( ixSnLaSoIcNrg(iLayer) ) )
+          rVec( ixSnLaSoGlNrg(iLayer) ) = sMul( ixSnLaSoGlNrg(iLayer) ) * mLayerTempPrime(iLayer) + mLayerCmTrial(iLayer) * mLayerVolFracWatPrime(iLayer) &
+                                         - ( fVec( ixSnLaSoGlNrg(iLayer) )*dt + rAdd( ixSnLaSoGlNrg(iLayer) ) )
         endif
       end do  ! looping through non-missing energy state variables in the layer domains
     endif
 
     ! compute the residual vector for the snow and soil sub-domains for hydrology
     ! NOTE: residual depends on choice of state variable
-    if(nSnLaSoIcHyd>0)then
-      do concurrent (iLayer=1:nLayers,ixSnLaSoIcHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the layer domains)
+    if(nSnLaSoGlHyd>0)then
+      do concurrent (iLayer=1:nLayers,ixSnLaSoGlHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the layer domains)
         ! (get the correct state variable)
         mLayerVolFracHydPrime(iLayer) = merge(mLayerVolFracWatPrime(iLayer), mLayerVolFracLiqPrime(iLayer), (ixHydType(iLayer)==iname_watLayer .or. ixHydType(iLayer)==iname_matLayer) )
         ! (compute the residual)
-        rVec( ixSnLaSoIcHyd(iLayer) ) = mLayerVolFracHydPrime(iLayer) - ( fVec( ixSnLaSoIcHyd(iLayer) )*dt + rAdd( ixSnLaSoIcHyd(iLayer) ) )
+        rVec( ixSnLaSoGlHyd(iLayer) ) = mLayerVolFracHydPrime(iLayer) - ( fVec( ixSnLaSoGlHyd(iLayer) )*dt + rAdd( ixSnLaSoGlHyd(iLayer) ) )
       end do  ! looping through non-missing energy state variables in the layer domains
     endif
 

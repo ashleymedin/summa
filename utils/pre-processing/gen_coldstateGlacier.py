@@ -273,7 +273,7 @@ if __name__ == '__main__':
     midSoil_glac = np.zeros((nOutPolygonsHRU,2), dtype='i4') # [no debris, debris]
     midSoil_wtld = np.zeros(nOutPolygonsHRU,dtype='i4')
     midLake = 0     # assume same number of ice layers for every glacier
-    midIce = 0      # assume same number of lake layers for every lake
+    midGlce = 0      # assume same number of lake layers for every lake
     midSnow = 0
     ndom = 1
     midToto = 8
@@ -350,9 +350,9 @@ if __name__ == '__main__':
                         glacDbr_frac[k] = glacDbr_frac[k] + np.sum(np.where((cell2hruId0==h) & (hgt>0) & (surface_elev0 <ELA_elev), dly*stage[j,i], 0))/hru_area[k] 
 
         ndom += 2
-        midIce = 5
+        midGlce = 5
         midSoil_glac0 = 2 # if has debris, will have this many soil layers
-        midToto_glac0 = midIce + midSoil_glac0 # if has debris, will have this many total layers
+        midToto_glac0 = midGlce + midSoil_glac0 # if has debris, will have this many total layers
         lyrHeight_glac = np.zeros((nOutPolygonsHRU,midToto_glac0+1,2), dtype='f8') # [no debris, debris]
         lyrHeight_glacNoDeb = np.zeros((nOutPolygonsHRU,midToto_glac0+1,2), dtype='f8')
         for k,h in enumerate(outPolyIDs):
@@ -363,11 +363,11 @@ if __name__ == '__main__':
                     lyrHeight_glac[k, layer,1] = debris_thick[k] * (layer ** 2 / midSoil_glac[k,1] ** 2)
                 ice_depth = 30.0
                 ice_layDepth = [0.15, 0.45, 2.25, 7.0, 30.0]
-                lyrHeight_glac[k, 1:midIce+1,0] = ice_layDepth
-                for layer in range(midSoil_glac[k,1]+1, midIce+midSoil_glac[k,1]+1): # midSoil_glac[k,1] = 0 if no debris in HRU, or if no debri domain
+                lyrHeight_glac[k, 1:midGlce+1,0] = ice_layDepth
+                for layer in range(midSoil_glac[k,1]+1, midGlce+midSoil_glac[k,1]+1): # midSoil_glac[k,1] = 0 if no debris in HRU, or if no debri domain
                     lyrHeight_glac[k, layer,1] = debris_thick[k] + ice_layDepth[layer-midSoil_glac[k,1]-1]
 
-            midToto_glac[k,:] = midIce+midSoil_glac[k,:]
+            midToto_glac[k,:] = midGlce+midSoil_glac[k,:]
                 
         lyrHeight_glacnp = np.array(lyrHeight_glac)
         lyrDepth_glac = lyrHeight_glacnp[:,1:,:] - lyrHeight_glacnp[:,:-1,:]
@@ -418,16 +418,16 @@ if __name__ == '__main__':
     lyrHeight = np.zeros((ndom, nOutPolygonsHRU, ifcToto), dtype='f8')
     lyrHeight[0,:,0:len(lyrHeight0)] = lyrHeight0
     midSoil_dom = np.full((1, nOutPolygonsHRU, ndom), midSoil, dtype='f8')
-    midIce_dom = scalar0.copy()
+    midGlce_dom = scalar0.copy()
     midLake_dom = scalar0.copy()
     dom_area = np.full((1, nOutPolygonsHRU, ndom), hru_area, dtype='f8')
     dom_elev = np.full((1, nOutPolygonsHRU, ndom), hru_elev, dtype='f8')
 
     domType = np.full((1, nOutPolygonsHRU, ndom), 1, dtype='i4')
-    if glac_dom: # NOTE, if HRU glacier area is 0, midIce_dom should be 0
+    if glac_dom: # NOTE, if HRU glacier area is 0, midGlce_dom should be 0
         lyrDepth[1,:,0:midToto_glac0] = lyrDepth_glac[:,:,0]
         lyrHeight[1,:,0:midToto_glac0+1] = lyrHeight_glac[:,:,0]
-        midIce_dom[:,0,1] = midIce
+        midGlce_dom[:,0,1] = midGlce
         midSoil_dom[:,0,1] = midSoil_glac[:,0]
         domType[:,0,1] = 2 # glacier accumulation
         dom_area[:,0,1] = hru_area * glacAcc_frac
@@ -435,7 +435,7 @@ if __name__ == '__main__':
         if clean_dom:
             lyrDepth[2,:,0:midToto_glac0] = lyrDepth_glac[:,:,0]
             lyrHeight[2,:,0:midToto_glac0+1] = lyrHeight_glac[:,:,0]
-            midIce_dom[:,0,2] = midIce
+            midGlce_dom[:,0,2] = midGlce
             midSoil_dom[:,0,2] = midSoil_glac[:,0]
             domType[:,0,2] = 3 # glacier ablation clean
             dom_area[:,0,2] = hru_area * glacCln_frac
@@ -443,7 +443,7 @@ if __name__ == '__main__':
         if (debr_dom > 0):
             lyrDepth[indDebr,:,0:midToto_glac0] = lyrDepth_glac[:,:,1]
             lyrHeight[indDebr,:,0:midToto_glac0+1] = lyrHeight_glac[:,:,1]
-            midIce_dom[:,0,indDebr] = midIce
+            midGlce_dom[:,0,indDebr] = midGlce
             midSoil_dom[:,0,indDebr] = midSoil_glac[:,1]
             domType[:,0,indDebr] = 4 # glacier ablation debris
             dom_area[:,0,indDebr] = hru_area * glacDbr_frac
@@ -481,10 +481,10 @@ if __name__ == '__main__':
     writeNC_state_vars_HRU_DOM(nc_out, 'mLayerDepth', 'midToto', 'f8', lyrDepth)        # Depth
     writeNC_state_vars_HRU_DOM(nc_out, 'iLayerHeight', 'ifcToto', 'f8', lyrHeight)      # Height
 
-    # nSoil, nSnow, nIce, nLake
+    # nSoil, nSnow, nGlce, nLake
     writeNC_state_vars_HRU_DOM(nc_out, 'nSoil', 'scalarv', 'f8', midSoil_dom)           # nSoil
     writeNC_state_vars_HRU_DOM(nc_out, 'nSnow', 'scalarv', 'f8', scalar0 )              # nSnow start at 0
-    writeNC_state_vars_HRU_DOM(nc_out, 'nIce', 'scalarv', 'f8', midIce_dom)             # nIce
+    writeNC_state_vars_HRU_DOM(nc_out, 'nGlce', 'scalarv', 'f8', midGlce_dom)             # nGlce
     writeNC_state_vars_HRU_DOM(nc_out, 'nLake', 'scalarv', 'f8', midLake_dom)           # nLake
 
     # dT
@@ -526,13 +526,13 @@ if __name__ == '__main__':
                         ind = 0
                     elif (domType[k,0,i] == 4): # glacier ablation debris
                         ind = 1
-                    toto283[   midSoil_glac[k,ind]:(midIce+midSoil_glac[k,ind]),:,i] = 268.16 # or 273.16?
+                    toto283[   midSoil_glac[k,ind]:(midGlce+midSoil_glac[k,ind]),:,i] = 268.16 # or 273.16?
                     toto0[     midSoil_glac[k,ind] ,:,i] = 0.90 # could be 0.9 per Bradford et al. 2009, less air as go deeper
                     toto0[     midSoil_glac[k,ind]+1,:,i] = 0.91
                     toto0[     midSoil_glac[k,ind]+2,:,i] = 0.93
                     toto0[     midSoil_glac[k,ind]+3,:,i] = 0.95 
                     toto0[     midSoil_glac[k,ind]+4,:,i] = 0.98
-                    totopoint2[midSoil_glac[k,ind]:(midIce+midSoil_glac[k,ind]),:,i] = 0.0
+                    totopoint2[midSoil_glac[k,ind]:(midGlce+midSoil_glac[k,ind]),:,i] = 0.0
 
     writeNC_state_vars_HRU_DOM(nc_out, 'mLayerMatricHead', 'midSoil', 'f8', soilneg1)   # MatricHead
     writeNC_state_vars_HRU_DOM(nc_out, 'mLayerTemp', 'midToto', 'f8', toto283)          # Temp

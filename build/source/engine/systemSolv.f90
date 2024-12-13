@@ -357,12 +357,12 @@ contains
    nSnow             => indx_data%var(iLookINDEX%nSnow)%dat(1)              ,& ! intent(in): [i4b] number of snow layers
    nLake             => indx_data%var(iLookINDEX%nLake)%dat(1)              ,& ! intent(in): [i4b] number of lake layers
    nSoil             => indx_data%var(iLookINDEX%nSoil)%dat(1)              ,& ! intent(in): [i4b] number of soil layers
-   nIce              => indx_data%var(iLookINDEX%nIce)%dat(1)               ,& ! intent(in): [i4b] number of ice layers
+   nGlce             => indx_data%var(iLookINDEX%nGlce)%dat(1)              ,& ! intent(in): [i4b] number of glacier ice layers
    ixNumericalMethod => model_decisions(iLookDECISIONS%num_method)%iDecision,& ! intent(in): [i4b] choice of numerical solver
    ixGroundwater     => model_decisions(iLookDECISIONS%groundwatr)%iDecision & ! intent(in): [i4b] groundwater parameterization
    &)
    ! allocate space for the model fluxes at the start of the time step
-   call allocLocal(flux_meta(:),flux_init,nSnow,nLake,nSoil,nIce,zero,err,cmessage)
+   call allocLocal(flux_meta(:),flux_init,nSnow,nLake,nSoil,nGlce,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for mLayerCmpress_sum at the start of the time step
@@ -438,7 +438,7 @@ contains
    nSnow => indx_data%var(iLookINDEX%nSnow)%dat(1),& ! intent(in): [i4b] number of snow layers
    nLake => indx_data%var(iLookINDEX%nLake)%dat(1),& ! intent(in): [i4b] number of lake layers
    nSoil => indx_data%var(iLookINDEX%nSoil)%dat(1),& ! intent(in): [i4b] number of soil layers
-   nIce  => indx_data%var(iLookINDEX%nIce)%dat(1)  & ! intent(in): [i4b] number of ice layers
+   nGlce => indx_data%var(iLookINDEX%nGlce)%dat(1) & ! intent(in): [i4b] number of glacier ice layers
    )
    call eval8summa(&
                     ! input: model control
@@ -447,7 +447,7 @@ contains
                     nSnow,                   & ! intent(in):    number of snow layers
                     nLake,                   & ! intent(in):    number of lake layers
                     nSoil,                   & ! intent(in):    number of soil layers
-                    nIce,                    & ! intent(in):    number of ice layers
+                    nGlce,                   & ! intent(in):    number of glacier ice layers
                     nLayers,                 & ! intent(in):    number of layers
                     nState,                  & ! intent(in):    number of state variables in the current subset
                     .false.,                 & ! intent(in):    not inside Sundials solver
@@ -497,7 +497,7 @@ contains
    nSnow                => indx_data%var(iLookINDEX%nSnow)%dat(1)                  , & ! intent(in):    [i4b]   number of snow layers
    nLake                => indx_data%var(iLookINDEX%nLake)%dat(1)                  , & ! intent(in):    [i4b]   number of lake layers
    nSoil                => indx_data%var(iLookINDEX%nSoil)%dat(1)                  , & ! intent(in):    [i4b]   number of soil layers
-   nIce                 => indx_data%var(iLookINDEX%nIce)%dat(1)                   , & ! intent(in):    [i4b]   number of ice layers
+   nGlce                => indx_data%var(iLookINDEX%nGlce)%dat(1)                  , & ! intent(in):    [i4b]   number of glacier ice layers
    scalarCanopyEnthalpy => prog_data%var(iLookPROG%scalarCanopyEnthalpy)%dat(1)    , & ! intent(inout): [dp]    enthalpy of the vegetation canopy (J m-2)
    scalarCanopyTemp     => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)        , & ! intent(inout): [dp]    temperature of the vegetation canopy (K)
    scalarCanopyWat      => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)         , & ! intent(inout): [dp]    total water content of the vegetation canopy (kg m-2)
@@ -512,7 +512,7 @@ contains
                     nSnow,                   & ! intent(in):    number of snow layers
                     nLake,                   & ! intent(in):    number of lake layers
                     nSoil,                   & ! intent(in):    number of soil layers
-                    nIce,                    & ! intent(in):    number of ice layers
+                    nGlce,                   & ! intent(in):    number of glacier ice layers
                     nLayers,                 & ! intent(in):    total number of layers
                     .false.,                 & ! intent(in):    not inside Sundials solver                    
                     firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
@@ -572,9 +572,9 @@ contains
    nSnow => indx_data%var(iLookINDEX%nSnow)%dat(1),& ! intent(in): [i4b] number of snow layers
    nLake => indx_data%var(iLookINDEX%nLake)%dat(1),& ! intent(in): [i4b] number of lake layers
    nSoil => indx_data%var(iLookINDEX%nSoil)%dat(1),& ! intent(in): [i4b] number of soil layers
-   nIce => indx_data%var(iLookINDEX%nIce)%dat(1)   & ! intent(in): [i4b] number of ice layers
+   nGlce => indx_data%var(iLookINDEX%nGlce)%dat(1) & ! intent(in): [i4b] number of glacier ice layers
    )
-   call in_SS4HG % initialize(dt_cur,dt,iter,nSnow,nLake,nSoil,nIce,nLayers,nLeadDim,nState,ixMatrix,firstSubStep,computeVegFlux,scalarSolution,fOld)
+   call in_SS4HG % initialize(dt_cur,dt,iter,nSnow,nLake,nSoil,nGlce,nLayers,nLeadDim,nState,ixMatrix,firstSubStep,computeVegFlux,scalarSolution,fOld)
    call io_SS4HG % initialize(firstFluxCall,xMin,xMax,ixSaturation)
    call summaSolve4homegrown(in_SS4HG,&                                                                                ! input: model control
                             &stateVecTrial,fScale,xScale,resVec,sMul,dMat,&                                            ! input: state vectors
@@ -614,16 +614,16 @@ contains
   layerVars: associate(&
     nSnow        => indx_data%var(iLookINDEX%nSnow)%dat(1)         ,& ! intent(in): [i4b] number of snow layers
     ! vector of energy and hydrology indices for the layer domains
-    ixSnLaSoIcNrg => indx_data%var(iLookINDEX%ixSnLaSoIcNrg)%dat   ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the layer domains
-    ixSnLaSoIcHyd => indx_data%var(iLookINDEX%ixSnLaSoIcHyd)%dat   ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the layer domains
-    nSnLaSoIcNrg  => indx_data%var(iLookINDEX%nSnLaSoIcNrg )%dat(1),& ! intent(in): [i4b] number of energy state variables in the layer domains
-    nSnLaSoIcHyd  => indx_data%var(iLookINDEX%nSnLaSoIcHyd )%dat(1) & ! intent(in): [i4b] number of hydrology state variables in the layer domains
+    ixSnLaSoGlNrg => indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat   ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the layer domains
+    ixSnLaSoGlHyd => indx_data%var(iLookINDEX%ixSnLaSoGlHyd)%dat   ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the layer domains
+    nSnLaSoGlNrg  => indx_data%var(iLookINDEX%nSnLaSoGlNrg )%dat(1),& ! intent(in): [i4b] number of energy state variables in the layer domains
+    nSnLaSoGlHyd  => indx_data%var(iLookINDEX%nSnLaSoGlHyd )%dat(1) & ! intent(in): [i4b] number of hydrology state variables in the layer domains
     )
   
     ! update temperatures (ensure new temperature is consistent with the fluxes)
-    if (nSnLaSoIcNrg>0) then
-      do concurrent (iLayer=1:nLayers,ixSnLaSoIcNrg(iLayer)/=integerMissing) ! loop through non-missing energy state variables in the layer domains
-        iState = ixSnLaSoIcNrg(iLayer)
+    if (nSnLaSoGlNrg>0) then
+      do concurrent (iLayer=1:nLayers,ixSnLaSoGlNrg(iLayer)/=integerMissing) ! loop through non-missing energy state variables in the layer domains
+        iState = ixSnLaSoGlNrg(iLayer)
         stateVecTrial(iState) = stateVecInit(iState) + (fluxVec(iState)*dt_cur + resSink(iState))/real(sMul(iState), rkind)
         resVec(iState) = 0._qp
       end do  ! looping through non-missing energy state variables in the layer domains
@@ -631,9 +631,9 @@ contains
     
     ! update volumetric water content in the snow (ensure change in state is consistent with the fluxes)
     ! NOTE: for soil water balance is constrained within the iteration loop
-    if (nSnLaSoIcHyd>0) then
-      do concurrent (iLayer=1:nSnow,ixSnLaSoIcHyd(iLayer)/=integerMissing)   ! (loop through non-missing water state variables in the snow domain)
-        iState = ixSnLaSoIcHyd(iLayer)
+    if (nSnLaSoGlHyd>0) then
+      do concurrent (iLayer=1:nSnow,ixSnLaSoGlHyd(iLayer)/=integerMissing)   ! (loop through non-missing water state variables in the snow domain)
+        iState = ixSnLaSoGlHyd(iLayer)
         stateVecTrial(iState) = stateVecInit(iState) + (fluxVec(iState)*dt_cur + resSink(iState))
         resVec(iState) = 0._qp
       end do  ! looping through non-missing water state variables in the soil domain
@@ -661,10 +661,10 @@ contains
    nSnow => indx_data%var(iLookINDEX%nSnow)%dat(1),& ! intent(in): [i4b] number of snow layers
    nLake => indx_data%var(iLookINDEX%nLake)%dat(1),& ! intent(in): [i4b] number of lake layers
    nSoil => indx_data%var(iLookINDEX%nSoil)%dat(1),& ! intent(in): [i4b] number of soil layers
-   nIce  => indx_data%var(iLookINDEX%nIce)%dat(1)  & ! intent(in): [i4b] number of ice layers
+   nGlce => indx_data%var(iLookINDEX%nGlce)%dat(1) & ! intent(in): [i4b] number of glacier ice layers
    )
    ! allocate space for the temporary flux_sum structure
-   call allocLocal(flux_meta(:),flux_sum,nSnow,nLake,nSoil,nIce,zero,err,cmessage)
+   call allocLocal(flux_meta(:),flux_sum,nSnow,nLake,nSoil,nGlce,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
 
    ! initialize flux_sum
@@ -688,7 +688,7 @@ contains
                        nSnow,                   & ! intent(in):    number of snow layers
                        nLake,                   & ! intent(in):    number of lake layers
                        nSoil,                   & ! intent(in):    number of soil layers
-                       nIce,                    & ! intent(in):    number of ice layers
+                       nGlce,                   & ! intent(in):    number of glacier ice layers
                        nLayers,                 & ! intent(in):    number of snow+soil layers
                        nState,                  & ! intent(in):    number of state variables in the current subset
                        ixMatrix,                & ! intent(in):    type of matrix (dense or banded)
@@ -769,7 +769,7 @@ contains
    nSnow => indx_data%var(iLookINDEX%nSnow)%dat(1),& ! intent(in): [i4b] number of snow layers
    nLake => indx_data%var(iLookINDEX%nLake)%dat(1),& ! intent(in): [i4b] number of lake layers
    nSoil => indx_data%var(iLookINDEX%nSoil)%dat(1),& ! intent(in): [i4b] number of soil layers
-   nIce  => indx_data%var(iLookINDEX%nIce)%dat(1)  & ! intent(in): [i4b] number of ice layers
+   nGlce => indx_data%var(iLookINDEX%nGlce)%dat(1) & ! intent(in): [i4b] number of glacier ice layers
    )
    !---------------------------
    ! * solving F(y) = 0 from Backward Euler with KINSOL, y is the state vector 
@@ -784,7 +784,7 @@ contains
                           nSnow,                   & ! intent(in):    number of snow layers
                           nLake,                   & ! intent(in):    number of lake layers
                           nSoil,                   & ! intent(in):    number of soil layers
-                          nIce,                    & ! intent(in):    number of ice layers
+                          nGlce,                   & ! intent(in):    number of glacier ice layers
                           nLayers,                 & ! intent(in):    number of snow+soil layers
                           nState,                  & ! intent(in):    number of state variables in the current subset
                           ixMatrix,                & ! intent(in):    type of matrix (dense or banded)

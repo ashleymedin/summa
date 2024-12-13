@@ -108,7 +108,7 @@ contains
  flux2state_orig(iLookFLUX%scalarCanopyAdvectiveHeatFlux)   = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarGroundAdvectiveHeatFlux)   = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
  flux2state_orig(iLookFLUX%scalarCanopySublimation)         = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
- flux2state_orig(iLookFLUX%scalarSnowSublimation)           = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
+ flux2state_orig(iLookFLUX%scalarGroundSublimation)         = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
 
  ! stomatal resistance and photosynthesis -- calculated when the canopy energy state variable is active
  flux2state_orig(iLookFLUX%scalarStomResistSunlit)          = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
@@ -141,9 +141,9 @@ contains
  flux2state_orig(iLookFLUX%scalarSnowDrainage)              = flux2state(state1=iname_watLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarLakeDrainage)              = flux2state(state1=iname_watLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarLakeInflux)                = flux2state(state1=iname_watLayer,  state2=integerMissing)
- flux2state_orig(iLookFLUX%scalarIceInflux)                 = flux2state(state1=iname_watLayer,  state2=integerMissing)
- flux2state_orig(iLookFLUX%iLayerLiqFluxSnLaIc)             = flux2state(state1=iname_watLayer,  state2=iname_matLayer)
- flux2state_orig(iLookFLUX%mLayerLiqFluxSnLaIc)             = flux2state(state1=iname_watLayer,  state2=iname_matLayer)
+ flux2state_orig(iLookFLUX%scalarGlceInflux)                = flux2state(state1=iname_watLayer,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%iLayerLiqFluxSnLaGl)             = flux2state(state1=iname_watLayer,  state2=iname_matLayer)
+ flux2state_orig(iLookFLUX%mLayerLiqFluxSnLaGl)             = flux2state(state1=iname_watLayer,  state2=iname_matLayer)
 
  ! liquid water fluxes for the soil domain
  flux2state_orig(iLookFLUX%scalarRainPlusMelt)              = flux2state(state1=iname_matLayer,  state2=integerMissing)

@@ -5,6 +5,7 @@ USE nrtype
 
 ! physical constants
 USE multiconst,only:&
+                    Tfreeze,      & ! freezing temperature (K)
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
 
@@ -37,7 +38,9 @@ contains
 subroutine computSnowDepth(&
                         dt_sub,                 & ! intent(in):    time step (s)
                         nSnow,                  & ! intent(in):    number of snow layers
-                        scalarSnowSublimation,  & ! intent(in):    scalar sublimation of snow (kg m-2)
+                        nLake,                  & ! intent(in):    number of lake layers
+                        nGlce,                  & ! intent(in):    number of glacier ice layers
+                        scalarGroundSublimation,& ! intent(in):    scalar sublimation of snow (kg m-2)
                         mLayerVolFracLiq,       & ! intent(inout): volumetric fraction of liquid water
                         mLayerVolFracIce,       & ! intent(inout): volumetric fraction of ice
                         mLayerTemp,             & ! intent(in):    temperature of each layer (K)
@@ -54,7 +57,9 @@ subroutine computSnowDepth(&
   implicit none
   real(qp),intent(in)                  :: dt_sub                 ! time step (s)
   integer(i4b),intent(in)              :: nSnow                  ! number of snow layers
-  real(rkind),intent(in)               :: scalarSnowSublimation  ! scalar sublimation of snow (kg m-2)
+  integer(i4b),intent(in)              :: nLake                  ! number of lake layers
+  integer(i4b),intent(in)              :: nGlce                  ! number of glacier ice layers
+  real(rkind),intent(in)               :: scalarGroundSublimation! scalar sublimation of snow (kg m-2)
   real(rkind),intent(inout)            :: mLayerVolFracLiq(:)    ! volumetric fraction of liquid water
   real(rkind),intent(inout)            :: mLayerVolFracIce(:)    ! volumetric fraction of ice
   real(rkind),intent(in)               :: mLayerTemp(:)          ! temperature of each layer (K)
@@ -67,7 +72,6 @@ subroutine computSnowDepth(&
 
   ! local variables
   character(len=256)                   :: cmessage               ! error message
-  integer(i4b)                         :: iSnow                  ! index of snow layers
   real(rkind)                          :: massLiquid             ! mass liquid water (kg m-2)
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
@@ -78,33 +82,28 @@ subroutine computSnowDepth(&
   ! initialize the flags
   tooMuchSublim=.false.  ! too much sublimation (merge snow layers)
   ! NOTE: this is done BEFORE densification
-  if(nSnow > 0)then ! snow layers exist
-
-    ! try to remove ice from the top layer
-    iSnow=1
+  if(nSnow>0 .or. (nLake>0 .and. mLayerTemp(1)<Tfreeze) .or. nGlce>0 )then ! snow or ice layers exist
 
     ! save the mass of liquid water (kg m-2)
-    massLiquid = mLayerDepth(iSnow)*mLayerVolFracLiq(iSnow)*iden_water
+    massLiquid = mLayerDepth(1)*mLayerVolFracLiq(1)*iden_water
 
     ! add/remove the depth of snow gained/lost by frost/sublimation (m)
     ! NOTE: assume constant density
-    mLayerDepth(iSnow) = mLayerDepth(iSnow) + dt_sub*scalarSnowSublimation/(mLayerVolFracIce(iSnow)*iden_ice)
+    mLayerDepth(1) = mLayerDepth(1) + dt_sub*scalarGroundSublimation/(mLayerVolFracIce(1)*iden_ice)
 
     ! check that we did not remove the entire layer
-    if(mLayerDepth(iSnow) < verySmall)then
+    if(mLayerDepth(1) < verySmall)then
       tooMuchSublim=.true.
       return
     endif
 
     ! update the volumetric fraction of liquid water
-    mLayerVolFracLiq(iSnow) = massLiquid / (mLayerDepth(iSnow)*iden_water)
+    mLayerVolFracLiq(1) = massLiquid / (mLayerDepth(1)*iden_water)
 
-  ! no snow
   else
-
-    ! no snow: check that sublimation is zero
-    if(abs(scalarSnowSublimation) > verySmall)then
-      message=trim(message)//'sublimation of snow has been computed when no snow exists'
+    ! no snow or ice: check that sublimation is zero
+    if(abs(scalarGroundSublimation) > verySmall)then
+      message=trim(message)//'sublimation of snow and ice has been computed when no snow or ice exists'
       err=20; return
     end if
 

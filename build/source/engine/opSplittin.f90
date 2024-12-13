@@ -198,7 +198,7 @@ subroutine opSplittin(&
                       nSnow,                & ! intent(in):    number of snow layers
                       nLake,                & ! intent(in):    number of lake layers
                       nSoil,                & ! intent(in):    number of soil layers
-                      nIce,                 & ! intent(in):    number of ice layers
+                      nGlce,                & ! intent(in):    number of glacier ice layers
                       nLayers,              & ! intent(in):    total number of layers
                       nState,               & ! intent(in):    total number of state variables
                       dt,                   & ! intent(in):    time step (s)
@@ -241,7 +241,7 @@ subroutine opSplittin(&
   integer(i4b),intent(in)         :: nSnow                          ! number of snow layers
   integer(i4b),intent(in)         :: nLake                          ! number of lake layers
   integer(i4b),intent(in)         :: nSoil                          ! number of soil layers
-  integer(i4b),intent(in)         :: nIce                           ! number of ice layers
+  integer(i4b),intent(in)         :: nGlce                          ! number of glacier ice layers
   integer(i4b),intent(in)         :: nLayers                        ! total number of layers
   integer(i4b),intent(in)         :: nState                         ! total number of state variables
   real(rkind),intent(in)          :: dt                             ! time step (seconds)
@@ -623,35 +623,35 @@ subroutine opSplittin(&
    return_flag=.false. ! initialize flag
 
    ! allocate space for the flux mask (used to define when fluxes are updated)
-   call allocLocal(flux_meta(:),fluxMask,nSnow,nLake,nSoil,nIce,zero,err,cmessage)
+   call allocLocal(flux_meta(:),fluxMask,nSnow,nLake,nSoil,nGlce,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the flux count (used to check that fluxes are only updated once)
-   call allocLocal(flux_meta(:),fluxCount,nSnow,nLake,nSoil,nIce,zero,err,cmessage)
+   call allocLocal(flux_meta(:),fluxCount,nSnow,nLake,nSoil,nGlce,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary prognostic variable structure
-   call allocLocal(prog_meta(:),prog_temp,nSnow,nLake,nSoil,nIce,zero,err,cmessage)
+   call allocLocal(prog_meta(:),prog_temp,nSnow,nLake,nSoil,nGlce,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary diagnostic variable structure
-   call allocLocal(diag_meta(:),diag_temp,nSnow,nLake,nSoil,nIce,zero,err,cmessage)
+   call allocLocal(diag_meta(:),diag_temp,nSnow,nLake,nSoil,nGlce,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary flux variable structure
-   call allocLocal(flux_meta(:),flux_temp,nSnow,nLake,nSoil,nIce,zero,err,cmessage)
+   call allocLocal(flux_meta(:),flux_temp,nSnow,nLake,nSoil,nGlce,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the mean flux variable structure
-   call allocLocal(flux_meta(:),flux_mean,nSnow,nLake,nSoil,nIce,zero,err,cmessage)
+   call allocLocal(flux_meta(:),flux_mean,nSnow,nLake,nSoil,nGlce,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary mean flux variable structure
-   call allocLocal(flux_meta(:),flux_mntemp,nSnow,nLake,nSoil,nIce,zero,err,cmessage)
+   call allocLocal(flux_meta(:),flux_mntemp,nSnow,nLake,nSoil,nGlce,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the derivative structure
-   call allocLocal(deriv_meta(:),deriv_data,nSnow,nLake,nSoil,nIce,zero,err,cmessage)
+   call allocLocal(deriv_meta(:),deriv_data,nSnow,nLake,nSoil,nGlce,zero,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end subroutine allocate_memory
 
@@ -841,7 +841,7 @@ subroutine opSplittin(&
 
   ! **** indexSplit ****
   subroutine initialize_indexSplit
-   call in_indexSplit % initialize(nSnow,nLake,nSoil,nIce,nLayers,nSubset)
+   call in_indexSplit % initialize(nSnow,nLake,nSoil,nGlce,nLayers,nSubset)
   end subroutine initialize_indexSplit
 
   subroutine finalize_indexSplit
@@ -1094,8 +1094,8 @@ subroutine opSplittin(&
      if (nSnow==0 .and. iVar==iLookFLUX%scalarSnowDrainage) desiredFlux = .false.
      if (nLake==0 .and. iVar==iLookFLUX%scalarLakeInflux) desiredFlux = .false.
      if (nLake==0 .and. iVar==iLookFLUX%scalarLakeDrainage) desiredFlux = .false.
-     if (nIce==0  .and. iVar==iLookFLUX%scalarIceInflux) desiredFlux = .false.
-     if (nIce==0  .and. iVar==iLookFLUX%scalarGlacierMelt) desiredFlux = .false.
+     if (nGlce==0 .and. iVar==iLookFLUX%scalarGlceInflux) desiredFlux = .false.
+     if (nGlce==0 .and. iVar==iLookFLUX%scalarGlacierMelt) desiredFlux = .false.
 
      fluxMask%var(iVar)%dat = desiredFlux
 
@@ -1122,8 +1122,8 @@ subroutine opSplittin(&
      if (nSnow==0 .and. iVar==iLookFLUX%scalarSnowDrainage) desiredFlux = .false.
      if (nLake==0 .and. iVar==iLookFLUX%scalarLakeInflux) desiredFlux = .false.
      if (nLake==0 .and. iVar==iLookFLUX%scalarLakeDrainage) desiredFlux = .false.
-     if (nIce==0  .and. iVar==iLookFLUX%scalarIceInflux) desiredFlux = .false.
-     if (nIce==0  .and. iVar==iLookFLUX%scalarGlacierMelt) desiredFlux = .false.
+     if (nGlce==0 .and. iVar==iLookFLUX%scalarGlceInflux) desiredFlux = .false.
+     if (nGlce==0 .and. iVar==iLookFLUX%scalarGlacierMelt) desiredFlux = .false.
 
      if (nDomains==1) then ! no domain splitting
       fluxMask%var(iVar)%dat = desiredFlux
@@ -1151,13 +1151,13 @@ subroutine opSplittin(&
             iOffset = 0 ! initialize offset, true for snow
             if(flux_meta(iVar)%vartype==iLookVarType%midLake .or. flux_meta(iVar)%vartype==iLookVarType%ifcLake) iOffset = nSnow
             if(flux_meta(iVar)%vartype==iLookVarType%midSoil .or. flux_meta(iVar)%vartype==iLookVarType%ifcSoil) iOffset = nSnow+nLake
-            if(flux_meta(iVar)%vartype==iLookVarType%midIce  .or. flux_meta(iVar)%vartype==iLookVarType%ifcIce)  iOffset = nSnow+nLake+nSoil
+            if(flux_meta(iVar)%vartype==iLookVarType%midGlce .or. flux_meta(iVar)%vartype==iLookVarType%ifcGlce)  iOffset = nSnow+nLake+nSoil
             jLayer  = iLayer-iOffset
 
             ! identify the minimum layer
             select case(flux_meta(iVar)%vartype)
-             case(iLookVarType%ifcToto, iLookVarType%ifcSnow, iLookVarType%ifcLake, iLookVarType%ifcSoil, iLookVarType%ifcIce); minLayer=merge(jLayer-1, jLayer, jLayer==1)
-             case(iLookVarType%midToto, iLookVarType%midSnow, iLookVarType%midLake, iLookVarType%midSoil, iLookVarType%midIce); minLayer=jLayer
+             case(iLookVarType%ifcToto, iLookVarType%ifcSnow, iLookVarType%ifcLake, iLookVarType%ifcSoil, iLookVarType%ifcGlce); minLayer=merge(jLayer-1, jLayer, jLayer==1)
+             case(iLookVarType%midToto, iLookVarType%midSnow, iLookVarType%midLake, iLookVarType%midSoil, iLookVarType%midGlce); minLayer=jLayer
              case default; minLayer=integerMissing
             end select
 
@@ -1167,7 +1167,7 @@ subroutine opSplittin(&
              case(iLookVarType%midSnow,iLookVarType%ifcSnow); if (iLayer<=nSnow)                                                 fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
              case(iLookVarType%midLake,iLookVarType%ifcLake); if (iLayer<=nSnow+nLake            .and. iLayer>nSnow)             fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
              case(iLookVarType%midSoil,iLookVarType%ifcSoil); if (iLayer<=nSnow+nLake+nSoil      .and. iLayer>nSnow+nLake)       fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
-             case(iLookVarType%midIce, iLookVarType%ifcIce);  if (iLayer<=nSnow+nLake+nSoil+nIce .and. iLayer>nSnow+nLake+nSoil) fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
+             case(iLookVarType%midGlce,iLookVarType%ifcGlce); if (iLayer<=nSnow+nLake+nSoil+nGlce.and. iLayer>nSnow+nLake+nSoil) fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
             end select
 
             ! add hydrology states for scalar variables
@@ -1176,15 +1176,15 @@ subroutine opSplittin(&
               case(snowSplit); if(iLayer==nSnow .and. &
                 iVar/=iLookFLUX%scalarLakeInflux   .and. &
                 iVar/=iLookFLUX%scalarLakeDrainage .and. &
-                iVar/=iLookFLUX%scalarIceInflux    .and. &          
+                iVar/=iLookFLUX%scalarGlceInflux   .and. &          
                 iVar/=iLookFLUX%scalarGlacierMelt)       fluxMask%var(iVar)%dat = desiredFlux
               case(lakeSplit); if(iLayer==nSnow+nLake .and. nLake>0 .and. &
                 iVar/=iLookFLUX%scalarSnowDrainage .and. &
-                iVar/=iLookFLUX%scalarIceInflux    .and. &          
+                iVar/=iLookFLUX%scalarGlceInflux   .and. &          
                 iVar/=iLookFLUX%scalarGlacierMelt)       fluxMask%var(iVar)%dat = desiredFlux
               case(soilSplit); if(iLayer==nSnow+nLake+1 .and. nSoil>0) &
                                                          fluxMask%var(iVar)%dat = desiredFlux
-              case(iceSplit);  if(iLayer==nSnow+nLake+nSoil+nIce .and. nIce>0 .and. &
+              case(iceSplit);  if(iLayer==nSnow+nLake+nSoil+nGlce .and. nGlce>0 .and. &
                 iVar/=iLookFLUX%scalarSnowDrainage .and. &
                 iVar/=iLookFLUX%scalarLakeInflux   .and. &
                 iVar/=iLookFLUX%scalarLakeDrainage)      fluxMask%var(iVar)%dat = desiredFlux
@@ -1623,9 +1623,9 @@ contains
    nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)    ,& ! intent(in): [i4b] number of snow layers
    nLake           => indx_data%var(iLookINDEX%nLake)%dat(1)    ,& ! intent(in): [i4b] number of lake layers
    nSoil           => indx_data%var(iLookINDEX%nSoil)%dat(1)    ,& ! intent(in): [i4b] number of soil layers
-   nIce            => indx_data%var(iLookINDEX%nIce)%dat(1)     ,& ! intent(in): [i4b] number of ice layers
+   nGlce           => indx_data%var(iLookINDEX%nGlce)%dat(1)    ,& ! intent(in): [i4b] number of glacier ice layers
    ixNrgLayer      => indx_data%var(iLookINDEX%ixNrgLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the layer domain
-   stateMask(ixNrgLayer(max(2,nSnow+nLake+nSoil+1):nSnow+nLake+nSoil+nIce)) = .true. ! NOTE: (2:) because the top layer in the layer domain included in vegSplit
+   stateMask(ixNrgLayer(max(2,nSnow+nLake+nSoil+1):nSnow+nLake+nSoil+nGlce)) = .true. ! NOTE: (2:) because the top layer in the layer domain included in vegSplit
   end associate
  end subroutine stateTypeSplit_subDomain_nrgSplit_iceSplit_stateMask
 
@@ -1691,9 +1691,9 @@ contains
    nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)    ,& ! intent(in): [i4b] number of snow layers
    nLake           => indx_data%var(iLookINDEX%nLake)%dat(1)    ,& ! intent(in): [i4b] number of lake layers
    nSoil           => indx_data%var(iLookINDEX%nSoil)%dat(1)    ,& ! intent(in): [i4b] number of soil layers
-   nIce            => indx_data%var(iLookINDEX%nIce)%dat(1)     ,& ! intent(in): [i4b] number of ice layers
+   nGlce           => indx_data%var(iLookINDEX%nGlce)%dat(1)     ,& ! intent(in): [i4b] number of glacier ice layers
    ixHydLayer      => indx_data%var(iLookINDEX%ixHydLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the lake domain
-   stateMask(ixHydLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nIce)) = .true.  ! soil hydrology
+   stateMask(ixHydLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce)) = .true.  ! soil hydrology
   end associate
  end subroutine stateTypeSplit_subDomain_massSplit_iceSplit_stateMask
 

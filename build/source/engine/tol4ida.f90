@@ -167,10 +167,10 @@ subroutine popTol4ida(&
     ixVegHyd            => indx_data%var(iLookINDEX%ixVegHyd)%dat                 ,& ! intent(in) : [i4b(:)] [length=1] index of canopy hydrology state variable (mass)
     ixAqWat             => indx_data%var(iLookINDEX%ixAqWat)%dat                  ,& ! intent(in) : [i4b(:)] [length=1] index of aquifer storage state variable
     ! vector of energy and hydrology indices for the layer domains
-    ixSnLaSoIcNrg       => indx_data%var(iLookINDEX%ixSnLaSoIcNrg)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for energy state variables in the layer domains
-    ixSnLaSoIcHyd       => indx_data%var(iLookINDEX%ixSnLaSoIcHyd)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for hydrology state variables in the layer domains
-    nSnLaSoIcNrg        => indx_data%var(iLookINDEX%nSnLaSoIcNrg )%dat(1)         ,& ! intent(in) : [i4b]    number of energy state variables in the layer domains
-    nSnLaSoIcHyd        => indx_data%var(iLookINDEX%nSnLaSoIcHyd )%dat(1)         ,& ! intent(in) : [i4b]    number of hydrology state variables in the layer domains
+    ixSnLaSoGlNrg       => indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for energy state variables in the layer domains
+    ixSnLaSoGlHyd       => indx_data%var(iLookINDEX%ixSnLaSoGlHyd)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for hydrology state variables in the layer domains
+    nSnLaSoGlNrg        => indx_data%var(iLookINDEX%nSnLaSoGlNrg )%dat(1)         ,& ! intent(in) : [i4b]    number of energy state variables in the layer domains
+    nSnLaSoGlHyd        => indx_data%var(iLookINDEX%nSnLaSoGlHyd )%dat(1)         ,& ! intent(in) : [i4b]    number of hydrology state variables in the layer domains
     ! type of model state variabless
     ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in) : [i4b(:)] [state subset] type of desired model state variables
     ixHydType           => indx_data%var(iLookINDEX%ixHydType)%dat                ,& ! intent(in) : [i4b(:)] index of the type of hydrology states in layer domains
@@ -230,9 +230,9 @@ subroutine popTol4ida(&
     end do
 
     ! tolerance for tempreture of the snow and soil domain
-    if(nSnLaSoIcNrg>0)then
-      do concurrent (iLayer=1:nLayers,ixSnLaSoIcNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the layer domains)
-        ixStateSubset            = ixSnLaSoIcNrg(iLayer)  ! index within the state vector
+    if(nSnLaSoGlNrg>0)then
+      do concurrent (iLayer=1:nLayers,ixSnLaSoGlNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the layer domains)
+        ixStateSubset            = ixSnLaSoGlNrg(iLayer)  ! index within the state vector
         absTol(ixStateSubset)  = absTolTempSoilSnow    ! transfer temperature from a layer to the state vector
         relTol(ixStateSubset)  = relTolTempSoilSnow
         tolFlag(ixStateSubset) = .true.                 ! flag to denote that tolerances are populated
@@ -240,9 +240,9 @@ subroutine popTol4ida(&
     endif
 
     ! NOTE: ixVolFracWat  and ixVolFracLiq can also include states in the soil domain, hence enable primary variable switching
-    if(nSnLaSoIcHyd>0)then
-      do concurrent (iLayer=1:nLayers,ixSnLaSoIcHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the layer domains)
-        ixStateSubset            = ixSnLaSoIcHyd(iLayer)   ! index within the state vector
+    if(nSnLaSoGlHyd>0)then
+      do concurrent (iLayer=1:nLayers,ixSnLaSoGlHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the layer domains)
+        ixStateSubset            = ixSnLaSoGlHyd(iLayer)   ! index within the state vector
         tolFlag(ixStateSubset) = .true.                  ! flag to denote that tolerances are populated
         select case( ixHydType(iLayer) )
           case(iname_watLayer); absTol(ixStateSubset) = absTolWatSnow ;  relTol(ixStateSubset) = relTolWatSnow

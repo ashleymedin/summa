@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module snLaSoIcNrgFlux_module
+module snLaSoGlNrgFlux_module
 
 ! data types
 USE nrtype
@@ -26,9 +26,9 @@ USE nrtype
 ! data types
 USE data_types,only:var_dlength         ! x%var(:)%dat [rkind]
 USE data_types,only:var_ilength         ! x%var(:)%dat [i4b]
-USE data_types,only:in_type_snLaSoIcNrgFlux  ! intent(in) arguments for snLaSoIcNrgFlux
-USE data_types,only:io_type_snLaSoIcNrgFlux  ! intent(inout) arguments for snLaSoIcNrgFlux
-USE data_types,only:out_type_snLaSoIcNrgFlux ! intent(out) arguments for snLaSoIcNrgFlux
+USE data_types,only:in_type_snLaSoGlNrgFlux  ! intent(in) arguments for snLaSoGlNrgFlux
+USE data_types,only:io_type_snLaSoGlNrgFlux  ! intent(inout) arguments for snLaSoGlNrgFlux
+USE data_types,only:out_type_snLaSoGlNrgFlux ! intent(out) arguments for snLaSoGlNrgFlux
 
 ! physical constants
 USE multiconst,only:&
@@ -42,7 +42,7 @@ USE globalData,only:realMissing     ! missing real number
 ! named variables for snow and soil
 USE globalData,only:iname_snow      ! named variables for snow
 USE globalData,only:iname_soil      ! named variables for soil
-USE globalData,only:iname_ice       ! named variables for ice
+USE globalData,only:iname_glce      ! named variables for glacier ice
 USE globalData,only:iname_lake      ! named variables for lake
 
 ! named variables
@@ -68,29 +68,29 @@ USE mDecisions_module,only:      &
 ! -------------------------------------------------------------------------------------------------
 implicit none
 private
-public :: snLaSoIcNrgFlux
+public :: snLaSoGlNrgFlux
 ! global parameters
 real(rkind),parameter            :: dx=1.e-10_rkind         ! finite difference increment (K)
 contains
 ! **********************************************************************************************************
-! public subroutine snLaSoIcNrgFlux: compute energy fluxes and derivatives at layer interfaces
+! public subroutine snLaSoGlNrgFlux: compute energy fluxes and derivatives at layer interfaces
 ! **********************************************************************************************************
-subroutine snLaSoIcNrgFlux(&
+subroutine snLaSoGlNrgFlux(&
                       ! input: model control, fluxes, trial variables, and  derivatives
-                      in_snLaSoIcNrgFlux,                      & ! intent(in):     model control, fluxes, trial variables, and  derivatives
+                      in_snLaSoGlNrgFlux,                      & ! intent(in):     model control, fluxes, trial variables, and  derivatives
                       ! input-output: data structures and derivatives
                       mpar_data,                          & ! intent(in):    model parameters
                       indx_data,                          & ! intent(in):    model indices
                       prog_data,                          & ! intent(in):    model prognostic variables for a local HRU
                       diag_data,                          & ! intent(in):    model diagnostic variables for a local HRU
                       flux_data,                          & ! intent(inout): model fluxes for a local HRU
-                      io_snLaSoIcNrgFlux,                      & ! intent(inout): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+                      io_snLaSoGlNrgFlux,                      & ! intent(inout): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
                       ! output: fluxes and derivatives at all layer interfaces and error control
-                      out_snLaSoIcNrgFlux)                       ! intent(out):   derivatives and error control
+                      out_snLaSoGlNrgFlux)                       ! intent(out):   derivatives and error control
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! input: model control, fluxes, trial variables, and  derivatives
-  type(in_type_snLaSoIcNrgFlux),intent(in)     :: in_snLaSoIcNrgFlux          ! input snLaSoIcNrgFlux arguments
+  type(in_type_snLaSoGlNrgFlux),intent(in)     :: in_snLaSoGlNrgFlux          ! input snLaSoGlNrgFlux arguments
   ! input-output: data structures
   type(var_dlength),intent(in)            :: mpar_data              ! model parameters
   type(var_ilength),intent(in)            :: indx_data              ! state vector geometry
@@ -98,9 +98,9 @@ subroutine snLaSoIcNrgFlux(&
   type(var_dlength),intent(in)            :: diag_data              ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout)         :: flux_data              ! model fluxes for a local HRU
   ! input-output: derivatives
-  type(io_type_snLaSoIcNrgFlux),intent(inout)  :: io_snLaSoIcNrgFlux          ! input-output snLaSoIcNrgFlux arguments
+  type(io_type_snLaSoGlNrgFlux),intent(inout)  :: io_snLaSoGlNrgFlux          ! input-output snLaSoGlNrgFlux arguments
   ! output: fluxes and derivatives at all layer interfaces
-  type(out_type_snLaSoIcNrgFlux),intent(inout) :: out_snLaSoIcNrgFlux         ! output snLaSoIcNrgFlux arguments
+  type(out_type_snLaSoGlNrgFlux),intent(inout) :: out_snLaSoGlNrgFlux         ! output snLaSoGlNrgFlux arguments
   ! ------------------------------------------------------------------------------------------------------------------------------------------------------
   ! local variables
   integer(i4b)                        :: nLayers                    ! number of model layers
@@ -114,28 +114,28 @@ subroutine snLaSoIcNrgFlux(&
   ! allocate intent(out) data structure components
   nLayers=indx_data%var(iLookINDEX%nLayers)%dat(1)
   allocate(&
-    out_snLaSoIcNrgFlux % iLayerNrgFlux(0:nLayers),                          & ! energy flux at the layer interfaces (W m-2)
-    out_snLaSoIcNrgFlux % dNrgFlux_dTempAbove(0:nLayers),                    & ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
-    out_snLaSoIcNrgFlux % dNrgFlux_dTempBelow(0:nLayers),                    & ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
-    out_snLaSoIcNrgFlux % dNrgFlux_dWatAbove(0:nLayers),                     & ! derivatives in the flux w.r.t. water state in the layer above (J m-2 s-1 K-1)
-    out_snLaSoIcNrgFlux % dNrgFlux_dWatBelow(0:nLayers))                       ! derivatives in the flux w.r.t. water state in the layer below (J m-2 s-1 K-1)
+    out_snLaSoGlNrgFlux % iLayerNrgFlux(0:nLayers),                          & ! energy flux at the layer interfaces (W m-2)
+    out_snLaSoGlNrgFlux % dNrgFlux_dTempAbove(0:nLayers),                    & ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
+    out_snLaSoGlNrgFlux % dNrgFlux_dTempBelow(0:nLayers),                    & ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
+    out_snLaSoGlNrgFlux % dNrgFlux_dWatAbove(0:nLayers),                     & ! derivatives in the flux w.r.t. water state in the layer above (J m-2 s-1 K-1)
+    out_snLaSoGlNrgFlux % dNrgFlux_dWatBelow(0:nLayers))                       ! derivatives in the flux w.r.t. water state in the layer below (J m-2 s-1 K-1)
   ! make association of local variables with information in the data structures
   associate(&
     ! input: model control
-    scalarSolution             => in_snLaSoIcNrgFlux % scalarSolution,             & ! intent(in):    flag to denote if implementing the scalar solution
+    scalarSolution             => in_snLaSoGlNrgFlux % scalarSolution,             & ! intent(in):    flag to denote if implementing the scalar solution
     ! input: fluxes and derivatives at the upper boundary
-    groundNetFlux              => in_snLaSoIcNrgFlux % scalarGroundNetNrgFlux,     & ! intent(in):    net energy flux for the ground surface (W m-2)
-    dGroundNetFlux_dGroundTemp => io_snLaSoIcNrgFlux % dGroundNetFlux_dGroundTemp, & ! intent(inout): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+    groundNetFlux              => in_snLaSoGlNrgFlux % scalarGroundNetNrgFlux,     & ! intent(in):    net energy flux for the ground surface (W m-2)
+    dGroundNetFlux_dGroundTemp => io_snLaSoGlNrgFlux % dGroundNetFlux_dGroundTemp, & ! intent(inout): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
     ! input: liquid water fluxes
-    iLayerLiqFluxSnLaIc          => in_snLaSoIcNrgFlux % iLayerLiqFluxSnLaIc,          & ! intent(in):    liquid flux at the interface of each snow layer (m s-1)
-    iLayerLiqFluxSoil          => in_snLaSoIcNrgFlux % iLayerLiqFluxSoil,          & ! intent(in):    liquid flux at the interface of each soil layer (m s-1)
+    iLayerLiqFluxSnLaGl          => in_snLaSoGlNrgFlux % iLayerLiqFluxSnLaGl,          & ! intent(in):    liquid flux at the interface of each snow layer (m s-1)
+    iLayerLiqFluxSoil          => in_snLaSoGlNrgFlux % iLayerLiqFluxSoil,          & ! intent(in):    liquid flux at the interface of each soil layer (m s-1)
     ! input: trial model state variables
-    mLayerTempTrial            => in_snLaSoIcNrgFlux % mLayerTempTrial,            & ! intent(in):     temperature in each layer at the current iteration (m)
+    mLayerTempTrial            => in_snLaSoGlNrgFlux % mLayerTempTrial,            & ! intent(in):     temperature in each layer at the current iteration (m)
     ! input: derivatives
-    dThermalC_dWatAbove        => in_snLaSoIcNrgFlux % dThermalC_dWatAbove,  & ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
-    dThermalC_dWatBelow        => in_snLaSoIcNrgFlux % dThermalC_dWatBelow,  & ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
-    dThermalC_dTempAbove       => in_snLaSoIcNrgFlux % dThermalC_dTempAbove, & ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
-    dThermalC_dTempBelow       => in_snLaSoIcNrgFlux % dThermalC_dTempBelow, & ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
+    dThermalC_dWatAbove        => in_snLaSoGlNrgFlux % dThermalC_dWatAbove,  & ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
+    dThermalC_dWatBelow        => in_snLaSoGlNrgFlux % dThermalC_dWatBelow,  & ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
+    dThermalC_dTempAbove       => in_snLaSoGlNrgFlux % dThermalC_dTempAbove, & ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
+    dThermalC_dTempBelow       => in_snLaSoGlNrgFlux % dThermalC_dTempBelow, & ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
     ! input: boundary conditions
     ix_bcUpprTdyn           => model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision, & ! intent(in):  method used to calculate the upper boundary condition for thermodynamics
     ix_bcLowrTdyn           => model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision, & ! intent(in):  method used to calculate the lower boundary condition for thermodynamics
@@ -143,10 +143,10 @@ subroutine snLaSoIcNrgFlux(&
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),               & ! intent(in):  number of snow layers
     nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1),               & ! intent(in):  number of lake layers
     nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1),               & ! intent(in):  number of soil layers
-    nIce                    => indx_data%var(iLookINDEX%nIce)%dat(1),                & ! intent(in):  number of ice layers
+    nGlce                   => indx_data%var(iLookINDEX%nGlce)%dat(1),               & ! intent(in):  number of glacier ice layers
     layerType               => indx_data%var(iLookINDEX%layerType)%dat,              & ! intent(in):  layer type
     ixLayerState            => indx_data%var(iLookINDEX%ixLayerState)%dat,           & ! intent(in):  list of indices for all model layers
-    ixSnLaSoIcNrg           => indx_data%var(iLookINDEX%ixSnLaSoIcNrg)%dat,          & ! intent(in):  index in the state subset for energy state variables in the layer domains
+    ixSnLaSoGlNrg           => indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat,          & ! intent(in):  index in the state subset for energy state variables in the layer domains
     mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat,             & ! intent(in):  depth of each layer (m)
     mLayerHeight            => prog_data%var(iLookPROG%mLayerHeight)%dat,            & ! intent(in):  height at the mid-point of each layer (m)
     ! input: thermal properties
@@ -157,18 +157,18 @@ subroutine snLaSoIcNrgFlux(&
     iLayerConductiveFlux => flux_data%var(iLookFLUX%iLayerConductiveFlux)%dat,       & ! intent(out): conductive energy flux at layer interfaces at end of time step (W m-2)
     iLayerAdvectiveFlux  => flux_data%var(iLookFLUX%iLayerAdvectiveFlux)%dat,        & ! intent(out): advective energy flux at layer interfaces at end of time step (W m-2)
     ! output: fluxes and derivatives at all layer interfaces
-    iLayerNrgFlux        => out_snLaSoIcNrgFlux % iLayerNrgFlux,          & ! intent(out): energy flux at the layer interfaces (W m-2)
-    dFlux_dTempAbove     => out_snLaSoIcNrgFlux % dNrgFlux_dTempAbove,    & ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
-    dFlux_dTempBelow     => out_snLaSoIcNrgFlux % dNrgFlux_dTempBelow,    & ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
-    dFlux_dWatAbove      => out_snLaSoIcNrgFlux % dNrgFlux_dWatAbove,     & ! intent(out): derivatives in the flux w.r.t. water state in the layer above (J m-2 s-1 K-1)
-    dFlux_dWatBelow      => out_snLaSoIcNrgFlux % dNrgFlux_dWatBelow,     & ! intent(out): derivatives in the flux w.r.t. water state in the layer below (J m-2 s-1 K-1)
+    iLayerNrgFlux        => out_snLaSoGlNrgFlux % iLayerNrgFlux,          & ! intent(out): energy flux at the layer interfaces (W m-2)
+    dFlux_dTempAbove     => out_snLaSoGlNrgFlux % dNrgFlux_dTempAbove,    & ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
+    dFlux_dTempBelow     => out_snLaSoGlNrgFlux % dNrgFlux_dTempBelow,    & ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
+    dFlux_dWatAbove      => out_snLaSoGlNrgFlux % dNrgFlux_dWatAbove,     & ! intent(out): derivatives in the flux w.r.t. water state in the layer above (J m-2 s-1 K-1)
+    dFlux_dWatBelow      => out_snLaSoGlNrgFlux % dNrgFlux_dWatBelow,     & ! intent(out): derivatives in the flux w.r.t. water state in the layer below (J m-2 s-1 K-1)
     ! output: error control
-    err                  => out_snLaSoIcNrgFlux % err,                    & ! intent(out): error code
-    message              => out_snLaSoIcNrgFlux % cmessage                & ! intent(out): error message
+    err                  => out_snLaSoGlNrgFlux % err,                    & ! intent(out): error code
+    message              => out_snLaSoGlNrgFlux % cmessage                & ! intent(out): error message
     )  ! end association of local variables with information in the data structures
     ! ------------------------------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
-    err=0; message='snLaSoIcNrgFlux/'
+    err=0; message='snLaSoGlNrgFlux/'
 
     ! set conductive and advective fluxes to missing in the upper boundary
     iLayerConductiveFlux(0) = realMissing
@@ -176,7 +176,7 @@ subroutine snLaSoIcNrgFlux(&
 
     ! get the indices for the layers
     if (scalarSolution) then
-      ixLayerDesired = pack(ixLayerState, ixSnLaSoIcNrg/=integerMissing)
+      ixLayerDesired = pack(ixLayerState, ixSnLaSoGlNrg/=integerMissing)
       ixTop = ixLayerDesired(1)
       ixBot = ixLayerDesired(1)
     else
@@ -205,8 +205,8 @@ subroutine snLaSoIcNrgFlux(&
     ! -------------------------------------------------------------------------------------------------------------------------
     do iLayer=ixTop,ixBot
       select case(layerType(iLayer)) ! get the liquid flux at layer interfaces
-        case(iname_snow,iname_lake,iname_ice); qFlux = iLayerLiqFluxSnLaIc(iLayer)
-        case(iname_soil);                      qFlux = iLayerLiqFluxSoil(iLayer-nSnow-nLake)
+        case(iname_snow,iname_lake,iname_glce); qFlux = iLayerLiqFluxSnLaGl(iLayer)
+        case(iname_soil);                       qFlux = iLayerLiqFluxSoil(iLayer-nSnow-nLake)
         case default; err=20; message=trim(message)//'unable to identify layer type'; return
       end select
       if (iLayer==nLayers) then ! compute fluxes at the lower boundary -- positive downwards
@@ -288,7 +288,7 @@ subroutine snLaSoIcNrgFlux(&
 
   end associate ! end association of local variables with information in the data structures
 
-end subroutine snLaSoIcNrgFlux
+end subroutine snLaSoGlNrgFlux
 
-end module snLaSoIcNrgFlux_module
+end module snLaSoGlNrgFlux_module
 

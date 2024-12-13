@@ -410,7 +410,7 @@ contains
    nSnow        => in_SS4HG % nSnow             ,& ! number of snow layers
    nLake        => in_SS4HG % nLake             ,& ! number of lake layers
    nSoil        => in_SS4HG % nSoil             ,& ! number of soil layers
-   nIce         => in_SS4HG % nIce              ,& ! number of ice layers
+   nGlce        => in_SS4HG % nGlce             ,& ! number of glacier ice layers
    nState       => in_SS4HG % nState            ,& ! total number of state variables
    ixMatrix     => in_SS4HG % ixMatrix          ,& ! type of matrix (full or band diagonal)
    ! intent(out) variables
@@ -456,7 +456,7 @@ contains
 
     ! impose solution constraints adjusting state vector and iteration increment
     ! NOTE: We may not need to do this (or at least, do ALL of this), as we can probably rely on the line search here
-    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecTrial,nState,nSnow,nLake,nSoil,nIce,cmessage,err)
+    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecTrial,nState,nSnow,nLake,nSoil,nGlce,cmessage,err)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
     xInc = stateVecNew - stateVecTrial
 
@@ -657,7 +657,7 @@ contains
    nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
    nLake          => in_SS4HG % nLake          ,& ! intent(in): number of lake layers
    nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
-   nIce           => in_SS4HG % nIce           ,& ! intent(in): number of ice layers
+   nGlce          => in_SS4HG % nGlce          ,& ! intent(in): number of glacier ice layers
    nState         => in_SS4HG % nState         ,& ! intent(in): total number of state
    xMin           => io_SS4HG % xMin           ,& ! intent(inout): bracket of the root   
    xMax           => io_SS4HG % xMax           ,& ! intent(inout): bracket of the root  
@@ -716,7 +716,7 @@ contains
     stateVecNew = stateVecTrial + xInc
      
     ! impose solution constraints adjusting state vector and iteration increment
-    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecTrial,nState,nSnow,nLake,nSoil,nIce,cmessage,err)
+    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecTrial,nState,nSnow,nLake,nSoil,nGlce,cmessage,err)
     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
     xInc = stateVecNew - stateVecTrial
 
@@ -784,10 +784,10 @@ contains
     nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
     nLake          => in_SS4HG % nLake          ,& ! intent(in): number of lake layers
     nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
-    nIce           => in_SS4HG % nIce           ,& ! intent(in): number of ice layers
+    nGlce          => in_SS4HG % nGlce          ,& ! intent(in): number of glacier ice layers
     nState         => in_SS4HG % nState          & ! intent(in): total number of state variables
    &)
-    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecPrev,nState,nSnow,nLake,nSoil,nIce,cmessage,err)
+    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecPrev,nState,nSnow,nLake,nSoil,nGlce,cmessage,err)
    end associate
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
    xIncrement = stateVecNew - stateVecPrev
@@ -965,11 +965,11 @@ contains
     nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
     nLake          => in_SS4HG % nLake          ,& ! intent(in): number of lake layers
     nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
-    nIce           => in_SS4HG % nIce           ,& ! intent(in): number of ice layers
+    nGlce          => in_SS4HG % nGlce          ,& ! intent(in): number of glacier ice layers
     nLayers        => in_SS4HG % nLayers        ,& ! intent(in): total number of layers
     computeVegFlux => in_SS4HG % computeVegFlux  & ! intent(in): flag to indicate if computing fluxes over vegetation
    &)
-    call in_computJacob % initialize(dt_cur,nSnow,nLake,nSoil,nIce,nLayers,computeVegFlux,.false.,ixFullMatrix)
+    call in_computJacob % initialize(dt_cur,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,.false.,ixFullMatrix)
    end associate
   end subroutine initialize_computJacob_testBandMat
 
@@ -989,12 +989,12 @@ contains
     nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
     nLake          => in_SS4HG % nLake          ,& ! intent(in): number of lake layers
     nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
-    nIce           => in_SS4HG % nIce           ,& ! intent(in): number of ice layers
+    nGlce          => in_SS4HG % nGlce          ,& ! intent(in): number of glacier ice layers
     nLayers        => in_SS4HG % nLayers        ,& ! intent(in): total number of layers
     ixMatrix       => in_SS4HG % ixMatrix       ,& ! intent(in): type of matrix (full or band diagonal)
     computeVegFlux => in_SS4HG % computeVegFlux  & ! intent(in): flag to indicate if computing fluxes over vegetation
    &)   
-    call in_computJacob % initialize(dt_cur,nSnow,nLake,nSoil,nIce,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel),ixMatrix)
+    call in_computJacob % initialize(dt_cur,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel),ixMatrix)
    end associate
   end subroutine initialize_computJacob_summaSolve4homegrown
 
@@ -1035,7 +1035,7 @@ contains
    nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
    nLake          => in_SS4HG % nLake          ,& ! intent(in): number of lake layers
    nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
-   nIce           => in_SS4HG % nIce           ,& ! intent(in): number of ice layers
+   nGlce          => in_SS4HG % nGlce          ,& ! intent(in): number of glacier ice layers
    nLayers        => in_SS4HG % nLayers        ,& ! intent(in): total number of layers
    nState         => in_SS4HG % nState         ,& ! intent(in): total number of state variables
    firstSubStep   => in_SS4HG % firstSubStep   ,& ! intent(in): flag to indicate if we are processing the first sub-step
@@ -1052,7 +1052,7 @@ contains
                    nSnow,                   & ! intent(in):    number of snow layers
                    nLake,                   & ! intent(in):    number of lake layers
                    nSoil,                   & ! intent(in):    number of soil layers
-                   nIce,                    & ! intent(in):    number of ice layers
+                   nGlce,                   & ! intent(in):    number of glacier ice layers
                    nLayers,                 & ! intent(in):    total number of layers
                    nState,                  & ! intent(in):    total number of state variables
                    .false.,                 & ! intent(in):    not inside Sundials solver

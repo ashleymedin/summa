@@ -105,7 +105,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  USE globalData,only:maxLayers                               ! maximum number of layers
  USE globalData,only:maxSoilLayers                           ! maximum number of soil layers
  USE globalData,only:maxSnowLayers                           ! maximum number of snow layers
- USE globalData,only:maxIceLayers                            ! maximum number of ice layers
+ USE globalData,only:maxGlceLayers                            ! maximum number of glacier ice layers
  USE globalData,only:maxLakeLayers                           ! maximum number of lake layers
  USE globalData,only:maxGlaciers                             ! maximum number of glaciers
  USE globalData,only:maxWetlands                             ! maximum number of wetlands
@@ -198,10 +198,19 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision == enthalpyFormLU) needLookup_soil = .true. 
  ! if using IDA and enthalpy as a state variable, need temperature-enthalpy lookup tables for soil and vegetation
  
+ maxGlaciers = 0
+ maxWetlands = 0
+ do iGRU=1,nGRU
+   maxGlaciers = max(maxGlaciers, gru_struc(iGRU)%nGlacier)
+   maxWetlands = max(maxWetlands, gru_struc(iGRU)%nWetland)
+ end do
+
  ! get the maximum number of snow layers
  select case(model_decisions(iLookDECISIONS%snowLayers)%iDecision)
   case(sameRulesAllLayers);    maxSnowLayers = 100
-  case(rulesDependLayerIndex); maxSnowLayers = 5
+  case(rulesDependLayerIndex)
+    maxSnowLayers = 5
+    if (maxGlaciers>0) maxSnowLayers = 12 ! increase the number of snow layers for glaciers for firn development
   case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
  end select ! (option to combine/sub-divide snow layers)
 
@@ -214,7 +223,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  maxSoilLayers      = 0
  maxSoilLayers_glac = 0
  maxSoilLayers_wtld = 0
- maxIceLayers       = 0
+ maxGlceLayers      = 0
  maxLakeLayers      = 0
  gruLoop: do iGRU=1,nGRU
   do iHRU=1,gru_struc(iGRU)%hruCount
@@ -224,10 +233,9 @@ subroutine summa_paramSetup(summa1_struc, err, message)
      maxSoilLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
     else if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln .or. gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr &
        .or. gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc)then
-     maxLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce + maxSnowLayers
-     maxIceLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nIce
-    else if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr)then
-     maxSoilLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
+     maxLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce + maxSnowLayers
+     maxGlceLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce
+     if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr) maxSoilLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
     else if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==wetland)then
      maxLayers_wtld = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake + maxSnowLayers
      maxSoilLayers_wtld = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
@@ -240,13 +248,6 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  ! Determine the maximum of the three variables
  maxLayers = max(maxLayers, maxLayers_glac, maxLayers_wtld)
  maxSoilLayers = max(maxSoilLayers, maxSoilLayers_glac, maxSoilLayers_wtld)
-
- maxGlaciers = 0
- maxWetlands = 0
- do iGRU=1,nGRU
-   maxGlaciers = max(maxGlaciers, gru_struc(iGRU)%nGlacier)
-   maxWetlands = max(maxWetlands, gru_struc(iGRU)%nWetland)
- end do
 
  ! *****************************************************************************
  ! *** read local attributes for each HRU

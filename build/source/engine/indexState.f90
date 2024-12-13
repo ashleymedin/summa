@@ -35,7 +35,7 @@ USE globalData,only:iname_cas        ! named variables for canopy air space
 USE globalData,only:iname_veg        ! named variables for vegetation canopy
 USE globalData,only:iname_snow       ! named variables for snow
 USE globalData,only:iname_soil       ! named variables for soil
-USE globalData,only:iname_ice        ! named variables for ice
+USE globalData,only:iname_glce       ! named variables for glacier ice
 USE globalData,only:iname_lake       ! named variables for lake
 USE globalData,only:iname_aquifer    ! named variables for the aquifer
 
@@ -71,7 +71,7 @@ contains
  ! **********************************************************************************************************
  subroutine indexState(computeVegFlux,                     & ! intent(in):    flag to denote if computing the vegetation flux
                        includeAquifer,                     & ! intent(in):    flag to denote if an aquifer is included
-                       nSnow,nLake,nSoil,nIce,nLayers,     & ! intent(in):    number of layers, and total number of layers
+                       nSnow,nLake,nSoil,nGlce,nLayers,    & ! intent(in):    number of layers, and total number of layers
                        indx_data,                          & ! intent(inout): indices defining model states and layers
                        err,message)                          ! intent(out):   error control
  ! provide access to the numerical recipes utility modules
@@ -82,7 +82,7 @@ contains
  ! input
  logical(lgt),intent(in)         :: computeVegFlux                 ! flag to denote if computing the vegetation flux
  logical(lgt),intent(in)         :: includeAquifer                 ! flag to denote if an aquifer is included
- integer(i4b),intent(in)         :: nSnow,nLake,nSoil,nIce,nLayers ! number of layers, and total number of layers
+ integer(i4b),intent(in)         :: nSnow,nLake,nSoil,nGlce,nLayers! number of layers, and total number of layers
  type(var_ilength),intent(inout) :: indx_data                      ! indices defining model states and layers
  ! output: error control
  integer(i4b),intent(out)        :: err                            ! error code
@@ -90,7 +90,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! general local variables
  character(len=256)              :: cmessage               ! message of downwind routine
- integer(i4b),parameter          :: nVarSnLaSoIc=2         ! number of state variables in the snow and soil (energy and total water/matric head)
+ integer(i4b),parameter          :: nVarSnLaSoGl=2         ! number of state variables in the snow and soil (energy and total water/matric head)
  integer(i4b)                    :: nAquiferState          ! number of aquifer state variables
  ! indices of model state variables
  integer(i4b)                    :: ixTopNrg               ! index of upper-most energy state in the layers
@@ -145,12 +145,12 @@ contains
 
  ! define the number state variables of different type
  nNrgState  = nCasNrg + nVegNrg + nLayers  ! number of energy state variables
- nWatState  = nSnow + nLake + nIce         ! number of "total water" state variables -- will be modified later if using primary variable switching
+ nWatState  = nSnow + nLake + nGlce        ! number of "total water" state variables -- will be modified later if using primary variable switching
  nMatState  = nSoil                        ! number of matric head state variables -- will be modified later if using primary variable switching
  nMassState = nVegMass                     ! number of mass state variables -- currently restricted to canopy water
 
  ! define the number of model state variables
- nState = nVegState + nLayers*nVarSnLaSoIc + nAquiferState  ! *nVarSnLaSoIc (both energy and total water)
+ nState = nVegState + nLayers*nVarSnLaSoGl + nAquiferState  ! *nVarSnLaSoGl (both energy and total water)
 
  ! -----
  ! * define the indices of state variables WITHIN THE FULL STATE VECTOR...
@@ -173,8 +173,8 @@ contains
  ixTopWat = nVegState + 2                       ! total water (only snow)
 
  ! define the indices within the layers
- ixNrgLayer = arth(ixTopNrg,nVarSnLaSoIc,nLayers)  ! energy
- ixHydLayer = arth(ixTopWat,nVarSnLaSoIc,nLayers)  ! total water
+ ixNrgLayer = arth(ixTopNrg,nVarSnLaSoGl,nLayers)  ! energy
+ ixHydLayer = arth(ixTopWat,nVarSnLaSoGl,nLayers)  ! total water
 
  ! define indices for the aquifer
  ixWatAquifer(1) = merge(nState, integerMissing, includeAquifer)
@@ -250,10 +250,10 @@ endif
   ixDomainType( ixHydLayer((nSnow+nLake+1):(nSnow+nLake+nSoil)) ) = iname_soil
  endif
 
- ! define the domain type for ice
- if(nIce>0)then
-   ixDomainType( ixNrgLayer((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nIce)) ) = iname_ice
-   ixDomainType( ixHydLayer((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nIce)) ) = iname_ice
+ ! define the domain type for glacier ice
+ if(nGlce>0)then
+   ixDomainType( ixNrgLayer((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nGlce)) ) = iname_glce
+   ixDomainType( ixHydLayer((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nGlce)) ) = iname_glce
  endif
 
  ! define the domain type for the aquifer
@@ -284,10 +284,10 @@ endif
   ixControlVolume( ixHydLayer((nSnow+nLake+1):(nSnow+nLake+nSoil)) ) = ixSoilState(1:nSoil)
  endif
 
- ! define the index of the each control volume in the ice
- if(nIce>0)then
-  ixControlVolume( ixNrgLayer((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nIce)) ) = ixLayerState((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nIce)) - (nSnow+nLake+nSoil)
-  ixControlVolume( ixHydLayer((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nIce)) ) = ixLayerState((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nIce)) - (nSnow+nLake+nSoil)
+ ! define the index of the each control volume in the glacier ice
+ if(nGlce>0)then
+  ixControlVolume( ixNrgLayer((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nGlce)) ) = ixLayerState((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nGlce)) - (nSnow+nLake+nSoil)
+  ixControlVolume( ixHydLayer((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nGlce)) ) = ixLayerState((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nGlce)) - (nSnow+nLake+nSoil)
  endif
 
  ! define the index for the control volumes in the aquifer
@@ -344,7 +344,7 @@ endif
  nSnow            => in_indexSplit % nSnow                          ,& ! intent(in):  [i4b]    number of snow layers 
  nLake            => in_indexSplit % nLake                          ,& ! intent(in):  [i4b]    number of lake layers
  nSoil            => in_indexSplit % nSoil                          ,& ! intent(in):  [i4b]    number of soil layers 
- nIce             => in_indexSplit % nIce                           ,& ! intent(in):  [i4b]    number of ice layers
+ nGlce            => in_indexSplit % nGlce                          ,& ! intent(in):  [i4b]    number of glacier ice layers
  nLayers          => in_indexSplit % nLayers                        ,& ! intent(in):  [i4b]    total number of layers
  nSubset          => in_indexSplit % nSubset                        ,& ! intent(in):  [i4b]    number of states in the subset
  ! indices of model state variables for the vegetation domain
@@ -369,31 +369,31 @@ endif
  ixLayerState     => indx_data%var(iLookINDEX%ixLayerState)%dat     ,& ! intent(in):  [i4b(:)] list of indices for all model layers
  ! vector of energy indices for the layers
  ! NOTE: states not in the subset are equal to integerMissing
- ixSnLaSoIcNrg    => indx_data%var(iLookINDEX%ixSnLaSoIcNrg)%dat    ,& ! intent(in):  [i4b(:)] index in the state subset for energy state variables in the layers
+ ixSnLaSoGlNrg    => indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat    ,& ! intent(in):  [i4b(:)] index in the state subset for energy state variables in the layers
  ixSnowOnlyNrg    => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat    ,& ! intent(in):  [i4b(:)] index in the state subset for energy state variables in the snow
  ixLakeOnlyNrg    => indx_data%var(iLookINDEX%ixLakeOnlyNrg)%dat    ,& ! intent(in):  [i4b(:)] index in the state subset for energy state variables in the lake
  ixSoilOnlyNrg    => indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat    ,& ! intent(in):  [i4b(:)] index in the state subset for energy state variables in the soil
- ixIceOnlyNrg     => indx_data%var(iLookINDEX%ixIceOnlyNrg)%dat     ,& ! intent(in):  [i4b(:)] index in the state subset for energy state variables in the ice
+ ixGlceOnlyNrg    => indx_data%var(iLookINDEX%ixGlceOnlyNrg)%dat    ,& ! intent(in):  [i4b(:)] index in the state subset for energy state variables in the glacier ice
  ! vector of hydrology indices for the layers
  ! NOTE: states not in the subset are equal to integerMissing
- ixSnLaSoIcHyd    => indx_data%var(iLookINDEX%ixSnLaSoIcHyd)%dat    ,& ! intent(in):  [i4b(:)] index in the state subset for hydrology state variables in the layers
+ ixSnLaSoGlHyd    => indx_data%var(iLookINDEX%ixSnLaSoGlHyd)%dat    ,& ! intent(in):  [i4b(:)] index in the state subset for hydrology state variables in the layers
  ixSnowOnlyHyd    => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat    ,& ! intent(in):  [i4b(:)] index in the state subset for hydrology state variables in the snow
  ixLakeOnlyHyd    => indx_data%var(iLookINDEX%ixLakeOnlyHyd)%dat    ,& ! intent(in):  [i4b(:)] index in the state subset for hydrology state variables in the lake
  ixSoilOnlyHyd    => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat    ,& ! intent(in):  [i4b(:)] index in the state subset for hydrology state variables in the soil
- ixIceOnlyHyd     => indx_data%var(iLookINDEX%ixIceOnlyHyd)%dat     ,& ! intent(in):  [i4b(:)] index in the state subset for hydrology state variables in the ice
+ ixGlceOnlyHyd    => indx_data%var(iLookINDEX%ixGlceOnlyHyd)%dat    ,& ! intent(in):  [i4b(:)] index in the state subset for hydrology state variables in the glacier ice
  ! indices of active model layers
  ixLayerActive    => indx_data%var(iLookINDEX%ixLayerActive)%dat    ,& ! intent(in):  [i4b(:)] index of active model layers (inactive=integerMissing)
  ! number of state variables of a specific type
- nSnLaSoIcNrg     => indx_data%var(iLookINDEX%nSnLaSoIcNrg )%dat(1) ,& ! intent(in):  [i4b]    number of energy state variables in the layers
- nSnowOnlyNrg     => indx_data%var(iLookINDEX%nSnowOnlyNrg )%dat(1) ,& ! intent(in):  [i4b]    number of energy state variables in the snow
- nLakeOnlyNrg     => indx_data%var(iLookINDEX%nLakeOnlyNrg )%dat(1) ,& ! intent(in):  [i4b]    number of energy state variables in the lake
- nSoilOnlyNrg     => indx_data%var(iLookINDEX%nSoilOnlyNrg )%dat(1) ,& ! intent(in):  [i4b]    number of energy state variables in the soil
- nIceOnlyNrg      => indx_data%var(iLookINDEX%nIceOnlyNrg  )%dat(1) ,& ! intent(in):  [i4b]    number of energy state variables in the ice
- nSnLaSoIcHyd     => indx_data%var(iLookINDEX%nSnLaSoIcHyd )%dat(1) ,& ! intent(in):  [i4b]    number of hydrology variables in the layers
- nSnowOnlyHyd     => indx_data%var(iLookINDEX%nSnowOnlyHyd )%dat(1) ,& ! intent(in):  [i4b]    number of hydrology variables in the snow
- nLakeOnlyHyd     => indx_data%var(iLookINDEX%nLakeOnlyHyd )%dat(1) ,& ! intent(in):  [i4b]    number of hydrology variables in the lake
- nSoilOnlyHyd     => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1) ,& ! intent(in):  [i4b]    number of hydrology variables in the soil
- nIceOnlyHyd      => indx_data%var(iLookINDEX%nIceOnlyHyd  )%dat(1) ,& ! intent(in):  [i4b]    number of hydrology variables in the ice
+ nSnLaSoGlNrg     => indx_data%var(iLookINDEX%nSnLaSoGlNrg)%dat(1)  ,& ! intent(in):  [i4b]    number of energy state variables in the layers
+ nSnowOnlyNrg     => indx_data%var(iLookINDEX%nSnowOnlyNrg)%dat(1)  ,& ! intent(in):  [i4b]    number of energy state variables in the snow
+ nLakeOnlyNrg     => indx_data%var(iLookINDEX%nLakeOnlyNrg)%dat(1)  ,& ! intent(in):  [i4b]    number of energy state variables in the lake
+ nSoilOnlyNrg     => indx_data%var(iLookINDEX%nSoilOnlyNrg)%dat(1)  ,& ! intent(in):  [i4b]    number of energy state variables in the soil
+ nGlceOnlyNrg     => indx_data%var(iLookINDEX%nGlceOnlyNrg)%dat(1)  ,& ! intent(in):  [i4b]    number of energy state variables in the ice
+ nSnLaSoGlHyd     => indx_data%var(iLookINDEX%nSnLaSoGlHyd)%dat(1)  ,& ! intent(in):  [i4b]    number of hydrology variables in the layers
+ nSnowOnlyHyd     => indx_data%var(iLookINDEX%nSnowOnlyHyd)%dat(1)  ,& ! intent(in):  [i4b]    number of hydrology variables in the snow
+ nLakeOnlyHyd     => indx_data%var(iLookINDEX%nLakeOnlyHyd)%dat(1)  ,& ! intent(in):  [i4b]    number of hydrology variables in the lake
+ nSoilOnlyHyd     => indx_data%var(iLookINDEX%nSoilOnlyHyd)%dat(1)  ,& ! intent(in):  [i4b]    number of hydrology variables in the soil
+ nGlceOnlyHyd     => indx_data%var(iLookINDEX%nGlceOnlyHyd)%dat(1)  ,& ! intent(in):  [i4b]    number of hydrology variables in the ice
  ! error control
  err              => out_indexSplit % err                           ,& ! intent(out): [i4b]       error code
  message          => out_indexSplit % cmessage                       & ! intent(out): [character] error message
@@ -482,7 +482,7 @@ endif
  else
   ixTopHyd = merge(ixTopWat, ixTopLiq, ixTopWat/=integerMissing)      ! ixTopWat is used if it is not missing
  endif
- if (nIce>0)then ! if ice present, make sure did not miss a soil state (note, only used if veg and thus no ice, but do to be complete)
+ if (nGlce>0)then ! if glacier ice present, make sure did not miss a soil state (note, only used if veg and thus no glacier ice, but do to be complete)
   ixTopHydMat = merge(ixTopMat, ixTopLMP, ixTopMat/=integerMissing) 
   if (ixTopHydMat/=integerMissing .and. ixTopHyd>ixTopHydMat) ixTopHyd = ixTopHydMat
  endif
@@ -522,36 +522,36 @@ endif
 
  ! get list of indices for energy
  ! NOTE: layers not in the state subset will be missing
- ixSnLaSoIcNrg = ixMapFull2Subset(ixNrgLayer)                                             ! all layers
+ ixSnLaSoGlNrg = ixMapFull2Subset(ixNrgLayer)                                             ! all layers
  ixSnowOnlyNrg = ixMapFull2Subset(ixNrgLayer(                  1:nSnow  ))                ! snow layers only
  ixLakeOnlyNrg = ixMapFull2Subset(ixNrgLayer(            nSnow+1:nSnow+nLake))            ! lake layers only
  ixSoilOnlyNrg = ixMapFull2Subset(ixNrgLayer(      nSnow+nLake+1:nSnow+nLake+nSoil))      ! soil layers only
- ixIceOnlyNrg  = ixMapFull2Subset(ixNrgLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nIce)) ! ice layers only
+ ixGlceOnlyNrg = ixMapFull2Subset(ixNrgLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce))! glce layers only
 
  ! get list of indices for hydrology
  ! NOTE: layers not in the state subset will be missing
- ixSnLaSoIcHyd = ixMapFull2Subset(ixHydLayer)                                             ! all layers
+ ixSnLaSoGlHyd = ixMapFull2Subset(ixHydLayer)                                             ! all layers
  ixSnowOnlyHyd = ixMapFull2Subset(ixHydLayer(                  1:nSnow  ))                ! snow layers only
  ixLakeOnlyHyd = ixMapFull2Subset(ixHydLayer(            nSnow+1:nSnow+nLake))            ! lake layers only
  ixSoilOnlyHyd = ixMapFull2Subset(ixHydLayer(      nSnow+nLake+1:nSnow+nLake+nSoil))      ! soil layers only
- ixIceOnlyHyd  = ixMapFull2Subset(ixHydLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nIce)) ! ice layers only
+ ixGlceOnlyHyd = ixMapFull2Subset(ixHydLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce))! glce layers only
 
  ! define active layers (regardless if the splitting operation is energy or mass)
- ixLayerActive =  merge(ixSnLaSoIcNrg, ixSnLaSoIcHyd, ixSnLaSoIcNrg/=integerMissing)
+ ixLayerActive =  merge(ixSnLaSoGlNrg, ixSnLaSoGlHyd, ixSnLaSoGlNrg/=integerMissing)
 
  ! get the number of valid states for energy
- nSnLaSoIcNrg = count(ixSnLaSoIcNrg/=integerMissing)
+ nSnLaSoGlNrg = count(ixSnLaSoGlNrg/=integerMissing)
  nSnowOnlyNrg = count(ixSnowOnlyNrg/=integerMissing)
  nLakeOnlyNrg = count(ixLakeOnlyNrg/=integerMissing)
  nSoilOnlyNrg = count(ixSoilOnlyNrg/=integerMissing)
- nIceOnlyNrg  = count(ixIceOnlyNrg /=integerMissing)
+ nGlceOnlyNrg = count(ixGlceOnlyNrg /=integerMissing)
 
  ! get the number of valid states for hydrology
- nSnLaSoIcHyd = count(ixSnLaSoIcHyd/=integerMissing)
+ nSnLaSoGlHyd = count(ixSnLaSoGlHyd/=integerMissing)
  nSnowOnlyHyd = count(ixSnowOnlyHyd/=integerMissing)
  nLakeOnlyHyd = count(ixLakeOnlyHyd/=integerMissing)
  nSoilOnlyHyd = count(ixSoilOnlyHyd/=integerMissing)
- nIceOnlyHyd  = count(ixIceOnlyHyd /=integerMissing)
+ nGlceOnlyHyd = count(ixGlceOnlyHyd /=integerMissing)
 
  ! end association to data in structures
  end associate subsetState

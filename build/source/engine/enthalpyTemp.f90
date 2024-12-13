@@ -47,7 +47,7 @@ USE globalData,only:iname_cas                      ! named variables for canopy 
 USE globalData,only:iname_veg                      ! named variables for vegetation canopy
 USE globalData,only:iname_snow                     ! named variables for snow
 USE globalData,only:iname_soil                     ! named variables for soil
-USE globalData,only:iname_ice                      ! named variables for ice
+USE globalData,only:iname_glce                     ! named variables for glacier ice
 USE globalData,only:iname_lake                     ! named variables for lake
 USE globalData,only:iname_aquifer                  ! named variables for the aquifer
 
@@ -67,15 +67,15 @@ public::enthalpy2T_snwWat
 public::T2enthalpy_snwWat
 public::T2enthTemp_cas
 public::T2enthTemp_veg
-public::T2enthTemp_snLaIc
+public::T2enthTemp_SnLaGl
 public::T2enthTemp_soil
 public::enthTemp_or_enthalpy
 public::enthalpy2T_cas
 public::enthalpy2T_veg
-public::enthalpy2T_snLaIc
+public::enthalpy2T_SnLaGl
 public::enthalpy2T_soil
 private::hyp_2F1_real
-private::brent, brent0, diff_H_veg, diff_H_snLaIc, diff_H_soil
+private::brent, brent0, diff_H_veg, diff_H_SnLaGl, diff_H_soil
 
 ! define the snow look-up table used to compute temperature based on enthalpy
 integer(i4b),parameter               :: nlook=10001       ! number of elements in the lookup table
@@ -493,9 +493,9 @@ subroutine T2enthTemp_veg(&
 end subroutine T2enthTemp_veg
 
 ! ************************************************************************************************************************
-! public subroutine T2enthTemp_snLaIc: compute temperature component of enthalpy from temperature and total water content, snow, lake, ice layer
+! public subroutine T2enthTemp_SnLaGl: compute temperature component of enthalpy from temperature and total water content, snow, lake, ice layer
 ! ************************************************************************************************************************
-subroutine T2enthTemp_snLaIc(&
+subroutine T2enthTemp_SnLaGl(&
                       snowfrz_scale,          & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                       mLayerTemp,             & ! intent(in):  layer temperature (K)
                       mLayerVolFracWat,       & ! intent(in):  volumetric total water content (-)
@@ -534,7 +534,7 @@ subroutine T2enthTemp_snLaIc(&
 
   mLayerEnthTemp = enthLiq + enthIce + enthAir
 
-end subroutine T2enthTemp_snLaIc
+end subroutine T2enthTemp_SnLaGl
 
 
 ! ************************************************************************************************************************
@@ -762,9 +762,9 @@ subroutine enthTemp_or_enthalpy(&
           case(iname_snow);    iLayer = ixControlIndex
           case(iname_lake);    iLayer = ixControlIndex + nSnow
           case(iname_soil);    iLayer = ixControlIndex + nSnow + nLake
-          case(iname_ice);     iLayer = ixControlIndex + nSnow + nLake + nSoil
+          case(iname_glce);    iLayer = ixControlIndex + nSnow + nLake + nSoil
           case(iname_aquifer); cycle ! aquifer: do nothing (no thermodynamics in the aquifer)
-          case default; err=20; message=trim(message)//'expect case to be iname_cas, iname_veg, iname_snow, iname_lake, iname_soil, iname_ice, iname_soil, or iname_aquifer'; return
+          case default; err=20; message=trim(message)//'expect case to be iname_cas, iname_veg, iname_snow, iname_lake, iname_soil, iname_glce, iname_soil, or iname_aquifer'; return
         end select
 
         ! get the layer index
@@ -775,7 +775,7 @@ subroutine enthTemp_or_enthalpy(&
             else 
               scalarCanopyH = scalarCanopyH + LH_fus * scalarCanopyIce/ canopyDepth
             end if
-          case(iname_snow, iname_lake, iname_ice)
+          case(iname_snow, iname_lake, iname_glce)
             if (do_enthTemp2enthalpy)then
               mLayerH(iLayer) = mLayerH(iLayer) - iden_ice * LH_fus * mLayerVolFracIce(iLayer)
             else
@@ -952,9 +952,9 @@ subroutine enthalpy2T_veg(&
 end subroutine enthalpy2T_veg
 
 ! ************************************************************************************************************************
-! public subroutine enthalpy2T_snLaIc: compute temperature from enthalpy and total water content, snow, lake, ice layer
+! public subroutine enthalpy2T_SnLaGl: compute temperature from enthalpy and total water content, snow, lake, ice layer
 ! ************************************************************************************************************************
-subroutine enthalpy2T_snLaIc(&
+subroutine enthalpy2T_SnLaGl(&
                       computJac,         & ! intent(in):    flag if computing for Jacobian update
                       isLake,            & ! intent(in):    flag if is lake layer
                       snowfrz_scale,     & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
@@ -1010,7 +1010,7 @@ subroutine enthalpy2T_snLaIc(&
   real(rkind)                      :: denthAir_dWat      ! derivative of enthalpy of air with water state variable
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
-  err=0; message="enthalpy2T_snLaIc/"
+  err=0; message="enthalpy2T_SnLaGl/"
 
   ! ***** get temperature if unfrozen lake (will not happen in snow or ice)
   if (mLayerEnthalpy>=0)then
@@ -1034,7 +1034,7 @@ subroutine enthalpy2T_snLaIc(&
     if(mLayerEnthalpy>0._rkind .and. .not.(isLake))then
       T = Tfreeze - 1.e-6_rkind ! need to merge layers, don't iterate to find the temperature
     else
-      call brent(diff_H_snLaIc, T, T_out, 0._rkind, Tfreeze, vec, err, cmessage)
+      call brent(diff_H_SnLaGl, T, T_out, 0._rkind, Tfreeze, vec, err, cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       T = T_out
     endif
@@ -1071,7 +1071,7 @@ subroutine enthalpy2T_snLaIc(&
     dTemp_dTheta    = dT_dWat
   endif
 
-end subroutine enthalpy2T_snLaIc
+end subroutine enthalpy2T_SnLaGl
 
 ! ************************************************************************************************************************
 ! public subroutine enthalpy2T_soil: compute temperature from enthalpy and total water content, soil layer
@@ -1676,10 +1676,10 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
   
   end function diff_H_veg
   !----------------------------------------------------------------------
-  function diff_H_snLaIc ( mLayerTemp, vec)
+  function diff_H_SnLaGl ( mLayerTemp, vec)
     USE snow_utils_module,only:fracliquid     ! compute volumetric fraction of liquid water
     implicit none
-    real(rkind) :: diff_H_snLaIc
+    real(rkind) :: diff_H_SnLaGl
     real(rkind) , intent(IN) :: mLayerTemp, vec(9) 
     real(rkind) :: mLayerEnthalpy, mLayerEnthTemp, mLayerVolFracWat, snowfrz_scale, fLiq
   
@@ -1687,11 +1687,11 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     snowfrz_scale    = vec(2)
     mLayerVolFracWat = vec(3)
   
-    call T2enthTemp_snLaIc(snowfrz_scale, mLayerTemp, mLayerVolFracWat, mLayerEnthTemp)
+    call T2enthTemp_SnLaGl(snowfrz_scale, mLayerTemp, mLayerVolFracWat, mLayerEnthTemp)
     fLiq   = fracliquid(mLayerTemp, snowfrz_scale)
-    diff_H_snLaIc = mLayerEnthTemp - iden_water * LH_fus * mLayerVolFracWat * (1._rkind - fLiq) - mLayerEnthalpy
+    diff_H_SnLaGl = mLayerEnthTemp - iden_water * LH_fus * mLayerVolFracWat * (1._rkind - fLiq) - mLayerEnthalpy
   
-  end function diff_H_snLaIc
+  end function diff_H_SnLaGl
   !----------------------------------------------------------------------
   function diff_H_soil ( mLayerTemp, vec, use_lookup, lookup_data, ixControlIndex)
     USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water based on matric head
