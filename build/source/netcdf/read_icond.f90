@@ -929,12 +929,12 @@ contains
              gridid_to_index(i,j) = iGrid
              exit
            endif
-         end do  !
+         end do  ! grid id loop
        end do ! grid id loop
        exit
      endif
-   end do
- end do
+   end do ! gru id loop
+ end do ! fileGRU loop
 
  ! loop through specific basin grid variables
  ngdx = (/iLookGRID%surface_elev/)   ! array of desired variable indices, currently only surface elevation

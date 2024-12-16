@@ -642,8 +642,8 @@ contains
    case(iLookvarType%ifcSoil); if (maxSoilLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,ifcSoilDimID/),ncVarID(iVar))
    case(iLookvarType%midSnow); if (maxSnowLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,midSnowDimID/),ncVarID(iVar))
    case(iLookvarType%ifcSnow); if (maxSnowLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,ifcSnowDimID/),ncVarID(iVar))
-   case(iLookvarType%midGlce); if (maxGlceLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,midGlceDimID /),ncVarID(iVar))
-   case(iLookvarType%ifcGlce); if (maxGlceLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,ifcGlceDimID /),ncVarID(iVar))
+   case(iLookvarType%midGlce); if (maxGlceLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,midGlceDimID/),ncVarID(iVar))
+   case(iLookvarType%ifcGlce); if (maxGlceLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,ifcGlceDimID/),ncVarID(iVar))
    case(iLookvarType%midLake); if (maxLakeLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,midLakeDimID/),ncVarID(iVar))
    case(iLookvarType%ifcLake); if (maxLakeLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/domDimID,hruDimID,ifcLakeDimID/),ncVarID(iVar))
   end select
@@ -700,7 +700,7 @@ contains
     do iDOM = 1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
      do iVar = 1,size(prog_meta)
 
-      ! excape if this variable is not used
+      ! escape if this variable is not used
       if (prog_meta(iVar)%varType==iLookvarType%unknown) cycle
 
       ! actual number of layers
@@ -782,7 +782,7 @@ contains
  end do  ! iGRU loop
 
  ! write HRU dimension and ID for file
- call write_id_info(ncid, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+ call write_id_info(ncid, nglDimID, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
  ! close file
  call nc_file_close(ncid,err,cmessage)

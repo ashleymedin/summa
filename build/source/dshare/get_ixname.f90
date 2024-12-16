@@ -1098,12 +1098,12 @@ contains
   case('midSnow'); get_ixVarType = iLookVarType%midSnow
   case('midSoil'); get_ixVarType = iLookVarType%midSoil
   case('midLake'); get_ixVarType = iLookVarType%midLake
-  case('midGlce');  get_ixVarType = iLookVarType%midGlce
+  case('midGlce'); get_ixVarType = iLookVarType%midGlce
   case('midToto'); get_ixVarType = iLookVarType%midToto
   case('ifcSnow'); get_ixVarType = iLookVarType%ifcSnow
   case('ifcSoil'); get_ixVarType = iLookVarType%ifcSoil
   case('ifcLake'); get_ixVarType = iLookVarType%ifcLake
-  case('ifcGlce' );get_ixVarType = iLookVarType%ifcGlce
+  case('ifcGlce'); get_ixVarType = iLookVarType%ifcGlce
   case('ifcToto'); get_ixVarType = iLookVarType%ifcToto
   case('parSoil'); get_ixVarType = iLookVarType%parSoil
   case('routing'); get_ixVarType = iLookVarType%routing
