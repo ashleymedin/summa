@@ -533,7 +533,6 @@ contains
  integer(i4b)                       :: ncid          ! netcdf file id
  integer(i4b),allocatable           :: ncVarID(:)    ! netcdf variable id
  integer(i4b),dimension(5)          :: ngdx          ! intermediate array of loop indices
- integer(i4b),dimension(4)          :: ncIndID       ! index variable id
  integer(i4b),dimension(4)          :: nidx          ! intermediate array of loop indices
  integer(i4b)                       :: nSnow         ! number of snow layers
  integer(i4b)                       :: nLake         ! number of lake layers
@@ -563,7 +562,7 @@ contains
  character(len=32),parameter        :: gruDimName    ='gru'      ! dimension name for GRUs
  character(len=32),parameter        :: domDimName    ='dom'      ! dimension name for DOMs
  character(len=32),parameter        :: tdhDimName    ='tdh'      ! dimension name for time-delay basin variables
- character(len=32),parameter        :: nglDimName    ='glac'     ! dimension name for glacvariables
+ character(len=32),parameter        :: nglDimName    ='glac'     ! dimension name for glacier variables
  character(len=32),parameter        :: scalDimName   ='scalarv'  ! dimension name for scalar data
  character(len=32),parameter        :: specDimName   ='spectral' ! dimension name for spectral bands
  character(len=32),parameter        :: midTotoDimName='midToto'  ! dimension name for layered varaiables
@@ -592,16 +591,17 @@ contains
 
  ! size of prognostic variable vector
  nProgVars = size(prog_meta)
- ! include additional basin variable in ID array
- if (maxGlceLayers > 0)then
-   ngdx = (/iLookBVAR%glacAblArea, iLookBVAR%glacAccArea, iLookBVAR%glacIceRunoffFuture, iLookBVAR%glacSnowRunoffFuture, iLookBVAR%glacFirnRunoffFuture/)
-   allocate(ncVarID(nProgVars+2+size(ngdx)))
- else
-   allocate(ncVarID(nProgVars+1))
- end if
 
  ! index variables
  nidx = (/iLookINDEX%nSnow, iLookINDEX%nLake, iLookINDEX%nSoil, iLookINDEX%nGlce/)
+
+ ! include additional basin variable in ID array
+ if (maxGlceLayers > 0)then
+   ngdx = (/iLookBVAR%glacAblArea, iLookBVAR%glacAccArea, iLookBVAR%glacIceRunoffFuture, iLookBVAR%glacSnowRunoffFuture, iLookBVAR%glacFirnRunoffFuture/)
+   allocate(ncVarID(nProgVars+2+size(ngdx)+size(nidx)))
+ else
+   allocate(ncVarID(nProgVars+1+size(nidx)))
+ end if
 
  ! create file
  err = nf90_create(trim(filename),NF90_NETCDF4,ncid)
@@ -683,12 +683,12 @@ contains
  endif
   
  ! define index variables
-  do i=1,size(nidx)
-    iVar = nidx(i)
-    err = nf90_def_var(ncid,trim(indx_meta(iVar)%varName),nf90_int,(/domDimID,hruDimID/),ncIndID(i))
-    err = nf90_put_att(ncid,ncVarID(nProgVars+size(ngdx)+i),'long_name',trim(indx_meta(iVar)%vardesc));   call netcdf_err(err,message)
-    err = nf90_put_att(ncid,ncVarID(nProgVars+size(ngdx)+i),'units'    ,trim(indx_meta(iVar)%varunit));   call netcdf_err(err,message)
-  end do
+ do i=1,size(nidx)
+   iVar = nidx(i)
+   err = nf90_def_var(ncid,trim(indx_meta(iVar)%varName),nf90_int,(/domDimID,hruDimID/),ncVarID(nProgVars+size(ngdx)+2+i))
+   err = nf90_put_att(ncid,ncVarID(nProgVars+size(ngdx)+2+i),'long_name',trim(indx_meta(iVar)%vardesc));   call netcdf_err(err,message)
+   err = nf90_put_att(ncid,ncVarID(nProgVars+size(ngdx)+2+i),'units'    ,trim(indx_meta(iVar)%varunit));   call netcdf_err(err,message)
+ end do
 
  ! end definition phase
  err = nf90_enddef(ncid); call netcdf_err(err,message); if (err/=0) return
@@ -762,7 +762,7 @@ contains
     ! write index variables
     do i=1,size(nidx)
       iVar = nidx(i)
-      err=nf90_put_var(ncid,ncIndID(i),(/indx_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU/),count=(/1,1/))
+      err=nf90_put_var(ncid,ncVarID(nProgVars+size(ngdx)+2+i),(/indx_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU/),count=(/1,1/))
     end do
   
    end do ! iDOM loop
@@ -832,13 +832,13 @@ contains
  integer(i4b),dimension(1)          :: ncVarID            ! netcdf variable id, only one variable currently
  integer(i4b),dimension(1)          :: ngdx               ! intermediate array of loop indices
  integer(i4b)                       :: gruDimID           ! variable dimension ID
- integer(i4b)                       :: ngriDimID           ! variable dimension ID
+ integer(i4b)                       :: ngriDimID          ! variable dimension ID
  integer(i4b)                       :: xDimID             ! variable dimension ID
  integer(i4b)                       :: yDimID             ! variable dimension ID
  character(len=32),parameter        :: gruDimName='gru'   ! dimension name for GRUs
  character(len=32),parameter        :: ngriDimName='grid' ! dimension name for grid variables
- character(len=32),parameter        :: xDimName  ='xgrid' ! dimension name for xgrid
- character(len=32),parameter        :: yDimName  ='ygrid' ! dimension name for ygrid
+ character(len=32),parameter        :: xDimName='xgrid'   ! dimension name for xgrid
+ character(len=32),parameter        :: yDimName='ygrid'   ! dimension name for ygrid
  integer(i4b)                       :: iGRU               ! index of GRUs
  integer(i4b)                       :: iGlac              ! index of glaciers
  integer(i4b)                       :: i                  ! loop index
@@ -910,8 +910,8 @@ do iGRU = 1,nGRU
 
 end do  ! iGRU loop
 
-! write Glac dimension and ID for file
-call write_gridid_info(ncid, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+! write grid dimension and ID for file
+call write_gridid_info(ncid,ngriDimID, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
 ! close file
 call nc_file_close(ncid,err,cmessage)
