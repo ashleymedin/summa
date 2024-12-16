@@ -347,7 +347,6 @@ if __name__ == '__main__':
                         glacCln_elev[k] = glacCln_elev[k] + surface_elev0[(cell2hruId0==h) & (hgt>0) & (surface_elev0< ELA_elev)].mean()/nGlacier[i]
                         glacDbr_elev[k] = glacCln_elev[k] # make all ablation elevations the same for now
                         glacAcc_elev[k] = glacAcc_elev[k] + surface_elev0[(cell2hruId0==h) & (hgt>0) & (surface_elev0>=ELA_elev)].mean()/nGlacier[i]
-                        print(k,glacCln_frac[k],glacDbr_frac[k],glacAcc_frac[k])
 
         ndom += 2
         midGlce = 5
@@ -371,6 +370,7 @@ if __name__ == '__main__':
                 
         lyrHeight_glacnp = np.array(lyrHeight_glac)
         lyrDepth_glac = lyrHeight_glacnp[:,1:,:] - lyrHeight_glacnp[:,:-1,:]
+
         indWtld += 2
         if np.sum(stage) > 0.0: # if there is debris
             if np.sum(stage)<nGlacier: 
@@ -478,6 +478,7 @@ if __name__ == '__main__':
     writeNC_state_vars_HRU_DOM(nc_out, 'domType', 'scalarv', 'f8', domType)
 
     # layer Depth, Height
+    lyrDepth = np.maximum(lyrDepth, 0.0) # make sure no negative values
     writeNC_state_vars_HRU_DOM(nc_out, 'mLayerDepth', 'midToto', 'f8', lyrDepth)        # Depth
     writeNC_state_vars_HRU_DOM(nc_out, 'iLayerHeight', 'ifcToto', 'f8', lyrHeight)      # Height
 

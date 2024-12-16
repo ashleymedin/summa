@@ -438,8 +438,13 @@ subroutine coupled_em(&
       scalarInitCanopyIce = scalarCanopyIce    ! initial ice          on the vegetation canopy (kg m-2)
 
       ! compute total soil moisture and ice at the *START* of the step (kg m-2)
-      if(nSoil>0) scalarTotalSoilLiq = sum(iden_water*mLayerVolFracLiq(nSnow+nLake+1:nSnow+nLake+nSoil)*mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil))
-      if(nSoil>0) scalarTotalSoilIce = sum(iden_water*mLayerVolFracIce(nSnow+nLake+1:nSnow+nLake+nSoil)*mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil))  ! NOTE: no expansion and hence use iden_water
+      if(nSoil>0)then
+        scalarTotalSoilLiq = sum(iden_water*mLayerVolFracLiq(nSnow+nLake+1:nSnow+nLake+nSoil)*mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil))
+        scalarTotalSoilIce = sum(iden_water*mLayerVolFracIce(nSnow+nLake+1:nSnow+nLake+nSoil)*mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil))  ! NOTE: no expansion and hence use iden_water
+      else
+        scalarTotalSoilLiq = 0._rkind
+        scalarTotalSoilIce = 0._rkind
+      endif
 
       ! compute storage of water in the canopy, the soil layers, and the glce layers
       balanceCanopyWater0 = scalarCanopyLiq + scalarCanopyIce
@@ -787,7 +792,7 @@ subroutine coupled_em(&
                         modifiedLayers,             & ! intent(out): flag to denote that layers were modified
                         err,cmessage)                 ! intent(out): error control
         if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
-
+ 
         ! save the number of layers
         nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
         nLake   = indx_data%var(iLookINDEX%nLake)%dat(1)
@@ -1195,7 +1200,7 @@ subroutine coupled_em(&
             endif
           end if  ! (if computing the vegetation flux)
 
-          ! * compute change in ice content of the top snow layer due to sublimation 
+          ! * compute change in ice content of the top layer due to sublimation 
           !   and account for compaction and cavitation in the snowpack...
           ! ------------------------------------------------------------------------
           groundSublimation = (sumSnowSublimation + sumLakeSublimation + sumGlceSublimation)/whole_step  ! kg m-2 s-1
@@ -1203,6 +1208,7 @@ subroutine coupled_em(&
                     whole_step,                               & ! intent(in):    length of whole step for surface drainage and average flux
                     nSnow,                                    & ! intent(in):    number of snow layers
                     nLake,                                    & ! intent(in):    number of lake layers
+                    nSoil,                                    & ! intent(in):    number of soil layers
                     nGlce,                                    & ! intent(in):    number of glacier ice layers
                     groundSublimation,                        & ! intent(in):    sublimation rate over the whole time step (kg m-2 s-1)
                     mLayerVolFracLiq,                         & ! intent(inout): volumetric fraction of liquid water in the layer domains (-)
@@ -1669,7 +1675,6 @@ subroutine coupled_em(&
 
         ! get the total water in the soil (liquid plus ice) at the end of the time step (kg m-2)
         scalarTotalSoilWat = scalarTotalSoilLiq + scalarTotalSoilIce
-
 
         ! get the input and output to/from the soil zone (kg m-2)
         balanceSoilInflux        = averageSoilInflux*iden_water*data_step

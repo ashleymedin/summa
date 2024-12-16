@@ -39,6 +39,7 @@ subroutine computSnowDepth(&
                         dt_sub,                 & ! intent(in):    time step (s)
                         nSnow,                  & ! intent(in):    number of snow layers
                         nLake,                  & ! intent(in):    number of lake layers
+                        nSoil,                  & ! intent(in):    number of soil layers
                         nGlce,                  & ! intent(in):    number of glacier ice layers
                         scalarGroundSublimation,& ! intent(in):    scalar sublimation of snow (kg m-2)
                         mLayerVolFracLiq,       & ! intent(inout): volumetric fraction of liquid water
@@ -58,6 +59,7 @@ subroutine computSnowDepth(&
   real(qp),intent(in)                  :: dt_sub                 ! time step (s)
   integer(i4b),intent(in)              :: nSnow                  ! number of snow layers
   integer(i4b),intent(in)              :: nLake                  ! number of lake layers
+  integer(i4b),intent(in)              :: nSoil                  ! number of soil layers
   integer(i4b),intent(in)              :: nGlce                  ! number of glacier ice layers
   real(rkind),intent(in)               :: scalarGroundSublimation! scalar sublimation of snow (kg m-2)
   real(rkind),intent(inout)            :: mLayerVolFracLiq(:)    ! volumetric fraction of liquid water
@@ -82,7 +84,7 @@ subroutine computSnowDepth(&
   ! initialize the flags
   tooMuchSublim=.false.  ! too much sublimation (merge snow layers)
   ! NOTE: this is done BEFORE densification
-  if(nSnow>0 .or. (nLake>0 .and. mLayerTemp(1)<Tfreeze) .or. nGlce>0 )then ! snow or ice layers exist
+  if(nSnow>0 .or. (nLake>0 .and. mLayerTemp(1)<Tfreeze) .or. (nGlce>0 .and. nSoil==0) )then ! snow or ice layers exist on top
 
     ! save the mass of liquid water (kg m-2)
     massLiquid = mLayerDepth(1)*mLayerVolFracLiq(1)*iden_water
