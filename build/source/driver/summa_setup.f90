@@ -105,7 +105,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  USE globalData,only:maxLayers                               ! maximum number of layers
  USE globalData,only:maxSoilLayers                           ! maximum number of soil layers
  USE globalData,only:maxSnowLayers                           ! maximum number of snow layers
- USE globalData,only:maxGlceLayers                            ! maximum number of glacier ice layers
+ USE globalData,only:maxGlceLayers                           ! maximum number of glacier ice layers
  USE globalData,only:maxLakeLayers                           ! maximum number of lake layers
  USE globalData,only:maxGlaciers                             ! maximum number of glaciers
  USE globalData,only:maxWetlands                             ! maximum number of wetlands
@@ -210,7 +210,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
   case(sameRulesAllLayers);    maxSnowLayers = 100
   case(rulesDependLayerIndex)
     maxSnowLayers = 5
-    if (maxGlaciers>0) maxSnowLayers = 12 ! increase the number of snow layers for glaciers for firn development
+    if (maxGlaciers>0) maxSnowLayers = int(maxSnowLayers*2.5_rkind) ! increase the number of snow layers for glaciers for firn development in accumulation zone
   case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
  end select ! (option to combine/sub-divide snow layers)
 

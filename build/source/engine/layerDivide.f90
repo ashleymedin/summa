@@ -83,6 +83,7 @@ contains
  ! ***********************************************************************************************************
  subroutine layerDivide(&
                         ! input/output: model data structures
+                        maxLayers,                       & ! intent(in):    maximum number of snow/firn layers
                         model_decisions,                 & ! intent(in):    model decisions
                         mpar_data,                       & ! intent(in):    model parameters
                         indx_data,                       & ! intent(inout): type of each layer
@@ -96,46 +97,48 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! computational modules
  USE snow_utils_module,only:fracliquid,templiquid          ! functions to compute temperature/liquid water
- USE globalData,only:maxSnowLayers, &                      ! maximum number of snow layers
-                     veryBig
+ USE globalData,only:veryBig
  implicit none
  ! --------------------------------------------------------------------------------------------------------
  ! input/output: model data structures
- type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
- type(var_dlength),intent(in)    :: mpar_data              ! model parameters
- type(var_ilength),intent(inout) :: indx_data              ! type of each layer
- type(var_dlength),intent(inout) :: prog_data              ! model prognostic variables for a local HRU
- type(var_dlength),intent(inout) :: diag_data              ! model diagnostic variables for a local HRU
- type(var_dlength),intent(inout) :: flux_data              ! model flux variables
+ integer(i4b),intent(in)            :: maxLayers              ! maximum number of snow/firn layers
+ type(model_options),intent(in)     :: model_decisions(:)     ! model decisions
+ type(var_dlength),intent(in)       :: mpar_data              ! model parameters
+ type(var_ilength),intent(inout)    :: indx_data              ! type of each layer
+ type(var_dlength),intent(inout)    :: prog_data              ! model prognostic variables for a local HRU
+ type(var_dlength),intent(inout)    :: diag_data              ! model diagnostic variables for a local HRU
+ type(var_dlength),intent(inout)    :: flux_data              ! model flux variables
  ! output
- logical(lgt),intent(out)        :: divideLayer            ! flag to denote that a layer was divided
- integer(i4b),intent(out)        :: err                    ! error code
- character(*),intent(out)        :: message                ! error message
+ logical(lgt),intent(out)           :: divideLayer            ! flag to denote that a layer was divided
+ integer(i4b),intent(out)           :: err                    ! error code
+ character(*),intent(out)           :: message                ! error message
  ! --------------------------------------------------------------------------------------------------------
  ! define local variables
- character(LEN=256)              :: cmessage               ! error message of downwind routine
- integer(i4b)                    :: nSnow                  ! number of snow layers
- integer(i4b)                    :: nLake                  ! number of lake layers
- integer(i4b)                    :: nSoil                  ! number of soil layers
- integer(i4b)                    :: nGlce                  ! number of glacier ice layers
- integer(i4b)                    :: nLayers                ! total number of layers
- integer(i4b)                    :: iLayer                 ! layer index
- integer(i4b)                    :: jLayer                 ! layer index
- real(rkind),dimension(4)        :: zmax_lower             ! lower value of maximum layer depth
- real(rkind),dimension(4)        :: zmax_upper             ! upper value of maximum layer depth
- real(rkind)                     :: zmaxCheck              ! value of zmax for a given snow layer
- integer(i4b)                    :: nCheck                 ! number of layers to check to divide
- logical(lgt)                    :: createLayer            ! flag to indicate we are creating a new snow layer
- real(rkind)                     :: depthOriginal          ! original layer depth before sub-division (m)
- real(rkind),parameter           :: fracTop=0.5_rkind      ! fraction of old layer used for the top layer
- real(rkind)                     :: surfaceLayerSoilTemp   ! temperature of the top soil layer (K)
- real(rkind)                     :: maxFrozenSnowTemp      ! maximum temperature when effectively all water is frozen (K)
- real(rkind),parameter           :: unfrozenLiq=0.01_rkind ! unfrozen liquid water used to compute maxFrozenSnowTemp (-)
- real(rkind)                     :: volFracWater           ! volumetric fraction of total water, liquid and ice (-)
- real(rkind)                     :: fracLiq                ! fraction of liquid water (-)
- integer(i4b),parameter          :: ixVisible=1            ! named variable to define index in array of visible part of the spectrum
- integer(i4b),parameter          :: ixNearIR=2             ! named variable to define index in array of near IR part of the spectrum
- real(rkind),parameter           :: verySmall=1.e-10_rkind ! a very small number (used for error checking)
+ character(LEN=256)                 :: cmessage               ! error message of downwind routine
+ integer(i4b)                       :: nSnow                  ! number of snow layers
+ integer(i4b)                       :: nLake                  ! number of lake layers
+ integer(i4b)                       :: nSoil                  ! number of soil layers
+ integer(i4b)                       :: nGlce                  ! number of glacier ice layers
+ integer(i4b)                       :: nLayers                ! total number of layers
+ integer(i4b)                       :: iLayer                 ! layer index
+ integer(i4b)                       :: jLayer                 ! layer index
+ real(rkind),dimension(maxLayers-1) :: zmax_lower             ! lower value of maximum layer depth
+ real(rkind),dimension(maxLayers-1) :: zmax_upper             ! upper value of maximum layer depth
+ real(rkind),dimension(4)           :: zmax_lower_param       ! lower value of maximum layer depth (m) that has been set in the model parameters
+ real(rkind),dimension(4)           :: zmax_upper_param       ! upper value of maximum layer depth (m) that has been set in the model parameters
+ real(rkind)                        :: zmaxCheck              ! value of zmax for a given snow layer
+ integer(i4b)                       :: nCheck                 ! number of layers to check to divide
+ logical(lgt)                       :: createLayer            ! flag to indicate we are creating a new snow layer
+ real(rkind)                        :: depthOriginal          ! original layer depth before sub-division (m)
+ real(rkind),parameter              :: fracTop=0.5_rkind      ! fraction of old layer used for the top layer
+ real(rkind)                        :: surfaceLayerSoilTemp   ! temperature of the top soil layer (K)
+ real(rkind)                        :: maxFrozenSnowTemp      ! maximum temperature when effectively all water is frozen (K)
+ real(rkind),parameter              :: unfrozenLiq=0.01_rkind ! unfrozen liquid water used to compute maxFrozenSnowTemp (-)
+ real(rkind)                        :: volFracWater           ! volumetric fraction of total water, liquid and ice (-)
+ real(rkind)                        :: fracLiq                ! fraction of liquid water (-)
+ integer(i4b),parameter             :: ixVisible=1            ! named variable to define index in array of visible part of the spectrum
+ integer(i4b),parameter             :: ixNearIR=2             ! named variable to define index in array of near IR part of the spectrum
+ real(rkind),parameter              :: verySmall=1.e-10_rkind ! a very small number (used for error checking)
  ! --------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="layerDivide/"
@@ -173,9 +176,20 @@ contains
  ! initialize flag to denote that a layer was divided
  divideLayer=.false.
 
- ! identify algorithmic control parameters to syb-divide and combine snow layers
- zmax_lower = (/zmaxLayer1_lower, zmaxLayer2_lower, zmaxLayer3_lower, zmaxLayer4_lower/)
- zmax_upper = (/zmaxLayer1_upper, zmaxLayer2_upper, zmaxLayer3_upper, zmaxLayer4_upper/)
+ ! identify algorithmic control parameters to sub-divide and combine snow layers
+ zmax_lower_param = (/zmaxLayer1_lower, zmaxLayer2_lower, zmaxLayer3_lower, zmaxLayer4_lower/)
+ zmax_upper_param = (/zmaxLayer1_upper, zmaxLayer2_upper, zmaxLayer3_upper, zmaxLayer4_upper/)
+ if (maxLayers <= 5) then
+  zmax_lower = zmax_lower_param(1:maxLayers-1)
+  zmax_upper = zmax_upper_param(1:maxLayers-1)
+ else
+  zmax_lower(1:4) = zmax_lower_param
+  zmax_upper(1:4) = zmax_upper_param
+  do iLayer=5,maxLayers-1
+   zmax_lower(iLayer) = zmax_lower(iLayer-1)*2._rkind
+   zmax_upper(iLayer) = zmax_upper(iLayer-1)*2._rkind
+  end do
+ end if
 
  ! initialize the number of snow layers
  nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
@@ -267,7 +281,7 @@ contains
  else ! if nSnow>0
 
   ! identify the number of layers to check for need for sub-division
-  nCheck = min(nSnow, maxSnowLayers-1) ! the depth of the last layer, if it exists, does not have a maximum value
+  nCheck = min(nSnow, maxLayers-1) ! the depth of the last layer, if it exists, does not have a maximum value
   ! loop through all layers, and sub-divide a given layer, if necessary
   do iLayer=1,nCheck
    divideLayer=.false.
@@ -275,7 +289,7 @@ contains
    ! identify the maximum depth of the layer
    select case(ix_snowLayers)
     case(sameRulesAllLayers)
-     if (nCheck >= maxSnowLayers-1) then
+     if (nCheck >= maxLayers-1) then
       ! make sure we don't divide so make very big
       zmaxCheck = veryBig
      else
@@ -372,7 +386,6 @@ contains
  end associate
 
  end subroutine layerDivide
-
 
 
  ! ************************************************************************************************

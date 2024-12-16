@@ -228,32 +228,31 @@ subroutine run_oneHRU(&
 
       ! initialize the number of flux calls
       diagData%dom(i)%var(iLookDIAG%numFluxCalls)%dat(1) = 0._rkind
-      print*, 'run_oneHRU: hruId = ', hruId, ' hru_nc = ', hru_nc, ' dom_type = ', domInfo(i)%dom_type, ' nSnow = ', domInfo(i)%nSnow, &
-       ' nLake = ', domInfo(i)%nLake, ' nSoil = ', domInfo(i)%nSoil, ' nGlce = ', domInfo(i)%nGlce
       ! run the model for a single HRU
       call coupled_em(&
                      ! model control
-                     hruId,              & ! intent(in):    hruId
-                     dt_init%dom(i),     & ! intent(inout): initial time step
-                     1,                  & ! intent(in):    used to adjust the length of the timestep with failure in Actors (non-Actors here, always 1)
-                     use_computeVegFlux, & ! intent(inout): flag to indicate if we are computing fluxes over vegetation
-                     fracJulDay,         & ! intent(in):    fractional julian days since the start of year
-                     yearLength,         & ! intent(in):    number of days in the current year
-                     glacierDomain,      & ! intent(in):    flag to indicate if the domain is a glacier
+                     domInfo(i)%dom_type, & ! intent(in):    domain type
+                     hruId,               & ! intent(in):    hruId
+                     dt_init%dom(i),      & ! intent(inout): initial time step
+                     1,                   & ! intent(in):    used to adjust the length of the timestep with failure in Actors (non-Actors here, always 1)
+                     use_computeVegFlux,  & ! intent(inout): flag to indicate if we are computing fluxes over vegetation
+                     fracJulDay,          & ! intent(in):    fractional julian days since the start of year
+                     yearLength,          & ! intent(in):    number of days in the current year
+                     glacierDomain,       & ! intent(in):    flag to indicate if the domain is a glacier
                      ! data structures (input)
-                     typeData,           & ! intent(in):    local classification of soil veg etc. for each HRU
-                     attrData,           & ! intent(in):    local attributes for each HRU
-                     forcData,           & ! intent(in):    model forcing data
-                     mparData%dom(i),    & ! intent(in):    model parameters
-                     bvarData,           & ! intent(in):    basin-average model variables
-                     lookupData%dom(i),  & ! intent(in):    lookup tables
+                     typeData,            & ! intent(in):    local classification of soil veg etc. for each HRU
+                     attrData,            & ! intent(in):    local attributes for each HRU
+                     forcData,            & ! intent(in):    model forcing data
+                     mparData%dom(i),     & ! intent(in):    model parameters
+                     bvarData,            & ! intent(in):    basin-average model variables
+                     lookupData%dom(i),   & ! intent(in):    lookup tables
                      ! data structures (input-output)
-                     indxData%dom(i),    & ! intent(inout): model indices
-                     progData%dom(i),    & ! intent(inout): model prognostic variables for a local HRU
-                     diagData%dom(i),    & ! intent(inout): model diagnostic variables for a local HRU
-                     fluxData%dom(i),    & ! intent(inout): model fluxes for a local HRU
+                     indxData%dom(i),     & ! intent(inout): model indices
+                     progData%dom(i),     & ! intent(inout): model prognostic variables for a local HRU
+                     diagData%dom(i),     & ! intent(inout): model diagnostic variables for a local HRU
+                     fluxData%dom(i),     & ! intent(inout): model fluxes for a local HRU
                      ! error control
-                     err,cmessage)         ! intent(out):   error control
+                     err,cmessage)          ! intent(out):   error control
       if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
       if(domInfo(i)%dom_type == upland)then

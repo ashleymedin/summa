@@ -57,6 +57,7 @@ contains
  ! ************************************************************************************************
  subroutine volicePack(&
                        ! input/output: model data structures
+                       maxLayers,                   & ! intent(in):    maximum number of snow/firn layers
                        tooMuchMelt,                 & ! intent(in):    flag to force merge of snow layers
                        model_decisions,             & ! intent(in):    model decisions
                        mpar_data,                   & ! intent(in):    model parameters
@@ -74,6 +75,7 @@ contains
  implicit none
  ! ------------------------------------------------------------------------------------------------
  ! input/output: model data structures
+ integer(i4b),intent(in)         :: maxLayers           ! maximum number of snow/firn layers
  logical(lgt),intent(in)         :: tooMuchMelt         ! flag to denote that ice is insufficient to support melt
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
  type(var_dlength),intent(in)    :: mpar_data           ! model parameters
@@ -93,10 +95,11 @@ contains
  ! initialize error control
  err=0; message='volicePack/'
 
- ! divide snow layers if too thick, don't do it if need to merge
+ ! divide snow/firn layers if too thick, don't do it if need to merge
  if (.not.tooMuchMelt)then
    call layerDivide(&
                     ! input/output: model data structures
+                    maxLayers,                   & ! intent(in):    maximum number of snow/firn layers
                     model_decisions,             & ! intent(in):    model decisions
                     mpar_data,                   & ! intent(in):    model parameters
                     indx_data,                   & ! intent(inout): type of each layer
@@ -109,9 +112,10 @@ contains
    if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; end if
  endif
 
- ! merge snow layers if they are too thin
+ ! merge snow/firn layers if they are too thin
  call layerMerge(&
                  ! input/output: model data structures
+                 maxLayers,                   & ! intent(in):    maximum number of snow/firn layers
                  tooMuchMelt,                 & ! intent(in):    flag to force merge of snow layers
                  model_decisions,             & ! intent(in):    model decisions
                  mpar_data,                   & ! intent(in):    model parameters
@@ -233,9 +237,9 @@ contains
   SWE = totalMassIceSurfLayer + iden_water*surfaceLayerVolFracLiq*surfaceLayerDepth
   ! compute new volumetric fraction of liquid water and ice (-)
   volFracWater = (SWE/totalDepthSurfLayer)/iden_water
-  fracLiq      = fracliquid(surfaceLayerTemp,fc_param)                           ! fraction of liquid water
+  fracLiq      = fracliquid(surfaceLayerTemp,fc_param)                              ! fraction of liquid water
   surfaceLayerVolFracIce = (1._rkind - fracLiq)*volFracWater*(iden_water/iden_ice)  ! volumetric fraction of ice (-)
-  surfaceLayerVolFracLiq =          fracLiq *volFracWater                        ! volumetric fraction of liquid water (-)
+  surfaceLayerVolFracLiq =             fracLiq *volFracWater                        ! volumetric fraction of liquid water (-)
   ! update new layer depth (m)
   surfaceLayerDepth      = totalDepthSurfLayer
 

@@ -73,6 +73,7 @@ contains
  ! *****************************************************************************************************************
  subroutine layerMerge(&
                        ! input/output: model data structures
+                       maxLayers,                   & ! intent(in):    maximum number of snow/firn layerss
                        tooMuchMelt,                 & ! intent(in):    flag to force merge of snow layers
                        model_decisions,             & ! intent(in):    model decisions
                        mpar_data,                   & ! intent(in):    model parameters
@@ -88,31 +89,35 @@ contains
  implicit none
  ! --------------------------------------------------------------------------------------------------------
  ! input/output: model data structures
- logical(lgt),intent(in)         :: tooMuchMelt         ! flag to denote that ice is insufficient to support melt
- type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
- type(var_dlength),intent(in)    :: mpar_data           ! model parameters
- type(var_ilength),intent(inout) :: indx_data           ! type of each layer
- type(var_dlength),intent(inout) :: prog_data           ! model prognostic variables for a local HRU
- type(var_dlength),intent(inout) :: diag_data           ! model diagnostic variables for a local HRU
- type(var_dlength),intent(inout) :: flux_data           ! model flux variables
+ integer(i4b),intent(in)          :: maxLayers           ! maximum number of snow/firn layers
+ logical(lgt),intent(in)          :: tooMuchMelt         ! flag to denote that ice is insufficient to support melt
+ type(model_options),intent(in)   :: model_decisions(:)  ! model decisions
+ type(var_dlength),intent(in)     :: mpar_data           ! model parameters
+ type(var_ilength),intent(inout)  :: indx_data           ! type of each layer
+ type(var_dlength),intent(inout)  :: prog_data           ! model prognostic variables for a local HRU
+ type(var_dlength),intent(inout)  :: diag_data           ! model diagnostic variables for a local HRU
+ type(var_dlength),intent(inout)  :: flux_data           ! model flux variables
  ! output
- logical(lgt),intent(out)        :: mergedLayers        ! flag to denote that layers were merged
- integer(i4b),intent(out)        :: err                 ! error code
- character(*),intent(out)        :: message             ! error message
+ logical(lgt),intent(out)         :: mergedLayers        ! flag to denote that layers were merged
+ integer(i4b),intent(out)         :: err                 ! error code
+ character(*),intent(out)         :: message             ! error message
  ! --------------------------------------------------------------------------------------------------------
  ! define local variables
- character(LEN=256)              :: cmessage            ! error message of downwind routine
- real(rkind),dimension(5)        :: zminLayer           ! minimum layer depth in each layer (m)
- logical(lgt)                    :: removeLayer         ! flag to indicate need to remove a layer
- integer(i4b)                    :: nCheck              ! number of layers to check for combination
- integer(i4b)                    :: iSnow               ! index of snow layers (looping)
- integer(i4b)                    :: jSnow               ! index of snow layer identified for combination with iSnow
- integer(i4b)                    :: kSnow               ! index of the upper layer of the two layers identified for combination
- integer(i4b)                    :: nSnow               ! number of snow layers
- integer(i4b)                    :: nLake               ! number of lake layers
- integer(i4b)                    :: nSoil               ! number of soil layers
- integer(i4b)                    :: nGlce               ! number of glacier ice layers
- integer(i4b)                    :: nLayers             ! total number of layers
+ character(LEN=256)               :: cmessage            ! error message of downwind routine
+ real(rkind),dimension(maxLayers) :: zminLayer           ! minimum layer depth in each layer (m)
+ real(rkind),dimension(5)         :: zminLayer_param     ! minimum layer depth in each layer (m) that has been set in the model parameters
+ logical(lgt)                     :: removeLayer         ! flag to indicate need to remove a layer
+ integer(i4b)                     :: nCheck              ! number of layers to check for combination
+ integer(i4b)                     :: iSnow               ! index of snow layers (looping)
+ integer(i4b)                     :: jSnow               ! index of snow layer identified for combination with iSnow
+ integer(i4b)                     :: kSnow               ! index of the upper layer of the two layers identified for combination
+ integer(i4b)                     :: nSnow               ! number of snow layers
+ integer(i4b)                     :: nLake               ! number of lake layers
+ integer(i4b)                     :: nSoil               ! number of soil layers
+ integer(i4b)                     :: nGlce               ! number of glacier ice layers
+ integer(i4b)                     :: nLayers             ! total number of layers
+ integer(i4b)                     :: iLayer              ! layer index
+ ! --------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="layerMerge/"
  ! --------------------------------------------------------------------------------------------------------
@@ -138,7 +143,15 @@ contains
  ! --------------------------------------------------------------------------------------------------------
 
  ! identify algorithmic control parameters to sub-divide and combine snow layers
- zminLayer = (/zminLayer1, zminLayer2, zminLayer3, zminLayer4, zminLayer5/)
+ zminLayer_param = (/zminLayer1, zminLayer2, zminLayer3, zminLayer4, zminLayer5/)
+ if (maxLayers <= 5) then
+    zminLayer = zminLayer_param(1:maxLayers)
+ else
+    zminLayer(1:5) = zminLayer_param
+    do iLayer=6,maxLayers
+      zminLayer(iLayer) = zminLayer(iLayer-1)*2._rkind
+    end do
+ end if
 
  ! intialize the modified layers flag
  mergedLayers=.false.
@@ -153,9 +166,9 @@ contains
  kSnow=0 ! initialize first layer to test (top layer)
  do ! attempt to remove multiple layers in a single time step (continuous do loop with exit clause)
 
-  ! special case of >5 layers: add an offset to use maximum threshold from layer above
-  if(ix_snowLayers == rulesDependLayerIndex .and. nSnow > 5)then
-   nCheck=5
+  ! special case of >maxLayers layers: add an offset to use maximum threshold from layer above
+  if(ix_snowLayers == rulesDependLayerIndex .and. nSnow > maxLayers)then
+   nCheck=maxLayers
   else
    nCheck=nSnow
   end if
@@ -265,14 +278,14 @@ contains
 
  end do ! continuous do
 
- ! handle special case of > 5 layers in the CLM option
- if(nSnow > 5 .and. ix_snowLayers == rulesDependLayerIndex)then
+ ! handle special case of > maxLayers layers in the CLM option
+ if(nSnow > maxLayers .and. ix_snowLayers == rulesDependLayerIndex)then
   ! flag that layers were merged
   mergedLayers=.true.
   ! initial check to ensure everything is wonderful in the universe
-  if(nSnow /= 6)then; err=5; message=trim(message)//'special case of > 5 layers: expect only six layers'; return; end if
-  ! combine 5th layer with layer below
-  call layer_combine(mpar_data,prog_data,diag_data,flux_data,indx_data,5,err,cmessage)
+  if(nSnow /= maxLayers+1)then; err=5; message=trim(message)//'special case of >maxLayers layers: expect only one more'; return; end if
+  ! combine maxLayers-th layer with layer below
+  call layer_combine(mpar_data,prog_data,diag_data,flux_data,indx_data,maxLayers,err,cmessage)
   ! update the number of snow layers
   nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
   nLake   = indx_data%var(iLookINDEX%nLake)%dat(1)
@@ -281,13 +294,13 @@ contains
   nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
   if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; end if
   ! another check
-  if(nSnow /= 5)then; err=5; message=trim(message)//'special case of > 5 layers: expect to reduced layers to exactly 5'; return; end if
+  if(nSnow /= maxLayers)then; err=5; message=trim(message)//'special case of >maxLayers layers: expect to reduced layers to exactly maxLayers'; return; end if
  end if
 
- ! check that there are no more than 5 layers in the CLM option
+ ! check that there are no more than maxLayers layers in the CLM option
  if(ix_snowLayers == rulesDependLayerIndex)then
-  if(nSnow > 5)then
-   message=trim(message)//'expect no more than 5 layers when combination/sub-division rules depend on the layer index (CLM option)'
+  if(nSnow > maxLayers)then
+   message=trim(message)//'expect no more than maxLayers layers when combination/sub-division rules depend on the layer index (CLM option)'
    err=20; return
   end if
  end if

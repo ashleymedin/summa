@@ -66,7 +66,14 @@ USE globalData,only:data_step              ! time step of forcing data (s)
 USE globalData,only:model_decisions        ! model decision structure
 USE globalData,only:globalPrintFlag        ! the global print flag
 USE globalData,only:realMissing            ! missing double precision number
+USE globalData,only:maxSnowLayers          ! maximum number of snow layers
 
+! access domain types
+USE globalData,only:upland                 ! domain type for upland areas
+USE globalData,only:glacAcc                ! domain type for glacier accumulation areas
+USE globalData,only:glacCln                ! domain type for glacier ablation clean areas
+USE globalData,only:glacDbr                ! domain type for glacier ablation debris areas
+USE globalData,only:wetland                ! domain type for wetland areas
 
 ! look-up values for the maximum interception capacity
 USE mDecisions_module,only:         &
@@ -111,6 +118,7 @@ contains
 ! ************************************************************************************************
 subroutine coupled_em(&
                       ! model control
+                      dom_type,          & ! intent(in):    domain type
                       hruId,             & ! intent(in):    hruId
                       dt_init,           & ! intent(inout): used to initialize the size of the sub-step
                       dt_init_factor,    & ! intent(in):    Used to adjust the length of the timestep in the event of a failure
@@ -163,153 +171,155 @@ subroutine coupled_em(&
   ! * dummy variables
   ! -------------------------------------------------------------------------------------------------------------------------
   ! input-output: control
-  integer(i8b),intent(in)              :: hruId                  ! hruId
-  real(rkind),intent(inout)            :: dt_init                ! used to initialize the size of the sub-step
-  integer(i4b),intent(in)              :: dt_init_factor         ! Used to adjust the length of the timestep in the event of a failure
-  logical(lgt),intent(inout)           :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
-  real(rkind),intent(in)               :: fracJulDay             ! fractional julian days since the start of year
-  integer(i4b),intent(in)              :: yearLength             ! number of days in the current year
-  logical(lgt),intent(in)              :: glacierDomain          ! flag to denote that the domain is a glacier
+  integer(i4b),intent(in)              :: dom_type                 ! domain types
+  integer(i8b),intent(in)              :: hruId                    ! hruId
+  real(rkind),intent(inout)            :: dt_init                  ! used to initialize the size of the sub-step
+  integer(i4b),intent(in)              :: dt_init_factor           ! Used to adjust the length of the timestep in the event of a failure
+  logical(lgt),intent(inout)           :: computeVegFlux           ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+  real(rkind),intent(in)               :: fracJulDay               ! fractional julian days since the start of year
+  integer(i4b),intent(in)              :: yearLength               ! number of days in the current year
+  logical(lgt),intent(in)              :: glacierDomain            ! flag to denote that the domain is a glacier
   ! data structures (input)
-  type(var_i),intent(in)               :: type_data              ! type of vegetation and soil
-  type(var_d),intent(in)               :: attr_data              ! spatial attributes
-  type(var_d),intent(in)               :: forc_data              ! model forcing data
-  type(var_dlength),intent(in)         :: mpar_data              ! model parameters
-  type(var_dlength),intent(in)         :: bvar_data              ! basin-average model variables
-  type(zLookup),intent(in)             :: lookup_data            ! lookup tables
+  type(var_i),intent(in)               :: type_data                ! type of vegetation and soil
+  type(var_d),intent(in)               :: attr_data                ! spatial attributes
+  type(var_d),intent(in)               :: forc_data                ! model forcing data
+  type(var_dlength),intent(in)         :: mpar_data                ! model parameters
+  type(var_dlength),intent(in)         :: bvar_data                ! basin-average model variables
+  type(zLookup),intent(in)             :: lookup_data              ! lookup tables
   ! data structures (input-output)
-  type(var_ilength),intent(inout)      :: indx_data              ! state vector geometry
-  type(var_dlength),intent(inout)      :: prog_data              ! prognostic variables for a local HRU
-  type(var_dlength),intent(inout)      :: diag_data              ! diagnostic variables for a local HRU
-  type(var_dlength),intent(inout)      :: flux_data              ! model fluxes for a local HRU
+  type(var_ilength),intent(inout)      :: indx_data                ! state vector geometry
+  type(var_dlength),intent(inout)      :: prog_data                ! prognostic variables for a local HRU
+  type(var_dlength),intent(inout)      :: diag_data                ! diagnostic variables for a local HRU
+  type(var_dlength),intent(inout)      :: flux_data                ! model fluxes for a local HRU
   ! error control
-  integer(i4b),intent(out)             :: err                    ! error code
-  character(*),intent(out)             :: message                ! error message
+  integer(i4b),intent(out)             :: err                      ! error code
+  character(*),intent(out)             :: message                  ! error message
   ! =====================================================================================================================================================
   ! local variables
-  character(len=256)                   :: cmessage               ! error message
-  integer(i4b)                         :: nSnow                  ! number of snow layers
-  integer(i4b)                         :: nLake                  ! number of lake layers
-  integer(i4b)                         :: nSoil                  ! number of soil layers
-  integer(i4b)                         :: nGlce                  ! number of glacier ice layers
-  integer(i4b)                         :: nLayers                ! total number of layers
-  integer(i4b)                         :: nState                 ! total number of state variables
-  real(rkind)                          :: dtSave                 ! length of last input model whole sub-step (seconds)
-  real(rkind)                          :: dt_sub                 ! length of model sub-step (seconds)
-  real(rkind)                          :: dt_wght                ! weight applied to model sub-step (dt_sub/data_step)
-  real(rkind)                          :: lyr_wght               ! weight applied to domain layer (layer_depth/domain_depth)
-  real(rkind)                          :: dt_solv                ! seconds in the data step that have been completed
-  real(rkind)                          :: dtMultiplier           ! time step multiplier (-) based on what happenned in "opSplittin"
-  real(rkind)                          :: minstep,maxstep        ! minimum and maximum time step length (seconds)
-  real(rkind)                          :: maxstep_op             ! maximum time step length (seconds) to run opSplittin over
-  real(rkind)                          :: whole_step             ! step the surface pond drainage and sublimation calculated over
-  integer(i4b)                         :: nsub                   ! number of substeps
-  integer(i4b)                         :: nsub_success           ! number of successful substeps
-  logical(lgt)                         :: computeVegFluxOld      ! flag to indicate if we are computing fluxes over vegetation on the previous sub step
-  logical(lgt)                         :: includeAquifer         ! flag to denote that an aquifer is included
-  logical(lgt)                         :: modifiedLayers         ! flag to denote that snow layers were modified
-  logical(lgt)                         :: modifiedVegState       ! flag to denote that vegetation states were modified
-  integer(i4b)                         :: nLayersRoots           ! number of soil layers that contain roots
-  real(rkind)                          :: exposedVAI             ! exposed vegetation area index
-  real(rkind)                          :: dCanopyWetFraction_dWat ! derivative in wetted fraction w.r.t. canopy total water (kg-1 m2)
-  real(rkind)                          :: dCanopyWetFraction_dT   ! derivative in wetted fraction w.r.t. canopy temperature (K-1)
+  character(len=256)                   :: cmessage                 ! error message
+  integer(i4b)                         :: nSnow                    ! number of snow layers
+  integer(i4b)                         :: nLake                    ! number of lake layers
+  integer(i4b)                         :: nSoil                    ! number of soil layers
+  integer(i4b)                         :: nGlce                    ! number of glacier ice layers
+  integer(i4b)                         :: nLayers                  ! total number of layers
+  integer(i4b)                         :: nState                   ! total number of state variables
+  real(rkind)                          :: dtSave                   ! length of last input model whole sub-step (seconds)
+  real(rkind)                          :: dt_sub                   ! length of model sub-step (seconds)
+  real(rkind)                          :: dt_wght                  ! weight applied to model sub-step (dt_sub/data_step)
+  real(rkind)                          :: lyr_wght                 ! weight applied to domain layer (layer_depth/domain_depth)
+  real(rkind)                          :: dt_solv                  ! seconds in the data step that have been completed
+  real(rkind)                          :: dtMultiplier             ! time step multiplier (-) based on what happenned in "opSplittin"
+  real(rkind)                          :: minstep,maxstep          ! minimum and maximum time step length (seconds)
+  real(rkind)                          :: maxstep_op               ! maximum time step length (seconds) to run opSplittin over
+  real(rkind)                          :: whole_step               ! step the surface pond drainage and sublimation calculated over
+  integer(i4b)                         :: nsub                     ! number of substeps
+  integer(i4b)                         :: nsub_success             ! number of successful substeps
+  logical(lgt)                         :: computeVegFluxOld        ! flag to indicate if we are computing fluxes over vegetation on the previous sub step
+  logical(lgt)                         :: includeAquifer           ! flag to denote that an aquifer is included
+  logical(lgt)                         :: modifiedLayers           ! flag to denote that snow layers were modified
+  logical(lgt)                         :: modifiedVegState         ! flag to denote that vegetation states were modified
+  integer(i4b)                         :: maxSnowFirnLayers        ! maximum number of snow/firn layers
+  integer(i4b)                         :: nLayersRoots             ! number of soil layers that contain roots
+  real(rkind)                          :: exposedVAI               ! exposed vegetation area index
+  real(rkind)                          :: dCanopyWetFraction_dWat  ! derivative in wetted fraction w.r.t. canopy total water (kg-1 m2)
+  real(rkind)                          :: dCanopyWetFraction_dT    ! derivative in wetted fraction w.r.t. canopy temperature (K-1)
   real(rkind),parameter                :: varNotUsed1=-9999._rkind ! variables used to calculate derivatives (not needed here)
   real(rkind),parameter                :: varNotUsed2=-9999._rkind ! variables used to calculate derivatives (not needed here)
-  integer(i4b)                         :: iLayer,jLayer          ! index of model layers
-  real(rkind)                          :: superflousSub          ! superflous sublimation (kg m-2 s-1)
-  real(rkind)                          :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
-  integer(i4b)                         :: ixSolution             ! solution method used by opSplittin
-  logical(lgt)                         :: firstSubStep           ! flag to denote if the first time step
-  logical(lgt)                         :: stepFailure            ! flag to denote the need to reduce length of the coupled step and try again
-  logical(lgt)                         :: tooMuchMelt            ! flag to denote that there was too much melt in a given time step
-  logical(lgt)                         :: tooMuchSublim          ! flag to denote that there was too much sublimation in a given time step
-  logical(lgt)                         :: doLayerMerge           ! flag to denote the need to merge snow layers
-  logical(lgt)                         :: pauseFlag              ! flag to pause execution
+  integer(i4b)                         :: iLayer,jLayer            ! index of model layers
+  real(rkind)                          :: superflousSub            ! superflous sublimation (kg m-2 s-1)
+  real(rkind)                          :: superflousNrg            ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
+  integer(i4b)                         :: ixSolution               ! solution method used by opSplittin
+  logical(lgt)                         :: firstSubStep             ! flag to denote if the first time step
+  logical(lgt)                         :: stepFailure              ! flag to denote the need to reduce length of the coupled step and try again
+  logical(lgt)                         :: tooMuchMelt              ! flag to denote that there was too much melt in a given time step
+  logical(lgt)                         :: tooMuchSublim            ! flag to denote that there was too much sublimation in a given time step
+  logical(lgt)                         :: doLayerMerge             ! flag to denote the need to merge snow layers
+  logical(lgt)                         :: pauseFlag                ! flag to pause execution
   logical(lgt),parameter               :: backwardsCompatibility=.true.  ! flag to denote a desire to ensure backwards compatibility with previous branches
-  logical(lgt)                         :: checkMassBalance_ds    ! flag to check the mass balance over the data step
-  type(var_ilength)                    :: indx_temp              ! temporary model index variables saved only on outer loop
-  type(var_ilength)                    :: indx_temp0             ! temporary model index variables saved every time
-  type(var_dlength)                    :: prog_temp              ! temporary model prognostic variables
-  type(var_dlength)                    :: diag_temp              ! temporary model diagnostic variables
-  real(rkind),allocatable              :: mLayerVolFracIceInit(:)! initial vector for volumetric fraction of ice (-)
-  logical(lgt)                         :: noVeg                  ! flag to denote that there is no vegetation (lake or glacier)
-  integer(i4b),parameter               :: zero=0                 ! zero value
+  logical(lgt)                         :: checkMassBalance_ds      ! flag to check the mass balance over the data step
+  type(var_ilength)                    :: indx_temp                ! temporary model index variables saved only on outer loop
+  type(var_ilength)                    :: indx_temp0               ! temporary model index variables saved every time
+  type(var_dlength)                    :: prog_temp                ! temporary model prognostic variables
+  type(var_dlength)                    :: diag_temp                ! temporary model diagnostic variables
+  real(rkind),allocatable              :: mLayerVolFracIceInit(:)  ! initial vector for volumetric fraction of ice (-)
+  logical(lgt)                         :: noVeg                    ! flag to denote that there is no vegetation (lake or glacier)
+  integer(i4b),parameter               :: zero=0                   ! zero value
   ! check SWE
-  real(rkind)                          :: oldSWE                 ! SWE at the start of the substep
-  real(rkind)                          :: delSWE                 ! change in SWE over the subtep
-  real(rkind)                          :: innerEffRainfall       ! inner step average effective rainfall into snow (kg m-2 s-1)
-  real(rkind)                          :: effRainfall            ! timestep-average effective rainfall into snow (kg m-2 s-1)
-  real(rkind)                          :: effSnowfall            ! effective snowfall (kg m-2 s-1)
-  real(rkind)                          :: sfcMeltPond            ! surface melt pond (kg m-2)
-  real(rkind)                          :: massBalance            ! mass balance error (kg m-2)
+  real(rkind)                          :: oldSWE                   ! SWE at the start of the substep
+  real(rkind)                          :: delSWE                   ! change in SWE over the subtep
+  real(rkind)                          :: innerEffRainfall         ! inner step average effective rainfall into snow (kg m-2 s-1)
+  real(rkind)                          :: effRainfall              ! timestep-average effective rainfall into snow (kg m-2 s-1)
+  real(rkind)                          :: effSnowfall              ! effective snowfall (kg m-2 s-1)
+  real(rkind)                          :: sfcMeltPond              ! surface melt pond (kg m-2)
+  real(rkind)                          :: massBalance              ! mass balance error (kg m-2)
   ! energy fluxes
-  integer(i4b)                         :: iSoil                  ! index of soil layers
-  type(var_dlength)                    :: flux_mean              ! timestep-average model fluxes for a local HRU
-  type(var_dlength)                    :: flux_inner             ! inner step average model fluxes for a local HRU
-  real(rkind),allocatable              :: meanSoilCompress(:)    ! timestep-average soil compression by layer
-  real(rkind),allocatable              :: innerSoilCompress(:)   ! inner step average soil compression by layer
+  integer(i4b)                         :: iSoil                    ! index of soil layers
+  type(var_dlength)                    :: flux_mean                ! timestep-average model fluxes for a local HRU
+  type(var_dlength)                    :: flux_inner               ! inner step average model fluxes for a local HRU
+  real(rkind),allocatable              :: meanSoilCompress(:)      ! timestep-average soil compression by layer
+  real(rkind),allocatable              :: innerSoilCompress(:)     ! inner step average soil compression by layer
   ! sublimation sums over substep and means over data_step
-  real(rkind)                          :: sumCanopySublimation   ! sum of sublimation from the vegetation canopy (kg m-2 s-1) over substep
-  real(rkind)                          :: sumSnowSublimation     ! sum of sublimation from the snow surface (kg m-2 s-1) over substep
-  real(rkind)                          :: sumLakeSublimation     ! sum of sublimation from the lake surface (kg m-2 s-1) over substep
-  real(rkind)                          :: sumGlceSublimation     ! sum of sublimation from the ice (lake or glacier) surface (kg m-2 s-1) over substep
-  real(rkind)                          :: groundSublimation      ! sublimation from the ground (kg m-2 s-1)
-  real(rkind)                          :: averageSnowSublimation ! timestep-average sublimation from the snow surface (kg m-2 s-1)
-  real(rkind)                          :: averageLakeSublimation ! timestep-average sublimation from the lake ice surface (kg m-2 s-1)
-  real(rkind)                          :: averageGlceSublimation ! timestep-average sublimation from the glacier ice surface (kg m-2 s-1)
-  real(rkind)                          :: sumLatHeatCanopyEvap   ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2) over substep
-  real(rkind)                          :: sumSenHeatCanopy       ! sum of sensible heat flux from the canopy to the canopy air space (W m-2) over substep
-  real(rkind)                          :: meanCanopySublimation  ! timestep-average sublimation from the vegetation canopy (kg m-2 s-1)
-  real(rkind)                          :: meanLatHeatCanopyEvap  ! timestep-average latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-  real(rkind)                          :: meanSenHeatCanopy      ! timestep-average sensible heat flux from the canopy to the canopy air space (W m-2)
+  real(rkind)                          :: sumCanopySublimation     ! sum of sublimation from the vegetation canopy (kg m-2 s-1) over substep
+  real(rkind)                          :: sumSnowSublimation       ! sum of sublimation from the snow surface (kg m-2 s-1) over substep
+  real(rkind)                          :: sumLakeSublimation       ! sum of sublimation from the lake surface (kg m-2 s-1) over substep
+  real(rkind)                          :: sumGlceSublimation       ! sum of sublimation from the ice (lake or glacier) surface (kg m-2 s-1) over substep
+  real(rkind)                          :: groundSublimation        ! sublimation from the ground (kg m-2 s-1)
+  real(rkind)                          :: averageSnowSublimation   ! timestep-average sublimation from the snow surface (kg m-2 s-1)
+  real(rkind)                          :: averageLakeSublimation   ! timestep-average sublimation from the lake ice surface (kg m-2 s-1)
+  real(rkind)                          :: averageGlceSublimation   ! timestep-average sublimation from the glacier ice surface (kg m-2 s-1)
+  real(rkind)                          :: sumLatHeatCanopyEvap     ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2) over substep
+  real(rkind)                          :: sumSenHeatCanopy         ! sum of sensible heat flux from the canopy to the canopy air space (W m-2) over substep
+  real(rkind)                          :: meanCanopySublimation    ! timestep-average sublimation from the vegetation canopy (kg m-2 s-1)
+  real(rkind)                          :: meanLatHeatCanopyEvap    ! timestep-average latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+  real(rkind)                          :: meanSenHeatCanopy        ! timestep-average sensible heat flux from the canopy to the canopy air space (W m-2)
   ! balance checks
-  logical(lgt)                         :: bal_veg                ! flag to denote if computed a vegetation balance
-  logical(lgt)                         :: bal_snow               ! flag to denote if computed a snow balance
-  logical(lgt)                         :: bal_lake               ! flag to denote if computed a lake balance
-  logical(lgt)                         :: bal_soil               ! flag to denote if computed a soil balance
-  logical(lgt)                         :: bal_glce               ! flag to denote if computed a glacier balance
-  logical(lgt)                         :: bal_aq                 ! flag to denote if computed an aquifer balance
-  integer(i4b)                         :: iVar                   ! loop through model variables
-  real(rkind)                          :: delCanWat              ! change in canopy water (kg m-2)
-  real(rkind)                          :: delLakeWat             ! change in lake water (kg m-2)
-  real(rkind)                          :: balanceSoilCompress    ! total soil compression (kg m-2)
-  real(rkind)                          :: scalarCanopyWatBalError! water balance error for the vegetation canopy (kg m-2)
-  real(rkind)                          :: scalarSoilWatBalError  ! water balance error (kg m-2)
-  real(rkind)                          :: scalarInitCanopyLiq    ! initial liquid water on the vegetation canopy (kg m-2)
-  real(rkind)                          :: scalarInitCanopyIce    ! initial ice          on the vegetation canopy (kg m-2)
-  real(rkind)                          :: balanceCanopyWater0    ! total water stored in the vegetation canopy at the start of the step (kg m-2)
-  real(rkind)                          :: balanceSoilWater0      ! total soil storage at the start of the step (kg m-2)
-  real(rkind)                          :: balanceIceWE0          ! total ice storage at the start of the step (kg m-2)
-  real(rkind)                          :: balanceSoilInflux      ! input to the soil zone
-  real(rkind)                          :: balanceSoilBaseflow    ! output from the soil zone
-  real(rkind)                          :: balanceSoilDrainage    ! output from the soil zone
-  real(rkind)                          :: balanceSoilET          ! output from the soil zone
-  real(rkind)                          :: balanceAquifer0        ! total aquifer storage at the start of the step (kg m-2)
-  real(rkind)                          :: balanceAquifer1        ! total aquifer storage at the end of the step (kg m-2)
-  real(rkind)                          :: scalarMassChange       ! change in mass of the entire system (kg m-2 s-1)
-  real(rkind)                          :: innerBalance(4)        ! inner step balances for domain with one layer
-  real(rkind)                          :: meanBalance(12)         ! timestep-average balances for domains
+  logical(lgt)                         :: bal_veg                  ! flag to denote if computed a vegetation balance
+  logical(lgt)                         :: bal_snow                 ! flag to denote if computed a snow balance
+  logical(lgt)                         :: bal_lake                 ! flag to denote if computed a lake balance
+  logical(lgt)                         :: bal_soil                 ! flag to denote if computed a soil balance
+  logical(lgt)                         :: bal_glce                 ! flag to denote if computed a glacier balance
+  logical(lgt)                         :: bal_aq                   ! flag to denote if computed an aquifer balance
+  integer(i4b)                         :: iVar                     ! loop through model variables
+  real(rkind)                          :: delCanWat                ! change in canopy water (kg m-2)
+  real(rkind)                          :: delLakeWat               ! change in lake water (kg m-2)
+  real(rkind)                          :: balanceSoilCompress      ! total soil compression (kg m-2)
+  real(rkind)                          :: scalarCanopyWatBalError  ! water balance error for the vegetation canopy (kg m-2)
+  real(rkind)                          :: scalarSoilWatBalError    ! water balance error (kg m-2)
+  real(rkind)                          :: scalarInitCanopyLiq      ! initial liquid water on the vegetation canopy (kg m-2)
+  real(rkind)                          :: scalarInitCanopyIce      ! initial ice          on the vegetation canopy (kg m-2)
+  real(rkind)                          :: balanceCanopyWater0      ! total water stored in the vegetation canopy at the start of the step (kg m-2)
+  real(rkind)                          :: balanceSoilWater0        ! total soil storage at the start of the step (kg m-2)
+  real(rkind)                          :: balanceIceWE0            ! total ice storage at the start of the step (kg m-2)
+  real(rkind)                          :: balanceSoilInflux        ! input to the soil zone
+  real(rkind)                          :: balanceSoilBaseflow      ! output from the soil zone
+  real(rkind)                          :: balanceSoilDrainage      ! output from the soil zone
+  real(rkind)                          :: balanceSoilET            ! output from the soil zone
+  real(rkind)                          :: balanceAquifer0          ! total aquifer storage at the start of the step (kg m-2)
+  real(rkind)                          :: balanceAquifer1          ! total aquifer storage at the end of the step (kg m-2)
+  real(rkind)                          :: scalarMassChange         ! change in mass of the entire system (kg m-2 s-1)
+  real(rkind)                          :: innerBalance(4)          ! inner step balances for domain with one layer
+  real(rkind)                          :: meanBalance(12)          ! timestep-average balances for domains
   real(rkind),allocatable              :: innerBalanceLayerMass(:) ! inner step balances for domain with multiple layers
   real(rkind),allocatable              :: innerBalanceLayerNrg(:)  ! inner step balances for domain with multiple layers
   ! test balance checks
-  logical(lgt),parameter               :: printBalance=.false.   ! flag to print the balance checks
-  real(rkind),allocatable              :: liqSnowInit(:)         ! volumetric liquid water conetnt of snow at the start of the time step
-  real(rkind),allocatable              :: liqSoilInit(:)         ! soil moisture at the start of the time step
+  logical(lgt),parameter               :: printBalance=.false.     ! flag to print the balance checks
+  real(rkind),allocatable              :: liqSnowInit(:)           ! volumetric liquid water conetnt of snow at the start of the time step
+  real(rkind),allocatable              :: liqSoilInit(:)           ! soil moisture at the start of the time step
   ! timing information
-  integer(kind=8)                      :: count_rate 
-  integer(kind=8)                      :: i_start, i_end
-  real                                 :: elapsed_time
-  real(rkind)                          :: mean_step_dt_sub       ! mean solution step for the sub-step
-  real(rkind)                          :: sumStepSize            ! sum solution step for the data step
+  integer(kind=8)                      :: count_rate               ! clock rate
+  integer(kind=8)                      :: i_start, i_end           ! start and end time
+  real                                 :: elapsed_time             ! elapsed time
+  real(rkind)                          :: mean_step_dt_sub         ! mean solution step for the sub-step
+  real(rkind)                          :: sumStepSize              ! sum solution step for the data step
   ! outer loop control
-  logical(lgt)                         :: firstInnerStep         ! flag to denote if the first time step in maxstep subStep
-  logical(lgt)                         :: lastInnerStep          ! flag to denote if the last time step in maxstep subStep
-  logical(lgt)                         :: do_outer               ! flag to denote if doing the outer steps surrounding the call to opSplittin
-  real(rkind)                          :: dt_solvInner           ! seconds in the maxstep subStep that have been completed
+  logical(lgt)                         :: firstInnerStep           ! flag to denote if the first time step in maxstep subStep
+  logical(lgt)                         :: lastInnerStep            ! flag to denote if the last time step in maxstep subStep
+  logical(lgt)                         :: do_outer                 ! flag to denote if doing the outer steps surrounding the call to opSplittin
+  real(rkind)                          :: dt_solvInner             ! seconds in the maxstep subStep that have been completed
   logical(lgt),parameter               :: computNrgBalance_var=.true. ! flag to compute enthalpy, must have computNrgBalance true in varSubStep (will compute enthalpy for BE even if not using enthalpy formulation)
-  logical(lgt)                         :: computeEnthalpy        ! flag to compute enthalpy regardless of the model decision
-  logical(lgt)                         :: enthalpyStateVec       ! flag if enthalpy is a state variable (IDA)
-  logical(lgt)                         :: use_lookup             ! flag to use the lookup table for soil enthalpy, otherwise use analytical solution
+  logical(lgt)                         :: computeEnthalpy          ! flag to compute enthalpy regardless of the model decision
+  logical(lgt)                         :: enthalpyStateVec         ! flag if enthalpy is a state variable (IDA)
+  logical(lgt)                         :: use_lookup               ! flag to use the lookup table for soil enthalpy, otherwise use analytical solution
 
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
@@ -759,10 +769,13 @@ subroutine coupled_em(&
           end select
         end do  ! looping through variables
 
-        ! *** merge/sub-divide snow layers...
+        ! *** merge/sub-divide snow/firn layers...
         ! -----------------------------------
+        maxSnowFirnLayers = maxSnowLayers
+        if (dom_type==glacAcc) maxSnowFirnLayers=int(maxSnowLayers*2.5_rkind) ! double the number of layers for glacier accumulation firn layers
         call volicePack(&
                         ! input/output: model data structures
+                        maxSnowFirnLayers,          & ! intent(in):    maximum number of snow/firn layers
                         doLayerMerge,               & ! intent(in):    flag to force merge of snow layers
                         model_decisions,            & ! intent(in):    model decisions
                         mpar_data,                  & ! intent(in):    model parameters
@@ -786,7 +799,7 @@ subroutine coupled_em(&
         if(firstSubStep .or. modifiedVegState .or. modifiedLayers)then
           call indexState(computeVegFlux,                    & ! intent(in):    flag to denote if computing the vegetation flux
                           includeAquifer,                    & ! intent(in):    flag to denote if included the aquifer
-                          nSnow,nLake,nSoil,nGlce,nLayers,    & ! intent(in):    number of layers, and total number of layers
+                          nSnow,nLake,nSoil,nGlce,nLayers,   & ! intent(in):    number of layers, and total number of layers
                           indx_data,                         & ! intent(inout): indices defining model states and layers
                           err,cmessage)                        ! intent(out):   error control
           if(err/=0)then; message=trim(message)//trim(cmessage); return; end if

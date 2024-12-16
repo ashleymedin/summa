@@ -347,7 +347,7 @@ if __name__ == '__main__':
                         glacCln_elev[k] = glacCln_elev[k] + surface_elev0[(cell2hruId0==h) & (hgt>0) & (surface_elev0< ELA_elev)].mean()/nGlacier[i]
                         glacDbr_elev[k] = glacCln_elev[k] # make all ablation elevations the same for now
                         glacAcc_elev[k] = glacAcc_elev[k] + surface_elev0[(cell2hruId0==h) & (hgt>0) & (surface_elev0>=ELA_elev)].mean()/nGlacier[i]
-                        glacDbr_frac[k] = glacDbr_frac[k] + np.sum(np.where((cell2hruId0==h) & (hgt>0) & (surface_elev0 <ELA_elev), dly*stage[j,i], 0))/hru_area[k] 
+                        print(k,glacCln_frac[k],glacDbr_frac[k],glacAcc_frac[k])
 
         ndom += 2
         midGlce = 5
