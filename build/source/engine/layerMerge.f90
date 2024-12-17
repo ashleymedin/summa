@@ -118,6 +118,8 @@ contains
  integer(i4b)                     :: nLayers             ! total number of layers
  integer(i4b)                     :: iLayer              ! layer index
  logical(lgt)                     :: doGlac              ! flag to denote that merging glacier ice
+ integer(i4b)                     :: topLayer            ! index of the top layer of snow/ice
+ integer(i4b)                     :: botLayer            ! index of the bottom layer of snow/ice
  ! --------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="layerMerge/"
@@ -169,6 +171,11 @@ contains
  if (nSnow==0 .and. nGlce>0) then
    kSnow=nSoil
    doGlac=.true.
+   topLayer=nSoil+1
+   botLayer=nSoil+nGlce
+ else
+   topLayer=1
+   botLayer=nSnow
  end if
  do ! attempt to remove multiple layers in a single time step (continuous do loop with exit clause)
 
@@ -205,7 +212,7 @@ contains
 
    ! check if we have too much melt
    ! NOTE: assume that this is the top snow layer; need more trickery to relax this assumption
-   if(tooMuchMelt .and. iSnow==1) removeLayer=.true.
+   if(tooMuchMelt .and. iSnow==topLayer) removeLayer = .true.
 
    ! check if need to remove a layer
    if(removeLayer)then
@@ -248,15 +255,15 @@ contains
      if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
      ! exit the do loop (no more snow layers to remove)
      return
-    else if (nSnow==0 .and. nGlce==1)then
+    else if (doGlac .and. nGlce==1)then
      err=20; message=trim(message)//"melted entire glacier depth, need to start with thicker glacier"; return
     end if  ! (special case of 1 layer --> snow without a layer)
       
     ! ***** identify the layer to combine
-    if(iSnow==1)then
+    if(iSnow==topLayer)then
      jSnow = iSnow+1  ! upper-most layer, combine with its lower neighbor
-    elseif(iSnow==nSnow)then
-     jSnow = nSnow-1  ! lower-most layer, combine with its upper neighbor
+    elseif(iSnow==botLayer)then
+     jSnow = botLayer-1  ! lower-most layer, combine with its upper neighbor
     else
      if(mLayerDepth(iSnow-1)<mLayerDepth(iSnow+1))then; jSnow = iSnow-1; else; jSnow = iSnow+1; end if
     end if
@@ -274,6 +281,11 @@ contains
     nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
     nGlce   = indx_data%var(iLookINDEX%nGlce)%dat(1)
     nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
+    if (doGlac) then
+      botLayer=nSoil+nGlce
+    else
+      botLayer=nSnow
+    end if
 
     ! exit the loop to try again
     exit
@@ -396,7 +408,7 @@ contains
  nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
 
  ! compute combined depth
- cDepth       = mLayerDepth(isnow) + mLayerDepth(isnow+1)
+ cDepth       = mLayerDepth(iSnow) + mLayerDepth(iSnow+1)
 
  ! compute mass of each layer (kg m-2)
  massIce(1:2) = iden_ice*mLayerVolFracIce(iSnow:iSnow+1)*mLayerDepth(iSnow:iSnow+1)
@@ -404,14 +416,14 @@ contains
 
  ! compute bulk density of water (kg m-3)
  bulkDenWat(1:2) = (massIce(1:2) + massLiq(1:2))/mLayerDepth(iSnow:iSnow+1)
- cBulkDenWat     = (mLayerDepth(isnow)*bulkDenWat(1) + mLayerDepth(isnow+1)*bulkDenWat(2))/cDepth
+ cBulkDenWat     = (mLayerDepth(iSnow)*bulkDenWat(1) + mLayerDepth(iSnow+1)*bulkDenWat(2))/cDepth
 
  ! compute enthalpy for each layer (J m-3)
- l1Enthalpy = T2enthalpy_snwWat(mLayerTemp(iSnow),  BulkDenWat(1),snowfrz_scale)
- l2Enthalpy = T2enthalpy_snwWat(mLayerTemp(iSnow+1),BulkDenWat(2),snowfrz_scale)
+ l1Enthalpy = T2enthalpy_snwWat(mLayerTemp(iSnow),  bulkDenWat(1),snowfrz_scale)
+ l2Enthalpy = T2enthalpy_snwWat(mLayerTemp(iSnow+1),bulkDenWat(2),snowfrz_scale)
 
  ! compute combined enthalpy (J m-3)
- cEnthalpy = (mLayerDepth(isnow)*l1Enthalpy + mLayerDepth(isnow+1)*l2Enthalpy)/cDepth
+ cEnthalpy = (mLayerDepth(iSnow)*l1Enthalpy + mLayerDepth(iSnow+1)*l2Enthalpy)/cDepth
 
  ! convert enthalpy (J m-3) to temperature (K)
  call enthalpy2T_snwWat(cEnthalpy,cBulkDenWat,snowfrz_scale,cTemp,err,cmessage)
@@ -530,9 +542,9 @@ contains
   ! define bounds
   if (doGlac)then
    select case(metaStruct(ivar)%vartype)
-    case(iLookVarType%midGlce); ix_lower=nSoil+1; ix_upper=nGlce+nSoil
+    case(iLookVarType%midGlce); ix_lower=1; ix_upper=nGlce
     case(iLookVarType%midToto); ix_lower=1; ix_upper=nLayers
-    case(iLookVarType%ifcGlce); ix_lower=nSoil; ix_upper=nGlce+nSoil
+    case(iLookVarType%ifcGlce); ix_lower=0; ix_upper=nGlce
     case(iLookVarType%ifcToto); ix_lower=0; ix_upper=nLayers
     case default; cycle  ! no need to remove soil layers or scalar variables
    end select
