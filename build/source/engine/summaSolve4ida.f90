@@ -274,6 +274,7 @@ subroutine summaSolve4ida(&
     ixSnLaSoGlNrg           => indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the layers
     ixSnLaSoGlHyd           => indx_data%var(iLookINDEX%ixSnLaSoGlHyd)%dat    ,& ! intent(in): [i4b(:)] indices for hydrology states in the layers
     ixSnowOnlyNrg           => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the snow
+    ixGlceOnlyNrg           => indx_data%var(iLookINDEX%ixGlceOnlyNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the glacier ice
     ixSoilOnlyNrg           => indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the soil
     ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat    ,& ! intent(in): [i4b(:)] indices for hydrology states in the soil
     layerType               => indx_data%var(iLookINDEX%layerType)%dat         & ! intent(in): [i4b(:)] named variables defining the type of layer 
@@ -506,6 +507,17 @@ subroutine summaSolve4ida(&
           if (stateVec(ixSnowOnlyNrg(i)) > Tfreeze) tooMuchMelt = .true. !need to merge
         endif
       enddo
+      ! for lakes, will need to merge if an ice layer changes status, but this is not implemented yet
+      if (nGlce>0) then
+        ! loop through non-missing energy state variables in the glacier domain to see if need to merge 
+        do concurrent (i=1:nGlce,ixGlceOnlyNrg(i)/=integerMissing)
+          if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm)then !using enthalpy as state variable
+            if (stateVec(ixGlceOnlyNrg(i)) > 0._rkind) tooMuchMelt = .true. !need to merge
+          else
+            if (stateVec(ixGlceOnlyNrg(i)) > Tfreeze) tooMuchMelt = .true. !need to merge
+          endif
+        enddo
+      endif
       if(tooMuchMelt)exit
     
       ! get the last stepsize and difference from previous end time, not necessarily the same

@@ -408,23 +408,25 @@ contains
     flux_temp%var(iVar)%dat(:) = flux_init%var(iVar)%dat(:)
   end do
 
-  ! check the need to merge snow layers
+  ! check the need to merge snow or glacier ice layers
   associate(&
    nSnow            => indx_data%var(iLookINDEX%nSnow)%dat(1)        ,& ! intent(in): [i4b]   number of snow layers
+   nLake            => indx_data%var(iLookINDEX%nLake)%dat(1)        ,& ! intent(in): [i4b]   number of lake layers
+   nSoil            => indx_data%var(iLookINDEX%nSoil)%dat(1)        ,& ! intent(in): [i4b]   number of soil layers
+   nGlce            => indx_data%var(iLookINDEX%nGlce)%dat(1)        ,& ! intent(in): [i4b]   number of glacier ice layers
    mLayerVolFracIce => prog_data%var(iLookPROG%mLayerVolFracIce)%dat ,& ! intent(in): [dp(:)] volumetric fraction of ice (-)
    mLayerVolFracLiq => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat ,& ! intent(in): [dp(:)] volumetric fraction of liquid water (-)
    mLayerTemp       => prog_data%var(iLookPROG%mLayerTemp)%dat       ,& ! intent(in): [dp(:)] temperature of each snow/soil layer (K)
    snowfrz_scale    => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1) & ! intent(in): [dp]    scaling parameter for the snow freezing curve (K-1)
    &)
-   ! check the need to merge snow layers
-   if (nSnow>0) then
-     ! compute the energy required to melt the top snow layer (J m-2)
+   ! check the need to merge snow or glacier ice layers
+   if (nSnow>0 .or. (nSnow+nSoil+nLake==0 .and. nGlce>0) ) then
+     ! compute the energy required to melt the top layer (J m-2)
      bulkDensity = mLayerVolFracIce(1)*iden_ice + mLayerVolFracLiq(1)*iden_water
      volEnthalpy = T2enthalpy_snwWat(mLayerTemp(1),bulkDensity,snowfrz_scale)
      ! set flag and error codes for too much melt
      if (-volEnthalpy < flux_init%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt_cur) then
        tooMuchMelt = .true.
-       !message=trim(message)//'net flux in the top snow layer can melt all the snow in the top layer'
        err=-20; return ! negative error code to denote a warning
      end if
    end if

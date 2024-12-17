@@ -83,7 +83,7 @@ contains
  ! ***********************************************************************************************************
  subroutine layerDivide(&
                         ! input/output: model data structures
-                        maxLayers,                       & ! intent(in):    maximum number of snow/firn layers
+                        maxLayers,                       & ! intent(in):    maximum number of snow/firn/ice layers
                         model_decisions,                 & ! intent(in):    model decisions
                         mpar_data,                       & ! intent(in):    model parameters
                         indx_data,                       & ! intent(inout): type of each layer
@@ -101,7 +101,7 @@ contains
  implicit none
  ! --------------------------------------------------------------------------------------------------------
  ! input/output: model data structures
- integer(i4b),intent(in)            :: maxLayers              ! maximum number of snow/firn layers
+ integer(i4b),intent(in)            :: maxLayers              ! maximum number of snow/firn/ice layers
  type(model_options),intent(in)     :: model_decisions(:)     ! model decisions
  type(var_dlength),intent(in)       :: mpar_data              ! model parameters
  type(var_ilength),intent(inout)    :: indx_data              ! type of each layer

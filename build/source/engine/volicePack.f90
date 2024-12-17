@@ -57,7 +57,7 @@ contains
  ! ************************************************************************************************
  subroutine volicePack(&
                        ! input/output: model data structures
-                       maxLayers,                   & ! intent(in):    maximum number of snow/firn layers
+                       maxLayers,                   & ! intent(in):    maximum number of snow/firn/ice layers
                        tooMuchMelt,                 & ! intent(in):    flag to force merge of snow layers
                        model_decisions,             & ! intent(in):    model decisions
                        mpar_data,                   & ! intent(in):    model parameters
@@ -99,7 +99,7 @@ contains
  if (.not.tooMuchMelt)then
    call layerDivide(&
                     ! input/output: model data structures
-                    maxLayers,                   & ! intent(in):    maximum number of snow/firn layers
+                    maxLayers,                   & ! intent(in):    maximum number of snow/firn/ice layers
                     model_decisions,             & ! intent(in):    model decisions
                     mpar_data,                   & ! intent(in):    model parameters
                     indx_data,                   & ! intent(inout): type of each layer
@@ -115,8 +115,8 @@ contains
  ! merge snow/firn layers if they are too thin
  call layerMerge(&
                  ! input/output: model data structures
-                 maxLayers,                   & ! intent(in):    maximum number of snow/firn layers
-                 tooMuchMelt,                 & ! intent(in):    flag to force merge of snow layers
+                 maxLayers,                   & ! intent(in):    maximum number of snow/firn/ice layers
+                 tooMuchMelt,                 & ! intent(in):    flag to force merge of snow/firn/ice layers
                  model_decisions,             & ! intent(in):    model decisions
                  mpar_data,                   & ! intent(in):    model parameters
                  indx_data,                   & ! intent(inout): type of each layer

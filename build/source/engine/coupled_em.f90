@@ -67,6 +67,7 @@ USE globalData,only:model_decisions        ! model decision structure
 USE globalData,only:globalPrintFlag        ! the global print flag
 USE globalData,only:realMissing            ! missing double precision number
 USE globalData,only:maxSnowLayers          ! maximum number of snow layers
+USE globalData,only:maxGlceLayers          ! maximum number of glacier ice layers
 
 ! access domain types
 USE globalData,only:upland                 ! domain type for upland areas
@@ -218,7 +219,7 @@ subroutine coupled_em(&
   logical(lgt)                         :: includeAquifer           ! flag to denote that an aquifer is included
   logical(lgt)                         :: modifiedLayers           ! flag to denote that snow layers were modified
   logical(lgt)                         :: modifiedVegState         ! flag to denote that vegetation states were modified
-  integer(i4b)                         :: maxSnowFirnLayers        ! maximum number of snow/firn layers
+  integer(i4b)                         :: maxSnowIceLayers         ! maximum number of snow/firn/ice layers
   integer(i4b)                         :: nLayersRoots             ! number of soil layers that contain roots
   real(rkind)                          :: exposedVAI               ! exposed vegetation area index
   real(rkind)                          :: dCanopyWetFraction_dWat  ! derivative in wetted fraction w.r.t. canopy total water (kg-1 m2)
@@ -774,13 +775,14 @@ subroutine coupled_em(&
           end select
         end do  ! looping through variables
 
-        ! *** merge/sub-divide snow/firn layers...
+        ! *** merge/sub-divide snow/firn/ice layers...
         ! -----------------------------------
-        maxSnowFirnLayers = maxSnowLayers
-        if (dom_type==glacAcc) maxSnowFirnLayers=int(maxSnowLayers*2.5_rkind) ! double the number of layers for glacier accumulation firn layers
+        maxSnowIceLayers = maxSnowLayers
+        if (dom_type==glacAcc) maxSnowIceLayers=int(maxSnowLayers*2.5_rkind) ! double the number of layers for glacier accumulation firn layers
+        if (nSnow==0 .and. nGlce>0) maxSnowIceLayers = maxGlceLayers
         call volicePack(&
                         ! input/output: model data structures
-                        maxSnowFirnLayers,          & ! intent(in):    maximum number of snow/firn layers
+                        maxSnowIceLayers,           & ! intent(in):    maximum number of snow/firn/ice layers
                         doLayerMerge,               & ! intent(in):    flag to force merge of snow layers
                         model_decisions,            & ! intent(in):    model decisions
                         mpar_data,                  & ! intent(in):    model parameters
