@@ -537,7 +537,6 @@ contains
   if (gru_struc(iGRU)%nGlacier>0)then
     ! Glac info
     do iGlac = 1, gru_struc(iGRU)%nGlacier
-      print*,iGru,iGlac,gru_struc(iGRU)%nGlacier
       err = nf90_put_var(ncid, glacVarID, iGlac, start=(/iGlac/))
       if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_glacVar'; call netcdf_err(err,message); return; end if
       err = nf90_put_var(ncid, glacIdVarID, gru_struc(iGRU)%glacInfo(iGlac)%glac_id, start=(/iGRU,iGlac/))

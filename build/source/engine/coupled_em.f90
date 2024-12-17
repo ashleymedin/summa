@@ -1493,49 +1493,53 @@ subroutine coupled_em(&
     ! associate local variables with information in the data structures
     associate(&
       ! model forcing
-      scalarSnowfall             => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSnowfall)           )%dat(1)     ,& ! computed snowfall rate (kg m-2 s-1)
-      scalarRainfall             => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarRainfall)           )%dat(1)     ,& ! computed rainfall rate (kg m-2 s-1)
+      scalarSnowfall             => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSnowfall))%dat(1)            ,& ! computed snowfall rate (kg m-2 s-1)
+      scalarRainfall             => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarRainfall))%dat(1)            ,& ! computed rainfall rate (kg m-2 s-1)
       ! canopy fluxes
-      averageThroughfallSnow     => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarThroughfallSnow)    )%dat(1)     ,& ! snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
-      averageThroughfallRain     => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarThroughfallRain)    )%dat(1)     ,& ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
-      averageCanopySnowUnloading => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopySnowUnloading))%dat(1)     ,& ! unloading of snow from the vegetion canopy (kg m-2 s-1)
-      averageCanopyLiqDrainage   => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopyLiqDrainage)  )%dat(1)     ,& ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
-      averageCanopySublimation   => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopySublimation)  )%dat(1)     ,& ! canopy sublimation/frost (kg m-2 s-1)
-      averageCanopyEvaporation   => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopyEvaporation)  )%dat(1)     ,& ! canopy evaporation/condensation (kg m-2 s-1)
+      averageThroughfallSnow     => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarThroughfallSnow))%dat(1)     ,& ! snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
+      averageThroughfallRain     => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarThroughfallRain))%dat(1)     ,& ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
+      averageCanopySnowUnloading => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopySnowUnloading))%dat(1) ,& ! unloading of snow from the vegetion canopy (kg m-2 s-1)
+      averageCanopyLiqDrainage   => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopyLiqDrainage))%dat(1)   ,& ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
+      averageCanopySublimation   => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopySublimation))%dat(1)   ,& ! canopy sublimation/frost (kg m-2 s-1)
+      averageCanopyEvaporation   => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopyEvaporation))%dat(1)   ,& ! canopy evaporation/condensation (kg m-2 s-1)
       ! snow fluxes
-      averageSnowDrainage        => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSnowDrainage)       )%dat(1)     ,& ! drainage from the bottom of the snowpack (m s-1)
+      averageSnowDrainage        => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSnowDrainage))%dat(1)        ,& ! drainage from the bottom of the snowpack (m s-1)
+      ! lake fluxes
+      ! placeholder for lake fluxes
       ! soil fluxes
-      averageSoilInflux          => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarInfiltration)       )%dat(1)     ,& ! influx of water at the top of the soil profile (m s-1)
-      averageSoilDrainage        => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSoilDrainage)       )%dat(1)     ,& ! drainage from the bottom of the soil profile (m s-1)
-      averageSoilBaseflow        => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSoilBaseflow)       )%dat(1)     ,& ! total baseflow from throughout the soil profile (m s-1)
-      averageSoilCompress        => diag_data%var(               iLookDIAG%scalarSoilCompress)        %dat(1)     ,& ! soil compression (kg m-2 s-1)
-      averageGroundEvaporation   => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarGroundEvaporation)  )%dat(1)     ,& ! soil evaporation (kg m-2 s-1)
-      averageCanopyTranspiration => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopyTranspiration))%dat(1)     ,& ! canopy transpiration (kg m-2 s-1)
+      averageSoilInflux          => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarInfiltration))%dat(1)        ,& ! influx of water at the top of the soil profile (m s-1)
+      averageSoilDrainage        => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSoilDrainage))%dat(1)        ,& ! drainage from the bottom of the soil profile (m s-1)
+      averageSoilBaseflow        => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSoilBaseflow))%dat(1)        ,& ! total baseflow from throughout the soil profile (m s-1)
+      averageSoilCompress        => diag_data%var(               iLookDIAG%scalarSoilCompress)%dat(1)         ,& ! soil compression (kg m-2 s-1)
+      averageGroundEvaporation   => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarGroundEvaporation))%dat(1)   ,& ! soil evaporation (kg m-2 s-1)
+      averageCanopyTranspiration => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopyTranspiration))%dat(1) ,& ! canopy transpiration (kg m-2 s-1)
+      ! glacier fluxes
+      averageGlceInflux          => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarGlceInflux))%dat(1)          ,& ! influx to glacier ice, rain plus melt plus debris drainage (m s-1)
       ! state variables in the vegetation canopy
-      scalarCanopyWat            => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)                               ,& ! canopy water content (kg m-2)
-      scalarCanopyIce            => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)                               ,& ! ice content of the vegetation canopy (kg m-2)
-      scalarCanopyEnthTemp       => diag_data%var(iLookDIAG%scalarCanopyEnthTemp)%dat(1)                          ,& ! temperature component of enthalpy of the vegetation canopy (K)
-      scalarCanopyEnthalpy       => prog_data%var(iLookPROG%scalarCanopyEnthalpy)%dat(1)                          ,& ! enthalpy of the vegetation canopy (J m-3)
+      scalarCanopyWat            => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)                           ,& ! canopy water content (kg m-2)
+      scalarCanopyIce            => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)                           ,& ! ice content of the vegetation canopy (kg m-2)
+      scalarCanopyEnthTemp       => diag_data%var(iLookDIAG%scalarCanopyEnthTemp)%dat(1)                      ,& ! temperature component of enthalpy of the vegetation canopy (K)
+      scalarCanopyEnthalpy       => prog_data%var(iLookPROG%scalarCanopyEnthalpy)%dat(1)                      ,& ! enthalpy of the vegetation canopy (J m-3)
       ! state variables in the layer domains
-      scalarSWE                  => prog_data%var(iLookPROG%scalarSWE)%dat(1)                                     ,& ! snow water equivalent (kg m-2)
-      mLayerDepth                => prog_data%var(iLookPROG%mLayerDepth)%dat                                      ,& ! depth of each layer (m)
-      mLayerVolFracIce           => prog_data%var(iLookPROG%mLayerVolFracIce)%dat                                 ,& ! volumetric ice content in each layer (-)
-      mLayerVolFracLiq           => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat                                 ,& ! volumetric liquid water content in each layer (-)
-      scalarTotalSoilWat         => diag_data%var(iLookDIAG%scalarTotalSoilWat)%dat(1)                            ,& ! total water in the soil column (kg m-2)
-      scalarTotalSoilIce         => diag_data%var(iLookDIAG%scalarTotalSoilIce)%dat(1)                            ,& ! total ice in the soil column (kg m-2)
-      scalarTotalSoilLiq         => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1)                            ,& ! total liquid water in the soil column (kg m-2)
-      scalarIceWE                => diag_data%var(iLookDIAG%scalarIceWE)%dat(1)                                   ,& ! glacier ice (not snow) water equivalent (kg m-2)
-      glacMass4AreaChange        => prog_data%var(iLookPROG%glacMass4AreaChange)%dat(1)                           ,& ! since Oct 1 mean rate layers together mass change (kg m-2 s-1)
-      mLayerEnthTemp             => diag_data%var(iLookDIAG%mLayerEnthTemp)%dat                                   ,& ! temperature component of enthalpy of each snow+soil layer (K)
-      mLayerEnthalpy             => prog_data%var(iLookPROG%mLayerEnthalpy)%dat                                   ,& ! enthalpy of each snow+soil layer (J m-3)
-      scalarTotalSoilEnthalpy    => diag_data%var(iLookDIAG%scalarTotalSoilEnthalpy)%dat(1)                       ,& ! total enthalpy of the soil column (J m-3)
-      scalarTotalSnowEnthalpy    => diag_data%var(iLookDIAG%scalarTotalSnowEnthalpy)%dat(1)                       ,& ! total enthalpy of the snow column (J m-3)
+      scalarSWE                  => prog_data%var(iLookPROG%scalarSWE)%dat(1)                                 ,& ! snow water equivalent (kg m-2)
+      mLayerDepth                => prog_data%var(iLookPROG%mLayerDepth)%dat                                  ,& ! depth of each layer (m)
+      mLayerVolFracIce           => prog_data%var(iLookPROG%mLayerVolFracIce)%dat                             ,& ! volumetric ice content in each layer (-)
+      mLayerVolFracLiq           => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat                             ,& ! volumetric liquid water content in each layer (-)
+      scalarTotalSoilWat         => diag_data%var(iLookDIAG%scalarTotalSoilWat)%dat(1)                        ,& ! total water in the soil column (kg m-2)
+      scalarTotalSoilIce         => diag_data%var(iLookDIAG%scalarTotalSoilIce)%dat(1)                        ,& ! total ice in the soil column (kg m-2)
+      scalarTotalSoilLiq         => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1)                        ,& ! total liquid water in the soil column (kg m-2)
+      scalarIceWE                => diag_data%var(iLookDIAG%scalarIceWE)%dat(1)                               ,& ! glacier ice (not snow) water equivalent (kg m-2)
+      glacMass4AreaChange        => prog_data%var(iLookPROG%glacMass4AreaChange)%dat(1)                       ,& ! since Oct 1 mean rate layers together mass change (kg m-2 s-1)
+      mLayerEnthTemp             => diag_data%var(iLookDIAG%mLayerEnthTemp)%dat                               ,& ! temperature component of enthalpy of each snow+soil layer (K)
+      mLayerEnthalpy             => prog_data%var(iLookPROG%mLayerEnthalpy)%dat                               ,& ! enthalpy of each snow+soil layer (J m-3)
+      scalarTotalSoilEnthalpy    => diag_data%var(iLookDIAG%scalarTotalSoilEnthalpy)%dat(1)                   ,& ! total enthalpy of the soil column (J m-3)
+      scalarTotalSnowEnthalpy    => diag_data%var(iLookDIAG%scalarTotalSnowEnthalpy)%dat(1)                   ,& ! total enthalpy of the snow column (J m-3)
       ! state variables in the aquifer
-      scalarAquiferStorage       => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)                          ,& ! aquifer storage (m)
+      scalarAquiferStorage       => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)                      ,& ! aquifer storage (m)
       ! rates mass change in the layer domains only, used for glacier area change
-      scalarLayersMassChange     => diag_data%var(iLookDIAG%scalarLayersMassChange)%dat(1)                        ,& ! mass change averaged over the layers  (kg m-2 s-1)
+      scalarLayersMassChange     => diag_data%var(iLookDIAG%scalarLayersMassChange)%dat(1)                    ,& ! mass change averaged over the layers  (kg m-2 s-1)
       ! error tolerance
-      absConvTol_liquid          => mpar_data%var(iLookPARAM%absConvTol_liquid)%dat(1)                             & ! absolute convergence tolerance for vol frac liq water (-)
+      absConvTol_liquid          => mpar_data%var(iLookPARAM%absConvTol_liquid)%dat(1)                         & ! absolute convergence tolerance for vol frac liq water (-)
       ) ! (association of local variables with information in the data structures
 
       ! save balance of energy and water per single layer domain
@@ -1678,7 +1682,7 @@ subroutine coupled_em(&
 
         ! get the input and output to/from the soil zone (kg m-2)
         balanceSoilInflux        = averageSoilInflux*iden_water*data_step
-        balanceSoilBaseflow      = averageSoilBaseflow*iden_water*data_step
+        balanceSoilBaseflow      = averageSoilBaseflow*iden_water*data_step ! currently no baseflow for glacier
         balanceSoilDrainage      = averageSoilDrainage*iden_water*data_step
         balanceSoilET            = (averageCanopyTranspiration + averageGroundEvaporation)*data_step
         balanceSoilCompress      = averageSoilCompress*data_step

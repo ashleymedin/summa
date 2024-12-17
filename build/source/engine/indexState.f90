@@ -476,7 +476,7 @@ endif
  ixTopMat = findIndex(ixStateType_subset, iname_matLayer, integerMissing)    ! upper-most total water matric potential state
  ixTopLMP = findIndex(ixStateType_subset, iname_lmpLayer, integerMissing)    ! upper-most liquid water matric potential state
 
- ! define index for the upper most hydrology state in the snow+soil system
+ ! define index for the upper most hydrology state in the snow+soil+lake+glce system
  if(ixTopWat==integerMissing .and. ixTopLiq==integerMissing)then
   ixTopHyd = merge(ixTopMat, ixTopLMP, ixTopMat/=integerMissing)      ! no water state, so upper-most hydrology state is the upper-most matric head state (if it exists)
  else
@@ -486,7 +486,7 @@ endif
   ixTopHydMat = merge(ixTopMat, ixTopLMP, ixTopMat/=integerMissing) 
   if (ixTopHydMat/=integerMissing .and. ixTopHyd>ixTopHydMat) ixTopHyd = ixTopHydMat
  endif
- 
+
  ! define index for the storage of water in the aquifer
  ixAqWat = findIndex(ixStateType_subset, iname_watAquifer, integerMissing)
 
@@ -544,14 +544,14 @@ endif
  nSnowOnlyNrg = count(ixSnowOnlyNrg/=integerMissing)
  nLakeOnlyNrg = count(ixLakeOnlyNrg/=integerMissing)
  nSoilOnlyNrg = count(ixSoilOnlyNrg/=integerMissing)
- nGlceOnlyNrg = count(ixGlceOnlyNrg /=integerMissing)
+ nGlceOnlyNrg = count(ixGlceOnlyNrg/=integerMissing)
 
  ! get the number of valid states for hydrology
  nSnLaSoGlHyd = count(ixSnLaSoGlHyd/=integerMissing)
  nSnowOnlyHyd = count(ixSnowOnlyHyd/=integerMissing)
  nLakeOnlyHyd = count(ixLakeOnlyHyd/=integerMissing)
  nSoilOnlyHyd = count(ixSoilOnlyHyd/=integerMissing)
- nGlceOnlyHyd = count(ixGlceOnlyHyd /=integerMissing)
+ nGlceOnlyHyd = count(ixGlceOnlyHyd/=integerMissing)
 
  ! end association to data in structures
  end associate subsetState

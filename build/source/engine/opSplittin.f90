@@ -105,7 +105,7 @@ integer(i4b),parameter  :: vegSplit=1                 ! order in sequence for th
 integer(i4b),parameter  :: snowSplit=2                ! order in sequence for the snow split
 integer(i4b),parameter  :: lakeSplit=3                ! order in sequence for the lake split
 integer(i4b),parameter  :: soilSplit=4                ! order in sequence for the soil split
-integer(i4b),parameter  :: iceSplit=5                 ! order in sequence for the ice split
+integer(i4b),parameter  :: glceSplit=5                ! order in sequence for the ice split
 integer(i4b),parameter  :: aquiferSplit=6             ! order in sequence for the aquifer split
 
 ! named variables for the solution method
@@ -115,11 +115,11 @@ integer(i4b),parameter  :: nSolutions=2               ! number of solution metho
 
 ! named variables for the switch between states and domains
 integer(i4b),parameter  :: fullDomain=1               ! full domain (veg+snow+soil)
-integer(i4b),parameter  :: subDomain=2                ! sub domain (veg, snow, soil, and aquifer separately)
+integer(i4b),parameter  :: subDomain=2                ! sub domain (veg, snow, soil, lake, glce, and aquifer separately)
 
 ! maximum number of possible splits
 integer(i4b),parameter  :: nStateTypes=2              ! number of state types (energy, water)
-integer(i4b),parameter  :: nDomains=6                 ! number of domains (vegetation, snow, soil, ice, lake, and aquifer), but no more than 4 exist in one domain
+integer(i4b),parameter  :: nDomains=6                 ! number of domains (vegetation, snow, soil, lake, glce, and aquifer), but no more than 4 exist in one domain
 
 ! control parameters
 real(rkind),parameter   :: valueMissing=-9999._rkind     ! missing value
@@ -1090,7 +1090,7 @@ subroutine opSplittin(&
       if (iVar==iLookFLUX%scalarPhotosynthesisShaded) desiredFlux = .true.
      end if
 
-     ! remove the flux mask for scalar variables in snow lake ice if they do not exist
+     ! remove the flux mask for scalar variables in snow lake glce if they do not exist
      if (nSnow==0 .and. iVar==iLookFLUX%scalarSnowDrainage) desiredFlux = .false.
      if (nLake==0 .and. iVar==iLookFLUX%scalarLakeInflux) desiredFlux = .false.
      if (nLake==0 .and. iVar==iLookFLUX%scalarLakeDrainage) desiredFlux = .false.
@@ -1141,10 +1141,11 @@ subroutine opSplittin(&
          else                         ! scalar solution
           fluxMask%var(iVar)%dat(:1) = desiredFlux
          end if
-        case(snowSplit,lakeSplit,soilSplit,iceSplit) ! fluxes through layers
+        case(snowSplit,lakeSplit,soilSplit,glceSplit) ! fluxes through layers
 
          do iLayer=1,nLayers! loop through layers
           associate(ixLayerActive => indx_data%var(iLookINDEX%ixLayerActive)%dat) ! intent(in): [i4b(:)] indices for all active layers (inactive=integerMissing)
+
            if (ixLayerActive(iLayer)/=integerMissing) then
 
             ! get the offset (ixLayerActive=1,2,3,...nLayers, and soil vectors nSnow+nLake+1, nSnow+nLake+2, ..., nSnow+nLake+nSoil)
@@ -1184,7 +1185,7 @@ subroutine opSplittin(&
                 iVar/=iLookFLUX%scalarGlacierMelt)       fluxMask%var(iVar)%dat = desiredFlux
               case(soilSplit); if(iLayer==nSnow+nLake+1 .and. nSoil>0) &
                                                          fluxMask%var(iVar)%dat = desiredFlux
-              case(iceSplit);  if(iLayer==nSnow+nLake+nSoil+nGlce .and. nGlce>0 .and. &
+              case(glceSplit); if(iLayer==nSnow+nLake+nSoil+nGlce .and. nGlce>0 .and. &
                 iVar/=iLookFLUX%scalarSnowDrainage .and. &
                 iVar/=iLookFLUX%scalarLakeInflux   .and. &
                 iVar/=iLookFLUX%scalarLakeDrainage)      fluxMask%var(iVar)%dat = desiredFlux
@@ -1568,7 +1569,7 @@ contains
     case(snowSplit); call stateTypeSplit_subDomain_nrgSplit_snowSplit_stateMask      ! snow subdomain
     case(lakeSplit); call stateTypeSplit_subDomain_nrgSplit_lakeSplit_stateMask      ! lake subdomain
     case(soilSplit); call stateTypeSplit_subDomain_nrgSplit_soilSplit_stateMask      ! soil subdomain
-    case(iceSplit);  call stateTypeSplit_subDomain_nrgSplit_iceSplit_stateMask       ! ice subdomain
+    case(glceSplit); call stateTypeSplit_subDomain_nrgSplit_glceSplit_stateMask      ! glce subdomain
     case(aquiferSplit) ! do nothing: no energy state variable for the aquifer domain ! aquifer subdomain 
     case default; err=20; message=trim(message)//'unable to identify model sub-domain'; return_flag=.true.; return
    end select
@@ -1617,7 +1618,7 @@ contains
   end associate
  end subroutine stateTypeSplit_subDomain_nrgSplit_soilSplit_stateMask
 
- subroutine stateTypeSplit_subDomain_nrgSplit_iceSplit_stateMask
+ subroutine stateTypeSplit_subDomain_nrgSplit_glceSplit_stateMask
   ! *** Get state type subdomain energy soil split ***
   associate(&
    nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)    ,& ! intent(in): [i4b] number of snow layers
@@ -1627,7 +1628,7 @@ contains
    ixNrgLayer      => indx_data%var(iLookINDEX%ixNrgLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the layer domain
    stateMask(ixNrgLayer(max(2,nSnow+nLake+nSoil+1):nSnow+nLake+nSoil+nGlce)) = .true. ! NOTE: (2:) because the top layer in the layer domain included in vegSplit
   end associate
- end subroutine stateTypeSplit_subDomain_nrgSplit_iceSplit_stateMask
+ end subroutine stateTypeSplit_subDomain_nrgSplit_glceSplit_stateMask
 
  subroutine stateTypeSplit_subDomain_massSplit_stateMask
   ! *** Get subdomain mass split stateMask ***
@@ -1641,7 +1642,7 @@ contains
     case(snowSplit);    call stateTypeSplit_subDomain_massSplit_snowSplit_stateMask    ! snow subdomain
     case(lakeSplit);    call stateTypeSplit_subDomain_massSplit_lakeSplit_stateMask    ! lake subdomain
     case(soilSplit);    call stateTypeSplit_subDomain_massSplit_soilSplit_stateMask    ! soil subdomain
-    case(iceSplit);     call stateTypeSplit_subDomain_massSplit_iceSplit_stateMask     ! ice subdomain
+    case(glceSplit);    call stateTypeSplit_subDomain_massSplit_glceSplit_stateMask    ! glce subdomain
     case(aquiferSplit); call stateTypeSplit_subDomain_massSplit_aquiferSplit_stateMask ! aquifer subdomain 
     case default; err=20; message=trim(message)//'unable to identify model sub-domain'; return_flag=.true.; return
    end select
@@ -1685,8 +1686,8 @@ contains
   end associate
  end subroutine stateTypeSplit_subDomain_massSplit_soilSplit_stateMask
 
- subroutine stateTypeSplit_subDomain_massSplit_iceSplit_stateMask
-  ! *** Get mass state ice subdomain split stateMask  ***
+ subroutine stateTypeSplit_subDomain_massSplit_glceSplit_stateMask
+  ! *** Get mass state glce subdomain split stateMask  ***
   associate(&
    nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)    ,& ! intent(in): [i4b] number of snow layers
    nLake           => indx_data%var(iLookINDEX%nLake)%dat(1)    ,& ! intent(in): [i4b] number of lake layers
@@ -1695,7 +1696,7 @@ contains
    ixHydLayer      => indx_data%var(iLookINDEX%ixHydLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the lake domain
    stateMask(ixHydLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce)) = .true.  ! soil hydrology
   end associate
- end subroutine stateTypeSplit_subDomain_massSplit_iceSplit_stateMask
+ end subroutine stateTypeSplit_subDomain_massSplit_glceSplit_stateMask
 
  subroutine stateTypeSplit_subDomain_massSplit_aquiferSplit_stateMask
   ! *** Get mass state aquifer subdomain split stateMask  ***
