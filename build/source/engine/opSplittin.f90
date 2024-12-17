@@ -44,12 +44,12 @@ USE globalData,only:iname_lmpLayer   ! named variable defining the liquid matric
 USE globalData,only:iname_watAquifer ! named variable defining the water storage in the aquifer
 
 ! global metadata
-USE globalData,only:flux_meta                        ! metadata on the model fluxes
-USE globalData,only:diag_meta                        ! metadata on the model diagnostic variables
-USE globalData,only:prog_meta                        ! metadata on the model prognostic variables
-USE globalData,only:deriv_meta                       ! metadata on the model derivatives
-USE globalData,only:flux2state_orig                  ! metadata on flux-to-state mapping (original state variables)
-USE globalData,only:flux2state_liq                   ! metadata on flux-to-state mapping (liquid water state variables)
+USE globalData,only:flux_meta        ! metadata on the model fluxes
+USE globalData,only:diag_meta        ! metadata on the model diagnostic variables
+USE globalData,only:prog_meta        ! metadata on the model prognostic variables
+USE globalData,only:deriv_meta       ! metadata on the model derivatives
+USE globalData,only:flux2state_orig  ! metadata on flux-to-state mapping (original state variables)
+USE globalData,only:flux2state_liq   ! metadata on flux-to-state mapping (liquid water state variables)
   
 ! provide access to indices that define elements of the data structures
 USE var_lookup,only:iLookATTR        ! named variables for structure elements
@@ -122,10 +122,10 @@ integer(i4b),parameter  :: nStateTypes=2              ! number of state types (e
 integer(i4b),parameter  :: nDomains=6                 ! number of domains (vegetation, snow, soil, lake, glce, and aquifer), but no more than 4 exist in one domain
 
 ! control parameters
-real(rkind),parameter   :: valueMissing=-9999._rkind     ! missing value
-real(rkind),parameter   :: verySmall=1.e-12_rkind        ! a very small number (used to check consistency)
-real(rkind),parameter   :: veryBig=1.e+20_rkind          ! a very big number
-real(rkind),parameter   :: dx = 1.e-8_rkind              ! finite difference increment
+real(rkind),parameter   :: valueMissing=-9999._rkind  ! missing value
+real(rkind),parameter   :: verySmall=1.e-12_rkind     ! a very small number (used to check consistency)
+real(rkind),parameter   :: veryBig=1.e+20_rkind       ! a very big number
+real(rkind),parameter   :: dx = 1.e-8_rkind           ! finite difference increment
 
 ! class definitions
 
@@ -133,15 +133,15 @@ type, public :: split_select_type  ! class for selecting operator splitting meth
   ! opSplittin indices (in order)
   integer(i4b)             :: ixCoupling
   integer(i4b)             :: iStateTypeSplit
-  integer(i4b)             :: ixStateThenDomain           ! 1=state type split; 2=domain split within a given state type 
+  integer(i4b)             :: ixStateThenDomain       ! 1=state type split; 2=domain split within a given state type 
   integer(i4b)             :: iDomainSplit
   integer(i4b)             :: ixSolution
   integer(i4b)             :: iStateSplit
   ! variables for specifying the split
-  integer(i4b)             :: nState                      ! # of state variables
-  integer(i4b)             :: nSubset                     ! number of selected state variables for a given split
-  type(var_flagVec)        :: fluxMask                    ! integer mask defining model fluxes
-  logical(lgt),allocatable :: stateMask(:)                ! mask defining desired state variables
+  integer(i4b)             :: nState                  ! # of state variables
+  integer(i4b)             :: nSubset                 ! number of selected state variables for a given split
+  type(var_flagVec)        :: fluxMask                ! integer mask defining model fluxes
+  logical(lgt),allocatable :: stateMask(:)            ! mask defining desired state variables
   ! flags for splitting method control
   logical(lgt)             :: stateTypeSplitting,stateThenDomain,domainSplit,solution,stateSplit
  contains
@@ -1089,14 +1089,6 @@ subroutine opSplittin(&
       if (iVar==iLookFLUX%scalarPhotosynthesisSunlit) desiredFlux = .true.
       if (iVar==iLookFLUX%scalarPhotosynthesisShaded) desiredFlux = .true.
      end if
-
-     ! remove the flux mask for scalar variables in snow lake glce if they do not exist
-     if (nSnow==0 .and. iVar==iLookFLUX%scalarSnowDrainage) desiredFlux = .false.
-     if (nLake==0 .and. iVar==iLookFLUX%scalarLakeInflux) desiredFlux = .false.
-     if (nLake==0 .and. iVar==iLookFLUX%scalarLakeDrainage) desiredFlux = .false.
-     if (nGlce==0 .and. iVar==iLookFLUX%scalarGlceInflux) desiredFlux = .false.
-     if (nGlce==0 .and. iVar==iLookFLUX%scalarGlacierMelt) desiredFlux = .false.
-
      fluxMask%var(iVar)%dat = desiredFlux
 
     else ! * identify flux mask for the split solution
@@ -1117,13 +1109,6 @@ subroutine opSplittin(&
       if (iVar==iLookFLUX%scalarPhotosynthesisSunlit) desiredFlux = .true.
       if (iVar==iLookFLUX%scalarPhotosynthesisShaded) desiredFlux = .true.
      end if
-
-     ! remove the flux mask for scalar variables snow lake ice if they do not exist
-     if (nSnow==0 .and. iVar==iLookFLUX%scalarSnowDrainage) desiredFlux = .false.
-     if (nLake==0 .and. iVar==iLookFLUX%scalarLakeInflux) desiredFlux = .false.
-     if (nLake==0 .and. iVar==iLookFLUX%scalarLakeDrainage) desiredFlux = .false.
-     if (nGlce==0 .and. iVar==iLookFLUX%scalarGlceInflux) desiredFlux = .false.
-     if (nGlce==0 .and. iVar==iLookFLUX%scalarGlacierMelt) desiredFlux = .false.
 
      if (nDomains==1) then ! no domain splitting
       fluxMask%var(iVar)%dat = desiredFlux
@@ -1152,7 +1137,7 @@ subroutine opSplittin(&
             iOffset = 0 ! initialize offset, true for snow
             if(flux_meta(iVar)%vartype==iLookVarType%midLake .or. flux_meta(iVar)%vartype==iLookVarType%ifcLake) iOffset = nSnow
             if(flux_meta(iVar)%vartype==iLookVarType%midSoil .or. flux_meta(iVar)%vartype==iLookVarType%ifcSoil) iOffset = nSnow+nLake
-            if(flux_meta(iVar)%vartype==iLookVarType%midGlce .or. flux_meta(iVar)%vartype==iLookVarType%ifcGlce)  iOffset = nSnow+nLake+nSoil
+            if(flux_meta(iVar)%vartype==iLookVarType%midGlce .or. flux_meta(iVar)%vartype==iLookVarType%ifcGlce) iOffset = nSnow+nLake+nSoil
             jLayer  = iLayer-iOffset
 
             ! identify the minimum layer
@@ -1174,21 +1159,10 @@ subroutine opSplittin(&
             ! add hydrology states for scalar variables
             if (iStateTypeSplit==massSplit .and. flux_meta(iVar)%vartype==iLookVarType%scalarv) then
              select case(iDomainSplit)
-              case(snowSplit); if(iLayer==nSnow .and. &
-                iVar/=iLookFLUX%scalarLakeInflux   .and. &
-                iVar/=iLookFLUX%scalarLakeDrainage .and. &
-                iVar/=iLookFLUX%scalarGlceInflux   .and. &          
-                iVar/=iLookFLUX%scalarGlacierMelt)       fluxMask%var(iVar)%dat = desiredFlux
-              case(lakeSplit); if(iLayer==nSnow+nLake .and. nLake>0 .and. &
-                iVar/=iLookFLUX%scalarSnowDrainage .and. &
-                iVar/=iLookFLUX%scalarGlceInflux   .and. &          
-                iVar/=iLookFLUX%scalarGlacierMelt)       fluxMask%var(iVar)%dat = desiredFlux
-              case(soilSplit); if(iLayer==nSnow+nLake+1 .and. nSoil>0) &
-                                                         fluxMask%var(iVar)%dat = desiredFlux
-              case(glceSplit); if(iLayer==nSnow+nLake+nSoil+nGlce .and. nGlce>0 .and. &
-                iVar/=iLookFLUX%scalarSnowDrainage .and. &
-                iVar/=iLookFLUX%scalarLakeInflux   .and. &
-                iVar/=iLookFLUX%scalarLakeDrainage)      fluxMask%var(iVar)%dat = desiredFlux
+              case(snowSplit); if(iLayer==nSnow)                                 fluxMask%var(iVar)%dat = desiredFlux
+              case(lakeSplit); if(iLayer==nSnow+nLake .and. nLake>0)             fluxMask%var(iVar)%dat = desiredFlux
+              case(soilSplit); if(iLayer==nSnow+nLake+nSoil .and. nSoil>0)       fluxMask%var(iVar)%dat = desiredFlux
+              case(glceSplit); if(iLayer==nSnow+nLake+nSoil+nGlce .and. nGlce>0) fluxMask%var(iVar)%dat = desiredFlux
              end select
             end if  ! if hydrology split and scalar
 
@@ -1692,7 +1666,7 @@ contains
    nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)    ,& ! intent(in): [i4b] number of snow layers
    nLake           => indx_data%var(iLookINDEX%nLake)%dat(1)    ,& ! intent(in): [i4b] number of lake layers
    nSoil           => indx_data%var(iLookINDEX%nSoil)%dat(1)    ,& ! intent(in): [i4b] number of soil layers
-   nGlce           => indx_data%var(iLookINDEX%nGlce)%dat(1)     ,& ! intent(in): [i4b] number of glacier ice layers
+   nGlce           => indx_data%var(iLookINDEX%nGlce)%dat(1)    ,& ! intent(in): [i4b] number of glacier ice layers
    ixHydLayer      => indx_data%var(iLookINDEX%ixHydLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the lake domain
    stateMask(ixHydLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce)) = .true.  ! soil hydrology
   end associate
