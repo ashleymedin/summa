@@ -246,7 +246,7 @@ contains
     mLayerVolFracLiq     => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerVolFracLiq)%dat        ,& ! volumetric fraction of liquid water in each snow layer (-)
     mLayerVolFracIce     => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerVolFracIce)%dat        ,& ! volumetric fraction of ice in each snow layer (-)
     mLayerMatricHead     => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerMatricHead)%dat        ,& ! matric head (m)
-    mLayerLayerType      => indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%layerType)%dat              ,& ! type of layer (ix_soil or ix_snow)
+    layerType            => indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%layerType)%dat              ,& ! type of layer (ix_soil or ix_snow)
     ! depth varying soil properties
     soil_dens_intr       => mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%soil_dens_intr)%dat         ,& ! intrinsic soil density             (kg m-3)
     vGn_alpha            => mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%vGn_alpha)%dat              ,& ! van Genutchen "alpha" parameter (m-1)
@@ -305,7 +305,7 @@ contains
      ! *****
      ! * check that the initial volumetric fraction of liquid water and ice is reasonable...
      ! *************************************************************************************
-     select case(mlayerLayerType(iLayer))
+     select case(layerType(iLayer))
 
       ! ***** snow, ice, lake, volume expansion allowed
       case(iname_snow, iname_lake, iname_glce)
@@ -316,18 +316,18 @@ contains
        if(mLayerVolFracLiq(iLayer) < 0._rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water < 0: layer = ',iLayer; err=20; return; end if
        if(mLayerVolFracLiq(iLayer) > 1._rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water > 1: layer = ',iLayer; err=20; return; end if
        ! (check ice)
-       if (mlayerLayerType(iLayer)==iname_snow) then
+       if (layerType(iLayer)==iname_snow) then
          if(mLayerVolFracIce(iLayer) > 0.80_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice > 0.80: layer = ',iLayer; err=20; return; end if
          if(scalarTheta > 0.80_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] > 0.80: layer = '    ,iLayer; err=20; return; end if
        else ! glacier ice or lake (could be all ice)
          if(mLayerVolFracIce(iLayer) > 1._rkind  )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice > 1: layer = ',iLayer; err=20; return; end if
          if(scalarTheta > 1._rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] > 1: layer = '      ,iLayer; err=20; return; end if
        end if
-       if (mlayerLayerType(iLayer)==iname_lake) then ! lake could be all liquid
+       if (layerType(iLayer)==iname_lake) then ! lake could be all liquid
          if(mLayerVolFracIce(iLayer) < 0._rkind  )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0: layer = '   ,iLayer; err=20; return; end if
-       else if (mlayerLayerType(iLayer)==iname_glce) then ! glacier ice should be mostly ice
+       else if (layerType(iLayer)==iname_glce) then ! glacier ice should be mostly ice
          if(mLayerVolFracIce(iLayer) < 0.80_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0.80: layer = ',iLayer; err=20; return; end if
-       else if (mlayerLayerType(iLayer)==iname_snow) then ! 
+       else if (layerType(iLayer)==iname_snow) then ! 
          if(mLayerVolFracIce(iLayer) < 0.05_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0.05: layer = ',iLayer; err=20; return; end if
        end if
        ! check total water
@@ -349,14 +349,14 @@ contains
        if(scalarTheta > theta_sat(iSoil)+xTol)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] > theta_sat: layer = ',iLayer; err=20; return; end if
 
       case default
-       write(*,*) 'Cannot recognize case in initial vol water/ice check: type=', mlayerLayerType(iLayer)
+       write(*,*) 'Cannot recognize case in initial vol water/ice check: type=', layerType(iLayer)
        err=20; message=trim(message)//'cannot identify layer type'; return
      end select
 
      ! *****
      ! * check that the initial conditions are consistent with the constitutive functions...
      ! *************************************************************************************
-     select case(mLayerLayerType(iLayer))
+     select case(layerType(iLayer))
 
       ! ** snow, lake, ice
       case(iname_snow, iname_lake, iname_glce)
