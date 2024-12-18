@@ -186,6 +186,8 @@ subroutine run_oneGRU(&
   integer(i4b)                        :: previousOctYear        ! previous October's year
   real(rkind)                         :: sec_since_last_update  ! seconds since last update
   real(rkind)                         :: min_thick=0.001_rkind  ! minimum thickness of debris cover to be considered as debris cover (m)
+  integer(i4b)                        :: nSnow                  ! number of snow layers in debris domain
+  integer(i4b)                        :: nLake                  ! number of lake layers in debris domain (should be 0)
   integer(i4b)                        :: nSoil                  ! number of soil layers in debris domain
   real(rkind)                         :: thick_ratio            ! ratio of new debris thickness to previous debris thickness
 
@@ -528,9 +530,11 @@ subroutine run_oneGRU(&
               end if
             else ! thickness of average debris cover in HRU changes with area change if there is more than one glacier in an HRU and they have different debris thickness 
               ! scale soil layer thickness with debris thickness change, keep the same number of layers 
+              nSnow = gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nSnow
+              nLake = gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nLake
               nSoil = gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nSoil
               thick_ratio = glac_debris_thick(nDOM_glacGRU)/progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(nSoil)
-              do i = 1, nSoil
+              do i = nSnow+nLake+1,nSnow+nLake+nSoil
                 progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(i) = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(i)*thick_ratio
                 progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerHeight)%dat(i) = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerHeight)%dat(i)*thick_ratio
                 progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%iLayerHeight)%dat(i) = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%iLayerHeight)%dat(i)*thick_ratio            
