@@ -104,7 +104,6 @@ subroutine glacFlow(&
   real(rkind), allocatable           :: bed(:,:)                  ! bed elevation of each glacier domain (m)
   integer(i4b), allocatable          :: cell2hru(:,:)             ! map of glacier cell to hru index
   integer(i4b), allocatable          :: glacierMask(:,:)          ! 1-0 mask of glacier domain
-  integer(i4b), allocatable          :: zeros(:,:)                ! zeros array for masking
   real(rkind)                        :: debris_vol_hru(nDOM)      ! debris volume in each HRU (m3)
   integer(i4b)                       :: i,j,k,n,iGlac,iGrid,iDOM  ! loop indices
   integer(i4b)                       :: i1, i2                    ! indices for mass balance interpolation
@@ -118,6 +117,7 @@ subroutine glacFlow(&
   real(rkind)                        :: totVolume                 ! total volume of all glaciers km3, might want to send out of routine
   real(rkind), allocatable           :: mb(:,:)                   ! mass balance in each glacier cell over the nYears (m s-1)
   real(rkind)                        :: ELA_elev                  ! ELA in each glacier domain (m s-1)
+  real(rkind)                        :: ELA_use                   ! ELA used for domain calculations
   real(rkind), allocatable           :: hgt(:,:)                  ! height of each glacier domain (m)
   integer(i4b)                       :: validCount                ! number of valid points
   real(rkind), allocatable           :: validElev(:)              ! filter out points where equal to realMissing
@@ -210,7 +210,7 @@ subroutine glacFlow(&
   slope = (validMassChange(i2) - validMassChange(i1)) / (validElev(i2) - validElev(i1))
   intercept = validMassChange(i1) - slope * validElev(i1)    
   ELA_elev = -intercept / slope
-
+ 
   ! Initialize new domain areas and elevations
   do i = 1,nDOM
     area(i) = 0._rkind
@@ -245,10 +245,9 @@ subroutine glacFlow(&
     debris_thick = gridInfo(iGrid)%debris_thick
 
     ! set up mass balance and height arrays
-    allocate(mb(nx,ny), hgt(nx,ny), zeros(nx,ny))
+    allocate(mb(nx,ny), hgt(nx,ny))
     mb = 0._rkind
     hgt = 0._rkind
-    zeros = 0
 
     ! set up grid data
     allocate(surface(nx,ny), bed(nx,ny), cell2hru(nx,ny), glacierMask(nx,ny))
@@ -297,7 +296,7 @@ subroutine glacFlow(&
     end do ! end of nx loop
 
     ! convert mass balance to m s-1 from kg m-2 s-1
-    !mb = mb / iden_water
+    mb = mb / iden_water
 
     ! compute flow
     call run_year(nYears,surface, bed, mb, glacierMask, nx, ny, dx, dy, volume)
@@ -307,16 +306,17 @@ subroutine glacFlow(&
     hgt = surface - bed
 
     ! Force glacier to have an accumulation area and ablation area, even if they are tiny, so that the domain is always defined
-    if (ELA_elev > maxval(surface)) then
-      ELA_elev = maxval(surface)-0.1_rkind
-    else if (ELA_elev < minval(surface)) then
-      ELA_elev = minval(surface)+0.1_rkind
+    ELA_use = ELA_elev
+    if (ELA_elev > maxval(merge(surface,0._rkind,hgt>thick4area))) then
+      ELA_use = maxval(merge(surface,0._rkind, hgt>thick4area))-0.0001_rkind
+    else if (ELA_elev < minval(merge(surface,1.e6_rkind, hgt>thick4area))) then
+      ELA_use = minval(merge(surface,1.e6_rkind, hgt>thick4area))+0.0001_rkind
     end if
     
     ! Calculate glacier accumulation and ablation areas
-    glacAccArea(iGlac) = sum(merge(glacierMask, zeros, hgt>thick4area .and. surface>= ELA_elev))*dx*dy
-    glacAblArea(iGlac) = sum(merge(glacierMask, zeros, hgt>thick4area .and. surface<  ELA_elev))*dx*dy
-    print*, 'glacAblArea = ', glacAblArea(iGlac), ' glacAccArea = ', glacAccArea(iGlac),ELA_elev
+    glacAccArea(iGlac) = sum(merge(glacierMask, 0_i4b, hgt>thick4area .and. surface>= ELA_use))*dx*dy
+    glacAblArea(iGlac) = sum(merge(glacierMask, 0_i4b, hgt>thick4area .and. surface<  ELA_use))*dx*dy
+    print*, 'glacAblArea = ', glacAblArea(iGlac), ' glacAccArea = ', glacAccArea(iGlac),ELA_use
 
     ! Loop through HRUs and calculate domain areas and elevations for each HRU
     ! Order of domains will go HRU 1: Acc, Abl clean, Abl debris HRU 2: Acc, Abl clean, Abl debris etc.
@@ -325,26 +325,26 @@ subroutine glacFlow(&
     if (has_clean)  n=n+1
     if (has_debris) n=n+1
     do k = 1, nDOM / n
-      area(n*(k-1)+1) = area(n*(k-1)+1) + sum(merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>thick4area .and. surface>=ELA_elev))*dx*dy
-      if (has_clean) area(n*(k-1)+2) = area(n*(k-1)+2) + sum(merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>thick4area .and. surface< ELA_elev))*dx*dy*(1.0_rkind-stage)
-      if (has_debris) area(n*(k-1)+n) = area(n*(k-1)+n) + sum(merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>thick4area .and. surface< ELA_elev))*dx*dy*stage
+      area(n*(k-1)+1) = area(n*(k-1)+1) + sum(merge(glacierMask, 0_i4b, cell2hru==hruInd(k) .and. hgt>thick4area .and. surface>=ELA_use))*dx*dy
+      if (has_clean) area(n*(k-1)+2) = area(n*(k-1)+2) + sum(merge(glacierMask, 0_i4b, cell2hru==hruInd(k) .and. hgt>thick4area .and. surface< ELA_use))*dx*dy*(1.0_rkind-stage)
+      if (has_debris) area(n*(k-1)+n) = area(n*(k-1)+n) + sum(merge(glacierMask, 0_i4b, cell2hru==hruInd(k) .and. hgt>thick4area .and. surface< ELA_use))*dx*dy*stage
       
       ! Calculate mean elevation for accumulation and ablation areas
-      if (count(cell2hru==hruInd(k) .and. hgt>thick4area .and. surface>=ELA_elev) > 0) then
-        elev(n*(k-1)+1) = elev(n*(k-1)+1) + sum(surface * merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>thick4area .and. surface>=ELA_elev)) / &
-                          count(cell2hru==hruInd(k) .and. hgt>thick4area .and. surface>=ELA_elev) /nGlacier
+      if (count(cell2hru==hruInd(k) .and. hgt>thick4area .and. surface>=ELA_use) > 0) then
+        elev(n*(k-1)+1) = elev(n*(k-1)+1) + sum(surface * merge(glacierMask, 0_i4b, cell2hru==hruInd(k) .and. hgt>thick4area .and. surface>=ELA_use)) / &
+                          count(cell2hru==hruInd(k) .and. hgt>thick4area .and. surface>=ELA_use) /nGlacier
       end if
-      if (count(cell2hru==hruInd(k) .and. hgt>thick4area .and. surface< ELA_elev) > 0) then
-        elev(n*(k-1)+n)  = elev(n*(k-1)+n) + sum(surface * merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>thick4area .and. surface< ELA_elev)) / &
-                          count(cell2hru==hruInd(k) .and. hgt>thick4area .and. surface< ELA_elev) /nGlacier
+      if (count(cell2hru==hruInd(k) .and. hgt>thick4area .and. surface< ELA_use) > 0) then
+        elev(n*(k-1)+n)  = elev(n*(k-1)+n) + sum(surface * merge(glacierMask, 0_i4b, cell2hru==hruInd(k) .and. hgt>thick4area .and. surface< ELA_use)) / &
+                          count(cell2hru==hruInd(k) .and. hgt>thick4area .and. surface< ELA_use) /nGlacier
         if (has_clean) elev(n*(k-1)+2) =  elev(n*(k-1)+n)  ! only one of debris or clean, then already set        
       end if
       ! thickness of average debris cover in HRU changes with area change if there is more than one glacier in an HRU and they have different debris thickness 
-      debris_vol_hru(k) = debris_vol_hru(k) + sum(merge(glacierMask, zeros, cell2hru==hruInd(k) .and. hgt>thick4area .and. surface>=ELA_elev))*dx*dy*stage*debris_thick
+      debris_vol_hru(n*(k-1)+n) = debris_vol_hru(n*(k-1)+n) + sum(merge(glacierMask, 0_i4b, cell2hru==hruInd(k) .and. hgt>thick4area .and. surface< ELA_use))*dx*dy*stage*debris_thick
     end do
     ! update gridData and deallocate
     gridData%grid(iGrid)%var(iLookGRID%surface_elev)%dat2(1:nx,1:ny) = surface
-    deallocate(mb, hgt, zeros, surface, bed, cell2hru, glacierMask)
+    deallocate(mb, hgt, surface, bed, cell2hru, glacierMask)
 
   enddo ! end of glacier loop
 
@@ -379,12 +379,12 @@ end subroutine glacFlow
     real(rkind), intent(out) :: volume
 
     ! Local variables
-    real(rkind) :: t_total, dt, max_dt, min_dt, deltat, div_q(nx,ny), dt_cfl
-    real(rkind) :: gamma, t, zeros(nx,ny)
+    real(rkind) :: t_total, dt, max_dt, min_dt, deltat, div_q(nx,ny), dt_cfl, meanS
+    real(rkind) :: gamma, t
     integer(i4b) :: i
     integer(i4b),parameter :: n=3 ! Glen's flow law exponent,
     real(rkind),parameter :: A=2.4e-24 ! Modern Glen parameter
-    real(rkind),parameter :: cfl=0.124 ! Courant-Friedrichs-Lewy condition
+    real(rkind),parameter :: cfl= 0.124 ! Courant-Friedrichs-Lewy condition
     integer(i4b) :: l(ny), lp(ny), lpp(ny), lm(ny), lmm(ny)
     integer(i4b) :: k(nx), kp(nx), kpp(nx), km(nx), kmm(nx)
 
@@ -413,15 +413,16 @@ end subroutine glacFlow
     t_total = y_end * secprday* 365._rkind
     gamma = 2._rkind * A * (iden_ice * gravity)**n / (n + 2_i4b)
     max_dt = 31._rkind * secprday! max timestep in seconds, a month
-    min_dt = 0._rkind !min timestep in seconds 
+    min_dt = secprday !0._rkind ! min timestep in seconds 
     t = 0._rkind
+
     do while (t < t_total)
       dt = t_total - t
       ! Select diffusion method and call step
       if (method == "MUSCL") then
-        call diffusion_MUSCL(S, B, gamma, n, cfl, max_dt, nx, ny, k, kp, km, kpp, kmm, l, lp, lm, lpp, lmm, dx, dy, div_q, dt_cfl)
+        call diffusion_MUSCL(S, B, glacierMask, gamma, n, cfl, max_dt, nx, ny, k, kp, km, kpp, kmm, l, lp, lm, lpp, lmm, dx, dy, div_q, dt_cfl)
       else if (method == "upstream") then
-        call diffusion_upstream(S, B, gamma, n, cfl, max_dt, nx, ny, k, kp, km, l, lp, lm, dx, dy, div_q, dt_cfl)
+        call diffusion_upstream(S, B, glacierMask, gamma, n, cfl, max_dt, nx, ny, k, kp, km, l, lp, lm, dx, dy, div_q, dt_cfl)
       end if
   
       ! update time step
@@ -433,17 +434,22 @@ end subroutine glacFlow
       ! Update S
       S = S + (m_dot + div_q) * deltat
       S = merge(S, B, S > B)
-  
+
       ! Check that the glacier is in boundaries, fix small violations
       if (any((S - B) > 0._rkind .and. glacierMask==0)) then
         if (any((S - B) > 10.0 .and. glacierMask==0)) stop 'Glacier exceeds boundaries'
         S = merge(B, S, (S - B) > 0._rkind .and. glacierMask==0)
       end if
+      ! Check that glacier surface is not infinite (unstable), bring down to mean glacier height
+      ! This is a temporary fix, should be replaced with a more sophisticated method
+      if (any((S - B) > 1.e6_rkind .and. glacierMask==1)) then
+        meanS = sum(merge(S,0._rkind,(glacierMask==1 .and. (S - B) < 1.e6_rkind))) / count(glacierMask==1 .and. (S - B)<=1.e6_rkind)
+        S = merge(S,meanS,((S - B)<=1.e6_rkind))
+      endif
     end do
 
     ! Calculate volume, not currently used but could be useful
-    zeros = 0._rkind
-    volume = sum(merge(S-B,zeros,glacierMask==1)) * dx * dy * 1.e-9_rkind ! km3
+    volume = sum(merge(S-B,0._rkind,glacierMask==1)) * dx * dy * 1.e-9_rkind ! km3
 
   end subroutine run_year
 
@@ -454,10 +460,10 @@ end subroutine glacFlow
 ! ************************************************************************************************
 ! upwind diffusion scheme
 ! ************************************************************************************************
-subroutine diffusion_upstream(S, B, gamma, n, cfl, max_dt, nx, ny, k, kp, km, l, lp, lm, dx, dy, div_q, dt_cfl)
+subroutine diffusion_upstream(S, B, mask, gamma, n, cfl, max_dt, nx, ny, k, kp, km, l, lp, lm, dx, dy, div_q, dt_cfl)
   implicit none
   real(rkind), intent(in) :: S(nx,ny), B(nx,ny), dx, dy, gamma, cfl, max_dt
-  integer(i4b), intent(in) :: nx, ny, k(nx), kp(nx), km(nx), l(ny), lp(ny), lm(ny), n
+  integer(i4b), intent(in) :: mask(nx,ny), nx, ny, k(nx), kp(nx), km(nx), l(ny), lp(ny), lm(ny), n
   real(rkind), intent(out) :: div_q(nx,ny), dt_cfl
   real(rkind) :: H(nx,ny)
   real(rkind) :: Sklp(nx,ny), Sklm(nx,ny), Skplp(nx,ny), Skplm(nx,ny), Skpl(nx,ny), Skl(nx,ny), Skmlp(nx,ny), Skmlm(nx,ny), Skml(nx,ny)
@@ -524,6 +530,9 @@ subroutine diffusion_upstream(S, B, gamma, n, cfl, max_dt, nx, ny, k, kp, km, l,
   ! calculate l Diffusivity
   D_l_up = gamma * H_l_up**(n+1_i4b) * H_l_upstream_up * f_l_plus
   D_l_dn = gamma * H_l_down**(n+1_i4b) * H_l_upstream_down * f_l_min
+  ! Enforce zero diffusion outside the mask
+  D_l_up = merge(0._rkind, D_l_up, mask==0)
+  D_l_dn = merge(0._rkind, D_l_dn, mask==0)
 
   ! calculate k upstream 
   H_k_up   = H_index(Hkpl, Hkl)
@@ -556,6 +565,9 @@ subroutine diffusion_upstream(S, B, gamma, n, cfl, max_dt, nx, ny, k, kp, km, l,
   ! calculate k Diffusivity
   D_k_up = gamma * H_k_up**(n+1_i4b) * H_k_upstream_up * f_k_plus
   D_k_dn = gamma * H_k_down**(n+1_i4b) * H_k_upstream_down * f_k_min
+  ! Enforce zero diffusion outside the mask
+  D_k_up = merge(0._rkind, D_k_up, mask==0)
+  D_k_dn = merge(0._rkind, D_k_dn, mask==0)
 
   ! calculate delta t and t
   divisor = max(maxval(abs(D_k_up)), maxval(abs(D_k_dn)), maxval(abs(D_l_up)), maxval(abs(D_l_dn)))
@@ -576,10 +588,10 @@ end subroutine diffusion_upstream
 ! ************************************************************************************************
 ! MUSCL scheme
 ! ************************************************************************************************
-subroutine diffusion_MUSCL(S, B, gamma, n, cfl, max_dt, nx, ny, k, kp, km, kpp, kmm, l, lp, lm, lpp, lmm, dx, dy, div_q, dt_cfl)
+subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, k, kp, km, kpp, kmm, l, lp, lm, lpp, lmm, dx, dy, div_q, dt_cfl)
   implicit none
   real(rkind), intent(in) :: S(nx,ny), B(nx,ny), dx, dy, gamma, cfl, max_dt
-  integer(i4b), intent(in) :: nx, ny, k(nx), kp(nx), km(nx), kpp(nx), kmm(nx), l(ny), lp(ny), lm(ny), lpp(ny), lmm(ny), n
+  integer(i4b), intent(in) :: mask(nx,ny), nx, ny, k(nx), kp(nx), km(nx), kpp(nx), kmm(nx), l(ny), lp(ny), lm(ny), lpp(ny), lmm(ny), n
   real(rkind), intent(out) :: div_q(nx,ny), dt_cfl
   real(rkind) :: H(nx,ny)
   real(rkind) :: Sklp(nx,ny), Sklm(nx,ny), Skplp(nx,ny), Skplm(nx,ny), Skpl(nx,ny), Skl(nx,ny), Skmlp(nx,ny), Skmlm(nx,ny), Skml(nx,ny)
@@ -675,6 +687,9 @@ subroutine diffusion_MUSCL(S, B, gamma, n, cfl, max_dt, nx, ny, k, kp, km, kpp, 
       end if
     end do
   end do
+  ! enforce zero diffusion outside the mask
+  D_l_up = merge(0._rkind, D_l_up, mask==0)
+  D_l_dn = merge(0._rkind, D_l_dn, mask==0)
 
   ! calculate k+1/2 index
   H_k_min_up  = H_min(Hkml, Hkl, Hkpl)
@@ -728,6 +743,9 @@ subroutine diffusion_MUSCL(S, B, gamma, n, cfl, max_dt, nx, ny, k, kp, km, kpp, 
       end if
     end do
   end do
+  ! enforce zero diffusion outside the mask
+  D_k_up = merge(0._rkind, D_k_up, mask==0)
+  D_k_dn = merge(0._rkind, D_k_dn, mask==0)
 
   ! calculate delta t and t
   divisor = max(maxval(abs(D_k_up)), maxval(abs(D_k_dn)), maxval(abs(D_l_up)), maxval(abs(D_l_dn)))

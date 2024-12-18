@@ -27,6 +27,7 @@ USE nrtype
 USE globalData,only: yes,no             ! .true. and .false.
 USE globalData,only: updateJulDay       ! julian day last updated glacier area
 USE globalData,only: updateJulDayNext   ! julian day next update glacier area
+USE globalData,only: dJulianStart       ! julian day of start time of simulation
 USE globalData,only: data_step          ! length of data step (s)
 USE multiconst,only: secprday           ! seconds per day
 
@@ -266,7 +267,8 @@ subroutine run_oneGRU(&
     nDOM_glacGRU = 0 ! initialize number of glacier domains in the GRU
     do iHRU=1,gruInfo%hruCount
       do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
-        if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln)then
+        if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc .or. &
+            gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr)then
           nDOM_glacGRU = nDOM_glacGRU + 1
         endif
       end do
@@ -365,9 +367,9 @@ subroutine run_oneGRU(&
           bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) *fracDOM
         end if
       else if (typeDOM==glacAcc .or. typeDOM==glacCln .or. typeDOM==glacDbr)then
-        ! average layers mass change for each domain over time since last update
-        if (sec_since_last_update>0._rkind) progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%glacMass4AreaChange)%dat(1) = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%glacMass4AreaChange)%dat(1)/sec_since_last_update
-
+        if (currentJulDay==dJulianStart) then ! reset mass change don't use first data point
+          progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%glacMass4AreaChange)%dat(1) = 0._rkind
+        endif
         ! This logic makes sense if assuming multiple glaciers in each HRU and one HRU per GRU, or one glacier in each GRU with multiple HRUs
         ! If some glaciers are not in a particular glacier HRU, this logic will not capture that
         if (typeDOM==glacAcc)then ! collect glacier accumulation melt m s-1
@@ -404,6 +406,8 @@ subroutine run_oneGRU(&
       do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
         if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc .or. &
             gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr)then
+          ! average layers mass change for each domain over time since last update
+          progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%glacMass4AreaChange)%dat(1) = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%glacMass4AreaChange)%dat(1)/sec_since_last_update
           nDOM_glacGRU = nDOM_glacGRU + 1
           glac_hru(nDOM_glacGRU) = iHRU
           if(progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)>0._rkind)then 

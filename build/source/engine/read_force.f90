@@ -72,7 +72,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_force: read in forcing data
  ! ************************************************************************************************
- subroutine read_force(istep,iFile,iRead,ncid,time_data,forcStruct,err,message)
+ subroutine read_force(iStep,iFile,iRead,ncid,time_data,forcStruct,err,message)
  ! provide access to subroutines
  USE netcdf                                            ! netcdf capability
  USE time_utils_module,only:compjulday                 ! convert calendar date to julian day
@@ -80,7 +80,7 @@ contains
  USE time_utils_module,only:elapsedSec                 ! calculate the elapsed time
  implicit none
  ! define input variables
- integer(i4b),intent(in)           :: istep            ! time index AFTER the start index
+ integer(i4b),intent(in)           :: iStep            ! time index AFTER the start index
  ! define input-output variables
  integer(i4b),intent(inout)        :: iFile            ! index of current forcing file in forcing file list
  integer(i4b),intent(inout)        :: iRead            ! index of read position in time dimension in current netcdf file
@@ -104,8 +104,8 @@ contains
  ! get the number of HRUs in the local simulation
  nHRUlocal = sum(gru_struc(:)%hruCount)
 
- ! determine the julDay of current model step (istep) we need to read
- if(istep==1)then
+ ! determine the julDay of current model step (iStep) we need to read
+ if(iStep==1)then
   currentJulDay = dJulianStart
  else
   currentJulDay = dJulianStart + (data_step*real(iStep-1,dp))/secprday

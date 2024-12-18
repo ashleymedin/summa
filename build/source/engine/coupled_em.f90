@@ -1761,7 +1761,7 @@ subroutine coupled_em(&
       scalarLayersMassChange = ((scalarTotalSoilWat - balanceSoilWater0) + delLakeWat + delSWE + (scalarIceWE - balanceIceWE0))/data_step
       scalarMassChange = scalarLayersMassChange + (delCanWat + (balanceAquifer1-balanceAquifer0))/data_step
       ! save the average mass change rate for the layers if glacier, will divide by the number of time steps in run_oneGRU
-      if (nGlce>0) then
+      if (dom_type==glacAcc .or. dom_type==glacCln .or. dom_type==glacDbr) then
         glacMass4AreaChange = glacMass4AreaChange + ((scalarTotalSoilWat - balanceSoilWater0) + delLakeWat + delSWE + (scalarIceWE - balanceIceWE0))
       else
         glacMass4AreaChange = 0._rkind
