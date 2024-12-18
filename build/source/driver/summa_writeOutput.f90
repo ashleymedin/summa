@@ -315,9 +315,9 @@ contains
 
   if(maxGlaciers>0)then
     if(STATE_PATH == '') then
-      restartGlacFile=trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_restartGlac_'//trim(timeString)//trim(output_fileSuffix)//'.nc'
+      restartGlacFile=trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_restartGrid_'//trim(timeString)//trim(output_fileSuffix)//'.nc'
     else
-      restartGlacFile=trim(STATE_PATH)//trim(OUTPUT_PREFIX)//'_restartGlac_'//trim(timeString)//trim(output_fileSuffix)//'.nc'
+      restartGlacFile=trim(STATE_PATH)//trim(OUTPUT_PREFIX)//'_restartGrid_'//trim(timeString)//trim(output_fileSuffix)//'.nc'
     endif
     call writeRestartGlac(restartGlacFile,nGRU,grid_meta,gridStruct,err,cmessage) 
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif

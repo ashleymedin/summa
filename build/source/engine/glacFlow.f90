@@ -413,7 +413,7 @@ end subroutine glacFlow
     t_total = y_end * secprday* 365._rkind
     gamma = 2._rkind * A * (iden_ice * gravity)**n / (n + 2_i4b)
     max_dt = 31._rkind * secprday! max timestep in seconds, a month
-    min_dt = secprday !0._rkind ! min timestep in seconds 
+    min_dt = 0._rkind ! min timestep in seconds 
     t = 0._rkind
 
     do while (t < t_total)

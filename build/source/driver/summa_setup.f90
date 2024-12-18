@@ -117,7 +117,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  USE globalData,only:elapsedSetup                            ! elapsed time for the parameter setup
  ! file paths
  USE summaFileManager,only:SETTINGS_PATH                     ! define path to settings files (e.g., parameters, soil and veg. tables)
- USE summaFileManager,only:LOCAL_ATTRIBUTES,BASIN_ATTBEDGLAC ! name of model attributes files, local and basin glacier bed topography
+ USE summaFileManager,only:LOCAL_ATTRIBUTES,BASIN_ATTRIBGRID ! name of model attributes files, local and basin glacier bed topography
  USE summaFileManager,only:LOCALPARAM_INFO,BASINPARAM_INFO   ! files defining the default values and constraints for model parameters
  USE summaFileManager,only:GENPARM,VEGPARM,SOILPARM,MPTABLE  ! files defining the noah tables
  ! Noah-MP parameters
@@ -268,10 +268,10 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  maxGrid = 0
  maxGridX = 0
  maxGridY = 0
- if (BASIN_ATTBEDGLAC == 'none') then
+ if (BASIN_ATTRIBGRID == 'none') then
    attrGlacFile = 'none'
  else
-   attrGlacFile = trim(SETTINGS_PATH)//trim(BASIN_ATTBEDGLAC)
+   attrGlacFile = trim(SETTINGS_PATH)//trim(BASIN_ATTRIBGRID)
 
   ! basin glacier attributes for each GRU
   call read_attrbGlac(trim(attrGlacFile),nGRU,gridStruct,err,cmessage)

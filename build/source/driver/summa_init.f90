@@ -48,7 +48,7 @@ USE globalData,only:statBvar_meta                           ! child metadata for
 USE summaFileManager,only:SETTINGS_PATH                     ! define path to settings files (e.g., parameters, soil and veg. tables)
 USE summaFileManager,only:STATE_PATH                        ! optional path to state/init. condition files (defaults to SETTINGS_PATH)
 USE summaFileManager,only:MODEL_INITCOND                    ! name of model initial conditions file
-USE summaFileManager,only:LOCAL_ATTRIBUTES,BASIN_ATTBEDGLAC ! name of model attributes files, local and basin glacier bed topography
+USE summaFileManager,only:LOCAL_ATTRIBUTES,BASIN_ATTRIBGRID ! name of model attributes files, local and basin glacier bed topography
 USE summaFileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
 
 ! safety: set private unless specified otherwise
@@ -202,10 +202,10 @@ subroutine summa_initialize(summa1_struc, err, message)
     end select
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    if (BASIN_ATTBEDGLAC == 'none') then
+    if (BASIN_ATTRIBGRID == 'none') then
       attrGlacFile = 'none'
     else
-      attrGlacFile = trim(SETTINGS_PATH)//trim(BASIN_ATTBEDGLAC)
+      attrGlacFile = trim(SETTINGS_PATH)//trim(BASIN_ATTRIBGRID)
 
       ! basin glacier dimensions for each GRU
       call read_dimensionGrid(trim(attrGlacFile),nGRU,err,cmessage)

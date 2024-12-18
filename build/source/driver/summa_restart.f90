@@ -62,7 +62,7 @@ contains
  USE summaFileManager,only:SETTINGS_PATH                     ! path to settings files (e.g., Noah vegetation tables)
  USE summaFileManager,only:STATE_PATH                        ! optional path to state/init. condition files (defaults to SETTINGS_PATH)
  USE summaFileManager,only:MODEL_INITCOND                    ! name of model initial conditions file (defaults to 'none')
- USE summaFileManager,only:MODEL_INITGLAC                    ! name of glacier initial conditions file, surface topography
+ USE summaFileManager,only:MODEL_INITGRID                    ! name of glacier initial conditions file, surface topography
  ! timing variables
  USE globalData,only:startRestart,endRestart                 ! date/time for the start and end of reading model restart files
  USE globalData,only:elapsedRestart                          ! elapsed time to read model restart files
@@ -159,13 +159,13 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! define restart glacier file path/name
- if (MODEL_INITGLAC == 'none') then
+ if (MODEL_INITGRID == 'none') then
   restartGlacFile = 'none'
  else
   if(STATE_PATH == '') then
-    restartGlacFile = trim(SETTINGS_PATH)//trim(MODEL_INITGLAC)
+    restartGlacFile = trim(SETTINGS_PATH)//trim(MODEL_INITGRID)
   else
-    restartGlacFile = trim(STATE_PATH)//trim(MODEL_INITGLAC)
+    restartGlacFile = trim(STATE_PATH)//trim(MODEL_INITGRID)
   endif
 
   ! read initial conditions
