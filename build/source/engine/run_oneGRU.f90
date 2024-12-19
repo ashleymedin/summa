@@ -214,6 +214,7 @@ subroutine run_oneGRU(&
   updateLakeArea = .false. ! initialize flag to update lake area
   has_clean      = .false. ! initialize flag to indicate if glaciers have clean ice domain   
   has_debris     = .false. ! initialize flag to indicate if glaciers have debris cover domain
+  bvarData%var(iLookBVAR%basin__GlacierArea)%dat(1) = 0._rkind ! glacier area (m2)
 
   ! initialize total inflow for each layer in a soil column and glacier size allocation
   nDOM_glacGRU = 0 ! initialize number of glacier domains in the GRU

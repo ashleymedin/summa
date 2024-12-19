@@ -469,7 +469,7 @@ contains
   case('scalarSWE'                      ); get_ixProg = iLookPROG%scalarSWE                        ! snow water equivalent (kg m-2)
   case('scalarSfcMeltPond'              ); get_ixProg = iLookPROG%scalarSfcMeltPond                ! ponded water caused by melt of the "snow without a layer" (kg m-2)
   ! state variables for glacier
-  case('glacMass4AreaChange'            ); get_ixProg = iLookPROG%glacMass4AreaChange              ! since updateJulDay mean rate glacier layers together mass change (kg m-2 s-1)    
+  case('glacMass4AreaChange'            ); get_ixProg = iLookPROG%glacMass4AreaChange              ! since updateJulDay glacier layers together mass change (kg m-2)    
   ! state variables for the layer domains
   case('mLayerTemp'                     ); get_ixProg = iLookPROG%mLayerTemp                       ! temperature of each layer (K)
   case('mLayerVolFracIce'               ); get_ixProg = iLookPROG%mLayerVolFracIce                 ! volumetric fraction of icein each layer (-)
