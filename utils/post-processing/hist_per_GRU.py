@@ -41,6 +41,8 @@ else:
 #plt_name=['BE1','BE16','BE32','SUNDIALS'] #maybe make this an argument
 method_name=['be8','be8cm','be8en','sundials_1en5cm','sundials_1en5en'] 
 plt_name=['BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp', 'SUNDIALS enth']
+method_name=['be1','be1cm','be1en','be8','be8cm','be8en','sundials_1en5cm','sundials_1en5en'] 
+plt_name=['BE1 common','BE1 temp','BE1 mixed','BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp', 'SUNDIALS enth']
 method_name2=method_name +['sundials_1en8en']
 plt_name2=plt_name +['reference solution']
 
@@ -53,10 +55,10 @@ def power_transform(x):
     return x ** 0.5  # Adjust the exponent as needed
 
 # Simulation statistics file locations
-#use_vars = []
-#rep = [] # mark the repeats
-use_vars = [4,1]
-rep = [0,0] # mark the repeats
+use_vars = []
+rep = [] # mark the repeats
+#use_vars = [4,1]
+#rep = [0,0] # mark the repeats
 #use_vars = [0,1,2,3,4]
 #rep = [0,0,0,0,0] # mark the repeats
 settings0= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','scalarRootZoneTemp']
@@ -66,8 +68,10 @@ settings = [settings0[i] for i in use_vars]
 #rep2 = [1,2,1,2,1,2] # mark the repeats
 #use_vars2 = [4,4,5,5,6,6,7,7]
 #rep2 = [1,2,1,2,1,2,1,2] # mark the repeats
-use_vars2 = [3,3,8]
-rep2 = [1,2,0] # mark the repeats
+use_vars2 = [3,3]
+rep2 = [1,2] # mark the repeats
+#use_vars2 = [8]
+#rep2 = [0] # mark the repeats
 #use_vars2 = []
 #rep2 = [] # mark the repeats
 settings20= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
@@ -86,14 +90,20 @@ for i, m in enumerate(method_name2):
 plot_vars = settings.copy()
 plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','top 4m soil temperature']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~y^{-1}$','$kg~m^{-2}$','$K$']
-plt_titl = [f"({chr(97+n)}) {plt_titl[i]}" for n,i in enumerate(use_vars)]
+if (len(use_vars)+len(use_vars2)>1): 
+    plt_titl = [f"({chr(97+n)}) {plt_titl[i]}" for n,i in enumerate(use_vars)]
+else:
+    plt_titl = [f"{plt_titl[i]}" for n,i in enumerate(use_vars)]
 leg_titl = [leg_titl[i] for i in use_vars]
 
 plot_vars2 = settings2.copy()
 plt_titl2 = ['canopy air space enthalpy balance','vegetation enthalpy balance','snow enthalpy balance','soil enthalpy balance','vegetation mass balance','snow mass balance','soil mass balance','aquifer mass balance', 'wall clock time']
 leg_titl2 = ['$W~m^{-3}$'] * 4 + ['$kg~m^{-3}~s^{-1}$'] * 3 + ['$kg~m^{-2}~s^{-1}$']+ ['$s$']
 if fixed_Mass_units: leg_titl2 = ['$W~m^{-3}$'] * 4 + ['s^{-1}$'] * 3 + ['m~s^{-1}$'] + ['$s$']
-plt_titl2 = [f"({chr(97+n + len(use_vars))}) {plt_titl2[i]}" for n,i in enumerate(use_vars2)]
+if (len(use_vars)+len(use_vars2)>1): 
+    plt_titl2 = [f"({chr(97+n + len(use_vars))}) {plt_titl2[i]}" for n,i in enumerate(use_vars2)]
+else:
+    plt_titl2 = [f"{plt_titl2[i]}" for n,i in enumerate(use_vars2)]
 leg_titl2 = [leg_titl2[i] for i in use_vars2]
 
 if do_hist:
