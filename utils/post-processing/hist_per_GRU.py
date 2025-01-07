@@ -41,8 +41,8 @@ else:
 #plt_name=['BE1','BE16','BE32','SUNDIALS'] #maybe make this an argument
 method_name=['be8','be8cm','be8en','sundials_1en5cm','sundials_1en5en'] 
 plt_name=['BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp', 'SUNDIALS enth']
-method_name=['be1','be1cm','be1en','be8','be8cm','be8en','sundials_1en5cm','sundials_1en5en'] 
-plt_name=['BE1 common','BE1 temp','BE1 mixed','BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp', 'SUNDIALS enth']
+#method_name=['be1','be1cm','be1en','be8','be8cm','be8en','sundials_1en5cm','sundials_1en5en'] 
+#plt_name=['BE1 common','BE1 temp','BE1 mixed','BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp', 'SUNDIALS enth']
 method_name2=method_name +['sundials_1en8en']
 plt_name2=plt_name +['reference solution']
 
@@ -55,10 +55,12 @@ def power_transform(x):
     return x ** 0.5  # Adjust the exponent as needed
 
 # Simulation statistics file locations
-use_vars = []
-rep = [] # mark the repeats
-#use_vars = [4,1]
-#rep = [0,0] # mark the repeats
+#use_vars = []
+#rep = [] # mark the repeats
+use_vars = [4,1]
+rep = [0,0] # mark the repeats
+#use_vars = [1,1]
+#rep = [1,2] # mark the repeats
 #use_vars = [0,1,2,3,4]
 #rep = [0,0,0,0,0] # mark the repeats
 settings0= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','scalarRootZoneTemp']
@@ -127,6 +129,9 @@ if stat == 'kgem':
     stat2 = 'mean'
     maxes = [0.9,0.9,0.9,0.9,0.9]
 maxes = [maxes[i] for i in use_vars]
+for i in range(len(maxes)):
+    if rep[i]==2: maxes[i] = maxes[i]*2.5 #clunky way to increase the range for the second repeat
+
 
 if stat2 == 'mean':
     maxes2 = [1e2,1e2,1e2,1e2]+[1e-7,1e-5,1e-7,1e-8] + [5e-2]
@@ -241,7 +246,7 @@ def run_loop(i,var,mx,rep):
     if statr == 'mnnz_ben': statr_word = 'mean' # no 0s'
     if statr == 'amax_ben': statr_word = 'max'
     
-    axs[r,c].legend(plt_name)
+    if r==0 and c==0: axs[r,c].legend(plt_name)
     titl = plt_titl[i]
     if no_snow: titl = titl + ' (snow-free GRUs)'
     if rep>0: titl = titl + ' '+ stat_word
@@ -306,7 +311,7 @@ def run_loopb(i,var,mx,rep):
     if stat0 == 'mean': stat_word = 'mean'
     if stat0 == 'amax': stat_word = 'max'
 
-    axs[r,c].legend(plt_name2)
+    if r==0 and c==0: axs[r,c].legend(plt_name2)
     titl = plt_titl2[i]
     if no_snow: titl = titl + ' (snow-free GRUs)'
     if rep>0: titl = titl + ' '+ stat_word
