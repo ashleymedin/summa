@@ -899,8 +899,7 @@ do iGRU = 1,nGRU
       iVar = ngdx(i)
       nx = gru_struc(iGRU)%gridInfo(iGlac)%nx
       ny = gru_struc(iGRU)%gridInfo(iGlac)%ny
-      err=nf90_put_var(ncid,ncVarID(i),(/grid_data%gru(iGRU)%grid(iGlac)%var(iVar)%dat2/), start=(/iGRU,1,1,1/),count=(/1,nGlacier,nx,ny/))
-
+      err=nf90_put_var(ncid,ncVarID(i),(/grid_data%gru(iGRU)%grid(iGlac)%var(iVar)%dat2/), start=(/iGRU,iGlac,1,1/),count=(/1,1,nx,ny/))
       ! error check
       if (err.ne.0) message=trim(message)//'writing variable:'//trim(grid_meta(iVar)%varName)
       call netcdf_err(err,message); if (err/=0) return
