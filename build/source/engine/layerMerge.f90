@@ -228,10 +228,10 @@ contains
      scalarSWE       = (mLayerVolFracIce(1)*iden_ice + mLayerVolFracLiq(1)*iden_water)*mLayerDepth(1)
      ! remove the top layer from all model variable vectors
      ! NOTE: nSnow-1 = 0, so routine removes layer #1
-     call rmLyAllVars(doGlac,prog_data,prog_meta,nSnow-1,nSnow,nSoil,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-     call rmLyAllVars(doGlac,diag_data,diag_meta,nSnow-1,nSnow,nSoil,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-     call rmLyAllVars(doGlac,flux_data,flux_meta,nSnow-1,nSnow,nSoil,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-     call rmLyAllVars(doGlac,indx_data,indx_meta,nSnow-1,nSnow,nSoil,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+     call rmLyAllVars(doGlac,prog_data,prog_meta,nSnow-1,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+     call rmLyAllVars(doGlac,diag_data,diag_meta,nSnow-1,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+     call rmLyAllVars(doGlac,flux_data,flux_meta,nSnow-1,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+     call rmLyAllVars(doGlac,indx_data,indx_meta,nSnow-1,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
      if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; end if
      ! update the total number of layers
      nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
@@ -452,10 +452,10 @@ contains
  end associate
 
  ! remove a model layer from all model variable vectors
- call rmLyAllVars(doGlac,prog_data,prog_meta,iSnow,nSnow,nSoil,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
- call rmLyAllVars(doGlac,diag_data,diag_meta,iSnow,nSnow,nSoil,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
- call rmLyAllVars(doGlac,flux_data,flux_meta,iSnow,nSnow,nSoil,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
- call rmLyAllVars(doGlac,indx_data,indx_meta,iSnow,nSnow,nSoil,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+ call rmLyAllVars(doGlac,prog_data,prog_meta,iSnow,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+ call rmLyAllVars(doGlac,diag_data,diag_meta,iSnow,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+ call rmLyAllVars(doGlac,flux_data,flux_meta,iSnow,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+ call rmLyAllVars(doGlac,indx_data,indx_meta,iSnow,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
  ! define the combined layer as snow/ice
  if (nSnow>0)  indx_data%var(iLookINDEX%layerType)%dat(iSnow) = iname_snow
@@ -500,7 +500,7 @@ contains
  ! removes layer "iSnow+1" and sets layer "iSnow" to a missing value
  ! (layer "iSnow" will be filled with a combined layer later)
  ! ***********************************************************************************************************
- subroutine rmLyAllVars(doGlac,dataStruct,metaStruct,iSnow,nSnow,nSoil,nGlce,nLayers,err,message)
+ subroutine rmLyAllVars(doGlac,dataStruct,metaStruct,iSnow,nSnow,nGlce,nLayers,err,message)
  USE var_lookup,only:iLookVarType                 ! look up structure for variable typed
  USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
  USE f2008funcs_module,only:cloneStruc            ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
@@ -514,7 +514,7 @@ contains
  type(var_info),intent(in)       :: metaStruct(:)  ! metadata structure
  ! input: snow layer indices
  integer(i4b),intent(in)         :: iSnow          ! new layer
- integer(i4b),intent(in)         :: nSnow,nSoil,nGlce,nLayers ! number of snow, soil, glacier ice layers, total number of layers
+ integer(i4b),intent(in)         :: nSnow,nGlce,nLayers ! number of snow, soil, glacier ice layers, total number of layers
  ! output: error control
  integer(i4b),intent(out)        :: err            ! error code
  character(*),intent(out)        :: message        ! error message

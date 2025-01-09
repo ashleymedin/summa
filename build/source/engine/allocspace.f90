@@ -240,7 +240,7 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
 
   ! allocate space for structures *WITHOUT* an HRU dimension
   nGlac = gru_struc(iGRU)%nGlacier
-  nGrid = size(gru_struc(iGRU)%gridInfo(:)%grid_id)
+  nGrid = gru_struc(iGRU)%nGlacier ! could be different from nGlac, but currently they are the same
   select type(dataStruct)
    class is (gru_int);           call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlacier=nGlac,err=err,message=cmessage); spatial=.true.
    class is (gru_int8);          call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlacier=nGlac,err=err,message=cmessage); spatial=.true.

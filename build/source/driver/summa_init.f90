@@ -206,7 +206,6 @@ subroutine summa_initialize(summa1_struc, err, message)
       attrGlacFile = 'none'
     else
       attrGlacFile = trim(SETTINGS_PATH)//trim(BASIN_ATTRIBGRID)
-
       ! basin glacier dimensions for each GRU
       call read_dimensionGrid(trim(attrGlacFile),nGRU,err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif

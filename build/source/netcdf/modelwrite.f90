@@ -583,6 +583,7 @@ contains
  integer(i4b)                       :: iVar          ! variable index
  integer(i4b)                       :: nGlacier      ! number of glaciers in GRU
  logical(lgt)                       :: okLength      ! flag to check if the vector length is OK
+ integer(i4b)                       :: size_prog     ! size of prognostic variable vector without index variables
  character(len=256)                 :: cmessage      ! downstream error message
  ! --------------------------------------------------------------------------------------------------------
 
@@ -598,10 +599,11 @@ contains
  ! include additional basin variable in ID array
  if (maxGlceLayers > 0)then
    ngdx = (/iLookBVAR%glacAblArea, iLookBVAR%glacAccArea, iLookBVAR%glacIceRunoffFuture, iLookBVAR%glacSnowRunoffFuture, iLookBVAR%glacFirnRunoffFuture/)
-   allocate(ncVarID(nProgVars+2+size(ngdx)+size(nidx)))
+   size_prog = nProgVars+size(ngdx)+2
  else
-   allocate(ncVarID(nProgVars+1+size(nidx)))
+   size_prog = nProgVars+1
  end if
+ allocate(ncVarID(size_prog+size(nidx)))
 
  ! create file
  err = nf90_create(trim(filename),NF90_NETCDF4,ncid)
@@ -677,17 +679,17 @@ contains
      err = nf90_put_att(ncid,ncVarID(nProgVars+i),'units'    ,trim(bvar_meta(iVar)%varunit));   call netcdf_err(err,message)
    end do
 
-   err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%basin__GlacierStorage)%varName), nf90_double, (/gruDimID/), ncVarID(nProgVars+size(ngdx)+2))
-   err = nf90_put_att(ncid,ncVarID(nProgVars+size(ngdx)+2),'long_name',trim(bvar_meta(iLookBVAR%basin__GlacierStorage)%vardesc));   call netcdf_err(err,message)
-   err = nf90_put_att(ncid,ncVarID(nProgVars+size(ngdx)+2),'units'    ,trim(bvar_meta(iLookBVAR%basin__GlacierStorage)%varunit));   call netcdf_err(err,message)
+   err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%basin__GlacierStorage)%varName), nf90_double, (/gruDimID/), ncVarID(size_prog))
+   err = nf90_put_att(ncid,ncVarID(size_prog),'long_name',trim(bvar_meta(iLookBVAR%basin__GlacierStorage)%vardesc));   call netcdf_err(err,message)
+   err = nf90_put_att(ncid,ncVarID(size_prog),'units'    ,trim(bvar_meta(iLookBVAR%basin__GlacierStorage)%varunit));   call netcdf_err(err,message)
  endif
   
  ! define index variables
  do i=1,size(nidx)
    iVar = nidx(i)
-   err = nf90_def_var(ncid,trim(indx_meta(iVar)%varName),nf90_int,(/domDimID,hruDimID/),ncVarID(nProgVars+size(ngdx)+2+i))
-   err = nf90_put_att(ncid,ncVarID(nProgVars+size(ngdx)+2+i),'long_name',trim(indx_meta(iVar)%vardesc));   call netcdf_err(err,message)
-   err = nf90_put_att(ncid,ncVarID(nProgVars+size(ngdx)+2+i),'units'    ,trim(indx_meta(iVar)%varunit));   call netcdf_err(err,message)
+   err = nf90_def_var(ncid,trim(indx_meta(iVar)%varName),nf90_int,(/domDimID,hruDimID/),ncVarID(size_prog+i))
+   err = nf90_put_att(ncid,ncVarID(size_prog+i),'long_name',trim(indx_meta(iVar)%vardesc));   call netcdf_err(err,message)
+   err = nf90_put_att(ncid,ncVarID(size_prog+i),'units'    ,trim(indx_meta(iVar)%varunit));   call netcdf_err(err,message)
  end do
 
  ! end definition phase
@@ -762,7 +764,7 @@ contains
     ! write index variables
     do i=1,size(nidx)
       iVar = nidx(i)
-      err=nf90_put_var(ncid,ncVarID(nProgVars+size(ngdx)+2+i),(/indx_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU/),count=(/1,1/))
+      err=nf90_put_var(ncid,ncVarID(size_prog+i),(/indx_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU/),count=(/1,1/))
     end do
   
    end do ! iDOM loop
@@ -776,7 +778,7 @@ contains
       iVar = ngdx(i)
       err=nf90_put_var(ncid,ncVarID(nProgVars+i+1),(/bvar_data%gru(iGRU)%var(iVar)%dat/), start=(/iGRU,1/),count=(/1,nGlacier/))
     end do
-    err=nf90_put_var(ncid,ncVarID(nProgVars+size(ngdx)+2),(/bvar_data%gru(iGRU)%var(iLookBVAR%basin__GlacierStorage)%dat/), start=(/iGRU/),count=(/1/))
+    err=nf90_put_var(ncid,ncVarID(size_prog),(/bvar_data%gru(iGRU)%var(iLookBVAR%basin__GlacierStorage)%dat/), start=(/iGRU/),count=(/1/))
    endif
   
  end do  ! iGRU loop

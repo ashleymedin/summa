@@ -439,7 +439,8 @@ contains
   err = nf90_inq_varid(ncID,trim(prog_meta(iVar)%varName),ncVarID)
   if(err/=nf90_noerr)then
    if(prog_meta(iVar)%varName=='DOMarea'              .or. &
-      prog_meta(iVar)%varName=='DOMelev'                   )then; err=nf90_noerr; cycle; endif ! backwards compatible, may be missing, correct in check_icond
+      prog_meta(iVar)%varName=='DOMelev'              .or. &
+      prog_meta(iVar)%varName=='glacMass4AreaChange'       )then; err=nf90_noerr; cycle; endif ! backwards compatible, may be missing, correct in check_icond
    if(prog_meta(iVar)%varName=='scalarCanairEnthalpy' .or. &
       prog_meta(iVar)%varName=='scalarCanopyEnthalpy' .or. &  
       prog_meta(iVar)%varName=='mLayerEnthalpy'            )then; err=nf90_noerr; no_icond_enth=.true.; cycle; endif ! skip enthalpy variables if not in file
@@ -796,9 +797,10 @@ contains
 
    enddo ! end looping through basin variables
   endif  ! end if case for variables being in init. cond. file
+  deallocate(glac_id)
  endif ! end if has glacier
 
- deallocate(gru_id,hru_id,gruid_to_index,hrunc_to_index,glac_id)
+ deallocate(gru_id,hru_id,gruid_to_index,hrunc_to_index)
 
  end subroutine read_icond
 
