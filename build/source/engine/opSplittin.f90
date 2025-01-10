@@ -1549,13 +1549,8 @@ contains
 
  subroutine stateTypeSplit_subDomain_nrgSplit_snowSplit_stateMask
   associate(&
-<<<<<<< HEAD
    nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)    ,& ! intent(in): [i4b] number of snow layers
    ixNrgLayer      => indx_data%var(iLookINDEX%ixNrgLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the layer domains
-=======
-   nSnow      => indx_data%var(iLookINDEX%nSnow)%dat(1)  ,& ! intent(in): [i4b] number of snow layers
-   ixNrgLayer => indx_data%var(iLookINDEX%ixNrgLayer)%dat ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the snow+soil domain
->>>>>>> 2da57f13 (Merge pull request #53 from seantrim/SUMMA-ROO)
   ! *** Get state type subdomain energy snow split ***
    if (nSnow>1) split_select % stateMask(ixNrgLayer(2:nSnow)) = .true. ! NOTE: (2:) because the top layer in the snow+soil domain included in vegSplit
   end associate
@@ -1574,18 +1569,11 @@ contains
  subroutine stateTypeSplit_subDomain_nrgSplit_soilSplit_stateMask
   ! *** Get state type subdomain energy soil split ***
   associate(&
-<<<<<<< HEAD
    nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)    ,& ! intent(in): [i4b] number of snow layers
    nLake           => indx_data%var(iLookINDEX%nLake)%dat(1)    ,& ! intent(in): [i4b] number of lake layers
    nSoil           => indx_data%var(iLookINDEX%nSoil)%dat(1)    ,& ! intent(in): [i4b] number of soil layers
    ixNrgLayer      => indx_data%var(iLookINDEX%ixNrgLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the layer domain
    split_select % stateMask(ixNrgLayer(max(2,nSnow+nLake+1):nSnow+nLake+nSoil)) = .true. ! NOTE: (2:) because the top layer in the layer domain included in vegSplit
-=======
-   nSnow      => indx_data%var(iLookINDEX%nSnow)%dat(1)  ,& ! intent(in): [i4b] number of snow layers
-   nLayers    => indx_data%var(iLookINDEX%nLayers)%dat(1),& ! intent(in): [i4b] total number of layers
-   ixNrgLayer => indx_data%var(iLookINDEX%ixNrgLayer)%dat ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the snow+soil domain
-   split_select % stateMask(ixNrgLayer(max(2,nSnow+1):nLayers)) = .true. ! NOTE: max(2,nSnow+1) gives second layer unless more than 2 snow layers
->>>>>>> 2da57f13 (Merge pull request #53 from seantrim/SUMMA-ROO)
   end associate
  end subroutine stateTypeSplit_subDomain_nrgSplit_soilSplit_stateMask
 
@@ -1649,18 +1637,11 @@ contains
  subroutine stateTypeSplit_subDomain_massSplit_soilSplit_stateMask
   ! *** Get mass state soil subdomain split stateMask  ***
   associate(&
-<<<<<<< HEAD
    nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)    ,& ! intent(in): [i4b] number of snow layers
    nLake           => indx_data%var(iLookINDEX%nLake)%dat(1)    ,& ! intent(in): [i4b] number of lake layers
    nSoil           => indx_data%var(iLookINDEX%nSoil)%dat(1)    ,& ! intent(in): [i4b] number of soil layers
    ixHydLayer      => indx_data%var(iLookINDEX%ixHydLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the layer domain
    split_select % stateMask(ixHydLayer(nSnow+nLake+1:nSnow+nLake+nSoil)) = .true.  ! soil hydrology
-=======
-   nSnow      => indx_data%var(iLookINDEX%nSnow)%dat(1)  ,& ! intent(in): [i4b] number of snow layers
-   nLayers    => indx_data%var(iLookINDEX%nLayers)%dat(1),& ! intent(in): [i4b] total number of layers
-   ixHydLayer => indx_data%var(iLookINDEX%ixHydLayer)%dat ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the snow+soil domain
-   split_select % stateMask(ixHydLayer(nSnow+1:nLayers)) = .true.  ! soil hydrology
->>>>>>> 2da57f13 (Merge pull request #53 from seantrim/SUMMA-ROO)
   end associate
  end subroutine stateTypeSplit_subDomain_massSplit_soilSplit_stateMask
 
