@@ -165,7 +165,7 @@ contains
    parFallback(iLookBPAR%glacStor_kIce)%default_val = 10._rkind
   end if
   if (parFallback(iLookBPAR%glacStor_kSnow)%default_val < 0.99_rkind*realMissing) then
-   parFallback(iLookBPAR%glacStor_kIce)%default_val = 40._rkind
+   parFallback(iLookBPAR%glacStor_kSnow)%default_val = 40._rkind
   end if
   if (parFallback(iLookBPAR%glacStor_kFirn)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookBPAR%glacStor_kFirn)%default_val = 400._rkind
