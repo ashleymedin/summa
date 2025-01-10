@@ -28,17 +28,15 @@ USE globalData,only:globalPrintFlag
 
 ! access missing values
 USE globalData,only:integerMissing   ! missing integer
-USE globalData,only:realMissing      ! missing double precision number
-USE globalData,only:quadMissing      ! missing quadruple precision number
 
 ! state variable type
 USE globalData,only:iname_nrgCanair  ! named variable defining the energy of the canopy air space
 USE globalData,only:iname_nrgCanopy  ! named variable defining the energy of the vegetation canopy
 USE globalData,only:iname_watCanopy  ! named variable defining the mass of total water on the vegetation canopy
 USE globalData,only:iname_liqCanopy  ! named variable defining the mass of liquid water on the vegetation canopy
-USE globalData,only:iname_nrgLayer   ! named variable defining the energy state variable for snow+soil+ice+lake layers
-USE globalData,only:iname_watLayer   ! named variable defining the total water state variable for snow+soil+ice+lake layers
-USE globalData,only:iname_liqLayer   ! named variable defining the liquid  water state variable for snow+soil+ice+lake layers
+USE globalData,only:iname_nrgLayer   ! named variable defining the energy state variable for layers
+USE globalData,only:iname_watLayer   ! named variable defining the total water state variable for layers
+USE globalData,only:iname_liqLayer   ! named variable defining the liquid  water state variable for layers
 USE globalData,only:iname_matLayer   ! named variable defining the matric head state variable for soil layers
 USE globalData,only:iname_lmpLayer   ! named variable defining the liquid matric potential state variable for soil layers
 USE globalData,only:iname_watAquifer ! named variable defining the water storage in the aquifer
@@ -52,13 +50,7 @@ USE globalData,only:flux2state_orig  ! metadata on flux-to-state mapping (origin
 USE globalData,only:flux2state_liq   ! metadata on flux-to-state mapping (liquid water state variables)
   
 ! provide access to indices that define elements of the data structures
-USE var_lookup,only:iLookATTR        ! named variables for structure elements
-USE var_lookup,only:iLookTYPE        ! named variables for structure elements
-USE var_lookup,only:iLookPROG        ! named variables for structure elements
-USE var_lookup,only:iLookDIAG        ! named variables for structure elements
 USE var_lookup,only:iLookFLUX        ! named variables for structure elements
-USE var_lookup,only:iLookFORCE       ! named variables for structure elements
-USE var_lookup,only:iLookPARAM       ! named variables for structure elements
 USE var_lookup,only:iLookINDEX       ! named variables for structure elements
 USE var_lookup,only:iLookDECISIONS   ! named variables for elements of the decision structure
 
@@ -114,34 +106,29 @@ integer(i4b),parameter  :: scalar=2                   ! scalar solution method
 integer(i4b),parameter  :: nSolutions=2               ! number of solution methods
 
 ! named variables for the switch between states and domains
-integer(i4b),parameter  :: fullDomain=1               ! full domain (veg+snow+soil)
+integer(i4b),parameter  :: fullDomain=1               ! full domain (veg+snow+lake+soil+glce+aquifer)
 integer(i4b),parameter  :: subDomain=2                ! sub domain (veg, snow, soil, lake, glce, and aquifer separately)
 
 ! maximum number of possible splits
 integer(i4b),parameter  :: nStateTypes=2              ! number of state types (energy, water)
-integer(i4b),parameter  :: nDomains=6                 ! number of domains (vegetation, snow, soil, lake, glce, and aquifer), but no more than 4 exist in one domain
-
-! control parameters
-real(rkind),parameter   :: valueMissing=-9999._rkind  ! missing value
-real(rkind),parameter   :: verySmall=1.e-12_rkind     ! a very small number (used to check consistency)
-real(rkind),parameter   :: veryBig=1.e+20_rkind       ! a very big number
-real(rkind),parameter   :: dx = 1.e-8_rkind           ! finite difference increment
+integer(i4b),parameter  :: nDomains=6                 ! number of domains (vegetation, snow, lake, soil, glce, and aquifer), but no more than 4 exist in one domain
 
 ! class definitions
 
 type, public :: split_select_type  ! class for selecting operator splitting methods
   ! opSplittin indices (in order)
+  integer(i4b)             :: iSplit                      ! iteration counter for split_select_loop
   integer(i4b)             :: ixCoupling
   integer(i4b)             :: iStateTypeSplit
-  integer(i4b)             :: ixStateThenDomain       ! 1=state type split; 2=domain split within a given state type 
+  integer(i4b)             :: ixStateThenDomain           ! 1=state type split; 2=domain split within a given state type 
   integer(i4b)             :: iDomainSplit
   integer(i4b)             :: ixSolution
   integer(i4b)             :: iStateSplit
   ! variables for specifying the split
-  integer(i4b)             :: nState                  ! # of state variables
-  integer(i4b)             :: nSubset                 ! number of selected state variables for a given split
-  type(var_flagVec)        :: fluxMask                ! integer mask defining model fluxes
-  logical(lgt),allocatable :: stateMask(:)            ! mask defining desired state variables
+  integer(i4b)             :: nState                      ! # of state variables
+  integer(i4b)             :: nSubset                     ! number of selected state variables for a given split
+  type(var_flagVec)        :: fluxMask                    ! integer mask defining model fluxes
+  logical(lgt),allocatable :: stateMask(:)                ! mask defining desired state variables
   ! flags for splitting method control
   logical(lgt)             :: stateTypeSplitting,stateThenDomain,domainSplit,solution,stateSplit
  contains
@@ -155,6 +142,7 @@ type, public :: split_select_type  ! class for selecting operator splitting meth
 
   procedure :: get_stateMask                => split_select_compute_stateMask            ! compute stateMask and nSubset and load into class object
 
+  procedure :: advance_iSplit               => split_select_advance_iSplit               ! advance coupling iterator
   procedure :: advance_ixCoupling           => split_select_advance_ixCoupling           ! advance coupling iterator
   procedure :: advance_iStateTypeSplit      => split_select_advance_iStateTypeSplit      ! advance stateTypeSplitting iterator
   procedure :: advance_ixStateThenDomain    => split_select_advance_ixStateThenDomain    ! advance stateThenDomain iterator
@@ -182,7 +170,6 @@ type, public :: split_select_type  ! class for selecting operator splitting meth
 end type split_select_type
 
 contains
-
 
 ! **********************************************************************************************************
 ! public subroutine opSplittin: run the coupled energy-mass model for one timestep
@@ -231,8 +218,6 @@ subroutine opSplittin(&
   ! population/extraction of state vectors
   USE indexState_module,only:indexSplit                ! get state indices
   USE varSubstep_module,only:varSubstep                ! complete substeps for a given split
-  ! identify name of variable type (for error message)
-  USE get_ixName_module,only:get_varTypeName           ! to access type strings for error messages
   implicit none
   ! ---------------------------------------------------------------------------------------
   ! * dummy variables
@@ -247,6 +232,7 @@ subroutine opSplittin(&
   real(rkind),intent(in)          :: dt                             ! time step (seconds)
   real(rkind),intent(in)          :: whole_step                     ! length of whole step for surface drainage and average flux
   logical(lgt),intent(in)         :: firstSubStep                   ! flag to indicate if we are processing the first sub-step
+  logical(lgt),intent(in)         :: firstInnerStep                 ! flag to denote if the first time step in maxstep subStep
   logical(lgt),intent(in)         :: computeVegFlux                 ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
   ! input/output: data structures
   type(var_i),intent(in)          :: type_data                      ! type of vegetation and soil
@@ -287,7 +273,6 @@ subroutine opSplittin(&
   type(var_dlength)               :: flux_mean                      ! mean model fluxes
   type(var_dlength)               :: flux_mntemp                    ! temporary mean model fluxes
   type(var_dlength)               :: deriv_data                     ! derivatives in model fluxes w.r.t. relevant state variables
-  integer(i4b),parameter          :: zero=0                         ! zero value
   ! ------------------------------------------------------------------------------------------------------
   ! * operator splitting
   ! ------------------------------------------------------------------------------------------------------
@@ -326,17 +311,13 @@ subroutine opSplittin(&
   logical(lgt)                    :: failedMinimumStep              ! flag to denote failure of substepping for a given split
   integer(i4b)                    :: ixSaturation                   ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
   integer(i4b)                    :: nCoupling
-  logical(lgt)                    :: firstInnerStep                 ! flag to denote if the first time step in maxstep subStep
   ! mean steps 
   real(rkind)                     :: mean_step_state                ! mean step over the state (with or without domain splits)
   real(rkind)                     :: mean_step_solution             ! mean step for a solution (scalar or vector)
   logical(lgt)                    :: addFirstFlux                   ! flag to add the first flux to the mask
   ! splitting method control variables
-  logical(lgt)                    :: exit_split_select,cycle_split_select ! control for split_select loop
-  logical(lgt)                    :: exit_coupling,exit_stateThenDomain,exit_solution
-  logical(lgt)                    :: cycle_coupling,cycle_stateThenDomain,cycle_domainSplit,cycle_solution
-  integer(i4b)                    :: iSplit
-  integer(i4b),parameter          :: maxSplit=500       ! >= max number of splitting methods (controls upper limit of split_select loop)               
+  logical(lgt)                    :: exit_split_select,exit_coupling,exit_stateThenDomain,exit_solution
+  logical(lgt)                    :: cycle_split_select,cycle_coupling,cycle_stateThenDomain,cycle_domainSplit,cycle_solution
   ! ------------------------ classes for subroutine arguments (classes defined in data_types module) ------------------------
   !      ** intent(in) arguments **         ||       ** intent(inout) arguments **        ||      ** intent(out) arguments **
   type(in_type_indexSplit)  :: in_indexSplit;                                             type(out_type_indexSplit)  :: out_indexSplit;  ! indexSplit arguments
@@ -344,57 +325,133 @@ subroutine opSplittin(&
   ! -------------------------------------------------------------------------------------------------------------------------
   type(split_select_type) :: split_select ! class object for selecting operator splitting methods
 
-  ! *** Initialize Split Selector Object ***
-  call initialize_split_select;   if (return_flag) return
-  call initialize_split_coupling; if (return_flag) return 
-  split_select_loop: do iSplit=1,maxSplit       ! coupling begins
-    call initialize_split_stateTypeSplitting; if (exit_split_select) exit split_select_loop; if (return_flag) return
-    if (split_select % stateTypeSplitting) then ! stateTypeSplitting begins
-      call initialize_split_stateThenDomain
-      if (split_select % stateThenDomain) then  ! stateThenDomain begins
-        call initialize_split_domainSplit; if (return_flag) return
-        if (split_select % domainSplit) then    ! domainSplit begins
-          call initialize_split_solution
-          if (split_select % solution) then     ! solution begins
-            call initialize_split_stateSplit; if (return_flag) return 
-            if (split_select % stateSplit) then ! stateSplit begins
-              call update_stateMask; if (return_flag) return         ! get the mask for the state subset - return for a non-zero error code
-              call validate_split                                    ! verify that the split is valid
-              if (cycle_domainSplit) cycle split_select_loop         ! if needed, proceed to next iteration of domainSplit method 
-              if (cycle_solution)    cycle split_select_loop         ! if needed, proceed to next iteration of solution method 
-              if (return_flag)       return                          ! return for a non-zero error code              
-              call save_recover                                      ! save/recover copies of variables and fluxes
-              call get_split_indices; if (return_flag) return        ! get indices for a given split - return for a non-zero error code
-              call update_fluxMask;   if (return_flag) return        ! define the mask for the fluxes used - return for a non-zero error code
-              call solve_subset;      if (return_flag) return        ! solve variable subset for one time step - return for a positive error code
-              call assess_solution;   if (return_flag) return        ! is solution a success or failure? - return for a recovering solution
-              call try_other_solution_methods                        ! if solution failed to converge, try other splitting methods 
-              if (cycle_coupling)        cycle split_select_loop     ! if needed, proceed to next iteration of coupling method
-              if (cycle_stateThenDomain) cycle split_select_loop     ! if needed, proceed to next iteration of stateThenDomain method
-              if (cycle_solution)        cycle split_select_loop     ! if needed, proceed to next iteration of solution method 
-              call confirm_variable_updates; if (return_flag) return ! check that state variables are updated - return if error 
-              call success_check                                     ! check for success
-              call check_exit_stateThenDomain                        ! check exit criterion for stateThenDomain split
-              call check_exit_solution; if (return_flag) return      ! check exit criterion for solution split - return if error 
-            end if ! stateSplit ends
-            call finalize_split_stateSplit
-          end if ! solution ends
-          call finalize_split_solution
-        end if ! domainSplit ends
-        call finalize_split_domainSplit
-      end if ! stateThenDomain ends
-      call finalize_split_stateThenDomain; if (return_flag) return
-    end if ! stateTypeSplitting ends
-    call finalize_split_stateTypeSplitting; if (exit_split_select) exit split_select_loop
-  end do split_select_loop ! coupling ends
-  call finalize_split_coupling; if (return_flag) return
+  ! set up split_select object and prepare for split_select_loop
+  call initialize_opSplittin; if (return_flag) return
+ 
+  ! execute split_select_loop
+  call update_opSplittin;     if (return_flag) return
+
+  ! validation and error control
+  call finalize_opSplittin;   if (return_flag) return  
 
  contains
 
+  subroutine initialize_opSplittin
+   ! *** Initial operations for opSplittin ***
+   call initialize_split_select;   if (return_flag) return ! initialize split selector object (split_select)
+   call initialize_split_coupling; if (return_flag) return ! prep for first iteration of update_opSplittin 
+  end subroutine initialize_opSplittin
+
+  subroutine update_opSplittin
+   ! *** Update operations for opSplittin ***
+   ! Note: first loop iteration is the fully coupled method, followed by operator splitting methods if required
+   split_select_loop: do
+     ! initialize variables
+     call initialize_split_solve; if (exit_split_select) exit split_select_loop; if (return_flag) return
+     ! update the trial solution via fully coupled method or operator splitting
+     call update_split_solve;     if (return_flag) return; if (cycle_split_select) cycle split_select_loop
+     ! validate the trial solution
+     call finalize_split_solve;   if (exit_split_select) exit split_select_loop; if (return_flag) return
+   end do split_select_loop
+  end subroutine update_opSplittin
+
+  subroutine finalize_opSplittin
+   ! *** Final operations for opSplittin ***
+   call finalize_split_coupling; if (return_flag) return
+  end subroutine finalize_opSplittin
+
+  subroutine initialize_split_solve
+   ! *** Initial operations for solving the selected split ***
+   call initialize_split_stateTypeSplitting; if (exit_split_select.or.return_flag) return
+   cycle_split_select=.false. ! initialize flag for cycle control of split_select_loop
+  end subroutine initialize_split_solve
+
+  subroutine update_split_solve
+   ! *** Update operations for solving the selected split ***
+   ! Note: split_select data components are used to select the splitting method
+   if (split_select % stateTypeSplitting) then ! stateTypeSplitting method begins
+     call initialize_split_stateThenDomain
+     if (split_select % stateThenDomain) then  ! stateThenDomain method begins
+       call initialize_split_domainSplit;    if (return_flag) return
+       if (split_select % domainSplit) then    ! domainSplit method begins
+         call initialize_split_solution
+         if (split_select % solution) then     ! solution method begins
+           call initialize_split_stateSplit; if (return_flag) return 
+           if (split_select % stateSplit) then ! stateSplit method begins
+             ! define masks for selected splitting method
+             call initialize_split; if (return_flag) return; if (cycle_initialize_split()) then; cycle_split_select=.true.; return; end if
+             ! update trial solution for selected splitting method
+             call update_split;     if (return_flag) return
+             ! validate trial solution
+             call finalize_split;   if (return_flag) return; if (cycle_finalize_split())   then; cycle_split_select=.true.; return; end if
+           end if                              ! stateSplit method ends
+           call finalize_split_stateSplit
+         end if                                ! solution method ends
+         call finalize_split_solution
+       end if                                  ! domainSplit method ends
+       call finalize_split_domainSplit
+     end if                                    ! stateThenDomain method ends
+     call finalize_split_stateThenDomain;    if (return_flag) return
+   end if                                      ! stateTypeSplitting method ends
+  end subroutine update_split_solve
+
+  subroutine finalize_split_solve
+   ! *** Final operations for solving the selected split ***
+   integer(i4b),parameter          :: maxSplit=500       ! >= max number of splitting methods (controls upper limit of split_select loop)               
+   call finalize_split_stateTypeSplitting; if (exit_split_select.or.return_flag) return
+   if (split_select % iSplit.ge.maxSplit) then ! check for errors - execute fail-safe if needed
+    err=20; message=trim(message)//'split_select loop exceeded max number of iterations'; return_flag=.true.; return 
+   end if
+  end subroutine finalize_split_solve
+
+  subroutine initialize_split
+   ! *** Initialize logical masks for selected splitting method ***
+   call update_stateMask;  if (return_flag)              return ! get the mask for the state subset - return for a non-zero error code
+   call validate_split;    if (return_flag)              return ! verify that the split is valid
+                           if (cycle_initialize_split()) return ! if needed, proceed to next split
+   
+   call save_recover                                            ! save/recover copies of variables and fluxes
+
+   call get_split_indices; if (return_flag)              return ! get indices for a given split - return for a non-zero error code
+   call update_fluxMask;   if (return_flag)              return ! define the mask for the fluxes used - return for a non-zero error code
+  end subroutine initialize_split
+
+  subroutine update_split
+   ! *** Update solution for selected splitting method ***
+   call solve_subset; if (return_flag) return ! solve variable subset for one time step - return for a positive error code
+  end subroutine update_split
+
+  subroutine finalize_split
+   ! *** Finalize solution for selected splitting method ***
+   call assess_solution;            if (return_flag)            return ! is solution a success or failure? - return for a recovering solution
+
+   call try_other_solution_methods; if (cycle_finalize_split()) return ! if solution failed to converge, try other splitting methods 
+
+   call confirm_variable_updates;   if (return_flag)            return ! check that state variables are updated - return if error 
+
+   call success_check                                                  ! check for success
+   call check_exit_stateThenDomain                                     ! check exit criterion for stateThenDomain split
+   call check_exit_solution;        if (return_flag)            return ! check exit criterion for solution split - return if error 
+  end subroutine finalize_split
+
+  function cycle_initialize_split() result(cycle_flag)
+   ! *** Compute loop cycle flag for initialize_split ***
+   logical(lgt) :: cycle_flag
+   cycle_flag=any([cycle_domainSplit,cycle_solution])
+  end function cycle_initialize_split
+
+  function cycle_finalize_split() result(cycle_flag)
+   ! *** Compute loop cycle flag for finalize_split ***
+   logical(lgt) :: cycle_flag
+   cycle_flag=any([cycle_coupling,cycle_stateThenDomain,cycle_solution]) 
+  end function cycle_finalize_split
 
   subroutine initialize_split_select
    ! *** Initialize split_select class object ***
    
+   ! initizlaize iteration counter for split_select_loop
+   split_select % iSplit = 1 
+ 
    ! initialize # of state variables
    split_select % nState = nState
 
@@ -544,13 +601,11 @@ subroutine opSplittin(&
     end if
     call split_select % advance_ixCoupling
    end if
+   call split_select % advance_iSplit ! advance iteration counter for split_select_loop
   end subroutine finalize_split_stateTypeSplitting
 
   subroutine finalize_split_coupling
    ! *** Finalize steps for coupling split method ***
-   if (iSplit.gt.maxSplit) then ! check for errors
-    err=20; message=trim(message)//'split_select loop exceeded max number of iterations'; return_flag=.true.; return 
-   end if
    call finalize_coupling; if (return_flag) return ! check variables and fluxes, and apply step halving if needed
   end subroutine finalize_split_coupling
 
@@ -623,35 +678,35 @@ subroutine opSplittin(&
    return_flag=.false. ! initialize flag
 
    ! allocate space for the flux mask (used to define when fluxes are updated)
-   call allocLocal(flux_meta(:),fluxMask,nSnow,nLake,nSoil,nGlce,zero,err,cmessage)
+   call allocLocal(flux_meta(:),fluxMask,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the flux count (used to check that fluxes are only updated once)
-   call allocLocal(flux_meta(:),fluxCount,nSnow,nLake,nSoil,nGlce,zero,err,cmessage)
+   call allocLocal(flux_meta(:),fluxCount,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary prognostic variable structure
-   call allocLocal(prog_meta(:),prog_temp,nSnow,nLake,nSoil,nGlce,zero,err,cmessage)
+   call allocLocal(prog_meta(:),prog_temp,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary diagnostic variable structure
-   call allocLocal(diag_meta(:),diag_temp,nSnow,nLake,nSoil,nGlce,zero,err,cmessage)
+   call allocLocal(diag_meta(:),diag_temp,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary flux variable structure
-   call allocLocal(flux_meta(:),flux_temp,nSnow,nLake,nSoil,nGlce,zero,err,cmessage)
+   call allocLocal(flux_meta(:),flux_temp,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the mean flux variable structure
-   call allocLocal(flux_meta(:),flux_mean,nSnow,nLake,nSoil,nGlce,zero,err,cmessage)
+   call allocLocal(flux_meta(:),flux_mean,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary mean flux variable structure
-   call allocLocal(flux_meta(:),flux_mntemp,nSnow,nLake,nSoil,nGlce,zero,err,cmessage)
+   call allocLocal(flux_meta(:),flux_mntemp,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the derivative structure
-   call allocLocal(deriv_meta(:),deriv_data,nSnow,nLake,nSoil,nGlce,zero,err,cmessage)
+   call allocLocal(deriv_meta(:),deriv_data,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end subroutine allocate_memory
 
@@ -725,7 +780,7 @@ subroutine opSplittin(&
    associate(&
     ixStateType => indx_data%var(iLookINDEX%ixStateType)%dat, & ! intent(in): [i4b(:)] indices defining the type of the state
     ixHydCanopy => indx_data%var(iLookINDEX%ixHydCanopy)%dat, & ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the canopy domain
-    ixHydLayer  => indx_data%var(iLookINDEX%ixHydLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the layer domains
+    ixHydLayer  => indx_data%var(iLookINDEX%ixHydLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the layers
 
     ! modify the state type names associated with the state vector
     if (ixCoupling/=fullyCoupled .and. iStateTypeSplit==massSplit) then ! if modifying state variables for the mass split
@@ -750,7 +805,7 @@ subroutine opSplittin(&
    associate(&
     ixStateType => indx_data%var(iLookINDEX%ixStateType)%dat, & ! intent(in): [i4b(:)] indices defining the type of the state
     ixHydCanopy => indx_data%var(iLookINDEX%ixHydCanopy)%dat, & ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the canopy domain
-    ixHydLayer  => indx_data%var(iLookINDEX%ixHydLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the layer domains
+    ixHydLayer  => indx_data%var(iLookINDEX%ixHydLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the layers
 
     ! * reset state variables for the mass split...
     ! modify the state type names associated with the state vector
@@ -841,7 +896,7 @@ subroutine opSplittin(&
 
   ! **** indexSplit ****
   subroutine initialize_indexSplit
-   call in_indexSplit % initialize(nSnow,nLake,nSoil,nGlce,nLayers,nSubset)
+    call in_indexSplit % initialize(nSnow,nLake,nSoil,nGlce,nLayers,nSubset)
   end subroutine initialize_indexSplit
 
   subroutine finalize_indexSplit
@@ -1089,6 +1144,7 @@ subroutine opSplittin(&
       if (iVar==iLookFLUX%scalarPhotosynthesisSunlit) desiredFlux = .true.
       if (iVar==iLookFLUX%scalarPhotosynthesisShaded) desiredFlux = .true.
      end if
+
      fluxMask%var(iVar)%dat = desiredFlux
 
     else ! * identify flux mask for the split solution
@@ -1130,7 +1186,6 @@ subroutine opSplittin(&
 
          do iLayer=1,nLayers! loop through layers
           associate(ixLayerActive => indx_data%var(iLookINDEX%ixLayerActive)%dat) ! intent(in): [i4b(:)] indices for all active layers (inactive=integerMissing)
-
            if (ixLayerActive(iLayer)/=integerMissing) then
 
             ! get the offset (ixLayerActive=1,2,3,...nLayers, and soil vectors nSnow+nLake+1, nSnow+nLake+2, ..., nSnow+nLake+nSoil)
@@ -1201,6 +1256,12 @@ subroutine split_select_initialize_flags(split_select)
  split_select % solution=.false.
  split_select % stateSplit=.false.
 end subroutine split_select_initialize_flags
+
+subroutine split_select_advance_iSplit(split_select)
+ ! *** Advance index for coupling split method ***
+ class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
+ split_select % iSplit = split_select % iSplit + 1
+end subroutine split_select_advance_iSplit
 
 subroutine split_select_advance_ixCoupling(split_select)
  ! *** Advance index for coupling split method ***
@@ -1524,12 +1585,12 @@ contains
    err             => out_stateFilter % err      ,& ! intent(out): error code
    message         => out_stateFilter % cmessage  ) ! intent(out): error message
    select case(iDomainSplit)
-    case(vegSplit);  call stateTypeSplit_subDomain_nrgSplit_vegSplit_stateMask       ! vegetation subdomain
-    case(snowSplit); call stateTypeSplit_subDomain_nrgSplit_snowSplit_stateMask      ! snow subdomain
-    case(lakeSplit); call stateTypeSplit_subDomain_nrgSplit_lakeSplit_stateMask      ! lake subdomain
-    case(soilSplit); call stateTypeSplit_subDomain_nrgSplit_soilSplit_stateMask      ! soil subdomain
-    case(glceSplit); call stateTypeSplit_subDomain_nrgSplit_glceSplit_stateMask      ! glce subdomain
-    case(aquiferSplit) ! do nothing: no energy state variable for the aquifer domain ! aquifer subdomain 
+   case(vegSplit);  call stateTypeSplit_subDomain_nrgSplit_vegSplit_stateMask       ! vegetation subdomain
+   case(snowSplit); call stateTypeSplit_subDomain_nrgSplit_snowSplit_stateMask      ! snow subdomain
+   case(lakeSplit); call stateTypeSplit_subDomain_nrgSplit_lakeSplit_stateMask      ! lake subdomain
+   case(soilSplit); call stateTypeSplit_subDomain_nrgSplit_soilSplit_stateMask      ! soil subdomain
+   case(glceSplit); call stateTypeSplit_subDomain_nrgSplit_glceSplit_stateMask      ! glce subdomain
+   case(aquiferSplit) ! do nothing: no energy state variable for the aquifer domain ! aquifer subdomain 
     case default; err=20; message=trim(message)//'unable to identify model sub-domain'; return_flag=.true.; return
    end select
   end associate
@@ -1540,19 +1601,19 @@ contains
   associate(&
    ixNrgCanair => indx_data%var(iLookINDEX%ixNrgCanair)%dat,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in canopy air space domain
    ixNrgCanopy => indx_data%var(iLookINDEX%ixNrgCanopy)%dat,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the canopy domain
-   ixNrgLayer  => indx_data%var(iLookINDEX%ixNrgLayer)%dat  ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the snow+soil domain
+   ixNrgLayer  => indx_data%var(iLookINDEX%ixNrgLayer)%dat  ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the layers
      if (ixNrgCanair(1)/=integerMissing) split_select % stateMask(ixNrgCanair) = .true.  ! energy of the canopy air space
      if (ixNrgCanopy(1)/=integerMissing) split_select % stateMask(ixNrgCanopy) = .true.  ! energy of the vegetation canopy
-     split_select % stateMask(ixNrgLayer(1)) = .true.  ! energy of the upper-most layer in the snow+soil domain
+     split_select % stateMask(ixNrgLayer(1)) = .true.  ! energy of the upper-most layer in the layers
   end associate
  end subroutine stateTypeSplit_subDomain_nrgSplit_vegSplit_stateMask
 
  subroutine stateTypeSplit_subDomain_nrgSplit_snowSplit_stateMask
   associate(&
-   nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)    ,& ! intent(in): [i4b] number of snow layers
-   ixNrgLayer      => indx_data%var(iLookINDEX%ixNrgLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the layer domains
+   nSnow      => indx_data%var(iLookINDEX%nSnow)%dat(1)  ,& ! intent(in): [i4b] number of snow layers
+   ixNrgLayer => indx_data%var(iLookINDEX%ixNrgLayer)%dat ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the layers
   ! *** Get state type subdomain energy snow split ***
-   if (nSnow>1) split_select % stateMask(ixNrgLayer(2:nSnow)) = .true. ! NOTE: (2:) because the top layer in the snow+soil domain included in vegSplit
+   if (nSnow>1) split_select % stateMask(ixNrgLayer(2:nSnow)) = .true. ! NOTE: (2:) because the top layer in the layers included in vegSplit
   end associate
  end subroutine stateTypeSplit_subDomain_nrgSplit_snowSplit_stateMask
 
@@ -1619,7 +1680,7 @@ contains
   ! *** Get mass state snow subdomain split stateMask  ***
   associate(&
    nSnow      => indx_data%var(iLookINDEX%nSnow)%dat(1)  ,& ! intent(in): [i4b] number of snow layers
-   ixHydLayer => indx_data%var(iLookINDEX%ixHydLayer)%dat ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the snow+soil domain
+   ixHydLayer => indx_data%var(iLookINDEX%ixHydLayer)%dat ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the layers
    split_select % stateMask(ixHydLayer(1:nSnow)) = .true.  ! snow hydrology
   end associate
  end subroutine stateTypeSplit_subDomain_massSplit_snowSplit_stateMask
