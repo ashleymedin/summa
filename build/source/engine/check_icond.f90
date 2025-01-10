@@ -76,7 +76,7 @@ contains
                        gravity,   &                      ! gravitational acceleration           (m s-2)
                        Tfreeze                           ! freezing point of pure water         (K)
  USE snow_utils_module,only:fracliquid                   ! compute volumetric fraction of liquid water in snow based on temperature
- USE updatState_module,only:updateSnLaGl                   ! update snow states
+ USE updatState_module,only:updateSnLaGl                 ! update snow states
  USE updatState_module,only:updateSoil                   ! update soil states
  USE enthalpyTemp_module,only:T2enthTemp_cas             ! convert temperature to enthalpy for canopy air space
  USE enthalpyTemp_module,only:T2enthTemp_veg             ! convert temperature to enthalpy for vegetation
