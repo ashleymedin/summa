@@ -846,7 +846,7 @@ subroutine vegNrgFlux(&
             scalarSoilResistance = 0._rkind         
           else if (nSoil>0)then
             ! soil water evaporation factor [0-1]
-            soilEvapFactor = mLayerVolFracLiq(nSnow+1)/(theta_sat(1) - theta_res(1))
+            soilEvapFactor = mLayerVolFracLiq(nSnow+nLake+1)/(theta_sat(1) - theta_res(1))
             ! resistance from the soil [s m-1]
             scalarSoilResistance = scalarGroundSnowFraction*1._rkind + (1._rkind - scalarGroundSnowFraction)*EXP(8.25_rkind - 4.225_rkind*soilEvapFactor)  ! Sellers (1992)
             !scalarSoilResistance = scalarGroundSnowFraction*0._rkind + (1._rkind - scalarGroundSnowFraction)*exp(8.25_rkind - 6.0_rkind*soilEvapFactor)    ! Niu adjustment to decrease resistance for wet soil
