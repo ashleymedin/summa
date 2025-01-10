@@ -436,7 +436,7 @@ contains
     end associate
    
     ! check rooting depth, a depth that is greater than the total soil depth is meaningless
-    d1 = sum(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(nSnow+1:nLayers))
+    d1 = sum(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+1:nSnow+nLake+nSoil))
     d2 = mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%rootingDepth)%dat(1)
     if (d2>d1) then
      write(*,'(a,f5.3,a,f5.3,a)') 'Warning: rooting depth ', d2,' > total soil depth ',d1,', so rooting depth will be set to total soil depth'

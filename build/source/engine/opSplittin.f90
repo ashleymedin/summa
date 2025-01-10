@@ -1398,7 +1398,7 @@ subroutine split_select_compute_stateMask(split_select,indx_data,err,cmessage,me
   iStateSplit       => split_select % iStateSplit        )
   call in_stateFilter % initialize(ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iStateSplit)
  end associate
- call stateFilter(in_stateFilter,indx_data,split_select % stateMask,out_stateFilter)
+ call stateFilter(in_stateFilter,indx_data,split_select,out_stateFilter)
  associate(nSubset => split_select % nSubset)
   call out_stateFilter % finalize(nSubset,err,cmessage)
  end associate
@@ -1409,14 +1409,14 @@ end subroutine split_select_compute_stateMask
 ! **********************************************************************************************************
 ! private subroutine stateFilter: get a mask for the desired state variables
 ! **********************************************************************************************************
- subroutine stateFilter(in_stateFilter,indx_data,stateMask,out_stateFilter)
+ subroutine stateFilter(in_stateFilter,indx_data,split_select,out_stateFilter)
  USE indexState_module,only:indxSubset                               ! get state indices
  implicit none
  ! input
  type(in_type_stateFilter),intent(in)   :: in_stateFilter            ! indices
  type(var_ilength),intent(in)           :: indx_data                 ! indices for a local HRU
  ! input-output
- logical(lgt),intent(inout)             :: stateMask(:)              ! mask defining desired state variables
+ type(split_select_type),intent(inout)  :: split_select              ! class object for operator splitting selector
  ! output
  type(out_type_stateFilter),intent(out) :: out_stateFilter           ! number of selected state variables for a given split and error control
  ! local
@@ -1452,14 +1452,14 @@ end subroutine split_select_compute_stateMask
 
  ! get the number of selected state variables
  associate(nSubset => out_stateFilter % nSubset) ! intent(out): number of selected state variables for a given split
-  nSubset = count(stateMask)
+  nSubset = count(split_select % stateMask)
  end associate
 
 contains
 
  subroutine fullyCoupled_stateMask
   ! *** Get fully coupled stateMask ***
-  stateMask(:) = .true. ! use all state variables
+  split_select % stateMask(:) = .true. ! use all state variables
  end subroutine fullyCoupled_stateMask
 
  subroutine stateTypeSplit_stateMask
@@ -1499,14 +1499,15 @@ contains
  subroutine stateTypeSplit_fullDomain_nrgSplit_stateMask
   ! *** Get state type full domain energy split stateMask ***
   associate(ixStateType     => indx_data%var(iLookINDEX%ixStateType)%dat) ! intent(in): [i4b(:)] indices defining the type of the state (ixNrgState...)
-   stateMask = (ixStateType==iname_nrgCanair .or. ixStateType==iname_nrgCanopy .or. ixStateType==iname_nrgLayer)
+   split_select % stateMask = (ixStateType==iname_nrgCanair .or. ixStateType==iname_nrgCanopy .or. ixStateType==iname_nrgLayer)
   end associate
  end subroutine stateTypeSplit_fullDomain_nrgSplit_stateMask
 
  subroutine stateTypeSplit_fullDomain_massSplit_stateMask
   ! *** Get state type full domain mass split stateMask ***
   associate(ixStateType     => indx_data%var(iLookINDEX%ixStateType)%dat) ! intent(in): [i4b(:)] indices defining the type of the state (ixNrgState...)
-   stateMask = (ixStateType==iname_liqCanopy .or. ixStateType==iname_liqLayer  .or. ixStateType==iname_lmpLayer .or. ixStateType==iname_watAquifer)
+   split_select % stateMask = (ixStateType==iname_liqCanopy .or. ixStateType==iname_liqLayer  .or. &
+                            &  ixStateType==iname_lmpLayer  .or. ixStateType==iname_watAquifer)
   end associate
  end subroutine stateTypeSplit_fullDomain_massSplit_stateMask
 
@@ -1518,13 +1519,12 @@ contains
             iStateTypeSplit => in_stateFilter % iStateTypeSplit          ,& ! intent(in): [i4b] index of the state type split
             err             => out_stateFilter % err                     ,& ! intent(out): error code
             message         => out_stateFilter % cmessage                 ) ! intent(out): error message
-   stateMask(:)=.false. ! initialize state mask
+   split_select % stateMask(:)=.false. ! initialize state mask
    select case(iStateTypeSplit)
     ! define mask for energy
     case(nrgSplit); call stateTypeSplit_subDomain_nrgSplit_stateMask; if (return_flag) return
     ! define mask for water
     case(massSplit); call stateTypeSplit_subDomain_massSplit_stateMask; if (return_flag) return
-
     ! check
     case default; err=20; message=trim(message)//'unable to identify the state type'; return_flag=.true.; return
    end select  ! (split based on state type)
@@ -1555,10 +1555,10 @@ contains
   associate(&
    ixNrgCanair     => indx_data%var(iLookINDEX%ixNrgCanair)%dat ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in canopy air space domain
    ixNrgCanopy     => indx_data%var(iLookINDEX%ixNrgCanopy)%dat ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the canopy domain
-   ixNrgLayer      => indx_data%var(iLookINDEX%ixNrgLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the layer domains
-   if (ixNrgCanair(1)/=integerMissing) stateMask(ixNrgCanair) = .true.  ! energy of the canopy air space
-   if (ixNrgCanopy(1)/=integerMissing) stateMask(ixNrgCanopy) = .true.  ! energy of the vegetation canopy
-   stateMask(ixNrgLayer(1)) = .true.  ! energy of the upper-most layer in the layer domain
+   ixNrgLayer      => indx_data%var(iLookINDEX%ixNrgLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the snow+soil domain
+     if (ixNrgCanair(1)/=integerMissing) split_select % stateMask(ixNrgCanair) = .true.  ! energy of the canopy air space
+     if (ixNrgCanopy(1)/=integerMissing) split_select % stateMask(ixNrgCanopy) = .true.  ! energy of the vegetation canopy
+     split_select % stateMask(ixNrgLayer(1)) = .true.  ! energy of the upper-most layer in the snow+soil domain
   end associate
  end subroutine stateTypeSplit_subDomain_nrgSplit_vegSplit_stateMask
 
@@ -1567,7 +1567,7 @@ contains
    nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)    ,& ! intent(in): [i4b] number of snow layers
    ixNrgLayer      => indx_data%var(iLookINDEX%ixNrgLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the layer domains
   ! *** Get state type subdomain energy snow split ***
-   if (nSnow>1) stateMask(ixNrgLayer(2:nSnow)) = .true.    ! NOTE: (2:) because the top layer in the layer domain included in vegSplit
+   if (nSnow>1) split_select % stateMask(ixNrgLayer(2:nSnow)) = .true. ! NOTE: (2:) because the top layer in the snow+soil domain included in vegSplit
   end associate
  end subroutine stateTypeSplit_subDomain_nrgSplit_snowSplit_stateMask
 
@@ -1577,7 +1577,7 @@ contains
    nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)    ,& ! intent(in): [i4b] number of snow layers
    nLake           => indx_data%var(iLookINDEX%nLake)%dat(1)    ,& ! intent(in): [i4b] number of lake layers
    ixNrgLayer      => indx_data%var(iLookINDEX%ixNrgLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the layer domain
-   stateMask(ixNrgLayer(max(2,nSnow+1):nSnow+nLake)) = .true. ! NOTE: (2:) because the top layer in the layer domain included in vegSplit
+   split_select % stateMask(ixNrgLayer(max(2,nSnow+1):nSnow+nLake)) = .true. ! NOTE: (2:) because the top layer in the layer domain included in vegSplit
   end associate
  end subroutine stateTypeSplit_subDomain_nrgSplit_lakeSplit_stateMask
 
@@ -1588,7 +1588,7 @@ contains
    nLake           => indx_data%var(iLookINDEX%nLake)%dat(1)    ,& ! intent(in): [i4b] number of lake layers
    nSoil           => indx_data%var(iLookINDEX%nSoil)%dat(1)    ,& ! intent(in): [i4b] number of soil layers
    ixNrgLayer      => indx_data%var(iLookINDEX%ixNrgLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the layer domain
-   stateMask(ixNrgLayer(max(2,nSnow+nLake+1):nSnow+nLake+nSoil)) = .true. ! NOTE: (2:) because the top layer in the layer domain included in vegSplit
+   split_select % stateMask(ixNrgLayer(max(2,nSnow+nLake+1):nSnow+nLake+nSoil)) = .true. ! NOTE: (2:) because the top layer in the layer domain included in vegSplit
   end associate
  end subroutine stateTypeSplit_subDomain_nrgSplit_soilSplit_stateMask
 
@@ -1600,7 +1600,7 @@ contains
    nSoil           => indx_data%var(iLookINDEX%nSoil)%dat(1)    ,& ! intent(in): [i4b] number of soil layers
    nGlce           => indx_data%var(iLookINDEX%nGlce)%dat(1)    ,& ! intent(in): [i4b] number of glacier ice layers
    ixNrgLayer      => indx_data%var(iLookINDEX%ixNrgLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the layer domain
-   stateMask(ixNrgLayer(max(2,nSnow+nLake+nSoil+1):nSnow+nLake+nSoil+nGlce)) = .true. ! NOTE: (2:) because the top layer in the layer domain included in vegSplit
+   split_select % stateMask(ixNrgLayer(max(2,nSnow+nLake+nSoil+1):nSnow+nLake+nSoil+nGlce)) = .true. ! NOTE: (2:) because the top layer in the layer domain included in vegSplit
   end associate
  end subroutine stateTypeSplit_subDomain_nrgSplit_glceSplit_stateMask
 
@@ -1626,7 +1626,7 @@ contains
  subroutine stateTypeSplit_subDomain_massSplit_vegSplit_stateMask
   ! *** Get mass state vegetation subdomain split stateMask  ***
   associate(ixHydCanopy => indx_data%var(iLookINDEX%ixHydCanopy)%dat) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the canopy domain
-   if (ixHydCanopy(1)/=integerMissing) stateMask(ixHydCanopy) = .true.  ! hydrology of the vegetation canopy
+   if (ixHydCanopy(1)/=integerMissing) split_select % stateMask(ixHydCanopy) = .true. ! hydrology of the vegetation canopy
   end associate
  end subroutine stateTypeSplit_subDomain_massSplit_vegSplit_stateMask
 
@@ -1634,8 +1634,8 @@ contains
   ! *** Get mass state snow subdomain split stateMask  ***
   associate(&
    nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)    ,& ! intent(in): [i4b] number of snow layers
-   ixHydLayer      => indx_data%var(iLookINDEX%ixHydLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the layer domain
-   stateMask(ixHydLayer(1:nSnow)) = .true.  ! snow hydrology
+   ixHydLayer      => indx_data%var(iLookINDEX%ixHydLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the snow+soil domain
+   split_select % stateMask(ixHydLayer(1:nSnow)) = .true.  ! snow hydrology
   end associate
  end subroutine stateTypeSplit_subDomain_massSplit_snowSplit_stateMask
 
@@ -1645,7 +1645,7 @@ contains
    nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)    ,& ! intent(in): [i4b] number of snow layers
    nLake           => indx_data%var(iLookINDEX%nLake)%dat(1)    ,& ! intent(in): [i4b] number of lake layers
    ixHydLayer      => indx_data%var(iLookINDEX%ixHydLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the layer domain
-   stateMask(ixHydLayer(nSnow+1:nSnow+nLake)) = .true.  ! lake hydrology
+   split_select % stateMask(ixHydLayer(nSnow+1:nSnow+nLake)) = .true.  ! lake hydrology
   end associate
  end subroutine stateTypeSplit_subDomain_massSplit_lakeSplit_stateMask
 
@@ -1656,7 +1656,7 @@ contains
    nLake           => indx_data%var(iLookINDEX%nLake)%dat(1)    ,& ! intent(in): [i4b] number of lake layers
    nSoil           => indx_data%var(iLookINDEX%nSoil)%dat(1)    ,& ! intent(in): [i4b] number of soil layers
    ixHydLayer      => indx_data%var(iLookINDEX%ixHydLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the layer domain
-   stateMask(ixHydLayer(nSnow+nLake+1:nSnow+nLake+nSoil)) = .true.  ! soil hydrology
+   split_select % stateMask(ixHydLayer(nSnow+nLake+1:nSnow+nLake+nSoil)) = .true.  ! soil hydrology
   end associate
  end subroutine stateTypeSplit_subDomain_massSplit_soilSplit_stateMask
 
@@ -1668,14 +1668,14 @@ contains
    nSoil           => indx_data%var(iLookINDEX%nSoil)%dat(1)    ,& ! intent(in): [i4b] number of soil layers
    nGlce           => indx_data%var(iLookINDEX%nGlce)%dat(1)    ,& ! intent(in): [i4b] number of glacier ice layers
    ixHydLayer      => indx_data%var(iLookINDEX%ixHydLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the lake domain
-   stateMask(ixHydLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce)) = .true.  ! soil hydrology
+   split_select % stateMask(ixHydLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce)) = .true.  ! soil hydrology
   end associate
  end subroutine stateTypeSplit_subDomain_massSplit_glceSplit_stateMask
 
  subroutine stateTypeSplit_subDomain_massSplit_aquiferSplit_stateMask
   ! *** Get mass state aquifer subdomain split stateMask  ***
   associate(ixWatAquifer => indx_data%var(iLookINDEX%ixWatAquifer)%dat) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for water storage in the aquifer
-   if (ixWatAquifer(1)/=integerMissing) stateMask(ixWatAquifer) = .true.  ! aquifer storage
+   if (ixWatAquifer(1)/=integerMissing) split_select % stateMask(ixWatAquifer) = .true. ! aquifer storage
   end associate
  end subroutine stateTypeSplit_subDomain_massSplit_aquiferSplit_stateMask
 
@@ -1689,13 +1689,13 @@ contains
             message     => out_stateFilter % cmessage                ) ! intent(out): error message
    if (ixSolution==scalar) then
     ! get the subset of indices
-    call indxSubset(ixSubset, ixAllState, stateMask, err, cmessage)
+    call indxSubset(ixSubset, ixAllState, split_select % stateMask, err, cmessage)
     if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
     ! get the mask
-    stateMask(:) = .false.
-    stateMask( ixSubset(iStateSplit) ) = .true.
+    split_select % stateMask(:) = .false.
+    split_select % stateMask( ixSubset(iStateSplit) ) = .true.
     ! check
-    if (count(stateMask)/=1) then
+    if (count(split_select % stateMask)/=1) then
      message=trim(message)//'expect size=1 (scalar)'
      err=20; return_flag=.true.; return
     end if
