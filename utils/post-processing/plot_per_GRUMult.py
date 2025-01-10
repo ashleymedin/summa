@@ -76,7 +76,7 @@ nbatch_hrus = 518 # number of HRUs per batch
 if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
 if more_mean: # extra vars in a balance file
-    plt_titl_exVar = ['rain plus melt into soil','top 4m soil temperature','air temperature','snow water equivalent']
+    plt_titl_exVar = ['rain plus melt into soil','top 3m soil temperature','air temperature','snow water equivalent']
     plot_vars_exVar = ['scalarRainPlusMelt','scalarRootZoneTemp','airtemp','scalarSWE']
     #plot_vars_exVar = ['balanceAqMass','balanceSoilNrg','balanceSoilMass','balanceVegMass']
     viz_file_exVar = 'exVar_hrly_diff_bals_balance.nc'
@@ -88,7 +88,7 @@ if more_mean: # extra vars in a balance file
 
 # Specify variables in files
 plot_vars = settings.copy() + ['scalarSWE']
-plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','top 4m soil temperature','melt with seasonal snow']
+plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','top 3m soil temperature','melt with seasonal snow']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$K$','$kg~m^{-2}$']
 calc = [0,0,0,0,0,0,1] # 1 if variable needs to be calculated from other variables
 melt_thresh = 1/(0.75) # threshold for melt water calculation (divisor is percentage of year no snow, if only melts once)

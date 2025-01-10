@@ -515,7 +515,7 @@ if do_vars:
         rep = [int(val+_) for val in rep for _ in range(len(use_meth))]
              
     plot_vars = settings
-    plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','top 4m soil temperature']
+    plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','top 3m soil temperature']
     leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$mm~s^{-1}$']
     leg_titl0 = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$mm~s^{-1}$']
     leg_titlm= ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~h^{-1}$','$kg~m^{-2}$','$mm~s^{-1}$']

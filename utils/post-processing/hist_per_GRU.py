@@ -90,7 +90,7 @@ for i, m in enumerate(method_name2):
 
 # Specify variables of interest
 plot_vars = settings.copy()
-plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','top 4m soil temperature']
+plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','top 3m soil temperature']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~y^{-1}$','$kg~m^{-2}$','$K$']
 if (len(use_vars)+len(use_vars2)>1): 
     plt_titl = [f"({chr(97+n)}) {plt_titl[i]}" for n,i in enumerate(use_vars)]
