@@ -1214,10 +1214,10 @@ subroutine opSplittin(&
             ! add hydrology states for scalar variables
             if (iStateTypeSplit==massSplit .and. flux_meta(iVar)%vartype==iLookVarType%scalarv) then
              select case(iDomainSplit)
-              case(snowSplit); if(iLayer==nSnow)                                 fluxMask%var(iVar)%dat = desiredFlux
-              case(lakeSplit); if(iLayer==nSnow+nLake .and. nLake>0)             fluxMask%var(iVar)%dat = desiredFlux
-              case(soilSplit); if(iLayer==nSnow+nLake+nSoil .and. nSoil>0)       fluxMask%var(iVar)%dat = desiredFlux
-              case(glceSplit); if(iLayer==nSnow+nLake+nSoil+nGlce .and. nGlce>0) fluxMask%var(iVar)%dat = desiredFlux
+              case(snowSplit); if(iLayer==nSnow)                             fluxMask%var(iVar)%dat = desiredFlux
+              case(lakeSplit); if(iLayer==nSnow+1 .and. nLake>0)             fluxMask%var(iVar)%dat = desiredFlux
+              case(soilSplit); if(iLayer==nSnow+nLake+1 .and. nSoil>0)       fluxMask%var(iVar)%dat = desiredFlux
+              case(glceSplit); if(iLayer==nSnow+nLake+nSoil+1 .and. nGlce>0) fluxMask%var(iVar)%dat = desiredFlux
              end select
             end if  ! if hydrology split and scalar
 
