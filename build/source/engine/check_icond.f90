@@ -262,185 +262,185 @@ contains
     FCapil               => mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%FCapil)%dat(1)               & ! fraction of pore space in tension storage (-)
     )  ! (associate local variables with model parameters)
 
-    ! compute the constant in the freezing curve function (m K-1)
-    kappa  = (iden_ice/iden_water)*(LH_fus/(gravity*Tfreeze))  ! NOTE: J = kg m2 s-2
+     ! compute the constant in the freezing curve function (m K-1)
+     kappa  = (iden_ice/iden_water)*(LH_fus/(gravity*Tfreeze))  ! NOTE: J = kg m2 s-2
 
-    ! check canopy ice content for unrealistic situations
-    if(scalarCanopyIce > canIceTol .and. scalarCanopyTemp > Tfreeze)then
-     ! ice content > threshold, terminate run
-     write(message,'(A,E22.16,A,E9.3,A,F7.3,A,F7.3,A)') trim(message)//'canopy ice (=',scalarCanopyIce,') > canIceTol (=',canIceTol,') when canopy temperature (=',scalarCanopyTemp,') > Tfreeze (=',Tfreeze,')'
-     err=20; return
-    else if(scalarCanopyIce > 0._rkind .and. scalarCanopyTemp > Tfreeze)then
-     ! if here, ice content < threshold. Could be sublimation on previous timestep or simply wrong input. Print a warning
-     write(*,'(A,E22.16,A,F7.3,A,F7.3,A)') 'WARNING: canopy ice content in restart file (=',scalarCanopyIce,') > 0 when canopy temperature (=',scalarCanopyTemp,') > Tfreeze (=',Tfreeze,'). Continuing.',NEW_LINE('a')
-    end if
-    scalarTheta = scalarCanopyIce + scalarCanopyLiq
+     ! check canopy ice content for unrealistic situations
+     if(scalarCanopyIce > canIceTol .and. scalarCanopyTemp > Tfreeze)then
+      ! ice content > threshold, terminate run
+      write(message,'(A,E22.16,A,E9.3,A,F7.3,A,F7.3,A)') trim(message)//'canopy ice (=',scalarCanopyIce,') > canIceTol (=',canIceTol,') when canopy temperature (=',scalarCanopyTemp,') > Tfreeze (=',Tfreeze,')'
+      err=20; return
+     else if(scalarCanopyIce > 0._rkind .and. scalarCanopyTemp > Tfreeze)then
+      ! if here, ice content < threshold. Could be sublimation on previous timestep or simply wrong input. Print a warning
+      write(*,'(A,E22.16,A,F7.3,A,F7.3,A)') 'WARNING: canopy ice content in restart file (=',scalarCanopyIce,') > 0 when canopy temperature (=',scalarCanopyTemp,') > Tfreeze (=',Tfreeze,'). Continuing.',NEW_LINE('a')
+     end if
+     scalarTheta = scalarCanopyIce + scalarCanopyLiq
 
-    if(checkEnthalpy)then ! enthalpy as state variable or in residual
-      if(no_icond_enth)then ! no enthalpy in icond file
-        call T2enthTemp_cas(&
-                   scalarCanairTemp,       & ! intent(in): canopy air temperature (K)
-                   scalarCanairEnthalpy)     ! intent(out): enthalpy of the canopy air space (J m-3)
+     if(checkEnthalpy)then ! enthalpy as state variable or in residual
+       if(no_icond_enth)then ! no enthalpy in icond file
+         call T2enthTemp_cas(&
+                    scalarCanairTemp,       & ! intent(in): canopy air temperature (K)
+                    scalarCanairEnthalpy)     ! intent(out): enthalpy of the canopy air space (J m-3)
  
-        call T2enthTemp_veg(&
-                   (heightCanopyTop-heightCanopyBottom), & ! intent(in): canopy depth (m)
-                   specificHeatVeg,        & ! intent(in): specific heat of vegetation (J kg-1 K-1)
-                   maxMassVegetation,      & ! intent(in): maximum mass of vegetation (kg m-2)
-                   snowfrz_scale,          & ! intent(in): scaling parameter for the snow freezing curve  (K-1)
-                   scalarCanopyTemp,       & ! intent(in): canopy temperature (K)
-                   scalarTheta,            & ! intent(in): canopy water content (kg m-2)
-                   scalarCanopyEnthTemp)     ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
-        scalarCanopyEnthalpy = scalarCanopyEnthTemp - LH_fus * scalarCanopyIce/ (heightCanopyTop-heightCanopyBottom)
-      else ! enthalpy is in the icond file
-        scalarCanopyEnthTemp = scalarCanopyEnthalpy + LH_fus * scalarCanopyIce/ (heightCanopyTop-heightCanopyBottom)
-      end if    
-    end if
+         call T2enthTemp_veg(&
+                    (heightCanopyTop-heightCanopyBottom), & ! intent(in): canopy depth (m)
+                    specificHeatVeg,        & ! intent(in): specific heat of vegetation (J kg-1 K-1)
+                    maxMassVegetation,      & ! intent(in): maximum mass of vegetation (kg m-2)
+                    snowfrz_scale,          & ! intent(in): scaling parameter for the snow freezing curve  (K-1)
+                    scalarCanopyTemp,       & ! intent(in): canopy temperature (K)
+                    scalarTheta,            & ! intent(in): canopy water content (kg m-2)
+                    scalarCanopyEnthTemp)     ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
+         scalarCanopyEnthalpy = scalarCanopyEnthTemp - LH_fus * scalarCanopyIce/ (heightCanopyTop-heightCanopyBottom)
+       else ! enthalpy is in the icond file
+         scalarCanopyEnthTemp = scalarCanopyEnthalpy + LH_fus * scalarCanopyIce/ (heightCanopyTop-heightCanopyBottom)
+       end if    
+     end if
 
-    ! number of layers
-    nSnow   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
-    nLake   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake
-    nSoil   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
-    nGlce   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce
-    nLayers = nSnow + nLake + nSoil + nGlce
+     ! number of layers
+     nSnow   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
+     nLake   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake
+     nSoil   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
+     nGlce   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce
+     nLayers = nSnow + nLake + nSoil + nGlce
 
-    ! loop through all layers
-    do iLayer=1,nLayers
+     ! loop through all layers
+     do iLayer=1,nLayers
 
-     ! *****
-     ! * check that the initial volumetric fraction of liquid water and ice is reasonable...
-     ! *************************************************************************************
-     select case(layerType(iLayer))
+      ! *****
+      ! * check that the initial volumetric fraction of liquid water and ice is reasonable...
+      ! *************************************************************************************
+      select case(layerType(iLayer))
 
-      ! ***** snow, ice, lake, volume expansion allowed
-      case(iname_snow, iname_lake, iname_glce)
-       iSoil       = integerMissing
-       vGn_m       = realMissing
-       scalarTheta = mLayerVolFracIce(iLayer)*(iden_ice/iden_water) + mLayerVolFracLiq(iLayer)
-       ! (check liquid water)
-       if(mLayerVolFracLiq(iLayer) < 0._rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water < 0: layer = ',iLayer; err=20; return; end if
-       if(mLayerVolFracLiq(iLayer) > 1._rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water > 1: layer = ',iLayer; err=20; return; end if
-       ! (check ice)
-       if (layerType(iLayer)==iname_snow) then
-         if(mLayerVolFracIce(iLayer) > 0.80_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice > 0.80: layer = ',iLayer; err=20; return; end if
-         if(scalarTheta > 0.80_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] > 0.80: layer = '    ,iLayer; err=20; return; end if
-       else ! glacier ice or lake (could be all ice)
-         if(mLayerVolFracIce(iLayer) > 1._rkind  )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice > 1: layer = ',iLayer; err=20; return; end if
-         if(scalarTheta > 1._rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] > 1: layer = '      ,iLayer; err=20; return; end if
-       end if
-       if (layerType(iLayer)==iname_lake) then ! lake could be all liquid
-         if(mLayerVolFracIce(iLayer) < 0._rkind  )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0: layer = '   ,iLayer; err=20; return; end if
-       else if (layerType(iLayer)==iname_glce) then ! glacier ice should be mostly ice
-         if(mLayerVolFracIce(iLayer) < 0.80_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0.80: layer = ',iLayer; err=20; return; end if
-       else if (layerType(iLayer)==iname_snow) then ! 
-         if(mLayerVolFracIce(iLayer) < 0.05_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0.05: layer = ',iLayer; err=20; return; end if
-       end if
-       ! check total water
-       if(scalarTheta < 0.05_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] < 0.05: layer = ',iLayer; err=20; return; end if
+       ! ***** snow, ice, lake, volume expansion allowed
+       case(iname_snow, iname_lake, iname_glce)
+        iSoil       = integerMissing
+        vGn_m       = realMissing
+        scalarTheta = mLayerVolFracIce(iLayer)*(iden_ice/iden_water) + mLayerVolFracLiq(iLayer)
+        ! (check liquid water)
+        if(mLayerVolFracLiq(iLayer) < 0._rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water < 0: layer = ',iLayer; err=20; return; end if
+        if(mLayerVolFracLiq(iLayer) > 1._rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water > 1: layer = ',iLayer; err=20; return; end if
+        ! (check ice)
+        if (layerType(iLayer)==iname_snow) then
+          if(mLayerVolFracIce(iLayer) > 0.80_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice > 0.80: layer = ',iLayer; err=20; return; end if
+          if(scalarTheta > 0.80_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] > 0.80: layer = '    ,iLayer; err=20; return; end if
+        else ! glacier ice or lake (could be all ice)
+          if(mLayerVolFracIce(iLayer) > 1._rkind  )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice > 1: layer = ',iLayer; err=20; return; end if
+          if(scalarTheta > 1._rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] > 1: layer = '      ,iLayer; err=20; return; end if
+        end if
+        if (layerType(iLayer)==iname_lake) then ! lake could be all liquid
+          if(mLayerVolFracIce(iLayer) < 0._rkind  )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0: layer = '   ,iLayer; err=20; return; end if
+        else if (layerType(iLayer)==iname_glce) then ! glacier ice should be mostly ice
+          if(mLayerVolFracIce(iLayer) < 0.80_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0.80: layer = ',iLayer; err=20; return; end if
+        else if (layerType(iLayer)==iname_snow) then ! 
+          if(mLayerVolFracIce(iLayer) < 0.05_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0.05: layer = ',iLayer; err=20; return; end if
+        end if
+        ! check total water
+        if(scalarTheta < 0.05_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] < 0.05: layer = ',iLayer; err=20; return; end if
 
-      ! ***** soil, no volume expansion
-      case(iname_soil)
-       iSoil       = iLayer - nSnow - nLake
-       vGn_m       = 1._rkind - 1._rkind/vGn_n(iSoil)
-       scalarTheta = mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)
-       ! (check liquid water)
-       if(mLayerVolFracLiq(iLayer) < theta_res(iSoil)-xTol)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water < theta_res: layer = ',iLayer; err=20; return; end if
-       if(mLayerVolFracLiq(iLayer) > theta_sat(iSoil)+xTol)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water > theta_sat: layer = ',iLayer; err=20; return; end if
-       ! (check ice)
-       if(mLayerVolFracIce(iLayer) < 0._rkind             )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0: layer = '        ,iLayer; err=20; return; end if
-       if(mLayerVolFracIce(iLayer) > theta_sat(iSoil)+xTol)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice > theta_sat: layer = ',iLayer; err=20; return; end if
-       ! check total water
-       if(scalarTheta < theta_res(iSoil)-xTol)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] < theta_res: layer = ',iLayer; err=20; return; end if
-       if(scalarTheta > theta_sat(iSoil)+xTol)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] > theta_sat: layer = ',iLayer; err=20; return; end if
+       ! ***** soil, no volume expansion
+       case(iname_soil)
+        iSoil       = iLayer - nSnow - nLake
+        vGn_m       = 1._rkind - 1._rkind/vGn_n(iSoil)
+        scalarTheta = mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)
+        ! (check liquid water)
+        if(mLayerVolFracLiq(iLayer) < theta_res(iSoil)-xTol)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water < theta_res: layer = ',iLayer; err=20; return; end if
+        if(mLayerVolFracLiq(iLayer) > theta_sat(iSoil)+xTol)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water > theta_sat: layer = ',iLayer; err=20; return; end if
+        ! (check ice)
+        if(mLayerVolFracIce(iLayer) < 0._rkind             )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0: layer = '        ,iLayer; err=20; return; end if
+        if(mLayerVolFracIce(iLayer) > theta_sat(iSoil)+xTol)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice > theta_sat: layer = ',iLayer; err=20; return; end if
+        ! check total water
+        if(scalarTheta < theta_res(iSoil)-xTol)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] < theta_res: layer = ',iLayer; err=20; return; end if
+        if(scalarTheta > theta_sat(iSoil)+xTol)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] > theta_sat: layer = ',iLayer; err=20; return; end if
 
-      case default
-       write(*,*) 'Cannot recognize case in initial vol water/ice check: type=', layerType(iLayer)
-       err=20; message=trim(message)//'cannot identify layer type'; return
-     end select
+       case default
+        write(*,*) 'Cannot recognize case in initial vol water/ice check: type=', layerType(iLayer)
+        err=20; message=trim(message)//'cannot identify layer type'; return
+      end select
 
-     ! *****
-     ! * check that the initial conditions are consistent with the constitutive functions...
-     ! *************************************************************************************
-     select case(layerType(iLayer))
+      ! *****
+      ! * check that the initial conditions are consistent with the constitutive functions...
+      ! *************************************************************************************
+      select case(layerType(iLayer))
 
-      ! ** snow, lake, ice
-      case(iname_snow, iname_lake, iname_glce)
+       ! ** snow, lake, ice
+       case(iname_snow, iname_lake, iname_glce)
 
-       ! check that snow temperature is less than freezing
-       if(mLayerTemp(iLayer) > Tfreeze)then
-        message=trim(message)//'initial snow temperature is greater than freezing'
-        err=20; return
-       end if
+        ! check that snow temperature is less than freezing
+        if(mLayerTemp(iLayer) > Tfreeze)then
+         message=trim(message)//'initial snow temperature is greater than freezing'
+         err=20; return
+        end if
+
+        ! ensure consistency among state variables
+        call updateSnLaGl(&
+                        mLayerTemp(iLayer),             & ! intent(in): temperature (K)
+                        scalarTheta,                    & ! intent(in): volumetric fraction of total water (-)
+                        snowfrz_scale,                  & ! intent(in): scaling parameter for the snow freezing curve (K-1)
+                        mLayerVolFracLiq(iLayer),       & ! intent(out): volumetric fraction of liquid water (-)
+                        mLayerVolFracIce(iLayer),       & ! intent(out): volumetric fraction of ice (-)
+                        fLiq,                           & ! intent(out): fraction of liquid water (-)
+                        err,cmessage)                     ! intent(out): error control
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+
+        if(checkEnthalpy)then ! enthalpy as state variable or in residual
+          if(no_icond_enth)then ! no enthalpy in icond file
+            call T2enthTemp_SnLaGl(&
+                        snowfrz_scale,                  & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
+                        mLayerTemp(iLayer),             & ! intent(in):  layer temperature (K)
+                        scalarTheta,                    & ! intent(in):  volumetric total water content (-)
+                        mLayerEnthTemp(iLayer))           ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
+            mLayerEnthalpy(iLayer) = mLayerEnthTemp(iLayer) - iden_ice * LH_fus * mLayerVolFracIce(iLayer)
+          else
+            mLayerEnthTemp(iLayer) = mLayerEnthalpy(iLayer) + iden_ice * LH_fus * mLayerVolFracIce(iLayer)
+          end if
+        endif
+
+       ! ** soil
+       case(iname_soil)
 
        ! ensure consistency among state variables
-       call updateSnLaGl(&
-                       mLayerTemp(iLayer),             & ! intent(in): temperature (K)
-                       scalarTheta,                    & ! intent(in): volumetric fraction of total water (-)
-                       snowfrz_scale,                  & ! intent(in): scaling parameter for the snow freezing curve (K-1)
-                       mLayerVolFracLiq(iLayer),       & ! intent(out): volumetric fraction of liquid water (-)
-                       mLayerVolFracIce(iLayer),       & ! intent(out): volumetric fraction of ice (-)
-                       fLiq,                           & ! intent(out): fraction of liquid water (-)
-                       err,cmessage)                     ! intent(out): error control
-       if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+        call updateSoil(&
+                       mLayerTemp(iLayer),              & ! intent(in): layer temperature (K)
+                       mLayerMatricHead(iLayer-nSnow-nLake),  & ! intent(in): matric head (m)
+                       vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m, & ! intent(in): van Genutchen soil parameters
+                       scalarTheta,                     & ! intent(out): volumetric fraction of total water (-)
+                       mLayerVolFracLiq(iLayer),        & ! intent(out): volumetric fraction of liquid water (-)
+                       mLayerVolFracIce(iLayer),        & ! intent(out): volumetric fraction of ice (-)
+                       err,cmessage)                      ! intent(out): error control
+        if(err/=0)then; message=trim(cmessage)//trim(cmessage); return; end if  ! (check for errors)
 
        if(checkEnthalpy)then ! enthalpy as state variable or in residual
          if(no_icond_enth)then ! no enthalpy in icond file
-           call T2enthTemp_SnLaGl(&
-                       snowfrz_scale,                  & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
-                       mLayerTemp(iLayer),             & ! intent(in):  layer temperature (K)
-                       scalarTheta,                    & ! intent(in):  volumetric total water content (-)
-                       mLayerEnthTemp(iLayer))           ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
-           mLayerEnthalpy(iLayer) = mLayerEnthTemp(iLayer) - iden_ice * LH_fus * mLayerVolFracIce(iLayer)
+           call T2enthTemp_soil(&
+                       use_lookup,                      & ! intent(in):  flag to use the lookup table for soil enthalpy
+                       soil_dens_intr(iSoil),           & ! intent(in):  intrinsic soil density (kg m-3)
+                       vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m, & ! intent(in): van Genutchen soil parameters
+                       iSoil,                           & ! intent(in):  index of the control volume within the domain
+                       lookupData%gru(iGRU)%hru(iHRU)%dom(iDOM),  & ! intent(in):  lookup table data structure
+                       realMissing,                     & ! intent(in):  lower value of integral (not computed)
+                       mLayerTemp(iLayer),              & ! intent(in):  layer temperature (K)
+                       mLayerMatricHead(iLayer-nSnow-nLake),  & ! intent(in):  matric head (m)
+                       mLayerEnthTemp(iLayer))            ! intent(out): temperature component of enthalpy soil layer (J m-3)
+           mLayerEnthalpy(iLayer) = mLayerEnthTemp(iLayer) - iden_water * LH_fus * mLayerVolFracIce(iLayer)
          else
-           mLayerEnthTemp(iLayer) = mLayerEnthalpy(iLayer) + iden_ice * LH_fus * mLayerVolFracIce(iLayer)
+           mLayerEnthTemp(iLayer) = mLayerEnthalpy(iLayer) + iden_water * LH_fus * mLayerVolFracIce(iLayer)
          end if
        endif
 
-      ! ** soil
-      case(iname_soil)
+       case default; err=10; message=trim(message)//'unknown case for model layer'; return
+      end select
 
-      ! ensure consistency among state variables
-       call updateSoil(&
-                      mLayerTemp(iLayer),              & ! intent(in): layer temperature (K)
-                      mLayerMatricHead(iLayer-nSnow-nLake),  & ! intent(in): matric head (m)
-                      vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m, & ! intent(in): van Genutchen soil parameters
-                      scalarTheta,                     & ! intent(out): volumetric fraction of total water (-)
-                      mLayerVolFracLiq(iLayer),        & ! intent(out): volumetric fraction of liquid water (-)
-                      mLayerVolFracIce(iLayer),        & ! intent(out): volumetric fraction of ice (-)
-                      err,cmessage)                      ! intent(out): error control
-       if(err/=0)then; message=trim(cmessage)//trim(cmessage); return; end if  ! (check for errors)
-
-      if(checkEnthalpy)then ! enthalpy as state variable or in residual
-        if(no_icond_enth)then ! no enthalpy in icond file
-          call T2enthTemp_soil(&
-                      use_lookup,                      & ! intent(in):  flag to use the lookup table for soil enthalpy
-                      soil_dens_intr(iSoil),           & ! intent(in):  intrinsic soil density (kg m-3)
-                      vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m, & ! intent(in): van Genutchen soil parameters
-                      iSoil,                           & ! intent(in):  index of the control volume within the domain
-                      lookupData%gru(iGRU)%hru(iHRU)%dom(iDOM),  & ! intent(in):  lookup table data structure
-                      realMissing,                     & ! intent(in):  lower value of integral (not computed)
-                      mLayerTemp(iLayer),              & ! intent(in):  layer temperature (K)
-                      mLayerMatricHead(iLayer-nSnow-nLake),  & ! intent(in):  matric head (m)
-                      mLayerEnthTemp(iLayer))            ! intent(out): temperature component of enthalpy soil layer (J m-3)
-          mLayerEnthalpy(iLayer) = mLayerEnthTemp(iLayer) - iden_water * LH_fus * mLayerVolFracIce(iLayer)
-        else
-          mLayerEnthTemp(iLayer) = mLayerEnthalpy(iLayer) + iden_water * LH_fus * mLayerVolFracIce(iLayer)
-        end if
-      endif
-
-      case default; err=10; message=trim(message)//'unknown case for model layer'; return
-     end select
-
-    end do  ! (looping through layers)
+     end do  ! (looping through layers)
     
-   ! end association to variables in the data structures
-   end associate
+    ! end association to variables in the data structures
+    end associate
    
-   ! check rooting depth, a depth that is greater than the total soil depth is meaningless
-   d1 = sum(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(nSnow+1:nLayers))
-   d2 = mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%rootingDepth)%dat(1)
-   if (d2>d1) then
-    write(*,'(a,f5.3,a,f5.3,a)') 'Warning: rooting depth ', d2,' > total soil depth ',d1,', so rooting depth will be set to total soil depth'
-   end if
+    ! check rooting depth, a depth that is greater than the total soil depth is meaningless
+    d1 = sum(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(nSnow+1:nLayers))
+    d2 = mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%rootingDepth)%dat(1)
+    if (d2>d1) then
+     write(*,'(a,f5.3,a,f5.3,a)') 'Warning: rooting depth ', d2,' > total soil depth ',d1,', so rooting depth will be set to total soil depth'
+    end if
 
     ! if snow layers exist, compute snow depth and SWE
     if(nSnow > 0)then
