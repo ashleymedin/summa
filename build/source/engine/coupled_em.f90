@@ -244,7 +244,6 @@ subroutine coupled_em(&
   type(var_dlength)                    :: diag_temp                ! temporary model diagnostic variables
   real(rkind),allocatable              :: mLayerVolFracIceInit(:)  ! initial vector for volumetric fraction of ice (-)
   logical(lgt)                         :: noVeg                    ! flag to denote that there is no vegetation (lake or glacier)
-  integer(i4b),parameter               :: zero=0                   ! zero value
   ! check SWE
   real(rkind)                          :: oldSWE                   ! SWE at the start of the substep
   real(rkind)                          :: delSWE                   ! change in SWE over the subtep
@@ -384,9 +383,9 @@ subroutine coupled_em(&
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
     ! allocate space for the local fluxes
-    call allocLocal(averageFlux_meta(:)%var_info,flux_mean,nSnow,nLake,nSoil,nGlce,zero,err,cmessage)
+    call allocLocal(averageFlux_meta(:)%var_info,flux_mean,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-    call allocLocal(averageFlux_meta(:)%var_info,flux_inner,nSnow,nLake,nSoil,nGlce,zero,err,cmessage)
+    call allocLocal(averageFlux_meta(:)%var_info,flux_inner,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
     ! initialize fluxes to average over data_step (averaged over substep in varSubStep)

@@ -254,7 +254,6 @@ subroutine summaSolve4ida(&
   real(c_double)                    :: hLast(1)                               ! step size used on the last internal step
   real(c_double)                    :: hCur(1)                                ! step size to be used on the next internal step
   real(c_double)                    :: tCur(1)                                ! current time reached by the integrator
-  integer(i4b),parameter            :: zero=0                                 ! zero value
   ! flags
   logical(lgt)                      :: use_fdJac                              ! flag to use finite difference Jacobian, controlled by decision fDerivMeth
   logical(lgt),parameter            :: offErrWarnMessage = .true.             ! flag to turn IDA warnings off, default true
@@ -326,7 +325,7 @@ subroutine summaSolve4ida(&
     allocate( eqns_data%dMat(nState) ); eqns_data%dMat = dMat
     
     ! allocate space for the to save previous fluxes
-    call allocLocal(flux_meta(:),flux_prev,nSnow,nLake,nSoil,nGlce,zero,err,cmessage)
+    call allocLocal(flux_meta(:),flux_prev,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
     
     ! allocate space for other variables

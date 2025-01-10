@@ -105,7 +105,6 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
   integer(i4b)                    :: nGlac          ! number of glaciers in GRU
   integer(i4b)                    :: nGrid          ! number of grids in GRU
   integer(i4b)                    :: iVar           ! loop index through variables
-  integer(i4b),parameter          :: zero=0         ! zero value
   character(len=256)              :: cmessage       ! error message of the downwind routine
   ! initialize error control
   err=0; message='allocGlobal/'
@@ -209,8 +208,8 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
         select type(dataStruct)
           class is (gru_hru_dom_int);       call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlacier=0,err=err,message=cmessage); spatial=.true.
           class is (gru_hru_dom_int8);      call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlacier=0,err=err,message=cmessage); spatial=.true.
-          class is (gru_hru_dom_intVec);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow,nLake,nSoil,nGlce,zero,err,cmessage); spatial=.true.
-          class is (gru_hru_dom_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow,nLake,nSoil,nGlce,zero,err,cmessage); spatial=.true.
+          class is (gru_hru_dom_intVec);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage); spatial=.true.
+          class is (gru_hru_dom_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage); spatial=.true.
           class is (gru_hru_dom_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlacier=0,err=err,message=cmessage); spatial=.true.
           class is (gru_hru_dom_z_vLookup); spatial=.true. ! (special case, allocate space separately later)
           class default
