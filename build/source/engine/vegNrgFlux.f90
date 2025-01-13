@@ -184,7 +184,7 @@ subroutine vegNrgFlux(&
   real(rkind)                        :: scaleLAI                        ! scaled LAI (computing diffuse transmissivity)
   real(rkind)                        :: diffuseTrans                    ! diffuse transmissivity (-)
   real(rkind)                        :: groundEmissivity                ! emissivity of the ground surface (-)
-  logical(lgt)                       :: emiss_bkwd_compatible=false      ! flag to indicate if emissivity is backwards compatible to previous SUMMA versions (vegEmissivity=0.98, soilEmissivity=0.98)
+  logical(lgt),parameter             :: emiss_bkwd_compatible=.false.   ! flag to indicate if emissivity is backwards compatible to previous SUMMA versions (vegEmissivity=0.98, soilEmissivity=0.98)
   real(rkind),parameter              :: vegEmissivity=0.97_rkind        ! emissivity of vegetation (-)
   real(rkind),parameter              :: soilEmissivity=0.96_rkind       ! emmisivity of the soil (-)
   real(rkind),parameter              :: watEmissivity=0.98_rkind        ! emissivity of unfrozen water (-)
