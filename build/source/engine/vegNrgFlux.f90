@@ -184,6 +184,7 @@ subroutine vegNrgFlux(&
   real(rkind)                        :: scaleLAI                        ! scaled LAI (computing diffuse transmissivity)
   real(rkind)                        :: diffuseTrans                    ! diffuse transmissivity (-)
   real(rkind)                        :: groundEmissivity                ! emissivity of the ground surface (-)
+  logical(lgt)                       :: emiss_bkwd_compatible=false      ! flag to indicate if emissivity is backwards compatible to previous SUMMA versions (vegEmissivity=0.98, soilEmissivity=0.98)
   real(rkind),parameter              :: vegEmissivity=0.97_rkind        ! emissivity of vegetation (-)
   real(rkind),parameter              :: soilEmissivity=0.96_rkind       ! emmisivity of the soil (-)
   real(rkind),parameter              :: watEmissivity=0.98_rkind        ! emissivity of unfrozen water (-)
@@ -608,7 +609,11 @@ subroutine vegNrgFlux(&
               scaleLAI = 0.5_rkind*exposedVAI
               expi     = expInt(scaleLAI)     ! compute the exponential integral
               diffuseTrans = (1._rkind - scaleLAI)*exp(-scaleLAI) + (scaleLAI**2_i4b)*expi ! compute diffuse transmissivity (-)
-              scalarCanopyEmissivity = (1._rkind - diffuseTrans)*vegEmissivity ! compute the canopy emissivity
+              if (emiss_bkwd_compatible)then
+                scalarCanopyEmissivity = (1._rkind - diffuseTrans)*0.98_rkind ! compute the canopy emissivity
+              else
+                scalarCanopyEmissivity = (1._rkind - diffuseTrans)*vegEmissivity ! compute the canopy emissivity
+              endif
             case default
               err=20; message=trim(message)//'unable to identify option for canopy emissivity'; return
           end select
@@ -622,7 +627,11 @@ subroutine vegNrgFlux(&
           if (groundTempTrial> Tfreeze) groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._rkind - scalarGroundSnowFraction)*watEmissivity
           if (groundTempTrial<=Tfreeze) groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._rkind - scalarGroundSnowFraction)*iceEmissivity
         else if (nSoil>0)then
-          groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._rkind - scalarGroundSnowFraction)*soilEmissivity
+          if (emiss_bkwd_compatible)then
+            groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._rkind - scalarGroundSnowFraction)*soilEmissivity
+          else
+            groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._rkind - scalarGroundSnowFraction)*0.98_rkind
+          endif
         else if (nGlce>0)then
           groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._rkind - scalarGroundSnowFraction)*iceEmissivity
         end if
