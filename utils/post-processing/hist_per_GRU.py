@@ -8,7 +8,7 @@
 # SUMMA simulations have been preprocessed into single value statistics per model element, using auxiliary scripts in ~/utils
 # Run:
 # python hist_per_GRU.py [stat]
-# where stat is rmse or maxe or kgem
+# where stat is rmse or maxe or kgem or rmnz or avge
 
 # modules
 import os
@@ -20,14 +20,14 @@ import matplotlib.pyplot as plt
 import copy
 import pandas as pd
 
-do_rel = True # true is plot relative to the benchmark simulation
+do_rel = False # true is plot relative to the benchmark simulation
 do_hist = False # true is plot histogram instead of CDF
 run_local = True # true is run on local machine, false is run on cluster
-fixed_Mass_units = False # true is convert mass balance units to kg m-2 s-1, if ran new code with depth in calculation
+fix_units_soil = True # true is convert to storage units, only works for Soil
 no_snow = False # true is only plot snow free simulations
 
 if run_local: 
-    stat = 'rmnz'
+    stat = 'avge'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics_en')
 else:
     import sys
@@ -57,8 +57,8 @@ def power_transform(x):
 # Simulation statistics file locations
 #use_vars = []
 #rep = [] # mark the repeats
-use_vars = [4,1]
-rep = [0,0] # mark the repeats
+use_vars = [4,4,1,1]
+rep = [1,2,1,2] # mark the repeats
 #use_vars = [1,1]
 #rep = [1,2] # mark the repeats
 #use_vars = [0,1,2,3,4]
@@ -101,7 +101,7 @@ leg_titl = [leg_titl[i] for i in use_vars]
 plot_vars2 = settings2.copy()
 plt_titl2 = ['canopy air space enthalpy balance','vegetation enthalpy balance','snow enthalpy balance','soil enthalpy balance','vegetation mass balance','snow mass balance','soil mass balance','aquifer mass balance', 'wall clock time']
 leg_titl2 = ['$W~m^{-3}$'] * 4 + ['$kg~m^{-3}~s^{-1}$'] * 3 + ['$kg~m^{-2}~s^{-1}$']+ ['$s$']
-if fixed_Mass_units: leg_titl2 = ['$W~m^{-3}$'] * 4 + ['s^{-1}$'] * 3 + ['m~s^{-1}$'] + ['$s$']
+if fix_units_soil: leg_titl2 = ['$J~m^{-2}$'] * 4 + ['$kg~m^{-2}'] * 4 + ['$s$']
 if (len(use_vars)+len(use_vars2)>1): 
     plt_titl2 = [f"({chr(97+n + len(use_vars))}) {plt_titl2[i]}" for n,i in enumerate(use_vars2)]
 else:
@@ -117,21 +117,26 @@ if no_snow: fig_fil = fig_fil + '_nosnow'
 fig_fil = fig_fil +'_compressed.png'
 fig_fil = fig_fil.format(','.join(settings),stat)
 
+if stat == 'avge':
+    stat2 = 'mean'
+    maxes = [99,7,99,99,0.12]
+    maxes_m = [99,15,99,99,7]
+    if do_rel: maxes = [0.4,0.007,0.6,0.15,0.0015]
 if stat == 'rmse' or stat=='rmnz':
     stat2 = 'mean'
     maxes = [2,15,250,0.08,200]
     if do_rel: maxes = [0.4,0.007,0.6,0.15,0.0015]
 if stat == 'maxe':
     stat2 = 'amax'
-    maxes = [15,25,0.8,2,0.3]
+    maxes = [99,15,99,99,7]
     if do_rel: maxes = [0.4,0.007,0.6,0.15,0.0015]
 if stat == 'kgem':
     stat2 = 'mean'
     maxes = [0.9,0.9,0.9,0.9,0.9]
 maxes = [maxes[i] for i in use_vars]
 for i in range(len(maxes)):
-    if rep[i]==2: maxes[i] = maxes[i]*2.5 #clunky way to increase the range for the second repeat
-
+    #if rep[i]==2: maxes[i] = maxes[i]*2.5 #clunky way to increase the range for the second repeat
+    if rep[i]==2: maxes[i] = maxes_m[use_vars[i]] #clunky way to increase the range for the second repeat
 
 if stat2 == 'mean':
     maxes2 = [1e2,1e2,1e2,1e2]+[1e-7,1e-5,1e-7,1e-8] + [5e-2]
@@ -182,10 +187,11 @@ fig.subplots_adjust(hspace=0.33, wspace=0.17) # Adjust the bottom margin, vertic
 def run_loop(i,var,mx,rep):
     r = i//2
     c = i-r*2
+    if rep == 1: stat = 'avge'
+    if rep == 2: stat = 'maxe'
     stat0 = stat
-    if rep == 1: stat0 = 'rmnz'
-    if rep == 2: stat0 = 'maxe'
-    if stat == 'rmse' or stat == 'kgem': 
+    if stat0 == 'avge': stat0 = 'mean'
+    if stat == 'rmse' or stat == 'kgem' or stat == 'avge': 
         if var == 'wallClockTime': stat0 = 'mean'
         statr = 'mean_ben'
     if stat == 'rmnz':
@@ -201,25 +207,27 @@ def run_loop(i,var,mx,rep):
     else:
         mx = 0.0
         mn = 1.0
-        if do_rel: s_rel = summa[method_name[0]][var].sel(stat=statr)
+        s_rel = summa[method_name[0]][var].sel(stat=statr)
         for m in method_name:
             s = summa[m][var].sel(stat=stat0)
+            if stat=='avge' and var != 'wallClockTime': s = np.fabs(s-s_rel) # make absolute value difference
             if do_rel and var != 'wallClockTime': s = s/s_rel
             if stat == 'maxe': s = np.fabs(s) # make absolute value norm
             mx = max(s.max(),mx)
             if stat == 'kgem': mn = min(s.min(),mn)
 
     # Data
-    if do_rel: s_rel = summa[method_name[0]][var].sel(stat=statr)
+    s_rel = summa[method_name[0]][var].sel(stat=statr)
     for m in method_name:
         s = summa[m][var].sel(stat=stat0)
+        if stat=='avge': s = np.fabs(s-s_rel) # make absolute value difference
         if do_rel and var != 'wallClockTime': s = s/s_rel
 
         if var == 'scalarTotalET' and not do_rel:
-            if stat =='rmse' or stat =='rmnz' : s = s*31557600 # make annual total
+            if stat =='rmse' or stat =='rmnz' or stat=='mean': s = s*31557600 # make annual total
             if stat =='maxe': s = s*3600 # make hourly max
         if var == 'averageRoutedRunoff' and not do_rel:
-            if stat =='rmse' or stat =='rmnz' : s = s*31557600*1000 # make annual total
+            if stat =='rmse' or stat =='rmnz' or stat=='mean': s = s*31557600*1000 # make annual total
             if stat =='maxe': s = s*3600*1000 # make hourly max           
         if stat == 'maxe': s = np.fabs(s) # make absolute value norm
         range = (0,mx)
@@ -241,6 +249,7 @@ def run_loop(i,var,mx,rep):
     if stat0 == 'mean': stat_word = 'mean'
     if stat0 == 'mnnz': stat_word = 'mean' # no 0s'
     if stat0 == 'amax': stat_word = 'max'
+    if stat == 'avge' and var != 'wallClockTime': stat_word = 'mean abs error'
     
     if statr == 'mean_ben': statr_word = 'mean'
     if statr == 'mnnz_ben': statr_word = 'mean' # no 0s'
@@ -251,8 +260,8 @@ def run_loop(i,var,mx,rep):
     if no_snow: titl = titl + ' (snow-free GRUs)'
     if rep>0: titl = titl + ' '+ stat_word
     axs[r,c].set_title(titl)
-    if stat == 'rmse' or stat == 'rmnz' or stat == 'maxe': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titl[i]))
-    if stat == 'kgem': axs[r,c].set_xlabel(stat_word)
+    if stat=='rmse' or stat=='rmnz' or stat=='maxe' or stat=='mean' or stat=='avge': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titl[i]))
+    if stat=='kgem': axs[r,c].set_xlabel(stat_word)
     if do_rel and var!='wallClockTime': axs[r,c].set_xlabel('relative '+ stat_word)
 
     if do_hist: 
@@ -264,7 +273,7 @@ def run_loop(i,var,mx,rep):
         if(c==1): axs[r, c].set_ylabel('')
         axs[r,c].set_ylim([0.0, 1.0])
         axs[r,c].set_xscale('function', functions=(power_transform, np.power)) #log x axis
-        if var in settings0 or var == 'wallClockTime': # Rotate x-axis labels for axs[2, 1] subplot
+        if mx<1: # Rotate x-axis labels
             axs[r, c].tick_params(axis='x', rotation=45)
 
 def run_loopb(i,var,mx,rep):
@@ -280,9 +289,9 @@ def run_loopb(i,var,mx,rep):
         if any(substring in var for substring in ['VegNrg', 'SnowNrg', 'SoilNrg']):
             mn = mx*1e-9
         if var=='wallClockTime': mn = 0.0
-        if fixed_Mass_units and 'Mass' in var: # /density for mass balance
-            mn = mn/1000
-            mx = mx/1000
+        if fix_units_soil and 'Soil' in var:
+            mn = mn*3600*3 # mult by time step and depth to get storage
+            mx = mx*3600*3
     else:
         mx = 0.0
         mn = 1.0
@@ -295,7 +304,7 @@ def run_loopb(i,var,mx,rep):
     # Data
     for m in method_name2:
         s = summa1[m][var].sel(stat=stat0).where(lambda x: x != 9999)
-        if fixed_Mass_units and 'Mass' in var: s = s/1000 # /density for mass balance
+        if fix_units_soil and 'Soil' in var: s = s*3600*3 # mult by time step and depth to get storage
 
         range = (mn,mx)
         if do_hist: 

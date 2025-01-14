@@ -33,7 +33,7 @@ import pandas as pd
 
 one_plot = False # true is one plot, false is multiple plots (one per variable)
 run_local = False # true is run on local machine (only does testing), false is run on cluster
-fixed_Mass_units = False # true is convert mass balance units to kg m-2 s-1, if ran new code with depth in calculation
+fix_units_soil = True # true is convert to storage units, only works for Soil
 
 if run_local: 
     stat = 'mean'
@@ -41,11 +41,11 @@ if run_local:
 else:
     import sys
     stat = sys.argv[1]
-    viz_dir = Path('/home/avanb/scratch/statistics')
+    viz_dir = Path('/home/x-avanb/statistics')
 
 
 method_name=['be8','be8cm','be8en','sundials_1en5cm','sundials_1en5en','sundials_1en8en']  #maybe make this an argument
-plt_name0=['SUMMA-BE8 common thermo. eq.','SUMMA-BE8 temperature thermo. eq.','SUMMA-BE8 mixed thermo. eq.','SUMMA-SUNDIALS temperature thermo. eq.','SUMMA-SUNDIALS enthalpy thermo. eq.','reference solution']
+plt_name0=['SUMMA-BE8 common','SUMMA-BE8 temperature','SUMMA-BE8 mixed','SUMMA-SUNDIALS temperature','SUMMA-SUNDIALS enthalpy','reference solution']
 
 # Simulation statistics file locations
 settings= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
@@ -59,7 +59,7 @@ nbatch_hrus = 518 # number of HRUs per batch
 # Specify variables in files
 plt_titl = ['canopy air space enthalpy balance','vegetation enthalpy balance','snow enthalpy balance','soil enthalpy balance','vegetation mass balance','snow mass balance','soil mass balance','aquifer mass balance', 'wall clock time']
 leg_titl = ['$W~m^{-3}$'] * 4 + ['$kg~m^{-3}~s^{-1}$'] * 3 + ['$kg~m^{-2}~s^{-1}$']+ ['$s$']
-if fixed_Mass_units: leg_titl = ['$W~m^{-3}$'] * 4 + ['s^{-1}$'] * 3 + ['m~s^{-1}$'] + ['$s$']
+if fix_units_soil: leg_titl2 = ['$J~m^{-2}$'] * 4 + ['$kg~m^{-2}'] * 4 + ['$s$']
 
 fig_fil= '_hrly_balance_{}_compressed.png'
 plot_vars = settings.copy()
@@ -74,8 +74,6 @@ summa = {}
 for i, m in enumerate(method_name):
     # Get the aggregated statistics of SUMMA simulations
     summa[m] = xr.open_dataset(viz_dir/viz_fil[i])
-
-
 
 # Function to extract a given setting from the control file
 def read_from_control( file, setting ):
@@ -179,7 +177,7 @@ for plot_var in plot_vars:
 
     for m in method_name:
         s = summa[m][plot_var].sel(stat=stat0)
-        if fixed_Mass_units and 'Mass' in plot_var: s = s/1000 # /density for mass balance
+        if fix_units_soil and 'Soil' in plot_var: s = s*3600*3 # mult by time step and depth to get storage
 
         # Make absolute value norm, not all positive
         s = np.fabs(s) 
@@ -214,9 +212,9 @@ def run_loop(j,var,the_max):
     if any(substring in var for substring in ['VegNrg', 'SnowNrg', 'SoilNrg']):
         vmin, vmax = the_max * 1e-9, the_max
     if var in ['wallClockTime',]: vmin,vmax = the_max*1e-1, the_max
-    if fixed_Mass_units and 'Mass' in var: # / density for mass balance
-        vmin = vmin/1000
-        vmax = vmax/1000
+    if fix_units_soil and 'Soil' in var:
+        vmin = vmin*3600*3 # mult by time step and depth to get storage
+        vmax = vmax*3600*3
  
     norm = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
 
