@@ -128,12 +128,13 @@ if run_local:
 
 else:
     # Get the albers shapes
-    main = Path('/home/avanb/projects/rpp-kshook/wknoben/CWARHM_data/domain_NorthAmerica/shapefiles/albers_projection')
+    #main = Path('/home/avanb/projects/rpp-kshook/wknoben/CWARHM_data/domain_NorthAmerica/shapefiles/albers_projection')
+    main = Path('/home/x-avanb/statistics/albers_projection')
     plot_lakes = True
     plot_rivers = False
 
     # Control file handling
-    controlFile = 'plot_control_NorthAmerica.txt'
+    controlFile = main+'/plot_control_NorthAmerica.txt'
 
     # HM catchment shapefile path & name
     hm_catchment_path = read_from_control(controlFile,'catchment_shp_path')
