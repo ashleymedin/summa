@@ -13,7 +13,7 @@
 
 # Run:
 # python plot_per_GRUMult.py [stat]
-# where stat is rmse or maxe or kgem or mean or amax
+# where stat is rmse or maxe or kgem or mean or amax or avge
 
 # modules
 import sys
@@ -34,17 +34,17 @@ from matplotlib.ticker import ScalarFormatter
 
 
 do_rel = False # true is plot relative to the benchmark simulation
-one_plot = True # true is one plot, false is multiple plots (one per variable)
+one_plot = False # true is one plot, false is multiple plots (one per variable)
 run_local = False # true is run on local machine (only does testing), false is run on cluster
-more_mean = True # true is plot mean/amax extra variables in a balance file
+more_mean = False # true is plot mean/amax extra variables in a balance file
 
 if run_local: 
-    stat = 'mean'
+    stat = 'avge'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics_en')
 else:
     import sys
     stat = sys.argv[1]
-    viz_dir = Path('/home/avanb/scratch/statistics')
+    viz_dir = Path('/home/x-avanb/statistics')
 
 
 # NOTE: method_name 'ref' will plot the reference solution, 'diff' will plot the difference between two simulations
@@ -54,11 +54,11 @@ method_name=['be1','be16','be32','sundials_1en6','ref']
 plt_name0=['SUMMA-BE1','SUMMA-BE16','SUMMA-BE32','SUMMA-SUNDIALS','reference solution']
 plt_nameshort=plt_name0
 method_name=['be8','be8cm','be8en','sundials_1en5cm','sundials_1en5en','diff','ref']
-plt_name0=['BE8 common thermo. eq.','SUMMA-BE8 temperature thermo. eq.','SUMMA-BE8 mixed thermo. eq.','SUMMA-SUNDIALS temperature thermo. eq.','SUMMA-SUNDIALS enthalpy thermo. eq.','SUMMA-BE8 common - mixed','reference solution']
+plt_name0=['BE8 common','SUMMA-BE8 temperature','SUMMA-BE8 mixed','SUMMA-SUNDIALS temperature','SUMMA-SUNDIALS enthalpy','SUMMA-BE8 common - mixed','reference solution']
 plt_nameshort=['BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp','SUNDIALS enth','BE8 common - mixed','reference soln']
-method_name=['sundials_1en5en']
-plt_name0=['reference solution']
-plt_nameshort=['']
+#method_name=['sundials_1en8en']
+#plt_name0=['reference solution']
+#plt_nameshort=['']
 
 if one_plot: plt_name0 = plt_nameshort
 
@@ -80,7 +80,7 @@ if more_mean: # extra vars in a balance file
     plot_vars_exVar = ['scalarRainPlusMelt','scalarRootZoneTemp','airtemp','scalarSWE']
     #plot_vars_exVar = ['balanceAqMass','balanceSoilNrg','balanceSoilMass','balanceVegMass']
     viz_file_exVar = 'exVar_hrly_diff_bals_balance.nc'
-    plt_name0_exVar = 'SUMMA-BE1 temperature thermo. eq.'
+    plt_name0_exVar = 'SUMMA-BE1 temperature'
     plt_nameshort_exVar = 'BE1 temp' # identify method here
     leg_titl_exVar = ['$mm~y^{-1}$','$K$','$K$','$kg~m^{-2}$']
     maxes_exVar = [3000,295,295,100]
@@ -96,11 +96,15 @@ melt_thresh = 1/(0.75) # threshold for melt water calculation (divisor is percen
 fig_fil= '_hrly_diff_stats_{}_compressed.png'
 if do_rel: fig_fil = '_hrly_diff_stats_{}_rel_compressed.png'
 
+if stat == 'avge':
+    stat2 = 'mean'
+    maxes = [99,7,99,99,0.12,99]
+    if do_rel: maxes = [0.4,0.007,0.6,0.15,0.0015]
 if stat == 'rmse' or stat == 'rmnz': 
     maxes = [2,15,250,0.08,200,2] 
     if do_rel: maxes = [0.4,0.007,0.6,0.15,0.0015,0.2,0.6]
 if stat == 'maxe': 
-    maxes = [15,25,0.8,2,0.3,0.2] #[15,25,25e-5,2,1e-7,0.2]
+    maxes = [99,15,99,99,7,99] #[15,25,25e-5,2,1e-7,0.2]
     if do_rel: maxes = [0.4,0.007,0.6,0.15,0.0015,0.2,0.6]
 if stat == 'kgem': 
     maxes = [0.9,0.9,0.9,0.9,0.9,10e-3,0.9]
@@ -118,8 +122,6 @@ for i, m in enumerate(method_name):
     if m!='diff' and m!='ref': summa[m] = xr.open_dataset(viz_dir/viz_fil[i])
 
 if more_mean: summa['exVar'] = xr.open_dataset(viz_dir/viz_file_exVar)
-
-
 
 # Function to extract a given setting from the control file
 def read_from_control( file, setting ):
@@ -162,7 +164,10 @@ if run_local:
 
     # Create a mock DataFrame
     from shapely.geometry import Point
-    s = summa[method_name[0]][plot_vars[0]].sel(stat=stat)
+    if stat == 'avge':
+        s = summa[method_name[0]][plot_vars[0]].sel(stat='mean')
+    else:
+        s = summa[method_name[0]][plot_vars[0]].sel(stat=stat)
     mock_data = {
         'hm_hruid': np.concatenate(([81029662], s.hru.values[-100:])), #s.hru.values[-100:],  # Example HRU IDs
         'geometry': [Point(x, y) for x, y in zip(range(101), range(101))]  # Simple geometries
@@ -219,7 +224,8 @@ else:
 hru_ids_shp = bas_albers[hm_hruid].astype(int) # hru order in shapefile
 for i,plot_var in enumerate(plot_vars):
     stat0 = stat
-    if stat == 'rmse' or stat == 'kgem' or stat == 'mean': 
+    if stat0 == 'avge': stat0 = 'mean'
+    if stat == 'rmse' or stat == 'kgem' or stat == 'mean' or stat == 'avge': 
         if plot_var == 'wallClockTime': stat0 = 'mean'
         statr = 'mean_ben'
     if stat == 'rmnz' or stat == 'mnnz':
@@ -229,7 +235,7 @@ for i,plot_var in enumerate(plot_vars):
         if plot_var == 'wallClockTime': stat0 = 'amax'
         statr = 'amax_ben'
 
-    if do_rel: s_rel = np.fabs(summa[method_name[0]][plot_var].sel(stat=statr))
+    s_rel = np.fabs(summa[method_name[0]][plot_var].sel(stat=statr))
     
     if calc[i]:
         if do_rel: s_rel = s_rel.where(summa[method_name[0]][plot_var].sel(stat='mnnz_ben') > melt_thresh*summa[method_name[0]][plot_var].sel(stat='mean_ben'))
@@ -253,6 +259,7 @@ for i,plot_var in enumerate(plot_vars):
                 s =s.where(summa[method_name[0]][plot_var].sel(stat='mnnz_ben') > melt_thresh*summa[method_name[0]][plot_var].sel(stat='mean_ben'))
             else:
                 s = s.where(summa[m][plot_var].sel(stat='mnnz') > melt_thresh*summa[m][plot_var].sel(stat='mean'))
+        if stat=='avge' and plot_var != 'wallClockTime': s = np.fabs(s-s_rel) # make absolute value difference
         if do_rel and plot_var != 'wallClockTime': s = s/s_rel
 
         # Replace inf and 9999 values with NaN in the s DataArray
@@ -336,10 +343,12 @@ def run_loop(j,var,the_max):
     if stat0 == 'mean': stat_word = 'mean'
     if stat0 == 'mnnz': stat_word = 'mean' # no 0s'
     if stat0 == 'amax': stat_word = 'max'
+    if stat == 'avge' and var != 'wallClockTime': stat_word = 'mean abs error'
 
-    if statr == 'mean_ben': statr_word = 'mean'
-    if statr == 'mnnz_ben': statr_word = 'mean' # no 0s'
-    if statr == 'amax_ben': statr_word = 'max'
+    if do_rel:
+        if statr == 'mean_ben': statr_word = 'mean'
+        if statr == 'mnnz_ben': statr_word = 'mean' # no 0s'
+        if statr == 'amax_ben': statr_word = 'max'
 
     my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
     my_cmap.set_bad(color='white') #nan color white
