@@ -41,7 +41,7 @@ else:
 #plt_name=['BE1','BE16','BE32','SUNDIALS'] #maybe make this an argument
 method_name=['be8','be8cm','be8en','sundials_1en5cm','sundials_1en5en'] 
 plt_name=['BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp', 'SUNDIALS enth']
-#method_name=['be1','be1cm','be1en','be8','be8cm','be8en','sundials_1en5cm','sundials_1en5en'] 
+#method_name=['old_be1','old_be1cm','old_be1en','be8','be8cm','be8en','sundials_1en5cm','sundials_1en5en'] 
 #plt_name=['BE1 common','BE1 temp','BE1 mixed','BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp', 'SUNDIALS enth']
 method_name2=method_name +['sundials_1en8en']
 plt_name2=plt_name +['reference solution']
@@ -190,7 +190,6 @@ def run_loop(i,var,mx,rep):
     if rep == 1: stat = 'avge'
     if rep == 2: stat = 'maxe'
     stat0 = stat
-    if stat0 == 'avge': stat0 = 'mean'
     if stat == 'rmse' or stat == 'kgem' or stat == 'avge': 
         if var == 'wallClockTime': stat0 = 'mean'
         statr = 'mean_ben'
@@ -210,7 +209,6 @@ def run_loop(i,var,mx,rep):
         s_rel = summa[method_name[0]][var].sel(stat=statr)
         for m in method_name:
             s = summa[m][var].sel(stat=stat0)
-            if stat=='avge' and var != 'wallClockTime': s = np.fabs(s-s_rel) # make absolute value difference
             if do_rel and var != 'wallClockTime': s = s/s_rel
             if stat == 'maxe': s = np.fabs(s) # make absolute value norm
             mx = max(s.max(),mx)
@@ -220,7 +218,6 @@ def run_loop(i,var,mx,rep):
     s_rel = summa[method_name[0]][var].sel(stat=statr)
     for m in method_name:
         s = summa[m][var].sel(stat=stat0)
-        if stat=='avge': s = np.fabs(s-s_rel) # make absolute value difference
         if do_rel and var != 'wallClockTime': s = s/s_rel
 
         if var == 'scalarTotalET' and not do_rel:
@@ -249,7 +246,7 @@ def run_loop(i,var,mx,rep):
     if stat0 == 'mean': stat_word = 'mean'
     if stat0 == 'mnnz': stat_word = 'mean' # no 0s'
     if stat0 == 'amax': stat_word = 'max'
-    if stat == 'avge' and var != 'wallClockTime': stat_word = 'mean abs error'
+    if stat0 == 'avge': stat_word = 'mean abs error'
     
     if statr == 'mean_ben': statr_word = 'mean'
     if statr == 'mnnz_ben': statr_word = 'mean' # no 0s'

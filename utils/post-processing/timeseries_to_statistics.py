@@ -49,7 +49,7 @@ else:
     method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en6 or be1)
     ibatch = int(sys.argv[2])
     nbatch = int(sys.argv[3])
-    top_fold    = '/home/avanb/scratch/'
+    top_fold = '/anvil/scratch/x-avanb/'
 
 des_dir =  top_fold + 'statistics_temp_' + method_name
 # Check if the directory exists
@@ -212,6 +212,9 @@ def run_loop(file,bench,processed_files_path0):
             maxe = diff[var].isel(amx).drop_vars('time')
             maxe = maxe.expand_dims("stat").assign_coords(stat=("stat",["maxe"]))
 
+            avge = np.fabs(diff[var]).mean(dim='time') 
+            avge = avge.expand_dims("stat").assign_coords(stat=("stat",[" avge"]))
+
             r = correlation(dat[var],ben[var],dims='time')
             kgem = 1 - np.sqrt( np.square(r-1)
                    + np.square( dat[var].std(dim='time')/ben[var].std(dim='time') - 1)
@@ -225,7 +228,7 @@ def run_loop(file,bench,processed_files_path0):
             kgem = kgem/(2.0-kgem)
             kgem = kgem.expand_dims("stat").assign_coords(stat=("stat",["kgem"]))
 
-            new = xr.merge([mean,mnnz,amax, mean_ben,mnnz_ben,amax_ben, rmse,rmnz, maxe, kgem])
+            new = xr.merge([mean,mnnz,amax, mean_ben,mnnz_ben,amax_ben, rmse,rmnz, maxe, avge, kgem])
             new.to_netcdf(des_dir / des_fil.format(var,subset))
 
     if do_steps:
