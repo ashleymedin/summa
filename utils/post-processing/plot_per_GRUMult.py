@@ -97,7 +97,6 @@ fig_fil= '_hrly_diff_stats_{}_compressed.png'
 if do_rel: fig_fil = '_hrly_diff_stats_{}_rel_compressed.png'
 
 if stat == 'avge':
-    stat2 = 'mean'
     maxes = [99,7,99,99,0.12,99]
     if do_rel: maxes = [0.4,0.007,0.6,0.15,0.0015]
 if stat == 'rmse' or stat == 'rmnz': 
@@ -164,10 +163,7 @@ if run_local:
 
     # Create a mock DataFrame
     from shapely.geometry import Point
-    if stat == 'avge':
-        s = summa[method_name[0]][plot_vars[0]].sel(stat='mean')
-    else:
-        s = summa[method_name[0]][plot_vars[0]].sel(stat=stat)
+    s = summa[method_name[0]][plot_vars[0]].sel(stat=stat)
     mock_data = {
         'hm_hruid': np.concatenate(([81029662], s.hru.values[-100:])), #s.hru.values[-100:],  # Example HRU IDs
         'geometry': [Point(x, y) for x, y in zip(range(101), range(101))]  # Simple geometries
@@ -179,12 +175,12 @@ if run_local:
 else:
     # Get the albers shapes
     #main = Path('/home/avanb/projects/rpp-kshook/wknoben/CWARHM_data/domain_NorthAmerica/shapefiles/albers_projection')
-    main = Path('/home/x-avanb/statistics/albers_projection')
+    main = Path('/home/x-avanb/albers_projection')
     plot_lakes = True
     plot_rivers = False
 
     # Control file handling
-    controlFile = main + '/plot_control_NorthAmerica.txt'
+    controlFile = main / 'plot_control_NorthAmerica.txt'
 
     # HM catchment shapefile path & name
     hm_catchment_path = read_from_control(controlFile,'catchment_shp_path')
@@ -225,7 +221,6 @@ else:
 hru_ids_shp = bas_albers[hm_hruid].astype(int) # hru order in shapefile
 for i,plot_var in enumerate(plot_vars):
     stat0 = stat
-    if stat0 == 'avge': stat0 = 'mean'
     if stat == 'rmse' or stat == 'kgem' or stat == 'mean' or stat == 'avge': 
         if plot_var == 'wallClockTime': stat0 = 'mean'
         statr = 'mean_ben'
@@ -260,7 +255,6 @@ for i,plot_var in enumerate(plot_vars):
                 s =s.where(summa[method_name[0]][plot_var].sel(stat='mnnz_ben') > melt_thresh*summa[method_name[0]][plot_var].sel(stat='mean_ben'))
             else:
                 s = s.where(summa[m][plot_var].sel(stat='mnnz') > melt_thresh*summa[m][plot_var].sel(stat='mean'))
-        if stat=='avge' and plot_var != 'wallClockTime': s = np.fabs(s-s_rel) # make absolute value difference
         if do_rel and plot_var != 'wallClockTime': s = s/s_rel
 
         # Replace inf and 9999 values with NaN in the s DataArray
@@ -344,7 +338,7 @@ def run_loop(j,var,the_max):
     if stat0 == 'mean': stat_word = 'mean'
     if stat0 == 'mnnz': stat_word = 'mean' # no 0s'
     if stat0 == 'amax': stat_word = 'max'
-    if stat == 'avge' and var != 'wallClockTime': stat_word = 'mean abs error'
+    if stat0 == 'avge': stat_word = 'mean abs error'
 
     if do_rel:
         if statr == 'mean_ben': statr_word = 'mean'
