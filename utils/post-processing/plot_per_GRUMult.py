@@ -97,7 +97,7 @@ fig_fil= '_hrly_diff_stats_{}_compressed.png'
 if do_rel: fig_fil = '_hrly_diff_stats_{}_rel_compressed.png'
 
 if stat == 'avge':
-    maxes = [99,7,99,99,0.12,99]
+    maxes = [99,7,99,99,0.28,99]
     if do_rel: maxes = [0.4,0.007,0.6,0.15,0.0015]
 if stat == 'rmse' or stat == 'rmnz': 
     maxes = [2,15,250,0.08,200,2] 

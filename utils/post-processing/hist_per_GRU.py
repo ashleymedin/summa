@@ -119,7 +119,7 @@ fig_fil = fig_fil.format(','.join(settings),stat)
 
 if stat == 'avge':
     stat2 = 'mean'
-    maxes = [99,7,99,99,0.12]
+    maxes = [99,7,99,99,0.28]
     maxes_m = [99,15,99,99,7]
     if do_rel: maxes = [0.4,0.007,0.6,0.15,0.0015]
 if stat == 'rmse' or stat=='rmnz':
