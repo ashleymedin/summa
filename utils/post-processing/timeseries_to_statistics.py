@@ -213,7 +213,7 @@ def run_loop(file,bench,processed_files_path0):
             maxe = maxe.expand_dims("stat").assign_coords(stat=("stat",["maxe"]))
 
             avge = np.fabs(diff[var]).mean(dim='time') 
-            avge = avge.expand_dims("stat").assign_coords(stat=("stat",[" avge"]))
+            avge = avge.expand_dims("stat").assign_coords(stat=("stat",["avge"]))
 
             r = correlation(dat[var],ben[var],dims='time')
             kgem = 1 - np.sqrt( np.square(r-1)
