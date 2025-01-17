@@ -59,7 +59,7 @@ nbatch_hrus = 518 # number of HRUs per batch
 # Specify variables in files
 plt_titl = ['canopy air space enthalpy balance','vegetation enthalpy balance','snow enthalpy balance','soil enthalpy balance','vegetation mass balance','snow mass balance','soil mass balance','aquifer mass balance', 'wall clock time']
 leg_titl = ['$W~m^{-3}$'] * 4 + ['$kg~m^{-3}~s^{-1}$'] * 3 + ['$kg~m^{-2}~s^{-1}$']+ ['$s$']
-if fix_units_soil: leg_titl = ['$MJ~m^{-2}$'] * 4 + ['$kg~m^{-2}'] * 4 + ['$s$']
+if fix_units_soil: leg_titl = ['$KJ~m^{-2}$'] * 4 + ['$kg~m^{-2}'] * 4 + ['$s$']
 
 fig_fil= '_hrly_balance_{}_compressed.png'
 plot_vars = settings.copy()
@@ -180,7 +180,7 @@ for plot_var in plot_vars:
         s = summa[m][plot_var].sel(stat=stat0)
         if fix_units_soil and 'Soil' in plot_var: 
             s = s*3600*3.0 # mult by time step and depth to get storage
-            if 'Nrg' in plot_var: s = s*1e-6
+            if 'Nrg' in plot_var: s = s*1e-3
 
         # Make absolute value norm, not all positive
         s = np.fabs(s) 
@@ -219,8 +219,8 @@ def run_loop(j,var,the_max):
         vmin = vmin*3600*3.0 # mult by time step and depth to get storage
         vmax = vmax*3600*3.0
         if 'Nrg' in var: 
-            vmin = vmin*1e-6
-            vmax = vmax*1e-6
+            vmin = vmin*1e-3
+            vmax = vmax*1e-3
  
     norm = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
 
