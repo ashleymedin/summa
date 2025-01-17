@@ -59,7 +59,7 @@ nbatch_hrus = 518 # number of HRUs per batch
 # Specify variables in files
 plt_titl = ['canopy air space enthalpy balance','vegetation enthalpy balance','snow enthalpy balance','soil enthalpy balance','vegetation mass balance','snow mass balance','soil mass balance','aquifer mass balance', 'wall clock time']
 leg_titl = ['$W~m^{-3}$'] * 4 + ['$kg~m^{-3}~s^{-1}$'] * 3 + ['$kg~m^{-2}~s^{-1}$']+ ['$s$']
-if fix_units_soil: leg_titl2 = ['$J~m^{-2}$'] * 4 + ['$kg~m^{-2}'] * 4 + ['$s$']
+if fix_units_soil: leg_titl = ['$MJ~m^{-2}$'] * 4 + ['$kg~m^{-2}'] * 4 + ['$s$']
 
 fig_fil= '_hrly_balance_{}_compressed.png'
 plot_vars = settings.copy()
@@ -178,7 +178,9 @@ for plot_var in plot_vars:
 
     for m in method_name:
         s = summa[m][plot_var].sel(stat=stat0)
-        if fix_units_soil and 'Soil' in plot_var: s = s*3600*3 # mult by time step and depth to get storage
+        if fix_units_soil and 'Soil' in plot_var: 
+            s = s*3600*3.0 # mult by time step and depth to get storage
+            if 'Nrg' in plot_var: s = s*1e-6
 
         # Make absolute value norm, not all positive
         s = np.fabs(s) 
@@ -214,13 +216,16 @@ def run_loop(j,var,the_max):
         vmin, vmax = the_max * 1e-9, the_max
     if var in ['wallClockTime',]: vmin,vmax = the_max*1e-1, the_max
     if fix_units_soil and 'Soil' in var:
-        vmin = vmin*3600*3 # mult by time step and depth to get storage
-        vmax = vmax*3600*3
+        vmin = vmin*3600*3.0 # mult by time step and depth to get storage
+        vmax = vmax*3600*3.0
+        if 'Nrg' in var: 
+            vmin = vmin*1e-6
+            vmax = vmax*1e-6
  
     norm = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
 
-    if stat0 == 'mean': stat_word = 'mean'
-    if stat0 == 'amax': stat_word = 'max'
+    if stat0 == 'mean': stat_word = 'mean abs balance'
+    if stat0 == 'amax': stat_word = 'max abs balance'
 
     for i,m in enumerate(method_name):
         r = i//ncol + base_row
@@ -255,7 +260,7 @@ if one_plot:
     use_meth = [0,2,4]
 else:
     use_vars = [0,1,2,3,4,5,6,7]
-    use_vars = [3,8]
+    use_vars = [3] #[3,8]
     use_meth = [0,1,2,3,4,5]
 plot_vars = [plot_vars[i] for i in use_vars]
 plt_titl = [plt_titl[i] for i in use_vars]
