@@ -101,7 +101,7 @@ leg_titl = [leg_titl[i] for i in use_vars]
 plot_vars2 = settings2.copy()
 plt_titl2 = ['canopy air space enthalpy balance','vegetation enthalpy balance','snow enthalpy balance','soil enthalpy balance','vegetation mass balance','snow mass balance','soil mass balance','aquifer mass balance', 'wall clock time']
 leg_titl2 = ['$W~m^{-3}$'] * 4 + ['$kg~m^{-3}~s^{-1}$'] * 3 + ['$kg~m^{-2}~s^{-1}$']+ ['$s$']
-if fix_units_soil: leg_titl2 = ['$J~m^{-2}$'] * 4 + ['$kg~m^{-2}'] * 4 + ['$s$']
+if fix_units_soil: leg_titl2 = ['$MJ~m^{-2}$'] * 4 + ['$kg~m^{-2}'] * 4 + ['$s$']
 if (len(use_vars)+len(use_vars2)>1): 
     plt_titl2 = [f"({chr(97+n + len(use_vars))}) {plt_titl2[i]}" for n,i in enumerate(use_vars2)]
 else:
@@ -287,8 +287,11 @@ def run_loopb(i,var,mx,rep):
             mn = mx*1e-9
         if var=='wallClockTime': mn = 0.0
         if fix_units_soil and 'Soil' in var:
-            mn = mn*3600*3 # mult by time step and depth to get storage
-            mx = mx*3600*3
+            mn = mn*3600*3.0 # mult by time step and depth to get storage
+            mx = mx*3600*3.0
+            if 'Nrg' in var:
+                mn=mn*1e-6
+                mx=mx*1e-6
     else:
         mx = 0.0
         mn = 1.0
@@ -301,7 +304,9 @@ def run_loopb(i,var,mx,rep):
     # Data
     for m in method_name2:
         s = summa1[m][var].sel(stat=stat0).where(lambda x: x != 9999)
-        if fix_units_soil and 'Soil' in var: s = s*3600*3 # mult by time step and depth to get storage
+        if fix_units_soil and 'Soil' in var: 
+            s = s*3600*3.0 # mult by time step and depth to get storage
+            if 'Nrg' in var: s = s*1e-6
 
         range = (mn,mx)
         if do_hist: 
@@ -314,8 +319,8 @@ def run_loopb(i,var,mx,rep):
             axs[r,c].set_xlim(range)  # Replace xmin and xmax with the desired limits
 
 
-    if stat0 == 'mean': stat_word = 'mean'
-    if stat0 == 'amax': stat_word = 'max'
+    if stat0 == 'mean': stat_word = 'mean abs balance'
+    if stat0 == 'amax': stat_word = 'max abs balance'
 
     if r==0 and c==0: axs[r,c].legend(plt_name2)
     titl = plt_titl2[i]
