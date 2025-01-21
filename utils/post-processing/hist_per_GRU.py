@@ -312,8 +312,16 @@ def run_loopb(i,var,mx,rep,stat2):
             axs[r,c].set_xlim(range)  # Replace xmin and xmax with the desired limits
 
 
-    if stat0 == 'mean': stat_word = 'mean abs balance'
-    if stat0 == 'amax': stat_word = 'max abs balance'
+    if stat0 == 'mean': 
+        if var == 'wallClockTime': 
+            stat_word = 'mean'
+        else:
+            stat_word = 'mean abs balance'
+    if stat0 == 'amax': 
+        if var == 'wallClockTime': 
+            stat_word = 'max'
+        else:
+            stat_word = 'max abs balance'
 
     if c==0: axs[r,c].legend(plt_name2)
     titl = plt_titl2[i]
