@@ -34,9 +34,10 @@ from matplotlib.ticker import ScalarFormatter
 
 
 do_rel = False # true is plot relative to the benchmark simulation
-one_plot = False # true is one plot, false is multiple plots (one per variable)
+one_plot = True # true is one plot, false is multiple plots (one per variable)
 run_local = False # true is run on local machine (only does testing), false is run on cluster
 more_mean = False # true is plot mean/amax extra variables in a balance file
+two_stat = True # true is run both mean and amax, false is run one stat
 
 if run_local: 
     stat = 'avge'
@@ -102,17 +103,21 @@ if stat == 'avge':
 if stat == 'rmse' or stat == 'rmnz': 
     maxes = [2,15,250,0.08,200,2] 
     if do_rel: maxes = [0.4,0.007,0.6,0.15,0.0015,0.2,0.6]
-if stat == 'maxe': 
-    maxes = [99,15,99,99,7,99] #[15,25,25e-5,2,1e-7,0.2]
-    if do_rel: maxes = [0.4,0.007,0.6,0.15,0.0015,0.2,0.6]
+if stat == 'maxe' or (stat=='avge' and two_stat): 
+    maxes2 = [99,15,99,99,7.5,99] #[15,25,25e-5,2,1e-7,0.2]
+    if do_rel: maxes2 = [0.4,0.007,0.6,0.15,0.0015,0.2,0.6]
+    if not two_stat:
+        maxes = maxes2
 if stat == 'kgem': 
     maxes = [0.9,0.9,0.9,0.9,0.9,10e-3,0.9]
 if stat == 'mean' or stat == 'mnnz': 
     maxes = [100,1700,2000,8,295,3000,100] #[80,1500,5e-5,8,1e-7,10e-3]
     if do_rel: maxes = [1.1,1.1,1.1,1.1,1.1,1.1]
-if stat == 'amax': 
-    maxes = [240,1800,3.5,25,7.5,0.2,240] #[240,1800,1e-3,25,2e-6,0.2]
-    if do_rel: maxes = [1.1,1.1,1.1,1.1,1.1,1.1]
+if stat == 'amax' or (stat=='mean' and two_stat): 
+    maxes2 = [240,1800,3.5,25,7.5,0.2,240] #[240,1800,1e-3,25,2e-6,0.2]
+    if do_rel: maxes2 = [1.1,1.1,1.1,1.1,1.1,1.1]
+    if not two_stat:
+        maxes = maxes2
 
 # Get simulation statistics
 summa = {}
@@ -318,7 +323,7 @@ if plot_lakes:
 
 
 # Figure
-def run_loop(j,var,the_max):
+def run_loop(j,var,the_max,stat,row_fill):
     stat0 = stat
     if stat == 'rmse' or stat == 'kgem' or stat == 'mean': 
         if var == 'wallClockTime': stat0 = 'mean'
@@ -374,14 +379,20 @@ def run_loop(j,var,the_max):
             norm = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=273.16, vmax=vmax)  
 
         for i,m in enumerate(method_name):
-            r = i//ncol + base_row
-            c = i - (r-base_row)*ncol
             if len(method_name)==1: 
-                r = base_row//ncol
-                c = base_row-r*ncol
+                if row_fill:
+                    r = base_row//ncol
+                    c = base_row-r*ncol
+                else:
+                    c = base_row//nrow
+                    r = base_row-c*nrow
             else:
-                r = i//ncol + base_row
-                c = i - (r-base_row)*ncol               
+                if row_fill:
+                    r = i//ncol + base_row
+                    c = i - (r-base_row)*ncol
+                else:
+                    c = i//nrow + base_row
+                    r = i - (c-base_row)*nrow           
 
             # Plot the data with the full extent of the bas_albers shape
             if m=='diff':
@@ -410,21 +421,39 @@ def run_loop(j,var,the_max):
                 else:
                     sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
                 sm.set_array([])
+                if not row_fill:
+                    axs_list = np.array(axs).T.ravel().tolist()
+                else:
+                    axs_list = axs.ravel().tolist()
                 if one_plot:
                     if m=='diff': # only works if diff is last on list
-                        cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/nrow,location='right')
-                        cbr2 = fig.colorbar(sm2, ax=axs_list[(r+1)*len(method_name)-1:(r+1)*len(method_name)],aspect=27/nrow,location='left')
+                        if not row_fill:
+                            cbr = fig.colorbar(sm, ax=axs_list[c*len(method_name):(c+1)*len(method_name)],aspect=27/nrow,location='right')
+                            cbr2 = fig.colorbar(sm2, ax=axs_list[(c+1)*len(method_name)-1:(c+1)*len(method_name)],aspect=27/nrow,location='left')
+                        else:
+                            cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/nrow,location='right')
+                            cbr2 = fig.colorbar(sm2, ax=axs_list[(r+1)*len(method_name)-1:(r+1)*len(method_name)],aspect=27/nrow,location='left')
                         cbr2.ax.yaxis.set_ticks_position('right')
                         cbr2.ax.yaxis.set_label_position('right')
                     else: 
                         if len(method_name)==1:
-                            cbr = fig.colorbar(sm, ax=axs_list[base_row:base_row+1],aspect=27/1,location='right')
+                            if not row_fill:
+                                cbr = fig.colorbar(sm, ax=axs_list[base_row:base_row+1],aspect=27/1)
+                            else:
+                                cbr = fig.colorbar(sm, ax=axs_list[base_row:base_row+1],aspect=27/1,location='right')
                         else:
-                            cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/nrow,location='right')
+                            if not row_fill:
+                                cbr = fig.colorbar(sm, ax=axs_list[c*len(method_name):(c+1)*len(method_name)],aspect=27/3*nrow,location='right')
+                            else:
+                                cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/3*nrow,location='right')
                 else:
                     # will be wonky with m=='diff' choice
-                    cbr = fig.colorbar(sm, ax=axs_list,aspect=27/3*nrow)
-                    if m=='diff': cbr2 = fig.colorbar(sm2, ax=axs_list,aspect=27/3*nrow)
+                    if not row_fill:
+                        cbr = fig.colorbar(sm, ax=axs_list[c*len(method_name):(c+1)*len(method_name)],aspect=27/3*nrow)
+                        if m=='diff': cbr2 = fig.colorbar(sm2, ax=axs_list[c*len(method_name):(c+1)*len(method_name)],aspect=27/3*nrow)
+                    else:
+                        cbr = fig.colorbar(sm, ax=axs_list,aspect=27/3*nrow)
+                        if m=='diff': cbr2 = fig.colorbar(sm2, ax=axs_list,aspect=27/3*nrow)
                 if stat == 'kgem': 
                     cbr.ax.set_ylabel(stat_word0)
                 else:
@@ -491,7 +520,7 @@ def run_loop(j,var,the_max):
                 pad = -0.05
             else: 
                 pad = -0.5
-            if one_plot:
+            if one_plot: # will be wrong with two_stat, but ex_var shouldn't have 2 stat at the moment
                 if len(method_name)==1:
                     cbr = fig.colorbar(sm,ax=axs_list[r*ncol:r*ncol+c+1],aspect=27/1, pad=pad)
                 else:
@@ -507,14 +536,16 @@ def run_loop(j,var,the_max):
 
 # Specify plotting options
 if one_plot:
-    use_vars = [0,4,1] #[0,5,4,1]
-    use_meth = [0]
-    use_vars_exVar = [0]
+    #use_vars = [0,5,4,1]
+    #use_meth = [0]
+    #use_vars_exVar = [0]
+    use_vars = [4,1]
+    use_meth = [0,1,2,3,4]
 else:
-    use_vars = [0,1,2,3,4,5]
-    use_vars = [1,4]
-    use_meth = [0,1,2,3,4,6]
-    use_vars_exVar = [3,0,2,1]
+    #use_vars = [0,1,2,3,4,5]
+    use_vars = [4,1]
+    use_meth = [0,1,2,3,4]
+    use_vars_exVar = [3,0,2]
 if more_mean: 
     use_vars = ['exVar'] + use_vars # 'exVar' is the extra variables in a balance file, all same method
     if len(use_meth) < len(use_vars_exVar): use_vars_exVar = use_vars_exVar[:len(use_meth)] # chop if longer
@@ -529,14 +560,22 @@ plot_vars = [plot_vars[i] if i != 'exVar' else 'exVar' for i in use_vars]
 plt_titl = [plt_titl[i] if i != 'exVar' else 'exVar' for i in use_vars]
 leg_titl = [leg_titl[i] if i != 'exVar' else 'exVar' for i in use_vars]
 maxes = [maxes[i] if i != 'exVar' else 'exVar' for i in use_vars]
+if two_stat: 
+    maxes2 = [maxes2[i] for i in use_vars]
+else:
+    maxes2 = maxes # dummy
 method_name = [method_name[i] for i in use_meth]
 
 if one_plot:
-    ncol = len(use_meth)
-    nrow = len(use_vars)
-    if len(use_meth)==1:
-        ncol = len(use_vars)
-        nrow = 2
+    if two_stat:
+        ncol = 2*len(use_vars)
+        nrow = len(use_meth)
+    else:
+        ncol = len(use_meth)
+        nrow = len(use_vars)
+        if len(use_meth)==1:
+            ncol = len(use_vars)
+            nrow = 2
 
     # Set the font size: we need this to be huge so we can also make our plotting area huge, to avoid a gnarly plotting bug
     if 'compressed' in fig_fil:
@@ -553,32 +592,36 @@ if one_plot:
         else:
             fig,axs = plt.subplots(nrow,ncol,figsize=(67*ncol,58*nrow),constrained_layout=True)
 
-    axs_list = axs.ravel().tolist()
     fig.suptitle('hourly statistics', fontsize=40,y=1.05)
     plt.rcParams['patch.antialiased'] = False # Prevents an issue with plotting distortion along the 0 degree latitude and longitude lines
 
 else:
-    #size hardwired to 2x3 for now
-    ncol = 3
-    nrow = 2
-    if len(method_name)>6:
-        print('Too many methods for 3x2 plot')
-        sys.exit()
+    if two_stat:
+        ncol = 2
+        nrow = len(use_meth)
+    else:
+        #size hardwired to 2x3 for now
+        ncol = 3
+        nrow = 2
+        if len(method_name)>6:
+            print('Too many methods for 3x2 plot')
+            sys.exit()
+        plt_name_orig = [f"({chr(97+n)}) {plt_name0[i]}" for n,i in enumerate(use_meth)]
 
-    base_row = 0
-    plt_name_orig = [f"({chr(97+n)}) {plt_name0[i]}" for n,i in enumerate(use_meth)]
-
-for i,(var,the_max) in enumerate(zip(plot_vars,maxes)):
+for i,(var,the_max,the_max2) in enumerate(zip(plot_vars,maxes,maxes2)):
     
     if one_plot:
         # Reset the names
         base_row = i
-        if (len(use_vars)>1): plt_name = [f"({chr(97+n+i*len(use_meth))}) {plt_titl[i] + ' ' + plt_name0[j]}" for n,j in enumerate(use_meth)]
-        if (len(use_vars)==1): plt_name = [f"({chr(97+n+i*len(use_meth))}) {plt_name0[j]}" for n,j in enumerate(use_meth)]
-        if(var=='exVar'): plt_name = plt_name_exVar
+        if not two_stat:
+            if (len(use_vars)>1): plt_name = [f"({chr(97+n+i*len(use_meth))}) {plt_titl[i] + ' ' + plt_name0[j]}" for n,j in enumerate(use_meth)]
+            if (len(use_vars)==1): plt_name = [f"({chr(97+n+i*len(use_meth))}) {plt_name0[j]}" for n,j in enumerate(use_meth)]
+            if(var=='exVar'): plt_name = plt_name_exVar
     else:
-        plt_name = plt_name_orig
-        if(var=='exVar'): plt_name = plt_name_exVar
+        base_row = 0
+        if not two_stat: 
+            plt_name = plt_name_orig
+            if(var=='exVar'): plt_name = plt_name_exVar
         # Set the font size: we need this to be huge so we can also make our plotting area huge, to avoid a gnarly plotting bug
         if 'compressed' in fig_fil:
             plt.rcParams.update({'font.size': 33})
@@ -587,32 +630,61 @@ for i,(var,the_max) in enumerate(zip(plot_vars,maxes)):
             plt.rcParams.update({'font.size': 120})
             fig,axs = plt.subplots(nrow,ncol,figsize=(67*ncol,58*nrow),constrained_layout=True)
 
-        # Remove the extra subplots
-        if len(method_name) < nrow*ncol:
-            for j in range(len(method_name),nrow*ncol):
-                r = j//ncol
-                c = j-r*ncol
-                fig.delaxes(axs[r, c])
+        if not two_stat:
+            # Remove the extra subplots
+            if len(method_name) < nrow*ncol:
+                for j in range(len(method_name),nrow*ncol):
+                    r = j//ncol
+                    c = j-r*ncol
+                    fig.delaxes(axs[r, c])
 
-        axs_list = axs.ravel().tolist()
         fig.suptitle('{} hourly statistics'.format(plt_titl[i]), fontsize=40,y=1.05)
         plt.rcParams['patch.antialiased'] = False # Prevents an issue with plotting distortion along the 0 degree latitude and longitude lines
 
-    run_loop(i,var,the_max)
+    if two_stat:
+        row_fill=False
+
+        base_row = base_row*2
+        if one_plot:
+            plt_name = [f"({chr(97+2*n+base_row)}) {plt_titl[i] + ' ' + plt_name0[j]}" for n,j in enumerate(use_meth)]
+        else:
+            plt_name = [f"({chr(97+2*n+base_row)}) {plt_name0[j]}" for n,j in enumerate(use_meth)]
+        run_loop(i,var,the_max,stat, row_fill)
+
+        base_row = base_row+1
+        if one_plot:
+            plt_name = [f"({chr(97+2*n+base_row)}) {plt_titl[i] + ' ' + plt_name0[j]}" for n,j in enumerate(use_meth)]
+        else:
+            plt_name = [f"({chr(97+2*n+base_row)}) {plt_name0[j]}" for n,j in enumerate(use_meth)]
+        if stat=='avge': 
+            stat2 = 'maxe'
+        else:
+            stat2 = 'amax'
+        run_loop(i,var,the_max2,stat2,row_fill)
+    else:
+        row_fill=True
+        run_loop(i,var,the_max,stat,row_fill)
 
     if not one_plot:
         # Save the figure
-        fig_fil1 = (var+fig_fil).format(stat)
+        if not two_stat:
+            fig_fil1 = (var+fig_fil).format(stat)
+        else:
+            fig_fil1 = (var+fig_fil).format(stat+','+stat2)
         plt.savefig(viz_dir/fig_fil1, bbox_inches='tight', transparent=True)
 
 if one_plot:
-    # Remove the extra subplots
-    if len(method_name)*len(plot_vars) < nrow*ncol:
-        for j in range(len(method_name)*len(plot_vars),nrow*ncol):
-                r = j//ncol
-                c = j-r*ncol
-                fig.delaxes(axs[r, c])
+    if not two_stat:
+        # Remove the extra subplots
+        if len(method_name)*len(plot_vars) < nrow*ncol:
+            for j in range(len(method_name)*len(plot_vars),nrow*ncol):
+                    r = j//ncol
+                    c = j-r*ncol
+                    fig.delaxes(axs[r, c])
 
     # Save the figure
-    fig_fil1 = ('all'+fig_fil).format(stat)
+    if not two_stat:
+        fig_fil1 = ('all'+fig_fil).format(stat)
+    else:
+        fig_fil1 = ('all'+fig_fil).format(stat+','+stat2)
     plt.savefig(viz_dir/fig_fil1, bbox_inches='tight', transparent=True)
