@@ -454,9 +454,9 @@ def run_loop(j,var,the_max,stat,row_fill):
                                 cbr = fig.colorbar(sm, ax=axs_list[base_row:base_row+1],aspect=27/1,location='right')
                         else:
                             if not row_fill:
-                                cbr = fig.colorbar(sm, ax=axs_list[c*len(method_name):(c+1)*len(method_name)],aspect=27/3*nrow,location='right')
+                                cbr = fig.colorbar(sm, ax=axs_list[c*len(method_name):(c+1)*len(method_name)],aspect=27/1.1*nrow,location='right')
                             else:
-                                cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/3*nrow,location='right')
+                                cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/1.1*nrow,location='right')
                 else:
                     # will be wonky with m=='diff' choice
                     if not row_fill:

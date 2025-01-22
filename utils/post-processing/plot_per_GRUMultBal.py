@@ -32,7 +32,7 @@ import pandas as pd
 
 
 one_plot = True # true is one plot, false is multiple plots (one per variable)
-run_local = True # true is run on local machine (only does testing), false is run on cluster
+run_local = False # true is run on local machine (only does testing), false is run on cluster
 fix_units_soil = True # true is convert to storage units, only works for Soil
 two_stat = True # true is run both mean and amax, false is run one stat
 
@@ -264,9 +264,9 @@ def run_loop(j,var,the_max,stat,row_fill):
                 axs_list = axs.ravel().tolist()
             if one_plot:
                 if not row_fill: 
-                    cbr = fig.colorbar(sm, ax=axs_list[c*len(method_name):(c+1)*len(method_name)],aspect=27/3*nrow)
+                    cbr = fig.colorbar(sm, ax=axs_list[c*len(method_name):(c+1)*len(method_name)],aspect=27/2.5*nrow)
                 else:
-                    cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/3*nrow)
+                    cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/2.5*nrow)
             else:
                 if not row_fill:
                     cbr = fig.colorbar(sm, ax=axs_list[c*len(method_name):(c+1)*len(method_name)],aspect=27/3*nrow)
