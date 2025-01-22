@@ -32,7 +32,7 @@ import pandas as pd
 
 
 one_plot = True # true is one plot, false is multiple plots (one per variable)
-run_local = False # true is run on local machine (only does testing), false is run on cluster
+run_local = True # true is run on local machine (only does testing), false is run on cluster
 fix_units_soil = True # true is convert to storage units, only works for Soil
 two_stat = True # true is run both mean and amax, false is run one stat
 
@@ -178,25 +178,31 @@ else:
 
 # Match the accummulated values to the correct HRU IDs in the shapefile
 hru_ids_shp = bas_albers[hm_hruid].astype(int) # hru order in shapefile
+# Define a list of stat0 values to loop over
+if two_stat:
+    stat_values = [stat, 'amax']
+else:
+    stat_values = [stat]
 for plot_var in plot_vars:
-    stat0 = stat
+    for stat_use in stat_values: 
+        stat0 = stat_use
+        for m in method_name:
+            s = summa[m][plot_var].sel(stat=stat0)
+            if fix_units_soil and 'Soil' in plot_var: 
+                s = s * 3600 * 3.0  # Multiply by time step and depth to get storage
+                if 'Nrg' in plot_var: 
+                    s = s * 1e-3
 
-    for m in method_name:
-        s = summa[m][plot_var].sel(stat=stat0)
-        if fix_units_soil and 'Soil' in plot_var: 
-            s = s*3600*3.0 # mult by time step and depth to get storage
-            if 'Nrg' in plot_var: s = s*1e-3
+            # Make absolute value norm, not all positive
+            s = np.fabs(s) 
 
-        # Make absolute value norm, not all positive
-        s = np.fabs(s) 
-
-        # Replace inf and 9999 values with NaN in the s DataArray
-        s = s.where(~np.isinf(s), np.nan).where(lambda x: x != 9999, np.nan)
-        
-        # Create a new column in the shapefile for each method, and fill it with the statistics
-        bas_albers[plot_var+m] = np.nan
-        hru_ind = [i for i, hru_id in enumerate(hru_ids_shp.values) if hru_id in s.hru.values] # if some missing
-        bas_albers.loc[hru_ind, plot_var+m] = s.sel(hru=hru_ids_shp.values[hru_ind]).values 
+            # Replace inf and 9999 values with NaN in the s DataArray
+            s = s.where(~np.isinf(s), np.nan).where(lambda x: x != 9999, np.nan)
+            
+            # Create a new column in the shapefile for each method, and fill it with the statistics
+            bas_albers[plot_var+m+stat0] = np.nan
+            hru_ind = [i for i, hru_id in enumerate(hru_ids_shp.values) if hru_id in s.hru.values]  # if some missing
+            bas_albers.loc[hru_ind, plot_var+m+stat0] = s.sel(hru=hru_ids_shp.values[hru_ind]).values
 
 # Select lakes of a certain size for plotting
 if plot_lakes:
@@ -241,8 +247,8 @@ def run_loop(j,var,the_max,stat,row_fill):
             r = i - (c-base_row)*nrow
 
         # Plot the data with the full extent of the bas_albers shape
-        bas_albers.plot(ax=axs[r,c], column=var+m, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
-        print(f"{'all HRU mean for '}{var+m:<35}{np.nanmean(bas_albers[var+m].values):<10.5f}{' max: '}{np.nanmax(bas_albers[var+m].values):<10.5f}")
+        bas_albers.plot(ax=axs[r,c], column=var+m+stat0, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
+        print(f"{'all HRU mean for '}{var+m+stat0:<35}{np.nanmean(bas_albers[var+m+stat0].values):<10.5f}{' max: '}{np.nanmax(bas_albers[var+m+stat0].values):<10.5f}")
         axs[r,c].set_title(plt_name[i])
         axs[r,c].axis('off')
         axs[r,c].set_xlim(xmin, xmax)

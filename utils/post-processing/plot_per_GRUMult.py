@@ -224,89 +224,100 @@ else:
 
 # Match the accummulated values to the correct HRU IDs in the shapefile
 hru_ids_shp = bas_albers[hm_hruid].astype(int) # hru order in shapefile
+# Define a list of stat0 values to loop over
+if two_stat:
+    if stat=='avge': 
+        stat_values = [stat, 'maxe']
+    else:
+        stat_values = [stat, 'amax']
+else:
+    stat_values = [stat]
+
 for i,plot_var in enumerate(plot_vars):
-    stat0 = stat
-    if stat == 'rmse' or stat == 'kgem' or stat == 'mean' or stat == 'avge': 
-        if plot_var == 'wallClockTime': stat0 = 'mean'
-        statr = 'mean_ben'
-    if stat == 'rmnz' or stat == 'mnnz':
-        if plot_var == 'wallClockTime': stat0 = 'mnnz'
-        statr = 'mnnz_ben'
-    if stat == 'maxe' or stat == 'amax': 
-        if plot_var == 'wallClockTime': stat0 = 'amax'
-        statr = 'amax_ben'
+    for stat_use in stat_values: 
+        stat0 = stat_use
+        if stat_use == 'rmse' or stat_use == 'kgem' or stat_use == 'mean' or stat_use == 'avge': 
+            if plot_var == 'wallClockTime': stat0 = 'mean'
+            statr = 'mean_ben'
+        if stat_use == 'rmnz' or stat_use == 'mnnz':
+            if plot_var == 'wallClockTime': stat0 = 'mnnz'
+            statr = 'mnnz_ben'
+        if stat_use == 'maxe' or stat_use == 'amax': 
+            if plot_var == 'wallClockTime': stat0 = 'amax'
+            statr = 'amax_ben'
 
-    s_rel = np.fabs(summa[method_name[0]][plot_var].sel(stat=statr))
-    
-    if calc[i]:
-        if do_rel: s_rel = s_rel.where(summa[method_name[0]][plot_var].sel(stat='mnnz_ben') > melt_thresh*summa[method_name[0]][plot_var].sel(stat='mean_ben'))
+        s_rel = np.fabs(summa[method_name[0]][plot_var].sel(stat=statr))
 
-
-    for m in method_name:
-        if m=='diff': 
-            s = summa[from_meth][plot_var].sel(stat=stat0) - summa[sub_meth][plot_var].sel(stat=stat0)
-        elif m=='ref':
-            s = np.fabs(summa[method_name[0]][plot_var].sel(stat=statr))
-        else:
-            s = np.fabs(summa[m][plot_var].sel(stat=stat0))
         if calc[i]:
+            if do_rel: s_rel = s_rel.where(summa[method_name[0]][plot_var].sel(stat='mnnz_ben') > melt_thresh*summa[method_name[0]][plot_var].sel(stat='mean_ben'))
+
+
+        for m in method_name:
             if m=='diff': 
-                s_from = summa[from_meth][plot_var].sel(stat=stat0)
-                s_from = s_from.where(summa[from_meth][plot_var].sel(stat='mnnz') > melt_thresh*summa[from_meth][plot_var].sel(stat='mean'))
-                s_sub  = summa[sub_meth][plot_var].sel(stat=stat0)
-                s_sub  = s_sub.where(summa[sub_meth][plot_var].sel(stat='mnnz') > melt_thresh*summa[sub_meth][plot_var].sel(stat='mean'))
-                s = s_from - s_sub
+                s = summa[from_meth][plot_var].sel(stat=stat0) - summa[sub_meth][plot_var].sel(stat=stat0)
             elif m=='ref':
-                s =s.where(summa[method_name[0]][plot_var].sel(stat='mnnz_ben') > melt_thresh*summa[method_name[0]][plot_var].sel(stat='mean_ben'))
+                s = np.fabs(summa[method_name[0]][plot_var].sel(stat=statr))
             else:
-                s = s.where(summa[m][plot_var].sel(stat='mnnz') > melt_thresh*summa[m][plot_var].sel(stat='mean'))
-        if do_rel and plot_var != 'wallClockTime': s = s/s_rel
+                s = np.fabs(summa[m][plot_var].sel(stat=stat0))
+            if calc[i]:
+                if m=='diff': 
+                    s_from = summa[from_meth][plot_var].sel(stat=stat0)
+                    s_from = s_from.where(summa[from_meth][plot_var].sel(stat='mnnz') > melt_thresh*summa[from_meth][plot_var].sel(stat='mean'))
+                    s_sub  = summa[sub_meth][plot_var].sel(stat=stat0)
+                    s_sub  = s_sub.where(summa[sub_meth][plot_var].sel(stat='mnnz') > melt_thresh*summa[sub_meth][plot_var].sel(stat='mean'))
+                    s = s_from - s_sub
+                elif m=='ref':
+                    s =s.where(summa[method_name[0]][plot_var].sel(stat='mnnz_ben') > melt_thresh*summa[method_name[0]][plot_var].sel(stat='mean_ben'))
+                else:
+                    s = s.where(summa[m][plot_var].sel(stat='mnnz') > melt_thresh*summa[m][plot_var].sel(stat='mean'))
+            if do_rel and plot_var != 'wallClockTime': s = s/s_rel
 
-        # Replace inf and 9999 values with NaN in the s DataArray
-        s = s.where(~np.isinf(s), np.nan).where(lambda x: x != 9999, np.nan)
+            # Replace inf and 9999 values with NaN in the s DataArray
+            s = s.where(~np.isinf(s), np.nan).where(lambda x: x != 9999, np.nan)
 
-        if plot_var == 'scalarTotalET' and not do_rel:
-            if stat =='rmse' or stat =='rmnz' or stat=='mnnz' or stat=='mean': s = s*31557600 # make annual total
-            if stat =='maxe' or stat=='amax': s = s*3600 # make hourly max
-        if plot_var == 'averageRoutedRunoff' and not do_rel:
-            if stat =='rmse' or stat =='rmnz' or stat=='mnnz' or stat=='mean': s = s*31557600*1000 # make annual total
-            if stat =='maxe' or stat=='amax': s = s*3600*1000 # make hourly max
-        if plot_var == 'scalarRainPlusMelt' and not do_rel:
-            if stat =='rmse' or stat =='rmnz' or stat=='mnnz' or stat=='mean': s = s*31557600*1000 # make annual total
-            if stat =='maxe' or stat=='amax': s = s*3600*1000 # make hourly max
+            if plot_var == 'scalarTotalET' and not do_rel:
+                if stat_use =='rmse' or stat_use =='rmnz' or stat_use=='mnnz' or stat_use=='mean': s = s*31557600 # make annual total
+                if stat_use =='maxe' or stat_use=='amax': s = s*3600 # make hourly max
+            if plot_var == 'averageRoutedRunoff' and not do_rel:
+                if stat_use =='rmse' or stat_use =='rmnz' or stat_use=='mnnz' or stat_use=='mean': s = s*31557600*1000 # make annual total
+                if stat_use =='maxe' or stat_use=='amax': s = s*3600*1000 # make hourly max
+            if plot_var == 'scalarRainPlusMelt' and not do_rel:
+                if stat_use =='rmse' or stat_use =='rmnz' or stat_use=='mnnz' or stat_use=='mean': s = s*31557600*1000 # make annual total
+                if stat_use =='maxe' or stat_use=='amax': s = s*3600*1000 # make hourly max
 
-        # Create a new column in the shapefile for each method, and fill it with the statistics
-        if calc[i]: 
-            plot_var1 = plot_var + '_calc'
-        else:
-            plot_var1 = plot_var
-        bas_albers[plot_var1+m] = np.nan
-        hru_ind = [i for i, hru_id in enumerate(hru_ids_shp.values) if hru_id in s.hru.values] # if some missing
-        bas_albers.loc[hru_ind, plot_var1+m] = s.sel(hru=hru_ids_shp.values[hru_ind]).values
+            # Create a new column in the shapefile for each method, and fill it with the statistics
+            if calc[i]: 
+                plot_var1 = plot_var + '_calc'
+            else:
+                plot_var1 = plot_var
+            bas_albers[plot_var1+m+stat0] = np.nan
+            hru_ind = [i for i, hru_id in enumerate(hru_ids_shp.values) if hru_id in s.hru.values] # if some missing
+            bas_albers.loc[hru_ind, plot_var1+m+stat0] = s.sel(hru=hru_ids_shp.values[hru_ind]).values
 
 if more_mean: # extra mean/amax variables
     for i,plot_var in enumerate(plot_vars_exVar):
-        stat0 = stat
+        for stat_use in stat_values:
+            stat0 = stat_use
     
-        if stat != 'mean' and stat != 'amax': 
-            print('Only mean and amax are supported for extra variables')
-            sys.exit()
+            if stat_use != 'mean' and stat_use != 'amax': 
+                print('Only mean and amax are supported for extra variables')
+                sys.exit()
 
-        m = 'exVar'
-        s = np.fabs(summa[m][plot_var].sel(stat=stat0))
+            m = 'exVar'
+            s = np.fabs(summa[m][plot_var].sel(stat=stat0))
 
-        # Replace inf and 9999 values with NaN in the s DataArray
-        s = s.where(~np.isinf(s), np.nan).where(lambda x: x != 9999, np.nan)
+            # Replace inf and 9999 values with NaN in the s DataArray
+            s = s.where(~np.isinf(s), np.nan).where(lambda x: x != 9999, np.nan)
 
-        if plot_var == 'scalarRainPlusMelt':
-            if stat=='mean': s = s*31557600*1000 # make annual total
-            if stat=='amax': s = s*3600*1000 # make hourly max
+            if plot_var == 'scalarRainPlusMelt':
+                if stat_use=='mean': s = s*31557600*1000 # make annual total
+                if stat_use=='amax': s = s*3600*1000 # make hourly max
 
-        # Create a new column in the shapefile for each method, and fill it with the statistics
-        plot_var1 = plot_var
-        bas_albers[plot_var1+m] = np.nan
-        hru_ind = [i for i, hru_id in enumerate(hru_ids_shp.values) if hru_id in s.hru.values] # if some missing
-        bas_albers.loc[hru_ind, plot_var1+m] = s.sel(hru=hru_ids_shp.values[hru_ind]).values
+            # Create a new column in the shapefile for each method, and fill it with the statistics
+            plot_var1 = plot_var
+            bas_albers[plot_var1+m+stat0] = np.nan
+            hru_ind = [i for i, hru_id in enumerate(hru_ids_shp.values) if hru_id in s.hru.values] # if some missing
+            bas_albers.loc[hru_ind, plot_var1+m+stat0] = s.sel(hru=hru_ids_shp.values[hru_ind]).values
 
 
 
@@ -396,7 +407,7 @@ def run_loop(j,var,the_max,stat,row_fill):
 
             # Plot the data with the full extent of the bas_albers shape
             if m=='diff':
-                bas_albers.plot(ax=axs[r,c], column=var+m, edgecolor='none', legend=False, cmap=my_cmap2, norm=norm2,zorder=0)
+                bas_albers.plot(ax=axs[r,c], column=var+m+stat0, edgecolor='none', legend=False, cmap=my_cmap2, norm=norm2,zorder=0)
                 stat_word0 = stat_word+' difference'
                 stat_word2 = stat_word
                 plt_nm = plt_name[i]
@@ -404,10 +415,10 @@ def run_loop(j,var,the_max,stat,row_fill):
                 # only plot wallClockTime for the reference solution
                 plt_nm =''
             else:
-                bas_albers.plot(ax=axs[r,c], column=var+m, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
+                bas_albers.plot(ax=axs[r,c], column=var+m+stat0, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
                 stat_word0 = stat_word
                 plt_nm = plt_name[i]
-            print(f"{'all HRU mean for '}{var+m:<35}{np.nanmean(bas_albers[var+m].values):<10.5f}{' max: '}{np.nanmax(bas_albers[var+m].values):<10.5f}")
+            print(f"{'all HRU mean for '}{var+m+stat0:<35}{np.nanmean(bas_albers[var+m+stat0].values):<10.5f}{' max: '}{np.nanmax(bas_albers[var+m+stat0].values):<10.5f}")
             axs[r,c].set_title(plt_nm)
             axs[r,c].axis('off')
             axs[r,c].set_xlim(xmin, xmax)
