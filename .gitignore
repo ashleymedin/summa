@@ -35,3 +35,4 @@ Makefile-*
 *.backup
 # site directory from mkdocs
 site/
+build/cmake/cmake_build
