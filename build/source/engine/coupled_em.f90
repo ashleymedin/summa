@@ -1190,7 +1190,6 @@ contains
 
  ! check the soil water balance
  scalarSoilWatBalError  = balanceSoilWater1 - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilET - balanceSoilBaseflow - balanceSoilDrainage - totalSoilCompress) )
- if(abs(scalarSoilWatBalError) > absConvTol_liquid*iden_water*10._rkind)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
   write(*,*)               'solution method           = ', ixSolution
   write(*,'(a,1x,f20.10)') 'data_step                 = ', data_step
   write(*,'(a,1x,f20.10)') 'totalSoilCompress         = ', totalSoilCompress
@@ -1205,6 +1204,7 @@ contains
   write(*,'(a,1x,f20.10)') 'scalarSoilWatBalError     = ', scalarSoilWatBalError
   write(*,'(a,1x,f20.10)') 'scalarSoilWatBalError     = ', scalarSoilWatBalError/iden_water
   write(*,'(a,1x,f20.10)') 'absConvTol_liquid         = ', absConvTol_liquid
+if(abs(scalarSoilWatBalError) > absConvTol_liquid*iden_water*10._rkind)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
   ! error control
   message=trim(message)//'soil hydrology does not balance'
   err=20; return
