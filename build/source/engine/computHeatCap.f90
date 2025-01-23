@@ -340,6 +340,7 @@ end subroutine computHeatCapAnalytic
 ! **********************************************************************************************************
 subroutine computCm(&
                       ! input: state variables
+                      canopyDepth,             & ! intent(in):  depth of the vegetation canopy (m)
                       scalarCanopyTemp,        & ! intent(in):  value of canopy temperature (K)
                       mLayerTemp,              & ! intent(in):  vector of temperature (K)
                       mLayerMatricHead,        & ! intent(in):  vector of total water matric potential (-)
@@ -356,9 +357,12 @@ subroutine computCm(&
                       err,message)               ! intent(out): error control
   ! --------------------------------------------------------------------------------------------------------------------------------------
   ! provide access to external subroutines
-  USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists
+  USE snow_utils_module,only:fracliquid     ! compute the fraction of liquid water (snow)
+  USE snow_utils_module,only:dFracLiq_dTk   ! differentiate the freezing curve w.r.t. temperature (snow)
+  USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists (soil)
   ! --------------------------------------------------------------------------------------------------------------------------------------
   ! input: state variables
+  real(rkind),intent(in)               :: canopyDepth            ! depth of the vegetation canopy (m)
   real(rkind),intent(in)               :: scalarCanopyTemp       ! value of canopy temperature (K)
   real(rkind),intent(in)               :: mLayerTemp(:)          ! vector of temperature (K)
   real(rkind),intent(in)               :: mLayerMatricHead(:)    ! vector of total water matric potential (-)
@@ -383,10 +387,11 @@ subroutine computCm(&
   integer(i4b)                         :: ixControlIndex         ! index within a given model domain
   real(rkind)                          :: diffT                  ! temperature difference from Tfreeze
   real(rkind)                          :: diff0                  ! temperature difference Tcrit from Tfreeze
-  real(rkind)                          :: dTcrit_dPsi0           ! derivative of critical temperature with matric potential
   real(rkind)                          :: integral               ! integral of snow freezing curve
+  real(rkind)                          :: fLiq                   ! fraction of liquid water
+  real(rkind)                          :: dfLiq_dT               ! derivative of fraction of liquid water with temperature
   real(rkind)                          :: Tcrit                  ! temperature where all water is unfrozen (K)
-  real(rkind)                          :: d_integral_dTk         ! derivative of integral with temperature
+  real(rkind)                          :: dTcrit_dPsi0           ! derivative of critical temperature with matric potential
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! associate variables in data structure
   associate(&
@@ -442,26 +447,27 @@ subroutine computCm(&
               dCm_dTkCanopy  = Cp_water
             else
               integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-              scalarCanopyCm =  Cp_water * integral + Cp_ice * (diffT - integral)
+              fLiq = fracLiquid(scalarCanopyTemp,snowfrz_scale)
+              scalarCanopyCm = Cp_water * integral + Cp_ice * (diffT - integral) - LH_fus * (1._rkind - fLiq) / canopyDepth
               ! derivatives
-              d_integral_dTk = 1._rkind / (1._rkind + (snowfrz_scale * diffT)**2_i4b)
-              dCm_dTkCanopy = Cp_water * d_integral_dTk + Cp_ice * (1._rkind - d_integral_dTk)
+              dfLiq_dT = dFracLiq_dTk(scalarCanopyTemp,snowfrz_scale)
+              dCm_dTkCanopy = Cp_water * fLiq + Cp_ice * (1._rkind - fLiq) + LH_fus * dfLiq_dT / canopyDepth
             end if
 
           case(iname_snow)
             diffT = mLayerTemp(iLayer) - Tfreeze
+            fLiq = fracLiquid(mLayerTemp(iLayer),snowfrz_scale)
             integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
             mLayerCm(iLayer) = (iden_water * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( diffT - integral ) &
-                    +  (iden_water * Cp_water - iden_air * Cp_air) * integral
+                              + (iden_water * Cp_water - iden_air * Cp_air) * integral - LH_fus * iden_water * (1._rkind - fLiq)
             ! derivatives
-            d_integral_dTk = 1._rkind / (1._rkind + (snowfrz_scale * diffT)**2_i4b)
-            dCm_dTk(iLayer) = (iden_water * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( 1._rkind - d_integral_dTk ) &
-                    +  (iden_water * Cp_water - iden_air * Cp_air) * d_integral_dTk
+            dfLiq_dT = dFracLiq_dTk(mLayerTemp(iLayer),snowfrz_scale)
+            dCm_dTk(iLayer) = (iden_water * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( 1._rkind -fLiq ) &
+                             + (iden_water * Cp_water - iden_air * Cp_air) * fLiq + LH_fus * iden_water * dfLiq_dT
 
           case(iname_soil)
             diffT = mLayerTemp(iLayer) - Tfreeze
             diff0 = Tcrit - Tfreeze
-            dTcrit_dPsi0 = merge(gravity*Tfreeze/LH_fus,0._rkind,mLayerMatricHead(ixControlIndex)<=0._rkind)
             Tcrit = crit_soilT( mLayerMatricHead(ixControlIndex) )
             if( mLayerTemp(iLayer)>=Tcrit)then
               mLayerCm(iLayer) = (-iden_air * Cp_air + iden_water * Cp_water) * diffT
@@ -470,9 +476,10 @@ subroutine computCm(&
               dCm_dPsi0(ixControlIndex) = 0._rkind
             else        
               mLayerCm(iLayer) = -iden_air * Cp_air * diffT + iden_ice * Cp_ice * (mLayerTemp(iLayer)-Tcrit) &
-                                + iden_water * Cp_water * diff0
-              ! WRONG mLayerCm(iLayer) = (iden_ice * Cp_ice - iden_air * Cp_air) * diffT
+                                + iden_water * Cp_water * diff0 - iden_ice * LH_fus  
+              ! WRONG mLayerCm(iLayer) = - iden_air * Cp_air + iden_ice * Cp_ice * diffT
               ! derivatives
+              dTcrit_dPsi0 = merge(gravity*Tfreeze/LH_fus,0._rkind,mLayerMatricHead(ixControlIndex)<=0._rkind)
               dCm_dTk(iLayer) = -iden_air * Cp_air + iden_ice * Cp_ice
               dCm_dPsi0(ixControlIndex) = (-iden_ice * Cp_ice + iden_water * Cp_water) * dTcrit_dPsi0
               !WRONG dCm_dTk(iLayer) = (iden_ice * Cp_ice - iden_air * Cp_air)

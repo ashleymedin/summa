@@ -507,6 +507,7 @@ subroutine eval8summa(&
       ! compute C_m
       call computCm(&
                  ! input: state variables
+                 canopyDepth,           & ! intent(in):    canopy depth (m)
                  scalarCanopyTempTrial, & ! intent(in):    trial value of canopy temperature (K)
                  mLayerTempTrial,       & ! intent(in):    trial value of layer temperature (K)
                  mLayerMatricHeadTrial, & ! intent(in):    trial value for total water matric potential (-)
