@@ -264,9 +264,9 @@ def run_loop(j,var,the_max,stat,row_fill):
                 axs_list = axs.ravel().tolist()
             if one_plot:
                 if not row_fill: 
-                    cbr = fig.colorbar(sm, ax=axs_list[c*len(method_name):(c+1)*len(method_name)],aspect=27/2.5*nrow)
+                    cbr = fig.colorbar(sm, ax=axs_list[c*len(method_name):(c+1)*len(method_name)],aspect=27/1.1*nrow)
                 else:
-                    cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/2.5*nrow)
+                    cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/1.1*nrow)
             else:
                 if not row_fill:
                     cbr = fig.colorbar(sm, ax=axs_list[c*len(method_name):(c+1)*len(method_name)],aspect=27/3*nrow)

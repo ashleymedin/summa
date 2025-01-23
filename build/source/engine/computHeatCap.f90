@@ -33,16 +33,12 @@ USE data_types,only:&
 USE var_lookup,only:iLookPARAM,iLookDIAG,iLookINDEX  ! named variables for structure elements
 
 ! physical constants
-USE multiconst,only:&
-                    Tfreeze,     & ! freezing point of water (K)
-                    iden_air,    & ! intrinsic density of air      (kg m-3)
-                    iden_ice,    & ! intrinsic density of ice      (kg m-3)
-                    iden_water,  & ! intrinsic density of water    (kg m-3)
-                    ! specific heat
-                    Cp_air,      & ! specific heat of air          (J kg-1 K-1)
-                    Cp_ice,      & ! specific heat of ice          (J kg-1 K-1)
-                    Cp_soil,     & ! specific heat of soil         (J kg-1 K-1)
-                    Cp_water       ! specific heat of liquid water (J kg-1 K-1)
+USE multiconst,only: gravity, &                          ! gravitational acceleration (m s-1)
+                     Tfreeze, &                          ! freezing point of water (K)
+                     Cp_soil,Cp_water,Cp_ice,Cp_air,&    ! specific heat of soil, water and ice (J kg-1 K-1)
+                     iden_water,iden_ice,iden_air,&      ! intrinsic density of water and ice (kg m-3)
+                     LH_fus                              ! latent heat of fusion (J kg-1)
+
 ! named variables to describe the state variable type
 USE globalData,only:iname_nrgCanair  ! named variable defining the energy of the canopy air space
 USE globalData,only:iname_nrgCanopy  ! named variable defining the energy of the vegetation canopy
@@ -353,6 +349,7 @@ subroutine computCm(&
                       ! output
                       scalarCanopyCm,          & ! intent(inout): Cm for vegetation (J kg K-1)
                       mLayerCm,                & ! intent(inout): Cm for soil and snow (J kg K-1)
+                      dCm_dPsi0,               & ! intent(inout): derivative in Cm w.r.t. matric potential (J kg)
                       dCm_dTk,                 & ! intent(inout): derivative in Cm w.r.t. temperature (J kg K-2)
                       dCm_dTkCanopy,           & ! intent(inout): derivative in Cm w.r.t. temperature (J kg K-2)
                       ! output: error control
@@ -371,6 +368,7 @@ subroutine computCm(&
   ! output: Cm and derivatives
   real(qp),intent(inout)               :: scalarCanopyCm         ! Cm for vegetation (J kg K-1)
   real(qp),intent(inout)               :: mLayerCm(:)            ! Cm for soil and snow (J kg K-1)
+  real(rkind),intent(inout)            :: dCm_dPsi0(:)           ! derivative in Cm w.r.t. matric potential (J kg)
   real(rkind),intent(inout)            :: dCm_dTk(:)             ! derivative in Cm w.r.t. temperature (J kg K-2)
   real(rkind),intent(inout)            :: dCm_dTkCanopy          ! derivative in Cm w.r.t. temperature (J kg K-2)
   ! output: error control
@@ -384,6 +382,8 @@ subroutine computCm(&
   integer(i4b)                         :: ixDomainType           ! name of a given model domain
   integer(i4b)                         :: ixControlIndex         ! index within a given model domain
   real(rkind)                          :: diffT                  ! temperature difference from Tfreeze
+  real(rkind)                          :: diff0                  ! temperature difference Tcrit from Tfreeze
+  real(rkind)                          :: dTcrit_dPsi0           ! derivative of critical temperature with matric potential
   real(rkind)                          :: integral               ! integral of snow freezing curve
   real(rkind)                          :: Tcrit                  ! temperature where all water is unfrozen (K)
   real(rkind)                          :: d_integral_dTk         ! derivative of integral with temperature
@@ -460,15 +460,20 @@ subroutine computCm(&
 
           case(iname_soil)
             diffT = mLayerTemp(iLayer) - Tfreeze
+            diff0 = Tcrit - Tfreeze
+            dTcrit_dPsi0 = merge(gravity*Tfreeze/LH_fus,0._rkind,mLayerMatricHead(ixControlIndex)<=0._rkind)
             Tcrit = crit_soilT( mLayerMatricHead(ixControlIndex) )
             if( mLayerTemp(iLayer)>=Tcrit)then
-              mLayerCm(iLayer) = (iden_water * Cp_water - iden_air * Cp_air) * diffT
+              mLayerCm(iLayer) = (-iden_air * Cp_air + iden_water * Cp_water) * diffT
               ! derivatives
-              dCm_dTk(iLayer) = (iden_water * Cp_water - iden_air * Cp_air)
+              dCm_dTk(iLayer) = -iden_air * Cp_air + iden_water * Cp_water
+              dCm_dPsi0(ixControlIndex) = 0._rkind
             else        
-              mLayerCm(iLayer) = (iden_ice * Cp_ice - iden_air * Cp_air) * diffT
+              mLayerCm(iLayer) = -iden_air * Cp_air * diffT + iden_ice * Cp_ice * (mLayerTemp(iLayer)-Tcrit) &
+                                + iden_water * Cp_water * diff0
               ! derivatives
-              dCm_dTk(iLayer) = (iden_ice * Cp_ice - iden_air * Cp_air)
+              dCm_dTk(iLayer) = -iden_air * Cp_air + iden_ice * Cp_ice
+              dCm_dPsi0(ixControlIndex) = (-iden_ice * Cp_ice + iden_water * Cp_water) * dTcrit_dPsi0
             endif
         end select
 

@@ -252,6 +252,7 @@ subroutine eval8summaWithPrime(&
     dThermalC_dWatBelow       => deriv_data%var(iLookDERIV%dThermalC_dWatBelow)%dat        ,& ! intent(out): [dp(:)]  derivative in the thermal conductivity w.r.t. water state in the layer above
     dThermalC_dTempAbove      => deriv_data%var(iLookDERIV%dThermalC_dTempAbove)%dat       ,& ! intent(out): [dp(:)]  derivative in the thermal conductivity w.r.t. energy state in the layer above
     dThermalC_dTempBelow      => deriv_data%var(iLookDERIV%dThermalC_dTempBelow)%dat       ,& ! intent(out): [dp(:)]  derivative in the thermal conductivity w.r.t. energy state in the layer above
+    dCm_dPsi0                 => deriv_data%var(iLookDERIV%dCm_dPsi0)%dat                  ,& ! intent(out): [dp(:)]  derivative in heat capacity w.r.t. matric potential (J kg-1 K-1)
     dCm_dTk                   => deriv_data%var(iLookDERIV%dCm_dTk)%dat                    ,& ! intent(out): [dp(:)]  derivative in heat capacity w.r.t. temperature (J kg-1 K-2)
     dCm_dTkCanopy             => deriv_data%var(iLookDERIV%dCm_dTkCanopy)%dat(1)           ,& ! intent(out): [dp   ]  derivative in heat capacity w.r.t. canopy temperature (J kg-1 K-2)
     ! mapping
@@ -572,12 +573,14 @@ subroutine eval8summaWithPrime(&
                  ! output
                  canopyCmTrial,         & ! intent(inout): Cm for vegetation (J kg K-1)
                  mLayerCmTrial,         & ! intent(inout): Cm for soil and snow (J kg K-1)
+                 dCm_dPsi0,             & ! intent(inout): derivative in Cm w.r.t. matric potential (J kg)
                  dCm_dTk,               & ! intent(inout): derivative in Cm w.r.t. temperature (J kg K-2)
                  dCm_dTkCanopy,         & ! intent(inout): derivative in Cm w.r.t. temperature (J kg K-2)
                  err,cmessage)            ! intent(inout): error control
     else
       canopyCmTrial = 0._qp
       mLayerCmTrial = 0._qp
+      dCm_dPsi0     = 0._rkind
       dCm_dTk       = 0._rkind
       dCm_dTkCanopy = 0._rkind
     endif ! needStateCm
