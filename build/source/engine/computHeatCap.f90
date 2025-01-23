@@ -471,12 +471,12 @@ subroutine computCm(&
             else        
               mLayerCm(iLayer) = -iden_air * Cp_air * diffT + iden_ice * Cp_ice * (mLayerTemp(iLayer)-Tcrit) &
                                 + iden_water * Cp_water * diff0
-              !mLayerCm(iLayer) = (iden_ice * Cp_ice - iden_air * Cp_air) * diffT
+              ! WRONG mLayerCm(iLayer) = (iden_ice * Cp_ice - iden_air * Cp_air) * diffT
               ! derivatives
               dCm_dTk(iLayer) = -iden_air * Cp_air + iden_ice * Cp_ice
               dCm_dPsi0(ixControlIndex) = (-iden_ice * Cp_ice + iden_water * Cp_water) * dTcrit_dPsi0
-              !dCm_dTk(iLayer) = (iden_ice * Cp_ice - iden_air * Cp_air)
-              !dCm_dPsi0(ixControlIndex) = 0._rkind
+              !WRONG dCm_dTk(iLayer) = (iden_ice * Cp_ice - iden_air * Cp_air)
+              !WRONG dCm_dPsi0(ixControlIndex) = 0._rkind
             endif
         end select
 
