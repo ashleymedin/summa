@@ -56,9 +56,9 @@ USE globalData,only:iname_lake      ! named variables for lake
 USE globalData,only:iname_nrgCanair ! named variable defining the energy of the canopy air space
 USE globalData,only:iname_nrgCanopy ! named variable defining the energy of the vegetation canopy
 USE globalData,only:iname_watCanopy ! named variable defining the mass of water on the vegetation canopy
-USE globalData,only:iname_nrgLayer  ! named variable defining the energy state variable for snow+soil layers
-USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for snow+soil layers
-USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for snow+soil layers
+USE globalData,only:iname_nrgLayer  ! named variable defining the energy state variable for layers
+USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for layers
+USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for layers
 USE globalData,only:iname_matLayer  ! named variable defining the matric head state variable for soil layers
 USE globalData,only:iname_lmpLayer  ! named variable defining the liquid matric potential state variable for soil layers
 
@@ -100,11 +100,11 @@ subroutine computResid(&
                       mLayerVolFracWatTrial,     & ! intent(in):  trial value for the volumetric water in each layer (-)
                       mLayerVolFracLiqTrial,     & ! intent(in):  trial value for the volumetric liq in each layer (-)
                       ! input: enthalpy terms
-                      scalarCanopyCmTrial,       & ! intent(in):  Cm of vegetation canopy (J kg K-1)
-                      mLayerCmTrial,             & ! intent(in):  Cm of each layer (J kg K-1)
+                      scalarCanopyCm_noLHTrial,  & ! intent(in):  Cm without latent heat part for vegetation canopy (J kg K-1)
+                      mLayerCm_noLHTrial,        & ! intent(in):  Cm without latent heat part for each snow and soil layer (J kg K-1)
                       scalarCanairEnthalpyTrial, & ! intent(in):  trial value for  enthalpy of the canopy air space (J m-3)
                       scalarCanopyEnthTempTrial, & ! intent(in):  trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
-                      mLayerEnthTempTrial,       & ! intent(in):  trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)  
+                      mLayerEnthTempTrial,       & ! intent(in):  trial vector of temperature component of enthalpy of each layer (J m-3)  
                       ! input: data structures
                       prog_data,                 & ! intent(in):  model prognostic variables for a local HRU
                       diag_data,                 & ! intent(in):  model diagnostic variables for a local HRU
@@ -139,11 +139,11 @@ subroutine computResid(&
   real(rkind),intent(in)             :: mLayerVolFracWatTrial(:)  ! trial value for the volumetric water in each layer (-)
   real(rkind),intent(in)             :: mLayerVolFracLiqTrial(:)  ! trial value for the volumetric water in each layer (-)
   ! input: enthalpy terms
-  real(qp),intent(in)                :: scalarCanopyCmTrial       ! Cm of vegetation canopy (-)
-  real(qp),intent(in)                :: mLayerCmTrial(:)          ! Cm of each layer (-)
+  real(rkind),intent(in)             :: scalarCanopyCm_noLHTrial  ! Cm without latent heat part for vegetation canopy (-)
+  real(rkind),intent(in)             :: mLayerCm_noLHTrial(:)     ! Cm without latent heat part for each snow and soil layer (-)
   real(rkind),intent(in)             :: scalarCanairEnthalpyTrial ! trial value for enthalpy of the canopy air space (J m-3)
   real(rkind),intent(in)             :: scalarCanopyEnthTempTrial ! trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
-  real(rkind),intent(in)             :: mLayerEnthTempTrial(:)    ! trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)
+  real(rkind),intent(in)             :: mLayerEnthTempTrial(:)    ! trial vector of temperature component of enthalpy of each layer (J m-3)
   ! input: data structures
   type(var_dlength),intent(in)       :: prog_data                 ! prognostic variables for a local HRU
   type(var_dlength),intent(in)       :: diag_data                 ! diagnostic variables for a local HRU
@@ -181,7 +181,7 @@ subroutine computResid(&
     ! enthalpy terms
     scalarCanairEnthalpy    => prog_data%var(iLookPROG%scalarCanairEnthalpy)%dat(1)   ,& ! intent(in): [dp]     enthalpy of the canopy air space (J m-3)
     scalarCanopyEnthTemp    => diag_data%var(iLookDIAG%scalarCanopyEnthTemp)%dat(1)   ,& ! intent(in): [dp]     temperature component of enthalpy of the vegetation canopy (J m-3)
-    mLayerEnthTemp          => diag_data%var(iLookDIAG%mLayerEnthTemp)%dat            ,& ! intent(in): [dp(:)]  temperature component of enthalpy of the snow+soil layers (J m-3)
+    mLayerEnthTemp          => diag_data%var(iLookDIAG%mLayerEnthTemp)%dat            ,& ! intent(in): [dp(:)]  temperature component of enthalpy of the layers (J m-3)
     ! model state variables (aquifer)
     scalarAquiferStorage    => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)   ,& ! intent(in): [dp]     storage of water in the aquifer (m)
     ! canopy and layer depth
@@ -200,8 +200,8 @@ subroutine computResid(&
     ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in): [i4b]    index of canopy energy state variable
     ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
     ixAqWat                 => indx_data%var(iLookINDEX%ixAqWat)%dat(1)               ,& ! intent(in): [i4b]    index of water storage in the aquifer
-    ixSnLaSoGlNrg           => indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat            ,& ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
-    ixSnLaSoGlHyd           => indx_data%var(iLookINDEX%ixSnLaSoGlHyd)%dat            ,& ! intent(in): [i4b(:)] indices for hydrology states in the snow+soil subdomain
+    ixSnLaSoGlNrg           => indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat            ,& ! intent(in): [i4b(:)] indices for energy states in the layer domains
+    ixSnLaSoGlHyd           => indx_data%var(iLookINDEX%ixSnLaSoGlHyd)%dat            ,& ! intent(in): [i4b(:)] indices for hydrology states in the layer domains
     ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat            ,& ! intent(in): [i4b(:)] indices for hydrology states in the soil subdomain
     ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat              ,& ! intent(in): [i4b(:)] indices defining the type of the state (iname_nrgLayer...)
     ixHydCanopy             => indx_data%var(iLookINDEX%ixHydCanopy)%dat              ,& ! intent(in): [i4b(:)] index of the hydrology states in the canopy domain
@@ -256,7 +256,7 @@ subroutine computResid(&
       if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = ( scalarCanopyEnthTempTrial - scalarCanopyEnthTemp ) - ( fVec(ixVegNrg)*dt + rAdd(ixVegNrg) )
     else
       if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = sMul(ixCasNrg)*( scalarCanairTempTrial - scalarCanairTemp ) - ( fVec(ixCasNrg)*dt + rAdd(ixCasNrg) )
-      if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg)*( scalarCanopyTempTrial - scalarCanopyTemp ) + scalarCanopyCmTrial*( scalarCanopyWatTrial - scalarCanopyWat )/canopyDepth &
+      if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg)*( scalarCanopyTempTrial - scalarCanopyTemp ) + scalarCanopyCm_noLHTrial*( scalarCanopyWatTrial - scalarCanopyWat )/canopyDepth &
                                                    - ( fVec(ixVegNrg)*dt + rAdd(ixVegNrg) )
     endif
     ! --> mass balance
@@ -272,7 +272,7 @@ subroutine computResid(&
         if(mixdformNrg)then
           rVec( ixSnLaSoGlNrg(iLayer) ) = ( mLayerEnthTempTrial(iLayer) - mLayerEnthTemp(iLayer) ) - ( fVec( ixSnLaSoGlNrg(iLayer) )*dt + rAdd( ixSnLaSoGlNrg(iLayer) ) )
         else
-          rVec( ixSnLaSoGlNrg(iLayer) ) = sMul( ixSnLaSoGlNrg(iLayer) )*( mLayerTempTrial(iLayer) - mLayerTemp(iLayer) ) + mLayerCmTrial(iLayer)*( mLayerVolFracWatTrial(iLayer) - mLayerVolFracWat(iLayer) ) &
+          rVec( ixSnLaSoGlNrg(iLayer) ) = sMul( ixSnLaSoGlNrg(iLayer) )*( mLayerTempTrial(iLayer) - mLayerTemp(iLayer) ) + mLayerCm_noLHTrial(iLayer)*( mLayerVolFracWatTrial(iLayer) - mLayerVolFracWat(iLayer) ) &
                                          - ( fVec( ixSnLaSoGlNrg(iLayer) )*dt + rAdd( ixSnLaSoGlNrg(iLayer) ) )
         endif
       end do  ! looping through non-missing energy state variables in the layer domains

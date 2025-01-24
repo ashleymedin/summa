@@ -38,9 +38,9 @@ USE globalData,only:iname_lake      ! named variables for lake
 USE globalData,only:iname_nrgCanair ! named variable defining the energy of the canopy air space
 USE globalData,only:iname_nrgCanopy ! named variable defining the energy of the vegetation canopy
 USE globalData,only:iname_watCanopy ! named variable defining the mass of water on the vegetation canopy
-USE globalData,only:iname_nrgLayer  ! named variable defining the energy state variable for snow+soil layers
-USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for snow+soil layers
-USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for snow+soil layers
+USE globalData,only:iname_nrgLayer  ! named variable defining the energy state variable for layers
+USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for layers
+USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for layers
 USE globalData,only:iname_matLayer  ! named variable defining the matric head state variable for soil layers
 USE globalData,only:iname_lmpLayer  ! named variable defining the liquid matric potential state variable for soil layers
 
@@ -81,8 +81,8 @@ subroutine computResidWithPrime(&
                       mLayerVolFracWatPrime,     & ! intent(in):  prime vector of the volumetric water in each layer (s-1)
                       mLayerVolFracLiqPrime,     & ! intent(in):  prime vector of the volumetric liq in each layer (s-1)
                       ! input: enthalpy terms
-                      scalarCanopyCmTrial,       & ! intent(in):  Cm of vegetation canopy (J kg K-1)
-                      mLayerCmTrial,             & ! intent(in):  Cm of each layer (J kg K-1)
+                      scalarCanopyCm_noLHTrial,  & ! intent(in):  Cm without latent heat part for vegetation canopy (J kg K-1)
+                      mLayerCm_noLHTrial,        & ! intent(in):  Cm without latent heat part for each snow and soil layer (J kg K-1)
                       scalarCanairEnthalpyPrime, & ! intent(in):  prime value for the enthalpy of the canopy air space (W m-3)
                       scalarCanopyEnthalpyPrime, & ! intent(in):  prime value for the of enthalpy of the vegetation canopy (W m-3)
                       mLayerEnthalpyPrime,       & ! intent(in):  prime vector of the of enthalpy of each layer (W m-3)
@@ -102,8 +102,8 @@ subroutine computResidWithPrime(&
   integer(i4b),intent(in)         :: nSnow                     ! number of snow layers
   integer(i4b),intent(in)         :: nLake                     ! number of lake layers
   integer(i4b),intent(in)         :: nSoil                     ! number of soil layers
-  integer(i4b),intent(in)         :: nLayers                   ! total number of layers in the layer domains
-  logical(lgt),intent(in)         :: enthalpyStateVec               ! flag if enthalpy is state variable
+  integer(i4b),intent(in)         :: nLayers                   ! total number of layers in the layer domain
+  logical(lgt),intent(in)         :: enthalpyStateVec          ! flag if enthalpy is state variable
   ! input: flux vectors
   real(qp),intent(in)             :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
   real(rkind),intent(in)          :: fVec(:)                   ! flux vector
@@ -120,8 +120,8 @@ subroutine computResidWithPrime(&
   real(rkind),intent(in)          :: mLayerVolFracWatPrime(:)  ! prime vector of the volumetric water in each layer (s-1)
   real(rkind),intent(in)          :: mLayerVolFracLiqPrime(:)  ! prime vector of the volumetric water in each layer (s-1)
   ! input: enthalpy terms
-  real(qp),intent(in)             :: scalarCanopyCmTrial       ! Cm of vegetation canopy (-)
-  real(qp),intent(in)             :: mLayerCmTrial(:)          ! Cm of each layer (-)
+  real(rkind),intent(in)          :: scalarCanopyCm_noLHTrial  ! Cm without latent heat part for vegetation canopy (-)
+  real(rkind),intent(in)          :: mLayerCm_noLHTrial(:)     ! Cm without latent heat part for each layer (-)
   real(rkind),intent(in)          :: scalarCanairEnthalpyPrime ! prime value for enthalpy of the canopy air space (W m-3)
   real(rkind),intent(in)          :: scalarCanopyEnthalpyPrime ! prime value for enthalpy of the vegetation canopy (W m-3)
   real(rkind),intent(in)          :: mLayerEnthalpyPrime(:)    ! prime vector of enthalpy of each layer (W m-3)
@@ -162,8 +162,8 @@ subroutine computResidWithPrime(&
     ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in): [i4b]    index of canopy energy state variable
     ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
     ixAqWat                 => indx_data%var(iLookINDEX%ixAqWat)%dat(1)               ,& ! intent(in): [i4b]    index of water storage in the aquifer
-    ixSnLaSoGlNrg           => indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat            ,& ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
-    ixSnLaSoGlHyd           => indx_data%var(iLookINDEX%ixSnLaSoGlHyd)%dat            ,& ! intent(in): [i4b(:)] indices for hydrology states in the snow+soil subdomain
+    ixSnLaSoGlNrg           => indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat            ,& ! intent(in): [i4b(:)] indices for energy states in the layer domains
+    ixSnLaSoGlHyd           => indx_data%var(iLookINDEX%ixSnLaSoGlHyd)%dat            ,& ! intent(in): [i4b(:)] indices for hydrology states in the layer domains
     ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat            ,& ! intent(in): [i4b(:)] indices for hydrology states in the soil subdomain
     ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat              ,& ! intent(in): [i4b(:)] indices defining the type of the state (iname_nrgLayer...)
     ixHydCanopy             => indx_data%var(iLookINDEX%ixHydCanopy)%dat              ,& ! intent(in): [i4b(:)] index of the hydrology states in the canopy domain
@@ -223,7 +223,7 @@ subroutine computResidWithPrime(&
       if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = scalarCanopyEnthalpyPrime - ( fVec(ixVegNrg)*dt + rAdd(ixVegNrg) )
     else
       if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = sMul(ixCasNrg) * scalarCanairTempPrime - ( fVec(ixCasNrg)*dt + rAdd(ixCasNrg) )
-      if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg) * scalarCanopyTempPrime + scalarCanopyCmTrial * scalarCanopyWatPrime/canopyDepth &
+      if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg) * scalarCanopyTempPrime + scalarCanopyCm_noLHTrial * scalarCanopyWatPrime/canopyDepth &
                                                    - ( fVec(ixVegNrg)*dt + rAdd(ixVegNrg) )
     endif                                               
     ! --> mass balance
@@ -238,7 +238,7 @@ subroutine computResidWithPrime(&
         if(enthalpyStateVec)then
           rVec( ixSnLaSoGlNrg(iLayer) ) = mLayerEnthalpyPrime(iLayer) - ( fVec( ixSnLaSoGlNrg(iLayer) )*dt + rAdd( ixSnLaSoGlNrg(iLayer) ) )
         else
-          rVec( ixSnLaSoGlNrg(iLayer) ) = sMul( ixSnLaSoGlNrg(iLayer) ) * mLayerTempPrime(iLayer) + mLayerCmTrial(iLayer) * mLayerVolFracWatPrime(iLayer) &
+          rVec( ixSnLaSoGlNrg(iLayer) ) = sMul( ixSnLaSoGlNrg(iLayer) ) * mLayerTempPrime(iLayer) + mLayerCm_noLHTrial(iLayer) * mLayerVolFracWatPrime(iLayer) &
                                          - ( fVec( ixSnLaSoGlNrg(iLayer) )*dt + rAdd( ixSnLaSoGlNrg(iLayer) ) )
         endif
       end do  ! looping through non-missing energy state variables in the layer domains
