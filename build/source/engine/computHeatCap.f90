@@ -477,13 +477,12 @@ subroutine computCm(&
             else        
               mLayerCm(iLayer) = -iden_air * Cp_air * diffT + iden_ice * Cp_ice * (mLayerTemp(iLayer)-Tcrit) &
                                 + iden_water * Cp_water * diff0 !- iden_ice * LH_fus  
-              ! WRONG mLayerCm(iLayer) = - iden_air * Cp_air + iden_ice * Cp_ice * diffT
+              !WRONG mLayerCm(iLayer) = - iden_air * Cp_air + iden_ice * Cp_ice * diffT
               ! derivatives
               dTcrit_dPsi0 = merge(gravity*Tfreeze/LH_fus,0._rkind,mLayerMatricHead(ixControlIndex)<=0._rkind)
               dCm_dTk(iLayer) = -iden_air * Cp_air + iden_ice * Cp_ice
               dCm_dPsi0(ixControlIndex) = (-iden_ice * Cp_ice + iden_water * Cp_water) * dTcrit_dPsi0
-              ! WRONG dCm_dTk(iLayer) = (iden_ice * Cp_ice - iden_air * Cp_air)
-              ! WRONG dCm_dPsi0(ixControlIndex) = 0._rkind
+              !WRONG dCm_dPsi0(ixControlIndex) = 0._rkind
             endif
         end select
 
