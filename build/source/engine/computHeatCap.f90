@@ -492,7 +492,7 @@ subroutine computCm(&
               mLayerCm_noLH(iLayer) = -iden_air * Cp_air * diffT + iden_ice * Cp_ice * (mLayerTemp(iLayer)-Tcrit) &
                                      + iden_water * Cp_water * diff0
               mLayerCm(iLayer)      = mLayerCm_noLH(iLayer)
-              if (be_solver) mLayerCm(iLayer) = mLayerCm_noLH(iLayer) - LH_fus * iden_ice ! LH_fus is term is already in the Jacobian for the LHS
+              if (be_solver) mLayerCm(iLayer) = mLayerCm_noLH(iLayer) - LH_fus * iden_water ! LH_fus is term is already in the Jacobian for the LHS
               ! derivatives, note that does not matter if be_solver is true or false
               dTcrit_dPsi0 = merge(gravity*Tfreeze/LH_fus,0._rkind,mLayerMatricHead(ixControlIndex)<=0._rkind)
               dCm_dTk(iLayer) = -iden_air * Cp_air + iden_ice * Cp_ice
