@@ -480,8 +480,8 @@ subroutine computCm(&
 
           case(iname_soil)
             diffT = mLayerTemp(iLayer) - Tfreeze
-            diff0 = Tcrit - Tfreeze
             Tcrit = crit_soilT( mLayerMatricHead(ixControlIndex) )
+            diff0 = Tcrit - Tfreeze
             if( mLayerTemp(iLayer)>=Tcrit)then
               mLayerCm_noLH(iLayer) = (-iden_air * Cp_air + iden_water * Cp_water) * diffT
               mLayerCm(iLayer)      = mLayerCm_noLH(iLayer)
