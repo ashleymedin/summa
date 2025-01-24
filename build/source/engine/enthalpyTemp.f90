@@ -54,7 +54,7 @@ USE globalData,only:iname_aquifer                  ! named variables for the aqu
 ! named variables to describe the state variable type
 USE globalData,only:iname_nrgCanair                ! named variable defining the energy of the canopy air space
 USE globalData,only:iname_nrgCanopy                ! named variable defining the energy of the vegetation canopy
-USE globalData,only:iname_nrgLayer                 ! named variable defining the energy state variable for snow+soil layers
+USE globalData,only:iname_nrgLayer                 ! named variable defining the energy state variable for layers
 
 ! missing values
 USE globalData,only:integerMissing                 ! missing integer
@@ -691,7 +691,7 @@ subroutine enthTemp_or_enthalpy(&
                       mLayerVolFracIce,        & ! intent(in):    vector of volumetric fraction of ice (-) or prime volumetric fraction of ice (s-1)
                       ! input/output: enthalpy
                       scalarCanopyH,           & ! intent(inout): enthTemp to enthalpy of the vegetation canopy (J m-3), or vice versa if do_enthTemp2enthalpy false
-                      mLayerH,                 & ! intent(inout): enthTemp to enthalpy of each snow+soil layer (J m-3), or vice versa if do_enthTemp2enthalpy false
+                      mLayerH,                 & ! intent(inout): enthTemp to enthalpy of each layer (J m-3), or vice versa if do_enthTemp2enthalpy false
                       ! output: error control
                       err,message)               ! intent(out): error control
   ! -------------------------------------------------------------------------------------------------------------------------
@@ -707,7 +707,7 @@ subroutine enthTemp_or_enthalpy(&
   real(rkind),intent(in)           :: mLayerVolFracIce(:)        ! vector of volumetric fraction of ice (-) or prime volumetric fraction of ice (s-1)
   ! input output: enthalpy
   real(rkind),intent(inout)        :: scalarCanopyH              ! enthTemp to enthalpy of the vegetation canopy (J m-3), or vice versa if do_enthTemp2enthalpy false
-  real(rkind),intent(inout)        :: mLayerH(:)                 ! enthTemp to enthalpy of each snow+soil layer (J m-3), or vice versa if do_enthTemp2enthalpy false
+  real(rkind),intent(inout)        :: mLayerH(:)                 ! enthTemp to enthalpy of each layer (J m-3), or vice versa if do_enthTemp2enthalpy false
   ! output: error control
   integer(i4b),intent(out)         :: err                        ! error code
   character(*),intent(out)         :: message                    ! error message
@@ -958,7 +958,7 @@ subroutine enthalpy2T_SnLaGl(&
                       computJac,         & ! intent(in):    flag if computing for Jacobian update
                       isLake,            & ! intent(in):    flag if is lake layer
                       snowfrz_scale,     & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
-                      mLayerEnthalpy,    & ! intent(in):    enthalpy of snow+soil layer (J m-3)
+                      mLayerEnthalpy,    & ! intent(in):    enthalpy of layer (J m-3)
                       mLayerVolFracWat,  & ! intent(in):    volumetric total water content (-)
                       mLayerTemp,        & ! intent(inout): layer temperature (K)
                       dTemp_dEnthalpy,   & ! intent(inout): derivative of layer temperature with enthalpy
@@ -977,7 +977,7 @@ subroutine enthalpy2T_SnLaGl(&
   ! input: data structures
   real(rkind),intent(in)           :: snowfrz_scale      ! scaling parameter for the snow freezing curve  (K-1)
   ! input: enthalpy state variables
-  real(rkind),intent(in)           :: mLayerEnthalpy     ! enthalpy of each snow+soil layer (J m-3)
+  real(rkind),intent(in)           :: mLayerEnthalpy     ! enthalpy of each layer (J m-3)
   ! input: water state variables
   real(rkind),intent(in)           :: mLayerVolFracWat   ! volumetric total water content (-)
   ! output: temperature diagnostic variables
@@ -1087,7 +1087,7 @@ subroutine enthalpy2T_soil(&
                       vGn_m,                    & ! intent(in):    van Genutchen "m" parameter (-)
                       ixControlIndex,           & ! intent(in):    index of the control volume within the domain
                       lookup_data,              & ! intent(in):    lookup table data structure
-                      mLayerEnthalpy,           & ! intent(in):    enthalpy of each snow+soil layer (J m-3)
+                      mLayerEnthalpy,           & ! intent(in):    enthalpy of each layer (J m-3)
                       mLayerMatricHead,         & ! intent(in):    total water matric potential (m)
                       mLayerTemp,               & ! intent(inout): layer temperature (K)
                       dTemp_dEnthalpy,          & ! intent(inout): derivative of layer temperature with enthalpy
@@ -1117,7 +1117,7 @@ subroutine enthalpy2T_soil(&
   integer(i4b),intent(in)          :: ixControlIndex         ! index within a given model domain
   type(zLookup),intent(in)         :: lookup_data            ! lookup tables
   ! input: enthalpy state variables
-  real(rkind),intent(in)           :: mLayerEnthalpy         ! enthalpy of each snow+soil layer (J m-3)
+  real(rkind),intent(in)           :: mLayerEnthalpy         ! enthalpy of each layer (J m-3)
   ! input: water state variables
   real(rkind),intent(in)           :: mLayerMatricHead       ! total water matric potential (m)
   ! output: temperature diagnostic variables

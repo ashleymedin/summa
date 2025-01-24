@@ -260,7 +260,7 @@ contains
   !----- run simulation for a single GRU ----------------------------------------
   call run_oneGRU(&
                   ! model control
-                  gru_struc(iGRU),              & ! intent(inout): HRU information for given GRU (# HRUs, #snow+soil layers)
+                  gru_struc(iGRU),              & ! intent(inout): HRU information for given GRU (# HRUs, #layers)
                   dt_init%gru(iGRU),            & ! intent(inout): used to initialize the length of the sub-step for each HRU
                   computeVegFlux%gru(iGRU),     & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
                   ! data structures (input)

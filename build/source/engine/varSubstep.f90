@@ -704,7 +704,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
   real(rkind)                     :: scalarAquiferStorageTrial     ! trial value for storage of water in the aquifer (m)
   real(rkind)                     :: scalarCanairEnthalpyTrial     ! trial value for enthalpy of the canopy air space (J m-3)
   real(rkind)                     :: scalarCanopyEnthTempTrial     ! trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
-  real(rkind),dimension(nLayers)  :: mLayerEnthTempTrial           ! trial vector of temperature component of enthalpy of snow + soil (J m-3)
+  real(rkind),dimension(nLayers)  :: mLayerEnthTempTrial           ! trial vector of temperature component of enthalpy of layers (J m-3)
   real(rkind)                     :: scalarCanopyEnthalpyTrial     ! trial value for enthalpy of the vegetation canopy (J m-3)
   real(rkind),dimension(nLayers)  :: mLayerEnthalpyTrial           ! trial vector of enthalpy of each layer (J m-3)
   ! diagnostic variables
@@ -728,15 +728,15 @@ USE getVectorz_module,only:varExtract                              ! extract var
   real(rkind)                     :: scalarCanopyHDelta            ! delta value for enthalpy of the vegetation canopy (J m-3)
   real(rkind),dimension(nLayers)  :: mLayerVolFracLiqPrime         ! trial vector of volumetric fraction of liquid water (-)
   real(rkind),dimension(nLayers)  :: mLayerVolFracIcePrime         ! trial vector of volumetric fraction of ice (-)
-  real(rkind),dimension(nLayers)  :: mLayerVolFracIceDelta         ! delta vector volumetric fraction of ice of snow + soil (-)
-  real(rkind),dimension(nLayers)  :: mLayerHDelta                  ! delta vector of enthalpy of snow+soil (J m-3)
+  real(rkind),dimension(nLayers)  :: mLayerVolFracIceDelta         ! delta vector volumetric fraction of ice of layers (-)
+  real(rkind),dimension(nLayers)  :: mLayerHDelta                  ! delta vector of enthalpy of layers (J m-3)
   ! dummy state variables
-  real(rkind)                     :: scalarCanairNrgTrial        ! trial value for energy of the canopy air space
-  real(rkind)                     :: scalarCanopyNrgTrial        ! trial value for energy of the vegetation canopy
-  real(rkind),dimension(nLayers)  :: mLayerNrgTrial              ! trial vector of energy of each layer
-  real(rkind)                     :: scalarCanairNrgPrime        ! prime value for energy of the canopy air space
-  real(rkind)                     :: scalarCanopyNrgPrime        ! prime value for energy of the vegetation canopy
-  real(rkind),dimension(nLayers)  :: mLayerNrgPrime              ! prime vector of energy of each layer
+  real(rkind)                     :: scalarCanairNrgTrial          ! trial value for energy of the canopy air space
+  real(rkind)                     :: scalarCanopyNrgTrial          ! trial value for energy of the vegetation canopy
+  real(rkind),dimension(nLayers)  :: mLayerNrgTrial                ! trial vector of energy of each layer
+  real(rkind)                     :: scalarCanairNrgPrime          ! prime value for energy of the canopy air space
+  real(rkind)                     :: scalarCanopyNrgPrime          ! prime value for energy of the vegetation canopy
+  real(rkind),dimension(nLayers)  :: mLayerNrgPrime                ! prime vector of energy of each layer
   ! -------------------------------------------------------------------------------------------------------------------
   ! -------------------------------------------------------------------------------------------------------------------
   ! point to flux variables in the data structure
@@ -792,8 +792,8 @@ USE getVectorz_module,only:varExtract                              ! extract var
     scalarCanairEnthalpy      => prog_data%var(iLookPROG%scalarCanairEnthalpy)%dat(1)       ,& ! intent(inout): [dp]     enthalpy of the canopy air space (J m-3)
     scalarCanopyEnthalpy      => prog_data%var(iLookPROG%scalarCanopyEnthalpy)%dat(1)       ,& ! intent(inout): [dp]     enthalpy of the vegetation canopy (J m-3)
     scalarCanopyEnthTemp      => diag_data%var(iLookDIAG%scalarCanopyEnthTemp)%dat(1)       ,& ! intent(inout): [dp]     temperature component of enthalpy of the vegetation canopy (J m-3)
-    mLayerEnthalpy            => prog_data%var(iLookPROG%mLayerEnthalpy)%dat                ,& ! intent(inout): [dp(:)]  enthalpy of the snow+soil layers (J m-3)
-    mLayerEnthTemp            => diag_data%var(iLookDIAG%mLayerEnthTemp)%dat                ,& ! intent(inout): [dp(:)]  temperature component of enthalpy of the snow+soil layers (J m-3)
+    mLayerEnthalpy            => prog_data%var(iLookPROG%mLayerEnthalpy)%dat                ,& ! intent(inout): [dp(:)]  enthalpy of the layers (J m-3)
+    mLayerEnthTemp            => diag_data%var(iLookDIAG%mLayerEnthTemp)%dat                ,& ! intent(inout): [dp(:)]  temperature component of enthalpy of the layers (J m-3)
     ! model state variables (aquifer)
     scalarAquiferStorage      => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)       ,& ! intent(inout): [dp(:)]  storage of water in the aquifer (m)
     ! error tolerance
@@ -950,7 +950,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
                     ! input: enthalpy state variables  
                     scalarCanairEnthalpyTrial,        & ! intent(in):    trial value for enthalpy of the canopy air space (J m-3)
                     scalarCanopyEnthalpyTrial,        & ! intent(in):    trial value for enthalpy of the vegetation canopy (J m-3)
-                    mLayerEnthalpyTrial,              & ! intent(in):    trial vector of enthalpy of each snow+soil layer (J m-3)                      
+                    mLayerEnthalpyTrial,              & ! intent(in):    trial vector of enthalpy of each layer (J m-3)                      
                     ! output: variables for the vegetation canopy
                     scalarCanairTempTrial,            & ! intent(inout): trial value of canopy air space temperature (K)
                     scalarCanopyTempTrial,            & ! intent(inout): trial value of canopy temperature (K)
@@ -1006,7 +1006,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
                  ! output: enthalpy state variables  
                  scalarCanairEnthalpyTrial, & ! intent(inout): trial value for enthalpy of the canopy air space (J m-3)
                  scalarCanopyEnthTempTrial, & ! intent(inout): trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
-                 mLayerEnthTempTrial,       & ! intent(inout): trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)                     
+                 mLayerEnthTempTrial,       & ! intent(inout): trial vector of temperature component of enthalpy of each layer (J m-3)                     
                  ! output: error control
                  err,cmessage)                ! intent(out):   error control
 
@@ -1037,7 +1037,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
                             mLayerVolFracIceDelta, & ! intent(in):    delta vector of volumetric ice water content (-)
                             ! input/output: enthalpy
                             scalarCanopyHDelta,    & ! intent(inout): delta value for enthalpy of the vegetation canopy (J m-3)
-                            mLayerHDelta,          & ! intent(inout): delta vector of enthalpy of each snow+soil layer (J m-3)
+                            mLayerHDelta,          & ! intent(inout): delta vector of enthalpy of each layer (J m-3)
                             ! output: error control    
                             err,cmessage)             ! intent(out): error control
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -1260,7 +1260,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
 
         endif  ! if checking the canopy
         ! **
-        ! snow+soil within numerical precision
+        ! layers within numerical precision
         do iState=1,size(mLayerVolFracIceTrial)
 
           ! snow layer within numerical precision
@@ -1313,7 +1313,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
         endif  ! checking the canopy
 
         ! **
-        ! snow+soil within numerical precision
+        ! layers within numerical precision
         do iState=1,size(mLayerVolFracLiqTrial)
 
           ! snow layer within numerical precision

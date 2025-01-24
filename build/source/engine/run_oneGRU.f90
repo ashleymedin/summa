@@ -102,7 +102,7 @@ contains
 ! simulation for a single GRU
 subroutine run_oneGRU(&
                       ! model control
-                      gruInfo,            & ! intent(inout): HRU information for given GRU (# HRUs, #snow+soil layers)
+                      gruInfo,            & ! intent(inout): HRU information for given GRU (# HRUs, #layers)
                       dt_init,            & ! intent(inout): used to initialize the length of the sub-step for each HRU
                       ixComputeVegFlux,   & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
                       ! data structures (input)
@@ -133,7 +133,7 @@ subroutine run_oneGRU(&
   ! ----- define dummy variables ------------------------------------------------------------------------------------------
   implicit none
   ! model control
-  type(gru2hru_map)       , intent(inout) :: gruInfo              ! HRU information for given GRU (# HRUs, #snow+soil layers)
+  type(gru2hru_map)       , intent(inout) :: gruInfo              ! HRU information for given GRU (# HRUs, #layers)
   type(hru_dom_d)         , intent(inout) :: dt_init              ! used to initialize the length of the sub-step for each domain
   type(hru_i)             , intent(inout) :: ixComputeVegFlux     ! flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
   ! data structures (input)

@@ -44,9 +44,9 @@ USE globalData,only:iname_nrgCanair  ! named variable defining the energy of the
 USE globalData,only:iname_nrgCanopy  ! named variable defining the energy of the vegetation canopy
 USE globalData,only:iname_watCanopy  ! named variable defining the mass of total water on the vegetation canopy
 USE globalData,only:iname_liqCanopy  ! named variable defining the mass of liquid water on the vegetation canopy
-USE globalData,only:iname_nrgLayer   ! named variable defining the energy state variable for snow+soil layers
-USE globalData,only:iname_watLayer   ! named variable defining the total water state variable for snow+soil layers
-USE globalData,only:iname_liqLayer   ! named variable defining the liquid  water state variable for snow+soil layers
+USE globalData,only:iname_nrgLayer   ! named variable defining the energy state variable for layers
+USE globalData,only:iname_watLayer   ! named variable defining the total water state variable for layers
+USE globalData,only:iname_liqLayer   ! named variable defining the liquid  water state variable for layers
 USE globalData,only:iname_matLayer   ! named variable defining the matric head state variable for soil layers
 USE globalData,only:iname_lmpLayer   ! named variable defining the liquid matric potential state variable for soil layers
 USE globalData,only:iname_watAquifer ! named variable defining the water storage in the aquifer
@@ -351,7 +351,7 @@ endif
  ixCasNrg         => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)      ,& ! intent(in):  [i4b]    index of canopy air space energy state variable
  ixVegNrg         => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)      ,& ! intent(in):  [i4b]    index of canopy energy state variable
  ixVegHyd         => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)      ,& ! intent(in):  [i4b]    index of canopy hydrology state variable (mass)
- ! indices of the top model state variables in the snow+soil system
+ ! indices of the top model state variables in the layer system
  ixTopNrg         => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)      ,& ! intent(in):  [i4b]    index of upper-most energy state in the layers
  ixTopHyd         => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)      ,& ! intent(in):  [i4b]    index of upper-most hydrology state in the layers
  ! index of the storage of water in the aquifer
@@ -467,12 +467,12 @@ endif
  ixVegHyd = merge(ixVegWat, ixVegLiq, ixVegWat/=integerMissing)
 
  ! define index for the upper-most energy state variables in the layer domains
- ixTopNrg = findIndex(ixStateType_subset, iname_nrgLayer, integerMissing)    ! upper-most energy state in the snow+soil system
+ ixTopNrg = findIndex(ixStateType_subset, iname_nrgLayer, integerMissing)    ! upper-most energy state in the layer system
 
  ! define index for the upper-most hydrology state variables in the layer domains
  ! NOTE: local variables -- ixTopHyd defined next
- ixTopWat = findIndex(ixStateType_subset, iname_watLayer, integerMissing)    ! upper-most total water state variable in the snow+soil system
- ixTopLiq = findIndex(ixStateType_subset, iname_liqLayer, integerMissing)    ! upper-most liquid water state variable in the snow+soil system
+ ixTopWat = findIndex(ixStateType_subset, iname_watLayer, integerMissing)    ! upper-most total water state variable in the layer system
+ ixTopLiq = findIndex(ixStateType_subset, iname_liqLayer, integerMissing)    ! upper-most liquid water state variable in the layer system
  ixTopMat = findIndex(ixStateType_subset, iname_matLayer, integerMissing)    ! upper-most total water matric potential state
  ixTopLMP = findIndex(ixStateType_subset, iname_lmpLayer, integerMissing)    ! upper-most liquid water matric potential state
 

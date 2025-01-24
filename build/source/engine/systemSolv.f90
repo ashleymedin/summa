@@ -43,9 +43,9 @@ USE globalData,only:iname_nrgCanair ! named variable defining the energy of the 
 USE globalData,only:iname_nrgCanopy ! named variable defining the energy of the vegetation canopy
 USE globalData,only:iname_watCanopy ! named variable defining the mass of total water on the vegetation canopy
 USE globalData,only:iname_liqCanopy ! named variable defining the mass of liquid water on the vegetation canopy
-USE globalData,only:iname_nrgLayer  ! named variable defining the energy state variable for snow+soil layers
-USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for snow+soil layers
-USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for snow+soil layers
+USE globalData,only:iname_nrgLayer  ! named variable defining the energy state variable for layers
+USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for layers
+USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for layers
 USE globalData,only:iname_matLayer  ! named variable defining the matric head state variable for soil layers
 USE globalData,only:iname_lmpLayer  ! named variable defining the liquid matric potential state variable for soil layers
 
@@ -690,7 +690,7 @@ contains
                        nLake,                   & ! intent(in):    number of lake layers
                        nSoil,                   & ! intent(in):    number of soil layers
                        nGlce,                   & ! intent(in):    number of glacier ice layers
-                       nLayers,                 & ! intent(in):    number of snow+soil layers
+                       nLayers,                 & ! intent(in):    number of layers
                        nState,                  & ! intent(in):    number of state variables in the current subset
                        ixMatrix,                & ! intent(in):    type of matrix (dense or banded)
                        firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
@@ -786,7 +786,7 @@ contains
                           nLake,                   & ! intent(in):    number of lake layers
                           nSoil,                   & ! intent(in):    number of soil layers
                           nGlce,                   & ! intent(in):    number of glacier ice layers
-                          nLayers,                 & ! intent(in):    number of snow+soil layers
+                          nLayers,                 & ! intent(in):    number of layers
                           nState,                  & ! intent(in):    number of state variables in the current subset
                           ixMatrix,                & ! intent(in):    type of matrix (dense or banded)
                           firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step

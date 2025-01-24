@@ -407,8 +407,8 @@ contains
   case('absTolTempVeg'            ); get_ixParam = iLookPARAM%absTolTempVeg          ! IDA absolute error tolerance for vegitation temp state var
   case('relTolWatVeg'             ); get_ixParam = iLookPARAM%relTolWatVeg           ! IDA relative error tolerance for vegitation hydrology
   case('absTolWatVeg'             ); get_ixParam = iLookPARAM%absTolWatVeg           ! IDA absolute error tolerance for vegitation hydrology
-  case('relTolTempSoilSnow'       ); get_ixParam = iLookPARAM%relTolTempSoilSnow     ! IDA relative error tolerance for snow+soil energy
-  case('absTolTempSoilSnow'       ); get_ixParam = iLookPARAM%absTolTempSoilSnow     ! IDA absolute error tolerance for snow+soil energy
+  case('relTolTempSoilSnow'       ); get_ixParam = iLookPARAM%relTolTempSoilSnow     ! IDA relative error tolerance for layers energy
+  case('absTolTempSoilSnow'       ); get_ixParam = iLookPARAM%absTolTempSoilSnow     ! IDA absolute error tolerance for layers energy
   case('relTolWatSnow'            ); get_ixParam = iLookPARAM%relTolWatSnow          ! IDA relative error tolerance for snow hydrology
   case('absTolWatSnow'            ); get_ixParam = iLookPARAM%absTolWatSnow          ! IDA absolute error tolerance for snow hydrology
   case('relTolMatric'             ); get_ixParam = iLookPARAM%relTolMatric           ! IDA relative error tolerance for matric head
@@ -479,7 +479,7 @@ contains
   ! enthalpy
   case('scalarCanairEnthalpy'           ); get_ixProg = iLookPROG%scalarCanairEnthalpy             ! enthalpy of the canopy air space (J m-3)
   case('scalarCanopyEnthalpy'           ); get_ixProg = iLookPROG%scalarCanopyEnthalpy             ! enthalpy of the vegetation canopy (J m-3)
-  case('mLayerEnthalpy'                 ); get_ixProg = iLookPROG%mLayerEnthalpy                   ! enthalpy of the snow+soil layers (J m-3)
+  case('mLayerEnthalpy'                 ); get_ixProg = iLookPROG%mLayerEnthalpy                   ! enthalpy of the layers (J m-3)
   ! other state variables
   case('scalarAquiferStorage'           ); get_ixProg = iLookPROG%scalarAquiferStorage             ! relative aquifer storage -- above bottom of the soil profile (m)
   case('scalarSurfaceTemp'              ); get_ixProg = iLookPROG%scalarSurfaceTemp                ! surface temperature (K)
@@ -534,7 +534,7 @@ contains
   case('iLayerThermalC'                 ); get_ixDiag = iLookDIAG%iLayerThermalC                   ! thermal conductivity at the interface of each layer (W m-1 K-1)
   ! enthalpy
   case('scalarCanopyEnthTemp'           ); get_ixDiag = iLookDIAG%scalarCanopyEnthTemp             ! temperature component of enthalpy of the vegetation canopy (J m-3)
-  case('mLayerEnthTemp'                 ); get_ixDiag = iLookDIAG%mLayerEnthTemp                   ! temperature component of enthalpy of the snow+soil layers (J m-3)
+  case('mLayerEnthTemp'                 ); get_ixDiag = iLookDIAG%mLayerEnthTemp                   ! temperature component of enthalpy of the layers (J m-3)
   case('scalarTotalSoilEnthalpy'        ); get_ixDiag = iLookDIAG%scalarTotalSoilEnthalpy          ! total enthalpy of the soil column (J m-3)
   case('scalarTotalSnowEnthalpy'        ); get_ixDiag = iLookDIAG%scalarTotalSnowEnthalpy          ! total enthalpy of the snow column (J m-3)   
   ! forcing
@@ -832,7 +832,7 @@ contains
   case('dCm_dPsi0'                      ); get_ixDeriv = iLookDERIV%dCm_dPsi0                      ! derivative in Cm w.r.t. matric potential (J kg-1)
   case('dCm_dTk'                        ); get_ixDeriv = iLookDERIV%dCm_dTk                        ! derivative in Cm w.r.t. temperature (J kg K-2)
   case('dCm_dTkCanopy'                  ); get_ixDeriv = iLookDERIV%dCm_dTkCanopy                  ! derivative in Cm w.r.t. canopy temperature (J kg K-2)
-  ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. water state in layers above and below
+  ! derivatives in energy fluxes at the interface of layers w.r.t. water state in layers above and below
   case('dNrgFlux_dWatAbove'             ); get_ixDeriv = iLookDERIV%dNrgFlux_dWatAbove             ! derivatives in the flux w.r.t. water state temperature in the layer above
   case('dNrgFlux_dWatBelow'             ); get_ixDeriv = iLookDERIV%dNrgFlux_dWatBelow             ! derivatives in the flux w.r.t. water state in the layer below
   ! derivative in liquid water fluxes at the interface of snow lake glce layers w.r.t. volumetric liquid water content in the layer above
@@ -902,7 +902,7 @@ contains
   case('nSnow'                ); get_ixINDEX = iLookINDEX%nSnow                 ! number of snow layers                                                    (-)
   case('nLake'                ); get_ixINDEX = iLookINDEX%nLake                 ! number of lake layers                                                    (-)
   case('nSoil'                ); get_ixINDEX = iLookINDEX%nSoil                 ! number of soil layers                                                    (-)
-  case('nGlce'                ); get_ixINDEX = iLookINDEX%nGlce                 ! number of glacier ice layers                                                     (-)
+  case('nGlce'                ); get_ixINDEX = iLookINDEX%nGlce                 ! number of glacier ice layers                                             (-)
   case('nLayers'              ); get_ixINDEX = iLookINDEX%nLayers               ! total number of layers                                                   (-)
   case('layerType'            ); get_ixINDEX = iLookINDEX%layerType             ! index defining type of layer (snow or soil)                              (-)
   ! number of state variables of different type
@@ -915,17 +915,17 @@ contains
   case('nMatState'            ); get_ixINDEX = iLookINDEX%nMatState             ! number of matric head state variables                                    (-)
   case('nMassState'           ); get_ixINDEX = iLookINDEX%nMassState            ! number of hydrology state variables (mass of water)                      (-)
   case('nState'               ); get_ixINDEX = iLookINDEX%nState                ! total number of model state variables                                    (-)
-  ! number of state variables within different domains in the snow+soil system  !
+  ! number of state variables within different domains in the layer system  !
   case('nSnLaSoGlNrg'         ); get_ixINDEX = iLookINDEX%nSnLaSoGlNrg          ! number of energy states in the layer domains                             (-)
   case('nSnowOnlyNrg'         ); get_ixINDEX = iLookINDEX%nSnowOnlyNrg          ! number of energy states in the snow domain                               (-)
   case('nLakeOnlyNrg'         ); get_ixINDEX = iLookINDEX%nLakeOnlyNrg          ! number of energy states in the lake domain                               (-)
   case('nSoilOnlyNrg'         ); get_ixINDEX = iLookINDEX%nSoilOnlyNrg          ! number of energy states in the soil domain                               (-)
-  case('nGlceOnlyNrg'         ); get_ixINDEX = iLookINDEX%nGlceOnlyNrg          ! number of energy states in the glacier ice domain                                (-)
+  case('nGlceOnlyNrg'         ); get_ixINDEX = iLookINDEX%nGlceOnlyNrg          ! number of energy states in the glacier ice domain                        (-)
   case('nSnLaSoGlHyd'         ); get_ixINDEX = iLookINDEX%nSnLaSoGlHyd          ! number of hydrology states in the layer domains                          (-)
   case('nSnowOnlyHyd'         ); get_ixINDEX = iLookINDEX%nSnowOnlyHyd          ! number of hydrology states in the snow domain                            (-)
   case('nLakeOnlyHyd'         ); get_ixINDEX = iLookINDEX%nLakeOnlyHyd          ! number of hydrology states in the lake domain                            (-)
   case('nSoilOnlyHyd'         ); get_ixINDEX = iLookINDEX%nSoilOnlyHyd          ! number of hydrology states in the soil domain                            (-)
-  case('nGlceOnlyHyd'         ); get_ixINDEX = iLookINDEX%nGlceOnlyHyd          ! number of hydrology states in the glacier ice domain                             (-)
+  case('nGlceOnlyHyd'         ); get_ixINDEX = iLookINDEX%nGlceOnlyHyd          ! number of hydrology states in the glacier ice domain                     (-)
   ! type of model state variables
   case('ixControlVolume'      ); get_ixINDEX = iLookINDEX%ixControlVolume       ! index of the control volume for different domains (veg, snow, soil)      (-)
   case('ixDomainType'         ); get_ixINDEX = iLookINDEX%ixDomainType          ! index of the type of domain (iname_veg, iname_snow, iname_soil)          (-)
@@ -941,8 +941,8 @@ contains
   case('ixCasNrg'             ); get_ixINDEX = iLookINDEX%ixCasNrg              ! index of canopy air space energy state variable                          (-)
   case('ixVegNrg'             ); get_ixINDEX = iLookINDEX%ixVegNrg              ! index of canopy energy state variable                                    (-)
   case('ixVegHyd'             ); get_ixINDEX = iLookINDEX%ixVegHyd              ! index of canopy hydrology state variable (mass)                          (-)
-  case('ixTopNrg'             ); get_ixINDEX = iLookINDEX%ixTopNrg              ! index of upper-most energy state in the snow+soil subdomain              (-)
-  case('ixTopHyd'             ); get_ixINDEX = iLookINDEX%ixTopHyd              ! index of upper-most hydrology state in the snow+soil subdomain           (-)
+  case('ixTopNrg'             ); get_ixINDEX = iLookINDEX%ixTopNrg              ! index of upper-most energy state in the layers domain                    (-)
+  case('ixTopHyd'             ); get_ixINDEX = iLookINDEX%ixTopHyd              ! index of upper-most hydrology state in the layers domain                 (-)
   case('ixAqWat'              ); get_ixINDEX = iLookINDEX%ixAqWat               ! index of storage of water in the aquifer                                 (-)
   ! vectors of indices for specific state types
   case('ixNrgOnly'            ); get_ixINDEX = iLookINDEX%ixNrgOnly             ! indices IN THE STATE SUBSET for all energy states                        (-)

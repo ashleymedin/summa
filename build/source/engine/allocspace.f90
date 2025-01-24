@@ -633,7 +633,7 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
  integer(i4b),intent(in)           :: nLake       ! number of lake layers
  integer(i4b),intent(in)           :: nSoil       ! number of soil layers
  integer(i4b),intent(in)           :: nGlce       ! number of glacier ice layers
- integer(i4b),intent(in)           :: nLayers     ! total number of soil layers in the snow+soil domian (nSnow+nSoil)
+ integer(i4b),intent(in)           :: nLayers     ! total number of soil layers in the layer domains (nSnow+nSoil)
  integer(i4b),intent(in)           :: nGlacier    ! number of glaciers in GRU
  ! output variables
  type(var_dlength),intent(inout)   :: varData     ! model variables for a local HRU
@@ -707,7 +707,7 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
  integer(i4b),intent(in)           :: nLake       ! number of lake layers
  integer(i4b),intent(in)           :: nSoil       ! number of soil layers
  integer(i4b),intent(in)           :: nGlce       ! number of glacier ice layers
- integer(i4b),intent(in)           :: nLayers     ! total number of soil layers in the snow+soil domian (nSnow+nSoil)
+ integer(i4b),intent(in)           :: nLayers     ! total number of soil layers in the layer domains (nSnow+nSoil)
  integer(i4b),intent(in)           :: nGlacier    ! number of glaciers in GRU
  ! output variables
  type(var_ilength),intent(inout)   :: varData     ! model variables for a local HRU
@@ -779,7 +779,7 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
  integer(i4b),intent(in)           :: nLake       ! number of lake layers
  integer(i4b),intent(in)           :: nSoil       ! number of soil layers
  integer(i4b),intent(in)           :: nGlce       ! number of glacier ice layers
- integer(i4b),intent(in)           :: nLayers     ! total number of soil layers in the snow+soil domian (nSnow+nSoil)
+ integer(i4b),intent(in)           :: nLayers     ! total number of soil layers in the layer domains (nSnow+nSoil)
  integer(i4b),intent(in)           :: nGlacier    ! number of glaciers in GRU
  ! output variables
  type(var_flagVec),intent(inout)   :: varData     ! model variables for a local HRU

@@ -46,7 +46,7 @@ USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number
 
 ! named variables to describe the state variable type
-USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for snow+soil layers
+USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for layers
 
 ! access named variables to describe the form and structure of the matrices used in the numerical solver
 USE globalData,only: ku             ! number of super-diagonal bands, assume ku>=3
@@ -189,8 +189,8 @@ subroutine computJacobWithPrime(&
     ixCasNrg                     => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)                       ,& ! intent(in): [i4b]    index of canopy air space energy state variable
     ixVegNrg                     => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)                       ,& ! intent(in): [i4b]    index of canopy energy state variable
     ixVegHyd                     => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)                       ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
-    ixTopNrg                     => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)                       ,& ! intent(in): [i4b]    index of upper-most energy state in the snow+soil subdomain
-    ixTopHyd                     => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)                       ,& ! intent(in): [i4b]    index of upper-most hydrology state in the snow+soil subdomain
+    ixTopNrg                     => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)                       ,& ! intent(in): [i4b]    index of upper-most energy state in the layer domains
+    ixTopHyd                     => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)                       ,& ! intent(in): [i4b]    index of upper-most hydrology state in the layer domains
     ixAqWat                      => indx_data%var(iLookINDEX%ixAqWat)%dat(1)                        ,& ! intent(in): [i4b]    index of water storage in the aquifer
     ! vectors of indices for specfic state types within specific sub-domains IN THE FULL STATE VECTOR
     ixNrgLayer                   => indx_data%var(iLookINDEX%ixNrgLayer)%dat                        ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the layer domains
@@ -247,10 +247,10 @@ subroutine computJacobWithPrime(&
     dFracLiqVeg_dTkCanopy        => deriv_data%var(iLookDERIV%dFracLiqVeg_dTkCanopy       )%dat(1)  ,& ! intent(in): [dp]     derivative in fraction of (throughfall + drainage)  w.r.t. temperature
     ! derivatives in canopy liquid fluxes w.r.t. canopy water
     scalarCanopyLiqDeriv         => deriv_data%var(iLookDERIV%scalarCanopyLiqDeriv        )%dat(1)  ,& ! intent(in): [dp]     derivative in (throughfall + drainage) w.r.t. canopy liquid water
-    ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. temperature in layers above and below
+    ! derivatives in energy fluxes at the interface of layers w.r.t. temperature in layers above and below
     dNrgFlux_dTempAbove          => deriv_data%var(iLookDERIV%dNrgFlux_dTempAbove         )%dat     ,& ! intent(in): [dp(:)]  derivatives in the flux w.r.t. temperature in the layer above
     dNrgFlux_dTempBelow          => deriv_data%var(iLookDERIV%dNrgFlux_dTempBelow         )%dat     ,& ! intent(in): [dp(:)]  derivatives in the flux w.r.t. temperature in the layer below
-    ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. water state in layers above and below
+    ! derivatives in energy fluxes at the interface of layers w.r.t. water state in layers above and below
     dNrgFlux_dWatAbove           => deriv_data%var(iLookDERIV%dNrgFlux_dWatAbove          )%dat     ,& ! intent(in): [dp(:)]  derivatives in the flux w.r.t. water state in the layer above
     dNrgFlux_dWatBelow           => deriv_data%var(iLookDERIV%dNrgFlux_dWatBelow          )%dat     ,& ! intent(in): [dp(:)]  derivatives in the flux w.r.t. water state in the layer below
     ! derivatives in soil transpiration w.r.t. canopy state variables
@@ -338,7 +338,7 @@ subroutine computJacobWithPrime(&
     endif
 
     ! compute additional terms for the Jacobian for the snow-soil domain (excluding fluxes)
-    ! NOTE: energy for snow+soil is computed *within* the iteration loop as it includes phase change
+    ! NOTE: energy for layers are computed *within* the iteration loop as it includes phase change
     do iLayer=1,nLayers
       if(ixSnLaSoGlNrg(iLayer)/=integerMissing)then
         dMat(ixSnLaSoGlNrg(iLayer)) = ( mLayerVolHtCapBulk(iLayer) + LH_fus*iden_water*mLayerdTheta_dTk(iLayer) ) * cj &
@@ -582,7 +582,7 @@ subroutine computJacobWithPrime(&
             watState = ixSoilOnlyHyd(iLayer)         ! hydrology state index within the state subset
 
             ! - define indices of the soil layers
-            jLayer   = iLayer+nSnow                  ! index of layer in the snow+soil vector
+            jLayer   = iLayer+nSnow                  ! index of layer in the layer system
 
             ! - compute the diagonal elements
             ! all terms *excluding* baseflow
@@ -659,7 +659,7 @@ subroutine computJacobWithPrime(&
             if(ixSoilOnlyNrg(iLayer)==integerMissing) cycle
 
             ! - define indices of the soil layers
-            jLayer   = iLayer+nSnow                  ! index of layer in the snow+soil vector
+            jLayer   = iLayer+nSnow                  ! index of layer in the layer system
 
             ! - define the energy state variable
             nrgState = ixNrgLayer(jLayer)       ! index within the full state vector
@@ -954,7 +954,7 @@ subroutine computJacobWithPrime(&
             watState = ixSoilOnlyHyd(iLayer)         ! hydrology state index within the state subset
 
             ! - define indices of the soil layers
-            jLayer   = iLayer+nSnow                  ! index of layer in the snow+soil vector
+            jLayer   = iLayer+nSnow                  ! index of layer in the layer system
 
             ! - compute the diagonal elements
             ! all terms *excluding* baseflow
@@ -1018,7 +1018,7 @@ subroutine computJacobWithPrime(&
             if(ixSoilOnlyNrg(iLayer)==integerMissing) cycle
 
             ! - define indices of the soil layers
-            jLayer   = iLayer+nSnow                  ! index of layer in the snow+soil vector
+            jLayer   = iLayer+nSnow                  ! index of layer in the layer system
 
             ! - define the energy state variable
             nrgState = ixNrgLayer(jLayer)       ! index within the full state vector

@@ -44,9 +44,9 @@ USE globalData,only:iname_nrgCanair ! named variable defining the energy of the 
 USE globalData,only:iname_nrgCanopy ! named variable defining the energy of the vegetation canopy
 USE globalData,only:iname_watCanopy ! named variable defining the mass of total water on the vegetation canopy
 USE globalData,only:iname_liqCanopy ! named variable defining the mass of liquid water on the vegetation canopy
-USE globalData,only:iname_nrgLayer  ! named variable defining the energy state variable for snow+soil layers
-USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for snow+soil layers
-USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for snow+soil layers
+USE globalData,only:iname_nrgLayer  ! named variable defining the energy state variable for layers
+USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for layers
+USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for layers
 USE globalData,only:iname_matLayer  ! named variable defining the matric head state variable for soil layers
 USE globalData,only:iname_lmpLayer  ! named variable defining the liquid matric potential state variable for soil layers
 
@@ -123,7 +123,7 @@ subroutine updateVarsWithPrime(&
                      ! input: enthalpy state variables  
                      scalarCanairEnthalpyTrial,                 & ! intent(in):    trial value for enthalpy of the canopy air space (J m-3)
                      scalarCanopyEnthalpyTrial,                 & ! intent(in):    trial value for enthalpy of the vegetation canopy (J m-3)
-                     mLayerEnthalpyTrial,                       & ! intent(in):    trial vector of enthalpy of each snow+soil layer (J m-3)                      
+                     mLayerEnthalpyTrial,                       & ! intent(in):    trial vector of enthalpy of each layer (J m-3)                      
                      ! output: variables for the vegetation canopy
                      scalarCanairTempTrial,                     & ! intent(inout): trial value of canopy air space temperature (K)
                      scalarCanopyTempTrial,                     & ! intent(inout): trial value of canopy temperature (K)
@@ -166,7 +166,7 @@ subroutine updateVarsWithPrime(&
   ! input: enthalpy state variables  
   real(rkind),intent(in)             :: scalarCanairEnthalpyTrial       ! trial value for enthalpy of the canopy air space (J m-3)
   real(rkind),intent(in)             :: scalarCanopyEnthalpyTrial       ! trial value for enthalpy of the vegetation canopy (J m-3)
-  real(rkind),intent(in)             :: mLayerEnthalpyTrial(:)          ! trial vector of enthalpy of each snow+soil layer (J m-3)                      
+  real(rkind),intent(in)             :: mLayerEnthalpyTrial(:)          ! trial vector of enthalpy of each layer (J m-3)                      
   ! output: variables for the vegetation canopy
   real(rkind),intent(inout)          :: scalarCanairTempTrial           ! trial value of canopy air space temperature (K)
   real(rkind),intent(inout)          :: scalarCanopyTempTrial           ! trial value of canopy temperature (K)
@@ -459,7 +459,7 @@ subroutine updateVarsWithPrime(&
                    computJac,                      & ! intent(in):    flag if computing for Jacobian update       
                    ixDomainType==iname_lake,       & ! intent(in):    flag if is lake layer
                    snowfrz_scale,                  & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
-                   mLayerEnthalpyTrial(iLayer),    & ! intent(in):    enthalpy of snow+soil layer (J m-3)
+                   mLayerEnthalpyTrial(iLayer),    & ! intent(in):    enthalpy of layer (J m-3)
                    mLayerVolFracWatTrial(iLayer),  & ! intent(in):    volumetric total water content (-)
                    mLayerTempTrial(iLayer),        & ! intent(inout): layer temperature (K)
                    dTemp_dEnthalpy(iLayer),        & ! intent(inout): derivative of layer temperature with enthalpy
@@ -483,7 +483,7 @@ subroutine updateVarsWithPrime(&
                    vGn_m(ixControlIndex),                  & ! intent(in):    van Genutchen "m" parameter (-)
                    ixControlIndex,                         & ! intent(in):    index of the control volume within the domain
                    lookup_data,                            & ! intent(in):    lookup table data structure
-                   mLayerEnthalpyTrial(iLayer),            & ! intent(in):    trial vector of enthalpy of each snow+soil layer (J m-3)
+                   mLayerEnthalpyTrial(iLayer),            & ! intent(in):    trial vector of enthalpy of each layer (J m-3)
                    mLayerMatricHeadTrial(ixControlIndex),  & ! intent(in):    trial vector of total water matric potential (m)
                    mLayerTempTrial(iLayer),                & ! intent(inout): trial vector of layer temperature (K)
                    dTemp_dEnthalpy(iLayer),                & ! intent(inout): derivative of layer temperature with enthalpy

@@ -211,7 +211,7 @@ subroutine eval8summaWithPrime(&
   integer(i4b)                    :: jState(1)                   ! index of model state for the scalar solution within the soil domain
   integer(i4b)                    :: ixBeg,ixEnd                 ! index of indices for the soil compression routine
   real(rkind)                     :: scalarCanopyCm_noLHTrial    ! trial value of Cm for the canopy without latent heat part
-  real(rkind),dimension(nLayers)  :: mLayerCm_noLHTrial          ! trial vector of Cm for snow+soil without latent heat part
+  real(rkind),dimension(nLayers)  :: mLayerCm_noLHTrial          ! trial vector of Cm for layers without latent heat part
   character(LEN=256)              :: cmessage                    ! error message of downwind routine
   logical(lgt)                    :: updateStateCp               ! flag to indicate if we update Cp at each step for LHS, set with nrgConserv choice and updateCp_closedForm flag
   logical(lgt)                    :: updateFluxCp                ! flag to indicate if we update Cp at each step for RHS, set with nrgConserv choice and updateCp_closedForm flag
@@ -440,7 +440,7 @@ subroutine eval8summaWithPrime(&
                     ! input: enthalpy state variables  
                     scalarCanairEnthalpyTrial,    & ! intent(in):    trial value for enthalpy of the canopy air space (J m-3)
                     scalarCanopyEnthalpyTrial,    & ! intent(in):    trial value for enthalpy of the vegetation canopy (J m-3)
-                    mLayerEnthalpyTrial,          & ! intent(in):    trial vector of enthalpy of each snow+soil layer (J m-3)                      
+                    mLayerEnthalpyTrial,          & ! intent(in):    trial vector of enthalpy of each layer (J m-3)                      
                     ! output: variables for the vegetation canopy
                     scalarCanairTempTrial,        & ! intent(inout): trial value of canopy air space temperature (K)
                     scalarCanopyTempTrial,        & ! intent(inout): trial value of canopy temperature (K)

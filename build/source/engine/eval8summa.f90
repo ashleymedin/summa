@@ -29,8 +29,8 @@ USE globalData,only:realMissing     ! missing double precision number
 USE globalData,only:quadMissing     ! missing quadruple precision number
 
 ! named variables to describe the state variable type
-USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for snow+soil layers
-USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for snow+soil layers
+USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for layers
+USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for layers
 USE globalData,only:iname_matLayer  ! named variable defining the total water matric potential state variable for soil layers
 USE globalData,only:iname_lmpLayer  ! named variable defining the liquid water matric potential state variable for soil layers
 
@@ -210,14 +210,14 @@ subroutine eval8summa(&
   ! enthalpy
   real(rkind)                     :: scalarCanairEnthalpyTrial   ! trial value for enthalpy of the canopy air space (J m-3
   real(rkind)                     :: scalarCanopyEnthTempTrial   ! trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
-  real(rkind),dimension(nLayers)  :: mLayerEnthTempTrial         ! trial vector of temperature component of enthalpy for snow+soil layers (J m-3)
+  real(rkind),dimension(nLayers)  :: mLayerEnthTempTrial         ! trial vector of temperature component of enthalpy for layers (J m-3)
   ! other local variables
   logical(lgt)                    :: checkLWBalance              ! flag to check longwave balance
   integer(i4b)                    :: jState(1)                   ! index of model state for the scalar solution within the soil domain
   integer(i4b)                    :: ixBeg,ixEnd                 ! index of indices for the soil compression routine
   real(rkind),dimension(nState)   :: rVecScaled                  ! scaled residual vector
   real(rkind)                     :: scalarCanopyCm_noLHTrial    ! trial value of Cm for the canopy without latent heat part
-  real(rkind),dimension(nLayers)  :: mLayerCm_noLHTrial          ! trial vector of Cm for snow+soil without latent heat part
+  real(rkind),dimension(nLayers)  :: mLayerCm_noLHTrial          ! trial vector of Cm for layers without latent heat part
   character(LEN=256)              :: cmessage                    ! error message of downwind routine
   logical(lgt)                    :: updateStateCp               ! flag to indicate if we update Cp at each step for LHS, set with nrgConserv choice and updateCp_closedForm flag
   logical(lgt)                    :: updateFluxCp                ! flag to indicate if we update Cp at each step for RHS, set with nrgConserv choice and updateCp_closedForm flag
@@ -261,7 +261,7 @@ subroutine eval8summa(&
     ! enthalpy from the previous solution
     scalarCanairEnthalpy      => prog_data%var(iLookPROG%scalarCanairEnthalpy)%dat(1)      ,& ! intent(in):  [dp]    enthalpy of the canopy air space (J m-3)
     scalarCanopyEnthTemp      => diag_data%var(iLookDIAG%scalarCanopyEnthTemp)%dat(1)      ,& ! intent(in):  [dp]    temperature component of enthalpy of the vegetation canopy (J m-3)
-    mLayerEnthTemp            => diag_data%var(iLookDIAG%mLayerEnthTemp)%dat               ,& ! intent(in):  [dp(:)] temperature component of enthalpy of the snow+soil layers (J m-3)
+    mLayerEnthTemp            => diag_data%var(iLookDIAG%mLayerEnthTemp)%dat               ,& ! intent(in):  [dp(:)] temperature component of enthalpy of the layers (J m-3)
     ! soil compression
     scalarSoilCompress        => diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)        ,& ! intent(in):  [dp]    total change in storage associated with compression of the soil matrix (kg m-2 s-1)
     mLayerCompress            => diag_data%var(iLookDIAG%mLayerCompress)%dat               ,& ! intent(in):  [dp(:)] change in volumetric water content due to compression of soil (s-1)
@@ -409,7 +409,7 @@ subroutine eval8summa(&
                     ! output: enthalpy state variables  
                     scalarCanairEnthalpyTrial,    & ! intent(inout): trial value for enthalpy of the canopy air space (J m-3)
                     scalarCanopyEnthTempTrial,    & ! intent(inout): trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
-                    mLayerEnthTempTrial,          & ! intent(inout): trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)
+                    mLayerEnthTempTrial,          & ! intent(inout): trial vector of temperature component of enthalpy of each layer (J m-3)
                     ! output: error control
                     err,cmessage)                   ! intent(out):   error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
@@ -642,7 +642,7 @@ subroutine eval8summa(&
                       mLayerCm_noLHTrial,         & ! intent(in):  Cm without latent heat part for each layer (-)
                       scalarCanairEnthalpyTrial,  & ! intent(in):  trial value for enthalpy of the canopy air space (J m-3)
                       scalarCanopyEnthTempTrial,  & ! intent(in):  trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
-                      mLayerEnthTempTrial,        & ! intent(in):  trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)  
+                      mLayerEnthTempTrial,        & ! intent(in):  trial vector of temperature component of enthalpy of each layer (J m-3)  
                       ! input: data structures
                       prog_data,                  & ! intent(in):  model prognostic variables for a local HRU
                       diag_data,                  & ! intent(in):  model diagnostic variables for a local HRU
@@ -909,13 +909,13 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
     ! NOTE: this can cause problems especially from a cold start when far from the solution
     if(small_delTemp)then
       if(size(ixNrgOnly)>0)then
-        ! loop through snow+soil layers
+        ! loop through layers
         do iState=1,size(ixNrgOnly)
           ! define index of the energy state variable within the state subset
           ixNrg = ixNrgOnly(iState)
           ! place constraint for temperature
           if(abs(xInc(ixNrg)) > zMaxTempIncrement) xInc(ixNrg) = sign(zMaxTempIncrement, xInc(ixNrg))
-        end do ! (loop through snow+soil layers)
+        end do ! (loop through layers)
       endif
     endif ! (small temperature change)
 

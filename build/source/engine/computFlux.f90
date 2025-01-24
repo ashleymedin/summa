@@ -515,7 +515,7 @@ contains
    scalarCanopyNetLiqFlux       => flux_data%var(iLookFLUX%scalarCanopyNetLiqFlux)%dat(1), & ! intent(out): [dp] net liquid water flux for the vegetation canopy (kg m-2 s-1)
    canopyDepth                  => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1),      & ! intent(in): [dp] canopy depth (m)
    nSnLaSoGlNrg                 => indx_data%var(iLookINDEX%nSnLaSoGlNrg)%dat(1),          & ! intent(in): [i4b] number of energy state variables in the layer domains
-   ixSnLaSoGlNrg                => indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat,            & ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
+   ixSnLaSoGlNrg                => indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat,            & ! intent(in): [i4b(:)] indices for energy states in the layer domains
    mLayerNrgFlux                => flux_data%var(iLookFLUX%mLayerNrgFlux)%dat              ) ! intent(out): [dp] net energy flux for each layer within the layer domains (J m-3 s-1)
    ! *** WRAP UP ***
    ! define model flux vector for the vegetation sub-domain
@@ -531,7 +531,7 @@ contains
 
   associate(&
    ixAqWat                      => indx_data%var(iLookINDEX%ixAqWat)%dat(1),               & ! intent(in): [i4b] index of water storage in the aquifer
-   ixSnLaSoGlHyd                => indx_data%var(iLookINDEX%ixSnLaSoGlHyd)%dat,            & ! intent(in): [i4b(:)] indices for hydrology states in the snow+soil subdomain
+   ixSnLaSoGlHyd                => indx_data%var(iLookINDEX%ixSnLaSoGlHyd)%dat,            & ! intent(in): [i4b(:)] indices for hydrology states in the layer domains
    nSnLaSoGlHyd                 => indx_data%var(iLookINDEX%nSnLaSoGlHyd)%dat(1),          & ! intent(in): [i4b] number of hydrology variables in the layer domains
    layerType                    => indx_data%var(iLookINDEX%layerType)%dat,                & ! intent(in): [i4b(:)] type of layer (iname_*)
    mLayerLiqFluxSnLaGl            => flux_data%var(iLookFLUX%mLayerLiqFluxSnLaGl)%dat,         & ! intent(out): [dp] net liquid water flux for each snow layer (s-1)

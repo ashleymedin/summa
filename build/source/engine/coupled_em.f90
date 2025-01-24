@@ -1155,7 +1155,7 @@ subroutine coupled_em(&
           mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,           & ! volumetric fraction of ice in the layer domains (-)
           mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,           & ! volumetric fraction of liquid water in the layer domains (-)
           mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat,           & ! volumetric fraction of total water (-)
-          mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat                 & ! depth of each snow+soil layer (m)
+          mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat                 & ! depth of each layer (m)
           ) ! associations to variables in data structures
 
           ! compute the melt in each layer, no ice expansion allowed for soil
@@ -1316,7 +1316,7 @@ subroutine coupled_em(&
       innerBalanceLayerNrg(:) = innerBalanceLayerNrg(:) + diag_data%var(iLookDIAG%balanceLayerNrg)%dat(:)*dt_wght ! W m-3
       innerBalanceLayerMass(:) = innerBalanceLayerMass(:) + diag_data%var(iLookDIAG%balanceLayerMass)%dat(:)*dt_wght * iden_water ! kg m-3 s-1
 
-      ! save balance of energy and water per snow+soil layer after inner step, since can change nLayers with outer steps
+      ! save balance of energy and water per layer after inner step, since can change nLayers with outer steps
       diag_data%var(iLookDIAG%balanceLayerNrg)%dat(:) = innerBalanceLayerNrg(:)
       diag_data%var(iLookDIAG%balanceLayerMass)%dat(:) = innerBalanceLayerMass(:)
 
@@ -1540,8 +1540,8 @@ subroutine coupled_em(&
       scalarTotalSoilLiq         => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1)                        ,& ! total liquid water in the soil column (kg m-2)
       scalarIceWE                => diag_data%var(iLookDIAG%scalarIceWE)%dat(1)                               ,& ! glacier ice (not snow) water equivalent (kg m-2)
       glacMass4AreaChange        => prog_data%var(iLookPROG%glacMass4AreaChange)%dat(1)                       ,& ! since updateJulDay glacier layers together mass change (kg m-2) 
-      mLayerEnthTemp             => diag_data%var(iLookDIAG%mLayerEnthTemp)%dat                               ,& ! temperature component of enthalpy of each snow+soil layer (K)
-      mLayerEnthalpy             => prog_data%var(iLookPROG%mLayerEnthalpy)%dat                               ,& ! enthalpy of each snow+soil layer (J m-3)
+      mLayerEnthTemp             => diag_data%var(iLookDIAG%mLayerEnthTemp)%dat                               ,& ! temperature component of enthalpy of each layer (K)
+      mLayerEnthalpy             => prog_data%var(iLookPROG%mLayerEnthalpy)%dat                               ,& ! enthalpy of each layer (J m-3)
       scalarTotalSoilEnthalpy    => diag_data%var(iLookDIAG%scalarTotalSoilEnthalpy)%dat(1)                   ,& ! total enthalpy of the soil column (J m-3)
       scalarTotalSnowEnthalpy    => diag_data%var(iLookDIAG%scalarTotalSnowEnthalpy)%dat(1)                   ,& ! total enthalpy of the snow column (J m-3)
       ! state variables in the aquifer
@@ -1794,7 +1794,7 @@ subroutine coupled_em(&
                         mLayerVolFracIce,      & ! intent(in):    vector of volumetric ice water content (-)
                         ! input/output: enthalpy
                         scalarCanopyEnthalpy,  & ! intent(inout): enthTemp to enthalpy of the vegetation canopy (J m-3)
-                        mLayerEnthalpy,        & ! intent(inout): enthTemp to enthalpy of each snow+soil layer (J m-3)
+                        mLayerEnthalpy,        & ! intent(inout): enthTemp to enthalpy of each layer (J m-3)
                         ! output: error control    
                         err,cmessage)            ! intent(out): error control
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -1815,7 +1815,7 @@ subroutine coupled_em(&
                         mLayerVolFracIce,      & ! intent(in):    vector of volumetric ice water content (-)
                         ! input/output: enthalpy
                         scalarCanopyEnthTemp,  & ! intent(inout): enthalpy to enthTemp of the vegetation canopy (J m-3)
-                        mLayerEnthTemp,        & ! intent(inout): enthalpy to enthTemp of each snow+soil layer (J m-3)
+                        mLayerEnthTemp,        & ! intent(inout): enthalpy to enthTemp of each layer (J m-3)
                         ! output: error control    
                         err,cmessage)            ! intent(out): error control
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif

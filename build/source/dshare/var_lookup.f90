@@ -311,8 +311,8 @@ MODULE var_lookup
   integer(i4b)    :: absTolTempVeg         = integerMissing    ! IDA absolute error tolerance for vegitation temp state var
   integer(i4b)    :: relTolWatVeg          = integerMissing    ! IDA relative error tolerance for vegitation hydrology
   integer(i4b)    :: absTolWatVeg          = integerMissing    ! IDA absolute error tolerance for vegitation hydrology
-  integer(i4b)    :: relTolTempSoilSnow    = integerMissing    ! IDA relative error tolerance for snow+soil energy
-  integer(i4b)    :: absTolTempSoilSnow    = integerMissing    ! IDA absolute error tolerance for snow+soil energy
+  integer(i4b)    :: relTolTempSoilSnow    = integerMissing    ! IDA relative error tolerance for layer energy
+  integer(i4b)    :: absTolTempSoilSnow    = integerMissing    ! IDA absolute error tolerance for layer energy
   integer(i4b)    :: relTolWatSnow         = integerMissing    ! IDA relative error tolerance for snow hydrology
   integer(i4b)    :: absTolWatSnow         = integerMissing    ! IDA absolute error tolerance for snow hydrology
   integer(i4b)    :: relTolMatric          = integerMissing    ! IDA relative error tolerance for matric head
@@ -371,7 +371,7 @@ MODULE var_lookup
   ! enthalpy
   integer(i4b)    :: scalarCanairEnthalpy        = integerMissing    ! enthalpy of the canopy air space (J m-3)
   integer(i4b)    :: scalarCanopyEnthalpy        = integerMissing    ! enthalpy of the vegetation canopy (J m-3)
-  integer(i4b)    :: mLayerEnthalpy              = integerMissing    ! enthalpy of the snow+soil layers (J m-3)
+  integer(i4b)    :: mLayerEnthalpy              = integerMissing    ! enthalpy of the layers (J m-3)
   ! other state variables
   integer(i4b)    :: scalarAquiferStorage        = integerMissing    ! relative aquifer storage -- above bottom of the soil profile (m)
   integer(i4b)    :: scalarSurfaceTemp           = integerMissing    ! surface temperature (K)
@@ -414,7 +414,7 @@ MODULE var_lookup
   integer(i4b)    :: iLayerThermalC                  = integerMissing ! thermal conductivity at the interface of each layer (W m-1 K-1)
   ! enthalpy
   integer(i4b)    :: scalarCanopyEnthTemp            = integerMissing ! temperature component of enthalpy of the vegetation canopy (J m-3)
-  integer(i4b)    :: mLayerEnthTemp                  = integerMissing ! temperature component of enthalpy of the snow+soil layers (J m-3)
+  integer(i4b)    :: mLayerEnthTemp                  = integerMissing ! temperature component of enthalpy of the layers (J m-3)
   integer(i4b)    :: scalarTotalSoilEnthalpy         = integerMissing ! total enthalpy of the soil column (J m-3)
   integer(i4b)    :: scalarTotalSnowEnthalpy         = integerMissing ! total enthalpy of the snow column (J m-3)
   ! forcing
@@ -498,13 +498,13 @@ MODULE var_lookup
   ! balances
   integer(i4b)    :: balanceCasNrg                   = integerMissing ! balance of energy in the canopy air space (W m-3)
   integer(i4b)    :: balanceVegNrg                   = integerMissing ! balance of energy in the vegetation (W m-3)
-  integer(i4b)    :: balanceLayerNrg                 = integerMissing ! balance of energy in each snow+soil layer (W m-3)
+  integer(i4b)    :: balanceLayerNrg                 = integerMissing ! balance of energy in each layer (W m-3)
   integer(i4b)    :: balanceSnowNrg                  = integerMissing ! balance of energy in the snow (W m-3)
   integer(i4b)    :: balanceLakeNrg                  = integerMissing ! balance of energy in the lake (W m-2)
   integer(i4b)    :: balanceSoilNrg                  = integerMissing ! balance of energy in the soil (W m-3)
   integer(i4b)    :: balanceGlceNrg                  = integerMissing ! balance of energy in the glacier ice (W m-3)
   integer(i4b)    :: balanceVegMass                  = integerMissing ! balance of water in the vegetation (kg m-3 s-1)
-  integer(i4b)    :: balanceLayerMass                = integerMissing ! balance of water in each snow+soil layer (kg m-3 s-1)
+  integer(i4b)    :: balanceLayerMass                = integerMissing ! balance of water in each layer (kg m-3 s-1)
   integer(i4b)    :: balanceSnowMass                 = integerMissing ! balance of water in the snow (kg m-3 s-1)
   integer(i4b)    :: balanceLakeMass                 = integerMissing ! balance of water in the lake (kg m-2 s-1)
   integer(i4b)    :: balanceSoilMass                 = integerMissing ! balance of water in the soil (kg m-3 s-1)
@@ -686,10 +686,10 @@ MODULE var_lookup
   integer(i4b)    :: dCm_dPsi0                       = integerMissing ! derivative in heat capacity w.r.t. matric potential (J kg-1)
   integer(i4b)    :: dCm_dTk                         = integerMissing ! derivative in heat capacity w.r.t. temperature (J kg-1 K-2)
   integer(i4b)    :: dCm_dTkCanopy                   = integerMissing ! derivative in heat capacity w.r.t. canopy temperature (J kg-1 K-2)
-  ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. temperature in layers above and below
+  ! derivatives in energy fluxes at the interface of layers w.r.t. temperature in layers above and below
   integer(i4b)    :: dNrgFlux_dTempAbove             = integerMissing ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
   integer(i4b)    :: dNrgFlux_dTempBelow             = integerMissing ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
-  ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. water state in layers above and below
+  ! derivatives in energy fluxes at the interface of layers w.r.t. water state in layers above and below
   integer(i4b)    :: dNrgFlux_dWatAbove              = integerMissing ! derivatives in the flux w.r.t. water state in the layer above
   integer(i4b)    :: dNrgFlux_dWatBelow              = integerMissing ! derivatives in the flux w.r.t. water state in the layer below
   ! derivative in liquid water fluxes at the interface of snow lake glce layers w.r.t. volumetric liquid water content in the layer above
@@ -761,7 +761,7 @@ MODULE var_lookup
   integer(i4b)     :: nMatState             = integerMissing  ! number of matric head state variables                                    (-)
   integer(i4b)     :: nMassState            = integerMissing  ! number of hydrology state variables (mass of water)                      (-)
   integer(i4b)     :: nState                = integerMissing  ! total number of model state variables                                    (-)
-  ! number of state variables within different domains in the snow+soil system
+  ! number of state variables within different domains in the layer system
   integer(i4b)     :: nSnLaSoGlNrg          = integerMissing  ! number of energy states in the layer domains                             (-)
   integer(i4b)     :: nSnowOnlyNrg          = integerMissing  ! number of energy states in the snow domain                               (-)
   integer(i4b)     :: nLakeOnlyNrg          = integerMissing  ! number of energy states in the lake domain                               (-)

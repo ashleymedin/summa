@@ -44,9 +44,9 @@ USE globalData,only:iname_nrgCanair ! named variable defining the energy of the 
 USE globalData,only:iname_nrgCanopy ! named variable defining the energy of the vegetation canopy
 USE globalData,only:iname_watCanopy ! named variable defining the mass of total water on the vegetation canopy
 USE globalData,only:iname_liqCanopy ! named variable defining the mass of liquid water on the vegetation canopy
-USE globalData,only:iname_nrgLayer  ! named variable defining the energy state variable for snow+soil layers
-USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for snow+soil layers
-USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for snow+soil layers
+USE globalData,only:iname_nrgLayer  ! named variable defining the energy state variable for layers
+USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for layers
+USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for layers
 USE globalData,only:iname_matLayer  ! named variable defining the matric head state variable for soil layers
 USE globalData,only:iname_lmpLayer  ! named variable defining the liquid matric potential state variable for soil layers
 
@@ -130,7 +130,7 @@ subroutine updateVars(&
                       ! output: enthalpy variables  
                       scalarCanairEnthalpyTrial,                 & ! intent(inout): trial value for enthalpy of the canopy air space (J m-3)
                       scalarCanopyEnthTempTrial,                 & ! intent(inout): trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
-                      mLayerEnthTempTrial,                       & ! intent(inout): trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)                          
+                      mLayerEnthTempTrial,                       & ! intent(inout): trial vector of temperature component of enthalpy of each layer (J m-3)                          
                       ! output: error control
                       err,message)                                 ! intent(out):   error control
   ! --------------------------------------------------------------------------------------------------------------------------------
@@ -162,7 +162,7 @@ subroutine updateVars(&
   ! output: enthalpy variables
   real(rkind),intent(inout)          :: scalarCanairEnthalpyTrial       ! trial value for enthalpy of the canopy air space (J m-3)
   real(rkind),intent(inout)          :: scalarCanopyEnthTempTrial       ! trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
-  real(rkind),intent(inout)          :: mLayerEnthTempTrial(:)          ! trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)
+  real(rkind),intent(inout)          :: mLayerEnthTempTrial(:)          ! trial vector of temperature component of enthalpy of each layer (J m-3)
   ! output: error control
   integer(i4b),intent(out)           :: err                             ! error code
   character(*),intent(out)           :: message                         ! error message
