@@ -13,7 +13,7 @@
 
 # Run:
 # python plot_per_GRUMult.py [stat]
-# where stat is rmse or maxe or kgem or mean or amax
+# where stat is rmse or maxe or kgem or mean or amax or avge
 
 # modules
 import sys
@@ -33,79 +33,91 @@ import matplotlib.colors as mcolors
 from matplotlib.ticker import ScalarFormatter
 
 
-do_rel = True # true is plot relative to the benchmark simulation
-one_plot = False # true is one plot, false is multiple plots (one per variable)
+do_rel = False # true is plot relative to the benchmark simulation
+one_plot = True # true is one plot, false is multiple plots (one per variable)
 run_local = False # true is run on local machine (only does testing), false is run on cluster
 more_mean = False # true is plot mean/amax extra variables in a balance file
+two_stat = True # true is run both mean and amax, false is run one stat
 
 if run_local: 
-    stat = 'mean'
+    stat = 'avge'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics_en')
 else:
     import sys
     stat = sys.argv[1]
-    viz_dir = Path('/home/avanb/scratch/statistics')
+    viz_dir = Path(os.path.expanduser('~/statistics'))
 
 
 # NOTE: method_name 'ref' will plot the reference solution, 'diff' will plot the difference between two simulations
 #       method_name 'diff' requires the specification of the two simulations to subtract in the variables from_meth and sub_meth
 
-method_name=['be1','be16','be32','sundials_1en6','ref']
+method_name=['be1','be16','be32','sun6','ref']
 plt_name0=['SUMMA-BE1','SUMMA-BE16','SUMMA-BE32','SUMMA-SUNDIALS','reference solution']
 plt_nameshort=plt_name0
-method_name=['be1','be1cm','be1en','sundials_1en6cm','sundials_1en6en','diff','ref']
-plt_name0=['BE1 common thermo. eq.','SUMMA-BE1 temperature thermo. eq.','SUMMA-BE1 mixed thermo. eq.','SUMMA-SUNDIALS temperature thermo. eq.','SUMMA-SUNDIALS enthalpy thermo. eq.','SUMMA-BE1 common - mixed','reference solution']
-plt_nameshort=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp','SUNDIALS enth','BE1 common - mixed','reference soln']
+method_name=['be8','be8cm','be8en','sun5cm','sun5en','diff','ref']
+plt_name0=['BE8 common','SUMMA-BE8 temperature','SUMMA-BE8 mixed','SUMMA-SUNDIALS temperature','SUMMA-SUNDIALS enthalpy','SUMMA-BE8 common - mixed','reference solution']
+plt_nameshort=['BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp','SUNDIALS enth','BE8 common - mixed','reference soln']
+#method_name=['sun8en']
+#plt_name0=['reference solution']
+#plt_nameshort=['']
 
 if one_plot: plt_name0 = plt_nameshort
 
-from_meth = 'be1' # name of the first simulation in the difference simulation, only used if a method_name is 'diff'
-sub_meth = 'be1en' # name of the simulation to subtract in the difference simulation, only used if a method_name is 'diff'
+from_meth = method_name[0] # name of the first simulation in the difference simulation, only used if a method_name is 'diff'
+sub_meth = method_name[0] # name of the simulation to subtract in the difference simulation, only used if a method_name is 'diff'
 
 # Simulation statistics file locations
-settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
+settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','scalarRootZoneTemp']
 
 viz_fil = method_name.copy()
 for i, m in enumerate(method_name):
     viz_fil[i] = m + '_hrly_diff_stats_{}.nc'
-    viz_fil[i] = viz_fil[i].format(','.join(settings))
+    viz_fil[i] = viz_fil[i].format(','.join('accuracy'))
 nbatch_hrus = 518 # number of HRUs per batch
 if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
 if more_mean: # extra vars in a balance file
-    plt_titl_exVar = ['rain plus melt','top 4m soil temperature','air temperature','snow water equivalent']
+    plt_titl_exVar = ['rain plus melt into soil','top 4m soil temperature','air temperature','snow water equivalent']
     plot_vars_exVar = ['scalarRainPlusMelt','scalarRootZoneTemp','airtemp','scalarSWE']
+    #plot_vars_exVar = ['balanceAqMass','balanceSoilNrg','balanceSoilMass','balanceVegMass']
     viz_file_exVar = 'exVar_hrly_diff_bals_balance.nc'
-    plt_name0_exVar = 'SUMMA-BE1 temperature thermo. eq.'
+    plt_name0_exVar = 'SUMMA-BE1 temperature'
     plt_nameshort_exVar = 'BE1 temp' # identify method here
     leg_titl_exVar = ['$mm~y^{-1}$','$K$','$K$','$kg~m^{-2}$']
-    maxes_exVar = [3000,290,290,100]
+    maxes_exVar = [3000,295,295,100]
     if one_plot: plt_name0_exVar = plt_nameshort_exVar
 
 # Specify variables in files
 plot_vars = settings.copy() + ['scalarSWE']
-plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','average routed runoff','wall clock time', 'melt with seasonal snow']
-leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$s$','$kg~m^{-2}$']
+plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','top 4m soil temperature','melt with seasonal snow']
+leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$K$','$kg~m^{-2}$']
 calc = [0,0,0,0,0,0,1] # 1 if variable needs to be calculated from other variables
 melt_thresh = 1/(0.75) # threshold for melt water calculation (divisor is percentage of year no snow, if only melts once)
 
 fig_fil= '_hrly_diff_stats_{}_compressed.png'
 if do_rel: fig_fil = '_hrly_diff_stats_{}_rel_compressed.png'
 
+if stat == 'avge':
+    maxes = [99,7,99,99,0.28,99]
+    if do_rel: maxes = [0.4,0.007,0.6,0.15,0.0015]
 if stat == 'rmse' or stat == 'rmnz': 
-    maxes = [2,15,250,0.08,200,10e-3,2] 
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,10e-3,0.6]
-if stat == 'maxe': 
-    maxes = [15,25,0.8,2,0.3,0.2,15] #[15,25,25e-5,2,1e-7,0.2]
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,0.2,0.6]
+    maxes = [2,15,250,0.08,200,2] 
+    if do_rel: maxes = [0.4,0.007,0.6,0.15,0.0015,0.2,0.6]
+if stat == 'maxe' or (stat=='avge' and two_stat): 
+    maxes2 = [99,15,99,99,7.5,99] #[15,25,25e-5,2,1e-7,0.2]
+    if do_rel: maxes2 = [0.4,0.007,0.6,0.15,0.0015,0.2,0.6]
+    if not two_stat:
+        maxes = maxes2
 if stat == 'kgem': 
     maxes = [0.9,0.9,0.9,0.9,0.9,10e-3,0.9]
 if stat == 'mean' or stat == 'mnnz': 
-    maxes = [100,1700,2000,8,4000,10e-3,100] #[80,1500,5e-5,8,1e-7,10e-3]
-    if do_rel: maxes = [1.1,1.1,1.1,1.1,1.1,10e-3,1.1]
-if stat == 'amax': 
-    maxes = [240,1800,3.5,25,7.5,0.2,240] #[240,1800,1e-3,25,2e-6,0.2]
-    if do_rel: maxes = [1.1,1.1,1.1,1.1,1.1,0.2,1.1]
+    maxes = [100,1700,2000,8,295,3000,100] #[80,1500,5e-5,8,1e-7,10e-3]
+    if do_rel: maxes = [1.1,1.1,1.1,1.1,1.1,1.1]
+if stat == 'amax' or (stat=='mean' and two_stat): 
+    maxes2 = [240,1800,3.5,25,7.5,0.2,240] #[240,1800,1e-3,25,2e-6,0.2]
+    if do_rel: maxes2 = [1.1,1.1,1.1,1.1,1.1,1.1]
+    if not two_stat:
+        maxes = maxes2
 
 # Get simulation statistics
 summa = {}
@@ -114,8 +126,6 @@ for i, m in enumerate(method_name):
     if m!='diff' and m!='ref': summa[m] = xr.open_dataset(viz_dir/viz_fil[i])
 
 if more_mean: summa['exVar'] = xr.open_dataset(viz_dir/viz_file_exVar)
-
-
 
 # Function to extract a given setting from the control file
 def read_from_control( file, setting ):
@@ -158,7 +168,6 @@ if run_local:
 
     # Create a mock DataFrame
     from shapely.geometry import Point
-
     s = summa[method_name[0]][plot_vars[0]].sel(stat=stat)
     mock_data = {
         'hm_hruid': np.concatenate(([81029662], s.hru.values[-100:])), #s.hru.values[-100:],  # Example HRU IDs
@@ -170,12 +179,12 @@ if run_local:
 
 else:
     # Get the albers shapes
-    main = Path('/home/avanb/projects/rpp-kshook/wknoben/CWARHM_data/domain_NorthAmerica/shapefiles/albers_projection')
+    main = Path(os.path.expanduser('~/albers_projection'))
     plot_lakes = True
     plot_rivers = False
 
     # Control file handling
-    controlFile = 'plot_control_NorthAmerica.txt'
+    controlFile = main / 'plot_control_NorthAmerica.txt'
 
     # HM catchment shapefile path & name
     hm_catchment_path = read_from_control(controlFile,'catchment_shp_path')
@@ -214,86 +223,100 @@ else:
 
 # Match the accummulated values to the correct HRU IDs in the shapefile
 hru_ids_shp = bas_albers[hm_hruid].astype(int) # hru order in shapefile
+# Define a list of stat0 values to loop over
+if two_stat:
+    if stat=='avge': 
+        stat_values = [stat, 'maxe']
+    else:
+        stat_values = [stat, 'amax']
+else:
+    stat_values = [stat]
+
 for i,plot_var in enumerate(plot_vars):
-    stat0 = stat
-    if stat == 'rmse' or stat == 'kgem' or stat == 'mean': 
-        if plot_var == 'wallClockTime': stat0 = 'mean'
-        statr = 'mean_ben'
-    if stat == 'rmnz' or stat == 'mnnz':
-        if plot_var == 'wallClockTime': stat0 = 'mnnz'
-        statr = 'mnnz_ben'
-    if stat == 'maxe' or stat == 'amax': 
-        if plot_var == 'wallClockTime': stat0 = 'amax'
-        statr = 'amax_ben'
+    for stat_use in stat_values: 
+        stat0 = stat_use
+        if stat_use == 'rmse' or stat_use == 'kgem' or stat_use == 'mean' or stat_use == 'avge': 
+            if plot_var == 'wallClockTime': stat0 = 'mean'
+            statr = 'mean_ben'
+        if stat_use == 'rmnz' or stat_use == 'mnnz':
+            if plot_var == 'wallClockTime': stat0 = 'mnnz'
+            statr = 'mnnz_ben'
+        if stat_use == 'maxe' or stat_use == 'amax': 
+            if plot_var == 'wallClockTime': stat0 = 'amax'
+            statr = 'amax_ben'
 
-    if do_rel: s_rel = np.fabs(summa[method_name[0]][plot_var].sel(stat=statr))
-    
-    if calc[i]:
-        if do_rel: s_rel = s_rel.where(summa[method_name[0]][plot_var].sel(stat='mnnz_ben') > melt_thresh*summa[method_name[0]][plot_var].sel(stat='mean_ben'))
+        s_rel = np.fabs(summa[method_name[0]][plot_var].sel(stat=statr))
 
-
-    for m in method_name:
-        if m=='diff': 
-            s = summa[from_meth][plot_var].sel(stat=stat0) - summa[sub_meth][plot_var].sel(stat=stat0)
-        elif m=='ref':
-            s = np.fabs(summa[method_name[0]][plot_var].sel(stat=statr))
-        else:
-            s = np.fabs(summa[m][plot_var].sel(stat=stat0))
         if calc[i]:
+            if do_rel: s_rel = s_rel.where(summa[method_name[0]][plot_var].sel(stat='mnnz_ben') > melt_thresh*summa[method_name[0]][plot_var].sel(stat='mean_ben'))
+
+
+        for m in method_name:
             if m=='diff': 
-                s_from = summa[from_meth][plot_var].sel(stat=stat0)
-                s_from = s_from.where(summa[from_meth][plot_var].sel(stat='mnnz') > melt_thresh*summa[from_meth][plot_var].sel(stat='mean'))
-                s_sub  = summa[sub_meth][plot_var].sel(stat=stat0)
-                s_sub  = s_sub.where(summa[sub_meth][plot_var].sel(stat='mnnz') > melt_thresh*summa[sub_meth][plot_var].sel(stat='mean'))
-                s = s_from - s_sub
+                s = summa[from_meth][plot_var].sel(stat=stat0) - summa[sub_meth][plot_var].sel(stat=stat0)
             elif m=='ref':
-                s =s.where(summa[method_name[0]][plot_var].sel(stat='mnnz_ben') > melt_thresh*summa[method_name[0]][plot_var].sel(stat='mean_ben'))
+                s = np.fabs(summa[method_name[0]][plot_var].sel(stat=statr))
             else:
-                s = s.where(summa[m][plot_var].sel(stat='mnnz') > melt_thresh*summa[m][plot_var].sel(stat='mean'))
-        if do_rel and plot_var != 'wallClockTime': s = s/s_rel
+                s = np.fabs(summa[m][plot_var].sel(stat=stat0))
+            if calc[i]:
+                if m=='diff': 
+                    s_from = summa[from_meth][plot_var].sel(stat=stat0)
+                    s_from = s_from.where(summa[from_meth][plot_var].sel(stat='mnnz') > melt_thresh*summa[from_meth][plot_var].sel(stat='mean'))
+                    s_sub  = summa[sub_meth][plot_var].sel(stat=stat0)
+                    s_sub  = s_sub.where(summa[sub_meth][plot_var].sel(stat='mnnz') > melt_thresh*summa[sub_meth][plot_var].sel(stat='mean'))
+                    s = s_from - s_sub
+                elif m=='ref':
+                    s =s.where(summa[method_name[0]][plot_var].sel(stat='mnnz_ben') > melt_thresh*summa[method_name[0]][plot_var].sel(stat='mean_ben'))
+                else:
+                    s = s.where(summa[m][plot_var].sel(stat='mnnz') > melt_thresh*summa[m][plot_var].sel(stat='mean'))
+            if do_rel and plot_var != 'wallClockTime': s = s/s_rel
 
-        # Replace inf and 9999 values with NaN in the s DataArray
-        s = s.where(~np.isinf(s), np.nan).where(lambda x: x != 9999, np.nan)
+            # Replace inf and 9999 values with NaN in the s DataArray
+            s = s.where(~np.isinf(s), np.nan).where(lambda x: x != 9999, np.nan)
 
-        if plot_var == 'scalarTotalET' and not do_rel:
-            if stat =='rmse' or stat =='rmnz' or stat=='mnnz' or stat=='mean': s = s*31557600 # make annual total
-            if stat =='maxe' or stat=='amax': s = s*3600 # make hourly max
-        if plot_var == 'averageRoutedRunoff' and not do_rel:
-            if stat =='rmse' or stat =='rmnz' or stat=='mnnz' or stat=='mean': s = s*31557600*1000 # make annual total
-            if stat =='maxe' or stat=='amax': s = s*3600*1000 # make hourly max
+            if plot_var == 'scalarTotalET' and not do_rel:
+                if stat_use =='rmse' or stat_use =='rmnz' or stat_use=='mnnz' or stat_use=='mean': s = s*31557600 # make annual total
+                if stat_use =='maxe' or stat_use=='amax': s = s*3600 # make hourly max
+            if plot_var == 'averageRoutedRunoff' and not do_rel:
+                if stat_use =='rmse' or stat_use =='rmnz' or stat_use=='mnnz' or stat_use=='mean': s = s*31557600*1000 # make annual total
+                if stat_use =='maxe' or stat_use=='amax': s = s*3600*1000 # make hourly max
+            if plot_var == 'scalarRainPlusMelt' and not do_rel:
+                if stat_use =='rmse' or stat_use =='rmnz' or stat_use=='mnnz' or stat_use=='mean': s = s*31557600*1000 # make annual total
+                if stat_use =='maxe' or stat_use=='amax': s = s*3600*1000 # make hourly max
 
-        # Create a new column in the shapefile for each method, and fill it with the statistics
-        if calc[i]: 
-            plot_var1 = plot_var + '_calc'
-        else:
-            plot_var1 = plot_var
-        bas_albers[plot_var1+m] = np.nan
-        hru_ind = [i for i, hru_id in enumerate(hru_ids_shp.values) if hru_id in s.hru.values] # if some missing
-        bas_albers.loc[hru_ind, plot_var1+m] = s.sel(hru=hru_ids_shp.values[hru_ind]).values
+            # Create a new column in the shapefile for each method, and fill it with the statistics
+            if calc[i]: 
+                plot_var1 = plot_var + '_calc'
+            else:
+                plot_var1 = plot_var
+            bas_albers[plot_var1+m+stat0] = np.nan
+            hru_ind = [i for i, hru_id in enumerate(hru_ids_shp.values) if hru_id in s.hru.values] # if some missing
+            bas_albers.loc[hru_ind, plot_var1+m+stat0] = s.sel(hru=hru_ids_shp.values[hru_ind]).values
 
 if more_mean: # extra mean/amax variables
     for i,plot_var in enumerate(plot_vars_exVar):
-        stat0 = stat
+        for stat_use in stat_values:
+            stat0 = stat_use
     
-        if stat != 'mean' and stat != 'amax': 
-            print('Only mean and amax are supported for extra variables')
-            sys.exit()
+            if stat_use != 'mean' and stat_use != 'amax': 
+                print('Only mean and amax are supported for extra variables')
+                sys.exit()
 
-        m = 'exVar'
-        s = np.fabs(summa[m][plot_var].sel(stat=stat0))
+            m = 'exVar'
+            s = np.fabs(summa[m][plot_var].sel(stat=stat0))
 
-        # Replace inf and 9999 values with NaN in the s DataArray
-        s = s.where(~np.isinf(s), np.nan).where(lambda x: x != 9999, np.nan)
+            # Replace inf and 9999 values with NaN in the s DataArray
+            s = s.where(~np.isinf(s), np.nan).where(lambda x: x != 9999, np.nan)
 
-        if plot_var == 'scalarRainPlusMelt':
-            if stat=='mean': s = s*31557600*1000 # make annual total
-            if stat=='amax': s = s*3600*1000 # make hourly max
+            if plot_var == 'scalarRainPlusMelt':
+                if stat_use=='mean': s = s*31557600*1000 # make annual total
+                if stat_use=='amax': s = s*3600*1000 # make hourly max
 
-        # Create a new column in the shapefile for each method, and fill it with the statistics
-        plot_var1 = plot_var
-        bas_albers[plot_var1+m] = np.nan
-        hru_ind = [i for i, hru_id in enumerate(hru_ids_shp.values) if hru_id in s.hru.values] # if some missing
-        bas_albers.loc[hru_ind, plot_var1+m] = s.sel(hru=hru_ids_shp.values[hru_ind]).values
+            # Create a new column in the shapefile for each method, and fill it with the statistics
+            plot_var1 = plot_var
+            bas_albers[plot_var1+m+stat0] = np.nan
+            hru_ind = [i for i, hru_id in enumerate(hru_ids_shp.values) if hru_id in s.hru.values] # if some missing
+            bas_albers.loc[hru_ind, plot_var1+m+stat0] = s.sel(hru=hru_ids_shp.values[hru_ind]).values
 
 
 
@@ -310,7 +333,7 @@ if plot_lakes:
 
 
 # Figure
-def run_loop(j,var,the_max):
+def run_loop(j,var,the_max,stat,row_fill):
     stat0 = stat
     if stat == 'rmse' or stat == 'kgem' or stat == 'mean': 
         if var == 'wallClockTime': stat0 = 'mean'
@@ -330,10 +353,12 @@ def run_loop(j,var,the_max):
     if stat0 == 'mean': stat_word = 'mean'
     if stat0 == 'mnnz': stat_word = 'mean' # no 0s'
     if stat0 == 'amax': stat_word = 'max'
+    if stat0 == 'avge': stat_word = 'mean abs error'
 
-    if statr == 'mean_ben': statr_word = 'mean'
-    if statr == 'mnnz_ben': statr_word = 'mean' # no 0s'
-    if statr == 'amax_ben': statr_word = 'max'
+    if do_rel:
+        if statr == 'mean_ben': statr_word = 'mean'
+        if statr == 'mnnz_ben': statr_word = 'mean' # no 0s'
+        if statr == 'amax_ben': statr_word = 'max'
 
     my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
     my_cmap.set_bad(color='white') #nan color white
@@ -353,17 +378,35 @@ def run_loop(j,var,the_max):
 
         my_cmap2 = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
         my_cmap2.set_bad(color='white') #nan color white
-        vmin,vmax =  -the_max/250,the_max/250,
+        vmin,vmax =  -the_max/250,the_max/250
         norm2 = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
         #norm2 = matplotlib.colors.SymLogNorm(vmin=vmin,vmax=vmax,linthresh=0.01,base=1.1)
 
+        if stat == 'mean' and var== 'scalarRootZoneTemp':
+            my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
+            my_cmap.set_bad(color='white') #nan color white
+            vmin,vmax =  (280-(the_max-280)),the_max
+            norm = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=273.16, vmax=vmax)  
+
         for i,m in enumerate(method_name):
-            r = i//ncol + base_row
-            c = i - (r-base_row)*ncol
+            if len(method_name)==1: 
+                if row_fill:
+                    r = base_row//ncol
+                    c = base_row-r*ncol
+                else:
+                    c = base_row//nrow
+                    r = base_row-c*nrow
+            else:
+                if row_fill:
+                    r = i//ncol + base_row
+                    c = i - (r-base_row)*ncol
+                else:
+                    c = i//nrow + base_row
+                    r = i - (c-base_row)*nrow           
 
             # Plot the data with the full extent of the bas_albers shape
             if m=='diff':
-                bas_albers.plot(ax=axs[r,c], column=var+m, edgecolor='none', legend=False, cmap=my_cmap2, norm=norm2,zorder=0)
+                bas_albers.plot(ax=axs[r,c], column=var+m+stat0, edgecolor='none', legend=False, cmap=my_cmap2, norm=norm2,zorder=0)
                 stat_word0 = stat_word+' difference'
                 stat_word2 = stat_word
                 plt_nm = plt_name[i]
@@ -371,10 +414,10 @@ def run_loop(j,var,the_max):
                 # only plot wallClockTime for the reference solution
                 plt_nm =''
             else:
-                bas_albers.plot(ax=axs[r,c], column=var+m, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
+                bas_albers.plot(ax=axs[r,c], column=var+m+stat0, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
                 stat_word0 = stat_word
                 plt_nm = plt_name[i]
-            print(f"{'all HRU mean for '}{var+m:<35}{np.nanmean(bas_albers[var+m].values):<10.5f}{' max: '}{np.nanmax(bas_albers[var+m].values):<10.5f}")
+            print(f"{'all HRU mean for '}{var+m+stat0:<35}{np.nanmean(bas_albers[var+m+stat0].values):<10.5f}{' max: '}{np.nanmax(bas_albers[var+m+stat0].values):<10.5f}")
             axs[r,c].set_title(plt_nm)
             axs[r,c].axis('off')
             axs[r,c].set_xlim(xmin, xmax)
@@ -388,17 +431,39 @@ def run_loop(j,var,the_max):
                 else:
                     sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
                 sm.set_array([])
+                if not row_fill:
+                    axs_list = np.array(axs).T.ravel().tolist()
+                else:
+                    axs_list = axs.ravel().tolist()
                 if one_plot:
                     if m=='diff': # only works if diff is last on list
-                        cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/nrow,location='right')
-                        cbr2 = fig.colorbar(sm2, ax=axs_list[(r+1)*len(method_name)-1:(r+1)*len(method_name)],aspect=27/nrow,location='left')
+                        if not row_fill:
+                            cbr = fig.colorbar(sm, ax=axs_list[c*len(method_name):(c+1)*len(method_name)],aspect=27/nrow,location='right')
+                            cbr2 = fig.colorbar(sm2, ax=axs_list[(c+1)*len(method_name)-1:(c+1)*len(method_name)],aspect=27/nrow,location='left')
+                        else:
+                            cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/nrow,location='right')
+                            cbr2 = fig.colorbar(sm2, ax=axs_list[(r+1)*len(method_name)-1:(r+1)*len(method_name)],aspect=27/nrow,location='left')
                         cbr2.ax.yaxis.set_ticks_position('right')
                         cbr2.ax.yaxis.set_label_position('right')
-                    if m!='diff': cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/nrow,location='right')
+                    else: 
+                        if len(method_name)==1:
+                            if not row_fill:
+                                cbr = fig.colorbar(sm, ax=axs_list[base_row:base_row+1],aspect=27/1)
+                            else:
+                                cbr = fig.colorbar(sm, ax=axs_list[base_row:base_row+1],aspect=27/1,location='right')
+                        else:
+                            if not row_fill:
+                                cbr = fig.colorbar(sm, ax=axs_list[c*len(method_name):(c+1)*len(method_name)],aspect=27/1.1*nrow,location='right')
+                            else:
+                                cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/1.1*nrow,location='right')
                 else:
                     # will be wonky with m=='diff' choice
-                    cbr = fig.colorbar(sm, ax=axs_list,aspect=27/3*nrow)
-                    if m=='diff': cbr2 = fig.colorbar(sm2, ax=axs_list,aspect=27/3*nrow)
+                    if not row_fill:
+                        cbr = fig.colorbar(sm, ax=axs_list[c*len(method_name):(c+1)*len(method_name)],aspect=27/3*nrow)
+                        if m=='diff': cbr2 = fig.colorbar(sm2, ax=axs_list[c*len(method_name):(c+1)*len(method_name)],aspect=27/3*nrow)
+                    else:
+                        cbr = fig.colorbar(sm, ax=axs_list,aspect=27/3*nrow)
+                        if m=='diff': cbr2 = fig.colorbar(sm2, ax=axs_list,aspect=27/3*nrow)
                 if stat == 'kgem': 
                     cbr.ax.set_ylabel(stat_word0)
                 else:
@@ -429,7 +494,7 @@ def run_loop(j,var,the_max):
     else: # extra mean/amax variables
         for i,v in enumerate(plot_vars_exVar):
             vmin,vmax = 0, maxes_exVar[i]
-            if (v=='airtemp' or v== 'scalarRootZoneTemp' or v=='balanceSoilNrg'): 
+            if (v=='airtemp' or v== 'scalarRootZoneTemp'): 
                 #vmin,vmax = 260, maxes_exVar[i]
                 my_cmap2 = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
                 my_cmap2.set_bad(color='white') #nan color white
@@ -465,8 +530,11 @@ def run_loop(j,var,the_max):
                 pad = -0.05
             else: 
                 pad = -0.5
-            if one_plot:
-                cbr = fig.colorbar(sm,ax=axs_list[r*ncol:r*ncol+c+1],aspect=27/nrow, pad=pad)
+            if one_plot: # will be wrong with two_stat, but ex_var shouldn't have 2 stat at the moment
+                if len(method_name)==1:
+                    cbr = fig.colorbar(sm,ax=axs_list[r*ncol:r*ncol+c+1],aspect=27/1, pad=pad)
+                else:
+                    cbr = fig.colorbar(sm,ax=axs_list[r*ncol:r*ncol+c+1],aspect=27/nrow, pad=pad)
             else:
                 cbr = fig.colorbar(sm,ax=axs_list[r*ncol:r*ncol+c+1],aspect=27/nrow, pad=pad)
             cbr.ax.set_ylabel(stat_word0 + ' [{}]'.format(leg_titl_exVar[i]))
@@ -478,14 +546,16 @@ def run_loop(j,var,the_max):
 
 # Specify plotting options
 if one_plot:
-    use_vars = [1]
-    use_meth = [0,2,4]
-    use_vars_exVar = [3,0,1]
+    #use_vars = [0,5,4,1]
+    #use_meth = [0]
+    #use_vars_exVar = [0]
+    use_vars = [4,1]
+    use_meth = [0,1,2,3,4]
 else:
-    use_vars = [0,1,2,3,4,5]
-    use_vars = [1,5]
-    use_meth = [0,1,2,3,4,6]
-    use_vars_exVar = [3,0,2,1]
+    #use_vars = [0,1,2,3,4,5]
+    use_vars = [4,1]
+    use_meth = [0,1,2,3,4]
+    use_vars_exVar = [3,0,2]
 if more_mean: 
     use_vars = ['exVar'] + use_vars # 'exVar' is the extra variables in a balance file, all same method
     if len(use_meth) < len(use_vars_exVar): use_vars_exVar = use_vars_exVar[:len(use_meth)] # chop if longer
@@ -500,53 +570,68 @@ plot_vars = [plot_vars[i] if i != 'exVar' else 'exVar' for i in use_vars]
 plt_titl = [plt_titl[i] if i != 'exVar' else 'exVar' for i in use_vars]
 leg_titl = [leg_titl[i] if i != 'exVar' else 'exVar' for i in use_vars]
 maxes = [maxes[i] if i != 'exVar' else 'exVar' for i in use_vars]
+if two_stat: 
+    maxes2 = [maxes2[i] for i in use_vars]
+else:
+    maxes2 = maxes # dummy
 method_name = [method_name[i] for i in use_meth]
 
 if one_plot:
-    ncol = len(use_meth)
-    nrow = len(use_vars)
+    if two_stat:
+        ncol = 2*len(use_vars)
+        nrow = len(use_meth)
+    else:
+        ncol = len(use_meth)
+        nrow = len(use_vars)
+        if len(use_meth)==1:
+            ncol = len(use_vars)
+            nrow = 2
 
     # Set the font size: we need this to be huge so we can also make our plotting area huge, to avoid a gnarly plotting bug
     if 'compressed' in fig_fil:
         plt.rcParams.update({'font.size': 33})
-        if more_mean:
+        if more_mean and len(use_meth)>1:
             fig,axs = plt.subplots(nrow,ncol,figsize=(16.9*ncol,13*nrow),constrained_layout=True)
         else:
             fig,axs = plt.subplots(nrow,ncol,figsize=(15*ncol,13*nrow),constrained_layout=True)
 
     else:
         plt.rcParams.update({'font.size': 120})
-        if more_mean:
+        if more_mean and len(use_meth)>1:
             fig,axs = plt.subplots(nrow,ncol,figsize=(80*ncol,58*nrow),constrained_layout=True)
         else:
             fig,axs = plt.subplots(nrow,ncol,figsize=(67*ncol,58*nrow),constrained_layout=True)
 
-    axs_list = axs.ravel().tolist()
     fig.suptitle('hourly statistics', fontsize=40,y=1.05)
     plt.rcParams['patch.antialiased'] = False # Prevents an issue with plotting distortion along the 0 degree latitude and longitude lines
 
 else:
-    #size hardwired to 2x3 for now
-    ncol = 3
-    nrow = 2
-    if len(method_name)>6:
-        print('Too many methods for 3x2 plot')
-        sys.exit()
+    if two_stat:
+        ncol = 2
+        nrow = len(use_meth)
+    else:
+        #size hardwired to 2x3 for now
+        ncol = 3
+        nrow = 2
+        if len(method_name)>6:
+            print('Too many methods for 3x2 plot')
+            sys.exit()
+        plt_name_orig = [f"({chr(97+n)}) {plt_name0[i]}" for n,i in enumerate(use_meth)]
 
-    base_row = 0
-    plt_name_orig = [f"({chr(97+n)}) {plt_name0[i]}" for n,i in enumerate(use_meth)]
-
-for i,(var,the_max) in enumerate(zip(plot_vars,maxes)):
+for i,(var,the_max,the_max2) in enumerate(zip(plot_vars,maxes,maxes2)):
     
     if one_plot:
         # Reset the names
         base_row = i
-        if (len(use_vars)>1): plt_name = [f"({chr(97+n+i*len(use_meth))}) {plt_titl[i] + ' ' + plt_name0[j]}" for n,j in enumerate(use_meth)]
-        if (len(use_vars)==1): plt_name = [f"({chr(97+n+i*len(use_meth))}) {plt_name0[j]}" for n,j in enumerate(use_meth)]
-        if(var=='exVar'): plt_name = plt_name_exVar
+        if not two_stat:
+            if (len(use_vars)>1): plt_name = [f"({chr(97+n+i*len(use_meth))}) {plt_titl[i] + ' ' + plt_name0[j]}" for n,j in enumerate(use_meth)]
+            if (len(use_vars)==1): plt_name = [f"({chr(97+n+i*len(use_meth))}) {plt_name0[j]}" for n,j in enumerate(use_meth)]
+            if(var=='exVar'): plt_name = plt_name_exVar
     else:
-        plt_name = plt_name_orig
-        if(var=='exVar'): plt_name = plt_name_exVar
+        base_row = 0
+        if not two_stat: 
+            plt_name = plt_name_orig
+            if(var=='exVar'): plt_name = plt_name_exVar
         # Set the font size: we need this to be huge so we can also make our plotting area huge, to avoid a gnarly plotting bug
         if 'compressed' in fig_fil:
             plt.rcParams.update({'font.size': 33})
@@ -555,25 +640,61 @@ for i,(var,the_max) in enumerate(zip(plot_vars,maxes)):
             plt.rcParams.update({'font.size': 120})
             fig,axs = plt.subplots(nrow,ncol,figsize=(67*ncol,58*nrow),constrained_layout=True)
 
-        # Remove the extra subplots
-        if len(method_name) < nrow*ncol:
-            for j in range(len(method_name),nrow*ncol):
-                r = j//ncol
-                c = j-r*ncol
-                fig.delaxes(axs[r, c])
+        if not two_stat:
+            # Remove the extra subplots
+            if len(method_name) < nrow*ncol:
+                for j in range(len(method_name),nrow*ncol):
+                    r = j//ncol
+                    c = j-r*ncol
+                    fig.delaxes(axs[r, c])
 
-        axs_list = axs.ravel().tolist()
         fig.suptitle('{} hourly statistics'.format(plt_titl[i]), fontsize=40,y=1.05)
         plt.rcParams['patch.antialiased'] = False # Prevents an issue with plotting distortion along the 0 degree latitude and longitude lines
 
-    run_loop(i,var,the_max)
+    if two_stat:
+        row_fill=False
+
+        base_row = base_row*2
+        if one_plot:
+            plt_name = [f"({chr(97+2*n+base_row)}) {plt_titl[i] + ' ' + plt_name0[j]}" for n,j in enumerate(use_meth)]
+        else:
+            plt_name = [f"({chr(97+2*n+base_row)}) {plt_name0[j]}" for n,j in enumerate(use_meth)]
+        run_loop(i,var,the_max,stat, row_fill)
+
+        base_row = base_row+1
+        if one_plot:
+            plt_name = [f"({chr(97+2*n+base_row)}) {plt_titl[i] + ' ' + plt_name0[j]}" for n,j in enumerate(use_meth)]
+        else:
+            plt_name = [f"({chr(97+2*n+base_row)}) {plt_name0[j]}" for n,j in enumerate(use_meth)]
+        if stat=='avge': 
+            stat2 = 'maxe'
+        else:
+            stat2 = 'amax'
+        run_loop(i,var,the_max2,stat2,row_fill)
+    else:
+        row_fill=True
+        run_loop(i,var,the_max,stat,row_fill)
 
     if not one_plot:
         # Save the figure
-        fig_fil1 = (var+fig_fil).format(stat)
+        if not two_stat:
+            fig_fil1 = (var+fig_fil).format(stat)
+        else:
+            fig_fil1 = (var+fig_fil).format(stat+','+stat2)
         plt.savefig(viz_dir/fig_fil1, bbox_inches='tight', transparent=True)
 
 if one_plot:
+    if not two_stat:
+        # Remove the extra subplots
+        if len(method_name)*len(plot_vars) < nrow*ncol:
+            for j in range(len(method_name)*len(plot_vars),nrow*ncol):
+                    r = j//ncol
+                    c = j-r*ncol
+                    fig.delaxes(axs[r, c])
+
     # Save the figure
-    fig_fil1 = ('all'+fig_fil).format(stat)
+    if not two_stat:
+        fig_fil1 = ('all'+fig_fil).format(stat)
+    else:
+        fig_fil1 = ('all'+fig_fil).format(stat+','+stat2)
     plt.savefig(viz_dir/fig_fil1, bbox_inches='tight', transparent=True)

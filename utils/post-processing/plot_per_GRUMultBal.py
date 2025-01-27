@@ -31,10 +31,10 @@ import geopandas as gpd
 import pandas as pd
 
 
-one_plot = False # true is one plot, false is multiple plots (one per variable)
+one_plot = True # true is one plot, false is multiple plots (one per variable)
 run_local = False # true is run on local machine (only does testing), false is run on cluster
-fixed_Mass_units = False # true is convert mass balance units to kg m-2 s-1, if ran new code with depth in calculation
-
+fix_units_soil = True # true is convert to storage units, only works for Soil
+two_stat = True # true is run both mean and amax, false is run one stat
 
 if run_local: 
     stat = 'mean'
@@ -42,11 +42,13 @@ if run_local:
 else:
     import sys
     stat = sys.argv[1]
-    viz_dir = Path('/home/avanb/scratch/statistics')
+    viz_dir = Path(os.path.expanduser('~/statistics'))
 
+method_name=['be8','be8cm','be8en','sun5cm','sun5en','sun8en']  #maybe make this an argument
+plt_name0=['SUMMA-BE8 common','SUMMA-BE8 temperature','SUMMA-BE8 mixed','SUMMA-SUNDIALS temperature','SUMMA-SUNDIALS enthalpy','reference solution']
+plt_nameshort=['BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp','SUNDIALS enth','reference soln']
 
-method_name=['be1','be1cm','be1en','sundials_1en6cm','sundials_1en6en','sundials_1en8cm']  #maybe make this an argument
-plt_name0=['SUMMA-BE1 common thermo. eq.','SUMMA-BE1 temperature thermo. eq.','SUMMA-BE1 mixed thermo. eq.','SUMMA-SUNDIALS temperature thermo. eq.','SUMMA-SUNDIALS enthalpy thermo. eq.','reference solution']
+if one_plot: plt_name0 = plt_nameshort
 
 # Simulation statistics file locations
 settings= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
@@ -59,24 +61,24 @@ nbatch_hrus = 518 # number of HRUs per batch
 
 # Specify variables in files
 plt_titl = ['canopy air space enthalpy balance','vegetation enthalpy balance','snow enthalpy balance','soil enthalpy balance','vegetation mass balance','snow mass balance','soil mass balance','aquifer mass balance', 'wall clock time']
-leg_titl = ['$W~m^{-3}$'] * 4 + ['$kg~m^{-3}~s^{-1}$'] * 4 + ['$s$']
-if fixed_Mass_units: leg_titl = ['$W~m^{-3}$'] * 4 + ['s^{-1}$'] * 3 + ['m~s^{-1}$'] + ['$s$']
+leg_titl = ['$W~m^{-3}$'] * 4 + ['$kg~m^{-3}~s^{-1}$'] * 3 + ['$kg~m^{-2}~s^{-1}$']+ ['$s$']
+if fix_units_soil: leg_titl = ['$kJ~m^{-2}$'] * 4 + ['$kg~m^{-2}'] * 4 + ['$s$']
 
 fig_fil= '_hrly_balance_{}_compressed.png'
 plot_vars = settings.copy()
 
 if stat == 'mean': 
-    maxes = [1e-1,1e1,1e1,1e1]+[1e-7,1e-7,1e-7,1e-9] + [20e-3]
-if stat == 'amax':
-    maxes = [1e1,1e3,1e3,1e3]+[1e-5,1e-5,1e-5,1e-7] + [2.0]
+    maxes = [1e2,1e2,1e2,1e2]+[1e-7,1e-5,1e-7,1e-8] + [1e-2]
+if stat == 'amax' or two_stat:
+    maxes2 = [1e4,1e4,1e4,1e4]+[1e-5,1e-3,1e-5,1e-6] + [2.0]
+    if not two_stat:
+        maxes = maxes2
 
 # Get simulation statistics
 summa = {}
 for i, m in enumerate(method_name):
     # Get the aggregated statistics of SUMMA simulations
     summa[m] = xr.open_dataset(viz_dir/viz_fil[i])
-
-
 
 # Function to extract a given setting from the control file
 def read_from_control( file, setting ):
@@ -131,12 +133,12 @@ if run_local:
 
 else:
     # Get the albers shapes
-    main = Path('/home/avanb/projects/rpp-kshook/wknoben/CWARHM_data/domain_NorthAmerica/shapefiles/albers_projection')
+    main = Path(os.path.expanduser('~/albers_projection'))
     plot_lakes = True
     plot_rivers = False
 
     # Control file handling
-    controlFile = 'plot_control_NorthAmerica.txt'
+    controlFile = main / 'plot_control_NorthAmerica.txt'
 
     # HM catchment shapefile path & name
     hm_catchment_path = read_from_control(controlFile,'catchment_shp_path')
@@ -175,23 +177,31 @@ else:
 
 # Match the accummulated values to the correct HRU IDs in the shapefile
 hru_ids_shp = bas_albers[hm_hruid].astype(int) # hru order in shapefile
+# Define a list of stat0 values to loop over
+if two_stat:
+    stat_values = [stat, 'amax']
+else:
+    stat_values = [stat]
 for plot_var in plot_vars:
-    stat0 = stat
+    for stat_use in stat_values: 
+        stat0 = stat_use
+        for m in method_name:
+            s = summa[m][plot_var].sel(stat=stat0)
+            if fix_units_soil and 'Soil' in plot_var: 
+                s = s * 3600 * 3.0  # Multiply by time step and depth to get storage
+                if 'Nrg' in plot_var: 
+                    s = s * 1e-3
 
-    for m in method_name:
-        s = summa[m][plot_var].sel(stat=stat0)
-        if fixed_Mass_units and 'Mass' in plot_var: s = s/1000 # /density for mass balance
+            # Make absolute value norm, not all positive
+            s = np.fabs(s) 
 
-        # Make absolute value norm, not all positive
-        s = np.fabs(s) 
-
-        # Replace inf and 9999 values with NaN in the s DataArray
-        s = s.where(~np.isinf(s), np.nan).where(lambda x: x != 9999, np.nan)
-        
-        # Create a new column in the shapefile for each method, and fill it with the statistics
-        bas_albers[plot_var+m] = np.nan
-        hru_ind = [i for i, hru_id in enumerate(hru_ids_shp.values) if hru_id in s.hru.values] # if some missing
-        bas_albers.loc[hru_ind, plot_var+m] = s.sel(hru=hru_ids_shp.values[hru_ind]).values 
+            # Replace inf and 9999 values with NaN in the s DataArray
+            s = s.where(~np.isinf(s), np.nan).where(lambda x: x != 9999, np.nan)
+            
+            # Create a new column in the shapefile for each method, and fill it with the statistics
+            bas_albers[plot_var+m+stat0] = np.nan
+            hru_ind = [i for i, hru_id in enumerate(hru_ids_shp.values) if hru_id in s.hru.values]  # if some missing
+            bas_albers.loc[hru_ind, plot_var+m+stat0] = s.sel(hru=hru_ids_shp.values[hru_ind]).values
 
 # Select lakes of a certain size for plotting
 if plot_lakes:
@@ -206,7 +216,7 @@ if plot_lakes:
 
 
 # Figure
-def run_loop(j,var,the_max):
+def run_loop(j,var,the_max,stat,row_fill):
     stat0 = stat
 
     my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
@@ -215,36 +225,52 @@ def run_loop(j,var,the_max):
     if any(substring in var for substring in ['VegNrg', 'SnowNrg', 'SoilNrg']):
         vmin, vmax = the_max * 1e-9, the_max
     if var in ['wallClockTime',]: vmin,vmax = the_max*1e-1, the_max
-    if fixed_Mass_units and 'Mass' in var: # / density for mass balance
-        vmin = vmin/1000
-        vmax = vmax/1000
+    if fix_units_soil and 'Soil' in var:
+        vmin = vmin*3600*3.0 # mult by time step and depth to get storage
+        vmax = vmax*3600*3.0
+        if 'Nrg' in var: 
+            vmin = vmin*1e-3
+            vmax = vmax*1e-3
  
     norm = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
 
-    if stat0 == 'mean': stat_word = 'mean'
-    if stat0 == 'amax': stat_word = 'max'
+    if stat0 == 'mean': stat_word = 'mean abs balance'
+    if stat0 == 'amax': stat_word = 'max abs balance'
 
     for i,m in enumerate(method_name):
-        r = i//ncol + base_row
-        c = i - (r-base_row)*ncol
+        if row_fill:
+            r = i//ncol + base_row
+            c = i - (r-base_row)*ncol
+        else:
+            c = i//nrow + base_row
+            r = i - (c-base_row)*nrow
 
         # Plot the data with the full extent of the bas_albers shape
-        bas_albers.plot(ax=axs[r,c], column=var+m, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
-        print(f"{'all HRU mean for '}{var+m:<35}{np.nanmean(bas_albers[var+m].values):<10.5f}{' max: '}{np.nanmax(bas_albers[var+m].values):<10.5f}")
+        bas_albers.plot(ax=axs[r,c], column=var+m+stat0, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
+        print(f"{'all HRU mean for '}{var+m+stat0:<35}{np.nanmean(bas_albers[var+m+stat0].values):<10.5f}{' max: '}{np.nanmax(bas_albers[var+m+stat0].values):<10.5f}")
         axs[r,c].set_title(plt_name[i])
         axs[r,c].axis('off')
         axs[r,c].set_xlim(xmin, xmax)
         axs[r,c].set_ylim(ymin, ymax)
 
         # Custom colorbar
-        # Custom colorbar
         if i==len(method_name)-1:
             sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
             sm.set_array([])
-            if one_plot:
-                cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/nrow)
+            if not row_fill:
+                axs_list = np.array(axs).T.ravel().tolist()
             else:
-                cbr = fig.colorbar(sm, ax=axs_list,aspect=27/3*nrow)
+                axs_list = axs.ravel().tolist()
+            if one_plot:
+                if not row_fill: 
+                    cbr = fig.colorbar(sm, ax=axs_list[c*len(method_name):(c+1)*len(method_name)],aspect=27/1.1*nrow)
+                else:
+                    cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/1.1*nrow)
+            else:
+                if not row_fill:
+                    cbr = fig.colorbar(sm, ax=axs_list[c*len(method_name):(c+1)*len(method_name)],aspect=27/3*nrow)
+                else:
+                    cbr = fig.colorbar(sm, ax=axs_list,aspect=27/3*nrow)
             cbr.ax.set_ylabel(stat_word + ' [{}]'.format(leg_titl[j]))
 
         # lakes
@@ -254,21 +280,31 @@ def run_loop(j,var,the_max):
 
 # Specify plotting options
 if one_plot:
-    use_vars = [1,2,3]
-    use_meth = [0,2,4]
+    #use_vars = [1,2,3]
+    #use_meth = [0,2,4]
+    use_vars = [3]
+    use_meth = [0,1,2,3,4,5]
 else:
     use_vars = [0,1,2,3,4,5,6,7]
-    use_vars = [3]
+    use_vars = [3] #[3,8]
     use_meth = [0,1,2,3,4,5]
 plot_vars = [plot_vars[i] for i in use_vars]
 plt_titl = [plt_titl[i] for i in use_vars]
 leg_titl = [leg_titl[i] for i in use_vars]
 maxes = [maxes[i] for i in use_vars]
+if two_stat: 
+    maxes2 = [maxes2[i] for i in use_vars]
+else:
+    maxes2 = maxes # dummy
 method_name = [method_name[i] for i in use_meth]
 
 if one_plot:
-    ncol = len(use_meth)
-    nrow = len(use_vars)
+    if two_stat:
+        ncol = 2*len(use_vars)
+        nrow = len(use_meth)
+    else:
+        ncol = len(use_meth)
+        nrow = len(use_vars)
 
     # Set the font size: we need this to be huge so we can also make our plotting area huge, to avoid a gnarly plotting bug
     if 'compressed' in fig_fil:
@@ -278,28 +314,31 @@ if one_plot:
         plt.rcParams.update({'font.size': 120})
         fig,axs = plt.subplots(nrow,ncol,figsize=(67*ncol,58*nrow),constrained_layout=True)
 
-    axs_list = axs.ravel().tolist()
     fig.suptitle('hourly statistics', fontsize=40,y=1.05)
     plt.rcParams['patch.antialiased'] = False # Prevents an issue with plotting distortion along the 0 degree latitude and longitude lines
 
 else:
-    #size hardwired to 2x3 for now
-    ncol = 3
-    nrow = 4
-    if len(method_name)>6:
-        print('Too many methods for 3x2 plot')
-        sys.exit()
+    if two_stat:
+        ncol = 2
+        nrow = len(use_meth)
+    else:
+        #size hardwired to 2x3 for now
+        ncol = 3
+        nrow = 2
+        if len(method_name)>ncol*nrow:
+            print('Too many methods for '+ nrow + 'x' + ncol + 'plotting')
+            sys.exit()
+        plt_name = [f"({chr(97+n)}) {plt_name0[i]}" for n,i in enumerate(use_meth)]
 
-    base_row = 0
-    plt_name = [f"({chr(97+n)}) {plt_name0[i]}" for n,i in enumerate(use_meth)]
-
-for i,(var,the_max) in enumerate(zip(plot_vars,maxes)):
+for i,(var,the_max,the_max2) in enumerate(zip(plot_vars,maxes,maxes2)):
     
     if one_plot:
         # Reset the names
         base_row = i
-        plt_name = [f"({chr(97+n+i*len(use_meth))}) {plt_titl[i] + ' ' + plt_name0[j]}" for n,j in enumerate(use_meth)]
+        if not two_stat:
+            plt_name = [f"({chr(97+n+i*len(use_meth))}) {plt_titl[i] + ' ' + plt_name0[j]}" for n,j in enumerate(use_meth)]
     else:
+        base_row = 0
         # Set the font size: we need this to be huge so we can also make our plotting area huge, to avoid a gnarly plotting bug
         if 'compressed' in fig_fil:
             plt.rcParams.update({'font.size': 33})
@@ -307,26 +346,51 @@ for i,(var,the_max) in enumerate(zip(plot_vars,maxes)):
         else:
             plt.rcParams.update({'font.size': 120})
             fig,axs = plt.subplots(nrow,ncol,figsize=(67*ncol,58*nrow),constrained_layout=True)
-
-        # Remove the extra subplots
-        if len(method_name) < nrow*ncol:
-            for j in range(len(method_name),nrow*ncol):
-                r = j//ncol
-                c = j-r*ncol
-                fig.delaxes(axs[r, c])
+    
+        if not two_stat:
+            # Remove the extra subplots
+            if len(method_name) < nrow*ncol:
+                for j in range(len(method_name),nrow*ncol):
+                    r = j//ncol
+                    c = j-r*ncol
+                    fig.delaxes(axs[r, c])
                 
-        axs_list = axs.ravel().tolist()
         fig.suptitle('{} hourly statistics'.format(plt_titl[i]), fontsize=40,y=1.05)
         plt.rcParams['patch.antialiased'] = False # Prevents an issue with plotting distortion along the 0 degree latitude and longitude lines
 
-    run_loop(i,var,the_max)
+    if two_stat:
+        row_fill=False
+
+        base_row = base_row*2
+        if one_plot:
+            plt_name = [f"({chr(97+2*n+base_row)}) {plt_titl[i] + ' ' + plt_name0[j]}" for n,j in enumerate(use_meth)]
+        else:
+            plt_name = [f"({chr(97+2*n+base_row)}) {plt_name0[j]}" for n,j in enumerate(use_meth)]
+        run_loop(i,var,the_max,stat, row_fill)
+
+        base_row = base_row+1
+        if one_plot:
+            plt_name = [f"({chr(97+2*n+base_row)}) {plt_titl[i] + ' ' + plt_name0[j]}" for n,j in enumerate(use_meth)]
+        else:
+            plt_name = [f"({chr(97+2*n+base_row)}) {plt_name0[j]}" for n,j in enumerate(use_meth)]
+        stat2 = 'amax'
+        run_loop(i,var,the_max2,stat2,row_fill)
+    else:
+        row_fill=True
+        run_loop(i,var,the_max,stat,row_fill)
 
     if not one_plot:
         # Save the figure
-        fig_fil1 = (var+fig_fil).format(stat)
+        if not two_stat:
+            fig_fil1 = (var+fig_fil).format(stat)
+        else:
+            fig_fil1 = (var+fig_fil).format(stat+','+stat2)
         plt.savefig(viz_dir/fig_fil1, bbox_inches='tight', transparent=True)
 
 if one_plot:
     # Save the figure
-    fig_fil1 = ('all'+fig_fil).format(stat)
+    if not two_stat:
+        fig_fil1 = ('all'+fig_fil).format(stat)
+    else:
+        fig_fil1 = ('all'+fig_fil).format(stat+','+stat2)
     plt.savefig(viz_dir/fig_fil1, bbox_inches='tight', transparent=True)
