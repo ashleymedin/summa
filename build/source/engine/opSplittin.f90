@@ -291,9 +291,9 @@ subroutine opSplittin(&
   ! * operator splitting
   ! ------------------------------------------------------------------------------------------------------
   ! minimum timestep
-  real(rkind),parameter           :: dtmin_coupled=1800._rkind      ! minimum time step for the fully coupled solution (seconds)
-  real(rkind),parameter           :: dtmin_split=60._rkind          ! minimum time step for the fully split solution (seconds)
-  real(rkind),parameter           :: dtmin_scalar=10._rkind         ! minimum time step for the scalar solution (seconds)
+  real(rkind)                     :: dtmin_coupled                  ! minimum time step for the fully coupled solution (seconds)
+  real(rkind)                     :: dtmin_split                    ! minimum time step for the fully split solution (seconds)
+  real(rkind)                     :: dtmin_scalar                   ! minimum time step for the scalar solution (seconds)
   real(rkind)                     :: dt_min                         ! minimum time step (seconds)
   real(rkind)                     :: dtInit                         ! initial time step (seconds)
   ! explicit error tolerance (depends on state type split, so defined here)
@@ -346,6 +346,11 @@ subroutine opSplittin(&
   type(in_type_varSubstep)  :: in_varSubstep;  type(io_type_varSubstep) :: io_varSubstep; type(out_type_varSubstep)  :: out_varSubstep;  ! varSubstep arguments
   ! -------------------------------------------------------------------------------------------------------------------------
   type(split_select_type) :: split_select ! class object for selecting operator splitting methods
+
+  ! Set splitting parameters
+  dtmin_coupled = max(1._rkind, mpar_data%var(iLookPARAM%maxstep)%dat(1)/NINT(mpar_data%var(iLookPARAM%be_steps)%dat(1)/2._rkind))
+  dtmin_split   = max(1._rkind, mpar_data%var(iLookPARAM%maxstep)%dat(1)/NINT(mpar_data%var(iLookPARAM%be_steps)%dat(1)/20._rkind))
+  dtmin_scalar  = max(1._rkind, mpar_data%var(iLookPARAM%maxstep)%dat(1)/NINT(mpar_data%var(iLookPARAM%be_steps)%dat(1)/60._rkind))
 
   ! *** Initialize Split Selector Object ***
   call initialize_split_select
