@@ -13,7 +13,7 @@
 # This results in KGE values that range between -1 and 1, with lower KGE values indicating larger differences from bench.
 
 # Run:
-# python timeseries_to_statistics.py sun6 [1-101] 100
+# python timeseries_to_statistics.py sun6 [1-101] 100 $SCRATCH
 # and run 100 times with different batch numbers 1-100, and then merge the files with 101
 
 import os
@@ -49,7 +49,7 @@ else:
     method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sun6 or be1)
     ibatch = int(sys.argv[2])
     nbatch = int(sys.argv[3])
-    top_fold = '/anvil/scratch/x-avanb/'
+    top_fold = os.environ['SCRATCH']
 
 des_dir =  top_fold + 'statistics_temp_' + method_name
 # Check if the directory exists
