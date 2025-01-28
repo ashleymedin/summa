@@ -45,19 +45,19 @@ if run_local:
 else:
     import sys
     stat = sys.argv[1]
-    viz_dir = Path('/home/x-avanb/statistics')
+    viz_dir = Path(os.path.expanduser('~/statistics'))
 
 
 # NOTE: method_name 'ref' will plot the reference solution, 'diff' will plot the difference between two simulations
 #       method_name 'diff' requires the specification of the two simulations to subtract in the variables from_meth and sub_meth
 
-method_name=['be1','be16','be32','sundials_1en6','ref']
+method_name=['be1','be16','be32','sun6','ref']
 plt_name0=['SUMMA-BE1','SUMMA-BE16','SUMMA-BE32','SUMMA-SUNDIALS','reference solution']
 plt_nameshort=plt_name0
-method_name=['be8','be8cm','be8en','sundials_1en5cm','sundials_1en5en','diff','ref']
+method_name=['be8','be8cm','be8en','sun5cm','sun5en','diff','ref']
 plt_name0=['BE8 common','SUMMA-BE8 temperature','SUMMA-BE8 mixed','SUMMA-SUNDIALS temperature','SUMMA-SUNDIALS enthalpy','SUMMA-BE8 common - mixed','reference solution']
 plt_nameshort=['BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp','SUNDIALS enth','BE8 common - mixed','reference soln']
-#method_name=['sundials_1en8en']
+#method_name=['sun8en']
 #plt_name0=['reference solution']
 #plt_nameshort=['']
 
@@ -72,12 +72,12 @@ settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','s
 viz_fil = method_name.copy()
 for i, m in enumerate(method_name):
     viz_fil[i] = m + '_hrly_diff_stats_{}.nc'
-    viz_fil[i] = viz_fil[i].format(','.join(settings))
+    viz_fil[i] = viz_fil[i].format(','.join('accuracy'))
 nbatch_hrus = 518 # number of HRUs per batch
 if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
 if more_mean: # extra vars in a balance file
-    plt_titl_exVar = ['rain plus melt into soil','top 3m soil temperature','air temperature','snow water equivalent']
+    plt_titl_exVar = ['rain plus melt into soil','top 4m soil temperature','air temperature','snow water equivalent']
     plot_vars_exVar = ['scalarRainPlusMelt','scalarRootZoneTemp','airtemp','scalarSWE']
     #plot_vars_exVar = ['balanceAqMass','balanceSoilNrg','balanceSoilMass','balanceVegMass']
     viz_file_exVar = 'exVar_hrly_diff_bals_balance.nc'
@@ -89,7 +89,7 @@ if more_mean: # extra vars in a balance file
 
 # Specify variables in files
 plot_vars = settings.copy() + ['scalarSWE']
-plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','top 3m soil temperature','melt with seasonal snow']
+plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','top 4m soil temperature','melt with seasonal snow']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$K$','$kg~m^{-2}$']
 calc = [0,0,0,0,0,0,1] # 1 if variable needs to be calculated from other variables
 melt_thresh = 1/(0.75) # threshold for melt water calculation (divisor is percentage of year no snow, if only melts once)
@@ -179,8 +179,7 @@ if run_local:
 
 else:
     # Get the albers shapes
-    #main = Path('/home/avanb/projects/rpp-kshook/wknoben/CWARHM_data/domain_NorthAmerica/shapefiles/albers_projection')
-    main = Path('/home/x-avanb/albers_projection')
+    main = Path(os.path.expanduser('~/albers_projection'))
     plot_lakes = True
     plot_rivers = False
 

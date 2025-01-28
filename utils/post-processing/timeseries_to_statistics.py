@@ -13,7 +13,7 @@
 # This results in KGE values that range between -1 and 1, with lower KGE values indicating larger differences from bench.
 
 # Run:
-# python timeseries_to_statistics.py sundials_1en6 [1-101] 100
+# python timeseries_to_statistics.py sun6 [1-101] 100 $SCRATCH
 # and run 100 times with different batch numbers 1-100, and then merge the files with 101
 
 import os
@@ -26,9 +26,9 @@ import warnings
 warnings.simplefilter("ignore") #deal with correlation warnings from variance 0 in kgem, both have no snow
 
 # Settings
-bench_name  = 'sundials_1en8en'
+bench_name  = 'sun8en'
 
-not_parallel = True # run as true with batch mode, or false, with `python timeseries_to_statistics.py sundials_1en6 1 1` for single batch, and `python timeseries_to_statistics.py sundials_1en6 2 1` to merge
+not_parallel = True # run as true with batch mode, or false, with `python timeseries_to_statistics.py sun6 1 1` for single batch, and `python timeseries_to_statistics.py sun6 2 1` to merge
 run_local = False
 
 # which statistics to compute
@@ -46,10 +46,10 @@ if run_local:
 else:
     import sys
     # The first input argument specifies the run where the files are
-    method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en6 or be1)
+    method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sun6 or be1)
     ibatch = int(sys.argv[2])
     nbatch = int(sys.argv[3])
-    top_fold = '/anvil/scratch/x-avanb/'
+    top_fold = os.environ['SCRATCH']
 
 des_dir =  top_fold + 'statistics_temp_' + method_name
 # Check if the directory exists
@@ -72,9 +72,9 @@ balssets= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','ba
 wallsets= ['wallClockTime']
 
 viz_fil = method_name + '_hrly_diff_stats_{}.nc'
-viz_fil = viz_fil.format(','.join(settings))
+viz_fil = viz_fil.format(','.join('accuracy'))
 viz_fl2 = method_name + '_hrly_diff_steps_{}.nc'
-viz_fl2 = viz_fl2.format(','.join(stepsets))
+viz_fl2 = viz_fl2.format(','.join('split'))
 viz_fl3 = method_name + '_hrly_diff_bals_{}.nc'
 viz_fl3 = viz_fl3.format(','.join(['balance']))
 viz_fl4 = method_name + '_hrly_diff_wals_{}.nc'

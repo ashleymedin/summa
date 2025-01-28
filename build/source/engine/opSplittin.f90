@@ -277,9 +277,9 @@ subroutine opSplittin(&
   ! * operator splitting
   ! ------------------------------------------------------------------------------------------------------
   ! minimum timestep
-  real(rkind),parameter           :: dtmin_coupled=1800._rkind      ! minimum time step for the fully coupled solution (seconds)
-  real(rkind),parameter           :: dtmin_split=60._rkind          ! minimum time step for the fully split solution (seconds)
-  real(rkind),parameter           :: dtmin_scalar=10._rkind         ! minimum time step for the scalar solution (seconds)
+  real(rkind)                     :: dtmin_coupled                  ! minimum time step for the fully coupled solution (seconds)
+  real(rkind)                     :: dtmin_split                    ! minimum time step for the fully split solution (seconds)
+  real(rkind)                     :: dtmin_scalar                   ! minimum time step for the scalar solution (seconds)
   real(rkind)                     :: dt_min                         ! minimum time step (seconds)
   real(rkind)                     :: dtInit                         ! initial time step (seconds)
   ! number of substeps taken for a given split
@@ -338,6 +338,10 @@ subroutine opSplittin(&
 
   subroutine initialize_opSplittin
    ! *** Initial operations for opSplittin ***
+   ! set splitting parameters
+   dtmin_coupled = max(1._rkind, mpar_data%var(iLookPARAM%maxstep)%dat(1)/NINT(mpar_data%var(iLookPARAM%be_steps)%dat(1)/2._rkind))
+   dtmin_split   = max(1._rkind, mpar_data%var(iLookPARAM%maxstep)%dat(1)/NINT(mpar_data%var(iLookPARAM%be_steps)%dat(1)/20._rkind))
+   dtmin_scalar  = max(1._rkind, mpar_data%var(iLookPARAM%maxstep)%dat(1)/NINT(mpar_data%var(iLookPARAM%be_steps)%dat(1)/60._rkind))
    call initialize_split_select;   if (return_flag) return ! initialize split selector object (split_select)
    call initialize_split_coupling; if (return_flag) return ! prep for first iteration of update_opSplittin 
   end subroutine initialize_opSplittin
@@ -1214,9 +1218,20 @@ subroutine opSplittin(&
             ! add hydrology states for scalar variables
             if (iStateTypeSplit==massSplit .and. flux_meta(iVar)%vartype==iLookVarType%scalarv) then
              select case(iDomainSplit)
-              case(snowSplit); if(iLayer==nSnow)                             fluxMask%var(iVar)%dat = desiredFlux
-              case(lakeSplit); if(iLayer==nSnow+1 .and. nLake>0)             fluxMask%var(iVar)%dat = desiredFlux
-              case(soilSplit); if(iLayer==nSnow+nLake+1 .and. nSoil>0)       fluxMask%var(iVar)%dat = desiredFlux
+              case(snowSplit); if(iLayer==nSnow) fluxMask%var(iVar)%dat = desiredFlux
+              case(lakeSplit)
+                if (iVar==iLookFLUX%scalarLakeDrainage) then ! lake drainage changes with the bottom layer
+                  if(iLayer==nSnow+nLake) fluxMask%var(iVar)%dat = desiredFlux
+                else ! other scalar variables in the lake domain change with the surface layer
+                  if(iLayer==nSnow+1 .and. nLake>0) fluxMask%var(iVar)%dat = desiredFlux
+                end if
+              case(soilSplit)
+                if(iVar==iLookFLUX%scalarSoilDrainage .or. iVar==iLookFLUX%scalarAquiferRecharge & ! soil drainage, aq recharge changes with the bottom layer
+                   .or. iVar==iLookFLUX%scalarSoilBaseflow) then                                   ! soil baseflow changes with all layers, so compute after bottom layer
+                  if(iLayer==nSnow+nLake+nSoil) fluxMask%var(iVar)%dat = desiredFlux
+                else ! other scalar variables in the soil domain change with the surface layer
+                  if(iLayer==nSnow+nLake+1 .and. nSoil>0) fluxMask%var(iVar)%dat = desiredFlux
+                end if
               case(glceSplit); if(iLayer==nSnow+nLake+nSoil+1 .and. nGlce>0) fluxMask%var(iVar)%dat = desiredFlux
              end select
             end if  ! if hydrology split and scalar
@@ -1226,7 +1241,7 @@ subroutine opSplittin(&
          end do   ! end looping through layers
 
         case(aquiferSplit) ! fluxes through aquifer
-         fluxMask%var(iVar)%dat(:) = desiredFlux ! only would be firstFluxCall variables, no aquifer fluxes
+         fluxMask%var(iVar)%dat(:) = desiredFlux
         case default; err=20; message=trim(message)//'unable to identify split based on domain type'; return_flag=.true.; return ! check
        end select  ! domain split
       end if  ! end if flux is desired

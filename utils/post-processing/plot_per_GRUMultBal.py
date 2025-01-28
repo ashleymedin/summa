@@ -42,9 +42,9 @@ if run_local:
 else:
     import sys
     stat = sys.argv[1]
-    viz_dir = Path('/home/x-avanb/statistics')
+    viz_dir = Path(os.path.expanduser('~/statistics'))
 
-method_name=['be8','be8cm','be8en','sundials_1en5cm','sundials_1en5en','sundials_1en8en']  #maybe make this an argument
+method_name=['be8','be8cm','be8en','sun5cm','sun5en','sun8en']  #maybe make this an argument
 plt_name0=['SUMMA-BE8 common','SUMMA-BE8 temperature','SUMMA-BE8 mixed','SUMMA-SUNDIALS temperature','SUMMA-SUNDIALS enthalpy','reference solution']
 plt_nameshort=['BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp','SUNDIALS enth','reference soln']
 
@@ -133,8 +133,7 @@ if run_local:
 
 else:
     # Get the albers shapes
-    #main = Path('/home/avanb/projects/rpp-kshook/wknoben/CWARHM_data/domain_NorthAmerica/shapefiles/albers_projection')
-    main = Path('/home/x-avanb/albers_projection')
+    main = Path(os.path.expanduser('~/albers_projection'))
     plot_lakes = True
     plot_rivers = False
 
@@ -264,9 +263,9 @@ def run_loop(j,var,the_max,stat,row_fill):
                 axs_list = axs.ravel().tolist()
             if one_plot:
                 if not row_fill: 
-                    cbr = fig.colorbar(sm, ax=axs_list[c*len(method_name):(c+1)*len(method_name)],aspect=27/2.5*nrow)
+                    cbr = fig.colorbar(sm, ax=axs_list[c*len(method_name):(c+1)*len(method_name)],aspect=27/1.1*nrow)
                 else:
-                    cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/2.5*nrow)
+                    cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/1.1*nrow)
             else:
                 if not row_fill:
                     cbr = fig.colorbar(sm, ax=axs_list[c*len(method_name):(c+1)*len(method_name)],aspect=27/3*nrow)

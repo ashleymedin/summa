@@ -32,18 +32,18 @@ if run_local:
 else:
     import sys
     stat = sys.argv[1]
-    viz_dir = Path('/home/avanb/scratch/statistics')
+    viz_dir = Path(os.path.expanduser('~/statistics'))
     
 
-#method_name=['be1','sundials_1en4','be4','be8','be16','be32','sundials_1en6'] #maybe make this an argument
+#method_name=['be1','sun4','be4','be8','be16','be32','sun6'] #maybe make this an argument
 #plt_name=['BE1','IDAe-4','BE4','BE8','BE16','BE32','IDAe-6'] #maybe make this an argument
-#method_name=['be1','be16','be32','sundials_1en6'] #maybe make this an argument
+#method_name=['be1','be16','be32','sun6'] #maybe make this an argument
 #plt_name=['BE1','BE16','BE32','SUNDIALS'] #maybe make this an argument
-method_name=['be8','be8cm','be8en','sundials_1en5cm','sundials_1en5en'] 
+method_name=['be8','be8cm','be8en','sun5cm','sun5en'] 
 plt_name=['BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp', 'SUNDIALS enth']
-#method_name=['old_be1','old_be1cm','old_be1en','be8','be8cm','be8en','sundials_1en5cm','sundials_1en5en'] 
+#method_name=['old_be1','old_be1cm','old_be1en','be8','be8cm','be8en','sun5cm','sun5en'] 
 #plt_name=['BE1 common','BE1 temp','BE1 mixed','BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp', 'SUNDIALS enth']
-method_name2=method_name +['sundials_1en8en']
+method_name2=method_name +['sun8en']
 plt_name2=plt_name +['reference soln']
 
 num_bins = 1000
@@ -73,14 +73,14 @@ viz_fil = method_name.copy()
 viz_fl2 = method_name2.copy()
 for i, m in enumerate(method_name):
     viz_fil[i] = m + '_hrly_diff_stats_{}.nc'
-    viz_fil[i] = viz_fil[i].format(','.join(settings0))
+    viz_fil[i] = viz_fil[i].format(','.join('accuracy'))
 for i, m in enumerate(method_name2):
     viz_fl2[i] = m + '_hrly_diff_bals_{}.nc'
     viz_fl2[i] = viz_fl2[i].format(','.join(['balance']))
 
 # Specify variables of interest
 plot_vars = settings.copy()
-plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','top 3m soil temperature']
+plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','top 4m soil temperature']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~y^{-1}$','$kg~m^{-2}$','$K$']
 if (len(use_vars)+len(use_vars2)>1): 
     plt_titl = [f"({chr(97+n)}) {plt_titl[i]}" for n,i in enumerate(use_vars)]
