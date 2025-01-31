@@ -27,13 +27,14 @@ warnings.simplefilter("ignore") #deal with correlation warnings from variance 0 
 
 # Settings
 bench_name  = 'sun8en'
+skip = 365*24 # skip first year in stat calcs
 
 not_parallel = True # run as true with batch mode, or false, with `python timeseries_to_statistics.py sun6 1 1` for single batch, and `python timeseries_to_statistics.py sun6 2 1` to merge
 run_local = False
 
 # which statistics to compute
 do_vars = True
-do_steps = False
+do_steps = True
 do_balance = True
 do_wall = False
 
@@ -65,9 +66,12 @@ des_fil  = method_name + '_hrly_diff_stats_{}_{}.nc'
 des_fl2 = method_name + '_hrly_diff_steps_{}_{}.nc'
 des_fl3 = method_name + '_hrly_diff_bals_{}_{}.nc'
 des_fl4 = method_name + '_hrly_diff_wall_{}_{}.nc'
-settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','scalarRootZoneTemp']
+settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','scalarRootZoneTemp','averageRoutedRunoff']
+settings = settings[1,4] #only do some vars
 stepsets= ['numberStateSplit','numberDomainSplitNrg','numberDomainSplitMass','numberScalarSolutions','meanStepSize']
+stepsets = stepsets[0,1,2,3]
 balssets= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
+balssets = balssets[3,8]
 #balssets= ['scalarRainPlusMelt','scalarRootZoneTemp','airtemp','scalarSWE']
 wallsets= ['wallClockTime']
 
@@ -161,7 +165,7 @@ def run_loop(file,bench,processed_files_path0):
     m = m.rename({'gru': 'hru'})
     dat = dat.drop_dims('gru')
     dat = xr.merge([dat,m])  
-    dat = dat.where(dat.time!=dat.time[0],drop=True) #first timestep weird
+    dat = dat.where(dat.time!=dat.time[range(0,skip)],drop=True) #first timestep weird
     
     if do_vars:
         ben = ben.where(ben!=-9999)
@@ -171,7 +175,7 @@ def run_loop(file,bench,processed_files_path0):
         m = m.rename({'gru': 'hru'})
         ben = ben.drop_dims('gru')
         ben = xr.merge([ben,m])  
-        ben = ben.where(ben.time!=ben.time[0],drop=True) #first timestep weird
+        ben = ben.where(ben.time!=ben.time[range(0,skip)],drop=True) #first timestep weird
 
         diff = dat - ben
         the_hru = np.array(ben['hru'])
