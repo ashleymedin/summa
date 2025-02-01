@@ -26,6 +26,9 @@ contains
  USE globalData, only: iname_matLayer   ! named variable defining the matric head state variable for soil layers
  USE globalData, only: iname_lmpLayer   ! named variable defining the liquid matric potential state variable for soil layers
  USE globalData, only: iname_watAquifer ! named variable defining the total water in the aquifer
+ USE globalData, only: iname_watSnow    ! named variable defining the total water in the snowpack
+ USE globalData, only: iname_watLake    ! named variable defining the total water in the lake
+ USE globalData, only: iname_watGlce    ! named variable defining the total water in the glacier ice
  ! access missing values
  USE globalData,only:integerMissing    ! missing integer
  implicit none
@@ -140,10 +143,10 @@ contains
  flux2state_orig(iLookFLUX%mLayerNrgFlux)                   = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
 
  ! liquid water fluxes for the snow lake glce domain
- flux2state_orig(iLookFLUX%scalarSnowDrainage)              = flux2state(state1=iname_watLayer,  state2=integerMissing)
- flux2state_orig(iLookFLUX%scalarLakeDrainage)              = flux2state(state1=iname_watLayer,  state2=integerMissing)
- flux2state_orig(iLookFLUX%scalarLakeInflux)                = flux2state(state1=iname_watLayer,  state2=integerMissing)
- flux2state_orig(iLookFLUX%scalarGlceInflux)                = flux2state(state1=iname_watLayer,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarSnowDrainage)              = flux2state(state1=iname_watLayer,  state2=iname_watSnow)
+ flux2state_orig(iLookFLUX%scalarLakeDrainage)              = flux2state(state1=iname_watLayer,  state2=iname_watLake)
+ flux2state_orig(iLookFLUX%scalarLakeInflux)                = flux2state(state1=iname_watLayer,  state2=iname_watLake)
+ flux2state_orig(iLookFLUX%scalarGlceInflux)                = flux2state(state1=iname_watLayer,  state2=iname_watGlce)
  flux2state_orig(iLookFLUX%iLayerLiqFluxSnLaGl)             = flux2state(state1=iname_watLayer,  state2=iname_matLayer)
  flux2state_orig(iLookFLUX%mLayerLiqFluxSnLaGl)             = flux2state(state1=iname_watLayer,  state2=iname_matLayer)
 
@@ -172,7 +175,7 @@ contains
  ! derived variables
  flux2state_orig(iLookFLUX%scalarTotalET)                   = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
  flux2state_orig(iLookFLUX%scalarTotalRunoff)               = flux2state(state1=iname_matLayer,  state2=integerMissing)
- flux2state_orig(iLookFLUX%scalarGlacierMelt)               = flux2state(state1=iname_watLayer,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarGlacierMelt)               = flux2state(state1=iname_watLayer,  state2=iname_watGlce)
  flux2state_orig(iLookFLUX%scalarNetRadiation)              = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
 
  ! ** copy across flux metadata

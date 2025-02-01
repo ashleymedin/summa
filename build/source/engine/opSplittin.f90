@@ -40,6 +40,9 @@ USE globalData,only:iname_liqLayer   ! named variable defining the liquid  water
 USE globalData,only:iname_matLayer   ! named variable defining the matric head state variable for soil layers
 USE globalData,only:iname_lmpLayer   ! named variable defining the liquid matric potential state variable for soil layers
 USE globalData,only:iname_watAquifer ! named variable defining the water storage in the aquifer
+USE globalData,only:iname_watSnow    ! named variable defining the total water in the snowpack
+USE globalData,only:iname_watLake    ! named variable defining the total water in the lake
+USE globalData,only:iname_watGlce    ! named variable defining the total water in the glacier ice
 
 ! global metadata
 USE globalData,only:flux_meta        ! metadata on the model fluxes
@@ -1139,6 +1142,9 @@ subroutine opSplittin(&
     if (ixCoupling==fullyCoupled) then ! * identify flux mask for the fully coupled solution
      associate(ixStateType_subset => indx_data%var(iLookINDEX%ixStateType_subset)%dat) ! intent(in): [i4b(:)] indices of state types
       desiredFlux = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2)
+      if(nSnow==0 .and. flux2state_orig(iVar)%state2 == iname_watSnow) desiredFlux=.false.
+      if(nLake==0 .and. flux2state_orig(iVar)%state2 == iname_watLake) desiredFlux=.false.
+      if(nGlce==0 .and. flux2state_orig(iVar)%state2 == iname_watGlce) desiredFlux=.false.
      end associate
 
      ! make sure firstFluxCall fluxes are included in the mask
@@ -1157,7 +1163,11 @@ subroutine opSplittin(&
      associate(ixStateType_subset => indx_data%var(iLookINDEX%ixStateType_subset)%dat) ! intent(in): [i4b(:)] indices of state types
       select case(iStateTypeSplit) ! identify the flux mask for a given state split
        case(nrgSplit);  desiredFlux = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2)
-       case(massSplit); desiredFlux = any(ixStateType_subset==flux2state_liq(iVar)%state1)  .or. any(ixStateType_subset==flux2state_liq(iVar)%state2)
+       case(massSplit)
+        desiredFlux = any(ixStateType_subset==flux2state_liq(iVar)%state1)  .or. any(ixStateType_subset==flux2state_liq(iVar)%state2)
+        if(nSnow==0 .and. flux2state_liq(iVar)%state2 == iname_watSnow) desiredFlux=.false.
+        if(nLake==0 .and. flux2state_liq(iVar)%state2 == iname_watLake) desiredFlux=.false.
+        if(nGlce==0 .and. flux2state_liq(iVar)%state2 == iname_watGlce) desiredFlux=.false.
        case default; err=20; message=trim(message)//'unable to identify split based on state type'; return_flag=.true.; return
       end select
      end associate
@@ -1218,22 +1228,24 @@ subroutine opSplittin(&
 
             ! add hydrology states for scalar variables
             if (iStateTypeSplit==massSplit .and. flux_meta(iVar)%vartype==iLookVarType%scalarv) then
-             select case(iDomainSplit)
-              case(snowSplit); if(iLayer==nSnow) fluxMask%var(iVar)%dat = desiredFlux
+             select case(iDomainSplit) ! need to list all the snow, lake, glce variables (not all soil)
+              case(snowSplit) ! snow scalar variables change with the bottom layer
+                if ( iname_watSnow==flux2state_liq(iVar)%state2 .and. iLayer==nSnow )fluxMask%var(iVar)%dat = desiredFlux 
               case(lakeSplit)
                 if (iVar==iLookFLUX%scalarLakeDrainage) then ! lake drainage changes with the bottom layer
-                  if(iLayer==nSnow+nLake) fluxMask%var(iVar)%dat = desiredFlux
-                else ! other scalar variables in the lake domain change with the surface layer
+                  if(iLayer==nSnow+nLake .and. nLake>0) fluxMask%var(iVar)%dat = desiredFlux
+                else if ( iname_watLake==flux2state_liq(iVar)%state2 ) then! other scalar variables in the lake domain change with the surface layer
                   if(iLayer==nSnow+1 .and. nLake>0) fluxMask%var(iVar)%dat = desiredFlux
                 end if
               case(soilSplit)
                 if(iVar==iLookFLUX%scalarSoilDrainage .or. iVar==iLookFLUX%scalarAquiferRecharge & ! soil drainage, aq recharge changes with the bottom layer
                    .or. iVar==iLookFLUX%scalarSoilBaseflow) then                                   ! soil baseflow changes with all layers, so compute after bottom layer
-                  if(iLayer==nSnow+nLake+nSoil) fluxMask%var(iVar)%dat = desiredFlux
+                  if(iLayer==nSnow+nLake+nSoil .and. nSoil>0) fluxMask%var(iVar)%dat = desiredFlux
                 else ! other scalar variables in the soil domain change with the surface layer
                   if(iLayer==nSnow+nLake+1 .and. nSoil>0) fluxMask%var(iVar)%dat = desiredFlux
                 end if
-              case(glceSplit); if(iLayer==nSnow+nLake+nSoil+1 .and. nGlce>0) fluxMask%var(iVar)%dat = desiredFlux
+              case(glceSplit) ! glacier scalar variables change with the surface layer
+                if (iname_watGlce==flux2state_liq(iVar)%state2 .and. iLayer==nSnow+nLake+nSoil+1 .and. nGlce>0) fluxMask%var(iVar)%dat = desiredFlux
              end select
             end if  ! if hydrology split and scalar
 
