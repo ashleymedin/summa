@@ -13,7 +13,7 @@
 # This results in KGE values that range between -1 and 1, with lower KGE values indicating larger differences from bench.
 
 # Run:
-# python timeseries_to_statistics.py sun6 [1-101] 100 $SCRATCH
+# python timeseries_to_statistics.py sun6 [1-101] 100 
 # and run 100 times with different batch numbers 1-100, and then merge the files with 101
 
 import os
@@ -50,7 +50,7 @@ else:
     method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sun6 or be1)
     ibatch = int(sys.argv[2])
     nbatch = int(sys.argv[3])
-    top_fold = os.environ['SCRATCH']
+    top_fold = os.environ['SCRATCH']+'/'
 
 des_dir =  top_fold + 'statistics_temp_' + method_name
 # Check if the directory exists
@@ -61,24 +61,24 @@ if not os.path.exists(des_dir):
 fnl_dir =  top_fold + 'statistics'
 src_dir =  top_fold + 'summa-' + method_name
 ben_dir =  top_fold + 'summa-' + bench_name
-src_pat = 'run1_G*_timestep.nc'
+src_pat = 'run1__G*_timestep.nc' # THIS MIGHT NEED TO BE CHANGED FOR OTHER RUNS
 des_fil  = method_name + '_hrly_diff_stats_{}_{}.nc'
 des_fl2 = method_name + '_hrly_diff_steps_{}_{}.nc'
 des_fl3 = method_name + '_hrly_diff_bals_{}_{}.nc'
 des_fl4 = method_name + '_hrly_diff_wall_{}_{}.nc'
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','scalarRootZoneTemp','averageRoutedRunoff']
-settings = settings[1,4] #only do some vars
+settings= [settings[i] for i in (1, 4)]#only do some vars
 stepsets= ['numberStateSplit','numberDomainSplitNrg','numberDomainSplitMass','numberScalarSolutions','meanStepSize']
-stepsets = stepsets[0,1,2,3]
+stepsets= [stepsets[i] for i in (0, 1, 2, 3)]#only do some steps
 balssets= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
-balssets = balssets[3,8]
+balssets= [balssets[i] for i in (3, 8)]#only do some
 #balssets= ['scalarRainPlusMelt','scalarRootZoneTemp','airtemp','scalarSWE']
 wallsets= ['wallClockTime']
 
 viz_fil = method_name + '_hrly_diff_stats_{}.nc'
-viz_fil = viz_fil.format(','.join('accuracy'))
+viz_fil = viz_fil.format(','.join(['accuracy']))
 viz_fl2 = method_name + '_hrly_diff_steps_{}.nc'
-viz_fl2 = viz_fl2.format(','.join('split'))
+viz_fl2 = viz_fl2.format(','.join(['split']))
 viz_fl3 = method_name + '_hrly_diff_bals_{}.nc'
 viz_fl3 = viz_fl3.format(','.join(['balance']))
 viz_fl4 = method_name + '_hrly_diff_wals_{}.nc'
@@ -142,7 +142,7 @@ def correlation(x,y,dims=None):
 def run_loop(file,bench,processed_files_path0):
 
     # extract the subset IDs
-    subset = file.split('/')[-1].split('_')[1]
+    subset = file.split('/')[-1].split('_')[2] # note this should be file.split('/')[-1].split('_')[2] if not Actors
 
     # acquire the lock before opening the file
     if not_parallel:
@@ -165,7 +165,7 @@ def run_loop(file,bench,processed_files_path0):
     m = m.rename({'gru': 'hru'})
     dat = dat.drop_dims('gru')
     dat = xr.merge([dat,m])  
-    dat = dat.where(dat.time!=dat.time[range(0,skip)],drop=True) #first timestep weird
+    dat = dat.isel(time=slice(skip, None)) #skip first timesteps
     
     if do_vars:
         ben = ben.where(ben!=-9999)
@@ -175,7 +175,7 @@ def run_loop(file,bench,processed_files_path0):
         m = m.rename({'gru': 'hru'})
         ben = ben.drop_dims('gru')
         ben = xr.merge([ben,m])  
-        ben = ben.where(ben.time!=ben.time[range(0,skip)],drop=True) #first timestep weird
+        ben = ben.isel(time=slice(skip, None)) #skip first timesteps
 
         diff = dat - ben
         the_hru = np.array(ben['hru'])
