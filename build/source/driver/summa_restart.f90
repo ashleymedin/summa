@@ -68,11 +68,6 @@ contains
  USE mDecisions_module,only:&                                ! look-up values for the choice of method for the spatial representation of groundwater
   localColumn,     & ! separate groundwater representation in each local soil column
   singleBasin        ! single groundwater store over the entire basin
-! look-up values for the numerical method
-USE mDecisions_module,only:&
-  homegrown,       & ! homegrown backward Euler solution using concepts from numerical recipes
-  kinsol,          & ! SUNDIALS backward Euler solution using Kinsol
-  ida                ! SUNDIALS solution using IDA
  ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
  USE mDecisions_module,only:&
    closedForm,     & ! use temperature with closed form heat capacity
@@ -148,7 +143,7 @@ USE mDecisions_module,only:&
                  progStruct,                    & ! intent(inout): model prognostic variables
                  bvarStruct,                    & ! intent(inout): model basin (GRU) variables
                  indxStruct,                    & ! intent(inout): model indices
-                 no_icond_enth,                 & ! intent(in):    flag that enthalpy not in initial conditions
+                 no_icond_enth,                 & ! intent(out):   flag that enthalpy not in initial conditions
                  err,cmessage)                    ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 

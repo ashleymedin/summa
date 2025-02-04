@@ -27,7 +27,7 @@ warnings.simplefilter("ignore") #deal with correlation warnings from variance 0 
 
 # Settings
 bench_name  = 'sun8en'
-skip = 365*24 # skip first year in stat calcs
+skip = 273*24 # skip first year in stat calcs
 
 not_parallel = True # run as true with batch mode, or false, with `python timeseries_to_statistics.py sun6 1 1` for single batch, and `python timeseries_to_statistics.py sun6 2 1` to merge
 run_local = False
