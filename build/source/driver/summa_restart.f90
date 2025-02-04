@@ -97,7 +97,6 @@ contains
  ! associate to elements in the data structure
  summaVars: associate(& 
   ! model decisions
-  ixNumericalMethod    => model_decisions(iLookDECISIONS%num_method)%iDecision   ,& !choice of numerical solver
   ixNrgConserv         => model_decisions(iLookDECISIONS%nrgConserv)%iDecision   ,& !choice of variable in either energy backward Euler residual or IDA state variable
   spatial_gw           => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,& !choice of method for the spatial representation of groundwater
   aquiferIni           => model_decisions(iLookDECISIONS%aquiferIni)%iDecision   ,& !choice of full or empty aquifer at start
