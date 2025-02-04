@@ -69,7 +69,7 @@ viz_fil = method_name.copy()
 viz_fl2 = method_name2.copy()
 for i, m in enumerate(method_name):
     viz_fil[i] = m + '_hrly_diff_stats_{}.nc'
-    viz_fil[i] = viz_fil[i].format(','.join(settings))
+    viz_fil[i] = viz_fil[i].format(','.join(['accuracy']))
 for i, m in enumerate(method_name2):
     viz_fl2[i] = m + '_hrly_diff_bals_{}.nc'
     viz_fl2[i] = viz_fl2[i].format(','.join(['balance']))

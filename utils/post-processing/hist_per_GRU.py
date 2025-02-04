@@ -73,7 +73,7 @@ viz_fil = method_name.copy()
 viz_fl2 = method_name2.copy()
 for i, m in enumerate(method_name):
     viz_fil[i] = m + '_hrly_diff_stats_{}.nc'
-    viz_fil[i] = viz_fil[i].format(','.join('accuracy'))
+    viz_fil[i] = viz_fil[i].format(','.join(['accuracy']))
 for i, m in enumerate(method_name2):
     viz_fl2[i] = m + '_hrly_diff_bals_{}.nc'
     viz_fl2[i] = viz_fl2[i].format(','.join(['balance']))
@@ -107,6 +107,8 @@ if no_snow: fig_fil = fig_fil + '_nosnow'
 fig_fil = fig_fil +'_compressed.png'
 fig_fil = fig_fil.format(','.join(settings),stat)
 
+maxes_m = [99,15,99,99,7.5]
+if do_rel: maxes_m = [0.4,0.007,0.6,0.15,0.0015]
 if stat == 'avge':
     stat2 = 'mean'
     maxes = [99,7,99,99,0.28]
@@ -117,8 +119,6 @@ if stat == 'rmse' or stat=='rmnz':
     if do_rel: maxes = [0.4,0.007,0.6,0.15,0.0015]
 if stat == 'maxe':
     stat2 = 'amax'
-    maxes_m = [99,15,99,99,7.5]
-    if do_rel: maxes_m = [0.4,0.007,0.6,0.15,0.0015]
     if stat == 'maxe': maxes = maxes_m
 if stat == 'kgem':
     stat2 = 'mean'
