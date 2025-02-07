@@ -45,6 +45,8 @@ plt_name=['BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp', 'SUNDIALS enth']
 #plt_name=['BE1 common','BE1 temp','BE1 mixed','BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp', 'SUNDIALS enth']
 method_name2=method_name +['sun8en']
 plt_name2=plt_name +['reference soln']
+method_name3=method_name[0:3]
+plt_name3=plt_name[0:3]
 
 num_bins = 1000
 
@@ -57,32 +59,42 @@ def power_transform(x):
 # Simulation statistics file locations
 use_vars = []
 rep = [] # mark the repeats
-use_vars = [4,4,1,1]
-rep = [1,2,1,2] # mark the repeats
+#use_vars = [4,4,1,1]
+#rep = [1,2,1,2] # mark the repeats
 settings0= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','scalarRootZoneTemp']
 settings = [settings0[i] for i in use_vars]
 
+use_vars2 = []
+rep2 = [] # mark the repeats
 use_vars2 = [8]
 rep2 = [0] # mark the repeats
-use_vars2 = [3,3]
-rep2 = [1,2] # mark the repeats
+#use_vars2 = [3,3]
+#rep2 = [1,2] # mark the repeats
 settings20= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
 settings2 = [settings20[i] for i in use_vars2]
 
+#use_vars3 = []
+#rep3 = [] # mark the repeats
+use_vars3 = [0,1,2,3,0,1,2,3]
+rep3 = [1,1,1,1,2,2,2,2] # mark the repeats
+settings30= ['numberStateSplit','numberDomainSplitNrg','numberDomainSplitMass','numberScalarSolutions','meanStepSize']
+settings3 = [settings30[i] for i in use_vars3]
+
 viz_fil = method_name.copy()
 viz_fl2 = method_name2.copy()
+viz_fl3 = method_name3.copy()
 for i, m in enumerate(method_name):
-    viz_fil[i] = m + '_hrly_diff_stats_{}.nc'
-    viz_fil[i] = viz_fil[i].format(','.join(['accuracy']))
+    viz_fil[i] = m + '_hrly_diff_stats_accuracy.nc'
 for i, m in enumerate(method_name2):
-    viz_fl2[i] = m + '_hrly_diff_bals_{}.nc'
-    viz_fl2[i] = viz_fl2[i].format(','.join(['balance']))
+    viz_fl2[i] = m + '_hrly_diff_bals_balance.nc'
+for i, m in enumerate(method_name3):
+    viz_fl3[i] = m + '_hrly_diff_steps_split.nc'
 
 # Specify variables of interest
 plot_vars = settings.copy()
 plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','top 4m soil temperature']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~y^{-1}$','$kg~m^{-2}$','$K$']
-if (len(use_vars)+len(use_vars2)>1): 
+if (len(use_vars)>1): 
     plt_titl = [f"({chr(97+n)}) {plt_titl[i]}" for n,i in enumerate(use_vars)]
 else:
     plt_titl = [f"{plt_titl[i]}" for n,i in enumerate(use_vars)]
@@ -98,14 +110,30 @@ else:
     plt_titl2 = [f"{plt_titl2[i]}" for n,i in enumerate(use_vars2)]
 leg_titl2 = [leg_titl2[i] for i in use_vars2]
 
+plot_vars3 = settings3.copy()
+plt_titl3 = ['number of state splits','number of energy domain splits','number of mass domain splits','number of scalar solutions','mean step size']
+leg_titl3 = [''] * 4 + ['$s$']
+if (len(use_vars)+len(use_vars2)+len(use_vars3)>1): 
+    plt_titl3 = [f"({chr(97+n + len(use_vars)+len(use_vars2))}) {plt_titl3[i]}" for n,i in enumerate(use_vars3)]
+else:
+    plt_titl3 = [f"{plt_titl3[i]}" for n,i in enumerate(use_vars3)]
+leg_titl3 = [leg_titl3[i] for i in use_vars3]
+
+
 if do_hist:
     fig_fil = 'Hrly_diff_hist_{}_{}_zoom'
 else:
     fig_fil = 'Hrly_diff_cdf_{}_{}_zoom'
+    if len(use_vars3)>0: fig_fil = 'Hrly_diff_cdf_{}_{}'
 if do_rel: fig_fil = fig_fil+'_rel'
 if no_snow: fig_fil = fig_fil + '_nosnow'
 fig_fil = fig_fil +'_compressed.png'
-fig_fil = fig_fil.format(','.join(settings),stat)
+if len(use_vars)>0: 
+    fig_fil = fig_fil.format('accuracy',stat)
+elif len(use_vars2)>0: # and len(use_vars)==0:
+    fig_fil = fig_fil.format('wallclock','mean')
+elif len(use_vars3)>0: 
+    fig_fil = fig_fil.format('split','mean')
 
 maxes_m = [99,15,99,99,7.5]
 if do_rel: maxes_m = [0.4,0.007,0.6,0.15,0.0015]
@@ -136,8 +164,13 @@ maxes2 = [maxes2[i] for i in use_vars2]
 for i in range(len(maxes2)):
     if rep2[i]==2: maxes2[i] = maxes2[i]*1e2 #clunky way to increase the range for the second repeat
 
+stat3 = 'mean'
+maxes3 = [1e2,1e2,1e2,1e2,1e-7]
+maxes3 = [maxes3[i] for i in use_vars3]
+
 summa = {}
 summa1 = {}
+summa2 = {}
 if len(use_vars)>0:
     for i, m in enumerate(method_name):
         # Get the aggregated statistics of SUMMA simulations
@@ -145,6 +178,10 @@ if len(use_vars)>0:
 if len(use_vars2)>0:
     for i, m in enumerate(method_name2):
         summa1[m] = xr.open_dataset(viz_dir/viz_fl2[i])
+
+if len(use_vars3)>0:
+    for i, m in enumerate(method_name3):
+        summa2[m] = xr.open_dataset(viz_dir/viz_fl3[i])
 
 if no_snow:
     summa[method_name[0]] = xr.open_dataset(viz_dir/viz_fil[0]) # will be a problem if this does not exist
@@ -154,6 +191,10 @@ if no_snow:
     if len(use_vars2)>0:
         for m in method_name2:
             summa1[m] = summa1[m].where(summa[method_name[0]]['scalarSWE'].sel(stat='mean_ben') == 0)
+    if len(use_vars3)>0:
+        for m in method_name3:
+            summa2[m] = summa2[m].where(summa[method_name[0]]['scalarSWE'].sel(stat='mean_ben') == 0)
+
     
 ##Figure
 
@@ -266,6 +307,7 @@ def run_loop(i,var,mx,rep,stat):
         if mx<1: # Rotate x-axis labels
             axs[r, c].tick_params(axis='x', rotation=45)
 
+
 def run_loopb(i,var,mx,rep,stat2):
     r = (i+len(use_vars))//ncol
     c = (i+len(use_vars))-r*ncol
@@ -311,7 +353,6 @@ def run_loopb(i,var,mx,rep,stat2):
             axs[r,c].plot(valid_data, yvals, zorder=0, label=m, linewidth=2.0)
             axs[r,c].set_xlim(range)  # Replace xmin and xmax with the desired limits
 
-
     if stat0 == 'mean': 
         if var == 'wallClockTime': 
             stat_word = 'mean'
@@ -344,16 +385,73 @@ def run_loopb(i,var,mx,rep,stat2):
             axs[r,c].set_xscale('function', functions=(power_transform, np.power)) #log x axis
             axs[r, c].tick_params(axis='x', rotation=45) # Rotate x-axis labels for subplot
 
+
+def run_loop3(i,var,mx,rep,stat3):
+    r = (i+len(use_vars)+len(use_vars2))//ncol
+    c = (i+len(use_vars)+len(use_vars2))-r*ncol
+    stat0 = np.copy(stat3)
+    if rep == 1: stat0 = 'mean'
+    if rep == 2: stat0 = 'amax'
+
+    if 'zoom' in fig_fil:
+        mx = mx
+        mn = mx
+    else:
+        mx = 0.0
+        mn = 1.0
+        for m in method_name3:
+            s = summa2[m][var].sel(stat=stat0)
+            mx = max(s.max(),mx)
+            mn = min(s.min(),mn)
+
+    # Data
+    for m in method_name3:
+        s = summa2[m][var].sel(stat=stat0)
+        range = (0,mx)
+        if do_hist: 
+            np.fabs(s).plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=2.0,range=range)
+        else: #cdf
+            sorted_data = np.sort(np.fabs(s))
+            valid_data = sorted_data[~np.isnan(sorted_data)]
+            yvals = np.arange(len(valid_data)) / float(len(valid_data) - 1)
+            axs[r,c].plot(valid_data, yvals, zorder=0, label=m, linewidth=2.0)
+            axs[r,c].set_xlim(range)
+
+    if stat0 == 'mean': stat_word = 'mean per data window'
+    if stat0 == 'amax': stat_word = 'max per data window'
+
+    if c==0: axs[r,c].legend(plt_name3)
+    titl = plt_titl3[i]
+    if no_snow: titl = titl + ' (snow-free GRUs)'
+    if rep>0: titl = titl #+ ' '+ stat_word
+    axs[r,c].set_title(titl)
+    axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titl3[i]))   
+
+    if do_hist: 
+        axs[r,c].set_ylabel('GRU count')
+        if(c==1): axs[r, c].set_ylabel('')
+ 
+    else:
+        axs[r,c].set_ylabel('cumulative distribution')
+        if(c>=1): axs[r, c].set_ylabel('')
+        axs[r,c].set_ylim([0.0, 1.0])
+        #axs[r,c].set_xscale('log') #log x axis
+ 
+
 if len(use_vars) > 0:
     for i,(var,mx,rep) in enumerate(zip(plot_vars,maxes,rep)): 
         run_loop(i,var,mx,rep,stat)
 if len(use_vars2) > 0:
     for i,(var,mx,rep) in enumerate(zip(plot_vars2,maxes2,rep2)): 
         run_loopb(i,var,mx,rep,stat2)
+if len(use_vars3) > 0:
+    for i,(var,mx,rep) in enumerate(zip(plot_vars3,maxes3,rep3)): 
+        run_loop3(i,var,mx,rep,stat3)
+
 
 # Remove the extra subplots
-if (len(plot_vars)+len(plot_vars2)) < ncol*nrow:
-    for i in range((len(plot_vars)+len(plot_vars2)),ncol*nrow):
+if (len(plot_vars)+len(plot_vars2)+len(plot_vars3)) < ncol*nrow:
+    for i in range((len(plot_vars)+len(plot_vars2)+len(plot_vars3)),ncol*nrow):
         r = i//ncol
         c = i-r*ncol
         fig.delaxes(axs[r, c])
