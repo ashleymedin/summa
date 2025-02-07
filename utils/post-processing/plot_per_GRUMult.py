@@ -71,8 +71,7 @@ settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','s
 
 viz_fil = method_name.copy()
 for i, m in enumerate(method_name):
-    viz_fil[i] = m + '_hrly_diff_stats_{}.nc'
-    viz_fil[i] = viz_fil[i].format(','.join(['accuracy']))
+    viz_fil[i] = m + '_hrly_diff_stats_accuracy.nc'
 nbatch_hrus = 518 # number of HRUs per batch
 if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 

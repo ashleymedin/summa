@@ -55,8 +55,7 @@ settings= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','ba
 
 viz_fil = method_name.copy()
 for i, m in enumerate(method_name):
-    viz_fil[i] = m + '_hrly_diff_bals_{}.nc'
-    viz_fil[i] = viz_fil[i].format(','.join(['balance']))
+    viz_fil[i] = m + '_hrly_diff_bals_balance.nc'
 nbatch_hrus = 518 # number of HRUs per batch
 
 # Specify variables in files
