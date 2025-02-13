@@ -309,7 +309,7 @@ subroutine computJacobWithPrime(&
     scalarSoilControl            => diag_data%var(iLookDIAG%scalarSoilControl             )%dat(1)  ,& ! intent(in): [dp]     soil control on infiltration, zero or one
     ! canopy and layer depth
     canopyDepth                  => diag_data%var(iLookDIAG%scalarCanopyDepth             )%dat(1)  ,& ! intent(in): [dp   ]  canopy depth (m)
-    mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth                   )%dat     ,& ! intent(in): [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
+    mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth                   )%dat     ,& ! intent(in): [dp(:)]  depth of each layer in the sub-domain (m)
     layerType                    => indx_data%var(iLookINDEX%layerType                    )%dat      & ! intent(in): [i4b(:)] named variables defining the type of layer in layer domains
     ) ! making association with data in structures
     ! --------------------------------------------------------------
@@ -337,7 +337,7 @@ subroutine computJacobWithPrime(&
                       + LH_fus            * dFracLiqVeg_dTkCanopy * scalarCanopyWatPrime / canopyDepth
     endif
 
-    ! compute additional terms for the Jacobian for the snow-soil domain (excluding fluxes)
+    ! compute additional terms for the Jacobian for the layer domain (excluding fluxes)
     ! NOTE: energy for layers are computed *within* the iteration loop as it includes phase change
     do iLayer=1,nLayers
       if(ixSnLaSoGlNrg(iLayer)/=integerMissing)then

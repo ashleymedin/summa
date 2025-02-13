@@ -261,7 +261,7 @@ subroutine computJacob(&
     scalarSoilControl            => diag_data%var(iLookDIAG%scalarSoilControl             )%dat(1)  ,& ! intent(in): [dp]     soil control on infiltration, zero or one
     ! canopy and layer depth
     canopyDepth                  => diag_data%var(iLookDIAG%scalarCanopyDepth             )%dat(1)  ,& ! intent(in): [dp   ]  canopy depth (m)
-    mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth                   )%dat     ,& ! intent(in): [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
+    mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth                   )%dat     ,& ! intent(in): [dp(:)]  depth of each layer in the sub-domain (m)
   ! output variables
      err                         => out_computJacob % err                                           ,& ! error code
      message                     => out_computJacob % cmessage                                       & ! error message
@@ -289,7 +289,7 @@ subroutine computJacob(&
                        + dCm_dTkCanopy * scalarCanopydWat_dt/canopyDepth
     endif
 
-    ! compute additional terms for the Jacobian for the snow-soil domain (excluding fluxes)
+    ! compute additional terms for the Jacobian for the layer domain (excluding fluxes)
     ! NOTE: energy for layers are computed *within* the iteration loop as it includes phase change
     do iLayer=1,nLayers
       if(ixSnLaSoGlNrg(iLayer)/=integerMissing)then
