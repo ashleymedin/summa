@@ -35,9 +35,16 @@ ctdir = top_fold + 'summa-' + method_name
 outfilelist0 = glob((ncdir + '/' + file_pattern))
 outfilelist0.sort()
 
+# Variables to exclude
+exclude_vars = [
+    'scalarCanopyWat', 'scalarSWE', 'balanceCasNrg', 'balanceVegNrg', 
+    'balanceSnowNrg', 'balanceVegMass', 'balanceSnowMass', 'balanceSoilMass', 
+    'balanceAqMass', 'scalarTotalET'
+]
+
 # -- functions
 def concatenate_files_in_range(outfilelist0, ctdir, start_gru, end_gru):
-    out_name = f'run1__G{start_gru + 1:06d}-{end_gru:06d}_timestep.nc'
+    out_name = f'run1__G{start_gru:06d}-{end_gru:06d}_timestep.nc'
     gru_num = 0
     hru_num = 0
 
@@ -67,10 +74,11 @@ def concatenate_files_in_range(outfilelist0, ctdir, start_gru, end_gru):
             gru_vars = [] # variable name, gru axis in variable dimension for concatenation.
             hru_vars = []
             for name, variable in src.variables.items():
+                if name in exclude_vars:
+                    continue
                 x = dst.createVariable(name, variable.datatype, variable.dimensions)
                 dst[name].setncatts(src[name].__dict__)
-                # Note here the variable dimension name is the same, but size has been updated for gru and hru.
-
+    
                 # Assign different values depending on dimension
                 dims = variable.dimensions
                 if 'gru' in dims:
