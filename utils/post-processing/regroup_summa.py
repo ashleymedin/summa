@@ -37,7 +37,7 @@ outfilelist0.sort()
 
 # -- functions
 def concatenate_files_in_range(outfilelist0, ctdir, start_gru, end_gru):
-    out_name = f'run1__G{start_gru + 1:06d}-{end_gru:06d}_timestep.nc'
+    out_name = f'run1__G{start_gru:06d}-{end_gru:06d}_timestep.nc'
     gru_num = 0
     hru_num = 0
 
