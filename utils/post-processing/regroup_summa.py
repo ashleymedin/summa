@@ -50,8 +50,6 @@ def concatenate_files_in_range(outfilelist0, ctdir, start_gru, end_gru):
 
     # Filter files within the specified range
     filtered_files = [file for file in outfilelist0 if start_gru <= int(file.split('_')[4][1:7]) <= end_gru]
-    start_gru_old = int(filtered_files[0].split('_')[4][1:7])
-    end_gru_old = int(filtered_files[-1].split('_')[4][8:14])
 
     for file in filtered_files:
         f = nc.Dataset(file)
@@ -95,12 +93,13 @@ def concatenate_files_in_range(outfilelist0, ctdir, start_gru, end_gru):
             for i, file in enumerate(filtered_files):
 
                 print("combining file %d %s" % (i,file))
-                # f = nc.Dataset(os.path.join(ncdir, file))
                 f = nc.Dataset(file)
                 for j in range(gru_vars_num):
                     gru_var_name = gru_vars[j][0]
                     dim_index = gru_vars[j][1]
                     data=f[gru_var_name][:]
+                    mask = (data >= start_gru) & (data <= end_gru)
+                    data = data[mask]
                     if i == 0:
                         Dict[gru_var_name]=data
                     else:
@@ -110,6 +109,8 @@ def concatenate_files_in_range(outfilelist0, ctdir, start_gru, end_gru):
                     hru_var_name = hru_vars[j][0]
                     dim_index = hru_vars[j][1]
                     data=f[hru_var_name][:]
+                    mask = (data >= start_gru) & (data <= end_gru)
+                    data = data[mask]
                     if i == 0:
                         Dict[hru_var_name]=data
                     else:
@@ -123,30 +124,13 @@ def concatenate_files_in_range(outfilelist0, ctdir, start_gru, end_gru):
 
             #if missing HRUs, this is slow or broken
             if missing:
-                new_index = np.append(dst["gru"].values,missgru)
+                new_index = np.append(dst["gru"][:],missgru)
                 dst.reindex({"gru": new_index})
                 dst.sel(gru=missgru)["gruId"] = missgru
 
-                new_index = np.append(dst["hru"].values,misshru)
+                new_index = np.append(dst["hru"][:],misshru)
                 dst.reindex({"hru": new_index})
                 dst.sel(gru=misshru)["hruId"] = misshru
-
-            # Remove grus and hrus that are not in the range
-            cut_start = start_gru - start_gru_old
-            cut_end = end_gru_old - end_gru
-            dst.variables['gru'][:] = dst.variables['gru'][cut_start:]
-            dst.variables['gru'][:] = dst.variables['gru'][:-cut_end]
-            dst.variables['hru'][:] = dst.variables['hru'][cut_start:]
-            dst.variables['hru'][:] = dst.variables['hru'][:-cut_end]
-
-            # Temporarily create gruId from hruId
-            #if gru_num == hru_num:
-            #    gruId = dst.createVariable('gruId', dst['hruId'].datatype, ('gru',))
-            #    gruId.long_name = "ID of group of response unit (GRU)"
-            #    gruId.units = dst['hruId'].units
-            #    dst.variables['gruId'][:] = dst.variables['hruId'][:]
-            #else:
-            #    print('Warning: gruId variable cannot be created since it has different size from hruId')
 
         print("wrote output: %s" % (ctdir + '/' + out_name))
 
