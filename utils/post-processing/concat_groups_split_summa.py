@@ -10,6 +10,7 @@ import os
 from glob import glob
 import netCDF4 as nc
 import numpy as np
+import sys
 
 catby_num   = 2 #number of files to cat into one, if had to divide runs from regular batches into sub-batches to finish in 7 days
 
@@ -17,16 +18,14 @@ missing = False # if appending nan hrus to batch because failed
 missgru = 72055933 # batch 205 summa-be32 value
 misshru = missgru  # could be different
 
-run_local = False
-if run_local:
-    top_fold = '/Users/amedin/Research/USask/test_py/'
-    method_name = 'sundials_1en8'
-else:
-    import multiprocessing as mp
-    import sys
+run_batch = False # run by batch
+if run_batch:
     top_fold    = '/home/avanb/scratch/'
-    method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en8 or be64)
+else: # run with python parallel processing
+    import multiprocessing as mp
+    top_fold    = '/home/avanb/scratch/'
 
+method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en8 or be64)
 ncdir        = top_fold + 'summa-' + method_name + '_nocat'
 file_pattern = 'run1_G*_timestep.nc'
 ctdir        = top_fold + 'summa-' + method_name
@@ -136,8 +135,7 @@ def get_stat(g,catby_num,outfilelist0,ctdir):
     return #nothing
 # -- end functions
 
-
-if run_local:
+if run_batch:
     # -- no parallel processing
     for g in range(0,int(len(outfilelist0)/catby_num)):
         get_stat(g,catby_num,outfilelist0,ctdir)

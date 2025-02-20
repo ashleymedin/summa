@@ -3,13 +3,13 @@
 
 # Run:
 # python regroup_summa.py sundials_1en8
+# or python regroup_summa.py sundials_1en8 $SLURM_ARRAY_TASK_ID
 
 import os
 from glob import glob
 import netCDF4 as nc
 import numpy as np
 import sys
-import multiprocessing as mp
 
 # number of groups to divide the output into
 num_groups = 65
@@ -19,14 +19,15 @@ missing = False  # if appending nan hrus to batch because failed
 missgru = 72055933  # batch 205 summa-be32 value
 misshru = missgru  # could be different
 
-run_local = False
-if run_local:
-    top_fold = '/Users/amedin/Research/USask/test_py/'
-    method_name = 'sundials_1en8'
-else:
+run_batch = True # run by batch
+if run_batch:
     top_fold = '/project/k/kshook/avanb/enthalpy_paper/runs/'
-    method_name = sys.argv[1]  # sys.argv values are strings by default so this is fine (sundials_1en8 or be64)
+    job_index = int(sys.argv[2])  # Job array index
+else: # run with python parallel processing
+    import multiprocessing as mp
+    top_fold = '/project/k/kshook/avanb/enthalpy_paper/runs/'
 
+method_name = sys.argv[1]  # sys.argv values are strings by default so this is fine (sundials_1en8 or be64)
 ncdir = top_fold + 'summa-' + method_name + '_nocat'
 file_pattern = 'run1_G*_timestep.nc'
 ctdir = top_fold + 'summa-' + method_name
@@ -45,16 +46,9 @@ exclude_vars = [
 # -- functions
 def concatenate_files_in_range(outfilelist0, ctdir, start_gru, end_gru):
     out_name = f'run1__G{start_gru:06d}-{end_gru:06d}_timestep.nc'
-    gru_num = 0
-    hru_num = 0
-
-    # Filter files within the specified range
-    filtered_files = [file for file in outfilelist0 if start_gru <= int(file.split('_')[4][1:7]) <= end_gru]
-
-    for file in filtered_files:
-        f = nc.Dataset(file)
-        gru_num += len(f.dimensions['gru'])
-        hru_num += len(f.dimensions['hru'])
+    filtered_files = [file for file in outfilelist0 if start_gru <= int(file.split('/')[-1].split('_')[1][1:7]) <= end_gru]
+    gru_num = end_gru - start_gru + 1
+    hru_num = end_gru - start_gru + 1
 
     # Write output
     with nc.Dataset(filtered_files[0]) as src:
@@ -91,6 +85,13 @@ def concatenate_files_in_range(outfilelist0, ctdir, start_gru, end_gru):
             gru_vars_num = len(gru_vars)
             hru_vars_num = len(hru_vars)
             for i, file in enumerate(filtered_files):
+                start_file = int(file.split('/')[-1].split('_')[1][1:7])
+                end_file = int(file.split('/')[-1].split('_')[1][8:14])
+                start = 0
+                end = None
+                if i==0: start = start_file - start_gru
+                if i==len(filtered_files)-1: end = end_gru - end_file
+                if end == 0: end = None
 
                 print("combining file %d %s" % (i,file))
                 f = nc.Dataset(file)
@@ -98,8 +99,9 @@ def concatenate_files_in_range(outfilelist0, ctdir, start_gru, end_gru):
                     gru_var_name = gru_vars[j][0]
                     dim_index = gru_vars[j][1]
                     data=f[gru_var_name][:]
-                    mask = (data >= start_gru) & (data <= end_gru)
-                    data = data[mask]
+                    slices = [slice(None)] * data.ndim
+                    slices[dim_index] = slice(start, end)
+                    data = data[tuple(slices)]
                     if i == 0:
                         Dict[gru_var_name]=data
                     else:
@@ -109,8 +111,9 @@ def concatenate_files_in_range(outfilelist0, ctdir, start_gru, end_gru):
                     hru_var_name = hru_vars[j][0]
                     dim_index = hru_vars[j][1]
                     data=f[hru_var_name][:]
-                    mask = (data >= start_gru) & (data <= end_gru)
-                    data = data[mask]
+                    slices = [slice(None)] * data.ndim
+                    slices[dim_index] = slice(start, end)
+                    data = data[tuple(slices)]
                     if i == 0:
                         Dict[hru_var_name]=data
                     else:
@@ -144,8 +147,14 @@ def process_group(g):
     end_gru = min((g + 1) * size_g, gru_num)
     concatenate_files_in_range(outfilelist0, ctdir, start_gru, end_gru)
 
-# -- end functions
-
-if __name__ == "__main__":
-    with mp.Pool(processes=mp.cpu_count()) as pool:
-        pool.map(process_group, range(num_groups))
+if run_batch:
+    # -- no parallel processing
+    process_group(job_index)
+else:
+    # -- start parallel processing
+    ncpus = int(os.environ.get('SLURM_CPUS_PER_TASK',default=1))
+    if __name__ == "__main__":
+        pool = mp.Pool(processes=ncpus)
+        results = [pool.apply_async(process_group, args=(g,)) for g in range(num_groups)]
+        dojob = [p.get() for p in results]
+        pool.close()
