@@ -46,7 +46,7 @@ exclude_vars = [
 # -- functions
 def concatenate_files_in_range(outfilelist0, ctdir, start_gru, end_gru):
     out_name = f'run1__G{start_gru:06d}-{end_gru:06d}_timestep.nc'
-    filtered_files = [file for file in outfilelist0 if start_gru <= int(file.split('/')[-1].split('_')[1][1:7]) <= end_gru]
+    filtered_files = [file for file in outfilelist0 if int(file.split('/')[-1].split('_')[1][1:7]) <= end_gru and int(file.split('/')[-1].split('_')[1][8:14]) >= start_gru]
     gru_num = end_gru - start_gru + 1
     hru_num = end_gru - start_gru + 1
 
@@ -89,7 +89,7 @@ def concatenate_files_in_range(outfilelist0, ctdir, start_gru, end_gru):
                 end_file = int(file.split('/')[-1].split('_')[1][8:14])
                 start = 0
                 end = None
-                if i==0: start = start_file - start_gru
+                if i==0: start = start_gru-start_file
                 if i==len(filtered_files)-1: end = end_gru - end_file
                 if end == 0: end = None
 
