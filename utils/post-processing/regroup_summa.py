@@ -89,7 +89,7 @@ def concatenate_files_in_range(outfilelist0, ctdir, start_gru, end_gru):
                 end_file = int(file.split('/')[-1].split('_')[1][8:14])
                 start = 0
                 end = None
-                if i==0: start = start_file - start_gru
+                if i==0: start = start_gru-start_file
                 if i==len(filtered_files)-1: end = end_gru - end_file
                 if end == 0: end = None
 
