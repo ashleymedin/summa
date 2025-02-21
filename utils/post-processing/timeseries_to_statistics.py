@@ -18,7 +18,7 @@
 
 import os
 import glob
-import xarray as xr
+import xarray as xr # need to install dask also
 from pathlib import Path
 import numpy as np
 
@@ -142,7 +142,7 @@ def correlation(x,y,dims=None):
 def run_loop(file,bench,processed_files_path0):
 
     # extract the subset IDs
-    subset = file.split('/')[-1].split('_')[2] # note this should be file.split('/')[-1].split('_')[2] if not Actors
+    subset = file.split('/')[-1].split('_')[-2]
 
     # acquire the lock before opening the file
     if not_parallel:
@@ -176,6 +176,12 @@ def run_loop(file,bench,processed_files_path0):
         ben = ben.drop_dims('gru')
         ben = xr.merge([ben,m])  
         ben = ben.isel(time=slice(skip, None)) #skip first timesteps
+
+        # Align coordinates of ben with dat
+        if 'hru' in dat.dims and 'hru' in ben.dims:
+            ben = ben.assign_coords(hru=dat['hru'])
+        if 'gru' in dat.dims and 'gru' in ben.dims:
+            ben = ben.assign_coords(gru=dat['gru'])
 
         diff = dat - ben
         the_hru = np.array(ben['hru'])
