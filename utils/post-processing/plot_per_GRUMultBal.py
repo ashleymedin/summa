@@ -35,6 +35,7 @@ one_plot = True # true is one plot, false is multiple plots (one per variable)
 run_local = False # true is run on local machine (only does testing), false is run on cluster
 fix_units_soil = True # true is convert to storage units, only works for Soil
 two_stat = True # true is run both mean and amax, false is run one stat
+fix_hruid = True # true is only have hru index for hru, false is have hruid for hru
 
 if run_local: 
     stat = 'mean'
@@ -83,6 +84,12 @@ summa = {}
 for i, m in enumerate(method_name):
     # Get the aggregated statistics of SUMMA simulations
     summa[m] = xr.open_dataset(viz_dir/viz_fil[i])
+
+if fix_hruid:
+    hruid_file = xr.open_dataset(viz_dir/'sun8en_hrly_diff_bals_balance.nc')
+    hruid = hruid_file['hru']
+    for m in method_name:
+        summa[m]['hru'] = hruid
 
 # Function to extract a given setting from the control file
 def read_from_control( file, setting ):
