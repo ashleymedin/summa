@@ -45,7 +45,8 @@ if run_local:
 else:
     import sys
     stat = sys.argv[1]
-    viz_dir = Path(os.path.expanduser('~/statistics'))
+    #viz_dir = Path(os.path.expanduser('~/statistics'))
+    viz_dir = Path('/project/k/kshook/avanb/enthalpy_paper/runs/statistics')
 
 
 # NOTE: method_name 'ref' will plot the reference solution, 'diff' will plot the difference between two simulations
@@ -92,6 +93,10 @@ plt_titl = ['snow water equivalent','total soil water content','total evapotrans
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$K$','$kg~m^{-2}$']
 calc = [0,0,0,0,0,0,1] # 1 if variable needs to be calculated from other variables
 melt_thresh = 1/(0.75) # threshold for melt water calculation (divisor is percentage of year no snow, if only melts once)
+
+# adjust for vars actually computed
+plot_vars_computed = ['scalarTotalSoilWat','scalarRootZoneTemp']
+
 
 fig_fil= '_hrly_diff_stats_{}_compressed.png'
 if do_rel: fig_fil = '_hrly_diff_stats_{}_rel_compressed.png'
@@ -167,7 +172,7 @@ if run_local:
 
     # Create a mock DataFrame
     from shapely.geometry import Point
-    s = summa[method_name[0]][plot_vars[0]].sel(stat=stat)
+    s = summa[method_name[0]][plot_vars_computed[0]].sel(stat=stat)
     mock_data = {
         'hm_hruid': np.concatenate(([81029662], s.hru.values[-100:])), #s.hru.values[-100:],  # Example HRU IDs
         'geometry': [Point(x, y) for x, y in zip(range(101), range(101))]  # Simple geometries
@@ -231,7 +236,7 @@ if two_stat:
 else:
     stat_values = [stat]
 
-for i,plot_var in enumerate(plot_vars):
+for i,plot_var in enumerate(plot_vars_computed):
     for stat_use in stat_values: 
         stat0 = stat_use
         if stat_use == 'rmse' or stat_use == 'kgem' or stat_use == 'mean' or stat_use == 'avge': 

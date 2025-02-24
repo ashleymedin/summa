@@ -42,7 +42,9 @@ if run_local:
 else:
     import sys
     stat = sys.argv[1]
-    viz_dir = Path(os.path.expanduser('~/statistics'))
+    #viz_dir = Path(os.path.expanduser('~/statistics'))
+    viz_dir = Path('/project/k/kshook/avanb/enthalpy_paper/runs/statistics')
+
 
 method_name=['be8','be8cm','be8en','sun5cm','sun5en','sun8en']  #maybe make this an argument
 plt_name0=['SUMMA-BE8 common','SUMMA-BE8 temperature','SUMMA-BE8 mixed','SUMMA-SUNDIALS temperature','SUMMA-SUNDIALS enthalpy','reference solution']
@@ -65,6 +67,9 @@ if fix_units_soil: leg_titl = ['$kJ~m^{-2}$'] * 4 + ['$kg~m^{-2}'] * 4 + ['$s$']
 
 fig_fil= '_hrly_balance_{}_compressed.png'
 plot_vars = settings.copy()
+
+# adjust for vars actually computed
+plot_vars_computed = ['balanceSoilNrg','wallClockTime']
 
 if stat == 'mean': 
     maxes = [1e2,1e2,1e2,1e2]+[1e-7,1e-5,1e-7,1e-8] + [1e-2]
@@ -121,7 +126,7 @@ if run_local:
     # Create a mock DataFrame
     from shapely.geometry import Point
 
-    s = summa[method_name[0]][plot_vars[0]].sel(stat=stat)
+    s = summa[method_name[0]][plot_vars_computed[0]].sel(stat=stat)
     mock_data = {
         'hm_hruid': s.hru.values[range(100)],  # Example HRU IDs
         'geometry': [Point(x, y) for x, y in zip(range(100), range(100))]  # Simple geometries
@@ -181,7 +186,7 @@ if two_stat:
     stat_values = [stat, 'amax']
 else:
     stat_values = [stat]
-for plot_var in plot_vars:
+for plot_var in plot_vars_computed:
     for stat_use in stat_values: 
         stat0 = stat_use
         for m in method_name:
