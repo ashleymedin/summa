@@ -38,6 +38,7 @@ one_plot = True # true is one plot, false is multiple plots (one per variable)
 run_local = False # true is run on local machine (only does testing), false is run on cluster
 more_mean = False # true is plot mean/amax extra variables in a balance file
 two_stat = True # true is run both mean and amax, false is run one stat
+fix_hruid = True # true is only have hru index for hru, false is have hruid for hru
 
 if run_local: 
     stat = 'avge'
@@ -97,7 +98,6 @@ melt_thresh = 1/(0.75) # threshold for melt water calculation (divisor is percen
 # adjust for vars actually computed
 plot_vars_computed = ['scalarTotalSoilWat','scalarRootZoneTemp']
 
-
 fig_fil= '_hrly_diff_stats_{}_compressed.png'
 if do_rel: fig_fil = '_hrly_diff_stats_{}_rel_compressed.png'
 
@@ -130,6 +130,12 @@ for i, m in enumerate(method_name):
     if m!='diff' and m!='ref': summa[m] = xr.open_dataset(viz_dir/viz_fil[i])
 
 if more_mean: summa['exVar'] = xr.open_dataset(viz_dir/viz_file_exVar)
+
+if fix_hruid:
+    hruid_file = xr.open_dataset(viz_dir/'sun8en_hrly_diff_bals_balance.nc')
+    hruid = hruid_file['hru']
+    for m in method_name:
+        if m!='diff' and m!='ref': summa[m]['hru'] = hruid
 
 # Function to extract a given setting from the control file
 def read_from_control( file, setting ):
