@@ -159,8 +159,14 @@ subroutine run_oneHRU(&
 
     glacierDomain = .false. ! reset the flag for the next domain
 
+    ! initialize the number of flux calls
+    diagData%dom(i)%var(iLookDIAG%numFluxCalls)%dat(1) = 0._rkind
+
     ! if water pixel or if the fraction of the domain is zero, do not run the model but update the number of layers
     if ( typeData%var(iLookTYPE%vegTypeIndex) .ne. isWater .and. progData%dom(i)%var(iLookPROG%DOMarea)%dat(1) > 0._rkind )then
+
+      ! Set wall_clock time to zero so it does not get a random value
+      diagData%var(iLookDIAG%wallClockTime)%dat(1) = 0._rkind
 
       if (domInfo(i)%dom_type == upland) then
         ! get height at bottom of each soil layer, negative downwards (used in Noah MP)
@@ -226,8 +232,6 @@ subroutine run_oneHRU(&
       if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
       ! ----- run the model --------------------------------------------------------------------------------------------------
 
-      ! initialize the number of flux calls
-      diagData%dom(i)%var(iLookDIAG%numFluxCalls)%dat(1) = 0._rkind
       ! run the model for a single HRU
       call coupled_em(&
                      ! model control
