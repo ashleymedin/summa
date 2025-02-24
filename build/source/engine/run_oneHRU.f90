@@ -165,7 +165,7 @@ subroutine run_oneHRU(&
     ! if water pixel or if the fraction of the domain is zero, do not run the model
     if ( typeData%var(iLookTYPE%vegTypeIndex)==isWater .or. progData%dom(i)%var(iLookPROG%DOMarea)%dat(1) > 0._rkind )then
       ! Set wall_clock time to zero so it does not get a random value
-      diagData%var(iLookDIAG%wallClockTime)%dat(1) = 0._rkind
+      diagData%dom(i)%var(iLookDIAG%wallClockTime)%dat(1) = 0._rkind
 
     else ! not a water pixel and area of the domain is greater than zero
       if (domInfo(i)%dom_type == upland) then
