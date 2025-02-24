@@ -24,6 +24,8 @@ do_rel = False # true is plot relative to the benchmark simulation
 do_hist = False # true is plot histogram instead of CDF
 run_local = True # true is run on local machine, false is run on cluster
 fix_units_soil = True # true is convert to storage units, only works for Soil
+fix_wall_actors = True # true then scale reference solution for wall clock time
+fix_wall_actors_plot = False # true then plot the wall clock time comparison
 no_snow = False # true is only plot snow free simulations
 
 if run_local: 
@@ -73,10 +75,10 @@ rep2 = [0] # mark the repeats
 settings20= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
 settings2 = [settings20[i] for i in use_vars2]
 
-#use_vars3 = []
-#rep3 = [] # mark the repeats
-use_vars3 = [0,1,2,3,0,1,2,3]
-rep3 = [1,1,1,1,2,2,2,2] # mark the repeats
+use_vars3 = []
+rep3 = [] # mark the repeats
+#use_vars3 = [0,1,2,3,0,1,2,3]
+#rep3 = [1,1,1,1,2,2,2,2] # mark the repeats
 settings30= ['numberStateSplit','numberDomainSplitNrg','numberDomainSplitMass','numberScalarSolutions','meanStepSize']
 settings3 = [settings30[i] for i in use_vars3]
 
@@ -124,7 +126,7 @@ if do_hist:
     fig_fil = 'Hrly_diff_hist_{}_{}_zoom'
 else:
     fig_fil = 'Hrly_diff_cdf_{}_{}_zoom'
-    if len(use_vars3)>0: fig_fil = 'Hrly_diff_cdf_{}_{}'
+    #if len(use_vars3)>0: fig_fil = 'Hrly_diff_cdf_{}_{}'
 if do_rel: fig_fil = fig_fil+'_rel'
 if no_snow: fig_fil = fig_fil + '_nosnow'
 fig_fil = fig_fil +'_compressed.png'
@@ -178,6 +180,9 @@ if len(use_vars)>0:
 if len(use_vars2)>0:
     for i, m in enumerate(method_name2):
         summa1[m] = xr.open_dataset(viz_dir/viz_fl2[i])
+    if fix_wall_actors and 'wallClockTime' in settings2:
+        summa1['be8Old'] = xr.open_dataset(viz_dir/'be8_hrly_diff_bals_balanceOld.nc')
+        summa1['sun5enOld'] = xr.open_dataset(viz_dir/'sun5en_hrly_diff_bals_balanceOld.nc')
 
 if len(use_vars3)>0:
     for i, m in enumerate(method_name3):
@@ -333,12 +338,16 @@ def run_loopb(i,var,mx,rep,stat2):
         for m in method_name2:
             # Get the statistics, remove 9999 (should be nan, but just in case)
             s = summa1[m][var].sel(stat=stat0).where(lambda x: x != 9999)
+            if var=='wallClockTime': s = s.where(lambda x: x != 0) # Actors simulations may have 0
             mx = max(s.max(),mx)
             mn = min(s.min(),mn)
 
     # Data
+    combined_s2 = []
+    combined_s_saved = []
     for m in method_name2:
         s = summa1[m][var].sel(stat=stat0).where(lambda x: x != 9999)
+        if var=='wallClockTime': s = s.where(lambda x: x != 0) # water bodies should be 0
         if fix_units_soil and 'Soil' in var: 
             s = s*3600*3.0 # mult by time step and depth to get storage
             if 'Nrg' in var: s = s*1e-3
@@ -349,6 +358,33 @@ def run_loopb(i,var,mx,rep,stat2):
         else: #cdf
             sorted_data = np.sort(np.fabs(s))
             valid_data = sorted_data[~np.isnan(sorted_data)]
+            if fix_wall_actors and 'wallClockTime' in var: 
+                from scipy.stats import linregress
+                if m in ['be8', 'sun5en']:
+                    s_saved = s
+                    s2 = summa1[f'{m}Old'][var].sel(stat=stat0).where(lambda x: x != 9999)
+                    s2 = s2.where(lambda x: x != 0)  # water bodies should be 0
+                    mask = ~np.isnan(s2.values) & ~np.isnan(s_saved.values)
+                    s2 = s2[mask]
+                    s_saved = s_saved[mask]
+                    combined_s2.append(s2.values)
+                    combined_s_saved.append(s_saved.values)
+                    first_len = len(s2)
+
+                if m=='sun8en': # assumes sun8en is the last one
+                    combined_s2 = np.concatenate(combined_s2)
+                    combined_s_saved = np.concatenate(combined_s_saved)
+                    # Least squares fit
+                    A = combined_s2[:, np.newaxis]
+                    fac, _, _, _ = np.linalg.lstsq(A, combined_s_saved, rcond=None)
+                    fac = fac[0]
+                    print(f'Best fit least squares ratio (slope={fac:.4f})')
+                    slope, intercept, r_value, p_value, std_err = linregress(combined_s2, combined_s_saved)
+                    print(f'Best fit regression line (slope={slope:.4f}, intercept={intercept:.4f}, corr coeff={r_value:.2e})')
+                    print('Correcting reference solution with regression line')
+                    #valid_data = valid_data*fac
+                    valid_data = valid_data * slope + intercept
+
             yvals = np.arange(len(valid_data)) / float(len(valid_data) - 1)
             axs[r,c].plot(valid_data, yvals, zorder=0, label=m, linewidth=2.0)
             axs[r,c].set_xlim(range)  # Replace xmin and xmax with the desired limits
@@ -385,6 +421,19 @@ def run_loopb(i,var,mx,rep,stat2):
             axs[r,c].set_xscale('function', functions=(power_transform, np.power)) #log x axis
             axs[r, c].tick_params(axis='x', rotation=45) # Rotate x-axis labels for subplot
 
+            if fix_wall_actors_plot:
+                fig.subplots_adjust(hspace=0.2, wspace=0.2) # Adjust the bottom margin, vertical space, and horizontal space
+                auto_col = plt.rcParams['axes.prop_cycle'].by_key()['color']
+                axs[r, c + 1].scatter(combined_s2[first_len:], combined_s_saved[first_len:], alpha=0.5, color=auto_col[4], label='SUNDIALS enth')
+                axs[r, c + 1].scatter(combined_s2[:first_len], combined_s_saved[:first_len], alpha=0.5, color=auto_col[0], label='BE8 common')
+                axs[r, c+1].set_xlabel('Graham time [s]')
+                axs[r, c+1].set_ylabel('Anvil Actors time [s]')
+                axs[r, c+1].set_title('wall clock time comparison')
+                axs[r, c+1].set_xlim(combined_s_saved.min(),combined_s2.max()) 
+                axs[r, c+1].set_ylim(combined_s_saved.min(),combined_s2.max())
+                axs[r, c+1].plot(combined_s2, intercept + slope * combined_s2, color='black')
+                axs[r, c+1].tick_params(axis='x', rotation=45) # Rotate x-axis labels for subplot
+
 
 def run_loop3(i,var,mx,rep,stat3):
     r = (i+len(use_vars)+len(use_vars2))//ncol
@@ -393,16 +442,12 @@ def run_loop3(i,var,mx,rep,stat3):
     if rep == 1: stat0 = 'mean'
     if rep == 2: stat0 = 'amax'
 
-    if 'zoom' in fig_fil:
-        mx = mx
-        mn = mx
-    else:
-        mx = 0.0
-        mn = 1.0
-        for m in method_name3:
-            s = summa2[m][var].sel(stat=stat0)
-            mx = max(s.max(),mx)
-            mn = min(s.min(),mn)
+    mx = 0.0
+    mn = 1.0
+    for m in method_name3:
+        s = summa2[m][var].sel(stat=stat0)
+        mx = max(s.max(),mx)
+        mn = min(s.min(),mn)
 
     # Data
     for m in method_name3:
@@ -436,6 +481,8 @@ def run_loop3(i,var,mx,rep,stat3):
         if(c>=1): axs[r, c].set_ylabel('')
         axs[r,c].set_ylim([0.0, 1.0])
         #axs[r,c].set_xscale('log') #log x axis
+    if 'zoom' in fig_fil:
+        axs[r,c].set_ylim([0.98, 1.0])
  
 
 if len(use_vars) > 0:
@@ -454,6 +501,7 @@ if (len(plot_vars)+len(plot_vars2)+len(plot_vars3)) < ncol*nrow:
     for i in range((len(plot_vars)+len(plot_vars2)+len(plot_vars3)),ncol*nrow):
         r = i//ncol
         c = i-r*ncol
+        if (r==0 and c==1 and fix_wall_actors_plot): continue
         fig.delaxes(axs[r, c])
 
 # Save
