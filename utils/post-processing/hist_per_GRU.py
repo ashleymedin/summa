@@ -61,17 +61,17 @@ def power_transform(x):
 # Simulation statistics file locations
 use_vars = []
 rep = [] # mark the repeats
-#use_vars = [4,4,1,1]
-#rep = [1,2,1,2] # mark the repeats
+use_vars = [4,4,1,1]
+rep = [1,2,1,2] # mark the repeats
 settings0= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','scalarRootZoneTemp']
 settings = [settings0[i] for i in use_vars]
 
 use_vars2 = []
 rep2 = [] # mark the repeats
-use_vars2 = [8]
-rep2 = [0] # mark the repeats
-#use_vars2 = [3,3]
-#rep2 = [1,2] # mark the repeats
+#use_vars2 = [8]
+#rep2 = [0] # mark the repeats
+use_vars2 = [3,3]
+rep2 = [1,2] # mark the repeats
 settings20= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
 settings2 = [settings20[i] for i in use_vars2]
 
@@ -94,7 +94,7 @@ for i, m in enumerate(method_name3):
 
 # Specify variables of interest
 plot_vars = settings.copy()
-plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','top 4m soil temperature']
+plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','top 3m soil temperature']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~y^{-1}$','$kg~m^{-2}$','$K$']
 if (len(use_vars)>1): 
     plt_titl = [f"({chr(97+n)}) {plt_titl[i]}" for n,i in enumerate(use_vars)]
@@ -137,7 +137,7 @@ elif len(use_vars2)>0: # and len(use_vars)==0:
 elif len(use_vars3)>0: 
     fig_fil = fig_fil.format('split','mean')
 
-maxes_m = [99,15,99,99,7.5]
+maxes_m = [99,15,99,99,6]
 if do_rel: maxes_m = [0.4,0.007,0.6,0.15,0.0015]
 if stat == 'avge':
     stat2 = 'mean'
@@ -269,12 +269,12 @@ def run_loop(i,var,mx,rep,stat):
         range = (0,mx)
         if stat=='kgem' and var!='wallClockTime' : range = (mn,1)
         if do_hist: 
-            np.fabs(s).plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=2.0,range=range)
+            np.fabs(s).plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=3.0,range=range)
         else: #cdf
             sorted_data = np.sort(np.fabs(s))
             valid_data = sorted_data[~np.isnan(sorted_data)]
             yvals = np.arange(len(valid_data)) / float(len(valid_data) - 1)
-            axs[r,c].plot(valid_data, yvals, zorder=0, label=m, linewidth=2.0)
+            axs[r,c].plot(valid_data, yvals, zorder=0, label=m, linewidth=3.0)
             axs[r,c].set_xlim(range)  # Replace xmin and xmax with the desired limits
 
 
@@ -354,7 +354,7 @@ def run_loopb(i,var,mx,rep,stat2):
 
         range = (mn,mx)
         if do_hist: 
-            np.fabs(s).plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=2.0,range=range)
+            np.fabs(s).plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=3.0,range=range)
         else: #cdf
             sorted_data = np.sort(np.fabs(s))
             valid_data = sorted_data[~np.isnan(sorted_data)]
@@ -386,7 +386,7 @@ def run_loopb(i,var,mx,rep,stat2):
                     valid_data = valid_data * slope + intercept
 
             yvals = np.arange(len(valid_data)) / float(len(valid_data) - 1)
-            axs[r,c].plot(valid_data, yvals, zorder=0, label=m, linewidth=2.0)
+            axs[r,c].plot(valid_data, yvals, zorder=0, label=m, linewidth=3.0)
             axs[r,c].set_xlim(range)  # Replace xmin and xmax with the desired limits
 
     if stat0 == 'mean': 
@@ -431,7 +431,7 @@ def run_loopb(i,var,mx,rep,stat2):
                 axs[r, c+1].set_title('wall clock time comparison')
                 axs[r, c+1].set_xlim(combined_s_saved.min(),combined_s2.max()) 
                 axs[r, c+1].set_ylim(combined_s_saved.min(),combined_s2.max())
-                axs[r, c+1].plot(combined_s2, intercept + slope * combined_s2, color='black')
+                axs[r, c+1].plot(combined_s2, intercept + slope * combined_s2, color='black',linewidth=3.0)
                 axs[r, c+1].tick_params(axis='x', rotation=45) # Rotate x-axis labels for subplot
 
 
@@ -454,12 +454,12 @@ def run_loop3(i,var,mx,rep,stat3):
         s = summa2[m][var].sel(stat=stat0)
         range = (0,mx)
         if do_hist: 
-            np.fabs(s).plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=2.0,range=range)
+            np.fabs(s).plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=3.0,range=range)
         else: #cdf
             sorted_data = np.sort(np.fabs(s))
             valid_data = sorted_data[~np.isnan(sorted_data)]
             yvals = np.arange(len(valid_data)) / float(len(valid_data) - 1)
-            axs[r,c].plot(valid_data, yvals, zorder=0, label=m, linewidth=2.0)
+            axs[r,c].plot(valid_data, yvals, zorder=0, label=m, linewidth=3.0)
             axs[r,c].set_xlim(range)
 
     if stat0 == 'mean': stat_word = 'mean per data window'
