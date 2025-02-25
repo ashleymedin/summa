@@ -78,7 +78,7 @@ nbatch_hrus = 518 # number of HRUs per batch
 if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
 if more_mean: # extra vars in a balance file
-    plt_titl_exVar = ['rain plus melt into soil','top 4m soil temperature','air temperature','snow water equivalent']
+    plt_titl_exVar = ['rain plus melt into soil','top 3m soil temperature','air temperature','snow water equivalent']
     plot_vars_exVar = ['scalarRainPlusMelt','scalarRootZoneTemp','airtemp','scalarSWE']
     #plot_vars_exVar = ['balanceAqMass','balanceSoilNrg','balanceSoilMass','balanceVegMass']
     viz_file_exVar = 'exVar_hrly_diff_bals_balance.nc'
@@ -90,7 +90,7 @@ if more_mean: # extra vars in a balance file
 
 # Specify variables in files
 plot_vars = settings.copy() + ['scalarSWE']
-plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','top 4m soil temperature','melt with seasonal snow']
+plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','top 3m soil temperature','melt with seasonal snow']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$K$','$kg~m^{-2}$']
 calc = [0,0,0,0,0,0,1] # 1 if variable needs to be calculated from other variables
 melt_thresh = 1/(0.75) # threshold for melt water calculation (divisor is percentage of year no snow, if only melts once)
@@ -108,7 +108,7 @@ if stat == 'rmse' or stat == 'rmnz':
     maxes = [2,15,250,0.08,200,2] 
     if do_rel: maxes = [0.4,0.007,0.6,0.15,0.0015,0.2,0.6]
 if stat == 'maxe' or (stat=='avge' and two_stat): 
-    maxes2 = [99,15,99,99,7.5,99] #[15,25,25e-5,2,1e-7,0.2]
+    maxes2 = [99,15,99,99,6,99] #[15,25,25e-5,2,1e-7,0.2]
     if do_rel: maxes2 = [0.4,0.007,0.6,0.15,0.0015,0.2,0.6]
     if not two_stat:
         maxes = maxes2
@@ -118,7 +118,7 @@ if stat == 'mean' or stat == 'mnnz':
     maxes = [100,1700,2000,8,295,3000,100] #[80,1500,5e-5,8,1e-7,10e-3]
     if do_rel: maxes = [1.1,1.1,1.1,1.1,1.1,1.1]
 if stat == 'amax' or (stat=='mean' and two_stat): 
-    maxes2 = [240,1800,3.5,25,7.5,0.2,240] #[240,1800,1e-3,25,2e-6,0.2]
+    maxes2 = [240,1800,3.5,25,6,0.2,240] #[240,1800,1e-3,25,2e-6,0.2]
     if do_rel: maxes2 = [1.1,1.1,1.1,1.1,1.1,1.1]
     if not two_stat:
         maxes = maxes2
