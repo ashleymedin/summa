@@ -24,8 +24,9 @@ do_rel = False # true is plot relative to the benchmark simulation
 do_hist = False # true is plot histogram instead of CDF
 run_local = True # true is run on local machine, false is run on cluster
 fix_units_soil = True # true is convert to storage units, only works for Soil
-fix_wall_actors = True # true then scale reference solution for wall clock time
+fix_wall_actors = False # true then scale reference solution for wall clock time
 fix_wall_actors_plot = False # true then plot the wall clock time comparison
+fix_wall_event_plot = True # true then plot the event detection time comparison
 no_snow = False # true is only plot snow free simulations
 
 if run_local: 
@@ -41,8 +42,10 @@ else:
 #plt_name=['BE1','IDAe-4','BE4','BE8','BE16','BE32','IDAe-6'] #maybe make this an argument
 #method_name=['be1','be16','be32','sun6'] #maybe make this an argument
 #plt_name=['BE1','BE16','BE32','SUNDIALS'] #maybe make this an argument
-method_name=['be8','be8cm','be8en','sun5cm','sun5en'] 
-plt_name=['BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp', 'SUNDIALS enth']
+#method_name=['be8','be8cm','be8en','sun5cm','sun5en'] 
+#plt_name=['BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp', 'SUNDIALS enth']
+method_name=['sun5cm_noev','sun5cm','sun5en_noev','sun5en','sun8en_noev'] 
+plt_name=['SUNDIALS temp no event','SUNDIALS temp', 'SUNDIALS enth no event', 'SUNDIALS enth', 'reference soln no event']
 #method_name=['old_be1','old_be1cm','old_be1en','be8','be8cm','be8en','sun5cm','sun5en'] 
 #plt_name=['BE1 common','BE1 temp','BE1 mixed','BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp', 'SUNDIALS enth']
 method_name2=method_name +['sun8en']
@@ -61,17 +64,17 @@ def power_transform(x):
 # Simulation statistics file locations
 use_vars = []
 rep = [] # mark the repeats
-use_vars = [4,4,1,1]
-rep = [1,2,1,2] # mark the repeats
+#use_vars = [4,4,1,1]
+#rep = [1,2,1,2] # mark the repeats
 settings0= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','scalarRootZoneTemp']
 settings = [settings0[i] for i in use_vars]
 
-use_vars2 = []
-rep2 = [] # mark the repeats
-#use_vars2 = [8]
-#rep2 = [0] # mark the repeats
-use_vars2 = [3,3]
-rep2 = [1,2] # mark the repeats
+#use_vars2 = []
+#rep2 = [] # mark the repeats
+use_vars2 = [8]
+rep2 = [0] # mark the repeats
+#use_vars2 = [3,3]
+#rep2 = [1,2] # mark the repeats
 settings20= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
 settings2 = [settings20[i] for i in use_vars2]
 
@@ -385,6 +388,33 @@ def run_loopb(i,var,mx,rep,stat2):
                     #valid_data = valid_data*fac
                     valid_data = valid_data * slope + intercept
 
+            if fix_wall_event_plot and 'wallClockTime' in var:
+                from scipy.stats import linregress
+                if m in ['sun5en']:#,'sun8en']:
+                    s_saved = s
+                    s2 = summa1[f'{m}_noev'][var].sel(stat=stat0).where(lambda x: x != 9999)
+                    s2 = s2.where(lambda x: x != 0)  # water bodies should be 0
+                    mask = ~np.isnan(s2.values) & ~np.isnan(s_saved.values)
+                    s2 = s2[mask]
+                    s_saved = s_saved[mask]
+                    combined_s2.append(s2.values)
+                    combined_s_saved.append(s_saved.values)
+                    first_len = len(s2)
+                
+                if m=='sun8en': # assumes sun8en is the last one
+                    combined_s2 = np.concatenate(combined_s2)
+                    combined_s_saved = np.concatenate(combined_s_saved)
+                    # Least squares fit
+                    A = combined_s2[:, np.newaxis]
+                    fac, _, _, _ = np.linalg.lstsq(A, combined_s_saved, rcond=None)
+                    fac = fac[0]
+                    print(f'Best fit least squares ratio (slope={fac:.4f})')
+                    slope, intercept, r_value, p_value, std_err = linregress(combined_s2, combined_s_saved)
+                    print(f'Best fit regression line (slope={slope:.4f}, intercept={intercept:.4f}, corr coeff={r_value:.2e})')
+                    #print('Correcting reference solution with regression line')
+                    #valid_data = valid_data*fac
+                    #valid_data = valid_data * slope + intercept
+
             yvals = np.arange(len(valid_data)) / float(len(valid_data) - 1)
             axs[r,c].plot(valid_data, yvals, zorder=0, label=m, linewidth=3.0)
             axs[r,c].set_xlim(range)  # Replace xmin and xmax with the desired limits
@@ -428,6 +458,19 @@ def run_loopb(i,var,mx,rep,stat2):
                 axs[r, c + 1].scatter(combined_s2[:first_len], combined_s_saved[:first_len], alpha=0.5, color=auto_col[0], label='BE8 common')
                 axs[r, c+1].set_xlabel('Graham time [s]')
                 axs[r, c+1].set_ylabel('Anvil Actors time [s]')
+                axs[r, c+1].set_title('wall clock time comparison')
+                axs[r, c+1].set_xlim(combined_s_saved.min(),combined_s2.max()) 
+                axs[r, c+1].set_ylim(combined_s_saved.min(),combined_s2.max())
+                axs[r, c+1].plot(combined_s2, intercept + slope * combined_s2, color='black',linewidth=3.0)
+                axs[r, c+1].tick_params(axis='x', rotation=45) # Rotate x-axis labels for subplot
+
+            if fix_wall_event_plot:
+                fig.subplots_adjust(hspace=0.2, wspace=0.2) # Adjust the bottom margin, vertical space, and horizontal space
+                auto_col = plt.rcParams['axes.prop_cycle'].by_key()['color']
+                axs[r, c + 1].scatter(combined_s2[first_len:], combined_s_saved[first_len:], alpha=0.5, color=auto_col[5], label='reference soln')
+                axs[r, c + 1].scatter(combined_s2[:first_len], combined_s_saved[:first_len], alpha=0.5, color=auto_col[3], label='SUNDIALS enth')
+                axs[r, c+1].set_xlabel('no event detection time [s]')
+                axs[r, c+1].set_ylabel('event detection time time [s]')
                 axs[r, c+1].set_title('wall clock time comparison')
                 axs[r, c+1].set_xlim(combined_s_saved.min(),combined_s2.max()) 
                 axs[r, c+1].set_ylim(combined_s_saved.min(),combined_s2.max())
@@ -502,6 +545,7 @@ if (len(plot_vars)+len(plot_vars2)+len(plot_vars3)) < ncol*nrow:
         r = i//ncol
         c = i-r*ncol
         if (r==0 and c==1 and fix_wall_actors_plot): continue
+        if (r==0 and c==1 and fix_wall_event_plot): continue
         fig.delaxes(axs[r, c])
 
 # Save

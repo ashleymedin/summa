@@ -258,23 +258,26 @@ contains
  character(*),intent(out)        :: message             ! error message
  ! declare local variables
  integer(i4b)                    :: iLayer              ! loop through layers
-  integer(i4b)                   :: iSoil               ! index for soil layers
+ integer(i4b)                    :: iSoil               ! index for soil layers
  real(rkind)                     :: ifcDepthScaleFactor ! depth scaling factor (layer interfaces)
  real(rkind)                     :: midDepthScaleFactor ! depth scaling factor (layer midpoints)
+ real(rkind), allocatable        :: k_soil(:)           ! saturated hydraulic conductivity at the compacted depth (m s-1)
+ real(rkind), allocatable        :: k_macropore(:)      ! saturated hydraulic conductivity at the compacted depth for macropores (m s-1)
  ! initialize error control
  err=0; message='satHydCond/'
  ! ----------------------------------------------------------------------------------
  ! associate variables in data structure
  associate(&
  ! associate the values in the parameter structures
- k_soil             => mpar_data%var(iLookPARAM%k_soil)%dat,            & ! saturated hydraulic conductivity at the compacted depth (m s-1)
- k_macropore        => mpar_data%var(iLookPARAM%k_macropore)%dat,       & ! saturated hydraulic conductivity at the compacted depth for macropores (m s-1)
+ k_soil0            => mpar_data%var(iLookPARAM%k_soil)%dat,            & ! saturated hydraulic conductivity at the compacted depth (m s-1)
+ k_macropore0       => mpar_data%var(iLookPARAM%k_macropore)%dat,       & ! saturated hydraulic conductivity at the compacted depth for macropores (m s-1)
  compactedDepth     => mpar_data%var(iLookPARAM%compactedDepth)%dat(1), & ! the depth at which k_soil reaches the compacted value given by CH78 (m)
  zScale_TOPMODEL    => mpar_data%var(iLookPARAM%zScale_TOPMODEL)%dat(1),& ! exponent for the TOPMODEL-ish baseflow parameterization (-)
  ! associate the model index structures
  nSnow              => indx_data%var(iLookINDEX%nSnow)%dat(1),          & ! number of snow layers
  nLake              => indx_data%var(iLookINDEX%nLake)%dat(1),          & ! number of lake layers
  nSoil              => indx_data%var(iLookINDEX%nSoil)%dat(1),          & ! number of soil layers
+ nGlce              => indx_data%var(iLookINDEX%nGlce)%dat(1),          & ! number of glacier ice layers
  ! associate the coordinate variables
  mLayerHeight       => prog_data%var(iLookPROG%mLayerHeight)%dat,       & ! height at the mid-point of each layer (m)
  iLayerHeight       => prog_data%var(iLookPROG%iLayerHeight)%dat,       & ! height at the interface of each layer (m)
@@ -284,6 +287,14 @@ contains
  iLayerSatHydCond   => flux_data%var(ilookFLUX%ilayersathydcond)%dat    & ! saturated hydraulic conductivity at the interface of each layer (m s-1)
  ) ! end associate
  ! ----------------------------------------------------------------------------------
+ ! initialize the hydraulic conductivity at the compacted depth
+ allocate(k_soil(nSoil), k_macropore(nSoil))
+ k_soil = k_soil0
+ k_macropore = k_macropore0
+ if (nGlce > 0) then ! no drainage out of glacier debris into the glacier
+  k_soil(nSoil) = 0._rkind
+  k_macropore(nSoil) = 0._rkind
+ end if
 
  ! loop through soil layers
  ! NOTE: could do constant profile with the power-law profile with exponent=1, but keep constant profile decision for clarity
@@ -357,6 +368,7 @@ contains
   end if ! if iLayer > nSnow
  end do  ! looping through soil layers
 
+ deallocate(k_soil, k_macropore)
  end associate
 
  end subroutine satHydCond

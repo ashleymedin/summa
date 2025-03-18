@@ -125,10 +125,10 @@ contains
  albedoRefresh             => mpar_data%var(iLookPARAM%albedoRefresh)%dat(1),         & ! intent(in): critical mass necessary for albedo refreshment (kg m-2)
  snowfrz_scale             => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),         & ! intent(in): scaling parameter for the freezing curve for snow (K-1)
  ! input: model parameters for ice and water
- albedoFrznWatVisible      => mpar_data%var(iLookPARAM%albedoFrznWatVisible)%dat(1),  & ! intent(in): albedo of  in the visible part of the spectrum (-)
- albedoFrznWatNearIR       => mpar_data%var(iLookPARAM%albedoFrznWatNearIR)%dat(1),   & ! intent(in): albedo of  in the near infra-red part of the spectrum (-)
- albedoOpenWatVisible      => mpar_data%var(iLookPARAM%albedoOpenWatVisible)%dat(1),  & ! intent(in): albedo of water in the visible part of the spectrum (-)
- albedoOpenWatNearIR       => mpar_data%var(iLookPARAM%albedoOpenWatNearIR)%dat(1),   & ! intent(in): albedo of water in the near infra-red part of the spectrum (-)
+ albedoFrznWatVisible      => mpar_data%var(iLookPARAM%albedoFrznWatVisible)%dat(1),  & ! intent(in): albedo of frozen water in the visible part of the spectrum (-)
+ albedoFrznWatNearIR       => mpar_data%var(iLookPARAM%albedoFrznWatNearIR)%dat(1),   & ! intent(in): albedo of frozen water  in the near infra-red part of the spectrum (-)
+ albedoOpenWatVisible      => mpar_data%var(iLookPARAM%albedoOpenWatVisible)%dat(1),  & ! intent(in): albedo of open water in the visible part of the spectrum (-)
+ albedoOpenWatNearIR       => mpar_data%var(iLookPARAM%albedoOpenWatNearIR)%dat(1),   & ! intent(in): albedo of open water in the near infra-red part of the spectrum (-)
  ! input: model variables
  surfaceTemp               => prog_data%var(iLookPROG%mLayerTemp)%dat(1),             & ! intent(in): surface temperature
  snowfallRate              => flux_data%var(iLookFLUX%scalarSnowfall)%dat(1),         & ! intent(in): snowfall rate (kg m-2 s-1)
