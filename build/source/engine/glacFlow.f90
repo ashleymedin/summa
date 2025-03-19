@@ -255,6 +255,9 @@ subroutine glacFlow(&
     bed = gridData%grid(iGrid)%var(iLookGRID%bed_elev)%dat2(1:nx,1:ny)
     cell2hru = int(gridData%grid(iGrid)%var(iLookGRID%cell2hru)%dat2(1:nx,1:ny))
     glacierMask = int(gridData%grid(iGrid)%var(iLookGRID%glacierMask)%dat2(1:nx,1:ny))
+    
+    ! make non-glacier bed have high elevation so glacier does not grow there
+    bed = merge(bed,bed+1000._rkind,glacierMask==0)
 
     ! distribute mass balance over surface, using all points in GRU
     do k = 1, nx

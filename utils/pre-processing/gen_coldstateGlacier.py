@@ -485,7 +485,7 @@ if __name__ == '__main__':
     # nSoil, nSnow, nGlce, nLake
     writeNC_state_vars_HRU_DOM(nc_out, 'nSoil', 'scalarv', 'f8', midSoil_dom)           # nSoil
     writeNC_state_vars_HRU_DOM(nc_out, 'nSnow', 'scalarv', 'f8', scalar0 )              # nSnow start at 0
-    writeNC_state_vars_HRU_DOM(nc_out, 'nGlce', 'scalarv', 'f8', midGlce_dom)             # nGlce
+    writeNC_state_vars_HRU_DOM(nc_out, 'nGlce', 'scalarv', 'f8', midGlce_dom)           # nGlce
     writeNC_state_vars_HRU_DOM(nc_out, 'nLake', 'scalarv', 'f8', midLake_dom)           # nLake
 
     # dT
