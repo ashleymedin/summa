@@ -75,7 +75,7 @@ USE globalData,only:model_decisions    ! model decision structure
 USE var_lookup,only:iLookDECISIONS     ! look-up values for model decisions
 
 ! access missing values
-USE globalData,only:realMissing         ! missing double precision number
+USE globalData,only:realMissing        ! missing double precision number
 
 ! access domain types
 USE globalData,only:upland             ! domain type for upland areas
@@ -83,6 +83,7 @@ USE globalData,only:glacAcc            ! domain type for glacier accumulation ar
 USE globalData,only:glacCln            ! domain type for glacier ablation clean areas
 USE globalData,only:glacDbr            ! domain type for glacier ablation debris areas
 USE globalData,only:wetland            ! domain type for wetland areas
+USE globalData,only:glacieret          ! domain type for glaciers considered too small for flow
 
 ! provide access to the named variables that describe model decisions
 USE mDecisions_module,only:&           ! look-up values for the choice of method for the spatial representation of groundwater
@@ -223,7 +224,7 @@ subroutine run_oneGRU(&
     do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
       fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = 0._rkind
       if (progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)==0._rkind) cycle ! skip domains with no area
-      if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc .or. &
+      if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacieret .or. &
           gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr)then        
         if (check_updateGlacArea) then ! update glacier area every October 1st of mod year
           ! compute the fractional julian day for the current time step

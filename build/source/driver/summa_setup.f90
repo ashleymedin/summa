@@ -45,6 +45,7 @@ USE globalData,only:glacAcc            ! domain type for glacier accumulation ar
 USE globalData,only:glacCln            ! domain type for glacier ablation clean areas
 USE globalData,only:glacDbr            ! domain type for glacier ablation debris areas
 USE globalData,only:wetland            ! domain type for wetland areas
+USE globalData,only:glacieret          ! domain type for glaciers considered too small for flow
 
 ! metadata structures
 USE globalData,only:mpar_meta,bpar_meta ! parameter metadata structures
@@ -232,7 +233,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
      maxLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + maxSnowLayers
      maxSoilLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
     else if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln .or. gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr &
-       .or. gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc)then
+       .or. gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc .or. gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacieret)then
      maxLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce + maxSnowLayers
      maxGlceLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce
      if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr) maxSoilLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil

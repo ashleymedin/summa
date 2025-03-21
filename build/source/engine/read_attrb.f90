@@ -26,13 +26,6 @@ USE globalData,only:index_map                              ! hru->gru mapping st
 USE globalData,only:attr_meta,type_meta,id_meta            ! metadata structures
 USE globalData,only:int8Missing                            ! missing long integer
 
-! access domain types
-USE globalData,only:upland                                 ! domain type for upland areas
-USE globalData,only:glacAcc                                ! domain type for glacier accumulation areas
-USE globalData,only:glacCln                                ! domain type for glacier ablation clean areas
-USE globalData,only:glacDbr                                ! domain type for glacier ablation debris areas
-USE globalData,only:wetland                                ! domain type for wetland areas
-
 implicit none
 private
 public::read_dimension

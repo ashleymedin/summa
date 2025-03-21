@@ -46,6 +46,7 @@ USE globalData,only:glacAcc                ! domain type for glacier accumulatio
 USE globalData,only:glacCln                ! domain type for glacier ablation clean areas
 USE globalData,only:glacDbr                ! domain type for glacier ablation debris areas
 USE globalData,only:wetland                ! domain type for wetland areas
+USE globalData,only:glacieret              ! domain type for glaciers considered too small for flow
 
 ! provide access to Noah-MP constants
 USE module_sf_noahmplsm,only:isWater       ! parameter for water land cover type

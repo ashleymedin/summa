@@ -427,40 +427,40 @@ if __name__ == '__main__':
     if glac_dom: # NOTE, if HRU glacier area is 0, midGlce_dom should be 0
         lyrDepth[1,:,0:midToto_glac0] = lyrDepth_glac[:,:,0]
         lyrHeight[1,:,0:midToto_glac0+1] = lyrHeight_glac[:,:,0]
-        midGlce_dom[:,0,1] = midGlce
-        midSoil_dom[:,0,1] = midSoil_glac[:,0]
-        domType[:,0,1] = 2 # glacier accumulation
-        dom_area[:,0,1] = hru_area * glacAcc_frac
-        dom_elev[:,0,1] = glacAcc_elev
+        midGlce_dom[0,:,1] = midGlce
+        midSoil_dom[0,:,1] = midSoil_glac[:,0]
+        domType[0,:,1] = 2 # glacier accumulation
+        dom_area[0,:,1] = hru_area * glacAcc_frac
+        dom_elev[0,:,1] = glacAcc_elev
         if clean_dom:
             lyrDepth[2,:,0:midToto_glac0] = lyrDepth_glac[:,:,0]
             lyrHeight[2,:,0:midToto_glac0+1] = lyrHeight_glac[:,:,0]
-            midGlce_dom[:,0,2] = midGlce
-            midSoil_dom[:,0,2] = midSoil_glac[:,0]
-            domType[:,0,2] = 3 # glacier ablation clean
-            dom_area[:,0,2] = hru_area * glacCln_frac
-            dom_elev[:,0,2] = glacCln_elev
+            midGlce_dom[0,:,2] = midGlce
+            midSoil_dom[0,:,2] = midSoil_glac[:,0]
+            domType[0,:,2] = 3 # glacier ablation clean
+            dom_area[0,:,2] = hru_area * glacCln_frac
+            dom_elev[0,:,2] = glacCln_elev
         if (debr_dom > 0):
             lyrDepth[indDebr,:,0:midToto_glac0] = lyrDepth_glac[:,:,1]
             lyrHeight[indDebr,:,0:midToto_glac0+1] = lyrHeight_glac[:,:,1]
-            midGlce_dom[:,0,indDebr] = midGlce
-            midSoil_dom[:,0,indDebr] = midSoil_glac[:,1]
-            domType[:,0,indDebr] = 4 # glacier ablation debris
-            dom_area[:,0,indDebr] = hru_area * glacDbr_frac
-            dom_elev[:,0,indDebr] = glacDbr_elev
+            midGlce_dom[0,:,indDebr] = midGlce
+            midSoil_dom[0,:,indDebr] = midSoil_glac[:,1]
+            domType[0,:,indDebr] = 4 # glacier ablation debris
+            dom_area[0,:,indDebr] = hru_area * glacDbr_frac
+            dom_elev[0,:,indDebr] = glacDbr_elev
 
     if wtld_dom: # NOTE, if HRU wetland area is 0, midLake_dom should be 0
         lyrDepth[indWtld,:,0:midToto_wtld] = lyrDepth_wtld
         lyrHeight[indWtld,:,0:midToto_wtld+1] = lyrHeight_wtld
-        midLake_dom[:,0,indWtld] = midLake
-        midSoil_dom[:,0,indWtld] = midSoil_wtld
-        domType[:,0,indWtld] = 5
+        midLake_dom[0,:,indWtld] = midLake
+        midSoil_dom[0,:,indWtld] = midSoil_wtld
+        domType[0,:,indWtld] = 5
         wtld_elev = hru_elev  # assume wetland elev same as upland
-        dom_area[:,0,indWtld] = hru_area * wtld_frac 
-        dom_elev[:,0,indWtld] = wtld_elev           # assume wetland elev same as upland
+        dom_area[0,:,indWtld] = hru_area * wtld_frac 
+        dom_elev[0,:,indWtld] = wtld_elev           # assume wetland elev same as upland
 
-    dom_area[:,0,0] = hru_area * upld_frac
-    dom_elev[:,0,0] = upld_elev
+    dom_area[0,:,0] = hru_area * upld_frac
+    dom_elev[0,:,0] = upld_elev
 
     lyrDepth = lyrDepth.transpose()
     lyrHeight = lyrHeight.transpose()
@@ -489,7 +489,7 @@ if __name__ == '__main__':
     writeNC_state_vars_HRU_DOM(nc_out, 'nLake', 'scalarv', 'f8', midLake_dom)           # nLake
 
     # dT
-    newVarVals = np.full((ndom, 1, nOutPolygonsHRU), dT, dtype='f8')
+    newVarVals = np.full((1, nOutPolygonsHRU, ndom), dT, dtype='f8')
     writeNC_state_vars_HRU_DOM(nc_out, 'dt_init', 'scalarv', 'f8', newVarVals)
 
     # area and elevation
@@ -523,9 +523,9 @@ if __name__ == '__main__':
         for k,h in enumerate(outPolyIDs):
             for i in range(ndom): # put ice layers at -5 C and all ice similar to Giese et al. 2020, otherwise need to spin up 40 yrs
                 if i>0 and i<4: 
-                    if (domType[k,0,i] == 2) or (domType[k,0,i] == 3): # glacier accumulation or ablation clean
+                    if (domType[0,k,i] == 2) or (domType[0,k,i] == 3): # glacier accumulation or ablation clean
                         ind = 0
-                    elif (domType[k,0,i] == 4): # glacier ablation debris
+                    elif (domType[0,k,i] == 4): # glacier ablation debris
                         ind = 1
                     toto283[   midSoil_glac[k,ind]:(midGlce+midSoil_glac[k,ind]),:,i] = 268.16 # or 273.16?
                     toto0[     midSoil_glac[k,ind] ,:,i] = 0.90 # could be 0.9 per Bradford et al. 2009, less air as go deeper

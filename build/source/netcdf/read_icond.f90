@@ -32,6 +32,7 @@ USE globalData,only:glacAcc            ! domain type for glacier accumulation ar
 USE globalData,only:glacCln            ! domain type for glacier ablation clean areas
 USE globalData,only:glacDbr            ! domain type for glacier ablation debris areas
 USE globalData,only:wetland            ! domain type for wetland areas
+USE globalData,only:glacieret          ! domain type for glaciers considered too small for flow
 
 implicit none
 private
@@ -137,11 +138,11 @@ contains
  ! check if the file has the GRU dimension
  err = nf90_inq_dimid(ncID,"gru",dimID);    
  if(err/=nf90_noerr)then         
-   write(*,*) 'WARNING: GRU is not in the initial conditions file ... assuming = HRU'
-   fileGRU = fileHRU
+   write(*,*) 'WARNING: GRU is not in the initial conditions file ... assuming HRUs in attribute order'
+   fileGRU = size(gru_struc(:)%gru_id)
    err=nf90_noerr    ! reset this err
    allocate(gru_id(fileHRU))
-   gru_id = hru_id
+   gru_id = gru_struc(:)%gru_id
  else
    err = nf90_inquire_dimension(ncID,dimID,len=fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
    ! read gru_id from netcdf file
@@ -188,6 +189,7 @@ contains
  lakeData2 = 0
 
  ! count domains and set domain type
+ ! NOTE: dom_type 0 will be no domain
  do i = 1,fileGRU
    iGRU = gruid_to_index(i)
    do j = 1,gru_struc(iGRU)%hruCount
@@ -195,11 +197,13 @@ contains
      iHRU_global = hrunc_to_index(i,j)
      gru_struc(iGRU)%hruInfo(iHRU)%domCount = 1                                              ! upland domain always present, for changing size glaciers and lakes
      if (any(dom_type(1:fileDOM,iHRU_global)==glacAcc)) &
-       gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 2   ! accumulation and ablation domains need to be possible
+       gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 2   ! accumulation and ablation domains need to be possible together
      if (any(dom_type(1:fileDOM,iHRU_global)==glacCln) .and. any(dom_type(1:fileDOM,iHRU_global)==glacDbr)) &
        gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 1   ! will only have debris and clean domains if start with both
      if (any(dom_type(1:fileDOM,iHRU_global)==wetland)) &
        gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 1   ! wetland domain possible
+     if (any(dom_type(1:fileDOM,iHRU_global)==glacieret)) &
+       gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 1   ! glacieret domain possible
      allocate(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(gru_struc(iGRU)%hruInfo(iHRU)%domCount)) ! allocate third level of gru to hru map
      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(:)%dom_type = dom_type(:,iHRU_global)
    enddo
@@ -390,11 +394,10 @@ contains
  ! check if the file has the GRU dimension
  err = nf90_inq_dimid(ncID,"gru",dimID);    
  if(err/=nf90_noerr)then         
-   !write(*,*) 'WARNING: GRU is not in the initial conditions file ... assuming = HRU' ! already printed in read_icond_nlayers
-   fileGRU = fileHRU
+   fileGRU = size(gru_struc(:)%gru_id)
    err=nf90_noerr    ! reset this err
    allocate(gru_id(fileHRU))
-   gru_id = hru_id
+   gru_id = gru_struc(:)%gru_id
  else
    err = nf90_inquire_dimension(ncID,dimID,len=fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
    ! read gru_id from netcdf file

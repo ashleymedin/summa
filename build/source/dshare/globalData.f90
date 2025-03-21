@@ -215,6 +215,7 @@ MODULE globalData
   integer(i4b),save,public                       :: glacCln=3                         ! glacier clean ablation domain
   integer(i4b),save,public                       :: glacDbr=4                         ! glacier debris ablation domain
   integer(i4b),save,public                       :: wetland=5                         ! wetland/lake domain
+  integer(i4b),save,public                       :: glacieret=6                       ! glacieret domain
   ! define the model output file
   character(len=256),save,public                 :: fileout=''                        ! output filename
   character(len=256),save,public                 :: output_fileSuffix=''              ! suffix for the output file

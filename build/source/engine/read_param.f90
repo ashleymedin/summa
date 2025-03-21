@@ -255,7 +255,6 @@ contains
 
    ! get the variable shape
    err=nf90_inquire_variable(ncid, ivarid, nDims=nDims, dimids=idim_list)
-   print*,parName,nDims,err
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
    ! get the length of the depth dimension (if it exists)
@@ -338,14 +337,14 @@ contains
      ! populate parameter structures with the data using the appropriate size of nSoil, and repeating if necessary
      nSoil = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
      select case(nDims)
-      case(1); mparStruct%gru(iGRU)%hru(localHRU_ix)%dom(iDOM)%var(ixParam)%dat(1:nSoil) = parVector(1)  ! also distributes scalar across depth dimension
+      case(1); mparStruct%gru(iGRU)%hru(localHRU_ix)%dom(iDOM)%var(ixParam)%dat(:) = parVector(1)  ! also distributes scalar across depth dimension
       case(2)
        if(nDOM_file==integerMissing)then 
-        mparStruct%gru(iGRU)%hru(localHRU_ix)%dom(iDOM)%var(ixParam)%dat(1:nSoil) = parVector(1:nSoil)
+        mparStruct%gru(iGRU)%hru(localHRU_ix)%dom(iDOM)%var(ixParam)%dat(:) = parVector(:)
        else
-        mparStruct%gru(iGRU)%hru(localHRU_ix)%dom(iDOM)%var(ixParam)%dat(1:nSoil) = parVector(1)
+        mparStruct%gru(iGRU)%hru(localHRU_ix)%dom(iDOM)%var(ixParam)%dat(:) = parVector(1)
        endif
-      case(3); mparStruct%gru(iGRU)%hru(localHRU_ix)%dom(iDOM)%var(ixParam)%dat(1:nSoil) = parVector(1:nSoil)
+      case(3); mparStruct%gru(iGRU)%hru(localHRU_ix)%dom(iDOM)%var(ixParam)%dat(:) = parVector(:)
       case default; err=20; message=trim(message)//'unexpected number of dimensions for parameter '//trim(parName)
      end select
 
