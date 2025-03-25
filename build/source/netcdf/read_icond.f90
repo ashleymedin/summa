@@ -850,7 +850,7 @@ contains
  integer(i4b)                              :: ny,nx                    ! number of grid points for a glacier
  integer(i4b)                              :: filegrid                 ! max number of glacier grids in any GRU
  integer(i4b)                              :: iVar,i,j,k               ! loop indices
- integer(i4b),dimension(1)                 :: ngdx                     ! intermediate array of loop indices
+ integer(i4b),dimension(2)                 :: ngdx                     ! intermediate array of loop indices
  integer(i4b)                              :: iGRU,iGrid               ! loop index
  integer(i4b)                              :: dimID                    ! varible dimension ids
  integer(i4b)                              :: ncVarID                  ! variable ID in netcdf file

@@ -115,15 +115,14 @@ subroutine glacFlow(&
   integer(i4b)                       :: i,j,k,n,iGlac,iGrid,iDOM        ! loop indices
   integer(i4b)                       :: dbr                             ! debris loop index 0 or 1
   integer(i4b)                       :: ind                             ! indice for mass balance interpolation
-  real(rkind)                        :: slope(:,:), intercept(:,:)      ! slope and intercept for linear extrapolation of mass balance
+  real(rkind), allocatable           :: slope(:,:), intercept(:,:)      ! slope and intercept for linear extrapolation of mass balance
   real(rkind)                        :: sum_mass                        ! sum of mass balance values for averaging
   integer(i4b)                       :: nx, ny                          ! number of grid cells in x and y directions
   real(rkind)                        :: dx, dy                          ! grid cell size in x and y directions
   real(rkind)                        :: volume                          ! volume of each glacier km3
   real(rkind)                        :: totVolume                       ! total volume of all glaciers km3, might want to send out of routine
-  real(rkind), allocatable           :: mb(:,:)                         ! mass balance in each glacier cell over the nYears (m s-1)
   real(rkind)                        :: ELA_elev(2)                     ! ELA elevation
-  real(rkind)                        :: ELA_use                         ! ELA used for domain calculations
+  real(rkind)                        :: ELA_use0, ELA_use               ! ELA used for domain calculations
   real(rkind), allocatable           :: hgt(:,:)                        ! height of each glacier domain (m)
   integer(i4b)                       :: maxCount                        ! maximum number of valid points
   integer(i4b)                       :: validCount(2)                   ! number of valid points for each debris condition
@@ -171,8 +170,8 @@ subroutine glacFlow(&
     ! Filter out points where no area and elevation is missing and debris as above
     j = 1
     if (validCount(dbr+1) == 0) cycle ! no valid points
-    if (has_clean==.False. .and. dbr==0) cycle ! no clean, skip 
-    if (has_debris==.False. .and. dbr==1) cycle ! no debris, skip 
+    if (.not. has_clean .and. dbr==0) cycle ! no clean, skip 
+    if (.not. has_debris .and. dbr==1) cycle ! no debris, skip 
     do iDOM = 1, nDOM
       if (dbr==0)then ! no debris, dbr = 0, index = 1
         if (elev(iDOM) /= realMissing .and. debris_thick_dom(iDOM) <= 0._rkind) then
@@ -199,7 +198,7 @@ subroutine glacFlow(&
         if (validElev(j,dbr+1) < validElev(j+1,dbr+1)) then
           ! Swap elevations
           temp_elev = validElev(j,dbr+1)
-          validElev(j,dbr+1) = validElev(j+1)
+          validElev(j,dbr+1) = validElev(j+1,dbr+1)
           validElev(j+1,dbr+1) = temp_elev
           ! Swap corresponding massChange values
           temp_mass = validMassChange(j,dbr+1)
@@ -248,22 +247,22 @@ subroutine glacFlow(&
     else
       do i = 1, validCount(dbr+1)-1
         slope(i+1,dbr+1)= (validMassChange(i+1,dbr+1) - validMassChange(i,dbr+1)) / (validElev(i+1,dbr+1) - validElev(i,dbr+1))
-        intercept(i+1,dbr+1) = validMassChange(i,dbr+1) - slope * validElev(i,dbr+1)
+        intercept(i+1,dbr+1) = validMassChange(i,dbr+1) - slope(i+1,dbr+1) * validElev(i,dbr+1)
         ind = 0
         if (validMassChange(i,dbr+1) <= 0._rkind) ind = i
       end do
       if (ind == 0) ind = validCount(dbr+1)+1 ! all domains are accumulation, extrapolate below last point
-      slope(1,dbr+1) = slope(1)
-      intercept(1,dbr+1) = intercept(1)
+      slope(1,dbr+1) = slope(2,dbr+1)
+      intercept(1,dbr+1) = intercept(2,dbr+1)
       slope(validCount(dbr+1)+1,dbr+1) = slope(validCount(dbr+1),dbr+1)
       intercept(validCount(dbr+1)+1,dbr+1) = intercept(validCount(dbr+1),dbr+1)
       ELA_elev(dbr+1) = -intercept(ind,dbr+1) / slope(ind,dbr+1)
     end if
 
   enddo ! end of loop to get elevation relationships
-  ELA_use = ELA_elev(1) ! default to clean ablation ELA
-  if (ELA_use<0.0_rkind) then ! no clean ablation
-    ELA_use = ELA_elev(2)
+  ELA_use0 = ELA_elev(1) ! default to clean ablation ELA
+  if (ELA_use0<0.0_rkind) then ! no clean ablation
+    ELA_use0 = ELA_elev(2)
   end if
  
   ! Initialize new domain areas and elevations
@@ -297,28 +296,27 @@ subroutine glacFlow(&
     dx = gridInfo(iGrid)%dx
     dy = gridInfo(iGrid)%dy
     
-    ! set up mass balance and height arrays
-    allocate(mb(nx,ny), hgt(nx,ny))
-    mb = 0._rkind
+    ! set height arrays and masks
+    allocate(hgt(nx,ny), glacAccMask(nx,ny), glacAblMask(nx,ny), glacDbrMask(nx,ny))
     hgt = 0._rkind
+    glacAccMask = 0
+    glacAblMask = 0
+    glacDbrMask = 0
 
     ! set up grid data
-    allocate(surface(nx,ny), bed(nx,ny), cell2hru(nx,ny), glacierMask(nx,ny), debris(nx,ny), glacAccMask(nx,ny), &
-             glacAblMask(nx,ny), glacDbrMask(nx,ny))
+    allocate(surface(nx,ny), bed(nx,ny), cell2hru(nx,ny), glacierMask(nx,ny), debris(nx,ny))
     surface = gridData%grid(iGrid)%var(iLookGRID%surface_elev)%dat2(1:nx,1:ny)
     bed = gridData%grid(iGrid)%var(iLookGRID%bed_elev)%dat2(1:nx,1:ny)
     debris = gridData%grid(iGrid)%var(iLookGRID%debris_thick)%dat2(1:nx,1:ny)
     cell2hru = int(gridData%grid(iGrid)%var(iLookGRID%cell2hru)%dat2(1:nx,1:ny))
     glacierMask = int(gridData%grid(iGrid)%var(iLookGRID%glacierMask)%dat2(1:nx,1:ny))
-    glacAccMask = 0
-    glacAblMask = 0
-    glacDbrMask = 0
+
     
     ! make non-glacier bed have high elevation so glacier does not grow there
     bed = merge(bed,bed+1000._rkind,glacierMask==0)
 
     ! compute flow
-    call run_year(nYears, debris, surface, bed, mb, glacierMask, slope, intercept, validElev, validCount, maxCount, &
+    call run_year(nYears, debris, surface, bed, glacierMask, slope, intercept, validElev, validCount, maxCount, &
                   iden_soil, theta_sat, ELA_use, nx, ny, dx, dy, volume)
     totVolume = totVolume+volume ! add volume to total volume, includes debris, not currently used
     
@@ -329,9 +327,10 @@ subroutine glacFlow(&
     !   NOTE: We might not want to do this, but do for now to avoid errors
     glacMin = minval(merge(surface,1.e6_rkind, hgt>thick4area))
     glacMax = maxval(merge(surface,0._rkind, hgt>thick4area))
-    if (ELA_elev(dbr+1) < glacMin) ELA_use(dbr+1) = glacMin + 0.0001_rkind
-    if (ELA_elev(dbr+1) > glacMax)then 
-      ELA_use(dbr+1) = glacMax - 0.0001_rkind
+    ELA_use = ELA_use0
+    if (ELA_use < glacMin) ELA_use = glacMin + 0.0001_rkind
+    if (ELA_use > glacMax)then 
+      ELA_use = glacMax - 0.0001_rkind
       ! Remove debris from accumulation zone
       debris = merge(debris, 0._rkind, surface>=ELA_use)
     end if
@@ -370,7 +369,7 @@ subroutine glacFlow(&
     ! update gridData and deallocate
     gridData%grid(iGrid)%var(iLookGRID%surface_elev)%dat2(1:nx,1:ny) = surface
     gridData%grid(iGrid)%var(iLookGRID%debris_thick)%dat2(1:nx,1:ny) = debris
-    deallocate(mb, hgt, surface, bed, cell2hru, glacierMask, debris, glacAccMask, glacAblMask, glacDbrMask)
+    deallocate(hgt, surface, bed, cell2hru, glacierMask, debris, glacAccMask, glacAblMask, glacDbrMask)
 
   enddo ! end of glacier loop
 
@@ -410,7 +409,7 @@ end subroutine glacFlow
     integer(i4b),parameter :: n=3 ! Glen's flow law exponent,
     real(rkind),parameter :: A=2.4e-24 ! Modern Glen parameter
     real(rkind),parameter :: cfl= 0.124 ! Courant-Friedrichs-Lewy condition
-    integer(i4b) :: l(ny), lp(ny), lpp(ny), lm(ny), lmm(ny)
+    integer(i4b) :: i, l(ny), lp(ny), lpp(ny), lm(ny), lmm(ny)
     integer(i4b) :: k(nx), kp(nx), kpp(nx), km(nx), kmm(nx)
 
     ! y direction indices
@@ -445,7 +444,7 @@ end subroutine glacFlow
       dt = t_total - t
 
       ! get mass balance
-      call get_mb(S, debris, glacierMask, slope, intercept, validElev, validCount, maxCount, nx, ny, mb)
+      call get_m_dot(S, debris, glacierMask, slope, intercept, validElev, validCount, maxCount, nx, ny, m_dot)
 
       S = S - debris ! remove debris from glacier surface for flow calculation
       ! Select diffusion method and call step
@@ -477,7 +476,7 @@ end subroutine glacFlow
       endif
       
       ! Update debris thickness if there is debris
-      if (sum(debris)>0.rkind) then 
+      if (sum(debris)>0._rkind)then 
         !   NOTE: this uses the englacial debris advection transport model of Anderson and Anderson (2016)
         !         Englacial debris diffusion transport is ignored. The use of advection is valid for glacial
         !         debris transport because advection is defined as the transport of materials due to the bulk
@@ -861,12 +860,12 @@ end subroutine diffusion_MUSCL
 ! ************************************************************************************************
 ! private function for mass balance distribution after suface height changes
 ! ************************************************************************************************
-subroutine get_mb(S, debris, glacierMask, slope, intercept, validElev, validCount, maxCount, nx, ny, mb)
+subroutine get_m_dot(S, debris, glacierMask, slope, intercept, validElev, validCount, maxCount, nx, ny, m_dot)
   implicit none
   real(rkind), intent(in) :: S(nx,ny), debris(nx,ny)
   integer(i4b), intent(in) :: glacierMask(nx,ny), maxCount, nx, ny, validCount(2)
   real(rkind), intent(in) :: slope(maxCount+1,2), intercept(maxCount+1,2), validElev(maxCount,2)
-  real(rkind), intent(out) :: mb(nx,ny)
+  real(rkind), intent(out) :: m_dot(nx,ny)
   integer(i4b) :: ind, dbr, i, j, k
   
   ! distribute mass balance over surface, using all points in GRU
@@ -874,7 +873,7 @@ subroutine get_mb(S, debris, glacierMask, slope, intercept, validElev, validCoun
     do j = 1, ny
       ! Set mass balance to zero if not on glacier
       if (glacierMask(k,j)==0) then
-        mb(k,j) = 0._rkind
+        m_dot(k,j) = 0._rkind
       else
         ! set debris
         dbr = 0
@@ -885,15 +884,15 @@ subroutine get_mb(S, debris, glacierMask, slope, intercept, validElev, validCoun
           if (S(k,j) <= validElev(i,dbr+1)) ind = i
         end do
         if (ind == 0) ind = validCount(dbr+1)+1 ! elevation is below the lowest valid elevation, extrapolate down
-        mb(k,j) = slope(ind,dbr+1) * S(k,j) + intercept(ind,dbr+1)
+        m_dot(k,j) = slope(ind,dbr+1) * S(k,j) + intercept(ind,dbr+1)
       end if
     end do
   end do
 
   ! convert mass balance to m s-1 from kg m-2 s-1
-  mb = mb / iden_water
+  m_dot = m_dot / iden_water
 
-end subroutine get_mb
+end subroutine get_m_dot
 
 ! ************************************************************************************************
 ! private functions for calculate of near-surface concentration of debris
@@ -902,10 +901,9 @@ end subroutine get_mb
 subroutine get_C(S, B, debris, glacierMask, ELA, nx, ny, C)
   implicit none
   real(rkind), intent(in) :: S(nx,ny), B(nx,ny), debris(nx,ny), ELA
-  integer(i4b), intent(in) :: glacierMask(nx,ny)
+  integer(i4b), intent(in) :: glacierMask(nx,ny), nx, ny
   real(rkind), intent(out) :: C(nx,ny)
-  integer(i4b) :: i, sideMask(nx,ny)
-  integer(i4b) :: i, j
+  integer(i4b) :: i, j, sideMask(nx,ny)
 
   ! Add debris concentration in debris areas and along the sides of the glacier below ELA
   !   Use the an arbitrary concentration of 5 kg/m3 from Anderson and Anderson (2018) experiments
@@ -929,7 +927,7 @@ subroutine get_C(S, B, debris, glacierMask, ELA, nx, ny, C)
       end if
     end do
   end do
-  C = merge(5._rkind, 0._rkind, S < ELA .and. (debris>0.rkind .or. sideMask==1)) ! kg/m3
+  C = merge(5._rkind, 0._rkind, S < ELA .and. (debris>0._rkind .or. sideMask==1)) ! kg/m3
 
 end subroutine get_C
 
@@ -964,7 +962,7 @@ function flux(Skpl, Skml, Skplp, Skmlp, Sklp, Skl, dx, dy, n) result(flux_result
   real(rkind), allocatable :: flux_result(:,:)
 
   allocate(flux_result(size(Skpl,1), size(Skpl,2)))
-  flux_result = ( (Skpl - Skml + Skplp - Skmlp)**2_i4b / (4._rkind * dk)**2_i4b & 
+  flux_result = ( (Skpl - Skml + Skplp - Skmlp)**2_i4b / (4._rkind * dx)**2_i4b & 
                  + (Sklp - Skl)**2_i4b / dy**2_i4b )**((n - 1.0) / 2._rkind)
 end function flux
 

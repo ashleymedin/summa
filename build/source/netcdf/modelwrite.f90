@@ -832,7 +832,7 @@ contains
  ! local variables
  integer(i4b)                       :: ncid               ! netcdf file id
  integer(i4b),dimension(1)          :: ncVarID            ! netcdf variable id, only one variable currently
- integer(i4b),dimension(1)          :: ngdx               ! intermediate array of loop indices
+ integer(i4b),dimension(2)          :: ngdx               ! intermediate array of loop indices
  integer(i4b)                       :: gruDimID           ! variable dimension ID
  integer(i4b)                       :: ngriDimID          ! variable dimension ID
  integer(i4b)                       :: xDimID             ! variable dimension ID

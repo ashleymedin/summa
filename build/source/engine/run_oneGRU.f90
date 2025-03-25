@@ -69,6 +69,7 @@ USE var_lookup,only:iLookBPAR          ! look-up values for basin-average model 
 USE var_lookup,only:iLookBVAR          ! look-up values for basin-average model variables
 USE var_lookup,only:iLookTIME          ! look-up values for model time data
 USE var_lookup,only:iLookPROG          ! look-up values for model prognostic (state) variables
+USE var_lookup,only:iLookPARAM         ! look-up values for model parameters
 
 ! provide access to model decisions
 USE globalData,only:model_decisions    ! model decision structure
@@ -407,6 +408,8 @@ subroutine run_oneGRU(&
   ! if a year passed from last glacier area update, collect fluxes so that the glacier area can be updated
   if (updateGlacArea) then
     nDOM_glacGRU = 0 ! initialize number of glacier domains in the GRU
+    iden_soil_mean = 0._rkind ! initialize mean soil(debris) density of each glacier domain
+    theta_sat_mean = 0._rkind ! initialize mean soil(debris) porosity of each glacier domain
     do iHRU=1,gruInfo%hruCount
       do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
         if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc .or. &
@@ -423,10 +426,10 @@ subroutine run_oneGRU(&
               nSnow = gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nSnow
               nLake = gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nLake
               nSoil = gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nSoil
-              soil_thick = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%iLayerDepth)%dat(nSnow+nLake+nSoil) - progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+1)
-              iden_soil_mean(nDOM_glacGRU) = den_soil_mean + sum(mparHRU%hru(iHRU)%dom(iDOM)%var(iLookPARAM%soil_dens_intr)%dat(1:nSoil) &
+              soil_thick = sum(progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+1:nSnow+nLake+nSoil))
+              iden_soil_mean(nDOM_glacGRU) = iden_soil_mean(nDOM_glacGRU) + sum(mparHRU%hru(iHRU)%dom(iDOM)%var(iLookPARAM%soil_dens_intr)%dat(1:nSoil) &
                                    *progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+1:nSnow+nLake+nSoil)) /soil_thick
-              theta_sat_mean(nDOM_glacGRU) = theta_sat_mean + sum(mparHRU%hru(iHRU)%dom(iDOM)%var(iLookPARAM%theta_sat)%dat(1:nSoil) &
+              theta_sat_mean(nDOM_glacGRU) = theta_sat_mean(nDOM_glacGRU) + sum(mparHRU%hru(iHRU)%dom(iDOM)%var(iLookPARAM%theta_sat)%dat(1:nSoil) &
                                    *progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+1:nSnow+nLake+nSoil)) /soil_thick
             else if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln)then
               glac_debris_thick(nDOM_glacGRU) = realMissing
@@ -556,7 +559,7 @@ subroutine run_oneGRU(&
               nSnow = gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nSnow
               nLake = gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nLake
               nSoil = gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nSoil
-              soil_thick = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%iLayerDepth)%dat(nSnow+nLake+nSoil) - progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+1)
+              soil_thick = sum(progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+1:nSnow+nLake+nSoil))
               thick_ratio = glac_debris_thick(nDOM_glacGRU)/soil_thick
               do i = nSnow+nLake+1,nSnow+nLake+nSoil
                 progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(i) = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(i)*thick_ratio
