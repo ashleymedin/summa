@@ -246,10 +246,7 @@ subroutine read_dimensionGrid(attrGlacFile,nGRU,err,message)
   integer(i4b),allocatable             :: gru_id(:)               ! read gru IDs in from attributes file
   integer(i4b),allocatable             :: grid_id(:,:)            ! read glacier grid IDs in from attributes file
   real(rkind),allocatable              :: dx(:,:),dy(:,:)         ! glacier grid information (spacing)
-  real(rkind),allocatable              :: debris_thick(:,:)       ! glacier grid information (debris thickness)
-  real(rkind),allocatable              :: stage(:,:)              ! glacier grid information (frac abl zone covered by debris)
   integer(i4b),allocatable             :: nx(:,:),ny(:,:)         ! glacier grid information (size)
-
   integer(i4b),allocatable             :: gruid_to_index(:)       ! mapping from gru_id to index in gru_struc
   integer(i4b)                         :: nGrid                   ! number of grids in a GRU
  
@@ -275,7 +272,7 @@ subroutine read_dimensionGrid(attrGlacFile,nGRU,err,message)
   ! read glacier grid information and populate structures
   ! **********************************************************************************************
   ! allocate space for indices
-  allocate(gru_id(fileGRU),grid_id(fileGRU,filegrid),dx(fileGRU,filegrid),dy(fileGRU,filegrid),nx(fileGRU,filegrid),ny(fileGRU,filegrid),debris_thick(fileGRU,filegrid),stage(fileGRU,filegrid))
+  allocate(gru_id(fileGRU),grid_id(fileGRU,filegrid),dx(fileGRU,filegrid),dy(fileGRU,filegrid),nx(fileGRU,filegrid),ny(fileGRU,filegrid))
  
   ! read gru_id from netcdf file
   err = nf90_inq_varid(ncID,"gruId",varID);   if (err/=0) then; message=trim(message)//'problem finding gruId'; return; end if
@@ -300,14 +297,6 @@ subroutine read_dimensionGrid(attrGlacFile,nGRU,err,message)
   ! read ny from netcdf file
   err = nf90_inq_varid(ncID,"ny",varID);      if (err/=0) then; message=trim(message)//'problem finding ny'; return; end if
   err = nf90_get_var(ncID,varID,ny);          if (err/=0) then; message=trim(message)//'problem reading ny'; return; end if
-
-  ! read debris thickness from netcdf file
-  err = nf90_inq_varid(ncID,"debris_thick",varID); if (err/=0) then; message=trim(message)//'problem finding debris_thick'; return; end if
-  err = nf90_get_var(ncID,varID,debris_thick);     if (err/=0) then; message=trim(message)//'problem reading debris_thick'; return; end if
-
-  ! read stage from netcdf file
-  err = nf90_inq_varid(ncID,"stage",varID); if (err/=0) then; message=trim(message)//'problem finding stage'; return; end if
-  err = nf90_get_var(ncID,varID,stage);     if (err/=0) then; message=trim(message)//'problem reading stage'; return; end if
  
   ! Allocate the mapping array
   allocate(gruid_to_index(fileGRU))
@@ -334,12 +323,10 @@ subroutine read_dimensionGrid(attrGlacFile,nGRU,err,message)
      gru_struc(iGRU)%gridInfo(:)%dy      = dy(i,1:nGrid)       ! set grid information (spacing)
      gru_struc(iGRU)%gridInfo(:)%nx      = nx(i,1:nGrid)       ! set grid information (size)
      gru_struc(iGRU)%gridInfo(:)%ny      = ny(i,1:nGrid)       ! set grid information (size)
-     gru_struc(iGRU)%gridInfo(:)%debris_thick = debris_thick(i,1:nGrid) ! set grid information (debris thickness)
-     gru_struc(iGRU)%gridInfo(:)%stage        = stage(i,1:nGrid)        ! set grid information (frac abl zone covered by debris)
    endif
   end do
 
-  deallocate(gru_id,grid_id,dx,dy,nx,ny,gruid_to_index,debris_thick,stage)
+  deallocate(gru_id,grid_id,dx,dy,nx,ny,gruid_to_index)
   ! close netcdf file
   call nc_file_close(ncID,err,cmessage)
   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if

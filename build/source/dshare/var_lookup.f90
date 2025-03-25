@@ -886,6 +886,7 @@ MODULE var_lookup
   integer(i4b)    :: cell2hru                = integerMissing ! cell to HRU mapping (-)
   integer(i4b)    :: glacierMask             = integerMissing ! glacier mask (-)
   integer(i4b)    :: surface_elev            = integerMissing ! surface elevation (m)
+  integer(i4b)    :: debris_thick            = integerMissing ! debris thickness (m)
  endtype iLook_grid
 
  ! ***********************************************************************************************************
@@ -1040,7 +1041,7 @@ MODULE var_lookup
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21)
  ! named variables: basin-grid variables
- type(iLook_grid),    public,parameter :: iLookGRID     =ilook_grid    (  1,  2,  3,  4)
+ type(iLook_grid),    public,parameter :: iLookGRID     =ilook_grid    (  1,  2,  3,  4,  5)
  ! named variables in varibale type structure
  type(iLook_varType), public,parameter :: iLookVarType  =ilook_varType (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17)

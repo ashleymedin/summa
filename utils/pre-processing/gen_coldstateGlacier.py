@@ -340,12 +340,12 @@ if __name__ == '__main__':
                 # calculate area and elevation by HRU
                 for k,h in enumerate(outPolyIDs):
                     if hru2gru[k] == g:
-                        debris_thick[k] = debris_thick[k] + np.sum(np.where((cell2hruId0==h) & (hgt>0) & (surface_elev0 <ELA_elev), debris_thick0[j,i]*dly*stage[j,i], 0)) # debris thickness by glacier in GRU, average by HRU
+                        debris_thick[k] = debris_thick[k] + debris_thick0[(cell2hruId0==h) & (hgt>0) & (surface_elev0 <ELA_elev)].mean()/nGlacier[i]
                         glacCln_frac[k] = glacCln_frac[k] + np.sum(np.where((cell2hruId0==h) & (hgt>0) & (surface_elev0 <ELA_elev), dly*(1.0-stage[j,i]), 0))/hru_area[k]   
                         glacDbr_frac[k] = glacDbr_frac[k] + np.sum(np.where((cell2hruId0==h) & (hgt>0) & (surface_elev0 <ELA_elev), dly*stage[j,i], 0))/hru_area[k] 
                         glacAcc_frac[k] = glacAcc_frac[k] + np.sum(np.where((cell2hruId0==h) & (hgt>0) & (surface_elev0>=ELA_elev), dly, 0))/hru_area[k]
-                        glacCln_elev[k] = glacCln_elev[k] + surface_elev0[(cell2hruId0==h) & (hgt>0) & (surface_elev0< ELA_elev)].mean()/nGlacier[i]
-                        glacDbr_elev[k] = glacCln_elev[k] # make all ablation elevations the same for now
+                        glacCln_elev[k] = glacCln_elev[k] + surface_elev0[(cell2hruId0==h) & (hgt>0) & (surface_elev0< ELA_elev) & debris_thick0==0].mean()/nGlacier[i]
+                        glacDbr_elev[k] = glacDbr_elev[k] + surface_elev0[(cell2hruId0==h) & (hgt>0) & (surface_elev0< ELA_elev) & debris_thick0>0].mean()/nGlacier[i]
                         glacAcc_elev[k] = glacAcc_elev[k] + surface_elev0[(cell2hruId0==h) & (hgt>0) & (surface_elev0>=ELA_elev)].mean()/nGlacier[i]
 
         ndom += 2

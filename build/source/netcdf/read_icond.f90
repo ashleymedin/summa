@@ -942,7 +942,7 @@ contains
  end do ! fileGRU loop
 
  ! loop through specific basin grid variables
- ngdx = (/iLookGRID%surface_elev/)   ! array of desired variable indices, currently only surface elevation
+ ngdx = (/iLookGRID%surface_elev, iLookGRID%debris_thick/)   ! array of desired variable indices
  do i = 1,size(ngdx)
   iVar = ngdx(i)
 

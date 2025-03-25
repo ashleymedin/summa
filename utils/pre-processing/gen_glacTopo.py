@@ -395,7 +395,12 @@ if __name__ == '__main__':
             dx[0,j,i] = dx0
             B[:ny0,:nx0,j,i] = B0.transpose()
             S[:ny0,:nx0,j,i] = S0.transpose()
-            debris_thick[0,j,i] = debris_m
+            debris_thick[:ny0,:nx0,j,i] = debris_m # should only be on ablation area stage fraction
+            for k in range(ny0):
+                for l in range(nx0):
+                    # make debris 0 if not in lowest (1-AAR)*stage fraction of glacier
+                    if S0[k,l] > min_elev + (max_elev-min_elev)*(1-AAR)*stage:
+                        debris_thick[k,l,j,i] = 0.
             AAR_frac[0,j,i] = AAR
             stage_frac[0,j,i] = stage
             glacierMask[:ny0,:nx0,j,i] = np.where(glacierMask0.transpose(), 1, glacierMask[:ny0,:nx0, j, i])
@@ -410,8 +415,8 @@ if __name__ == '__main__':
     writeNC_state_vars_GRU_VEC(nc_out, 'ny', 'grid', 'i4', ny)
     writeNC_state_vars_GRU_VEC(nc_out, 'dy', 'grid', 'f8', dy)
     writeNC_state_vars_GRU_VEC(nc_out, 'dx', 'grid', 'f8', dx)
-    writeNC_state_vars_GRU_VEC(nc_out, 'debris_thick', 'grid', 'f8', debris_thick)    # not needed for SUMMA attributes, but need for layer setup
-    writeNC_state_vars_GRU_VEC(nc_out, 'stage', 'grid', 'f8', stage_frac)               # not needed for SUMMA attributes, but need for domain setup
+    writeNC_state_vars_GRU_VEC(nc_out, 'debris_thick', 'grid', 'f8', debris_thick) 
+    writeNC_state_vars_GRU_VEC(nc_out, 'stage', 'grid', 'f8', stage_frac) # not needed for SUMMA initial conditions, but need to calculate initial HRU area
     writeNC_state_vars_GRU_GRID(nc_out, 'bed_elev','ygrid','xgrid','f8', B)
     writeNC_state_vars_GRU_GRID(nc_out, 'glacierMask','ygrid','xgrid','i4', glacierMask)
     writeNC_state_vars_GRU_GRID(nc_out, 'cell2hruId','ygrid','xgrid','i8', cell2hruId)

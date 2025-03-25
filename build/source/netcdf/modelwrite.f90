@@ -855,7 +855,7 @@ contains
  err=0; message='writeRestartGlac/'
 
  ! grid variables
- ngdx = (/iLookGRID%surface_elev/) ! array of desired variable indices, currently only surface elevation
+ ngdx = (/iLookGRID%surface_elev, iLookGRID%debris_thick/) ! array of desired variable indices
 
  ! create file
  err = nf90_create(trim(filename),NF90_NETCDF4,ncid)

@@ -172,25 +172,29 @@ contains
        end if
      end do
    end do
-   ! if they exist, check that the glacier areas are consistent with the basin areas, correct (only warn if out of tolerance)
+   ! if they exist, check that the glacier areas are consistent with the basin areas, correct for grid tolerance (only warn if out of tolerance)
    if (gru_struc(iGRU)%nGlacier>0) then
      if(sum(bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat)>0.0_rkind)then
        ratio = glacAblAreaTot/sum(bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat)
        if ( abs( ratio - 1._rkind) >areaTol ) write(*,'(A,E22.16,A,E22.16,A)') 'WARNING: glacier ablation domain area (=', glacAblAreaTot, ') &
         & does not match the sum of the basin areas (=', sum(bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat), '). Correcting basin areas.'
-       bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat(:) = bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat(:)*ratio
-     else
-        write(*,'(A)') 'WARNING: basin glacier ablation area is zero, but there are glaciers in the basin. Resetting glacier areas to domain areas.'
-        bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat(:) = glacAblAreaTot/gru_struc(iGRU)%nGlacier
+       bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat(:) = bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat(:)*ratio 
+     else ! = 0.0
+        if (glacAblAreaTot>0.0_rkind) then 
+          write(*,'(A)') 'WARNING: basin glacier ablation area is zero, but there are glaciers in the basin. Resetting glacier areas to domain areas.'
+          bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat(:) = glacAblAreaTot/gru_struc(iGRU)%nGlacier
+        end if
      end if
      if(sum(bvarData%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat)>0.0_rkind )then
        ratio = glacAccAreaTot/sum(bvarData%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat)
        if ( abs( ratio - 1._rkind) >areaTol ) write(*,'(A,E22.16,A,E22.16,A)') 'WARNING: glacier accumulation domain area (=', glacAccAreaTot, ') &
         & does not match the sum of the basin areas (=', sum(bvarData%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat), '). Correcting basin areas.'
        bvarData%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat(:) = bvarData%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat(:)*ratio
-     else
-       write(*,'(A)') 'WARNING: basin glacier accumulation area is zero, but there are glaciers in the basin. Resetting glacier areas to domain areas.'
-       bvarData%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat(:) = glacAccAreaTot/gru_struc(iGRU)%nGlacier
+     else ! = 0.0
+       if (glacAccAreaTot>0.0_rkind) then
+         write(*,'(A)') 'WARNING: basin glacier accumulation area is zero, but there are glaciers in the basin. Resetting glacier areas to domain areas.'
+         bvarData%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat(:) = glacAccAreaTot/gru_struc(iGRU)%nGlacier
+       end if
      end if
    end if
 
