@@ -320,6 +320,11 @@ subroutine popMetadat(err,message)
   bpar_meta(iLookBPAR%glacStor_kIce)                   = var_info('glacStor_kIce'                  , 'storage coefficient glacier ice reservoir'                        , 'hours'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bpar_meta(iLookBPAR%glacStor_kSnow)                  = var_info('glacStor_kSnow'                 , 'storage coefficient glacier snow reservoir'                       , 'hours'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bpar_meta(iLookBPAR%glacStor_kFirn)                  = var_info('glacStor_kFirn'                 , 'storage coefficient glacier firn reservoir'                       , 'hours'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! debris advection
+  bpar_meta(iLookBPAR%debrisC_constant)                = var_info('debrisC_constant'               , 'non-spatial concentration for debris advection'                   , 'kg m-3'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bpar_meta(iLookBPAR%debrisH_critical)                = var_info('debrisH_critical'               , 'critical debris thickness to start debris-free terminal wedge'    , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bpar_meta(iLookBPAR%lat_moraine_wid)                 = var_info('lat_moraine_wid'                , 'lateral moraine width'                                            , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+
   ! -----
   ! * local model prognostic (state) variables...
   ! ---------------------------------------------
@@ -732,7 +737,7 @@ subroutine popMetadat(err,message)
   bvar_meta(iLookBVAR%glacSnowRunoffFuture)    = var_info('glacSnowRunoffFuture'   , 'per glacier snow reservoir runoff in future time steps'        , 'm s-1' , get_ixVarType('glacier'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%glacFirnRunoffFuture)    = var_info('glacFirnRunoffFuture'   , 'per glacier firn reservoir runoff in future time steps'        , 'm s-1' , get_ixVarType('glacier'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%glacierRoutedRunoff)     = var_info('glacierRoutedRunoff'    , 'lapsed glacier runoff'                                         , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  ! -----
+   ! -----
   ! * basin glacier grids
   ! -----------------------------------------
   grid_meta(iLookGRID%bed_elev)               = var_info('bed_elev'                , 'glacier bed elevation'                                     , 'm'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)

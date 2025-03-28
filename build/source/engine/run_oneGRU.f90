@@ -511,28 +511,32 @@ subroutine run_oneGRU(&
     ! need to associate each glacier with an HRU and domain
     call glacFlow(&
                   ! model control
-                  nDOM_glacGRU,                               & ! intent(in):    number of domains that have GWE
-                  has_clean,                                  & ! intent(in):    flag to indicate if there is clean ice in the GRU
-                  has_debris,                                 & ! intent(in):    flag to indicate if there is debris-covered ice in the GRU
-                  glac_hru,                                   & ! intent(in):    HRU index of GWE point
+                  nDOM_glacGRU,                                & ! intent(in):    number of domains that have GWE
+                  has_clean,                                   & ! intent(in):    flag to indicate if there is clean ice in the GRU
+                  has_debris,                                  & ! intent(in):    flag to indicate if there is debris-covered ice in the GRU
+                  glac_hru,                                    & ! intent(in):    HRU index of GWE point
                   ! glacier topography
-                  gruInfo%nGlacier,                           & ! intent(in):    number of glaciers in GRU
-                  gruInfo%glacInfo,                           & ! intent(in):    glacier information for each glacier
-                  gruInfo%gridInfo,                           & ! intent(in):    grid information for each glacier grid
-                  gridData,                                   & ! intent(inout): grid data for each glacier
+                  gruInfo%nGlacier,                            & ! intent(in):    number of glaciers in GRU
+                  gruInfo%glacInfo,                            & ! intent(in):    glacier information for each glacier
+                  gruInfo%gridInfo,                            & ! intent(in):    grid information for each glacier grid
+                  gridData,                                    & ! intent(inout): grid data for each glacier
                   ! mass balance per glacier domain
-                  nYears,                                     & ! intent(in):    number of years to run
-                  massChange,                                 & ! intent(in):    since Oct 1 mean rate glacier water equivalent change (kg m-2 s-1)
-                  glac_elev,                                  & ! intent(inout): elevation of each glacier domain (m) per HRU
-                  glac_debris_thick,                          & ! intent(inout): debris thickness of each glacier domain (m) per HRU
-                  iden_soil_mean,                             & ! intent(in):    mean soil density (kg m-3)
-                  theta_sat_mean,                             & ! intent(in):    mean soil porosity (-)
+                  nYears,                                      & ! intent(in):    number of years to run
+                  massChange,                                  & ! intent(in):    since Oct 1 mean rate glacier water equivalent change (kg m-2 s-1)
+                  glac_elev,                                   & ! intent(inout): elevation of each glacier domain (m) per HRU
+                  ! debris
+                  glac_debris_thick,                           & ! intent(inout): debris thickness of each glacier domain (m) per HRU
+                  iden_soil_mean,                              & ! intent(in):    mean soil density (kg m-3)
+                  theta_sat_mean,                              & ! intent(in):    mean soil porosity (-)
+                  bparData%var(iLookBPAR%debrisC_constant),    & ! intent(in):    non-spatial concentration for debris advection (kg m-3)
+                  bparData%var(iLookBPAR%debrisH_critical),    & ! intent(in):    critical debris thickness start debris-free terminal wedge (m)
+                  bparData%var(iLookBPAR%lat_moraine_wid),     & ! intent(inout): lateral moraine width (m)
                   ! area
-                  bvarData%var(iLookBVAR%glacAblArea)%dat,    & ! intent(out):   per glacier ablation area (m2)
-                  bvarData%var(iLookBVAR%glacAccArea)%dat,    & ! intent(out):   per glacier accumulation area (m2)
-                  glac_area,                                  & ! intent(out):   area of each domain (m2)
+                  bvarData%var(iLookBVAR%glacAblArea)%dat,     & ! intent(out):   per glacier ablation area (m2)
+                  bvarData%var(iLookBVAR%glacAccArea)%dat,     & ! intent(out):   per glacier accumulation area (m2)
+                  glac_area,                                   & ! intent(out):   area of each domain (m2)
                   ! error handling
-                  err, cmessage)                                ! intent(out):   error control
+                  err, cmessage)                                 ! intent(out):   error control
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
     nDOM_glacGRU = 0 ! initialize number of glacier domains in the GRU

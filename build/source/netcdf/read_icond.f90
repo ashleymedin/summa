@@ -761,7 +761,7 @@ contains
    end do
 
    ! loop through specific basin variables
-   ngdx = (/iLookBVAR%glacAblArea,iLookBVAR%glacAccArea,iLookBVAR%glacIceRunoffFuture,iLookBVAR%glacSnowRunoffFuture,iLookBVAR%glacFirnRunoffFuture/)   ! array of desired variable indices
+   ngdx = (/iLookBVAR%glacAblArea,iLookBVAR%glacAccArea, iLookBVAR%glacIceRunoffFuture,iLookBVAR%glacSnowRunoffFuture,iLookBVAR%glacFirnRunoffFuture/)   ! array of desired variable indices
    do i = 1,size(ngdx)
     iVar = ngdx(i)
 

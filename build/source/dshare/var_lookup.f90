@@ -844,6 +844,10 @@ MODULE var_lookup
   integer(i4b)    :: glacStor_kIce              = integerMissing ! storage coefficient glacier ice reservoir (hours)
   integer(i4b)    :: glacStor_kSnow             = integerMissing ! storage coefficient glacier snow reservoir (hours)
   integer(i4b)    :: glacStor_kFirn             = integerMissing ! storage coefficient glacier firn reservoir (hours)
+  ! debris advection
+  integer(i4b)    :: debrisC_constant           = integerMissing ! non-spatial concentration for debris advection (kg m-3)
+  integer(i4b)    :: debrisH_critical           = integerMissing ! critical debris thickness to start debris-free terminal wedge (m)
+  integer(i4b)    :: lat_moraine_wid            = integerMissing ! lateral moraine width (m)
  endtype iLook_bpar
 
  ! ***********************************************************************************************************
@@ -1035,7 +1039,8 @@ MODULE var_lookup
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70)
  ! named variables: basin-average parameters
- type(iLook_bpar),    public,parameter :: iLookBPAR     =ilook_bpar    (  1,  2,  3,  4,  5,  6,  7,  8)
+ type(iLook_bpar),    public,parameter :: iLookBPAR     =ilook_bpar    (  1,  2,  3,  4,  5,  6,  7,  8, 9,  10,&
+                                                                          11)
  ! named variables: basin-average variables
  type(iLook_bvar),    public,parameter :: iLookBVAR     =ilook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

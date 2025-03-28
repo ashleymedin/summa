@@ -170,6 +170,15 @@ contains
   if (parFallback(iLookBPAR%glacStor_kFirn)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookBPAR%glacStor_kFirn)%default_val = 400._rkind
   endif
+  if (parFallback(iLookBPAR%debrisC_constant)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookBPAR%debrisC_constant)%default_val = 5.0_rkind ! follow Anderson and Anderson (2018)
+  endif
+  if (parFallback(iLookBPAR%debrisH_critical)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookBPAR%debrisH_critical)%default_val = 5.0_rkind ! follow Anderson and Anderson (2018)
+  endif
+  if (parFallback(iLookBPAR%lat_moraine_wid)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookBPAR%lat_moraine_wid)%default_val = 200.0_rkind ! from looking at Alaska glaciers
+  endif
  end if
 
  ! check we have populated all variables

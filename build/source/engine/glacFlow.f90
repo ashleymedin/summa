@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
+! Copyright (C_mask) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -69,9 +69,13 @@ subroutine glacFlow(&
                     nYears,                  & ! intent(in):    number of years to run
                     massChange,              & ! intent(in):    rate of change in glacier water equivalent (kg m-2 s-1) in each glacier domain over the nYears
                     elev,                    & ! intent(inout): elevation in each glacier domain (m)
+                    ! debris
                     debris_thick_dom,        & ! intent(inout): debris thickness in each glacier domain (m)
                     iden_soil_mean,          & ! intent(in):    mean intrinsic density of soil in each glacier domain (kg m-3)
                     theta_sat_mean,          & ! intent(in):    mean soil porosity in each glacier domain (-)
+                    C_constant,              & ! intent(in):    non-spatial concentration for debris advection (kg m-3)
+                    dbr_crit,                & ! intent(in):    critical debris thickness start debris-free terminal wedge (m)
+                    lat_moraine_wid,         & ! intent(inout): lateral moraine width (m)
                     ! area
                     glacAblArea,             & ! intent(out):   per glacier ablation area (m2)
                     glacAccArea,             & ! intent(out):   per glacier accumulation area (m2)
@@ -94,9 +98,13 @@ subroutine glacFlow(&
   integer(i4b), intent(in)           :: nYears                          ! number of years to run
   real(rkind), intent(in)            :: massChange(nDOM)                ! rate of change in glacier water equivalent (kg m-2 s-1) in each glacier domain over the nYears
   real(rkind), intent(inout)         :: elev(nDOM)                      ! elevation of each glacier domain (m)
+  ! debris
   real(rkind), intent(inout)         :: debris_thick_dom(nDOM)          ! debris thickness in glacier domain (m)
   real(rkind), intent(in)            :: iden_soil_mean(nDOM)            ! mean intrinsic density of soil (kg m-3)
   real(rkind), intent(in)            :: theta_sat_mean(nDOM)            ! mean soil porosity (-)
+  real(rkind), intent(in)            :: C_constant                      ! non-spatial concentration for debris advection (kg m-3)
+  real(rkind), intent(in)            :: dbr_crit                        ! critical debris thickness start debris-free terminal wedge (m)
+  real(rkind), intent(in)            :: lat_moraine_wid                 ! lateral moraine width (m) 
   ! area 
   real(rkind), intent(out)           :: glacAblArea(nGlacier)           ! per glacier ablation area (m2)
   real(rkind), intent(out)           :: glacAccArea(nGlacier)           ! per glacier accumulation area (m2)
@@ -311,13 +319,13 @@ subroutine glacFlow(&
     cell2hru = int(gridData%grid(iGrid)%var(iLookGRID%cell2hru)%dat2(1:nx,1:ny))
     glacierMask = int(gridData%grid(iGrid)%var(iLookGRID%glacierMask)%dat2(1:nx,1:ny))
 
-    
     ! make non-glacier bed have high elevation so glacier does not grow there
     bed = merge(bed,bed+1000._rkind,glacierMask==0)
 
     ! compute flow
-    call run_year(nYears, debris, surface, bed, glacierMask, slope, intercept, validElev, validCount, maxCount, &
-                  iden_soil, theta_sat, ELA_use, nx, ny, dx, dy, volume)
+    call run_year(nYears, debris, surface, bed, glacierMask, slope, intercept, validElev, validCount, &
+                  maxCount, C_constant, dbr_crit, lat_moraine_wid, iden_soil, theta_sat, ELA_use, nx, ny, dx, dy, volume)
+
     totVolume = totVolume+volume ! add volume to total volume, includes debris, not currently used
     
     ! Initialize variables
@@ -393,24 +401,24 @@ end subroutine glacFlow
 ! private subroutine run_year for setting up flow model and running for each glacier for time period
 ! ************************************************************************************************
   subroutine run_year(y_end, debris, S, B, glacierMask, slope, intercept, validElev, validCount, &
-                      maxCount, iden_soil, theta_sat, ELA, nx, ny, dx, dy, volume)
+                      maxCount, C_constant, dbr_crit, lat_moraine_wid, iden_soil, theta_sat, ELA, nx, ny, dx, dy, volume)
     ! Arguments
     real(rkind), intent(in) :: dx, dy
     real(rkind), intent(inout) :: debris(nx,ny), S(nx,ny), B(nx,ny)
     real(rkind), intent(in) :: slope(maxCount+1,2), intercept(maxCount+1,2), validElev(maxCount,2)
-    real(rkind), intent(in) :: iden_soil, theta_sat, ELA
+    real(rkind), intent(in) ::  C_constant, dbr_crit, lat_moraine_wid, iden_soil, theta_sat, ELA
     integer(i4b), intent(in) :: validCount(2), maxCount
     integer(i4b), intent(in) :: y_end, ny, nx, glacierMask(nx,ny)
     real(rkind), intent(out) :: volume
 
     ! Local variables
     real(rkind) :: t_total, dt, max_dt, min_dt, deltat, div_q(nx,ny), grad_debris(nx,ny), dt_cfl, meanS
-    real(rkind) :: gamma, t, m_dot(nx,ny), C(nx,ny)
-    integer(i4b),parameter :: n=3 ! Glen's flow law exponent,
+    real(rkind) :: gamma, t, m_dot(nx,ny)
+    integer(i4b),parameter :: n=3 ! Glen's flow law exponent
     real(rkind),parameter :: A=2.4e-24 ! Modern Glen parameter
     real(rkind),parameter :: cfl= 0.124 ! Courant-Friedrichs-Lewy condition
     integer(i4b) :: i, l(ny), lp(ny), lpp(ny), lm(ny), lmm(ny)
-    integer(i4b) :: k(nx), kp(nx), kpp(nx), km(nx), kmm(nx)
+    integer(i4b) :: k(nx), kp(nx), kpp(nx), km(nx), kmm(nx), C_mask(nx,ny)
 
     ! y direction indices
     l = [(i, i=1, ny)]
@@ -481,21 +489,18 @@ end subroutine glacFlow
         !         Englacial debris diffusion transport is ignored. The use of advection is valid for glacial
         !         debris transport because advection is defined as the transport of materials due to the bulk
         !         motion of a fluid, and glacier ice is a form of a viscoelastic fluid.
-
-        call get_C(S, B, debris, glacierMask, ELA, nx, ny, C) ! Calculate near-surface concentration of debris
-        debris = debris + ( C * m_dot/(1._rkind - theta_sat)/iden_soil + grad_debris ) * deltat
+        call get_C_mask(S, B, debris, glacierMask, lat_moraine_wid, ELA, nx, ny, dx, dy, C_mask) ! Calculate near-surface concentration of debris
+        debris = debris + ( C_constant*C_mask * m_dot/(1._rkind - theta_sat)/iden_soil + grad_debris ) * deltat
         debris = merge(debris, 0._rkind, S > B) ! remove debris from bedrock
         debris = merge(debris, 0._rkind, debris < 0._rkind) ! Check that debris is not negative
         ! Check that debris thickness is not over critical value, effectively making terminal clean ice wedge 
-        !   NOTE: the value of 5 m is arbitrary for now, should be replaced with a more sophisticated method
-        if (any(debris > 5._rkind .and. glacierMask==1)) then
+        if (any(debris > dbr_crit .and. glacierMask==1)) then
           debris = merge(debris, 0._rkind, debris <= 1.e6_rkind)
         endif
       endif
       ! add debris back to glacier surface
       S = S + debris
-
-    end do
+    end do ! end of time loop
 
     ! Calculate volume of glacier (includes debris)
     volume = sum(merge(S-B,0._rkind,glacierMask==1)) * dx * dy * 1.e-9_rkind ! km3
@@ -895,41 +900,61 @@ subroutine get_m_dot(S, debris, glacierMask, slope, intercept, validElev, validC
 end subroutine get_m_dot
 
 ! ************************************************************************************************
-! private functions for calculate of near-surface concentration of debris
-!    somewhat of a stub for now, not sure how to implement this
+! private functions for calculate of spatial mask of near-surface concentration of debris
+!   Currently adding debris concentration along the sides of the glacier below the ELA, 
+!   and where debris currently is, somewhat of a stub
 ! ************************************************************************************************
-subroutine get_C(S, B, debris, glacierMask, ELA, nx, ny, C)
+subroutine get_C_mask(S, B, debris, glacierMask, lat_moraine_wid0, ELA, nx, ny, dx, dy, C_mask)
   implicit none
-  real(rkind), intent(in) :: S(nx,ny), B(nx,ny), debris(nx,ny), ELA
+  real(rkind), intent(in) :: S(nx,ny), B(nx,ny), debris(nx,ny), lat_moraine_wid0, ELA, dx, dy
   integer(i4b), intent(in) :: glacierMask(nx,ny), nx, ny
-  real(rkind), intent(out) :: C(nx,ny)
-  integer(i4b) :: i, j, sideMask(nx,ny)
-
-  ! Add debris concentration in debris areas and along the sides of the glacier below ELA
-  !   Use the an arbitrary concentration of 5 kg/m3 from Anderson and Anderson (2018) experiments
-  !   This is a temporary fix, should be replaced with a more sophisticated method
-  sideMask = 0
-  do j = 1, nx
-    do i = 1, ny
-      if (glacierMask(j,i)==1 .and. S(j,i)-B(j,i)>0._rkind ) then
-        if (j>1)then
-          if (S(j-1,i)-B(j-1,i)==0._rkind) sideMask(j,i) = 1
+  integer(i4b), intent(out) :: C_mask(nx,ny)
+  integer(i4b) :: i, j, k, l, zeroMask(nx, ny)
+  real(rkind) :: distance(nx, ny), dist, lat_moraine_wid
+  
+  ! Compute the Euclidean distance to the nearest zero cell
+  zeroMask = merge(0, 1, S - B == 0._rkind) ! mask for cells where S = B
+  distance = lat_moraine_wid + 1.e6_rkind  ! Initialize with a large value
+  do i = 1, nx
+    do j = 1, ny
+        if (zeroMask(i, j) == 1) then
+            distance(i, j) = 0._rkind
+        else
+            do k = 1, nx
+                do l = 1, ny
+                    if (zeroMask(k, l) == 1) then
+                        dist = sqrt(((i - k) * dx)**2._i4b + ((j - l) * dy)**2._i4b)
+                        if (dist < distance(i, j)) then
+                            distance(i, j) = dist
+                        end if
+                    end if
+                end do
+            end do
         end if
-        if (j<nx)then
-          if (S(j+1,i)-B(j+1,i)==0._rkind) sideMask(j,i) = 1
-        end if
-        if (i>1)then
-          if (S(j,i-1)-B(j,i-1)==0._rkind) sideMask(j,i) = 1
-        end if
-        if (i<ny)then
-          if (S(j,i+1)-B(j,i+1)==0._rkind) sideMask(j,i) = 1
-        end if
-      end if
     end do
   end do
-  C = merge(5._rkind, 0._rkind, S < ELA .and. (debris>0._rkind .or. sideMask==1)) ! kg/m3
 
-end subroutine get_C
+  ! calulate the maximum distance to consider for debris concentration, or the width of lateral moraines
+  !  based on width of debris concentration near sides of glacier at high elevations
+  lat_moraine_wid = lat_moraine_wid0
+  if (lat_moraine_wid <= 0._rkind)then
+    lat_moraine_wid = 0._rkind
+    do i = 1, nx
+      do j = 1, ny
+        if (S(i,j) > ELA .and. S(i,j) > B(i,j) .and. S(i,j) > 0._rkind) then
+          if (distance(i,j) > lat_moraine_wid) then
+            lat_moraine_wid = distance(i,j)
+          end if
+        end if
+      end do
+    end do
+  end if
+
+  ! Create the sideMask based on the maximum distance or currently having debris 
+  !   and where S>B (has glacier) and S<ELA (in ablation zone)
+  C_mask = merge(1, 0, (distance <= lat_moraine_wid .or. debris>0._rkind) .and. S > B .and. S<ELA)
+
+end subroutine get_C_mask
 
 ! ************************************************************************************************
 ! private functions to assist in the glacier flow calculations
