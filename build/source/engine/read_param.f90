@@ -89,9 +89,10 @@ contains
  character(LEN=64)                         :: dimName          ! dimension name
  character(LEN=64)                         :: parName          ! parameter name
  integer(i4b)                              :: dimLength        ! dimension length
- integer(i4b)                              :: nDOM_file        ! number of domains in the parafile
- integer(i4b)                              :: nHRU_file        ! number of HRUs in the parafile
- integer(i4b)                              :: nGRU_file        ! number of GRUs in the parafile
+ integer(i4b)                              :: nDOM_file        ! number of domains in the param file
+ integer(i4b)                              :: nDOM             ! number of domains in the model for the HRU
+ integer(i4b)                              :: nHRU_file        ! number of HRUs in the param file
+ integer(i4b)                              :: nGRU_file        ! number of GRUs in the param file
  integer(i4b)                              :: nSoil_file       ! number of soil layers in the file (maximum in all domains)
  integer(i4b)                              :: idim_list(3)     ! list of dimension ids
  ! data in the netcdf file
@@ -317,6 +318,8 @@ contains
      iGRU=index_map(iHRU)%gru_ix
      localHRU_ix=index_map(iHRU)%localHRU_ix
      fHRU = gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc
+     nDOM = gru_struc(iGRU)%hruInfo(localHRU_ix)%domCount
+     if (iDOM>nDOM) cycle ! skip if domain does not exist
 
      ! read parameter data
      select case(nDims)

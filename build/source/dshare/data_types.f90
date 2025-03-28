@@ -111,7 +111,7 @@ MODULE data_types
 
  ! hru info data structure
  type, public :: dom_info
-  integer(i4b)                           :: dom_type                      ! type = 1 for upland, 2 for glacier accumulation, 3 for glacier ablation, (4 for lake)
+  integer(i4b)                           :: dom_type                      ! type = 1 for upland, 2 for glacier accumulation, 3 for glacier clean ablation, 4 for debris ablation, 5 for wetland, 6 for glacieret
   integer(i4b)                           :: nSnow                         ! number of snow layers
   integer(i4b)                           :: nLake                         ! number of lake layers
   integer(i4b)                           :: nSoil                         ! number of soil layers

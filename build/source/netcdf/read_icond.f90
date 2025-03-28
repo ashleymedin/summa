@@ -205,7 +205,7 @@ contains
      if (any(dom_type(1:fileDOM,iHRU_global)==glacieret)) &
        gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 1   ! glacieret domain possible
      allocate(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(gru_struc(iGRU)%hruInfo(iHRU)%domCount)) ! allocate third level of gru to hru map
-     gru_struc(iGRU)%hruInfo(iHRU)%domInfo(:)%dom_type = dom_type(:,iHRU_global)
+     gru_struc(iGRU)%hruInfo(iHRU)%domInfo(:)%dom_type = dom_type(1:gru_struc(iGRU)%hruInfo(iHRU)%domCount,iHRU_global)
    enddo
  enddo
 
