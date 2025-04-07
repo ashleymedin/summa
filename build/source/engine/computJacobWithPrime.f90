@@ -592,7 +592,9 @@ subroutine computJacobWithPrime(&
             if(iLayer<nSoil)then
               if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixOffDiag(ixSoilOnlyHyd(iLayer+1),watState),watState) = (dt/mLayerDepth(jLayer+1))*(-dq_dHydStateAbove(iLayer))
             else
-              if(ixGlceOnlyHyd(1)/=integerMissing) aJac(ixOffDiag(ixGlceOnlyHyd(1),watState),watState) = (dt/mLayerDepth(jLayer+1))*(-dq_dHydStateAbove(iLayer))
+              if(nGlce>0)then
+                if(ixGlceOnlyHyd(1)/=integerMissing) aJac(ixOffDiag(ixGlceOnlyHyd(1),watState),watState) = (dt/mLayerDepth(jLayer+1))*(-dq_dHydStateAbove(iLayer))
+              endif
             endif
 
             ! - only include banded terms for baseflow in banded structure
@@ -679,7 +681,9 @@ subroutine computJacobWithPrime(&
               if(iLayer<nSoil)then
                 if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixOffDiag(ixSoilOnlyHyd(iLayer+1),nrgState),nrgState) = (dt/mLayerDepth(jLayer+1))*(-dq_dNrgStateAbove(iLayer))    ! K-1
               else
-                if(ixGlceOnlyHyd(1)/=integerMissing) aJac(ixOffDiag(ixGlceOnlyHyd(1),nrgState),nrgState) = (dt/mLayerDepth(jLayer+1))*(-dq_dNrgStateAbove(iLayer))    ! K-1
+                if(nGlce>0)then
+                  if(ixGlceOnlyHyd(1)/=integerMissing) aJac(ixOffDiag(ixGlceOnlyHyd(1),nrgState),nrgState) = (dt/mLayerDepth(jLayer+1))*(-dq_dNrgStateAbove(iLayer))    ! K-1
+                endif
               endif
 
               if(computeVegFlux)then 
@@ -726,7 +730,9 @@ subroutine computJacobWithPrime(&
               if(iLayer<nSoil)then
                 if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixOffDiag(ixSoilOnlyNrg(iLayer+1),watState),watState) = (dt/mLayerDepth(jLayer+1))*(-dNrgFlux_dWatAbove(jLayer  ) )
               else
-                if(ixGlceOnlyHyd(1)/=integerMissing) aJac(ixOffDiag(ixGlceOnlyNrg(1),watState),watState) = (dt/mLayerDepth(jLayer+1))*(-dNrgFlux_dWatAbove(jLayer  ) )
+                if(nGlce>0)then
+                  if(ixGlceOnlyHyd(1)/=integerMissing) aJac(ixOffDiag(ixGlceOnlyNrg(1),watState),watState) = (dt/mLayerDepth(jLayer+1))*(-dNrgFlux_dWatAbove(jLayer  ) )
+                endif
               endif
 
             endif   ! (if the water state for the current layer is within the state subset)
@@ -965,7 +971,9 @@ subroutine computJacobWithPrime(&
             if(iLayer<nSoil)then
               if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixSoilOnlyHyd(iLayer+1),watState) = (dt/mLayerDepth(jLayer+1))*(-dq_dHydStateAbove(iLayer))
             else
-              if(ixGlceOnlyHyd(1)/=integerMissing) aJac(ixGlceOnlyHyd(1),watState) = (dt/mLayerDepth(jLayer+1))*(-dq_dHydStateAbove(iLayer))
+              if(nGlce>0)then
+                if(ixGlceOnlyHyd(1)/=integerMissing) aJac(ixGlceOnlyHyd(1),watState) = (dt/mLayerDepth(jLayer+1))*(-dq_dHydStateAbove(iLayer))
+              endif
             endif
 
             ! - include terms for baseflow
@@ -1039,7 +1047,9 @@ subroutine computJacobWithPrime(&
               if(iLayer<nSoil)then
                 if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixSoilOnlyHyd(iLayer+1),nrgState) = (dt/mLayerDepth(jLayer+1))*(-dq_dNrgStateAbove(iLayer))     ! K-1
               else
-                if(ixGlceOnlyHyd(1)/=integerMissing) aJac(ixGlceOnlyHyd(1),nrgState) = (dt/mLayerDepth(jLayer+1))*(-dq_dNrgStateAbove(iLayer))                   ! K-1
+                if(nGlce>0)then
+                  if(ixGlceOnlyHyd(1)/=integerMissing) aJac(ixGlceOnlyHyd(1),nrgState) = (dt/mLayerDepth(jLayer+1))*(-dq_dNrgStateAbove(iLayer))                 ! K-1
+                endif
               endif
 
               if(computeVegFlux)then 
@@ -1078,7 +1088,9 @@ subroutine computJacobWithPrime(&
               if(iLayer<nSoil)then
                 if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixSoilOnlyNrg(iLayer+1),watState) = (dt/mLayerDepth(jLayer+1))*(-dNrgFlux_dWatAbove(jLayer  ) )
               else
-                if(ixGlceOnlyHyd(1)/=integerMissing) aJac(ixGlceOnlyNrg(1),watState) = (dt/mLayerDepth(jLayer+1))*(-dNrgFlux_dWatAbove(jLayer  ) )
+                if(nGlce>0)then
+                  if(ixGlceOnlyHyd(1)/=integerMissing) aJac(ixGlceOnlyNrg(1),watState) = (dt/mLayerDepth(jLayer+1))*(-dNrgFlux_dWatAbove(jLayer  ) )
+                endif
               endif
 
             endif   ! (if the water state for the current layer is within the state subset)

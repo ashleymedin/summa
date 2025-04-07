@@ -55,7 +55,7 @@ contains
  USE summa_type, only:summa1_type_dec                        ! master summa data type
  ! functions and subroutines
  USE def_output_module,only:def_output                       ! module to define model output
- USE modelwrite_module,only:writeParm                        ! module to write model parameters
+ USE modelwrite_module,only:writeParam                       ! module to write model parameters
  ! global data structures
  USE globalData,only:gru_struc                               ! gru-hru mapping structures
  USE globalData,only:structInfo                              ! information on the data structures
@@ -133,11 +133,11 @@ contains
   do iHRU=1,gru_struc(iGRU)%hruCount
    do iStruct=1,size(structInfo)
     select case(trim(structInfo(iStruct)%structName))
-     case('attr'); call writeParm(0,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,attrStruct%gru(iGRU)%hru(iHRU),attr_meta,err,cmessage)
-     case('type'); call writeParm(0,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,cmessage)
+     case('attr'); call writeParam(0,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,attrStruct%gru(iGRU)%hru(iHRU),attr_meta,err,cmessage)
+     case('type'); call writeParam(0,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,cmessage)
      case('mpar')
       do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
-       call writeParm(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),mpar_meta,err,cmessage)
+       call writeParam(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),mpar_meta,err,cmessage)
       end do
     end select
     if(err/=0)then; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; return; endif
@@ -145,7 +145,7 @@ contains
   end do  ! (looping through HRUs)
 
   ! write GRU parameters
-  call writeParm(0,iGRU,bparStruct%gru(iGRU),bpar_meta,err,cmessage)
+  call writeParam(0,iGRU,bparStruct%gru(iGRU),bpar_meta,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end do  ! (looping through GRUs)

@@ -390,7 +390,7 @@ def run_loopb(i,var,mx,rep,stat2):
 
             if fix_wall_event_plot and 'wallClockTime' in var:
                 from scipy.stats import linregress
-                if m in ['sun5en']:#,'sun8en']:
+                if m in ['sun5cm','sun5en','sun8en']:
                     s_saved = s
                     s2 = summa1[f'{m}_noev'][var].sel(stat=stat0).where(lambda x: x != 9999)
                     s2 = s2.where(lambda x: x != 0)  # water bodies should be 0

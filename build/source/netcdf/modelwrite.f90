@@ -84,7 +84,7 @@ USE var_lookup, only: maxvarStat ! number of statistics
 
 implicit none
 private
-public::writeParm
+public::writeParam
 public::writeData
 public::writeBasin
 public::writeTime
@@ -95,9 +95,9 @@ public::writeRestartGlac
 contains
 
  ! **********************************************************************************************************
- ! public subroutine writeParm: write model parameters
+ ! public subroutine writeParam: write model parameters
  ! **********************************************************************************************************
- subroutine writeParm(iDOM,iSpatial,struct,meta,err,message)
+ subroutine writeParam(iDOM,iSpatial,struct,meta,err,message)
  USE globalData,only:ncid                        ! netcdf file ids
  USE data_types,only:var_info                    ! metadata info
  USE var_lookup,only:iLookSTAT                   ! index in statistics vector
@@ -115,7 +115,7 @@ contains
  integer(i4b)                :: iVar             ! loop through variables
 
  ! initialize error control
- err=0;message="writeParm/"
+ err=0;message="writeParam/"
 
  ! loop through local column model parameters
  do iVar = 1,size(meta)
@@ -144,10 +144,10 @@ contains
   call netcdf_err(err,message); if (err/=0) return
 
   ! re-initialize message
-  message="writeParm/"
+  message="writeParam/"
  end do  ! looping through local column model parameters
 
- end subroutine writeParm
+ end subroutine writeParam
 
  ! **************************************************************************************
  ! public subroutine writeData: write model time-dependent data
@@ -831,7 +831,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! local variables
  integer(i4b)                       :: ncid               ! netcdf file id
- integer(i4b),dimension(1)          :: ncVarID            ! netcdf variable id, only one variable currently
+ integer(i4b),dimension(2)          :: ncVarID            ! netcdf variable id, only one variable currently
  integer(i4b),dimension(2)          :: ngdx               ! intermediate array of loop indices
  integer(i4b)                       :: gruDimID           ! variable dimension ID
  integer(i4b)                       :: ngriDimID          ! variable dimension ID
