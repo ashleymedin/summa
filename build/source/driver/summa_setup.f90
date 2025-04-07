@@ -375,6 +375,11 @@ endif
                   err,cmessage)                   ! error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+  ! initialize glacier runoff in future time steps (will be overwritten by initial conditions file values if present)
+  bvarStruct%gru(iGRU)%var(iLookBVAR%glacIceRunoffFuture)%dat  = 0._rkind
+  bvarStruct%gru(iGRU)%var(iLookBVAR%glacSnowRunoffFuture)%dat = 0._rkind
+  bvarStruct%gru(iGRU)%var(iLookBVAR%glacFirnRunoffFuture)%dat = 0._rkind
+
   ! loop through local HRUs
   do iHRU=1,gru_struc(iGRU)%hruCount
 

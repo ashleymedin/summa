@@ -496,7 +496,7 @@ subroutine run_oneGRU(&
                  ! output
                  bvarData%var(iLookBVAR%averageInstantRunoff)%dat(1),  & ! intent(out):   instantaneous runoff (m s-1)
                  bvarData%var(iLookBVAR%averageRoutedRunoff)%dat(1),   & ! intent(out):   routed runoff (m s-1)
-                 err,cmessage)                                            ! intent(out):   error control
+                 err,cmessage)                                           ! intent(out):   error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
   ! add glacier runoff to overland runoff
