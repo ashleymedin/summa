@@ -1048,13 +1048,9 @@ subroutine read_output_file(err,message)
         else
           freqName = trim(lineWords(freqIndex))
         endif
-        if (freqName/='annual') then
-          write(*,*)'WARNING: temporally constant variable '//trim(varName)//': outputting variable at annual level and will be the same value throughout file [entered "'//trim(freqName)//'"]'
-        else
-          write(*,*)'WARNING: temporally constant variable '//trim(varName)//': will be the same value throughout file'
-        endif
-        iFreq = iLookFREQ%annual
-        freqName = 'annual'
+        write(*,*)'WARNING: temporally constant variable '//trim(varName)//': outputting variable in timestep file with no time dimension'
+        iFreq = iLookFREQ%timestep
+        freqName = 'timestep'
 
       ! time variable is always outputted at timestep level (no aggregation)
       case('time')
@@ -1140,12 +1136,12 @@ subroutine read_output_file(err,message)
       ! temporally constant structures -- request instantaneous, timestep-level output (no aggregation)
       case('time' ); time_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; time_meta(vDex)%varDesire=.true.   ! timing data
 
-      ! temporally constant structures -- request instantaneous, annual-level output at annual (no aggregation, does not change)        
-      case('bpar' ); bpar_meta(vDex)%statIndex(iLookFREQ%annual) = iLookSTAT%inst; bpar_meta(vDex)%varDesire=.true.   ! basin parameters
-      case('attr' ); attr_meta(vDex)%statIndex(iLookFREQ%annual) = iLookSTAT%inst; attr_meta(vDex)%varDesire=.true.   ! local attributes
-      case('type' ); type_meta(vDex)%statIndex(iLookFREQ%annual) = iLookSTAT%inst; type_meta(vDex)%varDesire=.true.   ! local classification
-      case('mpar' ); mpar_meta(vDex)%statIndex(iLookFREQ%annual) = iLookSTAT%inst; mpar_meta(vDex)%varDesire=.true.   ! model parameters
-      
+      ! temporally constant structures -- request instantaneous, timestep-level output (and output with no time dimension, does not change)        
+      case('bpar' ); bpar_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; bpar_meta(vDex)%varDesire=.true.   ! basin parameters
+      case('attr' ); attr_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; attr_meta(vDex)%varDesire=.true.   ! local attributes
+      case('type' ); type_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; type_meta(vDex)%varDesire=.true.   ! local classification
+      case('mpar' ); mpar_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; mpar_meta(vDex)%varDesire=.true.   ! model parameters
+
       ! index structures -- can only be output at the model time step
       case('indx' ); indx_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; indx_meta(vDex)%varDesire=.true.
       if(iFreq/=iLookFREQ%timestep)then

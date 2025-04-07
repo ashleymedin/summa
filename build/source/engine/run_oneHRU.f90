@@ -211,8 +211,8 @@ subroutine run_oneHRU(&
 
         use_computeVegFlux = computeVegFlux
 
-      elseif ( domInfo(i)%dom_type == glacAcc .or. domInfo(i)%dom_type == glacCln .or. &
-               domInfo(i)%dom_type == glacDbr .or. domInfo(i)%dom_type == wetland )then ! don't need vegetation parameters for glaciers
+      elseif ( domInfo(i)%dom_type == glacAcc .or. domInfo(i)%dom_type == glacCln .or. domInfo(i)%dom_type == glacDbr .or. &
+               domInfo(i)%dom_type == glacieret .or. domInfo(i)%dom_type == wetland )then ! don't need vegetation parameters for glaciers
         use_computeVegFlux = .false.
         if (domInfo(i)%dom_type == glacAcc .or. domInfo(i)%dom_type == glacCln .or. domInfo(i)%dom_type == glacDbr) glacierDomain = .true.
       else
