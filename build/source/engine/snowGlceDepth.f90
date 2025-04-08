@@ -218,7 +218,7 @@ subroutine snowDensify(&
     if(mLayerVolFracIceNew(iSnow)*iden_ice <snwden_min)then ! low density snow
       chi1=1._rkind
     else ! high density snow
-      chi1=1._rkind - exp(-densScalGrowth*(mLayerVolFracIceNew(iSnow)*iden_ice - snwden_min)) 
+      chi1=exp(-densScalGrowth*(mLayerVolFracIceNew(iSnow)*iden_ice - snwden_min))
     end if
     ! reduction of grain growth under colder snow temperatures (-)
     chi2 = exp(-tempScalGrowth*(Tfreeze - mLayerTemp(iSnow)))
@@ -331,16 +331,17 @@ subroutine glceReduce(&
     ! save mass of ice, liq, and air (mass does not change)
     massIceOld = iden_ice*mLayerVolFracIceNew(iGlce)*mLayerDepth(iGlce)   ! (kg m-2)
     massLiqOld = iden_water*mLayerVolFracLiqNew(iGlce)*mLayerDepth(iGlce) ! (kg m-2) liquid is ~0 but do to account for rounding errors
+
     ! adjust depth in proportion to the amount of ice lost
     volFracIceLoss = max(0._rkind,mLayerMeltFreeze(iGlce)/iden_ice)  ! volumetric fraction of ice lost due to melt and sublimation (-)
-
-    scalarDepthNew = mLayerDepth(iGlce) * (mLayerVolFracIceNew(iGlce)) / (mLayerVolFracIceNew(iGlce)+volFracIceLoss)
+    scalarDepthNew = mLayerDepth(iGlce) * mLayerVolFracIceNew(iGlce) / (mLayerVolFracIceNew(iGlce)+volFracIceLoss)
 
     ! ensure that the new depth can accomodate masses of ice and liquid in the layer
     scalarDepthMin = (massIceOld / iden_ice) + (massLiqOld / iden_water)
     mLayerDepth(iGlce) = max(scalarDepthMin, scalarDepthNew)
  
-    if(mLayerDepth(1) < verySmall)then ! check that we did not remove the entire layer
+    ! check that we did not remove the entire layer
+    if(mLayerDepth(1) < verySmall)then
       tooMuchMelt=.true.
       return
     endif
