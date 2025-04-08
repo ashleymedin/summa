@@ -112,7 +112,6 @@ subroutine snLaGlLiqFlx(&
     mLayerVolFracIce => prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nStart+1:nStart+nLayers), & ! intent(in):    volumetric ice content at the start of the time step (-)
     Fcapil           => mpar_data%var(iLookPARAM%Fcapil)%dat(1),                & ! intent(in):    capillary retention as a fraction of the total pore volume (-)
     k_snow           => mpar_data%var(iLookPARAM%k_snow)%dat(1),                & ! intent(in):    hydraulic conductivity of snow (m s-1)    
-    k_ice            => mpar_data%var(iLookPARAM%k_ice)%dat(1),                 & ! intent(in):    hydraulic conductivity of ice (m s-1)
     mw_exp           => mpar_data%var(iLookPARAM%mw_exp)%dat(1),                & ! intent(in):    exponent for meltwater flow (-)
     ! input-output: diagnostic variables -- only computed for the first iteration
     mLayerPoreSpace  => diag_data%var(iLookDIAG%mLayerPoreSpace)%dat(nStart+1:nStart+nLayers),  & ! intent(inout): pore space in each layer (-)
@@ -146,10 +145,6 @@ subroutine snLaGlLiqFlx(&
       residThrs = 550._rkind
       maxVolIceContent = 0.7_rkind
       k_param = k_snow
-    else ! ice
-      residThrs = 800._rkind
-      maxVolIceContent = 0.9_rkind
-      k_param = k_ice
     end if
 
     ! get the indices for the layers
@@ -172,9 +167,9 @@ subroutine snLaGlLiqFlx(&
     iLayerLiqFluxSnLaGlDeriv(0) = 0._rkind !computed inside computJacob
 
     ! compute properties fixed over the time step
-    if (firstFluxCall) then
+    if (firstFluxCall .and. do_snow) then
       ! loop through snow/glce layers
-      do iLayer=1,nLayers ! loop through snow/glce layers
+      do iLayer=1,nLayers ! loop through snow layers
         multResid = 1._rkind/(1._rkind + exp((mLayerVolFracIce(iLayer)*iden_ice - residThrs)/residScal)) ! compute the reduction in liquid water holding capacity at high snow/ice density (-)
         mLayerPoreSpace(iLayer)  = 1._rkind - mLayerVolFracIce(iLayer) ! compute the pore space (-)
         mLayerThetaResid(iLayer) = Fcapil*mLayerPoreSpace(iLayer)*multResid ! compute the residual volumetric liquid water content (-)
@@ -183,20 +178,30 @@ subroutine snLaGlLiqFlx(&
      
     ! compute fluxes
     do iLayer=ixTop,ixBot  ! loop through snow/glce layers
-      if (mLayerVolFracLiqTrial(iLayer) > mLayerThetaResid(iLayer)) then ! check that flow occurs
-        ! compute the relative saturation (-)
-        availCap  = mLayerPoreSpace(iLayer) - mLayerThetaResid(iLayer)                 ! available capacity
-        relSaturn = (mLayerVolFracLiqTrial(iLayer) - mLayerThetaResid(iLayer)) / availCap    ! relative saturation
-        iLayerLiqFluxSnLaGl(iLayer)      = k_param*relSaturn**mw_exp
-        iLayerLiqFluxSnLaGlDeriv(iLayer) = ( (k_param*mw_exp)/availCap ) * relSaturn**(mw_exp - 1._rkind)
-        if (mLayerVolFracIce(iLayer) > maxVolIceContent) then ! NOTE: use start-of-step ice content, to avoid convergence problems
-          ! ** allow liquid water to pass through under very high ice density
-          iLayerLiqFluxSnLaGl(iLayer) = iLayerLiqFluxSnLaGl(iLayer) + iLayerLiqFluxSnLaGl(iLayer-1) !NOTE: derivative may need to be updated in future.
-        end if
-      else  ! flow does not occur
-        iLayerLiqFluxSnLaGl(iLayer)      = 0._rkind
-        iLayerLiqFluxSnLaGlDeriv(iLayer) = 0._rkind
-      end if  ! storage above residual content
+      if (do_snow) then
+        if (mLayerVolFracLiqTrial(iLayer) > mLayerThetaResid(iLayer)) then ! check that flow occurs
+          ! compute the relative saturation (-)
+          availCap  = mLayerPoreSpace(iLayer) - mLayerThetaResid(iLayer)                 ! available capacity
+          relSaturn = (mLayerVolFracLiqTrial(iLayer) - mLayerThetaResid(iLayer)) / availCap    ! relative saturation
+          iLayerLiqFluxSnLaGl(iLayer)      = k_param*relSaturn**mw_exp
+          iLayerLiqFluxSnLaGlDeriv(iLayer) = ( (k_param*mw_exp)/availCap ) * relSaturn**(mw_exp - 1._rkind)
+          if (mLayerVolFracIce(iLayer) > maxVolIceContent) then ! NOTE: use start-of-step ice content, to avoid convergence problems
+            ! ** allow liquid water to pass through under very high ice density
+            iLayerLiqFluxSnLaGl(iLayer) = iLayerLiqFluxSnLaGl(iLayer) + iLayerLiqFluxSnLaGl(iLayer-1) ! NOTE: derivative needs to be updated in future, wrong in this case
+          end if
+        else  ! flow does not occur
+          iLayerLiqFluxSnLaGl(iLayer)      = 0._rkind
+          iLayerLiqFluxSnLaGlDeriv(iLayer) = 0._rkind
+        end if  ! storage above residual content
+      else ! ice
+        ! ** allow liquid water to go into the reservoir in ice, do not store in the ice
+        iLayerLiqFluxSnLaGl(iLayer) = mLayerVolFracLiqTrial(iLayer) + iLayerLiqFluxSnLaGl(iLayer-1)
+        iLayerLiqFluxSnLaGlDeriv(iLayer) = 1._rkind
+        !if (iLayer==1) then
+        !  print *,'mLayerVolFracLiqTrial=', mLayerVolFracLiqTrial(iLayer), 'mLayerVolFracIce', mLayerVolFracIce(iLayer), &
+        !        'availCap=', availCap, 'relSaturn=', relSaturn, 'iLayerLiqFluxSnLaGl=', iLayerLiqFluxSnLaGl(iLayer)
+        !end if
+      end if  ! end if snow or ice
     end do  ! end loop through snow/glce layers
 
     ! save the results with index 0

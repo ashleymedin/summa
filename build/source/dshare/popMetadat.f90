@@ -160,7 +160,6 @@ subroutine popMetadat(err,message)
   ! water flow through snow
   mpar_meta(iLookPARAM%Fcapil)                        = var_info('Fcapil'                          , 'capillary retention (fraction of total pore volume)'              , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%k_snow)                        = var_info('k_snow'                          , 'hydraulic conductivity of snow'                                   , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  mpar_meta(iLookPARAM%k_ice)                         = var_info('k_ice'                           , 'hydraulic conductivity of ice'                                    , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%mw_exp)                        = var_info('mw_exp'                          , 'exponent for meltwater flow'                                      , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! turbulent heat fluxes
   mpar_meta(iLookPARAM%z0Water)                       = var_info('z0Water'                         , 'roughness length of open water'                                   , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)

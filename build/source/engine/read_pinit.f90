@@ -138,9 +138,6 @@ contains
   call set_ida_defaults(parFallback, err, cmessage)
   if (err /= 0) then; message = trim(message)//trim(cmessage); return; end if
   ! glacier and lake parameters
-  if (parFallback(iLookPARAM%k_ice)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%k_ice)%default_val = 2.1e-6_rkind
-  end if
   if (parFallback(iLookPARAM%albedoFrznWatVisible)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%albedoFrznWatVisible)%default_val = 0.6_rkind
   end if

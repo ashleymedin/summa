@@ -290,7 +290,6 @@ contains
   ! water flow through snow
   case('Fcapil'                   ); get_ixParam = iLookPARAM%Fcapil                 ! capillary retention as a fraction of the total pore volume (-)
   case('k_snow'                   ); get_ixParam = iLookPARAM%k_snow                 ! hydraulic conductivity of snow (m s-1), 0.0055 = approx. 20 m/hr, from UEB
-  case('k_ice'                    ); get_ixParam = iLookPARAM%k_ice                  ! hydraulic conductivity of ice (m s-1), 2.1e-6 = approx. 0.00005 m/hr, from Stevens et al. 2018
   case('mw_exp'                   ); get_ixParam = iLookPARAM%mw_exp                 ! exponent for meltwater flow (-)
   ! turbulent heat fluxes
   case('z0Water'                  ); get_ixParam = iLookPARAM%z0Water                ! roughness length of open water (m)

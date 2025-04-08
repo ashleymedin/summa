@@ -846,8 +846,8 @@ contains
    do iLayer=1,nGlce
      mLayerLiqFluxSnLaGl(iLayer+nStart) = -(iLayerLiqFluxSnLaGl(iLayer+nStart) - iLayerLiqFluxSnLaGl(iLayer-1+nStart))/mLayerDepth(iLayer+nStart)
    end do
-   ! compute melt from the glacier ice zone (all melt and runoff goes into the glacier ice), bottom layer is impervious
-   scalarGlacierMelt = iLayerLiqFluxSnLaGl(nGlce+nStart-1) + scalarTotalRunoff
+   ! compute melt from the glacier ice zone (all melt and runoff goes into the glacier ice) and high density runoff passes through
+   scalarGlacierMelt = iLayerLiqFluxSnLaGl(nGlce+nStart) + scalarTotalRunoff
 
   end associate
  end subroutine finalize_glceLiqFlx
