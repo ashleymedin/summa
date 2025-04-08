@@ -21,7 +21,7 @@
 module summaSolve4homegrown_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! access the global print flag
 USE globalData,only:globalPrintFlag
@@ -58,8 +58,8 @@ USE data_types,only:&
                     var_dlength,                  & ! data vector with variable length dimension (rkind)
                     zLookup,                      & ! lookup tables
                     model_options,                & ! defines the model decisions
-                    in_type_computJacob,          & ! class for computJacob arguments
-                    out_type_computJacob,         & ! class for computJacob arguments
+                    in_type_computeJacob,          & ! class for computeJacob arguments
+                    out_type_computeJacob,         & ! class for computeJacob arguments
                     in_type_lineSearchRefinement, & ! class for lineSearchRefinement arguments
                     out_type_lineSearchRefinement,& ! class for lineSearchRefinement arguments
                     in_type_summaSolve4homegrown, & ! class for summaSolve4homegrown arguments
@@ -122,7 +122,7 @@ contains
                        resSinkNew,              & ! intent(out):   additional (sink) terms on the RHS of the state equation
                        resVecNew,               & ! intent(out):   new residual vector
                        out_SS4HG)                 ! intent(out):   new function evaluation, convergence flag, and error control  
- USE computJacob_module, only: computJacob
+ USE computeJacob_module, only: computeJacob
  USE eval8summa_module,  only: imposeConstraints
  USE matrixOper_module,  only: lapackSolv
  USE matrixOper_module,  only: scaleMatrices
@@ -189,8 +189,8 @@ contains
  logical(lgt)                    :: return_flag              ! flag that controls execution of return statements
  character(LEN=256)              :: cmessage                 ! error message of downwind routine
  ! class objects for subroutine arguments
- type(in_type_computJacob)           :: in_computJacob  ! computJacob
- type(out_type_computJacob)          :: out_computJacob ! computJacob 
+ type(in_type_computeJacob)           :: in_computeJacob  ! computeJacob
+ type(out_type_computeJacob)          :: out_computeJacob ! computeJacob 
  type(in_type_lineSearchRefinement)  :: in_LSR  ! lineSearchRefinement
  type(out_type_lineSearchRefinement) :: out_LSR ! lineSearchRefinement 
  type(in_type_lineSearchRefinement)  :: in_TRR  ! trustRegionRefinement
@@ -262,16 +262,16 @@ contains
    ! *** Update Jacobian used for Newton step ***
   
    ! compute the analytical Jacobian matrix
-   ! NOTE: The derivatives were computed in the previous call to computFlux
-   !       This occurred either at the call to eval8summa at the start of systemSolv
+   ! NOTE: The derivatives were computed in the previous call to computeFlux
+   !       This occurred either at the call to eval8summa at the start of systemSolve
    !        or in the call to eval8summa in the previous iteration (within lineSearchRefinement or trustRegionRefinement)
    associate(&
     err       => out_SS4HG % err      ,& 
     message   => out_SS4HG % message   &     
    &)
-    call initialize_computJacob_summaSolve4homegrown
-    call computJacob(in_computJacob,indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,dMat,aJac,out_computJacob)
-    call finalize_computJacob_summaSolve4homegrown
+    call initialize_computeJacob_summaSolve4homegrown
+    call computeJacob(in_computeJacob,indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,dMat,aJac,out_computeJacob)
+    call finalize_computeJacob_summaSolve4homegrown
     if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! (check for errors)
   
     ! compute the numerical Jacobian matrix
@@ -929,8 +929,8 @@ contains
   integer(i4b)                    :: iState,jState            ! indices of the state vector
   character(LEN=256)              :: cmessage                 ! error message of downwind routine
   ! class objects for subroutine arguments
-  type(in_type_computJacob)       :: in_computJacob
-  type(out_type_computJacob)      :: out_computJacob
+  type(in_type_computeJacob)       :: in_computeJacob
+  type(out_type_computeJacob)      :: out_computeJacob
   ! initialize error control
   err=0; message='testBandMat/'
 
@@ -942,9 +942,9 @@ contains
   end if
 
   ! compute the full Jacobian matrix
-  call initialize_computJacob_testBandMat
-  call computJacob(in_computJacob,indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,dMat,fullJac,out_computJacob)
-  call finalize_computJacob_testBandMat(err,cmessage)
+  call initialize_computeJacob_testBandMat
+  call computeJacob(in_computeJacob,indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,dMat,fullJac,out_computeJacob)
+  call finalize_computeJacob_testBandMat(err,cmessage)
   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
   ! initialize band matrix
@@ -970,8 +970,8 @@ contains
 
   end subroutine testBandMat
 
-  subroutine initialize_computJacob_testBandMat
-   ! *** Transfer data from out_computJacob class object to local variables in testBandMat ***
+  subroutine initialize_computeJacob_testBandMat
+   ! *** Transfer data from out_computeJacob class object to local variables in testBandMat ***
    associate(&
     dt_cur         => in_SS4HG % dt_cur         ,& ! intent(in): current stepsize
     nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
@@ -981,20 +981,20 @@ contains
     nLayers        => in_SS4HG % nLayers        ,& ! intent(in): total number of layers
     computeVegFlux => in_SS4HG % computeVegFlux  & ! intent(in): flag to indicate if computing fluxes over vegetation
    &)
-    call in_computJacob % initialize(dt_cur,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,.false.,ixFullMatrix)
+    call in_computeJacob % initialize(dt_cur,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,.false.,ixFullMatrix)
    end associate
-  end subroutine initialize_computJacob_testBandMat
+  end subroutine initialize_computeJacob_testBandMat
 
-  subroutine finalize_computJacob_testBandMat(err,cmessage)
-   ! *** Transfer data from out_computJacob class object to local variables in testBandMat ***
+  subroutine finalize_computeJacob_testBandMat(err,cmessage)
+   ! *** Transfer data from out_computeJacob class object to local variables in testBandMat ***
    ! Note: subroutine arguments are needed because testBandMat is an internal procedure 
    integer(i4b),intent(out)        :: err                      ! error code
    character(*),intent(out)        :: cmessage                 ! error message of downwind routine
-   call out_computJacob % finalize(err,cmessage)
-  end subroutine finalize_computJacob_testBandMat
+   call out_computeJacob % finalize(err,cmessage)
+  end subroutine finalize_computeJacob_testBandMat
  
-  subroutine initialize_computJacob_summaSolve4homegrown
-   ! *** Transfer data to in_computJacob class object from local variables in summaSolve4homegrown ***
+  subroutine initialize_computeJacob_summaSolve4homegrown
+   ! *** Transfer data to in_computeJacob class object from local variables in summaSolve4homegrown ***
    associate(&
     ixGroundwater  => model_decisions(iLookDECISIONS%groundwatr)%iDecision,&  ! intent(in): [i4b] groundwater parameterization
     dt_cur         => in_SS4HG % dt_cur         ,& ! intent(in): current stepsize
@@ -1006,16 +1006,16 @@ contains
     ixMatrix       => in_SS4HG % ixMatrix       ,& ! intent(in): type of matrix (full or band diagonal)
     computeVegFlux => in_SS4HG % computeVegFlux  & ! intent(in): flag to indicate if computing fluxes over vegetation
    &)   
-    call in_computJacob % initialize(dt_cur,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel),ixMatrix)
+    call in_computeJacob % initialize(dt_cur,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel),ixMatrix)
    end associate
-  end subroutine initialize_computJacob_summaSolve4homegrown
+  end subroutine initialize_computeJacob_summaSolve4homegrown
 
-  subroutine finalize_computJacob_summaSolve4homegrown
-   ! *** Transfer data from out_computJacob class object to local variables in summaSolve4homegrown ***
+  subroutine finalize_computeJacob_summaSolve4homegrown
+   ! *** Transfer data from out_computeJacob class object to local variables in summaSolve4homegrown ***
    associate(err => out_SS4HG % err)
-    call out_computJacob % finalize(err,cmessage)
+    call out_computeJacob % finalize(err,cmessage)
    end associate 
-  end subroutine finalize_computJacob_summaSolve4homegrown
+  end subroutine finalize_computeJacob_summaSolve4homegrown
 
   ! *********************************************************************************************************
   ! * internal subroutine eval8summa_wrapper: compute the right-hand-side vector

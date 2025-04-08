@@ -23,7 +23,7 @@ module summaSolve4ida_module
 
 !======= Inclusions ===========
 USE, intrinsic :: iso_c_binding
-USE nrtype
+USE nr_type
 USE type4ida
 
 ! access the global print flag
@@ -153,7 +153,7 @@ subroutine summaSolve4ida(&
   USE allocspace_module,only:allocLocal                       ! allocate local data structures
   USE getVectorz_module, only:checkFeas                       ! check feasibility of state vector
   USE eval8summaWithPrime_module,only:eval8summa4ida          ! DAE/ODE functions
-  USE computJacobWithPrime_module,only:computJacob4ida        ! system Jacobian
+  USE computeJacobWithPrime_module,only:computeJacob4ida        ! system Jacobian
   USE tol4ida_module,only:computWeight4ida                    ! weight required for tolerances
   USE var_lookup,only:maxvarDecisions                         ! maximum number of decisions
   !======= Declarations =========
@@ -448,7 +448,7 @@ subroutine summaSolve4ida(&
     
     ! Set the user-supplied Jacobian routine
     if(.not.use_fdJac)then
-      retval = FIDASetJacFn(ida_mem, c_funloc(computJacob4ida))
+      retval = FIDASetJacFn(ida_mem, c_funloc(computeJacob4ida))
       if (retval /= 0) then; err=20; message=trim(message)//'error in FIDASetJacFn'; return; endif
     endif
     
@@ -1010,7 +1010,7 @@ subroutine getErrMessage(retval,message)
    if( retval==-1 ) message = 'IDA_TOO_MUCH_WORK'   ! The solver took mxstep internal steps but could not reach tout.
    if( retval==-2 ) message = 'IDA_TOO_MUCH_ACC'    ! The solver could not satisfy the accuracy demanded by the user for some internal step.
    if( retval==-3 ) message = 'IDA_ERR_FAIL'        ! Error test failures occurred too many times during one internal timestep or minimum step size was reached.
-   if( retval==-4 ) message = 'IDA_CONV_FAIL'       ! Convergence test failures occurred too many times during one internal time step or minimum step size was reached.
+   if( retval==-4 ) message = 'IDA_convert_FAIL'       ! Convergence test failures occurred too many times during one internal time step or minimum step size was reached.
    if( retval==-5 ) message = 'IDA_LINIT_FAIL'      ! The linear solver’s initialization function failed.
    if( retval==-6 ) message = 'IDA_LSETUP_FAIL'     ! The linear solver’s setup function failed in an unrecoverable manner.
    if( retval==-7 ) message = 'IDA_LSOLVE_FAIL'     ! The linear solver’s solve function failed in an unrecoverable manner.

@@ -21,7 +21,7 @@
 module run_oneHRU_module
 
 ! numerical recipes data types
-USE nrtype
+USE nr_type
 
 ! data types
 USE data_types,only:&

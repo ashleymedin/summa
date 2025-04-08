@@ -5,7 +5,7 @@ public::flxMapping
 contains
 
  subroutine flxMapping(err,message)
- USE nrtype
+ USE nr_type
  ! data types
  USE data_types, only: var_info         ! data type for metadata structure
  USE data_types, only: flux2state       ! data type for extended metadata structure, for flux-to-state mapping

@@ -1,5 +1,5 @@
-module updatStateWithPrime_module
-USE nrtype
+module updateStateWithPrime_module
+USE nr_type
 ! physical constants
 USE multiconst,only:&
                     Tfreeze,     & ! freezing point of pure water  (K)
@@ -167,4 +167,4 @@ subroutine updateSoilPrime(&
 
 end subroutine updateSoilPrime
 
-end module updatStateWithPrime_module
+end module updateStateWithPrime_module

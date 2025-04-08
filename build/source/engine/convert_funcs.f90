@@ -18,8 +18,8 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module conv_funcs_module
-USE nrtype                                 ! variable types
+module convert_funcs_module
+USE nr_type                                 ! variable types
 USE multiconst                             ! fixed parameters (lh vapzn, etc.)
 implicit none
 private
@@ -330,4 +330,4 @@ SATVPRESS = SATVPFRZ * EXP( (17.27_rkind*TCEL)/(237.30_rkind + TCEL) ) ! Saturat
 end function SATVPRESS
 
 
-end module conv_funcs_module
+end module convert_funcs_module

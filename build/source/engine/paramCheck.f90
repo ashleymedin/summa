@@ -20,7 +20,7 @@
 
 module paramCheck_module
 ! define numerical recipes data type
-USE nrtype
+USE nr_type
 ! define look-up values for the choice of method to combine and sub-divide snow layers
 USE mDecisions_module,only:&
  sameRulesAllLayers, & ! SNTHERM option: same combination/sub-dividion rules applied to all layers

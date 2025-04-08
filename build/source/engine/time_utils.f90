@@ -21,7 +21,7 @@
 module time_utils_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! model constants
 USE multiconst,only:secprday,secprhour,secprmin  ! seconds in an (day, hour, minute)

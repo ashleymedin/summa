@@ -19,7 +19,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module ascii_util_module
-USE nrtype
+USE nr_type
 implicit none
 integer(i4b),parameter,public :: linewidth=4096  ! max character number for one line
 private

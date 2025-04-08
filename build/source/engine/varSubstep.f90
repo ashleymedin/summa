@@ -21,7 +21,7 @@
 module varSubstep_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
@@ -127,7 +127,7 @@ subroutine varSubstep(&
   ! simulation of fluxes and residuals given a trial state vector
   USE getVectorz_module,only:popStateVec                ! populate the state vector
   USE getVectorz_module,only:varExtract                 ! extract variables from the state vector
-  USE systemSolv_module,only:systemSolv                 ! solve the system of equations for one time step
+  USE systemSolve_module,only:systemSolve                 ! solve the system of equations for one time step
   ! identify name of variable type (for error message)
   USE get_ixName_module,only:get_varTypeName           ! to access type strings for error messages
   implicit none
@@ -289,7 +289,7 @@ subroutine varSubstep(&
     ! initialize the length of the substep
     dtSubstep = dtInit
 
-    ! change maxstep with hard code here to make only the newton step loop in systemSolv* happen more frequently
+    ! change maxstep with hard code here to make only the newton step loop in systemSolve* happen more frequently
     !   NOTE: this may just be amplifying the splitting error if maxstep is smaller than the full possible step
     maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s).
 
@@ -345,7 +345,7 @@ subroutine varSubstep(&
       ! * iterative solution...
       ! -----------------------
       ! solve the system of equations for a given state subset
-      call systemSolv(&
+      call systemSolve(&
                       ! input: model control
                       dtSubstep,         & ! intent(in):    time step (s)
                       whole_step,        & ! intent(in):    entire time step (s)
@@ -634,10 +634,10 @@ subroutine updateProg(dt,nSnow,nLake,nSoil,nLayers,untappedMelt,stateVecTrial,st
                       fluxVec,resVec,balance,waterBalanceError,nrgFluxModified,err,message)                                        ! input-output: balances, flags, and error control
 USE getVectorz_module,only:varExtract                              ! extract variables from the state vector
 #ifdef SUNDIALS_ACTIVE
-  USE updateVarsWithPrime_module,only:updateVarsWithPrime          ! update prognostic variables
+  USE updateDiagnWithPrime_module,only:updateDiagnWithPrime          ! update prognostic variables
 #endif
-  USE updateVars_module,only:updateVars                            ! update prognostic variables
-  USE enthalpyTemp_module,only:enthTemp_or_enthalpy                ! add phase change terms to delta temperature component of enthalpy
+  USE updateDiagn_module,only:updateDiagn                            ! update prognostic variables
+  USE convertEnthalpyTemp_module,only:enthTemp_or_enthalpy                ! add phase change terms to delta temperature component of enthalpy
   implicit none
   ! model control
   real(rkind)      ,intent(in)    :: dt                            ! time step (s)
@@ -935,7 +935,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
         endif !(choice of how conservation of energy is implemented)
     
         ! update diagnostic variables
-        call updateVarsWithPrime(&
+        call updateDiagnWithPrime(&
                     ! input
                     enthalpyStateVec,                 & ! intent(in):    flag if enthalpy is used as state variable
                     use_lookup,                       & ! intent(in):    flag to use the lookup table for soil enthalpy
@@ -979,7 +979,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
 #endif
       case(kinsol, homegrown)
         ! update diagnostic variables
-        call updateVars(&
+        call updateDiagn(&
                  ! input
                  computeEnthTemp,           & ! intent(in):    flag if computing temperature component of enthalpy
                  use_lookup,                & ! intent(in):    flag to use the lookup table for soil enthalpy

@@ -21,7 +21,7 @@
 module soil_utilsAddPrime_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 USE multiconst,only: gravity, & ! acceleration of gravity       (m s-2)
                      Tfreeze, & ! temperature at freezing    (K)

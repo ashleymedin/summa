@@ -21,7 +21,7 @@
 module layerMerge_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
@@ -350,7 +350,7 @@ contains
  USE data_types,only:var_d                                        ! data structures with fixed dimension
  ! provide access to external modules
  USE snow_utils_module,only:fracliquid                            ! compute fraction of liquid water
- USE enthalpyTemp_module,only:enthalpy2T_snwWat,T2enthalpy_snwWat ! convert temperature to liq+ice enthalpy for a snow layer
+ USE convertEnthalpyTemp_module,only:enthalpy2T_snwWat,T2enthalpy_snwWat ! convert temperature to liq+ice enthalpy for a snow layer
  implicit none
  ! ------------------------------------------------------------------------------------------------------------
  ! input/output: data structures
@@ -503,7 +503,7 @@ contains
  subroutine rmLyAllVars(doGlac,dataStruct,metaStruct,iSnow,nSnow,nGlce,nLayers,err,message)
  USE var_lookup,only:iLookVarType                 ! look up structure for variable typed
  USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
- USE f2008funcs_module,only:cloneStruc            ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
+ USE f2008_funcs_module,only:cloneStruc            ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
  USE data_types,only:var_ilength,var_dlength      ! data vectors with variable length dimension
  USE data_types,only:var_info                     ! metadata structure
  implicit none

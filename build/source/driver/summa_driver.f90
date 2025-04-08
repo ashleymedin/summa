@@ -23,7 +23,7 @@ program summa_driver
 
   ! * module access *
   ! data types
-  USE nrtype                                                  ! variable types, etc.
+  USE nr_type                                                  ! variable types, etc.
   USE summa_type, only: summa1_type_dec                       ! master summa data type
   ! subroutines and functions: model setup
   USE summa_init, only: summa_initialize                      ! used to allocate/initialize summa data structures

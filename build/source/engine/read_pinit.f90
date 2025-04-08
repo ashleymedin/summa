@@ -19,7 +19,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module read_pinit_module
-USE nrtype
+USE nr_type
 ! check for when model decisions are undefined
 USE mDecisions_module,only: unDefined
 USE globalData,only:model_decisions

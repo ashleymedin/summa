@@ -20,8 +20,8 @@
 
 ! used to manage output statistics of the model and forcing variables
 module output_stats
-USE nrtype, realMissing=>nr_realMissing
-USE nrtype, integerMissing=>nr_integerMissing
+USE nr_type, realMissing=>nr_realMissing
+USE nr_type, integerMissing=>nr_integerMissing
 implicit none
 private
 public :: calcStats
@@ -32,7 +32,7 @@ contains
  ! from model variables
  ! ******************************************************************************************************
  subroutine calcStats(stat,dat,meta,resetStats,finalizeStats,statCounter,err,message)
- USE nrtype
+ USE nr_type
  USE data_types,only:extended_info,dlength,ilength  ! metadata structure type
  USE var_lookup,only:iLookVarType                   ! named variables for variable types
  USE var_lookup,only:iLookSTAT                      ! named variables for output statistics types
@@ -99,7 +99,7 @@ contains
  ! Called from compile_stats
  ! ***********************************************************************************
  subroutine calc_stats(meta,stat,tdata,resetStats,finalizeStats,statCounter,err,message)
- USE nrtype
+ USE nr_type
  ! data structures
  USE data_types,only:var_info,ilength,dlength ! type dec for meta data structures
  USE var_lookup,only:maxVarFreq       ! # of output frequencies

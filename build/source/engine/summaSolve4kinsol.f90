@@ -22,7 +22,7 @@ module summaSolve4kinsol_module
 
     !======= Inclusions ===========
 USE, intrinsic :: iso_c_binding
-USE nrtype
+USE nr_type
 USE type4kinsol
 
 ! access the global print flag
@@ -140,7 +140,7 @@ subroutine summaSolve4kinsol(&
   USE getVectorz_module,only:checkFeas            ! check feasibility of state vector
   USE eval8summa_module,only:eval8summa4kinsol    ! DAE/ODE functions
   USE eval8summa_module,only:eval8summa           ! residual of DAE
-  USE computJacob_module,only:computJacob4kinsol  ! system Jacobian
+  USE computeJacob_module,only:computeJacob4kinsol  ! system Jacobian
   USE var_lookup,only:maxvarDecisions             ! maximum number of decisions
    
   !======= Declarations =========
@@ -336,7 +336,7 @@ subroutine summaSolve4kinsol(&
 
   ! Set the user-supplied Jacobian routine
   if(.not.use_fdJac)then
-    retval = FKINSetJacFn(kinsol_mem, c_funloc(computJacob4kinsol))
+    retval = FKINSetJacFn(kinsol_mem, c_funloc(computeJacob4kinsol))
   if (retval /= 0) then; err=20; message=trim(message)//'error in FKINSetJacFn'; return; endif
   endif    
 

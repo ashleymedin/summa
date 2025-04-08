@@ -24,7 +24,7 @@
 
 MODULE globalData
   ! data types
-  USE nrtype
+  USE nr_type
   USE netcdf
   USE,intrinsic :: ieee_arithmetic    ! IEEE arithmetic
   USE data_types,only:gru2hru_map     ! mapping between the GRUs and HRUs
@@ -63,10 +63,10 @@ MODULE globalData
   ! ----------------------------------------------------------------------------------------------------------------
 
   ! define missing values
-  real(rkind),parameter,public                :: quadMissing    = nr_quadMissing    ! (from nrtype) missing quadruple precision number
-  real(rkind),parameter,public                :: realMissing    = nr_realMissing    ! (from nrtype) missing double precision number
-  integer(i4b),parameter,public               :: integerMissing = nr_integerMissing ! (from nrtype) missing integer
-  integer(i4b),parameter,public               :: int8Missing    = nr_int8Missing    ! (from nrtype) missing 8-bit integer
+  real(rkind),parameter,public                :: quadMissing    = nr_quadMissing    ! (from nr_type) missing quadruple precision number
+  real(rkind),parameter,public                :: realMissing    = nr_realMissing    ! (from nr_type) missing double precision number
+  integer(i4b),parameter,public               :: integerMissing = nr_integerMissing ! (from nr_type) missing integer
+  integer(i4b),parameter,public               :: int8Missing    = nr_int8Missing    ! (from nr_type) missing 8-bit integer
   ! define run modes
   integer(i4b),parameter,public               :: iRunModeFull=1                     ! named variable defining running mode as full run (all GRUs)
   integer(i4b),parameter,public               :: iRunModeGRU=2                      ! named variable defining running mode as GRU-parallelization run (GRU subset)

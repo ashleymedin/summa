@@ -21,7 +21,7 @@
 module vegLiqFlux_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! data types
 USE data_types,only:var_dlength          ! x%var(:)%dat   (rkind)

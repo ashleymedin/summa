@@ -21,7 +21,7 @@
 module stomResist_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! physical constants
 USE multiconst, only: Rgas     ! universal gas constant (J mol-1 K-1)
@@ -124,7 +124,7 @@ contains
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! conversion functions
- USE conv_funcs_module,only:satVapPress   ! function to compute the saturated vapor pressure (Pa)
+ USE convert_funcs_module,only:satVapPress   ! function to compute the saturated vapor pressure (Pa)
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! input: state and diagnostic variables
  real(rkind),intent(in)             :: scalarVegetationTemp      ! vegetation temperature (K)

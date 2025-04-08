@@ -18,10 +18,10 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module updateVarsWithPrime_module
+module updateDiagnWithPrime_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! missing values
 USE globalData,only:integerMissing  ! missing integer
@@ -76,8 +76,8 @@ USE var_lookup,only:iLookPARAM            ! named variables for structure elemen
 USE var_lookup,only:iLookINDEX            ! named variables for structure elements
 
 ! provide access to routines to update states
-USE updatStateWithPrime_module,only:updateSnLaGlPrime   ! update snow states
-USE updatStateWithPrime_module,only:updateSoilPrime     ! update soil states
+USE updateStateWithPrime_module,only:updateSnLaGlPrime   ! update snow states
+USE updateStateWithPrime_module,only:updateSoilPrime     ! update soil states
 
 ! provide access to functions for the constitutive functions and derivatives
 USE snow_utils_module,only:fracliquid              ! compute the fraction of liquid water (snow)
@@ -91,24 +91,24 @@ USE soil_utils_module,only:crit_soilT              ! compute critical temperatur
 USE soil_utilsAddPrime_module,only:liquidHeadPrime ! compute the liquid water matric potential
 USE soil_utilsAddPrime_module,only:d2Theta_dPsi2   ! second derivative in the soil water characteristic (soil)
 USE soil_utilsAddPrime_module,only:d2Theta_dTk2    ! second derivative in the freezing curve w.r.t. temperature (soil)
-USE enthalpyTemp_module,only:enthalpy2T_cas        ! compute canopy air space temperature from enthalpy
-USE enthalpyTemp_module,only:enthalpy2T_veg        ! compute canopy temperature from enthalpy and water content
-USE enthalpyTemp_module,only:enthalpy2T_SnLaGl     ! compute snow layer temperature from enthalpy and water content
-USE enthalpyTemp_module,only:enthalpy2T_soil       ! compute soil layer temperature from enthalpy and matric potential
+USE convertEnthalpyTemp_module,only:enthalpy2T_cas        ! compute canopy air space temperature from enthalpy
+USE convertEnthalpyTemp_module,only:enthalpy2T_veg        ! compute canopy temperature from enthalpy and water content
+USE convertEnthalpyTemp_module,only:enthalpy2T_SnLaGl     ! compute snow layer temperature from enthalpy and water content
+USE convertEnthalpyTemp_module,only:enthalpy2T_soil       ! compute soil layer temperature from enthalpy and matric potential
 
 ! IEEE checks
 USE, intrinsic :: ieee_arithmetic            ! check values (NaN, etc.)
 
 implicit none
 private
-public::updateVarsWithPrime
+public::updateDiagnWithPrime
 
 contains
 
 ! **********************************************************************************************************
-! public subroutine updateVarsWithPrime: compute diagnostic variables and derivatives for Prime Jacobian
+! public subroutine updateDiagnWithPrime: compute diagnostic variables and derivatives for Prime Jacobian
 ! **********************************************************************************************************
-subroutine updateVarsWithPrime(&
+subroutine updateDiagnWithPrime(&
                      ! input
                      enthalpyStateVec,                          & ! intent(in):    flag if enthalpy is the state variable
                      use_lookup,                                & ! intent(in):    flag to use the lookup table for soil enthalpy
@@ -304,7 +304,7 @@ subroutine updateVarsWithPrime(&
     ! --------------------------------------------------------------------------------------------------------------------------------
 
     ! initialize error control
-    err=0; message='updateVarsWithPrime/'
+    err=0; message='updateDiagnWithPrime/'
 
     ! allocate space and assign values to the flag vector
     allocate(computedCoupling(size(ixMapSubset2Full)),stat=err)        ! .true. if computed the coupling for a given state variable
@@ -862,7 +862,7 @@ subroutine updateVarsWithPrime(&
     ! end association to the variables in the data structures
 end associate
 
-end subroutine updateVarsWithPrime
+end subroutine updateDiagnWithPrime
 
 
 ! **********************************************************************************************************
@@ -899,4 +899,4 @@ subroutine xTempSolve(&
   derivative = heatCap + LH_fus*iden_water*dLiq_dT  ! J m-3 K-1
 end subroutine xTempSolve
 
-end module updateVarsWithPrime_module
+end module updateDiagnWithPrime_module

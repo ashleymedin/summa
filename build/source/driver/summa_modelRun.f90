@@ -51,10 +51,10 @@ contains
  ! * desired modules
  ! ---------------------------------------------------------------------------------------
  ! data types
- USE nrtype                                                     ! variable types, etc.
+ USE nr_type                                                     ! variable types, etc.
  USE summa_type, only:summa1_type_dec                           ! master summa data type
  ! subroutines and functions
- USE nr_utility_module,only:indexx                              ! sort vectors in ascending order
+ USE nr_utils_module,only:indexx                              ! sort vectors in ascending order
  USE vegPhenlgy_module,only:vegPhenlgy                          ! module to compute vegetation phenology
  USE run_oneGRU_module,only:run_oneGRU                          ! module to run for one GRU
  USE time_utils_module,only:elapsedSec                          ! calculate the elapsed time

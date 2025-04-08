@@ -21,7 +21,7 @@
 module read_force_module
 
 ! data types
-USE nrtype                                    ! variable types, etc.
+USE nr_type                                    ! variable types, etc.
 
 ! derived data types
 USE data_types,only:gru_hru_double            ! x%gru(:)%hru(:)%var(:)     (rkind)
@@ -243,7 +243,7 @@ contains
  ! *************************************************************************
  subroutine getFirstTimestep(currentJulDay,iFile,iRead,ncid,err,message)
  USE netcdf                                            ! netcdf capability
- USE nr_utility_module,only:arth                       ! get a sequence of numbers
+ USE nr_utils_module,only:arth                       ! get a sequence of numbers
  implicit none
  ! define input
  real(rkind),intent(in)               :: currentJulDay    ! Julian day of current time step

@@ -19,7 +19,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 MODULE sunGeomtry_module
-USE nrtype
+USE nr_type
 implicit none
 private
 public::clrsky_rad
@@ -185,7 +185,7 @@ contains
  ! internal function JULIAN: calculate day of year
  ! *************************************************************************************************
   FUNCTION JULIAN(MONTH,DAY)
-  USE nrtype
+  USE nr_type
   IMPLICIT NONE
   ! input
   INTEGER(I4B)                             :: MONTH,DAY  ! month and day

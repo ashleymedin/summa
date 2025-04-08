@@ -19,7 +19,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module checkStruc_module
-USE nrtype
+USE nr_type
 USE globalData,only:integerMissing
 implicit none
 private

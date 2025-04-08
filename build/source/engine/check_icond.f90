@@ -19,7 +19,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module check_icond_module
-USE nrtype
+USE nr_type
 
 ! access missing values
 USE globalData,only:integerMissing   ! missing integer
@@ -55,7 +55,7 @@ contains
                         err,message)                     ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------
  ! modules
- USE nrtype
+ USE nr_type
  USE var_lookup,only:iLookBVAR                           ! variable lookup structure
  USE var_lookup,only:iLookPARAM                          ! variable lookup structure
  USE var_lookup,only:iLookPROG                           ! variable lookup structure
@@ -77,12 +77,12 @@ contains
                        gravity,   &                      ! gravitational acceleration           (m s-2)
                        Tfreeze                           ! freezing point of pure water         (K)
  USE snow_utils_module,only:fracliquid                   ! compute volumetric fraction of liquid water in snow based on temperature
- USE updatState_module,only:updateSnLaGl                 ! update snow states
- USE updatState_module,only:updateSoil                   ! update soil states
- USE enthalpyTemp_module,only:T2enthTemp_cas             ! convert temperature to enthalpy for canopy air space
- USE enthalpyTemp_module,only:T2enthTemp_veg             ! convert temperature to enthalpy for vegetation
- USE enthalpyTemp_module,only:T2enthTemp_SnLaGl          ! convert temperature to enthalpy for snow, lake, and ice
- USE enthalpyTemp_module,only:T2enthTemp_soil            ! convert temperature to enthalpy for soil
+ USE updateState_module,only:updateSnLaGl                 ! update snow states
+ USE updateState_module,only:updateSoil                   ! update soil states
+ USE convertEnthalpyTemp_module,only:T2enthTemp_cas             ! convert temperature to enthalpy for canopy air space
+ USE convertEnthalpyTemp_module,only:T2enthTemp_veg             ! convert temperature to enthalpy for vegetation
+ USE convertEnthalpyTemp_module,only:T2enthTemp_SnLaGl          ! convert temperature to enthalpy for snow, lake, and ice
+ USE convertEnthalpyTemp_module,only:T2enthTemp_soil            ! convert temperature to enthalpy for soil
  
  implicit none
 

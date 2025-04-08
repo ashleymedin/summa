@@ -18,10 +18,10 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module diagn_evar_module
+module init_heatCap_thermCond_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! derived types to define the data structures
 USE data_types,only:&
@@ -71,7 +71,7 @@ USE mDecisions_module,only: funcSoilWet, & ! function of soil wetness
 ! privacy
 implicit none
 private
-public::diagn_evar
+public::init_heatCap_thermCond
 
 ! algorithmic parameters
 real(rkind),parameter     :: valueMissing=-9999._rkind  ! missing value, used when diagnostic or state variables are undefined
@@ -82,19 +82,19 @@ contains
 
 
  ! **********************************************************************************************************
- ! public subroutine diagn_evar: compute diagnostic energy variables (thermal conductivity and heat capacity)
+ ! public subroutine init_heatCap_thermCond: compute start-of-step diagnostic energy variables (thermal conductivity and heat capacity)
  ! **********************************************************************************************************
- subroutine diagn_evar(&
-                       ! input: control variables
-                       computeVegFlux,          & ! intent(in):    flag to denote if computing the vegetation flux
-                       canopyDepth,             & ! intent(in):    canopy depth (m)
-                       ! input/output: data structures
-                       mpar_data,               & ! intent(in):    model parameters
-                       indx_data,               & ! intent(in):    model layer indices
-                       prog_data,               & ! intent(in):    model prognostic variables for a local HRU
-                       diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
-                        ! output: error control
-                       err,message)               ! intent(out): error control
+ subroutine init_heatCap_thermCond(&
+                                   ! input: control variables
+                                   computeVegFlux,          & ! intent(in):    flag to denote if computing the vegetation flux
+                                   canopyDepth,             & ! intent(in):    canopy depth (m)
+                                   ! input/output: data structures
+                                   mpar_data,               & ! intent(in):    model parameters
+                                   indx_data,               & ! intent(in):    model layer indices
+                                   prog_data,               & ! intent(in):    model prognostic variables for a local HRU
+                                   diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
+                                    ! output: error control
+                                   err,message)               ! intent(out): error control
  ! --------------------------------------------------------------------------------------------------------------------------------------
  ! provide access to external subroutines
  USE snow_utils_module,only:tcond_snow            ! compute thermal conductivity of snow
@@ -175,7 +175,7 @@ contains
  )  ! end associate statement
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
- err=0; message="diagn_evar/"
+ err=0; message="init_heatCap_thermCond/"
 
  ! initialize the soil layer
  iSoil=integerMissing
@@ -333,7 +333,7 @@ contains
  ! end association to variables in the data structure
  end associate
 
- end subroutine diagn_evar
+ end subroutine init_heatCap_thermCond
 
 
-end module diagn_evar_module
+end module init_heatCap_thermCond_module

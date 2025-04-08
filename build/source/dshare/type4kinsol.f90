@@ -1,7 +1,7 @@
 module type4kinsol
 
 ! data types
-USE nrtype
+USE nr_type
 USE, intrinsic :: iso_c_binding      
 
 USE data_types,only:&

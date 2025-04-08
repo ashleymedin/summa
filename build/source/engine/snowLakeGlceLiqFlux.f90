@@ -18,10 +18,10 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module snLaGlLiqFlx_module
+module snowLakeGlceLiqFlux_module
 
 ! access modules
-USE nrtype                                 ! numerical recipes data types
+USE nr_type                                 ! numerical recipes data types
 USE multiconst,only:iden_ice,iden_water    ! intrinsic density of ice and water (kg m-3)
 
 ! access missing values
@@ -37,42 +37,42 @@ USE var_lookup,only:iLookDIAG              ! named variables for structure eleme
 ! data types
 USE data_types,only:var_dlength            ! x%var(:)%dat [rkind]
 USE data_types,only:var_ilength            ! x%var(:)%dat [i4b]
-USE data_types,only:in_type_snLaGlLiqFlx     ! data type for intent(in) arguments
-USE data_types,only:io_type_snLaGlLiqFlx     ! data type for intent(inout) arguments
-USE data_types,only:out_type_snLaGlLiqFlx    ! data type for intent(out) arguments
+USE data_types,only:in_type_snowLakeGlceLiqFlux     ! data type for intent(in) arguments
+USE data_types,only:io_type_snowLakeGlceLiqFlux     ! data type for intent(inout) arguments
+USE data_types,only:out_type_snowLakeGlceLiqFlux    ! data type for intent(out) arguments
 
 ! privacy
 implicit none
 private
-public :: snLaGlLiqFlx
+public :: snowLakeGlceLiqFlux
 contains
 ! ************************************************************************************************
-! public subroutine snLaGlLiqFlx: compute liquid water flux through the snowpack
+! public subroutine snowLakeGlceLiqFlux: compute liquid water flux through the snowpack
 ! ************************************************************************************************
-subroutine snLaGlLiqFlx(&
+subroutine snowLakeGlceLiqFlux(&
                       ! input: model control, forcing, and model state vector
-                      in_snLaGlLiqFlx,           & ! intent(in):    model control, forcing, and model state vector
+                      in_snowLakeGlceLiqFlux,           & ! intent(in):    model control, forcing, and model state vector
                       ! input-output: data structures
                       mpar_data,               & ! intent(in):    model parameters
                       indx_data,               & ! intent(in):    model indices
                       prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                       diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                       ! input-output: fluxes and derivatives
-                      io_snLaGlLiqFlx,           & ! intent(inout): fluxes and derivatives
+                      io_snowLakeGlceLiqFlux,           & ! intent(inout): fluxes and derivatives
                       ! output: error control
-                      out_snLaGlLiqFlx)            ! intent(out):   error control
+                      out_snowLakeGlceLiqFlux)            ! intent(out):   error control
   implicit none
   ! input: model control, forcing, and model state vector
-  type(in_type_snLaGlLiqFlx)          :: in_snLaGlLiqFlx              ! model control, forcing, and model state vector
+  type(in_type_snowLakeGlceLiqFlux)          :: in_snowLakeGlceLiqFlux              ! model control, forcing, and model state vector
   ! input-output: data structures
   type(var_dlength),intent(in)      :: mpar_data                  ! model parameters
   type(var_ilength),intent(in)      :: indx_data                  ! model indices
   type(var_dlength),intent(in)      :: prog_data                  ! prognostic variables for a local HRU
   type(var_dlength),intent(inout)   :: diag_data                  ! diagnostic variables for a local HRU
   ! input-output: fluxes and derivatives
-  type(io_type_snLaGlLiqFlx)          :: io_snLaGlLiqFlx              ! fluxes and derivatives
+  type(io_type_snowLakeGlceLiqFlux)          :: io_snowLakeGlceLiqFlux              ! fluxes and derivatives
   ! output: error control
-  type(out_type_snLaGlLiqFlx)         :: out_snLaGlLiqFlx             ! error control
+  type(out_type_snowLakeGlceLiqFlux)         :: out_snowLakeGlceLiqFlux             ! error control
   ! ------------------------------  ------------------------------------------------------------------------------------------------------------
   ! local variables
   integer(i4b)                      :: nLayers,nStart             ! number of snow/glce layers and starting layer
@@ -88,22 +88,22 @@ subroutine snLaGlLiqFlx(&
   real(rkind)                       :: relSaturn                  ! relative saturation [0,1] (-)
   real(rkind)                       :: k_param                    ! hydraulic conductivity parameter (m s-1)
   logical(lgt)                      :: do_snow                    ! flag to denote if snow is present
-  real(rkind)                       :: iLayerLiqFluxSnLaGl(0:in_snLaGlLiqFlx % nLayers)
-  real(rkind)                       :: iLayerLiqFluxSnLaGlDeriv(0:in_snLaGlLiqFlx % nLayers)  
+  real(rkind)                       :: iLayerLiqFluxSnLaGl(0:in_snowLakeGlceLiqFlux % nLayers)
+  real(rkind)                       :: iLayerLiqFluxSnLaGlDeriv(0:in_snowLakeGlceLiqFlux % nLayers)  
   ! ------------------------------------------------------------------------------------------------------------------------------------------
   ! make association of local variables with information in the data structures
-  do_snow = in_snLaGlLiqFlx % do_snow ! flag to denote if snow is present
-  nLayers = in_snLaGlLiqFlx % nLayers ! get number of snow/glce layers
-  nStart = in_snLaGlLiqFlx % nStart ! get the start index for the layers
+  do_snow = in_snowLakeGlceLiqFlux % do_snow ! flag to denote if snow is present
+  nLayers = in_snowLakeGlceLiqFlux % nLayers ! get number of snow/glce layers
+  nStart = in_snowLakeGlceLiqFlux % nStart ! get the start index for the layers
 
   associate(&
     ! input: model control
-    firstFluxCall           => in_snLaGlLiqFlx % firstFluxCall,           & ! intent(in): the first flux call
-    scalarSolution          => in_snLaGlLiqFlx % scalarSolution,          & ! intent(in): flag to denote if implementing the scalar solution
+    firstFluxCall           => in_snowLakeGlceLiqFlux % firstFluxCall,           & ! intent(in): the first flux call
+    scalarSolution          => in_snowLakeGlceLiqFlux % scalarSolution,          & ! intent(in): flag to denote if implementing the scalar solution
     ! input: forcing for the top layer
-    surface_flux            => in_snLaGlLiqFlx % surface_flux,            & ! intent(in): liquid water flux at the surface (m s-1)
+    surface_flux            => in_snowLakeGlceLiqFlux % surface_flux,            & ! intent(in): liquid water flux at the surface (m s-1)
     ! input: model state vector
-    mLayerVolFracLiqTrial   => in_snLaGlLiqFlx % mLayerVolFracLiqTrial,   & ! intent(in): trial value of volumetric fraction of liquid water at the current iteration (-)
+    mLayerVolFracLiqTrial   => in_snowLakeGlceLiqFlux % mLayerVolFracLiqTrial,   & ! intent(in): trial value of volumetric fraction of liquid water at the current iteration (-)
     ! input: layer indices
     ixLayerState     => indx_data%var(iLookINDEX%ixLayerState)%dat,             & ! intent(in):    list of indices for all model layers
     ixSnowOnlyHyd    => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat,            & ! intent(in):    index in the state subset for hydrology state variables in the snow domain
@@ -117,15 +117,15 @@ subroutine snLaGlLiqFlx(&
     mLayerPoreSpace  => diag_data%var(iLookDIAG%mLayerPoreSpace)%dat(nStart+1:nStart+nLayers),  & ! intent(inout): pore space in each layer (-)
     mLayerThetaResid => diag_data%var(iLookDIAG%mLayerThetaResid)%dat(nStart+1:nStart+nLayers), & ! intent(inout): residual volumetric liquid water content in each layer (-)
     ! input-output: fluxes and derivatives
-    iLayerLiqFluxSnLaGl0      => io_snLaGlLiqFlx % iLayerLiqFluxSnLaGl,               & ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
-    iLayerLiqFluxSnLaGlDeriv0 => io_snLaGlLiqFlx % iLayerLiqFluxSnLaGlDeriv,          & ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
+    iLayerLiqFluxSnLaGl0      => io_snowLakeGlceLiqFlux % iLayerLiqFluxSnLaGl,               & ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
+    iLayerLiqFluxSnLaGlDeriv0 => io_snowLakeGlceLiqFlux % iLayerLiqFluxSnLaGlDeriv,          & ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
     ! output: error control
-    err                    => out_snLaGlLiqFlx % err,                             & ! intent(out):   error code
-    message                => out_snLaGlLiqFlx % cmessage                         & ! intent(out):   error message
+    err                    => out_snowLakeGlceLiqFlux % err,                             & ! intent(out):   error code
+    message                => out_snowLakeGlceLiqFlux % cmessage                         & ! intent(out):   error message
     ) ! end association of local variables with information in the data structures
     ! ------------------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
-    err=0; message='snLaGlLiqFlx/'
+    err=0; message='snowLakeGlceLiqFlux/'
 
     ! initialize with index 0
     iLayerLiqFluxSnLaGl = iLayerLiqFluxSnLaGl0
@@ -164,7 +164,7 @@ subroutine snLaGlLiqFlx(&
 
     ! define the liquid flux at the upper boundary (m s-1)
     iLayerLiqFluxSnLaGl(0)      = surface_flux
-    iLayerLiqFluxSnLaGlDeriv(0) = 0._rkind !computed inside computJacob
+    iLayerLiqFluxSnLaGlDeriv(0) = 0._rkind !computed inside computeJacob
 
     ! compute properties fixed over the time step
     if (firstFluxCall .and. do_snow) then
@@ -210,6 +210,6 @@ subroutine snLaGlLiqFlx(&
 
   end associate ! end association of local variables with information in the data structures
 
-end subroutine snLaGlLiqFlx
+end subroutine snowLakeGlceLiqFlux
 
-end module snLaGlLiqFlx_module
+end module snowLakeGlceLiqFlux_module

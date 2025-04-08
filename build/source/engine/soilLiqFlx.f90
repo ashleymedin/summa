@@ -22,7 +22,7 @@ module soilLiqFlx_module
 ! -----------------------------------------------------------------------------------------------------------
 
 ! data types
-USE nrtype
+USE nr_type
 USE data_types,only:var_ilength            ! x%var(:)%dat   (i4b)
 USE data_types,only:var_dlength            ! x%var(:)%dat   (rkind)
 USE data_types,only:in_type_soilLiqFlx     ! derived type for intent(in) arguments
@@ -1371,7 +1371,7 @@ contains
    dq_dHydStateVec => out_surfaceFlx % dq_dHydStateVec  , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
    dq_dNrgStateVec => out_surfaceFlx % dq_dNrgStateVec    & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
   &)
-   ! dq w.r.t. infiltration only, scalarRainPlusMelt accounted for in computJacob module
+   ! dq w.r.t. infiltration only, scalarRainPlusMelt accounted for in computeJacob module
    dq_dHydStateVec(:) = (1._rkind - scalarFrozenArea)&
                       & * ( dInfilArea_dWat(:)*min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dWat(:) )&
                       & + (-dFrozenArea_dWat(:))*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)

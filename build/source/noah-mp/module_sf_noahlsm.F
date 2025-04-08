@@ -1,5 +1,5 @@
 MODULE module_sf_noahlsm
-  USE nrtype
+  USE nr_type
   USE module_model_constants
 
 !   REAL(rkind), PARAMETER    :: CP = 1004.5

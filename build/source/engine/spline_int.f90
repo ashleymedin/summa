@@ -1,5 +1,5 @@
 module spline_int_module
-USE nrtype
+USE nr_type
 implicit none
 private
 public::spline

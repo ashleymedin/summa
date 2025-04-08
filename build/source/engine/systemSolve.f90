@@ -18,10 +18,10 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module systemSolv_module
+module systemSolve_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! access the global print flag
 USE globalData,only:globalPrintFlag
@@ -99,15 +99,15 @@ USE mDecisions_module,only:&
 ! safety: set private unless specified otherwise
 implicit none
 private
-public::systemSolv
+public::systemSolve
 
 contains
 
 
 ! **********************************************************************************************************
-! public subroutine systemSolv: run the coupled energy-mass model for one timestep
+! public subroutine systemSolve: run the coupled energy-mass model for one timestep
 ! **********************************************************************************************************
-subroutine systemSolv(&
+subroutine systemSolve(&
                       ! input: model control
                       dt_cur,            & ! intent(in):    current stepsize
                       dt,                & ! intent(in):    entire time step (s)
@@ -155,7 +155,7 @@ subroutine systemSolv(&
   USE allocspace_module,only:allocLocal                     ! allocate local data structures
   ! state vector and solver
   USE getVectorz_module,only:getScaling                     ! get the scaling vectors
-  USE enthalpyTemp_module,only:T2enthalpy_snwWat            ! convert temperature to liq+ice enthalpy for a snow layer
+  USE convertEnthalpyTemp_module,only:T2enthalpy_snwWat            ! convert temperature to liq+ice enthalpy for a snow layer
 #ifdef SUNDIALS_ACTIVE
   USE tol4ida_module,only:popTol4ida                        ! populate tolerances
   USE eval8summaWithPrime_module,only:eval8summaWithPrime   ! get the fluxes and residuals
@@ -268,11 +268,11 @@ subroutine systemSolv(&
   type(io_type_summaSolve4homegrown)  :: io_SS4HG  ! object for intent(io)  summaSolve4homegrown arguments
   type(out_type_summaSolve4homegrown) :: out_SS4HG ! object for intent(out) summaSolve4homegrown arguments
   ! flags
-  logical(lgt) :: return_flag ! flag for handling systemSolv returns trigerred from internal subroutines 
+  logical(lgt) :: return_flag ! flag for handling systemSolve returns trigerred from internal subroutines 
   logical(lgt) :: exit_flag   ! flag for handling loop exit statements trigerred from internal subroutines 
   ! -----------------------------------------------------------------------------------------------------------
 
-  call initialize_systemSolv; if (return_flag) return ! initialize variables and allocate arrays -- return if error
+  call initialize_systemSolve; if (return_flag) return ! initialize variables and allocate arrays -- return if error
 
   call initial_function_evaluations; if (return_flag) return ! initial function evaluations -- return if error
 
@@ -290,15 +290,15 @@ subroutine systemSolv(&
     end select
   end associate 
  
-  call finalize_systemSolv ! set untapped melt to zero and deallocate arrays
+  call finalize_systemSolve ! set untapped melt to zero and deallocate arrays
 
 contains
 
- subroutine initialize_systemSolv
-  ! *** Initial setup operations for the systemSolv subroutine ***
+ subroutine initialize_systemSolve
+  ! *** Initial setup operations for the systemSolve subroutine ***
 
   ! initialize error control
-  err=0; message="systemSolv/"
+  err=0; message="systemSolve/"
   return_flag=.false. ! initialize return flag
   nSteps = 0 ! initialize number of time steps taken in solver
 
@@ -348,10 +348,10 @@ contains
   ! initialize state vectors -- get scaling vectors
   call getScaling(diag_data,indx_data,fScale,xScale,sMul,dMat,err,cmessage)     
   if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! check for errors
- end subroutine initialize_systemSolv
+ end subroutine initialize_systemSolve
 
  subroutine allocate_memory
-  ! ** Allocate arrays used in systemSolv subroutine **
+  ! ** Allocate arrays used in systemSolve subroutine **
   associate(&
    nSnow             => indx_data%var(iLookINDEX%nSnow)%dat(1)              ,& ! intent(in): [i4b] number of snow layers
    nLake             => indx_data%var(iLookINDEX%nLake)%dat(1)              ,& ! intent(in): [i4b] number of lake layers
@@ -861,7 +861,7 @@ contains
   if (post_massCons) call enforce_mass_conservation ! enforce mass conservation if desired
  end subroutine Newton_iterations_homegrown
 
- subroutine finalize_systemSolv
+ subroutine finalize_systemSolve
   ! set untapped melt energy to zero
   untappedMelt(:) = 0._rkind
 
@@ -869,8 +869,8 @@ contains
   deallocate(mLayerCmpress_sum)
   deallocate(mLayerMatricHeadPrime)
   deallocate(dBaseflow_dMatric)
- end subroutine finalize_systemSolv
+ end subroutine finalize_systemSolve
 
-end subroutine systemSolv
+end subroutine systemSolve
 
-end module systemSolv_module
+end module systemSolve_module

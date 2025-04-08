@@ -21,7 +21,7 @@
 module snow_utils_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! model constants
 USE multiconst,only:Tfreeze

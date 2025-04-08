@@ -1,5 +1,5 @@
 MODULE module_sf_noahutl
-  USE nrtype
+  USE nr_type
 
   REAL(rkind), PARAMETER      :: CP = 1004.5, RD = 287.04, SIGMA = 5.67E-8,    &
                           CPH2O = 4.218E+3,CPICE = 2.106E+3,            &

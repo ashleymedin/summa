@@ -1,5 +1,5 @@
 module expIntegral_module
-USE nrtype
+USE nr_type
 implicit none
 private
 public::expint

@@ -1,5 +1,5 @@
 module summa_openwq
-  USE nrtype
+  USE nr_type
   USE openWQ,only:CLASSWQ_openwq
   USE data_types,only:gru_hru_doubleVec
   implicit none

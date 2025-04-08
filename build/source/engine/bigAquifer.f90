@@ -21,7 +21,7 @@
 module bigAquifer_module
 ! -----------------------------------------------------------------------------------------------------------
 ! homegrown solver data types
-USE nrtype
+USE nr_type
 
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer

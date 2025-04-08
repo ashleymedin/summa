@@ -18,10 +18,10 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module computFlux_module
+module computeFlux_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! provide access to the derived types and classes used to define data structures and class objects
 USE data_types,only:&
@@ -31,9 +31,9 @@ USE data_types,only:&
                     var_dlength,        & ! data vector with variable length dimension (rkind)
                     model_options,      & ! defines the model decisions
                     in_type_vegNrgFlux,out_type_vegNrgFlux,                   & ! classes for vegNrgFlux call
-                    in_type_snLaSoGlNrgFlux,io_type_snLaSoGlNrgFlux,out_type_snLaSoGlNrgFlux,& ! classes for snLaSoGlNrgFlux call
+                    in_type_snowLakeSoilGlceNrgFlux,io_type_snowLakeSoilGlceNrgFlux,out_type_snowLakeSoilGlceNrgFlux,& ! classes for snowLakeSoilGlceNrgFlux call
                     in_type_vegLiqFlux,out_type_vegLiqFlux,                   & ! classes for vegLiqFlux call
-                    in_type_snLaGlLiqFlx,io_type_snLaGlLiqFlx,out_type_snLaGlLiqFlx,& ! classes for snLaGlLiqFlx call                
+                    in_type_snowLakeGlceLiqFlux,io_type_snowLakeGlceLiqFlux,out_type_snowLakeGlceLiqFlux,& ! classes for snowLakeGlceLiqFlux call                
                     in_type_soilLiqFlx,io_type_soilLiqFlx,out_type_soilLiqFlx,& ! classes for soilLiqFlx call
                     in_type_groundwatr,io_type_groundwatr,out_type_groundwatr,& ! classes for groundwatr call
                     in_type_bigAquifer,io_type_bigAquifer,out_type_bigAquifer   ! classes for bigAquifer call
@@ -95,15 +95,15 @@ USE mDecisions_module,only:       &
 
 implicit none
 private
-public::computFlux
+public::computeFlux
 public::soilCmpres
 public::soilCmpresPrime
 
 contains
 ! *********************************************************************************************************
-! public subroutine computFlux: compute model fluxes
+! public subroutine computeFlux: compute model fluxes
 ! *********************************************************************************************************
-subroutine computFlux(&
+subroutine computeFlux(&
                       ! input-output: model control
                       nSnow,                    & ! intent(in):    number of snow layers
                       nLake,                    & ! intent(in):    number of lake layers
@@ -150,9 +150,9 @@ subroutine computFlux(&
                       err,message)                ! intent(out):   error code and error message
   ! provide access to flux subroutines
   USE vegNrgFlux_module,only:vegNrgFlux           ! compute energy fluxes over vegetation
-  USE snLaSoGlNrgFlux_module,only:snLaSoGlNrgFlux           ! compute energy fluxes throughout the snow and soil subdomains
+  USE snowLakeSoilGlceNrgFlux_module,only:snowLakeSoilGlceNrgFlux           ! compute energy fluxes throughout the snow and soil subdomains
   USE vegLiqFlux_module,only:vegLiqFlux           ! compute liquid water fluxes through vegetation
-  USE snLaGlLiqFlx_module,only:snLaGlLiqFlx           ! compute liquid water fluxes through snow
+  USE snowLakeGlceLiqFlux_module,only:snowLakeGlceLiqFlux           ! compute liquid water fluxes through snow
   USE soilLiqFlx_module,only:soilLiqflx           ! compute liquid water fluxes through soil
   USE groundwatr_module,only:groundwatr           ! compute the baseflow flux
   USE bigAquifer_module,only:bigAquifer           ! compute fluxes for the big aquifer
@@ -220,17 +220,17 @@ subroutine computFlux(&
   ! ---------------------- classes for flux subroutine arguments (classes defined in data_types module) ----------------------
   !      ** intent(in) arguments **       ||       ** intent(inout) arguments **        ||      ** intent(out) arguments **
   type(in_type_vegNrgFlux) :: in_vegNrgFlux;                                            type(out_type_vegNrgFlux) :: out_vegNrgFlux ! vegNrgFlux arguments
-  type(in_type_snLaSoGlNrgFlux) :: in_snLaSoGlNrgFlux; type(io_type_snLaSoGlNrgFlux) :: io_snLaSoGlNrgFlux; type(out_type_snLaSoGlNrgFlux) :: out_snLaSoGlNrgFlux ! snLaSoGlNrgFlux arguments
+  type(in_type_snowLakeSoilGlceNrgFlux) :: in_snowLakeSoilGlceNrgFlux; type(io_type_snowLakeSoilGlceNrgFlux) :: io_snowLakeSoilGlceNrgFlux; type(out_type_snowLakeSoilGlceNrgFlux) :: out_snowLakeSoilGlceNrgFlux ! snowLakeSoilGlceNrgFlux arguments
   type(in_type_vegLiqFlux) :: in_vegLiqFlux;                                            type(out_type_vegLiqFlux) :: out_vegLiqFlux ! vegLiqFlux arguments
-  type(in_type_snLaGlLiqFlx) :: in_snLaGlLiqFlx; type(io_type_snLaGlLiqFlx) :: io_snLaGlLiqFlx; type(out_type_snLaGlLiqFlx) :: out_snLaGlLiqFlx ! snLaGlLiqFlx arguments
+  type(in_type_snowLakeGlceLiqFlux) :: in_snowLakeGlceLiqFlux; type(io_type_snowLakeGlceLiqFlux) :: io_snowLakeGlceLiqFlux; type(out_type_snowLakeGlceLiqFlux) :: out_snowLakeGlceLiqFlux ! snowLakeGlceLiqFlux arguments
   type(in_type_soilLiqFlx) :: in_soilLiqFlx; type(io_type_soilLiqFlx) :: io_soilLiqFlx; type(out_type_soilLiqFlx) :: out_soilLiqFlx ! soilLiqFlx arguments
   type(in_type_groundwatr) :: in_groundwatr; type(io_type_groundwatr) :: io_groundwatr; type(out_type_groundwatr) :: out_groundwatr ! groundwatr arguments
   type(in_type_bigAquifer) :: in_bigAquifer; type(io_type_bigAquifer) :: io_bigAquifer; type(out_type_bigAquifer) :: out_bigAquifer ! bigAquifer arguments
   ! -------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
-  err=0; message='computFlux/'
+  err=0; message='computeFlux/'
 
-  call initialize_computFlux; if(err/=0)then; return; endif ! Preliminary operations to start routine
+  call initialize_computeFlux; if(err/=0)then; return; endif ! Preliminary operations to start routine
 
   above_LiqFluxDeriv = 0._rkind
   above_dLiq_dTk     = 0._rkind
@@ -252,9 +252,9 @@ subroutine computFlux(&
   ! *** CALCULATE ENERGY FLUXES THROUGH THE LAYER DOMAIN ***
   associate(nSnLaSoGlNrg => indx_data%var(iLookINDEX%nSnLaSoGlNrg)%dat(1)) ! intent(in): [i4b] number of energy state variables in the layer domains
     if (nSnLaSoGlNrg>0) then ! if necessary, calculate energy fluxes at layer interfaces through the snow and soil domain
-      call initialize_snLaSoGlNrgFlux
-      call snLaSoGlNrgFlux(in_snLaSoGlNrgFlux,mpar_data,indx_data,prog_data,diag_data,flux_data,io_snLaSoGlNrgFlux,out_snLaSoGlNrgFlux)
-      call finalize_snLaSoGlNrgFlux; if(err/=0)then; return; endif
+      call initialize_snowLakeSoilGlceNrgFlux
+      call snowLakeSoilGlceNrgFlux(in_snowLakeSoilGlceNrgFlux,mpar_data,indx_data,prog_data,diag_data,flux_data,io_snowLakeSoilGlceNrgFlux,out_snowLakeSoilGlceNrgFlux)
+      call finalize_snowLakeSoilGlceNrgFlux; if(err/=0)then; return; endif
     end if
   end associate
 
@@ -271,7 +271,7 @@ subroutine computFlux(&
   associate(nSnowOnlyHyd => indx_data%var(iLookINDEX%nSnowOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the snow
     if (nSnowOnlyHyd>0) then ! if necessary, compute liquid fluxes through snow
       call initialize_snowLiqFlx
-      call snLaGlLiqFlx(in_snLaGlLiqFlx,mpar_data,indx_data,prog_data,diag_data,io_snLaGlLiqFlx,out_snLaGlLiqFlx)
+      call snowLakeGlceLiqFlux(in_snowLakeGlceLiqFlux,mpar_data,indx_data,prog_data,diag_data,io_snowLakeGlceLiqFlux,out_snowLakeGlceLiqFlux)
       call finalize_snowLiqFlx; if(err/=0)then; return; endif
     else
       call forcingNoSnow ! define forcing for the domain beneath for the case of no snow layers
@@ -282,7 +282,7 @@ subroutine computFlux(&
   associate(nLakeOnlyHyd => indx_data%var(iLookINDEX%nLakeOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the lake
     if (nLakeOnlyHyd>0) then ! if necessary, compute liquid fluxes through lake
       !call initialize_lakeLiqFlx
-      !call snLaGlLiqFlx(in_snLaGlLiqFlx,mpar_data,indx_data,prog_data,diag_data,io_snLaGlLiqFlx,out_snLaGlLiqFlx)
+      !call snowLakeGlceLiqFlux(in_snowLakeGlceLiqFlux,mpar_data,indx_data,prog_data,diag_data,io_snowLakeGlceLiqFlux,out_snowLakeGlceLiqFlux)
       !call finalize_lakeLiqFlx
       print*, 'Lake liquid fluxes are not yet implemented'; stop
     else
@@ -306,7 +306,7 @@ subroutine computFlux(&
   associate(nGlceOnlyHyd => indx_data%var(iLookINDEX%nGlceOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the glacier ice
     if (nGlceOnlyHyd>0) then ! if necessary, calculate the liquid flux through glacier ice
       call initialize_glceLiqFlx
-      call snLaGlLiqFlx(in_snLaGlLiqFlx,mpar_data,indx_data,prog_data,diag_data,io_snLaGlLiqFlx,out_snLaGlLiqFlx)
+      call snowLakeGlceLiqFlux(in_snowLakeGlceLiqFlux,mpar_data,indx_data,prog_data,diag_data,io_snowLakeGlceLiqFlux,out_snowLakeGlceLiqFlux)
       call finalize_glceLiqFlx; if(err/=0)then; return; endif
     else
       call zeroGlacierFluxes ! set glacier ice fluxes to zero if there are no glacier ice layers
@@ -340,7 +340,7 @@ subroutine computFlux(&
     end if  ! if computing aquifer fluxes
   end associate
 
-  call finalize_computFlux; if(err/=0)then; return; endif ! final operations to prep for end of routine
+  call finalize_computeFlux; if(err/=0)then; return; endif ! final operations to prep for end of routine
 
 contains
 
@@ -476,9 +476,9 @@ contains
   end associate
  end subroutine zeroAquiferFluxes
 
- ! **** Subroutines for starting/ending operations of computFlux ****
- subroutine initialize_computFlux
-  ! operations to prep for the start of computFlux
+ ! **** Subroutines for starting/ending operations of computeFlux ****
+ subroutine initialize_computeFlux
+  ! operations to prep for the start of computeFlux
   associate(&
    numFluxCalls                 => diag_data%var(iLookDIAG%numFluxCalls)%dat(1),         & ! intent(out): [dp] number of flux calls (-)
    ixSpatialGroundwater         => model_decisions(iLookDECISIONS%spatial_gw)%iDecision, & ! intent(in): [i4b] spatial representation of groundwater (local-column or single-basin)
@@ -502,10 +502,10 @@ contains
      iLayerLiqFluxSoil(0:nSoil) = 0._rkind
    end if
   end associate
- end subroutine initialize_computFlux
+ end subroutine initialize_computeFlux
 
- subroutine finalize_computFlux
-  ! operations to prep for the end of computFlux
+ subroutine finalize_computeFlux
+  ! operations to prep for the end of computeFlux
   associate(&
    ixCasNrg                     => indx_data%var(iLookINDEX%ixCasNrg)%dat(1),              & ! intent(in): [i4b] index of canopy air space energy state variable
    ixVegNrg                     => indx_data%var(iLookINDEX%ixVegNrg)%dat(1),              & ! intent(in): [i4b] index of canopy energy state variable
@@ -557,7 +557,7 @@ contains
   end associate
 
    firstFluxCall=.false. ! set the first flux call to false
- end subroutine finalize_computFlux
+ end subroutine finalize_computeFlux
 
  ! ----------------------- Initialize and Finalize procedures for the flux routines -----------------------
  ! **** vegNrgFlux ****
@@ -602,15 +602,15 @@ contains
  end subroutine finalize_vegNrgFlux
  ! **** end vegNrgFlux ****
 
- ! **** snLaSoGlNrgFlux ****
- subroutine initialize_snLaSoGlNrgFlux
-  call in_snLaSoGlNrgFlux%initialize(scalarSolution,firstFluxCall,mLayerTempTrial,flux_data,deriv_data)
-  call io_snLaSoGlNrgFlux%initialize(deriv_data)
- end subroutine initialize_snLaSoGlNrgFlux
+ ! **** snowLakeSoilGlceNrgFlux ****
+ subroutine initialize_snowLakeSoilGlceNrgFlux
+  call in_snowLakeSoilGlceNrgFlux%initialize(scalarSolution,firstFluxCall,mLayerTempTrial,flux_data,deriv_data)
+  call io_snowLakeSoilGlceNrgFlux%initialize(deriv_data)
+ end subroutine initialize_snowLakeSoilGlceNrgFlux
 
- subroutine finalize_snLaSoGlNrgFlux
-  call io_snLaSoGlNrgFlux%finalize(deriv_data)
-  call out_snLaSoGlNrgFlux%finalize(flux_data,deriv_data,err,cmessage)
+ subroutine finalize_snowLakeSoilGlceNrgFlux
+  call io_snowLakeSoilGlceNrgFlux%finalize(deriv_data)
+  call out_snowLakeSoilGlceNrgFlux%finalize(flux_data,deriv_data,err,cmessage)
   ! error control
   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
   associate(&
@@ -625,8 +625,8 @@ contains
      end if
    end do
   end associate
- end subroutine finalize_snLaSoGlNrgFlux
- ! **** end snLaSoGlNrgFlux ****
+ end subroutine finalize_snowLakeSoilGlceNrgFlux
+ ! **** end snowLakeSoilGlceNrgFlux ****
 
  ! **** vegLiqFlux ****
  subroutine initialize_vegLiqFlux
@@ -670,22 +670,22 @@ contains
  end subroutine finalize_vegLiqFlux
  ! **** end vegLiqFlux ****
 
- ! **** snLaGlLiqFlx ****
+ ! **** snowLakeGlceLiqFlux ****
  subroutine initialize_snowLiqFlx
   associate(&
    scalarThroughfallRain        => flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1),   & ! intent(in): [dp] rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
    scalarCanopyLiqDrainage      => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1))   ! intent(in): [dp] drainage of liquid water from the vegetation canopy (kg m-2 s-1)
    surface_flux = (scalarThroughfallRain + scalarCanopyLiqDrainage)/iden_water
    nStart = 0
-   call in_snLaGlLiqFlx%initialize(nSnow,nStart,.true.,surface_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
-   call io_snLaGlLiqFlx%initialize(nSnow,nStart,flux_data,deriv_data)
+   call in_snowLakeGlceLiqFlux%initialize(nSnow,nStart,.true.,surface_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+   call io_snowLakeGlceLiqFlux%initialize(nSnow,nStart,flux_data,deriv_data)
   end associate
  end subroutine initialize_snowLiqFlx
 
  subroutine finalize_snowLiqFlx
   nStart = 0
-  call io_snLaGlLiqFlx%finalize(nSnow,nStart,flux_data,deriv_data)
-  call out_snLaGlLiqFlx%finalize(err,cmessage) 
+  call io_snowLakeGlceLiqFlux%finalize(nSnow,nStart,flux_data,deriv_data)
+  call out_snowLakeGlceLiqFlux%finalize(err,cmessage) 
   ! error control
   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
   associate(&
@@ -713,7 +713,7 @@ contains
    above_FracLiq      = mLayerFracLiq(nSnow)          ! fraction of liquid water in bottom snow layer (-)
   end associate
  end subroutine finalize_snowLiqFlx
- ! **** end snLaGlLiqFlx ****
+ ! **** end snowLakeGlceLiqFlux ****
 
  ! **** lakeLiqFlx ****
  subroutine initialize_lakeLiqFlx
@@ -721,15 +721,15 @@ contains
    scalarLakeInflux  => flux_data%var(iLookFLUX%scalarLakeInflux)%dat(1)  ) ! intent(in): [dp] influx to lake, rain plus melt (m s-1)
    surface_flux = scalarLakeInflux 
    nStart = nSnow + nLake
-   call in_snLaGlLiqFlx%initialize(nLake,nStart,.false.,surface_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
-   call io_snLaGlLiqFlx%initialize(nLake,nStart,flux_data,deriv_data)
+   call in_snowLakeGlceLiqFlux%initialize(nLake,nStart,.false.,surface_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+   call io_snowLakeGlceLiqFlux%initialize(nLake,nStart,flux_data,deriv_data)
   end associate
  end subroutine initialize_lakeLiqFlx
 
  subroutine finalize_lakeLiqFlx
   nStart = nSnow
-  call io_snLaGlLiqFlx%finalize(nLake,nStart,flux_data,deriv_data)
-  call out_snLaGlLiqFlx%finalize(err,cmessage) 
+  call io_snowLakeGlceLiqFlux%finalize(nLake,nStart,flux_data,deriv_data)
+  call out_snowLakeGlceLiqFlux%finalize(err,cmessage) 
   ! error control
   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
   associate(&
@@ -824,15 +824,15 @@ contains
    scalarGlceInflux  => flux_data%var(iLookFLUX%scalarGlceInflux)%dat(1)  ) ! intent(in): [dp] influx to glacier ice, rain plus melt plus debris drainage (m s-1)
    surface_flux = scalarGlceInflux   
    nStart = nSnow + nLake + nSoil
-   call in_snLaGlLiqFlx%initialize(nGlce,nStart,.false.,surface_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
-   call io_snLaGlLiqFlx%initialize(nGlce,nStart,flux_data,deriv_data)
+   call in_snowLakeGlceLiqFlux%initialize(nGlce,nStart,.false.,surface_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+   call io_snowLakeGlceLiqFlux%initialize(nGlce,nStart,flux_data,deriv_data)
   end associate
  end subroutine initialize_glceLiqFlx
 
  subroutine finalize_glceLiqFlx
   nStart = nSnow + nLake + nSoil
-  call io_snLaGlLiqFlx%finalize(nGlce,nStart,flux_data,deriv_data)
-  call out_snLaGlLiqFlx%finalize(err,cmessage) 
+  call io_snowLakeGlceLiqFlux%finalize(nGlce,nStart,flux_data,deriv_data)
+  call out_snowLakeGlceLiqFlux%finalize(err,cmessage) 
   ! error control
   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
   associate(&
@@ -894,7 +894,7 @@ contains
  end subroutine finalize_bigAquifer
  ! **** end bigAquifer ****
 
-end subroutine computFlux
+end subroutine computeFlux
 
 ! **********************************************************************************************************
 ! public subroutine soilCmpres: compute soil compressibility (-) and its derivative w.r.t matric head (m-1)
@@ -1002,4 +1002,4 @@ subroutine soilCmpresPrime(&
   end if
 end subroutine soilCmpresPrime
 
-end module computFlux_module
+end module computeFlux_module

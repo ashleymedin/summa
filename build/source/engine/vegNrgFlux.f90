@@ -21,7 +21,7 @@
 module vegNrgFlux_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! derived types to define the data structures
 USE data_types,only:&
@@ -134,8 +134,8 @@ subroutine vegNrgFlux(&
   ! utilities
   USE expIntegral_module,only:expInt                             ! function to calculate the exponential integral
   ! conversion functions
-  USE conv_funcs_module,only:satVapPress                         ! function to compute the saturated vapor pressure (Pa)
-  USE conv_funcs_module,only:getLatentHeatValue                  ! function to identify latent heat of vaporization/sublimation (J kg-1)
+  USE convert_funcs_module,only:satVapPress                         ! function to compute the saturated vapor pressure (Pa)
+  USE convert_funcs_module,only:getLatentHeatValue                  ! function to identify latent heat of vaporization/sublimation (J kg-1)
   ! stomatal resistance
   USE stomResist_module,only:stomResist                          ! subroutine to calculate stomatal resistance
   ! phase changes

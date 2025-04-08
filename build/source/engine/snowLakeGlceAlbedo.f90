@@ -18,10 +18,10 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module snLaGlAlbedo_module
+module snowLakeGlceAlbedo_module
 
 ! data types
-USE nrtype                          ! numerical recipes data types
+USE nr_type                          ! numerical recipes data types
 
 ! physical constants
 USE multiconst,only:Tfreeze         ! freezing point of pure water (K)
@@ -52,15 +52,15 @@ USE mDecisions_module,only:  &
 ! privacy
 implicit none
 private
-public::snLaGlAlbedo
+public::snowLakeGlceAlbedo
 
 contains
 
 
  ! *******************************************************************************************************
- ! public subroutine snLaGlAlbedo: muster program to compute energy fluxes at vegetation and ground surfaces
+ ! public subroutine snowLakeGlceAlbedo: muster program to compute energy fluxes at vegetation and ground surfaces
  ! *******************************************************************************************************
- subroutine snLaGlAlbedo(&
+ subroutine snowLakeGlceAlbedo(&
                        ! input: model control
                        dt,                                    & ! intent(in):    model time step (s)
                        snowPresence,                          & ! intent(in):    logical flag to denote if snow is present
@@ -102,7 +102,7 @@ contains
  real(rkind)                     :: fZen                          ! factor to modify albedo at low zenith angles (-)
  real(rkind),parameter           :: bPar=2._rkind                 ! empirical parameter in fZen
  ! initialize error control
- err=0; message='snLaGlAlbedo/'
+ err=0; message='snowLakeGlceAlbedo/'
  ! --------------------------------------------------------------------------------------------------------------------------------------
  ! associate variables in the data structure
  associate(&
@@ -220,16 +220,16 @@ contains
  ! end association to data structures
  end associate
 
- end subroutine snLaGlAlbedo
+ end subroutine snowLakeGlceAlbedo
 
 
  ! *******************************************************************************************************
  ! private subroutine computeAlbedo: compute change in albedo -- implicit solution
  ! *******************************************************************************************************
- subroutine computeAlbedo(snLaGlAlbedo,refreshFactor,decayFactor,albedoMax,albedoMin)
+ subroutine computeAlbedo(snowLakeGlceAlbedo,refreshFactor,decayFactor,albedoMax,albedoMin)
  implicit none
  ! dummy variables
- real(rkind),intent(inout)   :: snLaGlAlbedo    ! snow albedo (-)
+ real(rkind),intent(inout)   :: snowLakeGlceAlbedo    ! snow albedo (-)
  real(rkind),intent(in)      :: refreshFactor ! albedo refreshment factor (-)
  real(rkind),intent(in)      :: decayFactor   ! albedo decay factor (-)
  real(rkind),intent(in)      :: albedoMax     ! maximum albedo (-)
@@ -237,10 +237,10 @@ contains
  ! local variables
  real(rkind)                 :: albedoChange ! change in albedo over the time step (-)
  ! compute change in albedo
- albedoChange = refreshFactor*(albedoMax - snLaGlAlbedo) - (decayFactor*(snLaGlAlbedo - albedoMin)) / (1._rkind + decayFactor)
- snLaGlAlbedo   = snLaGlAlbedo + albedoChange
- if(snLaGlAlbedo > albedoMax) snLaGlAlbedo = albedoMax
+ albedoChange = refreshFactor*(albedoMax - snowLakeGlceAlbedo) - (decayFactor*(snowLakeGlceAlbedo - albedoMin)) / (1._rkind + decayFactor)
+ snowLakeGlceAlbedo   = snowLakeGlceAlbedo + albedoChange
+ if(snowLakeGlceAlbedo > albedoMax) snowLakeGlceAlbedo = albedoMax
  end subroutine computeAlbedo
 
 
-end module snLaGlAlbedo_module
+end module snowLakeGlceAlbedo_module

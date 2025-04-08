@@ -21,7 +21,7 @@
 module qTimeDelay_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! constants, time information
 USE multiconst,only:secprhour  ! number of seconds in an hour

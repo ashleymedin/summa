@@ -1,7 +1,7 @@
 module hyp_2F1_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! privacy
 implicit none

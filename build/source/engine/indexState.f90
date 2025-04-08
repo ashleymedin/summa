@@ -21,7 +21,7 @@
 module indexState_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! derived types to define the data structures
 USE data_types,only:var_ilength                            ! data vector with variable length dimension (i4b)
@@ -75,7 +75,7 @@ contains
                        indx_data,                          & ! intent(inout): indices defining model states and layers
                        err,message)                          ! intent(out):   error control
  ! provide access to the numerical recipes utility modules
- USE nr_utility_module,only:arth                           ! creates a sequence of numbers (start, incr, n)
+ USE nr_utils_module,only:arth                           ! creates a sequence of numbers (start, incr, n)
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -311,8 +311,8 @@ endif
                        indx_data,                   & ! intent(inout) : index data structure
                        out_indexSplit)                ! intent(out)   : error control
  ! external modules 
- USE f2008funcs_module,only:findIndex                 ! finds the index of the first value within a vector
- USE nr_utility_module,only:arth                      ! creates a sequence of numbers (start, incr, n)
+ USE f2008_funcs_module,only:findIndex                 ! finds the index of the first value within a vector
+ USE nr_utils_module,only:arth                      ! creates a sequence of numbers (start, incr, n)
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input

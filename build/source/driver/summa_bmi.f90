@@ -25,7 +25,7 @@ module summabmi
   ! *****************************************************************************
   ! data types
   USE,intrinsic :: iso_c_binding, only: c_ptr, c_loc, c_f_pointer
-  USE nrtype                                                  ! variable types, etc.
+  USE nr_type                                                  ! variable types, etc.
 ! NGEN_ACTIVE is to be set when running in the Nextgen framework
 ! https://github.com/NOAA-OWP/ngen
 #ifdef NGEN_ACTIVE

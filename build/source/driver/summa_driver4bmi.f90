@@ -23,7 +23,7 @@ program summa_driver4bmi
   ! *****************************************************************************
   ! * use desired modules
   ! *****************************************************************************
-  USE nrtype                                                  ! variable types, etc.
+  USE nr_type                                                  ! variable types, etc.
   ! subroutines and functions: model simulation
   USE summa_bmi
   ! global data

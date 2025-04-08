@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module enthalpyTemp_module
+module convertEnthalpyTemp_module
 
 ! constants
 USE multiconst, only: gravity, &                          ! gravitational acceleration (m s-1)
@@ -28,7 +28,7 @@ USE multiconst, only: gravity, &                          ! gravitational accele
                       LH_fus                              ! latent heat of fusion (J kg-1)
 
 ! data types
-USE nrtype
+USE nr_type
 USE data_types,only:var_iLength                    ! var(:)%dat(:)
 USE data_types,only:var_dLength                    ! var(:)%dat(:)
 USE data_types,only:zLookup                        ! z(:)%var(:)%lookup(:)
@@ -92,7 +92,7 @@ subroutine T2H_lookup_snWat(mpar_data,                     &  ! intent(in):    p
                            err,message)
   ! -------------------------------------------------------------------------------------------------------------------------
   ! downwind routines 
-  USE nr_utility_module,only:arth                       ! use to build vectors with regular increments
+  USE nr_utils_module,only:arth                       ! use to build vectors with regular increments
   USE spline_int_module,only:spline,splint              ! use for cubic spline interpolation
   implicit none
   ! -------------------------------------------------------------------------------------------------------------------------
@@ -153,7 +153,7 @@ subroutine T2L_lookup_soil(nSoil,                         &  ! intent(in):    nu
                            err,message)
   ! -------------------------------------------------------------------------------------------------------------------------
   ! downwind routines                    
-  USE nr_utility_module,only:arth                       ! use to build vectors with regular increments
+  USE nr_utils_module,only:arth                       ! use to build vectors with regular increments
   USE spline_int_module,only:spline,splint              ! use for cubic spline interpolation
   USE soil_utils_module,only:volFracLiq                 ! use to compute the volumetric fraction of liquid water
   implicit none
@@ -1727,4 +1727,4 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
   end function diff_H_soil
 
 
-end module enthalpyTemp_module
+end module convertEnthalpyTemp_module

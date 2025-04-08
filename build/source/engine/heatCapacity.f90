@@ -18,10 +18,10 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module computHeatCap_module
+module heatCapacity_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! derived types to define the data structures
 USE data_types,only:&
@@ -67,7 +67,7 @@ USE globalData,only:iname_aquifer    ! named variables for the aquifer
 implicit none
 private
 public::computStatMult
-public::computHeatCapAnalytic
+public::heatCapacityAnalytic
 public::computCm
 
 contains
@@ -85,8 +85,8 @@ subroutine computStatMult(&
                       sMul,                    & ! intent(out): multiplier for state vector (used in the residual calculations)
                       err,message)               ! intent(out): error control
 ! --------------------------------------------------------------------------------------------------------------------------------
-USE nr_utility_module,only:arth                  ! get a sequence of numbers arth(start, incr, count)
-USE f2008funcs_module,only:findIndex             ! finds the index of the first value within a vector
+USE nr_utils_module,only:arth                  ! get a sequence of numbers arth(start, incr, count)
+USE f2008_funcs_module,only:findIndex             ! finds the index of the first value within a vector
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! input: data structures
   real(qp),intent(in)             :: heatCapVeg             ! volumetric heat capacity of vegetation (J m-3 K-1)
@@ -159,10 +159,10 @@ USE f2008funcs_module,only:findIndex             ! finds the index of the first 
 end subroutine computStatMult
 
 ! **********************************************************************************************************
-! public subroutine computHeatCapAnalytic: compute diagnostic energy variables (heat capacity)
+! public subroutine heatCapacityAnalytic: compute diagnostic energy variables (heat capacity)
 !   NOTE: computing on whole vector, could just compute on state subset
 ! **********************************************************************************************************
-subroutine computHeatCapAnalytic(&
+subroutine heatCapacityAnalytic(&
                       ! input: state variables
                       canopyDepth,             & ! intent(in):    canopy depth (m)
                       scalarCanopyIce,         & ! intent(in):    trial value for mass of ice on the vegetation canopy (kg m-2)
@@ -256,7 +256,7 @@ subroutine computHeatCapAnalytic(&
     )  ! end associate statement
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
-    err=0; message="computHeatCapAnalytic/"
+    err=0; message="heatCapacityAnalytic/"
 
     ! loop through model state variables
     do iState=1,size(ixMapSubset2Full)
@@ -337,7 +337,7 @@ subroutine computHeatCapAnalytic(&
 
   end associate
 
-end subroutine computHeatCapAnalytic
+end subroutine heatCapacityAnalytic
 
 ! **********************************************************************************************************
 ! public subroutine computCm: compute diagnostic energy variables (change in enthTemp with water)
@@ -525,4 +525,4 @@ subroutine computCm(&
 end subroutine computCm
 
 
-end module computHeatCap_module
+end module heatCapacity_module

@@ -1,7 +1,7 @@
 module openwq
    
  USE, intrinsic :: iso_c_binding
- USE nrtype
+ USE nr_type
  private
  public :: CLASSWQ_openwq
 

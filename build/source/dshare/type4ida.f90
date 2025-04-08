@@ -1,7 +1,7 @@
 module type4ida
 
 ! data types
-USE nrtype
+USE nr_type
 USE, intrinsic :: iso_c_binding
 
 ! provide access to the derived types to define the data structures

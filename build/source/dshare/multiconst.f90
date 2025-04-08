@@ -19,7 +19,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 MODULE multiconst
- USE nrtype
+ USE nr_type
  ! define physical constants
  real(rkind), PARAMETER           :: ave_slp        =  101325.0_rkind ! mean sea level pressure              (Pa)
  real(rkind), PARAMETER           :: vkc            =  0.4_rkind      ! von Karman constant                  (-)

@@ -19,7 +19,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module ffile_info_module
-USE nrtype
+USE nr_type
 USE netcdf
 USE globalData,only:integerMissing
 USE globalData,only:ixHRUfile_min,ixHRUfile_max

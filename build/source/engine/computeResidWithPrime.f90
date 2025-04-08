@@ -1,9 +1,9 @@
 
 
-module computResidWithPrime_module
+module computeResidWithPrime_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! derived types to define the data structures
 USE data_types,only:&
@@ -51,13 +51,13 @@ USE multiconst,only:&
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
 ! privacy
 implicit none
-public::computResidWithPrime
+public::computeResidWithPrime
 contains
 
 ! **********************************************************************************************************
-! public subroutine computResidWithPrime: compute the residual vector
+! public subroutine computeResidWithPrime: compute the residual vector
 ! **********************************************************************************************************
-subroutine computResidWithPrime(&
+subroutine computeResidWithPrime(&
                       ! input: model control
                       dt,                        & ! intent(in):  length of the time step (seconds)
                       nSnow,                     & ! intent(in):  number of snow layers
@@ -172,7 +172,7 @@ subroutine computResidWithPrime(&
     ) ! association to necessary variables for the residual computations
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
-    err=0; message="computResidWithPrime/"
+    err=0; message="computeResidWithPrime/"
 
     ! ---
     ! * compute sink terms...
@@ -274,6 +274,6 @@ subroutine computResidWithPrime(&
     
   end associate
 
-end subroutine computResidWithPrime
+end subroutine computeResidWithPrime
 
-end module computResidWithPrime_module
+end module computeResidWithPrime_module

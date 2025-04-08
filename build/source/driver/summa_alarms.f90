@@ -62,7 +62,7 @@ subroutine summa_setWriteAlarms(oldTime, newTime, endTime,     &   ! time vector
                               err,message)                         ! error control
   ! ---------------------------------------------------------------------------------------
   ! data types
-  USE nrtype                                                  ! variable types, etc.
+  USE nr_type                                                  ! variable types, etc.
   ! ---------------------------------------------------------------------------------------
   implicit none
   ! dummy variables: time vectors

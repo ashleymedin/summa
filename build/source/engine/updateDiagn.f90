@@ -18,10 +18,10 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module updateVars_module
+module updateDiagn_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! missing values
 USE globalData,only:integerMissing  ! missing integer
@@ -74,8 +74,8 @@ USE var_lookup,only:iLookPARAM            ! named variables for structure elemen
 USE var_lookup,only:iLookINDEX            ! named variables for structure elements
 
 ! provide access to routines to update states
-USE updatState_module,only:updateSnLaGl     ! update snow states
-USE updatState_module,only:updateSoil     ! update soil states
+USE updateState_module,only:updateSnLaGl     ! update snow states
+USE updateState_module,only:updateSoil     ! update soil states
 
 ! provide access to functions for the constitutive functions and derivatives
 USE snow_utils_module,only:fracliquid          ! compute the fraction of liquid water (snow)
@@ -86,24 +86,24 @@ USE soil_utils_module,only:matricHead          ! compute the matric head based o
 USE soil_utils_module,only:volFracLiq          ! compute volumetric fraction of liquid water
 USE soil_utils_module,only:crit_soilT          ! compute critical temperature below which ice exists
 USE soil_utils_module,only:liquidHead          ! compute the liquid water matric potential
-USE enthalpyTemp_module,only:T2enthTemp_cas    ! convert temperature to enthalpy for canopy air space
-USE enthalpyTemp_module,only:T2enthTemp_veg    ! convert temperature to enthalpy for vegetation
-USE enthalpyTemp_module,only:T2enthTemp_SnLaGl ! convert temperature to enthalpy for snow
-USE enthalpyTemp_module,only:T2enthTemp_soil   ! convert temperature to enthalpy for soil 
+USE convertEnthalpyTemp_module,only:T2enthTemp_cas    ! convert temperature to enthalpy for canopy air space
+USE convertEnthalpyTemp_module,only:T2enthTemp_veg    ! convert temperature to enthalpy for vegetation
+USE convertEnthalpyTemp_module,only:T2enthTemp_SnLaGl ! convert temperature to enthalpy for snow
+USE convertEnthalpyTemp_module,only:T2enthTemp_soil   ! convert temperature to enthalpy for soil 
 
 ! IEEE check
 USE, intrinsic :: ieee_arithmetic         ! check values (NaN, etc.)
 
 implicit none
 private
-public::updateVars
+public::updateDiagn
 
 contains
 
 ! **********************************************************************************************************
-! public subroutine updateVars: compute diagnostic variables and derivatives
+! public subroutine updateDiagn: compute diagnostic variables and derivatives
 ! **********************************************************************************************************
-subroutine updateVars(&
+subroutine updateDiagn(&
                       ! input
                       computeEnthTemp,                           & ! intent(in):    flag if computing temperature compoment of enthalpy
                       use_lookup,                                & ! intent(in):    flag to use the lookup table for soil enthalpy 
@@ -268,7 +268,7 @@ subroutine updateVars(&
     ! --------------------------------------------------------------------------------------------------------------------------------
 
     ! initialize error control
-    err=0; message='updateVars/'
+    err=0; message='updateDiagn/'
 
     ! allocate space and assign values to the flag vector
     allocate(computedCoupling(size(ixMapSubset2Full)),stat=err)        ! .true. if computed the coupling for a given state variable
@@ -764,7 +764,7 @@ subroutine updateVars(&
 
   end associate
 
- end subroutine updateVars
+ end subroutine updateDiagn
 
 
 ! **********************************************************************************************************
@@ -801,4 +801,4 @@ subroutine xTempSolve(&
   derivative = heatCap + LH_fus*iden_water*dLiq_dT  ! J m-3 K-1
 end subroutine xTempSolve
 
-end module updateVars_module
+end module updateDiagn_module

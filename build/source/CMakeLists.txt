@@ -13,9 +13,9 @@ set(NOAHMP
 
 # Free versions of numerical recipes utilities for NOAH-MP modules
 set(NRUTIL
-    ${ENGINE_DIR}/f2008funcs.f90
-    ${ENGINE_DIR}/nr_utility.f90
-    ${ENGINE_DIR}/nrtype.f90
+    ${ENGINE_DIR}/f2008_funcs.f90
+    ${ENGINE_DIR}/nr_utils.f90
+    ${DSHARE_DIR}/nr_type.f90
     CACHE INTERNAL "NRUTIL")
 
 # Free versions of numerical recipes procedures for SUMMA modules
@@ -54,11 +54,11 @@ set(UTILMS
     ${ENGINE_DIR}/snow_utils.f90
     ${ENGINE_DIR}/soil_utils.f90
     ${ENGINE_DIR}/time_utils.f90
-    ${ENGINE_DIR}/updatState.f90
+    ${ENGINE_DIR}/updateState.f90
     CACHE INTERNAL "UTILMS")
 set(UTILMS_SUNDIALS
     ${ENGINE_DIR}/soil_utilsAddPrime.f90
-    ${ENGINE_DIR}/updatStateWithPrime.f90
+    ${ENGINE_DIR}/updateStateWithPrime.f90
     CACHE INTERNAL "UTILMS_SUNDIALS")
 
 # NetCDF routines
@@ -75,7 +75,7 @@ set(PRELIM
     ${ENGINE_DIR}/check_icond.f90
     ${ENGINE_DIR}/checkStruc.f90
     ${ENGINE_DIR}/childStruc.f90
-    ${ENGINE_DIR}/conv_funcs.f90
+    ${ENGINE_DIR}/convert_funcs.f90
     ${ENGINE_DIR}/ffile_info.f90
     ${ENGINE_DIR}/read_pinit.f90
     ${ENGINE_DIR}/read_attrb.f90
@@ -89,48 +89,47 @@ set(PRELIM
 set(MODRUN
     ${ENGINE_DIR}/canopySnow.f90
     ${ENGINE_DIR}/derivforce.f90
-    ${ENGINE_DIR}/enthalpyTemp.f90
+    ${ENGINE_DIR}/convertEnthalpyTemp.f90
     ${ENGINE_DIR}/getVectorz.f90
     ${ENGINE_DIR}/indexState.f90
     ${ENGINE_DIR}/layerMerge.f90
     ${ENGINE_DIR}/layerDivide.f90
     ${ENGINE_DIR}/qTimeDelay.f90
     ${ENGINE_DIR}/read_force.f90
-    ${ENGINE_DIR}/snLaGlAlbedo.f90
-    ${ENGINE_DIR}/snwCompact.f90
+    ${ENGINE_DIR}/snowLakeGlceAlbedo.f90
     ${ENGINE_DIR}/tempAdjust.f90
-    ${ENGINE_DIR}/updateVars.f90
+    ${ENGINE_DIR}/updateDiagn.f90
     ${ENGINE_DIR}/var_derive.f90
     ${ENGINE_DIR}/volicePack.f90
     CACHE INTERNAL "MODRUN")
 set(MODRUN_SUNDIALS
     ${ENGINE_DIR}/tol4ida.f90
-    ${ENGINE_DIR}/updateVarsWithPrime.f90
+    ${ENGINE_DIR}/updateDiagnWithPrime.f90
     CACHE INTERNAL "MODRUN_SUNDIALS")
 
 # Solver main modules
 set(SOLVER
     ${ENGINE_DIR}/bigAquifer.f90
-    ${ENGINE_DIR}/computFlux.f90
-    ${ENGINE_DIR}/computHeatCap.f90
-    ${ENGINE_DIR}/computJacob.f90
-    ${ENGINE_DIR}/computResid.f90
-    ${ENGINE_DIR}/computSnowDepth.f90
-    ${ENGINE_DIR}/computThermConduct.f90
+    ${ENGINE_DIR}/computeFlux.f90
+    ${ENGINE_DIR}/heatCapacity.f90
+    ${ENGINE_DIR}/computeJacob.f90
+    ${ENGINE_DIR}/computeResid.f90
+    ${ENGINE_DIR}/snowGlceDepth.f90
+    ${ENGINE_DIR}/thermConductivity.f90
     ${ENGINE_DIR}/coupled_em.f90
-    ${ENGINE_DIR}/diagn_evar.f90
+    ${ENGINE_DIR}/init_heatCap_thermCond.f90
     ${ENGINE_DIR}/eval8summa.f90
     ${ENGINE_DIR}/groundwatr.f90
-    ${ENGINE_DIR}/glacFlow.f90
+    ${ENGINE_DIR}/glacierFlowAreaChange.f90
     ${ENGINE_DIR}/opSplittin.f90
     ${ENGINE_DIR}/run_oneGRU.f90
     ${ENGINE_DIR}/run_oneHRU.f90
-    ${ENGINE_DIR}/snLaGlLiqFlx.f90
+    ${ENGINE_DIR}/snowLakeGlceLiqFlux.f90
     ${ENGINE_DIR}/soilLiqFlx.f90
-    ${ENGINE_DIR}/snLaSoGlNrgFlux.f90
+    ${ENGINE_DIR}/snowLakeSoilGlceNrgFlux.f90
     ${ENGINE_DIR}/stomResist.f90
     ${ENGINE_DIR}/summaSolve4homegrown.f90
-    ${ENGINE_DIR}/systemSolv.f90
+    ${ENGINE_DIR}/systemSolve.f90
     ${ENGINE_DIR}/varSubstep.f90
     ${ENGINE_DIR}/vegLiqFlux.f90
     ${ENGINE_DIR}/vegNrgFlux.f90
@@ -138,8 +137,8 @@ set(SOLVER
     ${ENGINE_DIR}/vegSWavRad.f90
     CACHE INTERNAL "SOLVER")
 set(SOLVER_SUNDIALS
-    ${ENGINE_DIR}/computJacobWithPrime.f90
-    ${ENGINE_DIR}/computResidWithPrime.f90
+    ${ENGINE_DIR}/computeJacobWithPrime.f90
+    ${ENGINE_DIR}/computeResidWithPrime.f90
     ${ENGINE_DIR}/eval8summaWithPrime.f90
     ${ENGINE_DIR}/summaSolve4ida.f90
     ${ENGINE_DIR}/summaSolve4kinsol.f90

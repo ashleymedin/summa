@@ -63,7 +63,7 @@ subroutine summa_initialize(summa1_struc, err, message)
   ! * desired modules
   ! ---------------------------------------------------------------------------------------
   ! data types
-  USE nrtype                                                   ! variable types, etc.
+  USE nr_type                                                   ! variable types, etc.
   USE summa_type, only:summa1_type_dec                         ! master summa data type
   ! subroutines and functions: initial priming
   USE summa_util, only:getCommandArguments                     ! process command line arguments

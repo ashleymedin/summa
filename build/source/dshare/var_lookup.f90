@@ -23,7 +23,7 @@ MODULE var_lookup
 #ifdef ACTORS_ACTIVE
  USE, intrinsic :: iso_c_binding
 #endif
- USE nrtype, integerMissing=>nr_integerMissing
+ USE nr_type, integerMissing=>nr_integerMissing
  implicit none
  private
  ! local variables

@@ -1,5 +1,5 @@
 module noahmp_globals
-  USE nrtype
+  USE nr_type
 
   ! Maybe most of these can be moved to a REDPRM use statement?
   ! MPC -- yes, all of these variables can be local to REDPRM (see additional comments)
@@ -201,7 +201,7 @@ END MODULE NOAHMP_GLOBALS
 !------------------------------------------------------------------------------------------!
 !------------------------------------------------------------------------------------------!
 MODULE NOAHMP_VEG_PARAMETERS
-    use nrtype
+    use nr_type
     IMPLICIT NONE
 
     INTEGER, PARAMETER :: MAX_VEG_PARAMS = 33
@@ -440,7 +440,7 @@ END MODULE NOAHMP_VEG_PARAMETERS
 ! ==================================================================================================
 ! ==================================================================================================
 MODULE NOAHMP_RAD_PARAMETERS
-    use nrtype
+    use nr_type
 
     IMPLICIT NONE
 
@@ -482,7 +482,7 @@ END MODULE NOAHMP_RAD_PARAMETERS
 ! ==================================================================================================
 
 MODULE NOAHMP_ROUTINES
-    use nrtype
+    use nr_type
   USE NOAHMP_GLOBALS
   IMPLICIT NONE
 
@@ -1976,7 +1976,7 @@ END MODULE NOAHMP_ROUTINES
 ! ==================================================================================================
 
 MODULE MODULE_SF_NOAHMPLSM
-    use nrtype
+    use nr_type
 
   USE NOAHMP_ROUTINES
   USE NOAHMP_GLOBALS

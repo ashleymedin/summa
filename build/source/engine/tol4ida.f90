@@ -2,7 +2,7 @@ module tol4ida_module
 
 !======= Inclusions ===========
 use, intrinsic :: iso_c_binding
-use nrtype
+use nr_type
 use type4ida
 
 ! missing values
@@ -59,7 +59,7 @@ integer(c_int) function computWeight4ida(sunvec_y, sunvec_ewt, user_data) &
   use, intrinsic :: iso_c_binding
   use fsundials_core_mod
   use fnvector_serial_mod
-  use nrtype
+  use nr_type
   use type4ida
 
   !======= Declarations =========

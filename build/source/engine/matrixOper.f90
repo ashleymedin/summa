@@ -21,7 +21,7 @@
 module matrixOper_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! access the global print flag
 USE globalData,only:globalPrintFlag

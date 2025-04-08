@@ -20,7 +20,7 @@
 
 module get_ixname_module
 ! used to get the index of a named variable
-USE nrtype, integerMissing=>nr_integerMissing
+USE nr_type, integerMissing=>nr_integerMissing
 implicit none
 private
 public::get_ixdecisions
@@ -1158,7 +1158,7 @@ contains
  ! structure that it was found in
  ! *******************************************************************************************************************
  subroutine get_ixUnknown(varName,typeName,vDex,err,message)
- USE nrtype
+ USE nr_type
  USE globalData,only:structInfo        ! information on the data structures
  implicit none
 

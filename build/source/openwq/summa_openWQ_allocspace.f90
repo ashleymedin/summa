@@ -21,7 +21,7 @@
 module allocspace_progStuct_module
 
   ! data types
-  USE nrtype
+  USE nr_type
   
   ! provide access to the derived types to define the data structures
   USE data_types,only:&

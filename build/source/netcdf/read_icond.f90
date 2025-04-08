@@ -19,7 +19,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module read_icond_module
-USE nrtype
+USE nr_type
 USE netcdf
 USE globalData,only: ixHRUfile_min,ixHRUfile_max
 USE globalData,only: nTimeDelay      ! number of hours in the time delay histogram
@@ -48,7 +48,7 @@ contains
  subroutine read_icond_nlayers(iconFile,nGRU,nDOM,indx_meta,err,message)
  ! --------------------------------------------------------------------------------------------------------
  ! modules
- USE nrtype
+ USE nr_type
  USE var_lookup,only:iLookINDEX                        ! variable lookup structure
  USE globalData,only:gru_struc                         ! gru-hru mapping structures
  USE netcdf_util_module,only:nc_file_close             ! close netcdf file
@@ -286,7 +286,7 @@ contains
                        err,message)                     ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------
  ! modules
- USE nrtype
+ USE nr_type
  USE var_lookup,only:iLookVarType                       ! variable lookup structure
  USE var_lookup,only:iLookPROG                          ! variable lookup structure
  USE var_lookup,only:iLookPARAM                         ! variable lookup structure
@@ -304,7 +304,7 @@ contains
  USE data_types,only:gru_hru_dom_intVec                 ! full integer structure
  USE data_types,only:gru_doubleVec                      ! gru-length double precision structure (basin variables)
  USE get_ixName_module,only:get_varTypeName             ! to access type strings for error messages
- USE updatState_module,only:updateSoil                  ! update soil states
+ USE updateState_module,only:updateSoil                  ! update soil states
 
  implicit none
  ! --------------------------------------------------------------------------------------------------------
@@ -817,7 +817,7 @@ contains
                            err,message)                     ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------
  ! modules
- USE nrtype
+ USE nr_type
  USE var_lookup,only:iLookVarType                       ! variable lookup structure
  USE var_lookup,only:iLookGRID                          ! variable glacier grid 
  USE var_lookup,only:iLookBVAR                          ! variable basin variables

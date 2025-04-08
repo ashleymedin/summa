@@ -18,10 +18,10 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module glacFlow_module
+module glacierFlowAreaChange_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! access missing values
 USE globalData,only:integerMissing      ! missing integer number
@@ -48,13 +48,13 @@ character(len=32),parameter :: method='MUSCL' !'upstream'
 
 ! privacy
 private::run_year,diffusion_MUSCL,diffusion_upstream,minmod,superbee,flux,SIA,H_index,H_plus,H_min
-public ::glacFlow
+public ::glacierFlowAreaChange
 contains
 ! ************************************************************************************************
-! public subroutine glacFlow: flow of glacier to get new glacier area and elevation
+! public subroutine glacierFlowAreaChange: flow of glacier to get new glacier area and elevation
 ! NOTE: This will eventually run in parallel as a program, but for now it is serial
 ! ************************************************************************************************
-subroutine glacFlow(&
+subroutine glacierFlowAreaChange(&
                     ! model control
                     nDOM,                    & ! intent(in):    number of glacier domains
                     has_clean,               & ! intent(in):    flag for clean ice
@@ -144,7 +144,7 @@ subroutine glacFlow(&
   real(rkind),parameter              :: thick4area=0.1_rkind            ! an arbitrary small threshold for glacier thickness to be considered as glacier area
   ! ----------------------------------------------------------------------------------------------
   ! initialize
-  err=0; message='glacFlow/'
+  err=0; message='glacierFlowAreaChange/'
   glacAblArea = 0._rkind
   glacAccArea = 0._rkind
   totVolume = 0._rkind
@@ -394,7 +394,7 @@ subroutine glacFlow(&
 
   deallocate(glacid_to_index, validElev, validMassChange, slope, intercept)
 
-end subroutine glacFlow
+end subroutine glacierFlowAreaChange
 
 
 ! ************************************************************************************************
@@ -1050,4 +1050,4 @@ function H_min(Hm, H, Hp) result(H_min_result)
 end function H_min
 
 
-end module glacFlow_module
+end module glacierFlowAreaChange_module

@@ -1,5 +1,5 @@
-module nr_utility_module
-USE nrtype
+module nr_utils_module
+USE nr_type
 ! contains functions that should really be part of the fortran standard, but are not
 implicit none
 INTERFACE arth
@@ -147,4 +147,4 @@ contains
  b=dum
  END SUBROUTINE swap
 
-end module nr_utility_module
+end module nr_utils_module

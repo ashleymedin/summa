@@ -1,5 +1,5 @@
 module popMetadat_module
-USE nrtype, integerMissing=>nr_integerMissing
+USE nr_type, integerMissing=>nr_integerMissing
 implicit none
 ! define indices in metadata structures
 integer(i4b),parameter   :: nameIndex=1     ! index of the variable name

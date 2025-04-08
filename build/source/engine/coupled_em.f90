@@ -21,7 +21,7 @@
 module coupled_em_module
 
 ! homegrown solver data types
-USE nrtype
+USE nr_type
 
 ! physical constants
 USE multiconst,only:&
@@ -150,12 +150,12 @@ subroutine coupled_em(&
   ! preliminary subroutines
   USE vegPhenlgy_module,only:vegPhenlgy             ! compute vegetation phenology
   USE vegNrgFlux_module,only:wettedFrac             ! compute wetted fraction of the canopy (used in sw radiation fluxes)
-  USE snLaGlAlbedo_module,only:snLaGlAlbedo         ! compute snow albedo
+  USE snowLakeGlceAlbedo_module,only:snowLakeGlceAlbedo         ! compute snow albedo
   USE vegSWavRad_module,only:vegSWavRad             ! compute canopy sw radiation fluxes
   USE canopySnow_module,only:canopySnow             ! compute interception and unloading of snow from the vegetation canopy
   USE volicePack_module,only:newsnwfall             ! compute change in the top snow layer due to throughfall and unloading
   USE volicePack_module,only:volicePack             ! merge and sub-divide snow layers, if necessary
-  USE diagn_evar_module,only:diagn_evar             ! compute diagnostic energy variables -- thermal conductivity and heat capacity
+  USE init_heatCap_thermCond_module,only:init_heatCap_thermCond             ! compute diagnostic energy variables -- thermal conductivity and heat capacity
   ! the model solver
   USE indexState_module,only:indexState             ! define indices for all model state variables and layers
   USE opSplittin_module,only:opSplittin             ! solve the system of thermodynamic and hydrology equations for a given substep
@@ -163,11 +163,11 @@ subroutine coupled_em(&
   ! additional subroutines
   USE tempAdjust_module,only:tempAdjust             ! adjust snow temperature associated with new snowfall
   USE var_derive_module,only:calcHeight             ! module to calculate height at layer interfaces and layer mid-point
-  USE computSnowDepth_module,only:computSnowDepth   ! compute snow depth
-  USE enthalpyTemp_module,only:T2enthTemp_veg       ! convert temperature to enthalpy for vegetation
-  USE enthalpyTemp_module,only:T2enthTemp_SnLaGl    ! convert temperature to enthalpy for snow, lake, and ice
-  USE enthalpyTemp_module,only:T2enthTemp_soil      ! convert temperature to enthalpy for soil
-  USE enthalpyTemp_module,only:enthTemp_or_enthalpy ! add phase change terms to delta temperature component of enthalpy or vice versa
+  USE snowGlceDepth_module,only:snowGlceDepth   ! compute snow depth
+  USE convertEnthalpyTemp_module,only:T2enthTemp_veg       ! convert temperature to enthalpy for vegetation
+  USE convertEnthalpyTemp_module,only:T2enthTemp_SnLaGl    ! convert temperature to enthalpy for snow, lake, and ice
+  USE convertEnthalpyTemp_module,only:T2enthTemp_soil      ! convert temperature to enthalpy for soil
+  USE convertEnthalpyTemp_module,only:enthTemp_or_enthalpy ! add phase change terms to delta temperature component of enthalpy or vice versa
   implicit none
   ! -------------------------------------------------------------------------------------------------------------------------
   ! * dummy variables
@@ -596,7 +596,7 @@ subroutine coupled_em(&
     ! --------------------------
     ! NOTE: this should be done before the radiation calculations
     ! NOTE: uses snowfall; should really use canopy throughfall + canopy unloading
-    call snLaGlAlbedo(&
+    call snowLakeGlceAlbedo(&
                     ! input: model control
                     data_step,                   & ! intent(in): model time step (s)
                     (nSnow > 0),                 & ! intent(in): logical flag to denote if snow is present
@@ -911,7 +911,7 @@ subroutine coupled_em(&
         ! *** compute diagnostic variables for each layer...
         ! --------------------------------------------------
         ! NOTE: this needs to be done AFTER volicePack, since layers may have been sub-divided and/or merged, and need to specifically send in canopy depth
-        call diagn_evar(&
+        call init_heatCap_thermCond(&
                         ! input: control variables
                         computeVegFlux,         & ! intent(in): flag to denote if computing the vegetation flux
                         diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1), & ! intent(in): canopy depth (m), send in specific value since diag_data may have changed
@@ -949,7 +949,7 @@ subroutine coupled_em(&
         if (allocated(mLayerVolFracIceInit)) deallocate(mLayerVolFracIceInit) ! prep for potential size change
         allocate(mLayerVolFracIceInit(nLayers)); mLayerVolFracIceInit = prog_data%var(iLookPROG%mLayerVolFracIce)%dat
 
-        ! make sure have consistent state variables to start, later done in updateVars
+        ! make sure have consistent state variables to start, later done in updateDiagn
         ! associate local variables with information in the data structures
         init: associate(&
           ! depth-varying soil parameters
@@ -1215,7 +1215,7 @@ subroutine coupled_em(&
           !   and account for compaction and cavitation in the snowpack...
           ! ------------------------------------------------------------------------
           groundSublimation = (sumSnowSublimation + sumLakeSublimation + sumGlceSublimation)/whole_step  ! kg m-2 s-1
-          call computSnowDepth(&
+          call snowGlceDepth(&
                     whole_step,                               & ! intent(in):    length of whole step for surface drainage and average flux
                     nSnow,                                    & ! intent(in):    number of snow layers
                     nLake,                                    & ! intent(in):    number of lake layers

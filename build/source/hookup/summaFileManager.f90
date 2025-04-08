@@ -23,7 +23,7 @@
 ! (C) Copyright 2009-2010  ---  Dmitri Kavetski and Martyn Clark ---  All rights reserved
 !******************************************************************
 MODULE summaFileManager
-use nrtype
+use nr_type
 implicit none
 public
 ! summa-wide pathlength

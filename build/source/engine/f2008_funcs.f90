@@ -18,8 +18,8 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module f2008funcs_module
-USE nrtype
+module f2008_funcs_module
+USE nr_type
 implicit none
 private
 public::cloneStruc
@@ -163,4 +163,4 @@ contains
 
  end subroutine cloneStruc_iv
 
-end module f2008funcs_module
+end module f2008_funcs_module

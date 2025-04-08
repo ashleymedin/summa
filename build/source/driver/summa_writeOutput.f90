@@ -72,7 +72,7 @@ contains
  ! * desired modules
  ! ---------------------------------------------------------------------------------------
  ! data types
- USE nrtype                                                  ! variable types, etc.
+ USE nr_type                                                  ! variable types, etc.
  USE summa_type,only:summa1_type_dec                         ! master summa data type
  ! subroutines and functions
  USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time

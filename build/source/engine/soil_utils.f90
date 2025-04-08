@@ -21,7 +21,7 @@
 module soil_utils_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 USE multiconst,only: gravity, & ! acceleration of gravity       (m s-2)
                      Tfreeze, & ! temperature at freezing    (K)
@@ -693,7 +693,7 @@ END FUNCTION gser
 ! private function gammln: gamma function
 ! ******************************************************************************************************************************
 FUNCTION gammln(xx)
-  USE nr_utility_module,only:arth  ! use to build vectors with regular increments
+  USE nr_utils_module,only:arth  ! use to build vectors with regular increments
   IMPLICIT NONE
   real(rkind), INTENT(IN) :: xx
   real(rkind) :: gammln

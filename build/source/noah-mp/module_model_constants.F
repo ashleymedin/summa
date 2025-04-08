@@ -2,7 +2,7 @@
 !
 
  MODULE module_model_constants
-  USE nrtype
+  USE nr_type
 
    !  2. Following are constants for use in defining real number bounds.
 

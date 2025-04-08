@@ -21,7 +21,7 @@
 module run_oneGRU_module
 
 ! numerical recipes data types
-USE nrtype
+USE nr_type
 
 ! constants
 USE globalData,only: yes,no             ! .true. and .false.
@@ -131,7 +131,7 @@ subroutine run_oneGRU(&
   USE time_utils_module,only:compjulday                       ! convert calendar date to julian day
   USE qTimeDelay_module,only:qGlacier                         ! module to route water through glacier (time lapse)
   USE qTimeDelay_module,only:qOverland                        ! module to route water through an "unresolved" river network
-  USE glacFlow_module,only:glacFlow                           ! module to change glacier area with ice flow model
+  USE glacierFlowAreaChange_module,only:glacierFlowAreaChange                           ! module to change glacier area with ice flow model
   ! ----- define dummy variables ------------------------------------------------------------------------------------------
   implicit none
   ! model control
@@ -509,7 +509,7 @@ subroutine run_oneGRU(&
   if (updateGlacArea) then
     ! need to save length, bottom topo, and elevation of glaciers from the end of previous update for this GRU in file associated with gruInfo%gru_id
     ! need to associate each glacier with an HRU and domain
-    call glacFlow(&
+    call glacierFlowAreaChange(&
                   ! model control
                   nDOM_glacGRU,                                & ! intent(in):    number of domains that have GWE
                   has_clean,                                   & ! intent(in):    flag to indicate if there is clean ice in the GRU
