@@ -181,8 +181,8 @@ subroutine snowLakeGlceLiqFlux(&
       if (do_snow) then
         if (mLayerVolFracLiqTrial(iLayer) > mLayerThetaResid(iLayer)) then ! check that flow occurs
           ! compute the relative saturation (-)
-          availCap  = mLayerPoreSpace(iLayer) - mLayerThetaResid(iLayer)                 ! available capacity
-          relSaturn = (mLayerVolFracLiqTrial(iLayer) - mLayerThetaResid(iLayer)) / availCap    ! relative saturation
+          availCap  = mLayerPoreSpace(iLayer) - mLayerThetaResid(iLayer) ! available capacity
+          relSaturn = (mLayerVolFracLiqTrial(iLayer) - mLayerThetaResid(iLayer)) / availCap ! relative saturation
           iLayerLiqFluxSnLaGl(iLayer)      = k_param*relSaturn**mw_exp
           iLayerLiqFluxSnLaGlDeriv(iLayer) = ( (k_param*mw_exp)/availCap ) * relSaturn**(mw_exp - 1._rkind)
           if (mLayerVolFracIce(iLayer) > maxVolIceContent) then ! NOTE: use start-of-step ice content, to avoid convergence problems
@@ -197,10 +197,6 @@ subroutine snowLakeGlceLiqFlux(&
         ! ** allow liquid water to go into the reservoir in ice, do not store in the ice
         iLayerLiqFluxSnLaGl(iLayer) = mLayerVolFracLiqTrial(iLayer) + iLayerLiqFluxSnLaGl(iLayer-1)
         iLayerLiqFluxSnLaGlDeriv(iLayer) = 1._rkind
-        !if (iLayer==1) then
-        !  print *,'mLayerVolFracLiqTrial=', mLayerVolFracLiqTrial(iLayer), 'mLayerVolFracIce', mLayerVolFracIce(iLayer), &
-        !        'availCap=', availCap, 'relSaturn=', relSaturn, 'iLayerLiqFluxSnLaGl=', iLayerLiqFluxSnLaGl(iLayer)
-        !end if
       end if  ! end if snow or ice
     end do  ! end loop through snow/glce layers
 

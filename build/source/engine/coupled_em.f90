@@ -196,7 +196,7 @@ subroutine coupled_em(&
   ! error control
   integer(i4b),intent(out)             :: err                      ! error code
   character(*),intent(out)             :: message                  ! error message
-  ! =====================================================================================================================================================
+  ! =========================================================================================================================
   ! local variables
   character(len=256)                   :: cmessage                 ! error message
   integer(i4b)                         :: nSnow                    ! number of snow layers
@@ -850,14 +850,14 @@ subroutine coupled_em(&
                   iLayer = jLayer + nSoil
                 end if
                 mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)*(iden_ice/iden_water)
-                ! compute enthalpy for snow layers
+                ! compute enthalpy for snow and glacier ice layers
                 call T2enthTemp_SnLaGl(&
                              snowfrz_scale,             & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                              mLayerTemp(iLayer),        & ! intent(in):  layer temperature (K)
                              mLayerVolFracWat(iLayer),  & ! intent(in):  volumetric total water content (-)
                              mLayerEnthTemp(iLayer))      ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
                 mLayerEnthalpy(iLayer) = mLayerEnthTemp(iLayer) - iden_ice * LH_fus * mLayerVolFracIce(iLayer)
-              end do  ! looping through snow layers
+              end do  ! looping through snow and glacier ice layers
             endif
             if(nSoil>0)then             
               do iLayer=(nSnow+nLake+1),(nSnow+nLake+nSoil)
@@ -1167,8 +1167,6 @@ subroutine coupled_em(&
               mLayerMeltFreeze(iLayer) = -( mLayerVolFracIce(iLayer) - mLayerVolFracIceInit(iLayer) )*iden_water
             end if
           end do  ! looping through layers
-
-
           deallocate(mLayerVolFracIceInit)
 
           ! * compute change in canopy ice content due to sublimation...
@@ -1212,8 +1210,8 @@ subroutine coupled_em(&
           end if  ! (if computing the vegetation flux)
 
           ! * compute change in ice content of the top layer due to sublimation 
-          !   and account for compaction and cavitation in the snowpack...
-          ! ------------------------------------------------------------------------
+          !   and account for compaction and cavitation in the snowpack and ice thickness reduction...
+          ! ------------------------------------------------------------------------------------------
           groundSublimation = (sumSnowSublimation + sumLakeSublimation + sumGlceSublimation)/whole_step  ! kg m-2 s-1
           call snowGlceDepth(&
                     whole_step,                               & ! intent(in):    length of whole step for surface drainage and average flux
@@ -1274,18 +1272,26 @@ subroutine coupled_em(&
             prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum( mLayerDepth(1:nSnow) )
             prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (mLayerVolFracLiq(1:nSnow)*iden_water &
                                                               + mLayerVolFracIce(1:nSnow)*iden_ice) * mLayerDepth(1:nSnow) )
-            mLayerVolFracWat(1:nSnow) = mLayerVolFracLiq(1:nSnow) + mLayerVolFracIce(1:nSnow)*iden_ice/iden_water
-            if(enthalpyStateVec .or. computeEnthalpy)then ! recompute enthalpy of layers if changed water and ice content
-              do iLayer=1,nSnow
+          endif
+          if(nSnow+nLake+nGlce>0)then 
+            do jLayer=1,(nSnow+nLake+nGlce)
+              if (jLayer<=nSnow+nLake)then
+                iLayer = jLayer
+              else
+                iLayer = jLayer + nSoil
+              end if
+              mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)*(iden_ice/iden_water)
+              ! recompute enthalpy of layers if changed water and ice content
+              if(enthalpyStateVec .or. computeEnthalpy)then
                 call T2enthTemp_SnLaGl(&
                              snowfrz_scale,                                       & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                              prog_data%var(iLookPROG%mLayerTemp)%dat(iLayer),     & ! intent(in):  layer temperature (K)
                              mLayerVolFracWat(iLayer),                            & ! intent(in):  volumetric total water content (-)
                              diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(iLayer))   ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
                 prog_data%var(iLookPROG%mLayerEnthalpy)%dat(iLayer) = diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(iLayer) - iden_ice * LH_fus * mLayerVolFracIce(iLayer)
-              end do  ! looping through snow layers
-            endif
-          endif
+              endif
+            end do ! looping through layers
+          endif ! if snow or glacier ice present
 
         end associate sublime
 
@@ -1679,7 +1685,6 @@ subroutine coupled_em(&
         delLakeWat = 0._rkind
       endif  ! if lake layers exist
 
-
       ! -----
       ! * balance checks for soil...
       ! ----------------------------
@@ -1913,7 +1918,7 @@ contains
   ! initialize the balance checks
   meanBalance = 0._rkind
 
- end subroutine initialize_coupled_em
+end subroutine initialize_coupled_em
 
 end subroutine coupled_em
 
@@ -1932,6 +1937,7 @@ subroutine implctMelt(&
                       soilHeatcap,       & ! intent(inout): surface layer volumetric heat capacity (J m-3 K-1)
                       ! output: error control
                       err,message        ) ! intent(out): error control
+  ! -----------------------------------------------------------------------------------------------------------
   implicit none
   ! input/output: integrated snowpack properties
   real(rkind),intent(inout)    :: scalarSWE          ! snow water equivalent (kg m-2)

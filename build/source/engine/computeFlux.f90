@@ -149,13 +149,13 @@ subroutine computeFlux(&
                       ! output: error control
                       err,message)                ! intent(out):   error code and error message
   ! provide access to flux subroutines
-  USE vegNrgFlux_module,only:vegNrgFlux           ! compute energy fluxes over vegetation
-  USE snowLakeSoilGlceNrgFlux_module,only:snowLakeSoilGlceNrgFlux           ! compute energy fluxes throughout the snow and soil subdomains
-  USE vegLiqFlux_module,only:vegLiqFlux           ! compute liquid water fluxes through vegetation
-  USE snowLakeGlceLiqFlux_module,only:snowLakeGlceLiqFlux           ! compute liquid water fluxes through snow
-  USE soilLiqFlx_module,only:soilLiqflx           ! compute liquid water fluxes through soil
-  USE groundwatr_module,only:groundwatr           ! compute the baseflow flux
-  USE bigAquifer_module,only:bigAquifer           ! compute fluxes for the big aquifer
+  USE vegNrgFlux_module,only:vegNrgFlux                           ! compute energy fluxes over vegetation
+  USE snowLakeSoilGlceNrgFlux_module,only:snowLakeSoilGlceNrgFlux ! compute energy fluxes throughout the layers
+  USE vegLiqFlux_module,only:vegLiqFlux                           ! compute liquid water fluxes through vegetation
+  USE snowLakeGlceLiqFlux_module,only:snowLakeGlceLiqFlux         ! compute liquid water fluxes through non-soil layers
+  USE soilLiqFlx_module,only:soilLiqflx                           ! compute liquid water fluxes through soil
+  USE groundwatr_module,only:groundwatr                           ! compute the baseflow flux
+  USE bigAquifer_module,only:bigAquifer                           ! compute fluxes for the big aquifer
   implicit none
   ! -------------------------------------------------------------------------------------------------------------------------
   ! * dummy variables
@@ -534,7 +534,7 @@ contains
    ixSnLaSoGlHyd                => indx_data%var(iLookINDEX%ixSnLaSoGlHyd)%dat,            & ! intent(in): [i4b(:)] indices for hydrology states in the layer domains
    nSnLaSoGlHyd                 => indx_data%var(iLookINDEX%nSnLaSoGlHyd)%dat(1),          & ! intent(in): [i4b] number of hydrology variables in the layer domains
    layerType                    => indx_data%var(iLookINDEX%layerType)%dat,                & ! intent(in): [i4b(:)] type of layer (iname_*)
-   mLayerLiqFluxSnLaGl            => flux_data%var(iLookFLUX%mLayerLiqFluxSnLaGl)%dat,         & ! intent(out): [dp] net liquid water flux for each snow layer (s-1)
+   mLayerLiqFluxSnLaGl          => flux_data%var(iLookFLUX%mLayerLiqFluxSnLaGl)%dat,       & ! intent(out): [dp] net liquid water flux for each non-soil layer (s-1)
    mLayerLiqFluxSoil            => flux_data%var(iLookFLUX%mLayerLiqFluxSoil)%dat,         & ! intent(out): [dp] net liquid water flux for each soil layer (s-1)
    scalarAquiferTranspire       => flux_data%var(iLookFLUX%scalarAquiferTranspire)%dat(1), & ! intent(out): [dp] transpiration loss from the aquifer (m s-1)
    scalarAquiferRecharge        => flux_data%var(iLookFLUX%scalarAquiferRecharge)%dat(1),  & ! intent(out): [dp] recharge to the aquifer (m s-1)
