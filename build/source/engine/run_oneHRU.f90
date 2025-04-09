@@ -56,6 +56,9 @@ USE var_lookup,only:iLookTYPE              ! look-up values for classification o
 USE var_lookup,only:iLookATTR              ! look-up values for local attributes
 USE var_lookup,only:iLookPARAM             ! look-up values for local column model parameters
 
+! global metadata
+USE globalData,only:flux_meta              ! metadata on the model fluxes
+
 ! provide access to the named variables that describe elements of variable structures
 USE var_lookup,only:iLookPROG              ! look-up values for local column model prognostic (state) variables
 USE var_lookup,only:iLookDIAG              ! look-up values for local column model diagnostic variables
@@ -146,7 +149,7 @@ subroutine run_oneHRU(&
   integer(i4b)       , intent(out)   :: err                 ! error code
   character(*)       , intent(out)   :: message             ! error message
   ! ----- define local variables ------------------------------------------------------------------------------------------
-  integer(i4b)                      :: i                   ! domain loop index
+  integer(i4b)                      :: i, iVar             ! loop index
   integer(i4b)                      :: ibeg                ! index of the first soil layer
   integer(i4b)                      :: iend                ! index of the last soil layer
   logical(lgt)                      :: use_computeVegFlux  ! computeVegFlux flag for the current domain
@@ -167,6 +170,11 @@ subroutine run_oneHRU(&
     if ( typeData%var(iLookTYPE%vegTypeIndex)==isWater .or. progData%dom(i)%var(iLookPROG%DOMarea)%dat(1) <= 0._rkind )then
       ! Set wall_clock time to zero so it does not get a random value
       diagData%dom(i)%var(iLookDIAG%wallClockTime)%dat(1) = 0._rkind
+
+      ! set fluxes to zero
+      do iVar=1,size(flux_meta)
+        fluxData%dom(i)%var(iVar)%dat(:) = 0
+      end do
 
     else ! not a water pixel and area of the domain is greater than zero
       if (domInfo(i)%dom_type == upland) then
