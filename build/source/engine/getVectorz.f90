@@ -535,16 +535,16 @@ subroutine checkFeas(&
         ! --> maximum
         select case( layerType(iLayer) )
           case(iname_snow,iname_lake,iname_glce); xMax = merge(1._rkind, 1._rkind - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
-          case(iname_soil);                      xMax = merge(theta_sat(iLayer-nSnow-nLake), theta_sat(iLayer-nSnow-nLake) - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
+          case(iname_soil);                       xMax = merge(theta_sat(iLayer-nSnow-nLake), theta_sat(iLayer-nSnow-nLake) - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
         end select
 
         ! --> check
         if(stateVec( ixSnLaSoGlHyd(iLayer) ) < xMin .or. stateVec( ixSnLaSoGlHyd(iLayer) ) > xMax)then 
           feasible=.false.
           message=trim(message)//'layer water out of bounds/'
-          !if(stateVec( ixSnLaSoGlHyd(iLayer) ) < xMin .or. stateVec( ixSnLaSoGlHyd(iLayer) ) > xMax) &
-          !write(*,'(a,1x,i4,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, layerType, feasible, stateVec( ixSnLaSoGlHyd(iLayer) ), xMin, xMax = ', &
-          ! iLayer, layerType(iLayer), feasible, stateVec( ixSnLaSoGlHyd(iLayer) ), xMin, xMax
+          if(stateVec( ixSnLaSoGlHyd(iLayer) ) < xMin .or. stateVec( ixSnLaSoGlHyd(iLayer) ) > xMax) &
+          write(*,'(a,1x,i4,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, layerType, feasible, stateVec( ixSnLaSoGlHyd(iLayer) ), xMin, xMax = ', &
+           iLayer, layerType(iLayer), feasible, stateVec( ixSnLaSoGlHyd(iLayer) ), xMin, xMax
         endif
       endif  ! if water states
 
