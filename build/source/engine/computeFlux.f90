@@ -411,10 +411,12 @@ contains
   associate(&
    scalarGlceInflux      => flux_data%var(iLookFLUX%scalarGlceInflux)%dat(1),   & ! intent(out): [dp] influx to glacier ice, rain plus melt plus debris drainage (m s-1)
    scalarRainPlusMelt    => flux_data%var(iLookFLUX%scalarRainPlusMelt)%dat(1), & ! intent(out): [dp] rain plus melt plus lake drainage (m s-1)
+   scalarSoilControl     => diag_data%var(iLookDIAG%scalarSoilControl )%dat(1), & ! intent(out): [dp] soil control on infiltration, zero or one
    scalarSoilDrainage    => flux_data%var(iLookFLUX%scalarSoilDrainage)%dat(1)  ) ! intent(out): [dp] drainage from the soil profile (m s-1)
    if (nSoil==0) then ! no soil layers
     scalarSoilDrainage = 0._rkind ! drainage from the above layer (m s-1)
     scalarGlceInflux = scalarRainPlusMelt ! includes rain plus melt plus lake drainage
+    scalarSoilControl = 1._rkind ! infiltration not controlled by soil
    else ! soil layers, take from previous flux calculation
     scalarGlceInflux = scalarSoilDrainage ! save for glacier ice flux calculations
    end if
@@ -788,17 +790,17 @@ contains
    ! define forcing for the beneath domain
    scalarGlceInflux = scalarSoilDrainage ! save for glacier ice flux calculations
    ! calculate net liquid water fluxes for each soil layer (s-1)
-   if (nStart==0) iLayerLiqFluxSnLaGl(0) = 0._rkind ! no liquid snow lake ice flux in soil
+   if (nStart==0) iLayerLiqFluxSnLaGl(0) = 0._rkind ! then 0 layer is top of soil, iLayerLiqFluxSnLaGl does not exist in soil
    do iLayer=1,nSoil
-     iLayerLiqFluxSnLaGl(iLayer+nStart) = 0._rkind ! no liquid snow lake ice flux in soil
-     mLayerLiqFluxSnLaGl(iLayer+nStart) = 0._rkind ! no liquid snow lake ice flux in soil
+     iLayerLiqFluxSnLaGl(iLayer+nStart) = 0._rkind ! iLayerLiqFluxSnLaGl does not exist in soil
+     mLayerLiqFluxSnLaGl(iLayer+nStart) = 0._rkind ! iLayerLiqFluxSnLaGl does not exist in soil
      mLayerLiqFluxSoil(iLayer) = -(iLayerLiqFluxSoil(iLayer) - iLayerLiqFluxSoil(iLayer-1))/mLayerDepth(iLayer+nStart)
    end do
    ! calculate the soil control on infiltration
    if (nSnow==0 .and. nLake==0) then ! infiltration into soil, no snow or lake
      scalarSoilControl = 0._rkind ! initialize soil control to scalarRainPlusMelt exceeds maximum infiltration rate
      if (scalarMaxInfilRate > scalarRainPlusMelt) scalarSoilControl = (1._rkind - scalarFrozenArea)*scalarInfilArea  ! infiltration is not rate-limited
-   else ! infiltration into snow or lake
+   else ! infiltration into snow or lake first
      scalarSoilControl = 1._rkind
    end if
   end associate
@@ -822,7 +824,7 @@ contains
  subroutine initialize_glceLiqFlx
   associate(&
    scalarGlceInflux  => flux_data%var(iLookFLUX%scalarGlceInflux)%dat(1)  ) ! intent(in): [dp] influx to glacier ice, rain plus melt plus debris drainage (m s-1)
-   surface_flux = scalarGlceInflux   
+   surface_flux = scalarGlceInflux
    nStart = nSnow + nLake + nSoil
    call in_snowLakeGlceLiqFlux%initialize(nGlce,nStart,.false.,surface_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
    call io_snowLakeGlceLiqFlux%initialize(nGlce,nStart,flux_data,deriv_data)
