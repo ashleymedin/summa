@@ -684,15 +684,17 @@ subroutine computeJacobWithPrime(&
               endif
 
               ! - include derivatives w.r.t. ground evaporation
-              if(ixTopNrg/=integerMissing) aJac(ixOffDiag(ixTopHyd,ixTopNrg),ixTopNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(ixOffDiag(ixTopHyd,ixTopNrg),ixTopNrg) ! dVol/dT (K-1)
-              if(computeVegFlux)then 
-                if(nSnow==0 .and. iLayer==1) then ! upper-most soil layer, assume here that kl>=4
+              if(nSnow==0 .and. iLayer==1)then 
+                if(ixTopNrg/=integerMissing) aJac(ixOffDiag(ixTopHyd,ixTopNrg),ixTopNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(ixOffDiag(ixTopHyd,ixTopNrg),ixTopNrg) ! dVol/dT (K-1)
+                if(computeVegFlux)then ! upper-most soil layer, assume here that kl>=4
                   if(ixCasNrg/=integerMissing) aJac(ixOffDiag(ixTopHyd,ixCasNrg),ixCasNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanair/iden_water) ! dVol/dT (K-1)
                   if(ixVegNrg/=integerMissing) aJac(ixOffDiag(ixTopHyd,ixVegNrg),ixVegNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanopy/iden_water) + aJac(ixOffDiag(ixTopHyd,ixVegNrg),ixVegNrg) ! dVol/dT (K-1)
                   if(ixVegHyd/=integerMissing) aJac(ixOffDiag(ixTopHyd,ixVegHyd),ixVegHyd) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dCanWat/iden_water)  + aJac(ixOffDiag(ixTopHyd,ixVegHyd),ixVegHyd) ! dVol/dLiq (kg m-2)-1
                 endif
+              endif
 
-                ! - only include banded terms for derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration) in banded structure
+              ! - only include banded terms for derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration) in banded structure 
+              if(computeVegFlux)then
                 if(ixCasNrg/=integerMissing)then
                   if(watState-ixCasNrg <= kl) aJac(ixOffDiag(watState,ixCasNrg),ixCasNrg) = (dt/mLayerDepth(jLayer))*(-mLayerdTrans_dTCanair(iLayer)) + aJac(ixOffDiag(watState,ixCasNrg),ixCasNrg) ! dVol/dT (K-1)
                 endif
@@ -1045,15 +1047,17 @@ subroutine computeJacobWithPrime(&
               endif
 
               ! - include derivatives w.r.t. ground evaporation
-              if(ixTopNrg/=integerMissing) aJac(ixTopHyd,ixTopNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(ixTopHyd,ixTopNrg) ! dVol/dT (K-1)
-              if(computeVegFlux)then 
-                if(nSnow==0 .and. iLayer==1) then ! upper-most soil layer, assume here that kl>=4
+              if(nSnow==0 .and. iLayer==1)then 
+                if(ixTopNrg/=integerMissing) aJac(ixTopHyd,ixTopNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(ixTopHyd,ixTopNrg) ! dVol/dT (K-1)
+                if(computeVegFlux)then
                   if(ixCasNrg/=integerMissing) aJac(ixTopHyd,ixCasNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanair/iden_water) ! dVol/dT (K-1)
                   if(ixVegNrg/=integerMissing) aJac(ixTopHyd,ixVegNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanopy/iden_water) + aJac(ixTopHyd,ixVegNrg) ! dVol/dT (K-1)
                   if(ixVegHyd/=integerMissing) aJac(ixTopHyd,ixVegHyd) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dCanWat/iden_water)  + aJac(ixTopHyd,ixVegHyd) ! dVol/dLiq (kg m-2)-1
                 endif
-  
-                ! - include derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration)
+              endif
+
+              ! - include derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration)
+              if(computeVegFlux)then
                 if(ixCasNrg/=integerMissing) aJac(watState,ixCasNrg) = (dt/mLayerDepth(jLayer))*(-mLayerdTrans_dTCanair(iLayer)) + aJac(watState,ixCasNrg) ! dVol/dT (K-1)
                 if(ixVegNrg/=integerMissing) aJac(watState,ixVegNrg) = (dt/mLayerDepth(jLayer))*(-mLayerdTrans_dTCanopy(iLayer)) + aJac(watState,ixVegNrg) ! dVol/dT (K-1)
                 if(ixVegHyd/=integerMissing) aJac(watState,ixVegHyd) = (dt/mLayerDepth(jLayer))*(-mLayerdTrans_dCanWat(iLayer))  + aJac(watState,ixVegHyd) ! dVol/dLiq (kg m-2)-1
