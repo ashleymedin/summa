@@ -344,7 +344,6 @@ end subroutine heatCapacityAnalytic
 !   NOTE: computing on whole vector, could just compute on state subset
 ! **********************************************************************************************************
 subroutine computCm(&
-                      be_solver,               & ! intent(in):  flag for BE solver, need to include latent heat part in Jacobian Cm if true
                       ! input: state variables
                       canopyDepth,             & ! intent(in):  depth of the vegetation canopy (m)
                       scalarCanopyTemp,        & ! intent(in):  value of canopy temperature (K)
@@ -355,9 +354,7 @@ subroutine computCm(&
                       indx_data,               & ! intent(in):  model layer indices
                       ! output
                       scalarCanopyCm,          & ! intent(inout): Cm for vegetation (J kg K-1)
-                      scalarCanopyCm_noLH,     & ! intent(inout): Cm without latent heat part for vegetation (J kg K-1)
-                      mLayerCm,                & ! intent(inout): Cm for soil and snow (J kg K-1)
-                      mLayerCm_noLH,           & ! intent(inout): Cm without latent heat part for soil and snow (J kg K-1)
+                      mLayerCm,                & ! intent(inout): Cm for layers (J kg K-1)
                       dCm_dPsi0,               & ! intent(inout): derivative in Cm w.r.t. matric potential (J kg)
                       dCm_dTk,                 & ! intent(inout): derivative in Cm w.r.t. temperature (J kg K-2)
                       dCm_dTkCanopy,           & ! intent(inout): derivative in Cm w.r.t. temperature (J kg K-2)
@@ -370,7 +367,6 @@ subroutine computCm(&
   USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists (soil)
   ! --------------------------------------------------------------------------------------------------------------------------------------
   ! input: state variables
-  logical(i4b),intent(in)              :: be_solver              ! flag for BE solver, need to include latent heat part in Jacobian Cm if true
   real(rkind),intent(in)               :: canopyDepth            ! depth of the vegetation canopy (m)
   real(rkind),intent(in)               :: scalarCanopyTemp       ! value of canopy temperature (K)
   real(rkind),intent(in)               :: mLayerTemp(:)          ! vector of temperature (K)
@@ -380,9 +376,7 @@ subroutine computCm(&
   type(var_ilength),intent(in)         :: indx_data              ! model layer indices
   ! output: Cm and derivatives
   real(rkind),intent(inout)            :: scalarCanopyCm         ! Cm for vegetation (J kg K-1) use for LHS
-  real(rkind),intent(inout)            :: scalarCanopyCm_noLH    ! Cm without latent heat part for vegetation (J kg K-1) use for RHS
-  real(rkind),intent(inout)            :: mLayerCm(:)            ! Cm for soil and snow (J kg K-1)
-  real(rkind),intent(inout)            :: mLayerCm_noLH(:)       ! Cm without latent heat part for soil and snow (J kg K-1)
+  real(rkind),intent(inout)            :: mLayerCm(:)            ! Cm for layers (J kg K-1)
   real(rkind),intent(inout)            :: dCm_dPsi0(:)           ! derivative in Cm w.r.t. matric potential (J kg)
   real(rkind),intent(inout)            :: dCm_dTk(:)             ! derivative in Cm w.r.t. temperature (J kg K-2)
   real(rkind),intent(inout)            :: dCm_dTkCanopy          ! derivative in Cm w.r.t. temperature (J kg K-2)
@@ -457,41 +451,33 @@ subroutine computCm(&
             ! Note that scalarCanopyCm/iden_water is computed
             diffT = scalarCanopyTemp - Tfreeze
             if(diffT>=0._rkind)then
-              scalarCanopyCm_noLH =  Cp_water * diffT
-              scalarCanopyCm      =  scalarCanopyCm_noLH
+              scalarCanopyCm =  Cp_water * diffT
               ! derivatives
               dCm_dTkCanopy  = Cp_water
             else
               integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
               fLiq = fracLiquid(scalarCanopyTemp,snowfrz_scale)
-              scalarCanopyCm_noLH = Cp_water * integral + Cp_ice * (diffT - integral) 
-              scalarCanopyCm      = scalarCanopyCm_noLH
-              if (be_solver) scalarCanopyCm = scalarCanopyCm_noLH - LH_fus * (1._rkind - fLiq) / canopyDepth ! LH_fus is term is not the Jacobian for the RHS
+              scalarCanopyCm = Cp_water * integral + Cp_ice * (diffT - integral) 
               ! derivatives
               dfLiq_dT = dFracLiq_dTk(scalarCanopyTemp,snowfrz_scale)
               dCm_dTkCanopy = Cp_water * fLiq + Cp_ice * (1._rkind - fLiq)
-              if (be_solver) dCm_dTkCanopy = dCm_dTkCanopy + LH_fus * dfLiq_dT / canopyDepth ! LH_fus is term is not in the Jacobian for the LHS
             end if
 
           case(iname_snow, iname_lake, iname_glce)
             diffT = mLayerTemp(iLayer) - Tfreeze
             if(diffT>=0._rkind)then
-              mLayerCm_noLH(iLayer) = (iden_water * Cp_water - iden_air * Cp_air) * diffT
-              mLayerCm(iLayer)      = mLayerCm_noLH(iLayer)
+              mLayerCm(iLayer) = (iden_water * Cp_water - iden_air * Cp_air) * diffT
               ! derivatives
               dCm_dTk(iLayer) = iden_water * Cp_water - iden_air * Cp_air
             else
               fLiq = fracLiquid(mLayerTemp(iLayer),snowfrz_scale)
               integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-              mLayerCm_noLH(iLayer) = (iden_water * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( diffT - integral ) &
+              mLayerCm(iLayer) = (iden_water * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( diffT - integral ) &
                                      + (iden_water * Cp_water - iden_air * Cp_air) * integral
-              mLayerCm(iLayer)      = mLayerCm_noLH(iLayer)
-              if (be_solver) mLayerCm(iLayer) = mLayerCm_noLH(iLayer) - LH_fus * iden_water * (1._rkind - fLiq) ! LH_fus is term is already in the Jacobian for the LHS  
               ! derivatives
               dfLiq_dT = dFracLiq_dTk(mLayerTemp(iLayer),snowfrz_scale)
               dCm_dTk(iLayer) = (iden_water * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( 1._rkind -fLiq ) &
                                + (iden_water * Cp_water - iden_air * Cp_air) * fLiq
-              if (be_solver) dCm_dTk(iLayer) = dCm_dTk(iLayer) + LH_fus * iden_water * dfLiq_dT ! LH_fus is term is not in the Jacobian for the LHS  
             end if
 
           case(iname_soil)
@@ -499,17 +485,14 @@ subroutine computCm(&
             Tcrit = crit_soilT( mLayerMatricHead(ixControlIndex) )
             diff0 = Tcrit - Tfreeze
             if( mLayerTemp(iLayer)>=Tcrit)then
-              mLayerCm_noLH(iLayer) = (-iden_air * Cp_air + iden_water * Cp_water) * diffT
-              mLayerCm(iLayer)      = mLayerCm_noLH(iLayer)
+              mLayerCm(iLayer) = (-iden_air * Cp_air + iden_water * Cp_water) * diffT
               ! derivatives
               dCm_dTk(iLayer) = -iden_air * Cp_air + iden_water * Cp_water
               dCm_dPsi0(ixControlIndex) = 0._rkind
             else        
-              mLayerCm_noLH(iLayer) = -iden_air * Cp_air * diffT + iden_ice * Cp_ice * (mLayerTemp(iLayer)-Tcrit) &
+              mLayerCm(iLayer) = -iden_air * Cp_air * diffT + iden_ice * Cp_ice * (mLayerTemp(iLayer)-Tcrit) &
                                      + iden_water * Cp_water * diff0
-              mLayerCm(iLayer)      = mLayerCm_noLH(iLayer)
-              if (be_solver) mLayerCm(iLayer) = mLayerCm_noLH(iLayer) - LH_fus * iden_water ! LH_fus is term is already in the Jacobian for the LHS
-              ! derivatives, note that does not matter if be_solver is true or false
+              ! derivatives
               dTcrit_dPsi0 = merge(gravity*Tfreeze/LH_fus,0._rkind,mLayerMatricHead(ixControlIndex)<=0._rkind)
               dCm_dTk(iLayer) = -iden_air * Cp_air + iden_ice * Cp_ice
               dCm_dPsi0(ixControlIndex) = (-iden_ice * Cp_ice + iden_water * Cp_water) * dTcrit_dPsi0

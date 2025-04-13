@@ -81,8 +81,8 @@ subroutine computeResidWithPrime(&
                       mLayerVolFracWatPrime,     & ! intent(in):  prime vector of the volumetric water in each layer (s-1)
                       mLayerVolFracLiqPrime,     & ! intent(in):  prime vector of the volumetric liq in each layer (s-1)
                       ! input: enthalpy terms
-                      scalarCanopyCm_noLHTrial,  & ! intent(in):  Cm without latent heat part for vegetation canopy (J kg K-1)
-                      mLayerCm_noLHTrial,        & ! intent(in):  Cm without latent heat part for each snow and soil layer (J kg K-1)
+                      scalarCanopyCmTrial,       & ! intent(in):  Cm without latent heat part for vegetation canopy (J kg K-1)
+                      mLayerCmTrial,             & ! intent(in):  Cm without latent heat part for each snow and soil layer (J kg K-1)
                       scalarCanairEnthalpyPrime, & ! intent(in):  prime value for the enthalpy of the canopy air space (W m-3)
                       scalarCanopyEnthalpyPrime, & ! intent(in):  prime value for the of enthalpy of the vegetation canopy (W m-3)
                       mLayerEnthalpyPrime,       & ! intent(in):  prime vector of the of enthalpy of each layer (W m-3)
@@ -120,8 +120,8 @@ subroutine computeResidWithPrime(&
   real(rkind),intent(in)          :: mLayerVolFracWatPrime(:)  ! prime vector of the volumetric water in each layer (s-1)
   real(rkind),intent(in)          :: mLayerVolFracLiqPrime(:)  ! prime vector of the volumetric water in each layer (s-1)
   ! input: enthalpy terms
-  real(rkind),intent(in)          :: scalarCanopyCm_noLHTrial  ! Cm without latent heat part for vegetation canopy (-)
-  real(rkind),intent(in)          :: mLayerCm_noLHTrial(:)     ! Cm without latent heat part for each layer (-)
+  real(rkind),intent(in)          :: scalarCanopyCmTrial       ! Cm without latent heat part for vegetation canopy (-)
+  real(rkind),intent(in)          :: mLayerCmTrial(:)          ! Cm without latent heat part for each layer (-)
   real(rkind),intent(in)          :: scalarCanairEnthalpyPrime ! prime value for enthalpy of the canopy air space (W m-3)
   real(rkind),intent(in)          :: scalarCanopyEnthalpyPrime ! prime value for enthalpy of the vegetation canopy (W m-3)
   real(rkind),intent(in)          :: mLayerEnthalpyPrime(:)    ! prime vector of enthalpy of each layer (W m-3)
@@ -223,7 +223,7 @@ subroutine computeResidWithPrime(&
       if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = scalarCanopyEnthalpyPrime - ( fVec(ixVegNrg)*dt + rAdd(ixVegNrg) )
     else
       if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = sMul(ixCasNrg) * scalarCanairTempPrime - ( fVec(ixCasNrg)*dt + rAdd(ixCasNrg) )
-      if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg) * scalarCanopyTempPrime + scalarCanopyCm_noLHTrial * scalarCanopyWatPrime/canopyDepth &
+      if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg) * scalarCanopyTempPrime + scalarCanopyCmTrial * scalarCanopyWatPrime/canopyDepth &
                                                    - ( fVec(ixVegNrg)*dt + rAdd(ixVegNrg) )
     endif                                               
     ! --> mass balance
@@ -238,7 +238,7 @@ subroutine computeResidWithPrime(&
         if(enthalpyStateVec)then
           rVec( ixSnLaSoGlNrg(iLayer) ) = mLayerEnthalpyPrime(iLayer) - ( fVec( ixSnLaSoGlNrg(iLayer) )*dt + rAdd( ixSnLaSoGlNrg(iLayer) ) )
         else
-          rVec( ixSnLaSoGlNrg(iLayer) ) = sMul( ixSnLaSoGlNrg(iLayer) ) * mLayerTempPrime(iLayer) + mLayerCm_noLHTrial(iLayer) * mLayerVolFracWatPrime(iLayer) &
+          rVec( ixSnLaSoGlNrg(iLayer) ) = sMul( ixSnLaSoGlNrg(iLayer) ) * mLayerTempPrime(iLayer) + mLayerCmTrial(iLayer) * mLayerVolFracWatPrime(iLayer) &
                                          - ( fVec( ixSnLaSoGlNrg(iLayer) )*dt + rAdd( ixSnLaSoGlNrg(iLayer) ) )
         endif
       end do  ! looping through non-missing energy state variables in the layer domains

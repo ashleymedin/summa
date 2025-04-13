@@ -202,6 +202,7 @@ subroutine computeJacob(&
     ! derivatives in canopy water w.r.t canopy temperature
     dCanLiq_dTcanopy             => deriv_data%var(iLookDERIV%dCanLiq_dTcanopy            )%dat(1)  ,& ! intent(in): [dp]     derivative of canopy liquid storage w.r.t. temperature
     dTheta_dTkCanopy             => deriv_data%var(iLookDERIV%dTheta_dTkCanopy            )%dat(1)  ,& ! intent(in): [dp]     derivative of volumetric liquid water content w.r.t. temperature
+    dFracLiqVeg_dTkCanopy        => deriv_data%var(iLookDERIV%dFracLiqVeg_dTkCanopy       )%dat(1)  ,& ! intent(in): [dp]     derivative in fraction of (throughfall + drainage)  w.r.t. temperature
     ! derivatives in canopy liquid fluxes w.r.t. canopy water
     scalarCanopyLiqDeriv         => deriv_data%var(iLookDERIV%scalarCanopyLiqDeriv        )%dat(1)  ,& ! intent(in): [dp]     derivative in (throughfall + drainage) w.r.t. canopy liquid water
     ! derivatives in energy fluxes at the interface of layers w.r.t. temperature in layers above and below
@@ -235,6 +236,7 @@ subroutine computeJacob(&
     dq_dNrgStateBelow            => deriv_data%var(iLookDERIV%dq_dNrgStateBelow           )%dat     ,& ! intent(in): [dp(:)]  change in flux at layer interfaces w.r.t. states in the layer below
     dq_dNrgStateLayerSurfVec     => deriv_data%var(iLookDERIV%dq_dNrgStateLayerSurfVec    )%dat     ,& ! intent(in): [dp(:)] change in the flux in soil surface interface w.r.t. state variables in layers
     ! derivative in liquid water fluxes for the soil and snow domain w.r.t temperature
+    dFracLiqWat_dTk              => deriv_data%var(iLookDERIV%dFracLiqWat_dTk             )%dat     ,& ! intent(in): [dp(:)]  derivative in fraction of liquid w.r.t. temperature
     mLayerdTheta_dTk             => deriv_data%var(iLookDERIV%mLayerdTheta_dTk            )%dat     ,& ! intent(in): [dp(:)]  derivative of volumetric liquid water content w.r.t. temperature
     ! derivative in bulk heat capacity w.r.t. relevant state variables
     dVolHtCapBulk_dPsi0          => deriv_data%var(iLookDERIV%dVolHtCapBulk_dPsi0         )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. matric potential
@@ -286,7 +288,8 @@ subroutine computeJacob(&
     if(ixVegNrg/=integerMissing)then
       dMat(ixVegNrg) = scalarBulkVolHeatCapVeg + LH_fus*iden_water*dTheta_dTkCanopy &
                        + dVolHtCapBulk_dTkCanopy * scalarCanopydTemp_dt &
-                       + dCm_dTkCanopy * scalarCanopydWat_dt/canopyDepth
+                       + dCm_dTkCanopy * scalarCanopydWat_dt/canopyDepth &
+                       + LH_fus * dFracLiqVeg_dTkCanopy * scalarCanopydWat_dt/canopyDepth                      
     endif
 
     ! compute additional terms for the Jacobian for the layer domain (excluding fluxes)
@@ -295,7 +298,8 @@ subroutine computeJacob(&
       if(ixSnLaSoGlNrg(iLayer)/=integerMissing)then
        dMat(ixSnLaSoGlNrg(iLayer)) = mLayerVolHtCapBulk(iLayer) + LH_fus*iden_water*mLayerdTheta_dTk(iLayer) &
                                      + dVolHtCapBulk_dTk(iLayer) * mLayerdTemp_dt(iLayer) &
-                                     + dCm_dTk(iLayer) * mLayerdWat_dt(iLayer)
+                                     + dCm_dTk(iLayer) * mLayerdWat_dt(iLayer) &
+                                     + LH_fus * iden_water * dFracLiqWat_dTk(iLayer) * mLayerdWat_dt(iLayer)
       endif
     end do
 
@@ -342,7 +346,8 @@ subroutine computeJacob(&
             ! NOTE: dIce/dLiq = (1 - scalarFracLiqVeg); dIce*LH_fus/canopyDepth = J m-3; dLiq = kg m-2
             if(ixVegNrg/=integerMissing) aJac(ixOffDiag(ixVegNrg,ixVegHyd),ixVegHyd) = (-1._rkind + scalarFracLiqVeg)*LH_fus/canopyDepth &
                                                                                        + dVolHtCapBulk_dCanWat * scalarCanopydTemp_dt + scalarCanopyCm/canopyDepth &
-                                                                                       - (dt/canopyDepth) * dCanopyNetFlux_dCanWat
+                                                                                       - (dt/canopyDepth) * dCanopyNetFlux_dCanWat &
+                                                                                       + LH_fus * scalarCanopydTemp_dt * dFracLiqVeg_dTkCanopy/canopyDepth
             if(ixTopNrg/=integerMissing) aJac(ixOffDiag(ixTopNrg,ixVegHyd),ixVegHyd) = (dt/mLayerDepth(1))*(-dGroundNetFlux_dCanWat)
           endif
 
@@ -466,7 +471,8 @@ subroutine computeJacob(&
               ! - include derivatives of energy fluxes w.r.t water fluxes for current layer
               aJac(ixOffDiag(nrgState,watState),watState) = (-1._rkind + mLayerFracLiq(jLayer))*LH_fus*iden_water  &
                                          + dVolHtCapBulk_dTheta(jLayer) * mLayerdTemp_dt(jLayer) + mLayerCm(jLayer) &
-                                         + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer))
+                                         + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer)) &
+                                         + LH_fus*iden_water * mLayerdTemp_dt(jLayer) * dFracLiqWat_dTk(jLayer)    ! (dF/dLiq)
 
               ! - include derivatives of water fluxes w.r.t energy fluxes for current layer
               aJac(ixOffDiag(watState,nrgState),nrgState) = (dt/mLayerDepth(jLayer))*iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer)  ! (dVol/dT)
@@ -715,7 +721,8 @@ subroutine computeJacob(&
             ! NOTE: dIce/dLiq = (1 - scalarFracLiqVeg); dIce*LH_fus/canopyDepth = J m-3; dLiq = kg m-2
             if(ixVegNrg/=integerMissing) aJac(ixVegNrg,ixVegHyd) = (-1._rkind + scalarFracLiqVeg)*LH_fus/canopyDepth &
                                                                    + dVolHtCapBulk_dCanWat * scalarCanopydTemp_dt + scalarCanopyCm/canopyDepth &
-                                                                   - (dt/canopyDepth) * dCanopyNetFlux_dCanWat
+                                                                   - (dt/canopyDepth) * dCanopyNetFlux_dCanWat &
+                                                                   + LH_fus * scalarCanopydTemp_dt * dFracLiqVeg_dTkCanopy/canopyDepth
             if(ixTopNrg/=integerMissing) aJac(ixTopNrg,ixVegHyd) = (dt/mLayerDepth(1))*(-dGroundNetFlux_dCanWat)
           endif
 
@@ -839,7 +846,8 @@ subroutine computeJacob(&
               ! - include derivatives of energy fluxes w.r.t water fluxes for current layer
               aJac(nrgState,watState) = (-1._rkind + mLayerFracLiq(jLayer))*LH_fus*iden_water &
                                         + dVolHtCapBulk_dTheta(jLayer) * mLayerdTemp_dt(jLayer) + mLayerCm(jLayer) &
-                                        + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer))
+                                        + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer)) &
+                                        + LH_fus*iden_water * mLayerdTemp_dt(jLayer) * dFracLiqWat_dTk(jLayer)    ! (dF/dLiq)
 
               ! - include derivatives of water fluxes w.r.t energy fluxes for current layer
               aJac(watState,nrgState) = (dt/mLayerDepth(jLayer))*iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer)  ! (dVol/dT)
