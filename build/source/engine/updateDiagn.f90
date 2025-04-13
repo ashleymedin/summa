@@ -257,6 +257,8 @@ subroutine updateDiagn(&
     dPsiLiq_dTemp           => deriv_data%var(iLookDERIV%dPsiLiq_dTemp   )%dat        ,& ! intent(out): [dp(:)]  derivative in the liquid water matric potential w.r.t. temperature
     mLayerdTheta_dTk        => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat        ,& ! intent(out): [dp(:)]  derivative of volumetric liquid water content w.r.t. temperature
     dTheta_dTkCanopy        => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1)     ,& ! intent(out): [dp]     derivative of volumetric liquid water content w.r.t. temperature
+    dFracLiqWat_dTk         => deriv_data%var(iLookDERIV%dFracLiqWat_dTk)%dat         ,& ! intent(out): [dp(:)]  derivative in fraction of liquid w.r.t. temperature
+    dFracLiqVeg_dTkCanopy   => deriv_data%var(iLookDERIV%dFracLiqVeg_dTkCanopy)%dat(1),& ! intent(out): [dp   ]  derivative in fraction of (throughfall + drainage) w.r.t. temperature
     ! derivatives inside solver for Jacobian only
     mLayerdTemp_dt          => deriv_data%var(iLookDERIV%mLayerdTemp_dt )%dat         ,& ! intent(out): [dp(:)]  timestep change in layer temperature
     scalarCanopydTemp_dt    => deriv_data%var(iLookDERIV%scalarCanopydTemp_dt)%dat(1) ,& ! intent(out): [dp   ]  timestep change in canopy temperature
@@ -441,18 +443,23 @@ subroutine updateDiagn(&
         ! --> partially frozen: dependence of liquid water on temperature
         if(xTemp<Tcrit)then
           select case(ixDomainType)
-            case(iname_veg);                          dTheta_dTkCanopy         = dFracLiq_dTk(xTemp,snowfrz_scale)*scalarCanopyWatTrial/(iden_water*canopyDepth)
-            case(iname_snow, iname_lake, iname_glce); mLayerdTheta_dTk(iLayer) = dFracLiq_dTk(xTemp,snowfrz_scale)*mLayerVolFracWatTrial(iLayer)
-            case(iname_soil);                         mLayerdTheta_dTk(iLayer) = dTheta_dTk(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
+            case(iname_veg)
+              dFracLiqVeg_dTkCanopy = dFracLiq_dTk(xTemp,snowfrz_scale)
+              dTheta_dTkCanopy = dFracLiqVeg_dTkCanopy * scalarCanopyWatTrial/(iden_water*canopyDepth)
+            case(iname_snow, iname_lake, iname_glce)
+              dFracLiqWat_dTk(iLayer) = dFracLiq_dTk(xTemp,snowfrz_scale)
+              mLayerdTheta_dTk(iLayer) = dFracLiqWat_dTk(iLayer) * mLayerVolFracWatTrial(iLayer)
+            case(iname_soil)
+              dFracLiqWat_dTk(iLayer) = 0._rkind !dTheta_dTk(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))/ mLayerVolFracWatTrial(iLayer)
+              mLayerdTheta_dTk(iLayer) = dTheta_dTk(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
             case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_glce'; return
           end select  ! domain type
 
         ! --> unfrozen: no dependence of liquid water on temperature
         else
           select case(ixDomainType)
-            case(iname_veg);                                      dTheta_dTkCanopy         = 0._rkind
-            case(iname_snow, iname_lake, iname_soil, iname_glce); mLayerdTheta_dTk(iLayer) = 0._rkind
-            case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_glce'; return
+            case(iname_veg);                                      dTheta_dTkCanopy         = 0._rkind; dFracLiqVeg_dTkCanopy = 0._rkind
+            case(iname_snow, iname_lake, iname_soil, iname_glce); mLayerdTheta_dTk(iLayer) = 0._rkind; dFracLiqWat_dTk(iLayer)  = 0._rkind
           end select  ! domain type
         endif
 
