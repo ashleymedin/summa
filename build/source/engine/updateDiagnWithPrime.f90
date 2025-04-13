@@ -580,8 +580,9 @@ subroutine updateDiagnWithPrime(&
         ! --> unfrozen: no dependence of liquid water on temperature
         else
           select case(ixDomainType)
-            case(iname_veg);                                      dTheta_dTkCanopy         = 0._rkind; d2Theta_dTkCanopy2         = 0._rkind; dFracLiqVeg_dTkCanopy = 0._rkind
-            case(iname_snow, iname_lake, iname_soil, iname_glce); mLayerdTheta_dTk(iLayer) = 0._rkind; mLayerd2Theta_dTk2(iLayer) = 0._rkind; dFracLiqWat_dTk(iLayer)  = 0._rkind
+            case(iname_veg);                                      dTheta_dTkCanopy         = 0._rkind; d2Theta_dTkCanopy2         = 0._rkind; dFracLiqVeg_dTkCanopy   = 0._rkind
+            case(iname_snow, iname_lake, iname_soil, iname_glce); mLayerdTheta_dTk(iLayer) = 0._rkind; mLayerd2Theta_dTk2(iLayer) = 0._rkind; dFracLiqWat_dTk(iLayer) = 0._rkind
+            case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_glce'; return
           end select  ! domain type
         endif
 
