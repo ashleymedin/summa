@@ -631,8 +631,8 @@ subroutine eval8summa(&
                       mLayerVolFracWatTrial,      & ! intent(in):  trial value for the volumetric water in each layer (-)
                       mLayerVolFracLiqTrial,      & ! intent(in):  trial value for the volumetric liq in each layer (-)
                       ! input: enthalpy terms
-                      scalarCanopyCmTrial,        & ! intent(in):  Cm without latent heat part for vegetation canopy (-)
-                      mLayerCmTrial,              & ! intent(in):  Cm without latent heat part for each layer (-)
+                      scalarCanopyCmTrial,        & ! intent(in):  Cm for vegetation canopy (-)
+                      mLayerCmTrial,              & ! intent(in):  Cm for each layer (-)
                       scalarCanairEnthalpyTrial,  & ! intent(in):  trial value for enthalpy of the canopy air space (J m-3)
                       scalarCanopyEnthTempTrial,  & ! intent(in):  trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
                       mLayerEnthTempTrial,        & ! intent(in):  trial vector of temperature component of enthalpy of each layer (J m-3)  

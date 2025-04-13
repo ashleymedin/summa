@@ -684,8 +684,8 @@ subroutine eval8summaWithPrime(&
                       mLayerVolFracWatPrime,      & ! intent(in):  prime vector of the volumetric water in each layer (s-1)
                       mLayerVolFracLiqPrime,      & ! intent(in):  prime vector of the volumetric liq in each layer (s-1)
                       ! input: enthalpy terms
-                      scalarCanopyCmTrial,        & ! intent(in):  Cm without latent heat part for vegetation canopy (-)
-                      mLayerCmTrial,              & ! intent(in):  Cm without latent heat part for each layer (-)
+                      scalarCanopyCmTrial,        & ! intent(in):  Cm for vegetation canopy (-)
+                      mLayerCmTrial,              & ! intent(in):  Cm for each layer (-)
                       scalarCanairEnthalpyPrime,  & ! intent(in):  prime value for the enthalpy of the canopy air space (W m-3)
                       scalarCanopyEnthalpyPrime,  & ! intent(in):  prime value for the of enthalpy of the vegetation canopy (W m-3)
                       mLayerEnthalpyPrime,        & ! intent(in):  prime vector of the of enthalpy of each layer (W m-3)
