@@ -361,7 +361,8 @@ subroutine computeJacobWithPrime(&
       endif
     end do
 
-    ! if using enthalpy as a state variable, zero out usual RHS terms and add them end of the iteration loop
+    ! if using enthalpy as a state variable, zero out usual RHS terms and add them end of the iteration loop 
+    ! NOTE: other terms on RHS that are not fluxes are zeroed out by not computing heat capacity and Cm and their derivatives
     if(enthalpyStateVec)then 
       if(ixCasNrg/=integerMissing) dMat(ixCasNrg) = 0._rkind
       if(ixVegNrg/=integerMissing) dMat(ixVegNrg) = 0._rkind

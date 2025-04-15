@@ -436,6 +436,7 @@ subroutine updateDiagnWithPrime(&
       ! compute temperature from enthalpy and water content for remaining domains 
       if(ixDomainType==iname_veg)then
         if(enthalpyStateVec)then
+          scalarCanopyTempTrial = scalarCanopyTemp ! start at previous value
           call enthalpy2T_veg(&
                    computJac,                  & ! intent(in):    flag if computing for Jacobian update          
                    canopyDepth,                & ! intent(in):    canopy depth (m)
@@ -455,6 +456,7 @@ subroutine updateDiagnWithPrime(&
         endif
       elseif(ixDomainType==iname_snow .or. ixDomainType==iname_lake .or. ixDomainType==iname_glce)then
         if(enthalpyStateVec)then
+          mLayerTempTrial(iLayer) = mLayerTemp(iLayer) ! start at previous value
           call enthalpy2T_SnLaGl(&
                    computJac,                      & ! intent(in):    flag if computing for Jacobian update       
                    ixDomainType==iname_lake,       & ! intent(in):    flag if is lake layer
@@ -472,6 +474,7 @@ subroutine updateDiagnWithPrime(&
         endif
       elseif(ixDomainType==iname_soil)then
         if(enthalpyStateVec)then
+          mLayerTempTrial(iLayer) = mLayerTemp(iLayer) ! start at previous value
           call enthalpy2T_soil(&
                    computJac,                              & ! intent(in):    flag if computing for Jacobian update
                    use_lookup,                             & ! intent(in):    flag to use the lookup table for soil enthalpy

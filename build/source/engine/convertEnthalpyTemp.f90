@@ -905,12 +905,9 @@ subroutine enthalpy2T_veg(&
   
   ! ***** iterate to find temperature if ice exists
   else
-    T = min(scalarCanopyTemp,Tfreeze) ! initial guess
-    T = max(T,200._rkind)             ! don't give too cold of an initial guess
-
     ! find the root of the function
-    ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
-    ! and the vector of parameters, not.snow_layers
+    ! inputs = function, initial point, out point, lower bound, upper bound, and the vector of parameters
+    T = min(scalarCanopyTemp, Tfreeze)  ! initial guess
     vec      = 0._rkind
     vec(1:6) = (/scalarCanopyEnthalpy, canopyDepth, specificHeatVeg, maxMassVegetation, snowfrz_scale, scalarCanopyWat/)
     call brent(diff_H_veg, T, T_out, 0._rkind, Tfreeze, vec, err, cmessage)
@@ -938,7 +935,8 @@ subroutine enthalpy2T_veg(&
       dH_dWat       = denthVeg_dWat + denthLiq_dWat + denthIce_dWat - LH_fus * (1._rkind - fLiq) / canopyDepth
 
       dT_dEnthalpy = 1._rkind / dH_dT
-      dT_dWat      = dH_dWat / dH_dT
+      dT_dWat      = -dH_dWat / dH_dT ! NOTE, while it is not generally appropriate to cancel partial derivatives, here this is true if it is multiplied by -1
+
     endif
   endif ! (if ice exists)
 
@@ -1023,12 +1021,9 @@ subroutine enthalpy2T_SnLaGl(&
 
   ! ***** iterate to find temperature if ice exists
   else
-    T  = min(mLayerTemp,Tfreeze) ! initial guess
-    T = max(T,200._rkind) ! don't give too cold of an initial guess
-
     ! find the root of the function
-    ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
-    ! and the vector of parameters, snow_layer
+    ! inputs = function, initial point, out point, lower bound, upper bound, and the vector of parameters
+    T = min(mLayerTemp, Tfreeze)  ! initial guess
     vec = 0._rkind
     vec(1:3) = (/mLayerEnthalpy, snowfrz_scale, mLayerVolFracWat/)
     if(mLayerEnthalpy>0._rkind .and. .not.(isLake))then
@@ -1059,8 +1054,8 @@ subroutine enthalpy2T_SnLaGl(&
       denthAir_dWat = -iden_air * Cp_air * ( (iden_water/iden_ice)*(diffT-integral) + integral )
       dH_dWat       = denthLiq_dWat + denthIce_dWat + denthAir_dWat - iden_water * LH_fus * (1._rkind - fLiq)
 
-      dT_dEnthalpy = 1._rkind / dH_dT
-      dT_dWat      = dH_dWat / dH_dT
+      dT_dEnthalpy = 1._rkind / dH_dT 
+      dT_dWat      = -dH_dWat / dH_dT  ! NOTE, while it is not generally appropriate to cancel partial derivatives, here this is true if it is multiplied by -1
     endif
   endif ! (if ice exists)
 
@@ -1192,13 +1187,10 @@ subroutine enthalpy2T_soil(&
 
   ! ***** iterate to find temperature if ice exists
   else
-    T = min(mLayerTemp,Tcrit) ! initial guess
-    T = max(T,200._rkind)     ! don't give too cold of an initial guess
-
     ! *** compute integral of mLayerPsiLiq from Tfreeze to layer temperature
     ! get the unfrozen water content of enthalpy
     integral_unf = diff0 * volFracWat ! unfrozen water content
-    if(computJac) dintegral_unf_dWat = dTcrit_dPsi0 * volFracWat + diff0 * dTheta_dPsi(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+    if(computJac) dintegral_unf_dWat = dTcrit_dPsi0 * volFracWat + diff0 * dvolFracWat_dPsi0
 
     ! get the frozen water content of enthalpy, start with lower limit of the integral
     if (diff0<0._rkind)then
@@ -1229,8 +1221,8 @@ subroutine enthalpy2T_soil(&
     end if
 
     ! find the root of the function
-    ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
-    ! and the vector of parameters, not.snow_layer, lookup data
+    ! inputs = function, initial point, out point, lower bound, upper bound, and the vector of parameters
+    T = min(mLayerTemp, Tcrit) ! initial guess
     vec(1:9) = (/mLayerEnthalpy, soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, integral_frz_low, mLayerMatricHead/)
     if (Tcrit>0._rkind) then
       call brent(diff_H_soil, T, T_out, 0._rkind, Tcrit, vec, err, cmessage, use_lookup, lookup_data, ixControlIndex)
@@ -1287,7 +1279,7 @@ subroutine enthalpy2T_soil(&
       dH_dWat        = denthLiq_dWat + denthIce_dWat + denthAir_dWat - iden_water * LH_fus * dvolFracWat_dPsi0  
 
       dT_dEnthalpy = 1._rkind / dH_dT
-      dT_dWat      = dH_dWat / dH_dT
+      dT_dWat      = -dH_dWat / dH_dT  ! NOTE, while it is not generally appropriate to cancel partial derivatives, here this is true if it is multiplied by -1
     endif
   end if ! (if ice exists)
 
@@ -1532,8 +1524,8 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     ! initialize error control
     err=0; message='brent/'
 
-    a  = x0 ! lower bracket
-    b =  x0 ! upper bracket
+    a = x0 ! lower bracket
+    b = x0 ! upper bracket
     exitflag = 0  ! flag to see we found the bracket
     exita = 0
     exitb = 0
