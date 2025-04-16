@@ -1040,26 +1040,19 @@ subroutine read_output_file(err,message)
         iFreq = iLookFREQ%annual
         freqName = 'annual'
 
-      ! temporally constant variables use annual-level output (no aggregation)
-      case ('bpar','attr','type','mpar')
+      ! time and temporally constant variables always outputted at timestep level (no aggregation)
+      case('bpar','attr','type','mpar','time')
         if(nWords<freqIndex) then
           freqName = 'empty'
         else
           freqName = trim(lineWords(freqIndex))
         endif
-        write(*,*)'WARNING: temporally constant variable '//trim(varName)//': outputting variable in timestep file with no time dimension'
-        iFreq = iLookFREQ%timestep
-        freqName = 'timestep'
-
-      ! time variable is always outputted at timestep level (no aggregation)
-      case('time')
-        if(nWords<freqIndex) then
-          freqName = 'empty'
+        if(trim(structName)=='time') then
+          if (freqName/='timestep'.or. freqName/='1') then
+            write(*,*)'WARNING: time variable '//trim(varName)//': outputting variable at timestep level since it cannot be aggregated [entered "'//trim(freqName)//'"]'
+          endif
         else
-          freqName = trim(lineWords(freqIndex))
-        endif
-        if (freqName/='timestep'.or. freqName/='1') then
-          write(*,*)'WARNING: time variable '//trim(varName)//': outputting variable at timestep level since it cannot be aggregated [entered "'//trim(freqName)//'"]'
+          write(*,*)'WARNING: temporally constant variable '//trim(varName)//': outputting variable in timestep file with no time dimension'
         endif
         iFreq = iLookFREQ%timestep
         freqName = 'timestep'
