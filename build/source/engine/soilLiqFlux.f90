@@ -18,16 +18,16 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module soilLiqFlx_module
+module soilLiqFlux_module
 ! -----------------------------------------------------------------------------------------------------------
 
 ! data types
 USE nr_type
 USE data_types,only:var_ilength            ! x%var(:)%dat   (i4b)
 USE data_types,only:var_dlength            ! x%var(:)%dat   (rkind)
-USE data_types,only:in_type_soilLiqFlx     ! derived type for intent(in) arguments
-USE data_types,only:io_type_soilLiqFlx     ! derived type for intent(inout) arguments
-USE data_types,only:out_type_soilLiqFlx    ! derived type for intent(out) arguments
+USE data_types,only:in_type_soilLiqFlux     ! derived type for intent(in) arguments
+USE data_types,only:io_type_soilLiqFlux     ! derived type for intent(inout) arguments
+USE data_types,only:out_type_soilLiqFlux    ! derived type for intent(out) arguments
 USE data_types,only:in_type_diagv_node     ! derived type for intent(in) arguments 
 USE data_types,only:out_type_diagv_node    ! derived type for intent(out) arguments 
 USE data_types,only:in_type_surfaceFlx     ! derived type for intent(in) arguments
@@ -81,17 +81,17 @@ USE mDecisions_module,only:   &
 ! -----------------------------------------------------------------------------------------------------------
 implicit none
 private
-public :: soilLiqFlx
+public :: soilLiqFlux
 ! constant parameters
 real(rkind),parameter     :: verySmall=1.e-12_rkind       ! a very small number (used to avoid divide by zero)
 real(rkind),parameter     :: dx=1.e-8_rkind               ! finite difference increment
 contains
 ! ***************************************************************************************************************
-! public subroutine soilLiqFlx: compute liquid water fluxes and their derivatives
+! public subroutine soilLiqFlux: compute liquid water fluxes and their derivatives
 ! ***************************************************************************************************************
-subroutine soilLiqFlx(&
+subroutine soilLiqFlux(&
                       ! input: model control, trial state variables, derivatives, and fluxes
-                      in_soilLiqFlx,                & ! intent(in): model control, trial state variables, derivatives, and fluxes
+                      in_soilLiqFlux,                & ! intent(in): model control, trial state variables, derivatives, and fluxes
                       ! input-output: data structures
                       mpar_data,                    & ! intent(in):    model parameters
                       indx_data,                    & ! intent(in):    model indices
@@ -99,9 +99,9 @@ subroutine soilLiqFlx(&
                       diag_data,                    & ! intent(inout): model diagnostic variables for a local HRU
                       flux_data,                    & ! intent(inout): model fluxes for a local HRU
                       ! input-output: diagnostic variables, fluxes, and derivatives
-                      io_soilLiqFlx,                & ! intent(inout): diagnostic variables, fluxes, and derivatives
+                      io_soilLiqFlux,                & ! intent(inout): diagnostic variables, fluxes, and derivatives
                       ! output: error control
-                      out_soilLiqFlx)                 ! intent(out): error control
+                      out_soilLiqFlux)                 ! intent(out): error control
   ! utility modules
   USE soil_utils_module,only:volFracLiq               ! compute volumetric fraction of liquid water
   USE soil_utils_module,only:matricHead               ! compute matric head (m)
@@ -113,7 +113,7 @@ subroutine soilLiqFlx(&
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! input: model control, trial state variables, derivatives, and fluxes
-  type(in_type_soilLiqFlx),intent(in)    :: in_soilLiqFlx              ! model control, trial state variables, derivatives, and fluxes
+  type(in_type_soilLiqFlux),intent(in)    :: in_soilLiqFlux              ! model control, trial state variables, derivatives, and fluxes
   ! input-output: data structures
   type(var_dlength),intent(in)           :: mpar_data                  ! model parameters
   type(var_ilength),intent(in)           :: indx_data                  ! state vector geometry
@@ -121,9 +121,9 @@ subroutine soilLiqFlx(&
   type(var_dlength),intent(inout)        :: diag_data                  ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout)        :: flux_data                  ! model fluxes for a local HRU
   ! input-output: diagnostic variables, fluxes, and derivatives
-  type(io_type_soilLiqFlx),intent(inout) :: io_soilLiqFlx              ! diagnostic variables, fluxes, and derivatives
+  type(io_type_soilLiqFlux),intent(inout) :: io_soilLiqFlux              ! diagnostic variables, fluxes, and derivatives
   ! output: error control
-  type(out_type_soilLiqFlx),intent(out)  :: out_soilLiqFlx             ! error code and error message
+  type(out_type_soilLiqFlux),intent(out)  :: out_soilLiqFlux             ! error code and error message
   ! -----------------------------------------------------------------------------------------------------------------------------------------------------
   ! local variables: general
   character(LEN=256)                  :: cmessage                      ! error message of downwind routine
@@ -134,39 +134,39 @@ subroutine soilLiqFlx(&
   integer(i4b)                        :: ixTop                         ! top layer in subroutine call
   integer(i4b)                        :: ixBot                         ! bottom layer in subroutine call
   ! transpiration sink term
-  real(rkind),dimension(in_soilLiqFlx % nSoil)    :: mLayerTranspireFrac     ! fraction of transpiration allocated to each soil layer (-)
+  real(rkind),dimension(in_soilLiqFlux % nSoil)    :: mLayerTranspireFrac     ! fraction of transpiration allocated to each soil layer (-)
   ! diagnostic variables
-  real(rkind),dimension(in_soilLiqFlx % nSoil)    :: iceImpedeFac            ! ice impedence factor at layer mid-points (-)
-  real(rkind),dimension(in_soilLiqFlx % nSoil)    :: mLayerDiffuse           ! diffusivity at layer mid-point (m2 s-1)
-  real(rkind),dimension(in_soilLiqFlx % nSoil)    :: dHydCond_dVolLiq        ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
-  real(rkind),dimension(in_soilLiqFlx % nSoil)    :: dDiffuse_dVolLiq        ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
-  real(rkind),dimension(in_soilLiqFlx % nSoil)    :: dHydCond_dTemp          ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
-  real(rkind),dimension(0:in_soilLiqFlx % nSoil)  :: iLayerHydCond           ! hydraulic conductivity at layer interface (m s-1)
-  real(rkind),dimension(0:in_soilLiqFlx % nSoil)  :: iLayerDiffuse           ! diffusivity at layer interface (m2 s-1)
+  real(rkind),dimension(in_soilLiqFlux % nSoil)    :: iceImpedeFac            ! ice impedence factor at layer mid-points (-)
+  real(rkind),dimension(in_soilLiqFlux % nSoil)    :: mLayerDiffuse           ! diffusivity at layer mid-point (m2 s-1)
+  real(rkind),dimension(in_soilLiqFlux % nSoil)    :: dHydCond_dVolLiq        ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
+  real(rkind),dimension(in_soilLiqFlux % nSoil)    :: dDiffuse_dVolLiq        ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
+  real(rkind),dimension(in_soilLiqFlux % nSoil)    :: dHydCond_dTemp          ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+  real(rkind),dimension(0:in_soilLiqFlux % nSoil)  :: iLayerHydCond           ! hydraulic conductivity at layer interface (m s-1)
+  real(rkind),dimension(0:in_soilLiqFlux % nSoil)  :: iLayerDiffuse           ! diffusivity at layer interface (m2 s-1)
   ! compute surface flux
   integer(i4b)                                    :: nRoots                  ! number of soil layers with roots or layers that take infiltration
   integer(i4b)                                    :: ixIce                   ! index of the lowest soil layer that contains ice
-  real(rkind),dimension(0:in_soilLiqFlx % nSoil)  :: iLayerHeight            ! height of the layer interfaces (m)
+  real(rkind),dimension(0:in_soilLiqFlux % nSoil)  :: iLayerHeight            ! height of the layer interfaces (m)
   ! error control
   logical(lgt)                                    :: return_flag             ! flag for return statements
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
 
   ! ** Initialize indices, error control, and get layer information ** 
-  call initialize_soilLiqFlx; if (return_flag) return 
+  call initialize_soilLiqFlux; if (return_flag) return 
 
   ! ** Compute transpiration, diagnostic variables, infiltration, and interface fluxes **
-  call update_soilLiqFlx;     if (return_flag) return
+  call update_soilLiqFlux;     if (return_flag) return
 
   ! ** Final error control **
-  call finalize_soilLiqFlx;   if (return_flag) return
+  call finalize_soilLiqFlux;   if (return_flag) return
  
 contains
 
- subroutine initialize_soilLiqFlx
-  ! **** Initial operations for soilLiqFlx module subroutine ****
+ subroutine initialize_soilLiqFlux
+  ! **** Initial operations for soilLiqFlux module subroutine ****
 
   ! ** assign variables used in main associate block **
-  nSoil = in_soilLiqFlx % nSoil ! get number of soil layers from input arguments
+  nSoil = in_soilLiqFlux % nSoil ! get number of soil layers from input arguments
  
   ! get indices for the data structures
   ibeg = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nLake)%dat(1) + 1
@@ -179,15 +179,15 @@ contains
   ! ** initialize error control **
   return_flag=.false.
   associate(&
-    err                   => out_soilLiqFlx % err,                  & ! intent(out): error code
-    message               => out_soilLiqFlx % cmessage              & ! intent(out): error message
+    err                   => out_soilLiqFlux % err,                  & ! intent(out): error code
+    message               => out_soilLiqFlux % cmessage              & ! intent(out): error message
   &)
-   err=0; message='soilLiqFlx/' ! initialize error control
+   err=0; message='soilLiqFlux/' ! initialize error control
   end associate
 
   ! ** get the indices for the soil layers **
   associate(&
-   scalarSolution => in_soilLiqFlx % scalarSolution,             & ! intent(in): flag to denote if implementing the scalar solution
+   scalarSolution => in_soilLiqFlux % scalarSolution,             & ! intent(in): flag to denote if implementing the scalar solution
    ixMatricHead   => indx_data%var(iLookINDEX%ixMatricHead)%dat, & ! intent(in): indices of soil layers where matric head is the state variable
    ixSoilOnlyHyd  => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat & ! intent(in): index in the state subset for hydrology state variables in the soil domain
   &)
@@ -204,8 +204,8 @@ contains
   ! ** identify the number of layers that contain roots or take infiltration **
   associate(&
    rootingDepth => mpar_data%var(iLookPARAM%rootingDepth)%dat(1),& ! intent(in): rooting depth (m)
-   err          => out_soilLiqFlx % err,                         & ! intent(out): error code
-   message      => out_soilLiqFlx % cmessage                     & ! intent(out): error message
+   err          => out_soilLiqFlux % err,                         & ! intent(out): error code
+   message      => out_soilLiqFlux % cmessage                     & ! intent(out): error message
   &) 
    nRoots = count(iLayerHeight(0:nSoil-1) < rootingDepth-verySmall)
    if (nRoots==0) then
@@ -217,19 +217,19 @@ contains
   ! ** identify lowest soil layer with ice **
   ! NOTE: cannot use count because there may be an unfrozen wedge
   associate(&
-    mLayerVolFracIceTrial => in_soilLiqFlx % mLayerVolFracIceTrial & ! intent(in): volumetric fraction of ice at the current iteration (-)
+    mLayerVolFracIceTrial => in_soilLiqFlux % mLayerVolFracIceTrial & ! intent(in): volumetric fraction of ice at the current iteration (-)
   &)
    ixIce = 0  ! initialize the index of the ice layer (0 means no ice in the soil profile)
    do iLayer=1,nSoil ! (loop through soil layers)
      if (mLayerVolFracIceTrial(iLayer) > verySmall) ixIce = iLayer
    end do
   end associate
- end subroutine initialize_soilLiqFlx
+ end subroutine initialize_soilLiqFlux
 
- subroutine update_soilLiqFlx
-  ! **** Main computations for soilLiqFlx module subroutine ****
+ subroutine update_soilLiqFlux
+  ! **** Main computations for soilLiqFlux module subroutine ****
 
-  if ( .not. (in_soilLiqFlx % scalarSolution .and. ixTop>1) ) then ! check the need to compute transpiration
+  if ( .not. (in_soilLiqFlux % scalarSolution .and. ixTop>1) ) then ! check the need to compute transpiration
    call compute_transpiration_sink; if (return_flag) return
   end if  
 
@@ -239,22 +239,22 @@ contains
 
   call compute_interface_fluxes_derivatives; if (return_flag) return
 
-  if ( .not. (in_soilLiqFlx % scalarSolution .and. ixTop<nSoil) ) then ! define the need to compute drainage
+  if ( .not. (in_soilLiqFlux % scalarSolution .and. ixTop<nSoil) ) then ! define the need to compute drainage
    call compute_drainage_flux; if (return_flag) return
   end if
- end subroutine update_soilLiqFlx
+ end subroutine update_soilLiqFlux
 
- subroutine finalize_soilLiqFlx
-  ! **** Final operations for soilLiqFlx module subroutine ****
+ subroutine finalize_soilLiqFlux
+  ! **** Final operations for soilLiqFlux module subroutine ****
  
   ! final error control check for robustness
   associate(&
-   err          => out_soilLiqFlx % err,                         & ! intent(out): error code
-   message      => out_soilLiqFlx % cmessage                     & ! intent(out): error message
+   err          => out_soilLiqFlux % err,                         & ! intent(out): error code
+   message      => out_soilLiqFlux % cmessage                     & ! intent(out): error message
   &)
-   if (err/=0) then; message=trim(message)//trim("finalize_soilLiqFlx: final error check failed"); return_flag=.true.; return; end if
+   if (err/=0) then; message=trim(message)//trim("finalize_soilLiqFlux: final error check failed"); return_flag=.true.; return; end if
   end associate
- end subroutine finalize_soilLiqFlx
+ end subroutine finalize_soilLiqFlux
 
  subroutine compute_transpiration_sink
   ! **** Compute the transpiration sink term ****
@@ -284,8 +284,8 @@ contains
  subroutine finalize_transpiration_loss_fraction
   ! **** Finalize operations for the fraction of transpiration loss from each soil layer *****
   associate(&
-   err          => out_soilLiqFlx % err,     & ! intent(out): error code
-   message      => out_soilLiqFlx % cmessage & ! intent(out): error message
+   err          => out_soilLiqFlux % err,     & ! intent(out): error code
+   message      => out_soilLiqFlux % cmessage & ! intent(out): error message
   &)
    ! check fractions sum to one
    if (abs(sum(mLayerTranspireFrac) - 1._rkind) > verySmall) then
@@ -298,18 +298,18 @@ contains
  subroutine update_transpiration_loss
   ! **** Update transpiration loss from each soil layer (kg m-2 s-1 --> m s-1)*****
   associate(&
-   scalarCanopyTranspiration => in_soilLiqFlx % scalarCanopyTranspiration, & ! canopy transpiration (kg m-2 s-1)
-   mLayerTranspire           => io_soilLiqFlx % mLayerTranspire,   & ! transpiration loss from each soil layer (m s-1)
+   scalarCanopyTranspiration => in_soilLiqFlux % scalarCanopyTranspiration, & ! canopy transpiration (kg m-2 s-1)
+   mLayerTranspire           => io_soilLiqFlux % mLayerTranspire,   & ! transpiration loss from each soil layer (m s-1)
    ! intent(inout): derivatives in the soil layer transpiration flux ...
-   mLayerdTrans_dCanWat  => io_soilLiqFlx % mLayerdTrans_dCanWat,  & ! ... w.r.t. canopy total water
-   mLayerdTrans_dTCanair => io_soilLiqFlx % mLayerdTrans_dTCanair, & ! ... w.r.t. canopy air temperature
-   mLayerdTrans_dTCanopy => io_soilLiqFlx % mLayerdTrans_dTCanopy, & ! ... w.r.t. canopy temperature
-   mLayerdTrans_dTGround => io_soilLiqFlx % mLayerdTrans_dTGround, & ! ... w.r.t. ground temperature
+   mLayerdTrans_dCanWat  => io_soilLiqFlux % mLayerdTrans_dCanWat,  & ! ... w.r.t. canopy total water
+   mLayerdTrans_dTCanair => io_soilLiqFlux % mLayerdTrans_dTCanair, & ! ... w.r.t. canopy air temperature
+   mLayerdTrans_dTCanopy => io_soilLiqFlux % mLayerdTrans_dTCanopy, & ! ... w.r.t. canopy temperature
+   mLayerdTrans_dTGround => io_soilLiqFlux % mLayerdTrans_dTGround, & ! ... w.r.t. ground temperature
    ! intent(in): derivative in canopy transpiration ...
-   dCanopyTrans_dCanWat  => in_soilLiqFlx % dCanopyTrans_dCanWat,  & ! ... w.r.t. canopy total water content (s-1)
-   dCanopyTrans_dTCanair => in_soilLiqFlx % dCanopyTrans_dTCanair, & ! ... w.r.t. canopy air temperature (kg m-2 s-1 K-1)
-   dCanopyTrans_dTCanopy => in_soilLiqFlx % dCanopyTrans_dTCanopy, & ! ... w.r.t. canopy temperature (kg m-2 s-1 K-1)
-   dCanopyTrans_dTGround => in_soilLiqFlx % dCanopyTrans_dTGround, & ! ... w.r.t. ground temperature (kg m-2 s-1 K-1)
+   dCanopyTrans_dCanWat  => in_soilLiqFlux % dCanopyTrans_dCanWat,  & ! ... w.r.t. canopy total water content (s-1)
+   dCanopyTrans_dTCanair => in_soilLiqFlux % dCanopyTrans_dTCanair, & ! ... w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+   dCanopyTrans_dTCanopy => in_soilLiqFlux % dCanopyTrans_dTCanopy, & ! ... w.r.t. canopy temperature (kg m-2 s-1 K-1)
+   dCanopyTrans_dTGround => in_soilLiqFlux % dCanopyTrans_dTGround, & ! ... w.r.t. ground temperature (kg m-2 s-1 K-1)
    ! intent(in): index of the upper boundary conditions for soil hydrology
    ixBcUpperSoilHydrology => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision & 
   &)
@@ -351,7 +351,7 @@ contains
   ! **** Initialize operations for the compute_diagnostic_variables subroutine ****
   type(in_type_diagv_node),intent(out) :: in_diagv_node  ! input data object for diagv_node
   ! interface local name space to input data object for diagv_node
-  call in_diagv_node % initialize(iSoil,in_soilLiqFlx,model_decisions,diag_data,mpar_data,flux_data)
+  call in_diagv_node % initialize(iSoil,in_soilLiqFlux,model_decisions,diag_data,mpar_data,flux_data)
  end subroutine initialize_compute_diagnostic_variables
 
  subroutine update_compute_diagnostic_variables(in_diagv_node,out_diagv_node)
@@ -367,10 +367,10 @@ contains
   type(out_type_diagv_node),intent(in) :: out_diagv_node ! output data object for diagv_node
   ! interface output data object for diagv_node to local name space
   associate(&
-   err          => out_soilLiqFlx % err,     & ! error code
-   message      => out_soilLiqFlx % cmessage & ! error message
+   err          => out_soilLiqFlux % err,     & ! error code
+   message      => out_soilLiqFlux % cmessage & ! error message
   &)
-   call out_diagv_node % finalize(iSoil,nSoil,io_soilLiqFlx,mLayerDiffuse,iceImpedeFac,&
+   call out_diagv_node % finalize(iSoil,nSoil,io_soilLiqFlux,mLayerDiffuse,iceImpedeFac,&
                                   &dHydCond_dVolLiq,dDiffuse_dVolLiq,dHydCond_dTemp,err,cmessage)
    if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end associate
@@ -398,18 +398,18 @@ contains
   ! set derivative w.r.t. state above to zero (does not exist)
   associate(&
    ! intent(inout): flux derivatives ... 
-   dq_dHydStateAbove => io_soilLiqFlx % dq_dHydStateAbove,& ! ... in layer interfaces w.r.t. state variables in the layer above
-   dq_dNrgStateAbove => io_soilLiqFlx % dq_dNrgStateAbove & ! ... w.r.t. temperature in the layer above (m s-1 K-1)
+   dq_dHydStateAbove => io_soilLiqFlux % dq_dHydStateAbove,& ! ... in layer interfaces w.r.t. state variables in the layer above
+   dq_dNrgStateAbove => io_soilLiqFlux % dq_dNrgStateAbove & ! ... w.r.t. temperature in the layer above (m s-1 K-1)
   &)
    dq_dHydStateAbove(0) = 0._rkind
    dq_dNrgStateAbove(0) = 0._rkind
   end associate
 
   ! compute surface flux and its derivative...
-  call in_surfaceFlx % initialize(nRoots,ixIce,nSoil,ibeg,iend,in_soilLiqFlx,io_soilLiqFlx,&
+  call in_surfaceFlx % initialize(nRoots,ixIce,nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,&
                                  &model_decisions,prog_data,mpar_data,flux_data,diag_data,&
                                  &iLayerHeight,dHydCond_dTemp,iceImpedeFac)
-  call io_surfaceFlx % initialize(nSoil,io_soilLiqFlx,iLayerHydCond,iLayerDiffuse)
+  call io_surfaceFlx % initialize(nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse)
  end subroutine initialize_compute_surface_infiltration
 
  subroutine update_compute_surface_infiltration(in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
@@ -417,7 +417,7 @@ contains
   type(in_type_surfaceFlx) ,intent(in)    ::  in_surfaceFlx
   type(io_type_surfaceFlx) ,intent(inout) ::  io_surfaceFlx
   type(out_type_surfaceFlx),intent(out)   :: out_surfaceFlx
-  call surfaceFlx(io_soilLiqFlx,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
+  call surfaceFlx(io_soilLiqFlux,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
  end subroutine update_compute_surface_infiltration
 
  subroutine finalize_compute_surface_infiltration(io_surfaceFlx,out_surfaceFlx)
@@ -426,22 +426,22 @@ contains
   type(out_type_surfaceFlx),intent(in) :: out_surfaceFlx
 
   ! interface object data components with local name space
-  call  io_surfaceFlx % finalize(nSoil,io_soilLiqFlx,iLayerHydCond,iLayerDiffuse)
+  call  io_surfaceFlx % finalize(nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse)
   associate(&
-   err     => out_soilLiqFlx % err,     & ! error code
-   message => out_soilLiqFlx % cmessage & ! error message
+   err     => out_soilLiqFlux % err,     & ! error code
+   message => out_soilLiqFlux % cmessage & ! error message
   &)
-   call out_surfaceFlx % finalize(io_soilLiqFlx,err,cmessage)
+   call out_surfaceFlx % finalize(io_soilLiqFlux,err,cmessage)
    if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end associate
 
   ! include base soil evaporation as the upper boundary flux
   associate(&
-   iLayerLiqFluxSoil         => io_soilLiqFlx % iLayerLiqFluxSoil,      & ! liquid flux at soil layer interfaces (m s-1)
-   scalarGroundEvaporation   => in_soilLiqFlx % scalarGroundEvaporation,& ! ground evaporation (kg m-2 s-1)
-   scalarSurfaceInfiltration => io_soilLiqFlx % scalarInfiltration,     & ! surface infiltration rate (m s-1)
-   dq_dHydStateBelow         => io_soilLiqFlx % dq_dHydStateBelow,      & ! derivative in the flux in layer interfaces w.r.t. state variables in the layer below
-   dq_dNrgStateBelow         => io_soilLiqFlx % dq_dNrgStateBelow       & ! derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
+   iLayerLiqFluxSoil         => io_soilLiqFlux % iLayerLiqFluxSoil,      & ! liquid flux at soil layer interfaces (m s-1)
+   scalarGroundEvaporation   => in_soilLiqFlux % scalarGroundEvaporation,& ! ground evaporation (kg m-2 s-1)
+   scalarSurfaceInfiltration => io_soilLiqFlux % scalarInfiltration,     & ! surface infiltration rate (m s-1)
+   dq_dHydStateBelow         => io_soilLiqFlux % dq_dHydStateBelow,      & ! derivative in the flux in layer interfaces w.r.t. state variables in the layer below
+   dq_dNrgStateBelow         => io_soilLiqFlux % dq_dNrgStateBelow       & ! derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
   &)
    iLayerLiqFluxSoil(0) = scalarGroundEvaporation/iden_water + scalarSurfaceInfiltration
 
@@ -471,7 +471,7 @@ contains
   ! **** Initialize operations for compute_interface_fluxes_derivatives subroutine ****
   type(in_type_iLayerFlux),intent(out) :: in_iLayerFlux  ! input data object for iLayerFlux
   ! interface local name space to iLayerFlux input object
-  call in_iLayerFlux % initialize(iLayer,nSoil,ibeg,iend,in_soilLiqFlx,io_soilLiqFlx,model_decisions,&
+  call in_iLayerFlux % initialize(iLayer,nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
                                  &prog_data,mLayerDiffuse,dHydCond_dTemp,dHydCond_dVolLiq,dDiffuse_dVolLiq)
  end subroutine initialize_compute_interface_fluxes_derivatives
 
@@ -488,10 +488,10 @@ contains
   type(out_type_iLayerFlux),intent(in) :: out_iLayerFlux ! output data object for iLayerFlux
   ! interface iLayerFlux output object to local name space
   associate(&
-   err     => out_soilLiqFlx % err,                       & ! error code
-   message => out_soilLiqFlx % cmessage                   & ! error message
+   err     => out_soilLiqFlux % err,                       & ! error code
+   message => out_soilLiqFlux % cmessage                   & ! error message
   &)
-   call out_iLayerFlux % finalize(iLayer,nSoil,io_soilLiqFlx,iLayerHydCond,iLayerDiffuse,err,cmessage)
+   call out_iLayerFlux % finalize(iLayer,nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse,err,cmessage)
    if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end associate
  end subroutine finalize_compute_interface_fluxes_derivatives
@@ -512,7 +512,7 @@ contains
  subroutine initialize_compute_drainage_flux(in_qDrainFlux)
   ! **** Initialize operations for compute_drainage_flux ****
   type(in_type_qDrainFlux),intent(out) :: in_qDrainFlux
-  call in_qDrainFlux % initialize(nSoil,ibeg,iend,in_soilLiqFlx,io_soilLiqFlx,model_decisions,&
+  call in_qDrainFlux % initialize(nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
                                  &prog_data,mpar_data,flux_data,diag_data,iceImpedeFac,&
                                  &dHydCond_dVolLiq,dHydCond_dTemp)
  end subroutine initialize_compute_drainage_flux
@@ -528,24 +528,24 @@ contains
   ! **** finalize operations for compute_drainage_flux ****
   type(out_type_qDrainFlux),intent(in) :: out_qDrainFlux
   associate(&
-   err     => out_soilLiqFlx % err,                       & ! error code
-   message => out_soilLiqFlx % cmessage                   & ! error message
+   err     => out_soilLiqFlux % err,                       & ! error code
+   message => out_soilLiqFlux % cmessage                   & ! error message
   &)
-   call out_qDrainFlux % finalize(nSoil,io_soilLiqFlx,iLayerHydCond,iLayerDiffuse,err,cmessage)
+   call out_qDrainFlux % finalize(nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse,err,cmessage)
    if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end associate
 
   ! no dependence on the aquifer or ice? for drainage
   associate(&
    ! derivatives in flux w.r.t. ...
-   dq_dHydStateBelow => io_soilLiqFlx % dq_dHydStateBelow,& ! ... hydrology state variables in the layer below
-   dq_dNrgStateBelow => io_soilLiqFlx % dq_dNrgStateBelow & ! ... temperature in the layer below (m s-1 K-1)
+   dq_dHydStateBelow => io_soilLiqFlux % dq_dHydStateBelow,& ! ... hydrology state variables in the layer below
+   dq_dNrgStateBelow => io_soilLiqFlux % dq_dNrgStateBelow & ! ... temperature in the layer below (m s-1 K-1)
   &)
    dq_dHydStateBelow(nSoil) = 0._rkind  ! keep this here in case we want to couple some day....
    dq_dNrgStateBelow(nSoil) = 0._rkind  ! keep this here in case we want to couple some day....
   end associate
  end subroutine finalize_compute_drainage_flux
-end subroutine soilLiqFlx
+end subroutine soilLiqFlux
 
 ! ***************************************************************************************************************
 ! private subroutine diagv_node: compute transmittance and derivatives for model nodes
@@ -857,7 +857,7 @@ end subroutine diagv_node
 ! ***************************************************************************************************************
 ! private subroutine surfaceFlx: compute the surface flux and its derivative
 ! ***************************************************************************************************************
-subroutine surfaceFlx(io_soilLiqFlx,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
+subroutine surfaceFlx(io_soilLiqFlux,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
   USE soil_utils_module,only:volFracLiq            ! compute volumetric fraction of liquid water as a function of matric head (-)
   USE soil_utils_module,only:hydCond_psi           ! compute hydraulic conductivity as a function of matric head (m s-1)
   USE soil_utils_module,only:hydCond_liq           ! compute hydraulic conductivity as a function of volumetric liquid water content (m s-1)
@@ -867,8 +867,8 @@ subroutine surfaceFlx(io_soilLiqFlx,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
   ! compute infiltraton at the surface and its derivative w.r.t. mass in the upper soil layer
   implicit none
   ! -----------------------------------------------------------------------------------------------------------------------------
-  ! input: use soilLiqFlx object for array dimensions
-  type(io_type_soilLiqFlx) ,intent(in)    :: io_soilLiqFlx          ! input-output object for soilLiqFlx
+  ! input: use soilLiqFlux object for array dimensions
+  type(io_type_soilLiqFlux) ,intent(in)    :: io_soilLiqFlux          ! input-output object for soilLiqFlux
   ! input: model control, variables, derivatives, soil layer depth, boundary conditions, fluxes, and transmittance and soil parameters
   type(in_type_surfaceFlx) ,intent(in)    :: in_surfaceFlx          ! input object for surfaceFlx
   ! input-output: hydraulic conductivity and diffusivity, and infiltration parameters
@@ -938,8 +938,8 @@ contains
   ! **** Initialize operations for surfaceFlx ****
  
   ! allocate output object array components
-  out_surfaceFlx % dq_dHydStateVec = io_soilLiqFlx % dq_dHydStateLayerSurfVec
-  out_surfaceFlx % dq_dNrgStateVec = io_soilLiqFlx % dq_dNrgStateLayerSurfVec
+  out_surfaceFlx % dq_dHydStateVec = io_soilLiqFlux % dq_dHydStateLayerSurfVec
+  out_surfaceFlx % dq_dNrgStateVec = io_soilLiqFlux % dq_dNrgStateLayerSurfVec
 
   ! initialize error control
   return_flag=.false.
@@ -1914,4 +1914,4 @@ contains
 
 end subroutine qDrainFlux
 
-end module soilLiqFlx_module
+end module soilLiqFlux_module
