@@ -158,14 +158,14 @@ contains
   end if
  else
   ! glacier parameters
-  if (parFallback(iLookBPAR%glacStor_kIce)%default_val < 0.99_rkind*realMissing) then
-   parFallback(iLookBPAR%glacStor_kIce)%default_val = 10._rkind
+  if (parFallback(iLookBPAR%glacStor_kIce)%default_val < 0.99_rkind*realMissing) then ! 5-29
+   parFallback(iLookBPAR%glacStor_kIce)%default_val = 15._rkind
   end if
-  if (parFallback(iLookBPAR%glacStor_kSnow)%default_val < 0.99_rkind*realMissing) then
-   parFallback(iLookBPAR%glacStor_kSnow)%default_val = 40._rkind
+  if (parFallback(iLookBPAR%glacStor_kSnow)%default_val < 0.99_rkind*realMissing) then ! 30-149
+   parFallback(iLookBPAR%glacStor_kSnow)%default_val = 90._rkind
   end if
-  if (parFallback(iLookBPAR%glacStor_kFirn)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookBPAR%glacStor_kFirn)%default_val = 400._rkind
+  if (parFallback(iLookBPAR%glacStor_kFirn)%default_val < 0.99_rkind*realMissing) then ! 150-1000
+    parFallback(iLookBPAR%glacStor_kFirn)%default_val = 575._rkind
   endif
   if (parFallback(iLookBPAR%debrisC_constant)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookBPAR%debrisC_constant)%default_val = 5.0_rkind ! follow Anderson and Anderson (2018)
