@@ -155,7 +155,7 @@ subroutine systemSolve(&
   USE allocspace_module,only:allocLocal                     ! allocate local data structures
   ! state vector and solver
   USE getVectorz_module,only:getScaling                     ! get the scaling vectors
-  USE convertEnthalpyTemp_module,only:T2enthalpy_snwWat            ! convert temperature to liq+ice enthalpy for a snow layer
+  USE convertEnthalpyTemp_module,only:T2enthalpy_snLaGlWat            ! convert temperature to liq+ice enthalpy for a snow layer
 #ifdef SUNDIALS_ACTIVE
   USE tol4ida_module,only:popTol4ida                        ! populate tolerances
   USE eval8summaWithPrime_module,only:eval8summaWithPrime   ! get the fluxes and residuals
@@ -239,6 +239,7 @@ subroutine systemSolve(&
   real(rkind)                     :: rAdd(nState)                  ! additional terms in the residual vector
   logical(lgt)                    :: feasible                      ! feasibility flag
   logical(lgt)                    :: sunSucceeds                   ! flag to indicate if SUNDIALS successfully solved the problem in current data step
+  integer(i4b)                    :: top                           ! index of the top layer (1 for snow, 1+nSoil+nLake for glacier ice)
   ! ida variables
   real(rkind)                     :: atol(nState)                  ! absolute tolerance ida
   real(rkind)                     :: rtol(nState)                  ! relative tolerance ida
@@ -419,12 +420,14 @@ contains
    snowfrz_scale    => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1) & ! intent(in): [dp]    scaling parameter for the snow freezing curve (K-1)
    &)
    ! check the need to merge snow or glacier ice layers
-   if (nSnow>0 .or. (nSnow+nSoil+nLake==0 .and. nGlce>0) ) then
+   if (nSnow>0 .or. (nSnow==0 .and. nGlce>0) ) then
+     top = 1
+     if (nSnow==0) top = 1 + nLake + nSoil ! has glacier, so shouldn't be a lake, but just for completeness
      ! compute the energy required to melt the top layer (J m-2)
-     bulkDensity = mLayerVolFracIce(1)*iden_ice + mLayerVolFracLiq(1)*iden_water
-     volEnthalpy = T2enthalpy_snwWat(mLayerTemp(1),bulkDensity,snowfrz_scale)
+     bulkDensity = mLayerVolFracIce(top)*iden_ice + mLayerVolFracLiq(top)*iden_water
+     volEnthalpy = T2enthalpy_snLaGlWat(mLayerTemp(top),bulkDensity,snowfrz_scale)
      ! set flag and error codes for too much melt
-     if (-volEnthalpy < flux_init%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt_cur) then
+     if (-volEnthalpy < flux_init%var(iLookFLUX%mLayerNrgFlux)%dat(top)*dt_cur) then
        tooMuchMelt = .true.
        err=-20; return ! negative error code to denote a warning
      end if

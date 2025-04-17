@@ -165,7 +165,7 @@ subroutine coupled_em(&
   USE var_derive_module,only:calcHeight             ! module to calculate height at layer interfaces and layer mid-point
   USE snowGlceDepth_module,only:snowGlceDepth   ! compute snow depth
   USE convertEnthalpyTemp_module,only:T2enthTemp_veg       ! convert temperature to enthalpy for vegetation
-  USE convertEnthalpyTemp_module,only:T2enthTemp_SnLaGl    ! convert temperature to enthalpy for snow, lake, and ice
+  USE convertEnthalpyTemp_module,only:T2enthTemp_snLaGl    ! convert temperature to enthalpy for snow, lake, and ice
   USE convertEnthalpyTemp_module,only:T2enthTemp_soil      ! convert temperature to enthalpy for soil
   USE convertEnthalpyTemp_module,only:enthTemp_or_enthalpy ! add phase change terms to delta temperature component of enthalpy or vice versa
   implicit none
@@ -851,7 +851,7 @@ subroutine coupled_em(&
                 end if
                 mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)*(iden_ice/iden_water)
                 ! compute enthalpy for snow and glacier ice layers
-                call T2enthTemp_SnLaGl(&
+                call T2enthTemp_snLaGl(&
                              snowfrz_scale,             & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                              mLayerTemp(iLayer),        & ! intent(in):  layer temperature (K)
                              mLayerVolFracWat(iLayer),  & ! intent(in):  volumetric total water content (-)
@@ -986,7 +986,7 @@ subroutine coupled_em(&
           ! compute enthalpy of the top layer if changed with surface melt pond
           if( (enthalpyStateVec .or. computeEnthalpy) .and. nSnow==0 .and. prog_data%var(iLookPROG%scalarSWE)%dat(1)>0._rkind)then 
             if (nLake>0 .or. (nLake==0 .and. nSoil==0 .and. nGlce>0))then
-              call T2enthTemp_SnLaGl(&
+              call T2enthTemp_snLaGl(&
                        snowfrz_scale,                                      & ! intent(in):  scaling parameter for the lake freezing curve  (K-1)
                        prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1),   & ! intent(in):  layer temperature (K)
                        mLayerVolFracWat(nSnow+1),                          & ! intent(in):  volumetric total water content (-)
@@ -1283,7 +1283,7 @@ subroutine coupled_em(&
               mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)*(iden_ice/iden_water)
               ! recompute enthalpy of layers if changed water and ice content
               if(enthalpyStateVec .or. computeEnthalpy)then
-                call T2enthTemp_SnLaGl(&
+                call T2enthTemp_snLaGl(&
                              snowfrz_scale,                                       & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                              prog_data%var(iLookPROG%mLayerTemp)%dat(iLayer),     & ! intent(in):  layer temperature (K)
                              mLayerVolFracWat(iLayer),                            & ! intent(in):  volumetric total water content (-)
@@ -1463,7 +1463,7 @@ subroutine coupled_em(&
       prog_data%var(iLookPROG%mLayerVolFracWat)%dat(1) = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1) &
                                                         + prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1)*iden_ice/iden_water
       if(enthalpyStateVec .or. computeEnthalpy)then ! compute enthalpy of the top snow layer
-        call T2enthTemp_SnLaGl(&
+        call T2enthTemp_snLaGl(&
                        snowfrz_scale,                                     & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                        prog_data%var(iLookPROG%mLayerTemp)%dat(1),        & ! temperature of the top layer (K)
                        prog_data%var(iLookPROG%mLayerVolFracWat)%dat(1),  & ! intent(in):  volumetric total water content (-)

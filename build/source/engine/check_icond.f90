@@ -81,7 +81,7 @@ contains
  USE updateState_module,only:updateSoil                   ! update soil states
  USE convertEnthalpyTemp_module,only:T2enthTemp_cas             ! convert temperature to enthalpy for canopy air space
  USE convertEnthalpyTemp_module,only:T2enthTemp_veg             ! convert temperature to enthalpy for vegetation
- USE convertEnthalpyTemp_module,only:T2enthTemp_SnLaGl          ! convert temperature to enthalpy for snow, lake, and ice
+ USE convertEnthalpyTemp_module,only:T2enthTemp_snLaGl          ! convert temperature to enthalpy for snow, lake, and ice
  USE convertEnthalpyTemp_module,only:T2enthTemp_soil            ! convert temperature to enthalpy for soil
  
  implicit none
@@ -389,7 +389,7 @@ contains
 
         if(checkEnthalpy)then ! enthalpy as state variable or in residual
           if(no_icond_enth)then ! no enthalpy in icond file
-            call T2enthTemp_SnLaGl(&
+            call T2enthTemp_snLaGl(&
                         snowfrz_scale,                  & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                         mLayerTemp(iLayer),             & ! intent(in):  layer temperature (K)
                         scalarTheta,                    & ! intent(in):  volumetric total water content (-)

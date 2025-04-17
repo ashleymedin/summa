@@ -350,7 +350,7 @@ contains
  USE data_types,only:var_d                                        ! data structures with fixed dimension
  ! provide access to external modules
  USE snow_utils_module,only:fracliquid                            ! compute fraction of liquid water
- USE convertEnthalpyTemp_module,only:enthalpy2T_snwWat,T2enthalpy_snwWat ! convert temperature to liq+ice enthalpy for a snow layer
+ USE convertEnthalpyTemp_module,only:enthalpy2T_snLaGlWat,T2enthalpy_snLaGlWat ! convert temperature to liq+ice enthalpy for a snow layer
  implicit none
  ! ------------------------------------------------------------------------------------------------------------
  ! input/output: data structures
@@ -419,19 +419,19 @@ contains
  cBulkDenWat     = (mLayerDepth(iSnow)*bulkDenWat(1) + mLayerDepth(iSnow+1)*bulkDenWat(2))/cDepth
 
  ! compute enthalpy for each layer (J m-3)
- l1Enthalpy = T2enthalpy_snwWat(mLayerTemp(iSnow),  bulkDenWat(1),snowfrz_scale)
- l2Enthalpy = T2enthalpy_snwWat(mLayerTemp(iSnow+1),bulkDenWat(2),snowfrz_scale)
+ l1Enthalpy = T2enthalpy_snLaGlWat(mLayerTemp(iSnow),  bulkDenWat(1),snowfrz_scale)
+ l2Enthalpy = T2enthalpy_snLaGlWat(mLayerTemp(iSnow+1),bulkDenWat(2),snowfrz_scale)
 
  ! compute combined enthalpy (J m-3)
  cEnthalpy = (mLayerDepth(iSnow)*l1Enthalpy + mLayerDepth(iSnow+1)*l2Enthalpy)/cDepth
 
  ! convert enthalpy (J m-3) to temperature (K)
- call enthalpy2T_snwWat(cEnthalpy,cBulkDenWat,snowfrz_scale,cTemp,err,cmessage)
+ call enthalpy2T_snLaGlWat(cEnthalpy,cBulkDenWat,snowfrz_scale,cTemp,err,cmessage)
  if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; end if
 
  ! test enthalpy conversion
- if(abs(T2enthalpy_snwWat(cTemp,cBulkDenWat,snowfrz_scale)/cBulkDenWat - cEnthalpy/cBulkDenWat) > eTol)then
-  write(*,'(a,1x,f12.5,1x,2(e20.10,1x))') 'enthalpy test', cBulkDenWat, T2enthalpy_snwWat(cTemp,cBulkDenWat,snowfrz_scale)/cBulkDenWat, cEnthalpy/cBulkDenWat
+ if(abs(T2enthalpy_snLaGlWat(cTemp,cBulkDenWat,snowfrz_scale)/cBulkDenWat - cEnthalpy/cBulkDenWat) > eTol)then
+  write(*,'(a,1x,f12.5,1x,2(e20.10,1x))') 'enthalpy test', cBulkDenWat, T2enthalpy_snLaGlWat(cTemp,cBulkDenWat,snowfrz_scale)/cBulkDenWat, cEnthalpy/cBulkDenWat
   message=trim(message)//'problem with enthalpy-->temperature conversion'
   err=20; return
  end if

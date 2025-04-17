@@ -127,7 +127,7 @@ subroutine snowLakeSoilGlceNrgFlux(&
     groundNetFlux              => in_snowLakeSoilGlceNrgFlux % scalarGroundNetNrgFlux,     & ! intent(in):    net energy flux for the ground surface (W m-2)
     dGroundNetFlux_dGroundTemp => io_snowLakeSoilGlceNrgFlux % dGroundNetFlux_dGroundTemp, & ! intent(inout): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
     ! input: liquid water fluxes
-    iLayerLiqFluxSnLaGl          => in_snowLakeSoilGlceNrgFlux % iLayerLiqFluxSnLaGl,          & ! intent(in):    liquid flux at the interface of each snow layer (m s-1)
+    iLayerLiqFluxSnLaGl        => in_snowLakeSoilGlceNrgFlux % iLayerLiqFluxSnLaGl,        & ! intent(in):    liquid flux at the interface of each snow layer (m s-1)
     iLayerLiqFluxSoil          => in_snowLakeSoilGlceNrgFlux % iLayerLiqFluxSoil,          & ! intent(in):    liquid flux at the interface of each soil layer (m s-1)
     ! input: trial model state variables
     mLayerTempTrial            => in_snowLakeSoilGlceNrgFlux % mLayerTempTrial,            & ! intent(in):     temperature in each layer at the current iteration (m)
