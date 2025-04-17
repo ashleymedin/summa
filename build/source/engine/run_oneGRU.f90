@@ -273,6 +273,7 @@ subroutine run_oneGRU(&
       endif ! (if glacier domain)
     end do ! (looping through domains)
   end do ! (looping through HRUs)
+  updateGlacArea = .false. ! turn off for now
 
   ! allocate space for glacier area change module variables
   if (updateGlacArea) then
