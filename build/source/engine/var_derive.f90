@@ -337,7 +337,7 @@ contains
      if(iLayer==nSnow+nLake+nSoil)then
       iLayerSatHydCond(iSoil) = k_soil(nSoil) * ifcDepthScaleFactor
      else
-      iLayerSatHydCond(iSoil)   = 0.5_rkind * (k_soil(iSoil) + k_soil(iSoil+1) ) * ifcDepthScaleFactor
+      iLayerSatHydCond(iSoil) = 0.5_rkind * (k_soil(iSoil) + k_soil(iSoil+1) ) * ifcDepthScaleFactor
      endif
      ! - conductivity at layer midpoints
      if(compactedDepth/iLayerHeight(nSnow+nLake+nSoil) /= 1._rkind) then    ! avoid divide by zero
