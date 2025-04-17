@@ -153,7 +153,7 @@ subroutine computeFlux(&
   USE snowLakeSoilGlceNrgFlux_module,only:snowLakeSoilGlceNrgFlux ! compute energy fluxes throughout the layers
   USE vegLiqFlux_module,only:vegLiqFlux                           ! compute liquid water fluxes through vegetation
   USE snowLakeGlceLiqFlux_module,only:snowLakeGlceLiqFlux         ! compute liquid water fluxes through non-soil layers
-  USE soilLiqFlux_module,only:soilLiqflx                           ! compute liquid water fluxes through soil
+  USE soilLiqFlux_module,only:soilLiqFlux                           ! compute liquid water fluxes through soil
   USE groundwatr_module,only:groundwatr                           ! compute the baseflow flux
   USE bigAquifer_module,only:bigAquifer                           ! compute fluxes for the big aquifer
   implicit none
