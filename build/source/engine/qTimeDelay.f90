@@ -167,7 +167,7 @@ integer(i4b),intent(in)     :: nGlacier                  ! number of glaciers in
    qIce = qIceFuture(iGlacier) + glacIceMelt*frac - glacIceMelt*frac*exp(-data_step/secprhour/glacStor_kIce)
    qIceFuture(iGlacier) = qIce*exp(-data_step/secprhour/glacStor_kIce) ! place runoff in future time steps 
 
-   ! snow reservoir runoff (m 3s-1)
+   ! snow reservoir runoff (m3 s-1)
    frac = glacAblArea(iGlacier)/glacAblTotal
    qSnow = qSnowFuture(iGlacier) + glacSnowMelt*frac - glacSnowMelt*frac*exp(-data_step/secprhour/glacStor_kSnow)
    qSnowFuture(iGlacier) = qSnow*exp(-data_step/secprhour/glacStor_kSnow) ! place runoff in future time steps
