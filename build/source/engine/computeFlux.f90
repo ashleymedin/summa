@@ -459,8 +459,8 @@ contains
    scalarSoilDrainage           => flux_data%var(iLookFLUX%scalarSoilDrainage)%dat(1)   ) ! intent(out): [dp] drainage from the soil profile (m s-1)
    scalarSoilBaseflow = sum(mLayerBaseflow)        ! baseflow from the soil zone 
    ! compute total runoff
-   scalarTotalRunoff  = scalarSurfaceRunoff + scalarSoilDrainage + scalarSoilBaseflow     ! total runoff
-   if (nGlce==0) scalarTotalRunoff = scalarSurfaceRunoff + scalarSoilBaseflow  ! don't add soil drainage to surface runoff if glacier ice layers exist
+   scalarTotalRunoff = scalarSurfaceRunoff + scalarSoilBaseflow ! total runoff (m s-1)
+   if (nGlce==0) scalarTotalRunoff  = scalarTotalRunoff + scalarSoilDrainage ! only add soil drainage to runoff if glacier ice layers don't exist (else goes through glacier ice)
   end associate
  end subroutine computeBaseflowRunoff  
 
