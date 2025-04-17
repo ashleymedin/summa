@@ -448,7 +448,7 @@ contains
  end subroutine zeroBaseflowFluxes
 
  subroutine computeBaseflowRunoff
-  ! compute total baseflow from the soil zone (needed for mass balance checks) and total runoff
+  ! compute total baseflow from the soil zone (needed for mass balance checks) and total runoff, before aquifer fluxes
   ! (Note: scalarSoilBaseflow is zero if topmodel is not used, and no aquifer if glce layers exist)
   ! (Note: scalarSoilBaseflow may need to re-envisioned in topmodel formulation if parts of it flow into neighboring soil rather than exfiltrate)
   associate(&
@@ -460,7 +460,7 @@ contains
    scalarSoilBaseflow = sum(mLayerBaseflow)        ! baseflow from the soil zone 
    ! compute total runoff
    scalarTotalRunoff = scalarSurfaceRunoff + scalarSoilBaseflow ! total runoff (m s-1)
-   if (nGlce==0) scalarTotalRunoff  = scalarTotalRunoff + scalarSoilDrainage ! only add soil drainage to runoff if glacier ice layers don't exist (else goes through glacier ice)
+   if (nGlce==0) scalarTotalRunoff = scalarTotalRunoff + scalarSoilDrainage ! only add soil drainage to runoff if glacier ice layers don't exist (else goes through glacier ice)
   end associate
  end subroutine computeBaseflowRunoff  
 
@@ -848,7 +848,7 @@ contains
    do iLayer=1,nGlce
      mLayerLiqFluxSnLaGl(iLayer+nStart) = -(iLayerLiqFluxSnLaGl(iLayer+nStart) - iLayerLiqFluxSnLaGl(iLayer-1+nStart))/mLayerDepth(iLayer+nStart)
    end do
-   ! compute melt from the glacier ice zone (all melt and runoff goes into the glacier ice) and high density runoff passes through
+   ! compute melt from the glacier ice zone (all melt and runoff goes into the glacier ice and high density runoff passes through)
    scalarGlacierMelt = iLayerLiqFluxSnLaGl(nGlce+nStart) + scalarTotalRunoff
 
   end associate
@@ -889,9 +889,8 @@ contains
    scalarTotalRunoff            => flux_data%var(iLookFLUX%scalarTotalRunoff)%dat(1)     ,&  ! intent(out): [dp] total runoff (m s-1)
    scalarSurfaceRunoff          => flux_data%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)   ,&  ! intent(out): [dp] surface runoff (m s-1)
    scalarAquiferBaseflow        => flux_data%var(iLookFLUX%scalarAquiferBaseflow)%dat(1)  )  ! intent(out): [dp] total baseflow from the aquifer (m s-1)
-   ! compute total runoff (overwrite previously calculated value before considering aquifer).
-   !   (Note:  SoilDrainage goes into aquifer, not runoff)
-   scalarTotalRunoff  = scalarSurfaceRunoff + scalarAquiferBaseflow     
+   ! compute total runoff (overwrite previously calculated value before considering aquifer)
+   scalarTotalRunoff = scalarSurfaceRunoff + scalarAquiferBaseflow     
   end associate
  end subroutine finalize_bigAquifer
  ! **** end bigAquifer ****
