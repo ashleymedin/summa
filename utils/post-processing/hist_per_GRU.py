@@ -26,7 +26,7 @@ run_local = True # true is run on local machine, false is run on cluster
 fix_units_soil = True # true is convert to storage units, only works for Soil
 fix_wall_actors = False # true then scale reference solution for wall clock time
 fix_wall_actors_plot = False # true then plot the wall clock time comparison
-fix_wall_event_plot = True # true then plot the event detection time comparison
+fix_wall_event_plot = False # true then plot the event detection time comparison
 no_snow = False # true is only plot snow free simulations
 
 if run_local: 
@@ -42,10 +42,10 @@ else:
 #plt_name=['BE1','IDAe-4','BE4','BE8','BE16','BE32','IDAe-6'] #maybe make this an argument
 #method_name=['be1','be16','be32','sun6'] #maybe make this an argument
 #plt_name=['BE1','BE16','BE32','SUNDIALS'] #maybe make this an argument
-#method_name=['be8','be8cm','be8en','sun5cm','sun5en'] 
-#plt_name=['BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp', 'SUNDIALS enth']
-method_name=['sun5cm_noev','sun5cm','sun5en_noev','sun5en','sun8en_noev'] 
-plt_name=['SUNDIALS temp no event','SUNDIALS temp', 'SUNDIALS enth no event', 'SUNDIALS enth', 'reference soln no event']
+method_name=['be8','be8cm','be8en','sun5cm','sun5en'] 
+plt_name=['BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp', 'SUNDIALS enth']
+#method_name=['sun5cm_noev','sun5cm','sun5en_noev','sun5en','sun8en_noev'] 
+#plt_name=['SUNDIALS temp no event','SUNDIALS temp', 'SUNDIALS enth no event', 'SUNDIALS enth', 'reference soln no event']
 #method_name=['old_be1','old_be1cm','old_be1en','be8','be8cm','be8en','sun5cm','sun5en'] 
 #plt_name=['BE1 common','BE1 temp','BE1 mixed','BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp', 'SUNDIALS enth']
 method_name2=method_name +['sun8en']
