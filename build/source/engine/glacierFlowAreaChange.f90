@@ -24,21 +24,29 @@ module glacierFlowAreaChange_module
 USE nr_type
 
 ! access missing values
-USE globalData,only:integerMissing      ! missing integer number
-USE globalData,only:realMissing         ! missing double precision number
+USE globalData,only:integerMissing                 ! missing integer number
+USE globalData,only:realMissing                    ! missing double precision number
 
 ! define data types
-USE var_lookup,only:iLookGRID           ! named variables for the glacier grid information
+USE var_lookup,only:iLookGRID                      ! named variables for the glacier grid information
 USE data_types,only:&
-                    glac_info,       & ! glacier information data structure
-                    grid_info,       & ! glacier grid info data structure
-                    grid_double        ! x%gru(:)%grid(:)%var(:)%dat2(:,:) (dp)
+                    glac_info,                   & ! glacier information data structure
+                    grid_info,                   & ! glacier grid info data structure
+                    grid_double                    ! x%gru(:)%grid(:)%var(:)%dat2(:,:) (dp)
 
 USE multiconst,only:&
-                    secprday,      & ! seconds per day
-                    gravity,       & ! gravitational acceleration    (m s-2)
-                    iden_water,    & ! intrinsic density of water    (kg m-3)
-                    iden_ice         ! intrinsic density of ice      (kg m-3)
+                    secprday,                    & ! seconds per day
+                    gravity,                     & ! gravitational acceleration    (m s-2)
+                    iden_water,                  & ! intrinsic density of water    (kg m-3)
+                    iden_ice                       ! intrinsic density of ice      (kg m-3)
+
+! access domain types
+                    USE globalData,only:upland     ! domain type for upland areas
+                    USE globalData,only:glacAcc    ! domain type for glacier accumulation areas
+                    USE globalData,only:glacCln    ! domain type for glacier ablation clean areas
+                    USE globalData,only:glacDbr    ! domain type for glacier ablation debris areas
+                    USE globalData,only:wetland    ! domain type for wetland areas
+                    USE globalData,only:glacieret  ! domain type for glaciers considered too small for flow                    
 
 implicit none
 ! define solver settings
@@ -47,8 +55,9 @@ character(len=32),parameter :: bed_shape='parabolic' !'trapezoid'
 character(len=32),parameter :: method='MUSCL' !'upstream'
 
 ! privacy
-private::run_year,diffusion_MUSCL,diffusion_upstream,minmod,superbee,flux,SIA,H_index,H_plus,H_min
+private::run_model,diffusion_MUSCL,diffusion_upstream,minmod,superbee,flux,SIA,H_index,H_plus,H_min
 public ::glacierFlowAreaChange
+public ::updateGlacierDomain
 contains
 ! ************************************************************************************************
 ! public subroutine glacierFlowAreaChange: flow of glacier to get new glacier area and elevation
@@ -56,6 +65,8 @@ contains
 ! ************************************************************************************************
 subroutine glacierFlowAreaChange(&
                     ! model control
+                    t_total,                 & ! intent(in):    total time to run (s), time since last update
+                    nHRU,                    & ! intent(in):    number of HRUs that have a glacier domain
                     nDOM,                    & ! intent(in):    number of glacier domains
                     has_clean,               & ! intent(in):    flag for clean ice
                     has_debris,              & ! intent(in):    flag for debris cover
@@ -66,8 +77,7 @@ subroutine glacierFlowAreaChange(&
                     gridInfo,                & ! intent(in):    information for each grid
                     gridData,                & ! intent(inout): grid data for each glacier
                     ! mass balance
-                    nYears,                  & ! intent(in):    number of years to run
-                    massChange,              & ! intent(in):    rate of change in glacier water equivalent (kg m-2 s-1) in each glacier domain over the nYears
+                    massChange,              & ! intent(in):    rchange in glacier water equivalent (kg m-2) in each glacier domain over the nYears
                     elev,                    & ! intent(inout): elevation in each glacier domain (m)
                     ! debris
                     debris_thick_dom,        & ! intent(inout): debris thickness in each glacier domain (m)
@@ -85,6 +95,8 @@ subroutine glacierFlowAreaChange(&
    ! ---------------------------------------------------------------------------------------------
   implicit none
   ! model control
+  real(rkind), intent(in)            :: t_total                         ! total time to run (s), time since last update
+  integer(i4b), intent(in)           :: nHRU                            ! number of HRUs that have a glacier domain
   integer(i4b), intent(in)           :: nDOM                            ! number of glacier domains
   logical, intent(in)                :: has_clean                       ! flag for clean ice
   logical, intent(in)                :: has_debris                      ! flag for debris cover
@@ -95,8 +107,7 @@ subroutine glacierFlowAreaChange(&
   type(grid_info), intent(in)        :: gridInfo(:)                     ! information for each grid
   type(grid_double), intent(inout)   :: gridData                        ! data for each grid
   ! mass balance, realMissing value if domain is missing (i.e. glacier does not have one of ablation or accumulation)
-  integer(i4b), intent(in)           :: nYears                          ! number of years to run
-  real(rkind), intent(in)            :: massChange(nDOM)                ! rate of change in glacier water equivalent (kg m-2 s-1) in each glacier domain over the nYears
+  real(rkind), intent(in)            :: massChange(nDOM)                ! change in glacier water equivalent (kg m-2) in each glacier domain
   real(rkind), intent(inout)         :: elev(nDOM)                      ! elevation of each glacier domain (m)
   ! debris
   real(rkind), intent(inout)         :: debris_thick_dom(nDOM)          ! debris thickness in glacier domain (m)
@@ -142,6 +153,7 @@ subroutine glacierFlowAreaChange(&
   real(rkind)                        :: temp_elev,temp_mass,temp_debris ! temporary variables for sorting
   integer(i4b), allocatable          :: glacid_to_index(:)              ! mapping array from glacier id to index in gridInfo
   real(rkind),parameter              :: thick4area=0.1_rkind            ! an arbitrary small threshold for glacier thickness to be considered as glacier area
+  real(rkind),parameter              :: min_thickness=0.01_rkind        ! minimum thickness of debris cover to be considered as debris cover (m)
   ! ----------------------------------------------------------------------------------------------
   ! initialize
   err=0; message='glacierFlowAreaChange/'
@@ -172,7 +184,6 @@ subroutine glacierFlowAreaChange(&
   slope = 0._rkind
   intercept = 0._rkind
 
-  
   ! Get elevation relationships with mass balance for each debris condition
   do dbr = 0,1
     ! Filter out points where no area and elevation is missing and debris as above
@@ -216,7 +227,7 @@ subroutine glacierFlowAreaChange(&
       end do
     end do
 
-    ! Combine points with the same elevation into a single point that is the average of those points, if the points 
+    ! Combine points with the same elevation into a single point that is the average of those points
     i = 1
     do while (i <= validCount(dbr+1))
       n = 1
@@ -323,8 +334,8 @@ subroutine glacierFlowAreaChange(&
     bed = merge(bed,bed+1000._rkind,glacierMask==0)
 
     ! compute flow
-    call run_year(nYears, debris, surface, bed, glacierMask, slope, intercept, validElev, validCount, &
-                  maxCount, C_constant, dbr_crit, lat_moraine_wid, iden_soil, theta_sat, ELA_use, nx, ny, dx, dy, volume)
+    call run_model(t_total, debris, surface, bed, glacierMask, slope, intercept, validElev, validCount, &
+                  maxCount, C_constant, dbr_crit, min_thickness, lat_moraine_wid, iden_soil, theta_sat, ELA_use, nx, ny, dx, dy, volume)
 
     totVolume = totVolume+volume ! add volume to total volume, includes debris, not currently used
     
@@ -347,30 +358,31 @@ subroutine glacierFlowAreaChange(&
     glacAccArea(iGlac) = sum(merge(glacierMask, 0_i4b, hgt>thick4area .and. surface>= ELA_use))*dx*dy
     glacAblArea(iGlac) = sum(merge(glacierMask, 0_i4b, hgt>thick4area .and. surface<  ELA_use))*dx*dy
     ! debugging print
-    print*, 'glacAblArea = ', glacAblArea(iGlac), ' glacAccArea = ', glacAccArea(iGlac),ELA_use
+    print*, 'glacAblArea = ', glacAblArea(iGlac), ' glacAccArea = ', glacAccArea(iGlac), ELA_use, glacMin, glacMax, dx, dy
 
     ! Loop through HRUs and calculate domain areas and elevations for each HRU
     ! Order of domains will go HRU 1: Acc, Abl clean, Abl debris HRU 2: Acc, Abl clean, Abl debris etc.
-    ! It is possible one of the ablation domains is missing if there is no clean or debris cover
-    n = 1
-    if (has_clean)  n=n+1
-    if (has_debris) n=n+1
-    do k = 1, nDOM / n
-      glacAccMask = merge(glacierMask, 0_i4b, cell2hru==hruInd(k) .and. hgt>thick4area .and. surface>=ELA_use)
-      area(n*(k-1)+1) = area(n*(k-1)+1) + sum(glacAccMask) *dx*dy
-      elev(n*(k-1)+1) = elev(n*(k-1)+1) + sum(surface * glacAccMask) *dx*dy
-      debris_thick_dom(n*(k-1)+n) = 0._rkind
+    ! It is possible one of the ablation domains is missing if there is no clean or debris cover in GRU
+    n = 0 ! initialize domain counter
+    do k = 1, nHRU
+      n = n+1
+      glacAccMask = merge(glacierMask, 0_i4b, cell2hru==hruInd(n) .and. hgt>thick4area .and. surface>=ELA_use)
+      area(n) = area(n) + sum(glacAccMask) *dx*dy
+      elev(n) = elev(n) + sum(surface * glacAccMask) *dx*dy
+      debris_thick_dom(n) = 0._rkind
       if (has_clean)then
-        glacAblMask = merge(glacierMask, 0_i4b, cell2hru==hruInd(k) .and. hgt>thick4area .and. surface< ELA_use .and. debris==0._rkind)
-        area(n*(k-1)+2) = area(n*(k-1)+2) + sum(glacAblMask)*dx*dy
-        elev(n*(k-1)+2) = elev(n*(k-1)+2) + sum(surface * glacAblMask) *dx*dy
-        debris_thick_dom(n*(k-1)+n) = 0._rkind
+        n = n+1
+        glacAblMask = merge(glacierMask, 0_i4b, cell2hru==hruInd(n) .and. hgt>thick4area .and. surface< ELA_use .and. debris< min_thickness)
+        area(n) = area(n) + sum(glacAblMask)*dx*dy
+        elev(n) = elev(n) + sum(surface * glacAblMask) *dx*dy
+        debris_thick_dom(n) = 0._rkind
       end if
       if (has_debris)then
-        glacDbrMask = merge(glacierMask, 0_i4b, cell2hru==hruInd(k) .and. hgt>thick4area .and. surface< ELA_use .and. debris> 0._rkind)
-        area(n*(k-1)+n) = area(n*(k-1)+n) + sum(glacDbrMask)*dx*dy
-        elev(n*(k-1)+n) = elev(n*(k-1)+n) + sum(surface * glacDbrMask) *dx*dy
-        debris_thick_dom(n*(k-1)+n) = debris_thick_dom(n*(k-1)+n) + sum(debris * glacDbrMask) *dx*dy
+        n = n+1
+        glacDbrMask = merge(glacierMask, 0_i4b, cell2hru==hruInd(n) .and. hgt>thick4area .and. surface< ELA_use .and. debris>=min_thickness)
+        area(n) = area(n) + sum(glacDbrMask)*dx*dy
+        elev(n) = elev(n) + sum(surface * glacDbrMask) *dx*dy
+        debris_thick_dom(n) = debris_thick_dom(n) + sum(debris * glacDbrMask) *dx*dy
       end if
     end do
 
@@ -390,7 +402,10 @@ subroutine glacierFlowAreaChange(&
     end if
   end do
   ! debugging print
-  print*,"elev ", elev, "area", area, "massChange", massChange, "debris_thick_dom", debris_thick_dom
+  print*,"elev ", elev 
+  print*, "area", area
+  print*, t_total, "massChange", massChange/1000/t_total !(kg m-2 s-1 to m/s)
+  print*, "debris_thick_dom", debris_thick_dom
 
   deallocate(glacid_to_index, validElev, validMassChange, slope, intercept)
 
@@ -398,21 +413,21 @@ end subroutine glacierFlowAreaChange
 
 
 ! ************************************************************************************************
-! private subroutine run_year for setting up flow model and running for each glacier for time period
+! private subroutine run_model for setting up flow model and running for each glacier for time period
 ! ************************************************************************************************
-  subroutine run_year(y_end, debris, S, B, glacierMask, slope, intercept, validElev, validCount, &
-                      maxCount, C_constant, dbr_crit, lat_moraine_wid, iden_soil, theta_sat, ELA, nx, ny, dx, dy, volume)
+  subroutine run_model(t_total, debris, S, B, glacierMask, slope, intercept, validElev, validCount, &
+                      maxCount, C_constant, dbr_crit, min_thickness, lat_moraine_wid, iden_soil, theta_sat, ELA, nx, ny, dx, dy, volume)
     ! Arguments
-    real(rkind), intent(in) :: dx, dy
+    real(rkind), intent(in) :: t_total, dx, dy
     real(rkind), intent(inout) :: debris(nx,ny), S(nx,ny), B(nx,ny)
     real(rkind), intent(in) :: slope(maxCount+1,2), intercept(maxCount+1,2), validElev(maxCount,2)
-    real(rkind), intent(in) ::  C_constant, dbr_crit, lat_moraine_wid, iden_soil, theta_sat, ELA
+    real(rkind), intent(in) ::  C_constant, dbr_crit, min_thickness, lat_moraine_wid, iden_soil, theta_sat, ELA
     integer(i4b), intent(in) :: validCount(2), maxCount
-    integer(i4b), intent(in) :: y_end, ny, nx, glacierMask(nx,ny)
+    integer(i4b), intent(in) :: ny, nx, glacierMask(nx,ny)
     real(rkind), intent(out) :: volume
 
     ! Local variables
-    real(rkind) :: t_total, dt, max_dt, min_dt, deltat, div_q(nx,ny), grad_debris(nx,ny), dt_cfl, meanS
+    real(rkind) :: dt, max_dt, min_dt, deltat, div_q(nx,ny), grad_debris(nx,ny), dt_cfl, meanS
     real(rkind) :: gamma, t, m_dot(nx,ny)
     integer(i4b),parameter :: n=3 ! Glen's flow law exponent
     real(rkind),parameter :: A=2.4e-24 ! Modern Glen parameter
@@ -442,7 +457,6 @@ end subroutine glacierFlowAreaChange
       kmm = [1]
     end if
 
-    t_total = y_end * secprday* 365._rkind
     gamma = 2._rkind * A * (iden_ice * gravity)**n / (n + 2_i4b)
     max_dt = 31._rkind * secprday! max timestep in seconds, a month
     min_dt = 0._rkind ! min timestep in seconds 
@@ -451,8 +465,8 @@ end subroutine glacierFlowAreaChange
     do while (t < t_total)
       dt = t_total - t
 
-      ! get mass balance
-      call get_m_dot(S, debris, glacierMask, slope, intercept, validElev, validCount, maxCount, nx, ny, m_dot)
+      ! get mass balance rate over surface
+      call get_m_dot(S, debris, glacierMask, slope, intercept, t_total, validElev, validCount, maxCount, nx, ny, m_dot)
 
       S = S - debris ! remove debris from glacier surface for flow calculation
       ! Select diffusion method and call step
@@ -489,14 +503,12 @@ end subroutine glacierFlowAreaChange
         !         Englacial debris diffusion transport is ignored. The use of advection is valid for glacial
         !         debris transport because advection is defined as the transport of materials due to the bulk
         !         motion of a fluid, and glacier ice is a form of a viscoelastic fluid.
+        !   NOTE2: debris thickness < min_thickness is considered as clean ice, so no debris advection
         call get_C_mask(S, B, debris, glacierMask, lat_moraine_wid, ELA, nx, ny, dx, dy, C_mask) ! Calculate near-surface concentration of debris
         debris = debris + ( C_constant*C_mask * m_dot/(1._rkind - theta_sat)/iden_soil + grad_debris ) * deltat
         debris = merge(debris, 0._rkind, S > B) ! remove debris from bedrock
-        debris = merge(debris, 0._rkind, debris < 0._rkind) ! Check that debris is not negative
-        ! Check that debris thickness is not over critical value, effectively making terminal clean ice wedge 
-        if (any(debris > dbr_crit .and. glacierMask==1)) then
-          debris = merge(debris, 0._rkind, debris <= 1.e6_rkind)
-        endif
+        debris = merge(debris, 0._rkind, debris < min_thickness) ! Check that debris thickness is not below minimum thickness
+        debris = merge(debris, 0._rkind, debris > dbr_crit) ! Check that debris thickness is not over critical value, effectively making terminal clean ice wedge 
       endif
       ! add debris back to glacier surface
       S = S + debris
@@ -505,7 +517,7 @@ end subroutine glacierFlowAreaChange
     ! Calculate volume of glacier (includes debris)
     volume = sum(merge(S-B,0._rkind,glacierMask==1)) * dx * dy * 1.e-9_rkind ! km3
 
-  end subroutine run_year
+  end subroutine run_model
 
 
 ! ************************************************************************************************
@@ -863,11 +875,11 @@ subroutine diffusion_MUSCL(debris, S, B, mask, gamma, n, cfl, max_dt, nx, ny, k,
 end subroutine diffusion_MUSCL
 
 ! ************************************************************************************************
-! private function for mass balance distribution after suface height changes
+! private function for mass balance rate distribution after suface height changes
 ! ************************************************************************************************
-subroutine get_m_dot(S, debris, glacierMask, slope, intercept, validElev, validCount, maxCount, nx, ny, m_dot)
+subroutine get_m_dot(S, debris, glacierMask, slope, intercept, t_total, validElev, validCount, maxCount, nx, ny, m_dot)
   implicit none
-  real(rkind), intent(in) :: S(nx,ny), debris(nx,ny)
+  real(rkind), intent(in) :: S(nx,ny), debris(nx,ny), t_total
   integer(i4b), intent(in) :: glacierMask(nx,ny), maxCount, nx, ny, validCount(2)
   real(rkind), intent(in) :: slope(maxCount+1,2), intercept(maxCount+1,2), validElev(maxCount,2)
   real(rkind), intent(out) :: m_dot(nx,ny)
@@ -889,7 +901,7 @@ subroutine get_m_dot(S, debris, glacierMask, slope, intercept, validElev, validC
           if (S(k,j) <= validElev(i,dbr+1)) ind = i
         end do
         if (ind == 0) ind = validCount(dbr+1)+1 ! elevation is below the lowest valid elevation, extrapolate down
-        m_dot(k,j) = slope(ind,dbr+1) * S(k,j) + intercept(ind,dbr+1)
+        m_dot(k,j) = (slope(ind,dbr+1) * S(k,j) + intercept(ind,dbr+1))/ t_total
       end if
     end do
   end do
@@ -1048,6 +1060,90 @@ function H_min(Hm, H, Hp) result(H_min_result)
   end if
   deallocate(mask,divisor,ones)
 end function H_min
+
+! ************************************************************************************************
+! public function to update glacier domain area, elevation, and layering 
+! ************************************************************************************************
+subroutine updateGlacierDomain(&
+                  ! input
+                  iglac,               & ! intent(inout): glacier domain index
+                  glac_elev,           & ! intent(in):    elevation of each glacier domain (m) per HRU
+                  glac_area,           & ! intent(in):    area of each glacier domain (m2)
+                  glac_debris_thick,   & ! intent(in):    debris thickness of each glacier domain (m) per HRU
+                  dom_type,            & ! intent(in):    domain type
+                  nSnow,               & ! intent(in):    number of snow layers
+                  nLake,               & ! intent(in):    number of lake layers
+                  nSoil,               & ! intent(in):    number of soil layers
+                  nGlce,               & ! intent(inout): number of glacier ice layers
+                  ! output
+                  glacMass4AreaChange, & ! intent(inout): mass change (kg m-2)
+                  mLayerDepth,         & ! intent(inout): layer thickness (m)
+                  mLayerHeight,        & ! intent(inout): layer mid-point height (m)
+                  iLayerHeight,        & ! intent(inout): layer interface height (m)
+                  DOMarea,             & ! intent(inout): area of each domain (m2)
+                  DOMelev,             & ! intent(inout): elevation of each glacier domain (m) per HRU
+                  ! error control
+                  err, message)         ! intent(out):   error control
+ ! ----- define dummy variables ------------------------------------------------------------------------------------------
+  implicit none
+  integer(i4b), intent(inout)     :: iglac                   ! glacier domain index
+  real(rkind), intent(in)         :: glac_elev(:)             ! elevation of each glacier domain (m) per HRU
+  real(rkind), intent(in)         :: glac_area(:)             ! area of each glacier domain (m2)
+  real(rkind), intent(in)         :: glac_debris_thick(:)     ! debris thickness of each glacier domain (m) per HRU
+  integer(i4b), intent(in)        :: dom_type                 ! domain type
+  integer(i4b), intent(in)        :: nSnow                    ! number of snow layers
+  integer(i4b), intent(in)        :: nLake                    ! number of lake layers　(should be 0)
+  integer(i4b), intent(in)        :: nSoil                    ! number of soil layers
+  integer(i4b), intent(inout)     :: nGlce                    ! number of glacier ice layers
+  real(rkind), intent(inout)      :: glacMass4AreaChange      ! mass change (kg m-2)
+  real(rkind), intent(inout)      :: mLayerDepth(:)           ! layer thickness (m)
+  real(rkind), intent(inout)      :: mLayerHeight(:)          ! layer mid-point height (m)
+  real(rkind), intent(inout)      :: iLayerHeight(:)          ! layer interface height (m)
+  real(rkind), intent(inout)      :: DOMarea                  ! area of each domain (m2)
+  real(rkind), intent(inout)      :: DOMelev                  ! elevation of each glacier domain (m) per HRU
+  integer(i4b),intent(out)        :: err                      ! error code
+  character(*),intent(out)        :: message                  ! error message 
+   ! ----- define local variables ------------------------------------------------------------------------------------------
+  integer(i4b)                    :: i                        ! loop index
+  real(rkind)                     :: soil_thick               ! depth of soil== debris in debris domain of glacier HRU
+  real(rkind)                     :: thick_ratio              ! ratio of new debris thickness to previous debris thickness
+  real(rkind)                     :: delVol                   ! volume change of glacieret domain
+  character(len=256)              :: cmessage                 ! error message
+  ! ----------------------------------------------------------------------------------------------
+  ! initialize
+  err=0; message='updateGlacierDomain/'
+
+  ! accumulation, clean ablation, and debris ablation domains use area change from glacier flow subroutine
+  if (dom_type==glacAcc .or. dom_type==glacCln .or. dom_type==glacDbr)then
+    iglac = iglac + 1
+    DOMelev = glac_elev(iglac) ! realMissing if no area
+    DOMarea = glac_area(iglac) ! may be 0
+    glacMass4AreaChange = 0._rkind ! reset
+    if (dom_type==glacDbr)then
+      ! thickness of average debris cover in HRU changes with debris advection
+      ! scale soil layer thickness with debris thickness change, keep the same number of layers 
+      soil_thick = sum(mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil))
+      thick_ratio = glac_debris_thick(iglac)/soil_thick
+      do i = nSnow+nLake+1,nSnow+nLake+nSoil
+        mLayerDepth(i)  = mLayerDepth(i)*thick_ratio
+        mLayerHeight(i) = mLayerHeight(i)*thick_ratio
+        iLayerHeight(i) = iLayerHeight(i)*thick_ratio            
+      end do
+      do i = nSnow+nLake+nSoil+1,nSnow+nLake+nSoil+nGlce
+        mLayerHeight(i) = mLayerHeight(i) + glac_debris_thick(iglac) - soil_thick
+        iLayerHeight(i) = iLayerHeight(i) + glac_debris_thick(iglac) - soil_thick
+      end do
+    end if ! (if debris domain)
+
+  ! glacieret domain uses volume area scaling following Macheret et al., 1988; Chen and Ohmura, 1990; Bahr, 1997
+  elseif (dom_type==glacieret)then ! if glacieret grows too big, it will be fixed outside of this module in run_oneGRU
+    delVol = glacMass4AreaChange * DOMarea/iden_ice/1.e9_rkind ! km3
+    DOMarea = ( delVol/0.033_rkind + (DOMarea/1.e6_rkind)**1.36_rkind )**(1._rkind/1.36_rkind)
+    DOMelev = DOMelev + glacMass4AreaChange
+    glacMass4AreaChange = 0._rkind ! reset
+  endif
+
+  end subroutine updateGlacierDomain
 
 
 end module glacierFlowAreaChange_module

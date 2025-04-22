@@ -245,6 +245,7 @@ subroutine coupled_em(&
   type(var_dlength)                    :: diag_temp                ! temporary model diagnostic variables
   real(rkind),allocatable              :: mLayerVolFracIceInit(:)  ! initial vector for volumetric fraction of ice (-)
   logical(lgt)                         :: noVeg                    ! flag to denote that there is no vegetation (lake or glacier)
+  real(rkind)                          :: depthGlceTopLayer0       ! depth of the top glacier ice layer at the start of the time step (m)
   ! check SWE
   real(rkind)                          :: oldSWE                   ! SWE at the start of the substep
   real(rkind)                          :: delSWE                   ! change in SWE over the subtep
@@ -455,15 +456,16 @@ subroutine coupled_em(&
         scalarTotalSoilIce = 0._rkind
       endif
 
-      ! compute storage of water in the canopy, the soil layers, and the glce layers
+      ! compute storage of water in the canopy, the soil layers, aquifer and the glce layers
       balanceCanopyWater0 = scalarCanopyLiq + scalarCanopyIce
       balanceSoilWater0   = scalarTotalSoilLiq + scalarTotalSoilIce
-      balanceIceWE0       = sum(iden_water*mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce)) &
-                            + sum(iden_ice*mLayerVolFracIce(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce))
-
-      ! get the total aquifer storage at the start of the time step (kg m-2)
       balanceAquifer0 = scalarAquiferStorage*iden_water
-
+      if (nGlce>0) then
+        iLayer=nSnow+nLake+nSoil+1 ! only top layer allowed to melt in the glacier ice
+        balanceIceWE0 = iden_water*mLayerVolFracLiq(iLayer)*mLayerDepth(iLayer) + iden_ice*mLayerVolFracIce(iLayer)*mLayerDepth(iLayer)
+      else
+        balanceIceWE0 = 0._rkind
+      endif
       ! save liquid water content
       if(printBalance)then
         allocate(liqSnowInit(nSnow), liqSoilInit(nSoil), stat=err)
@@ -718,6 +720,14 @@ subroutine coupled_em(&
     bal_glce = .false.
     bal_aq   = .false.
 
+    ! get the original depth of the top glacier layer
+    if(nGlce>0)then
+      iLayer=nSnow+nLake+nSoil+1 ! only top layer allowed to melt in the glacier ice
+      depthGlceTopLayer0 = prog_data%var(iLookPROG%mLayerDepth)%dat(iLayer)
+    else
+      depthGlceTopLayer0 = 0._rkind
+    endif
+
     ! loop through sub-steps
     substeps: do  ! continuous do statement with exit clause (alternative to "while")
 
@@ -783,6 +793,12 @@ subroutine coupled_em(&
             case(.true.);  diag_data%var(iVar)%dat(:) = diag_temp%var(iVar)%dat(:)
           end select
         end do  ! looping through variables
+
+        ! refill top glacier layer if needed
+        if(nGlce>0)then
+          iLayer=nSnow+nLake+nSoil+1 ! only top layer allowed to melt in the glacier ice
+          prog_data%var(iLookPROG%mLayerDepth)%dat(iLayer) = depthGlceTopLayer0
+        endif
 
         ! *** merge/sub-divide snow/firn/ice layers...
         ! -----------------------------------
@@ -1747,9 +1763,8 @@ subroutine coupled_em(&
       ! ------------------------------------
       if(nGlce>0)then
         ! compute the liquid water and ice content at the end of the time step
-        scalarIceWE = sum(iden_water*mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce)) &
-                  + sum(iden_ice*mLayerVolFracIce(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce))
-
+        iLayer=nSnow+nLake+nSoil+1 ! only top layer allowed to melt in the glacier ice
+        scalarIceWE = iden_water*mLayerVolFracLiq(iLayer)*mLayerDepth(iLayer) + iden_ice*mLayerVolFracIce(iLayer)*mLayerDepth(iLayer)
         ! STUB for ice water balance
         ! check the individual layers
         !if(printBalance)then
@@ -1774,9 +1789,9 @@ subroutine coupled_em(&
       ! layers change is used in the glacier area change, entire system change is not currently used
       scalarLayersMassChange = ((scalarTotalSoilWat - balanceSoilWater0) + delLakeWat + delSWE + (scalarIceWE - balanceIceWE0))/data_step
       scalarMassChange = scalarLayersMassChange + (delCanWat + (balanceAquifer1-balanceAquifer0))/data_step
-      ! save the average mass change rate for the layers if glacier or glacieret, will divide by the number of time steps in run_oneGRU
+      ! save the average mass change rate for the layers if glacier or glacieret
       if (dom_type==glacAcc .or. dom_type==glacCln .or. dom_type==glacDbr .or. dom_type==glacieret) then
-        glacMass4AreaChange = glacMass4AreaChange + ((scalarTotalSoilWat - balanceSoilWater0) + delLakeWat + delSWE + (scalarIceWE - balanceIceWE0))
+        glacMass4AreaChange = glacMass4AreaChange + scalarLayersMassChange * data_step
       else
         glacMass4AreaChange = 0._rkind
       end if

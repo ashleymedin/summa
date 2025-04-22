@@ -301,7 +301,7 @@ subroutine computeFlux(&
     end if 
   end associate
 
-  ! *** CALCULATE THE LIQUID FLUX THROUGH GLACIER ICE ***
+  ! *** CALCULATE THE LIQUID FLUX THROUGH GLACIER ICE, top layer only ***
   ! NOTE: in a domain, there is no aquifer or baseflow if there are glce layers
   associate(nGlceOnlyHyd => indx_data%var(iLookINDEX%nGlceOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the glacier ice
     if (nGlceOnlyHyd>0) then ! if necessary, calculate the liquid flux through glacier ice
@@ -826,8 +826,8 @@ contains
    scalarGlceInflux  => flux_data%var(iLookFLUX%scalarGlceInflux)%dat(1)  ) ! intent(in): [dp] influx to glacier ice, rain plus melt plus debris drainage (m s-1)
    surface_flux = scalarGlceInflux
    nStart = nSnow + nLake + nSoil
-   call in_snowLakeGlceLiqFlux%initialize(nGlce,nStart,.false.,surface_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
-   call io_snowLakeGlceLiqFlux%initialize(nGlce,nStart,flux_data,deriv_data)
+   call in_snowLakeGlceLiqFlux%initialize(1,nStart,.false.,surface_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+   call io_snowLakeGlceLiqFlux%initialize(1,nStart,flux_data,deriv_data)
   end associate
  end subroutine initialize_glceLiqFlx
 
@@ -844,12 +844,16 @@ contains
    scalarTotalRunoff      => flux_data%var(iLookFLUX%scalarTotalRunoff)%dat(1),  & ! intent(out): [dp] total runoff (m s-1)
    scalarGlacierMelt      => flux_data%var(iLookFLUX%scalarGlacierMelt)%dat(1)   ) ! intent(out): [dp] glacier melt (goes into glacier internal reservoir) (m s-1)
 
-   ! calculate net liquid water fluxes for each glacier ice layer (s-1)
-   do iLayer=1,nGlce
-     mLayerLiqFluxSnLaGl(iLayer+nStart) = -(iLayerLiqFluxSnLaGl(iLayer+nStart) - iLayerLiqFluxSnLaGl(iLayer-1+nStart))/mLayerDepth(iLayer+nStart)
-   end do
+   ! calculate net liquid water fluxes for top layer of glacier ice layer only (s-1)
+   mLayerLiqFluxSnLaGl(1+nStart) = -(iLayerLiqFluxSnLaGl(1+nStart) - iLayerLiqFluxSnLaGl(nStart))/mLayerDepth(1+nStart)
+   if(nGlce>1) then
+     do iLayer=2,nGlce
+       iLayerLiqFluxSnLaGl(iLayer+nStart) = 0._rkind ! iLayerLiqFluxSnLaGl does not exist in glacier ice after first layer
+       mLayerLiqFluxSnLaGl(iLayer+nStart) = 0._rkind ! iLayerLiqFluxSnLaGl does not exist in glacier ice after first layer
+     end do
+    end if
    ! compute melt from the glacier ice zone (all melt and runoff goes into the glacier ice and high density runoff passes through)
-   scalarGlacierMelt = iLayerLiqFluxSnLaGl(nGlce+nStart) + scalarTotalRunoff
+   scalarGlacierMelt = iLayerLiqFluxSnLaGl(1+nStart) + scalarTotalRunoff
 
   end associate
  end subroutine finalize_glceLiqFlx
