@@ -83,9 +83,9 @@ USE globalData,only:realMissing        ! missing double precision number
 
 ! access domain types
 USE globalData,only:upland             ! domain type for upland areas
-USE globalData,only:glacAcc            ! domain type for glacier accumulation areas
-USE globalData,only:glacCln            ! domain type for glacier ablation clean areas
-USE globalData,only:glacDbr            ! domain type for glacier ablation debris areas
+USE globalData,only:glacCln1           ! first domain type for glacier clean areas
+USE globalData,only:glacCln2           ! second domain type for glacier clean areas
+USE globalData,only:glacDbr            ! domain type for glacier debris areas
 USE globalData,only:wetland            ! domain type for wetland areas
 USE globalData,only:glacieret          ! domain type for glaciers considered too small for flow
 
@@ -172,18 +172,21 @@ subroutine run_oneGRU(&
   integer(i4b)                        :: nglacDOM                 ! number of glacier domains in the GRU
   integer(i4b)                        :: nglacHRU                 ! number of glacier HRUs in the GRU
   integer(i4b)                        :: iglacDOM                 ! glacier domain index
+  integer(i4b)                        :: iglacHRU                 ! glacier HRU index
   real(rkind), allocatable            :: glac_elev(:)             ! elevation of each glacier domain (m)
   real(rkind), allocatable            :: glac_debris_thick(:)     ! debris thickness of each glacier domain (m)
   real(rkind), allocatable            :: massChange(:)            ! since Oct 1 mean rate glacier water equivalent change (kg m-2 s-1)
   integer(i8b), allocatable           :: glac_hru(:)              ! HRU index of the each glacier cell
+  real(rkind), allocatable            :: glac_ablFrac(:)          ! ablation fraction of each glacier domain
   real(rkind), allocatable            :: glac_area(:)             ! area of each glacier domain (m2)
   real(rkind), allocatable            :: iden_soil_mean(:)        ! mean soil identity of each glacier domain
   real(rkind), allocatable            :: theta_sat_mean(:)        ! mean saturated water content of each glacier domain
+  integer(i4b), allocatable           :: nclean(:)                ! number of clean glacier HRUs in each glacier domain
+  integer(i4b), allocatable           :: ndebris(:)               ! number of debris glacier HRUs in each glacier domain
   logical(lgt)                        :: computeVegFluxFlag       ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
   logical(lgt)                        :: updateGlacArea           ! flag to update glacier area
   logical(lgt)                        :: updateLakeArea           ! flag to update lake area
-  logical(lgt)                        :: has_clean                ! flag to indicate if glaciers have clean ice domain
-  logical(lgt)                        :: has_debris               ! flag to indicate if glaciers have debris cover domain
+  logical(lgt)                        :: has_glacier              ! flag to indicate if glaciers are present in HRU
   real(rkind)                         :: currentJulDay            ! current julian day
   real(rkind)                         :: remaining_area           ! remaining area to be distributed
   real(rkind)                         :: remaining_elev           ! remaining elevation to be distributed
@@ -221,8 +224,6 @@ subroutine run_oneGRU(&
   glacFirnMelt = 0._rkind ! glacier firn reservoir melt (m3 s-1)
   updateGlacArea = .false. ! initialize flag to update glacier area
   updateLakeArea = .false. ! initialize flag to update lake area
-  has_clean      = .false. ! initialize flag to indicate if glaciers have clean ice domain   
-  has_debris     = .false. ! initialize flag to indicate if glaciers have debris cover domain
   bvarData%var(iLookBVAR%basin__GlacierArea)%dat(1) = 0._rkind ! glacier area (m2)
 
   ! initialize total inflow for each layer in a soil column and glacier size allocation
@@ -231,8 +232,8 @@ subroutine run_oneGRU(&
     do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
       fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = 0._rkind
       if (progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)==0._rkind) cycle ! skip domains with no area
-      if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacieret .or. &
-          gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr)then        
+      if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln1 .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln2 .or. &
+          gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr  .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacieret)then        
         if (check_updateGlacArea) then ! update glacier area every October 1st of mod year
           ! compute the fractional julian day for the current time step
           call compjulday(timeVec%var(iLookTIME%iyyy),           & ! input  = year
@@ -272,24 +273,29 @@ subroutine run_oneGRU(&
       endif ! (if glacier domain)
     end do ! (looping through domains)
   end do ! (looping through HRUs)
+  updateGlacArea = .false. ! turn off for now
 
   ! allocate space for glacier area change module variables
   if (updateGlacArea) then
     nglacDOM = 0 ! initialize number of glacier domains in the GRU
     nglacHRU = 0 ! initialize number of glacier HRUs in the GRU
     do iHRU=1,gruInfo%hruCount
+      has_glacier = .false. ! initialize flag to indicate if glaciers are present in HRU
       do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
-        if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc .or. &
-            gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr)then
+        if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln1 .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln2 &
+            .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr)then
           nglacDOM = nglacDOM + 1
-          if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc) nglacHRU = nglacHRU + 1 ! every glacier HRU has one and only one accumulation domain (area may be zero)
+          if (.not.has_glacier)then 
+            has_glacier = .true. ! set flag to indicate if glaciers are present in HRU
+            nglacHRU = nglacHRU + 1 
+          end if
         endif
       end do
     end do
   endif
   if(nglacDOM==0) nglacDOM=1 ! allocate at some size
-  allocate(glac_elev(nglacDOM),glac_debris_thick(nglacDOM),glac_area(nglacDOM),massChange(nglacDOM), & 
-           glac_hru(nglacDOM),iden_soil_mean(nglacDOM),theta_sat_mean(nglacDOM))
+  allocate(glac_elev(nglacDOM),glac_debris_thick(nglacDOM),glac_area(nglacDOM),glac_ablFrac(nglacDOM),massChange(nglacDOM), & 
+           glac_hru(nglacDOM),iden_soil_mean(nglacDOM),theta_sat_mean(nglacDOM),nclean(nglacHRU),ndebris(nglacHRU))
 
   ! ********** RUN FOR ONE HRU ********************************************************************************************
   do iHRU=1,gruInfo%hruCount
@@ -377,7 +383,7 @@ subroutine run_oneGRU(&
           bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferTranspire)%dat(1)*fracDOM
           bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) *fracDOM
         end if
-      else if (typeDOM==glacAcc .or. typeDOM==glacCln .or. typeDOM==glacDbr .or. typeDOM==glacieret)then
+      else if (typeDOM==glacCln1 .or. typeDOM==glacCln2 .or. typeDOM==glacDbr .or. typeDOM==glacieret)then
         ! *** route glacieret water though basin, not glaciers
         if (typeDOM==glacieret) then
           bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)  = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarGlacierMelt)%dat(1)*fracDOM
@@ -385,15 +391,12 @@ subroutine run_oneGRU(&
         ! *** route rest of water through glaciers
         ! This logic makes sense if assuming multiple glaciers in each HRU and one HRU per GRU, or one glacier in each GRU with multiple HRUs
         ! If some glaciers are not in a particular glacier HRU, this logic will not capture that
-        else if (typeDOM==glacAcc)then ! collect glacier accumulation melt m s-1
-          glacFirnMelt = glacFirnMelt + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarGlacierMelt)%dat(1) *fracDOM
-        else if (typeDOM==glacCln .or. typeDOM==glacDbr)then ! collect glacier ablation melt m s-1
-          if (typeDOM==glacCln) has_clean = .true.
-          if (typeDOM==glacDbr) has_debris = .true.
+        else ! collect glacier ablation and accumulation melt m s-1
+          glacFirnMelt = glacFirnMelt + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarGlacierMelt)%dat(1) *fracDOM * (1.0_rkind - progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1))
           if (progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowDepth)%dat(1)>0._rkind)then
-            glacSnowMelt = glacSnowMelt + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarGlacierMelt)%dat(1) *fracDOM
+            glacSnowMelt = glacSnowMelt + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarGlacierMelt)%dat(1) *fracDOM * progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1)
           else
-            glacIceMelt  = glacIceMelt  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarGlacierMelt)%dat(1) *fracDOM
+            glacIceMelt  = glacIceMelt  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarGlacierMelt)%dat(1) *fracDOM * progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1)
           endif
         end if
         ! increment basin glacier area (m2)
@@ -415,18 +418,29 @@ subroutine run_oneGRU(&
 
   ! if a year passed from last glacier area update, collect fluxes so that the glacier area can be updated
   if (updateGlacArea) then
+    iglacHRU = 0 ! initialize number of glacier HRUs in the GRU
     iglacDOM = 0 ! initialize number of glacier domains in the GRU
     iden_soil_mean = 0._rkind ! initialize mean soil(debris) density of each glacier domain
     theta_sat_mean = 0._rkind ! initialize mean soil(debris) porosity of each glacier domain
+    nclean = 0 ! initialize number of clean glacier domains in each HRU
+    ndebris = 0 ! initialize number of debris glacier domains in each HRU
     do iHRU=1,gruInfo%hruCount
+      has_glacier = .false. ! initialize flag to indicate if glaciers are present in HRU
       do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
-        if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc .or. &
-            gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr)then
+        if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln1 .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln2 .or. &
+            gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr)then
           ! average layers mass change for each domain over time since last update
           iglacDOM = iglacDOM + 1
           glac_hru(iglacDOM) = iHRU
+          if (.not.has_glacier)then 
+            has_glacier = .true. ! set flag to indicate if glaciers are present in HRU
+            iglacHRU = iglacHRU + 1 
+          end if
+          if(gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln1 .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln2) nclean(iglacHRU) = nclean(iglacHRU) + 1
+          if(gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr) ndebris(iglacHRU) = ndebris(iglacHRU) + 1
           if(progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)>0._rkind)then 
             glac_elev(iglacDOM) = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1)
+            glac_area(iglacDOM) = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
             massChange(iglacDOM) = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%glacMass4AreaChange)%dat(1)
             ! debris thickness is soil thickness in debris domain
             if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr)then
@@ -438,13 +452,12 @@ subroutine run_oneGRU(&
                                    *progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+1:nSnow+nLake+nSoil)) /soil_thick
               theta_sat_mean(iglacDOM) = theta_sat_mean(iglacDOM) + sum(mparHRU%hru(iHRU)%dom(iDOM)%var(iLookPARAM%theta_sat)%dat(1:nSoil) &
                                    *progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+1:nSnow+nLake+nSoil)) /soil_thick
-            else if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln)then
-              glac_debris_thick(iglacDOM) = realMissing
-            else ! accumulation
+            else
               glac_debris_thick(iglacDOM) = 0._rkind
             end if
-          else ! will not use, but need to fill in
+          else ! fill in missing values
             glac_elev(iglacDOM) = realMissing
+            glac_area(iglacDOM) = 0._rkind
             massChange(iglacDOM) = realMissing
             glac_debris_thick(iglacDOM) = 0._rkind
             iden_soil_mean(iglacDOM) = 0._rkind
@@ -454,6 +467,7 @@ subroutine run_oneGRU(&
       end do ! (looping through domains)
     end do ! (looping through HRUs)
   endif ! (if need to update glacier area)
+
   ! ********** END LOOP THROUGH HRUS **************************************************************************************
   ! lapse glacier fluxes to the basin by routing through each glacier
   call qGlacier(&
@@ -521,8 +535,8 @@ subroutine run_oneGRU(&
                   sec_since_last_update,                       & ! intent(in):    seconds since last glacier area update
                   nglacHRU,                                    & ! intent(in):    number of HRUs that have a glacier domain
                   nglacDOM,                                    & ! intent(in):    number of domains that have glaciers
-                  has_clean,                                   & ! intent(in):    flag to indicate if there is clean ice in the GRU
-                  has_debris,                                  & ! intent(in):    flag to indicate if there is debris-covered ice in the GRU
+                  ndebris,                                     & ! intent(in):    number of debris domains in each HRU
+                  nclean,                                      & ! intent(in):    number of clean domains in each HRU
                   glac_hru,                                    & ! intent(in):    HRU index of glacier domain
                   ! glacier topography
                   gruInfo%nGlacier,                            & ! intent(in):    number of glaciers in GRU
@@ -542,7 +556,8 @@ subroutine run_oneGRU(&
                   ! area
                   bvarData%var(iLookBVAR%glacAblArea)%dat,     & ! intent(out):   per glacier ablation area (m2)
                   bvarData%var(iLookBVAR%glacAccArea)%dat,     & ! intent(out):   per glacier accumulation area (m2)
-                  glac_area,                                   & ! intent(out):   area of each glacier domain (m2)
+                  glac_area,                                   & ! intent(inout): area of each glacier domain (m2)
+                  glac_ablFrac,                                & ! intent(out):   fraction of glacier area that is ablation area
                   ! error handling
                   err, cmessage)                                 ! intent(out):   error control
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
@@ -551,13 +566,14 @@ subroutine run_oneGRU(&
     iglacDOM = 0 ! initialize glacier domain index
     do iHRU=1,gruInfo%hruCount
       do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
-        if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacieret .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc .or. &
-            gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr)then
+        if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln1 .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln2 .or. &
+            gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr  .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacieret)then
           call updateGlacierDomain(&
                       ! input
                       iglacDOM,                                      & ! intent(inout): glacier domain index
                       glac_elev,                                     & ! intent(in):    elevation of each glacier domain (m) per HRU
                       glac_area,                                     & ! intent(in):    area of each glacier domain (m2)
+                      glac_ablFrac,                                  & ! intent(in):    fraction of glacier area that is ablation area
                       glac_debris_thick,                             & ! intent(in):    debris thickness of each glacier domain (m) per HRU
                       gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type,  & ! intent(in):    domain type
                       gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nSnow,     & ! intent(in):    number of snow layers
@@ -570,6 +586,7 @@ subroutine run_oneGRU(&
                       progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerHeight)%dat,           & ! intent(inout): layer mid-point height (m)
                       progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%iLayerHeight)%dat,           & ! intent(inout): layer interface height (m)
                       progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1),             & ! intent(inout): area of each domain (m2)
+                      progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1),       & ! intent(inout): fraction of glacier area that is ablation area
                       progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1),             & ! intent(inout): elevation of each glacier domain (m) per 
                       ! error handling
                       err, cmessage)                                                           ! intent(out):   error control
@@ -597,7 +614,6 @@ subroutine run_oneGRU(&
           remaining_area = remaining_area - progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
           remaining_elev = remaining_elev - progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) * progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1)
         end if
-
       end do
       do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
         if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==upland) then

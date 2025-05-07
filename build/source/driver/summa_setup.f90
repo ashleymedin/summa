@@ -41,9 +41,9 @@ USE globalData,only:urbanVegCategory    ! vegetation category for urban areas
 
 ! access domain types
 USE globalData,only:upland             ! domain type for upland areas
-USE globalData,only:glacAcc            ! domain type for glacier accumulation areas
-USE globalData,only:glacCln            ! domain type for glacier ablation clean areas
-USE globalData,only:glacDbr            ! domain type for glacier ablation debris areas
+USE globalData,only:glacCln1           ! first domain type for glacier clean areas
+USE globalData,only:glacCln2           ! second domain type for glacier clean areas
+USE globalData,only:glacDbr            ! domain type for glacier debris areas
 USE globalData,only:wetland            ! domain type for wetland areas
 USE globalData,only:glacieret          ! domain type for glaciers considered too small for flow
 
@@ -232,8 +232,8 @@ subroutine summa_paramSetup(summa1_struc, err, message)
     if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==upland)then
      maxLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + maxSnowLayers
      maxSoilLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
-    else if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln .or. gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr &
-       .or. gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc .or. gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacieret)then
+    else if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln1 .or. gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln2 &
+       .or. gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr .or. gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacieret)then
      maxLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce + maxSnowLayers
      maxGlceLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce
      if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr) maxSoilLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil

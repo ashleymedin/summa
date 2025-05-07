@@ -42,9 +42,9 @@ USE globalData,only:maxSoilLayers          ! Maximum Number of Soil Layers
 
 ! access domain types
 USE globalData,only:upland                 ! domain type for upland areas
-USE globalData,only:glacAcc                ! domain type for glacier accumulation areas
-USE globalData,only:glacCln                ! domain type for glacier ablation clean areas
-USE globalData,only:glacDbr                ! domain type for glacier ablation debris areas
+USE globalData,only:glacCln1               ! first domain type for glacier clean areas
+USE globalData,only:glacCln2               ! second domain type for glacier clean areas
+USE globalData,only:glacDbr                ! domain type for glacier debris areas
 USE globalData,only:wetland                ! domain type for wetland areas
 USE globalData,only:glacieret              ! domain type for glaciers considered too small for flow
 
@@ -219,10 +219,10 @@ subroutine run_oneHRU(&
 
         use_computeVegFlux = computeVegFlux
 
-      elseif ( domInfo(i)%dom_type == glacAcc .or. domInfo(i)%dom_type == glacCln .or. domInfo(i)%dom_type == glacDbr .or. &
+      elseif ( domInfo(i)%dom_type == glacCln1 .or. domInfo(i)%dom_type == glacCln2 .or. domInfo(i)%dom_type == glacDbr .or. &
                domInfo(i)%dom_type == glacieret .or. domInfo(i)%dom_type == wetland )then ! don't need vegetation parameters for glaciers
         use_computeVegFlux = .false.
-        if (domInfo(i)%dom_type == glacAcc .or. domInfo(i)%dom_type == glacCln .or. domInfo(i)%dom_type == glacDbr) glacierDomain = .true.
+        if (domInfo(i)%dom_type == glacCln1 .or. domInfo(i)%dom_type == glacCln2 .or. domInfo(i)%dom_type == glacDbr) glacierDomain = .true.
       else
         err=20; message=trim(message)//'domain type not recognized';return
       endif

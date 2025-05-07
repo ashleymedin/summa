@@ -488,7 +488,8 @@ contains
   case('iLayerHeight'                   ); get_ixProg = iLookPROG%iLayerHeight                     ! height at the interface of each layer (m)
   case('DOMarea'                        ); get_ixProg = iLookPROG%DOMarea                          ! area of the domain (m2)
   case('DOMelev'                        ); get_ixProg = iLookPROG%DOMelev                          ! elevation of the domain (m)
-  ! get to here if cannot find the variable
+  case('scalarAblFrac'                  ); get_ixProg = iLookPROG%scalarAblFrac                    ! fraction of the domain that is in a glacier ablation zone (-)
+    ! get to here if cannot find the variable
   case default
    get_ixProg = integerMissing
  end select

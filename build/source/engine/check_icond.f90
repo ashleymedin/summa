@@ -27,9 +27,9 @@ USE globalData,only:realMissing      ! missing double precision number
 
 ! access domain types
 USE globalData,only:upland          ! domain type for upland areas
-USE globalData,only:glacAcc         ! domain type for glacier accumulation areas
-USE globalData,only:glacCln         ! domain type for glacier ablation clean areas
-USE globalData,only:glacDbr         ! domain type for glacier ablation debris areas
+USE globalData,only:glacCln1        ! first domain type for glacier clean areas
+USE globalData,only:glacCln2        ! second domain type for glacier clean areas
+USE globalData,only:glacDbr         ! domain type for glacier debris areas
 USE globalData,only:wetland         ! domain type for wetland areas
 USE globalData,only:glacieret       ! domain type for glaciers considered too small for flow
 
@@ -146,16 +146,17 @@ contains
      remaining_area = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)
      remaining_elev = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)*attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%elevation)
      do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
-       if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type.ne.upland) then
+       if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type/=upland) then
          remaining_area = remaining_area - progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
          remaining_elev = remaining_elev - progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) * progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1)
-         if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln .or. gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr) then
-           glacAblAreaTot = glacAblAreaTot + progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
-         else if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacAcc) then
-           glacAccAreaTot = glacAccAreaTot + progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) 
-         else ! not glacier, glacMass4AreaChange should be zero
-           progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%glacMass4AreaChange)%dat(1) = 0.0_rkind
-         end if
+       endif
+       if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln1 .or. gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln2 &
+       .or. gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr) then
+         glacAblAreaTot = glacAblAreaTot + progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1)*progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
+         glacAccAreaTot = glacAccAreaTot + (1.0_rkind-progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1))*progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
+       else ! not glacier with flow model area change
+         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1) = 0.0_rkind
+         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%glacMass4AreaChange)%dat(1) = 0.0_rkind
        end if
      end do
      do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
@@ -444,7 +445,7 @@ contains
     d1 = sum(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+1:nSnow+nLake+nSoil))
     d2 = mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%rootingDepth)%dat(1)
     if (d2>d1) then
-     if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type/=glacAcc .and. gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type/=glacCln) & ! no soil in these domains
+     if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type/=glacCln1 .and. gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type/=glacCln2) & ! no soil in these domains
        write(*,'(a,f5.3,a,f5.3,a)') 'Warning: rooting depth ', d2,' > total soil depth ',d1,', so rooting depth will be set to total soil depth'
     end if
 

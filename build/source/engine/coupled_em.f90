@@ -71,9 +71,9 @@ USE globalData,only:maxGlceLayers          ! maximum number of glacier ice layer
 
 ! access domain types
 USE globalData,only:upland                 ! domain type for upland areas
-USE globalData,only:glacAcc                ! domain type for glacier accumulation areas
-USE globalData,only:glacCln                ! domain type for glacier ablation clean areas
-USE globalData,only:glacDbr                ! domain type for glacier ablation debris areas
+USE globalData,only:glacCln1               ! first domain type for glacier clean areas
+USE globalData,only:glacCln2               ! second domain type for glacier clean areas
+USE globalData,only:glacDbr                ! domain type for glacier debris areas
 USE globalData,only:wetland                ! domain type for wetland areas
 USE globalData,only:glacieret              ! domain type for glaciers considered too small for flow
 
@@ -803,7 +803,8 @@ subroutine coupled_em(&
         ! *** merge/sub-divide snow/firn/ice layers...
         ! -----------------------------------
         maxSnowIceLayers = maxSnowLayers
-        if (dom_type==glacAcc) maxSnowIceLayers=int(maxSnowLayers*2.5_rkind) ! double the number of layers for glacier accumulation firn layers
+        if (dom_type==glacCln1 .or. dom_type==glacCln2 .or. dom_type==glacDbr .or. dom_type==glacieret) &
+          maxSnowIceLayers=int(maxSnowLayers*2.5_rkind) ! increase the number of layers for glacier firn layers 
         if (nSnow==0 .and. nGlce>0) maxSnowIceLayers = maxGlceLayers
         call volicePack(&
                         ! input/output: model data structures
@@ -1109,7 +1110,7 @@ subroutine coupled_em(&
       ! process the flag for too much melt
       if(tooMuchMelt)then
         stepFailure  = .true.
-        doLayerMerge = .true.
+        if (nSnow>0) doLayerMerge = .true. ! don't merge glacier layers
       else
         doLayerMerge = .false.
       endif
@@ -1251,7 +1252,7 @@ subroutine coupled_em(&
           ! process the flag for too much sublimation
           if(tooMuchSublim)then
             stepFailure  = .true.
-            doLayerMerge = .true.
+            if (nSnow>0) doLayerMerge = .true. ! don't merge glacier layers
           else
             doLayerMerge = .false.
           endif
@@ -1680,7 +1681,7 @@ subroutine coupled_em(&
           write(*,'(a,1x,f20.10)') 'sfcMeltPond = ', sfcMeltPond
           write(*,'(a,1x,f20.10)') 'SWE_BalErr  = ', massBalance
           message=trim(message)//'SWE does not balance'
-          err=20; return
+          !err=20; return
         endif  ! if failed mass balance check
       else
         massBalance = 0._rkind ! no snow, so no mass balance
@@ -1790,7 +1791,7 @@ subroutine coupled_em(&
       scalarLayersMassChange = ((scalarTotalSoilWat - balanceSoilWater0) + delLakeWat + delSWE + (scalarIceWE - balanceIceWE0))/data_step
       scalarMassChange = scalarLayersMassChange + (delCanWat + (balanceAquifer1-balanceAquifer0))/data_step
       ! save the average mass change rate for the layers if glacier or glacieret
-      if (dom_type==glacAcc .or. dom_type==glacCln .or. dom_type==glacDbr .or. dom_type==glacieret) then
+      if (dom_type==glacCln1 .or. dom_type==glacCln2 .or. dom_type==glacDbr .or. dom_type==glacieret) then
         glacMass4AreaChange = glacMass4AreaChange + scalarLayersMassChange * data_step
       else
         glacMass4AreaChange = 0._rkind

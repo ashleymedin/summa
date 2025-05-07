@@ -380,6 +380,7 @@ MODULE var_lookup
   integer(i4b)    :: iLayerHeight                = integerMissing    ! height of the layer interface; top of soil = 0 (m)
   integer(i4b)    :: DOMarea                     = integerMissing    ! area of the domain (m2)
   integer(i4b)    :: DOMelev                     = integerMissing    ! elevation of the domain (m)
+  integer(i4b)    :: scalarAblFrac               = integerMissing    ! fraction of the domain that is in a glacier ablation zone (-)
  endtype iLook_prog
 
  ! ***********************************************************************************************************
@@ -994,7 +995,7 @@ MODULE var_lookup
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
-                                                                         21, 22, 23, 24, 25, 26, 27)
+                                                                         21, 22, 23, 24, 25, 26, 27, 28)
  ! named variables: model diagnostic variables
  type(iLook_diag),    public,parameter :: iLookDIAG     =iLook_diag    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

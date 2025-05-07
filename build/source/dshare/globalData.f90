@@ -211,9 +211,9 @@ MODULE globalData
   real(rkind),dimension(12),save,public          :: greenVegFrac_monthly              ! fraction of green vegetation in each month (0-1)
   ! define variables used for domain type        
   integer(i4b),save,public                       :: upland=1                          ! upland domain
-  integer(i4b),save,public                       :: glacAcc=2                         ! glacier accumulation domain
-  integer(i4b),save,public                       :: glacCln=3                         ! glacier clean ablation domain
-  integer(i4b),save,public                       :: glacDbr=4                         ! glacier debris ablation domain
+  integer(i4b),save,public                       :: glacCln1=2                        ! glacier clean first domain
+  integer(i4b),save,public                       :: glacCln2=3                        ! glacier clean second domain
+  integer(i4b),save,public                       :: glacDbr=4                         ! glacier debris domain
   integer(i4b),save,public                       :: wetland=5                         ! wetland/lake domain
   integer(i4b),save,public                       :: glacieret=6                       ! glacieret domain
   ! define the model output file
