@@ -991,7 +991,7 @@ contains
           area_grid = sum(merge(0._rkind, dx*dy, surface_elev - bed_elev <= 0._rkind))
           ! check if area is significantly different from grid approximation
           ! this is okay for the first year as it is considered spin up, subsequent years will use the grid data to compute the area
-          if (area_grid>0.0_rkind) then 
+          if (area_grid>0._rkind) then 
             if (abs(area/area_grid-1._rkind) >areaTol) then
               write(*,*) 'WARNING: Area of glacier ',iGrid,' in GRU ',iGRU,' starts at ', area/area_grid, ' times the grid approximation but will be calculated from the grid data after a year.'
               write(*,*) 'If this is not expected, check the glacier grid data in the initial grid conditions file (perhaps the grid should be refined or the glacier area should be adjusted).'

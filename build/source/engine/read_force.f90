@@ -63,7 +63,7 @@ private
 public::read_force
 
 ! global parameters
-real(rkind),parameter  :: verySmall=1e-3_rkind      ! tiny number
+real(rkind),parameter  :: verySmall=1.e-3_rkind      ! tiny number
 real(rkind),parameter  :: smallOffset=1.e-8_rkind   ! small offset (units=days) to force ih=0 at the start of the day
 
 contains

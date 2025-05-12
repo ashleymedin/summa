@@ -167,7 +167,6 @@ subroutine run_oneGRU(&
   integer(i4b)                        :: iHRU                     ! HRU index
   integer(i4b)                        :: jHRU,kHRU                ! index of the hydrologic response unit
   integer(i4b)                        :: iDOM                     ! domain index
-  integer(i4b)                        :: i                        ! loop index
   real(rkind)                         :: fracDOM                  ! fractional area of a given HRU domain in GRU (-)
   integer(i4b)                        :: nglacDOM                 ! number of glacier domains in the GRU
   integer(i4b)                        :: nglacHRU                 ! number of glacier HRUs in the GRU
@@ -451,6 +450,7 @@ subroutine run_oneGRU(&
                                    *progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+1:nSnow+nLake+nSoil)) /soil_thick
               theta_sat_mean(iglacDOM) = theta_sat_mean(iglacDOM) + sum(mparHRU%hru(iHRU)%dom(iDOM)%var(iLookPARAM%theta_sat)%dat(1:nSoil) &
                                    *progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+1:nSnow+nLake+nSoil)) /soil_thick
+              glac_debris_thick(iglacDOM) = soil_thick
             else
               glac_debris_thick(iglacDOM) = 0._rkind
             end if
@@ -617,10 +617,10 @@ subroutine run_oneGRU(&
       do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
         if (gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==upland) then
           progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) = remaining_area
-          if(remaining_area>0.0_rkind) then 
+          if(remaining_area>0._rkind) then 
             progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1) = remaining_elev/remaining_area
           else
-            progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1) = 0.0_rkind
+            progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1) = 0._rkind
             progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) = attrHRU%hru(iHRU)%var(iLookATTR%elevation)
           end if
         end if ! (if upland domain)

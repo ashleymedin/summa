@@ -387,9 +387,9 @@ contains
  ! now find hour,min,second
 
  frac_day = julday - floor(julday)
- ih = floor((frac_day+1e-9)*hr_per_day)
+ ih = floor((frac_day+1.e-9_rkind)*hr_per_day)
 
- remainder = (frac_day+1e-9)*hr_per_day - ih
+ remainder = (frac_day+1.e-9_rkind)*hr_per_day - ih
  imin = floor(remainder*min_per_hour)
 
  remainder = remainder*min_per_hour - imin

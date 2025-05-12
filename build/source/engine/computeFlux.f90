@@ -827,13 +827,13 @@ contains
    surface_flux = scalarGlceInflux
    nStart = nSnow + nLake + nSoil
    call in_snowLakeGlceLiqFlux%initialize(1,nStart,.false.,surface_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
-   call io_snowLakeGlceLiqFlux%initialize(1,nStart,flux_data,deriv_data)
+   call io_snowLakeGlceLiqFlux%initialize(1,nStart,flux_data,deriv_data) ! only compute liquid water fluxes for first layer
   end associate
  end subroutine initialize_glceLiqFlx
 
  subroutine finalize_glceLiqFlx
   nStart = nSnow + nLake + nSoil
-  call io_snowLakeGlceLiqFlux%finalize(nGlce,nStart,flux_data,deriv_data)
+  call io_snowLakeGlceLiqFlux%finalize(1,nStart,flux_data,deriv_data) ! only compute liquid water fluxes for first layer
   call out_snowLakeGlceLiqFlux%finalize(err,cmessage) 
   ! error control
   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if

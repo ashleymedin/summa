@@ -16,7 +16,7 @@ private
 public::updateSnLaGlPrime
 public::updateSoilPrime
 
-real(rkind),parameter     :: verySmall=1e-14_rkind ! a very small number (used to avoid divide by zero)
+real(rkind),parameter     :: verySmall=1.e-14_rkind ! a very small number (used to avoid divide by zero)
 
 contains
 

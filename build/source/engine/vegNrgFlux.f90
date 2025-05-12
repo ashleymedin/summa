@@ -1593,7 +1593,7 @@ subroutine aeroResist(&
     ! First, calculate new coordinate system above snow - use these to scale wind profiles and resistances
     ! NOTE: the new coordinate system makes zeroPlaneDisplacement and z0Canopy consistent
     heightCanopyTopAboveSnow = heightCanopyTop - snowDepth
-    heightCanopyBottomAboveSnow = max(heightCanopyBottom - snowDepth, 0.0_rkind)
+    heightCanopyBottomAboveSnow = max(heightCanopyBottom - snowDepth, 0._rkind)
     select case(ixVegTraits)
       ! Raupach (BLM 1994) "Simplified expressions..."
       case(Raupach_BLM1994)

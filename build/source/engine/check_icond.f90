@@ -139,8 +139,8 @@ contains
 
  ! check and correct domain area and elevation, and ensure that the area is positive, and make backwards compatible
  do iGRU = 1,nGRU
-   glacAblAreaTot = 0.0_rkind
-   glacAccAreaTot = 0.0_rkind
+   glacAblAreaTot = 0._rkind
+   glacAccAreaTot = 0._rkind
    do iHRU=1,gru_struc(iGRU)%hruCount
      ! update the HRU area and elevation
      remaining_area = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)
@@ -155,19 +155,19 @@ contains
          glacAblAreaTot = glacAblAreaTot + progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1)*progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
          glacAccAreaTot = glacAccAreaTot + (1.0_rkind-progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1))*progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
        else ! not glacier with flow model area change
-         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1) = 0.0_rkind
-         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%glacMass4AreaChange)%dat(1) = 0.0_rkind
+         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1) = 0._rkind
+         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%glacMass4AreaChange)%dat(1) = 0._rkind
        end if
      end do
      do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
        if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==upland) then
          progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) = remaining_area
-         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%glacMass4AreaChange)%dat(1) = 0.0_rkind ! not glacier, glacMass4AreaChange should be zero
-         if(remaining_area>0.0_rkind) then 
+         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%glacMass4AreaChange)%dat(1) = 0._rkind ! not glacier, glacMass4AreaChange should be zero
+         if(remaining_area>0._rkind) then 
            progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1) = remaining_elev/remaining_area
          else
            if (remaining_area<-xTol) write(*,'(A,E22.16,A)') 'WARNING: area of upland HRU (=', remaining_area, ') < 0. Resetting to 0.0'
-           progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1) = 0.0_rkind
+           progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1) = 0._rkind
            progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%elevation)
          end if
        end if
@@ -175,24 +175,24 @@ contains
    end do
    ! if they exist, check that the glacier areas are consistent with the basin areas, correct for grid tolerance (only warn if out of tolerance)
    if (gru_struc(iGRU)%nGlacier>0) then
-     if(sum(bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat)>0.0_rkind)then
+     if(sum(bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat)>0._rkind)then
        ratio = glacAblAreaTot/sum(bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat)
        if ( abs( ratio - 1._rkind) >areaTol ) write(*,'(A,E22.16,A,E22.16,A,E8.1,A)') 'WARNING: glacier ablation domain area (=', glacAblAreaTot, ') &
         & does not match the sum of the basin areas (=', sum(bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat), '). Correcting basin areas by ratio', ratio, '.'
        bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat(:) = bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat(:)*ratio 
      else ! = 0.0
-        if (glacAblAreaTot>0.0_rkind) then 
+        if (glacAblAreaTot>0._rkind) then 
           write(*,'(A)') 'WARNING: basin glacier ablation area is zero, but there are glaciers in the basin. Resetting glacier areas to domain areas.'
           bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat(:) = glacAblAreaTot/gru_struc(iGRU)%nGlacier
         end if
      end if
-     if(sum(bvarData%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat)>0.0_rkind )then
+     if(sum(bvarData%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat)>0._rkind )then
        ratio = glacAccAreaTot/sum(bvarData%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat)
        if ( abs( ratio - 1._rkind) >areaTol ) write(*,'(A,E22.16,A,E22.16,A,E8.1,A)') 'WARNING: glacier accumulation domain area (=', glacAccAreaTot, ') &
         & does not match the sum of the basin areas (=', sum(bvarData%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat), '). Correcting basin areas by ratio', ratio, '.'
        bvarData%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat(:) = bvarData%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat(:)*ratio
      else ! = 0.0
-       if (glacAccAreaTot>0.0_rkind) then
+       if (glacAccAreaTot>0._rkind) then
          write(*,'(A)') 'WARNING: basin glacier accumulation area is zero, but there are glaciers in the basin. Resetting glacier areas to domain areas.'
          bvarData%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat(:) = glacAccAreaTot/gru_struc(iGRU)%nGlacier
        end if
@@ -202,7 +202,7 @@ contains
    ! check that the glacier areas are positive
    do iGlac = 1, gru_struc(iGRU)%nGlacier
      area = bvarData%gru(iGRU)%var(iLookBVAR%glacAblArea)%dat(iGlac) + bvarData%gru(iGRU)%var(iLookBVAR%glacAccArea)%dat(iGlac)
-     if (area<=0.0_rkind) write(*,*) 'WARNING: zero area for glacier ',iGlac,' in GRU ',iGRU,', need to set area to a postive value if want to build a glacier.'
+     if (area<=0._rkind) write(*,*) 'WARNING: zero area for glacier ',iGlac,' in GRU ',iGRU,', need to set area to a postive value if want to build a glacier.'
    end do
  enddo ! iGRU loop
 

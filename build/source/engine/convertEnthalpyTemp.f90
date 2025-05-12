@@ -102,7 +102,7 @@ subroutine T2H_lookup_snWat(mpar_data,                     &  ! intent(in):    p
   character(*),intent(out)      :: message              ! error message
   ! declare local variables
   character(len=128)            :: cmessage             ! error message in downwind routine
-  real(rkind),parameter         :: T_start=260.0_rkind  ! start temperature value where all liquid water is assumed frozen (K)
+  real(rkind),parameter         :: T_start=260._rkind  ! start temperature value where all liquid water is assumed frozen (K)
   real(rkind)                   :: T_incr,H_incr        ! temperature/enthalpy increments
   real(rkind),dimension(nlook)  :: Tk                   ! initial temperature vector
   real(rkind),dimension(nlook)  :: Hy                   ! initial enthalpy vector
@@ -168,7 +168,7 @@ subroutine T2L_lookup_soil(nSoil,                         &  ! intent(in):    nu
   character(len=128)            :: cmessage             ! error message in downwind routine
   integer(i4b),parameter        :: nLook=500            ! number of elements in the lookup table
   integer(i4b),parameter        :: nIntegr8=10000       ! number of points used in the numerical integration
-  real(rkind),parameter         :: T_lower=260.0_rkind  ! lowest temperature value where all liquid water is assumed frozen (K)
+  real(rkind),parameter         :: T_lower=260._rkind  ! lowest temperature value where all liquid water is assumed frozen (K)
   real(rkind),dimension(nLook)  :: xTemp                ! temporary vector
   real(rkind)                   :: xIncr                ! temporary increment
   real(rkind)                   :: T_incr               ! temperature increment
@@ -1438,7 +1438,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
       end if
       
       ! accept if q is not too small to stay in bound
-      if (p > 0.0_rkind) q = -q
+      if (p > 0._rkind) q = -q
       p = abs(p)                
       if (2.0 * p < min(3.0 * xm * q - abs(tol1* q), abs(e *q))) then 
         e = d
@@ -1550,9 +1550,9 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     
     ! set initial change dx
     if (abs(x0)<240._rkind) then ! a very cold temperature
-      dx = 2.0_rkind/50.0_rkind * Tfreeze
+      dx = 2.0_rkind/50._rkind * Tfreeze
     else
-      dx = 1.0_rkind/50.0_rkind * Tfreeze
+      dx = 1.0_rkind/50._rkind * Tfreeze
     end if
     
     if (disp == 1) then 
