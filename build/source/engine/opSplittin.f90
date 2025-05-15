@@ -1184,7 +1184,7 @@ subroutine opSplittin(&
       if (iVar==iLookFLUX%scalarPhotosynthesisShaded) desiredFlux = .true.
      end if
 
-     if (nDomains==1) then ! no domain splitting
+     if (nDomainSplit==1) then ! no domain splitting
       fluxMask%var(iVar)%dat = desiredFlux
      else ! domain splitting
       fluxMask%var(iVar)%dat = .false. ! initialize to .false.
