@@ -535,7 +535,7 @@ subroutine opSplittin(&
    if (split_select % logic_initialize_solution()) then; call split_select % initialize_ixSolution; split_select % solution=.true.; end if
    if (split_select % logic_exit_solution()) then
     ixSolution=split_select % ixSolution
-    if (split_select % ixSolution > nsolutions) split_select % solution=.false.            
+    if (split_select % ixSolution > nSolutions) split_select % solution=.false.            
    end if
   end subroutine initialize_split_solution
 
@@ -929,10 +929,6 @@ subroutine opSplittin(&
   subroutine solve_subset 
    ! *** Solve variable subset for one time step ***
    return_flag=.false. ! initialize flag
-   ! keep track of the number of scalar solutions
-   associate(numberScalarSolutions => indx_data%var(iLookINDEX%numberScalarSolutions)%dat(1)) ! intent(inout): [i4b] number of scalar solutions
-    if (ixSolution==scalar) numberScalarSolutions = numberScalarSolutions + 1
-   end associate
 
    ! solve variable subset for one full time step
    call initialize_varSubstep
@@ -1006,6 +1002,12 @@ subroutine opSplittin(&
        case(subDomain)
         if (failure) then
          call split_select % advance_ixSolution; split_select % stateSplit=.false.; ! prep for next iteration 
+          if (split_select % ixSolution==scalar)then
+          ! keep track of the number of times splits a nrg/mass domain into further into a scalar solution
+          associate(numberScalarSolutions => indx_data%var(iLookINDEX%numberScalarSolutions)%dat(1)) ! intent(inout): [i4b] number of scalar solutions
+           numberScalarSolutions = numberScalarSolutions + 1
+          end associate
+          endif
          cycle_solution=.true.; return ! return required to execute cycle statement in opSplittin
         end if
        case default; err=20; message=trim(message)//'unknown ixStateThenDomain case'
@@ -1036,7 +1038,7 @@ subroutine opSplittin(&
     return 
    end if
 
-   ! avoid redundant case where vector solution is of length 1
+   ! avoid redundant case where vector solution is of length 1 so already a scalar solution
    if (ixSolution==vector .and. count(stateMask)==1) then
     call split_select % advance_ixSolution; 
     split_select % stateSplit=.false.; 
