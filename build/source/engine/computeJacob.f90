@@ -176,9 +176,6 @@ subroutine computeJacob(&
     nGlceOnlyHyd                 => indx_data%var(iLookINDEX%nGlceOnlyHyd  )%dat(1)                 ,& ! intent(in): [i4b]    number of hydrology variables in the glacier ice domain
     ! type and index of model control volume
     ixHydType                    => indx_data%var(iLookINDEX%ixHydType)%dat                         ,& ! intent(in): [i4b(:)] index of the type of hydrology states in layer domains
-    ! mapping between states and model layers
-    ixMapSubset2Full             => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat                  ,& ! intent(in): [i4b(:)] list of indices in the full state vector that are in the state subset
-    ixMapFull2Subset             => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat                  ,& ! intent(in): [i4b(:)] list of indices in the state subset in each element of the full state vector
     ! derivatives in net vegetation energy fluxes w.r.t. relevant state variables
     dCanairNetFlux_dCanairTemp   => deriv_data%var(iLookDERIV%dCanairNetFlux_dCanairTemp  )%dat(1)  ,& ! intent(in): [dp]     derivative in net canopy air space flux w.r.t. canopy air temperature
     dCanairNetFlux_dCanopyTemp   => deriv_data%var(iLookDERIV%dCanairNetFlux_dCanopyTemp  )%dat(1)  ,& ! intent(in): [dp]     derivative in net canopy air space flux w.r.t. canopy temperature

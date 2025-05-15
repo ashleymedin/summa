@@ -349,6 +349,9 @@ subroutine updateDiagnWithPrime(&
       ! get the index in the local state vector
       if(ixDomainType==iname_cas)then
         ixOtherLocal = integerMissing
+      else if(ixDomainType==iname_glce)then
+        ixOtherLocal = integerMissing ! glacier ice water layer is not solved below top layers
+        if(ixOther/=integerMissing) ixOtherLocal = ixMapFull2Subset(ixOther) ! ixOtherLocal could equal integerMissing
       else
         ixOtherLocal = ixMapFull2Subset(ixOther)  ! ixOtherLocal could equal integerMissing
       endif

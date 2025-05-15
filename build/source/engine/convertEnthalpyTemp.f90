@@ -726,7 +726,6 @@ subroutine enthTemp_or_enthalpy(&
     nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1)            ,& ! intent(in): [i4b]    total number of lake layers
     nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)            ,& ! intent(in): [i4b]    total number of soil layers
     ! mapping between the full state vector and the state subset
-    ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat    ,& ! intent(in): [i4b(:)] list of indices in the state subset for each state in the full state vector
     ixMapSubset2Full        => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat    ,& ! intent(in): [i4b(:)] [state subset] list of indices of the full state vector in the state subset
     ! type of domain, type of state variable, and index of control volume within domain
     ixDomainType_subset     => indx_data%var(iLookINDEX%ixDomainType_subset)%dat ,& ! intent(in): [i4b(:)] [state subset] id of domain for desired model state variables

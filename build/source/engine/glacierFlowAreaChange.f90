@@ -537,14 +537,12 @@ end subroutine glacierFlowAreaChange
     max_dt = 31._rkind * secprday! max timestep in seconds, a month
     min_dt = 0._rkind ! min timestep in seconds 
     t = 0._rkind
-
-    meanS = sum(merge(S - debris,0._rkind,glacierMask==1)) / count(glacierMask==1)
-    print*, "meanS", meanS, maxval(merge(S - debris,0._rkind,glacierMask==1)), minval(merge(S - debris,0._rkind,glacierMask==1))
-    meanS = sum(merge(B,0._rkind,glacierMask==1)) / count(glacierMask==1)
-    print*, "meanB", meanS, maxval(merge(B,0._rkind,glacierMask==1)), minval(merge(B,0._rkind,glacierMask==1))
-
-    meanS = sum(merge(S - debris-B,0._rkind,glacierMask==1)) / count(glacierMask==1)
-    print*, "meanH", meanS, maxval(merge(S - debris-B,0._rkind,glacierMask==1)), minval(merge(S - debris-B,0._rkind,glacierMask==1)), t
+    !meanS = sum(merge(S - debris,0._rkind,glacierMask==1)) / count(glacierMask==1)
+    !print*, "meanS", meanS, maxval(merge(S - debris,0._rkind,glacierMask==1)), minval(merge(S - debris,0._rkind,glacierMask==1))
+    !meanS = sum(merge(B,0._rkind,glacierMask==1)) / count(glacierMask==1)
+    !print*, "meanB", meanS, maxval(merge(B,0._rkind,glacierMask==1)), minval(merge(B,0._rkind,glacierMask==1))
+    !meanS = sum(merge(S - debris-B,0._rkind,glacierMask==1)) / count(glacierMask==1)
+    !print*, "meanH", meanS, maxval(merge(S - debris-B,0._rkind,glacierMask==1)), minval(merge(S - debris-B,0._rkind,glacierMask==1)), t
 
     do while (t < t_total)
       dt = t_total - t

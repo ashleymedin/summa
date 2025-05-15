@@ -176,7 +176,7 @@ subroutine varSubstep(&
   integer(i4b),parameter             :: n_dec=15                               ! maximum number of iterations to decrease time step
   real(rkind),parameter              :: F_inc = 1.25_rkind                     ! factor used to increase time step
   real(rkind),parameter              :: F_dec = 0.90_rkind                     ! factor used to decrease time step
-  ! state and flux vectors (Note: nstate = in_varSubstep % nSubset)
+  ! state and flux vectors (Note: nState = in_varSubstep % nSubset)
   real(rkind)                        :: untappedMelt(in_varSubstep % nSubset)  ! un-tapped melt energy (J m-3 s-1)
   real(rkind)                        :: stateVecInit(in_varSubstep % nSubset)  ! initial state vector (mixed units)
   real(rkind)                        :: stateVecTrial(in_varSubstep % nSubset) ! trial state vector (mixed units)
@@ -235,6 +235,7 @@ subroutine varSubstep(&
     nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):    [i4b]    number of soil layers
     nGlce                   => indx_data%var(iLookINDEX%nGlce)%dat(1)                 ,& ! intent(in):    [i4b]    number of glacier ice layers
     nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)               ,& ! intent(in):    [i4b]    total number of layers
+    noWatState              => indx_data%var(iLookINDEX%noWatState)%dat(1)            ,& ! intent(in):    [i4b]    number of layers with no water state (bottom glacier ice layers)
     nSoilOnlyHyd            => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology variables in the soil domain
     mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):    [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
     ! get indices for balances
@@ -249,7 +250,6 @@ subroutine varSubstep(&
     nSnLaSoGlHyd            => indx_data%var(iLookINDEX%nSnLaSoGlHyd)%dat(1)          ,& ! intent(in):    [i4b]    number of hydrology state variables in the layer domains
     ! mapping between state vectors and control volumes
     ixLayerActive           => indx_data%var(iLookINDEX%ixLayerActive)%dat            ,& ! intent(in):    [i4b(:)] list of indices for all active layers (inactive=integerMissing)
-    ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat         ,& ! intent(in):    [i4b(:)] mapping of full state vector to the state subset
     ixControlVolume         => indx_data%var(iLookINDEX%ixControlVolume)%dat          ,& ! intent(in):    [i4b(:)] index of control volume for different domains (veg, snow, soil)
     ! model state variables (vegetation canopy)
     scalarCanairTemp        => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(inout): [dp]     temperature of the canopy air space (K)
@@ -540,7 +540,7 @@ subroutine varSubstep(&
           ! ** no domain splitting
           if(count(ixLayerActive/=integerMissing)==nLayers)then
             flux_mean%var(iVar)%dat(:) = flux_mean%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
-            fluxCount%var(iVar)%dat(:) = fluxCount%var(iVar)%dat(:) + 1
+            fluxCount%var(iVar)%dat(:) = fluxCount%var(iVar)%dat(:) + 1_i4b
 
           ! ** domain splitting
           else
@@ -555,7 +555,12 @@ subroutine varSubstep(&
                 else
                   flux_mean%var(iVar)%dat(ixLayer) = flux_mean%var(iVar)%dat(ixLayer) + flux_temp%var(iVar)%dat(ixLayer)*dt_wght
                 endif
-                fluxCount%var(iVar)%dat(ixLayer) = fluxCount%var(iVar)%dat(ixLayer) + 1
+                fluxCount%var(iVar)%dat(ixLayer) = fluxCount%var(iVar)%dat(ixLayer) + 1_i4b
+                if(iVar==iLookFLUX%mLayerLiqFluxSnLaGl.or. iVar==iLookFLUX%iLayerLiqFluxSnLaGl)then
+                  ! NOTE: this is a special case for the liquid flux in the no water glacier layers, always set to zero
+                  flux_mean%var(iVar)%dat(nLayers-noWatState+1:nLayers) = 0._rkind
+                  fluxCount%var(iVar)%dat(nLayers-noWatState+1:nLayers) = 1_i4b
+                endif
               endif
             end do
           endif  ! (domain splitting)
@@ -1212,7 +1217,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
          case(iname_snow);    iLayer = ixControlIndex
          case(iname_lake);    iLayer = ixControlIndex + nSnow
          case(iname_soil);    iLayer = ixControlIndex + nSnow + nLake
-         case(iname_glce);     iLayer = ixControlIndex + nSnow + nLake + nSoil
+         case(iname_glce);    iLayer = ixControlIndex + nSnow + nLake + nSoil
         end select
 
         ! update ice content
