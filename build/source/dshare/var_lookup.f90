@@ -758,6 +758,7 @@ MODULE var_lookup
   integer(i4b)     :: nVegState             = integerMissing  ! number of vegetation state variables                                     (-)
   integer(i4b)     :: nNrgState             = integerMissing  ! number of energy state variables                                         (-)
   integer(i4b)     :: nWatState             = integerMissing  ! number of "total water" states (vol. total water content)                (-)
+  integer(i4b)     :: noWatState            = integerMissing  ! number of layers with no water state (bottom glacier ice layers)         (-)
   integer(i4b)     :: nMatState             = integerMissing  ! number of matric head state variables                                    (-)
   integer(i4b)     :: nMassState            = integerMissing  ! number of hydrology state variables (mass of water)                      (-)
   integer(i4b)     :: nState                = integerMissing  ! total number of model state variables                                    (-)
@@ -1037,7 +1038,8 @@ MODULE var_lookup
                                                                          31, 32, 33, 34, 35, 36, 37, 38, 39, 40,&
                                                                          41, 42, 43, 44, 45, 46, 47, 48, 49, 50,&
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
-                                                                         61, 62, 63, 64, 65, 66, 67, 68, 69, 70)
+                                                                         61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
+                                                                         71)
  ! named variables: basin-average parameters
  type(iLook_bpar),    public,parameter :: iLookBPAR     =ilook_bpar    (  1,  2,  3,  4,  5,  6,  7,  8, 9,  10,&
                                                                           11)

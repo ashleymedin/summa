@@ -912,6 +912,7 @@ contains
   case('nVegState'            ); get_ixINDEX = iLookINDEX%nVegState             ! number of vegetation state variables                                     (-)
   case('nNrgState'            ); get_ixINDEX = iLookINDEX%nNrgState             ! number of energy state variables                                         (-)
   case('nWatState'            ); get_ixINDEX = iLookINDEX%nWatState             ! number of "total water" states (vol. total water content)                (-)
+  case('noWatState'           ); get_ixINDEX = iLookINDEX%noWatState            ! number of layers with no water state (bottom glacier ice layers)         (-)
   case('nMatState'            ); get_ixINDEX = iLookINDEX%nMatState             ! number of matric head state variables                                    (-)
   case('nMassState'           ); get_ixINDEX = iLookINDEX%nMassState            ! number of hydrology state variables (mass of water)                      (-)
   case('nState'               ); get_ixINDEX = iLookINDEX%nState                ! total number of model state variables                                    (-)
