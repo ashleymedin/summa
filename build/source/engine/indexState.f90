@@ -180,7 +180,7 @@ contains
 
  ! define the indices within the layers
  ixNrgLayer = arth(ixTopNrg,nVarSnLaSoGl,nLayers)  ! energy
- ixHydLayer(1:nLayers-noWatState) = arth(ixTopWat,nVarSnLaSoGl,nLayers-noWatState)  ! total water, keep non-used ones at integerMissing
+ if(nLayers>noWatState) ixHydLayer(1:nLayers-noWatState) = arth(ixTopWat,nVarSnLaSoGl,nLayers-noWatState)  ! total water, keep non-used ones at integerMissing
 
  ! define indices for the aquifer
  ixWatAquifer(1) = merge(nState, integerMissing, includeAquifer)

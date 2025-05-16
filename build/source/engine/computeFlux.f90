@@ -847,9 +847,8 @@ contains
 
    ! calculate net liquid water fluxes for top layers of glacier ice layer only (s-1)
    do iLayer=1,nGlce-noWatState
-     mLayerLiqFluxSnLaGl(1+nStart) = -(iLayerLiqFluxSnLaGl(1+nStart) - iLayerLiqFluxSnLaGl(nStart))/mLayerDepth(1+nStart)
+     mLayerLiqFluxSnLaGl(iLayer+nStart) = -(iLayerLiqFluxSnLaGl(iLayer+nStart) - iLayerLiqFluxSnLaGl(iLayer-1+nStart))/mLayerDepth(iLayer+nStart)
    end do
-   mLayerLiqFluxSnLaGl(1+nStart) = -(iLayerLiqFluxSnLaGl(1+nStart) - iLayerLiqFluxSnLaGl(nStart))/mLayerDepth(1+nStart)
    if(noWatState>0) then
      do iLayer=nGlce-noWatState+1,nGlce
        iLayerLiqFluxSnLaGl(iLayer+nStart) = 0._rkind ! iLayerLiqFluxSnLaGl does not exist in glacier ice after first layer
