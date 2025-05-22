@@ -102,6 +102,8 @@ subroutine snowLakeGlceLiqFlux(&
     scalarSolution          => in_snowLakeGlceLiqFlux % scalarSolution,          & ! intent(in): flag to denote if implementing the scalar solution
     ! input: forcing for the top layer
     surface_flux            => in_snowLakeGlceLiqFlux % surface_flux,            & ! intent(in): liquid water flux at the surface (m s-1)
+    ! input: water flux at the bottom if already computed
+    bottom_flux             => in_snowLakeGlceLiqFlux % bottom_flux,             & ! intent(in): liquid water flux at the bottom if already computed (m s-1)
     ! input: model state vector
     mLayerVolFracLiqTrial   => in_snowLakeGlceLiqFlux % mLayerVolFracLiqTrial,   & ! intent(in): trial value of volumetric fraction of liquid water at the current iteration (-)
     ! input: layer indices
@@ -177,8 +179,8 @@ subroutine snowLakeGlceLiqFlux(&
     end if  ! end if the first flux call
      
     ! compute fluxes
-    do iLayer=ixTop,ixBot  ! loop through snow/glce layers
-      if (do_snow) then
+    if (do_snow) then
+      do iLayer=ixTop,ixBot  ! loop through snow layers
         if (mLayerVolFracLiqTrial(iLayer) > mLayerThetaResid(iLayer)) then ! check that flow occurs
           ! compute the relative saturation (-)
           availCap  = mLayerPoreSpace(iLayer) - mLayerThetaResid(iLayer) ! available capacity
@@ -193,12 +195,27 @@ subroutine snowLakeGlceLiqFlux(&
           iLayerLiqFluxSnLaGl(iLayer)      = 0._rkind
           iLayerLiqFluxSnLaGlDeriv(iLayer) = 0._rkind
         end if  ! storage above residual content
-      else ! ice
-        ! ** allow liquid water to go into the reservoir in ice, do not store in the ice
-        iLayerLiqFluxSnLaGl(iLayer) = mLayerVolFracLiqTrial(iLayer) + iLayerLiqFluxSnLaGl(iLayer-1)
-        iLayerLiqFluxSnLaGlDeriv(iLayer) = 1._rkind
-      end if  ! end if snow or ice
-    end do  ! end loop through snow/glce layers
+      end do  ! end loop through snow/glce layers
+    else ! ice
+      do iLayer=ixBot,ixTop,-1 ! loop through glacier ice layers
+         ! ** liquid water goes up since glacier ice is impermeable
+         if (iLayer == nLayers) then ! bottom layer
+          iLayerLiqFluxSnLaGl(iLayer) = 0._rkind ! no liquid water flux at the bottom of the glacier ice layer
+          iLayerLiqFluxSnLaGlDeriv(iLayer) = 0._rkind ! no derivative at the bottom of the glacier ice layer
+         else  ! not the bottom layer
+          iLayerLiqFluxSnLaGl(iLayer) = mLayerVolFracLiqTrial(iLayer) + iLayerLiqFluxSnLaGl(iLayer+1) ! NOTE: derivative needs to be updated in future, wrong in this case
+          iLayerLiqFluxSnLaGlDeriv(iLayer) = 1._rkind
+        end if  ! end if bottom layer
+      end do  ! end loop through glacier ice layers
+      if(ixTop==1)then
+        iLayerLiqFluxSnLaGl(0) = mLayerVolFracLiqTrial(iLayer) + iLayerLiqFluxSnLaGl(iLayer+1)
+        iLayerLiqFluxSnLaGlDeriv(0) = 1._rkind
+      endif
+    end if  ! end if snow or ice
+    if(ixBot==nLayers)then
+      iLayerLiqFluxSnLaGl(nLayers) = iLayerLiqFluxSnLaGl(nLayers) + bottom_flux ! set the bottom flux if already computed
+      iLayerLiqFluxSnLaGlDeriv(nLayers) = iLayerLiqFluxSnLaGlDeriv(nLayers) ! may be modified computed inside computeJacob
+    end if
 
     ! save the results with index 0
     iLayerLiqFluxSnLaGl0 = iLayerLiqFluxSnLaGl

@@ -1530,7 +1530,7 @@ subroutine coupled_em(&
       averageGroundEvaporation   => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarGroundEvaporation))%dat(1)   ,& ! soil evaporation (kg m-2 s-1)
       averageCanopyTranspiration => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopyTranspiration))%dat(1) ,& ! canopy transpiration (kg m-2 s-1)
       ! glacier fluxes
-      averageGlceInflux          => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarGlceInflux))%dat(1)          ,& ! influx to glacier ice, rain plus melt plus debris drainage (m s-1)
+      averageGlceMelt          => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarGlceMelt))%dat(1)              ,& ! glacier ice melt (kg m-2 s-1)
       ! state variables in the vegetation canopy
       scalarCanopyWat            => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)                           ,& ! canopy water content (kg m-2)
       scalarCanopyIce            => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)                           ,& ! ice content of the vegetation canopy (kg m-2)
@@ -1746,14 +1746,24 @@ subroutine coupled_em(&
       ! ------------------------------------
       if(nGlce>0)then
         ! compute the liquid water and ice content at the end of the time step
-        iLayer=nSnow+nLake+nSoil+1 ! only top layer allowed to melt in the glacier ice
-        scalarIceWE = iden_water*mLayerVolFracLiq(iLayer)*mLayerDepth(iLayer) + iden_ice*mLayerVolFracIce(iLayer)*mLayerDepth(iLayer)
+        scalarIceWE = sum(iden_water*mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce) &
+                          + iden_ice*mLayerVolFracIce(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce))
         ! STUB for ice water balance
         ! check the individual layers
         !if(printBalance)then
         !endif
 
         ! check the ice water balance
+        massBalance = averageGlceMelt*iden_water*data_step - (balanceIceWE0-scalarIceWE)
+        if(abs(massBalance) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance_ds)then
+          write(*,'(a,1x,f20.10)') 'data_step             = ', data_step
+          write(*,'(a,1x,f20.10)') 'balanceIceWE0         = ', balanceIceWE0
+          write(*,'(a,1x,f20.10)') 'scalarIceWE           = ', scalarIceWE
+          write(*,'(a,1x,f20.10)') 'averageGlceMelt       = ', averageGlceMelt*iden_water*data_step
+          write(*,'(a,1x,f20.10)') 'massBalance           = ', massBalance
+          message=trim(message)//'glacier ice does not balance'
+          err=20; return
+        end if
 
       else
         scalarIceWE = 0._rkind

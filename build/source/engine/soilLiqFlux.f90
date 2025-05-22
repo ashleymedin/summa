@@ -239,9 +239,8 @@ contains
 
   call compute_interface_fluxes_derivatives; if (return_flag) return
 
-  if ( .not. (in_soilLiqFlux % scalarSolution .and. ixTop<nSoil) ) then ! define the need to compute drainage
-   call compute_drainage_flux; if (return_flag) return
-  end if
+  call compute_drainage_flux; if (return_flag) return
+
  end subroutine update_soilLiqFlux
 
  subroutine finalize_soilLiqFlux
@@ -426,7 +425,7 @@ contains
   type(out_type_surfaceFlx),intent(in) :: out_surfaceFlx
 
   ! interface object data components with local name space
-  call  io_surfaceFlx % finalize(nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse)
+  call io_surfaceFlx % finalize(nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse)
   associate(&
    err     => out_soilLiqFlux % err,     & ! error code
    message => out_soilLiqFlux % cmessage & ! error message
@@ -526,7 +525,7 @@ contains
 
  subroutine finalize_compute_drainage_flux(out_qDrainFlux)
   ! **** finalize operations for compute_drainage_flux ****
-  type(out_type_qDrainFlux),intent(in) :: out_qDrainFlux
+  type(out_type_qDrainFlux),intent(inout) :: out_qDrainFlux
   associate(&
    err     => out_soilLiqFlux % err,                       & ! error code
    message => out_soilLiqFlux % cmessage                   & ! error message
@@ -535,14 +534,23 @@ contains
    if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end associate
 
-  ! no dependence on the aquifer or ice? for drainage
+  ! no dependence on the aquifer for drainage, couple to ice layer if it exists
   associate(&
    ! derivatives in flux w.r.t. ...
+   scalarGlceMelt => in_soilLiqFlux % scalarGlceMelt, & ! glacier melt (m s-1)
+   scalarDrainage => out_qDrainFlux % scalarDrainage, & ! drainage flux from the bottom of the soil profile (m s-1)
    dq_dHydStateBelow => io_soilLiqFlux % dq_dHydStateBelow,& ! ... hydrology state variables in the layer below
    dq_dNrgStateBelow => io_soilLiqFlux % dq_dNrgStateBelow & ! ... temperature in the layer below (m s-1 K-1)
   &)
-   dq_dHydStateBelow(nSoil) = 0._rkind  ! keep this here in case we want to couple some day....
-   dq_dNrgStateBelow(nSoil) = 0._rkind  ! keep this here in case we want to couple some day....
+   if(scalarGlceMelt==0._rkind)then ! then nothing coupled
+     dq_dHydStateBelow(nSoil) = 0._rkind
+     dq_dNrgStateBelow(nSoil) = 0._rkind
+   else
+     ! glacier melt opposes the drainage flux
+     scalarDrainage = scalarDrainage - scalarGlceMelt
+     dq_dHydStateBelow(nSoil) = 0._rkind ! will be calculated in computeJacob
+     dq_dNrgStateBelow(nSoil) = 0._rkind ! will be calculated in computeJacob
+   endif
   end associate
  end subroutine finalize_compute_drainage_flux
 end subroutine soilLiqFlux

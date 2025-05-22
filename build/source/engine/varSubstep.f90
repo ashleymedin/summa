@@ -404,10 +404,10 @@ subroutine varSubstep(&
       failedSubstep = (err<0)
 
       ! check
-      if(globalPrintFlag)then
+      !if(globalPrintFlag)then
         print*, 'niter, failedSubstep, dtSubstep = ', niter, failedSubstep, dtSubstep
         print*, trim(cmessage)
-      endif
+      !endif
 
       ! reduce step based on failure
       if(failedSubstep)then

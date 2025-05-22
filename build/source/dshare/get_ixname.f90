@@ -735,7 +735,7 @@ contains
   case('scalarSnowDrainage'             ); get_ixFlux = iLookFLUX%scalarSnowDrainage               ! drainage from the bottom of the snow profile (m s-1)
   case('scalarLakeDrainage'             ); get_ixFlux = iLookFLUX%scalarLakeDrainage               ! drainage from the bottom of the lake (m s-1)
   case('scalarLakeInflux'               ); get_ixFlux = iLookFLUX%scalarLakeInflux                 ! influx to lake, rain plus melt (m s-1)
-  case('scalarGlceInflux'               ); get_ixFlux = iLookFLUX%scalarGlceInflux                 ! influx to glacier ice, rain plus melt plus debris drainage (m s-1)
+  case('scalarGlceMelt'                 ); get_ixFlux = iLookFLUX%scalarGlceMelt                   ! glacier ice melt (m s-1)
   case('iLayerLiqFluxSnLaGl'            ); get_ixFlux = iLookFLUX%iLayerLiqFluxSnLaGl              ! liquid flux at snow lake glce interfaces at the end of the time step (m s-1)
   case('mLayerLiqFluxSnLaGl'            ); get_ixFlux = iLookFLUX%mLayerLiqFluxSnLaGl              ! net liquid water flux for each snow lake glce (s-1)
   ! liquid water fluxes for the soil

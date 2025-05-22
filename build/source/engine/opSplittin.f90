@@ -298,8 +298,10 @@ subroutine opSplittin(&
   integer(i4b)                    :: nStateSplit                    ! number of splits for the states within a given domain
   ! indices for the state type and the domain split
   integer(i4b)                    :: iStateTypeSplit                ! index of the state type split
-  integer(i4b)                    :: iDomainSplit                   ! index of the domain split
+  integer(i4b)                    :: iDomainSplit, iDomainSplit_use ! index of the domain split
   integer(i4b)                    :: iStateSplit                    ! index of the state split
+  integer(i4b)                    :: iDomainSplit_mass_map(nDomains)! mapping of the mass split order
+  integer(i4b)                    :: iDomainSplit_nrg_map(nDomains) ! mapping of the energy split order
   ! flux masks
   logical(lgt)                    :: neededFlux(nFlux)              ! .true. if flux is needed at all
   logical(lgt)                    :: desiredFlux                    ! .true. if flux is desired for a given split
@@ -328,6 +330,10 @@ subroutine opSplittin(&
   type(in_type_varSubstep)  :: in_varSubstep;  type(io_type_varSubstep) :: io_varSubstep; type(out_type_varSubstep)  :: out_varSubstep;  ! varSubstep arguments
   ! -------------------------------------------------------------------------------------------------------------------------
   type(split_select_type) :: split_select ! class object for selecting operator splitting methods
+  ! -------------------------------------------------------------------------------------------------------------------------
+  ! mapping of split order
+  iDomainSplit_mass_map = (/vegSplit, glceSplit, snowSplit, lakeSplit, soilSplit, aquiferSplit/)
+  iDomainSplit_nrg_map  = (/vegSplit, snowSplit, lakeSplit, soilSplit, glceSplit, aquiferSplit/)
 
   ! set up split_select object and prepare for split_select_loop
   call initialize_opSplittin; if (return_flag) return
@@ -1189,9 +1195,11 @@ subroutine opSplittin(&
      if (nDomainSplit==1) then ! no domain splitting
       fluxMask%var(iVar)%dat = desiredFlux
      else ! domain splitting
+      if (iStateTypeSplit==massSplit) iDomainSplit_use = iDomainSplit_mass_map(iDomainSplit)
+      if (iStateTypeSplit==nrgSplit)  iDomainSplit_use = iDomainSplit_nrg_map(iDomainSplit)
       fluxMask%var(iVar)%dat = .false. ! initialize to .false.
       if (desiredFlux) then ! only need to proceed if the flux is desired
-       select case(iDomainSplit) ! different domain splitting operations
+       select case(iDomainSplit_use) ! different domain splitting operations
         case(vegSplit) ! canopy fluxes -- (:1) gets the upper boundary(0) if it exists
          if (ixSolution==vector) then ! vector solution (should only be present for energy)
           fluxMask%var(iVar)%dat(:1) = desiredFlux
@@ -1233,7 +1241,7 @@ subroutine opSplittin(&
 
             ! add hydrology states for scalar variables
             if (iStateTypeSplit==massSplit .and. flux_meta(iVar)%vartype==iLookVarType%scalarv) then
-             select case(iDomainSplit) ! need to list all the snow, lake, glce variables (not all soil)
+             select case(iDomainSplit_use) ! need to list all the snow, lake, glce variables (not all soil)
               case(snowSplit) ! snow scalar variables change with the bottom layer
                 if ( iname_watSnow==flux2state_liq(iVar)%state2 .and. iLayer==nSnow )fluxMask%var(iVar)%dat = desiredFlux 
               case(lakeSplit)

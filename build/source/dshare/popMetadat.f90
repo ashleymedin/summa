@@ -578,8 +578,8 @@ subroutine popMetadat(err,message)
   ! liquid water fluxes for the snow lake ice
   flux_meta(iLookFLUX%scalarSnowDrainage)              = var_info('scalarSnowDrainage'             , 'drainage from the bottom of the snow profile'                     , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%scalarLakeDrainage)              = var_info('scalarLakeDrainage'             , 'drainage from the bottom of the lake'                             , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  flux_meta(iLookFLUX%scalarLakeInflux)                = var_info('scalarLakeInflux'               , 'influx to the lake, rain plus melt'                               , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  flux_meta(iLookFLUX%scalarGlceInflux)                = var_info('scalarGlceInflux'               , 'influx to glacier ice, rain plus melt plus debris drainage'        , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  flux_meta(iLookFLUX%scalarLakeInflux)                = var_info('scalarLakeInflux'               , 'influx to the lake, rain plus snowmelt'                           , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  flux_meta(iLookFLUX%scalarGlceMelt)                  = var_info('scalarGlceMelt'                 , 'glacier ice melt'                                                 , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%iLayerLiqFluxSnLaGl)             = var_info('iLayerLiqFluxSnLaGl'            , 'liquid flux at snow lake ice layer interfaces'                    , 'm s-1'           , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%mLayerLiqFluxSnLaGl)             = var_info('mLayerLiqFluxSnLaGl'            , 'net liquid water flux for each snow lake ice layer'               , 's-1'             , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   ! liquid water fluxes for the soil
@@ -605,7 +605,7 @@ subroutine popMetadat(err,message)
   ! derived variables
   flux_meta(iLookFLUX%scalarTotalET)                   = var_info('scalarTotalET'                  , 'total ET'                                                         , 'kg m-2 s-1'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%scalarTotalRunoff)               = var_info('scalarTotalRunoff'              , 'total runoff'                                                     , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  flux_meta(iLookFLUX%scalarGlacierMelt)               = var_info('scalarGlacierMelt'              , 'glacier melt (goes into glacier internal reservoir)'              , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  flux_meta(iLookFLUX%scalarGlacierMelt)               = var_info('scalarGlacierMelt'              , 'glacier system melt (goes into glacier internal reservoir)'       , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%scalarNetRadiation)              = var_info('scalarNetRadiation'             , 'net radiation'                                                    , 'W m-2'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * local flux derivatives...

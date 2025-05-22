@@ -601,6 +601,7 @@ MODULE data_types
    integer(i4b)             :: nStart                            ! intent(in):    starting index for layers
    logical(lgt)             :: do_snow                           ! intent(in):    flag to indicate if snow layers
    real(rkind)              :: surface_flux                      ! intent(in):    surface fluxes (kg m-2 s-1)
+   real(rkind)              :: bottom_flux                       ! intent(in):    bottom fluxes if already computed(kg m-2 s-1)
    logical(lgt)             :: firstFluxCall                     ! intent(in):    the first flux call (compute variables that are constant over the iterations)
    logical(lgt)             :: scalarSolution                    ! intent(in):    flag to indicate the scalar solution
    real(rkind)              :: scalarThroughfallRain             ! intent(in):    rain that reaches the snow surface without ever touching vegetation (kg m-2 s-1)
@@ -646,6 +647,7 @@ MODULE data_types
    real(rkind)              :: dCanopyTrans_dTGround             ! intent(in):    derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
    real(rkind)              :: above_soilLiqFluxDeriv            ! intent(in):    derivative in layer above soil (canopy or snow) liquid flux w.r.t. liquid water
    real(rkind)              :: above_soildLiq_dTk                ! intent(in):    derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
+   real(rkind)              :: scalarGlceMelt                    ! intent(in):    glacier melt (kg m-2 s-1)
    real(rkind)              :: above_soilFracLiq                 ! intent(in):    fraction of liquid water layer above soil (canopy or snow) (-)
    real(rkind)              :: scalarCanopyTranspiration         ! intent(in):    canopy transpiration (kg m-2 s-1)
    real(rkind)              :: scalarGroundEvaporation           ! intent(in):    ground evaporation (kg m-2 s-1)
@@ -1378,12 +1380,13 @@ contains
  ! **** end vegLiqFlux ****
 
  ! **** snowLakeGlceLiqFlux ****
- subroutine initialize_in_snowLakeGlceLiqFlux(in_snowLakeGlceLiqFlux,nLayers,nStart,do_snow,surface_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+ subroutine initialize_in_snowLakeGlceLiqFlux(in_snowLakeGlceLiqFlux,nLayers,nStart,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
   class(in_type_snowLakeGlceLiqFlux),intent(out)   :: in_snowLakeGlceLiqFlux               ! class object for intent(in) snowLakeGlceLiqFlux arguments            
   integer(i4b),intent(in)                 :: nLayers                     ! number of layers
   integer(i4b),intent(in)                 :: nStart                      ! starting index for layers
   logical(lgt),intent(in)                 :: do_snow                     ! flag to denote if processing snow layers
   real(rkind),intent(in)                  :: surface_flux                ! surface fluxes (kg m-2 s-1)
+  real(rkind),intent(in)                  :: bottom_flux                 ! bottom fluxes if already computed(kg m-2 s-1)
   logical(lgt),intent(in)                 :: firstFluxCall               ! flag to indicate if we are processing the first flux call
   logical(lgt),intent(in)                 :: scalarSolution              ! flag to denote if implementing the scalar solution
   real(rkind),intent(in)                  :: mLayerVolFracLiqTrial(:)    ! trial value for volumetric fraction of liquid water (-)
@@ -1392,6 +1395,7 @@ contains
    in_snowLakeGlceLiqFlux % nStart                 =nStart                         ! intent(in): starting index for layers
    in_snowLakeGlceLiqFlux % do_snow                =do_snow                        ! intent(in): flag to denote if processing snow layers
    in_snowLakeGlceLiqFlux % surface_flux           =surface_flux                   ! intent(in): surface fluxes (kg m-2 s-1)
+    in_snowLakeGlceLiqFlux % bottom_flux            =bottom_flux                   ! intent(in): bottom fluxes if already computed (kg m-2 s-1)
    in_snowLakeGlceLiqFlux % firstFluxCall          =firstFluxCall                  ! intent(in): the first flux call (compute variables that are constant over the iterations)
    in_snowLakeGlceLiqFlux % scalarSolution         =(scalarSolution .and. .not.firstFluxCall) ! intent(in): flag to indicate the scalar solution
    in_snowLakeGlceLiqFlux % mLayerVolFracLiqTrial  =mLayerVolFracLiqTrial(nStart+1:nStart+nLayers) ! intent(in): trial value of volumetric fraction of liquid water at the current iteration (-)
@@ -1496,14 +1500,16 @@ contains
   in_soilLiqFlux % above_soildLiq_dTk    =above_soildLiq_dTk        ! intent(in): derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
   in_soilLiqFlux % above_soilFracLiq     =above_soilFracLiq         ! intent(in): fraction of liquid water layer above soil (canopy or snow) (-)
 
-  ! intent(in) arguments: evaporative fluxes and rain plus melt
+  ! intent(in) arguments: evaporative fluxes, rain plus melt, and glacier melt to bottom of soil
   associate(&
    scalarCanopyTranspiration    => flux_data%var(iLookFLUX%scalarCanopyTranspiration)%dat(1), & ! intent(out): [dp] canopy transpiration (kg m-2 s-1)
    scalarGroundEvaporation      => flux_data%var(iLookFLUX%scalarGroundEvaporation)%dat(1),   & ! intent(out): [dp] ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
-   scalarRainPlusMelt           => flux_data%var(iLookFLUX%scalarRainPlusMelt)%dat(1)         ) ! intent(out): [dp] rain plus melt plus lake drainage (m s-1)
+   scalarRainPlusMelt           => flux_data%var(iLookFLUX%scalarRainPlusMelt)%dat(1),        & ! intent(out): [dp] rain plus melt plus lake drainage (m s-1)
+   scalarGlceMelt               => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1)             ) ! intent(out): [dp] glacier ice layer melt (m s-1)
    in_soilLiqFlux % scalarCanopyTranspiration=scalarCanopyTranspiration                          ! intent(in): canopy transpiration (kg m-2 s-1)
    in_soilLiqFlux % scalarGroundEvaporation  =scalarGroundEvaporation                            ! intent(in): ground evaporation (kg m-2 s-1)
    in_soilLiqFlux % scalarRainPlusMelt       =scalarRainPlusMelt                                 ! intent(in): rain plus melt plus lake drainage (m s-1)
+   in_soilLiqFlux % scalarGlceMelt           =scalarGlceMelt                                     ! intent(in): glacier ice layer melt (m s-1)
   end associate
  end subroutine initialize_in_soilLiqFlux
 
@@ -2279,7 +2285,7 @@ contains
    iLayerHydCond(nSoil) = out_qDrainFlux % bottomHydCond ! hydraulic conductivity at the bottom of the unsatuarted zone (m s-1)
    iLayerDiffuse(nSoil) = out_qDrainFlux % bottomDiffuse ! hydraulic diffusivity at the bottom of the unsatuarted zone (m2 s-1)
    ! intent(out): drainage flux
-   iLayerLiqFluxSoil(nSoil) = out_qDrainFlux % scalarDrainage    ! drainage flux (m s-1)
+   iLayerLiqFluxSoil(nSoil) = out_qDrainFlux % scalarDrainage ! drainage flux (m s-1) 
    ! intent(out): derivatives in drainage flux w.r.t. ...
    dq_dHydStateAbove(nSoil) = out_qDrainFlux % dq_dHydStateUnsat ! ... change in hydrology state in lowest unsaturated node (m s-1 or s-1)
    dq_dNrgStateAbove(nSoil) = out_qDrainFlux % dq_dNrgStateUnsat ! ... change in energy state in lowest unsaturated node (m s-1 or s-1)

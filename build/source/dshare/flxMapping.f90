@@ -146,7 +146,7 @@ contains
  flux2state_orig(iLookFLUX%scalarSnowDrainage)              = flux2state(state1=iname_watLayer,  state2=iname_watSnow)
  flux2state_orig(iLookFLUX%scalarLakeDrainage)              = flux2state(state1=iname_watLayer,  state2=iname_watLake)
  flux2state_orig(iLookFLUX%scalarLakeInflux)                = flux2state(state1=iname_watLayer,  state2=iname_watLake)
- flux2state_orig(iLookFLUX%scalarGlceInflux)                = flux2state(state1=iname_watLayer,  state2=iname_watGlce)
+ flux2state_orig(iLookFLUX%scalarGlceMelt)                  = flux2state(state1=iname_watLayer,  state2=iname_watGlce)
  flux2state_orig(iLookFLUX%iLayerLiqFluxSnLaGl)             = flux2state(state1=iname_watLayer,  state2=iname_matLayer)
  flux2state_orig(iLookFLUX%mLayerLiqFluxSnLaGl)             = flux2state(state1=iname_watLayer,  state2=iname_matLayer)
 
