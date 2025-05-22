@@ -980,7 +980,7 @@ subroutine opSplittin(&
 
    ! define failure
    failure = (failedMinimumStep .or. err<0)
-   if (ixSolution/=scalar .and. indx_data%var(iLookINDEX%numberStateSplit)%dat(1)/=0) failure = .true. ! force failure for debugging
+   if (ixSolution/=scalar .and. indx_data%var(iLookINDEX%numberStateSplit)%dat(1)==0) failure = .true. ! force failure for debugging
    if (.not.failure) firstSuccess=.true.
 
    ! if failed, need to reset the flux counter
@@ -1204,7 +1204,8 @@ subroutine opSplittin(&
       if (iVar==iLookFLUX%scalarPhotosynthesisShaded) desiredFlux = .true.
      end if
 
-     if (nDomainSplit==1) then ! no domain splitting
+     if (nDomains==1) then ! no domain splitting IF USE THIS, AND NO VEG THEN WHAT HAPPENS?
+     ! if (nDomainSplit==1) then ! no domain splitting NOT SURE WHICH IS BETTER, THIS MAKES MORE SENSE BUT DOES IT CAUSE PROBLEMS?
       fluxMask%var(iVar)%dat = desiredFlux
      else ! domain splitting
       if (iStateTypeSplit==massSplit) iDomainSplit_use = iDomainSplit_mass_map(iDomainSplit)
