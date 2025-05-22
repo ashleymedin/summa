@@ -393,7 +393,6 @@ subroutine opSplittin(&
            call initialize_split_stateSplit; if (return_flag) return 
            if (split_select % stateSplit) then ! stateSplit method begins
              ! define masks for selected splitting method
-             print*, 'stateSplit method'
              call initialize_split; if (return_flag) return; if (cycle_initialize_split()) then; cycle_split_select=.true.; return; end if
              ! update trial solution for selected splitting method
              call update_split;     if (return_flag) return
@@ -518,7 +517,6 @@ subroutine opSplittin(&
    end if
    if (split_select % logic_exit_stateThenDomain()) then ! stateThenDomain
     ixStateThenDomain=split_select % ixStateThenDomain 
-    print*, 'ixStateThenDomain',ixStateThenDomain, 'tryDomainSplit',tryDomainSplit
     if (ixStateThenDomain > (1+tryDomainSplit)) then
      ixStateThenDomain=ixStateThenDomain-1; split_select % ixStateThenDomain = ixStateThenDomain ! correct index needed after exit
      split_select % stateThenDomain=.false. ! eqivalent to exiting the stateThenDomain method
@@ -738,9 +736,7 @@ subroutine opSplittin(&
 
     ! check that the desired fluxes were computed
     do iVar=1,size(flux_meta)
-     print*,trim(flux_meta(iVar)%varname), fluxCount%var(iVar)%dat
      if (neededFlux(iVar) .and. any(fluxCount%var(iVar)%dat==0)) then
-      print*, 'fluxCount%var(iVar)%dat = ', fluxCount%var(iVar)%dat
       message=trim(message)//'flux '//trim(flux_meta(iVar)%varname)//' was not computed'
       err=20; return_flag=.true.; return
      end if
@@ -844,7 +840,6 @@ subroutine opSplittin(&
       if (computeVegFlux) then
         where(ixStateType(ixHydCanopy)==iname_liqCanopy) ixStateType(ixHydCanopy)=iname_watCanopy
       end if
-      print*, "hiiii", nLayers,noWatState
       where(ixStateType(ixHydLayer(1:nLayers-noWatState))==iname_liqLayer) ixStateType(ixHydLayer(1:nLayers-noWatState))=iname_watLayer
       where(ixStateType(ixHydLayer(1:nLayers-noWatState))==iname_lmpLayer) ixStateType(ixHydLayer(1:nLayers-noWatState))=iname_matLayer
     end if
@@ -985,8 +980,7 @@ subroutine opSplittin(&
 
    ! define failure
    failure = (failedMinimumStep .or. err<0)
-   !if (ixSolution/=scalar) failure = .true. ! force failure for debugging
-   print*,"did a solution, failure = ",failure, " err = ", err, " nSubsteps = ", nSubsteps, tooMuchMelt,reduceCoupledStep
+   if (ixSolution/=scalar .and. indx_data%var(iLookINDEX%numberStateSplit)%dat(1)/=0) failure = .true. ! force failure for debugging
    if (.not.failure) firstSuccess=.true.
 
    ! if failed, need to reset the flux counter
@@ -1030,7 +1024,6 @@ subroutine opSplittin(&
           ! keep track of the number of times splits a nrg/mass domain into further into a scalar solution
           associate(numberScalarSolutions => indx_data%var(iLookINDEX%numberScalarSolutions)%dat(1)) ! intent(inout): [i4b] number of scalar solutions
            numberScalarSolutions = numberScalarSolutions + 1
-           print*, 'numberScalarSolutions', numberScalarSolutions
           end associate
           endif
          cycle_solution=.true.; return ! return required to execute cycle statement in opSplittin

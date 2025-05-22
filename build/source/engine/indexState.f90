@@ -149,7 +149,6 @@ contains
  if(nGlce>0)then
   noWatState = nGlce - 1
  endif
- print*, 'noWatState = ', noWatState
  ! define the number state variables of different type
  nNrgState  = nCasNrg + nVegNrg + nLayers  ! number of energy state variables
  nWatState  = nSnow + nLake + nGlce        ! number of "total water" state variables -- will be modified later if using primary variable switching   
@@ -302,14 +301,6 @@ contains
  ! define the index for the control volumes in the aquifer
  if(includeAquifer) ixControlVolume( ixWatAquifer(1) ) = 1
 
- print*, 'ixNrgLayer',ixNrgLayer
- print*, 'ixHydLayer',ixHydLayer
- print*, 'ixAllState', ixAllState
- print*, 'ixLayerState', ixLayerState
- print*, 'ixSoilState', ixSoilState
- print*, 'ixStateType', ixStateType
- print*, 'ixDomainType', ixDomainType
- print*, 'ixControlVolume', ixControlVolume
  ! end association to the ALLOCATABLE variables in the data structures
  end associate
 
@@ -462,7 +453,6 @@ contains
   end select  ! iVar
   if(err/=0)then; message=trim(message)//trim(cmessage)//'[varname='//trim(indx_meta(ivar)%varname)//']'; return; endif
 
-  print*, "subset ",trim(indx_meta(ivar)%varname),indx_data%var(iVar)%dat
  end do  ! looping through variables in the data structure
 
  ! make association to variables in the data structures
