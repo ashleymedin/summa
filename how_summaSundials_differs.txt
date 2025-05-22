@@ -11,7 +11,7 @@ c-02) eval8summa.f90 soil min water is now theta_res, commit c19473df Apr 12 202
        2) Fix thermal conductivity at snow soil layer interfaces depends on frac ice/liq (ssdNrgFlux) if updateCp, not needed it don't updateCp
       -3) Fix soil layer and aquifer transpiration depends on canopy nrg and wat (canopy transpiration), no effect if banded Jacobian
       -4) Fix aquifer recharge depends on soil drainage from interface above
-      -5) Fix soil infiltration at surface depends on all layers below and above water and temp, not huge effect (but some) if banded Jacobian
+      -5) Fix soil infiltration at surface depends on all layers below and above water and temp, not huge effect (but some) if banded Jacobian, but only if do not tie this to firstSplitOper
 c-07) Jacobian, scalarCanopyLiq derivatives were getting overwritten and thus zeroed out in calculations, commit cd5002c Jul 6, 2023
   08) Throughout, made “indian bread” terminology for NaN say it’s not a number for advised clarity, and there might be other other spaces and comments changed (e.g. tabs deleted and comments deleted or clarified), does not effect code results
 c-09) flxMapping.f90 flux mapping of soil resistance as an energy variable corrected (was missing and messed up splitting), commit 315583df June 5, 2023
