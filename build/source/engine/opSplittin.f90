@@ -393,6 +393,7 @@ subroutine opSplittin(&
            call initialize_split_stateSplit; if (return_flag) return 
            if (split_select % stateSplit) then ! stateSplit method begins
              ! define masks for selected splitting method
+             print*, 'stateSplit method'
              call initialize_split; if (return_flag) return; if (cycle_initialize_split()) then; cycle_split_select=.true.; return; end if
              ! update trial solution for selected splitting method
              call update_split;     if (return_flag) return
@@ -517,6 +518,7 @@ subroutine opSplittin(&
    end if
    if (split_select % logic_exit_stateThenDomain()) then ! stateThenDomain
     ixStateThenDomain=split_select % ixStateThenDomain 
+    print*, 'ixStateThenDomain',ixStateThenDomain, 'tryDomainSplit',tryDomainSplit
     if (ixStateThenDomain > (1+tryDomainSplit)) then
      ixStateThenDomain=ixStateThenDomain-1; split_select % ixStateThenDomain = ixStateThenDomain ! correct index needed after exit
      split_select % stateThenDomain=.false. ! eqivalent to exiting the stateThenDomain method
@@ -532,6 +534,7 @@ subroutine opSplittin(&
    end if
    if (split_select % logic_exit_domainSplit()) then
     iDomainSplit=split_select % iDomainSplit
+    print*, 'iDomainSplit',iDomainSplit, nDomainSplit
     if (split_select % iDomainSplit > nDomainSplit) split_select % domainSplit=.false.
    end if
   end subroutine initialize_split_domainSplit
@@ -735,6 +738,7 @@ subroutine opSplittin(&
 
     ! check that the desired fluxes were computed
     do iVar=1,size(flux_meta)
+     print*,trim(flux_meta(iVar)%varname), fluxCount%var(iVar)%dat
      if (neededFlux(iVar) .and. any(fluxCount%var(iVar)%dat==0)) then
       print*, 'fluxCount%var(iVar)%dat = ', fluxCount%var(iVar)%dat
       message=trim(message)//'flux '//trim(flux_meta(iVar)%varname)//' was not computed'
@@ -767,6 +771,7 @@ subroutine opSplittin(&
    ! keep track of the number of state splits
    associate(numberStateSplit => indx_data%var(iLookINDEX%numberStateSplit)%dat(1)) ! intent(inout): [i4b] number of state splitting solutions
     if (ixCoupling/=fullyCoupled) numberStateSplit = numberStateSplit + 1
+    print*, 'numberStateSplit', numberStateSplit
    end associate
 
    ! define the number of operator splits for the state type
@@ -794,12 +799,21 @@ subroutine opSplittin(&
    ! *** Identify state-specific variables for a given state split ***
    doAdjustTemp = (ixCoupling/=fullyCoupled .and. iStateTypeSplit==massSplit) ! flag to adjust the temperature
    associate(&
+    nSnow       => indx_data%var(iLookINDEX%nSnow)%dat(1)     ,& ! intent(in): [i4b] number of snow layers
+    nLake       => indx_data%var(iLookINDEX%nLake)%dat(1)     ,& ! intent(in): [i4b] number of lake layers
+    nSoil       => indx_data%var(iLookINDEX%nSoil)%dat(1)     ,& ! intent(in): [i4b] number of soil layers
+    nGlce       => indx_data%var(iLookINDEX%nGlce)%dat(1)     ,& ! intent(in): [i4b] number of glacier ice layers
     noWatState  => indx_data%var(iLookINDEX%noWatState)%dat(1),& ! intent(in): [i4b] number of layers with no water state (bottom glacier ice layers)  
     ixStateType => indx_data%var(iLookINDEX%ixStateType)%dat,  & ! intent(in): [i4b(:)] indices defining the type of the state
     ixHydCanopy => indx_data%var(iLookINDEX%ixHydCanopy)%dat,  & ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the canopy domain
     ixHydLayer  => indx_data%var(iLookINDEX%ixHydLayer)%dat    ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the layers
 
     ! modify the state type names associated with the state vector
+    !if (ixCoupling==fullyCoupled)then
+    !  ! only solve liq water for glce since frozen water does not change
+    !  where(ixStateType(ixHydLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState))==iname_watLayer) &
+    !        ixStateType(ixHydLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState))=iname_liqLayer
+    !else
     if (ixCoupling/=fullyCoupled .and. iStateTypeSplit==massSplit) then ! if modifying state variables for the mass split
       if (computeVegFlux) then
         where(ixStateType(ixHydCanopy)==iname_watCanopy) ixStateType(ixHydCanopy)=iname_liqCanopy
@@ -830,6 +844,7 @@ subroutine opSplittin(&
       if (computeVegFlux) then
         where(ixStateType(ixHydCanopy)==iname_liqCanopy) ixStateType(ixHydCanopy)=iname_watCanopy
       end if
+      print*, "hiiii", nLayers,noWatState
       where(ixStateType(ixHydLayer(1:nLayers-noWatState))==iname_liqLayer) ixStateType(ixHydLayer(1:nLayers-noWatState))=iname_watLayer
       where(ixStateType(ixHydLayer(1:nLayers-noWatState))==iname_lmpLayer) ixStateType(ixHydLayer(1:nLayers-noWatState))=iname_matLayer
     end if
@@ -844,6 +859,7 @@ subroutine opSplittin(&
     ! keep track of the number of domain splits
     if (iStateTypeSplit==nrgSplit  .and. ixStateThenDomain==subDomain) numberDomainSplitNrg  = numberDomainSplitNrg  + 1
     if (iStateTypeSplit==massSplit .and. ixStateThenDomain==subDomain) numberDomainSplitMass = numberDomainSplitMass + 1
+    print*, 'numberDomainSplitNrg', numberDomainSplitNrg, 'numberDomainSplitMass', numberDomainSplitMass
    end associate
 
    call get_nDomainSplit(ixStateThenDomain); if (return_flag) return ! get nDomainSplit value -- return if error occurs
@@ -969,6 +985,8 @@ subroutine opSplittin(&
 
    ! define failure
    failure = (failedMinimumStep .or. err<0)
+   !if (ixSolution/=scalar) failure = .true. ! force failure for debugging
+   print*,"did a solution, failure = ",failure, " err = ", err, " nSubsteps = ", nSubsteps, tooMuchMelt,reduceCoupledStep
    if (.not.failure) firstSuccess=.true.
 
    ! if failed, need to reset the flux counter
@@ -1012,6 +1030,7 @@ subroutine opSplittin(&
           ! keep track of the number of times splits a nrg/mass domain into further into a scalar solution
           associate(numberScalarSolutions => indx_data%var(iLookINDEX%numberScalarSolutions)%dat(1)) ! intent(inout): [i4b] number of scalar solutions
            numberScalarSolutions = numberScalarSolutions + 1
+           print*, 'numberScalarSolutions', numberScalarSolutions
           end associate
           endif
          cycle_solution=.true.; return ! return required to execute cycle statement in opSplittin
@@ -1276,7 +1295,7 @@ subroutine opSplittin(&
 
     ! define if the flux is desired
     if (desiredFlux) neededFlux(iVar)=.true.
-    !if(desiredFlux) print*, flux_meta(iVar)%varname, fluxMask%var(iVar)%dat
+    if(desiredFlux) print*, flux_meta(iVar)%varname, fluxMask%var(iVar)%dat
 
     if ( globalPrintFlag .and. count(fluxMask%var(iVar)%dat)>0 ) print*, trim(flux_meta(iVar)%varname) ! * check
 
@@ -1302,42 +1321,49 @@ subroutine split_select_advance_iSplit(split_select)
  ! *** Advance index for coupling split method ***
  class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
  split_select % iSplit = split_select % iSplit + 1
+ print*, 'iSplit', split_select % iSplit
 end subroutine split_select_advance_iSplit
 
 subroutine split_select_advance_ixCoupling(split_select)
  ! *** Advance index for coupling split method ***
  class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
  split_select % ixCoupling = split_select % ixCoupling + 1
+ print*, 'ixCoupling', split_select % ixCoupling
 end subroutine split_select_advance_ixCoupling
 
 subroutine split_select_advance_iStateTypeSplit(split_select)
  ! *** Advance index for stateTypeSplit split method ***
  class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
  split_select % iStateTypeSplit = split_select % iStateTypeSplit + 1
+  print*, 'iStateTypeSplit', split_select % iStateTypeSplit
 end subroutine split_select_advance_iStateTypeSplit
 
 subroutine split_select_advance_ixStateThenDomain(split_select)
  ! *** Advance index for stateThenDomain split method ***
  class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
  split_select % ixStateThenDomain = split_select % ixStateThenDomain + 1
+ print*, 'ixStateThenDomain', split_select % ixStateThenDomain
 end subroutine split_select_advance_ixStateThenDomain
 
 subroutine split_select_advance_iDomainSplit(split_select)
  ! *** Advance index for domainSplit split method ***
  class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
  split_select % iDomainSplit = split_select % iDomainSplit + 1
+ print*, 'iDomainSplit', split_select % iDomainSplit
 end subroutine split_select_advance_iDomainSplit
 
 subroutine split_select_advance_ixSolution(split_select)
  ! *** Advance index for solution split method ***
  class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
  split_select % ixSolution = split_select % ixSolution + 1
+ print*, 'ixSolution', split_select % ixSolution
 end subroutine split_select_advance_ixSolution
 
 subroutine split_select_advance_iStateSplit(split_select)
  ! *** Advance index for stateSplit split method ***
  class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
  split_select % iStateSplit = split_select % iStateSplit + 1
+  print*, 'iStateSplit', split_select % iStateSplit
 end subroutine split_select_advance_iStateSplit
 
 subroutine split_select_initialize_ixCoupling(split_select)
