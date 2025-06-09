@@ -403,7 +403,9 @@ subroutine computeCm(&
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)             ,& ! intent(in): number of snow layers
     nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1)             ,& ! intent(in): number of lake layers
     nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)             ,& ! intent(in): number of soil layers
+    nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)           ,& ! intent(in) : [i4b]    total number of layers
     snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)     ,& ! intent(in):  [dp] scaling parameter for the snow freezing curve (K-1)
+    noWatState              => indx_data%var(iLookINDEX%noWatState)%dat(1)        ,& ! number of layers with no water state (bottom glacier ice layers)
     ! mapping between the full state vector and the state subset
     ixMapSubset2Full        => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat     ,& ! intent(in): [i4b(:)] [state subset] list of indices of the full state vector in the state subset
     ! type of domain, type of state variable, and index of control volume within domain
@@ -454,7 +456,7 @@ subroutine computeCm(&
               dCm_dTkCanopy  = Cp_water
             else
               integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-              fLiq = fracLiquid(scalarCanopyTemp,snowfrz_scale)
+              fLiq = fracliquid(scalarCanopyTemp,snowfrz_scale)
               scalarCanopyCm = Cp_water * integral + Cp_ice * (diffT - integral) 
               ! derivatives
               dfLiq_dT = dFracLiq_dTk(scalarCanopyTemp,snowfrz_scale)
@@ -468,12 +470,17 @@ subroutine computeCm(&
               ! derivatives
               dCm_dTk(iLayer) = iden_water * Cp_water - iden_air * Cp_air
             else
-              fLiq = fracLiquid(mLayerTemp(iLayer),snowfrz_scale)
-              integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
+
+              fLiq = fracliquid(mLayerTemp(iLayer),snowfrz_scale,iLayer>nLayers-noWatState)
+              if(iLayer>nLayers-noWatState) then
+                integral = 0._rkind
+              else
+                integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
+              end if
               mLayerCm(iLayer) = (iden_water * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( diffT - integral ) &
                                      + (iden_water * Cp_water - iden_air * Cp_air) * integral
               ! derivatives
-              dfLiq_dT = dFracLiq_dTk(mLayerTemp(iLayer),snowfrz_scale)
+              dfLiq_dT = dFracLiq_dTk(mLayerTemp(iLayer),snowfrz_scale,iLayer>nLayers-noWatState)
               dCm_dTk(iLayer) = (iden_water * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( 1._rkind -fLiq ) &
                                + (iden_water * Cp_water - iden_air * Cp_air) * fLiq
             end if

@@ -72,15 +72,6 @@ USE var_lookup,only:iLookDERIV            ! named variables for structure elemen
 USE var_lookup,only:iLookPARAM            ! named variables for structure elements
 USE var_lookup,only:iLookINDEX            ! named variables for structure elements
 
-! provide access to functions for the constitutive functions and derivatives
-USE snow_utils_module,only:fracliquid     ! compute the fraction of liquid water (snow)
-USE snow_utils_module,only:dFracLiq_dTk   ! differentiate the freezing curve w.r.t. temperature (snow)
-USE soil_utils_module,only:dTheta_dTk     ! differentiate the freezing curve w.r.t. temperature (soil)
-USE soil_utils_module,only:dTheta_dPsi    ! derivative in the soil water characteristic (soil)
-USE soil_utils_module,only:dPsi_dTheta    ! derivative in the soil water characteristic (soil)
-USE soil_utils_module,only:matricHead     ! compute the matric head based on volumetric water content
-USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water
-
 implicit none
 private
 public::popStateVec

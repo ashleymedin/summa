@@ -443,7 +443,7 @@ contains
  if(cTemp < min(mLayerTemp(iSnow),mLayerTemp(iSnow+1))-eTol)then; err=20; message=trim(message)//'merged temperature < min(temp1,temp2)'; return; end if
 
  ! compute volumetric fraction of liquid water
- fLiq = fracLiquid(cTemp,snowfrz_scale)
+ fLiq = fracliquid(cTemp,snowfrz_scale)
 
  ! compute volumetric fraction of ice and liquid water
  cVolFracLiq =          fLiq *cBulkDenWat/iden_water

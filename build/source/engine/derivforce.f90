@@ -70,7 +70,6 @@ contains
  USE convert_funcs_module,only:vapPress                              ! compute vapor pressure of air (Pa)
  USE convert_funcs_module,only:SPHM2RELHM,RELHM2SPHM,WETBULBTMP      ! conversion functions
  USE convert_funcs_module,only:MSLP2AIRP,AIRP2MSLP                   ! compute air pressure using mean sea level pressure and elevation
- USE snow_utils_module,only:fracliquid,templiquid                 ! functions to compute temperature/liquid water
  USE time_utils_module,only:compcalday                            ! convert julian day to calendar date
  USE summaFileManager,only: NC_TIME_ZONE                          ! time zone option from control file
  ! compute derived forcing data variables

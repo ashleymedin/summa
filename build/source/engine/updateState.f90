@@ -39,6 +39,7 @@ contains
 ! *************************************************************************************************************
 subroutine updateSnLaGl(&
                   ! input
+                  noLiq            ,& ! intent(in): flag to indicate if the input has no liquid water
                   mLayerTemp       ,& ! intent(in): temperature (K)
                   mLayerTheta      ,& ! intent(in): volume fraction of total water (-)
                   snowfrz_scale    ,& ! intent(in): scaling parameter for the snow freezing curve (K-1)
@@ -51,6 +52,7 @@ subroutine updateSnLaGl(&
   USE snow_utils_module,only:fracliquid     ! compute volumetric fraction of liquid water
   implicit none
   ! input variables
+  logical, intent(in)           :: noLiq                   ! flag to indicate if the input has no liquid water (default: .false.)
   real(rkind),intent(in)        :: mLayerTemp              ! temperature (K)
   real(rkind),intent(in)        :: mLayerTheta             ! volume fraction of total water (-)
   real(rkind),intent(in)        :: snowfrz_scale           ! scaling parameter for the snow freezing curve (K-1)
@@ -65,7 +67,7 @@ subroutine updateSnLaGl(&
   err=0; message="updateSnLaGl/"
 
   ! compute the volumetric fraction of liquid water and ice (-)
-  fLiq = fracliquid(mLayerTemp,snowfrz_scale)
+  fLiq = fracliquid(mLayerTemp,snowfrz_scale,noLiq)
   mLayerVolFracLiq = fLiq*mLayerTheta
   mLayerVolFracIce = (1._rkind - fLiq)*mLayerTheta*(iden_water/iden_ice)
 end subroutine updateSnLaGl

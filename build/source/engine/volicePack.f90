@@ -165,7 +165,7 @@ contains
                        ! output: error control
                        err,message                ) ! error control
  ! computational modules
- USE snow_utils_module,only:fracliquid,templiquid                  ! functions to compute temperature/liquid water
+ USE snow_utils_module,only:fracliquid              ! functions to compute temperature/liquid water
  ! add new snowfall to the system
  implicit none
  ! input: model control

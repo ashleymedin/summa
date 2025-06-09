@@ -76,7 +76,6 @@ contains
                        iden_water,&                      ! intrinsic density of liquid water    (kg m-3)
                        gravity,   &                      ! gravitational acceleration           (m s-2)
                        Tfreeze                           ! freezing point of pure water         (K)
- USE snow_utils_module,only:fracliquid                   ! compute volumetric fraction of liquid water in snow based on temperature
  USE updateState_module,only:updateSnLaGl                 ! update snow states
  USE updateState_module,only:updateSoil                   ! update soil states
  USE convertEnthalpyTemp_module,only:T2enthTemp_cas             ! convert temperature to enthalpy for canopy air space
@@ -379,6 +378,7 @@ contains
 
         ! ensure consistency among state variables
         call updateSnLaGl(&
+                        layerType(iLayer)==iname_glce,  & ! intent(in):  flag that no liquid water in layer
                         mLayerTemp(iLayer),             & ! intent(in): temperature (K)
                         scalarTheta,                    & ! intent(in): volumetric fraction of total water (-)
                         snowfrz_scale,                  & ! intent(in): scaling parameter for the snow freezing curve (K-1)
@@ -391,6 +391,7 @@ contains
         if(checkEnthalpy)then ! enthalpy as state variable or in residual
           if(no_icond_enth)then ! no enthalpy in icond file
             call T2enthTemp_snLaGl(&
+                        layerType(iLayer)==iname_glce,  & ! intent(in):  flag that no liquid water in layer
                         snowfrz_scale,                  & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                         mLayerTemp(iLayer),             & ! intent(in):  layer temperature (K)
                         scalarTheta,                    & ! intent(in):  volumetric total water content (-)

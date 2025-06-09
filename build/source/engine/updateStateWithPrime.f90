@@ -26,6 +26,7 @@ contains
 ! *************************************************************************************************************
 subroutine updateSnLaGlPrime(&
                       ! input
+                      noLiq                  ,& ! intent(in):  flag if no liquid water in layer
                       mLayerTemp             ,& ! intent(in):  temperature (K)
                       mLayerTheta            ,& ! intent(in):  volume fraction of total water (-)
                       snowfrz_scale          ,& ! intent(in):  scaling parameter for the snow freezing curve (K-1)
@@ -43,6 +44,7 @@ subroutine updateSnLaGlPrime(&
   USE snow_utils_module,only:dFracLiq_dTk       ! differentiate the freezing curve w.r.t. temperature (snow)
   implicit none
   ! input variables
+  logical(lgt),intent(in)       :: noLiq                 ! flag if no liquid water in layer
   real(rkind),intent(in)        :: mLayerTemp            ! temperature (K)
   real(rkind),intent(in)        :: mLayerTheta           ! volume fraction of total water (-)
   real(rkind),intent(in)        :: snowfrz_scale         ! scaling parameter for the snow freezing curve (K-1)
@@ -61,7 +63,7 @@ subroutine updateSnLaGlPrime(&
   err=0; message="updateSnLaGlPrime/"
 
   ! compute the volumetric fraction of liquid water and ice (-)
-  fLiq = fracliquid(mLayerTemp,snowfrz_scale)
+  fLiq = fracliquid(mLayerTemp,snowfrz_scale,noLiq)
   mLayerVolFracLiq = fLiq*mLayerTheta
   mLayerVolFracIce = (1._rkind - fLiq)*mLayerTheta*(iden_water/iden_ice)
   mLayerVolFracLiqPrime = fLiq * mLayerThetaPrime + dFracLiq_dTk(mLayerTemp,snowfrz_scale) * mLayerTheta * mLayerTempPrime

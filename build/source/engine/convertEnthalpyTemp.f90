@@ -496,6 +496,7 @@ end subroutine T2enthTemp_veg
 ! public subroutine T2enthTemp_snLaGl: compute temperature component of enthalpy from temperature and total water content, snow, lake, ice layer
 ! ************************************************************************************************************************
 subroutine T2enthTemp_snLaGl(&
+                      noLiq,                  & ! intent(in):  flag to indicate no liquid water in the layer
                       snowfrz_scale,          & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                       mLayerTemp,             & ! intent(in):  layer temperature (K)
                       mLayerVolFracWat,       & ! intent(in):  volumetric total water content (-)
@@ -504,6 +505,7 @@ subroutine T2enthTemp_snLaGl(&
   implicit none
   ! delare dummy variables
   ! -------------------------------------------------------------------------------------------------------------------------
+  logical(lgt),intent(in)          :: noLiq                ! flag to indicate no liquid water in the layer
   real(rkind),intent(in)           :: snowfrz_scale         ! scaling parameter for the snow freezing curve  (K-1)
   ! input: variables for the snow domain
   real(rkind),intent(in)           :: mLayerTemp            ! layer temperature (K)
@@ -520,13 +522,16 @@ subroutine T2enthTemp_snLaGl(&
   real(rkind)                      :: enthAir               ! enthalpy of air (J m-3)
   ! --------------------------------------------------------------------------------------------------------------------------------
   diffT    = mLayerTemp - Tfreeze
-
   if(diffT>=0._rkind)then ! diffT<0._rkind if in snow or ice, but may use for lake
     enthLiq = iden_water * Cp_water * mLayerVolFracWat * diffT
     enthIce = 0._rkind
     enthAir = iden_air * Cp_air * ( 1._rkind - mLayerVolFracWat ) * diffT
   else
-    integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
+    if(noLiq)then
+      integral = 0._rkind
+    else
+      integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
+    end if
     enthLiq  = iden_water * Cp_water * mLayerVolFracWat * integral
     enthIce  = iden_water * Cp_ice * mLayerVolFracWat * ( diffT - integral )
     enthAir  = iden_air * Cp_air * ( diffT - mLayerVolFracWat * ( (iden_water/iden_ice)*(diffT-integral) + integral ) )
@@ -918,7 +923,7 @@ subroutine enthalpy2T_veg(&
     ! NOTE: dintegral_dT = fLiq
       diffT    = T - Tfreeze
       integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-      fLiq     = fracLiquid(T, snowfrz_scale)
+      fLiq     = fracliquid(T, snowfrz_scale)
 
       ! w.r.t. temperature, NOTE: dintegral_dT = fLiq
       dfLiq_dT    = dFracLiq_dTk(T,snowfrz_scale)
@@ -952,8 +957,9 @@ end subroutine enthalpy2T_veg
 ! public subroutine enthalpy2T_snLaGl: compute temperature from enthalpy and total water content, snow, lake, ice layer
 ! ************************************************************************************************************************
 subroutine enthalpy2T_snLaGl(&
-                      computeJac,         & ! intent(in):    flag if computing for Jacobian update
+                      computeJac,        & ! intent(in):    flag if computing for Jacobian update
                       isLake,            & ! intent(in):    flag if is lake layer
+                      noLiq,             & ! intent(in):    flag if no liquid water in the layer, i.e. if frozen
                       snowfrz_scale,     & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
                       mLayerEnthalpy,    & ! intent(in):    enthalpy of layer (J m-3)
                       mLayerVolFracWat,  & ! intent(in):    volumetric total water content (-)
@@ -969,8 +975,9 @@ subroutine enthalpy2T_snLaGl(&
   implicit none
   ! delare dummy variables
   ! -------------------------------------------------------------------------------------------------------------------------
-  logical(lgt),intent(in)          :: computeJac          ! flag if computing for Jacobian update
+  logical(lgt),intent(in)          :: computeJac         ! flag if computing for Jacobian update
   logical(lgt),intent(in)          :: isLake             ! flag if is lake layer
+  logical(lgt),intent(in)          :: noLiq              ! flag if no liquid water in the layer, i.e. if frozen
   ! input: data structures
   real(rkind),intent(in)           :: snowfrz_scale      ! scaling parameter for the snow freezing curve  (K-1)
   ! input: enthalpy state variables
@@ -993,6 +1000,7 @@ subroutine enthalpy2T_snLaGl(&
   real(rkind)                      :: integral           ! integral of snow freezing curve
   real(rkind)                      :: fLiq               ! fraction liquid 
   real(rkind)                      :: vec(9)             ! vector of parameters for the enthalpy function
+  real(rkind)                      :: real_noLiq         ! real value of noLiq for the vector of parameters
    ! variable derivatives
   real(rkind)                      :: dT_dEnthalpy       ! derivative of temperature with enthalpy state variable
   real(rkind)                      :: dT_dWat            ! derivative of temperature with water state variable
@@ -1024,7 +1032,9 @@ subroutine enthalpy2T_snLaGl(&
     ! inputs = function, initial point, out point, lower bound, upper bound, and the vector of parameters
     T = min(mLayerTemp, Tfreeze)  ! initial guess
     vec = 0._rkind
-    vec(1:3) = (/mLayerEnthalpy, snowfrz_scale, mLayerVolFracWat/)
+    real_noLiq = 0._rkind
+    if(noLiq) real_noLiq = 1._rkind
+    vec(1:3) = (/mLayerEnthalpy, snowfrz_scale, mLayerVolFracWat,real_noLiq/)
     if(mLayerEnthalpy>0._rkind .and. .not.(isLake))then
       T = Tfreeze - 1.e-6_rkind ! need to merge layers, don't iterate to find the temperature
     else
@@ -1037,11 +1047,15 @@ subroutine enthalpy2T_snLaGl(&
     if(computeJac)then
       ! NOTE: dintegral_dT = fLiq
       diffT    = T - Tfreeze
-      integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-      fLiq     = fracLiquid(T, snowfrz_scale)
+      if(noLiq)then
+        integral = 0._rkind ! no liquid water, so integral is zero
+      else
+        integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
+      end if
+      fLiq     = fracliquid(T, snowfrz_scale, noLiq)
     
       ! w.r.t. temperature, NOTE: dintegral_dT = fLiq
-      dfLiq_dT    = dFracLiq_dTk(T,snowfrz_scale)
+      dfLiq_dT    = dFracLiq_dTk(T,snowfrz_scale,noLiq)
       denthLiq_dT = iden_water * Cp_water * mLayerVolFracWat * fLiq
       denthIce_dT = iden_water * Cp_ice * mLayerVolFracWat * (1._rkind - fLiq)
       denthAir_dT = iden_air * Cp_air * (1._rkind - mLayerVolFracWat * ( (iden_water/iden_ice)*(1._rkind-fLiq) + fLiq ) )
@@ -1673,13 +1687,16 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     real(rkind) :: diff_H_snLaGl
     real(rkind) , intent(IN) :: mLayerTemp, vec(9) 
     real(rkind) :: mLayerEnthalpy, mLayerEnthTemp, mLayerVolFracWat, snowfrz_scale, fLiq
+    logical(lgt) :: noLiq
   
     mLayerEnthalpy   = vec(1)
     snowfrz_scale    = vec(2)
     mLayerVolFracWat = vec(3)
+    noLiq = .false. ! assume liquid water exists
+    if(vec(4) == 1._rkind) noLiq = .true.! no liquid water, ice only
   
     call T2enthTemp_snLaGl(snowfrz_scale, mLayerTemp, mLayerVolFracWat, mLayerEnthTemp)
-    fLiq   = fracliquid(mLayerTemp, snowfrz_scale)
+    fLiq   = fracliquid(mLayerTemp, snowfrz_scale, noLiq)
     diff_H_snLaGl = mLayerEnthTemp - iden_water * LH_fus * mLayerVolFracWat * (1._rkind - fLiq) - mLayerEnthalpy
   
   end function diff_H_snLaGl

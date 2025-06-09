@@ -322,12 +322,13 @@ subroutine coupled_em(&
   logical(lgt)                         :: computeEnthalpy          ! flag to compute enthalpy regardless of the model decision
   logical(lgt)                         :: enthalpyStateVec         ! flag if enthalpy is a state variable (IDA)
   logical(lgt)                         :: use_lookup               ! flag to use the lookup table for soil enthalpy, otherwise use analytical solution
+  real(rkind), allocatable             :: depthGlceTopLayer(:)     ! depth of the top glacier ice layers at the start of the time step (m)
+  integer(i4b)                         :: noWatState               ! number of layers with no water state (bottom glacier ice layers)
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message="coupled_em/"
 
   ! This is the start of a data step for a local HRU
-
   ! get the start time
   CALL system_clock(count_rate=count_rate)
   CALL system_clock(i_start)
@@ -414,7 +415,6 @@ subroutine coupled_em(&
     scalarIceWE          => diag_data%var(iLookDIAG%scalarIceWE)%dat(1)               & ! glacier ice (not snow) water equivalent (kg m-2)
 
     ) ! (association of local variables with information in the data structures
-
 
       ! identify the need to check the mass balance, both methods should work if tolerance coarse enough
       select case(ixNumericalMethod)
@@ -851,6 +851,7 @@ subroutine coupled_em(&
                 mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)*(iden_ice/iden_water)
                 ! compute enthalpy for snow and glacier ice layers
                 call T2enthTemp_snLaGl(&
+                             iLayer>nSnow+nLake+nSoil,  & ! intent(in):  flag that no liquid water in layer
                              snowfrz_scale,             & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                              mLayerTemp(iLayer),        & ! intent(in):  layer temperature (K)
                              mLayerVolFracWat(iLayer),  & ! intent(in):  volumetric total water content (-)
@@ -986,6 +987,7 @@ subroutine coupled_em(&
           if( (enthalpyStateVec .or. computeEnthalpy) .and. nSnow==0 .and. prog_data%var(iLookPROG%scalarSWE)%dat(1)>0._rkind)then 
             if (nLake>0 .or. (nLake==0 .and. nSoil==0 .and. nGlce>0))then
               call T2enthTemp_snLaGl(&
+                       nLake==0 .and. nSoil==0 .and. nGlce>0,              & ! intent(in):  flag that no liquid water in layer
                        snowfrz_scale,                                      & ! intent(in):  scaling parameter for the lake freezing curve  (K-1)
                        prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1),   & ! intent(in):  layer temperature (K)
                        mLayerVolFracWat(nSnow+1),                          & ! intent(in):  volumetric total water content (-)
@@ -1283,6 +1285,7 @@ subroutine coupled_em(&
               ! recompute enthalpy of layers if changed water and ice content
               if(enthalpyStateVec .or. computeEnthalpy)then
                 call T2enthTemp_snLaGl(&
+                             iLayer>nSnow+nLake+nSoil,                            & ! intent(in):  flag that no liquid water in layer
                              snowfrz_scale,                                       & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                              prog_data%var(iLookPROG%mLayerTemp)%dat(iLayer),     & ! intent(in):  layer temperature (K)
                              mLayerVolFracWat(iLayer),                            & ! intent(in):  volumetric total water content (-)
@@ -1463,6 +1466,7 @@ subroutine coupled_em(&
                                                         + prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1)*iden_ice/iden_water
       if(enthalpyStateVec .or. computeEnthalpy)then ! compute enthalpy of the top snow layer
         call T2enthTemp_snLaGl(&
+                       .false.                                            & ! intent(in):  flag that no liquid water in layer
                        snowfrz_scale,                                     & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                        prog_data%var(iLookPROG%mLayerTemp)%dat(1),        & ! temperature of the top layer (K)
                        prog_data%var(iLookPROG%mLayerVolFracWat)%dat(1),  & ! intent(in):  volumetric total water content (-)
@@ -1891,10 +1895,17 @@ contains
   nGlce = count(indx_data%var(iLookINDEX%layerType)%dat==iname_glce)
   nLayers = nSnow + nLake + nSoil + nGlce
 
+  noWatState = indx_data%var(iLookINDEX%noWatState)%dat(1) ! number of layers with no water state (bottom glacier ice layers)
+
   ! allocate and initialize using the initial value of nLayers
   allocate(innerBalanceLayerMass(nLayers)); innerBalanceLayerMass = 0._rkind ! mean total balance of mass in layers
   allocate(innerBalanceLayerNrg(nLayers));  innerBalanceLayerNrg = 0._rkind ! mean total balance of energy in layers
   allocate(mLayerVolFracIceInit(nLayers));  mLayerVolFracIceInit = prog_data%var(iLookPROG%mLayerVolFracIce)%dat ! volume fraction of water ice
+  if (nGlce>0)then 
+    allocate(depthGlceTopLayer(nGlce-noWatState)); depthGlceTopLayer0 = prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState) ! depth of the top glacier layer at the beginning of the data step
+  else
+    allocate(depthGlceTopLayer(1)); depthGlceTopLayer = 0._rkind ! no glacier, so set to 0
+  end if
 
   ! initialize the numerix tracking variables
   indx_data%var(iLookINDEX%numberFluxCalc       )%dat(1) = 0  ! number of flux calculations                     (-)
