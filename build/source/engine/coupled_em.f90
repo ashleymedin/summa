@@ -1466,7 +1466,7 @@ subroutine coupled_em(&
                                                         + prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1)*iden_ice/iden_water
       if(enthalpyStateVec .or. computeEnthalpy)then ! compute enthalpy of the top snow layer
         call T2enthTemp_snLaGl(&
-                       .false.                                            & ! intent(in):  flag that no liquid water in layer
+                       .false.,                                           & ! intent(in):  flag that no liquid water in layer
                        snowfrz_scale,                                     & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                        prog_data%var(iLookPROG%mLayerTemp)%dat(1),        & ! temperature of the top layer (K)
                        prog_data%var(iLookPROG%mLayerVolFracWat)%dat(1),  & ! intent(in):  volumetric total water content (-)
@@ -1902,7 +1902,7 @@ contains
   allocate(innerBalanceLayerNrg(nLayers));  innerBalanceLayerNrg = 0._rkind ! mean total balance of energy in layers
   allocate(mLayerVolFracIceInit(nLayers));  mLayerVolFracIceInit = prog_data%var(iLookPROG%mLayerVolFracIce)%dat ! volume fraction of water ice
   if (nGlce>0)then 
-    allocate(depthGlceTopLayer(nGlce-noWatState)); depthGlceTopLayer0 = prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState) ! depth of the top glacier layer at the beginning of the data step
+    allocate(depthGlceTopLayer(nGlce-noWatState)); depthGlceTopLayer = prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState) ! depth of the top glacier layer at the beginning of the data step
   else
     allocate(depthGlceTopLayer(1)); depthGlceTopLayer = 0._rkind ! no glacier, so set to 0
   end if

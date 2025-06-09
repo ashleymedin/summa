@@ -1034,7 +1034,7 @@ subroutine enthalpy2T_snLaGl(&
     vec = 0._rkind
     real_noLiq = 0._rkind
     if(noLiq) real_noLiq = 1._rkind
-    vec(1:3) = (/mLayerEnthalpy, snowfrz_scale, mLayerVolFracWat,real_noLiq/)
+    vec(1:4) = (/mLayerEnthalpy, snowfrz_scale, mLayerVolFracWat,real_noLiq/)
     if(mLayerEnthalpy>0._rkind .and. .not.(isLake))then
       T = Tfreeze - 1.e-6_rkind ! need to merge layers, don't iterate to find the temperature
     else
@@ -1695,7 +1695,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     noLiq = .false. ! assume liquid water exists
     if(vec(4) == 1._rkind) noLiq = .true.! no liquid water, ice only
   
-    call T2enthTemp_snLaGl(snowfrz_scale, mLayerTemp, mLayerVolFracWat, mLayerEnthTemp)
+    call T2enthTemp_snLaGl(noLiq, snowfrz_scale, mLayerTemp, mLayerVolFracWat, mLayerEnthTemp)
     fLiq   = fracliquid(mLayerTemp, snowfrz_scale, noLiq)
     diff_H_snLaGl = mLayerEnthTemp - iden_water * LH_fus * mLayerVolFracWat * (1._rkind - fLiq) - mLayerEnthalpy
   
