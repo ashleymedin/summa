@@ -50,6 +50,7 @@ USE globalData,only:iname_liqLayer   ! named variable defining the liquid  water
 USE globalData,only:iname_matLayer   ! named variable defining the matric head state variable for soil layers
 USE globalData,only:iname_lmpLayer   ! named variable defining the liquid matric potential state variable for soil layers
 USE globalData,only:iname_watAquifer ! named variable defining the water storage in the aquifer
+USE globalData,only:maxGlceLayers   ! maximum number of glacier ice layers
 
 ! metadata
 USE globalData,only:indx_meta       ! metadata for the variables in the index structure
@@ -147,7 +148,8 @@ contains
  ! define layers that will not have a water state
  noWatState = 0
  if(nGlce>0)then
-  noWatState = nGlce - 1
+  noWatState = maxGlceLayers - 1 ! assumes all glaciers in GRU started with maxGlceLayers
+  if (noWatState>=nGlce) err=20; message=trim(message)//'number of glacier ice layers without a water state is not less than the number of glacier ice layers';return
  endif
  ! define the number state variables of different type
  nNrgState  = nCasNrg + nVegNrg + nLayers  ! number of energy state variables

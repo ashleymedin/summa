@@ -66,17 +66,17 @@ USE globalData,only:iname_aquifer    ! named variables for the aquifer
 ! privacy
 implicit none
 private
-public::computStatMult
+public::computeStatMult
 public::heatCapacityAnalytic
-public::computCm
+public::computeCm
 
 contains
 
 
 ! **********************************************************************************************************
-! public subroutine computStatMult: get scale factors
+! public subroutine computeStatMult: get scale factors
 ! **********************************************************************************************************
-subroutine computStatMult(&
+subroutine computeStatMult(&
                       heatCapVeg,              & ! intent(in):  heat capacity for canopy
                       mLayerHeatCap,           & ! intent(in):  heat capacity for snow and soil
                       ! input: data structures
@@ -119,7 +119,7 @@ USE f2008_funcs_module,only:findIndex             ! finds the index of the first
     )  ! end association with variables in the data structures
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
-    err=0; message='computStatMult/'
+    err=0; message='computeStatMult/'
 
     ! -----
     ! * define components of derivative matrices that are constant over a time step (substep)...
@@ -156,7 +156,7 @@ USE f2008_funcs_module,only:findIndex             ! finds the index of the first
 
   end associate
 ! end association to variables in the data structure where vector length does not change
-end subroutine computStatMult
+end subroutine computeStatMult
 
 ! **********************************************************************************************************
 ! public subroutine heatCapacityAnalytic: compute diagnostic energy variables (heat capacity)
@@ -339,10 +339,10 @@ subroutine heatCapacityAnalytic(&
 end subroutine heatCapacityAnalytic
 
 ! **********************************************************************************************************
-! public subroutine computCm: compute diagnostic energy variables (change in enthTemp with water)
+! public subroutine computeCm: compute diagnostic energy variables (change in enthTemp with water)
 !   NOTE: computing on whole vector, could just compute on state subset
 ! **********************************************************************************************************
-subroutine computCm(&
+subroutine computeCm(&
                       ! input: state variables
                       canopyDepth,             & ! intent(in):  depth of the vegetation canopy (m)
                       scalarCanopyTemp,        & ! intent(in):  value of canopy temperature (K)
@@ -413,7 +413,7 @@ subroutine computCm(&
     )  ! end associate statement
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
-    err=0; message="computCm/"
+    err=0; message="computeCm/"
 
     ! loop through model state variables
     do iState=1,size(ixMapSubset2Full)
@@ -503,7 +503,7 @@ subroutine computCm(&
 
   end associate
 
-end subroutine computCm
+end subroutine computeCm
 
 
 end module heatCapacity_module

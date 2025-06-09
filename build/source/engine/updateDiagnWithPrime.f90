@@ -112,7 +112,7 @@ subroutine updateDiagnWithPrime(&
                      ! input
                      enthalpyStateVec,                          & ! intent(in):    flag if enthalpy is the state variable
                      use_lookup,                                & ! intent(in):    flag to use the lookup table for soil enthalpy
-                     computJac,                                 & ! intent(in):    flag if computing for Jacobian update
+                     computeJac,                                & ! intent(in):    flag if computing for Jacobian update
                      do_adjustTemp,                             & ! intent(in):    flag to adjust temperature to account for the energy used in melt+freeze
                      mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                      indx_data,                                 & ! intent(in):    indices defining model states and layers
@@ -155,7 +155,7 @@ subroutine updateDiagnWithPrime(&
   ! input
   logical(lgt)     ,intent(in)       :: enthalpyStateVec                ! flag if enthalpy is the state variable
   logical(lgt)     ,intent(in)       :: use_lookup                      ! flag to use the lookup table for soil enthalpy, otherwise use hypergeometric function
-  logical(lgt)     ,intent(in)       :: computJac                       ! flag if computing for Jacobian update
+  logical(lgt)     ,intent(in)       :: computeJac                       ! flag if computing for Jacobian update
   logical(lgt)     ,intent(in)       :: do_adjustTemp                   ! flag to adjust temperature to account for the energy used in melt+freeze
   type(var_dlength),intent(in)       :: mpar_data                       ! model parameters for a local HRU
   type(var_ilength),intent(in)       :: indx_data                       ! indices defining model states and layers
@@ -379,7 +379,7 @@ subroutine updateDiagnWithPrime(&
       if(ixDomainType==iname_cas)then
         if(enthalpyStateVec)then
           call enthalpy2T_cas(&
-                   computJac,                  & ! intent(in):  flag if computing for Jacobian update
+                   computeJac,                 & ! intent(in):  flag if computing for Jacobian update
                    scalarCanairEnthalpyTrial,  & ! intent(in):  trial value for enthalpy of the canopy air space (J m-3)
                    scalarCanairTempTrial,      & ! intent(out): trial value for canopy air temperature (K)
                    dCanairTemp_dEnthalpy,      & ! intent(out): derivative of canopy air temperature with enthalpy
@@ -441,7 +441,7 @@ subroutine updateDiagnWithPrime(&
         if(enthalpyStateVec)then
           scalarCanopyTempTrial = scalarCanopyTemp ! start at previous value
           call enthalpy2T_veg(&
-                   computJac,                  & ! intent(in):    flag if computing for Jacobian update          
+                   computeJac,                 & ! intent(in):    flag if computing for Jacobian update          
                    canopyDepth,                & ! intent(in):    canopy depth (m)
                    specificHeatVeg,            & ! intent(in):    specific heat of vegetation (J kg-1 K-1)
                    maxMassVegetation,          & ! intent(in):    maximum mass of vegetation (kg m-2)
@@ -461,7 +461,7 @@ subroutine updateDiagnWithPrime(&
         if(enthalpyStateVec)then
           mLayerTempTrial(iLayer) = mLayerTemp(iLayer) ! start at previous value
           call enthalpy2T_snLaGl(&
-                   computJac,                      & ! intent(in):    flag if computing for Jacobian update       
+                   computeJac,                     & ! intent(in):    flag if computing for Jacobian update       
                    ixDomainType==iname_lake,       & ! intent(in):    flag if is lake layer
                    snowfrz_scale,                  & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
                    mLayerEnthalpyTrial(iLayer),    & ! intent(in):    enthalpy of layer (J m-3)
@@ -479,7 +479,7 @@ subroutine updateDiagnWithPrime(&
         if(enthalpyStateVec)then
           mLayerTempTrial(iLayer) = mLayerTemp(iLayer) ! start at previous value
           call enthalpy2T_soil(&
-                   computJac,                              & ! intent(in):    flag if computing for Jacobian update
+                   computeJac,                             & ! intent(in):    flag if computing for Jacobian update
                    use_lookup,                             & ! intent(in):    flag to use the lookup table for soil enthalpy
                    soil_dens_intr(ixControlIndex),         & ! intent(in):    intrinsic soil density (kg m-3)
                    vGn_alpha(ixControlIndex),              & ! intent(in):    van Genutchen "alpha" parameter
@@ -548,10 +548,10 @@ subroutine updateDiagnWithPrime(&
           select case( ixStateType(ixFullVector) )
             case(iname_lmpLayer)
               dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))*avPore
-              if(computJac) d2VolTot_dPsi02(ixControlIndex) = d2Theta_dPsi2(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))*avPore
+              if(computeJac) d2VolTot_dPsi02(ixControlIndex) = d2Theta_dPsi2(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))*avPore
             case default
               dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
-              if(computJac) d2VolTot_dPsi02(ixControlIndex) = d2Theta_dPsi2(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),&
+              if(computeJac) d2VolTot_dPsi02(ixControlIndex) = d2Theta_dPsi2(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),&
                                                 vGn_n(ixControlIndex),vGn_m(ixControlIndex))
             end select
         endif
@@ -563,21 +563,21 @@ subroutine updateDiagnWithPrime(&
             case(iname_veg)
               dFracLiqVeg_dTkCanopy = dFracLiq_dTk(xTemp,snowfrz_scale)
               dTheta_dTkCanopy = dFracLiqVeg_dTkCanopy * scalarCanopyWatTrial/(iden_water*canopyDepth)
-              if(computJac)then
+              if(computeJac)then
                 fLiq = fracLiquid(xTemp,snowfrz_scale)
                 d2Theta_dTkCanopy2 = 2._rkind * snowfrz_scale**2_i4b * ( (Tfreeze - xTemp) * 2._rkind * fLiq * dFracLiqVeg_dTkCanopy - fLiq**2_i4b ) * scalarCanopyWatTrial/(iden_water*canopyDepth)
               endif
             case(iname_snow, iname_lake, iname_glce)
               dFracLiqWat_dTk(iLayer) = dFracLiq_dTk(xTemp,snowfrz_scale)
               mLayerdTheta_dTk(iLayer) = dFracLiqWat_dTk(iLayer) * mLayerVolFracWatTrial(iLayer)
-              if(computJac)then
+              if(computeJac)then
                 fLiq = fracLiquid(xTemp,snowfrz_scale)
                 mLayerd2Theta_dTk2(iLayer) = 2._rkind * snowfrz_scale**2_i4b * ( (Tfreeze - xTemp) * 2._rkind * fLiq * dFracLiqWat_dTk(iLayer) - fLiq**2_i4b ) * mLayerVolFracWatTrial(iLayer)
               endif
             case(iname_soil)
               dFracLiqWat_dTk(iLayer) = 0._rkind !dTheta_dTk(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))/ mLayerVolFracWatTrial(iLayer)
               mLayerdTheta_dTk(iLayer) = dTheta_dTk(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
-              if(computJac)then
+              if(computeJac)then
                 mLayerd2Theta_dTk2(iLayer) = d2Theta_dTk2(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
               endif
             case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_glce'; return

@@ -203,13 +203,13 @@ subroutine snowLakeGlceLiqFlux(&
           iLayerLiqFluxSnLaGl(iLayer) = 0._rkind ! no liquid water flux at the bottom of the glacier ice layer
           iLayerLiqFluxSnLaGlDeriv(iLayer) = 0._rkind ! no derivative at the bottom of the glacier ice layer
          else  ! not the bottom layer
-          iLayerLiqFluxSnLaGl(iLayer) = mLayerVolFracLiqTrial(iLayer) + iLayerLiqFluxSnLaGl(iLayer+1) ! NOTE: derivative needs to be updated in future, wrong in this case
-          iLayerLiqFluxSnLaGlDeriv(iLayer) = 1._rkind
+          iLayerLiqFluxSnLaGl(iLayer) = mLayerVolFracLiqTrial(iLayer+1) + iLayerLiqFluxSnLaGl(iLayer+1) ! NOTE: derivative needs to be updated in future, wrong in this case
+          iLayerLiqFluxSnLaGlDeriv(iLayer) = -1._rkind ! after cancelation, derivative is -1, since liquid water goes up
         end if  ! end if bottom layer
       end do  ! end loop through glacier ice layers
       if(ixTop==1)then
-        iLayerLiqFluxSnLaGl(0) = mLayerVolFracLiqTrial(iLayer) + iLayerLiqFluxSnLaGl(iLayer+1)
-        iLayerLiqFluxSnLaGlDeriv(0) = 1._rkind
+        iLayerLiqFluxSnLaGl(0) = mLayerVolFracLiqTrial(1) + iLayerLiqFluxSnLaGl(1)
+        iLayerLiqFluxSnLaGlDeriv(0) = -1._rkind ! after cancelation, derivative is -1, since liquid water goes up
       endif
     end if  ! end if snow or ice
     if(ixBot==nLayers)then

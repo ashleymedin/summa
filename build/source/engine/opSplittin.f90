@@ -805,11 +805,6 @@ subroutine opSplittin(&
     ixHydLayer  => indx_data%var(iLookINDEX%ixHydLayer)%dat    ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the layers
 
     ! modify the state type names associated with the state vector
-    !if (ixCoupling==fullyCoupled)then
-    !  ! only solve liq water for glce since frozen water does not change
-    !  where(ixStateType(ixHydLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState))==iname_watLayer) &
-    !        ixStateType(ixHydLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState))=iname_liqLayer
-    !else
     if (ixCoupling/=fullyCoupled .and. iStateTypeSplit==massSplit) then ! if modifying state variables for the mass split
       if (computeVegFlux) then
         where(ixStateType(ixHydCanopy)==iname_watCanopy) ixStateType(ixHydCanopy)=iname_liqCanopy
@@ -980,7 +975,7 @@ subroutine opSplittin(&
 
    ! define failure
    failure = (failedMinimumStep .or. err<0)
-   if (ixSolution/=scalar .and. indx_data%var(iLookINDEX%numberStateSplit)%dat(1)==0) failure = .true. ! force failure for debugging
+   !if (ixSolution/=scalar .and. indx_data%var(iLookINDEX%numberStateSplit)%dat(1)==0) failure = .true. ! force failure for debugging
    if (.not.failure) firstSuccess=.true.
 
    ! if failed, need to reset the flux counter

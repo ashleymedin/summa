@@ -138,8 +138,8 @@ subroutine eval8summa(&
   USE computeFlux_module, only:soilCmpres                ! compute soil compression
   USE computeFlux_module, only:computeFlux                ! compute fluxes given a state vector
   USE heatCapacity_module,only:heatCapacityAnalytic   ! recompute closed form heat capacity (Cp) and derivatives
-  USE heatCapacity_module,only:computCm                ! compute Cm and derivatives
-  USE heatCapacity_module, only:computStatMult         ! recompute state multiplier
+  USE heatCapacity_module,only:computeCm                ! compute Cm and derivatives
+  USE heatCapacity_module, only:computeStatMult         ! recompute state multiplier
   USE computeResid_module,only:computeResid               ! compute residuals given a state vector
   USE thermConductivity_module,only:thermConductivity ! recompute thermal conductivity and derivatives
   implicit none
@@ -446,7 +446,7 @@ subroutine eval8summa(&
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  
       ! compute multiplier of state vector
-      call computStatMult(&
+      call computeStatMult(&
                     ! input
                     heatCapVegTrial,    & ! intent(in):  volumetric heat capacity of vegetation canopy
                     mLayerHeatCapTrial, & ! intent(in):  volumetric heat capacity of soil and snow
@@ -500,7 +500,7 @@ subroutine eval8summa(&
 
     if(needStateCm)then
       ! compute C_m
-      call computCm(&
+      call computeCm(&
                  ! input: state variables
                  canopyDepth,               & ! intent(in):    canopy depth (m)
                  scalarCanopyTempTrial,     & ! intent(in):    trial value of canopy temperature (K)

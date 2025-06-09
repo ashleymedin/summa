@@ -801,7 +801,7 @@ end subroutine enthTemp_or_enthalpy
 ! public subroutine enthalpy2T_cas: compute temperature from enthalpy, canopy air space
 ! ************************************************************************************************************************
 subroutine enthalpy2T_cas(&
-                      computJac,              & ! intent(in):    flag if computing for Jacobian update
+                      computeJac,             & ! intent(in):    flag if computing for Jacobian update
                       scalarCanairEnthalpy,   & ! intent(in):    enthalpy of the canopy air space (J m-3)
                       scalarCanairTemp,       & ! intent(out):   canopy air temperature (K)
                       dCanairTemp_dEnthalpy,  & ! intent(inout): derivative of canopy air temperature with enthalpy
@@ -810,7 +810,7 @@ subroutine enthalpy2T_cas(&
   implicit none
   ! delare dummy variables
   ! -------------------------------------------------------------------------------------------------------------------------
-  logical(lgt),intent(in)          :: computJac             ! flag if computing for Jacobian update
+  logical(lgt),intent(in)          :: computeJac             ! flag if computing for Jacobian update
   ! input: enthalpy state variables
   real(rkind),intent(in)           :: scalarCanairEnthalpy  ! enthalpy of the canopy air space (J m-3)
   ! output: temperature diagnostic variables
@@ -825,7 +825,7 @@ subroutine enthalpy2T_cas(&
   err=0; message="enthalpy2T_cas/"
 
   scalarCanairTemp = scalarCanairEnthalpy / ( Cp_air*iden_air ) + Tfreeze
-  if(computJac) dCanairTemp_dEnthalpy = 1._rkind / ( Cp_air*iden_air )
+  if(computeJac) dCanairTemp_dEnthalpy = 1._rkind / ( Cp_air*iden_air )
 
 end subroutine enthalpy2T_cas
 
@@ -834,7 +834,7 @@ end subroutine enthalpy2T_cas
 ! public subroutine enthalpy2T_veg: compute temperature from enthalpy and total water content, canopy
 ! ************************************************************************************************************************
 subroutine enthalpy2T_veg(&
-                      computJac,              & ! intent(in):    flag if computing for Jacobian update
+                      computeJac,             & ! intent(in):    flag if computing for Jacobian update
                       canopyDepth,            & ! intent(in):    canopy depth (m)
                       specificHeatVeg,        & ! intent(in):    specific heat of vegetation (J kg-1 K-1)
                       maxMassVegetation,      & ! intent(in):    maximum mass of vegetation (kg m-2)
@@ -852,7 +852,7 @@ subroutine enthalpy2T_veg(&
   implicit none
   ! delare dummy variables
   ! -------------------------------------------------------------------------------------------------------------------------
-  logical(lgt),intent(in)          :: computJac             ! flag if computing for Jacobian update
+  logical(lgt),intent(in)          :: computeJac             ! flag if computing for Jacobian update
   ! input: data structures
   real(rkind),intent(in)           :: canopyDepth           ! canopy depth (m)
   real(rkind),intent(in)           :: specificHeatVeg       ! specific heat of vegetation (J kg-1 K-1)
@@ -897,7 +897,7 @@ subroutine enthalpy2T_veg(&
   ! ***** get temperature if unfrozen vegetation
   if (scalarCanopyEnthalpy>=0)then
     T            = scalarCanopyEnthalpy * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat ) + Tfreeze
-    if(computJac)then  
+    if(computeJac)then  
       dT_dEnthalpy = canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat )
       dT_dWat      = -Cp_water * scalarCanopyEnthalpy * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat )**2_i4b
     endif
@@ -914,7 +914,7 @@ subroutine enthalpy2T_veg(&
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! compute Jacobian terms
-    if(computJac)then
+    if(computeJac)then
     ! NOTE: dintegral_dT = fLiq
       diffT    = T - Tfreeze
       integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
@@ -941,7 +941,7 @@ subroutine enthalpy2T_veg(&
 
   ! update temperature and derivatives
   scalarCanopyTemp = T
-  if(computJac)then
+  if(computeJac)then
     dCanopyTemp_dEnthalpy = dT_dEnthalpy
     dCanopyTemp_dCanWat   = dT_dWat
   endif
@@ -952,7 +952,7 @@ end subroutine enthalpy2T_veg
 ! public subroutine enthalpy2T_snLaGl: compute temperature from enthalpy and total water content, snow, lake, ice layer
 ! ************************************************************************************************************************
 subroutine enthalpy2T_snLaGl(&
-                      computJac,         & ! intent(in):    flag if computing for Jacobian update
+                      computeJac,         & ! intent(in):    flag if computing for Jacobian update
                       isLake,            & ! intent(in):    flag if is lake layer
                       snowfrz_scale,     & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
                       mLayerEnthalpy,    & ! intent(in):    enthalpy of layer (J m-3)
@@ -969,7 +969,7 @@ subroutine enthalpy2T_snLaGl(&
   implicit none
   ! delare dummy variables
   ! -------------------------------------------------------------------------------------------------------------------------
-  logical(lgt),intent(in)          :: computJac          ! flag if computing for Jacobian update
+  logical(lgt),intent(in)          :: computeJac          ! flag if computing for Jacobian update
   logical(lgt),intent(in)          :: isLake             ! flag if is lake layer
   ! input: data structures
   real(rkind),intent(in)           :: snowfrz_scale      ! scaling parameter for the snow freezing curve  (K-1)
@@ -1012,7 +1012,7 @@ subroutine enthalpy2T_snLaGl(&
   ! ***** get temperature if unfrozen lake (will not happen in snow or ice)
   if (mLayerEnthalpy>=0)then
     T = mLayerEnthalpy / ( iden_water * Cp_water * mLayerVolFracWat + iden_air * Cp_air * (1._rkind - mLayerVolFracWat) ) + Tfreeze
-    if(computJac)then  
+    if(computeJac)then  
       dT_dEnthalpy = 1._rkind / ( iden_water * Cp_water * mLayerVolFracWat + iden_air * Cp_air * (1._rkind - mLayerVolFracWat) )
       dT_dWat      = -( iden_water * Cp_water - iden_air * Cp_air ) &
                       * mLayerEnthalpy / ( iden_water * Cp_water * mLayerVolFracWat + iden_air * Cp_air * (1._rkind - mLayerVolFracWat) )**2_i4b
@@ -1034,7 +1034,7 @@ subroutine enthalpy2T_snLaGl(&
     endif
 
     ! compute Jacobian terms
-    if(computJac)then
+    if(computeJac)then
       ! NOTE: dintegral_dT = fLiq
       diffT    = T - Tfreeze
       integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
@@ -1060,7 +1060,7 @@ subroutine enthalpy2T_snLaGl(&
 
   ! update temperature and derivatives
   mLayerTemp = T
-  if(computJac)then  
+  if(computeJac)then  
     dTemp_dEnthalpy = dT_dEnthalpy
     dTemp_dTheta    = dT_dWat
   endif
@@ -1071,7 +1071,7 @@ end subroutine enthalpy2T_snLaGl
 ! public subroutine enthalpy2T_soil: compute temperature from enthalpy and total water content, soil layer
 ! ************************************************************************************************************************
 subroutine enthalpy2T_soil(&
-                      computJac,                & ! intent(in):    flag if computing for Jacobian update
+                      computeJac,               & ! intent(in):    flag if computing for Jacobian update
                       use_lookup,               & ! intent(in):    flag to use the lookup table for soil enthalpy
                       soil_dens_intr,           & ! intent(in):    intrinsic soil density (kg m-3)
                       vGn_alpha,                & ! intent(in):    van Genutchen "alpha" parameter
@@ -1099,7 +1099,7 @@ subroutine enthalpy2T_soil(&
   implicit none
   ! delare dummy variables
   ! -------------------------------------------------------------------------------------------------------------------------
-  logical(lgt),intent(in)          :: computJac              ! flag if computing for Jacobian update
+  logical(lgt),intent(in)          :: computeJac              ! flag if computing for Jacobian update
   logical(lgt),intent(in)          :: use_lookup             ! flag to use the lookup table for soil enthalpy, otherwise use hypergeometric function
   ! input: data structures
   real(rkind),intent(in)           :: soil_dens_intr         ! intrinsic soil density (kg m-3)
@@ -1177,7 +1177,7 @@ subroutine enthalpy2T_soil(&
   if (mLayerEnthalpy>=entCrit )then
     T  = mLayerEnthalpy / ( iden_water * Cp_water * volFracWat + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) &
                            + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) ) + Tfreeze
-    if(computJac)then  
+    if(computeJac)then  
       dT_dEnthalpy = 1._rkind / ( iden_water * Cp_water * volFracWat + soil_dens_intr*Cp_soil*(1._rkind - theta_sat) &
                                  + iden_air*Cp_air*(1._rkind - theta_sat - volFracWat) )
       dT_dWat      = -iden_water * Cp_water * dvolFracWat_dPsi0 * mLayerEnthalpy / ( iden_water * Cp_water * volFracWat &
@@ -1189,7 +1189,7 @@ subroutine enthalpy2T_soil(&
     ! *** compute integral of mLayerPsiLiq from Tfreeze to layer temperature
     ! get the unfrozen water content of enthalpy
     integral_unf = diff0 * volFracWat ! unfrozen water content
-    if(computJac) dintegral_unf_dWat = dTcrit_dPsi0 * volFracWat + diff0 * dvolFracWat_dPsi0
+    if(computeJac) dintegral_unf_dWat = dTcrit_dPsi0 * volFracWat + diff0 * dvolFracWat_dPsi0
 
     ! get the frozen water content of enthalpy, start with lower limit of the integral
     if (diff0<0._rkind)then
@@ -1204,7 +1204,7 @@ subroutine enthalpy2T_soil(&
 
           call splint(Tk,Ly,L2,Tcrit,integral_frz_low,dL,err,cmessage)
           if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
-          if(computJac) dintegral_frz_low_dWat = dL * dTcrit_dPsi0
+          if(computeJac) dintegral_frz_low_dWat = dL * dTcrit_dPsi0
 
         end associate lookVars
 
@@ -1212,7 +1212,7 @@ subroutine enthalpy2T_soil(&
         arg              = (vGn_alpha * mLayerMatricHead)**vGn_n
         gauss_hg_T       = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
         integral_frz_low = diff0 * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
-        if(computJac) dintegral_frz_low_dWat = volFracWat * dTcrit_dPsi0
+        if(computeJac) dintegral_frz_low_dWat = volFracWat * dTcrit_dPsi0
       endif
     else ! Tcrit=Tfreeze, i.e. mLayerMatricHead>0
       integral_frz_low       = 0._rkind 
@@ -1232,7 +1232,7 @@ subroutine enthalpy2T_soil(&
     T = T_out
 
   ! compute Jacobian terms
-    if(computJac)then
+    if(computeJac)then
       ! NOTE: here fLiq is the total liquid fraction, not fraction of water fraction that is liquid
       xConst       = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
       diffT        = T - Tfreeze
@@ -1284,7 +1284,7 @@ subroutine enthalpy2T_soil(&
 
   ! update temperature and derivatives
   mLayerTemp = T
-  if(computJac)then  
+  if(computeJac)then  
     dTemp_dEnthalpy = dT_dEnthalpy
     dTemp_dTheta    = realMissing ! do not use
     dTemp_dPsi0     = dT_dWat

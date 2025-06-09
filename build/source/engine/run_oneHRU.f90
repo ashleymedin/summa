@@ -105,7 +105,7 @@ subroutine run_oneHRU(&
                       dt_init,             & ! intent(inout): used to initialize the length of the sub-step for each HRU
                       computeVegFlux,      & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
                       ndom,                & ! intent(in):    number of domains
-                      domInfo,             & ! intent(inout):    domain type and number of layers
+                      domInfo,             & ! intent(inout): domain type and number of layers
                       ! data structures (input)
                       typeData,            & ! intent(in):    local classification of soil veg etc. for each HRU
                       attrData,            & ! intent(in):    local attributes for each HRU
@@ -222,7 +222,8 @@ subroutine run_oneHRU(&
       elseif ( domInfo(i)%dom_type == glacCln1 .or. domInfo(i)%dom_type == glacCln2 .or. domInfo(i)%dom_type == glacDbr .or. &
                domInfo(i)%dom_type == glacieret .or. domInfo(i)%dom_type == wetland )then ! don't need vegetation parameters for glaciers
         use_computeVegFlux = .false.
-        if (domInfo(i)%dom_type == glacCln1 .or. domInfo(i)%dom_type == glacCln2 .or. domInfo(i)%dom_type == glacDbr) glacierDomain = .true.
+        if (domInfo(i)%dom_type == glacCln1 .or. domInfo(i)%dom_type == glacCln2 .or. domInfo(i)%dom_type == glacDbr .or. & 
+            domInfo(i)%dom_type == glacieret) glacierDomain = .true.
       else
         err=20; message=trim(message)//'domain type not recognized';return
       endif

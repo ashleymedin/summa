@@ -161,6 +161,7 @@ subroutine computeJacob(&
     ixGlceOnlyNrg                => indx_data%var(iLookINDEX%ixGlceOnlyNrg)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the glacier ice domain 
     ! vector of hydrology indices for the layer domains
     ! NOTE: states not in the subset are equal to integerMissing
+    noWatState                   => indx_data%var(iLookINDEX%noWatState)%dat(1)                     ,& ! intent(in): [i4b]    number of layers with no water state (bottom glacier ice layers)  
     ixSnLaSoGlHyd                => indx_data%var(iLookINDEX%ixSnLaSoGlHyd)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the layer domains
     ixSnowOnlyHyd                => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the snow domain
     ixSoilOnlyHyd                => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the soil domain
@@ -437,6 +438,13 @@ subroutine computeJacob(&
               if(ixSnowOnlyHyd(iLayer+1)/=integerMissing) aJac(ixOffDiag(ixSnowOnlyHyd(iLayer+1),watState),watState) = -(dt/mLayerDepth(jLayer+1))*iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot  ! dVol(below)/dLiq(above) -- (-)
             end if
 
+            ! - only include banded terms for surface infiltration below surface in banded structure; ixSoilOnlyHyd(nSoil) - watState always <= kl
+            if(nSoil>0 .and. qLayer>nSnow)then
+              if(ixSoilOnlyHyd(nSoil)/=integerMissing)then 
+                if(watState - ixSoilOnlyHyd(nSoil) <= ku) aJac(ixOffDiag(ixSoilOnlyHyd(nSoil),watState),watState) = dt/mLayerDepth(nSnow+nLake+nSoil)
+              endif
+            end if
+
           end do  ! (looping through liquid water states in the snow, glce domain)
         endif   ! (if the subset includes hydrology state variables in the snow, glce domain)
 
@@ -444,7 +452,7 @@ subroutine computeJacob(&
         ! * cross derivatives in the snow, glce domain...
         ! ----------------------------------------
         if((nSnowOnlyHyd>0 .and. nSnowOnlyNrg>0) .or. (nGlceOnlyHyd>0 .and. nGlceOnlyNrg>0))then
-          do qLayer=1,nSnow+nGlce ! loop through layers in the snow, glce domain
+          do qLayer=1,nSnow+nGlce-noWatState ! loop through layers in the snow, glce domain
 
             if (qLayer <= nSnow) then
               ! - check that the snow layer is desired
@@ -454,7 +462,7 @@ subroutine computeJacob(&
             else
               jLayer = qLayer + nLake + nSoil
               iLayer = qLayer - nSnow
-              endLayer = nGlce
+              endLayer = nGlce-noWatState
             endif
             ! - check that the layer is desired
             if(ixSnLaSoGlNrg(jLayer)==integerMissing) cycle
@@ -521,10 +529,6 @@ subroutine computeJacob(&
             ! - compute the upper-diagonal elements
             if(iLayer<nSoil)then
               if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixOffDiag(ixSoilOnlyHyd(iLayer+1),watState),watState) = (dt/mLayerDepth(jLayer+1))*(-dq_dHydStateAbove(iLayer))
-            else
-              if(nGlce>0)then
-                if(ixGlceOnlyHyd(1)/=integerMissing) aJac(ixOffDiag(ixGlceOnlyHyd(1),watState),watState) = (dt/mLayerDepth(jLayer+1))*(-dq_dHydStateAbove(iLayer))
-              endif
             endif
 
             ! - only include banded terms for baseflow in banded structure
@@ -612,10 +616,6 @@ subroutine computeJacob(&
               ! compute upper-diagonal elements
               if(iLayer<nSoil)then
                 if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixOffDiag(ixSoilOnlyHyd(iLayer+1),nrgState),nrgState) = (dt/mLayerDepth(jLayer+1))*(-dq_dNrgStateAbove(iLayer))     ! K-1
-              else
-                if(nGlce>0)then
-                  if(ixGlceOnlyHyd(1)/=integerMissing) aJac(ixOffDiag(ixGlceOnlyHyd(1),nrgState),nrgState) = (dt/mLayerDepth(jLayer+1))*(-dq_dNrgStateAbove(iLayer))                 ! K-1
-                endif
               endif
 
               ! - include derivatives w.r.t. ground evaporation
@@ -662,8 +662,6 @@ subroutine computeJacob(&
               ! (cross-derivative terms for the layer below)
               if(iLayer<nSoil)then
                 if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixOffDiag(ixSoilOnlyNrg(iLayer+1),watState),watState) = (dt/mLayerDepth(jLayer+1))*(-dNrgFlux_dWatAbove(jLayer  ) )
-              elseif(nGlce>0)then
-                if(ixGlceOnlyHyd(1)/=integerMissing) aJac(ixOffDiag(ixGlceOnlyNrg(1),watState),watState) = (dt/mLayerDepth(jLayer+1))*(-dNrgFlux_dWatAbove(jLayer  ) )
               endif
 
             endif   ! (if the water state for the current layer is within the state subset)
@@ -812,6 +810,13 @@ subroutine computeJacob(&
               if(ixSnowOnlyHyd(iLayer+1)/=integerMissing) aJac(ixSnowOnlyHyd(iLayer+1),watState) = -(dt/mLayerDepth(jLayer+1))*iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot  ! dVol(below)/dLiq(above) -- (-)
             endif
 
+            ! - only include banded terms for surface infiltration below surface in banded structure; ixSoilOnlyHyd(nSoil) - watState always <= kl
+            if(nSoil>0 .and. qLayer>nSnow)then
+              if(ixSoilOnlyHyd(nSoil)/=integerMissing)then 
+                if(watState - ixSoilOnlyHyd(nSoil) <= ku) aJac(ixSoilOnlyHyd(nSoil),watState) = dt/mLayerDepth(nSnow+nLake+nSoil)
+              endif
+            end if
+
           end do  ! (looping through liquid water states in the snow, glce domain)
         endif   ! (if the subset includes hydrology state variables in the snow, glce domain)
 
@@ -819,7 +824,7 @@ subroutine computeJacob(&
         ! * cross derivatives in the snow, glce domain...
         ! ----------------------------------------
         if((nSnowOnlyHyd>0 .and. nSnowOnlyNrg>0) .or. (nGlceOnlyHyd>0 .and. nGlceOnlyNrg>0))then
-          do qLayer=1,nSnow+nGlce ! loop through layers in the snow, glce domain
+          do qLayer=1,nSnow+nGlce -noWatState! loop through layers in the snow, glce domain
 
             if (qLayer <= nSnow) then
               ! - check that the snow layer is desired
@@ -829,7 +834,7 @@ subroutine computeJacob(&
             else
               jLayer = qLayer + nLake + nSoil
               iLayer = qLayer - nSnow
-              endLayer = nGlce
+              endLayer = nGlce-noWatState
             endif
             ! - check that the layer is desired
             if(ixSnLaSoGlNrg(jLayer)==integerMissing) cycle
@@ -899,10 +904,6 @@ subroutine computeJacob(&
             ! - compute the upper-diagonal elements
             if(iLayer<nSoil)then
               if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixSoilOnlyHyd(iLayer+1),watState) = (dt/mLayerDepth(jLayer+1))*(-dq_dHydStateAbove(iLayer))
-            else
-              if(nGlce>0)then
-                if(ixGlceOnlyHyd(1)/=integerMissing) aJac(ixGlceOnlyHyd(1),watState) = (dt/mLayerDepth(jLayer+1))*(-dq_dHydStateAbove(iLayer))
-              endif
             endif
 
             ! - include terms for baseflow
@@ -977,10 +978,6 @@ subroutine computeJacob(&
               ! compute upper-diagonal elements
               if(iLayer<nSoil)then
                 if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixSoilOnlyHyd(iLayer+1),nrgState) = (dt/mLayerDepth(jLayer+1))*(-dq_dNrgStateAbove(iLayer))     ! K-1
-              else
-                if(nGlce>0)then
-                  if(ixGlceOnlyHyd(1)/=integerMissing) aJac(ixGlceOnlyHyd(1),nrgState) = (dt/mLayerDepth(jLayer+1))*(-dq_dNrgStateAbove(iLayer))     ! K-1
-                endif 
               endif
 
               ! - include derivatives w.r.t. ground evaporation
@@ -1019,8 +1016,6 @@ subroutine computeJacob(&
               ! (cross-derivative terms for the layer below)
               if(iLayer<nSoil)then
                 if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixSoilOnlyNrg(iLayer+1),watState) = (dt/mLayerDepth(jLayer+1))*(-dNrgFlux_dWatAbove(jLayer  ) )
-              elseif(nGlce>0)then
-                if(ixGlceOnlyHyd(1)/=integerMissing) aJac(ixGlceOnlyNrg(1),watState) = (dt/mLayerDepth(jLayer+1))*(-dNrgFlux_dWatAbove(jLayer  ) )
               endif
 
             endif   ! (if the water state for the current layer is within the state subset)

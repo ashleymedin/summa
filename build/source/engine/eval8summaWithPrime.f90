@@ -112,8 +112,8 @@ subroutine eval8summaWithPrime(&
   USE computeFlux_module, only:soilCmpresPrime               ! compute soil compression
   USE computeFlux_module, only:computeFlux                    ! compute fluxes given a state vector
   USE heatCapacity_module,only:heatCapacityAnalytic       ! recompute closed form heat capacity (Cp) and derivatives
-  USE heatCapacity_module,only:computCm                    ! compute Cm and derivatives
-  USE heatCapacity_module, only:computStatMult             ! recompute state multiplier
+  USE heatCapacity_module,only:computeCm                    ! compute Cm and derivatives
+  USE heatCapacity_module, only:computeStatMult             ! recompute state multiplier
   USE computeResidWithPrime_module,only:computeResidWithPrime ! compute residuals given a state vector
   USE thermConductivity_module,only:thermConductivity     ! recompute thermal conductivity and derivatives
   implicit none
@@ -359,18 +359,18 @@ subroutine eval8summaWithPrime(&
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
     ! Placeholder: if we decide to use splitting, we need to pass all the previous values of the state variables
-    scalarCanairNrgPrime      = realMissing
-    scalarCanopyNrgPrime      = realMissing
-    scalarCanopyWatPrime      = realMissing
-    scalarCanopyLiqPrime      = realMissing
-    scalarCanopyIcePrime      = realMissing
-    mLayerNrgPrime            = realMissing
-    mLayerVolFracWatPrime     = realMissing
-    mLayerVolFracLiqPrime     = realMissing
-    mLayerVolFracIcePrime     = realMissing
-    mLayerMatricHeadPrime     = realMissing
-    mLayerMatricHeadLiqPrime  = realMissing
-    scalarAquiferStoragePrime = realMissing
+    scalarCanairNrgPrime      = 0._rkind
+    scalarCanopyNrgPrime      = 0._rkind
+    scalarCanopyWatPrime      = 0._rkind
+    scalarCanopyLiqPrime      = 0._rkind
+    scalarCanopyIcePrime      = 0._rkind
+    mLayerNrgPrime            = 0._rkind
+    mLayerVolFracWatPrime     = 0._rkind
+    mLayerVolFracLiqPrime     = 0._rkind
+    mLayerVolFracIcePrime     = 0._rkind
+    mLayerMatricHeadPrime     = 0._rkind
+    mLayerMatricHeadLiqPrime  = 0._rkind
+    scalarAquiferStoragePrime = 0._rkind
 
     call varExtract(&
                   ! input
@@ -500,7 +500,7 @@ subroutine eval8summaWithPrime(&
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! compute multiplier of state vector
-      call computStatMult(&
+      call computeStatMult(&
                     ! input
                     heatCapVegTrial,    & ! intent(in):  volumetric heat capacity of vegetation canopy
                     mLayerHeatCapTrial, & ! intent(in):  volumetric heat capacity of soil and snow
@@ -555,7 +555,7 @@ subroutine eval8summaWithPrime(&
 
     if(needStateCm)then
       ! compute C_m
-      call computCm(&
+      call computeCm(&
                  ! input: state variables
                  canopyDepth,               & ! intent(in):    canopy depth (m)
                  scalarCanopyTempTrial,     & ! intent(in):    trial value of canopy temperature (K)
