@@ -522,16 +522,13 @@ subroutine T2enthTemp_snLaGl(&
   real(rkind)                      :: enthAir               ! enthalpy of air (J m-3)
   ! --------------------------------------------------------------------------------------------------------------------------------
   diffT    = mLayerTemp - Tfreeze
+
   if(diffT>=0._rkind)then ! diffT<0._rkind if in snow or ice, but may use for lake
     enthLiq = iden_water * Cp_water * mLayerVolFracWat * diffT
     enthIce = 0._rkind
     enthAir = iden_air * Cp_air * ( 1._rkind - mLayerVolFracWat ) * diffT
   else
-    if(noLiq)then
-      integral = 0._rkind
-    else
-      integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-    end if
+    integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
     enthLiq  = iden_water * Cp_water * mLayerVolFracWat * integral
     enthIce  = iden_water * Cp_ice * mLayerVolFracWat * ( diffT - integral )
     enthAir  = iden_air * Cp_air * ( diffT - mLayerVolFracWat * ( (iden_water/iden_ice)*(diffT-integral) + integral ) )

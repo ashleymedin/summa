@@ -192,8 +192,6 @@ subroutine thermConductivity(&
     vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)%dat,                       & ! intent(in):  [dp(:)] van Genutchen "n" parameter (-)
     vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)%dat,                   & ! intent(in):  [dp(:)] van Genutchen "alpha" parameter (m-1)
     theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat,                   & ! intent(in):  [dp(:)] soil residual volumetric water content (-)
-    ! input: snow parameters
-    snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),            & ! intent(in):  [dp]    scaling parameter for the snow freezing curve (K-1)
     ! output: diagnostic variables and derivatives (diagnostic as may be treated as constant)
     mLayerThermalC          => diag_data%var(iLookDIAG%mLayerThermalC)%dat,               & ! intent(out): [dp(:)] thermal conductivity at the mid-point of each layer (W m-1 K-1)
     iLayerThermalC          => diag_data%var(iLookDIAG%iLayerThermalC)%dat,               & ! intent(out): [dp(:)] thermal conductivity at the interface of each layer (W m-1 K-1)

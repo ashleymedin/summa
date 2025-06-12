@@ -470,7 +470,6 @@ subroutine computeCm(&
               ! derivatives
               dCm_dTk(iLayer) = iden_water * Cp_water - iden_air * Cp_air
             else
-
               fLiq = fracliquid(mLayerTemp(iLayer),snowfrz_scale,iLayer>nLayers-noWatState)
               if(iLayer>nLayers-noWatState) then
                 integral = 0._rkind

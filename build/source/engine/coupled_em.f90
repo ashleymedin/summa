@@ -1769,6 +1769,8 @@ subroutine coupled_em(&
           err=20; return
         end if
 
+        ! Reset the layers, ice content will not have changed since depth correction only reduces liquid water
+        prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState) = depthGlceTopLayer
       else
         scalarIceWE = 0._rkind
       end if ! if glce layers exist

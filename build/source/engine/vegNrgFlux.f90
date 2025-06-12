@@ -138,8 +138,6 @@ subroutine vegNrgFlux(&
   USE convert_funcs_module,only:getLatentHeatValue                  ! function to identify latent heat of vaporization/sublimation (J kg-1)
   ! stomatal resistance
   USE stomResist_module,only:stomResist                          ! subroutine to calculate stomatal resistance
-  ! phase changes
-  USE snow_utils_module,only:fracliquid                          ! compute fraction of liquid water at a given temperature
 
   ! compute energy and mass fluxes for vegetation
   implicit none
@@ -322,8 +320,6 @@ subroutine vegNrgFlux(&
     critSoilTranspire               => mpar_data%var(iLookPARAM%critSoilTranspire)%dat(1),             & ! intent(in): [dp] critical vol. liq. water content when transpiration is limited (-)
     critAquiferTranspire            => mpar_data%var(iLookPARAM%critAquiferTranspire)%dat(1),          & ! intent(in): [dp] critical aquifer storage value when transpiration is limited (m)
     minStomatalResistance           => mpar_data%var(iLookPARAM%minStomatalResistance)%dat(1),         & ! intent(in): [dp] mimimum stomatal resistance (s m-1)
-    ! snow parameters
-    snowfrz_scale                   => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),                 & ! intent(in): [dp] scaling parameter for the snow freezing curve (K-1)
     ! input: forcing at the upper boundary
     mHeight                         => diag_data%var(iLookDIAG%scalarAdjMeasHeight)%dat(1),            & ! intent(in): [dp] measurement height (m)
     airtemp                         => forc_data%var(iLookFORCE%airtemp),                              & ! intent(in): [dp] air temperature at some height above the surface (K)
