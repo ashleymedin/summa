@@ -120,5 +120,6 @@ idaMaxStepSize            |         0.0  |          0.0  |      3600.0
  -18) Correct NaN value that results from a large ground roughness parameter (capped function), commit bcb5f6b5 Jan 22, 2025
  -19) Made soil scalarv variables were compute with the correct soil layer when splitting to a scalar solution (previous version lead to balance errors if vars where large enough), commit b5b8d314 Jan 28, 2025
  -20) Make fluxes output as mean over data window, group agreed that this makes more sense than the backwards compatible where they were just the ending solution of the flux (rate over the last substep). commit b5b8d314 Jan 28, 2025
- -21) Make scalarAquiferRecharge be held on to if splits to aquifer, since previously only attached to bottom soil layer then became 0 if split to aquifer, commit e0da0084	and	651b64e0 Jun 21, 2025 at 2:10 PM
+ -21) Make scalarAquiferRecharge and scalarAquiferTranspire be held on to if splits to aquifer, since previously only attached to bottom soil layer then became 0 if split to aquifer, commit scalarAquiferTranspire and Recharge need to be held with aquifer mass split, previously went to 0, commit 0a38c7bf Jun 21, 2025
+
 Jun 21, 2025
