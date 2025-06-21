@@ -173,6 +173,17 @@ contains
 
  ! ---------------------------------------------------------------------------------------------------
 
+ doGlac=.false. ! initialize flag for glacier ice
+ if (nSnow==0 .and. nGlce>0) then
+   kSnow=nSoil
+   doGlac=.true.
+   topLayer=nSoil+1
+   botLayer=nSoil+nGlce
+ else
+   topLayer=1
+   botLayer=nSnow
+ end if
+
  ! initialize flag to denote that a layer was divided
  divideLayer=.false.
 
@@ -216,10 +227,10 @@ contains
 
    ! add a layer to all model variables
    iLayer=0 ! (layer to divide: 0 is the special case of "snow without a layer")
-   call addModelLayer(prog_data,prog_meta,iLayer,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-   call addModelLayer(diag_data,diag_meta,iLayer,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-   call addModelLayer(flux_data,flux_meta,iLayer,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-   call addModelLayer(indx_data,indx_meta,iLayer,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   call addModelLayer(prog_data,prog_meta,iLayer,nSnow,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   call addModelLayer(diag_data,diag_meta,iLayer,nSnow,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   call addModelLayer(flux_data,flux_meta,iLayer,nSnow,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   call addModelLayer(indx_data,indx_meta,iLayer,nSnow,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
    ! associate local variables to the information in the data structures
    ! NOTE: need to do this here, since state vectors have just been modified
@@ -311,10 +322,10 @@ contains
     divideLayer=.true.
 
     ! add a layer to all model variables
-    call addModelLayer(prog_data,prog_meta,iLayer,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-    call addModelLayer(diag_data,diag_meta,iLayer,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-    call addModelLayer(flux_data,flux_meta,iLayer,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-    call addModelLayer(indx_data,indx_meta,iLayer,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    call addModelLayer(prog_data,prog_meta,iLayer,nSnow,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    call addModelLayer(diag_data,diag_meta,iLayer,nSnow,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    call addModelLayer(flux_data,flux_meta,iLayer,nSnow,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    call addModelLayer(indx_data,indx_meta,iLayer,nSnow,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
     ! define the layer depth
     layerSplit: associate(mLayerDepth => prog_data%var(iLookPROG%mLayerDepth)%dat)
@@ -391,10 +402,10 @@ contains
  ! ************************************************************************************************
  ! private subroutine addModelLayer: add an additional layer to all model vectors
  ! ************************************************************************************************
- subroutine addModelLayer(dataStruct,metaStruct,ix_divide,nSnow,nLayers,err,message)
+ subroutine addModelLayer(dataStruct,metaStruct,ix_divide,nSnow,nLayers,doGlac,err,message)
  USE var_lookup,only:iLookVarType                     ! look up structure for variable typed
  USE get_ixName_module,only:get_varTypeName           ! to access type strings for error messages
- USE f2008_funcs_module,only:cloneStruc                ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
+ USE f2008_funcs_module,only:cloneStruc               ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
  USE data_types,only:var_ilength,var_dlength          ! data vectors with variable length dimension
  USE data_types,only:var_info                         ! metadata structure
  implicit none
@@ -405,6 +416,7 @@ contains
  ! input: snow layer indices
  integer(i4b),intent(in)         :: ix_divide         ! index of the layer to divide
  integer(i4b),intent(in)         :: nSnow,nLayers     ! number of snow layers, total number of layers
+ logical(lgt),intent(in)         :: doGlac            ! flag for dividing glacier layers
  ! output: error control
  integer(i4b),intent(out)        :: err               ! error code
  character(*),intent(out)        :: message           ! error message
@@ -425,13 +437,23 @@ contains
  do ivar=1,size(metaStruct)
 
   ! define bounds
-  select case(metaStruct(ivar)%vartype)
-   case(iLookVarType%midSnow); ix_lower=1; ix_upper=nSnow
-   case(iLookVarType%midToto); ix_lower=1; ix_upper=nLayers
-   case(iLookVarType%ifcSnow); ix_lower=0; ix_upper=nSnow
-   case(iLookVarType%ifcToto); ix_lower=0; ix_upper=nLayers
-   case default; cycle
-  end select
+  if(doGlac)then ! note here nSnow will be nGlce
+    select case(metaStruct(ivar)%vartype)
+     case(iLookVarType%midGlce); ix_lower=nLayers-nSnow+1; ix_upper=nLayers
+     case(iLookVarType%midToto); ix_lower=1; ix_upper=nLayers
+     case(iLookVarType%ifcGlce); ix_lower=nLayers-nSnow; ix_upper=nLayers
+     case(iLookVarType%ifcToto); ix_lower=0; ix_upper=nLayers
+     case default; cycle
+    end select
+  else
+    select case(metaStruct(ivar)%vartype)
+     case(iLookVarType%midSnow); ix_lower=1; ix_upper=nSnow
+     case(iLookVarType%midToto); ix_lower=1; ix_upper=nLayers
+     case(iLookVarType%ifcSnow); ix_lower=0; ix_upper=nSnow
+     case(iLookVarType%ifcToto); ix_lower=0; ix_upper=nLayers
+     case default; cycle
+    end select
+  endif
 
   ! identify whether it is a state variable
   select case(trim(metaStruct(ivar)%varname))

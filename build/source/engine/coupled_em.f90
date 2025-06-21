@@ -323,6 +323,8 @@ subroutine coupled_em(&
   logical(lgt)                         :: enthalpyStateVec         ! flag if enthalpy is a state variable (IDA)
   logical(lgt)                         :: use_lookup               ! flag to use the lookup table for soil enthalpy, otherwise use analytical solution
   real(rkind), allocatable             :: depthGlceTopLayer(:)     ! depth of the top glacier ice layers at the start of the time step (m)
+  real(rkind), allocatable             :: iceGlceTopLayer(:)       ! ice content of of the top glacier ice layers at the start of the time step (m)
+
   integer(i4b)                         :: noWatState               ! number of layers with no water state (bottom glacier ice layers)
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
@@ -1769,8 +1771,29 @@ subroutine coupled_em(&
           err=20; return
         end if
 
-        ! Reset the layers, ice content will not have changed since depth correction only reduces liquid water
+        ! Reset the layers, ice content will only have changed if layers merged
+        if (size(depthGlceTopLayer)<nGlce-noWatState)then
+          add layers
+          do iLayer = 1, nGlce-noWatState-size(depthGlceTopLayer)
+              call addModelLayer(prog_data,prog_meta,iLayer,nGlce,nLayers,.true.,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   call layerDivide(&
+                    ! input/output: model data structures
+                    maxLayers,                   & ! intent(in):    maximum number of snow/firn/ice layers
+                    model_decisions,             & ! intent(in):    model decisions
+                    mpar_data,                   & ! intent(in):    model parameters
+                    indx_data,                   & ! intent(inout): type of each layer
+                    prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
+                    diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
+                    flux_data,                   & ! intent(inout): model fluxes for a local HRU
+                    ! output
+                    divideLayer,                 & ! intent(out): flag to denote that layers were modified
+                    err,cmessage)                  ! intent(out): error control
+
+        elseif(size(depthGlceTopLayer)>Glce-noWatState)then
+          err=20; message=trim(message)//'glacier top ice layers divided, start them thicker'; return
+        endif
         prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState) = depthGlceTopLayer
+        prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState) = iceGlceTopLayer
       else
         scalarIceWE = 0._rkind
       end if ! if glce layers exist
@@ -1903,10 +1926,14 @@ contains
   allocate(innerBalanceLayerMass(nLayers)); innerBalanceLayerMass = 0._rkind ! mean total balance of mass in layers
   allocate(innerBalanceLayerNrg(nLayers));  innerBalanceLayerNrg = 0._rkind ! mean total balance of energy in layers
   allocate(mLayerVolFracIceInit(nLayers));  mLayerVolFracIceInit = prog_data%var(iLookPROG%mLayerVolFracIce)%dat ! volume fraction of water ice
-  if (nGlce>0)then 
-    allocate(depthGlceTopLayer(nGlce-noWatState)); depthGlceTopLayer = prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState) ! depth of the top glacier layer at the beginning of the data step
-  else
-    allocate(depthGlceTopLayer(1)); depthGlceTopLayer = 0._rkind ! no glacier, so set to 0
+  if (nGlce>0)then ! depth and ice content of the top glacier layer at the beginning of the data step
+    allocate(depthGlceTopLayer(nGlce-noWatState), iceGlceTopLayer(nGlce-noWatState))
+    depthGlceTopLayer = prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState)
+    iceGlceTopLayer   = prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState)
+  else ! no glacier, so set to 0
+    allocate(depthGlceTopLayer(1), iceGlceTopLayer(1))
+    depthGlceTopLayer = 0._rkind
+    iceGlceTopLayer   = 0._rkind
   end if
 
   ! initialize the numerix tracking variables

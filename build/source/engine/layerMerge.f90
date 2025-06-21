@@ -189,7 +189,7 @@ contains
    nCheck=nSnow
   end if
 
-  ! loop through snow layers
+  ! loop through snow/glce layers
   do iSnow=kSnow+1,nCheck
 
    ! associate local variables with the information in the data structures
@@ -222,7 +222,7 @@ contains
     mergedLayers=.true.
 
     ! ***** handle special case of a single layer
-    if(nSnow==1)then
+    if(nSnow==1)then ! here assuming would not be merging glacier layers if had snow
      ! set the variables defining "snow without a layer"
      ! NOTE: ignoring cold content!!! Need to fix later...
      scalarSnowDepth = mLayerDepth(1)
@@ -257,7 +257,7 @@ contains
      ! exit the do loop (no more snow layers to remove)
      return
     else if (doGlac .and. nGlce<=noWatState)then
-     err=20; message=trim(message)//'Melted entire water state of glacier, need to start with thicker top layers';return; return
+     err=20; message=trim(message)//'Melted entire water state of glacier, need to start with thicker top layers';return
     end if  ! (special case of 1 layer --> snow without a layer)
       
     ! ***** identify the layer to combine

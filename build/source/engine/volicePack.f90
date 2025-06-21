@@ -95,7 +95,7 @@ contains
  ! initialize error control
  err=0; message='volicePack/'
 
- ! divide snow/firn layers if too thick, don't do it if need to merge
+ ! divide snow/firn layers if too thick, don't do it if need to merge (note, ice layers do not grow so do not divide)
  if (.not.tooMuchMelt)then
    call layerDivide(&
                     ! input/output: model data structures
