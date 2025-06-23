@@ -172,8 +172,8 @@ contains
  if (nSnow==0 .and. nGlce>0) then
    kSnow=nSoil
    doGlac=.true.
-   topLayer=nSoil+1
-   botLayer=nSoil+nGlce
+   topLayer=nSnow+nLake+nSoil+1
+   botLayer=nSnow+nLake+nSoil+nGlce
  else
    topLayer=1
    botLayer=nSnow
@@ -256,7 +256,7 @@ contains
      if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
      ! exit the do loop (no more snow layers to remove)
      return
-    else if (doGlac .and. nGlce<=noWatState)then
+    else if (doGlac .and. nGlce<2+noWatState)then
      err=20; message=trim(message)//'Melted entire water state of glacier, need to start with thicker top layers';return
     end if  ! (special case of 1 layer --> snow without a layer)
       

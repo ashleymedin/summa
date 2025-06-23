@@ -143,31 +143,32 @@ subroutine coupled_em(&
                       ! error control
                       err,message)         ! intent(out):   error control
   ! structure allocations
-  USE allocspace_module,only:allocLocal             ! allocate local data structures
-  USE allocspace_module,only:resizeData             ! clone a data structure
+  USE allocspace_module,only:allocLocal                         ! allocate local data structures
+  USE allocspace_module,only:resizeData                         ! clone a data structure
   ! simulation of fluxes and residuals given a trial state vector
-  USE soil_utils_module,only:liquidHead             ! compute the liquid water matric potential
+  USE soil_utils_module,only:liquidHead                         ! compute the liquid water matric potential
   ! preliminary subroutines
-  USE vegPhenlgy_module,only:vegPhenlgy             ! compute vegetation phenology
-  USE vegNrgFlux_module,only:wettedFrac             ! compute wetted fraction of the canopy (used in sw radiation fluxes)
+  USE vegPhenlgy_module,only:vegPhenlgy                         ! compute vegetation phenology
+  USE vegNrgFlux_module,only:wettedFrac                         ! compute wetted fraction of the canopy (used in sw radiation fluxes)
   USE snowLakeGlceAlbedo_module,only:snowLakeGlceAlbedo         ! compute snow albedo
-  USE vegSWavRad_module,only:vegSWavRad             ! compute canopy sw radiation fluxes
-  USE canopySnow_module,only:canopySnow             ! compute interception and unloading of snow from the vegetation canopy
-  USE volicePack_module,only:newsnwfall             ! compute change in the top snow layer due to throughfall and unloading
-  USE volicePack_module,only:volicePack             ! merge and sub-divide snow layers, if necessary
-  USE init_heatCap_thermCond_module,only:init_heatCap_thermCond             ! compute diagnostic energy variables -- thermal conductivity and heat capacity
+  USE vegSWavRad_module,only:vegSWavRad                         ! compute canopy sw radiation fluxes
+  USE canopySnow_module,only:canopySnow                         ! compute interception and unloading of snow from the vegetation canopy
+  USE volicePack_module,only:newsnwfall                         ! compute change in the top snow layer due to throughfall and unloading
+  USE volicePack_module,only:volicePack                         ! merge and sub-divide snow layers, if necessary
+  USE layerDivide_module,only:layerDivide                       ! sub-divide layers if they are too thick
+  USE init_heatCap_thermCond_module,only:init_heatCap_thermCond ! compute diagnostic energy variables -- thermal conductivity and heat capacity
   ! the model solver
-  USE indexState_module,only:indexState             ! define indices for all model state variables and layers
-  USE opSplittin_module,only:opSplittin             ! solve the system of thermodynamic and hydrology equations for a given substep
-  USE time_utils_module,only:elapsedSec             ! calculate the elapsed time
+  USE indexState_module,only:indexState                         ! define indices for all model state variables and layers
+  USE opSplittin_module,only:opSplittin                         ! solve the system of thermodynamic and hydrology equations for a given substep
+  USE time_utils_module,only:elapsedSec                         ! calculate the elapsed time
   ! additional subroutines
-  USE tempAdjust_module,only:tempAdjust             ! adjust snow temperature associated with new snowfall
-  USE var_derive_module,only:calcHeight             ! module to calculate height at layer interfaces and layer mid-point
-  USE snowGlceDepth_module,only:snowGlceDepth   ! compute snow depth
-  USE convertEnthalpyTemp_module,only:T2enthTemp_veg       ! convert temperature to enthalpy for vegetation
-  USE convertEnthalpyTemp_module,only:T2enthTemp_snLaGl    ! convert temperature to enthalpy for snow, lake, and ice
-  USE convertEnthalpyTemp_module,only:T2enthTemp_soil      ! convert temperature to enthalpy for soil
-  USE convertEnthalpyTemp_module,only:enthTemp_or_enthalpy ! add phase change terms to delta temperature component of enthalpy or vice versa
+  USE tempAdjust_module,only:tempAdjust                         ! adjust snow temperature associated with new snowfall
+  USE var_derive_module,only:calcHeight                         ! module to calculate height at layer interfaces and layer mid-point
+  USE snowGlceDepth_module,only:snowGlceDepth                   ! compute snow depth
+  USE convertEnthalpyTemp_module,only:T2enthTemp_veg            ! convert temperature to enthalpy for vegetation
+  USE convertEnthalpyTemp_module,only:T2enthTemp_snLaGl         ! convert temperature to enthalpy for snow, lake, and ice
+  USE convertEnthalpyTemp_module,only:T2enthTemp_soil           ! convert temperature to enthalpy for soil
+  USE convertEnthalpyTemp_module,only:enthTemp_or_enthalpy      ! add phase change terms to delta temperature component of enthalpy or vice versa
   implicit none
   ! -------------------------------------------------------------------------------------------------------------------------
   ! * dummy variables
@@ -324,8 +325,9 @@ subroutine coupled_em(&
   logical(lgt)                         :: use_lookup               ! flag to use the lookup table for soil enthalpy, otherwise use analytical solution
   real(rkind), allocatable             :: depthGlceTopLayer(:)     ! depth of the top glacier ice layers at the start of the time step (m)
   real(rkind), allocatable             :: iceGlceTopLayer(:)       ! ice content of of the top glacier ice layers at the start of the time step (m)
-
+  real(rkind), allocatable             :: tempGlceTopLayer(:)      ! temperature of the top glacier ice layers at the start of the time step (K)
   integer(i4b)                         :: noWatState               ! number of layers with no water state (bottom glacier ice layers)
+  logical(lgt)                         :: divideLayer              ! flag to denote that a layer was divided
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message="coupled_em/"
@@ -1545,8 +1547,12 @@ subroutine coupled_em(&
       ! state variables in the layer domains
       scalarSWE                  => prog_data%var(iLookPROG%scalarSWE)%dat(1)                                 ,& ! snow water equivalent (kg m-2)
       mLayerDepth                => prog_data%var(iLookPROG%mLayerDepth)%dat                                  ,& ! depth of each layer (m)
+      iLayerHeight               => prog_data%var(iLookPROG%iLayerHeight)%dat                                 ,& ! height of each layer (m)
+      mLayerHeight               => prog_data%var(iLookPROG%mLayerHeight)%dat                                 ,& ! height of each layer (m)
       mLayerVolFracIce           => prog_data%var(iLookPROG%mLayerVolFracIce)%dat                             ,& ! volumetric ice content in each layer (-)
       mLayerVolFracLiq           => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat                             ,& ! volumetric liquid water content in each layer (-)
+      mLayerVolFracWat           => prog_data%var(iLookPROG%mLayerVolFracWat)%dat                             ,& ! volumetric total water content in each layer (-)
+      mLayerTemp                 => prog_data%var(iLookPROG%mLayerTemp)%dat                                   ,& ! temperature of each layer (K)
       scalarTotalSoilWat         => diag_data%var(iLookDIAG%scalarTotalSoilWat)%dat(1)                        ,& ! total water in the soil column (kg m-2)
       scalarTotalSoilIce         => diag_data%var(iLookDIAG%scalarTotalSoilIce)%dat(1)                        ,& ! total ice in the soil column (kg m-2)
       scalarTotalSoilLiq         => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1)                        ,& ! total liquid water in the soil column (kg m-2)
@@ -1771,14 +1777,13 @@ subroutine coupled_em(&
           err=20; return
         end if
 
-        ! Reset the layers, ice content will only have changed if layers merged
+        ! Reset the layers, ice content will have changed if layers merged
         if (size(depthGlceTopLayer)<nGlce-noWatState)then
-          add layers
           do iLayer = 1, nGlce-noWatState-size(depthGlceTopLayer)
-              call addModelLayer(prog_data,prog_meta,iLayer,nGlce,nLayers,.true.,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-   call layerDivide(&
+            call layerDivide(&
                     ! input/output: model data structures
-                    maxLayers,                   & ! intent(in):    maximum number of snow/firn/ice layers
+                    .true.,                      & ! intent(in):    flag to denote that we are dividing glacier ice layers
+                    maxSnowIceLayers,            & ! intent(in):    maximum number of snow/firn/ice layers
                     model_decisions,             & ! intent(in):    model decisions
                     mpar_data,                   & ! intent(in):    model parameters
                     indx_data,                   & ! intent(inout): type of each layer
@@ -1788,13 +1793,50 @@ subroutine coupled_em(&
                     ! output
                     divideLayer,                 & ! intent(out): flag to denote that layers were modified
                     err,cmessage)                  ! intent(out): error control
+            if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+          end do
 
-        elseif(size(depthGlceTopLayer)>Glce-noWatState)then
-          err=20; message=trim(message)//'glacier top ice layers divided, start them thicker'; return
+          ! save the number of layers
+          nGlce   = indx_data%var(iLookINDEX%nGlce)%dat(1)
+          ! compute the indices for the model state variables
+          call indexState(computeVegFlux,                    & ! intent(in):    flag to denote if computing the vegetation flux
+                          includeAquifer,                    & ! intent(in):    flag to denote if included the aquifer
+                          nSnow,nLake,nSoil,nGlce,nLayers,   & ! intent(in):    number of layers, and total number of layers
+                          indx_data,                         & ! intent(inout): indices defining model states and layers
+                          err,cmessage)                        ! intent(out):   error control
+          if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+
+        else if(size(depthGlceTopLayer)>nGlce-noWatState)then ! this should not happen
+          err=20; message=trim(message)//'glacier top ice layers divided, started too thick'; return
         endif
-        prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState) = depthGlceTopLayer
-        prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState) = iceGlceTopLayer
-      else
+
+        mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState) = depthGlceTopLayer
+        mLayerVolFracIce(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState) = iceGlceTopLayer
+        mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState) = 0._rkind ! no liquid water in glacier ice
+        mLayerTemp(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce) = tempGlceTopLayer
+
+        ! get enthalpy from temperature
+        if( (enthalpyStateVec .or. computeEnthalpy))then
+          do iLayer=nSnow+nLake+nSoil+1,nSnow+nLake+nSoil+nGlce-noWatState
+            mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)*(iden_ice/iden_water)
+            ! compute enthalpy for snow and glacier ice layers
+            call T2enthTemp_snLaGl(&
+                         .true.,  & ! intent(in):  flag that no liquid water in layer
+                         snowfrz_scale,             & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
+                         mLayerTemp(iLayer),        & ! intent(in):  layer temperature (K)
+                         mLayerVolFracWat(iLayer),  & ! intent(in):  volumetric total water content (-)
+                         mLayerEnthTemp(iLayer))      ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
+            mLayerEnthalpy(iLayer) = mLayerEnthTemp(iLayer) - iden_ice * LH_fus * mLayerVolFracIce(iLayer)
+          end do  ! looping through snow and glacier ice layers
+        end if ! (need to recalculate enthalpy state variable)
+
+        ! recalculate the layer heights
+        do jLayer=nSnow+nLake+nSoil+1,nLayers
+          iLayerHeight(jLayer) = iLayerHeight(jLayer-1) + mLayerDepth(jLayer)
+          mLayerHeight(jLayer) = (iLayerHeight(jLayer-1) + iLayerHeight(jLayer))/2._rkind
+        end do
+        
+      else ! no glacier layers
         scalarIceWE = 0._rkind
       end if ! if glce layers exist
       
@@ -1926,14 +1968,16 @@ contains
   allocate(innerBalanceLayerMass(nLayers)); innerBalanceLayerMass = 0._rkind ! mean total balance of mass in layers
   allocate(innerBalanceLayerNrg(nLayers));  innerBalanceLayerNrg = 0._rkind ! mean total balance of energy in layers
   allocate(mLayerVolFracIceInit(nLayers));  mLayerVolFracIceInit = prog_data%var(iLookPROG%mLayerVolFracIce)%dat ! volume fraction of water ice
-  if (nGlce>0)then ! depth and ice content of the top glacier layer at the beginning of the data step
-    allocate(depthGlceTopLayer(nGlce-noWatState), iceGlceTopLayer(nGlce-noWatState))
+  if (nGlce>0)then ! depth, ice content, temp of the top glacier layer at the beginning of the data step
+    allocate(depthGlceTopLayer(nGlce-noWatState), iceGlceTopLayer(nGlce-noWatState), tempGlceTopLayer(nGlce-noWatState))
     depthGlceTopLayer = prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState)
     iceGlceTopLayer   = prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState)
+    tempGlceTopLayer  = prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState)
   else ! no glacier, so set to 0
-    allocate(depthGlceTopLayer(1), iceGlceTopLayer(1))
+    allocate(depthGlceTopLayer(1), iceGlceTopLayer(1), tempGlceTopLayer(1))
     depthGlceTopLayer = 0._rkind
     iceGlceTopLayer   = 0._rkind
+    tempGlceTopLayer  = 0._rkind
   end if
 
   ! initialize the numerix tracking variables

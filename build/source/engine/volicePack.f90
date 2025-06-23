@@ -99,6 +99,7 @@ contains
  if (.not.tooMuchMelt)then
    call layerDivide(&
                     ! input/output: model data structures
+                    .false.,                     & ! intent(in):    flag to denote that we are not dividing glacier ice layers since they currently do not grow
                     maxLayers,                   & ! intent(in):    maximum number of snow/firn/ice layers
                     model_decisions,             & ! intent(in):    model decisions
                     mpar_data,                   & ! intent(in):    model parameters
@@ -112,7 +113,7 @@ contains
    if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; end if
  endif
 
- ! merge snow/firn layers if they are too thin
+ ! merge snow/firn/ice layers if they are too thin, here assuming merging ice layers only if there is no snow/firn
  call layerMerge(&
                  ! input/output: model data structures
                  maxLayers,                   & ! intent(in):    maximum number of snow/firn/ice layers

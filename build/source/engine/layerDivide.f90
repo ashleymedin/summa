@@ -83,6 +83,7 @@ contains
  ! ***********************************************************************************************************
  subroutine layerDivide(&
                         ! input/output: model data structures
+                        doGlac,                          & ! intent(in):    flag to denote if we are dividing glacier ice layers
                         maxLayers,                       & ! intent(in):    maximum number of snow/firn/ice layers
                         model_decisions,                 & ! intent(in):    model decisions
                         mpar_data,                       & ! intent(in):    model parameters
@@ -101,6 +102,7 @@ contains
  implicit none
  ! --------------------------------------------------------------------------------------------------------
  ! input/output: model data structures
+ logical(lgt),intent(in)            :: doGlac                 ! flag to denote if we are dividing glacier ice layers
  integer(i4b),intent(in)            :: maxLayers              ! maximum number of snow/firn/ice layers
  type(model_options),intent(in)     :: model_decisions(:)     ! model decisions
  type(var_dlength),intent(in)       :: mpar_data              ! model parameters
@@ -119,6 +121,7 @@ contains
  integer(i4b)                       :: nLake                  ! number of lake layers
  integer(i4b)                       :: nSoil                  ! number of soil layers
  integer(i4b)                       :: nGlce                  ! number of glacier ice layers
+ integer(i4b)                       :: nDivLayers             ! number of layers to divide
  integer(i4b)                       :: nLayers                ! total number of layers
  integer(i4b)                       :: iLayer                 ! layer index
  integer(i4b)                       :: jLayer                 ! layer index
@@ -147,6 +150,7 @@ contains
  associate(&
  ! model decisions
  ix_snowLayers          => model_decisions(iLookDECISIONS%snowLayers)%iDecision, & ! decision for snow combination
+ noWatState             => indx_data%var(iLookINDEX%noWatState)%dat(1),          & ! number of layers with no water state (bottom glacier ice layers)
  ! model parameters (compute layer temperature)
  fc_param               => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),       & ! freezing curve parameter for snow (K-1)
  ! model parameters (new snow density)
@@ -173,35 +177,6 @@ contains
 
  ! ---------------------------------------------------------------------------------------------------
 
- doGlac=.false. ! initialize flag for glacier ice
- if (nSnow==0 .and. nGlce>0) then
-   kSnow=nSoil
-   doGlac=.true.
-   topLayer=nSoil+1
-   botLayer=nSoil+nGlce
- else
-   topLayer=1
-   botLayer=nSnow
- end if
-
- ! initialize flag to denote that a layer was divided
- divideLayer=.false.
-
- ! identify algorithmic control parameters to sub-divide and combine snow layers
- zmax_lower_param = (/zmaxLayer1_lower, zmaxLayer2_lower, zmaxLayer3_lower, zmaxLayer4_lower/)
- zmax_upper_param = (/zmaxLayer1_upper, zmaxLayer2_upper, zmaxLayer3_upper, zmaxLayer4_upper/)
- if (maxLayers <= 5) then
-  zmax_lower = zmax_lower_param(1:maxLayers-1)
-  zmax_upper = zmax_upper_param(1:maxLayers-1)
- else
-  zmax_lower(1:4) = zmax_lower_param
-  zmax_upper(1:4) = zmax_upper_param
-  do iLayer=5,maxLayers-1
-   zmax_lower(iLayer) = zmax_lower(iLayer-1)*2._rkind
-   zmax_upper(iLayer) = zmax_upper(iLayer-1)*2._rkind
-  end do
- end if
-
  ! initialize the number of snow layers
  nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
  nLake   = indx_data%var(iLookINDEX%nLake)%dat(1)
@@ -209,8 +184,38 @@ contains
  nGlce   = indx_data%var(iLookINDEX%nGlce)%dat(1)
  nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
 
- ! ***** special case of no snow layers
- if(nSnow==0)then
+ ! number of layers possible to divide
+ if(doGlac)then
+   nDivLayers = nGlce-noWatState
+ else
+   nDivLayers = nSnow
+ end if
+
+ ! initialize flag to denote that a layer was divided
+ divideLayer=.false.
+
+ ! identify algorithmic control parameters to sub-divide and combine layers
+ if(doGlac)then ! glacier ice layers
+   zmax_lower(1:maxLayers-1) = zmaxLayer1_lower
+   zmax_upper(1:maxLayers-1) = zmaxLayer1_upper
+ else ! snow layers
+   zmax_lower_param = (/zmaxLayer1_lower, zmaxLayer2_lower, zmaxLayer3_lower, zmaxLayer4_lower/)
+   zmax_upper_param = (/zmaxLayer1_upper, zmaxLayer2_upper, zmaxLayer3_upper, zmaxLayer4_upper/)
+   if(maxLayers <= 5)then ! generalize the above parameters to the number of layers
+     zmax_lower = zmax_lower_param(1:maxLayers-1)
+     zmax_upper = zmax_upper_param(1:maxLayers-1)
+   else
+     zmax_lower(1:4) = zmax_lower_param
+     zmax_upper(1:4) = zmax_upper_param
+     do iLayer=5,maxLayers-1
+       zmax_lower(iLayer) = zmax_lower(iLayer-1)*2._rkind
+       zmax_upper(iLayer) = zmax_upper(iLayer-1)*2._rkind
+     end do
+    end if
+  end if  ! (if dividing glacier ice layers)
+
+ ! ***** special case of no snow layers to divide
+ if(nSnow==0 .and. .not.doGlac)then
 
   ! check if create the first snow layer
   select case(ix_snowLayers)
@@ -288,32 +293,41 @@ contains
  ! ********************************************************************************************************************
  ! ********************************************************************************************************************
 
- ! ***** sub-divide snow layers, if necessary
- else ! if nSnow>0
+ ! ***** sub-divide layers, if necessary
+ elseif (nDivLayers>0) then
 
   ! identify the number of layers to check for need for sub-division
-  nCheck = min(nSnow, maxLayers-1) ! the depth of the last layer, if it exists, does not have a maximum value
+  nCheck = min(nDivLayers, maxLayers-1) ! the depth of the last layer, if it exists, does not have a maximum value
   ! loop through all layers, and sub-divide a given layer, if necessary
   do iLayer=1,nCheck
    divideLayer=.false.
 
-   ! identify the maximum depth of the layer
-   select case(ix_snowLayers)
-    case(sameRulesAllLayers)
-     if (nCheck >= maxLayers-1) then
-      ! make sure we don't divide so make very big
-      zmaxCheck = veryBig
+   ! if dividing glacier ice layers, force division of the top layer only
+   if (doGlac)then 
+     if(iLayer==1)then
+       zMaxCheck = prog_data%var(iLookPROG%mLayerDepth)%dat(iLayer)
      else
-      zmaxCheck = zmax
+       zMaxCheck = prog_data%var(iLookPROG%mLayerDepth)%dat(iLayer)+1._rkind 
      end if
-    case(rulesDependLayerIndex)
-     if(iLayer == nSnow)then
-      zmaxCheck = zmax_lower(iLayer)
-     else
-      zmaxCheck = zmax_upper(iLayer)
-     end if
-    case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
-   end select ! (option to combine/sub-divide snow layers)
+   else ! (dividing snow layers)
+     ! identify the maximum depth of the layer
+     select case(ix_snowLayers)
+      case(sameRulesAllLayers)
+       if (nCheck >= maxLayers-1) then
+        ! make sure we don't divide so make very big
+        zmaxCheck = veryBig
+       else
+        zmaxCheck = zmax
+       end if
+      case(rulesDependLayerIndex)
+       if(iLayer == nDivLayers)then
+        zmaxCheck = zmax_lower(iLayer)
+       else
+        zmaxCheck = zmax_upper(iLayer)
+       end if
+      case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
+     end select ! (option to combine/sub-divide snow layers)
+   end if  ! (if dividing glacier ice layers)
 
    ! check the need to sub-divide
    if(prog_data%var(iLookPROG%mLayerDepth)%dat(iLayer) > zmaxCheck)then
@@ -322,10 +336,10 @@ contains
     divideLayer=.true.
 
     ! add a layer to all model variables
-    call addModelLayer(prog_data,prog_meta,iLayer,nSnow,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-    call addModelLayer(diag_data,diag_meta,iLayer,nSnow,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-    call addModelLayer(flux_data,flux_meta,iLayer,nSnow,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-    call addModelLayer(indx_data,indx_meta,iLayer,nSnow,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    call addModelLayer(prog_data,prog_meta,iLayer,nDivLayers,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    call addModelLayer(diag_data,diag_meta,iLayer,nDivLayers,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    call addModelLayer(flux_data,flux_meta,iLayer,nDivLayers,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    call addModelLayer(indx_data,indx_meta,iLayer,nDivLayers,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
     ! define the layer depth
     layerSplit: associate(mLayerDepth => prog_data%var(iLookPROG%mLayerDepth)%dat)
@@ -339,8 +353,11 @@ contains
    end if   ! (if sub-dividing layer)
 
   end do  ! (looping through layers)
-
- end if  ! if nSnow==0
+ else ! (if nGlce==0 and. doGlac==.true)
+  ! no layers to divide, so set divideLayer to false
+   message=trim(message)//'cannot divide glacier ice layers if melted all top ice layers'
+   err=20; return
+ end if  ! if nDivLayers==0
 
  ! update coordinates
  if(divideLayer)then
@@ -359,10 +376,16 @@ contains
   )  ! (association of local variables with coordinate variab;es in data structures)
 
   ! update the layer type
-  layerType(1:nSnow+1)                                                = iname_snow
-  if(nLake>0) layerType(nSnow+2:nSnow+nLake+1)                        = iname_lake
-  if(nSoil>0) layerType(nSnow+nLake+2:nSnow+nLake+nSoil+1)            = iname_soil
-  if(nGlce>0) layerType(nSnow+nLake+nSoil+2:nSnow+nLake+nSoil+nGlce+1)= iname_glce
+  if(doGlac)then
+   ! glacier ice layers
+   layerType(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce+1)= iname_glce
+  else
+   ! snow layers
+   layerType(1:nSnow+1)                                                = iname_snow
+   if(nLake>0) layerType(nSnow+2:nSnow+nLake+1)                        = iname_lake
+   if(nSoil>0) layerType(nSnow+nLake+2:nSnow+nLake+nSoil+1)            = iname_soil
+   if(nGlce>0) layerType(nSnow+nLake+nSoil+2:nSnow+nLake+nSoil+nGlce+1)= iname_glce
+  end if  ! (if dividing glacier ice layers)
 
   ! identify the number of layers, and check all is a-OK
   nSnow   = count(layerType(1:nLayers+1)==iname_snow)
