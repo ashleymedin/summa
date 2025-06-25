@@ -145,12 +145,6 @@ contains
  ! define the number of aquifer states
  nAquiferState = merge(1,0,includeAquifer)
 
- ! define layers that will not have a water state
- noWatState = 0
- if(nGlce>0)then
-  noWatState = maxGlceLayers - 1 ! assumes all glaciers in GRU started with maxGlceLayers
-  if (noWatState>=nGlce) err=20; message=trim(message)//'number of glacier ice layers without a water state is not less than the number of glacier ice layers';return
- endif
  ! define the number state variables of different type
  nNrgState  = nCasNrg + nVegNrg + nLayers  ! number of energy state variables
  nWatState  = nSnow + nLake + nGlce        ! number of "total water" state variables -- will be modified later if using primary variable switching   
