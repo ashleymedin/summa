@@ -87,16 +87,14 @@ subroutine snowLakeGlceLiqFlux(&
   real(rkind)                       :: availCap                   ! available storage capacity [0,1] (-)
   real(rkind)                       :: relSaturn                  ! relative saturation [0,1] (-)
   real(rkind)                       :: k_param                    ! hydraulic conductivity parameter (m s-1)
-  logical(lgt)                      :: do_snow                    ! flag to denote if snow is present
   real(rkind)                       :: iLayerLiqFluxSnLaGl(0:in_snowLakeGlceLiqFlux % nLayers)
   real(rkind)                       :: iLayerLiqFluxSnLaGlDeriv(0:in_snowLakeGlceLiqFlux % nLayers)  
   ! ------------------------------------------------------------------------------------------------------------------------------------------
   ! make association of local variables with information in the data structures
-  do_snow = in_snowLakeGlceLiqFlux % do_snow ! flag to denote if snow is present
-  nLayers = in_snowLakeGlceLiqFlux % nLayers ! get number of snow/glce layers
+  nLayers = in_snowLakeGlceLiqFlux % nLayers ! get number of snow/glce layers to get water fluxes over
   nStart = in_snowLakeGlceLiqFlux % nStart ! get the start index for the layers
-
   associate(&
+     do_snow           => in_snowLakeGlceLiqFlux % do_snow,                       & ! intent(in): flag to denote if snow is present
     ! input: model control
     firstFluxCall           => in_snowLakeGlceLiqFlux % firstFluxCall,           & ! intent(in): the first flux call
     scalarSolution          => in_snowLakeGlceLiqFlux % scalarSolution,          & ! intent(in): flag to denote if implementing the scalar solution
@@ -166,7 +164,7 @@ subroutine snowLakeGlceLiqFlux(&
 
     ! define the liquid flux at the upper boundary (m s-1)
     iLayerLiqFluxSnLaGl(0)      = surface_flux
-    iLayerLiqFluxSnLaGlDeriv(0) = 0._rkind !computed inside computeJacob
+    iLayerLiqFluxSnLaGlDeriv(0) = 0._rkind ! computed inside computeJacob*
 
     ! compute properties fixed over the time step
     if (firstFluxCall .and. do_snow) then
@@ -198,10 +196,10 @@ subroutine snowLakeGlceLiqFlux(&
       end do  ! end loop through snow/glce layers
     else ! ice
       do iLayer=ixBot,ixTop,-1 ! loop through glacier ice layers
-         ! ** liquid water goes up since glacier ice is impermeable
+          ! ** liquid water goes up since glacier ice is impermeable
          if (iLayer == nLayers) then ! bottom layer
           iLayerLiqFluxSnLaGl(iLayer) = 0._rkind ! no liquid water flux at the bottom of the glacier ice layer
-          iLayerLiqFluxSnLaGlDeriv(iLayer) = 0._rkind ! no derivative at the bottom of the glacier ice layer
+          iLayerLiqFluxSnLaGlDeriv(iLayer) = -1._rkind ! after cancelation, derivative is -1, since liquid water goes up
          else  ! not the bottom layer
           iLayerLiqFluxSnLaGl(iLayer) = mLayerVolFracLiqTrial(iLayer+1) + iLayerLiqFluxSnLaGl(iLayer+1) ! NOTE: derivative needs to be updated in future, wrong in this case
           iLayerLiqFluxSnLaGlDeriv(iLayer) = -1._rkind ! after cancelation, derivative is -1, since liquid water goes up
@@ -213,7 +211,7 @@ subroutine snowLakeGlceLiqFlux(&
       endif
     end if  ! end if snow or ice
     if(ixBot==nLayers)then
-      iLayerLiqFluxSnLaGl(nLayers) = iLayerLiqFluxSnLaGl(nLayers) + bottom_flux ! set the bottom flux if already computed
+      iLayerLiqFluxSnLaGl(nLayers)   = iLayerLiqFluxSnLaGl(nLayers) + bottom_flux   ! set the bottom flux if already computed
       iLayerLiqFluxSnLaGlDeriv(nLayers) = iLayerLiqFluxSnLaGlDeriv(nLayers) ! may be modified computed inside computeJacob
     end if
 

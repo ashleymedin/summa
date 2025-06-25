@@ -342,6 +342,7 @@ contains
  real(rkind),allocatable                   :: varData2(:,:)            ! variable data storage
  real(rkind),allocatable                   :: varData3(:,:,:)          ! variable data storage
  integer(i4b)                              :: nSnow,nLake,nSoil,nGlce,nToto !# layers
+ integer(i4b)                              :: noWatState               ! number of layers without a water state (bottom glacier ice layers)
  integer(i4b)                              :: nTDH                     ! number of points in time-delay 
  integer(i4b)                              :: nGlacier                 ! number of glaciers in basin (attribute files
  integer(i4b)                              :: fileglac                 ! max number of glaciers in any GRU
@@ -592,6 +593,16 @@ contains
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSoil)%dat(1)   = nSoil
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1)   = nGlce
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLayers)%dat(1) = nSnow + nLake + nSoil + nGlce
+
+    ! define layers that will not have a water state
+    noWatState = 0
+    if(nGlce>0)then
+      noWatState = nGlce - 1 ! This is a hard-coded value saying only the top glacier layer has a water state, can be changed in the future to allow more glacier layers to have a water state
+      if(noWatState>=nGlce)then ! need at least one glacier top layer with a water state
+        err=20; message=trim(message)//'number of glacier ice layers without a water state is not less than the number of glacier ice layers';return
+      endif
+    endif
+    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%noWatState)%dat(1) = noWatState
 
     ! set layer type
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%layerType)%dat(1:nSnow) = iname_snow
