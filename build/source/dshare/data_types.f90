@@ -1395,7 +1395,7 @@ contains
    in_snowLakeGlceLiqFlux % nStart                 =nStart                         ! intent(in): starting index for layers
    in_snowLakeGlceLiqFlux % do_snow                =do_snow                        ! intent(in): flag to denote if processing snow layers
    in_snowLakeGlceLiqFlux % surface_flux           =surface_flux                   ! intent(in): surface fluxes (kg m-2 s-1)
-    in_snowLakeGlceLiqFlux % bottom_flux            =bottom_flux                   ! intent(in): bottom fluxes if already computed (kg m-2 s-1)
+   in_snowLakeGlceLiqFlux % bottom_flux            =bottom_flux                    ! intent(in): bottom fluxes if already computed (kg m-2 s-1)
    in_snowLakeGlceLiqFlux % firstFluxCall          =firstFluxCall                  ! intent(in): the first flux call (compute variables that are constant over the iterations)
    in_snowLakeGlceLiqFlux % scalarSolution         =(scalarSolution .and. .not.firstFluxCall) ! intent(in): flag to indicate the scalar solution
    in_snowLakeGlceLiqFlux % mLayerVolFracLiqTrial  =mLayerVolFracLiqTrial(nStart+1:nStart+nLayers) ! intent(in): trial value of volumetric fraction of liquid water at the current iteration (-)
