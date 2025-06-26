@@ -139,6 +139,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  integer(i4b)                          :: jHRU,kHRU          ! HRU indices
  integer(i4b)                          :: iGRU,iHRU,iDOM     ! looping variables
  integer(i4b)                          :: iVar               ! looping variables
+ real(rkind)                           :: absEnergyFac       ! multiplier for absolute value of energy state variable (for enthalpy or temperature)
  logical                               :: needLookup_soil    ! logical to decide if computing soil enthalpy lookup tables
  integer(i4b)                          :: maxLayers_glac     ! maximum number of layers for glacier
  integer(i4b)                          :: maxLayers_wtld     ! maximum number of layers for wetland
@@ -291,11 +292,19 @@ endif
  ! *****************************************************************************
 
  ! read default values and constraints for model parameters (local column)
- call read_pinit(LOCALPARAM_INFO,.TRUE., mpar_meta,localParFallback,err,cmessage)
+ select case(model_decisions(iLookDECISIONS%nrgConserv)%iDecision)
+   case(closedForm) ! ida temperature state variable
+     absEnergyFac = 1.e2_rkind ! energy state variable is 2 orders of magnitude larger than mass state variable
+   case(enthalpyFormLU,enthalpyForm) ! ida enthalpy state variable
+     absEnergyFac = 1.e7_rkind ! energy state variable is 7 orders of magnitude larger than mass state variable
+   case default; err=20; message=trim(message)//'unable to identify option for energy conservation'; return
+ end select ! (option for energy conservation)
+
+ call read_pinit(LOCALPARAM_INFO,.TRUE., absEnergyFac,mpar_meta,localParFallback,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! read default values and constraints for model parameters (basin-average)
- call read_pinit(BASINPARAM_INFO,.FALSE.,bpar_meta,basinParFallback,err,cmessage)
+ call read_pinit(BASINPARAM_INFO,.FALSE.,absEnergyFac, bpar_meta,basinParFallback,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! *****************************************************************************

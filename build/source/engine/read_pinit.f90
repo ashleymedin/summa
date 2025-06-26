@@ -34,7 +34,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_pinit: read default model parameter values and constraints
  ! ************************************************************************************************
- subroutine read_pinit(filenm,isLocal,mpar_meta,parFallback,err,message)
+ subroutine read_pinit(filenm,isLocal,absEnergyFac,mpar_meta,parFallback,err,message)
  ! used to read metadata on the forcing data file
  USE summaFileManager,only:SETTINGS_PATH   ! path for input parameter and other configuration files
  USE ascii_util_module,only:file_open      ! open ascii file
@@ -47,6 +47,7 @@ contains
  ! define input
  character(*),intent(in)                :: filenm         ! name of file containing default values and constraints of model parameters
  logical(lgt),intent(in)                :: isLocal        ! .true. if the file describes local column parameters
+ real(rkind),intent(in)                 :: absEnergyFac   ! multiplier for absolute value of energy state variable (for enthalpy or temperature)
  type(var_info),intent(in)              :: mpar_meta(:)   ! metadata for model parameters
  ! define output
  type(par_info),intent(out)             :: parFallback(:) ! default values and constraints of model parameters
@@ -135,7 +136,7 @@ contains
   if (parFallback(iLookPARAM%be_steps)%default_val < 0.99_rkind*realMissing) then
    parFallback(iLookPARAM%be_steps)%default_val = 1._rkind
   end if
-  call set_ida_defaults(parFallback, err, cmessage)
+  call set_ida_defaults(absEnergyFac, parFallback, err, cmessage)
   if (err /= 0) then; message = trim(message)//trim(cmessage); return; end if
   ! glacier and lake parameters
   if (parFallback(iLookPARAM%albedoFrznWatVisible)%default_val < 0.99_rkind*realMissing) then
@@ -205,23 +206,24 @@ contains
  ! ************************************************************************************************
  ! Subroutine to separate the default settings of the IDA solver from the rest of the model parameters
  ! ************************************************************************************************
- subroutine set_ida_defaults(parFallback, err, message)
+ subroutine set_ida_defaults(absEnergyFac, parFallback, err, message)
  USE data_types,only:par_info              ! data type for parameter constraints
  implicit none
  ! define input
+ real(rkind),intent(in)                 :: absEnergyFac   ! multiplier for absolute value of energy state variable (for enthalpy or temperature)
  type(par_info),intent(out)             :: parFallback(:) ! default values and constraints of model parameters
  integer(i4b),intent(out)               :: err            ! error code
  character(*),intent(out)               :: message        ! error message
  ! local varaibles
  integer(i4b)                           :: i   
- real(rkind)                            :: default_relTol = 1.e-6_rkind 
- real(rkind)                            :: default_absTol = 1.e-6_rkind
+ real(rkind)                            :: default_relTol = 1.e-5_rkind 
+ real(rkind)                            :: default_absTol = 1.e-5_rkind
  integer(i4b), dimension(7)             :: relTol_paramIndx = [iLookPARAM%relTolTempCas, iLookPARAM%relTolTempVeg, iLookPARAM%relTolWatVeg, &
                                                                iLookPARAM%relTolTempSoilSnow, iLookPARAM%relTolWatSnow, iLookPARAM%relTolMatric, &
                                                                iLookPARAM%relTolAquifr]
- integer(i4b), dimension(7)             :: absTol_paramIndx = [iLookPARAM%absTolTempCas, iLookPARAM%absTolTempVeg, iLookPARAM%absTolWatVeg, &
-                                                               iLookPARAM%absTolTempSoilSnow, iLookPARAM%absTolWatSnow, iLookPARAM%absTolMatric, &
-                                                               iLookPARAM%absTolAquifr]
+ integer(i4b), dimension(3)             :: absTolTemp_paramIndx = [iLookPARAM%absTolTempCas, iLookPARAM%absTolTempVeg, iLookPARAM%absTolTempSoilSnow]
+ integer(i4b), dimension(4)             :: absTolWat_paramIndx =  [iLookPARAM%absTolWatVeg, iLookPARAM%absTolWatSnow, iLookPARAM%absTolMatric, &
+                                                                   iLookPARAM%absTolAquifr]
  err=0 ! initialize error code
  message="set_ida_defaults/"
  
@@ -233,9 +235,14 @@ contains
   end do
 
   ! Absolute Tolerances
-  do i = 1, size(absTol_paramIndx)
-    if (parFallback(absTol_paramIndx(i))%default_val < 0.99_rkind*realMissing) then
-      parFallback(absTol_paramIndx(i))%default_val = default_absTol
+  do i = 1, size(absTolTemp_paramIndx)
+    if (parFallback(absTolTemp_paramIndx(i))%default_val < 0.99_rkind*realMissing) then
+      parFallback(absTolTemp_paramIndx(i))%default_val = default_absTol*absEnergyFac ! scale by absolute energy multiplier
+    end if
+  end do
+  do i = 1, size(absTolWat_paramIndx)
+    if (parFallback(absTolWat_paramIndx(i))%default_val < 0.99_rkind*realMissing) then
+      parFallback(absTolWat_paramIndx(i))%default_val = default_absTol
     end if
   end do
 

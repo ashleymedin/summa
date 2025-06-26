@@ -49,33 +49,35 @@ contains
  USE globalData,only:gru_struc               ! gru-hru mapping structure
  implicit none
  ! define input & output
- integer(i4b),intent(in)              :: nGRU             ! number of grouped response units
- integer(i4b),intent(out)             :: err              ! error code
- character(*),intent(out)             :: message          ! error message
+ integer(i4b),intent(in)              :: nGRU                ! number of grouped response units
+ integer(i4b),intent(out)             :: err                 ! error code
+ character(*),intent(out)             :: message             ! error message
  ! define local variables
  ! netcdf file i/o related
- integer(i4b)                         :: ncid             ! netcdf file id
- integer(i4b)                         :: mode             ! netCDF file open mode
- integer(i4b)                         :: varid            ! netcdf variable id
- integer(i4b)                         :: dimId            ! netcdf dimension id
- character(LEN=nf90_max_name)         :: varName          ! character array of netcdf variable name
- integer(i4b)                         :: iNC              ! index of a variable in netcdf file
- integer(i4b)                         :: nvar             ! number of variables in netcdf local attribute file
+ integer(i4b)                         :: ncid                ! netcdf file id
+ integer(i4b)                         :: mode                ! netCDF file open mode
+ integer(i4b)                         :: varid               ! netcdf variable id
+ integer(i4b)                         :: dimId               ! netcdf dimension id
+ character(LEN=nf90_max_name)         :: varName             ! character array of netcdf variable name
+ integer(i4b)                         :: iNC                 ! index of a variable in netcdf file
+ integer(i4b)                         :: nvar                ! number of variables in netcdf local attribute file
  ! the rest
- character(LEN=linewidth),allocatable :: dataLines(:)     ! vector of lines of information (non-comment lines)
- character(len=256)                   :: cmessage         ! error message for downwind routine
- character(LEN=256)                   :: infile           ! input filename
- integer(i4b)                         :: unt              ! file unit (free unit output from file_open)
- character(LEN=256)                   :: filenameData     ! name of forcing datafile
- integer(i4b)                         :: ivar             ! index of model variable
- integer(i4b)                         :: iFile            ! counter for forcing files
- integer(i4b)                         :: nFile            ! number of forcing files in forcing file list
- integer(i4b)                         :: file_nHRU        ! number of HRUs in current forcing file
- integer(i4b)                         :: nForcing         ! number of forcing variables
- integer(i4b)                         :: iGRU,localHRU_ix ! index of GRU and HRU
- integer(i8b)                         :: ncHruId(1)       ! hruID from the forcing files
- real(rkind)                          :: dataStep_iFile   ! data step for a given forcing data file
- logical(lgt)                         :: xist             ! .TRUE. if the file exists
+ character(LEN=linewidth),allocatable :: dataLines(:)        ! vector of lines of information (non-comment lines)
+ character(len=256)                   :: cmessage            ! error message for downwind routine
+ character(LEN=256)                   :: infile              ! input filename
+ integer(i4b)                         :: unt                 ! file unit (free unit output from file_open)
+ character(LEN=256)                   :: filenameData        ! name of forcing datafile
+ integer(i4b)                         :: ivar                ! index of model variable
+ integer(i4b)                         :: iFile               ! counter for forcing files
+ integer(i4b)                         :: nFile               ! number of forcing files in forcing file list
+ integer(i4b)                         :: file_nHRU           ! number of HRUs in current forcing file
+ integer(i4b)                         :: nForcing            ! number of forcing variables
+ integer(i4b)                         :: iGRU,localHRU_ix    ! index of GRU and HRU
+ integer(i8b)                         :: ncHruId(1)          ! hruID from the forcing files
+ real(rkind)                          :: dataStep_iFile      ! data step for a given forcing data file
+ logical(lgt)                         :: xist                ! .TRUE. if the file exists
+ logical(lgt)                         :: completed_data_step ! .TRUE. if data step variable is present
+ logical(lgt)                         :: completed_hruId     ! .TRUE. if hruId
 
  ! Start procedure here
  err=0; message="ffile_info/"
@@ -173,6 +175,8 @@ contains
 
   ! loop through all variables in netcdf file, check to see if everything needed to run the model exists and data_step is correct
   do iNC=1,nVar
+    completed_data_step = .false.
+    completed_hruId = .false.
 
    ! inquire about current variable name, type, number of dimensions
    err = nf90_inquire_variable(ncid,iNC,name=varName)
@@ -204,12 +208,15 @@ contains
       if(err/=0)then; message=trim(message)//'problem reading first Julian day'; return; end if
      end if  ! if the variable name is time
 
-    ! data step
+    ! data step -- required
     case('data_step' )
 
      ! read data_step from netcdf file
      err = nf90_inq_varid(ncid, "data_step", varId); if(err/=0)then; message=trim(message)//'cannot find data_step'; return; end if
      err = nf90_get_var(ncid,varid,dataStep_iFile);  if(err/=0)then; message=trim(message)//'cannot read data_step'; return; end if
+     if (dataStep_iFile <= 0)then
+      message=trim(message)//'data_step must be greater than zero'; err=30; return
+     end if
 
      ! check data_step is the same for all forcing files
      if(iFile == 1)then
@@ -220,6 +227,7 @@ contains
        err=20; return
       end if
      end if
+     completed_data_step = .true.
 
     ! HRU id -- required
     case('hruId')
@@ -242,11 +250,16 @@ contains
        endif
       end do
      end do
+     completed_hruId = .true.
 
     ! OK to have additional variables in the forcing file that are not used
     case default; cycle
    end select  ! select variable name
   end do ! (end of netcdf file variable loop)
+
+  ! check to see if data_step and hruId are present
+  if(.not.completed_data_step)then; message=trim(message)//"data_step variable not found in forcing file "//trim(infile); err=40; return; end if
+  if(.not.completed_hruId)then; message=trim(message)//"hruId variable not found in forcing file "//trim(infile);err=40; return; endif
 
   ! check to see if any forcing variables are missed
   if(any(forcFileInfo(iFile)%data_id(:)==integerMissing))then
