@@ -598,9 +598,8 @@ contains
     noWatState = 0
     if(nGlce>0)then
       noWatState = nGlce - 1 ! This is a hard-coded value saying only the top glacier layer has a water state, can be changed in the future to allow more glacier layers to have a water state
-      if(noWatState>=nGlce)then ! need at least one glacier top layer with a water state
-        err=20; message=trim(message)//'number of glacier ice layers without a water state is not less than the number of glacier ice layers';return
-      endif
+      ! need at least one glacier top layer with a water state
+      if(noWatState>=nGlce)then; err=20; message=trim(message)//'number of glacier ice layers without a water state is not less than the number of glacier ice layers'; return; endif
     endif
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%noWatState)%dat(1) = noWatState
 
