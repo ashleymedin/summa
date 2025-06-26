@@ -174,9 +174,9 @@ contains
   err = nf90_inquire_dimension(ncid,dimId,len=forcFileInfo(iFile)%nTimeSteps); if(err/=0)then; message=trim(message)//'cannot read dimension time'; return; end if
 
   ! loop through all variables in netcdf file, check to see if everything needed to run the model exists and data_step is correct
+  completed_data_step = .false.
+  completed_hruId = .false.
   do iNC=1,nVar
-    completed_data_step = .false.
-    completed_hruId = .false.
 
    ! inquire about current variable name, type, number of dimensions
    err = nf90_inquire_variable(ncid,iNC,name=varName)
