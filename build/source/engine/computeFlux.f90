@@ -61,11 +61,6 @@ USE globalData,only:iname_lake      ! named variables for lake
 ! access the global print flag
 USE globalData,only:globalPrintFlag
 
-! control parameters
-USE globalData,only:verySmall       ! a very small number
-USE globalData,only:veryBig         ! a very big number
-USE globalData,only:dx              ! finite difference increment
-
 ! constants
 USE multiconst,only:iden_water      ! intrinsic density of liquid water    (kg m-3)
 

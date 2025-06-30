@@ -59,8 +59,6 @@ USE mDecisions_module,only:      &
 implicit none
 private
 public::vegPhenlgy
-! algorithmic parameters
-real(rkind),parameter     :: verySmall=1.e-6_rkind      ! used as an additive constant to check if substantial difference among real numbers
 contains
 
 
