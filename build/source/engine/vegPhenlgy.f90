@@ -26,8 +26,8 @@ USE nr_type
 ! global variables
 USE globalData,only:&
                     realMissing,        & ! missing value for real numbers
-                    urbanVegCategory,   &! vegetation category for urban areas
-                    z0GroundTol         ! tolerance for checking if the canopy is above the roughness length of the ground (m)
+                    urbanVegCategory,   & ! vegetation category for urban areas
+                    minExpLogHgt          ! minimum height of transition from the exponential to the logarithmic wind profile (m)
 
 
 ! provide access to the derived types to define the data structures
@@ -187,9 +187,8 @@ contains
   exposedVAI      = scalarExposedLAI + scalarExposedSAI   ! exposed vegetation area index (m2 m-2)
   canopyDepth     = heightCanopyTop - heightCanopyBottom  ! canopy depth (m)
   heightAboveSnow = heightCanopyTop - scalarSnowDepth     ! height top of canopy is above the snow surface (m)
-  z0GroundTol = 0.1  ! tolerance for checking if the canopy is above the roughness length of the ground (m)
-  if(heightCanopyTop<1._rkind) z0GroundTol = 0.1_rkind*heightCanopyTop  ! if the canopy is short, use a smaller tolerance
-  ! DO WE NEED TO CHECK firstFluxCall HERE OR ARE WE ALWAYS IN THE FIRST FLUX CALL?
+  minExpLogHgt    = 0.1  ! minimum height of transition from the exponential to the logarithmic wind profile (m)
+  if(heightCanopyTop<1._rkind) minExpLogHgt = 0.1_rkind*heightCanopyTop  ! if the canopy is short, use a smaller minimum height
   if (nSnow > 0) then ! case when there is snow on the ground (EXCLUDE "snow without a layer" -- in this case, evaporate from the soil)
     scalarGroundSnowFraction  = 1._rkind
   else ! case when the ground is less than a layer of snow (e.g., bare soil or snow without a layer)
@@ -200,7 +199,7 @@ contains
   z0Ground = z0Soil*(1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction     ! roughness length (m)
 
   ! determine if need to include vegetation in the energy flux routines
-  computeVegFlux = (exposedVAI > 0.05_rkind .and. heightAboveSnow > z0Ground + z0GroundTol)
+  computeVegFlux = (exposedVAI > 0.05_rkind .and. heightAboveSnow > z0Ground + minExpLogHgt)
 
   ! if no vegetation ever, should not have initialized scalarCanopyLiq to 0.0001 in read_icond.f90
   if((scalarLAI + scalarSAI) == 0._rkind) scalarCanopyLiq = 0._rkind

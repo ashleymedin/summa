@@ -26,7 +26,7 @@ USE nr_type
 ! global variables
 USE globalData,only:&
                     realMissing,        & ! missing value for real numbers
-                    z0GroundTol           ! tolerance for checking if the canopy is above the roughness length of the ground (m)
+                    minExpLogHgt          ! minimum height of transition from the exponential to the logarithmic wind profile (m)
 
 ! derived types to define the data structures
 USE data_types,only:&
@@ -1592,8 +1592,8 @@ subroutine aeroResist(&
     ! First, calculate new coordinate system above snow - use these to scale wind profiles and resistances
     ! NOTE: the new coordinate system makes zeroPlaneDisplacement and z0Canopy consistent
     heightCanopyTopAboveSnow = heightCanopyTop - snowDepth
-    ! Ensure that heightCanopyBottomAboveSnow >= z0Ground + z0GroundTol
-    heightCanopyBottomAboveSnow = max(heightCanopyBottom - snowDepth, z0Ground + z0GroundTol)
+    ! Ensure that heightCanopyBottomAboveSnow >= z0Ground + minExpLogHgt
+    heightCanopyBottomAboveSnow = max(heightCanopyBottom - snowDepth, z0Ground + minExpLogHgt)
     ! compute zero-plane displacement and roughness length of the vegetation canopy
     select case(ixVegTraits)
       ! Raupach (BLM 1994) "Simplified expressions..."
@@ -1714,7 +1714,7 @@ subroutine aeroResist(&
         err=20; return
       end if
     ! case 2: logarithmic profile from snow depth plus roughness height to bottom of the canopy
-    ! NOTE: heightCanopyBottomAboveSnow>z0Ground+z0GroundTol
+    ! NOTE: heightCanopyBottomAboveSnow>z0Ground+minExpLogHgt
     else
       ! compute the neutral ground resistance
       ! first, component between heightCanopyBottomAboveSnow and z0Canopy+zeroPlaneDisplacement
