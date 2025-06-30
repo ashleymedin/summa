@@ -23,6 +23,11 @@ module vegNrgFlux_module
 ! data types
 USE nr_type
 
+! global variables
+USE globalData,only:&
+                    realMissing,        & ! missing value for real numbers
+                    z0GroundTol           ! tolerance for checking if the canopy is above the roughness length of the ground (m)
+
 ! derived types to define the data structures
 USE data_types,only:&
                     var_i,              & ! data vector (i4b)
@@ -338,6 +343,7 @@ subroutine vegNrgFlux(&
     ! NOTE: soil stress only computed at the start of the substep (firstFluxCall=.true.)
     scalarSWE                       => prog_data%var(iLookPROG%scalarSWE)%dat(1),                      & ! intent(in): [dp]    snow water equivalent on the ground (kg m-2)
     scalarSnowDepth                 => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),                & ! intent(in): [dp]    snow depth on the ground surface (m)
+    scalarGroundSnowFraction        => diag_data%var(iLookDIAG%scalarGroundSnowFraction)%dat(1),       & ! intent(in): [dp] fraction of ground covered with snow (-)
     mLayerVolFracLiq                => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,                  & ! intent(in): [dp(:)] volumetric fraction of liquid water in each layer (-)
     mLayerMatricHead                => prog_data%var(iLookPROG%mLayerMatricHead)%dat,                  & ! intent(in): [dp(:)] matric head in each soil layer (m)
     localAquiferStorage             => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1),           & ! intent(in): [dp]    aquifer storage for the local column (m)
@@ -349,9 +355,8 @@ subroutine vegNrgFlux(&
     scalarCanopyShadedPAR           => flux_data%var(iLookFLUX%scalarCanopyShadedPAR)%dat(1),          & ! intent(in): [dp] average absorbed par for shaded leaves (w m-2)
     scalarCanopyAbsorbedSolar       => flux_data%var(iLookFLUX%scalarCanopyAbsorbedSolar)%dat(1),      & ! intent(in): [dp] solar radiation absorbed by canopy (W m-2)
     scalarGroundAbsorbedSolar       => flux_data%var(iLookFLUX%scalarGroundAbsorbedSolar)%dat(1),      & ! intent(in): [dp] solar radiation absorbed by ground (W m-2)
-    ! output: fraction of wetted canopy area and fraction of snow on the ground
+    ! output: fraction of wetted canopy area
     scalarCanopyWetFraction         => diag_data%var(iLookDIAG%scalarCanopyWetFraction)%dat(1),        & ! intent(out): [dp] fraction of canopy that is wet
-    scalarGroundSnowFraction        => diag_data%var(iLookDIAG%scalarGroundSnowFraction)%dat(1),       & ! intent(out): [dp] fraction of ground covered with snow (-)
     ! output: longwave radiation fluxes
     scalarCanopyEmissivity          => diag_data%var(iLookDIAG%scalarCanopyEmissivity)%dat(1),         & ! intent(out): [dp] effective emissivity of the canopy (-)
     scalarLWRadCanopy               => flux_data%var(iLookFLUX%scalarLWRadCanopy)%dat(1),              & ! intent(out): [dp] longwave radiation emitted from the canopy (W m-2)
@@ -557,10 +562,10 @@ subroutine vegNrgFlux(&
         ! NOTE: variables are constant over the substep, to simplify relating energy and mass fluxes
         if (firstFluxCall) then
           scalarLatHeatSubVapCanopy = getLatentHeatValue(canopyTempTrial)
-          ! case when there is snow on the ground (EXCLUDE "snow without a layer" -- in this case, evaporate from the soil)
-          if (nSnow > 0) then
+          if (nSnow > 0) then ! case when there is snow on the ground (EXCLUDE "snow without a layer" -- in this case, evaporate from the soil)
             if (groundTempTrial > Tfreeze) then; err=20; message=trim(message)//'do not expect ground temperature > 0 when snow is on the ground'; return; end if
             scalarLatHeatSubVapGround = LH_sub  ! sublimation from snow
+<<<<<<< HEAD
             scalarGroundSnowFraction  = 1._rkind
             ! case when the ground is snow-free
           else
@@ -577,6 +582,12 @@ subroutine vegNrgFlux(&
             scalarGroundSnowFraction  = 0._rkind
           end if  ! end if there is snow on the ground
         end if  ! end if the first flux call
+=======
+          else ! case when the ground is less than a layer of snow (e.g., bare soil or snow without a layer)
+            scalarLatHeatSubVapGround = LH_vap  ! evaporation of water in the soil pores: this occurs even if frozen because of super-cooled water
+          end if  ! (there is snow enough for a layer on the ground)
+        end if  ! (first flux call)
+>>>>>>> 9e399b97 (get snowfrac in vegPhenlgy and set canopy values there)
 
         ! compute the roughness length (m) of the ground (ground below the canopy or non-vegetated surface)
         if (nLake>0)then
@@ -1558,7 +1569,6 @@ subroutine aeroResist(&
   real(rkind)                      :: heightAboveGround                    ! height above the snow surface (m)
   real(rkind)                      :: heightCanopyTopAboveSnow             ! height at the top of the vegetation canopy relative to snowpack (m)
   real(rkind)                      :: heightCanopyBottomAboveSnow          ! height at the bottom of the vegetation canopy relative to snowpack (m)
-  real(rkind),parameter            :: xTolerance=0.1_rkind                 ! tolerance to handle the transition from exponential to log-below canopy
   ! local variables: derivatives
   real(rkind)                      :: dFV_dT                               ! derivative in friction velocity w.r.t. canopy air temperature
   real(rkind)                      :: dED_dT                               ! derivative in eddy diffusivity at the top of the canopy w.r.t. canopy air temperature
@@ -1590,8 +1600,8 @@ subroutine aeroResist(&
     ! First, calculate new coordinate system above snow - use these to scale wind profiles and resistances
     ! NOTE: the new coordinate system makes zeroPlaneDisplacement and z0Canopy consistent
     heightCanopyTopAboveSnow = heightCanopyTop - snowDepth
-    ! Ensure that heightCanopyBottomAboveSnow >= z0Ground + xTolerance
-    heightCanopyBottomAboveSnow = max(heightCanopyBottom - snowDepth, z0Ground + xTolerance)
+    ! Ensure that heightCanopyBottomAboveSnow >= z0Ground + z0GroundTol
+    heightCanopyBottomAboveSnow = max(heightCanopyBottom - snowDepth, z0Ground + z0GroundTol)
     ! compute zero-plane displacement and roughness length of the vegetation canopy
     select case(ixVegTraits)
       ! Raupach (BLM 1994) "Simplified expressions..."
@@ -1712,7 +1722,7 @@ subroutine aeroResist(&
         err=20; return
       end if
     ! case 2: logarithmic profile from snow depth plus roughness height to bottom of the canopy
-    ! NOTE: heightCanopyBottomAboveSnow>z0Ground+xTolerance
+    ! NOTE: heightCanopyBottomAboveSnow>z0Ground+z0GroundTol
     else
       ! compute the neutral ground resistance
       ! first, component between heightCanopyBottomAboveSnow and z0Canopy+zeroPlaneDisplacement

@@ -141,21 +141,22 @@ contains
      ! (compute the exposed LAI and SAI and whether veg is buried by snow)
      call vegPhenlgy(&
                      ! model control
-                     model_decisions,                          & ! intent(in):    model decisions
-                     fracJulDay,                               & ! intent(in):    fractional julian days since the start of year
-                     yearLength,                               & ! intent(in):    number of days in the current year
-                     noVeg,                                    & ! intent(in):    flag to indicate if there is no vegetation
+                     gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow, & ! intent(in):    number of snow layers in the HRU
+                     model_decisions,                                   & ! intent(in):    model decisions
+                     fracJulDay,                                        & ! intent(in):    fractional julian days since the start of year
+                     yearLength,                                        & ! intent(in):    number of days in the current year
+                     noVeg,                                             & ! intent(in):    flag to indicate if there is no vegetation
                      ! input/output: data structures        
-                     typeStruct%gru(iGRU)%hru(iHRU),           & ! intent(in):    type of vegetation and soil
-                     attrStruct%gru(iGRU)%hru(iHRU),           & ! intent(in):    spatial attributes
-                     mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM), & ! intent(in):    model parameters
-                     progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM), & ! intent(inout): model prognostic variables for a local HRU
-                     diagStruct%gru(iGRU)%hru(iHRU)%dom(iDOM), & ! intent(inout): model diagnostic variables for a local HRU
+                     typeStruct%gru(iGRU)%hru(iHRU),                    & ! intent(in):    type of vegetation and soil
+                     attrStruct%gru(iGRU)%hru(iHRU),                    & ! intent(in):    spatial attributes
+                     mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),          & ! intent(in):    model parameters
+                     progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),          & ! intent(inout): model prognostic variables for a local HRU
+                     diagStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),          & ! intent(inout): model diagnostic variables for a local HRU
                      ! output
-                     computeVegFluxFlag,                       & ! intent(out): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
-                     notUsed_canopyDepth,                      & ! intent(out): NOT USED: canopy depth (m)
-                     notUsed_exposedVAI,                       & ! intent(out): NOT USED: exposed vegetation area index (m2 m-2)
-                     err,cmessage)                               ! intent(out): error control
+                     computeVegFluxFlag,                                & ! intent(out): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+                     notUsed_canopyDepth,                               & ! intent(out): NOT USED: canopy depth (m)
+                     notUsed_exposedVAI,                                & ! intent(out): NOT USED: exposed vegetation area index (m2 m-2)
+                     err,cmessage)                                        ! intent(out): error control
      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
      if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==upland) then
       ! save the flag for computing the vegetation fluxes

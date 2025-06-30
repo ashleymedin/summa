@@ -24,7 +24,11 @@ module vegPhenlgy_module
 USE nr_type
 
 ! global variables
-USE globalData,only:urbanVegCategory    ! vegetation category for urban areas
+USE globalData,only:&
+                    realMissing,        & ! missing value for real numbers
+                    urbanVegCategory,   &! vegetation category for urban areas
+                    z0GroundTol         ! tolerance for checking if the canopy is above the roughness length of the ground (m)
+
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
@@ -66,6 +70,7 @@ contains
  ! ************************************************************************************************
  subroutine vegPhenlgy(&
                        ! model control
+                       nSnow,                       & ! intent(in):    number of snow layers
                        model_decisions,             & ! intent(in):    model decisions
                        fracJulDay,                  & ! intent(in):    fractional julian days since the start of year
                        yearLength,                  & ! intent(in):    number of days in the current year
@@ -88,6 +93,7 @@ contains
  implicit none
  ! -------------------------------------------------------------------------------------------------
  ! input/output
+ integer(i4b),intent(in)         :: nSnow               ! number of snow layers
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
  real(rkind),intent(in)          :: fracJulDay          ! fractional julian days since the start of year
  integer(i4b),intent(in)         :: yearLength          ! number of days in the current year
@@ -105,6 +111,7 @@ contains
  character(*),intent(out)        :: message             ! error message
  ! -------------------------------------------------------------------------------------------------
  ! local
+ real(rkind)                     :: z0Ground                   ! roughness length of the ground (ground below the canopy or non-vegetated surface) (m)
  real(rkind)                     :: notUsed_heightCanopyTop    ! height of the top of the canopy layer (m)
  real(rkind)                     :: heightAboveSnow            ! height top of canopy is above the snow surface (m)
  ! initialize error control
@@ -123,16 +130,20 @@ contains
  scalarCanopyTemp                => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1),          & ! intent(in):    [dp] temperature of the vegetation canopy at the start of the sub-step (K)
  scalarCanopyLiq                 => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),           & ! intent(inout): [dp] liquid water in the vegetation canopy at the start of the sub-step
  ! diagnostic variables and parameters (input)
- heightCanopyTop                 => mpar_data%var(iLookPARAM%heightCanopyTop)%dat(1),          & ! intent(in):    [dp] height of the top of the canopy layer (m)
- heightCanopyBottom              => mpar_data%var(iLookPARAM%heightCanopyBottom)%dat(1),       & ! intent(in):    [dp] height of the bottom of the canopy layer (m)
- scalarRootZoneTemp              => diag_data%var(iLookDIAG%scalarRootZoneTemp)%dat(1),        & ! intent(in):    [dp] root zone temperature (K)
+ z0Snow                          => mpar_data%var(iLookPARAM%z0Snow)%dat(1),                   & ! intent(in): [dp] roughness length of snow (m)
+ z0Soil                          => mpar_data%var(iLookPARAM%z0Soil)%dat(1),                   & ! intent(in): [dp] roughness length of soil (m)
+ heightCanopyTop                 => mpar_data%var(iLookPARAM%heightCanopyTop)%dat(1),          & ! intent(in): [dp] height of the top of the canopy layer (m)
+ heightCanopyBottom              => mpar_data%var(iLookPARAM%heightCanopyBottom)%dat(1),       & ! intent(in): [dp] height of the bottom of the canopy layer (m)
+ scalarRootZoneTemp              => diag_data%var(iLookDIAG%scalarRootZoneTemp)%dat(1),        & ! intent(in): [dp] root zone temperature (K)
  ! diagnostic variables and parameters (input/output)
  scalarLAI                       => diag_data%var(iLookDIAG%scalarLAI)%dat(1),                 & ! intent(inout): [dp] one-sided leaf area index (m2 m-2)
  scalarSAI                       => diag_data%var(iLookDIAG%scalarSAI)%dat(1),                 & ! intent(inout): [dp] one-sided stem area index (m2 m-2)
  ! diagnostic variables and parameters (output)
  scalarExposedLAI                => diag_data%var(iLookDIAG%scalarExposedLAI)%dat(1),          & ! intent(out): [dp] exposed leaf area index after burial by snow (m2 m-2)
  scalarExposedSAI                => diag_data%var(iLookDIAG%scalarExposedSAI)%dat(1),          & ! intent(out): [dp] exposed stem area index after burial by snow (m2 m-2)
- scalarGrowingSeasonIndex        => diag_data%var(iLookDIAG%scalarGrowingSeasonIndex)%dat(1)   & ! intent(out): [dp] growing season index (0=off, 1=on)
+ scalarGrowingSeasonIndex        => diag_data%var(iLookDIAG%scalarGrowingSeasonIndex)%dat(1),  & ! intent(out): [dp] growing season index (0=off, 1=on)
+ scalarGroundSnowFraction        => diag_data%var(iLookDIAG%scalarGroundSnowFraction)%dat(1)   & ! intent(out): [dp] fraction of ground covered with snow (-)
+
  ) ! associate variables in data structure
  ! ----------------------------------------------------------------------------------------------------------------------------------
 
@@ -179,9 +190,20 @@ contains
   exposedVAI      = scalarExposedLAI + scalarExposedSAI   ! exposed vegetation area index (m2 m-2)
   canopyDepth     = heightCanopyTop - heightCanopyBottom  ! canopy depth (m)
   heightAboveSnow = heightCanopyTop - scalarSnowDepth     ! height top of canopy is above the snow surface (m)
+  z0GroundTol = 0.1  ! tolerance for checking if the canopy is above the roughness length of the ground (m)
+  if(heightCanopyTop<1._rkind) z0GroundTol = 0.1_rkind*heightCanopyTop  ! if the canopy is short, use a smaller tolerance
+  ! DO WE NEED TO CHECK firstFluxCall HERE OR ARE WE ALWAYS IN THE FIRST FLUX CALL?
+  if (nSnow > 0) then ! case when there is snow on the ground (EXCLUDE "snow without a layer" -- in this case, evaporate from the soil)
+    scalarGroundSnowFraction  = 1._rkind
+  else ! case when the ground is less than a layer of snow (e.g., bare soil or snow without a layer)
+    scalarGroundSnowFraction  = 0._rkind
+  end if  ! (there is snow enough for a layer on the ground)
+
+  ! compute the roughness length of the ground (ground below the canopy or non-vegetated surface)
+  z0Ground = z0Soil*(1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction     ! roughness length (m)
 
   ! determine if need to include vegetation in the energy flux routines
-  computeVegFlux = (exposedVAI > 0.05_rkind .and. heightAboveSnow > 0.05_rkind)
+  computeVegFlux = (exposedVAI > 0.05_rkind .and. heightAboveSnow > z0Ground + z0GroundTol)
 
   ! if no vegetation ever, should not have initialized scalarCanopyLiq to 0.0001 in read_icond.f90
   if((scalarLAI + scalarSAI) == 0._rkind) scalarCanopyLiq = 0._rkind
