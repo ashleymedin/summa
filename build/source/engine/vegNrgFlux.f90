@@ -565,10 +565,9 @@ subroutine vegNrgFlux(&
           if (nSnow > 0) then ! case when there is snow on the ground (EXCLUDE "snow without a layer" -- in this case, evaporate from the soil)
             if (groundTempTrial > Tfreeze) then; err=20; message=trim(message)//'do not expect ground temperature > 0 when snow is on the ground'; return; end if
             scalarLatHeatSubVapGround = LH_sub  ! sublimation from snow
-<<<<<<< HEAD
             scalarGroundSnowFraction  = 1._rkind
             ! case when the ground is snow-free
-          else
+          else ! case when the ground is less than a layer of snow (e.g., bare soil or snow without a layer)
             if (nLake>0)then
               if (groundTempTrial> Tfreeze) scalarLatHeatSubVapGround = LH_vap  ! evaporation of water
               if (groundTempTrial<=Tfreeze) scalarLatHeatSubVapGround = LH_sub  ! sublimation from lake ice
@@ -579,15 +578,8 @@ subroutine vegNrgFlux(&
             else
               err=20; message=trim(message)//'unable to identify snow-free ground surface'; return
             end if
-            scalarGroundSnowFraction  = 0._rkind
           end if  ! end if there is snow on the ground
         end if  ! end if the first flux call
-=======
-          else ! case when the ground is less than a layer of snow (e.g., bare soil or snow without a layer)
-            scalarLatHeatSubVapGround = LH_vap  ! evaporation of water in the soil pores: this occurs even if frozen because of super-cooled water
-          end if  ! (there is snow enough for a layer on the ground)
-        end if  ! (first flux call)
->>>>>>> 9e399b97 (get snowfrac in vegPhenlgy and set canopy values there)
 
         ! compute the roughness length (m) of the ground (ground below the canopy or non-vegetated surface)
         if (nLake>0)then
