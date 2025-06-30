@@ -21,7 +21,8 @@
 module canopySnow_module
 
 ! data types
-USE nr_type
+USE nrtype
+USE globalData,only:realMissing               ! missing double precision number
 
 ! derived types to define the data structures
 USE data_types,only:&
@@ -87,7 +88,6 @@ contains
  integer(i4b),intent(out)        :: err                        ! error code
  character(*),intent(out)        :: message                    ! error message
  ! local variables
- real(rkind),parameter           :: valueMissing=-9999._rkind  ! missing value
  integer(i4b)                    :: iter                       ! iteration index
  integer(i4b),parameter          :: maxiter=50                 ! maximum number of iterations
  real(rkind)                     :: unloading_melt             ! unloading associated with canopy drip (kg m-2 s-1)
@@ -179,7 +179,7 @@ contains
    ! no snowfall
    if(scalarSnowfall<tiny(dt))then ! no snow
      scalarThroughfallSnow = scalarSnowfall  ! throughfall (kg m-2 s-1)
-     canopyIceScaleFactor  = valueMissing    ! not used
+     canopyIceScaleFactor  = realMissing    ! not used
      throughfallDeriv      = 0._rkind
    else
      ! ** process different options for maximum branch snow interception

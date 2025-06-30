@@ -36,6 +36,7 @@ USE multiconst,only:minprhour                               ! number of minutes 
 USE globalData,only:refJulDay                               ! reference time (fractional julian days)
 USE globalData,only:data_step                               ! length of the data step (s)
 USE globalData,only:nSpecBand                               ! number of spectral bands
+USE globalData,only:realMissing                             ! missing double precision number
 
 ! model decisions
 USE globalData,only:model_decisions                         ! model decision structure
@@ -99,6 +100,7 @@ contains
  real(rkind)                     :: azimuth                       ! terrain azimuth (assume zero)
  real(rkind)                     :: hri                           ! average radiation index over time step DT
  ! general local variables
+<<<<<<< HEAD
  character(len=256)              :: cmessage                      ! error message for downwind routine
  real(rkind),parameter           :: valueMissing=-9999._rkind     ! missing value
  real(rkind),parameter           :: co2Factor=355.e-6_rkind       ! empirical factor to obtain partial pressure of co2
@@ -110,6 +112,19 @@ contains
  real(rkind),parameter           :: unfrozenLiq=0.01_rkind        ! unfrozen liquid water used to compute maxFrozenSnowTemp (-)
  real(rkind),parameter           :: eps=epsilon(fracrain)         ! a number that is almost negligible
  real(rkind)                     :: Tmin,Tmax                     ! minimum and maximum wet bulb temperature in the time step (K)
+=======
+ character(len=256)              :: cmessage                   ! error message for downwind routine
+ integer(i4b),parameter          :: nBands=2                   ! number of spectral bands
+ real(rkind),parameter           :: co2Factor=355.e-6_rkind    ! empirical factor to obtain partial pressure of co2
+ real(rkind),parameter           :: o2Factor=0.209_rkind       ! empirical factor to obtain partial pressure of o2
+ real(rkind),parameter           :: minMeasHeight=1._rkind     ! minimum measurement height (m)
+ real(rkind)                     :: relhum                     ! relative humidity (-)
+ real(rkind)                     :: fracrain                   ! fraction of precipitation that falls as rain
+ real(rkind)                     :: maxFrozenSnowTemp          ! maximum temperature of snow when the snow is predominantely frozen (K)
+ real(rkind),parameter           :: unfrozenLiq=0.01_rkind     ! unfrozen liquid water used to compute maxFrozenSnowTemp (-)
+ real(rkind),parameter           :: eps=epsilon(fracrain)      ! a number that is almost negligible
+ real(rkind)                     :: Tmin,Tmax                  ! minimum and maximum wet bulb temperature in the time step (K)
+>>>>>>> 4d81a9ec (fixing realMissing)
  real(rkind),parameter           :: pomNewSnowDenMax=150._rkind   ! Upper limit for new snow density limit in Hedstrom and Pomeroy 1998. 150 was used because at was the highest observed density at air temperatures used in this study. See Figure 4 of Hedstrom and Pomeroy (1998).
  real(rkind),parameter           :: andersonWarmDenLimit=2._rkind ! Upper air temperature limit in Anderson (1976) new snow density (C)
  real(rkind),parameter           :: andersonColdDenLimit=15._rkind! Lower air temperature limit in Anderson (1976) new snow density (C)
@@ -363,7 +378,7 @@ contains
    case default; message=trim(message)//'unable to identify option for new snow density'; err=20; return
   end select ! identifying option for new snow density
  else
-  newSnowDensity = valueMissing
+  newSnowDensity = realMissing
   rainfall = rainfall + snowfall ! in most cases snowfall will be zero here
   snowfall = 0._rkind
  end if

@@ -21,7 +21,8 @@
 module snowLakeGlceAlbedo_module
 
 ! data types
-USE nr_type                          ! numerical recipes data types
+USE nrtype                          ! numerical recipes data types
+USE globalData,only:realMissing     ! missing double precision number
 
 ! physical constants
 USE multiconst,only:Tfreeze         ! freezing point of pure water (K)
@@ -91,7 +92,6 @@ contains
  ! local variables
  integer(i4b),parameter          :: ixVisible=1                   ! named variable to define index in array of visible part of the spectrum
  integer(i4b),parameter          :: ixNearIR=2                    ! named variable to define index in array of near IR part of the spectrum
- real(rkind),parameter           :: valueMissing=-9999._rkind     ! missing value -- will cause problems if snow albedo is ever used for the non-snow case
  real(rkind),parameter           :: slushExp=10._rkind            ! "slush" exponent, to increase decay when snow is near Tfreeze
  real(rkind),parameter           :: fractionLiqThresh=0.001_rkind ! threshold for the fraction of liquid water to switch to spring albedo minimum
  real(rkind)                     :: fractionLiq                   ! fraction of liquid water (-)
@@ -154,9 +154,9 @@ contains
 
  ! return early if no snow
  if(.not. snowPresence)then
-  scalarSnowAlbedo             = valueMissing
-  spectralSnowAlbedoDirect(:)  = valueMissing
-  spectralSnowAlbedoDiffuse(:) = valueMissing
+  scalarSnowAlbedo             = realMissing
+  spectralSnowAlbedoDirect(:)  = realMissing
+  spectralSnowAlbedoDiffuse(:) = realMissing
   return
  end if
 

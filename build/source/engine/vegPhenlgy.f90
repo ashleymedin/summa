@@ -60,7 +60,6 @@ implicit none
 private
 public::vegPhenlgy
 ! algorithmic parameters
-real(rkind),parameter     :: valueMissing=-9999._rkind  ! missing value, used when diagnostic or state variables are undefined
 real(rkind),parameter     :: verySmall=1.e-6_rkind      ! used as an additive constant to check if substantial difference among real numbers
 contains
 
@@ -154,14 +153,14 @@ contains
   computeVegFlux = .false.
 
   ! set vegetation phenology variables to missing
-  scalarLAI                = valueMissing    ! one-sided leaf area index (m2 m-2)
-  scalarSAI                = valueMissing    ! one-sided stem area index (m2 m-2)
-  scalarExposedLAI         = valueMissing    ! exposed leaf area index after burial by snow (m2 m-2)
-  scalarExposedSAI         = valueMissing    ! exposed stem area index after burial by snow (m2 m-2)
-  scalarGrowingSeasonIndex = valueMissing    ! growing season index (0=off, 1=on)
-  exposedVAI               = valueMissing    ! exposed vegetation area index (m2 m-2)
-  canopyDepth              = valueMissing    ! canopy depth (m)
-  heightAboveSnow          = valueMissing    ! height top of canopy is above the snow surface (m)
+  scalarLAI                = realMissing    ! one-sided leaf area index (m2 m-2)
+  scalarSAI                = realMissing    ! one-sided stem area index (m2 m-2)
+  scalarExposedLAI         = realMissing    ! exposed leaf area index after burial by snow (m2 m-2)
+  scalarExposedSAI         = realMissing    ! exposed stem area index after burial by snow (m2 m-2)
+  scalarGrowingSeasonIndex = realMissing    ! growing season index (0=off, 1=on)
+  exposedVAI               = realMissing    ! exposed vegetation area index (m2 m-2)
+  canopyDepth              = realMissing    ! canopy depth (m)
+  heightAboveSnow          = realMissing    ! height top of canopy is above the snow surface (m)
 
  ! compute vegetation phenology (checks for complete burial of vegetation)
  else

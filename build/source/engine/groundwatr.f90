@@ -50,7 +50,6 @@ USE mDecisions_module,only:  &
 ! privacy
 implicit none
 ! constant parameters
-real(rkind),parameter     :: valueMissing=-9999._rkind    ! missing value parameter
 real(rkind),parameter     :: verySmall=epsilon(1.0_rkind) ! a very small number (used to avoid divide by zero)
 real(rkind),parameter     :: dx=1.e-8_rkind               ! finite difference increment
 private
