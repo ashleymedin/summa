@@ -41,6 +41,7 @@ USE data_types,only:out_type_qDrainFlux    ! derived type for intent(out) argume
 ! missing values
 USE globalData,only:integerMissing         ! missing integer
 USE globalData,only:realMissing            ! missing real number
+USE globalData,only:veryBig                ! a very big number
 
 ! physical constants
 USE multiconst,only:iden_water             ! intrinsic density of water    (kg m-3)
@@ -91,9 +92,7 @@ private
 public :: soilLiqFlux
 ! constant parameters
 real(rkind),parameter     :: verySmall=1.e-12_rkind       ! a very small number (used to avoid divide by zero)
-real(rkind),parameter     :: veryBig=1.e+20_rkind         ! a very big number (used to effectively set infiltration excess to zero)
-real(rkind),parameter     :: dx=1.e-8_rkind               ! finite difference increment
-contains
+rcontains
 ! ***************************************************************************************************************
 ! public subroutine soilLiqFlux: compute liquid water fluxes and their derivatives
 ! ***************************************************************************************************************
