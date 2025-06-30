@@ -22,7 +22,7 @@ module summa_defineOutput                     ! used to define model output file
 
 ! access missing values
 USE globalData,only:integerMissing            ! missing integer
-USE globalData,only:realMissing               ! missing double precision number
+USE globalData,only:realMissing               ! missing real number
 
 ! named variables to define new output files
 USE globalData, only: noNewFiles              ! no new output files

@@ -21,8 +21,8 @@
 module snowLakeGlceAlbedo_module
 
 ! data types
-USE nrtype                          ! numerical recipes data types
-USE globalData,only:realMissing     ! missing double precision number
+USE nr_type                          ! numerical recipes data types
+USE globalData,only:realMissing     ! missing real number
 
 ! physical constants
 USE multiconst,only:Tfreeze         ! freezing point of pure water (K)

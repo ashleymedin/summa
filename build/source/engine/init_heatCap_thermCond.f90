@@ -21,8 +21,8 @@
 module init_heatCap_thermCond_module
 
 ! data types
-USE nrtype
-USE globalData,only:realMissing               ! missing double precision number
+USE nr_type
+USE globalData,only:realMissing               ! missing real number
 
 ! derived types to define the data structures
 USE data_types,only:&

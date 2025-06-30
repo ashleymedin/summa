@@ -23,7 +23,7 @@ module summa_setup
 
 ! access missing values
 USE globalData,only:integerMissing      ! missing integer
-USE globalData,only:realMissing         ! missing double precision number
+USE globalData,only:realMissing         ! missing real number
 
 ! global data on the forcing file
 USE globalData,only:data_step           ! length of the data step (s)

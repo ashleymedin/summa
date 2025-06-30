@@ -26,7 +26,7 @@ USE nr_type
 ! constants, time information
 USE multiconst,only:secprhour   ! number of seconds in an hour
 USE globalData,only:data_step   ! length of the data step (s)
-USE globalData,only:realMissing ! missing double precision number
+USE globalData,only:realMissing ! missing real number
 
 ! look-up values for the sub-grid routing method
 USE mDecisions_module,only:      &

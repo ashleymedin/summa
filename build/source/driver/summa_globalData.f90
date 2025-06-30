@@ -23,7 +23,7 @@ module summa_globalData
 
 ! access missing values
 USE globalData,only:integerMissing   ! missing integer
-USE globalData,only:realMissing      ! missing double precision number
+USE globalData,only:realMissing      ! missing real number
 
 ! size of data structures
 USE var_lookup,only:maxvarForc      ! forcing data:             maximum number variables

@@ -79,7 +79,7 @@ USE globalData,only:model_decisions    ! model decision structure
 USE var_lookup,only:iLookDECISIONS     ! look-up values for model decisions
 
 ! access missing values
-USE globalData,only:realMissing        ! missing double precision number
+USE globalData,only:realMissing        ! missing real number
 
 ! access domain types
 USE globalData,only:upland             ! domain type for upland areas

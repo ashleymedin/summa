@@ -36,7 +36,7 @@ USE multiconst,only:minprhour                               ! number of minutes 
 USE globalData,only:refJulDay                               ! reference time (fractional julian days)
 USE globalData,only:data_step                               ! length of the data step (s)
 USE globalData,only:nSpecBand                               ! number of spectral bands
-USE globalData,only:realMissing                             ! missing double precision number
+USE globalData,only:realMissing                             ! missing real number
 
 ! model decisions
 USE globalData,only:model_decisions                         ! model decision structure

@@ -66,7 +66,7 @@ USE globalData,only:averageFlux_meta       ! metadata on the timestep-average mo
 USE globalData,only:data_step              ! time step of forcing data (s)
 USE globalData,only:model_decisions        ! model decision structure
 USE globalData,only:globalPrintFlag        ! the global print flag
-USE globalData,only:realMissing            ! missing double precision number
+USE globalData,only:realMissing            ! missing real number
 USE globalData,only:maxSnowLayers          ! maximum number of snow layers
 USE globalData,only:maxGlceLayers          ! maximum number of glacier ice layers
 

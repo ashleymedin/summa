@@ -25,7 +25,7 @@ USE nr_type
 
 ! access missing values
 USE globalData,only:integerMissing     ! missing integer number
-USE globalData,only:realMissing        ! missing double precision number
+USE globalData,only:realMissing        ! missing real number
 
 ! define data types
 USE var_lookup,only:iLookGRID          ! named variables for the glacier grid information

@@ -23,7 +23,7 @@ module summa_restart
 
 ! access missing values
 USE globalData,only:integerMissing   ! missing integer
-USE globalData,only:realMissing      ! missing double precision number
+USE globalData,only:realMissing      ! missing real number
 
 ! named variables
 USE var_lookup,only:iLookPROG                               ! look-up values for local column model prognostic (state) variables

@@ -23,7 +23,7 @@ module summa_init
 
 ! access missing values
 USE globalData,only:integerMissing   ! missing integer
-USE globalData,only:realMissing      ! missing double precision number
+USE globalData,only:realMissing      ! missing real number
 
 ! named variables for run time options
 USE globalData,only:iRunModeFull,iRunModeGRU,iRunModeHRU
