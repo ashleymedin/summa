@@ -272,9 +272,9 @@ subroutine computeFlux(&
   ! NOTE: in a domain, there is no aquifer or baseflow if there are glce layers
   associate(nGlceOnlyHyd => indx_data%var(iLookINDEX%nGlceOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the glacier ice
     if (nGlceOnlyHyd>0) then ! if necessary, calculate the liquid flux through glacier ice
-      call initialize_glceLiqFlx
+      call initialize_glceLiqFlux
       call snowLakeGlceLiqFlux(in_snowLakeGlceLiqFlux,mpar_data,indx_data,prog_data,diag_data,io_snowLakeGlceLiqFlux,out_snowLakeGlceLiqFlux)
-      call finalize_glceLiqFlx; if(err/=0)then; return; endif
+      call finalize_glceLiqFlux; if(err/=0)then; return; endif
     else
       call zeroGlacierFluxes ! set glacier ice fluxes to zero if there are no glacier ice layers
     end if 
@@ -283,9 +283,9 @@ subroutine computeFlux(&
   ! *** CALCULATE THE LIQUID FLUX THROUGH SNOW ***
   associate(nSnowOnlyHyd => indx_data%var(iLookINDEX%nSnowOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the snow
     if (nSnowOnlyHyd>0) then ! if necessary, compute liquid fluxes through snow
-      call initialize_snowLiqFlx
+      call initialize_snowLiqFlux
       call snowLakeGlceLiqFlux(in_snowLakeGlceLiqFlux,mpar_data,indx_data,prog_data,diag_data,io_snowLakeGlceLiqFlux,out_snowLakeGlceLiqFlux)
-      call finalize_snowLiqFlx; if(err/=0)then; return; endif
+      call finalize_snowLiqFlux; if(err/=0)then; return; endif
     else
       call forcingNoSnow ! define forcing for the domain beneath for the case of no snow layers
     end if
@@ -294,9 +294,9 @@ subroutine computeFlux(&
   ! *** CALCULATE THE LIQUID FLUX THROUGH LAKE ***
   associate(nLakeOnlyHyd => indx_data%var(iLookINDEX%nLakeOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the lake
     if (nLakeOnlyHyd>0) then ! if necessary, compute liquid fluxes through lake
-      !call initialize_lakeLiqFlx
+      !call initialize_lakeLiqFlux
       !call snowLakeGlceLiqFlux(in_snowLakeGlceLiqFlux,mpar_data,indx_data,prog_data,diag_data,io_snowLakeGlceLiqFlux,out_snowLakeGlceLiqFlux)
-      !call finalize_lakeLiqFlx
+      !call finalize_lakeLiqFlux
       print*, 'Lake liquid fluxes are not yet implemented'; stop
     else
       call forcingNoLake ! define forcing for the domain beneath for the case of no lake layers
@@ -667,8 +667,8 @@ contains
  end subroutine finalize_vegLiqFlux
  ! **** end vegLiqFlux ****
 
-  ! **** glceLiqFlx ****
- subroutine initialize_glceLiqFlx
+  ! **** glceLiqFlux ****
+ subroutine initialize_glceLiqFlux
   associate(&
    noWatState        => indx_data%var(iLookINDEX%noWatState)%dat(1)      ) ! intent(in): [int] number of layers with no water state (bottom glacier ice layers)
    surface_flux = 0._rkind ! surface flux for glacier ice layers (m s-1)
@@ -677,9 +677,9 @@ contains
    call in_snowLakeGlceLiqFlux%initialize(nGlce-noWatState,nStart,.false.,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
    call io_snowLakeGlceLiqFlux%initialize(nGlce-noWatState,nStart,flux_data,deriv_data) ! only compute liquid water fluxes for top layers
   end associate
- end subroutine initialize_glceLiqFlx
+ end subroutine initialize_glceLiqFlux
 
- subroutine finalize_glceLiqFlx
+ subroutine finalize_glceLiqFlux
   nStart = nSnow + nLake + nSoil
   call io_snowLakeGlceLiqFlux%finalize(nGlce-indx_data%var(iLookINDEX%noWatState)%dat(1),nStart,flux_data,deriv_data) ! only compute liquid water fluxes for top layers
   call out_snowLakeGlceLiqFlux%finalize(err,cmessage) 
@@ -708,11 +708,11 @@ contains
    scalarGlceMelt = iLayerLiqFluxSnLaGl(nStart) ! glacier ice melt is the liquid water flux at the top of the glacier ice layer
    scalarGlacierMelt = scalarGlceMelt ! save for glacier melt flow calculations, may be overwritten with addition of above domain fluxes
   end associate
- end subroutine finalize_glceLiqFlx
- ! **** end glceLiqFlx ****
+ end subroutine finalize_glceLiqFlux
+ ! **** end glceLiqFlux ****
 
  ! **** snowLakeGlceLiqFlux ****
- subroutine initialize_snowLiqFlx
+ subroutine initialize_snowLiqFlux
   associate(&
    scalarThroughfallRain        => flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1),   & ! intent(in): [dp] rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
    scalarCanopyLiqDrainage      => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1), & ! intent(in): [dp] drainage of liquid water from the vegetation canopy (kg m-2 s-1)
@@ -724,9 +724,9 @@ contains
    call in_snowLakeGlceLiqFlux%initialize(nSnow,nStart,.true.,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
    call io_snowLakeGlceLiqFlux%initialize(nSnow,nStart,flux_data,deriv_data)
   end associate
- end subroutine initialize_snowLiqFlx
+ end subroutine initialize_snowLiqFlux
 
- subroutine finalize_snowLiqFlx
+ subroutine finalize_snowLiqFlux
   nStart = 0
   call io_snowLakeGlceLiqFlux%finalize(nSnow,nStart,flux_data,deriv_data)
   call out_snowLakeGlceLiqFlux%finalize(err,cmessage) 
@@ -762,11 +762,11 @@ contains
    above_dLiq_dTk     = mLayerdTheta_dTk(nSnow)       ! derivative in volumetric liquid water content in bottom snow layer w.r.t. temperature
    above_FracLiq      = mLayerFracLiq(nSnow)          ! fraction of liquid water in bottom snow layer (-)
   end associate
- end subroutine finalize_snowLiqFlx
+ end subroutine finalize_snowLiqFlux
  ! **** end snowLakeGlceLiqFlux ****
 
- ! **** lakeLiqFlx ****
- subroutine initialize_lakeLiqFlx
+ ! **** lakeLiqFlux ****
+ subroutine initialize_lakeLiqFlux
   associate(&
    scalarLakeInflux  => flux_data%var(iLookFLUX%scalarLakeInflux)%dat(1),  & ! intent(in): [dp] influx to lake, rain plus melt (m s-1)
    scalarGlceMelt    => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1)     ) ! intent(in): [dp] glacier ice layer melt (m s-1)
@@ -777,9 +777,9 @@ contains
    call in_snowLakeGlceLiqFlux%initialize(nLake,nStart,.false.,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
    call io_snowLakeGlceLiqFlux%initialize(nLake,nStart,flux_data,deriv_data)
   end associate
- end subroutine initialize_lakeLiqFlx
+ end subroutine initialize_lakeLiqFlux
 
- subroutine finalize_lakeLiqFlx
+ subroutine finalize_lakeLiqFlux
   nStart = nSnow
   call io_snowLakeGlceLiqFlux%finalize(nLake,nStart,flux_data,deriv_data)
   call out_snowLakeGlceLiqFlux%finalize(err,cmessage) 
@@ -813,11 +813,11 @@ contains
    above_dLiq_dTk     = mLayerdTheta_dTk(nLake+nStart)         ! derivative in volumetric liquid water content in bottom lake layer w.r.t. temperature
    above_FracLiq      = mLayerFracLiq(nLake+nStart)            ! fraction of liquid water in bottom lake layer (-)
   end associate
- end subroutine finalize_lakeLiqFlx
+ end subroutine finalize_lakeLiqFlux
 
  ! **** soilLiqFlux ****
  subroutine initialize_soilLiqFlux
-  call in_soilLiqFlux%initialize(nSnow,nLake,nSoil,firstSplitOper,scalarSolution,firstFluxCall,&
+  call in_soilLiqFlux%initialize(nSnow,nLake,nSoil,firstSplitOper,scalarSolution,firstFluxCall,scalarAquiferStorageTrial,&
                                 mLayerTempTrial,mLayerMatricHeadTrial,mLayerMatricHeadLiqTrial,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,&
                                 above_LiqFluxDeriv,above_dLiq_dTk,above_FracLiq,flux_data,deriv_data)
   call io_soilLiqFlux%initialize(nSoil,dHydCond_dMatric,flux_data,diag_data,deriv_data)

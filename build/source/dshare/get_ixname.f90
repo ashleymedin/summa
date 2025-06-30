@@ -98,6 +98,7 @@ contains
   case('snowUnload'      ); get_ixdecisions=iLookDECISIONS%snowUnload  ! choice of parameterization for snow unloading from canopy
   case('nrgConserv'      ); get_ixdecisions=iLookDECISIONS%nrgConserv  ! choice of variable in either energy backward Euler residual or IDA state variable
   case('aquiferIni'      ); get_ixdecisions=iLookDECISIONS%aquiferIni  ! choice of full or empty aquifer at start
+  case('infRateMax'      ); get_ixdecisions=iLookDECISIONS%infRateMax  ! choice of maximum infiltration rate method
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = integerMissing
@@ -435,6 +436,13 @@ contains
   case('zmaxLayer2_upper'         ); get_ixParam = iLookPARAM%zmaxLayer2_upper       ! maximum layer depth for the 2nd layer when > 2 layers (m)
   case('zmaxLayer3_upper'         ); get_ixParam = iLookPARAM%zmaxLayer3_upper       ! maximum layer depth for the 3rd layer when > 3 layers (m)
   case('zmaxLayer4_upper'         ); get_ixParam = iLookPARAM%zmaxLayer4_upper       ! maximum layer depth for the 4th layer when > 4 layers (m)
+  ! FUSE surface runoff
+  case('FUSE_Ac_max  '            ); get_ixParam = iLookPARAM%FUSE_Ac_max            ! FUSE PRMS max saturated area                            
+  case('FUSE_phi_tens'            ); get_ixParam = iLookPARAM%FUSE_phi_tens          ! FUSE PRMS tension storage fraction                      
+  case('FUSE_b       '            ); get_ixParam = iLookPARAM%FUSE_b                 ! FUSE ARNO/VIC exponent                                  
+  case('FUSE_lambda  '            ); get_ixParam = iLookPARAM%FUSE_lambda            ! FUSE TOPMODEL gamma distribution lambda parameter       
+  case('FUSE_chi     '            ); get_ixParam = iLookPARAM%FUSE_chi               ! FUSE TOPMODEL gamma distribution chi    parameter       
+  case('FUSE_mu      '            ); get_ixParam = iLookPARAM%FUSE_mu                ! FUSE TOPMODEL gamma distribution mu     parameter       
   ! get to here if cannot find the variable
   case default
    get_ixParam = integerMissing
@@ -744,6 +752,8 @@ contains
   case('scalarInfiltration'             ); get_ixFlux = iLookFLUX%scalarInfiltration               ! infiltration of water into the soil profile (m s-1)
   case('scalarExfiltration'             ); get_ixFlux = iLookFLUX%scalarExfiltration               ! exfiltration of water from the top of the soil profile (m s-1)
   case('scalarSurfaceRunoff'            ); get_ixFlux = iLookFLUX%scalarSurfaceRunoff              ! surface runoff (m s-1)
+  case('scalarSurfaceRunoff_IE'         ); get_ixFlux = iLookFLUX%scalarSurfaceRunoff_IE           ! infiltration excess surface runoff (m s-1)
+  case('scalarSurfaceRunoff_SE'         ); get_ixFlux = iLookFLUX%scalarSurfaceRunoff_SE           ! saturation excess surface runoff (m s-1)
   case('mLayerSatHydCondMP'             ); get_ixFlux = iLookFLUX%mLayerSatHydCondMP               ! saturated hydraulic conductivity of macropores in each layer (m s-1)
   case('mLayerSatHydCond'               ); get_ixFlux = iLookFLUX%mLayerSatHydCond                 ! saturated hydraulic conductivity in each layer (m s-1)
   case('iLayerSatHydCond'               ); get_ixFlux = iLookFLUX%iLayerSatHydCond                 ! saturated hydraulic conductivity in each layer interface (m s-1)

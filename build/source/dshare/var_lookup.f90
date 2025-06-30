@@ -76,6 +76,7 @@ MODULE var_lookup
   integer(i4b)    :: snowDenNew = integerMissing     ! choice of method for new snow density
   integer(i4b)    :: nrgConserv = integerMissing     ! choice of variable in either energy backward Euler residual or IDA state variable
   integer(i4b)    :: aquiferIni = integerMissing     ! choice of full or empty aquifer at start
+  integer(i4b)    :: infRateMax = integerMissing     ! choice of method to determine maximum infiltration rate
 
  endtype iLook_decision
 
@@ -339,6 +340,13 @@ MODULE var_lookup
   integer(i4b)    :: zmaxLayer2_upper      = integerMissing    ! maximum layer depth for the 2nd layer when > 2 layers (m)
   integer(i4b)    :: zmaxLayer3_upper      = integerMissing    ! maximum layer depth for the 3rd layer when > 3 layers (m)
   integer(i4b)    :: zmaxLayer4_upper      = integerMissing    ! maximum layer depth for the 4th layer when > 4 layers (m)
+  ! FUSE surface runoff
+  integer(i4b)    :: FUSE_Ac_max           = integerMissing    ! FUSE PRMS max saturated area
+  integer(i4b)    :: FUSE_phi_tens         = integerMissing    ! FUSE PRMS tension storage fraction
+  integer(i4b)    :: FUSE_b                = integerMissing    ! FUSE ARNO/VIC exponent
+  integer(i4b)    :: FUSE_lambda           = integerMissing    ! FUSE TOPMODEL gamma distribution lambda parameter
+  integer(i4b)    :: FUSE_chi              = integerMissing    ! FUSE TOPMODEL gamma distribution chi    parameter
+  integer(i4b)    :: FUSE_mu               = integerMissing    ! FUSE TOPMODEL gamma distribution mu     parameter
  endtype ilook_param
 
  ! ***********************************************************************************************************
@@ -612,6 +620,8 @@ MODULE var_lookup
   integer(i4b)    :: scalarInfiltration              = integerMissing ! infiltration of water into the soil profile (m s-1)
   integer(i4b)    :: scalarExfiltration              = integerMissing ! exfiltration of water from the top of the soil profile (m s-1)
   integer(i4b)    :: scalarSurfaceRunoff             = integerMissing ! surface runoff (m s-1)
+  integer(i4b)    :: scalarSurfaceRunoff_IE          = integerMissing ! infiltration excess surface runoff (m s-1)
+  integer(i4b)    :: scalarSurfaceRunoff_SE          = integerMissing ! saturation excess surface runoff (m s-1)
   integer(i4b)    :: mLayerSatHydCondMP              = integerMissing ! saturated hydraulic conductivity of macropores in each layer (m s-1)
   integer(i4b)    :: mLayerSatHydCond                = integerMissing ! saturated hydraulic conductivity in each layer (m s-1)
   integer(i4b)    :: iLayerSatHydCond                = integerMissing ! saturated hydraulic conductivity at each layer interface (m s-1)
@@ -962,7 +972,8 @@ MODULE var_lookup
  type(iLook_decision),public,parameter :: iLookDECISIONS=iLook_decision(  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
-                                                                         31, 32, 33, 34, 35, 36, 37, 38, 39, 40)
+                                                                         31, 32, 33, 34, 35, 36, 37, 38, 39, 40,&
+                                                                         41)
  ! named variables: model time
  type(iLook_time),    public,parameter :: iLookTIME     =iLook_time    (  1,  2,  3,  4,  5,  6,  7)
  ! named variables: model forcing data
@@ -992,7 +1003,8 @@ MODULE var_lookup
                                                                         151,152,153,154,155,156,157,158,159,160,&
                                                                         161,162,163,164,165,166,167,168,169,170,&
                                                                         171,172,173,174,175,176,177,178,179,180,&
-                                                                        181,182,183,184,185,186)
+                                                                        181,182,183,184,185,186,187,188,189,190,&
+                                                                        191,192)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -1020,7 +1032,7 @@ MODULE var_lookup
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
-                                                                         91, 92, 93)
+                                                                         91, 92, 93, 94, 95)
  ! named variables: derivatives in model fluxes w.r.t. relevant state variables
  type(iLook_deriv),   public,parameter :: iLookDERIV    =iLook_deriv   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

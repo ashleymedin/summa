@@ -110,8 +110,11 @@ int CLASSWQ_openwq::decl(
             *OpenWQ_readjson_ref,            // read json files
             *OpenWQ_vars_ref,
             *OpenWQ_initiate_ref,            // initiate modules
-            *OpenWQ_watertransp_ref,         // transport modules
+            *OpenWQ_transp_ref,         // transport modules
+            *OpenWQ_LE_ref,
             *OpenWQ_chem_ref,                // biochemistry modules
+            *OpenWQ_SI_ref,
+            *OpenWQ_TS_ref,
             *OpenWQ_extwatflux_ss_ref,       // sink and source modules)
             *OpenWQ_output_ref);
             
@@ -175,8 +178,11 @@ int CLASSWQ_openwq::openwq_run_time_start(
             *OpenWQ_readjson_ref,            // read json files
             *OpenWQ_vars_ref,
             *OpenWQ_initiate_ref,            // initiate modules
-            *OpenWQ_watertransp_ref,         // transport modules
+            *OpenWQ_transp_ref,         // transport modules
+            *OpenWQ_LE_ref,
             *OpenWQ_chem_ref,                // biochemistry modules
+            *OpenWQ_SI_ref,
+            *OpenWQ_TS_ref,
             *OpenWQ_extwatflux_ss_ref,          // sink and source modules)
             *OpenWQ_solver_ref,
             *OpenWQ_output_ref,
@@ -215,8 +221,11 @@ int CLASSWQ_openwq::openwq_run_space(
         *OpenWQ_readjson_ref,            // read json files
         *OpenWQ_vars_ref,
         *OpenWQ_initiate_ref,            // initiate modules
-        *OpenWQ_watertransp_ref,         // transport modules
+        *OpenWQ_transp_ref,         // transport modules
+        *OpenWQ_TS_ref,
+        *OpenWQ_LE_ref,
         *OpenWQ_chem_ref,                // biochemistry modules
+        *OpenWQ_SI_ref,
         *OpenWQ_extwatflux_ss_ref,       // sink and source modules
         *OpenWQ_solver_ref,
         *OpenWQ_output_ref,
@@ -255,8 +264,9 @@ int CLASSWQ_openwq::openwq_run_space_in(
         *OpenWQ_readjson_ref,
         *OpenWQ_vars_ref,
         *OpenWQ_initiate_ref,
-        *OpenWQ_watertransp_ref,
+        *OpenWQ_transp_ref,
         *OpenWQ_chem_ref,
+        *OpenWQ_TS_ref,
         *OpenWQ_extwatflux_ss_ref,
         *OpenWQ_solver_ref,
         *OpenWQ_output_ref,
@@ -290,8 +300,11 @@ int CLASSWQ_openwq::openwq_run_time_end(
         *OpenWQ_readjson_ref,            // read json files
         *OpenWQ_vars_ref,
         *OpenWQ_initiate_ref,            // initiate modules
-        *OpenWQ_watertransp_ref,         // transport modules
+        *OpenWQ_transp_ref,         // transport modules
+        *OpenWQ_LE_ref,
         *OpenWQ_chem_ref,                // biochemistry modules
+        *OpenWQ_SI_ref,
+        *OpenWQ_TS_ref,
         *OpenWQ_extwatflux_ss_ref,          // sink and source modules)
         *OpenWQ_solver_ref,
         *OpenWQ_output_ref,

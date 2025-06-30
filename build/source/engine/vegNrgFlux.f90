@@ -1544,6 +1544,7 @@ subroutine aeroResist(&
   real(rkind),parameter            :: cd_CM = 0.2_rkind                    ! mean drag coefficient for individual leaves (-) from Choudhury and Monteith (QJRMS, 1988)
   real(rkind)                      :: funcLAI                              ! temporary variable to calculate zero plane displacement for the canopy
   real(rkind)                      :: fracCanopyHeight                     ! zero plane displacement expressed as a fraction of canopy height
+  real(rkind)                      :: zpdScaleCanopy                       ! scale for zero plane displacement for the canopy (m)
   real(rkind)                      :: approxDragCoef                       ! approximate drag coefficient used in the computation of canopy roughness length (-)
   ! local variables: resistance
   real(rkind)                      :: canopyExNeut                         ! surface-atmosphere exchange coefficient under neutral conditions (-)
@@ -1589,7 +1590,9 @@ subroutine aeroResist(&
     ! First, calculate new coordinate system above snow - use these to scale wind profiles and resistances
     ! NOTE: the new coordinate system makes zeroPlaneDisplacement and z0Canopy consistent
     heightCanopyTopAboveSnow = heightCanopyTop - snowDepth
-    heightCanopyBottomAboveSnow = max(heightCanopyBottom - snowDepth, 0._rkind)
+    ! Ensure that heightCanopyBottomAboveSnow >= z0Ground + xTolerance
+    heightCanopyBottomAboveSnow = max(heightCanopyBottom - snowDepth, z0Ground + xTolerance)
+    ! compute zero-plane displacement and roughness length of the vegetation canopy
     select case(ixVegTraits)
       ! Raupach (BLM 1994) "Simplified expressions..."
       case(Raupach_BLM1994)
@@ -1600,8 +1603,9 @@ subroutine aeroResist(&
         z0Canopy         = (1._rkind - fracCanopyHeight) * exp(-vkc*approxDragCoef - psi_h) * (heightCanopyTopAboveSnow-heightCanopyBottomAboveSnow)
       ! Choudhury and Monteith (QJRMS 1988) "A four layer model for the heat budget..."
       case(CM_QJRMS1988)
-        funcLAI =  cd_CM*exposedVAI
-        zeroPlaneDisplacement = 1.1_rkind*heightCanopyTopAboveSnow*log(1._rkind + sqrt(sqrt(funcLAI)))
+        funcLAI        = cd_CM*exposedVAI
+        zpdScaleCanopy = 1.1_rkind*(heightCanopyTopAboveSnow - heightCanopyBottomAboveSnow)*log(1._rkind + sqrt(sqrt(funcLAI)))
+        zeroPlaneDisplacement = heightCanopyBottomAboveSnow + zpdScaleCanopy
         if (funcLAI < 0.2_rkind) then
           z0Canopy = z0Ground + 0.3_rkind*heightCanopyTopAboveSnow*sqrt(funcLAI)
         else
@@ -1696,7 +1700,7 @@ subroutine aeroResist(&
 
     ! compute the resistance between the surface and canopy air UNDER NEUTRAL CONDITIONS (s m-1)
     ! case 1: assume exponential profile extends from the snow depth plus surface roughness length to the displacement height plus vegetation roughness
-    if (ixWindProfile==exponential .or. heightCanopyBottomAboveSnow<z0Ground+xTolerance) then
+    if (ixWindProfile==exponential) then
       ! compute the neutral ground resistance
       tmp1 = exp(-windReductionFactor* z0Ground/heightCanopyTopAboveSnow)
       tmp2 = exp(-windReductionFactor*(z0Canopy+zeroPlaneDisplacement)/heightCanopyTopAboveSnow)

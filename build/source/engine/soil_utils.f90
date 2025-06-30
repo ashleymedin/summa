@@ -49,7 +49,7 @@ public::RH_soilair
 public::dTheta_dTk
 public::crit_soilT
 public::liquidHead
-public::gammp
+public::gammp,gammp_complex
 
 ! constant parameters
 real(rkind),parameter     :: valueMissing=-9999._rkind    ! missing value parameter
@@ -598,118 +598,213 @@ end function dTheta_dTk
 
 
 ! ******************************************************************************************************************************
-! public function gammp: compute cumulative probability using the Gamma distribution
+! public function gammp: compute cumulative probability using the Gamma distribution (Gamma CDF)
 ! ******************************************************************************************************************************
-FUNCTION gammp(a,x)
-  IMPLICIT NONE
-  real(rkind), INTENT(IN) :: a,x
-  real(rkind) :: gammp
-  if (x<a+1.0_rkind) then
-  gammp=gser(a,x)
-  else
-  gammp=1.0_rkind-gcf(a,x)
+function gammp(a,x)
+  implicit none
+  ! input
+  real(rkind), intent(in) :: a,x
+  ! output
+  real(rkind)             :: gammp
+  ! validation
+  if (a < 0._rkind) then
+   stop "Error in gammp: a >= 0 required."
   end if
-END FUNCTION gammp
+  if (x < 0._rkind) then
+   stop "Error in gammp: x >= 0 required."
+  end if
+  ! computation
+  if (x<a+1.0_rkind) then
+   gammp=gser(a,x)
+  else
+   gammp=1.0_rkind-gcf(a,x)
+  end if
+end function gammp
 
 
 ! ******************************************************************************************************************************
 ! private function gcf: continued fraction development of the incomplete Gamma function
 ! ******************************************************************************************************************************
-FUNCTION gcf(a,x,gln)
-  IMPLICIT NONE
-  real(rkind), INTENT(IN) :: a,x
-  real(rkind), OPTIONAL, INTENT(OUT) :: gln
-  real(rkind) :: gcf
-  INTEGER(I4B), PARAMETER :: ITMAX=100
-  real(rkind), PARAMETER :: EPS=epsilon(x),FPMIN=tiny(x)/EPS
-  INTEGER(I4B) :: i
-  real(rkind) :: an,b,c,d,del,h
-  if (x == 0.0) then
-  gcf=1.0
-  RETURN
+function gcf(a,x,gln)
+  implicit none
+  ! input
+  real(rkind),           intent(in)  :: a,x
+  ! output
+  real(rkind), optional, intent(out) :: gln
+  real(rkind)                        :: gcf
+  ! local variables
+  integer(i4b), parameter :: ITMAX=100
+  real(rkind),  parameter :: EPS=epsilon(x),FPMIN=tiny(x)/EPS
+  integer(i4b)            :: i
+  real(rkind)             :: an,b,c,d,del,h
+  if (x == 0.0_rkind) then
+   gcf=1.0_rkind
+   return
   end if
   b=x+1.0_rkind-a
   c=1.0_rkind/FPMIN
   d=1.0_rkind/b
   h=d
   do i=1,ITMAX
-  an=-i*(i-a)
-  b=b+2.0_rkind
-  d=an*d+b
-  if (abs(d) < FPMIN) d=FPMIN
-  c=b+an/c
-  if (abs(c) < FPMIN) c=FPMIN
-  d=1.0_rkind/d
-  del=d*c
-  h=h*del
-  if (abs(del-1.0_rkind) <= EPS) exit
+   an=-i*(i-a)
+   b=b+2.0_rkind
+   d=an*d+b
+   if (abs(d) < FPMIN) d=FPMIN
+   c=b+an/c
+   if (abs(c) < FPMIN) c=FPMIN
+   d=1.0_rkind/d
+   del=d*c
+   h=h*del
+   if (abs(del-1.0_rkind) <= EPS) exit
   end do
   if (i > ITMAX) stop 'a too large, ITMAX too small in gcf'
   if (present(gln)) then
-  gln=gammln(a)
-  gcf=exp(-x+a*log(x)-gln)*h
+   gln=log_gamma(a)
+   gcf=exp(-x+a*log(x)-gln)*h
   else
-  gcf=exp(-x+a*log(x)-gammln(a))*h
+   gcf=exp(-x+a*log(x)-log_gamma(a))*h
   end if
-END FUNCTION gcf
-
+end function gcf
 
 ! ******************************************************************************************************************************
 ! private function gser: series development of the incomplete Gamma function
 ! ******************************************************************************************************************************
-FUNCTION gser(a,x,gln)
-  IMPLICIT NONE
-  real(rkind), INTENT(IN) :: a,x
-  real(rkind), OPTIONAL, INTENT(OUT) :: gln
-  real(rkind) :: gser
-  INTEGER(I4B), PARAMETER :: ITMAX=100
-  real(rkind), PARAMETER :: EPS=epsilon(x)
-  INTEGER(I4B) :: n
-  real(rkind) :: ap,del,summ
-  if (x == 0.0) then
-  gser=0.0
-  RETURN
+function gser(a,x,gln)
+  implicit none
+  ! input
+  real(rkind),           intent(in)  :: a,x
+  ! output
+  real(rkind), optional, intent(out) :: gln
+  real(rkind)                        :: gser
+  ! local variables
+  integer(i4b), parameter :: ITMAX=100
+  real(rkind),  parameter :: EPS=epsilon(x)
+  integer(i4b)            :: n
+  real(rkind)             :: ap,del,summ
+  if (x == 0.0_rkind) then
+   gser=0.0_rkind
+   return
   end if
   ap=a
   summ=1.0_rkind/a
   del=summ
   do n=1,ITMAX
-  ap=ap+1.0_rkind
-  del=del*x/ap
-  summ=summ+del
-  if (abs(del) < abs(summ)*EPS) exit
+   ap=ap+1.0_rkind
+   del=del*x/ap
+   summ=summ+del
+   if (abs(del) < abs(summ)*EPS) exit
   end do
   if (n > ITMAX) stop 'a too large, ITMAX too small in gser'
   if (present(gln)) then
-  gln=gammln(a)
-  gser=summ*exp(-x+a*log(x)-gln)
+   gln=log_gamma(a)
+   gser=summ*exp(-x+a*log(x)-gln) 
   else
-  gser=summ*exp(-x+a*log(x)-gammln(a))
+   gser=summ*exp(-x+a*log(x)-log_gamma(a)) 
   end if
-END FUNCTION gser
+end function gser
+
+! ******************************************************************************************************************************
+! public function gammp_complex: regularized lower incomplete gamma function (complex output)
+! ******************************************************************************************************************************
+! Note: input parameters are real but output may have non-zero imaginary parts
+function gammp_complex(a,x)
+  implicit none
+  ! input
+  real(rkind), intent(in) :: a,x
+  ! output
+  complex(rkind)          :: gammp_complex
+  ! validation
+  if (a < 0._rkind) then
+   stop "Error in gammp_complex: a >= 0 required."
+  end if
+  ! computation
+  if (x<a+1.0_rkind) then
+   gammp_complex=gser_complex(a,x)
+  else
+   gammp_complex=1.0_rkind-gcf_complex(a,x)
+  end if
+end function gammp_complex
+
+! ******************************************************************************************************************************
+! private function gcf_complex: continued fraction development of the incomplete Gamma function (complex output)
+! ******************************************************************************************************************************
+function gcf_complex(a,x,gln)
+  implicit none
+  ! input
+  real(rkind),           intent(in)  :: a,x
+  ! output
+  real(rkind), optional, intent(out) :: gln
+  complex(rkind)                     :: gcf_complex
+  ! local variables
+  integer(i4b),          parameter   :: ITMAX=100
+  real(rkind),           parameter   :: EPS=epsilon(x),FPMIN=tiny(x)/EPS
+  integer(i4b)                       :: i
+  real(rkind)                        :: an,b,c,d,del,h
+  if (x == 0.0_rkind) then
+   gcf_complex=1.0_rkind
+   return
+  end if
+  b=x+1.0_rkind-a
+  c=1.0_rkind/FPMIN
+  d=1.0_rkind/b
+  h=d
+  do i=1,ITMAX
+   an=-i*(i-a)
+   b=b+2.0_rkind
+   d=an*d+b
+   if (abs(d) < FPMIN) d=FPMIN
+   c=b+an/c
+   if (abs(c) < FPMIN) c=FPMIN
+   d=1.0_rkind/d
+   del=d*c
+   h=h*del
+   if (abs(del-1.0_rkind) <= EPS) exit
+  end do
+  if (i > ITMAX) stop 'a too large, ITMAX too small in gcf'
+  if (present(gln)) then
+   gln=log_gamma(a)
+   gcf_complex=exp(-x-gln)*cmplx(x,0._rkind,rkind)**a*h       ! allows x<0
+  else
+   gcf_complex=exp(-x-log_gamma(a))*cmplx(x,0._rkind,rkind)**a*h ! allows x<0
+  end if
+end function gcf_complex
 
 
 ! ******************************************************************************************************************************
-! private function gammln: gamma function
+! private function gser_complex: series development of the incomplete Gamma function (complex output)
 ! ******************************************************************************************************************************
-FUNCTION gammln(xx)
-  USE nr_utils_module,only:arth  ! use to build vectors with regular increments
-  IMPLICIT NONE
-  real(rkind), INTENT(IN) :: xx
-  real(rkind) :: gammln
-  real(rkind) :: tmp,x
-  real(rkind) :: stp = 2.5066282746310005_rkind
-  real(rkind), DIMENSION(6) :: coef = (/76.18009172947146_rkind,&
-                                        -86.50532032941677_rkind,24.01409824083091_rkind,&
-                                        -1.231739572450155_rkind,0.1208650973866179e-2_rkind,&
-                                        -0.5395239384953e-5_rkind/)
-  if(xx <= 0._rkind) stop 'xx > 0 in gammln'
-  x=xx
-  tmp=x+5.5_rkind
-  tmp=(x+0.5_rkind)*log(tmp)-tmp
-  gammln=tmp+log(stp*(1.000000000190015_rkind+&
-  sum(coef(:)/arth(x+1.0_rkind,1.0_rkind,size(coef))))/x)
-END FUNCTION gammln
-
+function gser_complex(a,x,gln)
+  implicit none
+  ! input
+  real(rkind),           intent(in)  :: a,x
+  ! output
+  real(rkind), optional, intent(out) :: gln
+  complex(rkind)                     :: gser_complex
+  ! local variables
+  integer(i4b),          parameter   :: ITMAX=100
+  real(rkind),           parameter   :: EPS=epsilon(x)
+  integer(i4b)                       :: n
+  real(rkind)                        :: ap,del,summ
+  if (x == 0.0_rkind) then
+   gser_complex=(0.0_rkind,0.0_rkind)
+   return
+  end if
+  ap=a
+  summ=1.0_rkind/a
+  del=summ
+  do n=1,ITMAX
+   ap=ap+1.0_rkind
+   del=del*x/ap
+   summ=summ+del
+   if (abs(del) < abs(summ)*EPS) exit
+  end do
+  if (n > ITMAX) stop 'a too large, ITMAX too small in gser'
+  if (present(gln)) then
+   gln=log_gamma(a)
+   gser_complex=summ*exp(-x-gln)*cmplx(x,0._rkind,rkind)**a       ! allows x<0
+  else
+   gser_complex=summ*exp(-x-log_gamma(a))*cmplx(x,0._rkind,rkind)**a ! allows x<0
+  end if
+end function gser_complex
 
 end module soil_utils_module

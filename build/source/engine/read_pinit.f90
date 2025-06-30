@@ -131,12 +131,17 @@ contains
   end if
  end do  ! (looping through lines in the file)
 
- ! add these defaults for backwards compatibility pre Sundials and glacier, lake domains
+ ! add these defaults for backwards compatibility pre Sundials, FUSE, and glacier and lake domains
  if (isLocal) then ! dealing with parameters for local column
+  ! BE solver parameters
   if (parFallback(iLookPARAM%be_steps)%default_val < 0.99_rkind*realMissing) then
    parFallback(iLookPARAM%be_steps)%default_val = 1._rkind
   end if
+  ! IDA solver parameters
   call set_ida_defaults(absEnergyFac, parFallback, err, cmessage)
+  if (err /= 0) then; message = trim(message)//trim(cmessage); return; end if
+  ! set FUSE parameter defaults
+  call set_FUSE_defaults(parFallback, err, cmessage)
   if (err /= 0) then; message = trim(message)//trim(cmessage); return; end if
   ! glacier and lake parameters
   if (parFallback(iLookPARAM%albedoFrznWatVisible)%default_val < 0.99_rkind*realMissing) then
@@ -268,6 +273,56 @@ contains
  end subroutine set_ida_defaults
 
  
+ ! ************************************************************************************************
+ ! Subroutine to set the FUSE default values if they are not already set
+ ! ************************************************************************************************
+ subroutine set_FUSE_defaults(parFallback, err, message)
+  USE data_types       ,only:par_info                   ! data type for parameter constraints
+  USE mDecisions_module,only:FUSEPRMS,FUSEAVIC,FUSETOPM ! model decision parameters 
+  implicit none
+  ! define dummy arguments
+  type(par_info),intent(inout)           :: parFallback(:) ! default values and constraints of model parameters
+  integer(i4b),intent(out)               :: err            ! error code
+  character(*),intent(out)               :: message        ! error message
+  !local variables
+  logical(lgt)                           :: warning_flag   ! flag for warnings to standard output 
 
+  ! initialize error control
+  err=0
+  message="set_FUSE_defaults/"
+  warning_flag=.false.
+
+  ! set FUSE parameter defaults for backwards compatibility
+  if (parFallback(iLookPARAM%FUSE_Ac_max)%default_val == realMissing) then   ! FUSE PRMS max saturated area
+   parFallback(iLookPARAM%FUSE_Ac_max)%default_val=0.95_rkind; warning_flag=.true.
+  end if
+  if (parFallback(iLookPARAM%FUSE_phi_tens)%default_val == realMissing) then ! FUSE PRMS tension storage fraction
+   parFallback(iLookPARAM%FUSE_phi_tens)%default_val=0.5_rkind; warning_flag=.true.
+  end if
+  if (parFallback(iLookPARAM%FUSE_b)%default_val == realMissing) then        ! FUSE ARNO/VIC exponent
+   parFallback(iLookPARAM%FUSE_b)%default_val=2._rkind; warning_flag=.true.
+  end if
+  if (parFallback(iLookPARAM%FUSE_lambda)%default_val == realMissing) then   ! FUSE TOPMODEL gamma distribution lambda parameter
+   parFallback(iLookPARAM%FUSE_lambda)%default_val=7._rkind; warning_flag=.true.
+  end if
+  if (parFallback(iLookPARAM%FUSE_chi)%default_val == realMissing) then      ! FUSE TOPMODEL gamma distribution chi    parameter
+   parFallback(iLookPARAM%FUSE_chi)%default_val=3._rkind; warning_flag=.true.
+  end if
+  if (parFallback(iLookPARAM%FUSE_mu)%default_val == realMissing) then       ! FUSE TOPMODEL gamma distribution mu     parameter
+   parFallback(iLookPARAM%FUSE_mu)%default_val=3._rkind; warning_flag=.true.
+  end if
+
+  ! issue a warning if FUSE model decision choices used but default parameters not found in local parameters file
+  if ((model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision == FUSEPRMS).or.&
+     &(model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision == FUSEAVIC).or.&
+     &(model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision == FUSETOPM)) then
+     if (warning_flag) then
+      print '(a136)', " WARNING: some FUSE parameters required by model decisions but are not in the local parameters file&
+                      & -- default values have been assumed."
+      print '(a1)',   " "
+     end if
+  end if
+
+ end subroutine set_FUSE_defaults
 
 end module read_pinit_module

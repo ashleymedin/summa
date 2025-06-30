@@ -306,6 +306,13 @@ subroutine popMetadat(err,message)
   mpar_meta(iLookPARAM%zmaxLayer2_upper)               = var_info('zmaxLayer2_upper'               , 'maximum layer depth for the 2nd layer when > 2 layers'            , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%zmaxLayer3_upper)               = var_info('zmaxLayer3_upper'               , 'maximum layer depth for the 3rd layer when > 3 layers'            , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%zmaxLayer4_upper)               = var_info('zmaxLayer4_upper'               , 'maximum layer depth for the 4th layer when > 4 layers'            , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! FUSE surface runoff
+  mpar_meta(iLookPARAM%FUSE_Ac_max  )               = var_info('FUSE_Ac_max'   , 'FUSE PRMS max saturated area'                     , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%FUSE_phi_tens)               = var_info('FUSE_phi_tens' , 'FUSE PRMS tension storage fraction'               , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%FUSE_b       )               = var_info('FUSE_b'        , 'FUSE ARNO/VIC exponent'                           , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%FUSE_lambda  )               = var_info('FUSE_lambda'   , 'FUSE TOPMODEL gamma distribution lambda parameter', 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%FUSE_chi     )               = var_info('FUSE_chi'      , 'FUSE TOPMODEL gamma distribution chi parameter'   , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%FUSE_mu      )               = var_info('FUSE_mu'       , 'FUSE TOPMODEL gamma distribution mu parameter'    , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin parameter data...
   ! -------------------------
@@ -588,6 +595,8 @@ subroutine popMetadat(err,message)
   flux_meta(iLookFLUX%scalarInfiltration)              = var_info('scalarInfiltration'             , 'infiltration of water into the soil profile'                      , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%scalarExfiltration)              = var_info('scalarExfiltration'             , 'exfiltration of water from the top of the soil profile'           , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%scalarSurfaceRunoff)             = var_info('scalarSurfaceRunoff'            , 'surface runoff'                                                   , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  flux_meta(iLookFLUX%scalarSurfaceRunoff_IE)          = var_info('scalarSurfaceRunoff_IE'         , 'infiltration excess surface runoff'                               , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  flux_meta(iLookFLUX%scalarSurfaceRunoff_SE)          = var_info('scalarSurfaceRunoff_SE'         , 'saturation excess surface runoff'                                 , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%mLayerSatHydCondMP)              = var_info('mLayerSatHydCondMP'             , 'saturated hydraulic conductivity of macropores in each layer'     , 'm s-1'           , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%mLayerSatHydCond)                = var_info('mLayerSatHydCond'               , 'saturated hydraulic conductivity in each layer'                   , 'm s-1'           , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%iLayerSatHydCond)                = var_info('iLayerSatHydCond'               , 'saturated hydraulic conductivity in each layer interface'         , 'm s-1'           , get_ixVarType('ifcSoil'), iMissVec, iMissVec, .false.)
@@ -1061,7 +1070,6 @@ subroutine read_output_file(err,message)
 
       ! error control
       case default;  err=20;message=trim(message)//'unable to identify lookup structure';return
-
     end select
 
     ! --- identify the desired statistic in the metadata structure  -----------
