@@ -682,9 +682,9 @@ USE getVectorz_module,only:varExtract                              ! extract var
   integer(i4b)                    :: ixFullVector                  ! index within full state vector
   integer(i4b)                    :: ixControlIndex                ! index within a given domain
   real(rkind)                     :: volMelt                       ! volumetric melt (kg m-3)
-  real(rkind),parameter           :: mpe=epsilon(1._rkind)         ! a very small number (deal with precision issues)
-  real(rkind)                     :: mpe_veg                       ! precision needs to vary based on set canopy water tolerance for IDA
-  real(rkind)                     :: mpe_snow                      ! precision needs to vary based on set snow water tolerance for IDA
+  real(rkind),parameter           :: eps=epsilon(1._rkind)         ! a very small number (deal with precision issues)
+  real(rkind)                     :: eps_veg                       ! precision needs to vary based on set canopy water tolerance for IDA
+  real(rkind)                     :: eps_snow                      ! precision needs to vary based on set snow water tolerance for IDA
   ! mass balance
   real(rkind)                     :: canopyBalance0,canopyBalance1 ! canopy storage at start/end of time step
   real(rkind)                     :: soilBalance0,soilBalance1     ! soil storage at start/end of time step
@@ -893,15 +893,15 @@ USE getVectorz_module,only:varExtract                              ! extract var
     scalarAquiferStoragePrime = realMissing
 
     ! set the default precision
-    mpe_veg  = mpe*2._rkind
-    mpe_snow = mpe*2._rkind
+    eps_veg  = eps*2._rkind
+    eps_snow = eps*2._rkind
 
     select case(ixNumericalMethod)
       case(ida)
 #ifdef SUNDIALS_ACTIVE
         ! IDA precision needs to vary based on set tolerances
-        mpe_veg = mpar_data%var(iLookPARAM%absTolWatVeg)%dat(1)*2._rkind
-        mpe_snow = mpar_data%var(iLookPARAM%absTolWatSnow)%dat(1)*2._rkind
+        eps_veg = mpar_data%var(iLookPARAM%absTolWatVeg)%dat(1)*2._rkind
+        eps_snow = mpar_data%var(iLookPARAM%absTolWatSnow)%dat(1)*2._rkind
 
         ! extract the derivatives from the state vector
         call varExtract(&
@@ -1246,7 +1246,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
         ! canopy within numerical precision
         if(scalarCanopyIceTrial < 0._rkind)then
 
-          if(scalarCanopyIceTrial > -mpe_veg)then
+          if(scalarCanopyIceTrial > -eps_veg)then
             scalarCanopyLiqTrial = scalarCanopyLiqTrial - scalarCanopyIceTrial
             scalarCanopyIceTrial = 0._rkind
 
@@ -1268,7 +1268,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
           ! snow layer within numerical precision
           if(mLayerVolFracIceTrial(iState) < 0._rkind)then
 
-            if(mLayerVolFracIceTrial(iState) > -mpe_snow)then
+            if(mLayerVolFracIceTrial(iState) > -eps_snow)then
               mLayerVolFracLiqTrial(iState) = mLayerVolFracLiqTrial(iState) - mLayerVolFracIceTrial(iState)
               mLayerVolFracIceTrial(iState) = 0._rkind
 
@@ -1299,7 +1299,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
         ! canopy within numerical precision
         if(scalarCanopyLiqTrial < 0._rkind)then
 
-          if(scalarCanopyLiqTrial > -mpe_veg)then
+          if(scalarCanopyLiqTrial > -eps_veg)then
             scalarCanopyIceTrial = scalarCanopyIceTrial - scalarCanopyLiqTrial
             scalarCanopyLiqTrial = 0._rkind
 
@@ -1321,7 +1321,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
           ! snow layer within numerical precision
           if(mLayerVolFracLiqTrial(iState) < 0._rkind)then
 
-            if(mLayerVolFracLiqTrial(iState) > -mpe_snow)then
+            if(mLayerVolFracLiqTrial(iState) > -eps_snow)then
               mLayerVolFracIceTrial(iState) = mLayerVolFracIceTrial(iState) - mLayerVolFracLiqTrial(iState)
               mLayerVolFracLiqTrial(iState) = 0._rkind
 
