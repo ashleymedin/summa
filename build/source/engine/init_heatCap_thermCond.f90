@@ -21,12 +21,8 @@
 module init_heatCap_thermCond_module
 
 ! data types
-<<<<<<< HEAD:build/source/engine/init_heatCap_thermCond.f90
-USE nr_type
-=======
 USE nrtype
 USE globalData,only:realMissing               ! missing double precision number
->>>>>>> 4d81a9ec (fixing realMissing):build/source/engine/diagn_evar.f90
 
 ! derived types to define the data structures
 USE data_types,only:&
