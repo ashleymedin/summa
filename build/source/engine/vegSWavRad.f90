@@ -56,10 +56,8 @@ integer(i4b),parameter        :: ice     = 0   ! Surface type:  ICE=0 => soil;  
 integer(i4b),parameter        :: iLoc    = 1   ! i-location
 integer(i4b),parameter        :: jLoc    = 1   ! j-location
 ! algorithmic parameters
-real(rkind),parameter         :: missingValue=-9999._rkind  ! missing value, used when diagnostic or state variables are undefined
 real(rkind),parameter         :: verySmall=1.e-6_rkind      ! used as an additive constant to check if substantial difference among real numbers
 real(rkind),parameter         :: mpe=1.e-6_rkind            ! prevents overflow error if division by zero
-real(rkind),parameter         :: dx=1.e-6_rkind             ! finite difference increment
 contains
 
 

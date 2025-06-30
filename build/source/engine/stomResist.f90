@@ -22,6 +22,7 @@ module stomResist_module
 
 ! data types
 USE nr_type
+USE globalData,only:realMissing  ! missing real number
 
 ! physical constants
 USE multiconst, only: Rgas     ! universal gas constant (J mol-1 K-1)
@@ -96,7 +97,6 @@ integer(i4b),parameter :: jLoc = 1   ! j-location
 ! conversion factors
 real(rkind),parameter     :: joule2umolConv=4.6_rkind   ! conversion factor from joules to umol photons (umol J-1)
 ! algorithmic parameters
-real(rkind),parameter     :: missingValue=-9999._rkind  ! missing value, used when diagnostic or state variables are undefined
 real(rkind),parameter     :: mpe=1.e-6_rkind            ! prevents overflow error if division by zero
 real(rkind),parameter     :: dx=1.e-6_rkind             ! finite difference increment
 
@@ -206,8 +206,8 @@ contains
    scalarStomResistSunlit = minStomatalResistance/scalarTranspireLim
    scalarStomResistShaded = scalarStomResistSunlit
    ! set photosynthesis to missing (not computed)
-   scalarPhotosynthesisSunlit = missingValue
-   scalarPhotosynthesisShaded = missingValue
+   scalarPhotosynthesisSunlit = realMissing
+   scalarPhotosynthesisShaded = realMissing
 
   ! *******************************************************************************************************************************************
 

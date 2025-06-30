@@ -22,7 +22,7 @@ module canopySnow_module
 
 ! data types
 USE nrtype
-USE globalData,only:realMissing               ! missing double precision number
+USE globalData,only:realMissing  ! missing real number
 
 ! derived types to define the data structures
 USE data_types,only:&
