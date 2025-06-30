@@ -25,6 +25,7 @@ USE nr_type
 
 ! global variables
 USE globalData,only:&
+                    verySmall,          & ! a very small number used as an additive constant to check if substantial difference among real numbers
                     realMissing,        & ! missing value for real numbers
                     minExpLogHgt          ! minimum height of transition from the exponential to the logarithmic wind profile (m)
 
@@ -109,9 +110,7 @@ integer(i4b),parameter        :: ice     = 0                 ! Surface type:  IC
 integer(i4b),parameter        :: iLoc    = 1                 ! i-location
 integer(i4b),parameter        :: jLoc    = 1                 ! j-location
 ! algorithmic parameters
-real(rkind),parameter         :: verySmall=1.e-6_rkind       ! used as an additive constant to check if substantial difference among real numbers
-real(rkind),parameter         :: tinyVal=epsilon(1._rkind)   ! used as an additive constant to check if substantial difference among real numbers
-real(rkind),parameter         :: mpe=1.e-6_rkind             ! prevents overflow error if division by zero
+real(rkind),parameter         :: mpe=1.e-6_rkind             ! prevents overflow error if division by zero, from NOAH mpe value
 real(rkind),parameter         :: dx=1.e-11_rkind             ! finite difference increment
 
 contains
@@ -1183,7 +1182,7 @@ subroutine wetFraction(derDesire,smoothing,canopyLiq,canopyMax,canopyWettingFact
   real(rkind)                :: rawWetFractionDeriv         ! derivative in canopy wet fraction w.r.t. storage (kg-1 m2)
   real(rkind)                :: smoothTheta                 ! smoothing function of water used to improve numerical stability at times with limited water storage (-)
   real(rkind)                :: smoothThetaDeriv            ! derivative in the smoothing water w.r.t.canopy storage (kg-1 m2)
-  real(rkind)                :: verySmall=epsilon(1._rkind) ! a very small number
+  real(rkind)                :: eps=epsilon(1._rkind)       ! machine precision for real numbers
   ! --------------------------------------------------------------------------------------------------------------
   ! compute relative canopy water
   if (smoothing) then ! smooth canopy wetted fraction by smoothing canopy liquid water content as in Kavetski and Kuczera (2007)
@@ -1201,7 +1200,7 @@ subroutine wetFraction(derDesire,smoothing,canopyLiq,canopyMax,canopyWettingFact
   ! - canopy is at capacity (canopyWettingFactor)
   elseif (relativeCanopyWater < 1._rkind) then
     rawCanopyWetFraction = canopyWettingFactor*(relativeCanopyWater**canopyWettingExp)
-    if (derDesire .and. relativeCanopyWater>verySmall) then
+    if (derDesire .and. relativeCanopyWater>eps) then
       rawWetFractionDeriv = (canopyWettingFactor*canopyWettingExp/canopyMax)*relativeCanopyWater**(canopyWettingExp - 1._rkind)
     else
       rawWetFractionDeriv = 0._rkind
@@ -1899,7 +1898,7 @@ subroutine soilResist(&
   character(*),intent(out)         :: message                     ! error message
   ! local variables
   real(rkind)                      :: gx                          ! stress function for the soil layers
-  real(rkind),parameter            :: verySmall=epsilon(gx)       ! a very small number
+  real(rkind),parameter            :: eps=epsilon(gx)             ! machine precision for gx
   integer(i4b)                     :: iLayer                      ! index of soil layer
   ! initialize error control
   err=0; message='soilResist/'
@@ -1927,13 +1926,13 @@ subroutine soilResist(&
         err=20; message=trim(message)//'cannot identify option for soil resistance'; return
     end select
     ! save the factor for the given layer (ensure between zero and one)
-    mLayerTranspireLimitFac(iLayer) = min( max(verySmall,gx), 1._rkind)
+    mLayerTranspireLimitFac(iLayer) = min( max(eps,gx), 1._rkind)
     ! compute the weighted average (weighted by root density)
     wAvgTranspireLimitFac = wAvgTranspireLimitFac + mLayerTranspireLimitFac(iLayer)*mLayerRootDensity(iLayer)
   end do ! end looping through soil layers
 
   ! ** compute the factor limiting evaporation in the aquifer
-  if (scalarAquiferRootFrac > verySmall) then
+  if (scalarAquiferRootFrac > eps) then
     ! check that aquifer root fraction is allowed
     if (ixGroundwater /= bigBucket) then
       message=trim(message)//'aquifer evaporation only allowed for the big groundwater bucket -- increase the soil depth to account for roots'
@@ -2223,7 +2222,7 @@ subroutine turbFluxes(&
   groundConductanceLH = 1._rkind/(groundResistance + soilResistance)  ! NOTE: soilResistance accounts for fractional snow, and =0 when snow cover is 100%
   if(groundConductanceLH < 0._rkind) groundConductanceLH = 0._rkind   ! to avoid negative conductance, will make large residual error instead of old version where failed outright
   totalConductanceLH  = evapConductance + transConductance + groundConductanceLH + canopyConductance
-  if(totalConductanceLH  < 0._rkind) totalConductanceLH  = tinyVal    ! to avoid division by zero, will make large residual error instead of old version where failed outright
+  if(totalConductanceLH  < 0._rkind) totalConductanceLH  = epsilon(1._rkind)    ! to avoid division by zero, will make large residual error instead of old version where failed outright
 
   ! compute derivatives in individual conductances for sensible heat w.r.t. canopy temperature (m s-1 K-1)
   ! NOTE: it may be more efficient to compute these derivatives when computing resistances
@@ -2531,7 +2530,7 @@ subroutine aStability(&
   integer(i4b),intent(out)         :: err                           ! error code
   character(*),intent(out)         :: message                       ! error message
   ! local
-  real(rkind), parameter           :: verySmall=1.e-10_rkind        ! a very small number (avoid stability of zero)
+  real(rkind), parameter           :: stabilityTol=1.e-10_rkind     ! tolerance for stability correction (to avoid division by zero)
   real(rkind)                      :: dRiBulk_dAirTemp              ! derivative in the bulk Richardson number w.r.t. air temperature (K-1)
   real(rkind)                      :: dRiBulk_dSfcTemp              ! derivative in the bulk Richardson number w.r.t. surface temperature (K-1)
   real(rkind)                      :: bPrime                        ! scaled "b" parameter for stability calculations in Louis (1979)
@@ -2570,10 +2569,10 @@ subroutine aStability(&
     case(standard)
       ! compute surface-atmosphere exchange coefficient (-)
       if (RiBulk <  critRichNumber) stabilityCorrection = (1._rkind - 5._rkind*RiBulk)**2_i4b
-      if (RiBulk >= critRichNumber) stabilityCorrection = verySmall
+      if (RiBulk >= critRichNumber) stabilityCorrection = stabilityTol
       ! compute derivative in surface-atmosphere exchange coefficient w.r.t. temperature (K-1)
       if (RiBulk <  critRichNumber) dStabilityCorrection_dRich = -10._rkind*(1._rkind - 5._rkind*RiBulk)
-      if (RiBulk >= critRichNumber) dStabilityCorrection_dRich = verySmall
+      if (RiBulk >= critRichNumber) dStabilityCorrection_dRich = stabilityTol
     ! Louis 1979
     case(louisInversePower)
       ! scale the "b" parameter for stable conditions

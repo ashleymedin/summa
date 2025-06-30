@@ -200,7 +200,7 @@ contains
  real(rkind)                            :: tempSWE0                   ! temporary SWE before snowfall, used to check mass balance (kg m-2)
  real(rkind)                            :: tempSWE1                   ! temporary SWE after snowfall, used to check mass balance (kg m-2)
  real(rkind)                            :: xMassBalance               ! mass balance check (kg m-2)
- real(rkind),parameter                  :: verySmall=1.e-8_rkind      ! a very small number -- used to check mass balance
+ real(rkind),parameter                  :: massBalTol=1.e-8_rkind     ! tolerance for mass balance check (kg m-2)
  ! initialize error control
  err=0; message="newsnwfall/"
 
@@ -249,7 +249,7 @@ contains
 
   ! check SWE
   xMassBalance = tempSWE1 - (tempSWE0 + newSnowfall*dt)
-  if (abs(xMassBalance) > verySmall)then
+  if (abs(xMassBalance) > massBalTol)then
    write(*,'(a,1x,f20.10)') 'SWE mass balance = ', xMassBalance
    message=trim(message)//'mass balance problem'
    err=20; return

@@ -63,7 +63,7 @@ private
 public::read_force
 
 ! global parameters
-real(rkind),parameter  :: verySmall=1.e-3_rkind      ! tiny number
+real(rkind),parameter  :: timeDiffTol=1.e-3_rkind   ! time difference tolerance (units=days) to check if the time is correct
 real(rkind),parameter  :: smallOffset=1.e-8_rkind   ! small offset (units=days) to force ih=0 at the start of the day
 
 contains
@@ -315,7 +315,7 @@ contains
   diffTime=abs(fileTime-currentJulDay)
 
   ! start time is in the current file
-  if(any(diffTime < verySmall))then
+  if(any(diffTime < timeDiffTol))then
 
    iRead=minloc(diffTime,1)
    exit
@@ -460,7 +460,7 @@ contains
 
  ! check that the computed julian day matches the time information in the NetCDF file
  dataJulDay = varTime(1)/forcFileInfo(iFile)%convTime2Days + refJulDay_data
- if(abs(currentJulDay - dataJulDay) > verySmall)then
+ if(abs(currentJulDay - dataJulDay) > timeDiffTol)then
   write(message,'(a,f18.8,a,f18.8)') trim(message)//'date for time step: ',dataJulDay,' differs from the expected date: ',currentJulDay
   err=40; return
  end if

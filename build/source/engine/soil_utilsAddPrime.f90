@@ -45,9 +45,6 @@ private
 public::liquidHeadPrime
 public::d2Theta_dPsi2
 public::d2Theta_dTk2
-
-! constant parameters
-real(rkind),parameter     :: verySmall=epsilon(1.0_rkind) ! a very small number (used to avoid divide by zero)
 contains
 
 
@@ -102,7 +99,7 @@ subroutine liquidHeadPrime(&
   err=0; message='liquidHeadPrime/'
 
   ! ** partially frozen soil
-  if(volFracIce > verySmall .and. matricHeadTotal < 0._rkind)then  ! check that ice exists and that the soil is unsaturated
+  if(volFracIce > epsilon(1._rkind) .and. matricHeadTotal < 0._rkind)then  ! check that ice exists and that the soil is unsaturated
 
 
     ! -----

@@ -52,7 +52,6 @@ public::liquidHead
 public::gammp,gammp_complex
 
 ! constant parameters
-real(rkind),parameter     :: verySmall=epsilon(1.0_rkind) ! a very small number (used to avoid divide by zero)
 real(rkind),parameter     :: dx=-1.e-12_rkind             ! finite difference increment
 contains
 
@@ -131,12 +130,12 @@ subroutine liquidHead(&
   real(rkind)                       :: effSat                                    ! effective saturation (-)
   real(rkind)                       :: dPsiLiq_dEffSat                           ! derivative in liquid water matric potential w.r.t. effective saturation (m)
   real(rkind)                       :: dEffSat_dTemp                             ! derivative in effective saturation w.r.t. temperature (K-1)
-  ! ------------------------------------------------------------------------------------------------------------------------------
+   ! ------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message='liquidHead/'
 
   ! ** partially frozen soil
-  if(volFracIce > verySmall .and. matricHeadTotal < 0._rkind)then  ! check that ice exists and that the soil is unsaturated
+  if(volFracIce > epsilon(1._rkind) .and. matricHeadTotal < 0._rkind)then  ! check that ice exists and that the soil is unsaturated
 
     ! -----
     ! - compute liquid water matric potential...
@@ -307,9 +306,9 @@ function matricHead(theta,alpha,theta_res,theta_sat,n,m)
   real(rkind)            :: matricHead  ! matric head (m)
   ! local variables
   real(rkind)            :: effSat      ! effective saturation (-)
-  real(rkind),parameter  :: verySmall=epsilon(1._rkind)  ! a very small number (avoid effective saturation of zero)
+  real(rkind),parameter  :: eps=epsilon(1._rkind) ! a very small number (avoid effective saturation of zero)
   ! compute effective saturation
-  effSat = max(verySmall, (theta - theta_res) / (theta_sat - theta_res))
+  effSat = max(eps, (theta - theta_res) / (theta_sat - theta_res))
   ! compute matric head
   if (effSat < 1._rkind .and. effSat > 0._rkind)then
   matricHead = (1._rkind/alpha)*( effSat**(-1._rkind/m) - 1._rkind)**(1._rkind/n)

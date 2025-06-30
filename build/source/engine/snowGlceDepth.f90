@@ -2,6 +2,7 @@ module snowGlceDepth_module
 
 ! data types
 USE nr_type
+USE globalData,only: verySmall ! a very small number used as an additive constant to check if substantial difference among real numbers
 
 ! physical constants
 USE multiconst,only:&
@@ -28,9 +29,6 @@ USE var_lookup,only:iLookINDEX       ! named variables for structure elements
 implicit none
 private
 public::snowGlceDepth
-
-real(rkind),parameter :: verySmall=1.e-6_rkind   ! used as an additive constant to check if substantial difference among real numbers
-
 contains
 
 ! ************************************************************************************************

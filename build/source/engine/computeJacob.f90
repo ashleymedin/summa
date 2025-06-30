@@ -70,15 +70,11 @@ USE mDecisions_module,only:       &
  noExplicit                         ! no explicit groundwater parameterization
 
 implicit none
-! define constants
-real(rkind),parameter     :: verySmall=tiny(1.0_rkind)     ! a very small number
-
 private
 public::computeJacob
 #ifdef SUNDIALS_ACTIVE
 public::computeJacob4kinsol
 #endif
-
 contains
 
 
@@ -648,7 +644,7 @@ subroutine computeJacob(&
               aJac(ixOffDiag(nrgState,watState),watState) = dVolHtCapBulk_dPsi0(iLayer) * mLayerdTemp_dt(jLayer) &
                                                            + mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) + dCm_dPsi0(iLayer) * mLayerdWat_dt(jLayer) &
                                                            + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer))
-              if(mLayerdTheta_dTk(jLayer) > verySmall)then  ! ice is present
+              if(mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind))then  ! ice is present
                 aJac(ixOffDiag(nrgState,watState),watState) = -LH_fus*iden_water * dVolTot_dPsi0(iLayer) + aJac(ixOffDiag(nrgState,watState),watState)   ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
               endif
 
@@ -1002,7 +998,7 @@ subroutine computeJacob(&
               aJac(nrgState,watState) = dVolHtCapBulk_dPsi0(iLayer) * mLayerdTemp_dt(jLayer) &
                                        + mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) + dCm_dPsi0(iLayer) * mLayerdWat_dt(jLayer) &
                                        + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer))
-              if(mLayerdTheta_dTk(jLayer) > verySmall)then  ! ice is present
+              if(mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind))then  ! ice is present
                 aJac(nrgState,watState) = -LH_fus*iden_water * dVolTot_dPsi0(iLayer) + aJac(nrgState,watState)   ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
               endif
 

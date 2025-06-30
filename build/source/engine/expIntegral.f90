@@ -14,8 +14,7 @@ contains
  real(rkind) LAI
  real(rkind) EXPINT
  real(rkind) a0,a1,a2,a3,a4,a5,b1,b2,b3,b4
- real(rkind),parameter :: verySmall=tiny(1.0_rkind)     ! a very small number
- IF (LAI < verySmall)THEN
+ IF (LAI < tiny(1._rkind))THEN
   EXPINT=1._rkind
 
  ELSEIF (LAI.LE.1.0) THEN
