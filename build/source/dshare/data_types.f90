@@ -1459,7 +1459,7 @@ contains
  ! **** end snowLakeGlceLiqFlux ****
 
  ! **** soilLiqFlux ****
- subroutine initialize_in_soilLiqFlux(in_soilLiqFlux,nSnow,nLake,nSoil,firstSplitOper,scalarSolution,firstFluxCall,&
+ subroutine initialize_in_soilLiqFlux(in_soilLiqFlux,nSnow,nLake,nSoil,firstSplitOper,scalarSolution,firstFluxCall,scalarAquiferStorageTrial,&
                                      mLayerTempTrial,mLayerMatricHeadTrial,mLayerMatricHeadLiqTrial,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,&
                                      above_soilLiqFluxDeriv,above_soildLiq_dTk,above_soilFracLiq,flux_data,deriv_data)
   class(in_type_soilLiqFlux),intent(out) :: in_soilLiqFlux               ! class object for intent(in) soilLiqFlux arguments

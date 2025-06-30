@@ -402,7 +402,7 @@ contains
   end do
 
   ! check
-  if(abs(sum(mLayerDepth(1:nSnow)) - scalarSnowDepth) > nowDepthTol)then
+  if(abs(sum(mLayerDepth(1:nSnow)) - scalarSnowDepth) > snowDepthTol)then
    print*, 'nSnow = ', nSnow
    write(*,'(a,1x,f30.25,1x)') 'sum(mLayerDepth(1:nSnow)) = ', sum(mLayerDepth(1:nSnow))
    write(*,'(a,1x,f30.25,1x)') 'scalarSnowDepth           = ', scalarSnowDepth
