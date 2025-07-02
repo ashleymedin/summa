@@ -1620,18 +1620,17 @@ subroutine aeroResist(&
         err=10; message=trim(message)//"unknown parameterization for vegetation roughness length and displacement height"; return
     end select  ! vegetation traits (z0, zpd)
 
-    ! check zero plane displacement
+    ! check zero plane displacement, should not happen but leaving it here incase something is really wrong with the params
     if (zeroPlaneDisplacement < heightCanopyBottomAboveSnow) then
-      write(*,'(a,1x,10(f12.5,1x))') 'heightCanopyTop, snowDepth, heightCanopyTopAboveSnow, heightCanopyBottomAboveSnow, exposedVAI = ', &
-                                      heightCanopyTop, snowDepth, heightCanopyTopAboveSnow, heightCanopyBottomAboveSnow, exposedVAI
+      write(*,'(a,1x,5(f12.5,1x))') 'heightCanopyTop, snowDepth, heightCanopyTopAboveSnow, heightCanopyBottomAboveSnow, exposedVAI = ', &
+                                    heightCanopyTop, snowDepth, heightCanopyTopAboveSnow, heightCanopyBottomAboveSnow, exposedVAI
       message=trim(message)//'zero plane displacement is below the canopy bottom'
       err=20; return
     end if
 
     ! check measurement height
-    if (mHeight < zeroPlaneDisplacement) then; err=20; message=trim(message)//'measurement height is below the displacement height'; return; end if
-    if (mHeight < z0Canopy) then; err=20; message=trim(message)//'measurement height is below the roughness length'; return; end if
-
+    if (mHeight < zeroPlaneDisplacement+z0Canopy) then; err=20; message=trim(message)//'measurement height is below the displacement height'; return; end if
+    
     ! -----------------------------------------------------------------------------------------------------------------------------------------
     ! -----------------------------------------------------------------------------------------------------------------------------------------
     ! * compute resistance for the case where the canopy is exposed
@@ -1681,6 +1680,7 @@ subroutine aeroResist(&
     referenceHeight   = z0Canopy+zeroPlaneDisplacement
     windConvFactor    = exp(-windReductionFactor*(1._rkind - (referenceHeight/heightCanopyTopAboveSnow)))
     windspdRefHeight  = windspdCanopyTop*windConvFactor
+    if(heightCanopyTopAboveSnow < referenceHeight)then; err=20; message=trim(message)//'canopy top height above snow < reference height'; return; end if 
 
     ! compute windspeed at the bottom of the canopy relative to the snow depth (m s-1)
     windConvFactor       = exp(-windReductionFactor*(1._rkind - (heightCanopyBottomAboveSnow/heightCanopyTopAboveSnow)))
@@ -1703,28 +1703,25 @@ subroutine aeroResist(&
     if (ixWindProfile==exponential) then
       ! compute the neutral ground resistance
       tmp1 = exp(-windReductionFactor* z0Ground/heightCanopyTopAboveSnow)
-      tmp2 = exp(-windReductionFactor*(z0Canopy+zeroPlaneDisplacement)/heightCanopyTopAboveSnow)
+      tmp2 = exp(-windReductionFactor* referenceHeight/heightCanopyTopAboveSnow)
       groundResistanceNeutral = ( heightCanopyTopAboveSnow*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2)   ! s m-1
       ! check that (tmp1 - tmp2) is positive
-      if ((z0Ground > z0Canopy + zeroPlaneDisplacement)) then
-        write(*,'(a,3(f9.5,a))') 'z0Ground > z0Canopy + zeroPlaneDisplacement   (', z0Ground,' >',z0Canopy,' +',zeroPlaneDisplacement,' )'
-        message=trim(message)//'ground roughness is greater than canopy roughness plus zero plane displacement'
-        err=20; return
-      end if
+      if(z0Ground > referenceHeight)then; err=20; message=trim(message)//'ground roughness length > reference height'; return; end if
+
     ! case 2: logarithmic profile from snow depth plus roughness height to bottom of the canopy
     ! NOTE: heightCanopyBottomAboveSnow>z0Ground+minExpLogHgt
     else
       ! compute the neutral ground resistance
-      ! first, component between heightCanopyBottomAboveSnow and z0Canopy+zeroPlaneDisplacement
+      ! first, component between heightCanopyBottomAboveSnow and referenceHeight
       tmp1  = exp(-windReductionFactor* heightCanopyBottomAboveSnow/heightCanopyTopAboveSnow)
-      tmp2  = exp(-windReductionFactor*(z0Canopy+zeroPlaneDisplacement)/heightCanopyTopAboveSnow)
+      tmp2  = exp(-windReductionFactor* referenceHeight/heightCanopyTopAboveSnow)
       groundResistanceNeutral = ( heightCanopyTopAboveSnow*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2)
       ! add log-below-canopy component
       groundResistanceNeutral = groundResistanceNeutral + (1._rkind/(max(0.1_rkind,windspdCanopyBottom)*vkc**2_i4b))*(log(heightCanopyBottomAboveSnow/z0Ground))**2_i4b
     endif  ! switch between exponential profile and log-below-canopy
 
     ! compute the stability correction for resistance from the ground to the canopy air space (-)
-    ! NOTE: here we are interested in the windspeed at height z0Canopy+zeroPlaneDisplacement
+    ! NOTE: here we are interested in the windspeed at the reference height
     call aStability(&
                     ! input
                     ixStability,                                      & ! input:  choice of stability function
@@ -1770,10 +1767,8 @@ subroutine aeroResist(&
 
     ! check that measurement height above the ground surface is above the roughness length
     if (heightAboveGround < z0Ground) then
-      print*, 'z0Ground = ', z0Ground
-      print*, 'mHeight  = ', mHeight
-      print*, 'snowDepth = ', snowDepth
-      print*, 'heightAboveGround = ', heightAboveGround
+      write(*,'(a,1x,4(f12.5,1x))') 'z0Ground, mHeight, snowDepth, heightAboveGround = ', &
+                                     z0Ground, mHeight, snowDepth, heightAboveGround
       message=trim(message)//'height above ground < roughness length [likely due to snow accumulation]'
       err=20; return
     end if

@@ -1894,7 +1894,11 @@ contains
  end subroutine update_surfaceFlux_liquidFlux_computation_flux_derivatives
 
  subroutine update_surfaceFlux_liquidFlux_infiltration
-  ! **** Update operations for surfaceFlux: flux condition -- final infiltration and runoff calculations ****
+  ! **** Update operations for surfaceFlx: flux condition -- final infiltration and runoff calculations ****
+  ! local variables
+  real(rkind) :: scalarInfilArea_unfrozen ! infiltration area that is not frozen
+
+  ! compute infiltration and runoff
   associate(&
    ! input: flux at the upper boundary
    scalarRainPlusMelt => in_surfaceFlux % scalarRainPlusMelt , & ! rain plus melt plus lake drainage, used as input to the soil zone before computing surface runoff (m s-1)
@@ -1912,13 +1916,23 @@ contains
    scalarSurfaceRunoff_SE    => out_surfaceFlux % scalarSurfaceRunoff_SE    , & ! saturation excess surface runoff (m s-1)
    scalarSurfaceInfiltration => out_surfaceFlux % scalarSurfaceInfiltration   & ! surface infiltration (m s-1)
   &)
+   ! unfrozen infiltration area
+   scalarInfilArea_unfrozen=(1._rkind - scalarFrozenArea)*scalarInfilArea
+
    ! compute infiltration (m s-1), if after first flux call in a splitting operation does not change
-   scalarSurfaceInfiltration = (1._rkind - scalarFrozenArea)*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
+   scalarSurfaceInfiltration = scalarInfilArea_unfrozen*min(scalarRainPlusMelt,xMaxInfilRate)
  
    ! compute surface runoff (m s-1)
    scalarSurfaceRunoff    = scalarRainPlusMelt - scalarSurfaceInfiltration
-   scalarSurfaceRunoff_IE = scalarSurfaceRunoff ! infiltration excess runoff 
-   scalarSurfaceRunoff_SE = 0._rkind            ! saturation excess runoff 
+   if (scalarRainPlusMelt.gt.xMaxInfilRate) then ! infiltration excess runoff occurs
+    ! saturation excess runoff
+    scalarSurfaceRunoff_SE = scalarRainPlusMelt * (1._rkind - scalarInfilArea_unfrozen) ! (rain plus melt) * (saturated area) 
+    ! remaining runoff is infiltration excess
+    scalarSurfaceRunoff_IE = scalarSurfaceRunoff - scalarSurfaceRunoff_SE ! infiltration excess runoff     
+   else ! infiltration excess runoff does not occur
+    scalarSurfaceRunoff_SE = scalarSurfaceRunoff ! saturation excess runoff 
+    scalarSurfaceRunoff_IE = 0._rkind            ! infiltration excess runoff 
+   end if
  
    ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
    surfaceHydCond = realMissing
