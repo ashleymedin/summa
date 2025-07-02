@@ -143,7 +143,12 @@ contains
 
  ) ! associate variables in data structure
  ! ----------------------------------------------------------------------------------------------------------------------------------
-
+  if (nSnow > 0) then ! case when there is snow on the ground (EXCLUDE "snow without a layer" -- in this case, evaporate from the soil)
+    scalarGroundSnowFraction  = 1._rkind
+  else ! case when the ground is less than a layer of snow (e.g., bare soil or snow without a layer)
+    scalarGroundSnowFraction  = 0._rkind
+  end if  ! (there is snow enough for a layer on the ground)
+  
  ! check if we have isolated the snow-soil domain (used in test cases)
  if(ix_bcUpprTdyn == prescribedTemp .or. ix_bcUpprTdyn == zeroFlux .or. ix_bcUpprSoiH == prescribedHead .or. noVeg) then
 
@@ -189,11 +194,6 @@ contains
   heightAboveSnow = heightCanopyTop - scalarSnowDepth     ! height top of canopy is above the snow surface (m)
   minExpLogHgt    = 0.1  ! minimum height of transition from the exponential to the logarithmic wind profile (m)
   if(heightCanopyTop<1._rkind) minExpLogHgt = 0.1_rkind*heightCanopyTop  ! if the canopy is short, use a smaller minimum height
-  if (nSnow > 0) then ! case when there is snow on the ground (EXCLUDE "snow without a layer" -- in this case, evaporate from the soil)
-    scalarGroundSnowFraction  = 1._rkind
-  else ! case when the ground is less than a layer of snow (e.g., bare soil or snow without a layer)
-    scalarGroundSnowFraction  = 0._rkind
-  end if  ! (there is snow enough for a layer on the ground)
 
   ! compute the roughness length of the ground (ground below the canopy or non-vegetated surface)
   z0Ground = z0Soil*(1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction     ! roughness length (m)
