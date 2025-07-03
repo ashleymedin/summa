@@ -1813,7 +1813,7 @@ subroutine coupled_em(&
         mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState) = depthGlceTopLayer
         mLayerVolFracIce(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState) = iceGlceTopLayer
         mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState) = 0._rkind ! no liquid water in glacier ice
-        mLayerTemp(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce) = tempGlceTopLayer
+        mLayerTemp(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState) = tempGlceTopLayer
 
         ! get enthalpy from temperature
         if( (enthalpyStateVec .or. computeEnthalpy))then
