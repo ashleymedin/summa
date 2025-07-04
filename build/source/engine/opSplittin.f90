@@ -532,7 +532,6 @@ subroutine opSplittin(&
    end if
    if (split_select % logic_exit_domainSplit()) then
     iDomainSplit=split_select % iDomainSplit
-    print*, 'iDomainSplit',iDomainSplit, nDomainSplit
     if (split_select % iDomainSplit > nDomainSplit) split_select % domainSplit=.false.
    end if
   end subroutine initialize_split_domainSplit
@@ -767,7 +766,6 @@ subroutine opSplittin(&
    ! keep track of the number of state splits
    associate(numberStateSplit => indx_data%var(iLookINDEX%numberStateSplit)%dat(1)) ! intent(inout): [i4b] number of state splitting solutions
     if (ixCoupling/=fullyCoupled) numberStateSplit = numberStateSplit + 1
-    print*, 'numberStateSplit', numberStateSplit
    end associate
 
    ! define the number of operator splits for the state type
@@ -849,7 +847,6 @@ subroutine opSplittin(&
     ! keep track of the number of domain splits
     if (iStateTypeSplit==nrgSplit  .and. ixStateThenDomain==subDomain) numberDomainSplitNrg  = numberDomainSplitNrg  + 1
     if (iStateTypeSplit==massSplit .and. ixStateThenDomain==subDomain) numberDomainSplitMass = numberDomainSplitMass + 1
-    print*, 'numberDomainSplitNrg', numberDomainSplitNrg, 'numberDomainSplitMass', numberDomainSplitMass
    end associate
 
    call get_nDomainSplit(ixStateThenDomain); if (return_flag) return ! get nDomainSplit value -- return if error occurs
@@ -975,7 +972,6 @@ subroutine opSplittin(&
 
    ! define failure
    failure = (failedMinimumStep .or. err<0)
-   !if (ixSolution/=scalar .and. indx_data%var(iLookINDEX%numberStateSplit)%dat(1)==0) failure = .true. ! force failure for debugging
    if (.not.failure) firstSuccess=.true.
 
    ! if failed, need to reset the flux counter
@@ -1284,8 +1280,6 @@ subroutine opSplittin(&
 
     ! define if the flux is desired
     if (desiredFlux) neededFlux(iVar)=.true.
-    if(desiredFlux) print*, flux_meta(iVar)%varname, fluxMask%var(iVar)%dat
-
     if ( globalPrintFlag .and. count(fluxMask%var(iVar)%dat)>0 ) print*, trim(flux_meta(iVar)%varname) ! * check
 
    end do  ! end looping through fluxes
@@ -1310,49 +1304,42 @@ subroutine split_select_advance_iSplit(split_select)
  ! *** Advance index for coupling split method ***
  class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
  split_select % iSplit = split_select % iSplit + 1
- print*, 'iSplit', split_select % iSplit
 end subroutine split_select_advance_iSplit
 
 subroutine split_select_advance_ixCoupling(split_select)
  ! *** Advance index for coupling split method ***
  class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
  split_select % ixCoupling = split_select % ixCoupling + 1
- print*, 'ixCoupling', split_select % ixCoupling
 end subroutine split_select_advance_ixCoupling
 
 subroutine split_select_advance_iStateTypeSplit(split_select)
  ! *** Advance index for stateTypeSplit split method ***
  class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
  split_select % iStateTypeSplit = split_select % iStateTypeSplit + 1
-  print*, 'iStateTypeSplit', split_select % iStateTypeSplit
 end subroutine split_select_advance_iStateTypeSplit
 
 subroutine split_select_advance_ixStateThenDomain(split_select)
  ! *** Advance index for stateThenDomain split method ***
  class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
  split_select % ixStateThenDomain = split_select % ixStateThenDomain + 1
- print*, 'ixStateThenDomain', split_select % ixStateThenDomain
 end subroutine split_select_advance_ixStateThenDomain
 
 subroutine split_select_advance_iDomainSplit(split_select)
  ! *** Advance index for domainSplit split method ***
  class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
  split_select % iDomainSplit = split_select % iDomainSplit + 1
- print*, 'iDomainSplit', split_select % iDomainSplit
 end subroutine split_select_advance_iDomainSplit
 
 subroutine split_select_advance_ixSolution(split_select)
  ! *** Advance index for solution split method ***
  class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
  split_select % ixSolution = split_select % ixSolution + 1
- print*, 'ixSolution', split_select % ixSolution
 end subroutine split_select_advance_ixSolution
 
 subroutine split_select_advance_iStateSplit(split_select)
  ! *** Advance index for stateSplit split method ***
  class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
  split_select % iStateSplit = split_select % iStateSplit + 1
-  print*, 'iStateSplit', split_select % iStateSplit
 end subroutine split_select_advance_iStateSplit
 
 subroutine split_select_initialize_ixCoupling(split_select)

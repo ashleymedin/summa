@@ -347,7 +347,6 @@ subroutine glceReduce(&
     ! update volumetric ice and liquid water content
     mLayerVolFracIceNew(iGlce) = massIceOld/(mLayerDepth(iGlce)*iden_ice)
     mLayerVolFracLiqNew(iGlce) = massLiqOld/(mLayerDepth(iGlce)*iden_water)
-    print*, 'mLayerVolFracLiqNew(iGlce) = ', iGlce,mLayerVolFracLiqNew(iGlce)
     mLayerVolFracAirNew(iGlce) = 1.0_rkind - mLayerVolFracIceNew(iGlce) - mLayerVolFracLiqNew(iGlce)
 
   end do  ! looping through glce layers
