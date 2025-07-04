@@ -623,7 +623,6 @@ subroutine updateDiagnWithPrime(&
 
             ! *** vegetation canopy
             case(iname_veg)
-
               ! compute volumetric fraction of liquid water and ice
               call updateSnLaGlPrime(&
                               .false.,                                      & ! intent(in):  flag if no liquid water in layer
@@ -649,7 +648,6 @@ subroutine updateDiagnWithPrime(&
 
             ! *** snow layers
             case(iname_snow, iname_lake, iname_glce)
-
               ! compute volumetric fraction of liquid water and ice
               call updateSnLaGlPrime(&
                               iLayer>nLayers-noWatState,      & ! intent(in):  flag if no liquid water in layer
@@ -668,7 +666,6 @@ subroutine updateDiagnWithPrime(&
 
             ! *** soil layers
             case(iname_soil)
-
               ! compute volumetric fraction of liquid water and ice
               call updateSoilPrime(&
                               xTemp,                                  & ! intent(in):  temperature (K)

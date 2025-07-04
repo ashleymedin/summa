@@ -497,7 +497,6 @@ subroutine updateDiagn(&
 
             ! *** vegetation canopy
             case(iname_veg)
-
               ! compute volumetric fraction of liquid water and ice
               call updateSnLaGl(&
                               .false.,                                      & ! intent(in):  flag that no liquid water in layer
@@ -517,7 +516,6 @@ subroutine updateDiagn(&
 
             ! *** snow layers
             case(iname_snow, iname_lake, iname_glce)
-
               ! compute volumetric fraction of liquid water and ice
               call updateSnLaGl(&
                               iLayer>nLayers-noWatState,      & ! intent(in):  flag that no liquid water in layer
@@ -532,7 +530,6 @@ subroutine updateDiagn(&
 
               ! *** soil layers
             case(iname_soil)
-
               ! compute volumetric fraction of liquid water and ice
               call updateSoil(&
                               xTemp,                                  & ! intent(in):  temperature (K)
