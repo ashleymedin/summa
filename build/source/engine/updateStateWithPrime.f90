@@ -63,7 +63,7 @@ subroutine updateSnLaGlPrime(&
   fLiq = fracliquid(mLayerTemp,snowfrz_scale,noLiq)
   mLayerVolFracLiq = fLiq*mLayerTheta
   mLayerVolFracIce = (1._rkind - fLiq)*mLayerTheta*(iden_water/iden_ice)
-  mLayerVolFracLiqPrime = fLiq * mLayerThetaPrime + dFracLiq_dTk(mLayerTemp,snowfrz_scale) * mLayerTheta * mLayerTempPrime
+  mLayerVolFracLiqPrime = fLiq * mLayerThetaPrime + dFracLiq_dTk(mLayerTemp,snowfrz_scale,noLiq) * mLayerTheta * mLayerTempPrime
   mLayerVolFracIcePrime = ( mLayerThetaPrime - mLayerVolFracLiqPrime ) * (iden_water/iden_ice)
 
   ! set primes to missing if the temperature prime is missing (enthalpy is state variable)

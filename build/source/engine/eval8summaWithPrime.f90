@@ -232,6 +232,10 @@ subroutine eval8summaWithPrime(&
     ! canopy and layer depth
     canopyDepth               => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)         ,& ! intent(in):  [dp   ]  canopy depth (m)
     mLayerDepth               => prog_data%var(iLookPROG%mLayerDepth)%dat                  ,& ! intent(in):  [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
+    ! model state variables from the start of the data window in case of no water state in glacier ice layers
+    mLayerVolFracWat          => prog_data%var(iLookPROG%mLayerVolFracWat)%dat             ,& ! intent(in):  [dp(:)] volumetric fraction of total water (-)
+    mLayerVolFracLiq          => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat             ,& ! intent(in):  [dp(:)] volumetric fraction of liquid water (-)
+    mLayerVolFracIce          => prog_data%var(iLookPROG%mLayerVolFracIce)%dat             ,& ! intent(in):  [dp(:)] volumetric fraction of ice (-)
     ! model diagnostic variables, will be updated before used
     scalarFracLiqVeg          => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)          ,& ! intent(in):  [dp]     fraction of liquid water on vegetation (-)
     scalarSfcMeltPond         => prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)         ,& ! intent(in):  [dp]     ponded water caused by melt of the "snow without a layer" (kg m-2)
@@ -317,21 +321,22 @@ subroutine eval8summaWithPrime(&
       ixEnd  = nSoil
     endif
 
-    ! Canopy layer can disappear even without splitting (snow burial), so need to take last values
+    ! Canopy layer can disappear even without splitting (snow burial), so need to take from the end of the previous time step
     if(ixNrgConserv== enthalpyForm .or. ixNrgConserv == enthalpyFormLU)then ! use state variable as enthalpy, need to compute temperature
       scalarCanopyNrgTrial = scalarCanopyEnthalpyTrial
     else ! use state variable as temperature
       scalarCanopyNrgTrial = scalarCanopyTempTrial
     endif !(choice of how conservation of energy is implemented)
+    ! glacier ice layers may have water state that does not change, so need to take values from the start of the data window
+    mLayerVolFracWatTrial     = mLayerVolFracWat
+    mLayerVolFracLiqTrial     = mLayerVolFracLiq
+    mLayerVolFracIceTrial     = mLayerVolFracIce
 
-   ! Placeholder: if we decide to use splitting, we need to pass all the previous values of the state variables
+   ! Placeholder: if we decide to use splitting, we need to pass all values of the state variables from the end of the previous time step (not from start of data window)
     scalarCanairNrgTrial      = realMissing
     scalarCanopyLiqTrial      = realMissing
     scalarCanopyIceTrial      = realMissing
     mLayerNrgTrial            = realMissing
-    mLayerVolFracWatTrial     = realMissing
-    mLayerVolFracLiqTrial     = realMissing
-    mLayerVolFracIceTrial     = realMissing
     mLayerMatricHeadTrial     = realMissing
     mLayerMatricHeadLiqTrial  = realMissing
     scalarAquiferStorageTrial = realMissing
@@ -557,7 +562,6 @@ subroutine eval8summaWithPrime(&
       ! compute C_m
       call computeCm(&
                  ! input: state variables
-                 canopyDepth,               & ! intent(in):    canopy depth (m)
                  scalarCanopyTempTrial,     & ! intent(in):    trial value of canopy temperature (K)
                  mLayerTempTrial,           & ! intent(in):    trial value of layer temperature (K)
                  mLayerMatricHeadTrial,     & ! intent(in):    trial value for total water matric potential (-)

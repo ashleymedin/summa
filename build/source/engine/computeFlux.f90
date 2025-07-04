@@ -688,9 +688,10 @@ contains
    mLayerDepth              => prog_data%var(iLookPROG%mLayerDepth)%dat,                  & ! intent(in):    [dp(:)]  depth of each layer (m)
    scalarGlceMelt           => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1),            & ! intent(out):   [dp] glacier ice layer melt (m s-1)
    scalarGlacierMelt        => flux_data%var(iLookFLUX%scalarGlacierMelt)%dat(1)          ) ! intent(out):   [dp] glacier ice melt plus snow and soil drainage (m s-1)
-   ! calculate net liquid water fluxes for top layers of glacier ice layer only (s-1), goes upward since glacier ice is impermeable
+   ! calculate net liquid water fluxes for top layers of glacier ice layer only (s-1)
    do iLayer=1,nGlce-noWatState
-     mLayerLiqFluxSnLaGl(iLayer+nStart) = (iLayerLiqFluxSnLaGl(iLayer+nStart) - iLayerLiqFluxSnLaGl(iLayer-1+nStart))/mLayerDepth(iLayer+nStart)
+     mLayerLiqFluxSnLaGl(iLayer+nStart) = -(iLayerLiqFluxSnLaGl(iLayer+nStart) - iLayerLiqFluxSnLaGl(iLayer-1+nStart))/mLayerDepth(iLayer+nStart)
+     !m_1 =  -i_1 + (-m_1 + i_1)
    end do
    if(noWatState>0)then ! no water flux in lower glacier ice layers
      do iLayer=nGlce-noWatState+1,nGlce
@@ -706,7 +707,7 @@ contains
  end subroutine finalize_glceLiqFlux
  ! **** end glceLiqFlux ****
 
- ! **** snowLakeGlceLiqFlux ****
+ ! **** snowLiqFlux ****
  subroutine initialize_snowLiqFlux
   associate(&
    scalarThroughfallRain        => flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1),   & ! intent(in): [dp] rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
