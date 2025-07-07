@@ -103,6 +103,8 @@ integer(i4b),parameter  :: lakeSplit=3                ! order in sequence for th
 integer(i4b),parameter  :: soilSplit=4                ! order in sequence for the soil split
 integer(i4b),parameter  :: glceSplit=5                ! order in sequence for the ice split
 integer(i4b),parameter  :: aquiferSplit=6             ! order in sequence for the aquifer split
+integer(i4b),parameter  :: iDomainSplit_nrg_map(6) =(/vegSplit,snowSplit,lakeSplit,soilSplit,glceSplit,aquiferSplit/) ! mapping of the energy split order
+integer(i4b),parameter  :: iDomainSplit_mass_map(6)=(/vegSplit,glceSplit,snowSplit,lakeSplit,soilSplit,aquiferSplit/) ! mapping of the mass split order
 
 ! named variables for the solution method
 integer(i4b),parameter  :: vector=1                   ! vector solution method
@@ -300,8 +302,6 @@ subroutine opSplittin(&
   integer(i4b)                    :: iStateTypeSplit                ! index of the state type split
   integer(i4b)                    :: iDomainSplit, iDomainSplit_use ! index of the domain split
   integer(i4b)                    :: iStateSplit                    ! index of the state split
-  integer(i4b)                    :: iDomainSplit_mass_map(nDomains)! mapping of the mass split order
-  integer(i4b)                    :: iDomainSplit_nrg_map(nDomains) ! mapping of the energy split order
   ! flux masks
   logical(lgt)                    :: neededFlux(nFlux)              ! .true. if flux is needed at all
   logical(lgt)                    :: desiredFlux                    ! .true. if flux is desired for a given split
@@ -331,10 +331,6 @@ subroutine opSplittin(&
   ! -------------------------------------------------------------------------------------------------------------------------
   type(split_select_type) :: split_select ! class object for selecting operator splitting methods
   ! -------------------------------------------------------------------------------------------------------------------------
-  ! mapping of split order
-  iDomainSplit_mass_map = (/vegSplit, glceSplit, snowSplit, lakeSplit, soilSplit, aquiferSplit/)
-  iDomainSplit_nrg_map  = (/vegSplit, snowSplit, lakeSplit, soilSplit, glceSplit, aquiferSplit/)
-
   ! set up split_select object and prepare for split_select_loop
   call initialize_opSplittin; if (return_flag) return
  
@@ -1511,6 +1507,7 @@ end subroutine split_select_compute_stateMask
  ! output
  type(out_type_stateFilter),intent(out) :: out_stateFilter           ! number of selected state variables for a given split and error control
  ! local
+ integer(i4b)                           :: iDomainSplit_use          ! index of the domain split
  integer(i4b),allocatable               :: ixSubset(:)               ! list of indices in the state subset
  character(len=256)                     :: cmessage                  ! error message
  logical(lgt)                           :: return_flag               ! flag to indicate a return 
@@ -1631,7 +1628,8 @@ contains
    iDomainSplit    => split_select % iDomainSplit,& ! intent(in): [i4b] index of the domain split
    err             => out_stateFilter % err      ,& ! intent(out): error code
    message         => out_stateFilter % cmessage  ) ! intent(out): error message
-   select case(iDomainSplit)
+   iDomainSplit_use = iDomainSplit_nrg_map(iDomainSplit)
+   select case(iDomainSplit_use)
    case(vegSplit);  call stateTypeSplit_subDomain_nrgSplit_vegSplit_stateMask       ! vegetation subdomain
    case(snowSplit); call stateTypeSplit_subDomain_nrgSplit_snowSplit_stateMask      ! snow subdomain
    case(lakeSplit); call stateTypeSplit_subDomain_nrgSplit_lakeSplit_stateMask      ! lake subdomain
@@ -1704,7 +1702,8 @@ contains
    iDomainSplit => split_select % iDomainSplit,& ! intent(in): [i4b] index of the domain split
    err          => out_stateFilter % err      ,& ! intent(out): error code
    message      => out_stateFilter % cmessage  ) ! intent(out): error message
-   select case(iDomainSplit)
+   iDomainSplit_use = iDomainSplit_mass_map(iDomainSplit)
+   select case(iDomainSplit_use)
     case(vegSplit);     call stateTypeSplit_subDomain_massSplit_vegSplit_stateMask     ! vegetation subdomain
     case(snowSplit);    call stateTypeSplit_subDomain_massSplit_snowSplit_stateMask    ! snow subdomain
     case(lakeSplit);    call stateTypeSplit_subDomain_massSplit_lakeSplit_stateMask    ! lake subdomain
