@@ -1538,7 +1538,7 @@ subroutine coupled_em(&
       averageGroundEvaporation   => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarGroundEvaporation))%dat(1)   ,& ! soil evaporation (kg m-2 s-1)
       averageCanopyTranspiration => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopyTranspiration))%dat(1) ,& ! canopy transpiration (kg m-2 s-1)
       ! glacier fluxes
-      averageGlceMelt          => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarGlceMelt))%dat(1)              ,& ! glacier ice melt (kg m-2 s-1)
+      averageGlceMelt          => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarGlceMelt))%dat(1)              ,& ! glacier ice melt (m s-1)
       ! state variables in the vegetation canopy
       scalarCanopyWat            => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)                           ,& ! canopy water content (kg m-2)
       scalarCanopyIce            => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)                           ,& ! ice content of the vegetation canopy (kg m-2)
@@ -1765,8 +1765,8 @@ subroutine coupled_em(&
         !if(printBalance)then
         !endif
 
-        ! check the ice water balance
-        massBalance = averageGlceMelt*iden_water*data_step - (balanceIceWE0-scalarIceWE)
+        ! check the ice water balance, remembering that averageGlceMelt will be negative since upwards flux
+        massBalance = -averageGlceMelt*iden_water*data_step - (balanceIceWE0-scalarIceWE)
         if(abs(massBalance) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance_ds)then
           write(*,'(a,1x,f20.10)') 'data_step             = ', data_step
           write(*,'(a,1x,f20.10)') 'balanceIceWE0         = ', balanceIceWE0

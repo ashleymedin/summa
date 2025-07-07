@@ -648,7 +648,7 @@ MODULE data_types
    real(rkind)              :: dCanopyTrans_dTGround             ! intent(in):    derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
    real(rkind)              :: above_soilLiqFluxDeriv            ! intent(in):    derivative in layer above soil (canopy or snow) liquid flux w.r.t. liquid water
    real(rkind)              :: above_soildLiq_dTk                ! intent(in):    derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
-   real(rkind)              :: scalarGlceMelt                    ! intent(in):    glacier melt (kg m-2 s-1)
+   real(rkind)              :: scalarGlceMelt                    ! intent(in):    glacier ice melt, upwards flux so negative (m s-1)
    real(rkind)              :: above_soilFracLiq                 ! intent(in):    fraction of liquid water layer above soil (canopy or snow) (-)
    real(rkind)              :: scalarCanopyTranspiration         ! intent(in):    canopy transpiration (kg m-2 s-1)
    real(rkind)              :: scalarGroundEvaporation           ! intent(in):    ground evaporation (kg m-2 s-1)
@@ -1527,11 +1527,11 @@ contains
    scalarCanopyTranspiration    => flux_data%var(iLookFLUX%scalarCanopyTranspiration)%dat(1), & ! intent(out): [dp] canopy transpiration (kg m-2 s-1)
    scalarGroundEvaporation      => flux_data%var(iLookFLUX%scalarGroundEvaporation)%dat(1),   & ! intent(out): [dp] ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
    scalarRainPlusMelt           => flux_data%var(iLookFLUX%scalarRainPlusMelt)%dat(1),        & ! intent(out): [dp] rain plus melt plus lake drainage (m s-1)
-   scalarGlceMelt               => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1)             ) ! intent(out): [dp] glacier ice layer melt (m s-1)
+   scalarGlceMelt               => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1)             ) ! intent(out): [dp]  glacier ice melt, upwards flux so negative (m s-1)
    in_soilLiqFlux % scalarCanopyTranspiration=scalarCanopyTranspiration                          ! intent(in): canopy transpiration (kg m-2 s-1)
    in_soilLiqFlux % scalarGroundEvaporation  =scalarGroundEvaporation                            ! intent(in): ground evaporation (kg m-2 s-1)
    in_soilLiqFlux % scalarRainPlusMelt       =scalarRainPlusMelt                                 ! intent(in): rain plus melt plus lake drainage (m s-1)
-   in_soilLiqFlux % scalarGlceMelt           =scalarGlceMelt                                     ! intent(in): glacier ice layer melt (m s-1)
+   in_soilLiqFlux % scalarGlceMelt           =scalarGlceMelt                                     ! intent(in):  glacier ice melt, upwards flux so negative (m s-1)
   end associate
  end subroutine initialize_in_soilLiqFlux
 

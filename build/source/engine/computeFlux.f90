@@ -417,7 +417,7 @@ contains
  subroutine zeroGlacierFluxes
   ! set glacier ice fluxes to zero if no glacier ice layers
   associate(&
-   scalarGlceMelt              => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1),    & ! intent(out): [dp] glacier ice melt (m s-1)
+   scalarGlceMelt              => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1),    & ! intent(out): [dp] glacier ice melt, upwards flux so negative (m s-1)
    scalarGlacierMelt           => flux_data%var(iLookFLUX%scalarGlacierMelt)%dat(1)  ) ! intent(out): [dp] glacier ice melt plus snow and debris drainage (m s-1)
    scalarGlceMelt    = 0._rkind ! melt from glacier ice
    scalarGlacierMelt = 0._rkind ! glacier rain + snow+debris melt
@@ -666,8 +666,8 @@ contains
  subroutine initialize_glceLiqFlux
   associate(&
    noWatState        => indx_data%var(iLookINDEX%noWatState)%dat(1)      ) ! intent(in): [int] number of layers with no water state (bottom glacier ice layers)
-   surface_flux = 0._rkind ! surface flux for glacier ice layers (m s-1)
-   bottom_flux = 0._rkind ! bottom flux for glacier ice layers (m s-1)
+   surface_flux = 0._rkind ! no surface flux for glacier ice layers since impermeable
+   bottom_flux = 0._rkind ! no bottom flux for glacier ice layers
    nStart = nSnow + nLake + nSoil
    call in_snowLakeGlceLiqFlux%initialize(nGlce-noWatState,nStart,.false.,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
    call io_snowLakeGlceLiqFlux%initialize(nGlce-noWatState,nStart,flux_data,deriv_data) ! only compute liquid water fluxes for top layers
@@ -686,12 +686,12 @@ contains
    iLayerLiqFluxSnLaGl      => flux_data%var(iLookFLUX%iLayerLiqFluxSnLaGl)%dat,          & ! intent(in):    [dp(0:)] vertical liquid water flux at snow lake ice layer interfaces (-)
    iLayerLiqFluxSnLaGlDeriv => deriv_data%var(iLookDERIV%iLayerLiqFluxSnLaGlDeriv)%dat,   & ! intent(inout): [dp(:)] derivative in vertical liquid water flux at layer interfaces
    mLayerDepth              => prog_data%var(iLookPROG%mLayerDepth)%dat,                  & ! intent(in):    [dp(:)]  depth of each layer (m)
-   scalarGlceMelt           => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1),            & ! intent(out):   [dp] glacier ice layer melt (m s-1)
+   scalarRainPlusMelt       => flux_data%var(iLookFLUX%scalarRainPlusMelt)%dat(1),        & ! intent(out): [dp] rain plus melt plus lake drainage (m s-1)
+   scalarGlceMelt           => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1),            & ! intent(out):   [dp]  glacier ice melt, upwards flux so negative (m s-1)
    scalarGlacierMelt        => flux_data%var(iLookFLUX%scalarGlacierMelt)%dat(1)          ) ! intent(out):   [dp] glacier ice melt plus snow and soil drainage (m s-1)
    ! calculate net liquid water fluxes for top layers of glacier ice layer only (s-1)
    do iLayer=1,nGlce-noWatState
      mLayerLiqFluxSnLaGl(iLayer+nStart) = -(iLayerLiqFluxSnLaGl(iLayer+nStart) - iLayerLiqFluxSnLaGl(iLayer-1+nStart))/mLayerDepth(iLayer+nStart)
-     !m_1 =  -i_1 + (-m_1 + i_1)
    end do
    if(noWatState>0)then ! no water flux in lower glacier ice layers
      do iLayer=nGlce-noWatState+1,nGlce
@@ -700,9 +700,9 @@ contains
        mLayerLiqFluxSnLaGl(iLayer+nStart) = 0.6_rkind
      end do
    end if
-   ! compute melt from the glacier ice zone (all melt goes to top of glacier ice)
+   ! compute melt from the glacier ice zone (all melt goes to top of glacier ice), make positive since will be negative as upward flux
    scalarGlceMelt = iLayerLiqFluxSnLaGl(nStart) ! glacier ice melt is the liquid water flux at the top of the glacier ice layer
-   scalarGlacierMelt = scalarGlceMelt ! save for glacier melt flow calculations, may be overwritten with addition of above domain fluxes
+   scalarGlacierMelt = scalarRainPlusMelt - scalarGlceMelt ! (= above layer positive flux (0) - upward flux) save for glacier melt flow calculations, may be overwritten with addition of above domain fluxes
   end associate
  end subroutine finalize_glceLiqFlux
  ! **** end glceLiqFlux ****
@@ -712,10 +712,10 @@ contains
   associate(&
    scalarThroughfallRain        => flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1),   & ! intent(in): [dp] rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
    scalarCanopyLiqDrainage      => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1), & ! intent(in): [dp] drainage of liquid water from the vegetation canopy (kg m-2 s-1)
-   scalarGlceMelt               => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1)           ) ! intent(in): [dp] glacier ice layer melt (m s-1)
+   scalarGlceMelt               => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1)           ) ! intent(in): [dp]  glacier ice melt, upwards flux so negative (m s-1)
    surface_flux = (scalarThroughfallRain + scalarCanopyLiqDrainage)/iden_water
    bottom_flux = 0._rkind ! bottom flux for snow layers (m s-1)
-   if (nLake==0 .and. nSoil==0) bottom_flux = scalarGlceMelt ! bottom flux for snow layers (m s-1)
+   !if (nLake==0 .and. nSoil==0) bottom_flux = scalarGlceMelt ! leave this here in case want to couple with glacier ice melt for slush layer, will change derivatives
    nStart = 0
    call in_snowLakeGlceLiqFlux%initialize(nSnow,nStart,.true.,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
    call io_snowLakeGlceLiqFlux%initialize(nSnow,nStart,flux_data,deriv_data)
@@ -738,10 +738,10 @@ contains
    iLayerLiqFluxSnLaGlDeriv => deriv_data%var(iLookDERIV%iLayerLiqFluxSnLaGlDeriv)%dat, & ! intent(out): [dp(:)] derivative in vertical liquid water flux at layer interfaces
    mLayerdTheta_dTk         => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat,         & ! intent(in):  [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
    mLayerFracLiq            => diag_data%var(iLookDIAG%mLayerFracLiq)%dat,              & ! intent(in):  [dp(:)] fraction of liquid water in each snow, lake, or glacier ice layer (-)
-   scalarGlceMelt           => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1),          & ! intent(in):  [dp] glacier ice layer melt (m s-1)
+   scalarGlceMelt           => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1),          & ! intent(in):  [dp]  glacier ice melt, upwards flux so negative (m s-1)
    scalarGlacierMelt        => flux_data%var(iLookFLUX%scalarGlacierMelt)%dat(1)        ) ! intent(out): [dp] glacier ice melt plus snow and soil drainage (m s-1)
    ! define forcing for the beneath domain
-   scalarRainPlusMelt = iLayerLiqFluxSnLaGl(nSnow) ! drainage from the base of the snowpack
+   scalarRainPlusMelt = iLayerLiqFluxSnLaGl(nSnow+nStart) ! drainage from the base of the snowpack
    scalarLakeInflux   = scalarRainPlusMelt         ! save for lake flux calculations
    ! calculate net liquid water fluxes for each snow layer (s-1)
    do iLayer=1,nSnow
@@ -750,8 +750,9 @@ contains
    ! compute drainage from the snow zone (needed for mass balance checks)
    scalarSnowDrainage = iLayerLiqFluxSnLaGl(nSnow+nStart)
    if(nGlce>0)then
-     scalarGlacierMelt = scalarSnowDrainage ! save for glacier melt flow calculations, may be overwritten with addition of below domain fluxes
-     if (nLake==0 .and. nSoil==0) scalarSnowDrainage = scalarSnowDrainage - scalarGlceMelt ! snow drainage is the liquid water flux at the top of the glacier ice layer
+     scalarGlacierMelt = scalarSnowDrainage - scalarGlceMelt ! save for glacier melt flow calculations, may be overwritten with addition of below domain fluxes
+     ! If couple glacier ice melt with snow drainage and create slush layer then would need the following line
+     !scalarGlacierMelt = scalarSnowDrainage; if (nLake==0 .and. nSoil==0) scalarSnowDrainage = scalarSnowDrainage - scalarGlceMelt 
    endif
    ! save bottom layer snow derivatives
    above_LiqFluxDeriv = iLayerLiqFluxSnLaGlDeriv(nSnow) ! derivative in vertical liquid water flux at bottom snow layer interface
@@ -765,10 +766,10 @@ contains
  subroutine initialize_lakeLiqFlux
   associate(&
    scalarLakeInflux  => flux_data%var(iLookFLUX%scalarLakeInflux)%dat(1),  & ! intent(in): [dp] influx to lake, rain plus melt (m s-1)
-   scalarGlceMelt    => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1)     ) ! intent(in): [dp] glacier ice layer melt (m s-1)
+   scalarGlceMelt    => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1)     ) ! intent(in): [dp]  glacier ice melt, upwards flux so negative (m s-1)
    surface_flux = scalarLakeInflux 
    bottom_flux = 0._rkind ! bottom flux for lake layers (m s-1)
-   if(nSoil==0) bottom_flux = scalarGlceMelt ! bottom flux for lake layers (m s-1)
+   !if(nSoil==0) bottom_flux = scalarGlceMelt ! leave this here in case want to couple with glacier ice melt for slush layer, will change derivatives
    nStart = nSnow + nLake
    call in_snowLakeGlceLiqFlux%initialize(nLake,nStart,.false.,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
    call io_snowLakeGlceLiqFlux%initialize(nLake,nStart,flux_data,deriv_data)
@@ -790,7 +791,7 @@ contains
    iLayerLiqFluxSnLaGlDeriv => deriv_data%var(iLookDERIV%iLayerLiqFluxSnLaGlDeriv)%dat, & ! intent(in):  [dp(:)] derivative in vertical liquid water flux at layer interfaces
    mLayerdTheta_dTk         => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat,         & ! intent(in):  [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
    mLayerFracLiq            => diag_data%var(iLookDIAG%mLayerFracLiq)%dat,              & ! intent(in):  [dp(:)] fraction of liquid water in each snow, lake, or glacier ice layer (-)
-   scalarGlceMelt           => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1),          & ! intent(in):  [dp] glacier ice layer melt (m s-1)
+   scalarGlceMelt           => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1),          & ! intent(in):  [dp]  glacier ice melt, upwards flux so negative (m s-1)
    scalarGlacierMelt        => flux_data%var(iLookFLUX%scalarGlacierMelt)%dat(1)        ) ! intent(out): [dp] glacier ice melt plus snow and soil drainage (m s-1)
    ! define forcing for the beneath domain
    scalarRainPlusMelt = iLayerLiqFluxSnLaGl(nLake+nStart) ! drainage from the base of the lake
@@ -801,8 +802,9 @@ contains
    ! compute drainage from the lake zone (needed for mass balance checks)
    scalarLakeDrainage = iLayerLiqFluxSnLaGl(nLake+nStart)
    if(nGlce>0)then
-     scalarGlacierMelt = scalarLakeDrainage ! save for glacier melt flow calculations, may be overwritten with addition of below domain fluxes
-     if (nSoil==0) scalarLakeDrainage = scalarLakeDrainage - scalarGlceMelt ! lake drainage is the liquid water flux at the top of the glacier ice layer
+     scalarGlacierMelt = scalarLakeDrainage - scalarGlceMelt ! save for glacier melt flow calculations, may be overwritten with addition of below domain fluxes
+     ! If couple glacier ice melt with lake drainage and create slush layer then would need the following line
+     !scalarGlacierMelt = scalarLakeDrainage; if (nSoil==0) scalarLakeDrainage = scalarLakeDrainage - scalarGlceMelt
    endif
    ! save bottom layer lake derivatives
    above_LiqFluxDeriv = iLayerLiqFluxSnLaGlDeriv(nLake+nStart) ! derivative in vertical liquid water flux at bottom lake layer interface
@@ -837,12 +839,12 @@ contains
    scalarInfilArea          => diag_data%var(iLookDIAG%scalarInfilArea   )%dat(1),      & ! intent(in):  [dp] fraction of unfrozen area where water can infiltrate (-)
    scalarFrozenArea         => diag_data%var(iLookDIAG%scalarFrozenArea  )%dat(1),      & ! intent(in):  [dp] fraction of area that is considered impermeable due to soil ice (-)
    scalarSoilDrainage       => flux_data%var(iLookFLUX%scalarSoilDrainage)%dat(1),      & ! intent(in):  [dp] drainage from the soil profile (m s-1)
-   scalarGlceMelt           => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1),          & ! intent(in):  [dp] glacier ice layer melt (m s-1)
+   scalarGlceMelt           => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1),          & ! intent(in):  [dp]  glacier ice melt, upwards flux so negative (m s-1)
    scalarGlacierMelt        => flux_data%var(iLookFLUX%scalarGlacierMelt)%dat(1)        ) ! intent(out): [dp] glacier ice melt plus snow and soil drainage (m s-1)
    ! compute drainage from the soil zone (needed for mass balance checks and in aquifer recharge)
    scalarSoilDrainage = iLayerLiqFluxSoil(nSoil)
    if(nGlce>0)then
-     scalarGlacierMelt = scalarSoilDrainage ! save for glacier melt flow calculations
+     scalarGlacierMelt = scalarSoilDrainage ! save for glacier melt flow calculations, soil layers are coupled to glacier ice melt
      scalarSoilDrainage = scalarSoilDrainage - scalarGlceMelt ! soil drainage is the liquid water flux at the top of the glacier ice layer
    endif
    ! calculate net liquid water fluxes for each soil layer (s-1)

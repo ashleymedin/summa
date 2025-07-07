@@ -611,7 +611,7 @@ MODULE var_lookup
   integer(i4b)    :: scalarSnowDrainage              = integerMissing ! drainage from the bottom of the snow profile (m s-1)
   integer(i4b)    :: scalarLakeDrainage              = integerMissing ! drainage from the bottom of the lake profile (m s-1)
   integer(i4b)    :: scalarLakeInflux                = integerMissing ! iinflux to the lake, rain plus melt plus lake drainage (m s-1)
-  integer(i4b)    :: scalarGlceMelt                  = integerMissing ! glacier ice melt (m s-1)
+  integer(i4b)    :: scalarGlceMelt                  = integerMissing ! glacier ice melt, upwards flux so negative (m s-1)
   integer(i4b)    :: iLayerLiqFluxSnLaGl             = integerMissing ! liquid flux at snow lake glce interfaces (m s-1)
   integer(i4b)    :: mLayerLiqFluxSnLaGl             = integerMissing ! net liquid water flux for each snow lake glce (s-1)
   ! liquid water fluxes for the soil

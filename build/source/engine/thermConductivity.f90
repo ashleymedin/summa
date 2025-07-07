@@ -108,7 +108,7 @@ subroutine thermConductivity(&
   real(rkind),intent(in)               :: mLayerVolFracLiq(:)      ! volumetric fraction of liquid at the current iteration (-)
   ! input: pre-computed derivatives
   real(rkind),intent(in)               :: mLayerdTheta_dTk(:)      ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
-  real(rkind),intent(in)               :: mLayerFracLiq(:)     ! fraction of liquid water (-)
+  real(rkind),intent(in)               :: mLayerFracLiq(:)         ! fraction of liquid water (-)
   ! input/output: data structures
   type(var_dlength),intent(in)         :: mpar_data                ! model parameters
   type(var_ilength),intent(in)         :: indx_data                ! model layer indices
