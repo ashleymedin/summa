@@ -211,7 +211,7 @@ subroutine snowLakeGlceLiqFlux(&
     end if  ! end if snow or ice
     if(ixBot==nLayers)then
       iLayerLiqFluxSnLaGl(nLayers) = iLayerLiqFluxSnLaGl(nLayers) + bottom_flux   ! set the bottom flux if already computed
-      iLayerLiqFluxSnLaGlDeriv(nLayers) = iLayerLiqFluxSnLaGlDeriv(nLayers) ! may be modified computed inside computeJacob
+      iLayerLiqFluxSnLaGlDeriv(nLayers) = iLayerLiqFluxSnLaGlDeriv(nLayers) ! may be modified computed inside computeJacob, currently bottom flux is always 0 so not needed
     end if
 
     ! save the results with index 0
