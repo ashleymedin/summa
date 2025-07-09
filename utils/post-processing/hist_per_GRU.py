@@ -32,6 +32,7 @@ no_snow = False # true is only plot snow free simulations
 # these options are for the boxplot only
 showfliers = False # true is show outliers in boxplot
 do_violin = True # true is plot violin plot instead of boxplot
+vio_points = 10000 # number of points to consider in kernel estimation of violin plot, bigger is better but slow (100 default, 10000 is good for all of N.America)
 
 if run_local: 
     stat = 'avge'
@@ -285,7 +286,7 @@ def run_loop(i,var,mx,rep,stat):
             data = np.fabs(s.values)
             data = data[~np.isnan(data)]
             if do_violin:
-                vplot = axs[r, c].violinplot(dataset=[data],positions=[len(method_name) - method_name.index(m)],vert=False,showextrema=showfliers)
+                vplot = axs[r, c].violinplot(dataset=[data],positions=[len(method_name) - method_name.index(m)],vert=False,showextrema=showfliers,points=vio_points)
                 for pc in vplot['bodies']:
                     pc.set_facecolor(auto_col[method_name.index(m)])
                     pc.set_edgecolor('black')
@@ -391,7 +392,7 @@ def run_loopb(i,var,mx,rep,stat2):
             data = np.fabs(s.values)
             data = data[~np.isnan(data)]
             if do_violin:
-                vplot = axs[r, c].violinplot(dataset=[data],positions=[len(method_name2) - method_name2.index(m)],vert=False,showextrema=showfliers)
+                vplot = axs[r, c].violinplot(dataset=[data],positions=[len(method_name2) - method_name2.index(m)],vert=False,showextrema=showfliers,points=vio_points)
                 for pc in vplot['bodies']:
                     pc.set_facecolor(auto_col[method_name2.index(m)])
                     pc.set_edgecolor('black')
@@ -551,7 +552,7 @@ def run_loop3(i,var,mx,rep,stat3):
             data = np.fabs(s.values)
             data = data[~np.isnan(data)]
             if do_violin:
-                vplot = axs[r, c].violinplot(dataset=[data],positions=[len(method_name3) - method_name3.index(m)],vert=False,showextrema=showfliers)
+                vplot = axs[r, c].violinplot(dataset=[data],positions=[len(method_name3) - method_name3.index(m)],vert=False,showextrema=showfliers,points=vio_points)
                 for pc in vplot['bodies']:
                     pc.set_facecolor(auto_col[method_name3.index(m)])
                     pc.set_edgecolor('black')

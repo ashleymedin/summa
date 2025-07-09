@@ -46,8 +46,8 @@ if run_local:
 else:
     import sys
     stat = sys.argv[1]
-    #viz_dir = Path(os.path.expanduser('~/statistics'))
-    viz_dir = Path('/project/k/kshook/avanb/enthalpy_paper/runs/statistics')
+    viz_dir = Path(os.path.expanduser('~/statistics'))
+    #viz_dir = Path('/project/k/kshook/avanb/enthalpy_paper/runs/statistics')
 
 
 # NOTE: method_name 'ref' will plot the reference solution, 'diff' will plot the difference between two simulations

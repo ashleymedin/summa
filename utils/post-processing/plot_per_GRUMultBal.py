@@ -43,8 +43,8 @@ if run_local:
 else:
     import sys
     stat = sys.argv[1]
-    #viz_dir = Path(os.path.expanduser('~/statistics'))
-    viz_dir = Path('/project/k/kshook/avanb/enthalpy_paper/runs/statistics')
+    viz_dir = Path(os.path.expanduser('~/statistics'))
+    #viz_dir = Path('/project/k/kshook/avanb/enthalpy_paper/runs/statistics')
 
 
 method_name=['be8','be8cm','be8en','sun5cm','sun5en','sun8en']  #maybe make this an argument
