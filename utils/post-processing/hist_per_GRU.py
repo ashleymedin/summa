@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 import copy
 import pandas as pd
 
+do_box = True # true is plot boxplot instead of CDF/histogram
 do_rel = False # true is plot relative to the benchmark simulation
 do_hist = False # true is plot histogram instead of CDF
 run_local = True # true is run on local machine, false is run on cluster
@@ -28,6 +29,7 @@ fix_wall_actors = True # true then scale reference solution for wall clock time
 fix_wall_actors_plot = False # true then plot the wall clock time comparison
 fix_wall_event_plot = False # true then plot the event detection time comparison
 no_snow = False # true is only plot snow free simulations
+showfliers = False # true is show outliers in boxplot
 
 if run_local: 
     stat = 'avge'
@@ -54,6 +56,7 @@ method_name3=method_name[0:3]
 plt_name3=plt_name[0:3]
 
 num_bins = 1000
+auto_col = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
 if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
@@ -64,8 +67,8 @@ def power_transform(x):
 # Simulation statistics file locations
 use_vars = []
 rep = [] # mark the repeats
-#use_vars = [4,4,1,1]
-#rep = [1,2,1,2] # mark the repeats
+use_vars = [4,4,1,1]
+rep = [1,2,1,2] # mark the repeats
 settings0= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','scalarRootZoneTemp']
 settings = [settings0[i] for i in use_vars]
 
@@ -73,8 +76,8 @@ settings = [settings0[i] for i in use_vars]
 #rep2 = [] # mark the repeats
 use_vars2 = [8]
 rep2 = [0] # mark the repeats
-#use_vars2 = [3,3]
-#rep2 = [1,2] # mark the repeats
+use_vars2 = [3,3]
+rep2 = [1,2] # mark the repeats
 settings20= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
 settings2 = [settings20[i] for i in use_vars2]
 
@@ -124,12 +127,14 @@ else:
     plt_titl3 = [f"{plt_titl3[i]}" for n,i in enumerate(use_vars3)]
 leg_titl3 = [leg_titl3[i] for i in use_vars3]
 
-
-if do_hist:
-    fig_fil = 'Hrly_diff_hist_{}_{}_zoom'
+if do_box:
+    fig_fil = 'Hrly_diff_box_{}_{}_zoom'
 else:
-    fig_fil = 'Hrly_diff_cdf_{}_{}_zoom'
-    #if len(use_vars3)>0: fig_fil = 'Hrly_diff_cdf_{}_{}'
+    if do_hist:
+        fig_fil = 'Hrly_diff_hist_{}_{}_zoom'
+    else:
+        fig_fil = 'Hrly_diff_cdf_{}_{}_zoom'
+        #if len(use_vars3)>0: fig_fil = 'Hrly_diff_cdf_{}_{}'
 if do_rel: fig_fil = fig_fil+'_rel'
 if no_snow: fig_fil = fig_fil + '_nosnow'
 fig_fil = fig_fil +'_compressed.png'
@@ -158,16 +163,16 @@ if stat == 'kgem':
     maxes = [0.9,0.9,0.9,0.9,0.9]
 maxes = [maxes[i] for i in use_vars]
 for i in range(len(maxes)):
-    #if rep[i]==2: maxes[i] = maxes[i]*2.5 #clunky way to increase the range for the second repeat
-    if rep[i]==2: maxes[i] = maxes_m[use_vars[i]] #clunky way to increase the range for the second repeat
+    #if rep[i]==2: maxes[i] = maxes[i]*2.5 #clunky way to increase the plot_range for the second repeat
+    if rep[i]==2: maxes[i] = maxes_m[use_vars[i]] #clunky way to increase the plot_range for the second repeat
 
 if stat2 == 'mean':
-    maxes2 = [1e2,1e2,1e2,1e2]+[1e-7,1e-5,1e-7,1e-8] + [5e-2]
+    maxes2 = [1e2,1e2,1e2,1e2]+[1e-7,1e-5,1e-7,1e-8] + [2e-2]
 if stat2 == 'amax':
     maxes2 = [1e4,1e4,1e4,1e4]+[1e-5,1e-3,1e-5,1e-6] + [2.0]
 maxes2 = [maxes2[i] for i in use_vars2]
 for i in range(len(maxes2)):
-    if rep2[i]==2: maxes2[i] = maxes2[i]*1e2 #clunky way to increase the range for the second repeat
+    if rep2[i]==2: maxes2[i] = maxes2[i]*1e2 #clunky way to increase the plot_range for the second repeat
 
 stat3 = 'mean'
 maxes3 = [1e2,1e2,1e2,1e2,1e-7]
@@ -269,17 +274,23 @@ def run_loop(i,var,mx,rep,stat):
             if stat =='rmse' or stat =='rmnz' or stat=='mean': s = s*31557600*1000 # make annual total
             if stat =='maxe': s = s*3600*1000 # make hourly max           
         if stat == 'maxe': s = np.fabs(s) # make absolute value norm
-        range = (0,mx)
-        if stat=='kgem' and var!='wallClockTime' : range = (mn,1)
-        if do_hist: 
-            np.fabs(s).plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=3.0,range=range)
-        else: #cdf
-            sorted_data = np.sort(np.fabs(s))
-            valid_data = sorted_data[~np.isnan(sorted_data)]
-            yvals = np.arange(len(valid_data)) / float(len(valid_data) - 1)
-            axs[r,c].plot(valid_data, yvals, zorder=0, label=m, linewidth=3.0)
-            axs[r,c].set_xlim(range)  # Replace xmin and xmax with the desired limits
-
+        plot_range = (0,mx)
+        if stat=='kgem' and var!='wallClockTime': 
+            plot_range = (mn,1)
+        elif var=='wallClockTime':
+            plot_range = (0.0008,mx)
+        if do_box:
+            data = np.fabs(s.values)
+            data = data[~np.isnan(data)]
+            axs[r, c].boxplot(data,vert=False, positions=[len(method_name) - method_name.index(m)], widths=0.6,patch_artist=True,medianprops=dict(color='black'),boxprops=dict(facecolor=auto_col[method_name.index(m)]),showfliers=showfliers)
+        else:
+            if do_hist: 
+                np.fabs(s).plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=3.0,range=plot_range)
+            else: #cdf
+                sorted_data = np.sort(np.fabs(s))
+                valid_data = sorted_data[~np.isnan(sorted_data)]
+                yvals = np.arange(len(valid_data)) / float(len(valid_data) - 1)
+                axs[r,c].plot(valid_data, yvals, zorder=0, label=m, linewidth=3.0)
 
     if stat0 == 'rmse': stat_word = 'RMSE'
     if stat0 == 'rmnz': stat_word = 'RMSE' # no 0s'
@@ -294,7 +305,7 @@ def run_loop(i,var,mx,rep,stat):
     if statr == 'mnnz_ben': statr_word = 'mean' # no 0s'
     if statr == 'amax_ben': statr_word = 'max'
     
-    if c==0: axs[r,c].legend(plt_name)
+    if c==0 and not do_box: axs[r,c].legend(plt_name)
     titl = plt_titl[i]
     if no_snow: titl = titl + ' (snow-free GRUs)'
     if rep>0: titl = titl #+ ' '+ stat_word
@@ -303,17 +314,27 @@ def run_loop(i,var,mx,rep,stat):
     if stat=='kgem': axs[r,c].set_xlabel(stat_word)
     if do_rel and var!='wallClockTime': axs[r,c].set_xlabel('relative '+ stat_word)
 
-    if do_hist: 
-        axs[r,c].set_ylabel('GRU count')
-        if var != 'wallClockTime' and not run_local: axs[r,c].set_ylim([0, 25000])
- 
-    else:
-        axs[r,c].set_ylabel('cumulative distribution')
-        if(c>=1): axs[r, c].set_ylabel('')
-        axs[r,c].set_ylim([0.0, 1.0])
+    if do_box:
+        axs[r,c].set_xlim(plot_range)
+        axs[r, c].set_ylabel('')
+        axs[r, c].set_yticklabels('')
         axs[r,c].set_xscale('function', functions=(power_transform, np.power)) #log x axis
         if mx<1: # Rotate x-axis labels
-            axs[r, c].tick_params(axis='x', rotation=45)
+             axs[r, c].tick_params(axis='x', rotation=45) # Rotate x-axis labels for subplot
+        axs[r, c].set_yticks(range(1, len(method_name) + 1))
+        if(c==0): axs[r, c].set_yticklabels(plt_name[::-1])
+    else:
+        if do_hist: 
+            axs[r,c].set_ylabel('GRU count')
+            if var != 'wallClockTime' and not run_local: axs[r,c].set_ylim([0, 25000])
+        else:
+            axs[r,c].set_xlim(plot_range)
+            axs[r,c].set_ylabel('cumulative distribution')
+            if(c>=1): axs[r, c].set_ylabel('')
+            axs[r,c].set_ylim([0.0, 1.0])
+            axs[r,c].set_xscale('function', functions=(power_transform, np.power)) #log x axis
+            if mx<1: # Rotate x-axis labels
+                axs[r,c].tick_params(axis='x', rotation=45)
 
 
 def run_loopb(i,var,mx,rep,stat2):
@@ -328,7 +349,7 @@ def run_loopb(i,var,mx,rep,stat2):
         mn = mx*1e-9
         if any(substring in var for substring in ['VegNrg', 'SnowNrg', 'SoilNrg']):
             mn = mx*1e-9
-        if var=='wallClockTime': mn = 0.0
+        if var=='wallClockTime': mn = 0.0008
         if fix_units_soil and 'Soil' in var:
             mn = mn*3600*3.0 # mult by time step and depth to get storage
             mx = mx*3600*3.0
@@ -355,70 +376,74 @@ def run_loopb(i,var,mx,rep,stat2):
             s = s*3600*3.0 # mult by time step and depth to get storage
             if 'Nrg' in var: s = s*1e-3
 
-        range = (mn,mx)
-        if do_hist: 
-            np.fabs(s).plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=3.0,range=range)
-        else: #cdf
-            sorted_data = np.sort(np.fabs(s))
-            valid_data = sorted_data[~np.isnan(sorted_data)]
-            if fix_wall_actors and 'wallClockTime' in var: 
-                from scipy.stats import linregress
-                if m in ['be8', 'sun5en']:
-                    s_saved = s
-                    s2 = summa1[f'{m}Old'][var].sel(stat=stat0).where(lambda x: x != 9999)
-                    s2 = s2.where(lambda x: x != 0)  # water bodies should be 0
-                    mask = ~np.isnan(s2.values) & ~np.isnan(s_saved.values)
-                    s2 = s2[mask]
-                    s_saved = s_saved[mask]
-                    combined_s2.append(s2.values)
-                    combined_s_saved.append(s_saved.values)
-                    first_len = len(s2)
+        plot_range = (mn,mx)
+        if do_box:
+            data = np.fabs(s.values)
+            data = data[~np.isnan(data)]
+            axs[r, c].boxplot(data,vert=False, positions=[len(method_name2) - method_name2.index(m)], widths=0.6,patch_artist=True,medianprops=dict(color='black'),boxprops=dict(facecolor=auto_col[method_name2.index(m)]),showfliers=showfliers)
+        else:
+            if do_hist: 
+                np.fabs(s).plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=3.0,range=plot_range)
+            else: #cdf
+                sorted_data = np.sort(np.fabs(s))
+                valid_data = sorted_data[~np.isnan(sorted_data)]
+                if fix_wall_actors and 'wallClockTime' in var: 
+                    from scipy.stats import linregress
+                    if m in ['be8', 'sun5en']:
+                        s_saved = s
+                        s2 = summa1[f'{m}Old'][var].sel(stat=stat0).where(lambda x: x != 9999)
+                        s2 = s2.where(lambda x: x != 0)  # water bodies should be 0
+                        mask = ~np.isnan(s2.values) & ~np.isnan(s_saved.values)
+                        s2 = s2[mask]
+                        s_saved = s_saved[mask]
+                        combined_s2.append(s2.values)
+                        combined_s_saved.append(s_saved.values)
+                        first_len = len(s2)
 
-                if m=='sun8en': # assumes sun8en is the last one
-                    combined_s2 = np.concatenate(combined_s2)
-                    combined_s_saved = np.concatenate(combined_s_saved)
-                    # Least squares fit
-                    A = combined_s2[:, np.newaxis]
-                    fac, _, _, _ = np.linalg.lstsq(A, combined_s_saved, rcond=None)
-                    fac = fac[0]
-                    print(f'Best fit least squares ratio (slope={fac:.4f})')
-                    slope, intercept, r_value, p_value, std_err = linregress(combined_s2, combined_s_saved)
-                    print(f'Best fit regression line (slope={slope:.4f}, intercept={intercept:.4f}, corr coeff={r_value:.2e})')
-                    print('Correcting reference solution with regression line')
-                    #valid_data = valid_data*fac
-                    valid_data = valid_data * slope + intercept
+                    if m=='sun8en': # assumes sun8en is the last one
+                        combined_s2 = np.concatenate(combined_s2)
+                        combined_s_saved = np.concatenate(combined_s_saved)
+                        # Least squares fit
+                        A = combined_s2[:, np.newaxis]
+                        fac, _, _, _ = np.linalg.lstsq(A, combined_s_saved, rcond=None)
+                        fac = fac[0]
+                        print(f'Best fit least squares ratio (slope={fac:.4f})')
+                        slope, intercept, r_value, p_value, std_err = linregress(combined_s2, combined_s_saved)
+                        print(f'Best fit regression line (slope={slope:.4f}, intercept={intercept:.4f}, corr coeff={r_value:.2e})')
+                        print('Correcting reference solution with regression line')
+                        #valid_data = valid_data*fac
+                        valid_data = valid_data * slope + intercept
 
-            if fix_wall_event_plot and 'wallClockTime' in var:
-                from scipy.stats import linregress
-                if m in ['sun5cm','sun5en','sun8en']:
-                    s_saved = s
-                    s2 = summa1[f'{m}_noev'][var].sel(stat=stat0).where(lambda x: x != 9999)
-                    s2 = s2.where(lambda x: x != 0)  # water bodies should be 0
-                    mask = ~np.isnan(s2.values) & ~np.isnan(s_saved.values)
-                    s2 = s2[mask]
-                    s_saved = s_saved[mask]
-                    combined_s2.append(s2.values)
-                    combined_s_saved.append(s_saved.values)
-                    first_len = len(s2)
-                
-                if m=='sun8en': # assumes sun8en is the last one
-                    combined_s2 = np.concatenate(combined_s2)
-                    combined_s_saved = np.concatenate(combined_s_saved)
-                    # Least squares fit
-                    A = combined_s2[:, np.newaxis]
-                    fac, _, _, _ = np.linalg.lstsq(A, combined_s_saved, rcond=None)
-                    fac = fac[0]
-                    print(f'Best fit least squares ratio (slope={fac:.4f})')
-                    slope, intercept, r_value, p_value, std_err = linregress(combined_s2, combined_s_saved)
-                    print(f'Best fit regression line (slope={slope:.4f}, intercept={intercept:.4f}, corr coeff={r_value:.2e})')
-                    #print('Correcting reference solution with regression line')
-                    #valid_data = valid_data*fac
-                    #valid_data = valid_data * slope + intercept
+                if fix_wall_event_plot and 'wallClockTime' in var:
+                    from scipy.stats import linregress
+                    if m in ['sun5cm','sun5en','sun8en']:
+                        s_saved = s
+                        s2 = summa1[f'{m}_noev'][var].sel(stat=stat0).where(lambda x: x != 9999)
+                        s2 = s2.where(lambda x: x != 0)  # water bodies should be 0
+                        mask = ~np.isnan(s2.values) & ~np.isnan(s_saved.values)
+                        s2 = s2[mask]
+                        s_saved = s_saved[mask]
+                        combined_s2.append(s2.values)
+                        combined_s_saved.append(s_saved.values)
+                        first_len = len(s2)
+
+                    if m=='sun8en': # assumes sun8en is the last one
+                        combined_s2 = np.concatenate(combined_s2)
+                        combined_s_saved = np.concatenate(combined_s_saved)
+                        # Least squares fit
+                        A = combined_s2[:, np.newaxis]
+                        fac, _, _, _ = np.linalg.lstsq(A, combined_s_saved, rcond=None)
+                        fac = fac[0]
+                        print(f'Best fit least squares ratio (slope={fac:.4f})')
+                        slope, intercept, r_value, p_value, std_err = linregress(combined_s2, combined_s_saved)
+                        print(f'Best fit regression line (slope={slope:.4f}, intercept={intercept:.4f}, corr coeff={r_value:.2e})')
+                        #print('Correcting reference solution with regression line')
+                        #valid_data = valid_data*fac
+                        #valid_data = valid_data * slope + intercept
 
             yvals = np.arange(len(valid_data)) / float(len(valid_data) - 1)
             axs[r,c].plot(valid_data, yvals, zorder=0, label=m, linewidth=3.0)
-            axs[r,c].set_xlim(range)  # Replace xmin and xmax with the desired limits
-
+            
     if stat0 == 'mean': 
         if var == 'wallClockTime': 
             stat_word = 'mean'
@@ -430,52 +455,61 @@ def run_loopb(i,var,mx,rep,stat2):
         else:
             stat_word = 'max abs balance'
 
-    if c==0: axs[r,c].legend(plt_name2)
+    if c==0 and not do_box: axs[r,c].legend(plt_name2)
     titl = plt_titl2[i]
     if no_snow: titl = titl + ' (snow-free GRUs)'
     if rep>0: titl = titl #+ ' '+ stat_word
     axs[r,c].set_title(titl)
     axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titl2[i]))   
 
-    if do_hist: 
-        axs[r,c].set_ylabel('GRU count')
-        if(c==1): axs[r, c].set_ylabel('')
-        if var != 'wallClockTime' and not run_local: axs[r,c].set_ylim([0, 25000])
- 
-    else:
-        axs[r,c].set_ylabel('cumulative distribution')
-        if(c>=1): axs[r, c].set_ylabel('')
-        axs[r,c].set_ylim([0.0, 1.0])
+    if do_box:
+        axs[r,c].set_xlim(plot_range)
+        axs[r, c].set_ylabel('')
+        axs[r, c].set_yticklabels('')
         axs[r,c].set_xscale('log') #log x axis
         if var=='wallClockTime': 
             axs[r,c].set_xscale('function', functions=(power_transform, np.power)) #log x axis
             axs[r, c].tick_params(axis='x', rotation=45) # Rotate x-axis labels for subplot
+        axs[r, c].set_yticks(range(1, len(method_name2) + 1))
+        if(c==0): axs[r, c].set_yticklabels(plt_name2[::-1])
+    else:
+        if do_hist: 
+            axs[r,c].set_ylabel('GRU count')
+            if(c==1): axs[r, c].set_ylabel('')
+            if var != 'wallClockTime' and not run_local: axs[r,c].set_ylim([0, 25000])
+        else:
+            axs[r,c].set_xlim(plot_range)
+            axs[r,c].set_ylabel('cumulative distribution')
+            if(c>=1): axs[r, c].set_ylabel('')
+            axs[r,c].set_ylim([0.0, 1.0])
+            axs[r,c].set_xscale('log') #log x axis
+            if var=='wallClockTime': 
+                axs[r,c].set_xscale('function', functions=(power_transform, np.power)) #log x axis
+                axs[r, c].tick_params(axis='x', rotation=45) # Rotate x-axis labels for subplot
 
-            if fix_wall_actors_plot:
-                fig.subplots_adjust(hspace=0.2, wspace=0.2) # Adjust the bottom margin, vertical space, and horizontal space
-                auto_col = plt.rcParams['axes.prop_cycle'].by_key()['color']
-                axs[r, c + 1].scatter(combined_s2[first_len:], combined_s_saved[first_len:], alpha=0.5, color=auto_col[4], label='SUNDIALS enth')
-                axs[r, c + 1].scatter(combined_s2[:first_len], combined_s_saved[:first_len], alpha=0.5, color=auto_col[0], label='BE8 common')
-                axs[r, c+1].set_xlabel('Graham time [s]')
-                axs[r, c+1].set_ylabel('Anvil Actors time [s]')
-                axs[r, c+1].set_title('wall clock time comparison')
-                axs[r, c+1].set_xlim(combined_s_saved.min(),combined_s2.max()) 
-                axs[r, c+1].set_ylim(combined_s_saved.min(),combined_s2.max())
-                axs[r, c+1].plot(combined_s2, intercept + slope * combined_s2, color='black',linewidth=3.0)
-                axs[r, c+1].tick_params(axis='x', rotation=45) # Rotate x-axis labels for subplot
+                if fix_wall_actors_plot:
+                    fig.subplots_adjust(hspace=0.2, wspace=0.2) # Adjust the bottom margin, vertical space, and horizontal space
+                    axs[r, c + 1].scatter(combined_s2[first_len:], combined_s_saved[first_len:], alpha=0.5, color=auto_col[4], label='SUNDIALS enth')
+                    axs[r, c + 1].scatter(combined_s2[:first_len], combined_s_saved[:first_len], alpha=0.5, color=auto_col[0], label='BE8 common')
+                    axs[r, c+1].set_xlabel('Graham time [s]')
+                    axs[r, c+1].set_ylabel('Anvil Actors time [s]')
+                    axs[r, c+1].set_title('wall clock time comparison')
+                    axs[r, c+1].set_xlim(combined_s_saved.min(),combined_s2.max()) 
+                    axs[r, c+1].set_ylim(combined_s_saved.min(),combined_s2.max())
+                    axs[r, c+1].plot(combined_s2, intercept + slope * combined_s2, color='black',linewidth=3.0)
+                    axs[r, c+1].tick_params(axis='x', rotation=45) # Rotate x-axis labels for subplot
 
-            if fix_wall_event_plot:
-                fig.subplots_adjust(hspace=0.2, wspace=0.2) # Adjust the bottom margin, vertical space, and horizontal space
-                auto_col = plt.rcParams['axes.prop_cycle'].by_key()['color']
-                axs[r, c + 1].scatter(combined_s2[first_len:], combined_s_saved[first_len:], alpha=0.5, color=auto_col[5], label='reference soln')
-                axs[r, c + 1].scatter(combined_s2[:first_len], combined_s_saved[:first_len], alpha=0.5, color=auto_col[3], label='SUNDIALS enth')
-                axs[r, c+1].set_xlabel('no event detection time [s]')
-                axs[r, c+1].set_ylabel('event detection time time [s]')
-                axs[r, c+1].set_title('wall clock time comparison')
-                axs[r, c+1].set_xlim(combined_s_saved.min(),combined_s2.max()) 
-                axs[r, c+1].set_ylim(combined_s_saved.min(),combined_s2.max())
-                axs[r, c+1].plot(combined_s2, intercept + slope * combined_s2, color='black',linewidth=3.0)
-                axs[r, c+1].tick_params(axis='x', rotation=45) # Rotate x-axis labels for subplot
+                if fix_wall_event_plot:
+                    fig.subplots_adjust(hspace=0.2, wspace=0.2) # Adjust the bottom margin, vertical space, and horizontal space
+                    axs[r, c + 1].scatter(combined_s2[first_len:], combined_s_saved[first_len:], alpha=0.5, color=auto_col[5], label='reference soln')
+                    axs[r, c + 1].scatter(combined_s2[:first_len], combined_s_saved[:first_len], alpha=0.5, color=auto_col[3], label='SUNDIALS enth')
+                    axs[r, c+1].set_xlabel('no event detection time [s]')
+                    axs[r, c+1].set_ylabel('event detection time time [s]')
+                    axs[r, c+1].set_title('wall clock time comparison')
+                    axs[r, c+1].set_xlim(combined_s_saved.min(),combined_s2.max()) 
+                    axs[r, c+1].set_ylim(combined_s_saved.min(),combined_s2.max())
+                    axs[r, c+1].plot(combined_s2, intercept + slope * combined_s2, color='black',linewidth=3.0)
+                    axs[r, c+1].tick_params(axis='x', rotation=45) # Rotate x-axis labels for subplot
 
 
 def run_loop3(i,var,mx,rep,stat3):
@@ -495,37 +529,49 @@ def run_loop3(i,var,mx,rep,stat3):
     # Data
     for m in method_name3:
         s = summa2[m][var].sel(stat=stat0)
-        range = (0,mx)
-        if do_hist: 
-            np.fabs(s).plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=3.0,range=range)
-        else: #cdf
-            sorted_data = np.sort(np.fabs(s))
-            valid_data = sorted_data[~np.isnan(sorted_data)]
-            yvals = np.arange(len(valid_data)) / float(len(valid_data) - 1)
-            axs[r,c].plot(valid_data, yvals, zorder=0, label=m, linewidth=3.0)
-            axs[r,c].set_xlim(range)
+        plot_range = (0,mx)
+        if do_box:
+            data = np.fabs(s.values)
+            data = data[~np.isnan(data)]
+            axs[r, c].boxplot(data,vert=False, positions=[len(method_name3) - method_name3.index(m)], widths=0.6,patch_artist=True,medianprops=dict(color='black'),boxprops=dict(facecolor=auto_col[method_name3.index(m)]),showfliers=showfliers)
+        else:
+            if do_hist: 
+                np.fabs(s).plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=3.0,range=plot_range)
+            else: #cdf
+                sorted_data = np.sort(np.fabs(s))
+                valid_data = sorted_data[~np.isnan(sorted_data)]
+                yvals = np.arange(len(valid_data)) / float(len(valid_data) - 1)
+                axs[r,c].plot(valid_data, yvals, zorder=0, label=m, linewidth=3.0)
 
     if stat0 == 'mean': stat_word = 'mean per data window'
     if stat0 == 'amax': stat_word = 'max per data window'
 
-    if c==0: axs[r,c].legend(plt_name3)
+    if c==0 and not do_box: axs[r,c].legend(plt_name3)
     titl = plt_titl3[i]
     if no_snow: titl = titl + ' (snow-free GRUs)'
     if rep>0: titl = titl #+ ' '+ stat_word
     axs[r,c].set_title(titl)
     axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titl3[i]))   
 
-    if do_hist: 
-        axs[r,c].set_ylabel('GRU count')
-        if(c==1): axs[r, c].set_ylabel('')
- 
-    else:
-        axs[r,c].set_ylabel('cumulative distribution')
-        if(c>=1): axs[r, c].set_ylabel('')
-        axs[r,c].set_ylim([0.0, 1.0])
+    if do_box:
+        axs[r,c].set_xlim(plot_range)
+        axs[r, c].set_ylabel('')
+        axs[r, c].set_yticklabels('')
         #axs[r,c].set_xscale('log') #log x axis
-    if 'zoom' in fig_fil:
-        axs[r,c].set_ylim([0.98, 1.0])
+        axs[r, c].set_yticks(range(1, len(method_name3) + 1))
+        if(c==0): axs[r, c].set_yticklabels(plt_name3[::-1])
+    else:
+        if do_hist: 
+            axs[r,c].set_ylabel('GRU count')
+            if(c==1): axs[r, c].set_ylabel('')
+        else:
+            axs[r,c].set_xlim(plot_range)
+            axs[r,c].set_ylabel('cumulative distribution')
+            if(c>=1): axs[r, c].set_ylabel('')
+            axs[r,c].set_ylim([0.0, 1.0])
+            #axs[r,c].set_xscale('log') #log x axis
+        if 'zoom' in fig_fil:
+            axs[r,c].set_ylim([0.98, 1.0])
  
 
 if len(use_vars) > 0:
