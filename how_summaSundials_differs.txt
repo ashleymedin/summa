@@ -81,11 +81,15 @@ c-32) First flux call fluxes need be added to the mask in the first flux call, o
   33) New variable for output, meanStepSize (seconds over data window), commit 02baeba0	Oct 17, 2023
 
 AFTER tag of v4.0.0-exp-Sundials
-  01) Enthalpy formulation, new decision (renamed from howHeatCap)
-       nrgConserv       [closedForm or enthalpyFD or enthalpyFDlu]      ! (30) choice of variable in energy conservation backward Euler residual
+  01) Enthalpy formulation, new decision (renamed from howHeatCap) of nrgConserv
       refers to if you want the numrec or kinsol residual to be computed with closed form heat capacity (does not conserve energy)
       or enthalpy finite difference, with enthalpy calculated in the soil with the analytical solution or the lookup tables.
       Decision of numMethod=itertive will give give set nrgConserv=closedForm for backwards compatibility.
+      Choices are:
+       ! (30) choice of variable in energy equations (BE residual or IDA state variable)
+       ! closedForm      ! use temperature with closed form heat capacity
+       ! enthalpyFormLU  ! use enthalpy with soil temperature-enthalpy lookup tables
+       ! enthalpyForm    ! use enthalpy with soil temperature-enthalpy analytical solutions
   02) New output values of the balances, inputted to the outputControl.txt as:
        balanceCasNrg         | 1
        balanceVegNrg         | 1
@@ -107,12 +111,12 @@ c-07) Snow water upper bound should be 1, not iden_ice, commit 265721b5 Feb 13, 
   10) Kyle's actors work, ongoing changes
  -11) Default is now to calculate heat capacity every increment and also the Cm term, since major energy violations are found without this (updateCp_closedForm and needCm_closedForm are .true. in eval8summa*)
   12) Added parameters for model control IDA, default values are fine
-idaMaxOrder               |          5.0 |         1.0  |        5.0
-idaMaxInternalSteps       |        500.0 |        500.0 |     999999.0
-idaMaxErrTestFail         |         50.0 |         10.0 |         50.0
-idaMinStepSize            |         0.0  |          0.0 |      3600.0
+       idaMaxOrder               |          5.0 |         1.0  |        5.0
+       idaMaxInternalSteps       |        500.0 |        500.0 |     999999.0
+       idaMaxErrTestFail         |         50.0 |         10.0 |         50.0
+       idaMinStepSize            |         0.0  |          0.0 |      3600.0
   13) Added decision aquiferIni, where default is fullStart as a full aquifer or the value from the initial conditions, but may use emptyStart for RMSE calculation.
-idaMaxStepSize            |         0.0  |          0.0  |      3600.0
+       idaMaxStepSize            |         0.0  |         0.0  |      3600.0
  -14) Improved smoother for canopy wetting, option to use quadratic or logistic (hard-coded to logistic currently), and smoother on total water content instead of function, commit 3608dc99 and df52b67d Jun 7, 2024
  -15) Vapor pressure =0 will give a NaN inside leaf stomata calcs, make vp be tiny instead of 0, commit 48630a54 Sep 23, 2024
  -16) Made soilRelHumidity cap at 1 (100%), commit b40d091 and 06380e9 Oct 1, 2024
@@ -120,6 +124,34 @@ idaMaxStepSize            |         0.0  |          0.0  |      3600.0
  -18) Correct NaN value that results from a large ground roughness parameter (capped function), commit bcb5f6b5 Jan 22, 2025
  -19) Made soil scalarv variables were compute with the correct soil layer when splitting to a scalar solution (previous version lead to balance errors if vars where large enough), commit b5b8d314 Jan 28, 2025
  -20) Make fluxes output as mean over data window, group agreed that this makes more sense than the backwards compatible where they were just the ending solution of the flux (rate over the last substep). commit b5b8d314 Jan 28, 2025
- -21) Make scalarAquiferRecharge and scalarAquiferTranspire be held on to if splits to aquifer, since previously only attached to bottom soil layer then became 0 if split to aquifer, commit scalarAquiferTranspire and Recharge need to be held with aquifer mass split, previously went to 0, commit 0a38c7bf Jun 21, 2025
+ -21) Make scalarAquiferRecharge and scalarAquiferTranspire be held on to if splits to aquifer, since previously only attached to bottom soil layer then became 0
+      if split to aquifer, commit scalarAquiferTranspire and Recharge need to be held with aquifer mass split, previously went to 0, commit 0a38c7bf Jun 21, 2025
+  22) Changes to infiltration
+       1) Added FUSE choices in decision bcUpprSoiH, commit 7c9463c7 May 28, 2025
+          Choices for bcUpperSoiH are now:
+           ! (15) choice of upper boundary conditions for soil hydrology
+           ! presHead  ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
+           ! liq_flux  ! liquid water flux
+           ! FUSEPRMS  ! FUSE PRMS surface runoff
+           ! FUSEAVIC  ! FUSE ARNO/VIC surface runoff
+           ! FUSETOPM  ! FUSE TOPMODEL surface runoff
+       2) New infiltration method infRateMax decision, with new methods infRateMax=GreenAmpt and infRateMax=noInfExc, commit a8427ddf Jun 19, 2025
+          Recommended method is infRateMax=GreenAmpt and is different from previous method of infRateMax=topmodel_GA
+          Decision of numMethod=itertive will give give set infRateMax=topmodel_GA for backwards compatibility.
+          Choices are:
+           ! (31) choice of infiltration rate method
+           ! GreenAmpt   ! Green-Ampt
+           ! topmodel_GA ! Green-Ampt with TOPMODEL conductivity rate
+           ! noInfExc    ! no infiltration excess runoff (saturation excess may still occur)
+       3) New flux variables for distinct surface runoff types Merge pull request, commits d82dddb7 Jun 30, 2025 and d82dddb7 Jun 30, 2025
+           flux_data%var(iLookFLUX%scalarSurfaceRunoff_IE)%dat(1) ! infiltration excess surface runoff (m s-1)
+           flux_data%var(iLookFLUX%scalarSurfaceRunoff_SE)%dat(1) ! saturation excess surface runoff (m s-1)
+ -23) Changes to zeroPlaneDisplacement and heightCanopyBottomAboveSnow to fix issues with snow sublimation, around commits 50752082 Jun 21, 2025 and 2db04545 Jun 24, 2025 and 9e399b97 Jun 30, 2025
+      The original code extended the exponential wind profile to the surface when the snow depth was greater than the bottom of the vegetation canopy.
+      This resulted in high windspeed at the height z_{0s}, large turbulent heat fluxes, and large sublimation losses.
+      Decision veg_traits=CM_QJRMS1988 has quite a few changes, veg_traits=Raupach_BLM1994 or veg_traits=vegTypeTable have fewer changes.
+      This is still ongoing and may need more adjustment; changes are expected to only affect basins with snow.
+  24) Tolerances for ida now depend on nrgConserv choice so that if they are not set they will be our recommended values (relTol at 1e-5, absTol 1e-5* order of state variable), commit dd8a658d Jun 26, 2025
+ -25) Checking for datastep and hruId in forcing files so won't just not run, will send an error if these are missing, commit 637d84b8 Jun 26, 2025
 
-Jun 21, 2025
+July 9, 2025
