@@ -31,10 +31,10 @@ import geopandas as gpd
 import pandas as pd
 
 
-one_plot = True # true is one plot, false is multiple plots (one per variable)
+one_plot = False # true is one plot, false is multiple plots (one per variable)
 run_local = False # true is run on local machine (only does testing), false is run on cluster
 fix_units_soil = True # true is convert to storage units, only works for Soil
-two_stat = True # true is run both mean and amax, false is run one stat
+two_stat = False # true is run both mean and amax, false is run one stat
 fix_hruid = True # true is only have hru index for hru, false is have hruid for hru
 
 if run_local: 
@@ -185,7 +185,6 @@ else:
     if plot_lakes: lak_albers = gpd.read_file(main/'lakes.shp')
 
 
-
 # Match the accummulated values to the correct HRU IDs in the shapefile
 hru_ids_shp = bas_albers[hm_hruid].astype(int) # hru order in shapefile
 # Define a list of stat0 values to loop over
@@ -255,7 +254,6 @@ def run_loop(j,var,the_max,stat,row_fill):
         else:
             c = i//nrow + base_row
             r = i - (c-base_row)*nrow
-
         # Plot the data with the full extent of the bas_albers shape
         bas_albers.plot(ax=axs[r,c], column=var+m+stat0, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
         print(f"{'all HRU mean for '}{var+m+stat0:<35}{np.nanmean(bas_albers[var+m+stat0].values):<10.5f}{' max: '}{np.nanmax(bas_albers[var+m+stat0].values):<10.5f}")
@@ -279,9 +277,9 @@ def run_loop(j,var,the_max,stat,row_fill):
                     cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/1.1*nrow)
             else:
                 if not row_fill:
-                    cbr = fig.colorbar(sm, ax=axs_list[c*len(method_name):(c+1)*len(method_name)],aspect=27/3*nrow)
+                    cbr = fig.colorbar(sm, ax=axs_list[c*len(method_name):(c+1)*len(method_name)],aspect=27/1.2*nrow)
                 else:
-                    cbr = fig.colorbar(sm, ax=axs_list,aspect=27/3*nrow)
+                    cbr = fig.colorbar(sm, ax=axs_list,aspect=27/1.2*nrow)
             cbr.ax.set_ylabel(stat_word + ' [{}]'.format(leg_titl[j]))
 
         # lakes
@@ -302,11 +300,11 @@ else:
 plot_vars = [plot_vars[i] for i in use_vars]
 plt_titl = [plt_titl[i] for i in use_vars]
 leg_titl = [leg_titl[i] for i in use_vars]
-maxes = [maxes[i] for i in use_vars]
 if two_stat: 
     maxes2 = [maxes2[i] for i in use_vars]
 else:
-    maxes2 = maxes # dummy
+    maxes2 = [maxes[i] for i in use_vars] # dummy, not used
+maxes = [maxes[i] for i in use_vars]
 method_name = [method_name[i] for i in use_meth]
 
 if one_plot:

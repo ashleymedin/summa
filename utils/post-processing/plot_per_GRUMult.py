@@ -230,7 +230,6 @@ else:
     if plot_lakes: lak_albers = gpd.read_file(main/'lakes.shp')
 
 
-
 # Match the accummulated values to the correct HRU IDs in the shapefile
 hru_ids_shp = bas_albers[hm_hruid].astype(int) # hru order in shapefile
 # Define a list of stat0 values to loop over

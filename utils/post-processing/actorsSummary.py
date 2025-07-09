@@ -18,6 +18,9 @@ file_names = []
 start_grus = []
 num_grus = []
 
+# Initialize a list to store the results
+results = []
+
 # Iterate over all files in the folder
 for filename in os.listdir(log_folder):
     if filename.startswith('log'):
@@ -38,23 +41,27 @@ for filename in os.listdir(log_folder):
                 start_gru = int(gru_match.group(1))
                 num_gru = int(gru_match.group(2))
                 array = (start_gru - 1) / num_gru
-                print(f'{filename:<15} | {duration_match.group(1):>10} Hours | {failed_match.group(1):>3} failures | file {file_match.group(1):<8} | array {array:.2f} | start_gru {start_gru:>6} | num_gru {num_gru:>5}')
+                results.append((filename, f'{duration_match.group(1):>10} Hours', f'{failed_match.group(1):>3} failures', f'file {file_match.group(1):<8}', f'array {array:.2f}', f'start_gru {start_gru:>6}', f'num_gru {num_gru:>5}'))
             elif file_match and gru_match:
                 # Print the filename if the patterns were not found, didn't finish
                 start_gru = int(gru_match.group(1))
                 num_gru = int(gru_match.group(2))
                 array = (start_gru - 1) / num_gru
-                print(f'{filename:<15} | {"NOT FINISHED":>31} | file {file_match.group(1):<8} | array {array:.2f} | start_gru {start_gru:>6} | num_gru {num_gru:>5}')
+                results.append((filename, 'NOT FINISHED', '', f'file {file_match.group(1):<8}', f'array {array:.2f}', f'start_gru {start_gru:>6}', f'num_gru {num_gru:>5}'))
             else:
                 # Print the filename if the patterns were not found
-                print(f'{filename:<15} | {"NOT FOUND":>31} |')
+                results.append((filename, 'NOT FOUND', '', '', '', '', ''))
 
-# Write the extracted values to the output file
-#with open(output_file, 'w') as file:
-#    for duration, failure, file_name, start_gru, num_gru in zip(durations, failures, file_names, start_grus, num_grus):
-#        file.write(f'Total Duration = {duration} Hours\n')
-#        file.write(f'Num Failed = {failure}\n')
-#        file.write(f'Created output file: /anvil/scratch/x-avanb/{file_name}\n')
-#        file.write(f'Starting SUMMA Actor, start_gru {start_gru}, num_gru {num_gru}\n')
-#
-#print(f'Summary written to {output_file}')
+# Sort the results by logID
+results.sort(key=lambda x: x[0])
+
+# Print the sorted results
+for result in results:
+    print(f'{result[0]:<15} | {result[1]:>10} | {result[2]:>3} | {result[3]:<8} | {result[4]:<8} | {result[5]:<12} | {result[6]:<8}')
+
+# Write the sorted results to the output file
+with open(output_file, 'w') as file:
+    for result in results:
+        file.write(f'{result[0]:<15} | {result[1]:>10} | {result[2]:>3} | {result[3]:<8} | {result[4]:<8} | {result[5]:<12} | {result[6]:<8}\n')
+
+print(f'Summary written to {output_file}')
