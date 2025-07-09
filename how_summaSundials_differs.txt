@@ -1,4 +1,5 @@
 These are the changes: (- for effects BE, c- for put commented fix in personal branches
+BEFORE tag of v4.0.0-exp-Sundials
 c-01) eval8summa.f90 calling subroutine soilCmpres with mLayerMatricHead not mLayerMatricHeadLiq version, commit ce60d55d Aug 25 2022 (makes a lot less compressibility because the water changes less than the liquid)
 c-02) eval8summa.f90 soil min water is now theta_res, commit c19473df Apr 12 2022
   03) eval8summa.f90 updateCp (update heat capacity true or false) and needCm flag, commit b69592b0 Nov 30 2022
@@ -56,8 +57,8 @@ c-11) read_icond.f90 canopy water only initialized to be 1e-4 positive at the st
       refers to whether or not you want Sundials to use the provided analytical Jacobian or a finite difference one that it calculates.
       (the numrec num_method choice will not have numerical derivatives as an option). commit 9e5b703, Jun 28, 2023
 c-17) Use dense matrix as default with vegetation (so transpiration derivatives are accounted for). commit	8d15e4e2, Aug 7, 2023
-  18) Soil matrix compression per layer and total (mLayerCompres and scalarSoilCompress) are now outputted as averages over the data window (kg m-2 s-1) like all fluxes are done
-      Soil matrix compression is used in the balance computations, so to have instantaneous values outputted did not make sense. Does not affect solution.
+ -18) Soil matrix compression per layer and total (mLayerCompres and scalarSoilCompress) are now outputted as averages over the data window (kg m-2 s-1) like all fluxes are done
+      Soil matrix compression is used in the balance computations, so to have instantaneous values outputted did not make sense. Does not affect solution but does affect output.
 c-19) If split to a scalar solution, soil compressibility was outputting as 0. Refactor for BE >1 fixes this since save inner splitting steps.
       Or, if wanted to fix the old code would need to modify part of varSubStep.
 c-20) Need to compute dTheta_dTkCanopy off of trial canopy water instead of previous canopy water, affects Jacobian and temperature adjustment in splitting operations, commit 19fca2ba Jun 7, 2023
