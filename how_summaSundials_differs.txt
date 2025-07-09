@@ -100,7 +100,6 @@ AFTER tag of v4.0.0-exp-Sundials
        balanceSnowMass       | 1
        balanceSoilMass       | 1
        balanceAqMass         | 1
-       scaledBalanceCasNrg   | 1
       The balance*Nrg are in units of W/m^3 and the balance*Mass are in units of kg/m^3/s.
   03) Cm derivatives in Jacobian, will be non-zero if needCm_closedForm is on in eval8summa or eval8summaPrime (hard-coded to .true.)
   04) Sean's refactor and object-orientated work, numerous and ongoing changes affecting conciseness and speed
@@ -112,12 +111,12 @@ c-07) Snow water upper bound should be 1, not iden_ice, commit 265721b5 Feb 13, 
   10) Kyle's actors work, ongoing changes
  -11) Default is now to calculate heat capacity every increment and also the Cm term, since major energy violations are found without this (updateCp_closedForm and needCm_closedForm are .true. in eval8summa*)
   12) Added parameters for model control IDA, default values are fine
-       idaMaxOrder               |          5.0 |         1.0  |        5.0
-       idaMaxInternalSteps       |        500.0 |        500.0 |     999999.0
-       idaMaxErrTestFail         |         50.0 |         10.0 |         50.0
+       idaMaxOrder               |          5.0 |         1.0  |         5.0
+       idaMaxInternalSteps       |        500.0 |        500.0 |    999999.0
+       idaMaxErrTestFail         |         50.0 |         10.0 |        50.0
        idaMinStepSize            |         0.0  |          0.0 |      3600.0
-  13) Added decision aquiferIni, where default is fullStart as a full aquifer or the value from the initial conditions, but may use emptyStart for RMSE calculation.
        idaMaxStepSize            |         0.0  |         0.0  |      3600.0
+  13) Added decision aquiferIni, where default is aquiferIni=fullStart as a full aquifer or the value from the initial conditions, but may use aquiferIni=emptyStart for RMSE calculation.
  -14) Improved smoother for canopy wetting, option to use quadratic or logistic (hard-coded to logistic currently), and smoother on total water content instead of function, commit 3608dc99 and df52b67d Jun 7, 2024
  -15) Vapor pressure =0 will give a NaN inside leaf stomata calcs, make vp be tiny instead of 0, commit 48630a54 Sep 23, 2024
  -16) Made soilRelHumidity cap at 1 (100%), commit b40d091 and 06380e9 Oct 1, 2024
@@ -153,6 +152,7 @@ c-07) Snow water upper bound should be 1, not iden_ice, commit 265721b5 Feb 13, 
       Decision veg_traits=CM_QJRMS1988 has quite a few changes, veg_traits=Raupach_BLM1994 or veg_traits=vegTypeTable have fewer changes.
       This is still ongoing and may need more adjustment; changes are expected to only affect basins with snow.
   24) Tolerances for ida now depend on nrgConserv choice so that if they are not set they will be our recommended values (relTol at 1e-5, absTol 1e-5* order of state variable), commit dd8a658d Jun 26, 2025
- -25) Checking for datastep and hruId in forcing files so won't just not run, will send an error if these are missing, commit 637d84b8 Jun 26, 2025
+  25) Checking for datastep and hruId in forcing files so won't just not run, will send an error if these are missing, commit 637d84b8 Jun 26, 2025
+  26) Victoria and Kyle OpenWQ work, somewhat ongoing?
 
 July 9, 2025
