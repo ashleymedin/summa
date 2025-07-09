@@ -29,7 +29,9 @@ fix_wall_actors = True # true then scale reference solution for wall clock time
 fix_wall_actors_plot = False # true then plot the wall clock time comparison
 fix_wall_event_plot = False # true then plot the event detection time comparison
 no_snow = False # true is only plot snow free simulations
+# these options are for the boxplot only
 showfliers = False # true is show outliers in boxplot
+do_violin = True # true is plot violin plot instead of boxplot
 
 if run_local: 
     stat = 'avge'
@@ -282,7 +284,15 @@ def run_loop(i,var,mx,rep,stat):
         if do_box:
             data = np.fabs(s.values)
             data = data[~np.isnan(data)]
-            axs[r, c].boxplot(data,vert=False, positions=[len(method_name) - method_name.index(m)], widths=0.6,patch_artist=True,medianprops=dict(color='black'),boxprops=dict(facecolor=auto_col[method_name.index(m)]),showfliers=showfliers)
+            if do_violin:
+                vplot = axs[r, c].violinplot(dataset=[data],positions=[len(method_name) - method_name.index(m)],vert=False,showextrema=showfliers)
+                for pc in vplot['bodies']:
+                    pc.set_facecolor(auto_col[method_name.index(m)])
+                    pc.set_edgecolor('black')
+                    pc.set_alpha(1)
+            else:
+                axs[r, c].boxplot(data,vert=False, positions=[len(method_name) - method_name.index(m)], widths=0.6,patch_artist=True,medianprops=dict(color='black'),boxprops=dict(facecolor=auto_col[method_name.index(m)]),showfliers=showfliers)
+
         else:
             if do_hist: 
                 np.fabs(s).plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=3.0,range=plot_range)
@@ -365,7 +375,7 @@ def run_loopb(i,var,mx,rep,stat2):
             if var=='wallClockTime': s = s.where(lambda x: x != 0) # Actors simulations may have 0
             mx = max(s.max(),mx)
             mn = min(s.min(),mn)
-
+    print(mx,mn,var)
     # Data
     combined_s2 = []
     combined_s_saved = []
@@ -380,7 +390,14 @@ def run_loopb(i,var,mx,rep,stat2):
         if do_box:
             data = np.fabs(s.values)
             data = data[~np.isnan(data)]
-            axs[r, c].boxplot(data,vert=False, positions=[len(method_name2) - method_name2.index(m)], widths=0.6,patch_artist=True,medianprops=dict(color='black'),boxprops=dict(facecolor=auto_col[method_name2.index(m)]),showfliers=showfliers)
+            if do_violin:
+                vplot = axs[r, c].violinplot(dataset=[data],positions=[len(method_name2) - method_name2.index(m)],vert=False,showextrema=showfliers)
+                for pc in vplot['bodies']:
+                    pc.set_facecolor(auto_col[method_name2.index(m)])
+                    pc.set_edgecolor('black')
+                    pc.set_alpha(1)
+            else:
+                axs[r, c].boxplot(data,vert=False, positions=[len(method_name2) - method_name2.index(m)], widths=0.6,patch_artist=True,medianprops=dict(color='black'),boxprops=dict(facecolor=auto_col[method_name2.index(m)]),showfliers=showfliers)
         else:
             if do_hist: 
                 np.fabs(s).plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=3.0,range=plot_range)
@@ -533,7 +550,14 @@ def run_loop3(i,var,mx,rep,stat3):
         if do_box:
             data = np.fabs(s.values)
             data = data[~np.isnan(data)]
-            axs[r, c].boxplot(data,vert=False, positions=[len(method_name3) - method_name3.index(m)], widths=0.6,patch_artist=True,medianprops=dict(color='black'),boxprops=dict(facecolor=auto_col[method_name3.index(m)]),showfliers=showfliers)
+            if do_violin:
+                vplot = axs[r, c].violinplot(dataset=[data],positions=[len(method_name3) - method_name3.index(m)],vert=False,showextrema=showfliers)
+                for pc in vplot['bodies']:
+                    pc.set_facecolor(auto_col[method_name3.index(m)])
+                    pc.set_edgecolor('black')
+                    pc.set_alpha(1)
+            else:
+                axs[r, c].boxplot(data,vert=False, positions=[len(method_name3) - method_name3.index(m)], widths=0.6,patch_artist=True,medianprops=dict(color='black'),boxprops=dict(facecolor=auto_col[method_name3.index(m)]),showfliers=showfliers)
         else:
             if do_hist: 
                 np.fabs(s).plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=3.0,range=plot_range)
