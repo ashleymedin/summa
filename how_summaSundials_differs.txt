@@ -17,7 +17,7 @@ c-07) Jacobian, scalarCanopyLiq derivatives were getting overwritten and thus ze
 c-09) flxMapping.f90 flux mapping of soil resistance as an energy variable corrected (was missing and messed up splitting), commit 315583df June 5, 2023
 c-10) runOneGRU.f90 fixed basin aquifer recharge was summing incorrectly the HRU soil drainage instead of the HRU aquifer recharge, commit cd6f07f1 June 20, 2023 (only affects basin aquifer recharge so does not influence results except this basin variable)
 c-11) read_icond.f90 canopy water only initialized to be 1e-4 positive at the start of the simulation if it is smaller (through canopy liquid), commit c0f7fa26 Jan 30, 2023, and commit 0f2e9df2 Aug 15, 2023
-      The canopy water was being bumped up to at least 1e-4 at the start of every substep.
+      The canopy water was being bumped up to at least 1e-4 at the start of every substep. Also, if there is no canopy ever it stays at 0.
   12) Build with cmake now, with build options for no Sundials (BE), Sundials, Actors, Cluster, Personal Computer, Debug, Release, NexGen, and combinations of these.
       NexGen and Actors do not currently work togethere.
        set(CMAKE_CONFIGURATION_TYPES BE BE_Debug BE_Cluster BE_Cluster_Debug
