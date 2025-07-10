@@ -1211,6 +1211,7 @@ subroutine updateGlacierDomain(&
   character(*),intent(out)        :: message                  ! error message 
    ! ----- define local variables ------------------------------------------------------------------------------------------
   integer(i4b)                    :: i                        ! loop index
+  real(rkind)                     :: aPart                    ! part of area calculation
   real(rkind)                     :: soil_thick               ! depth of soil== debris in debris domain of glacier HRU
   real(rkind)                     :: thick_ratio              ! ratio of new debris thickness to previous debris thickness
   real(rkind)                     :: delVol                   ! volume change of glacieret domain
@@ -1245,7 +1246,12 @@ subroutine updateGlacierDomain(&
   ! glacieret domain uses volume area scaling following Macheret et al., 1988; Chen and Ohmura, 1990; Bahr, 1997
   elseif (dom_type==glacieret)then ! if glacieret grows too big, it will be fixed outside of this module in run_oneGRU
     delVol = glacMass4AreaChange * DOMarea/iden_ice/1.e9_rkind ! km3
-    DOMarea = ( delVol/0.033_rkind + (DOMarea/1.e6_rkind)**1.36_rkind )**(1._rkind/1.36_rkind)
+    aPart = delVol/0.033_rkind + (DOMarea/1.e6_rkind)**1.36_rkind
+    if (aPart>0._rkind)then
+      DOMarea = ( delVol/0.033_rkind + (DOMarea/1.e6_rkind)**1.36_rkind )**(1._rkind/1.36_rkind)
+    else
+      DOMarea = 0._rkind ! glacieret gone
+    end if
     ablFrac = 0._rkind ! glacieret does not keep track of ablating area
     DOMelev = DOMelev + glacMass4AreaChange
     glacMass4AreaChange = 0._rkind ! reset
