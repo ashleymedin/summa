@@ -31,7 +31,7 @@ fix_wall_event_plot = False # true then plot the event detection time comparison
 no_snow = False # true is only plot snow free simulations
 # these options are for the boxplot only
 showfliers = False # true is show outliers in boxplot
-do_violin = True # true is plot violin plot instead of boxplot
+do_violin = False # true is plot violin plot instead of boxplot
 vio_points = 10000 # number of points to consider in kernel estimation of violin plot, bigger is better but slow (100 default, 10000 is good for all of N.America)
 
 if run_local: 
@@ -219,8 +219,8 @@ plt.rcParams['xtick.major.width'] = 2
 plt.rcParams['ytick.color'] = 'black'
 plt.rcParams['ytick.major.width'] = 2
 # fix size for now
-ncol = 4
-nrow = 2
+ncol = 2
+nrow = 3
 
 if 'compressed' in fig_fil:
     plt.rcParams.update({'font.size': 27})

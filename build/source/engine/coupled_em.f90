@@ -462,8 +462,8 @@ subroutine coupled_em(&
       balanceCanopyWater0 = scalarCanopyLiq + scalarCanopyIce
       balanceSoilWater0   = scalarTotalSoilLiq + scalarTotalSoilIce
       balanceAquifer0     = scalarAquiferStorage*iden_water
-      balanceIceWE0       = sum(iden_water*mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce)) &
-                            + sum(iden_ice*mLayerVolFracIce(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce))
+      balanceIceWE0       = sum(iden_water*mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState)) &
+                            + sum(iden_ice*mLayerVolFracIce(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState))
 
       ! save liquid water content
       if(printBalance)then
@@ -1224,6 +1224,7 @@ subroutine coupled_em(&
                     nLake,                                    & ! intent(in):    number of lake layers
                     nSoil,                                    & ! intent(in):    number of soil layers
                     nGlce,                                    & ! intent(in):    number of glacier ice layers
+                    noWatState,                               & ! intent(in):    number of layers with no water state (bottom glacier ice layers)
                     groundSublimation,                        & ! intent(in):    sublimation rate over the whole time step (kg m-2 s-1)
                     mLayerVolFracLiq,                         & ! intent(inout): volumetric fraction of liquid water in the layer domains (-)
                     mLayerVolFracIce,                         & ! intent(inout): volumetric fraction of ice in the layer domains (-)
@@ -1758,8 +1759,8 @@ subroutine coupled_em(&
       ! ------------------------------------
       if(nGlce>0)then
         ! compute the liquid water and ice content at the end of the time step
-        scalarIceWE = sum(iden_water*mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce) &
-                          + iden_ice*mLayerVolFracIce(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce))
+        scalarIceWE = sum(iden_water*mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState) &
+                          + iden_ice*mLayerVolFracIce(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState))
         ! STUB for ice water balance
         ! check the individual layers
         !if(printBalance)then
