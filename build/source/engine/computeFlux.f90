@@ -838,13 +838,14 @@ contains
    scalarSoilControl        => diag_data%var(iLookDIAG%scalarSoilControl )%dat(1),      & ! intent(out): [dp] soil control on infiltration, zero or one
    scalarInfilArea          => diag_data%var(iLookDIAG%scalarInfilArea   )%dat(1),      & ! intent(in):  [dp] fraction of unfrozen area where water can infiltrate (-)
    scalarFrozenArea         => diag_data%var(iLookDIAG%scalarFrozenArea  )%dat(1),      & ! intent(in):  [dp] fraction of area that is considered impermeable due to soil ice (-)
+   scalarSurfaceRunoff      => flux_data%var(iLookFLUX%scalarSurfaceRunoff)%dat(1),     & ! intent(in):  [dp] surface runoff (m s-1)
    scalarSoilDrainage       => flux_data%var(iLookFLUX%scalarSoilDrainage)%dat(1),      & ! intent(in):  [dp] drainage from the soil profile (m s-1)
    scalarGlceMelt           => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1),          & ! intent(in):  [dp]  glacier ice melt (m s-1)
    scalarGlacierMelt        => flux_data%var(iLookFLUX%scalarGlacierMelt)%dat(1)        ) ! intent(out): [dp] glacier ice melt plus snow and soil drainage (m s-1)
    ! compute drainage from the soil zone (needed for mass balance checks and in aquifer recharge)
    scalarSoilDrainage = iLayerLiqFluxSoil(nSoil)
    if(nGlce>0)then
-     scalarGlacierMelt = scalarSoilDrainage ! save for glacier melt flow calculations, soil layers are coupled to glacier ice melt
+     scalarGlacierMelt = scalarSoilDrainage + scalarSurfaceRunoff ! save for glacier melt flow calculations, soil layers are coupled to glacier ice melt
      scalarSoilDrainage = scalarSoilDrainage - scalarGlceMelt ! soil drainage is the liquid water flux at the top of the glacier ice layer
    endif
    ! calculate net liquid water fluxes for each soil layer (s-1)

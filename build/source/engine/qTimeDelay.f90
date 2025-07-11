@@ -162,23 +162,23 @@ integer(i4b),intent(in)     :: nGlacier                  ! number of glaciers in
  glacAccTotal = sum(glacAccArea(1:nGlacier))
 
  do iGlacier=1,nGlacier
-   ! ice reservoir runoff (m3 s-1)
+   ! ice reservoir runoff (m s-1)
    frac = 0._rkind
    if (glacAblTotal>0._rkind) frac = glacAblArea(iGlacier)/glacAblTotal
    qIce = qIceFuture(iGlacier) + glacIceMelt*frac - glacIceMelt*frac*exp(-data_step/secprhour/glacStor_kIce)
    qIceFuture(iGlacier) = qIce*exp(-data_step/secprhour/glacStor_kIce) ! place runoff in future time steps 
 
-   ! snow reservoir runoff (m3 s-1)
+   ! snow reservoir runoff (m s-1)
    qSnow = qSnowFuture(iGlacier) + glacSnowMelt*frac - glacSnowMelt*frac*exp(-data_step/secprhour/glacStor_kSnow)
    qSnowFuture(iGlacier) = qSnow*exp(-data_step/secprhour/glacStor_kSnow) ! place runoff in future time steps
 
-   ! firn reservoir runoff (m3 s-1)
+   ! firn reservoir runoff (m s-1)
    frac = 0._rkind ! reset fraction
    if (glacAccTotal>0._rkind) frac = glacAccArea(iGlacier)/glacAccTotal
    qFirn = qFirnFuture(iGlacier) + glacFirnMelt*frac - glacFirnMelt*frac*exp(-data_step/secprhour/glacStor_kFirn)
    qFirnFuture(iGlacier) = qFirn*exp(-data_step/secprhour/glacStor_kFirn) ! place runoff in future time steps 
 
-   ! routed glacier runoff (m3 s-1)
+   ! routed glacier runoff (m s-1)
    glacierRoutedRunoff = glacierRoutedRunoff + qIce + qSnow + qFirn 
  end do
 
