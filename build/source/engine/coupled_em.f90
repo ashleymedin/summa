@@ -1512,8 +1512,8 @@ subroutine coupled_em(&
     ! *** balance checks and summary variable saving...
     ! ---------------------
 
-    ! save the average compression and melt pond storage in the data structures
-    prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)  = sfcMeltPond
+    ! save the average melt pond storage in the data structures
+    prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1) = sfcMeltPond
 
     ! associate local variables with information in the data structures
     associate(&
@@ -1711,7 +1711,7 @@ subroutine coupled_em(&
         ! get the input and output to/from the soil zone (kg m-2)
         balanceSoilInflux        = averageSoilInflux*iden_water*data_step
         balanceSoilBaseflow      = averageSoilBaseflow*iden_water*data_step ! currently no baseflow for glacier
-        balanceSoilDrainage      = averageSoilDrainage*iden_water*data_step
+        balanceSoilDrainage      = (averageSoilDrainage-averageGlceMelt)*iden_water*data_step
         balanceSoilET            = (averageCanopyTranspiration + averageGroundEvaporation)*data_step
         balanceSoilCompress      = averageSoilCompress*data_step
 
