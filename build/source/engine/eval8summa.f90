@@ -832,7 +832,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
     ixMassOnly         => indx_data%var(iLookINDEX%ixMassOnly)%dat             ,& ! intent(in): [i4b(:)] list of indices in the state subset for canopy storage states
     ixHydType          => indx_data%var(iLookINDEX%ixHydType)%dat              ,& ! intent(in): [i4b(:)] index of the type of hydrology states in layer domains
     ixStateType_subset => indx_data%var(iLookINDEX%ixStateType_subset)%dat     ,& ! intent(in): [i4b(:)] named variables defining the states in the subset
-    noWatState         => indx_data%var(iLookINDEX%noWatState)%dat(1)          ,& ! intent(in): [i4b]    number of layers with no water state
+    noThetaChange      => indx_data%var(iLookINDEX%noThetaChange)%dat(1)       ,& ! intent(in): [i4b]    number of layers with no water state
     ! indices for specific state variables
     ixCasNrg           => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)            ,& ! intent(in): [i4b]    index of canopy air space energy state variable
     ixVegNrg           => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)            ,& ! intent(in): [i4b]    index of canopy energy state variable
@@ -1037,7 +1037,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           endif
           ! get the volumetric fraction of liquid water and ice
           select case( ixStateType_subset( ixSnLaSoGlHyd(iLayer) ) )
-            case(iname_watLayer); scalarLiq = fracliquid(scalarTemp,mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),iLayer>nSnow+nLake+nSoil+nGlce-noWatState) &
+            case(iname_watLayer); scalarLiq = fracliquid(scalarTemp,mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),iLayer>nSnow+nLake+nSoil+nGlce-noThetaChange) &
                                              * stateVecPrev(ixSnLaSoGlHyd(iLayer))
             case(iname_liqLayer); scalarLiq = stateVecPrev(ixSnLaSoGlHyd(iLayer))
             case default; err=20; message=trim(message)//'expect ixStateType_subset to be iname_watLayer or iname_liqLayer for lake hydrology'; return

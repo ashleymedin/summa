@@ -697,23 +697,23 @@ contains
   ! **** glceLiqFlux ****
  subroutine initialize_glceLiqFlux
   associate(&
-   noWatState        => indx_data%var(iLookINDEX%noWatState)%dat(1)      ) ! intent(in): [int] number of layers with no water state (bottom glacier ice layers)
+   noThetaChange        => indx_data%var(iLookINDEX%noThetaChange)%dat(1)      ) ! intent(in): [int] number of layers with no change in total water content (bottom layers)
    surface_flux = 0._rkind ! no surface flux for glacier ice layers since impermeable
    bottom_flux = 0._rkind ! no bottom flux for glacier ice layers
    nStart = nSnow + nLake + nSoil
-   call in_snowLakeGlceLiqFlux%initialize(nGlce-noWatState,nStart,.false.,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
-   call io_snowLakeGlceLiqFlux%initialize(nGlce-noWatState,nStart,flux_data,deriv_data) ! only compute liquid water fluxes for top layers
+   call in_snowLakeGlceLiqFlux%initialize(nGlce-noThetaChange,nStart,.false.,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+   call io_snowLakeGlceLiqFlux%initialize(nGlce-noThetaChange,nStart,flux_data,deriv_data) ! only compute liquid water fluxes for top layers
   end associate
  end subroutine initialize_glceLiqFlux
 
  subroutine finalize_glceLiqFlux
   nStart = nSnow + nLake + nSoil
-  call io_snowLakeGlceLiqFlux%finalize(nGlce-indx_data%var(iLookINDEX%noWatState)%dat(1),nStart,flux_data,deriv_data) ! only compute liquid water fluxes for top layers
+  call io_snowLakeGlceLiqFlux%finalize(nGlce-indx_data%var(iLookINDEX%noThetaChange)%dat(1),nStart,flux_data,deriv_data) ! only compute liquid water fluxes for top layers
   call out_snowLakeGlceLiqFlux%finalize(err,cmessage) 
   ! error control
   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
   associate(&
-   noWatState               => indx_data%var(iLookINDEX%noWatState)%dat(1),               & ! intent(in):    [int] number of layers with no water state (bottom glacier ice layers)
+   noThetaChange            => indx_data%var(iLookINDEX%noThetaChange)%dat(1),            & ! intent(in):    [int] number of layers with no change in total water content (bottom layers)
    mLayerLiqFluxSnLaGl      => flux_data%var(iLookFLUX%mLayerLiqFluxSnLaGl)%dat,          & ! intent(out):   [dp] net liquid water flux for each snow lake ice layer (s-1)
    iLayerLiqFluxSnLaGl      => flux_data%var(iLookFLUX%iLayerLiqFluxSnLaGl)%dat,          & ! intent(in):    [dp(0:)] vertical liquid water flux at snow lake ice layer interfaces (-)
    iLayerLiqFluxSnLaGlDeriv => deriv_data%var(iLookDERIV%iLayerLiqFluxSnLaGlDeriv)%dat,   & ! intent(inout): [dp(:)] derivative in vertical liquid water flux at layer interfaces
@@ -723,11 +723,11 @@ contains
    scalarGlceMelt           => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1),            & ! intent(out):   [dp]  glacier ice melt (m s-1)
    scalarGlacierMelt        => flux_data%var(iLookFLUX%scalarGlacierMelt)%dat(1)          ) ! intent(out):   [dp] glacier ice melt plus snow and soil drainage (m s-1)
    ! calculate net liquid water fluxes for top layers of glacier ice layer only (s-1)
-   do iLayer=1,nGlce-noWatState
+   do iLayer=1,nGlce-noThetaChange
      mLayerLiqFluxSnLaGl(iLayer+nStart) = -(iLayerLiqFluxSnLaGl(iLayer+nStart) - iLayerLiqFluxSnLaGl(iLayer-1+nStart))/mLayerDepth(iLayer+nStart)
    end do
-   if(noWatState>0)then ! no water flux in lower glacier ice layers
-     do iLayer=nGlce-noWatState+1,nGlce
+   if(noThetaChange>0)then ! no water flux in lower glacier ice layers
+     do iLayer=nGlce-noThetaChange+1,nGlce
        iLayerLiqFluxSnLaGl(iLayer+nStart) = 0._rkind
        iLayerLiqFluxSnLaGlDeriv(iLayer+nStart) = 0._rkind
        mLayerLiqFluxSnLaGl(iLayer+nStart) = 0.6_rkind

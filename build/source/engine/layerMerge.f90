@@ -137,7 +137,7 @@ contains
  zminLayer3       => mpar_data%var(iLookPARAM%zminLayer3)%dat(1),          & ! minimum layer depth for the 3rd layer (m)
  zminLayer4       => mpar_data%var(iLookPARAM%zminLayer4)%dat(1),          & ! minimum layer depth for the 4th layer (m)
  zminLayer5       => mpar_data%var(iLookPARAM%zminLayer5)%dat(1),          & ! minimum layer depth for the 5th (bottom) layer (m)
- noWatState       => indx_data%var(iLookINDEX%noWatState)%dat(1),         & ! number of layers with no water state (bottom glacier ice layers)
+ noThetaChange    => indx_data%var(iLookINDEX%noThetaChange)%dat(1),       & ! number of layers with no change in total water content (bottom layers)
 
  ! diagnostic scalar variables
  scalarSnowDepth  => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),      & ! total snow depth (m)
@@ -256,7 +256,7 @@ contains
      if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
      ! exit the do loop (no more snow layers to remove)
      return
-    else if (doGlac .and. nGlce<2+noWatState)then
+    else if (doGlac .and. nGlce<2+noThetaChange)then
      err=20; message=trim(message)//'Melted entire water state of glacier, need to start with thicker top layers';return
     end if  ! (special case of 1 layer --> snow without a layer)
       

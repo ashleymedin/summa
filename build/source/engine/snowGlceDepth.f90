@@ -40,7 +40,7 @@ subroutine snowGlceDepth(&
                          nLake,                    & ! intent(in):    number of lake layers
                          nSoil,                    & ! intent(in):    number of soil layers
                          nGlce,                    & ! intent(in):    number of glacier ice layers
-                         noWatState,               & ! intent(in):    number of layers with no water state (bottom glacier ice layers)
+                         noThetaChange,            & ! intent(in):    number of layers with no change in total water content (bottom layers)
                          scalarGroundSublimation,  & ! intent(in):    scalar sublimation of snow (kg m-2)
                          mLayerVolFracLiq,         & ! intent(inout): volumetric fraction of liquid water
                          mLayerVolFracIce,         & ! intent(inout): volumetric fraction of ice
@@ -59,7 +59,7 @@ subroutine snowGlceDepth(&
   integer(i4b),intent(in)              :: nLake                    ! number of lake layers
   integer(i4b),intent(in)              :: nSoil                    ! number of soil layers
   integer(i4b),intent(in)              :: nGlce                    ! number of glacier ice layers
-  integer(i4b),intent(in)              :: noWatState               ! number of layers with no water state (bottom glacier ice layers)
+  integer(i4b),intent(in)              :: noThetaChange               ! number of layers with no change in total water content (bottom layers)
   real(rkind),intent(in)               :: scalarGroundSublimation  ! scalar sublimation of snow (kg m-2)
   real(rkind),intent(inout)            :: mLayerVolFracLiq(:)      ! volumetric fraction of liquid water
   real(rkind),intent(inout)            :: mLayerVolFracIce(:)      ! volumetric fraction of ice
@@ -124,15 +124,15 @@ subroutine snowGlceDepth(&
   if(nGlce>0)then
     call glceReduce(&
                     ! intent(in): variables
-                    nGlce-noWatState,                                                         & ! intent(in):    number of glacier ice layers to reduce
-                    mLayerMeltFreeze(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState), & ! intent(in):    volumetric melt in each layer (kg m-3)
+                    nGlce-noThetaChange,                                                         & ! intent(in):    number of glacier ice layers to reduce
+                    mLayerMeltFreeze(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange), & ! intent(in):    volumetric melt in each layer (kg m-3)
                     ! intent(inout): state variables
-                    mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState),      & ! intent(inout): depth of each layer (m)
-                    mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState), & ! intent(inout): volumetric fraction of liquid water (-)
-                    mLayerVolFracIce(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState), & ! intent(inout): volumetric fraction of ice (-)
+                    mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange),      & ! intent(inout): depth of each layer (m)
+                    mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange), & ! intent(inout): volumetric fraction of liquid water (-)
+                    mLayerVolFracIce(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange), & ! intent(inout): volumetric fraction of ice (-)
                     ! output: error control
-                    tooMuchSublim,                                                            & ! intent(inout): flag to denote that there was too much melt in a given time step
-                    err,cmessage)                                                               ! intent(out):   error controls
+                    tooMuchSublim,                                                               & ! intent(inout): flag to denote that there was too much melt in a given time step
+                    err,cmessage)                                                                  ! intent(out):   error controls
     if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
   endif ! if glacier ice layers exist
 

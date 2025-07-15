@@ -150,7 +150,7 @@ contains
  associate(&
  ! model decisions
  ix_snowLayers          => model_decisions(iLookDECISIONS%snowLayers)%iDecision, & ! decision for snow combination
- noWatState             => indx_data%var(iLookINDEX%noWatState)%dat(1),          & ! number of layers with no water state (bottom glacier ice layers)
+ noThetaChange          => indx_data%var(iLookINDEX%noThetaChange)%dat(1),       & ! number of layers with no change in total water content (bottom layers)
  ! model parameters (compute layer temperature)
  fc_param               => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),       & ! freezing curve parameter for snow (K-1)
  ! model parameters (new snow density)
@@ -186,7 +186,7 @@ contains
 
  ! number of layers possible to divide
  if(doGlac)then
-   nDivLayers = nGlce-noWatState
+   nDivLayers = nGlce-noThetaChange
  else
    nDivLayers = nSnow
  end if

@@ -325,7 +325,7 @@ subroutine coupled_em(&
   real(rkind), allocatable             :: depthGlceTopLayer(:)     ! depth of the top glacier ice layers at the start of the time step (m)
   real(rkind), allocatable             :: iceGlceTopLayer(:)       ! ice content of of the top glacier ice layers at the start of the time step (m)
   real(rkind), allocatable             :: tempGlceTopLayer(:)      ! temperature of the top glacier ice layers at the start of the time step (K)
-  integer(i4b)                         :: noWatState               ! number of layers with no water state (bottom glacier ice layers)
+  integer(i4b)                         :: noThetaChange            ! number of layers with no change in total water content (bottom layers)
   logical(lgt)                         :: divideLayer              ! flag to denote that a layer was divided
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
@@ -462,8 +462,8 @@ subroutine coupled_em(&
       balanceCanopyWater0 = scalarCanopyLiq + scalarCanopyIce
       balanceSoilWater0   = scalarTotalSoilLiq + scalarTotalSoilIce
       balanceAquifer0     = scalarAquiferStorage*iden_water
-      balanceIceWE0       = sum(iden_water*mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState)) &
-                            + sum(iden_ice*mLayerVolFracIce(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState))
+      balanceIceWE0       = sum(iden_water*mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange)) &
+                            + sum(iden_ice*mLayerVolFracIce(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange))
 
       ! save liquid water content
       if(printBalance)then
@@ -1224,7 +1224,7 @@ subroutine coupled_em(&
                     nLake,                                    & ! intent(in):    number of lake layers
                     nSoil,                                    & ! intent(in):    number of soil layers
                     nGlce,                                    & ! intent(in):    number of glacier ice layers
-                    noWatState,                               & ! intent(in):    number of layers with no water state (bottom glacier ice layers)
+                    noThetaChange,                               & ! intent(in):    number of layers with no change in total water content (bottom layers)
                     groundSublimation,                        & ! intent(in):    sublimation rate over the whole time step (kg m-2 s-1)
                     mLayerVolFracLiq,                         & ! intent(inout): volumetric fraction of liquid water in the layer domains (-)
                     mLayerVolFracIce,                         & ! intent(inout): volumetric fraction of ice in the layer domains (-)
@@ -1759,8 +1759,8 @@ subroutine coupled_em(&
       ! ------------------------------------
       if(nGlce>0)then
         ! compute the liquid water and ice content at the end of the time step
-        scalarIceWE = sum(iden_water*mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState) &
-                          + iden_ice*mLayerVolFracIce(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState))
+        scalarIceWE = sum(iden_water*mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange) &
+                          + iden_ice*mLayerVolFracIce(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange))
         ! STUB for ice water balance
         ! check the individual layers
         !if(printBalance)then
@@ -1780,8 +1780,8 @@ subroutine coupled_em(&
         end if
 
         ! Reset the layers, ice content will have changed if layers merged
-        if (size(depthGlceTopLayer)<nGlce-noWatState)then
-          do iLayer = 1, nGlce-noWatState-size(depthGlceTopLayer)
+        if (size(depthGlceTopLayer)<nGlce-noThetaChange)then
+          do iLayer = 1, nGlce-noThetaChange-size(depthGlceTopLayer)
             call layerDivide(&
                     ! input/output: model data structures
                     .true.,                      & ! intent(in):    flag to denote that we are dividing glacier ice layers
@@ -1808,18 +1808,18 @@ subroutine coupled_em(&
                           err,cmessage)                        ! intent(out):   error control
           if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
-        else if(size(depthGlceTopLayer)>nGlce-noWatState)then ! this should not happen
+        else if(size(depthGlceTopLayer)>nGlce-noThetaChange)then ! this should not happen
           err=20; message=trim(message)//'glacier top ice layers divided, started too thick'; return
         endif
 
-        mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState) = depthGlceTopLayer
-        !mLayerVolFracIce(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState) = iceGlceTopLayer
-        !mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState) = 0._rkind ! no liquid water in glacier ice
-        !mLayerTemp(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState) = tempGlceTopLayer
+        mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange) = depthGlceTopLayer
+        !mLayerVolFracIce(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange) = iceGlceTopLayer
+        !mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange) = 0._rkind ! no liquid water in glacier ice
+        !mLayerTemp(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange) = tempGlceTopLayer
 
         !! get enthalpy from temperature
         !if( (enthalpyStateVec .or. computeEnthalpy))then
-        !  do iLayer=nSnow+nLake+nSoil+1,nSnow+nLake+nSoil+nGlce-noWatState
+        !  do iLayer=nSnow+nLake+nSoil+1,nSnow+nLake+nSoil+nGlce-noThetaChange
         !    mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)*(iden_ice/iden_water)
         !    ! compute enthalpy for snow and glacier ice layers
         !    call T2enthTemp_snLaGl(&
@@ -1967,17 +1967,17 @@ contains
   nGlce = count(indx_data%var(iLookINDEX%layerType)%dat==iname_glce)
   nLayers = nSnow + nLake + nSoil + nGlce
 
-  noWatState = indx_data%var(iLookINDEX%noWatState)%dat(1) ! number of layers with no water state (bottom glacier ice layers)
+  noThetaChange = indx_data%var(iLookINDEX%noThetaChange)%dat(1) ! number of layers with no change in total water content (bottom layers)
 
   ! allocate and initialize using the initial value of nLayers
   allocate(innerBalanceLayerMass(nLayers)); innerBalanceLayerMass = 0._rkind ! mean total balance of mass in layers
   allocate(innerBalanceLayerNrg(nLayers));  innerBalanceLayerNrg = 0._rkind ! mean total balance of energy in layers
   allocate(mLayerVolFracIceInit(nLayers));  mLayerVolFracIceInit = prog_data%var(iLookPROG%mLayerVolFracIce)%dat ! volume fraction of water ice
   if (nGlce>0)then ! depth, ice content, temp of the top glacier layer at the beginning of the data step
-    allocate(depthGlceTopLayer(nGlce-noWatState), iceGlceTopLayer(nGlce-noWatState), tempGlceTopLayer(nGlce-noWatState))
-    depthGlceTopLayer = prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState)
-    iceGlceTopLayer   = prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState)
-    tempGlceTopLayer  = prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState)
+    allocate(depthGlceTopLayer(nGlce-noThetaChange), iceGlceTopLayer(nGlce-noThetaChange), tempGlceTopLayer(nGlce-noThetaChange))
+    depthGlceTopLayer = prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange)
+    iceGlceTopLayer   = prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange)
+    tempGlceTopLayer  = prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange)
   else ! no glacier, so set to 0
     allocate(depthGlceTopLayer(1), iceGlceTopLayer(1), tempGlceTopLayer(1))
     depthGlceTopLayer = 0._rkind

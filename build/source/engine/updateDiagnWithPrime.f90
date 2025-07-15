@@ -239,8 +239,8 @@ subroutine updateDiagnWithPrime(&
     nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                    ,& ! intent(in):  [i4b]    total number of soil layers
     nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)                  ,& ! intent(in):  [i4b]    total number of layers
     mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat                  ,& ! intent(in):  [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
-    noWatState              => indx_data%var(iLookINDEX%noWatState)%dat(1)               ,& ! number of layers with no water state (bottom glacier ice layers)
-   ! indices defining model states and layers
+    noThetaChange           => indx_data%var(iLookINDEX%noThetaChange)%dat(1)            ,& ! intent(in):  [i4b]    number of layers with no change in total water content (bottom layers)
+    ! indices defining model states and layers
     ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)                 ,& ! intent(in):  [i4b]    index of canopy energy state variable
     ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)                 ,& ! intent(in):  [i4b]    index of canopy hydrology state variable (mass)
     ! indices in the full vector for specific domains
@@ -464,7 +464,7 @@ subroutine updateDiagnWithPrime(&
           call enthalpy2T_snLaGl(&
                    computeJac,                     & ! intent(in):    flag if computing for Jacobian update       
                    ixDomainType==iname_lake,       & ! intent(in):    flag if is lake layer
-                   iLayer>nLayers-noWatState,      & ! intent(in):    flag if is liquid water is 0
+                   iLayer>nLayers-noThetaChange,      & ! intent(in):    flag if is liquid water is 0
                    snowfrz_scale,                  & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
                    mLayerEnthalpyTrial(iLayer),    & ! intent(in):    enthalpy of layer (J m-3)
                    mLayerVolFracWatTrial(iLayer),  & ! intent(in):    volumetric total water content (-)
@@ -570,10 +570,10 @@ subroutine updateDiagnWithPrime(&
                 d2Theta_dTkCanopy2 = 2._rkind * snowfrz_scale**2_i4b * ( (Tfreeze - xTemp) * 2._rkind * fLiq * dFracLiqVeg_dTkCanopy - fLiq**2_i4b ) * scalarCanopyWatTrial/(iden_water*canopyDepth)
               endif
             case(iname_snow, iname_lake, iname_glce)
-              dFracLiqWat_dTk(iLayer) = dFracLiq_dTk(xTemp,snowfrz_scale,iLayer>nLayers-noWatState)
+              dFracLiqWat_dTk(iLayer) = dFracLiq_dTk(xTemp,snowfrz_scale,iLayer>nLayers-noThetaChange)
               mLayerdTheta_dTk(iLayer) = dFracLiqWat_dTk(iLayer) * mLayerVolFracWatTrial(iLayer)
               if(computeJac)then
-                fLiq = fracliquid(xTemp,snowfrz_scale,iLayer>nLayers-noWatState)
+                fLiq = fracliquid(xTemp,snowfrz_scale,iLayer>nLayers-noThetaChange)
                 mLayerd2Theta_dTk2(iLayer) = 2._rkind * snowfrz_scale**2_i4b * ( (Tfreeze - xTemp) * 2._rkind * fLiq * dFracLiqWat_dTk(iLayer) - fLiq**2_i4b ) * mLayerVolFracWatTrial(iLayer)
               endif
             case(iname_soil)
@@ -605,7 +605,7 @@ subroutine updateDiagnWithPrime(&
           ! compute the fraction of snow
           select case(ixDomainType)
             case(iname_veg);                          scalarFracLiqVeg      = fracliquid(xTemp,snowfrz_scale)
-            case(iname_snow, iname_lake, iname_glce); mLayerFracLiq(iLayer) = fracliquid(xTemp,snowfrz_scale,iLayer>nLayers-noWatState)
+            case(iname_snow, iname_lake, iname_glce); mLayerFracLiq(iLayer) = fracliquid(xTemp,snowfrz_scale,iLayer>nLayers-noThetaChange)
             case(iname_soil)  ! do nothing
             case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_glce'; return
           end select  ! domain type
@@ -650,7 +650,7 @@ subroutine updateDiagnWithPrime(&
             case(iname_snow, iname_lake, iname_glce)
               ! compute volumetric fraction of liquid water and ice
               call updateSnLaGlPrime(&
-                              iLayer>nLayers-noWatState,      & ! intent(in):  flag if no liquid water in layer
+                              iLayer>nLayers-noThetaChange,      & ! intent(in):  flag if no liquid water in layer
                               xTemp,                          & ! intent(in):  temperature (K)
                               mLayerVolFracWatTrial(iLayer),  & ! intent(in):  mass state variable = trial volumetric fraction of water (-)
                               snowfrz_scale,                  & ! intent(in):  scaling parameter for the snow freezing curve (K-1)

@@ -157,7 +157,7 @@ subroutine computeJacob(&
     ixGlceOnlyNrg                => indx_data%var(iLookINDEX%ixGlceOnlyNrg)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the glacier ice domain 
     ! vector of hydrology indices for the layer domains
     ! NOTE: states not in the subset are equal to integerMissing
-    noWatState                   => indx_data%var(iLookINDEX%noWatState)%dat(1)                     ,& ! intent(in): [i4b]    number of layers with no water state (bottom glacier ice layers)  
+    noThetaChange                => indx_data%var(iLookINDEX%noThetaChange)%dat(1)                  ,& ! intent(in): [i4b]    number of layers with no change in total water content (bottom layers)  
     ixSnLaSoGlHyd                => indx_data%var(iLookINDEX%ixSnLaSoGlHyd)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the layer domains
     ixSnowOnlyHyd                => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the snow domain
     ixSoilOnlyHyd                => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the soil domain
@@ -448,7 +448,7 @@ subroutine computeJacob(&
         ! * cross derivatives in the snow, glce domain...
         ! ----------------------------------------
         if((nSnowOnlyHyd>0 .and. nSnowOnlyNrg>0) .or. (nGlceOnlyHyd>0 .and. nGlceOnlyNrg>0))then
-          do qLayer=1,nSnow+nGlce-noWatState ! loop through layers in the snow, glce domain
+          do qLayer=1,nSnow+nGlce-noThetaChange ! loop through layers in the snow, glce domain
 
             if (qLayer <= nSnow) then
               ! - check that the snow layer is desired
@@ -458,7 +458,7 @@ subroutine computeJacob(&
             else
               jLayer = qLayer + nLake + nSoil
               iLayer = qLayer - nSnow
-              endLayer = nGlce-noWatState
+              endLayer = nGlce-noThetaChange
             endif
             ! - check that the layer is desired
             if(ixSnLaSoGlNrg(jLayer)==integerMissing) cycle
@@ -820,7 +820,7 @@ subroutine computeJacob(&
         ! * cross derivatives in the snow, glce domain...
         ! ----------------------------------------
         if((nSnowOnlyHyd>0 .and. nSnowOnlyNrg>0) .or. (nGlceOnlyHyd>0 .and. nGlceOnlyNrg>0))then
-          do qLayer=1,nSnow+nGlce -noWatState! loop through layers in the snow, glce domain
+          do qLayer=1,nSnow+nGlce -noThetaChange! loop through layers in the snow, glce domain
 
             if (qLayer <= nSnow) then
               ! - check that the snow layer is desired
@@ -830,7 +830,7 @@ subroutine computeJacob(&
             else
               jLayer = qLayer + nLake + nSoil
               iLayer = qLayer - nSnow
-              endLayer = nGlce-noWatState
+              endLayer = nGlce-noThetaChange
             endif
             ! - check that the layer is desired
             if(ixSnLaSoGlNrg(jLayer)==integerMissing) cycle

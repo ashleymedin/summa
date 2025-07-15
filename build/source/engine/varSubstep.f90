@@ -232,7 +232,7 @@ subroutine varSubstep(&
     nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):    [i4b]    number of soil layers
     nGlce                   => indx_data%var(iLookINDEX%nGlce)%dat(1)                 ,& ! intent(in):    [i4b]    number of glacier ice layers
     nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)               ,& ! intent(in):    [i4b]    total number of layers
-    noWatState              => indx_data%var(iLookINDEX%noWatState)%dat(1)            ,& ! intent(in):    [i4b]    number of layers with no water state (bottom glacier ice layers)
+    noThetaChange           => indx_data%var(iLookINDEX%noThetaChange)%dat(1)         ,& ! intent(in):    [i4b]    number of layers with no change in total water content (bottom layers)
     nSoilOnlyHyd            => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology variables in the soil domain
     mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):    [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
     ! get indices for balances
@@ -555,8 +555,8 @@ subroutine varSubstep(&
                 fluxCount%var(iVar)%dat(ixLayer) = fluxCount%var(iVar)%dat(ixLayer) + 1_i4b
                 if(iVar==iLookFLUX%mLayerLiqFluxSnLaGl.or. iVar==iLookFLUX%iLayerLiqFluxSnLaGl)then
                   ! NOTE: this is a special case for the liquid flux in the no water glacier layers, always set to zero
-                  flux_mean%var(iVar)%dat(nLayers-noWatState+1:nLayers) = 0._rkind
-                  fluxCount%var(iVar)%dat(nLayers-noWatState+1:nLayers) = 1_i4b
+                  flux_mean%var(iVar)%dat(nLayers-noThetaChange+1:nLayers) = 0._rkind
+                  fluxCount%var(iVar)%dat(nLayers-noThetaChange+1:nLayers) = 1_i4b
                 endif
               endif
             end do

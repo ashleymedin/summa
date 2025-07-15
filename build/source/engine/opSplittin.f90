@@ -723,7 +723,7 @@ subroutine opSplittin(&
   subroutine finalize_coupling
    associate(ixStateType     => indx_data%var(iLookINDEX%ixStateType)%dat) ! intent(in): [i4b(:)] indices defining the type of the state (ixNrgState...)
     ! *** final operations for coupling split method ***
-    ! check that all state variables were updated and not a noWatState
+    ! check that all state variables were updated and not a noThetaChange
     if (any(stateCheck==0 .and. ixStateType/=integerMissing)) then
      message=trim(message)//'some state variables were not updated!'
      err=20; return_flag=.true.; return
@@ -789,22 +789,22 @@ subroutine opSplittin(&
    ! *** Identify state-specific variables for a given state split ***
    doAdjustTemp = (ixCoupling/=fullyCoupled .and. iStateTypeSplit==massSplit) ! flag to adjust the temperature
    associate(&
-    nSnow       => indx_data%var(iLookINDEX%nSnow)%dat(1)     ,& ! intent(in): [i4b] number of snow layers
-    nLake       => indx_data%var(iLookINDEX%nLake)%dat(1)     ,& ! intent(in): [i4b] number of lake layers
-    nSoil       => indx_data%var(iLookINDEX%nSoil)%dat(1)     ,& ! intent(in): [i4b] number of soil layers
-    nGlce       => indx_data%var(iLookINDEX%nGlce)%dat(1)     ,& ! intent(in): [i4b] number of glacier ice layers
-    noWatState  => indx_data%var(iLookINDEX%noWatState)%dat(1),& ! intent(in): [i4b] number of layers with no water state (bottom glacier ice layers)  
-    ixStateType => indx_data%var(iLookINDEX%ixStateType)%dat,  & ! intent(in): [i4b(:)] indices defining the type of the state
-    ixHydCanopy => indx_data%var(iLookINDEX%ixHydCanopy)%dat,  & ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the canopy domain
-    ixHydLayer  => indx_data%var(iLookINDEX%ixHydLayer)%dat    ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the layers
+    nSnow          => indx_data%var(iLookINDEX%nSnow)%dat(1)         ,& ! intent(in): [i4b] number of snow layers
+    nLake          => indx_data%var(iLookINDEX%nLake)%dat(1)         ,& ! intent(in): [i4b] number of lake layers
+    nSoil          => indx_data%var(iLookINDEX%nSoil)%dat(1)         ,& ! intent(in): [i4b] number of soil layers
+    nGlce          => indx_data%var(iLookINDEX%nGlce)%dat(1)         ,& ! intent(in): [i4b] number of glacier ice layers
+    noThetaChange  => indx_data%var(iLookINDEX%noThetaChange)%dat(1) ,& ! intent(in): [i4b] number of layers with no change in total water content (bottom layers)  
+    ixStateType    => indx_data%var(iLookINDEX%ixStateType)%dat,      & ! intent(in): [i4b(:)] indices defining the type of the state
+    ixHydCanopy    => indx_data%var(iLookINDEX%ixHydCanopy)%dat,      & ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the canopy domain
+    ixHydLayer     => indx_data%var(iLookINDEX%ixHydLayer)%dat        ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the layers
 
     ! modify the state type names associated with the state vector
     if (ixCoupling/=fullyCoupled .and. iStateTypeSplit==massSplit) then ! if modifying state variables for the mass split
       if (computeVegFlux) then
         where(ixStateType(ixHydCanopy)==iname_watCanopy) ixStateType(ixHydCanopy)=iname_liqCanopy
       end if
-      where(ixStateType(ixHydLayer(1:nLayers-noWatState))==iname_watLayer) ixStateType(ixHydLayer(1:nLayers-noWatState))=iname_liqLayer
-      where(ixStateType(ixHydLayer(1:nLayers-noWatState))==iname_matLayer) ixStateType(ixHydLayer(1:nLayers-noWatState))=iname_lmpLayer
+      where(ixStateType(ixHydLayer(1:nLayers-noThetaChange))==iname_watLayer) ixStateType(ixHydLayer(1:nLayers-noThetaChange))=iname_liqLayer
+      where(ixStateType(ixHydLayer(1:nLayers-noThetaChange))==iname_matLayer) ixStateType(ixHydLayer(1:nLayers-noThetaChange))=iname_lmpLayer
     end if
    end associate
   end subroutine initialize_stateThenDomain
@@ -818,7 +818,7 @@ subroutine opSplittin(&
      case default; err=20; message=trim(message)//'ixStateThenDomain case not found'; return_flag=.true.; return
    end select
    associate(&
-    noWatState  => indx_data%var(iLookINDEX%noWatState)%dat(1),& ! intent(in): [i4b] intent(in): [i4b] number of layers with no water state (bottom glacier ice layers)  
+    noThetaChange  => indx_data%var(iLookINDEX%noThetaChange)%dat(1),& ! intent(in): [i4b] intent(in): [i4b] number of layers with no change in total water content (bottom layers)  
     ixStateType => indx_data%var(iLookINDEX%ixStateType)%dat,  & ! intent(in): [i4b(:)] indices defining the type of the state
     ixHydCanopy => indx_data%var(iLookINDEX%ixHydCanopy)%dat,  & ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the canopy domain
     ixHydLayer  => indx_data%var(iLookINDEX%ixHydLayer)%dat    ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the layers
@@ -829,8 +829,8 @@ subroutine opSplittin(&
       if (computeVegFlux) then
         where(ixStateType(ixHydCanopy)==iname_liqCanopy) ixStateType(ixHydCanopy)=iname_watCanopy
       end if
-      where(ixStateType(ixHydLayer(1:nLayers-noWatState))==iname_liqLayer) ixStateType(ixHydLayer(1:nLayers-noWatState))=iname_watLayer
-      where(ixStateType(ixHydLayer(1:nLayers-noWatState))==iname_lmpLayer) ixStateType(ixHydLayer(1:nLayers-noWatState))=iname_matLayer
+      where(ixStateType(ixHydLayer(1:nLayers-noThetaChange))==iname_liqLayer) ixStateType(ixHydLayer(1:nLayers-noThetaChange))=iname_watLayer
+      where(ixStateType(ixHydLayer(1:nLayers-noThetaChange))==iname_lmpLayer) ixStateType(ixHydLayer(1:nLayers-noThetaChange))=iname_matLayer
     end if
    end associate  
   end subroutine finalize_stateThenDomain
@@ -1779,13 +1779,13 @@ contains
  subroutine stateTypeSplit_subDomain_massSplit_glceSplit_stateMask
   ! *** Get mass state glce subdomain split stateMask  ***
   associate(&
-   nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)     ,& ! intent(in): [i4b] number of snow layers
-   nLake           => indx_data%var(iLookINDEX%nLake)%dat(1)     ,& ! intent(in): [i4b] number of lake layers
-   nSoil           => indx_data%var(iLookINDEX%nSoil)%dat(1)     ,& ! intent(in): [i4b] number of soil layers
-   nGlce           => indx_data%var(iLookINDEX%nGlce)%dat(1)     ,& ! intent(in): [i4b] number of glacier ice layers
-   noWatState      => indx_data%var(iLookINDEX%noWatState)%dat(1),& ! intent(in): [i4b] number of layers with no water state (bottom glacier ice layers)  
-   ixHydLayer      => indx_data%var(iLookINDEX%ixHydLayer)%dat    ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the lake domain
-   split_select % stateMask(ixHydLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noWatState)) = .true.  ! soil hydrology
+   nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)         ,& ! intent(in): [i4b] number of snow layers
+   nLake           => indx_data%var(iLookINDEX%nLake)%dat(1)         ,& ! intent(in): [i4b] number of lake layers
+   nSoil           => indx_data%var(iLookINDEX%nSoil)%dat(1)         ,& ! intent(in): [i4b] number of soil layers
+   nGlce           => indx_data%var(iLookINDEX%nGlce)%dat(1)         ,& ! intent(in): [i4b] number of glacier ice layers
+   noThetaChange   => indx_data%var(iLookINDEX%noThetaChange)%dat(1) ,& ! intent(in): [i4b] number of layers with no change in total water content (bottom layers)  
+   ixHydLayer      => indx_data%var(iLookINDEX%ixHydLayer)%dat        ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the lake domain
+   split_select % stateMask(ixHydLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange)) = .true.  ! soil hydrology
   end associate
  end subroutine stateTypeSplit_subDomain_massSplit_glceSplit_stateMask
 
