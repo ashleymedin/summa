@@ -1039,13 +1039,13 @@ subroutine enthalpy2T_snLaGl(&
     ! compute Jacobian terms
     if(computeJac)then
       ! NOTE: dintegral_dT = fLiq
-      diffT    = T - Tfreeze
+      diffT = T - Tfreeze
       if(noLiq)then
         integral = 0._rkind ! no liquid water, so integral is zero
       else
         integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
       end if
-      fLiq     = fracliquid(T, snowfrz_scale, noLiq)
+      fLiq = fracliquid(T, snowfrz_scale, noLiq)
     
       ! w.r.t. temperature, NOTE: dintegral_dT = fLiq
       dfLiq_dT    = dFracLiq_dTk(T,snowfrz_scale,noLiq)
