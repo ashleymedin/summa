@@ -504,7 +504,7 @@ subroutine summaSolve4ida(&
           if (stateVec(ixSnowOnlyNrg(i)) > Tfreeze) tooMuchMelt = .true. !need to merge
         endif
       enddo
-      ! for lakes, will need to merge if an ice layer changes status, but this is not implemented yet
+      ! for lakes, will need to merge if an ice layer completely melts, not implemented yet
       if (nGlce>0) then
         ! loop through non-missing energy state variables in the glacier domain to see if need to merge 
         do concurrent (i=1:nGlce,ixGlceOnlyNrg(i)/=integerMissing)

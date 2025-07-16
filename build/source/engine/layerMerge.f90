@@ -256,7 +256,7 @@ contains
      if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
      ! exit the do loop (no more snow layers to remove)
      return
-    else if (doGlac .and. nGlce<2+noThetaChange)then
+    else if (doGlac .and. nGlce==1+noThetaChange)then
      err=20; message=trim(message)//'Melted entire water state of glacier, need to start with thicker top layers';return
     end if  ! (special case of 1 layer --> snow without a layer)
       

@@ -814,6 +814,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
   integer(i4b)                             :: ixNrg,ixLiq                ! index of energy and mass state variables in full state vector
   ! indices of model layers
   integer(i4b)                             :: iLayer,jLayer              ! index of model layer
+  integer(i4b)                             :: nLayers                    ! total number of layers
   ! choice of constraints to impose
   logical(lgt)                             :: small_delTemp              ! flag to constain temperature change to be less than zMaxTempIncrement
   logical(lgt)                             :: small_delMatric            ! flag to constain matric head change to be less than zMaxMatricIncrement
@@ -896,7 +897,9 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
       case default; err=20; message=trim(message)//'expect num_method to be ida, kinsol, or homegrown (or itertive, which is homegrown)'; return
     end select
     
+    ! shortcut variables
     vGn_m = 1._rkind - 1._rkind/vGn_n
+    nLayers = nSnow + nLake + nSoil + nGlce  ! total number of layers
 
     ! ** limit temperature increment to zMaxTempIncrement
     ! NOTE: this can cause problems especially from a cold start when far from the solution
@@ -1037,7 +1040,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           endif
           ! get the volumetric fraction of liquid water and ice
           select case( ixStateType_subset( ixSnLaSoGlHyd(iLayer) ) )
-            case(iname_watLayer); scalarLiq = fracliquid(scalarTemp,mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),iLayer>nSnow+nLake+nSoil+nGlce-noThetaChange) &
+            case(iname_watLayer); scalarLiq = fracliquid(scalarTemp,mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),iLayer>nLayers-noThetaChange) &
                                              * stateVecPrev(ixSnLaSoGlHyd(iLayer))
             case(iname_liqLayer); scalarLiq = stateVecPrev(ixSnLaSoGlHyd(iLayer))
             case default; err=20; message=trim(message)//'expect ixStateType_subset to be iname_watLayer or iname_liqLayer for lake hydrology'; return
