@@ -518,7 +518,7 @@ subroutine updateDiagn(&
             case(iname_snow, iname_lake, iname_glce)
               ! compute volumetric fraction of liquid water and ice
               call updateSnLaGl(&
-                              iLayer>nLayers-noThetaChange,      & ! intent(in):  flag that no liquid water in layer
+                              iLayer>nLayers-noThetaChange,   & ! intent(in):  flag that no liquid water in layer
                               xTemp,                          & ! intent(in):  temperature (K)
                               mLayerVolFracWatTrial(iLayer),  & ! intent(in):  mass state variable = trial volumetric fraction of water (-)
                               snowfrz_scale,                  & ! intent(in):  scaling parameter for the snow freezing curve (K-1)

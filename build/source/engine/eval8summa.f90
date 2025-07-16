@@ -1021,7 +1021,8 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
         if(stateVecPrev(ixVegHyd) + xInc(ixVegHyd) < 0._rkind) xInc(ixVegHyd) = -0.5_rkind*stateVecPrev(ixVegHyd)
       endif ! (if the state variable for canopy water is included within the state subset)
           
-      ! impose bounds for snow, lake, or glacier ice water, change in total water is only due to liquid flux
+      ! impose bounds for snow or glacier ice water, change in total water is only due to liquid flux
+      ! for lake, the change in total water is due to liquid flux and ice flux (ice floats and water may spill), not yet implemented
       if(nSnowOnlyHyd+nLakeOnlyHyd+nGlceOnlyHyd>0)then
         ! loop through layers
         do jLayer=1,(nSnow+nLake+nGlce)

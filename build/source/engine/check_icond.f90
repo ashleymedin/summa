@@ -255,6 +255,7 @@ contains
     mLayerVolFracIce     => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerVolFracIce)%dat        ,& ! volumetric fraction of ice in each snow layer (-)
     mLayerMatricHead     => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerMatricHead)%dat        ,& ! matric head (m)
     layerType            => indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%layerType)%dat              ,& ! type of layer (ix_soil or ix_snow)
+    noThetaChange        => indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%noThetaChange)%dat(1)       ,& ! number of layers with no change in total water content (bottom layers)
     ! depth varying soil properties
     soil_dens_intr       => mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%soil_dens_intr)%dat         ,& ! intrinsic soil density             (kg m-3)
     vGn_alpha            => mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%vGn_alpha)%dat              ,& ! van Genutchen "alpha" parameter (m-1)
@@ -377,10 +378,10 @@ contains
 
         ! ensure consistency among state variables
         call updateSnLaGl(&
-                        layerType(iLayer)==iname_glce,  & ! intent(in):  flag that no liquid water in layer
-                        mLayerTemp(iLayer),             & ! intent(in): temperature (K)
-                        scalarTheta,                    & ! intent(in): volumetric fraction of total water (-)
-                        snowfrz_scale,                  & ! intent(in): scaling parameter for the snow freezing curve (K-1)
+                        iLayer>nLayers-noThetaChange,   & ! intent(in):  flag that no liquid water in layer
+                        mLayerTemp(iLayer),             & ! intent(in):  temperature (K)
+                        scalarTheta,                    & ! intent(in):  volumetric fraction of total water (-)
+                        snowfrz_scale,                  & ! intent(in):  scaling parameter for the snow freezing curve (K-1)
                         mLayerVolFracLiq(iLayer),       & ! intent(out): volumetric fraction of liquid water (-)
                         mLayerVolFracIce(iLayer),       & ! intent(out): volumetric fraction of ice (-)
                         fLiq,                           & ! intent(out): fraction of liquid water (-)
@@ -390,7 +391,7 @@ contains
         if(checkEnthalpy)then ! enthalpy as state variable or in residual
           if(no_icond_enth)then ! no enthalpy in icond file
             call T2enthTemp_snLaGl(&
-                        layerType(iLayer)==iname_glce,  & ! intent(in):  flag that no liquid water in layer
+                        iLayer>nLayers-noThetaChange,   & ! intent(in):  flag that no liquid water in layer
                         snowfrz_scale,                  & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                         mLayerTemp(iLayer),             & ! intent(in):  layer temperature (K)
                         scalarTheta,                    & ! intent(in):  volumetric total water content (-)
