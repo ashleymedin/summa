@@ -1669,7 +1669,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
   
     call T2enthTemp_veg(canopyDepth, specificHeatVeg, maxMassVegetation, snowfrz_scale, scalarCanopyTemp, &
                         scalarCanopyWat, scalarCanopyEnthTemp)
-    fLiq  = fracliquid(scalarCanopyTemp, snowfrz_scale)
+    fLiq       = fracliquid(scalarCanopyTemp, snowfrz_scale)
     diff_H_veg = scalarCanopyEnthTemp - LH_fus * scalarCanopyWat* (1._rkind - fLiq)/ canopyDepth - scalarCanopyEnthalpy
   
   end function diff_H_veg
@@ -1689,7 +1689,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     if(vec(4) == 1._rkind) noLiq = .true.! no liquid water, ice only
   
     call T2enthTemp_snLaGl(noLiq, snowfrz_scale, mLayerTemp, mLayerVolFracWat, mLayerEnthTemp)
-    fLiq   = fracliquid(mLayerTemp, snowfrz_scale, noLiq)
+    fLiq          = fracliquid(mLayerTemp, snowfrz_scale, noLiq)
     diff_H_snLaGl = mLayerEnthTemp - iden_water * LH_fus * mLayerVolFracWat * (1._rkind - fLiq) - mLayerEnthalpy
   
   end function diff_H_snLaGl

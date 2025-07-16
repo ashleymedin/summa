@@ -991,7 +991,7 @@ subroutine coupled_em(&
           if( (enthalpyStateVec .or. computeEnthalpy) .and. nSnow==0 .and. prog_data%var(iLookPROG%scalarSWE)%dat(1)>0._rkind)then 
             if (nLake>0 .or. (nLake==0 .and. nSoil==0 .and. nGlce>0))then
               call T2enthTemp_snLaGl(&
-                       nLake==0 .and. nSoil==0 .and. nGlce>0,              & ! intent(in):  flag that no liquid water in layer
+                       .false.,                                            & ! intent(in):  flag that no liquid water in layer, never true for top layer
                        snowfrz_scale,                                      & ! intent(in):  scaling parameter for the lake freezing curve  (K-1)
                        prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1),   & ! intent(in):  layer temperature (K)
                        mLayerVolFracWat(nSnow+1),                          & ! intent(in):  volumetric total water content (-)
