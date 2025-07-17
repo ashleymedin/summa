@@ -21,12 +21,13 @@
 module snowLakeGlceLiqFlux_module
 
 ! access modules
-USE nr_type                                 ! numerical recipes data types
+USE nr_type                                ! numerical recipes data types
 USE multiconst,only:iden_ice,iden_water    ! intrinsic density of ice and water (kg m-3)
 
 ! access missing values
 USE globalData,only:integerMissing         ! missing integer
 USE globalData,only:realMissing            ! missing real number
+USE globalData,only:maxVolIceContent       ! snow maximum volumetric ice content to store water (-)
 
 ! named variables
 USE var_lookup,only:iLookINDEX             ! named variables for structure elements
@@ -83,7 +84,6 @@ subroutine snowLakeGlceLiqFlux(&
   real(rkind)                       :: multResid                  ! multiplier for the residual water content (-)
   real(rkind)                       :: residThrs                  ! ice density threshold to reduce residual liquid water content (kg m-3)
   real(rkind),parameter             :: residScal=10._rkind        ! scaling factor for residual liquid water content reduction factor (kg m-3)
-  real(rkind)                       :: maxVolIceContent           ! maximum volumetric ice content to store water (-)
   real(rkind)                       :: availCap                   ! available storage capacity [0,1] (-)
   real(rkind)                       :: relSaturn                  ! relative saturation [0,1] (-)
   real(rkind)                       :: k_param                    ! hydraulic conductivity parameter (m s-1)

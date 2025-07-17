@@ -252,6 +252,7 @@ MODULE globalData
   real(rkind),save,public                        :: dJulianFinsh                      ! julian day of end time of simulation
   real(rkind),save,public                        :: updateJulDay                      ! julian day the glacier grids were last updated
   real(rkind),save,public                        :: updateJuldayNext                  ! julian day the glacier grids will be updated next
+  real(rkind),save,public                        :: maxVolIceContent                  ! snow maximum volumetric ice content to store water (-)
   integer(i4b),save,public                       :: nHRUfile                          ! number of HRUs in the file
   integer(i4b),save,public                       :: urbanVegCategory                  ! vegetation category for urban areas
   logical(lgt),save,public                       :: doJacobian=.false.                ! flag to compute the Jacobian
