@@ -163,22 +163,23 @@ subroutine computeJacobWithPrime(&
   ! * local variables
   ! --------------------------------------------------------------
   ! indices of model state variables
-  integer(i4b)                         :: jState          ! index of state within the state subset
-  integer(i4b)                         :: qState          ! index of cross-derivative state variable for baseflow
-  integer(i4b)                         :: nrgState        ! energy state variable
-  integer(i4b)                         :: watState        ! hydrology state variable
-  integer(i4b)                         :: nState          ! number of state variables
-  integer(i4b),allocatable             :: nrgRows(:)      ! indices of rows for energy column in banded matrix
-  integer(i4b),allocatable             :: watRows(:)      ! indices of rows for hydrology column in banded matrix
+  integer(i4b)                         :: jState               ! index of state within the state subset
+  integer(i4b)                         :: qState               ! index of cross-derivative state variable for baseflow
+  integer(i4b)                         :: nrgState             ! energy state variable
+  integer(i4b)                         :: watState             ! hydrology state variable
+  integer(i4b)                         :: nState               ! number of state variables
+  integer(i4b),allocatable             :: nrgRows(:)           ! indices of rows for energy column in banded matrix
+  integer(i4b),allocatable             :: watRows(:)           ! indices of rows for hydrology column in banded matrix
   ! indices of model layers
-  integer(i4b)                         :: iLayer          ! index of model layer
-  integer(i4b)                         :: jLayer          ! index of model layer within the full state vector (hydrology)
-  integer(i4b)                         :: pLayer          ! indices of soil layers (used for the baseflow derivatives)
-  integer(i4b)                         :: qLayer          ! indices of snow+glce layers
-  integer(i4b)                         :: endLayer        ! index of the last layer 
+  integer(i4b)                         :: iLayer               ! index of model layer
+  integer(i4b)                         :: jLayer               ! index of model layer within the full state vector (hydrology)
+  integer(i4b)                         :: pLayer               ! indices of soil layers (used for the baseflow derivatives)
+  integer(i4b)                         :: qLayer               ! indices of snow+glce layers
+  integer(i4b)                         :: endLayer             ! index of the last layer 
   ! conversion factors
-  real(rkind)                          :: LH_fu0          ! latent heat of fusion, modified to be 0 if using enthalpy formulation and not using
-  real(rkind)                          :: convLiq2tot     ! factor to convert liquid water derivative to total water derivative
+  real(rkind)                          :: LH_fu0               ! latent heat of fusion, modified to be 0 if using enthalpy formulation and not using
+  real(rkind)                          :: convLiq2tot          ! factor to convert liquid water derivative to total water derivative
+  real(rkind)                          :: maxVolIceContent_use ! maximum volumetric ice content depending if snow or firn
   ! --------------------------------------------------------------
   ! associate variables from data structures
   associate(&
@@ -368,6 +369,13 @@ subroutine computeJacobWithPrime(&
     else
       LH_fu0 = LH_fus ! use regular value
     endif
+
+    ! compute the maximum volumetric ice content for the layer domains
+    if(nGlce>0)then ! snow can be firn
+      maxVolIceContent_use = min(maxVolIceContent+0.2,0.9_rkind) ! firn maximum volumetric ice content to store water (-)
+    else ! snow
+      maxVolIceContent_use = maxVolIceContent ! snow maximum volumetric ice content to store water (-)
+    end if
 
     ! define the form of the matrix
     select case(ixMatrix)

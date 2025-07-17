@@ -501,7 +501,7 @@ subroutine T2enthTemp_snLaGl(&
   implicit none
   ! delare dummy variables
   ! -------------------------------------------------------------------------------------------------------------------------
-  logical(lgt),intent(in)          :: noLiq                ! flag to indicate no liquid water in the layer
+  logical(lgt),intent(in)          :: noLiq                 ! flag to indicate no liquid water in the layer
   real(rkind),intent(in)           :: snowfrz_scale         ! scaling parameter for the snow freezing curve  (K-1)
   ! input: variables for the snow domain
   real(rkind),intent(in)           :: mLayerTemp            ! layer temperature (K)
@@ -524,7 +524,11 @@ subroutine T2enthTemp_snLaGl(&
     enthIce = 0._rkind
     enthAir = iden_air * Cp_air * ( 1._rkind - mLayerVolFracWat ) * diffT
   else
-    integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
+    if(noLiq)then 
+      integral = 0._rkind
+    else
+      integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
+    end if
     enthLiq  = iden_water * Cp_water * mLayerVolFracWat * integral
     enthIce  = iden_water * Cp_ice * mLayerVolFracWat * ( diffT - integral )
     enthAir  = iden_air * Cp_air * ( diffT - mLayerVolFracWat * ( (iden_water/iden_ice)*(diffT-integral) + integral ) )

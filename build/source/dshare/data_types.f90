@@ -599,6 +599,7 @@ MODULE data_types
  type, public :: in_type_snowLakeGlceLiqFlux ! class for intent(in) arguments in snowLakeGlceLiqFlux call
    integer(i4b)             :: nLayers                           ! intent(in):    number of layers
    integer(i4b)             :: nStart                            ! intent(in):    starting index for layers
+   logical(lgt)             :: is_glac                           ! intent(in):    flag to indicate if is a glacier domain
    logical(lgt)             :: do_snow                           ! intent(in):    flag to indicate if snow layers
    real(rkind)              :: surface_flux                      ! intent(in):    surface fluxes (kg m-2 s-1)
    real(rkind)              :: bottom_flux                       ! intent(in):    bottom fluxes if already computed(kg m-2 s-1)
@@ -1398,10 +1399,11 @@ contains
  ! **** end vegLiqFlux ****
 
  ! **** snowLakeGlceLiqFlux ****
- subroutine initialize_in_snowLakeGlceLiqFlux(in_snowLakeGlceLiqFlux,nLayers,nStart,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+ subroutine initialize_in_snowLakeGlceLiqFlux(in_snowLakeGlceLiqFlux,nLayers,nStart,is_glac,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
   class(in_type_snowLakeGlceLiqFlux),intent(out)   :: in_snowLakeGlceLiqFlux               ! class object for intent(in) snowLakeGlceLiqFlux arguments            
   integer(i4b),intent(in)                 :: nLayers                     ! number of layers
   integer(i4b),intent(in)                 :: nStart                      ! starting index for layers
+  logical(lgt),intent(in)                 :: is_glac                     ! flag to denote if processing a glacier domain
   logical(lgt),intent(in)                 :: do_snow                     ! flag to denote if processing snow layers
   real(rkind),intent(in)                  :: surface_flux                ! surface fluxes (kg m-2 s-1)
   real(rkind),intent(in)                  :: bottom_flux                 ! bottom fluxes if already computed(kg m-2 s-1)

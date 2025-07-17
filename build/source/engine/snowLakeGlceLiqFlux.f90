@@ -84,9 +84,9 @@ subroutine snowLakeGlceLiqFlux(&
   real(rkind)                       :: multResid                  ! multiplier for the residual water content (-)
   real(rkind)                       :: residThrs                  ! ice density threshold to reduce residual liquid water content (kg m-3)
   real(rkind),parameter             :: residScal=10._rkind        ! scaling factor for residual liquid water content reduction factor (kg m-3)
+   real(rkind)                      :: maxVolIceContent_use       ! maximum volumetric ice content depending if snow or firn
   real(rkind)                       :: availCap                   ! available storage capacity [0,1] (-)
   real(rkind)                       :: relSaturn                  ! relative saturation [0,1] (-)
-  real(rkind)                       :: k_param                    ! hydraulic conductivity parameter (m s-1)
   real(rkind)                       :: iLayerLiqFluxSnLaGl(0:in_snowLakeGlceLiqFlux % nLayers)
   real(rkind)                       :: iLayerLiqFluxSnLaGlDeriv(0:in_snowLakeGlceLiqFlux % nLayers)  
   ! ------------------------------------------------------------------------------------------------------------------------------------------
@@ -94,7 +94,8 @@ subroutine snowLakeGlceLiqFlux(&
   nLayers = in_snowLakeGlceLiqFlux % nLayers ! get number of snow/glce layers to get water fluxes over
   nStart = in_snowLakeGlceLiqFlux % nStart ! get the start index for the layers
   associate(&
-     do_snow           => in_snowLakeGlceLiqFlux % do_snow,                       & ! intent(in): flag to denote if snow is present
+    is_glac           => in_snowLakeGlceLiqFlux % is_glac,                       & ! intent(in): flag to denote if processing a glacier domain
+    do_snow           => in_snowLakeGlceLiqFlux % do_snow,                       & ! intent(in): flag to denote if snow is present
     ! input: model control
     firstFluxCall           => in_snowLakeGlceLiqFlux % firstFluxCall,           & ! intent(in): the first flux call
     scalarSolution          => in_snowLakeGlceLiqFlux % scalarSolution,          & ! intent(in): flag to denote if implementing the scalar solution
@@ -140,11 +141,13 @@ subroutine snowLakeGlceLiqFlux(&
     ! check the meltwater exponent is >=1
     if (mw_exp<1._rkind) then; err=20; message=trim(message)//'meltwater exponent < 1'; return; end if
 
-    ! get the inputs for the layers
-    if (do_snow)then
-      residThrs = 550._rkind
-      maxVolIceContent = 0.7_rkind
-      k_param = k_snow
+    ! get the inputs for the snow layers
+    if(is_glac) then  ! snow can be firn
+      residThrs = 550._rkind ! firn density threshold to reduce residual liquid water content (kg m-3), maybe should be 800?
+      maxVolIceContent_use = min(maxVolIceContent+0.2,0.9_rkind) ! firn maximum volumetric ice content to store water (-)
+    else ! snow
+      residThrs = 550._rkind ! snow density threshold to reduce residual liquid water
+      maxVolIceContent_use = maxVolIceContent ! snow maximum volumetric ice content to store water (-)
     end if
 
     ! get the indices for the layers
@@ -183,11 +186,11 @@ subroutine snowLakeGlceLiqFlux(&
           ! compute the relative saturation (-)
           availCap  = mLayerPoreSpace(iLayer) - mLayerThetaResid(iLayer) ! available capacity
           relSaturn = (mLayerVolFracLiqTrial(iLayer) - mLayerThetaResid(iLayer)) / availCap ! relative saturation
-          iLayerLiqFluxSnLaGl(iLayer)      = k_param*relSaturn**mw_exp
-          iLayerLiqFluxSnLaGlDeriv(iLayer) = ( (k_param*mw_exp)/availCap ) * relSaturn**(mw_exp - 1._rkind)
-          if (mLayerVolFracIce(iLayer) > maxVolIceContent) then ! NOTE: use start-of-step ice content, to avoid convergence problems
+          iLayerLiqFluxSnLaGl(iLayer)      = k_snow*relSaturn**mw_exp
+          iLayerLiqFluxSnLaGlDeriv(iLayer) = ( (k_snow*mw_exp)/availCap ) * relSaturn**(mw_exp - 1._rkind)
+          if (mLayerVolFracIce(iLayer) > maxVolIceContent_use) then ! NOTE: use start-of-step ice content, to avoid convergence problems
             ! ** allow liquid water to pass through under very high ice density
-            iLayerLiqFluxSnLaGl(iLayer) = iLayerLiqFluxSnLaGl(iLayer) + iLayerLiqFluxSnLaGl(iLayer-1) ! NOTE: derivative needs to be updated in future, wrong in this case
+            iLayerLiqFluxSnLaGl(iLayer) = iLayerLiqFluxSnLaGl(iLayer) + iLayerLiqFluxSnLaGl(iLayer-1)
           end if
         else  ! flow does not occur
           iLayerLiqFluxSnLaGl(iLayer)      = 0._rkind

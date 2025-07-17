@@ -96,7 +96,7 @@ subroutine snowGlceDepth(&
     end if
   end if  ! (if snow or ice layers exist on top)
 
-  ! *** account for compaction and cavitation in the snowpack...
+  ! *** account for compaction and cavitation in the snowpack or in firn...
   if(nSnow>0)then
     call snowDensify(&
                     ! intent(in): variables
@@ -140,7 +140,7 @@ end subroutine snowGlceDepth
 
 
 ! ************************************************************************************************
-! private subroutine snowDensify: compute change in snow density over the time step
+! private subroutine snowDensify: compute change in snow or firn density over the time step
 ! ************************************************************************************************
 subroutine snowDensify(&
                       ! intent(in): variables

@@ -701,7 +701,7 @@ contains
    surface_flux = 0._rkind ! no surface flux for glacier ice layers since impermeable
    bottom_flux = 0._rkind ! no bottom flux for glacier ice layers
    nStart = nSnow + nLake + nSoil
-   call in_snowLakeGlceLiqFlux%initialize(nGlce-noThetaChange,nStart,.false.,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+   call in_snowLakeGlceLiqFlux%initialize(nGlce-noThetaChange,nStart,.true.,.false.,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
    call io_snowLakeGlceLiqFlux%initialize(nGlce-noThetaChange,nStart,flux_data,deriv_data) ! only compute liquid water fluxes for top layers
   end associate
  end subroutine initialize_glceLiqFlux
@@ -752,7 +752,7 @@ contains
    bottom_flux = 0._rkind ! bottom flux for snow layers (m s-1)
    !if (nLake==0 .and. nSoil==0) bottom_flux = scalarGlceMelt ! leave this here in case want to couple with glacier ice melt for slush layer, will change derivatives
    nStart = 0
-   call in_snowLakeGlceLiqFlux%initialize(nSnow,nStart,.true.,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+   call in_snowLakeGlceLiqFlux%initialize(nSnow,nStart,nGlce>0,.true.,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
    call io_snowLakeGlceLiqFlux%initialize(nSnow,nStart,flux_data,deriv_data)
   end associate
  end subroutine initialize_snowLiqFlux
@@ -806,7 +806,7 @@ contains
    bottom_flux = 0._rkind ! bottom flux for lake layers (m s-1)
    !if(nSoil==0) bottom_flux = scalarGlceMelt ! leave this here in case want to couple with glacier ice melt for slush layer, will change derivatives
    nStart = nSnow + nLake
-   call in_snowLakeGlceLiqFlux%initialize(nLake,nStart,.false.,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+   call in_snowLakeGlceLiqFlux%initialize(nLake,nStart,nGlce>0,.false.,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
    call io_snowLakeGlceLiqFlux%initialize(nLake,nStart,flux_data,deriv_data)
   end associate
  end subroutine initialize_lakeLiqFlux
