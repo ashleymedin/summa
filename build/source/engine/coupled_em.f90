@@ -1224,7 +1224,7 @@ subroutine coupled_em(&
                     nLake,                                    & ! intent(in):    number of lake layers
                     nSoil,                                    & ! intent(in):    number of soil layers
                     nGlce,                                    & ! intent(in):    number of glacier ice layers
-                    noThetaChange,                               & ! intent(in):    number of layers with no change in total water content (bottom layers)
+                    noThetaChange,                            & ! intent(in):    number of layers with no change in total water content (bottom layers)
                     groundSublimation,                        & ! intent(in):    sublimation rate over the whole time step (kg m-2 s-1)
                     mLayerVolFracLiq,                         & ! intent(inout): volumetric fraction of liquid water in the layer domains (-)
                     mLayerVolFracIce,                         & ! intent(inout): volumetric fraction of ice in the layer domains (-)
@@ -1442,23 +1442,23 @@ subroutine coupled_em(&
     ! NOTE: This needs to be done AFTER the call to canopySnow, since throughfall and unloading are computed in canopySnow
     call newsnwfall(&
                   ! input: model control
-                  data_step,                                                 & ! time step (seconds)
-                  (nSnow > 0),                                               & ! logical flag if snow layers exist
-                  snowfrz_scale,                                             & ! freeezing curve parameter for snow (K-1)
+                  data_step,                                                 & ! intent(in):    time step (seconds)
+                  nSnow > 0,                                                 & ! intent(in):    logical flag if snow layers exist
+                  snowfrz_scale,                                             & ! intent(in):    freeezing curve parameter for snow (K-1)
                   ! input: diagnostic scalar variables
-                  diag_data%var(iLookDIAG%scalarSnowfallTemp)%dat(1),        & ! computed temperature of fresh snow (K)
-                  diag_data%var(iLookDIAG%scalarNewSnowDensity)%dat(1),      & ! computed density of new snow (kg m-3)
-                  flux_data%var(iLookFLUX%scalarThroughfallSnow)%dat(1),     & ! throughfall of snow through the canopy (kg m-2 s-1)
-                  flux_data%var(iLookFLUX%scalarCanopySnowUnloading)%dat(1), & ! unloading of snow from the canopy (kg m-2 s-1)
+                  diag_data%var(iLookDIAG%scalarSnowfallTemp)%dat(1),        & ! intent(in):    computed temperature of fresh snow (K)
+                  diag_data%var(iLookDIAG%scalarNewSnowDensity)%dat(1),      & ! intent(in):    computed density of new snow (kg m-3)
+                  flux_data%var(iLookFLUX%scalarThroughfallSnow)%dat(1),     & ! intent(in):    throughfall of snow through the canopy (kg m-2 s-1)
+                  flux_data%var(iLookFLUX%scalarCanopySnowUnloading)%dat(1), & ! intent(in):    unloading of snow from the canopy (kg m-2 s-1)
                   ! input/output: state variables
-                  prog_data%var(iLookPROG%scalarSWE)%dat(1),                 & ! SWE (kg m-2)
-                  prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),           & ! total snow depth (m)
-                  prog_data%var(iLookPROG%mLayerTemp)%dat(1),                & ! temperature of the top layer (K)
-                  prog_data%var(iLookPROG%mLayerDepth)%dat(1),               & ! depth of the top layer (m)
-                  prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1),          & ! volumetric fraction of ice of the top layer (-)
-                  prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1),          & ! volumetric fraction of liquid water of the top layer (-)
+                  prog_data%var(iLookPROG%scalarSWE)%dat(1),                 & ! intent(inout): SWE (kg m-2)
+                  prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),           & ! intent(inout): total snow depth (m)
+                  prog_data%var(iLookPROG%mLayerTemp)%dat(1),                & ! intent(inout): temperature of the top layer (K)
+                  prog_data%var(iLookPROG%mLayerDepth)%dat(1),               & ! intent(inout): depth of the top layer (m)
+                  prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1),          & ! intent(inout): volumetric fraction of ice of the top layer (-)
+                  prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1),          & ! intent(inout): volumetric fraction of liquid water of the top layer (-)
                   ! output: error control
-                  err,cmessage)                                                ! error control
+                  err,cmessage)                                                ! intent(out):   error control
     if(err/=0)then; err=30; message=trim(message)//trim(cmessage); return; end if
 
     ! recompute snow depth, SWE, and top layer water
@@ -1473,7 +1473,7 @@ subroutine coupled_em(&
         call T2enthTemp_snLaGl(&
                        .false.,                                           & ! intent(in):  flag that no liquid water in layer
                        snowfrz_scale,                                     & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
-                       prog_data%var(iLookPROG%mLayerTemp)%dat(1),        & ! temperature of the top layer (K)
+                       prog_data%var(iLookPROG%mLayerTemp)%dat(1),        & ! intent(in):  temperature of the top layer (K)
                        prog_data%var(iLookPROG%mLayerVolFracWat)%dat(1),  & ! intent(in):  volumetric total water content (-)
                        diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(1))      ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
         prog_data%var(iLookPROG%mLayerEnthalpy)%dat(1) = diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(1) - iden_ice * LH_fus * prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1)
@@ -1812,26 +1812,8 @@ subroutine coupled_em(&
           err=20; message=trim(message)//'glacier top ice layers divided, started too thick'; return
         endif
 
+        ! reset the glacier depths
         mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange) = depthGlceTopLayer
-        !mLayerVolFracIce(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange) = iceGlceTopLayer
-        !mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange) = 0._rkind ! no liquid water in glacier ice
-        !mLayerTemp(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange) = tempGlceTopLayer
-
-        !! get enthalpy from temperature
-        !if( (enthalpyStateVec .or. computeEnthalpy))then
-        !  do iLayer=nSnow+nLake+nSoil+1,nSnow+nLake+nSoil+nGlce-noThetaChange
-        !    mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)*(iden_ice/iden_water)
-        !    ! compute enthalpy for snow and glacier ice layers
-        !    call T2enthTemp_snLaGl(&
-        !                 .true.,                    & ! intent(in):  flag that no liquid water in layer
-        !                 snowfrz_scale,             & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
-        !                 mLayerTemp(iLayer),        & ! intent(in):  layer temperature (K)
-        !                 mLayerVolFracWat(iLayer),  & ! intent(in):  volumetric total water content (-)
-        !                 mLayerEnthTemp(iLayer))      ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
-        !    mLayerEnthalpy(iLayer) = mLayerEnthTemp(iLayer) - iden_ice * LH_fus * mLayerVolFracIce(iLayer)
-        !  end do  ! looping through snow and glacier ice layers
-        !end if ! (need to recalculate enthalpy state variable)
-
         ! recalculate the layer heights
         do jLayer=nSnow+nLake+nSoil+1,nLayers
           iLayerHeight(jLayer) = iLayerHeight(jLayer-1) + mLayerDepth(jLayer)

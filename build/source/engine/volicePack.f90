@@ -148,23 +148,23 @@ contains
  ! ************************************************************************************************
  subroutine newsnwfall(&
                        ! input: model control
-                       dt,                        & ! time step (seconds)
-                       snowLayers,                & ! logical flag if snow layers exist
-                       fc_param,                  & ! freeezing curve parameter for snow (K-1)
+                       dt,                        & ! intent(in):    time step (seconds)
+                       snowLayers,                & ! intent(in):    logical flag if snow layers exist
+                       fc_param,                  & ! intent(in):    freeezing curve parameter for snow (K-1)
                        ! input: diagnostic scalar variables
-                       scalarSnowfallTemp,        & ! computed temperature of fresh snow (K)
-                       scalarNewSnowDensity,      & ! computed density of new snow (kg m-3)
-                       scalarThroughfallSnow,     & ! throughfall of snow through the canopy (kg m-2 s-1)
-                       scalarCanopySnowUnloading, & ! unloading of snow from the canopy (kg m-2 s-1)
+                       scalarSnowfallTemp,        & ! intent(in):    computed temperature of fresh snow (K)
+                       scalarNewSnowDensity,      & ! intent(in):    computed density of new snow (kg m-3)
+                       scalarThroughfallSnow,     & ! intent(in):    throughfall of snow through the canopy (kg m-2 s-1)
+                       scalarCanopySnowUnloading, & ! intent(in):    unloading of snow from the canopy (kg m-2 s-1)
                        ! input/output: state variables
-                       scalarSWE,                 & ! SWE (kg m-2)
-                       scalarSnowDepth,           & ! total snow depth (m)
-                       surfaceLayerTemp,          & ! temperature of surface layer (K)
-                       surfaceLayerDepth,         & ! depth of surface layer (m)
-                       surfaceLayerVolFracIce,    & ! volumetric fraction of ice in surface layer (-)
-                       surfaceLayerVolFracLiq,    & ! volumetric fraction of liquid water in surface layer (-)
+                       scalarSWE,                 & ! intent(inout): SWE (kg m-2)
+                       scalarSnowDepth,           & ! intent(inout): total snow depth (m)
+                       surfaceLayerTemp,          & ! intent(inout): temperature of surface layer (K)
+                       surfaceLayerDepth,         & ! intent(inout): depth of surface layer (m)
+                       surfaceLayerVolFracIce,    & ! intent(inout): volumetric fraction of ice in surface layer (-)
+                       surfaceLayerVolFracLiq,    & ! intent(inout): volumetric fraction of liquid water in surface layer (-)
                        ! output: error control
-                       err,message                ) ! error control
+                       err,message                ) ! intent(out):   error control
  ! computational modules
  USE snow_utils_module,only:fracliquid              ! functions to compute temperature/liquid water
  ! add new snowfall to the system

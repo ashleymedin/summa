@@ -23,9 +23,11 @@ module snow_utils_module
 ! data types
 USE nr_type
 
-! model constants
-USE multiconst,only:Tfreeze
-USE multiconst,only:lambda_air,lambda_ice  ! thermal conductivity of air and ice
+! constants
+USE multiconst,only:&
+                    Tfreeze,      & ! temperature at freezing              (K)
+                    lambda_air,   & ! thermal conductivity of air          (J s-1 m-1)
+                    lambda_ice      ! thermal conductivity of ice          (J s-1 m-1)
 
 ! model decisions
 USE globalData,only:model_decisions        ! model decision structure

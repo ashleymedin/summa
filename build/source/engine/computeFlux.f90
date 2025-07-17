@@ -730,7 +730,7 @@ contains
      do iLayer=nGlce-noThetaChange+1,nGlce
        iLayerLiqFluxSnLaGl(iLayer+nStart) = 0._rkind
        iLayerLiqFluxSnLaGlDeriv(iLayer+nStart) = 0._rkind
-       mLayerLiqFluxSnLaGl(iLayer+nStart) = 0.6_rkind
+       mLayerLiqFluxSnLaGl(iLayer+nStart) = 0._rkind
      end do
    end if
    ! compute melt from the glacier ice zone (all melt goes to top of glacier ice), make positive since will be negative as upward flux
