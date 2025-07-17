@@ -126,6 +126,7 @@ MODULE globalData
   integer(i4b),parameter,public               :: iJac1=1                            ! first layer of the Jacobian to print
   integer(i4b),parameter,public               :: iJac2=100                          ! last layer of the Jacobian to print 
   ! define limit checks
+  real(rkind),parameter,public                :: maxVolIceContent=0.7               ! snow maximum volumetric ice content to store water (-)
   real(rkind),parameter,public                :: verySmall=1.e-6_rkind              ! a small number used as an additive constant to check if substantial difference among real numbers
   real(rkind),parameter,public                :: veryBig=1.e+20_rkind               ! a very big number
   ! define algorithmic control parameters
@@ -252,7 +253,6 @@ MODULE globalData
   real(rkind),save,public                        :: dJulianFinsh                      ! julian day of end time of simulation
   real(rkind),save,public                        :: updateJulDay                      ! julian day the glacier grids were last updated
   real(rkind),save,public                        :: updateJuldayNext                  ! julian day the glacier grids will be updated next
-  real(rkind),save,public                        :: maxVolIceContent                  ! snow maximum volumetric ice content to store water (-)
   integer(i4b),save,public                       :: nHRUfile                          ! number of HRUs in the file
   integer(i4b),save,public                       :: urbanVegCategory                  ! vegetation category for urban areas
   logical(lgt),save,public                       :: doJacobian=.false.                ! flag to compute the Jacobian
