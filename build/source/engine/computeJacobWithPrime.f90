@@ -375,7 +375,7 @@ subroutine computeJacobWithPrime(&
       maxVolIceContent_use = min(maxVolIceContent+0.2,0.9_rkind) ! firn maximum volumetric ice content to store water (-)
     else ! snow
       maxVolIceContent_use = maxVolIceContent ! snow maximum volumetric ice content to store water (-)
-    end if
+    endif
 
     ! define the form of the matrix
     select case(ixMatrix)
@@ -478,7 +478,7 @@ subroutine computeJacobWithPrime(&
         if(nSnowOnlyHyd+nGlceOnlyHyd>0)then
           do qLayer=1,nSnow+nGlce ! loop through layers in the snow, glce domain
 
-            if (qLayer <= nSnow) then
+            if(qLayer<=nSnow)then
               jLayer = qLayer
               iLayer = qLayer
               endLayer = nSnow
@@ -486,7 +486,7 @@ subroutine computeJacobWithPrime(&
               jLayer = qLayer + nLake + nSoil
               iLayer = qLayer - nSnow
               endLayer = nGlce
-            end if
+            endif
             ! - check that the layer is desired
             if(ixSnLaSoGlHyd(jLayer)==integerMissing) cycle
             ! - define state indices for the current layer
@@ -502,21 +502,21 @@ subroutine computeJacobWithPrime(&
             aJac(ixDiag,watState) = (dt/mLayerDepth(jLayer))*iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot + dMat(watState) * cj
 
             ! - upper diagonal elements, only sub-diagonal elements are non-zero
-            if(iLayer<endLayer .and. qLayer <= nSnow )then ! only snow layers, ice layer all liquid water passes through immediately
+            if(iLayer<endLayer .and. qLayer<=nSnow )then ! only snow layers, ice layer all liquid water passes through immediately
               if(ixSnowOnlyHyd(iLayer+1)/=integerMissing) aJac(ixOffDiag(ixSnowOnlyHyd(iLayer+1),watState),watState) = -(dt/mLayerDepth(jLayer+1))*iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot  ! dVol(below)/dLiq(above) -- (-)
-            end if
-            if(mLayerVolFracIce(iLayer) <= maxVolIceContent_use)then
-              if(iLayer<endLayer-1 .and. qLayer <= nSnow-1)then
+            endif
+            if(mLayerVolFracIce(iLayer)>maxVolIceContent_use)then
+              if(iLayer<endLayer-1 .and. qLayer<=nSnow-1)then
                 if(ixSnowOnlyHyd(iLayer+2)/=integerMissing) aJac(ixOffDiag(ixSnowOnlyHyd(iLayer+2),watState),watState) = -(dt/mLayerDepth(jLayer+2))*iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot  ! dVol(below)/dLiq(above) -- (-)
-              end if
-            end if       
+              endif
+            endif       
 
             ! - only include banded terms for surface infiltration below surface in banded structure; ixSoilOnlyHyd(nSoil) - watState always <= kl
             if(nSoil>0 .and. qLayer>nSnow)then
               if(ixSoilOnlyHyd(nSoil)/=integerMissing)then 
                 if(watState - ixSoilOnlyHyd(nSoil) <= ku) aJac(ixOffDiag(ixSoilOnlyHyd(nSoil),watState),watState) = dt/mLayerDepth(nSnow+nLake+nSoil)
               endif
-            end if
+            endif
 
           end do  ! (looping through liquid water states in the snow, glce domain)
         endif   ! (if the subset includes hydrology state variables in the snow, glce domain)
@@ -527,7 +527,7 @@ subroutine computeJacobWithPrime(&
         if((nSnowOnlyHyd>0 .and. nSnowOnlyNrg>0) .or. (nGlceOnlyHyd>0 .and. nGlceOnlyNrg>0))then
           do qLayer=1,nSnow+nGlce-noThetaChange ! loop through layers in the snow, glce domain
 
-            if (qLayer <= nSnow) then
+            if(qLayer<=nSnow)then
               ! - check that the snow layer is desired
               jLayer = qLayer
               iLayer = qLayer
@@ -556,11 +556,11 @@ subroutine computeJacobWithPrime(&
               aJac(ixOffDiag(watState,nrgState),nrgState) = (dt/mLayerDepth(jLayer))*iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer)  ! (dVol/dT)
 
               ! (cross-derivative terms for the layer below)
-              if(iLayer<endLayer .and. qLayer <= nSnow)then! only snow layers, ice layer all liquid water passes through immediately
+              if(iLayer<endLayer .and. qLayer<=nSnow)then! only snow layers, ice layer all liquid water passes through immediately
                 if(ixSnowOnlyHyd(iLayer+1)/=integerMissing) aJac(ixOffDiag(ixSnowOnlyHyd(iLayer+1),nrgState),watState) = -(dt/mLayerDepth(jLayer+1))*iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer)    ! dVol(below)/dT(above) -- K-1
               endif
-              if(mLayerVolFracIce(iLayer) <= maxVolIceContent_use)then
-                if(iLayer<endLayer-1 .and. qLayer <= nSnow-1)then
+              if(mLayerVolFracIce(iLayer)>maxVolIceContent_use)then
+                if(iLayer<endLayer-1 .and. qLayer<=nSnow-1)then
                   if(ixSnowOnlyHyd(iLayer+2)/=integerMissing) aJac(ixOffDiag(ixSnowOnlyHyd(iLayer+2),nrgState),watState) = -(dt/mLayerDepth(jLayer+2))*iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer)  ! dVol(below)/dT(above) -- K-1
                 endif
               endif
@@ -639,7 +639,7 @@ subroutine computeJacobWithPrime(&
         ! -----
         ! * liquid water fluxes for the aquifer...
         ! ----------------------------------------
-        if(ixAqWat/=integerMissing) then
+        if(ixAqWat/=integerMissing)then
           aJac(ixDiag,ixAqWat) = -dBaseflow_dAquifer*dt + dMat(ixAqWat) * cj
           if(nSoil>0)then
             if(ixSoilOnlyNrg(nSoil)/=integerMissing) aJac(ixOffDiag(ixAqWat,ixSoilOnlyNrg(nSoil)),ixSoilOnlyNrg(nSoil)) = -dq_dNrgStateAbove(nSoil)*dt
@@ -862,7 +862,7 @@ subroutine computeJacobWithPrime(&
         if(nSnowOnlyHyd+nGlceOnlyHyd>0)then
           do qLayer=1,nSnow+nGlce ! loop through layers in the snow, glce domain
 
-            if(qLayer <= nSnow)then
+            if(qLayer<=nSnow)then
               jLayer = qLayer
               iLayer = qLayer
               endLayer = nSnow
@@ -870,7 +870,7 @@ subroutine computeJacobWithPrime(&
               jLayer = qLayer + nLake + nSoil
               iLayer = qLayer - nSnow
               endLayer = nGlce
-            end if
+            endif
             ! - check that the layer is desired
             if(ixSnLaSoGlHyd(jLayer)==integerMissing) cycle
             ! - define state indices for the current layer
@@ -886,21 +886,21 @@ subroutine computeJacobWithPrime(&
             aJac(watState,watState) = (dt/mLayerDepth(jLayer))*iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot + dMat(watState) * cj
 
             ! - upper diagonal elements, only sub-diagonal elements are non-zero
-            if(iLayer<endLayer .and. qLayer <= nSnow )then ! only snow layers, ice layer all liquid water passes through immediately
+            if(iLayer<endLayer .and. qLayer<=nSnow )then ! only snow layers, ice layer all liquid water passes through immediately
               if(ixSnowOnlyHyd(iLayer+1)/=integerMissing) aJac(ixSnowOnlyHyd(iLayer+1),watState) = -(dt/mLayerDepth(jLayer+1))*iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot  ! dVol(below)/dLiq(above) -- (-)
             endif
-            if(mLayerVolFracIce(iLayer) <= maxVolIceContent_use)then
-              if(iLayer<endLayer-1 .and. qLayer <= nSnow-1)then
+            if(mLayerVolFracIce(iLayer)>maxVolIceContent_use)then
+              if(iLayer<endLayer-1 .and. qLayer<=nSnow-1)then
                 if(ixSnowOnlyHyd(iLayer+2)/=integerMissing) aJac(ixOffDiag(ixSnowOnlyHyd(iLayer+2),watState),watState) = -(dt/mLayerDepth(jLayer+2))*iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot  ! dVol(below)/dLiq(above) -- (-)
-              end if
-            end if    
+              endif
+            endif    
 
             ! - only include banded terms for surface infiltration below surface in banded structure; ixSoilOnlyHyd(nSoil) - watState always <= kl
             if(nSoil>0 .and. qLayer>nSnow)then
               if(ixSoilOnlyHyd(nSoil)/=integerMissing)then 
                 if(watState - ixSoilOnlyHyd(nSoil) <= ku) aJac(ixSoilOnlyHyd(nSoil),watState) = dt/mLayerDepth(nSnow+nLake+nSoil)
               endif
-            end if
+            endif
 
           end do  ! (looping through liquid water states in the snow, glce domain)
         endif   ! (if the subset includes hydrology state variables in the snow, glce domain)
@@ -911,7 +911,7 @@ subroutine computeJacobWithPrime(&
         if((nSnowOnlyHyd>0 .and. nSnowOnlyNrg>0) .or. (nGlceOnlyHyd>0 .and. nGlceOnlyNrg>0))then
           do qLayer=1,nSnow+nGlce-noThetaChange ! loop through layers in the snow, glce domain
 
-            if (qLayer <= nSnow) then
+            if(qLayer<=nSnow)then
               ! - check that the snow layer is desired
               jLayer = qLayer
               iLayer = qLayer
@@ -940,14 +940,14 @@ subroutine computeJacobWithPrime(&
               aJac(watState,nrgState) = (dt/mLayerDepth(jLayer))*iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer)  ! (dVol/dT)
 
               ! (cross-derivative terms for the layer below)
-              if(iLayer<endLayer .and. qLayer <= nSnow)then! only snow layers, ice layer all liquid water passes through immediately
+              if(iLayer<endLayer .and. qLayer<=nSnow)then! only snow layers, ice layer all liquid water passes through immediately
                 if(ixSnowOnlyHyd(iLayer+1)/=integerMissing) aJac(ixSnowOnlyHyd(iLayer+1),nrgState) = -(dt/mLayerDepth(jLayer+1))*iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer)    ! dVol(below)/dT(above) -- K-1
               endif
-              if(mLayerVolFracIce(iLayer) <= maxVolIceContent_use)then
-                if(iLayer<endLayer-1 .and. qLayer <= nSnow-1)then
+              if(mLayerVolFracIce(iLayer)>maxVolIceContent_use)then
+                if(iLayer<endLayer-1 .and. qLayer<=nSnow-1)then
                   if(ixSnowOnlyHyd(iLayer+2)/=integerMissing) aJac(ixOffDiag(ixSnowOnlyHyd(iLayer+2),nrgState),nrgState) = -(dt/mLayerDepth(jLayer+2))*iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer)    ! dVol(below)/dT(above) -- K-1
-                end if
-              end if
+                endif
+              endif
 
               ! - include derivatives of heat capacity w.r.t water fluxes for surrounding layers starting with layer above
               if(qLayer>1 .or. (qLayer==1 .and. nSnow==0 .and. nSoil>0))then ! glce top layer with soil above
@@ -1018,7 +1018,7 @@ subroutine computeJacobWithPrime(&
         ! -----
         ! * liquid water fluxes for the aquifer...
         ! ----------------------------------------
-        if(ixAqWat/=integerMissing) then
+        if(ixAqWat/=integerMissing)then
           aJac(ixAqWat,ixAqWat) = -dBaseflow_dAquifer*dt + dMat(ixAqWat) * cj
           if(nSoil>0)then
             if(ixSoilOnlyNrg(nSoil)/=integerMissing) aJac(ixAqWat,ixSoilOnlyNrg(nSoil)) = -dq_dNrgStateAbove(nSoil)*dt ! dAquiferRecharge_dTk  = d_iLayerLiqFlux(nSoil)_dTk
@@ -1182,7 +1182,7 @@ subroutine computeJacobWithPrime(&
           aJac(:,nrgState) = aJac(:,nrgState) * dTemp_dEnthalpy(iLayer)
           if(ixMatrix==ixBandMatrix) aJac(ixDiag,   nrgState) = aJac(ixDiag,   nrgState) + 1._rkind * cj
           if(ixMatrix==ixFullMatrix) aJac(nrgState, nrgState) = aJac(nrgState, nrgState) + 1._rkind * cj
-        enddo
+        end do
       endif
     else
       allocate(watRows(0),nrgRows(0)) ! dummy allocation to avoid compiler warning
@@ -1261,8 +1261,8 @@ integer(c_int) function computeJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
   call c_f_pointer(user_data, eqns_data)
 
   ! get data arrays from SUNDIALS vectors
-  if (eqns_data%ixMatrix==ixBandMatrix) Jac(1:nBands, 1:eqns_data%nState) => FSUNBandMatrix_Data(sunmat_J)
-  if (eqns_data%ixMatrix==ixFullMatrix) Jac(1:eqns_data%nState, 1:eqns_data%nState) => FSUNDenseMatrix_Data(sunmat_J)
+  if(eqns_data%ixMatrix==ixBandMatrix) Jac(1:nBands, 1:eqns_data%nState) => FSUNBandMatrix_Data(sunmat_J)
+  if(eqns_data%ixMatrix==ixFullMatrix) Jac(1:eqns_data%nState, 1:eqns_data%nState) => FSUNDenseMatrix_Data(sunmat_J)
 
   ! compute the analytical Jacobian matrix
   ! NOTE: The derivatives were computed in the previous call to computeFlux
