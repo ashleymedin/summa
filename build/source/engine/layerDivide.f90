@@ -152,7 +152,7 @@ contains
  ix_snowLayers          => model_decisions(iLookDECISIONS%snowLayers)%iDecision, & ! decision for snow combination
  noThetaChange          => indx_data%var(iLookINDEX%noThetaChange)%dat(1),       & ! number of layers with no change in total water content (bottom layers)
  ! model parameters (compute layer temperature)
- fc_param               => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),       & ! freezing curve parameter for snow (K-1)
+ snowfrz_scale          => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),       & ! freezing curve parameter for snow (K-1)
  ! model parameters (new snow density)
  newSnowDenMin          => mpar_data%var(iLookPARAM%newSnowDenMin)%dat(1),       & ! minimum new snow density (kg m-3)
  newSnowDenMult         => mpar_data%var(iLookPARAM%newSnowDenMult)%dat(1),      & ! multiplier for new snow density (kg m-3)
@@ -253,11 +253,11 @@ contains
 
    ! compute surface layer temperature
    surfaceLayerSoilTemp = mLayerTemp(2)    ! temperature of the top soil layer (K)
-   maxFrozenSnowTemp    = templiquid(unfrozenLiq,fc_param)               ! snow temperature at fraction "unfrozenLiq" (K)
+   maxFrozenSnowTemp    = templiquid(unfrozenLiq,snowfrz_scale)          ! snow temperature at fraction "unfrozenLiq" (K)
    mLayerTemp(1)        = min(maxFrozenSnowTemp,surfaceLayerSoilTemp)    ! snow temperature  (K)
 
    ! compute the fraction of liquid water associated with the layer temperature
-   fracLiq = fracliquid(mLayerTemp(1),fc_param)
+   fracLiq = fracliquid(mLayerTemp(1),snowfrz_scale)
 
    ! compute volumeteric fraction of liquid water and ice
    volFracWater = (scalarSWE/scalarSnowDepth)/iden_water  ! volumetric fraction of total water (liquid and ice)

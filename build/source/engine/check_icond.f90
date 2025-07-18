@@ -369,13 +369,14 @@ contains
 
        ! ** snow, lake, ice
        case(iname_snow, iname_lake, iname_glce)
-
-        ! check that snow temperature is less than freezing
-        if(mLayerTemp(iLayer) > Tfreeze)then
-         message=trim(message)//'initial snow temperature is greater than freezing'
-         err=20; return
-        end if
-
+         
+        if (layerType(iLayer)==iname_snow .or. layerType(iLayer)==iname_glce)then 
+          ! check that temperature is less than freezing
+          if(mLayerTemp(iLayer) > Tfreeze)then
+           message=trim(message)//'initial snow or glacier ice temperature is greater than freezing'
+           err=20; return
+          end if
+        endif
         ! ensure consistency among state variables
         call updateSnLaGl(&
                         iLayer>nLayers-noThetaChange,   & ! intent(in):  flag that no liquid water in layer

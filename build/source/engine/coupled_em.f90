@@ -855,11 +855,11 @@ subroutine coupled_em(&
                 mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)*(iden_ice/iden_water)
                 ! compute enthalpy for snow and glacier ice layers
                 call T2enthTemp_snLaGl(&
-                             iLayer>nSnow+nLake+nSoil,  & ! intent(in):  flag that no liquid water in layer
                              snowfrz_scale,             & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
-                             mLayerTemp(iLayer),        & ! intent(in):  layer temperature (K)
-                             mLayerVolFracWat(iLayer),  & ! intent(in):  volumetric total water content (-)
-                             mLayerEnthTemp(iLayer))      ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
+                             iLayer>nLayers-noThetaChange, & ! intent(in):  flag that no liquid water in layer
+                             mLayerTemp(iLayer),           & ! intent(in):  layer temperature (K)
+                             mLayerVolFracWat(iLayer),     & ! intent(in):  volumetric total water content (-)
+                             mLayerEnthTemp(iLayer))         ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
                 mLayerEnthalpy(iLayer) = mLayerEnthTemp(iLayer) - iden_ice * LH_fus * mLayerVolFracIce(iLayer)
               end do  ! looping through snow and glacier ice layers
             endif

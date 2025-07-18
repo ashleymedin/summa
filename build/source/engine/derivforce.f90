@@ -126,7 +126,7 @@ contains
  directScale             => mpar_data%var(iLookPARAM%directScale)%dat(1)          , & ! scaling factor for fractional driect radiaion parameterization (-)
  Frad_direct             => mpar_data%var(iLookPARAM%Frad_direct)%dat(1)          , & ! maximum fraction direct radiation (-)
  minwind                 => mpar_data%var(iLookPARAM%minwind)%dat(1)              , & ! minimum windspeed (m s-1)
- fc_param                => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)        , & ! freezing curve parameter for snow (K-1)
+ snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)        , & ! freezing curve parameter for snow (K-1)
  tempCritRain            => mpar_data%var(iLookPARAM%tempCritRain)%dat(1)         , & ! critical temperature where precipitation is rain (K)
  tempRangeTimestep       => mpar_data%var(iLookPARAM%tempRangeTimestep)%dat(1)    , & ! temperature range over the time step (K)
  frozenPrecipMultip      => mpar_data%var(iLookPARAM%frozenPrecipMultip)%dat(1)   , & ! frozen precipitation multiplier (-)
@@ -308,7 +308,7 @@ contains
  twetbulb = WETBULBTMP(airtemp_dom, relhum, airpres_dom)
 
  ! compute the maximum temperature of snow when the snow is predominantely frozen (K)
- maxFrozenSnowTemp = templiquid(unfrozenLiq,fc_param)
+ maxFrozenSnowTemp = templiquid(unfrozenLiq,snowfrz_scale)
 
  ! compute fraction of rain and temperature of fresh snow
  Tmin = twetbulb - tempRangeTimestep/2._rkind

@@ -197,19 +197,16 @@ subroutine T2L_lookup_soil(nSoil,                         &  ! intent(in):    nu
 
   ! allocate space for soil layers
   if(allocated(lookup_data%z))then; check=.true.; else; allocate(lookup_data%z(nSoil), stat=err); endif
-  !if(check) then; err=20; message=trim(message)//'lookup table z dimension was unexpectedly allocated already'; return; end if
   if(err/=0)then; err=20; message=trim(message)//'problem allocating lookup table z dimension dimension'; return; end if
 
   ! allocate space for the variables in the lookup table
   do iSoil=1,nSoil
     if(allocated(lookup_data%z(iSoil)%var))then; check=.true.; else; allocate(lookup_data%z(iSoil)%var(maxvarLookup), stat=err); endif
-    !if(check) then; err=20; message=trim(message)//'lookup table var dimension was unexpectedly allocated already'; return; end if
     if(err/=0)then; err=20; message=trim(message)//'problem allocating lookup table var dimension dimension'; return; end if
 
     ! allocate space for the values in the lookup table
     do iVar=1,maxvarLookup
       if(allocated(lookup_data%z(iSoil)%var(iVar)%lookup))then; check=.true.; else; allocate(lookup_data%z(iSoil)%var(iVar)%lookup(nLook), stat=err); endif
-      !if(check) then; err=20; message=trim(message)//'lookup table value dimension was unexpectedly allocated already'; return; end if
       if(err/=0)then; err=20; message=trim(message)//'problem allocating lookup table vaule dimension dimension'; return; end if
 
     end do ! (looping through variables)
@@ -524,11 +521,8 @@ subroutine T2enthTemp_snLaGl(&
     enthIce = 0._rkind
     enthAir = iden_air * Cp_air * ( 1._rkind - mLayerVolFracWat ) * diffT
   else
-    if(noLiq)then 
-      integral = 0._rkind
-    else
-      integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-    end if
+    integral = (1._rkind/frz_scale) * atan(frz_scale * diffT)
+    if(noLiq) integral = 0._rkind ! if no liquid water, then integral is zero
     enthLiq  = iden_water * Cp_water * mLayerVolFracWat * integral
     enthIce  = iden_water * Cp_ice * mLayerVolFracWat * ( diffT - integral )
     enthAir  = iden_air * Cp_air * ( diffT - mLayerVolFracWat * ( (iden_water/iden_ice)*(diffT-integral) + integral ) )
@@ -1044,11 +1038,8 @@ subroutine enthalpy2T_snLaGl(&
     if(computeJac)then
       ! NOTE: dintegral_dT = fLiq
       diffT = T - Tfreeze
-      if(noLiq)then
-        integral = 0._rkind ! no liquid water, so integral is zero
-      else
-        integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-      end if
+      integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
+      if(noLiq) integral = 0._rkind ! no liquid water, so integral is zero
       fLiq = fracliquid(T, snowfrz_scale, noLiq)
     
       ! w.r.t. temperature, NOTE: dintegral_dT = fLiq
@@ -1063,6 +1054,7 @@ subroutine enthalpy2T_snLaGl(&
       denthIce_dWat = iden_water * Cp_ice * ( diffT - integral )
       denthAir_dWat = -iden_air * Cp_air * ( (iden_water/iden_ice)*(diffT-integral) + integral )
       dH_dWat       = denthLiq_dWat + denthIce_dWat + denthAir_dWat - iden_water * LH_fus * (1._rkind - fLiq)
+      if (noLiq) dH_dWat = 0._rkind ! no liquid water, so no derivative w.r.t. water content
 
       dT_dEnthalpy = 1._rkind / dH_dT 
       dT_dWat      = -dH_dWat / dH_dT  ! NOTE, while it is not generally appropriate to cancel partial derivatives, here this is true if it is multiplied by -1

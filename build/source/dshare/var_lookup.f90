@@ -768,7 +768,7 @@ MODULE var_lookup
   integer(i4b)     :: nVegState             = integerMissing  ! number of vegetation state variables                                     (-)
   integer(i4b)     :: nNrgState             = integerMissing  ! number of energy state variables                                         (-)
   integer(i4b)     :: nWatState             = integerMissing  ! number of "total water" states (vol. total water content)                (-)
-  integer(i4b)     :: noThetaChange         = integerMissing  ! number of layers with no change in total water content (bottom layers)         (-)
+  integer(i4b)     :: noThetaChange         = integerMissing  ! number of layers with no change in total water content (bottom layers)   (-)
   integer(i4b)     :: nMatState             = integerMissing  ! number of matric head state variables                                    (-)
   integer(i4b)     :: nMassState            = integerMissing  ! number of hydrology state variables (mass of water)                      (-)
   integer(i4b)     :: nState                = integerMissing  ! total number of model state variables                                    (-)
