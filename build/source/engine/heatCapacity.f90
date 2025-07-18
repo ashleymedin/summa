@@ -470,16 +470,17 @@ subroutine computeCm(&
             else
               fLiq = fracliquid(mLayerTemp(iLayer),snowfrz_scale,iLayer>nLayers-noThetaChange)
               if(iLayer>nLayers-noThetaChange) then
-                integral = 0._rkind
+                mLayerCm(iLayer) = 0._rkind ! no change in total water content, so no change enthalpy with water
+                dCm_dTk(iLayer) = 0._rkind
               else
                 integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-              end if
-              mLayerCm(iLayer) = (iden_water * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( diffT - integral ) &
-                                     + (iden_water * Cp_water - iden_air * Cp_air) * integral
-              ! derivatives
-              dfLiq_dT = dFracLiq_dTk(mLayerTemp(iLayer),snowfrz_scale,iLayer>nLayers-noThetaChange)
-              dCm_dTk(iLayer) = (iden_water * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( 1._rkind -fLiq ) &
-                               + (iden_water * Cp_water - iden_air * Cp_air) * fLiq
+                mLayerCm(iLayer) = (iden_water * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( diffT - integral ) &
+                                       + (iden_water * Cp_water - iden_air * Cp_air) * integral
+                ! derivatives
+                dfLiq_dT = dFracLiq_dTk(mLayerTemp(iLayer),snowfrz_scale,iLayer>nLayers-noThetaChange)
+                dCm_dTk(iLayer) = (iden_water * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( 1._rkind -fLiq ) &
+                                 + (iden_water * Cp_water - iden_air * Cp_air) * fLiq
+              endif
             end if
 
           case(iname_soil)
