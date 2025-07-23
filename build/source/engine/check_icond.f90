@@ -126,6 +126,7 @@ contains
  real(rkind)                               :: glacAccAreaTot        ! total basin glacier accumulation area from bvarData (m2)
  real(rkind)                               :: area                  ! glacier area for a single glacier (m2)
  real(rkind)                               :: ratio                 ! ratio of glacier area to basin area
+ real(rkind)                               :: snowfrz_scale_use     ! scaling parameter for the snow or glce freezing curve (K-1)
  ! --------------------------------------------------------------------------------------------------------
 
  ! Start procedure here
@@ -377,12 +378,15 @@ contains
            err=20; return
           end if
         endif
+        if (layerType(iLayer)==iname_snow) snowfrz_scale_use = snowfrz_scale
+        if (layerType(iLayer)==iname_glce .or. layerType(iLayer)==iname_lake) snowfrz_scale_use = snowfrz_scale*10_rkind ! tighter since ice does hold water
+        
         ! ensure consistency among state variables
         call updateSnLaGl(&
                         iLayer>nLayers-noThetaChange,   & ! intent(in):  flag that no liquid water in layer
                         mLayerTemp(iLayer),             & ! intent(in):  temperature (K)
                         scalarTheta,                    & ! intent(in):  volumetric fraction of total water (-)
-                        snowfrz_scale,                  & ! intent(in):  scaling parameter for the snow freezing curve (K-1)
+                        snowfrz_scale_use,              & ! intent(in):  scaling parameter for the freezing curve (K-1)
                         mLayerVolFracLiq(iLayer),       & ! intent(out): volumetric fraction of liquid water (-)
                         mLayerVolFracIce(iLayer),       & ! intent(out): volumetric fraction of ice (-)
                         fLiq,                           & ! intent(out): fraction of liquid water (-)
@@ -393,7 +397,7 @@ contains
           if(no_icond_enth)then ! no enthalpy in icond file
             call T2enthTemp_snLaGl(&
                         iLayer>nLayers-noThetaChange,   & ! intent(in):  flag that no liquid water in layer
-                        snowfrz_scale,                  & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
+                        snowfrz_scale_use,              & ! intent(in):  scaling parameter for the freezing curve  (K-1)
                         mLayerTemp(iLayer),             & ! intent(in):  layer temperature (K)
                         scalarTheta,                    & ! intent(in):  volumetric total water content (-)
                         mLayerEnthTemp(iLayer))           ! intent(out): temperature component of enthalpy of each snow layer (J m-3)

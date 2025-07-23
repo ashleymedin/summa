@@ -819,7 +819,8 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
   logical(lgt)                             :: small_delTemp              ! flag to constain temperature change to be less than zMaxTempIncrement
   logical(lgt)                             :: small_delMatric            ! flag to constain matric head change to be less than zMaxMatricIncrement
   logical(lgt)                             :: detect_events              ! flag to do freezing point event detection and cross-over with epsT
-  logical(lgt)                             :: water_bounds               ! flag to force water to not go above or below physical bounds
+  logical(lgt)                             :: water_bounds               ! flag to force water to not go above or below physical bounds  
+  real(rkind)                              :: snowfrz_scale_use          ! scaling parameter for the snow or glce freezing curve (K-1)
   ! -----------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
   associate(&
@@ -1027,9 +1028,12 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
         do jLayer=1,(nSnow+nLake+nGlce)
           if (jLayer <= nSnow+nLake) then
             iLayer = jLayer
+            snowfrz_scale_use = snowfrz_scale
+            if (jLayer>nSnow) snowfrz_scale_use = snowfrz_scale*10.0_rkind ! tigher since ice does not hold water
           else
             iLayer = jLayer + nSoil
-          endif
+            snowfrz_scale_use = snowfrz_scale*10.0_rkind ! tigher since ice does not hold water
+          end if
            ! check if the layer is included
           if(ixSnLaSoGlHyd(iLayer)==integerMissing) cycle
           if(ixSnLaSoGlNrg(iLayer)/=integerMissing)then

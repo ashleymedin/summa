@@ -245,6 +245,7 @@ subroutine coupled_em(&
   type(var_dlength)                    :: diag_temp                ! temporary model diagnostic variables
   real(rkind),allocatable              :: mLayerVolFracIceInit(:)  ! initial vector for volumetric fraction of ice (-)
   logical(lgt)                         :: noVeg                    ! flag to denote that there is no vegetation (lake or glacier)
+  real(rkind)                          :: snowfrz_scale_use        ! scaling parameter for the snow or glce freezing curve (K-1)
   ! check SWE
   real(rkind)                          :: oldSWE                   ! SWE at the start of the substep
   real(rkind)                          :: delSWE                   ! change in SWE over the subtep
@@ -849,14 +850,17 @@ subroutine coupled_em(&
               do jLayer=1,(nSnow+nLake+nGlce)
                 if (jLayer<=nSnow+nLake)then
                   iLayer = jLayer
+                  snowfrz_scale_use = snowfrz_scale
+                  if (jLayer>nSnow) snowfrz_scale_use = snowfrz_scale*10.0_rkind  ! tigher since ice does not hold water
                 else
                   iLayer = jLayer + nSoil
+                  snowfrz_scale_use = snowfrz_scale*10.0_rkind  ! tigher since ice does not hold water
                 end if
                 mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)*(iden_ice/iden_water)
                 ! compute enthalpy for snow and glacier ice layers
                 call T2enthTemp_snLaGl(&
-                             snowfrz_scale,             & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                              iLayer>nLayers-noThetaChange, & ! intent(in):  flag that no liquid water in layer
+                             snowfrz_scale_use,            & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                              mLayerTemp(iLayer),           & ! intent(in):  layer temperature (K)
                              mLayerVolFracWat(iLayer),     & ! intent(in):  volumetric total water content (-)
                              mLayerEnthTemp(iLayer))         ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
@@ -992,7 +996,7 @@ subroutine coupled_em(&
             if (nLake>0 .or. (nLake==0 .and. nSoil==0 .and. nGlce>0))then
               call T2enthTemp_snLaGl(&
                        .false.,                                            & ! intent(in):  flag that no liquid water in layer, never true for top layer
-                       snowfrz_scale,                                      & ! intent(in):  scaling parameter for the lake freezing curve  (K-1)
+                       snowfrz_scale*10._rkind,                            & ! intent(in):  scaling parameter for the lake freezing curve  (K-1)
                        prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1),   & ! intent(in):  layer temperature (K)
                        mLayerVolFracWat(nSnow+1),                          & ! intent(in):  volumetric total water content (-)
                        diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(nSnow+1)) ! intent(out): temperature component of enthalpy of each lake layer (J m-3)
@@ -1283,15 +1287,18 @@ subroutine coupled_em(&
             do jLayer=1,(nSnow+nLake+nGlce)
               if (jLayer<=nSnow+nLake)then
                 iLayer = jLayer
+                snowfrz_scale_use = snowfrz_scale
+                if (jLayer>nSnow) snowfrz_scale_use = snowfrz_scale*10.0_rkind  ! tigher since ice does not hold water
               else
                 iLayer = jLayer + nSoil
+                snowfrz_scale_use = snowfrz_scale*10.0_rkind  ! tigher since ice does not hold water
               end if
               mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)*(iden_ice/iden_water)
               ! recompute enthalpy of layers if changed water and ice content
               if(enthalpyStateVec .or. computeEnthalpy)then
                 call T2enthTemp_snLaGl(&
                              iLayer>nSnow+nLake+nSoil,                            & ! intent(in):  flag that no liquid water in layer
-                             snowfrz_scale,                                       & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
+                             snowfrz_scale_use,                                   & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                              prog_data%var(iLookPROG%mLayerTemp)%dat(iLayer),     & ! intent(in):  layer temperature (K)
                              mLayerVolFracWat(iLayer),                            & ! intent(in):  volumetric total water content (-)
                              diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(iLayer))   ! intent(out): temperature component of enthalpy of each snow layer (J m-3)

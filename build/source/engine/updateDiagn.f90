@@ -200,6 +200,7 @@ subroutine updateDiagn(&
   real(rkind)                        :: tempMax                         ! maximum bracket for temperature (K)
   logical(lgt)                       :: bFlag                           ! flag to denote that iteration increment was constrained using bi-section
   real(rkind),parameter              :: epsT=1.e-7_rkind                ! small interval above/below critical temperature (K)
+  real(rkind)                        :: snowfrz_scale_use               ! scaling parameter for the snow or glce freezing curve (K-1)
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! make association with variables in the data structures
   associate(&
@@ -516,12 +517,15 @@ subroutine updateDiagn(&
 
             ! *** snow layers
             case(iname_snow, iname_lake, iname_glce)
+              snowfrz_scale_use = snowfrz_scale
+              if(ixDomainType==iname_lake .or. ixDomainType==iname_glce) snowfrz_scale_use = snowfrz_scale*10.0_rkind ! tigher since ice does not hold water
+    
               ! compute volumetric fraction of liquid water and ice
               call updateSnLaGl(&
                               iLayer>nLayers-noThetaChange,   & ! intent(in):  flag that no liquid water in layer
                               xTemp,                          & ! intent(in):  temperature (K)
                               mLayerVolFracWatTrial(iLayer),  & ! intent(in):  mass state variable = trial volumetric fraction of water (-)
-                              snowfrz_scale,                  & ! intent(in):  scaling parameter for the snow freezing curve (K-1)
+                              snowfrz_scale_use,              & ! intent(in):  scaling parameter for the snow freezing curve (K-1)
                               mLayerVolFracLiqTrial(iLayer),  & ! intent(out): trial volumetric fraction of liquid water (-)
                               mLayerVolFracIceTrial(iLayer),  & ! intent(out): trial volumetric fraction if ice (-)
                               mLayerFracLiq(iLayer),          & ! intent(out): fraction of liquid water (-)
