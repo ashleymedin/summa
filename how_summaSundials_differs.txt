@@ -159,7 +159,7 @@ c-07) Snow water upper bound should be 1, not iden_ice, commit 265721b5 Feb 13, 
   28) Victoria and Kyle OpenWQ work, somewhat ongoing?
  -29) Change in aStability call for stability correction for resistance from canopy air space to air above the canopy, fixing comments and code around Richardson number calculation, commit 09325731 Jul 23, 2025
       Bug, should have been based on height and windspeed gradients (for the other calls to aStability the lower point has 0 height and 0 windspd, so no change)
- -30) Change in exponenent to stable bulk Richardson calculation to match Oke and Anderson references, fixed wrong derivatives, commits 09325731 Jul 23, 2025 and 5a863706 Jul 24, 2025
+ -30) Change in exponent to stable bulk Richardson calculation to match Oke and Anderson references, fixed wrong derivatives, commits 09325731 Jul 23, 2025 and 5a863706 Jul 24, 2025
   31) Allow canopy water in ida simulations to go down to -1e-12 and gets bumped back up to 0, to deal with non-smoothness that comes from the canopyWetting function, (subroutine wetFraction and attempted fix subroutine thetaSmoother), commit 873965b1 Jul 24, 2025
  -32) Changing minimum height of transition to go from the exponential to the log wind profile to be dependent on the height of the canopy, commit 873965b1 Jul 24, 2025
  -33) Now removed the bump up at the start of the simulation to have canopy water be 0.0001 (can start at 0). See first change in 11). commit c03689da Jul 24, 2025
