@@ -19,6 +19,7 @@ c-09) flxMapping.f90 flux mapping of soil resistance as an energy variable corre
 c-10) runOneGRU.f90 fixed basin aquifer recharge was summing incorrectly the HRU soil drainage instead of the HRU aquifer recharge, commit cd6f07f1 June 20, 2023 (only affects basin aquifer recharge so does not influence results except this basin variable)
 c-11) read_icond.f90 canopy water only initialized to be 1e-4 positive at the start of the simulation if it is smaller (through canopy liquid), commit c0f7fa26 Jan 30, 2023, and commit 0f2e9df2 Aug 15, 2023
       The canopy water was being bumped up to at least 1e-4 at the start of every substep. Also, if there is no canopy ever it stays at 0.
+      - Note, this will effect the restart if ends at 0 and gets bumped at start. May want to change so never gets bumped up.
   12) Build with cmake now, with build options for no Sundials (BE), Sundials, Actors, Cluster, Personal Computer, Debug, Release, NexGen, and combinations of these.
       NexGen and Actors do not currently work togethere.
        set(CMAKE_CONFIGURATION_TYPES BE BE_Debug BE_Cluster BE_Cluster_Debug
@@ -156,5 +157,13 @@ c-07) Snow water upper bound should be 1, not iden_ice, commit 265721b5 Feb 13, 
   26) Tolerances for ida now depend on nrgConserv choice so that if they are not set they will be our recommended values (relTol at 1e-5, absTol 1e-5* order of state variable), commit dd8a658d Jun 26, 2025
   27) Checking for datastep and hruId in forcing files so won't just not run, will send an error if these are missing, commit 637d84b8 Jun 26, 2025
   28) Victoria and Kyle OpenWQ work, somewhat ongoing?
+ -29) Change in aStability call for stability correction for resistance from canopy air space to air above the canopy, fixing comments and code around Richardson number calculation, commit 09325731 Jul 23, 2025
+      Bug, should have been based on height and windspeed gradients (for the other calls to aStability the lower point has 0 height and 0 windspd, so no change)
+ -30) Change in exponenent to stable bulk Richardson calculation to match Oke and Anderson references, fixed wrong derivatives, commits 09325731 Jul 23, 2025 and 5a863706 Jul 24, 2025
+  31) Allow canopy water in ida simulations to go down to -1e-12 and gets bumped back up to 0, to deal with non-smoothness that comes from the canopyWetting function, (subroutine wetFraction and attempted fix subroutine thetaSmoother), commit 873965b1 Jul 24, 2025
+ -32) Changing minimum height of transition to go from the exponential to the log wind profile to be dependent on the height of the canopy, commit 873965b1 Jul 24, 2025
+ -33) Now removed the bump up at the start of the simulation to have canopy water be 0.0001 (can start at 0). See first change in 11). commit c03689da Jul 24, 2025
 
-July 9, 2025
+
+
+July 25, 2025
