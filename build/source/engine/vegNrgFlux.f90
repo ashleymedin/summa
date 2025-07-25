@@ -324,12 +324,12 @@ subroutine vegNrgFlux(&
     critAquiferTranspire            => mpar_data%var(iLookPARAM%critAquiferTranspire)%dat(1),          & ! intent(in): [dp] critical aquifer storage value when transpiration is limited (m)
     minStomatalResistance           => mpar_data%var(iLookPARAM%minStomatalResistance)%dat(1),         & ! intent(in): [dp] mimimum stomatal resistance (s m-1)
     ! input: forcing at the upper boundary
-    mHeight                         => diag_data%var(iLookDIAG%scalarAdjMeasHeight)%dat(1),            & ! intent(in): [dp] measurement height (m)
-    airtemp                         => forc_data%var(iLookFORCE%airtemp),                              & ! intent(in): [dp] air temperature at some height above the surface (K)
-    windspd                         => forc_data%var(iLookFORCE%windspd),                              & ! intent(in): [dp] wind speed at some height above the surface (m s-1)
-    airpres                         => forc_data%var(iLookFORCE%airpres),                              & ! intent(in): [dp] air pressure at some height above the surface (Pa)
+    mHeight                         => diag_data%var(iLookDIAG%scalarAdjMeasHeight)%dat(1),            & ! intent(in): [dp] measurement height, adjusted to be above vegetation canopy and snow (m)
+    airtemp                         => forc_data%var(iLookFORCE%airtemp),                              & ! intent(in): [dp] air temperature at adjusted measurement height (K)
+    windspd                         => forc_data%var(iLookFORCE%windspd),                              & ! intent(in): [dp] wind speed at adjusted measurement height (m s-1)
+    airpres                         => forc_data%var(iLookFORCE%airpres),                              & ! intent(in): [dp] air pressure at adjusted measurement height (Pa)
     LWRadAtm                        => forc_data%var(iLookFORCE%LWRadAtm),                             & ! intent(in): [dp] downwelling longwave radiation at the upper boundary (W m-2)
-    scalarVPair                     => diag_data%var(iLookDIAG%scalarVPair)%dat(1),                    & ! intent(in): [dp] vapor pressure at some height above the surface (Pa)
+    scalarVPair                     => diag_data%var(iLookDIAG%scalarVPair)%dat(1),                    & ! intent(in): [dp] vapor pressure at adjusted measurement height (Pa)
     scalarO2air                     => diag_data%var(iLookDIAG%scalarO2air)%dat(1),                    & ! intent(in): [dp] atmospheric o2 concentration (Pa)
     scalarCO2air                    => diag_data%var(iLookDIAG%scalarCO2air)%dat(1),                   & ! intent(in): [dp] atmospheric co2 concentration (Pa)
     scalarTwetbulb                  => diag_data%var(iLookDIAG%scalarTwetbulb)%dat(1),                 & ! intent(in): [dp] wetbulb temperature (K)
@@ -682,8 +682,8 @@ subroutine vegNrgFlux(&
                         ix_astability,                      & ! intent(in): choice of stability function
                         ! input: above-canopy forcing data
                         mHeight,                            & ! intent(in): measurement height (m)
-                        airtemp,                            & ! intent(in): air temperature at some height above the surface (K)
-                        windspd,                            & ! intent(in): wind speed at some height above the surface (m s-1)
+                        airtemp,                            & ! intent(in): air temperature at measurement height (K)
+                        windspd,                            & ! intent(in): wind speed at measurement height (m s-1)
                         ! input: canopy and ground temperature
                         canairTempTrial,                    & ! intent(in): temperature of the canopy air space (K)
                         groundTempTrial,                    & ! intent(in): temperature of the ground surface (K)
@@ -885,7 +885,7 @@ subroutine vegNrgFlux(&
                         ! input: model control
                         computeVegFlux,                       & ! intent(in):  logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                         ! input: above-canopy forcing data
-                        airtemp,                              & ! intent(in):  air temperature at some height above the surface (K)
+                        airtemp,                              & ! intent(in):  air temperature of the air above the vegetation canopy (K)
                         airpres,                              & ! intent(in):  air pressure of the air above the vegetation canopy (Pa)
                         scalarVPair,                          & ! intent(in):  vapor pressure of the air above the vegetation canopy (Pa)
                         ! input: latent heat of sublimation/vaporization
@@ -1173,7 +1173,6 @@ subroutine wetFraction(derDesire,smoothing,canopyLiq,canopyMax,canopyWettingFact
   real(rkind),intent(in)     :: canopyMax                   ! liquid water content (kg m-2)
   real(rkind),intent(in)     :: canopyWettingFactor         ! maximum wetted fraction of the canopy (-)
   real(rkind),intent(in)     :: canopyWettingExp            ! exponent in canopy wetting function (-)
-
   real(rkind),intent(out)    :: canopyWetFraction           ! canopy wetted fraction (-)
   real(rkind),intent(out)    :: canopyWetFractionDeriv      ! derivative in wetted fraction w.r.t. canopy liquid water (kg-1 m2)
   ! local variables
@@ -1429,8 +1428,8 @@ subroutine aeroResist(&
                       ixStability,                   & ! intent(in):  choice of stability function
                       ! input: above-canopy forcing data
                       mHeight,                       & ! intent(in):  measurement height (m)
-                      airtemp,                       & ! intent(in):  air temperature at some height above the surface (K)
-                      windspd,                       & ! intent(in):  wind speed at some height above the surface (m s-1)
+                      airtemp,                       & ! intent(in):  air temperature at measurement height (K)
+                      windspd,                       & ! intent(in):  wind speed at measurement height (m s-1)
                       ! input: temperature (canopy, ground, canopy air space)
                       canairTemp,                    & ! intent(in):  temperature of the canopy air space (K)
                       groundTemp,                    & ! intent(in):  ground temperature (K)
@@ -1486,8 +1485,8 @@ subroutine aeroResist(&
   integer(i4b),intent(in)          :: ixStability                   ! choice of stability function
   ! input: above-canopy forcing data
   real(rkind),intent(in)           :: mHeight                       ! measurement height (m)
-  real(rkind),intent(in)           :: airtemp                       ! air temperature at some height above the surface (K)
-  real(rkind),intent(in)           :: windspd                       ! wind speed at some height above the surface (m s-1)
+  real(rkind),intent(in)           :: airtemp                       ! air temperature at measurement height (K)
+  real(rkind),intent(in)           :: windspd                       ! wind speed at measurement height (m s-1)
   ! input: temperature (canopy, ground, canopy air space)
   real(rkind),intent(in)           :: canairTemp                    ! temperature of the canopy air space (K)
   real(rkind),intent(in)           :: groundTemp                    ! ground temperature (K)
@@ -1584,7 +1583,7 @@ subroutine aeroResist(&
   end if
 
   ! -----------------------------------------------------------------------------------------------------------------------------------------
-  ! * compute vegetation poperties (could be done at the same time as phenology.. does not have to be in the flux routine!)
+  ! * compute vegetation poperties (NOTE: could be done at the same time as phenology, does not have to be in the flux routine!)
   if (computeVegFlux) then ! if vegetation is exposed
     ! ***** identify zero plane displacement, roughness length, and surface temperature for the canopy (m)
     ! First, calculate new coordinate system above snow - use these to scale wind profiles and resistances
@@ -1634,15 +1633,34 @@ subroutine aeroResist(&
     ! -----------------------------------------------------------------------------------------------------------------------------------------
     ! -----------------------------------------------------------------------------------------------------------------------------------------
     ! * compute resistance for the case where the canopy is exposed
+    ! compute windspeed at the top of the canopy above snow depth (m s-1)
+    ! NOTE: stability corrections cancel out
+    windConvFactor_fv = log((heightCanopyTopAboveSnow - zeroPlaneDisplacement)/z0Canopy) / log((mHeight - snowDepth - zeroPlaneDisplacement)/z0Canopy)
+    windspdCanopyTop  = windspd*windConvFactor_fv
+
+    ! compute the windspeed reduction from the canopy to the reference height (m s-1)
+    ! Refs: Norman et al. (Ag. Forest Met., 1995) -- citing Goudriaan (1977 manuscript "crop micrometeorology: a simulation study", Wageningen).
+    windReductionFactor = windReductionParam * exposedVAI**twoThirds * (heightCanopyTopAboveSnow - heightCanopyBottomAboveSnow)**oneThird / leafDimension**oneThird
+
+    ! compute windspeed at the referenceHeight
+    referenceHeight   = z0Canopy+zeroPlaneDisplacement
+    windConvFactor    = exp(-windReductionFactor*(1._rkind - (referenceHeight/heightCanopyTopAboveSnow)))
+    windspdRefHeight  = windspdCanopyTop*windConvFactor
+    if(heightCanopyTopAboveSnow < referenceHeight)then; err=20; message=trim(message)//'canopy top height above snow < reference height'; return; end if 
+
+    ! compute windspeed at the bottom of the canopy relative to the snow depth (m s-1)
+    windConvFactor       = exp(-windReductionFactor*(1._rkind - (heightCanopyBottomAboveSnow/heightCanopyTopAboveSnow)))
+    windspdCanopyBottom  = windspdCanopyTop*windConvFactor
+
     ! compute the stability correction for resistance from canopy air space to air above the canopy (-)
     call aStability(&
                     ! input
                     ixStability,                                      & ! input:  choice of stability function
                     ! input: forcing data, diagnostic and state variables
-                    mHeight,                                          & ! input:  measurement height (m)
-                    airTemp,                                          & ! input:  air temperature above the canopy (K)
-                    canairTemp,                                       & ! input:  temperature of the canopy air space (K)
-                    windspd,                                          & ! input:  wind speed above the canopy (m s-1)
+                    mHeight - referenceHeight,                        & ! input:  height difference from measurement height to canopy air space (m)
+                    airTemp,                                          & ! input:  air temperature above the canopy (measurement height) (K)
+                    canairTemp,                                       & ! input:  temperature of the canopy air space (reference height) (K)
+                    windspd - windspdRefHeight,                       & ! input:  wind speed difference from measurement height to reference height (m s-1) 
                     ! input: stability parameters
                     critRichNumber,                                   & ! input:  critical value for the bulk Richardson number where turbulence ceases (-)
                     Louis79_bparam,                                   & ! input:  parameter in Louis (1979) stability function
@@ -1666,25 +1684,6 @@ subroutine aeroResist(&
     ! compute the above-canopy resistance (s m-1)
     canopyResistance = 1._rkind/(sfc2AtmExchangeCoeff_canopy*windspd)
     if (canopyResistance < 0._rkind) then; err=20; message=trim(message)//'canopy resistance < 0'; return; end if
-
-    ! compute windspeed at the top of the canopy above snow depth (m s-1)
-    ! NOTE: stability corrections cancel out
-    windConvFactor_fv = log((heightCanopyTopAboveSnow - zeroPlaneDisplacement)/z0Canopy) / log((mHeight - snowDepth - zeroPlaneDisplacement)/z0Canopy)
-    windspdCanopyTop  = windspd*windConvFactor_fv
-
-    ! compute the windspeed reduction
-    ! Refs: Norman et al. (Ag. Forest Met., 1995) -- citing Goudriaan (1977 manuscript "crop micrometeorology: a simulation study", Wageningen).
-    windReductionFactor = windReductionParam * exposedVAI**twoThirds * (heightCanopyTopAboveSnow - heightCanopyBottomAboveSnow)**oneThird / leafDimension**oneThird
-
-    ! compute windspeed at the height z0Canopy+zeroPlaneDisplacement (m s-1)
-    referenceHeight   = z0Canopy+zeroPlaneDisplacement
-    windConvFactor    = exp(-windReductionFactor*(1._rkind - (referenceHeight/heightCanopyTopAboveSnow)))
-    windspdRefHeight  = windspdCanopyTop*windConvFactor
-    if(heightCanopyTopAboveSnow < referenceHeight)then; err=20; message=trim(message)//'canopy top height above snow < reference height'; return; end if 
-
-    ! compute windspeed at the bottom of the canopy relative to the snow depth (m s-1)
-    windConvFactor       = exp(-windReductionFactor*(1._rkind - (heightCanopyBottomAboveSnow/heightCanopyTopAboveSnow)))
-    windspdCanopyBottom  = windspdCanopyTop*windConvFactor
 
     ! compute the leaf boundary layer resistance (s m-1)
     singleLeafConductance  = leafExchangeCoeff*sqrt(windspdCanopyTop/leafDimension)
@@ -1721,15 +1720,14 @@ subroutine aeroResist(&
     endif  ! switch between exponential profile and log-below-canopy
 
     ! compute the stability correction for resistance from the ground to the canopy air space (-)
-    ! NOTE: here we are interested in the windspeed at the reference height
     call aStability(&
                     ! input
                     ixStability,                                      & ! input:  choice of stability function
                     ! input: forcing data, diagnostic and state variables
-                    referenceHeight,                                  & ! input:  height of the canopy air space temperature/wind (m)
-                    canairTemp,                                       & ! input:  temperature of the canopy air space (K)
+                    referenceHeight,                                  & ! input:  height difference from reference height to the ground (m)
+                    canairTemp,                                       & ! input:  temperature of the canopy air space (reference temp) (K)
                     groundTemp,                                       & ! input:  temperature of the ground surface (K)
-                    max(0.1_rkind,windspdRefHeight),                  & ! input:  wind speed at height z0Canopy+zeroPlaneDisplacement (m s-1)
+                    max(0.1_rkind,windspdRefHeight),                  & ! input:  wind speed difference from reference height to ground (m s-1)
                     ! input: stability parameters
                     critRichNumber,                                   & ! input:  critical value for the bulk Richardson number where turbulence ceases (-)
                     Louis79_bparam,                                   & ! input:  parameter in Louis (1979) stability function
@@ -1778,10 +1776,10 @@ subroutine aeroResist(&
                     ! input
                     ixStability,                                      & ! input:  choice of stability function
                     ! input: forcing data, diagnostic and state variables
-                    heightAboveGround,                                & ! input:  measurement height above the ground surface (m)
-                    airtemp,                                          & ! input:  temperature above the ground surface (K)
-                    groundTemp,                                       & ! input:  trial value of surface temperature -- "surface" is either canopy or ground (K)
-                    windspd,                                          & ! input:  wind speed above the ground surface (m s-1)
+                    heightAboveGround,                                & ! input:  height difference from measurement height to surface -- "surface" is either snow or ground (m)
+                    airtemp,                                          & ! input:  temperature at measurement height (K)
+                    groundTemp,                                       & ! input:  trial value of surface temperature -- "surface" is either snow or ground (K)
+                    windspd,                                          & ! input:  wind speed difference from measurement height to surface -- "surface" is either snow or ground (m s-1)
                     ! input: stability parameters
                     critRichNumber,                                   & ! input:  critical value for the bulk Richardson number where turbulence ceases (-)
                     Louis79_bparam,                                   & ! input:  parameter in Louis (1979) stability function
@@ -1951,7 +1949,7 @@ subroutine turbFluxes(&
                       ! input: model control
                       computeVegFlux,                & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                       ! input: above-canopy forcing data
-                      airtemp,                       & ! intent(in): air temperature at some height above the surface (K)
+                      airtemp,                       & ! intent(in): air temperature of the air above the vegetation canopy (K)
                       airpres,                       & ! intent(in): air pressure of the air above the vegetation canopy (Pa)
                       VPair,                         & ! intent(in): vapor pressure of the air above the vegetation canopy (Pa)
                       ! input: latent heat of sublimation/vaporization
@@ -2046,7 +2044,7 @@ subroutine turbFluxes(&
   ! input: model control
   logical(lgt),intent(in)          :: computeVegFlux          ! logical flag to compute vegetation fluxes (.false. if veg buried by snow)
    ! input: above-canopy forcing data
-  real(rkind),intent(in)           :: airtemp                 ! air temperature at some height above the surface (K)
+  real(rkind),intent(in)           :: airtemp                 ! air temperature of the air above the vegetation canopy (K)
   real(rkind),intent(in)           :: airpres                 ! air pressure of the air above the vegetation canopy (Pa)
   real(rkind),intent(in)           :: VPair                   ! vapor pressure of the air above the vegetation canopy (Pa)
   ! input: latent heat of sublimation/vaporization
@@ -2489,10 +2487,10 @@ subroutine aStability(&
                       ! input: control
                       ixStability,                    & ! input:  choice of stability function
                       ! input: forcing data, diagnostic and state variables
-                      mHeight,                        & ! input:  measurement height (m)
+                      hgt_diff,                       & ! input:  height difference from air to surface (m)
                       airTemp,                        & ! input:  air temperature (K)
                       sfcTemp,                        & ! input:  surface temperature (K)
-                      windspd,                        & ! input:  wind speed (m s-1)
+                      windspd_diff,                   & ! input:  wind speed difference air to surface (m s-1)
                       ! input: stability parameters
                       critRichNumber,                 & ! input:  critical value for the bulk Richardson number where turbulence ceases (-)
                       Louis79_bparam,                 & ! input:  parameter in Louis (1979) stability function
@@ -2508,10 +2506,10 @@ subroutine aStability(&
   ! input: control
   integer(i4b),intent(in)          :: ixStability                   ! choice of stability function
   ! input: forcing data, diagnostic and state variables
-  real(rkind),intent(in)           :: mHeight                       ! measurement height (m)
+  real(rkind),intent(in)           :: hgt_diff                      ! height difference from air to surface (m)
   real(rkind),intent(in)           :: airtemp                       ! air temperature (K)
   real(rkind),intent(in)           :: sfcTemp                       ! surface temperature (K)
-  real(rkind),intent(in)           :: windspd                       ! wind speed (m s-1)
+  real(rkind),intent(in)           :: windspd_diff                  ! wind speed difference air to surface (m s-1)
   ! input: stability parameters
   real(rkind),intent(in)           :: critRichNumber                ! critical value for the bulk Richardson number where turbulence ceases (-)
   real(rkind),intent(in)           :: Louis79_bparam                ! parameter in Louis (1979) stability function
@@ -2538,21 +2536,19 @@ subroutine aStability(&
                       ! input
                       airTemp,                        & ! input: air temperature (K)
                       sfcTemp,                        & ! input: surface temperature (K)
-                      windspd,                        & ! input: wind speed (m s-1)
-                      mHeight,                        & ! input: measurement height (m)
+                      windspd_diff,                   & ! input: wind speed difference air to surface (m s-1)
+                      hgt_diff,                       & ! input: height difference from air to surface (m)
                       ! output
                       RiBulk,                         & ! output: bulk Richardson number (-)
                       dRiBulk_dAirTemp,               & ! output: derivative in the bulk Richardson number w.r.t. air temperature (K-1)
                       dRiBulk_dSfcTemp,               & ! output: derivative in the bulk Richardson number w.r.t. surface temperature (K-1)
                       err,message)                      ! output: error control
 
-  ! ***** process unstable cases
+  ! compute surface-atmosphere exchange coefficient (-) and its derivatives 
+  ! ***** process unstable cases, Anderson 1976 and Oke 1978
   if (RiBulk<0._rkind) then
-    ! compute surface-atmosphere exchange coefficient (-)
-    stabilityCorrection = sqrt(1._rkind - 16._rkind*RiBulk)
-    ! compute derivative in surface-atmosphere exchange coefficient w.r.t. temperature (K-1)
-    ! dStabilityCorrection_dRich    = (-16._rkind) * 0.5_rkind*(1._rkind - 16._rkind*RiBulk)**(-0.5_rkind) ! original
-    dStabilityCorrection_dRich    = -8._rkind/sqrt(1._rkind - 16._rkind*RiBulk) ! simplify and use sqrt intrinsic for speed
+    stabilityCorrection = (1._rkind - 16._rkind*RiBulk)**(0.75_rkind)
+    dStabilityCorrection_dRich    = -12._rkind*(1._rkind - 16._rkind*RiBulk)**(-0.25_rkind)
     dStabilityCorrection_dAirTemp = dRiBulk_dAirTemp * dStabilityCorrection_dRich
     dStabilityCorrection_dSfcTemp = dRiBulk_dSfcTemp * dStabilityCorrection_dRich
     return
@@ -2560,39 +2556,40 @@ subroutine aStability(&
 
   ! ***** process stable cases
   select case(ixStability)
-    ! "standard" stability correction, a la Anderson 1976
+    ! "standard" stability correction, Anderson 1976 and Oke 1978
     case(standard)
-      ! compute surface-atmosphere exchange coefficient (-)
-      if (RiBulk <  critRichNumber) stabilityCorrection = (1._rkind - 5._rkind*RiBulk)**2_i4b
-      if (RiBulk >= critRichNumber) stabilityCorrection = stabilityTol
-      ! compute derivative in surface-atmosphere exchange coefficient w.r.t. temperature (K-1)
-      if (RiBulk <  critRichNumber) dStabilityCorrection_dRich = -10._rkind*(1._rkind - 5._rkind*RiBulk)
-      if (RiBulk >= critRichNumber) dStabilityCorrection_dRich = stabilityTol
+      if(RiBulk < critRichNumber)then 
+        stabilityCorrection = (1._rkind - 5._rkind*RiBulk)**2_i4b
+        dStabilityCorrection_dRich = -10._rkind*(1._rkind - 5._rkind*RiBulk)
+      else
+        stabilityCorrection = stabilityTol
+        dStabilityCorrection_dRich = 0._rkind
+      end if
+
     ! Louis 1979
     case(louisInversePower)
-      ! scale the "b" parameter for stable conditions
-      bprime = Louis79_bparam/2._rkind
-      ! compute surface-atmosphere exchange coefficient (-)
-      stabilityCorrection = 1._rkind / ( (1._rkind + bprime*RiBulk)**2_i4b )
-      if (stabilityCorrection < epsilon(stabilityCorrection)) stabilityCorrection = epsilon(stabilityCorrection)
-      ! compute derivative in surface-atmosphere exchange coefficient w.r.t. temperature (K-1)
-      dStabilityCorrection_dRich = bprime * (-2._rkind)*(1._rkind + bprime*RiBulk)**(-3_i4b)
+      bprime = Louis79_bparam/2._rkind ! scale the "b" parameter for stable conditions
+      stabilityCorrection = (1._rkind + bprime*RiBulk)**(-2_i4b)
+      if(stabilityCorrection >= epsilon(stabilityCorrection))then
+        dStabilityCorrection_dRich = -2._rkind*bprime*(1._rkind + bprime*RiBulk)**(-3_i4b)
+      else
+        stabilityCorrection = epsilon(stabilityCorrection)
+        dStabilityCorrection_dRich = 0._rkind
+      end if
 
-    ! (Mahrt 1987)
+    ! Mahrt 1987
     case(mahrtExponential)
-      ! compute surface-atmosphere exchange coefficient (-)
-      stabilityCorrection = exp(-Mahrt87_eScale * RiBulk)
-      if (stabilityCorrection < epsilon(stabilityCorrection)) stabilityCorrection = epsilon(stabilityCorrection)
-      ! compute derivative in surface-atmosphere exchange coefficient w.r.t. temperature (K-1)
-      dStabilityCorrection_dRich = (-Mahrt87_eScale) * exp(-Mahrt87_eScale * RiBulk)
+      stabilityCorrection = exp(-Mahrt87_eScale*RiBulk)
+      if(stabilityCorrection >= epsilon(stabilityCorrection))then
+        dStabilityCorrection_dRich = -Mahrt87_eScale * exp(-Mahrt87_eScale*RiBulk)
+      else
+        stabilityCorrection = epsilon(stabilityCorrection)
+        dStabilityCorrection_dRich = 0._rkind
+      end if
 
-    ! return error if the stability correction method is not found
     case default
       err=10; message=trim(message)//"optionNotFound[stability correction]"; return
   end select
-
-  ! get the stability correction with respect to air temperature and surface temperature
-  ! NOTE: air temperature is used for canopy air temperature, which is a model state variable
   dStabilityCorrection_dAirTemp = dRiBulk_dAirTemp * dStabilityCorrection_dRich
   dStabilityCorrection_dSfcTemp = dRiBulk_dSfcTemp * dStabilityCorrection_dRich
 
@@ -2605,8 +2602,8 @@ subroutine bulkRichardson(&
                           ! input
                           airTemp,                    & ! input:  air temperature (K)
                           sfcTemp,                    & ! input:  surface temperature (K)
-                          windspd,                    & ! input:  wind speed (m s-1)
-                          mHeight,                    & ! input:  measurement height (m)
+                          windspd_diff,               & ! input:  wind speed difference air to surface (m s-1)
+                          hgt_diff,                   & ! input:  height difference from air to surface (m)
                            ! output
                           RiBulk,                     & ! output: bulk Richardson number (-)
                           dRiBulk_dAirTemp,           & ! output: derivative in the bulk Richardson number w.r.t. air temperature (K-1)
@@ -2616,8 +2613,8 @@ implicit none
 ! input
 real(rkind),intent(in)        :: airtemp                ! air temperature (K)
 real(rkind),intent(in)        :: sfcTemp                ! surface temperature (K)
-real(rkind),intent(in)        :: windspd                ! wind speed (m s-1)
-real(rkind),intent(in)        :: mHeight                ! measurement height (m)
+real(rkind),intent(in)        :: windspd_diff           ! wind speed difference air to surface (m s-1)
+real(rkind),intent(in)        :: hgt_diff               ! height difference from air to surface (m)
 ! output
 real(rkind),intent(inout)     :: RiBulk                 ! bulk Richardson number (-)
 real(rkind),intent(out)       :: dRiBulk_dAirTemp       ! derivative in the bulk Richardson number w.r.t. air temperature (K-1)
@@ -2637,12 +2634,12 @@ real(rkind)                   :: RiMult                 ! dimensionless scaling 
     T_grad = airtemp
     T_mean = 0.5_rkind*airtemp
   endif
-  RiMult = (gravity*mHeight)/(windspd*windspd)
+  RiMult = gravity*hgt_diff / windspd_diff**2_i4b
   ! compute the Richardson number
   RiBulk = (T_grad/T_mean) * RiMult
   ! compute the derivative in the Richardson number
-  dRiBulk_dAirTemp =  RiMult/T_mean - RiMult*T_grad/(0.5_rkind*((airtemp + sfcTemp)**2_i4b))
-  dRiBulk_dSfcTemp = -RiMult/T_mean - RiMult*T_grad/(0.5_rkind*((airtemp + sfcTemp)**2_i4b))
+  dRiBulk_dAirTemp =  RiMult/T_mean - RiMult*T_grad / (0.5_rkind*((airtemp + sfcTemp)**2_i4b))
+  dRiBulk_dSfcTemp = -RiMult/T_mean - RiMult*T_grad / (0.5_rkind*((airtemp + sfcTemp)**2_i4b))
   ! cap function to prevent blowing up
   if (sfcTemp < 0._rkind) then
     dRiBulk_dAirTemp = 0._rkind

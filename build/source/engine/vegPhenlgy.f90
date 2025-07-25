@@ -192,8 +192,7 @@ contains
   exposedVAI      = scalarExposedLAI + scalarExposedSAI   ! exposed vegetation area index (m2 m-2)
   canopyDepth     = heightCanopyTop - heightCanopyBottom  ! canopy depth (m)
   heightAboveSnow = heightCanopyTop - scalarSnowDepth     ! height top of canopy is above the snow surface (m)
-  minExpLogHgt    = 0.1  ! minimum height of transition from the exponential to the logarithmic wind profile (m)
-  if(heightCanopyTop<1._rkind) minExpLogHgt = 0.1_rkind*heightCanopyTop  ! if the canopy is short, use a smaller minimum height
+  minExpLogHgt    = 0.02*sqrt(heightCanopyTop)  ! minimum height of transition from the exponential to the logarithmic wind profile (m)
 
   ! compute the roughness length of the ground (ground below the canopy or non-vegetated surface)
   z0Ground = z0Soil*(1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction     ! roughness length (m)
