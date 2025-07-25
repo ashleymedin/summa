@@ -231,8 +231,6 @@ subroutine eval8summa(&
     ixNumericalMethod         => model_decisions(iLookDECISIONS%num_method)%iDecision       ,& ! intent(in):  [i4b]   choice of numerical solver
     ixNrgConserv              => model_decisions(iLookDECISIONS%nrgConserv)%iDecision       ,& ! intent(in):  [i4b]   choice of variable in either energy backward Euler residual or IDA state variable
     ixRichards                => model_decisions(iLookDECISIONS%f_Richards)%iDecision       ,& ! intent(in):  [i4b]   index of the form of Richards' equation
-    ! snow parameters
-    snowfrz_scale             => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)             ,& ! intent(in):  [dp]    scaling parameter for the snow freezing curve (K-1)
     ! soil parameters
     theta_sat                 => mpar_data%var(iLookPARAM%theta_sat)%dat                    ,& ! intent(in):  [dp(:)] soil porosity (-)
     specificStorage           => mpar_data%var(iLookPARAM%specificStorage)%dat(1)           ,& ! intent(in):  [dp]    specific storage coefficient (m-1)
@@ -857,7 +855,9 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
     nLakeOnlyHyd       => indx_data%var(iLookINDEX%nLakeOnlyHyd )%dat(1)       ,& ! intent(in): [i4b]    number of hydrology variables in the lake domain
     nSoilOnlyHyd       => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)       ,& ! intent(in): [i4b]    number of hydrology variables in the soil domain
     nGlceOnlyHyd       => indx_data%var(iLookINDEX%nGlceOnlyHyd  )%dat(1)      ,& ! intent(in): [i4b]    number of hydrology variables in the glacier ice domain
-  ! soil parameters
+    ! snow parameters
+    snowfrz_scale      => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)       ,& ! intent(in):  [dp]    scaling parameter for the snow freezing curve (K-1)
+    ! soil parameters
     theta_sat          => mpar_data%var(iLookPARAM%theta_sat)%dat              ,& ! intent(in): [dp(:)]  soil porosity (-)
     theta_res          => mpar_data%var(iLookPARAM%theta_res)%dat              ,& ! intent(in): [dp(:)]  residual volumetric water content (-)
     vGn_n              => mpar_data%var(iLookPARAM%vGn_n)%dat                  ,& ! intent(in):  [dp(:)]  van Genutchen "n" parameter (-)
