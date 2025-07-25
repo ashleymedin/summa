@@ -521,7 +521,7 @@ subroutine T2enthTemp_snLaGl(&
     enthIce = 0._rkind
     enthAir = iden_air * Cp_air * ( 1._rkind - mLayerVolFracWat ) * diffT
   else
-    integral = (1._rkind/frz_scale) * atan(frz_scale * diffT)
+    integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
     if(noLiq) integral = 0._rkind ! if no liquid water, then integral is zero
     enthLiq  = iden_water * Cp_water * mLayerVolFracWat * integral
     enthIce  = iden_water * Cp_ice * mLayerVolFracWat * ( diffT - integral )
