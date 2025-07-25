@@ -32,6 +32,7 @@ USE globalData,only:globalPrintFlag
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number
+USE globalData,only:verySmaller     ! a smaller number used as an additive constant to check if substantial difference among real numbers
 
 ! access matrix information
 USE globalData,only: ixFullMatrix   ! named variable for the full Jacobian matrix
@@ -521,6 +522,11 @@ subroutine summaSolve4ida(&
       retval = FIDAGetLastStep(ida_mem, dt_last)
       dt_diff = tret(1) - tretPrev
       nSteps = nSteps + 1 ! number of time steps taken in solver
+
+      ! possible that vegetation water may go a bit negative, so check and correct
+      if(ixVegHyd/=integerMissing)then
+        if(stateVec(ixVegHyd) < 0._rkind .and. stateVec(ixVegHyd)>= -verySmaller) stateVec(ixVegHyd) = 0._rkind ! set to zero
+      endif
     
       ! check the feasibility of the solution
       feasible=.true.

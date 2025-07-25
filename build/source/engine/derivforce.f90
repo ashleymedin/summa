@@ -149,8 +149,8 @@ contains
  elevation               => attr_data%var(iLookATTR%elevation)                    , & ! mean elevation of HRU (m)
  DOMelev                 => prog_data%var(iLookPROG%DOMelev)%dat(1)               , & ! mean elevation of the domain in the HRU (m)
  ! measurement height
- mHeight                 => attr_data%var(iLookATTR%mHeight)                      , & ! latitude (degrees north)
- adjMeasHeight           => diag_data%var(iLookDIAG%scalarAdjMeasHeight)%dat(1)   , & ! adjusted measurement height (m)
+ mHeight                 => attr_data%var(iLookATTR%mHeight)                      , & ! measurement height (m)
+ adjMeasHeight           => diag_data%var(iLookDIAG%scalarAdjMeasHeight)%dat(1)   , & ! adjusted measurement height for cases snowDepth>mHeight (m)
  scalarSnowDepth         => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1)       , & ! snow depth on the ground surface (m)
  heightCanopyTop         => mpar_data%var(iLookPARAM%heightCanopyTop)%dat(1)      , & ! height of the top of the canopy layer (m)
  ! model time

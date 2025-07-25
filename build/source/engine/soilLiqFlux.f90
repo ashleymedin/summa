@@ -43,6 +43,7 @@ USE globalData,only:integerMissing         ! missing integer
 USE globalData,only:realMissing            ! missing real number
 USE globalData,only:veryBig                ! a very big number
 USE globalData,only:verySmall              ! a small number used as an additive constant to check if substantial difference among real numbers
+USE globalData,only:verySmaller            ! a smaller number used as an additive constant to check if substantial difference among real numbers
 
 ! physical constants
 USE multiconst,only:iden_water             ! intrinsic density of water    (kg m-3)
@@ -91,8 +92,6 @@ USE mDecisions_module,only:   &
 implicit none
 private
 public :: soilLiqFlux
-! constant parameters
-real(rkind),parameter     :: verySmaller=1.e-12_rkind ! a very small number (used to avoid divide by zero), note that this is smaller than the usual small number in globalData
 contains
 
 
