@@ -802,15 +802,14 @@ contains
      if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(bvar_meta(iVar)%varName)//"')"; return; endif
     end do ! end iGRU loop
 
-    ! deallocate temporary data array for next variable
-    deallocate(varData2)
-
-   enddo ! end looping through basin variables
-  endif  ! end if case for variables being in init. cond. file
+    deallocate(varData2) ! deallocate temporary data array for next variable
+   end do ! end looping through basin variables
+  endif  ! end if case for tdh variables being in init. cond. file
   deallocate(glac_id)
- endif ! end if has glacier
-
- deallocate(gru_id,hru_id,gruid_to_index,hrunc_to_index)
+ endif  ! end if has glacier
+ 
+ call nc_file_close(ncID,err,cmessage)
+ if(err/=0)then;message=trim(message)//trim(cmessage);return;end if
 
  end subroutine read_icond
 
@@ -1013,8 +1012,9 @@ contains
   deallocate(varData, stat=err)
   if(err/=0)then; message=trim(message)//'problem deallocating GRU variable data'; return; endif
  enddo ! end looping through basin variables
-
  deallocate(gru_id,grid_id,gruid_to_index,glacid_to_index,gridid_to_index)
+ call nc_file_close(ncID,err,cmessage)
+ if(err/=0)then;message=trim(message)//trim(cmessage);return;end if
 
  end subroutine read_icondGlac
 
