@@ -1413,6 +1413,7 @@ contains
    ! intent(in) arguments
    in_snowLakeGlceLiqFlux % nLayers                =nLayers                        ! intent(in): number of layers
    in_snowLakeGlceLiqFlux % nStart                 =nStart                         ! intent(in): starting index for layers
+   in_snowLakeGlceLiqFlux % is_glac                =is_glac                        ! intent(in): flag to denote if processing a glacier domain
    in_snowLakeGlceLiqFlux % do_snow                =do_snow                        ! intent(in): flag to denote if processing snow layers
    in_snowLakeGlceLiqFlux % surface_flux           =surface_flux                   ! intent(in): surface fluxes (kg m-2 s-1)
    in_snowLakeGlceLiqFlux % bottom_flux            =bottom_flux                    ! intent(in): bottom fluxes if already computed (kg m-2 s-1)
