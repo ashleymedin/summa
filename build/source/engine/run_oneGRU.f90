@@ -224,6 +224,8 @@ subroutine run_oneGRU(&
   updateGlacArea = .false. ! initialize flag to update glacier area
   updateLakeArea = .false. ! initialize flag to update lake area
   bvarData%var(iLookBVAR%basin__GlacierArea)%dat(1) = 0._rkind ! glacier area (m2)
+  nglacDOM = 0 ! initialize number of glacier domains in the GRU
+  nglacHRU = 0 ! initialize number of glacier HRUs in the GRU
 
   ! initialize total inflow for each layer in a soil column and glacier size allocation
   check_updateGlacArea = .true.
@@ -275,8 +277,6 @@ subroutine run_oneGRU(&
 
   ! allocate space for glacier area change module variables
   if (updateGlacArea) then
-    nglacDOM = 0 ! initialize number of glacier domains in the GRU
-    nglacHRU = 0 ! initialize number of glacier HRUs in the GRU
     do iHRU=1,gruInfo%hruCount
       has_glacier = .false. ! initialize flag to indicate if glaciers are present in HRU
       do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
