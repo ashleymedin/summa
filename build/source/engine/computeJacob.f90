@@ -443,12 +443,12 @@ subroutine computeJacob(&
               if(ixSnowOnlyHyd(iLayer+1)/=integerMissing) aJac(ixOffDiag(ixSnowOnlyHyd(iLayer+1),watState),watState) = -(dt/mLayerDepth(jLayer+1))*iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot  ! dVol(below)/dLiq(above) -- (-)
             endif
             if(mLayerVolFracIce(jLayer)>maxVolIceContent_use)then
-              if(iLayer<endLayer-1 .and. qLayer<=nSnow-1)then
+              if(iLayer<endLayer-1 .and. qLayer<=nSnow-1)then ! kl>=4 so always included
                 if(ixSnowOnlyHyd(iLayer+2)/=integerMissing) aJac(ixOffDiag(ixSnowOnlyHyd(iLayer+2),watState),watState) = -(dt/mLayerDepth(jLayer+2))*iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot  ! dVol(below)/dLiq(above) -- (-)
               endif
             endif
 
-            ! - only include banded terms for surface infiltration below surface in banded structure; ixSoilOnlyHyd(nSoil) - watState always <= kl
+            ! - only include banded terms for surface infiltration below surface in banded structure
             if(nSoil>0 .and. qLayer>nSnow)then
               if(ixSoilOnlyHyd(nSoil)/=integerMissing)then 
                 if(watState - ixSoilOnlyHyd(nSoil) <= ku) aJac(ixOffDiag(ixSoilOnlyHyd(nSoil),watState),watState) = dt/mLayerDepth(nSnow+nLake+nSoil)
@@ -498,7 +498,9 @@ subroutine computeJacob(&
               endif
               if(mLayerVolFracIce(jLayer)>maxVolIceContent_use)then
                  if(iLayer<endLayer-1 .and. qLayer<=nSnow-1)then
-                   if(ixSnowOnlyHyd(iLayer+2)/=integerMissing) aJac(ixOffDiag(ixSnowOnlyHyd(iLayer+2),nrgState),watState) = -(dt/mLayerDepth(jLayer+2))*iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer)
+                   if(ixSnowOnlyHyd(iLayer+2)/=integerMissing) then ! only include banded terms
+                     if(ixSnowOnlyHyd(iLayer+2)-nrgState <= kl) aJac(ixOffDiag(ixSnowOnlyHyd(iLayer+2),nrgState),watState) = -(dt/mLayerDepth(jLayer+2))*iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer)
+                   endif
                  endif
               endif
 
@@ -552,12 +554,12 @@ subroutine computeJacob(&
                 qState = ixSoilOnlyHyd(pLayer)  ! hydrology state index within the state subset
                 if(qState/=integerMissing)then
                   if((qstate - watState <= ku) .and. (watState - qstate <= kl)) &
-                      aJac(ixOffDiag(watState,qState),qState) = (dt/mLayerDepth(jLayer))*dBaseflow_dMatric(iLayer,pLayer) + aJac(ixOffDiag(watState,qState),qState)
+                    aJac(ixOffDiag(watState,qState),qState) = (dt/mLayerDepth(jLayer))*dBaseflow_dMatric(iLayer,pLayer) + aJac(ixOffDiag(watState,qState),qState)
                 endif
               end do
             endif
 
-            ! - only include banded terms for surface infiltration below surface in banded structure; ixSoilOnlyHyd(1) - watState always <= kl
+            ! - only include banded terms for surface infiltration below surface in banded structure
             if(ixSoilOnlyHyd(1)/=integerMissing)then
               if(watState - ixSoilOnlyHyd(1) <= ku) & 
                 aJac(ixOffDiag(ixSoilOnlyHyd(1),watState),watState) = -(dt/mLayerDepth(1+nSnow))*dq_dHydStateLayerSurfVec(iLayer) + aJac(ixOffDiag(ixSoilOnlyHyd(1),watState),watState)
@@ -830,7 +832,7 @@ subroutine computeJacob(&
               endif
             endif
 
-            ! - only include banded terms for surface infiltration below surface in banded structure; ixSoilOnlyHyd(nSoil) - watState always <= kl
+            ! - only include banded terms for surface infiltration below surface in banded structure
             if(nSoil>0 .and. qLayer>nSnow)then
               if(ixSoilOnlyHyd(nSoil)/=integerMissing)then 
                 if(watState - ixSoilOnlyHyd(nSoil) <= ku) aJac(ixSoilOnlyHyd(nSoil),watState) = dt/mLayerDepth(nSnow+nLake+nSoil)
