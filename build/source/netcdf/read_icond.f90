@@ -807,7 +807,7 @@ contains
   endif  ! end if case for tdh variables being in init. cond. file
   deallocate(glac_id)
  endif  ! end if has glacier
- 
+ deallocate(hru_id,gru_id,gruid_to_index,hrunc_to_index)
  call nc_file_close(ncID,err,cmessage)
  if(err/=0)then;message=trim(message)//trim(cmessage);return;end if
 
