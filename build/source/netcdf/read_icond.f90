@@ -25,6 +25,7 @@ USE globalData,only: ixHRUfile_min,ixHRUfile_max
 USE globalData,only: nTimeDelay      ! number of hours in the time delay histogram
 USE globalData,only: nSpecBand       ! number of spectral bands
 USE globalData,only: int8Missing     ! missing integer
+USE globalData,only:verySmaller      ! a smaller number used as an additive constant to check if substantial difference among real numbers
 
 ! access domain types
 USE globalData,only:upland             ! domain type for upland areas
@@ -550,13 +551,21 @@ contains
 
      if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(prog_meta(iVar)%varName)//"')"; return; endif
 
-     ! make sure snow albedo is not negative
-     if(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowAlbedo)%dat(1) < 0._rkind)then
-      progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowAlbedo)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%albedoMax)%dat(1)
-     endif
+     if(iVar==size(prog_meta))then ! last variable in the loop, so we can correct prognostic variables
+      ! make sure snow albedo is not negative
+      if(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowAlbedo)%dat(1) < 0._rkind)then
+       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowAlbedo)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%albedoMax)%dat(1)
+      endif
 
-     ! initialize the spectral albedo
-     progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1:nSpecBand) = progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowAlbedo)%dat(1)
+      ! initialize the spectral albedo
+      progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1:nSpecBand) = progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowAlbedo)%dat(1)
+
+      ! make sure canopy ice + liq is positive, otherwise add liquid water to canopy and make total water consistent later
+      if( (progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyLiq)%dat(1) + progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyIce)%dat(1)) < verySmaller*10._rkind)then
+       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyLiq)%dat(1) = verySmaller*10._rkind
+       print*, 'WARNING: Canopy water is zero ... setting canopy liquid water to a tiny value.'
+      endif
+     endif ! (if last variable in the loop)
 
     end do ! iDOM
    end do ! iHRU
