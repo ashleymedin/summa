@@ -1029,10 +1029,10 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           if (jLayer <= nSnow+nLake) then
             iLayer = jLayer
             snowfrz_scale_use = snowfrz_scale
-            if (jLayer>nSnow) snowfrz_scale_use = snowfrz_scale*10.0_rkind ! tigher since ice does not hold water
+            if (jLayer>nSnow) snowfrz_scale_use = snowfrz_scale*10.0_rkind ! closer to a step function since ice does not hold water
           else
             iLayer = jLayer + nSoil
-            snowfrz_scale_use = snowfrz_scale*10.0_rkind ! tigher since ice does not hold water
+            snowfrz_scale_use = snowfrz_scale*10.0_rkind ! closer to a step function since ice does not hold water
           end if
            ! check if the layer is included
           if(ixSnLaSoGlHyd(iLayer)==integerMissing) cycle
@@ -1044,8 +1044,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           endif
           ! get the volumetric fraction of liquid water and ice
           select case( ixStateType_subset( ixSnLaSoGlHyd(iLayer) ) )
-            case(iname_watLayer); scalarLiq = fracliquid(scalarTemp,mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),iLayer>nLayers-noThetaChange) &
-                                             * stateVecPrev(ixSnLaSoGlHyd(iLayer))
+            case(iname_watLayer); scalarLiq = fracliquid(scalarTemp,snowfrz_scale_use,iLayer>nLayers-noThetaChange)*stateVecPrev(ixSnLaSoGlHyd(iLayer))
             case(iname_liqLayer); scalarLiq = stateVecPrev(ixSnLaSoGlHyd(iLayer))
             case default; err=20; message=trim(message)//'expect ixStateType_subset to be iname_watLayer or iname_liqLayer for lake hydrology'; return
           end select

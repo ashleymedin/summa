@@ -851,10 +851,10 @@ subroutine coupled_em(&
                 if (jLayer<=nSnow+nLake)then
                   iLayer = jLayer
                   snowfrz_scale_use = snowfrz_scale
-                  if (jLayer>nSnow) snowfrz_scale_use = snowfrz_scale*10.0_rkind  ! tigher since ice does not hold water
+                  if (jLayer>nSnow) snowfrz_scale_use = snowfrz_scale*10.0_rkind  ! closer to a step function since ice does not hold water
                 else
                   iLayer = jLayer + nSoil
-                  snowfrz_scale_use = snowfrz_scale*10.0_rkind  ! tigher since ice does not hold water
+                  snowfrz_scale_use = snowfrz_scale*10.0_rkind  ! closer to a step function since ice does not hold water
                 end if
                 mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)*(iden_ice/iden_water)
                 ! compute enthalpy for snow and glacier ice layers
@@ -1288,10 +1288,10 @@ subroutine coupled_em(&
               if (jLayer<=nSnow+nLake)then
                 iLayer = jLayer
                 snowfrz_scale_use = snowfrz_scale
-                if (jLayer>nSnow) snowfrz_scale_use = snowfrz_scale*10.0_rkind  ! tigher since ice does not hold water
+                if (jLayer>nSnow) snowfrz_scale_use = snowfrz_scale*10.0_rkind  ! closer to a step function since ice does not hold water
               else
                 iLayer = jLayer + nSoil
-                snowfrz_scale_use = snowfrz_scale*10.0_rkind  ! tigher since ice does not hold water
+                snowfrz_scale_use = snowfrz_scale*10.0_rkind  ! closer to a step function since ice does not hold water
               end if
               mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)*(iden_ice/iden_water)
               ! recompute enthalpy of layers if changed water and ice content

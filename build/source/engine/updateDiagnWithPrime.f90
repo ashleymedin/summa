@@ -650,7 +650,7 @@ subroutine updateDiagnWithPrime(&
             ! *** snow layers
             case(iname_snow, iname_lake, iname_glce)
               snowfrz_scale_use = snowfrz_scale
-              if(ixDomainType==iname_lake .or. ixDomainType==iname_glce) snowfrz_scale_use = snowfrz_scale*10.0_rkind ! tigher since ice does not hold water
+              if(ixDomainType==iname_lake .or. ixDomainType==iname_glce) snowfrz_scale_use = snowfrz_scale*10.0_rkind ! closer to a step function since ice does not hold water
 
               ! compute volumetric fraction of liquid water and ice
               call updateSnLaGlPrime(&

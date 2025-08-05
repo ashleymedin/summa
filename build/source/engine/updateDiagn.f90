@@ -306,6 +306,9 @@ subroutine updateDiagn(&
         case default; err=20; message=trim(message)//'expect case to be iname_cas, iname_veg, iname_snow, iname_soil, iname_aquifer'; return
       end select
 
+      snowfrz_scale_use = snowfrz_scale
+      if(ixDomainType==iname_lake .or. ixDomainType==iname_glce) snowfrz_scale_use = snowfrz_scale*10.0_rkind ! closer to a step function since ice does not hold water
+
       ! get the index of the other (energy or mass) state variable within the full state vector
       select case(ixDomainType)
         case(iname_cas);                                     ixOther = integerMissing
@@ -452,7 +455,7 @@ subroutine updateDiagn(&
               dFracLiqVeg_dTkCanopy = dFracLiq_dTk(xTemp,snowfrz_scale)
               dTheta_dTkCanopy = dFracLiqVeg_dTkCanopy * scalarCanopyWatTrial/(iden_water*canopyDepth)
             case(iname_snow, iname_lake, iname_glce)
-              dFracLiqWat_dTk(iLayer) = dFracLiq_dTk(xTemp,snowfrz_scale,iLayer>nLayers-noThetaChange)
+              dFracLiqWat_dTk(iLayer) = dFracLiq_dTk(xTemp,snowfrz_scale_use,iLayer>nLayers-noThetaChange)
               mLayerdTheta_dTk(iLayer) = dFracLiqWat_dTk(iLayer) * mLayerVolFracWatTrial(iLayer)
             case(iname_soil)
               dFracLiqWat_dTk(iLayer) = 0._rkind !dTheta_dTk(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))/ mLayerVolFracWatTrial(iLayer)
@@ -480,7 +483,7 @@ subroutine updateDiagn(&
           ! compute the fraction of snow
           select case(ixDomainType)
             case(iname_veg);                          scalarFracLiqVeg      = fracliquid(xTemp,snowfrz_scale)
-            case(iname_snow, iname_lake, iname_glce); mLayerFracLiq(iLayer) = fracliquid(xTemp,snowfrz_scale,iLayer>nLayers-noThetaChange)
+            case(iname_snow, iname_lake, iname_glce); mLayerFracLiq(iLayer) = fracliquid(xTemp,snowfrz_scale_use,iLayer>nLayers-noThetaChange)
             case(iname_soil)  ! do nothing
             case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_glce'; return
           end select  ! domain type
@@ -517,9 +520,6 @@ subroutine updateDiagn(&
 
             ! *** snow layers
             case(iname_snow, iname_lake, iname_glce)
-              snowfrz_scale_use = snowfrz_scale
-              if(ixDomainType==iname_lake .or. ixDomainType==iname_glce) snowfrz_scale_use = snowfrz_scale*10.0_rkind ! tigher since ice does not hold water
-    
               ! compute volumetric fraction of liquid water and ice
               call updateSnLaGl(&
                               iLayer>nLayers-noThetaChange,   & ! intent(in):  flag that no liquid water in layer
@@ -697,8 +697,8 @@ subroutine updateDiagn(&
       elseif(ixDomainType==iname_snow .or. ixDomainType==iname_lake  .or. ixDomainType==iname_glce)then
         if(computeEnthTemp)then
           call T2enthTemp_snLaGl(&
-                      iLayer>nLayers-noThetaChange,       & ! intent(in):  flag to indicate if the layer has no liquid water
-                      snowfrz_scale,                   & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
+                      iLayer>nLayers-noThetaChange,    & ! intent(in):  flag to indicate if the layer has no liquid water
+                      snowfrz_scale_use,               & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                       mLayerTempTrial(iLayer),         & ! intent(in):  layer temperature (K)
                       mLayerVolFracWatTrial(iLayer),   & ! intent(in):  volumetric total water content (-)
                       mLayerEnthTempTrial(iLayer))       ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
