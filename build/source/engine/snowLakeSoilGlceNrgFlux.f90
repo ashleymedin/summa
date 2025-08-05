@@ -144,6 +144,7 @@ subroutine snowLakeSoilGlceNrgFlux(&
     nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1),               & ! intent(in):  number of lake layers
     nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1),               & ! intent(in):  number of soil layers
     nGlce                   => indx_data%var(iLookINDEX%nGlce)%dat(1),               & ! intent(in):  number of glacier ice layers
+    noThetaChange           => indx_data%var(iLookINDEX%noThetaChange)%dat(1),       & ! intent(in):  number of layers with no change in total water content (bottom layers)
     layerType               => indx_data%var(iLookINDEX%layerType)%dat,              & ! intent(in):  layer type
     ixLayerState            => indx_data%var(iLookINDEX%ixLayerState)%dat,           & ! intent(in):  list of indices for all model layers
     ixSnLaSoGlNrg           => indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat,          & ! intent(in):  index in the state subset for energy state variables in the layer domains
@@ -188,7 +189,9 @@ subroutine snowLakeSoilGlceNrgFlux(&
     ! ***** compute the conductive fluxes at layer interfaces *****
     ! -------------------------------------------------------------------------------------------------------------------------
     do iLayer=ixTop,ixBot
-      if (iLayer==nLayers) then ! lower boundary fluxes -- positive downwards
+      if(layerType(iLayer)==iname_glce .and. iLayer==nLayers-noThetaChange .and. iLayerThermalC(iLayer)>0._rkind)then
+        if(iLayerThermalC(iLayer) < 0._rkind) iLayerConductiveFlux(iLayer) = 0._rkind ! no heat downward from glacier ice, absorbed by melting
+      elseif (iLayer==nLayers) then ! lower boundary fluxes -- positive downwards 
       ! flux depends on the type of lower boundary condition
         select case(ix_bcLowrTdyn) ! identify the lower boundary condition for thermodynamics
           case(prescribedTemp); iLayerConductiveFlux(iLayer) = -iLayerThermalC(iLayer)*(lowerBoundTemp - mLayerTempTrial(iLayer))/(mLayerDepth(iLayer)*0.5_rkind)
@@ -209,7 +212,9 @@ subroutine snowLakeSoilGlceNrgFlux(&
         case(iname_soil);                       qFlux = iLayerLiqFluxSoil(iLayer-nSnow-nLake)
         case default; err=20; message=trim(message)//'unable to identify layer type'; return
       end select
-      if (iLayer==nLayers) then ! compute fluxes at the lower boundary -- positive downwards
+      if(layerType(iLayer)==iname_glce .and. iLayer==nLayers-noThetaChange .and. iLayerThermalC(iLayer)>0._rkind)then
+        iLayerAdvectiveFlux(iLayer) = 0._rkind ! no heat downwards from glacier ice, absorbed by melting
+      elseif (iLayer==nLayers) then ! compute fluxes at the lower boundary -- positive downwards
         iLayerAdvectiveFlux(iLayer) = -Cp_water*iden_water*qFlux*(lowerBoundTemp - mLayerTempTrial(iLayer))
       else ! compute fluxes within the domain -- positive downwards
         iLayerAdvectiveFlux(iLayer) = -Cp_water*iden_water*qFlux*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer))
@@ -263,8 +268,16 @@ subroutine snowLakeSoilGlceNrgFlux(&
 
     ! loop through INTERFACES...
     do iLayer=ixTop,ixBot
+      if(layerType(iLayer)==iname_glce .and. iLayer==nLayers-noThetaChange .and. iLayerThermalC(iLayer)>0._rkind)then
+            dFlux_dWatAbove(iLayer) = 0._rkind
+            dFlux_dTempAbove(iLayer) = 0._rkind
+            if(iLayer<nLayers)then
+              dz = (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
+              dFlux_dWatBelow(iLayer)  = -dThermalC_dWatBelow(iLayer) * ( mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer) )/dz
+              dFlux_dTempBelow(iLayer) = -dThermalC_dTempBelow(iLayer) * ( mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer) )/dz - iLayerThermalC(iLayer)/dz
+            end if
       ! ***** the lower boundary
-      if (iLayer==nLayers) then  ! if lower boundary
+      elseif (iLayer==nLayers) then  ! if lower boundary
         ! identify the lower boundary condition
         select case(ix_bcLowrTdyn) ! prescribed temperature at the lower boundary
           case(prescribedTemp)
