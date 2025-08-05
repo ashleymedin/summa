@@ -162,8 +162,11 @@ c-07) Snow water upper bound should be 1, not iden_ice, commit 265721b5 Feb 13, 
  -30) Change in exponent to stable bulk Richardson calculation to match Oke and Anderson references, fixed wrong derivatives, commits 09325731 Jul 23, 2025 and 5a863706 Jul 24, 2025
   31) Allow canopy water in ida simulations to go down to -1e-12 and gets bumped back up to 0, to deal with non-smoothness that comes from the canopyWetting function, (subroutine wetFraction and attempted fix subroutine thetaSmoother), commit 873965b1 Jul 24, 2025
  -32) Changing minimum height of transition to go from the exponential to the log wind profile to be dependent on the height of the canopy, commit 873965b1 Jul 24, 2025
- -33) Now removed the bump up at the start of the simulation to have canopy water be 0.0001 (can start at 0). See first change in 11). commit c03689da Jul 24, 2025
+  33) Missing nc_close files in read_icond and read_param and deallocates in commit 5143ca2b Jul 28, 2025
+  34) Fixed Jacobian for high density snow that water passes through, commit f63ff5c5 Jul 30, 2025
+ -35) Now lessened the bump up at the start of the simulation to have canopy water from 1e-4 to 1e-11 to have bump as small as possible so alters restarts as little as possible.
+      See first change in 11). Starting at 0 was not very stable so had to have a small bump to ensure non-failure in IDA (with no bound enforcement), commit 0dd1381d Aug 5, 2025
 
 
 
-July 25, 2025
+Aug 5, 2025
