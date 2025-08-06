@@ -561,9 +561,11 @@ contains
       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1:nSpecBand) = progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowAlbedo)%dat(1)
 
       ! make sure canopy ice + liq is positive, otherwise add liquid water to canopy and make total water consistent later
-      if( (progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyLiq)%dat(1) + progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyIce)%dat(1)) < verySmaller*10._rkind)then
-       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyLiq)%dat(1) = verySmaller*10._rkind
-       print*, 'WARNING: Canopy water is zero ... setting canopy liquid water to a tiny value.'
+      if(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==upland)then ! other domains do not have a canopy
+        if( (progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyLiq)%dat(1) + progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyIce)%dat(1)) < verySmaller*10._rkind)then
+         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyLiq)%dat(1) = verySmaller*10._rkind
+         print*, 'WARNING: Canopy water is zero ... setting canopy liquid water to a tiny value.'
+        endif
       endif
      endif ! (if last variable in the loop)
 
