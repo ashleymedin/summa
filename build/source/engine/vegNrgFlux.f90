@@ -516,14 +516,11 @@ subroutine vegNrgFlux(&
         dCanopyTrans_dTGround= 0._rkind         ! derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
 
         ! compute fluxes and derivatives -- separate approach for prescribed temperature and zero flux,
+        !   derivative in net ground flux w.r.t. ground temperature (W m-2 K-1) computed inside snow lake soil ice (snLaSoGl) energy flux routine
         if (ix_bcUpprTdyn == prescribedTemp) then
-          ! compute ground net flux (W m-2)
           groundNetFlux = -diag_data%var(iLookDIAG%iLayerThermalC)%dat(0)*(groundTempTrial - upperBoundTemp)/(prog_data%var(iLookPROG%mLayerDepth)%dat(1)*0.5_rkind)
-          ! compute derivative in net ground flux w.r.t. ground temperature (W m-2 K-1) inside snow lake soil ice (snLaSoGl) energy flux routine
-          ! dGroundNetFlux_dGroundTemp = realMissing
         elseif (ix_bcUpprTdyn == zeroFlux) then
-          groundNetFlux              = 0._rkind
-          ! dGroundNetFlux_dGroundTemp = realMissing
+          groundNetFlux = 0._rkind
         else
           err=20; message=trim(message)//'unable to identify upper boundary condition for thermodynamics: expect the case to be prescribedTemp or zeroFlux'; return
         end if
