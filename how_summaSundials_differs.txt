@@ -164,9 +164,10 @@ c-07) Snow water upper bound should be 1, not iden_ice, commit 265721b5 Feb 13, 
  -32) Changing minimum height of transition to go from the exponential to the log wind profile to be dependent on the height of the canopy, commit 873965b1 Jul 24, 2025
   33) Missing nc_close files in read_icond and read_param and deallocates in commit 5143ca2b Jul 28, 2025
   34) Fixed Jacobian for high density snow that water passes through, commit f63ff5c5 Jul 30, 2025
- -35) Now lessened the bump up at the start of the simulation to have canopy water from 1e-4 to 1e-11 to have bump as small as possible so alters restarts as little as possible.
-      See first change in 11). Starting at 0 was not very stable so had to have a small bump to ensure non-failure in IDA (with no bound enforcement), commit 0dd1381d Aug 5, 2025
+ -35) Now removed the bump up at the start of the simulation to have canopy water from 1e-4 to 0 so does not alter restart.
+      See first change in 11). This is not that stable so had to have a small bump (1e-10) if IDA, with no bound enforcement, goes below zero, commit c664bc45 Aug 7, 2025
 
 
 
-Aug 5, 2025
+
+Aug 7, 2025
