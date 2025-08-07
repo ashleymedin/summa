@@ -525,7 +525,7 @@ subroutine summaSolve4ida(&
 
       ! possible that vegetation water may go a bit negative because of discontinous canopy wetting derivatives, so check and correct
       if(ixVegHyd/=integerMissing)then
-        if(stateVec(ixVegHyd) < 0._rkind .and. stateVec(ixVegHyd)>= -verySmaller*1.e2_rkind) stateVec(ixVegHyd) = 0._rkind ! set to zero
+        if(stateVec(ixVegHyd) < 0._rkind .and. stateVec(ixVegHyd)>= -verySmaller*1.e3_rkind) stateVec(ixVegHyd) = 0._rkind ! set to zero
       endif
     
       ! check the feasibility of the solution
