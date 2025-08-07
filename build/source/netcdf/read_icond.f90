@@ -559,15 +559,6 @@ contains
 
       ! initialize the spectral albedo
       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1:nSpecBand) = progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowAlbedo)%dat(1)
-
-      ! make sure canopy ice + liq is positive, otherwise add liquid water to canopy and make total water consistent later
-      ! NOTE: ideally we would not do this, but the non-smoothness of the canopy wetting function seems to make this necessary, may want to adjust value in the future
-      if(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==upland)then ! other domains do not have a canopy
-        if( (progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyLiq)%dat(1) + progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyIce)%dat(1)) < verySmaller*1.e4_rkind)then
-         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyLiq)%dat(1) = verySmaller*1.e4_rkind
-         print*, 'WARNING: canopy water is zero ... setting canopy liquid water to 1e-8 to avoid convergence issues'
-        endif
-      endif
      endif ! (if last variable in the loop)
 
     end do ! iDOM
