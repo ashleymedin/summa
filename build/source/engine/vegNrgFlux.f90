@@ -185,11 +185,11 @@ subroutine vegNrgFlux(&
   real(rkind)                        :: scaleLAI                        ! scaled LAI (computing diffuse transmissivity)
   real(rkind)                        :: diffuseTrans                    ! diffuse transmissivity (-)
   real(rkind)                        :: groundEmissivity                ! emissivity of the ground surface (-)
-  real(rkind),parameter              :: vegEmissivity=0.97_rkind        ! emissivity of vegetation (-) as in Jin 2006
-  real(rkind),parameter              :: soilEmissivity=0.96_rkind       ! emmisivity of the soil (-) as in Jin 2006
-  real(rkind),parameter              :: watEmissivity=0.96_rkind        ! emissivity of unfrozen wetland water (-) as in Jin 2006 (large lake is 0.98)
-  real(rkind),parameter              :: iceEmissivity=0.97_rkind        ! emissivity of frozen wetland or glacier ice (-) as in Hori 2006, Jin 2006
-  real(rkind),parameter              :: snowEmissivity=0.98_rkind       ! emissivity of snow (-) as in Hori 2006, Jin 2006
+  real(rkind),parameter              :: leafEmissivity=0.98_rkind       ! emissivity of the canopy if 0 diffuse transmissivity (-) in line with Ma et al. 2019
+  real(rkind),parameter              :: soilEmissivity=0.96_rkind       ! emmisivity of the soil (-) as in Jin and Liang 2006
+  real(rkind),parameter              :: watEmissivity=0.96_rkind        ! emissivity of unfrozen wetland water (-) as in Jin and Liang 2006 (large lake is 0.98)
+  real(rkind),parameter              :: iceEmissivity=0.97_rkind        ! emissivity of frozen wetland or glacier ice (-) as in Hori et al. 2006, Jin and Liang 2006
+  real(rkind),parameter              :: snowEmissivity=0.98_rkind       ! emissivity of snow (-) as in Hori et al. 2006, Jin and Liang 2006
   real(rkind)                        :: dLWNetCanopy_dTCanopy           ! derivative in net canopy radiation w.r.t. canopy temperature (W m-2 K-1)
   real(rkind)                        :: dLWNetGround_dTGround           ! derivative in net ground radiation w.r.t. ground temperature (W m-2 K-1)
   real(rkind)                        :: dLWNetCanopy_dTGround           ! derivative in net canopy radiation w.r.t. ground temperature (W m-2 K-1)
@@ -602,7 +602,7 @@ subroutine vegNrgFlux(&
               scaleLAI = 0.5_rkind*exposedVAI
               expi     = expInt(scaleLAI)     ! compute the exponential integral
               diffuseTrans = (1._rkind - scaleLAI)*exp(-scaleLAI) + (scaleLAI**2_i4b)*expi ! compute diffuse transmissivity (-)
-              scalarCanopyEmissivity = (1._rkind - diffuseTrans)*vegEmissivity ! compute the canopy emissivity
+              scalarCanopyEmissivity = (1._rkind - diffuseTrans)*leafEmissivity ! compute the canopy emissivity
             case default
               err=20; message=trim(message)//'unable to identify option for canopy emissivity'; return
           end select
