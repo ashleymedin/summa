@@ -166,7 +166,8 @@ c-07) Snow water upper bound should be 1, not iden_ice, commit 265721b5 Feb 13, 
   34) Fixed Jacobian for high density snow that water passes through, commit f63ff5c5 Jul 30, 2025
  -35) Now removed the bump up at the start of the simulation to have canopy water from 1e-4 to 0 so does not alter restart.
       See first change in 11). This is not that stable so had to have a small bump (1e-9) if IDA, with no bound enforcement, goes below zero, commit c664bc45 Aug 7, 2025
- -36) Change soil emissivity from 0.98 to 0.96 and snow emissivity from 0.99 to 0.98 and veg emissivity from 0.98 to 0.97 as in Jin 2006, Hori 2006, commit 424e6063 Aug 7, 2025
+ -36) Change soil emissivity from 0.98 to 0.96 and snow emissivity from 0.99 to 0.98 as in Jin and Liang 2006, Hori 2006, commit 424e6063 Aug 7, 2025
+     The veg emissivity renamed leaf emissivity and ultimately unchanged from 0.98 after reading Ma et al. 2019 (was changed in this commit but changed back).
 
 
 Aug 7, 2025
