@@ -702,7 +702,7 @@ subroutine mDecisions(err,message)
   select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
     case(qbaseTopmodel)
       if(model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision /= zeroFlux)then
-        message=trim(message)//'lower boundary condition for soil hydology must be zeroFlux with qbaseTopmodel option for groundwater'
+        message=trim(message)//'lower boundary condition for soil hydology must be zeroFlux with qbaseTopmodel option for groundwater (set "bcLowrSoiH" to "zeroFlux" in model decisions input file)'
         err=20; return
       end if
   end select
@@ -711,7 +711,7 @@ subroutine mDecisions(err,message)
   select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
     case(qbaseTopmodel)
       if(model_decisions(iLookDECISIONS%hc_profile)%iDecision /= powerLaw_profile)then
-        message=trim(message)//'power-law hydraulic conductivity profile must be selected when using topmodel baseflow option'
+        message=trim(message)//'power-law hydraulic conductivity profile must be selected when using topmodel baseflow option (set "hc_profile" to "pow_prof" in model decisions input file)'
         err=20; return
       end if
   end select
@@ -719,7 +719,7 @@ subroutine mDecisions(err,message)
   ! check bigBucket groundwater option is used when for spatial groundwater is singleBasin
   if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == singleBasin)then
     if(model_decisions(iLookDECISIONS%groundwatr)%iDecision /= bigBucket)then
-      message=trim(message)//'groundwater parameterization must be bigBucket when using singleBasin for spatial_gw'
+      message=trim(message)//'groundwater parameterization must be bigBucket when using singleBasin for spatial_gw (set "groundwatr" to "bigBuckt" in model decisions input file)'
       err=20; return
     end if
   end if
@@ -727,7 +727,7 @@ subroutine mDecisions(err,message)
   ! check bigBucket groundwater option is used when FUSE TOPMODEL surface runoff is selected
   if(model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision == FUSETOPM)then
     if(model_decisions(iLookDECISIONS%groundwatr)%iDecision /= bigBucket)then
-      message=trim(message)//'groundwater parameterization must be bigBucket when using FUSE TOPMODEL surface runoff'
+      message=trim(message)//'groundwater parameterization must be bigBucket when using FUSE TOPMODEL surface runoff (set "groundwatr" to "bigBuckt" in model decisions input file)'
       err=20; return
     end if
   end if
@@ -738,12 +738,12 @@ subroutine mDecisions(err,message)
   select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
     case(qbaseTopmodel)
       if(model_decisions(iLookDECISIONS%infRateMax)%iDecision /= topModel_GA)then
-        message=trim(message)//'maximum infiltration rate method must be topmodel_GA when using qbaseTopmodel for groundwater, not '//trim(model_decisions(iLookDECISIONS%infRateMax)%cDecision)
+        message=trim(message)//'maximum infiltration rate method must be topmodel_GA when using qTopmodl for groundwatr, not '//trim(model_decisions(iLookDECISIONS%infRateMax)%cDecision)//' (set "infRateMax" to "topmodel_GA" in model decisions input file)'
         err=20; return
       end if
     case(bigBucket)
       if(model_decisions(iLookDECISIONS%infRateMax)%iDecision == topModel_GA)then
-        write(*,*) 'DEPRECATION WARNING: Combining groundwater parametrization bigBucket with maximum infiltration rate method topModel_GA is not recommended. This was the default in SUMMA v3.x.x and below, but is not appropriate for this groundwater option. Please use Green-Ampt instead.'
+        write(*,*) 'DEPRECATION WARNING: Combining groundwater parametrization bigBucket with maximum infiltration rate method topModel_GA is not recommended. This was the default in SUMMA v3.x.x and below, but is not appropriate for this groundwater option. Please use Green-Ampt instead (set "infRateMax" to "GreenAmpt" in model decisions input file)'
         ! This preps us for when we want to remove this option in the future
         !message=trim(message)//'maximum infiltration rate method (infRateMax) cannot be topModel_GA when using BigBucket for groundwater, use GreenAmpt instead'
         !err=20; return
