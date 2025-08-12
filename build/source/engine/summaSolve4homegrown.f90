@@ -340,7 +340,7 @@ contains
 
    associate(&
     fOld      => in_SS4HG  % fOld     ,&
-    fnew      => out_SS4HG % fnew     ,& 
+    fNew      => out_SS4HG % fNew     ,& 
     converged => out_SS4HG % converged,&
     err       => out_SS4HG % err      ,& 
     message   => out_SS4HG % message   &     
@@ -459,9 +459,6 @@ contains
 
     ! re-scale the iteration increment
     xInc(:) = xInc(:)*xScale(:)
-
-    ! if enthalpy, then need to convert the iteration increment to temperature
-    !if(nrgFormulation==ix_enthalpy) xInc(ixNrgOnly) = xInc(ixNrgOnly)/dMat(ixNrgOnly)
 
     ! state vector with proposed iteration increment
     stateVecNew = stateVecTrial + xInc
@@ -805,7 +802,7 @@ contains
    xIncrement = stateVecNew - stateVecPrev
 
    ! evaluate summa
-   associate(fnew => out_SS4HG % fnew)
+   associate(fNew => out_SS4HG % fNew)
     call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,cmessage)
    end associate
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
@@ -1156,7 +1153,7 @@ contains
    ixHydOnly               => indx_data%var(iLookINDEX%ixHydOnly)%dat           ,&  ! intent(in): [i4b(:)] list of indices for all hydrology states
    ixMatOnly               => indx_data%var(iLookINDEX%ixMatOnly)%dat           ,&  ! intent(in): [i4b(:)] list of indices for matric head state variables in the state vector
    ixMatricHead            => indx_data%var(iLookINDEX%ixMatricHead)%dat        ,&  ! intent(in): [i4b(:)] list of indices for matric head in the soil vector
-   fnew                    => out_SS4HG % fnew                                   &  ! intent(in): [dp] new function evaluations
+   fNew                    => out_SS4HG % fNew                                   &  ! intent(in): [dp] new function evaluations
   ) ! making associations with variables in the data structures
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -1226,8 +1223,8 @@ contains
 
   ! print progress towards solution
   if(globalPrintFlag)then
-   write(*,'(a,1x,i4,1x,7(e15.5,1x),7(L1,1x))') 'check convergence: ', iter, &
-    fNew, matric_max(1), liquid_max(1), energy_max(1), canopy_max, aquifer_max, soilWatBalErr, matricConv, liquidConv, energyConv, watbalConv, canopyConv, aquiferConv, watbalConv
+   write(*,'(a,1x,i4,1x,e15.5,1x,6(e15.5,1x,L1,1x))') 'check convergence canopy, energy, liquid, matric, soil wat bal, aquifer: ', &
+    iter, fNew, canopy_max,canopyConv, energy_max(1),energyConv, liquid_max(1),liquidConv, matric_max(1),matricConv, soilWatBalErr,watbalConv, aquifer_max,aquiferConv
   endif
 
   ! end associations with variables in the data structures
