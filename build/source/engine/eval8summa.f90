@@ -819,6 +819,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
   logical(lgt)                             :: detect_events              ! flag to do freezing point event detection and cross-over with epsT
   logical(lgt)                             :: water_bounds               ! flag to force water to not go above or below physical bounds  
   real(rkind)                              :: snowfrz_scale_use          ! scaling parameter for the snow or glce freezing curve (K-1)
+  real(rkind)                              :: iceFlux_possible           ! 0 or 1 flag to indicate if ice flux is possible
   ! -----------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
   associate(&
@@ -1021,8 +1022,8 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
         if(stateVecPrev(ixVegHyd) + xInc(ixVegHyd) < 0._rkind) xInc(ixVegHyd) = -0.5_rkind*stateVecPrev(ixVegHyd)
       endif ! (if the state variable for canopy water is included within the state subset)
           
-      ! impose bounds for snow or glacier ice water, change in total water is only due to liquid flux
-      ! for lake, the change in total water is due to liquid flux and ice flux (ice floats and water may spill), not yet implemented
+      ! impose bounds for snow or lake or glacier ice water, change in total water in snow is only due to liquid flux
+      !   but change in total water in lake or glacier is due to ice flux (melt) and liquid flux (smoothed freezing curve makes water in ice, plus spill from overfilled lake)
       if(nSnowOnlyHyd+nLakeOnlyHyd+nGlceOnlyHyd>0)then
         ! loop through layers
         do jLayer=1,(nSnow+nLake+nGlce)
@@ -1046,12 +1047,14 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           select case( ixStateType_subset( ixSnLaSoGlHyd(iLayer) ) )
             case(iname_watLayer); scalarLiq = fracliquid(scalarTemp,snowfrz_scale_use,iLayer>nLayers-noThetaChange)*stateVecPrev(ixSnLaSoGlHyd(iLayer))
             case(iname_liqLayer); scalarLiq = stateVecPrev(ixSnLaSoGlHyd(iLayer))
-            case default; err=20; message=trim(message)//'expect ixStateType_subset to be iname_watLayer or iname_liqLayer for lake hydrology'; return
+            case default; err=20; message=trim(message)//'expect ixStateType_subset to be iname_watLayer or iname_liqLayer for snow, lake, glce hydrology'; return
           end select
           scalarIce = merge(stateVecPrev(ixSnLaSoGlHyd(iLayer)) - scalarLiq,mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
+          iceFlux_possible = 0._rkind
+          if(ixStateType_subset( ixSnLaSoGlHyd(iLayer) ) == iname_watLayer .and. jLayer> nSnow) iceFlux_possible = 1._rkind
           ! checking if drain more than what is available or add more than possible, constrained iteration increment -- simplified bi-section
-          if(-xInc(ixSnLaSoGlHyd(iLayer)) > scalarLiq) then
-            xInc(ixSnLaSoGlHyd(iLayer)) = -0.5_rkind*scalarLiq
+          if(-xInc(ixSnLaSoGlHyd(iLayer)) > scalarLiq + scalarIce*iceFlux_possible) then
+            xInc(ixSnLaSoGlHyd(iLayer)) = -0.5_rkind*(scalarLiq + scalarIce*iceFlux_possible)
           elseif(xInc(ixSnLaSoGlHyd(iLayer)) > 1._rkind - scalarIce - scalarLiq)then
             xInc(ixSnLaSoGlHyd(iLayer)) = 0.5_rkind*(1._rkind - scalarIce - scalarLiq)
           endif
