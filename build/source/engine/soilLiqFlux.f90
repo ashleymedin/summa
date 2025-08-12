@@ -1066,10 +1066,11 @@ contains
   associate(&
    nSoil              => in_surfaceFlux % nSoil,              & ! number of soil layers
    scalarTotalSoilLiq => in_surfaceFlux % scalarTotalSoilLiq, & ! total liquid water in the soil column (kg m-2)
-   iLayerHeight       => in_surfaceFlux % iLayerHeight        & ! height at the interface of each layer (m)
+   iLayerHeight       => in_surfaceFlux % iLayerHeight,       & ! height at the interface of each layer (m)
+   theta_sat          => in_surfaceFlux % theta_sat           & ! soil porosity (-)
   &)
-   S1=scalarTotalSoilLiq/iden_water ! total water content in upper FUSE layer (m)
-   S1_max=iLayerHeight(nSoil)       ! max water storage for upper FUSE layer (m)
+   S1=scalarTotalSoilLiq/iden_water       ! total water content in upper FUSE layer (m)
+   S1_max=iLayerHeight(nSoil) * theta_sat ! max water storage for upper FUSE layer (m)
   end associate
 
   ! compute tension water content
@@ -1185,10 +1186,11 @@ contains
   associate(&
    nSoil              => in_surfaceFlux % nSoil,              & ! number of soil layers
    scalarTotalSoilLiq => in_surfaceFlux % scalarTotalSoilLiq, & ! total liquid water in the soil column (kg m-2)
-   iLayerHeight       => in_surfaceFlux % iLayerHeight        & ! height at the interface of each layer (m)
+   iLayerHeight       => in_surfaceFlux % iLayerHeight,       & ! height at the interface of each layer (m)
+   theta_sat          => in_surfaceFlux % theta_sat           & ! soil porosity (-)
   &)
-   S1=scalarTotalSoilLiq/iden_water ! total water content in upper FUSE layer (m)
-   S1_max=iLayerHeight(nSoil)       ! max water storage for upper FUSE layer (m)
+   S1=scalarTotalSoilLiq/iden_water       ! total water content in upper FUSE layer (m)
+   S1_max=iLayerHeight(nSoil) * theta_sat ! max water storage for upper FUSE layer (m)
   end associate
 
   ! compute saturated area
