@@ -999,14 +999,14 @@ subroutine soilCmpres(&
   if (ixRichards==mixdform) then
     do iLayer=1,size(mLayerMatricHead)
       if (iLayer>=ixBeg .and. iLayer<=ixEnd) then
-      ! compute the derivative for the compressibility term (m-1), no volume expansion for total water
-      dCompress_dPsi(iLayer) = specificStorage*(mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer))/theta_sat(iLayer)
-      ! compute the compressibility term (-) per second
-      compress(iLayer)       = (mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer))*dCompress_dPsi(iLayer)/dt
+        ! compute the derivative for the compressibility term (m-1), no volume expansion for total water
+        dCompress_dPsi(iLayer) = specificStorage*(mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer))/theta_sat(iLayer)
+        ! compute the compressibility term (-) per second
+        compress(iLayer) = (mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer))*dCompress_dPsi(iLayer)/dt
       end if
     end do
   else
-    compress(:)       = 0._rkind
+    compress(:) = 0._rkind
     dCompress_dPsi(:) = 0._rkind
   end if
 end subroutine soilCmpres
@@ -1050,14 +1050,14 @@ subroutine soilCmpresPrime(&
   if (ixRichards==mixdform) then
     do iLayer=1,size(mLayerMatricHeadPrime)
       if (iLayer>=ixBeg .and. iLayer<=ixEnd) then
-          ! compute the derivative for the compressibility term (m-1), no volume expansion for total water
-          dCompress_dPsi(iLayer) = specificStorage*(mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer))/theta_sat(iLayer)
-          ! compute the compressibility term (-) instantaneously
-          compress(iLayer)       =   mLayerMatricHeadPrime(iLayer) * dCompress_dPsi(iLayer)
+        ! compute the derivative for the compressibility term (m-1), no volume expansion for total water
+        dCompress_dPsi(iLayer) = specificStorage*(mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer))/theta_sat(iLayer)
+        ! compute the compressibility term (-) instantaneously
+        compress(iLayer) = mLayerMatricHeadPrime(iLayer) * dCompress_dPsi(iLayer)
       end if
     end do
   else
-    compress(:)       = 0._rkind
+    compress(:) = 0._rkind
     dCompress_dPsi(:) = 0._rkind
   end if
 end subroutine soilCmpresPrime
