@@ -626,7 +626,7 @@ subroutine run_oneGRU(&
         end if ! (if upland domain)
       end do ! (looping through domains)
     end do ! (looping through HRUs)
-  end if ! (if updatd glacier or lake area)
+  end if ! (if updated glacier or lake area)
 
 end subroutine run_oneGRU
 
