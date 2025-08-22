@@ -27,6 +27,8 @@ USE nr_type
 USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number
 
+USE globalData,only:icefrz_scale    ! ice freezing curve scaling factor, closer to a step function since ice does not hold water
+
 ! access the global print flag
 USE globalData,only:globalPrintFlag
 
@@ -200,7 +202,7 @@ subroutine updateDiagn(&
   real(rkind)                        :: tempMax                         ! maximum bracket for temperature (K)
   logical(lgt)                       :: bFlag                           ! flag to denote that iteration increment was constrained using bi-section
   real(rkind),parameter              :: epsT=1.e-7_rkind                ! small interval above/below critical temperature (K)
-  real(rkind)                        :: snowfrz_scale_use               ! scaling parameter for the snow or glce freezing curve (K-1)
+  real(rkind)                        :: frz_scale_use                   ! scaling parameter for the snow or glce freezing curve (K-1)
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! make association with variables in the data structures
   associate(&
@@ -306,8 +308,8 @@ subroutine updateDiagn(&
         case default; err=20; message=trim(message)//'expect case to be iname_cas, iname_veg, iname_snow, iname_soil, iname_aquifer'; return
       end select
 
-      snowfrz_scale_use = snowfrz_scale
-      if(ixDomainType==iname_lake .or. ixDomainType==iname_glce) snowfrz_scale_use = snowfrz_scale*10.0_rkind ! closer to a step function since ice does not hold water
+      frz_scale_use = snowfrz_scale
+      if(ixDomainType==iname_lake .or. ixDomainType==iname_glce) frz_scale_use = icefrz_scale
 
       ! get the index of the other (energy or mass) state variable within the full state vector
       select case(ixDomainType)
@@ -455,7 +457,7 @@ subroutine updateDiagn(&
               dFracLiqVeg_dTkCanopy = dFracLiq_dTk(xTemp,snowfrz_scale)
               dTheta_dTkCanopy = dFracLiqVeg_dTkCanopy * scalarCanopyWatTrial/(iden_water*canopyDepth)
             case(iname_snow, iname_lake, iname_glce)
-              dFracLiqWat_dTk(iLayer) = dFracLiq_dTk(xTemp,snowfrz_scale_use,iLayer>nLayers-noThetaChange)
+              dFracLiqWat_dTk(iLayer) = dFracLiq_dTk(xTemp,frz_scale_use,iLayer>nLayers-noThetaChange)
               mLayerdTheta_dTk(iLayer) = dFracLiqWat_dTk(iLayer) * mLayerVolFracWatTrial(iLayer)
             case(iname_soil)
               dFracLiqWat_dTk(iLayer) = 0._rkind !dTheta_dTk(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))/ mLayerVolFracWatTrial(iLayer)
@@ -483,7 +485,7 @@ subroutine updateDiagn(&
           ! compute the fraction of snow
           select case(ixDomainType)
             case(iname_veg);                          scalarFracLiqVeg      = fracliquid(xTemp,snowfrz_scale)
-            case(iname_snow, iname_lake, iname_glce); mLayerFracLiq(iLayer) = fracliquid(xTemp,snowfrz_scale_use,iLayer>nLayers-noThetaChange)
+            case(iname_snow, iname_lake, iname_glce); mLayerFracLiq(iLayer) = fracliquid(xTemp,frz_scale_use,iLayer>nLayers-noThetaChange)
             case(iname_soil)  ! do nothing
             case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_glce'; return
           end select  ! domain type
@@ -525,7 +527,7 @@ subroutine updateDiagn(&
                               iLayer>nLayers-noThetaChange,   & ! intent(in):  flag that no liquid water in layer
                               xTemp,                          & ! intent(in):  temperature (K)
                               mLayerVolFracWatTrial(iLayer),  & ! intent(in):  mass state variable = trial volumetric fraction of water (-)
-                              snowfrz_scale_use,              & ! intent(in):  scaling parameter for the snow freezing curve (K-1)
+                              frz_scale_use,              & ! intent(in):  scaling parameter for the snow freezing curve (K-1)
                               mLayerVolFracLiqTrial(iLayer),  & ! intent(out): trial volumetric fraction of liquid water (-)
                               mLayerVolFracIceTrial(iLayer),  & ! intent(out): trial volumetric fraction if ice (-)
                               mLayerFracLiq(iLayer),          & ! intent(out): fraction of liquid water (-)
@@ -698,7 +700,7 @@ subroutine updateDiagn(&
         if(computeEnthTemp)then
           call T2enthTemp_snLaGl(&
                       iLayer>nLayers-noThetaChange,    & ! intent(in):  flag to indicate if the layer has no liquid water
-                      snowfrz_scale_use,               & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
+                      frz_scale_use,               & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                       mLayerTempTrial(iLayer),         & ! intent(in):  layer temperature (K)
                       mLayerVolFracWatTrial(iLayer),   & ! intent(in):  volumetric total water content (-)
                       mLayerEnthTempTrial(iLayer))       ! intent(out): temperature component of enthalpy of each snow layer (J m-3)

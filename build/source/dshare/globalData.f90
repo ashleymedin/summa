@@ -212,6 +212,8 @@ MODULE globalData
   ! define variables used for the vegetation phenology
   real(rkind),dimension(12),save,public          :: greenVegFrac_monthly              ! fraction of green vegetation in each month (0-1)
   real(rkind),save,public                        :: minExpLogHgt                      ! minimum height of transition from the exponential to the logarithmic wind profile (m)
+  ! define variable used to smooth the ice freezing curve
+  real(rkind),save,public                        :: icefrz_scale                      ! ice freezing curve scaling factor, closer to a step function since ice does not hold water
   ! define variables used for domain type        
   integer(i4b),save,public                       :: upland=1                          ! upland domain
   integer(i4b),save,public                       :: glacCln1=2                        ! glacier clean first domain

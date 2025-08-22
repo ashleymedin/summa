@@ -594,7 +594,8 @@ contains
     ! define layers that will not have a change in total water content
     noThetaChange = 0
     if(nGlce>0)then
-      noThetaChange = nGlce - 1 ! This is a hard-coded value saying only the top glacier layer has change in theta can be increasing in the future to allow more glacier layers to have a change
+      noThetaChange = nGlce - 1 ! This is a hard-coded value saying only the top glacier layer has change in theta
+      ! can be increased in the future to allow more glacier layers to have a change, BUT will need to turn on extra lookup table computation in summa_setup
       ! need at least one glacier top layer with a theta change
       if(noThetaChange>=nGlce)then; err=20; message=trim(message)//'number of glacier ice layers without a change in total water content is not less than the number of glacier ice layers'; return; endif
     endif

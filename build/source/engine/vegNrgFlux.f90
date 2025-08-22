@@ -340,7 +340,7 @@ subroutine vegNrgFlux(&
     ! NOTE: soil stress only computed at the start of the substep (firstFluxCall=.true.)
     scalarSWE                       => prog_data%var(iLookPROG%scalarSWE)%dat(1),                      & ! intent(in): [dp]    snow water equivalent on the ground (kg m-2)
     scalarSnowDepth                 => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),                & ! intent(in): [dp]    snow depth on the ground surface (m)
-    scalarGroundSnowFraction        => diag_data%var(iLookDIAG%scalarGroundSnowFraction)%dat(1),       & ! intent(in): [dp] fraction of ground covered with snow (-)
+    scalarGroundSnowFraction        => diag_data%var(iLookDIAG%scalarGroundSnowFraction)%dat(1),       & ! intent(in): [dp]    fraction of ground covered with snow (-)
     mLayerVolFracLiq                => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,                  & ! intent(in): [dp(:)] volumetric fraction of liquid water in each layer (-)
     mLayerMatricHead                => prog_data%var(iLookPROG%mLayerMatricHead)%dat,                  & ! intent(in): [dp(:)] matric head in each soil layer (m)
     localAquiferStorage             => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1),           & ! intent(in): [dp]    aquifer storage for the local column (m)

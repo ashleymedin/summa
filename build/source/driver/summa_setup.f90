@@ -145,6 +145,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  integer(i4b)                          :: maxLayers_wtld     ! maximum number of layers for wetland
  integer(i4b)                          :: maxSoilLayers_glac ! maximum number of soil layers for glacier (0)
  integer(i4b)                          :: maxSoilLayers_wtld ! maximum number of soil layers for wetland
+ logical(lgt)                          :: do_ice             ! logical to decide if computing enthalpy lookup tables for ice
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(&
@@ -412,7 +413,10 @@ endif
     ! calculate a look-up table for the temperature-enthalpy conversion of snow for future snow layer merging
     ! NOTE1: might be able to make this more efficient by only doing this for the HRUs that have snow
     ! NOTE2: H is the mixture enthalpy of snow liquid and ice
-    call T2H_lookup_snWat(mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),err,cmessage)
+    ! NOTE3: "do_ice = ..." line must be uncommented if glacier layers with Theta change are >1 or more than ice layer on a lake
+    do_ice = .false.
+    !do_ice = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce > 0 .or. gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake > 0
+    call T2H_lookup_snWat(mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),do_ice,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! calculate a lookup table for the temperature-enthalpy conversion of soil 

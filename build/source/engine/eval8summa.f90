@@ -34,6 +34,8 @@ USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water 
 USE globalData,only:iname_matLayer  ! named variable defining the total water matric potential state variable for soil layers
 USE globalData,only:iname_lmpLayer  ! named variable defining the liquid water matric potential state variable for soil layers
 
+USE globalData,only:icefrz_scale    ! ice freezing curve scaling factor, closer to a step function since ice does not hold water
+
 ! constants
 USE multiconst,only:&
                     LH_fus,     & ! latent heat of fusion                (J kg-1)
@@ -818,7 +820,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
   logical(lgt)                             :: small_delMatric            ! flag to constain matric head change to be less than zMaxMatricIncrement
   logical(lgt)                             :: detect_events              ! flag to do freezing point event detection and cross-over with epsT
   logical(lgt)                             :: water_bounds               ! flag to force water to not go above or below physical bounds  
-  real(rkind)                              :: snowfrz_scale_use          ! scaling parameter for the snow or glce freezing curve (K-1)
+  real(rkind)                              :: frz_scale_use              ! scaling parameter for the snow or glce freezing curve (K-1)
   real(rkind)                              :: iceFlux_possible           ! 0 or 1 flag to indicate if ice flux is possible
   ! -----------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
@@ -1029,11 +1031,11 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
         do jLayer=1,(nSnow+nLake+nGlce)
           if (jLayer <= nSnow+nLake) then
             iLayer = jLayer
-            snowfrz_scale_use = snowfrz_scale
-            if (jLayer>nSnow) snowfrz_scale_use = snowfrz_scale*10.0_rkind ! closer to a step function since ice does not hold water
+            frz_scale_use = snowfrz_scale
+            if (jLayer>nSnow) frz_scale_use = icefrz_scale
           else
             iLayer = jLayer + nSoil
-            snowfrz_scale_use = snowfrz_scale*10.0_rkind ! closer to a step function since ice does not hold water
+            frz_scale_use = icefrz_scale
           end if
            ! check if the layer is included
           if(ixSnLaSoGlHyd(iLayer)==integerMissing) cycle
@@ -1045,7 +1047,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           endif
           ! get the volumetric fraction of liquid water and ice
           select case( ixStateType_subset( ixSnLaSoGlHyd(iLayer) ) )
-            case(iname_watLayer); scalarLiq = fracliquid(scalarTemp,snowfrz_scale_use,iLayer>nLayers-noThetaChange)*stateVecPrev(ixSnLaSoGlHyd(iLayer))
+            case(iname_watLayer); scalarLiq = fracliquid(scalarTemp,frz_scale_use,iLayer>nLayers-noThetaChange)*stateVecPrev(ixSnLaSoGlHyd(iLayer))
             case(iname_liqLayer); scalarLiq = stateVecPrev(ixSnLaSoGlHyd(iLayer))
             case default; err=20; message=trim(message)//'expect ixStateType_subset to be iname_watLayer or iname_liqLayer for snow, lake, glce hydrology'; return
           end select

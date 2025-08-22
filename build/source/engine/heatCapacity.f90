@@ -54,6 +54,8 @@ USE globalData,only:iname_watAquifer ! named variable defining the water storage
 USE globalData,only:integerMissing   ! missing integer
 USE globalData,only:realMissing      ! missing real
 
+USE globalData,only:icefrz_scale    ! ice freezing curve scaling factor, closer to a step function since ice does not hold water
+
 ! domain types
 USE globalData,only:iname_cas        ! named variables for canopy air space
 USE globalData,only:iname_veg        ! named variables for vegetation canopy
@@ -394,7 +396,7 @@ subroutine computeCm(&
   real(rkind)                          :: dfLiq_dT               ! derivative of fraction of liquid water with temperature
   real(rkind)                          :: Tcrit                  ! temperature where all water is unfrozen (K)
   real(rkind)                          :: dTcrit_dPsi0           ! derivative of critical temperature with matric potential
-  real(rkind)                          :: snowfrz_scale_use      ! scaling parameter for the snow or glce freezing curve (K-1)
+  real(rkind)                          :: frz_scale_use          ! scaling parameter for the snow or glce freezing curve (K-1)
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! associate variables in data structure
   associate(&
@@ -469,19 +471,19 @@ subroutine computeCm(&
               ! derivatives
               dCm_dTk(iLayer) = iden_water * Cp_water - iden_air * Cp_air
             else
-              snowfrz_scale_use = snowfrz_scale
-              if(ixDomainType==iname_lake .or. ixDomainType==iname_glce) snowfrz_scale_use = snowfrz_scale*10.0_rkind ! closer to a step function since ice does not hold water
+              frz_scale_use = snowfrz_scale
+              if(ixDomainType==iname_lake .or. ixDomainType==iname_glce) frz_scale_use = icefrz_scale
 
-              fLiq = fracliquid(mLayerTemp(iLayer),snowfrz_scale_use,iLayer>nLayers-noThetaChange)
+              fLiq = fracliquid(mLayerTemp(iLayer),frz_scale_use,iLayer>nLayers-noThetaChange)
               if(iLayer>nLayers-noThetaChange) then
                 mLayerCm(iLayer) = 0._rkind ! no change in total water content, so no change enthalpy with water
                 dCm_dTk(iLayer) = 0._rkind
               else
-                integral = (1._rkind/snowfrz_scale_use) * atan(snowfrz_scale_use * diffT)
+                integral = (1._rkind/frz_scale_use) * atan(frz_scale_use * diffT)
                 mLayerCm(iLayer) = (iden_water * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( diffT - integral ) &
                                        + (iden_water * Cp_water - iden_air * Cp_air) * integral
                 ! derivatives
-                dfLiq_dT = dFracLiq_dTk(mLayerTemp(iLayer),snowfrz_scale_use,iLayer>nLayers-noThetaChange)
+                dfLiq_dT = dFracLiq_dTk(mLayerTemp(iLayer),frz_scale_use,iLayer>nLayers-noThetaChange)
                 dCm_dTk(iLayer) = (iden_water * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( 1._rkind -fLiq ) &
                                  + (iden_water * Cp_water - iden_air * Cp_air) * fLiq
               endif

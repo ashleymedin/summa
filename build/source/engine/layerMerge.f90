@@ -27,6 +27,8 @@ USE nr_type
 USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number
 
+USE globalData,only:icefrz_scale    ! ice freezing curve scaling factor, closer to a step function since ice does not hold water
+
 ! access named variables for snow and soil
 USE globalData,only:iname_snow        ! named variables for snow
 USE globalData,only:iname_soil        ! named variables for soil
@@ -386,6 +388,7 @@ contains
  integer(i4b)                    :: nSoil                    ! number of soil layers
  integer(i4b)                    :: nGlce                    ! number of glacier ice layers
  integer(i4b)                    :: nLayers                  ! total number of layers
+ real(rkind)                     :: frz_scale_use            ! scaling parameter for the snow or glce freezing curve (K-1)
 
  ! initialize error control
  err=0; message="layer_combine/"
@@ -408,6 +411,12 @@ contains
  nGlce   = indx_data%var(iLookINDEX%nGlce)%dat(1)
  nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
 
+ if(doGlac)then
+  frz_scale_use = icefrz_scale
+ else
+  frz_scale_use = snowfrz_scale
+ end if
+
  ! compute combined depth
  cDepth       = mLayerDepth(iSnow) + mLayerDepth(iSnow+1)
 
@@ -420,19 +429,19 @@ contains
  cBulkDenWat     = (mLayerDepth(iSnow)*bulkDenWat(1) + mLayerDepth(iSnow+1)*bulkDenWat(2))/cDepth
 
  ! compute enthalpy for each layer (J m-3)
- l1Enthalpy = T2enthalpy_snLaGlWat(mLayerTemp(iSnow),  bulkDenWat(1),snowfrz_scale)
- l2Enthalpy = T2enthalpy_snLaGlWat(mLayerTemp(iSnow+1),bulkDenWat(2),snowfrz_scale)
+ l1Enthalpy = T2enthalpy_snLaGlWat(mLayerTemp(iSnow),  bulkDenWat(1),frz_scale_use)
+ l2Enthalpy = T2enthalpy_snLaGlWat(mLayerTemp(iSnow+1),bulkDenWat(2),frz_scale_use)
 
  ! compute combined enthalpy (J m-3)
  cEnthalpy = (mLayerDepth(iSnow)*l1Enthalpy + mLayerDepth(iSnow+1)*l2Enthalpy)/cDepth
 
  ! convert enthalpy (J m-3) to temperature (K)
- call enthalpy2T_snLaGlWat(cEnthalpy,cBulkDenWat,snowfrz_scale,cTemp,err,cmessage)
+ call enthalpy2T_snLaGlWat(cEnthalpy,cBulkDenWat,frz_scale_use,cTemp,.not.doGlac,err,cmessage)
  if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; end if
 
  ! test enthalpy conversion
- if(abs(T2enthalpy_snLaGlWat(cTemp,cBulkDenWat,snowfrz_scale)/cBulkDenWat - cEnthalpy/cBulkDenWat) > eTol)then
-  write(*,'(a,1x,f12.5,1x,2(e20.10,1x))') 'enthalpy test', cBulkDenWat, T2enthalpy_snLaGlWat(cTemp,cBulkDenWat,snowfrz_scale)/cBulkDenWat, cEnthalpy/cBulkDenWat
+ if(abs(T2enthalpy_snLaGlWat(cTemp,cBulkDenWat,frz_scale_use)/cBulkDenWat - cEnthalpy/cBulkDenWat) > eTol)then
+  write(*,'(a,1x,f12.5,1x,2(e20.10,1x))') 'enthalpy test', cBulkDenWat, T2enthalpy_snLaGlWat(cTemp,cBulkDenWat,frz_scale_use)/cBulkDenWat, cEnthalpy/cBulkDenWat
   message=trim(message)//'problem with enthalpy-->temperature conversion'
   err=20; return
  end if
@@ -443,7 +452,7 @@ contains
  if(cTemp < min(mLayerTemp(iSnow),mLayerTemp(iSnow+1))-eTol)then; err=20; message=trim(message)//'merged temperature < min(temp1,temp2)'; return; end if
 
  ! compute volumetric fraction of liquid water
- fLiq = fracliquid(cTemp,snowfrz_scale)
+ fLiq = fracliquid(cTemp,frz_scale_use)
 
  ! compute volumetric fraction of ice and liquid water
  cVolFracLiq =          fLiq *cBulkDenWat/iden_water

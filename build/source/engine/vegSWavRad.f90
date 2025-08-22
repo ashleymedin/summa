@@ -122,7 +122,7 @@ contains
   mLayerVolFracLiq           => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(nSnow+1:nSnow+nLake+nSoil+nGlce),  & ! intent(in): volumetric fraction of liquid water in each layer below snow (-)
   spectralSnowAlbedoDiffuse  => prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1:nSpecBand), & ! intent(in): diffuse albedo of snow in each spectral band (-)
   scalarSnowAlbedo           => prog_data%var(iLookPROG%scalarSnowAlbedo)%dat(1),                    & ! intent(inout): snow albedo (-)
-  scalarGroundSnowFraction  => prog_data%var(iLookPROG%scalarGroundSnowFraction)%dat(1),             & ! intent(in): snow cover fraction on the ground surface (-)
+  scalarGroundSnowFraction   => diag_data%var(iLookDIAG%scalarGroundSnowFraction)%dat(1),            & ! intent(in): fraction of ground covered with snow (-)
   ! input: ground and canopy temperature
   scalarGroundTemp           => prog_data%var(iLookPROG%mLayerTemp)%dat(1),                          & ! intent(in): ground temperature (K)
   scalarCanopyTemp           => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1),                    & ! intent(in): vegetation temperature (K)
@@ -168,15 +168,11 @@ contains
  ! if surface type is water or ice, set ist to 2
  if ((nSoil==0 .and. nGlce>0) .or. nLake>0) ist = 2
 
- ! * preliminaries...
- ! ------------------
-
  ! compute the sum of snow mass and new snowfall (kg m-2 [mm])
  snowmassPlusNewsnow = scalarSWE + scalarSnowfall*dt
 
  ! * compute radiation fluxes...
  ! -----------------------------
-
  select case(ix_canopySrad)
 
   ! ***** unchanged Noah-MP routine

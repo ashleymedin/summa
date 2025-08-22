@@ -31,6 +31,8 @@ USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number
 USE globalData,only:quadMissing     ! missing quadruple precision number
 
+USE globalData,only:icefrz_scale    ! ice freezing curve scaling factor, closer to a step function since ice does not hold water
+
 ! access matrix information
 USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix
 USE globalData,only: ixFullMatrix   ! named variable for the full Jacobian matrix
@@ -225,6 +227,7 @@ subroutine systemSolve(&
   real(rkind)                     :: bulkDensity                   ! bulk density of a given layer (kg m-3)
   real(rkind)                     :: volEnthalpy                   ! volumetric enthalpy of a given layer (J m-3)
   real(rkind),parameter           :: tinyStep=0.000001_rkind       ! stupidly small time step (s)
+  real(rkind)                     :: frz_scale_use                 ! scaling parameter for the snow or glce freezing curve (K-1)
   ! ------------------------------------------------------------------------------------------------------
   ! * model solver
   ! ------------------------------------------------------------------------------------------------------
@@ -421,11 +424,16 @@ contains
    &)
    ! check the need to merge snow or glacier ice layers
    if (nSnow>0 .or. (nSnow==0 .and. nGlce>0) ) then
-     top = 1
-     if (nSnow==0) top = 1 + nLake + nSoil ! has glacier, so shouldn't be a lake, but just for completeness
+     if (nSnow==0)then 
+      top = 1 + nLake + nSoil ! has glacier, so shouldn't be a lake, but just for completeness
+      frz_scale_use = icefrz_scale
+     else
+      top = 1
+      frz_scale_use = snowfrz_scale
+     end if
      ! compute the energy required to melt the top layer (J m-2)
      bulkDensity = mLayerVolFracIce(top)*iden_ice + mLayerVolFracLiq(top)*iden_water
-     volEnthalpy = T2enthalpy_snLaGlWat(mLayerTemp(top),bulkDensity,snowfrz_scale)
+     volEnthalpy = T2enthalpy_snLaGlWat(mLayerTemp(top),bulkDensity,frz_scale_use)
      ! set flag and error codes for too much melt
      if (-volEnthalpy < flux_init%var(iLookFLUX%mLayerNrgFlux)%dat(top)*dt_cur) then
        tooMuchMelt = .true.
