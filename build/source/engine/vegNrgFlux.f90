@@ -559,7 +559,6 @@ subroutine vegNrgFlux(&
           if (nSnow > 0) then ! case when there is snow on the ground (EXCLUDE "snow without a layer" -- in this case, evaporate from the soil)
             if (groundTempTrial > Tfreeze) then; err=20; message=trim(message)//'do not expect ground temperature > 0 when snow is on the ground'; return; end if
             scalarLatHeatSubVapGround = LH_sub  ! sublimation from snow
-            scalarGroundSnowFraction  = 1._rkind
             ! case when the ground is snow-free
           else ! case when the ground is less than a layer of snow (e.g., bare soil or snow without a layer)
             if (nLake>0)then
