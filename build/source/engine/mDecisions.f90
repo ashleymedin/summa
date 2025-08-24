@@ -681,7 +681,7 @@ subroutine mDecisions(err,message)
       err=10; message=trim(message)//"unknown option for snow unloading [option="//trim(model_decisions(iLookDECISIONS%snowUnload)%cDecision)//"]"; return
   end select
 
-  ! choice of maximum infiltration rate method
+  ! choice of maximum infiltration rate method (for liq_flux soil hydrology upper boundary condition only, all others go by the behavior of noInfExc)
   ! NOTE: use topmodel_GA as the default, where infiltration method is undefined (not populated yet)
   select case(trim(model_decisions(iLookDECISIONS%infRateMax)%cDecision))
     case('GreenAmpt'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = GreenAmpt     ! Green-Ampt

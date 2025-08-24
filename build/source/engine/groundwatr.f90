@@ -125,7 +125,6 @@ subroutine groundwatr(&
     getSatDepth         => in_groundwatr % firstFluxCall,                      & ! intent(in):    [lgt] logical flag to compute index of the lowest saturated layer
     ! input: state and diagnostic variables
     mLayerdTheta_dPsi   => in_groundwatr % mLayerdTheta_dPsi,                  & ! intent(in):    [dp] derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
-    mLayerMatricHeadLiq => in_groundwatr % mLayerMatricHeadLiqTrial,           & ! intent(in):    [dp] matric head in each layer at the current iteration (m)
     mLayerVolFracLiq    => in_groundwatr % mLayerVolFracLiqTrial,              & ! intent(in):    [dp] volumetric fraction of liquid water (-)
     mLayerVolFracIce    => in_groundwatr % mLayerVolFracIceTrial,              & ! intent(in):    [dp] volumetric fraction of ice (-)
     ! input: baseflow parameters
