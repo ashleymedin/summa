@@ -90,7 +90,7 @@ contains
 ! public subroutine T2H_lookup_snWat: define a look-up table to liquid + ice enthalpy based on temperature
 !                                     appropriate when no dry mass, as in snow
 ! ************************************************************************************************************************
-subroutine T2H_lookup_snWat(mpar_data,do_ice,        &  ! intent(in):    parameter data structure
+subroutine T2H_lookup_snWat(mpar_data,needLookup_ice,        &  ! intent(in):    parameter data structure
                            err,message)
   ! -------------------------------------------------------------------------------------------------------------------------
   ! downwind routines 
@@ -100,7 +100,7 @@ subroutine T2H_lookup_snWat(mpar_data,do_ice,        &  ! intent(in):    paramet
   ! -------------------------------------------------------------------------------------------------------------------------
   ! declare dummy variables
   type(var_dlength),intent(in)  :: mpar_data            ! model parameters
-  logical(lgt),intent(in)       :: do_ice               ! flag to compute enthalpy lookup table for ice
+  logical(lgt),intent(in)       :: needLookup_ice       ! flag to compute enthalpy lookup table for ice
   integer(i4b),intent(out)      :: err                  ! error code
   character(*),intent(out)      :: message              ! error message
   ! declare local variables
@@ -132,7 +132,7 @@ subroutine T2H_lookup_snWat(mpar_data,do_ice,        &  ! intent(in):    paramet
      if (i==1)then
        frz_scale_use = snowfrz_scale
      elseif (i==2)then
-       if (.not. do_ice)then
+       if (.not. needLookup_ice)then
          H_lookup(:,i) = realMissing  ! set to missing values if not computing enthalpy lookup table for ice
          T_lookup(:,i) = realMissing  ! set to missing values if not computing enthalpy lookup table for ice
          cycle  ! skip ice if not computing enthalpy lookup table for ice

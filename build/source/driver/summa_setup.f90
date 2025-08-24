@@ -25,8 +25,10 @@ module summa_setup
 USE globalData,only:integerMissing      ! missing integer
 USE globalData,only:realMissing         ! missing real number
 
-! global data on the forcing file
-USE globalData,only:data_step           ! length of the data step (s)
+! access constants
+USE globalData,only:nLakeIceLayers_poss ! number of ice layers in a lake that can accumulate 
+USE globalData,only:nMeltingIceLayers   ! number of glacier ice layers that can have a change in total water content
+USE globalData,only:data_step           ! length of the data step (s) in forcing data
 
 ! named variables
 USE var_lookup,only:iLookATTR           ! look-up values for local attributes
@@ -145,7 +147,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  integer(i4b)                          :: maxLayers_wtld     ! maximum number of layers for wetland
  integer(i4b)                          :: maxSoilLayers_glac ! maximum number of soil layers for glacier (0)
  integer(i4b)                          :: maxSoilLayers_wtld ! maximum number of soil layers for wetland
- logical(lgt)                          :: do_ice             ! logical to decide if computing enthalpy lookup tables for ice
+ logical(lgt)                          :: needLookup_ice     ! logical to decide if computing enthalpy lookup tables for ice
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(&
@@ -194,12 +196,6 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  ! NOTE: Must be after ffile_info because mDecisions uses the data_step
  call mDecisions(err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- ! decide if computing soil enthalpy lookup tables and vegetation enthalpy lookup tables
- needLookup_soil = .false.
- ! if need enthalpy for either energy backward Euler residual or IDA state variable and not using soil enthalpy hypergeometric function
- if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision == enthalpyFormLU) needLookup_soil = .true. 
- ! if using IDA and enthalpy as a state variable, need temperature-enthalpy lookup tables for soil and vegetation
  
  maxGlaciers = 0
  maxWetlands = 0
@@ -411,18 +407,23 @@ endif
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! calculate a look-up table for the temperature-enthalpy conversion of snow for future snow layer merging
-    ! NOTE1: might be able to make this more efficient by only doing this for the HRUs that have snow
-    ! NOTE2: H is the mixture enthalpy of snow liquid and ice
-    ! NOTE3: "do_ice = ..." line must be uncommented if glacier layers with Theta change are >1 or more than ice layer on a lake
-    do_ice = .false.
-    !do_ice = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce > 0 .or. gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake > 0
-    call T2H_lookup_snWat(mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),do_ice,err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    ! NOTE: H is the mixture enthalpy of snow liquid and ice
+    needLookup_ice = .false.
+    if(nMeltingIceLayers - gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce > 1) needLookup_ice = .true.
+    if(nLakeIceLayers_poss > 1 .and. gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake > 0 ) needLookup_ice = .true. 
+
+    if(needLookup_ice)then
+      call T2H_lookup_snWat(mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),needLookup_ice,err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
 
     ! calculate a lookup table for the temperature-enthalpy conversion of soil 
+    !   if need enthalpy for either energy backward Euler residual or IDA state variable and not using soil enthalpy hypergeometric function
     ! NOTE: L is the integral of soil Clapeyron equation liquid water matric potential from temperature
     !       multiply by Cp_liq*iden_water to get temperature component of enthalpy
-    !       If nSoil is 0, then nothing will be done
+    needLookup_soil = .false.
+    if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision == enthalpyFormLU .and. gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil > 0) needLookup_soil = .true. 
+
     if(needLookup_soil)then
       call T2L_lookup_soil(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil, &   ! intent(in):    number of soil layers
                            mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),          &   ! intent(in):    parameter data structure
