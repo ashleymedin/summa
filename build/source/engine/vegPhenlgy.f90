@@ -125,7 +125,6 @@ contains
  ! model state variables
  scalarSnowDepth                 => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),           & ! intent(in):    [dp] snow depth on the ground surface (m)
  scalarCanopyTemp                => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1),          & ! intent(in):    [dp] temperature of the vegetation canopy at the start of the sub-step (K)
- scalarCanopyLiq                 => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),           & ! intent(inout): [dp] liquid water in the vegetation canopy at the start of the sub-step
  ! diagnostic variables and parameters (input)
  z0Snow                          => mpar_data%var(iLookPARAM%z0Snow)%dat(1),                   & ! intent(in): [dp] roughness length of snow (m)
  z0Soil                          => mpar_data%var(iLookPARAM%z0Soil)%dat(1),                   & ! intent(in): [dp] roughness length of soil (m)
@@ -199,9 +198,6 @@ contains
 
   ! determine if need to include vegetation in the energy flux routines
   computeVegFlux = (exposedVAI > 0.05_rkind .and. heightAboveSnow > z0Ground + minExpLogHgt)
-
-  ! if no vegetation ever, should not have initialized scalarCanopyLiq to 0.0001 in read_icond.f90
-  if((scalarLAI + scalarSAI) == 0._rkind) scalarCanopyLiq = 0._rkind
 
  end if  ! (check if the snow-soil column is isolated)
 
