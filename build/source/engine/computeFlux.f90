@@ -34,7 +34,7 @@ USE data_types,only:&
                     in_type_snowLakeSoilGlceNrgFlux,io_type_snowLakeSoilGlceNrgFlux,out_type_snowLakeSoilGlceNrgFlux,& ! classes for snowLakeSoilGlceNrgFlux call
                     in_type_vegLiqFlux,out_type_vegLiqFlux,                   & ! classes for vegLiqFlux call
                     in_type_snowLakeGlceLiqFlux,io_type_snowLakeGlceLiqFlux,out_type_snowLakeGlceLiqFlux,& ! classes for snowLakeGlceLiqFlux call                
-                    in_type_soilLiqFlux,io_type_soilLiqFlux,out_type_soilLiqFlux,& ! classes for soilLiqFlux call
+                    in_type_soilLiqFlx,io_type_soilLiqFlx,out_type_soilLiqFlx,& ! classes for soilLiqFlx call
                     in_type_groundwatr,io_type_groundwatr,out_type_groundwatr,& ! classes for groundwatr call
                     in_type_bigAquifer,io_type_bigAquifer,out_type_bigAquifer   ! classes for bigAquifer call
 
@@ -148,7 +148,7 @@ subroutine computeFlux(&
   USE snowLakeSoilGlceNrgFlux_module,only:snowLakeSoilGlceNrgFlux ! compute energy fluxes throughout the layers
   USE vegLiqFlux_module,only:vegLiqFlux                           ! compute liquid water fluxes through vegetation
   USE snowLakeGlceLiqFlux_module,only:snowLakeGlceLiqFlux         ! compute liquid water fluxes through non-soil layers
-  USE soilLiqFlux_module,only:soilLiqFlux                           ! compute liquid water fluxes through soil
+  USE soilLiqFlx_module,only:soilLiqFlx                           ! compute liquid water fluxes through soil
   USE groundwatr_module,only:groundwatr                           ! compute the baseflow flux
   USE bigAquifer_module,only:bigAquifer                           ! compute fluxes for the big aquifer
   implicit none
@@ -219,7 +219,7 @@ subroutine computeFlux(&
   type(in_type_snowLakeSoilGlceNrgFlux) :: in_snowLakeSoilGlceNrgFlux; type(io_type_snowLakeSoilGlceNrgFlux) :: io_snowLakeSoilGlceNrgFlux; type(out_type_snowLakeSoilGlceNrgFlux) :: out_snowLakeSoilGlceNrgFlux ! snowLakeSoilGlceNrgFlux arguments
   type(in_type_vegLiqFlux) :: in_vegLiqFlux;                                            type(out_type_vegLiqFlux) :: out_vegLiqFlux ! vegLiqFlux arguments
   type(in_type_snowLakeGlceLiqFlux) :: in_snowLakeGlceLiqFlux; type(io_type_snowLakeGlceLiqFlux) :: io_snowLakeGlceLiqFlux; type(out_type_snowLakeGlceLiqFlux) :: out_snowLakeGlceLiqFlux ! snowLakeGlceLiqFlux arguments
-  type(in_type_soilLiqFlux) :: in_soilLiqFlux; type(io_type_soilLiqFlux) :: io_soilLiqFlux; type(out_type_soilLiqFlux) :: out_soilLiqFlux ! soilLiqFlux arguments
+  type(in_type_soilLiqFlx) :: in_soilLiqFlx; type(io_type_soilLiqFlx) :: io_soilLiqFlx; type(out_type_soilLiqFlx) :: out_soilLiqFlx ! soilLiqFlx arguments
   type(in_type_groundwatr) :: in_groundwatr; type(io_type_groundwatr) :: io_groundwatr; type(out_type_groundwatr) :: out_groundwatr ! groundwatr arguments
   type(in_type_bigAquifer) :: in_bigAquifer; type(io_type_bigAquifer) :: io_bigAquifer; type(out_type_bigAquifer) :: out_bigAquifer ! bigAquifer arguments
   ! -------------------------------------------------------------------------------------------------------------------------
@@ -301,9 +301,9 @@ subroutine computeFlux(&
   ! *** CALCULATE THE LIQUID FLUX THROUGH SOIL ***
   associate(nSoilOnlyHyd => indx_data%var(iLookINDEX%nSoilOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the soil
     if (nSoilOnlyHyd>0) then ! if necessary, calculate the liquid flux through soil
-      call initialize_soilLiqFlux
-      call soilLiqFlux(in_soilLiqFlux,mpar_data,indx_data,prog_data,diag_data,flux_data,io_soilLiqFlux,out_soilLiqFlux)
-      call finalize_soilLiqFlux; if(err/=0)then; return; endif
+      call initialize_soilLiqFlx
+      call soilLiqFlx(in_soilLiqFlx,mpar_data,indx_data,prog_data,diag_data,flux_data,io_soilLiqFlx,out_soilLiqFlx)
+      call finalize_soilLiqFlx; if(err/=0)then; return; endif
     else
       call forcingNoSoil ! define forcing for the domain beneath for the case of no soil layers
     end if 
@@ -848,18 +848,18 @@ contains
   end associate
  end subroutine finalize_lakeLiqFlux
 
- ! **** soilLiqFlux ****
- subroutine initialize_soilLiqFlux
-  call in_soilLiqFlux%initialize(nSnow,nLake,nSoil,firstSplitOper,scalarSolution,firstFluxCall,scalarAquiferStorageTrial,&
+ ! **** soilLiqFlx ****
+ subroutine initialize_soilLiqFlx
+  call in_soilLiqFlx%initialize(nSnow,nLake,nSoil,firstSplitOper,scalarSolution,firstFluxCall,scalarAquiferStorageTrial,&
                                 mLayerTempTrial,mLayerMatricHeadTrial,mLayerMatricHeadLiqTrial,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,&
                                 above_LiqFluxDeriv,above_dLiq_dTk,above_FracLiq,flux_data,deriv_data)
-  call io_soilLiqFlux%initialize(nSoil,dHydCond_dMatric,flux_data,diag_data,deriv_data)
- end subroutine initialize_soilLiqFlux
+  call io_soilLiqFlx%initialize(nSoil,dHydCond_dMatric,flux_data,diag_data,deriv_data)
+ end subroutine initialize_soilLiqFlx
 
- subroutine finalize_soilLiqFlux
+ subroutine finalize_soilLiqFlx
   nStart = nSnow + nLake
-  call io_soilLiqFlux%finalize(nSoil,dHydCond_dMatric,flux_data,diag_data,deriv_data)
-  call out_soilLiqFlux%finalize(err,cmessage)
+  call io_soilLiqFlx%finalize(nSoil,dHydCond_dMatric,flux_data,diag_data,deriv_data)
+  call out_soilLiqFlx%finalize(err,cmessage)
   ! error control
   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
   associate(&
@@ -911,8 +911,8 @@ contains
    dq_dHydStateBelow(0:nSoil-1) = dq_dHydStateBelow(0:nSoil-1)*dPsiLiq_dPsi0(1:nSoil)
    dq_dHydStateLayerSurfVec(1:nSoil) = dq_dHydStateLayerSurfVec(1:nSoil)*dPsiLiq_dPsi0(1:nSoil)
   end associate
- end subroutine finalize_soilLiqFlux
- ! **** end soilLiqFlux ****
+ end subroutine finalize_soilLiqFlx
+ ! **** end soilLiqFlx ****
 
  ! **** groundwatr ****
  subroutine initialize_groundwatr
