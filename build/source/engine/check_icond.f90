@@ -33,7 +33,7 @@ USE globalData,only:glacDbr         ! domain type for glacier debris areas
 USE globalData,only:wetland         ! domain type for wetland areas
 USE globalData,only:glacieret       ! domain type for glaciers considered too small for flow
 
-USE globalData,only:icefrz_scale    ! ice freezing curve scaling factor, closer to a step function since ice does not hold water
+USE globalData,only:icefrz_mult     ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
 
 implicit none
 private
@@ -380,9 +380,8 @@ contains
            err=20; return
           end if
         endif
-        icefrz_scale = snowfrz_scale * 10.0_rkind ! make closer to a step function since ice does not hold water
         if (layerType(iLayer)==iname_snow) frz_scale_use = snowfrz_scale
-        if (layerType(iLayer)==iname_glce .or. layerType(iLayer)==iname_lake) frz_scale_use = icefrz_scale
+        if (layerType(iLayer)==iname_glce .or. layerType(iLayer)==iname_lake) frz_scale_use = snowfrz_scale*icefrz_mult
         
         ! ensure consistency among state variables
         call updateSnLaGl(&

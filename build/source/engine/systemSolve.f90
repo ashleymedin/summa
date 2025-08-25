@@ -31,7 +31,7 @@ USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number
 USE globalData,only:quadMissing     ! missing quadruple precision number
 
-USE globalData,only:icefrz_scale    ! ice freezing curve scaling factor, closer to a step function since ice does not hold water
+USE globalData,only:icefrz_mult     ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
 
 ! access matrix information
 USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix
@@ -426,7 +426,7 @@ contains
    if (nSnow>0 .or. (nSnow==0 .and. nGlce>0) ) then
      if (nSnow==0)then 
       top = 1 + nLake + nSoil ! has glacier, so shouldn't be a lake, but just for completeness
-      frz_scale_use = icefrz_scale
+      frz_scale_use = snowfrz_scale*icefrz_mult
      else
       top = 1
       frz_scale_use = snowfrz_scale

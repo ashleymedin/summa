@@ -375,7 +375,6 @@ subroutine popMetadat(err,message)
   ! -------------------------------------
   ! local properties
   diag_meta(iLookDIAG%scalarCanopyDepth)               = var_info('scalarCanopyDepth'              , 'canopy depth'                                                     , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  diag_meta(iLookDIAG%scalarGreenVegFraction)          = var_info('scalarGreenVegFraction'         , 'green vegetation fraction (used to compute LAI)'                  , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarBulkVolHeatCapVeg)         = var_info('scalarBulkVolHeatCapVeg'        , 'bulk volumetric heat capacity of vegetation'                      , 'J m-3 K-1'       , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarCanopyCm)                  = var_info('scalarCanopyCm'                 , 'Cm of canopy'                                                     , 'J kg-1 K-1'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarCanopyEmissivity)          = var_info('scalarCanopyEmissivity'         , 'effective canopy emissivity'                                      , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)

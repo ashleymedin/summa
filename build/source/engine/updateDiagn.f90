@@ -27,7 +27,7 @@ USE nr_type
 USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number
 
-USE globalData,only:icefrz_scale    ! ice freezing curve scaling factor, closer to a step function since ice does not hold water
+USE globalData,only:icefrz_mult     ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
 
 ! access the global print flag
 USE globalData,only:globalPrintFlag
@@ -309,7 +309,7 @@ subroutine updateDiagn(&
       end select
 
       frz_scale_use = snowfrz_scale
-      if(ixDomainType==iname_lake .or. ixDomainType==iname_glce) frz_scale_use = icefrz_scale
+      if(ixDomainType==iname_lake .or. ixDomainType==iname_glce) frz_scale_use = snowfrz_scale*icefrz_mult
 
       ! get the index of the other (energy or mass) state variable within the full state vector
       select case(ixDomainType)

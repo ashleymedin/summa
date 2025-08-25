@@ -60,7 +60,7 @@ USE globalData,only:iname_nrgLayer                 ! named variable defining the
 USE globalData,only:integerMissing                 ! missing integer
 USE globalData,only:realMissing                    ! missing real number
 
-USE globalData,only:icefrz_scale                   ! ice freezing curve scaling factor, closer to a step function since ice does not hold water
+USE globalData,only:icefrz_mult                    ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
 
 implicit none
 public::T2H_lookup_snWat
@@ -137,7 +137,7 @@ subroutine T2H_lookup_snWat(mpar_data,needLookup_ice,        &  ! intent(in):   
          T_lookup(:,i) = realMissing  ! set to missing values if not computing enthalpy lookup table for ice
          cycle  ! skip ice if not computing enthalpy lookup table for ice
        else
-         frz_scale_use = icefrz_scale
+         frz_scale_use = snowfrz_scale*icefrz_mult
        endif
      end if
 

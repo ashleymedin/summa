@@ -34,7 +34,7 @@ USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water 
 USE globalData,only:iname_matLayer  ! named variable defining the total water matric potential state variable for soil layers
 USE globalData,only:iname_lmpLayer  ! named variable defining the liquid water matric potential state variable for soil layers
 
-USE globalData,only:icefrz_scale    ! ice freezing curve scaling factor, closer to a step function since ice does not hold water
+USE globalData,only:icefrz_mult     ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
 
 ! constants
 USE multiconst,only:&
@@ -1032,10 +1032,10 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           if (jLayer <= nSnow+nLake) then
             iLayer = jLayer
             frz_scale_use = snowfrz_scale
-            if (jLayer>nSnow) frz_scale_use = icefrz_scale
+            if (jLayer>nSnow) frz_scale_use = snowfrz_scale*icefrz_mult
           else
             iLayer = jLayer + nSoil
-            frz_scale_use = icefrz_scale
+            frz_scale_use = snowfrz_scale*icefrz_mult
           end if
            ! check if the layer is included
           if(ixSnLaSoGlHyd(iLayer)==integerMissing) cycle

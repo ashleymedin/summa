@@ -27,7 +27,7 @@ USE nr_type
 USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number
 
-USE globalData,only:icefrz_scale    ! ice freezing curve scaling factor, closer to a step function since ice does not hold water
+USE globalData,only:icefrz_mult     ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
 
 ! access named variables for snow and soil
 USE globalData,only:iname_snow        ! named variables for snow
@@ -412,7 +412,7 @@ contains
  nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
 
  if(doGlac)then
-  frz_scale_use = icefrz_scale
+  frz_scale_use = snowfrz_scale*icefrz_mult
  else
   frz_scale_use = snowfrz_scale
  end if

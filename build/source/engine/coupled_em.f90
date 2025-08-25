@@ -69,7 +69,7 @@ USE globalData,only:globalPrintFlag        ! the global print flag
 USE globalData,only:realMissing            ! missing real number
 USE globalData,only:maxSnowLayers          ! maximum number of snow layers
 USE globalData,only:maxGlceLayers          ! maximum number of glacier ice layers
-USE globalData,only:icefrz_scale           ! ice freezing curve scaling factor, closer to a step function since ice does not hold water
+USE globalData,only:icefrz_mult            ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
 
 
 ! access domain types
@@ -853,10 +853,10 @@ subroutine coupled_em(&
                 if (jLayer<=nSnow+nLake)then
                   iLayer = jLayer
                   frz_scale_use = snowfrz_scale
-                  if (jLayer>nSnow) frz_scale_use = icefrz_scale
+                  if (jLayer>nSnow) frz_scale_use = snowfrz_scale*icefrz_mult
                 else
                   iLayer = jLayer + nSoil
-                  frz_scale_use = icefrz_scale
+                  frz_scale_use = snowfrz_scale*icefrz_mult
                 end if
                 mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)*(iden_ice/iden_water)
                 ! compute enthalpy for snow and glacier ice layers
@@ -1290,10 +1290,10 @@ subroutine coupled_em(&
               if (jLayer<=nSnow+nLake)then
                 iLayer = jLayer
                 frz_scale_use = snowfrz_scale
-                if (jLayer>nSnow) frz_scale_use = icefrz_scale
+                if (jLayer>nSnow) frz_scale_use = snowfrz_scale*icefrz_mult
               else
                 iLayer = jLayer + nSoil
-                frz_scale_use = icefrz_scale
+                frz_scale_use = snowfrz_scale*icefrz_mult
               end if
               mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)*(iden_ice/iden_water)
               ! recompute enthalpy of layers if changed water and ice content
