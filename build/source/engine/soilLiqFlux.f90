@@ -1859,10 +1859,10 @@ contains
    if (xMaxInfilRate < scalarRainPlusMelt) then ! = dxMaxInfilRate_d, dependent on layers not at surface
      dInfilRate_dWat(0) = 0._rkind
      dInfilRate_dTk(0)  = 0._rkind
-     dInfilRate_dWat(1:nSoil) = dxMaxInfilRate_dWat(:)
+     dInfilRate_dWat(1:nSoil) = dxMaxInfilRate_dWat(:) ! ixRichards case already taken into account in the above derivatives
      dInfilRate_dTk(1:nSoil)  = dxMaxInfilRate_dTk(:)
    else ! = dRainPlusMelt_d, dependent on above layer (canopy or snow) water and temp
-     dInfilRate_dWat(0) = above_soilLiqFluxDeriv*above_soilFracLiq
+     dInfilRate_dWat(0) = above_soilLiqFluxDeriv*above_soilFracLiq ! ixRichards case does not matter because this is not a soil layer
      dInfilRate_dTk(0)  = above_soilLiqFluxDeriv*above_soildLiq_dTk
      dInfilRate_dWat(1:nSoil) = 0._rkind
      dInfilRate_dTk(1:nSoil)  = 0._rkind

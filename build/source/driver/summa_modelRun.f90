@@ -123,7 +123,7 @@ contains
  ! *** initialize computeVegFlux (flag to indicate if we are computing fluxes over vegetation) over land
  ! *****************************************************************************************************
 
- ! if computeVegFlux changes, then the number of state variables changes, and we need to reoranize the data structures
+ ! if computeVegFlux changes, then the number of state variables changes, and we need to reorganize the data structures
  if(modelTimeStep==1)then
   do iGRU=1,nGRU
    do iHRU=1,gru_struc(iGRU)%hruCount
