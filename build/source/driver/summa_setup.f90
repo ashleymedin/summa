@@ -100,7 +100,6 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  USE globalData,only:basinParFallback                        ! basin-average default parameters
  USE globalData,only:model_decisions                         ! model decision structure
  USE globalData,only:greenVegFrac_monthly                    ! fraction of green vegetation in each month (0-1)
- USE globalData,only:minExpLogHgt                            ! minimum height of transition from the exponential to the logarithmic wind profile (m)
  ! run time options
  USE globalData,only:startGRU                                ! index of the starting GRU for parallelization run
  USE globalData,only:checkHRU                                ! index of the HRU for a single HRU run
@@ -438,9 +437,6 @@ endif
       ! overwrite the vegetation height
       HVT(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%heightCanopyTop)%dat(1)
       HVB(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%heightCanopyBottom)%dat(1)
-
-      ! set the minimum height of transition from the exponential to the logarithmic wind profile (m)
-      minExpLogHgt = 0.02_rkind*sqrt(mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyTop)%dat(1))
 
       ! overwrite the tables for LAI and SAI
       if(model_decisions(iLookDECISIONS%LAI_method)%iDecision == specified)then

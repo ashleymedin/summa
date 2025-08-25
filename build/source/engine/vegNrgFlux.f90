@@ -27,7 +27,7 @@ USE nr_type
 USE globalData,only:&
                     verySmall,          & ! a very small number used as an additive constant to check if substantial difference among real numbers
                     realMissing,        & ! missing value for real numbers
-                    minExpLogHgt          ! minimum height of transition from the exponential to the logarithmic wind profile (m)
+                    minExpLogHgtFac       ! factor for minimum height of transition from the exponential to the logarithmic wind profile
 
 ! derived types to define the data structures
 USE data_types,only:&
@@ -1545,6 +1545,7 @@ subroutine aeroResist(&
   real(rkind)                      :: heightAboveGround                    ! height above the snow surface (m)
   real(rkind)                      :: heightCanopyTopAboveSnow             ! height at the top of the vegetation canopy relative to snowpack (m)
   real(rkind)                      :: heightCanopyBottomAboveSnow          ! height at the bottom of the vegetation canopy relative to snowpack (m)
+  real(rkind)                      :: minExpLogHgt                         ! minimum height above ground for logarithmic wind profile (m)
   ! local variables: derivatives
   real(rkind)                      :: dFV_dT                               ! derivative in friction velocity w.r.t. canopy air temperature
   real(rkind)                      :: dED_dT                               ! derivative in eddy diffusivity at the top of the canopy w.r.t. canopy air temperature
@@ -1577,6 +1578,7 @@ subroutine aeroResist(&
     ! NOTE: the new coordinate system makes zeroPlaneDisplacement and z0Canopy consistent
     heightCanopyTopAboveSnow = heightCanopyTop - snowDepth
     ! Ensure that heightCanopyBottomAboveSnow >= z0Ground + minExpLogHgt
+    minExpLogHgt = minExpLogHgtFac*sqrt(heightCanopyTop) ! minimum height above ground for logarithmic wind profile (m)
     heightCanopyBottomAboveSnow = max(heightCanopyBottom - snowDepth, z0Ground + minExpLogHgt)
     ! compute zero-plane displacement and roughness length of the vegetation canopy
     select case(ixVegTraits)

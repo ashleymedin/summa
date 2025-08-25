@@ -27,7 +27,7 @@ USE nr_type
 USE globalData,only:&
                     realMissing,        & ! missing value for real numbers
                     urbanVegCategory,   & ! vegetation category for urban areas
-                    minExpLogHgt          ! minimum height of transition from the exponential to the logarithmic wind profile (m)
+                    minExpLogHgtFac       ! factor for minimum height of transition from the exponential to the logarithmic wind profile
 
 
 ! provide access to the derived types to define the data structures
@@ -111,6 +111,8 @@ contains
  real(rkind)                     :: z0Ground                   ! roughness length of the ground (ground below the canopy or non-vegetated surface) (m)
  real(rkind)                     :: notUsed_heightCanopyTop    ! height of the top of the canopy layer (m)
  real(rkind)                     :: heightAboveSnow            ! height top of canopy is above the snow surface (m)
+ real(rkind)                     :: minExpLogHgt               ! minimum height above ground for logarithmic wind profile (m)
+
  ! initialize error control
  err=0; message="vegPhenlgy/"
  ! ----------------------------------------------------------------------------------------------------------------------------------
@@ -191,12 +193,12 @@ contains
   exposedVAI      = scalarExposedLAI + scalarExposedSAI   ! exposed vegetation area index (m2 m-2)
   canopyDepth     = heightCanopyTop - heightCanopyBottom  ! canopy depth (m)
   heightAboveSnow = heightCanopyTop - scalarSnowDepth     ! height top of canopy is above the snow surface (m)
-  minExpLogHgt    = 0.02*sqrt(heightCanopyTop)  ! minimum height of transition from the exponential to the logarithmic wind profile (m)
 
   ! compute the roughness length of the ground (ground below the canopy or non-vegetated surface)
   z0Ground = z0Soil*(1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction     ! roughness length (m)
 
   ! determine if need to include vegetation in the energy flux routines
+  minExpLogHgt = minExpLogHgtFac*sqrt(heightCanopyTop) ! minimum height above ground for logarithmic wind profile (m)
   computeVegFlux = (exposedVAI > 0.05_rkind .and. heightAboveSnow > z0Ground + minExpLogHgt)
 
  end if  ! (check if the snow-soil column is isolated)
