@@ -814,8 +814,8 @@ MODULE data_types
  end type out_type_diagv_node
  ! ** end diagv_node
 
- ! ** surfaceFlux
- type, public :: in_type_surfaceFlux ! intent(in) data
+ ! ** surfaceFlx
+ type, public :: in_type_surfaceFlx ! intent(in) data
    ! input: model control
    logical(lgt) :: firstSplitOper   ! flag indicating if desire to compute infiltration
    logical(lgt) :: deriv_desired    ! flag to indicate if derivatives are desired
@@ -876,10 +876,10 @@ MODULE data_types
    real(rkind) :: FUSE_chi      ! FUSE TOPMODEL chi   distribution lambda parameter
    real(rkind) :: FUSE_mu       ! FUSE TOPMODEL mu    distribution lambda parameter
   contains
-   procedure :: initialize => initialize_in_surfaceFlux
- end type in_type_surfaceFlux 
+   procedure :: initialize => initialize_in_surfaceFlx
+ end type in_type_surfaceFlx 
 
- type, public :: io_type_surfaceFlux ! intent(inout) data
+ type, public :: io_type_surfaceFlx ! intent(inout) data
    ! input-output: hydraulic conductivity and diffusivity at the surface
    ! NOTE: intent(inout) because infiltration may only be computed for the first iteration
    real(rkind) :: surfaceHydCond   ! hydraulic conductivity (m s-1)
@@ -889,11 +889,11 @@ MODULE data_types
    real(rkind) :: scalarInfilArea  ! fraction of unfrozen area where water can infiltrate (-)
    real(rkind) :: scalarFrozenArea ! fraction of area that is considered impermeable due to soil ice (-)
   contains
-   procedure :: initialize => initialize_io_surfaceFlux
-   procedure :: finalize   => finalize_io_surfaceFlux
- end type io_type_surfaceFlux
+   procedure :: initialize => initialize_io_surfaceFlx
+   procedure :: finalize   => finalize_io_surfaceFlx
+ end type io_type_surfaceFlx
  
- type, public :: out_type_surfaceFlux ! intent(out) data
+ type, public :: out_type_surfaceFlx ! intent(out) data
    ! output: runoff and infiltration
    real(rkind) :: scalarSurfaceRunoff       ! surface runoff (m s-1)
    real(rkind) :: scalarSurfaceRunoff_IE    ! infiltration excess surface runoff (m s-1)
@@ -906,9 +906,9 @@ MODULE data_types
    integer(i4b)            :: err     ! error code
    character(len=len_msg)  :: message ! error message
   contains
-   procedure :: finalize   => finalize_out_surfaceFlux
- end type out_type_surfaceFlux 
- ! ** end surfaceFlux
+   procedure :: finalize   => finalize_out_surfaceFlx
+ end type out_type_surfaceFlx 
+ ! ** end surfaceFlx
 
  ! ** iLayerFlux
  type, public :: in_type_iLayerFlux ! intent(in) data
@@ -1917,11 +1917,11 @@ contains
  end subroutine finalize_out_diagv_node
  ! **** end diagv_node ****
 
- ! **** surfaceFlux ****
- subroutine initialize_in_surfaceFlux(in_surfaceFlux,nRoots,ixIce,nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,&
+ ! **** surfaceFlx ****
+ subroutine initialize_in_surfaceFlx(in_surfaceFlx,nRoots,ixIce,nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,&
                                      &model_decisions,prog_data,mpar_data,flux_data,diag_data,&
                                      &iLayerHeight,dHydCond_dTemp,iceImpedeFac)
-  class(in_type_surfaceFlux),intent(out) :: in_surfaceFlux ! input object for surfaceFlux
+  class(in_type_surfaceFlx),intent(out) :: in_surfaceFlx ! input object for surfaceFlx
   integer(i4b),intent(in)                :: nRoots         ! number of soil layers with roots
   integer(i4b),intent(in)                :: ixIce          ! index of the lowest soil layer that contains ice
   integer(i4b),intent(in)                :: nSoil          ! number of soil layers
@@ -1946,14 +1946,14 @@ contains
    ixInfRateMax           => model_decisions(iLookDECISIONS%infRateMax)%iDecision & ! index of the maximum infiltration rate parameterization
   &)
    ! intent(in): model control
-   in_surfaceFlux % firstSplitOper = firstSplitOper          ! flag indicating if desire to compute infiltration
-   in_surfaceFlux % deriv_desired  = deriv_desired           ! flag indicating if derivatives are desired
-   in_surfaceFlux % ixRichards     = ixRichards              ! index defining the form of Richards' equation (moisture or mixdform)
-   in_surfaceFlux % bc_upper       = ixBcUpperSoilHydrology  ! index defining the type of boundary conditions (Neumann or Dirichlet)
-   in_surfaceFlux % ixInfRateMax   = ixInfRateMax            ! index defining the maximum infiltration rate parameterization (GreenAmpt or topmodel_GA)
-   in_surfaceFlux % nRoots         = nRoots                  ! number of layers that contain roots
-   in_surfaceFlux % ixIce          = ixIce                   ! index of lowest ice layer
-   in_surfaceFlux % nSoil          = nSoil                   ! number of soil layers
+   in_surfaceFlx % firstSplitOper = firstSplitOper          ! flag indicating if desire to compute infiltration
+   in_surfaceFlx % deriv_desired  = deriv_desired           ! flag indicating if derivatives are desired
+   in_surfaceFlx % ixRichards     = ixRichards              ! index defining the form of Richards' equation (moisture or mixdform)
+   in_surfaceFlx % bc_upper       = ixBcUpperSoilHydrology  ! index defining the type of boundary conditions (Neumann or Dirichlet)
+   in_surfaceFlx % ixInfRateMax   = ixInfRateMax            ! index defining the maximum infiltration rate parameterization (GreenAmpt or topmodel_GA)
+   in_surfaceFlx % nRoots         = nRoots                  ! number of layers that contain roots
+   in_surfaceFlx % ixIce          = ixIce                   ! index of lowest ice layer
+   in_surfaceFlx % nSoil          = nSoil                   ! number of soil layers
   end associate
 
   associate(&
@@ -1966,13 +1966,13 @@ contains
    scalarTotalSoilLiq       => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1) & ! total liquid water in the soil column (kg m-2)
   &)
    ! intent(in): state variables
-   in_surfaceFlux % mLayerTemp          = mLayerTempTrial             ! temperature (K)
-   in_surfaceFlux % scalarMatricHeadLiq = mLayerMatricHeadLiqTrial(1) ! liquid matric head in the upper-most soil layer (m)
-   in_surfaceFlux % mLayerMatricHead    = mLayerMatricHeadTrial       ! matric head in each soil layer (m)
-   in_surfaceFlux % scalarVolFracLiq    = mLayerVolFracLiqTrial(1)    ! volumetric liquid water content the upper-most soil layer (-)
-   in_surfaceFlux % scalarTotalSoilLiq  = scalarTotalSoilLiq          ! total liquid water in the soil column (kg m-2)
-   in_surfaceFlux % mLayerVolFracLiq    = mLayerVolFracLiqTrial       ! volumetric liquid water content in each soil layer (-)
-   in_surfaceFlux % mLayerVolFracIce    = mLayerVolFracIceTrial       ! volumetric ice content in each soil layer (-)
+   in_surfaceFlx % mLayerTemp          = mLayerTempTrial             ! temperature (K)
+   in_surfaceFlx % scalarMatricHeadLiq = mLayerMatricHeadLiqTrial(1) ! liquid matric head in the upper-most soil layer (m)
+   in_surfaceFlx % mLayerMatricHead    = mLayerMatricHeadTrial       ! matric head in each soil layer (m)
+   in_surfaceFlx % scalarVolFracLiq    = mLayerVolFracLiqTrial(1)    ! volumetric liquid water content the upper-most soil layer (-)
+   in_surfaceFlx % scalarTotalSoilLiq  = scalarTotalSoilLiq          ! total liquid water in the soil column (kg m-2)
+   in_surfaceFlx % mLayerVolFracLiq    = mLayerVolFracLiqTrial       ! volumetric liquid water content in each soil layer (-)
+   in_surfaceFlx % mLayerVolFracIce    = mLayerVolFracIceTrial       ! volumetric ice content in each soil layer (-)
   end associate
 
   associate(&
@@ -1985,12 +1985,12 @@ contains
    above_soilFracLiq      => in_soilLiqFlux % above_soilFracLiq      & ! fraction of liquid water layer above soil (canopy or snow) (-)
   &)
    ! intent(in): pre-computed derivatives
-   in_surfaceFlux % dTheta_dTk             = mLayerdTheta_dTk       ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
-   in_surfaceFlux % dTheta_dPsi            = mLayerdTheta_dPsi      ! derivative in the soil water characteristic w.r.t. psi (m-1)
-   in_surfaceFlux % mLayerdPsi_dTheta      = mLayerdPsi_dTheta      ! derivative in the soil water characteristic w.r.t. theta (m)
-   in_surfaceFlux % above_soilLiqFluxDeriv = above_soilLiqFluxDeriv ! derivative in layer above soil (canopy or snow) liquid flux w.r.t. liquid water
-   in_surfaceFlux % above_soildLiq_dTk     = above_soildLiq_dTk     ! derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
-   in_surfaceFlux % above_soilFracLiq      = above_soilFracLiq      ! fraction of liquid water layer above soil (canopy or snow) (-)
+   in_surfaceFlx % dTheta_dTk             = mLayerdTheta_dTk       ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
+   in_surfaceFlx % dTheta_dPsi            = mLayerdTheta_dPsi      ! derivative in the soil water characteristic w.r.t. psi (m-1)
+   in_surfaceFlx % mLayerdPsi_dTheta      = mLayerdPsi_dTheta      ! derivative in the soil water characteristic w.r.t. theta (m)
+   in_surfaceFlx % above_soilLiqFluxDeriv = above_soilLiqFluxDeriv ! derivative in layer above soil (canopy or snow) liquid flux w.r.t. liquid water
+   in_surfaceFlx % above_soildLiq_dTk     = above_soildLiq_dTk     ! derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
+   in_surfaceFlx % above_soilFracLiq      = above_soilFracLiq      ! fraction of liquid water layer above soil (canopy or snow) (-)
   end associate
 
   associate(&
@@ -1998,8 +1998,8 @@ contains
    mLayerDepth         => prog_data%var(iLookPROG%mLayerDepth)%dat(ibeg:iend) & ! depth of the layer (m)
   &)
    ! intent(in): depth of upper-most soil layer (m)
-   in_surfaceFlux % mLayerDepth     = mLayerDepth  ! depth of each soil layer (m)
-   in_surfaceFlux % iLayerHeight    = iLayerHeight ! height at the interface of each layer (m)
+   in_surfaceFlx % mLayerDepth     = mLayerDepth  ! depth of each soil layer (m)
+   in_surfaceFlx % iLayerHeight    = iLayerHeight ! height at the interface of each layer (m)
   end associate
 
   associate(&
@@ -2008,8 +2008,8 @@ contains
    upperBoundTheta     => mpar_data%var(iLookPARAM%upperBoundTheta)%dat(1) & ! upper boundary condition for volumetric liquid water content (-)
   &)
    ! intent(in): boundary conditions
-   in_surfaceFlux % upperBoundHead  = upperBoundHead  ! upper boundary condition (m)
-   in_surfaceFlux % upperBoundTheta = upperBoundTheta ! upper boundary condition (-)
+   in_surfaceFlx % upperBoundHead  = upperBoundHead  ! upper boundary condition (m)
+   in_surfaceFlx % upperBoundTheta = upperBoundTheta ! upper boundary condition (-)
   end associate
 
   associate(&
@@ -2017,7 +2017,7 @@ contains
    scalarRainPlusMelt  => in_soilLiqFlux % scalarRainPlusMelt & ! rain plus melt (m s-1)
   &)
    ! intent(in): flux at the upper boundary
-   in_surfaceFlux % scalarRainPlusMelt = scalarRainPlusMelt ! rain plus melt (m s-1)
+   in_surfaceFlx % scalarRainPlusMelt = scalarRainPlusMelt ! rain plus melt (m s-1)
   end associate
 
   associate(&
@@ -2025,9 +2025,9 @@ contains
    iLayerSatHydCond    => flux_data%var(iLookFLUX%iLayerSatHydCond)%dat & ! saturated hydraulic conductivity at the interface of each layer (m s-1)
   &)
    ! intent(in): transmittance
-   in_surfaceFlux % surfaceSatHydCond = iLayerSatHydCond(0) ! saturated hydraulic conductivity at the surface (m s-1)
-   in_surfaceFlux % dHydCond_dTemp    = dHydCond_dTemp(1)   ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
-   in_surfaceFlux % iceImpedeFac      = iceImpedeFac(1)     ! ice impedence factor in the upper-most soil layer (-)
+   in_surfaceFlx % surfaceSatHydCond = iLayerSatHydCond(0) ! saturated hydraulic conductivity at the surface (m s-1)
+   in_surfaceFlx % dHydCond_dTemp    = dHydCond_dTemp(1)   ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+   in_surfaceFlx % iceImpedeFac      = iceImpedeFac(1)     ! ice impedence factor in the upper-most soil layer (-)
   end associate
 
   associate(&
@@ -2045,17 +2045,17 @@ contains
    soilIceCV           => mpar_data%var(iLookPARAM%soilIceCV)%dat(1)    & ! CV of depth of soil ice, used to get frozen fraction (-)
   &)
    ! intent(in): soil parameters
-   in_surfaceFlux % vGn_alpha           = vGn_alpha(1)        ! van Genuchten "alpha" parameter (m-1)
-   in_surfaceFlux % vGn_n               = vGn_n(1)            ! van Genuchten "n" parameter (-)
-   in_surfaceFlux % vGn_m               = vGn_m(1)            ! van Genuchten "m" parameter (-)
-   in_surfaceFlux % theta_sat           = theta_sat(1)        ! soil porosity (-)
-   in_surfaceFlux % theta_res           = theta_res(1)        ! soil residual volumetric water content (-)
-   in_surfaceFlux % qSurfScale          = qSurfScale          ! scaling factor in the surface runoff parameterization (-)
-   in_surfaceFlux % zScale_TOPMODEL     = zScale_TOPMODEL     ! scaling factor used to describe decrease in hydraulic conductivity with depth (m)
-   in_surfaceFlux % rootingDepth        = rootingDepth        ! rooting depth (m)
-   in_surfaceFlux % wettingFrontSuction = wettingFrontSuction ! Green-Ampt wetting front suction (m)
-   in_surfaceFlux % soilIceScale        = soilIceScale        ! soil ice scaling factor in Gamma distribution used to define frozen area (m)
-   in_surfaceFlux % soilIceCV           = soilIceCV           ! soil ice CV in Gamma distribution used to define frozen area (-)
+   in_surfaceFlx % vGn_alpha           = vGn_alpha(1)        ! van Genuchten "alpha" parameter (m-1)
+   in_surfaceFlx % vGn_n               = vGn_n(1)            ! van Genuchten "n" parameter (-)
+   in_surfaceFlx % vGn_m               = vGn_m(1)            ! van Genuchten "m" parameter (-)
+   in_surfaceFlx % theta_sat           = theta_sat(1)        ! soil porosity (-)
+   in_surfaceFlx % theta_res           = theta_res(1)        ! soil residual volumetric water content (-)
+   in_surfaceFlx % qSurfScale          = qSurfScale          ! scaling factor in the surface runoff parameterization (-)
+   in_surfaceFlx % zScale_TOPMODEL     = zScale_TOPMODEL     ! scaling factor used to describe decrease in hydraulic conductivity with depth (m)
+   in_surfaceFlx % rootingDepth        = rootingDepth        ! rooting depth (m)
+   in_surfaceFlx % wettingFrontSuction = wettingFrontSuction ! Green-Ampt wetting front suction (m)
+   in_surfaceFlx % soilIceScale        = soilIceScale        ! soil ice scaling factor in Gamma distribution used to define frozen area (m)
+   in_surfaceFlx % soilIceCV           = soilIceCV           ! soil ice CV in Gamma distribution used to define frozen area (-)
   end associate
 
   ! intent(in): aquifer values for FUSE parameterizations
@@ -2064,9 +2064,9 @@ contains
    scalarAquiferStorageTrial => in_soilLiqFlux % scalarAquiferStorageTrial,           & ! trial value of aquifer storage (m)
    aquiferScaleFactor        => mpar_data%var(iLookPARAM%aquiferScaleFactor)%dat(1)  & ! scaling factor for aquifer storage in the big bucket (m)
   &)
-   in_surfaceFlux % aquiferBaseflowExp        = aquiferBaseflowExp        ! baseflow exponent (-)
-   in_surfaceFlux % scalarAquiferStorageTrial = scalarAquiferStorageTrial ! trial value of aquifer storage (m)
-   in_surfaceFlux % aquiferScaleFactor        = aquiferScaleFactor        ! scaling factor for aquifer storage in the big bucket (m)
+   in_surfaceFlx % aquiferBaseflowExp        = aquiferBaseflowExp        ! baseflow exponent (-)
+   in_surfaceFlx % scalarAquiferStorageTrial = scalarAquiferStorageTrial ! trial value of aquifer storage (m)
+   in_surfaceFlx % aquiferScaleFactor        = aquiferScaleFactor        ! scaling factor for aquifer storage in the big bucket (m)
   end associate
 
   ! intent(in): FUSE parameters
@@ -2078,17 +2078,17 @@ contains
    FUSE_chi      => mpar_data%var(iLookPARAM%FUSE_chi     )%dat(1), & ! FUSE TOPMODEL chi   distribution lambda parameter
    FUSE_mu       => mpar_data%var(iLookPARAM%FUSE_mu      )%dat(1)  & ! FUSE TOPMODEL mu    distribution lambda parameter
   &)
-   in_surfaceFlux % FUSE_Ac_max   = FUSE_Ac_max   ! FUSE PRMS max saturated area
-   in_surfaceFlux % FUSE_phi_tens = FUSE_phi_tens ! FUSE PRMS tension fraction
-   in_surfaceFlux % FUSE_b        = FUSE_b        ! FUSE ARNO/VIC exponent
-   in_surfaceFlux % FUSE_lambda   = FUSE_lambda   ! FUSE TOPMODEL gamma distribution lambda parameter
-   in_surfaceFlux % FUSE_chi      = FUSE_chi      ! FUSE TOPMODEL chi   distribution lambda parameter
-   in_surfaceFlux % FUSE_mu       = FUSE_mu       ! FUSE TOPMODEL mu    distribution lambda parameter
+   in_surfaceFlx % FUSE_Ac_max   = FUSE_Ac_max   ! FUSE PRMS max saturated area
+   in_surfaceFlx % FUSE_phi_tens = FUSE_phi_tens ! FUSE PRMS tension fraction
+   in_surfaceFlx % FUSE_b        = FUSE_b        ! FUSE ARNO/VIC exponent
+   in_surfaceFlx % FUSE_lambda   = FUSE_lambda   ! FUSE TOPMODEL gamma distribution lambda parameter
+   in_surfaceFlx % FUSE_chi      = FUSE_chi      ! FUSE TOPMODEL chi   distribution lambda parameter
+   in_surfaceFlx % FUSE_mu       = FUSE_mu       ! FUSE TOPMODEL mu    distribution lambda parameter
   end associate
- end subroutine initialize_in_surfaceFlux
+ end subroutine initialize_in_surfaceFlx
 
- subroutine initialize_io_surfaceFlux(io_surfaceFlux,nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse)
-  class(io_type_surfaceFlux),intent(out) :: io_surfaceFlux ! input-output object for surfaceFlux
+ subroutine initialize_io_surfaceFlx(io_surfaceFlx,nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse)
+  class(io_type_surfaceFlx),intent(out) :: io_surfaceFlx ! input-output object for surfaceFlx
   integer(i4b),intent(in)               :: nSoil         ! number of soil layers
   type(io_type_soilLiqFlux),intent(in)   :: io_soilLiqFlux ! input-output class object for soilLiqFlux
   real(rkind),intent(in) :: iLayerHydCond(0:nSoil)       ! hydraulic conductivity at layer interface (m s-1)
@@ -2101,17 +2101,17 @@ contains
    scalarFrozenArea => io_soilLiqFlux % scalarFrozenArea    & ! fraction of area that is considered impermeable due to soil ice (-)
   &)
    ! intent(inout): hydraulic conductivity and diffusivity at the surface
-   io_surfaceFlux % surfaceHydCond = iLayerHydCond(0)         ! hydraulic conductivity at the surface (m s-1)
-   io_surfaceFlux % surfaceDiffuse = iLayerDiffuse(0)         ! hydraulic diffusivity at the surface (m2 s-1)
+   io_surfaceFlx % surfaceHydCond = iLayerHydCond(0)         ! hydraulic conductivity at the surface (m s-1)
+   io_surfaceFlx % surfaceDiffuse = iLayerDiffuse(0)         ! hydraulic diffusivity at the surface (m2 s-1)
    ! intent(inout): fluxes at layer interfaces and surface runoff
-   io_surfaceFlux % xMaxInfilRate    = xMaxInfilRate          ! maximum infiltration rate (m s-1)
-   io_surfaceFlux % scalarInfilArea  = scalarInfilArea        ! fraction of unfrozen area where water can infiltrate (-)
-   io_surfaceFlux % scalarFrozenArea = scalarFrozenArea       ! fraction of area that is considered impermeable due to soil ice (-)
+   io_surfaceFlx % xMaxInfilRate    = xMaxInfilRate          ! maximum infiltration rate (m s-1)
+   io_surfaceFlx % scalarInfilArea  = scalarInfilArea        ! fraction of unfrozen area where water can infiltrate (-)
+   io_surfaceFlx % scalarFrozenArea = scalarFrozenArea       ! fraction of area that is considered impermeable due to soil ice (-)
   end associate
- end subroutine initialize_io_surfaceFlux
+ end subroutine initialize_io_surfaceFlx
 
- subroutine finalize_io_surfaceFlux(io_surfaceFlux,nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse)
-  class(io_type_surfaceFlux),intent(in)   :: io_surfaceFlux ! input-output object for surfaceFlux
+ subroutine finalize_io_surfaceFlx(io_surfaceFlx,nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse)
+  class(io_type_surfaceFlx),intent(in)   :: io_surfaceFlx ! input-output object for surfaceFlx
   integer(i4b),intent(in)                :: nSoil         ! number of soil layers
   type(io_type_soilLiqFlux),intent(inout) :: io_soilLiqFlux ! input-output class object for soilLiqFlux
   real(rkind),intent(inout) :: iLayerHydCond(0:nSoil)     ! hydraulic conductivity at layer interface (m s-1)
@@ -2124,17 +2124,17 @@ contains
    scalarFrozenArea => io_soilLiqFlux % scalarFrozenArea    & ! fraction of area that is considered impermeable due to soil ice (-)
   &)
    ! intent(inout): hydraulic conductivity and diffusivity at the surface
-   iLayerHydCond(0) = io_surfaceFlux % surfaceHydCond         ! hydraulic conductivity at the surface (m s-1) 
-   iLayerDiffuse(0) = io_surfaceFlux % surfaceDiffuse         ! hydraulic diffusivity at the surface (m2 s-1)
+   iLayerHydCond(0) = io_surfaceFlx % surfaceHydCond         ! hydraulic conductivity at the surface (m s-1) 
+   iLayerDiffuse(0) = io_surfaceFlx % surfaceDiffuse         ! hydraulic diffusivity at the surface (m2 s-1)
    ! intent(inout): fluxes at layer interfaces and surface runoff
-   xMaxInfilRate    = io_surfaceFlux % xMaxInfilRate          ! maximum infiltration rate (m s-1)                                   
-   scalarInfilArea  = io_surfaceFlux % scalarInfilArea        ! fraction of unfrozen area where water can infiltrate (-)
-   scalarFrozenArea = io_surfaceFlux % scalarFrozenArea       ! fraction of area that is considered impermeable due to soil ice (-)
+   xMaxInfilRate    = io_surfaceFlx % xMaxInfilRate          ! maximum infiltration rate (m s-1)                                   
+   scalarInfilArea  = io_surfaceFlx % scalarInfilArea        ! fraction of unfrozen area where water can infiltrate (-)
+   scalarFrozenArea = io_surfaceFlx % scalarFrozenArea       ! fraction of area that is considered impermeable due to soil ice (-)
   end associate
- end subroutine finalize_io_surfaceFlux
+ end subroutine finalize_io_surfaceFlx
 
- subroutine finalize_out_surfaceFlux(out_surfaceFlux,io_soilLiqFlux,err,cmessage)
-  class(out_type_surfaceFlux),intent(in)  :: out_surfaceFlux ! output object for surfaceFlux
+ subroutine finalize_out_surfaceFlx(out_surfaceFlx,io_soilLiqFlux,err,cmessage)
+  class(out_type_surfaceFlx),intent(in)  :: out_surfaceFlx ! output object for surfaceFlx
   type(io_type_soilLiqFlux),intent(inout) :: io_soilLiqFlux  ! input-output class object for soilLiqFlux
   integer(i4b),intent(out)  :: err       ! error code
   character(*),intent(out)  :: cmessage  ! error message
@@ -2150,19 +2150,19 @@ contains
    dq_dNrgStateLayerSurfVec => io_soilLiqFlux % dq_dNrgStateLayerSurfVec  & ! ... temperature above soil snow or canopy and every soil layer (m s-1 or s-1)
   &)
    ! intent(out): surface runoff and infiltration
-   scalarSurfaceRunoff       = out_surfaceFlux % scalarSurfaceRunoff       ! surface runoff (m s-1)
-   scalarSurfaceRunoff_IE    = out_surfaceFlux % scalarSurfaceRunoff_IE    ! infiltration excess surface runoff (m s-1)
-   scalarSurfaceRunoff_SE    = out_surfaceFlux % scalarSurfaceRunoff_SE    ! saturation excess surface runoff (m s-1)
-   scalarSurfaceInfiltration = out_surfaceFlux % scalarSurfaceInfiltration ! surface infiltration (m s-1)
+   scalarSurfaceRunoff       = out_surfaceFlx % scalarSurfaceRunoff       ! surface runoff (m s-1)
+   scalarSurfaceRunoff_IE    = out_surfaceFlx % scalarSurfaceRunoff_IE    ! infiltration excess surface runoff (m s-1)
+   scalarSurfaceRunoff_SE    = out_surfaceFlx % scalarSurfaceRunoff_SE    ! saturation excess surface runoff (m s-1)
+   scalarSurfaceInfiltration = out_surfaceFlx % scalarSurfaceInfiltration ! surface infiltration (m s-1)
    ! intent(inout): derivatives in surface infiltration in the upper-most soil layer w.r.t. ...
-   dq_dHydStateLayerSurfVec  = out_surfaceFlux % dq_dHydStateVec ! ... hydrology state in above soil snow or canopy and every soil layer  (m s-1 or s-1)
-   dq_dNrgStateLayerSurfVec  = out_surfaceFlux % dq_dNrgStateVec ! ... energy state in above soil snow or canopy and every soil layer (m s-1 K-1)
+   dq_dHydStateLayerSurfVec  = out_surfaceFlx % dq_dHydStateVec ! ... hydrology state in above soil snow or canopy and every soil layer  (m s-1 or s-1)
+   dq_dNrgStateLayerSurfVec  = out_surfaceFlx % dq_dNrgStateVec ! ... energy state in above soil snow or canopy and every soil layer (m s-1 K-1)
   end associate
   ! intent(out): error control
-  err      = out_surfaceFlux % err     ! error code
-  cmessage = out_surfaceFlux % message ! error message
- end subroutine finalize_out_surfaceFlux
- ! **** end surfaceFlux ****
+  err      = out_surfaceFlx % err     ! error code
+  cmessage = out_surfaceFlx % message ! error message
+ end subroutine finalize_out_surfaceFlx
+ ! **** end surfaceFlx ****
 
  ! **** iLayerFlux ****
  subroutine initialize_in_iLayerFlux(in_iLayerFlux,iLayer,nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
