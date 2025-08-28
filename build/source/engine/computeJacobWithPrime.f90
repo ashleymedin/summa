@@ -492,10 +492,10 @@ subroutine computeJacobWithPrime(&
             if(qLayer<=nSnow+nLake)then
               jLayer = qLayer
               iLayer = qLayer
-              endLayer = nSnow+nLake
+              endLayer = nSnow + nLake
             else
               jLayer = qLayer + nLake + nSoil
-              iLayer = qLayer - nSnow
+              iLayer = qLayer - nSnow - nLake
               endLayer = nGlce
             endif
             ! - check that the layer is desired
@@ -520,6 +520,13 @@ subroutine computeJacobWithPrime(&
               if(ixSnowOnlyHyd(iLayer+2)/=integerMissing) aJac(ixOffDiag(ixSnowOnlyHyd(iLayer+2),watState),watState) = -(dt/mLayerDepth(jLayer+2))*iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot  ! dVol(below)/dLiq(above) -- (-)
             endif       
 
+            ! - only include banded terms for soil drainage into glce in banded structure
+            if(nSoil>0 .and. qLayer>nSnow)then
+              if(ixSoilOnlyHyd(nSoil)/=integerMissing)then 
+                if(watState - ixSoilOnlyHyd(nSoil) <= ku) aJac(ixOffDiag(ixSoilOnlyHyd(nSoil),watState),watState) = dt/mLayerDepth(nSnow+nLake+nSoil)
+              endif
+            endif
+
           end do  ! (looping through liquid water states in the snow, lake, glce domain)
         endif   ! (if the subset includes hydrology state variables in the snow, lake, glce domain)
 
@@ -532,11 +539,11 @@ subroutine computeJacobWithPrime(&
             if(qLayer<=nSnow+nLake)then
               jLayer = qLayer
               iLayer = qLayer
-              endLayer = nSnow+nLake
+              endLayer = nSnow + nLake
             else
               jLayer = qLayer + nLake + nSoil
-              iLayer = qLayer - nSnow
-              endLayer = nGlce-noThetaChange
+              iLayer = qLayer - nSnow - nLake
+              endLayer = nGlce - noThetaChange
             endif
             ! - check that the layer is desired
             if(ixSnLaSoGlNrg(jLayer)==integerMissing) cycle
@@ -571,7 +578,7 @@ subroutine computeJacobWithPrime(&
               endif
 
               ! (cross-derivative terms for the layer below unless bottom ice layer)
-              if(iLayer<endLayer)then
+              if(iLayer<endLayer .or. (iLayer==nSnow+nLake .and. nSoil==0))then
                 if(ixSnLaSoGlNrg(jLayer+1)/=integerMissing) aJac(ixOffDiag(ixSnLaSoGlNrg(jLayer+1),watState),watState) = (dt/mLayerDepth(jLayer+1))*(-dNrgFlux_dWatAbove(jLayer) )
               elseif(iLayer==nSnow+nLake .and. nSoilOnlyNrg>0)then ! bottom snow/lake layer and there is soil below
                 if(ixSoilOnlyNrg(1)/=integerMissing) aJac(ixOffDiag(ixSoilOnlyNrg(1),watState),watState) = (dt/mLayerDepth(nSnow+nLake+1))*(-dNrgFlux_dWatAbove(nSnow+nLake) )
@@ -904,10 +911,10 @@ subroutine computeJacobWithPrime(&
             if(qLayer<=nSnow+nLake)then
               jLayer = qLayer
               iLayer = qLayer
-              endLayer = nSnow+nLake
+              endLayer = nSnow + nLake
             else
               jLayer = qLayer + nLake + nSoil
-              iLayer = qLayer - nSnow
+              iLayer = qLayer - nSnow - nLake
               endLayer = nGlce
             endif
             ! - check that the layer is desired
@@ -932,6 +939,11 @@ subroutine computeJacobWithPrime(&
               if(ixSnowOnlyHyd(iLayer+2)/=integerMissing) aJac(ixSnowOnlyHyd(iLayer+2),watState) = -(dt/mLayerDepth(jLayer+2))*iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot  ! dVol(below)/dLiq(above) -- (-)
             endif
 
+            ! - include terms for soil drainage into glce
+            if(nSoil>0 .and. qLayer>nSnow)then
+              if(ixSoilOnlyHyd(nSoil)/=integerMissing) aJac(ixSoilOnlyHyd(nSoil),watState) = dt/mLayerDepth(nSnow+nLake+nSoil)
+            endif
+            
           end do  ! (looping through liquid water states in the snow, lake, glce domain)
         endif   ! (if the subset includes hydrology state variables in the snow, lake, glce domain)
 
@@ -944,11 +956,11 @@ subroutine computeJacobWithPrime(&
             if(qLayer<=nSnow+nLake)then
               jLayer = qLayer
               iLayer = qLayer
-              endLayer = nSnow+nLake
+              endLayer = nSnow + nLake
             else
               jLayer = qLayer + nLake + nSoil
-              iLayer = qLayer - nSnow
-              endLayer = nGlce-noThetaChange
+              iLayer = qLayer - nSnow - nLake
+              endLayer = nGlce - noThetaChange
             endif
             ! - check that the layer is desired
             if(ixSnLaSoGlNrg(jLayer)==integerMissing) cycle
@@ -982,7 +994,7 @@ subroutine computeJacobWithPrime(&
               endif
 
               ! (cross-derivative terms for the layer below unless bottom ice layer)
-              if(iLayer<endLayer)then
+              if(iLayer<endLayer .or. (iLayer==nSnow+nLake .and. nSoil==0))then
                 if(ixSnLaSoGlNrg(jLayer+1)/=integerMissing) aJac(ixSnLaSoGlNrg(jLayer+1),watState) = (dt/mLayerDepth(jLayer+1))*(-dNrgFlux_dWatAbove(jLayer) )
               elseif(iLayer==nSnow+nLake .and. nSoilOnlyNrg>0)then ! bottom snow/lake layer and there is soil below
                 if(ixSoilOnlyNrg(1)/=integerMissing) aJac(ixSoilOnlyNrg(1),watState) = (dt/mLayerDepth(nSnow+nLake+1))*(-dNrgFlux_dWatAbove(nSnow+nLake) )
