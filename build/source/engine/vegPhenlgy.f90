@@ -27,7 +27,7 @@ USE nr_type
 USE globalData,only:&
                     realMissing,        & ! missing value for real numbers
                     urbanVegCategory,   & ! vegetation category for urban areas
-                    minExpLogHgt          ! minimum height of transition from the exponential to the logarithmic wind profile (m)
+                    minExpLogHgtFac       ! factor for minimum height of transition from the exponential to the logarithmic wind profile
 
 
 ! provide access to the derived types to define the data structures
@@ -111,6 +111,8 @@ contains
  real(rkind)                     :: z0Ground                   ! roughness length of the ground (ground below the canopy or non-vegetated surface) (m)
  real(rkind)                     :: notUsed_heightCanopyTop    ! height of the top of the canopy layer (m)
  real(rkind)                     :: heightAboveSnow            ! height top of canopy is above the snow surface (m)
+ real(rkind)                     :: minExpLogHgt               ! minimum height above ground for logarithmic wind profile (m)
+
  ! initialize error control
  err=0; message="vegPhenlgy/"
  ! ----------------------------------------------------------------------------------------------------------------------------------
@@ -125,7 +127,6 @@ contains
  ! model state variables
  scalarSnowDepth                 => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),           & ! intent(in):    [dp] snow depth on the ground surface (m)
  scalarCanopyTemp                => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1),          & ! intent(in):    [dp] temperature of the vegetation canopy at the start of the sub-step (K)
- scalarCanopyLiq                 => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),           & ! intent(inout): [dp] liquid water in the vegetation canopy at the start of the sub-step
  ! diagnostic variables and parameters (input)
  z0Snow                          => mpar_data%var(iLookPARAM%z0Snow)%dat(1),                   & ! intent(in): [dp] roughness length of snow (m)
  z0Soil                          => mpar_data%var(iLookPARAM%z0Soil)%dat(1),                   & ! intent(in): [dp] roughness length of soil (m)
@@ -192,16 +193,13 @@ contains
   exposedVAI      = scalarExposedLAI + scalarExposedSAI   ! exposed vegetation area index (m2 m-2)
   canopyDepth     = heightCanopyTop - heightCanopyBottom  ! canopy depth (m)
   heightAboveSnow = heightCanopyTop - scalarSnowDepth     ! height top of canopy is above the snow surface (m)
-  minExpLogHgt    = 0.02*sqrt(heightCanopyTop)  ! minimum height of transition from the exponential to the logarithmic wind profile (m)
 
   ! compute the roughness length of the ground (ground below the canopy or non-vegetated surface)
   z0Ground = z0Soil*(1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction     ! roughness length (m)
 
   ! determine if need to include vegetation in the energy flux routines
+  minExpLogHgt = minExpLogHgtFac*sqrt(heightCanopyTop) ! minimum height above ground for logarithmic wind profile (m)
   computeVegFlux = (exposedVAI > 0.05_rkind .and. heightAboveSnow > z0Ground + minExpLogHgt)
-
-  ! if no vegetation ever, should not have initialized scalarCanopyLiq to 0.0001 in read_icond.f90
-  if((scalarLAI + scalarSAI) == 0._rkind) scalarCanopyLiq = 0._rkind
 
  end if  ! (check if the snow-soil column is isolated)
 

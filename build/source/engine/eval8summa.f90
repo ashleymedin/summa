@@ -34,6 +34,8 @@ USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water 
 USE globalData,only:iname_matLayer  ! named variable defining the total water matric potential state variable for soil layers
 USE globalData,only:iname_lmpLayer  ! named variable defining the liquid water matric potential state variable for soil layers
 
+USE globalData,only:icefrz_mult     ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
+
 ! constants
 USE multiconst,only:&
                     LH_fus,     & ! latent heat of fusion                (J kg-1)
@@ -817,7 +819,8 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
   logical(lgt)                             :: small_delTemp              ! flag to constain temperature change to be less than zMaxTempIncrement
   logical(lgt)                             :: small_delMatric            ! flag to constain matric head change to be less than zMaxMatricIncrement
   logical(lgt)                             :: detect_events              ! flag to do freezing point event detection and cross-over with epsT
-  logical(lgt)                             :: water_bounds               ! flag to force water to not go above or below physical bounds
+  logical(lgt)                             :: water_bounds               ! flag to force water to not go above or below physical bounds  
+  real(rkind)                              :: frz_scale_use              ! scaling parameter for the snow or glce freezing curve (K-1)
   real(rkind)                              :: iceFlux_possible           ! 0 or 1 flag to indicate if ice flux is possible
   ! -----------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
@@ -984,13 +987,13 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
             select case( ixStateType_subset(ixLiq) )     
               case(iname_lmpLayer)
                 effSat = volFracLiq(stateVecPrev(ixLiq) + xInc(ixLiq),vGn_alpha(iLayer),0._rkind,1._rkind,vGn_n(iLayer),vGn_m(iLayer))  ! effective saturation
-                avPore = theta_sat(iLayer) - mLayerVolFracIce(iLayer+nSnow) - theta_res(iLayer)  ! available pore space
+                avPore = theta_sat(iLayer) - mLayerVolFracIce(iLayer+nSnow+nLake) - theta_res(iLayer)  ! available pore space
                 scalarLiq = effSat*avPore + theta_res(iLayer)
-                xPsi00 = matricHead(scalarLiq + mLayerVolFracIce(iLayer+nSnow),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
+                xPsi00 = matricHead(scalarLiq + mLayerVolFracIce(iLayer+nSnow+nLake),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
               case(iname_matLayer); xPsi00 = stateVecPrev(ixLiq) + xInc(ixLiq) ! only true if using iname_matLayer, otherwise may want to fix this
               case(iname_watLayer); xPsi00 = matricHead(stateVecPrev(ixLiq) + xInc(ixLiq),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
               case(iname_liqLayer) 
-                xPsi00 = matricHead(mLayerVolFracIce(iLayer+nSnow) + stateVecPrev(ixLiq) + xInc(ixLiq),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
+                xPsi00 = matricHead(mLayerVolFracIce(iLayer+nSnow+nLake) + stateVecPrev(ixLiq) + xInc(ixLiq),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
               case default; err=20; message=trim(message)//'expect ixStateType_subset to be iname_matLayer, iname_lmpLayer, iname_watLayer, or iname_liqLayer for soil hydrology'; return
             end select
           else
@@ -1028,9 +1031,12 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
         do jLayer=1,(nSnow+nLake+nGlce)
           if (jLayer <= nSnow+nLake) then
             iLayer = jLayer
+            frz_scale_use = snowfrz_scale
+            if (jLayer>nSnow) frz_scale_use = snowfrz_scale*icefrz_mult
           else
             iLayer = jLayer + nSoil
-          endif
+            frz_scale_use = snowfrz_scale*icefrz_mult
+          end if
            ! check if the layer is included
           if(ixSnLaSoGlHyd(iLayer)==integerMissing) cycle
           if(ixSnLaSoGlNrg(iLayer)/=integerMissing)then
@@ -1041,8 +1047,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           endif
           ! get the volumetric fraction of liquid water and ice
           select case( ixStateType_subset( ixSnLaSoGlHyd(iLayer) ) )
-            case(iname_watLayer); scalarLiq = fracliquid(scalarTemp,mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),iLayer>nLayers-noThetaChange) &
-                                             * stateVecPrev(ixSnLaSoGlHyd(iLayer))
+            case(iname_watLayer); scalarLiq = fracliquid(scalarTemp,frz_scale_use,iLayer>nLayers-noThetaChange)*stateVecPrev(ixSnLaSoGlHyd(iLayer))
             case(iname_liqLayer); scalarLiq = stateVecPrev(ixSnLaSoGlHyd(iLayer))
             case default; err=20; message=trim(message)//'expect ixStateType_subset to be iname_watLayer or iname_liqLayer for snow, lake, glce hydrology'; return
           end select
@@ -1064,7 +1069,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
         do iLayer=1,nSoil
           ! check if the layer is included
           if(ixSoilOnlyHyd(iLayer)==integerMissing) cycle
-          if(ixHydType(iLayer+nSnow)==iname_watLayer .or. ixHydType(iLayer+nSnow)==iname_liqLayer)then
+          if(ixHydType(iLayer+nSnow+nLake)==iname_watLayer .or. ixHydType(iLayer+nSnow+nLake)==iname_liqLayer)then
             ! get the volumetric fraction of liquid water and ice
             select case( ixStateType_subset( ixSoilOnlyHyd(iLayer) ) )
               case(iname_watLayer)
@@ -1073,7 +1078,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
                 if(ixSoilOnlyNrg(iLayer)/=integerMissing)then
                   scalarTemp = stateVecPrev( ixSoilOnlyNrg(iLayer) )
                 else
-                  scalarTemp = prog_data%var(iLookPROG%mLayerTemp)%dat(iLayer+nSnow)
+                  scalarTemp = prog_data%var(iLookPROG%mLayerTemp)%dat(iLayer+nSnow+nLake)
                 endif
                 ! identify the critical point when soil begins to freeze (TcSoil)
                 TcSoil = crit_soilT(xPsi00)
@@ -1087,7 +1092,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
                 end if  ! (check if soil is partially frozen)
               case(iname_liqLayer); scalarLiq = stateVecPrev(ixSoilOnlyHyd(iLayer))
             end select
-            scalarIce = merge(stateVecPrev(ixSoilOnlyHyd(iLayer)) - scalarLiq,mLayerVolFracIce(iLayer+nSnow), ixHydType(iLayer)==iname_watLayer)
+            scalarIce = merge(stateVecPrev(ixSoilOnlyHyd(iLayer)) - scalarLiq,mLayerVolFracIce(iLayer+nSnow+nLake), ixHydType(iLayer)==iname_watLayer)
             ! checking if drain more than what is available or add more than possible, constrained iteration increment -- simplified bi-section
             if(-xInc(ixSoilOnlyHyd(iLayer)) > scalarLiq - theta_res(iLayer))then 
               xInc(ixSoilOnlyHyd(iLayer)) = -0.5_rkind*(scalarLiq - theta_res(iLayer))

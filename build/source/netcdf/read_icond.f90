@@ -22,10 +22,11 @@ module read_icond_module
 USE nr_type
 USE netcdf
 USE globalData,only: ixHRUfile_min,ixHRUfile_max
-USE globalData,only: nTimeDelay      ! number of hours in the time delay histogram
-USE globalData,only: nSpecBand       ! number of spectral bands
-USE globalData,only: int8Missing     ! missing integer
-USE globalData,only:verySmaller      ! a smaller number used as an additive constant to check if substantial difference among real numbers
+USE globalData,only: nTimeDelay        ! number of hours in the time delay histogram
+USE globalData,only: nSpecBand         ! number of spectral bands
+USE globalData,only: int8Missing       ! missing integer
+USE globalData,only: verySmaller       ! a smaller number used as an additive constant to check if substantial difference among real numbers
+USE globalData,only: nMeltingIceLayers ! number of glacier ice layers that can have a change in total water content
 
 ! access domain types
 USE globalData,only:upland             ! domain type for upland areas
@@ -594,7 +595,7 @@ contains
     ! define layers that will not have a change in total water content
     noThetaChange = 0
     if(nGlce>0)then
-      noThetaChange = nGlce - 1 ! This is a hard-coded value saying only the top glacier layer has change in theta can be increasing in the future to allow more glacier layers to have a change
+      noThetaChange = nGlce - nMeltingIceLayers ! This is a hard-coded value saying only top nMeltingIceLayers has change in theta
       ! need at least one glacier top layer with a theta change
       if(noThetaChange>=nGlce)then; err=20; message=trim(message)//'number of glacier ice layers without a change in total water content is not less than the number of glacier ice layers'; return; endif
     endif

@@ -99,6 +99,8 @@ contains
   case('nrgConserv'      ); get_ixdecisions=iLookDECISIONS%nrgConserv  ! choice of variable in either energy backward Euler residual or IDA state variable
   case('aquiferIni'      ); get_ixdecisions=iLookDECISIONS%aquiferIni  ! choice of full or empty aquifer at start
   case('infRateMax'      ); get_ixdecisions=iLookDECISIONS%infRateMax  ! choice of maximum infiltration rate method
+  case('surfRun_IE'      ); get_ixdecisions=iLookDECISIONS%surfRun_IE  ! choice of parameterization for infiltration excess surface runoff
+  case('surfRun_SE'      ); get_ixdecisions=iLookDECISIONS%surfRun_SE  ! choice of parameterization for saturation excess surface runoff
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = integerMissing
@@ -443,6 +445,7 @@ contains
   case('FUSE_lambda  '            ); get_ixParam = iLookPARAM%FUSE_lambda            ! FUSE TOPMODEL gamma distribution lambda parameter       
   case('FUSE_chi     '            ); get_ixParam = iLookPARAM%FUSE_chi               ! FUSE TOPMODEL gamma distribution chi    parameter       
   case('FUSE_mu      '            ); get_ixParam = iLookPARAM%FUSE_mu                ! FUSE TOPMODEL gamma distribution mu     parameter       
+  case('FUSE_n       '            ); get_ixParam = iLookPARAM%FUSE_n                 ! FUSE TOPMODEL exponent                                  
   ! get to here if cannot find the variable
   case default
    get_ixParam = integerMissing
@@ -517,7 +520,6 @@ contains
  select case(trim(varName))
   ! local properties
   case('scalarCanopyDepth'              ); get_ixDiag = iLookDIAG%scalarCanopyDepth                ! canopy depth (m)
-  case('scalarGreenVegFraction'         ); get_ixDiag = iLookDIAG%scalarGreenVegFraction           ! green vegetation fraction used to compute LAI (-)
   case('scalarBulkVolHeatCapVeg'        ); get_ixDiag = iLookDIAG%scalarBulkVolHeatCapVeg          ! bulk volumetric heat capacity of vegetation (J m-3 K-1)
   case('scalarCanopyCm'                 ); get_ixDiag = iLookDIAG%scalarCanopyCm                   ! Cm of canopy (J kg-1 K-1)
   case('scalarCanopyEmissivity'         ); get_ixDiag = iLookDIAG%scalarCanopyEmissivity           ! effective canopy emissivity (-)
@@ -605,7 +607,7 @@ contains
   ! soil hydrology
   case('scalarInfilArea'                ); get_ixDiag = iLookDIAG%scalarInfilArea                  ! fraction of unfrozen area where water can infiltrate (-)
   case('scalarFrozenArea'               ); get_ixDiag = iLookDIAG%scalarFrozenArea                 ! fraction of area that is considered impermeable due to soil ice (-)
-  case('scalarSoilControl'              ); get_ixDiag = iLookDIAG%scalarSoilControl                ! soil control on infiltration: 1=controlling; 0=not (-)
+  case('scalarSoilControl'              ); get_ixDiag = iLookDIAG%scalarSoilControl                ! soil control on infiltration for derivative
   case('mLayerVolFracAir'               ); get_ixDiag = iLookDIAG%mLayerVolFracAir                 ! volumetric fraction of air in each layer (-)
   case('mLayerTcrit'                    ); get_ixDiag = iLookDIAG%mLayerTcrit                      ! critical soil temperature above which all water is unfrozen (K)
   case('mLayerCompress'                 ); get_ixDiag = iLookDIAG%mLayerCompress                   ! change in volumetric water content due to compression of soil (s-1)
@@ -852,7 +854,7 @@ contains
   case('d2VolTot_dPsi02'                ); get_ixDeriv = iLookDERIV%d2VolTot_dPsi02                ! second derivative in total water content w.r.t. total water matric potential
   case('dq_dHydStateAbove'              ); get_ixDeriv = iLookDERIV%dq_dHydStateAbove              ! change in the flux in layer interfaces w.r.t. state variables in the layer above
   case('dq_dHydStateBelow'              ); get_ixDeriv = iLookDERIV%dq_dHydStateBelow              ! change in the flux in layer interfaces w.r.t. state variables in the layer below
-  case('dq_dHydStateLayerSurfVec'       ); get_ixDeriv = iLookDERIV%dq_dHydStateLayerSurfVec       ! change in the flux in soil surface interface w.r.t. state variables in layer above and below
+  case('dq_dHydStateLayerSurfVec'       ); get_ixDeriv = iLookDERIV%dq_dHydStateLayerSurfVec       ! change in the flux in soil surface interface w.r.t. state variables in layers
   case('mLayerdTheta_dPsi'              ); get_ixDeriv = iLookDERIV%mLayerdTheta_dPsi              ! derivative in the soil water characteristic w.r.t. psi (m-1)
   case('mLayerdPsi_dTheta'              ); get_ixDeriv = iLookDERIV%mLayerdPsi_dTheta              ! derivative in the soil water characteristic w.r.t. theta (m)
   case('dCompress_dPsi'                 ); get_ixDeriv = iLookDERIV%dCompress_dPsi                 ! derivative in compressibility w.r.t matric head (m-1)
@@ -861,7 +863,7 @@ contains
   ! derivative in liquid water fluxes for the soil domain w.r.t energy state variables
   case('dq_dNrgStateAbove'              ); get_ixDeriv = iLookDERIV%dq_dNrgStateAbove              ! change in the flux in layer interfaces w.r.t. state variables in the layer above
   case('dq_dNrgStateBelow'              ); get_ixDeriv = iLookDERIV%dq_dNrgStateBelow              ! change in the flux in layer interfaces w.r.t. state variables in the layer below
-  case('dq_dNrgStateLayerSurfVec'       ); get_ixDeriv = iLookDERIV%dq_dNrgStateLayerSurfVec       ! change in the flux in soil surface interface w.r.t. state variables in layer above and below
+  case('dq_dNrgStateLayerSurfVec'       ); get_ixDeriv = iLookDERIV%dq_dNrgStateLayerSurfVec       ! change in the flux in soil surface interface w.r.t. state variables in layers
   case('dPsiLiq_dTemp'                  ); get_ixDeriv = iLookDERIV%dPsiLiq_dTemp                  ! derivative in the liquid water matric potential w.r.t. temperature (m K-1)
   case('dPsiLiq_dPsi0'                  ); get_ixDeriv = iLookDERIV%dPsiLiq_dPsi0                  ! derivative in liquid matric potential w.r.t. total  matric potential (-)
  ! derivatives in soil transpiration w.r.t. canopy state variables

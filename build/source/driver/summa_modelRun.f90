@@ -111,7 +111,6 @@ contains
   bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat               -- basin-average variables
   gridStruct           => summa1_struc%gridStruct          , & ! x%gru(:)%grid(:)%var(:)%dat2(:,:) -- basin grid parameters and variables
   ! run time variables
-  greenVegFrac_monthly => summa1_struc%greenVegFrac_monthly, & ! fraction of green vegetation in each month (0-1)
   computeVegFlux       => summa1_struc%computeVegFlux      , & ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
   dt_init              => summa1_struc%dt_init             , & ! used to initialize the length of the sub-step for each HRU
   nGRU                 => summa1_struc%nGRU                  & ! number of grouped response units
@@ -124,14 +123,12 @@ contains
  ! *** initialize computeVegFlux (flag to indicate if we are computing fluxes over vegetation) over land
  ! *****************************************************************************************************
 
- ! if computeVegFlux changes, then the number of state variables changes, and we need to reoranize the data structures
+ ! if computeVegFlux changes, then the number of state variables changes, and we need to reorganize the data structures
  if(modelTimeStep==1)then
   do iGRU=1,nGRU
    do iHRU=1,gru_struc(iGRU)%hruCount
     ! initialize the flag to compute the vegetation fluxes and the green vegetation fraction
     computeVegFlux%gru(iGRU)%hru(iHRU) = no
-    diagStruct%gru(iGRU)%hru(iHRU)%dom(1)%var(iLookDIAG%scalarGreenVegFraction)%dat(1) = realMissing
-
     do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
 
      noVeg = .true.
@@ -163,8 +160,6 @@ contains
       if(computeVegFluxFlag)      computeVegFlux%gru(iGRU)%hru(iHRU) = yes
       if(.not.computeVegFluxFlag) computeVegFlux%gru(iGRU)%hru(iHRU) = no 
      endif
-     ! define the green vegetation fraction of the grid box (used to compute LAI if needed)
-     diagStruct%gru(iGRU)%hru(iHRU)%dom(1)%var(iLookDIAG%scalarGreenVegFraction)%dat(1) = greenVegFrac_monthly(timeStruct%var(iLookTIME%im))
 
     end do ! looping through domains
    end do ! looping through HRUs
@@ -240,7 +235,6 @@ contains
   ! lookup table structure
   lookupStruct         => summa1_struc%lookupStruct        , & ! x%gru(:)%hru(:)%z(:)%var(:)%lookup    -- lookup-tables
   ! run time variables
-  greenVegFrac_monthly => summa1_struc%greenVegFrac_monthly, & ! fraction of green vegetation in each month (0-1)
   computeVegFlux       => summa1_struc%computeVegFlux      , & ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
   dt_init              => summa1_struc%dt_init             , & ! used to initialize the length of the sub-step for each HRU and DOM
   nGRU                 => summa1_struc%nGRU                  & ! number of grouped response units

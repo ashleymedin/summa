@@ -27,6 +27,8 @@ USE nr_type
 USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number
 
+USE globalData,only:icefrz_mult     ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
+
 ! access the global print flag
 USE globalData,only:globalPrintFlag
 
@@ -230,6 +232,7 @@ subroutine updateDiagnWithPrime(&
   real(rkind)                        :: tempMax                         ! maximum bracket for temperature (K)
   logical(lgt)                       :: bFlag                           ! flag to denote that iteration increment was constrained using bi-section
   real(rkind),parameter              :: epsT=1.e-7_rkind                ! small interval above/below critical temperature (K)
+  real(rkind)                        :: frz_scale_use                   ! scaling parameter for the snow or glce freezing curve (K-1)
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! make association with variables in the data structures
   associate(&
@@ -648,12 +651,15 @@ subroutine updateDiagnWithPrime(&
 
             ! *** snow layers
             case(iname_snow, iname_lake, iname_glce)
+              frz_scale_use = snowfrz_scale
+              if(ixDomainType==iname_lake .or. ixDomainType==iname_glce) frz_scale_use = snowfrz_scale*icefrz_mult
+
               ! compute volumetric fraction of liquid water and ice
               call updateSnLaGlPrime(&
                               iLayer>nLayers-noThetaChange,   & ! intent(in):  flag if no liquid water in layer
                               xTemp,                          & ! intent(in):  temperature (K)
                               mLayerVolFracWatTrial(iLayer),  & ! intent(in):  mass state variable = trial volumetric fraction of water (-)
-                              snowfrz_scale,                  & ! intent(in):  scaling parameter for the snow freezing curve (K-1)
+                              frz_scale_use,              & ! intent(in):  scaling parameter for the snow freezing curve (K-1)
                               mLayerTempPrime(iLayer),        & ! intent(in):  temperature time derivative (K/s)
                               mLayerVolFracWatPrime(iLayer),  & ! intent(in):  volumetric fraction of total water time derivative (-)
                               mLayerVolFracLiqTrial(iLayer),  & ! intent(out): trial volumetric fraction of liquid water (-)

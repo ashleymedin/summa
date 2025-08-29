@@ -27,7 +27,7 @@ USE nr_type
 USE globalData,only:&
                     verySmall,          & ! a very small number used as an additive constant to check if substantial difference among real numbers
                     realMissing,        & ! missing value for real numbers
-                    minExpLogHgt          ! minimum height of transition from the exponential to the logarithmic wind profile (m)
+                    minExpLogHgtFac       ! factor for minimum height of transition from the exponential to the logarithmic wind profile
 
 ! derived types to define the data structures
 USE data_types,only:&
@@ -340,7 +340,7 @@ subroutine vegNrgFlux(&
     ! NOTE: soil stress only computed at the start of the substep (firstFluxCall=.true.)
     scalarSWE                       => prog_data%var(iLookPROG%scalarSWE)%dat(1),                      & ! intent(in): [dp]    snow water equivalent on the ground (kg m-2)
     scalarSnowDepth                 => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),                & ! intent(in): [dp]    snow depth on the ground surface (m)
-    scalarGroundSnowFraction        => diag_data%var(iLookDIAG%scalarGroundSnowFraction)%dat(1),       & ! intent(in): [dp] fraction of ground covered with snow (-)
+    scalarGroundSnowFraction        => diag_data%var(iLookDIAG%scalarGroundSnowFraction)%dat(1),       & ! intent(in): [dp]    fraction of ground covered with snow (-)
     mLayerVolFracLiq                => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,                  & ! intent(in): [dp(:)] volumetric fraction of liquid water in each layer (-)
     mLayerMatricHead                => prog_data%var(iLookPROG%mLayerMatricHead)%dat,                  & ! intent(in): [dp(:)] matric head in each soil layer (m)
     localAquiferStorage             => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1),           & ! intent(in): [dp]    aquifer storage for the local column (m)
@@ -559,7 +559,6 @@ subroutine vegNrgFlux(&
           if (nSnow > 0) then ! case when there is snow on the ground (EXCLUDE "snow without a layer" -- in this case, evaporate from the soil)
             if (groundTempTrial > Tfreeze) then; err=20; message=trim(message)//'do not expect ground temperature > 0 when snow is on the ground'; return; end if
             scalarLatHeatSubVapGround = LH_sub  ! sublimation from snow
-            scalarGroundSnowFraction  = 1._rkind
             ! case when the ground is snow-free
           else ! case when the ground is less than a layer of snow (e.g., bare soil or snow without a layer)
             if (nLake>0)then
@@ -1546,6 +1545,7 @@ subroutine aeroResist(&
   real(rkind)                      :: heightAboveGround                    ! height above the snow surface (m)
   real(rkind)                      :: heightCanopyTopAboveSnow             ! height at the top of the vegetation canopy relative to snowpack (m)
   real(rkind)                      :: heightCanopyBottomAboveSnow          ! height at the bottom of the vegetation canopy relative to snowpack (m)
+  real(rkind)                      :: minExpLogHgt                         ! minimum height above ground for logarithmic wind profile (m)
   ! local variables: derivatives
   real(rkind)                      :: dFV_dT                               ! derivative in friction velocity w.r.t. canopy air temperature
   real(rkind)                      :: dED_dT                               ! derivative in eddy diffusivity at the top of the canopy w.r.t. canopy air temperature
@@ -1578,6 +1578,7 @@ subroutine aeroResist(&
     ! NOTE: the new coordinate system makes zeroPlaneDisplacement and z0Canopy consistent
     heightCanopyTopAboveSnow = heightCanopyTop - snowDepth
     ! Ensure that heightCanopyBottomAboveSnow >= z0Ground + minExpLogHgt
+    minExpLogHgt = minExpLogHgtFac*sqrt(heightCanopyTop) ! minimum height above ground for logarithmic wind profile (m)
     heightCanopyBottomAboveSnow = max(heightCanopyBottom - snowDepth, z0Ground + minExpLogHgt)
     ! compute zero-plane displacement and roughness length of the vegetation canopy
     select case(ixVegTraits)

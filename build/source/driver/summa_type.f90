@@ -96,13 +96,9 @@ type, public :: summa1_type_dec
     type(gru_hru_dom_d)              :: dt_init                    ! used to initialize the length of the sub-step for each HRU
     type(gru_hru_d)                  :: upArea                     ! area upslope of each HRU
     ! define miscellaneous variables
-    integer(i4b)                     :: summa1open                 ! flag to define if the summa file is open??
-    integer(i4b)                     :: numout                     ! number of output variables??
-    real(rkind)                      :: ts                         ! model time step ??
     integer(i4b)                     :: nGRU                       ! number of grouped response units
     integer(i4b)                     :: nHRU                       ! number of global hydrologic response units
     integer(i4b)                     :: nDOM                       ! number of global domains (max in any HRU)
-    real(rkind),dimension(12)        :: greenVegFrac_monthly       ! fraction of green vegetation in each month (0-1)
     character(len=256)               :: summaFileManagerFile       ! path/name of file defining directories and files
 end type summa1_type_dec
 
