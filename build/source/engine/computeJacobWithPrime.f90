@@ -968,8 +968,7 @@ subroutine computeJacobWithPrime(&
             ! - define state indices for the current layer
             watState = ixSnLaSoGlHyd(jLayer)   ! hydrology state index within the state subset
 
-            if(watstate/=integerMissing)then       ! (energy state for the current layer is within the state subset)
-
+            if(watstate/=integerMissing)then       ! (water state for the current layer is within the state subset)
               ! - include derivatives of energy fluxes w.r.t water fluxes for current layer
               aJac(nrgState,watState) = (-1._rkind + mLayerFracLiq(jLayer))*LH_fu0*iden_water * cj &
                                           + dVolHtCapBulk_dTheta(jLayer) * mLayerTempPrime(jLayer) + mLayerCm(jLayer) * cj &
@@ -991,6 +990,7 @@ subroutine computeJacobWithPrime(&
               if(qLayer>1 .or. (qLayer==1 .and. nSnow==0 .and. nSoil>0))then ! glce top layer with soil above
                 if(ixSnLaSoGlNrg(jLayer-1)/=integerMissing) aJac(ixSnLaSoGlNrg(jLayer-1),watState) = (dt/mLayerDepth(jLayer-1))*( dNrgFlux_dWatBelow(jLayer-1) )                 
               endif
+            endif   ! (if the water state for the current layer is within the state subset)
 
               ! (cross-derivative terms for the layer below unless bottom ice layer)
               if(iLayer<endLayer .or. (iLayer==nSnow+nLake .and. nSoil==0))then

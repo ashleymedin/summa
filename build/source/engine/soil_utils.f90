@@ -50,6 +50,8 @@ public::dTheta_dTk
 public::crit_soilT
 public::liquidHead
 public::gammp,gammp_complex
+public::LogSumExp
+public::SoftArgMax
 
 ! constant parameters
 real(rkind),parameter     :: dx=-1.e-12_rkind             ! finite difference increment
@@ -804,5 +806,74 @@ function gser_complex(a,x,gln)
    gser_complex=summ*exp(-x-log_gamma(a))*cmplx(x,0._rkind,rkind)**a ! allows x<0
   end if
 end function gser_complex
+
+! ******************************************************************************************************************************
+! public function LogSumExp: LSE (or RealSoftMax) function used for smooth approximations of max or min functions
+! ******************************************************************************************************************************
+function LogSumExp(alpha,x,err) result(LSE)
+  use, intrinsic :: ieee_arithmetic,only:ieee_value,ieee_quiet_nan
+  use, intrinsic :: iso_fortran_env,only:real128
+  implicit none
+  ! input
+  real(rkind),intent(in) :: alpha ! smoothness parameter (LSE --> max as alpha --> +Inf, LSE --> min as alpha --> -Inf)
+  real(rkind),intent(in) :: x(:)  ! vector of input values
+  ! output
+  real(rkind)              :: LSE ! LogSumExp value 
+  integer(i4b),intent(out) :: err ! error code
+  ! local variables
+  real(real128),allocatable :: x_qp(:) ! quadruple precision x vector
+  real(real128) :: x_star   ! quadruple precision shift value for numerical stability
+  real(real128) :: alpha_qp ! quadruple precision alpha
+  real(real128) :: LSE_qp   ! quadruple precision LSE value 
+
+  err = 0_i4b ! initialize error code
+
+  ! validation of input parameters
+  if (alpha == 0._rkind) then
+   err = 20_i4b ! positive error code to indicate failure
+   LSE = ieee_value(0._rkind,ieee_quiet_nan) ! assign NaN return value
+   return
+  end if
+
+  ! use quadruple precision variables to prevent over/underflow
+  alpha_qp = real(alpha,real128)
+  x_qp     = real(x,real128)
+
+  ! shift value to improve numerical stability
+  x_star = maxval(abs(x_qp))
+
+  LSE_qp= x_star + log(sum(exp(alpha_qp*(x_qp-x_star))))/alpha_qp
+  LSE=real(LSE_qp,rkind)
+end function LogSumExp
+
+! ******************************************************************************************************************************
+! public function SoftArgMax: SoftArgMax (aliases: softmax, normalized exponential) function for smooth approximations to argument max or min
+! ******************************************************************************************************************************
+! Note: Can be used to evaluate the derivatives of LogSumExp
+! dLogSumExp(alpha,x)_dx(i) = SoftArgMax(alpha,x)
+function SoftArgMax(alpha,x) result(SAM)
+  use, intrinsic :: iso_fortran_env,only:real128
+  implicit none
+  ! input
+  real(rkind),intent(in) :: alpha ! smoothness parameter (SAM --> arg max as alpha --> +Inf, SAM --> arg min as alpha --> -Inf)
+  real(rkind),intent(in) :: x(:) ! vector of input values
+  ! output
+  real(rkind),allocatable  :: SAM(:) ! SoftArgMax value 
+  ! local variables
+  real(real128) :: alpha_qp ! quadruple precision alpha
+  real(real128) :: x_star   ! quadruple precision shift value for numerical stability
+  real(real128),allocatable :: x_qp(:)   ! quadruple precision x vector
+  real(real128),allocatable :: SAM_qp(:) ! quadruple precision SAM value 
+
+  ! use quadruple precision variables to prevent over/underflow
+  alpha_qp = real(alpha,real128)
+  x_qp     = real(x,real128)
+
+  ! shift value to improve numerical stability
+  x_star = maxval(abs(x_qp))
+
+  SAM_qp = exp(alpha_qp*(x_qp-x_star)) / sum(exp(alpha_qp*(x_qp-x_star)))
+  SAM = real(SAM_qp,rkind)
+end function
 
 end module soil_utils_module

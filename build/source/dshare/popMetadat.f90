@@ -313,6 +313,7 @@ subroutine popMetadat(err,message)
   mpar_meta(iLookPARAM%FUSE_lambda  )               = var_info('FUSE_lambda'   , 'FUSE TOPMODEL gamma distribution lambda parameter', 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%FUSE_chi     )               = var_info('FUSE_chi'      , 'FUSE TOPMODEL gamma distribution chi parameter'   , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%FUSE_mu      )               = var_info('FUSE_mu'       , 'FUSE TOPMODEL gamma distribution mu parameter'    , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%FUSE_n       )               = var_info('FUSE_n'        , 'FUSE TOPMODEL exponent'                           , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin parameter data...
   ! -------------------------

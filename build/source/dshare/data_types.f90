@@ -815,6 +815,8 @@ MODULE data_types
    logical(lgt) :: firstSplitOper   ! flag indicating if desire to compute infiltration
    integer(i4b) :: ixRichards       ! index defining the option for Richards' equation (moisture or mixdform)
    integer(i4b) :: ixInfRateMax     ! index defining the maximum infiltration rate method (GreenAmpt or topmodel_GA)
+   integer(i4b) :: surfRun_IE       ! index defining the infiltration excess surface runoff method
+   integer(i4b) :: surfRun_SE       ! index defining the saturation excess surface runoff method
    integer(i4b) :: bc_upper         ! index defining the type of boundary conditions
    integer(i4b) :: nRoots           ! number of layers that contain roots
    integer(i4b) :: ixIce            ! index of lowest ice layer
@@ -855,10 +857,6 @@ MODULE data_types
    real(rkind) :: wettingFrontSuction ! Green-Ampt wetting front suction (m)
    real(rkind) :: soilIceScale        ! soil ice scaling factor in Gamma distribution used to define frozen area (m)
    real(rkind) :: soilIceCV           ! soil ice CV in Gamma distribution used to define frozen area (-)
-   ! input: aquifer variables for FUSE parameterizations
-   real(rkind) :: aquiferBaseflowExp        ! baseflow exponent (-)
-   real(rkind) :: scalarAquiferStorageTrial ! trial value of aquifer storage (m)
-   real(rkind) :: aquiferScaleFactor        ! scaling factor for aquifer storage in the big bucket (m)
    ! input: FUSE parameters
    real(rkind) :: FUSE_Ac_max   ! FUSE PRMS max saturated area
    real(rkind) :: FUSE_phi_tens ! FUSE PRMS tension fraction
@@ -866,6 +864,7 @@ MODULE data_types
    real(rkind) :: FUSE_lambda   ! FUSE TOPMODEL gamma distribution lambda parameter
    real(rkind) :: FUSE_chi      ! FUSE TOPMODEL chi   distribution lambda parameter
    real(rkind) :: FUSE_mu       ! FUSE TOPMODEL mu    distribution lambda parameter
+   real(rkind) :: FUSE_n        ! FUSE TOPMODEL exponent
   contains
    procedure :: initialize => initialize_in_surfaceFlx
  end type in_type_surfaceFlx 
@@ -1924,13 +1923,17 @@ contains
    firstSplitOper         => in_soilLiqFlx % firstSplitOper,                      & ! flag to compute infiltration
    ixRichards             => model_decisions(iLookDECISIONS%f_Richards)%iDecision,& ! index of the form of Richards' equation
    ixBcUpperSoilHydrology => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision,& ! index defining the type of boundary conditions
-   ixInfRateMax           => model_decisions(iLookDECISIONS%infRateMax)%iDecision & ! index of the maximum infiltration rate parameterization
+   ixInfRateMax           => model_decisions(iLookDECISIONS%infRateMax)%iDecision,& ! index of the maximum infiltration rate parameterization
+   surfRun_IE             => model_decisions(iLookDECISIONS%surfRun_IE)%iDecision,& ! index defining the infiltration excess surface runoff method
+   surfRun_SE             => model_decisions(iLookDECISIONS%surfRun_SE)%iDecision & ! index defining the saturation excess surface runoff method
   &)
    ! intent(in): model control
    in_surfaceFlx % firstSplitOper = firstSplitOper          ! flag indicating if desire to compute infiltration
    in_surfaceFlx % ixRichards     = ixRichards              ! index defining the form of Richards' equation (moisture or mixdform)
    in_surfaceFlx % bc_upper       = ixBcUpperSoilHydrology  ! index defining the type of boundary conditions (Neumann or Dirichlet)
    in_surfaceFlx % ixInfRateMax   = ixInfRateMax            ! index defining the maximum infiltration rate parameterization (GreenAmpt or topmodel_GA)
+   in_surfaceFlx % surfRun_IE     = surfRun_IE              ! index defining the infiltration excess surface runoff method
+   in_surfaceFlx % surfRun_SE     = surfRun_SE              ! index defining the saturation excess surface runoff method
    in_surfaceFlx % nRoots         = nRoots                  ! number of layers that contain roots
    in_surfaceFlx % ixIce          = ixIce                   ! index of lowest ice layer
    in_surfaceFlx % nSoil          = nSoil                   ! number of soil layers
@@ -2032,17 +2035,6 @@ contains
    in_surfaceFlx % soilIceCV           = soilIceCV           ! soil ice CV in Gamma distribution used to define frozen area (-)
   end associate
 
-  ! intent(in): aquifer values for FUSE parameterizations
-  associate(&
-   aquiferBaseflowExp        => mpar_data%var(iLookPARAM%aquiferBaseflowExp)%dat(1), & ! baseflow exponent (-)
-   scalarAquiferStorageTrial => in_soilLiqFlx % scalarAquiferStorageTrial,           & ! trial value of aquifer storage (m)
-   aquiferScaleFactor        => mpar_data%var(iLookPARAM%aquiferScaleFactor)%dat(1)  & ! scaling factor for aquifer storage in the big bucket (m)
-  &)
-   in_surfaceFlx % aquiferBaseflowExp        = aquiferBaseflowExp        ! baseflow exponent (-)
-   in_surfaceFlx % scalarAquiferStorageTrial = scalarAquiferStorageTrial ! trial value of aquifer storage (m)
-   in_surfaceFlx % aquiferScaleFactor        = aquiferScaleFactor        ! scaling factor for aquifer storage in the big bucket (m)
-  end associate
-
   ! intent(in): FUSE parameters
   associate(&
    FUSE_Ac_max   => mpar_data%var(iLookPARAM%FUSE_Ac_max  )%dat(1), & ! FUSE PRMS max saturated area
@@ -2050,7 +2042,8 @@ contains
    FUSE_b        => mpar_data%var(iLookPARAM%FUSE_b       )%dat(1), & ! FUSE ARNO/VIC exponent
    FUSE_lambda   => mpar_data%var(iLookPARAM%FUSE_lambda  )%dat(1), & ! FUSE TOPMODEL gamma distribution lambda parameter
    FUSE_chi      => mpar_data%var(iLookPARAM%FUSE_chi     )%dat(1), & ! FUSE TOPMODEL chi   distribution lambda parameter
-   FUSE_mu       => mpar_data%var(iLookPARAM%FUSE_mu      )%dat(1)  & ! FUSE TOPMODEL mu    distribution lambda parameter
+   FUSE_mu       => mpar_data%var(iLookPARAM%FUSE_mu      )%dat(1), & ! FUSE TOPMODEL mu    distribution lambda parameter
+   FUSE_n        => mpar_data%var(iLookPARAM%FUSE_n       )%dat(1)  & ! FUSE TOPMODEL exponent
   &)
    in_surfaceFlx % FUSE_Ac_max   = FUSE_Ac_max   ! FUSE PRMS max saturated area
    in_surfaceFlx % FUSE_phi_tens = FUSE_phi_tens ! FUSE PRMS tension fraction
@@ -2058,6 +2051,7 @@ contains
    in_surfaceFlx % FUSE_lambda   = FUSE_lambda   ! FUSE TOPMODEL gamma distribution lambda parameter
    in_surfaceFlx % FUSE_chi      = FUSE_chi      ! FUSE TOPMODEL chi   distribution lambda parameter
    in_surfaceFlx % FUSE_mu       = FUSE_mu       ! FUSE TOPMODEL mu    distribution lambda parameter
+   in_surfaceFlx % FUSE_n        = FUSE_n        ! FUSE TOPMODEL exponent
   end associate
  end subroutine initialize_in_surfaceFlx
 

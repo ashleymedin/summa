@@ -89,9 +89,6 @@ integer(i4b),parameter,public :: liquidFlux           = 161    ! liquid water fl
 integer(i4b),parameter,public :: prescribedHead       = 162    ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
 integer(i4b),parameter,public :: funcBottomHead       = 163    ! function of matric head in the lower-most layer
 integer(i4b),parameter,public :: freeDrainage         = 164    ! free drainage
-integer(i4b),parameter,public :: FUSEPRMS             = 165    ! FUSE PRMS surface runoff
-integer(i4b),parameter,public :: FUSEAVIC             = 166    ! FUSE ARNO/VIC surface runoff
-integer(i4b),parameter,public :: FUSETOPM             = 167    ! FUSE TOPMODEL surface runoff
 ! look-up values for the choice of parameterization for vegetation roughness length and displacement height
 integer(i4b),parameter,public :: Raupach_BLM1994      = 171    ! Raupach (BLM 1994) "Simplified expressions..."
 integer(i4b),parameter,public :: CM_QJRMS1988         = 172    ! Choudhury and Monteith (QJRMS 1988) "A four layer model for the heat budget..."
@@ -161,6 +158,16 @@ integer(i4b),parameter,public :: emptyStart           = 327    ! empty aquifer a
 integer(i4b),parameter,public :: GreenAmpt            = 331    ! Green-Ampt
 integer(i4b),parameter,public :: topmodel_GA          = 332    ! Green-Ampt-ish for use with qbaseTopmodel hydraulic conductivity
 integer(i4b),parameter,public :: noInfiltrationExcess = 333    ! No infiltration excess runoff
+! look-up values for the infiltration excess surface runoff method
+integer(i4b),parameter,public :: zero_IE              = 341    ! zero infiltration excess surface runoff
+integer(i4b),parameter,public :: homegrown_IE         = 342    ! homegrown infiltration excess surface runoff
+! look-up values for the saturation excess surface runoff method
+integer(i4b),parameter,public :: zero_SE              = 351    ! zero saturation excess surface runoff
+integer(i4b),parameter,public :: homegrown_SE         = 352    ! homegrown saturation excess surface runoff
+integer(i4b),parameter,public :: FUSEPRMS             = 353    ! FUSE PRMS surface runoff
+integer(i4b),parameter,public :: FUSEAVIC             = 354    ! FUSE ARNO/VIC surface runoff
+integer(i4b),parameter,public :: FUSETOPM             = 355    ! FUSE TOPMODEL surface runoff
+
 ! ----------------------------------------------------------------------------------------------------------- 
 
 contains
@@ -524,9 +531,6 @@ subroutine mDecisions(err,message)
   select case(trim(model_decisions(iLookDECISIONS%bcUpprSoiH)%cDecision))
     case('presHead'); model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision = prescribedHead      ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
     case('liq_flux'); model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision = liquidFlux          ! liquid water flux
-    case('FUSEPRMS'); model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision = FUSEPRMS            ! FUSE PRMS surface runoff
-    case('FUSEAVIC'); model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision = FUSEAVIC            ! FUSE ARNO/VIC surface runoff
-    case('FUSETOPM'); model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision = FUSETOPM            ! FUSE TOPMODEL surface runoff
     case default
       err=10; message=trim(message)//"unknown upper boundary conditions for soil hydrology [option="//trim(model_decisions(iLookDECISIONS%bcUpprSoiH)%cDecision)//"]"; return
   end select
@@ -695,6 +699,27 @@ subroutine mDecisions(err,message)
       endif
   end select
 
+  ! choice of method for infiltration excess surface runoff
+  ! NOTE: use homegrown surface runoff procedure as the default
+  select case(trim(model_decisions(iLookDECISIONS%surfRun_IE)%cDecision))
+    case('zero_IE'); model_decisions(iLookDECISIONS%surfRun_IE)%iDecision = zero_IE           ! infiltration excess surface runoff is zero
+    case('homegrown_IE','notPopulatedYet'); model_decisions(iLookDECISIONS%surfRun_IE)%iDecision = homegrown_IE ! use SUMMA's homegrown surface runoff procedure for infiltration excess runoff
+    case default
+      err=10; message=trim(message)//"unknown option for infiltration excess surface runoff method [option="//trim(model_decisions(iLookDECISIONS%surfRun_IE)%cDecision)//"]"; return
+  end select
+
+  ! choice of method for saturation excess surface runoff
+  ! NOTE: use homegrown surface runoff procedure as the default
+  select case(trim(model_decisions(iLookDECISIONS%surfRun_SE)%cDecision))
+    case('zero_SE'); model_decisions(iLookDECISIONS%surfRun_SE)%iDecision = zero_SE           ! saturation excess surface runoff is zero
+    case('homegrown_SE','notPopulatedYet'); model_decisions(iLookDECISIONS%surfRun_SE)%iDecision = homegrown_SE ! use SUMMA's homegrown surface runoff procedure for saturation excess runoff
+    case('FUSEPRMS'); model_decisions(iLookDECISIONS%surfRun_SE)%iDecision = FUSEPRMS ! use FUSE PRMS for saturation excess surface runoff
+    case('FUSEAVIC'); model_decisions(iLookDECISIONS%surfRun_SE)%iDecision = FUSEAVIC ! use FUSE ARNO/VIC for saturation excess surface runoff
+    case('FUSETOPM'); model_decisions(iLookDECISIONS%surfRun_SE)%iDecision = FUSETOPM ! use FUSE TOPMODEL for saturation excess surface runoff
+    case default
+      err=10; message=trim(message)//"unknown option for saturation excess surface runoff method [option="//trim(model_decisions(iLookDECISIONS%surfRun_SE)%cDecision)//"]"; return
+  end select
+
   ! -----------------------------------------------------------------------------------------------------------------------------------------------
   ! check for consistency among options
   ! -----------------------------------------------------------------------------------------------------------------------------------------------
@@ -720,14 +745,6 @@ subroutine mDecisions(err,message)
   if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == singleBasin)then
     if(model_decisions(iLookDECISIONS%groundwatr)%iDecision /= bigBucket)then
       message=trim(message)//'groundwater parameterization must be bigBucket when using singleBasin for spatial_gw (set "groundwatr" to "bigBuckt" in model decisions input file)'
-      err=20; return
-    end if
-  end if
-
-  ! check bigBucket groundwater option is used when FUSE TOPMODEL surface runoff is selected
-  if(model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision == FUSETOPM)then
-    if(model_decisions(iLookDECISIONS%groundwatr)%iDecision /= bigBucket)then
-      message=trim(message)//'groundwater parameterization must be bigBucket when using FUSE TOPMODEL surface runoff (set "groundwatr" to "bigBuckt" in model decisions input file)'
       err=20; return
     end if
   end if

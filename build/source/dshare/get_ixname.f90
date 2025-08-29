@@ -99,6 +99,8 @@ contains
   case('nrgConserv'      ); get_ixdecisions=iLookDECISIONS%nrgConserv  ! choice of variable in either energy backward Euler residual or IDA state variable
   case('aquiferIni'      ); get_ixdecisions=iLookDECISIONS%aquiferIni  ! choice of full or empty aquifer at start
   case('infRateMax'      ); get_ixdecisions=iLookDECISIONS%infRateMax  ! choice of maximum infiltration rate method
+  case('surfRun_IE'      ); get_ixdecisions=iLookDECISIONS%surfRun_IE  ! choice of parameterization for infiltration excess surface runoff
+  case('surfRun_SE'      ); get_ixdecisions=iLookDECISIONS%surfRun_SE  ! choice of parameterization for saturation excess surface runoff
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = integerMissing
@@ -443,6 +445,7 @@ contains
   case('FUSE_lambda  '            ); get_ixParam = iLookPARAM%FUSE_lambda            ! FUSE TOPMODEL gamma distribution lambda parameter       
   case('FUSE_chi     '            ); get_ixParam = iLookPARAM%FUSE_chi               ! FUSE TOPMODEL gamma distribution chi    parameter       
   case('FUSE_mu      '            ); get_ixParam = iLookPARAM%FUSE_mu                ! FUSE TOPMODEL gamma distribution mu     parameter       
+  case('FUSE_n       '            ); get_ixParam = iLookPARAM%FUSE_n                 ! FUSE TOPMODEL exponent                                  
   ! get to here if cannot find the variable
   case default
    get_ixParam = integerMissing
