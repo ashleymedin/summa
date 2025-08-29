@@ -835,13 +835,6 @@ contains
      mLayerLiqFluxSnLaGl(iLayer+nStart) = 0._rkind ! iLayerLiqFluxSnLaGl does not exist in soil
      mLayerLiqFluxSoil(iLayer) = -(iLayerLiqFluxSoil(iLayer) - iLayerLiqFluxSoil(iLayer-1))/mLayerDepth(iLayer+nStart)
    end do
-   ! calculate the soil control on infiltration
-   if (nSnow==0 .and. nLake==0) then ! infiltration into soil, no snow or lake
-     scalarSoilControl = 0._rkind ! initialize soil control to scalarRainPlusMelt exceeds maximum infiltration rate
-     if (scalarMaxInfilRate > scalarRainPlusMelt) scalarSoilControl = (1._rkind - scalarFrozenArea)*scalarInfilArea  ! infiltration is not rate-limited
-   else ! infiltration into snow or lake first
-     scalarSoilControl = 1._rkind
-   end if
   end associate
 
   associate(&

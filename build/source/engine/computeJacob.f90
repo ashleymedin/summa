@@ -125,6 +125,7 @@ subroutine computeJacob(&
   integer(i4b)                      :: jLayer               ! index of model layer within the full state vector (hydrology)
   integer(i4b)                      :: qLayer               ! indices of snow+glce layers
   integer(i4b)                      :: endLayer             ! index of the last layer 
+  integer(i4b)                      :: liteLayer            ! index of the top layer that is not too dense to pass water to get to soil
   ! conversion factors
   real(rkind)                       :: convLiq2tot          ! factor to convert liquid water derivative to total water derivative
   real(rkind)                       :: maxVolIceContent_use ! maximum volumetric ice content depending if snow or firn
@@ -577,7 +578,6 @@ subroutine computeJacob(&
             if(nSnow>0 .and. nLake==0)then ! have snow above first soil layer
               liteLayer=nSnow ! if passed through a too dense snowpack or lake, need to find top-nondense layer
               do pLayer=nSnow,1,-1
-                if(player==nSnow+1 .and. nLake>0)
                 if(mLayerVolFracIce(pLayer)<=maxVolIceContent_use) exit
                 liteLayer=pLayer
               end do
@@ -717,7 +717,6 @@ subroutine computeJacob(&
             if(nSnow>0 .and. nLake==0)then ! have snow above first soil layer
               liteLayer=nSnow ! if passed through a too dense snowpack or lake, need to find top-nondense layer
               do pLayer=nSnow,1,-1
-                if(player==nSnow+1 .and. nLake>0)
                 if(mLayerVolFracIce(pLayer)<=maxVolIceContent_use) exit
                 liteLayer=pLayer
               end do
@@ -728,7 +727,7 @@ subroutine computeJacob(&
               if(ixSnLaSoGlNrg(pLayer)/=integerMissing)then
                 ! only include banded terms
                 if(ixSnLaSoGlNrg(pLayer) - ixSoilOnlyHyd(1) <= ku) &
-                    aJac(ixOffDiag(ixSoilOnlyHyd(1),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer)) = -(dt/mLayerDepth(1+nSnow))*scalarSoilControl*iLayerLiqFluxSnowDeriv(pLayer)*mLayerdTheta_dTk(pLayer) + aJac(ixOffDiag(ixSoilOnlyHyd(1),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer))
+                    aJac(ixOffDiag(ixSoilOnlyHyd(1),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer)) = -(dt/mLayerDepth(1+nSnow))*scalarSoilControl*iLayerLiqFluxSnLaGlDeriv(pLayer)*mLayerdTheta_dTk(pLayer) + aJac(ixOffDiag(ixSoilOnlyHyd(1),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer))
               endif
             end do
           endif
@@ -840,7 +839,7 @@ subroutine computeJacob(&
         ! -----
         ! * liquid water fluxes for the snow, lake, glce domain...
         ! --------------------------------------------
-        if(nSnowOnlyHyd+nLakeOnlyHyd+GlceOnlyHyd>0)then
+        if(nSnowOnlyHyd+nLakeOnlyHyd+nGlceOnlyHyd>0)then
           do qLayer=1,nSnow+nGlce ! loop through layers in the snow, lake, glce domain
 
             if(qLayer<=nSnow+nLake)then
@@ -986,7 +985,6 @@ subroutine computeJacob(&
             if(nSnow>0 .and. nLake==0)then ! have snow above first soil layer
               liteLayer=nSnow ! if passed through a too dense snowpack or lake, need to find top-nondense layer
               do pLayer=nSnow,1,-1
-                if(player==nSnow+1 .and. nLake>0)
                 if(mLayerVolFracIce(pLayer)<=maxVolIceContent_use) exit
                 liteLayer=pLayer
               end do
@@ -1107,7 +1105,6 @@ subroutine computeJacob(&
             if(nSnow>0 .and. nLake==0)then ! have snow above first soil layer
               liteLayer=nSnow ! if passed through a too dense snowpack or lake, need to find top-nondense layer
               do pLayer=nSnow,1,-1
-                if(player==nSnow+1 .and. nLake>0)
                 if(mLayerVolFracIce(pLayer)<=maxVolIceContent_use) exit
                 liteLayer=pLayer
               end do
@@ -1116,7 +1113,7 @@ subroutine computeJacob(&
             endif
             do pLayer=liteLayer,nSnow+nLake
               if(ixSnLaSoGlNrg(pLayer)/=integerMissing)&
-                  aJac(ixSoilOnlyHyd(1),ixSnLaSoGlNrg(pLayer)) = -(dt/mLayerDepth(1+nSnow))*scalarSoilControl*iLayerLiqFluxSnowDeriv(pLayer)*mLayerdTheta_dTk(pLayer) + aJac(ixSoilOnlyHyd(1),ixSnLaSoGlNrg(pLayer))
+                  aJac(ixSoilOnlyHyd(1),ixSnLaSoGlNrg(pLayer)) = -(dt/mLayerDepth(1+nSnow))*scalarSoilControl*iLayerLiqFluxSnLaGlDeriv(pLayer)*mLayerdTheta_dTk(pLayer) + aJac(ixSoilOnlyHyd(1),ixSnLaSoGlNrg(pLayer))
             end do
           endif
 
