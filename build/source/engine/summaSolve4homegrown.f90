@@ -496,7 +496,7 @@ contains
     if(.not.doLineSearch) return
 
     ! check if the function is accepted
-    if(fNew < fold + alpha*slopeInit*xLambda) return
+    if(fNew < fOld + alpha*slopeInit*xLambda) return
 
     ! ***
     ! *** IF GET TO HERE WE BACKTRACK
