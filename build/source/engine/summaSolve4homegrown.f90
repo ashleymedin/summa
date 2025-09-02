@@ -479,7 +479,7 @@ contains
     if(globalPrintFlag)then
      write(*,'(a,1x,i4,1x,e17.10)' ) 'iLine, xLambda                 = ', iLine, xLambda
      write(*,'(a,1x,10(e17.10,1x))') 'fOld,fNew                      = ', fOld,fNew
-     write(*,'(a,1x,10(e17.10,1x))') 'fold + alpha*slopeInit*xLambda = ', fold + alpha*slopeInit*xLambda
+     write(*,'(a,1x,10(e17.10,1x))') 'fOld + alpha*slopeInit*xLambda = ', fOld + alpha*slopeInit*xLambda
      write(*,'(a,1x,10(e17.10,1x))') 'resVecNew                      = ', resVecNew(min(iJac1,nState):min(iJac2,nState))
      write(*,'(a,1x,10(e17.10,1x))') 'xInc                           = ', xInc(min(iJac1,nState):min(iJac2,nState))
     end if
@@ -612,7 +612,7 @@ contains
     end if
 
     ! dummy check for the function
-    if (fold==realMissing) print*, 'missing'
+    if (fOld==realMissing) print*, 'missing'
 
     ! dummy
     stateVecNew = realMissing
