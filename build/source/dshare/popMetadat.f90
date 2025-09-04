@@ -307,13 +307,13 @@ subroutine popMetadat(err,message)
   mpar_meta(iLookPARAM%zmaxLayer3_upper)               = var_info('zmaxLayer3_upper'               , 'maximum layer depth for the 3rd layer when > 3 layers'            , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%zmaxLayer4_upper)               = var_info('zmaxLayer4_upper'               , 'maximum layer depth for the 4th layer when > 4 layers'            , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! FUSE surface runoff
-  mpar_meta(iLookPARAM%FUSE_Ac_max  )               = var_info('FUSE_Ac_max'   , 'FUSE PRMS max saturated area'                     , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  mpar_meta(iLookPARAM%FUSE_phi_tens)               = var_info('FUSE_phi_tens' , 'FUSE PRMS tension storage fraction'               , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  mpar_meta(iLookPARAM%FUSE_b       )               = var_info('FUSE_b'        , 'FUSE ARNO/VIC exponent'                           , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  mpar_meta(iLookPARAM%FUSE_lambda  )               = var_info('FUSE_lambda'   , 'FUSE TOPMODEL gamma distribution lambda parameter', 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  mpar_meta(iLookPARAM%FUSE_chi     )               = var_info('FUSE_chi'      , 'FUSE TOPMODEL gamma distribution chi parameter'   , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  mpar_meta(iLookPARAM%FUSE_mu      )               = var_info('FUSE_mu'       , 'FUSE TOPMODEL gamma distribution mu parameter'    , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  mpar_meta(iLookPARAM%FUSE_n       )               = var_info('FUSE_n'        , 'FUSE TOPMODEL exponent'                           , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%FUSE_Ac_max  )                  = var_info('FUSE_Ac_max'                    , 'FUSE PRMS max saturated area'                                     , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%FUSE_phi_tens)                  = var_info('FUSE_phi_tens'                  , 'FUSE PRMS tension storage fraction'                               , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%FUSE_b       )                  = var_info('FUSE_b'                         , 'FUSE ARNO/VIC exponent'                                           , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%FUSE_lambda  )                  = var_info('FUSE_lambda'                    , 'FUSE TOPMODEL gamma distribution lambda parameter'                , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%FUSE_chi     )                  = var_info('FUSE_chi'                       , 'FUSE TOPMODEL gamma distribution chi parameter'                   , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%FUSE_mu      )                  = var_info('FUSE_mu'                        , 'FUSE TOPMODEL gamma distribution mu parameter'                    , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%FUSE_n       )                  = var_info('FUSE_n'                         , 'FUSE TOPMODEL exponent'                                           , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin parameter data...
   ! -------------------------
@@ -331,7 +331,7 @@ subroutine popMetadat(err,message)
   bpar_meta(iLookBPAR%debrisC_constant)                = var_info('debrisC_constant'               , 'non-spatial concentration for debris advection'                   , 'kg m-3'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bpar_meta(iLookBPAR%debrisH_critical)                = var_info('debrisH_critical'               , 'critical debris thickness to start debris-free terminal wedge'    , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bpar_meta(iLookBPAR%lat_moraine_wid)                 = var_info('lat_moraine_wid'                , 'lateral moraine width'                                            , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-
+  bpar_meta(iLookBPAR%glacierAreaThresh)               = var_info('glacierAreaThresh'              , 'minimum glacier area to be considered a glacier'                  , 'm2'              , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * local model prognostic (state) variables...
   ! ---------------------------------------------
@@ -350,7 +350,7 @@ subroutine popMetadat(err,message)
   prog_meta(iLookPROG%scalarSWE)                       = var_info('scalarSWE'                      , 'snow water equivalent'                                            , 'kg m-2'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   prog_meta(iLookPROG%scalarSfcMeltPond)               = var_info('scalarSfcMeltPond'              , 'ponded water caused by melt of the "snow without a layer"'        , 'kg m-2'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! state variables for glacier
-  prog_meta(iLookPROG%glacMass4AreaChange)             = var_info('glacMass4AreaChange'            , 'since updateJulDay glacier layers together mass change'           , 'kg m-2'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  prog_meta(iLookPROG%glacMass4AreaChange)             = var_info('glacMass4AreaChange'            , 'since updateJulDay glacier layers together mass change' , 'kg m-2'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! define state variables for the layer domains
   prog_meta(iLookPROG%mLayerTemp)                      = var_info('mLayerTemp'                     , 'temperature of each layer'                                        , 'K'               , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   prog_meta(iLookPROG%mLayerVolFracIce)                = var_info('mLayerVolFracIce'               , 'volumetric fraction of ice in each layer'                         , '-'               , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
@@ -740,13 +740,13 @@ subroutine popMetadat(err,message)
   bvar_meta(iLookBVAR%averageInstantRunoff)    = var_info('averageInstantRunoff'   , 'instantaneous runoff'                                          , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%averageRoutedRunoff)     = var_info('averageRoutedRunoff'    , 'routed runoff'                                                 , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! variables to compute glacier runoff
-  bvar_meta(iLookBVAR%glacAblArea)             = var_info('glacAblArea'            , 'per glacier ablation area'                                     , 'm2'    , get_ixVarType('glacier'), iMissVec, iMissVec, .false.)
-  bvar_meta(iLookBVAR%glacAccArea)             = var_info('glacAccArea'            , 'per glacier accumulation area'                                 , 'm2'    , get_ixVarType('glacier'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%glacierAblArea)          = var_info('glacierAblArea'         , 'per glacier ablation area'                                     , 'm2'    , get_ixVarType('glacier'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%glacierAccArea)          = var_info('glacierAccArea'         , 'per glacier accumulation area'                                 , 'm2'    , get_ixVarType('glacier'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%glacIceRunoffFuture)     = var_info('glacIceRunoffFuture'    , 'per glacier ice reservoir runoff in future time steps'         , 'm s-1' , get_ixVarType('glacier'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%glacSnowRunoffFuture)    = var_info('glacSnowRunoffFuture'   , 'per glacier snow reservoir runoff in future time steps'        , 'm s-1' , get_ixVarType('glacier'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%glacFirnRunoffFuture)    = var_info('glacFirnRunoffFuture'   , 'per glacier firn reservoir runoff in future time steps'        , 'm s-1' , get_ixVarType('glacier'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%glacierRoutedRunoff)     = var_info('glacierRoutedRunoff'    , 'lapsed glacier runoff'                                         , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-   ! -----
+  ! -----
   ! * basin glacier grids
   ! -----------------------------------------
   grid_meta(iLookGRID%bed_elev)               = var_info('bed_elev'                , 'glacier bed elevation'                                     , 'm'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)

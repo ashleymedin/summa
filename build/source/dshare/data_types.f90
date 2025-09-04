@@ -109,9 +109,9 @@ MODULE data_types
  ! Define data types to map between GRUs and HRUs
  ! ***********************************************************************************************************
 
- ! hru info data structure
+ ! dom info data structure
  type, public :: dom_info
-  integer(i4b)                           :: dom_type                      ! type = 1 for upland, 2 for glacier accumulation, 3 for glacier clean ablation, 4 for debris ablation, 5 for wetland, 6 for glacieret
+  integer(i4b)                           :: dom_type                      ! type = 1 for upland, 2 for glacier accumulation, 3 for glacier clean ablation, 4 for debris ablation, 5 for wetland
   integer(i4b)                           :: nSnow                         ! number of snow layers
   integer(i4b)                           :: nLake                         ! number of lake layers
   integer(i4b)                           :: nSoil                         ! number of soil layers
@@ -119,7 +119,7 @@ MODULE data_types
   integer(i4b)                           :: nLayers                       ! total number of layers
  endtype dom_info
 
- ! dom info data structure
+ ! hru info data structure
  type, public :: hru_info
   integer(i4b)                           :: hru_nc                        ! index of the hru in the netcdf file
   integer(i4b)                           :: hru_ix                        ! index of the hru in the run space
@@ -129,9 +129,9 @@ MODULE data_types
  endtype hru_info
 
  ! glacier info data structure
-  type, public :: glac_info
-   integer(i8b)                          :: glac_id                       ! RGI id (non-sequential number) of the glacier (eg region 1 glacier 00001 is 100001)
-  endtype glac_info
+ type, public :: glac_info
+  integer(i8b)                           :: glac_id                       ! RGI id (non-sequential number) of the glacier (eg region 1 glacier 00001 is 100001)
+ endtype glac_info
 
  ! grid info data structure
  type, public :: grid_info
@@ -145,8 +145,9 @@ MODULE data_types
  ! define mapping from GRUs to the HRUs, also includes GRU-wide information
  type, public :: gru2hru_map
   integer(i8b)                           :: gru_id                        ! id of the gru
-  integer(i4b)                           :: nGlacier                      ! number of glaciers in the basin
-  integer(i4b)                           :: nWetland                      ! number of wetlands in the basin
+  integer(i4b)                           :: nGlac                         ! number of glaciers in the basin
+  integer(i4b)                           :: nWetl                         ! number of wetlands in the basin
+  integer(i4b)                           :: nGrid                         ! number of grids in the basin
   integer(i4b)                           :: hruCount                      ! total number of hrus in the gru
   type(hru_info), allocatable            :: hruInfo(:)                    ! basic information of HRUs within the gru
   type(grid_info), allocatable           :: gridInfo(:)                   ! basic information of grids within the gru

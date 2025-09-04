@@ -100,7 +100,7 @@ contains
  USE globalData,only:outputTimeStep                          ! timestep in output files
  ! output constraints
  USE globalData,only:maxLayers                               ! maximum number of layers
- USE globalData,only:maxGlaciers                             ! maximum number of glaciers in any GRU
+ USE globalData,only:maxGlaciers                             ! maximum number of glaciers in a GRU
  ! timing variables
  USE globalData,only:startWrite,endWrite                     ! date/time for the start and end of the model writing
  USE globalData,only:elapsedWrite                            ! elapsed time to write data

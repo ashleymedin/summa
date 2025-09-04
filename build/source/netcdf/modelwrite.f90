@@ -34,7 +34,7 @@ USE globalData,only: maxSnowLayers      ! maximum number of snow layers
 USE globalData,only: maxSoilLayers      ! maximum number of soil layers
 USE globalData,only: maxGlceLayers      ! maximum number of glacier ice layers
 USE globalData,only: maxLakeLayers      ! maximum number of lake layers
-USE globalData,only: maxGlaciers        ! maximum number of glaciers
+USE globalData,only: maxGlaciers        ! maximum number of glaciers in a GRU
 USE globalData,only: maxGrid            ! maximum number of grids in a GRU
 USE globalData,only: maxGridX           ! maximum number of grid cells in the x-direction
 USE globalData,only: maxGridY           ! maximum number of grid cells in the y-direction
@@ -562,7 +562,7 @@ contains
  character(len=32),parameter        :: gruDimName    ='gru'      ! dimension name for GRUs
  character(len=32),parameter        :: domDimName    ='dom'      ! dimension name for DOMs
  character(len=32),parameter        :: tdhDimName    ='tdh'      ! dimension name for time-delay basin variables
- character(len=32),parameter        :: nglDimName    ='glac'     ! dimension name for glacier variables
+ character(len=32),parameter        :: nglDimName    ='glac'     ! dimension name for glacier
  character(len=32),parameter        :: scalDimName   ='scalarv'  ! dimension name for scalar data
  character(len=32),parameter        :: specDimName   ='spectral' ! dimension name for spectral bands
  character(len=32),parameter        :: midTotoDimName='midToto'  ! dimension name for layered varaiables
@@ -581,7 +581,7 @@ contains
  integer(i4b)                       :: iGRU          ! index of GRUs
  integer(i4b)                       :: i             ! loop index
  integer(i4b)                       :: iVar          ! variable index
- integer(i4b)                       :: nGlacier      ! number of glaciers in GRU
+ integer(i4b)                       :: nGlac         ! number of glaciers in GRU
  logical(lgt)                       :: okLength      ! flag to check if the vector length is OK
  integer(i4b)                       :: size_prog     ! size of prognostic variable vector without index variables
  character(len=256)                 :: cmessage      ! downstream error message
@@ -597,12 +597,11 @@ contains
  nidx = (/iLookINDEX%nSnow, iLookINDEX%nLake, iLookINDEX%nSoil, iLookINDEX%nGlce/)
 
  ! include additional basin variable in ID array
- if (maxGlceLayers > 0)then
-   ngdx = (/iLookBVAR%glacAblArea, iLookBVAR%glacAccArea, iLookBVAR%glacIceRunoffFuture, iLookBVAR%glacSnowRunoffFuture, iLookBVAR%glacFirnRunoffFuture/)
-   size_prog = nProgVars+size(ngdx)+2
- else
-   size_prog = nProgVars+1
- end if
+ size_prog = nProgVars+1 ! +1 for future runoff variable
+ if (maxGlaciers > 0)then
+   ngdx = (/iLookBVAR%glacierAblArea, iLookBVAR%glacierAccArea, iLookBVAR%glacIceRunoffFuture, iLookBVAR%glacSnowRunoffFuture, iLookBVAR%glacFirnRunoffFuture/)
+   size_prog =  size_prog+size(ngdx)+1 ! +1 for basin glacier storage variable
+ endif
  allocate(ncVarID(size_prog+size(nidx)))
 
  ! create file
@@ -671,14 +670,13 @@ contains
  err = nf90_put_att(ncid,ncVarID(nProgVars+1),'long_name',trim(bvar_meta(iLookBVAR%routingRunoffFuture)%vardesc));   call netcdf_err(err,message)
  err = nf90_put_att(ncid,ncVarID(nProgVars+1),'units'    ,trim(bvar_meta(iLookBVAR%routingRunoffFuture)%varunit));   call netcdf_err(err,message)
 
- if (maxGlceLayers > 0)then
+ if(maxGlaciers > 0)then
    do i=1,size(ngdx)
      iVar = ngdx(i)
      err = nf90_def_var(ncid, trim(bvar_meta(iVar)%varName), nf90_double, (/gruDimID, nglDimID/), ncVarID(nProgVars+i+1))
      err = nf90_put_att(ncid,ncVarID(nProgVars+i),'long_name',trim(bvar_meta(iVar)%vardesc));   call netcdf_err(err,message)
      err = nf90_put_att(ncid,ncVarID(nProgVars+i),'units'    ,trim(bvar_meta(iVar)%varunit));   call netcdf_err(err,message)
    end do
-
    err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%basin__GlacierStorage)%varName), nf90_double, (/gruDimID/), ncVarID(size_prog))
    err = nf90_put_att(ncid,ncVarID(size_prog),'long_name',trim(bvar_meta(iLookBVAR%basin__GlacierStorage)%vardesc));   call netcdf_err(err,message)
    err = nf90_put_att(ncid,ncVarID(size_prog),'units'    ,trim(bvar_meta(iLookBVAR%basin__GlacierStorage)%varunit));   call netcdf_err(err,message)
@@ -772,14 +770,15 @@ contains
   
   ! write selected basin variables
   err=nf90_put_var(ncid,ncVarID(nProgVars+1),(/bvar_data%gru(iGRU)%var(iLookBVAR%routingRunoffFuture)%dat/), start=(/iGRU,1/),count=(/1,nTimeDelay/))
-  if (maxGlceLayers > 0)then
-    nGlacier = gru_struc(iGRU)%nGlacier
+  if (maxGlaciers > 0)then
+    nGlac = gru_struc(iGRU)%nGlac
     do i=1,size(ngdx)
       iVar = ngdx(i)
-      err=nf90_put_var(ncid,ncVarID(nProgVars+i+1),(/bvar_data%gru(iGRU)%var(iVar)%dat/), start=(/iGRU,1/),count=(/1,nGlacier/))
+      err=nf90_put_var(ncid,ncVarID(nProgVars+i+1),(/bvar_data%gru(iGRU)%var(iVar)%dat/), start=(/iGRU,1/),count=(/1,nGlac/))
     end do
+    ! glacier storage variable
     err=nf90_put_var(ncid,ncVarID(size_prog),(/bvar_data%gru(iGRU)%var(iLookBVAR%basin__GlacierStorage)%dat/), start=(/iGRU/),count=(/1/))
-   endif
+  endif
   
  end do  ! iGRU loop
 
@@ -846,7 +845,7 @@ contains
  integer(i4b)                       :: i                  ! loop index
  integer(i4b)                       :: nx,ny              ! grid dimensions
  integer(i4b)                       :: iVar               ! variable index
- integer(i4b)                       :: nGlacier           ! number of glaciers in GRU
+ integer(i4b)                       :: nGlac              ! number of glaciers in GRU
  character(len=256)                 :: cmessage           ! downstream error message
 
  ! --------------------------------------------------------------------------------------------------------
@@ -895,8 +894,8 @@ err = nf90_enddef(ncid); call netcdf_err(err,message); if (err/=0) return
 
 ! write variables
 do iGRU = 1,nGRU
-  nGlacier = gru_struc(iGRU)%nGlacier
-  do iGlac = 1,nGlacier
+  nGlac = gru_struc(iGRU)%nGlac
+  do iGlac = 1,nGlac
     do i = 1,size(ngdx)
       iVar = ngdx(i)
       nx = gru_struc(iGRU)%gridInfo(iGlac)%nx

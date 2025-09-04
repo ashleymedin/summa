@@ -78,7 +78,6 @@ USE globalData,only:glacCln1               ! first domain type for glacier clean
 USE globalData,only:glacCln2               ! second domain type for glacier clean areas
 USE globalData,only:glacDbr                ! domain type for glacier debris areas
 USE globalData,only:wetland                ! domain type for wetland areas
-USE globalData,only:glacieret              ! domain type for glaciers considered too small for flow
 
 ! look-up values for the maximum interception capacity
 USE mDecisions_module,only:         &
@@ -792,7 +791,7 @@ subroutine coupled_em(&
         ! *** merge/sub-divide snow/firn/ice layers...
         ! -----------------------------------
         maxSnowIceLayers = maxSnowLayers
-        if (dom_type==glacCln1 .or. dom_type==glacCln2 .or. dom_type==glacDbr .or. dom_type==glacieret) &
+        if (dom_type==glacCln1 .or. dom_type==glacCln2 .or. dom_type==glacDbr) &
           maxSnowIceLayers=int(maxSnowLayers*2.5_rkind) ! increase the number of layers for glacier firn layers 
         if (nSnow==0 .and. nGlce>0) maxSnowIceLayers = maxGlceLayers
         call volicePack(&
@@ -1849,8 +1848,8 @@ subroutine coupled_em(&
       ! layers change is used in the glacier area change, entire system change is not currently used
       scalarLayersMassChange = ((scalarTotalSoilWat - balanceSoilWater0) + delLakeWat + delSWE + (scalarIceWE - balanceIceWE0))/data_step
       scalarMassChange = scalarLayersMassChange + (delCanWat + (balanceAquifer1-balanceAquifer0))/data_step
-      ! save the average mass change rate for the layers if glacier or glacieret
-      if (dom_type==glacCln1 .or. dom_type==glacCln2 .or. dom_type==glacDbr .or. dom_type==glacieret) then
+      ! save the average mass change rate for the layers if glacier
+      if (dom_type==glacCln1 .or. dom_type==glacCln2 .or. dom_type==glacDbr) then
         glacMass4AreaChange = glacMass4AreaChange + scalarLayersMassChange * data_step
       else
         glacMass4AreaChange = 0._rkind

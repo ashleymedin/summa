@@ -500,7 +500,7 @@ contains
   case('DOMarea'                        ); get_ixProg = iLookPROG%DOMarea                          ! area of the domain (m2)
   case('DOMelev'                        ); get_ixProg = iLookPROG%DOMelev                          ! elevation of the domain (m)
   case('scalarAblFrac'                  ); get_ixProg = iLookPROG%scalarAblFrac                    ! fraction of the domain that is in a glacier ablation zone (-)
-    ! get to here if cannot find the variable
+  ! get to here if cannot find the variable
   case default
    get_ixProg = integerMissing
  end select
@@ -1027,6 +1027,7 @@ contains
   case('debrisC_constant'         ); get_ixBpar = iLookBPAR%debrisC_constant          ! non-spatial concentration for debris advection (kg m-3)
   case('debrisH_critical'         ); get_ixBpar = iLookBPAR%debrisH_critical          ! critical debris thickness to start debris-free terminal wedge (m)
   case('lat_moraine_wid'          ); get_ixBpar = iLookBPAR%lat_moraine_wid           ! lateral moraine width (m)
+  case('glacierAreaThresh'        ); get_ixBpar = iLookBPAR%glacierAreaThresh         ! minimum glacier area to be considered a glacier (m2)
   ! get to here if cannot find the variable
   case default
    get_ixBpar = integerMissing
@@ -1064,8 +1065,8 @@ contains
   case('averageInstantRunoff'          ); get_ixBvar = iLookBVAR%averageInstantRunoff            ! instantaneous runoff (m s-1)
   case('averageRoutedRunoff'           ); get_ixBvar = iLookBVAR%averageRoutedRunoff             ! routed runoff (m s-1)
   ! variables to compute glacier runoff
-  case('glacAblArea'                   ); get_ixBvar = iLookBVAR%glacAblArea                     ! per glacier ablation area (m2)
-  case('glacAccArea'                   ); get_ixBvar = iLookBVAR%glacAccArea                     ! per glacier accumulation area (m2)
+  case('glacierAblArea'                ); get_ixBvar = iLookBVAR%glacierAblArea                  ! per glacier ablation area (m2)
+  case('glacierAccArea'                ); get_ixBvar = iLookBVAR%glacierAccArea                  ! per glacier accumulation area (m2)
   case('glacIceRunoffFuture'           ); get_ixBvar = iLookBVAR%glacIceRunoffFuture             ! per glacier ice reservoir runoff in future time steps (m s-1)
   case('glacSnowRunoffFuture'          ); get_ixBvar = iLookBVAR%glacSnowRunoffFuture            ! per glacier snow reservoir runoff in future time steps (m s-1)
   case('glacFirnRunoffFuture'          ); get_ixBvar = iLookBVAR%glacFirnRunoffFuture            ! per glacier firn reservoir runoff in future time steps (m s-1)

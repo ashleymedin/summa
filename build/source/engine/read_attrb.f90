@@ -131,13 +131,13 @@ contains
  err = nf90_get_var(ncID,varID,hru2gru_id);    if (err/=0) then; message=trim(message)//'problem reading hru2gruId'; return; end if
 
  ! read domain information from netcdf file
- err = nf90_inq_varid(ncID,"nGlacier",varID)
+ err = nf90_inq_varid(ncID,"nGlac",varID)
  if (err/=0) then
    nGlac_GRU = 0 ! backwards compatibility
  else
    err = nf90_get_var(ncID,varID,nGlac_GRU);   if (err/=0) then; message=trim(message)//'problem reading glacier'; return; end if
  end if
- err = nf90_inq_varid(ncID,"nWetland",varID) 
+ err = nf90_inq_varid(ncID,"nWetl",varID) 
  if (err/=0) then
    nWtld_GRU = 0 ! backwards compatibility
  else
@@ -166,8 +166,8 @@ contains
   gru_struc(iGRU)%hruInfo(iGRU)%hru_nc = checkHRU             ! set hru id in attributes netcdf file
   gru_struc(iGRU)%hruInfo(iGRU)%hru_ix = 1                    ! set index of hru in run space
   gru_struc(iGRU)%hruInfo(iGRU)%hru_id = hru_id(checkHRU)     ! set id of hru
-  gru_struc(iGRU)%nGlacier = nGlac_GRU(iGRU)                  ! set number of glaciers in the gru
-  gru_struc(iGRU)%nWetland = nWtld_GRU(iGRU)                  ! set number of wetlands in the gru
+  gru_struc(iGRU)%nGlac = nGlac_GRU(iGRU)                     ! set number of glaciers in the gru
+  gru_struc(iGRU)%nWetl = nWtld_GRU(iGRU)                     ! set number of wetlands in the gru
 
  else ! allocate space for anything except a single HRU run
   iHRU = 1
@@ -182,8 +182,8 @@ contains
     gru_struc(iGRU)%hruInfo(:)%hru_nc = pack(hru_ix,hru2gru_id == gru_struc(iGRU)%gru_id) ! set hru id in attributes netcdf file
     gru_struc(iGRU)%hruInfo(:)%hru_ix = arth(iHRU,1,gru_struc(iGRU)%hruCount)             ! set index of hru in run space
     gru_struc(iGRU)%hruInfo(:)%hru_id = hru_id(gru_struc(iGRU)%hruInfo(:)%hru_nc)         ! set id of hru
-    gru_struc(iGRU)%nGlacier = nGlac_GRU(iGRU)              ! set number of glaciers in the gru
-    gru_struc(iGRU)%nWetland = nWtld_GRU(iGRU)              ! set number of wetlands in the gru
+    gru_struc(iGRU)%nGlac = nGlac_GRU(iGRU)                 ! set number of glaciers in the gru
+    gru_struc(iGRU)%nWetl = nWtld_GRU(iGRU)                 ! set number of wetlands in the gru
  
     iHRU = iHRU + gru_struc(iGRU)%hruCount
    enddo ! iGRU = 1,nGRU
@@ -281,6 +281,11 @@ subroutine read_dimensionGrid(attrGlacFile,nGRU,err,message)
   ! read grid_id from netcdf file
   err = nf90_inq_varid(ncID,"gridId",varID); if (err/=0) then; message=trim(message)//'problem finding gridId'; return; end if
   err = nf90_get_var(ncID,varID,grid_id);    if (err/=0) then; message=trim(message)//'problem reading gridId'; return; end if
+
+  ! read nGrid from netcdf file
+  ! (not strictly necessary, as we can get this from gru_struc(iGRU)%nGlac, but useful as a check)
+  err = nf90_inq_varid(ncID,"nGrid",varID);      if (err/=0) then; message=trim(message)//'problem finding nGrid'; return; end if
+  err = nf90_get_var(ncID,varID,nGrid);          if (err/=0) then; message=trim(message)//'problem reading nGrid'; return; end if
  
   ! read dx from netcdf file
   err = nf90_inq_varid(ncID,"dx",varID);      if (err/=0) then; message=trim(message)//'problem finding dx'; return; end if
@@ -315,7 +320,9 @@ subroutine read_dimensionGrid(attrGlacFile,nGRU,err,message)
   ! Main loop to set grid information
   do i = 1, fileGRU
    iGRU = gruid_to_index(i)
-   nGrid = gru_struc(iGRU)%nGlacier ! change these to more grids than just glaciers if needed
+   gru_struc(iGRU)%nGrid = nGrid
+   ! consistency check, for now we require that nGlac and nGrid are the same
+   if (gru_struc(iGRU)%nGlac /= nGrid) then; err=20; message=trim(message)//'nGlac and nGrid do not match'; return; end if
    allocate(gru_struc(iGRU)%gridInfo(nGrid))
    if (iGRU /= -1 .and. nGrid > 0) then
      gru_struc(iGRU)%gridInfo(:)%grid_id = grid_id(i,1:nGrid)  ! set grid information (id)
@@ -481,7 +488,7 @@ subroutine read_attrb(attrFile,nGRU,attrStruct,typeStruct,idStruct,err,message)
     end do
 
    ! for GRU domain quantity variables, do nothing (information read above in read_dimension)
-   case('nGlacier','nWetland'); cycle
+   case('nGlac','nWetl'); cycle
 
    ! for mapping variables, do nothing (information read above in read_dimension)   
    case('hru2gruId','gruId')

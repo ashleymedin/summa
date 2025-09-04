@@ -120,7 +120,7 @@ set(SOLVER
     ${ENGINE_DIR}/init_heatCap_thermCond.f90
     ${ENGINE_DIR}/eval8summa.f90
     ${ENGINE_DIR}/groundwatr.f90
-    ${ENGINE_DIR}/glacierFlowAreaChange.f90
+    ${ENGINE_DIR}/glacAreaChange.f90
     ${ENGINE_DIR}/opSplittin.f90
     ${ENGINE_DIR}/run_oneGRU.f90
     ${ENGINE_DIR}/run_oneHRU.f90

@@ -47,7 +47,6 @@ USE globalData,only:glacCln1           ! first domain type for glacier clean are
 USE globalData,only:glacCln2           ! second domain type for glacier clean areas
 USE globalData,only:glacDbr            ! domain type for glacier debris areas
 USE globalData,only:wetland            ! domain type for wetland areas
-USE globalData,only:glacieret          ! domain type for glaciers considered too small for flow
 
 ! metadata structures
 USE globalData,only:mpar_meta,bpar_meta ! parameter metadata structures
@@ -110,7 +109,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  USE globalData,only:maxSnowLayers                           ! maximum number of snow layers
  USE globalData,only:maxGlceLayers                           ! maximum number of glacier ice layers
  USE globalData,only:maxLakeLayers                           ! maximum number of lake layers
- USE globalData,only:maxGlaciers                             ! maximum number of glaciers
+ USE globalData,only:maxGlaciers                             ! maximum number of glaciers in a GRU
  USE globalData,only:maxWetlands                             ! maximum number of wetlands
  USE globalData,only:maxGrid                                 ! maximum number of grids in a GRU
  USE globalData,only:maxGridX                                ! maximum grid size in x-direction
@@ -200,8 +199,8 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  maxGlaciers = 0
  maxWetlands = 0
  do iGRU=1,nGRU
-   maxGlaciers = max(maxGlaciers, gru_struc(iGRU)%nGlacier)
-   maxWetlands = max(maxWetlands, gru_struc(iGRU)%nWetland)
+   maxGlaciers = max(maxGlaciers, gru_struc(iGRU)%nGlac)
+   maxWetlands = max(maxWetlands, gru_struc(iGRU)%nWetl)
  end do
 
  ! get the maximum number of snow layers
@@ -231,7 +230,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
      maxLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + maxSnowLayers
      maxSoilLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
     else if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln1 .or. gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln2 &
-       .or. gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr .or. gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacieret)then
+       .or. gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr)then
      maxLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce + maxSnowLayers
      maxGlceLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce
      if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr) maxSoilLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil

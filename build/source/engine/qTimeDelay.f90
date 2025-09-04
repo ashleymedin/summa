@@ -117,9 +117,9 @@ contains
                      glacIceMelt,           & ! total melt into ice reservoir (m s-1)
                      glacSnowMelt,          & ! total melt into snow reservoir (m s-1)
                      glacFirnMelt,          & ! total melt into firn reservoir (m s-1)
-                     glacAblArea,           & ! per glacier ablation area (m2)
-                     glacAccArea,           & ! per glacier acumulation area (m2)   
-                     nGlacier,              & ! number of glaciers in the basin
+                     glacierAblArea,        & ! per glacier ablation area (m2)
+                     glacierAccArea,        & ! per glacier acumulation area (m2)   
+                     nGlac,                 & ! number of glaciers in the basin
                      ! output        
                      qIceFuture,            & ! per glacier ice reservoir runoff in future time steps (m3 s-1)
                      qSnowFuture,           & ! per glacier snow reservoir runoff in future time steps (m3 s-1)
@@ -135,9 +135,9 @@ contains
  real(rkind),intent(in)     :: glacIceMelt               ! total melt into ice reservoir (m s-1)
  real(rkind),intent(in)     :: glacSnowMelt              ! total melt into snow reservoir (m s-1)
  real(rkind),intent(in)     :: glacFirnMelt              ! total melt into firn reservoir (m s-1)
- real(rkind),intent(in)     :: glacAblArea(:)            ! per glacier ablation area (m2)
- real(rkind),intent(in)     :: glacAccArea(:)            ! per glacier acumulation area (m2)
-integer(i4b),intent(in)     :: nGlacier                  ! number of glaciers in the basin
+ real(rkind),intent(in)     :: glacierAblArea(:)         ! per glacier ablation area (m2)
+ real(rkind),intent(in)     :: glacierAccArea(:)         ! per glacier acumulation area (m2)
+integer(i4b),intent(in)     :: nGlac                     ! number of glaciers in the basin
  real(rkind),intent(inout)  :: qIceFuture(:)             ! per glacier ice reservoir runoff in future time steps (m s-1)
  real(rkind),intent(inout)  :: qSnowFuture(:)            ! per glacier snow reservoir runoff in future time steps (m s-1)
  real(rkind),intent(inout)  :: qFirnFuture(:)            ! per glacier firn reservoir runoff in future time steps (m s-1)
@@ -150,21 +150,21 @@ integer(i4b),intent(in)     :: nGlacier                  ! number of glaciers in
  real(rkind)                :: qSnow                     ! hourly snow reservoir runoff (m s-1) 
  real(rkind)                :: qFirn                     ! hourly firn reservoir runoff (m s-1)
  real(rkind)                :: frac                      ! fraction of glacier area
- real(rkind)                :: glacAblTotal              ! total ablation area (m2)
- real(rkind)                :: glacAccTotal              ! total accumulation area (m2)
+ real(rkind)                :: glacierAblTotal           ! total ablation area (m2)
+ real(rkind)                :: glacierAccTotal           ! total accumulation area (m2)
  integer(i4b)               :: iGlacier                  ! index for glaciers
  ! initialize error control
  err=0; message='qGlacier/' 
 
  glacierRoutedRunoff = 0._rkind
 
- glacAblTotal = sum(glacAblArea(1:nGlacier))
- glacAccTotal = sum(glacAccArea(1:nGlacier))
+ glacierAblTotal = sum(glacierAblArea(1:nGlac))
+ glacierAccTotal = sum(glacierAccArea(1:nGlac))
 
- do iGlacier=1,nGlacier
+ do iGlacier=1,nGlac
    ! ice reservoir runoff (m s-1)
    frac = 0._rkind
-   if (glacAblTotal>0._rkind) frac = glacAblArea(iGlacier)/glacAblTotal
+   if (glacierAblTotal>0._rkind) frac = glacierAblArea(iGlacier)/glacierAblTotal
    qIce = qIceFuture(iGlacier) + glacIceMelt*frac - glacIceMelt*frac*exp(-data_step/secprhour/glacStor_kIce)
    qIceFuture(iGlacier) = qIce*exp(-data_step/secprhour/glacStor_kIce) ! place runoff in future time steps 
 
@@ -174,7 +174,7 @@ integer(i4b),intent(in)     :: nGlacier                  ! number of glaciers in
 
    ! firn reservoir runoff (m s-1)
    frac = 0._rkind ! reset fraction
-   if (glacAccTotal>0._rkind) frac = glacAccArea(iGlacier)/glacAccTotal
+   if (glacierAccTotal>0._rkind) frac = glacierAccArea(iGlacier)/glacierAccTotal
    qFirn = qFirnFuture(iGlacier) + glacFirnMelt*frac - glacFirnMelt*frac*exp(-data_step/secprhour/glacStor_kFirn)
    qFirnFuture(iGlacier) = qFirn*exp(-data_step/secprhour/glacStor_kFirn) ! place runoff in future time steps 
 

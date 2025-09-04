@@ -861,6 +861,7 @@ MODULE var_lookup
   integer(i4b)    :: debrisC_constant           = integerMissing ! non-spatial concentration for debris advection (kg m-3)
   integer(i4b)    :: debrisH_critical           = integerMissing ! critical debris thickness to start debris-free terminal wedge (m)
   integer(i4b)    :: lat_moraine_wid            = integerMissing ! lateral moraine width (m)
+  integer(i4b)    :: glacierAreaThresh          = integerMissing ! minimum glacier area to be considered a glacier (m2)
  endtype iLook_bpar
 
  ! ***********************************************************************************************************
@@ -886,8 +887,8 @@ MODULE var_lookup
   integer(i4b)    :: averageInstantRunoff       = integerMissing ! instantaneous runoff (m s-1)
   integer(i4b)    :: averageRoutedRunoff        = integerMissing ! routed runoff (m s-1)
   ! define variables to compute glacier runoff
-  integer(i4b)    :: glacAblArea                = integerMissing ! per glacier ablation area (m2)
-  integer(i4b)    :: glacAccArea                = integerMissing ! per glacier accumulation area (m2)
+  integer(i4b)    :: glacierAblArea             = integerMissing ! per glacier ablation area (m2)
+  integer(i4b)    :: glacierAccArea             = integerMissing ! per glacier accumulation area (m2)
   integer(i4b)    :: glacIceRunoffFuture        = integerMissing ! per glacier ice reservoir runoff in future time steps (m s-1)
   integer(i4b)    :: glacSnowRunoffFuture       = integerMissing ! per glacier snow reservoir runoff in future time steps (m s-1)
   integer(i4b)    :: glacFirnRunoffFuture       = integerMissing ! per glacier firn reservoir runoff in future time steps (m s-1)
@@ -1056,7 +1057,7 @@ MODULE var_lookup
                                                                          71)
  ! named variables: basin-average parameters
  type(iLook_bpar),    public,parameter :: iLookBPAR     =ilook_bpar    (  1,  2,  3,  4,  5,  6,  7,  8, 9,  10,&
-                                                                          11)
+                                                                          11, 12)
  ! named variables: basin-average variables
  type(iLook_bvar),    public,parameter :: iLookBVAR     =ilook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

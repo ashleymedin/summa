@@ -73,6 +73,13 @@ USE globalData,only: nSpecBand             ! number of spectral bands
 USE var_lookup,only:iLookVarType           ! look up structure for variable typed
 USE var_lookup,only:maxvarFreq             ! allocation dimension (output frequency)
 
+! access domain types
+USE globalData,only:upland             ! domain type for upland areas
+USE globalData,only:glacCln1           ! first domain type for glacier clean areas
+USE globalData,only:glacCln2           ! second domain type for glacier clean areas
+USE globalData,only:glacDbr            ! domain type for glacier debris areas
+USE globalData,only:wetland            ! domain type for wetland areas
+
 ! privacy
 implicit none
 private
@@ -204,13 +211,13 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
         nSoil => gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil, & ! number of soil layers for each domain
         nGlce => gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce  ) ! number of glacier ice layers for each domain
 
-        ! allocate space for structures WITH an DOM dimension
+        ! allocate space for structures WITH a DOM dimension
         select type(dataStruct)
-          class is (gru_hru_dom_int);       call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlacier=0,err=err,message=cmessage); spatial=.true.
-          class is (gru_hru_dom_int8);      call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlacier=0,err=err,message=cmessage); spatial=.true.
-          class is (gru_hru_dom_intVec);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage); spatial=.true.
-          class is (gru_hru_dom_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage); spatial=.true.
-          class is (gru_hru_dom_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlacier=0,err=err,message=cmessage); spatial=.true.
+          class is (gru_hru_dom_int);       call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=0,err=err,message=cmessage); spatial=.true.
+          class is (gru_hru_dom_int8);      call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=0,err=err,message=cmessage); spatial=.true.
+          class is (gru_hru_dom_intVec);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow=nSnow,nLake=nLake,nSoil=nSoil,nGlce=nGlce,nGlac=0,err,cmessage); spatial=.true.
+          class is (gru_hru_dom_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow=nSnow,nLake=nLake,nSoil=nSoil,nGlce=nGlce,nGlac=0,err,cmessage); spatial=.true.
+          class is (gru_hru_dom_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=0,err=err,message=cmessage); spatial=.true.
           class is (gru_hru_dom_z_vLookup); spatial=.true. ! (special case, allocate space separately later)
           class default
           if(.not.spatial) exit domLoop  ! no need to allocate spatial dimensions if none exist for a given variable
@@ -225,11 +232,11 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
 
       ! allocate space for structures *WITHOUT* a DOM dimension
       select type(dataStruct)    
-        class is (gru_hru_int);       call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlacier=0,err=err,message=cmessage); spatial=.true.
-        class is (gru_hru_int8);      call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlacier=0,err=err,message=cmessage); spatial=.true.
-        class is (gru_hru_intVec);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlacier=0,err=err,message=cmessage); spatial=.true.
-        class is (gru_hru_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlacier=0,err=err,message=cmessage); spatial=.true.
-        class is (gru_hru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlacier=0,err=err,message=cmessage); spatial=.true.
+        class is (gru_hru_int);       call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=0,err=err,message=cmessage); spatial=.true.
+        class is (gru_hru_int8);      call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=0,err=err,message=cmessage); spatial=.true.
+        class is (gru_hru_intVec);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=0,err=err,message=cmessage); spatial=.true.
+        class is (gru_hru_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=0,err=err,message=cmessage); spatial=.true.
+        class is (gru_hru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=0,err=err,message=cmessage); spatial=.true.
         class default
         if(.not.spatial) exit hruLoop  ! no need to allocate spatial dimensions if none exist for a given variable
         cycle hruLoop  ! can have an DOM dimension if we get to here
@@ -238,14 +245,14 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
     end do hruLoop ! loop through HRUs
 
   ! allocate space for structures *WITHOUT* an HRU dimension
-  nGlac = gru_struc(iGRU)%nGlacier
-  nGrid = gru_struc(iGRU)%nGlacier ! could be different from nGlac, but currently they are the same
+  nGlac = gru_struc(iGRU)%nGlac
+  nGrid = gru_struc(iGRU)%nGrid
   select type(dataStruct)
-   class is (gru_int);           call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlacier=nGlac,err=err,message=cmessage); spatial=.true.
-   class is (gru_int8);          call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlacier=nGlac,err=err,message=cmessage); spatial=.true.
-   class is (gru_intVec);        call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlacier=nGlac,err=err,message=cmessage); spatial=.true.
-   class is (gru_double);        call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlacier=nGlac,err=err,message=cmessage); spatial=.true.
-   class is (gru_doubleVec);     call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlacier=nGlac,err=err,message=cmessage); spatial=.true.
+   class is (gru_int);           call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=nGlac,err=err,message=cmessage); spatial=.true.
+   class is (gru_int8);          call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=nGlac,err=err,message=cmessage); spatial=.true.
+   class is (gru_intVec);        call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=nGlac,err=err,message=cmessage); spatial=.true.
+   class is (gru_double);        call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=nGlac,err=err,message=cmessage); spatial=.true.
+   class is (gru_doubleVec);     call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=nGlac,err=err,message=cmessage); spatial=.true.
    class is (gru_grid_double)
      if(.not.allocated(dataStruct%gru(iGRU)%grid))then; allocate(dataStruct%gru(iGRU)%grid(nGrid),stat=err); end if
      if(err/=0)then; err=20; message=trim(message)//'problem allocating glacier dimension in grid structure'; return; end if
@@ -292,7 +299,7 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
  ! ************************************************************************************************
  ! public subroutine allocLocal: allocate space for local data structures
  ! ************************************************************************************************
- subroutine allocLocal(metaStruct,dataStruct,nSnow,nLake,nSoil,nGlce,nGlacier,err,message)
+ subroutine allocLocal(metaStruct,dataStruct,nSnow,nLake,nSoil,nGlce,nGlac,err,message)
  implicit none
  ! input-output
  type(var_info),intent(in)        :: metaStruct(:)  ! metadata structure
@@ -302,7 +309,7 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
  integer(i4b),intent(in),optional :: nLake          ! number of lake layers
  integer(i4b),intent(in),optional :: nSoil          ! number of soil layers
  integer(i4b),intent(in),optional :: nGlce          ! number of glacier ice layers
- integer(i4b),intent(in),optional :: nGlacier       ! number of glaciers in GRU
+ integer(i4b),intent(in),optional :: nGlac          ! number of glaciers in GRU
  ! output
  integer(i4b),intent(out)         :: err            ! error code
  character(*),intent(out)         :: message        ! error message
@@ -317,7 +324,7 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
  ! get the number of variables in the metadata structure
  nVars = size(metaStruct)
 
- ! check if nSnow and nSoil are present
+ ! check if layers numbers are present
  if(present(nSnow).or. present(nLake) .or. present(nSoil) .or. present(nGlce))then
   ! check all are present
   if(.not.present(nSnow))then; err=20; message=trim(message)//'expect nSnow to be present when other layers present'; return; end if
@@ -355,9 +362,9 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
 
  ! allocate the dimension for model data
  select type(dataStruct)
-  class is (var_flagVec); call allocateDat_flag(  metaStruct,nSnow,nLake,nSoil,nGlce,nLayers,nGlacier,dataStruct,err,cmessage)
-  class is (var_ilength); call allocateDat_int(   metaStruct,nSnow,nLake,nSoil,nGlce,nLayers,nGlacier,dataStruct,err,cmessage)
-  class is (var_dlength); call allocateDat_rkind( metaStruct,nSnow,nLake,nSoil,nGlce,nLayers,nGlacier,dataStruct,err,cmessage)
+  class is (var_flagVec); call allocateDat_flag(  metaStruct,nSnow,nLake,nSoil,nGlce,nLayers,nGlac,dataStruct,err,cmessage)
+  class is (var_ilength); call allocateDat_int(   metaStruct,nSnow,nLake,nSoil,nGlce,nLayers,nGlac,dataStruct,err,cmessage)
+  class is (var_dlength); call allocateDat_rkind( metaStruct,nSnow,nLake,nSoil,nGlce,nLayers,nGlac,dataStruct,err,cmessage)
   class default; err=20; message=trim(message)//'unable to identify derived data type for the data dimension'; return
  end select
 
@@ -621,7 +628,7 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
  ! ************************************************************************************************
  ! private subroutine allocateDat_rkind: initialize data dimension of the data structures
  ! ************************************************************************************************
- subroutine allocateDat_rkind(metadata,nSnow,nLake,nSoil,nGlce,nLayers,nGlacier, & ! input
+ subroutine allocateDat_rkind(metadata,nSnow,nLake,nSoil,nGlce,nLayers,nGlac, & ! input
                            varData,err,message)                          ! output
  ! access subroutines
  USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
@@ -633,8 +640,8 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
  integer(i4b),intent(in)           :: nLake       ! number of lake layers
  integer(i4b),intent(in)           :: nSoil       ! number of soil layers
  integer(i4b),intent(in)           :: nGlce       ! number of glacier ice layers
- integer(i4b),intent(in)           :: nLayers     ! total number of soil layers in the layer domains (nSnow+nSoil)
- integer(i4b),intent(in)           :: nGlacier    ! number of glaciers in GRU
+ integer(i4b),intent(in)           :: nLayers     ! total number of layers in the layer domains
+ integer(i4b),intent(in)           :: nGlac       ! number of glaciers in GRU
  ! output variables
  type(var_dlength),intent(inout)   :: varData     ! model variables for a local HRU
  integer(i4b),intent(out)          :: err         ! error code
@@ -677,7 +684,7 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
     case(iLookVarType%ifcToto); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
     case(iLookVarType%parSoil); allocate(varData%var(iVar)%dat(nSoil),stat=err)
     case(iLookVarType%routing); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
-    case(iLookVarType%glacier); allocate(varData%var(iVar)%dat(nGlacier),stat=err)
+    case(iLookVarType%glacier); allocate(varData%var(iVar)%dat(nGlac),stat=err)
     case(iLookVarType%outstat); allocate(varData%var(iVar)%dat(maxvarfreq*2),stat=err)
     case(iLookVarType%unknown); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown = special (and valid) case that is allocated later (initialize with zero-length vector)
     case default
@@ -697,7 +704,7 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
  ! ************************************************************************************************
  ! private subroutine allocateDat_int: initialize data dimension of the data structures
  ! ************************************************************************************************
- subroutine allocateDat_int(metadata,nSnow,nLake,nSoil,nGlce,nLayers,nGlacier, & ! input
+ subroutine allocateDat_int(metadata,nSnow,nLake,nSoil,nGlce,nLayers,nGlac, & ! input
                             varData,err,message)                       ! output
  USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
  implicit none
@@ -708,7 +715,7 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
  integer(i4b),intent(in)           :: nSoil       ! number of soil layers
  integer(i4b),intent(in)           :: nGlce       ! number of glacier ice layers
  integer(i4b),intent(in)           :: nLayers     ! total number of soil layers in the layer domains (nSnow+nSoil)
- integer(i4b),intent(in)           :: nGlacier    ! number of glaciers in GRU
+ integer(i4b),intent(in)           :: nGlac       ! number of glaciers in GRU
  ! output variables
  type(var_ilength),intent(inout)   :: varData     ! model variables for a local HRU
  integer(i4b),intent(out)          :: err         ! error code
@@ -751,7 +758,7 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
     case(iLookVarType%ifcToto); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
     case(iLookVarType%parSoil); allocate(varData%var(iVar)%dat(nSoil),stat=err)
     case(iLookVarType%routing); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
-    case(iLookVarType%glacier); allocate(varData%var(iVar)%dat(nGlacier),stat=err)
+    case(iLookVarType%glacier); allocate(varData%var(iVar)%dat(nGlac),stat=err)
     case(iLookVarType%outstat); allocate(varData%var(iVar)%dat(maxvarFreq*2),stat=err)
     case(iLookVarType%unknown); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=special (and valid) case that is allocated later (initialize with zero-length vector)
     case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(get_varTypeName(metadata(iVar)%vartype))//"']"; return
@@ -769,7 +776,7 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
  ! ************************************************************************************************
  ! private subroutine allocateDat_flag: initialize data dimension of the data structures
  ! ************************************************************************************************
- subroutine allocateDat_flag(metadata,nSnow,nLake,nSoil,nGlce,nLayers,nGlacier, & ! input
+ subroutine allocateDat_flag(metadata,nSnow,nLake,nSoil,nGlce,nLayers,nGlac, & ! input
                              varData,err,message)                       ! output
  USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
  implicit none
@@ -780,7 +787,7 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
  integer(i4b),intent(in)           :: nSoil       ! number of soil layers
  integer(i4b),intent(in)           :: nGlce       ! number of glacier ice layers
  integer(i4b),intent(in)           :: nLayers     ! total number of soil layers in the layer domains (nSnow+nSoil)
- integer(i4b),intent(in)           :: nGlacier    ! number of glaciers in GRU
+ integer(i4b),intent(in)           :: nGlac       ! number of glaciers in GRU
  ! output variables
  type(var_flagVec),intent(inout)   :: varData     ! model variables for a local HRU
  integer(i4b),intent(out)          :: err         ! error code
@@ -823,7 +830,7 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
     case(iLookVarType%parSoil); allocate(varData%var(iVar)%dat(nSoil),stat=err)
     case(iLookVarType%ifcToto); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
     case(iLookVarType%routing); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
-    case(iLookVarType%glacier); allocate(varData%var(iVar)%dat(nGlacier),stat=err)
+    case(iLookVarType%glacier); allocate(varData%var(iVar)%dat(nGlac),stat=err)
     case(iLookVarType%outstat); allocate(varData%var(iVar)%dat(maxvarFreq*2),stat=err)
     case(iLookVarType%unknown); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=special (and valid) case that is allocated later (initialize with zero-length vector)
     case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(get_varTypeName(metadata(iVar)%vartype))//"']"; return
