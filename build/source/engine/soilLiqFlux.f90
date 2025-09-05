@@ -1401,9 +1401,9 @@ contains
    ! validate base value and add tolerance for round-off error
    roundoff_tolerance = 1.e2_rkind * epsilon(1._rkind) ! tolerance for round-off error is near machine epsilon 
    if (base < -roundoff_tolerance) then ! if below zero outside of tolerance
-   !  err=10; message=trim(message)//"FUSE ARNO/VIC base value is negative"; return_flag=.true.; return
-   !else if (base < 0._rkind) then       ! if below zero within tolerance
-    base = 0._rkind ! base can go slightly negative if ida is true (due to numerical noise in S1_star, otherwise should be positive)
+    err=10; message=trim(message)//"FUSE ARNO/VIC base value is negative"; return_flag=.true.; return
+   else if (base < 0._rkind) then       ! if below zero within tolerance
+    base = 0._rkind
    end if
 
   end associate
