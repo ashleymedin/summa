@@ -546,7 +546,8 @@ subroutine run_oneGRU(&
                   bparData%var(iLookBPAR%lat_moraine_wid),    & ! intent(in):    lateral moraine width (m)
                   ! area
                   bparData%var(iLookBPAR%glacierAreaThresh),  & ! intent(in):    minimum glacier area to be considered a glacier (m2)
-                  bvarData,                                   & ! intent(inout): data for each basin variable, glacier may be resized
+                  bvarData%var(iLookBVAR%glacierAblArea)%dat, & ! intent(inout): per glacier ablation area (m2)
+                  bvarData%var(iLookBVAR%glacierAccArea)%dat, & ! intent(inout): per glacier accumulation area (m2)
                   glac_area,                                  & ! intent(inout): area of each glacier domain (m2)
                   glac_ablFrac,                               & ! intent(out):   fraction of glacier domain that is ablation area
                   ! error handling

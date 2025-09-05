@@ -27,16 +27,11 @@ USE nr_type
 USE globalData,only:integerMissing     ! missing integer number
 USE globalData,only:realMissing        ! missing real number
 
-USE globalData,only:thick4area        ! an arbitrary small threshold for glacier thickness to be considered as glacier area
-
 ! define data types
-USE globalData,only:bvar_meta          ! metadata
-USE var_lookup,only:iLookBVAR          ! named variables for structure elements
 USE var_lookup,only:iLookGRID          ! named variables for the glacier grid information
 USE data_types,only:&
                     glac_info,       & ! glacier information data structure
                     grid_info,       & ! glacier grid info data structure
-                    var_dlength,     & ! x%var(:)%dat        (rkind)
                     grid_double        ! x%gru(:)%grid(:)%var(:)%dat2(:,:) (dp)
 
 USE multiconst,only:&
@@ -89,10 +84,11 @@ subroutine glacAreaChange(&
                     theta_sat_mean,          & ! intent(in):    mean soil porosity in each glacier domain (-)
                     C_constant,              & ! intent(in):    non-spatial concentration for debris advection (kg m-3)
                     dbr_crit,                & ! intent(in):    critical debris thickness start debris-free terminal wedge (m)
-                    lat_moraine_wid,         & ! intent(in):    lateral moraine width (m)
+                    lat_moraine_wid,         & ! intent(inout): lateral moraine width (m)
                     ! area
                     glacierAreaThresh,       & ! intent(in):    minimum glacier area to be considered a glacier (m2)
-                    bvarData,                & ! intent(inout): data for each basin variable
+                    glacierAblArea,          & ! intent(inout): per glacier ablation area (m2)
+                    glacierAccArea,          & ! intent(inout): per glacier accumulation area (m2)
                     area,                    & ! intent(inout): area of each domain (m2)
                     ablFrac,                 & ! intent(out):   per domain ablation fraction (-)
                     ! error handling
@@ -123,7 +119,8 @@ subroutine glacAreaChange(&
   real(rkind), intent(in)            :: lat_moraine_wid                 ! lateral moraine width (m) 
   ! area 
   real(rkind), intent(in)            :: glacierAreaThresh               ! minimum glacier area to be considered a glacier (m2)
-  type(var_dlength), intent(inout)   :: bvarData                        ! data for each basin variable, glacier may be resized
+  real(rkind), intent(inout)         :: glacierAblArea(nGlacier)        ! per glacier ablation area (m2)
+  real(rkind), intent(inout)         :: glacierAccArea(nGlacier)        ! per glacier accumulation area (m2)
   real(rkind), intent(inout)         :: area(:)                         ! area of each glacier domain (m2)
   real(rkind), intent(out)           :: ablFrac(nDOM)                   ! per domain ablation fraction (-)
   integer(i4b),intent(out)           :: err                             ! error code
@@ -140,7 +137,7 @@ subroutine glacAreaChange(&
   integer(i4b), allocatable          :: glacHiMask(:,:)                 ! mask for high elevation clean glacier area
   integer(i4b), allocatable          :: glacLoMask(:,:)                 ! mask for low elevation clean glacier area
   integer(i4b), allocatable          :: glacDbrMask(:,:)                ! mask for debris ablation area
-  integer(i4b), allocatable          :: glacierAblMask(:,:)                ! mask for ablation area
+  integer(i4b), allocatable          :: glacAblMask(:,:)                ! mask for ablation area
   integer(i4b)                       :: i,j,k,n,iGlac,iGlrt,iGrid,iDOM,iHRU ! loop indices
   integer(i4b)                       :: dbr                             ! debris loop index 0 or 1
   integer(i4b)                       :: ind                             ! indice for mass balance interpolation
@@ -170,8 +167,6 @@ subroutine glacAreaChange(&
   ! ----------------------------------------------------------------------------------------------
   ! initialize
   err=0; message='glacAreaChange/'
-  glacierAblArea = 0._rkind
-  glacierAccArea = 0._rkind
   totVolume = 0._rkind
   ELA_elev = realMissing
   ELA_use = realMissing
@@ -334,9 +329,6 @@ subroutine glacAreaChange(&
   do iGlac = 1, nGlac
     iGrid = glacid_to_index(iGlac)
 
-    ablArea = bvarData%var(iLookBVAR%glacierAblArea)%dat(iGlac)
-    accArea = bvarData%var(iLookBVAR%glacierAccArea)%dat(iGlac)
-
     ! set up glacier grid
     ny = gridInfo(iGrid)%ny
     nx = gridInfo(iGrid)%nx
@@ -344,7 +336,7 @@ subroutine glacAreaChange(&
     dy = gridInfo(iGrid)%dy
     
     ! set height arrays and masks
-    allocate(hgt(nx,ny), glacClnMask(nx,ny), glacHiMask(nx,ny), glacLoMask(nx,ny), glacDbrMask(nx,ny), glacierAblMask(nx,ny))
+    allocate(hgt(nx,ny), glacClnMask(nx,ny), glacHiMask(nx,ny), glacLoMask(nx,ny), glacDbrMask(nx,ny), glacAblMask(nx,ny))
 
     ! set up grid data
     allocate(surface(nx,ny), bed(nx,ny), cell2hru(nx,ny), glacierMask(nx,ny), debris(nx,ny), bed0(nx,ny))
@@ -354,7 +346,7 @@ subroutine glacAreaChange(&
     cell2hru = int(gridData%grid(iGrid)%var(iLookGRID%cell2hru)%dat2(1:nx,1:ny))
     glacierMask = int(gridData%grid(iGrid)%var(iLookGRID%glacierMask)%dat2(1:nx,1:ny))
 
-    if (accArea+accArea < glacierAreaThresh)then ! glacier has shrunk below threshold, area may be zero
+    if (glacierAccArea(iGlac)+glacierAccArea(iGlac) < glacierAreaThresh)then ! glacier has shrunk below threshold, area may be zero
      ! a glacieret changes area with volume area scaling
      call volAreaScaling(t_total, debris, surface, bed, glacierMask, slope, intercept, validElev, validCount, &
                     maxCount, C_constant, dbr_crit, min_thickness, lat_moraine_wid, iden_soil, theta_sat, ELA_use, nx, ny, dx, dy, volume)
@@ -372,10 +364,10 @@ subroutine glacAreaChange(&
     hgt = surface - bed
 
     ! Calculate glacier accumulation and ablation areas
-    accArea = sum(merge(glacierMask, 0_i4b, hgt>thick4area .and. surface>= ELA_use))*dx*dy
-    ablArea = sum(merge(glacierMask, 0_i4b, hgt>thick4area .and. surface<  ELA_use))*dx*dy
+    glacierAccArea(iGlac) = sum(merge(glacierMask, 0_i4b, hgt>thick4area .and. surface>= ELA_use))*dx*dy
+    glacierAblArea(iGlac) = sum(merge(glacierMask, 0_i4b, hgt>thick4area .and. surface<  ELA_use))*dx*dy
     ! debugging print
-    print*, 'glacierAblArea = ', accArea, ' glacierAccArea = ', accArea," ela = ",ELA_use
+    print*, 'glacierAblArea = ', glacierAccArea(iGlac), ' glacierAccArea = ', glacierAccArea(iGlac)," ela = ",ELA_use
 
     ! Loop through HRUs and calculate domain areas and elevations for each HRU
     ! Order of domains will go HRU 1: clean1, clean2, debris; HRU 2: clean1, clean2, debris etc.
@@ -444,22 +436,22 @@ subroutine glacAreaChange(&
           ! Calculate areas, elevations, and debris thickness for 2 clean domains
           area(hiInd) = area(hiInd) + sum(glacHiMask)*dx*dy
           elev(hiInd) = elev(hiInd) + sum(surface * glacHiMask) *dx*dy
-          glacierAblMask = merge(glacHiMask, 0_i4b, cell2hru==hruInd(n) .and. hgt>thick4area .and. surface< ELA_use)
-          ablFrac(hiInd) = ablFrac(hiInd)+ sum(glacierAblMask) *dx*dy
+          glacAblMask = merge(glacHiMask, 0_i4b, cell2hru==hruInd(n) .and. hgt>thick4area .and. surface< ELA_use)
+          ablFrac(hiInd) = ablFrac(hiInd)+ sum(glacAblMask) *dx*dy
           debris_thick_dom(hiInd) = 0._rkind
 
           area(loInd) = area(loInd) + sum(glacLoMask)*dx*dy
           elev(loInd) = elev(loInd) + sum(surface * glacLoMask) *dx*dy
-          glacierAblMask = merge(glacLoMask, 0_i4b, cell2hru==hruInd(n) .and. hgt>thick4area .and. surface< ELA_use)
-          ablFrac(loInd) = ablFrac(loInd)+ sum(glacierAblMask) *dx*dy
+          glacAblMask = merge(glacLoMask, 0_i4b, cell2hru==hruInd(n) .and. hgt>thick4area .and. surface< ELA_use)
+          ablFrac(loInd) = ablFrac(loInd)+ sum(glacAblMask) *dx*dy
           debris_thick_dom(loInd) = 0._rkind
         else ! only one clean domain
           n = n+1 ! now n is last index of clean domains
           area(n) = area(n) + sum(glacClnMask)*dx*dy
           elev(n) = elev(n) + sum(surface * glacClnMask) *dx*dy
           debris_thick_dom(n) = 0._rkind
-          glacierAblMask = merge(glacClnMask, 0_i4b, cell2hru==hruInd(n) .and. hgt>thick4area .and. surface< ELA_use)
-          ablFrac(n) = ablFrac(n)+ sum(glacierAblMask) *dx*dy
+          glacAblMask = merge(glacClnMask, 0_i4b, cell2hru==hruInd(n) .and. hgt>thick4area .and. surface< ELA_use)
+          ablFrac(n) = ablFrac(n)+ sum(glacAblMask) *dx*dy
         end if
       end if
 
@@ -468,17 +460,15 @@ subroutine glacAreaChange(&
         area(n) = area(n) + sum(glacDbrMask)*dx*dy
         elev(n) = elev(n) + sum(surface * glacDbrMask) *dx*dy
         debris_thick_dom(n) = debris_thick_dom(n) + sum(debris * glacDbrMask) *dx*dy
-        glacierAblMask = merge(glacDbrMask, 0_i4b, cell2hru==hruInd(n) .and. hgt>thick4area .and. surface< ELA_use)
-        ablFrac(n) = ablFrac(n)+ sum(glacierAblMask) *dx*dy ! should be 1.0
+        glacAblMask = merge(glacDbrMask, 0_i4b, cell2hru==hruInd(n) .and. hgt>thick4area .and. surface< ELA_use)
+        ablFrac(n) = ablFrac(n)+ sum(glacAblMask) *dx*dy ! should be 1.0
       end if
     end do
 
     ! update gridData and deallocate
-    bvarData%var(iLookBVAR%glacierAblArea)%dat(iGlac) = ablArea
-    bvarData%var(iLookBVAR%glacierAccArea)%dat(iGlac) = accArea
     gridData%grid(iGrid)%var(iLookGRID%surface_elev)%dat2(1:nx,1:ny) = surface
     gridData%grid(iGrid)%var(iLookGRID%debris_thick)%dat2(1:nx,1:ny) = debris
-    deallocate(hgt, surface, bed, cell2hru, glacierMask, debris, glacClnMask, glacHiMask, glacLoMask, glacDbrMask, glacierAblMask)
+    deallocate(hgt, surface, bed, cell2hru, glacierMask, debris, glacClnMask, glacHiMask, glacLoMask, glacDbrMask, glacAblMask)
 
   enddo ! end of glacier loop
   deallocate(glacid_to_index)
@@ -516,13 +506,125 @@ end subroutine glacAreaChange
     real(rkind), intent(out) :: volume
 
     ! Local variables
-    real(rkind) :: dt, max_dt, min_dt, deltat, div_q(nx,ny), grad_debris(nx,ny), dt_cfl, meanS
+    real(rkind), parameter :: va_exp=1.36_rkind
+    real(rkind) :: dt, max_dt, min_dt, deltat, div_q(nx,ny), grad_debris(nx,ny), meanS, delVol, aPart,area
     real(rkind) :: gamma, t, m_dot(nx,ny)
-    integer(i4b) :: i, C_mask(nx,ny)
+    integer(i4b) :: i,k,l,kp,km,lp,lm, C_mask(nx,ny)
+
+    ! initial S and B, calculate coefficients
+    volume = sum(merge(S-B,0._rkind,glacierMask==1)) * dx * dy * 1.e-9_rkind ! km3
+    area = sum(merge(glacierMask,0_i4b,glacierMask==1))* dx * dy * 1.e-6_rkind ! km2
+    if (area <= 0._rkind) then ! no glacier detected coming in
+      va_constant = 0.033_rkind ! use a typical value
+    else
+      va_constant = volume/area**(1._rkind/va_exp) 
+    end if
+
+    print*, "initial volume, area, va_constant", volume, area, va_constant
+    ! get mass balance rate over surface
+    call get_m_dot(S, debris, glacierMask, slope, intercept, t_total, validElev, validCount, maxCount, nx, ny, m_dot)
+    delVol = sum(m_dot)*dx*dy*t_total/1.e9_rkind ! convert from m s-1 to km3
+
+    if(volume + delVol <= 0._rkind) then
+      delVol = -volume ! glacieret gone
+      volume = 0._rkind
+      S = B ! glacier surface is bedrock
+      debris = 0._rkind ! no debris
+      return
+    elseif(delVol==0._rkind) then
+      return ! no change in volume, so no change surface or debris
+    end if
+
+    delArea = ((volume + delVol)/va_constant)**(1._rkind/va_exp) - area ! change in area from volume-area scaling
+    ! distribute +area change to highest cell touching S-B>0 if glacierMask==1 and S==B
+    ! distribute -area change to lowest S-B>0  cell if glacierMask==1
+    numCells = nx * ny
+    allocate(sortedElev(numCells), sortedIndices(numCells))
+    if (delArea > 0._rkind) then ! area gain, add to high elevation areas
+       ! Flatten the B array and sort it in descending order
+       sortedElev = reshape(B, [numCells])
+       sortedIndices = [(i, i=1, numCells)]
+       ! Sort the elevations in descending order
+       do i = 1, numCells - 1
+         do j = i + 1, numCells
+           if (sortedElev(i) < sortedElev(j)) then
+             ! Swap elevations
+             call swap_real(sortedElev(i), sortedElev(j))
+             ! Swap indices
+             call swap_integer(sortedIndices(i), sortedIndices(j))
+           end if
+         end do
+       end do
+      cumulativeArea = 0._rkind
+      do i = 1, numCells
+        ! Get the 2D indices from the 1D index
+        k = mod(sortedIndices(i) - 1, nx) + 1_i4b
+        l = (sortedIndices(i) - 1) / nx + 1_i4b
+        kp = min(k+1,nx)
+        km = max(k-1,1_i4b)
+        lp = min(l+1,ny)
+        lm = max(l-1,1_i4b)
+        ! Add the cell to the mask if in glacier area
+        if (glacierMask(j, k) == 1_i4b .and. S(k,l)-B(k,l)==0._rkind .and. &
+            ! touching an S-B>0 cell
+            ( (S(kp,l)-B(kp,l)>0._rkind) .or. &
+              (S(km,l)-B(km,l)>0._rkind) .or. &
+              (S(k,lp)-B(k,lp)>0._rkind) .or. &
+              (S(k,lm)-B(k,lm)>0._rkind) .or. &
+              (S(kp,lp)-B(kp,lp)>0._rkind) .or. &
+              (S(km,lp)-B(km,lp)>0._rkind) .or. &
+              (S(kp,lm)-B(kp,lm)>0._rkind) .or. &
+              (S(km,lm)-B(km,lm)>0._rkind)  ) ) then
+          cumulativeArea = cumulativeArea + dx * dy
+          if (cumulativeArea <= delArea) then
+            S(j, k) = S(j, k) + delVol/delArea ! add volume evenly over added area
+          end if
+        end if
+        if (cumulativeArea >= delArea) exit
+      end do
+    else ! area loss, remove from low elevation areas
+       ! Flatten the S array and sort it in descending order
+       sortedElev = reshape(S, [numCells])
+       sortedIndices = [(i, i=1, numCells)]
+       ! Sort the elevations in descending order
+       do i = 1, numCells - 1
+         do j = i + 1, numCells
+           if (sortedElev(i) < sortedElev(j)) then
+             ! Swap elevations
+             call swap_real(sortedElev(i), sortedElev(j))
+             ! Swap indices
+             call swap_integer(sortedIndices(i), sortedIndices(j))
+           end if
+         end do
+       end do
+      cumulativeArea = 0._rkind
+      do i = numCells, 1, -1
+        ! Get the 2D indices from the 1D index
+        k = mod(sortedIndices(i) - 1, nx) + 1_i4b
+        l = (sortedIndices(i) - 1) / nx + 1_i4b
+        ! Remove the cell from the mask if in glacier area
+        if (S(j, k)-B(j, k)>0) then
+          cumulativeArea = cumulativeArea + dx * dy
+          if (cumulativeArea <= -delArea) then
+            S(j, k) = S(j, k) + delVol/delArea ! remove volume evenly over removed area
+            if (S(j, k) < B(j, k)) S(j, k) = B(j, k) ! do not go below bedrock    
+          end if
+        end if
+        if (cumulativeArea >= -delArea) exit
+      end do
+    end if
+    deallocate(sortedElev, sortedIndices)
+    WHAT IS S??
+
+    S = S+ m_dot*t_total ! update surface with mass balance, m_dot in kg m-2 s-1, t_total in s
+    ! This may make S < B, which will be fixed after area change
 
 
-      ! get mass balance rate over surface
-      call get_m_dot(S, debris, glacierMask, slope, intercept, t_total, validElev, validCount, maxCount, nx, ny, m_dot)
+
+
+
+
+
 
       S = S - debris ! remove debris from glacier surface for flow calculation
 
