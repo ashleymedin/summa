@@ -1334,8 +1334,8 @@ contains
   use soil_utils_module,only:SoftArgMax ! smooth arg max/min (for derivatives of LogSumExp)
 
   ! local variables
-  logical(lgt),parameter :: smoother = .false.                ! control for optional smoothing in base variable  
-  real(rkind) ,parameter :: alpha_LSE=1.e3_rkind              ! smoothness parameter for LSE smoother function
+  logical(lgt),parameter :: smoother = .true.                 ! control for optional smoothing in base variable  
+  real(rkind) ,parameter :: alpha_LSE= 1.e3_rkind             ! smoothness parameter for LSE smoother function
   real(rkind)            :: b                                 ! ARNO/VIC exponent (-) 
   real(rkind)            :: S1                                ! total water content in upper FUSE layer (m)
   real(rkind)            :: dS1_dWat(1:in_surfaceFlux % nSoil) ! derivative of S1 w.r.t. water content
