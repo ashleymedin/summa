@@ -27,6 +27,8 @@ USE nr_type
 USE globalData,only:integerMissing     ! missing integer number
 USE globalData,only:realMissing        ! missing real number
 
+USE globalData,only: thick4area        ! an arbitrary small threshold for glacier thickness to be considered as glacier area
+
 ! define data types
 USE var_lookup,only:iLookGRID          ! named variables for the glacier grid information
 USE data_types,only:&
@@ -119,8 +121,8 @@ subroutine glacAreaChange(&
   real(rkind), intent(in)            :: lat_moraine_wid                 ! lateral moraine width (m) 
   ! area 
   real(rkind), intent(in)            :: glacierAreaThresh               ! minimum glacier area to be considered a glacier (m2)
-  real(rkind), intent(inout)         :: glacierAblArea(nGlacier)        ! per glacier ablation area (m2)
-  real(rkind), intent(inout)         :: glacierAccArea(nGlacier)        ! per glacier accumulation area (m2)
+  real(rkind), intent(inout)         :: glacierAblArea(nGlac)           ! per glacier ablation area (m2)
+  real(rkind), intent(inout)         :: glacierAccArea(nGlac)           ! per glacier accumulation area (m2)
   real(rkind), intent(inout)         :: area(:)                         ! area of each glacier domain (m2)
   real(rkind), intent(out)           :: ablFrac(nDOM)                   ! per domain ablation fraction (-)
   integer(i4b),intent(out)           :: err                             ! error code
@@ -507,9 +509,11 @@ end subroutine glacAreaChange
 
     ! Local variables
     real(rkind), parameter :: va_exp=1.36_rkind
-    real(rkind) :: m_dot(nx,ny), delVol, delArea, area, va_constant, sortedElev(:), sortedIndices(:)
+    real(rkind) :: m_dot(nx,ny), delVol, delArea, area, va_constant, excessVol
     real(rkind) :: cumulativeArea, cumulativeVol, around(8), grad_debris(nx,ny)
-    integer(i4b) :: i,j,k,l,kp,km,lp,lm, C_mask(nx,ny)
+    real(rkind), allocatable :: sortedElev(:)
+    integer(i4b), allocatable :: sortedIndices(:)
+    integer(i4b) :: i,j,k,l,kp,km,lp,lm, numCells, C_mask(nx,ny)
 
     S = S - debris ! remove debris from glacier surface before volume-area scaling
 
@@ -570,8 +574,8 @@ end subroutine glacAreaChange
         lm = max(l-1,1_i4b)
         ! Add the cell to the mask if in glacier area and touching an S-B>0 cell
         if (glacierMask(j, k) == 1_i4b .and. S(k,l)-B(k,l)==0._rkind) then
-          around = \(S(kp,l)-B(kp,l), S(km,l)-B(km,l), S(k,lp)-B(k,lp), S(k,lm)-B(k,lm),  &
-                     S(kp,lp)-B(kp,lp), S(km,lp)-B(km,lp), S(kp,lm)-B(kp,lm), S(km,lm)-B(km,lm) \)
+          around = (/S(kp,l)-B(kp,l), S(km,l)-B(km,l), S(k,lp)-B(k,lp), S(k,lm)-B(k,lm),  &
+                     S(kp,lp)-B(kp,lp), S(km,lp)-B(km,lp), S(kp,lm)-B(kp,lm), S(km,lm)-B(km,lm)/)
           if (all(around<=0._rkind)) cycle ! not touching any S-B>0 cells, skip
           cumulativeArea = cumulativeArea + dx * dy
           if (cumulativeArea <= delArea) then

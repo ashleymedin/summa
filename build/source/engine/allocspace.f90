@@ -215,8 +215,8 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
         select type(dataStruct)
           class is (gru_hru_dom_int);       call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=0,err=err,message=cmessage); spatial=.true.
           class is (gru_hru_dom_int8);      call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=0,err=err,message=cmessage); spatial=.true.
-          class is (gru_hru_dom_intVec);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow=nSnow,nLake=nLake,nSoil=nSoil,nGlce=nGlce,nGlac=0,err,cmessage); spatial=.true.
-          class is (gru_hru_dom_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow=nSnow,nLake=nLake,nSoil=nSoil,nGlce=nGlce,nGlac=0,err,cmessage); spatial=.true.
+          class is (gru_hru_dom_intVec);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow=nSnow,nLake=nLake,nSoil=nSoil,nGlce=nGlce,nGlac=0,err=err,message=cmessage); spatial=.true.
+          class is (gru_hru_dom_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow=nSnow,nLake=nLake,nSoil=nSoil,nGlce=nGlce,nGlac=0,err=err,message=cmessage); spatial=.true.
           class is (gru_hru_dom_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=0,err=err,message=cmessage); spatial=.true.
           class is (gru_hru_dom_z_vLookup); spatial=.true. ! (special case, allocate space separately later)
           class default

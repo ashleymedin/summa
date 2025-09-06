@@ -197,7 +197,7 @@ contains
      ! check that the glacier areas are positive
      do iGlac = 1, gru_struc(iGRU)%nGlac
        area = bvarData%gru(iGRU)%var(iLookBVAR%glacierAblArea)%dat(iGlac) + bvarData%gru(iGRU)%var(iLookBVAR%glacierAccArea)%dat(iGlac)
-       if (area<=0._rkind .and. gru_struc(iGRU)%glac_info(iGlac)%glacType==1) write(*,*) 'WARNING: zero area for glacier ',iGlac,' in GRU ',iGRU,', need to set area to a postive value if want to build a glacier.'
+       if (area<=0._rkind) write(*,*) 'WARNING: zero area for glacier ',iGlac,' in GRU ',iGRU,', need to set area to a postive value if want to build a glacier.'
      end do
    end if ! if glaciers
 
