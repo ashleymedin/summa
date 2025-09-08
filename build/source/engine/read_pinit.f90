@@ -183,7 +183,7 @@ contains
     parFallback(iLookBPAR%lat_moraine_wid)%default_val = 200._rkind ! from looking at Alaska glaciers
   endif
   if (parFallback(iLookBPAR%glacierAreaThresh)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookBPAR%glacierAreaThresh)%default_val = 0.5e6_rkind ! minimum glacier area to have flow, should be > 0.1 km2
+    parFallback(iLookBPAR%glacierAreaThresh)%default_val = 0.5e6_rkind ! minimum glacier area to have flow, should be at least > 0.1 km2
   endif
  end if
 

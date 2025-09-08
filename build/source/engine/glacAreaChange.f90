@@ -131,7 +131,7 @@ subroutine glacAreaChange(&
   real(rkind)                        :: elev0(nDOM)                     ! initial elevation of each glacier domain (m)
   real(rkind)                        :: area0(nDOM)                     ! initial area of each glacier domain (m2)
   real(rkind), allocatable           :: surface(:,:)                    ! surface elevation of each glacier domain (m)
-  real(rkind), allocatable           :: bed(:,:),bed0(:,:)              ! bed elevation of each glacier domain (m)
+  real(rkind), allocatable           :: bed(:,:)                        ! bed elevation of each glacier domain (m)
   integer(i4b), allocatable          :: cell2hru(:,:)                   ! index mapping from grid cells to HRUs
   integer(i4b), allocatable          :: glacierMask(:,:)                ! 1-0 mask of glacier domain
   real(rkind), allocatable           :: debris(:,:)                     ! debris thickness of each glacier cell (m)
@@ -341,12 +341,14 @@ subroutine glacAreaChange(&
     allocate(hgt(nx,ny), glacClnMask(nx,ny), glacHiMask(nx,ny), glacLoMask(nx,ny), glacDbrMask(nx,ny), glacAblMask(nx,ny))
 
     ! set up grid data
-    allocate(surface(nx,ny), bed(nx,ny), cell2hru(nx,ny), glacierMask(nx,ny), debris(nx,ny), bed0(nx,ny))
+    allocate(surface(nx,ny), bed(nx,ny), cell2hru(nx,ny), glacierMask(nx,ny), debris(nx,ny))
     surface = gridData%grid(iGrid)%var(iLookGRID%surface_elev)%dat2(1:nx,1:ny)
     bed = gridData%grid(iGrid)%var(iLookGRID%bed_elev)%dat2(1:nx,1:ny)
     debris = gridData%grid(iGrid)%var(iLookGRID%debris_thick)%dat2(1:nx,1:ny)
     cell2hru = int(gridData%grid(iGrid)%var(iLookGRID%cell2hru)%dat2(1:nx,1:ny))
     glacierMask = int(gridData%grid(iGrid)%var(iLookGRID%glacierMask)%dat2(1:nx,1:ny))
+    ! debugging print
+    print*, "glacier",iGlac, "in km area ",(glacierAccArea(iGlac)+glacierAblArea(iGlac))*1.e-6_rkind
 
     if (glacierAccArea(iGlac)+glacierAblArea(iGlac) < glacierAreaThresh)then ! glacier has shrunk below threshold, area may be zero
      ! a glacieret changes area with volume area scaling
@@ -579,7 +581,7 @@ end subroutine glacAreaChange
           cumulativeArea = cumulativeArea + dx * dy
           if (cumulativeArea <= delArea) then
             S(j, k) = S(j, k) + sum(around)/count(around>0._rkind) ! add volume from average of touching cells
-            cumulativeVol = cumulativeVol + S(j, k)-B(j, k) * dx * dy
+            cumulativeVol = cumulativeVol + (S(j, k)-B(j, k)) * dx * dy
           end if
         end if
         if(cumulativeArea >= delArea) exit
@@ -594,7 +596,7 @@ end subroutine glacAreaChange
         if (S(j, k)-B(j, k)>0) then
           cumulativeArea = cumulativeArea + dx * dy
           if (cumulativeArea <= -delArea) then
-            cumulativeVol = cumulativeVol + S(j, k)-B(j, k) * dx * dy
+            cumulativeVol = cumulativeVol + (S(j, k)-B(j, k)) * dx * dy
             S(j, k) = B(j, k) ! remove volume down to bedrock
           end if
         end if
@@ -603,6 +605,9 @@ end subroutine glacAreaChange
       excessVol = delVol + cumulativeVol
     end if
     deallocate(sortedElev, sortedIndices)
+    ! debugging print
+    print*, "in m meanH",sum(merge(S-B,0._rkind,glacierMask==1)) / count(glacierMask==1), maxval(merge(S-B,0._rkind,glacierMask==1)), minval(merge(S-B,0._rkind,glacierMask==1))
+    print*, "in km initial vol", volume, "initial area", area, "delVol", delVol*1.e-9_rkind, "delArea", delArea*1.e-6_rkind, "excess m", excessVol/(sum(merge(S-B,0._rkind,glacierMask==1)) * dx * dy)
 
     ! distribute excess (+/-) volume evenly over all S-B>0 cells
     area  = sum(merge(S-B,0._rkind,glacierMask==1)) * dx * dy ! new area, m2
@@ -614,9 +619,6 @@ end subroutine glacAreaChange
       debris = 0._rkind ! no debris
       return
     end if
-    ! debugging print
-    print*, "meanH",sum(merge(S-B,0._rkind,glacierMask==1)) / count(glacierMask==1), maxval(merge(S-B,0._rkind,glacierMask==1)), minval(merge(S-B,0._rkind,glacierMask==1))
-    print*, "vol", volume, "area", area, "delVol", delVol*1.e-9_rkind, "delArea", delArea*1.e-6_rkind
       
     ! Update debris thickness if there is debris, using englacial debris advection transport model
     if (sum(debris)>0._rkind)then 
@@ -627,7 +629,7 @@ end subroutine glacAreaChange
       debris = merge(debris, 0._rkind, debris<=dbr_crit) ! Check that debris thickness is not over critical value, effectively making terminal clean ice wedge 
     endif
     ! add debris back to glacier surface
-    S = S + debris
+    S = S + debris    
 
     ! Recalculate volume of glacier (includes debris)
     volume = sum(merge(S-B,0._rkind,glacierMask==1)) * dx * dy * 1.e-9_rkind ! km3
@@ -708,8 +710,6 @@ end subroutine glacAreaChange
       ! Update S
       S = S + (m_dot + div_q) * deltat
       S = merge(S, B, S > B)
-      ! debugging print
-      print*, "meanH", sum(merge(S-B,0._rkind,glacierMask==1)) / count(glacierMask==1), maxval(merge(S-B,0._rkind,glacierMask==1)), minval(merge(S-B,0._rkind,glacierMask==1)), t
 
       ! Check that the glacier is in boundaries, fix small violations
       if (any((S - B) > 0._rkind .and. glacierMask==0)) then
@@ -734,6 +734,8 @@ end subroutine glacAreaChange
       ! add debris back to glacier surface
       S = S + debris
     end do ! end of time loop
+    ! debugging print
+    print*, "in m meanH", sum(merge(S-B,0._rkind,glacierMask==1)) / count(glacierMask==1), maxval(merge(S-B,0._rkind,glacierMask==1)), minval(merge(S-B,0._rkind,glacierMask==1)),t
 
     ! Calculate volume of glacier (includes debris)
     volume = sum(merge(S-B,0._rkind,glacierMask==1)) * dx * dy * 1.e-9_rkind ! km3
