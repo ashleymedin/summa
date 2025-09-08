@@ -890,7 +890,6 @@ subroutine surfaceFlux(io_soilLiqFlux,in_surfaceFlux,io_surfaceFlux,out_surfaceF
   real(rkind)                      :: total_soil_depth                    ! total depth of soil (m)
   ! head boundary condition
   real(rkind)                      :: cFlux                               ! capillary flux (m s-1)
-  real(rkind)                      :: dNum                                ! numerical derivative
   ! simplified Green-Ampt infiltration
   real(rkind)                      :: rootZoneLiq                         ! depth of liquid water in the root zone (m)
   real(rkind)                      :: rootZoneIce                         ! depth of ice in the root zone (m)
