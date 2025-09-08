@@ -407,14 +407,12 @@ endif
 
     ! calculate a look-up table for the temperature-enthalpy conversion of snow for future snow layer merging
     ! NOTE: H is the mixture enthalpy of snow liquid and ice
+    !  do the same for glacier ice if necessary (more than one melting ice layer)
     needLookup_ice = .false.
     if(nMeltingIceLayers - gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce > 1) needLookup_ice = .true.
     if(nLakeIceLayers_poss > 1 .and. gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake > 0 ) needLookup_ice = .true. 
-
-    if(needLookup_ice)then
-      call T2H_lookup_snWat(mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),needLookup_ice,err,cmessage)
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-    endif
+    call T2H_lookup_snWat(mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),needLookup_ice,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! calculate a lookup table for the temperature-enthalpy conversion of soil 
     !   if need enthalpy for either energy backward Euler residual or IDA state variable and not using soil enthalpy hypergeometric function
