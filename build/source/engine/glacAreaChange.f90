@@ -140,7 +140,7 @@ subroutine glacAreaChange(&
   integer(i4b), allocatable          :: glacLoMask(:,:)                 ! mask for low elevation clean glacier area
   integer(i4b), allocatable          :: glacDbrMask(:,:)                ! mask for debris ablation area
   integer(i4b), allocatable          :: glacAblMask(:,:)                ! mask for ablation area
-  integer(i4b)                       :: i,j,k,n,iGlac,iGlrt,iGrid,iDOM,iHRU ! loop indices
+  integer(i4b)                       :: i,j,k,n,iGlac,iGrid,iDOM,iHRU   ! loop indices
   integer(i4b)                       :: dbr                             ! debris loop index 0 or 1
   integer(i4b)                       :: ind                             ! indice for mass balance interpolation
   real(rkind), allocatable           :: slope(:,:), intercept(:,:)      ! slope and intercept for linear extrapolation of mass balance
@@ -387,6 +387,9 @@ subroutine glacAreaChange(&
 
       if (nclean(iHRU)>0)then
         if (nclean(iHRU)>1) then 
+          ! two clean domains, split area between the two based on elevation
+          glacHiMask = 0_i4b
+          glacLoMask = 0_i4b
           n = n+2 ! two clean domains, now n is last index of clean domains
           ! give higher cells to higher elevation domain
           hiInd = n
@@ -520,13 +523,15 @@ end subroutine glacAreaChange
 
     ! initial S and B, calculate coefficients
     volume = sum(merge(S-B,0._rkind,glacierMask==1)) * dx * dy * 1.e-9_rkind ! km3
-    area = sum(merge(glacierMask,0_i4b,glacierMask==1))* dx * dy * 1.e-6_rkind ! km2
+    area = sum(merge(glacierMask,0_i4b,(S-B)>thick4area))* dx * dy * 1.e-6_rkind ! km2
     if (area <= 0._rkind) then ! no glacier detected coming in
       va_constant = 0.033_rkind ! use a typical value
     else
-      va_constant = volume/area**(1._rkind/va_exp) 
+      va_constant = volume/area**va_exp ! might want to cap this
     end if
-
+    ! debugging print
+    print*, "initial volume (km3),area (km2), va_constant ", volume, area, va_constant
+    
     ! get mass balance rate over surface
     m_dot = massBalance(S, debris, glacierMask, slope, intercept, t_total, validElev, validCount, maxCount, nx, ny)
     delVol = sum(m_dot)*dx*dy*t_total * 1.e-9_rkind ! convert from m s-1 to km3
@@ -574,14 +579,14 @@ end subroutine glacAreaChange
         lp = min(l+1,ny)
         lm = max(l-1,1_i4b)
         ! Add the cell to the mask if in glacier area and touching an S-B>0 cell
-        if (glacierMask(j, k) == 1_i4b .and. S(k,l)-B(k,l)==0._rkind) then
+        if (glacierMask(k,l) == 1_i4b .and. S(k,l)-B(k,l)==0._rkind) then
           around = (/S(kp,l)-B(kp,l), S(km,l)-B(km,l), S(k,lp)-B(k,lp), S(k,lm)-B(k,lm),  &
                      S(kp,lp)-B(kp,lp), S(km,lp)-B(km,lp), S(kp,lm)-B(kp,lm), S(km,lm)-B(km,lm)/)
           if (all(around<=0._rkind)) cycle ! not touching any S-B>0 cells, skip
           cumulativeArea = cumulativeArea + dx * dy
           if (cumulativeArea <= delArea) then
-            S(j, k) = S(j, k) + sum(around)/count(around>0._rkind) ! add volume from average of touching cells
-            cumulativeVol = cumulativeVol + (S(j, k)-B(j, k)) * dx * dy
+            S(k,l) = S(k,l) + sum(around)/count(around>0._rkind) ! add height from average of touching cells
+            cumulativeVol = cumulativeVol + (S(k,l)-B(k,l)) * dx * dy
           end if
         end if
         if(cumulativeArea >= delArea) exit
@@ -593,11 +598,11 @@ end subroutine glacAreaChange
         k = mod(sortedIndices(i) - 1, nx) + 1_i4b
         l = (sortedIndices(i) - 1) / nx + 1_i4b
         ! Remove the cell from the mask if in glacier area
-        if (S(j, k)-B(j, k)>0) then
+        if (S(k,l)-B(k,l)>0) then
           cumulativeArea = cumulativeArea + dx * dy
           if (cumulativeArea <= -delArea) then
-            cumulativeVol = cumulativeVol + (S(j, k)-B(j, k)) * dx * dy
-            S(j, k) = B(j, k) ! remove volume down to bedrock
+            cumulativeVol = cumulativeVol + (S(k,l)-B(k,l)) * dx * dy
+            S(k,l) = B(k,l) ! remove volume down to bedrock
           end if
         end if
         if(cumulativeArea >= -delArea) exit
@@ -605,12 +610,9 @@ end subroutine glacAreaChange
       excessVol = delVol + cumulativeVol
     end if
     deallocate(sortedElev, sortedIndices)
-    ! debugging print
-    print*, "in m meanH",sum(merge(S-B,0._rkind,glacierMask==1)) / count(glacierMask==1), maxval(merge(S-B,0._rkind,glacierMask==1)), minval(merge(S-B,0._rkind,glacierMask==1))
-    print*, "in km initial vol", volume, "initial area", area, "delVol", delVol*1.e-9_rkind, "delArea", delArea*1.e-6_rkind, "excess m", excessVol/(sum(merge(S-B,0._rkind,glacierMask==1)) * dx * dy)
-
+  
     ! distribute excess (+/-) volume evenly over all S-B>0 cells
-    area  = sum(merge(S-B,0._rkind,glacierMask==1)) * dx * dy ! new area, m2
+    area = sum(merge(glacierMask,0_i4b,(S-B)>thick4area)) * dx * dy ! new area, m2
     if (area > 0._rkind) then
       S = merge( max(B + thick4area, S - excessVol/area), S, S - B > 0._rkind)
     else
@@ -633,7 +635,9 @@ end subroutine glacAreaChange
 
     ! Recalculate volume of glacier (includes debris)
     volume = sum(merge(S-B,0._rkind,glacierMask==1)) * dx * dy * 1.e-9_rkind ! km3
-
+      ! debugging print
+    print*, "in m meanH",sum(merge(S-B,0._rkind,glacierMask==1)) / count(glacierMask==1), maxval(merge(S-B,0._rkind,glacierMask==1)), minval(merge(S-B,0._rkind,glacierMask==1))
+    print*, "in km end vol", volume, "end area", area*1.e-6_rkind, "delVol", delVol*1.e-9_rkind, "delArea", delArea*1.e-6_rkind, "excess m", excessVol/(sum(merge(S-B,0._rkind,glacierMask==1)) * dx * dy),excessVol,cumulativeVol
   end subroutine volAreaScaling
 
 
@@ -1353,10 +1357,8 @@ subroutine updateGlacDomain(&
   character(*),intent(out)        :: message                  ! error message 
    ! ----- define local variables ------------------------------------------------------------------------------------------
   integer(i4b)                    :: i                        ! loop index
-  real(rkind)                     :: aPart                    ! part of area calculation
   real(rkind)                     :: soil_thick               ! depth of soil== debris in debris domain of glacier HRU
   real(rkind)                     :: thick_ratio              ! ratio of new debris thickness to previous debris thickness
-  character(len=256)              :: cmessage                 ! error message
   ! ----------------------------------------------------------------------------------------------
   ! initialize
   err=0; message='updateGlacDomain/'
