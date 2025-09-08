@@ -200,7 +200,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  maxWetlands = 0
  do iGRU=1,nGRU
    maxGlaciers = max(maxGlaciers, gru_struc(iGRU)%nGlac)
-   maxWetlands = max(maxWetlands, gru_struc(iGRU)%nWetl)
+   maxWetlands = max(maxWetlands, gru_struc(iGRU)%nWtld)
  end do
 
  ! get the maximum number of snow layers

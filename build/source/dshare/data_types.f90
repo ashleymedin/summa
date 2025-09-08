@@ -146,7 +146,7 @@ MODULE data_types
  type, public :: gru2hru_map
   integer(i8b)                           :: gru_id                        ! id of the gru
   integer(i4b)                           :: nGlac                         ! number of glaciers in the basin
-  integer(i4b)                           :: nWetl                         ! number of wetlands in the basin
+  integer(i4b)                           :: nWtld                         ! number of wetlands in the basin
   integer(i4b)                           :: nGrid                         ! number of grids in the basin
   integer(i4b)                           :: hruCount                      ! total number of hrus in the gru
   type(hru_info), allocatable            :: hruInfo(:)                    ! basic information of HRUs within the gru

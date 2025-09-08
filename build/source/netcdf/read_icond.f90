@@ -359,7 +359,6 @@ contains
  character(len=32),parameter               :: nglDimName    ='grid'    ! dimension name for grid variables
  integer(i8b),allocatable                  :: gru_id(:)                ! GRU id
  integer(i8b),allocatable                  :: hru_id(:)                ! HRU id
- integer(i4b),allocatable                  :: gru_nGlac(:)             ! number of glaciers in each GRU
  integer(i8b),allocatable                  :: glac_id(:,:)             ! glac id
  integer(i4b),allocatable                  :: gruid_to_index(:)        ! mapping from gru_id to index in gru_struc
  integer(i4b),allocatable                  :: hrunc_to_index(:,:)      ! mapping from hru_nc to index in gru_struc
@@ -749,11 +748,6 @@ contains
    err = nf90_inquire_dimension(ncID,dimID,len=fileglac);
    if(err/=nf90_noerr)then; message=trim(message)//'problem reading glac dimension from initial condition file/'//trim(nf90_strerror(err)); return; end if
 
-   ! read nGlac from netcdf file
-   allocate(gru_nGlac(fileGRU))
-   err = nf90_inq_varid(ncID,"nGlac",ncVarID);   if (err/=0) then; message=trim(message)//'problem finding nGlac'; return; end if
-   err = nf90_get_var(ncID,ncVarID,gru_nGlac);   if (err/=0) then; message=trim(message)//'problem reading nGlac'; return; end if
-
    ! read glac_id from netcdf file
    allocate(glac_id(filegru,fileglac))
    err = nf90_inq_varid(ncID,"glacId ",ncVarID);   if (err/=0) then; message=trim(message)//'problem finding glacId '; return; end if
@@ -761,11 +755,6 @@ contains
 
    do iGRU = 1,nGRU
      nGlac = gru_struc(iGRU)%nGlac ! get dimension of basin glacier variables from attribute file, per GRU
-     if(nGlac/=gru_nGlac(iGRU))then
-       write(*,*) 'nGlac from attribute file=',nGlac,' nGlac from initial conditions file=',gru_nGlac(iGRU)
-       message=trim(message)//': icond nGlac does not match nGlac set in attributes'
-       err=20; return
-     endif
      if (.not. allocated(gru_struc(iGRU)%glacInfo)) then
        allocate(gru_struc(iGRU)%glacInfo(gru_struc(iGRU)%nGlac))
      endif
@@ -810,7 +799,7 @@ contains
     deallocate(varData2) ! deallocate temporary data array for next variable
    end do ! end looping through basin variables
   endif  ! end if case for glac variables being in init. cond. file
-  deallocate(glac_id,gru_nGlac)
+  deallocate(glac_id)
 
  endif  ! end if has glacier
 
