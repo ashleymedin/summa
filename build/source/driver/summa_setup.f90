@@ -142,10 +142,6 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  integer(i4b)                          :: iVar               ! looping variables
  real(rkind)                           :: absEnergyFac       ! multiplier for absolute value of energy state variable (for enthalpy or temperature)
  logical                               :: needLookup_soil    ! logical to decide if computing soil enthalpy lookup tables
- integer(i4b)                          :: maxLayers_glac     ! maximum number of layers for glacier
- integer(i4b)                          :: maxLayers_wtld     ! maximum number of layers for wetland
- integer(i4b)                          :: maxSoilLayers_glac ! maximum number of soil layers for glacier (0)
- integer(i4b)                          :: maxSoilLayers_wtld ! maximum number of soil layers for wetland
  logical(lgt)                          :: needLookup_ice     ! logical to decide if computing enthalpy lookup tables for ice
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
@@ -212,40 +208,23 @@ subroutine summa_paramSetup(summa1_struc, err, message)
   case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
  end select ! (option to combine/sub-divide snow layers)
 
- ! get the maximum number of layers for soil, ice, and lake
- ! this assumes that the number of soil, ice, and lake layers is the same for all HRU (by domain type) in the model 
- !  AND they do not change (and max snow layers are fixed as above, snow layers may change)
- maxLayers          = 0
- maxLayers_glac     = 0
- maxLayers_wtld     = 0
- maxSoilLayers      = 0
- maxSoilLayers_glac = 0
- maxSoilLayers_wtld = 0
- maxGlceLayers      = 0
- maxLakeLayers      = 0
- gruLoop: do iGRU=1,nGRU
+ ! get the maximum number of layers for lake, soil, glacier ice, and total
+ !  (max snow layers are fixed as above, snow layers may change)
+ maxLayers     = 0
+ maxSoilLayers = 0
+ maxGlceLayers = 0
+ maxLakeLayers = 0
+ do iGRU=1,nGRU
   do iHRU=1,gru_struc(iGRU)%hruCount
    do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
-    if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==upland)then
-     maxLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + maxSnowLayers
-     maxSoilLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
-    else if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln1 .or. gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln2 &
-       .or. gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr)then
-     maxLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce + maxSnowLayers
-     maxGlceLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce
-     if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr) maxSoilLayers_glac = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
-    else if (gru_struc(1)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==wetland)then
-     maxLayers_wtld = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake + maxSnowLayers
-     maxSoilLayers_wtld = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
-     maxLakeLayers = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake
-    endif
-    if (maxLayers>0 .and. maxLayers_glac>0 .and. maxLayers_wtld>0) exit gruLoop ! exit the loop if all values are found
-   end do
-  end do 
- end do gruLoop
- ! Determine the maximum of the three variables
- maxLayers = max(maxLayers, maxLayers_glac, maxLayers_wtld)
- maxSoilLayers = max(maxSoilLayers, maxSoilLayers_glac, maxSoilLayers_wtld)
+    maxLakeLayers = max(maxLakeLayers, gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake)
+    maxSoilLayers = max(maxSoilLayers, gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil)
+    maxGlceLayers = max(maxGlceLayers, gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce)
+    maxLayers = max(maxLayers, maxSnowLayers+gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake &
+                               + gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce)
+   end do 
+  end do
+ end do
 
  ! *****************************************************************************
  ! *** read local attributes for each HRU

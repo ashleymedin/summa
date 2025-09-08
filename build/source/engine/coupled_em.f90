@@ -68,6 +68,7 @@ USE globalData,only:model_decisions        ! model decision structure
 USE globalData,only:globalPrintFlag        ! the global print flag
 USE globalData,only:realMissing            ! missing real number
 USE globalData,only:maxSnowLayers          ! maximum number of snow layers
+USE globalData,only:maxLakeLayers          ! maximum number of lake layers
 USE globalData,only:maxGlceLayers          ! maximum number of glacier ice layers
 USE globalData,only:icefrz_mult            ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
 
@@ -791,9 +792,13 @@ subroutine coupled_em(&
         ! *** merge/sub-divide snow/firn/ice layers...
         ! -----------------------------------
         maxSnowIceLayers = maxSnowLayers
-        if (dom_type==glacCln1 .or. dom_type==glacCln2 .or. dom_type==glacDbr) &
-          maxSnowIceLayers=int(maxSnowLayers*2.5_rkind) ! increase the number of layers for glacier firn layers 
-        if (nSnow==0 .and. nGlce>0) maxSnowIceLayers = maxGlceLayers
+        if (nSnow==0)then
+          if (nLake>0)then
+            maxSnowIceLayers = maxLakeLayers ! merging lake ice layers
+          else 
+            if (nGlce>0) maxSnowIceLayers = maxGlceLayers ! merging glacier ice layers
+          end if
+        end if
         call volicePack(&
                         ! input/output: model data structures
                         maxSnowIceLayers,           & ! intent(in):    maximum number of snow/firn/ice layers
@@ -1793,7 +1798,7 @@ subroutine coupled_em(&
             call layerDivide(&
                     ! input/output: model data structures
                     .true.,                      & ! intent(in):    flag to denote that we are dividing glacier ice layers
-                    maxSnowIceLayers,            & ! intent(in):    maximum number of snow/firn/ice layers
+                    maxGlceLayers,               & ! intent(in):    maximum number of ice layers
                     model_decisions,             & ! intent(in):    model decisions
                     mpar_data,                   & ! intent(in):    model parameters
                     indx_data,                   & ! intent(inout): type of each layer

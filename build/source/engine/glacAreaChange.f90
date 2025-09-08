@@ -297,7 +297,7 @@ subroutine glacAreaChange(&
   if (ELA_use<0._rkind) then ! no clean ablation
     ELA_use = ELA_elev(2)
   end if
-  
+  ! debugging print
   print*, "elev0", elev0
   print*, "area0", area0
   print*, "debris_thick_dom0", debris_thick_dom
@@ -348,7 +348,7 @@ subroutine glacAreaChange(&
     cell2hru = int(gridData%grid(iGrid)%var(iLookGRID%cell2hru)%dat2(1:nx,1:ny))
     glacierMask = int(gridData%grid(iGrid)%var(iLookGRID%glacierMask)%dat2(1:nx,1:ny))
 
-    if (glacierAccArea(iGlac)+glacierAccArea(iGlac) < glacierAreaThresh)then ! glacier has shrunk below threshold, area may be zero
+    if (glacierAccArea(iGlac)+glacierAblArea(iGlac) < glacierAreaThresh)then ! glacier has shrunk below threshold, area may be zero
      ! a glacieret changes area with volume area scaling
      call volAreaScaling(t_total, debris, surface, bed, glacierMask, slope, intercept, validElev, validCount, &
                     maxCount, C_constant, dbr_crit, min_thickness, lat_moraine_wid, iden_soil, theta_sat, ELA_use, nx, ny, dx, dy, volume)
@@ -369,7 +369,7 @@ subroutine glacAreaChange(&
     glacierAccArea(iGlac) = sum(merge(glacierMask, 0_i4b, hgt>thick4area .and. surface>= ELA_use))*dx*dy
     glacierAblArea(iGlac) = sum(merge(glacierMask, 0_i4b, hgt>thick4area .and. surface<  ELA_use))*dx*dy
     ! debugging print
-    print*, 'glacierAblArea = ', glacierAccArea(iGlac), ' glacierAccArea = ', glacierAccArea(iGlac)," ela = ",ELA_use
+    print*, 'glacierAblArea = ', glacierAblArea(iGlac), ' glacierAccArea = ', glacierAccArea(iGlac)," ela = ",ELA_use
 
     ! Loop through HRUs and calculate domain areas and elevations for each HRU
     ! Order of domains will go HRU 1: clean1, clean2, debris; HRU 2: clean1, clean2, debris etc.
@@ -473,7 +473,6 @@ subroutine glacAreaChange(&
     deallocate(hgt, surface, bed, cell2hru, glacierMask, debris, glacClnMask, glacHiMask, glacLoMask, glacDbrMask, glacAblMask)
 
   enddo ! end of glacier loop
-  deallocate(glacid_to_index)
 
   ! Set elevations to realMissing if no area in domain
   do iDOM = 1,nDOM
@@ -615,7 +614,7 @@ end subroutine glacAreaChange
       debris = 0._rkind ! no debris
       return
     end if
-
+    ! debugging print
     print*, "meanH",sum(merge(S-B,0._rkind,glacierMask==1)) / count(glacierMask==1), maxval(merge(S-B,0._rkind,glacierMask==1)), minval(merge(S-B,0._rkind,glacierMask==1))
     print*, "vol", volume, "area", area, "delVol", delVol*1.e-9_rkind, "delArea", delArea*1.e-6_rkind
       
@@ -685,12 +684,6 @@ end subroutine glacAreaChange
     max_dt = 31._rkind * secprday! max timestep in seconds, a month
     min_dt = 0._rkind ! min timestep in seconds 
     t = 0._rkind
-    !meanS = sum(merge(S - debris,0._rkind,glacierMask==1)) / count(glacierMask==1)
-    !print*, "meanS", meanS, maxval(merge(S - debris,0._rkind,glacierMask==1)), minval(merge(S - debris,0._rkind,glacierMask==1))
-    !meanS = sum(merge(B,0._rkind,glacierMask==1)) / count(glacierMask==1)
-    !print*, "meanB", meanS, maxval(merge(B,0._rkind,glacierMask==1)), minval(merge(B,0._rkind,glacierMask==1))
-    !meanS = sum(merge(S - debris-B,0._rkind,glacierMask==1)) / count(glacierMask==1)
-    !print*, "meanH", meanS, maxval(merge(S - debris-B,0._rkind,glacierMask==1)), minval(merge(S - debris-B,0._rkind,glacierMask==1)), t
 
     do while (t < t_total)
       dt = t_total - t
@@ -715,9 +708,8 @@ end subroutine glacAreaChange
       ! Update S
       S = S + (m_dot + div_q) * deltat
       S = merge(S, B, S > B)
-
-      meanS = sum(merge(S-B,0._rkind,glacierMask==1)) / count(glacierMask==1)
-      print*, "meanH", meanS, maxval(merge(S-B,0._rkind,glacierMask==1)), minval(merge(S-B,0._rkind,glacierMask==1)), t
+      ! debugging print
+      print*, "meanH", sum(merge(S-B,0._rkind,glacierMask==1)) / count(glacierMask==1), maxval(merge(S-B,0._rkind,glacierMask==1)), minval(merge(S-B,0._rkind,glacierMask==1)), t
 
       ! Check that the glacier is in boundaries, fix small violations
       if (any((S - B) > 0._rkind .and. glacierMask==0)) then

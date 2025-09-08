@@ -75,7 +75,7 @@ contains
  implicit none
  ! ------------------------------------------------------------------------------------------------
  ! input/output: model data structures
- integer(i4b),intent(in)         :: maxLayers           ! maximum number of snow/firn layers
+ integer(i4b),intent(in)         :: maxLayers           ! maximum number of snow/firn/ice layers
  logical(lgt),intent(in)         :: tooMuchMelt         ! flag to denote that ice is insufficient to support melt
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
  type(var_dlength),intent(in)    :: mpar_data           ! model parameters
@@ -100,7 +100,7 @@ contains
    call layerDivide(&
                     ! input/output: model data structures
                     .false.,                     & ! intent(in):    flag to denote that we are not dividing glacier ice layers since they currently do not grow
-                    maxLayers,                   & ! intent(in):    maximum number of snow/firn/ice layers
+                    maxLayers,                   & ! intent(in):    maximum number of snow/firn layers
                     model_decisions,             & ! intent(in):    model decisions
                     mpar_data,                   & ! intent(in):    model parameters
                     indx_data,                   & ! intent(inout): type of each layer

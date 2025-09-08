@@ -195,24 +195,19 @@ contains
  divideLayer=.false.
 
  ! identify algorithmic control parameters to sub-divide and combine layers
- if(doGlac)then ! glacier ice layers
-   zmax_lower(1:maxLayers-1) = zmaxLayer1_lower
-   zmax_upper(1:maxLayers-1) = zmaxLayer1_upper
- else ! snow layers
-   zmax_lower_param = (/zmaxLayer1_lower, zmaxLayer2_lower, zmaxLayer3_lower, zmaxLayer4_lower/)
-   zmax_upper_param = (/zmaxLayer1_upper, zmaxLayer2_upper, zmaxLayer3_upper, zmaxLayer4_upper/)
-   if(maxLayers <= 5)then ! generalize the above parameters to the number of layers
-     zmax_lower = zmax_lower_param(1:maxLayers-1)
-     zmax_upper = zmax_upper_param(1:maxLayers-1)
-   else
-     zmax_lower(1:4) = zmax_lower_param
-     zmax_upper(1:4) = zmax_upper_param
-     do iLayer=5,maxLayers-1
-       zmax_lower(iLayer) = zmax_lower(iLayer-1)*2._rkind
-       zmax_upper(iLayer) = zmax_upper(iLayer-1)*2._rkind
-     end do
-    end if
-  end if  ! (if dividing glacier ice layers)
+ zmax_lower_param = (/zmaxLayer1_lower, zmaxLayer2_lower, zmaxLayer3_lower, zmaxLayer4_lower/)
+ zmax_upper_param = (/zmaxLayer1_upper, zmaxLayer2_upper, zmaxLayer3_upper, zmaxLayer4_upper/)
+ if(maxLayers <= 5)then ! generalize the above parameters to the number of layers
+   zmax_lower = zmax_lower_param(1:maxLayers-1)
+   zmax_upper = zmax_upper_param(1:maxLayers-1)
+ else
+   zmax_lower(1:4) = zmax_lower_param
+   zmax_upper(1:4) = zmax_upper_param
+   do iLayer=5,maxLayers-1
+     zmax_lower(iLayer) = zmax_lower(iLayer-1)*2._rkind
+     zmax_upper(iLayer) = zmax_upper(iLayer-1)*2._rkind
+   end do
+  end if
 
  ! ***** special case of no snow layers to divide
  if(nSnow==0 .and. .not.doGlac)then
