@@ -365,7 +365,7 @@ module summabmi
      output_items(4) = 'land_vegetation_water__transpiration_mass_flux'
      output_items(5) = 'snowpack__sublimation_mass_flux'
      output_items(6) = 'land_vegetation_water__sublimation_mass_flux'
-     output_items(7) = 'snowpack_mass'
+     output_items(7) = 'snowpack__mass'
      output_items(8) = 'soil_water__mass'
      output_items(9) = 'land_vegetation_water__mass'
      output_items(10)= 'land_surface_radiation~net~total__energy_flux'
@@ -745,7 +745,7 @@ module summabmi
      case('land_vegetation_water__transpiration_mass_flux'); units = 'mm s-1'    ; bmi_status = BMI_SUCCESS !equivalent kg m-2 s-1
      case('snowpack__sublimation_mass_flux')               ; units = 'mm s-1'    ; bmi_status = BMI_SUCCESS !equivalent kg m-2 s-1
      case('land_vegetation_water__sublimation_mass_flux')  ; units = 'mm s-1'    ; bmi_status = BMI_SUCCESS !equivalent kg m-2 s-1
-     case('snowpack_mass')                                 ; units = 'kg m-2'    ; bmi_status = BMI_SUCCESS
+     case('snowpack__mass')                                 ; units = 'kg m-2'    ; bmi_status = BMI_SUCCESS
      case('soil_water__mass')                              ; units = 'kg m-2'    ; bmi_status = BMI_SUCCESS
      case('land_vegetation_water__mass')                   ; units = 'kg m-2'    ; bmi_status = BMI_SUCCESS
      case('land_surface_radiation~net~total__energy_flux') ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
@@ -1213,7 +1213,13 @@ module summabmi
               target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%LWRadAtm)
             case('land_surface_air__pressure')
               target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airpres)
-
+            ! input/output -- prognostic/state should be used as input and to change the state FIX
+            case('snowpack__mass')
+              target_arr(i) = progStruct%gru(iGRU)%hru(jHRU)%var(iLookPROG%scalarSWE)%dat(1)
+            case('soil_water__mass')
+              target_arr(i) = diagStruct%gru(iGRU)%hru(jHRU)%var(iLookDIAG%scalarTotalSoilWat)%dat(1)
+            case('land_vegetation_water__mass')
+              target_arr(i) = progStruct%gru(iGRU)%hru(jHRU)%var(iLookPROG%scalarCanopyWat)%dat(1)
             ! output
             case('land_surface_water__runoff_volume_flux')
               target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)
@@ -1227,12 +1233,6 @@ module summabmi
               target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarSnowSublimation)%dat(1)
             case('land_vegetation_water__sublimation_mass_flux')
               target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanopySublimation)%dat(1)
-            case('snowpack_mass')
-              target_arr(i) = progStruct%gru(iGRU)%hru(jHRU)%var(iLookPROG%scalarSWE)%dat(1)
-            case('soil_water__mass')
-              target_arr(i) = diagStruct%gru(iGRU)%hru(jHRU)%var(iLookDIAG%scalarTotalSoilWat)%dat(1)
-            case('land_vegetation_water__mass')
-              target_arr(i) = progStruct%gru(iGRU)%hru(jHRU)%var(iLookPROG%scalarCanopyWat)%dat(1)
             case('land_surface_radiation~net~total__energy_flux')
               target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarNetRadiation)%dat(1)
             case('land_atmosphere_heat~net~latent__energy_flux')
