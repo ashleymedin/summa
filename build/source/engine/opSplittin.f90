@@ -626,9 +626,6 @@ subroutine opSplittin(&
 
    call get_nCoupling; if (return_flag) return ! get nCoupling value -- return if error
 
-   ! set the global print flag
-   globalPrintFlag=.false.
-
    if (globalPrintFlag) print *, trim(message), dt
 
    ! initialize the first success call

@@ -167,8 +167,6 @@ contains
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! Jacobian matrix
- logical(lgt),parameter          :: doNumJacobian=.false.    ! flag to compute the numerical Jacobian matrix
- logical(lgt),parameter          :: testBandDiagonal=.false. ! flag to test the band diagonal Jacobian matrix
  real(rkind)                     :: nJac(in_SS4HG % nState,in_SS4HG % nState)      ! numerical Jacobian matrix
  real(rkind)                     :: aJac(in_SS4HG % nLeadDim,in_SS4HG % nState)      ! Jacobian matrix
  real(rkind)                     :: aJacScaled(in_SS4HG % nLeadDim,in_SS4HG % nState)      ! Jacobian matrix (scaled)
@@ -273,14 +271,7 @@ contains
     call computeJacob(in_computeJacob,indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,dMat,aJac,out_computeJacob)
     call finalize_computeJacob_summaSolve4homegrown
     if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! (check for errors)
-  
-    ! compute the numerical Jacobian matrix
-    if (doNumJacobian) then
-     globalPrintFlag=.false.
-     call numJacobian(stateVecTrial,dMat,nJac,err,cmessage)
-     if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! (check for errors)
-     globalPrintFlag=globalPrintFlagInit
-    end if
+
    end associate
   end subroutine update_Jacobian
 
@@ -293,11 +284,6 @@ contains
     err            => out_SS4HG % err           ,& ! intent(out): error code
     message        => out_SS4HG % message        & ! intent(out): error message    
    &)
-    ! test the band diagonal matrix
-    if (testBandDiagonal) then
-     call testBandMat(check=.true.,err=err,message=cmessage)
-     if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! (check for errors)
-    end if
  
     ! scale the residual vector
     rVecScaled(1:nState) = fScale(:)*real(rVec(:), rkind)   ! NOTE: residual vector is in quadruple precision
@@ -377,6 +363,31 @@ contains
     end if
    end associate
   end subroutine refine_Newton_step  
+
+  subroutine initialize_computeJacob_summaSolve4homegrown
+   ! *** Transfer data to in_computeJacob class object from local variables in summaSolve4homegrown ***
+   associate(&
+    ixGroundwater  => model_decisions(iLookDECISIONS%groundwatr)%iDecision,&  ! intent(in): [i4b] groundwater parameterization
+    dt_cur         => in_SS4HG % dt_cur         ,& ! intent(in): current stepsize
+    nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
+    nLake          => in_SS4HG % nLake          ,& ! intent(in): number of lake layers
+    nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
+    nGlce          => in_SS4HG % nGlce          ,& ! intent(in): number of glacier ice layers
+    nLayers        => in_SS4HG % nLayers        ,& ! intent(in): total number of layers
+    ixMatrix       => in_SS4HG % ixMatrix       ,& ! intent(in): type of matrix (full or band diagonal)
+    computeVegFlux => in_SS4HG % computeVegFlux  & ! intent(in): flag to indicate if computing fluxes over vegetation
+   &)   
+    call in_computeJacob % initialize(dt_cur,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel),ixMatrix)
+   end associate
+  end subroutine initialize_computeJacob_summaSolve4homegrown
+
+  subroutine finalize_computeJacob_summaSolve4homegrown
+   ! *** Transfer data from out_computeJacob class object to local variables in summaSolve4homegrown ***
+   associate(err => out_SS4HG % err)
+    call out_computeJacob % finalize(err,cmessage)
+   end associate 
+  end subroutine finalize_computeJacob_summaSolve4homegrown
+
 
   ! *********************************************************************************************************
   ! * internal subroutine lineSearchRefinement: refine the iteration increment using line searches
@@ -833,186 +844,6 @@ contains
 
   end subroutine getBrackets
 
-
-  ! *********************************************************************************************************
-  ! * internal subroutine numJacobian: compute the numerical Jacobian matrix
-  ! *********************************************************************************************************
-  subroutine numJacobian(stateVec,dMat,nJac,err,message)
-  implicit none
-  ! dummies
-  real(rkind),intent(in)         :: stateVec(:)                ! trial state vector
-  real(rkind),intent(in)         :: dMat(:)                    ! diagonal matrix
-  ! output
-  real(rkind),intent(out)        :: nJac(:,:)                  ! numerical Jacobian
-  integer(i4b),intent(out)       :: err                        ! error code
-  character(*),intent(out)       :: message                    ! error message
-  ! ----------------------------------------------------------------------------------------------------------
-  ! local
-  character(len=256)             :: cmessage                   ! error message of downwind routine
-  real(rkind),parameter          :: dx=1.e-8_rkind             ! finite difference increment
-  real(rkind),dimension(in_SS4HG % nState)  :: stateVecPerturbed          ! perturbed state vector
-  real(rkind),dimension(in_SS4HG % nState)  :: fluxVecInit,fluxVecJac     ! flux vector (mized units)
-  real(qp),dimension(in_SS4HG % nState)     :: resVecInit,resVecJac ! qp  ! residual vector (mixed units)
-  real(rkind)                    :: func                       ! function value
-  logical(lgt)                   :: feasible                   ! flag to denote the feasibility of the solution
-  integer(i4b)                   :: iJac                       ! index of row of the Jacobian matrix
-  integer(i4b),parameter         :: ixNumFlux=1001             ! named variable for the flux-based form of the numerical Jacobian
-  integer(i4b),parameter         :: ixNumRes=1002              ! named variable for the residual-based form of the numerical Jacobian
-  integer(i4b)                   :: ixNumType=ixNumRes         ! method used to calculate the numerical Jacobian
-  ! ----------------------------------------------------------------------------------------------------------
-  ! initialize error control
-  err=0; message='numJacobian/'
-
-  ! compute initial function evaluation
-  call eval8summa_wrapper(stateVec,fluxVecInit,resVecInit,func,feasible,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-  if(.not.feasible)then; message=trim(message)//'initial state vector not feasible'; err=20; return; endif
-
-  ! get a copy of the state vector to perturb
-  stateVecPerturbed(:) = stateVec(:)
-
-  ! loop through state variables
-  do iJac=1,in_SS4HG % nState
-
-   !print*, 'iJac = ', iJac
-   !globalPrintFlag = merge(.true.,.false., iJac==1)
-
-   ! perturb state vector
-   stateVecPerturbed(iJac) = stateVec(iJac) + dx
-
-   ! compute function evaluation
-   call eval8summa_wrapper(stateVecPerturbed,fluxVecJac,resVecJac,func,feasible,err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-   if(.not.feasible)then; message=trim(message)//'state vector not feasible'; err=20; return; endif
-   !write(*,'(a,1x,2(f30.20,1x))') 'resVecJac(101:102)  = ', resVecJac(101:102)
-
-   ! compute the row of the Jacobian matrix
-   select case(ixNumType)
-    case(ixNumRes);  nJac(:,iJac) = real(resVecJac - resVecInit, kind(rkind) )/dx  ! Jacobian based on residuals
-    case(ixNumFlux); nJac(:,iJac) = -in_SS4HG % dt_cur*(fluxVecJac(:) - fluxVecInit(:))/dx     ! Jacobian based on fluxes
-    case default; err=20; message=trim(message)//'Jacobian option not found'; return
-   end select
-
-   ! if flux option then add in the diagonal matrix
-   if(ixNumType==ixNumFlux) nJac(iJac,iJac) = nJac(iJac,iJac) + dMat(iJac)
-
-   ! set the state back to the input value
-   stateVecPerturbed(iJac) = stateVec(iJac)
-
-  end do  ! (looping through state variables)
-
-  ! print the Jacobian
-  print*, '** numerical Jacobian:', ixNumType==ixNumRes
-  write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=min(iJac1,in_SS4HG % nState),min(iJac2,in_SS4HG % nState))
-  do iLayer=min(iJac1,in_SS4HG % nState),min(iJac2,in_SS4HG % nState)
-   write(*,'(i4,1x,100(e12.5,1x))') iLayer, nJac(min(iJac1,in_SS4HG % nState):min(iJac2,in_SS4HG % nState),iLayer)
-  end do
-  !print*, 'PAUSE: testing Jacobian'; read(*,*)
-
-  end subroutine numJacobian
-
-  ! *********************************************************************************************************
-  ! * internal subroutine testBandMat: compute the full Jacobian matrix and decompose into a band matrix
-  ! *********************************************************************************************************
-
-  subroutine testBandMat(check,err,message)
-  ! dummy variables
-  logical(lgt),intent(in)         :: check                    ! flag to pause
-  integer(i4b),intent(out)        :: err                      ! error code
-  character(*),intent(out)        :: message                  ! error message
-  ! local variables
-  real(rkind)                     :: fullJac(in_SS4HG % nState,in_SS4HG % nState)   ! full Jacobian matrix
-  real(rkind)                     :: bandJac(in_SS4HG % nLeadDim,in_SS4HG % nState) ! band Jacobian matrix
-  integer(i4b)                    :: iState,jState            ! indices of the state vector
-  character(LEN=256)              :: cmessage                 ! error message of downwind routine
-  ! class objects for subroutine arguments
-  type(in_type_computeJacob)       :: in_computeJacob
-  type(out_type_computeJacob)      :: out_computeJacob
-  ! initialize error control
-  err=0; message='testBandMat/'
-
-  ! check
-  if (in_SS4HG % nLeadDim == in_SS4HG % nState) then
-   message=trim(message)//'do not expect nLeadDim==nState: check that are computing the band diagonal matrix'//&
-                          ' (is forceFullMatrix==.true.?)'
-   err=20; return
-  end if
-
-  ! compute the full Jacobian matrix
-  call initialize_computeJacob_testBandMat
-  call computeJacob(in_computeJacob,indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,dMat,fullJac,out_computeJacob)
-  call finalize_computeJacob_testBandMat(err,cmessage)
-  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-
-  ! initialize band matrix
-  bandJac(:,:) = 0._rkind
-
-  ! transfer into the lapack band diagonal structure
-  do iState=1,in_SS4HG % nState
-   do jState=max(1,iState-ku),min(in_SS4HG % nState,iState+kl)
-    bandJac(kl + ku + 1 + jState - iState, iState) = fullJac(jState,iState)
-   end do
-  end do
-
-  ! print results
-  print*, '** test banded analytical Jacobian:'
-  write(*,'(a4,1x,100(i17,1x))') 'xCol', (iState, iState=iJac1,iJac2)
-  do iState=kl+1,in_SS4HG % nLeadDim; write(*,'(i4,1x,100(e17.10,1x))') iState, bandJac(iState,iJac1:iJac2); end do
-
-  ! check if the need to pause
-  if(check)then
-   print*, 'PAUSE: testing banded analytical Jacobian'
-   read(*,*)
-  endif
-
-  end subroutine testBandMat
-
-  subroutine initialize_computeJacob_testBandMat
-   ! *** Transfer data from out_computeJacob class object to local variables in testBandMat ***
-   associate(&
-    dt_cur         => in_SS4HG % dt_cur         ,& ! intent(in): current stepsize
-    nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
-    nLake          => in_SS4HG % nLake          ,& ! intent(in): number of lake layers
-    nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
-    nGlce          => in_SS4HG % nGlce          ,& ! intent(in): number of glacier ice layers
-    nLayers        => in_SS4HG % nLayers        ,& ! intent(in): total number of layers
-    computeVegFlux => in_SS4HG % computeVegFlux  & ! intent(in): flag to indicate if computing fluxes over vegetation
-   &)
-    call in_computeJacob % initialize(dt_cur,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,.false.,ixFullMatrix)
-   end associate
-  end subroutine initialize_computeJacob_testBandMat
-
-  subroutine finalize_computeJacob_testBandMat(err,cmessage)
-   ! *** Transfer data from out_computeJacob class object to local variables in testBandMat ***
-   ! Note: subroutine arguments are needed because testBandMat is an internal procedure 
-   integer(i4b),intent(out)        :: err                      ! error code
-   character(*),intent(out)        :: cmessage                 ! error message of downwind routine
-   call out_computeJacob % finalize(err,cmessage)
-  end subroutine finalize_computeJacob_testBandMat
- 
-  subroutine initialize_computeJacob_summaSolve4homegrown
-   ! *** Transfer data to in_computeJacob class object from local variables in summaSolve4homegrown ***
-   associate(&
-    ixGroundwater  => model_decisions(iLookDECISIONS%groundwatr)%iDecision,&  ! intent(in): [i4b] groundwater parameterization
-    dt_cur         => in_SS4HG % dt_cur         ,& ! intent(in): current stepsize
-    nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
-    nLake          => in_SS4HG % nLake          ,& ! intent(in): number of lake layers
-    nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
-    nGlce          => in_SS4HG % nGlce          ,& ! intent(in): number of glacier ice layers
-    nLayers        => in_SS4HG % nLayers        ,& ! intent(in): total number of layers
-    ixMatrix       => in_SS4HG % ixMatrix       ,& ! intent(in): type of matrix (full or band diagonal)
-    computeVegFlux => in_SS4HG % computeVegFlux  & ! intent(in): flag to indicate if computing fluxes over vegetation
-   &)   
-    call in_computeJacob % initialize(dt_cur,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel),ixMatrix)
-   end associate
-  end subroutine initialize_computeJacob_summaSolve4homegrown
-
-  subroutine finalize_computeJacob_summaSolve4homegrown
-   ! *** Transfer data from out_computeJacob class object to local variables in summaSolve4homegrown ***
-   associate(err => out_SS4HG % err)
-    call out_computeJacob % finalize(err,cmessage)
-   end associate 
-  end subroutine finalize_computeJacob_summaSolve4homegrown
 
   ! *********************************************************************************************************
   ! * internal subroutine eval8summa_wrapper: compute the right-hand-side vector
