@@ -452,7 +452,7 @@ contains
  end do  ! looping through variables in the data structure
 
  ! make association to variables in the data structures
- subsetState: associate(ixStateType_subset => indx_data%var(iLookINDEX%ixStateType_subset)%dat) ! named variables defining the states in the subset
+ subsetState: associate(ixStateType_subset => indx_data%var(iLookINDEX%ixStateType_subset)%dat) ! [state subset] type of desired model state variables
 
  ! -----
  ! - get indices for the (currently) scalar states in the vegetation domain...

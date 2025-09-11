@@ -539,7 +539,7 @@ subroutine varSubstep(&
             flux_mean%var(iVar)%dat(:) = flux_mean%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
             fluxCount%var(iVar)%dat(:) = fluxCount%var(iVar)%dat(:) + 1_i4b
 
-          ! ** domain splitting
+          ! ** domain splitting, or mass split and noThetaChange>0 bottom layers of domain are inactive
           else
             ixMin=lbound(flux_data%var(iVar)%dat)
             ixMax=ubound(flux_data%var(iVar)%dat)
@@ -553,13 +553,14 @@ subroutine varSubstep(&
                   flux_mean%var(iVar)%dat(ixLayer) = flux_mean%var(iVar)%dat(ixLayer) + flux_temp%var(iVar)%dat(ixLayer)*dt_wght
                 endif
                 fluxCount%var(iVar)%dat(ixLayer) = fluxCount%var(iVar)%dat(ixLayer) + 1_i4b
-                if(iVar==iLookFLUX%mLayerLiqFluxSnLaGl.or. iVar==iLookFLUX%iLayerLiqFluxSnLaGl)then
-                  ! NOTE: this is a special case for the liquid flux in the no water glacier layers, always set to zero
-                  flux_mean%var(iVar)%dat(nLayers-noThetaChange+1:nLayers) = 0._rkind
-                  fluxCount%var(iVar)%dat(nLayers-noThetaChange+1:nLayers) = 1_i4b
-                endif
               endif
             end do
+            ! this is a special case for the liquid flux in the no water glacier layers, always set to zero
+            if(iVar==iLookFLUX%mLayerLiqFluxSnLaGl.or. iVar==iLookFLUX%iLayerLiqFluxSnLaGl)then
+              ! NOTE: this is a special case for the liquid flux in the no water glacier layers, always set to zero
+              flux_mean%var(iVar)%dat(nLayers-noThetaChange+1:nLayers) = 0._rkind
+              fluxCount%var(iVar)%dat(nLayers-noThetaChange+1:nLayers) = 1_i4b
+            endif
           endif  ! (domain splitting)
 
         endif   ! (if the flux is desired)

@@ -1150,7 +1150,7 @@ subroutine opSplittin(&
    do iVar=1,size(flux_meta) ! loop through flux variables
 
     if (ixCoupling==fullyCoupled) then ! * identify flux mask for the fully coupled solution
-     associate(ixStateType_subset => indx_data%var(iLookINDEX%ixStateType_subset)%dat) ! intent(in): [i4b(:)] indices of state types
+     associate(ixStateType_subset => indx_data%var(iLookINDEX%ixStateType_subset)%dat) ! intent(in):  [i4b(:)] [state subset] type of desired model state variables
       desiredFlux = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2)
       if(nSnow==0 .and. flux2state_orig(iVar)%state2 == iname_watSnow) desiredFlux=.false.
       if(nLake==0 .and. flux2state_orig(iVar)%state2 == iname_watLake) desiredFlux=.false.
@@ -1170,7 +1170,7 @@ subroutine opSplittin(&
 
     else ! * identify flux mask for the split solution
 
-     associate(ixStateType_subset => indx_data%var(iLookINDEX%ixStateType_subset)%dat) ! intent(in): [i4b(:)] indices of state types
+     associate(ixStateType_subset => indx_data%var(iLookINDEX%ixStateType_subset)%dat) ! intent(in):  [i4b(:)] [state subset] type of desired model state variables
       select case(iStateTypeSplit) ! identify the flux mask for a given state split
        case(nrgSplit);  desiredFlux = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2)
        case(massSplit)
@@ -1191,8 +1191,7 @@ subroutine opSplittin(&
       if (iVar==iLookFLUX%scalarPhotosynthesisShaded) desiredFlux = .true.
      end if
 
-     if (nDomains==1) then ! no domain splitting IF USE THIS, AND NO VEG THEN WHAT HAPPENS?
-     ! if (nDomainSplit==1) then ! no domain splitting NOT SURE WHICH IS BETTER, THIS MAKES MORE SENSE BUT DOES IT CAUSE PROBLEMS?
+     if (nDomainSplit==1) then ! was "if (nDomains==1)" but if no veg present, could cause problems if not splitting to domains, might need to be changed in base code too FIX
       fluxMask%var(iVar)%dat = desiredFlux
      else ! domain splitting
       if (iStateTypeSplit==massSplit) iDomainSplit_use = iDomainSplit_mass_map(iDomainSplit)
