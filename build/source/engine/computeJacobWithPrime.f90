@@ -1268,11 +1268,7 @@ subroutine computeJacobWithPrime(&
           end do
       end select
     endif
-
-    if(any(isNan(aJac)))then
-      message=trim(message)//'NaN in Jacobian'
-      err=20; return
-    endif
+    if(any(isNan(aJac)))then; message=trim(message)//'NaN in Jacobian';err=20; return; endif
 
   ! end association to variables in the data structures
   end associate

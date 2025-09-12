@@ -310,8 +310,6 @@ contains
   ! *******************************************************************************************************************************************
 
  end select  ! (identifying option for stomatal resistance)
-
- ! end association to variables in the data structures
  end associate
 
  end subroutine stomResist
@@ -794,9 +792,6 @@ contains
  ! compute export limited assimilation
  xFac(ixExport) = 0.5_rkind
  xPSN(ixExport) = xFac(ixExport)*vcmax   ! umol co2 m-2 s-1
-
- ! print progress
- !write(*,'(a,1x,10(f20.10,1x))') 'xPSN, vcmax, Js = ', xPSN, vcmax, Js
 
  ! select function used for carbon assimilation
  select case(ix_bbAssimFnc)

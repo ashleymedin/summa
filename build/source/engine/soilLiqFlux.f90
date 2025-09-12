@@ -1187,17 +1187,17 @@ contains
   use soil_utils_module,only:SoftArgMax ! smooth arg max/min (for derivatives of LogSumExp)
 
   ! local variables
-  real(rkind),parameter :: alpha_LSE=1.e3_rkind                ! smoothness parameter for LSE smoother function
-  real(rkind)           :: Ac_max                              ! maximum saturated area (-)
-  real(rkind)           :: phi_tens                            ! fraction of total storage as tension storage (m)
-  real(rkind)           :: Ac                                  ! saturated area (-)
-  real(rkind)           :: S1                                  ! total water content in upper soil layer (m)
-  real(rkind)           :: S1_max                              ! Maximum storage in the upper layer (m)
-  real(rkind)           :: S1_T                                ! tension water content in upper soil layer (m)
-  real(rkind)           :: S1_T_max                            ! maximum tension water content in upper soil layer (m)
+  real(rkind),parameter :: alpha_LSE=1.e3_rkind                 ! smoothness parameter for LSE smoother function
+  real(rkind)           :: Ac_max                               ! maximum saturated area (-)
+  real(rkind)           :: phi_tens                             ! fraction of total storage as tension storage (m)
+  real(rkind)           :: Ac                                   ! saturated area (-)
+  real(rkind)           :: S1                                   ! total water content in upper soil layer (m)
+  real(rkind)           :: S1_max                               ! Maximum storage in the upper layer (m)
+  real(rkind)           :: S1_T                                 ! tension water content in upper soil layer (m)
+  real(rkind)           :: S1_T_max                             ! maximum tension water content in upper soil layer (m)
   real(rkind)           :: dS1_dWat(1:in_surfaceFlux % nSoil)   ! derivative of S1 w.r.t. water content
-  real(rkind)           :: S1_T_derivatives(1:2)               ! array of derivatives for S1_T
-  real(rkind)           :: dS1_T_dS1                           ! derivative of S1_T w.r.t S1
+  real(rkind)           :: S1_T_derivatives(1:2)                ! array of derivatives for S1_T
+  real(rkind)           :: dS1_T_dS1                            ! derivative of S1_T w.r.t S1
   real(rkind)           :: dS1_T_dWat(1:in_surfaceFlux % nSoil) ! derivative of S1_T w.r.t water content
   real(rkind)           :: dAc_dWat(1:in_surfaceFlux % nSoil)   ! derivative of Ac w.r.t water content 
 
@@ -1333,20 +1333,20 @@ contains
   use soil_utils_module,only:SoftArgMax ! smooth arg max/min (for derivatives of LogSumExp)
 
   ! local variables
-  logical(lgt),parameter :: smoother = .true.                 ! control for optional smoothing in base variable  
-  real(rkind) ,parameter :: alpha_LSE= 1.e3_rkind             ! smoothness parameter for LSE smoother function
-  real(rkind)            :: b                                 ! ARNO/VIC exponent (-) 
-  real(rkind)            :: S1                                ! total water content in upper FUSE layer (m)
+  logical(lgt),parameter :: smoother = .true.                  ! control for optional smoothing in base variable  
+  real(rkind) ,parameter :: alpha_LSE= 1.e3_rkind              ! smoothness parameter for LSE smoother function
+  real(rkind)            :: b                                  ! ARNO/VIC exponent (-) 
+  real(rkind)            :: S1                                 ! total water content in upper FUSE layer (m)
   real(rkind)            :: dS1_dWat(1:in_surfaceFlux % nSoil) ! derivative of S1 w.r.t. water content
-  real(rkind)            :: S1_max                            ! Maximum storage in the FUSE layer (m)
-  real(rkind)            :: S1_star                           ! total water content in upper FUSE layer computed with a smoothed min (m)
-  real(rkind)            :: dS1_star_dS1                      ! derivative in S1_star w.r.t S1
-  real(rkind)            :: base                              ! base used in saturated area formula
-  real(rkind)            :: dbase_dS1                         ! derivative of base w.r.t S1
-  real(rkind)            :: Ac                                ! saturated area (-)
+  real(rkind)            :: S1_max                             ! Maximum storage in the FUSE layer (m)
+  real(rkind)            :: S1_star                            ! total water content in upper FUSE layer computed with a smoothed min (m)
+  real(rkind)            :: dS1_star_dS1                       ! derivative in S1_star w.r.t S1
+  real(rkind)            :: base                               ! base used in saturated area formula
+  real(rkind)            :: dbase_dS1                          ! derivative of base w.r.t S1
+  real(rkind)            :: Ac                                 ! saturated area (-)
   real(rkind)            :: dAc_dWat(1:in_surfaceFlux % nSoil) ! derivative of Ac w.r.t water content 
-  real(rkind)            :: S1_star_derivatives(1:2)          ! array of derivatives for S1_star from SoftArgMax function
-  real(rkind)            :: roundoff_tolerance                ! tolerance for round-off error
+  real(rkind)            :: S1_star_derivatives(1:2)           ! array of derivatives for S1_star from SoftArgMax function
+  real(rkind)            :: roundoff_tolerance                 ! tolerance for round-off error
 
   ! validation of input parameters
   b = in_surfaceFlux % FUSE_b ! interface ARNO/VIC exponent

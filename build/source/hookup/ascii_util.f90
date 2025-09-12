@@ -185,7 +185,6 @@ subroutine get_vlines(unt,vlines,err,message)
   ! ***** save the list in a vector, and deallocate space as we go... *****
   do iline=1, icount
     vlines(iline) = tempArray(iline)
-    ! print*, vlines(iline), "index = ", iline
   end do
   ! current=>list
   ! do while(associated(current))

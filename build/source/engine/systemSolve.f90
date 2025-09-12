@@ -23,9 +23,6 @@ module systemSolve_module
 ! data types
 USE nr_type
 
-! access the global print flag
-USE globalData,only:globalPrintFlag
-
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number

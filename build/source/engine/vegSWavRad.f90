@@ -509,7 +509,6 @@ contains
 
    ! compute transmission of direct radiation according to Beer's Law (-)
    tauTotal = exp(-transCoef*scalarExposedVAI)
-   !print*, 'tauTotal = ', tauTotal
 
    ! compute ground albedo (-)
    groundAlbedoDirect  = Frad_vis*spectralAlbGndDirect(ixVisible)  + (1._rkind - Frad_vis)*spectralAlbGndDirect(ixNearIR)

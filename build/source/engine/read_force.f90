@@ -514,7 +514,6 @@ contains
     ! define global HRU
     iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
     iHRU_local  = (iHRU_global - ixHRUfile_min)+1
-    !print*, 'iGRU, iHRU, iHRU_global, iHRU_local = ', iGRU, iHRU, iHRU_global, iHRU_local
 
     ! read forcing data for a single HRU
     if(.not.simultaneousRead)then
@@ -530,8 +529,7 @@ contains
 
     ! get individual data value
     if(simultaneousRead) dataVal(1) = dataVec(iHRU_local)
-    !print*, trim(varname)//': ', dataVal(1)
-
+    
     ! check individual data value
     if(dataVal(1)<dataMin)then
      write(message,'(a,f13.5)') trim(message)//'forcing data for variable '//trim(varname)//' is less than minimum allowable value ', dataMin

@@ -9,9 +9,6 @@ use type4ida
 USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number
 
-! access the global print flag
-USE globalData,only:globalPrintFlag
-
 ! named variables to describe the state variable type
 USE globalData,only:iname_watCanopy  ! named variable defining the mass of total water on the vegetation canopy
 USE globalData,only:iname_liqCanopy  ! named variable defining the mass of liquid water on the vegetation canopy
