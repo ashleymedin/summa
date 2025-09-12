@@ -336,6 +336,34 @@ module summabmi
      character (*), pointer, intent(out) :: names(:)
      integer :: bmi_status
 
+     input_items(8) = 'snowpack_water__mass'
+     input_items(14)= 'snowpack_surface_water__volume_fraction'
+     input_items(9) = 'soil_water__mass'
+     input_items(14)= 'soil_surface_water__volume_fraction'
+     input_items(10)= 'land_vegetation_canopy_water__mass'     
+     input_items(11)= 'snowpack__temperature'
+     input_items(14)= 'snowpack_surface__temperature'
+     input_items(12)= 'soil__temperature'
+     input_items(14)= 'soil_surface__temperature'
+     input_items(13)= 'land_vegetation_canopy__temperature'
+     input_items(13)= 'land_vegetation_air__temperature'
+     input_items(14)= 'snowpack__thickness'
+     input_items(14)= 'snowpack_surface__albedo'
+     land_vegetation__leaf-area_index some sort of param that changes for fire
+     surface melt pond -- what is the standard name?
+      other prog variables/restart vars??? check, future runoff frac
+     ! attributes that do not change during the simulation
+     input_items(14)= 'soil__depth'
+     model__time_step,
+     land_surface__elevation
+land_surface__slope_angle
+land_surface__aspect_angle?
+      land_surface_polygon__total_contributing_area? hru_area
+      land_vegetation__thickness
+      contour length -- is what?
+      slope type, soil type, vegetation type -- categorical variables
+      other optional attribute vars? check
+     ! forcing variables
      input_items(1) = 'atmosphere_water__precipitation_mass_flux'
      input_items(2) = 'land_surface_air__temperature'
      input_items(3) = 'atmosphere_air_water~vapor__relative_saturation'
@@ -359,22 +387,26 @@ module summabmi
      character (*), pointer, intent(out) :: names(:)
      integer :: bmi_status, i
 
-     output_items(1) = 'land_surface_water__runoff_volume_flux'
-     output_items(2) = 'land_surface_water__evaporation_mass_flux'
-     output_items(3) = 'land_vegetation_water__evaporation_mass_flux'
-     output_items(4) = 'land_vegetation_water__transpiration_mass_flux'
-     output_items(5) = 'snowpack__sublimation_mass_flux'
-     output_items(6) = 'land_vegetation_water__sublimation_mass_flux'
-     output_items(7) = 'snowpack__mass'
-     output_items(8) = 'soil_water__mass'
-     output_items(9) = 'land_vegetation_water__mass'
-     output_items(10)= 'land_surface_radiation~net~total__energy_flux'
-     output_items(11)= 'land_atmosphere_heat~net~latent__energy_flux'   !(incoming to the *atmosphere*, since atmosphere is last)
-     output_items(12)= 'land_atmosphere_heat~net~sensible__energy_flux' !(incoming to the *atmosphere*, since atmosphere is last)
-     output_items(13)= 'atmosphere_energy~net~total__energy_flux'
-     output_items(14)= 'land_vegetation_energy~net~total__energy_flux'
-     output_items(15)= 'land_surface_energy~net~total__energy_flux'
-     output_items(16)= 'land_surface_water__baseflow_volume_flux'
+     output_items(1) = 'snowpack__mass'
+     output_items(2) = 'soil_water__mass'
+     output_items(3) = 'land_vegetation_water__mass'     
+     output_items(4) = 'snowpack__temperature'
+     output_items(5) = 'soil__temperature'
+     output_items(6) = 'land_vegetation__temperature'
+     output_items(7) = 'snowpack__thickness'
+     output_items(7) = 'land_surface_water__runoff_volume_flux'
+     output_items(8) = 'land_surface_water__evaporation_mass_flux'
+     output_items(9) = 'land_vegetation_water__evaporation_mass_flux'
+     output_items(10)= 'land_vegetation_water__transpiration_mass_flux'
+     output_items(11)= 'snowpack__sublimation_mass_flux'
+     output_items(12)= 'land_vegetation_water__sublimation_mass_flux'
+     output_items(13)= 'land_surface_radiation~net~total__energy_flux'
+     output_items(14)= 'land_atmosphere_heat~net~latent__energy_flux'   !(incoming to the *atmosphere*, since atmosphere is last)
+     output_items(15)= 'land_atmosphere_heat~net~sensible__energy_flux' !(incoming to the *atmosphere*, since atmosphere is last)
+     output_items(16)= 'atmosphere_energy~net~total__energy_flux'
+     output_items(17)= 'land_vegetation_energy~net~total__energy_flux'
+     output_items(18)= 'land_surface_energy~net~total__energy_flux'
+     output_items(19)= 'land_surface_water__baseflow_volume_flux'
      names => output_items
      bmi_status = BMI_SUCCESS
    end function summa_output_var_names
@@ -737,7 +769,10 @@ module summabmi
      case('land_surface_radiation~incoming~shortwave__energy_flux') ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_surface_radiation~incoming~longwave__energy_flux')  ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_surface_air__pressure')                             ; units = 'kg m-1 s-2'; bmi_status = BMI_SUCCESS
-
+     ! input/output
+     case('snowpack__mass')                                ; units = 'kg m-2'    ; bmi_status = BMI_SUCCESS
+     case('soil_water__mass')                              ; units = 'kg m-2'    ; bmi_status = BMI_SUCCESS
+     case('land_vegetation_water__mass')                   ; units = 'kg m-2'    ; bmi_status = BMI_SUCCESS
      ! output
      case('land_surface_water__runoff_volume_flux')        ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
      case('land_surface_water__evaporation_mass_flux')     ; units = 'mm s-1'    ; bmi_status = BMI_SUCCESS !equivalent kg m-2 s-1
@@ -745,9 +780,6 @@ module summabmi
      case('land_vegetation_water__transpiration_mass_flux'); units = 'mm s-1'    ; bmi_status = BMI_SUCCESS !equivalent kg m-2 s-1
      case('snowpack__sublimation_mass_flux')               ; units = 'mm s-1'    ; bmi_status = BMI_SUCCESS !equivalent kg m-2 s-1
      case('land_vegetation_water__sublimation_mass_flux')  ; units = 'mm s-1'    ; bmi_status = BMI_SUCCESS !equivalent kg m-2 s-1
-     case('snowpack__mass')                                 ; units = 'kg m-2'    ; bmi_status = BMI_SUCCESS
-     case('soil_water__mass')                              ; units = 'kg m-2'    ; bmi_status = BMI_SUCCESS
-     case('land_vegetation_water__mass')                   ; units = 'kg m-2'    ; bmi_status = BMI_SUCCESS
      case('land_surface_radiation~net~total__energy_flux') ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_atmosphere_heat~net~latent__energy_flux')  ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_atmosphere_heat~net~sensible__energy_flux'); units = 'W m-2'     ; bmi_status = BMI_SUCCESS
@@ -1214,6 +1246,12 @@ module summabmi
             case('land_surface_air__pressure')
               target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airpres)
             ! input/output -- prognostic/state should be used as input and to change the state FIX
+            case('snowpack__mass')
+              target_arr(i) = progStruct%gru(iGRU)%hru(jHRU)%var(iLookPROG%scalarSWE)%dat(1)
+            case('soil_water__mass')
+              target_arr(i) = diagStruct%gru(iGRU)%hru(jHRU)%var(iLookDIAG%scalarTotalSoilWat)%dat(1)
+            case('land_vegetation_water__mass')
+              target_arr(i) = progStruct%gru(iGRU)%hru(jHRU)%var(iLookPROG%scalarCanopyWat)%dat(1)
             case('snowpack__mass')
               target_arr(i) = progStruct%gru(iGRU)%hru(jHRU)%var(iLookPROG%scalarSWE)%dat(1)
             case('soil_water__mass')
