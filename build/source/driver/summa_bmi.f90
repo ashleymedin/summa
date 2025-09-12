@@ -347,22 +347,25 @@ module summabmi
      input_items(14)= 'soil_surface__temperature'
      input_items(13)= 'land_vegetation_canopy__temperature'
      input_items(13)= 'land_vegetation_air__temperature'
-     input_items(14)= 'snowpack__thickness'
+     input_items(14)= 'aquifer_water__mass'
+     input_items(14)= 'snowpack__depth'
      input_items(14)= 'snowpack_surface__albedo'
      land_vegetation__leaf-area_index some sort of param that changes for fire
-     surface melt pond -- what is the standard name?
+     surface melt pond -- I think this should be optional
       other prog variables/restart vars??? check, future runoff frac
      ! attributes that do not change during the simulation
      input_items(14)= 'soil__depth'
-     model__time_step,
-     land_surface__elevation
-land_surface__slope_angle
-land_surface__aspect_angle?
-      land_surface_polygon__total_contributing_area? hru_area
-      land_vegetation__thickness
-      contour length -- is what?
+     input_items(14)= 'land_vegetation__height'
+     input_items(14)= 'model__time_step'        ! seconds
+     input_items(14)= 'land_surface__elevation' ! m above sea level
+     input_items(14)= 'land_surface__slope_angle' ! degrees from horizontal
+     input_items(14)= 'land_surface__aspect_angle' ! azimuth in degrees East of North
+     input_items(14)= 'land_surface__latitude'  ! degrees north
+     input_items(14)= 'land_surface__longitude' ! degrees east
+     input_items(14)= 'land_surface_contour_segment__length' ! m length of contour segment at downslope edge of HRU
+     input_items(14)= 'land_surface___area' ! m2 area of HRU
+     input_items(14)= 'measurement__height' ! m height of wind and humidity measurements above bare ground
       slope type, soil type, vegetation type -- categorical variables
-      other optional attribute vars? check
      ! forcing variables
      input_items(1) = 'atmosphere_water__precipitation_mass_flux'
      input_items(2) = 'land_surface_air__temperature'
@@ -387,7 +390,7 @@ land_surface__aspect_angle?
      character (*), pointer, intent(out) :: names(:)
      integer :: bmi_status, i
 
-     output_items(1) = 'snowpack__mass'
+     output_items(1) = 'snowpack_water__mass'
      output_items(2) = 'soil_water__mass'
      output_items(3) = 'land_vegetation_water__mass'     
      output_items(4) = 'snowpack__temperature'
@@ -770,7 +773,7 @@ land_surface__aspect_angle?
      case('land_surface_radiation~incoming~longwave__energy_flux')  ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_surface_air__pressure')                             ; units = 'kg m-1 s-2'; bmi_status = BMI_SUCCESS
      ! input/output
-     case('snowpack__mass')                                ; units = 'kg m-2'    ; bmi_status = BMI_SUCCESS
+     case('snowpack_water__mass')                                ; units = 'kg m-2'    ; bmi_status = BMI_SUCCESS
      case('soil_water__mass')                              ; units = 'kg m-2'    ; bmi_status = BMI_SUCCESS
      case('land_vegetation_water__mass')                   ; units = 'kg m-2'    ; bmi_status = BMI_SUCCESS
      ! output
@@ -1246,13 +1249,13 @@ land_surface__aspect_angle?
             case('land_surface_air__pressure')
               target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airpres)
             ! input/output -- prognostic/state should be used as input and to change the state FIX
-            case('snowpack__mass')
+            case('snowpack_water__mass')
               target_arr(i) = progStruct%gru(iGRU)%hru(jHRU)%var(iLookPROG%scalarSWE)%dat(1)
             case('soil_water__mass')
               target_arr(i) = diagStruct%gru(iGRU)%hru(jHRU)%var(iLookDIAG%scalarTotalSoilWat)%dat(1)
             case('land_vegetation_water__mass')
               target_arr(i) = progStruct%gru(iGRU)%hru(jHRU)%var(iLookPROG%scalarCanopyWat)%dat(1)
-            case('snowpack__mass')
+            case('snowpack_water__mass')
               target_arr(i) = progStruct%gru(iGRU)%hru(jHRU)%var(iLookPROG%scalarSWE)%dat(1)
             case('soil_water__mass')
               target_arr(i) = diagStruct%gru(iGRU)%hru(jHRU)%var(iLookDIAG%scalarTotalSoilWat)%dat(1)
