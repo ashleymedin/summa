@@ -351,7 +351,7 @@ module summabmi
      input_items(14)= 'snowpack__depth'
      input_items(14)= 'snowpack_surface__albedo'
      land_vegetation__leaf-area_index some sort of param that changes for fire
-     surface melt pond -- I think this should be optional
+     surface melt pond -- I think this can be optional
       other prog variables/restart vars??? check, future runoff frac
      ! attributes that do not change during the simulation
      input_items(14)= 'soil__depth'
