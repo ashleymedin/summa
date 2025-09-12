@@ -238,7 +238,6 @@ subroutine coupled_em(&
   logical(lgt)                         :: tooMuchMelt              ! flag to denote that there was too much melt in a given time step
   logical(lgt)                         :: tooMuchSublim            ! flag to denote that there was too much sublimation in a given time step
   logical(lgt)                         :: doLayerMerge             ! flag to denote the need to merge snow layers
-  logical(lgt)                         :: pauseFlag                ! flag to pause execution
   logical(lgt),parameter               :: backwardsCompatibility=.true.  ! flag to denote a desire to ensure backwards compatibility with previous branches
   logical(lgt)                         :: checkMassBalance_ds      ! flag to check the mass balance over the data step
   type(var_ilength)                    :: indx_temp                ! temporary model index variables saved only on outer loop
@@ -360,17 +359,6 @@ subroutine coupled_em(&
     specificHeatVeg   => mpar_data%var(iLookPARAM%specificHeatVeg)%dat(1)  ,& ! specific heat of vegetation (J kg-1 K-1)
     maxMassVegetation => mpar_data%var(iLookPARAM%maxMassVegetation)%dat(1) & ! maximum mass of vegetation (kg m-2)
     )
-
-    ! start by NOT pausing
-    pauseFlag=.false.
-
-    ! start by assuming that the step is successful
-    stepFailure  = .false.
-    doLayerMerge = .false.
-
-    ! initialize flags to modify the veg layers or modify snow layers
-    modifiedLayers    = .false.    ! flag to denote that snow layers were modified
-    modifiedVegState  = .false.    ! flag to denote that vegetation states were modified
 
     ! define the first step and first and last inner steps
     firstSubStep = .true.
@@ -948,11 +936,11 @@ subroutine coupled_em(&
                           ! input/output: integrated snowpack properties
                           prog_data%var(iLookPROG%scalarSWE)%dat(1),               & ! intent(inout): snow water equivalent (kg m-2)
                           prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),         & ! intent(inout): snow depth (m)
-                          prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1),       & ! intent(inout): surface melt pond (kg m-2)
+                          prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1),       & ! intent(out): surface melt pond (kg m-2)
                           ! input/output: properties of the layer below snow
                           prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1),        & ! intent(inout): surface layer temperature (K)
                           prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+1),       & ! intent(inout): surface layer depth (m)
-                          diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat(nSnow+1),& ! intent(inout): surface layer volumetric heat capacity (J m-3 K-1)
+                          diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat(nSnow+1),& ! intent(in):    surface layer volumetric heat capacity (J m-3 K-1)
                           ! output: error control
                           err,cmessage                                        ) ! intent(out): error control
           if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
@@ -2010,7 +1998,15 @@ contains
   ! initialize the balance checks
   meanBalance = 0._rkind
 
-end subroutine initialize_coupled_em
+  ! start by assuming that the step is successful
+  stepFailure  = .false.
+  doLayerMerge = .false.
+
+  ! initialize flags to modify the veg layers or modify snow layers
+  modifiedLayers    = .false.    ! flag to denote that snow layers were modified
+  modifiedVegState  = .false.    ! flag to denote that vegetation states were modified
+
+ end subroutine initialize_coupled_em
 
 end subroutine coupled_em
 
@@ -2022,11 +2018,11 @@ subroutine implctMelt(&
                       ! input/output: integrated snowpack properties
                       scalarSWE,         & ! intent(inout): snow water equivalent (kg m-2)
                       scalarSnowDepth,   & ! intent(inout): snow depth (m)
-                      scalarSfcMeltPond, & ! intent(inout): surface melt pond (kg m-2)
+                      scalarSfcMeltPond, & ! intent(out):   surface melt pond (kg m-2)
                       ! input/output: properties of the upper-most soil layer
                       soilTemp,          & ! intent(inout): surface layer temperature (K)
                       soilDepth,         & ! intent(inout): surface layer depth (m)
-                      soilHeatcap,       & ! intent(inout): surface layer volumetric heat capacity (J m-3 K-1)
+                      soilHeatcap,       & ! intent(in):    surface layer volumetric heat capacity (J m-3 K-1)
                       ! output: error control
                       err,message        ) ! intent(out): error control
   ! -----------------------------------------------------------------------------------------------------------
@@ -2034,14 +2030,14 @@ subroutine implctMelt(&
   ! input/output: integrated snowpack properties
   real(rkind),intent(inout)    :: scalarSWE          ! snow water equivalent (kg m-2)
   real(rkind),intent(inout)    :: scalarSnowDepth    ! snow depth (m)
-  real(rkind),intent(inout)    :: scalarSfcMeltPond  ! surface melt pond (kg m-2)
+  real(rkind),intent(out)      :: scalarSfcMeltPond  ! surface melt pond (kg m-2)
   ! input/output: properties of the upper-most soil layer
   real(rkind),intent(inout)    :: soilTemp           ! surface layer temperature (K)
   real(rkind),intent(inout)    :: soilDepth          ! surface layer depth (m)
-  real(rkind),intent(inout)    :: soilHeatcap        ! surface layer volumetric heat capacity (J m-3 K-1)
+  real(rkind),intent(in)       :: soilHeatcap        ! surface layer volumetric heat capacity (J m-3 K-1)
   ! output: error control
-  integer(i4b),intent(out)  :: err                ! error code
-  character(*),intent(out)  :: message            ! error message
+  integer(i4b),intent(out)     :: err                ! error code
+  character(*),intent(out)     :: message            ! error message
   ! local variables
   real(rkind)                  :: nrgRequired        ! energy required to melt all the snow (J m-2)
   real(rkind)                  :: nrgAvailable       ! energy available to melt the snow (J m-2)
