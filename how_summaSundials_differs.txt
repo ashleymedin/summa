@@ -169,6 +169,9 @@ c-07) Snow water upper bound should be 1, not iden_ice, commit 265721b5 Feb 13, 
      The veg emissivity renamed leaf emissivity and ultimately unchanged from 0.98 after reading Ma et al. 2019 (was changed in this commit but changed back).
   36) Infiltration options from Sean (FUSE, saturation excess computation (commits around August 30, 2025)
  -37) Infiltration now changes during the timestep and all derivatives are computed (in FUSE commits)
+  38) Removal of debugging commented out lines as well as debugging subroutines, and globalPrintFlux now only prints Jacobian, residual, states, and related items, commit 1b12a62a Sep 13, 2025
+  39) Make scalarSfcMeltPond an optional input since it is recomputed at start of step -- ongoing
 
 
-Sept 5, 2025
+
+Sept 13, 2025
