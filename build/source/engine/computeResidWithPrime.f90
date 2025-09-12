@@ -282,8 +282,8 @@ subroutine computeResidWithPrime(&
       write(*,'(a,f12.5)') '  scalarCanopyCmTrial = ', scalarCanopyCmTrial
       write(*,'(a,1x,100(e12.5,1x))') '  mLayerCmTrial = ', mLayerCmTrial(min(iJac1,size(mLayerCmTrial)):min(iJac2,size(mLayerCmTrial)))
       write(*,'(a,f12.5)') '  scalarCanairEnthalpyPrime = ', scalarCanairEnthalpyPrime 
-      write(*,'(a,f12.5)') '  scalarCanopyEnthTempPrime = ', scalarCanopyEnthTempPrime
-      write(*,'(a,1x,100(e12.5,1x))') '  mLayerEnthTempPrime = ', mLayerEnthTempPrime(min(iJac1,size(mLayerEnthTempPrime)):min(iJac2,size(mLayerEnthTempPrime)))
+      write(*,'(a,f12.5)') '  scalarCanopyEnthalpyPrime = ', scalarCanopyEnthalpyPrime
+      write(*,'(a,1x,100(e12.5,1x))') '  mLayerEnthalpyPrime = ', mLayerEnthalpyPrime(min(iJac1,size(mLayerEnthalpyPrime)):min(iJac2,size(mLayerEnthalpyPrime)))
     endif
 
     ! print result
