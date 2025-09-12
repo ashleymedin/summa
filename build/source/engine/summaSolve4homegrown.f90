@@ -95,6 +95,7 @@ USE mDecisions_module,only:       &
 implicit none
 private
 public::summaSolve4homegrown
+public::checkConv
 contains
 
  ! **************************************************************************************************************************
@@ -181,8 +182,6 @@ contains
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! Jacobian matrix
- logical(lgt),parameter          :: doNumJacobian=.false.    ! flag to compute the numerical Jacobian matrix
- logical(lgt),parameter          :: testBandDiagonal=.false. ! flag to test the band diagonal Jacobian matrix
  real(rkind)                     :: nJac(in_SS4HG % nState,in_SS4HG % nState)      ! numerical Jacobian matrix
  real(rkind)                     :: aJac(in_SS4HG % nLeadDim,in_SS4HG % nState)      ! Jacobian matrix
  real(rkind)                     :: aJacScaled(in_SS4HG % nLeadDim,in_SS4HG % nState)      ! Jacobian matrix (scaled)
@@ -199,7 +198,6 @@ contains
  integer(i4b)                    :: mSoil                    ! number of soil layers in solution vector
  integer(i4b)                    :: iLayer                   ! row index
  integer(i4b)                    :: jLayer                   ! column index
- logical(lgt)                    :: globalPrintFlagInit      ! initial global print flag
  logical(lgt)                    :: return_flag              ! flag that controls execution of return statements
  character(LEN=256)              :: cmessage                 ! error message of downwind routine
  ! class objects for subroutine arguments
@@ -250,9 +248,6 @@ contains
  
    ! get the number of soil layers in the solution vector
    mSoil = size(indx_data%var(iLookINDEX%ixMatOnly)%dat)
-  
-   ! initialize the global print flag
-   globalPrintFlagInit=globalPrintFlag
 
    ! compute the Jacobian
    call update_Jacobian; if (return_flag) return ! compute Jacobian for Newton step -- return if error
@@ -287,14 +282,7 @@ contains
     call computJacob(in_computJacob,indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,dMat,aJac,out_computJacob)
     call finalize_computJacob_summaSolve4homegrown
     if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! (check for errors)
-  
-    ! compute the numerical Jacobian matrix
-    if (doNumJacobian) then
-     globalPrintFlag=.false.
-     call numJacobian(stateVecTrial,dMat,nJac,err,cmessage)
-     if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! (check for errors)
-     globalPrintFlag=globalPrintFlagInit
-    end if
+
    end associate
   end subroutine update_Jacobian
 
@@ -307,11 +295,6 @@ contains
     err            => out_SS4HG % err           ,& ! intent(out): error code
     message        => out_SS4HG % message        & ! intent(out): error message    
    &)
-    ! test the band diagonal matrix
-    if (testBandDiagonal) then
-     call testBandMat(check=.true.,err=err,message=cmessage)
-     if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! (check for errors)
-    end if
  
     ! scale the residual vector
     rVecScaled(1:nState) = fScale(:)*real(rVec(:), rkind)   ! NOTE: residual vector is in quadruple precision
@@ -391,6 +374,29 @@ contains
     end if
    end associate
   end subroutine refine_Newton_step  
+
+  subroutine initialize_computJacob_summaSolve4homegrown
+   ! *** Transfer data to in_computJacob class object from local variables in summaSolve4homegrown ***
+   associate(&
+    ixGroundwater  => model_decisions(iLookDECISIONS%groundwatr)%iDecision,&  ! intent(in): [i4b] groundwater parameterization
+    dt_cur         => in_SS4HG % dt_cur         ,& ! intent(in): current stepsize
+    nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
+    nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
+    nLayers        => in_SS4HG % nLayers        ,& ! intent(in): total number of layers
+    ixMatrix       => in_SS4HG % ixMatrix       ,& ! intent(in): type of matrix (full or band diagonal)
+    computeVegFlux => in_SS4HG % computeVegFlux  & ! intent(in): flag to indicate if computing fluxes over vegetation
+   &)   
+    call in_computJacob % initialize(dt_cur,nSnow,nSoil,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel),ixMatrix)
+   end associate
+  end subroutine initialize_computJacob_summaSolve4homegrown
+
+  subroutine finalize_computJacob_summaSolve4homegrown
+   ! *** Transfer data from out_computJacob class object to local variables in summaSolve4homegrown ***
+   associate(err => out_SS4HG % err)
+    call out_computJacob % finalize(err,cmessage)
+   end associate 
+  end subroutine finalize_computJacob_summaSolve4homegrown
+
 
   ! *********************************************************************************************************
   ! * internal subroutine lineSearchRefinement: refine the iteration increment using line searches
@@ -504,7 +510,7 @@ contains
 
     ! check convergence
     ! NOTE: some efficiency gains possible by scaling the full newton step outside the line search loop
-    converged = checkConv(resVecNew,newtStepScaled*xScale,stateVecNew)
+    converged = checkConv(mSoil,in_SS4HG,mpar_data,indx_data,prog_data,resVecNew,newtStepScaled*xScale,stateVecNew,out_SS4HG)
     if(converged) return
 
     ! early return if not computing the line search
@@ -627,7 +633,7 @@ contains
     end if
 
     ! dummy check for the function
-    if (fold==realMissing) print*, 'missing'
+    if (fold==realMissing) print*, 'missing fold in trustRegionRefinement'
 
     ! dummy
     stateVecNew = realMissing
@@ -760,7 +766,7 @@ contains
    if (.not.feasible) then; err=20; message=trim(message)//'state vector not feasible'; return; end if
 
    ! check convergence
-   converged = checkConv(resVecNew,xInc,stateVecNew)
+   converged = checkConv(mSoil,in_SS4HG,mpar_data,indx_data,prog_data,resVecNew,xInc,stateVecNew,out_SS4HG)
 
   end associate
 
@@ -844,182 +850,6 @@ contains
 
   end subroutine getBrackets
 
-
-  ! *********************************************************************************************************
-  ! * internal subroutine numJacobian: compute the numerical Jacobian matrix
-  ! *********************************************************************************************************
-  subroutine numJacobian(stateVec,dMat,nJac,err,message)
-  implicit none
-  ! dummies
-  real(rkind),intent(in)         :: stateVec(:)                ! trial state vector
-  real(rkind),intent(in)         :: dMat(:)                    ! diagonal matrix
-  ! output
-  real(rkind),intent(out)        :: nJac(:,:)                  ! numerical Jacobian
-  integer(i4b),intent(out)       :: err                        ! error code
-  character(*),intent(out)       :: message                    ! error message
-  ! ----------------------------------------------------------------------------------------------------------
-  ! local
-  character(len=256)             :: cmessage                   ! error message of downwind routine
-  real(rkind),parameter          :: dx=1.e-8_rkind             ! finite difference increment
-  real(rkind),dimension(in_SS4HG % nState)  :: stateVecPerturbed          ! perturbed state vector
-  real(rkind),dimension(in_SS4HG % nState)  :: fluxVecInit,fluxVecJac     ! flux vector (mized units)
-  real(qp),dimension(in_SS4HG % nState)     :: resVecInit,resVecJac ! qp  ! residual vector (mixed units)
-  real(rkind)                    :: func                       ! function value
-  logical(lgt)                   :: feasible                   ! flag to denote the feasibility of the solution
-  integer(i4b)                   :: iJac                       ! index of row of the Jacobian matrix
-  integer(i4b),parameter         :: ixNumFlux=1001             ! named variable for the flux-based form of the numerical Jacobian
-  integer(i4b),parameter         :: ixNumRes=1002              ! named variable for the residual-based form of the numerical Jacobian
-  integer(i4b)                   :: ixNumType=ixNumRes         ! method used to calculate the numerical Jacobian
-  ! ----------------------------------------------------------------------------------------------------------
-  ! initialize error control
-  err=0; message='numJacobian/'
-
-  ! compute initial function evaluation
-  call eval8summa_wrapper(stateVec,fluxVecInit,resVecInit,func,feasible,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-  if(.not.feasible)then; message=trim(message)//'initial state vector not feasible'; err=20; return; endif
-
-  ! get a copy of the state vector to perturb
-  stateVecPerturbed(:) = stateVec(:)
-
-  ! loop through state variables
-  do iJac=1,in_SS4HG % nState
-
-   !print*, 'iJac = ', iJac
-   !globalPrintFlag = merge(.true.,.false., iJac==1)
-
-   ! perturb state vector
-   stateVecPerturbed(iJac) = stateVec(iJac) + dx
-
-   ! compute function evaluation
-   call eval8summa_wrapper(stateVecPerturbed,fluxVecJac,resVecJac,func,feasible,err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-   if(.not.feasible)then; message=trim(message)//'state vector not feasible'; err=20; return; endif
-   !write(*,'(a,1x,2(f30.20,1x))') 'resVecJac(101:102)  = ', resVecJac(101:102)
-
-   ! compute the row of the Jacobian matrix
-   select case(ixNumType)
-    case(ixNumRes);  nJac(:,iJac) = real(resVecJac - resVecInit, kind(rkind) )/dx  ! Jacobian based on residuals
-    case(ixNumFlux); nJac(:,iJac) = -in_SS4HG % dt_cur*(fluxVecJac(:) - fluxVecInit(:))/dx     ! Jacobian based on fluxes
-    case default; err=20; message=trim(message)//'Jacobian option not found'; return
-   end select
-
-   ! if flux option then add in the diagonal matrix
-   if(ixNumType==ixNumFlux) nJac(iJac,iJac) = nJac(iJac,iJac) + dMat(iJac)
-
-   ! set the state back to the input value
-   stateVecPerturbed(iJac) = stateVec(iJac)
-
-  end do  ! (looping through state variables)
-
-  ! print the Jacobian
-  print*, '** numerical Jacobian:', ixNumType==ixNumRes
-  write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=min(iJac1,in_SS4HG % nState),min(iJac2,in_SS4HG % nState))
-  do iLayer=min(iJac1,in_SS4HG % nState),min(iJac2,in_SS4HG % nState)
-   write(*,'(i4,1x,100(e12.5,1x))') iLayer, nJac(min(iJac1,in_SS4HG % nState):min(iJac2,in_SS4HG % nState),iLayer)
-  end do
-  !print*, 'PAUSE: testing Jacobian'; read(*,*)
-
-  end subroutine numJacobian
-
-  ! *********************************************************************************************************
-  ! * internal subroutine testBandMat: compute the full Jacobian matrix and decompose into a band matrix
-  ! *********************************************************************************************************
-
-  subroutine testBandMat(check,err,message)
-  ! dummy variables
-  logical(lgt),intent(in)         :: check                    ! flag to pause
-  integer(i4b),intent(out)        :: err                      ! error code
-  character(*),intent(out)        :: message                  ! error message
-  ! local variables
-  real(rkind)                     :: fullJac(in_SS4HG % nState,in_SS4HG % nState)   ! full Jacobian matrix
-  real(rkind)                     :: bandJac(in_SS4HG % nLeadDim,in_SS4HG % nState) ! band Jacobian matrix
-  integer(i4b)                    :: iState,jState            ! indices of the state vector
-  character(LEN=256)              :: cmessage                 ! error message of downwind routine
-  ! class objects for subroutine arguments
-  type(in_type_computJacob)       :: in_computJacob
-  type(out_type_computJacob)      :: out_computJacob
-  ! initialize error control
-  err=0; message='testBandMat/'
-
-  ! check
-  if (in_SS4HG % nLeadDim == in_SS4HG % nState) then
-   message=trim(message)//'do not expect nLeadDim==nState: check that are computing the band diagonal matrix'//&
-                          ' (is forceFullMatrix==.true.?)'
-   err=20; return
-  end if
-
-  ! compute the full Jacobian matrix
-  call initialize_computJacob_testBandMat
-  call computJacob(in_computJacob,indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,dMat,fullJac,out_computJacob)
-  call finalize_computJacob_testBandMat(err,cmessage)
-  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-
-  ! initialize band matrix
-  bandJac(:,:) = 0._rkind
-
-  ! transfer into the lapack band diagonal structure
-  do iState=1,in_SS4HG % nState
-   do jState=max(1,iState-ku),min(in_SS4HG % nState,iState+kl)
-    bandJac(kl + ku + 1 + jState - iState, iState) = fullJac(jState,iState)
-   end do
-  end do
-
-  ! print results
-  print*, '** test banded analytical Jacobian:'
-  write(*,'(a4,1x,100(i17,1x))') 'xCol', (iState, iState=iJac1,iJac2)
-  do iState=kl+1,in_SS4HG % nLeadDim; write(*,'(i4,1x,100(e17.10,1x))') iState, bandJac(iState,iJac1:iJac2); end do
-
-  ! check if the need to pause
-  if(check)then
-   print*, 'PAUSE: testing banded analytical Jacobian'
-   read(*,*)
-  endif
-
-  end subroutine testBandMat
-
-  subroutine initialize_computJacob_testBandMat
-   ! *** Transfer data from out_computJacob class object to local variables in testBandMat ***
-   associate(&
-    dt_cur         => in_SS4HG % dt_cur         ,& ! intent(in): current stepsize
-    nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
-    nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
-    nLayers        => in_SS4HG % nLayers        ,& ! intent(in): total number of layers
-    computeVegFlux => in_SS4HG % computeVegFlux  & ! intent(in): flag to indicate if computing fluxes over vegetation
-   &)
-    call in_computJacob % initialize(dt_cur,nSnow,nSoil,nLayers,computeVegFlux,.false.,ixFullMatrix)
-   end associate
-  end subroutine initialize_computJacob_testBandMat
-
-  subroutine finalize_computJacob_testBandMat(err,cmessage)
-   ! *** Transfer data from out_computJacob class object to local variables in testBandMat ***
-   ! Note: subroutine arguments are needed because testBandMat is an internal procedure 
-   integer(i4b),intent(out)        :: err                      ! error code
-   character(*),intent(out)        :: cmessage                 ! error message of downwind routine
-   call out_computJacob % finalize(err,cmessage)
-  end subroutine finalize_computJacob_testBandMat
- 
-  subroutine initialize_computJacob_summaSolve4homegrown
-   ! *** Transfer data to in_computJacob class object from local variables in summaSolve4homegrown ***
-   associate(&
-    ixGroundwater  => model_decisions(iLookDECISIONS%groundwatr)%iDecision,&  ! intent(in): [i4b] groundwater parameterization
-    dt_cur         => in_SS4HG % dt_cur         ,& ! intent(in): current stepsize
-    nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
-    nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
-    nLayers        => in_SS4HG % nLayers        ,& ! intent(in): total number of layers
-    ixMatrix       => in_SS4HG % ixMatrix       ,& ! intent(in): type of matrix (full or band diagonal)
-    computeVegFlux => in_SS4HG % computeVegFlux  & ! intent(in): flag to indicate if computing fluxes over vegetation
-   &)   
-    call in_computJacob % initialize(dt_cur,nSnow,nSoil,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel),ixMatrix)
-   end associate
-  end subroutine initialize_computJacob_summaSolve4homegrown
-
-  subroutine finalize_computJacob_summaSolve4homegrown
-   ! *** Transfer data from out_computJacob class object to local variables in summaSolve4homegrown ***
-   associate(err => out_SS4HG % err)
-    call out_computJacob % finalize(err,cmessage)
-   end associate 
-  end subroutine finalize_computJacob_summaSolve4homegrown
 
   ! *********************************************************************************************************
   ! * internal subroutine eval8summa_wrapper: compute the right-hand-side vector
@@ -1107,17 +937,25 @@ contains
   
   end subroutine eval8summa_wrapper
 
+ end subroutine summaSolve4homegrown
 
-  ! *********************************************************************************************************
-  ! internal function checkConv: check convergence based on the residual vector
-  ! *********************************************************************************************************
-  function checkConv(rVec,xInc,xVec)
+ ! *********************************************************************************************************
+ ! module function checkConv: check convergence based on the residual vector
+ ! *********************************************************************************************************
+ function checkConv(mSoil,in_SS4HG,mpar_data,indx_data,prog_data,rVec,xInc,xVec,out_SS4HG)
   implicit none
+  ! result
+  logical(lgt)                 :: checkConv                    ! flag to denote convergence
   ! dummies
-  real(rkind),intent(in)       :: rVec(:)                 ! residual vector (mixed units)
-  real(rkind),intent(in)       :: xInc(:)                 ! iteration increment (mixed units)
-  real(rkind),intent(in)       :: xVec(:)                 ! state vector (mixed units)
-  logical(lgt)                 :: checkConv               ! flag to denote convergence
+  integer(i4b),intent(in)      :: mSoil                        ! number of soil layers in solution vector
+  type(in_type_summaSolve4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
+  type(var_dlength),intent(in) :: mpar_data                    ! model parameters
+  type(var_ilength),intent(in) :: indx_data                    ! indices defining model states and layers
+  type(var_dlength),intent(in) :: prog_data                    ! prognostic variables for a local HRU
+  real(rkind),intent(in)       :: rVec(:)                      ! residual vector (mixed units)
+  real(rkind),intent(in)       :: xInc(:)                      ! iteration increment (mixed units)
+  real(rkind),intent(in)       :: xVec(:)                      ! state vector (mixed units)
+  type(out_type_summaSolve4homegrown),intent(in) :: out_SS4HG  ! new function evaluation, convergence flag, and error control
   ! locals
   real(rkind),dimension(mSoil) :: psiScale                ! scaling factor for matric head
   real(rkind),parameter        :: xSmall=1.e-0_rkind      ! a small offset
@@ -1157,85 +995,80 @@ contains
    ixMatOnly               => indx_data%var(iLookINDEX%ixMatOnly)%dat           ,&  ! intent(in): [i4b(:)] list of indices for matric head state variables in the state vector
    ixMatricHead            => indx_data%var(iLookINDEX%ixMatricHead)%dat        ,&  ! intent(in): [i4b(:)] list of indices for matric head in the soil vector
    fnew                    => out_SS4HG % fnew                                   &  ! intent(in): [dp] new function evaluations
-  ) ! making associations with variables in the data structures
-  ! -------------------------------------------------------------------------------------------------------------------------------------------------
+  &) 
 
-  ! check convergence based on the canopy water balance
-  if(ixVegHyd/=integerMissing)then
-   canopy_max = real(abs(rVec(ixVegHyd)), rkind)*iden_water
-   canopyConv = (canopy_max    < absConvTol_liquid)  ! absolute error in canopy water balance (mm)
-  else
-   canopy_max = realMissing
-   canopyConv = .true.
-  endif
-
-  ! check convergence based on the residuals for energy (J m-3)
-  if(size(ixNrgOnly)>0)then
-   energy_max = real(maxval(abs( rVec(ixNrgOnly) )), rkind)
-   energyConv = (energy_max(1) < absConvTol_energy)  ! (based on the residual)
-  else
-   energy_max = realMissing
-   energyConv = .true.
-  endif
-
-  ! check convergence based on the residuals for volumetric liquid water content (-)
-  if(size(ixHydOnly)>0)then
-   liquid_max = real(maxval(abs( rVec(ixHydOnly) ) ), rkind)
-   ! (tighter convergence for the scalar solution)
-   if(scalarSolution)then
-    liquidConv = (liquid_max(1) < absConvTol_liquid*scalarTighten)   ! (based on the residual)
+   ! check convergence based on the canopy water balance
+   if (ixVegHyd/=integerMissing) then
+    canopy_max = real(abs(rVec(ixVegHyd)), rkind)*iden_water
+    canopyConv = (canopy_max    < absConvTol_liquid)  ! absolute error in canopy water balance (mm)
    else
-    liquidConv = (liquid_max(1) < absConvTol_liquid)                 ! (based on the residual)
-   endif
-  else
-   liquid_max = realMissing
-   liquidConv = .true.
-  endif
+    canopy_max = realMissing
+    canopyConv = .true.
+   end if
 
-  ! check convergence based on the iteration increment for matric head
-  ! NOTE: scale by matric head to avoid unnecessairly tight convergence when there is no water
-  if(size(ixMatOnly)>0)then
-   psiScale   = abs( xVec(ixMatOnly) ) + xSmall ! avoid divide by zero
-   matric_max = maxval(abs( xInc(ixMatOnly)/psiScale ) )
-   matricConv = (matric_max(1) < absConvTol_matric)  ! NOTE: based on iteration increment
-  else
-   matric_max = realMissing
-   matricConv = .true.
-  endif
+   ! check convergence based on the residuals for energy (J m-3)
+   if (size(ixNrgOnly)>0) then
+    energy_max = real(maxval(abs( rVec(ixNrgOnly) )), rkind)
+    energyConv = (energy_max(1) < absConvTol_energy)  ! (based on the residual)
+   else
+    energy_max = realMissing
+    energyConv = .true.
+   end if
 
-  ! check convergence based on the soil water balance error (m)
-  if(size(ixMatOnly)>0)then
-   soilWatBalErr = sum( real(rVec(ixMatOnly), rkind)*mLayerDepth(nSnow+ixMatricHead) )
-   watbalConv    = (abs(soilWatbalErr) < absConvTol_liquid)  ! absolute error in total soil water balance (m)
-  else
-   soilWatbalErr = realMissing
-   watbalConv    = .true.
-  endif
+   ! check convergence based on the residuals for volumetric liquid water content (-)
+   if (size(ixHydOnly)>0) then
+    liquid_max = real(maxval(abs( rVec(ixHydOnly) ) ), rkind)
+    ! (tighter convergence for the scalar solution)
+    if (scalarSolution) then
+     liquidConv = (liquid_max(1) < absConvTol_liquid*scalarTighten)   ! (based on the residual)
+    else
+     liquidConv = (liquid_max(1) < absConvTol_liquid)                 ! (based on the residual)
+    end if
+   else
+    liquid_max = realMissing
+    liquidConv = .true.
+   end if
 
-  ! check convergence based on the aquifer storage
-  if(ixAqWat/=integerMissing)then
-   aquifer_max = real(abs(rVec(ixAqWat)), rkind)*iden_water
-   aquiferConv = (aquifer_max    < absConvTol_liquid)  ! absolute error in aquifer water balance (mm)
-  else
-   aquifer_max = realMissing
-   aquiferConv = .true.
-  endif
+   ! check convergence based on the iteration increment for matric head
+   ! NOTE: scale by matric head to avoid unnecessairly tight convergence when there is no water
+   if (size(ixMatOnly)>0) then
+    psiScale   = abs( xVec(ixMatOnly) ) + xSmall ! avoid divide by zero
+    matric_max = maxval(abs( xInc(ixMatOnly)/psiScale ) )
+    matricConv = (matric_max(1) < absConvTol_matric)  ! NOTE: based on iteration increment
+   else
+    matric_max = realMissing
+    matricConv = .true.
+   end if
 
-  ! final convergence check
-  checkConv = (canopyConv .and. watbalConv .and. matricConv .and. liquidConv .and. energyConv .and. aquiferConv)
+   ! check convergence based on the soil water balance error (m)
+   if (size(ixMatOnly)>0) then
+    soilWatBalErr = sum( real(rVec(ixMatOnly), rkind)*mLayerDepth(nSnow+ixMatricHead) )
+    watbalConv    = (abs(soilWatbalErr) < absConvTol_liquid)  ! absolute error in total soil water balance (m)
+   else
+    soilWatbalErr = realMissing
+    watbalConv    = .true.
+   end if
 
-  ! print progress towards solution
-  if(globalPrintFlag)then
-   write(*,'(a,1x,i4,1x,7(e15.5,1x),7(L1,1x))') 'check convergence: ', iter, &
-    fNew, matric_max(1), liquid_max(1), energy_max(1), canopy_max, aquifer_max, soilWatBalErr, matricConv, liquidConv, energyConv, watbalConv, canopyConv, aquiferConv, watbalConv
-  endif
+   ! check convergence based on the aquifer storage
+   if (ixAqWat/=integerMissing) then
+    aquifer_max = real(abs(rVec(ixAqWat)), rkind)*iden_water
+    aquiferConv = (aquifer_max    < absConvTol_liquid)  ! absolute error in aquifer water balance (mm)
+   else
+    aquifer_max = realMissing
+    aquiferConv = .true.
+   end if
 
-  ! end associations with variables in the data structures
-  end associate
+   ! final convergence check
+   checkConv = (canopyConv .and. watbalConv .and. matricConv .and. liquidConv .and. energyConv .and. aquiferConv)
 
-  end function checkConv
+   ! print progress towards solution
+   if (globalPrintFlag) then
+    write(*,'(a,1x,i4,1x,7(e15.5,1x),7(L1,1x))') 'check convergence: ', iter, &
+     fnew, matric_max(1), liquid_max(1), energy_max(1), canopy_max, aquifer_max, soilWatBalErr, matricConv, liquidConv, energyConv, watbalConv, canopyConv, aquiferConv, watbalConv
+   end if
 
- end subroutine summaSolve4homegrown
+  end associate ! end associations with variables in the data structures
 
+ end function checkConv
 
 end module summaSolve4homegrown_module

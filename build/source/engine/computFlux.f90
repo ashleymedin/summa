@@ -56,9 +56,6 @@ USE globalData,only:realMissing     ! missing real number
 USE globalData,only:iname_snow      ! named variables for snow
 USE globalData,only:iname_soil      ! named variables for soil
 
-! access the global print flag
-USE globalData,only:globalPrintFlag
-
 ! constants
 USE multiconst,only:iden_water      ! intrinsic density of liquid water    (kg m-3)
 
@@ -458,29 +455,8 @@ contains
 
  subroutine finalize_vegNrgFlux
   call out_vegNrgFlux%finalize(flux_data,deriv_data,err,cmessage)
-  associate(&
-   canopyDepth                  => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1),      & ! intent(in): [dp   ]  canopy depth (m)
-   mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth)%dat,               & ! intent(in): [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
-   scalarCanairNetNrgFlux       => flux_data%var(iLookFLUX%scalarCanairNetNrgFlux)%dat(1), & ! intent(out): [dp] net energy flux for the canopy air space  (W m-2)
-   scalarCanopyNetNrgFlux       => flux_data%var(iLookFLUX%scalarCanopyNetNrgFlux)%dat(1), & ! intent(out): [dp] net energy flux for the vegetation canopy (W m-2)
-   scalarGroundNetNrgFlux       => flux_data%var(iLookFLUX%scalarGroundNetNrgFlux)%dat(1), & ! intent(out): [dp] net energy flux for the ground surface    (W m-2)
-   dGroundNetFlux_dGroundTemp   => deriv_data%var(iLookDERIV%dGroundNetFlux_dGroundTemp)%dat(1) ) ! intent(out): [dp] derivative in net ground flux w.r.t. ground temperature
-   ! error control
-   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
-   ! check fluxes
-   if (globalPrintFlag) then
-    print*, '**'
-    write(*,'(a,1x,10(f30.20))') 'canopyDepth           = ',  canopyDepth
-    write(*,'(a,1x,10(f30.20))') 'mLayerDepth(1:2)      = ',  mLayerDepth(1:2)
-    write(*,'(a,1x,10(f30.20))') 'scalarCanairTempTrial = ',  scalarCanairTempTrial   ! trial value of the canopy air space temperature (K)
-    write(*,'(a,1x,10(f30.20))') 'scalarCanopyTempTrial = ',  scalarCanopyTempTrial   ! trial value of canopy temperature (K)
-    write(*,'(a,1x,10(f30.20))') 'mLayerTempTrial(1:2)  = ',  mLayerTempTrial(1:2)    ! trial value of ground temperature (K)
-    write(*,'(a,1x,10(f30.20))') 'scalarCanairNetNrgFlux = ', scalarCanairNetNrgFlux
-    write(*,'(a,1x,10(f30.20))') 'scalarCanopyNetNrgFlux = ', scalarCanopyNetNrgFlux
-    write(*,'(a,1x,10(f30.20))') 'scalarGroundNetNrgFlux = ', scalarGroundNetNrgFlux
-    write(*,'(a,1x,10(f30.20))') 'dGroundNetFlux_dGroundTemp = ', dGroundNetFlux_dGroundTemp
-   end if ! end if checking fluxes
-  end associate
+ ! error control
+  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
  end subroutine finalize_vegNrgFlux
  ! **** end vegNrgFlux ****
 
@@ -502,9 +478,6 @@ contains
    ! calculate net energy fluxes for each snow and soil layer (J m-3 s-1)
    do iLayer=1,nLayers
      mLayerNrgFlux(iLayer) = -(iLayerNrgFlux(iLayer) - iLayerNrgFlux(iLayer-1))/mLayerDepth(iLayer)
-     if (globalPrintFlag) then
-       if (iLayer < 10) write(*,'(a,1x,i4,1x,10(f25.15,1x))') 'iLayer, iLayerNrgFlux(iLayer-1:iLayer), mLayerNrgFlux(iLayer)   = ', iLayer, iLayerNrgFlux(iLayer-1:iLayer), mLayerNrgFlux(iLayer)
-     end if
    end do
   end associate
  end subroutine finalize_ssdNrgFlux
@@ -532,16 +505,6 @@ contains
    scalarCanopyNetLiqFlux = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
    ! calculate the total derivative in the downward liquid flux
    scalarCanopyLiqDeriv   = scalarThroughfallRainDeriv + scalarCanopyLiqDrainageDeriv
-   ! test
-   if (globalPrintFlag) then
-    print*, '**'
-    print*, 'scalarRainfall          = ', scalarRainfall
-    print*, 'scalarThroughfallRain   = ', scalarThroughfallRain
-    print*, 'scalarCanopyEvaporation = ', scalarCanopyEvaporation
-    print*, 'scalarCanopyLiqDrainage = ', scalarCanopyLiqDrainage
-    print*, 'scalarCanopyNetLiqFlux  = ', scalarCanopyNetLiqFlux
-    print*, 'scalarCanopyLiqTrial    = ', scalarCanopyLiqTrial
-   end if
   end associate
  end subroutine finalize_vegLiqFlux
  ! **** end vegLiqFlux ****
@@ -608,7 +571,6 @@ contains
    dPsiLiq_dPsi0                => deriv_data%var(iLookDERIV%dPsiLiq_dPsi0   )%dat          ) ! intent(in):  [dp(:)] derivative in liquid water matric pot w.r.t. the total water matric pot (-)
    ! expand derivatives to the total water matric potential
    ! NOTE: arrays are offset because computing derivatives in interface fluxes, at the top and bottom of the layer respectively
-   if (globalPrintFlag) print*, 'dPsiLiq_dPsi0(1:nSoil) = ', dPsiLiq_dPsi0(1:nSoil)
    dq_dHydStateAbove(1:nSoil)   = dq_dHydStateAbove(1:nSoil)  *dPsiLiq_dPsi0(1:nSoil)
    dq_dHydStateBelow(0:nSoil-1) = dq_dHydStateBelow(0:nSoil-1)*dPsiLiq_dPsi0(1:nSoil)
    dq_dHydStateLayerSurfVec(1:nSoil) = dq_dHydStateLayerSurfVec(1:nSoil)*dPsiLiq_dPsi0(1:nSoil)
@@ -705,7 +667,7 @@ subroutine soilCmpres(&
       ! compute the derivative for the compressibility term (m-1), no volume expansion for total water
       dCompress_dPsi(iLayer) = specificStorage*(mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer))/theta_sat(iLayer)
       ! compute the compressibility term (-) per second
-      compress(iLayer)       = (mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer))*dCompress_dPsi(iLayer)/dt
+      compress(iLayer) = (mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer))*dCompress_dPsi(iLayer)/dt
       end if
     end do
   else
@@ -756,7 +718,7 @@ subroutine soilCmpresPrime(&
           ! compute the derivative for the compressibility term (m-1), no volume expansion for total water
           dCompress_dPsi(iLayer) = specificStorage*(mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer))/theta_sat(iLayer)
           ! compute the compressibility term (-) instantaneously
-          compress(iLayer)       =   mLayerMatricHeadPrime(iLayer) * dCompress_dPsi(iLayer)
+          compress(iLayer) = mLayerMatricHeadPrime(iLayer) * dCompress_dPsi(iLayer)
       end if
     end do
   else

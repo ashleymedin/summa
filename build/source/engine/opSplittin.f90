@@ -615,11 +615,6 @@ subroutine opSplittin(&
 
    call get_nCoupling; if (return_flag) return ! get nCoupling value -- return if error
 
-   ! set the global print flag
-   globalPrintFlag=.false.
-
-   if (globalPrintFlag) print *, trim(message), dt
-
    ! initialize the first success call
    firstSuccess=.false.
    if (.not.firstInnerStep) firstSuccess=.true.
@@ -1233,9 +1228,7 @@ subroutine opSplittin(&
 
     ! define if the flux is desired
     if (desiredFlux) neededFlux(iVar)=.true.
-    !if(desiredFlux) print*, flux_meta(iVar)%varname, fluxMask%var(iVar)%dat
-
-    if ( globalPrintFlag .and. count(fluxMask%var(iVar)%dat)>0 ) print*, trim(flux_meta(iVar)%varname) ! * check
+    if ( globalPrintFlag .and. count(fluxMask%var(iVar)%dat)>0 ) print*,'computing flux', trim(flux_meta(iVar)%varname)
 
    end do  ! end looping through fluxes
 

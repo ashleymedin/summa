@@ -115,7 +115,6 @@ contains
  ENDIF
  ! Calculate time adjustment for ground slope, aspect and latitude (DDT = 0 for level surface)
  DDT=ATAN(SIN(AZI1)*SIN(SLOPE1)/(COS(SLOPE1)*COS(LAT1)-COS(AZI1)*SIN(SLOPE1)*SIN(LAT1)))
- ! print*, 'ddt = ', ddt
  ! Set beginning time of time step (set to sunrise if before sunrise)
  T1=MAX(T,-TP-DDT,-TD)
  ! Set end time of time step (adjust if after sunset)

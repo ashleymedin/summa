@@ -111,9 +111,6 @@ contains
  ! loop through snow layers
  do iSnow=1,nSnow
 
-  ! print starting density
-  !write(*,'(a,1x,i4,1x,f9.3)') 'b4 compact: iSnow, density = ', iSnow, mLayerVolFracIceNew(iSnow)*iden_ice
-
   ! save mass of liquid water and ice (mass does not change)
   massIceOld = iden_ice*mLayerVolFracIceNew(iSnow)*mLayerDepth(iSnow)   ! (kg m-2)
   massLiqOld = iden_water*mLayerVolFracLiqNew(iSnow)*mLayerDepth(iSnow) ! (kg m-2)
@@ -150,7 +147,6 @@ contains
    volFracIceLoss = max(0._rkind,mLayerMeltFreeze(iSnow)/iden_ice)  ! volumetric fraction of ice lost due to melt (-)
    ! (adjust snow depth to account for cavitation)
    scalarDepthNew = mLayerDepth(iSnow) * mLayerVolFracIceNew(iSnow)/(mLayerVolFracIceNew(iSnow) + volFracIceLoss)
-   !print*, 'volFracIceLoss = ', volFracIceLoss
   else
    scalarDepthNew = mLayerDepth(iSnow)
   end if
@@ -174,8 +170,6 @@ contains
   mLayerVolFracIceNew(iSnow) = massIceOld/(mLayerDepth(iSnow)*iden_ice)
   mLayerVolFracLiqNew(iSnow) = massLiqOld/(mLayerDepth(iSnow)*iden_water)
   mLayerVolFracAirNew(iSnow) = 1.0_rkind - mLayerVolFracIceNew(iSnow) - mLayerVolFracLiqNew(iSnow)
-  !write(*,'(a,1x,i4,1x,f9.3)') 'after compact: iSnow, density = ', iSnow, mLayerVolFracIceNew(iSnow)*iden_ice
-  !if(mLayerMeltFreeze(iSnow) > 20._rkind) pause 'meaningful melt'
 
  end do  ! looping through snow layers
 

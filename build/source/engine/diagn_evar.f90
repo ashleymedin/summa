@@ -283,8 +283,7 @@ contains
    ! * error check
    case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute thermal conductivity'; return
 
-  end select
-  !print*, 'iLayer, mLayerThermalC(iLayer) = ', iLayer, mLayerThermalC(iLayer)
+   end select
 
  end do  ! looping through layers
 
@@ -304,7 +303,6 @@ contains
   else
    iLayerThermalC(iLayer) = (TCn*zdn +  TCp*zdp) / (zdn + zdp)
   endif
-  !write(*,'(a,1x,i4,1x,10(f9.3,1x))') 'iLayer, TCn, TCp, zdn, zdp, iLayerThermalC(iLayer) = ', iLayer, TCn, TCp, zdn, zdp, iLayerThermalC(iLayer)
  end do  ! looping through layers
 
  ! special case of hansson

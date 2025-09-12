@@ -473,7 +473,6 @@ contains
 
    ! compute transmission of direct radiation according to Beer's Law (-)
    tauTotal = exp(-transCoef*scalarExposedVAI)
-   !print*, 'tauTotal = ', tauTotal
 
    ! compute ground albedo (-)
    groundAlbedoDirect  = Frad_vis*spectralAlbGndDirect(ixVisible)  + (1._rkind - Frad_vis)*spectralAlbGndDirect(ixNearIR)
@@ -879,10 +878,6 @@ contains
   scalarCanopySunlitPAR = 0._rkind
   scalarCanopyShadedPAR = (visibleAbsDirect + visibleAbsDiffuse) * fractionLAI / max(scalarCanopyShadedLAI, mpe)
  end if
- !print*, 'scalarCanopySunlitLAI, fractionLAI, visibleAbsDirect, visibleAbsDiffuse, scalarCanopySunlitPAR = ', &
- !         scalarCanopySunlitLAI, fractionLAI, visibleAbsDirect, visibleAbsDiffuse, scalarCanopySunlitPAR
-
-
 
  end subroutine canopy_SW
 

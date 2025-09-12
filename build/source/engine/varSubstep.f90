@@ -687,6 +687,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
   real(rkind)                     :: superflousWat                 ! superflous water used for evaporation (kg m-2 s-1)
   real(rkind)                     :: superflousNrg                 ! superflous energy that cannot be used for evaporation (W m-2 [J m-2 s-1])
   character(LEN=256)              :: cmessage                      ! error message of downwind routine
+  logical(lgt),parameter          :: printFlag=.false.             ! flag to print water balance error information
   ! trial state variables
   real(rkind)                     :: scalarCanairTempTrial         ! trial value for temperature of the canopy air space (K)
   real(rkind)                     :: scalarCanopyTempTrial         ! trial value for temperature of the vegetation canopy (K)
@@ -1127,15 +1128,17 @@ USE getVectorz_module,only:varExtract                              ! extract var
             fluxNet  = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
             liqError = (canopyBalance0 + fluxNet*dt) - scalarCanopyWatTrial
             if(abs(liqError) > absConvTol_liquid*10._rkind)then  ! *10 because of precision issues
-              !write(*,'(a,1x,f20.10)') 'dt = ', dt
-              !write(*,'(a,1x,f20.10)') 'scalarCanopyWatTrial         = ', scalarCanopyWatTrial
-              !write(*,'(a,1x,f20.10)') 'canopyBalance0               = ', canopyBalance0
-              !write(*,'(a,1x,f20.10)') 'canopyBalance1               = ', canopyBalance1
-              !write(*,'(a,1x,f20.10)') 'scalarRainfall*dt            = ', scalarRainfall*dt
-              !write(*,'(a,1x,f20.10)') 'scalarCanopyLiqDrainage*dt   = ', scalarCanopyLiqDrainage*dt
-              !write(*,'(a,1x,f20.10)') 'scalarCanopyEvaporation*dt   = ', scalarCanopyEvaporation*dt
-              !write(*,'(a,1x,f20.10)') 'scalarThroughfallRain*dt     = ', scalarThroughfallRain*dt
-              !write(*,'(a,1x,f20.10)') 'liqError                     = ', liqError
+              if(printFlag)then
+                write(*,'(a,1x,f20.10)') 'dt = ', dt
+                write(*,'(a,1x,f20.10)') 'scalarCanopyWatTrial         = ', scalarCanopyWatTrial
+                write(*,'(a,1x,f20.10)') 'canopyBalance0               = ', canopyBalance0
+                write(*,'(a,1x,f20.10)') 'canopyBalance1               = ', canopyBalance1
+                write(*,'(a,1x,f20.10)') 'scalarRainfall*dt            = ', scalarRainfall*dt
+                write(*,'(a,1x,f20.10)') 'scalarCanopyLiqDrainage*dt   = ', scalarCanopyLiqDrainage*dt
+                write(*,'(a,1x,f20.10)') 'scalarCanopyEvaporation*dt   = ', scalarCanopyEvaporation*dt
+                write(*,'(a,1x,f20.10)') 'scalarThroughfallRain*dt     = ', scalarThroughfallRain*dt
+                write(*,'(a,1x,f20.10)') 'liqError                     = ', liqError
+              endif
               waterBalanceError = .true.
               return
             endif  ! if there is a water balance error
@@ -1150,14 +1153,16 @@ USE getVectorz_module,only:varExtract                              ! extract var
             compSink     = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+1:nLayers) )*dt ! m s-1 --> m
             liqError     = soilBalance1 - (soilBalance0 + vertFlux + tranSink - baseSink - compSink)
             if(abs(liqError) > absConvTol_liquid*10._rkind)then   ! *10 because of precision issues
-              !write(*,'(a,1x,f20.10)') 'dt = ', dt
-              !write(*,'(a,1x,f20.10)') 'soilBalance0      = ', soilBalance0
-              !write(*,'(a,1x,f20.10)') 'soilBalance1      = ', soilBalance1
-              !write(*,'(a,1x,f20.10)') 'vertFlux          = ', vertFlux
-              !write(*,'(a,1x,f20.10)') 'tranSink          = ', tranSink
-              !write(*,'(a,1x,f20.10)') 'baseSink          = ', baseSink
-              !write(*,'(a,1x,f20.10)') 'compSink          = ', compSink
-              !write(*,'(a,1x,f20.10)') 'liqError          = ', liqError
+              if(printFlag)then
+                write(*,'(a,1x,f20.10)') 'dt = ', dt
+                write(*,'(a,1x,f20.10)') 'soilBalance0      = ', soilBalance0
+                write(*,'(a,1x,f20.10)') 'soilBalance1      = ', soilBalance1
+                write(*,'(a,1x,f20.10)') 'vertFlux          = ', vertFlux
+                write(*,'(a,1x,f20.10)') 'tranSink          = ', tranSink
+                write(*,'(a,1x,f20.10)') 'baseSink          = ', baseSink
+                write(*,'(a,1x,f20.10)') 'compSink          = ', compSink
+                write(*,'(a,1x,f20.10)') 'liqError          = ', liqError
+              endif
               waterBalanceError = .true.
               return
             endif  ! if there is a water balance error

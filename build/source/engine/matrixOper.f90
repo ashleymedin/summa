@@ -23,9 +23,6 @@ module matrixOper_module
 ! data types
 USE nrtype
 
-! access the global print flag
-USE globalData,only:globalPrintFlag
-
 ! access named variables to describe the form and structure of the matrices used in the numerical solver
 USE globalData,only: nRHS           ! number of unknown variables on the RHS of the linear system A.X=B
 USE globalData,only: ku             ! number of super-diagonal bands

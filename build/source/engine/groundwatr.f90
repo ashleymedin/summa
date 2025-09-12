@@ -271,9 +271,6 @@ subroutine computeBaseflow(&
   real(rkind),dimension(nSoil)       :: dXdS                  ! change in dimensionless flux w.r.t. change in dimensionless storage (-)
   real(rkind),dimension(nSoil)       :: dLogFunc_dLiq         ! derivative in the logistic function w.r.t. volumetric liquid water content (-)
   real(rkind),dimension(nSoil)       :: dExfiltrate_dVolLiq   ! derivative in exfiltration w.r.t. volumetric liquid water content (-)
-  ! local variables for testing (debugging)
-  logical(lgt),parameter             :: printFlag=.false.     ! flag for printing (debugging)
-  real(rkind)                        :: xDepth,xTran,xFlow    ! temporary variables (depth, transmissivity, flow)
   ! ---------------------------------------------------------------------------------------
   ! * association to data in structures
   ! ---------------------------------------------------------------------------------------
@@ -368,20 +365,6 @@ subroutine computeBaseflow(&
     ! add exfiltration to the baseflow flux at the top layer
     mLayerBaseflow(1)      = mLayerBaseflow(1) + scalarExfiltration
     mLayerColumnOutflow(1) = mLayerColumnOutflow(1) + scalarExfiltration*HRUarea
-
-    ! test
-    if (printFlag) then
-      xDepth = sum(mLayerDepth(ixSaturation:nSoil)*(mLayerVolFracLiq(ixSaturation:nSoil) - fieldCapacity))/sum(theta_sat(ixSaturation:nSoil) - fieldCapacity)  ! "effective" water table thickness (m)
-      xTran  = tran0*(xDepth/soilDepth)**zScale_TOPMODEL  ! transmissivity for the entire aquifer (m2 s-1)
-      xFlow  = xTran*tan_slope*contourLength/HRUarea   ! total column outflow (m s-1)
-      print*, 'ixSaturation = ', ixSaturation
-      write(*,'(a,1x,5(f30.20,1x))') 'tran0, soilDepth                 = ', tran0, soilDepth
-      write(*,'(a,1x,5(f30.20,1x))') 'surfaceHydCond, zScale_TOPMODEL  = ', surfaceHydCond, zScale_TOPMODEL
-      write(*,'(a,1x,5(f30.20,1x))') 'xDepth, zActive(ixSaturation)    = ', xDepth, zActive(ixSaturation)
-      write(*,'(a,1x,5(f30.20,1x))') 'xTran, trTotal(ixSaturation)     = ', xTran, trTotal(ixSaturation)
-      write(*,'(a,1x,5(f30.20,1x))') 'xFlow, totalColumnOutflow        = ', xFlow, sum(mLayerColumnOutflow(:))/HRUarea
-      !pause 'check groundwater'
-    end if
 
     ! ***********************************************************************************************************************
     ! (2) compute the derivative in the baseflow flux w.r.t. volumetric liquid water content (m s-1)

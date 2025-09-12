@@ -25,9 +25,6 @@ USE, intrinsic :: iso_c_binding
 USE nrtype
 USE type4kinsol
 
-! access the global print flag
-USE globalData,only:globalPrintFlag
-
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number

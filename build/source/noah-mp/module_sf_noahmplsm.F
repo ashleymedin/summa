@@ -588,7 +588,6 @@ contains
 
      DB = MIN( MAX(SNOWH - HVB(VEGTYP),0.), HVT(VEGTYP)-HVB(VEGTYP) )
      FB = DB / MAX(1.E-06,HVT(VEGTYP)-HVB(VEGTYP))
-     !print*, 'HVB(VEGTYP), HVT(VEGTYP), DB, FB = ', HVB(VEGTYP), HVT(VEGTYP), DB, FB
 
      IF(HVT(VEGTYP)> 0. .AND. HVT(VEGTYP) <= 0.5) THEN
        SNOWHC = HVT(VEGTYP)*EXP(-SNOWH/0.1)
@@ -1510,11 +1509,6 @@ contains
      FAB(IB) = 1. - FRE(IB) - (1.-ALBGRD(IB))*FTD(IB) &
                             - (1.-ALBGRI(IB))*FTI(IB)
 
-!if(iloc == 1.and.jloc ==  2) then
-  !write(*,'(a7,2i2,5(a6,f8.4),2(a9,f8.4))') "ib,ic: ",ib,ic," GAP: ",GAP," FTD: ",FTD(IB)," FTI: ",FTI(IB)," FRE: ", &
-  !       FRE(IB)," FAB: ",FAB(IB)," ALBGRD: ",ALBGRD(IB)," ALBGRI: ",ALBGRI(IB)
-!end if
-
   END SUBROUTINE TWOSTREAM
 ! ==================================================================================================
   ! ==================================================================================================
@@ -1607,7 +1601,6 @@ contains
          CF = SFCPRS/(8.314*SFCTMP)*1.e06
          RS = 1./(BP(VEGTYP)*BTRAN) * CF    ! MPC change: include BTRAN multiplier
          PSN = 0.
-         !write(*,'(a,1x,20(f16.6,1x))') 'TV-TFRZ, RS, CF = ', TV-TFRZ, RS, CF
 
          IF (APAR .LE. 0.) RETURN
 
@@ -1615,20 +1608,15 @@ contains
          TC  = TV-TFRZ
          PPF = 4.6*APAR
          J   = PPF*QE25(VEGTYP)
-         !write(*,'(a,1x,10(f20.10,1x))') 'J, APAR, QE25(VEGTYP) = ', J, APAR, QE25(VEGTYP)
          KC  = KC25(VEGTYP) * F1(AKC(VEGTYP),TC)
          KO  = KO25(VEGTYP) * F1(AKO(VEGTYP),TC)
          AWC = KC * (1.+O2/KO)
          CP  = 0.5*KC/KO*O2*0.21
          VCMX = VCMX25(VEGTYP) / F2(TC) * FNF * BTRAN * F1(AVCMX(VEGTYP),TC)
-         !write(*,'(a,1x,20(f14.8,1x))') 'F1, F2, VCMX25(VEGTYP), AVCMX(VEGTYP), TC = ', F1(AVCMX(VEGTYP),TC), F2(TC), VCMX25(VEGTYP), AVCMX(VEGTYP), TC
 
 ! first guess ci
 
          CI = 0.7*CO2*C3PSN(VEGTYP) + 0.4*CO2*(1.-C3PSN(VEGTYP))
-
-         !write(*,'(a,1x,10(f20.10,1x))') 'KC25(VEGTYP), AKC(VEGTYP), KO25(VEGTYP), AKO(VEGTYP) = ', KC25(VEGTYP), AKC(VEGTYP), KO25(VEGTYP), AKO(VEGTYP)
-         !write(*,'(a,1x,10(f20.10,1x))') 'CO2, CI, CP, KC, KO = ', CO2, CI, CP, KC, KO
 
 ! rb: s/m -> s m**2 / umol
 
@@ -1637,10 +1625,6 @@ contains
 ! constrain ea
 
          CEA = MAX(0.25*EI*C3PSN(VEGTYP)+0.40*EI*(1.-C3PSN(VEGTYP)), MIN(EA,EI) )
-
-         !print*, '**'
-         !write(*,'(a,1x,20(f14.8,1x))') 'BTRAN, VCMX, MP(VEGTYP), EA, EI, CEA/EI, O2, CO2, KC, KO, J, TC, RLB, SFCPRS = ', &
-         !                                BTRAN, VCMX, MP(VEGTYP), EA, EI, CEA/EI, O2, CO2, KC, KO, J, TC, RLB, SFCPRS
 
 ! ci iteration
 !jref: C3PSN is equal to 1 for all veg types.
@@ -1666,16 +1650,11 @@ contains
             RS = MAX(R1,R2)
             CI = MAX( CS-PSN*SFCPRS*1.65*RS, 0. )
 
-            !write(*,'(a,1x10(f14.10,1x))') 'WJ, WC, WE, PSN, CI, CS, RS, TV, VCMX, J = ', &
-            !                                WJ, WC, WE, PSN, CI, CS, RS, TV, VCMX, J
-
        END DO
-       !pause
 
 ! rs, rb:  s m**2 / umol -> s/m
 
          RS = RS*CF
-         !write(*,'(a,1x,10(f20.10,1x))') 'RS, G, CEA, EA, EI = ', RS, 1./RS, CEA, EA, EI
 
   END SUBROUTINE STOMATA
 ! ==================================================================================================
