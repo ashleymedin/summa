@@ -168,8 +168,8 @@ subroutine computeJacobWithPrime(&
   integer(i4b)                         :: nrgState             ! energy state variable
   integer(i4b)                         :: watState             ! hydrology state variable
   integer(i4b)                         :: nState               ! number of state variables
-  integer(i4b),allocatable             :: nrgRows(:)           ! indices of rows for energy column in banded matrix
-  integer(i4b),allocatable             :: watRows(:)           ! indices of rows for hydrology column in banded matrix
+  integer(i4b),allocatable             :: nrgRows(:)           ! indices of rows for energy column
+  integer(i4b),allocatable             :: watRows(:)           ! indices of rows for hydrology column
   ! indices of model layers
   integer(i4b)                         :: iLayer,pLayer        ! index of model layer
   integer(i4b)                         :: jLayer               ! index of model layer within the full state vector (hydrology)
@@ -671,7 +671,7 @@ subroutine computeJacobWithPrime(&
           if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixInd(ixSoilOnlyHyd(iLayer+1),watState),watState) = (dt/mLayerDepth(jLayer+1))*(-dq_dHydStateAbove(iLayer))
         endif
 
-        ! - only include banded terms for baseflow in banded structure
+        ! - include baseflow derivatives
         if(computeBaseflow .and. nSoilOnlyHyd==nSoil)then
           do pLayer=1,nSoil
             qState = ixSoilOnlyHyd(pLayer)  ! hydrology state index within the state subset
@@ -682,14 +682,14 @@ subroutine computeJacobWithPrime(&
           end do
         endif
 
-        ! - only include banded terms for surface infiltration below surface in banded structure
+        ! - include derivatives for surface infiltration below surface
         if(ixSoilOnlyHyd(1)/=integerMissing)then
            if(watState - ixSoilOnlyHyd(1) <= ku .or. fullMatrix) &
              aJac(ixInd(ixSoilOnlyHyd(1),watState),watState) = -(dt/mLayerDepth(1+nSnow))*dq_dHydStateLayerSurfVec(iLayer) + aJac(ixInd(ixSoilOnlyHyd(1),watState),watState)
         endif
       end do  ! (looping through hydrology states in the soil domain)
 
-      ! - include banded terms for surface infiltration above surface if there is snow/lake (vegetation handled already)
+      ! - include derivatives for surface infiltration above surface if there is snow/lake (vegetation handled already)
       if(nSnow+nLake>0 .and. ixSoilOnlyHyd(1)/=integerMissing)then 
         if(nSnow>0 .and. nLake==0)then ! have snow above first soil layer
           densLimit=nSnow ! if passed through a too dense snowpack or lake, need to find top dense layer (bottom layer always included, dense or not)
@@ -724,7 +724,7 @@ subroutine computeJacobWithPrime(&
         if(ixSoilOnlyNrg(nSoil)/=integerMissing) aJac(ixInd(ixAqWat,ixSoilOnlyNrg(nSoil)),ixSoilOnlyNrg(nSoil)) = -dq_dNrgStateAbove(nSoil)*dt
         if(ixSoilOnlyHyd(nSoil)/=integerMissing) aJac(ixInd(ixAqWat,ixSoilOnlyHyd(nSoil)),ixSoilOnlyHyd(nSoil)) = -dq_dHydStateAbove(nSoil)*dt
       endif
-      ! - only include banded terms for derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration), would have to have few soil layers
+      ! - include derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration), would have to have few soil layers
       if(computeVegFlux)then
         if(ixCasNrg/=integerMissing)then
           if(ixAqWat-ixCasNrg = kl .or. fullMatrix) aJac(ixInd(ixAqWat,ixCasNrg),ixCasNrg) = -dAquiferTrans_dTCanair*dt ! dVol/dT (K-1)
@@ -784,7 +784,7 @@ subroutine computeJacobWithPrime(&
             endif
           endif
 
-          ! - only include banded terms for derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration) in banded structure 
+          ! - include derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration)
           if(computeVegFlux)then
             if(ixCasNrg/=integerMissing)then
               if(watState-ixCasNrg = kl .or. fullMatrix) aJac(ixInd(watState,ixCasNrg),ixCasNrg) = (dt/mLayerDepth(jLayer))*(-mLayerdTrans_dTCanair(iLayer)) + aJac(ixInd(watState,ixCasNrg),ixCasNrg) ! dVol/dT (K-1)
@@ -823,14 +823,14 @@ subroutine computeJacobWithPrime(&
           endif
         endif   ! (if the water state for the current layer is within the state subset)
 
-        ! - only include banded terms for surface infiltration below surface in banded structure
+        ! - include derivatives for surface infiltration below surface
         if(ixSoilOnlyHyd(1)/=integerMissing)then
           if(nrgState - ixSoilOnlyHyd(1) <= ku .or. fullMatrix) &
             aJac(ixInd(ixSoilOnlyHyd(1),nrgState),nrgState) = -(dt/mLayerDepth(1+nSnow))*dq_dNrgStateLayerSurfVec(iLayer) + aJac(ixInd(ixSoilOnlyHyd(1),nrgState),nrgState)
         endif
       end do  ! (looping through energy states in the soil domain)
 
-      ! - include banded terms for surface infiltration above surface if there is snow/lake (vegetation handled already)
+      ! - include derivatives for surface infiltration above surface if there is snow/lake (vegetation handled already)
       if(nSnow+nLake>0 .and. ixSoilOnlyHyd(1)/=integerMissing)then 
         if(nSnow>0 .and. nLake==0)then ! have snow above first soil layer
           densLimit=nSnow ! if passed through a too dense snowpack or lake, need to find top dense layer (bottom layer always included, dense or not)
@@ -843,7 +843,6 @@ subroutine computeJacobWithPrime(&
         endif
         do pLayer=denseLimit,nSnow+nLake
           if(ixSnLaSoGlNrg(pLayer)/=integerMissing)then
-            ! only include banded terms
             if(ixSnLaSoGlNrg(pLayer) - ixSoilOnlyHyd(1) <= ku .or. fullMatrix) &
                 aJac(ixInd(ixSoilOnlyHyd(1),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer)) = -(dt/mLayerDepth(1+nSnow))*scalarSoilControl*iLayerLiqFluxSnLaGlDeriv(pLayer)*mLayerdTheta_dTk(pLayer) + aJac(ixInd(ixSoilOnlyHyd(1),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer))
           endif
