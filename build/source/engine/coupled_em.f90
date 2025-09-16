@@ -1756,7 +1756,7 @@ subroutine coupled_em(&
       endif ! if soil layers exist
 
       ! -----
-      ! * balance checks for the ice...
+      ! * balance checks for the glacier ice...
       ! ------------------------------------
       if(nGlce>0)then
         ! compute the liquid water and ice content at the end of the time step
@@ -1767,7 +1767,7 @@ subroutine coupled_em(&
         !if(printBalance)then
         !endif
 
-        ! check the ice water balance, remembering that averageGlceMelt will be negative since upwards flux
+        ! check the glacier ice water balance, remembering that averageGlceMelt will be negative since upwards flux
         massBalance = -averageGlceMelt*iden_water*data_step - (balanceIceWE0-scalarIceWE) - averageGlceSublimation*data_step
         if(abs(massBalance) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance_ds)then
           write(*,'(a,1x,f20.10)') 'data_step             = ', data_step

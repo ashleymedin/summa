@@ -338,7 +338,7 @@ subroutine glceReduce(&
 
     ! ensure that the new depth can accomodate masses of ice and liquid in the layer
     scalarDepthMin = (massIceOld / iden_ice) + (massLiqOld / iden_water)
-    mLayerDepth(iGlce) = max(scalarDepthMin, scalarDepthNew)
+    mLayerDepth(iGlce) = max(scalarDepthMin, scalarDepthNew) ! this will change the ice fraction in the layer unless massLiqOld=0 from 0 freewater holding capacity of glce
  
     ! check that we did not remove the entire layer
     if(mLayerDepth(1) < verySmall)then
