@@ -739,7 +739,7 @@ subroutine computeJacobWithPrime(&
         if(ixSoilOnlyNrg(nSoil)/=integerMissing) aJac(ixInd(ixAqWat,ixSoilOnlyNrg(nSoil)),ixSoilOnlyNrg(nSoil)) = -dq_dNrgStateAbove(nSoil)*dt
         if(ixSoilOnlyHyd(nSoil)/=integerMissing) aJac(ixInd(ixAqWat,ixSoilOnlyHyd(nSoil)),ixSoilOnlyHyd(nSoil)) = -dq_dHydStateAbove(nSoil)*dt
       endif
-      ! - include derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration), would have to have few soil layers
+      ! - include derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration)
       if(computeVegFlux)then
         if(ixCasNrg/=integerMissing)then
           if(ixAqWat-ixCasNrg = kl .or. fullMatrix) aJac(ixInd(ixAqWat,ixCasNrg),ixCasNrg) = -dAquiferTrans_dTCanair*dt ! dVol/dT (K-1)
