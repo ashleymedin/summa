@@ -164,7 +164,6 @@ subroutine computeJacobWithPrime(&
   ! * local variables
   ! --------------------------------------------------------------
   ! indices of model state variables
-  integer(i4b)                         :: jState               ! index of state within the state subset
   integer(i4b)                         :: qState               ! index of cross-derivative state variable for baseflow
   integer(i4b)                         :: nrgState             ! energy state variable
   integer(i4b)                         :: watState             ! hydrology state variable
@@ -482,7 +481,7 @@ subroutine computeJacobWithPrime(&
         nrgState = ixSnLaSoGlNrg(iLayer)        ! index within the state subset
 
         ! - diagonal elements
-        aJac(ixDiag,nrgState)   = (dt/mLayerDepth(iLayer))*(-dNrgFlux_dTempBelow(iLayer-1) + dNrgFlux_dTempAbove(iLayer)) + dMat(nrgState)
+        aJac(ixInd(nrgState,nrgState),nrgState)   = (dt/mLayerDepth(iLayer))*(-dNrgFlux_dTempBelow(iLayer-1) + dNrgFlux_dTempAbove(iLayer)) + dMat(nrgState)
 
         ! - lower-diagonal elements
         if(iLayer>1)then
@@ -660,7 +659,7 @@ subroutine computeJacobWithPrime(&
 
         ! - compute the diagonal elements
         ! all terms *excluding* baseflow
-        aJac(ixDiag,watState) = (dt/mLayerDepth(jLayer))*(-dq_dHydStateBelow(iLayer-1) + dq_dHydStateAbove(iLayer)) + dMat(watState)
+        aJac(ixInd(watState,watState),watState) = (dt/mLayerDepth(jLayer))*(-dq_dHydStateBelow(iLayer-1) + dq_dHydStateAbove(iLayer)) + dMat(watState)
 
         ! - compute the lower-diagonal elements
         if(iLayer>1)then
@@ -720,7 +719,7 @@ subroutine computeJacobWithPrime(&
     ! * liquid water fluxes for the aquifer...
     ! ----------------------------------------
     if(ixAqWat/=integerMissing)then
-      aJac(ixDiag,ixAqWat) = -dBaseflow_dAquifer*dt + dMat(ixAqWat) * cj
+      aJac(ixInd(ixAqWat,ixAqWat),ixAqWat) = -dBaseflow_dAquifer*dt + dMat(ixAqWat) * cj
       if(nSoil>0)then
         if(ixSoilOnlyNrg(nSoil)/=integerMissing) aJac(ixInd(ixAqWat,ixSoilOnlyNrg(nSoil)),ixSoilOnlyNrg(nSoil)) = -dq_dNrgStateAbove(nSoil)*dt
         if(ixSoilOnlyHyd(nSoil)/=integerMissing) aJac(ixInd(ixAqWat,ixSoilOnlyHyd(nSoil)),ixSoilOnlyHyd(nSoil)) = -dq_dHydStateAbove(nSoil)*dt
@@ -859,29 +858,31 @@ subroutine computeJacobWithPrime(&
     ! ----------------------------------------
     if(enthalpyStateVec)then 
 
-      allocate(watRows(nBands),nrgRows(nBands))
-      do jLayer=1,nBands-1
-        watRows(jLayer) = jLayer
-        nrgRows(jLayer) = jLayer + 1
-      end do
-      watRows(nBands) = nBands
-      nrgRows(nBands) = nBands
+      if(fullMatrix) then
+        allocate(watRows(nState),nrgRows(nState)) ! all rows are used
+        do jLayer=1,nState
+          watRows(jLayer) = jLayer
+          nrgRows(jLayer) = jLayer
+        end do
+      else
+        allocate(watRows(nBands),nrgRows(nBands)) ! only the bands are used
+        do jLayer=1,nBands-1
+          watRows(jLayer) = jLayer
+          nrgRows(jLayer) = jLayer + 1
+        end do
+        watRows(nBands) = nBands
+        nrgRows(nBands) = nBands
+      endif
 
       if(ixCasNrg/=integerMissing)then
         aJac(:,ixCasNrg) = aJac(:,ixCasNrg) * dCanairTemp_dEnthalpy
-        if(ixMatrix==ixBandMatrix) aJac(ixDiag,   ixCasNrg) = aJac(ixDiag,   ixCasNrg) + 1._rkind * cj
-        if(ixMatrix==ixFullMatrix) aJac(ixCasNrg, ixCasNrg) = aJac(ixCasNrg, ixCasNrg) + 1._rkind * cj
+        aJac(ixInd(ixCasNrg,ixCasNrg),ixCasNrg) = aJac(ixInd(ixCasNrg,ixCasNrg),ixCasNrg) + 1._rkind * cj
       endif
       
       if(ixVegNrg/=integerMissing)then
-        if(ixMatrix==ixBandMatrix)then
-          if(ixVegHyd/=integerMissing) aJac(watRows,ixVegHyd) = aJac(watRows,ixVegHyd) + aJac(nrgRows,ixVegNrg) * dCanopyTemp_dCanWat
-        else if(ixMatrix==ixFullMatrix)then
-          if(ixVegHyd/=integerMissing) aJac(:,ixVegHyd) = aJac(:,ixVegHyd) + aJac(:,ixVegNrg) * dCanopyTemp_dCanWat
-        endif
+        if(ixVegHyd/=integerMissing) aJac(watRows,ixVegHyd) = aJac(watRows,ixVegHyd) + aJac(nrgRows,ixVegNrg) * dCanopyTemp_dCanWat
         aJac(:,ixVegNrg) = aJac(:,ixVegNrg) * dCanopyTemp_dEnthalpy
-        if(ixMatrix==ixBandMatrix) aJac(ixDiag,   ixVegNrg) = aJac(ixDiag,   ixVegNrg) + 1._rkind * cj
-        if(ixMatrix==ixFullMatrix) aJac(ixVegNrg, ixVegNrg) = aJac(ixVegNrg, ixVegNrg) + 1._rkind * cj
+        aJac(ixInd(ixVegNrg,ixVegNrg),ixVegNrg) = aJac(ixInd(ixVegNrg,ixVegNrg),ixVegNrg) + 1._rkind * cj
       endif
       
       if(nSnLaSoGlNrg>0)then
@@ -890,23 +891,14 @@ subroutine computeJacobWithPrime(&
           if(nrgState==integerMissing) cycle
           watState = ixSnLaSoGlHyd(iLayer)
           if(watstate/=integerMissing)then 
-            if(ixMatrix==ixBandMatrix)then
-              if(iLayer<=nSnow+nLake .or. iLayer>nSnow+nLake+nSoil)then
-                aJac(watRows,watState) = aJac(watRows,watState) + aJac(nrgRows,nrgState) * dTemp_dTheta(iLayer)
-              else
-                aJac(watRows,watState) = aJac(watRows,watState) + aJac(nrgRows,nrgState) * dTemp_dPsi0(iLayer-nSnow-nLake)
-              endif
-            else if(ixMatrix==ixFullMatrix)then
-              if(iLayer<=nSnow+nLake .or. iLayer>nSnow+nLake+nSoil)then
-                aJac(:,watState) = aJac(:,watState) + aJac(:,nrgState) * dTemp_dTheta(iLayer)
-              else
-                aJac(:,watState) = aJac(:,watState) + aJac(:,nrgState) * dTemp_dPsi0(iLayer-nSnow-nLake) 
-              endif
+            if(iLayer<=nSnow+nLake .or. iLayer>nSnow+nLake+nSoil)then
+              aJac(watRows,watState) = aJac(watRows,watState) + aJac(nrgRows,nrgState) * dTemp_dTheta(iLayer)
+            else
+              aJac(watRows,watState) = aJac(watRows,watState) + aJac(nrgRows,nrgState) * dTemp_dPsi0(iLayer-nSnow-nLake)
             endif
           endif
           aJac(:,nrgState) = aJac(:,nrgState) * dTemp_dEnthalpy(iLayer)
-          if(ixMatrix==ixBandMatrix) aJac(ixDiag,   nrgState) = aJac(ixDiag,   nrgState) + 1._rkind * cj
-          if(ixMatrix==ixFullMatrix) aJac(nrgState, nrgState) = aJac(nrgState, nrgState) + 1._rkind * cj
+          aJac(ixInd(nrgState,nrgState),nrgState) = aJac(ixInd(nrgState,nrgState),nrgState) + 1._rkind * cj
         end do
       endif
     else

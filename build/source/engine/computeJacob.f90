@@ -116,7 +116,6 @@ subroutine computeJacob(&
   ! * local variables
   ! --------------------------------------------------------------
   ! indices of model state variables
-  integer(i4b)                            :: jState               ! index of state within the state subset
   integer(i4b)                            :: qState               ! index of cross-derivative state variable for baseflow
   integer(i4b)                            :: nrgState             ! energy state variable
   integer(i4b)                            :: watState             ! hydrology state variable
