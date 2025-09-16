@@ -22,12 +22,17 @@ module snowLakeGlceLiqFlux_module
 
 ! access modules
 USE nr_type                                ! numerical recipes data types
-USE multiconst,only:iden_ice,iden_water    ! intrinsic density of ice and water (kg m-3)
+! physical constants
+USE multiconst,only:Tfreeze,     &         ! freezing point of pure water (K)
+                    iden_ice,iden_water    ! intrinsic density of ice and water (kg m-3)
 
 ! access missing values
 USE globalData,only:integerMissing         ! missing integer
 USE globalData,only:realMissing            ! missing real number
+
+! physical constants
 USE globalData,only:maxVolIceContent       ! snow maximum volumetric ice content to store water (-)
+USE globalData,only:icefrz_mult            ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
 
 ! named variables
 USE var_lookup,only:iLookINDEX             ! named variables for structure elements
@@ -62,6 +67,9 @@ subroutine snowLakeGlceLiqFlux(&
                       io_snowLakeGlceLiqFlux,           & ! intent(inout): fluxes and derivatives
                       ! output: error control
                       out_snowLakeGlceLiqFlux)            ! intent(out):   error control
+  ! ------------------------------------------------------------------------------------------------------------------------------------------
+  ! downwind routines
+  USE snow_utils_module,only:fracliquid         ! compute the fraction of liquid water (snow)
   implicit none
   ! input: model control, forcing, and model state vector
   type(in_type_snowLakeGlceLiqFlux)          :: in_snowLakeGlceLiqFlux              ! model control, forcing, and model state vector
@@ -74,7 +82,7 @@ subroutine snowLakeGlceLiqFlux(&
   type(io_type_snowLakeGlceLiqFlux)          :: io_snowLakeGlceLiqFlux              ! fluxes and derivatives
   ! output: error control
   type(out_type_snowLakeGlceLiqFlux)         :: out_snowLakeGlceLiqFlux             ! error control
-  ! ------------------------------  ------------------------------------------------------------------------------------------------------------
+  ! ------------------------------------------------------------------------------------------------------------------------------------------
   ! local variables
   integer(i4b)                      :: nLayers,nStart             ! number of snow/glce layers and starting layer
   integer(i4b)                      :: iLayer                     ! layer index
@@ -106,20 +114,22 @@ subroutine snowLakeGlceLiqFlux(&
     ! input: model state vector
     mLayerVolFracLiqTrial   => in_snowLakeGlceLiqFlux % mLayerVolFracLiqTrial,   & ! intent(in): trial value of volumetric fraction of liquid water at the current iteration (-)
     ! input: layer indices
-    ixLayerState     => indx_data%var(iLookINDEX%ixLayerState)%dat,             & ! intent(in):    list of indices for all model layers
-    ixSnowOnlyHyd    => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat,            & ! intent(in):    index in the state subset for hydrology state variables in the snow domain
-    ixGlceOnlyHyd    => indx_data%var(iLookINDEX%ixGlceOnlyHyd)%dat,            & ! intent(in):    index in the state subset for hydrology state variables in the glacier ice domain
+    ixLayerState     => indx_data%var(iLookINDEX%ixLayerState)%dat,              & ! intent(in):    list of indices for all model layers
+    ixSnowOnlyHyd    => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat,             & ! intent(in):    index in the state subset for hydrology state variables in the snow domain
+    ixGlceOnlyHyd    => indx_data%var(iLookINDEX%ixGlceOnlyHyd)%dat,             & ! intent(in):    index in the state subset for hydrology state variables in the glacier ice domain
     ! input: snow properties and parameters
     mLayerVolFracIce => prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nStart+1:nStart+nLayers), & ! intent(in):    volumetric ice content at the start of the time step (-)
-    Fcapil           => mpar_data%var(iLookPARAM%Fcapil)%dat(1),                & ! intent(in):    capillary retention as a fraction of the total pore volume (-)
-    k_snow           => mpar_data%var(iLookPARAM%k_snow)%dat(1),                & ! intent(in):    hydraulic conductivity of snow (m s-1)    
-    mw_exp           => mpar_data%var(iLookPARAM%mw_exp)%dat(1),                & ! intent(in):    exponent for meltwater flow (-)
+    mLayerTemp       => prog_data%var(iLookPROG%mLayerTemp)%dat(nStart+1:nStart+nLayers),       & ! intent(in):    temperature at the start of the time step (K)
+    Fcapil           => mpar_data%var(iLookPARAM%Fcapil)%dat(1),                                & ! intent(in):    capillary retention as a fraction of the total pore volume (-)
+    k_snow           => mpar_data%var(iLookPARAM%k_snow)%dat(1),                                & ! intent(in):    hydraulic conductivity of snow (m s-1)    
+    mw_exp           => mpar_data%var(iLookPARAM%mw_exp)%dat(1),                                & ! intent(in):    exponent for meltwater flow (-)
+    snowfrz_scale    => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),                         & ! intent(in):    freezing curve scaling factor for snow (-)
     ! input-output: diagnostic variables -- only computed for the first iteration
     mLayerPoreSpace  => diag_data%var(iLookDIAG%mLayerPoreSpace)%dat(nStart+1:nStart+nLayers),  & ! intent(inout): pore space in each layer (-)
     mLayerThetaResid => diag_data%var(iLookDIAG%mLayerThetaResid)%dat(nStart+1:nStart+nLayers), & ! intent(inout): residual volumetric liquid water content in each layer (-)
     ! input-output: fluxes and derivatives
-    iLayerLiqFluxSnLaGl0      => io_snowLakeGlceLiqFlux % iLayerLiqFluxSnLaGl,               & ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
-    iLayerLiqFluxSnLaGlDeriv0 => io_snowLakeGlceLiqFlux % iLayerLiqFluxSnLaGlDeriv,          & ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
+    iLayerLiqFluxSnLaGl0      => io_snowLakeGlceLiqFlux % iLayerLiqFluxSnLaGl,           & ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
+    iLayerLiqFluxSnLaGlDeriv0 => io_snowLakeGlceLiqFlux % iLayerLiqFluxSnLaGlDeriv,      & ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
     ! output: error control
     err                    => out_snowLakeGlceLiqFlux % err,                             & ! intent(out):   error code
     message                => out_snowLakeGlceLiqFlux % cmessage                         & ! intent(out):   error message
@@ -170,13 +180,20 @@ subroutine snowLakeGlceLiqFlux(&
     iLayerLiqFluxSnLaGlDeriv(0) = 0._rkind ! computed inside computeJacob*
 
     ! compute properties fixed over the time step
-    if (firstFluxCall .and. do_snow) then
-      ! loop through snow/glce layers
-      do iLayer=1,nLayers ! loop through snow layers
-        multResid = 1._rkind/(1._rkind + exp((mLayerVolFracIce(iLayer)*iden_ice - residThrs)/residScal)) ! compute the reduction in liquid water holding capacity at high snow/ice density (-)
-        mLayerPoreSpace(iLayer)  = 1._rkind - mLayerVolFracIce(iLayer) ! compute the pore space (-)
-        mLayerThetaResid(iLayer) = Fcapil*mLayerPoreSpace(iLayer)*multResid ! compute the residual volumetric liquid water content (-)
-      end do  ! end looping through snow/glce layers
+    if (firstFluxCall) then
+      ! loop through snow/firn layers
+      if(do_snow)then
+        do iLayer=1,nLayers ! loop through snow layers
+          multResid = 1._rkind/(1._rkind + exp((mLayerVolFracIce(iLayer)*iden_ice - residThrs)/residScal)) ! compute the reduction in liquid water holding capacity at high snow/ice density (-)
+          mLayerPoreSpace(iLayer)  = 1._rkind - mLayerVolFracIce(iLayer) ! compute the pore space (-)
+          mLayerThetaResid(iLayer) = Fcapil*mLayerPoreSpace(iLayer)*multResid ! compute the residual volumetric liquid water content (-)
+        end do  ! end looping through snow/firn layers
+      else ! glacier ice
+        do iLayer=1,nLayers ! loop through glacier ice layers
+          mLayerPoreSpace(iLayer)  = 1._rkind - mLayerVolFracIce(iLayer) ! compute the pore space (-)
+          mLayerThetaResid(iLayer) = 0._rkind !fracliquid(min(mLayerTemp(iLayer),Tfreeze-0.05),snowfrz_scale*icefrz_mult) ! need to cap residual volumetric liquid water content (-) so does not blow up
+        end do  ! end looping through glacier ice layers
+      end if  ! end if snow or ice
     end if  ! end if the first flux call
      
     ! compute fluxes
@@ -198,19 +215,20 @@ subroutine snowLakeGlceLiqFlux(&
         end if  ! storage above residual content
       end do  ! end loop through snow/glce layers
     else ! ice
+      if(ixTop==1) ixTop = 0 ! include the 0 index if the top layer is included, since surface flux downwards is 0 (impermeable) 
       do iLayer=ixBot,ixTop,-1 ! loop through glacier ice layers
-          ! ** liquid water goes up since glacier ice is impermeable (upwards direction is negative)
-         if (iLayer == nLayers) then ! bottom layer
+        ! ** liquid water goes up since glacier ice is impermeable (upwards direction is negative)
+        if (iLayer == nLayers) then ! bottom layer
           iLayerLiqFluxSnLaGl(iLayer) = 0._rkind ! no liquid water flux at the bottom of the glacier ice layer
-         else  ! not the bottom layer
-          iLayerLiqFluxSnLaGl(iLayer) = -mLayerVolFracLiqTrial(iLayer+1) + iLayerLiqFluxSnLaGl(iLayer+1) ! NOTE: derivative needs to be updated in future, wrong in this case
-        end if  ! end if bottom layer
-        iLayerLiqFluxSnLaGlDeriv(iLayer) = -1._rkind ! after cancelation, derivative is -1 
+          iLayerLiqFluxSnLaGlDeriv(iLayer) = 0._rkind
+        else  ! not the bottom layer
+          availCap  = min(mLayerVolFracLiqTrial(iLayer+1),mLayerThetaResid(iLayer+1)) ! available capacity
+          iLayerLiqFluxSnLaGl(iLayer) = - (mLayerVolFracLiqTrial(iLayer+1) - availCap)
+          iLayerLiqFluxSnLaGlDeriv(iLayer) = merge(-1._rkind,0._rkind,mLayerVolFracLiqTrial(iLayer+1)>mLayerThetaResid(iLayer+1)) ! after cancelation, derivative is -1
+          ! ** liquid water to passes through ice layers immediately
+          iLayerLiqFluxSnLaGl(iLayer) = iLayerLiqFluxSnLaGl(iLayer+1) + iLayerLiqFluxSnLaGl(iLayer)
+        end if
       end do  ! end loop through glacier ice layers
-      if(ixTop==1)then
-        iLayerLiqFluxSnLaGl(0) = -mLayerVolFracLiqTrial(1) + iLayerLiqFluxSnLaGl(1)
-        iLayerLiqFluxSnLaGlDeriv(0) = -1._rkind ! after cancelation, derivative is -1
-      endif
     end if  ! end if snow or ice
     if(ixBot==nLayers)then
       iLayerLiqFluxSnLaGl(nLayers) = iLayerLiqFluxSnLaGl(nLayers) + bottom_flux   ! set the bottom flux if already computed

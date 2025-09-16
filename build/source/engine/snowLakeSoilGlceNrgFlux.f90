@@ -31,7 +31,7 @@ USE data_types,only:io_type_snowLakeSoilGlceNrgFlux  ! intent(inout) arguments f
 USE data_types,only:out_type_snowLakeSoilGlceNrgFlux ! intent(out) arguments for snowLakeSoilGlceNrgFlux
 
 ! physical constants
-USE multiconst,only:&
+USE multiconst,only:Tfreeze,     &  ! freezing point of pure water (K)
                     iden_water,  &  ! intrinsic density of water    (kg m-3)
                     Cp_water        ! specific heat of liquid water (J kg-1 K-1)
 
@@ -189,8 +189,9 @@ subroutine snowLakeSoilGlceNrgFlux(&
     ! ***** compute the conductive fluxes at layer interfaces *****
     ! -------------------------------------------------------------------------------------------------------------------------
     do iLayer=ixTop,ixBot
-      if(layerType(iLayer)==iname_glce .and. iLayer==nLayers-noThetaChange .and. iLayerThermalC(iLayer)>0._rkind)then
-        if(iLayerThermalC(iLayer) < 0._rkind) iLayerConductiveFlux(iLayer) = 0._rkind ! no heat downward from glacier ice, absorbed by melting
+      if(layerType(iLayer)==iname_glce .and. iLayer==nLayers-noThetaChange .and. iLayerThermalC(iLayer)>0._rkind .and. mLayerTempTrial(iLayer-1)>=Tfreeze)then
+      !if(layerType(iLayer)==iname_glce .and. iLayer==nLayers-noThetaChange .and. iLayerThermalC(iLayer)>0._rkind)then
+        iLayerConductiveFlux(iLayer) = 0._rkind ! all melt energy absorbed in top layers of glacier ice
       elseif (iLayer==nLayers) then ! lower boundary fluxes -- positive downwards 
       ! flux depends on the type of lower boundary condition
         select case(ix_bcLowrTdyn) ! identify the lower boundary condition for thermodynamics
@@ -212,8 +213,9 @@ subroutine snowLakeSoilGlceNrgFlux(&
         case(iname_soil);                       qFlux = iLayerLiqFluxSoil(iLayer-nSnow-nLake)
         case default; err=20; message=trim(message)//'unable to identify layer type'; return
       end select
-      if(layerType(iLayer)==iname_glce .and. iLayer==nLayers-noThetaChange .and. iLayerThermalC(iLayer)>0._rkind)then
-        iLayerAdvectiveFlux(iLayer) = 0._rkind ! no heat downwards from glacier ice, absorbed by melting
+      if(layerType(iLayer)==iname_glce .and. iLayer==nLayers-noThetaChange .and. iLayerThermalC(iLayer)>0._rkind .and. mLayerTempTrial(iLayer-1)>=Tfreeze)then
+      !if(layerType(iLayer)==iname_glce .and. iLayer==nLayers-noThetaChange .and. iLayerThermalC(iLayer)>0._rkind)then
+        iLayerAdvectiveFlux(iLayer) = 0._rkind ! all melt energy absorbed in top layers of glacier ice
       elseif (iLayer==nLayers) then ! compute fluxes at the lower boundary -- positive downwards
         iLayerAdvectiveFlux(iLayer) = -Cp_water*iden_water*qFlux*(lowerBoundTemp - mLayerTempTrial(iLayer))
       else ! compute fluxes within the domain -- positive downwards
