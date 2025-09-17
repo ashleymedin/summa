@@ -126,9 +126,12 @@ subroutine computeJacobWithPrime(&
                       ! output: error control
                       err,message)                  ! intent(out):   error code and error message
   ! -----------------------------------------------------------------------------------------------------------------
+  ! provide access to subroutines
+  use computeJacob_module,only:fluxJacAdd
+  ! -----------------------------------------------------------------------------------------------------------------
   implicit none
   ! input: model control
-  real(rkind),intent(in)               :: cj
+  real(rkind),intent(in)               :: cj                         ! this scalar changes whenever the step size or method order changes
   real(rkind),intent(in)               :: dt                         ! length of the time step (seconds)
   integer(i4b),intent(in)              :: nSnow                      ! number of snow layers
   integer(i4b),intent(in)              :: nLake                      ! number of lake layers
@@ -164,23 +167,21 @@ subroutine computeJacobWithPrime(&
   ! * local variables
   ! --------------------------------------------------------------
   ! indices of model state variables
-  integer(i4b)                         :: qState               ! index of cross-derivative state variable for baseflow
   integer(i4b)                         :: nrgState             ! energy state variable
   integer(i4b)                         :: watState             ! hydrology state variable
   integer(i4b)                         :: nState               ! number of state variables
   integer(i4b),allocatable             :: nrgRows(:)           ! indices of rows for energy column
   integer(i4b),allocatable             :: watRows(:)           ! indices of rows for hydrology column
   ! indices of model layers
-  integer(i4b)                         :: iLayer,pLayer        ! index of model layer
+  integer(i4b)                         :: iLayer               ! index of model layer
   integer(i4b)                         :: jLayer               ! index of model layer within the full state vector (hydrology)
   integer(i4b)                         :: qLayer               ! indices of snow+glce layers
   integer(i4b)                         :: endLayer             ! index of the last layer 
-  integer(i4b)                         :: densLimit            ! index of the limiting dense layer
   logical(i4b)                         :: solid                ! flag to indicate if layer is solid ice (frozen lake or glacier ice)
   ! conversion factors
   real(rkind)                          :: LH_fu0               ! latent heat of fusion, modified to be 0 if using enthalpy formulation and not using
-  real(rkind)                          :: convLiq2tot          ! factor to convert liquid water derivative to total water derivative
   real(rkind)                          :: maxVolIceContent_use ! maximum volumetric ice content depending if snow or firn
+  character(LEN=256)                   :: cmessage             ! error message of downwind routine
   ! --------------------------------------------------------------
   ! associate variables from data structures
   associate(&
@@ -188,26 +189,16 @@ subroutine computeJacobWithPrime(&
     ixCasNrg                     => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)                       ,& ! intent(in): [i4b]    index of canopy air space energy state variable
     ixVegNrg                     => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)                       ,& ! intent(in): [i4b]    index of canopy energy state variable
     ixVegHyd                     => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)                       ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
-    ixTopNrg                     => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)                       ,& ! intent(in): [i4b]    index of upper-most energy state in the layer domains
-    ixTopHyd                     => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)                       ,& ! intent(in): [i4b]    index of upper-most hydrology state in the layer domains
     ixAqWat                      => indx_data%var(iLookINDEX%ixAqWat)%dat(1)                        ,& ! intent(in): [i4b]    index of water storage in the aquifer
-    ! vectors of indices for specfic state types within specific sub-domains IN THE FULL STATE VECTOR
-    ixNrgLayer                   => indx_data%var(iLookINDEX%ixNrgLayer)%dat                        ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the layer domains
     ! vector of energy indices for the layer domains
     ! NOTE: states not in the subset are equal to integerMissing
     ixSnLaSoGlNrg                => indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the layer domains
-    ixSnowOnlyNrg                => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the snow domain
-    ixLakeOnlyNrg                => indx_data%var(iLookINDEX%ixLakeOnlyNrg)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the lake domain
     ixSoilOnlyNrg                => indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the soil domain
-    ixGlceOnlyNrg                => indx_data%var(iLookINDEX%ixGlceOnlyNrg )%dat                    ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the glacier ice domain
     ! vector of hydrology indices for the layer domains
     ! NOTE: states not in the subset are equal to integerMissing
     noThetaChange                => indx_data%var(iLookINDEX%noThetaChange)%dat(1)                  ,& ! intent(in): [i4b]    number of layers with no change in total water content (bottom layers)  
     ixSnLaSoGlHyd                => indx_data%var(iLookINDEX%ixSnLaSoGlHyd)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the layer domains
-    ixSnowOnlyHyd                => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the snow domain
-    ixLakeOnlyHyd                => indx_data%var(iLookINDEX%ixLakeOnlyHyd)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the lake domain
     ixSoilOnlyHyd                => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat                     ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the soil domain
-    ixGlceOnlyHyd                => indx_data%var(iLookINDEX%ixGlceOnlyHyd )%dat                    ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the glacier ice domain
     ! number of state variables of a specific type
     nSnLaSoGlNrg                 => indx_data%var(iLookINDEX%nSnLaSoGlNrg )%dat(1)                  ,& ! intent(in): [i4b]    number of energy state variables in the layer domains
     nSnowOnlyNrg                 => indx_data%var(iLookINDEX%nSnowOnlyNrg )%dat(1)                  ,& ! intent(in): [i4b]    number of energy state variables in the snow domain
@@ -219,66 +210,18 @@ subroutine computeJacobWithPrime(&
     nSoilOnlyHyd                 => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)                  ,& ! intent(in): [i4b]    number of hydrology variables in the soil domain
     nLakeOnlyHyd                 => indx_data%var(iLookINDEX%nLakeOnlyHyd )%dat(1)                  ,& ! intent(in): [i4b]    number of hydrology variables in the lake domain
     nGlceOnlyHyd                 => indx_data%var(iLookINDEX%nGlceOnlyHyd  )%dat(1)                 ,& ! intent(in): [i4b]    number of hydrology variables in the glacier ice domain
-    ! type and index of model control volume
-    ixHydType                    => indx_data%var(iLookINDEX%ixHydType)%dat                         ,& ! intent(in): [i4b(:)] index of the type of hydrology states in layer domains
     ! derivatives in net vegetation energy fluxes w.r.t. relevant state variables
-    dCanairNetFlux_dCanairTemp   => deriv_data%var(iLookDERIV%dCanairNetFlux_dCanairTemp  )%dat(1)  ,& ! intent(in): [dp]     derivative in net canopy air space flux w.r.t. canopy air temperature
-    dCanairNetFlux_dCanopyTemp   => deriv_data%var(iLookDERIV%dCanairNetFlux_dCanopyTemp  )%dat(1)  ,& ! intent(in): [dp]     derivative in net canopy air space flux w.r.t. canopy temperature
-    dCanairNetFlux_dGroundTemp   => deriv_data%var(iLookDERIV%dCanairNetFlux_dGroundTemp  )%dat(1)  ,& ! intent(in): [dp]     derivative in net canopy air space flux w.r.t. ground temperature
-    dCanopyNetFlux_dCanairTemp   => deriv_data%var(iLookDERIV%dCanopyNetFlux_dCanairTemp  )%dat(1)  ,& ! intent(in): [dp]     derivative in net canopy flux w.r.t. canopy air temperature
-    dCanopyNetFlux_dCanopyTemp   => deriv_data%var(iLookDERIV%dCanopyNetFlux_dCanopyTemp  )%dat(1)  ,& ! intent(in): [dp]     derivative in net canopy flux w.r.t. canopy temperature
-    dCanopyNetFlux_dGroundTemp   => deriv_data%var(iLookDERIV%dCanopyNetFlux_dGroundTemp  )%dat(1)  ,& ! intent(in): [dp]     derivative in net canopy flux w.r.t. ground temperature
     dCanopyNetFlux_dCanWat       => deriv_data%var(iLookDERIV%dCanopyNetFlux_dCanWat      )%dat(1)  ,& ! intent(in): [dp]     derivative in net canopy fluxes w.r.t. canopy total water content
-    dGroundNetFlux_dCanairTemp   => deriv_data%var(iLookDERIV%dGroundNetFlux_dCanairTemp  )%dat(1)  ,& ! intent(in): [dp]     derivative in net ground flux w.r.t. canopy air temperature
-    dGroundNetFlux_dCanopyTemp   => deriv_data%var(iLookDERIV%dGroundNetFlux_dCanopyTemp  )%dat(1)  ,& ! intent(in): [dp]     derivative in net ground flux w.r.t. canopy temperature
-    dGroundNetFlux_dCanWat       => deriv_data%var(iLookDERIV%dGroundNetFlux_dCanWat      )%dat(1)  ,& ! intent(in): [dp]     derivative in net ground fluxes w.r.t. canopy total water content
-    ! derivatives in evaporative fluxes w.r.t. relevant state variables
-    dCanopyEvaporation_dTCanair  => deriv_data%var(iLookDERIV%dCanopyEvaporation_dTCanair )%dat(1)  ,& ! intent(in): [dp]     derivative in canopy evaporation w.r.t. canopy air temperature
-    dCanopyEvaporation_dTCanopy  => deriv_data%var(iLookDERIV%dCanopyEvaporation_dTCanopy )%dat(1)  ,& ! intent(in): [dp]     derivative in canopy evaporation w.r.t. canopy temperature
-    dCanopyEvaporation_dTGround  => deriv_data%var(iLookDERIV%dCanopyEvaporation_dTGround )%dat(1)  ,& ! intent(in): [dp]     derivative in canopy evaporation w.r.t. ground temperature
-    dCanopyEvaporation_dCanWat   => deriv_data%var(iLookDERIV%dCanopyEvaporation_dCanWat  )%dat(1)  ,& ! intent(in): [dp]     derivative in canopy evaporation w.r.t. canopy total water content
-    dGroundEvaporation_dTCanair  => deriv_data%var(iLookDERIV%dGroundEvaporation_dTCanair )%dat(1)  ,& ! intent(in): [dp]     derivative in ground evaporation w.r.t. canopy air temperature
-    dGroundEvaporation_dTCanopy  => deriv_data%var(iLookDERIV%dGroundEvaporation_dTCanopy )%dat(1)  ,& ! intent(in): [dp]     derivative in ground evaporation w.r.t. canopy temperature
-    dGroundEvaporation_dTGround  => deriv_data%var(iLookDERIV%dGroundEvaporation_dTGround )%dat(1)  ,& ! intent(in): [dp]     derivative in ground evaporation w.r.t. ground temperature
-    dGroundEvaporation_dCanWat   => deriv_data%var(iLookDERIV%dGroundEvaporation_dCanWat  )%dat(1)  ,& ! intent(in): [dp]     derivative in ground evaporation w.r.t. canopy total water content
     ! derivatives in canopy water w.r.t canopy temperature
-    dCanLiq_dTcanopy             => deriv_data%var(iLookDERIV%dCanLiq_dTcanopy            )%dat(1)  ,& ! intent(in): [dp]     derivative in canopy liquid storage w.r.t. temperature
-    dTheta_dTkCanopy             => deriv_data%var(iLookDERIV%dTheta_dTkCanopy            )%dat(1)  ,& ! intent(in): [dp]     derivative in volumetric liquid water content w.r.t. temperature
     d2Theta_dTkCanopy2           => deriv_data%var(iLookDERIV%d2Theta_dTkCanopy2          )%dat(1)  ,& ! intent(in): [dp]     second derivative of volumetric liquid water content w.r.t. temperature
     dFracLiqVeg_dTkCanopy        => deriv_data%var(iLookDERIV%dFracLiqVeg_dTkCanopy       )%dat(1)  ,& ! intent(in): [dp]     derivative in fraction of (throughfall + drainage)  w.r.t. temperature
-    ! derivatives in canopy liquid fluxes w.r.t. canopy water
-    scalarCanopyLiqDeriv         => deriv_data%var(iLookDERIV%scalarCanopyLiqDeriv        )%dat(1)  ,& ! intent(in): [dp]     derivative in (throughfall + drainage) w.r.t. canopy liquid water
-    ! derivatives in energy fluxes at the interface of layers w.r.t. temperature in layers above and below
-    dNrgFlux_dTempAbove          => deriv_data%var(iLookDERIV%dNrgFlux_dTempAbove         )%dat     ,& ! intent(in): [dp(:)]  derivatives in the flux w.r.t. temperature in the layer above
-    dNrgFlux_dTempBelow          => deriv_data%var(iLookDERIV%dNrgFlux_dTempBelow         )%dat     ,& ! intent(in): [dp(:)]  derivatives in the flux w.r.t. temperature in the layer below
     ! derivatives in energy fluxes at the interface of layers w.r.t. water state in layers above and below
     dNrgFlux_dWatAbove           => deriv_data%var(iLookDERIV%dNrgFlux_dWatAbove          )%dat     ,& ! intent(in): [dp(:)]  derivatives in the flux w.r.t. water state in the layer above
     dNrgFlux_dWatBelow           => deriv_data%var(iLookDERIV%dNrgFlux_dWatBelow          )%dat     ,& ! intent(in): [dp(:)]  derivatives in the flux w.r.t. water state in the layer below
-    ! derivatives in soil transpiration w.r.t. canopy state variables
-    mLayerdTrans_dTCanair        => deriv_data%var(iLookDERIV%mLayerdTrans_dTCanair       )%dat     ,& ! intent(in): [dp(:)]  derivatives in the soil layer transpiration flux w.r.t. canopy air temperature
-    mLayerdTrans_dTCanopy        => deriv_data%var(iLookDERIV%mLayerdTrans_dTCanopy       )%dat     ,& ! intent(in): [dp(:)]  derivatives in the soil layer transpiration flux w.r.t. canopy temperature
-    mLayerdTrans_dTGround        => deriv_data%var(iLookDERIV%mLayerdTrans_dTGround       )%dat     ,& ! intent(in): [dp(:)]  derivatives in the soil layer transpiration flux w.r.t. ground temperature
-    mLayerdTrans_dCanWat         => deriv_data%var(iLookDERIV%mLayerdTrans_dCanWat        )%dat     ,& ! intent(in): [dp(:)]  derivatives in the soil layer transpiration flux w.r.t. canopy total water
-    ! derivatives in aquifer transpiration w.r.t. canopy state variables
-    dAquiferTrans_dTCanair       => deriv_data%var(iLookDERIV%dAquiferTrans_dTCanair      )%dat(1)  ,& ! intent(in): [dp]     derivatives in the aquifer transpiration flux w.r.t. canopy air temperature
-    dAquiferTrans_dTCanopy       => deriv_data%var(iLookDERIV%dAquiferTrans_dTCanopy      )%dat(1)  ,& ! intent(in): [dp]     derivatives in the aquifer transpiration flux w.r.t. canopy temperature
-    dAquiferTrans_dTGround       => deriv_data%var(iLookDERIV%dAquiferTrans_dTGround      )%dat(1)  ,& ! intent(in): [dp]     derivatives in the aquifer transpiration flux w.r.t. ground temperature
-    dAquiferTrans_dCanWat        => deriv_data%var(iLookDERIV%dAquiferTrans_dCanWat       )%dat(1)  ,& ! intent(in): [dp]     derivatives in the aquifer transpiration flux w.r.t. canopy total water
-    ! derivative in liquid water fluxes at the interface of snow lake glce layers w.r.t. volumetric liquid water content in the layer above
-    iLayerLiqFluxSnLaGlDeriv     => deriv_data%var(iLookDERIV%iLayerLiqFluxSnLaGlDeriv    )%dat     ,& ! intent(in): [dp(:)]  derivative in vertical liquid water flux at layer interfaces
     ! derivative in liquid water fluxes for the soil domain w.r.t hydrology state variables
     dVolTot_dPsi0                => deriv_data%var(iLookDERIV%dVolTot_dPsi0               )%dat     ,& ! intent(in): [dp(:)]  derivative in total water content w.r.t. total water matric potential
     d2VolTot_dPsi02              => deriv_data%var(iLookDERIV%d2VolTot_dPsi02             )%dat     ,& ! intent(in): [dp(:)]  second derivative in total water content w.r.t. total water matric potential
     dCompress_dPsi               => deriv_data%var(iLookDERIV%dCompress_dPsi              )%dat     ,& ! intent(in): [dp(:)]  derivative in compressibility w.r.t matric head
-    dq_dHydStateAbove            => deriv_data%var(iLookDERIV%dq_dHydStateAbove           )%dat     ,& ! intent(in): [dp(:)]  change in flux at layer interfaces w.r.t. states in the layer above
-    dq_dHydStateBelow            => deriv_data%var(iLookDERIV%dq_dHydStateBelow           )%dat     ,& ! intent(in): [dp(:)]  change in flux at layer interfaces w.r.t. states in the layer below
-    dq_dHydStateLayerSurfVec     => deriv_data%var(iLookDERIV%dq_dHydStateLayerSurfVec    )%dat     ,& ! intent(in): [dp(:)]  change in the flux in soil surface interface w.r.t. state variables in layers
-    ! derivative in baseflow flux w.r.t. aquifer storage
-    dBaseflow_dAquifer           => deriv_data%var(iLookDERIV%dBaseflow_dAquifer          )%dat(1)  ,& ! intent(in): [dp(:)]  derivative in baseflow flux w.r.t. aquifer storage (s-1)
-    ! derivative in liquid water fluxes for the soil domain w.r.t energy state variables
-    dq_dNrgStateAbove            => deriv_data%var(iLookDERIV%dq_dNrgStateAbove           )%dat     ,& ! intent(in): [dp(:)]  change in flux at layer interfaces w.r.t. states in the layer above
-    dq_dNrgStateBelow            => deriv_data%var(iLookDERIV%dq_dNrgStateBelow           )%dat     ,& ! intent(in): [dp(:)]  change in flux at layer interfaces w.r.t. states in the layer below
-    dq_dNrgStateLayerSurfVec     => deriv_data%var(iLookDERIV%dq_dNrgStateLayerSurfVec    )%dat     ,& ! intent(in): [dp(:)]  change in the flux in soil surface interface w.r.t. state variables in layers
     ! derivative in liquid water fluxes for the layer domains w.r.t temperature
     dFracLiqWat_dTk              => deriv_data%var(iLookDERIV%dFracLiqWat_dTk             )%dat     ,& ! intent(in): [dp(:)]  derivative in fraction of liquid w.r.t. temperature
     mLayerdTheta_dTk             => deriv_data%var(iLookDERIV%mLayerdTheta_dTk            )%dat     ,& ! intent(in): [dp(:)]  derivative in volumetric liquid water content w.r.t. temperature
@@ -307,8 +250,6 @@ subroutine computeJacobWithPrime(&
     mLayerFracLiq                => diag_data%var(iLookDIAG%mLayerFracLiq                 )%dat     ,& ! intent(in): [dp(:)]  fraction of liquid water in each snow, lake, or ice layer (-)
     mLayerVolHtCapBulk           => diag_data%var(iLookDIAG%mLayerVolHtCapBulk            )%dat     ,& ! intent(in): [dp(:)]  bulk volumetric heat capacity in each layer (J m-3 K-1)
     mLayerCm                     => diag_data%var(iLookDIAG%mLayerCm                      )%dat     ,& ! intent(in): [dp(:)]  Cm in each layer (J kg-1 K-1)
-    scalarSoilControl            => diag_data%var(iLookDIAG%scalarSoilControl             )%dat(1)  ,& ! intent(in): [dp]     soil control on infiltration for derivative
-    mLayerVolFracIce             => prog_data%var(iLookPROG%mLayerVolFracIce              )%dat     ,& ! intent(in): [dp(:)]  volumetric fraction of ice in each layer start of step (-)
     ! canopy and layer depth
     canopyDepth                  => diag_data%var(iLookDIAG%scalarCanopyDepth             )%dat(1)  ,& ! intent(in): [dp   ]  canopy depth (m)
     mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth                   )%dat      & ! intent(in): [dp(:)]  depth of each layer in the sub-domain (m)
@@ -328,39 +269,45 @@ subroutine computeJacobWithPrime(&
     ! NOTE: this needs to be done every time, since Jacobian matrix is modified in the solver
     aJac(:,:) = 0._rkind  ! analytical Jacobian matrix
 
-    ! compute terms in the Jacobian for vegetation (excluding fluxes)
-    ! NOTE: energy for vegetation is computed *within* the iteration loop as it includes phase change
-    if(ixVegNrg/=integerMissing)then
-      dMat(ixVegNrg) = ( scalarBulkVolHeatCapVeg + LH_fus*iden_water*dTheta_dTkCanopy ) * cj &
-                      + dVolHtCapBulk_dTkCanopy * scalarCanopyTempPrime &
-                      + dCm_dTkCanopy * scalarCanopyWatPrime/canopyDepth &
-                      + LH_fus*iden_water * scalarCanopyTempPrime * d2Theta_dTkCanopy2 &
-                      + LH_fus            * dFracLiqVeg_dTkCanopy * scalarCanopyWatPrime/canopyDepth
+    if(computeVegFlux)then
+      ! compute terms in the Jacobian for vegetation (excluding fluxes)
+      if(ixCasNrg/=integerMissing) dMat(ixCasNrg) = dMat(ixCasNrg) * cj
+
+      ! NOTE: energy for vegetation is computed *within* the iteration loop as it includes phase change
+      if(ixVegNrg/=integerMissing)&
+          dMat(ixVegNrg) = ( scalarBulkVolHeatCapVeg + LH_fus*iden_water*dTheta_dTkCanopy ) * cj &
+                          + dVolHtCapBulk_dTkCanopy * scalarCanopyTempPrime &
+                          + dCm_dTkCanopy * scalarCanopyWatPrime/canopyDepth &
+                          + LH_fus*iden_water * scalarCanopyTempPrime * d2Theta_dTkCanopy2 &
+                          + LH_fus            * dFracLiqVeg_dTkCanopy * scalarCanopyWatPrime/canopyDepth
+
+      if(ixVegHyd/=integerMissing) dMat(ixVegHyd) = dMat(ixVegHyd) * cj
     endif
 
     ! compute additional terms for the Jacobian for the layer domain (excluding fluxes)
     ! NOTE: energy for layers are computed *within* the iteration loop as it includes phase change
     do iLayer=1,nLayers
-      if(ixSnLaSoGlNrg(iLayer)/=integerMissing)then
-        dMat(ixSnLaSoGlNrg(iLayer)) = ( mLayerVolHtCapBulk(iLayer) + LH_fus*iden_water*mLayerdTheta_dTk(iLayer) ) * cj &
-                                    + dVolHtCapBulk_dTk(iLayer) * mLayerTempPrime(iLayer) &
-                                    + dCm_dTk(iLayer) * mLayerVolFracWatPrime(iLayer) &
-                                    + LH_fus*iden_water * mLayerTempPrime(iLayer) * mLayerd2Theta_dTk2(iLayer) &
-                                    + LH_fus*iden_water * dFracLiqWat_dTk(iLayer) * mLayerVolFracWatPrime(iLayer)
-      endif
+      if(ixSnLaSoGlNrg(iLayer)/=integerMissing)&
+          dMat(ixSnLaSoGlNrg(iLayer)) = ( mLayerVolHtCapBulk(iLayer) + LH_fus*iden_water*mLayerdTheta_dTk(iLayer) ) * cj &
+                                       + dVolHtCapBulk_dTk(iLayer) * mLayerTempPrime(iLayer) &
+                                       + dCm_dTk(iLayer) * mLayerVolFracWatPrime(iLayer) &
+                                       + LH_fus*iden_water * mLayerTempPrime(iLayer) * mLayerd2Theta_dTk2(iLayer) &
+                                       + LH_fus*iden_water * dFracLiqWat_dTk(iLayer) * mLayerVolFracWatPrime(iLayer)
+
+       if(ixSnLaSoGlHyd(iLayer)/=integerMissing) dMat(ixSnLaSoGlHyd(iLayer)) = dMat(ixSnLaSoGlHyd(iLayer)) * cj
     end do
 
     ! compute additional terms for the Jacobian for the soil domain (excluding fluxes)
     do iLayer=1,nSoil
-      if(ixSoilOnlyHyd(iLayer)/=integerMissing)then
+      if(ixSoilOnlyHyd(iLayer)/=integerMissing)then ! writes over dMat(ixSoilOnlyHyd(iLayer) = 1.0 * cj above
         dMat(ixSoilOnlyHyd(iLayer)) = ( dVolTot_dPsi0(iLayer) + dCompress_dPsi(iLayer) ) * cj + d2VolTot_dPsi02(iLayer) * mLayerMatricHeadPrime(iLayer)
-
-      if(ixRichards==mixdform)then
-        dMat(ixSoilOnlyHyd(iLayer)) = dMat(ixSoilOnlyHyd(iLayer)) + specificStorage * dVolTot_dPsi0(iLayer) * mLayerMatricHeadPrime(iLayer) / theta_sat(iLayer)
-      endif
-
+        if(ixRichards==mixdform)&
+            dMat(ixSoilOnlyHyd(iLayer)) = dMat(ixSoilOnlyHyd(iLayer)) + specificStorage * dVolTot_dPsi0(iLayer) * mLayerMatricHeadPrime(iLayer) / theta_sat(iLayer)
       endif
     end do
+
+    ! compute terms for the Jacobian for the aquifer (excluding fluxes)
+    if(ixAqWat/=integerMissing) dMat(ixAqWat) = dMat(ixAqWat) * cj
 
     ! if using enthalpy as a state variable, zero out usual RHS terms and add them end of the iteration loop 
     ! NOTE: other terms on RHS that are not fluxes are zeroed out by not computing heat capacity and Cm and their derivatives
@@ -402,164 +349,20 @@ subroutine computeJacobWithPrime(&
     end select
 
     ! *********************************************************************************************************************************************************
-    ! * PART 1: COMPUTE ALL OTHER JACOBIAN TERMS (FLUXES AND CROSS-DERIVATIVES)
+    ! * PART 1: COMPUTE CROSS-DERIVATIVES JACOBIAN TERMS
     ! *********************************************************************************************************************************************************
-
     ! -----
-    ! * energy and liquid fluxes over vegetation...
+    ! * cross derivatives in the vegetation...
     ! ---------------------------------------------
     if(computeVegFlux)then  ! (derivatives only defined when vegetation protrudes over the surface)
-
       ! * energy fluxes with the canopy water
-      if(ixVegHyd/=integerMissing)then
-
-        ! * cross-derivative terms w.r.t. system temperatures (kg m-2 K-1)
-        if(ixCasNrg/=integerMissing) aJac(ixInd(ixVegHyd,ixCasNrg),ixCasNrg) = -dCanopyEvaporation_dTCanair*dt
-        ! dt*scalarCanopyLiqDeriv*dCanLiq_dTcanopy is the derivative in throughfall and canopy drainage with canopy temperature
-        if(ixVegNrg/=integerMissing) aJac(ixInd(ixVegHyd,ixVegNrg),ixVegNrg) = -dCanopyEvaporation_dTCanopy*dt + dt*scalarCanopyLiqDeriv*dCanLiq_dTcanopy
-        ! * liquid water fluxes for vegetation canopy (-), dt*scalarFracLiqVeg*scalarCanopyLiqDeriv is the derivative in throughfall and canopy drainage with canopy water
-                                     aJac(ixInd(ixVegHyd,ixVegHyd),ixVegHyd) = -scalarFracLiqVeg*(dCanopyEvaporation_dCanWat - scalarCanopyLiqDeriv)*dt + 1._rkind * cj
-        if(ixTopNrg/=integerMissing) aJac(ixInd(ixVegHyd,ixTopNrg),ixTopNrg) = -dCanopyEvaporation_dTGround*dt
-
-        ! * cross-derivative terms w.r.t. canopy water (kg-1 m2)
-        if(nSnow>0)then
-          if(ixTopHyd/=integerMissing) aJac(ixInd(ixTopHyd,ixVegHyd),ixVegHyd) = (dt/mLayerDepth(1))*(-scalarFracLiqVeg*scalarCanopyLiqDeriv)/iden_water
-        else
-          if(ixTopHyd/=integerMissing) aJac(ixInd(ixTopHyd,ixVegHyd),ixVegHyd) = (dt/mLayerDepth(1))*(-scalarSoilControl*scalarFracLiqVeg*scalarCanopyLiqDeriv)/iden_water
-        endif
-
-        ! * cross-derivative terms w.r.t. canopy liquid water (J m-1 kg-1)
-        ! NOTE: dIce/dLiq = (1 - scalarFracLiqVeg); dIce*LH_fu0/canopyDepth = J m-3; dLiq = kg m-2
-        if(ixVegNrg/=integerMissing) aJac(ixInd(ixVegNrg,ixVegHyd),ixVegHyd) = (-1._rkind + scalarFracLiqVeg)*LH_fu0/canopyDepth * cj &
-                                                                                   + dVolHtCapBulk_dCanWat * scalarCanopyTempPrime + scalarCanopyCm/canopyDepth * cj &
-                                                                                   - (dt/canopyDepth) * dCanopyNetFlux_dCanWat &
-                                                                                   + LH_fu0 * scalarCanopyTempPrime * dFracLiqVeg_dTkCanopy/canopyDepth
-        if(ixTopNrg/=integerMissing) aJac(ixInd(ixTopNrg,ixVegHyd),ixVegHyd) = (dt/mLayerDepth(1))*(-dGroundNetFlux_dCanWat)
-      endif
-
-      ! * cross-derivative terms w.r.t. canopy temperature (K-1)
-      if(ixVegNrg/=integerMissing)then
-        if(nSnow>0)then
-          if(ixTopHyd/=integerMissing) aJac(ixInd(ixTopHyd,ixVegNrg),ixVegNrg) = (dt/mLayerDepth(1))*(-scalarCanopyLiqDeriv*dCanLiq_dTcanopy)/iden_water
-        else
-          if(ixTopHyd/=integerMissing) aJac(ixInd(ixTopHyd,ixVegNrg),ixVegNrg) = (dt/mLayerDepth(1))*(-scalarSoilControl*scalarCanopyLiqDeriv*dCanLiq_dTcanopy)/iden_water
-        endif
-      endif
-
-      ! * energy fluxes with the canopy air space (J m-3 K-1)
-      if(ixCasNrg/=integerMissing)then
-                                     aJac(ixInd(ixCasNrg,ixCasNrg),ixCasNrg) = (dt/canopyDepth)*(-dCanairNetFlux_dCanairTemp) + dMat(ixCasNrg) * cj
-        if(ixVegNrg/=integerMissing) aJac(ixInd(ixCasNrg,ixVegNrg),ixVegNrg) = (dt/canopyDepth)*(-dCanairNetFlux_dCanopyTemp)
-        if(ixTopNrg/=integerMissing) aJac(ixInd(ixCasNrg,ixTopNrg),ixTopNrg) = (dt/canopyDepth)*(-dCanairNetFlux_dGroundTemp)
-      endif
-
-      ! * energy fluxes with the vegetation canopy (J m-3 K-1)
-      if(ixVegNrg/=integerMissing)then
-        if(ixCasNrg/=integerMissing) aJac(ixInd(ixVegNrg,ixCasNrg),ixCasNrg) = (dt/canopyDepth)*(-dCanopyNetFlux_dCanairTemp)
-                                     aJac(ixInd(ixVegNrg,ixVegNrg),ixVegNrg) = (dt/canopyDepth)*(-dCanopyNetFlux_dCanopyTemp) + dMat(ixVegNrg)
-        if(ixTopNrg/=integerMissing) aJac(ixInd(ixVegNrg,ixTopNrg),ixTopNrg) = (dt/canopyDepth)*(-dCanopyNetFlux_dGroundTemp)
-      endif
-
-      ! * energy fluxes with the surface (J m-3 K-1)
-      if(ixTopNrg/=integerMissing)then
-        if(ixCasNrg/=integerMissing) aJac(ixInd(ixTopNrg,ixCasNrg),ixCasNrg) = (dt/mLayerDepth(1))*(-dGroundNetFlux_dCanairTemp)
-        if(ixVegNrg/=integerMissing) aJac(ixInd(ixTopNrg,ixVegNrg),ixVegNrg) = (dt/mLayerDepth(1))*(-dGroundNetFlux_dCanopyTemp)
-      endif
-
+      if(ixVegHyd/=integerMissing .and. ixVegNrg/=integerMissing)&
+          ! NOTE: dIce/dLiq = (1 - scalarFracLiqVeg); dIce*LH_fu0/canopyDepth = J m-3; dLiq = kg m-2
+          aJac(ixInd(ixVegNrg,ixVegHyd),ixVegHyd) = (-1._rkind + scalarFracLiqVeg)*LH_fu0/canopyDepth * cj &
+                                                   + dVolHtCapBulk_dCanWat * scalarCanopyTempPrime + scalarCanopyCm/canopyDepth * cj &
+                                                   - (dt/canopyDepth) * dCanopyNetFlux_dCanWat &
+                                                   + LH_fu0 * scalarCanopyTempPrime * dFracLiqVeg_dTkCanopy/canopyDepth
     endif  ! if there is a need to compute energy fluxes within vegetation
-
-    ! -----
-    ! * energy fluxes for the layer domains...
-    ! -------------------------------------------
-    if(nSnLaSoGlNrg>0)then
-      do iLayer=1,nLayers  ! loop through all layers in the layer domains
-
-        ! check if the state is in the subset
-        if(ixSnLaSoGlNrg(iLayer)==integerMissing) cycle
-
-        ! - define index within the state subset and the full state vector
-        nrgState = ixSnLaSoGlNrg(iLayer)        ! index within the state subset
-
-        ! - diagonal elements
-        aJac(ixInd(nrgState,nrgState),nrgState)   = (dt/mLayerDepth(iLayer))*(-dNrgFlux_dTempBelow(iLayer-1) + dNrgFlux_dTempAbove(iLayer)) + dMat(nrgState)
-
-        ! - lower-diagonal elements
-        if(iLayer>1)then
-          if(ixSnLaSoGlNrg(iLayer-1)/=integerMissing) aJac(ixInd(ixSnLaSoGlNrg(iLayer-1),nrgState),nrgState) = (dt/mLayerDepth(iLayer-1))*( dNrgFlux_dTempBelow(iLayer-1) )
-        endif
-
-        ! - upper diagonal elements
-        if(iLayer<nLayers)then
-          if(ixSnLaSoGlNrg(iLayer+1)/=integerMissing) aJac(ixInd(ixSnLaSoGlNrg(iLayer+1),nrgState),nrgState) = (dt/mLayerDepth(iLayer+1))*(-dNrgFlux_dTempAbove(iLayer  ) )
-        endif
-
-      end do  ! (looping through energy states in the layer domains)
-    endif   ! (if the subset includes energy state variables in the layer domains)
-
-    ! -----
-    ! * liquid water fluxes for the snow, lake, glce domain...
-    ! --------------------------------------------
-    if(nSnowOnlyHyd+nLakeOnlyHyd+nGlceOnlyHyd>0)then
-      do qLayer=1,nSnow+nGlce ! loop through layers in the snow, lake, glce domain
-
-        if(qLayer<=nSnow+nLake)then
-          jLayer = qLayer
-          iLayer = qLayer
-          endLayer = nSnow + nLake
-          solid = .false.
-          if(qLayer>nSnow .and. mLayerVolFracIce(jLayer)>maxVolIceContent_use) solid = .true. ! lake ice is solid, will need rethinking but stuf for now
-        else
-          jLayer = qLayer + nLake + nSoil
-          iLayer = qLayer - nSnow - nLake
-          endLayer = nGlce
-          solid = .true.
-        endif
-        ! - check that the layer is desired
-        if(ixSnLaSoGlHyd(jLayer)==integerMissing) cycle
-        ! - define state indices for the current layer
-        watState = ixSnLaSoGlHyd(jLayer)   ! hydrology state index within the state subset
-
-        ! compute factor to convert liquid water derivative to total water derivative
-        select case( ixHydType(jLayer) )
-          case(iname_watLayer); convLiq2tot = mLayerFracLiq(jLayer)
-          case default;         convLiq2tot = 1._rkind
-        end select
-
-        ! - diagonal elements, water does not move into snow from below (currently) or out from snow above
-        ! ** water passes through solid, so -dq_dHydStateBelow(iLayer-1) = iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot also
-        ! if unfrozen lake then dq_HydStateBelow(0) should be some spillover from below, FIX with lakes        
-        aJac(ixInd(watState,watState),watState) = (dt/mLayerDepth(jLayer))*iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot + dMat(watState) * cj
-
-        ! - upper diagonal elements for snow, sub-diagonal only (water does not move upwards in snow)
-        if(iLayer<endLayer .and. qLayer<=nSnow)then
-          densLimit=jLayer ! if passing through a too dense snowpack, need to find bottom dense layer (always do bottom layer)
-          do pLayer=jLayer+1,nSnow-1
-            if(mLayerVolFracIce(pLayer)<=maxVolIceContent_use) exit
-            densLimit=pLayer
-          end do
-          if(ixSnLaSoGlHyd(densLimit+1)/=integerMissing)then
-            if((mLayerVolFracIce(jLayer)>maxVolIceContent_use .and. densLimit>jLayer) .or. densLimit==jLayer)then ! layers including this one ice locked, or layer below not ice locked
-              if(ixSnLaSoGlHyd(densLimit+1) - watstate <= ku .or. fullMatrix) &
-                  aJac(ixInd(ixSnLaSoGlHyd(densLimit+1),watState),watState) = -(dt/mLayerDepth(densLimit+1))*iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot  ! dVol(below)/dLiq(above)
-            endif
-          endif
-        endif
-
-        ! - lower diagonal elements for ice, sub-diagonal only (water does not move downwards in ice)
-        if(qLayer>nSnow .and. solid)then
-          if(iLayer>1)then 
-            if(ixSnLaSoGlHyd(1)/=integerMissing)then
-              if(watstate - ixSnLaSoGlHyd(1) <= kl .or. fullMatrix) &
-                  aJac(ixInd(ixSnLaSoGlHyd(1),watState),watState) = (dt/mLayerDepth(1))*(-iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot)  ! dVol(above)/dLiq(below)
-            endif
-          elseif(nSoil>0 .and. qLayer>nSnow+nLake)then ! glce top layer with soil above, same as layer above not being ice locked (kl>=3 so always include)
-            if(ixSoilOnlyHyd(nSoil)/=integerMissing) aJac(ixInd(ixSoilOnlyHyd(nSoil),watState),watState) = (dt/mLayerDepth(jLayer-1))*(-iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot)  ! dVol(below)/dLiq(below)
-          endif
-        endif
-        ! possible top layer of unfrozen lake has a lower diagonal term
-
-      end do  ! (looping through liquid water states in the snow, lake, glce domain)
-    endif   ! (if the subset includes hydrology state variables in the snow, lake, glce domain)
 
     ! -----
     ! * cross derivatives in the snow, lake, glce domain...
@@ -592,169 +395,10 @@ subroutine computeJacobWithPrime(&
                                       + dVolHtCapBulk_dTheta(jLayer) * mLayerTempPrime(jLayer) + mLayerCm(jLayer) * cj &
                                       + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer)) &
                                       + LH_fu0*iden_water * mLayerTempPrime(jLayer) * dFracLiqWat_dTk(jLayer)    ! (dF/dLiq)
-
-          ! - include derivatives of water fluxes w.r.t energy fluxes for current layer
-          ! ** water passes through solid, so -dq_dNrgStateBelow(iLayer-1) = iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer) also
-          ! if unfrozen lake then dq_dNrgStateBelow(0) should be some spillover from below, FIX with lakes        
-          aJac(ixInd(watState,nrgState),nrgState) = (dt/mLayerDepth(jLayer))*iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer)  ! (dVol/dT)
-
-          ! - upper diagonal elements for snow, sub-diagonal only (water does not move upwards in snow)
-          if(iLayer<endLayer .and. qLayer<=nSnow)then
-            densLimit=jLayer ! if passing through a too dense snowpack, need to find bottom dense layer (always do bottom layer)
-            do pLayer=jLayer+1,nSnow-1
-              if(mLayerVolFracIce(pLayer)<=maxVolIceContent_use) exit
-              densLimit=pLayer
-            end do
-            if(ixSnLaSoGlHyd(densLimit+1)/=integerMissing)then
-              if((mLayerVolFracIce(jLayer)>maxVolIceContent_use .and. densLimit>jLayer) .or. densLimit==jLayer)then ! layers including this one ice locked, or layer below not ice locked
-                if(ixSnLaSoGlHyd(densLimit+1) - nrgstate <= ku .or. fullMatrix) &
-                    aJac(ixInd(ixSnLaSoGlHyd(densLimit+1),nrgState),nrgState) = -(dt/mLayerDepth(densLimit+1))*iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer)  ! dVol(below)/dT(above)
-              endif
-            endif
-          endif              
-
-          ! - lower diagonal elements for ice, sub-diagonal only (water does not move downwards in ice)
-          if(qLayer>nSnow .and. solid)then
-            if(iLayer>1)then 
-              if(ixSnLaSoGlHyd(1)/=integerMissing)then
-                if(nrgstate - ixSnLaSoGlHyd(1) <= kl .or. fullMatrix) &
-                    aJac(ixInd(ixSnLaSoGlHyd(1),nrgState),nrgState) = (dt/mLayerDepth(1))*(-iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer))  ! dVol(above)/dT(below)
-              endif
-            elseif(nSoil>0 .and. qLayer>nSnow+nLake)then ! glce top layer with soil above, same as layer above not being ice locked (kl>=3 so always include)
-              if(ixSoilOnlyHyd(nSoil)/=integerMissing) aJac(ixInd(ixSoilOnlyHyd(nSoil),nrgState),nrgState) = (dt/mLayerDepth(jLayer-1))*(-iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer))  ! dVol(above)/dT(below)
-            endif
-          endif
-          ! possible top layer of unfrozen lake has a lower diagonal term
-
-          ! - include derivatives of heat capacity w.r.t water fluxes for surrounding layers starting with layer above
-          if(qLayer>1 .or. (qLayer==1 .and. nSnow==0 .and. nSoil>0))then ! glce top layer with soil above
-            if(ixSnLaSoGlNrg(jLayer-1)/=integerMissing) aJac(ixInd(ixSnLaSoGlNrg(jLayer-1),watState),watState) = (dt/mLayerDepth(jLayer-1))*( dNrgFlux_dWatBelow(jLayer-1) )
-          endif
-
-          ! (cross-derivative terms for the layer below unless bottom ice layer)
-          if(iLayer<endLayer .or. (iLayer==nSnow+nLake .and. nSoil==0))then
-            if(ixSnLaSoGlNrg(jLayer+1)/=integerMissing) aJac(ixInd(ixSnLaSoGlNrg(jLayer+1),watState),watState) = (dt/mLayerDepth(jLayer+1))*(-dNrgFlux_dWatAbove(jLayer) )
-          elseif(iLayer==nSnow+nLake .and. nSoilOnlyNrg>0)then ! bottom snow/lake layer and there is soil below
-            if(ixSoilOnlyNrg(1)/=integerMissing) aJac(ixInd(ixSoilOnlyNrg(1),watState),watState) = (dt/mLayerDepth(nSnow+nLake+1))*(-dNrgFlux_dWatAbove(nSnow+nLake) )
-          endif
         endif   ! (if the water state for the current layer is within the state subset)
 
-      end do  ! (looping through snow glce layers)
+      end do  ! (looping through snow lake glce layers)
     endif   ! (if there are state variables for both water and energy in the snow, lake, glce domain)
-
-    ! -----
-    ! * liquid water fluxes for the soil domain...
-    ! --------------------------------------------
-    if(nSoilOnlyHyd>0)then
-      do iLayer=1,nSoil
-
-        ! - check that the soil layer is desired
-        if(ixSoilOnlyHyd(iLayer)==integerMissing) cycle
-
-        ! - define state indices
-        watState = ixSoilOnlyHyd(iLayer)         ! hydrology state index within the state subset
-
-        ! - define indices of the soil layers
-        jLayer   = iLayer+nSnow                  ! index of layer in the layer system
-
-        ! - compute the diagonal elements
-        ! all terms *excluding* baseflow
-        aJac(ixInd(watState,watState),watState) = (dt/mLayerDepth(jLayer))*(-dq_dHydStateBelow(iLayer-1) + dq_dHydStateAbove(iLayer)) + dMat(watState)
-
-        ! - compute the lower-diagonal elements
-        if(iLayer>1)then
-          if(ixSoilOnlyHyd(iLayer-1)/=integerMissing) aJac(ixInd(ixSoilOnlyHyd(iLayer-1),watState),watState) = (dt/mLayerDepth(jLayer-1))*( dq_dHydStateBelow(iLayer-1))
-        endif
-
-        ! - compute the upper-diagonal elements
-        if(iLayer<nSoil)then
-          if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixInd(ixSoilOnlyHyd(iLayer+1),watState),watState) = (dt/mLayerDepth(jLayer+1))*(-dq_dHydStateAbove(iLayer))
-        endif
-
-        ! - include baseflow derivatives
-        if(computeBaseflow .and. nSoilOnlyHyd==nSoil)then
-          do pLayer=1,nSoil
-            qState = ixSoilOnlyHyd(pLayer)  ! hydrology state index within the state subset
-            if(qState/=integerMissing)then
-              if((qstate - watState <= ku .and. watState - qstate <= kl) or. fullMatrix) &
-                aJac(ixInd(watState,qState),qState) = (dt/mLayerDepth(jLayer))*dBaseflow_dMatric(iLayer,pLayer) + aJac(ixInd(watState,qState),qState)
-            endif
-          end do
-        endif
-
-        ! - include derivatives for surface infiltration below surface
-        if(ixSoilOnlyHyd(1)/=integerMissing)then
-           if(watState - ixSoilOnlyHyd(1) <= ku .or. fullMatrix) &
-             aJac(ixInd(ixSoilOnlyHyd(1),watState),watState) = -(dt/mLayerDepth(nSnow+1))*dq_dHydStateLayerSurfVec(iLayer) + aJac(ixInd(ixSoilOnlyHyd(1),watState),watState)
-        endif
-      end do  ! (looping through hydrology states in the soil domain)
-
-      ! - include derivatives for surface infiltration above surface if there is snow/lake (vegetation handled already)
-      if(nSnow+nLake>0 .and. ixSoilOnlyHyd(1)/=integerMissing)then 
-        if(nSnow>0 .and. nLake==0)then ! have snow above first soil layer
-          densLimit=nSnow ! if passed through a too dense snowpack or lake, need to find top dense layer (bottom layer always included, dense or not)
-          do pLayer=nSnow-1,1,-1
-            if(mLayerVolFracIce(pLayer)<=maxVolIceContent_use) exit
-            denseLimit=pLayer
-          end do
-        else ! have lake above first soil layer
-          denseLimit=nSnow+nLake ! bottom lake layer
-        endif
-        do pLayer=denseLimit,nSnow+nLake
-          if(ixSnowOnlyHyd(pLayer)/=integerMissing)then
-            ! compute factor to convert liquid water derivative to total water derivative
-            select case( ixHydType(pLayer) )
-              case(iname_watLayer); convLiq2tot = mLayerFracLiq(pLayer)
-              case default;         convLiq2tot = 1._rkind
-            end select
-            if(ixSnLaSoGlHyd(pLayer) - ixSoilOnlyHyd(1) <= ku .or. fullMatrix) &
-                aJac(ixInd(ixSoilOnlyHyd(1),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer)) = -(dt/mLayerDepth(nSnow+1))*scalarSoilControl*iLayerLiqFluxSnLaGlDeriv(pLayer)*convLiq2tot + aJac(ixInd(ixSoilOnlyHyd(1),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer))
-          endif
-        end do
-      endif
-
-      ! - include derivatives for infiltration into bottom soil layer if there is glacier ice
-      if(nSoil>0 .and. ixSoilOnlyHyd(nSoil)/=integerMissing .and. nGlce>0)then
-        do pLayer=nSnow+nLake+nSoil+1,nSnow+nLake+nSoil+nGlce
-          if(ixSnLaSoGlHyd(pLayer)/=integerMissing)then
-            ! compute factor to convert liquid water derivative to total water derivative
-            select case( ixHydType(pLayer) )
-              case(iname_watLayer); convLiq2tot = mLayerFracLiq(pLayer)
-              case default;         convLiq2tot = 1._rkind
-            end select
-            if(ixSoilOnlyHyd(nSoil) - ixSnLaSoGlHyd(pLayer) <= kl .or. fullMatrix) &
-                aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer)) = (dt/mLayerDepth(nSnow+nSoil))*iLayerLiqFluxSnLaGlDeriv(pLayer)*convLiq2tot + aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer))
-          endif
-        end do
-      endif
-
-    endif   ! (if the subset includes hydrology state variables in the soil domain)
-
-    ! -----
-    ! * liquid water fluxes for the aquifer...
-    ! ----------------------------------------
-    if(ixAqWat/=integerMissing)then
-      aJac(ixInd(ixAqWat,ixAqWat),ixAqWat) = -dBaseflow_dAquifer*dt + dMat(ixAqWat) * cj
-      if(nSoil>0)then
-        if(ixSoilOnlyNrg(nSoil)/=integerMissing) aJac(ixInd(ixAqWat,ixSoilOnlyNrg(nSoil)),ixSoilOnlyNrg(nSoil)) = -dq_dNrgStateAbove(nSoil)*dt
-        if(ixSoilOnlyHyd(nSoil)/=integerMissing) aJac(ixInd(ixAqWat,ixSoilOnlyHyd(nSoil)),ixSoilOnlyHyd(nSoil)) = -dq_dHydStateAbove(nSoil)*dt
-      endif
-      ! - include derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration)
-      if(computeVegFlux)then
-        if(ixCasNrg/=integerMissing)then
-          if(ixAqWat-ixCasNrg = kl .or. fullMatrix) aJac(ixInd(ixAqWat,ixCasNrg),ixCasNrg) = -dAquiferTrans_dTCanair*dt ! dVol/dT (K-1)
-        endif
-        if(ixVegNrg/=integerMissing)then
-          if(ixAqWat-ixVegNrg = kl .or. fullMatrix) aJac(ixInd(ixAqWat,ixVegNrg),ixVegNrg) = -dAquiferTrans_dTCanopy*dt ! dVol/dT (K-1)
-        endif
-        if(ixVegHyd/=integerMissing)then
-          if(ixAqWat-ixVegHyd = kl .or. fullMatrix) aJac(ixInd(ixAqWat,ixVegHyd),ixVegHyd) = -dAquiferTrans_dCanWat*dt  ! dVol/dLiq (kg m-2)-1
-        endif
-        if(ixTopNrg/=integerMissing)then
-          if(ixAqWat-ixTopNrg = kl .or. fullMatrix) aJac(ixInd(ixAqWat,ixTopNrg),ixTopNrg) = -dAquiferTrans_dTGround*dt ! dVol/dT (K-1)
-        endif
-      endif
-    endif
 
     ! -----
     ! * cross derivatives in the soil domain...
@@ -764,121 +408,41 @@ subroutine computeJacobWithPrime(&
 
         ! - check that the soil layer is desired
         if(ixSoilOnlyNrg(iLayer)==integerMissing) cycle
-
         ! - define indices of the soil layers
         jLayer   = iLayer+nSnow                  ! index of layer in the layer system
-
         ! - define the energy state variable
-        nrgState = ixNrgLayer(jLayer)       ! index within the full state vector
-
+        nrgState = ixSoilOnlyNrg(iLayer)         ! index within the full state vector
         ! - define index of hydrology state variable within the state subset
         watState = ixSoilOnlyHyd(iLayer)
 
         ! only compute derivatives if the water state for the current layer is within the state subset
         if(watstate/=integerMissing)then
-          ! - include derivatives in liquid water fluxes w.r.t. temperature for current layer
-          aJac(ixInd(watState,nrgState),nrgState) = (dt/mLayerDepth(jLayer))*(-dq_dNrgStateBelow(iLayer-1) + dq_dNrgStateAbove(iLayer))   ! dVol/dT (K-1) -- flux depends on ice impedance
-
-          ! - compute lower diagonal elements
-          if(iLayer>1)then
-          if(ixSoilOnlyHyd(iLayer-1)/=integerMissing) aJac(ixInd(ixSoilOnlyHyd(iLayer-1),nrgState),nrgState) = (dt/mLayerDepth(jLayer-1))*( dq_dNrgStateBelow(iLayer-1))   ! K-1
-          endif
-
-          ! compute upper-diagonal elements
-          if(iLayer<nSoil)then
-            if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixInd(ixSoilOnlyHyd(iLayer+1),nrgState),nrgState) = (dt/mLayerDepth(jLayer+1))*(-dq_dNrgStateAbove(iLayer))    ! K-1
-          endif
-
-          ! - include derivatives w.r.t. ground evaporation
-          if(nSnow==0 .and. iLayer==1)then 
-            if(ixTopNrg/=integerMissing) aJac(ixInd(ixTopHyd,ixTopNrg),ixTopNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(ixInd(ixTopHyd,ixTopNrg),ixTopNrg) ! dVol/dT (K-1)
-            if(computeVegFlux)then ! upper-most soil layer, assume here that kl>=4
-              if(ixCasNrg/=integerMissing) aJac(ixInd(ixTopHyd,ixCasNrg),ixCasNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanair/iden_water) ! dVol/dT (K-1)
-              if(ixVegNrg/=integerMissing) aJac(ixInd(ixTopHyd,ixVegNrg),ixVegNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanopy/iden_water) + aJac(ixInd(ixTopHyd,ixVegNrg),ixVegNrg) ! dVol/dT (K-1)
-              if(ixVegHyd/=integerMissing) aJac(ixInd(ixTopHyd,ixVegHyd),ixVegHyd) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dCanWat/iden_water)  + aJac(ixInd(ixTopHyd,ixVegHyd),ixVegHyd) ! dVol/dLiq (kg m-2)-1
-            endif
-          endif
-
-          ! - include derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration)
-          if(computeVegFlux)then
-            if(ixCasNrg/=integerMissing)then
-              if(watState-ixCasNrg = kl .or. fullMatrix) aJac(ixInd(watState,ixCasNrg),ixCasNrg) = (dt/mLayerDepth(jLayer))*(-mLayerdTrans_dTCanair(iLayer)) + aJac(ixInd(watState,ixCasNrg),ixCasNrg) ! dVol/dT (K-1)
-            endif
-            if(ixVegNrg/=integerMissing)then
-              if(watState-ixVegNrg = kl .or. fullMatrix) aJac(ixInd(watState,ixVegNrg),ixVegNrg) = (dt/mLayerDepth(jLayer))*(-mLayerdTrans_dTCanopy(iLayer)) + aJac(ixInd(watState,ixVegNrg),ixVegNrg) ! dVol/dT (K-1)
-            endif
-            if(ixVegHyd/=integerMissing)then
-              if(watState-ixVegHyd = kl .or. fullMatrix) aJac(ixInd(watState,ixVegHyd),ixVegHyd) = (dt/mLayerDepth(jLayer))*(-mLayerdTrans_dCanWat(iLayer))  + aJac(ixInd(watState,ixVegHyd),ixVegHyd) ! dVol/dLiq (kg m-2)-1
-            endif
-            if(ixTopNrg/=integerMissing)then
-              if(watState-ixTopNrg = kl .or. fullMatrix) aJac(ixInd(watState,ixTopNrg),ixTopNrg) = (dt/mLayerDepth(jLayer))*(-mLayerdTrans_dTGround(iLayer)) + aJac(ixInd(watState,ixTopNrg),ixTopNrg) ! dVol/dT (K-1)
-            endif
-          endif
-
           ! - include derivatives in energy fluxes w.r.t. with respect to water for current layer
           aJac(ixInd(nrgState,watState),watState) = dVolHtCapBulk_dPsi0(iLayer) * mLayerTempPrime(jLayer) &
                                                        + mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) * cj + dCm_dPsi0(iLayer) * mLayerVolFracWatPrime(jLayer) &
                                                        + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer)) &
                                                        + mLayerCm(jLayer) * d2VolTot_dPsi02(iLayer) * mLayerMatricHeadPrime(iLayer)
-          if(mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind))then  ! ice is present
-            aJac(ixInd(nrgState,watState),watState) = -LH_fu0*iden_water * dVolTot_dPsi0(iLayer) * cj &
-                                                         - LH_fu0*iden_water * mLayerMatricHeadPrime(iLayer) * d2VolTot_dPsi02(iLayer) + aJac(ixInd(nrgState,watState),watState) ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
-          endif
-
-          ! - include derivatives of heat capacity w.r.t water fluxes for surrounding layers starting with layer above
-          if(iLayer>1)then
-            if(ixSoilOnlyNrg(iLayer-1)/=integerMissing) aJac(ixInd(ixSoilOnlyNrg(iLayer-1),watState),watState) = (dt/mLayerDepth(jLayer-1))*( dNrgFlux_dWatBelow(jLayer-1) )
-          elseif(iLayer==1 .and. nSnowOnlyNrg>0)then ! top soil layer and there is snow above
-            if(ixSnowOnlyNrg(nSnow)/=integerMissing) aJac(ixInd(ixSnowOnlyNrg(nSnow),watState),watState) = (dt/mLayerDepth(nSnow))*( dNrgFlux_dWatBelow(nSnow) )
-          endif
-
-          ! (cross-derivative terms for the layer below)
-          if(iLayer<nSoil)then
-            if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixInd(ixSoilOnlyNrg(iLayer+1),watState),watState) = (dt/mLayerDepth(jLayer+1))*(-dNrgFlux_dWatAbove(jLayer  ) )
-          endif
+          if(mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind))&  ! ice is present
+              aJac(ixInd(nrgState,watState),watState) = -LH_fu0*iden_water * dVolTot_dPsi0(iLayer) * cj &
+                                                       - LH_fu0*iden_water * mLayerMatricHeadPrime(iLayer) * d2VolTot_dPsi02(iLayer) + aJac(ixInd(nrgState,watState),watState) ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
         endif   ! (if the water state for the current layer is within the state subset)
 
-        ! - include derivatives for surface infiltration below surface
-        if(ixSoilOnlyHyd(1)/=integerMissing)then
-          if(nrgState - ixSoilOnlyHyd(1) <= ku .or. fullMatrix) &
-            aJac(ixInd(ixSoilOnlyHyd(1),nrgState),nrgState) = -(dt/mLayerDepth(nSnow+1))*dq_dNrgStateLayerSurfVec(iLayer) + aJac(ixInd(ixSoilOnlyHyd(1),nrgState),nrgState)
-        endif
       end do  ! (looping through energy states in the soil domain)
-
-      ! - include derivatives for surface infiltration above surface if there is snow/lake (vegetation handled already)
-      if(nSnow+nLake>0 .and. ixSoilOnlyHyd(1)/=integerMissing)then 
-        if(nSnow>0 .and. nLake==0)then ! have snow above first soil layer
-          densLimit=nSnow ! if passed through a too dense snowpack or lake, need to find top dense layer (bottom layer always included, dense or not)
-          do pLayer=nSnow-1,1,-1
-            if(mLayerVolFracIce(pLayer)<=maxVolIceContent_use) exit
-            denseLimit=pLayer
-          end do
-        else ! have lake above first soil layer
-          denseLimit=nSnow+nLake ! bottom lake layer
-        endif
-        do pLayer=denseLimit,nSnow+nLake
-          if(ixSnLaSoGlNrg(pLayer)/=integerMissing)then
-            if(ixSnLaSoGlNrg(pLayer) - ixSoilOnlyHyd(1) <= ku .or. fullMatrix) &
-                aJac(ixInd(ixSoilOnlyHyd(1),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer)) = -(dt/mLayerDepth(nSnow+1))*scalarSoilControl*iLayerLiqFluxSnLaGlDeriv(pLayer)*mLayerdTheta_dTk(pLayer) + aJac(ixInd(ixSoilOnlyHyd(1),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer))
-          endif
-        end do
-      endif
-
-      ! - include derivatives for infiltration into bottom soil layer if there is glacier ice
-      if(nSoil>0 .and. ixSoilOnlyHyd(nSoil)/=integerMissing .and. nGlce>0)then
-        do pLayer=nSnow+nLake+nSoil+1,nSnow+nLake+nSoil+nGlce
-          if(ixSnLaSoGlNrg(pLayer)/=integerMissing)then
-            if(ixSoilOnlyHyd(nSoil) - ixSnLaSoGlNrg(pLayer) <= kl .or. fullMatrix) &
-                aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer)) = (dt/mLayerDepth(nSnow+nSoil))*iLayerLiqFluxSnLaGlDeriv(pLayer)*convLiq2tot + aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer))
-          endif
-        end do
-      endif
-
     endif   ! (if there are state variables for both water and energy in the soil domain)
+
     ! *********************************************************************************************************************************************************
-    ! -----
+    ! * PART 2: COMPUTE FLUX JACOBIAN TERMS 
+    ! *********************************************************************************************************************************************************
+    call fluxJacAdd(fullMatrix,maxVolIceContent_use,dt,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,computeBaseflow,&
+                    indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,&
+                    dMat,aJac,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! *********************************************************************************************************************************************************
+    ! * PART 3: CLEAN UP JACOBIAN (IF USING ENTHALPY AS A STATE VARIABLE) AND PRINT (IF DESIRED)
+    ! *********************************************************************************************************************************************************
     ! * if desired, modify to use enthalpy as a state variable instead of temperature 
-    ! NOTE, dMat has been set to 0 and now 1._rkind * cj is added instead 
+    ! NOTE, dMat(Nrg variables) has been set to 0 and now 1._rkind * cj is added instead 
     ! ----------------------------------------
     if(enthalpyStateVec)then 
 
