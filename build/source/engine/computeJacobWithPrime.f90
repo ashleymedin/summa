@@ -174,7 +174,7 @@ subroutine computeJacobWithPrime(&
   ! indices of model layers
   integer(i4b)                         :: iLayer               ! index of model layer
   integer(i4b)                         :: jLayer               ! index of model layer within the full state vector (hydrology)
-  integer(i4b)                         :: qLayer               ! indices of snow+glce layers
+  integer(i4b)                         :: qLayer               ! indices of snow+lake+glce layers
   integer(i4b)                         :: endLayer             ! index of the last layer 
   logical(i4b)                         :: solid                ! flag to indicate if layer is solid ice (frozen lake or glacier ice)
   ! conversion factors

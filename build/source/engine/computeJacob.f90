@@ -123,7 +123,7 @@ subroutine computeJacob(&
   ! indices of model layers
   integer(i4b)                            :: iLayer               ! index of model layer
   integer(i4b)                            :: jLayer               ! index of model layer within the full state vector (hydrology)
-  integer(i4b)                            :: qLayer               ! indices of snow+glce layers
+  integer(i4b)                            :: qLayer               ! indices of snow+lake+glce layers
   integer(i4b)                            :: endLayer             ! index of the last layer 
   logical(i4b)                            :: solid                ! flag to indicate if layer is solid ice (frozen lake or glacier ice)
   ! conversion factors
@@ -454,7 +454,7 @@ subroutine fluxJacAdd(&
   ! indices of model layers
   integer(i4b)                         :: iLayer,pLayer        ! index of model layer
   integer(i4b)                         :: jLayer               ! index of model layer within the full state vector (hydrology)
-  integer(i4b)                         :: qLayer               ! indices of snow+glce layers
+  integer(i4b)                         :: qLayer               ! indices of snow+lake+glce layers
   integer(i4b)                         :: endLayer             ! index of the last layer 
   integer(i4b)                         :: denseLimit           ! index of the limiting dense layer
   logical(i4b)                         :: solid                ! flag to indicate if layer is solid ice (frozen lake or glacier ice)
@@ -649,7 +649,7 @@ subroutine fluxJacAdd(&
     ! * liquid water fluxes for the snow, lake, glce domain...
     ! --------------------------------------------
     if(nSnowOnlyHyd+nLakeOnlyHyd+nGlceOnlyHyd>0)then
-      do qLayer=1,nSnow+nGlce ! loop through layers in the snow, lake, glce domain
+      do qLayer=1,nSnow+nLake+nGlce ! loop through layers in the snow, lake, glce domain
 
         if(qLayer<=nSnow+nLake)then
           jLayer = qLayer
@@ -864,7 +864,7 @@ subroutine fluxJacAdd(&
               case default;         convLiq2tot = 1._rkind
             end select
             if(ixSnLaSoGlHyd(pLayer) - ixSoilOnlyHyd(nSoil) <= ku .or. fullMatrix) &
-                aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer)) = (dt/mLayerDepth(nSnow+nSoil))*iLayerLiqFluxSnLaGlDeriv(pLayer)*convLiq2tot + aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer))
+                aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer)) = (dt/mLayerDepth(nSnow+nLake+nSoil))*iLayerLiqFluxSnLaGlDeriv(pLayer)*convLiq2tot + aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer))
           endif
         end do
       endif
@@ -1001,7 +1001,7 @@ subroutine fluxJacAdd(&
         do pLayer=nSnow+nLake+nSoil+1,nSnow+nLake+nSoil+nGlce
           if(ixSnLaSoGlNrg(pLayer)/=integerMissing)then
             if(ixSnLaSoGlNrg(pLayer) - ixSoilOnlyHyd(nSoil) <= ku .or. fullMatrix) &
-                aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer)) = (dt/mLayerDepth(nSnow+nSoil))*iLayerLiqFluxSnLaGlDeriv(pLayer)*mLayerdTheta_dTk(pLayer) + aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer))
+                aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer)) = (dt/mLayerDepth(nSnow+nLake+nSoil))*iLayerLiqFluxSnLaGlDeriv(pLayer)*mLayerdTheta_dTk(pLayer) + aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer))
           endif
         end do
       endif
@@ -1114,8 +1114,7 @@ function ixInd(jState,iState)
   if(fullMatrix) then
     ixInd = jState
   else
-    ixInd = kl + 1 + jState - iState
-    if(jState==iState) ixInd = ixDiag
+    ixInd = ixDiag + jState - iState
   endif
 end function ixInd
 
