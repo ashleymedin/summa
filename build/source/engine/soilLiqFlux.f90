@@ -1815,8 +1815,6 @@ contains
 
  subroutine update_surfaceFlux_liquidFlux
   ! **** Update operations for surfaceFlux: flux condition ****
-  ! THIS WOULD BE A LOT CLEANER IF IT WAS ALL IN ONE SUBROUTINE JUST LIKE THE OTHERS, FIX
-  ! note: the routine may be too long if we combine - this routine is more complicated than all the others
   ! -- main computations
   call update_surfaceFlux_liquidFlux_computation_root_layers
   call update_surfaceFlux_liquidFlux_computation_available_capacity; if (return_flag) return
@@ -2661,7 +2659,6 @@ contains
    end select
    ! energy derivatives
    dq_dNrgStateUnsat = kAnisotropic*surfaceSatHydCond * exp(-zWater/zScale_TOPMODEL)*node_dPsiLiq_dTemp/zScale_TOPMODEL
-   ! FIX: IS THIS CORRECT???? seems to easy to have been missing originally
 
   end associate
  end subroutine update_qDrainFlux_funcBottomHead

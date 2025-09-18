@@ -626,12 +626,11 @@ subroutine fluxJacAdd(&
 
         ! check if the state is in the subset
         if(ixSnLaSoGlNrg(iLayer)==integerMissing) cycle
-
         ! - define index within the state subset and the full state vector
         nrgState = ixSnLaSoGlNrg(iLayer)        ! index within the state subset
 
         ! - diagonal elements
-        aJac(ixInd(nrgState,nrgState),nrgState)   = (dt/mLayerDepth(iLayer))*(-dNrgFlux_dTempBelow(iLayer-1) + dNrgFlux_dTempAbove(iLayer)) + dMat(nrgState)
+        aJac(ixInd(nrgState,nrgState),nrgState) = (dt/mLayerDepth(iLayer))*(-dNrgFlux_dTempBelow(iLayer-1) + dNrgFlux_dTempAbove(iLayer)) + dMat(nrgState)
 
         ! - super-diagonal elements
         if(iLayer>1)then

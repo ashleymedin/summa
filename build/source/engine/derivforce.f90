@@ -255,7 +255,7 @@ contains
 
 #ifdef ACTORS_ACTIVE
   azimuth = 0._rkind              ! if aspect is not an input attribute, slope & azimuth = zero (flat Earth)
-  slope   = 0._rkind              ! Actors doesn't look for this attribute for some reason, should probably FIX
+  slope   = 0._rkind              ! Actors doesn't look for this attribute for some reason FIX
 #else
  ! check slope/aspect intent for radiation calculation
  if(aspect == nr_realMissing)then

@@ -1186,7 +1186,7 @@ subroutine opSplittin(&
       if (iVar==iLookFLUX%scalarPhotosynthesisShaded) desiredFlux = .true.
      end if
 
-     if (nDomainSplit==1) then ! was "if (nDomains==1)" but if no veg present, could cause problems if not splitting to domains, might need to be changed in base code too FIX
+     if (nDomainSplit==1) then ! was "if (nDomains==1)" but if no veg present, could cause problems if not splitting to domains, might need to be changed in base code also? FIX
       fluxMask%var(iVar)%dat = desiredFlux
      else ! domain splitting
       if (iStateTypeSplit==massSplit) iDomainSplit_use = iDomainSplit_mass_map(iDomainSplit)
