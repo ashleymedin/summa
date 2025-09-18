@@ -1,0 +1,597 @@
+ENABLING SUNDIALS
+-- NetCDF incl for all components -- /opt/local/include;/opt/local/include
+-- NetCDF lib for all components -- /opt/local/lib/libnetcdf.dylib;/opt/local/lib/libnetcdff.dylib
+Using LAPACK links from LIBRARY_LINKS environment variable
+
+Setting SUMMA Debug Options
+-- Configuring done (0.1s)
+-- Generating done (0.0s)
+-- Build files have been written to: /Users/amedin/Research/SummaSundials/summa/build/cmake_build
+[  1%] Building Fortran object CMakeFiles/SUMMA_NOAHMP.dir/source/dshare/nr_type.f90.o
+[  3%] Building Fortran object CMakeFiles/SUMMA_NOAHMP.dir/source/engine/nr_utils.f90.o
+[  4%] Building Fortran object CMakeFiles/SUMMA_NOAHMP.dir/source/engine/f2008_funcs.f90.o
+[  5%] Building Fortran object CMakeFiles/SUMMA_NOAHMP.dir/source/noah-mp/module_model_constants.F.o
+[  5%] Building Fortran object CMakeFiles/SUMMA_NOAHMP.dir/source/noah-mp/module_sf_noahutl.F.o
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahutl.F:89:39:
+
+   89 | subroutine wrf_dm_bcast_real(rval, ival)
+      |                                       1
+Warning: Unused dummy argument 'ival' at (1) [-Wunused-dummy-argument]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahutl.F:89:33:
+
+   89 | subroutine wrf_dm_bcast_real(rval, ival)
+      |                                 1
+Warning: Unused dummy argument 'rval' at (1) [-Wunused-dummy-argument]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahutl.F:95:37:
+
+   95 | subroutine wrf_dm_bcast_integer(ival1, ival2)
+      |                                     1
+Warning: Unused dummy argument 'ival1' at (1) [-Wunused-dummy-argument]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahutl.F:95:44:
+
+   95 | subroutine wrf_dm_bcast_integer(ival1, ival2)
+      |                                            1
+Warning: Unused dummy argument 'ival2' at (1) [-Wunused-dummy-argument]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahutl.F:101:41:
+
+  101 | subroutine wrf_dm_bcast_string(sval, ival)
+      |                                         1
+Warning: Unused dummy argument 'ival' at (1) [-Wunused-dummy-argument]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahutl.F:101:35:
+
+  101 | subroutine wrf_dm_bcast_string(sval, ival)
+      |                                   1
+Warning: Unused dummy argument 'sval' at (1) [-Wunused-dummy-argument]
+[  6%] Building Fortran object CMakeFiles/SUMMA_NOAHMP.dir/source/noah-mp/module_sf_noahlsm.F.o
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahlsm.F:45:32:
+
+   45 |         integer, private :: iloc, jloc
+      |                                1
+Warning: Unused PRIVATE module variable 'iloc' declared at (1) [-Wunused-value]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahlsm.F:45:38:
+
+   45 |         integer, private :: iloc, jloc
+      |                                      1
+Warning: Unused PRIVATE module variable 'jloc' declared at (1) [-Wunused-value]
+[  7%] Building Fortran object CMakeFiles/SUMMA_NOAHMP.dir/source/noah-mp/module_sf_noahmplsm.F.o
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:562:11:
+
+  562 |      IT1 = T + 0.5
+      |           1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1) [-Wconversion]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:211:31:
+
+  211 |     INTEGER, PRIVATE :: ISURBAN
+      |                               1
+Warning: Unused PRIVATE module variable 'isurban' declared at (1) [-Wunused-value]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:1826:31:
+
+ 1826 |     INTEGER                :: I
+      |                               1
+Warning: Unused variable 'i' declared at (1) [-Wunused-variable]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:1766:50:
+
+ 1766 |   SUBROUTINE REDPRM (VEGTYP,SOILTYP,SLOPETYP,ZSOIL,NSOIL,ISURBAN)
+      |                                                  1
+Warning: Unused dummy argument 'zsoil' at (1) [-Wunused-dummy-argument]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:1662:39:
+
+ 1662 |                      RC    ,PSN   ,ILOC   ,JLOC  )           !out
+      |                                       1
+Warning: Unused dummy argument 'iloc' at (1) [-Wunused-dummy-argument]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:1662:47:
+
+ 1662 |                      RC    ,PSN   ,ILOC   ,JLOC  )           !out
+      |                                               1
+Warning: Unused dummy argument 'jloc' at (1) [-Wunused-dummy-argument]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:1516:62:
+
+ 1516 |   SUBROUTINE STOMATA (VEGTYP  ,MPE     ,APAR    ,FOLN    ,ILOC    , JLOC, & !in
+      |                                                              1
+Warning: Unused dummy argument 'iloc' at (1) [-Wunused-dummy-argument]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:1516:72:
+
+ 1516 |   SUBROUTINE STOMATA (VEGTYP  ,MPE     ,APAR    ,FOLN    ,ILOC    , JLOC, & !in
+      |                                                                        1
+Warning: Unused dummy argument 'jloc' at (1) [-Wunused-dummy-argument]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:1586:22:
+
+ 1586 |       REAL(rkind) :: T
+      |                      1
+Warning: Unused variable 't' declared at (1) [-Wunused-variable]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:1338:81:
+
+ 1338 |    REAL(rkind)                              :: FREVEG,FREBAR,FTDVEG,FTIVEG,FTDBAR,FTIBAR
+      |                                                                                 1
+Warning: Unused variable 'ftdbar' declared at (1) [-Wunused-variable]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:1338:67:
+
+ 1338 |    REAL(rkind)                              :: FREVEG,FREBAR,FTDVEG,FTIVEG,FTDBAR,FTIBAR
+      |                                                                   1
+Warning: Unused variable 'ftdveg' declared at (1) [-Wunused-variable]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:1338:88:
+
+ 1338 |    REAL(rkind)                              :: FREVEG,FREBAR,FTDVEG,FTIVEG,FTDBAR,FTIBAR
+      |                                                                                        1
+Warning: Unused variable 'ftibar' declared at (1) [-Wunused-variable]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:1338:74:
+
+ 1338 |    REAL(rkind)                              :: FREVEG,FREBAR,FTDVEG,FTIVEG,FTDBAR,FTIBAR
+      |                                                                          1
+Warning: Unused variable 'ftiveg' declared at (1) [-Wunused-variable]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:1270:54:
+
+ 1270 |                         TAU    ,FVEG    ,IST     ,ILOC    ,JLOC   , & !in
+      |                                                      1
+Warning: Unused dummy argument 'iloc' at (1) [-Wunused-dummy-argument]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:1270:44:
+
+ 1270 |                         TAU    ,FVEG    ,IST     ,ILOC    ,JLOC   , & !in
+      |                                            1
+Warning: Unused dummy argument 'ist' at (1) [-Wunused-dummy-argument]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:1270:63:
+
+ 1270 |                         TAU    ,FVEG    ,IST     ,ILOC    ,JLOC   , & !in
+      |                                                               1
+Warning: Unused dummy argument 'jloc' at (1) [-Wunused-dummy-argument]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:1339:53:
+
+ 1339 |    REAL(rkind)                              :: THETAZ
+      |                                                     1
+Warning: Unused variable 'thetaz' declared at (1) [-Wunused-variable]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:1203:45:
+
+ 1203 |   SUBROUTINE GROUNDALB (NSOIL   ,NBAND   ,ICE     ,IST     ,ISC     , & !in
+      |                                             1
+Warning: Unused dummy argument 'ice' at (1) [-Wunused-dummy-argument]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:1205:37:
+
+ 1205 |                         TG      ,ILOC    ,JLOC    ,                   & !in
+      |                                     1
+Warning: Unused dummy argument 'iloc' at (1) [-Wunused-dummy-argument]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:1205:46:
+
+ 1205 |                         TG      ,ILOC    ,JLOC    ,                   & !in
+      |                                              1
+Warning: Unused dummy argument 'jloc' at (1) [-Wunused-dummy-argument]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:1175:15:
+
+ 1175 |   INTEGER :: IB          !waveband class
+      |               1
+Warning: Unused variable 'ib' declared at (1) [-Wunused-variable]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:1151:72:
+
+ 1151 |   SUBROUTINE SNOWALB_CLASS (NBAND,QSNOW,DT,ALB,ALBOLD,ALBSND,ALBSNI,ILOC,JLOC)
+      |                                                                        1
+Warning: Unused dummy argument 'iloc' at (1) [-Wunused-dummy-argument]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:1151:77:
+
+ 1151 |   SUBROUTINE SNOWALB_CLASS (NBAND,QSNOW,DT,ALB,ALBOLD,ALBSND,ALBSNI,ILOC,JLOC)
+      |                                                                             1
+Warning: Unused dummy argument 'jloc' at (1) [-Wunused-dummy-argument]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:1098:37:
+
+ 1098 |   SUBROUTINE SNOWALB_BATS (NBAND,FSNO,COSZ,FAGE,ALBSND,ALBSNI)
+      |                                     1
+Warning: Unused dummy argument 'fsno' at (1) [-Wunused-dummy-argument]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:1117:15:
+
+ 1117 |   INTEGER :: IB          !waveband class
+      |               1
+Warning: Unused variable 'ib' declared at (1) [-Wunused-variable]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:926:52:
+
+  926 |                      ALBGRI  ,ALBD    ,ALBI    ,ILOC    ,JLOC    , & !in
+      |                                                    1
+Warning: Unused dummy argument 'iloc' at (1) [-Wunused-dummy-argument]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:926:61:
+
+  926 |                      ALBGRI  ,ALBD    ,ALBI    ,ILOC    ,JLOC    , & !in
+      |                                                             1
+Warning: Unused dummy argument 'jloc' at (1) [-Wunused-dummy-argument]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:741:42:
+
+  741 |                      TG     ,TV     ,SNOWH  ,FSNO   ,FWET   , & !in
+      |                                          1
+Warning: Unused dummy argument 'snowh' at (1) [-Wunused-dummy-argument]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:543:45:
+
+  543 |   INTEGER                                :: K       !index
+      |                                             1
+Warning: Unused variable 'k' declared at (1) [-Wunused-variable]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:509:47:
+
+  509 |                         LAI    , SAI    , TROOT  , HTOP  , ELAI    , ESAI   , IGS)
+      |                                               1
+Warning: Unused dummy argument 'troot' at (1) [-Wunused-dummy-argument]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:1482:60:
+
+ 1482 |         FTDS = S2                           *(1.0-GAP) + GAP
+      |                                                            ^
+Warning: 'gap' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/noah-mp/module_sf_noahmplsm.F:1356:21:
+
+ 1356 |    REAL(rkind) :: GAP      !total gap fraction for beam ( <=1-shafac )
+      |                     ^
+note: 'gap' was declared here
+[  7%] Built target SUMMA_NOAHMP
+[  8%] Building Fortran object CMakeFiles/SUMMA_COMM.dir/source/engine/expIntegral.f90.o
+[  8%] Building Fortran object CMakeFiles/SUMMA_COMM.dir/source/dshare/var_lookup.f90.o
+[  9%] Building Fortran object CMakeFiles/SUMMA_COMM.dir/source/hookup/ascii_util.f90.o
+[ 10%] Building Fortran object CMakeFiles/SUMMA_COMM.dir/source/engine/spline_int.f90.o
+[ 12%] Building Fortran object CMakeFiles/SUMMA_COMM.dir/source/dshare/multiconst.f90.o
+[ 12%] Building Fortran object CMakeFiles/SUMMA_COMM.dir/source/engine/hyp_2F1.f90.o
+[ 13%] Building Fortran object CMakeFiles/SUMMA_COMM.dir/source/engine/soil_utils.f90.o
+[ 14%] Building Fortran object CMakeFiles/SUMMA_COMM.dir/source/engine/time_utils.f90.o
+[ 15%] Building Fortran object CMakeFiles/SUMMA_COMM.dir/source/dshare/data_types.f90.o
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/soil_utils.f90:884:28:
+
+  884 |   x_qp     = real(x,real128)
+      |                            ^
+Warning: 'x_qp.offset' is used uninitialized [-Wuninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/soil_utils.f90:879:38:
+
+  879 |   real(real128),allocatable :: x_qp(:)   ! quadruple precision x vector
+      |                                      ^
+note: 'x_qp' declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/soil_utils.f90:884:28:
+
+  884 |   x_qp     = real(x,real128)
+      |                            ^
+Warning: 'x_qp.dim[0].lbound' is used uninitialized [-Wuninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/soil_utils.f90:879:38:
+
+  879 |   real(real128),allocatable :: x_qp(:)   ! quadruple precision x vector
+      |                                      ^
+note: 'x_qp' declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/soil_utils.f90:884:28:
+
+  884 |   x_qp     = real(x,real128)
+      |                            ^
+Warning: 'x_qp.dim[0].ubound' is used uninitialized [-Wuninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/soil_utils.f90:879:38:
+
+  879 |   real(real128),allocatable :: x_qp(:)   ! quadruple precision x vector
+      |                                      ^
+note: 'x_qp' declared here
+[ 16%] Building Fortran object CMakeFiles/SUMMA_COMM.dir/source/hookup/summaFileManager.f90.o
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/soil_utils.f90:189:51:
+
+  189 |       dPsiLiq_dTemp = dPsiLiq_dEffSat*dEffSat_dTemp
+      |                                                   ^
+Warning: 'dpsiliq_deffsat' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/soil_utils.f90:133:54:
+
+  133 |   real(rkind)                       :: dPsiLiq_dEffSat                           ! derivative in liquid water matric potential w.r.t. effective saturation (m)
+      |                                                      ^
+note: 'dpsiliq_deffsat' was declared here
+[ 19%] Building Fortran object CMakeFiles/SUMMA_COMM.dir/source/dshare/globalData.f90.o
+[ 19%] Building Fortran object CMakeFiles/SUMMA_COMM.dir/source/dshare/type4ida.f90.o
+[ 19%] Building Fortran object CMakeFiles/SUMMA_COMM.dir/source/dshare/type4kinsol.f90.o
+[ 20%] Building Fortran object CMakeFiles/SUMMA_COMM.dir/source/dshare/get_ixname.f90.o
+[ 23%] Building Fortran object CMakeFiles/SUMMA_COMM.dir/source/engine/matrixOper.f90.o
+[ 24%] Building Fortran object CMakeFiles/SUMMA_COMM.dir/source/dshare/flxMapping.f90.o
+[ 24%] Building Fortran object CMakeFiles/SUMMA_COMM.dir/source/engine/soil_utilsAddPrime.f90.o
+[ 24%] Building Fortran object CMakeFiles/SUMMA_COMM.dir/source/dshare/outpt_stat.f90.o
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/soil_utilsAddPrime.f90:158:51:
+
+  158 |       dPsiLiq_dTemp = dPsiLiq_dEffSat*dEffSat_dTemp
+      |                                                   ^
+Warning: 'dpsiliq_deffsat' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/soil_utilsAddPrime.f90:94:54:
+
+   94 |   real(rkind)                       :: dPsiLiq_dEffSat                           ! derivative in liquid water matric potential w.r.t. effective saturation (m)
+      |                                                      ^
+note: 'dpsiliq_deffsat' was declared here
+[ 26%] Building Fortran object CMakeFiles/SUMMA_COMM.dir/source/dshare/popMetadat.f90.o
+[ 26%] Building Fortran object CMakeFiles/SUMMA_COMM.dir/source/engine/mDecisions.f90.o
+[ 26%] Building Fortran object CMakeFiles/SUMMA_COMM.dir/source/engine/snow_utils.f90.o
+[ 28%] Building Fortran object CMakeFiles/SUMMA_COMM.dir/source/engine/updateStateWithPrime.f90.o
+[ 28%] Building Fortran object CMakeFiles/SUMMA_COMM.dir/source/engine/updateState.f90.o
+[ 28%] Built target SUMMA_COMM
+[ 29%] Building Fortran object CMakeFiles/summa.dir/source/netcdf/netcdf_util.f90.o
+[ 30%] Building Fortran object CMakeFiles/summa.dir/source/driver/summa_type.f90.o
+[ 31%] Building Fortran object CMakeFiles/summa.dir/source/driver/summa_alarms.f90.o
+[ 32%] Building Fortran object CMakeFiles/summa.dir/source/engine/childStruc.f90.o
+[ 33%] Building Fortran object CMakeFiles/summa.dir/source/engine/allocspace.f90.o
+[ 34%] Building Fortran object CMakeFiles/summa.dir/source/engine/qTimeDelay.f90.o
+[ 35%] Building Fortran object CMakeFiles/summa.dir/source/engine/canopySnow.f90.o
+[ 36%] Building Fortran object CMakeFiles/summa.dir/source/engine/indexState.f90.o
+[ 37%] Building Fortran object CMakeFiles/summa.dir/source/engine/init_heatCap_thermCond.f90.o
+[ 38%] Building Fortran object CMakeFiles/summa.dir/source/engine/glacAreaChange.f90.o
+[ 39%] Building Fortran object CMakeFiles/summa.dir/source/engine/checkStruc.f90.o
+[ 41%] Building Fortran object CMakeFiles/summa.dir/source/engine/layerDivide.f90.o
+[ 42%] Building Fortran object CMakeFiles/summa.dir/source/engine/groundwatr.f90.o
+[ 42%] Building Fortran object CMakeFiles/summa.dir/source/engine/getVectorz.f90.o
+[ 43%] Building Fortran object CMakeFiles/summa.dir/source/engine/vegLiqFlux.f90.o
+[ 45%] Building Fortran object CMakeFiles/summa.dir/source/engine/snowLakeSoilGlceNrgFlux.f90.o
+[ 45%] Building Fortran object CMakeFiles/summa.dir/source/engine/convertEnthalpyTemp.f90.o
+[ 46%] Building Fortran object CMakeFiles/summa.dir/source/engine/bigAquifer.f90.o
+[ 47%] Building Fortran object CMakeFiles/summa.dir/source/engine/snowLakeGlceLiqFlux.f90.o
+[ 47%] Building Fortran object CMakeFiles/summa.dir/source/engine/soilLiqFlux.f90.o
+[ 48%] Building Fortran object CMakeFiles/summa.dir/source/engine/convert_funcs.f90.o
+[ 49%] Building Fortran object CMakeFiles/summa.dir/source/engine/heatCapacity.f90.o
+[ 50%] Building Fortran object CMakeFiles/summa.dir/source/engine/computeResidWithPrime.f90.o
+[ 51%] Building Fortran object CMakeFiles/summa.dir/source/engine/computeResid.f90.o
+[ 52%] Building Fortran object CMakeFiles/summa.dir/source/engine/tol4ida.f90.o
+[ 53%] Building Fortran object CMakeFiles/summa.dir/source/engine/snowLakeGlceAlbedo.f90.o
+[ 55%] Building Fortran object CMakeFiles/summa.dir/source/engine/computeJacob.f90.o
+[ 55%] Building Fortran object CMakeFiles/summa.dir/source/engine/var_derive.f90.o
+[ 56%] Building Fortran object CMakeFiles/summa.dir/source/engine/thermConductivity.f90.o
+[ 57%] Building Fortran object CMakeFiles/summa.dir/source/engine/tempAdjust.f90.o
+[ 58%] Building Fortran object CMakeFiles/summa.dir/source/engine/vegSWavRad.f90.o
+[ 60%] Building Fortran object CMakeFiles/summa.dir/source/engine/sunGeomtry.f90.o
+[ 60%] Building Fortran object CMakeFiles/summa.dir/source/engine/read_pinit.f90.o
+[ 61%] Building Fortran object CMakeFiles/summa.dir/source/engine/vegPhenlgy.f90.o
+[ 62%] Building Fortran object CMakeFiles/summa.dir/source/engine/paramCheck.f90.o
+[ 63%] Building Fortran object CMakeFiles/summa.dir/source/engine/pOverwrite.f90.o
+[ 64%] Building Fortran object CMakeFiles/summa.dir/source/engine/snowGlceDepth.f90.o
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/sunGeomtry.f90:121:26:
+
+  121 |  T2=MIN(T+DELT1,TD,TP-DDT)
+      |                          ^
+Warning: 'tp' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/sunGeomtry.f90:72:51:
+
+   72 |  real(rkind)                                  :: TP      ! used to calculate sunrise/set
+      |                                                   ^
+note: 'tp' was declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/computeJacob.f90:397:22:
+
+  397 | subroutine fluxJacAdd(
+      |                      1
+Error: Invalid character in name at (1)
+compilation terminated due to -Wfatal-errors.
+make[2]: *** [CMakeFiles/summa.dir/source/engine/computeJacob.f90.o] Error 1
+make[2]: *** Waiting for unfinished jobs....
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/init_heatCap_thermCond.f90:253:93:
+
+  253 |       mLayerThermalC(iLayer) = kerstenNum*lambda_wet + (1._rkind - kerstenNum)*lambda_drysoil
+      |                                                                                             ^
+Warning: 'lambda_drysoil' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/init_heatCap_thermCond.f90:118:50:
+
+  118 |  real(rkind)                     :: lambda_drysoil         ! thermal conductivity of dry soil (W m-1)
+      |                                                  ^
+note: 'lambda_drysoil' was declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/init_heatCap_thermCond.f90:244:160:
+
+  244 |       lambda_wet  = lambda_wetsoil**( 1._rkind - theta_sat(iSoil) ) * lambda_water**theta_sat(iSoil) * lambda_ice**(theta_sat(iSoil) - mLayerVolFracLiq(iLayer))
+      |                                                                                                                                                                ^
+Warning: 'lambda_wetsoil' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/init_heatCap_thermCond.f90:119:50:
+
+  119 |  real(rkind)                     :: lambda_wetsoil         ! thermal conductivity of wet soil (W m-1)
+      |                                                  ^
+note: 'lambda_wetsoil' was declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/thermConductivity.f90:275:101:
+
+  275 |               mLayerThermalC(iLayer) = kerstenNum*lambda_wet + (1._rkind - kerstenNum)*lambda_drysoil
+      |                                                                                                     ^
+Warning: 'lambda_drysoil' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/thermConductivity.f90:135:56:
+
+  135 |   real(rkind)                          :: lambda_drysoil           ! thermal conductivity of dry soil (W m-1)
+      |                                                        ^
+note: 'lambda_drysoil' was declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/thermConductivity.f90:260:168:
+
+  260 |               lambda_wet  = lambda_wetsoil**( 1._rkind - theta_sat(iSoil) ) * lambda_water**theta_sat(iSoil) * lambda_ice**(theta_sat(iSoil) - mLayerVolFracLiq(iLayer))
+      |                                                                                                                                                                        ^
+Warning: 'lambda_wetsoil' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/thermConductivity.f90:136:56:
+
+  136 |   real(rkind)                          :: lambda_wetsoil           ! thermal conductivity of wet soil (W m-1)
+      |                                                        ^
+note: 'lambda_wetsoil' was declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/thermConductivity.f90:288:150:
+
+  288 |               dThermalC_dWat(iLayer) = lambda_ice*dVolFracIce_dWat + lambda_water*dVolFracLiq_dWat + lambda_air*(-dVolFracIce_dWat - dVolFracLiq_dWat)
+      |                                                                                                                                                      ^
+Warning: 'dvolfracice_dwat' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/thermConductivity.f90:148:58:
+
+  148 |   real(rkind)                          :: dVolFracIce_dWat         ! derivative in vol fraction of ice w.r.t. water state variable
+      |                                                          ^
+note: 'dvolfracice_dwat' was declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/thermConductivity.f90:288:150:
+
+  288 |               dThermalC_dWat(iLayer) = lambda_ice*dVolFracIce_dWat + lambda_water*dVolFracLiq_dWat + lambda_air*(-dVolFracIce_dWat - dVolFracLiq_dWat)
+      |                                                                                                                                                      ^
+Warning: 'dvolfracliq_dwat' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/thermConductivity.f90:147:58:
+
+  147 |   real(rkind)                          :: dVolFracLiq_dWat         ! derivative in vol fraction of liquid w.r.t. water state variable
+      |                                                          ^
+note: 'dvolfracliq_dwat' was declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/convertEnthalpyTemp.f90:1514:75:
+
+ 1514 |     err = 20;message = trim(message)//'convergence was not attained';return
+      |                                                                           ^
+Warning: '__result_brent0' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/convertEnthalpyTemp.f90:1350:0:
+
+ 1350 | function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message, use_lookup, lookup_data, ixControlIndex)
+note: '__result_brent0' was declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/vegSWavRad.f90:915:112:
+
+  915 |   scalarCanopyShadedPAR = (visibleAbsDirect + visibleAbsDiffuse) * fractionLAI / max(scalarCanopyShadedLAI, mpe)
+      |                                                                                                                ^
+Warning: 'visibleabsdiffuse' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/vegSWavRad.f90:435:59:
+
+  435 |  real(rkind)                           :: visibleAbsDiffuse                  ! diffuse radiation absorbed in the visible part of the spectrum (W m-2)
+      |                                                           ^
+note: 'visibleabsdiffuse' was declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/vegSWavRad.f90:915:112:
+
+  915 |   scalarCanopyShadedPAR = (visibleAbsDirect + visibleAbsDiffuse) * fractionLAI / max(scalarCanopyShadedLAI, mpe)
+      |                                                                                                                ^
+Warning: 'visibleabsdirect' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/vegSWavRad.f90:434:58:
+
+  434 |  real(rkind)                           :: visibleAbsDirect                   ! direct-beam radiation absorbed in the visible part of the spectrum (W m-2)
+      |                                                          ^
+note: 'visibleabsdirect' was declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/getVectorz.f90:535:56:
+
+  535 |         if(stateVec( ixSnLaSoGlHyd(iLayer) ) < xMin .or. stateVec( ixSnLaSoGlHyd(iLayer) ) > xMax)then
+      |                                                        ^
+Warning: 'xmax' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/getVectorz.f90:427:46:
+
+  427 |   real(rkind)                     :: xMin,xMax                 ! minimum and maximum values for water content
+      |                                              ^
+note: 'xmax' was declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/soilLiqFlux.f90:2116:85:
+
+ 2116 |   dq_dHyd    = out_surfaceFlux % dq_dHydStateVec ! ... w.r.t hydrology state variable
+      |                                                                                     ^
+Warning: 'dq_dhyd.offset' is used uninitialized [-Wuninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/soilLiqFlux.f90:2108:39:
+
+ 2108 |   real(rkind),allocatable :: dq_dHyd(:)    ! ... w.r.t hydrology state variable
+      |                                       ^
+note: 'dq_dhyd' declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/soilLiqFlux.f90:2116:85:
+
+ 2116 |   dq_dHyd    = out_surfaceFlux % dq_dHydStateVec ! ... w.r.t hydrology state variable
+      |                                                                                     ^
+Warning: 'dq_dhyd.dim[0].lbound' is used uninitialized [-Wuninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/soilLiqFlux.f90:2108:39:
+
+ 2108 |   real(rkind),allocatable :: dq_dHyd(:)    ! ... w.r.t hydrology state variable
+      |                                       ^
+note: 'dq_dhyd' declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/soilLiqFlux.f90:2116:85:
+
+ 2116 |   dq_dHyd    = out_surfaceFlux % dq_dHydStateVec ! ... w.r.t hydrology state variable
+      |                                                                                     ^
+Warning: 'dq_dhyd.dim[0].ubound' is used uninitialized [-Wuninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/soilLiqFlux.f90:2108:39:
+
+ 2108 |   real(rkind),allocatable :: dq_dHyd(:)    ! ... w.r.t hydrology state variable
+      |                                       ^
+note: 'dq_dhyd' declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/convertEnthalpyTemp.f90:1306:92:
+
+ 1306 |       denthLiq_dWat  = iden_water * Cp_water * (dintegral_unf_dWat - dintegral_frz_low_dWat)
+      |                                                                                            ^
+Warning: 'dintegral_frz_low_dwat' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/convertEnthalpyTemp.f90:1181:60:
+
+ 1181 |   real(rkind)                      :: dintegral_frz_low_dWat ! derivative of integral of frozen soil water content with water content
+      |                                                            ^
+note: 'dintegral_frz_low_dwat' was declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/convertEnthalpyTemp.f90:1320:34:
+
+ 1320 |     dTemp_dEnthalpy = dT_dEnthalpy
+      |                                  ^
+Warning: 'dt_denthalpy' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/convertEnthalpyTemp.f90:1182:50:
+
+ 1182 |   real(rkind)                      :: dT_dEnthalpy           ! derivative of temperature with enthalpy state variable
+      |                                                  ^
+note: 'dt_denthalpy' was declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/convertEnthalpyTemp.f90:1322:29:
+
+ 1322 |     dTemp_dPsi0     = dT_dWat
+      |                             ^
+Warning: 'dt_dwat' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/convertEnthalpyTemp.f90:1183:45:
+
+ 1183 |   real(rkind)                      :: dT_dWat                ! derivative of temperature with water state variable
+      |                                             ^
+note: 'dt_dwat' was declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/convertEnthalpyTemp.f90:1096:34:
+
+ 1096 |     dTemp_dEnthalpy = dT_dEnthalpy
+      |                                  ^
+Warning: 'dt_denthalpy' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/convertEnthalpyTemp.f90:1025:50:
+
+ 1025 |   real(rkind)                      :: dT_dEnthalpy       ! derivative of temperature with enthalpy state variable
+      |                                                  ^
+note: 'dt_denthalpy' was declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/convertEnthalpyTemp.f90:1097:29:
+
+ 1097 |     dTemp_dTheta    = dT_dWat
+      |                             ^
+Warning: 'dt_dwat' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/convertEnthalpyTemp.f90:1026:45:
+
+ 1026 |   real(rkind)                      :: dT_dWat            ! derivative of temperature with water state variable
+      |                                             ^
+note: 'dt_dwat' was declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/convertEnthalpyTemp.f90:970:40:
+
+  970 |     dCanopyTemp_dEnthalpy = dT_dEnthalpy
+      |                                        ^
+Warning: 'dt_denthalpy' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/convertEnthalpyTemp.f90:907:50:
+
+  907 |   real(rkind)                      :: dT_dEnthalpy       ! derivative of temperature with enthalpy state variable
+      |                                                  ^
+note: 'dt_denthalpy' was declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/convertEnthalpyTemp.f90:971:35:
+
+  971 |     dCanopyTemp_dCanWat   = dT_dWat
+      |                                   ^
+Warning: 'dt_dwat' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/convertEnthalpyTemp.f90:908:45:
+
+  908 |   real(rkind)                      :: dT_dWat            ! derivative of temperature with water state variable
+      |                                             ^
+note: 'dt_dwat' was declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/soilLiqFlux.f90:1677:149:
+
+ 1677 |      dgammp_dx_crit = ( (x_crit/theta)**(alpha-1._rkind) * exp(-x_crit/theta) )/theta/gamma(alpha) ! derivative of gammp function in Ac w.r.t x_crit
+      |                                                                                                                                                     ^
+Warning: 'theta' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/soilLiqFlux.f90:1507:22:
+
+ 1507 |   real(rkind) :: theta  ! scale
+      |                      ^
+note: 'theta' was declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/soilLiqFlux.f90:1677:149:
+
+ 1677 |      dgammp_dx_crit = ( (x_crit/theta)**(alpha-1._rkind) * exp(-x_crit/theta) )/theta/gamma(alpha) ! derivative of gammp function in Ac w.r.t x_crit
+      |                                                                                                                                                     ^
+Warning: 'x_crit' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/soilLiqFlux.f90:1508:23:
+
+ 1508 |   real(rkind) :: x_crit ! critical x (random variable) value
+      |                       ^
+note: 'x_crit' was declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/soilLiqFlux.f90:1674:146:
+
+ 1674 |      dzeta_crit_dzeta_crit_n = ( n*zeta_crit_n**(n-1._rkind) ) / zeta_crit_n**n    ! derivative of zeta_crit=log(zeta_crit_n**n) w.r.t zeta_crit_n
+      |                                                                                                                                                  ^
+Warning: 'zeta_crit_n' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/soilLiqFlux.f90:1511:28:
+
+ 1511 |   real(rkind) :: zeta_crit_n ! critical topographic index value (power-transfomred)
+      |                            ^
+note: 'zeta_crit_n' was declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/soilLiqFlux.f90:1673:117:
+
+ 1673 |      dzeta_crit_n_dS2 = -lambda_n%re*S2_max/S2**2_i4b ! derivative of zeta_crit_n=lambda_n%re*S2_max/S2 w.r.t S2
+      |                                                                                                                     ^
+Warning: 'REALPART_EXPR <lambda_n>' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/soilLiqFlux.f90:1514:28:
+
+ 1514 |   complex(rkind) :: lambda_n ! mean of the power-transformed topographic index
+      |                            ^
+note: 'REALPART_EXPR <lambda_n>' was declared here
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/allocspace.f90:274:12:
+
+  274 |     if(.not.spatial) exit gruLoop  ! no need to allocate spatial dimensions if none exist for a given variable
+      |            ^
+Warning: 'spatial' may be used uninitialized [-Wmaybe-uninitialized]
+/Users/amedin/Research/SummaSundials/summa/build/source/engine/allocspace.f90:111:44:
+
+  111 |   logical(lgt)                    :: spatial        ! spatial flag
+      |                                            ^
+note: 'spatial' was declared here
+make[1]: *** [CMakeFiles/summa.dir/all] Error 2
+make: *** [all] Error 2

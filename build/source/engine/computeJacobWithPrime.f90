@@ -50,7 +50,6 @@ USE globalData,only:iname_watLayer   ! named variable defining the total water s
 USE globalData,only:maxVolIceContent ! snow maximum volumetric ice content to store water (-)
 
 ! access named variables to describe the form and structure of the matrices used in the numerical solver
-USE globalData,only: ku             ! number of super-diagonal bands, assume ku>=3
 USE globalData,only: kl             ! number of sub-diagonal bands, assume kl>=4
 USE globalData,only: ixDiag         ! index for the diagonal band
 USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix
@@ -213,6 +212,7 @@ subroutine computeJacobWithPrime(&
     ! derivatives in net vegetation energy fluxes w.r.t. relevant state variables
     dCanopyNetFlux_dCanWat       => deriv_data%var(iLookDERIV%dCanopyNetFlux_dCanWat      )%dat(1)  ,& ! intent(in): [dp]     derivative in net canopy fluxes w.r.t. canopy total water content
     ! derivatives in canopy water w.r.t canopy temperature
+    dTheta_dTkCanopy             => deriv_data%var(iLookDERIV%dTheta_dTkCanopy            )%dat(1)  ,& ! intent(in): [dp]     derivative of volumetric liquid water content w.r.t. temperature
     d2Theta_dTkCanopy2           => deriv_data%var(iLookDERIV%d2Theta_dTkCanopy2          )%dat(1)  ,& ! intent(in): [dp]     second derivative of volumetric liquid water content w.r.t. temperature
     dFracLiqVeg_dTkCanopy        => deriv_data%var(iLookDERIV%dFracLiqVeg_dTkCanopy       )%dat(1)  ,& ! intent(in): [dp]     derivative in fraction of (throughfall + drainage)  w.r.t. temperature
     ! derivatives in energy fluxes at the interface of layers w.r.t. water state in layers above and below
@@ -250,6 +250,7 @@ subroutine computeJacobWithPrime(&
     mLayerFracLiq                => diag_data%var(iLookDIAG%mLayerFracLiq                 )%dat     ,& ! intent(in): [dp(:)]  fraction of liquid water in each snow, lake, or ice layer (-)
     mLayerVolHtCapBulk           => diag_data%var(iLookDIAG%mLayerVolHtCapBulk            )%dat     ,& ! intent(in): [dp(:)]  bulk volumetric heat capacity in each layer (J m-3 K-1)
     mLayerCm                     => diag_data%var(iLookDIAG%mLayerCm                      )%dat     ,& ! intent(in): [dp(:)]  Cm in each layer (J kg-1 K-1)
+    mLayerVolFracIce             => prog_data%var(iLookPROG%mLayerVolFracIce              )%dat     ,& ! intent(in): [dp(:)]  volumetric fraction of ice in each layer start of step (-)
     ! canopy and layer depth
     canopyDepth                  => diag_data%var(iLookDIAG%scalarCanopyDepth             )%dat(1)  ,& ! intent(in): [dp   ]  canopy depth (m)
     mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth                   )%dat      & ! intent(in): [dp(:)]  depth of each layer in the sub-domain (m)
