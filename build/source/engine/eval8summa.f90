@@ -1053,7 +1053,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           end select
           scalarIce = merge(stateVecPrev(ixSnLaSoGlHyd(iLayer)) - scalarLiq,mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
           iceFlux_possible = 0._rkind
-          !if(ixStateType_subset( ixSnLaSoGlHyd(iLayer) ) == iname_watLayer .and. jLayer> nSnow) iceFlux_possible = 1._rkind
+          if(ixStateType_subset( ixSnLaSoGlHyd(iLayer) ) == iname_watLayer .and. jLayer> nSnow) iceFlux_possible = 1._rkind
           ! checking if drain more than what is available or add more than possible, constrained iteration increment -- simplified bi-section
           if(-xInc(ixSnLaSoGlHyd(iLayer)) > scalarLiq + scalarIce*iceFlux_possible) then
             xInc(ixSnLaSoGlHyd(iLayer)) = -0.5_rkind*(scalarLiq + scalarIce*iceFlux_possible)
