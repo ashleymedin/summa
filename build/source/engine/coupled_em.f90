@@ -1103,13 +1103,12 @@ subroutine coupled_em(&
 
       ! handle special case of the step failure
       ! NOTE: need to revert back to the previous state vector that we were happy with and reduce the time step
-      ! TODO: ask isn't this what the actors program does without the code block below
       if(stepFailure)then
         ! halve whole_step, for more frequent outer loop updates
         whole_step = dtSave/2._rkind
         ! check that the step is not tiny
         if(whole_step < minstep)then
-          print*,ixSolution
+          print*, 'ixSolution', ixSolution
           print*, 'dtSave, dt_sub', dtSave, whole_step
           message=trim(message)//'length of the coupled step is below the minimum step length'
           err=20; return
@@ -1251,7 +1250,7 @@ subroutine coupled_em(&
             whole_step = dtSave/2._rkind
             ! check that the step is not tiny
             if(whole_step < minstep)then
-              print*,ixSolution
+              print*, 'ixSolution', ixSolution
               print*, 'dtSave, dt_sub', dtSave, whole_step
               message=trim(message)//'length of the coupled step is below the minimum step length'
               err=20; return
