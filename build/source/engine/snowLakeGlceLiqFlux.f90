@@ -72,7 +72,7 @@ subroutine snowLakeGlceLiqFlux(&
   USE snow_utils_module,only:fracliquid         ! compute the fraction of liquid water (snow)
   implicit none
   ! input: model control, forcing, and model state vector
-  type(in_type_snowLakeGlceLiqFlux)          :: in_snowLakeGlceLiqFlux              ! model control, forcing, and model state vector
+  type(in_type_snowLakeGlceLiqFlux) :: in_snowLakeGlceLiqFlux     ! model control, forcing, and model state vector
   ! input-output: data structures
   type(var_dlength),intent(in)      :: mpar_data                  ! model parameters
   type(var_ilength),intent(in)      :: indx_data                  ! model indices
@@ -84,7 +84,7 @@ subroutine snowLakeGlceLiqFlux(&
   type(out_type_snowLakeGlceLiqFlux)         :: out_snowLakeGlceLiqFlux             ! error control
   ! ------------------------------------------------------------------------------------------------------------------------------------------
   ! local variables
-  integer(i4b)                      :: nLayers,nStart             ! number of snow/glce layers and starting layer
+  integer(i4b)                      :: nLayers,nStart             ! number of snow/glce layers with water movement and starting layer
   integer(i4b)                      :: iLayer                     ! layer index
   integer(i4b)                      :: ixLayerDesired(1)          ! layer desired (scalar solution)
   integer(i4b)                      :: ixTop                      ! top layer in subroutine call
@@ -218,8 +218,8 @@ subroutine snowLakeGlceLiqFlux(&
       if(ixTop==1) ixTop = 0 ! include the 0 index if the top layer is included, since surface flux downwards is 0 (impermeable) 
       do iLayer=ixBot,ixTop,-1 ! loop through glacier ice layers
         ! ** liquid water goes up since glacier ice is impermeable (upwards direction is negative)
-        if (iLayer == nLayers) then ! bottom layer
-          iLayerLiqFluxSnLaGl(iLayer) = 0._rkind ! no liquid water flux at the bottom of the glacier ice layer
+        if (iLayer == nLayers) then ! bottom layer (note, this is nGlce-noThetaChange)
+          iLayerLiqFluxSnLaGl(iLayer) = 0._rkind ! no liquid water flux at the bottom of the nGlce-noThetaChange glacier ice layer
           iLayerLiqFluxSnLaGlDeriv(iLayer) = 0._rkind
         else  ! not the bottom layer
           availCap  = min(mLayerVolFracLiqTrial(iLayer+1),mLayerThetaResid(iLayer+1)) ! available capacity

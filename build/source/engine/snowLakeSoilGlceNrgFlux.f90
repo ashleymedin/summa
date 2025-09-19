@@ -110,6 +110,7 @@ subroutine snowLakeSoilGlceNrgFlux(&
   integer(i4b)                        :: ixBot                      ! bottom layer in subroutine call
   real(rkind)                         :: qFlux                      ! liquid flux at layer interfaces (m s-1)
   real(rkind)                         :: dz                         ! height difference (m)
+  logical(lgt)                        :: zeroFlux_noThetaBdry       ! flag to denote if zero flux at noThetaChange boundary
   ! ------------------------------------------------------------------------------------------------------------------------------------------------------
   ! allocate intent(out) data structure components
   nLayers=indx_data%var(iLookINDEX%nLayers)%dat(1)
@@ -188,9 +189,11 @@ subroutine snowLakeSoilGlceNrgFlux(&
     ! -------------------------------------------------------------------------------------------------------------------------
     ! ***** compute the conductive fluxes at layer interfaces *****
     ! -------------------------------------------------------------------------------------------------------------------------
+    zeroFlux_noThetaBdry = .false.
     do iLayer=ixTop,ixBot
-      if(layerType(iLayer)==iname_glce .and. iLayer==nLayers-noThetaChange .and. iLayerThermalC(iLayer)>0._rkind .and. mLayerTempTrial(iLayer-1)>=Tfreeze)then
+      if(layerType(iLayer)==iname_glce .and. iLayer==nLayers-noThetaChange .and. iLayerThermalC(iLayer)>0._rkind .and. mLayerTempTrial(iLayer)>=Tfreeze)then
       !if(layerType(iLayer)==iname_glce .and. iLayer==nLayers-noThetaChange .and. iLayerThermalC(iLayer)>0._rkind)then
+        zeroFlux_noThetaBdry = .true.
         iLayerConductiveFlux(iLayer) = 0._rkind ! all melt energy absorbed in top layers of glacier ice
       elseif (iLayer==nLayers) then ! lower boundary fluxes -- positive downwards 
       ! flux depends on the type of lower boundary condition
@@ -213,7 +216,7 @@ subroutine snowLakeSoilGlceNrgFlux(&
         case(iname_soil);                       qFlux = iLayerLiqFluxSoil(iLayer-nSnow-nLake)
         case default; err=20; message=trim(message)//'unable to identify layer type'; return
       end select
-      if(layerType(iLayer)==iname_glce .and. iLayer==nLayers-noThetaChange .and. iLayerThermalC(iLayer)>0._rkind .and. mLayerTempTrial(iLayer-1)>=Tfreeze)then
+      if(layerType(iLayer)==iname_glce .and. iLayer==nLayers-noThetaChange .and. iLayerThermalC(iLayer)>0._rkind .and. mLayerTempTrial(iLayer)>=Tfreeze)then
       !if(layerType(iLayer)==iname_glce .and. iLayer==nLayers-noThetaChange .and. iLayerThermalC(iLayer)>0._rkind)then
         iLayerAdvectiveFlux(iLayer) = 0._rkind ! all melt energy absorbed in top layers of glacier ice
       elseif (iLayer==nLayers) then ! compute fluxes at the lower boundary -- positive downwards
@@ -269,14 +272,14 @@ subroutine snowLakeSoilGlceNrgFlux(&
 
     ! loop through INTERFACES...
     do iLayer=ixTop,ixBot
-      if(layerType(iLayer)==iname_glce .and. iLayer==nLayers-noThetaChange .and. iLayerThermalC(iLayer)>0._rkind)then
-            dFlux_dWatAbove(iLayer) = 0._rkind
-            dFlux_dTempAbove(iLayer) = 0._rkind
-            if(iLayer<nLayers)then
+      if(layerType(iLayer)==iname_glce .and. iLayer==nLayers-noThetaChange .and. zeroFlux_noThetaBdry)then
+            dFlux_dWatAbove(iLayer) = 0._rkind  ! same as lowerBoundTemp being Tfreeze
+            dFlux_dTempAbove(iLayer) = 0._rkind ! same as lowerBoundTemp being Tfreeze and iLayerThermalC(iLayer) being 0
+            !if(iLayer<nLayers)then
               dz = (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
-              dFlux_dWatBelow(iLayer)  = -dThermalC_dWatBelow(iLayer) * ( mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer) )/dz
-              dFlux_dTempBelow(iLayer) = -dThermalC_dTempBelow(iLayer) * ( mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer) )/dz - iLayerThermalC(iLayer)/dz
-            end if
+              dFlux_dWatBelow(iLayer)  = 0._rkind !?? -dThermalC_dWatBelow(iLayer) * ( mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer) )/dz
+              dFlux_dTempBelow(iLayer) = 0._rkind !?? -dThermalC_dTempBelow(iLayer) * ( mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer) )/dz - iLayerThermalC(iLayer)/dz
+            !end if
       ! ***** the lower boundary
       elseif (iLayer==nLayers) then  ! if lower boundary
         ! identify the lower boundary condition
@@ -290,6 +293,10 @@ subroutine snowLakeSoilGlceNrgFlux(&
             dFlux_dTempAbove(iLayer) = 0._rkind
           case default; err=20; message=trim(message)//'unable to identify lower boundary condition for thermodynamics'; return
         end select  ! end identifying the lower boundary condition for thermodynamics
+        !f (layerType(iLayer)==iname_glce) then
+        ! dFlux_dWatAbove(iLayer) = 0._rkind !??
+        ! dFlux_dTempAbove(iLayer) = 0._rkind !??
+        !nd if
       ! ***** internal layers
       else
         dz = (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
