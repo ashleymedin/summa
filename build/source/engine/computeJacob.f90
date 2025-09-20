@@ -321,7 +321,7 @@ subroutine computeJacob(&
         ! - define state indices for the current layer
         watState = ixSnLaSoGlHyd(jLayer)   ! hydrology state index within the state subset
 
-        if(watstate/=integerMissing)then       ! (water state for the current layer is within the state subset)
+        if(watState/=integerMissing)then       ! (water state for the current layer is within the state subset)
           ! - include derivatives of energy fluxes w.r.t water fluxes for current layer
           aJac(ixInd(nrgState,watState),watState) = (-1._rkind + mLayerFracLiq(jLayer))*LH_fus*iden_water  &
                                      + dVolHtCapBulk_dTheta(jLayer) * mLayerdTemp_dt(jLayer) + mLayerCm(jLayer) &
@@ -348,7 +348,7 @@ subroutine computeJacob(&
         watState = ixSoilOnlyHyd(iLayer)
 
         ! only compute derivatives if the water state for the current layer is within the state subset
-        if(watstate/=integerMissing)then
+        if(watState/=integerMissing)then
           ! - include derivatives in energy fluxes w.r.t. with respect to water for current layer
           aJac(ixInd(nrgState,watState),watState) = dVolHtCapBulk_dPsi0(iLayer) * mLayerdTemp_dt(jLayer) &
                                                        + mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) + dCm_dPsi0(iLayer) * mLayerdWat_dt(jLayer) &
@@ -395,10 +395,9 @@ end subroutine computeJacob
 ! ***********************************************************************************************************
 ! public subroutine to compute flux parts of the Jacobian that are shared between IDA and BE
 ! ***********************************************************************************************************
-
 subroutine fluxJacAdd(&
                       ! input: model control
-                      fullMatrix,                 & ! intent(in):    flag to indicate if the matrix is full (true) or banded (false)
+                      passed_fullMatrix,          & ! intent(in):    flag to indicate if the matrix is full (true) or banded (false)
                       maxVolIceContent_use,       & ! intent(in):    maximum volumetric ice content depending if snow or firn
                       dt,                         & ! intent(in):    length of the time step (seconds)
                       nSnow,                      & ! intent(in):    number of snow layers
@@ -422,7 +421,7 @@ subroutine fluxJacAdd(&
   ! -----------------------------------------------------------------------------------------------------------------
   implicit none
   ! input: model control
-  logical(lgt),intent(in)              :: fullMatrix                 ! flag to indicate if the matrix is full (true) or banded (false)
+  logical(lgt),intent(in)              :: passed_fullMatrix          ! flag to indicate if the matrix is full (true) or banded (false)
   real(rkind),intent(in)               :: maxVolIceContent_use       ! maximum volumetric ice content depending if snow or firn
   real(rkind),intent(in)               :: dt                         ! length of the time step (seconds)
   integer(i4b),intent(in)              :: nSnow                      ! number of snow layers
@@ -560,6 +559,7 @@ subroutine fluxJacAdd(&
     ! --------------------------------------------------------------
     ! initialize error control
     err=0; message='fluxJacAdd/'
+    fullMatrix = passed_fullMatrix ! local copy of the flag to indicate if the matrix is full (true) or banded (false)
     ! -----
     ! * energy and liquid fluxes over vegetation...
     ! ---------------------------------------------
@@ -674,12 +674,12 @@ subroutine fluxJacAdd(&
           case default;         convLiq2tot = 1._rkind
         end select
 
-        ! - diagonal elements, water does not move into snow from below (currently) or out from snow above
-        ! ** water passes through solid, so -dq_dHydStateBelow(iLayer-1) = iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot also
-        ! if unfrozen lake then dq_HydStateBelow(0) should be some spillover from below, FIX with lakes        
-        aJac(ixInd(watState,watState),watState) = (dt/mLayerDepth(jLayer))*iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot + dMat(watState)
+        ! - diagonal elements, water does not move upwards in snow or downwards in ice
+        ! NOTE: if unfrozen lake then dq_dHydStateBelow(0) should be some spillover from below, FIX with lakes  
+        if(.not.solid) aJac(ixInd(watState,watState),watState) = (dt/mLayerDepth(jLayer))*iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot + dMat(watState)
+        if(solid) aJac(ixInd(watState,watState),watState) = (dt/mLayerDepth(jLayer))*(-iLayerLiqFluxSnLaGlDeriv(jLayer-1)*convLiq2tot) + dMat(watState)
 
-        ! - sub-diagonal elements for snow, sub-diagaonal only (water does not move upwards in snow)
+        ! - sub-diagonal elements for snow, sub-diagonal only (water does not move upwards in snow)
         if(iLayer<endLayer .and. qLayer<=nSnow)then
           denseLimit=jLayer ! if passing through a too dense snowpack, need to find bottom dense layer (always do bottom layer)
           do pLayer=jLayer+1,nSnow-1
@@ -688,17 +688,17 @@ subroutine fluxJacAdd(&
           end do
           if(ixSnLaSoGlHyd(denseLimit+1)/=integerMissing)then
             if((mLayerVolFracIce(jLayer)>maxVolIceContent_use .and. denseLimit>jLayer) .or. denseLimit==jLayer)then ! layers including this one ice locked, or layer below not ice locked
-              if(ixSnLaSoGlHyd(denseLimit+1) - watstate <= kl .or. fullMatrix) &
+              if(ixSnLaSoGlHyd(denseLimit+1) - watState <= kl .or. fullMatrix) &
                   aJac(ixInd(ixSnLaSoGlHyd(denseLimit+1),watState),watState) = -(dt/mLayerDepth(denseLimit+1))*iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot  ! dVol(below)/dLiq(above)
             endif
           endif
         endif
 
-        ! - super-diagonal elements for ice, super-diagaonal only (water does not move downwards in ice)
+        ! - super-diagonal elements for ice, super-diagonal only (water does not move downwards in ice)
         if(qLayer>nSnow .and. solid)then
           if(iLayer>1)then 
             if(ixSnLaSoGlHyd(1)/=integerMissing)then
-              if(watstate - ixSnLaSoGlHyd(1) <= ku .or. fullMatrix) &
+              if(watState - ixSnLaSoGlHyd(1) <= ku .or. fullMatrix) &
                   aJac(ixInd(ixSnLaSoGlHyd(1),watState),watState) = (dt/mLayerDepth(1))*(-iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot)  ! dVol(above)/dLiq(below)
             endif
           elseif(nSoil>0 .and. qLayer>nSnow+nLake)then ! glce top layer with soil above, same as layer above not being ice locked (ku>=3 so always include)
@@ -735,13 +735,13 @@ subroutine fluxJacAdd(&
         ! - define state indices for the current layer
         watState = ixSnLaSoGlHyd(jLayer)   ! hydrology state index within the state subset
 
-        if(watstate/=integerMissing)then       ! (water state for the current layer is within the state subset)
-          ! - include derivatives of water fluxes w.r.t energy fluxes for current layer
-          ! ** water passes through solid, so -dq_dNrgStateBelow(iLayer-1) = iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer) also
-          ! if unfrozen lake then dq_dNrgStateBelow(0) should be some spillover from below, FIX with lakes        
-          aJac(ixInd(watState,nrgState),nrgState) = (dt/mLayerDepth(jLayer))*iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer)  ! (dVol/dT)
+        if(watState/=integerMissing)then       ! (water state for the current layer is within the state subset)
+          ! - include derivatives of water fluxes w.r.t energy fluxes for current layer, water does not move upwards in snow or downwards in ice
+          ! NOTE: if unfrozen lake then dq_dNrgStateBelow(0) should be some spillover from below, FIX with lakes  
+          if(.not.solid) aJac(ixInd(watState,nrgState),nrgState) = (dt/mLayerDepth(jLayer))*iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer)  ! (dVol/dT)
+          if(solid) aJac(ixInd(watState,nrgState),nrgState) = (dt/mLayerDepth(jLayer))*(-iLayerLiqFluxSnLaGlDeriv(jLayer-1)*mLayerdTheta_dTk(jLayer))  ! (dVol/dT)
 
-          ! - sub-diagonal elements for snow, sub-diagaonal only (water does not move upwards in snow)
+          ! - sub-diagonal elements for snow, sub-diagonal only (water does not move upwards in snow)
           if(iLayer<endLayer .and. qLayer<=nSnow)then
             denseLimit=jLayer ! if passing through a too dense snowpack, need to find bottom dense layer (always do bottom layer)
             do pLayer=jLayer+1,nSnow-1
@@ -750,17 +750,17 @@ subroutine fluxJacAdd(&
             end do
             if(ixSnLaSoGlHyd(denseLimit+1)/=integerMissing)then
               if((mLayerVolFracIce(jLayer)>maxVolIceContent_use .and. denseLimit>jLayer) .or. denseLimit==jLayer)then ! layers including this one ice locked, or layer below not ice locked
-                if(ixSnLaSoGlHyd(denseLimit+1) - nrgstate <= kl .or. fullMatrix) &
+                if(ixSnLaSoGlHyd(denseLimit+1) - nrgState <= kl .or. fullMatrix) &
                     aJac(ixInd(ixSnLaSoGlHyd(denseLimit+1),nrgState),nrgState) = -(dt/mLayerDepth(denseLimit+1))*iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer)  ! dVol(below)/dT(above)
               endif
             endif
           endif              
 
-          ! - super-diagonal elements for ice, super-diagaonal only (water does not move downwards in ice)
+          ! - super-diagonal elements for ice, super-diagonal only (water does not move downwards in ice)
           if(qLayer>nSnow .and. solid)then
             if(iLayer>1)then 
               if(ixSnLaSoGlHyd(1)/=integerMissing)then
-                if(nrgstate - ixSnLaSoGlHyd(1) <= ku .or. fullMatrix) &
+                if(nrgState - ixSnLaSoGlHyd(1) <= ku .or. fullMatrix) &
                     aJac(ixInd(ixSnLaSoGlHyd(1),nrgState),nrgState) = (dt/mLayerDepth(1))*(-iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer))  ! dVol(above)/dT(below)
               endif
             elseif(nSoil>0 .and. qLayer>nSnow+nLake)then ! glce top layer with soil above, same as layer above not being ice locked (ku>=3 so always include)
@@ -913,7 +913,7 @@ subroutine fluxJacAdd(&
         watState = ixSoilOnlyHyd(iLayer)
 
         ! only compute derivatives if the water state for the current layer is within the state subset
-        if(watstate/=integerMissing)then
+        if(watState/=integerMissing)then
           ! - include derivatives in liquid water fluxes w.r.t. temperature for current layer
           aJac(ixInd(watState,nrgState),nrgState) = (dt/mLayerDepth(jLayer))*(-dq_dNrgStateBelow(iLayer-1) + dq_dNrgStateAbove(iLayer))   ! dVol/dT (K-1) -- flux depends on ice impedance
 

@@ -48,11 +48,11 @@ contains
  ! input variables
  integer(i4b),intent(in)         :: ixMatrix          ! type of matrix (full Jacobian or band diagonal)
  integer(i4b),intent(in)         :: nState            ! number of state variables
- real(rkind),intent(in)             :: aJac(:,:)         ! original Jacobian matrix
- real(rkind),intent(in)             :: fScale(:)         ! characteristic scale of the function evaluations
- real(rkind),intent(in)             :: xScale(:)         ! characteristic scale of the state vector
+ real(rkind),intent(in)          :: aJac(:,:)         ! original Jacobian matrix
+ real(rkind),intent(in)          :: fScale(:)         ! characteristic scale of the function evaluations
+ real(rkind),intent(in)          :: xScale(:)         ! characteristic scale of the state vector
  ! output variables
- real(rkind),intent(out)            :: aJacScaled(:,:)   ! scaled Jacobian matrix
+ real(rkind),intent(out)         :: aJacScaled(:,:)   ! scaled Jacobian matrix
  integer(i4b),intent(out)        :: err               ! error code
  character(*),intent(out)        :: message           ! error message
  ! ---------------------------------------------------------------------------------------------------------
@@ -107,10 +107,10 @@ contains
  ! input
  integer(i4b),intent(in)        :: ixMatrix   ! type of matrix (full Jacobian or band diagonal)
  integer(i4b),intent(in)        :: nState     ! number of state variables
- real(rkind),intent(in)            :: aJac(:,:)  ! jacobian matrix
- real(rkind),intent(in)            :: rVec(:)    ! residual vector
+ real(rkind),intent(in)         :: aJac(:,:)  ! jacobian matrix
+ real(rkind),intent(in)         :: rVec(:)    ! residual vector
  ! output
- real(rkind),intent(out)           :: grad(:)    ! gradient
+ real(rkind),intent(out)        :: grad(:)    ! gradient
  integer(i4b),intent(out)       :: err        ! error code
  character(*),intent(out)       :: message    ! error message
  ! local

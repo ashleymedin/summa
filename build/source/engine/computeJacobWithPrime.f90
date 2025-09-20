@@ -295,7 +295,7 @@ subroutine computeJacobWithPrime(&
                                        + LH_fus*iden_water * mLayerTempPrime(iLayer) * mLayerd2Theta_dTk2(iLayer) &
                                        + LH_fus*iden_water * dFracLiqWat_dTk(iLayer) * mLayerVolFracWatPrime(iLayer)
 
-       if(ixSnLaSoGlHyd(iLayer)/=integerMissing) dMat(ixSnLaSoGlHyd(iLayer)) = dMat(ixSnLaSoGlHyd(iLayer)) * cj
+      if(ixSnLaSoGlHyd(iLayer)/=integerMissing) dMat(ixSnLaSoGlHyd(iLayer)) = dMat(ixSnLaSoGlHyd(iLayer)) * cj
     end do
 
     ! compute additional terms for the Jacobian for the soil domain (excluding fluxes)
@@ -390,7 +390,7 @@ subroutine computeJacobWithPrime(&
         ! - define state indices for the current layer
         watState = ixSnLaSoGlHyd(jLayer)   ! hydrology state index within the state subset
 
-        if(watstate/=integerMissing)then       ! (water state for the current layer is within the state subset)
+        if(watState/=integerMissing)then       ! (water state for the current layer is within the state subset)
           ! - include derivatives of energy fluxes w.r.t water fluxes for current layer
           aJac(ixInd(nrgState,watState),watState) = (-1._rkind + mLayerFracLiq(jLayer))*LH_fu0*iden_water * cj &
                                       + dVolHtCapBulk_dTheta(jLayer) * mLayerTempPrime(jLayer) + mLayerCm(jLayer) * cj &
@@ -417,7 +417,7 @@ subroutine computeJacobWithPrime(&
         watState = ixSoilOnlyHyd(iLayer)
 
         ! only compute derivatives if the water state for the current layer is within the state subset
-        if(watstate/=integerMissing)then
+        if(watState/=integerMissing)then
           ! - include derivatives in energy fluxes w.r.t. with respect to water for current layer
           aJac(ixInd(nrgState,watState),watState) = dVolHtCapBulk_dPsi0(iLayer) * mLayerTempPrime(jLayer) &
                                                        + mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) * cj + dCm_dPsi0(iLayer) * mLayerVolFracWatPrime(jLayer) &
@@ -454,13 +454,11 @@ subroutine computeJacobWithPrime(&
           nrgRows(jLayer) = jLayer
         end do
       else
-        allocate(watRows(nBands),nrgRows(nBands)) ! only the bands are used
-        do jLayer=1,nBands-1
+        allocate(watRows(nBands-1),nrgRows(nBands-1)) ! only the bands are used
+        do jLayer=1,nBands-1 ! water row nBand would add a 0 value from the nrg matrix since it's out of range
           watRows(jLayer) = jLayer
           nrgRows(jLayer) = jLayer + 1
         end do
-        watRows(nBands) = nBands
-        nrgRows(nBands) = nBands
       endif
 
       if(ixCasNrg/=integerMissing)then
@@ -479,7 +477,7 @@ subroutine computeJacobWithPrime(&
           nrgState = ixSnLaSoGlNrg(iLayer)       
           if(nrgState==integerMissing) cycle
           watState = ixSnLaSoGlHyd(iLayer)
-          if(watstate/=integerMissing)then 
+          if(watState/=integerMissing)then 
             if(iLayer<=nSnow+nLake .or. iLayer>nSnow+nLake+nSoil)then
               aJac(watRows,watState) = aJac(watRows,watState) + aJac(nrgRows,nrgState) * dTemp_dTheta(iLayer)
             else
@@ -623,8 +621,7 @@ function ixInd(jState,iState)
   if(fullMatrix) then
     ixInd = jState
   else
-    ixInd = kl + 1 + jState - iState
-    if(jState==iState) ixInd = ixDiag
+    ixDiag + jState - iState
   endif
 end function ixInd
 
