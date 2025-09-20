@@ -230,7 +230,7 @@ contains
    call refine_Newton_step(in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&         ! input
                           &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,& ! input
                           &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&                ! input-output
-                          &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG)                                    ! output
+                          &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,return_flag)                        ! output
    if (return_flag) return ! return if error
   end subroutine update_summaSolve4homegrown
 
@@ -331,7 +331,7 @@ contains
  subroutine refine_Newton_step(in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&         ! input
                               &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,& ! input
                               &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&                ! input-output
-                              &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG)                                    ! output
+                              &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,return_flag)                        ! output
   ! provide access to the external procedures
   USE matrixOper_module, only: computeGradient
   USE eval8summa_module, only: imposeConstraints
@@ -367,18 +367,27 @@ contains
   real(rkind),intent(out)         :: resSinkNew(:)             ! sink terms on the RHS of the flux equation
   real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp   ! new residual vector
   type(out_type_summaSolve4homegrown),intent(out) :: out_SS4HG ! new function evaluation, convergence flag, and error control
+  logical(lgt),intent(out)        :: return_flag               ! flag that controls execution of return statements
   ! local
   logical(lgt)                    :: doRefine                      ! flag for step refinement
   integer(i4b),parameter          :: ixLineSearch=1001             ! step refinement = line search
   integer(i4b),parameter          :: ixTrustRegion=1002            ! step refinement = trust region
   integer(i4b),parameter          :: ixStepRefinement=ixLineSearch ! decision for the numerical solution
-  logical(lgt)                    :: return_flag                   ! flag that controls execution of return statements
   character(LEN=256)              :: cmessage                      ! error message of downwind routine
   type(in_type_lineSearchRefinement)  :: in_LSR                    ! lineSearchRefinement
   type(out_type_lineSearchRefinement) :: out_LSR                   ! lineSearchRefinement 
   type(in_type_lineSearchRefinement)  :: in_TRR                    ! trustRegionRefinement
   type(out_type_lineSearchRefinement) :: out_TRR                   ! trustRegionRefinement
   type(out_type_lineSearchRefinement) :: out_SRF                   ! safeRootFinder
+
+  ! initialize error control
+  associate(&
+   err     => out_SS4HG % err      ,& 
+   message => out_SS4HG % message   &     
+  &)  
+   err=0; message='refine_Newton_step/'
+  end associate
+  return_flag = .false. ! initialize return flag (used to indicate non-recoverable errors)
  
   ! initialize the flag for step refinement
   doRefine=.true.
