@@ -262,7 +262,6 @@ subroutine computeJacobWithPrime(&
     ! *********************************************************************************************************************************************************
     ! * PART 0: PRELIMINARIES (INITIALIZE JACOBIAN AND COMPUTE TIME-VARIABLE DIAGONAL TERMS)
     ! *********************************************************************************************************************************************************
-
     ! get the number of state variables
     nState = size(dMat)
 
@@ -350,13 +349,12 @@ subroutine computeJacobWithPrime(&
     end select
 
     ! *********************************************************************************************************************************************************
-    ! * PART 1: COMPUTE CROSS-DERIVATIVES JACOBIAN TERMS
+    ! * PART 1: COMPUTE CROSS-DERIVATIVE JACOBIAN TERMS
     ! *********************************************************************************************************************************************************
     ! -----
     ! * cross derivatives in the vegetation...
     ! ---------------------------------------------
     if(computeVegFlux)then  ! (derivatives only defined when vegetation protrudes over the surface)
-      ! * energy fluxes with the canopy water
       if(ixVegHyd/=integerMissing .and. ixVegNrg/=integerMissing)&
           ! NOTE: dIce/dLiq = (1 - scalarFracLiqVeg); dIce*LH_fu0/canopyDepth = J m-3; dLiq = kg m-2
           aJac(ixInd(ixVegNrg,ixVegHyd),ixVegHyd) = (-1._rkind + scalarFracLiqVeg)*LH_fu0/canopyDepth * cj &
@@ -410,7 +408,7 @@ subroutine computeJacobWithPrime(&
         ! - check that the soil layer is desired
         if(ixSoilOnlyNrg(iLayer)==integerMissing) cycle
         ! - define indices of the soil layers
-        jLayer   = iLayer+nSnow                  ! index of layer in the layer system
+        jLayer   = iLayer+nSnow+nLake            ! index of layer in the layer system
         ! - define the energy state variable
         nrgState = ixSoilOnlyNrg(iLayer)         ! index within the full state vector
         ! - define index of hydrology state variable within the state subset

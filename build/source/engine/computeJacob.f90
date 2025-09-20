@@ -217,7 +217,6 @@ subroutine computeJacob(&
     ! *********************************************************************************************************************************************************
     ! * PART 0: PRELIMINARIES (INITIALIZE JACOBIAN AND COMPUTE TIME-VARIABLE DIAGONAL TERMS)
     ! *********************************************************************************************************************************************************
-  
     ! get the number of state variables
     nState = size(dMat)
 
@@ -282,7 +281,7 @@ subroutine computeJacob(&
     end select
 
     ! *********************************************************************************************************************************************************
-    ! * PART 1: COMPUTE CROSS-DERIVATIVES JACOBIAN TERMS 
+    ! * PART 1: COMPUTE CROSS-DERIVATIVE JACOBIAN TERMS 
     ! *********************************************************************************************************************************************************
     ! -----
     ! * cross derivatives in the vegetation...
@@ -341,9 +340,9 @@ subroutine computeJacob(&
         ! - check that the soil layer is desired
         if(ixSoilOnlyNrg(iLayer)==integerMissing) cycle
         ! - define indices of the soil layers
-        jLayer   = iLayer+nSnow                  ! index of layer in the layer system
+        jLayer   = iLayer+nSnow+nLake            ! index of layer in the layer system
         ! - define the energy state variable
-        nrgState = ixSoilOnlyNrg(iLayer)          ! index within the full state vector
+        nrgState = ixSoilOnlyNrg(iLayer)         ! index within the full state vector
         ! - define index of hydrology state variable within the state subset
         watState = ixSoilOnlyHyd(iLayer)
 
@@ -796,7 +795,7 @@ subroutine fluxJacAdd(&
         ! - define state indices
         watState = ixSoilOnlyHyd(iLayer)         ! hydrology state index within the state subset
         ! - define indices of the soil layers
-        jLayer   = iLayer+nSnow                  ! index of layer in the layer system
+        jLayer   = iLayer+nSnow+nLake            ! index of layer in the layer system
 
         ! - compute the diagonal elements
         ! all terms *excluding* baseflow
@@ -906,7 +905,7 @@ subroutine fluxJacAdd(&
         ! - check that the soil layer is desired
         if(ixSoilOnlyNrg(iLayer)==integerMissing) cycle
         ! - define indices of the soil layers
-        jLayer   = iLayer+nSnow                  ! index of layer in the layer system
+        jLayer   = iLayer+nSnow+nLake            ! index of layer in the layer system
         ! - define the energy state variable
         nrgState = ixSoilOnlyNrg(iLayer)         ! index within the full state vector
         ! - define index of hydrology state variable within the state subset
