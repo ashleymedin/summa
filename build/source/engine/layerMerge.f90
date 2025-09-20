@@ -29,7 +29,7 @@ USE globalData,only:realMissing     ! missing real number
 
 USE globalData,only:icefrz_mult     ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
 
-! access named variables for snow and soil
+! access named variables for layers
 USE globalData,only:iname_snow        ! named variables for snow
 USE globalData,only:iname_soil        ! named variables for soil
 USE globalData,only:iname_glce        ! named variables for glacier ice

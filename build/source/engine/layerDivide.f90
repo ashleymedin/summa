@@ -28,10 +28,10 @@ USE multiconst,only:&
                     iden_ice,       & ! intrinsic density of ice             (kg m-3)
                     iden_water        ! intrinsic density of liquid water    (kg m-3)
 
-! access named variables for snow and soil
+! access named variables for layers
 USE globalData,only:iname_snow        ! named variables for snow
 USE globalData,only:iname_soil        ! named variables for soil
-USE globalData,only:iname_glce         ! named variables for glacier ice
+USE globalData,only:iname_glce        ! named variables for glacier ice
 USE globalData,only:iname_lake        ! named variables for lake
 
 ! access missing values
