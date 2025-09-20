@@ -58,8 +58,8 @@ USE data_types,only:&
                     var_dlength,                  & ! data vector with variable length dimension (rkind)
                     zLookup,                      & ! lookup tables
                     model_options,                & ! defines the model decisions
-                    in_type_computeJacob,          & ! class for computeJacob arguments
-                    out_type_computeJacob,         & ! class for computeJacob arguments
+                    in_type_computeJacob,         & ! class for computeJacob arguments
+                    out_type_computeJacob,        & ! class for computeJacob arguments
                     in_type_lineSearchRefinement, & ! class for lineSearchRefinement arguments
                     out_type_lineSearchRefinement,& ! class for lineSearchRefinement arguments
                     in_type_summaSolve4homegrown, & ! class for summaSolve4homegrown arguments
@@ -121,9 +121,9 @@ contains
                        resSinkNew,              & ! intent(out):   additional (sink) terms on the RHS of the state equation
                        resVecNew,               & ! intent(out):   new residual vector
                        out_SS4HG)                 ! intent(out):   new function evaluation, convergence flag, and error control  
- USE computJacob_module, only: computeJacob
- USE matrixOper_module,  only: lapackSolv
- USE matrixOper_module,  only: scaleMatrices
+ USE computeJacob_module, only: computeJacob
+ USE matrixOper_module,   only: lapackSolv
+ USE matrixOper_module,   only: scaleMatrices
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
  type(in_type_summaSolve4homegrown),intent(in)    :: in_SS4HG ! model control variables and previous function evaluation
@@ -197,7 +197,7 @@ contains
    associate(&
     err       => out_SS4HG % err      ,& 
     message   => out_SS4HG % message   &     
-   &)
+    &)
     ! initialize error control
     err=0; message='summaSolve4homegrown/'
     return_flag=.false. ! initialize return flag
@@ -251,7 +251,7 @@ contains
    associate(&
     err       => out_SS4HG % err      ,& 
     message   => out_SS4HG % message   &     
-   &)
+    &)
     call initialize_computeJacob_summaSolve4homegrown
     call computeJacob(in_computeJacob,indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,dMat,aJac,out_computeJacob)
     call finalize_computeJacob_summaSolve4homegrown
@@ -268,7 +268,7 @@ contains
     ixMatrix       => in_SS4HG % ixMatrix       ,& ! intent(in): type of matrix (full or band diagonal)
     err            => out_SS4HG % err           ,& ! intent(out): error code
     message        => out_SS4HG % message        & ! intent(out): error message    
-   &)
+    &)
  
     ! scale the residual vector
     rVecScaled(1:nState) = fScale(:)*real(rVec(:), rkind)   ! NOTE: residual vector is in quadruple precision
@@ -299,8 +299,8 @@ contains
    end associate
   end subroutine solve_linear_system
 
-  subroutine initialize_computJacob_summaSolve4homegrown
-   ! *** Transfer data to in_computJacob class object from local variables in summaSolve4homegrown ***
+  subroutine initialize_computeJacob_summaSolve4homegrown
+   ! *** Transfer data to in_computeJacob class object from local variables in summaSolve4homegrown ***
    associate(&
     ixGroundwater  => model_decisions(iLookDECISIONS%groundwatr)%iDecision,&  ! intent(in): [i4b] groundwater parameterization
     dt_cur         => in_SS4HG % dt_cur         ,& ! intent(in): current stepsize
@@ -311,7 +311,7 @@ contains
     nLayers        => in_SS4HG % nLayers        ,& ! intent(in): total number of layers
     ixMatrix       => in_SS4HG % ixMatrix       ,& ! intent(in): type of matrix (full or band diagonal)
     computeVegFlux => in_SS4HG % computeVegFlux  & ! intent(in): flag to indicate if computing fluxes over vegetation
-   &)   
+    &)   
     call in_computeJacob % initialize(dt_cur,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel),ixMatrix)
    end associate
   end subroutine initialize_computeJacob_summaSolve4homegrown
@@ -389,11 +389,11 @@ contains
 
   associate(&
    fOld      => in_SS4HG  % fOld     ,&
-   fnew      => out_SS4HG % fnew     ,& 
+   fNew      => out_SS4HG % fNew     ,& 
    converged => out_SS4HG % converged,&
    err       => out_SS4HG % err      ,& 
    message   => out_SS4HG % message   &     
-  &)  
+   &)  
    if (size(stateVecTrial)>1) then
 
     ! try to backtrack
@@ -515,7 +515,7 @@ contains
    converged => out_LSR % converged             ,& ! convergence flag
    err       => out_LSR % err                   ,& ! error code
    message   => out_LSR % message                & ! error message
-  &)
+   &)
    ! initialize error control
    err=0; message='lineSearchRefinement/'
    converged = .false.
@@ -678,7 +678,7 @@ contains
    converged => out_TRR % converged       ,&    ! convergence flag
    err       => out_TRR % err             ,&    ! error code
    message   => out_TRR % message          &    ! error message
-  &)
+   &)
 
    err=0; message='trustRegionRefinement/'
    converged =.false.
@@ -787,7 +787,7 @@ contains
    converged      => out_SRF % converged       ,& ! intent(out): convergence flag
    err            => out_SRF % err             ,& ! intent(out): error code
    message        => out_SRF % message          & ! intent(out): error message
-  &)
+   &)
 
    err=0; message='safeRootfinder/'
    converged = .false.
@@ -939,16 +939,18 @@ contains
    ! impose solution constraints adjusting state vector and iteration increment
    associate(&
     nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
+    nLake          => in_SS4HG % nLake          ,& ! intent(in): number of lake layers
     nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
+    nGlce          => in_SS4HG % nGlce          ,& ! intent(in): number of glacier ice layers
     nState         => in_SS4HG % nState          & ! intent(in): total number of state variables
-   &)
-    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecPrev,nState,nSoil,nSnow,cmessage,err)
+    &)
+    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecPrev,nState,nSnow,nLake,nSoil,nGlce,cmessage,err)
    end associate
    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
    xIncrement = stateVecNew - stateVecPrev
 
    ! evaluate summa
-   associate(fnew => out_SS4HG % fnew)
+   associate(fNew => out_SS4HG % fNew)
     call eval8summa_wrapper(stateVecNew,fScale,in_SS4HG,model_decisions,&
                            &lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&
                            &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
@@ -1032,7 +1034,9 @@ contains
    dt_cur         => in_SS4HG % dt_cur         ,& ! intent(in): current stepsize
    dt             => in_SS4HG % dt             ,& ! intent(in): entire time step for drainage pond rate
    nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
+   nLake          => in_SS4HG % nLake          ,& ! intent(in): number of lake layers
    nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
+   nGlce          => in_SS4HG % nGlce          ,& ! intent(in): number of glacier ice layers
    nLayers        => in_SS4HG % nLayers        ,& ! intent(in): total number of layers
    nState         => in_SS4HG % nState         ,& ! intent(in): total number of state variables
    firstSubStep   => in_SS4HG % firstSubStep   ,& ! intent(in): flag to indicate if we are processing the first sub-step
@@ -1040,14 +1044,16 @@ contains
    scalarSolution => in_SS4HG % scalarSolution ,& ! intent(in): flag to denote if implementing the scalar solution
    firstFluxCall  => io_SS4HG % firstFluxCall  ,& ! intent(inout): flag to indicate if we are processing the first flux call  
    ixSaturation   => io_SS4HG % ixSaturation    & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)    
-  &)
+   &)
    ! compute the flux and the residual vector for a given state vector
    call eval8summa(&
                    ! input: model control
                    dt_cur,                  & ! intent(in):    current stepsize
                    dt,                      & ! intent(in):    length of the time step (seconds)
                    nSnow,                   & ! intent(in):    number of snow layers
+                   nLake,                   & ! intent(in):    number of lake layers
                    nSoil,                   & ! intent(in):    number of soil layers
+                   nGlce,                   & ! intent(in):    number of glacier ice layers
                    nLayers,                 & ! intent(in):    total number of layers
                    nState,                  & ! intent(in):    total number of state variables
                    .false.,                 & ! intent(in):    not inside Sundials solver
@@ -1129,7 +1135,7 @@ contains
   associate(&
    ! model control
    iter                    => in_SS4HG % iter                                   ,& ! intent(in): iteration index
-   nsnow                   => in_SS4HG % nsnow                                  ,& ! intent(in): number of snow layers
+   nSnow                   => in_SS4HG % nSnow                                  ,& ! intent(in): number of snow layers
    scalarSolution          => in_SS4HG % scalarSolution                         ,& ! intent(in): flag to denote if implementing the scalar solution
    ! convergence parameters
    absConvTol_liquid       => mpar_data%var(iLookPARAM%absConvTol_liquid)%dat(1),&  ! intent(in): [dp] absolute convergence tolerance for vol frac liq water (-)
@@ -1146,8 +1152,8 @@ contains
    ixHydOnly               => indx_data%var(iLookINDEX%ixHydOnly)%dat           ,&  ! intent(in): [i4b(:)] list of indices for all hydrology states
    ixMatOnly               => indx_data%var(iLookINDEX%ixMatOnly)%dat           ,&  ! intent(in): [i4b(:)] list of indices for matric head state variables in the state vector
    ixMatricHead            => indx_data%var(iLookINDEX%ixMatricHead)%dat        ,&  ! intent(in): [i4b(:)] list of indices for matric head in the soil vector
-   fnew                    => out_SS4HG % fnew                                   &  ! intent(in): [dp] new function evaluations
-  &) 
+   fNew                    => out_SS4HG % fNew                                   &  ! intent(in): [dp] new function evaluations
+   &) 
 
    ! check convergence based on the canopy water balance
    if (ixVegHyd/=integerMissing) then
@@ -1216,7 +1222,7 @@ contains
    ! print progress towards solution
    if (globalPrintFlag) then
     write(*,'(a,1x,i4,1x,7(e15.5,1x),7(L1,1x))') 'check convergence: ', iter, &
-     fnew, matric_max(1), liquid_max(1), energy_max(1), canopy_max, aquifer_max, soilWatBalErr, matricConv, liquidConv, energyConv, watbalConv, canopyConv, aquiferConv, watbalConv
+     fNew, matric_max(1), liquid_max(1), energy_max(1), canopy_max, aquifer_max, soilWatBalErr, matricConv, liquidConv, energyConv, watbalConv, canopyConv, aquiferConv, watbalConv
    end if
 
   end associate ! end associations with variables in the data structures
