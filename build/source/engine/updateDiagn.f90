@@ -307,7 +307,6 @@ subroutine updateDiagn(&
         case(iname_aquifer); cycle ! aquifer: do nothing
         case default; err=20; message=trim(message)//'expect case to be iname_cas, iname_veg, iname_snow, iname_soil, iname_aquifer'; return
       end select
-
       frz_scale_use = snowfrz_scale
       if(ixDomainType==iname_lake .or. ixDomainType==iname_glce) frz_scale_use = snowfrz_scale*icefrz_mult
 
@@ -519,14 +518,14 @@ subroutine updateDiagn(&
               scalarCanopyLiqTrial =             scalarFracLiqVeg *scalarCanopyWatTrial !(kg m-2), scalarVolFracLiq*iden_water*canopyDepth
               scalarCanopyIceTrial = (1._rkind - scalarFracLiqVeg)*scalarCanopyWatTrial !(kg m-2), scalarVolFracIce* iden_ice *canopyDepth
 
-            ! *** snow layers
+            ! *** snow, lake, glce layers
             case(iname_snow, iname_lake, iname_glce)
               ! compute volumetric fraction of liquid water and ice
               call updateSnLaGl(&
                               iLayer>nLayers-noThetaChange,   & ! intent(in):  flag that no liquid water in layer
                               xTemp,                          & ! intent(in):  temperature (K)
                               mLayerVolFracWatTrial(iLayer),  & ! intent(in):  mass state variable = trial volumetric fraction of water (-)
-                              frz_scale_use,              & ! intent(in):  scaling parameter for the snow freezing curve (K-1)
+                              frz_scale_use,                  & ! intent(in):  scaling parameter for the freezing curve (K-1)
                               mLayerVolFracLiqTrial(iLayer),  & ! intent(out): trial volumetric fraction of liquid water (-)
                               mLayerVolFracIceTrial(iLayer),  & ! intent(out): trial volumetric fraction if ice (-)
                               mLayerFracLiq(iLayer),          & ! intent(out): fraction of liquid water (-)
@@ -699,10 +698,10 @@ subroutine updateDiagn(&
         if(computeEnthTemp)then
           call T2enthTemp_snLaGl(&
                       iLayer>nLayers-noThetaChange,    & ! intent(in):  flag to indicate if the layer has no liquid water
-                      frz_scale_use,               & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
+                      frz_scale_use,                   & ! intent(in):  scaling parameter for the freezing curve  (K-1)
                       mLayerTempTrial(iLayer),         & ! intent(in):  layer temperature (K)
                       mLayerVolFracWatTrial(iLayer),   & ! intent(in):  volumetric total water content (-)
-                      mLayerEnthTempTrial(iLayer))       ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
+                      mLayerEnthTempTrial(iLayer))       ! intent(out): temperature component of enthalpy of each layer (J m-3)
         else
           mLayerEnthTempTrial(iLayer) = realMissing
         endif

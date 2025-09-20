@@ -341,6 +341,8 @@ subroutine updateDiagnWithPrime(&
         case(iname_aquifer); cycle ! aquifer: do nothing
         case default; err=20; message=trim(message)//'expect case to be iname_cas, iname_veg, iname_snow, iname_soil, iname_aquifer'; return
       end select
+      frz_scale_use = snowfrz_scale
+      if(ixDomainType==iname_lake .or. ixDomainType==iname_glce) frz_scale_use = snowfrz_scale*icefrz_mult
 
       ! get the index of the other (energy or mass) state variable within the full state vector
       select case(ixDomainType)
@@ -467,8 +469,8 @@ subroutine updateDiagnWithPrime(&
           call enthalpy2T_snLaGl(&
                    computeJac,                     & ! intent(in):    flag if computing for Jacobian update       
                    ixDomainType==iname_lake,       & ! intent(in):    flag if is lake layer
-                   iLayer>nLayers-noThetaChange,      & ! intent(in):    flag if is liquid water is 0
-                   snowfrz_scale,                  & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
+                   iLayer>nLayers-noThetaChange,   & ! intent(in):    flag if is liquid water is 0
+                   frz_scale_use,                  & ! intent(in):    scaling parameter for the freezing curve (K-1)
                    mLayerEnthalpyTrial(iLayer),    & ! intent(in):    enthalpy of layer (J m-3)
                    mLayerVolFracWatTrial(iLayer),  & ! intent(in):    volumetric total water content (-)
                    mLayerTempTrial(iLayer),        & ! intent(inout): layer temperature (K)
@@ -573,11 +575,11 @@ subroutine updateDiagnWithPrime(&
                 d2Theta_dTkCanopy2 = 2._rkind * snowfrz_scale**2_i4b * ( (Tfreeze - xTemp) * 2._rkind * fLiq * dFracLiqVeg_dTkCanopy - fLiq**2_i4b ) * scalarCanopyWatTrial/(iden_water*canopyDepth)
               endif
             case(iname_snow, iname_lake, iname_glce)
-              dFracLiqWat_dTk(iLayer) = dFracLiq_dTk(xTemp,snowfrz_scale,iLayer>nLayers-noThetaChange)
+              dFracLiqWat_dTk(iLayer) = dFracLiq_dTk(xTemp,frz_scale_use,iLayer>nLayers-noThetaChange)
               mLayerdTheta_dTk(iLayer) = dFracLiqWat_dTk(iLayer) * mLayerVolFracWatTrial(iLayer)
               if(computeJac)then
-                fLiq = fracliquid(xTemp,snowfrz_scale,iLayer>nLayers-noThetaChange)
-                mLayerd2Theta_dTk2(iLayer) = 2._rkind * snowfrz_scale**2_i4b * ( (Tfreeze - xTemp) * 2._rkind * fLiq * dFracLiqWat_dTk(iLayer) - fLiq**2_i4b ) * mLayerVolFracWatTrial(iLayer)
+                fLiq = fracliquid(xTemp,frz_scale_use,iLayer>nLayers-noThetaChange)
+                mLayerd2Theta_dTk2(iLayer) = 2._rkind * frz_scale_use**2_i4b * ( (Tfreeze - xTemp) * 2._rkind * fLiq * dFracLiqWat_dTk(iLayer) - fLiq**2_i4b ) * mLayerVolFracWatTrial(iLayer)
               endif
             case(iname_soil)
               dFracLiqWat_dTk(iLayer) = 0._rkind !dTheta_dTk(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))/ mLayerVolFracWatTrial(iLayer)
@@ -608,7 +610,7 @@ subroutine updateDiagnWithPrime(&
           ! compute the fraction of snow
           select case(ixDomainType)
             case(iname_veg);                          scalarFracLiqVeg      = fracliquid(xTemp,snowfrz_scale)
-            case(iname_snow, iname_lake, iname_glce); mLayerFracLiq(iLayer) = fracliquid(xTemp,snowfrz_scale,iLayer>nLayers-noThetaChange)
+            case(iname_snow, iname_lake, iname_glce); mLayerFracLiq(iLayer) = fracliquid(xTemp,frz_scale_use,iLayer>nLayers-noThetaChange)
             case(iname_soil)  ! do nothing
             case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_glce'; return
           end select  ! domain type
@@ -649,17 +651,14 @@ subroutine updateDiagnWithPrime(&
               scalarCanopyIceTrial = (1._rkind - scalarFracLiqVeg)*scalarCanopyWatTrial !(kg m-2), scalarVolFracIce* iden_ice *canopyDepth
               scalarCanopyIcePrime =             scalarVolFracIcePrime* iden_ice *canopyDepth
 
-            ! *** snow layers
+            ! *** snow,lake,glce layers
             case(iname_snow, iname_lake, iname_glce)
-              frz_scale_use = snowfrz_scale
-              if(ixDomainType==iname_lake .or. ixDomainType==iname_glce) frz_scale_use = snowfrz_scale*icefrz_mult
-
               ! compute volumetric fraction of liquid water and ice
               call updateSnLaGlPrime(&
                               iLayer>nLayers-noThetaChange,   & ! intent(in):  flag if no liquid water in layer
                               xTemp,                          & ! intent(in):  temperature (K)
                               mLayerVolFracWatTrial(iLayer),  & ! intent(in):  mass state variable = trial volumetric fraction of water (-)
-                              frz_scale_use,              & ! intent(in):  scaling parameter for the snow freezing curve (K-1)
+                              frz_scale_use,                  & ! intent(in):  scaling parameter for the freezing curve (K-1)
                               mLayerTempPrime(iLayer),        & ! intent(in):  temperature time derivative (K/s)
                               mLayerVolFracWatPrime(iLayer),  & ! intent(in):  volumetric fraction of total water time derivative (-)
                               mLayerVolFracLiqTrial(iLayer),  & ! intent(out): trial volumetric fraction of liquid water (-)
