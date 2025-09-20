@@ -1592,7 +1592,7 @@ contains
   end associate
  end subroutine initialize_io_soilLiqFlux
 
- subroutine finalize_io_soilLiqFlux(io_soilLiqFlux,nsoil,dHydCond_dMatric,flux_data,diag_data,deriv_data)
+ subroutine finalize_io_soilLiqFlux(io_soilLiqFlux,nSoil,dHydCond_dMatric,flux_data,diag_data,deriv_data)
   class(io_type_soilLiqFlux),intent(in)  :: io_soilLiqFlux               ! class object for intent(inout) soilLiqFlux arguments
   integer(i4b),intent(in)               :: nSoil                       ! number of soil layers
   real(rkind),intent(out)               :: dHydCond_dMatric(nSoil)     ! derivative in hydraulic conductivity w.r.t matric head (s-1)

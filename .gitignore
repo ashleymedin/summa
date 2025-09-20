@@ -43,10 +43,7 @@ build/cmake_build
 runinfo.txt
 # OpenWQ source code
 build/source/openwq/openwq
-<<<<<<< HEAD
 # pre-processing files
 utils/pre-processing/*.nc
-=======
 # vscode related files
 .vscode
->>>>>>> develop

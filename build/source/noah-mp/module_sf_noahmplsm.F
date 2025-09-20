@@ -1904,7 +1904,7 @@ contains
     IF (NROOT .gt. NSOIL) THEN
        WRITE (*,*) 'WARNING: too many root layers'
        write (*,*) 'NROOT = ', nroot
-       write (*,*) 'NSOIL = ', nsoil
+       write (*,*) 'NSOIL = ', nSoil
        call wrf_error_fatal("STOP in Noah-MP")
     END IF
 
