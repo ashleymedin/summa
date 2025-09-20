@@ -120,7 +120,7 @@ subroutine computeJacobWithPrime(&
                       scalarCanopyTempPrime,      & ! intent(in):    derivative value for temperature of the vegetation canopy (K)
                       scalarCanopyWatPrime,       & ! intent(in):    derivative value for water content of the vegetation canopy
                       ! input-output: Jacobian and its diagonal
-                      dMat,                       & ! intent(inout): diagonal of the Jacobian matrix
+                      dMat0,                      & ! intent(in):    diagonal of the Jacobian matrix excluding fluxes, not depending on the state vector
                       aJac,                       & ! intent(out):   Jacobian matrix
                       ! output: error control
                       err,message)                  ! intent(out):   error code and error message
@@ -157,7 +157,7 @@ subroutine computeJacobWithPrime(&
   real(rkind),intent(in)               :: scalarCanopyTempPrime      ! derivative value for temperature of the vegetation canopy (K)
   real(rkind),intent(in)               :: scalarCanopyWatPrime       ! derivative value for water content of the vegetation canopy
   ! input-output: Jacobian and its diagonal
-  real(rkind),intent(inout)            :: dMat(:)                    ! diagonal of the Jacobian matrix
+  real(rkind),intent(in)               :: dMat0(:)                   ! diagonal of the Jacobian matrix excluding fluxes, not depending on the state vector
   real(rkind),intent(out)              :: aJac(:,:)                  ! Jacobian matrix
   ! output variables
   integer(i4b),intent(out)             :: err                        ! error code
@@ -165,6 +165,7 @@ subroutine computeJacobWithPrime(&
   ! --------------------------------------------------------------
   ! * local variables
   ! --------------------------------------------------------------
+  real(rkind),allocatable              :: dMat(:)              ! diagonal of the Jacobian matrix excluding fluxes, depending on the state vector
   ! indices of model state variables
   integer(i4b)                         :: nrgState             ! energy state variable
   integer(i4b)                         :: watState             ! hydrology state variable
@@ -260,29 +261,25 @@ subroutine computeJacobWithPrime(&
     ! * PART 0: PRELIMINARIES (INITIALIZE JACOBIAN AND COMPUTE TIME-VARIABLE DIAGONAL TERMS)
     ! *********************************************************************************************************************************************************
     ! get the number of state variables
-    nState = size(dMat)
+    nState = size(dMat0)
 
-    ! initialize the Jacobian
-    ! NOTE: this needs to be done every time, since Jacobian matrix is modified in the solver
+    ! initialize the Jacobian and diagonal
+    ! NOTE: this needs to be done every time, since Jacobian matrix is modified in the solver and dMat is modified below
     aJac(:,:) = 0._rkind  ! analytical Jacobian matrix
+    allocate(dMat(nState)) 
+    dMat = dMat0 * cj ! dMat0(ixCasNrg) = Cp_air*iden_air and dMat0(Wat states) = 1.0
 
     if(computeVegFlux)then
       ! compute terms in the Jacobian for vegetation (excluding fluxes)
-      if(ixCasNrg/=integerMissing) dMat(ixCasNrg) = dMat(ixCasNrg) * cj
-
-      ! NOTE: energy for vegetation is computed *within* the iteration loop as it includes phase change
       if(ixVegNrg/=integerMissing)&
           dMat(ixVegNrg) = ( scalarBulkVolHeatCapVeg + LH_fus*iden_water*dTheta_dTkCanopy ) * cj &
                           + dVolHtCapBulk_dTkCanopy * scalarCanopyTempPrime &
                           + dCm_dTkCanopy * scalarCanopyWatPrime/canopyDepth &
                           + LH_fus*iden_water * scalarCanopyTempPrime * d2Theta_dTkCanopy2 &
                           + LH_fus            * dFracLiqVeg_dTkCanopy * scalarCanopyWatPrime/canopyDepth
-
-      if(ixVegHyd/=integerMissing) dMat(ixVegHyd) = dMat(ixVegHyd) * cj
     endif
 
     ! compute additional terms for the Jacobian for the layer domain (excluding fluxes)
-    ! NOTE: energy for layers are computed *within* the iteration loop as it includes phase change
     do iLayer=1,nLayers
       if(ixSnLaSoGlNrg(iLayer)/=integerMissing)&
           dMat(ixSnLaSoGlNrg(iLayer)) = ( mLayerVolHtCapBulk(iLayer) + LH_fus*iden_water*mLayerdTheta_dTk(iLayer) ) * cj &
@@ -290,8 +287,6 @@ subroutine computeJacobWithPrime(&
                                        + dCm_dTk(iLayer) * mLayerVolFracWatPrime(iLayer) &
                                        + LH_fus*iden_water * mLayerTempPrime(iLayer) * mLayerd2Theta_dTk2(iLayer) &
                                        + LH_fus*iden_water * dFracLiqWat_dTk(iLayer) * mLayerVolFracWatPrime(iLayer)
-
-      if(ixSnLaSoGlHyd(iLayer)/=integerMissing) dMat(ixSnLaSoGlHyd(iLayer)) = dMat(ixSnLaSoGlHyd(iLayer)) * cj
     end do
 
     ! compute additional terms for the Jacobian for the soil domain (excluding fluxes)
@@ -302,9 +297,6 @@ subroutine computeJacobWithPrime(&
             dMat(ixSoilOnlyHyd(iLayer)) = dMat(ixSoilOnlyHyd(iLayer)) + specificStorage * dVolTot_dPsi0(iLayer) * mLayerMatricHeadPrime(iLayer) / theta_sat(iLayer)
       endif
     end do
-
-    ! compute terms for the Jacobian for the aquifer (excluding fluxes)
-    if(ixAqWat/=integerMissing) dMat(ixAqWat) = dMat(ixAqWat) * cj
 
     ! if using enthalpy as a state variable, zero out usual RHS terms and add them end of the iteration loop 
     ! NOTE: other terms on RHS that are not fluxes are zeroed out by not computing heat capacity and Cm and their derivatives
@@ -428,12 +420,13 @@ subroutine computeJacobWithPrime(&
                     indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,&
                     dMat,aJac,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    deallocate(dMat)
 
     ! *********************************************************************************************************************************************************
     ! * PART 3: CLEAN UP JACOBIAN (IF USING ENTHALPY AS A STATE VARIABLE) AND PRINT (IF DESIRED)
     ! *********************************************************************************************************************************************************
     ! * if desired, modify to use enthalpy as a state variable instead of temperature 
-    ! NOTE, dMat(Nrg variables) has been set to 0 and now 1._rkind * cj is added instead 
+    ! NOTE, dMat(Nrg states) was used as 0 and now 1._rkind * cj is added instead 
     ! ----------------------------------------
     if(enthalpyStateVec)then 
 
@@ -586,7 +579,7 @@ integer(c_int) function computeJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
                 eqns_data%scalarCanopyTempPrime,          & ! intent(in):    derivative value for temperature of the vegetation canopy (K)
                 eqns_data%scalarCanopyWatPrime,           & ! intent(in):    derivative value for total water content of the vegetation canopy (kg m-2)
                 ! input-output: Jacobian and its diagonal
-                eqns_data%dMat,                           & ! intent(inout): diagonal of the Jacobian matrix
+                eqns_data%dMat,                           & ! intent(in):    diagonal of the Jacobian matrix excluding fluxes, not depending on the state vector
                 Jac,                                      & ! intent(out):   Jacobian matrix
                 ! output: error control
                 eqns_data%err,eqns_data%message)            ! intent(out):   error code and error message
