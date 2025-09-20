@@ -175,8 +175,6 @@ subroutine computeJacobWithPrime(&
   integer(i4b)                         :: iLayer               ! index of model layer
   integer(i4b)                         :: jLayer               ! index of model layer within the full state vector (hydrology)
   integer(i4b)                         :: qLayer               ! indices of snow+lake+glce layers
-  integer(i4b)                         :: endLayer             ! index of the last layer 
-  logical(i4b)                         :: solid                ! flag to indicate if layer is solid ice (frozen lake or glacier ice)
   ! conversion factors
   real(rkind)                          :: LH_fu0               ! latent heat of fusion, modified to be 0 if using enthalpy formulation and not using
   real(rkind)                          :: maxVolIceContent_use ! maximum volumetric ice content depending if snow or firn
@@ -250,7 +248,6 @@ subroutine computeJacobWithPrime(&
     mLayerFracLiq                => diag_data%var(iLookDIAG%mLayerFracLiq                 )%dat     ,& ! intent(in): [dp(:)]  fraction of liquid water in each snow, lake, or ice layer (-)
     mLayerVolHtCapBulk           => diag_data%var(iLookDIAG%mLayerVolHtCapBulk            )%dat     ,& ! intent(in): [dp(:)]  bulk volumetric heat capacity in each layer (J m-3 K-1)
     mLayerCm                     => diag_data%var(iLookDIAG%mLayerCm                      )%dat     ,& ! intent(in): [dp(:)]  Cm in each layer (J kg-1 K-1)
-    mLayerVolFracIce             => prog_data%var(iLookPROG%mLayerVolFracIce              )%dat     ,& ! intent(in): [dp(:)]  volumetric fraction of ice in each layer start of step (-)
     ! canopy and layer depth
     canopyDepth                  => diag_data%var(iLookDIAG%scalarCanopyDepth             )%dat(1)  ,& ! intent(in): [dp   ]  canopy depth (m)
     mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth                   )%dat      & ! intent(in): [dp(:)]  depth of each layer in the sub-domain (m)
@@ -372,14 +369,9 @@ subroutine computeJacobWithPrime(&
         if(qLayer<=nSnow+nLake)then
           jLayer = qLayer
           iLayer = qLayer
-          endLayer = nSnow + nLake
-          solid = .false.
-          if(qLayer>nSnow .and. mLayerVolFracIce(jLayer)>maxVolIceContent_use) solid = .true. ! lake ice is solid, will need rethinking
         else
           jLayer = qLayer + nLake + nSoil
           iLayer = qLayer - nSnow - nLake
-          endLayer = nGlce - noThetaChange
-          solid = .true.
         endif
         ! - check that the layer is desired
         if(ixSnLaSoGlNrg(jLayer)==integerMissing) cycle
