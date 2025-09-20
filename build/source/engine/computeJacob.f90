@@ -302,7 +302,7 @@ subroutine computeJacob(&
           jLayer = qLayer
           iLayer = qLayer
         else
-          jLayer = qLayer + nLake + nSoil
+          jLayer = qLayer + nSoil
           iLayer = qLayer - nSnow - nLake
         endif
         ! - check that the layer is desired
@@ -650,7 +650,7 @@ subroutine fluxJacAdd(&
           solid = .false.
           if(qLayer>nSnow .and. mLayerVolFracIce(jLayer)>maxVolIceContent_use) solid = .true. ! lake ice is solid, will need rethinking but stuf for now
         else
-          jLayer = qLayer + nLake + nSoil
+          jLayer = qLayer + nSoil
           iLayer = qLayer - nSnow - nLake
           endLayerWat = nGlce - noThetaChange
           solid = .true.
@@ -687,14 +687,16 @@ subroutine fluxJacAdd(&
         endif
 
         ! - super-diagonal elements for ice, super-diagonal only (water does not move downwards in ice)
-        if(qLayer>nSnow .and. solid)then
-          if(iLayer>1)then 
-            if(ixSnLaSoGlHyd(1)/=integerMissing)then
-              if(watState - ixSnLaSoGlHyd(1) <= ku .or. fullMatrix) &
-                  aJac(ixInd(ixSnLaSoGlHyd(1),watState),watState) = (dt/mLayerDepth(1))*(-iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot)  ! dVol(above)/dLiq(below)
-            endif
-          elseif(nSoil>0 .and. qLayer>nSnow+nLake)then ! glce top layer with soil above, same as layer above not being ice locked (ku>=3 so always include)
-            if(ixSoilOnlyHyd(nSoil)/=integerMissing) aJac(ixInd(ixSoilOnlyHyd(nSoil),watState),watState) = (dt/mLayerDepth(jLayer-1))*(-iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot)  ! dVol(below)/dLiq(below)
+        if(solid .and. iLayer>1 )then
+          if(qLayer>nSnow+nLake )then
+            if (nSoil+nLake>0) denseLimit = nSnow + nLake + nSoil + 1 ! assuming lake can't freeze solid
+            if (nSoil+nLake==0) denseLimit = nSnow + 2 ! second to top layer of glacier ice, top layer always included
+          else
+            denseLimit = nSnow + 2 ! second to top layer of lake ice, top layer always included
+          endif
+          if(ixSnLaSoGlHyd(denseLimit-1)/=integerMissing)then
+            if(watState - ixSnLaSoGlHyd(denseLimit-1) <= ku .or. fullMatrix) &
+                aJac(ixInd(ixSnLaSoGlHyd(denseLimit-1),watState),watState) = (dt/mLayerDepth(denseLimit-1))*(-iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot)  ! dVol(above)/dLiq(below)
           endif
         endif
         ! possible top layer of unfrozen lake has a super-diagonal term
@@ -716,7 +718,7 @@ subroutine fluxJacAdd(&
           solid = .false.
           if(qLayer>nSnow .and. mLayerVolFracIce(jLayer)>maxVolIceContent_use) solid = .true. ! lake ice is solid, will need rethinking
         else
-          jLayer = qLayer + nLake + nSoil
+          jLayer = qLayer + nSoil
           iLayer = qLayer - nSnow - nLake
           endLayerWat = nGlce - noThetaChange
           endLayerNrg = nGlce
@@ -763,14 +765,16 @@ subroutine fluxJacAdd(&
           endif              
 
           ! - super-diagonal elements for ice, super-diagonal only (water does not move downwards in ice)
-          if(qLayer>nSnow .and. solid)then
-            if(iLayer>1)then 
-              if(ixSnLaSoGlHyd(1)/=integerMissing)then
-                if(nrgState - ixSnLaSoGlHyd(1) <= ku .or. fullMatrix) &
-                    aJac(ixInd(ixSnLaSoGlHyd(1),nrgState),nrgState) = (dt/mLayerDepth(1))*(-iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer))  ! dVol(above)/dT(below)
-              endif
-            elseif(nSoil>0 .and. qLayer>nSnow+nLake)then ! glce top layer with soil above, same as layer above not being ice locked (ku>=3 so always include)
-              if(ixSoilOnlyHyd(nSoil)/=integerMissing) aJac(ixInd(ixSoilOnlyHyd(nSoil),nrgState),nrgState) = (dt/mLayerDepth(jLayer-1))*(-iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer))  ! dVol(above)/dT(below)
+          if(solid .and. iLayer>1 )then
+            if(qLayer>nSnow+nLake )then
+              if (nSoil+nLake>0) denseLimit = nSnow + nLake + nSoil + 1 ! assuming lake can't freeze solid
+              if (nSoil+nLake==0) denseLimit = nSnow + 2 ! second to top layer of glacier ice, top layer always included
+            else
+              denseLimit = nSnow + 2 ! second to top layer of lake ice, top layer always included
+            endif
+            if(ixSnLaSoGlHyd(denseLimit-1)/=integerMissing)then
+              if(watState - ixSnLaSoGlHyd(denseLimit-1) <= ku .or. fullMatrix) &
+                  aJac(ixInd(ixSnLaSoGlHyd(denseLimit-1),nrgState),nrgState) = (dt/mLayerDepth(denseLimit-1))*(-iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer))  ! dVol(above)/dT(below)
             endif
           endif
           ! possible top layer of unfrozen lake has a super-diagonal term
