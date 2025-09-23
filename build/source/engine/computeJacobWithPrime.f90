@@ -275,7 +275,7 @@ subroutine computeJacobWithPrime(&
                           + dVolHtCapBulk_dTkCanopy * scalarCanopyTempPrime &
                           + dCm_dTkCanopy * scalarCanopyWatPrime/canopyDepth &
                           + LH_fus*iden_water * scalarCanopyTempPrime * d2Theta_dTkCanopy2 &
-                          + LH_fus            * dFracLiqVeg_dTkCanopy * scalarCanopyWatPrime/canopyDepth
+                          + LH_fus * dFracLiqVeg_dTkCanopy * scalarCanopyWatPrime/canopyDepth
     endif
 
     ! comput terms for the Jacobian for the layer domain (excluding fluxes)
