@@ -170,7 +170,7 @@ contains
 
  kLayer=0 ! initialize first layer to test (top layer)
  doGlac=.false. ! initialize flag for glacier ice
- if (nSnow==0 .and. nLake==0 .and. nGlce>0) then ! should FIX for merging lake ice layers also
+ if (nSnow+nLake==0 .and. nGlce>0) then ! should FIX for merging lake ice layers also
    kLayer=nSnow+nLake+nSoil ! start with top glacier ice layer
    doGlac=.true.
    topLayer=nSnow+nLake+nSoil+1

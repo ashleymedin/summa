@@ -903,7 +903,7 @@ integer(c_int) function layerDisCont4ida(t, sunvec_u, sunvec_up, gout, user_data
   real(c_double), value      :: t         ! current time
   type(N_Vector)             :: sunvec_u  ! solution N_Vector
   type(N_Vector)             :: sunvec_up ! derivative N_Vector
-  real(c_double)             :: gout(999) ! root function values, if (nVeg + nSnow + 2*nSoil)>999, problem
+  real(c_double)             :: gout(999) ! root function values, if (nVeg + nSnow + nLake + 2*nSoil + nGlce)>999, problem
   type(c_ptr),    value      :: user_data ! user-defined data
 
   ! local variables

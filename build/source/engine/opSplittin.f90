@@ -1271,7 +1271,7 @@ subroutine opSplittin(&
                 end if
               case(glceSplit) ! glacier scalar variables change with the surface layer
                 if(nGlce>0 .and. iLayer==nSnow+nLake+nSoil+1)then
-                  if(iVar==iLookFLUX%scalarGlacierMelt .and. nSnow==0 .and. nLake==0 .and. nSoil==0)then
+                  if(iVar==iLookFLUX%scalarGlacierMelt .and. nSnow+nLake+nSoil==0)then
                     fluxMask%var(iVar)%dat = desiredFlux
                   elseif(iname_watGlce==flux2state_liq(iVar)%state2)then
                     fluxMask%var(iVar)%dat = desiredFlux

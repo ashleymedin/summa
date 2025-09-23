@@ -210,37 +210,37 @@ subroutine computeJacobWithPrime(&
     ! derivatives in net vegetation energy fluxes w.r.t. relevant state variables
     dCanopyNetFlux_dCanWat       => deriv_data%var(iLookDERIV%dCanopyNetFlux_dCanWat)%dat(1)   ,& ! intent(in): [dp]     derivative in net canopy fluxes w.r.t. canopy total water content
     ! derivatives in canopy water w.r.t canopy temperature
-    dTheta_dTkCanopy             => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1)         ,& ! intent(in): [dp]     derivative of volumetric liquid water content w.r.t. temperature
+    dTheta_dTkCanopy             => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1)         ,& ! intent(in): [dp]     derivative in volumetric liquid water content w.r.t. temperature
     d2Theta_dTkCanopy2           => deriv_data%var(iLookDERIV%d2Theta_dTkCanopy2)%dat(1)       ,& ! intent(in): [dp]     second derivative of volumetric liquid water content w.r.t. temperature
     dFracLiqVeg_dTkCanopy        => deriv_data%var(iLookDERIV%dFracLiqVeg_dTkCanopy)%dat(1)    ,& ! intent(in): [dp]     derivative in fraction of (throughfall + drainage)  w.r.t. temperature
     ! derivatives in energy fluxes at the interface of layers w.r.t. water state in layers above and below
     dNrgFlux_dWatAbove           => deriv_data%var(iLookDERIV%dNrgFlux_dWatAbove)%dat          ,& ! intent(in): [dp(:)]  derivatives in the flux w.r.t. water state in the layer above
     dNrgFlux_dWatBelow           => deriv_data%var(iLookDERIV%dNrgFlux_dWatBelow)%dat          ,& ! intent(in): [dp(:)]  derivatives in the flux w.r.t. water state in the layer below
     ! derivative in liquid water fluxes for the soil domain w.r.t hydrology state variables
-    dVolTot_dPsi0                => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat               ,& ! intent(in): [dp(:)]  derivative in total water content w.r.t. total water matric potential
-    d2VolTot_dPsi02              => deriv_data%var(iLookDERIV%d2VolTot_dPsi02)%dat             ,& ! intent(in): [dp(:)]  second derivative in total water content w.r.t. total water matric potential
-    dCompress_dPsi               => deriv_data%var(iLookDERIV%dCompress_dPsi)%dat              ,& ! intent(in): [dp(:)]  derivative in compressibility w.r.t matric head
+    dVolTot_dPsi0                => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat               ,& ! intent(in): [dp(:)]  derivatives in total water content w.r.t. total water matric potential
+    d2VolTot_dPsi02              => deriv_data%var(iLookDERIV%d2VolTot_dPsi02)%dat             ,& ! intent(in): [dp(:)]  second derivatives in total water content w.r.t. total water matric potential
+    dCompress_dPsi               => deriv_data%var(iLookDERIV%dCompress_dPsi)%dat              ,& ! intent(in): [dp(:)]  derivatives in compressibility w.r.t matric head
     ! derivative in liquid water fluxes for the layer domains w.r.t temperature
-    dFracLiqWat_dTk              => deriv_data%var(iLookDERIV%dFracLiqWat_dTk)%dat             ,& ! intent(in): [dp(:)]  derivative in fraction of liquid w.r.t. temperature
-    mLayerdTheta_dTk             => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat            ,& ! intent(in): [dp(:)]  derivative in volumetric liquid water content w.r.t. temperature
-    mLayerd2Theta_dTk2           => deriv_data%var(iLookDERIV%mLayerd2Theta_dTk2)%dat          ,& ! intent(in): [dp(:)]  second derivative of volumetric liquid water content w.r.t. temperature
+    dFracLiqWat_dTk              => deriv_data%var(iLookDERIV%dFracLiqWat_dTk)%dat             ,& ! intent(in): [dp(:)]  derivatives in fraction of liquid w.r.t. temperature
+    mLayerdTheta_dTk             => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat            ,& ! intent(in): [dp(:)]  derivatives in volumetric liquid water content w.r.t. temperature
+    mLayerd2Theta_dTk2           => deriv_data%var(iLookDERIV%mLayerd2Theta_dTk2)%dat          ,& ! intent(in): [dp(:)]  second derivative in volumetric liquid water content w.r.t. temperature
     ! derivative in bulk heat capacity w.r.t. relevant state variables
-    dVolHtCapBulk_dPsi0          => deriv_data%var(iLookDERIV%dVolHtCapBulk_dPsi0)%dat         ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. matric potential
-    dVolHtCapBulk_dTheta         => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTheta)%dat        ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. volumetric water content
+    dVolHtCapBulk_dPsi0          => deriv_data%var(iLookDERIV%dVolHtCapBulk_dPsi0)%dat         ,& ! intent(in): [dp(:)]  derivatives in bulk heat capacity w.r.t. matric potential
+    dVolHtCapBulk_dTheta         => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTheta)%dat        ,& ! intent(in): [dp(:)]  derivatives in bulk heat capacity w.r.t. volumetric water content
     dVolHtCapBulk_dCanWat        => deriv_data%var(iLookDERIV%dVolHtCapBulk_dCanWat)%dat(1)    ,& ! intent(in): [dp   ]  derivative in bulk heat capacity w.r.t. volumetric water content
-    dVolHtCapBulk_dTk            => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTk)%dat           ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. temperature
+    dVolHtCapBulk_dTk            => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTk)%dat           ,& ! intent(in): [dp(:)]  derivatives in bulk heat capacity w.r.t. temperature
     dVolHtCapBulk_dTkCanopy      => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTkCanopy)%dat(1)  ,& ! intent(in): [dp   ]  derivative in bulk heat capacity w.r.t. temperature
     ! derivative in Cm w.r.t. relevant state variables
-    dCm_dPsi0                    => deriv_data%var(iLookDERIV%dCm_dPsi0)%dat                   ,& ! intent(in): [dp(:)]  derivative in heat capacity w.r.t. matric potential (J kg-1)
-    dCm_dTk                      => deriv_data%var(iLookDERIV%dCm_dTk)%dat                     ,& ! intent(in): [dp(:)]  derivative in heat capacity w.r.t. temperature (J kg-1 K-2)
+    dCm_dPsi0                    => deriv_data%var(iLookDERIV%dCm_dPsi0)%dat                   ,& ! intent(in): [dp(:)]  derivatives in heat capacity w.r.t. matric potential (J kg-1)
+    dCm_dTk                      => deriv_data%var(iLookDERIV%dCm_dTk)%dat                     ,& ! intent(in): [dp(:)]  derivatives in heat capacity w.r.t. temperature (J kg-1 K-2)
     dCm_dTkCanopy                => deriv_data%var(iLookDERIV%dCm_dTkCanopy)%dat(1)            ,& ! intent(in): [dp   ]  derivative in heat capacity w.r.t. canopy temperature (J kg-1 K-2)
     ! derivatives of temperature if enthalpy is the state variable
-    dCanairTemp_dEnthalpy        => deriv_data%var(iLookDERIV%dCanairTemp_dEnthalpy)%dat(1)    ,& ! intent(in): [dp]     derivative of canopy air temperature w.r.t. enthalpy
-    dCanopyTemp_dEnthalpy        => deriv_data%var(iLookDERIV%dCanopyTemp_dEnthalpy)%dat(1)    ,& ! intent(in): [dp]     derivative of canopy temperature w.r.t. enthalpy 
-    dTemp_dEnthalpy              => deriv_data%var(iLookDERIV%dTemp_dEnthalpy)%dat             ,& ! intent(in): [dp(:)]  derivative of temperature w.r.t. enthalpy
-    dCanopyTemp_dCanWat          => deriv_data%var(iLookDERIV%dCanopyTemp_dCanWat)%dat(1)      ,& ! intent(in): [dp]     derivative of canopy temperature w.r.t. volumetric water content
-    dTemp_dTheta                 => deriv_data%var(iLookDERIV%dTemp_dTheta)%dat                ,& ! intent(in): [dp(:)]  derivative of temperature w.r.t. volumetric water content
-    dTemp_dPsi0                  => deriv_data%var(iLookDERIV%dTemp_dPsi0)%dat                 ,& ! intent(in): [dp(:)]  derivative of temperature w.r.t. total water matric potential
+    dCanairTemp_dEnthalpy        => deriv_data%var(iLookDERIV%dCanairTemp_dEnthalpy)%dat(1)    ,& ! intent(in): [dp]     derivative in canopy air temperature w.r.t. enthalpy
+    dCanopyTemp_dEnthalpy        => deriv_data%var(iLookDERIV%dCanopyTemp_dEnthalpy)%dat(1)    ,& ! intent(in): [dp]     derivative in canopy temperature w.r.t. enthalpy 
+    dTemp_dEnthalpy              => deriv_data%var(iLookDERIV%dTemp_dEnthalpy)%dat             ,& ! intent(in): [dp(:)]  derivatives in temperature w.r.t. enthalpy
+    dCanopyTemp_dCanWat          => deriv_data%var(iLookDERIV%dCanopyTemp_dCanWat)%dat(1)      ,& ! intent(in): [dp]     derivative in canopy temperature w.r.t. volumetric water content
+    dTemp_dTheta                 => deriv_data%var(iLookDERIV%dTemp_dTheta)%dat                ,& ! intent(in): [dp(:)]  derivatives in temperature w.r.t. volumetric water content
+    dTemp_dPsi0                  => deriv_data%var(iLookDERIV%dTemp_dPsi0)%dat                 ,& ! intent(in): [dp(:)]  derivatives in temperature w.r.t. total water matric potential
     ! diagnostic variables
     scalarFracLiqVeg             => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)           ,& ! intent(in): [dp]     fraction of liquid water on vegetation (-)
     scalarBulkVolHeatCapVeg      => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1)    ,& ! intent(in): [dp]     bulk volumetric heat capacity of vegetation (J m-3 K-1)
@@ -278,7 +278,7 @@ subroutine computeJacobWithPrime(&
                           + LH_fus            * dFracLiqVeg_dTkCanopy * scalarCanopyWatPrime/canopyDepth
     endif
 
-    ! compute additional terms for the Jacobian for the layer domain (excluding fluxes)
+    ! comput terms for the Jacobian for the layer domain (excluding fluxes)
     do iLayer=1,nLayers
       if(ixSnLaSoGlNrg(iLayer)/=integerMissing)&
           dMat(ixSnLaSoGlNrg(iLayer)) = ( mLayerVolHtCapBulk(iLayer) + LH_fus*iden_water*mLayerdTheta_dTk(iLayer) ) * cj &
@@ -288,12 +288,12 @@ subroutine computeJacobWithPrime(&
                                        + LH_fus*iden_water * dFracLiqWat_dTk(iLayer) * mLayerVolFracWatPrime(iLayer)
     end do
 
-    ! compute additional terms for the Jacobian for the soil domain (excluding fluxes)
+    ! compute terms for the Jacobian for the soil domain (excluding fluxes)
     do iLayer=1,nSoil
       if(ixSoilOnlyHyd(iLayer)/=integerMissing)then ! writes over dMat(ixSoilOnlyHyd(iLayer) = 1.0 * cj above
         dMat(ixSoilOnlyHyd(iLayer)) = ( dVolTot_dPsi0(iLayer) + dCompress_dPsi(iLayer) ) * cj + d2VolTot_dPsi02(iLayer) * mLayerMatricHeadPrime(iLayer)
         if(ixRichards==mixdform)&
-            dMat(ixSoilOnlyHyd(iLayer)) = dMat(ixSoilOnlyHyd(iLayer)) + specificStorage * dVolTot_dPsi0(iLayer) * mLayerMatricHeadPrime(iLayer) / theta_sat(iLayer)
+            dMat(ixSoilOnlyHyd(iLayer)) = dMat(ixSoilOnlyHyd(iLayer)) + specificStorage * dVolTot_dPsi0(iLayer) * mLayerMatricHeadPrime(iLayer)/theta_sat(iLayer)
       endif
     end do
 
@@ -352,10 +352,10 @@ subroutine computeJacobWithPrime(&
     endif  ! if there is a need to compute energy fluxes within vegetation
 
     ! -----
-    ! * cross derivatives in the snow, lake, glce domain...
+    ! * cross derivatives in the snow, lake, glce domains...
     ! ----------------------------------------
     if((nSnowOnlyHyd>0 .and. nSnowOnlyNrg>0) .or. (nLakeOnlyHyd>0 .and. nLakeOnlyNrg>0) .or. (nGlceOnlyHyd>0 .and. nGlceOnlyNrg>0))then
-      do qLayer=1,nSnow+nLake+nGlce-noThetaChange ! loop through layers in the snow, lake, glce domain
+      do qLayer=1,nSnow+nLake+nGlce-noThetaChange ! loop through layers in the snow, lake, glce domains
 
         if(qLayer<=nSnow+nLake)then
           jLayer = qLayer
@@ -379,8 +379,8 @@ subroutine computeJacobWithPrime(&
                                       + LH_fu0*iden_water * mLayerTempPrime(jLayer) * dFracLiqWat_dTk(jLayer)    ! (dF/dLiq)
         endif   ! (if the water state for the current layer is within the state subset)
 
-      end do  ! (looping through snow lake glce layers)
-    endif   ! (if there are state variables for both water and energy in the snow, lake, glce domain)
+      end do  ! (looping through snow, lake, glce layers)
+    endif   ! (if there are state variables for both water and energy in the snow, lake, glce domains)
 
     ! -----
     ! * cross derivatives in the soil domain...
@@ -440,7 +440,7 @@ subroutine computeJacobWithPrime(&
         do jLayer=1,nBands-1 ! water row nBand would add a 0 value from the nrg matrix since it's out of range
           watRows(jLayer) = jLayer
           nrgRows(jLayer) = jLayer + 1
-        end do
+        enddo
       endif
 
       if(ixCasNrg/=integerMissing)then
@@ -468,7 +468,7 @@ subroutine computeJacobWithPrime(&
           endif
           aJac(:,nrgState) = aJac(:,nrgState) * dTemp_dEnthalpy(iLayer)
           aJac(ixInd(nrgState,nrgState),nrgState) = aJac(ixInd(nrgState,nrgState),nrgState) + 1._rkind * cj
-        end do
+        enddo
       endif
     else
       allocate(watRows(0),nrgRows(0)) ! dummy allocation to avoid compiler warning
