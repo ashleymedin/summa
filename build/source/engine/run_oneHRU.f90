@@ -38,7 +38,6 @@ USE data_types,only:&
 ! access vegetation data
 USE globalData,only:greenVegFrac_monthly   ! fraction of green vegetation in each month (0-1)
 USE globalData,only:overwriteRSMIN         ! flag to overwrite RSMIN
-USE globalData,only:maxSoilLayers          ! Maximum Number of Soil Layers
 
 ! access domain types
 USE globalData,only:upland                 ! domain type for upland areas
@@ -188,13 +187,13 @@ subroutine run_oneHRU(&
         zSoilReverseSign(:) = -progData%dom(i)%var(iLookPROG%iLayerHeight)%dat(ibeg:iend)
 
         ! populate parameters in Noah-MP modules
-        ! Passing a maxSoilLayers in order to pass the check for NROOT, that is done to avoid making any changes to Noah-MP code.
+        ! Passing an unrealistically large number of soil layers in order to pass the check for NROOT, that is done to avoid making any changes to Noah-MP code.
         !  --> NROOT from Noah-MP veg tables (as read here) is not used in SUMMA
         call REDPRM(typeData%var(iLookTYPE%vegTypeIndex),      & ! vegetation type index
                     typeData%var(iLookTYPE%soilTypeIndex),     & ! soil type
                     typeData%var(iLookTYPE%slopeTypeIndex),    & ! slope type index
                     zSoilReverseSign,                          & ! * not used: height at bottom of each layer [NOTE: negative] (m)
-                    maxSoilLayers,                             & ! number of soil layers
+                    10000_i4b,                                 & ! number of soil layers
                     urbanVegCategory)                            ! vegetation category for urban areas
 
         ! deallocate height at bottom of each soil layer(used in Noah MP)
