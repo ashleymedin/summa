@@ -346,7 +346,7 @@ subroutine getScaling(&
     endwhere
 
     ! -----
-    ! * define components of derivative matrices that are constant over a time step (substep)...
+    ! * define components of derivative matrices at start of time step (substep)...
     ! ------------------------------------------------------------------------------------------
 
     ! define the multiplier for the state vector for residual calculations (vegetation canopy)
@@ -365,7 +365,7 @@ subroutine getScaling(&
     where(ixStateType_subset==iname_watCanopy) dMat = 1._rkind          ! nothing else on the left hand side
     where(ixStateType_subset==iname_liqCanopy) dMat = 1._rkind          ! nothing else on the left hand side
 
-    ! define the energy multiplier and diagonal elements for the state vector for residual calculations (snow-soil domain)
+    ! define the energy multiplier and diagonal elements for the state vector for residual calculations (layer domain)
     if(nSnLaSoGlNrg>0)then
       do concurrent (iLayer=1:nLayers,ixSnLaSoGlNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the layer domains)
         ixStateSubset        = ixSnLaSoGlNrg(iLayer)      ! index within the state vector
@@ -374,7 +374,7 @@ subroutine getScaling(&
       end do  ! looping through non-missing energy state variables in the layer domains
     endif
 
-    ! define the hydrology multiplier and diagonal elements for the state vector for residual calculations (snow-soil domain)
+    ! define the hydrology multiplier and diagonal elements for the state vector for residual calculations (layer domain)
     if(nSnLaSoGlHyd>0)then
       do concurrent (iLayer=1:nLayers,ixSnLaSoGlHyd(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the layer domains)
         ixStateSubset        = ixSnLaSoGlHyd(iLayer)      ! index within the state vector
