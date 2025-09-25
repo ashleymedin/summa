@@ -343,6 +343,7 @@ contains
        case(iname_soil)
         iSoil       = iLayer - nSnow - nLake
         if(vGn_n(iSoil) <= 1._rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot have van Genutchen n <= 1: soil layer = ',iSoil; err=20; return; end if
+        if(vGn_alpha(iSoil) >= 0._rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot have van Genutchen alpha >= 0: soil layer = ',iSoil; err=20; return; end if
         vGn_m       = 1._rkind - 1._rkind/vGn_n(iSoil)
         scalarTheta = mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)
         ! (check liquid water)
