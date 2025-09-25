@@ -198,7 +198,7 @@ subroutine computeJacob(&
     scalarFracLiqVeg             => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)          ,& ! intent(in): [dp]     fraction of liquid water on vegetation (-)
     scalarBulkVolHeatCapVeg      => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1)   ,& ! intent(in): [dp]     bulk volumetric heat capacity of vegetation (J m-3 K-1)
     scalarCanopyCm               => diag_data%var(iLookDIAG%scalarCanopyCm)%dat(1)            ,& ! intent(in): [dp]     Cm of canopy (J kg-1 K-1)
-    mLayerFracLiq                => diag_data%var(iLookDIAG%mLayerFracLiq)%dat                ,& ! intent(in): [dp(:)]  fraction of liquid water in each snow, lake, or ice layer (-)
+    mLayerFracLiq                => diag_data%var(iLookDIAG%mLayerFracLiq)%dat                ,& ! intent(in): [dp(:)]  fraction of liquid water in each snow, lake, or glce layer (-)
     mLayerVolHtCapBulk           => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat           ,& ! intent(in): [dp(:)]  bulk volumetric heat capacity in each layer (J m-3 K-1)
     mLayerCm                     => diag_data%var(iLookDIAG%mLayerCm)%dat                     ,& ! intent(in): [dp(:)]  Cm in each layer (J kg-1 K-1)
     ! canopy and layer depth
@@ -536,7 +536,7 @@ subroutine fluxJacAdd(&
     mLayerdTheta_dTk             => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat                ,& ! intent(in): [dp(:)]  derivative in volumetric liquid water content w.r.t. temperature
     ! diagnostic variables
     scalarFracLiqVeg             => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)               ,& ! intent(in): [dp]     fraction of liquid water on vegetation (-)
-    mLayerFracLiq                => diag_data%var(iLookDIAG%mLayerFracLiq)%dat                     ,& ! intent(in): [dp(:)]  fraction of liquid water in each snow, lake, or ice layer (-)
+    mLayerFracLiq                => diag_data%var(iLookDIAG%mLayerFracLiq)%dat                     ,& ! intent(in): [dp(:)]  fraction of liquid water in each snow, lake, or glce layer (-)
     scalarSoilControl            => diag_data%var(iLookDIAG%scalarSoilControl)%dat(1)              ,& ! intent(in): [dp]     soil control on infiltration for derivative
     mLayerVolFracIce             => prog_data%var(iLookPROG%mLayerVolFracIce)%dat                  ,& ! intent(in): [dp(:)]  volumetric fraction of ice in each layer start of step (-)
     ! canopy and layer depth

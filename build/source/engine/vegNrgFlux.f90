@@ -459,7 +459,7 @@ subroutine vegNrgFlux(&
     dCanopyTrans_dTGround => out_vegNrgFlux % dCanopyTrans_dTGround,         & ! intent(out): [dp] derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
     ! output: cross derivative terms
     dCanopyNetFlux_dCanWat => out_vegNrgFlux % dCanopyNetFlux_dCanWat,       & ! intent(out): [dp] derivative in net canopy fluxes w.r.t. canopy total water content (J kg-1 s-1)
-    dGroundNetFlux_dCanWat =>out_vegNrgFlux % dGroundNetFlux_dCanWat,        & ! intent(out): [dp] derivative in net ground fluxes w.r.t. canopy total water content (J kg-1 s-1)
+    dGroundNetFlux_dCanWat => out_vegNrgFlux % dGroundNetFlux_dCanWat,       & ! intent(out): [dp] derivative in net ground fluxes w.r.t. canopy total water content (J kg-1 s-1)
     ! output: error control
     err     => out_vegNrgFlux % err,                       & ! intent(out): [i4b] error code
     message => out_vegNrgFlux % cmessage                   & ! intent(out): [character] error message

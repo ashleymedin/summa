@@ -245,7 +245,7 @@ subroutine computeJacobWithPrime(&
     scalarFracLiqVeg             => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)           ,& ! intent(in): [dp]     fraction of liquid water on vegetation (-)
     scalarBulkVolHeatCapVeg      => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1)    ,& ! intent(in): [dp]     bulk volumetric heat capacity of vegetation (J m-3 K-1)
     scalarCanopyCm               => diag_data%var(iLookDIAG%scalarCanopyCm)%dat(1)             ,& ! intent(in): [dp]     Cm of canopy (J kg-1 K-1)
-    mLayerFracLiq                => diag_data%var(iLookDIAG%mLayerFracLiq)%dat                 ,& ! intent(in): [dp(:)]  fraction of liquid water in each snow, lake, or ice layer (-)
+    mLayerFracLiq                => diag_data%var(iLookDIAG%mLayerFracLiq)%dat                 ,& ! intent(in): [dp(:)]  fraction of liquid water in each snow, lake, or glce layer (-)
     mLayerVolHtCapBulk           => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat            ,& ! intent(in): [dp(:)]  bulk volumetric heat capacity in each layer (J m-3 K-1)
     mLayerCm                     => diag_data%var(iLookDIAG%mLayerCm)%dat                      ,& ! intent(in): [dp(:)]  Cm in each layer (J kg-1 K-1)
     ! canopy and layer depth

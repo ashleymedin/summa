@@ -246,7 +246,7 @@ subroutine updateDiagn(&
     mLayerVolHtCapBulk      => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat        ,& ! intent(in):  [dp(:)]  volumetric heat capacity in each layer (J m-3 K-1)
     ! model diagnostic variables (fraction of liquid water)
     scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,& ! intent(out): [dp]     fraction of liquid water on vegetation (-)
-    mLayerFracLiq           => diag_data%var(iLookDIAG%mLayerFracLiq)%dat             ,& ! intent(out): [dp(:)]  fraction of liquid water in each snow, lake, or ice layer (-)
+    mLayerFracLiq           => diag_data%var(iLookDIAG%mLayerFracLiq)%dat             ,& ! intent(out): [dp(:)]  fraction of liquid water in each snow, lake, or glce layer (-)
     ! model states from a previous solution
     scalarCanopyTemp        => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(in):  [dp]     temperature of the vegetation canopy (K)
     mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(in):  [dp(:)]  temperature of each snow/soil layer (K)
@@ -646,7 +646,7 @@ subroutine updateDiagn(&
           ! add constraints for snow/ice temperature
           if(ixDomainType==iname_veg .or. ixDomainType==iname_snow  .or. ixDomainType==iname_lake  .or. ixDomainType==iname_glce)then
             if(tempInc > Tcrit - xTemp) tempInc=(Tcrit - xTemp)*0.5_rkind  ! simple bi-section method
-          endif  ! if the domain is vegetation, snow, lake, or ice
+          endif  ! if the domain is vegetation, snow, lake, or glce
 
           ! deal with the discontinuity between partially frozen and unfrozen soil
           if(ixDomainType==iname_soil)then

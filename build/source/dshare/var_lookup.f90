@@ -475,9 +475,9 @@ MODULE var_lookup
   integer(i4b)    :: scalarSnowAge                   = integerMissing ! non-dimensional snow age (-)
   integer(i4b)    :: scalarGroundSnowFraction        = integerMissing ! fraction of ground that is covered with snow (-)
   integer(i4b)    :: spectralSnowAlbedoDirect        = integerMissing ! direct snow albedo for individual spectral bands (-)
-  integer(i4b)    :: mLayerFracLiq                   = integerMissing ! fraction of liquid water in each snow, lake, or ice layer (-)
-  integer(i4b)    :: mLayerThetaResid                = integerMissing ! residual volumetric water content in each snow layer (-)
-  integer(i4b)    :: mLayerPoreSpace                 = integerMissing ! total pore space in each snow layer (-)
+  integer(i4b)    :: mLayerFracLiq                   = integerMissing ! fraction of liquid water in each snow, lake, or glce layer (-)
+  integer(i4b)    :: mLayerThetaResid                = integerMissing ! residual volumetric water content in each snow, lake, or glce layer (-)
+  integer(i4b)    :: mLayerPoreSpace                 = integerMissing ! total pore space in each snow, lake, or glce layer (-)
   integer(i4b)    :: mLayerMeltFreeze                = integerMissing ! change in ice content due to melt/freeze in each layer (kg m-3)
   ! lake, glacier ice mass/hydrology
   integer(i4b)    :: scalarIceWE                     = integerMissing ! glacier ice (not snow) water equivalent (kg m-2)

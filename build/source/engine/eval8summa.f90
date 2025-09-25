@@ -255,7 +255,7 @@ subroutine eval8summa(&
     scalarSfcMeltPond         => prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)         ,& ! intent(in):  [dp]    ponded water caused by melt of the "snow without a layer" (kg m-2)
     mLayerVolFracLiq          => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat             ,& ! intent(in):  [dp(:)] volumetric fraction of liquid water (-)
     mLayerVolFracIce          => prog_data%var(iLookPROG%mLayerVolFracIce)%dat             ,& ! intent(in):  [dp(:)] volumetric fraction of ice (-)
-    mLayerFracLiq             => diag_data%var(iLookDIAG%mLayerFracLiq)%dat                ,& ! intent(in):  [dp(:)] fraction of liquid water in each snow, lake, or ice layer (-)
+    mLayerFracLiq             => diag_data%var(iLookDIAG%mLayerFracLiq)%dat                ,& ! intent(in):  [dp(:)] fraction of liquid water in each snow, lake, or glce layer (-)
     ! enthalpy from the previous solution
     scalarCanairEnthalpy      => prog_data%var(iLookPROG%scalarCanairEnthalpy)%dat(1)      ,& ! intent(in):  [dp]    enthalpy of the canopy air space (J m-3)
     scalarCanopyEnthTemp      => diag_data%var(iLookDIAG%scalarCanopyEnthTemp)%dat(1)      ,& ! intent(in):  [dp]    temperature component of enthalpy of the vegetation canopy (J m-3)
@@ -795,7 +795,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
   ! -----------------------------------------------------------------------------------------------------
   ! temporary variables for model constraints
   real(qp),dimension(nState)               :: xInc                       ! iteration increment
-  real(rkind)                              :: scalarTemp                 ! temperature of an individual snow layer (K)
+  real(rkind)                              :: scalarTemp                 ! temperature of an individual layer (K)
   real(rkind)                              :: scalarIce                  ! volumetric ice content of an individual layer (-)
   real(rkind)                              :: scalarLiq                  ! volumetric liquid water content of an individual layer (-)
   real(rkind)                              :: xPsi00                     ! matric head after applying the iteration increment (m)
@@ -955,7 +955,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
             if(xInc(iState) < critDiff) xInc(iState) = critDiff - epsT  ! constrained temperature increment (K)
           end if  ! (switch between initially frozen and initially unfrozen)
         end do ! (loop through lake layers)
-      endif ! (if there are state variables for energy in the veg lake domain)
+      endif ! (if there are state variables for energy in the veg lake domains)
 
       ! crossing freezing point event for snow and ice, keep it below freezing
       if(nSnowOnlyNrg+nGlceOnlyNrg>0)then
@@ -971,8 +971,8 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           iState = ixSnLaSoGlNrg(iLayer)
           ! constrained temperature increment (K) -- simplified bi-section
           if(stateVecPrev(iState) + xInc(iState) > Tfreeze) xInc(iState) = 0.5_rkind*(Tfreeze - stateVecPrev(iState) )
-        end do ! (loop through snow layers)
-      endif  ! (if there are state variables for energy in the snow ice domain)
+        end do ! (loop through snow and glce layers)
+      endif  ! (if there are state variables for energy in the snow glce domains)
 
       ! crossing freezing point event for soil
       if(nSoilOnlyNrg>0)then

@@ -515,14 +515,14 @@ subroutine T2enthTemp_veg(&
 end subroutine T2enthTemp_veg
 
 ! ************************************************************************************************************************
-! public subroutine T2enthTemp_snLaGl: compute temperature component of enthalpy from temperature and total water content, snow, lake, ice layer
+! public subroutine T2enthTemp_snLaGl: compute temperature component of enthalpy from temperature and total water content, snow, lake, or glce layer
 ! ************************************************************************************************************************
 subroutine T2enthTemp_snLaGl(&
                       noLiq,                  & ! intent(in):  flag to indicate no liquid water in the layer
                       snowfrz_scale,          & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                       mLayerTemp,             & ! intent(in):  layer temperature (K)
                       mLayerVolFracWat,       & ! intent(in):  volumetric total water content (-)
-                      mLayerEnthTemp)           ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
+                      mLayerEnthTemp)           ! intent(out): temperature component of enthalpy of each snow, lake, or glce layer (J m-3)
   ! -------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! delare dummy variables
@@ -533,7 +533,7 @@ subroutine T2enthTemp_snLaGl(&
   real(rkind),intent(in)           :: mLayerTemp            ! layer temperature (K)
   real(rkind),intent(in)           :: mLayerVolFracWat      ! volumetric total water content (-)
   ! output: enthalpy
-  real(rkind),intent(out)          :: mLayerEnthTemp        ! temperature component of enthalpy of each snow layer (J m-3)
+  real(rkind),intent(out)          :: mLayerEnthTemp        ! temperature component of enthalpy of each snow, lake, or glce layer (J m-3)
   ! -------------------------------------------------------------------------------------------------------------------------
   ! declare local variables
   real(rkind)                      :: diffT                 ! temperature difference of temp from Tfreeze

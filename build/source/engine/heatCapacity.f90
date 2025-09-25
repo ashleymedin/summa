@@ -124,7 +124,7 @@ USE f2008_funcs_module,only:findIndex             ! finds the index of the first
     err=0; message='computeStatMult/'
 
     ! -----
-    ! * define components of derivative matrices that are constant over a time step (substep)...
+    ! * define components of derivative matrices at start of time step (substep)...
     ! ------------------------------------------------------------------------------------------
 
     ! define the multiplier for the state vector for residual calculations (vegetation canopy)
