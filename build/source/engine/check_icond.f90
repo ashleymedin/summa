@@ -317,8 +317,6 @@ contains
 
        ! ***** snow, ice, lake, volume expansion allowed
        case(iname_snow, iname_lake, iname_glce)
-        iSoil       = integerMissing
-        vGn_m       = realMissing
         scalarTheta = mLayerVolFracIce(iLayer)*(iden_ice/iden_water) + mLayerVolFracLiq(iLayer)
         ! (check liquid water)
         if(mLayerVolFracLiq(iLayer) < 0._rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water < 0: layer = ',iLayer; err=20; return; end if
@@ -344,6 +342,7 @@ contains
        ! ***** soil, no volume expansion
        case(iname_soil)
         iSoil       = iLayer - nSnow - nLake
+        if(vGn_n(iSoil) <= 1._rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot have van Genutchen n <= 1: soil layer = ',iSoil; err=20; return; end if
         vGn_m       = 1._rkind - 1._rkind/vGn_n(iSoil)
         scalarTheta = mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)
         ! (check liquid water)
