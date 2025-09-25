@@ -676,6 +676,7 @@ subroutine popMetadat(err,message)
   deriv_meta(iLookDERIV%dNrgFlux_dWatBelow)            = var_info('dNrgFlux_dWatBelow'           , 'derivatives in the flux w.r.t. water state in the layer below'        , 'unknown'        , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   ! derivative in liquid water fluxes at the interface of snow glce layers w.r.t. volumetric liquid water content in the layer above
   deriv_meta(iLookDERIV%iLayerLiqFluxSnLaGlDeriv)      = var_info('iLayerLiqFluxSnLaGlDeriv'     , 'derivative in vertical liquid water flux at layer interfaces'         , 'm s-1'          , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%surfaceIceMeltFluxDeriv)       = var_info('surfaceIceMeltFluxDeriv'      , 'derivative in ice melt flux at top interface of lake or glacier'      , 'm s-1'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! derivative in liquid water fluxes for the soil layers w.r.t hydrology state variables
   deriv_meta(iLookDERIV%dVolTot_dPsi0)                 = var_info('dVolTot_dPsi0'                , 'derivative in total water content w.r.t. total water matric potential', 'm-1'            , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%d2VolTot_dPsi02)               = var_info('d2VolTot_dPsi02'              , 'second derivative in total water content w.r.t. total water matric potential', 'm-1'     , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)

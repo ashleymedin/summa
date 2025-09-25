@@ -849,6 +849,7 @@ contains
   case('dNrgFlux_dWatBelow'             ); get_ixDeriv = iLookDERIV%dNrgFlux_dWatBelow             ! derivatives in the flux w.r.t. water state in the layer below
   ! derivative in liquid water fluxes at the interface of snow lake glce layers w.r.t. volumetric liquid water content in the layer above
   case('iLayerLiqFluxSnLaGlDeriv'       ); get_ixDeriv = iLookDERIV%iLayerLiqFluxSnLaGlDeriv       ! derivative in vertical liquid water flux at layer interfaces (m s-1)
+  case('surfaceIceMeltFluxDeriv'        ); get_ixDeriv = iLookDERIV%surfaceIceMeltFluxDeriv        ! derivative in ice melt flux at top interface of lake or glacier (m s-1)
   ! derivative in liquid water fluxes for the soil domain w.r.t hydrology state variables
   case('dVolTot_dPsi0'                  ); get_ixDeriv = iLookDERIV%dVolTot_dPsi0                  ! derivative in total water content w.r.t. total water matric potential (m-1)
   case('d2VolTot_dPsi02'                ); get_ixDeriv = iLookDERIV%d2VolTot_dPsi02                ! second derivative in total water content w.r.t. total water matric potential

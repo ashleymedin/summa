@@ -130,6 +130,7 @@ subroutine snowLakeGlceLiqFlux(&
     ! input-output: fluxes and derivatives
     iLayerLiqFluxSnLaGl0      => io_snowLakeGlceLiqFlux % iLayerLiqFluxSnLaGl,           & ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
     iLayerLiqFluxSnLaGlDeriv0 => io_snowLakeGlceLiqFlux % iLayerLiqFluxSnLaGlDeriv,      & ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
+    surfaceIceMeltFluxDeriv   => io_snowLakeGlceLiqFlux % surfaceIceMeltFluxDeriv,       & ! intent(inout): derivative in ice melt flux at top interface
     ! output: error control
     err                    => out_snowLakeGlceLiqFlux % err,                             & ! intent(out):   error code
     message                => out_snowLakeGlceLiqFlux % cmessage                         & ! intent(out):   error message
@@ -139,8 +140,8 @@ subroutine snowLakeGlceLiqFlux(&
     err=0; message='snowLakeGlceLiqFlux/'
 
     ! initialize with index 0
-    iLayerLiqFluxSnLaGl = iLayerLiqFluxSnLaGl0
-    iLayerLiqFluxSnLaGlDeriv = iLayerLiqFluxSnLaGlDeriv0
+    iLayerLiqFluxSnLaGl = iLayerLiqFluxSnLaGl0(nStart:nLayers+nStart)
+    iLayerLiqFluxSnLaGlDeriv = iLayerLiqFluxSnLaGlDeriv0(nStart:nLayers+nStart)
 
     ! check that the input vectors match nLayers
     if (size(mLayerVolFracLiqTrial)/=nLayers .or. size(mLayerVolFracIce)/=nLayers .or. &
@@ -154,7 +155,7 @@ subroutine snowLakeGlceLiqFlux(&
     ! get the inputs for the snow layers
     if(is_glac) then  ! snow can be firn
       residThrs = 550._rkind ! firn density threshold to reduce residual liquid water content (kg m-3), maybe should be 800?
-      maxVolIceContent_use = min(maxVolIceContent+0.2,0.9_rkind) ! firn maximum volumetric ice content to store water (-)
+      maxVolIceContent_use = min(maxVolIceContent+0.15,0.85_rkind) ! firn maximum volumetric ice content to store water (-)
     else ! snow
       residThrs = 550._rkind ! snow density threshold to reduce residual liquid water
       maxVolIceContent_use = maxVolIceContent ! snow maximum volumetric ice content to store water (-)
@@ -175,10 +176,6 @@ subroutine snowLakeGlceLiqFlux(&
       ixBot = nLayers
     end if
 
-    ! define the liquid flux at the upper boundary (m s-1)
-    iLayerLiqFluxSnLaGl(0)      = surface_flux
-    iLayerLiqFluxSnLaGlDeriv(0) = 0._rkind ! computed inside computeJacob*
-
     ! compute properties fixed over the time step
     if (firstFluxCall) then
       ! loop through snow/firn layers
@@ -198,6 +195,10 @@ subroutine snowLakeGlceLiqFlux(&
      
     ! compute fluxes
     if (do_snow) then
+      if(ixTop==1)then ! compute the liquid flux at the upper boundary (m s-1) if computing top layer as snow
+        iLayerLiqFluxSnLaGl(0)      = surface_flux
+        iLayerLiqFluxSnLaGlDeriv(0) = 0._rkind ! computed inside computeJacob*
+      endif
       do iLayer=ixTop,ixBot  ! loop through snow layers
         if (mLayerVolFracLiqTrial(iLayer) > mLayerThetaResid(iLayer)) then ! check that flow occurs
           ! compute the relative saturation (-)
@@ -217,9 +218,9 @@ subroutine snowLakeGlceLiqFlux(&
     else ! ice
       if(ixTop==1) ixTop = 0 ! include the 0 index if the top layer is included, since surface flux downwards is 0 (impermeable) 
       do iLayer=ixBot,ixTop,-1 ! loop through glacier ice layers
-        ! ** liquid water goes up since glacier ice is impermeable (upwards direction is negative)
+        ! ** liquid water goes up since ice is impermeable (upwards direction is negative)
         if (iLayer == nLayers) then ! bottom layer (note, this is nGlce-noThetaChange)
-          iLayerLiqFluxSnLaGl(iLayer) = 0._rkind ! no liquid water flux at the bottom of the nGlce-noThetaChange glacier ice layer
+          iLayerLiqFluxSnLaGl(iLayer) = 0._rkind ! no liquid water flux at the bottom of the melting ice layers
           iLayerLiqFluxSnLaGlDeriv(iLayer) = 0._rkind
         else  ! not the bottom layer
           availCap  = min(mLayerVolFracLiqTrial(iLayer+1),mLayerThetaResid(iLayer+1)) ! available capacity
@@ -229,6 +230,7 @@ subroutine snowLakeGlceLiqFlux(&
           iLayerLiqFluxSnLaGl(iLayer) = iLayerLiqFluxSnLaGl(iLayer+1) + iLayerLiqFluxSnLaGl(iLayer)
         end if
       end do  ! end loop through glacier ice layers
+      surfaceIceMeltFluxDeriv = iLayerLiqFluxSnLaGlDeriv(0) ! if we have a frozen supraglacial lake, then this won't be uniquely defined (unlikely problem)
     end if  ! end if snow or ice
     if(ixBot==nLayers)then
       iLayerLiqFluxSnLaGl(nLayers) = iLayerLiqFluxSnLaGl(nLayers) + bottom_flux   ! set the bottom flux if already computed
@@ -236,8 +238,8 @@ subroutine snowLakeGlceLiqFlux(&
     end if
 
     ! save the results with index 0
-    iLayerLiqFluxSnLaGl0 = iLayerLiqFluxSnLaGl
-    iLayerLiqFluxSnLaGlDeriv0 = iLayerLiqFluxSnLaGlDeriv
+    iLayerLiqFluxSnLaGl0(nStart:nLayers+nStart) = iLayerLiqFluxSnLaGl
+    iLayerLiqFluxSnLaGlDeriv0(nStart:nLayers+nStart) = iLayerLiqFluxSnLaGlDeriv
 
   end associate ! end association of local variables with information in the data structures
 

@@ -312,7 +312,7 @@ subroutine computeJacobWithPrime(&
 
     ! compute the maximum volumetric ice content for the layer domains
     if(nGlce>0)then ! snow can be firn
-      maxVolIceContent_use = min(maxVolIceContent+0.2,0.9_rkind) ! firn maximum volumetric ice content to store water (-)
+      maxVolIceContent_use = min(maxVolIceContent+0.15,0.85_rkind) ! firn maximum volumetric ice content to store water (-)
     else ! snow
       maxVolIceContent_use = maxVolIceContent ! snow maximum volumetric ice content to store water (-)
     endif
@@ -342,7 +342,7 @@ subroutine computeJacobWithPrime(&
     ! -----
     ! * cross derivatives in the vegetation...
     ! ---------------------------------------------
-    if(computeVegFlux)then  ! (derivatives only defined when vegetation protrudes over the surface)
+    if(computeVegFlux)then ! (derivatives only defined when vegetation protrudes over the surface)
       if(ixVegHyd/=integerMissing .and. ixVegNrg/=integerMissing)&
           ! NOTE: dIce/dLiq = (1 - scalarFracLiqVeg); dIce*LH_fu0/canopyDepth = J m-3; dLiq = kg m-2
           aJac(ixInd(ixVegNrg,ixVegHyd),ixVegHyd) = (-1._rkind + scalarFracLiqVeg)*LH_fu0/canopyDepth * cj &
@@ -377,10 +377,10 @@ subroutine computeJacobWithPrime(&
                                       + dVolHtCapBulk_dTheta(jLayer) * mLayerTempPrime(jLayer) + mLayerCm(jLayer) * cj &
                                       + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer)) &
                                       + LH_fu0*iden_water * mLayerTempPrime(jLayer) * dFracLiqWat_dTk(jLayer)    ! (dF/dLiq)
-        endif   ! (if the water state for the current layer is within the state subset)
+        endif ! (if the water state for the current layer is within the state subset)
 
-      end do  ! (looping through snow, lake, glce layers)
-    endif   ! (if there are state variables for both water and energy in the snow, lake, glce domains)
+      end do ! (looping through snow, lake, glce layers)
+    endif ! (if there are state variables for both water and energy in the snow, lake, glce domains)
 
     ! -----
     ! * cross derivatives in the soil domain...
@@ -407,10 +407,10 @@ subroutine computeJacobWithPrime(&
           if(mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind))&  ! ice is present
               aJac(ixInd(nrgState,watState),watState) = -LH_fu0*iden_water * dVolTot_dPsi0(iLayer) * cj &
                                                        - LH_fu0*iden_water * mLayerMatricHeadPrime(iLayer) * d2VolTot_dPsi02(iLayer) + aJac(ixInd(nrgState,watState),watState) ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
-        endif   ! (if the water state for the current layer is within the state subset)
+        endif ! (if the water state for the current layer is within the state subset)
 
-      end do  ! (looping through energy states in the soil domain)
-    endif   ! (if there are state variables for both water and energy in the soil domain)
+      end do ! (looping through energy states in the soil domain)
+    endif ! (if there are state variables for both water and energy in the soil domain)
 
     ! *********************************************************************************************************************************************************
     ! * PART 2: COMPUTE FLUX JACOBIAN TERMS 

@@ -616,6 +616,7 @@ MODULE data_types
  type, public :: io_type_snowLakeGlceLiqFlux ! class for intent(inout) arguments in snowLakeGlceLiqFlux call
    real(rkind), allocatable :: iLayerLiqFluxSnLaGl(:)            ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
    real(rkind), allocatable :: iLayerLiqFluxSnLaGlDeriv(:)       ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
+   real(rkind)              :: surfaceIceMeltFluxDeriv           ! intent(inout): derivative in ice melt flux at top interface
   contains
    procedure :: initialize => initialize_io_snowLakeGlceLiqFlux
    procedure :: finalize   => finalize_io_snowLakeGlceLiqFlux
@@ -1413,32 +1414,32 @@ contains
    in_snowLakeGlceLiqFlux % mLayerVolFracLiqTrial  =mLayerVolFracLiqTrial(nStart+1:nStart+nLayers) ! intent(in): trial value of volumetric fraction of liquid water at the current iteration (-)
  end subroutine initialize_in_snowLakeGlceLiqFlux 
 
- subroutine initialize_io_snowLakeGlceLiqFlux(io_snowLakeGlceLiqFlux,nLayers,nStart,flux_data,deriv_data)
+ subroutine initialize_io_snowLakeGlceLiqFlux(io_snowLakeGlceLiqFlux,flux_data,deriv_data)
   class(io_type_snowLakeGlceLiqFlux),intent(out)   :: io_snowLakeGlceLiqFlux               ! class object for intent(inout) snowLakeGlceLiqFlux arguments
-  integer(i4b),intent(in)                 :: nLayers                     ! number of snow layers
-  integer(i4b),intent(in)                 :: nStart                      ! starting index for snow layers
   type(var_dlength),intent(in)            :: flux_data                   ! model fluxes for a local HRU
   type(var_dlength),intent(in)            :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
   associate(&
-   iLayerLiqFluxSnLaGl            => flux_data%var(iLookFLUX%iLayerLiqFluxSnLaGl)%dat(nStart:nStart+nLayers),       & ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
-   iLayerLiqFluxSnLaGlDeriv       => deriv_data%var(iLookDERIV%iLayerLiqFluxSnLaGlDeriv)%dat(nStart:nStart+nLayers) ) ! intent(out): [dp(:)] derivative in vertical liquid water flux at layer interfaces
+   iLayerLiqFluxSnLaGl            => flux_data%var(iLookFLUX%iLayerLiqFluxSnLaGl)%dat,         & ! intent(in): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
+   iLayerLiqFluxSnLaGlDeriv       => deriv_data%var(iLookDERIV%iLayerLiqFluxSnLaGlDeriv)%dat,  & ! intent(in): [dp(:)] derivative in vertical liquid water flux at layer interfaces
+   surfaceIceMeltFluxDeriv        => deriv_data%var(iLookDERIV%surfaceIceMeltFluxDeriv)%dat(1) ) ! intent(in): [dp] derivative in ice melt flux at top interface
    io_snowLakeGlceLiqFlux % iLayerLiqFluxSnLaGl      =iLayerLiqFluxSnLaGl       ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
    io_snowLakeGlceLiqFlux % iLayerLiqFluxSnLaGlDeriv =iLayerLiqFluxSnLaGlDeriv  ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
+   io_snowLakeGlceLiqFlux % surfaceIceMeltFluxDeriv  =surfaceIceMeltFluxDeriv   ! intent(inout): derivative in ice melt flux at top interface
   end associate
  end subroutine initialize_io_snowLakeGlceLiqFlux
 
- subroutine finalize_io_snowLakeGlceLiqFlux(io_snowLakeGlceLiqFlux,nLayers,nStart,flux_data,deriv_data)
+ subroutine finalize_io_snowLakeGlceLiqFlux(io_snowLakeGlceLiqFlux,flux_data,deriv_data)
   class(io_type_snowLakeGlceLiqFlux),intent(in)    :: io_snowLakeGlceLiqFlux               ! class object for intent(inout) snowLakeGlceLiqFlux arguments
-  integer(i4b),intent(in)                 :: nLayers                     ! number of snow layers
-  integer(i4b),intent(in)                 :: nStart                      ! starting index for snow layers
   type(var_dlength),intent(inout)         :: flux_data                   ! model fluxes for a local HRU
   type(var_dlength),intent(inout)         :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
   associate(&
-   iLayerLiqFluxSnLaGl            => flux_data%var(iLookFLUX%iLayerLiqFluxSnLaGl)%dat(nStart:nStart+nLayers),       & ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
-   iLayerLiqFluxSnLaGlDeriv       => deriv_data%var(iLookDERIV%iLayerLiqFluxSnLaGlDeriv)%dat(nStart:nStart+nLayers) ) ! intent(out): [dp(:)] derivative in vertical liquid water flux at layer interfaces
+   iLayerLiqFluxSnLaGl            => flux_data%var(iLookFLUX%iLayerLiqFluxSnLaGl)%dat,         & ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
+   iLayerLiqFluxSnLaGlDeriv       => deriv_data%var(iLookDERIV%iLayerLiqFluxSnLaGlDeriv)%dat,  & ! intent(out): [dp(:)] derivative in vertical liquid water flux at layer interfaces
+   surfaceIceMeltFluxDeriv        => deriv_data%var(iLookDERIV%surfaceIceMeltFluxDeriv)%dat(1) ) ! intent(out): [dp] derivative in ice melt flux at top interface
    ! intent(inout) arguments
    iLayerLiqFluxSnLaGl     =io_snowLakeGlceLiqFlux % iLayerLiqFluxSnLaGl               ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
    iLayerLiqFluxSnLaGlDeriv=io_snowLakeGlceLiqFlux % iLayerLiqFluxSnLaGlDeriv          ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
+   surfaceIceMeltFluxDeriv =io_snowLakeGlceLiqFlux % surfaceIceMeltFluxDeriv           ! intent(inout): derivative in ice melt flux at top interface (s-1)
   end associate
  end subroutine finalize_io_snowLakeGlceLiqFlux
 
