@@ -25,6 +25,8 @@ USE nr_type
 USE globalData,only:integerMissing   ! missing integer
 USE globalData,only:realMissing      ! missing real number
 
+USE globalData,only:maxVolIceContent ! snow maximum volumetric ice content to store water (-)
+
 ! access domain types
 USE globalData,only:upland          ! domain type for upland areas
 USE globalData,only:glacCln1        ! first domain type for glacier clean areas
@@ -128,6 +130,7 @@ contains
  real(rkind)                               :: area                  ! glacier area for a single glacier (m2)
  real(rkind)                               :: ratio                 ! ratio of glacier area to basin area
  real(rkind)                               :: frz_scale_use         ! scaling parameter for the snow or glce freezing curve (K-1)
+ real(rkind)                               :: maxVolIceContent_use  ! maximum volumetric ice content depending if snow or firn
  ! --------------------------------------------------------------------------------------------------------
 
  ! Start procedure here
@@ -307,6 +310,13 @@ contains
      nGlce   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce
      nLayers = nSnow + nLake + nSoil + nGlce
 
+     ! compute the maximum volumetric ice content for the layer domains
+     if(nGlce>0)then ! snow can be firn
+       maxVolIceContent_use = min(maxVolIceContent+0.15,0.85_rkind) ! firn maximum volumetric ice content to store water (-)
+     else ! snow
+       maxVolIceContent_use = maxVolIceContent ! snow maximum volumetric ice content to store water (-)
+     endif
+
      ! loop through all layers
      do iLayer=1,nLayers
 
@@ -323,8 +333,8 @@ contains
         if(mLayerVolFracLiq(iLayer) > 1._rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water > 1: layer = ',iLayer; err=20; return; end if
         ! (check ice)
         if (layerType(iLayer)==iname_snow) then
-          if(mLayerVolFracIce(iLayer) > 0.80_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice > 0.80: layer = ',iLayer; err=20; return; end if
-          if(scalarTheta > 0.80_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] > 0.80: layer = '    ,iLayer; err=20; return; end if
+          if(mLayerVolFracIce(iLayer) > maxVolIceContent_use+0.1_rkind)then; write(message,'(a,f4.2,a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice > ',maxVolIceContent_use,': layer = ',iLayer; err=20; return; end if
+          if(scalarTheta > maxVolIceContent_use+0.1_rkind)then; write(message,'(a,f4.2,a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] > ',maxVolIceContent_use,': layer = '    ,iLayer; err=20; return; end if
         else ! glacier ice or lake (could be all ice)
           if(mLayerVolFracIce(iLayer) > 1._rkind  )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice > 1: layer = ',iLayer; err=20; return; end if
           if(scalarTheta > 1._rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] > 1: layer = '      ,iLayer; err=20; return; end if

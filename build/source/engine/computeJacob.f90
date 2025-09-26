@@ -784,14 +784,14 @@ subroutine fluxJacAdd(&
         endif ! (if computed baseflow)
 
         ! - include derivatives for surface infiltration below surface
-        if(ixSoilOnlyHyd(1)/=integerMissing)then
+        if(ixSoilOnlyHyd(1)/=integerMissing .and. all(dq_dHydStateLayerSurfVec/=realMissing))then
            if(watState - ixSoilOnlyHyd(1) <= ku .or. fullMatrix) &
              aJac(ixInd(ixSoilOnlyHyd(1),watState),watState) = -(dt/mLayerDepth(nSnow+nLake+1))*dq_dHydStateLayerSurfVec(iLayer) + aJac(ixInd(ixSoilOnlyHyd(1),watState),watState)
         endif
       end do ! (looping through hydrology states in the soil domain)
 
       ! - include derivatives for surface infiltration above surface if there is snow/lake (vegetation handled already)
-      if(nSnow+nLake>0 .and. ixSoilOnlyHyd(1)/=integerMissing .and. dq_dHydStateLayerSurfVec(1)/=0._rkind)then 
+      if(nSnow+nLake>0 .and. ixSoilOnlyHyd(1)/=integerMissing .and. all(dq_dHydStateLayerSurfVec/=realMissing))then 
         if(nSnow>0 .and. nLake==0)then ! have snow above first soil layer
           denseLimit = nSnow ! if passed through a too dense snowpack or lake, need to find top dense layer (bottom layer always included, dense or not)
           do pLayer=nSnow,1,-1
@@ -937,7 +937,7 @@ subroutine fluxJacAdd(&
           endif
 
           ! - include derivatives for surface infiltration below surface
-          if(ixSoilOnlyHyd(1)/=integerMissing)then
+          if(ixSoilOnlyHyd(1)/=integerMissing .and. all(dq_dNrgStateLayerSurfVec/=realMissing))then
             if(nrgState - ixSoilOnlyHyd(1) <= ku .or. fullMatrix) &
               aJac(ixInd(ixSoilOnlyHyd(1),nrgState),nrgState) = -(dt/mLayerDepth(nSnow+nLake+1))*dq_dNrgStateLayerSurfVec(iLayer) + aJac(ixInd(ixSoilOnlyHyd(1),nrgState),nrgState)
           endif
@@ -945,7 +945,7 @@ subroutine fluxJacAdd(&
       end do ! (looping through energy states in the soil domain)
 
       ! - include derivatives for surface infiltration above surface if there is snow/lake (vegetation handled already)
-      if(nSnow+nLake>0 .and. ixSoilOnlyHyd(1)/=integerMissing .and. dq_dNrgStateLayerSurfVec(1)/=0._rkind)then 
+      if(nSnow+nLake>0 .and. ixSoilOnlyHyd(1)/=integerMissing .and. all(dq_dNrgStateLayerSurfVec/=realMissing))then 
         if(nSnow>0 .and. nLake==0)then ! have snow above first soil layer
           denseLimit = nSnow ! if passed through a too dense snowpack or lake, need to find top dense layer (bottom layer always included, dense or not)
           do pLayer=nSnow,1,-1
