@@ -819,7 +819,7 @@ subroutine fluxJacAdd(&
 
       ! - include derivatives for infiltration into bottom soil layer if there is glacier ice
       if(nSoil>0 .and. ixSoilOnlyHyd(nSoil)/=integerMissing .and. nGlce>0)then
-        do pLayer=nSnow+nLake+nSoil+1,nSnow+nLake+nSoil+nGlce
+        do pLayer=nSnow+nLake+nSoil+1,nSnow+nLake+nSoil+nGlce - noThetaChange
           if(ixSnLaSoGlHyd(pLayer)/=integerMissing)then
             ! compute factor to convert liquid water derivative to total water derivative
             select case( ixHydType(pLayer) )
@@ -828,9 +828,9 @@ subroutine fluxJacAdd(&
             end select
             if(ixSnLaSoGlHyd(pLayer) - ixSoilOnlyHyd(nSoil) <= ku .or. fullMatrix)then
               if(pLayer==nSnow+nLake+nSoil+1) then
-                aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer)) = (dt/mLayerDepth(nSnow+nLake+nSoil))*surfaceIceMeltFluxDeriv*convLiq2tot + aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer))
+                aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer)) = (dt/mLayerDepth(nSnow+nLake+nSoil))*(-surfaceIceMeltFluxDeriv*convLiq2tot) + aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer))
               else
-                aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer)) = (dt/mLayerDepth(nSnow+nLake+nSoil))*iLayerLiqFluxSnLaGlDeriv(pLayer)*convLiq2tot + aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer))
+                aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer)) = (dt/mLayerDepth(nSnow+nLake+nSoil))*(-iLayerLiqFluxSnLaGlDeriv(pLayer)*convLiq2tot) + aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer))
               endif
             endif
           endif
@@ -967,13 +967,13 @@ subroutine fluxJacAdd(&
 
       ! - include derivatives for infiltration into bottom soil layer if there is glacier ice
       if(nSoil>0 .and. ixSoilOnlyHyd(nSoil)/=integerMissing .and. nGlce>0)then
-        do pLayer=nSnow+nLake+nSoil+1,nSnow+nLake+nSoil+nGlce
+        do pLayer=nSnow+nLake+nSoil+1,nSnow+nLake+nSoil+nGlce - noThetaChange
           if(ixSnLaSoGlNrg(pLayer)/=integerMissing)then
             if(ixSnLaSoGlNrg(pLayer) - ixSoilOnlyHyd(nSoil) <= ku .or. fullMatrix)then
               if(pLayer==nSnow+nLake+nSoil+1) then
-                aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer)) = (dt/mLayerDepth(nSnow+nLake+nSoil))*surfaceIceMeltFluxDeriv*mLayerdTheta_dTk(pLayer) + aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer))
+                aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer)) = (dt/mLayerDepth(nSnow+nLake+nSoil))*(-surfaceIceMeltFluxDeriv*mLayerdTheta_dTk(pLayer)) + aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer))
               else
-                aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer)) = (dt/mLayerDepth(nSnow+nLake+nSoil))*iLayerLiqFluxSnLaGlDeriv(pLayer)*mLayerdTheta_dTk(pLayer) + aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer))
+                aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer)) = (dt/mLayerDepth(nSnow+nLake+nSoil))*(-iLayerLiqFluxSnLaGlDeriv(pLayer)*mLayerdTheta_dTk(pLayer)) + aJac(ixInd(ixSoilOnlyHyd(nSoil),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer))
               endif
             endif
           endif
