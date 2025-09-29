@@ -177,9 +177,8 @@ contains
    if (gru_struc(iGRU)%nGlac>0) then
      if(sum(bvarData%gru(iGRU)%var(iLookBVAR%glacierAblArea)%dat)>0._rkind)then
        ratio = glacierAblAreaTot/sum(bvarData%gru(iGRU)%var(iLookBVAR%glacierAblArea)%dat)
-       if ( abs( ratio - 1._rkind) >areaTol ) write(*,'(A,E22.16,A,E22.16,A,E8.1,A)') 'WARNING: glacier ablation domain area (=', glacierAblAreaTot, ') &
-        & does not match the sum of the basin areas (=', sum(bvarData%gru(iGRU)%var(iLookBVAR%glacierAblArea)%dat), '). Correcting basin areas by ratio', ratio, '.'
-       bvarData%gru(iGRU)%var(iLookBVAR%glacierAblArea)%dat(:) = bvarData%gru(iGRU)%var(iLookBVAR%glacierAblArea)%dat(:)*ratio 
+       if ( abs( ratio - 1._rkind) >areaTol ) write(*,*) 'WARNING: glacier ablation     domain area in GRU ',iGRU,' starts at ',ratio, &
+       ' times the basin variable value but both will be calculated from the grid data after a year.'
      else ! = 0.0
         if (glacierAblAreaTot>0._rkind) then 
           write(*,'(A)') 'WARNING: basin glacier ablation area is zero, but there are glacier domains in the basin and scalarAblFrac>0. Resetting basin glacier ablation area to domain areas.'
@@ -188,9 +187,8 @@ contains
      end if
      if(sum(bvarData%gru(iGRU)%var(iLookBVAR%glacierAccArea)%dat)>0._rkind )then
        ratio = glacierAccAreaTot/sum(bvarData%gru(iGRU)%var(iLookBVAR%glacierAccArea)%dat)
-       if ( abs( ratio - 1._rkind) >areaTol ) write(*,'(A,E22.16,A,E22.16,A,E8.1,A)') 'WARNING: glacier accumulation domain area (=', glacierAccAreaTot, ') &
-        & does not match the sum of the basin areas (=', sum(bvarData%gru(iGRU)%var(iLookBVAR%glacierAccArea)%dat), '). Correcting basin areas by ratio', ratio, '.'
-       bvarData%gru(iGRU)%var(iLookBVAR%glacierAccArea)%dat(:) = bvarData%gru(iGRU)%var(iLookBVAR%glacierAccArea)%dat(:)*ratio
+       if ( abs( ratio - 1._rkind) >areaTol ) write(*,*) 'WARNING: glacier accumulation domain area in GRU ',iGRU,' starts at ',ratio, &
+       ' times the basin variable value but both will be calculated from the grid data after a year.'
      else ! = 0.0
        if (glacierAccAreaTot>0._rkind) then
          write(*,'(A)') 'WARNING: basin glacier accumulation area is zero, but there are glacier domains in the basin and scalarAblFrac<1. Resetting basin glacier accumulation area to domain areas.'
