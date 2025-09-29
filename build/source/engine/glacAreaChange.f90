@@ -554,7 +554,7 @@ end subroutine glacAreaChange
       write(*,'(a,2(1x,f6.1),a,2(1x,f6.2))') "  time (yr) = 0.00 mean max H (m) =", sum(H)/count(glacierMask==1), maxval(H),&
             ", mean max debris (m) =", sum(debris)/count(glacierMask==1), maxval(debris)
     endif
-    print*,volume,"volume before area change"
+
     ! get mass balance rate over surface
     m_dot = massBalance(S, debris, glacierMask, slope, intercept, t_total, validElev, validCount, maxCount, nx, ny)
     delVol = sum(m_dot)*dx*dy*t_total*iden_ice/iden_water * 1.e-9_rkind ! convert from m s-1 to km3 in volume change
@@ -644,7 +644,7 @@ end subroutine glacAreaChange
       debris = 0._rkind ! no debris
       return
     endif
-      print*,volume,"volume after area change"
+
     ! Update debris thickness if there is debris, using englacial debris advection transport model
     if(sum(debris)>0._rkind)then 
       C_mask = emergingDebris(S, B, debris, lat_moraine_wid, ELA, nx, ny, dx, dy) ! Calculate near-surface concentration of debris
