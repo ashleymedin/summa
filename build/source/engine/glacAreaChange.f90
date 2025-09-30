@@ -304,7 +304,7 @@ subroutine glacAreaChange(&
   ! debugging print
   if(printFlag)then
     do i = 1, nDOM
-      write(*,'(a,2(1x,f6.1),1x,f5.2,1x,f8.1)') "Original domain elevation (m), area (km2), debris depth (m), mass change (kg m-2) =",&
+      write(*,'(a,2(1x,f7.1),1x,f5.2,1x,f8.1)') "Original domain elevation (m), area (km2), debris depth (m), mass change (kg m-2) =",&
             elev(i), area(i)*1e-6, debris_thick_dom(i), massChange(i)
     enddo
     write(*,'(a,f6.1)') "ELA used (m) = ",ELA_use
@@ -504,7 +504,7 @@ subroutine glacAreaChange(&
   enddo
   if(printFlag)then
     do i = 1, nDOM
-      write(*,'(a,2(1x,f6.1),1x,f5.2)') "After area change domain elevation (m), area (km2), debris depth (m) =", &
+      write(*,'(a,2(1x,f7.1),1x,f5.2)') "After area change domain elevation (m), area (km2), debris depth (m) =", &
                 elev(i), area(i)*1e-6, debris_thick_dom(i)
     enddo
   endif
@@ -1424,6 +1424,9 @@ subroutine time_updateGlacArea(&
   if(currentJulDay>=updateJuldayNext)then ! update glacier area, reset updateJulDay
     updateGlacArea = .true.
     updateJulDay = updateJulDayNext
+    iyyy = now_iyyy + nYears
+    call compjulday(iyyy, im, id, ih, imin, dsec, updateJuldayNext, err, cmessage) ! next update is nYears after last update
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
 end subroutine time_updateGlacArea
