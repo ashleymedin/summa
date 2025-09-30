@@ -882,6 +882,7 @@ MODULE var_lookup
   integer(i4b)    :: basin__SoilDrainage        = integerMissing ! soil drainage (m s-1)
   integer(i4b)    :: basin__GlacierStorage      = integerMissing ! glacier storage (Gt)
   integer(i4b)    :: basin__GlacierArea         = integerMissing ! glacier area (m2)
+  integer(i4b)    :: updateJulDay               = integerMissing ! julian day at which glacier geometry was last updated
   ! define variables for runoff
   integer(i4b)    :: routingRunoffFuture        = integerMissing ! runoff in future time steps (m s-1)
   integer(i4b)    :: routingFractionFuture      = integerMissing ! fraction of runoff in future time steps (-)
@@ -1062,7 +1063,7 @@ MODULE var_lookup
  ! named variables: basin-average variables
  type(iLook_bvar),    public,parameter :: iLookBVAR     =ilook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
-                                                                         21)
+                                                                         21, 22)
  ! named variables: basin-grid variables
  type(iLook_grid),    public,parameter :: iLookGRID     =ilook_grid    (  1,  2,  3,  4,  5)
  ! named variables in varibale type structure

@@ -1060,6 +1060,7 @@ contains
   case('basin__SoilDrainage'           ); get_ixBvar = iLookBVAR%basin__SoilDrainage             ! soil drainage (m s-1)
   case('basin__GlacierStorage'         ); get_ixBvar = iLookBVAR%basin__GlacierStorage           ! glacier storage (Gt)
   case('basin__GlacierArea'            ); get_ixBvar = iLookBVAR%basin__GlacierArea              ! glacier area (m2) 
+  case('updateJulDay'                  ); get_ixBvar = iLookBVAR%updateJulDay                    ! julian day at which glacier geometry was last updated
   ! variables to compute runoff
   case('routingRunoffFuture'           ); get_ixBvar = iLookBVAR%routingRunoffFuture             ! runoff in future time steps (m s-1)
   case('routingFractionFuture'         ); get_ixBvar = iLookBVAR%routingFractionFuture           ! fraction of runoff in future time steps (-)

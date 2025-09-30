@@ -93,9 +93,8 @@ contains
 
 
 ! ************************************************************************************************
-! public subroutine run_oneGRU: simulation for a single GRU
+! public subroutine run_oneHRU: simulation for a single HRU
 ! ************************************************************************************************
-! simulation for a single HRU
 subroutine run_oneHRU(&
                       ! model control
                       hru_nc,              & ! intent(in):    hru index in netcdf

@@ -254,8 +254,6 @@ MODULE globalData
   real(rkind),save,public                        :: refJulDay_data                    ! reference time in fractional julian days (data files)
   real(rkind),save,public                        :: dJulianStart                      ! julian day of start time of simulation
   real(rkind),save,public                        :: dJulianFinsh                      ! julian day of end time of simulation
-  real(rkind),save,public                        :: updateJulDay                      ! julian day the glacier grids were last updated
-  real(rkind),save,public                        :: updateJuldayNext                  ! julian day the glacier grids will be updated next
   integer(i4b),save,public                       :: nHRUfile                          ! number of HRUs in the file
   integer(i4b),save,public                       :: urbanVegCategory                  ! vegetation category for urban areas
   logical(lgt),save,public                       :: globalPrintFlag=.false.           ! flag to compute the Jacobian, residual, and step progress

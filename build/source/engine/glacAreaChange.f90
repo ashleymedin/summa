@@ -1356,6 +1356,75 @@ subroutine swap_integer(a, b)
 end subroutine swap_integer
 
 ! ************************************************************************************************
+! public subroutine time_updateGlacArea: update glacier domain area, elevation, and layering 
+! ************************************************************************************************
+subroutine time_updateGlacArea(&
+                         ! input
+                         now_iyyy, now_im, now_id, now_ih, now_imin, & ! intent(in): current time
+                         ! output
+                         updateJulDay,               & ! intent(inout): julian day of last glacier area update (fraction of day)
+                         updateGlacArea,             & ! intent(inout): flag to update glacier area this time step
+                         sec_since_last_update,      & ! intent(out):   seconds since last glacier area update
+                         ! error control
+                         err, message)                 ! intent(out):   error control
+  ! ----- define downstream subroutines -----------------------------------------------------------------------------------
+  USE time_utils_module,only:compjulday                       ! convert calendar date to julian day
+  USE time_utils_module,only:compcalday                       ! convert julian day to calendar date
+  ! ----- define dummy variables ------------------------------------------------------------------------------------------
+  implicit none
+  integer(i4b), intent(in)        :: now_iyyy, now_im, now_id, now_ih, now_imin ! current time
+  real(rkind), intent(inout)      :: updateJulDay             ! julian day of last glacier area update (fraction of day)
+  logical, intent(inout)          :: updateGlacArea           ! flag to update glacier area this time step
+  real(rkind), intent(out)        :: sec_since_last_update    ! seconds since last glacier area update
+  integer(i4b),intent(out)        :: err                      ! error code
+  character(*),intent(out)        :: message                  ! error message 
+  ! ----- local variables -------------------------------------------------------------------------------------------------
+  real(rkind)                     :: currentJulDay            ! current julian day
+  real(rkind)                     :: updateJuldayNext         ! julian day of next glacier area update
+  integer(i4b)                    :: previousOctYear          ! previous October's year
+  real(rkind)                     :: dsec                     ! seconds fraction of day
+  integer(i4b)                    :: iyyy, im, id, ih, imin   ! year, month, day, hour, minute
+  integer(i4b),parameter          :: nYears=1                 ! number of years in between glacier area updates (on October 1st)
+  character(LEN=256)              :: cmessage                 ! error message of downwind routine
+  ! -----------------------------------------------------------------------------------------------------------------------
+  ! initialize error control
+  err=0; message='time_updateGlacArea/'
+
+  ! compute the fractional julian day for the current time step
+  call compjulday(now_iyyy, now_im, now_id, now_ih, now_imin,0._rkind,  & ! input  = year, month, day, hour, minute, second 
+                  currentJulDay,err,cmessage)                            ! output = julian day (fraction of day) + error control
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! put Oct 1 00:00:00 as the glacier area update time
+  if(updateJulDay==realMissing)then ! not set for this simulation, assume last October 1
+    if(now_im >=10)then
+      previousOctYear = now_iyyy
+    else
+      previousOctYear = now_iyyy - 1
+    endif
+    call compjulday(previousOctYear, 10, 1, 0, 0, 0._rkind,  & ! input  = year, month, day, hour, minute, second
+                   updateJulDay,err,cmessage)                  ! output = julian day (fraction of day) + error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+  sec_since_last_update = (currentJulDay - updateJulDay)*secprday ! seconds since last update
+
+  ! determine if glacier area needs to be updated this time step
+  if(sec_since_last_update >= secprday*365._rkind*nYears)then ! don't bother checking unless nYears - leap days have passed
+    call compcalday(updateJulDay, iyyy, im, id, ih, imin, dsec, err, cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    iyyy = iyyy + nYears
+    call compjulday(iyyy, im, id, ih, imin, dsec, updateJuldayNext, err, cmessage) ! next update is nYears after last update
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    if(currentJulDay>=updateJuldayNext)then ! update glacier area if a nYears passed from last update, reset updateJulDay
+      updateGlacArea = .true.
+      updateJulDay = updateJulDayNext
+    endif
+  endif ! (if at least nYears - leap days have passed since last update)
+
+end subroutine time_updateGlacArea
+
+
+! ************************************************************************************************
 ! public subroutine updateGlacDomain: update glacier domain area, elevation, and layering 
 ! ************************************************************************************************
 subroutine updateGlacDomain(&

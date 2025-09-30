@@ -345,14 +345,14 @@ contains
  integer(i4b),parameter       :: w = 2
  integer(i4b),parameter       :: b = 274277
  integer(i4b),parameter       :: c = -38
- real(rkind),parameter           :: hr_per_day = 24.0_rkind
- real(rkind),parameter           :: min_per_hour = 60.0_rkind
+ real(rkind),parameter        :: hr_per_day = 24.0_rkind
+ real(rkind),parameter        :: min_per_hour = 60.0_rkind
 
  ! local variables
- integer(i4b)          :: f,e,g,h                            ! various step variables from wikipedia
- integer(i4b)          :: step_1a,step_1b,step_1c,step_1d    ! temporary variables for calendar calculations
- real(rkind)              :: frac_day  ! fractional day
- real(rkind)              :: remainder ! remainder of modulus operation
+ integer(i4b)                 :: f,e,g,h                          ! various step variables from wikipedia
+ integer(i4b)                 :: step_1a,step_1b,step_1c,step_1d  ! temporary variables for calendar calculations
+ real(rkind)                  :: frac_day                         ! fractional day
+ real(rkind)                  :: remainder                        ! remainder of modulus operation
 
  ! initialize errors
  err=0; message="compcalday"

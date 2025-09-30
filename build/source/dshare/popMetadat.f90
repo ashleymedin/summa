@@ -735,6 +735,7 @@ subroutine popMetadat(err,message)
   bvar_meta(iLookBVAR%basin__SoilDrainage)     = var_info('basin__SoilDrainage'    , 'soil drainage'                                                 , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%basin__GlacierStorage)   = var_info('basin__GlacierStorage'  , 'glacier storage'                                               , 'Gt'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%basin__GlacierArea)      = var_info('basin__GlacierArea'     , 'glacier area'                                                  , 'm2'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%updateJulDay)            = var_info('updateJulDay'           , 'julian day at which glacier geometry was last updated'         , 'day'   , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! variables to compute runoff
   bvar_meta(iLookBVAR%routingRunoffFuture)     = var_info('routingRunoffFuture'    , 'runoff in future time steps'                                   , 'm s-1' , get_ixVarType('routing'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%routingFractionFuture)   = var_info('routingFractionFuture'  , 'fraction of runoff in future time steps'                       , '-'     , get_ixVarType('routing'), iMissVec, iMissVec, .false.)

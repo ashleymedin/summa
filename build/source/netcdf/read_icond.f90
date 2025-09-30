@@ -327,8 +327,8 @@ contains
  integer(i4b)                              :: fileGRU                  ! number of GRUs in file
  integer(i4b)                              :: fileDOM                  ! number of domains in netcdf file
  integer(i4b)                              :: iVar,i,j                 ! loop indices
- integer(i4b),dimension(1)                 :: nrdx                     ! intermediate array of loop indices
- integer(i4b),dimension(5)                 :: ngdx                     ! intermediate array of loop indices
+ integer(i4b),dimension(1)                 :: nrdx                     ! intermediate array of loop indices for basin variables
+ integer(i4b),dimension(7)                 :: ngdx                     ! intermediate array of loop indices for glacier variables
  integer(i4b)                              :: iGRU                     ! loop index
  integer(i4b)                              :: iHRU                     ! loop index
  integer(i4b)                              :: iDOM                     ! loop index
@@ -338,7 +338,6 @@ contains
  integer(i4b)                              :: dimLen                   ! data dimensions
  integer(i4b)                              :: ncID                     ! netcdf file ID
  integer(i4b)                              :: iHRU_global              ! index of HRU in the netcdf file
- real(rkind),allocatable                   :: varData(:)              ! variable data storage
  real(rkind),allocatable                   :: varData2(:,:)            ! variable data storage
  real(rkind),allocatable                   :: varData3(:,:,:)          ! variable data storage
  integer(i4b)                              :: nSnow,nLake,nSoil,nGlce,nToto !# layers
@@ -348,7 +347,7 @@ contains
  integer(i4b)                              :: fileglac                 ! max number of glaciers in any GRU
  integer(i4b)                              :: iLayer,jLayer            ! layer indices
  logical(lgt)                              :: has_glacier              ! flag for glacier presence in at least one GRU
- logical(lgt)                              :: has_wetland              ! flag for wetland/lake presence in at least one GRU
+ logical(lgt)                              :: has_wetland              ! flag for wetlandpresence in at least one GRU
  logical(lgt)                              :: no_dom                   ! flag for no domain variable in file
  ! currently only writing restart for progressive variables with these dimensions
  character(len=32),parameter               :: scalDimName   ='scalarv' ! dimension name for scalar data
@@ -356,7 +355,7 @@ contains
  character(len=32),parameter               :: midTotoDimName='midToto' ! dimension name for layered varaiables
  character(len=32),parameter               :: ifcTotoDimName='ifcToto' ! dimension name for layered varaiables
  character(len=32),parameter               :: tdhDimName    ='tdh'     ! dimension name for time-delay basin variables
- character(len=32),parameter               :: nglDimName    ='grid'    ! dimension name for grid variables
+ character(len=32),parameter               :: glacierDimName='glac'    ! dimension name for glacier variables
  integer(i8b),allocatable                  :: gru_id(:)                ! GRU id
  integer(i8b),allocatable                  :: hru_id(:)                ! HRU id
  integer(i8b),allocatable                  :: glac_id(:,:)             ! glac id
@@ -432,6 +431,45 @@ contains
    end do
  end do
 
+! get dimension of basin glac variables from initial conditions file 
+err = nf90_inq_dimid(ncID,"glac",dimID) ! max number of glaciers in any GRU
+if(err/=nf90_noerr)then
+  do iGRU = 1,nGRU
+    nGlac = 0 ! no glaciers in this GRU
+    gru_struc(iGRU)%nGlac = nGlac
+  end do
+  has_glacier = .false.
+  err=nf90_noerr    ! reset this err
+else
+  has_glacier = .true.
+  err = nf90_inquire_dimension(ncID,dimID,len=fileglac);
+  if(err/=nf90_noerr)then; message=trim(message)//'problem reading glac dimension from initial condition file/'//trim(nf90_strerror(err)); return; end if
+
+  ! read glac_id from netcdf file
+  allocate(glac_id(filegru,fileglac))
+  err = nf90_inq_varid(ncID,"glacId ",ncVarID);   if (err/=0) then; message=trim(message)//'problem finding glacId '; return; end if
+  err = nf90_get_var(ncID,ncVarID,glac_id);       if (err/=0) then; message=trim(message)//'problem reading glacId '; return; end if
+
+  do iGRU = 1,nGRU
+    nGlac = gru_struc(iGRU)%nGlac ! get dimension of basin glacier variables from attribute file, per GRU
+    if (.not. allocated(gru_struc(iGRU)%glacInfo)) then
+      allocate(gru_struc(iGRU)%glacInfo(gru_struc(iGRU)%nGlac))
+    endif
+    gru_struc(iGRU)%glacInfo(1:nGlac)%glac_id = glac_id(iGRU,1:nGlac)  ! set grid information (id)
+  end do
+  ! NOTE, we do the mapping from the icond file to the icond grid file in read_icondGlac, no need to do it here
+  ! set glacier variables to read
+  ngdx = (/iLookBVAR%basin__GlacierStorage,iLookBVAR%updateJulDay,iLookBVAR%glacierAblArea,iLookBVAR%glacierAccArea,iLookBVAR%glacIceRunoffFuture,iLookBVAR%glacSnowRunoffFuture,iLookBVAR%glacFirnRunoffFuture/)
+  deallocate(glac_id)
+ end if
+
+ ! should be looking for wetland domain as well, but no basin variables yet
+  has_wetland = .false.
+
+  ! --------------------------------------------------------------------------------------------------------
+  ! (2) read the prognostic variables
+  ! --------------------------------------------------------------------------------------------------------
+
  ! loop through prognostic variables
  no_icond_enth=.false.
  do iVar = 1,size(prog_meta)
@@ -466,12 +504,7 @@ contains
     message=trim(message)//"unexpectedVariableType[name='"//trim(prog_meta(iVar)%varName)//"';type='"//trim(get_varTypeName(prog_meta(iVar)%varType))//"']"
     err=20; return
   end select
-
-  ! check errors
-  if(err/=0)then
-   message=trim(message)//': problem with dimension ids, var='//trim(prog_meta(iVar)%varName)
-   return
-  endif
+  if(err/=0)then; message=trim(message)//': problem with dimension ids, var='//trim(prog_meta(iVar)%varName); return; endif
 
   ! get the dimension length
   err = nf90_inquire_dimension(ncID,dimID,dimName,dimLen); call netcdf_err(err,message)
@@ -491,9 +524,6 @@ contains
   if(err/=0)then; message=trim(message)//': problem getting the data for variable '//trim(prog_meta(iVar)%varName); return; endif
 
   ! store data in prognostics structure
-  ! loop through GRUs
-  has_glacier = .false.
-  has_wetland = .false.
   do i = 1,fileGRU
    iGRU = gruid_to_index(i)
    do j = 1,gru_struc(iGRU)%hruCount
@@ -506,8 +536,6 @@ contains
      nSoil = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
      nGlce = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce
      nToto = nSnow + nLake + nSoil + nGlce
-     if(nGlce>0) has_glacier = .true.
-     if(nLake>0) has_wetland = .true.
 
      ! put the data into data structures and check that none of the values are set to nf90_fill_double
      if(no_dom)then
@@ -571,7 +599,7 @@ contains
  end do ! end looping through prognostic variables (iVar)
 
  ! --------------------------------------------------------------------------------------------------------
- ! (2) set number of layers
+ ! (3) set number of layers
  ! --------------------------------------------------------------------------------------------------------
  do i = 1,fileGRU
   iGRU = gruid_to_index(i)
@@ -647,9 +675,8 @@ contains
  end do  ! looping through GRUs
 
  ! --------------------------------------------------------------------------------------------------------
- ! (2) now get the basin variable(s)
+ ! (4) get the basin variable(s)
  ! --------------------------------------------------------------------------------------------------------
-
  ! get dimension of time delay histogram (TDH) from initial conditions file
  err = nf90_inq_dimid(ncID,"tdh",dimID)
  if(err/=nf90_noerr)then
@@ -708,67 +735,19 @@ contains
   end do ! end looping through basin variables
  endif  ! end if case for tdh variables being in init. cond. file
 
+ ! --------------------------------------------------------------------------------------------------------
+ ! (5) get the glacier variables
+ ! --------------------------------------------------------------------------------------------------------
  if (has_glacier)then
-
-  ! get variables that are specific to glaciers but not by glacier (by GRU)
-  iVar = iLookBVAR%basin__GlacierStorage
-  err = nf90_inq_varid(ncID,trim(bvar_meta(iVar)%varName),ncVarID)
-  if(err/=0)then; message=trim(message)//': problem with getting basin variable id, var='//trim(bvar_meta(iVar)%varName); return; endif
-
-  ! initialize the glac variable data
-  allocate(varData(fileGRU))
-
-  ! get data
-  err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message)
-  if(err/=0)then; message=trim(message)//': problem getting the data'; return; endif
-
-  ! store data in basin var (bvar) structure
-  do j = 1,fileGRU
-    iGRU = gruid_to_index(j)
-    ! put the data into data structures
-    bvarData%gru(iGRU)%var(iVar)%dat(1) = varData(j+startGRU-1)
-    ! check whether the first values is set to nf90_fill_double
-    if(abs(bvarData%gru(iGRU)%var(iVar)%dat(1) - nf90_fill_double) < epsilon(varData))then; err=20; endif
-    if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(bvar_meta(iVar)%varName)//"')"; return; endif
-   end do ! end iGRU loop
-
-   ! deallocate temporary data array for next variable
-   deallocate(varData)
-
-  ! get dimension of basin glac variables from initial conditions file (glaciers)
-  err = nf90_inq_dimid(ncID,"glac",dimID) ! max number of glaciers in any GRU
-  if(err/=nf90_noerr)then
-    do iGRU = 1,nGRU
-      nGlac = 0 ! no glaciers in this GRU
-      gru_struc(iGRU)%nGlac = nGlac
-    end do
-    err=nf90_noerr    ! reset this err
-  else
-   ! the state file *does* have the basin variable(s), so process them
-   err = nf90_inquire_dimension(ncID,dimID,len=fileglac);
-   if(err/=nf90_noerr)then; message=trim(message)//'problem reading glac dimension from initial condition file/'//trim(nf90_strerror(err)); return; end if
-
-   ! read glac_id from netcdf file
-   allocate(glac_id(filegru,fileglac))
-   err = nf90_inq_varid(ncID,"glacId ",ncVarID);   if (err/=0) then; message=trim(message)//'problem finding glacId '; return; end if
-   err = nf90_get_var(ncID,ncVarID,glac_id );      if (err/=0) then; message=trim(message)//'problem reading glacId '; return; end if
-
-   do iGRU = 1,nGRU
-     nGlac = gru_struc(iGRU)%nGlac ! get dimension of basin glacier variables from attribute file, per GRU
-     if (.not. allocated(gru_struc(iGRU)%glacInfo)) then
-       allocate(gru_struc(iGRU)%glacInfo(gru_struc(iGRU)%nGlac))
-     endif
-     gru_struc(iGRU)%glacInfo(1:nGlac)%glac_id = glac_id(iGRU,1:nGlac)  ! set grid information (id)
-   end do
-
-   ! loop through specific basin variables
-   ngdx = (/iLookBVAR%glacierAblArea,iLookBVAR%glacierAccArea, iLookBVAR%glacIceRunoffFuture,iLookBVAR%glacSnowRunoffFuture,iLookBVAR%glacFirnRunoffFuture/)   ! array of desired variable indices
-   do i = 1,size(ngdx)
+   do i = 1,size(ngdx) ! loop through specific basin variables
     iVar = ngdx(i)
-
     ! get glac-based variable id
     err = nf90_inq_varid(ncID,trim(bvar_meta(iVar)%varName),ncVarID)
     if(err/=0)then
+      if (iVar == iLookBVAR%updateJulDay) then
+        write(*,*) 'WARNING: updateJulDay for last day glacier geometry updated is not in the initial conditions file ... assuming last Oct 1'  ! previously created in var_derive.f90
+        err=nf90_noerr    ! reset this err
+      endif
       if (iVar == iLookBVAR%glacIceRunoffFuture)then ! either all glacier runoff variables are in the file or none
         write(*,*) 'WARNING: glac(Ice,Snow,Firn)RunoffFuture is not in the initial conditions file ... using zeros'  ! previously created in var_derive.f90
         err=nf90_noerr    ! reset this err
@@ -778,30 +757,52 @@ contains
       endif
     endif
 
-    ! initialize the glac variable data
-    allocate(varData2(fileGRU,fileglac))
+    ! get variable dimension IDs
+    select case (bvar_meta(iVar)%varType)
+     case (iLookVarType%scalarv); err = nf90_inq_dimid(ncID,trim(scalDimName)   ,dimID); call netcdf_err(err,message)
+     case (iLookVarType%glacier); err = nf90_inq_dimid(ncID,trim(glacierDimName),dimID); call netcdf_err(err,message)
+     case default
+      message=trim(message)//"unexpectedVariableType[name='"//trim(bvar_meta(iVar)%varName)//"';type='"//trim(get_varTypeName(bvar_meta(iVar)%varType))//"']"
+      err=20; return
+    end select
+    if(err/=0)then; message=trim(message)//': problem with dimension ids, var='//trim(bvar_meta(iVar)%varName); return; endif
+
+    ! get the dimension length
+    err = nf90_inquire_dimension(ncID,dimID,dimName,dimLen); call netcdf_err(err,message)
+    if(err/=0)then; message=trim(message)//': problem getting the dimension length'; return; endif
+
+    ! initialize the variable data
+    allocate(varData2(filegru,dimLen),stat=err)
+    if(err/=0)then; message=trim(message)//'problem allocating HRU variable data'; return; endif
 
     ! get data
     err = nf90_get_var(ncID,ncVarID,varData2); call netcdf_err(err,message)
-    if(err/=0)then; message=trim(message)//': problem getting the data'; return; endif
+    if(err/=0)then; message=trim(message)//': problem getting the data for variable '//trim(bvar_meta(iVar)%varName); return; endif
 
-    ! store data in basin var (bvar) structure
+    ! store data in basin var structure
     do j = 1,fileGRU
      iGRU = gruid_to_index(j)
      nGlac = gru_struc(iGRU)%nGlac ! get dimension of basin glacier variables from attribute file, per GRU
-     ! put the data into data structures
-     bvarData%gru(iGRU)%var(iVar)%dat(1:nGlac) = varData2(j+startGRU-1,1:nGlac)
-     ! check whether the first values is set to nf90_fill_double
-     if(any(abs(bvarData%gru(iGRU)%var(iVar)%dat(1:nGlac) - nf90_fill_double) < epsilon(varData2)))then; err=20; endif
+     select case (bvar_meta(iVar)%varType)
+      case (iLookVarType%scalarv)
+        bvarData%gru(iGRU)%var(iVar)%dat(1) = varData2(j+startGRU-1,1)
+        if(abs(bvarData%gru(iGRU)%var(iVar)%dat(1) - nf90_fill_double) < epsilon(varData2))then; err=20; endif
+      case (iLookVarType%glacier)
+        bvarData%gru(iGRU)%var(iVar)%dat(1:nGlac) = varData2(j+startGRU-1,1:nGlac)
+        if(any(abs(bvarData%gru(iGRU)%var(iVar)%dat(1:nGlac) - nf90_fill_double) < epsilon(varData2)))then; err=20; endif
+      case default
+        message=trim(message)//"unexpectedVariableType[name='"//trim(bvar_meta(iVar)%varName)//"';type='"//trim(get_varTypeName(bvar_meta(iVar)%varType))//"']"
+        err=20; return
+     end select
      if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(bvar_meta(iVar)%varName)//"')"; return; endif
     end do ! end iGRU loop
 
-    deallocate(varData2) ! deallocate temporary data array for next variable
-   end do ! end looping through basin variables
-  endif  ! end if case for glac variables being in init. cond. file
-  deallocate(glac_id)
+    ! deallocate storage vector for next variable
+    deallocate(varData2,stat=err)
+    if(err/=0)then; message=trim(message)//'problem deallocating glacier variable data'; return; endif
 
- endif  ! end if has glacier
+   end do ! end looping through basin variables
+ endif  ! end if case for glac variables being in init. cond. file
 
  deallocate(hru_id,gru_id,gruid_to_index,hrunc_to_index)
  call nc_file_close(ncID,err,cmessage)

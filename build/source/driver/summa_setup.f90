@@ -348,7 +348,7 @@ endif
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! *****************************************************************************
- ! *** compute derived model variables that are pretty much constant for the basin as a whole
+ ! *** compute derived model variables for the basin as a whole
  ! *****************************************************************************
  ! loop through GRUs
  do iGRU=1,nGRU
@@ -363,6 +363,9 @@ endif
   bvarStruct%gru(iGRU)%var(iLookBVAR%glacIceRunoffFuture)%dat  = 0._rkind
   bvarStruct%gru(iGRU)%var(iLookBVAR%glacSnowRunoffFuture)%dat = 0._rkind
   bvarStruct%gru(iGRU)%var(iLookBVAR%glacFirnRunoffFuture)%dat = 0._rkind
+
+  ! initialize to update glacier area, will be set in initial conditions or assumed to be last October 1
+  bvarStruct%gru(iGRU)%var(iLookBVAR%updateJulDay)%dat = realMissing
 
   ! loop through local HRUs
   do iHRU=1,gru_struc(iGRU)%hruCount
