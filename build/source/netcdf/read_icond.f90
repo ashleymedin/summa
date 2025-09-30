@@ -747,7 +747,7 @@ else
     err = nf90_inq_varid(ncID,trim(bvar_meta(iVar)%varName),ncVarID)
     if(err/=0)then
       if(iVar == iLookBVAR%updateJulDay)then
-        write(*,*) 'WARNING: updateJulDay for last day glacier geometry updated is not in the initial conditions file ... assuming at start of simulation'  ! previously created in var_derive.f90
+        write(*,*) 'WARNING: updateJulDay for last time glacier geometry updated is not in the initial conditions file ... assuming start of simulation'  ! previously created in var_derive.f90
         err=nf90_noerr    ! reset this err
         cycle
       elseif(iVar == iLookBVAR%glacIceRunoffFuture)then ! either all glacier runoff variables are in the file or none

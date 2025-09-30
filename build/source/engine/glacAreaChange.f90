@@ -304,9 +304,8 @@ subroutine glacAreaChange(&
   ! debugging print
   if(printFlag)then
     do i = 1, nDOM
-      if(elev(i)/=realMissing)&
-          write(*,'(a,2(1x,f6.1),1x,f5.2,1x,f8.1)') "Original domain elevation (m), area (km2), debris depth (m), mass change (kg m-2) =",&
-                elev(i), area(i)*1e-6, debris_thick_dom(i), massChange(i)
+      write(*,'(a,2(1x,f6.1),1x,f5.2,1x,f8.1)') "Original domain elevation (m), area (km2), debris depth (m), mass change (kg m-2) =",&
+            elev(i), area(i)*1e-6, debris_thick_dom(i), massChange(i)
     enddo
     write(*,'(a,f6.1)') "ELA used (m) = ",ELA_use
   endif
@@ -497,12 +496,15 @@ subroutine glacAreaChange(&
       elev(iDOM) = elev(iDOM) / area(iDOM)
       ablFrac(iDOM) = ablFrac(iDOM) / area(iDOM)
       debris_thick_dom(iDOM) = debris_thick_dom(iDOM) / area(iDOM)
+    else
+      area(iDOM) = 0._rkind
+      ablFrac(iDOM) = 0._rkind
+      debris_thick_dom(iDOM) = 0._rkind
     endif
   enddo
   if(printFlag)then
     do i = 1, nDOM
-      if(elev(i)/=realMissing)&
-          write(*,'(a,2(1x,f6.1),1x,f5.2)') "After area change domain elevation (m), area (km2), debris depth (m) =", &
+      write(*,'(a,2(1x,f6.1),1x,f5.2)') "After area change domain elevation (m), area (km2), debris depth (m) =", &
                 elev(i), area(i)*1e-6, debris_thick_dom(i)
     enddo
   endif
@@ -1365,6 +1367,7 @@ subroutine time_updateGlacArea(&
                          now_iyyy, now_im, now_id, now_ih, now_imin, & ! intent(in): current time
                          ! output
                          updateJulDay,               & ! intent(inout): julian day of last glacier area update (fraction of day)
+                         updateJulDayNext,           & ! intent(inout): julian day of next glacier area update (fraction of day)
                          updateGlacArea,             & ! intent(inout): flag to update glacier area this time step
                          sec_since_last_update,      & ! intent(out):   seconds since last glacier area update
                          ! error control
@@ -1376,13 +1379,13 @@ subroutine time_updateGlacArea(&
   implicit none
   integer(i4b), intent(in)        :: now_iyyy, now_im, now_id, now_ih, now_imin ! current time
   real(rkind), intent(inout)      :: updateJulDay             ! julian day of last area update (fraction of day)
+  real(rkind), intent(inout)      :: updateJulDayNext         ! julian day of next glacier area update (fraction of day)
   logical, intent(inout)          :: updateGlacArea           ! flag to update glacier area this time step
   real(rkind), intent(out)        :: sec_since_last_update    ! seconds since last glacier area update
   integer(i4b),intent(out)        :: err                      ! error code
   character(*),intent(out)        :: message                  ! error message 
   ! ----- local variables -------------------------------------------------------------------------------------------------
   real(rkind)                     :: currentJulDay            ! current julian day
-  real(rkind)                     :: updateJuldayNext         ! julian day of next glacier area update
   integer(i4b)                    :: nextOctYear              ! next year of October 1st
   real(rkind)                     :: dsec                     ! seconds fraction of day
   integer(i4b)                    :: iyyy, im, id, ih, imin   ! year, month, day, hour, minute
@@ -1397,33 +1400,30 @@ subroutine time_updateGlacArea(&
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   currentJulDay = currentJulDay + data_step/secprday ! julian day at end of time step
 
-  if(updateJulDay==realMissing)updateJulDay = dJulianStart
-  sec_since_last_update = (currentJulDay - updateJulDay)*secprday ! seconds since last update
-
-  ! determine if glacier area needs to be updated this time step
-  call compcalday(updateJulDay, iyyy, im, id, ih, imin, dsec, err, cmessage)
-  if(im==10_i4b .and. id==1_i4b .and. ih==0_i4b .and. imin==0_i4b .and. dsec==0._rkind)then ! started with an Oct 1 update date
-    if(sec_since_last_update >= secprday*365._rkind*nYears)then ! don't bother checking unless nYears - leap days have passed
-      iyyy = iyyy + nYears
-      call compjulday(iyyy, im, id, ih, imin, dsec, updateJuldayNext, err, cmessage) ! next update is nYears after last update
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-      if(currentJulDay>=updateJuldayNext)then ! update glacier area, reset updateJulDay
-        updateGlacArea = .true.
-        updateJulDay = updateJulDayNext
-      endif
-    endif
-  else ! started with a mising or non-Oct 1 update date, so just set next update to next Oct 1
-    if(im>=10_i4b)then
-      nextOctYear = iyyy + nYears
+  ! get julian day of next October 1st update
+  if(updateJulDay==realMissing)then ! will only be true at the start of the simulation
+    updateJulDay = dJulianStart
+    if(now_im>=10_i4b)then ! start of simulation so now is dJulianStart
+      nextOctYear = now_iyyy + nYears
     else
-      nextOctYear = iyyy + nYears - 1_i4b
+      nextOctYear = now_iyyy + nYears - 1_i4b
     endif
     call compjulday(nextOctYear, 10_i4b, 1_i4b, 0_i4b, 0_i4b, 0._rkind,  & ! input  = year, month, day, hour, minute, second
                    updateJulDayNext,err,cmessage)                          ! output = julian day (fraction of day) + error control
-    if(currentJulDay>=updateJuldayNext)then ! update glacier area, reset updateJulDay
-      updateGlacArea = .true.
-      updateJulDay = updateJulDayNext
-    endif
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  elseif(updateJuldayNext==realMissing)then ! will only be true at the start of the simulation
+    call compcalday(updateJulDay, iyyy, im, id, ih, imin, dsec, err, cmessage) ! get calendar date of last update
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    iyyy = iyyy + nYears
+    call compjulday(iyyy, im, id, ih, imin, dsec, updateJuldayNext, err, cmessage) ! next update is nYears after last update
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+
+  ! determine if glacier area needs to be updated this time step
+  sec_since_last_update = (currentJulDay - updateJulDay)*secprday ! seconds since last update
+  if(currentJulDay>=updateJuldayNext)then ! update glacier area, reset updateJulDay
+    updateGlacArea = .true.
+    updateJulDay = updateJulDayNext
   endif
 
 end subroutine time_updateGlacArea

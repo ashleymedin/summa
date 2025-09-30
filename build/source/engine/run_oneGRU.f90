@@ -228,11 +228,12 @@ subroutine run_oneGRU(&
                         ! input
                         timeVec%var(iLookTIME%iyyy),timeVec%var(iLookTIME%im),timeVec%var(iLookTIME%id), timeVec%var(iLookTIME%ih),timeVec%var(iLookTIME%imin), & ! intent(in): current model time
                         ! output
-                        bvarData%var(iLookBVAR%updateJulDay)%dat(1), & ! intent(inout): julian day of last glacier area update (fraction of day)
-                        updateGlacArea,                              & ! intent(inout): flag to update glacier area this time step
-                        sec_since_last_update,                       & ! intent(out):   seconds since last glacier area update
+                        bvarData%var(iLookBVAR%updateJulDay)%dat(1),     & ! intent(inout): julian day of last glacier area update (fraction of day)
+                        bvarData%var(iLookBVAR%updateJulDayNext)%dat(1), & ! intent(inout): julian day of next glacier area update (fraction of day)
+                        updateGlacArea,                                  & ! intent(inout): flag to update glacier area this time step
+                        sec_since_last_update,                           & ! intent(out):   seconds since last glacier area update
                         ! error control
-                        err, message)                                  ! intent(out):   error control
+                        err, message)                                      ! intent(out):   error control
             if(err/=0)then; err=30; message=trim(message)//trim(cmessage); return; endif
           check_updateGlacArea = .false. ! only check this once for the GRU
         endif ! (checking when to update glacier area)
