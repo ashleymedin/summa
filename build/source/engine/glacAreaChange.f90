@@ -1408,8 +1408,7 @@ subroutine time_updateGlacArea(&
     else
       nextOctYear = now_iyyy + nYears - 1_i4b
     endif
-    call compjulday(nextOctYear, 10_i4b, 1_i4b, 0_i4b, 0_i4b, 0._rkind,  & ! input  = year, month, day, hour, minute, second
-                   updateJulDayNext,err,cmessage)                          ! output = julian day (fraction of day) + error control
+    call compjulday(nextOctYear, 10_i4b, 1_i4b, 0_i4b, 0_i4b, 0._rkind, updateJulDayNext,err,cmessage) 
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   elseif(updateJuldayNext==realMissing)then ! will only be true at the start of the simulation
     call compcalday(updateJulDay, iyyy, im, id, ih, imin, dsec, err, cmessage) ! get calendar date of last update
@@ -1424,8 +1423,8 @@ subroutine time_updateGlacArea(&
   if(currentJulDay>=updateJuldayNext)then ! update glacier area, reset updateJulDay
     updateGlacArea = .true.
     updateJulDay = updateJulDayNext
-    iyyy = now_iyyy + nYears
-    call compjulday(iyyy, im, id, ih, imin, dsec, updateJuldayNext, err, cmessage) ! next update is nYears after last update
+    nextOctYear = now_iyyy + nYears ! now_im is always 10 here
+    call compjulday(nextOctYear, 10_i4b, 1_i4b, 0_i4b, 0_i4b, 0._rkind, updateJuldayNext, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
