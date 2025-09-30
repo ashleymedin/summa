@@ -27,7 +27,9 @@ USE nr_type
 USE globalData,only:integerMissing     ! missing integer number
 USE globalData,only:realMissing        ! missing real number
 
-USE globalData,only: thick4area        ! an arbitrary small threshold for glacier thickness to be considered as glacier area
+USE globalData,only:thick4area         ! an arbitrary small threshold for glacier thickness to be considered as glacier area
+USE globalData,only:dJulianStart       ! julian day of start time of simulation
+USE globalData,only:data_step          ! length of time steps for the outermost timeloop
 
 ! define data types
 USE var_lookup,only:iLookGRID          ! named variables for the glacier grid information
@@ -1373,7 +1375,7 @@ subroutine time_updateGlacArea(&
   ! ----- define dummy variables ------------------------------------------------------------------------------------------
   implicit none
   integer(i4b), intent(in)        :: now_iyyy, now_im, now_id, now_ih, now_imin ! current time
-  real(rkind), intent(inout)      :: updateJulDay             ! julian day of last glacier area update (fraction of day)
+  real(rkind), intent(inout)      :: updateJulDay             ! julian day of last area update (fraction of day)
   logical, intent(inout)          :: updateGlacArea           ! flag to update glacier area this time step
   real(rkind), intent(out)        :: sec_since_last_update    ! seconds since last glacier area update
   integer(i4b),intent(out)        :: err                      ! error code
@@ -1381,7 +1383,7 @@ subroutine time_updateGlacArea(&
   ! ----- local variables -------------------------------------------------------------------------------------------------
   real(rkind)                     :: currentJulDay            ! current julian day
   real(rkind)                     :: updateJuldayNext         ! julian day of next glacier area update
-  integer(i4b)                    :: previousOctYear          ! previous October's year
+  integer(i4b)                    :: nextOctYear              ! next year of October 1st
   real(rkind)                     :: dsec                     ! seconds fraction of day
   integer(i4b)                    :: iyyy, im, id, ih, imin   ! year, month, day, hour, minute
   integer(i4b),parameter          :: nYears=1                 ! number of years in between glacier area updates (on October 1st)
@@ -1390,36 +1392,39 @@ subroutine time_updateGlacArea(&
   ! initialize error control
   err=0; message='time_updateGlacArea/'
 
-  ! compute the fractional julian day for the current time step
   call compjulday(now_iyyy, now_im, now_id, now_ih, now_imin,0._rkind,  & ! input  = year, month, day, hour, minute, second 
                   currentJulDay,err,cmessage)                            ! output = julian day (fraction of day) + error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  currentJulDay = currentJulDay + data_step/secprday ! julian day at end of time step
 
-  ! put Oct 1 00:00:00 as the glacier area update time
-  if(updateJulDay==realMissing)then ! not set for this simulation, assume last October 1
-    if(now_im >=10)then
-      previousOctYear = now_iyyy
-    else
-      previousOctYear = now_iyyy - 1
-    endif
-    call compjulday(previousOctYear, 10, 1, 0, 0, 0._rkind,  & ! input  = year, month, day, hour, minute, second
-                   updateJulDay,err,cmessage)                  ! output = julian day (fraction of day) + error control
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  endif
+  if(updateJulDay==realMissing)updateJulDay = dJulianStart
   sec_since_last_update = (currentJulDay - updateJulDay)*secprday ! seconds since last update
 
   ! determine if glacier area needs to be updated this time step
-  if(sec_since_last_update >= secprday*365._rkind*nYears)then ! don't bother checking unless nYears - leap days have passed
-    call compcalday(updateJulDay, iyyy, im, id, ih, imin, dsec, err, cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-    iyyy = iyyy + nYears
-    call compjulday(iyyy, im, id, ih, imin, dsec, updateJuldayNext, err, cmessage) ! next update is nYears after last update
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-    if(currentJulDay>=updateJuldayNext)then ! update glacier area if a nYears passed from last update, reset updateJulDay
+  call compcalday(updateJulDay, iyyy, im, id, ih, imin, dsec, err, cmessage)
+  if(im==10_i4b .and. id==1_i4b .and. ih==0_i4b .and. imin==0_i4b .and. dsec==0._rkind)then ! started with an Oct 1 update date
+    if(sec_since_last_update >= secprday*365._rkind*nYears)then ! don't bother checking unless nYears - leap days have passed
+      iyyy = iyyy + nYears
+      call compjulday(iyyy, im, id, ih, imin, dsec, updateJuldayNext, err, cmessage) ! next update is nYears after last update
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      if(currentJulDay>=updateJuldayNext)then ! update glacier area, reset updateJulDay
+        updateGlacArea = .true.
+        updateJulDay = updateJulDayNext
+      endif
+    endif
+  else ! started with a mising or non-Oct 1 update date, so just set next update to next Oct 1
+    if(im>=10_i4b)then
+      nextOctYear = iyyy + nYears
+    else
+      nextOctYear = iyyy + nYears - 1_i4b
+    endif
+    call compjulday(nextOctYear, 10_i4b, 1_i4b, 0_i4b, 0_i4b, 0._rkind,  & ! input  = year, month, day, hour, minute, second
+                   updateJulDayNext,err,cmessage)                          ! output = julian day (fraction of day) + error control
+    if(currentJulDay>=updateJuldayNext)then ! update glacier area, reset updateJulDay
       updateGlacArea = .true.
       updateJulDay = updateJulDayNext
     endif
-  endif ! (if at least nYears - leap days have passed since last update)
+  endif
 
 end subroutine time_updateGlacArea
 

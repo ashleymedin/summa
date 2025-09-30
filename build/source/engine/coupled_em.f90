@@ -63,7 +63,7 @@ USE globalData,only:prog_meta              ! metadata on the model prognostic va
 USE globalData,only:averageFlux_meta       ! metadata on the timestep-average model flux structure
 
 ! global data
-USE globalData,only:data_step              ! time step of forcing data (s)
+USE globalData,only:data_step              ! length of time steps for the outermost timeloop
 USE globalData,only:model_decisions        ! model decision structure
 USE globalData,only:globalPrintFlag        ! the global print flag
 USE globalData,only:realMissing            ! missing real number

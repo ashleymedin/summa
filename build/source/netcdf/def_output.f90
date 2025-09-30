@@ -192,7 +192,7 @@ contains
   end do ! iStruct
 
   ! write HRU dimension and ID for each output file
-  call write_id_info(ncid(iFreq), glacier_DimID, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+  call write_id_info(ncid(iFreq), err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
  end do ! iFreq
 
@@ -454,12 +454,11 @@ contains
  ! **********************************************************************************************************
  ! public subroutine write_id_info: write GRU HRU DOM glac dimension and IDs
  ! **********************************************************************************************************
- subroutine write_id_info(ncid,glacier_DimID,err,message)
+ subroutine write_id_info(ncid,err,message)
  USE globalData,only:gru_struc                    ! gru-hru mapping structures
  USE globalData,only:maxGlaciers                  ! maximum number of glaciers in a GRU
  ! input
  integer(i4b),intent(in)     :: ncid                  ! netcdf file id
- integer(i4b),intent(in)     :: glacier_DimID         ! glacier dimension ID
  ! output
  integer(i4b),intent(out)    :: err                   ! error code
  character(*),intent(out)    :: message               ! error message

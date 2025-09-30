@@ -364,7 +364,7 @@ endif
   bvarStruct%gru(iGRU)%var(iLookBVAR%glacSnowRunoffFuture)%dat = 0._rkind
   bvarStruct%gru(iGRU)%var(iLookBVAR%glacFirnRunoffFuture)%dat = 0._rkind
 
-  ! initialize to update glacier area, will be set in initial conditions or assumed to be last October 1
+  ! initialize to update glacier area, will be set in initial conditions or assumed to be start of simulation
   bvarStruct%gru(iGRU)%var(iLookBVAR%updateJulDay)%dat = realMissing
 
   ! loop through local HRUs

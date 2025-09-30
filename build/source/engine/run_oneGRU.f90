@@ -28,7 +28,6 @@ USE multiconst,only: iden_ice           ! intrinsic density of ice (kg m-3)
 
 ! constants
 USE globalData,only: yes,no             ! .true. and .false.
-USE globalData,only: dJulianStart       ! julian day of start time of simulation
 USE globalData,only: data_step          ! length of data step (s)
 
 ! define data types
@@ -430,7 +429,6 @@ subroutine run_oneGRU(&
   ! lapse glacier fluxes to the basin by routing through each glacier
   call qGlacier(&
                 ! input
-                data_step,                                          & ! intent(in):    length of data step (s)
                 bparData%var(iLookBPAR%glacStor_kIce),              & ! intent(in):    storage coefficient ice reservoir (hours)
                 bparData%var(iLookBPAR%glacStor_kFirn),             & ! intent(in):    storage coefficient snow reservoir (hours)
                 bparData%var(iLookBPAR%glacStor_kFirn),             & ! intent(in):    storage coefficient firn reservoir (hours)

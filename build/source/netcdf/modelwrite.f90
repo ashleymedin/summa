@@ -626,8 +626,7 @@ contains
  if (maxGlceLayers>0) err = nf90_def_dim(ncid,trim(ifcGlceDimName),maxGlceLayers+1,ifcGlceDimID); message='iCreate[ifcGlce]' ; call netcdf_err(err,message); if(err/=0)return
  if (maxLakeLayers>0) err = nf90_def_dim(ncid,trim(midLakeDimName),maxLakeLayers  ,midLakeDimID); message='iCreate[midLake]' ; call netcdf_err(err,message); if(err/=0)return
  if (maxLakeLayers>0) err = nf90_def_dim(ncid,trim(ifcLakeDimName),maxLakeLayers+1,ifcLakeDimID); message='iCreate[ifcLake]' ; call netcdf_err(err,message); if(err/=0)return
- ! re-initialize error control
- err=0; message='writeRestart/'
+ err=0; message='writeRestart/' ! reset message
 
  ! define prognostic variables
  do iVar = 1,nProgVars
@@ -704,8 +703,7 @@ contains
       nGlce = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce
       nLayers = nSnow + nLake + nSoil + nGlce
 
-      ! check size
-      ! NOTE: this may take time that we do not wish to use
+      ! check size, NOTE: this may take time that we do not wish to use
       okLength=.true.
       select case (prog_meta(iVar)%varType)
        case(iLookVarType%scalarv);              okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat) == nScalar  )
@@ -722,12 +720,7 @@ contains
        case(iLookVarType%ifcGlce); if (nGlce>0) okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat) == nGlce+1  )
        case default; err=20; message=trim(message)//'unknown var type'; return
       end select
-
-      ! error check
-      if(.not.okLength)then
-       message=trim(message)//'bad vector length for variable '//trim(prog_meta(iVar)%varName)
-       err=20; return
-      endif
+      if(.not.okLength)then; message=trim(message)//'bad vector length for variable '//trim(prog_meta(iVar)%varName); err=20; return; endif
 
       ! write data
       select case (prog_meta(iVar)%varType)
@@ -745,11 +738,7 @@ contains
        case(iLookVarType%ifcGlce); if (nGlce>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU,1/),count=(/1,1,nGlce+1  /))
        case default; err=20; message=trim(message)//'unknown var type'; return
       end select
-
-      ! error check
-      if (err.ne.0) message=trim(message)//'writing variable:'//trim(prog_meta(iVar)%varName)
-      call netcdf_err(err,message); if (err/=0) return
-      err=0; message='writeRestart/'
+      if (err.ne.0) message=trim(message)//'writing variable:'//trim(prog_meta(iVar)%varName); call netcdf_err(err,message); if (err/=0) return; err=0; message='writeRestart/'
 
     end do ! iVar loop
 
@@ -757,6 +746,7 @@ contains
     do i=1,size(nidx)
       iVar = nidx(i)
       err=nf90_put_var(ncid,ncVarID(size_prog+i),(/indx_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU/),count=(/1,1/))
+      if (err.ne.0) message=trim(message)//'writing variable:'//trim(indx_meta(iVar)%varName); call netcdf_err(err,message); if (err/=0) return; err=0; message='writeRestart/'
     end do
   
    end do ! iDOM loop
@@ -764,20 +754,25 @@ contains
   
   ! write selected basin variables
   err=nf90_put_var(ncid,ncVarID(nProgVars+1),(/bvar_data%gru(iGRU)%var(iLookBVAR%routingRunoffFuture)%dat/), start=(/iGRU,1/),count=(/1,nTimeDelay/))
-  if (maxGlaciers > 0)then
+  if (err.ne.0) message=trim(message)//'writing variable:'//trim(bvar_meta(iLookBVAR%routingRunoffFuture)%varName); call netcdf_err(err,message); if (err/=0) return; err=0; message='writeRestart/'
+
+  if (maxGlaciers > 0)then ! if glaciers are present, include glacier variables
     nGlac = gru_struc(iGRU)%nGlac
     do i=1,size(ngdx)
       iVar = ngdx(i)
-      err=nf90_put_var(ncid,ncVarID(nProgVars+1+i),(/bvar_data%gru(iGRU)%var(iVar)%dat/), start=(/iGRU,1/),count=(/1,nGlac/))
+      select case(bvar_meta(iVar)%varType)
+       case(iLookVarType%scalarv); err=nf90_put_var(ncid,ncVarID(nProgVars+1+i),(/bvar_data%gru(iGRU)%var(iVar)%dat/), start=(/iGRU,1/),count=(/1,nScalar/))
+       case(iLookVarType%glacier); err=nf90_put_var(ncid,ncVarID(nProgVars+1+i),(/bvar_data%gru(iGRU)%var(iVar)%dat/), start=(/iGRU,1/),count=(/1,nGlac/))
+       case default; err=20; message=trim(message)//'unknown var type'; return
+      end select
+      if (err.ne.0) message=trim(message)//'writing variable:'//trim(bvar_meta(iVar)%varName); call netcdf_err(err,message); if (err/=0) return; err=0; message='writeRestart/'
     end do
-    ! glacier storage variable
-    err=nf90_put_var(ncid,ncVarID(size_prog),(/bvar_data%gru(iGRU)%var(iLookBVAR%basin__GlacierStorage)%dat/), start=(/iGRU/),count=(/1/))
   endif
   
  end do  ! iGRU loop
 
- ! write HRU dimension and ID for file
- call write_id_info(ncid, nglDimID, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+ ! write dimensions and ID for file
+ call write_id_info(ncid, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
  ! close file
  call nc_file_close(ncid,err,cmessage)

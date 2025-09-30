@@ -110,7 +110,6 @@ contains
  ! *************************************************************************************************************
  subroutine qGlacier(&
                      ! input
-                     data_step,             & ! time step for the data (s)
                      glacStor_kIce,         & ! storage coefficient ice reservoir (hours)
                      glacStor_kSnow,        & ! storage coefficient snow reservoir (hours)
                      glacStor_kFirn,        & ! storage coefficient firn reservoir (hours)
@@ -128,7 +127,6 @@ contains
                      err,message)             ! error control
  implicit none
  ! input
- real(rkind),intent(in)     :: data_step                 ! time step for the data (s)
  real(rkind),intent(in)     :: glacStor_kIce             ! storage coefficient ice reservoir (hours)
  real(rkind),intent(in)     :: glacStor_kSnow            ! storage coefficient snow reservoir (hours)
  real(rkind),intent(in)     :: glacStor_kFirn            ! storage coefficient firn reservoir (hours)

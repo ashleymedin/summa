@@ -739,16 +739,18 @@ else
  ! (5) get the glacier variables
  ! --------------------------------------------------------------------------------------------------------
  if (has_glacier)then
+
    do i = 1,size(ngdx) ! loop through specific basin variables
     iVar = ngdx(i)
+
     ! get glac-based variable id
     err = nf90_inq_varid(ncID,trim(bvar_meta(iVar)%varName),ncVarID)
     if(err/=0)then
-      if (iVar == iLookBVAR%updateJulDay) then
-        write(*,*) 'WARNING: updateJulDay for last day glacier geometry updated is not in the initial conditions file ... assuming last Oct 1'  ! previously created in var_derive.f90
+      if(iVar == iLookBVAR%updateJulDay)then
+        write(*,*) 'WARNING: updateJulDay for last day glacier geometry updated is not in the initial conditions file ... assuming at start of simulation'  ! previously created in var_derive.f90
         err=nf90_noerr    ! reset this err
-      endif
-      if (iVar == iLookBVAR%glacIceRunoffFuture)then ! either all glacier runoff variables are in the file or none
+        cycle
+      elseif(iVar == iLookBVAR%glacIceRunoffFuture)then ! either all glacier runoff variables are in the file or none
         write(*,*) 'WARNING: glac(Ice,Snow,Firn)RunoffFuture is not in the initial conditions file ... using zeros'  ! previously created in var_derive.f90
         err=nf90_noerr    ! reset this err
         exit ! exit the loop, don't need to check the other glacier runoff variables
