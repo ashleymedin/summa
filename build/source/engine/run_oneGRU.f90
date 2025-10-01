@@ -227,7 +227,7 @@ subroutine run_oneGRU(&
             call time_updateGlacArea(&
                         ! input
                         timeVec%var(iLookTIME%iyyy),timeVec%var(iLookTIME%im),timeVec%var(iLookTIME%id), timeVec%var(iLookTIME%ih),timeVec%var(iLookTIME%imin), & ! intent(in): current model time
-                        attrHRU%hru(iHRU)%var(iLookATTR%latitude)%dat(1), & ! intent(in): latitude of HRU (degrees)
+                        attrHRU%hru(iHRU)%var(iLookATTR%latitude),        & ! intent(in): latitude of HRU (degrees)
                         ! output
                         bvarData%var(iLookBVAR%updateJulDay)%dat(1),      & ! intent(inout): julian day of last glacier area update (fraction of day)
                         bvarData%var(iLookBVAR%updateJulDayNext)%dat(1),  & ! intent(inout): julian day of next glacier area update (fraction of day)
