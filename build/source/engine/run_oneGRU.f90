@@ -165,7 +165,7 @@ subroutine run_oneGRU(&
   integer(i4b)                        :: iglacHRU                 ! glacier HRU index
   real(rkind), allocatable            :: glac_elev(:)             ! elevation of each glacier domain (m)
   real(rkind), allocatable            :: glac_debris_thick(:)     ! debris thickness of each glacier domain (m)
-  real(rkind), allocatable            :: massChange(:)            ! since Oct 1 mean rate glacier water equivalent change (kg m-2 s-1)
+  real(rkind), allocatable            :: massChange(:)            ! since last update mean rate glacier water equivalent change (kg m-2 s-1)
   integer(i8b), allocatable           :: glac_hru(:)              ! HRU index of the each glacier cell
   real(rkind), allocatable            :: glac_ablFrac(:)          ! ablation fraction of each glacier domain
   real(rkind), allocatable            :: glac_area(:)             ! area of each glacier domain (m2)
@@ -223,17 +223,18 @@ subroutine run_oneGRU(&
       if(progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)==0._rkind) cycle ! skip domains with no area
       if(gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln1 .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln2 .or. &
           gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr)then        
-        if(check_updateGlacArea)then ! update glacier area every October 1st of mod year
+        if(check_updateGlacArea)then ! find updateJulDay, update glacier area every first of lowest mass month of mod year (choose October North Hemisphere, April South, January low latitudes)
             call time_updateGlacArea(&
                         ! input
                         timeVec%var(iLookTIME%iyyy),timeVec%var(iLookTIME%im),timeVec%var(iLookTIME%id), timeVec%var(iLookTIME%ih),timeVec%var(iLookTIME%imin), & ! intent(in): current model time
+                        attrHRU%hru(iHRU)%var(iLookATTR%latitude)%dat(1), & ! intent(in): latitude of HRU (degrees)
                         ! output
-                        bvarData%var(iLookBVAR%updateJulDay)%dat(1),     & ! intent(inout): julian day of last glacier area update (fraction of day)
-                        bvarData%var(iLookBVAR%updateJulDayNext)%dat(1), & ! intent(inout): julian day of next glacier area update (fraction of day)
-                        updateGlacArea,                                  & ! intent(inout): flag to update glacier area this time step
-                        sec_since_last_update,                           & ! intent(out):   seconds since last glacier area update
+                        bvarData%var(iLookBVAR%updateJulDay)%dat(1),      & ! intent(inout): julian day of last glacier area update (fraction of day)
+                        bvarData%var(iLookBVAR%updateJulDayNext)%dat(1),  & ! intent(inout): julian day of next glacier area update (fraction of day)
+                        updateGlacArea,                                   & ! intent(inout): flag to update glacier area this time step
+                        sec_since_last_update,                            & ! intent(out):   seconds since last glacier area update
                         ! error control
-                        err, message)                                      ! intent(out):   error control
+                        err, message)                                       ! intent(out):   error control
             if(err/=0)then; err=30; message=trim(message)//trim(cmessage); return; endif
           check_updateGlacArea = .false. ! only check this once for the GRU
         endif ! (checking when to update glacier area)
@@ -501,7 +502,7 @@ subroutine run_oneGRU(&
                   gruInfo%gridInfo,                           & ! intent(in):    grid information for each grid
                   gridData,                                   & ! intent(inout): grid data for each grid
                   ! mass balance per glacier domain
-                  massChange,                                 & ! intent(in):    since Oct 1 mean rate glacier water equivalent change (kg m-2 s-1)
+                  massChange,                                 & ! intent(in):    since updateJulDay rate glacier water equivalent change (kg m-2 s-1)
                   glac_elev,                                  & ! intent(inout): elevation of each glacier domain (m) per HRU
                   ! debris
                   glac_debris_thick,                          & ! intent(inout): debris thickness of each glacier domain (m) per HRU

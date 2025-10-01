@@ -408,7 +408,7 @@ subroutine glacAreaChange(&
             hiInd = n-1
             loInd = n
           endif
-          ! keep area ratio the same between the two clean domains
+          ! keep area ratio the same between the two clean domains (ensures will keep 2 clean domains)
           areaAdd = area0(hiInd)/(area0(n-1)+area0(n)) * sum(glacClnMask) *dx*dy
 
           if(areaAdd > 0._rkind)then
@@ -1360,11 +1360,12 @@ subroutine swap_integer(a, b)
 end subroutine swap_integer
 
 ! ************************************************************************************************
-! public subroutine time_updateGlacArea: update glacier domain area, elevation, and layering 
+! public subroutine time_updateGlacArea: find date to update glacier domain area, elevation, and layering 
 ! ************************************************************************************************
 subroutine time_updateGlacArea(&
                          ! input
                          now_iyyy, now_im, now_id, now_ih, now_imin, & ! intent(in): current time
+                         latitude,                   & ! intent(in): latitude of HRU (degrees, +N, -S)
                          ! output
                          updateJulDay,               & ! intent(inout): julian day of last glacier area update (fraction of day)
                          updateJulDayNext,           & ! intent(inout): julian day of next glacier area update (fraction of day)
@@ -1378,6 +1379,7 @@ subroutine time_updateGlacArea(&
   ! ----- define dummy variables ------------------------------------------------------------------------------------------
   implicit none
   integer(i4b), intent(in)        :: now_iyyy, now_im, now_id, now_ih, now_imin ! current time
+  real(rkind), intent(in)         :: latitude                 ! latitude of HRU (degrees, +N, -S)
   real(rkind), intent(inout)      :: updateJulDay             ! julian day of last area update (fraction of day)
   real(rkind), intent(inout)      :: updateJulDayNext         ! julian day of next glacier area update (fraction of day)
   logical, intent(inout)          :: updateGlacArea           ! flag to update glacier area this time step
@@ -1386,10 +1388,11 @@ subroutine time_updateGlacArea(&
   character(*),intent(out)        :: message                  ! error message 
   ! ----- local variables -------------------------------------------------------------------------------------------------
   real(rkind)                     :: currentJulDay            ! current julian day
-  integer(i4b)                    :: nextOctYear              ! next year of October 1st
+  integer(i4b)                    :: lowMonth                 ! lowest mass balance month for updating glacier area
+  integer(i4b)                    :: nextLowMonthYr           ! next year of lowMonth
   real(rkind)                     :: dsec                     ! seconds fraction of day
   integer(i4b)                    :: iyyy, im, id, ih, imin   ! year, month, day, hour, minute
-  integer(i4b),parameter          :: nYears=1                 ! number of years in between glacier area updates (on October 1st)
+  integer(i4b),parameter          :: nYears=1                 ! number of years in between glacier area updates (on first of lowMonth)
   character(LEN=256)              :: cmessage                 ! error message of downwind routine
   ! -----------------------------------------------------------------------------------------------------------------------
   ! initialize error control
@@ -1400,15 +1403,24 @@ subroutine time_updateGlacArea(&
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   currentJulDay = currentJulDay + data_step/secprday ! julian day at end of time step
 
-  ! get julian day of next October 1st update
+  ! determine lowMonth based on hemisphere, based on data from Dussaillant et al 2024
+  if(latitude > 25._rkind)then
+    lowMonth = 10_i4b ! October for Northern Hemisphere
+  elseif(latitude < -25._rkind)then
+    lowMonth = 4_i4b  ! April for Southern Hemisphere
+  else
+    lowMonth = 1_i4b  ! January for low latitudes (between 25N and 25S)
+  end if
+
+  ! get julian day of next update  (on first of lowMonth)
   if(updateJulDay==realMissing)then ! will only be true at the start of the simulation
     updateJulDay = dJulianStart
-    if(now_im>=10_i4b)then ! start of simulation so now is dJulianStart
-      nextOctYear = now_iyyy + nYears
+    if(now_im>=lowMonth)then ! start of simulation so now is dJulianStart
+      nextLowMonthYr = now_iyyy + nYears
     else
-      nextOctYear = now_iyyy + nYears - 1_i4b
+      nextLowMonthYr = now_iyyy + nYears - 1_i4b
     endif
-    call compjulday(nextOctYear, 10_i4b, 1_i4b, 0_i4b, 0_i4b, 0._rkind, updateJulDayNext,err,cmessage) 
+    call compjulday(nextLowMonthYr, lowMonth, 1_i4b, 0_i4b, 0_i4b, 0._rkind, updateJulDayNext,err,cmessage) 
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   elseif(updateJuldayNext==realMissing)then ! will only be true at the start of the simulation
     call compcalday(updateJulDay, iyyy, im, id, ih, imin, dsec, err, cmessage) ! get calendar date of last update
@@ -1423,8 +1435,8 @@ subroutine time_updateGlacArea(&
   if(currentJulDay>=updateJuldayNext)then ! update glacier area, reset updateJulDay
     updateGlacArea = .true.
     updateJulDay = updateJulDayNext
-    nextOctYear = now_iyyy + nYears ! now_im is always 10 here
-    call compjulday(nextOctYear, 10_i4b, 1_i4b, 0_i4b, 0_i4b, 0._rkind, updateJuldayNext, err, cmessage)
+    nextLowMonthYr = now_iyyy + nYears ! now_im is always lowMonth here
+    call compjulday(nextLowMonthYr, lowMonth, 1_i4b, 0_i4b, 0_i4b, 0._rkind, updateJuldayNext, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 

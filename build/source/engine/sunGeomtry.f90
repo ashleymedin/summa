@@ -46,8 +46,8 @@ contains
  ! ----------------------------------------------------------------------------------------
  IMPLICIT NONE
  ! Input variables
- INTEGER(I4B), INTENT(IN)                  :: MONTH   ! month as mm integer
- INTEGER(I4B), INTENT(IN)                  :: DAY     ! day of month as dd integer
+ INTEGER(I4B), INTENT(IN)                     :: MONTH   ! month as mm integer
+ INTEGER(I4B), INTENT(IN)                     :: DAY     ! day of month as dd integer
  real(rkind), INTENT(IN)                      :: HOUR    ! hour of day as real
  real(rkind), INTENT(IN)                      :: DT      ! time step in units of hours
  real(rkind), INTENT(IN)                      :: SLOPE   ! slope of ground surface in degrees
