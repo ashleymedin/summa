@@ -527,6 +527,7 @@ subroutine run_oneGRU(&
       do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
         if(gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln1 .or. gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln2 .or. &
             gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr)then
+          iglacDOM = iglacDOM + 1
           call updateGlacDomain(&
                       ! input
                       iglacDOM,                                      & ! intent(inout): glacier domain index

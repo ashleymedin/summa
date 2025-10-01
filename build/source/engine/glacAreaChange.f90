@@ -27,6 +27,7 @@ USE nr_type
 USE globalData,only:integerMissing     ! missing integer number
 USE globalData,only:realMissing        ! missing real number
 
+USE globalData,only:verySmall          ! a very small number used as an additive constant to check if substantial difference among real numbers
 USE globalData,only:thick4area         ! an arbitrary small threshold for glacier thickness to be considered as glacier area
 USE globalData,only:dJulianStart       ! julian day of start time of simulation
 USE globalData,only:data_step          ! length of time steps for the outermost timeloop
@@ -305,7 +306,7 @@ subroutine glacAreaChange(&
   if(printFlag)then
     do i = 1, nDOM
       write(*,'(a,2(1x,f7.1),1x,f5.2,1x,f8.1)') "Original domain elevation (m), area (km2), debris depth (m), mass change (kg m-2) =",&
-            elev(i), area(i)*1e-6, debris_thick_dom(i), massChange(i)
+            elev(i), area(i)*1.e-6_rkind, debris_thick_dom(i), massChange(i)
     enddo
     write(*,'(a,f6.1)') "ELA used (m) = ",ELA_use
   endif
@@ -356,7 +357,7 @@ subroutine glacAreaChange(&
     if(printFlag)then 
       volume = sum(merge(glacierMask*(surface - bed), 0._rkind, glacierMask==1)) * dx * dy * 1.e-9_rkind ! km3
       write(*,'(a,i2,a,4(1x,f8.3))') "<GLACIER ",iGlac, " START: ablation, accumulation, total area (km2), volume (km3) =", &
-                        glacierAblArea(iGlac)*1e-6, glacierAccArea(iGlac)*1e-6, glacierAblArea(iGlac)*1e-6 + glacierAccArea(iGlac)*1e-6, volume
+        glacierAblArea(iGlac)*1.e-6_rkind, glacierAccArea(iGlac)*1.e-6_rkind, (glacierAblArea(iGlac) + glacierAccArea(iGlac))*1.e-6_rkind, volume
     endif
 
     if(glacierAccArea(iGlac)+glacierAblArea(iGlac) < glacierAreaThresh)then ! glacier has shrunk below threshold, area may be zero
@@ -381,7 +382,7 @@ subroutine glacAreaChange(&
     glacierAblArea(iGlac) = sum(merge(glacierMask, 0_i4b, hgt>thick4area .and. surface<  ELA_use))*dx*dy
     ! debugging print
     if(printFlag) write(*,'(a,i2,a,4(1x,f8.3))') ">GLACIER ",iGlac, " END  : ablation, accumulation, total area (km2), volume (km3) =", &
-                        glacierAblArea(iGlac)*1e-6, glacierAccArea(iGlac)*1e-6, glacierAblArea(iGlac)*1e-6 + glacierAccArea(iGlac)*1e-6, volume
+        glacierAblArea(iGlac)*1.e-6_rkind, glacierAccArea(iGlac)*1.e-6_rkind, (glacierAblArea(iGlac) + glacierAccArea(iGlac))*1.e-6_rkind, volume
 
     ! Loop through HRUs and calculate domain areas and elevations for each HRU
     ! Order of domains will go HRU 1: clean1, clean2, debris; HRU 2: clean1, clean2, debris etc.
@@ -505,7 +506,7 @@ subroutine glacAreaChange(&
   if(printFlag)then
     do i = 1, nDOM
       write(*,'(a,2(1x,f7.1),1x,f5.2)') "After area change domain elevation (m), area (km2), debris depth (m) =", &
-                elev(i), area(i)*1e-6, debris_thick_dom(i)
+            elev(i), area(i)*1.e-6_rkind, debris_thick_dom(i)
     enddo
   endif
 
@@ -1483,7 +1484,7 @@ subroutine updateGlacDomain(&
   real(rkind), intent(inout)      :: glacMass4AreaChange      ! mass change (kg m-2)
   real(rkind), intent(inout)      :: mLayerDepth(:)           ! layer thickness (m)
   real(rkind), intent(inout)      :: mLayerHeight(:)          ! layer mid-point height (m)
-  real(rkind), intent(inout)      :: iLayerHeight(:)          ! layer interface height (m)
+  real(rkind), intent(inout)      :: iLayerHeight(0:)          ! layer interface height (m)
   real(rkind), intent(inout)      :: DOMarea                  ! area of each domain (m2)
   real(rkind), intent(inout)      :: ablFrac                  ! fraction of glacier domain area that is ablating
   real(rkind), intent(inout)      :: DOMelev                  ! elevation of each glacier domain (m) per HRU
@@ -1491,34 +1492,53 @@ subroutine updateGlacDomain(&
   character(*),intent(out)        :: message                  ! error message 
    ! ----- define local variables ------------------------------------------------------------------------------------------
   integer(i4b)                    :: i                        ! loop index
-  real(rkind)                     :: soil_thick               ! depth of soil== debris in debris domain of glacier HRU
-  real(rkind)                     :: thick_ratio              ! ratio of new debris thickness to previous debris thickness
+  real(rkind)                     :: layers_thick             ! depth of layers modifying
+  real(rkind)                     :: thick_ratio              ! ratio of new layers thickness to previous thickness
   ! ----------------------------------------------------------------------------------------------
   ! initialize
   err=0; message='updateGlacDomain/'
 
-  iglac = iglac + 1
+  ! update glacier domain elevation, area, and ablating fraction and reset mass change
   DOMelev = glac_elev(iglac) ! realMissing if no area
   DOMarea = glac_area(iglac) ! may be 0
   ablFrac = glac_ablFrac(iglac) ! may be 0
   glacMass4AreaChange = 0._rkind ! reset
-  if(dom_type==glacDbr)then
-    ! thickness of average debris cover in HRU changes with debris advection
-    ! scale soil layer thickness with debris thickness change, keep the same number of layers 
-    soil_thick = sum(mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil))
-    thick_ratio = glac_debris_thick(iglac)/soil_thick
-    do i = nSnow+nLake+1,nSnow+nLake+nSoil
-      mLayerDepth(i)  = mLayerDepth(i)*thick_ratio
-      mLayerHeight(i) = mLayerHeight(i)*thick_ratio
-      iLayerHeight(i) = iLayerHeight(i)*thick_ratio            
-    enddo
-    do i = nSnow+nLake+nSoil+1,nSnow+nLake+nSoil+nGlce
-      mLayerHeight(i) = mLayerHeight(i) + glac_debris_thick(iglac) - soil_thick
-      iLayerHeight(i) = iLayerHeight(i) + glac_debris_thick(iglac) - soil_thick
-    enddo
-  endif ! (if debris domain)
 
-  end subroutine updateGlacDomain
+  ! update glacier layering
+  if(dom_type==glacDbr .and. DOMarea>0._rkind)then ! thickness of average debris cover in HRU changes with debris advection
+    ! for zero area, glacDbr needs to keep previous non-zero soil layering so can adjust if debris-covered glacier re-appears
+    ! scale soil layer thickness with debris thickness change, keep the same number of layers 
+    layers_thick = sum(mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil))
+    thick_ratio = glac_debris_thick(iglac)/layers_thick ! glac_debris_thick will be >0 since there is a positive area of debris-covered glacier
+    mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil)  = mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil)*thick_ratio
+    mLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil) = mLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil)*thick_ratio
+    iLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil) = iLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil)*thick_ratio            
+
+    ! recalculate the layer heights below soil
+    do i=nSnow+nLake+nSoil+1,nSnow+nLake+nSoil+nGlce
+      mLayerHeight(i) = mLayerHeight(i) + glac_debris_thick(iglac) - layers_thick
+      iLayerHeight(i) = iLayerHeight(i) + glac_debris_thick(iglac) - layers_thick
+    enddo
+
+  elseif(DOMarea==0._rkind .and. nSnow>0)then ! no glacier area but still has snow layers, so make snow very thin
+    ! scale snow layers so comes back with tiny snow (would prefer 0 thickness but then would have to relayer here)
+    layers_thick = sum(mLayerDepth(1:nSnow))
+    if(layers_thick>verySmall)then
+      thick_ratio = verySmall/layers_thick
+      mLayerDepth(1:nSnow) = mLayerDepth(1:nSnow)*thick_ratio
+      mLayerHeight(1:nSnow) = mLayerHeight(1:nSnow)*thick_ratio
+      iLayerHeight(1:nSnow) = iLayerHeight(1:nSnow)*thick_ratio          
+
+      ! recalculate the layer heights below snow
+      do i=nSnow+1,nSnow+nLake+nSoil+nGlce
+        mLayerHeight(i) = mLayerHeight(i) + verySmall - layers_thick
+        iLayerHeight(i) = iLayerHeight(i) + verySmall - layers_thick
+      enddo
+    endif
+
+  endif ! ( if changing soil layers or snow layers)
+  
+end subroutine updateGlacDomain
 
 
 end module glacAreaChange_module
