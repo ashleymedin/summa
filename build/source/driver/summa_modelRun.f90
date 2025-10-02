@@ -298,8 +298,8 @@ contains
  ! identify the end of the physics
  call date_and_time(values=endPhysics)
 
- ! aggregate the elapsed time for the physics (excluding the update area time)
- elapsedPhysics = elapsedPhysics + elapsedSec(startPhysics, endPhysics) - elapsedUpdateArea
+ ! aggregate the elapsed time for the physics (includes the update area time here)
+ elapsedPhysics = elapsedPhysics + elapsedSec(startPhysics, endPhysics)
 
  ! deallocate space used to determine the GRU computational expense
  deallocate(totalFluxCalls, ixExpense, timeGRU, stat=err)
