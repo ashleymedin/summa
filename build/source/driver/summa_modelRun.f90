@@ -51,10 +51,10 @@ contains
  ! * desired modules
  ! ---------------------------------------------------------------------------------------
  ! data types
- USE nr_type                                                     ! variable types, etc.
+ USE nr_type                                                    ! variable types, etc.
  USE summa_type, only:summa1_type_dec                           ! master summa data type
  ! subroutines and functions
- USE nr_utils_module,only:indexx                              ! sort vectors in ascending order
+ USE nr_utils_module,only:indexx                                ! sort vectors in ascending order
  USE vegPhenlgy_module,only:vegPhenlgy                          ! module to compute vegetation phenology
  USE run_oneGRU_module,only:run_oneGRU                          ! module to run for one GRU
  USE time_utils_module,only:elapsedSec                          ! calculate the elapsed time
@@ -63,6 +63,7 @@ contains
  USE globalData,only:model_decisions                            ! model decision structure
  USE globalData,only:startPhysics,endPhysics                    ! date/time for the start and end of the initialization
  USE globalData,only:elapsedPhysics                             ! elapsed time for the initialization
+ USE globalData,only:elapsedUpdateArea                          ! elapsed time for updating glacier and lake area
  ! ---------------------------------------------------------------------------------------
  ! * variables
  ! ---------------------------------------------------------------------------------------
@@ -275,6 +276,7 @@ contains
                   bvarStruct%gru(iGRU),         & ! intent(inout): basin-average variables
                   gridStruct%gru(iGRU),         & ! intent(inout): basin grid parameters and variables
                   ! error control
+                  elapsedUpdateArea,            & ! intent(inout): elapsed time for updating glacier and lake area for all GRUs (s)
                   err,cmessage)                   ! intent(out):   error control
 
   ! check errors
@@ -296,8 +298,8 @@ contains
  ! identify the end of the physics
  call date_and_time(values=endPhysics)
 
- ! aggregate the elapsed time for the physics
- elapsedPhysics = elapsedPhysics + elapsedSec(startPhysics, endPhysics)
+ ! aggregate the elapsed time for the physics (excluding the update area time)
+ elapsedPhysics = elapsedPhysics + elapsedSec(startPhysics, endPhysics) - elapsedUpdateArea
 
  ! deallocate space used to determine the GRU computational expense
  deallocate(totalFluxCalls, ixExpense, timeGRU, stat=err)

@@ -274,6 +274,7 @@ MODULE globalData
   real(rkind),save,public                        :: elapsedRead                       ! elapsed time for the data read
   real(rkind),save,public                        :: elapsedWrite                      ! elapsed time for the stats/write
   real(rkind),save,public                        :: elapsedPhysics                    ! elapsed time for the physics
+  real(rkind),save,public                        :: elapsedUpdateArea                 ! elapsed time for updating glacier and lake area
   ! define ancillary data structures
   type(var_i),save,public                        :: startTime                         ! start time for the model simulation
   type(var_i),save,public                        :: finshTime                         ! end time for the model simulation

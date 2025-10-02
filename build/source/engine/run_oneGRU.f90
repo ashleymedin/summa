@@ -120,6 +120,7 @@ subroutine run_oneGRU(&
                       bvarData,           & ! intent(inout): basin-average variables
                       gridData,           & ! intent(inout): basin glacier grids, may be null
                       ! error control
+                      elapsedUpdateArea,  & ! intent(inout): elapsed time for updating glacier and lake area for all GRUs (s)
                       err,message)          ! intent(out):   error control
   ! ----- define downstream subroutines -----------------------------------------------------------------------------------
   USE run_oneHRU_module,only:run_oneHRU                       ! module to run for one HRU
@@ -128,6 +129,7 @@ subroutine run_oneGRU(&
   USE glacAreaChange_module,only:time_updateGlacArea          ! check if glacier area needs to be updated
   USE glacAreaChange_module,only:glacAreaChange               ! change glacier area with ice flow model
   USE glacAreaChange_module,only:updateGlacDomain             ! change glacier domain area, elevation, layering
+  USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time
   ! ----- define dummy variables ------------------------------------------------------------------------------------------
   implicit none
   ! model control
@@ -151,44 +153,46 @@ subroutine run_oneGRU(&
   type(var_dlength)       , intent(inout) :: bvarData             ! x%var(:)%dat                 -- basin-average variables
   type(grid_double)       , intent(inout) :: gridData             ! x%grid(:)%var(:)%dat2(:,:)   -- basin grids, currently used for glaciers only
   ! error control
+  real(rkind)             , intent(inout) :: elapsedUpdateArea    ! time for updating glacier and lake area for all GRUs (s)
   integer(i4b)            , intent(out)   :: err                  ! error code
   character(*)            , intent(out)   :: message              ! error message
   ! ----- define local variables ------------------------------------------------------------------------------------------
-  character(len=256)                  :: cmessage                 ! error message
-  integer(i4b)                        :: iHRU                     ! HRU index
-  integer(i4b)                        :: jHRU,kHRU                ! index of the hydrologic response unit
-  integer(i4b)                        :: iDOM                     ! domain index
-  real(rkind)                         :: fracDOM                  ! fractional area of a given HRU domain in GRU (-)
-  integer(i4b)                        :: nglacDOM                 ! number of glacier domains in the GRU
-  integer(i4b)                        :: nglacHRU                 ! number of glacier HRUs in the GRU
-  integer(i4b)                        :: iglacDOM                 ! glacier domain index
-  integer(i4b)                        :: iglacHRU                 ! glacier HRU index
-  real(rkind), allocatable            :: glac_elev(:)             ! elevation of each glacier domain (m)
-  real(rkind), allocatable            :: glac_debris_thick(:)     ! debris thickness of each glacier domain (m)
-  real(rkind), allocatable            :: massChange(:)            ! since last update mean rate glacier water equivalent change (kg m-2 s-1)
-  integer(i8b), allocatable           :: glac_hru(:)              ! HRU index of the each glacier cell
-  real(rkind), allocatable            :: glac_ablFrac(:)          ! ablation fraction of each glacier domain
-  real(rkind), allocatable            :: glac_area(:)             ! area of each glacier domain (m2)
-  real(rkind), allocatable            :: iden_soil_mean(:)        ! mean soil identity of each glacier domain
-  real(rkind), allocatable            :: theta_sat_mean(:)        ! mean saturated water content of each glacier domain
-  integer(i4b), allocatable           :: nclean(:)                ! number of clean glacier HRUs in each glacier domain
-  integer(i4b), allocatable           :: ndebris(:)               ! number of debris glacier HRUs in each glacier domain
-  logical(lgt)                        :: computeVegFluxFlag       ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
-  logical(lgt)                        :: updateGlacArea           ! flag to update glacier area
-  logical(lgt)                        :: updateLakeArea           ! flag to update lake area
-  logical(lgt)                        :: has_glacier              ! flag to indicate if glaciers are present in HRU
-  real(rkind)                         :: remaining_area           ! remaining area to be distributed
-  real(rkind)                         :: remaining_elev           ! remaining elevation to be distributed
-  logical(lgt)                        :: runHRU                   ! flag to run the HRU
-  logical(lgt)                        :: check_updateGlacArea     ! flag to check if glacier area needs to be updated
-  real(rkind)                         :: glacIceMelt              ! glacier ice reservoir melt (m3 s-1)
-  real(rkind)                         :: glacSnowMelt             ! glacier snow reservoir melt (m3 s-1)
-  real(rkind)                         :: glacFirnMelt             ! glacier firn reservoir melt (m3 s-1)
-  real(rkind)                         :: sec_since_last_update    ! seconds since last update
-  real(rkind)                         :: soil_thick               ! depth of soil== debris in debris domain of glacier HRU
-  integer(i4b)                        :: nSnow                    ! number of snow layers in debris domain
-  integer(i4b)                        :: nLake                    ! number of lake layers in debris domain (should be 0)
-  integer(i4b)                        :: nSoil                    ! number of soil layers in debris domain
+  character(len=256)                  :: cmessage                       ! error message
+  integer(i4b)                        :: iHRU                           ! HRU index
+  integer(i4b)                        :: jHRU,kHRU                      ! index of the hydrologic response unit
+  integer(i4b)                        :: iDOM                           ! domain index
+  real(rkind)                         :: fracDOM                        ! fractional area of a given HRU domain in GRU (-)
+  integer(i4b)                        :: nglacDOM                       ! number of glacier domains in the GRU
+  integer(i4b)                        :: nglacHRU                       ! number of glacier HRUs in the GRU
+  integer(i4b)                        :: iglacDOM                       ! glacier domain index
+  integer(i4b)                        :: iglacHRU                       ! glacier HRU index
+  real(rkind), allocatable            :: glac_elev(:)                   ! elevation of each glacier domain (m)
+  real(rkind), allocatable            :: glac_debris_thick(:)           ! debris thickness of each glacier domain (m)
+  real(rkind), allocatable            :: massChange(:)                  ! since last update mean rate glacier water equivalent change (kg m-2 s-1)
+  integer(i8b), allocatable           :: glac_hru(:)                    ! HRU index of the each glacier cell
+  real(rkind), allocatable            :: glac_ablFrac(:)                ! ablation fraction of each glacier domain
+  real(rkind), allocatable            :: glac_area(:)                   ! area of each glacier domain (m2)
+  real(rkind), allocatable            :: iden_soil_mean(:)              ! mean soil identity of each glacier domain
+  real(rkind), allocatable            :: theta_sat_mean(:)              ! mean saturated water content of each glacier domain
+  integer(i4b), allocatable           :: nclean(:)                      ! number of clean glacier HRUs in each glacier domain
+  integer(i4b), allocatable           :: ndebris(:)                     ! number of debris glacier HRUs in each glacier domain
+  logical(lgt)                        :: computeVegFluxFlag             ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+  logical(lgt)                        :: updateGlacArea                 ! flag to update glacier area
+  logical(lgt)                        :: updateLakeArea                 ! flag to update lake area
+  logical(lgt)                        :: has_glacier                    ! flag to indicate if glaciers are present in HRU
+  real(rkind)                         :: remaining_area                 ! remaining area to be distributed
+  real(rkind)                         :: remaining_elev                 ! remaining elevation to be distributed
+  logical(lgt)                        :: runHRU                         ! flag to run the HRU
+  logical(lgt)                        :: check_updateGlacArea           ! flag to check if glacier area needs to be updated
+  real(rkind)                         :: glacIceMelt                    ! glacier ice reservoir melt (m3 s-1)
+  real(rkind)                         :: glacSnowMelt                   ! glacier snow reservoir melt (m3 s-1)
+  real(rkind)                         :: glacFirnMelt                   ! glacier firn reservoir melt (m3 s-1)
+  real(rkind)                         :: sec_since_last_update          ! seconds since last update
+  real(rkind)                         :: soil_thick                     ! depth of soil== debris in debris domain of glacier HRU
+  integer(i4b)                        :: nSnow                          ! number of snow layers in debris domain
+  integer(i4b)                        :: nLake                          ! number of lake layers in debris domain (should be 0)
+  integer(i4b)                        :: nSoil                          ! number of soil layers in debris domain
+  integer(i4b),dimension(8)           :: startUpdateArea, endUpdateArea ! time at end of updating glacier and lake area
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; write(message, '(A21,I0,A10,I0,A2)' ) 'run_oneGRU (gru_nc = ',gruInfo%gru_nc,', gruId = ',gruInfo%gru_id,')/'
@@ -484,6 +488,7 @@ subroutine run_oneGRU(&
 
   end associate
 
+  call date_and_time(values=startUpdateArea)
   ! Need to update the glacier area
   if(updateGlacArea)then
     ! need to save length, bottom topo, and elevation of glaciers from the end of previous update for this GRU in file associated with gruInfo%gru_id
@@ -581,6 +586,10 @@ subroutine run_oneGRU(&
       enddo ! (looping through domains)
     enddo ! (looping through HRUs)
   endif ! (if updated glacier or lake area)
+  call date_and_time(values=endUpdateArea)
+
+  ! aggregate the elapsed time for the update area routines
+   elapsedUpdateArea = elapsedUpdateArea + elapsedSec(startUpdateArea,endUpdateArea)
 
 end subroutine run_oneGRU
 
