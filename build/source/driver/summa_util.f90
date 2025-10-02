@@ -365,6 +365,9 @@ contains
  call date_and_time(values=endModelRun)
  elpSec = elapsedSec(startInit,endModelRun)
 
+ ! remove the update area time from the physics time
+ elapsedPhysics = elapsedPhysics - elapsedUpdateArea
+
  ! print initial and final date and time
  write(outunit,"(/,A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)") 'initial date/time = ',startInit(1:3),  startInit(5:8)
  write(outunit,"(A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)")   '  final date/time = ',endModelRun(1:3),endModelRun(5:8)
