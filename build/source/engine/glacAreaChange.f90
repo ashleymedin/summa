@@ -538,7 +538,7 @@ end subroutine glacAreaChange
     ! Local variables
     real(rkind), parameter :: va_exp=1.36_rkind
     real(rkind) :: m_dot(nx,ny), delVol, delArea, area, va_constant, excessVol, H(nx,ny)
-    real(rkind) :: around(8), grad_debris(nx,ny), S0(nx,ny)
+    real(rkind) :: grad_debris(nx,ny), S0(nx,ny)
     integer(i4b) :: C_mask(nx,ny) 
 
     S = S - debris ! remove debris from glacier surface before volume-area scaling
@@ -578,7 +578,7 @@ end subroutine glacAreaChange
 
     ! Update S and debris velocity, estimates that are a bit klugey
     call updateS_volAreaScaling(S, S0, B, debris, glacierMask, delVol, delArea, thick4area, t_total, m_dot, nx, ny, dx, dy, excessVol, grad_debris)
-    
+
     ! Update debris thickness if there is debris, using englacial debris advection transport model
     if(sum(debris)>0._rkind)then 
       C_mask = emergingDebris(S, B, debris, lat_moraine_wid, ELA, nx, ny, dx, dy) ! Calculate near-surface concentration of debris
@@ -885,7 +885,6 @@ subroutine diffusion_MUSCL(debris, S, B, mask, gamma, n, cfl, max_dt, nx, ny, k,
   real(rkind) :: D_k_up_m(nx,ny), D_k_up_p(nx,ny), D_k_up_min(nx,ny), D_k_up_max(nx,ny)
   real(rkind) :: D_k_dn_m(nx,ny), D_k_dn_p(nx,ny), D_k_dn_min(nx,ny), D_k_dn_max(nx,ny)
   real(rkind) :: D_k_up(nx,ny), D_k_dn(nx,ny)
-  real(rkind) :: H_l_up(nx,ny), H_l_dn(nx,ny), H_k_up(nx,ny), H_k_dn(nx,ny)
   real(rkind) :: div_k(nx,ny), div_l(nx,ny)
   real(rkind) :: divisor
   integer(i4b) :: i, j
@@ -1089,11 +1088,8 @@ function debris_velocity(debris, div_k, div_l, k, kp, km, l, lp, lm, dx, dy, nx,
   real(rkind), intent(in) :: debris(nx,ny), div_k(nx,ny), div_l(nx,ny), dx, dy
   integer(i4b), intent(in) :: k(nx), kp(nx), km(nx), l(ny), lp(ny), lm(ny), nx, ny
   real(rkind) :: debris_velocity(nx,ny)
-  real(rkind) :: Hkpl(nx,ny), Hkml(nx,ny), Hkl(nx,ny)
-  real(rkind) :: Hklp(nx,ny), Hklm(nx,ny)
-  real(rkind) :: H_k_up(nx,ny), H_k_dn(nx,ny)
-  real(rkind) :: H_l_up(nx,ny), H_l_dn(nx,ny)
-  integer(i4b) :: i, j 
+  real(rkind) :: Hkpl(nx,ny), Hkml(nx,ny), Hkl(nx,ny), Hklp(nx,ny), Hklm(nx,ny)
+  real(rkind) :: H_k_up(nx,ny), H_k_dn(nx,ny), H_l_up(nx,ny), H_l_dn(nx,ny)
   real(rkind) :: grad_k(nx,ny), grad_l(nx,ny)
 
   ! calculate debris velocity term with a simple finite difference
@@ -1381,7 +1377,6 @@ subroutine updateS_volAreaScaling(S, S0, B, debris, glacierMask, delVol, delArea
     S = B ! no area left, set to bedrock
     debris = 0._rkind ! no debris
     grad_debris = 0._rkind
-    excessVol = 0._rkind
     return
   endif
 
