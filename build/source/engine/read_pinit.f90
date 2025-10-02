@@ -172,10 +172,10 @@ contains
     parFallback(iLookBPAR%glacStor_kFirn)%default_val = 575._rkind
   endif
   if (parFallback(iLookBPAR%debrisC_constant)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookBPAR%debrisC_constant)%default_val = 5.0_rkind ! follow Anderson and Anderson (2018)
+    parFallback(iLookBPAR%debrisC_constant)%default_val = 5.0_rkind ! follow Anderson and Anderson (2018) (kg m-3)
   endif
   if (parFallback(iLookBPAR%debrisH_critical)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookBPAR%debrisH_critical)%default_val = 5.0_rkind ! follow Anderson and Anderson (2018)
+    parFallback(iLookBPAR%debrisH_critical)%default_val = 5.0_rkind ! follow Anderson and Anderson (2018) (m)
   endif
   if (parFallback(iLookBPAR%lat_moraine_wid)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookBPAR%lat_moraine_wid)%default_val = 200._rkind ! from looking at Alaska glaciers (m)

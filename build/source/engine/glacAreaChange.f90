@@ -524,6 +524,7 @@ end subroutine glacAreaChange
 ! ************************************************************************************************
   subroutine volAreaScaling(t_total, debris, S, B, glacierMask, slope, intercept, validElev, validCount, maxCount, C_constant, &
                             dbr_crit, min_thickness, lat_moraine_wid, iden_soil, theta_sat, ELA, nx, ny, dx, dy, volume, printFlag)
+    implicit none
     ! Arguments
     real(rkind), intent(in) :: t_total, dx, dy
     real(rkind), intent(inout) :: debris(nx,ny), S(nx,ny), B(nx,ny)
@@ -537,12 +538,11 @@ end subroutine glacAreaChange
     ! Local variables
     real(rkind), parameter :: va_exp=1.36_rkind
     real(rkind) :: m_dot(nx,ny), delVol, delArea, area, va_constant, excessVol, H(nx,ny)
-    real(rkind) :: cumulativeArea, cumulativeVol, around(8), grad_debris(nx,ny)
-    real(rkind), allocatable :: sortedElev(:)
-    integer(i4b), allocatable :: sortedIndices(:)
-    integer(i4b) :: i,j,k,l,kp,km,lp,lm, numCells, C_mask(nx,ny)
+    real(rkind) :: around(8), grad_debris(nx,ny), S0(nx,ny)
+    integer(i4b) :: C_mask(nx,ny) 
 
     S = S - debris ! remove debris from glacier surface before volume-area scaling
+    S0 = S ! save initial surface for debris transport calculation
 
     ! initial S and B, calculate coefficients
     volume = sum(merge(S-B,0._rkind,glacierMask==1)) * dx * dy * 1.e-9_rkind ! km3
@@ -576,80 +576,9 @@ end subroutine glacAreaChange
     delArea = (((volume + delVol)/va_constant)**(1._rkind/va_exp) - area)*1.e6_rkind ! change in area from volume-area scaling, m2
     delVol = delVol*1.e9_rkind ! back to m3
 
-    ! update S for area change and volume change, volume is a kluge but needed to keep track of volume
-    numCells = nx * ny
-    allocate(sortedElev(numCells), sortedIndices(numCells))
-    ! Flatten the S array and sort it in descending order
-    sortedElev = reshape(S, [numCells])
-    sortedIndices = [(i, i=1, numCells)]
-    ! Sort the elevations in descending order
-    do i = 1, numCells - 1
-      do j = i + 1, numCells
-        if(sortedElev(i) < sortedElev(j))then
-          ! Swap elevations
-          call swap_real(sortedElev(i), sortedElev(j))
-          ! Swap indices
-          call swap_integer(sortedIndices(i), sortedIndices(j))
-        endif
-      enddo
-    enddo
-
-    ! Add or remove cells to/from the mask until the cumulative area matches delArea
-    cumulativeArea = 0._rkind
-    cumulativeVol = 0._rkind
-    if(delArea > 0._rkind)then ! area gain, add to high elevation areas
-      do i = 1, numCells
-        ! Get the 2D indices from the 1D index
-        k = mod(sortedIndices(i) - 1, nx) + 1_i4b
-        l = (sortedIndices(i) - 1) / nx + 1_i4b
-        kp = min(k+1,nx)
-        km = max(k-1,1_i4b)
-        lp = min(l+1,ny)
-        lm = max(l-1,1_i4b)
-        ! Add the cell to the mask if in glacier area and touching an S-B>0 cell
-        if(glacierMask(k,l) == 1_i4b .and. S(k,l)-B(k,l)==0._rkind)then
-          around = (/S(kp,l)-B(kp,l), S(km,l)-B(km,l), S(k,lp)-B(k,lp), S(k,lm)-B(k,lm),  &
-                     S(kp,lp)-B(kp,lp), S(km,lp)-B(km,lp), S(kp,lm)-B(kp,lm), S(km,lm)-B(km,lm)/)
-          if(all(around<=0._rkind)) cycle ! not touching any S-B>0 cells, skip
-          cumulativeArea = cumulativeArea + dx * dy
-          if(cumulativeArea <= delArea)then
-            S(k,l) = S(k,l) + sum(around)/count(around>0._rkind) ! add height from average of touching cells
-            cumulativeVol = cumulativeVol + (S(k,l)-B(k,l)) * dx * dy
-          endif
-        endif
-        if(cumulativeArea >= delArea) exit
-      enddo
-      excessVol = delVol - cumulativeVol
-    else ! area loss, remove from low elevation areas
-      do i = numCells, 1, -1
-        ! Get the 2D indices from the 1D index
-        k = mod(sortedIndices(i) - 1, nx) + 1_i4b
-        l = (sortedIndices(i) - 1) / nx + 1_i4b
-        ! Remove the cell from the mask if in glacier area
-        if(S(k,l)-B(k,l)>0)then
-          cumulativeArea = cumulativeArea + dx * dy
-          if(cumulativeArea <= -delArea)then
-            cumulativeVol = cumulativeVol + (S(k,l)-B(k,l)) * dx * dy
-            S(k,l) = B(k,l) ! remove volume down to bedrock
-          endif
-        endif
-        if(cumulativeArea >= -delArea) exit
-      enddo
-      excessVol = delVol + cumulativeVol
-    endif
-    deallocate(sortedElev, sortedIndices)
-  
-    ! distribute excess (+/-) volume evenly over all S-B>0 cells
-    area = sum(merge(glacierMask,0_i4b,(S-B)>thick4area)) * dx * dy ! new area, m2
-    if(area > 0._rkind)then
-      S = merge( max(B + thick4area, S + excessVol/area), S, S - B > 0._rkind)
-    else
-      S = B ! no area left, set to bedrock
-      volume = 0._rkind
-      debris = 0._rkind ! no debris
-      return
-    endif
-
+    ! Update S and debris velocity, estimates that are a bit klugey
+    call updateS_volAreaScaling(S, S0, B, debris, glacierMask, delVol, delArea, thick4area, t_total, m_dot, nx, ny, dx, dy, excessVol, grad_debris)
+    
     ! Update debris thickness if there is debris, using englacial debris advection transport model
     if(sum(debris)>0._rkind)then 
       C_mask = emergingDebris(S, B, debris, lat_moraine_wid, ELA, nx, ny, dx, dy) ! Calculate near-surface concentration of debris
@@ -680,7 +609,8 @@ end subroutine glacAreaChange
 ! ************************************************************************************************
   subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, validElev, validCount, maxCount, C_constant, &
                            dbr_crit, min_thickness, lat_moraine_wid, iden_soil, theta_sat, ELA, nx, ny, dx, dy, volume, printFlag)
-    ! Arguments
+   implicit none
+  ! Arguments
     real(rkind), intent(in) :: t_total, dx, dy
     real(rkind), intent(inout) :: debris(nx,ny), S(nx,ny), B(nx,ny)
     real(rkind), intent(in) :: slope(maxCount+1,2), intercept(maxCount+1,2), validElev(maxCount,2)
@@ -820,7 +750,7 @@ subroutine diffusion_upstream(debris, S, B, mask, gamma, n, cfl, max_dt, nx, ny,
   real(rkind) :: H_k_upstream_up(nx,ny), H_k_upstream_dn(nx,ny)
   real(rkind) :: f_k_plus(nx,ny), f_k_min(nx,ny)
   real(rkind) :: D_k_up(nx,ny), D_k_dn(nx,ny)
-  real(rkind) :: div_k(nx,ny), div_l(nx,ny), grad_k(nx,ny), grad_l(nx,ny)
+  real(rkind) :: div_k(nx,ny), div_l(nx,ny)
   real(rkind) :: divisor
   integer(i4b) :: i, j
 
@@ -928,25 +858,7 @@ subroutine diffusion_upstream(debris, S, B, mask, gamma, n, cfl, max_dt, nx, ny,
   div_q = div_k + div_l
 
   ! calculate debris velocity term with a simple finite difference
-  if(sum(debris)>0._rkind)then
-    Hklp  = debris(k ,lp)*div_l(k ,lp)
-    Hklm  = debris(k ,lm)*div_l(k ,lm)
-    Hkl   = debris(k ,l )*div_l(k ,l )
-    H_l_up = H_index(Hklp, Hkl)
-    H_l_dn = H_index(Hkl, Hklm)
-    grad_l = (H_l_up - H_l_dn) / dy
-
-    Hkpl  = debris(kp,l )*div_k(kp,l )
-    Hkml  = debris(km,l )*div_k(km,l )
-    Hkl   = debris(k ,l )*div_k(k ,l )
-    H_k_up   = H_index(Hkpl, Hkl)
-    H_k_dn = H_index(Hkl, Hkml)
-    grad_k = (H_k_up - H_k_dn) / dx
-
-    grad_debris = grad_k + grad_l
-  else
-    grad_debris = 0._rkind
-  endif
+  grad_debris = debris_velocity(debris, div_k, div_l, k, kp, km, l, lp, lm, dx, dy, nx, ny)
 
 end subroutine diffusion_upstream
 
@@ -968,15 +880,13 @@ subroutine diffusion_MUSCL(debris, S, B, mask, gamma, n, cfl, max_dt, nx, ny, k,
   real(rkind) :: D_l_up_m(nx,ny), D_l_up_p(nx,ny), D_l_up_min(nx,ny), D_l_up_max(nx,ny)
   real(rkind) :: D_l_dn_m(nx,ny), D_l_dn_p(nx,ny), D_l_dn_min(nx,ny), D_l_dn_max(nx,ny)
   real(rkind) :: D_l_up(nx,ny), D_l_dn(nx,ny)
-  real(rkind) :: H_k_min_up(nx,ny), H_k_plus_up(nx,ny)
-  real(rkind) :: H_k_min_dn(nx,ny), H_k_plus_dn(nx,ny)
+  real(rkind) :: H_k_min_up(nx,ny), H_k_plus_up(nx,ny), H_k_min_dn(nx,ny), H_k_plus_dn(nx,ny)
   real(rkind) :: f_k_plus(nx,ny), f_k_min(nx,ny)
   real(rkind) :: D_k_up_m(nx,ny), D_k_up_p(nx,ny), D_k_up_min(nx,ny), D_k_up_max(nx,ny)
   real(rkind) :: D_k_dn_m(nx,ny), D_k_dn_p(nx,ny), D_k_dn_min(nx,ny), D_k_dn_max(nx,ny)
   real(rkind) :: D_k_up(nx,ny), D_k_dn(nx,ny)
-  real(rkind) :: H_l_up(nx,ny), H_l_dn(nx,ny)
-  real(rkind) :: H_k_up(nx,ny), H_k_dn(nx,ny)
-  real(rkind) :: div_k(nx,ny), div_l(nx,ny), grad_k(nx,ny), grad_l(nx,ny)
+  real(rkind) :: H_l_up(nx,ny), H_l_dn(nx,ny), H_k_up(nx,ny), H_k_dn(nx,ny)
+  real(rkind) :: div_k(nx,ny), div_l(nx,ny)
   real(rkind) :: divisor
   integer(i4b) :: i, j
 
@@ -1130,25 +1040,7 @@ subroutine diffusion_MUSCL(debris, S, B, mask, gamma, n, cfl, max_dt, nx, ny, k,
 
   ! calculate debris velocity term with a simple finite difference 
   ! NOTE: maybe this should also use a MUSCL scheme
-  if(sum(debris)>0._rkind)then
-    Hklp  = debris(k ,lp)*div_l(k ,lp)
-    Hklm  = debris(k ,lm)*div_l(k ,lm)
-    Hkl   = debris(k ,l )*div_l(k ,l )
-    H_l_up = H_index(Hklp, Hkl)
-    H_l_dn = H_index(Hkl, Hklm)
-    grad_l = (H_l_up - H_l_dn) / dy
-
-    Hkpl  = debris(kp,l )*div_k(kp,l )
-    Hkml  = debris(km,l )*div_k(km,l )
-    Hkl   = debris(k ,l )*div_k(k ,l )
-    H_k_up   = H_index(Hkpl, Hkl)
-    H_k_dn = H_index(Hkl, Hkml)
-    grad_k = (H_k_up - H_k_dn) / dx
-
-    grad_debris = grad_k + grad_l
-  else
-    grad_debris = 0._rkind
-  endif
+  grad_debris = debris_velocity(debris, div_k, div_l, k, kp, km, l, lp, lm, dx, dy, nx, ny)
 
 end subroutine diffusion_MUSCL
 
@@ -1188,6 +1080,44 @@ function massBalance(S, debris, glacierMask, slope, intercept, t_total, validEle
   massBalance = massBalance / iden_water
 
 end function massBalance
+
+! ************************************************************************************************
+! private function debris_velocity: calculation of debris velocity term for debris advection transport
+! ************************************************************************************************
+function debris_velocity(debris, div_k, div_l, k, kp, km, l, lp, lm, dx, dy, nx, ny)
+  implicit none
+  real(rkind), intent(in) :: debris(nx,ny), div_k(nx,ny), div_l(nx,ny), dx, dy
+  integer(i4b), intent(in) :: k(nx), kp(nx), km(nx), l(ny), lp(ny), lm(ny), nx, ny
+  real(rkind) :: debris_velocity(nx,ny)
+  real(rkind) :: Hkpl(nx,ny), Hkml(nx,ny), Hkl(nx,ny)
+  real(rkind) :: Hklp(nx,ny), Hklm(nx,ny)
+  real(rkind) :: H_k_up(nx,ny), H_k_dn(nx,ny)
+  real(rkind) :: H_l_up(nx,ny), H_l_dn(nx,ny)
+  integer(i4b) :: i, j 
+  real(rkind) :: grad_k(nx,ny), grad_l(nx,ny)
+
+  ! calculate debris velocity term with a simple finite difference
+  if(sum(debris)>0._rkind)then
+    Hklp  = debris(k ,lp)*div_l(k ,lp)
+    Hklm  = debris(k ,lm)*div_l(k ,lm)
+    Hkl   = debris(k ,l )*div_l(k ,l )
+    H_l_up = H_index(Hklp, Hkl)
+    H_l_dn = H_index(Hkl, Hklm)
+    grad_l = (H_l_up - H_l_dn) / dy
+
+    Hkpl  = debris(kp,l )*div_k(kp,l )
+    Hkml  = debris(km,l )*div_k(km,l )
+    Hkl   = debris(k ,l )*div_k(k ,l )
+    H_k_up = H_index(Hkpl, Hkl)
+    H_k_dn = H_index(Hkl, Hkml)
+    grad_k = (H_k_up - H_k_dn) / dx
+
+    debris_velocity = grad_k + grad_l
+  else
+    debris_velocity = 0._rkind
+  endif
+
+end function debris_velocity
 
 ! ************************************************************************************************
 ! private function emergingDebris: calculation of spatial mask of near-surface concentration of debris
@@ -1359,6 +1289,128 @@ subroutine swap_integer(a, b)
   a = b
   b = temp
 end subroutine swap_integer
+
+! ************************************************************************************************
+! private subroutine updateS_volAreaScaling: update S and debris velocity
+!   This is a kluge but needed to keep track of volume and move the debris.
+!   Also preserves the ability to turn back into a glacier from a glacieret.
+! ************************************************************************************************
+subroutine updateS_volAreaScaling(S, S0, B, debris, glacierMask, delVol, delArea, thick4area, t_total, m_dot, nx, ny, dx, dy, excessVol, grad_debris)
+  implicit none
+  ! Arguments
+  real(rkind), intent(in) :: S0(nx,ny), B(nx,ny), delVol, delArea, thick4area, t_total, m_dot(nx,ny), dx, dy
+  integer(i4b), intent(in) :: glacierMask(nx,ny), nx, ny
+  real(rkind), intent(inout) :: S(nx,ny), debris(nx,ny)
+  real(rkind), intent(out) :: grad_debris(nx,ny), excessVol
+
+  ! Local variables
+  real(rkind) :: cumulativeArea, cumulativeVol, around(8), area
+  real(rkind) :: div_k(nx,ny), div_l(nx,ny), div_klp(nx,ny), div_klm(nx,ny), div_kpl(nx,ny), div_kml(nx,ny)
+  real(rkind), allocatable :: sortedElev(:)
+  integer(i4b), allocatable :: sortedIndices(:)
+  integer(i4b) :: i,j,k,l,kp,km,lp,lm, numCells
+  integer(i4b) :: k2(nx), l2(ny), kp2(nx), km2(nx), lp2(ny), lm2(ny)
+
+  numCells = nx * ny
+  allocate(sortedElev(numCells), sortedIndices(numCells))
+  ! Flatten the S array and sort it in descending order
+  sortedElev = reshape(S, [numCells])
+  sortedIndices = [(i, i=1, numCells)]
+  ! Sort the elevations in descending order
+  do i = 1, numCells - 1
+    do j = i + 1, numCells
+      if(sortedElev(i) < sortedElev(j))then
+        ! Swap elevations
+        call swap_real(sortedElev(i), sortedElev(j))
+        ! Swap indices
+        call swap_integer(sortedIndices(i), sortedIndices(j))
+      endif
+    enddo
+  enddo
+
+  ! Add or remove cells to/from the mask until the cumulative area matches delArea
+  cumulativeArea = 0._rkind
+  cumulativeVol = 0._rkind
+  if(delArea > 0._rkind)then ! area gain, add to high elevation areas
+    do i = 1, numCells
+      ! Get the 2D indices from the 1D index
+      k = mod(sortedIndices(i) - 1, nx) + 1_i4b
+      l = (sortedIndices(i) - 1) / nx + 1_i4b
+      kp = min(k+1,nx)
+      km = max(k-1,1_i4b)
+      lp = min(l+1,ny)
+      lm = max(l-1,1_i4b)
+      ! Add the cell to the mask if in glacier area and touching an S-B>0 cell
+      if(glacierMask(k,l) == 1_i4b .and. S(k,l)-B(k,l)==0._rkind)then
+        around = (/S(kp,l)-B(kp,l), S(km,l)-B(km,l), S(k,lp)-B(k,lp), S(k,lm)-B(k,lm),  &
+                   S(kp,lp)-B(kp,lp), S(km,lp)-B(km,lp), S(kp,lm)-B(kp,lm), S(km,lm)-B(km,lm)/)
+        if(all(around<=0._rkind)) cycle ! not touching any S-B>0 cells, skip
+        cumulativeArea = cumulativeArea + dx * dy
+        if(cumulativeArea <= delArea)then
+          S(k,l) = S(k,l) + sum(around)/count(around>0._rkind) ! add height from average of touching cells
+          cumulativeVol = cumulativeVol + (S(k,l)-B(k,l)) * dx * dy
+        endif
+      endif
+      if(cumulativeArea >= delArea) exit
+    enddo
+    excessVol = delVol - cumulativeVol
+  else ! area loss, remove from low elevation areas
+    do i = numCells, 1, -1
+      ! Get the 2D indices from the 1D index
+      k = mod(sortedIndices(i) - 1, nx) + 1_i4b
+      l = (sortedIndices(i) - 1) / nx + 1_i4b
+      ! Remove the cell from the mask if in glacier area
+      if(S(k,l)-B(k,l)>0)then
+        cumulativeArea = cumulativeArea + dx * dy
+        if(cumulativeArea <= -delArea)then
+          cumulativeVol = cumulativeVol + (S(k,l)-B(k,l)) * dx * dy
+          S(k,l) = B(k,l) ! remove volume down to bedrock
+        endif
+      endif
+      if(cumulativeArea >= -delArea) exit
+    enddo
+    excessVol = delVol + cumulativeVol
+  endif
+  deallocate(sortedElev, sortedIndices)
+  
+  ! distribute excess (+/-) volume evenly over all S-B>0 cells
+  area = sum(merge(glacierMask,0_i4b,(S-B)>thick4area)) * dx * dy ! new area, m2
+  if(area > 0._rkind)then
+    S = merge( max(B + thick4area, S + excessVol/area), S, S - B > 0._rkind)
+  else
+    S = B ! no area left, set to bedrock
+    debris = 0._rkind ! no debris
+    grad_debris = 0._rkind
+    excessVol = 0._rkind
+    return
+  endif
+
+  ! calculate debris velocity term with a simple finite difference
+  if(sum(debris)>0._rkind)then
+    ! y direction indices
+    l2 = [(i, i=1, ny)]
+    lp2 = [(i, i=2, ny), ny]
+    lm2 = [1, (i, i=1, ny-1)]
+
+    ! x direction indices
+    k2 = [(i, i=1, nx)]
+    kp2 = [(i, i=2, nx), nx]
+    km2 = [1, (i, i=1, nx-1)]
+
+    ! flux divergence estimate, m s-1
+    div_klp = (S(k2 ,lp2) - S0(k2 ,lp2))/t_total - m_dot(k2 ,lp2)
+    div_klm = (S(k2 ,lm2) - S0(k2 ,lm2))/t_total - m_dot(k2 ,lm2)
+    div_kpl = (S(kp2,l2 ) - S0(kp2,l2 ))/t_total - m_dot(kp2,l2 )
+    div_kml = (S(km2,l2 ) - S0(km2,l2 ))/t_total - m_dot(km2,l2 )
+    div_l = (div_klp - div_klm) / dy
+    div_k = (div_kpl - div_kml) / dx
+  
+    grad_debris = debris_velocity(debris, div_k, div_l, k2, kp2, km2, l2, lp2, lm2, dx, dy, nx, ny)
+  else
+    grad_debris = 0._rkind
+  endif
+
+end subroutine updateS_volAreaScaling
 
 ! ************************************************************************************************
 ! public subroutine time_updateGlacArea: find date to update glacier domain area, elevation, and layering 
@@ -1537,7 +1589,7 @@ subroutine updateGlacDomain(&
     endif
 
   endif ! ( if changing soil layers or snow layers)
-  
+
 end subroutine updateGlacDomain
 
 

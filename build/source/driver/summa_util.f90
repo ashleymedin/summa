@@ -353,7 +353,7 @@ contains
  integer(i4b)                       :: endModelRun(8)  ! final time
  integer(i4b)                       :: localErr        ! local error code
  integer(i4b)                       :: iFreq           ! loop through output frequencies
- real(rkind)                           :: elpSec          ! elapsed seconds
+ real(rkind)                        :: elpSec          ! elapsed seconds
 
  ! close any remaining output files
  ! NOTE: use the direct NetCDF call with no error checking since the file may already be closed
