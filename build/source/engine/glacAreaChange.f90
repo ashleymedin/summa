@@ -64,8 +64,9 @@ public ::glacAreaChange
 public ::updateGlacDomain
 contains
 ! ************************************************************************************************
-! public subroutine glacAreaChange: get new glacier area and elevation based on ice flow model and glacieret area based on vol area change
-! NOTE: This will eventually run in parallel as a program, but for now it is serial
+! public subroutine glacAreaChange: get new glacier area and elevation
+!   large glacier based on ice flow model and small glacier area based on vol area change (by glacierAreaThresh)
+! NOTE: Ideally this runs in parallel with hydrology calculations, but for now it is serial
 ! ************************************************************************************************
 subroutine glacAreaChange(&
                     ! model control
@@ -355,18 +356,18 @@ subroutine glacAreaChange(&
     glacierMask = int(gridData%grid(iGrid)%var(iLookGRID%glacierMask)%dat2(1:nx,1:ny))
     ! debugging print
     if(printFlag)then 
-      volume = sum(merge(glacierMask*(surface - bed), 0._rkind, glacierMask==1)) * dx * dy * 1.e-9_rkind ! km3
+      volume = sum(surface - bed) * dx * dy * 1.e-9_rkind ! km3
       write(*,'(a,i2,a,4(1x,f8.3))') "<GLACIER ",iGlac, " START: ablation, accumulation, total area (km2), volume (km3) =", &
         glacierAblArea(iGlac)*1.e-6_rkind, glacierAccArea(iGlac)*1.e-6_rkind, (glacierAblArea(iGlac) + glacierAccArea(iGlac))*1.e-6_rkind, volume
     endif
 
     if(glacierAccArea(iGlac)+glacierAblArea(iGlac) < glacierAreaThresh)then ! glacier has shrunk below threshold, area may be zero
-     ! a glacieret changes area with volume area scaling
+     ! a small glacier below threshold area changes area with volume area scaling
      call volAreaScaling(t_total, debris, surface, bed, glacierMask, slope, intercept, validElev, validCount, maxCount, &
                          glacierAblArea(iGlac), dbr_crit, min_thickness, ELA_use, nx, ny, dx, dy, volume, printFlag)
-    else ! glacier, run flow model
-      ! make non-glacier bed have high elevation so glacier does not grow there (this is somewhat arbitrary and unstable, maybe should remove)
-      !bed = merge(bed,bed+100._rkind,glacierMask==1)
+    else ! large glacier above threshold area, run flow model
+      ! make non-glacier have high elevation so glacier does not grow there (this is somewhat arbitrary and unstable, should not need)
+      !bed = merge(bed,bed+100._rkind,glacierMask==1_i4b); surface = merge(surface,surface+100._rkind,glacierMask==1_i4b)
       ! compute flow
       call run_flowModel(t_total, debris, surface, bed, glacierMask, slope, intercept, validElev, validCount, maxCount, C_constant, &
                          dbr_crit, min_thickness, lat_moraine_wid, iden_soil, theta_sat, ELA_use, nx, ny, dx, dy, volume, printFlag)
@@ -378,8 +379,8 @@ subroutine glacAreaChange(&
     hgt = surface - bed
 
     ! Calculate glacier accumulation and ablation areas
-    glacierAccArea(iGlac) = sum(merge(glacierMask, 0_i4b, hgt>thick4area .and. surface>= ELA_use))*dx*dy
-    glacierAblArea(iGlac) = sum(merge(glacierMask, 0_i4b, hgt>thick4area .and. surface<  ELA_use))*dx*dy
+    glacierAccArea(iGlac) = sum(merge(1_i4b, 0_i4b, hgt>thick4area .and. surface>= ELA_use))*dx*dy
+    glacierAblArea(iGlac) = sum(merge(1_i4b, 0_i4b, hgt>thick4area .and. surface<  ELA_use))*dx*dy
     ! debugging print
     if(printFlag) write(*,'(a,i2,a,4(1x,f8.3))') ">GLACIER ",iGlac, " END  : ablation, accumulation, total area (km2), volume (km3) =", &
         glacierAblArea(iGlac)*1.e-6_rkind, glacierAccArea(iGlac)*1.e-6_rkind, (glacierAblArea(iGlac) + glacierAccArea(iGlac))*1.e-6_rkind, volume
@@ -390,8 +391,8 @@ subroutine glacAreaChange(&
     n = 0 ! initialize domain counter
     do iHRU = 1, nHRU
       ! start at last index + 1
-      glacClnMask = merge(glacierMask, 0_i4b, cell2hru==hruInd(n+1) .and. hgt>thick4area .and. debris< min_thickness)
-      glacDbrMask = merge(glacierMask, 0_i4b, cell2hru==hruInd(n+1) .and. hgt>thick4area .and. debris>=min_thickness)
+      glacClnMask = merge(1_i4b, 0_i4b, cell2hru==hruInd(n+1) .and. hgt>thick4area .and. debris< min_thickness)
+      glacDbrMask = merge(1_i4b, 0_i4b, cell2hru==hruInd(n+1) .and. hgt>thick4area .and. debris>=min_thickness)
       ! if no domain to go into, then give all area to the other domain
       if(nclean(iHRU)==0 .and. sum(glacClnMask)>0) glacDbrMask = glacDbrMask + glacClnMask ! give all area to debris domain (will reduce average domain debris thickness)
       if(ndebris(iHRU)==0 .and. sum(glacDbrMask)>0) glacClnMask = glacClnMask + glacDbrMask ! give all area to clean domain (will make debris thickness zero)
@@ -515,12 +516,12 @@ subroutine glacAreaChange(&
 end subroutine glacAreaChange
 
 ! ************************************************************************************************
-! private subroutine volAreaScaling: glacieret area change and debris transport with VA scaling
+! private subroutine volAreaScaling: small glacier area change and debris transport with VA scaling
 !   VA scaling is following Macheret et al., 1988; Chen and Ohmura, 1990; Bahr, 1997.
 !   After VA scaling for new area, average height of adjoining lowest cells is added to new area increase, or to removed to the
 !   bedrock on the lowest cells for new area decrease. Remaining volume change is added/removed as a new height to the entire new area.
 !   Debris emerges below the new ELA as in the flow model. This height change is a kluge, but is needed to keep track of volume and
-!   for the unlikely case of a glacieret growing into a glacier.
+!   for the unlikely case of a small glacier growing into a large glacier.
 ! ************************************************************************************************
   subroutine volAreaScaling(t_total, debris, S, B, glacierMask, slope, intercept, validElev, validCount, maxCount, &
                             ablationArea, dbr_crit, min_thickness, ELA, nx, ny, dx, dy, volume, printFlag)
@@ -542,8 +543,8 @@ end subroutine glacAreaChange
     S0 = S ! save initial surface for debris transport calculation
 
     ! initial S and B, calculate coefficients
-    volume = sum(merge(S-B,0._rkind,glacierMask==1)) * dx * dy * 1.e-9_rkind ! km3
-    area = sum(merge(glacierMask,0_i4b,(S-B)>thick4area))* dx * dy * 1.e-6_rkind ! km2
+    volume = sum(merge(S-B,0._rkind,glacierMask==1_i4b)) * dx * dy * 1.e-9_rkind ! km3
+    area = sum(merge(1_i4b,0_i4b,(S-B)>thick4area))* dx * dy * 1.e-6_rkind ! km2
     if(area <= 0._rkind)then ! no glacier detected coming in
       va_constant = 0.033_rkind ! use a typical value
     else
@@ -551,10 +552,14 @@ end subroutine glacAreaChange
     endif
     ! debugging print
     if(printFlag)then
-      H = merge(S+debris-B,0._rkind,glacierMask==1)
+      H = merge(S+debris-B,0._rkind,glacierMask==1_i4b)
       write(*,'(a,f5.3)') " use VA scaling, va_constant = ", va_constant
-      write(*,'(a,2(1x,f6.1),a,2(1x,f6.2))') "  time (yr) = 0.00 mean max H (m) =", sum(H)/count(glacierMask==1), maxval(H),&
-            ", mean max debris (m) =", sum(debris)/count(glacierMask==1), maxval(debris)
+      if(count(H>thick4area)>0_i4b)then 
+        write(*,'(a,2(1x,f6.1),a,2(1x,f6.2))') "  time (yr) = 0.00 mean max H (m) =", sum(H)/count(H>thick4area), maxval(H),&
+              ", mean max debris (m) =", sum(debris)/count(H>thick4area), maxval(debris)
+      else
+        write(*,'(a)') "  time (yr) = 0.00 no glacier present"
+      endif
     endif
 
     ! get mass balance rate over surface
@@ -562,7 +567,7 @@ end subroutine glacAreaChange
     delVol = sum(m_dot)*dx*dy*t_total*iden_ice/iden_water * 1.e-9_rkind ! convert from m s-1 to km3 in volume change
 
     if(volume + delVol <= 0._rkind)then
-      delVol = -volume ! glacieret gone
+      delVol = -volume ! glacier gone
       volume = 0._rkind
       S = B ! glacier surface is bedrock
       debris = 0._rkind ! no debris
@@ -573,27 +578,30 @@ end subroutine glacAreaChange
     delArea = (((volume + delVol)/va_constant)**(1._rkind/va_exp) - area)*1.e6_rkind ! change in area from volume-area scaling, m2
     delVol = delVol*1.e9_rkind ! back to m3
 
-    ! Update S and flow velocity, estimates (a bit klugey, but preserves volume and area)
+    ! Update S, estimates (a bit klugey, but preserves volume and area)
     call updateS_volAreaScaling(S, B, glacierMask, delVol, delArea, nx, ny, dx, dy, excessVol)
 
-    ! Update debris thickness if there is debris, by keeping debris ratio on ablation zone same and using regression with elevation to get thickness
-    if(sum(debris)>0._rkind)then 
-      debris = ratioDebris(S, S0, B, debris, ablationArea, ELA, dx, dy, glacierMask, nx, ny)
-      debris = merge(debris, 0._rkind, debris>=min_thickness) ! Check that debris thickness is not below minimum thickness
-      debris = merge(debris, 0._rkind, debris<=dbr_crit) ! Check that debris thickness is not over critical value
-    endif
+    ! Update debris thickness if there is debris, keeping debris ratio on ablation zone and mean thickness same, with regression with elevation to distribute thickness
+    if(sum(debris)>0._rkind) debris = ratioDebris(S, S0, B, debris, min_thickness, dbr_crit, ablationArea, ELA, dx, dy, nx, ny)
+
     ! add debris back to glacier surface
-    S = S + debris    
+    S = S + debris
 
     ! Recalculate volume of glacier (includes debris)
-    volume = sum(merge(S-B,0._rkind,glacierMask==1)) * dx * dy * 1.e-9_rkind ! km3
+    volume = sum(S-B) * dx * dy * 1.e-9_rkind ! km3
     ! debugging print
     if(printFlag)then
-      H = merge(S-B,0._rkind,glacierMask==1)
-      write(*,'(a,f4.2,a,2(1x,f6.1),a,2(1x,f6.2))') "  time (yr) = ", t_total/secprday/365.25_rkind, " mean max H (m) =", &
-            sum(H)/count(glacierMask==1), maxval(H), ", mean max debris (m) =", sum(debris)/count(glacierMask==1), maxval(debris)
-      write(*,'(a,2(1x,f8.4),a,f6.2)') "  change in area (km2), change in volume (km3) =", &
-            delArea*1.e-6_rkind, delVol*1.e-9_rkind, ", excess height (m) added to make volume = ", excessVol/(sum(H) * dx * dy)
+      H = merge(S-B,0._rkind,glacierMask==1_i4b)
+      if(count(H>thick4area)>0_i4b)then 
+        write(*,'(a,f4.2,a,2(1x,f6.1),a,2(1x,f6.2))') "  time (yr) = ", t_total/secprday/365.25_rkind, " mean max H (m) =", &
+            sum(H)/count(H>thick4area), maxval(H), ", mean max debris (m) =", sum(debris)/count(H>thick4area), maxval(debris)
+        write(*,'(a,2(1x,f8.4),a,f6.2)') "  change in area (km2), change in volume (km3) =", &
+            delArea*1.e-6_rkind, delVol*1.e-9_rkind, ", excess height (m) added to make volume = ", excessVol/(sum(glacierMask) * dx * dy)
+      else
+        write(*,'(a,f4.2,a)') "  time (yr) = ", t_total/secprday/365.25_rkind, " no glacier present"
+        write(*,'(a,2(1x,f8.4))') "  change in area (km2), change in volume (km3) =", &
+            delArea*1.e-6_rkind, delVol*1.e-9_rkind
+      endif
     endif
 
   end subroutine volAreaScaling
@@ -651,10 +659,10 @@ end subroutine glacAreaChange
     t = 0._rkind
     ! debugging print
     if(printFlag)then 
-      H = merge(S-B,0._rkind,glacierMask==1)
+      H = merge(S-B,0._rkind,glacierMask==1_i4b)
       write(*,'(a)') " use flow model"
-      write(*,'(a,2(1x,f6.1),a,2(1x,f6.2))') "  time (yr) = 0.00 mean max H (m) =", sum(H)/count(glacierMask==1), maxval(H),&
-            ", mean max debris (m) =", sum(debris)/count(glacierMask==1), maxval(debris)
+      write(*,'(a,2(1x,f6.1),a,2(1x,f6.2))') "  time (yr) = 0.00 mean max H (m) =", sum(H)/count(H>thick4area), maxval(H),&
+            ", mean max debris (m) =", sum(debris)/count(H>thick4area), maxval(debris)
       i = 1 ! counter for debugging print, only print once a max_dt
     endif
 
@@ -665,12 +673,16 @@ end subroutine glacAreaChange
       m_dot = massBalance(S, debris, glacierMask, slope, intercept, t_total, validElev, validCount, maxCount, nx, ny)
 
       S = S - debris ! remove debris from glacier surface for flow calculation
-      ! Select diffusion method and call step
-      if(method == "MUSCL")then
-        call diffusion_MUSCL(S, B, glacierMask, gamma, n, cfl, max_dt, nx, ny, k, kp, km, kpp, kmm, l, lp, lm, lpp, lmm, dx, dy, div_k, div_l, dt_cfl)
-      else if(method == "upstream")then
-        call diffusion_upstream(S, B, glacierMask, gamma, n, cfl, max_dt, nx, ny, k, kp, km, l, lp, lm, dx, dy, div_k, div_l, dt_cfl)
-      endif
+      ! Select diffusion method and call a step
+      select case (method)
+        ! MUSCL scheme, mass conserving, but more expensive
+        case ("MUSCL"); call diffusion_MUSCL(S, B, glacierMask, gamma, n, cfl, max_dt, nx, ny, k, kp, km, kpp, kmm, l, lp, lm, lpp, lmm, &
+                                             dx, dy, div_k, div_l, dt_cfl)
+        ! Upstream scheme, not mass conserving, but stable and quicker
+        case ("upstream"); call diffusion_upstream(S, B, glacierMask, gamma, n, cfl, max_dt, nx, ny, k, kp, km, l, lp, lm, &
+                                                   dx, dy, div_k, div_l, dt_cfl)
+        case default; stop 'Error: method not recognized in glacier flow model'
+      end select
   
       ! update time step
       deltat = min(dt_cfl, dt)
@@ -682,24 +694,21 @@ end subroutine glacAreaChange
       S = S + (m_dot + div_k + div_l) * deltat
       S = merge(S, B, S > B)
 
-      ! Check that the glacier is in boundaries, fix small violations
-      if(any((S - B) > 0._rkind .and. glacierMask==0))then
-        if(any((S - B) > 10.0 .and. glacierMask==0)) stop 'Glacier exceeds boundaries'
-        S = merge(B, S, (S - B) > 0._rkind .and. glacierMask==0)
+      ! Check that the glacier is in boundaries, fix small violations, how small is arbitrary
+      if(any((S - B) > 0._rkind .and. glacierMask==0_i4b))then
+        if(any((S - B) > 10._rkind .and. glacierMask==0_i4b)) stop 'Glacier exceeds boundaries in flow model'
+        S = merge(B, S, (S - B) > 0._rkind .and. glacierMask==0_i4b)
       endif
-      ! Check that glacier surface is not infinite (unstable), bring down to mean glacier height
+      ! Check that glacier surface is not infinite (unstable), bring down to mean glacier height (NOTE: mean height includes < min_thickness)
       ! This is a temporary fix, should be replaced with a more sophisticated method
-      if(any((S - B) > 1.e6_rkind .and. glacierMask==1))then
-        meanS = sum(merge(S,0._rkind,glacierMask==1 .and. (S - B) < 1.e6_rkind)) / count(glacierMask==1 .and. (S - B)<=1.e6_rkind)
-        S = merge(S,meanS,((S - B)<=1.e6_rkind))
+      if(any((S - B) > 1.e6_rkind .and. glacierMask==1_i4b))then
+        meanS = sum(merge(S, 0._rkind, glacierMask==1_i4b .and. (S - B) < 1.e6_rkind)) / count((S - B)<=1.e6_rkind)
+        S = merge(S, meanS, (S - B) <= 1.e6_rkind)
       endif
       
       ! Update debris thickness if there is debris, using englacial debris advection transport model
-      if(sum(debris)>0._rkind) then 
-        debris = advectDebris(S, B, debris, lat_moraine_wid, div_k, div_l, m_dot, C_constant, theta_sat, iden_soil, deltat, k, kp, km, l, lp, lm, ELA, nx, ny, dx, dy)
-        debris = merge(debris, 0._rkind, debris>=min_thickness) ! Check that debris thickness is not below minimum thickness
-        debris = merge(debris, 0._rkind, debris<=dbr_crit) ! Check that debris thickness is not over critical value, effectively making terminal clean ice wedge 
-      endif
+      if(sum(debris)>0._rkind) debris = advectDebris(S, B, debris, min_thickness, dbr_crit, lat_moraine_wid, div_k, div_l, m_dot, C_constant,&
+                                                     theta_sat, iden_soil, deltat, k, kp, km, l, lp, lm, ELA, nx, ny, dx, dy)
 
       ! add debris back to glacier surface
       S = S + debris
@@ -708,15 +717,15 @@ end subroutine glacAreaChange
         ! only print once a max_dt
         if(t > i*max_dt)then
           i = i + 1
-          H = merge(S-B,0._rkind,glacierMask==1)
+          H = merge(S-B, 0._rkind, glacierMask==1_i4b)
           write(*,'(a,f4.2,a,2(1x,f6.1),a,2(1x,f6.2))') "  time (yr) = ", t/secprday/365.25_rkind, " mean max H (m) =", &
-                sum(H)/count(glacierMask==1), maxval(H), ", mean max debris (m) =", sum(debris)/count(glacierMask==1), maxval(debris)
+                sum(H)/count(H>min_thickness), maxval(H), ", mean max debris (m) =", sum(debris)/count(H>min_thickness), maxval(debris)
         endif
       endif
     enddo ! end of time loop
 
     ! Calculate volume of glacier (includes debris)
-    volume = sum(merge(S-B,0._rkind,glacierMask==1)) * dx * dy * 1.e-9_rkind ! km3
+    volume = sum(S-B) * dx * dy * 1.e-9_rkind ! km3
 
   end subroutine run_flowModel
 
@@ -727,15 +736,18 @@ end subroutine glacAreaChange
 ! ************************************************************************************************
 ! private subroutine diffusion_upstream: upwind diffusion scheme, not mass conserving, but stable and quicker
 ! ************************************************************************************************
-subroutine diffusion_upstream(S, B, mask, gamma, n, cfl, max_dt, nx, ny, k, kp, km, l, lp, lm, dx, dy, div_k, div_l, dt_cfl)
+subroutine diffusion_upstream(S, B, mask, gamma, n, cfl, max_dt, nx, ny, k, kp, km, l, lp, lm, &
+                              dx, dy, div_k, div_l, dt_cfl)
   implicit none
   ! Arguments
   real(rkind), intent(in) :: S(nx,ny), B(nx,ny), dx, dy, gamma, cfl, max_dt
-  integer(i4b), intent(in) :: mask(nx,ny), nx, ny, k(nx), kp(nx), km(nx), l(ny), lp(ny), lm(ny), n
+  integer(i4b), intent(in) :: mask(nx,ny), nx, ny, k(nx), kp(nx), km(nx)
+  integer(i4b), intent(in) :: l(ny), lp(ny), lm(ny), n
   ! Local variables
   real(rkind), intent(out) :: div_k(nx,ny), div_l(nx,ny), dt_cfl
   real(rkind) :: H(nx,ny)
-  real(rkind) :: Sklp(nx,ny), Sklm(nx,ny), Skplp(nx,ny), Skplm(nx,ny), Skpl(nx,ny), Skl(nx,ny), Skmlp(nx,ny), Skmlm(nx,ny), Skml(nx,ny)
+  real(rkind) :: Sklp(nx,ny), Sklm(nx,ny), Skplp(nx,ny), Skplm(nx,ny), Skpl(nx,ny)
+  real(rkind) :: Skl(nx,ny), Skmlp(nx,ny), Skmlm(nx,ny), Skml(nx,ny)
   real(rkind) :: Hkpl(nx,ny), Hkml(nx,ny), Hkl(nx,ny), Hklp(nx,ny), Hklm(nx,ny)
   real(rkind) :: H_l_up(nx,ny), H_l_dn(nx,ny)
   real(rkind) :: H_l_upstream_up(nx,ny), H_l_upstream_dn(nx,ny)
@@ -856,16 +868,20 @@ end subroutine diffusion_upstream
 ! ************************************************************************************************
 ! subroutine diffusion_MUSCL: MUSCL scheme, mass conserving, more accurate, but less stable and slower
 ! ************************************************************************************************
-subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, k, kp, km, kpp, kmm, l, lp, lm, lpp, lmm, dx, dy, div_k, div_l, dt_cfl)
+subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, k, kp, km, kpp, kmm, l, lp, lm, lpp, lmm, &
+                           dx, dy, div_k, div_l, dt_cfl)
   implicit none
   ! Arguments
   real(rkind), intent(in) :: S(nx,ny), B(nx,ny), dx, dy, gamma, cfl, max_dt
-  integer(i4b), intent(in) :: mask(nx,ny), nx, ny, k(nx), kp(nx), km(nx), kpp(nx), kmm(nx), l(ny), lp(ny), lm(ny), lpp(ny), lmm(ny), n
+  integer(i4b), intent(in) :: mask(nx,ny), nx, ny, k(nx), kp(nx), km(nx), kpp(nx), kmm(nx)
+  integer(i4b), intent(in) :: l(ny), lp(ny), lm(ny), lpp(ny), lmm(ny), n
   real(rkind), intent(out) :: div_k(nx,ny), div_l(nx,ny), dt_cfl
   ! Local variables
   real(rkind) :: H(nx,ny)
-  real(rkind) :: Sklp(nx,ny), Sklm(nx,ny), Skplp(nx,ny), Skplm(nx,ny), Skpl(nx,ny), Skl(nx,ny), Skmlp(nx,ny), Skmlm(nx,ny), Skml(nx,ny)
-  real(rkind) :: Hkpl(nx,ny), Hkppl(nx,ny), Hkml(nx,ny), Hkmml(nx,ny), Hkl(nx,ny), Hklp(nx,ny), Hklpp(nx,ny), Hklm(nx,ny), Hklmm(nx,ny)
+  real(rkind) :: Sklp(nx,ny), Sklm(nx,ny), Skplp(nx,ny), Skplm(nx,ny), Skpl(nx,ny), Skl(nx,ny)
+  real(rkind) :: Skmlp(nx,ny), Skmlm(nx,ny), Skml(nx,ny)
+  real(rkind) :: Hkpl(nx,ny), Hkppl(nx,ny), Hkml(nx,ny), Hkmml(nx,ny), Hkl(nx,ny), Hklp(nx,ny)
+  real(rkind) :: Hklpp(nx,ny), Hklm(nx,ny), Hklmm(nx,ny)
   real(rkind) :: H_l_min_up(nx,ny), H_l_plus_up(nx,ny)
   real(rkind) :: H_l_min_dn(nx,ny), H_l_plus_dn(nx,ny)
   real(rkind) :: f_l_plus(nx,ny), f_l_min(nx,ny)
@@ -1033,7 +1049,7 @@ end subroutine diffusion_MUSCL
 ! ************************************************************************************************
 ! private subroutine updateS_volAreaScaling: update S and debris velocity
 !   This is a kluge but needed to keep track of volume and move the debris.
-!   Also preserves the ability to turn back into a glacier from a glacieret.
+!   Also preserves the ability to turn back into a large glacier from small glacier.
 ! ************************************************************************************************
 subroutine updateS_volAreaScaling(S, B, glacierMask, delVol, delArea, nx, ny, dx, dy, excessVol)
   implicit none
@@ -1112,9 +1128,9 @@ subroutine updateS_volAreaScaling(S, B, glacierMask, delVol, delArea, nx, ny, dx
   deallocate(sortedElev, sortedIndices)
   
   ! distribute excess (+/-) volume evenly over all S-B>0 cells
-  area = sum(merge(glacierMask,0_i4b,(S-B)>thick4area)) * dx * dy ! new area, m2
-  if(area > 0._rkind)then
-    S = merge( max(B + thick4area, S + excessVol/area), S, S - B > 0._rkind)
+  area = sum(merge(1_i4b,0_i4b,(S-B)>thick4area)) * dx * dy ! new area, m2
+  if(area > 0._rkind)then ! could make a very thick glacier or very thin (thick4area)
+    S = merge( max(B + thick4area, S + excessVol/area), S, S-B > 0._rkind)
   else
     S = B 
   endif
@@ -1140,12 +1156,12 @@ function massBalance(S, debris, glacierMask, slope, intercept, t_total, validEle
   do k = 1, nx
     do j = 1, ny
       ! Set mass balance to zero if not on glacier
-      if(glacierMask(k,j)==0)then
+      if(glacierMask(k,j)==0_i4b)then
         massBalance(k,j) = 0._rkind
       else
         ! set debris
         dbr = 0
-        if(debris(k,j) > 0) dbr = 1
+        if(debris(k,j) > 0._rkind) dbr = 1
         ! find the index of the elevation in the validElev array
         ind = 0
         do i = 1, validCount(dbr+1)
@@ -1172,11 +1188,13 @@ end function massBalance
 !         motion of a fluid, and glacier ice is a form of a viscoelastic fluid.
 !   NOTE2: debris thickness < min_thickness is considered as clean ice, so no debris advection
 ! ************************************************************************************************
-function advectDebris(S, B, debris, lat_moraine_wid0, div_k, div_l, m_dot, C_constant, theta_sat, iden_soil, deltat, k, kp, km, l, lp, lm, ELA, nx, ny, dx, dy)
+function advectDebris(S, B, debris, min_thickness, dbr_crit, lat_moraine_wid0, div_k, div_l, m_dot, C_constant,&
+                      theta_sat, iden_soil, deltat, k, kp, km, l, lp, lm, ELA, nx, ny, dx, dy)
   implicit none
   ! Arguments
-  real(rkind), intent(in) :: S(nx,ny), B(nx,ny), debris(nx,ny), lat_moraine_wid0, ELA, dx, dy
-  real(rkind), intent(in) :: div_k(nx,ny), div_l(nx,ny),m_dot(nx,ny), C_constant, theta_sat, iden_soil, deltat
+  real(rkind), intent(in) :: S(nx,ny), B(nx,ny), debris(nx,ny), min_thickness, dbr_crit
+  real(rkind), intent(in) :: lat_moraine_wid0, div_k(nx,ny), div_l(nx,ny), m_dot(nx,ny)
+  real(rkind), intent(in) :: C_constant, theta_sat, iden_soil, deltat, ELA, dx, dy
   integer(i4b), intent(in) :: k(nx), kp(nx), km(nx), l(ny), lp(ny), lm(ny), nx, ny
   ! Returns
   real(rkind) :: advectDebris(nx,ny)
@@ -1240,10 +1258,11 @@ function advectDebris(S, B, debris, lat_moraine_wid0, div_k, div_l, m_dot, C_con
   !   and where S>B (has glacier) and S<ELA (in ablation zone)
   C_mask = merge(1, 0, (distance<=lat_moraine_wid .or. debris>0._rkind) .and. S>B .and. S<ELA)
 
-  ! ** advect debris to the surface with flow 
+  ! ** advect debris to the surface with flow and clean up
   advectDebris = debris + ( C_constant*C_mask * m_dot/(1._rkind - theta_sat)/iden_soil + grad_k + grad_l ) * deltat
-  advectDebris = merge(advectDebris, 0._rkind, S > B) ! remove debris from bedrock
-
+  advectDebris = merge(advectDebris, 0._rkind, S > B) ! remove debris from bedrock, may still be on thin ice < thick4area
+  advectDebris = merge(advectDebris, 0._rkind, advectDebris>=min_thickness) ! Check that debris thickness is not below minimum thickness
+  advectDebris = merge(advectDebris, 0._rkind, advectDebris<=dbr_crit) ! Check that debris thickness is not over critical value, effectively making terminal clean ice wedge 
 
 end function advectDebris
 
@@ -1251,33 +1270,39 @@ end function advectDebris
 ! ************************************************************************************************
 ! private function ratioDebris: use similar debris area to ablation area ratio to scale debris area
 !   Debris is added to lowest elevation areas in the ablation zone, with depth based on regression 
-!   with elevation of existing debris
+!   with elevation of existing debris and keeping the same overall depth of debris
 ! ************************************************************************************************
-function ratioDebris(S, S0, B, debris, ablationArea, ELA, dx, dy, glacierMask, nx, ny)
+function ratioDebris(S, S0, B, debris, min_thickness, dbr_crit, ablationArea, ELA, dx, dy, nx, ny)
   implicit none
   ! Arguments
-  real(rkind), intent(in) :: S(nx,ny),S0(nx,ny), B(nx,ny), debris(nx,ny), ablationArea, ELA, dx, dy
-  integer(i4b), intent(in) :: nx, ny, glacierMask(nx,ny)
+  real(rkind), intent(in) :: S(nx,ny),S0(nx,ny), B(nx,ny), debris(nx,ny), min_thickness, dbr_crit
+  real(rkind), intent(in) :: ablationArea, ELA, dx, dy
+  integer(i4b), intent(in) :: nx, ny
   ! Returns
   real(rkind) :: ratioDebris(nx,ny)
   ! Local variables
   real(rkind) :: ablationAreaNew, debrisArea, debrisAreaNew, ratio, cumulativeArea
   real(rkind) :: x(nx,ny), y(nx,ny), sum_x, sum_y, sum_xy, sum_x2, slope, intercept
+  real(rkind) :: debrisVol, debrisThick, debrisTooThick, debrisTooThin
+  real(rkind) :: gainThick, regressDebris(nx,ny), mean_regress
   integer(i4b) :: i, j, k, l, numCells, n
+  logical :: mask(nx,ny)
   real(rkind), allocatable :: sortedElev(:)
   integer(i4b), allocatable :: sortedIndices(:)
 
-  ablationAreaNew = sum(merge(glacierMask, 0_i4b, (S-B)>thick4area .and. S<ELA))*dx*dy 
+  ablationAreaNew = sum(merge(1_i4b, 0_i4b, (S-B)>thick4area .and. S<ELA))*dx*dy 
   if(ablationAreaNew == 0._rkind)then; ratioDebris = 0._rkind; return; endif
 
   ! NOTE: if ablationArea is zero then debris area would be zero too, so would not get here
-  debrisArea = sum(merge(glacierMask, 0_i4b, debris>0._rkind))*dx*dy
+  debrisArea = sum(merge(1_i4b, 0_i4b, debris>0._rkind))*dx*dy
+  debrisVol = sum(debris)*dx*dy
   ratio = debrisArea / ablationArea
+  debrisThick = debrisVol / debrisArea
   debrisAreaNew = ratio * ablationAreaNew
 
   ! relationship between debris thickness and elevation, linear regression
   x = merge(S0, 0._rkind, debris>0._rkind)
-  y = debris
+  y = debris ! debris will be between min_thickness and dbr_crit
   n = count(x>0._rkind)
   sum_x = sum(x)
   sum_y = sum(y)
@@ -1313,14 +1338,36 @@ function ratioDebris(S, S0, B, debris, ablationArea, ELA, dx, dy, glacierMask, n
     ! Add debris if in glacier area
     if(S(k,l)-B(k,l)>0 .and. S(k,l)<ELA)then
       cumulativeArea = cumulativeArea + dx * dy
-      if(cumulativeArea <= debrisAreaNew)then
-        ratioDebris(k,l) = max(0._rkind, slope*S(k,l) + intercept) ! add debris based on elevation relationship
-      endif
+      if(cumulativeArea <= debrisAreaNew) ratioDebris(k,l) = debrisThick ! add debris thickness based on previous average
     endif
     if(cumulativeArea >= debrisAreaNew) exit
   enddo
   deallocate(sortedElev, sortedIndices)
-  ! maybe should keep the volume of debris the same too?
+
+  ! add elevational relationship
+  mask = (ratioDebris > 0._rkind)
+  debrisAreaNew = sum(merge(1_i4b, 0_i4b, mask))*dx*dy ! recalculate debris area
+  regressDebris = merge(slope*S + intercept, 0._rkind, mask) ! debris thickness based on elevational relationship
+  mean_regress = sum(regressDebris)*dx*dy / debrisAreaNew
+  ratioDebris = ratioDebris + regressDebris
+
+  ! adjust to keep same average depth
+  ratioDebris = merge(ratioDebris - mean_regress, ratioDebris, mask)
+  
+  ! will make it possibly go over dbr_crit or under min_thickness, clean up
+  debrisTooThick = sum(merge(ratioDebris-dbr_crit, 0._rkind, ratioDebris>dbr_crit .and. mask))*dx*dy
+  debrisTooThin  = sum(merge(min_thickness-ratioDebris, 0._rkind, ratioDebris<min_thickness .and. mask))*dx*dy
+  ! iterate until volume conserved
+  do while (abs(debrisTooThick - debrisTooThin)/debrisAreaNew>verySmall)
+    ratioDebris = merge(min_thickness, ratioDebris, ratioDebris<min_thickness .and. mask) ! Check that debris thickness is not below minimum thickness
+    ratioDebris = merge(dbr_crit, ratioDebris, ratioDebris>dbr_crit .and. mask) ! Check that debris thickness is not over critical value
+
+    ! add back in volume lost from debris too thick or subtract volume gained from debris too thin
+    gainThick = (debrisTooThick - debrisTooThin) / debrisAreaNew
+    ratioDebris = merge(ratioDebris + gainThick, ratioDebris, mask)
+    debrisTooThick = sum(merge(ratioDebris-dbr_crit, 0._rkind, ratioDebris>dbr_crit .and. mask))*dx*dy
+    debrisTooThin  = sum(merge(min_thickness-ratioDebris, 0._rkind, ratioDebris<min_thickness .and. mask))*dx*dy
+  end do
 
 end function ratioDebris
   
