@@ -1108,13 +1108,20 @@ subroutine updateS_volAreaScaling(S, B, glacierMask, delVol, delArea, nx, ny, dx
       if(cumulativeArea >= delArea) exit
     enddo
     excessVol = delVol - cumulativeVol
-  else ! area loss, remove from low elevation areas
+  else ! area loss, remove from low elevation areas touching bedrock
     do i = numCells, 1, -1
       ! Get the 2D indices from the 1D index
       k = mod(sortedIndices(i) - 1, nx) + 1_i4b
       l = (sortedIndices(i) - 1) / nx + 1_i4b
-      ! Remove the cell from the mask if in glacier area
-      if(S(k,l)-B(k,l)>0)then
+      kp = min(k+1,nx)
+      km = max(k-1,1_i4b)
+      lp = min(l+1,ny)
+      lm = max(l-1,1_i4b)
+      ! Remove the cell from the mask if touching an S-B=0 cell or on the edge of the grid
+      if(S(k,l)-B(k,l)>0._rkind)then
+        around = (/S(kp,l)-B(kp,l), S(km,l)-B(km,l), S(k,lp)-B(k,lp), S(k,lm)-B(k,lm),  &
+                   S(kp,lp)-B(kp,lp), S(km,lp)-B(km,lp), S(kp,lm)-B(kp,lm), S(km,lm)-B(km,lm)/)
+        if(all(around>0._rkind) .and. kp/=k .and. km/=k .and. lp/=l .and. lm/=l) cycle ! not touching any S-B=0 cells and not edge, skip
         cumulativeArea = cumulativeArea + dx * dy
         if(cumulativeArea <= -delArea)then
           cumulativeVol = cumulativeVol + (S(k,l)-B(k,l)) * dx * dy
