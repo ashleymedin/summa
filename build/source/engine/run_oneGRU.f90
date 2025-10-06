@@ -513,11 +513,10 @@ subroutine run_oneGRU(&
                   glac_debris_thick,                          & ! intent(inout): debris thickness of each glacier domain (m) per HRU
                   iden_soil_mean,                             & ! intent(in):    mean soil density (kg m-3)
                   theta_sat_mean,                             & ! intent(in):    mean soil porosity (-)
-                  bparData%var(iLookBPAR%debrisC_constant),   & ! intent(in):    non-spatial concentration for debris advection (kg m-3)
+                  bparData%var(iLookBPAR%debrisConc),         & ! intent(in):    englacial debris concentration (kg m-3)
                   bparData%var(iLookBPAR%debrisH_critical),   & ! intent(in):    critical debris thickness start debris-free terminal wedge (m)
-                  bparData%var(iLookBPAR%lat_moraine_wid),    & ! intent(in):    lateral moraine width (m)
+                  bparData%var(iLookBPAR%lat_moraine_wid),    & ! intent(in):    lateral moraine width or rockfall length (m)
                   ! area
-                  bparData%var(iLookBPAR%glacierAreaThresh),  & ! intent(in):    minimum glacier area to be considered a glacier (m2)
                   bvarData%var(iLookBVAR%glacierAblArea)%dat, & ! intent(inout): per glacier ablation area (m2)
                   bvarData%var(iLookBVAR%glacierAccArea)%dat, & ! intent(inout): per glacier accumulation area (m2)
                   glac_area,                                  & ! intent(inout): area of each glacier domain (m2)

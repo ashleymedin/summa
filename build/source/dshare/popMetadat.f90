@@ -328,10 +328,9 @@ subroutine popMetadat(err,message)
   bpar_meta(iLookBPAR%glacStor_kSnow)                  = var_info('glacStor_kSnow'                 , 'storage coefficient glacier snow reservoir'                       , 'hours'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bpar_meta(iLookBPAR%glacStor_kFirn)                  = var_info('glacStor_kFirn'                 , 'storage coefficient glacier firn reservoir'                       , 'hours'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! debris advection
-  bpar_meta(iLookBPAR%debrisC_constant)                = var_info('debrisC_constant'               , 'non-spatial concentration for debris advection'                   , 'kg m-3'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bpar_meta(iLookBPAR%debrisConc)                      = var_info('debrisConc'                     , 'englacial debris concentration'                                   , 'kg m-3'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bpar_meta(iLookBPAR%debrisH_critical)                = var_info('debrisH_critical'               , 'critical debris thickness to start debris-free terminal wedge'    , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  bpar_meta(iLookBPAR%lat_moraine_wid)                 = var_info('lat_moraine_wid'                , 'lateral moraine width'                                            , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  bpar_meta(iLookBPAR%glacierAreaThresh)               = var_info('glacierAreaThresh'              , 'minimum glacier area to be considered a glacier'                  , 'm2'              , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bpar_meta(iLookBPAR%lat_moraine_wid)                 = var_info('lat_moraine_wid'                , 'lateral moraine width or rockfall length'                         , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * local model prognostic (state) variables...
   ! ---------------------------------------------

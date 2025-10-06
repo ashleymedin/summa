@@ -214,7 +214,7 @@ MODULE globalData
   real(rkind),save,public                        :: icefrz_mult=10._rkind             ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
   integer(i4b),save,public                       :: nLakeIceLayers_poss=1             ! number of ice layers in a lake that can accumulate 
   integer(i4b),save,public                       :: nMeltingIceLayers=1               ! number of glacier ice layers that can have a change in total water content 
-  real(rkind),save,public                        :: thick4area                        ! an arbitrary small threshold for glacier thickness to be considered as glacier area
+  real(rkind),save,public                        :: thick4area=0.1                    ! an arbitrary small threshold for glacier thickness to be considered as glacier area (m)
   ! define variables used for domain type        
   integer(i4b),save,public                       :: upland=1                          ! upland domain
   integer(i4b),save,public                       :: glacCln1=2                        ! glacier clean first domain

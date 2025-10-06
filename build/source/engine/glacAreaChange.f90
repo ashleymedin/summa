@@ -59,14 +59,14 @@ character(len=32),parameter :: bed_shape='parabolic' !'trapezoid'
 character(len=32),parameter :: method='MUSCL' !'upstream'
 
 ! privacy
-private::run_flowModel,volAreaScaling,diffusion_MUSCL,diffusion_upstream,minmod,superbee,flux,SIA,H_index,H_plus,H_min
-public ::glacAreaChange
-public ::updateGlacDomain
+private::run_flowModel,advectDebris,diffusion_MUSCL,diffusion_upstream
+private::minmod,superbee,flux,SIA,H_index,H_plus,H_min
+public::glacAreaChange
+public::time_updateGlacArea
+public::updateGlacDomain
 contains
 ! ************************************************************************************************
 ! public subroutine glacAreaChange: get new glacier area and elevation
-!   large glacier based on ice flow model and small glacier area based on vol area change (by glacierAreaThresh)
-! NOTE: Ideally this runs in parallel with hydrology calculations, but for now it is serial
 ! ************************************************************************************************
 subroutine glacAreaChange(&
                     ! model control
@@ -88,11 +88,10 @@ subroutine glacAreaChange(&
                     debris_thick_dom,        & ! intent(inout): debris thickness in each glacier domain (m)
                     iden_soil_mean,          & ! intent(in):    mean intrinsic density of soil in each glacier domain (kg m-3)
                     theta_sat_mean,          & ! intent(in):    mean soil porosity in each glacier domain (-)
-                    C_constant,              & ! intent(in):    non-spatial concentration for debris advection (kg m-3)
+                    dbr_conc,              & ! intent(in):    englacial debris concentration (kg m-3)
                     dbr_crit,                & ! intent(in):    critical debris thickness start debris-free terminal wedge (m)
-                    lat_moraine_wid,         & ! intent(inout): lateral moraine width (m)
+                    lat_moraine_wid,         & ! intent(inout): lateral moraine width (rockfall length) (m)
                     ! area
-                    glacierAreaThresh,       & ! intent(in):    minimum glacier area to be considered a glacier (m2)
                     glacierAblArea,          & ! intent(inout): per glacier ablation area (m2)
                     glacierAccArea,          & ! intent(inout): per glacier accumulation area (m2)
                     area,                    & ! intent(inout): area of each domain (m2)
@@ -120,11 +119,10 @@ subroutine glacAreaChange(&
   real(rkind), intent(inout)         :: debris_thick_dom(:)             ! debris thickness in glacier domain (m)
   real(rkind), intent(in)            :: iden_soil_mean(:)               ! mean intrinsic density of soil (kg m-3)
   real(rkind), intent(in)            :: theta_sat_mean(:)               ! mean soil porosity (-)
-  real(rkind), intent(in)            :: C_constant                      ! non-spatial concentration for debris advection (kg m-3)
+  real(rkind), intent(in)            :: dbr_conc                        ! englacial debris concentration (kg m-3)
   real(rkind), intent(in)            :: dbr_crit                        ! critical debris thickness start debris-free terminal wedge (m)
-  real(rkind), intent(in)            :: lat_moraine_wid                 ! lateral moraine width (m) 
+  real(rkind), intent(in)            :: lat_moraine_wid                 ! lateral moraine width (rockfall length) (m) 
   ! area 
-  real(rkind), intent(in)            :: glacierAreaThresh               ! minimum glacier area to be considered a glacier (m2)
   real(rkind), intent(inout)         :: glacierAblArea(nGlac)           ! per glacier ablation area (m2)
   real(rkind), intent(inout)         :: glacierAccArea(nGlac)           ! per glacier accumulation area (m2)
   real(rkind), intent(inout)         :: area(:)                         ! area of each glacier domain (m2)
@@ -168,7 +166,7 @@ subroutine glacAreaChange(&
   real(rkind)                        :: cumulativeArea                  ! cumulative area for clean glacier area
   integer(i4b)                       :: numCells                        ! number of cells in glacier grid
   real(rkind)                        :: areaAdd                         ! area to add to each clean high glacier domain
-  real(rkind),parameter              :: min_thickness=0.01_rkind        ! minimum thickness of debris cover to be considered as debris cover (m)
+  real(rkind),parameter              :: min_thickness=0.02_rkind        ! minimum thickness of debris cover to be considered as debris cover (m)
   logical(lgt),parameter             :: printFlag=.true.               ! flag to print details for debugging
 
   ! ----------------------------------------------------------------------------------------------
@@ -361,17 +359,8 @@ subroutine glacAreaChange(&
         glacierAblArea(iGlac)*1.e-6_rkind, glacierAccArea(iGlac)*1.e-6_rkind, (glacierAblArea(iGlac) + glacierAccArea(iGlac))*1.e-6_rkind, volume
     endif
 
-    if(glacierAccArea(iGlac)+glacierAblArea(iGlac) < glacierAreaThresh)then ! glacier has shrunk below threshold, area may be zero
-     ! a small glacier below threshold area changes area with volume area scaling
-     call volAreaScaling(t_total, debris, surface, bed, glacierMask, slope, intercept, validElev, validCount, maxCount, &
-                         glacierAblArea(iGlac), dbr_crit, min_thickness, ELA_use, nx, ny, dx, dy, volume, printFlag)
-    else ! large glacier above threshold area, run flow model
-      ! make non-glacier have high elevation so glacier does not grow there (this is somewhat arbitrary and unstable, should not need)
-      !bed = merge(bed,bed+100._rkind,glacierMask==1_i4b); surface = merge(surface,surface+100._rkind,glacierMask==1_i4b)
-      ! compute flow
-      call run_flowModel(t_total, debris, surface, bed, glacierMask, slope, intercept, validElev, validCount, maxCount, C_constant, &
+    call run_flowModel(t_total, debris, surface, bed, glacierMask, slope, intercept, validElev, validCount, maxCount, dbr_conc, &
                          dbr_crit, min_thickness, lat_moraine_wid, iden_soil, theta_sat, ELA_use, nx, ny, dx, dy, volume, printFlag)
-    endif
 
     totVolume = totVolume+volume ! add volume to total volume, includes debris, not currently used
     
@@ -516,120 +505,46 @@ subroutine glacAreaChange(&
 end subroutine glacAreaChange
 
 ! ************************************************************************************************
-! private subroutine volAreaScaling: small glacier area change and debris transport with VA scaling
-!   VA scaling is following Macheret et al., 1988; Chen and Ohmura, 1990; Bahr, 1997.
-!   After VA scaling for new area, average height of adjoining lowest cells is added to new area increase, or to removed to the
-!   bedrock on the lowest cells for new area decrease. Remaining volume change is added/removed as a new height to the entire new area.
-!   Debris emerges below the new ELA as in the flow model. This height change is a kluge, but is needed to keep track of volume and
-!   for the unlikely case of a small glacier growing into a large glacier.
-! ************************************************************************************************
-  subroutine volAreaScaling(t_total, debris, S, B, glacierMask, slope, intercept, validElev, validCount, maxCount, &
-                            ablationArea, dbr_crit, min_thickness, ELA, nx, ny, dx, dy, volume, printFlag)
-    implicit none
-    ! Arguments
-    real(rkind), intent(in) :: t_total, dx, dy
-    real(rkind), intent(inout) :: debris(nx,ny), S(nx,ny), B(nx,ny)
-    real(rkind), intent(in) :: slope(maxCount+1,2), intercept(maxCount+1,2), validElev(maxCount,2)
-    real(rkind), intent(in) :: ablationArea, dbr_crit, min_thickness, ELA
-    integer(i4b), intent(in) :: validCount(2), maxCount
-    integer(i4b), intent(in) :: ny, nx, glacierMask(nx,ny)
-    logical(lgt), intent(in) :: printFlag
-    real(rkind), intent(out) :: volume
-    ! Local variables
-    real(rkind), parameter :: va_exp=1.36_rkind
-    real(rkind) :: m_dot(nx,ny), delVol, delArea, area, va_constant, excessVol, H(nx,ny), S0(nx,ny)
-
-    S = S - debris ! remove debris from glacier surface before volume-area scaling
-    S0 = S ! save initial surface for debris transport calculation
-
-    ! initial S and B, calculate coefficients
-    volume = sum(merge(S-B,0._rkind,glacierMask==1_i4b)) * dx * dy * 1.e-9_rkind ! km3
-    area = sum(merge(1_i4b,0_i4b,(S-B)>thick4area))* dx * dy * 1.e-6_rkind ! km2
-    if(area <= 0._rkind)then ! no glacier detected coming in
-      va_constant = 0.033_rkind ! use a typical value
-    else
-      va_constant = volume/area**va_exp ! might want to cap this
-    endif
-    ! debugging print
-    if(printFlag)then
-      H = merge(S+debris-B,0._rkind,glacierMask==1_i4b)
-      write(*,'(a,f5.3)') " use VA scaling, va_constant = ", va_constant
-      if(count(H>thick4area)>0_i4b)then 
-        write(*,'(a,2(1x,f6.1),a,2(1x,f6.2))') "  time (yr) = 0.00 mean max H (m) =", sum(H)/count(H>thick4area), maxval(H),&
-              ", mean max debris (m) =", sum(debris)/count(H>thick4area), maxval(debris)
-      else
-        write(*,'(a)') "  time (yr) = 0.00 no glacier present"
-      endif
-    endif
-
-    ! get mass balance rate over surface
-    m_dot = massBalance(S, debris, glacierMask, slope, intercept, t_total, validElev, validCount, maxCount, nx, ny)
-    delVol = sum(m_dot)*dx*dy*t_total*iden_ice/iden_water * 1.e-9_rkind ! convert from m s-1 to km3 in volume change
-
-    if(volume + delVol <= 0._rkind)then
-      delVol = -volume ! glacier gone
-      volume = 0._rkind
-      S = B ! glacier surface is bedrock
-      debris = 0._rkind ! no debris
-      return
-    elseif(delVol==0._rkind)then
-      return ! no change in volume, so no change surface or debris
-    endif
-    delArea = (((volume + delVol)/va_constant)**(1._rkind/va_exp) - area)*1.e6_rkind ! change in area from volume-area scaling, m2
-    delVol = delVol*1.e9_rkind ! back to m3
-
-    ! Update S, estimates (a bit klugey, but preserves volume and area)
-    call updateS_volAreaScaling(S, B, glacierMask, delVol, delArea, nx, ny, dx, dy, excessVol)
-
-    ! Update debris thickness if there is debris, keeping debris ratio on ablation zone and mean thickness same, with regression with elevation to distribute thickness
-    if(sum(debris)>0._rkind) debris = ratioDebris(S, S0, B, debris, min_thickness, dbr_crit, ablationArea, ELA, dx, dy, nx, ny)
-
-    ! add debris back to glacier surface
-    S = S + debris
-
-    ! Recalculate volume of glacier (includes debris)
-    volume = sum(S-B) * dx * dy * 1.e-9_rkind ! km3
-    ! debugging print
-    if(printFlag)then
-      H = merge(S-B,0._rkind,glacierMask==1_i4b)
-      if(count(H>thick4area)>0_i4b)then 
-        write(*,'(a,f4.2,a,2(1x,f6.1),a,2(1x,f6.2))') "  time (yr) = ", t_total/secprday/365.25_rkind, " mean max H (m) =", &
-            sum(H)/count(H>thick4area), maxval(H), ", mean max debris (m) =", sum(debris)/count(H>thick4area), maxval(debris)
-        write(*,'(a,2(1x,f8.4),a,f6.2)') "  change in area (km2), change in volume (km3) =", &
-            delArea*1.e-6_rkind, delVol*1.e-9_rkind, ", excess height (m) added to make volume = ", excessVol/(sum(glacierMask) * dx * dy)
-      else
-        write(*,'(a,f4.2,a)') "  time (yr) = ", t_total/secprday/365.25_rkind, " no glacier present"
-        write(*,'(a,2(1x,f8.4))') "  change in area (km2), change in volume (km3) =", &
-            delArea*1.e-6_rkind, delVol*1.e-9_rkind
-      endif
-    endif
-
-  end subroutine volAreaScaling
-
-
-! ************************************************************************************************
 ! private subroutine run_flowModel: set up flow model and debris advection and run for time period
 ! ************************************************************************************************
-  subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, validElev, validCount, maxCount, C_constant, &
+  subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, validElev, validCount, maxCount, dbr_conc, &
                            dbr_crit, min_thickness, lat_moraine_wid, iden_soil, theta_sat, ELA, nx, ny, dx, dy, volume, printFlag)
     implicit none
     ! Arguments
     real(rkind), intent(in) :: t_total, dx, dy
     real(rkind), intent(inout) :: debris(nx,ny), S(nx,ny), B(nx,ny)
     real(rkind), intent(in) :: slope(maxCount+1,2), intercept(maxCount+1,2), validElev(maxCount,2)
-    real(rkind), intent(in) :: C_constant, dbr_crit, min_thickness, lat_moraine_wid, iden_soil, theta_sat, ELA
+    real(rkind), intent(in) :: dbr_conc, dbr_crit, min_thickness, lat_moraine_wid, iden_soil, theta_sat, ELA
     integer(i4b), intent(in) :: validCount(2), maxCount
     integer(i4b), intent(in) :: ny, nx, glacierMask(nx,ny)
     logical(lgt), intent(in) :: printFlag
     real(rkind), intent(out) :: volume
     ! Local variables
     real(rkind) :: dt, max_dt, min_dt, deltat, div_k(nx,ny), div_l(nx,ny), dt_cfl, meanS
-    real(rkind) :: gamma, t, m_dot(nx,ny), H(nx,ny)
+    real(rkind) :: gamma, t, m_dot(nx,ny), H(nx,ny),distance(nx, ny), dist
     integer(i4b),parameter :: n=3 ! Glen's flow law exponent
     real(rkind),parameter :: A=2.4e-24 ! Modern Glen parameter
     real(rkind),parameter :: cfl= 0.124 ! Courant-Friedrichs-Lewy condition
-    integer(i4b) :: i, l(ny), lp(ny), lpp(ny), lm(ny), lmm(ny)
-    integer(i4b) :: k(nx), kp(nx), kpp(nx), km(nx), kmm(nx)
+    integer(i4b) :: i, j, jj, l(ny), lp(ny), lpp(ny), lm(ny), lmm(ny)
+    integer(i4b) :: k(nx), kp(nx), kpp(nx), km(nx), kmm(nx), zeroMask(nx, ny)
+
+    gamma = 2._rkind * A * (iden_ice * gravity)**n / (n + 2_i4b)
+    max_dt = 31._rkind * secprday! max timestep in seconds, a month
+    min_dt = 0._rkind ! min timestep in seconds 
+    t = 0._rkind
+    H = merge(S-B,0._rkind,glacierMask==1_i4b)
+    ! debugging print
+    if(printFlag)then 
+      if(count(H>thick4area)>0_i4b)&
+          write(*,'(a,2(1x,f6.1),a,2(1x,f6.2))') "  time (yr) = 0.00 mean max H (m) =", sum(H)/count(H>thick4area), maxval(H),&
+                ", mean max debris (m) =", sum(debris)/count(H>thick4area), maxval(debris)
+    endif
+    i = 1 ! counter for debugging print, only print once a max_dt
+    if(count(H>thick4area)==0_i4b)then
+      if(printFlag) write(*,'(a)') "  time (yr) = 0.00 no glacier present"
+      volume = 0._rkind
+      return
+    endif
 
     ! y direction indices
     l = [(i, i=1, ny)]
@@ -653,18 +568,26 @@ end subroutine glacAreaChange
       kmm = [1]
     endif
 
-    gamma = 2._rkind * A * (iden_ice * gravity)**n / (n + 2_i4b)
-    max_dt = 31._rkind * secprday! max timestep in seconds, a month
-    min_dt = 0._rkind ! min timestep in seconds 
-    t = 0._rkind
-    ! debugging print
-    if(printFlag)then 
-      H = merge(S-B,0._rkind,glacierMask==1_i4b)
-      write(*,'(a)') " use flow model"
-      write(*,'(a,2(1x,f6.1),a,2(1x,f6.2))') "  time (yr) = 0.00 mean max H (m) =", sum(H)/count(H>thick4area), maxval(H),&
-            ", mean max debris (m) =", sum(debris)/count(H>thick4area), maxval(debris)
-      i = 1 ! counter for debugging print, only print once a max_dt
-    endif
+    ! **calculation of spatial mask distance to edte, use same mask all time steps for speed**
+    if(sum(debris)>0._rkind)then
+      distance = 1.e6_rkind ! initialize to large value
+      zeroMask = merge(1_i4b, 0_i4b, S==B)
+      ! First pass: top-left to bottom-right
+      do jj = 1, nx
+        do j = 1, ny
+          if (jj > 1) distance(jj, j) = min(distance(jj, j), distance(jj-1, j) + dx)
+          if (j > 1)  distance(jj, j) = min(distance(jj, j), distance(jj, j-1) + dy)
+        end do
+      end do
+      ! Second pass: bottom-right to top-left
+      do jj = nx, 1, -1
+        do j = ny, 1, -1
+          if (jj < nx) distance(jj, j) = min(distance(jj, j), distance(jj+1, j) + dx)
+          if (j < ny)  distance(jj, j) = min(distance(jj, j), distance(jj, j+1) + dy)
+        end do
+      end do
+      distance = merge(distance, 0._rkind, zeroMask==1_i4b) ! set distance to zero where no glacier (may grow into these areas, include them in 0 distance)
+    endif ! (sum(debris)>0._rkind)
 
     do while (t < t_total)
       dt = t_total - t
@@ -707,22 +630,31 @@ end subroutine glacAreaChange
       endif
       
       ! Update debris thickness if there is debris, using englacial debris advection transport model
-      if(sum(debris)>0._rkind) debris = advectDebris(S, B, debris, min_thickness, dbr_crit, lat_moraine_wid, div_k, div_l, m_dot, C_constant,&
-                                                     theta_sat, iden_soil, deltat, k, kp, km, l, lp, lm, ELA, nx, ny, dx, dy)
+      if(sum(debris)>0._rkind) debris = advectDebris(S, B, debris, min_thickness, dbr_crit, lat_moraine_wid, div_k, div_l, m_dot, dbr_conc,&
+                                                     theta_sat, iden_soil, deltat, distance, k, kp, km, l, lp, lm, ELA, nx, ny, dx, dy)                                         
 
       ! add debris back to glacier surface
       S = S + debris
+      H = merge(S-B, 0._rkind, glacierMask==1_i4b)
       ! debugging print
       if(printFlag)then 
         ! only print once a max_dt
         if(t > i*max_dt)then
           i = i + 1
-          H = merge(S-B, 0._rkind, glacierMask==1_i4b)
-          write(*,'(a,f4.2,a,2(1x,f6.1),a,2(1x,f6.2))') "  time (yr) = ", t/secprday/365.25_rkind, " mean max H (m) =", &
-                sum(H)/count(H>min_thickness), maxval(H), ", mean max debris (m) =", sum(debris)/count(H>min_thickness), maxval(debris)
+          if(count(H>thick4area)>0_i4b)&
+              write(*,'(a,f4.2,a,2(1x,f6.1),a,2(1x,f6.2))') "  time (yr) = ", t/secprday/365.25_rkind, " mean max H (m) =", &
+                    sum(H)/count(H>thick4area), maxval(H), ", mean max debris (m) =", sum(debris)/count(H>thick4area), maxval(debris)
         endif
       endif
+      if(count(H>thick4area)==0_i4b)then
+        if(printFlag) write(*,'(a,f4.2,a)') "  time (yr) = ", t/secprday/365.25_rkind, " no glacier present"
+        volume = 0._rkind
+        return
+      endif
     enddo ! end of time loop
+
+    ! clean up low debris thickness (if do every time step, will not have thin debris moving around)
+    debris = merge(debris, 0._rkind, debris>=min_thickness)
 
     ! Calculate volume of glacier (includes debris)
     volume = sum(S-B) * dx * dy * 1.e-9_rkind ! km3
@@ -1195,21 +1127,22 @@ end function massBalance
 !         motion of a fluid, and glacier ice is a form of a viscoelastic fluid.
 !   NOTE2: debris thickness < min_thickness is considered as clean ice, so no debris advection
 ! ************************************************************************************************
-function advectDebris(S, B, debris, min_thickness, dbr_crit, lat_moraine_wid0, div_k, div_l, m_dot, C_constant,&
-                      theta_sat, iden_soil, deltat, k, kp, km, l, lp, lm, ELA, nx, ny, dx, dy)
+function advectDebris(S, B, debris, min_thickness, dbr_crit, lat_moraine_wid, div_k, div_l, m_dot, dbr_conc,&
+                      theta_sat, iden_soil, deltat, distance, k, kp, km, l, lp, lm, ELA, nx, ny, dx, dy)
   implicit none
   ! Arguments
   real(rkind), intent(in) :: S(nx,ny), B(nx,ny), debris(nx,ny), min_thickness, dbr_crit
-  real(rkind), intent(in) :: lat_moraine_wid0, div_k(nx,ny), div_l(nx,ny), m_dot(nx,ny)
-  real(rkind), intent(in) :: C_constant, theta_sat, iden_soil, deltat, ELA, dx, dy
+  real(rkind), intent(in) :: lat_moraine_wid, div_k(nx,ny), div_l(nx,ny), m_dot(nx,ny)
+  real(rkind), intent(in) :: dbr_conc, theta_sat, iden_soil, deltat, distance(nx,ny), ELA, dx, dy
   integer(i4b), intent(in) :: k(nx), kp(nx), km(nx), l(ny), lp(ny), lm(ny), nx, ny
   ! Returns
   real(rkind) :: advectDebris(nx,ny)
   ! Local variables
-  integer(i4b) :: C_mask(nx, ny), i, j, ii, jj, zeroMask(nx, ny)
+  integer(i4b) :: C_mask(nx, ny), E_mask(nx, ny)
   real(rkind) :: Hklp(nx,ny), Hklm(nx,ny), Hkl(nx,ny), Hkpl(nx,ny), Hkml(nx,ny)
   real(rkind) :: H_l_up(nx,ny), H_l_dn(nx,ny), H_k_up(nx,ny), H_k_dn(nx,ny)
-  real(rkind) :: grad_l(nx,ny), grad_k(nx,ny),distance(nx, ny), dist, lat_moraine_wid
+  real(rkind) :: grad_l(nx,ny), grad_k(nx,ny)
+  real(rkind) :: emergenceElev, vol_below_emerg, area_below_emerg, rockfall_area, rate(nx, ny)
 
   ! calculate debris velocity term with a simple finite difference
   Hklp  = debris(k ,lp)*div_l(k ,lp)
@@ -1225,159 +1158,31 @@ function advectDebris(S, B, debris, min_thickness, dbr_crit, lat_moraine_wid0, d
   H_k_up = H_index(Hkpl, Hkl)
   H_k_dn = H_index(Hkl, Hkml)
   grad_k = (H_k_up - H_k_dn) / dx
-  
-  ! **calculation of spatial mask of near-surface concentration of debris
-  ! Compute the Euclidean distance to the nearest zero cell
-  zeroMask = merge(0, 1, S - B == 0._rkind) ! mask for cells where S = B
-  distance = 1.e6_rkind  ! Initialize with a large value
-  do i = 1, nx
-    do j = 1, ny
-      if(zeroMask(i, j) == 1)then
-          distance(i, j) = 0._rkind
-      else
-        do ii = 1, nx
-          do jj = 1, ny
-            if(zeroMask(ii, jj) == 1)then
-              dist = sqrt(((i - ii) * dx)**2._i4b + ((j - jj) * dy)**2._i4b)
-              if(dist < distance(i, j)) distance(i, j) = dist
-            endif
-          enddo
-        enddo
-      endif
-    enddo
-  enddo
 
-  ! calulate the maximum distance to consider for debris concentration, or the width of lateral moraines
-  !  based on width of debris concentration near sides of glacier at high elevations
-  lat_moraine_wid = lat_moraine_wid0
-  if(lat_moraine_wid <= 0._rkind)then
-    lat_moraine_wid = 0._rkind
-    do i = 1, nx
-      do j = 1, ny
-        if(S(i,j) > ELA .and. S(i,j) > B(i,j) .and. S(i,j) > 0._rkind)then
-          if(distance(i,j) > lat_moraine_wid) lat_moraine_wid = distance(i,j)
-        endif
-      enddo
-    enddo
+  ! Add rockfall at along the sides/top of the glacier below the ELA
+  !   and near-surface debris concentration below emergence elevation
+  ! NOTE: to make rockfall agree with englacial debris concentration:
+  !   influx = outflux + state, which gives:
+  !   rate(kg/s/m2) * above_ELA_rockfall_area(m2) * time = englacial debris concentration(kg/m3) *( -mass balance(m/s) * emergence_area(m2) * time + emergence_vol(m3) )
+  emergenceElev = ELA - (ELA-minval(merge(S, 1.e6_rkind, S>B)))/2._rkind ! emergence elevation, halfway to ELA, could do by lat_moraine_wid * slope below ELA
+  vol_below_emerg = sum(merge(S-B, 0._rkind, S<emergenceElev .and. S>B))*dx*dy 
+  area_below_emerg = sum(merge(1_i4b, 0_i4b, S<emergenceElev .and. S>B))*dx*dy
+  rockfall_area = sum(merge(1_i4b, 0_i4b, distance<=lat_moraine_wid .and. S>=ELA .and. S>B))*dx*dy
+  if(rockfall_area>0._rkind)then
+    rate = (vol_below_emerg/deltat - m_dot*area_below_emerg)/rockfall_area
+    C_mask = merge(rate, 0._rkind, distance<=lat_moraine_wid .and. S<ELA .and. S>B)
+  else
+    C_mask = 0._rkind
   endif
-
-  ! Create the side mask based on the maximum distance or currently having debris 
-  !   and where S>B (has glacier) and S<ELA (in ablation zone)
-  C_mask = merge(1, 0, (distance<=lat_moraine_wid .or. debris>0._rkind) .and. S>B .and. S<ELA)
+  E_mask = merge(1_i4b, 0_i4b, distance>lat_moraine_wid .and. S<ELA .and. S>B)
 
   ! ** advect debris to the surface with flow and clean up
-  advectDebris = debris + ( C_constant*C_mask * m_dot/(1._rkind - theta_sat)/iden_soil + grad_k + grad_l ) * deltat
-  advectDebris = merge(advectDebris, 0._rkind, S > B) ! remove debris from bedrock, may still be on thin ice < thick4area
-  advectDebris = merge(advectDebris, 0._rkind, advectDebris>=min_thickness) ! Check that debris thickness is not below minimum thickness
+  advectDebris = debris + ( dbr_conc*(C_mask - E_mask * m_dot)/(1._rkind - theta_sat)/iden_soil - grad_k - grad_l ) * deltat
+  advectDebris = merge(advectDebris, 0._rkind, S>B) ! remove debris from bedrock, may still be on thin ice < thick4area
   advectDebris = merge(advectDebris, 0._rkind, advectDebris<=dbr_crit) ! Check that debris thickness is not over critical value, effectively making terminal clean ice wedge 
 
 end function advectDebris
 
-
-! ************************************************************************************************
-! private function ratioDebris: use similar debris area to ablation area ratio to scale debris area
-!   Debris is added to lowest elevation areas in the ablation zone, with depth based on regression 
-!   with elevation of existing debris and keeping the same overall depth of debris
-! ************************************************************************************************
-function ratioDebris(S, S0, B, debris, min_thickness, dbr_crit, ablationArea, ELA, dx, dy, nx, ny)
-  implicit none
-  ! Arguments
-  real(rkind), intent(in) :: S(nx,ny),S0(nx,ny), B(nx,ny), debris(nx,ny), min_thickness, dbr_crit
-  real(rkind), intent(in) :: ablationArea, ELA, dx, dy
-  integer(i4b), intent(in) :: nx, ny
-  ! Returns
-  real(rkind) :: ratioDebris(nx,ny)
-  ! Local variables
-  real(rkind) :: ablationAreaNew, debrisArea, debrisAreaNew, ratio, cumulativeArea
-  real(rkind) :: x(nx,ny), y(nx,ny), sum_x, sum_y, sum_xy, sum_x2, slope, intercept
-  real(rkind) :: debrisVol, debrisThick, debrisTooThick, debrisTooThin
-  real(rkind) :: gainThick, regressDebris(nx,ny), mean_regress
-  integer(i4b) :: i, j, k, l, numCells, n
-  logical :: mask(nx,ny)
-  real(rkind), allocatable :: sortedElev(:)
-  integer(i4b), allocatable :: sortedIndices(:)
-
-  ablationAreaNew = sum(merge(1_i4b, 0_i4b, (S-B)>thick4area .and. S<ELA))*dx*dy 
-  if(ablationAreaNew == 0._rkind)then; ratioDebris = 0._rkind; return; endif
-
-  ! NOTE: if ablationArea is zero then debris area would be zero too, so would not get here
-  debrisArea = sum(merge(1_i4b, 0_i4b, debris>0._rkind))*dx*dy
-  debrisVol = sum(debris)*dx*dy
-  ratio = debrisArea / ablationArea
-  debrisThick = debrisVol / debrisArea
-  debrisAreaNew = ratio * ablationAreaNew
-
-  ! relationship between debris thickness and elevation, linear regression
-  x = merge(S0, 0._rkind, debris>0._rkind)
-  y = debris ! debris will be between min_thickness and dbr_crit
-  n = count(x>0._rkind)
-  sum_x = sum(x)
-  sum_y = sum(y)
-  sum_xy = sum(x*y)
-  sum_x2 = sum(x**2)
-  slope = (n*sum_xy - sum_x*sum_y) / (n*sum_x2 - sum_x**2)
-  intercept = (sum_y - slope*sum_x) / n
-
-  numCells = nx * ny
-  allocate(sortedElev(numCells), sortedIndices(numCells))
-  ! Flatten the S array and sort it in descending order
-  sortedElev = reshape(S, [numCells])
-  sortedIndices = [(i, i=1, numCells)]
-  ! Sort the elevations in descending order
-  do i = 1, numCells - 1
-    do j = i + 1, numCells
-      if(sortedElev(i) < sortedElev(j))then
-        ! Swap elevations
-        call swap_real(sortedElev(i), sortedElev(j))
-        ! Swap indices
-        call swap_integer(sortedIndices(i), sortedIndices(j))
-      endif
-    enddo
-  enddo
-
-  ! fill lowest elevation area with debris until new debris area is reached
-  ratioDebris = 0._rkind
-  cumulativeArea = 0._rkind
-  do i = numCells, 1, -1
-    ! Get the 2D indices from the 1D index
-    k = mod(sortedIndices(i) - 1, nx) + 1_i4b
-    l = (sortedIndices(i) - 1) / nx + 1_i4b
-    ! Add debris if in glacier area
-    if(S(k,l)-B(k,l)>0 .and. S(k,l)<ELA)then
-      cumulativeArea = cumulativeArea + dx * dy
-      if(cumulativeArea <= debrisAreaNew) ratioDebris(k,l) = debrisThick ! add debris thickness based on previous average
-    endif
-    if(cumulativeArea >= debrisAreaNew) exit
-  enddo
-  deallocate(sortedElev, sortedIndices)
-
-  ! add elevational relationship
-  mask = (ratioDebris > 0._rkind)
-  debrisAreaNew = sum(merge(1_i4b, 0_i4b, mask))*dx*dy ! recalculate debris area
-  regressDebris = merge(slope*S + intercept, 0._rkind, mask) ! debris thickness based on elevational relationship
-  mean_regress = sum(regressDebris)*dx*dy / debrisAreaNew
-  ratioDebris = ratioDebris + regressDebris
-
-  ! adjust to keep same average depth
-  ratioDebris = merge(ratioDebris - mean_regress, ratioDebris, mask)
-  
-  ! will make it possibly go over dbr_crit or under min_thickness, clean up
-  debrisTooThick = sum(merge(ratioDebris-dbr_crit, 0._rkind, ratioDebris>dbr_crit .and. mask))*dx*dy
-  debrisTooThin  = sum(merge(min_thickness-ratioDebris, 0._rkind, ratioDebris<min_thickness .and. mask))*dx*dy
-  ! iterate until volume conserved
-  do while (abs(debrisTooThick - debrisTooThin)/debrisAreaNew>verySmall)
-    ratioDebris = merge(min_thickness, ratioDebris, ratioDebris<min_thickness .and. mask) ! Check that debris thickness is not below minimum thickness
-    ratioDebris = merge(dbr_crit, ratioDebris, ratioDebris>dbr_crit .and. mask) ! Check that debris thickness is not over critical value
-
-    ! add back in volume lost from debris too thick or subtract volume gained from debris too thin
-    gainThick = (debrisTooThick - debrisTooThin) / debrisAreaNew
-    ratioDebris = merge(ratioDebris + gainThick, ratioDebris, mask)
-    debrisTooThick = sum(merge(ratioDebris-dbr_crit, 0._rkind, ratioDebris>dbr_crit .and. mask))*dx*dy
-    debrisTooThin  = sum(merge(min_thickness-ratioDebris, 0._rkind, ratioDebris<min_thickness .and. mask))*dx*dy
-  end do
-
-end function ratioDebris
-  
 
 ! ************************************************************************************************
 ! private functions to assist in the glacier flow calculations

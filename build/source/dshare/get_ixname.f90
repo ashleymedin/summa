@@ -1025,10 +1025,9 @@ contains
   case('glacStor_kSnow'           ); get_ixBpar = iLookBPAR%glacStor_kSnow            ! storage coefficient glacier snow reservoir (hours)
   case('glacStor_kFirn'           ); get_ixBpar = iLookBPAR%glacStor_kFirn            ! storage coefficient glacier firn reservoir (hours)
   ! debris advection
-  case('debrisC_constant'         ); get_ixBpar = iLookBPAR%debrisC_constant          ! non-spatial concentration for debris advection (kg m-3)
+  case('debrisConc'               ); get_ixBpar = iLookBPAR%debrisConc                ! englacial debris concentration (kg m-3)
   case('debrisH_critical'         ); get_ixBpar = iLookBPAR%debrisH_critical          ! critical debris thickness to start debris-free terminal wedge (m)
-  case('lat_moraine_wid'          ); get_ixBpar = iLookBPAR%lat_moraine_wid           ! lateral moraine width (m)
-  case('glacierAreaThresh'        ); get_ixBpar = iLookBPAR%glacierAreaThresh         ! minimum glacier area to be considered a glacier (m2)
+  case('lat_moraine_wid'          ); get_ixBpar = iLookBPAR%lat_moraine_wid           ! lateral moraine width or rockfall length (m)
   ! get to here if cannot find the variable
   case default
    get_ixBpar = integerMissing
