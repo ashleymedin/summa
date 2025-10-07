@@ -1037,6 +1037,7 @@ function advectDebris(S, B, debris, min_thickness, dbr_crit, lat_moraine_wid, to
   real(rkind) :: distance(nx,ny), zeroMask(nx,ny), slope_l(nx,ny), slope_k(nx,ny), slope
   real(rkind) :: emergenceElev, above_ELA_rockfall_area, mb_emerg_exposed(nx,ny), ELA_use
   real(rkind) :: rockfall, lat_rockfall(nx, ny), englacial_emerg(nx, ny), topElev, botElev
+  real(rkind) :: debris_change(nx,ny)
 
   ! calculation of spatial mask distance to side for lateral moraine rockfall
   distance = 1.e6_rkind ! initialize to large value
@@ -1094,13 +1095,15 @@ function advectDebris(S, B, debris, min_thickness, dbr_crit, lat_moraine_wid, to
   rockfall = -dbr_conc * sum(mb_emerg_exposed)/above_ELA_rockfall_area ! kg m-2 over t_total
   lat_rockfall = merge(rockfall, 0._rkind, distance<=lat_moraine_wid .and. S<ELA_use .and. S>=emergenceElev .and. S>B) ! kg m-2
   englacial_emerg = merge(dbr_conc, 0._rkind, S<emergenceElev .and. S>B) ! kg m-3
+  debris_change = (lat_rockfall - englacial_emerg * tot_m_dot)/(iden_soil*(1._rkind - theta_sat)) - debris * tot_div_q
+
   print*, "Total rockfall influx (m3): ", sum(lat_rockfall)*dx*dy/(iden_soil*(1._rkind - theta_sat))
   print*, "Total englacial emergence (m3): ", -sum(englacial_emerg* tot_m_dot)*dx*dy/(iden_soil*(1._rkind - theta_sat))
   print*, "Total flow debris change (m3): ", -sum(debris * tot_div_q)*dx*dy
-  print*, "Total debris volume (m3): ", sum(debris)*dx*dy, " Total debris volume change (m3): ", sum((lat_rockfall - englacial_emerg * tot_m_dot)/(iden_soil*(1._rkind - theta_sat)) - debris * tot_div_q)*dx*dy
+  print*, "Total debris volume (m3): ", sum(debris)*dx*dy, " Total debris volume change (m3): ", sum(debris_change)*dx*dy
   
   ! ** advect debris to the surface with flow and clean up
-  advectDebris = debris + (lat_rockfall - englacial_emerg * tot_m_dot)/(iden_soil*(1._rkind - theta_sat)) - debris * tot_div_q
+  advectDebris = merge(debris + debris_change, 0._rkind, debris > -debris_change) ! prevent negative debris
   advectDebris = merge(advectDebris, 0._rkind, S>B) ! remove debris from bedrock
   advectDebris = merge(advectDebris, 0._rkind, debris>=min_thickness) ! remove thin debris, considered clean ice
   advectDebris = merge(advectDebris, 0._rkind, advectDebris<=dbr_crit) ! Check that debris thickness is not over critical value, effectively making terminal clean ice wedge 
