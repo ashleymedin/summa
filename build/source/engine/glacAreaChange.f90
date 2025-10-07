@@ -616,8 +616,8 @@ end subroutine glacAreaChange
 
     ! Update debris thickness if there is debris, using englacial debris advection transport model
     if(sum(debris)>0._rkind)then
-      debris = advectDebris(S, B, debris, min_thickness, dbr_crit, lat_moraine_wid, tot_div_k, tot_div_l, tot_m_dot, dbr_conc,&
-                            theta_sat, iden_soil, t, k, kp, km, l, lp, lm, ELA, nx, ny, dx, dy)   
+      debris = advectDebris(S, B, debris, min_thickness, dbr_crit, lat_moraine_wid, tot_div_k, tot_div_l, tot_m_dot,&
+                            dbr_conc, theta_sat, iden_soil, k, kp, km, l, lp, lm, ELA, nx, ny, dx, dy)   
       S = S + debris ! add debris back to surface
     endif
 
@@ -998,13 +998,13 @@ end function massBalance
 !         debris transport because advection is defined as the transport of materials due to the bulk
 !         motion of a fluid, and glacier ice is a form of a viscoelastic fluid.
 ! ************************************************************************************************
-function advectDebris(S, B, debris, min_thickness, dbr_crit, lat_moraine_wid, tot_div_k, tot_div_l, tot_m_dot, dbr_conc,&
-                      theta_sat, iden_soil, t_total, k, kp, km, l, lp, lm, ELA, nx, ny, dx, dy)
+function advectDebris(S, B, debris, min_thickness, dbr_crit, lat_moraine_wid, tot_div_k, tot_div_l, tot_m_dot,&
+                      dbr_conc, theta_sat, iden_soil, k, kp, km, l, lp, lm, ELA, nx, ny, dx, dy)
   implicit none
   ! Arguments
   real(rkind), intent(in) :: S(nx,ny), B(nx,ny), debris(nx,ny), min_thickness, dbr_crit
   real(rkind), intent(in) :: lat_moraine_wid, tot_div_k(nx,ny), tot_div_l(nx,ny), tot_m_dot(nx,ny)
-  real(rkind), intent(in) :: dbr_conc, theta_sat, iden_soil, t_total, ELA, dx, dy
+  real(rkind), intent(in) :: dbr_conc, theta_sat, iden_soil, ELA, dx, dy
   integer(i4b), intent(in) :: k(nx), kp(nx), km(nx), l(ny), lp(ny), lm(ny), nx, ny
   ! Returns
   real(rkind) :: advectDebris(nx,ny)
