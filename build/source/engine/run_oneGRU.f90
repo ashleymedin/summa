@@ -238,8 +238,8 @@ subroutine run_oneGRU(&
                         updateGlacArea,                                   & ! intent(inout): flag to update glacier area this time step
                         sec_since_last_update,                            & ! intent(out):   seconds since last glacier area update
                         ! error control
-                        err, message)                                       ! intent(out):   error control
-            if(err/=0)then; err=30; message=trim(message)//trim(cmessage); return; endif
+                        err, cmessage)                                       ! intent(out):   error control
+            if(err/=0)then; err=30; message=trim(cmessage)//trim(cmessage); return; endif
           check_updateGlacArea = .false. ! only check this once for the GRU
         endif ! (checking when to update glacier area)
       endif ! (if glacier domain)
