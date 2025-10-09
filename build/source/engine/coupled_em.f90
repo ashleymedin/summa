@@ -1676,7 +1676,7 @@ subroutine coupled_em(&
           write(*,'(a,1x,f20.10)') 'sfcMeltPond = ', sfcMeltPond
           write(*,'(a,1x,f20.10)') 'SWE_BalErr  = ', massBalance
           message=trim(message)//'SWE does not balance'
-          !err=20; return
+          err=20; return
         endif  ! if failed mass balance check
       else
         massBalance = 0._rkind ! no snow, so no mass balance
