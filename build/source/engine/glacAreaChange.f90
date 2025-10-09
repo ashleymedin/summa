@@ -55,12 +55,11 @@ USE globalData,only:wetland            ! domain type for wetland areas
 implicit none
 ! define solver settings
 character(len=32),parameter :: limiter='superbee' !'minmod'
-character(len=32),parameter :: bed_shape='parabolic' !'trapezoid'
-character(len=32),parameter :: method='MUSCL' !'upstream'
+character(len=32),parameter :: method='MUSCL' !'upwind'
 
 ! privacy
-private::run_flowModel,advectDebris,diffusion_MUSCL,diffusion_upstream
-private::minmod,superbee,flux,SIA,H_index,H_plus,H_min
+private::run_flowModel,run_debrisModel,diffusion_MUSCL,diffusion_upwind,advection_upwind
+private::minmod,superbee,flux,SIA,midpt,pluss,minus,make_subgrid
 public::glacAreaChange
 public::time_updateGlacArea
 public::updateGlacDomain
@@ -364,7 +363,7 @@ subroutine glacAreaChange(&
     ! run flow model if glacier has area
     if (glacierAblArea(iGlac) + glacierAccArea(iGlac)>0._rkind) then
       call run_flowModel(t_total, debris, surface, bed, glacierMask, slope, intercept, validElev, validCount, maxCount, dbr_conc, &
-                         dbr_crit, min_thickness, lat_moraine_wid, iden_soil, theta_sat, ELA_use_glac, nx, ny, dx, dy, volume, printFlag)
+                         dbr_crit, lat_moraine_wid, iden_soil, theta_sat, ELA_use_glac, nx, ny, dx, dy, volume, printFlag)
     else
       if(printFlag) write(*,'(a,i2,a)') ">GLACIER ",iGlac, " SKIP: no glacier area"
       volume = 0._rkind
@@ -512,121 +511,73 @@ subroutine glacAreaChange(&
 end subroutine glacAreaChange
 
 ! ************************************************************************************************
-! private subroutine run_flowModel: set up flow model and debris advection and run for time period
+! private subroutine run_flowModel: set up Shallow Ice Approximation (SIA) diffusion flow model 
+!   and run for time period
+!   Follows the implementation of Jarosch et al., 2013
 ! ************************************************************************************************
-  subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, validElev, validCount, maxCount, dbr_conc, &
-                           dbr_crit, min_thickness, lat_moraine_wid, iden_soil, theta_sat, ELA, nx, ny, dx, dy, volume, printFlag)
-    implicit none
-    ! Arguments
-    real(rkind), intent(in) :: t_total, dx, dy, B(nx,ny)
-    real(rkind), intent(inout) :: debris(nx,ny), S(nx,ny)
-    real(rkind), intent(in) :: slope(maxCount+1,2), intercept(maxCount+1,2), validElev(maxCount,2)
-    real(rkind), intent(in) :: dbr_conc, dbr_crit, min_thickness, lat_moraine_wid, iden_soil, theta_sat, ELA
-    integer(i4b), intent(in) :: validCount(2), maxCount
-    integer(i4b), intent(in) :: ny, nx, glacierMask(nx,ny)
-    logical(lgt), intent(in) :: printFlag
-    real(rkind), intent(out) :: volume
-    ! Local variables
-    real(rkind) :: dt, t, max_dt, min_dt, deltat, div_q(nx,ny), dt_cfl, meanS
-    real(rkind) :: gamma, m_dot(nx,ny), H(nx,ny), tot_div_q(nx,ny), tot_m_dot(nx,ny)
-    integer(i4b),parameter :: n=3 ! Glen's flow law exponent
-    real(rkind),parameter :: A=2.4e-24 ! Modern Glen parameter
-    real(rkind),parameter :: cfl= 0.124 ! Courant-Friedrichs-Lewy condition
-    integer(i4b) :: i, l(ny), lp(ny), lpp(ny), lm(ny), lmm(ny), isteps
-    integer(i4b) :: k(nx), kp(nx), kpp(nx), km(nx), kmm(nx)
+subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, validElev, validCount, maxCount, dbr_conc, &
+                         dbr_crit, lat_moraine_wid, iden_soil, theta_sat, ELA, nx, ny, dx, dy, volume, printFlag)
+  implicit none
+  ! Arguments
+  real(rkind), intent(in) :: t_total, dx, dy, B(nx,ny)
+  real(rkind), intent(inout) :: debris(nx,ny), S(nx,ny)
+  real(rkind), intent(in) :: slope(maxCount+1,2), intercept(maxCount+1,2), validElev(maxCount,2)
+  real(rkind), intent(in) :: dbr_conc, dbr_crit, lat_moraine_wid, iden_soil, theta_sat, ELA
+  integer(i4b), intent(in) :: validCount(2), maxCount
+  integer(i4b), intent(in) :: ny, nx, glacierMask(nx,ny)
+  logical(lgt), intent(in) :: printFlag
+  real(rkind), intent(out) :: volume
+  ! Local variables
+  real(rkind) :: dt, t, max_dt, min_dt, deltat, div_q(nx,ny), dt_cfl, meanS
+  real(rkind) :: gamma, m_dot(nx,ny), H(nx,ny), zeroMask(nx,ny), distance(nx,ny)
+  integer(i4b),parameter :: n=3 ! Glen's flow law exponent
+  real(rkind),parameter :: A=2.4e-24 ! Modern Glen parameter
+  real(rkind),parameter :: cfl= 0.124 ! Courant-Friedrichs-Lewy condition
+  integer(i4b) :: i, j, isteps
 
-    gamma = 2._rkind * A * (iden_ice * gravity)**n / (n + 2_i4b)
-    max_dt = 31._rkind * secprday! max timestep in seconds, a month
-    min_dt = 0._rkind ! min timestep in seconds 
-    t = 0._rkind
-    isteps = 0 ! counter for debugging print, only print once a max_dt
-    tot_div_q = 0._rkind ! total for debris advection
-    tot_m_dot = 0._rkind ! total for debris advection
-    volume = 0._rkind
+  gamma = 2._rkind * A * (iden_ice * gravity)**n / (n + 2_i4b)
+  max_dt = 31._rkind * secprday! max timestep in seconds, a month
+  min_dt = 0._rkind ! min timestep in seconds 
+  t = 0._rkind
+  isteps = 0 ! counter for debugging print, only print once a max_dt
+  volume = 0._rkind
 
-    ! y direction indices
-    l = [(i, i=1, ny)]
-    lp = [(i, i=2, ny), ny]
-    lpp = [(i, i=3, ny), ny, ny]
-    lm = [1, (i, i=1, ny-1)]
-    lmm = [1, 1, (i, i=1, ny-2)]
-    if(ny == 1)then
-      lpp = [1]
-      lmm = [1]
-    endif
-    
-    ! x direction indices
-    k = [(i, i=1, nx)]
-    kp = [(i, i=2, nx), nx]
-    kpp = [(i, i=3, nx), nx, nx]
-    km = [1, (i, i=1, nx-1)]
-    kmm = [1, 1, (i, i=1, nx-2)]
-    if(nx == 1)then
-      kpp = [1]
-      kmm = [1]
-    endif
+  ! calculation of spatial mask distance to side for lateral moraine rockfall, use same each time step for efficiency
+  !  use a two-pass chamfer distance transform algorithm, approximate Euclidean distance
+  if(sum(debris)>0._rkind)then
+    distance = 1.e6_rkind ! initialize to large value
+    zeroMask = merge(1_i4b, 0_i4b, S==B)
+    ! First pass: top-left to bottom-right
+    do i = 1, nx
+      do j = 1, ny
+        if (i > 1) distance(i, j) = min(distance(i, j), distance(i-1, j) + dx)
+        if (j > 1)  distance(i, j) = min(distance(i, j), distance(i, j-1) + dy)
+      end do
+    end do
+    ! Second pass: bottom-right to top-left
+    do i = nx, 1, -1
+      do j = ny, 1, -1
+        if (i < nx) distance(i, j) = min(distance(i, j), distance(i+1, j) + dx)
+        if (j < ny) distance(i, j) = min(distance(i, j), distance(i, j+1) + dy)
+      end do
+    end do
+    distance = merge(distance, 0._rkind, zeroMask==1_i4b) ! set distance to zero where no glacier (may grow into these areas, include them in 0 distance)
+  endif
 
-    S = S - debris ! remove debris from glacier surface for flow calculation
-    do while (t < t_total)
-      dt = t_total - t
-      H = merge(S-B, 0._rkind, glacierMask==1_i4b)
-      ! debugging print
-      if(printFlag)then 
-        ! only print once a max_dt
-        if(t > isteps*max_dt)then
-          isteps = isteps + 1
-          if(count(H>thick4area)>0_i4b)&
-              write(*,'(a,f4.2,a,2(1x,f6.1),a,2(1x,f6.2))') "  time (yr) = ", t/secprday/365.25_rkind, " mean max H (m) =", &
-                    sum(H)/count(H>thick4area), maxval(H), ", mean max debris (m) =", sum(debris)/count(H>thick4area), maxval(debris)
-        endif
-      endif
-      if(count(H>thick4area)==0_i4b)then
-        if(printFlag) write(*,'(a,f4.2,a)') "  time (yr) = ", t/secprday/365.25_rkind, " no glacier present"
-        debris = 0._rkind
-        S = B
-        return
-      endif
-
-      ! get mass balance rate over surface (m s-1)
-      m_dot = massBalance(S, debris, glacierMask, slope, intercept, t_total, validElev, validCount, maxCount, nx, ny)
-
-      ! Select diffusion method and call a step
-      select case (method)
-        ! MUSCL scheme, mass conserving, but more expensive
-        case ("MUSCL"); call diffusion_MUSCL(S, B, glacierMask, gamma, n, cfl, max_dt, nx, ny, k, kp, km, kpp, kmm, l, lp, lm, lpp, lmm, &
-                                             dx, dy, div_q, dt_cfl)
-        ! Upstream scheme, not mass conserving, but stable and quicker
-        case ("upstream"); call diffusion_upstream(S, B, glacierMask, gamma, n, cfl, max_dt, nx, ny, k, kp, km, l, lp, lm, &
-                                                   dx, dy, div_q, dt_cfl)
-        case default; stop 'Error: method not recognized in glacier flow model'
-      end select
-  
-      ! update time step
-      deltat = min(dt_cfl, dt)
-      if(deltat > max_dt) deltat = max_dt
-      if(deltat < min_dt) deltat = min_dt
-      t = t + deltat
-  
-      ! Update S
-      S = S + (m_dot + div_q) * deltat
-      S = merge(S, B, S > B)
-      tot_div_q = tot_div_q + div_q * deltat
-      tot_m_dot = tot_m_dot + m_dot  * deltat
-
-      ! Check that the glacier is in boundaries, fix small violations, how small is arbitrary
-      if(any((S - B) > 0._rkind .and. glacierMask==0_i4b))then
-        if(any((S - B) > 10._rkind .and. glacierMask==0_i4b)) stop 'Glacier exceeds boundaries in flow model'
-        S = merge(B, S, (S - B) > 0._rkind .and. glacierMask==0_i4b)
-      endif
-      ! Check that glacier surface is not infinite (unstable), bring down to mean glacier height (NOTE: mean height includes < min_thickness)
-      ! This is a temporary fix, should be replaced with a more sophisticated method
-      if(any((S - B) > 1.e6_rkind .and. glacierMask==1_i4b))then
-        meanS = sum(merge(S, 0._rkind, glacierMask==1_i4b .and. S-B<1.e6_rkind)) / count(S-B<=1.e6_rkind)
-        S = merge(S, meanS, (S - B) <= 1.e6_rkind)
-      endif
-    enddo ! end of time loop
-
+  ! time loop
+  do while (t < t_total)
+    dt = t_total - t
     H = merge(S-B, 0._rkind, glacierMask==1_i4b)
+    ! debugging print
+    if(printFlag)then 
+      ! only print once a max_dt
+      if(t > isteps*max_dt)then
+        isteps = isteps + 1
+        if(count(H>thick4area)>0_i4b)&
+            write(*,'(a,f4.2,a,2(1x,f6.1))') "  time (yr) = ", t/secprday/365.25_rkind, " mean max H (m) =", &
+                  sum(H)/count(H>thick4area), maxval(H)
+      endif
+    endif
     if(count(H>thick4area)==0_i4b)then
       if(printFlag) write(*,'(a,f4.2,a)') "  time (yr) = ", t/secprday/365.25_rkind, " no glacier present"
       debris = 0._rkind
@@ -634,56 +585,108 @@ end subroutine glacAreaChange
       return
     endif
 
-    ! Update debris thickness if there is debris, using englacial debris advection transport model
+    ! get mass balance rate over surface (m s-1)
+    m_dot = massBalance(S, debris, glacierMask, slope, intercept, t_total, validElev, validCount, maxCount, nx, ny)
+    
+    S = S - debris ! remove debris from glacier surface for flow calculation
+
+    ! Select diffusion method and call a step
+    select case (method)
+      ! MUSCL scheme, mass conserving, but more expensive
+      case ("MUSCL");   call diffusion_MUSCL(S, B, glacierMask, gamma, n, cfl, max_dt, nx, ny, dx, dy, div_q, dt_cfl)
+      ! Upwinding scheme, not mass conserving, but stable and quicker
+      case ("upwind"); call diffusion_upwind(S, B, glacierMask, gamma, n, cfl, max_dt, nx, ny, dx, dy, div_q, dt_cfl)
+      case default; stop 'Error: method not recognized in glacier flow model'
+    end select
+
+    ! update time step
+    deltat = min(dt_cfl, dt)
+    if(deltat > max_dt) deltat = max_dt
+    if(deltat < min_dt) deltat = min_dt
+    t = t + deltat
+
+    ! Update S
+    S = S + (m_dot + div_q) * deltat
+    S = merge(S, B, S > B)
+
+    ! Check that the glacier is in boundaries, fix small violations, how small is arbitrary
+    if(any((S - B) > 0._rkind .and. glacierMask==0_i4b))then
+      if(any((S - B) > 10._rkind .and. glacierMask==0_i4b)) stop 'Glacier exceeds boundaries in flow model'
+      S = merge(B, S, (S - B) > 0._rkind .and. glacierMask==0_i4b)
+    endif
+
+    ! Check that glacier surface is not infinite (unstable), bring down to mean glacier height
+    ! This is a temporary fix, should be replaced with a more sophisticated method
+    if(any((S - B) > 1.e6_rkind .and. glacierMask==1_i4b))then
+      meanS = sum(merge(S, 0._rkind, glacierMask==1_i4b .and. S-B<1.e6_rkind)) / count(S-B<=1.e6_rkind)
+      S = merge(S, meanS, (S - B) <= 1.e6_rkind)
+    endif
+
+    ! Update debris thickness if there is debris, using englacial debris advection transport model on sub-grid sub-step scale
     if(sum(debris)>0._rkind)then
-      debris = advectDebris(S, B, debris, min_thickness, dbr_crit, lat_moraine_wid, tot_div_q, tot_m_dot,&
-                            dbr_conc, theta_sat, iden_soil, k, kp, km, l, lp, lm, ELA, nx, ny, dx, dy)   
-      S = S + debris ! add debris back to surface
+      call run_debrisModel(S, B, debris, dbr_crit, lat_moraine_wid, gamma, n, deltat, m_dot, distance,&
+                           dbr_conc, theta_sat, iden_soil, ELA, nx, ny, dx, dy) 
     endif
+    S = S + debris ! add debris back to surface  
+  enddo ! end of time loop
 
-    ! Calculate volume of glacier (includes debris)
-    volume = sum(S-B) * dx * dy * 1.e-9_rkind ! km3
-    ! debugging print
-    if(printFlag)then 
-      if(count(H>thick4area)>0_i4b)&
-          write(*,'(a,f4.2,a,2(1x,f6.1),a,2(1x,f6.2))') "  time (yr) = ", t/secprday/365.25_rkind, " mean max H (m) =", &
-                sum(H)/count(H>thick4area), maxval(H), ", mean max debris (m) =", sum(debris)/count(H>thick4area), maxval(debris)
-    endif
+  H = merge(S-B, 0._rkind, glacierMask==1_i4b)
+  ! debugging print
+  if(printFlag)then 
+    if(count(H>thick4area)>0_i4b)&
+        write(*,'(a,f4.2,a,2(1x,f6.1),a,2(1x,f6.2))') "  time (yr) = ", t/secprday/365.25_rkind, " mean max H (m) =", &
+              sum(H)/count(H>thick4area), maxval(H), ", mean max debris (m) =", sum(debris)/count(H>thick4area), maxval(debris)
+  endif
+  if(count(H>thick4area)==0_i4b)then
+    if(printFlag) write(*,'(a,f4.2,a)') "  time (yr) = ", t/secprday/365.25_rkind, " no glacier present"
+    debris = 0._rkind
+    S = B
+    return
+  endif
 
-  end subroutine run_flowModel
+  ! Calculate volume of glacier (includes debris)
+  volume = sum(S-B) * dx * dy * 1.e-9_rkind ! km3
+
+end subroutine run_flowModel
 
 
 ! ************************************************************************************************
-! private subroutines for calculating a time step of glacier flow
+! private subroutine diffusion_upwind: upwinding diffusion scheme for SIA flow
+!   not mass conserving, but stable and quicker
 ! ************************************************************************************************
-! ************************************************************************************************
-! private subroutine diffusion_upstream: upwind diffusion scheme, not mass conserving, but stable and quicker
-! ************************************************************************************************
-subroutine diffusion_upstream(S, B, mask, gamma, n, cfl, max_dt, nx, ny, k, kp, km, l, lp, lm, &
-                              dx, dy, div_q, dt_cfl)
+subroutine diffusion_upwind(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, div_q, dt_cfl)
   implicit none
   ! Arguments
   real(rkind), intent(in) :: S(nx,ny), B(nx,ny), dx, dy, gamma, cfl, max_dt
-  integer(i4b), intent(in) :: mask(nx,ny), nx, ny, k(nx), kp(nx), km(nx)
-  integer(i4b), intent(in) :: l(ny), lp(ny), lm(ny), n
-  ! Local variables
+  integer(i4b), intent(in) :: mask(nx,ny), nx, ny, n
   real(rkind), intent(out) :: div_q(nx,ny), dt_cfl
+  ! Local variables
+  integer(i4b) :: l(ny), lp(ny), lm(ny), k(nx), kp(nx), km(nx)
   real(rkind) :: H(nx,ny)
   real(rkind) :: Sklp(nx,ny), Sklm(nx,ny), Skplp(nx,ny), Skplm(nx,ny), Skpl(nx,ny)
   real(rkind) :: Skl(nx,ny), Skmlp(nx,ny), Skmlm(nx,ny), Skml(nx,ny)
   real(rkind) :: Hkpl(nx,ny), Hkml(nx,ny), Hkl(nx,ny), Hklp(nx,ny), Hklm(nx,ny)
   real(rkind) :: H_l_up(nx,ny), H_l_dn(nx,ny)
-  real(rkind) :: H_l_upstream_up(nx,ny), H_l_upstream_dn(nx,ny)
-  real(rkind) :: f_l_plus(nx,ny), f_l_min(nx,ny)
+  real(rkind) :: H_l_upwind_up(nx,ny), H_l_upwind_dn(nx,ny)
+  real(rkind) :: f_l_p(nx,ny), f_l_m(nx,ny)
   real(rkind) :: D_l_up(nx,ny), D_l_dn(nx,ny)
   real(rkind) :: H_k_up(nx,ny), H_k_dn(nx,ny)
-  real(rkind) :: H_k_upstream_up(nx,ny), H_k_upstream_dn(nx,ny)
-  real(rkind) :: f_k_plus(nx,ny), f_k_min(nx,ny)
+  real(rkind) :: H_k_upwind_up(nx,ny), H_k_upwind_dn(nx,ny)
+  real(rkind) :: f_k_p(nx,ny), f_k_m(nx,ny)
   real(rkind) :: D_k_up(nx,ny), D_k_dn(nx,ny)
   real(rkind) :: divisor, div_k(nx,ny), div_l(nx,ny)
   integer(i4b) :: i, j
 
   H = S - B ! H = ice thickness, S = Surface height, B = bed topography  
+
+  ! y direction indices
+  l = [(i, i=1, ny)]
+  lp = [(i, i=2, ny), ny]
+  lm = [1, (i, i=1, ny-1)]
+  ! x direction indices
+  k = [(i, i=1, nx)]
+  kp = [(i, i=2, nx), nx]
+  km = [1, (i, i=1, nx-1)]
   
   ! indices
   Sklp  = S(k ,lp)
@@ -703,74 +706,74 @@ subroutine diffusion_upstream(S, B, mask, gamma, n, cfl, max_dt, nx, ny, k, kp, 
   Hklm  = H(k ,lm)
 
   ! calculate l upstream
-  H_l_up = H_index(Hklp, Hkl)
-  H_l_dn = H_index(Hkl, Hklm)
-  H_l_upstream_up = 0._rkind
+  H_l_up = midpt(Hklp, Hkl)
+  H_l_dn = midpt(Hkl, Hklm)
+  H_l_upwind_up = 0._rkind
   do j = 1, nx
     do i = 1, ny
       if(Sklp(j,i) > Skl(j,i))then
-        H_l_upstream_up(j,i) = Hklp(j,i)
+        H_l_upwind_up(j,i) = Hklp(j,i)
       else
-        H_l_upstream_up(j,i) = Hkl(j,i)
+        H_l_upwind_up(j,i) = Hkl(j,i)
       endif
     enddo
   enddo
-  H_l_upstream_dn = 0._rkind
+  H_l_upwind_dn = 0._rkind
   do j = 1, nx
     do i = 1, ny
       if(Skl(j,i) > Sklm(j,i))then
-        H_l_upstream_dn(j,i) = Hkl(j,i)
+        H_l_upwind_dn(j,i) = Hkl(j,i)
       else
-        H_l_upstream_dn(j,i) = Hklm(j,i)
+        H_l_upwind_dn(j,i) = Hklm(j,i)
       endif
     enddo
   enddo
 
   ! calculate l flux
-  f_l_plus = flux(Skpl, Skml, Skplp, Skmlp, Sklp, Skl, dy, dx, n)
-  f_l_min  = flux(Skpl, Skml, Skplm, Skmlm, Skl, Sklm, dy, dx, n)
+  f_l_p = flux(Skpl, Skml, Skplp, Skmlp, Sklp, Skl, dy, dx, n)
+  f_l_m = flux(Skpl, Skml, Skplm, Skmlm, Skl, Sklm, dy, dx, n)
 
   ! calculate l Diffusivity
-  D_l_up = gamma * H_l_up**(n+1_i4b) * H_l_upstream_up * f_l_plus
-  D_l_dn = gamma * H_l_dn**(n+1_i4b) * H_l_upstream_dn * f_l_min
+  D_l_up = gamma * H_l_up**(n+1_i4b) * H_l_upwind_up * f_l_p
+  D_l_dn = gamma * H_l_dn**(n+1_i4b) * H_l_upwind_dn * f_l_m
   ! Enforce zero diffusion outside the mask
   D_l_up = merge(0._rkind, D_l_up, mask==0)
   D_l_dn = merge(0._rkind, D_l_dn, mask==0)
 
   ! calculate k upstream 
-  H_k_up = H_index(Hkpl, Hkl)
-  H_k_dn = H_index(Hkl, Hkml)
-  H_k_upstream_up = 0._rkind
+  H_k_up = midpt(Hkpl, Hkl)
+  H_k_dn = midpt(Hkl, Hkml)
+  H_k_upwind_up = 0._rkind
   do j = 1, nx
     do i = 1, ny
       if(Skpl(j,i) > Skl(j,i))then
-        H_k_upstream_up(j,i) = Hkpl(j,i)
+        H_k_upwind_up(j,i) = Hkpl(j,i)
       else
-        H_k_upstream_up(j,i) = Hkl(j,i)
+        H_k_upwind_up(j,i) = Hkl(j,i)
       endif
     enddo
   enddo
-  H_k_upstream_dn = 0._rkind
+  H_k_upwind_dn = 0._rkind
   do j = 1, nx
     do i = 1, ny
       if(Skl(j,i) > Skml(j,i))then
-        H_k_upstream_dn(j,i) = Hkl(j,i)
+        H_k_upwind_dn(j,i) = Hkl(j,i)
       else
-        H_k_upstream_dn(j,i) = Hkml(j,i)
+        H_k_upwind_dn(j,i) = Hkml(j,i)
       endif
     enddo
   enddo
 
   ! calculate k flux
-  f_k_plus = flux(Sklp, Sklm, Skplp, Skplm, Skpl, Skl, dx, dy, n)
-  f_k_min  = flux(Sklp, Sklm, Skmlp, Skmlm, Skl, Skml, dx, dy, n)
+  f_k_p = flux(Sklp, Sklm, Skplp, Skplm, Skpl, Skl, dx, dy, n)
+  f_k_m = flux(Sklp, Sklm, Skmlp, Skmlm, Skl, Skml, dx, dy, n)
 
   ! calculate k Diffusivity
-  D_k_up = gamma * H_k_up**(n+1_i4b) * H_k_upstream_up * f_k_plus
-  D_k_dn = gamma * H_k_dn**(n+1_i4b) * H_k_upstream_dn * f_k_min
+  D_k_up = gamma * H_k_up**(n+1_i4b) * H_k_upwind_up * f_k_p
+  D_k_dn = gamma * H_k_dn**(n+1_i4b) * H_k_upwind_dn * f_k_m
   ! Enforce zero diffusion outside the mask
-  D_k_up = merge(0._rkind, D_k_up, mask==0)
-  D_k_dn = merge(0._rkind, D_k_dn, mask==0)
+  D_k_up = merge(0._rkind, D_k_up, mask==0_i4b)
+  D_k_dn = merge(0._rkind, D_k_dn, mask==0_i4b)
 
   ! calculate delta t and t
   divisor = max(maxval(abs(D_k_up)), maxval(abs(D_k_dn)), maxval(abs(D_l_up)), maxval(abs(D_l_dn)))
@@ -786,34 +789,34 @@ subroutine diffusion_upstream(S, B, mask, gamma, n, cfl, max_dt, nx, ny, k, kp, 
   div_k = SIA(D_k_up, Skpl, Skl, D_k_dn, Skml, dx)
   div_q = div_k + div_l
 
-end subroutine diffusion_upstream
+end subroutine diffusion_upwind
 
 
 ! ************************************************************************************************
-! subroutine diffusion_MUSCL: MUSCL scheme, mass conserving, more accurate, but less stable and slower
+! subroutine diffusion_MUSCL: MUSCL scheme for SIA flow
+!   mass conserving, more accurate, but less stable and slower
 ! ************************************************************************************************
-subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, k, kp, km, kpp, kmm, l, lp, lm, lpp, lmm, &
-                           dx, dy, div_q, dt_cfl)
+subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, div_q, dt_cfl)
   implicit none
   ! Arguments
   real(rkind), intent(in) :: S(nx,ny), B(nx,ny), dx, dy, gamma, cfl, max_dt
-  integer(i4b), intent(in) :: mask(nx,ny), nx, ny, k(nx), kp(nx), km(nx), kpp(nx), kmm(nx)
-  integer(i4b), intent(in) :: l(ny), lp(ny), lm(ny), lpp(ny), lmm(ny), n
+  integer(i4b), intent(in) :: mask(nx,ny), nx, ny, n
   real(rkind), intent(out) :: div_q(nx,ny), dt_cfl
   ! Local variables
+  integer(i4b) :: l(ny), lp(ny), lm(ny), lpp(ny), lmm(ny), k(nx), kp(nx), km(nx), kpp(nx), kmm(nx)
   real(rkind) :: H(nx,ny)
   real(rkind) :: Sklp(nx,ny), Sklm(nx,ny), Skplp(nx,ny), Skplm(nx,ny), Skpl(nx,ny), Skl(nx,ny)
   real(rkind) :: Skmlp(nx,ny), Skmlm(nx,ny), Skml(nx,ny)
   real(rkind) :: Hkpl(nx,ny), Hkppl(nx,ny), Hkml(nx,ny), Hkmml(nx,ny), Hkl(nx,ny), Hklp(nx,ny)
   real(rkind) :: Hklpp(nx,ny), Hklm(nx,ny), Hklmm(nx,ny)
-  real(rkind) :: H_l_min_up(nx,ny), H_l_plus_up(nx,ny)
-  real(rkind) :: H_l_min_dn(nx,ny), H_l_plus_dn(nx,ny)
-  real(rkind) :: f_l_plus(nx,ny), f_l_min(nx,ny)
+  real(rkind) :: H_l_up_m(nx,ny), H_l_up_p(nx,ny)
+  real(rkind) :: H_l_dn_m(nx,ny), H_l_dn_p(nx,ny)
+  real(rkind) :: f_l_p(nx,ny), f_l_m(nx,ny)
   real(rkind) :: D_l_up_m(nx,ny), D_l_up_p(nx,ny), D_l_up_min(nx,ny), D_l_up_max(nx,ny)
   real(rkind) :: D_l_dn_m(nx,ny), D_l_dn_p(nx,ny), D_l_dn_min(nx,ny), D_l_dn_max(nx,ny)
   real(rkind) :: D_l_up(nx,ny), D_l_dn(nx,ny)
-  real(rkind) :: H_k_min_up(nx,ny), H_k_plus_up(nx,ny), H_k_min_dn(nx,ny), H_k_plus_dn(nx,ny)
-  real(rkind) :: f_k_plus(nx,ny), f_k_min(nx,ny)
+  real(rkind) :: H_k_up_m(nx,ny), H_k_up_p(nx,ny), H_k_dn_m(nx,ny), H_k_dn_p(nx,ny)
+  real(rkind) :: f_k_p(nx,ny), f_k_m(nx,ny)
   real(rkind) :: D_k_up_m(nx,ny), D_k_up_p(nx,ny), D_k_up_min(nx,ny), D_k_up_max(nx,ny)
   real(rkind) :: D_k_dn_m(nx,ny), D_k_dn_p(nx,ny), D_k_dn_min(nx,ny), D_k_dn_max(nx,ny)
   real(rkind) :: D_k_up(nx,ny), D_k_dn(nx,ny)
@@ -821,6 +824,28 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, k, kp, km,
   integer(i4b) :: i, j
 
   H = S - B ! H = ice thickness, S = Surface height, B = bed topography
+
+  ! y direction indices
+  l = [(i, i=1, ny)]
+  lp = [(i, i=2, ny), ny]
+  lpp = [(i, i=3, ny), ny, ny]
+  lm = [1, (i, i=1, ny-1)]
+  lmm = [1, 1, (i, i=1, ny-2)]
+  if(ny == 1)then
+    lpp = [1]
+    lmm = [1]
+  endif
+  
+  ! x direction indices
+  k = [(i, i=1, nx)]
+  kp = [(i, i=2, nx), nx]
+  kpp = [(i, i=3, nx), nx, nx]
+  km = [1, (i, i=1, nx-1)]
+  kmm = [1, 1, (i, i=1, nx-2)]
+  if(nx == 1)then
+    kpp = [1]
+    kmm = [1]
+  endif
 
   ! indices
   Sklp  = S(k  ,lp )
@@ -844,39 +869,39 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, k, kp, km,
   Hklmm = H(k  ,lmm)
 
   ! calculate l+1/2 index
-  H_l_min_up  = H_min(Hklm, Hkl, Hklp)
-  H_l_plus_up = H_plus(Hkl, Hklp, Hklpp)
+  H_l_up_m = minus(Hklm, Hkl, Hklp)
+  H_l_up_p = pluss(Hkl, Hklp, Hklpp)
 
   ! calculate l-1/2 index
-  H_l_min_dn  = H_min(Hklmm, Hklm, Hkl)
-  H_l_plus_dn = H_plus(Hklm, Hkl, Hklp)
+  H_l_dn_m = minus(Hklmm, Hklm, Hkl)
+  H_l_dn_p = pluss(Hklm, Hkl, Hklp)
 
   ! calculate l flux
-  f_l_plus = flux(Skpl, Skml, Skplp, Skmlp, Sklp, Skl, dy, dx, n)
-  f_l_min  = flux(Skpl, Skml, Skplm, Skmlm, Skl, Sklm, dy, dx, n)
+  f_l_p = flux(Skpl, Skml, Skplp, Skmlp, Sklp, Skl, dy, dx, n)
+  f_l_m  = flux(Skpl, Skml, Skplm, Skmlm, Skl, Sklm, dy, dx, n)
 
   ! calculate l Diffusivity
-  D_l_up_m = gamma * H_l_min_up**(n+2_i4b) * f_l_plus   ! equation 30 Jarosh 2013
-  D_l_up_p = gamma * H_l_plus_up**(n+2_i4b) * f_l_plus  ! equation 30 Jarosh 2013
-  D_l_up_min = min(D_l_up_m, D_l_up_p)                  ! equation 31 Jarosh 2013
-  D_l_up_max = max(D_l_up_m, D_l_up_p)                  ! equation 32 Jarosh 2013
+  D_l_up_m = gamma * H_l_up_m**(n+2_i4b) * f_l_p  ! equation 30 Jarosh 2013
+  D_l_up_p = gamma * H_l_up_p**(n+2_i4b) * f_l_p  ! equation 30 Jarosh 2013
+  D_l_up_min = min(D_l_up_m, D_l_up_p)            ! equation 31 Jarosh 2013
+  D_l_up_max = max(D_l_up_m, D_l_up_p)            ! equation 32 Jarosh 2013
   !
-  D_l_dn_m = gamma * H_l_min_dn**(n+2_i4b) * f_l_min  ! equation 30 Jarosh 2013
-  D_l_dn_p = gamma * H_l_plus_dn**(n+2_i4b) * f_l_min ! equation 30 Jarosh 2013
-  D_l_dn_min = min(D_l_dn_m, D_l_dn_p)                  ! equation 31 Jarosh 2013
-  D_l_dn_max = max(D_l_dn_m, D_l_dn_p)                  ! equation 32 Jarosh 2013
+  D_l_dn_m = gamma * H_l_dn_m**(n+2_i4b) * f_l_m  ! equation 30 Jarosh 2013
+  D_l_dn_p = gamma * H_l_dn_p**(n+2_i4b) * f_l_m  ! equation 30 Jarosh 2013
+  D_l_dn_min = min(D_l_dn_m, D_l_dn_p)            ! equation 31 Jarosh 2013
+  D_l_dn_max = max(D_l_dn_m, D_l_dn_p)            ! equation 32 Jarosh 2013
 
   ! equation 33 Jarosh 2013
   D_l_up = 0._rkind
   do j = 1, nx
     do i = 1, ny
-      if(Sklp(j,i) <= Skl(j,i) .and. H_l_min_up(j,i) <= H_l_plus_up(j,i))then
+      if(Sklp(j,i) <= Skl(j,i) .and. H_l_up_m(j,i) <= H_l_up_p(j,i))then
         D_l_up(j,i) = D_l_up_min(j,i)
-      else if(Sklp(j,i) <= Skl(j,i) .and. H_l_min_up(j,i) > H_l_plus_up(j,i))then
+      else if(Sklp(j,i) <= Skl(j,i) .and. H_l_up_m(j,i) > H_l_up_p(j,i))then
         D_l_up(j,i) = D_l_up_max(j,i)
-      else if(Sklp(j,i) > Skl(j,i) .and. H_l_min_up(j,i) <= H_l_plus_up(j,i))then
+      else if(Sklp(j,i) > Skl(j,i) .and. H_l_up_m(j,i) <= H_l_up_p(j,i))then
         D_l_up(j,i) = D_l_up_max(j,i)
-      else if(Sklp(j,i) > Skl(j,i) .and. H_l_min_up(j,i) > H_l_plus_up(j,i))then
+      else if(Sklp(j,i) > Skl(j,i) .and. H_l_up_m(j,i) > H_l_up_p(j,i))then
         D_l_up(j,i) = D_l_up_min(j,i)
       endif
     enddo
@@ -884,13 +909,13 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, k, kp, km,
   D_l_dn = 0._rkind
   do j = 1, nx
     do i = 1, ny
-      if(Skl(j,i) <= Sklm(j,i) .and. H_l_min_dn(j,i) <= H_l_plus_dn(j,i))then
+      if(Skl(j,i) <= Sklm(j,i) .and. H_l_dn_m(j,i) <= H_l_dn_p(j,i))then
         D_l_dn(j,i) = D_l_dn_min(j,i)
-      else if(Skl(j,i) <= Sklm(j,i) .and. H_l_min_dn(j,i) > H_l_plus_dn(j,i))then
+      else if(Skl(j,i) <= Sklm(j,i) .and. H_l_dn_m(j,i) > H_l_dn_p(j,i))then
         D_l_dn(j,i) = D_l_dn_max(j,i)
-      else if(Skl(j,i) > Sklm(j,i) .and. H_l_min_dn(j,i) <= H_l_plus_dn(j,i))then
+      else if(Skl(j,i) > Sklm(j,i) .and. H_l_dn_m(j,i) <= H_l_dn_p(j,i))then
         D_l_dn(j,i) = D_l_dn_max(j,i)
-      else if(Skl(j,i) > Sklm(j,i) .and. H_l_min_dn(j,i) > H_l_plus_dn(j,i))then
+      else if(Skl(j,i) > Sklm(j,i) .and. H_l_dn_m(j,i) > H_l_dn_p(j,i))then
         D_l_dn(j,i) = D_l_dn_min(j,i)
       endif
     enddo
@@ -900,39 +925,39 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, k, kp, km,
   D_l_dn = merge(0._rkind, D_l_dn, mask==0)
 
   ! calculate k+1/2 index
-  H_k_min_up  = H_min(Hkml, Hkl, Hkpl)
-  H_k_plus_up = H_plus(Hkl, Hkpl, Hkppl)
+  H_k_up_m = minus(Hkml, Hkl, Hkpl)
+  H_k_up_p = pluss(Hkl, Hkpl, Hkppl)
 
   ! calculate k-1/2 index
-  H_k_min_dn  = H_min(Hkmml, Hkml, Hkl)
-  H_k_plus_dn = H_plus(Hkml, Hkl, Hkpl)
+  H_k_dn_m = minus(Hkmml, Hkml, Hkl)
+  H_k_dn_p = pluss(Hkml, Hkl, Hkpl)
 
   ! calculate k flux
-  f_k_plus = flux(Sklp, Sklm, Skplp, Skplm, Skpl, Skl, dx, dy, n)
-  f_k_min  = flux(Sklp, Sklm, Skmlp, Skmlm, Skl, Skml, dx, dy, n)
+  f_k_p = flux(Sklp, Sklm, Skplp, Skplm, Skpl, Skl, dx, dy, n)
+  f_k_m = flux(Sklp, Sklm, Skmlp, Skmlm, Skl, Skml, dx, dy, n)
 
   ! calculate k Diffusivity
-  D_k_up_m = gamma * H_k_min_up**(n+2_i4b) * f_k_plus   ! equation 30 Jarosh 2013
-  D_k_up_p = gamma * H_k_plus_up**(n+2_i4b) * f_k_plus  ! equation 30 Jarosh 2013
-  D_k_up_min = min(D_k_up_m, D_k_up_p)                  ! equation 31 Jarosh 2013
-  D_k_up_max = max(D_k_up_m, D_k_up_p)                  ! equation 32 Jarosh 2013
+  D_k_up_m = gamma * H_k_up_m**(n+2_i4b) * f_k_p  ! equation 30 Jarosh 2013
+  D_k_up_p = gamma * H_k_up_p**(n+2_i4b) * f_k_p  ! equation 30 Jarosh 2013
+  D_k_up_min = min(D_k_up_m, D_k_up_p)            ! equation 31 Jarosh 2013
+  D_k_up_max = max(D_k_up_m, D_k_up_p)            ! equation 32 Jarosh 2013
   !
-  D_k_dn_m = gamma * H_k_min_dn**(n+2_i4b) * f_k_min  ! equation 30 Jarosh 2013
-  D_k_dn_p = gamma * H_k_plus_dn**(n+2_i4b) * f_k_min ! equation 30 Jarosh 2013
-  D_k_dn_min = min(D_k_dn_m, D_k_dn_p)                  ! equation 31 Jarosh 2013
-  D_k_dn_max = max(D_k_dn_m, D_k_dn_p)                  ! equation 32 Jarosh 2013
+  D_k_dn_m = gamma * H_k_dn_m**(n+2_i4b) * f_k_m  ! equation 30 Jarosh 2013
+  D_k_dn_p = gamma * H_k_dn_p**(n+2_i4b) * f_k_m  ! equation 30 Jarosh 2013
+  D_k_dn_min = min(D_k_dn_m, D_k_dn_p)            ! equation 31 Jarosh 2013
+  D_k_dn_max = max(D_k_dn_m, D_k_dn_p)            ! equation 32 Jarosh 2013
 
   ! equation 33 Jarosh 2013
   D_k_up = 0._rkind
   do j = 1, nx
     do i = 1, ny
-      if(Skpl(j,i) <= Skl(j,i) .and. H_k_min_up(j,i) <= H_k_plus_up(j,i))then
+      if(Skpl(j,i) <= Skl(j,i) .and. H_k_up_m(j,i) <= H_k_up_p(j,i))then
         D_k_up(j,i) = D_k_up_min(j,i)
-      else if(Skpl(j,i) <= Skl(j,i) .and. H_k_min_up(j,i) > H_k_plus_up(j,i))then
+      else if(Skpl(j,i) <= Skl(j,i) .and. H_k_up_m(j,i) > H_k_up_p(j,i))then
         D_k_up(j,i) = D_k_up_max(j,i)
-      else if(Skpl(j,i) > Skl(j,i) .and. H_k_min_up(j,i) <= H_k_plus_up(j,i))then
+      else if(Skpl(j,i) > Skl(j,i) .and. H_k_up_m(j,i) <= H_k_up_p(j,i))then
         D_k_up(j,i) = D_k_up_max(j,i)
-      else if(Skpl(j,i) > Skl(j,i) .and. H_k_min_up(j,i) > H_k_plus_up(j,i))then
+      else if(Skpl(j,i) > Skl(j,i) .and. H_k_up_m(j,i) > H_k_up_p(j,i))then
         D_k_up(j,i) = D_k_up_min(j,i)
       endif
     enddo
@@ -940,13 +965,13 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, k, kp, km,
   D_k_dn = 0._rkind
   do j = 1, nx
     do i = 1, ny
-      if(Skl(j,i) <= Skml(j,i) .and. H_k_min_dn(j,i) <= H_k_plus_dn(j,i))then
+      if(Skl(j,i) <= Skml(j,i) .and. H_k_dn_m(j,i) <= H_k_dn_p(j,i))then
         D_k_dn(j,i) = D_k_dn_min(j,i)
-      else if(Skl(j,i) <= Skml(j,i) .and. H_k_min_dn(j,i) > H_k_plus_dn(j,i))then
+      else if(Skl(j,i) <= Skml(j,i) .and. H_k_dn_m(j,i) > H_k_dn_p(j,i))then
         D_k_dn(j,i) = D_k_dn_max(j,i)
-      else if(Skl(j,i) > Skml(j,i) .and. H_k_min_dn(j,i) <= H_k_plus_dn(j,i))then
+      else if(Skl(j,i) > Skml(j,i) .and. H_k_dn_m(j,i) <= H_k_dn_p(j,i))then
         D_k_dn(j,i) = D_k_dn_max(j,i)
-      else if(Skl(j,i) > Skml(j,i) .and. H_k_min_dn(j,i) > H_k_plus_dn(j,i))then
+      else if(Skl(j,i) > Skml(j,i) .and. H_k_dn_m(j,i) > H_k_dn_p(j,i))then
         D_k_dn(j,i) = D_k_dn_min(j,i)
       endif
     enddo
@@ -972,7 +997,7 @@ end subroutine diffusion_MUSCL
 
 
 ! ************************************************************************************************
-! private function  mass balance: rate distribution after suface height changes
+! private function mass balance: rate distribution after suface height changes
 ! ************************************************************************************************
 function massBalance(S, debris, glacierMask, slope, intercept, t_total, validElev, validCount, maxCount, nx, ny)
   implicit none
@@ -1013,106 +1038,314 @@ end function massBalance
 
 
 ! ************************************************************************************************
-! private function advectDebris: englacial debris advection transport model of Anderson and Anderson (2016)
-!   Calculation of spatial mask of near-surface concentration of debris adds debris concentration along 
-!     the sides of the glacier below the ELA, and where debris currently is. Runs on the total time step.
-!   NOTE: Englacial debris diffusion transport is ignored. The use of advection is valid for glacial
-!         debris transport because advection is defined as the transport of materials due to the bulk
-!         motion of a fluid, and glacier ice is a form of a viscoelastic fluid.
+! private subroutine run_debrisModel: set up englacial debris advection transport model and run
+!   for one sub-time step on a refined grid. Debris input is from rockfall and from englacial debris 
+!   emergence, and output from terminus slumping and ice velocity.
+!   Follows the implementation of Mayer and Licciulli (2021), from Anderson and Anderson (2016).
 ! ************************************************************************************************
-function advectDebris(S, B, debris, min_thickness, dbr_crit, lat_moraine_wid, tot_div_q, tot_m_dot,&
-                      dbr_conc, theta_sat, iden_soil, k, kp, km, l, lp, lm, ELA, nx, ny, dx, dy)
+subroutine run_debrisModel(S, B, debris, dbr_crit, lat_moraine_wid, gamma, n, t_total, m_dot, distance, &
+                           dbr_conc, theta_sat, iden_soil, ELA, nx, ny, dx, dy)
   implicit none
   ! Arguments
-  real(rkind), intent(in) :: S(nx,ny), B(nx,ny), debris(nx,ny), min_thickness, dbr_crit
-  real(rkind), intent(in) :: lat_moraine_wid, tot_div_q(nx,ny), tot_m_dot(nx,ny)
-  real(rkind), intent(in) :: dbr_conc, theta_sat, iden_soil, ELA, dx, dy
-  integer(i4b), intent(in) :: k(nx), kp(nx), km(nx), l(ny), lp(ny), lm(ny), nx, ny
-  ! Returns
-  real(rkind) :: advectDebris(nx,ny)
+  real(rkind), intent(in) :: S(nx,ny), B(nx,ny), dbr_crit, distance(nx,ny), lat_moraine_wid
+  real(rkind), intent(in) :: gamma, t_total, m_dot(nx,ny), dbr_conc, theta_sat, iden_soil
+  real(rkind), intent(in) :: ELA, dx, dy
+  integer(i4b), intent(in) :: n, nx, ny
+  real(rkind), intent(inout) :: debris(nx,ny)
   ! Local variables
-  integer(i4b) :: i, j
-  real(rkind) :: Hklp(nx,ny), Hklm(nx,ny), Hkl(nx,ny), Hkpl(nx,ny), Hkml(nx,ny)
-  real(rkind) :: H_l_up(nx,ny), H_l_dn(nx,ny), H_k_up(nx,ny), H_k_dn(nx,ny)
-  real(rkind) :: distance(nx,ny), zeroMask(nx,ny), slope_l(nx,ny), slope_k(nx,ny), slope
-  real(rkind) :: emergenceElev, above_ELA_rockfall_area, mb_emerg_exposed(nx,ny), ELA_use
-  real(rkind) :: rockfall, lat_rockfall(nx, ny), englacial_emerg(nx, ny), topElev, botElev
-  real(rkind) :: debris_change(nx,ny)
+  real(rkind),parameter :: cfl= 0.5 ! Courant-Friedrichs-Lewy condition
+  real(rkind) :: Sklp(nx,ny), Sklm(nx,ny), Skl(nx,ny), Skpl(nx,ny), Skml(nx,ny)
+  real(rkind) :: S_l_up(nx,ny), S_l_dn(nx,ny), S_k_up(nx,ny), S_k_dn(nx,ny)
+  real(rkind) :: slope_l(nx,ny), slope_k(nx,ny), slope(nx,ny), u(nx,ny), v(nx,ny)
+  real(rkind) :: mean_slope, ELA_use, topElev, botElev
+  real(rkind) :: emergenceElev, englacial_emerg(nx, ny), above_ELA_rockfall_area
+  real(rkind) :: rockfall, lat_rockfall(nx, ny), drivingStress(nx,ny)
+  real(rkind) :: D(nx,ny), H(nx,ny), dx2, dy2, min_dt
+  real(rkind), allocatable:: u_sub(:,:), v_sub(:,:),D_sub(:,:), H_sub(:,:), div_uD(:,:)
+  integer(i4b), allocatable:: mask(:,:)
+  real(rkind) :: t, max_dt, dt, dt_cfl, deltat
+  integer(i4b) :: l(ny), lp(ny), lm(ny), k(nx), kp(nx), km(nx)
+  integer(i4b) :: i, j, nx2, ny2, refine=1_i4b ! refine grid for subgrid advection, make odd to have center cell
 
-  ! calculation of spatial mask distance to side for lateral moraine rockfall
-  distance = 1.e6_rkind ! initialize to large value
-  zeroMask = merge(1_i4b, 0_i4b, S==B)
-  ! First pass: top-left to bottom-right
-  do i = 1, nx
-    do j = 1, ny
-      if (i > 1) distance(i, j) = min(distance(i, j), distance(i-1, j) + dx)
-      if (j > 1)  distance(i, j) = min(distance(i, j), distance(i, j-1) + dy)
-    end do
-  end do
-  ! Second pass: bottom-right to top-left
-  do i = nx, 1, -1
-    do j = ny, 1, -1
-      if (i < nx) distance(i, j) = min(distance(i, j), distance(i+1, j) + dx)
-      if (j < ny)  distance(i, j) = min(distance(i, j), distance(i, j+1) + dy)
-    end do
-  end do
-  distance = merge(distance, 0._rkind, zeroMask==1_i4b) ! set distance to zero where no glacier (may grow into these areas, include them in 0 distance)
+  H = S - B ! H = ice thickness
+  max_dt = 7._rkind * secprday ! maximum time step of 1 week
+  min_dt = 0._rkind ! min timestep in seconds 
+  t = 0._rkind
 
-  ! calculate mean slope with a finite difference to get emergence elevation
-  Hklp  = S(k ,lp)
-  Hklm  = S(k ,lm) 
-  Hkl   = S(k ,l )
-  H_l_up = H_index(Hklp, Hkl)
-  H_l_dn = H_index(Hkl, Hklm)
-  slope_l= (H_l_up - H_l_dn) / dy
+  ! y direction indices
+  l = [(i, i=1, ny)]
+  lp = [(i, i=2, ny), ny]
+  lm = [1, (i, i=1, ny-1)]
+  ! x direction indices
+  k = [(i, i=1, nx)]
+  kp = [(i, i=2, nx), nx]
+  km = [1, (i, i=1, nx-1)]
 
-  Hkpl  = S(kp,l )
-  Hkml  = S(km,l )
-  Hkl   = S(k ,l )
-  H_k_up = H_index(Hkpl, Hkl)
-  H_k_dn = H_index(Hkl, Hkml)
-  slope_k= (H_k_up - H_k_dn) / dx
+  ! calculate glacier ice surface slope with a finite difference
+  Sklp  = S(k ,lp)
+  Sklm  = S(k ,lm) 
+  Skl   = S(k ,l )
+  S_l_up = midpt(Sklp, Skl)
+  S_l_dn = midpt(Skl, Sklm)
+  slope_l= (S_l_up - S_l_dn) / dy ! (m m-1)
+
+  Skpl  = S(kp,l )
+  Skml  = S(km,l )
+  Skl   = S(k ,l )
+  S_k_up = midpt(Skpl, Skl)
+  S_k_dn = midpt(Skl, Skml)
+  slope_k= (S_k_up - S_k_dn) / dx ! (m m-1)
+
+  ! Mean slope in m/m, set to zero where no glacier (above will include some non-glacier areas on sides)
+  mean_slope = sum(merge(sqrt(slope_k**2_i4b + slope_l**2_i4b), 0._rkind, S>B))/count(S>B) 
   
-  ! slope in m/m, set to zero where no glacier (above will include some non-glacier areas on sides)
-  slope = sum(merge(sqrt(slope_k**2_i4b + slope_l**2_i4b), 0._rkind, S>B))/count(S>B) 
-  
-  ! emergence elevation is below ELA by distance from ELA to lateral moraine width
-  !  i.e. emergenceElev = ELA - (topElev - ELA - lat_moraine_wid * slope) 
+  ! Emergence elevation is below ELA by distance from ELA to lateral moraine width
+  !  i.e. emergenceElev = ELA - (topElev - ELA - lat_moraine_wid * mean_slope) 
   ELA_use = ELA ! from mass balance input
   topElev = maxval(merge(S, 0._rkind, S>B)) ! highest elevation on glacier
   botElev = minval(merge(S, 1.e6_rkind, S>B)) ! lowest elevation on glacier
-  if(ELA_use > topElev - lat_moraine_wid * slope) ELA_use = topElev - lat_moraine_wid * slope
-  emergenceElev = 2._rkind*ELA_use - topElev + lat_moraine_wid * slope ! will not be above ELA
-  if(emergenceElev < botElev) emergenceElev = botElev ! emergence elevation cannot be below glacier bottom
+  if(ELA_use > topElev - lat_moraine_wid * mean_slope) ELA_use = topElev - lat_moraine_wid * mean_slope
+  emergenceElev = 2._rkind*ELA_use - topElev + lat_moraine_wid * mean_slope ! will not be above ELA
+
+  ! Calculate near-surface debris concentration below emergence elevation
+  englacial_emerg = -merge(m_dot, 0._rkind, S<emergenceElev .and. S>B) * dbr_conc * deltat ! (kg m-2)
 
   ! Add rockfall along the sides of the glacier below the ELA
-  !   and near-surface debris concentration below emergence elevation
-  ! NOTE: to make rockfall agree with steady state englacial debris concentration,
-  !   accumulation_rockfall_influx = englacial_outflux, or influx = outflux, which gives:
-  !   rockfall_rate(kg/s/m2) * time * above_ELA_rockfall_area(m2) = -englacial debris concentration(kg/m3) * mass_balance(m/s) * time * emergence_area(m2)
-  mb_emerg_exposed = merge(tot_m_dot, 0._rkind, S<emergenceElev .and. S>B)*dx*dy
+  ! NOTE: to make rockfall agree with constant englacial debris concentration, influx = outflux, or:
+  !   rockfall(kg m-2) * above_ELA_rockfall_area(m2) =  englacial_emerg(kg m-2) * emergence_area(m2)
   above_ELA_rockfall_area = sum(merge(1_i4b, 0_i4b, distance<=lat_moraine_wid .and. S>=ELA_use .and. S>B))*dx*dy
-  rockfall = -dbr_conc * sum(mb_emerg_exposed)/above_ELA_rockfall_area ! kg m-2 over t_total
+  rockfall = sum(englacial_emerg)*dx*dy/above_ELA_rockfall_area ! (kg m-2)
   lat_rockfall = merge(rockfall, 0._rkind, distance<=lat_moraine_wid .and. S<ELA_use .and. S>=emergenceElev .and. S>B) ! kg m-2
-  englacial_emerg = merge(dbr_conc, 0._rkind, S<emergenceElev .and. S>B) ! kg m-3
-  debris_change = (lat_rockfall - englacial_emerg * tot_m_dot)/(iden_soil*(1._rkind - theta_sat)) - debris * tot_div_q
+  lat_rockfall = 0._rkind ! turn off rockfall for testing
 
-  print*, "Total rockfall influx (m3): ", sum(lat_rockfall)*dx*dy/(iden_soil*(1._rkind - theta_sat))
-  print*, "Total englacial emergence (m3): ", -sum(englacial_emerg* tot_m_dot)*dx*dy/(iden_soil*(1._rkind - theta_sat))
-  print*, "Total flow debris change (m3): ", -sum(debris * tot_div_q)*dx*dy
-  print*, "Total debris volume (m3): ", sum(debris)*dx*dy, " Total debris volume change (m3): ", sum(debris_change)*dx*dy
-  
-  ! ** advect debris to the surface with flow and clean up
-  advectDebris = merge(debris + debris_change, 0._rkind, debris > -debris_change) ! prevent negative debris
-  advectDebris = merge(advectDebris, 0._rkind, S>B) ! remove debris from bedrock
-  advectDebris = merge(advectDebris, 0._rkind, debris>=min_thickness) ! remove thin debris, considered clean ice
-  advectDebris = merge(advectDebris, 0._rkind, advectDebris<=dbr_crit) ! Check that debris thickness is not over critical value, effectively making terminal clean ice wedge 
+  ! Sum for total debris influx in m
+  D = (lat_rockfall + englacial_emerg)/(iden_soil*(1._rkind - theta_sat)) + debris
 
-end function advectDebris
+  ! Calculate surface velocity using SIA, will be zero where no glacier
+  u = gamma * (n + 2_i4b)/(n + 1_i4b) * slope_l**n *(S-B)**(n + 1_i4b) ! (m s-1)
+  v = gamma * (n + 2_i4b)/(n + 1_i4b) * slope_k**n *(S-B)**(n + 1_i4b) ! (m s-1)
+
+  ! Make subgrid for velocity advection for stability
+  nx2 =(nx-1)*refine + nx
+  ny2 =(ny-1)*refine + ny
+  dx2 = dx / real(refine+1, rkind)
+  dy2 = dy / real(refine+1, rkind)
+  allocate(u_sub(nx2, ny2), D_sub(nx2, ny2), v_sub(nx2, ny2), H_sub(nx2, ny2), mask(nx2, ny2), div_uD(nx2, ny2))
+  call make_subgrid(u, v, D, H, nx, ny, refine, nx2, ny2, u_sub, v_sub, D_sub, H_sub)
+  mask = merge(1_i4b, 0_i4b, H_sub>0._rkind) ! mask for glacier on subgrid
+
+  ! ** movement with subgrid **
+  do while (t < t_total)
+    dt = t_total - t
+
+    ! Select advection method and call a step
+    select case (method)
+      ! MUSCL scheme, mass conserving, but more expensive
+      case ("MUSCL");   call advection_MUSCL(u_sub, v_sub, D_sub, mask, cfl, max_dt, nx2, ny2, dx2, dy2, div_uD, dt_cfl)
+      ! Upwinding scheme, not mass conserving, but stable and quicker
+      case ("upwind"); call advection_upwind(u_sub, v_sub, D_sub, mask, cfl, max_dt, nx2, ny2, dx2, dy2, div_uD, dt_cfl)
+    end select
+
+    ! update time step
+    deltat = min(dt_cfl, dt)
+    if(deltat > max_dt) deltat = max_dt
+    if(deltat < min_dt) deltat = min_dt
+    t = t + deltat
+
+    ! update debris thickness
+    D_sub = D_sub + div_uD * deltat
+    D_sub = merge(D_sub, 0._rkind, D_sub > 0._rkind ) ! prevent negative debris
+  enddo
+ 
+  ! return to original grid
+  call average_subgrid(D_sub, nx, ny, refine, debris)
+  deallocate(u_sub, v_sub, D_sub, H_sub, mask, div_uD)
+
+  ! remove debris downslope of where slope is too steep to hold debris, > yield stress of 80kPa following Mayer et al. (2021)
+  drivingStress = iden_ice * gravity * debris * slope/1000._rkind ! driving stress in kPa
+  do j = 1, ny
+    do i = 1, nx
+      if(drivingStress(i,j) > 80._rkind)then ! 80 kPa yield stress
+        if(slope_k(i,j) > 0._rkind .and. slope_l(i,j) > 0._rkind)then
+          debris(i:nx,j:ny) = 0._rkind
+          exit
+        elseif(slope_k(i,j) > 0._rkind .and. slope_l(i,j) < 0._rkind)then
+          debris(i:nx, 1:j) = 0._rkind
+          exit
+        elseif(slope_l(i,j) < 0._rkind .and. slope_k(i,j) > 0._rkind)then
+          debris(1:i ,j:ny) = 0._rkind
+          exit
+        elseif(slope_k(i,j) < 0._rkind .and. slope_k(i,j) < 0._rkind)then
+          debris(1:i , 1:j) = 0._rkind
+          exit
+        endif
+      endif
+    enddo
+  enddo
+
+  ! remove debris where debris thickness is over critical value
+  debris = merge(debris, 0._rkind, debris<=dbr_crit) ! Check that debris thickness is not over critical value, effectively making terminal clean ice wedge 
+
+end subroutine run_debrisModel
+
+! ************************************************************************************************
+! private function advection_upwind: upwinding advection scheme for debris movement with ice velocity
+!  produces numerical diffusion, but is stable
+! ************************************************************************************************
+subroutine advection_upwind(u, v, D, mask, cfl, max_dt, nx, ny, dx, dy, div_uD, dt_cfl)
+  implicit none
+  ! Arguments
+  real(rkind), intent(in) :: u(nx,ny), v(nx,ny), D(nx,ny), cfl, max_dt, dx, dy
+  integer(i4b), intent(in) :: mask(nx,ny), nx, ny
+  real(rkind), intent(out) :: div_uD(nx,ny), dt_cfl
+  ! Local variables
+  real(rkind) :: uklp(nx,ny), uklm(nx,ny), ukl(nx,ny)
+  real(rkind) :: vkpl(nx,ny), vkml(nx,ny), vkl(nx,ny)
+  real(rkind) :: Dklp(nx,ny), Dklm(nx,ny), Dkl(nx,ny),Dkpl(nx,ny), Dkml(nx,ny)
+  real(rkind) :: div_k(nx,ny), div_l(nx,ny)
+  real(rkind) :: divisor
+  integer(i4b) :: i, j, l(ny), lp(ny), lm(ny), k(nx), kp(nx), km(nx)
+
+  ! y direction indices
+  l = [(i, i=1, ny)]
+  lp = [(i, i=2, ny), ny]
+  lm = [1, (i, i=1, ny-1)]
+  ! x direction indices
+  k = [(i, i=1, nx)]
+  kp = [(i, i=2, nx), nx]
+  km = [1, (i, i=1, nx-1)]
+
+  ! indices
+  uklp  = u(k ,lp)
+  uklm  = u(k ,lm)
+  ukl   = u(k ,l )
+  vkpl  = v(kp,l )
+  vkml  = v(km,l )
+  vkl   = v(k ,l )
+  !
+  Dklp  = D(k ,lp)
+  Dklm  = D(k ,lm)
+  Dkl   = D(k ,l )
+  Dkpl  = D(kp,l )
+  Dkml  = D(km,l )
+
+  ! Solving dD/dt + div(D*u) = 0
+  !   which is u*dD/dt + u*div(D*u) = 0 assuming du/dt = 0, and then divide by u to get dD/dt = - div(D*u)
+  !  Thus, we need to check on sign of u and v to determine upwind direction
+  div_l = 0._rkind
+  do j = 1, nx
+    do i = 1, ny
+      if(ukl(j,i)>0._rkind)then
+        div_l(j,i) = (ukl(j,i)*Dkl(j,i) - uklm(j,i)*Dklm(j,i))/dy
+      else
+        div_l(j,i) = (uklp(j,i)*Dklp(j,i) - ukl(j,i)*Dkl(j,i))/dy
+      endif
+    enddo
+  enddo
+  div_k = 0._rkind
+  do j = 1, nx
+    do i = 1, ny
+      if(vkl(j,i)>0._rkind)then
+        div_k(j,i) = (vkl(j,i)*Dkl(j,i) - vkml(j,i)*Dkml(j,i))/dx
+      else
+        div_k(j,i) = (vkpl(j,i)*Dkpl(j,i) - vkl(j,i)*Dkl(j,i))/dx
+      endif
+    enddo
+  enddo
+  ! enforce zero advection outside the mask
+  div_l = merge(0._rkind, div_l, mask==0_i4b)
+  div_k = merge(0._rkind, div_k, mask==0_i4b)
+  div_uD = -(div_k + div_l) ! change in debris thickness with time
+
+  ! calculate delta t and t
+  divisor = max(maxval(abs(ukl)), maxval(abs(vkl)))
+  if(divisor == 0._rkind)then
+    dt_cfl = max_dt
+  else
+    dt_cfl = cfl * min(dy, dx) / divisor
+  endif
+
+end subroutine advection_upwind
 
 
 ! ************************************************************************************************
-! private functions to assist in the glacier flow calculations
+! private function advection_MUSCL: MUSCL advection scheme for debris movement with ice velocity
+!   less numerical diffusion than upwind scheme, but can be unstable if CFL condition is not met
+! ************************************************************************************************
+subroutine advection_MUSCL(u, v, D, mask, cfl, max_dt, nx, ny, dx, dy, div_uD, dt_cfl)
+  implicit none
+  ! Arguments
+  real(rkind), intent(in) :: u(nx,ny), v(nx,ny), D(nx,ny), cfl, max_dt, dx, dy
+  integer(i4b), intent(in) :: mask(nx,ny), nx, ny
+  real(rkind), intent(out) :: div_uD(nx,ny), dt_cfl
+  ! Local variables
+  real(rkind) :: D_l_up(nx,ny), D_l_dn(nx,ny), D_k_up(nx,ny), D_k_dn(nx,ny)
+  real(rkind) :: u_l_up(nx,ny), u_l_dn(nx,ny)
+  real(rkind) :: v_k_up(nx,ny), v_k_dn(nx,ny)
+  real(rkind) :: div_k(nx,ny), div_l(nx,ny)
+  real(rkind) :: divisor
+  integer(i4b) :: i, j, l(ny), lp(ny), lm(ny), k(nx), kp(nx), km(nx)
+
+  ! y direction indices
+  l = [(i, i=1, ny)]
+  lp = [(i, i=2, ny), ny]
+  lm = [1, (i, i=1, ny-1)]
+  ! x direction indices
+  k = [(i, i=1, nx)]
+  kp = [(i, i=2, nx), nx]
+  km = [1, (i, i=1, nx-1)]
+
+  ! MUSCL slope reconstruction for D, u, and v
+  D_l_up = pluss(D(k,lm), D(k,l), D(k,lp)) ! D at l+1/2
+  D_l_dn = minus(D(k,lm), D(k,l), D(k,lp)) ! D at l-1/2
+  D_k_up = pluss(D(km,l), D(k,l), D(kp,l)) ! D at k+1/2
+  D_k_dn = minus(D(km,l), D(k,l), D(kp,l)) ! D at k-1/2
+  !
+  u_l_up = pluss(u(k,lm), u(k,l), u(k,lp)) ! u at l+1/2
+  u_l_dn = minus(u(k,lm), u(k,l), u(k,lp)) ! u at l-1/2
+  !
+  v_k_up = pluss(v(km,l), v(k,l), v(kp,l)) ! v at k+1/2
+  v_k_dn = minus(v(km,l), v(k,l), v(kp,l)) ! v at k-1/2
+
+  ! Advection fluxes (upwind, but with MUSCL slopes)
+  div_l = 0._rkind
+  do j = 1, nx
+    do i = 1, ny
+      if(u_l_up(j,i) > 0._rkind) then
+        div_l(j,i) = (u_l_dn(j,i)*D_l_dn(j,i) - u_l_up(j,i)*D_l_up(j,i))/dy
+      else
+        div_l(j,i) = (u_l_up(j,i)*D_l_up(j,i) - u_l_dn(j,i)*D_l_dn(j,i))/dy
+      endif
+    enddo
+  enddo
+  div_k = 0._rkind
+  do j = 1, nx
+    do i = 1, ny
+      if(v(j,i) > 0._rkind) then
+        div_k(j,i) = (v_k_dn(j,i)*D_k_dn(j,i) - v_k_up(j,i)*D_k_up(j,i))/dx
+      else
+        div_k(j,i) = (v_k_up(j,i)*D_k_up(j,i) - v_k_dn(j,i)*D_k_dn(j,i))/dx
+      endif
+    enddo
+  enddo
+
+  ! enforce zero advection outside the mask
+  div_l = merge(0._rkind, div_l, mask==0_i4b)
+  div_k = merge(0._rkind, div_k, mask==0_i4b)
+  div_uD = -(div_k + div_l) ! change in debris thickness with time
+
+  ! calculate delta t and t
+  divisor = max(maxval(abs(u)), maxval(abs(v)))
+  if(divisor == 0._rkind)then
+    dt_cfl = max_dt
+  else
+    dt_cfl = cfl * min(dy, dx) / divisor
+  endif
+
+end subroutine advection_MUSCL
+
+! ************************************************************************************************
+! private functions to assist in calculations
 ! ************************************************************************************************
 function minmod(a, b)
   implicit none
@@ -1155,54 +1388,54 @@ function SIA(Dup, Sup, S, Ddn, Sdn, d)
   SIA = (Dup * (Sup - S) / d - Ddn * (S - Sdn) / d) / d
 end function SIA
 
-function H_index(h1, h2)
+function midpt(h1, h2)
   implicit none
   real(rkind), intent(in) :: h1(:,:), h2(:,:)
-  real(rkind), allocatable :: H_index(:,:)
+  real(rkind), allocatable :: midpt(:,:)
 
-  allocate(H_index(size(h1,1), size(h1,2)))
-  H_index = 0.5_rkind * (h1 + h2)
-end function H_index
+  allocate(midpt(size(h1,1), size(h1,2)))
+  midpt = 0.5_rkind * (h1 + h2)
+end function midpt
 
-function H_plus(Hm, H, Hp)
+function pluss(Hm, H, Hp)
   implicit none
   real(rkind), intent(in) :: Hm(:,:), H(:,:), Hp(:,:)
-  real(rkind), allocatable :: H_plus(:,:)
+  real(rkind), allocatable :: pluss(:,:)
   logical, allocatable :: mask(:,:)
   real(rkind), allocatable :: divisor(:,:), ones(:,:)
 
-  allocate(H_plus(size(Hm,1), size(Hm,2)))
+  allocate(pluss(size(Hm,1), size(Hm,2)))
   allocate(mask(size(Hm,1), size(Hm,2)),divisor(size(Hm,1), size(Hm,2)),ones(size(Hm,1), size(Hm,2)))
   ones = 1.0_rkind
   if(limiter == "minmod")then
-    H_plus = H - 0.5_rkind * minmod(H - Hm, Hp - H) * (Hp - H)
+    pluss = H - 0.5_rkind * minmod(H - Hm, Hp - H) * (Hp - H)
   else if(limiter == "superbee")then
     mask = (Hp /= H) .and. (Hp /= Hm) .and. (H /= Hm)
     divisor = merge(Hp - H, ones, mask)
-    H_plus = merge(H - 0.5_rkind * superbee(abs((H - Hm) / divisor)) * (Hp - H), H, mask)
+    pluss = merge(H - 0.5_rkind * superbee(abs((H - Hm) / divisor)) * (Hp - H), H, mask)
   endif
   deallocate(mask,divisor,ones)
-end function H_plus
+end function pluss
 
-function H_min(Hm, H, Hp)
+function minus(Hm, H, Hp)
   implicit none
   real(rkind), intent(in) :: Hm(:,:), H(:,:), Hp(:,:)
-  real(rkind), allocatable :: H_min(:,:)
+  real(rkind), allocatable :: minus(:,:)
   logical, allocatable :: mask(:,:)
   real(rkind), allocatable :: divisor(:,:), ones(:,:)
 
-  allocate(H_min(size(Hm,1), size(Hm,2)))
+  allocate(minus(size(Hm,1), size(Hm,2)))
   allocate(mask(size(Hm,1), size(Hm,2)),divisor(size(Hm,1), size(Hm,2)),ones(size(Hm,1), size(Hm,2)))
   ones = 1.0_rkind
   if(limiter == "minmod")then
-    H_min = H + 0.5_rkind * minmod(H - Hm, Hp - H) * (Hp - H)
+    minus = H + 0.5_rkind * minmod(H - Hm, Hp - H) * (Hp - H)
   else if(limiter == "superbee")then
     mask = (Hp /= H) .and. (Hp /= Hm) .and. (H /= Hm)
     divisor = merge(H - Hm, ones, mask)
-    H_min = merge(H + 0.5_rkind * superbee(abs((Hp - H) / divisor)) * (H - Hm), H, mask)
+    minus = merge(H + 0.5_rkind * superbee(abs((Hp - H) / divisor)) * (H - Hm), H, mask)
   endif
   deallocate(mask,divisor,ones)
-end function H_min
+end function minus
 
 subroutine swap_real(a, b)
   real(rkind), intent(inout) :: a, b
@@ -1219,6 +1452,110 @@ subroutine swap_integer(a, b)
   a = b
   b = temp
 end subroutine swap_integer
+
+! **************************************************************************************************
+! private subroutines to assist in debris advection calculations
+! **************************************************************************************************
+subroutine make_subgrid(u, v, D, H, nx, ny, refine, nx2, ny2, u_sub, v_sub, D_sub, H_sub)
+  implicit none
+  ! Arguments
+  integer(i4b), intent(in) :: nx, ny, nx2, ny2, refine
+  real(rkind), intent(in) :: u(nx,ny), v(nx,ny), D(nx,ny), H(nx,ny)
+  real(rkind), intent(inout) :: u_sub(nx2,ny2), v_sub(nx2,ny2), D_sub(nx2,ny2), H_sub(nx2,ny2)
+  ! Local variables
+  integer :: i, j, k, ii, jj
+  real(rkind) :: frac
+
+  ! Fill coarse grid points
+  u_sub(1:refine+1:nx2, 1:refine+1:ny2) = u(1:nx, 1:ny)
+  v_sub(1:refine+1:nx2, 1:refine+1:ny2) = v(1:nx, 1:ny)
+  D_sub(1:refine+1:nx2, 1:refine+1:ny2) = D(1:nx, 1:ny)
+  H_sub(1:refine+1:nx2, 1:refine+1:ny2) = H(1:nx, 1:ny)
+  
+  ! Interpolate between coarse grid points in x-direction
+  do i = 1, nx-1
+    do j = 1, ny
+      ii = (i-1)*(refine+1) + 1
+      jj = (j-1)*(refine+1) + 1
+      do k = 1, refine
+        frac = real(k, rkind) / real(refine+1, rkind)
+        u_sub(ii+k, jj) = (1.0_rkind-frac)*u(i,j) + frac*u(i+1,j)
+        v_sub(ii+k, jj) = (1.0_rkind-frac)*v(i,j) + frac*v(i+1,j)
+        D_sub(ii+k, jj) = (1.0_rkind-frac)*D(i,j) + frac*D(i+1,j)
+        H_sub(ii+k, jj) = (1.0_rkind-frac)*H(i,j) + frac*H(i+1,j)
+      end do
+    end do
+  end do
+  
+  ! Interpolate between coarse grid points in y-direction
+  do i = 1, nx
+    do j = 1, ny-1
+      ii = (i-1)*(refine+1) + 1
+      jj = (j-1)*(refine+1) + 1
+      do k = 1, refine
+        frac = real(k, rkind) / real(refine+1, rkind)
+        u_sub(ii, jj+k) = (1.0_rkind-frac)*u(i,j) + frac*u(i,j+1)
+        v_sub(ii, jj+k) = (1.0_rkind-frac)*v(i,j) + frac*v(i,j+1)
+        D_sub(ii, jj+k) = (1.0_rkind-frac)*D(i,j) + frac*D(i,j+1)
+        H_sub(ii, jj+k) = (1.0_rkind-frac)*H(i,j) + frac*H(i,j+1)
+      end do
+    end do
+  end do
+  
+  ! Interpolate diagonally between coarse grid points
+  do i = 1, nx-1
+    do j = 1, ny-1
+      ii = (i-1)*(refine+1) + 1
+      jj = (j-1)*(refine+1) + 1
+      do k = 1, refine
+        frac = real(k, rkind) / real(refine+1, rkind)
+        u_sub(ii+k, jj+k) = (1.0_rkind-frac)*u(i,j) + frac*u(i+1,j+1)
+        v_sub(ii+k, jj+k) = (1.0_rkind-frac)*v(i,j) + frac*v(i+1,j+1)
+        D_sub(ii+k, jj+k) = (1.0_rkind-frac)*D(i,j) + frac*D(i+1,j+1)
+        H_sub(ii+k, jj+k) = (1.0_rkind-frac)*H(i,j) + frac*H(i+1,j+1)
+      end do
+    end do
+  end do
+  
+  ! Fill boundaries
+  u_sub(nx2, :) = u(nx, :)
+  u_sub(:, ny2) = u(:, ny)
+  v_sub(nx2, :) = v(nx, :)
+  v_sub(:, ny2) = v(:, ny)
+  D_sub(nx2, :) = D(nx, :)
+  D_sub(:, ny2) = D(:, ny)
+  H_sub(nx2, :) = H(nx, :)
+  H_sub(:, ny2) = H(:, ny)
+  
+end subroutine make_subgrid
+
+
+subroutine average_subgrid(D_sub, nx, ny, refine, D)
+  implicit none
+  ! Arguments
+  integer(i4b), intent(in) :: nx, ny, refine
+  real(rkind), intent(in) :: D_sub((nx-1)*refine + nx, (ny-1)*refine + ny)
+  real(rkind), intent(inout) :: D(nx, ny)
+  ! Local variables
+  integer :: i, j, ii, jj, k, l
+  real(rkind) :: sumD
+
+  ! Average subgrid values back to coarse grid
+  do i = 1, nx
+    do j = 1, ny
+      ii = (i-1)*(refine+1) + 1
+      jj = (j-1)*(refine+1) + 1
+      sumD = 0._rkind
+      do k = 0, refine
+        do l = 0, refine
+          sumD = sumD + D_sub(ii+k, jj+l)
+        end do
+      end do
+      D(i,j) = sumD / real((refine+1)**2_i4b, rkind)
+    end do
+  end do
+
+end subroutine average_subgrid  
 
 
 ! ************************************************************************************************
