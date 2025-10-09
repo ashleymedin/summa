@@ -361,7 +361,7 @@ subroutine glacAreaChange(&
     ELA_use_glac = max(ELA_use_glac, minval(surface)-verySmall) ! don't let ELA be below min surface elevation of glacier
 
     ! run flow model if glacier has area
-    if (glacierAblArea(iGlac) + glacierAccArea(iGlac)>0._rkind) then
+    if(glacierAblArea(iGlac) + glacierAccArea(iGlac)>0._rkind) then
       call run_flowModel(t_total, debris, surface, bed, glacierMask, slope, intercept, validElev, validCount, maxCount, dbr_conc, &
                          dbr_crit, lat_moraine_wid, iden_soil, theta_sat, ELA_use_glac, nx, ny, dx, dy, volume, printFlag)
     else
@@ -550,17 +550,17 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
     ! First pass: top-left to bottom-right
     do i = 1, nx
       do j = 1, ny
-        if (i > 1) distance(i, j) = min(distance(i, j), distance(i-1, j) + dx)
-        if (j > 1)  distance(i, j) = min(distance(i, j), distance(i, j-1) + dy)
-      end do
-    end do
+        if(i > 1) distance(i, j) = min(distance(i, j), distance(i-1, j) + dx)
+        if(j > 1)  distance(i, j) = min(distance(i, j), distance(i, j-1) + dy)
+      enddo
+    enddo
     ! Second pass: bottom-right to top-left
     do i = nx, 1, -1
       do j = ny, 1, -1
-        if (i < nx) distance(i, j) = min(distance(i, j), distance(i+1, j) + dx)
-        if (j < ny) distance(i, j) = min(distance(i, j), distance(i, j+1) + dy)
-      end do
-    end do
+        if(i < nx) distance(i, j) = min(distance(i, j), distance(i+1, j) + dx)
+        if(j < ny) distance(i, j) = min(distance(i, j), distance(i, j+1) + dy)
+      enddo
+    enddo
     distance = merge(distance, 0._rkind, zeroMask==1_i4b) ! set distance to zero where no glacier (may grow into these areas, include them in 0 distance)
   endif
 
@@ -605,7 +605,7 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
     if(deltat < min_dt) deltat = min_dt
     t = t + deltat
 
-    ! Update S
+    ! Update S (with time discretization S_t+1 - S_t /dt = div(q_t)+ m_dot_t, so S_t+1 = S_t + (m_dot + div(q))*dt)
     S = S + (m_dot + div_q) * deltat
     S = merge(S, B, S > B)
 
@@ -1065,7 +1065,7 @@ subroutine run_debrisModel(S, B, debris, dbr_crit, lat_moraine_wid, gamma, n, t_
   integer(i4b), allocatable:: mask(:,:)
   real(rkind) :: t, max_dt, dt, dt_cfl, deltat
   integer(i4b) :: l(ny), lp(ny), lm(ny), k(nx), kp(nx), km(nx)
-  integer(i4b) :: i, j, nx2, ny2, refine=1_i4b ! refine grid for subgrid advection, make odd to have center cell
+  integer(i4b) :: i, j, nx2, ny2, refine=0_i4b ! refine grid for subgrid advection (1 means divide each cell into 2)
 
   H = S - B ! H = ice thickness
   max_dt = 7._rkind * secprday ! maximum time step of 1 week
@@ -1130,7 +1130,7 @@ subroutine run_debrisModel(S, B, debris, dbr_crit, lat_moraine_wid, gamma, n, t_
   ny2 =(ny-1)*refine + ny
   dx2 = dx / real(refine+1, rkind)
   dy2 = dy / real(refine+1, rkind)
-  allocate(u_sub(nx2, ny2), D_sub(nx2, ny2), v_sub(nx2, ny2), H_sub(nx2, ny2), mask(nx2, ny2), div_uD(nx2, ny2))
+  allocate(u_sub(nx2, ny2), v_sub(nx2, ny2), D_sub(nx2, ny2), H_sub(nx2, ny2), mask(nx2, ny2), div_uD(nx2, ny2))
   call make_subgrid(u, v, D, H, nx, ny, refine, nx2, ny2, u_sub, v_sub, D_sub, H_sub)
   mask = merge(1_i4b, 0_i4b, H_sub>0._rkind) ! mask for glacier on subgrid
 
@@ -1152,36 +1152,37 @@ subroutine run_debrisModel(S, B, debris, dbr_crit, lat_moraine_wid, gamma, n, t_
     if(deltat < min_dt) deltat = min_dt
     t = t + deltat
 
-    ! update debris thickness
+    ! update debris thickness (with time discretization D_t+1 - D_t /dt  = div(uD_t), so D_t+1 = D_t + div(uD_t)*dt)
     D_sub = D_sub + div_uD * deltat
     D_sub = merge(D_sub, 0._rkind, D_sub > 0._rkind ) ! prevent negative debris
   enddo
  
   ! return to original grid
   call average_subgrid(D_sub, nx, ny, refine, debris)
+  debris = D_sub
   deallocate(u_sub, v_sub, D_sub, H_sub, mask, div_uD)
 
   ! remove debris downslope of where slope is too steep to hold debris, > yield stress of 80kPa following Mayer et al. (2021)
   drivingStress = iden_ice * gravity * debris * slope/1000._rkind ! driving stress in kPa
-  do j = 1, ny
-    do i = 1, nx
-      if(drivingStress(i,j) > 80._rkind)then ! 80 kPa yield stress
-        if(slope_k(i,j) > 0._rkind .and. slope_l(i,j) > 0._rkind)then
-          debris(i:nx,j:ny) = 0._rkind
-          exit
-        elseif(slope_k(i,j) > 0._rkind .and. slope_l(i,j) < 0._rkind)then
-          debris(i:nx, 1:j) = 0._rkind
-          exit
-        elseif(slope_l(i,j) < 0._rkind .and. slope_k(i,j) > 0._rkind)then
-          debris(1:i ,j:ny) = 0._rkind
-          exit
-        elseif(slope_k(i,j) < 0._rkind .and. slope_k(i,j) < 0._rkind)then
-          debris(1:i , 1:j) = 0._rkind
-          exit
-        endif
-      endif
-    enddo
-  enddo
+  !do j = 1, ny
+  !  do i = 1, nx
+  !    if(drivingStress(i,j) > 80._rkind)then ! 80 kPa yield stress
+  !      if(slope_k(i,j) > 0._rkind .and. slope_l(i,j) > 0._rkind)then
+  !        debris(i:nx,j:ny) = 0._rkind
+  !        exit
+  !      elseif(slope_k(i,j) > 0._rkind .and. slope_l(i,j) < 0._rkind)then
+  !        debris(i:nx, 1:j) = 0._rkind
+  !        exit
+  !      elseif(slope_l(i,j) < 0._rkind .and. slope_k(i,j) > 0._rkind)then
+  !        debris(1:i ,j:ny) = 0._rkind
+  !        exit
+  !      elseif(slope_k(i,j) < 0._rkind .and. slope_k(i,j) < 0._rkind)then
+  !        debris(1:i , 1:j) = 0._rkind
+  !        exit
+  !      endif
+  !    endif
+  !  enddo
+  !enddo
 
   ! remove debris where debris thickness is over critical value
   debris = merge(debris, 0._rkind, debris<=dbr_crit) ! Check that debris thickness is not over critical value, effectively making terminal clean ice wedge 
@@ -1230,7 +1231,7 @@ subroutine advection_upwind(u, v, D, mask, cfl, max_dt, nx, ny, dx, dy, div_uD, 
   Dkml  = D(km,l )
 
   ! Solving dD/dt + div(D*u) = 0
-  !   which is u*dD/dt + u*div(D*u) = 0 assuming du/dt = 0, and then divide by u to get dD/dt = - div(D*u)
+  !   which is u*dD/dt + u*div(D*u) = 0, and assuming du/dt = 0 this is d(D*u)/dt + u*div(D*u) = 0, or df/dt + u*div(f) = 0 
   !  Thus, we need to check on sign of u and v to determine upwind direction
   div_l = 0._rkind
   do j = 1, nx
@@ -1255,7 +1256,7 @@ subroutine advection_upwind(u, v, D, mask, cfl, max_dt, nx, ny, dx, dy, div_uD, 
   ! enforce zero advection outside the mask
   div_l = merge(0._rkind, div_l, mask==0_i4b)
   div_k = merge(0._rkind, div_k, mask==0_i4b)
-  div_uD = -(div_k + div_l) ! change in debris thickness with time
+  div_uD = div_k + div_l ! change in debris thickness with time
 
   ! calculate delta t and t
   divisor = max(maxval(abs(ukl)), maxval(abs(vkl)))
@@ -1332,7 +1333,7 @@ subroutine advection_MUSCL(u, v, D, mask, cfl, max_dt, nx, ny, dx, dy, div_uD, d
   ! enforce zero advection outside the mask
   div_l = merge(0._rkind, div_l, mask==0_i4b)
   div_k = merge(0._rkind, div_k, mask==0_i4b)
-  div_uD = -(div_k + div_l) ! change in debris thickness with time
+  div_uD = div_k + div_l ! change in debris thickness with time
 
   ! calculate delta t and t
   divisor = max(maxval(abs(u)), maxval(abs(v)))
@@ -1463,69 +1464,51 @@ subroutine make_subgrid(u, v, D, H, nx, ny, refine, nx2, ny2, u_sub, v_sub, D_su
   real(rkind), intent(in) :: u(nx,ny), v(nx,ny), D(nx,ny), H(nx,ny)
   real(rkind), intent(inout) :: u_sub(nx2,ny2), v_sub(nx2,ny2), D_sub(nx2,ny2), H_sub(nx2,ny2)
   ! Local variables
-  integer :: i, j, k, ii, jj
-  real(rkind) :: frac
+  integer :: i, j, k, l, ii, jj
+  real(rkind) :: frac_k, frac_l
 
-  ! Fill coarse grid points
-  u_sub(1:refine+1:nx2, 1:refine+1:ny2) = u(1:nx, 1:ny)
-  v_sub(1:refine+1:nx2, 1:refine+1:ny2) = v(1:nx, 1:ny)
-  D_sub(1:refine+1:nx2, 1:refine+1:ny2) = D(1:nx, 1:ny)
-  H_sub(1:refine+1:nx2, 1:refine+1:ny2) = H(1:nx, 1:ny)
-  
-  ! Interpolate between coarse grid points in x-direction
+
+  if(refine == 0_i4b)then
+    u_sub = u
+    v_sub = v
+    D_sub = D
+    H_sub = H
+    return
+  endif
+
+  ! Note: nx and ny will be at least 2
   do i = 1, nx-1
-    do j = 1, ny
-      ii = (i-1)*(refine+1) + 1
-      jj = (j-1)*(refine+1) + 1
-      do k = 1, refine
-        frac = real(k, rkind) / real(refine+1, rkind)
-        u_sub(ii+k, jj) = (1.0_rkind-frac)*u(i,j) + frac*u(i+1,j)
-        v_sub(ii+k, jj) = (1.0_rkind-frac)*v(i,j) + frac*v(i+1,j)
-        D_sub(ii+k, jj) = (1.0_rkind-frac)*D(i,j) + frac*D(i+1,j)
-        H_sub(ii+k, jj) = (1.0_rkind-frac)*H(i,j) + frac*H(i+1,j)
-      end do
-    end do
-  end do
-  
-  ! Interpolate between coarse grid points in y-direction
-  do i = 1, nx
+    ii = (i-1)*(refine+1) + 1
     do j = 1, ny-1
-      ii = (i-1)*(refine+1) + 1
       jj = (j-1)*(refine+1) + 1
-      do k = 1, refine
-        frac = real(k, rkind) / real(refine+1, rkind)
-        u_sub(ii, jj+k) = (1.0_rkind-frac)*u(i,j) + frac*u(i,j+1)
-        v_sub(ii, jj+k) = (1.0_rkind-frac)*v(i,j) + frac*v(i,j+1)
-        D_sub(ii, jj+k) = (1.0_rkind-frac)*D(i,j) + frac*D(i,j+1)
-        H_sub(ii, jj+k) = (1.0_rkind-frac)*H(i,j) + frac*H(i,j+1)
-      end do
-    end do
-  end do
-  
-  ! Interpolate diagonally between coarse grid points
-  do i = 1, nx-1
-    do j = 1, ny-1
-      ii = (i-1)*(refine+1) + 1
-      jj = (j-1)*(refine+1) + 1
-      do k = 1, refine
-        frac = real(k, rkind) / real(refine+1, rkind)
-        u_sub(ii+k, jj+k) = (1.0_rkind-frac)*u(i,j) + frac*u(i+1,j+1)
-        v_sub(ii+k, jj+k) = (1.0_rkind-frac)*v(i,j) + frac*v(i+1,j+1)
-        D_sub(ii+k, jj+k) = (1.0_rkind-frac)*D(i,j) + frac*D(i+1,j+1)
-        H_sub(ii+k, jj+k) = (1.0_rkind-frac)*H(i,j) + frac*H(i+1,j+1)
-      end do
-    end do
-  end do
-  
-  ! Fill boundaries
-  u_sub(nx2, :) = u(nx, :)
-  u_sub(:, ny2) = u(:, ny)
-  v_sub(nx2, :) = v(nx, :)
-  v_sub(:, ny2) = v(:, ny)
-  D_sub(nx2, :) = D(nx, :)
-  D_sub(:, ny2) = D(:, ny)
-  H_sub(nx2, :) = H(nx, :)
-  H_sub(:, ny2) = H(:, ny)
+      ! Fill the block for this coarse cell
+      do k = 0, refine+1
+        if(k==0 .and. i>1) cycle ! only do k==0 for i==1
+        frac_k = real(k, rkind) / real(refine+1, rkind)
+        do l = 0, refine+1
+          if(l==0 .and. j>1) cycle ! only do l==0 for j==1
+          ! don't do 
+          frac_l = real(l, rkind) / real(refine+1, rkind)
+          u_sub(ii+k, jj+l) = (1.0_rkind-frac_k)*(1.0_rkind-frac_l)*u(i,j) &
+                            + frac_k*(1.0_rkind-frac_l)*u(i+1,j) &
+                            + (1.0_rkind-frac_k)*frac_l*u(i,j+1) &
+                            + frac_k*frac_l*u(i+1,j+1)
+          v_sub(ii+k, jj+l) = (1.0_rkind-frac_k)*(1.0_rkind-frac_l)*v(i,j) &
+                            + frac_k*(1.0_rkind-frac_l)*v(i+1,j) &
+                            + (1.0_rkind-frac_k)*frac_l*v(i,j+1) &
+                            + frac_k*frac_l*v(i+1,j+1)
+          D_sub(ii+k, jj+l) = (1.0_rkind-frac_k)*(1.0_rkind-frac_l)*D(i,j) &
+                            + frac_k*(1.0_rkind-frac_l)*D(i+1,j) &
+                            + (1.0_rkind-frac_k)*frac_l*D(i,j+1) &
+                            + frac_k*frac_l*D(i+1,j+1)
+          H_sub(ii+k, jj+l) = (1.0_rkind-frac_k)*(1.0_rkind-frac_l)*H(i,j) &
+                            + frac_k*(1.0_rkind-frac_l)*H(i+1,j) &
+                            + (1.0_rkind-frac_k)*frac_l*H(i,j+1) &
+                            + frac_k*frac_l*H(i+1,j+1)
+        enddo
+      enddo
+    enddo
+  enddo
   
 end subroutine make_subgrid
 
@@ -1538,22 +1521,48 @@ subroutine average_subgrid(D_sub, nx, ny, refine, D)
   real(rkind), intent(inout) :: D(nx, ny)
   ! Local variables
   integer :: i, j, ii, jj, k, l
-  real(rkind) :: sumD
+  real(rkind) :: sumD, count
 
-  ! Average subgrid values back to coarse grid
+  if(refine == 0_i4b)then
+    D = D_sub
+    return
+  endif
+
+  ! Average subgrid values back to coarse grid (Note: nx and ny will be at least 2)
   do i = 1, nx
     do j = 1, ny
       ii = (i-1)*(refine+1) + 1
       jj = (j-1)*(refine+1) + 1
       sumD = 0._rkind
-      do k = 0, refine
-        do l = 0, refine
+      do k = 0, refine+1
+        if(k==0 .and. i>1) cycle
+        if(k>0  .and. i==nx) cycle
+        do l = 0, refine+1
+          if(l==0 .and. j>1) cycle
+          if(l>0  .and. j==ny) cycle
           sumD = sumD + D_sub(ii+k, jj+l)
-        end do
-      end do
-      D(i,j) = sumD / real((refine+1)**2_i4b, rkind)
-    end do
-  end do
+        enddo
+      enddo
+      ! Count normalization
+      if(nx==1 .and. ny==1) then
+        count = real((refine+2)**2, rkind)
+      elseif(nx==1 .or. ny==1) then
+        count = real((refine+2), rkind)
+      elseif(i==nx .and. j==ny) then
+        count = 1.0_rkind
+      elseif(i==nx .or. j==ny) then
+        count = real(refine+1, rkind)
+        if(i==1 .or. j==1) count = real((refine+2), rkind)
+      elseif(i==1 .and. j==1) then
+        count = real((refine+2)**2, rkind)
+      elseif(i==1 .or. j==1) then
+        count = real((refine+1)*(refine+2), rkind)
+      else
+        count = real((refine+1)**2, rkind)
+      endif
+      D(i,j) = sumD / count
+    enddo
+  enddo
 
 end subroutine average_subgrid  
 
