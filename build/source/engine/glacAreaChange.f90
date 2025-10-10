@@ -32,8 +32,12 @@ USE globalData,only:thick4area         ! an arbitrary small threshold for glacie
 USE globalData,only:dJulianStart       ! julian day of start time of simulation
 USE globalData,only:data_step          ! length of time steps for the outermost timeloop
 
+USE data_types,only:var_ilength        ! x%var(:)%dat (i4b)
+USE data_types,only:var_dlength        ! x%var(:)%dat (rkind)
 ! define data types
 USE var_lookup,only:iLookGRID          ! named variables for the glacier grid information
+USE var_lookup,only:iLookPROG          ! named variables for the prognostic variables
+
 USE data_types,only:&
                     glac_info,       & ! glacier information data structure
                     grid_info,       & ! glacier grid info data structure
@@ -52,6 +56,9 @@ USE globalData,only:glacCln2           ! second domain type for glacier clean ar
 USE globalData,only:glacDbr            ! domain type for glacier debris areas
 USE globalData,only:wetland            ! domain type for wetland areas                
 
+USE var_derive_module,only:rootDensty  ! module to calculate the vertical distribution of roots
+USE var_derive_module,only:satHydCond  ! module to calculate the saturated hydraulic conductivity in each soil layer
+
 implicit none
 
 ! privacy
@@ -61,6 +68,8 @@ public::glacAreaChange
 public::time_updateGlacArea
 public::updateGlacDomain
 contains
+
+
 ! ************************************************************************************************
 ! public subroutine glacAreaChange: get new glacier area and elevation
 ! ************************************************************************************************
@@ -1265,15 +1274,13 @@ subroutine updateGlacDomain(&
                   nSnow,               & ! intent(in):    number of snow layers
                   nLake,               & ! intent(in):    number of lake layers
                   nSoil,               & ! intent(in):    number of soil layers
-                  nGlce,               & ! intent(inout): number of glacier ice layers
-                  ! output
-                  glacMass4AreaChange, & ! intent(inout): mass change (kg m-2)
-                  mLayerDepth,         & ! intent(inout): layer thickness (m)
-                  mLayerHeight,        & ! intent(inout): layer mid-point height (m)
-                  iLayerHeight,        & ! intent(inout): layer interface height (m)
-                  DOMarea,             & ! intent(inout): area of each domain (m2)
-                  ablFrac,             & ! intent(inout): fraction of glacier domain area that is ablating
-                  DOMelev,             & ! intent(inout): elevation of each glacier domain (m) per HRU
+                  nGlce,               & ! intent(in):    number of glacier ice layers
+                  ! data structures
+                  mpar_data,           & ! intent(in):    model parameters
+                  indx_data,           & ! intent(in):    model indices
+                  prog_data,           & ! intent(inout): model prognostic variables
+                  diag_data,           & ! intent(inout): model diagnostic variables
+                  flux_data,           & ! intent(inout): model fluxes
                   ! error control
                   err, message)         ! intent(out):   error control
  ! ----- define dummy variables ------------------------------------------------------------------------------------------
@@ -1287,64 +1294,93 @@ subroutine updateGlacDomain(&
   integer(i4b), intent(in)        :: nSnow                    ! number of snow layers
   integer(i4b), intent(in)        :: nLake                    ! number of lake layers　(should be 0)
   integer(i4b), intent(in)        :: nSoil                    ! number of soil layers
-  integer(i4b), intent(inout)     :: nGlce                    ! number of glacier ice layers
-  real(rkind), intent(inout)      :: glacMass4AreaChange      ! mass change (kg m-2)
-  real(rkind), intent(inout)      :: mLayerDepth(:)           ! layer thickness (m)
-  real(rkind), intent(inout)      :: mLayerHeight(:)          ! layer mid-point height (m)
-  real(rkind), intent(inout)      :: iLayerHeight(0:)          ! layer interface height (m)
-  real(rkind), intent(inout)      :: DOMarea                  ! area of each domain (m2)
-  real(rkind), intent(inout)      :: ablFrac                  ! fraction of glacier domain area that is ablating
-  real(rkind), intent(inout)      :: DOMelev                  ! elevation of each glacier domain (m) per HRU
+  integer(i4b), intent(in)        :: nGlce                    ! number of glacier ice layers
+  type(var_dlength),intent(in)    :: mpar_data                ! model parameters
+  type(var_ilength),intent(in)    :: indx_data                ! model indices
+  type(var_dlength),intent(inout) :: prog_data                ! model prognostic variables
+  type(var_dlength),intent(inout) :: diag_data                ! model diagnostic variables
+  type(var_dlength),intent(inout) :: flux_data                ! model fluxes
   integer(i4b),intent(out)        :: err                      ! error code
   character(*),intent(out)        :: message                  ! error message 
    ! ----- define local variables ------------------------------------------------------------------------------------------
   integer(i4b)                    :: i                        ! loop index
   real(rkind)                     :: layers_thick             ! depth of layers modifying
   real(rkind)                     :: thick_ratio              ! ratio of new layers thickness to previous thickness
-  ! ----------------------------------------------------------------------------------------------
-  ! initialize
-  err=0; message='updateGlacDomain/'
+  character(len=256)              :: cmessage                 ! error message
+  ! ----------------------------------------------------------------------------------
+  ! associate variables in data structure
+  associate(&
+   ! coordinate variables
+   mLayerDepth          => prog_data%var(iLookPROG%mLayerDepth)%dat,            & ! thickness of each layer (m)       
+   mLayerHeight         => prog_data%var(iLookPROG%mLayerHeight)%dat,           & ! height at the mid-point of each layer (m)
+   iLayerHeight         => prog_data%var(iLookPROG%iLayerHeight)%dat,           & ! height at the interface of each layer (m)
+    ! glacier domain variables
+   glacMass4AreaChange  => prog_data%var(iLookPROG%glacMass4AreaChange)%dat(1), & ! mass change (kg m-2)
+   DOMarea              => prog_data%var(iLookPROG%DOMarea)%dat(1),             & ! area of each domain (m2)
+   DOMelev              => prog_data%var(iLookPROG%DOMelev)%dat(1),             & ! elevation of each glacier domain (m)
+   scalarAblFrac        => prog_data%var(iLookPROG%scalarAblFrac)%dat(1)        & ! fraction of glacier domain area that is ablating
+   ) ! end associate
+   ! ----------------------------------------------------------------------------------------------
+   ! initialize
+   err=0; message='updateGlacDomain/'
 
-  ! update glacier domain elevation, area, and ablating fraction and reset mass change
-  DOMelev = glac_elev(iglac) ! realMissing if no area
-  DOMarea = glac_area(iglac) ! may be 0
-  ablFrac = glac_ablFrac(iglac) ! may be 0
-  glacMass4AreaChange = 0._rkind ! reset
+   ! update glacier domain elevation, area, and ablating fraction and reset mass change
+   DOMelev = glac_elev(iglac) ! realMissing if no area
+   DOMarea = glac_area(iglac) ! may be 0
+   scalarAblFrac = glac_ablFrac(iglac) ! may be 0
+   glacMass4AreaChange = 0._rkind ! reset
 
-  ! update glacier layering
-  if(dom_type==glacDbr .and. DOMarea>0._rkind)then ! thickness of average debris cover in HRU changes with debris advection
-    ! for zero area, glacDbr needs to keep previous non-zero soil layering so can adjust if debris-covered glacier re-appears
-    ! scale soil layer thickness with debris thickness change, keep the same number of layers 
-    layers_thick = sum(mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil))
-    thick_ratio = glac_debris_thick(iglac)/layers_thick ! glac_debris_thick will be >0 since there is a positive area of debris-covered glacier
-    mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil)  = mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil)*thick_ratio
-    mLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil) = mLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil)*thick_ratio
-    iLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil) = iLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil)*thick_ratio            
+   ! update glacier layering
+   if(dom_type==glacDbr .and. DOMarea>0._rkind)then ! thickness of average debris cover in HRU changes with debris advection
+     ! for zero area, glacDbr needs to keep previous non-zero soil layering so can adjust if debris-covered glacier re-appears
+     ! scale soil layer thickness with debris thickness change, keep the same number of layers 
+     layers_thick = sum(mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil))
+     thick_ratio = glac_debris_thick(iglac)/layers_thick ! glac_debris_thick will be >0 since there is a positive area of debris-covered glacier
+     mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil)  = mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil)*thick_ratio
+     mLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil) = mLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil)*thick_ratio
+     iLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil) = iLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil)*thick_ratio            
 
-    ! recalculate the layer heights below soil
-    do i=nSnow+nLake+nSoil+1,nSnow+nLake+nSoil+nGlce
-      mLayerHeight(i) = mLayerHeight(i) + glac_debris_thick(iglac) - layers_thick
-      iLayerHeight(i) = iLayerHeight(i) + glac_debris_thick(iglac) - layers_thick
-    enddo
+     ! recalculate the layer heights below soil
+     do i=nSnow+nLake+nSoil+1,nSnow+nLake+nSoil+nGlce
+       mLayerHeight(i) = mLayerHeight(i) + glac_debris_thick(iglac) - layers_thick
+       iLayerHeight(i) = iLayerHeight(i) + glac_debris_thick(iglac) - layers_thick
+     enddo
 
-  elseif(DOMarea==0._rkind .and. nSnow>0)then ! no glacier area but still has snow layers, so make snow very thin
-    ! scale snow layers so comes back with tiny snow (would prefer 0 thickness but then would have to relayer here)
-    layers_thick = sum(mLayerDepth(1:nSnow))
-    if(layers_thick>verySmall)then
-      thick_ratio = verySmall/layers_thick
-      mLayerDepth(1:nSnow) = mLayerDepth(1:nSnow)*thick_ratio
-      mLayerHeight(1:nSnow) = mLayerHeight(1:nSnow)*thick_ratio
-      iLayerHeight(1:nSnow) = iLayerHeight(1:nSnow)*thick_ratio          
+       ! recalculate vertical distribution of root density
+       call rootDensty(mpar_data,     & ! intent(in):    model parameters
+                       indx_data,     & ! intent(in):    model indices
+                       prog_data,     & ! intent(in):    model prognostic variables
+                       diag_data,     & ! intent(inout): model diagnostic variables
+                       err,cmessage)    ! error control
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-      ! recalculate the layer heights below snow
-      do i=nSnow+1,nSnow+nLake+nSoil+nGlce
-        mLayerHeight(i) = mLayerHeight(i) + verySmall - layers_thick
-        iLayerHeight(i) = iLayerHeight(i) + verySmall - layers_thick
-      enddo
-    endif
+       ! recalculate saturated hydraulic conductivity in each soil layer
+       call satHydCond(mpar_data,    & ! intent(in):    model parameters
+                       indx_data,    & ! intent(in):    model indices
+                       prog_data,    & ! intent(in):    model prognostic variables
+                       flux_data,    & ! intent(inout): model fluxes
+                       err,cmessage)   ! error control
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  endif ! ( if changing soil layers or snow layers)
+   elseif(DOMarea==0._rkind .and. nSnow>0)then ! no glacier area but still has snow layers, so make snow very thin
+     ! scale snow layers so comes back with tiny snow (would prefer 0 thickness but then would have to relayer here)
+     layers_thick = sum(mLayerDepth(1:nSnow))
+     if(layers_thick>verySmall)then
+       thick_ratio = verySmall/layers_thick
+       mLayerDepth(1:nSnow) = mLayerDepth(1:nSnow)*thick_ratio
+       mLayerHeight(1:nSnow) = mLayerHeight(1:nSnow)*thick_ratio
+       iLayerHeight(1:nSnow) = iLayerHeight(1:nSnow)*thick_ratio          
 
+       ! recalculate the layer heights below snow
+       do i=nSnow+1,nSnow+nLake+nSoil+nGlce
+         mLayerHeight(i) = mLayerHeight(i) + verySmall - layers_thick
+         iLayerHeight(i) = iLayerHeight(i) + verySmall - layers_thick
+       enddo
+     endif
+
+   endif ! ( if changing soil layers or snow layers)
+  
+ end associate
 end subroutine updateGlacDomain
 
 

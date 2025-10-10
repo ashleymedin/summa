@@ -543,17 +543,15 @@ subroutine run_oneGRU(&
                       gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nSnow,     & ! intent(in):    number of snow layers
                       gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nLake,     & ! intent(in):    number of lake layers
                       gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nSoil,     & ! intent(in):    number of soil layers
-                      gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nGlce,     & ! intent(inout): number of glacier ice layers
-                      ! output
-                      progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%glacMass4AreaChange)%dat(1), & ! intent(inout): mass change (kg m-2)
-                      progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat,            & ! intent(inout): layer thickness (m)
-                      progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerHeight)%dat,           & ! intent(inout): layer mid-point height (m)
-                      progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%iLayerHeight)%dat,           & ! intent(inout): layer interface height (m)
-                      progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1),             & ! intent(inout): area of each domain (m2)
-                      progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1),       & ! intent(inout): fraction of glacier area that is ablation area
-                      progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1),             & ! intent(inout): elevation of each glacier domain (m) per 
+                      gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nGlce,     & ! intent(in):    number of glacier ice layers
+                      ! data structures
+                      mparHRU%hru(iHRU)%dom(iDOM),                   & ! intent(in):    model parameters
+                      indxHRU%hru(iHRU)%dom(iDOM),                   & ! intent(in):    model indices
+                      progHRU%hru(iHRU)%dom(iDOM),                   & ! intent(inout): model prognostic variables
+                      diagHRU%hru(iHRU)%dom(iDOM),                   & ! intent(inout): model diagnostic variables
+                      fluxHRU%hru(iHRU)%dom(iDOM),                   & ! intent(inout): model fluxes
                       ! error handling
-                      err, cmessage)                                                           ! intent(out):   error control
+                      err, cmessage)                                   ! intent(out):   error control
           if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
         endif ! (if glacier domain)
       enddo ! (looping through domains)

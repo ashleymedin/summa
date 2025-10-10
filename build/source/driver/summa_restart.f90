@@ -225,13 +225,13 @@ endif
                       fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! data structure of model fluxes
                       err,cmessage)                                 ! error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-    endif
 
-    ! calculate "short-cut" variables such as volumetric heat capacity
-    call v_shortcut(mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! vector of model parameters
-                    diagStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! data structure of model diagnostic variables
-                    err,cmessage)                                 ! error control
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      ! calculate "short-cut" variable of van Genuchten parameter
+      call v_shortcut(mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! vector of model parameters
+                      diagStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   & ! data structure of model diagnostic variables
+                      err,cmessage)                                 ! error control
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
 
     ! initialize canopy drip
     ! NOTE: canopy drip from the previous time step is used to compute throughfall for the current time step
