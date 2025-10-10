@@ -66,6 +66,7 @@ integer(i4b)                :: wLength_dimID                         ! dimension
 integer(i4b)                :: timestep_DimID                        ! dimension name for the time step
 integer(i4b)                :: routing_DimID                         ! dimension name for the time delay routing vectors
 integer(i4b)                :: glacier_DimID                         ! dimension name for the number of glaciers
+!integer(i4b)                :: grid_DimID                            ! dimension name for the grid
 integer(i4b)                :: midSnow_DimID                         ! dimension name for midSnow
 integer(i4b)                :: midLake_DimID                         ! dimension name for midLake
 integer(i4b)                :: midSoil_DimID                         ! dimension name for midSoil
@@ -76,7 +77,6 @@ integer(i4b)                :: ifcLake_DimID                         ! dimension
 integer(i4b)                :: ifcSoil_DimID                         ! dimension name for ifcSoil
 integer(i4b)                :: ifcGlce_DimID                         ! dimension name for ifcGlce
 integer(i4b)                :: ifcToto_DimID                         ! dimension name for ifcToto
-!integer(i4b)                :: grid_DimID                            ! dimension name for the grid
 
 ! define named variables to specify dimensions
 integer(i4b),parameter      :: needGRU=0,needHRU=1,noHRU=2,needDOM=3 ! define if there is an HRU or DOM dimension
@@ -192,7 +192,7 @@ contains
   end do ! iStruct
 
   ! write HRU dimension and ID for each output file
-  call write_id_info(ncid(iFreq), err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+  call write_id_info(ncid(iFreq), gru_DimID, hru_DimID, dom_DimID, glacier_DimID, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
  end do ! iFreq
 
@@ -454,11 +454,15 @@ contains
  ! **********************************************************************************************************
  ! public subroutine write_id_info: write GRU HRU DOM glac dimension and IDs
  ! **********************************************************************************************************
- subroutine write_id_info(ncid,err,message)
+ subroutine write_id_info(ncid, gruDimID, hruDimID, domDimID, glacDimID, err, message)
  USE globalData,only:gru_struc                    ! gru-hru mapping structures
  USE globalData,only:maxGlaciers                  ! maximum number of glaciers in a GRU
  ! input
  integer(i4b),intent(in)     :: ncid                  ! netcdf file id
+ integer(i4b),intent(in)     :: gruDimID              ! dimension name for the GRUs
+ integer(i4b),intent(in)     :: hruDimID              ! dimension name for the HRUs
+ integer(i4b),intent(in)     :: domDimID              ! dimension name for the domains
+ integer(i4b),intent(in)     :: glacDimID             ! dimension name for the number of glaciers
  ! output
  integer(i4b),intent(out)    :: err                   ! error code
  character(*),intent(out)    :: message               ! error message
@@ -480,43 +484,43 @@ contains
  err = nf90_redef(ncid); call netcdf_err(err, message); if (err/=nf90_NoErr) return
 
  ! define DOM var
- err = nf90_def_var(ncid, trim(dom_DimName), nf90_int, (/dom_DimID/), domVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_domVar' ;  call netcdf_err(err,message); return; end if
+ err = nf90_def_var(ncid, trim(dom_DimName), nf90_int, (/domDimID/), domVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_domVar' ;  call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, domVarID, 'long_name', 'domId in the input file'); if (err/=nf90_NoErr) then; message=trim(message)//'write_domVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, domVarID, 'units',     '-'                          ); if (err/=nf90_NoErr) then; message=trim(message)//'write_domVar_unit';     call netcdf_err(err,message); return; end if
 
  ! define HRU var
- err = nf90_def_var(ncid, trim(hru_DimName), nf90_int, (/hru_DimID/), hruVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruVar' ;  call netcdf_err(err,message); return; end if
+ err = nf90_def_var(ncid, trim(hru_DimName), nf90_int, (/hruDimID/), hruVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruVar' ;  call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, hruVarID, 'long_name', 'hruId in the input file'); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, hruVarID, 'units',     '-'                          ); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruVar_unit';     call netcdf_err(err,message); return; end if
 
  ! define GRU var
- err = nf90_def_var(ncid, trim(gru_DimName), nf90_int, (/gru_DimID/), gruVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gruVar' ;  call netcdf_err(err,message); return; end if
+ err = nf90_def_var(ncid, trim(gru_DimName), nf90_int, (/gruDimID/), gruVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gruVar' ;  call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, gruVarID, 'long_name', 'gruId in the input file'); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, gruVarID, 'units',     '-'                          ); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruVar_unit';     call netcdf_err(err,message); return; end if
 
  ! define domId var
- err = nf90_def_var(ncid, 'domType', nf90_int, (/dom_DimID,hru_DimID/), domIdVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_domIdVar' ; call netcdf_err(err,message); return; end if
+ err = nf90_def_var(ncid, 'domType', nf90_int, (/domDimID,hruDimID/), domIdVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_domIdVar' ; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, domIdVarID, 'long_name', 'Type defining the domain response unit type'); if (err/=nf90_NoErr) then; message=trim(message)//'write_domIdVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, domIdVarID, 'units',     '-'                  ); if (err/=nf90_NoErr) then; message=trim(message)//'write_domIdVar_unit';   call netcdf_err(err,message); return; end if
 
 ! define hruId var
- err = nf90_def_var(ncid, 'hruId', nf90_int64, (/hru_DimID/), hruIdVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruIdVar' ; call netcdf_err(err,message); return; end if 
+ err = nf90_def_var(ncid, 'hruId', nf90_int64, (/hruDimID/), hruIdVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruIdVar' ; call netcdf_err(err,message); return; end if 
  err = nf90_put_att(ncid, hruIdVarID, 'long_name', 'ID defining the hydrologic response unit'); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruIdVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, hruIdVarID, 'units',     '-'                  ); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruIdVar_unit';   call netcdf_err(err,message); return; end if
 
  ! define gruId var
- err = nf90_def_var(ncid, 'gruId', nf90_int64, (/gru_DimID/), gruIdVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gruIdVar' ; call netcdf_err(err,message); return; end if
+ err = nf90_def_var(ncid, 'gruId', nf90_int64, (/gruDimID/), gruIdVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gruIdVar' ; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, gruIdVarID, 'long_name', 'ID defining the grouped (basin) response unit'); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruIdVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, gruIdVarID, 'units',     '-'                  ); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruIdVar_unit';   call netcdf_err(err,message); return; end if
 
  if (maxGlaciers>0) then
   ! define glac var
-  err = nf90_def_var(ncid, trim(glacier_DimName), nf90_int, (/glacier_DimID/), glacVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_glacVar' ; call netcdf_err(err,message); return; end if
+  err = nf90_def_var(ncid, "glac", nf90_int, (/glacDimID/), glacVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_glacVar' ; call netcdf_err(err,message); return; end if
   err = nf90_put_att(ncid, glacVarID, 'long_name', 'glacId  in the input file'); if (err/=nf90_NoErr) then; message=trim(message)//'write_glacVar_longname'; call netcdf_err(err,message); return; end if
   err = nf90_put_att(ncid, glacVarID, 'units',     '-'                          ); if (err/=nf90_NoErr) then; message=trim(message)//'write_glacVar_unit';     call netcdf_err(err,message); return; end if
   
   ! define glacId  var
-  err = nf90_def_var(ncid, 'glacId ', nf90_int64, (/gru_DimID,glacier_DimID/), glacIdVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_glacIdVar' ; call netcdf_err(err,message); return; end if 
+  err = nf90_def_var(ncid, 'glacId ', nf90_int64, (/gruDimID,glacDimID/), glacIdVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_glacIdVar' ; call netcdf_err(err,message); return; end if 
   err = nf90_put_att(ncid, glacIdVarID, 'long_name', 'ID defining the glaciers (RGI ID)'); if (err/=nf90_NoErr) then; message=trim(message)//'write_glacIdVar_longname'; call netcdf_err(err,message); return; end if
   err = nf90_put_att(ncid, glacIdVarID, 'units',     '-'                  ); if (err/=nf90_NoErr) then; message=trim(message)//'write_glacIdVar_unit';   call netcdf_err(err,message); return; end if
  endif
@@ -566,11 +570,12 @@ contains
  ! **********************************************************************************************************
  ! public subroutine write_gridid_info: write grid dimensions and ids
  ! **********************************************************************************************************
- subroutine write_gridid_info(ncid, grid_DimID,err, message)
+ subroutine write_gridid_info(ncid, gruDimID, gridDimID,err, message)
   USE globalData,only:gru_struc                    ! gru-hru mapping structures
   ! input
   integer(i4b),intent(in)     :: ncid              ! netcdf file id
-  integer(i4b),intent(in)     :: grid_DimID        ! grid dimension ID
+  integer(i4b),intent(in)     :: gruDimID          ! dimension name for the GRUs
+  integer(i4b),intent(in)     :: gridDimID         ! grid dimension ID
   ! output
   integer(i4b),intent(out)    :: err               ! error code
   character(*),intent(out)    :: message           ! error message
@@ -588,22 +593,22 @@ contains
   err = nf90_redef(ncid); call netcdf_err(err, message); if (err/=nf90_NoErr) return
  
   ! define grid var
-  err = nf90_def_var(ncid, trim(grid_DimName), nf90_int, (/grid_DimID/), gridVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gridVar' ; call netcdf_err(err,message); return; end if
+  err = nf90_def_var(ncid, trim(grid_DimName), nf90_int, (/gridDimID/), gridVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gridVar' ; call netcdf_err(err,message); return; end if
   err = nf90_put_att(ncid, gridVarID, 'long_name', 'gridId in the input file'); if (err/=nf90_NoErr) then; message=trim(message)//'write_gridVar_longname'; call netcdf_err(err,message); return; end if
   err = nf90_put_att(ncid, gridVarID, 'units',     '-'                          ); if (err/=nf90_NoErr) then; message=trim(message)//'write_gridVar_unit'; call netcdf_err(err,message); return; end if
 
   ! define GRU var
-  err = nf90_def_var(ncid, trim(gru_DimName), nf90_int, (/gru_DimID/), gruVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gruVar' ; call netcdf_err(err,message); return; end if
+  err = nf90_def_var(ncid, trim(gru_DimName), nf90_int, (/gruDimID/), gruVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gruVar' ; call netcdf_err(err,message); return; end if
   err = nf90_put_att(ncid, gruVarID, 'long_name', 'gruId in the input file'); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruVar_longname'; call netcdf_err(err,message); return; end if
   err = nf90_put_att(ncid, gruVarID, 'units',     '-'                          ); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruVar_unit'; call netcdf_err(err,message); return; end if
   
  ! define gridId var
-  err = nf90_def_var(ncid, 'gridId', nf90_int64, (/gru_DimID,grid_DimID/), gridIdVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gridIdVar' ; call netcdf_err(err,message); return; end if 
+  err = nf90_def_var(ncid, 'gridId', nf90_int64, (/gruDimID,gridDimID/), gridIdVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gridIdVar' ; call netcdf_err(err,message); return; end if 
   err = nf90_put_att(ncid, gridIdVarID, 'long_name', 'ID defining the grid (RGI ID for glaciers)'); if (err/=nf90_NoErr) then; message=trim(message)//'write_gridIdVar_longname'; call netcdf_err(err,message); return; end if
   err = nf90_put_att(ncid, gridIdVarID, 'units',     '-'                  ); if (err/=nf90_NoErr) then; message=trim(message)//'write_gridIdVar_unit'; call netcdf_err(err,message); return; end if
  
   ! define gruId var
-  err = nf90_def_var(ncid, 'gruId', nf90_int64, (/gru_DimID/), gruIdVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gruIdVar' ; call netcdf_err(err,message); return; end if
+  err = nf90_def_var(ncid, 'gruId', nf90_int64, (/gruDimID/), gruIdVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gruIdVar' ; call netcdf_err(err,message); return; end if
   err = nf90_put_att(ncid, gruIdVarID, 'long_name', 'ID defining the grouped (basin) response unit'); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruIdVar_longname'; call netcdf_err(err,message); return; end if
   err = nf90_put_att(ncid, gruIdVarID, 'units',     '-'                  ); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruIdVar_unit'; call netcdf_err(err,message); return; end if
  

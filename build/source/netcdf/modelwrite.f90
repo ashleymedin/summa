@@ -613,7 +613,7 @@ contains
                       err = nf90_def_dim(ncid,trim(hruDimName)    ,nHRU           ,    hruDimID); message='iCreate[hru]'     ; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(domDimName)    ,maxDOM         ,    domDimID); message='iCreate[dom]'     ; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(tdhDimName)    ,nTimeDelay     ,    tdhDimID); message='iCreate[tdh]'     ; call netcdf_err(err,message); if(err/=0)return
-                      err = nf90_def_dim(ncid,trim(nglDimName)    ,maxGlaciers    ,    nglDimID); message='iCreate[glac]'    ; call netcdf_err(err,message); if(err/=0)return
+  if (maxGlaciers>0)  err = nf90_def_dim(ncid,trim(nglDimName)    ,maxGlaciers    ,    nglDimID); message='iCreate[glac]'    ; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(scalDimName)   ,nScalar        ,   scalDimID); message='iCreate[scalar]'  ; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(specDimName)   ,nSpecBand      ,   specDimID); message='iCreate[spectral]'; call netcdf_err(err,message); if(err/=0)return
                       err = nf90_def_dim(ncid,trim(midTotoDimName),maxLayers      ,midTotoDimID); message='iCreate[midToto]' ; call netcdf_err(err,message); if(err/=0)return
@@ -664,7 +664,7 @@ contains
     iVar = ngdx(i)
     select case(bvar_meta(iVar)%varType)
      case(iLookVarType%scalarv); err = nf90_def_var(ncid,trim(bvar_meta(iVar)%varName),nf90_double,(/gruDimID,scalDimID /),ncVarID(nProgVars+1+i))
-     case(iLookVarType%glacier); err = nf90_def_var(ncid,trim(bvar_meta(iVar)%varName),nf90_double,(/gruDimID,  nglDimID/),ncVarID(nProgVars+1+i))
+     case(iLookVarType%glacier); err = nf90_def_var(ncid,trim(bvar_meta(iVar)%varName),nf90_double,(/gruDimID,nglDimID/),ncVarID(nProgVars+1+i))
     end select
     if(err/=0)then; message=trim(message)//' [variable '//trim(bvar_meta(iVar)%varName)//']';return; end if
 
@@ -772,7 +772,7 @@ contains
  end do  ! iGRU loop
 
  ! write dimensions and ID for file
- call write_id_info(ncid, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+ call write_id_info(ncid, gruDimID, hruDimID, domDimID, nglDimID, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
  ! close file
  call nc_file_close(ncid,err,cmessage)
@@ -900,7 +900,7 @@ do iGRU = 1,nGRU
 end do  ! iGRU loop
 
 ! write grid dimension and ID for file
-call write_gridid_info(ncid,ngriDimID, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+call write_gridid_info(ncid, gruDimID, ngriDimID, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
 ! close file
 call nc_file_close(ncid,err,cmessage)
