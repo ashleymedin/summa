@@ -194,6 +194,11 @@ windspd = windspd + wndlapseRate * (DOMelev - elevation) ! adjust wind speed to 
 windspd_x = windspd_x + wndlapseRate * (DOMelev - elevation) ! adjust wind speed x-component to domain mean elevation
 windspd_y = windspd_y + wndlapseRate * (DOMelev - elevation) ! adjust wind speed y-component to domain mean elevation
 
+ ! ensure wind speed is above a prescribed minimum value
+ if(windspd < minwind) windspd=minwind
+ if(windspd_x < minwind) windspd_x=minwind
+ if(windspd_y < minwind) windspd_y=minwind
+
  ! check spectral dimension
  if(size(spectralIncomingDirect) /= nSpecBand .or. size(spectralIncomingDiffuse) /= nSpecBand)then
   write(message,'(a,i0,a)') trim(message)//'expect ', nSpecBand, 'spectral classes for radiation'
@@ -289,9 +294,6 @@ windspd_y = windspd_y + wndlapseRate * (DOMelev - elevation) ! adjust wind speed
  spectralIncomingDirect(2)  = SWRadAtm*scalarFractionDirect*(1._rkind - Frad_vis)               ! (direct nir)
  spectralIncomingDiffuse(1) = SWRadAtm*(1._rkind - scalarFractionDirect)*Frad_vis              ! (diffuse vis)
  spectralIncomingDiffuse(2) = SWRadAtm*(1._rkind - scalarFractionDirect)*(1._rkind - Frad_vis)    ! (diffuse nir)
-
- ! ensure wind speed is above a prescribed minimum value
- if(windspd < minwind) windspd=minwind
 
  ! adjust the air temperature to the domain mean elevation
  airtemp = airtemp - (DOMelev - elevation) * lapseRate
