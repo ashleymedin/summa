@@ -1742,23 +1742,21 @@ subroutine aeroResist(&
     canopyResistance = 1.e12_rkind   ! not used: huge resistance, so conductance is essentially zero
     leafResistance   = 1.e12_rkind   ! not used: huge resistance, so conductance is essentially zero
 
-    ! check that measurement height above the ground surface is above the roughness length
-    if (mHeight < snowDepth+z0Ground) then; err=20; message=trim(message)//'measurement height < snow depth + roughness length'; return; end if
-
-    ! compute the resistance between the surface and canopy air UNDER NEUTRAL CONDITIONS (s m-1)
-    groundExNeut = (vkc**2_i4b) / ( log((mHeight - snowDepth)/z0Ground)**2_i4b) ! turbulent transfer coefficient under conditions of neutral stability (-)
-    groundResistanceNeutral = 1._rkind / (groundExNeut*windspd)
-
     ! define height above the snow surface
     heightAboveGround  = mHeight - snowDepth
 
-    ! check that measurement height above the ground surface is above the roughness length
+    ! check that measurement height above the ground surface is not below the roughness length
+    !   currently will only happen if z0Ground is larger than minMeasHeight=1.0m, should increase minMeasHeight if want to use larger z0Ground (related to z0Snow, z0Ice, z0Soil possibly)
     if (heightAboveGround < z0Ground) then
       write(*,'(a,1x,4(f12.5,1x))') 'z0Ground, mHeight, snowDepth, heightAboveGround = ', &
                                      z0Ground, mHeight, snowDepth, heightAboveGround
-      message=trim(message)//'height above ground < roughness length [likely due to snow accumulation]'
+      message=trim(message)//'height above ground < roughness length [vegetation buried by snow or no vegetation]'
       err=20; return
     end if
+
+    ! compute the resistance between the surface and canopy air UNDER NEUTRAL CONDITIONS (s m-1)
+    groundExNeut = (vkc**2_i4b) / ( log(heightAboveGround/z0Ground)**2_i4b) ! turbulent transfer coefficient under conditions of neutral stability (-)
+    groundResistanceNeutral = 1._rkind / (groundExNeut*windspd)
 
     ! compute ground stability correction
     call aStability(&

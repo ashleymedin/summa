@@ -151,14 +151,20 @@ subroutine run_oneHRU(&
   integer(i4b)                      :: iend                ! index of the last soil layer
   logical(lgt)                      :: use_computeVegFlux  ! computeVegFlux flag for the current domain
   logical(lgt)                      :: glacierDomain       ! flag to indicate if the domain is a glacier
+  type(var_d)                       :: forcData0           ! original forcings
   character(len=256)                :: cmessage            ! error message
   real(rkind)       , allocatable   :: zSoilReverseSign(:) ! height at bottom of each soil layer, negative downwards (m)
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
+  ! save original forcings
+  forcData0 = forcData 
+
+  ! loop over each domain
   do i = 1, ndom
     ! initialize error control
     err=0; write(message, '(A21,I0,A10,I0,A13,I0,A2)' ) 'run_oneHRU (hru_nc = ',hru_nc,', hruId = ',hruId,', dom_type = ',domInfo(i)%dom_type,')/'
 
     glacierDomain = .false. ! reset the flag for the next domain
+    forcData = forcData0 ! reset the forcings for the next domain
 
     ! initialize the number of flux calls
     diagData%dom(i)%var(iLookDIAG%numFluxCalls)%dat(1) = 0._rkind
@@ -228,7 +234,7 @@ subroutine run_oneHRU(&
       ! ----- hru forcing ----------------------------------------------------------------------------------------------------
 
       ! compute derived forcing variables, different for each domain type
-      call derivforce(forcData,            & ! intent(inout): vector of model forcing data (only change if domain type is upland, used in vegetation routines)
+      call derivforce(forcData,            & ! intent(inout): vector of model forcing data
                       attrData,            & ! intent(in):    vector of model attributes
                       mparData%dom(i),     & ! intent(in):    data structure of model parameters
                       progData%dom(i),     & ! intent(in):    data structure of model prognostic variables
@@ -277,7 +283,6 @@ subroutine run_oneHRU(&
     domInfo(i)%nSoil   = indxData%dom(i)%var(iLookINDEX%nSoil)%dat(1)    ! number of soil layers
     domInfo(i)%nGlce   = indxData%dom(i)%var(iLookINDEX%nGlce)%dat(1)    ! number of glacier ice layers
     domInfo(i)%nLayers = indxData%dom(i)%var(iLookINDEX%nLayers)%dat(1)  ! total number of layers
-
   end do
 
 end subroutine run_oneHRU

@@ -268,7 +268,6 @@ subroutine glacAreaChange(&
     
     ! Calculate piecewise linear regression for mass balance as a function of elevation 
     !   also find ELA elevation, assuming monotonically decreasing mass balance with elevation decrease
-    !   NOTE: function should probably be capped above and below, but for now just extrapolate
     if(validCount(dbr+1) == 1)then
       slope(1,dbr+1) = 0._rkind
       intercept(1,dbr+1) = validMassChange(1,dbr+1)

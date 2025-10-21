@@ -45,7 +45,6 @@ USE multiconst,only:&
 
 ! access the derived types to define the data structures
 USE data_types,only:&
-                    var_d,            & ! data vector (rkind)
                     var_ilength,      & ! data vector with variable length dimension (i4b)
                     var_dlength,      & ! data vector with variable length dimension (rkind)
                     model_options       ! defines the model decisions
@@ -350,7 +349,6 @@ contains
  USE var_lookup,only:iLookPARAM,iLookPROG,iLookINDEX              ! named variables for structure elements
  USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta      ! metadata
  USE data_types,only:var_ilength,var_dlength                      ! data vectors with variable length dimension
- USE data_types,only:var_d                                        ! data structures with fixed dimension
  ! provide access to external modules
  USE snow_utils_module,only:fracliquid                            ! compute fraction of liquid water
  USE convertEnthalpyTemp_module,only:enthalpy2T_snLaGlWat,T2enthalpy_snLaGlWat ! convert temperature to liq+ice enthalpy for a snow layer
