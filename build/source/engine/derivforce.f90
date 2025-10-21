@@ -117,7 +117,6 @@ contains
  real(rkind),parameter                :: pahautDenWindScal=0.5_rkind   ! Scalar parameter for wind impacts on density using Pahaut (1976) function (-)
  real(rkind)                          :: airpres_base                  ! air pressure at the base elevation (Pa)
  real(rkind),parameter                :: lapseRate=0.006871_rkind      ! lapse rate (K m-1), 6.5C/1km is the standard environmental lapse rate
- real(rkind),parameter                :: pptlapseRate=-7.322e-8_rkind  ! precipitation lapse rate (kg m-2 s-1 m-1)
  real(rkind),parameter                :: wndlapseRate=0.0006426_rkind  ! wind speed lapse rate (m s-1 m-1)
  ! ************************************************************************************************
  ! associate local variables with the information in the data structures
@@ -331,7 +330,6 @@ windspd_y = windspd_y + wndlapseRate * (DOMelev - elevation) ! adjust wind speed
  ! ensure that snowfall temperature creates predominantely solid precipitation
  snowfallTemp      = min(maxFrozenSnowTemp,snowfallTemp) ! snowfall temperature
 
- pptrate = pptrate + pptlapseRate * (DOMelev - elevation) ! adjust precipitation rate to domain mean elevation
  ! ensure precipitation rate can be resolved by the data model
  if(pptrate<eps)then
   ! set rainfall and snowfall to zero
