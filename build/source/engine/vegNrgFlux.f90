@@ -1742,6 +1742,8 @@ subroutine aeroResist(&
     canopyResistance = 1.e12_rkind   ! not used: huge resistance, so conductance is essentially zero
     leafResistance   = 1.e12_rkind   ! not used: huge resistance, so conductance is essentially zero
 
+    ! eddy covariance derived flux based on bulk transfer coefficients assumes constant flux with height
+    !  but shallow katabatic winds on glaciers means max wind speed occurs near surface
     ! define height above the snow surface
     heightAboveGround  = mHeight - snowDepth
 
