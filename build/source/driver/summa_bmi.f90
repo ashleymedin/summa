@@ -220,7 +220,7 @@ module summabmi
      endif
 
      ! initialize the model if on the first GRU
-     !if (this%model%iGRU==1) then ! REPLACE WIH IS FIRST GRU, or last ...
+     if (this%model%iGRU==1) then ! REPLACE WIH IS FIRST GRU, or last ...
        print "(A)", "file_master is '"//trim(config_file)//"'."
        ! declare and allocate summa data structures and initialize model state to known values
        call summa_initialize(this%model%summa1_struc(n), err, message)
@@ -233,7 +233,7 @@ module summabmi
        ! read restart data and reset the model state
        call summa_readRestart(this%model%summa1_struc(n), err, message)
        call handle_err(err, message)
-     !end if
+     end if
 
      ! done with bmi initialization, set up summa initialization variables
      this%model%timeStep = 1
