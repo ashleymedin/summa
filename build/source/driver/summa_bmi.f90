@@ -68,6 +68,10 @@ module summabmi
   type :: summa_model
      integer(i4b) :: timeStep      ! index of model time step
      type(summa1_type_dec), allocatable :: summa1_struc(:)
+     integer(i4b) :: iGRU           ! index of GRU for multi-GRU file ordering
+     integer(i4b) :: nGRU_total     ! total number of GRUs in the simulation
+     integer(i4b) :: nGRU_run       ! number of GRUs simulated this step
+     logical(lgt) :: is_updated    ! flag to indicate model has been updated for the current time step
   end type summa_model
 
   type, extends (bmi) :: summa_bmi
@@ -188,43 +192,52 @@ module summabmi
      ! initialize time steps
      this%model%timeStep = 0
 
-     ! allocate space for the master summa structure, could happen outside of BMI function
+     ! allocate space for the master summa structure
      allocate(this%model%summa1_struc(n), stat=err)
      if(err/=0) call stop_program(1, 'problem allocating master summa structure')
-
+  
      ! if using the BMI interface, there is an argument pointing to the file manager file
      !  then make sure summaFileManagerFile is set before executing initialization
      if (len(config_file) > 0)then
 #ifdef NGEN_ACTIVE
        ! with NGEN the argument gives the file manager file as an input parameter in a namelist
        open (action='read', file=config_file, iostat=rc, newunit=fu)
-       read (nml=parameters, iostat=rc, unit=fu)
+       read (nml=parameters, iostat=rc, unit=fu) 
+       close (unit=fu)
        this%model%summa1_struc(n)%summaFileManagerFile=trim(file_manager)
-       startGRU = attrib_file_HRU_order
-       print "(A)", "file_master is '"//trim(file_manager)//"'."
-       print *, "startGRU = ", startGRU
+       this%model%iGRU = attrib_file_HRU_order
+       this%model%nGRU_total = this%model%summa1_struc(n)%nGRU ! HOW GET THIS??
 #else
        ! without NGEN the argument gives the file manager file directly
        ! Note, if this is more than 80 characters the pre-built BMI libraries will fail
        this%model%summa1_struc(n)%summaFileManagerFile=trim(config_file)
-       print "(A)", "file_master is '"//trim(config_file)//"'."
+       this%model%nGRU_total = this%model%summa1_struc(n)%nGRU ! all nGRUs will be run
+       this%model%iGRU = 1 ! set as 1 so does initialization (below)
+       this%model%nGRU_total = this%model%summa1_struc(n)%nGRU ! all nGRUs will be run
 #endif
+      else
+        call stop_program(1, 'no file manager file specified in BMI initialize')
      endif
 
-     ! declare and allocate summa data structures and initialize model state to known values
-     call summa_initialize(this%model%summa1_struc(n), err, message)
-     call handle_err(err, message)
+     ! initialize the model if on the first GRU
+     !if (this%model%iGRU==1) then ! REPLACE WIH IS FIRST GRU, or last ...
+       print "(A)", "file_master is '"//trim(config_file)//"'."
+       ! declare and allocate summa data structures and initialize model state to known values
+       call summa_initialize(this%model%summa1_struc(n), err, message)
+       call handle_err(err, message)
+  
+       ! initialize parameter data structures (e.g. vegetation and soil parameters)
+       call summa_paramSetup(this%model%summa1_struc(n), err, message)
+       call handle_err(err, message)
+  
+       ! read restart data and reset the model state
+       call summa_readRestart(this%model%summa1_struc(n), err, message)
+       call handle_err(err, message)
+     !end if
 
-     ! initialize parameter data structures (e.g. vegetation and soil parameters)
-     call summa_paramSetup(this%model%summa1_struc(n), err, message)
-     call handle_err(err, message)
-
-     ! read restart data and reset the model state
-     call summa_readRestart(this%model%summa1_struc(n), err, message)
-     call handle_err(err, message)
-
-     ! done with initialization
+     ! done with bmi initialization, set up summa initialization variables
      this%model%timeStep = 1
+     this%model%nGRU_run = 0
      bmi_status = BMI_SUCCESS
    end function summa_bmi_initialize
 
@@ -238,26 +251,38 @@ module summabmi
      character(len=1024)                :: message=''                 ! error message
      integer :: bmi_status
 
+     ! initialize
+     print*, this%model%iGRU, ' is being run.', this%model%nGRU_run
+     if (this%model%nGRU_run==0) this%model%is_updated = .false.
 
-     ! read model forcing data
-     call summa_readForcing(this%model%timeStep, this%model%summa1_struc(n), err, message)
-     call handle_err(err, message)
+     ! read model forcing data on first 
+     if( .not. this%model%is_updated ) then
+       call summa_readForcing(this%model%timeStep, this%model%summa1_struc(n), err, message)
+       call handle_err(err, message)
+      end if
 
      !if (mod(this%model%timeStep, print_step_freq) == 0)then
        print *, 'step ---> ', this%model%timeStep
      !endif
      ! run the summa physics for one time step
-     call summa_runPhysics(this%model%timeStep, this%model%summa1_struc(n), err, message)
+     call summa_runPhysics(this%model%timeStep, this%model%summa1_struc(n), this%model%iGRU, .not.this%model%is_updated, err, message)
      call handle_err(err, message)
+# ifdef NGEN_ACTIVE
+     this%model%nGRU_run = this%model%nGRU_run + 1
+# else
+      this%model%nGRU_run = this%model%nGRU_total
+# endif
 
-#ifndef NGEN_ACTIVE
      ! write the model output
-     call summa_writeOutputFiles(this%model%timeStep, this%model%summa1_struc(n), err, message)
-     call handle_err(err, message)
-#endif
-
+     if (this%model%nGRU_run==this%model%nGRU_total) then ! REPLACE WIH IS FIRST GRU)
+       call summa_writeOutputFiles(this%model%timeStep, this%model%summa1_struc(n), err, message)
+       call handle_err(err, message)
+       this%model%nGRU_run = 0 ! reset for next time step
+     end if
+ 
      ! start, advance time, as model uses this time step throughout
      this%model%timeStep = this%model%timeStep + 1
+     this%model%is_updated = .true.
 
      ! done with step
      bmi_status = BMI_SUCCESS
