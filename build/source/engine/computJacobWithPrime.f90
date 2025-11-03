@@ -83,7 +83,6 @@ implicit none
 private
 public::computJacobWithPrime
 public::computJacob4ida
-logical::fullMatrix
 contains
 
 
@@ -173,6 +172,7 @@ subroutine computJacobWithPrime(&
   ! conversion factors
   real(rkind)                          :: LH_fu0                     ! latent heat of fusion, modified to be 0 if using enthalpy formulation and not using
   character(LEN=256)                   :: cmessage                   ! error message of downwind routine
+  logical(lgt) :: fullMatrix
   ! --------------------------------------------------------------
   ! associate variables from data structures
   associate(&
@@ -471,6 +471,25 @@ subroutine computJacobWithPrime(&
 
   end associate ! end association to variables in the data structures  
 
+  contains
+
+  ! **********************************************************************************************************
+! private function: get the index in the band-diagonal matrix or full matrix
+! **********************************************************************************************************
+function ixInd(jState,iState)
+  implicit none
+  integer(i4b),intent(in)  :: jState ! off-diagonal state
+  integer(i4b),intent(in)  :: iState ! diagonal state
+  integer(i4b)             :: ixInd  ! index in the band-diagonal matrix or full matrix
+
+  if(fullMatrix) then
+    ixInd = jState
+  else
+    ixInd = ixDiag + jState - iState
+  endif
+end function ixInd
+
+
 end subroutine computJacobWithPrime
 
 ! **********************************************************************************************************
@@ -563,21 +582,5 @@ integer(c_int) function computJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
   return
 
 end function computJacob4ida
-
-! **********************************************************************************************************
-! private function: get the index in the band-diagonal matrix or full matrix
-! **********************************************************************************************************
-function ixInd(jState,iState)
-  implicit none
-  integer(i4b),intent(in)  :: jState ! off-diagonal state
-  integer(i4b),intent(in)  :: iState ! diagonal state
-  integer(i4b)             :: ixInd  ! index in the band-diagonal matrix or full matrix
-
-  if(fullMatrix) then
-    ixInd = jState
-  else
-    ixInd = ixDiag + jState - iState
-  endif
-end function ixInd
 
 end module computJacobWithPrime_module
