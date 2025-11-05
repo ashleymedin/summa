@@ -38,8 +38,8 @@
             }
         ],
       "forcing": {
-          "path": "./test/data/forcing/cat-10_2015-12-01 00_00_00_2015-12-30 23_00_00.csv",
-          "provider": "CsvPerFeature"
+          "path": "./data/gauge_01073000/forcing.nc",
+          "provider": "NetCDF"
       }
   },
   "time": {
