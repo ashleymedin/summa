@@ -43,7 +43,7 @@ subroutine openwq_init(err)
   ! nx -> num of HRUs)
   ! ny -> 1
   ! nz -> num of layers (snow + soil)
-  openwq_obj = CLASSWQ_openwq() ! initalize openWQ object
+  openwq_obj = CLASSWQ_openwq() ! initialize openWQ object
 
   hruCount = sum( gru_struc(:)%hruCount )
 

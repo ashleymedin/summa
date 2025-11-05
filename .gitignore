@@ -37,7 +37,6 @@ Makefile-*
 *.backup
 # site directory from mkdocs
 site/
-Laugh-Tests/
 # cmake_build containing cmake build objects
 build/cmake_build
 runinfo.txt
@@ -47,3 +46,8 @@ build/source/openwq/openwq
 utils/pre-processing/*.nc
 # vscode related files
 .vscode
+<<<<<<< HEAD
+=======
+test_ngen/gauge_01073000/simulations/run_1/SUMMA/*.nc
+
+>>>>>>> develop

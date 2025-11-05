@@ -32,37 +32,36 @@ The master configuration file is an [ASCII file](#infile_format_ASCII) and is pr
 
 The following items must be provided in the master configuration file. Order is not important, as the entries are each associated with a keyword.  Each keyword and entry pair must be on its own line, but may be followed by a comment (started by the '!' character), and you can add lines of comments between the items. Each entry must be enclosed in single quotes `'entry'`. The associations of the keywords to the actual variable name that is used in the SUMMA source code can be found in `summaFileManager.f90`, along with its default value where appropriate.
 
-`controlVersion`: Version of the file manager that should be used to process the master configuration file. At this time, this string should be equal to `'SUMMA_FILE_MANAGER_V3.0.0'`.  Note, this version of the code is not backward compatible with versions using `SUMMA_FILE_MANAGER_V1.0` or `SUMMA_FILE_MANAGER_V2.0`.
+- `controlVersion`: Version of the file manager that should be used to process the master configuration file. At this time, this string should be equal to `'SUMMA_FILE_MANAGER_V3.0.0'`.  Note, this version of the code is not backward compatible with versions using `'SUMMA_FILE_MANAGER_V1.0'` or `'SUMMA_FILE_MANAGER_V2.0'`.
+- `simStartTime` : Start of the simulation specified as `'YYYY-MM-DD hh:mm'`. See [Time definition notes](#simulStartEndTimes).
+- `simEndTime` : End of the simulation specified as `'YYYY-MM-DD hh:mm'`.
+- `tmZoneInfo` : [Time zone information](#tmZoneInfo).
+- `settingsPath` : Base path for the configuration files. Most of the file paths in the remainder of the master configuration file are relative to this path (except `forcingPath` and `outputPath`).
+- `forcingPath` : Base path for the meteorological forcing files specified in the `forcingList`.
+- `outputPath` : Base path for the SUMMA output files.
+- `statePath` : (optional) Base path for the SUMMA state files, including the initial condition file. If not given, the initial condition (state) file is read from the settingsPath directory, and the state file outputs are written to the outputPath directory. If given, summa expects the initial condition file to be in the state file directory.
+- `decisionsFile` : File path for the [model decisions file](#infile_model_decisions) (relative to `settingsPath`).
+- `outputControlFile` : File path for the [output control file](#infile_output_control) (relative to `settingsPath`).
+- `attributeFile` : File path for the [local attributes file](#infile_local_attributes) (relative to `settingsPath`).
+- `globalHruParamFile` : File path for the [local parameters file](#infile_local_parameters) (relative to `settingsPath`).
+- `globalGruParamFile` : File path for the [basin parameters file](#infile_basin_parameters) (relative to `settingsPath`).
+- `forcingListFile` : File path for the [list of forcing files file](#infile_forcing_list) (relative to `settingsPath`).
+- `initConditionFile` : File path for the [initial conditions file](#infile_initial_conditions) (relative to `settingsPath`).
+- `trialParamFile` : File path for the [trial parameters file](#infile_trial_parameters) (relative to `settingsPath`).
+- `vegTableFile` : File path to the vegetation parameter table (defaults to `VEGPARM.TBL`) (relative to `settingsPath`).
+- `soilTableFile` : File path to the soil parameter table (defaults to `SOILPARM.TBL`) (relative to `settingsPath`).
+- `generalTableFile` : File path to the general parameter table (defaults to `GENPARM.TBL`) (relative to `settingsPath`).
+- `noahmpTableFile` : File path to the noah mp parameter table (defaults to `MPTABLE.TBL`) (relative to `settingsPath`).
+- `outFilePrefix` : Text string prepended to each output filename to identify a specific model setup. Note that the user can further modify the output file name at run-time by using the `-s|--suffix` command-line option.
 
-`simStartTime`       : Start of the simulation specified as `'YYYY-MM-DD hh:mm'`. See [Time definition notes](#simulStartEndTimes).
-`simEndTime`         : End of the simulation specified as `'YYYY-MM-DD hh:mm'`.
-`tmZoneInfo`         : [Time zone information](#tmZoneInfo).
-`settingsPath`       : Base path for the configuration files. Most of the file paths in the remainder of the master configuration file are relative to this path (except `forcingPath` and `outputPath`).
-`forcingPath`        : Base path for the meteorological forcing files specified in the `forcingList`.
-`outputPath`         : Base path for the SUMMA output files.
-`statePath`          : (optional) Base path for the SUMMA state files, including the initial condition file.  If not given, the initial condition (state) file is read from the settingsPath directory, and the state file outputs are written to the outputPath directory.  If given, summa expects the initial condition file to be in the state file directory.  
-`decisionsFile`      : File path for the [model decisions file](#infile_model_decisions) (relative to `settingsPath`).
-`outputControlFile`  : File path for the [output control file](#infile_output_control) (relative to `settingsPath`).
-`attributeFile`      : File path for the [local attributes file](#infile_local_attributes) (relative to `settingsPath`).
-`globalHruParamFile` : File path for the [local parameters file](#infile_local_parameters) (relative to `settingsPath`).
-`globalGruParamFile` : File path for the [basin parameters file](#infile_basin_parameters) (relative to `settingsPath`).
-`forcingListFile`    : File path for the [list of forcing files file](#infile_forcing_list) (relative to `settingsPath`).
-`initConditionFile`  : File path for the [initial conditions file](#infile_initial_conditions) (relative to `settingsPath`).
-`trialParamFile`     : File path for the [trial parameters file](#infile_trial_parameters) (relative to `settingsPath`).
-`vegTableFile`       : File path to the vegetation parameter table (defaults to `VEGPARM.TBL`) (relative to `settingsPath`)
-`soilTableFile`      : File path to the soil parameter table (defaults to `SOILPARM.TBL`) (relative to `settingsPath`)
-`generalTableFile`   : File path to the general parameter table (defaults to `GENPARM.TBL`) (relative to `settingsPath`)
-`noahmpTableFile`    : File path to the noah mp parameter table (defaults to `MPTABLE.TBL`) (relative to `settingsPath`)
-`outFilePrefix`      : Text string prepended to each output filename to identify a specific model setup. Note that the user can further modify the output file name at run-time by using the `-s|--suffix` command-line option.
-
-And example of this file is provide [here](#fileMgr_example).
+An example of this file is provide [here](#fileMgr_example).
 
 <a id="simulStartEndTimes"></a>
-## 1. Simulation Start and End Times
+###  Note on Simulation Start and End Times
 Start and end of the simulation are specified as `'YYYY-MM-DD hh:mm'`. Note that the strings needs to be enclosed in single quotes. These indicates the end of the first and last time step. Since the time stamps in the [forcing files](#infile_meteorological_forcing) are period-ending, SUMMA will start reading the forcing file for the time stamp that equals `simulStart`.
 
 <a id="tmZoneInfo"></a>
-##  3. tmZoneInfo
+###  Note on tmZoneInfo
 The time zone information should be specified consistently in all the model forcing files. The local time for the individual model elements is calculated as `localTime = inputTime + timeOffset`, where `localTime` is the time in which local noon coincides with solar noon, `inputTime` is the time in the model forcing files, and `timeOffset` is determined according to the `tmZoneInfo` option that is selected. The `simulStart` and
 `simulFinsh` time stamps must be consistent with the `tmZoneInfo` option. The `utcTime` option is recommended for large domain simulations (but you need to ensure that your forcing files are consistent with this option).
 
@@ -70,10 +69,8 @@ Time stamps in the output files will be consistent with the `tmZoneInfo` option 
 
 | Option | Description |
 |---|---|
-| ncTime | Time zone information is parsed as `ncTimeOffset` from the `units` attribute of the `time` variable in the NetCDF file with the
- meteorological forcings. The `timeOffset` is then calculated as `timeOffset = longitude/15 - ncTimeOffset`. The `units` attribute must be compliant with the [CF conventions](http://cfconventions.org/Data/cf-conventions/cf-conventions-1.7/build/ch04s04.html).  Note that the code internally uses fractional days and thus uses `longitude/360`.
-| utcTime | `timeOffset` is calculated as `timeOffset = longitude/15` hours. In essence this assumes
- that all time stamps in the forcing files are in UTC. This is the preferred option for large-domain simulations that span multiple time zones. Note that the code internally uses fractional days and thus uses `longitude/360`.
+| `ncTime` | Time zone information is parsed as `ncTimeOffset` from the `units` attribute of the `time` variable in the NetCDF file with the meteorological forcings. The `timeOffset` is then calculated as `timeOffset = longitude/15 - ncTimeOffset`. The `units` attribute must be compliant with the [CF conventions](http://cfconventions.org/Data/cf-conventions/cf-conventions-1.7/build/ch04s04.html).  Note that the code internally uses fractional days and thus uses `longitude/360`. [^1] [^2] |
+| utcTime | `timeOffset` is calculated as `timeOffset = longitude/15` hours. In essence this assumes that all time stamps in the forcing files are in UTC. This is the preferred option for large-domain simulations that span multiple time zones. Note that the code internally uses fractional days and thus uses `longitude/360`. |
 | localTime | `timeOffset` is equal to zero. |
 
 For example, assume that a model element has longitude -120º (or 120W) and the `units` attribute of the `time` variable in the NetCDF forcing file is `seconds since 1992-01-01 00:00:00 -6:00`. For each of the `tmZoneInfo` options this will be processed the following way:
@@ -87,7 +84,8 @@ For example, assume that a model element has longitude -120º (or 120W) and the 
 Specifying time zone information in the NetCDF file and overriding it with the `tmZoneInfo` option can be confusing and is only provided to give the user some flexibility.
 
 <a id="fileMgr_example"></a>
-------------------
+###  Filemanager example
+```
 controlVersion:    'SUMMA_FILE_MANAGER_V2.0'          ! file manager version
 
 ! --- simulation times ---
@@ -111,7 +109,7 @@ forcingList       'forcingFileList.txt'               ! forcing file list
 initCondFile      'coldState.3l3h_100cm.nc'           ! initial conditions
 trialParamFile    'trialParams.v1.nc'                 ! trial parameter file
 outFilePrefix     'sf_flathead_v1'                    ! output_prefix
-------------------
+```
 
 <a id="infile_model_decisions"></a>
 ## Model decisions file
@@ -129,7 +127,7 @@ The model decisions and their options or values are listed in the following tabl
 |[simulFinsh](../configuration/SUMMA_model_decisions.md#simulFinsh) | 'YYYY-MM-DD hh:mm' | ( 2) simulation end time
 |[tmZoneInfo](../configuration/SUMMA_model_decisions.md#tmZoneInfo) | ncTime <br> utcTime <br> localTime | ( 3) time zone information
 |[soilCatTbl](../configuration/SUMMA_model_decisions.md#soilCatTbl) | STAS <br> STAS-RUC <br> ROSETTA | ( 4) soil-category dataset
-|[vegeParTbl](../configuration/SUMMA_model_decisions.md#vegeParTbl) | USGS <nr> MODIFIED_IGBP_MODIS_NOAH | ( 5) vegetation category dataset
+|[vegeParTbl](../configuration/SUMMA_model_decisions.md#vegeParTbl) | USGS <br> MODIFIED_IGBP_MODIS_NOAH | ( 5) vegetation category dataset
 |[soilStress](../configuration/SUMMA_model_decisions.md#soilStress) | NoahType <br> CLM_Type <br> SiB_Type | ( 6) choice of function for the soil moisture control on stomatal resistance
 |[stomResist](../configuration/SUMMA_model_decisions.md#stomResist) | BallBerry <br> Jarvis <br> simpleResistance <br> BallBerryFlex <br> BallBerryTest | ( 7) choice of function for stomatal resistance
 |[bbTempFunc](../configuration/SUMMA_model_decisions.md#bbTempFunc) | q10Func <br> Arrhenius | ( 8) Ball-Berry: leaf temperature controls on photosynthesis + stomatal resistance
@@ -166,7 +164,9 @@ The model decisions and their options or values are listed in the following tabl
 |[subRouting](../configuration/SUMMA_model_decisions.md#subRouting) | timeDlay <br> qInstant | (39) choice of method for sub-grid routing
 |[snowDenNew](../configuration/SUMMA_model_decisions.md#snowDenNew) | hedAndPom <br> anderson <br> pahaut_76 <br> constDens | (40) choice of method for new snow density
 |[nrgConserv](../configuration/SUMMA_model_decisions.md#nrgConserv) | closedForm <br> enthalpyFormLU <br> enthalpyForm | (41) choice of variable in energy equations (BE residual or IDA state variable)
-|[aquiferIni](../configuration/SUMMA_model_decisions.md#aquiferIni) | fullStart <br> emptyStart | (40) choice of initial fill level for aquifer, should be used at default unless comparing solution methods
+|[aquiferIni](../configuration/SUMMA_model_decisions.md#aquiferIni) | fullStart <br> emptyStart | (42) choice of initial fill level for aquifer, should be used at default unless comparing solution methods
+|[infRateMax](../configuration/SUMMA_model_decisions.md#infRateMax) | topmodel_GA <br> GreenAmpt <br> noInfiltrationExcess | (43) choice of parametrization of maximum infiltration rate
+|[surfRun_SE](../configuration/SUMMA_model_decisions.md#surfRun_SE) | homegrown_SE <br> FUSEPRMS <br> FUSEAVIC <br> FUSETOPM <br> zero_SE | (44) choice of initial fill level for aquifer, should be used at default unless comparing solution methods
 
 The model decisions for each simulation are included as global attributes in [SUMMA output files](SUMMA_output.md).
 
@@ -225,6 +225,13 @@ Notes about forcing file format:
 * <a id="forcing_file_measurement_height">Measurement height</a>: The measurement height is the height (above bare ground) where the meteorological variables are specified. This value is specified as `mHeight` in the [local attributes file](#infile_local_attributes).
 
 SUMMA uses **adaptive time stepping** to solve the model equations. Atmospheric conditions are kept constant during the adaptive sub-steps that occur during a meteorological forcing time step.
+
+### Common pitfalls
+SUMMA requires complete timeseries in the meteorological forcing files; missing values such as `NaN` are not allowed. By design, SUMMA does not check the input files to limit the number of computations performed. The user is expected to ensure forcing files are completely and contain realistic. However, `NaN` values do have a tendency to slip in. In such cases SUMMA will usually abort a run early, with the following error message:
+
+```
+Note: The following floating-point exceptions are signalling: IEEE_INVALID_FLAG
+```
 
 <a id="infile_initial_conditions"></a>
 ## Initial conditions, restart or state file

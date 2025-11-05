@@ -36,7 +36,7 @@ MODULE var_lookup
  ! (0) define model decisions
  ! ***************************************************************************************
  type, public  ::  iLook_decision
-  integer(i4b)    :: soilCatTbl = integerMissing     ! soil-category dateset
+  integer(i4b)    :: soilCatTbl = integerMissing     ! soil-category dataset
   integer(i4b)    :: vegeParTbl = integerMissing     ! vegetation category dataset
   integer(i4b)    :: soilStress = integerMissing     ! choice of function for the soil moisture control on stomatal resistance
   integer(i4b)    :: stomResist = integerMissing     ! choice of function for stomatal resistance

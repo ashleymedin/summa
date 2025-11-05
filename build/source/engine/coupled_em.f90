@@ -238,7 +238,7 @@ subroutine coupled_em(&
   logical(lgt)                         :: tooMuchMelt              ! flag to denote that there was too much melt in a given time step
   logical(lgt)                         :: tooMuchSublim            ! flag to denote that there was too much sublimation in a given time step
   logical(lgt)                         :: doLayerMerge             ! flag to denote the need to merge snow layers
-  logical(lgt),parameter               :: backwardsCompatibility=.true.  ! flag to denote a desire to ensure backwards compatibility with previous branches
+  logical(lgt),parameter               :: backwardsCompatibility=.false.  ! flag to denote a desire to ensure backwards compatibility with previous branches
   logical(lgt)                         :: checkMassBalance_ds      ! flag to check the mass balance over the data step
   type(var_ilength)                    :: indx_temp                ! temporary model index variables saved only on outer loop
   type(var_ilength)                    :: indx_temp0               ! temporary model index variables saved every time
@@ -936,8 +936,8 @@ subroutine coupled_em(&
                           ! input/output: integrated snowpack properties
                           prog_data%var(iLookPROG%scalarSWE)%dat(1),               & ! intent(inout): snow water equivalent (kg m-2)
                           prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),         & ! intent(inout): snow depth (m)
-                          prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1),       & ! intent(out): surface melt pond (kg m-2)
-                          ! input/output: properties of the layer below snow
+                          prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1),       & ! intent(out):   surface melt pond (kg m-2)
+                          ! input/output: properties of the upper-most soil layer
                           prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1),        & ! intent(inout): surface layer temperature (K)
                           prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+1),       & ! intent(inout): surface layer depth (m)
                           diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat(nSnow+1),& ! intent(in):    surface layer volumetric heat capacity (J m-3 K-1)
@@ -1904,7 +1904,7 @@ subroutine coupled_em(&
 
   end associate canopy  ! end association to canopy parameters
 
-  ! overwrite flux data with timestep-average value for all flux_mean vars, hard-coded to not happen
+  ! overwrite flux data with timestep-average value for all flux_mean vars, hard-coded to happen
   if(.not.backwardsCompatibility)then
     do iVar=1,size(flux_mean%var)
       flux_data%var(averageFlux_meta(iVar)%ixParent)%dat = flux_mean%var(iVar)%dat

@@ -5,7 +5,7 @@ repo_url: https://www.github.com/NCAR/summa
 site_url: https://summa.readthedocs.org
 docs_dir: docs
 theme: readthedocs
-pages:
+nav:
 - Home:
   - SUMMA Overview: 'index.md'
   - SUMMA Documentation: 'SUMMA_documentation.md'
@@ -21,8 +21,16 @@ pages:
   - SUMMA Input: 'input_output/SUMMA_input.md'
   - SUMMA Output: 'input_output/SUMMA_output.md'
 - Development:
-  - SUMMA Coding Conventions: 'development/SUMMA_coding_conventions.md'
+  - SUMMA Contributions: 'development/SUMMA_contributing.md'
   - SUMMA and Git: 'development/SUMMA_and_git.md'
   - SUMMA Git Workflow: 'development/SUMMA_git_workflow.md'
-- References: 'references.md'
+  - SUMMA Coding Conventions: 'development/SUMMA_coding_conventions.md'
+  - SUMMA Modularity: 'development/SUMMA_modularity_guidelines.md'
+- References: 
+  - References: 'references.md'
 google_analytics: ['UA-108421993-5', 'summa.readthedocs.org']
+markdown_extensions:
+  - footnotes
+  - fenced_code
+  - codehilite
+  - pymdownx.superfences

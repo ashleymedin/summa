@@ -4,11 +4,6 @@
 
 This is configured with the [CMakeLists.txt](CMakeLists.txt) and other files in this directory.
 
-#### Extra Outer Directory for Actors
-
-Actors needs one
-
-
 ### Getting the Latest Changes
 
 There are two steps to getting upstream submodule changes fully 

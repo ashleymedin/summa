@@ -417,3 +417,26 @@ Choice of initial fill level for aquifer, should be used at default unless compa
 | fullStart | **(default) start with initial value aquifer, usually full for cold start as easier to drain the aquifer to equilibrium than fill to equilibrium** |
 | emptyStart | **start with empty aquifer, only used if comparing solution solution methods and not looking to simulate reality** |
 
+
+<a id="infRateMax"></a>
+## 43. infRateMax
+Choice of equation to determine maximum infiltration rate.
+
+| Option | Description |
+|---|---|
+| topmodel_GA | **(default) Topmodel-ish approximation of Green-Ampt** |
+| GreenAmpt | **Green-Ampt infiltration rate** |
+| noInfiltrationExcess | **Set max infiltration rate to something very high to make having infiltration excess runoff practically impossible**|
+
+
+<a id="surfRun_SE"></a>
+## 44. surfRun_SE
+Choice of equation to calculate saturation excess runoff.
+
+| Option | Description |
+|---|---|
+| homegrown_SE | **(default) Original SUMMA implementation for saturation excess** |
+| FUSEPRMS | **PRMS saturation excess runoff as implemented in FUSE**|
+| FUSEAVIC | **ARNO/VIC saturation excess runoff as implemented in FUSE**|
+| FUSETOPM | **Topmodel saturation excess runoff as implemented in FUSE**|
+| zero_SE | **No saturation excess runoff**|

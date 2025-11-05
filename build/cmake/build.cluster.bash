@@ -1,7 +1,7 @@
 #!/bin/bash
   
-# build on Copernicus or Graham, from cmake directory run this as ./build.cluster.bash
-
+# build on HPC, from cmake directory run this as ./build.cluster.bash
+# required for SUMMA
 module load StdEnv/2023
 module load gcc/12.3
 module load openblas/0.3.24

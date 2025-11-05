@@ -1,0 +1,25 @@
+name: pyngen
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - numpy[version='<2.0']
+  - ipykernel
+  - yaml
+  - pandas
+  - matplotlib
+  - bmipy
+  - Cython[version='>3,!=3.0.4']
+  - pyyaml
+  - bmipy
+  - bokeh
+  - ruamel.yaml
+  - netCDF4
+  - xarray
+  - joblib
+  - toolz
+  - geopandas
+  - pyarrow
+  - deprecated
+  - wheel
+prefix: /Users/amedin/opt/anaconda3/envs/pyngen
