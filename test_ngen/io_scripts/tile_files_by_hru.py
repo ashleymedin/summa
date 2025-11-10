@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """
-Tile/reindex old_file.nc by hruId to match ids/order in forcing.nc.
+Tile/reindex SUMMA file with one HRU by hruId to match ids/order in NGEN forcing.nc.
 Usage:
-  python3 tile_old_file_by_hru.py old_file.nc forcing.nc typeOfInput folder_to_other_attribs (optional) 
+  python3 tile_files_by_hru.py old_file.nc forcing.nc typeOfInput folder_to_other_attribs (optional) 
 """
 import argparse
 import xarray as xr
 import numpy as np
-import sys
 import re
 import os
 from ast import literal_eval
@@ -50,7 +49,7 @@ def _parse_kv_text(text):
     out = {}
     for line in text.splitlines():
         line = re.sub(r'#.*$', '', line).strip()            # drop comments starting with #
-        line = re.sub(r'\[.*$', '', line).strip()            # drop units starting with [
+        line = re.sub(r'\[.*$', '', line).strip()           # drop units starting with [
         if not line: 
             continue
         if '=' not in line:
@@ -106,14 +105,13 @@ def _fixWaterContentVar(ds):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("old_file", help="old_file.nc")
+    p.add_argument("old_file", help="old_file.nc (with single HRU)")
     p.add_argument("forcing", help="forcing.nc (contains target HRU ids/order)")
     p.add_argument("typeOfInput", help="type of input files in other_folder: param or attrib ")
     p.add_argument("other_folder", nargs='?', default=None, help="file folder containing other model old_file to search (optional)")
     args = p.parse_args()
 
     file_ds = xr.open_dataset(args.old_file)
-    other_folder = args.other_folder
     f_ds = xr.open_dataset(args.forcing)
     typeOfInput = args.typeOfInput.lower()
     if typeOfInput not in ("param", "attrib", "init", "force"):
@@ -187,9 +185,9 @@ def main():
         tiled['hru2gruId'].values = f_ids
 
     # set old_file from distributed files, all text files with matching hruId names
-    NOAH_folder = os.path.join(other_folder, "NOAH")
-    PET_folder = os.path.join(other_folder, "PET")
-    CFE_folder = os.path.join(other_folder, "CFE")
+    NOAH_folder = os.path.join(args.other_folder, "NOAH")
+    PET_folder = os.path.join(args.other_folder, "PET")
+    CFE_folder = os.path.join(args.other_folder, "CFE")
             
     # default NOAH decisions
     #  precip_phase_option               = 1 # Jordan (1991) SNTHERM equation
@@ -282,7 +280,7 @@ def main():
 
     # write result
     tiled.to_netcdf(out_path)
-    print(f"Wrote tiled old_file to {out_path}")
+    print(f"Wrote tiled file to {out_path}")
 
 
 if __name__ == "__main__":
