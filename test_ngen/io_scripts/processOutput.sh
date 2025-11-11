@@ -1,1 +1,1 @@
-python3 scripts/merge_restarts.py gauge_01073000/settings/SUMMA/coldstate_tiled_by_hru.nc gauge_01073000/simulations/run_1/SUMMA/run_1_restart_{}_G{}-{}.nc 2015123023
+python3 io_scripts/merge_restarts.py gauge_01073000/settings/SUMMA/coldstate_tiled_by_hru.nc gauge_01073000/simulations/run_1/SUMMA/run_1_restart_{}_G{}-{}.nc 2015123023
