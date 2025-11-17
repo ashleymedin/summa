@@ -392,9 +392,11 @@ module summabmi
      call summa_readForcing(this%model%timeStep, this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
 
+#ifndef NGEN_ACTIVE
      if (mod(this%model%timeStep, print_step_freq) == 0)then
        print *, 'step ---> ', this%model%timeStep
      endif
+#endif
      ! run the summa physics for one time step
      call summa_runPhysics(this%model%timeStep, this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
