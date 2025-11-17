@@ -36,7 +36,7 @@ thCondSnow                      jrdn1991        ! (26) choice of thermal conduct
 thCondSoil                      funcSoilWet     ! (27) choice of thermal conductivity representation for soil
 spatial_gw                      localColumn     ! (28) choice of method for the spatial representation of groundwater
 subRouting                      timeDlay        ! (29) choice of method for sub-grid routing
-nrgConserv                      enthalpyFormLU  ! (30) choice of variable in energy equations (BE residual or IDA state variable)
+nrgConserv                      enthalpyForm    ! (30) choice of variable in energy equations (BE residual or IDA state variable)
 infRateMax                      GreenAmpt       ! (31) choice of infiltration rate method
 surfRun_IE                      homegrown_IE    ! (32) infiltration excess surface runoff parameterization
 surfRun_SE                      homegrown_SE    ! (33) saturation excess surface runoff parameterization

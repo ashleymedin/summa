@@ -9,7 +9,7 @@ network_topology_parameters:
     supernetwork_parameters:
         #----------
         # geo_file_type: HYFeaturesNetwork 
-        geo_file_path: ./test/data/routing/gauge_01073000.gpkg
+        geo_file_path: ./extern/summa/summa/test_ngen/domain_provo/settings/gage-10154200_subset.gpkg
         mask_file_path: # domain/unit_test_noRS/coastal_subset.txt
         columns:
             key: 'id'
@@ -37,8 +37,8 @@ network_topology_parameters:
         break_network_at_waterbodies: False 
         level_pool:
             #----------
-            level_pool_waterbody_parameter_file_path: ./test/data/routing/gauge_01073000.gpkg
-            # reservoir_parameter_file                : ./test/data/routing/gauge_01073000.gpkg
+            level_pool_waterbody_parameter_file_path: ./extern/summa/summa/test_ngen/domain_provo/settings/gage-10154200_subset.gpkg
+            # reservoir_parameter_file                : ./extern/summa/summa/test_ngen/domain_provo/settings/gage-10154200_subset.gpkg
 
 #--------------------------------------------------------------------------------
 compute_parameters:
