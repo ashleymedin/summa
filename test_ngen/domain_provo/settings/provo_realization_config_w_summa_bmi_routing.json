@@ -16,7 +16,7 @@
                                 "model_type_name": "bmi_fortran_summa",
                                 "library_file": "./extern/summa/cmake_build/libsummabmi",
                                 "forcing_file": "",
-                                "init_config":  "./extern/summa/summa/test_ngen/gauge_01073000/{{id}}.input",
+                                "init_config":  "./extern/summa/summa/test_ngen/domain_provo/{{id}}.input",
                                 "allow_exceed_end_time": true,
                                 "main_output_variable":             "land_surface_water__runoff_volume_flux",
                                 "variables_names_map": {
@@ -38,14 +38,17 @@
             }
         ],
       "forcing": {
-          "path": "./data/gauge_01073000/forcing.nc",
+          "path": "/anvil/projects/x-ees240082/data/SYMFLUENCE_data/domain_Provo_NWM/forcing/ngen_forcing/forcings.nc",
           "provider": "NetCDF"
       }
   },
   "time": {
-      "start_time": "2015-12-01 0:00:00",
-      "end_time": "2015-12-30 23:00:00",
+      "start_time": "2017-10-01 1:00:00",
+      "end_time": "2022-09-30 23:00:00",
       "output_interval": 3600
   },
-  "output_root": "./test/data/routing/"
+  "output_root": "./extern/summa/summa/test_ngen/domain_provo/simulations/",
+  "routing": {
+      "t_route_config_file_with_path": "./extern/summa/summa/test_ngen/provo_routing.yaml"
+  }
 }
