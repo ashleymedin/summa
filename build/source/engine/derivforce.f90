@@ -66,7 +66,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine derivforce: compute derived forcing data
  ! ************************************************************************************************
- subroutine derivforce(forc_data,attr_data,mpar_data, prog_data,diag_data,flux_data,tmZoneOffsetFracDay,err,message)
+ subroutine derivforce(is_glac, forc_data,attr_data,mpar_data, prog_data,diag_data,flux_data,tmZoneOffsetFracDay,err,message)
  USE sunGeomtry_module,only:clrsky_rad                            ! compute cosine of the solar zenith angle
  USE convert_funcs_module,only:vapPress                           ! compute vapor pressure of air (Pa)
  USE convert_funcs_module,only:SPHM2RELHM,RELHM2SPHM,WETBULBTMP   ! conversion functions
@@ -77,6 +77,7 @@ contains
  ! compute derived forcing data variables
  implicit none
  ! input variables
+ logical(lgt),intent(in)              :: is_glac                       ! flag to indicate if is a glacier domain
  type(var_d),intent(inout)            :: forc_data                     ! vector of forcing data for a given time step
  type(var_d),intent(in)               :: attr_data                     ! vector of model attributes
  type(var_dlength),intent(in)         :: mpar_data                     ! vector of model parameters
@@ -139,6 +140,8 @@ contains
  newSnowDenMultWind      => mpar_data%var(iLookPARAM%newSnowDenMultWind)%dat(1)   , & ! Pahaut 1976, multiplier for new snow density applied to wind speed (kg m-7/2 s-1/2)
  newSnowDenMultAnd       => mpar_data%var(iLookPARAM%newSnowDenMultAnd)%dat(1)    , & ! Anderson 1976, multiplier for new snow density for Anderson function (K-1)
  newSnowDenBase          => mpar_data%var(iLookPARAM%newSnowDenBase)%dat(1)       , & ! Anderson 1976, base value that is rasied to the (3/2) power (K)
+ glacierWindFactor       => mpar_data%var(iLookPARAM%glacierWindFactor)%dat(1)    , & ! wind speed increase to account for glacier katabatic wind profile (-)
+ glacierTempReduction    => mpar_data%var(iLookPARAM%glacierTempReduction)%dat(1) , & ! air temperature decrease to account for down-glacier katabatic wind (-)
  ! radiation geometry variables
  latitude                => attr_data%var(iLookATTR%latitude)                     , & ! latitude (degrees north)
  longitude               => attr_data%var(iLookATTR%longitude)                    , & ! longitude (degrees east)
@@ -190,12 +193,20 @@ contains
  windspd_x = windspd
  windspd_y = 0._rkind
 #endif
-windspd = windspd + wndlapseRate * (DOMelev - elevation) ! adjust wind speed to domain mean elevation
-windspd_x = windspd_x + wndlapseRate * (DOMelev - elevation) ! adjust wind speed x-component to domain mean elevation
-windspd_y = windspd_y + wndlapseRate * (DOMelev - elevation) ! adjust wind speed y-component to domain mean elevation
+ windspd   = windspd   + wndlapseRate * (DOMelev - elevation) ! adjust wind speed to domain mean elevation
+ windspd_x = windspd_x + wndlapseRate * (DOMelev - elevation) ! adjust wind speed x-component to domain mean elevation
+ windspd_y = windspd_y + wndlapseRate * (DOMelev - elevation) ! adjust wind speed y-component to domain mean elevation
+
+ ! adjust wind speed and air temperature for glacier katabatic winds
+ if (is_glac .and. airtemp>Tfreeze) then 
+  windspd   = windspd   * glacierWindFactor
+  windspd_x = windspd_x * glacierWindFactor
+  windspd_y = windspd_y * glacierWindFactor
+  airtemp   = airtemp   - glacierTempReduction
+ endif
 
  ! ensure wind speed is above a prescribed minimum value
- if(windspd < minwind) windspd=minwind
+ if(windspd < minwind)   windspd=minwind
  if(windspd_x < minwind) windspd_x=minwind
  if(windspd_y < minwind) windspd_y=minwind
 

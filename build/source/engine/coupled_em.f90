@@ -72,14 +72,6 @@ USE globalData,only:maxLakeLayers          ! maximum number of lake layers
 USE globalData,only:maxGlceLayers          ! maximum number of glacier ice layers
 USE globalData,only:icefrz_mult            ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
 
-
-! access domain types
-USE globalData,only:upland                 ! domain type for upland areas
-USE globalData,only:glacCln1               ! first domain type for glacier clean areas
-USE globalData,only:glacCln2               ! second domain type for glacier clean areas
-USE globalData,only:glacDbr                ! domain type for glacier debris areas
-USE globalData,only:wetland                ! domain type for wetland areas
-
 ! look-up values for the maximum interception capacity
 USE mDecisions_module,only:         &
                       stickySnow,   &      ! maximum interception capacity an increasing function of temerature
@@ -121,14 +113,13 @@ contains
 ! ************************************************************************************************
 subroutine coupled_em(&
                       ! model control
-                      dom_type,          & ! intent(in):    domain type
+                      is_glac,           & ! intent(in):    flag to indicate if is a glacier domain
                       hruId,             & ! intent(in):    hruId
                       dt_init,           & ! intent(inout): used to initialize the size of the sub-step
                       dt_init_factor,    & ! intent(in):    Used to adjust the length of the timestep in the event of a failure
                       computeVegFlux,    & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
                       fracJulDay,        & ! intent(in):    fractional julian days since the start of year
                       yearLength,        & ! intent(in):    number of days in the current year
-                      glacierDomain,     & ! intent(in):    flag to denote that the domain is a glacier
                       ! data structures (input)
                       type_data,         & ! intent(in):    local classification of soil veg etc. for each HRU
                       attr_data,         & ! intent(in):    local attributes for each HRU
@@ -175,14 +166,13 @@ subroutine coupled_em(&
   ! * dummy variables
   ! -------------------------------------------------------------------------------------------------------------------------
   ! input-output: control
-  integer(i4b),intent(in)              :: dom_type                 ! domain types
+  logical(lgt)                         :: is_glac                  ! flag to indicate if is a glacier domain
   integer(i8b),intent(in)              :: hruId                    ! hruId
   real(rkind),intent(inout)            :: dt_init                  ! used to initialize the size of the sub-step
   integer(i4b),intent(in)              :: dt_init_factor           ! Used to adjust the length of the timestep in the event of a failure
   logical(lgt),intent(inout)           :: computeVegFlux           ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
   real(rkind),intent(in)               :: fracJulDay               ! fractional julian days since the start of year
   integer(i4b),intent(in)              :: yearLength               ! number of days in the current year
-  logical(lgt),intent(in)              :: glacierDomain            ! flag to denote that the domain is a glacier
   ! data structures (input)
   type(var_i),intent(in)               :: type_data                ! type of vegetation and soil
   type(var_d),intent(in)               :: attr_data                ! spatial attributes
@@ -347,7 +337,7 @@ subroutine coupled_em(&
 
   ! check if the aquifer is included
   includeAquifer = (model_decisions(iLookDECISIONS%groundwatr)%iDecision==bigBucket)
-  if (glacierDomain) includeAquifer = .false. ! no aquifer in glacier domain
+  if (is_glac) includeAquifer = .false. ! no aquifer in glacier domain
 
   ! initialize variables
   call initialize_coupled_em
@@ -1841,7 +1831,7 @@ subroutine coupled_em(&
       scalarLayersMassChange = ((scalarTotalSoilWat - balanceSoilWater0) + delLakeWat + delSWE + (scalarIceWE - balanceIceWE0))/data_step
       scalarMassChange = scalarLayersMassChange + (delCanWat + (balanceAquifer1-balanceAquifer0))/data_step
       ! save the average mass change rate for the layers if glacier
-      if (dom_type==glacCln1 .or. dom_type==glacCln2 .or. dom_type==glacDbr) then
+      if (is_glac) then
         glacMass4AreaChange = glacMass4AreaChange + scalarLayersMassChange * data_step
       else
         glacMass4AreaChange = 0._rkind

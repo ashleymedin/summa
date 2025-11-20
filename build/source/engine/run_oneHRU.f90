@@ -150,7 +150,7 @@ subroutine run_oneHRU(&
   integer(i4b)                      :: ibeg                ! index of the first soil layer
   integer(i4b)                      :: iend                ! index of the last soil layer
   logical(lgt)                      :: use_computeVegFlux  ! computeVegFlux flag for the current domain
-  logical(lgt)                      :: glacierDomain       ! flag to indicate if the domain is a glacier
+  logical(lgt)                      :: is_glac             ! flag to indicate if is a glacier domain
   type(var_d)                       :: forcData0           ! original forcings
   character(len=256)                :: cmessage            ! error message
   real(rkind)       , allocatable   :: zSoilReverseSign(:) ! height at bottom of each soil layer, negative downwards (m)
@@ -163,7 +163,7 @@ subroutine run_oneHRU(&
     ! initialize error control
     err=0; write(message, '(A21,I0,A10,I0,A13,I0,A2)' ) 'run_oneHRU (hru_nc = ',hru_nc,', hruId = ',hruId,', dom_type = ',domInfo(i)%dom_type,')/'
 
-    glacierDomain = .false. ! reset the flag for the next domain
+    is_glac = .false. ! reset the flag for the next domain
     forcData = forcData0 ! reset the forcings for the next domain
 
     ! initialize the number of flux calls
@@ -226,7 +226,7 @@ subroutine run_oneHRU(&
                domInfo(i)%dom_type == wetland )then ! don't need vegetation parameters for glaciers
         use_computeVegFlux = .false.
         if (domInfo(i)%dom_type == glacCln1 .or. domInfo(i)%dom_type == glacCln2 .or. domInfo(i)%dom_type == glacDbr)&
-            glacierDomain = .true.
+            is_glac = .true.
       else
         err=20; message=trim(message)//'domain type not recognized';return
       endif
@@ -234,28 +234,29 @@ subroutine run_oneHRU(&
       ! ----- hru forcing ----------------------------------------------------------------------------------------------------
 
       ! compute derived forcing variables, different for each domain type
-      call derivforce(forcData,            & ! intent(inout): vector of model forcing data
-                      attrData,            & ! intent(in):    vector of model attributes
-                      mparData%dom(i),     & ! intent(in):    data structure of model parameters
-                      progData%dom(i),     & ! intent(in):    data structure of model prognostic variables
-                      diagData%dom(i),     & ! intent(inout): data structure of model diagnostic variables
-                      fluxData%dom(i),     & ! intent(inout): data structure of model fluxes
-                      tmZoneOffsetFracDay, & ! intent(inout): time zone offset in fractional days
-                      err,cmessage)          ! intent(out):   error control
+      call derivforce(&
+                      is_glac,              & ! intent(in):    flag to indicate if is a glacier domain
+                      forcData,             & ! intent(inout): vector of model forcing data
+                      attrData,             & ! intent(in):    vector of model attributes
+                      mparData%dom(i),      & ! intent(in):    data structure of model parameters
+                      progData%dom(i),      & ! intent(in):    data structure of model prognostic variables
+                      diagData%dom(i),      & ! intent(inout): data structure of model diagnostic variables
+                      fluxData%dom(i),      & ! intent(inout): data structure of model fluxes
+                      tmZoneOffsetFracDay,  & ! intent(inout): time zone offset in fractional days
+                      err,cmessage)           ! intent(out):   error control
       if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
       ! ----- run the model --------------------------------------------------------------------------------------------------
 
       ! run the model for a single HRU
       call coupled_em(&
                      ! model control
-                     domInfo(i)%dom_type, & ! intent(in):    domain type
+                     is_glac,             & ! intent(in):    flag to indicate if is a glacier domain
                      hruId,               & ! intent(in):    hruId
                      dt_init%dom(i),      & ! intent(inout): initial time step
                      1,                   & ! intent(in):    used to adjust the length of the timestep with failure in Actors (non-Actors here, always 1)
                      use_computeVegFlux,  & ! intent(inout): flag to indicate if we are computing fluxes over vegetation
                      fracJulDay,          & ! intent(in):    fractional julian days since the start of year
                      yearLength,          & ! intent(in):    number of days in the current year
-                     glacierDomain,       & ! intent(in):    flag to indicate if the domain is a glacier
                      ! data structures (input)
                      typeData,            & ! intent(in):    local classification of soil veg etc. for each HRU
                      attrData,            & ! intent(in):    local attributes for each HRU

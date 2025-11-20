@@ -211,6 +211,8 @@ MODULE var_lookup
   integer(i4b)    :: Mahrt87_eScale        = integerMissing    ! exponential scaling factor in the Mahrt (1987) stability function (-)
   integer(i4b)    :: leafExchangeCoeff     = integerMissing    ! turbulent exchange coeff between canopy surface and canopy air ( m s-(1/2) )
   integer(i4b)    :: windReductionParam    = integerMissing    ! canopy wind reduction parameter (-)
+  integer(i4b)    :: glacierWindFactor     = integerMissing    ! wind speed increase to account for glacier katabatic wind profile (-)
+  integer(i4b)    :: glacierTempReduction  = integerMissing    ! air temperature decrease to account for down-glacier katabatic wind (-)
   ! stomatal conductance
   integer(i4b)    :: Kc25                  = integerMissing    ! Michaelis-Menten constant for CO2 at 25 degrees C (umol mol-1)
   integer(i4b)    :: Ko25                  = integerMissing    ! Michaelis-Menten constant for O2 at 25 degrees C (mol mol-1)
@@ -1009,7 +1011,7 @@ MODULE var_lookup
                                                                         161,162,163,164,165,166,167,168,169,170,&
                                                                         171,172,173,174,175,176,177,178,179,180,&
                                                                         181,182,183,184,185,186,187,188,189,190,&
-                                                                        191,192,193)
+                                                                        191,192,193,194,195)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
