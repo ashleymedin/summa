@@ -1318,7 +1318,7 @@ module summabmi
           do jHRU = 1, gru_struc(iGRU)%hruCount
             i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
             select case (name)
-            ! input
+            ! input is same for all domains (for now)
             case('atmosphere_water__precipitation_mass_flux')
               forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%pptrate) = src_arr(i)
             case('land_surface_air__temperature')
@@ -1326,9 +1326,9 @@ module summabmi
             case('atmosphere_air_water~vapor__relative_saturation')
               forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%spechum) = src_arr(i)
             case('land_surface_wind__x_component_of_velocity')
-              diagStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookDIAG%windspd_x)%dat(1) = src_arr(i)
+              diagStruct%gru(iGRU)%hru(jHRU)%dom(:)%var(iLookDIAG%windspd_x)%dat(1) = src_arr(i) ! same for all domains for now
             case('land_surface_wind__y_component_of_velocity')
-              diagStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookDIAG%windspd_y)%dat(1) = src_arr(i)
+              diagStruct%gru(iGRU)%hru(jHRU)%dom(:)%var(iLookDIAG%windspd_y)%dat(1) = src_arr(i) ! same for all domains for now
             case('land_surface_wind__speed')
               forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%windspd) = src_arr(i)
             case('land_surface_radiation~incoming~shortwave__energy_flux')
@@ -1352,7 +1352,8 @@ module summabmi
      character (len=*), intent(in) :: name
      real, target, intent(out)    :: target_arr(sum(gru_struc(:)%hruCount))
      integer, target, intent(out) :: itarget_arr
-     integer ::  iGRU, jHRU, i
+     integer ::  iGRU, jHRU, i, iDOM
+     real :: fracDOM
 
      summaVars: associate(&
       timeStruct           => this%model%summa1_struc(n)%timeStruct  , & ! x%var(:)                          -- model time data
@@ -1375,62 +1376,67 @@ module summabmi
           do jHRU = 1, gru_struc(iGRU)%hruCount
             i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
             if (i > do_nHRU) return
-            select case (name)
-            ! input
-            case('atmosphere_water__precipitation_mass_flux')
-              target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%pptrate)
-            case('land_surface_air__temperature')
-              target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airtemp)
-            case('atmosphere_air_water~vapor__relative_saturation')
-              target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%spechum)
-            case('land_surface_wind__x_component_of_velocity')
-              target_arr(i) = diagStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookDIAG%windspd_x)%dat(1)
-            case('land_surface_wind__y_component_of_velocity')
-              target_arr(i) = diagStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookDIAG%windspd_y)%dat(1)
-            case('land_surface_wind__speed')
-              target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%windspd)
-            case('land_surface_radiation~incoming~shortwave__energy_flux')
-              target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%SWRadAtm)
-            case('land_surface_radiation~incoming~longwave__energy_flux')
-              target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%LWRadAtm)
-            case('land_surface_air__pressure')
-              target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airpres)
+            target_arr(i) = 0._rkind
+            do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
+              fracDOM = progStruct%hru(jHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)/ bvarStruct%var(iLookBVAR%basin__totalArea)%dat(1)
 
-            ! output (will give domain 1 only for now, should change to loop over domains)
-            case('land_surface_water__runoff_volume_flux')
-              target_arr(i) = bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoff)%dat(1)
-              !target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)
-            case('land_surface_water__evaporation_mass_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarGroundEvaporation)%dat(1)
-            case('land_vegetation_water__evaporation_mass_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)
-            case('land_vegetation_water__transpiration_mass_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarCanopyTranspiration)%dat(1)
-            case('snowpack__sublimation_mass_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarGroundSublimation)%dat(1)
-            case('land_vegetation_water__sublimation_mass_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarCanopySublimation)%dat(1)
-            case('snowpack_mass')
-              target_arr(i) = progStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookPROG%scalarSWE)%dat(1)
-            case('soil_water__mass')
-              target_arr(i) = diagStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookDIAG%scalarTotalSoilWat)%dat(1)
-            case('land_vegetation_water__mass')
-              target_arr(i) = progStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookPROG%scalarCanopyWat)%dat(1)
-            case('land_surface_radiation~net~total__energy_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarNetRadiation)%dat(1)
-            case('land_atmosphere_heat~net~latent__energy_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarLatHeatTotal)%dat(1)
-            case('land_atmosphere_heat~net~sensible__energy_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarSenHeatTotal)%dat(1)
-            case('atmosphere_energy~net~total__energy_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarCanairNetNrgFlux)%dat(1)
-            case('land_vegetation_energy~net~total__energy_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarCanopyNetNrgFlux)%dat(1)
-            case('land_surface_energy~net~total__energy_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarGroundNetNrgFlux)%dat(1)
-            case('land_surface_water__baseflow_volume_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1)
-            end select
+              select case (name)
+              ! input is same for all domains (for now)
+              case('atmosphere_water__precipitation_mass_flux')
+                target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%pptrate); exit
+              case('land_surface_air__temperature')
+                target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airtemp); exit
+              case('atmosphere_air_water~vapor__relative_saturation')
+                target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%spechum); exit
+              case('land_surface_wind__x_component_of_velocity')
+                target_arr(i) = diagStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookDIAG%windspd_x)%dat(1); exit ! same for all domains for now
+              case('land_surface_wind__y_component_of_velocity')
+                target_arr(i) = diagStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookDIAG%windspd_y)%dat(1); exit ! same for all domains for now
+              case('land_surface_wind__speed')
+                target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%windspd); exit
+              case('land_surface_radiation~incoming~shortwave__energy_flux')
+                target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%SWRadAtm); exit
+              case('land_surface_radiation~incoming~longwave__energy_flux')
+                target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%LWRadAtm); exit
+              case('land_surface_air__pressure')
+                target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airpres); exit
+
+              ! output is averaged over domains
+              case('land_surface_water__runoff_volume_flux')
+                target_arr(i) = bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoff)%dat(1); exit
+                !target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1) * fracDOM
+              case('land_surface_water__evaporation_mass_flux')
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(:)%var(iLookFLUX%scalarGroundEvaporation)%dat(1) * fracDOM
+              case('land_vegetation_water__evaporation_mass_flux')
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) * fracDOM
+              case('land_vegetation_water__transpiration_mass_flux')
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarCanopyTranspiration)%dat(1) * fracDOM
+              case('snowpack__sublimation_mass_flux')
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarGroundSublimation)%dat(1) * fracDOM
+              case('land_vegetation_water__sublimation_mass_flux')
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarCanopySublimation)%dat(1) * fracDOM
+              case('snowpack_mass')
+                target_arr(i) = target_arr(i) + progStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookPROG%scalarSWE)%dat(1) * fracDOM
+              case('soil_water__mass')
+                target_arr(i) = target_arr(i) + diagStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookDIAG%scalarTotalSoilWat)%dat(1) * fracDOM
+              case('land_vegetation_water__mass')
+                target_arr(i) = target_arr(i) + progStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookPROG%scalarCanopyWat)%dat(1) * fracDOM
+              case('land_surface_radiation~net~total__energy_flux')
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarNetRadiation)%dat(1) * fracDOM
+              case('land_atmosphere_heat~net~latent__energy_flux')
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarLatHeatTotal)%dat(1) * fracDOM
+              case('land_atmosphere_heat~net~sensible__energy_flux')
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarSenHeatTotal)%dat(1) * fracDOM
+              case('atmosphere_energy~net~total__energy_flux')
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarCanairNetNrgFlux)%dat(1) * fracDOM
+              case('land_vegetation_energy~net~total__energy_flux')
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarCanopyNetNrgFlux)%dat(1) * fracDOM
+              case('land_surface_energy~net~total__energy_flux')
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarGroundNetNrgFlux)%dat(1) * fracDOM
+              case('land_surface_water__baseflow_volume_flux')
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) * fracDOM
+              end select
+            end do
           end do
         end do
       endif
