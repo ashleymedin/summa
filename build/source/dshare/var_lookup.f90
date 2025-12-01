@@ -483,9 +483,10 @@ MODULE var_lookup
   integer(i4b)    :: mLayerMeltFreeze                = integerMissing ! change in ice content due to melt/freeze in each layer (kg m-3)
   ! lake, glacier ice mass/hydrology
   integer(i4b)    :: scalarIceWE                     = integerMissing ! glacier ice (not snow) water equivalent (kg m-2)
-  integer(i4b)    :: scalarLayersMassChange          = integerMissing ! mass change of all layers together (kg m-2 s-1)
   integer(i4b)    :: spectralFrznWatAlbedo           = integerMissing ! albedo of frozen water in each spectral band (-)
   integer(i4b)    :: spectralOpenWatAlbedo           = integerMissing ! albedo of open water in each spectral band (-)
+  ! total mass changes 
+  integer(i4b)    :: scalarTotalMassChange          = integerMissing ! mass change of all system together (kg m-2 s-1)
   ! soil hydrology
   integer(i4b)    :: scalarInfilArea                 = integerMissing ! fraction of unfrozen area where water can infiltrate (-)
   integer(i4b)    :: scalarFrozenArea                = integerMissing ! fraction of area that is considered impermeable due to soil ice (-)
@@ -882,6 +883,7 @@ MODULE var_lookup
   integer(i4b)    :: basin__TotalRunoff         = integerMissing ! total runoff to channel from all active components (m s-1)
   integer(i4b)    :: basin__SoilDrainage        = integerMissing ! soil drainage (m s-1)
   integer(i4b)    :: basin__GlacierStorage      = integerMissing ! glacier storage (Gt)
+  integer(i4b)    :: basin__StorageChange       = integerMissing ! change in total basin storage (kg m-2 s-1)
   integer(i4b)    :: basin__GlacierArea         = integerMissing ! glacier area (m2)
   integer(i4b)    :: updateJulDay               = integerMissing ! julian day at which glacier geometry was last updated
   integer(i4b)    :: updateJulDayNext           = integerMissing ! julian day at which glacier geometry will be updated next
@@ -1065,7 +1067,7 @@ MODULE var_lookup
  ! named variables: basin-average variables
  type(iLook_bvar),    public,parameter :: iLookBVAR     =ilook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
-                                                                         21, 22, 23)
+                                                                         21, 22, 23, 24)
  ! named variables: basin-grid variables
  type(iLook_grid),    public,parameter :: iLookGRID     =ilook_grid    (  1,  2,  3,  4,  5)
  ! named variables in varibale type structure

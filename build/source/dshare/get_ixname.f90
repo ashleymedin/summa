@@ -603,10 +603,11 @@ contains
   case('mLayerMeltFreeze'               ); get_ixDiag = iLookDIAG%mLayerMeltFreeze                 ! ice content change from melt/freeze in each layer (kg m-3)
   ! lake, glacier ice mass/hydrology
   case('scalarIceWE'                    ); get_ixDiag = iLookDIAG%scalarIceWE                      ! glacier ice (not snow) water equivalent (kg m-2)
-  case('scalarLayersMassChange'         ); get_ixDiag = iLookDIAG%scalarLayersMassChange           ! mass change of all layers together (kg m-2 s-1)
   case('spectralFrznWatAlbedo'          ); get_ixDiag = iLookDIAG%spectralFrznWatAlbedo            ! albedo of frozen water in each spectral band (-)
-  case('spectralOpenWatAlbedo'          ); get_ixDiag = iLookDIAG%spectralOpenWatAlbedo            ! albedo of open water in each spectral band (-)    
-  ! soil hydrology
+  case('spectralOpenWatAlbedo'          ); get_ixDiag = iLookDIAG%spectralOpenWatAlbedo            ! albedo of open water in each spectral band (-)
+  ! total mass changes    
+  case('scalarMassChange'               ); get_ixDiag = iLookDIAG%scalarMassChange                 ! mass change of all system together (kg m-2 s-1)
+    ! soil hydrology
   case('scalarInfilArea'                ); get_ixDiag = iLookDIAG%scalarInfilArea                  ! fraction of unfrozen area where water can infiltrate (-)
   case('scalarFrozenArea'               ); get_ixDiag = iLookDIAG%scalarFrozenArea                 ! fraction of area that is considered impermeable due to soil ice (-)
   case('scalarSoilControl'              ); get_ixDiag = iLookDIAG%scalarSoilControl                ! soil control on infiltration for derivative
@@ -1059,6 +1060,7 @@ contains
   case('basin__AquiferTranspire'       ); get_ixBvar = iLookBVAR%basin__AquiferTranspire         ! transpiration from the aquifer (m s-1)
   case('basin__TotalRunoff'            ); get_ixBvar = iLookBVAR%basin__TotalRunoff              ! total runoff to channel from all active components (m s-1)
   case('basin__SoilDrainage'           ); get_ixBvar = iLookBVAR%basin__SoilDrainage             ! soil drainage (m s-1)
+  case('basin__StorageChange'          ); get_ixBvar = iLookBVAR%basin__StorageChange            ! change in total basin storage (kg m-2 s-1)
   case('basin__GlacierStorage'         ); get_ixBvar = iLookBVAR%basin__GlacierStorage           ! glacier storage (Gt)
   case('basin__GlacierArea'            ); get_ixBvar = iLookBVAR%basin__GlacierArea              ! glacier area (m2) 
   case('updateJulDay'                  ); get_ixBvar = iLookBVAR%updateJulDay                    ! julian day at which glacier geometry was last updated

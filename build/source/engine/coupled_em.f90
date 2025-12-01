@@ -289,7 +289,6 @@ subroutine coupled_em(&
   real(rkind)                          :: balanceSoilET            ! output from the soil zone
   real(rkind)                          :: balanceAquifer0          ! total aquifer storage at the start of the step (kg m-2)
   real(rkind)                          :: balanceAquifer1          ! total aquifer storage at the end of the step (kg m-2)
-  real(rkind)                          :: scalarMassChange         ! change in mass of the entire system (kg m-2 s-1)
   real(rkind)                          :: innerBalance(4)          ! inner step balances for domain with one layer
   real(rkind)                          :: meanBalance(12)          ! timestep-average balances for domains
   real(rkind),allocatable              :: innerBalanceLayerMass(:) ! inner step balances for domain with multiple layers
@@ -1560,7 +1559,7 @@ subroutine coupled_em(&
       ! state variables in the aquifer
       scalarAquiferStorage       => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)                      ,& ! aquifer storage (m)
       ! rates mass change in the layer domains only, used for glacier area change
-      scalarLayersMassChange     => diag_data%var(iLookDIAG%scalarLayersMassChange)%dat(1)                    ,& ! mass change averaged over the layers  (kg m-2 s-1)
+      scalarTotalMassChange     => diag_data%var(iLookDIAG%scalarTotalMassChange)%dat(1)                      ,& ! mass change of system  (kg m-2 s-1)
       ! error tolerance
       absConvTol_liquid          => mpar_data%var(iLookPARAM%absConvTol_liquid)%dat(1)                         & ! absolute convergence tolerance for vol frac liq water (-)
       ) ! (association of local variables with information in the data structures
@@ -1831,12 +1830,10 @@ subroutine coupled_em(&
       ! -----
       ! sum of water changes in all of the domains to get the total water change rate
       ! -------------------------------------------------------
-      ! layers change is used in the glacier area change, entire system change is not currently used
-      scalarLayersMassChange = ((scalarTotalSoilWat - balanceSoilWater0) + delLakeWat + delSWE + (scalarIceWE - balanceIceWE0))/data_step
-      scalarMassChange = scalarLayersMassChange + (delCanWat + (balanceAquifer1-balanceAquifer0))/data_step
+      scalarTotalMassChange = ((scalarTotalSoilWat - balanceSoilWater0) + delLakeWat + delSWE + (scalarIceWE - balanceIceWE0))/data_step + (delCanWat + (balanceAquifer1-balanceAquifer0))/data_step
       ! save the average mass change rate for the layers if glacier
       if (is_glac) then
-        glacMass4AreaChange = glacMass4AreaChange + scalarLayersMassChange * data_step
+        glacMass4AreaChange = glacMass4AreaChange + scalarTotalMassChange * data_step
       else
         glacMass4AreaChange = 0._rkind
       end if

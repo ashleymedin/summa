@@ -179,7 +179,7 @@ contains
     parFallback(iLookBPAR%glacStor_kFirn)%default_val = 575._rkind
   endif
   if (parFallback(iLookBPAR%debrisConc)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookBPAR%debrisConc)%default_val = 5.0_rkind ! 0.1 -6.4 kg/m3 followinb Anderson and Anderson (2018)
+    parFallback(iLookBPAR%debrisConc)%default_val = 5.0_rkind ! 0.1 to 6.4 kg/m3 following Anderson and Anderson (2018)
   endif
   if (parFallback(iLookBPAR%debrisH_critical)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookBPAR%debrisH_critical)%default_val = 5.0_rkind ! follow Anderson and Anderson (2018) (m)
