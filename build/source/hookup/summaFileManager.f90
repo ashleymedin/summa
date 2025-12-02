@@ -105,8 +105,9 @@ subroutine summa_SetTimesDirsAndFiles(summaFileManagerIn,err,message)
     read(charline(iControl),*,iostat=err) option, varEntry
     if (err/=0) then; err=30; message=trim(message)//"error reading charline array"; return; end if
     ! get the index of the control file entry in the data structure
+#ifndef NGEN_ACTIVE
     write(*,'(i4,1x,a)') iControl, trim(option)//': '//trim(varEntry)
-
+#endif
     ! assign entries from control file to module public variables; add checking as needed
     select case(trim(option))
     case('controlVersion' );

@@ -17,7 +17,7 @@
 #include "OpenWQ_interface.h"
 
 // Constructor
-// initalize numHRUs value
+// initialize numHRUs value
 CLASSWQ_openwq::CLASSWQ_openwq() {}
 
 // Deconstructor

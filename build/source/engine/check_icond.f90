@@ -299,7 +299,7 @@ contains
                       mLayerVolFracLiq(iLayer),        & ! intent(out): volumetric fraction of liquid water (-)
                       mLayerVolFracIce(iLayer),        & ! intent(out): volumetric fraction of ice (-)
                       err,cmessage)                      ! intent(out): error control
-      if(err/=0)then; message=trim(cmessage)//trim(cmessage); return; end if  ! (check for errors)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
       if(checkEnthalpy)then ! enthalpy as state variable or in residual
         if(no_icond_enth)then ! no enthalpy in icond file
@@ -312,7 +312,9 @@ contains
                       realMissing,                     & ! intent(in):  lower value of integral (not computed)
                       mLayerTemp(iLayer),              & ! intent(in):  layer temperature (K)
                       mLayerMatricHead(iLayer-nSnow),  & ! intent(in):  matric head (m)
-                      mLayerEnthTemp(iLayer))            ! intent(out): temperature component of enthalpy soil layer (J m-3)
+                      mLayerEnthTemp(iLayer),          & ! intent(out): temperature component of enthalpy soil layer (J m-3)
+                      err,cmessage)                      ! intent(out): error control
+          if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
           mLayerEnthalpy(iLayer) = mLayerEnthTemp(iLayer) - iden_water * LH_fus * mLayerVolFracIce(iLayer)
         else
           mLayerEnthTemp(iLayer) = mLayerEnthalpy(iLayer) + iden_water * LH_fus * mLayerVolFracIce(iLayer)

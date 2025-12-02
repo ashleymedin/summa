@@ -1,21 +1,72 @@
 #!/bin/bash
   
-# build nextgen on Mac, from ngen directory put this one directory up and run this as ../build_ngen.mac.bash
+# Build nextgen on Mac, from ngen directory put this one directory up and run this as ../build_ngen.mac.bash
 # Environment variables may be set within this script (see examples below) or in the terminal environment before executing this script
-# Actual settings may vary
+# activate correct python environment, here is an example with conda environment named pyngen
+: "${PYNGEN_CONDA_ENV:=pyngen}"
+# try common conda install locations; adjust if your conda is elsewhere
+if [ -f "${HOME}/opt/anaconda3/etc/profile.d/conda.sh" ]; then
+  . "${HOME}/opt/anaconda3/etc/profile.d/conda.sh"
+elif [ -f "/Users/amedin/opt/anaconda3/etc/profile.d/conda.sh" ]; then
+  . "/Users/amedin/opt/anaconda3/etc/profile.d/conda.sh"
+elif command -v conda >/dev/null 2>&1; then
+  eval "$(conda shell.bash hook)" || true
+fi
+# activate env if possible (non-fatal)
+if command -v conda >/dev/null 2>&1; then
+  conda activate "${PYNGEN_CONDA_ENV}" || true
+fi
+# fallback: allow overriding python executable explicitly
+: "${DPython3_EXECUTABLE:=$(which python 2>/dev/null || echo /usr/bin/python3)}"
+export DPython3_EXECUTABLE
 
 # Mac Example using MacPorts:
-export FC=/opt/local/bin/gfortran                             # Fortran compiler family
+export CC=/opt/local/bin/gcc
+export CXX=/opt/local/bin/g++
+export FC=/opt/local/bin/gfortran
+
 #export FLAGS_OPT="-flto=1"                                   # -flto=1 is slow to compile, but might want to use
 export C_INCLUDE_PATH=/opt/local/include
 export CPLUS_INCLUDE_PATH=/opt/local/include
 export LIBRARY_LINKS='-llapack'                               # list of library links
-export SUNDIALS_DIR=../../../sundials/instdir/
+export SUNDIALS_DIR=../../../sundials/instdir/                # will not be used if -DUSE_SUNDIALS=OFF
 
-cmake -B extern/summa/cmake_build -S extern/summa -DUSE_NEXTGEN=ON -DSPECIFY_LAPACK_LINKS=ON -DCMAKE_BUILD_TYPE=Release
+# Build SUMMA NGEN below, may wish to turn -DUSE_SUNDIALS=ON (must install Sundials first)
+cmake -B extern/iso_c_fortran_bmi/cmake_build -S extern/iso_c_fortran_bmi
+cmake --build extern/iso_c_fortran_bmi/cmake_build --target all
+
+cmake -B extern/summa/cmake_build -S extern/summa -DUSE_NEXTGEN=ON -DUSE_SUNDIALS=OFF -DSPECIFY_LAPACK_LINKS=ON -DCMAKE_BUILD_TYPE=Release
 cmake --build extern/summa/cmake_build --target all -j
 
-cmake -B cmake_build -S . -DBoost_INCLUDE_DIR=/opt/local/libexec/boost/1.81/include -DNGEN_WITH_BMI_FORTRAN=ON -DPython_NumPy_INCLUDE_DIR=/opt/local/bin/python -DNGEN_WITH_MPI:BOOL=OFF -DNGEN_WITH_PYTHON:BOOL=OFF -DNGEN_WITH_BMI_C:BOOL=ON -DNGEN_WITH_BMI_FORTRAN:BOOL=ON -DNGEN_WITH_NETCDF:BOOL=OFF
-# can also add -DCMAKE_BUILD_TYPE=Debug to be able to run in gdb
-# make -j 8 -C cmake_build    # build w/ 8 parallel jobs, also turn MPI on
+cmake -S . -B cmake_build -DBoost_INCLUDE_DIR=/opt/local/libexec/boost/1.81/include -DPython_NumPy_INCLUDE_DIR=/opt/local/bin/python \
+    -DCMAKE_BUILD_TYPE=RelWithDebInfo            \
+    -DNGEN_IS_MAIN_PROJECT=ON                    \
+    -DNGEN_WITH_MPI:BOOL=OFF                     \
+    -DNGEN_WITH_NETCDF:BOOL=ON                   \
+    -DNGEN_WITH_SQLITE:BOOL=ON                   \
+    -DNGEN_WITH_UDUNITS:BOOL=ON                  \
+    -DNGEN_WITH_BMI_FORTRAN:BOOL=ON              \
+    -DNGEN_WITH_BMI_C:BOOL=ON                    \
+    -DNGEN_WITH_PYTHON:BOOL=ON                   \
+    -DNGEN_WITH_ROUTING:BOOL=ON                  \
+    -DNGEN_WITH_TESTS:BOOL=ON                    \
+    -DNGEN_QUIET:BOOL=ON                         \
+    -DNGEN_WITH_EXTERN_ALL:BOOL=ON
+    
+# Comments on above choices, and defaults
+#    -DCMAKE_BUILD_TYPE=RelWithDebInfo:  to be able to run in gdb change to -DCMAKE_BUILD_TYPE=Debug
+#    -DNGEN_IS_MAIN_PROJECT=ON        :  must be BOOL=ON for DNGEN_WITH_EXTERN_ALL:BOOL=ON
+#    -DNGEN_WITH_MPI:BOOL=OFF         :  may want to turn this ON as well as uncommenting "make -j 8 -C cmake_build"
+#    -DNGEN_WITH_NETCDF:BOOL=ON       :  must be BOOL=ON to build SUMMA NGEN
+#    -DNGEN_WITH_SQLITE:BOOL=ON       :  must be BOOL=ON if planning to use GeoPackages (and not just geojsons)
+#    -DNGEN_WITH_UDUNITS:BOOL=ON      :  must be BOOL=ON to build SUMMA NGEN
+#    -DNGEN_WITH_BMI_FORTRAN:BOOL=ON  :  must be BOOL=ON to build SUMMA NGEN
+#    -DNGEN_WITH_BMI_C:BOOL=ON        :  must be BOOL=ON for DNGEN_WITH_EXTERN_ALL:BOOL=ON
+#    -DNGEN_WITH_PYTHON:BOOL=ON       :  must be BOOL=ON for DNGEN_WITH_EXTERN_ALL:BOOL=ON
+#    -DNGEN_WITH_ROUTING:BOOL=ON      :  must have DNGEN_WITH_PYTHON:BOOL=ON for this to be ON
+#    -DNGEN_WITH_TESTS:BOOL=ON        :  must have DNGEN_WITH_EXTERN_ALL:BOOL=ON for this to be ON
+#    -DNGEN_QUIET:BOOL=ON             :  may want turn to this OFF, especially if debugging
+#    -DNGEN_WITH_EXTERN_ALL:BOOL=ON   :  these submodules are not used with SUMMA, you may turn this off you don't want to use them
+
+# make -j 8 -C cmake_build    # build w/ 8 parallel jobs, if uncomment then comment the next line and use DNGEN_WITH_MPI:BOOL=ON
 make -C cmake_build

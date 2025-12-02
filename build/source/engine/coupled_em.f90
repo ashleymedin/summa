@@ -802,7 +802,9 @@ subroutine coupled_em(&
                              realMissing,                  & ! intent(in):  lower value of integral (not computed)
                              mLayerTemp(iLayer),           & ! intent(in):  layer temperature (K)
                              mLayerMatricHead(iSoil),      & ! intent(in):  matric head (m)
-                             mLayerEnthTemp(iLayer))         ! intent(out): temperature component of enthalpy soil layer (J m-3)
+                             mLayerEnthTemp(iLayer),       & ! intent(out): temperature component of enthalpy soil layer (J m-3)
+                             err,cmessage)                   ! intent(out): error control
+              if(err/=0)then; message=trim(message)//trim(cmessage); return; end if              
               mLayerEnthalpy(iLayer) = mLayerEnthTemp(iLayer) - iden_water * LH_fus * mLayerVolFracIce(iLayer)
             end do  ! looping through soil layers
           end associate enthalpySnow
@@ -919,7 +921,9 @@ subroutine coupled_em(&
                       realMissing,                                              & ! intent(in):  lower value of integral (not computed)
                       prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1),         & ! intent(in):  surface layer temperature (K)
                       mLayerMatricHead(1),                                      & ! intent(in):  surface layer matric head (m)
-                      diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(nSnow+1))       ! intent(out): temperature component of enthalpy soil layer (J m-3)
+                      diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(nSnow+1),     & ! intent(out): temperature component of enthalpy soil layer (J m-3)
+                      err,cmessage)                                               ! intent(out): error control
+            if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
             prog_data%var(iLookPROG%mLayerEnthalpy)%dat(nSnow+1) = diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(nSnow+1) - iden_water * LH_fus * mLayerVolFracIce(nSnow+1)
           end if
     
@@ -1623,7 +1627,7 @@ subroutine coupled_em(&
 
   end associate canopy  ! end association to canopy parameters
 
-  ! overwrite flux data with timestep-average value for all flux_mean vars, hard-coded to not happen
+  ! overwrite flux data with timestep-average value for all flux_mean vars, hard-coded to happen
   if(.not.backwardsCompatibility)then
     do iVar=1,size(flux_mean%var)
       flux_data%var(averageFlux_meta(iVar)%ixParent)%dat = flux_mean%var(iVar)%dat

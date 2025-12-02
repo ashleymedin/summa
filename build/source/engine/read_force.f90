@@ -95,8 +95,8 @@ contains
  integer(i4b)                      :: iGRU,iHRU        ! index of GRU and HRU
  character(len=256),save           :: infile           ! filename
  character(len=256)                :: cmessage         ! error message for downwind routine
- real(rkind)                          :: startJulDay      ! julian day at the start of the year
- real(rkind)                          :: currentJulDay    ! Julian day of current time step
+ real(rkind)                       :: startJulDay      ! julian day at the start of the year
+ real(rkind)                       :: currentJulDay    ! Julian day of current time step
  logical(lgt),parameter            :: checkTime=.false.  ! flag to check the time
  ! Start procedure here
  err=0; message="read_force/"
@@ -175,7 +175,6 @@ contains
   message=trim(message)//'expect the file to be open'
   err=20; return
  end if  ! end ncid open check
-
 #endif
 
  ! **********************************************************************************************
@@ -557,13 +556,13 @@ contains
  end subroutine readForcingData
 
  ! *************************************************************************
- ! * create forcing time data if using NGEN (uses BMI)
+ ! * create forcing time data if using NGEN forcing
  ! *************************************************************************
  subroutine createForcingTimeData(currentJulDay,time_data,err,message)
  USE time_utils_module,only:compcalday                 ! convert julian day to calendar date
  ! dummy variables
- real(rkind),intent(in)            :: currentJulDay    ! Julian day of current time step
- integer(i4b),intent(out)          :: time_data(:)     ! vector of time data for a given time step
+ real(rkind), intent(in)           :: currentJulDay    ! Julian day of current time step
+ integer(i4b), intent(out)         :: time_data(:)     ! vector of time data for a given time step
  integer(i4b) ,intent(out)         :: err              ! error code
  character(*) ,intent(out)         :: message          ! error message
  ! local variables

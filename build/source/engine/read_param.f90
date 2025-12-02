@@ -143,21 +143,21 @@ contains
  endif
 
  ! check have the correct number of HRUs
- if ((irunMode==irunModeFull).and.(nHRU_file/=nHRU)) then
+ if ((iRunMode==iRunModeFull).and.(nHRU_file/=nHRU)) then
   message=trim(message)//'incorrect number of HRUs in file '//trim(infile)
   err=20; return
  endif
- if ((irunMode==irunModeHRU).and.(nHRU_file<checkHRU)) then
+ if ((iRunMode==iRunModeHRU).and.(nHRU_file<checkHRU)) then
   message=trim(message)//'not enough HRUs in file '//trim(infile)
   err=20; return
  endif
 
  ! check have the correct number of GRUs
- if ((irunMode==irunModeGRU).and.(nGRU_file<startGRU).and.(nGRU_file/=integerMissing)) then
+ if ((iRunMode==iRunModeGRU).and.(nGRU_file<startGRU).and.(nGRU_file/=integerMissing)) then
   message=trim(message)//'not enough GRUs in file '//trim(infile)
   err=20; return
  endif
- if ((irunMode==irunModeFull).and.(nGRU_file/=nGRU).and.(nGRU_file/=integerMissing)) then
+ if ((iRunMode==iRunModeFull).and.(nGRU_file/=nGRU).and.(nGRU_file/=integerMissing)) then
   message=trim(message)//'incorrect number of GRUs in file '//trim(infile)
   err=20; return
  endif

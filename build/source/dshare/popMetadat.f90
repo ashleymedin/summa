@@ -963,7 +963,7 @@ subroutine read_output_file(err,message)
         ! * define the frequency name
         freqName = trim(lineWords(freqIndex))
 
-        ! * identify index in  vector
+        ! * identify index in vector
         select case(freqName)
           ! define cases where temporal aggregation is numeric
           case('1');    iFreq = iLookFREQ%timestep  ! assume timestep-level output

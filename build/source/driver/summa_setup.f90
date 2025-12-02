@@ -264,6 +264,7 @@ contains
    ! overwrite default model parameters with information from the Noah-MP tables
    call pOverwrite(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),  &  ! vegetation category
                    typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%soilTypeIndex), &  ! soil category
+                   trim(model_decisions(iLookDECISIONS%soilCatTbl)%cDecision),  &  ! classification system used for soils
                    dparStruct%gru(iGRU)%hru(iHRU)%var,                          &  ! default model parameters
                    err,cmessage)                                                   ! error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -569,7 +570,7 @@ contains
    case('ROSETTA')          ! new soil table
      DO LC=1,SLCATS
         READ (19,*) IINDEX,&
-             ! new soil parameters (from Rosetta)
+             ! new soil parameters (from Rosetta only)
              theta_res(LC), theta_sat(LC),        &
              vGn_alpha(LC), vGn_n(LC), k_soil(LC), &
              ! original soil parameters

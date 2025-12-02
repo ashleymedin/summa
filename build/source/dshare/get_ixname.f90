@@ -57,7 +57,7 @@ contains
  integer(i4b)             :: get_ixdecisions         ! index of the named variable
  ! get the index of the named variables
  select case(trim(varName))
-  case('soilCatTbl'      ); get_ixdecisions=iLookDECISIONS%soilCatTbl  ! soil-category dateset
+  case('soilCatTbl'      ); get_ixdecisions=iLookDECISIONS%soilCatTbl  ! soil-category dataset
   case('vegeParTbl'      ); get_ixdecisions=iLookDECISIONS%vegeParTbl  ! vegetation category dataset
   case('soilStress'      ); get_ixdecisions=iLookDECISIONS%soilStress  ! choice of function for the soil moisture control on stomatal resistance
   case('stomResist'      ); get_ixdecisions=iLookDECISIONS%stomResist  ! choice of function for stomatal resistance

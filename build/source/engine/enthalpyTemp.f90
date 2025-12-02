@@ -552,7 +552,8 @@ subroutine T2enthTemp_soil(&
                       integral_frz_low0,        & ! intent(in):  integral_frz_low if computed outside, else realMissing
                       mLayerTemp,               & ! intent(in):  layer temperature (K)
                       mLayerMatricHead,         & ! intent(in):  total water matric potential (m)
-                      mLayerEnthTemp)             ! intent(out): temperature component of enthalpy soil layer (J m-3)
+                      mLayerEnthTemp,           & ! intent(out): temperature component of enthalpy soil layer (J m-3)
+                      err,message)                ! intent(out): error code and message
   ! -------------------------------------------------------------------------------------------------------------------------
   ! downwind routines
   USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists
@@ -577,10 +578,11 @@ subroutine T2enthTemp_soil(&
   real(rkind),intent(in)           :: mLayerMatricHead       ! total water matric potential (m)
   ! output: enthalpy
   real(rkind),intent(out)          :: mLayerEnthTemp         ! temperature component of enthalpy of soil layer (J m-3)
+  ! output: error control
+  integer(i4b),intent(out)         :: err                    ! error code
+  character(*),intent(out)         :: message                ! returned error message
   ! -------------------------------------------------------------------------------------------------------------------------
   ! declare local variables
-  integer(i4b)                     :: err                    ! error code
-  character(len=128)               :: cmessage               ! error message in downwind routine
   real(rkind)                      :: Tcrit                  ! temperature where all water is unfrozen (K)
   real(rkind)                      :: volFracWat             ! volumetric fraction of total water, liquid+ice (-)
   real(rkind)                      :: diff0                  ! temperature difference of Tcrit from Tfreeze
@@ -593,6 +595,7 @@ subroutine T2enthTemp_soil(&
   real(rkind)                      :: integral_frz_upp       ! upper limit of integral of frozen soil water content (from Tfreeze to soil temperature)
   real(rkind)                      :: xConst                 ! constant in the freezing curve function (m K-1)
   real(rkind)                      :: mLayerPsiLiq           ! liquid water matric potential (m)
+  character(len=256)               :: cmessage               ! error message in downwind routine
   ! enthalpy
   real(rkind)                      :: enthSoil               ! enthalpy of soil particles (J m-3)
   real(rkind)                      :: enthLiq                ! enthalpy of the liquid region (J m-3)
@@ -600,7 +603,7 @@ subroutine T2enthTemp_soil(&
   real(rkind)                      :: enthAir                ! enthalpy of air (J m-3)
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
-  err=0; cmessage="T2enthTemp_soil/"
+  err=0; message="T2enthTemp_soil/"
 
   Tcrit      = crit_soilT( mLayerMatricHead )
   volFracWat = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
@@ -633,15 +636,15 @@ subroutine T2enthTemp_soil(&
             integral_frz_low = integral_frz_low0
           else
             call splint(Tk,Ly,L2,Tcrit,integral_frz_low,dL,err,cmessage)
-            if(err/=0) then; cmessage="T2enthTemp_soil/"//trim(cmessage); print*, cmessage; return; end if ! should does not fail, print message to be safe
+            if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
           endif
         else ! Tcrit=Tfreeze, i.e. mLayerMatricHeadTrial(ixControlIndex)>0
           integral_frz_low = 0._rkind
         end if
         ! get the upper limit of the integral
         call splint(Tk,Ly,L2,mlayerTemp,integral_frz_upp,dL,err,cmessage)
-        if(err/=0) then; cmessage="T2enthTemp_soil/"//trim(cmessage); print*, cmessage; return; end if ! should not fail, print message to be safe
-
+        if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+        
       end associate lookVars
 
     else ! hypergeometric function for integral of mLayerPsiLiq from Tfreeze to layer temperature
@@ -1672,6 +1675,8 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     integer(i4b), intent(in) :: ixControlIndex
     real(rkind) :: mLayerEnthalpy, mLayerEnthTemp, mLayerMatricHead, volFracWat, xConst, mLayerPsiLiq, fLiq
     real(rkind) :: soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, integral_frz_low
+    integer(i4b) :: err
+    character(LEN=256):: cmessage ! error message of downwind routine
   
     mLayerEnthalpy   = vec(1)
     soil_dens_intr   = vec(2)
@@ -1685,8 +1690,8 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
   
     call T2enthTemp_soil(use_lookup, soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, &
                          ixControlIndex, lookup_data, integral_frz_low, mLayerTemp, mLayerMatricHead, &
-                         mLayerEnthTemp)
-
+                         mLayerEnthTemp, err, cmessage)
+    if(err/=0) then; cmessage="diff_H_soil inside Brent solver"//trim(cmessage); print*, cmessage; stop; end if
     volFracWat   = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
     xConst       = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
     mLayerPsiLiq = xConst*(mLayerTemp - Tfreeze)   ! liquid water matric potential from the Clapeyron eqution

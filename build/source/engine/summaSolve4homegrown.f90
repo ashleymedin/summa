@@ -549,9 +549,7 @@ contains
 
     ! re-scale the iteration increment
     xInc(:) = xInc(:)*xScale(:)
-    ! if enthalpy, then need to convert the iteration increment to temperature
-    !if (nrgFormulation==ix_enthalpy .and. dMat(ixNrgOnly)/=0._rkind) xInc(ixNrgOnly) = xInc(ixNrgOnly)/dMat(ixNrgOnly)
-
+   
     ! state vector with proposed iteration increment
     stateVecNew = stateVecTrial + xInc
 

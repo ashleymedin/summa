@@ -206,7 +206,7 @@ MODULE globalData
   character(len=256),save,public                 :: fileout=''                        ! output filename
   character(len=256),save,public                 :: output_fileSuffix=''              ! suffix for the output file
   ! define controls on model output
-  logical(lgt),dimension(maxvarFreq),save,public :: finalizeStats=.false.             ! flags to reset statistics
+  logical(lgt),dimension(maxvarFreq),save,public :: finalizeStats=.false.             ! flags to finalize statistics
   integer(i4b),save,public                       :: maxLayers                         ! maximum number of layers
   integer(i4b),save,public                       :: maxSnowLayers                     ! maximum number of snow layers
   ! define control variables
@@ -276,6 +276,5 @@ MODULE globalData
   integer(i4b),parameter,public                  :: nSpecBand=2                       ! number of spectral bands
   integer(i4b),parameter,public                  :: nTimeDelay=2000                   ! number of time steps in the time delay histogram (default: ~1 season = 24*365/4)
   ! printing step frequency
-  integer(i4b),parameter,public                  :: print_step_freq = 1000           
-  character(len=1024),public,save                :: fname                            ! temporary filename
+  integer(i4b),parameter,public                  :: print_step_freq = 1000            ! frequency (in time steps) to print number of steps taken in solver
 END MODULE globalData

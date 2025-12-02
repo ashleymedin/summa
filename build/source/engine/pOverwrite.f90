@@ -29,7 +29,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine pOverwrite: use Noah tables to overwrite default model parameters
  ! ************************************************************************************************
- subroutine pOverwrite(ixVeg,ixSoil,defaultParam,err,message)
+ subroutine pOverwrite(ixVeg,ixSoil,soilCatTbl, defaultParam,err,message)
  ! SUMMA dictionary
  USE var_lookup,only:iLookPARAM             ! named variables for elements of the data structures
  ! Noah table dimensions
@@ -43,17 +43,25 @@ contains
  USE NOAHMP_VEG_PARAMETERS, only: VCMX25    ! Noah-MP: maximum Rubisco carboxylation rate (umol m-2 s-1)
  USE NOAHMP_VEG_PARAMETERS, only: MP        ! Noah-MP: slope of conductance-photosynthesis relationship (-)
  ! Noah soil tables
- USE module_sf_noahlsm, only: theta_res, theta_sat, vGn_alpha, vGn_n, k_soil  ! van Genutchen soil parameters
+ USE module_sf_noahlsm, only: theta_res, theta_sat, vGn_alpha, vGn_n, k_soil  ! van Genutchen soil parameters, only ROSETTA
  USE module_sf_noahlsm, only: REFSMC        ! Noah-MP: reference volumetric soil moisture content (-)
  USE module_sf_noahlsm, only: WLTSMC        ! Noah-MP: volumetric soil moisture content when plants are wilting (-)
+ USE module_sf_noahlsm, only: SATDK         ! Noah-MP: saturated hydraulic conductivity (m s-1)
+ USE module_sf_noahlsm, only: DRYSMC        ! Noah-MP: dry soil moisture content (-)
+ USE module_sf_noahlsm, only: MAXSMC        ! Noah-MP: soil porosity (-)
+ USE module_sf_noahlsm, only: SATPSI        ! Noah-MP: saturated soil matric potential (m)
+ USE module_sf_noahlsm, only: BB            ! Noah-MP: Clapp-Hornberger exponent (-)
  implicit none
  ! define input
  integer(i4b),intent(in)              :: ixVeg           ! vegetation category
  integer(i4b),intent(in)              :: ixSoil          ! soil category
+ character(*), intent(in)             :: soilCatTbl      ! soil category table name
  ! define output
- real(rkind),intent(inout)               :: defaultParam(:) ! default model parameters
+ real(rkind),intent(inout)            :: defaultParam(:) ! default model parameters
  integer(i4b),intent(out)             :: err             ! error code
  character(*),intent(out)             :: message         ! error message
+ ! local variables
+ real(rkind)                          :: p               ! temporary variable for van Genuchten parameter calculation
  ! Start procedure here
  err=0; message="pOverwrite/"
 
@@ -82,13 +90,26 @@ contains
  defaultParam(iLookPARAM%cond2photo_slope)    = MP(ixVeg)           ! Noah-MP: slope of conductance-photosynthesis relationship (-)
 
  ! include parameters from the soil tables
- defaultParam(iLookPARAM%k_soil)              = k_soil(ixSoil)      ! hydraulic conductivity (m s-1)
- defaultParam(iLookPARAM%theta_res)           = theta_res(ixSoil)   ! residual volumetric liquid water content (-)
- defaultParam(iLookPARAM%theta_sat)           = theta_sat(ixSoil)   ! soil porosity (-)
- defaultParam(iLookPARAM%vGn_alpha)           = vGn_alpha(ixSoil)   ! van Genutchen "alpha" parameter (m-1)
- defaultParam(iLookPARAM%vGn_n)               = vGn_n(ixSoil)       ! van Genutchen "n" parameter (-)
- defaultParam(iLookPARAM%critSoilTranspire)   = REFSMC(ixSoil)      ! Noah-MP: reference volumetric soil moisture content (-)
- defaultParam(iLookPARAM%critSoilWilting)     = WLTSMC(ixSoil)      ! Noah-MP: volumetric soil moisture content when plants are wilting (-)
+ select case(trim(soilCatTbl))
+  case('ROSETTA')
+   ! use van Genutchen parameters only available for ROSETTA soil categories
+   defaultParam(iLookPARAM%k_soil)          = k_soil(ixSoil)          ! hydraulic conductivity (m s-1)
+   defaultParam(iLookPARAM%theta_res)       = theta_res(ixSoil)       ! residual volumetric liquid water content (-)
+   defaultParam(iLookPARAM%theta_sat)       = theta_sat(ixSoil)       ! soil porosity (-)
+   defaultParam(iLookPARAM%vGn_alpha)       = vGn_alpha(ixSoil)       ! van Genutchen "alpha" parameter (m-1)
+   defaultParam(iLookPARAM%vGn_n)           = vGn_n(ixSoil)           ! van Genutchen "n" parameter (-)
+  case('STAS','STAS-RUC')
+   defaultParam(iLookPARAM%k_soil)          = SATDK(ixSoil)           ! Noah-MP: saturated hydraulic conductivity (m s-1)
+   defaultParam(iLookPARAM%theta_res)       = DRYSMC(ixSoil)          ! Noah-MP: minumum soil moisture content used as residual volumetric liquid water content (-)
+   defaultParam(iLookPARAM%theta_sat)       = MAXSMC(ixSoil)          ! Noah-MP: soil porosity (-)
+   ! following Morel-Seytouxet al., 1996, use empirical relations to estimate van Genuchten parameters from Clapp-Hornberger parameters
+   defaultParam(iLookPARAM%vGn_n)          = (BB(ixSoil)+1._rkind)/BB(ixSoil)        ! Noah-MP: van Genuchten n parameter (-)
+   p = 2.0_rkind*BB(ixSoil)+3.0_rkind
+   defaultParam(iLookPARAM%vGn_alpha)      = -1._rkind/SATPSI(ixSoil) * (p + 3._rkind)/(2._rkind*p* (p - 1._rkind)) * &
+                                             (147.8_rkind + 8.1_rkind*p + 0.092_rkind * p**2_i4b) / (55.6_rkind + 7.4_rkind*p + p**2_i4b) ! Noah-MP: van Genuchten alpha parameter (m-1)
+ end select
+ defaultParam(iLookPARAM%critSoilTranspire) = REFSMC(ixSoil)          ! Noah-MP: reference volumetric soil moisture content (-)
+ defaultParam(iLookPARAM%critSoilWilting)   = WLTSMC(ixSoil)          ! Noah-MP: volumetric soil moisture content when plants are wilting (-)
 
  end subroutine pOverwrite
 

@@ -22,7 +22,6 @@ module ffile_info_module
 USE nrtype
 USE netcdf
 USE globalData,only:integerMissing
-USE globalData,only:ixHRUfile_min,ixHRUfile_max
 implicit none
 private
 public::ffile_info

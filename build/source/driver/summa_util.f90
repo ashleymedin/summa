@@ -84,15 +84,20 @@ contains
  ! initialize error control
  err=0; message='getCommandArguments/'
 
+#ifdef NGEN_ACTIVE
+  ! no command arguments with NGen
+  nArgument = 0
+  checkHRU = integerMissing
+  nGRU = 1; nHRU = integerMissing
+  newOutputFile = noNewFiles
+  ixProgress = ixProgress_never ! NGen prints own progress
+  iRunMode = iRunModeGRU
+#else
  ! check number of command-line arguments
  nArgument = command_argument_count()
-#ifdef NGEN_ACTIVE
-    !no command arguments with NGen
-#else
  if (nArgument < 1) then
   call printCommandHelp()
  end if
-#endif
 
  ! read command line arguments
  allocate(argString(nArgument))
@@ -252,7 +257,9 @@ contains
     call printCommandHelp
 
    case default
-    ! assume BMI, already set master control file
+    call printCommandHelp
+    message='unknown command line option'
+    err=1; return
 
   end select
  end do  ! looping through command line arguments
@@ -265,6 +272,7 @@ contains
 
  ! set startGRU for full run
  if (iRunMode==iRunModeFull) startGRU=1
+#endif
 
  ! end associate statements
  end associate summaVars
@@ -352,14 +360,14 @@ contains
  integer(i4b)                       :: endModelRun(8)  ! final time
  integer(i4b)                       :: localErr        ! local error code
  integer(i4b)                       :: iFreq           ! loop through output frequencies
- real(rkind)                           :: elpSec          ! elapsed seconds
+ real(rkind)                        :: elpSec          ! elapsed seconds
 
  ! close any remaining output files
  ! NOTE: use the direct NetCDF call with no error checking since the file may already be closed
  do iFreq = 1,size(ncid)
   if (ncid(iFreq)/=integerMissing) localErr = nf90_close(ncid(iFreq))
  end do
-
+#ifndef NGEN_ACTIVE
  ! get the final date and time
  call date_and_time(values=endModelRun)
  elpSec = elapsedSec(startInit,endModelRun)
@@ -400,7 +408,7 @@ contains
 
  ! print the number of threads
  write(outunit,"(A,i10,/)")                                                   '   number threads = ', nThreads
-
+#endif
  ! stop with message
  if(err==0)then
   print*,'FORTRAN STOP: '//trim(message)

@@ -702,7 +702,9 @@ subroutine updateVars(&
                       realMissing,                           & ! intent(in):  lower value of integral (not computed)
                       mLayerTempTrial(iLayer),               & ! intent(in):  layer temperature (K)
                       mLayerMatricHeadTrial(ixControlIndex), & ! intent(in):  matric head (m)
-                      mLayerEnthTempTrial(iLayer))             ! intent(out): temperature component of enthalpy soil layer (J m-3)
+                      mLayerEnthTempTrial(iLayer),           & ! intent(out): temperature component of enthalpy soil layer (J m-3)
+                      err,cmessage)                            ! intent(out): error control
+          if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
         else
           mLayerEnthTempTrial(iLayer) = realMissing
         endif

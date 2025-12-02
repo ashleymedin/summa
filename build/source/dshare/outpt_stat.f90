@@ -54,7 +54,7 @@ contains
  character(256)                 :: cmessage         ! error message
  integer(i4b)                   :: iVar             ! index for varaiable loop
  integer(i4b)                   :: pVar             ! index into parent structure
- real(rkind)                       :: tdata            ! dummy for pulling info from dat structure
+ real(rkind)                    :: tdata            ! dummy for pulling info from dat structure
 
  ! initialize error control
  err=0; message='calcStats/'
@@ -114,7 +114,7 @@ contains
  ! input variables
  class(var_info),intent(in)         :: meta              ! meta data structure
  class(*)       ,intent(inout)      :: stat              ! statistics structure
- real(rkind)       ,intent(in)         :: tdata             ! data value
+ real(rkind)    ,intent(in)         :: tdata             ! data value
  logical(lgt)   ,intent(in)         :: resetStats(:)     ! vector of flags to reset statistics
  logical(lgt)   ,intent(in)         :: finalizeStats(:)  ! vector of flags to reset statistics
  integer(i4b)   ,intent(in)         :: statCounter(:)   ! number of time steps in each output frequency
@@ -122,7 +122,7 @@ contains
  integer(i4b)   ,intent(out)        :: err               ! error code
  character(*)   ,intent(out)        :: message           ! error message
  ! internals
- real(rkind),dimension(maxvarFreq*2)   :: tstat             ! temporary stats vector
+ real(rkind),dimension(maxvarFreq*2):: tstat             ! temporary stats vector
  integer(i4b)                       :: iFreq             ! index of output frequency
  ! initialize error control
  err=0; message='calc_stats/'

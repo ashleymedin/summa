@@ -127,8 +127,13 @@ contains
  hru_ix=arth(1,1,fileHRU)
 
 ! check that the mappings are not alreaday allocated
-if (allocated(gru_struc)) then; message=trim(message)//'gru_struc is unexpectedly allocated'; return; end if
-if (allocated(index_map)) then; message=trim(message)//'index_map is unexpectedly allocated'; return; end if
+#ifdef NGEN_ACTIVE
+if (allocated(gru_struc)) deallocate(gru_struc) ! free existing mapping possibly from previous GRU run
+if (allocated(index_map)) deallocate(index_map) ! free existing mapping possibly from previous GRU run
+#else
+if (allocated(gru_struc)) then; err=20; message=trim(message)//'gru_struc is unexpectedly allocated'; return; end if
+if (allocated(index_map)) then; err=20; message=trim(message)//'index_map is unexpectedly allocated'; return; end if
+#endif
 
 ! allocate first level of gru to hru mapping
 allocate(gru_struc(nGRU))
@@ -153,6 +158,10 @@ else ! allocate space for anything except a single HRU run
 
   if (count(hru2gru_Id == gru_id(iGRU+sGRU-1)) < 1) then; err=20; message=trim(message)//'problem finding HRUs belonging to GRU'; return; end if
   gru_struc(iGRU)%hruCount          = count(hru2gru_Id == gru_id(iGRU+sGRU-1))                 ! number of HRUs in each GRU
+#ifdef NGEN_ACTIVE
+  if (gru_struc(iGRU)%hruCount > 1) then; err=20; message=trim(message)//'NGEN currently only supports single-HRU per GRU'; return; end if
+  print *, 'GRU id is ', gru_id(iGRU+sGRU-1)
+#endif
   gru_struc(iGRU)%gru_id            = gru_id(iGRU+sGRU-1)                                      ! set gru id
   gru_struc(iGRU)%gru_nc            = iGRU+sGRU-1                                              ! set gru index in the netcdf file
 

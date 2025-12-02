@@ -274,8 +274,8 @@ contains
  USE var_lookup,only:maxVarFreq                     ! # of available output frequencies
  USE get_ixName_module,only:get_varTypeName         ! to access type strings for error messages
  USE get_ixname_module,only:get_statName            ! statistics names for variable defs in output file
- USE globalData,only:nHRUrun
- USE globalData,only:nGRUrun
+ USE globalData,only:nHRUrun                        ! number of HRUs in the current run
+ USE globalData,only:nGRUrun                        ! number of GRUs in the current run
  implicit none
  ! input
  integer(i4b)  ,intent(in)     :: ncid              ! netcdf file id
