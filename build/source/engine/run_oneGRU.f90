@@ -366,7 +366,7 @@ subroutine run_oneGRU(&
 
         ! increment Gt of glacier storage (Gt = km3 of water equivalent)
         bvarData%var(iLookBVAR%basin__GlacierStorage)%dat(1) = bvarData%var(iLookBVAR%basin__GlacierStorage)%dat(1) &
-                                                               + diagHRU%hru(iHRU)%dom(iDOM)%var(iLookDIAG%scalarLayersMassChange)%dat(1)*data_step &
+                                                               + diagHRU%hru(iHRU)%dom(iDOM)%var(iLookDIAG%scalarTotalMassChange)%dat(1)*data_step &
                                                                * progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)*1.e-12_rkind
       else if(typeDOM==wetland)then ! collect wetland fluxes
         ! STUB:  wetland fluxes not yet implemented
