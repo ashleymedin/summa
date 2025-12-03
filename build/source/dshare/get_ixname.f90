@@ -606,7 +606,7 @@ contains
   case('spectralFrznWatAlbedo'          ); get_ixDiag = iLookDIAG%spectralFrznWatAlbedo            ! albedo of frozen water in each spectral band (-)
   case('spectralOpenWatAlbedo'          ); get_ixDiag = iLookDIAG%spectralOpenWatAlbedo            ! albedo of open water in each spectral band (-)
   ! total mass changes    
-  case('scalarMassChange'               ); get_ixDiag = iLookDIAG%scalarMassChange                 ! mass change of all system together (kg m-2 s-1)
+  case('scalarTotalMassChange'          ); get_ixDiag = iLookDIAG%scalarTotalMassChange            ! mass change of all system together (kg m-2 s-1)
     ! soil hydrology
   case('scalarInfilArea'                ); get_ixDiag = iLookDIAG%scalarInfilArea                  ! fraction of unfrozen area where water can infiltrate (-)
   case('scalarFrozenArea'               ); get_ixDiag = iLookDIAG%scalarFrozenArea                 ! fraction of area that is considered impermeable due to soil ice (-)
