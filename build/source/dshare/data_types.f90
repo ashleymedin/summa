@@ -2107,11 +2107,11 @@ contains
   end associate
  end subroutine finalize_io_surfaceFlux
 
- subroutine finalize_out_surfaceFlux(out_surfaceFlux,io_soilLiqFlux,err,cmessage)
+ subroutine finalize_out_surfaceFlux(out_surfaceFlux,io_soilLiqFlux,err,message)
   class(out_type_surfaceFlux),intent(in)  :: out_surfaceFlux ! output object for surfaceFlux
   type(io_type_soilLiqFlux),intent(inout) :: io_soilLiqFlux  ! input-output class object for soilLiqFlux
   integer(i4b),intent(out)  :: err       ! error code
-  character(*),intent(out)  :: cmessage  ! error message
+  character(*),intent(out)  :: message   ! error message
 
   associate(&
    ! intent(out): surface runoff and infiltration
@@ -2134,7 +2134,7 @@ contains
   end associate
   ! intent(out): error control
   err      = out_surfaceFlux % err     ! error code
-  cmessage = out_surfaceFlux % message ! error message
+  message  = out_surfaceFlux % message ! error message
  end subroutine finalize_out_surfaceFlux
  ! **** end surfaceFlux ****
 

@@ -1274,7 +1274,7 @@ contains
    dTheta_dPsi        => in_surfaceFlux % dTheta_dPsi       , & ! ... the soil water characteristic w.r.t. psi (m-1)
    ! input: soil layers
    nSoil              => in_surfaceFlux % nSoil             , & ! number of soil layers
-   mLayerDepth        => in_surfaceFlux % mLayerDepth       , & ! depth of upper-most soil layer (m)
+   mLayerDepth        => in_surfaceFlux % mLayerDepth       , & ! depth of each soil layer (m)
    ! output: error control
    err                => out_surfaceFlux % err              , & ! error code
    message            => out_surfaceFlux % message            & ! error message
@@ -1427,7 +1427,7 @@ contains
    dTheta_dPsi        => in_surfaceFlux % dTheta_dPsi       , & ! ... the soil water characteristic w.r.t. psi (m-1)
    ! input: soil layers
    nSoil              => in_surfaceFlux % nSoil             , & ! number of soil layers
-   mLayerDepth        => in_surfaceFlux % mLayerDepth       , & ! depth of upper-most soil layer (m)
+   mLayerDepth        => in_surfaceFlux % mLayerDepth       , & ! depth of each soil layer (m)
    ! output: error control
    err                => out_surfaceFlux % err              , & ! error code
    message            => out_surfaceFlux % message            & ! error message
@@ -1647,7 +1647,7 @@ contains
    dTheta_dPsi        => in_surfaceFlux % dTheta_dPsi       , & ! ... the soil water characteristic w.r.t. psi (m-1)
    ! input: soil layers
    nSoil              => in_surfaceFlux % nSoil             , & ! number of soil layers
-   mLayerDepth        => in_surfaceFlux % mLayerDepth       , & ! depth of upper-most soil layer (m)
+   mLayerDepth        => in_surfaceFlux % mLayerDepth       , & ! depth of each soil layer (m)
    ! output: error control
    err                => out_surfaceFlux % err              , & ! error code
    message            => out_surfaceFlux % message            & ! error message
@@ -1708,8 +1708,8 @@ contains
    ! input: state and diagnostic variables
    scalarMatricHeadLiq => in_surfaceFlux % scalarMatricHeadLiq , & ! liquid matric head in the upper-most soil layer (m)
    scalarVolFracLiq    => in_surfaceFlux % scalarVolFracLiq    , & ! volumetric liquid water content in the upper-most soil layer (-)
-   ! input: depth of upper-most soil layer (m)
-   mLayerDepth  => in_surfaceFlux % mLayerDepth  , & ! depth of upper-most soil layer (m)
+   ! input: depth of depth of each soil layer (m)
+   mLayerDepth  => in_surfaceFlux % mLayerDepth  , & ! depth of each soil layer (m)
    ! input: diriclet boundary conditions
    upperBoundHead   => in_surfaceFlux % upperBoundHead  , & ! upper boundary condition for matric head (m)
    upperBoundTheta  => in_surfaceFlux % upperBoundTheta , & ! upper boundary condition for volumetric liquid water content (-)
@@ -1822,7 +1822,7 @@ contains
    dTheta_dPsi            => in_surfaceFlux % dTheta_dPsi            , & ! ... the soil water characteristic w.r.t. psi (m-1)
    mLayerdPsi_dTheta      => in_surfaceFlux % mLayerdPsi_dTheta      , & ! ... the soil water characteristic w.r.t. theta (m)
    ! input: depth of soil layers (m)
-   mLayerDepth  => in_surfaceFlux % mLayerDepth  , & ! depth of upper-most soil layer (m)
+   mLayerDepth  => in_surfaceFlux % mLayerDepth  , & ! depth of each soil layer (m)
    iLayerHeight => in_surfaceFlux % iLayerHeight , & ! height at the interface of each layer for soil layers only (m)
    ! input: soil parameters
    rootingDepth        => in_surfaceFlux % rootingDepth & ! rooting depth (m)
@@ -1878,13 +1878,13 @@ contains
      end do
    end if
    ! process layers where the roots or infiltration end in the current layer
-   rootZoneLiq = rootZoneLiq + mLayerVolFracLiq(nRoots)*(rootingDepth - iLayerHeight(nRoots-1))
-   rootZoneIce = rootZoneIce + mLayerVolFracIce(nRoots)*(rootingDepth - iLayerHeight(nRoots-1))
+   rootZoneLiq = rootZoneLiq + mLayerVolFracLiq(nRoots)*min(mLayerDepth(nRoots),rootingDepth - iLayerHeight(nRoots-1))
+   rootZoneIce = rootZoneIce + mLayerVolFracIce(nRoots)*min(mLayerDepth(nRoots),rootingDepth - iLayerHeight(nRoots-1))
    if(updateInfil)then
-     dRootZoneLiq_dWat(nRoots) = dVolFracLiq_dWat(nRoots)*(rootingDepth - iLayerHeight(nRoots-1))
-     dRootZoneIce_dWat(nRoots) = dVolFracIce_dWat(nRoots)*(rootingDepth - iLayerHeight(nRoots-1))
-     dRootZoneLiq_dTk(nRoots)  = dVolFracLiq_dTk(nRoots)* (rootingDepth - iLayerHeight(nRoots-1))
-     dRootZoneIce_dTk(nRoots)  = dVolFracIce_dTk(nRoots)* (rootingDepth - iLayerHeight(nRoots-1))
+     dRootZoneLiq_dWat(nRoots) = dVolFracLiq_dWat(nRoots)*min(mLayerDepth(nRoots),rootingDepth - iLayerHeight(nRoots-1))
+     dRootZoneIce_dWat(nRoots) = dVolFracIce_dWat(nRoots)*min(mLayerDepth(nRoots),rootingDepth - iLayerHeight(nRoots-1))
+     dRootZoneLiq_dTk(nRoots)  = dVolFracLiq_dTk(nRoots)* min(mLayerDepth(nRoots),rootingDepth - iLayerHeight(nRoots-1))
+     dRootZoneIce_dTk(nRoots)  = dVolFracIce_dTk(nRoots)* min(mLayerDepth(nRoots),rootingDepth - iLayerHeight(nRoots-1))
    endif
 
   end associate
@@ -1895,6 +1895,8 @@ contains
 
   ! compute and check available capacity to hold water (m)
   associate(&
+   ! input: depth of each soil layer (m)
+   mLayerDepth  => in_surfaceFlx % mLayerDepth  , & ! depth of each soil layer (m)
    ! input: soil parameters
    theta_sat           => in_surfaceFlux % theta_sat   , & ! soil porosity (-)
    rootingDepth        => in_surfaceFlux % rootingDepth, & ! rooting depth (m)
@@ -1903,10 +1905,13 @@ contains
    message => out_surfaceFlux % message  & ! error message
   &)
 
-   availCapacity = theta_sat*rootingDepth - rootZoneIce
-   if (rootZoneLiq > availCapacity+verySmaller) then
-     message=trim(message)//'liquid water in the root zone exceeds capacity'
+   total_soil_depth = sum(mLayerDepth)
+   availCapacity = theta_sat*min(rootingDepth,total_soil_depth) - rootZoneIce
+   if (rootZoneLiq > availCapacity + verySmaller) then
+      message=trim(message)//'liquid water in the root zone exceeds capacity'
      err=20; return_flag=.true.; return
+   else if (rootZoneLiq > availCapacity) then
+      availCapacity = rootZoneLiq ! may happen due to round-off error, adjust
    end if
 
   end associate
@@ -1917,8 +1922,6 @@ contains
   associate(&
    ! input: model control
    ixInfRateMax => in_surfaceFlux % ixInfRateMax , & ! index defining the maximum infiltration rate method (GreenAmpt, topmodel_GA, noInfiltrationExcess)
-   ! input: depth of upper-most soil layer (m)
-   mLayerDepth  => in_surfaceFlux % mLayerDepth  , & ! depth of upper-most soil layer (m)
    ! input: transmittance
    surfaceSatHydCond => in_surfaceFlux % surfaceSatHydCond , & ! saturated hydraulic conductivity at the surface (m s-1)
    ! input: soil parameters
@@ -1930,8 +1933,7 @@ contains
   &)
 
    ! define the depth to the wetting front (m) and derivatives
-   total_soil_depth = sum(mLayerDepth)
-   depthWettingFront = (rootZoneLiq/availCapacity)*min(rootingDepth, total_soil_depth)
+   depthWettingFront = (rootZoneLiq/availCapacity)*min(rootingDepth,total_soil_depth)
    if(updateInfil)then
      dDepthWettingFront_dWat(:)=( dRootZoneLiq_dWat(:)*min(rootingDepth, total_soil_depth) + dRootZoneIce_dWat(:)*depthWettingFront )/availCapacity
      dDepthWettingFront_dTk(:) =( dRootZoneLiq_dTk(:) *min(rootingDepth, total_soil_depth) + dRootZoneIce_dTk(:)*depthWettingFront  )/availCapacity
@@ -2020,7 +2022,7 @@ contains
    ! input: state and diagnostic variables
    mLayerVolFracLiq    => in_surfaceFlux % mLayerVolFracLiq, & ! volumetric liquid water content in each soil layer (-)
    ! input: depth of upper-most soil layer (m)
-   mLayerDepth  => in_surfaceFlux % mLayerDepth, & ! depth of upper-most soil layer (m)
+   mLayerDepth  => in_surfaceFlux % mLayerDepth, & ! depth of each soil layer (m)
    ! input: soil parameters
    theta_sat           => in_surfaceFlux % theta_sat, & ! soil porosity (-)
    ! input-output: surface runoff and infiltration flux (m s-1)

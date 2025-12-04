@@ -420,7 +420,7 @@ contains
       call out_TRR % finalize(fNew,converged,err,cmessage)
      case default; err=20; message=trim(message)//'unable to identify numerical solution'; return_flag=.true.; return
     end select
- 
+    
     ! check warnings: negative error code = warning; in this case back-tracked to the original value
     ! NOTE: Accept the full newton step if back-tracked to the original value
     if (err<0) then
@@ -441,8 +441,11 @@ contains
                        &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,& ! input-output
                        &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SRF)             ! output
     call out_SRF % finalize(fNew,converged,err,cmessage)
-    if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! check for errors
    end if
+
+   ! final check for errors
+   if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! check for errors
+   
   end associate
  end subroutine refine_Newton_step  
 

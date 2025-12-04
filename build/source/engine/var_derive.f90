@@ -130,20 +130,21 @@ contains
  subroutine rootDensty(mpar_data,indx_data,prog_data,diag_data,err,message)
  implicit none
  ! declare input variables
- type(var_dlength),intent(in)    :: mpar_data       ! data structure of model parameters for a local HRU
- type(var_ilength),intent(in)    :: indx_data       ! data structure of model indices for a local HRU
- type(var_dlength),intent(in)    :: prog_data       ! data structure of model prognostic (state) variables for a local HRU
- type(var_dlength),intent(inout) :: diag_data       ! data structure of model diagnostic variables for a local HRU
+ type(var_dlength),intent(in)    :: mpar_data        ! data structure of model parameters for a local HRU
+ type(var_ilength),intent(in)    :: indx_data        ! data structure of model indices for a local HRU
+ type(var_dlength),intent(in)    :: prog_data        ! data structure of model prognostic (state) variables for a local HRU
+ type(var_dlength),intent(inout) :: diag_data        ! data structure of model diagnostic variables for a local HRU
  ! declare output variables
- integer(i4b),intent(out)        :: err             ! error code
- character(*),intent(out)        :: message         ! error message
+ integer(i4b),intent(out)        :: err              ! error code
+ character(*),intent(out)        :: message          ! error message
  ! declare local variables
- integer(i4b)                    :: iLayer          ! loop through layers
- integer(i4b)                    :: iSoil           ! index for soil layers
- real(rkind)                     :: fracRootLower   ! fraction of the rooting depth at the lower interface
- real(rkind)                     :: fracRootUpper   ! fraction of the rooting depth at the upper interface
+ integer(i4b)                    :: iLayer           ! loop through layers
+ integer(i4b)                    :: iSoil            ! index for soil layers
+ real(rkind)                     :: fracRootLower    ! fraction of the rooting depth at the lower interface
+ real(rkind)                     :: fracRootUpper    ! fraction of the rooting depth at the upper interface
  real(rkind), parameter          :: rootTolerance = 0.05_rkind ! tolerance for error in doubleExp rooting option
- real(rkind)                     :: error           ! machine precision error in rooting distribution
+ real(rkind)                     :: error            ! machine precision error in rooting distribution
+ real(rkind)                     :: total_soil_depth ! total soil depth (m)
  ! initialize error control
  err=0; message='rootDensty/'
 
@@ -170,6 +171,7 @@ contains
  ! ----------------------------------------------------------------------------------
 
  ! compute the fraction of roots in each soil layer
+ total_soil_depth = iLayerHeight(nSnow+nLake+nSoil) - iLayerHeight(nSnow+nLake)
  do iLayer=(nSnow+nLake+1),(nSnow+nLake+nSoil)
   iSoil = iLayer-nSnow-nLake
   ! different options for the rooting profile
@@ -182,9 +184,9 @@ contains
      if(iLayer==nSnow+nLake+1)then  ! height=0; avoid precision issues
       fracRootLower = 0._rkind
      else
-      fracRootLower = iLayerHeight(iLayer-1)/rootingDepth
+      fracRootLower = iLayerHeight(iLayer-1)/min(rootingDepth,total_soil_depth)
      end if
-     fracRootUpper = iLayerHeight(iLayer)/rootingDepth
+     fracRootUpper = iLayerHeight(iLayer)/min(rootingDepth,total_soil_depth)
      if(fracRootUpper>1._rkind) fracRootUpper=1._rkind
      ! compute the root density
      mLayerRootDensity(iSoil) = fracRootUpper**rootDistExp - fracRootLower**rootDistExp
@@ -207,11 +209,11 @@ contains
 
  end do  ! (looping thru layers)
 
- ! check that root density is within some reaosnable version of machine tolerance
+ ! check that root density is within some reasonable version of machine tolerance
  ! This is the case when root density is greater than 1. Can only happen with powerLaw option.
  error = sum(mLayerRootDensity) - 1._rkind
  if (error > 2._rkind*epsilon(rootingDepth)) then
-  message=trim(message)//'problem with the root density calaculation'
+  message=trim(message)//'problem with the root density calculation'
   err=20; return
  else
   mLayerRootDensity = mLayerRootDensity - error/real(nSoil,kind(rkind))
