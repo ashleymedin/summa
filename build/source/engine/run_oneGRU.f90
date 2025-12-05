@@ -209,6 +209,9 @@ subroutine run_oneGRU(&
   bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = 0._rkind ! baseflow from the aquifer (m s-1)
   bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = 0._rkind ! transpiration loss from the aquifer (m s-1)
 
+  ! initialize storage change variable
+  bvarData%var(iLookBVAR%basin__StorageChange)%dat(1)    = 0._rkind ! change in total basin storage (m s-1)
+
   ! initialize glacier variables
   glacIceMelt  = 0._rkind ! glacier ice reservoir melt (m3 s-1)
   glacSnowMelt = 0._rkind ! glacier snow reservoir melt (m3 s-1)
@@ -337,6 +340,7 @@ subroutine run_oneGRU(&
       endif
 
       ! ----- calculate weighted basin (GRU) fluxes --------------------------------------------------------------------------------------
+      bvarData%var(iLookBVAR%basin__StorageChange)%dat(1) = bvarData%var(iLookBVAR%basin__StorageChange)%dat(1) + diagHRU%hru(iHRU)%dom(iDOM)%var(iLookDIAG%scalarTotalMassChange)%dat(1) * fracDOM
       if(typeDOM==upland)then
          ! increment basin surface runoff (m s-1)
         bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)  = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)*fracDOM
