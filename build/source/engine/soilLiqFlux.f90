@@ -1896,7 +1896,7 @@ contains
   ! compute and check available capacity to hold water (m)
   associate(&
    ! input: depth of each soil layer (m)
-   mLayerDepth  => in_surfaceFlx % mLayerDepth  , & ! depth of each soil layer (m)
+   mLayerDepth  => in_surfaceFlux % mLayerDepth  , & ! depth of each soil layer (m)
    ! input: soil parameters
    theta_sat           => in_surfaceFlux % theta_sat   , & ! soil porosity (-)
    rootingDepth        => in_surfaceFlux % rootingDepth, & ! rooting depth (m)
