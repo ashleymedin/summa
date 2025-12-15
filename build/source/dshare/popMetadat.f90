@@ -254,6 +254,14 @@ subroutine popMetadat(err,message)
   mpar_meta(iLookPARAM%f_impede)                       = var_info('f_impede'                       , 'ice impedence factor'                                             , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%soilIceScale)                   = var_info('soilIceScale'                   , 'scaling factor for depth of soil ice, used to get frozen fraction', 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%soilIceCV)                      = var_info('soilIceCV'                      , 'CV of depth of soil ice, used to get frozen fraction'             , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! conceptual parameters for surface runoff
+  mpar_meta(iLookPARAM%FUSE_Ac_max)                    = var_info('FUSE_Ac_max'                    , 'FUSE PRMS max saturated area'                                     , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%FUSE_phi_tens)                  = var_info('FUSE_phi_tens'                  , 'FUSE PRMS tension storage fraction'                               , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%FUSE_b)                         = var_info('FUSE_b'                         , 'FUSE ARNO/VIC exponent'                                           , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%FUSE_lambda)                    = var_info('FUSE_lambda'                    , 'FUSE TOPMODEL gamma distribution lambda parameter'                , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%FUSE_chi)                       = var_info('FUSE_chi'                       , 'FUSE TOPMODEL gamma distribution chi parameter'                   , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%FUSE_mu)                        = var_info('FUSE_mu'                        , 'FUSE TOPMODEL gamma distribution mu parameter'                    , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%FUSE_n)                         = var_info('FUSE_n'                         , 'FUSE TOPMODEL exponent'                                           , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! algorithmic control parameters
   mpar_meta(iLookPARAM%minwind)                        = var_info('minwind'                        , 'minimum wind speed'                                               , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%minstep)                        = var_info('minstep'                        , 'minimum length of the time step homegrown'                        , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
@@ -304,14 +312,6 @@ subroutine popMetadat(err,message)
   mpar_meta(iLookPARAM%zmaxLayer2_upper)               = var_info('zmaxLayer2_upper'               , 'maximum layer depth for the 2nd layer when > 2 layers'            , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%zmaxLayer3_upper)               = var_info('zmaxLayer3_upper'               , 'maximum layer depth for the 3rd layer when > 3 layers'            , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%zmaxLayer4_upper)               = var_info('zmaxLayer4_upper'               , 'maximum layer depth for the 4th layer when > 4 layers'            , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  ! FUSE surface runoff
-  mpar_meta(iLookPARAM%FUSE_Ac_max  )               = var_info('FUSE_Ac_max'   , 'FUSE PRMS max saturated area'                     , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  mpar_meta(iLookPARAM%FUSE_phi_tens)               = var_info('FUSE_phi_tens' , 'FUSE PRMS tension storage fraction'               , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  mpar_meta(iLookPARAM%FUSE_b       )               = var_info('FUSE_b'        , 'FUSE ARNO/VIC exponent'                           , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  mpar_meta(iLookPARAM%FUSE_lambda  )               = var_info('FUSE_lambda'   , 'FUSE TOPMODEL gamma distribution lambda parameter', 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  mpar_meta(iLookPARAM%FUSE_chi     )               = var_info('FUSE_chi'      , 'FUSE TOPMODEL gamma distribution chi parameter'   , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  mpar_meta(iLookPARAM%FUSE_mu      )               = var_info('FUSE_mu'       , 'FUSE TOPMODEL gamma distribution mu parameter'    , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  mpar_meta(iLookPARAM%FUSE_n       )               = var_info('FUSE_n'        , 'FUSE TOPMODEL exponent'                           , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin parameter data...
   ! -------------------------
@@ -440,6 +440,7 @@ subroutine popMetadat(err,message)
   diag_meta(iLookDIAG%mLayerMeltFreeze)                = var_info('mLayerMeltFreeze'               , 'ice content change from melt/freeze in each layer'                , 'kg m-3'          , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   ! soil hydrology
   diag_meta(iLookDIAG%scalarInfilArea)                 = var_info('scalarInfilArea'                , 'fraction of unfrozen area where water can infiltrate'             , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%scalarSaturatedArea)             = var_info('scalarSaturatedArea'            , 'fraction of area that is considered saturated'                    , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarFrozenArea)                = var_info('scalarFrozenArea'               , 'fraction of area that is considered impermeable due to soil ice'  , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarSoilControl)               = var_info('scalarSoilControl'              , 'soil control on infiltration for derivative'                      , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%mLayerVolFracAir)                = var_info('mLayerVolFracAir'               , 'volumetric fraction of air in each layer'                         , '-'               , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)

@@ -478,6 +478,7 @@ MODULE data_types
  type, public :: io_type_soilLiqFlx ! class for intent(inout) arguments in soilLiqFlx call
    real(rkind)              :: scalarMaxInfilRate                ! intent(inout): maximum infiltration rate (m s-1)
    real(rkind)              :: scalarInfilArea                   ! intent(inout): fraction of unfrozen area where water can infiltrate (-)
+   real(rkind)              :: scalarSaturatedArea               ! intent(inout): fraction of area that is considered saturated (-)
    real(rkind)              :: scalarFrozenArea                  ! intent(inout): fraction of area that is considered impermeable due to soil ice (-)
    real(rkind)              :: scalarSoilControl                 ! intent(inout): soil control on infiltration for derivative
    real(rkind)              :: scalarSurfaceRunoff               ! intent(inout): surface runoff (m s-1)
@@ -690,16 +691,17 @@ MODULE data_types
    procedure :: initialize => initialize_in_surfaceFlx
  end type in_type_surfaceFlx 
 
- type, public :: io_type_surfaceFlx ! intent(inout) data
+ type, public :: io_type_surfaceFlx    ! intent(inout) data
    ! input-output: hydraulic conductivity and diffusivity at the surface
    ! NOTE: intent(inout) because infiltration may only be computed for the first iteration
-   real(rkind) :: surfaceHydCond   ! hydraulic conductivity (m s-1)
-   real(rkind) :: surfaceDiffuse   ! hydraulic diffusivity at the surface (m
+   real(rkind) :: surfaceHydCond      ! hydraulic conductivity (m s-1)
+   real(rkind) :: surfaceDiffuse      ! hydraulic diffusivity at the surface (m
    ! input-output: surface runoff and infiltration flux (m s-1)
-   real(rkind) :: xMaxInfilRate    ! maximum infiltration rate (m s-1)
-   real(rkind) :: scalarInfilArea  ! fraction of unfrozen area where water can infiltrate (-)
-   real(rkind) :: scalarFrozenArea ! fraction of area that is considered impermeable due to soil ice (-)
-   real(rkind) :: scalarSoilControl! soil control on infiltration for derivative
+   real(rkind) :: xMaxInfilRate       ! maximum infiltration rate (m s-1)
+   real(rkind) :: scalarInfilArea     ! fraction of unfrozen area where water can infiltrate (-)
+   real(rkind) :: scalarSaturatedArea ! fraction of area that is considered saturated (-)
+   real(rkind) :: scalarFrozenArea    ! fraction of area that is considered impermeable due to soil ice (-)
+   real(rkind) :: scalarSoilControl   ! soil control on infiltration for derivative
   contains
    procedure :: initialize => initialize_io_surfaceFlx
    procedure :: finalize   => finalize_io_surfaceFlx
@@ -1337,6 +1339,7 @@ contains
   associate(&
    scalarMaxInfilRate     => flux_data%var(iLookFLUX%scalarMaxInfilRate)%dat(1),     & ! intent(out): [dp] maximum infiltration rate (m s-1)
    scalarInfilArea        => diag_data%var(iLookDIAG%scalarInfilArea   )%dat(1),     & ! intent(out): [dp] fraction of unfrozen area where water can infiltrate (-)
+   scalarSaturatedArea    => diag_data%var(iLookDIAG%scalarSaturatedArea)%dat(1),    & ! intent(out): [dp] fraction of area that is considered saturated (-)
    scalarFrozenArea       => diag_data%var(iLookDIAG%scalarFrozenArea  )%dat(1),     & ! intent(out): [dp] fraction of area that is considered impermeable due to soil ice (-)
    scalarSoilControl      => diag_data%var(iLookDIAG%scalarSoilControl  )%dat(1),    & ! intent(out): [dp] soil control on infiltration for derivative
    scalarSurfaceRunoff    => flux_data%var(iLookFLUX%scalarSurfaceRunoff)%dat(1),    & ! intent(out): [dp] surface runoff (m s-1)
@@ -1344,6 +1347,7 @@ contains
    scalarSurfaceRunoff_SE => flux_data%var(iLookFLUX%scalarSurfaceRunoff_SE)%dat(1)  ) ! intent(out): [dp] saturation excess surface runoff (m s-1)
    io_soilLiqFlx % scalarMaxInfilRate      =scalarMaxInfilRate       ! intent(inout): maximum infiltration rate (m s-1)
    io_soilLiqFlx % scalarInfilArea         =scalarInfilArea          ! intent(inout): fraction of unfrozen area where water can infiltrate (-)
+   io_soilLiqFlx % scalarSaturatedArea     =scalarSaturatedArea      ! intent(inout): fraction of area that is considered saturated (-)
    io_soilLiqFlx % scalarFrozenArea        =scalarFrozenArea         ! intent(inout): fraction of area that is considered impermeable due to soil ice (-)
    io_soilLiqFlx % scalarSoilControl       =scalarSoilControl        ! intent(inout): soil control on infiltration for derivative
    io_soilLiqFlx % scalarSurfaceRunoff     =scalarSurfaceRunoff      ! intent(inout): surface runoff (m s-1)
@@ -1409,6 +1413,7 @@ contains
   associate(&
    scalarMaxInfilRate           => flux_data%var(iLookFLUX%scalarMaxInfilRate)%dat(1), & ! intent(out): [dp] maximum infiltration rate (m s-1)
    scalarInfilArea              => diag_data%var(iLookDIAG%scalarInfilArea   )%dat(1), & ! intent(out): [dp] fraction of unfrozen area where water can infiltrate (-)
+   scalarSaturatedArea          => diag_data%var(iLookDIAG%scalarSaturatedArea)%dat(1), & ! intent(out): [dp] fraction of area that is considered saturated (-)
    scalarFrozenArea             => diag_data%var(iLookDIAG%scalarFrozenArea  )%dat(1), & ! intent(out): [dp] fraction of area that is considered impermeable due to soil ice (-)
    scalarSoilControl            => diag_data%var(iLookDIAG%scalarSoilControl  )%dat(1), & ! intent(out): [dp] soil control on infiltration for derivative
    scalarSurfaceRunoff    => flux_data%var(iLookFLUX%scalarSurfaceRunoff)%dat(1),    & ! intent(out): [dp] surface runoff (m s-1)
@@ -1416,6 +1421,7 @@ contains
    scalarSurfaceRunoff_SE => flux_data%var(iLookFLUX%scalarSurfaceRunoff_SE)%dat(1)  ) ! intent(out): [dp] saturation excess surface runoff (m s-1)
    scalarMaxInfilRate      =io_soilLiqFlx % scalarMaxInfilRate       ! intent(inout): maximum infiltration rate (m s-1)
    scalarInfilArea         =io_soilLiqFlx % scalarInfilArea          ! intent(inout): fraction of unfrozen area where water can infiltrate (-)
+   scalarSaturatedArea     =io_soilLiqFlx % scalarSaturatedArea      ! intent(inout): fraction of area that is considered saturated (-)
    scalarFrozenArea        =io_soilLiqFlx % scalarFrozenArea         ! intent(inout): fraction of area that is considered impermeable due to soil ice (-)
    scalarSoilControl       =io_soilLiqFlx % scalarSoilControl        ! intent(inout): soil control on infiltration for derivative
    scalarSurfaceRunoff     =io_soilLiqFlx % scalarSurfaceRunoff      ! intent(inout): surface runoff (m s-1)
@@ -1870,10 +1876,11 @@ contains
 
   associate(&
    ! fluxes at layer interfaces and surface runoff
-   xMaxInfilRate     => io_soilLiqFlx % scalarMaxInfilRate, & ! maximum infiltration rate (m s-1)
-   scalarInfilArea   => io_soilLiqFlx % scalarInfilArea,    & ! fraction of unfrozen area where water can infiltrate (-)
-   scalarFrozenArea  => io_soilLiqFlx % scalarFrozenArea,   & ! fraction of area that is considered impermeable due to soil ice (-)
-   scalarSoilControl => io_soilLiqFlx % scalarSoilControl  & ! soil control on infiltration for derivative
+   xMaxInfilRate       => io_soilLiqFlx % scalarMaxInfilRate,  & ! maximum infiltration rate (m s-1)
+   scalarInfilArea     => io_soilLiqFlx % scalarInfilArea,     & ! fraction of unfrozen area where water can infiltrate (-)
+   scalarSaturatedArea => io_soilLiqFlx % scalarSaturatedArea, & ! fraction of area that is considered saturated (-)
+   scalarFrozenArea    => io_soilLiqFlx % scalarFrozenArea,    & ! fraction of area that is considered impermeable due to soil ice (-)
+   scalarSoilControl   => io_soilLiqFlx % scalarSoilControl    & ! soil control on infiltration for derivative
   &)
    ! intent(inout): hydraulic conductivity and diffusivity at the surface
    io_surfaceFlx % surfaceHydCond = iLayerHydCond(0)         ! hydraulic conductivity at the surface (m s-1)
@@ -1881,6 +1888,7 @@ contains
    ! intent(inout): fluxes at layer interfaces and surface runoff
    io_surfaceFlx % xMaxInfilRate    = xMaxInfilRate          ! maximum infiltration rate (m s-1)
    io_surfaceFlx % scalarInfilArea  = scalarInfilArea        ! fraction of unfrozen area where water can infiltrate (-)
+   io_surfaceFlx % scalarSaturatedArea = scalarSaturatedArea ! fraction of area that is considered saturated (-)
    io_surfaceFlx % scalarFrozenArea = scalarFrozenArea       ! fraction of area that is considered impermeable due to soil ice (-)
    io_surfaceFlx % scalarSoilControl = scalarSoilControl     ! soil control on infiltration for derivative
   end associate
@@ -1897,6 +1905,7 @@ contains
    ! fluxes at layer interfaces and surface runoff
    xMaxInfilRate    => io_soilLiqFlx % scalarMaxInfilRate, & ! maximum infiltration rate (m s-1)
    scalarInfilArea  => io_soilLiqFlx % scalarInfilArea,    & ! fraction of unfrozen area where water can infiltrate (-)
+   scalarSaturatedArea => io_soilLiqFlx % scalarSaturatedArea, & ! fraction of area that is considered saturated (-)
    scalarFrozenArea => io_soilLiqFlx % scalarFrozenArea,   & ! fraction of area that is considered impermeable due to soil ice (-)
    scalarSoilControl => io_soilLiqFlx % scalarSoilControl  & ! soil control on infiltration for derivative
   &)
@@ -1906,6 +1915,7 @@ contains
    ! intent(inout): fluxes at layer interfaces and surface runoff
    xMaxInfilRate    = io_surfaceFlx % xMaxInfilRate          ! maximum infiltration rate (m s-1)                                   
    scalarInfilArea  = io_surfaceFlx % scalarInfilArea        ! fraction of unfrozen area where water can infiltrate (-)
+   scalarSaturatedArea = io_surfaceFlx % scalarSaturatedArea ! fraction of area that is considered saturated (-)
    scalarFrozenArea = io_surfaceFlx % scalarFrozenArea       ! fraction of area that is considered impermeable due to soil ice (-)
    scalarSoilControl = io_surfaceFlx % scalarSoilControl     ! soil control on infiltration for derivative
   end associate
