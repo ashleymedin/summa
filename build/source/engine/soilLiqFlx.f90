@@ -1154,8 +1154,7 @@ contains
      dq_dHydStateVec(:) = realMissing ! not used, so cause problems
      dq_dNrgStateVec(:) = realMissing ! not used, so cause problems
    end if
-   print*,'DEBUG surfaceFlx infiltration derivatives: dq_dHydStateVec=',dq_dHydStateVec
-   print*,'DEBUG surfaceFlx infiltration derivatives: dq_dNrgStateVec=',dq_dNrgStateVec
+   write(*,*) "Debug: infiltration derivatives gathered: dq_dHydStateVec=",dq_dHydStateVec(:)," dq_dNrgStateVec=",dq_dNrgStateVec(:)
   end associate
 
  end subroutine update_gather_runoff_components
