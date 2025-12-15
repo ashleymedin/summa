@@ -835,8 +835,8 @@ MODULE data_types
    real(rkind),allocatable :: dTheta_dTk(:)          ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
    real(rkind),allocatable :: dTheta_dPsi(:)         ! derivative in the soil water characteristic w.r.t. psi (m-1)
    real(rkind),allocatable :: mLayerdPsi_dTheta(:)   ! derivative in the soil water characteristic w.r.t. theta (m)
-   ! input: depth of upper-most soil layer (m)
-   real(rkind),allocatable :: mLayerDepth(:)         ! depth of upper-most soil layer (m)
+   ! input: depth of each soil layer (m)
+   real(rkind),allocatable :: mLayerDepth(:)         ! depth of each soil layer (m)
    real(rkind),allocatable :: iLayerHeight(:)        ! height at the interface of each layer (m)
    ! input: diriclet boundary conditions
    real(rkind) :: upperBoundHead      ! upper boundary condition for matric head (m)
@@ -1973,10 +1973,10 @@ contains
   end associate
 
   associate(&
-   ! depth of upper-most soil layer (m)
+   ! depth of each soil layer (m)
    mLayerDepth         => prog_data%var(iLookPROG%mLayerDepth)%dat(ibeg:iend) & ! depth of the layer (m)
   &)
-   ! intent(in): depth of upper-most soil layer (m)
+   ! intent(in): depth of each soil layer (m)
    in_surfaceFlux % mLayerDepth     = mLayerDepth  ! depth of each soil layer (m)
    in_surfaceFlux % iLayerHeight    = iLayerHeight ! height at the interface of each layer (m)
   end associate
