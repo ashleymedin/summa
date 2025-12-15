@@ -323,8 +323,8 @@ contains
   snowfall     = 0._rkind
  else
   ! compute rainfall and snowfall
-  rainfall = fracrain*pptrate
-  snowfall = (1._rkind - fracrain)*pptrate*frozenPrecipMultip
+  rainfall = fracrain*pptrate*1e3
+  snowfall = (1._rkind - fracrain)*pptrate*1e3*frozenPrecipMultip
  end if
 
  ! compute density of new snow
