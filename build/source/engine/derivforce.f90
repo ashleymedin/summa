@@ -197,7 +197,10 @@ contains
  windspd_x = windspd_x + wndlapseRate * (DOMelev - elevation) ! adjust wind speed x-component to domain mean elevation
  windspd_y = windspd_y + wndlapseRate * (DOMelev - elevation) ! adjust wind speed y-component to domain mean elevation
 
- ! adjust wind speed and air temperature for glacier katabatic winds
+ ! adjust wind speed and air temperature for glacier katabatic winds, should be related to fetch length
+ ! NOTE: Eventually want to have a separate katabatic wind model, but this is a simple first-order approach 
+ ! see e.g. Radic et al., 2017, https://doi.org/10.5194/tc-11-2897-2017, following Oerlemans and Grisogono (2002)
+ ! NOTE2: Should make dependent on the glacier geometry so wind speed increases and temperature decreases are larger down-glacier
  if (is_glac .and. airtemp>Tfreeze) then 
   windspd   = windspd   * glacierWindFactor
   windspd_x = windspd_x * glacierWindFactor

@@ -165,7 +165,7 @@ contains
     parFallback(iLookPARAM%glacierWindFactor)%default_val = 1._rkind ! 
   end if
   if (parFallback(iLookPARAM%glacierTempReduction)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%glacierTempReduction)%default_val = 1._rkind
+    parFallback(iLookPARAM%glacierTempReduction)%default_val = 0._rkind
   end if
  else
   ! glacier parameters
