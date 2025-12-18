@@ -108,7 +108,7 @@ contains
 
  ! *****
  ! * check soil parameter dependencies...
- ! theta_res < critSoilWilting < critSoilTranspire < fieldCapacit < theta_sat
+ ! theta_res < critSoilWilting < critSoilTranspire < fieldCapacity < theta_sat
  ! *********************************
 
  ! associations
@@ -137,7 +137,7 @@ contains
   print*, 'theta_sat         = ', theta_sat
   print*, 'critSoilTranspire = ', critSoilTranspire
   message=trim(message)//'critSoilTranspire parameter is out of range '// &
-                         '[NOTE: if overwriting Noah-MP soil table values in paramTrial, must overwrite all soil parameters]'
+                         '[NOTE: if overwriting Noah-MP soil table values in paramTrial or calibrating, must overwrite all soil parameters]'
   err=20; return
  end if
 
@@ -147,7 +147,7 @@ contains
   print*, 'theta_sat       = ', theta_sat
   print*, 'critSoilWilting = ', critSoilWilting
   message=trim(message)//'critSoilWilting parameter is out of range '// &
-                         '[NOTE: if overwriting Noah-MP soil table values in paramTrial, must overwrite all soil parameters]'
+                         '[NOTE: if overwriting Noah-MP soil table values in paramTrial or calibrating, must overwrite all soil parameters]'
   err=20; return
  end if
 
@@ -157,21 +157,27 @@ contains
   print*, 'theta_sat     = ', theta_sat
   print*, 'fieldCapacity = ', fieldCapacity
   message=trim(message)//'fieldCapacity parameter is out of range '// &
-                         '[NOTE: if overwriting Noah-MP soil table values in paramTrial, must overwrite all soil parameters]'
+                         '[NOTE: if overwriting Noah-MP soil table values in paramTrial or calibrating, must overwrite all soil parameters]'
   err=20; return
  end if
 
  ! check transpiration
  if( critSoilTranspire < critSoilWilting )then
-  write(message,'(a,i0,a)') trim(message)//'critical point for transpiration is less than the wilting point'
+  print*, 'critSoilTranspire = ', critSoilTranspire
+  print*, 'critSoilWilting   = ', critSoilWilting
+  message=trim(message)//'critical point for transpiration is less than the wilting point' // &
+                         '[NOTE: if overwriting Noah-MP soil table values in paramTrial or calibrating, must overwrite all soil parameters]'
+ 
   err=20; return
  endif
 
  ! check porosity
  if( any(theta_sat < theta_res) )then
-  print*, 'theta_res     = ', theta_res
-  print*, 'theta_sat     = ', theta_sat
-  write(message,'(a,i0,a)') trim(message)//'porosity is less than the residual liquid water content'
+  print*, 'theta_res = ', theta_res
+  print*, 'theta_sat = ', theta_sat
+  message=trim(message)//'porosity is less than the residual liquid water content '// &
+                         '[NOTE: if overwriting Noah-MP soil table values in paramTrial or calibrating, must overwrite all soil parameters]'
+ 
   err=20; return
  endif
 
