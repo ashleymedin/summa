@@ -1498,7 +1498,6 @@ subroutine coupled_em(&
         ! effRainfall is averageThroughfallRain + averageCanopyLiqDrainage only over snow
         delSWE      = scalarSWE - (oldSWE - sfcMeltPond)
         massBalance = delSWE - (effSnowfall + effRainfall + averageSnowSublimation - averageSnowDrainage*iden_water)*data_step
-        if(abs(massBalance) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance_ds)then
           print*,                  'nSnow       = ', nSnow
           print*,                  'nSub        = ', nSub
           write(*,'(a,1x,f20.10)') 'data_step   = ', data_step
@@ -1511,6 +1510,7 @@ subroutine coupled_em(&
           write(*,'(a,1x,f20.10)') 'snwDrainage = ', averageSnowDrainage*iden_water*data_step
           write(*,'(a,1x,f20.10)') 'sfcMeltPond = ', sfcMeltPond
           write(*,'(a,1x,f20.10)') 'SWE_BalErr  = ', massBalance
+        if(abs(massBalance) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance_ds)then
           message=trim(message)//'SWE does not balance'
           err=20; return
         endif  ! if failed mass balance check
