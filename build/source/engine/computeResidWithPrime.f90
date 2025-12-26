@@ -260,7 +260,7 @@ subroutine computeResidWithPrime(&
 
     ! print the state variables if requested
     if(globalPrintFlag)then
-      write(*,'(a)') 'In computResidWithPrime:'
+      write(*,'(a)') 'In computeResidWithPrime:'
       write(*,'(a,i4)') '  nSnow = ', nSnow
       write(*,'(a,i4)') '  nLake = ', nLake
       write(*,'(a,i4)') '  nSoil = ', nSoil

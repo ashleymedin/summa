@@ -736,7 +736,7 @@ subroutine fluxJacAdd(&
 
         if(nrgState/=integerMissing)then
           ! - sub-diagonal elements for snow, sub-diagonal only (water does not move upwards in snow)
-          if(qLayer<nSnow .and. mLayerVolFracIce(jLayer+1)>maxVolIceContent_use)then
+          if(qLayer<nSnow .and. mLayerVolFracIce(jLayer+1)<=maxVolIceContent_use)then
             aJac(ixInd(ixSnLaSoGlHyd(jLayer+1),nrgState),nrgState) = -(dt/mLayerDepth(jLayer+1))*iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer)  ! dVol(below)/dT(above)
           endif              
           ! - super-diagonal elements for ice, super-diagonal only (water does not move downwards in ice), but since water passes through immediately in ice, terms are 0

@@ -295,7 +295,7 @@ subroutine computeResid(&
 
     ! print the state variables if requested
     if(globalPrintFlag)then
-      write(*,'(a)') 'In computResid:'
+      write(*,'(a)') 'In computeResid:'
       write(*,'(a,i4)') '  nSnow = ', nSnow
       write(*,'(a,i4)') '  nLake = ', nLake
       write(*,'(a,i4)') '  nSoil = ', nSoil

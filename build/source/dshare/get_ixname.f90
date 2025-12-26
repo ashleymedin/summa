@@ -723,7 +723,7 @@ contains
   case('scalarCanopyAdvectiveHeatFlux'  ); get_ixFlux = iLookFLUX%scalarCanopyAdvectiveHeatFlux    ! heat advected to the canopy surface with rain + snow (W m-2)
   case('scalarGroundAdvectiveHeatFlux'  ); get_ixFlux = iLookFLUX%scalarGroundAdvectiveHeatFlux    ! heat advected to the ground surface with throughfall and unloading/drainage (W m-2)
   case('scalarCanopySublimation'        ); get_ixFlux = iLookFLUX%scalarCanopySublimation          ! canopy sublimation/frost (kg m-2 s-1)
-  case('scalarGroundSublimation'        ); get_ixFlux = iLookFLUX%scalarGroundSublimation          ! ground ((or lake or glacier) sublimation/frost (below canopy or non-vegetated) (kg m-2 s-1)
+  case('scalarGroundSublimation'        ); get_ixFlux = iLookFLUX%scalarGroundSublimation          ! ground (or lake or glacier) sublimation/frost (below canopy or non-vegetated) (kg m-2 s-1)
   ! liquid water fluxes associated with evapotranspiration
   case('scalarStomResistSunlit'         ); get_ixFlux = iLookFLUX%scalarStomResistSunlit           ! stomatal resistance for sunlit leaves (s m-1)
   case('scalarStomResistShaded'         ); get_ixFlux = iLookFLUX%scalarStomResistShaded           ! stomatal resistance for shaded leaves (s m-1)

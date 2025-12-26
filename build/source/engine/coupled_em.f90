@@ -790,7 +790,7 @@ subroutine coupled_em(&
                         modifiedLayers,             & ! intent(out): flag to denote that layers were modified
                         err,cmessage)                 ! intent(out): error control
         if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
- 
+
         ! save the number of layers
         nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
         nLake   = indx_data%var(iLookINDEX%nLake)%dat(1)
@@ -1002,7 +1002,7 @@ subroutine coupled_em(&
               prog_data%var(iLookPROG%mLayerEnthalpy)%dat(nSnow+nLake+1) = diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(nSnow+nLake+1) - iden_water * LH_fus * mLayerVolFracIce(nSnow+nLake+1)
             endif
           end if
-    
+
           ! compute the liquid water matric potential (m)
           ! NOTE: include ice content as part of the solid porosity - major effect of ice is to reduce the pore size; ensure that effSat=1 at saturation
           ! (from Zhao et al., J. Hydrol., 1997: Numerical analysis of simultaneous heat and mass transfer...)
@@ -1634,11 +1634,12 @@ subroutine coupled_em(&
       ! -----
       ! * balance checks for SWE...
       ! ---------------------------
-      ! effRainfall is averageThroughfallRain + averageCanopyLiqDrainage only over snow
-      effSnowfall = averageThroughfallSnow + averageCanopySnowUnloading
-      delSWE      = scalarSWE - (oldSWE - sfcMeltPond)
       if(nSnow>0)then
-                
+        effSnowfall = averageThroughfallSnow + averageCanopySnowUnloading
+        ! effRainfall is averageThroughfallRain + averageCanopyLiqDrainage only over snow             
+        delSWE      = scalarSWE - (oldSWE - sfcMeltPond)
+        massBalance = delSWE - (effSnowfall + effRainfall + averageSnowSublimation - averageSnowDrainage*iden_water)*data_step
+
         ! check the individual layers
         if(printBalance)then
           write(*,'(a,1x,10(f12.8,1x))') 'liqSnowInit       = ', liqSnowInit
@@ -1664,7 +1665,7 @@ subroutine coupled_em(&
           write(*,'(a,1x,f20.10)') 'delSWE      = ', delSWE
           write(*,'(a,1x,f20.10)') 'effRainfall = ', effRainfall*data_step
           write(*,'(a,1x,f20.10)') 'effSnowfall = ', effSnowfall*data_step
-          write(*,'(a,1x,f20.10)') 'sublimation = ', averageSnowSublimation/whole_step*data_step
+          write(*,'(a,1x,f20.10)') 'sublimation = ', averageSnowSublimation*data_step
           write(*,'(a,1x,f20.10)') 'snwDrainage = ', averageSnowDrainage*iden_water*data_step
           write(*,'(a,1x,f20.10)') 'sfcMeltPond = ', sfcMeltPond
           write(*,'(a,1x,f20.10)') 'SWE_BalErr  = ', massBalance
@@ -1765,7 +1766,7 @@ subroutine coupled_em(&
           write(*,'(a,1x,f20.10)') 'data_step             = ', data_step
           write(*,'(a,1x,f20.10)') 'balanceIceWE0         = ', balanceIceWE0
           write(*,'(a,1x,f20.10)') 'scalarIceWE           = ', scalarIceWE
-          write(*,'(a,1x,f20.10)') 'sublimation           = ', averageGlceSublimation/whole_step*data_step
+          write(*,'(a,1x,f20.10)') 'sublimation           = ', averageGlceSublimation*data_step
           write(*,'(a,1x,f20.10)') 'averageGlceMelt       = ', averageGlceMelt*iden_water*data_step
           write(*,'(a,1x,f20.10)') 'massBalance           = ', massBalance
           message=trim(message)//'glacier ice does not balance'
