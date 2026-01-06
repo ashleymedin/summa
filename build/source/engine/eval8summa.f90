@@ -356,6 +356,9 @@ subroutine eval8summa(&
     mLayerMatricHeadTrial     = mLayerMatricHead
     mLayerMatricHeadLiqTrial  = mLayerMatricHeadLiq
     scalarAquiferStorageTrial = scalarAquiferStorage
+    scalarCanairEnthalpyTrial = scalarCanairEnthalpy
+    scalarCanopyEnthTempTrial = scalarCanopyEnthTemp
+    mLayerEnthTempTrial       = mLayerEnthTemp
 
     ! extract variables from the model state vector
     call varExtract(&
