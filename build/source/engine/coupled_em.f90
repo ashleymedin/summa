@@ -968,13 +968,11 @@ subroutine coupled_em(&
           scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce  ! kg m-2
 
           ! compute the total water content in layers, no ice expansion allowed for soil
-          do iLayer=1,nLayers
-            if(iLayer<=nSnow+nLake .or. iLayer>nSnow+nLake+nSoil)then
-              mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)*iden_ice/iden_water
-            else
-              mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)
-            end if
-          end do  ! looping through layers
+          if(nSnow+nLake>0)&
+            mLayerVolFracWat(1:nSnow+nLake) = mLayerVolFracLiq(1:nSnow+nLake) + mLayerVolFracIce(1:nSnow+nLake)*(iden_ice/iden_water)
+          mLayerVolFracWat(nSnow+nLake+1:nSnow+nLake+nSoil) = mLayerVolFracLiq(nSnow+nLake+1:nSnow+nLake+nSoil) + mLayerVolFracIce(nSnow+nLake+1:nSnow+nLake+nSoil)
+          if(nGlce>0)&
+            mLayerVolFracWat(nSnow+nLake+nSoil+1:nLayers) = mLayerVolFracLiq(nSnow+nLake+nSoil+1:nLayers) + mLayerVolFracIce(nSnow+nLake+nSoil+1:nLayers)*(iden_ice/iden_water)
 
           ! compute enthalpy of the top layer if changed with surface melt pond
           if( (enthalpyStateVec .or. computeEnthalpy) .and. nSnow==0 .and. prog_data%var(iLookPROG%scalarSWE)%dat(1)>0._rkind)then 
@@ -1155,13 +1153,11 @@ subroutine coupled_em(&
           ) ! associations to variables in data structures
 
           ! compute the melt in each layer, no ice expansion allowed for soil
-          do iLayer=1,nLayers
-            if(iLayer<=nSnow+nLake .or. iLayer>nSnow+nLake+nSoil)then
-              mLayerMeltFreeze(iLayer) = -( mLayerVolFracIce(iLayer) - mLayerVolFracIceInit(iLayer) )*iden_ice
-            else
-              mLayerMeltFreeze(iLayer) = -( mLayerVolFracIce(iLayer) - mLayerVolFracIceInit(iLayer) )*iden_water
-            end if
-          end do  ! looping through layers
+          if(nSnow+nLake>0)&
+            mLayerMeltFreeze(1:nSnow+nLake) = -( mLayerVolFracIce(1:nSnow+nLake) - mLayerVolFracIceInit(1:nSnow+nLake) )*iden_ice
+          mLayerMeltFreeze(nSnow+nLake+1:nSnow+nLake+nSoil) = -( mLayerVolFracIce(nSnow+nLake+1:nSnow+nLake+nSoil) - mLayerVolFracIceInit(nSnow+nLake+1:nSnow+nLake+nSoil) )*iden_water
+          if(nGlce>0)&
+            mLayerMeltFreeze(nSnow+nLake+nSoil+1:nLayers) = -( mLayerVolFracIce(nSnow+nLake+nSoil+1:nLayers) - mLayerVolFracIceInit(nSnow+nLake+nSoil+1:nLayers) )*iden_ice
           deallocate(mLayerVolFracIceInit)
 
           ! * compute change in canopy ice content due to sublimation...
@@ -1282,8 +1278,8 @@ subroutine coupled_em(&
               mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)*(iden_ice/iden_water)
               ! recompute enthalpy of layers if changed water and ice content
               if(enthalpyStateVec .or. computeEnthalpy)then
-                call T2enthTemp_snLaGl(&
-                             iLayer>nSnow+nLake+nSoil,                            & ! intent(in):  flag that no liquid water in layer
+                 call T2enthTemp_snLaGl(&
+                             iLayer>nLayers-noThetaChange,                        & ! intent(in):  flag that no liquid water in layer
                              frz_scale_use,                                       & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                              prog_data%var(iLookPROG%mLayerTemp)%dat(iLayer),     & ! intent(in):  layer temperature (K)
                              mLayerVolFracWat(iLayer),                            & ! intent(in):  volumetric total water content (-)
@@ -1545,8 +1541,6 @@ subroutine coupled_em(&
       mLayerHeight               => prog_data%var(iLookPROG%mLayerHeight)%dat                                 ,& ! height of each layer (m)
       mLayerVolFracIce           => prog_data%var(iLookPROG%mLayerVolFracIce)%dat                             ,& ! volumetric ice content in each layer (-)
       mLayerVolFracLiq           => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat                             ,& ! volumetric liquid water content in each layer (-)
-      mLayerVolFracWat           => prog_data%var(iLookPROG%mLayerVolFracWat)%dat                             ,& ! volumetric total water content in each layer (-)
-      mLayerTemp                 => prog_data%var(iLookPROG%mLayerTemp)%dat                                   ,& ! temperature of each layer (K)
       scalarTotalSoilWat         => diag_data%var(iLookDIAG%scalarTotalSoilWat)%dat(1)                        ,& ! total water in the soil column (kg m-2)
       scalarTotalSoilIce         => diag_data%var(iLookDIAG%scalarTotalSoilIce)%dat(1)                        ,& ! total ice in the soil column (kg m-2)
       scalarTotalSoilLiq         => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1)                        ,& ! total liquid water in the soil column (kg m-2)
