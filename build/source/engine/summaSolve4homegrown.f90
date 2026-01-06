@@ -1163,8 +1163,7 @@ contains
    ixNrgOnly               => indx_data%var(iLookINDEX%ixNrgOnly)%dat           ,&  ! intent(in): [i4b(:)] list of indices for all energy states
    ixHydOnly               => indx_data%var(iLookINDEX%ixHydOnly)%dat           ,&  ! intent(in): [i4b(:)] list of indices for all hydrology states
    ixMatOnly               => indx_data%var(iLookINDEX%ixMatOnly)%dat           ,&  ! intent(in): [i4b(:)] list of indices for matric head state variables in the state vector
-   ixMatricHead            => indx_data%var(iLookINDEX%ixMatricHead)%dat        ,&  ! intent(in): [i4b(:)] list of indices for matric head in the soil vector
-   fNew                    => out_SS4HG % fNew                                   &  ! intent(in): [dp] new function evaluations
+   ixMatricHead            => indx_data%var(iLookINDEX%ixMatricHead)%dat         &  ! intent(in): [i4b(:)] list of indices for matric head in the soil vector
    &) 
 
    ! check convergence based on the canopy water balance
@@ -1233,8 +1232,8 @@ contains
 
    ! print progress towards solution
    if (globalPrintFlag) then
-    write(*,'(a,1x,i4,1x,7(e15.5,1x),7(L1,1x))') 'check convergence: ', iter, &
-     fNew, matric_max(1), liquid_max(1), energy_max(1), canopy_max, aquifer_max, soilWatBalErr, matricConv, liquidConv, energyConv, watbalConv, canopyConv, aquiferConv, watbalConv
+    write(*,'(a,1x,i4,1x,6(e15.5,1x),7(L1,1x))') 'check convergence: ', iter, &
+     matric_max(1), liquid_max(1), energy_max(1), canopy_max, aquifer_max, soilWatBalErr, matricConv, liquidConv, energyConv, watbalConv, canopyConv, aquiferConv, watbalConv
    end if
 
   end associate ! end associations with variables in the data structures
