@@ -287,8 +287,8 @@ subroutine eval8summa(&
     heatCapVegTrial           => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1)   ,& ! intent(out): [dp]    volumetric heat capacity of vegetation canopy
     mLayerHeatCapTrial        => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat           ,& ! intent(out): [dp(:)] heat capacity for snow and soil
     ! Cm
-    scalarCanopyCmTrial       => diag_data%var(iLookDIAG%scalarCanopyCm)%dat(1)            ,& ! intent(out): [dp]    Cm of the canopy
-    mLayerCmTrial             => diag_data%var(iLookDIAG%mLayerCm)%dat                      & ! intent(out): [dp(:)] Cm of snow and soil
+    scalarCanopyCmTrial       => diag_data%var(iLookDIAG%scalarCanopyCm)%dat(1)            ,& ! intent(out): [dp]    Cm for vegetation canopy (J kg-1)
+    mLayerCmTrial             => diag_data%var(iLookDIAG%mLayerCm)%dat                      & ! intent(out): [dp(:)] Cm for each layer (J m-3)
     ) ! association to variables in the data structures
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
@@ -512,8 +512,8 @@ subroutine eval8summa(&
                  mpar_data,                 & ! intent(in):    model parameters
                  indx_data,                 & ! intent(in):    model layer indices
                  ! output
-                 scalarCanopyCmTrial,       & ! intent(inout): Cm for vegetation (J kg K-1)
-                 mLayerCmTrial,             & ! intent(inout): Cm for soil and snow (J kg K-1)
+                 scalarCanopyCmTrial,       & ! intent(inout): Cm for vegetation canopy (J kg-1)
+                 mLayerCmTrial,             & ! intent(inout): Cm for each layer (J m-3)
                  dCm_dPsi0,                 & ! intent(inout): derivative in Cm w.r.t. matric potential (J kg)
                  dCm_dTk,                   & ! intent(inout): derivative in Cm w.r.t. temperature (J kg K-2)
                  dCm_dTkCanopy,             & ! intent(inout): derivative in Cm w.r.t. temperature (J kg K-2)
@@ -633,8 +633,8 @@ subroutine eval8summa(&
                       mLayerVolFracWatTrial,      & ! intent(in):  trial value for the volumetric water in each layer (-)
                       mLayerVolFracLiqTrial,      & ! intent(in):  trial value for the volumetric liq in each layer (-)
                       ! input: enthalpy terms
-                      scalarCanopyCmTrial,        & ! intent(in):  Cm for vegetation canopy (-)
-                      mLayerCmTrial,              & ! intent(in):  Cm for each layer (-)
+                      scalarCanopyCmTrial,        & ! intent(in):  Cm for vegetation canopy (J kg-1)
+                      mLayerCmTrial,              & ! intent(in):  Cm for each layer (J m-3)
                       scalarCanairEnthalpyTrial,  & ! intent(in):  trial value for enthalpy of the canopy air space (J m-3)
                       scalarCanopyEnthTempTrial,  & ! intent(in):  trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
                       mLayerEnthTempTrial,        & ! intent(in):  trial vector of temperature component of enthalpy of each layer (J m-3)  

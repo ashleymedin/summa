@@ -403,7 +403,7 @@ MODULE var_lookup
   ! local properties
   integer(i4b)    :: scalarCanopyDepth               = integerMissing ! canopy depth (m)
   integer(i4b)    :: scalarBulkVolHeatCapVeg         = integerMissing ! bulk volumetric heat capacity of vegetation (J m-3 K-1)
-  integer(i4b)    :: scalarCanopyCm                  = integerMissing ! Cm of canopy (J kg-1 K-1)
+  integer(i4b)    :: scalarCanopyCm                  = integerMissing ! Cm for vegetation canopy (J kg-1)
   integer(i4b)    :: scalarCanopyEmissivity          = integerMissing ! effective canopy emissivity (-)
   integer(i4b)    :: scalarRootZoneTemp              = integerMissing ! average temperature of the root zone (K)
   integer(i4b)    :: scalarLAI                       = integerMissing ! one-sided leaf area index (m2 m-2)
@@ -419,7 +419,7 @@ MODULE var_lookup
   integer(i4b)    :: scalarVolHtCap_soil             = integerMissing ! volumetric heat capacity dry soil (J m-3 K-1)
   integer(i4b)    :: scalarVolHtCap_water            = integerMissing ! volumetric heat capacity liquid wat (J m-3 K-1)
   integer(i4b)    :: mLayerVolHtCapBulk              = integerMissing ! volumetric heat capacity in each layer (J m-3 K-1)
-  integer(i4b)    :: mLayerCm                        = integerMissing ! Cm of each layer (J kg-1 K-1)
+  integer(i4b)    :: mLayerCm                        = integerMissing ! Cm for each layer (J m-3)
   integer(i4b)    :: scalarLambda_drysoil            = integerMissing ! thermal conductivity of dry soil     (W m-1 K-1)
   integer(i4b)    :: scalarLambda_wetsoil            = integerMissing ! thermal conductivity of wet soil     (W m-1 K-1)
   integer(i4b)    :: mLayerThermalC                  = integerMissing ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
