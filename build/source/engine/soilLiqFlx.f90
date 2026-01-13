@@ -1420,10 +1420,8 @@ contains
 
    ! compute infiltration excess (IE) and saturation excess (SE) components
    if (scalarRainPlusMelt.gt.xMaxInfilRate) then ! infiltration excess surface runoff (SR) occurs
-    ! write a temporary warning, because the error below does not get propagated correctly
-    write(*,*) 'WARNING: update_surfaceFlx_FUSE_PRMS_derivatives: derivatives w.r.t. infiltration excess surface runoff not yet implemented'
-    !err=20; message=trim(message)//'update_surfaceFlx_FUSE_PRMS_derivatives: derivatives w.r.t. infiltration excess surface runoff not yet implemented';
-    !return_flag=.true.; return
+    err=20; message=trim(message)//'update_surfaceFlx_FUSE_PRMS_derivatives: derivatives w.r.t. infiltration excess surface runoff not yet implemented';
+    return_flag=.true.; return
     ! TO DO: implement derivatives for infiltration excess surface runoff if needed
    end if
 
@@ -1557,10 +1555,8 @@ contains
 
    ! compute infiltration excess (IE) and saturation excess (SE) components
    if (scalarRainPlusMelt.gt.xMaxInfilRate) then ! infiltration excess surface runoff (IE) occurs
-    ! write a temporary warning, because the error below does not get propagated correctly
-    write(*,*) 'WARNING: update_surfaceFlx_FUSE_ARNO_VIC_derivatives: derivatives w.r.t. infiltration excess surface runoff not yet implemented'
-    !err=20; message=trim(message)//'update_surfaceFlx_FUSE_ARNO_VIC_derivatives: derivatives w.r.t. infiltration excess surface runoff not yet implemented';
-    !return_flag=.true.; return
+    err=20; message=trim(message)//'update_surfaceFlx_FUSE_ARNO_VIC_derivatives: derivatives w.r.t. infiltration excess surface runoff not yet implemented';
+    return_flag=.true.; return
     ! TO DO: implement derivatives for infiltration excess surface runoff if needed
    end if
   
@@ -1752,10 +1748,8 @@ contains
 
    ! compute infiltration excess (IE) and saturation excess (SE) components
    if (scalarRainPlusMelt.gt.xMaxInfilRate) then ! infiltration excess surface runoff (IE) occurs
-    ! write a temporary warning, because the error below does not get propagated correctly
-    write(*,*) 'WARNING: update_surfaceFlx_FUSE_TOPMODEL_derivatives: derivatives w.r.t. infiltration excess surface runoff not yet implemented'
-    !err=20; message=trim(message)//'update_surfaceFlx_FUSE_TOPMODEL_derivatives: derivatives w.r.t. infiltration excess surface runoff not yet implemented';
-    !return_flag=.true.; return
+    err=20; message=trim(message)//'update_surfaceFlx_FUSE_TOPMODEL_derivatives: derivatives w.r.t. infiltration excess surface runoff not yet implemented';
+    return_flag=.true.; return
     ! TO DO: implement derivatives for infiltration excess surface runoff if needed
    end if
 
