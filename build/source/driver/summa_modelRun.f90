@@ -71,7 +71,7 @@ contains
  character(*),intent(out)              :: message               ! error message
  ! ---------------------------------------------------------------------------------------
  ! local variables: general
- character(LEN=256)                    :: cmessage              ! error message of downwind routine
+ character(LEN=512)                    :: cmessage              ! error message of downwind routine
  integer(i4b)                          :: iHRU                  ! HRU index
  integer(i4b)                          :: iGRU,jGRU,kGRU        ! GRU indices
  ! local variables: veg phenology

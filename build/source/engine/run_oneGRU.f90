@@ -121,7 +121,7 @@ contains
  character(*)        , intent(out)   :: message              ! error message
  ! ----- define local variables ------------------------------------------------------------------------------------------
  ! general local variables
- character(len=256)                      :: cmessage               ! error message
+ character(len=512)                      :: cmessage               ! error message
  integer(i4b)                            :: iHRU                   ! HRU index
  integer(i4b)                            :: jHRU,kHRU              ! index of the hydrologic response unit
  integer(i4b)                            :: nSnow                  ! number of snow layers
