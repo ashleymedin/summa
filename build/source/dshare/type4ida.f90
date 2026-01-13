@@ -50,7 +50,7 @@ type data4ida
   integer(i4b)                    :: ixSaturation                    ! index of the lowest saturated layer
   real(rkind), allocatable        :: dBaseflow_dMatric(:,:)          ! derivative in baseflow w.r.t. matric head (s-1)
   integer(i4b)                    :: err                             ! error code
-  character(len=50)               :: message                         ! error message
+  character(len=256)              :: message                         ! error message
   real(rkind)                     :: scalarCanopyTempPrev            ! previous value for temperature of the vegetation canopy (K)
   real(rkind), allocatable        :: mLayerTempPrev(:)               ! previous vector of layer temperature (K)
   real(rkind), allocatable        :: mLayerMatricHeadPrev(:)         ! previous value for total water matric potential (m)

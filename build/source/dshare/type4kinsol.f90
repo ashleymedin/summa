@@ -50,7 +50,7 @@ type data4kinsol
   integer(i4b)                    :: ixSaturation                 ! index of the lowest saturated layer
   logical(lgt)                    :: firstStateIteration          ! flag to denote if we computed an iteration so we know to save the state
   integer(i4b)                    :: err                          ! error code
-  character(len=50)               :: message                      ! error message
+  character(len=256)              :: message                      ! error message
   real(rkind), allocatable        :: stateVecPrev(:)              ! state vector from the previous iteration to help with infeasibility
 end type data4kinsol
 
