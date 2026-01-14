@@ -1069,6 +1069,9 @@ contains
              call update_surfaceFlx_zero_IE;        if (return_flag) return 
            case(GreenAmpt, topmodel_GA)  ! infiltration excess runoff possible
              call update_surfaceFlx_liquidFlux_infiltration;  if (return_flag) return
+           case default
+             err=20; message=trim(message)//'unknown infiltration excess surface runoff method';
+             return_flag=.true.; return
          end select
          
          ! tie everything together and run checks
@@ -1165,15 +1168,9 @@ contains
 
   ! Set the infiltration excess derivatives next, based on active parametrization
   select case(ixInfRateMax)       ! maximum infiltration rate method (controls infiltration excess surface runoff)
-    case(noInfiltrationExcess)    ! zero infiltration excess surface runoff + IE derivatives
-      dq_dHydStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t hydrology state variable
-      dq_dNrgStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t energy state variable
-    case(GreenAmpt, topmodel_GA)  ! infiltration excess runoff possible + IE derivatives
+    case(GreenAmpt, topmodel_GA)  ! infiltration excess runoff possible + IE derivatives so do not keep initialized zero values
       dq_dHydStateVec_IE(:) = dq_dHydStateVec(:) - dq_dHydStateVec_SE(:)
       dq_dNrgStateVec_IE(:) = dq_dNrgStateVec(:) - dq_dNrgStateVec_SE(:)
-    case default
-      err=20; message=trim(message)//'unknown infiltration excess surface runoff method in update_surfaceFlx_liquidFlux_derivatives';
-      return_flag=.true.; return
    end select
 
   end associate
