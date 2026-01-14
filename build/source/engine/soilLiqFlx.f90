@@ -1107,8 +1107,10 @@ contains
 
    ! input: flux at the upper boundary
    scalarRainPlusMelt => in_surfaceFlx % scalarRainPlusMelt , & ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
-   ! input-output: surface runoff and infiltration flux (m s-1)
+   ! input: surface runoff and infiltration flux (m s-1)
    xMaxInfilRate    => io_surfaceFlx % xMaxInfilRate    , & ! maximum infiltration rate (m s-1)
+   scalarInfilArea  => io_surfaceFlx % scalarInfilArea  , & ! fraction of unfrozen area where water can infiltrate (-)
+   scalarFrozenArea => io_surfaceFlx % scalarFrozenArea , & ! fraction of area that is considered impermeable due to soil ice (-)
    ! output: derivatives in surface infiltration w.r.t. ...
    dq_dHydStateVec => out_surfaceFlx % dq_dHydStateVec, & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
    dq_dNrgStateVec => out_surfaceFlx % dq_dNrgStateVec, & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
@@ -1116,74 +1118,63 @@ contains
    err      => out_surfaceFlx % err    , & ! error code
    message  => out_surfaceFlx % message  & ! error message
   &)
+   ! Get total runoff derivatives, do w.r.t. infiltration only, scalarRainPlusMelt accounted for in computJacob* module
+   dq_dHydStateVec(:) = (1._rkind - scalarFrozenArea)&
+                       * ( dInfilArea_dWat(:)*min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dWat(:) )&
+                       + (-dFrozenArea_dWat(:))*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
+   ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
+   dq_dNrgStateVec(:) = (1._rkind - scalarFrozenArea)&
+                       * ( dInfilArea_dTk(:) *min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dTk(:)  )&
+                       + (-dFrozenArea_dTk(:)) *scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
 
-  ! The SE and total derivatives (done below) are conditional on the infiltration excess parametrization
-  ! The individual SE parametrization functions account for this in their derivative calculations, but 
-  !  we need to set the IE derivatives to zero if no infiltration excess runoff is possible
-  ! To facilitate the derivatives of the SE parametrizations, we do set xMaxInfilRate = veryBig with noInfiltrationExcess
-  select case(ixInfRateMax)         ! maximum infiltration rate method (controls infiltration excess surface runoff)
-    case(noInfiltrationExcess)      ! zero infiltration excess surface runoff (xMaxInfilRate = veryBig)
-      dq_dHydStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t hydrology state variable
-      dq_dNrgStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t energy state variable
-    end select
+  ! Each subroutine called below accounts for SE derivatives internally
+  if (surfRun_SE /= zero_SE) then ! do not keep SE derivatives at initialized zero values 
+     if (surfRun_SE /= homegrown_SE) then
+     ! process the liquid derivatives that all FUSE SE parametrizations use
+     ! -- TO DO: probably cleaner to have this in its own subroutine (not critical now)
+      dVolFracLiq_dWat(:) = 0._rkind
+      dVolFracLiq_dTk(:)  = 0._rkind      
+      select case(ixRichards)  ! form of Richards' equation
+        case(moisture)
+          dVolFracLiq_dWat(:) = 1._rkind
+        case(mixdform)
+          do iLayer=1,nSoil
+            Tcrit = crit_soilT( mLayerMatricHead(iLayer) )
+            if (mLayerTemp(iLayer) < Tcrit) then
+              dVolFracLiq_dWat(iLayer) = 0._rkind
+            else
+              dVolFracLiq_dWat(iLayer) = dTheta_dPsi(iLayer)
+            end if
+          end do
+      end select 
+      dVolFracLiq_dTk(:) = dTheta_dTk(:) !already zeroed out if not below critical temperature
+    end if
 
-  ! Now set the saturation excess derivatives, based on active SE parametrization
-  ! Each subroutine called below accounts for IE and total runoff derivatives internally
-  if (surfRun_SE == zero_SE) then
-    dq_dHydStateVec_SE = 0._rkind ! surface infiltration derivative w.r.t hydrology state variable
-    dq_dNrgStateVec_SE = 0._rkind ! surface infiltration derivative w.r.t energy state variable
-
-  else  ! i.e., if (surfRun_SE /= zero_SE), currently meaning FUSE (AVIC, PRMS, TOPMODEL) or homegrown_SE
-
-    ! process the liquid derivatives that all SE parametrizations use, first initialize  
-    ! -- TO DO: probably cleaner to have this in its own subroutine (not critical now)
-    dVolFracLiq_dWat(:) = 0._rkind
-    dVolFracLiq_dTk(:)  = 0._rkind      
-    select case(ixRichards)  ! form of Richards' equation
-      case(moisture)
-        dVolFracLiq_dWat(:) = 1._rkind
-      case(mixdform)
-        do iLayer=1,nSoil
-          Tcrit = crit_soilT( mLayerMatricHead(iLayer) )
-          if (mLayerTemp(iLayer) < Tcrit) then
-            dVolFracLiq_dWat(iLayer) = 0._rkind
-          else
-            dVolFracLiq_dWat(iLayer) = dTheta_dPsi(iLayer)
-          end if
-        end do
-    end select 
-    dVolFracLiq_dTk(:) = dTheta_dTk(:) !already zeroed out if not below critical temperature
-
-    ! set the SE, IE and total derivatives based on the SE parametrization used
+    ! set the SE and total derivatives based on the SE parametrization used
     select case(surfRun_SE) ! saturation excess surface runoff
-    case(homegrown_SE)
-      call update_surfaceFlx_liquidFlux_homegrown_SE_derivatives; if (return_flag) return 
-    case(FUSEPRMS)
-      call update_surfaceFlx_FUSE_PRMS_derivatives;               if (return_flag) return 
-    case(FUSEAVIC)
-      call update_surfaceFlx_FUSE_ARNO_VIC_derivatives;           if (return_flag) return 
-    case(FUSETOPM)
-      call update_surfaceFlx_FUSE_TOPMODEL_derivatives;           if (return_flag) return 
+      case(homegrown_SE)
+        call update_surfaceFlx_liquidFlux_homegrown_derivatives; if (return_flag) return 
+      case(FUSEPRMS)
+        call update_surfaceFlx_FUSE_PRMS_derivatives;            if (return_flag) return 
+      case(FUSEAVIC)
+        call update_surfaceFlx_FUSE_ARNO_VIC_derivatives;        if (return_flag) return 
+      case(FUSETOPM)
+        call update_surfaceFlx_FUSE_TOPMODEL_derivatives;        if (return_flag) return 
     end select
   end if
 
   ! Set the infiltration excess derivatives next, based on active parametrization
-  ! select case(ixInfRateMax)       ! maximum infiltration rate method (controls infiltration excess surface runoff)
-  !   case(noInfiltrationExcess)    ! zero infiltration excess surface runoff + IE derivatives
-  !     dq_dHydStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t hydrology state variable
-  !     dq_dNrgStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t energy state variable
-
-  !   case(GreenAmpt, topmodel_GA)  ! infiltration excess runoff possible + IE derivatives
-  !     !write(*,*) 'WARNING: GreenAmpt/topmodel_GA IE derivatives not yet implemented in update_surfaceFlx_liquidFlux_derivatives_IE'
-  !     !call update_surfaceFlx_IE_derivatives
-
-  !   case default
-  !     err=20; message=trim(message)//'unknown infiltration excess surface runoff method in update_surfaceFlx_liquidFlux_derivatives';
-  !     return_flag=.true.; return
-  ! end select
-
-  ! Combine into the total infiltration derivatives
-  ! NOTE: currently only happens in update_surfaceFlx_liquidFlux_computation_flux_derivatives
+  select case(ixInfRateMax)       ! maximum infiltration rate method (controls infiltration excess surface runoff)
+    case(noInfiltrationExcess)    ! zero infiltration excess surface runoff + IE derivatives
+      dq_dHydStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t hydrology state variable
+      dq_dNrgStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t energy state variable
+    case(GreenAmpt, topmodel_GA)  ! infiltration excess runoff possible + IE derivatives
+      dq_dHydStateVec_IE(:) = dq_dHydStateVec(:) - dq_dHydStateVec_SE(:)
+      dq_dNrgStateVec_IE(:) = dq_dNrgStateVec(:) - dq_dNrgStateVec_SE(:)
+    case default
+      err=20; message=trim(message)//'unknown infiltration excess surface runoff method in update_surfaceFlx_liquidFlux_derivatives';
+      return_flag=.true.; return
+   end select
 
   end associate
  end subroutine update_surfaceFlx_liquidFlux_derivatives
@@ -1296,18 +1287,14 @@ contains
   ! **** Update operations for surfaceFlx: zero infiltration excess surface runoff ****
   ! set infiltration excess components
   ! note: it is assumed that rain plus melt does not depend on state variables for infiltration derivatives
-  SR_IE              = 0._rkind ! surface runoff
-  !dq_dHydStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t hydrology state variable
-  !dq_dNrgStateVec_IE = 0._rkind ! surface infiltration derivative w.r.t energy state variable
+  SR_IE = 0._rkind ! surface runoff
  end subroutine update_surfaceFlx_zero_IE 
 
  subroutine update_surfaceFlx_zero_SE
   ! **** Update operations for surfaceFlx: zero saturation excess surface runoff ****
   ! set saturation excess components
   ! note: it is assumed that rain plus melt does not depend on state variables for infiltration derivatives
-  SR_SE              = 0._rkind ! surface runoff
-  !dq_dHydStateVec_SE = 0._rkind ! surface infiltration derivative w.r.t hydrology state variable
-  !dq_dNrgStateVec_SE = 0._rkind ! surface infiltration derivative w.r.t energy state variable
+  SR_SE = 0._rkind ! surface runoff
  end subroutine update_surfaceFlx_zero_SE
 
  subroutine update_surfaceFlx_FUSE_PRMS
@@ -1417,13 +1404,6 @@ contains
    ! * compute the energy derivatives (only saturation excess components for FUSE) *
    ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
    dq_dNrgStateVec_SE(:) = -scalarRainPlusMelt * dAc_dWat(:) * dVolFracLiq_dTk(:)
-
-   ! compute infiltration excess (IE) and saturation excess (SE) components
-   if (scalarRainPlusMelt.gt.xMaxInfilRate) then ! infiltration excess surface runoff (SR) occurs
-    err=20; message=trim(message)//'update_surfaceFlx_FUSE_PRMS_derivatives: derivatives w.r.t. infiltration excess surface runoff not yet implemented';
-    return_flag=.true.; return
-    ! TO DO: implement derivatives for infiltration excess surface runoff if needed
-   end if
 
    end associate
  end subroutine update_surfaceFlx_FUSE_PRMS_derivatives
@@ -1552,13 +1532,6 @@ contains
    ! * compute the energy derivatives components (only saturation excess components for FUSE) *
    ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
    dq_dNrgStateVec_SE(:) = -scalarRainPlusMelt * dAc_dWat(:) * dVolFracLiq_dTk(:)
-
-   ! compute infiltration excess (IE) and saturation excess (SE) components
-   if (scalarRainPlusMelt.gt.xMaxInfilRate) then ! infiltration excess surface runoff (IE) occurs
-    err=20; message=trim(message)//'update_surfaceFlx_FUSE_ARNO_VIC_derivatives: derivatives w.r.t. infiltration excess surface runoff not yet implemented';
-    return_flag=.true.; return
-    ! TO DO: implement derivatives for infiltration excess surface runoff if needed
-   end if
   
   end associate
 
@@ -1734,8 +1707,8 @@ contains
    else ! for S2 = 0: Ac = 0
      dAc_dWat(:) = 0._rkind
    end if
-  dInfilArea_dWat(:) = -dAc_dWat(:)                      ! derivative of infiltration area w.r.t water content
-  dInfilArea_dTk(:)  = 0._rkind                          ! derivative of infiltration area w.r.t temperature
+   dInfilArea_dWat(:) = -dAc_dWat(:)                      ! derivative of infiltration area w.r.t water content
+   dInfilArea_dTk(:)  = 0._rkind                          ! derivative of infiltration area w.r.t temperature
 
    ! * compute the hydrology derivatives (only saturation excess components for FUSE) *
    ! scalarSurfaceInfiltration = scalarRainPlusMelt - scalarRainPlusMelt*Ac
@@ -1745,13 +1718,6 @@ contains
    ! * compute the energy derivatives components (only saturation excess components for FUSE) *
    ! note: energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
    dq_dNrgStateVec_SE(:) = -scalarRainPlusMelt * dAc_dWat(:) * dVolFracLiq_dTk(:)
-
-   ! compute infiltration excess (IE) and saturation excess (SE) components
-   if (scalarRainPlusMelt.gt.xMaxInfilRate) then ! infiltration excess surface runoff (IE) occurs
-    err=20; message=trim(message)//'update_surfaceFlx_FUSE_TOPMODEL_derivatives: derivatives w.r.t. infiltration excess surface runoff not yet implemented';
-    return_flag=.true.; return
-    ! TO DO: implement derivatives for infiltration excess surface runoff if needed
-   end if
 
   end associate
 
@@ -1857,7 +1823,6 @@ contains
   call update_surfaceFlx_liquidFlux_computation_infiltrating_area  ! this calculates infiltration area and saturated area is simply 1-infiltration area
   call update_surfaceFlx_liquidFlux_computation_validate_inf_area
   call update_surfaceFlx_liquidFlux_computation_frozen_area
-  !if(updateInfil) call update_surfaceFlx_liquidFlux_computation_flux_derivatives
   call update_surfaceFlx_liquidFlux_computation_homegrown_SE
  end subroutine update_surfaceFlx_homegrown_SE
 
@@ -1878,8 +1843,6 @@ contains
   end associate
   ! -- main computations - these always need to run
   call update_surfaceFlx_liquidFlux_computation_max_infiltration_rate
-  !if(updateInfil) call update_surfaceFlx_liquidFlux_computation_flux_derivatives
-  !call update_surfaceFlx_liquidFlux_infiltration
 
  end subroutine update_surfaceFlx_liquidFlux_calculate_infratemax
 
@@ -2158,97 +2121,30 @@ contains
   end associate
  end subroutine update_surfaceFlx_liquidFlux_computation_frozen_area
 
- subroutine update_surfaceFlx_homegrown_SE_derivatives
-  ! ****
-
- end subroutine update_surfaceFlx_homegrown_SE_derivatives
-
- subroutine update_surfaceFlx_liquidFlux_homegrown_SE_derivatives
+ subroutine update_surfaceFlx_liquidFlux_homegrown_derivatives
   ! **** Update operations for surfaceFlx: flux condition -- main computations (flux derivatives, nonzero only if updateInfil) ****
-  ! * local variables *
-  ! surface runoff component arrays for infiltration derivatives ...
-  real(rkind),allocatable :: dq_dHyd(:)    ! ... w.r.t hydrology state variable
-  real(rkind),allocatable :: dq_dHyd_IE(:) ! ... w.r.t hydrology state variable (infiltration excess component)
-  real(rkind),allocatable :: dq_dHyd_SE(:) ! ... w.r.t hydrology state variable (saturation excess component)
-  real(rkind),allocatable :: dq_dNrg(:)    ! ... w.r.t energy state variable
-  real(rkind),allocatable :: dq_dNrg_IE(:) ! ... w.r.t energy state variable (infiltration excess component)
-  real(rkind),allocatable :: dq_dNrg_SE(:) ! ... w.r.t energy state variable (saturation excess component)     
-
-  ! allocate and initialize surface runoff component arrays for infiltration derivatives ...
-  dq_dHyd    = out_surfaceFlx % dq_dHydStateVec ! ... w.r.t hydrology state variable
-  dq_dHyd_IE = out_surfaceFlx % dq_dHydStateVec ! ... w.r.t hydrology state variable (infiltration excess component)  
-  dq_dHyd_SE = out_surfaceFlx % dq_dHydStateVec ! ... w.r.t hydrology state variable (saturation excess component)
-  dq_dNrg    = out_surfaceFlx % dq_dNrgStateVec ! ... w.r.t energy state variable
-  dq_dNrg_IE = out_surfaceFlx % dq_dNrgStateVec ! ... w.r.t energy state variable (infiltration excess component)
-  dq_dNrg_SE = out_surfaceFlx % dq_dNrgStateVec ! ... w.r.t energy state variable (saturation excess component) 
-
   associate(&
    ! input: flux at the upper boundary
    scalarRainPlusMelt => in_surfaceFlx % scalarRainPlusMelt , & ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
-   ! input-output: surface runoff and infiltration flux (m s-1)
+   ! input: surface runoff and infiltration flux (m s-1), total derivatives
    xMaxInfilRate    => io_surfaceFlx % xMaxInfilRate    , & ! maximum infiltration rate (m s-1)
    scalarInfilArea  => io_surfaceFlx % scalarInfilArea  , & ! fraction of unfrozen area where water can infiltrate (-)
-   scalarFrozenArea => io_surfaceFlx % scalarFrozenArea   & ! fraction of area that is considered impermeable due to soil ice (-)
+   scalarFrozenArea => io_surfaceFlx % scalarFrozenArea , & ! fraction of area that is considered impermeable due to soil ice (-)
+   dq_dHydStateVec  => out_surfaceFlx % dq_dHydStateVec , & ! hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
+   dq_dNrgStateVec  => out_surfaceFlx % dq_dNrgStateVec   & ! energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
   &)
-   ! dq w.r.t. infiltration only, scalarRainPlusMelt accounted for in computJacob module
-   dq_dHyd(:) = (1._rkind - scalarFrozenArea)&
-              & * ( dInfilArea_dWat(:)*min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dWat(:) )&
-              & + (-dFrozenArea_dWat(:))*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
-   ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
-   dq_dNrg(:) = (1._rkind - scalarFrozenArea)&
-              & * ( dInfilArea_dTk(:) *min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dTk(:)  )&
-              & + (-dFrozenArea_dTk(:)) *scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
-   ! compute infiltration excess (IE) and saturation excess (SE) components
    if (scalarRainPlusMelt.gt.xMaxInfilRate) then ! infiltration excess surface runoff (SR) occurs
-    ! * saturation excess surface runoff *
-    ! SR_SE    = RPM * (1 - InfilArea_unfrozen) ! (rain plus melt) * (saturated area)
-    ! Infil_SE = RPM - SR_SE = RPM * (1 - A_frozen) * InfilArea ! infiltration if SE occurs alone
-    ! SE infiltration derivatives (RPM derivative is zero in soil layers): 
-    dq_dHyd_SE(:) = (1._rkind - scalarFrozenArea)&
-                  & * ( dInfilArea_dWat(:)*scalarRainPlusMelt )&
-                  & + (-dFrozenArea_dWat(:))*scalarInfilArea*scalarRainPlusMelt
-    dq_dNrg_SE(:) = (1._rkind - scalarFrozenArea)&
-                  & * ( dInfilArea_dTk(:) *scalarRainPlusMelt )&
-                  & + (-dFrozenArea_dTk(:)) *scalarInfilArea*scalarRainPlusMelt
-    ! * infiltration excess surface runoff *
-    ! SR_IE = SR - SR_SE ! infiltration excess surface runoff 
-    ! Infil_IE = RPM - SR_IE = RPM - SR - SR_SE    ! infiltration if IE occurs alone
-    ! IE infiltration derivatives (RPM derivative is zero in soil layers): 
-    dq_dHyd_IE = dq_dHyd(:) - dq_dHyd_SE(:)
-    dq_dNrg_IE = dq_dNrg(:) - dq_dNrg_SE(:)
-   else ! infiltration excess runoff does not occur
-    ! SR_SE = SR ! saturation excess surface runoff 
-    ! Infil_SE = RPM - SR ! infiltration if SE occurs alone
-    ! SE infiltration derivatives (RPM derivative is zero in soil layers): 
-    dq_dHyd_SE = dq_dHyd(:)
-    dq_dNrg_SE = dq_dNrg(:)
-    ! SR_IE = 0._rkind ! infiltration excess surface runoff 
-    ! Infil_IE = RPM - SR_IE = RPM ! infiltration if IE occurs alone
-    ! IE infiltration derivatives (RPM derivative is zero in soil layers): 
-    dq_dHyd_IE(:) = 0._rkind
-    dq_dNrg_IE(:) = 0._rkind
+     dq_dHydStateVec_SE(:) = (1._rkind - scalarFrozenArea) * ( dInfilArea_dWat(:)*scalarRainPlusMelt )&
+                            + (-dFrozenArea_dWat(:))*scalarInfilArea*scalarRainPlusMelt
+     dq_dNrgStateVec_SE(:) = (1._rkind - scalarFrozenArea) * ( dInfilArea_dTk(:) *scalarRainPlusMelt )&
+                            + (-dFrozenArea_dTk(:)) *scalarInfilArea*scalarRainPlusMelt
+   else ! infiltration excess runoff does not occur, saturation excess is entire runoff
+     dq_dHydStateVec_SE(:) = dq_dHydStateVec(:)
+     dq_dNrgStateVec_SE(:) = dq_dNrgStateVec(:)
    end if
   end associate
 
-  ! interface derivative arrays with surface runoff component variables from surfaceFlx name space
-  ! note: model decisions determine which surface runoff components are used 
-  associate(&
-   ! input: model control
-   ixInfRateMax => in_surfaceFlx % ixInfRateMax, & ! index defining the infiltration excess surface runoff method
-   surfRun_SE => in_surfaceFlx % surfRun_SE  & ! index defining the saturation excess surface runoff method
-  &)
-    select case(ixInfRateMax) ! infiltration rate that controls infiltration excess surface runoff
-      case(GreenAmpt, topmodel_GA) ! options that are not zero infiltration excess surface runoff
-        dq_dHydStateVec_IE = dq_dHyd_IE(:) 
-        dq_dNrgStateVec_IE = dq_dNrg_IE(:) 
-    end select
-    select case(surfRun_SE) ! saturation excess surface runoff
-      case(homegrown_SE) ! homegrown saturation excess surface runoff
-        dq_dHydStateVec_SE = dq_dHyd_SE(:) 
-        dq_dNrgStateVec_SE = dq_dNrg_SE(:) 
-    end select
-  end associate 
- end subroutine update_surfaceFlx_liquidFlux_homegrown_SE_derivatives
+ end subroutine update_surfaceFlx_liquidFlux_homegrown_derivatives
 
  subroutine update_surfaceFlx_liquidFlux_computation_homegrown_SE
   ! **** Update operations for surfaceFlx: flux condition -- compute homegrown saturation excess ****
@@ -2329,7 +2225,6 @@ contains
 
   ! interface with infiltration excess and saturation excess component variables from surfaceFlx name space
   ! note: model decisions determine which surface runoff components are used
-  !SR_IE = surfaceRunoff_IE
   associate(&
    ! input: model control
    ixInfRateMax => in_surfaceFlx % ixInfRateMax, & ! index defining the infiltration excess surface runoff method
@@ -2338,9 +2233,6 @@ contains
     select case(ixInfRateMax) ! infiltration rate that controls infiltration excess surface runoff
       case(GreenAmpt, topmodel_GA); SR_IE = surfaceRunoff_IE ! options that are not zero infiltration excess surface runoff
     end select
-    !select case(surfRun_SE) ! saturation excess surface runoff
-    !  case(homegrown_SE); SR_SE = surfaceRunoff_SE ! homegrown saturation excess surface runoff
-    !end select
   end associate 
 
   ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
