@@ -2325,7 +2325,6 @@ contains
     surfaceRunoff_SE = surfaceRunoff ! saturation excess surface runoff 
     surfaceRunoff_IE = 0._rkind      ! infiltration excess surface runoff 
    end if
-   !write(*,*) "infiltration, IE, SE:", surfaceInfiltration, surfaceRunoff_IE, surfaceRunoff_SE
   end associate
 
   ! interface with infiltration excess and saturation excess component variables from surfaceFlx name space
