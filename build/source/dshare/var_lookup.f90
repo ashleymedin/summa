@@ -469,7 +469,7 @@ MODULE var_lookup
   integer(i4b)    :: mLayerPoreSpace                 = integerMissing ! total pore space in each snow layer (-)
   integer(i4b)    :: mLayerMeltFreeze                = integerMissing ! change in ice content due to melt/freeze in each layer (kg m-3)
   ! soil hydrology
-  integer(i4b)    :: scalarInfilArea                 = integerMissing ! fraction of unfrozen area where water can infiltrate (-)
+  integer(i4b)    :: scalarInfilArea                 = integerMissing ! fraction of area where water can infiltrate, may be frozen (-)
   integer(i4b)    :: scalarSaturatedArea             = integerMissing ! fraction of area that is considered saturated (-)
   integer(i4b)    :: scalarFrozenArea                = integerMissing ! fraction of area that is considered impermeable due to soil ice (-)
   integer(i4b)    :: scalarSoilControl               = integerMissing ! soil control on infiltration for derivative
