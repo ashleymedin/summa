@@ -1065,8 +1065,8 @@ contains
          if(updateInfil) call update_surfaceFlx_liquidFlux_derivatives; if (return_flag) return 
 
        case default;  ! end of select case(bc_upper)
-        err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; 
-        return_flag=.true.; return
+         err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; 
+         return_flag=.true.; return
      end select 
    else ! do not compute infiltration after first flux call in a splitting operation unless updateInfil is true
      dq_dHydStateVec(:) = realMissing ! not used, so cause problems
