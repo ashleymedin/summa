@@ -693,15 +693,6 @@ subroutine mDecisions(err,message)
       endif
   end select
 
-  ! choice of method for infiltration excess surface runoff
-  ! NOTE: use homegrown surface runoff procedure as the default
-  select case(trim(model_decisions(iLookDECISIONS%surfRun_IE)%cDecision))
-    case('zero_IE'); model_decisions(iLookDECISIONS%surfRun_IE)%iDecision = zero_IE           ! infiltration excess surface runoff is zero
-    case('homegrown_IE','notPopulatedYet'); model_decisions(iLookDECISIONS%surfRun_IE)%iDecision = homegrown_IE ! use SUMMA's homegrown surface runoff procedure for infiltration excess runoff
-    case default
-      err=10; message=trim(message)//"unknown option for infiltration excess surface runoff method [option="//trim(model_decisions(iLookDECISIONS%surfRun_IE)%cDecision)//"]"; return
-  end select
-
   ! choice of method for saturation excess surface runoff
   ! NOTE: use homegrown surface runoff procedure as the default
   select case(trim(model_decisions(iLookDECISIONS%surfRun_SE)%cDecision))

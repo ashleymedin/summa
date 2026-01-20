@@ -637,7 +637,6 @@ MODULE data_types
    logical(lgt) :: firstSplitOper   ! flag indicating if desire to compute infiltration
    integer(i4b) :: ixRichards       ! index defining the option for Richards' equation (moisture or mixdform)
    integer(i4b) :: ixInfRateMax     ! index defining the maximum infiltration rate method (GreenAmpt or topmodel_GA)
-   integer(i4b) :: surfRun_IE       ! index defining the infiltration excess surface runoff method
    integer(i4b) :: surfRun_SE       ! index defining the saturation excess surface runoff method
    integer(i4b) :: bc_upper         ! index defining the type of boundary conditions
    integer(i4b) :: nRoots           ! number of layers that contain roots
@@ -1736,7 +1735,6 @@ contains
    ixRichards             => model_decisions(iLookDECISIONS%f_Richards)%iDecision,& ! index of the form of Richards' equation
    ixBcUpperSoilHydrology => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision,& ! index defining the type of boundary conditions
    ixInfRateMax           => model_decisions(iLookDECISIONS%infRateMax)%iDecision,& ! index of the maximum infiltration rate parameterization
-   surfRun_IE             => model_decisions(iLookDECISIONS%surfRun_IE)%iDecision,& ! index defining the infiltration excess surface runoff method
    surfRun_SE             => model_decisions(iLookDECISIONS%surfRun_SE)%iDecision & ! index defining the saturation excess surface runoff method
   &)
    ! intent(in): model control
@@ -1744,7 +1742,6 @@ contains
    in_surfaceFlx % ixRichards     = ixRichards              ! index defining the form of Richards' equation (moisture or mixdform)
    in_surfaceFlx % bc_upper       = ixBcUpperSoilHydrology  ! index defining the type of boundary conditions (Neumann or Dirichlet)
    in_surfaceFlx % ixInfRateMax   = ixInfRateMax            ! index defining the maximum infiltration rate parameterization (GreenAmpt or topmodel_GA)
-   in_surfaceFlx % surfRun_IE     = surfRun_IE              ! index defining the infiltration excess surface runoff method
    in_surfaceFlx % surfRun_SE     = surfRun_SE              ! index defining the saturation excess surface runoff method
    in_surfaceFlx % nRoots         = nRoots                  ! number of layers that contain roots
    in_surfaceFlx % ixIce          = ixIce                   ! index of lowest ice layer
