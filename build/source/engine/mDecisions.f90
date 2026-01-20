@@ -158,9 +158,6 @@ integer(i4b),parameter,public :: emptyStart           = 327    ! empty aquifer a
 integer(i4b),parameter,public :: GreenAmpt            = 331    ! Green-Ampt
 integer(i4b),parameter,public :: topmodel_GA          = 332    ! Green-Ampt-ish for use with qbaseTopmodel hydraulic conductivity
 integer(i4b),parameter,public :: noInfiltrationExcess = 333    ! No infiltration excess runoff
-! look-up values for the infiltration excess surface runoff method
-integer(i4b),parameter,public :: zero_IE              = 341    ! zero infiltration excess surface runoff
-integer(i4b),parameter,public :: homegrown_IE         = 342    ! homegrown infiltration excess surface runoff
 ! look-up values for the saturation excess surface runoff method
 integer(i4b),parameter,public :: zero_SE              = 351    ! zero saturation excess surface runoff
 integer(i4b),parameter,public :: homegrown_SE         = 352    ! homegrown saturation excess surface runoff
