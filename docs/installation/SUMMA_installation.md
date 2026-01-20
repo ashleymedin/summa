@@ -15,10 +15,13 @@ Optional but highly recommended:
 * The [SUNDIALS](https://sundials.readthedocs.io/en/latest/index.html) library, to benefit from recent advances to SUMMA's numerical implementation. Without the SUNDIALS library, the modeling options `num_method = kinsol` and `num_method = ida` won't work. SUNDIALS requires specific install instructions because by default its fortran module won't be build. A typical install on macOS will look as follows:
 
 ```bash
-git clone https://github.com/LLNL/sundials.git
+git clone https://github.com/LLNL/sundials.git sundials-software
+cd sundials-software
+git fetch --all --tags --prune
+git checkout tags/vX.Y.Z (use most recent tag)
 cd sundials
-mkdir build && cd build
-cmake ..   -DCMAKE_INSTALL_PREFIX=$HOME/local/sundials   -DBUILD_SHARED_LIBS=ON   -DBUILD_IDA=ON -DBUILD_IDAS=ON   -DBUILD_FORTRAN_MODULE_INTERFACE=ON
+mkdir builddir && mkdir instdir && cd builddir
+cmake ../../sundials-software/ -DEXAMPLES_ENABLE_C=OFF -DEXAMPLES_ENABLE_F2003=OFF -DBUILD_FORTRAN_MODULE_INTERFACE=ON -DCMAKE_Fortran_COMPILER=gfortran -DCMAKE_INSTALL_PREFIX=../../sundials/instdir -DEXAMPLES_INSTALL_PATH=../../sundials/instdir/examples
 make
 make install
 ```
