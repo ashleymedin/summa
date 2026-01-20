@@ -12,7 +12,7 @@ To compile SUMMA, you will need (longer descriptions at the [bottom](#extended-d
 
 Optional but highly recommended:
 
-* The [SUNDIALS](https://sundials.readthedocs.io/en/latest/index.html) library, to benefit from recent advances to SUMMA's numerical implementation. Without the SUNDIALS library, the modeling options `num_method = kinsol` and `num_method = ida` won't work. SUNDIALS requires specific install instructions because by default its fortran module won't be build. A typical install on macOS will look as follows:
+* The [SUNDIALS](https://sundials.readthedocs.io/en/latest/index.html) library, to benefit from recent advances to SUMMA's numerical implementation. Without the SUNDIALS library, the modeling options `num_method = kinsol` and `num_method = ida` won't work. SUNDIALS requires specific install instructions because by default its fortran module won't be build. A typical install will look as follows:
 
 ```bash
 git clone https://github.com/LLNL/sundials.git sundials-software
