@@ -396,7 +396,7 @@ subroutine coupled_em(&
     scalarTotalSoilLiq   => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1)       ,& ! total liquid water in the soil column (kg m-2)
     scalarTotalSoilWat   => diag_data%var(iLookDIAG%scalarTotalSoilWat)%dat(1)       ,& ! total water in the soil column (kg m-2)
     ! state variables in the glacier ice domain
-    scalarIceWE          => prog_data%var(iLookPROG%scalarIceWE)%dat(1)               & ! glacier ice (not snow) water equivalent change over simulation (kg m-2)
+    scalarGlceWE         => prog_data%var(iLookPROG%scalarGlceWE)%dat(1)              & ! glacier ice (not snow) water equivalent change over simulation (kg m-2)
 
     ) ! (association of local variables with information in the data structures
 
@@ -1545,7 +1545,7 @@ subroutine coupled_em(&
       scalarTotalSoilWat         => diag_data%var(iLookDIAG%scalarTotalSoilWat)%dat(1)                        ,& ! total water in the soil column (kg m-2)
       scalarTotalSoilIce         => diag_data%var(iLookDIAG%scalarTotalSoilIce)%dat(1)                        ,& ! total ice in the soil column (kg m-2)
       scalarTotalSoilLiq         => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1)                        ,& ! total liquid water in the soil column (kg m-2)
-      scalarIceWE                => prog_data%var(iLookPROG%scalarIceWE)%dat(1)                               ,& ! glacier ice (not snow) water equivalent change over simulation (kg m-2)
+      scalarGlceWE               => prog_data%var(iLookPROG%scalarGlceWE)%dat(1)                              ,& ! glacier ice (not snow) water equivalent change over simulation (kg m-2)
       glacMass4AreaChange        => prog_data%var(iLookPROG%glacMass4AreaChange)%dat(1)                       ,& ! since updateJulDay glacier layers together mass change (kg m-2) 
       mLayerEnthTemp             => diag_data%var(iLookDIAG%mLayerEnthTemp)%dat                               ,& ! temperature component of enthalpy of each layer (K)
       mLayerEnthalpy             => prog_data%var(iLookPROG%mLayerEnthalpy)%dat                               ,& ! enthalpy of each layer (J m-3)
@@ -1676,6 +1676,7 @@ subroutine coupled_em(&
       ! ------------------------------------
       if(nLake>0)then
         delLakeWat = 0._rkind ! STUB for lake water balance
+        ! Note, will want a variable that sums all lake water/ice layers water contetnt, scalarLakeWE
 
         ! check the individual layers
         !if(printBalance)then
@@ -1769,7 +1770,7 @@ subroutine coupled_em(&
           err=20; return
         end if
         ! save the glacier ice water equivalent change
-        scalarIceWE = scalarIceWE + balanceIceWE0-balanceIceWE
+        scalarGlceWE = scalarGlceWE + balanceIceWE0-balanceIceWE
 
 
         ! Reset the layers, ice content will have changed if layers merged
@@ -1817,7 +1818,7 @@ subroutine coupled_em(&
         flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1) = -flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1)
         
       else ! no glacier layers
-        scalarIceWE = 0._rkind
+        scalarGlceWE = 0._rkind
       end if ! if glce layers exist
       
       ! -----

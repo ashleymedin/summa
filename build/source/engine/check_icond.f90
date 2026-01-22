@@ -157,7 +157,7 @@ contains
      do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
        if(no_ice_vars)then ! set glacier ice variables to zero if they do not exist in the initial conditions file
          progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%glacMass4AreaChange)%dat(1) = 0._rkind
-         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarIceWE)%dat(1) = 0._rkind
+         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarGlceWE)%dat(1) = 0._rkind
        endif
        if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type/=upland) then
          if(no_dom_vars)then; err=20; message=trim(message)//'problem with getting variable id, var= DOMarea or DOMelev'; return; endif
@@ -166,13 +166,13 @@ contains
        endif
        if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln1 .or. gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln2 &
        .or. gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr) then
-         if(no_ice_vars) write(*,'(A)') 'WARNING: glacier domain found but glacMass4AreaChange or scalarIceWE missing, setting both to 0.0.'
+         if(no_ice_vars) write(*,'(A)') 'WARNING: glacier domain found but glacMass4AreaChange or scalarGlceWE missing, setting both to 0.0.'
          if(no_ablfrac)then; err=20; message=trim(message)//': problem with getting variable id, var= scalarAblFrac'; return; endif ! scalarAblFrac must exist if glacier domain
          glacierAblAreaTot = glacierAblAreaTot + progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1)*progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
          glacierAccAreaTot = glacierAccAreaTot + (1.0_rkind-progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1))*progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
        else ! not glacier domain, ensure glacier variables are zero
          progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%glacMass4AreaChange)%dat(1) = 0._rkind
-         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarIceWE)%dat(1) = 0._rkind
+         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarGlceWE)%dat(1) = 0._rkind
          progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1) = 0._rkind
        end if
      end do

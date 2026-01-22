@@ -482,7 +482,7 @@ contains
   case('scalarSfcMeltPond'              ); get_ixProg = iLookPROG%scalarSfcMeltPond                ! ponded water caused by melt of the "snow without a layer" (kg m-2)
   ! state variables for glacier
   case('glacMass4AreaChange'            ); get_ixProg = iLookPROG%glacMass4AreaChange              ! since updateJulDay glacier layers together mass change (kg m-2)
-  case('scalarIceWE'                    ); get_ixProg = iLookPROG%scalarIceWE                      ! glacier ice (not snow) water equivalent change over simulation (kg m-2)
+  case('scalarGlceWE'                   ); get_ixProg = iLookPROG%scalarGlceWE                     ! glacier ice (not snow) water equivalent change over simulation (kg m-2)
   ! state variables for the layer domains
   case('mLayerTemp'                     ); get_ixProg = iLookPROG%mLayerTemp                       ! temperature of each layer (K)
   case('mLayerVolFracIce'               ); get_ixProg = iLookPROG%mLayerVolFracIce                 ! volumetric fraction of icein each layer (-)

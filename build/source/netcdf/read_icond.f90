@@ -493,7 +493,7 @@ else
   if(err/=nf90_noerr)then
    if(prog_meta(iVar)%varName=='DOMarea'              .or. &
       prog_meta(iVar)%varName=='DOMelev'                   )then; err=nf90_noerr; no_dom_vars=.true.;cycle; endif ! backwards compatible, may be missing, correct in check_icond
-   if(prog_meta(iVar)%varName=='scalarIceWE'          .or. &
+   if(prog_meta(iVar)%varName=='scalarGlceWE'         .or. &
       prog_meta(iVar)%varName=='glacMass4AreaChange'       )then; err=nf90_noerr; no_ice_vars=.true.; cycle; endif ! backwards compatible, may be missing, correct in check_icond
    if(prog_meta(iVar)%varName=='scalarAblFrac'             )then; err=nf90_noerr; no_ablfrac=.true.; cycle; endif ! backwards compatible, may be missing, correct in check_icond
    if(prog_meta(iVar)%varName=='scalarCanairEnthalpy' .or. &

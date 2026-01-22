@@ -374,7 +374,7 @@ MODULE var_lookup
   integer(i4b)    :: scalarSfcMeltPond           = integerMissing    ! ponded water caused by melt of the "snow without a layer" (kg m-2)
   ! state variables for glacier
   integer(i4b)    :: glacMass4AreaChange         = integerMissing    ! since updateJulDay glacier layers together mass change (kg m-2) 
-  integer(i4b)    :: scalarIceWE                 = integerMissing    ! glacier ice (not snow) water equivalent change over simulation (kg m-2)
+  integer(i4b)    :: scalarGlceWE                = integerMissing    ! glacier ice (not snow) water equivalent change over simulation (kg m-2)
   ! state variables for the layer domains
   integer(i4b)    :: mLayerTemp                  = integerMissing    ! temperature of each layer (K)
   integer(i4b)    :: mLayerVolFracIce            = integerMissing    ! volumetric fraction of ice in each layer (-)
