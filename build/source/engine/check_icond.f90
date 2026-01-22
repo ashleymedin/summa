@@ -53,6 +53,9 @@ contains
                         lookupData,                    & ! intent(in):    lookup table data
                         attrData,                      & ! intent(in):    model attributes
                         checkEnthalpy,                 & ! intent(in):    flag if to check enthalpy for consistency
+                        no_dom_vars,                   & ! intent(out):   flag that domain variables are not in initial conditions
+                        no_ice_vars,                   & ! intent(out):   flag that glacier ice variables are not in initial conditions
+                        no_ablfrac,                    & ! intent(out):   flag that glacier ablation fraction variable is not in initial conditions
                         no_icond_enth,                 & ! intent(in):    flag that enthalpy not in initial conditions
                         use_lookup,                    & ! intent(in):    flag to use the lookup table for soil enthalpy                             
                         err,message)                     ! intent(out):   error control
@@ -100,7 +103,10 @@ contains
  type(gru_hru_dom_z_vLookup),intent(in)    :: lookupData            ! lookup table data
  type(gru_hru_double),intent(in)           :: attrData              ! attributes
  logical(lgt),intent(in)                   :: checkEnthalpy         ! if true either need enthTemp as starting residual value, or for state variable initialization
- logical(lgt),intent(in)                   :: no_icond_enth         ! if true, no enthalpy in icond file
+ logical(lgt),intent(out)                  :: no_dom_vars           ! if true, no domain area/elevation in initial conditions
+ logical(lgt),intent(out)                  :: no_ice_vars           ! if true, no glacier ice variables in initial conditions
+ logical(lgt),intent(out)                  :: no_ablfrac            ! if true, no glacier ablation fraction in initial conditions
+ logical(lgt),intent(in)                   :: no_icond_enth         ! if true, no enthalpy in initial conditions
  logical(lgt),intent(in)                   :: use_lookup            ! flag to use the lookup table for soil enthalpy, otherwise use hypergeometric function
  integer(i4b),intent(out)                  :: err                   ! error code
  character(*),intent(out)                  :: message               ! returned error message
@@ -149,20 +155,30 @@ contains
      remaining_area = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)
      remaining_elev = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)*attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%elevation)
      do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
+       if(no_ice_vars)then ! set glacier ice variables to zero if they do not exist in the initial conditions file
+         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%glacMass4AreaChange)%dat(1) = 0._rkind
+         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarIceWE)%dat(1) = 0._rkind
+       endif
        if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type/=upland) then
+         if(no_dom_vars)then; err=20; message=trim(message)//'problem with getting variable id, var= DOMarea or DOMelev'; return; endif
          remaining_area = remaining_area - progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
          remaining_elev = remaining_elev - progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) * progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1)
        endif
        if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln1 .or. gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln2 &
        .or. gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr) then
+         if(no_ice_vars) write(*,'(A)') 'WARNING: glacier domain found but glacMass4AreaChange or scalarIceWE missing, setting both to 0.0.'
+         if(no_ablfrac)then; err=20; message=trim(message)//': problem with getting variable id, var= scalarAblFrac'; return; endif ! scalarAblFrac must exist if glacier domain
          glacierAblAreaTot = glacierAblAreaTot + progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1)*progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
          glacierAccAreaTot = glacierAccAreaTot + (1.0_rkind-progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1))*progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
+       else ! not glacier domain, ensure glacier variables are zero
+         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%glacMass4AreaChange)%dat(1) = 0._rkind
+         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarIceWE)%dat(1) = 0._rkind
+         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1) = 0._rkind
        end if
      end do
      do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
        if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==upland) then
          progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) = remaining_area
-         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%glacMass4AreaChange)%dat(1) = 0._rkind ! not glacier, glacMass4AreaChange should be zero
          if(remaining_area>0._rkind) then 
            progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1) = remaining_elev/remaining_area
          else
@@ -177,7 +193,7 @@ contains
    if (gru_struc(iGRU)%nGlac>0) then
      if(sum(bvarData%gru(iGRU)%var(iLookBVAR%glacierAblArea)%dat)>0._rkind)then
        ratio = glacierAblAreaTot/sum(bvarData%gru(iGRU)%var(iLookBVAR%glacierAblArea)%dat)
-       if ( abs( ratio - 1._rkind) >areaTol ) write(*,*) 'WARNING: glacier ablation     domain area in GRU ',iGRU,' starts at ',ratio, &
+       if ( abs( ratio - 1._rkind) >areaTol ) write(*,*) 'WARNING: glacier ablation domain area in GRU ',iGRU,' starts at ',ratio, &
        ' times the basin variable value but both will be calculated from the grid data after a year.'
      else ! = 0.0
         if (glacierAblAreaTot>0._rkind) then 

@@ -283,7 +283,7 @@ subroutine coupled_em(&
   real(rkind)                          :: balanceCanopyWater0      ! total water stored in the vegetation canopy at the start of the step (kg m-2)
   real(rkind)                          :: balanceSoilWater0        ! total soil storage at the start of the step (kg m-2)
   real(rkind)                          :: balanceIceWE0            ! total ice storage at the start of the step (kg m-2)
-  real(rkind)                          :: balanceIceWE0            ! total ice storage at the end of the step (kg m-2)
+  real(rkind)                          :: balanceIceWE             ! total ice storage at the end of the step (kg m-2)
   real(rkind)                          :: balanceSoilInflux        ! input to the soil zone
   real(rkind)                          :: balanceSoilBaseflow      ! output from the soil zone
   real(rkind)                          :: balanceSoilDrainage      ! output from the soil zone
@@ -396,7 +396,7 @@ subroutine coupled_em(&
     scalarTotalSoilLiq   => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1)       ,& ! total liquid water in the soil column (kg m-2)
     scalarTotalSoilWat   => diag_data%var(iLookDIAG%scalarTotalSoilWat)%dat(1)       ,& ! total water in the soil column (kg m-2)
     ! state variables in the glacier ice domain
-    scalarIceWE          => diag_data%var(iLookDIAG%scalarIceWE)%dat(1)               & ! glacier ice (not snow) water equivalent (kg m-2)
+    scalarIceWE          => prog_data%var(iLookPROG%scalarIceWE)%dat(1)               & ! glacier ice (not snow) water equivalent change over simulation (kg m-2)
 
     ) ! (association of local variables with information in the data structures
 
@@ -443,9 +443,9 @@ subroutine coupled_em(&
       balanceCanopyWater0 = scalarCanopyLiq + scalarCanopyIce
       balanceSoilWater0   = scalarTotalSoilLiq + scalarTotalSoilIce
       balanceAquifer0     = scalarAquiferStorage*iden_water
-      balanceIceWE0       = sum(iden_water*mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange)) &
-                            + sum(iden_ice*mLayerVolFracIce(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange))
-
+      balanceIceWE0       = sum((iden_water*mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange)&
+                               + iden_ice  *mLayerVolFracIce(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange))&
+                               * mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange))
       ! save liquid water content
       if(printBalance)then
         allocate(liqSnowInit(nSnow), liqSoilInit(nSoil), stat=err)
@@ -1545,7 +1545,7 @@ subroutine coupled_em(&
       scalarTotalSoilWat         => diag_data%var(iLookDIAG%scalarTotalSoilWat)%dat(1)                        ,& ! total water in the soil column (kg m-2)
       scalarTotalSoilIce         => diag_data%var(iLookDIAG%scalarTotalSoilIce)%dat(1)                        ,& ! total ice in the soil column (kg m-2)
       scalarTotalSoilLiq         => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1)                        ,& ! total liquid water in the soil column (kg m-2)
-      scalarIceWE                => diag_data%var(iLookDIAG%scalarIceWE)%dat(1)                               ,& ! glacier ice (not snow) water equivalent (kg m-2)
+      scalarIceWE                => prog_data%var(iLookPROG%scalarIceWE)%dat(1)                               ,& ! glacier ice (not snow) water equivalent change over simulation (kg m-2)
       glacMass4AreaChange        => prog_data%var(iLookPROG%glacMass4AreaChange)%dat(1)                       ,& ! since updateJulDay glacier layers together mass change (kg m-2) 
       mLayerEnthTemp             => diag_data%var(iLookDIAG%mLayerEnthTemp)%dat                               ,& ! temperature component of enthalpy of each layer (K)
       mLayerEnthalpy             => prog_data%var(iLookPROG%mLayerEnthalpy)%dat                               ,& ! enthalpy of each layer (J m-3)
@@ -1748,8 +1748,9 @@ subroutine coupled_em(&
       ! ------------------------------------
       if(nGlce>0)then
         ! compute the liquid water and ice content at the end of the time step
-        balanceIceWE = sum(iden_water*mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange) &
-                          + iden_ice*mLayerVolFracIce(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange))
+        balanceIceWE = sum((iden_water*mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange)&
+                          + iden_ice  *mLayerVolFracIce(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange))&
+                          * mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange))
         ! STUB for ice water balance
         ! check the individual layers
         !if(printBalance)then
@@ -1760,7 +1761,7 @@ subroutine coupled_em(&
         if(abs(massBalance) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance_ds)then
           write(*,'(a,1x,f20.10)') 'data_step             = ', data_step
           write(*,'(a,1x,f20.10)') 'balanceIceWE0         = ', balanceIceWE0
-          write(*,'(a,1x,f20.10)') 'balanceIceWE           = ', balanceIceWE
+          write(*,'(a,1x,f20.10)') 'balanceIceWE          = ', balanceIceWE
           write(*,'(a,1x,f20.10)') 'sublimation           = ', averageGlceSublimation*data_step
           write(*,'(a,1x,f20.10)') 'averageGlceMelt       = ', averageGlceMelt*iden_water*data_step
           write(*,'(a,1x,f20.10)') 'massBalance           = ', massBalance

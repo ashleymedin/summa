@@ -93,6 +93,9 @@ contains
  character(LEN=256)                    :: restartGlacFile    ! glacier restart file name
  integer(i4b)                          :: iGRU,iHRU,iDOM     ! looping variables
  logical(lgt)                          :: checkEnthalpy      ! flag if checking enthalpy for consistency
+ logical(lgt)                          :: no_dom_vars        ! flag that domain variables are not in initial conditions
+ logical(lgt)                          :: no_ice_vars        ! flag that glacier ice variables are not in initial conditions
+ logical(lgt)                          :: no_ablfrac         ! flag that glacier ablation fraction variable is not in initial conditions
  logical(lgt)                          :: no_icond_enth      ! flag that enthalpy not in initial conditions
  logical(lgt)                          :: use_lookup         ! flag to use the lookup table for soil enthalpy, otherwise use analytical solution
  real(rkind)                           :: aquifer_start      ! initial aquifer storage
@@ -148,6 +151,9 @@ contains
                  progStruct,                    & ! intent(inout): model prognostic variables
                  bvarStruct,                    & ! intent(inout): model basin (GRU) variables
                  indxStruct,                    & ! intent(inout): model indices
+                 no_dom_vars,                   & ! intent(out):   flag that domain variables are not in initial conditions
+                 no_ice_vars,                   & ! intent(out):   flag that glacier ice variables are not in initial conditions
+                 no_ablfrac,                    & ! intent(out):   flag that glacier ablation fraction variable is not in initial conditions
                  no_icond_enth,                 & ! intent(out):   flag that enthalpy not in initial conditions
                  err,cmessage)                    ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -162,7 +168,7 @@ contains
     restartGlacFile = trim(STATE_PATH)//trim(MODEL_INITGRID)
   endif
 
-  ! read initial conditions
+  ! read initial conditions for glacier surface topography
   call read_icondGlac(restartGlacFile,               & ! intent(in):    name of glacier initial conditions file (surface topography)
                       nGRU,                          & ! intent(in):    number of response units
                       bvarStruct,                    & ! intent(in):    model basin (GRU) variables
@@ -186,6 +192,9 @@ endif
                   lookupStruct,                 & ! intent(in):    lookup tables
                   attrStruct,                   & ! intent(in):    model attributes
                   checkEnthalpy,                & ! intent(in):    flag if need to start with consistent enthalpy
+                  no_dom_vars,                  & ! intent(in):    flag that domain variables are not in initial conditions
+                  no_ice_vars,                  & ! intent(in):    flag that glacier ice variables are not in initial conditions
+                  no_ablfrac,                   & ! intent(out):   flag that glacier ablation fraction variable is not in initial conditions
                   no_icond_enth,                & ! intent(in):    flag that enthalpy not in initial conditions
                   use_lookup,                   & ! intent(in):    flag to use the lookup table for soil enthalpy
                   err,cmessage)                   ! intent(out):   error control

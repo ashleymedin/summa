@@ -481,7 +481,8 @@ contains
   case('scalarSWE'                      ); get_ixProg = iLookPROG%scalarSWE                        ! snow water equivalent (kg m-2)
   case('scalarSfcMeltPond'              ); get_ixProg = iLookPROG%scalarSfcMeltPond                ! ponded water caused by melt of the "snow without a layer" (kg m-2)
   ! state variables for glacier
-  case('glacMass4AreaChange'            ); get_ixProg = iLookPROG%glacMass4AreaChange              ! since updateJulDay glacier layers together mass change (kg m-2)    
+  case('glacMass4AreaChange'            ); get_ixProg = iLookPROG%glacMass4AreaChange              ! since updateJulDay glacier layers together mass change (kg m-2)
+  case('scalarIceWE'                    ); get_ixProg = iLookPROG%scalarIceWE                      ! glacier ice (not snow) water equivalent change over simulation (kg m-2)
   ! state variables for the layer domains
   case('mLayerTemp'                     ); get_ixProg = iLookPROG%mLayerTemp                       ! temperature of each layer (K)
   case('mLayerVolFracIce'               ); get_ixProg = iLookPROG%mLayerVolFracIce                 ! volumetric fraction of icein each layer (-)
@@ -602,7 +603,6 @@ contains
   case('mLayerPoreSpace'                ); get_ixDiag = iLookDIAG%mLayerPoreSpace                  ! total pore space in each snow layer (-)
   case('mLayerMeltFreeze'               ); get_ixDiag = iLookDIAG%mLayerMeltFreeze                 ! ice content change from melt/freeze in each layer (kg m-3)
   ! lake, glacier ice mass/hydrology
-  case('scalarIceWE'                    ); get_ixDiag = iLookDIAG%scalarIceWE                      ! glacier ice (not snow) water equivalent (kg m-2)
   case('spectralFrznWatAlbedo'          ); get_ixDiag = iLookDIAG%spectralFrznWatAlbedo            ! albedo of frozen water in each spectral band (-)
   case('spectralOpenWatAlbedo'          ); get_ixDiag = iLookDIAG%spectralOpenWatAlbedo            ! albedo of open water in each spectral band (-)
   ! total mass changes    

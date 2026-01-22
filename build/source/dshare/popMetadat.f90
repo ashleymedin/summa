@@ -352,6 +352,7 @@ subroutine popMetadat(err,message)
   prog_meta(iLookPROG%scalarSfcMeltPond)               = var_info('scalarSfcMeltPond'              , 'ponded water caused by melt of the "snow without a layer"'        , 'kg m-2'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! state variables for glacier
   prog_meta(iLookPROG%glacMass4AreaChange)             = var_info('glacMass4AreaChange'            , 'since updateJulDay glacier layers together mass change'           , 'kg m-2'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  prog_meta(iLookPROG%scalarIceWE)                     = var_info('scalarIceWE'                    , 'glacier ice (not snow) water equivalent change over simulation'   , 'kg m-2'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! define state variables for the layer domains
   prog_meta(iLookPROG%mLayerTemp)                      = var_info('mLayerTemp'                     , 'temperature of each layer'                                        , 'K'               , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   prog_meta(iLookPROG%mLayerVolFracIce)                = var_info('mLayerVolFracIce'               , 'volumetric fraction of ice in each layer'                         , '-'               , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
@@ -457,7 +458,6 @@ subroutine popMetadat(err,message)
   diag_meta(iLookDIAG%mLayerPoreSpace)                 = var_info('mLayerPoreSpace'                , 'total pore space in each snow, lake, or glce layer'               , '-'               , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%mLayerMeltFreeze)                = var_info('mLayerMeltFreeze'               , 'ice content change from melt/freeze in each layer'                , 'kg m-3'          , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   ! lake, glacier ice mass/hydrology
-  diag_meta(iLookDIAG%scalarIceWE)                     = var_info('scalarIceWE'                    , 'glacier ice (not snow) water equivalent'                          , 'kg m-2'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%spectralFrznWatAlbedo)           = var_info('spectralFrznWatAlbedo'          , 'albedo of frozen water in each spectral band'                     , '-'               , get_ixVarType('wLength'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%spectralOpenWatAlbedo)           = var_info('spectralOpenWatAlbedo'          , 'albedo of open water in each spectral band'                       , '-'               , get_ixVarType('wLength'), iMissVec, iMissVec, .false.)
   ! total mass changes 

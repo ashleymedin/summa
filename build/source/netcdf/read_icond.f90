@@ -284,7 +284,10 @@ contains
                        progData,                      & ! intent(inout): model prognostic variables
                        bvarData,                      & ! intent(inout): model basin (GRU) variables
                        indxData,                      & ! intent(inout): model indices
-                       no_icond_enth,                 & ! intent(out):   flag that enthalpy variables are not in the file
+                       no_dom_vars,                   & ! intent(out):   flag that domain variables are not in initial conditions
+                       no_ice_vars,                   & ! intent(out):   flag that glacier ice variables are not in initial conditions
+                       no_ablfrac,                    & ! intent(out):   flag that glacier ablation fraction variable is not in initial conditions
+                       no_icond_enth,                 & ! intent(out):   flag that enthalpy variables are not in the initial conditions
                        err,message)                     ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------
  ! modules
@@ -318,7 +321,10 @@ contains
  type(gru_hru_dom_doubleVec),intent(inout) :: progData                 ! model prognostic variables
  type(gru_doubleVec)    ,intent(inout)     :: bvarData                 ! model basin (GRU) variables
  type(gru_hru_dom_intVec),intent(inout)    :: indxData                 ! model indices
- logical                ,intent(out)       :: no_icond_enth            ! flag that enthalpy variables are not in the file
+ logical                ,intent(out)       :: no_dom_vars              ! flag that domain variables are not in initial conditions
+ logical                ,intent(out)       :: no_ice_vars              ! flag that glacier ice variables are not in initial conditions
+ logical                ,intent(out)       :: no_ablfrac               ! flag that glacier ablation fraction variable is not in initial conditions
+ logical                ,intent(out)       :: no_icond_enth            ! flag that enthalpy variables are not in initial conditions
  integer(i4b)           ,intent(out)       :: err                      ! error code
  character(*)           ,intent(out)       :: message                  ! returned error message
  ! locals
@@ -471,6 +477,9 @@ else
   ! --------------------------------------------------------------------------------------------------------
 
  ! loop through prognostic variables
+ no_dom_vars=.false.
+ no_ice_vars=.false.
+ no_ablfrac=.false.
  no_icond_enth=.false.
  do iVar = 1,size(prog_meta)
   ! skip variables that are computed later
@@ -483,9 +492,10 @@ else
   err = nf90_inq_varid(ncID,trim(prog_meta(iVar)%varName),ncVarID)
   if(err/=nf90_noerr)then
    if(prog_meta(iVar)%varName=='DOMarea'              .or. &
-      prog_meta(iVar)%varName=='DOMelev'              .or. &
-      prog_meta(iVar)%varName=='scalarAblFrac'        .or. &
-      prog_meta(iVar)%varName=='glacMass4AreaChange'       )then; err=nf90_noerr; cycle; endif ! backwards compatible, may be missing, correct in check_icond
+      prog_meta(iVar)%varName=='DOMelev'                   )then; err=nf90_noerr; no_dom_vars=.true.;cycle; endif ! backwards compatible, may be missing, correct in check_icond
+   if(prog_meta(iVar)%varName=='scalarIceWE'          .or. &
+      prog_meta(iVar)%varName=='glacMass4AreaChange'       )then; err=nf90_noerr; no_ice_vars=.true.; cycle; endif ! backwards compatible, may be missing, correct in check_icond
+   if(prog_meta(iVar)%varName=='scalarAblFrac'             )then; err=nf90_noerr; no_ablfrac=.true.; cycle; endif ! backwards compatible, may be missing, correct in check_icond
    if(prog_meta(iVar)%varName=='scalarCanairEnthalpy' .or. &
       prog_meta(iVar)%varName=='scalarCanopyEnthalpy' .or. &  
       prog_meta(iVar)%varName=='mLayerEnthalpy'            )then; err=nf90_noerr; no_icond_enth=.true.; cycle; endif ! skip enthalpy variables if not in file
