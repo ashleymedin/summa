@@ -283,6 +283,7 @@ subroutine coupled_em(&
   real(rkind)                          :: balanceCanopyWater0      ! total water stored in the vegetation canopy at the start of the step (kg m-2)
   real(rkind)                          :: balanceSoilWater0        ! total soil storage at the start of the step (kg m-2)
   real(rkind)                          :: balanceIceWE0            ! total ice storage at the start of the step (kg m-2)
+  real(rkind)                          :: balanceIceWE0            ! total ice storage at the end of the step (kg m-2)
   real(rkind)                          :: balanceSoilInflux        ! input to the soil zone
   real(rkind)                          :: balanceSoilBaseflow      ! output from the soil zone
   real(rkind)                          :: balanceSoilDrainage      ! output from the soil zone
@@ -1747,7 +1748,7 @@ subroutine coupled_em(&
       ! ------------------------------------
       if(nGlce>0)then
         ! compute the liquid water and ice content at the end of the time step
-        scalarIceWE = sum(iden_water*mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange) &
+        balanceIceWE = sum(iden_water*mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange) &
                           + iden_ice*mLayerVolFracIce(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange)*mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange))
         ! STUB for ice water balance
         ! check the individual layers
@@ -1755,17 +1756,20 @@ subroutine coupled_em(&
         !endif
 
         ! check the glacier ice water balance, remembering that averageGlceMelt will be negative since upwards flux
-        massBalance = -averageGlceMelt*iden_water*data_step - (balanceIceWE0-scalarIceWE) - averageGlceSublimation*data_step
+        massBalance = -averageGlceMelt*iden_water*data_step - (balanceIceWE0-balanceIceWE) - averageGlceSublimation*data_step
         if(abs(massBalance) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance_ds)then
           write(*,'(a,1x,f20.10)') 'data_step             = ', data_step
           write(*,'(a,1x,f20.10)') 'balanceIceWE0         = ', balanceIceWE0
-          write(*,'(a,1x,f20.10)') 'scalarIceWE           = ', scalarIceWE
+          write(*,'(a,1x,f20.10)') 'balanceIceWE           = ', balanceIceWE
           write(*,'(a,1x,f20.10)') 'sublimation           = ', averageGlceSublimation*data_step
           write(*,'(a,1x,f20.10)') 'averageGlceMelt       = ', averageGlceMelt*iden_water*data_step
           write(*,'(a,1x,f20.10)') 'massBalance           = ', massBalance
           message=trim(message)//'glacier ice does not balance'
           err=20; return
         end if
+        ! save the glacier ice water equivalent change
+        scalarIceWE = scalarIceWE + balanceIceWE0-balanceIceWE
+
 
         ! Reset the layers, ice content will have changed if layers merged
         if (size(depthGlceTopLayer)<nGlce-noThetaChange)then
@@ -1825,7 +1829,7 @@ subroutine coupled_em(&
       ! -----
       ! sum of water changes in all of the domains to get the total water change rate
       ! -------------------------------------------------------
-      scalarTotalMassChange = ((scalarTotalSoilWat - balanceSoilWater0) + delLakeWat + delSWE + (scalarIceWE - balanceIceWE0))/data_step + (delCanWat + (balanceAquifer1-balanceAquifer0))/data_step
+      scalarTotalMassChange = ((scalarTotalSoilWat - balanceSoilWater0) + delLakeWat + delSWE + (balanceIceWE0-balanceIceWE))/data_step + (delCanWat + (balanceAquifer1-balanceAquifer0))/data_step
       ! save the average mass change rate for the layers if glacier
       if (is_glac) then
         glacMass4AreaChange = glacMass4AreaChange + scalarTotalMassChange * data_step
