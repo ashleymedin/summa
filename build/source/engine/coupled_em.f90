@@ -442,7 +442,7 @@ subroutine coupled_em(&
       ! compute storage of water in the canopy, the soil layers, aquifer and the glce layers
       balanceCanopyWater0 = scalarCanopyLiq + scalarCanopyIce
       balanceSoilWater0   = scalarTotalSoilLiq + scalarTotalSoilIce
-      balanceAquifer0     = scalarAquiferStorage*iden_water
+      balanceAquifer0     = scalarAquiferStorage*iden_water ! convert to kg m-2
       balanceIceWE0       = sum((iden_water*mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange)&
                                + iden_ice  *mLayerVolFracIce(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange))&
                                * mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange))
