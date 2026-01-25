@@ -275,9 +275,6 @@ contains
   if (parFallback(iLookPARAM%idaMaxErrTestFail)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%idaMaxErrTestFail)%default_val = 50 ! IDA default is 10
   end if
-  if (parFallback(iLookPARAM%idaMaxNonlinSolvFail)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%idaMaxNonlinSolvFail)%default_val = 50 ! IDA default is 10
-  end if
   if (parFallback(iLookPARAM%idaMaxDataWindowSteps)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%idaMaxDataWindowSteps)%default_val = 1.e10_rkind ! default is infinity, if 1e10 or larger then treat as infinity
   end if

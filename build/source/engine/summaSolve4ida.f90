@@ -471,8 +471,8 @@ subroutine summaSolve4ida(&
 
     do while(tret(1) < dt_cur)
       ! fail if already hit limit on number of sub-steps, treat 1e10 as no limit
-      if (mpar_data%var(iLookMPAR%idaMaxDataWindowSteps)%dat(1)<1.e10_rkind) then
-        if (nSteps==mpar_data%var(iLookMPAR%idaMaxDataWindowSteps)%dat(1)) then
+      if (mpar_data%var(iLookPARAM%idaMaxDataWindowSteps)%dat(1)<1.e10_rkind) then
+        if (nSteps==mpar_data%var(iLookPARAM%idaMaxDataWindowSteps)%dat(1)) then
           idaSucceeds = .false.
           message=trim(message)//'exceeded maximum number of sub-steps in data window'
           exit
