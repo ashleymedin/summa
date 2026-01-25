@@ -467,6 +467,14 @@ subroutine summaSolve4ida(&
     nSteps = 0 ! initialize number of time steps taken in solver
 
     do while(tret(1) < dt_cur)
+      ! fail if already hit limit on number of sub-steps, treat 1e10 as no limit
+      if (mpar_data%var(iLookPARAM%idaMaxDataWindowSteps)%dat(1)<1.e10_rkind) then
+        if (nSteps==mpar_data%var(iLookPARAM%idaMaxDataWindowSteps)%dat(1)) then
+          idaSucceeds = .false.
+          message=trim(message)//'exceeded maximum number of sub-steps in data window'
+          exit
+        end if
+      end if
     
       ! call this at beginning of step to reduce root bouncing (only looking in one direction)
       if(detect_events .and. .not.tinystep)then
@@ -483,7 +491,7 @@ subroutine summaSolve4ida(&
       ! early return if IDASolve failed
       if( retvalr < 0 )then
         idaSucceeds = .false.
-        if (eqns_data%err/=0)then; message=trim(message)//trim(eqns_data%message); return; endif !fail from summa problem
+        if (eqns_data%err/=0)then; message=trim(message)//trim(eqns_data%message); return; endif ! fail from summa problem
         call getErrMessage(retvalr,cmessage) ! fail from solver problem
         message=trim(message)//trim(cmessage)
         !if(retvalr==-1) err = -20 ! max iterations failure, exit and reduce the data window time in varSubStep
