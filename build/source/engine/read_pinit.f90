@@ -267,13 +267,19 @@ contains
     parFallback(iLookPARAM%idaInitStepSize)%default_val = 0
   end if
   if (parFallback(iLookPARAM%idaMinStepSize)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%idaMinStepSize)%default_val = 0 ! IDA default is 0, but then hangs up, may want to set to 1e-6
+    parFallback(iLookPARAM%idaMinStepSize)%default_val = 0 ! IDA default is 0
   end if
   if (parFallback(iLookPARAM%idaMaxStepSize)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%idaMaxStepSize)%default_val = 0 ! 0 means IDA's default of infinity
   end if
   if (parFallback(iLookPARAM%idaMaxErrTestFail)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%idaMaxErrTestFail)%default_val = 50 ! IDA default is 10
+  end if
+  if (parFallback(iLookPARAM%idaMaxNonlinSolvFail)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%idaMaxNonlinSolvFail)%default_val = 50 ! IDA default is 10
+  end if
+  if (parFallback(iLookPARAM%idaMaxDataWindowSteps)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%idaMaxDataWindowSteps)%default_val = 1.e10_rkind ! default is infinity, if 1e10 or larger then treat as infinity
   end if
  end subroutine set_ida_defaults
 

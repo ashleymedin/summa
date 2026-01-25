@@ -424,6 +424,7 @@ contains
   case('idaInitStepSize'          ); get_ixParam = iLookPARAM%idaInitStepSize        ! initial step size for IDA 
   case('idaMinStepSize'           ); get_ixParam = iLookPARAM%idaMinStepSize         ! minimum step size for IDA
   case('idaMaxStepSize'           ); get_ixParam = iLookPARAM%idaMaxStepSize         ! maximum step size for IDA
+  case('idaMaxDataWindowSteps'    ); get_ixParam = iLookPARAM%idaMaxDataWindowSteps  ! maximum number of steps for IDA within one data window
   case('idaMaxErrTestFail'        ); get_ixParam = iLookPARAM%idaMaxErrTestFail      ! maximum number of error test failures for IDA
   case('zmin'                     ); get_ixParam = iLookPARAM%zmin                   ! minimum layer depth (m)
   case('zmax'                     ); get_ixParam = iLookPARAM%zmax                   ! maximum layer depth (m)

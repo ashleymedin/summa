@@ -483,7 +483,7 @@ MODULE data_types
  integer(i4b),parameter :: len_msg=256 ! length of character string used in class definitions
 
  ! ***********************************************************************************************************
- ! Define classes used to simplify calls to the subrotuines in computeFlux
+ ! Define classes used to simplify calls to the subroutines in computeFlux
  ! ***********************************************************************************************************
  ! Note: class procedures are located in the contains block of this (data_types) module
  ! ** vegNrgFlux
@@ -760,7 +760,7 @@ MODULE data_types
  ! ** end bigAquifer
 
  ! ***********************************************************************************************************
- ! Define classes used to simplify calls to the subrotuines in soilLiqFlux
+ ! Define classes used to simplify calls to the subroutines in soilLiqFlux
  ! ***********************************************************************************************************
 
  ! ** diagv_node
@@ -1002,7 +1002,7 @@ MODULE data_types
  ! ** end qDrainFlux
 
  ! ***********************************************************************************************************
- ! Define classes used to simplify calls to the subrotuines in opSplittin
+ ! Define classes used to simplify calls to the subroutines in opSplittin
  ! ***********************************************************************************************************
  ! ** stateFilter
  type, public :: out_type_stateFilter ! class for intent(out) arguments in stateFilter call
@@ -1073,7 +1073,7 @@ MODULE data_types
  ! ** end varSubstep
 
  ! ***********************************************************************************************************
- ! Define classes used to simplify calls to the subrotuines in summaSolve4homegrown
+ ! Define classes used to simplify calls to the subroutines in summaSolve4homegrown
  ! ***********************************************************************************************************
 
  type, public :: in_type_computeJacob  ! class for intent(in) arguments in computeJacob call
@@ -1117,7 +1117,7 @@ MODULE data_types
  end type out_type_lineSearchRefinement
 
  ! ***********************************************************************************************************
- ! Define classes used to simplify calls to the subrotuines in systemSolve
+ ! Define classes used to simplify calls to the subroutines in systemSolve
  ! ***********************************************************************************************************
 
  type, public :: in_type_summaSolve4homegrown  ! class for intent(in) arguments in summaSolve4homegrown call

@@ -470,6 +470,14 @@ subroutine summaSolve4ida(&
     nSteps = 0 ! initialize number of time steps taken in solver
 
     do while(tret(1) < dt_cur)
+      ! fail if already hit limit on number of sub-steps, treat 1e10 as no limit
+      if (mpar_data%var(iLookMPAR%idaMaxDataWindowSteps)%dat(1)<1.e10_rkind) then
+        if (nSteps==mpar_data%var(iLookMPAR%idaMaxDataWindowSteps)%dat(1)) then
+          idaSucceeds = .false.
+          message=trim(message)//'exceeded maximum number of sub-steps in data window'
+          exit
+        end if
+      end if
     
       ! call this at beginning of step to reduce root bouncing (only looking in one direction)
       if(detect_events .and. .not.tinystep)then
@@ -486,7 +494,7 @@ subroutine summaSolve4ida(&
       ! early return if IDASolve failed
       if( retvalr < 0 )then
         idaSucceeds = .false.
-        if (eqns_data%err/=0)then; message=trim(message)//trim(eqns_data%message); return; endif !fail from summa problem
+        if (eqns_data%err/=0)then; message=trim(message)//trim(eqns_data%message); return; endif ! fail from summa problem
         call getErrMessage(retvalr,cmessage) ! fail from solver problem
         message=trim(message)//trim(cmessage)
         !if(retvalr==-1) err = -20 ! max iterations failure, exit and reduce the data window time in varSubStep
@@ -1011,7 +1019,7 @@ subroutine getErrMessage(retval,message)
    if( retval==-1 ) message = 'IDA_TOO_MUCH_WORK'   ! The solver took mxstep internal steps but could not reach tout.
    if( retval==-2 ) message = 'IDA_TOO_MUCH_ACC'    ! The solver could not satisfy the accuracy demanded by the user for some internal step.
    if( retval==-3 ) message = 'IDA_ERR_FAIL'        ! Error test failures occurred too many times during one internal timestep or minimum step size was reached.
-   if( retval==-4 ) message = 'IDA_convert_FAIL'       ! Convergence test failures occurred too many times during one internal time step or minimum step size was reached.
+   if( retval==-4 ) message = 'IDA_CONV_FAIL'       ! Convergence test failures occurred too many times during one internal time step or minimum step size was reached.
    if( retval==-5 ) message = 'IDA_LINIT_FAIL'      ! The linear solver’s initialization function failed.
    if( retval==-6 ) message = 'IDA_LSETUP_FAIL'     ! The linear solver’s setup function failed in an unrecoverable manner.
    if( retval==-7 ) message = 'IDA_LSOLVE_FAIL'     ! The linear solver’s solve function failed in an unrecoverable manner.
