@@ -216,10 +216,7 @@ contains
    message      => out_soilLiqFlx % cmessage                     & ! intent(out): error message
   &) 
    nRoots = count(iLayerHeight(0:nSoil-1) < rootingDepth-verySmall)
-   if (nRoots==0) then
-     message=trim(message)//'no layers with roots'
-     err=20; return_flag=.true.; return
-   end if
+   if(nRoots==0)then; message=trim(message)//'no layers with roots'; err=20; return_flag=.true.; return; end if
   end associate
 
   ! ** identify lowest soil layer with ice **
@@ -260,7 +257,7 @@ contains
    err          => out_soilLiqFlx % err,                         & ! intent(out): error code
    message      => out_soilLiqFlx % cmessage                     & ! intent(out): error message
   &)
-   if (err/=0) then; message=trim(message)//trim("finalize_soilLiqFlx: final error check failed"); return_flag=.true.; return; end if
+   if(err/=0)then; message=trim(message)//trim("finalize_soilLiqFlx: final error check failed"); return_flag=.true.; return; end if
   end associate
  end subroutine finalize_soilLiqFlx
 
@@ -297,8 +294,7 @@ contains
   &)
    ! check fractions sum to one
    if (abs(sum(mLayerTranspireFrac) - 1._rkind) > verySmaller) then
-    message=trim(message)//'fraction transpiration in soil layers does not sum to one'
-    err=20; return_flag=.true.; return
+     message=trim(message)//'fraction transpiration in soil layers does not sum to one'; err=20; return_flag=.true.; return
    end if
   end associate
  end subroutine finalize_transpiration_loss_fraction
@@ -380,7 +376,7 @@ contains
   &)
    call out_diagv_node % finalize(iSoil,nSoil,io_soilLiqFlx,mLayerDiffuse,iceImpedeFac,&
                                   &dHydCond_dVolLiq,dDiffuse_dVolLiq,dHydCond_dTemp,err,cmessage)
-   if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
+   if(err/=0)then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end associate
  end subroutine finalize_compute_diagnostic_variables
 
@@ -439,7 +435,7 @@ contains
    message => out_soilLiqFlx % cmessage & ! error message
   &)
    call out_surfaceFlx % finalize(io_soilLiqFlx,err,cmessage)
-   if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
+   if(err/=0)then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end associate
 
   ! include base soil evaporation as the upper boundary flux
@@ -499,7 +495,7 @@ contains
    message => out_soilLiqFlx % cmessage                   & ! error message
   &)
    call out_iLayerFlux % finalize(iLayer,nSoil,io_soilLiqFlx,iLayerHydCond,iLayerDiffuse,err,cmessage)
-   if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
+   if(err/=0)then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end associate
  end subroutine finalize_compute_interface_fluxes_derivatives
 
@@ -539,7 +535,7 @@ contains
    message => out_soilLiqFlx % cmessage                   & ! error message
   &)
    call out_qDrainFlux % finalize(nSoil,io_soilLiqFlx,iLayerHydCond,iLayerDiffuse,err,cmessage)
-   if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
+   if(err/=0)then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end associate
 
   ! no dependence on the aquifer for drainage
@@ -829,10 +825,7 @@ contains
    message => out_diagv_node % message  & ! error message
   &)
    ! final error check
-   if (err /= 0_i4b) then
-    message=trim(message)//'unanticipated error in diagv_node'
-    return_flag=.true.; return
-   end if
+   if(err/=0)then; message=trim(message)//'unanticipated error in diagv_node'; return_flag=.true.; return; end if
   end associate
  end subroutine finalize_diagv_node
 
@@ -941,7 +934,6 @@ contains
 
  subroutine initialize_surfaceFlx
   ! **** Initialize operations for surfaceFlx ****
- 
   ! allocate output object array components
   out_surfaceFlx % dq_dHydStateVec = io_soilLiqFlx % dq_dHydStateLayerSurfVec
   out_surfaceFlx % dq_dNrgStateVec = io_soilLiqFlx % dq_dNrgStateLayerSurfVec
@@ -982,7 +974,6 @@ contains
 
  subroutine update_surfaceFlx
   ! **** Update operations for surfaceFlx ****
-
   associate(&
    ! input: model control
    firstSplitOper => in_surfaceFlx % firstSplitOper, & ! flag indicating if desire to compute infiltration
@@ -1029,38 +1020,29 @@ contains
              call update_surfaceFlx_FUSE_ARNO_VIC_infilArea;  if (return_flag) return
            case(FUSETOPM)        ! FUSE TOPMODEL surface runoff
              call update_surfaceFlx_FUSE_TOPMODEL_infilArea;  if (return_flag) return
-           case default
-             err=20; message=trim(message)//'unknown saturation excess surface runoff method';  ! Do we need these? Should already be caught in model decision checker
-             return_flag=.true.; return
+           case default; err=20; message=trim(message)//'unknown saturation excess surface runoff method'; return_flag=.true.; return
          end select
 
          ! compute saturated area and saturation excess surface runoff
-         if (scalarInfilArea < 0._rkind) then
-           err=20; message=trim(message)//'infiltration area less than zero'
-           return_flag=.true.; return
-         end if
+         if (scalarInfilArea < 0._rkind) then; err=20; message=trim(message)//'infiltration area less than zero'; return_flag=.true.; return; end if
          scalarSaturatedArea = 1._rkind - scalarInfilArea
          scalarSurfaceRunoff_SE = scalarRainPlusMelt * scalarSaturatedArea
 
-         ! Calculate maximum infiltration rate and its derivatives
+         ! Calculate maximum infiltration rate and scalarFrozenArea (and their derivatives if needed)
          select case(ixInfRateMax)       ! maximum infiltration rate method (controls infiltration excess surface runoff)
            case(noInfiltrationExcess)    ! zero infiltration excess surface runoff
-             io_surfaceFlx % xMaxInfilRate = veryBig ! set to a very large number so rainPlusMelt never exceeds this
+             call update_surfaceFlx_liquidFlux_noinfratemax
            case(GreenAmpt, topmodel_GA)  ! infiltration excess runoff possible
-             call update_surfaceFlx_liquidFlux_calculate_infratemax;     if (return_flag) return
-           case default
-             err=20; message=trim(message)//'unknown infiltration excess surface runoff method';
-             return_flag=.true.; return
+             call update_surfaceFlx_liquidFlux_calculate_infratemax;  if (return_flag) return
+           case default; err=20; message=trim(message)//'unknown infiltration excess surface runoff method'; return_flag=.true.; return
          end select
 
          ! Compute total infiltration, gets infiltration excess surface runoff, modifies saturation excess surface runoff if more rain than can infiltrate
          call update_surfaceFlx_liquidFlux_infiltration;  if (return_flag) return
          ! update the derivatives for any combination of SE and IE parametrization options 
-         if(updateInfil) call update_surfaceFlx_liquidFlux_derivatives; if (return_flag) return 
+         if(updateInfil) call update_surfaceFlx_liquidFlux_derivatives
 
-       case default;  ! end of select case(bc_upper)
-         err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; 
-         return_flag=.true.; return
+       case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return_flag=.true.; return ! end of select of bc_upper
      end select 
    else ! do not compute infiltration after first flux call in a splitting operation unless updateInfil is true
      dq_dHydStateVec(:) = realMissing ! not used, so cause problems
@@ -1221,12 +1203,9 @@ contains
    ! compute tension water content
    S1_T_max = phi_tens * S1_max
    S1_T     = LogSumExp(-alpha_LSE,[S1,S1_T_max],err) ! smooth approximation to S1_T=min(S1,S1_T_max)
-   if (err /= 0) then
-    err=10; message=trim(message)//"FUSE PRMS surface runoff: error in LogSumExp"; return_flag=.true.; return
-   end if
+   if(err/=0)then; err=10; message=trim(message)//"FUSE PRMS surface runoff: error in LogSumExp"; return_flag=.true.; return; end if
    if (S1_T < 0._rkind) then ! check for errors
-    err=10; message=trim(message)//"FUSE PRMS surface runoff: S1_T is negative (may need to adjust magnitude of alpha_LSE)"
-    return_flag=.true.; return
+    err=10; message=trim(message)//"FUSE PRMS surface runoff: S1_T is negative (may need to adjust magnitude of alpha_LSE)"; return_flag=.true.; return
    end if
   
    ! define the infiltrating area and derivatives for the non-frozen part of the cell/basin
@@ -1282,16 +1261,13 @@ contains
    !           (Smoothed SatArea) = 1 - (1-S1_star/S1_max)**b_arnovic 
    if (smoother) then ! with smooth approximation of min(S1,S1_max)
     S1_star = LogSumExp(-alpha_LSE,[S1,S1_max],err) ! smooth approximation of min(S1,S1_max) to prevent negative bases
-    if (err /= 0) then
-     err=10; message=trim(message)//"FUSE ARNO/VIC surface runoff: error in LogSumExp"; return_flag=.true.; return
-    end if
+    if(err/=0)then; err=10; message=trim(message)//"FUSE ARNO/VIC surface runoff: error in LogSumExp"; return_flag=.true.; return; end if
    else               ! no smoothing
     S1_star = S1
    end if
    if (S1_star < 0._rkind) then ! check for errors
     err=10; message=trim(message)//&
-    &"FUSE ARNO/VIC surface runoff: S1_star is negative (may need to apply smoothing or increase magnitude of alpha_LSE)"
-    return_flag=.true.; return
+    &"FUSE ARNO/VIC surface runoff: S1_star is negative (may need to apply smoothing or increase magnitude of alpha_LSE)";return_flag=.true.; return
    end if
 
    ! compute base value
@@ -1327,7 +1303,6 @@ contains
 
  subroutine update_surfaceFlx_FUSE_TOPMODEL_infilArea
   ! **** Update operations for surfaceFlx: surface runoff from Clark et al. (2008, doi:10.1029/2007WR006735) -- TOPMODEL ****
-  ! note: this parameterization utilizes saturation excess surface runoff only
   ! local variables
   real(rkind)                      :: lambda                            ! mean
   real(rkind)                      :: chi_topmodel                      ! scale
@@ -1381,12 +1356,9 @@ contains
    if ((n_topmodel < 3.5_rkind).or.(n_topmodel > 10._rkind)) then ! validate TOPMODEL exponent to avoid divergence of lambda_n
     err=10; message=trim(message)//"FUSE TOPMODEL exponent must be between 3.5 and 10"; return_flag=.true.; return
    end if
-   if (S1 < 0._rkind) then ! check for negative water content values in the lower FUSE layer
-    err=10; message=trim(message)//"negative water content value detected in lower FUSE layer"; return_flag=.true.; return
-   end if
-   if (S1 > S1_max) then   ! check if water content in lower FUSE layer exceeds the maximum storage
-    err=10; message=trim(message)//"water content in lower FUSE layer exceeds max storage"; return_flag=.true.; return
-   end if
+   ! validate water content values, these should be guaranteed by earlier checks but just in case
+   if (S1 < 0._rkind) then; err=10; message=trim(message)//"negative water content value detected in lower FUSE layer"; return_flag=.true.; return; end if
+   if (S1 > S1_max) then; err=10; message=trim(message)//"water content in lower FUSE layer exceeds max storage"; return_flag=.true.; return; end if
 
    ! set FUSE parameters - input parameters are lambda, chi_topmodel, and mu
    alpha_topmodel=(lambda-mu)/chi_topmodel
@@ -1404,19 +1376,14 @@ contains
    ! compute critical zeta value
    ! note: to obtain physical topography values, only the real part of lambda_n is used 
    zeta_crit_n=lambda_n%re*S1_max/S1 ! power-transformed critical topographic index
-   if (zeta_crit_n <= 0._rkind) then
-     err=10; message=trim(message)//"FUSE TOPMODEL zeta_crit_n <= 0"
-     return_flag=.true.; return
-   end if
+   if (zeta_crit_n <= 0._rkind) then; err=10; message=trim(message)//"FUSE TOPMODEL zeta_crit_n <= 0"; return_flag=.true.; return; end if
 
    zeta_crit=n_topmodel*log(zeta_crit_n) ! critical topographic index in log space
 
    ! transform to x random variable and validate result
    x_crit=zeta_crit-mu
    if (x_crit < -roundoff_tolerance) then ! less than zero outside tolerance
-     err=10; message=trim(message)//"FUSE TOPMODEL zeta_crit must be greater or equal to mu -- &
-                    &try increasing lambda or decreasing mu";
-     return_flag=.true.; return
+     err=10; message=trim(message)//"FUSE TOPMODEL zeta_crit must be greater or equal to mu, try increasing lambda or decreasing mu";return_flag=.true.; return
    else if (x_crit < 0._rkind) then       ! less than zero but within tolerance
     x_crit = 0._rkind
    end if
@@ -1470,7 +1437,6 @@ contains
    scalarSurfaceRunoff_IE    => out_surfaceFlx % scalarSurfaceRunoff_IE    , & ! infiltration excess surface runoff (m s-1)
    scalarSurfaceRunoff_SE    => out_surfaceFlx % scalarSurfaceRunoff_SE    , & ! saturation excess surface runoff (m s-1)
    scalarSurfaceInfiltration => out_surfaceFlx % scalarSurfaceInfiltration , & ! surface infiltration (m s-1)
-   ! output: derivatives in surface infiltration w.r.t. ...
    ! output: derivatives in surface infiltration w.r.t. ...
    scalarSoilControl  => io_surfaceFlx % scalarSoilControl    , & ! soil control on infiltration for derivative
    dq_dHydStateVec    => out_surfaceFlx % dq_dHydStateVec     , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
@@ -1538,9 +1504,23 @@ contains
   call update_surfaceFlx_liquidFlux_computation_homegrown  ! this calculates infiltration area ignoring if frozen or not, depends on available capacity (depends on ice and root zone)
  end subroutine update_surfaceFlx_homegrown_infilArea
 
- subroutine update_surfaceFlx_liquidFlux_calculate_infratemax
-  ! **** Update operations for surfaceFlx: flux condition ****
-  ! -- get the required variables from saturation excess runoff computations 
+ subroutine update_surfaceFlx_liquidFlux_noinfratemax
+  ! **** Update operations for surfaceFlx: no infiltration excess****
+  associate(&
+   ! input: model control
+   surfRun_SE => in_surfaceFlx % surfRun_SE         & ! index defining the saturation excess surface runoff method
+  &)
+   io_surfaceFlx % xMaxInfilRate = veryBig ! set to a very large number so rainPlusMelt never exceeds this
+   if (surfRun_SE /= homegrown_SE) then  ! frozen area (depends on ice and root zone)
+     call update_surfaceFlx_liquidFlux_computation_root_layers
+   end if
+  end associate
+  ! -- main computations - these always need to run
+  call update_surfaceFlx_liquidFlux_computation_frozen_area
+ end subroutine update_surfaceFlx_liquidFlux_noinfratemax
+
+  subroutine update_surfaceFlx_liquidFlux_calculate_infratemax
+  ! **** Update operations for surfaceFlx: infiltration excess possible - calculate max infiltration rate ****
   associate(&
    ! input: model control
    surfRun_SE => in_surfaceFlx % surfRun_SE         & ! index defining the saturation excess surface runoff method
@@ -1556,7 +1536,7 @@ contains
  end subroutine update_surfaceFlx_liquidFlux_calculate_infratemax
 
  subroutine update_surfaceFlx_liquidFlux_computation_root_layers 
-  ! **** Update operations for surfaceFlx: flux condition -- main computations (root layers) ****
+  ! **** Update operations for surfaceFlx: root layer water computation ****
   associate(&
    ! input: model control
    nRoots              => in_surfaceFlx % nRoots            , & ! number of soil layers with roots (-)
@@ -1604,9 +1584,7 @@ contains
  end subroutine update_surfaceFlx_liquidFlux_computation_root_layers 
 
  subroutine update_surfaceFlx_liquidFlux_computation_available_capacity 
-  ! **** Update operations for surfaceFlx: flux condition -- main computations (check available capacity) ****
-
-  ! compute and check available capacity to hold water (m)
+  ! **** Update operations for surfaceFlx: compute and check available capacity to hold water ****
   associate(&
    ! input: soil parameters
    theta_sat           => in_surfaceFlx % theta_sat   , & ! soil porosity (-)
@@ -1617,15 +1595,14 @@ contains
   &)
    availCapacity = theta_sat*rootingDepth - rootZoneIce
    if (rootZoneLiq > availCapacity+verySmaller) then
-     message=trim(message)//'liquid water in the root zone exceeds capacity'
-     err=20; return_flag=.true.; return
+     err=20; message=trim(message)//'liquid water in the root zone exceeds capacity'; return_flag=.true.; return
    end if
 
   end associate
  end subroutine update_surfaceFlx_liquidFlux_computation_available_capacity 
 
  subroutine update_surfaceFlx_liquidFlux_computation_max_infiltration_rate
-  ! **** Update operations for surfaceFlx: flux condition -- main computations (max infiltration rate and derivatives) ****
+  ! **** Update operations for surfaceFlx: max infiltration rate and derivatives ****
   associate(&
    ! input: model control
    ixInfRateMax => in_surfaceFlx % ixInfRateMax , & ! index defining the maximum infiltration rate method (GreenAmpt, topmodel_GA, noInfiltrationExcess)
@@ -1684,7 +1661,7 @@ contains
  end subroutine update_surfaceFlx_liquidFlux_computation_max_infiltration_rate
 
  subroutine update_surfaceFlx_liquidFlux_computation_homegrown
-  ! **** Update operations for surfaceFlx: flux condition -- main computations (infiltrating area) ****
+  ! **** Update operations for surfaceFlx: infiltrating area (ignoring frozen area) for homegrown saturation excess condition ****
   associate(&
    ! input: model control
    nSoil            => in_surfaceFlx % nSoil               , & ! number of soil layers
@@ -1730,41 +1707,36 @@ contains
  end subroutine update_surfaceFlx_liquidFlux_computation_homegrown
 
  subroutine update_surfaceFlx_liquidFlux_computation_frozen_area
-  ! **** Update operations for surfaceFlx: flux condition -- main computations (impermeable area due to soil freezing) ****
+  ! **** Update operations for surfaceFlx: get impermeable area due to soil freezing ****
   associate(&
-   ! input: model control
-   nSoil          => in_surfaceFlx % nSoil , & ! number of soil layers
-   ! input: flux at the upper boundary
-   scalarRainPlusMelt => in_surfaceFlx % scalarRainPlusMelt , & ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
    ! input: soil parameters
-   soilIceScale        => in_surfaceFlx % soilIceScale        , & ! soil ice scaling factor in Gamma distribution used to define frozen area (m)
-   soilIceCV           => in_surfaceFlx % soilIceCV           , & ! soil ice CV in Gamma distribution used to define frozen area (-)
-   ! input-output: surface runoff and infiltration flux (m s-1)
-   xMaxInfilRate    => io_surfaceFlx % xMaxInfilRate    , & ! maximum infiltration rate (m s-1)
-   scalarFrozenArea => io_surfaceFlx % scalarFrozenArea   & ! fraction of area that is considered impermeable due to soil ice (-)
+   soilIceScale        => in_surfaceFlx % soilIceScale       , & ! soil ice scaling factor in Gamma distribution used to define frozen area (m)
+   soilIceCV           => in_surfaceFlx % soilIceCV          , & ! soil ice CV in Gamma distribution used to define frozen area (-)
+   ! output: frozen area
+   scalarFrozenArea    => io_surfaceFlx % scalarFrozenArea     & ! fraction of area that is considered impermeable due to soil ice (-)
   &)
    ! define the impermeable area and derivatives due to frozen ground, first initialize
     dFrozenArea_dWat(:) = 0._rkind
     dFrozenArea_dTk(:)  = 0._rkind
-   if (rootZoneIce > tiny(rootZoneIce)) then  ! (avoid divide by zero)
-     alpha            = 1._rkind/(soilIceCV**2_i4b)        ! shape parameter in the Gamma distribution
-     xLimg            = alpha*soilIceScale/rootZoneIce  ! upper limit of the integral
-     !if we use this, we will have a derivative of scalarFrozenArea w.r.t. water and temperature in each layer (through mLayerVolFracIce)
-     ! Should fix to deal with frozen area in the root zone, calculations would be expensive
-     !scalarFrozenArea = 1._rkind - gammp(alpha,xLimg)      ! fraction of frozen area
-     !if(updateInfil)then
-     !  dFrozenArea_dWat(:) = -dgammp_dx(alpha,xLimg)*(-alpha*soilIceScale/rootZoneIce**2_i4b)*dRootZoneIce_dWat(:)
-     !  dFrozenArea_dTk(:)  = -dgammp_dx(alpha,xLimg)*(-alpha*soilIceScale/rootZoneIce**2_i4b)*dRootZoneIce_dTk(:)
-     !end if
-     scalarFrozenArea = 0._rkind
-   else
-     scalarFrozenArea = 0._rkind
-   end if
+    if (rootZoneIce > tiny(rootZoneIce)) then  ! (avoid divide by zero)
+      alpha = 1._rkind/(soilIceCV**2_i4b)     ! shape parameter in the Gamma distribution
+      xLimg = alpha*soilIceScale/rootZoneIce  ! upper limit of the integral
+      !if we use this, we will have a derivative of scalarFrozenArea w.r.t. water and temperature in each layer (through mLayerVolFracIce)
+      ! Should fix to deal with frozen area in the root zone, calculations would be expensive
+      !scalarFrozenArea = 1._rkind - gammp(alpha,xLimg)      ! fraction of frozen area
+      !if(updateInfil)then
+      !  dFrozenArea_dWat(:) = -dgammp_dx(alpha,xLimg)*(-alpha*soilIceScale/rootZoneIce**2_i4b)*dRootZoneIce_dWat(:)
+      !  dFrozenArea_dTk(:)  = -dgammp_dx(alpha,xLimg)*(-alpha*soilIceScale/rootZoneIce**2_i4b)*dRootZoneIce_dTk(:)
+      !end if
+      scalarFrozenArea = 0._rkind
+    else
+      scalarFrozenArea = 0._rkind
+    end if
   end associate
  end subroutine update_surfaceFlx_liquidFlux_computation_frozen_area
 
  subroutine update_surfaceFlx_liquidFlux_infiltration
-  ! **** Update operations for surfaceFlx: flux condition -- final infiltration and runoff calculations ****
+  ! **** Update operations for surfaceFlx: final infiltration and runoff calculations ****
   ! local variables
   real(rkind) :: surfaceInfiltration      ! surface infiltration
   real(rkind) :: surfaceRunoff            ! surface runoff 
@@ -1796,7 +1768,7 @@ contains
      scalarSoilControl = scalarInfilArea_unfrozen
    end if
 
-   ! infiltration rate derivatives, first initialize
+   ! infiltration rate derivatives, will be zero if no infiltration excess or if infiltration not being updated
    dInfilRate_dWat(:) = 0._rkind
    dInfilRate_dTk(:)  = 0._rkind
    if(updateInfil)then
@@ -1840,9 +1812,7 @@ contains
    err     => out_surfaceFlx % err    , & ! error code
    message => out_surfaceFlx % message  & ! error message
   &)
-   if (err /= 0_i4b) then
-    message=trim(message)//'unanticipated error in surfaceFlx subroutine'; return_flag=.true.; return
-   end if
+   if(err/=0)then; message=trim(message)//'unanticipated error in surfaceFlx subroutine'; return_flag=.true.; return; end if
   end associate
  end subroutine finalize_surfaceFlx
 
@@ -1993,8 +1963,7 @@ contains
      case(moisture)
        ! still need to implement arithmetric mean for the moisture-based form
        if (.not.useGeometric) then
-         message=trim(message)//'only currently implemented for geometric mean -- change local flag'
-         err=20; return_flag=.true.; return
+         err=20; message=trim(message)//'only currently implemented for geometric mean -- change local flag'; return_flag=.true.; return
        end if
        ! derivatives in hydraulic conductivity at the layer interface (m s-1)
        dHydCondIface_dVolLiqAbove = dHydCond_dVolLiq(ixUpper)*nodeHydCondTrial(ixLower) * 0.5_rkind/max(iLayerHydCond,verySmaller)
@@ -2033,10 +2002,7 @@ contains
    message => out_iLayerFlux % message  & ! error message
   &)
    ! final error check
-   if (err /= 0_i4b) then
-    message=trim(message)//'unanticipated error in iLayerFlux'
-    return_flag=.true.; return
-   end if
+   if(err/=0)then; message=trim(message)//'unanticipated error in iLayerFlux'; return_flag=.true.; return; end if
   end associate
  end subroutine finalize_iLayerFlux
  
@@ -2108,8 +2074,7 @@ contains
        call update_qDrainFlux_freeDrainage;   if (return_flag) return
      case(zeroFlux)       ! zero flux
        call update_qDrainFlux_zeroFlux;       if (return_flag) return
-     case default;
-        err=20; message=trim(message)//'unknown lower boundary condition for soil hydrology'; return_flag=.true.; return
+     case default; err=20; message=trim(message)//'unknown lower boundary condition for soil hydrology'; return_flag=.true.; return
    end select 
 
   end associate
@@ -2298,10 +2263,7 @@ contains
    message => out_qDrainFlux % message  & ! error message
   &)
    ! final error check
-   if (err /= 0_i4b) then
-    message=trim(message)//'unanticipated error in qDrainFlux'
-    return_flag=.true.; return
-   end if
+   if(err/=0)then; message=trim(message)//'unanticipated error in qDrainFlux'; return_flag=.true.; return; end if
   end associate
  end subroutine finalize_qDrainFlux
 
