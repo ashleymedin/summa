@@ -24,7 +24,7 @@ do_box = True # true is plot boxplot instead of CDF/histogram
 do_rel = False # true is plot relative to the benchmark simulation
 do_hist = False # true is plot histogram instead of CDF
 run_local = True # true is run on local machine, false is run on cluster
-fix_units_soil = True # true is convert to storage units, only works for Soil
+fix_units_soil = False # true is convert to storage units, only works for soil because of depth known and constant in enthalpy runs
 fix_wall_actors = True # true then scale reference solution for wall clock time
 fix_wall_actors_plot = False # true then plot the wall clock time comparison
 fix_wall_event_plot = False # true then plot the event detection time comparison
@@ -47,14 +47,16 @@ else:
 #plt_name=['BE1','IDAe-4','BE4','BE8','BE16','BE32','IDAe-6'] #maybe make this an argument
 #method_name=['be1','be16','be32','sun6'] #maybe make this an argument
 #plt_name=['BE1','BE16','BE32','SUNDIALS'] #maybe make this an argument
-method_name=['be8','be8cm','be8en','sun5cm','sun5en'] 
+method_name=['be8Nrg','be8cmNrg','be8enNrg','sun5cmNrg','sun5enNrg'] 
 plt_name=['BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp', 'SUNDIALS enth']
 #method_name=['sun5cm_noev','sun5cm','sun5en_noev','sun5en','sun8en_noev'] 
 #plt_name=['SUNDIALS temp no event','SUNDIALS temp', 'SUNDIALS enth no event', 'SUNDIALS enth', 'reference soln no event']
 #method_name=['old_be1','old_be1cm','old_be1en','be8','be8cm','be8en','sun5cm','sun5en'] 
 #plt_name=['BE1 common','BE1 temp','BE1 mixed','BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp', 'SUNDIALS enth']
-method_name2=method_name +['sun8en']
-plt_name2=plt_name +['reference soln']
+method_name2=method_name
+plt_name2=plt_name
+#method_name2=method_name +['sun8en']
+#plt_name2=plt_name +['reference soln']
 method_name3=method_name[0:3]
 plt_name3=plt_name[0:3]
 
@@ -70,17 +72,19 @@ def power_transform(x):
 # Simulation statistics file locations
 use_vars = []
 rep = [] # mark the repeats
-use_vars = [4,4,1,1]
-rep = [1,2,1,2] # mark the repeats
+#use_vars = [4,4,1,1]
+#rep = [1,2,1,2] # mark the repeats
 settings0= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','scalarRootZoneTemp']
 settings = [settings0[i] for i in use_vars]
 
-#use_vars2 = []
-#rep2 = [] # mark the repeats
+use_vars2 = [3,3]
+rep2 = [1,2] # mark the repeats
 use_vars2 = [8]
 rep2 = [0] # mark the repeats
 use_vars2 = [3,3]
 rep2 = [1,2] # mark the repeats
+use_vars2 = [1,1,2,2]
+rep2 = [1,2,1,2] # mark the repeats
 settings20= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
 settings2 = [settings20[i] for i in use_vars2]
 
@@ -170,9 +174,9 @@ for i in range(len(maxes)):
     if rep[i]==2: maxes[i] = maxes_m[use_vars[i]] #clunky way to increase the plot_range for the second repeat
 
 if stat2 == 'mean':
-    maxes2 = [1e2,1e2,1e2,1e2]+[1e-7,1e-5,1e-7,1e-8] + [2e-2]
+    maxes2 = [1e3,1e3,1e3,1e3]+[1e-7,1e-5,1e-7,1e-8] + [2e-2]
 if stat2 == 'amax':
-    maxes2 = [1e4,1e4,1e4,1e4]+[1e-5,1e-3,1e-5,1e-6] + [2.0]
+    maxes2 = [1e5,1e5,1e5,1e5]+[1e-5,1e-3,1e-5,1e-6] + [2.0]
 maxes2 = [maxes2[i] for i in use_vars2]
 for i in range(len(maxes2)):
     if rep2[i]==2: maxes2[i] = maxes2[i]*1e2 #clunky way to increase the plot_range for the second repeat
