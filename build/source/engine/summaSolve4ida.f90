@@ -620,7 +620,7 @@ subroutine summaSolve4ida(&
           ! Reininitialize solver for running after discontinuity and restart
           retval = FIDAReInit(ida_mem, tret(1), sunvec_y, sunvec_yp)
           if (retval /= 0) then; err=20; message=trim(message)//'error in FIDAReInit'; return; endif
-          if(dt_last(1) < 0.1_rkind)then ! don't keep calling if step is small (more accurate with this tiny but getting hung up)
+          if(dt_last(1) < 1.e-6_rkind .or. abs(dt_diff) < 1.e-6_rkind)then ! don't keep calling if step is small (prevents root bouncing)
             retval = FIDARootInit(ida_mem, 0, c_funloc(layerDisCont4ida))
             tinystep = .true.
           else
