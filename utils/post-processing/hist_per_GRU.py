@@ -24,11 +24,12 @@ do_box = True # true is plot boxplot instead of CDF/histogram
 do_rel = False # true is plot relative to the benchmark simulation
 do_hist = False # true is plot histogram instead of CDF
 run_local = True # true is run on local machine, false is run on cluster
-fix_units_soil = False # true is convert to storage units, only works for soil because of depth known and constant in enthalpy runs
+fix_units_soil = False # true is convert to storage units, only works for soil because of known and constant depth in default setup
 fix_wall_actors = True # true then scale reference solution for wall clock time
 fix_wall_actors_plot = False # true then plot the wall clock time comparison
 fix_wall_event_plot = False # true then plot the event detection time comparison
 no_snow = False # true is only plot snow free simulations
+sepNrgFiles = True # non-soil energy balances in different file from other balances
 # these options are for the boxplot only
 showfliers = False # true is show outliers in boxplot
 do_violin = False # true is plot violin plot instead of boxplot
@@ -43,20 +44,14 @@ else:
     viz_dir = Path(os.path.expanduser('~/statistics'))
     
 
-#method_name=['be1','sun4','be4','be8','be16','be32','sun6'] #maybe make this an argument
-#plt_name=['BE1','IDAe-4','BE4','BE8','BE16','BE32','IDAe-6'] #maybe make this an argument
 #method_name=['be1','be16','be32','sun6'] #maybe make this an argument
 #plt_name=['BE1','BE16','BE32','SUNDIALS'] #maybe make this an argument
-method_name=['be8Nrg','be8cmNrg','be8enNrg','sun5cmNrg','sun5enNrg'] 
+method_name=['be8','be8cm','be8en','sun5cm','sun5en'] 
 plt_name=['BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp', 'SUNDIALS enth']
-#method_name=['sun5cm_noev','sun5cm','sun5en_noev','sun5en','sun8en_noev'] 
-#plt_name=['SUNDIALS temp no event','SUNDIALS temp', 'SUNDIALS enth no event', 'SUNDIALS enth', 'reference soln no event']
-#method_name=['old_be1','old_be1cm','old_be1en','be8','be8cm','be8en','sun5cm','sun5en'] 
-#plt_name=['BE1 common','BE1 temp','BE1 mixed','BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp', 'SUNDIALS enth']
-method_name2=method_name
-plt_name2=plt_name
-#method_name2=method_name +['sun8en']
-#plt_name2=plt_name +['reference soln']
+#method_name2=method_name
+#plt_name2=plt_name
+method_name2=method_name +['sun8en']
+plt_name2=plt_name +['reference soln']
 method_name3=method_name[0:3]
 plt_name3=plt_name[0:3]
 
@@ -81,10 +76,10 @@ use_vars2 = [3,3]
 rep2 = [1,2] # mark the repeats
 use_vars2 = [8]
 rep2 = [0] # mark the repeats
-use_vars2 = [3,3]
-rep2 = [1,2] # mark the repeats
-use_vars2 = [1,1,2,2]
-rep2 = [1,2,1,2] # mark the repeats
+#use_vars2 = [3,3]
+#rep2 = [1,2] # mark the repeats
+use_vars2 = [1,1,2,2,3,3]
+rep2 = [1,2,1,2,1,2] # mark the repeats
 settings20= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
 settings2 = [settings20[i] for i in use_vars2]
 
@@ -118,7 +113,9 @@ leg_titl = [leg_titl[i] for i in use_vars]
 plot_vars2 = settings2.copy()
 plt_titl2 = ['canopy air space enthalpy balance','vegetation enthalpy balance','snow enthalpy balance','soil enthalpy balance','vegetation mass balance','snow mass balance','soil mass balance','aquifer mass balance', 'wall clock time']
 leg_titl2 = ['$W~m^{-3}$'] * 4 + ['$kg~m^{-3}~s^{-1}$'] * 3 + ['$kg~m^{-2}~s^{-1}$']+ ['$s$']
-if fix_units_soil: leg_titl2 = ['$kJ~m^{-2}$'] * 4 + ['$kg~m^{-2}'] * 4 + ['$s$']
+if fix_units_soil: 
+    leg_titl2[3] = ['$kJ~m^{-2}$'] 
+    leg_titl2[6] = ['$kg~m^{-2}']
 if (len(use_vars)+len(use_vars2)>1): 
     plt_titl2 = [f"({chr(97+n + len(use_vars))}) {plt_titl2[i]}" for n,i in enumerate(use_vars2)]
 else:
@@ -174,9 +171,9 @@ for i in range(len(maxes)):
     if rep[i]==2: maxes[i] = maxes_m[use_vars[i]] #clunky way to increase the plot_range for the second repeat
 
 if stat2 == 'mean':
-    maxes2 = [1e3,1e3,1e3,1e3]+[1e-7,1e-5,1e-7,1e-8] + [2e-2]
+    maxes2 = [5e1,5e1,5e1,5e1]+[1e-7,1e-5,1e-7,1e-8] + [2e-2]
 if stat2 == 'amax':
-    maxes2 = [1e5,1e5,1e5,1e5]+[1e-5,1e-3,1e-5,1e-6] + [2.0]
+    maxes2 = [5e3,5e3,5e3,5e3]+[1e-5,1e-3,1e-5,1e-6] + [2.0]
 maxes2 = [maxes2[i] for i in use_vars2]
 for i in range(len(maxes2)):
     if rep2[i]==2: maxes2[i] = maxes2[i]*1e2 #clunky way to increase the plot_range for the second repeat
@@ -196,8 +193,13 @@ if len(use_vars2)>0:
     for i, m in enumerate(method_name2):
         summa1[m] = xr.open_dataset(viz_dir/viz_fl2[i])
     if fix_wall_actors and 'wallClockTime' in settings2:
-        summa1['be8Old'] = xr.open_dataset(viz_dir/'be8_hrly_diff_bals_balanceOld.nc')
-        summa1['sun5enOld'] = xr.open_dataset(viz_dir/'sun5en_hrly_diff_bals_balanceOld.nc')
+        summa1['be8Old'] = xr.open_dataset(viz_dir/'be8NrgOld_hrly_diff_bals_balance.nc')
+        summa1['sun5enOld'] = xr.open_dataset(viz_dir/'sun5enNrgOld_hrly_diff_bals_balance.nc')
+if any(use_vars2)<3 and sepNrgFiles: # other Nrg data
+    for i, m in enumerate(method_name2):
+        viz_fl2b = m + 'Nrg_hrly_diff_bals_balance.nc'
+        if 'sun8' in m: viz_fl2b = m + 'NrgOld_hrly_diff_bals_balance.nc' # didn't redo
+        summa1[m+'Nrg'] = xr.open_dataset(viz_dir/viz_fl2b)
 
 if len(use_vars3)>0:
     for i, m in enumerate(method_name3):
@@ -211,6 +213,9 @@ if no_snow:
     if len(use_vars2)>0:
         for m in method_name2:
             summa1[m] = summa1[m].where(summa[method_name[0]]['scalarSWE'].sel(stat='mean_ben') == 0)
+            if any(use_vars2)<3 and sepNrgFiles:
+                summa1[m+'Nrg'] = summa1[m+'Nrg'].where(summa[method_name[0]]['scalarSWE'].sel(stat='mean_ben') == 0)
+        
     if len(use_vars3)>0:
         for m in method_name3:
             summa2[m] = summa2[m].where(summa[method_name[0]]['scalarSWE'].sel(stat='mean_ben') == 0)
@@ -376,7 +381,10 @@ def run_loopb(i,var,mx,rep,stat2):
         mn = 1.0
         for m in method_name2:
             # Get the statistics, remove 9999 (should be nan, but just in case)
-            s = summa1[m][var].sel(stat=stat0).where(lambda x: x != 9999)
+            if 'Soil' not in var and sepNrgFiles:
+                s = summa1[m+'Nrg'][var].sel(stat=stat0).where(lambda x: x != 9999)
+            else:
+                s = summa1[m][var].sel(stat=stat0).where(lambda x: x != 9999)
             if var=='wallClockTime': s = s.where(lambda x: x != 0) # Actors simulations may have 0
             mx = max(s.max(),mx)
             mn = min(s.min(),mn)
@@ -385,7 +393,10 @@ def run_loopb(i,var,mx,rep,stat2):
     combined_s2 = []
     combined_s_saved = []
     for m in method_name2:
-        s = summa1[m][var].sel(stat=stat0).where(lambda x: x != 9999)
+        if 'Soil' not in var and sepNrgFiles:
+            s = summa1[m+'Nrg'][var].sel(stat=stat0).where(lambda x: x != 9999)
+        else:
+            s = summa1[m][var].sel(stat=stat0).where(lambda x: x != 9999)            
         if var=='wallClockTime': s = s.where(lambda x: x != 0) # water bodies should be 0
         if fix_units_soil and 'Soil' in var: 
             s = s*3600*3.0 # mult by time step and depth to get storage
