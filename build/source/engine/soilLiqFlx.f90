@@ -953,8 +953,18 @@ contains
    dq_dHydStateVec => out_surfaceFlx % dq_dHydStateVec , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
    dq_dNrgStateVec => out_surfaceFlx % dq_dNrgStateVec   & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
   &)
-   dq_dHydStateVec(:) = 0._rkind
-   dq_dNrgStateVec(:) = 0._rkind ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
+   dVolFracLiq_dWat(:)    = 0._rkind
+   dVolFracIce_dWat(:)    = 0._rkind
+   dVolFracLiq_dTk(:)     = 0._rkind
+   dVolFracIce_dTk(:)     = 0._rkind
+   dInfilArea_dWat(:)     = 0._rkind
+   dInfilArea_dTk(:)      = 0._rkind
+   dxMaxInfilRate_dWat(:) = 0._rkind
+   dxMaxInfilRate_dTk(:)  = 0._rkind
+   dFrozenArea_dWat(:)    = 0._rkind
+   dFrozenArea_dTk(:)     = 0._rkind
+   dq_dHydStateVec(:)     = 0._rkind
+   dq_dNrgStateVec(:)     = 0._rkind ! energy state variable is temperature (transformed outside soilLiqFlx_module if needed)
   end associate
 
   ! initialize runoff and infiltration values
@@ -1006,9 +1016,7 @@ contains
          ! compute volumetric fraction of liquid and ice water in each soil layer and their derivatives
          if(updateInfil) call update_volFracLiq_derivatives; if (return_flag) return
 
-         ! Get infiltration area not considering frozen area, initialize derivatives to zero before calculating based on SE method
-         dInfilArea_dWat(:) = 0._rkind
-         dInfilArea_dTk(:)  = 0._rkind
+         ! Get infiltration area not considering frozen area, based on SE method
          select case(surfRun_SE) ! saturation excess surface runoff method, sets infiltration area (not considering frozen) and its derivatives
            case(zero_SE)         ! zero saturation excess surface runoff, all area infiltrates if not frozen
              io_surfaceFlx % scalarInfilArea = 1._rkind
@@ -1076,12 +1084,6 @@ contains
    err      => out_surfaceFlx % err    , & ! error code
    message  => out_surfaceFlx % message  & ! error message
   &)
-
-   ! first initialize
-   dVolFracLiq_dWat(:) = 0._rkind
-   dVolFracIce_dWat(:) = 0._rkind
-   dVolFracLiq_dTk(:)  = 0._rkind
-   dVolFracIce_dTk(:)  = 0._rkind
 
    ! determine number of layers to process and whether ice derivatives are needed
    if (surfRun_SE ==homegrown_SE) then ! need only root zone derivatives but need ice derivatives
@@ -1473,8 +1475,6 @@ contains
    scalarSoilControl = 0._rkind 
 
    ! compute the derivatives at the surface, only has a non-zero value for the upper-most soil layer
-   dq_dHydStateVec(:) = 0._rkind
-   dq_dNrgStateVec(:) = 0._rkind
    if(updateInfil)then
      select case(ixRichards)  ! select form of Richards' equation
        case(moisture); dq_dHydStateVec(1) = -surfaceDiffuse/(mLayerDepth(1)/2._rkind)
@@ -1632,9 +1632,6 @@ contains
      hydCondWettingFront = surfaceSatHydCond * ( (1._rkind - depthWettingFront/total_soil_depth)**(zScale_TOPMODEL - 1._rkind) )
      ! define the maximum infiltration rate (m s-1)
      xMaxInfilRate = hydCondWettingFront*( (wettingFrontSuction + depthWettingFront)/depthWettingFront )  ! maximum infiltration rate (m s-1)
-     ! initialize the derivatives
-     dxMaxInfilRate_dWat(:) = 0._rkind
-     dxMaxInfilRate_dTk(:)  = 0._rkind
      ! define the derivatives
      if(updateInfil)then
        fPart1    = hydCondWettingFront
@@ -1715,9 +1712,7 @@ contains
    ! output: frozen area
    scalarFrozenArea    => io_surfaceFlx % scalarFrozenArea     & ! fraction of area that is considered impermeable due to soil ice (-)
   &)
-   ! define the impermeable area and derivatives due to frozen ground, first initialize
-    dFrozenArea_dWat(:) = 0._rkind
-    dFrozenArea_dTk(:)  = 0._rkind
+   ! define the impermeable area and derivatives due to frozen ground
     if (rootZoneIce > tiny(rootZoneIce)) then  ! (avoid divide by zero)
       alpha = 1._rkind/(soilIceCV**2_i4b)     ! shape parameter in the Gamma distribution
       xLimg = alpha*soilIceScale/rootZoneIce  ! upper limit of the integral
@@ -1768,9 +1763,7 @@ contains
      scalarSoilControl = scalarInfilArea_unfrozen
    end if
 
-   ! infiltration rate derivatives, will be zero if no infiltration excess or if infiltration not being updated
-   dInfilRate_dWat(:) = 0._rkind
-   dInfilRate_dTk(:)  = 0._rkind
+   ! infiltration rate derivatives, will stay at zero if no infiltration excess or if infiltration not being updated
    if(updateInfil)then
      if (xMaxInfilRate < scalarRainPlusMelt) then ! = dxMaxInfilRate_d, dependent on layers not at surface
        dInfilRate_dWat(:) = dxMaxInfilRate_dWat(:)
