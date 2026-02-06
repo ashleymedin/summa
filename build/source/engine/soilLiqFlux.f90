@@ -215,7 +215,7 @@ contains
    message      => out_soilLiqFlux % cmessage                     & ! intent(out): error message
   &)
    nRoots = count(iLayerHeight(0:nSoil-1) < rootingDepth-verySmall)
-   if(nRoots==0)then; message=trim(message)//'no layers with roots'; err=20; return_flag=.true.; return; end if
+   if(nRoots==0)then; message=trim(message)//'no layers with roots/infiltration'; err=20; return_flag=.true.; return; end if
   end associate
 
   ! ** identify lowest soil layer with ice **
@@ -551,7 +551,7 @@ contains
      dq_dNrgStateBelow(nSoil) = 0._rkind ! will be calculated in computeJacob
    endif
    call out_qDrainFlux % finalize(nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse,err,cmessage)
-   if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
+   if(err/=0)then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end associate
  end subroutine finalize_compute_drainage_flux
 end subroutine soilLiqFlux
@@ -997,7 +997,7 @@ contains
    ixInfRateMax => in_surfaceFlux % ixInfRateMax,     & ! index defining the maximum infiltration rate method
    surfRun_SE => in_surfaceFlux % surfRun_SE,         & ! index defining the saturation excess surface runoff method
    ! input to compute infiltration
-   scalarRainPlusMelt => in_surfaceFlux % scalarRainPlusMelt, & ! rain plus melt  (m s-1)
+   scalarRainPlusMelt => in_surfaceFlux % scalarRainPlusMelt, & ! rain plus melt plus lake drainage (m s-1)
    ! output: infiltration area and saturated area
    scalarInfilArea    => io_surfaceFlux % scalarInfilArea,      & ! fraction of area where water can infiltrate, may be frozen (-)
    scalarSaturatedArea => io_surfaceFlux % scalarSaturatedArea, & ! saturated area fraction (-)
@@ -1078,7 +1078,7 @@ subroutine update_volFracLiq_derivatives
    ixInfRateMax        => in_surfaceFlux % ixInfRateMax       , & ! index defining the maximum infiltration rate method
    surfRun_SE          => in_surfaceFlux % surfRun_SE         , & ! index defining the saturation excess surface runoff method
    ixRichards          => in_surfaceFlux % ixRichards         , & ! index defining the option for Richards' equation (moisture or mixdform)
-   nRoots              => in_surfaceFlux % nRoots             , & ! number of layers that contain roots
+   nRoots              => in_surfaceFlux % nRoots             , & ! number of layers that contain roots or take infiltration
    nSoil               => in_surfaceFlux % nSoil              , & ! total number of soil layers
    ! input: state and diagnostic variables
    mLayerTemp          => in_surfaceFlux % mLayerTemp         , & ! temperature (K)
@@ -1430,7 +1430,7 @@ subroutine update_volFracLiq_derivatives
    ! input: state and diagnostic variables
    scalarMatricHeadLiq => in_surfaceFlux % scalarMatricHeadLiq , & ! liquid matric head in the upper-most soil layer (m)
    scalarVolFracLiq    => in_surfaceFlux % scalarVolFracLiq    , & ! volumetric liquid water content in the upper-most soil layer (-)
-   ! input: depth of depth of each soil layer (m)
+   ! input: depth of each soil layer (m)
    mLayerDepth  => in_surfaceFlux % mLayerDepth  , & ! depth of each soil layer (m)
    ! input: diriclet boundary conditions
    upperBoundHead   => in_surfaceFlux % upperBoundHead  , & ! upper boundary condition for matric head (m)
@@ -1676,7 +1676,7 @@ subroutine update_volFracLiq_derivatives
   associate(&
    ! input: model control
    nSoil            => in_surfaceFlux % nSoil               , & ! number of soil layers
-   nRoots           => in_surfaceFlux % nRoots              , & ! number of layers that contain roots
+   nRoots           => in_surfaceFlux % nRoots              , & ! number of layers that contain roots or take infiltration (-)
    ixIce            => in_surfaceFlux % ixIce               , & ! index of lowest ice layer
    mLayerVolFracLiq => in_surfaceFlux % mLayerVolFracLiq    , & ! volumetric liquid water content in each soil layer (-)
    mLayerDepth      => in_surfaceFlux % mLayerDepth         , & ! depth of each soil layer (m)
@@ -1755,7 +1755,7 @@ subroutine update_volFracLiq_derivatives
   ! compute infiltration and runoff
   associate(&
    ! input: flux at the upper boundary
-   scalarRainPlusMelt   => in_surfaceFlux % scalarRainPlusMelt, & ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
+   scalarRainPlusMelt   => in_surfaceFlux % scalarRainPlusMelt, & ! rain plus melt plus lake drainage, used as input to the soil zone before computing surface runoff (m s-1)
    ! input-output: surface runoff and infiltration flux (m s-1)
    xMaxInfilRate       => io_surfaceFlux % xMaxInfilRate    ,   & ! maximum infiltration rate (m s-1)
    scalarInfilArea     => io_surfaceFlux % scalarInfilArea  ,   & ! fraction of area where water can infiltrate, may be frozen (-)
