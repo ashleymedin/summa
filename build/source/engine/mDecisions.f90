@@ -158,9 +158,6 @@ integer(i4b),parameter,public :: emptyStart           = 327    ! empty aquifer a
 integer(i4b),parameter,public :: GreenAmpt            = 331    ! Green-Ampt
 integer(i4b),parameter,public :: topmodel_GA          = 332    ! Green-Ampt-ish for use with qbaseTopmodel hydraulic conductivity
 integer(i4b),parameter,public :: noInfiltrationExcess = 333    ! No infiltration excess runoff
-! look-up values for the infiltration excess surface runoff method
-integer(i4b),parameter,public :: zero_IE              = 341    ! zero infiltration excess surface runoff
-integer(i4b),parameter,public :: homegrown_IE         = 342    ! homegrown infiltration excess surface runoff
 ! look-up values for the saturation excess surface runoff method
 integer(i4b),parameter,public :: zero_SE              = 351    ! zero saturation excess surface runoff
 integer(i4b),parameter,public :: homegrown_SE         = 352    ! homegrown saturation excess surface runoff
@@ -692,15 +689,6 @@ subroutine mDecisions(err,message)
       else
         err=10; message=trim(message)//"unknown option for infiltration method [option="//trim(model_decisions(iLookDECISIONS%infRateMax)%cDecision)//"]"; return
       endif
-  end select
-
-  ! choice of method for infiltration excess surface runoff
-  ! NOTE: use homegrown surface runoff procedure as the default
-  select case(trim(model_decisions(iLookDECISIONS%surfRun_IE)%cDecision))
-    case('zero_IE'); model_decisions(iLookDECISIONS%surfRun_IE)%iDecision = zero_IE           ! infiltration excess surface runoff is zero
-    case('homegrown_IE','notPopulatedYet'); model_decisions(iLookDECISIONS%surfRun_IE)%iDecision = homegrown_IE ! use SUMMA's homegrown surface runoff procedure for infiltration excess runoff
-    case default
-      err=10; message=trim(message)//"unknown option for infiltration excess surface runoff method [option="//trim(model_decisions(iLookDECISIONS%surfRun_IE)%cDecision)//"]"; return
   end select
 
   ! choice of method for saturation excess surface runoff
