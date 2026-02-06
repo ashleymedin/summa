@@ -29,7 +29,6 @@ fix_wall_actors = True # true then scale reference solution for wall clock time
 fix_wall_actors_plot = False # true then plot the wall clock time comparison
 fix_wall_event_plot = False # true then plot the event detection time comparison
 no_snow = False # true is only plot snow free simulations
-sepNrgFiles = True # non-soil energy balances in different file from other balances
 # these options are for the boxplot only
 showfliers = False # true is show outliers in boxplot
 do_violin = False # true is plot violin plot instead of boxplot
@@ -195,11 +194,6 @@ if len(use_vars2)>0:
     if fix_wall_actors and 'wallClockTime' in settings2:
         summa1['be8Old'] = xr.open_dataset(viz_dir/'be8NrgOld_hrly_diff_bals_balance.nc')
         summa1['sun5enOld'] = xr.open_dataset(viz_dir/'sun5enNrgOld_hrly_diff_bals_balance.nc')
-if any(use_vars2)<3 and sepNrgFiles: # other Nrg data
-    for i, m in enumerate(method_name2):
-        viz_fl2b = m + 'Nrg_hrly_diff_bals_balance.nc'
-        if 'sun8' in m: viz_fl2b = m + 'NrgOld_hrly_diff_bals_balance.nc' # didn't redo
-        summa1[m+'Nrg'] = xr.open_dataset(viz_dir/viz_fl2b)
 
 if len(use_vars3)>0:
     for i, m in enumerate(method_name3):
@@ -213,8 +207,6 @@ if no_snow:
     if len(use_vars2)>0:
         for m in method_name2:
             summa1[m] = summa1[m].where(summa[method_name[0]]['scalarSWE'].sel(stat='mean_ben') == 0)
-            if any(use_vars2)<3 and sepNrgFiles:
-                summa1[m+'Nrg'] = summa1[m+'Nrg'].where(summa[method_name[0]]['scalarSWE'].sel(stat='mean_ben') == 0)
         
     if len(use_vars3)>0:
         for m in method_name3:
@@ -381,10 +373,7 @@ def run_loopb(i,var,mx,rep,stat2):
         mn = 1.0
         for m in method_name2:
             # Get the statistics, remove 9999 (should be nan, but just in case)
-            if 'Soil' not in var and sepNrgFiles:
-                s = summa1[m+'Nrg'][var].sel(stat=stat0).where(lambda x: x != 9999)
-            else:
-                s = summa1[m][var].sel(stat=stat0).where(lambda x: x != 9999)
+            s = summa1[m][var].sel(stat=stat0).where(lambda x: x != 9999)
             if var=='wallClockTime': s = s.where(lambda x: x != 0) # Actors simulations may have 0
             mx = max(s.max(),mx)
             mn = min(s.min(),mn)
@@ -393,10 +382,7 @@ def run_loopb(i,var,mx,rep,stat2):
     combined_s2 = []
     combined_s_saved = []
     for m in method_name2:
-        if 'Soil' not in var and sepNrgFiles:
-            s = summa1[m+'Nrg'][var].sel(stat=stat0).where(lambda x: x != 9999)
-        else:
-            s = summa1[m][var].sel(stat=stat0).where(lambda x: x != 9999)            
+        s = summa1[m][var].sel(stat=stat0).where(lambda x: x != 9999)            
         if var=='wallClockTime': s = s.where(lambda x: x != 0) # water bodies should be 0
         if fix_units_soil and 'Soil' in var: 
             s = s*3600*3.0 # mult by time step and depth to get storage
