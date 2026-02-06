@@ -318,7 +318,8 @@ MODULE var_lookup
   integer(i4b)    :: idaMinStepSize        = integerMissing    ! minimum step size for IDA
   integer(i4b)    :: idaMaxStepSize        = integerMissing    ! maximum step size for IDA
   integer(i4b)    :: idaMaxErrTestFail     = integerMissing    ! maximum number of error test failures for IDA
-  integer(i4b)    :: idaMaxDataWindowSteps = integerMissing    ! maximum number of steps for IDA within one data window
+  integer(i4b)    :: idaMaxDataWindowSteps = integerMissing    ! maximum number of steps with event detection for IDA per data window
+  integer(i4b)    :: idaDetectEvents       = integerMissing    ! flag to turn on event detection in IDA, 0=off, 1=on
   integer(i4b)    :: zmin                  = integerMissing    ! minimum layer depth (m)
   integer(i4b)    :: zmax                  = integerMissing    ! maximum layer depth (m)
   integer(i4b)    :: zminLayer1            = integerMissing    ! minimum layer depth for the 1st (top) layer (m)
@@ -924,7 +925,7 @@ MODULE var_lookup
                                                                         151,152,153,154,155,156,157,158,159,160,&
                                                                         161,162,163,164,165,166,167,168,169,170,&
                                                                         171,172,173,174,175,176,177,178,179,180,&
-                                                                        181)
+                                                                        181,182)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

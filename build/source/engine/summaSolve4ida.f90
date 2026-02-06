@@ -253,7 +253,7 @@ subroutine summaSolve4ida(&
   ! flags
   logical(lgt)                      :: use_fdJac                              ! flag to use finite difference Jacobian, controlled by decision fDerivMeth
   logical(lgt),parameter            :: offErrWarnMessage = .true.             ! flag to turn IDA warnings off, default true
-  logical(lgt),parameter            :: detect_events = .true.                 ! flag to do event detection and restarting, default true
+  logical(lgt)                      :: detect_events                          ! flag to do event detection and restarting, default true
   ! -----------------------------------------------------------------------------------------------------
   ! link to the necessary variables
   associate(&
@@ -381,7 +381,14 @@ subroutine summaSolve4ida(&
     ! set tolerances
     retval = FIDAWFtolerances(ida_mem, c_funloc(computWeight4ida))
     if (retval /= 0) then; err=20; message=trim(message)//'error in FIDAWFtolerances'; return; endif
-    
+
+    ! set event detection flag
+    if (mpar_data%var(iLookPARAM%idaDetectEvents)%dat(1) == 0._rkind) then
+      detect_events = .false.
+    else
+      detect_events = .true.
+    end if
+
     ! initialize rootfinding problem and allocate space, counting roots
     if(detect_events)then
       nRoot = 0
@@ -467,15 +474,6 @@ subroutine summaSolve4ida(&
     nSteps = 0 ! initialize number of time steps taken in solver
 
     do while(tret(1) < dt_cur)
-      ! fail if already hit limit on number of sub-steps, treat 1e10 as no limit
-      if (mpar_data%var(iLookPARAM%idaMaxDataWindowSteps)%dat(1)<1.e10_rkind) then
-        if (nSteps==mpar_data%var(iLookPARAM%idaMaxDataWindowSteps)%dat(1)) then
-          idaSucceeds = .false.
-          message=trim(message)//'exceeded maximum number of sub-steps in data window'
-          exit
-        end if
-      end if
-    
       ! call this at beginning of step to reduce root bouncing (only looking in one direction)
       if(detect_events .and. .not.tinystep)then
         call find_rootdir(eqns_data, rootdir)
@@ -594,15 +592,13 @@ subroutine summaSolve4ida(&
       ! Restart for where vegetation and layers cross freezing point
       if(detect_events)then
         if (retvalr .eq. IDA_ROOT_RETURN) then ! IDASolve succeeded and found one or more roots at tret(1)
-          ! rootsfound[i]= +1 indicates that gi is increasing, -1 g[i] decreasing, 0 no root
-          !retval = FIDAGetRootInfo(ida_mem, rootsfound)
-          !if (retval < 0) then; err=20; message=trim(message)//'error in FIDAGetRootInfo'; return; endif
-          !print '(a,f15.7,2x,17(i2,2x))', "time, rootsfound[] = ", tret(1), rootsfound
           ! Reininitialize solver for running after discontinuity and restart
           retval = FIDAReInit(ida_mem, tret(1), sunvec_y, sunvec_yp)
           if (retval /= 0) then; err=20; message=trim(message)//'error in FIDAReInit'; return; endif
-          !if(dt_last(1) < 1.e-6_rkind .or. abs(dt_diff) < 1.e-6_rkind)then ! don't keep calling if step is small (prevents root bouncing)
-          if(dt_last(1) < 1.e-1_rkind)then ! don't keep calling if step is small (more accurate with this tiny but getting hung up)            
+          ! don't keep calling if step is small, or took many steps already (prevents root bouncing)
+          if(dt_last(1) < 1.e-6_rkind .or. abs(dt_diff) < 1.e-6_rkind &
+            .or. (mpar_data%var(iLookPARAM%idaMaxDataWindowSteps)%dat(1)<1.e10_rkind &
+            .and. nSteps>=mpar_data%var(iLookPARAM%idaMaxDataWindowSteps)%dat(1)))then ! treat 1e10 as no limit on steps
             retval = FIDARootInit(ida_mem, 0, c_funloc(layerDisCont4ida))
             tinystep = .true.
           else
@@ -612,7 +608,6 @@ subroutine summaSolve4ida(&
           if (retval /= 0) then; err=20; message=trim(message)//'error in FIDARootInit'; return; endif
         endif
       endif
-    
     enddo ! while loop on one_step mode until time dt_cur
     !****************************** End of Main Solver ***************************************
     
@@ -721,7 +716,7 @@ subroutine setSolverParams(dt_cur,mpar_data,ida_mem,retval)
 
   ! calling variables
   real(rkind),intent(in)        :: dt_cur             ! current whole time step
-  type(var_dlength),intent(in)  :: mpar_data       ! model parameters
+  type(var_dlength),intent(in)  :: mpar_data          ! model parameters
   type(c_ptr),intent(inout)     :: ida_mem            ! IDA memory
   integer(i4b),intent(out)      :: retval             ! return value
 
