@@ -25,9 +25,9 @@ do_rel = False # true is plot relative to the benchmark simulation
 do_hist = False # true is plot histogram instead of CDF
 run_local = True # true is run on local machine, false is run on cluster
 fix_units_soil = False # true is convert to storage units, only works for soil because of known and constant depth in default setup
-fix_wall_actors = True # true then scale reference solution for wall clock time
-fix_wall_actors_plot = False # true then plot the wall clock time comparison
-fix_wall_event_plot = False # true then plot the event detection time comparison
+fix_wall_actors = False # true then scale reference solution for wall clock time
+comp_wall_actors_plot = False # true then plot the wall clock time comparison
+comp_wall_event_plot = False # true then plot the event detection time comparison
 no_snow = False # true is only plot snow free simulations
 # these options are for the boxplot only
 showfliers = False # true is show outliers in boxplot
@@ -45,10 +45,14 @@ else:
 
 #method_name=['be1','be16','be32','sun6'] #maybe make this an argument
 #plt_name=['BE1','BE16','BE32','SUNDIALS'] #maybe make this an argument
+#method_name=['sun5cm_noev','sun5cm_ev','sun5en_noev','sun5en_ev','sun8en_noev'] 
+#plt_name=['SUNDIALS temp no ev','SUNDIALS temp', 'SUNDIALS enth no ev', 'SUNDIALS enth','reference soln no ev']
 method_name=['be8','be8cm','be8en','sun5cm','sun5en'] 
 plt_name=['BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp', 'SUNDIALS enth']
 #method_name2=method_name
 #plt_name2=plt_name
+#method_name2=method_name +['sun8en_ev']
+#method_name2=method_name +['sun8enOrigWall']
 method_name2=method_name +['sun8en']
 plt_name2=plt_name +['reference soln']
 method_name3=method_name[0:3]
@@ -77,8 +81,8 @@ use_vars2 = [8]
 rep2 = [0] # mark the repeats
 #use_vars2 = [3,3]
 #rep2 = [1,2] # mark the repeats
-use_vars2 = [1,1,2,2,3,3]
-rep2 = [1,2,1,2,1,2] # mark the repeats
+#use_vars2 = [1,1,2,2,3,3]
+#rep2 = [1,2,1,2,1,2] # mark the repeats
 settings20= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
 settings2 = [settings20[i] for i in use_vars2]
 
@@ -191,7 +195,7 @@ if len(use_vars)>0:
 if len(use_vars2)>0:
     for i, m in enumerate(method_name2):
         summa1[m] = xr.open_dataset(viz_dir/viz_fl2[i])
-    if fix_wall_actors and 'wallClockTime' in settings2:
+    if (fix_wall_actors or comp_wall_actors_plot) and 'wallClockTime' in settings2:
         summa1['be8Old'] = xr.open_dataset(viz_dir/'be8NrgOld_hrly_diff_bals_balance.nc')
         summa1['sun5enOld'] = xr.open_dataset(viz_dir/'sun5enNrgOld_hrly_diff_bals_balance.nc')
 
@@ -270,7 +274,6 @@ def run_loop(i,var,mx,rep,stat):
     for m in method_name:
         s = summa[m][var].sel(stat=stat0)
         if do_rel and var != 'wallClockTime': s = s/s_rel
-
         if var == 'scalarTotalET' and not do_rel:
             if stat =='rmse' or stat =='rmnz' or stat=='mean': s = s*31557600 # make annual total
             if stat =='maxe': s = s*3600 # make hourly max
@@ -303,6 +306,7 @@ def run_loop(i,var,mx,rep,stat):
                 valid_data = sorted_data[~np.isnan(sorted_data)]
                 yvals = np.arange(len(valid_data)) / float(len(valid_data) - 1)
                 axs[r,c].plot(valid_data, yvals, zorder=0, label=m, linewidth=3.0)
+        print("max, min, mean without nans", s.where(lambda x: ~np.isnan(x)).max().values, s.where(lambda x: ~np.isnan(x)).min().values, s.where(lambda x: ~np.isnan(x)).mean().values, m, var)
 
     if stat0 == 'rmse': stat_word = 'RMSE'
     if stat0 == 'rmnz': stat_word = 'RMSE' # no 0s'
@@ -377,7 +381,6 @@ def run_loopb(i,var,mx,rep,stat2):
             if var=='wallClockTime': s = s.where(lambda x: x != 0) # Actors simulations may have 0
             mx = max(s.max(),mx)
             mn = min(s.min(),mn)
-    print(mx,mn,var)
     # Data
     combined_s2 = []
     combined_s_saved = []
@@ -389,6 +392,65 @@ def run_loopb(i,var,mx,rep,stat2):
             if 'Nrg' in var: s = s*1e-3
 
         plot_range = (mn,mx)
+
+        if (fix_wall_actors or comp_wall_actors_plot) and 'wallClockTime' in var: 
+            from scipy.stats import linregress
+            if m in ['be8', 'sun5en']:
+                s_saved = s
+                s2 = summa1[f'{m}Old'][var].sel(stat=stat0).where(lambda x: x != 9999)
+                s2 = s2.where(lambda x: x != 0)  # water bodies should be 0
+                mask = ~np.isnan(s2.values) & ~np.isnan(s_saved.values)
+                s2 = s2[mask]
+                s_saved = s_saved[mask]
+                combined_s2.append(s2.values)
+                combined_s_saved.append(s_saved.values)
+                first_len = len(s2)
+
+            if m=='sun8en': # assumes sun8en is the last one
+                combined_s2 = np.concatenate(combined_s2)
+                combined_s_saved = np.concatenate(combined_s_saved)
+                # Least squares fit
+                A = combined_s2[:, np.newaxis]
+                fac, _, _, _ = np.linalg.lstsq(A, combined_s_saved, rcond=None)
+                fac = fac[0]
+                print(f'Best fit least squares ratio (slope={fac:.4f})')
+                slope, intercept, r_value, p_value, std_err = linregress(combined_s2, combined_s_saved)
+                print(f'Best fit regression line (slope={slope:.4f}, intercept={intercept:.4f}, corr coeff={r_value:.2e})')
+                # slope = 0.8731
+                # intercept = -0.0003
+                # corr coeff = 0.880
+                # x is s2, non-actors Graham way (Anvil is faster)
+                s = s * slope + intercept
+                
+        if comp_wall_event_plot and 'wallClockTime' in var:
+            from scipy.stats import linregress
+            if m in ['sun5cm_ev','sun5en_ev','sun8en_ev']:
+                s_saved = s
+                s2 = summa1[f'{m[:-3]}_noev'][var].sel(stat=stat0).where(lambda x: x != 9999)
+                s2 = s2.where(lambda x: x != 0)  # water bodies should be 0
+                mask = ~np.isnan(s2.values) & ~np.isnan(s_saved.values)
+                s2 = s2[mask]
+                s_saved = s_saved[mask]
+                combined_s2.append(s2.values)
+                combined_s_saved.append(s_saved.values)
+                first_len = len(s2)
+
+            if m=='sun8en_ev': # assumes sun8en is the last one
+                combined_s2 = np.concatenate(combined_s2)
+                combined_s_saved = np.concatenate(combined_s_saved)
+                # Least squares fit
+                A = combined_s2[:, np.newaxis]
+                fac, _, _, _ = np.linalg.lstsq(A, combined_s_saved, rcond=None)
+                fac = fac[0]
+                print(f'Best fit least squares ratio (slope={fac:.4f})')
+                slope, intercept, r_value, p_value, std_err = linregress(combined_s2, combined_s_saved)
+                print(f'Best fit regression line (slope={slope:.4f}, intercept={intercept:.4f}, corr coeff={r_value:.2e})')
+                # slope = 1.0423
+                # intercept = -0.0001
+                # corr coeff = 0.987
+                # x is s2, no_ev way (with event detection is slower)
+                # note, do not apply the fit to the event detection time
+
         if do_box:
             data = np.fabs(s.values)
             data = data[~np.isnan(data)]
@@ -406,63 +468,10 @@ def run_loopb(i,var,mx,rep,stat2):
             else: #cdf
                 sorted_data = np.sort(np.fabs(s))
                 valid_data = sorted_data[~np.isnan(sorted_data)]
-                if fix_wall_actors and 'wallClockTime' in var: 
-                    from scipy.stats import linregress
-                    if m in ['be8', 'sun5en']:
-                        s_saved = s
-                        s2 = summa1[f'{m}Old'][var].sel(stat=stat0).where(lambda x: x != 9999)
-                        s2 = s2.where(lambda x: x != 0)  # water bodies should be 0
-                        mask = ~np.isnan(s2.values) & ~np.isnan(s_saved.values)
-                        s2 = s2[mask]
-                        s_saved = s_saved[mask]
-                        combined_s2.append(s2.values)
-                        combined_s_saved.append(s_saved.values)
-                        first_len = len(s2)
+                yvals = np.arange(len(valid_data)) / float(len(valid_data) - 1)
+                axs[r,c].plot(valid_data, yvals, zorder=0, label=m, linewidth=3.0)
+        print("max, min, mean without nans", s.where(lambda x: ~np.isnan(x)).max().values, s.where(lambda x: ~np.isnan(x)).min().values, s.where(lambda x: ~np.isnan(x)).mean().values, m, var)
 
-                    if m=='sun8en': # assumes sun8en is the last one
-                        combined_s2 = np.concatenate(combined_s2)
-                        combined_s_saved = np.concatenate(combined_s_saved)
-                        # Least squares fit
-                        A = combined_s2[:, np.newaxis]
-                        fac, _, _, _ = np.linalg.lstsq(A, combined_s_saved, rcond=None)
-                        fac = fac[0]
-                        print(f'Best fit least squares ratio (slope={fac:.4f})')
-                        slope, intercept, r_value, p_value, std_err = linregress(combined_s2, combined_s_saved)
-                        print(f'Best fit regression line (slope={slope:.4f}, intercept={intercept:.4f}, corr coeff={r_value:.2e})')
-                        print('Correcting reference solution with regression line')
-                        #valid_data = valid_data*fac
-                        valid_data = valid_data * slope + intercept
-
-                if fix_wall_event_plot and 'wallClockTime' in var:
-                    from scipy.stats import linregress
-                    if m in ['sun5cm','sun5en','sun8en']:
-                        s_saved = s
-                        s2 = summa1[f'{m}_noev'][var].sel(stat=stat0).where(lambda x: x != 9999)
-                        s2 = s2.where(lambda x: x != 0)  # water bodies should be 0
-                        mask = ~np.isnan(s2.values) & ~np.isnan(s_saved.values)
-                        s2 = s2[mask]
-                        s_saved = s_saved[mask]
-                        combined_s2.append(s2.values)
-                        combined_s_saved.append(s_saved.values)
-                        first_len = len(s2)
-
-                    if m=='sun8en': # assumes sun8en is the last one
-                        combined_s2 = np.concatenate(combined_s2)
-                        combined_s_saved = np.concatenate(combined_s_saved)
-                        # Least squares fit
-                        A = combined_s2[:, np.newaxis]
-                        fac, _, _, _ = np.linalg.lstsq(A, combined_s_saved, rcond=None)
-                        fac = fac[0]
-                        print(f'Best fit least squares ratio (slope={fac:.4f})')
-                        slope, intercept, r_value, p_value, std_err = linregress(combined_s2, combined_s_saved)
-                        print(f'Best fit regression line (slope={slope:.4f}, intercept={intercept:.4f}, corr coeff={r_value:.2e})')
-                        #print('Correcting reference solution with regression line')
-                        #valid_data = valid_data*fac
-                        #valid_data = valid_data * slope + intercept
-
-            yvals = np.arange(len(valid_data)) / float(len(valid_data) - 1)
-            axs[r,c].plot(valid_data, yvals, zorder=0, label=m, linewidth=3.0)
-            
     if stat0 == 'mean': 
         if var == 'wallClockTime': 
             stat_word = 'mean'
@@ -505,30 +514,30 @@ def run_loopb(i,var,mx,rep,stat2):
             if var=='wallClockTime': 
                 axs[r,c].set_xscale('function', functions=(power_transform, np.power)) #log x axis
                 axs[r, c].tick_params(axis='x', rotation=45) # Rotate x-axis labels for subplot
+    
+    if comp_wall_actors_plot:
+        fig.subplots_adjust(hspace=0.2, wspace=0.2) # Adjust the bottom margin, vertical space, and horizontal space
+        axs[r, c + 1].scatter(combined_s2[first_len:], combined_s_saved[first_len:], alpha=0.5, color=auto_col[4], label='SUNDIALS enth')
+        axs[r, c + 1].scatter(combined_s2[:first_len], combined_s_saved[:first_len], alpha=0.5, color=auto_col[0], label='BE8 common')
+        axs[r, c+1].set_xlabel('Graham time [s]')
+        axs[r, c+1].set_ylabel('Anvil Actors time [s]')
+        axs[r, c+1].set_title('wall clock time comparison')
+        axs[r, c+1].set_xlim(combined_s_saved.min(),combined_s2.max()) 
+        axs[r, c+1].set_ylim(combined_s_saved.min(),combined_s2.max())
+        axs[r, c+1].plot(combined_s2, intercept + slope * combined_s2, color='black',linewidth=3.0)
+        axs[r, c+1].tick_params(axis='x', rotation=45) # Rotate x-axis labels for subplot
 
-                if fix_wall_actors_plot:
-                    fig.subplots_adjust(hspace=0.2, wspace=0.2) # Adjust the bottom margin, vertical space, and horizontal space
-                    axs[r, c + 1].scatter(combined_s2[first_len:], combined_s_saved[first_len:], alpha=0.5, color=auto_col[4], label='SUNDIALS enth')
-                    axs[r, c + 1].scatter(combined_s2[:first_len], combined_s_saved[:first_len], alpha=0.5, color=auto_col[0], label='BE8 common')
-                    axs[r, c+1].set_xlabel('Graham time [s]')
-                    axs[r, c+1].set_ylabel('Anvil Actors time [s]')
-                    axs[r, c+1].set_title('wall clock time comparison')
-                    axs[r, c+1].set_xlim(combined_s_saved.min(),combined_s2.max()) 
-                    axs[r, c+1].set_ylim(combined_s_saved.min(),combined_s2.max())
-                    axs[r, c+1].plot(combined_s2, intercept + slope * combined_s2, color='black',linewidth=3.0)
-                    axs[r, c+1].tick_params(axis='x', rotation=45) # Rotate x-axis labels for subplot
-
-                if fix_wall_event_plot:
-                    fig.subplots_adjust(hspace=0.2, wspace=0.2) # Adjust the bottom margin, vertical space, and horizontal space
-                    axs[r, c + 1].scatter(combined_s2[first_len:], combined_s_saved[first_len:], alpha=0.5, color=auto_col[5], label='reference soln')
-                    axs[r, c + 1].scatter(combined_s2[:first_len], combined_s_saved[:first_len], alpha=0.5, color=auto_col[3], label='SUNDIALS enth')
-                    axs[r, c+1].set_xlabel('no event detection time [s]')
-                    axs[r, c+1].set_ylabel('event detection time time [s]')
-                    axs[r, c+1].set_title('wall clock time comparison')
-                    axs[r, c+1].set_xlim(combined_s_saved.min(),combined_s2.max()) 
-                    axs[r, c+1].set_ylim(combined_s_saved.min(),combined_s2.max())
-                    axs[r, c+1].plot(combined_s2, intercept + slope * combined_s2, color='black',linewidth=3.0)
-                    axs[r, c+1].tick_params(axis='x', rotation=45) # Rotate x-axis labels for subplot
+    if comp_wall_event_plot:
+        fig.subplots_adjust(hspace=0.2, wspace=0.2) # Adjust the bottom margin, vertical space, and horizontal space
+        axs[r, c + 1].scatter(combined_s2[first_len:], combined_s_saved[first_len:], alpha=0.5, color=auto_col[5], label='reference soln')
+        axs[r, c + 1].scatter(combined_s2[:first_len], combined_s_saved[:first_len], alpha=0.5, color=auto_col[3], label='SUNDIALS enth')
+        axs[r, c+1].set_xlabel('no event detection time [s]')
+        axs[r, c+1].set_ylabel('event detection time time [s]')
+        axs[r, c+1].set_title('wall clock time comparison')
+        axs[r, c+1].set_xlim(combined_s_saved.min(),combined_s2.max()) 
+        axs[r, c+1].set_ylim(combined_s_saved.min(),combined_s2.max())
+        axs[r, c+1].plot(combined_s2, intercept + slope * combined_s2, color='black',linewidth=3.0)
+        axs[r, c+1].tick_params(axis='x', rotation=45) # Rotate x-axis labels for subplot
 
 
 def run_loop3(i,var,mx,rep,stat3):
@@ -568,6 +577,7 @@ def run_loop3(i,var,mx,rep,stat3):
                 valid_data = sorted_data[~np.isnan(sorted_data)]
                 yvals = np.arange(len(valid_data)) / float(len(valid_data) - 1)
                 axs[r,c].plot(valid_data, yvals, zorder=0, label=m, linewidth=3.0)
+        print("max, min, mean without nans", s.where(lambda x: ~np.isnan(x)).max().values, s.where(lambda x: ~np.isnan(x)).min().values, s.where(lambda x: ~np.isnan(x)).mean().values, m, var)
 
     if stat0 == 'mean': stat_word = 'mean per data window'
     if stat0 == 'amax': stat_word = 'max per data window'
@@ -616,8 +626,8 @@ if (len(plot_vars)+len(plot_vars2)+len(plot_vars3)) < ncol*nrow:
     for i in range((len(plot_vars)+len(plot_vars2)+len(plot_vars3)),ncol*nrow):
         r = i//ncol
         c = i-r*ncol
-        if (r==0 and c==1 and fix_wall_actors_plot): continue
-        if (r==0 and c==1 and fix_wall_event_plot): continue
+        if (r==0 and c==1 and comp_wall_actors_plot): continue
+        if (r==0 and c==1 and comp_wall_event_plot): continue
         fig.delaxes(axs[r, c])
 
 # Save
