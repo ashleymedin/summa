@@ -85,22 +85,3 @@ logical function wrf_dm_on_monitor() result (return_value)
   implicit none
   return_value = .TRUE.
 end function wrf_dm_on_monitor
-
-subroutine wrf_dm_bcast_real(rval, ival)
-  implicit none
-  real, intent(in) :: rval
-  integer, intent(in) :: ival
-end subroutine wrf_dm_bcast_real
-
-subroutine wrf_dm_bcast_integer(ival1, ival2)
-  implicit none
-  real, intent(in) :: ival1
-  integer, intent(in) :: ival2
-end subroutine wrf_dm_bcast_integer
-
-subroutine wrf_dm_bcast_string(sval, ival)
-  implicit none
-  character(len=*), intent(in) :: sval
-  integer, intent(in) :: ival
-end subroutine wrf_dm_bcast_string
-

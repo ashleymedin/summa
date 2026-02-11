@@ -91,9 +91,6 @@ USE mDecisions_module,only:  &
 implicit none
 private
 public::stomResist
-! spatial indices
-integer(i4b),parameter :: iLoc = 1   ! i-location
-integer(i4b),parameter :: jLoc = 1   ! j-location
 ! conversion factors
 real(rkind),parameter     :: joule2umolConv=4.6_rkind   ! conversion factor from joules to umol photons (umol J-1)
 ! algorithmic parameters
@@ -278,7 +275,6 @@ contains
                           ix_stomResist,                     & ! intent(in): choice of function for stomatal resistance
                           ! input (local attributes)
                           vegTypeIndex,                      & ! intent(in): vegetation type index
-                          iLoc, jLoc,                        & ! intent(in): spatial location indices
                           ! input (forcing)
                           airtemp,                           & ! intent(in): air temperature at some height above the surface (K)
                           airpres,                           & ! intent(in): air pressure at some height above the surface (Pa)
@@ -1063,7 +1059,6 @@ contains
                               ixStomResist,                        & ! intent(in): choice of function for stomatal resistance
                               ! input (local attributes)
                               vegTypeIndex,                        & ! intent(in): vegetation type index
-                              iLoc, jLoc,                          & ! intent(in): spatial location indices
                               ! input (forcing)
                               airtemp,                             & ! intent(in): air temperature at some height above the surface (K)
                               airpres,                             & ! intent(in): air pressure at some height above the surface (Pa)
@@ -1099,7 +1094,6 @@ contains
  integer(i4b),intent(in)       :: ixStomResist                ! choice of function for stomatal resistance
  ! input (local attributes)
  integer(i4b),intent(in)       :: vegTypeIndex                ! vegetation type index
- integer(i4b),intent(in)       :: iLoc, jLoc                  ! spatial location indices
  ! input (forcing)
  real(rkind),intent(in)           :: airtemp                     ! measured air temperature at some height above the surface (K)
  real(rkind),intent(in)           :: airpres                     ! measured air pressure at some height above the surface (Pa)
@@ -1153,7 +1147,6 @@ contains
                 mpe,                                & ! intent(in): prevents overflow error if division by zero
                 PAR,                                & ! intent(in): average absorbed par (w m-2)
                 scalarFoliageNitrogenFactor,        & ! intent(in): foliage nitrogen concentration (1=saturated)
-                iLoc, jLoc,                         & ! intent(in): spatial location indices
                 scalarVegetationTemp,               & ! intent(in): vegetation temperature (K)
                 scalarSatVP_VegTemp,                & ! intent(in): saturation vapor pressure at vegetation temperature (Pa)
                 scalarVP_CanopyAir,                 & ! intent(in): canopy air vapor pressure (Pa)
@@ -1179,9 +1172,7 @@ contains
                 airpres,                            & ! intent(in): air pressure at some height above the surface (Pa)
                 ! output
                 scalarStomResist,                   & ! intent(out): stomatal resistance (s m-1)
-                scalarPhotosynthesis,               & ! intent(out): photosynthesis (umolco2 m-2 s-1)
-                ! location indices (input)
-                iLoc, jLoc                          ) ! intent(in): spatial location indices
+                scalarPhotosynthesis                ) ! intent(out): photosynthesis (umolco2 m-2 s-1)
 
    ! check identified an option
    case default; err=20; message=trim(message)//'unable to identify case for stomatal resistance'; return

@@ -147,13 +147,10 @@ subroutine run_oneHRU(&
   character(*)       , intent(out)   :: message             ! error message
   ! ----- define local variables ------------------------------------------------------------------------------------------
   integer(i4b)                      :: i, iVar             ! loop index
-  integer(i4b)                      :: ibeg                ! index of the first soil layer
-  integer(i4b)                      :: iend                ! index of the last soil layer
   logical(lgt)                      :: use_computeVegFlux  ! computeVegFlux flag for the current domain
   logical(lgt)                      :: is_glac             ! flag to indicate if is a glacier domain
   type(var_d)                       :: forcData0           ! original forcings
   character(len=256)                :: cmessage            ! error message
-  real(rkind)       , allocatable   :: zSoilReverseSign(:) ! height at bottom of each soil layer, negative downwards (m)
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
   ! save original forcings
   forcData0 = forcData 
@@ -181,15 +178,6 @@ subroutine run_oneHRU(&
 
     else ! not a water pixel and area of the domain is greater than zero
       if (domInfo(i)%dom_type == upland) then
-        ! get height at bottom of each soil layer, negative downwards (used in Noah MP)
-        allocate(zSoilReverseSign(domInfo(i)%nSoil),stat=err)
-        if(err/=0)then
-          message=trim(message)//'problem allocating space for zSoilReverseSign'
-          err=20; return
-        endif
-        ibeg = domInfo(i)%nSnow + domInfo(i)%nLake + 1
-        iend = domInfo(i)%nSnow + domInfo(i)%nLake + domInfo(i)%nSoil
-        zSoilReverseSign(:) = -progData%dom(i)%var(iLookPROG%iLayerHeight)%dat(ibeg:iend)
 
         ! populate parameters in Noah-MP modules
         ! Passing an unrealistically large number of soil layers in order to pass the check for NROOT, that is done to avoid making any changes to Noah-MP code.
@@ -197,16 +185,8 @@ subroutine run_oneHRU(&
         call REDPRM(typeData%var(iLookTYPE%vegTypeIndex),      & ! vegetation type index
                     typeData%var(iLookTYPE%soilTypeIndex),     & ! soil type
                     typeData%var(iLookTYPE%slopeTypeIndex),    & ! slope type index
-                    zSoilReverseSign,                          & ! * not used: height at bottom of each layer [NOTE: negative] (m)
                     10000_i4b,                                 & ! number of soil layers
                     urbanVegCategory)                            ! vegetation category for urban areas
-
-        ! deallocate height at bottom of each soil layer(used in Noah MP)
-        deallocate(zSoilReverseSign,stat=err)
-        if(err/=0)then
-          message=trim(message)//'problem deallocating space for zSoilReverseSign'
-          err=20; return
-        endif
 
         ! overwrite the minimum resistance
         if(overwriteRSMIN) RSMIN = mparData%dom(i)%var(iLookPARAM%minStomatalResistance)%dat(1)

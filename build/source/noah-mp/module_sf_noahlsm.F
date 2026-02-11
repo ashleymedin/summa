@@ -42,6 +42,5 @@ MODULE module_sf_noahlsm
         REAL(rkind) ::  LVCOEF_DATA
 
         CHARACTER*256  :: err_message
-        integer, private :: iloc, jloc
 
 END MODULE module_sf_noahlsm

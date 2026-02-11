@@ -132,7 +132,6 @@ contains
  z0Soil                          => mpar_data%var(iLookPARAM%z0Soil)%dat(1),                   & ! intent(in): [dp] roughness length of soil (m)
  heightCanopyTop                 => mpar_data%var(iLookPARAM%heightCanopyTop)%dat(1),          & ! intent(in): [dp] height of the top of the canopy layer (m)
  heightCanopyBottom              => mpar_data%var(iLookPARAM%heightCanopyBottom)%dat(1),       & ! intent(in): [dp] height of the bottom of the canopy layer (m)
- scalarRootZoneTemp              => diag_data%var(iLookDIAG%scalarRootZoneTemp)%dat(1),        & ! intent(in): [dp] root zone temperature (K)
  ! diagnostic variables and parameters (input/output)
  scalarLAI                       => diag_data%var(iLookDIAG%scalarLAI)%dat(1),                 & ! intent(inout): [dp] one-sided leaf area index (m2 m-2)
  scalarSAI                       => diag_data%var(iLookDIAG%scalarSAI)%dat(1),                 & ! intent(inout): [dp] one-sided stem area index (m2 m-2)
@@ -182,7 +181,6 @@ contains
                  fracJulDay,                  & ! intent(in): fractional julian days since the start of year
                  scalarLAI,                   & ! intent(inout): one-sided leaf area index (m2 m-2)
                  scalarSAI,                   & ! intent(inout): one-sided stem area index (m2 m-2)
-                 scalarRootZoneTemp,          & ! intent(in): root zone temperature (K)
                  ! output
                  notUsed_heightCanopyTop,     & ! intent(out): height of the top of the canopy layer (m)
                  scalarExposedLAI,            & ! intent(out): exposed leaf area index after burial by snow (m2 m-2)

@@ -52,10 +52,6 @@ private
 public::vegSWavRad
 ! named variables
 integer(i4b),parameter        :: isc     = 4   ! Soil color type
-integer(i4b),parameter        :: ice     = 0   ! Surface type:  ICE=0 => soil;  ICE=1 => sea-ice, not used here
-! spatial indices
-integer(i4b),parameter        :: iLoc    = 1   ! i-location
-integer(i4b),parameter        :: jLoc    = 1   ! j-location
 ! algorithmic parameters
 real(rkind),parameter         :: mpe=1.e-6_rkind ! prevents overflow error if division by zero, from NOAH mpe value
 contains
@@ -118,7 +114,6 @@ contains
   spectralIncomingDiffuse    => flux_data%var(iLookFLUX%spectralIncomingDiffuse)%dat(1:nSpecBand),   & ! intent(in): incoming diffuse solar radiation in each wave band (w m-2)
   ! input: snow states
   scalarSWE                  => prog_data%var(iLookPROG%scalarSWE)%dat(1),                           & ! intent(in): snow water equivalent on the ground (kg m-2)
-  scalarSnowDepth            => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),                     & ! intent(in): snow depth on the ground surface (m)
   mLayerVolFracLiq           => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(nSnow+1:nSnow+nLake+nSoil+nGlce),  & ! intent(in): volumetric fraction of liquid water in each layer below snow (-)
   spectralSnowAlbedoDiffuse  => prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1:nSpecBand), & ! intent(in): diffuse albedo of snow in each spectral band (-)
   scalarSnowAlbedo           => prog_data%var(iLookPROG%scalarSnowAlbedo)%dat(1),                    & ! intent(inout): snow albedo (-)
@@ -181,13 +176,12 @@ contains
    call radiation(&
                   ! input
                   vegTypeIndex,                         & ! intent(in): vegetation type index
-                  ist, isc, ice,                        & ! intent(in): indices to define surface type, soil color, and ice type (constant)
+                  ist, isc,                             & ! intent(in): indices to define surface type and soil color (constants)
                   nSoil_use,                            & ! intent(in): number of soil layers
                   scalarSWE,                            & ! intent(in): snow water equivalent (kg m-2)
                   snowmassPlusNewsnow,                  & ! intent(in): sum of snow mass and new snowfall (kg m-2 [mm])
                   dt,                                   & ! intent(in): time step (s)
                   scalarCosZenith,                      & ! intent(in): cosine of the solar zenith angle (0-1)
-                  scalarSnowDepth*1000._rkind,          & ! intent(in): snow depth on the ground surface (mm)
                   scalarGroundTemp,                     & ! intent(in): ground temperature (K)
                   scalarCanopyTemp,                     & ! intent(in): canopy temperature (K)
                   scalarGroundSnowFraction,             & ! intent(in): snow cover fraction (0-1)
@@ -199,7 +193,6 @@ contains
                   spectralIncomingDirect(1:nSpecBand),  & ! intent(in): incoming direct solar radiation in each wave band (w m-2)
                   spectralIncomingDiffuse(1:nSpecBand), & ! intent(in): incoming diffuse solar radiation in each wave band (w m-2)
                   scalarVegFraction,                    & ! intent(in): vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
-                  iLoc, jLoc,                           & ! intent(in): spatial location indices
                   ! output
                   scalarSnowAlbedo,                     & ! intent(inout): snow albedo (-)
                   scalarSnowAge,                        & ! intent(inout): non-dimensional snow age (-)
@@ -811,8 +804,6 @@ contains
                    spectralVegReflc,                  & ! intent(in): leaf+stem reflectance (1:nSpecBand)
                    spectralVegTrans,                  & ! intent(in): leaf+stem transmittance (1:nSpecBand)
                    scalarVegFraction,                 & ! intent(in): vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
-                   ist,                               & ! intent(in): surface type
-                   iLoc,jLoc,                         & ! intent(in): grid indices
                    ! output
                    spectralCanopyAbsorbedDirect,      & ! intent(out): flux abs by veg layer (per unit incoming flux), (1:nSpecBand)
                    spectralTotalReflectedDirect,      & ! intent(out): flux refl above veg layer (per unit incoming flux), (1:nSpecBand)
@@ -841,8 +832,6 @@ contains
                    spectralVegReflc,                  & ! intent(in): leaf+stem reflectance (1:nSpecBand)
                    spectralVegTrans,                  & ! intent(in): leaf+stem transmittance (1:nSpecBand)
                    scalarVegFraction,                 & ! intent(in): vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
-                   ist,                               & ! intent(in): surface type
-                   iLoc,jLoc,                         & ! intent(in): grid indices
                    ! output
                    spectralCanopyAbsorbedDiffuse,     & ! intent(out): flux abs by veg layer (per unit incoming flux), (1:nSpecBand)
                    spectralTotalReflectedDiffuse,     & ! intent(out): flux refl above veg layer (per unit incoming flux), (1:nSpecBand)

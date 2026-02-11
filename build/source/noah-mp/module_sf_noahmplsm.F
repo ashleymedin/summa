@@ -506,7 +506,7 @@ contains
 ! ==================================================================================================
 ! --------------------------------------------------------------------------------------------------
   SUBROUTINE PHENOLOGY (VEGTYP , ISURBAN, SNOWH  , TV     , LAT   , YEARLEN , JULIAN , & !in
-                        LAI    , SAI    , TROOT  , HTOP  , ELAI    , ESAI   , IGS)
+                        LAI    , SAI    , HTOP   , ELAI   , ESAI  , IGS)                 !out
 
 ! --------------------------------------------------------------------------------------------------
 ! vegetation phenology considering vegeation canopy being buries by snow and evolution in time
@@ -523,7 +523,6 @@ contains
   REAL(rkind)            , INTENT(IN   ) :: LAT    !latitude (radians)
   INTEGER                , INTENT(IN   ) :: YEARLEN!Number of days in the particular year
   REAL(rkind)            , INTENT(IN   ) :: JULIAN !Julian day of year (fractional) ( 0 <= JULIAN < YEARLEN )
-  real(rkind)            , INTENT(IN   ) :: TROOT  !root-zone averaged temperature (k)
   REAL(rkind)            , INTENT(INOUT) :: LAI    !LAI, unadjusted for burying by snow
   REAL(rkind)            , INTENT(INOUT) :: SAI    !SAI, unadjusted for burying by snow
 
@@ -537,10 +536,7 @@ contains
 
   REAL(rkind)                            :: DB     !thickness of canopy buried by snow (m)
   REAL(rkind)                            :: FB     !fraction of canopy buried by snow
-  REAL(rkind)                            :: SNOWHC !critical snow depth at which short vege
-                                                   !is fully covered by snow
-
-  INTEGER                                :: K       !index
+  REAL(rkind)                            :: SNOWHC !critical snow depth at which short vegetation is fully covered by snow
   INTEGER                                :: IT1,IT2 !interpolation months
   REAL(rkind)                            :: DAY     !current day of year ( 0 <= DAY < YEARLEN )
   REAL(rkind)                            :: WT1,WT2 !interpolation weights
@@ -559,7 +555,7 @@ contains
      ENDIF
 
      T = 12. * DAY / REAL(YEARLEN)
-     IT1 = T + 0.5
+     IT1 = INT(T + 0.5)
      IT2 = IT1 + 1
      WT1 = (IT1+0.5) - T
      WT2 = 1.-WT1
@@ -613,32 +609,27 @@ contains
 ! ==================================================================================================
 ! ==================================================================================================
 ! ==================================================================================================
-  SUBROUTINE RADIATION (VEGTYP  ,IST     ,ISC     ,ICE     ,NSOIL   , & !in
-                        SNEQVO  ,SNEQV   ,DT      ,COSZ    ,SNOWH   , & !in
-                        TG      ,TV      ,FSNO    ,QSNOW   ,FWET    , & !in
-                        ELAI    ,ESAI    ,SMC     ,SOLAD   ,SOLAI   , & !in
-                        FVEG    ,ILOC    ,JLOC    ,                   & !in
-                        ALBOLD  ,TAUSS   ,                            & !inout
+  SUBROUTINE RADIATION (VEGTYP  ,IST     ,ISC     ,NSOIL   ,SNEQVO  , & !in
+                        SNEQV   ,DT      ,COSZ    ,TG      ,TV      , & !in
+                        FSNO    ,QSNOW   ,FWET    ,ELAI    ,ESAI    , & !in
+                        SMC     ,SOLAD   ,SOLAI   ,FVEG             , & !in
+                        ALBOLD  ,TAUSS                              , & !inout
                         FSUN    ,LAISUN  ,LAISHA  ,PARSUN  ,PARSHA  , & !out
-                        SAV     ,SAG     ,FSR     ,FSA     ,FSRV    , &
-                        FSRG    ,BGAP    ,WGAP)            !out
+                        SAV     ,SAG     ,FSR     ,FSA     ,FSRV    , & !out
+                        FSRG    ,BGAP    ,WGAP)                         !out
 ! --------------------------------------------------------------------------------------------------
   IMPLICIT NONE
 ! --------------------------------------------------------------------------------------------------
 ! input
-  INTEGER, INTENT(IN)                  :: ILOC
-  INTEGER, INTENT(IN)                  :: JLOC
   INTEGER, INTENT(IN)                  :: VEGTYP !vegetation type
   INTEGER, INTENT(IN)                  :: IST    !surface type
   INTEGER, INTENT(IN)                  :: ISC    !soil color type (1-lighest; 8-darkest)
-  INTEGER, INTENT(IN)                  :: ICE    !ice (ice = 1)
   INTEGER, INTENT(IN)                  :: NSOIL  !number of soil layers
 
   REAL(rkind), INTENT(IN)                     :: DT     !time step [s]
   REAL(rkind), INTENT(IN)                     :: QSNOW  !snowfall (mm/s)
   REAL(rkind), INTENT(IN)                     :: SNEQVO !snow mass at last time step(mm)
   REAL(rkind), INTENT(IN)                     :: SNEQV  !snow mass (mm)
-  REAL(rkind), INTENT(IN)                     :: SNOWH  !snow height (mm)
   REAL(rkind), INTENT(IN)                     :: COSZ   !cosine solar zenith angle (0-1)
   REAL(rkind), INTENT(IN)                     :: TG     !ground temperature (k)
   REAL(rkind), INTENT(IN)                     :: TV     !vegetation temperature (k)
@@ -701,15 +692,14 @@ contains
 
 ! surface albedo
 
-   CALL ALBEDO (VEGTYP ,IST    ,ISC    ,ICE    ,NSOIL  , & !in
-                DT     ,COSZ   ,FAGE   ,ELAI   ,ESAI   , & !in
-                TG     ,TV     ,SNOWH  ,FSNO   ,FWET   , & !in
-                SMC    ,SNEQVO ,SNEQV  ,QSNOW  ,FVEG   , & !in
-                ILOC   ,JLOC   ,                         & !in
+   CALL ALBEDO (VEGTYP ,IST    ,ISC    ,NSOIL  ,DT     , & !in
+                COSZ   ,FAGE   ,ELAI   ,ESAI   ,TG     , & !in
+                TV     ,FSNO   ,FWET   ,SMC    ,SNEQVO , & !in
+                SNEQV  ,QSNOW  ,FVEG                   , & !in
                 ALBOLD ,TAUSS                          , & !inout
                 ALBGRD ,ALBGRI ,ALBD   ,ALBI   ,FABD   , & !out
-                FABI   ,FTDD   ,FTID   ,FTII   ,FSUN   , & !)   !out
-                FREVI  ,FREVD   ,FREGD ,FREGI  ,BGAP   , & !inout
+                FABI   ,FTDD   ,FTID   ,FTII   ,FSUN   , & !out
+                FREVI  ,FREVD   ,FREGD ,FREGI  ,BGAP   , & !out
                 WGAP)
 
 ! surface radiation
@@ -727,20 +717,19 @@ contains
    CALL SURRAD (MPE    ,FSUN   ,FSHA   ,ELAI   ,VAI    , & !in
                 LAISUN ,LAISHA ,SOLAD  ,SOLAI  ,FABD   , & !in
                 FABI   ,FTDD   ,FTID   ,FTII   ,ALBGRD , & !in
-                ALBGRI ,ALBD   ,ALBI   ,ILOC   ,JLOC   , & !in
+                ALBGRI ,ALBD   ,ALBI                   , & !in
                 PARSUN ,PARSHA ,SAV    ,SAG    ,FSA    , & !out
-                FSR    ,                                 & !out
+                FSR                                    , & !out
                 FREVI  ,FREVD  ,FREGD  ,FREGI  ,FSRV   , & !inout
                 FSRG)
 
   END SUBROUTINE RADIATION
 ! ==================================================================================================
 ! --------------------------------------------------------------------------------------------------
-  SUBROUTINE ALBEDO (VEGTYP ,IST    ,ISC    ,ICE    ,NSOIL  , & !in
-                     DT     ,COSZ   ,FAGE   ,ELAI   ,ESAI   , & !in
-                     TG     ,TV     ,SNOWH  ,FSNO   ,FWET   , & !in
-                     SMC    ,SNEQVO ,SNEQV  ,QSNOW  ,FVEG   , & !in
-                     ILOC   ,JLOC   ,                         & !in
+  SUBROUTINE ALBEDO (VEGTYP ,IST    ,ISC    ,NSOIL  ,DT     , & !in
+                     COSZ   ,FAGE   ,ELAI   ,ESAI   ,TG     , & !in
+                     TV     ,FSNO   ,FWET   ,SMC    ,SNEQVO , & !in
+                     SNEQV  ,QSNOW  ,FVEG                   , & !in
                      ALBOLD ,TAUSS                          , & !inout
                      ALBGRD ,ALBGRI ,ALBD   ,ALBI   ,FABD   , & !out
                      FABI   ,FTDD   ,FTID   ,FTII   ,FSUN   , & !out
@@ -757,18 +746,14 @@ contains
   IMPLICIT NONE
 ! --------------------------------------------------------------------------------------------------
 ! input
-  INTEGER,                  INTENT(IN)  :: ILOC
-  INTEGER,                  INTENT(IN)  :: JLOC
   INTEGER,                  INTENT(IN)  :: NSOIL  !number of soil layers
   INTEGER,                  INTENT(IN)  :: VEGTYP !vegetation type
   INTEGER,                  INTENT(IN)  :: IST    !surface type
   INTEGER,                  INTENT(IN)  :: ISC    !soil color type (1-lighest; 8-darkest)
-  INTEGER,                  INTENT(IN)  :: ICE    !ice (ice = 1)
 
   REAL(rkind),                     INTENT(IN)  :: DT     !time step [sec]
   REAL(rkind),                     INTENT(IN)  :: QSNOW  !snowfall
   REAL(rkind),                     INTENT(IN)  :: COSZ   !cosine solar zenith angle for next time step
-  REAL(rkind),                     INTENT(IN)  :: SNOWH  !snow height (mm)
   REAL(rkind),                     INTENT(IN)  :: TG     !ground temperature (k)
   REAL(rkind),                     INTENT(IN)  :: TV     !vegetation temperature (k)
   REAL(rkind),                     INTENT(IN)  :: ELAI   !LAI, one-sided, adjusted for burying by snow
@@ -868,17 +853,16 @@ contains
 ! snow albedos: only if COSZ > 0 and FSNO > 0
 
   IF(OPT_ALB == 1) &
-     CALL SNOWALB_BATS (NBAND, FSNO,COSZ,FAGE,ALBSND,ALBSNI)
+     CALL SNOWALB_BATS (NBAND,COSZ,FAGE,ALBSND,ALBSNI)
   IF(OPT_ALB == 2) THEN
-     CALL SNOWALB_CLASS (NBAND,QSNOW,DT,ALB,ALBOLD,ALBSND,ALBSNI,ILOC,JLOC)
+     CALL SNOWALB_CLASS (NBAND,QSNOW,DT,ALB,ALBOLD,ALBSND,ALBSNI)
      ALBOLD = ALB
   END IF
 
 ! ground surface albedo
 
-  CALL GROUNDALB (NSOIL   ,NBAND   ,ICE     ,IST     ,ISC     , & !in
-                  FSNO    ,SMC     ,ALBSND  ,ALBSNI  ,COSZ    , & !in
-                  TG      ,ILOC    ,JLOC    ,                   & !in
+  CALL GROUNDALB (NSOIL   ,NBAND   ,IST     ,ISC     ,FSNO    , & !in
+                  SMC     ,ALBSND  ,ALBSNI  ,COSZ    ,TG      , & !in
                   ALBGRD  ,ALBGRI  )                              !out
 
 
@@ -889,15 +873,15 @@ contains
       IC = 0      ! direct
       CALL TWOSTREAM (IB     ,IC      ,VEGTYP  ,COSZ    ,VAI    , & !in
                       FWET   ,TV      ,ALBGRD  ,ALBGRI  ,RHO    , & !in
-                      TAU    ,FVEG    ,IST     ,ILOC    ,JLOC   , & !in
-                      FABD   ,ALBD    ,FTDD    ,FTID    ,GDIR   , &!)   !out
+                      TAU    ,FVEG                              , & !in
+                      FABD   ,ALBD    ,FTDD    ,FTID    ,GDIR   , & !out
                       FREVD  ,FREGD   ,BGAP    ,WGAP)
 
       IC = 1      ! diffuse
       CALL TWOSTREAM (IB     ,IC      ,VEGTYP  ,COSZ    ,VAI    , & !in
                       FWET   ,TV      ,ALBGRD  ,ALBGRI  ,RHO    , & !in
-                      TAU    ,FVEG    ,IST     ,ILOC    ,JLOC   , & !in
-                      FABI   ,ALBI    ,FTDI    ,FTII    ,GDIR   , & !)   !out
+                      TAU    ,FVEG                              , & !in
+                      FABI   ,ALBI    ,FTDI    ,FTII    ,GDIR   , & !out
                       FREVI  ,FREGI   ,BGAP    ,WGAP)
 
   END DO
@@ -923,9 +907,9 @@ contains
   SUBROUTINE SURRAD (MPE     ,FSUN    ,FSHA    ,ELAI    ,VAI     , & !in
                      LAISUN  ,LAISHA  ,SOLAD   ,SOLAI   ,FABD    , & !in
                      FABI    ,FTDD    ,FTID    ,FTII    ,ALBGRD  , & !in
-                     ALBGRI  ,ALBD    ,ALBI    ,ILOC    ,JLOC    , & !in
+                     ALBGRI  ,ALBD    ,ALBI                      , & !in
                      PARSUN  ,PARSHA  ,SAV     ,SAG     ,FSA     , & !out
-                     FSR     , & !)                                       !out
+                     FSR                                         , & !out
                      FREVI   ,FREVD   ,FREGD   ,FREGI   ,FSRV    , &
                      FSRG) !inout
 
@@ -933,9 +917,6 @@ contains
   IMPLICIT NONE
 ! --------------------------------------------------------------------------------------------------
 ! input
-
-  INTEGER, INTENT(IN)              :: ILOC
-  INTEGER, INTENT(IN)              :: JLOC
   REAL(rkind), INTENT(IN)                 :: MPE     !prevents underflow errors if division by zero
 
   REAL(rkind), INTENT(IN)                 :: FSUN    !sunlit fraction of canopy
@@ -1095,7 +1076,7 @@ contains
   END SUBROUTINE SNOW_AGE
 ! ==================================================================================================
 ! --------------------------------------------------------------------------------------------------
-  SUBROUTINE SNOWALB_BATS (NBAND,FSNO,COSZ,FAGE,ALBSND,ALBSNI)
+  SUBROUTINE SNOWALB_BATS (NBAND,COSZ,FAGE,ALBSND,ALBSNI)
 ! --------------------------------------------------------------------------------------------------
   IMPLICIT NONE
 ! --------------------------------------------------------------------------------------------------
@@ -1104,7 +1085,6 @@ contains
   INTEGER,INTENT(IN) :: NBAND  !number of waveband classes
 
   REAL(rkind),INTENT(IN) :: COSZ    !cosine solar zenith angle
-  REAL(rkind),INTENT(IN) :: FSNO    !snow cover fraction (-)
   REAL(rkind),INTENT(IN) :: FAGE    !snow age correction
 
 ! output
@@ -1114,8 +1094,6 @@ contains
 ! ---------------------------------------------------------------------------------------------
 
 ! ------------------------ local variables ----------------------------------------------------
-  INTEGER :: IB          !waveband class
-
   REAL(rkind) :: FZEN                 !zenith angle correction
   REAL(rkind) :: CF1                  !temperary variable
   REAL(rkind) :: SL2                  !2.*SL
@@ -1148,14 +1126,12 @@ contains
   END SUBROUTINE SNOWALB_BATS
 ! ==================================================================================================
 ! --------------------------------------------------------------------------------------------------
-  SUBROUTINE SNOWALB_CLASS (NBAND,QSNOW,DT,ALB,ALBOLD,ALBSND,ALBSNI,ILOC,JLOC)
+  SUBROUTINE SNOWALB_CLASS (NBAND,QSNOW,DT,ALB,ALBOLD,ALBSND,ALBSNI)
 ! --------------------------------------------------------------------------------------------------
   IMPLICIT NONE
 ! --------------------------------------------------------------------------------------------------
 ! input
 
-  INTEGER,INTENT(IN) :: ILOC !grid index
-  INTEGER,INTENT(IN) :: JLOC !grid index
   INTEGER,INTENT(IN) :: NBAND  !number of waveband classes
 
   REAL(rkind),INTENT(IN) :: QSNOW     !snowfall (mm/s)
@@ -1169,11 +1145,6 @@ contains
 
   REAL(rkind), DIMENSION(1:2),INTENT(OUT) :: ALBSND !snow albedo for direct(1=vis, 2=nir)
   REAL(rkind), DIMENSION(1:2),INTENT(OUT) :: ALBSNI !snow albedo for diffuse
-! ---------------------------------------------------------------------------------------------
-
-! ------------------------ local variables ----------------------------------------------------
-  INTEGER :: IB          !waveband class
-
 ! ---------------------------------------------------------------------------------------------
 ! zero albedos for all points
 
@@ -1200,9 +1171,8 @@ contains
   END SUBROUTINE SNOWALB_CLASS
 ! ==================================================================================================
 ! --------------------------------------------------------------------------------------------------
-  SUBROUTINE GROUNDALB (NSOIL   ,NBAND   ,ICE     ,IST     ,ISC     , & !in
-                        FSNO    ,SMC     ,ALBSND  ,ALBSNI  ,COSZ    , & !in
-                        TG      ,ILOC    ,JLOC    ,                   & !in
+  SUBROUTINE GROUNDALB (NSOIL   ,NBAND   ,IST     ,ISC     ,FSNO    , & !in
+                        SMC     ,ALBSND  ,ALBSNI  ,COSZ    ,TG      , & !in
                         ALBGRD  ,ALBGRI  )                              !out
 ! --------------------------------------------------------------------------------------------------
   USE NOAHMP_RAD_PARAMETERS
@@ -1211,11 +1181,8 @@ contains
 ! --------------------------------------------------------------------------------------------------
 !input
 
-  INTEGER,                  INTENT(IN)  :: ILOC   !grid index
-  INTEGER,                  INTENT(IN)  :: JLOC   !grid index
   INTEGER,                  INTENT(IN)  :: NSOIL  !number of soil layers
   INTEGER,                  INTENT(IN)  :: NBAND  !number of solar radiation waveband classes
-  INTEGER,                  INTENT(IN)  :: ICE    !value of ist for land ice
   INTEGER,                  INTENT(IN)  :: IST    !surface type
   INTEGER,                  INTENT(IN)  :: ISC    !soil color class (1-lighest; 8-darkest)
   REAL(rkind),                     INTENT(IN)  :: FSNO   !fraction of surface covered with snow (-)
@@ -1232,7 +1199,7 @@ contains
 
 !local
 
-  INTEGER                               :: IB     !waveband number (1=vis, 2=nir)
+  INTEGER                                      :: IB     !waveband number (1=vis, 2=nir)
   REAL(rkind)                                  :: INC    !soil water correction factor for soil albedo
   REAL(rkind)                                  :: ALBSOD !soil albedo (direct)
   REAL(rkind)                                  :: ALBSOI !soil albedo (diffuse)
@@ -1267,8 +1234,8 @@ contains
 ! --------------------------------------------------------------------------------------------------
   SUBROUTINE TWOSTREAM (IB     ,IC      ,VEGTYP  ,COSZ    ,VAI    , & !in
                         FWET   ,T       ,ALBGRD  ,ALBGRI  ,RHO    , & !in
-                        TAU    ,FVEG    ,IST     ,ILOC    ,JLOC   , & !in
-                        FAB    ,FRE     ,FTD     ,FTI     ,GDIR   , & !)   !out
+                        TAU    ,FVEG                              , & !in
+                        FAB    ,FRE     ,FTD     ,FTI     ,GDIR   , & !out
                         FREV   ,FREG    ,BGAP    ,WGAP)
 
 ! --------------------------------------------------------------------------------------------------
@@ -1285,9 +1252,6 @@ contains
 ! --------------------------------------------------------------------------------------------------
 ! input
 
-   INTEGER,              INTENT(IN)  :: ILOC    !grid index
-   INTEGER,              INTENT(IN)  :: JLOC    !grid index
-   INTEGER,              INTENT(IN)  :: IST     !surface type
    INTEGER,              INTENT(IN)  :: IB      !waveband number
    INTEGER,              INTENT(IN)  :: IC      !0=unit incoming direct; 1=unit incoming diffuse
    INTEGER,              INTENT(IN)  :: VEGTYP  !vegetation type
@@ -1335,8 +1299,7 @@ contains
    REAL(rkind)                              :: DENFVEG
    REAL(rkind)                              :: VAI_SPREAD
 !jref:start
-   REAL(rkind)                              :: FREVEG,FREBAR,FTDVEG,FTIVEG,FTDBAR,FTIBAR
-   REAL(rkind)                              :: THETAZ
+   REAL(rkind)                              :: FREVEG,FREBAR
 !jref:end
 
 !  variables for the modified two-stream scheme
@@ -1513,7 +1476,7 @@ contains
 ! ==================================================================================================
   ! ==================================================================================================
 ! ----------------------------------------------------------------------
-  SUBROUTINE STOMATA (VEGTYP  ,MPE     ,APAR    ,FOLN    ,ILOC    , JLOC, & !in
+  SUBROUTINE STOMATA (VEGTYP  ,MPE     ,APAR    ,FOLN             , & !in
                       TV      ,EI0     ,EA      ,SFCTMP  ,SFCPRS  , & !in
                       O2      ,CO2     ,IGS     ,BTRAN   ,RB      , & !in
                       RS      ,PSN     )                              !out
@@ -1523,8 +1486,6 @@ contains
   IMPLICIT NONE
 ! --------------------------------------------------------------------------------------------------
 ! input
-      INTEGER,INTENT(IN)  :: ILOC   !grid index
-      INTEGER,INTENT(IN)  :: JLOC   !grid index
       INTEGER,INTENT(IN)  :: VEGTYP !vegetation physiology type
 
       REAL(rkind), INTENT(IN)    :: IGS    !growing season index (0=off, 1=on)
@@ -1583,7 +1544,6 @@ contains
 
       F1(AB,BC) = AB**((BC-25.)/10.)
       F2(AB) = 1. + EXP((-2.2E05+710.*(AB+273.16))/(8.314*(AB+273.16)))
-      REAL(rkind) :: T
 ! ---------------------------------------------------------------------------------------------
 
 ! MPC change
@@ -1659,7 +1619,7 @@ contains
   END SUBROUTINE STOMATA
 ! ==================================================================================================
   SUBROUTINE CANRES (PAR   ,SFCTMP,RCSOIL ,EAH   ,SFCPRS , & !in
-                     RC    ,PSN   ,ILOC   ,JLOC  )           !out
+                     RC    ,PSN)                             !out
 
 ! --------------------------------------------------------------------------------------------------
 ! calculate canopy resistance which depends on incoming solar radiation,
@@ -1677,8 +1637,6 @@ contains
 ! --------------------------------------------------------------------------------------------------
 ! inputs
 
-    INTEGER,                  INTENT(IN)  :: ILOC   !grid index
-    INTEGER,                  INTENT(IN)  :: JLOC   !grid index
     REAL(rkind),                     INTENT(IN)  :: PAR    !par absorbed per unit sunlit lai (w/m2)
     REAL(rkind),                     INTENT(IN)  :: SFCTMP !canopy air temperature
     REAL(rkind),                     INTENT(IN)  :: SFCPRS !surface pressure (pa)
@@ -1763,7 +1721,7 @@ contains
 ! ==================================================================================================
 ! ********************************* end of carbon subroutines *****************************
 ! ==================================================================================================
-  SUBROUTINE REDPRM (VEGTYP,SOILTYP,SLOPETYP,ZSOIL,NSOIL,ISURBAN)
+  SUBROUTINE REDPRM (VEGTYP,SOILTYP,SLOPETYP,NSOIL,ISURBAN)
 
 !niu  use module_sf_noahlsm_param_init
 
@@ -1815,15 +1773,12 @@ contains
     INTEGER, INTENT(IN)    :: SLOPETYP
 ! General parameters
     INTEGER, INTENT(IN)    :: NSOIL
-! Layer parameters
-    REAL(rkind),DIMENSION(NSOIL),INTENT(IN) :: ZSOIL
 
 ! Locals
     REAL(rkind)    :: REFDK
     REAL(rkind)    :: REFKDT
     REAL(rkind)    :: FRZK
-    REAL(rkind)                   :: FRZFACT
-    INTEGER                :: I
+    REAL(rkind)            :: FRZFACT
     CHARACTER(len=256)     :: message
 ! ----------------------------------------------------------------------
 !
