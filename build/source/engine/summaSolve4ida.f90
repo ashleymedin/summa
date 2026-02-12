@@ -295,7 +295,7 @@ subroutine summaSolve4ida(&
     eqns_data%nSoil          = nSoil
     eqns_data%nGlce          = nGlce
     eqns_data%nLayers        = nLayers
-    eqns_data%nState         = nState
+    eqns_data%nState         = int(nState,i4b)
     eqns_data%ixMatrix       = ixMatrix
     eqns_data%firstSubStep   = firstSubStep
     eqns_data%computeVegFlux = computeVegFlux
@@ -315,10 +315,10 @@ subroutine summaSolve4ida(&
     
     ! allocate space and fill
     allocate( eqns_data%model_decisions(maxvarDecisions) ); eqns_data%model_decisions = model_decisions
-    allocate( eqns_data%atol(nState) ); eqns_data%atol = atol
-    allocate( eqns_data%rtol(nState) ); eqns_data%rtol = rtol
-    allocate( eqns_data%sMul(nState) ); eqns_data%sMul = sMul
-    allocate( eqns_data%dMat(nState) ); eqns_data%dMat = dMat
+    allocate( eqns_data%atol(int(nState,i4b)) ); eqns_data%atol = atol
+    allocate( eqns_data%rtol(int(nState,i4b)) ); eqns_data%rtol = rtol
+    allocate( eqns_data%sMul(int(nState,i4b)) ); eqns_data%sMul = sMul
+    allocate( eqns_data%dMat(int(nState,i4b)) ); eqns_data%dMat = dMat
     
     ! allocate space for the to save previous fluxes
     call allocLocal(flux_meta(:),flux_prev,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
@@ -339,10 +339,10 @@ subroutine summaSolve4ida(&
     allocate( eqns_data%mLayerVolFracWatPrime(nLayers) ) 
     allocate( mLayerMatricHeadPrimePrev(nSoil) )
     allocate( dCompress_dPsiPrev(nSoil) )
-    allocate( eqns_data%fluxVec(nState) )
-    allocate( eqns_data%resVec(nState) )
-    allocate( eqns_data%resSink(nState) )
-    allocate( resVecPrev(nState) )
+    allocate( eqns_data%fluxVec(int(nState,i4b)) )
+    allocate( eqns_data%resVec(int(nState,i4b)) )
+    allocate( eqns_data%resSink(int(nState,i4b)) )
+    allocate( resVecPrev(int(nState,i4b)) )
 
     ! need the following values for the first substep
     do iVar=1,size(flux_meta)  ! loop through fluxes

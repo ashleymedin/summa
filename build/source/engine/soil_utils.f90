@@ -837,6 +837,7 @@ function LogSumExp(alpha,x,err) result(LSE)
 
   ! use quadruple precision variables to prevent over/underflow
   alpha_qp = real(alpha,real128)
+  allocate(x_qp(size(x)))
   x_qp     = real(x,real128)
 
   ! shift value to improve numerical stability
@@ -881,11 +882,13 @@ function SoftArgMax(alpha,x) result(SAM)
 
   ! use quadruple precision variables to prevent over/underflow
   alpha_qp = real(alpha,real128)
+  allocate(x_qp(size(x)))
   x_qp     = real(x,real128)
 
   ! shift value to improve numerical stability
   x_star = maxval(abs(x_qp))
 
+  allocate(SAM_qp(size(x)))
   SAM_qp = exp(alpha_qp*(x_qp-x_star)) / sum(exp(alpha_qp*(x_qp-x_star)))
   SAM = real(SAM_qp,rkind)
 

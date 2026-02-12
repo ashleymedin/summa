@@ -224,41 +224,41 @@ subroutine summaSolve4kinsol(&
   kinsolSucceeds = .true.
 
   ! fill eqns_data which will be required later to call eval8summa
-  eqns_data%dt_cur                  = dt_cur
-  eqns_data%dt                      = dt
-  eqns_data%nSnow                   = nSnow
-  eqns_data%nLake                   = nLake
-  eqns_data%nSoil                   = nSoil
-  eqns_data%nGlce                   = nGlce
-  eqns_data%nLayers                 = nLayers
-  eqns_data%nState                  = nState
-  eqns_data%ixMatrix                = ixMatrix
-  eqns_data%firstFluxCall           = .false. ! already called for initial
-  eqns_data%firstSplitOper          = .false. ! already called for initial and false inside solver
-  eqns_data%firstSubStep            = firstSubStep
-  eqns_data%computeVegFlux          = computeVegFlux
-  eqns_data%scalarSolution          = scalarSolution
-  eqns_data%deriv_data              = deriv_data
-  eqns_data%lookup_data             = lookup_data
-  eqns_data%type_data               = type_data
-  eqns_data%attr_data               = attr_data
-  eqns_data%mpar_data               = mpar_data
-  eqns_data%forc_data               = forc_data
-  eqns_data%bvar_data               = bvar_data
-  eqns_data%prog_data               = prog_data
-  eqns_data%indx_data               = indx_data
-  eqns_data%diag_data               = diag_data
-  eqns_data%flux_data               = flux_data
-  eqns_data%ixSaturation            = ixSaturation
-  eqns_data%firstStateIteration     = .true.
+  eqns_data%dt_cur              = dt_cur
+  eqns_data%dt                  = dt
+  eqns_data%nSnow               = nSnow
+  eqns_data%nLake               = nLake
+  eqns_data%nSoil               = nSoil
+  eqns_data%nGlce               = nGlce
+  eqns_data%nLayers             = nLayers
+  eqns_data%nState              = int(nState,i4b)
+  eqns_data%ixMatrix            = ixMatrix
+  eqns_data%firstFluxCall       = .false. ! already called for initial
+  eqns_data%firstSplitOper      = .false. ! already called for initial and false inside solver
+  eqns_data%firstSubStep        = firstSubStep
+  eqns_data%computeVegFlux      = computeVegFlux
+  eqns_data%scalarSolution      = scalarSolution
+  eqns_data%deriv_data          = deriv_data
+  eqns_data%lookup_data         = lookup_data
+  eqns_data%type_data           = type_data
+  eqns_data%attr_data           = attr_data
+  eqns_data%mpar_data           = mpar_data
+  eqns_data%forc_data           = forc_data
+  eqns_data%bvar_data           = bvar_data
+  eqns_data%prog_data           = prog_data
+  eqns_data%indx_data           = indx_data
+  eqns_data%diag_data           = diag_data
+  eqns_data%flux_data           = flux_data
+  eqns_data%ixSaturation        = ixSaturation
+  eqns_data%firstStateIteration = .true.
 
   ! allocate space and fill
   allocate( eqns_data%model_decisions(maxvarDecisions) ); eqns_data%model_decisions = model_decisions
-  allocate( eqns_data%fScale(nState) ); eqns_data%fScale = fScale
-  allocate( eqns_data%xScale(nState) ); eqns_data%xScale = xScale
-  allocate( eqns_data%sMul(nState) );   eqns_data%sMul   = sMul
-  allocate( eqns_data%dMat(nState) );   eqns_data%dMat   = dMat
-  allocate( eqns_data%stateVecPrev(nState) ); eqns_data%stateVecPrev = stateVecInit  
+  allocate( eqns_data%fScale(int(nState,i4b)) ); eqns_data%fScale = fScale
+  allocate( eqns_data%xScale(int(nState,i4b)) ); eqns_data%xScale = xScale
+  allocate( eqns_data%sMul(int(nState,i4b)) );   eqns_data%sMul   = sMul
+  allocate( eqns_data%dMat(int(nState,i4b)) );   eqns_data%dMat   = dMat
+  allocate( eqns_data%stateVecPrev(int(nState,i4b)) ); eqns_data%stateVecPrev = stateVecInit  
 
   ! allocate space for other variables
   if(model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel)then
@@ -266,9 +266,9 @@ subroutine summaSolve4kinsol(&
   else
     allocate(eqns_data%dBaseflow_dMatric(0,0),stat=err)
   end if
-  allocate( eqns_data%fluxVec(nState) )
-  allocate( eqns_data%resVec(nState) )
-  allocate( eqns_data%resSink(nState) )
+  allocate( eqns_data%fluxVec(int(nState,i4b)) )
+  allocate( eqns_data%resVec(int(nState,i4b)) )
+  allocate( eqns_data%resSink(int(nState,i4b)) )
   
   retval = FSUNContext_Create(SUN_COMM_NULL, sunctx)
 
