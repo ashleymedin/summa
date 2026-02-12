@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module summaSolve4ida_module
+module summaSolv4ida_module
 
 
 !======= Inclusions ===========
@@ -84,15 +84,15 @@ USE mDecisions_module,only:       &
  private::find_rootdir
  public::layerDisCont4ida
  private::getErrMessage
- public::summaSolve4ida
+ public::summaSolv4ida
 
 contains
 
 
 ! ************************************************************************************
-! * public subroutine summaSolve4ida: solve F(y,y') = 0 by IDA (y is the state vector)
+! * public subroutine summaSolv4ida: solve F(y,y') = 0 by IDA (y is the state vector)
 ! ************************************************************************************
-subroutine summaSolve4ida(&
+subroutine summaSolv4ida(&
                       dt_cur,                  & ! intent(in):    current stepsize
                       dt,                      & ! intent(in):    data time step
                       atol,                    & ! intent(in):    absolute tolerance
@@ -276,7 +276,7 @@ subroutine summaSolve4ida(&
     ) ! association to necessary variables for the residual computations
 
     ! initialize error control
-    err=0; message="summaSolve4ida/"
+    err=0; message="summaSolv4ida/"
     
     ! choose Jacobian type
     select case(model_decisions(iLookDECISIONS%fDerivMeth)%iDecision) 
@@ -687,7 +687,7 @@ subroutine summaSolve4ida(&
 
   end associate
 
-end subroutine summaSolve4ida
+end subroutine summaSolv4ida
 
 ! ----------------------------------------------------------------
 ! SetInitialCondition: routine to initialize u and up vectors.
@@ -1040,4 +1040,4 @@ subroutine getErrMessage(retval,message)
 end subroutine getErrMessage
 
 
-end module summaSolve4ida_module
+end module summaSolv4ida_module

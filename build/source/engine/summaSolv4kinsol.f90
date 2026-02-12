@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module summaSolve4kinsol_module
+module summaSolv4kinsol_module
 
     !======= Inclusions ===========
 USE, intrinsic :: iso_c_binding
@@ -75,15 +75,15 @@ USE mDecisions_module,only:       &
  private::setInitialCondition
  private::setSolverParams
  private::getErrMessage
- public::summaSolve4kinsol
+ public::summaSolv4kinsol
 
 contains
 
 
 ! ***************************************************************************************
-! * public subroutine summaSolve4kinsol: solve F(y) = 0 by KINSOL (y is the state vector)
+! * public subroutine summaSolv4kinsol: solve F(y) = 0 by KINSOL (y is the state vector)
 ! ***************************************************************************************
-subroutine summaSolve4kinsol(&
+subroutine summaSolv4kinsol(&
                       dt_cur,                  & ! intent(in):    current stepsize
                       dt,                      & ! intent(in):    data time step
                       fScale,                  & ! intent(in):    characteristic scale of the function evaluations (mixed units)
@@ -211,7 +211,7 @@ subroutine summaSolve4kinsol(&
  ! -----------------------------------------------------------------------------------------------------
 
   ! initialize error control
-  err=0; message="summaSolve4kinsol/"
+  err=0; message="summaSolv4kinsol/"
 
   ! choose Jacobian type
   select case(model_decisions(iLookDECISIONS%fDerivMeth)%iDecision) 
@@ -416,7 +416,7 @@ subroutine summaSolve4kinsol(&
   retval = FSUNContext_Free(sunctx)
   if(retval /= 0)then; err=20; message=trim(message)//'unable to free the SUNDIALS context'; return; endif
 
-end subroutine summaSolve4kinsol
+end subroutine summaSolv4kinsol
 
 ! ----------------------------------------------------------------
 ! SetInitialCondition: routine to initialize u vector.
@@ -536,4 +536,4 @@ subroutine getErrMessage(retval,message)
 end subroutine getErrMessage
 
 
-end module summaSolve4kinsol_module
+end module summaSolv4kinsol_module

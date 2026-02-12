@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module systemSolve_module
+module systemSolv_module
 
 ! data types
 USE nr_type
@@ -74,9 +74,9 @@ USE data_types,only:&
                     var_dlength,                  & ! data vector with variable length dimension (rkind)
                     zLookup,                      & ! lookup tables
                     model_options,                & ! defines the model decisions
-                    in_type_summaSolve4homegrown, & ! class for summaSolve4homegrown arguments
-                    io_type_summaSolve4homegrown, & ! class for summaSolve4homegrown arguments
-                    out_type_summaSolve4homegrown   ! class for summaSolve4homegrown arguments
+                    in_type_summaSolv4homegrown, & ! class for summaSolv4homegrown arguments
+                    io_type_summaSolv4homegrown, & ! class for summaSolv4homegrown arguments
+                    out_type_summaSolv4homegrown   ! class for summaSolv4homegrown arguments
 
 ! look-up values for the choice of groundwater representation (local-column, or single-basin)
 USE mDecisions_module,only:&
@@ -98,15 +98,15 @@ USE mDecisions_module,only:&
 ! safety: set private unless specified otherwise
 implicit none
 private
-public::systemSolve
+public::systemSolv
 
 contains
 
 
 ! **********************************************************************************************************
-! public subroutine systemSolve: run the coupled energy-mass model for one timestep
+! public subroutine systemSolv: run the coupled energy-mass model for one timestep
 ! **********************************************************************************************************
-subroutine systemSolve(&
+subroutine systemSolv(&
                       ! input: model control
                       dt_cur,            & ! intent(in):    current stepsize
                       dt,                & ! intent(in):    entire time step (s)
@@ -158,11 +158,11 @@ subroutine systemSolve(&
 #ifdef SUNDIALS_ACTIVE
   USE tol4ida_module,only:popTol4ida                        ! populate tolerances
   USE eval8summaWithPrime_module,only:eval8summaWithPrime   ! get the fluxes and residuals
-  USE summaSolve4ida_module,only:summaSolve4ida             ! solve DAE by IDA
-  USE summaSolve4kinsol_module,only:summaSolve4kinsol       ! solve DAE by KINSOL
+  USE summaSolv4ida_module,only:summaSolv4ida               ! solve DAE by IDA
+  USE summaSolv4kinsol_module,only:summaSolv4kinsol         ! solve DAE by KINSOL
 #endif
   USE eval8summa_module,only:eval8summa                     ! get the fluxes and residuals
-  USE summaSolve4homegrown_module,only:summaSolve4homegrown ! solve DAE using homegrown solver
+  USE summaSolv4homegrown_module,only:summaSolv4homegrown   ! solve DAE using homegrown solver
 
   implicit none
   ! ---------------------------------------------------------------------------------------
@@ -264,16 +264,16 @@ subroutine systemSolve(&
   integer(i4b), parameter         :: scalarMaxIter=100             ! maximum number of iterations for the scalar solution homegrown solver
   logical(lgt)                    :: converged                     ! convergence flag homegrown solver
   logical(lgt), parameter         :: post_massCons=.false.         ! “perfectly” conserve mass by pushing the errors into the states, turn off for now to agree with SUNDIALS
-  ! class objects for call to summaSolve4homegrown
-  type(in_type_summaSolve4homegrown)  :: in_SS4HG  ! object for intent(in)  summaSolve4homegrown arguments
-  type(io_type_summaSolve4homegrown)  :: io_SS4HG  ! object for intent(io)  summaSolve4homegrown arguments
-  type(out_type_summaSolve4homegrown) :: out_SS4HG ! object for intent(out) summaSolve4homegrown arguments
+  ! class objects for call to summaSolv4homegrown
+  type(in_type_summaSolv4homegrown)  :: in_SS4HG  ! object for intent(in)  summaSolv4homegrown arguments
+  type(io_type_summaSolv4homegrown)  :: io_SS4HG  ! object for intent(io)  summaSolv4homegrown arguments
+  type(out_type_summaSolv4homegrown) :: out_SS4HG ! object for intent(out) summaSolv4homegrown arguments
   ! flags
-  logical(lgt) :: return_flag ! flag for handling systemSolve returns trigerred from internal subroutines 
+  logical(lgt) :: return_flag ! flag for handling systemSolv returns trigerred from internal subroutines 
   logical(lgt) :: exit_flag   ! flag for handling loop exit statements trigerred from internal subroutines 
   ! -----------------------------------------------------------------------------------------------------------
 
-  call initialize_systemSolve; if (return_flag) return ! initialize variables and allocate arrays -- return if error
+  call initialize_systemSolv; if (return_flag) return ! initialize variables and allocate arrays -- return if error
 
   call initial_function_evaluations; if (return_flag) return ! initial function evaluations -- return if error
 
@@ -291,15 +291,15 @@ subroutine systemSolve(&
     end select
   end associate 
  
-  call finalize_systemSolve ! set untapped melt to zero and deallocate arrays
+  call finalize_systemSolv ! set untapped melt to zero and deallocate arrays
 
 contains
 
- subroutine initialize_systemSolve
-  ! *** Initial setup operations for the systemSolve subroutine ***
+ subroutine initialize_systemSolv
+  ! *** Initial setup operations for the systemSolv subroutine ***
 
   ! initialize error control
-  err=0; message="systemSolve/"
+  err=0; message="systemSolv/"
   return_flag=.false. ! initialize return flag
   nSteps = 0 ! initialize number of time steps taken in solver
 
@@ -349,10 +349,10 @@ contains
   ! initialize state vectors -- get scaling vectors
   call getScaling(diag_data,indx_data,fScale,xScale,sMul,dMat,err,cmessage)     
   if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! check for errors
- end subroutine initialize_systemSolve
+ end subroutine initialize_systemSolv
 
  subroutine allocate_memory
-  ! ** Allocate arrays used in systemSolve subroutine **
+  ! ** Allocate arrays used in systemSolv subroutine **
   associate(&
    nSnow             => indx_data%var(iLookINDEX%nSnow)%dat(1)              ,& ! intent(in): [i4b] number of snow layers
    nLake             => indx_data%var(iLookINDEX%nLake)%dat(1)              ,& ! intent(in): [i4b] number of lake layers
@@ -585,7 +585,7 @@ contains
    )
    call in_SS4HG % initialize(dt_cur,dt,iter,nSnow,nLake,nSoil,nGlce,nLayers,nLeadDim,nState,ixMatrix,firstSubStep,computeVegFlux,scalarSolution,fOld)
    call io_SS4HG % initialize(firstFluxCall,xMin,xMax,ixSaturation)
-   call summaSolve4homegrown(in_SS4HG,&                                                                                ! input: model control
+   call summaSolv4homegrown(in_SS4HG,&                                                                                ! input: model control
                             &stateVecTrial,fScale,xScale,resVec,sMul,dMat,&                                            ! input: state vectors
                             &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,& ! input: data structures
                             &indx_data,diag_data,flux_temp,deriv_data,&                                                ! input-output: data structures
@@ -689,7 +689,7 @@ contains
    ! * solving F(y,y') = 0 by IDA, y is the state vector and y' is the time derivative vector dy/dt
    !---------------------------
    ! iterations and updates to trial state vector, fluxes, and derivatives are done inside IDA solver
-   call summaSolve4ida(&
+   call summaSolv4ida(&
                        dt_cur,                  & ! intent(in):    current stepsize
                        dt,                      & ! intent(in):    entire time step for drainage pond rate
                        atol,                    & ! intent(in):    absolute tolerance
@@ -784,7 +784,7 @@ contains
    !---------------------------
    stateVecNew(:) = 0._rkind
    ! iterations and updates to trial state vector, fluxes, and derivatives are done inside IDA solver
-   call summaSolve4kinsol(&
+   call summaSolv4kinsol(&
                           dt_cur,                  & ! intent(in):    data time step
                           dt,                      & ! intent(in):    length of the entire time step (seconds) for drainage pond rate
                           fScale,                  & ! intent(in):    characteristic scale of the function evaluations
@@ -867,7 +867,7 @@ contains
   if (post_massCons) call enforce_mass_conservation ! enforce mass conservation if desired
  end subroutine Newton_iterations_homegrown
 
- subroutine finalize_systemSolve
+ subroutine finalize_systemSolv
   ! set untapped melt energy to zero
   untappedMelt(:) = 0._rkind
 
@@ -875,8 +875,8 @@ contains
   deallocate(mLayerCmpress_sum)
   deallocate(mLayerMatricHeadPrime)
   deallocate(dBaseflow_dMatric)
- end subroutine finalize_systemSolve
+ end subroutine finalize_systemSolv
 
-end subroutine systemSolve
+end subroutine systemSolv
 
-end module systemSolve_module
+end module systemSolv_module

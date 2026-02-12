@@ -128,8 +128,8 @@ set(SOLVER
     ${ENGINE_DIR}/soilLiqFlux.f90
     ${ENGINE_DIR}/snowLakeSoilGlceNrgFlux.f90
     ${ENGINE_DIR}/stomResist.f90
-    ${ENGINE_DIR}/summaSolve4homegrown.f90
-    ${ENGINE_DIR}/systemSolve.f90
+    ${ENGINE_DIR}/summaSolv4homegrown.f90
+    ${ENGINE_DIR}/systemSolv.f90
     ${ENGINE_DIR}/varSubstep.f90
     ${ENGINE_DIR}/vegLiqFlux.f90
     ${ENGINE_DIR}/vegNrgFlux.f90
@@ -140,8 +140,8 @@ set(SOLVER_SUNDIALS
     ${ENGINE_DIR}/computJacobWithPrime.f90
     ${ENGINE_DIR}/computResidWithPrime.f90
     ${ENGINE_DIR}/eval8summaWithPrime.f90
-    ${ENGINE_DIR}/summaSolve4ida.f90
-    ${ENGINE_DIR}/summaSolve4kinsol.f90
+    ${ENGINE_DIR}/summaSolv4ida.f90
+    ${ENGINE_DIR}/summaSolv4kinsol.f90
     CACHE INTERNAL "SOLVER_SUNDIALS")
 
 # Driver support modules

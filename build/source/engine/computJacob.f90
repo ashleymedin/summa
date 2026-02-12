@@ -1053,7 +1053,7 @@ integer(c_int) function computJacob4kinsol(sunvec_y, sunvec_r, sunmat_J, &
 
   ! compute the analytical Jacobian matrix
   ! NOTE: The derivatives were computed in the previous call to computFlux
-  !       This occurred either at the call to eval8summa at the start of systemSolve
+  !       This occurred either at the call to eval8summa at the start of systemSolv
   !        or in the call to eval8summa in the previous iteration
   call initialize_computJacob ! pack in_computJacob object
   call computJacob(&

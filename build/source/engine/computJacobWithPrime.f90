@@ -548,7 +548,7 @@ integer(c_int) function computJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
 
   ! compute the analytical Jacobian matrix
   ! NOTE: The derivatives were computed in the previous call to computFlux
-  !       This occurred either at the call to eval8summaWithPrime at the start of systemSolve
+  !       This occurred either at the call to eval8summaWithPrime at the start of systemSolv
   !        or in the call to eval8summaWithPrime in the previous iteration
   call computJacobWithPrime(&
                 ! input: model control

@@ -120,13 +120,13 @@ subroutine varSubstep(&
                       out_varSubstep)      ! intent(out)   : model control
   ! ---------------------------------------------------------------------------------------
   ! structure allocations
-  USE allocspace_module,only:allocLocal                ! allocate local data structures
+  USE allocspace_module,only:allocLocal                 ! allocate local data structures
   ! simulation of fluxes and residuals given a trial state vector
   USE getVectorz_module,only:popStateVec                ! populate the state vector
   USE getVectorz_module,only:varExtract                 ! extract variables from the state vector
-  USE systemSolve_module,only:systemSolve                 ! solve the system of equations for one time step
+  USE systemSolv_module,only:systemSolv                 ! solve the system of equations for one time step
   ! identify name of variable type (for error message)
-  USE get_ixName_module,only:get_varTypeName           ! to access type strings for error messages
+  USE get_ixName_module,only:get_varTypeName            ! to access type strings for error messages
   implicit none
   ! ---------------------------------------------------------------------------------------
   ! * dummy variables
@@ -286,7 +286,7 @@ subroutine varSubstep(&
     ! initialize the length of the substep
     dtSubstep = dtInit
 
-    ! change maxstep with hard code here to make only the newton step loop in systemSolve* happen more frequently
+    ! change maxstep with hard code here to make only the newton step loop in systemSolv* happen more frequently
     !   NOTE: this may just be amplifying the splitting error if maxstep is smaller than the full possible step
     maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s).
 
@@ -342,7 +342,7 @@ subroutine varSubstep(&
       ! * iterative solution...
       ! -----------------------
       ! solve the system of equations for a given state subset
-      call systemSolve(&
+      call systemSolv(&
                       ! input: model control
                       dtSubstep,         & ! intent(in):    time step (s)
                       whole_step,        & ! intent(in):    entire time step (s)

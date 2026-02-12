@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module summaSolve4homegrown_module
+module summaSolv4homegrown_module
 
 ! data types
 USE nr_type
@@ -62,9 +62,9 @@ USE data_types,only:&
                     out_type_computJacob,        & ! class for computJacob arguments
                     in_type_lineSearchRefinement, & ! class for lineSearchRefinement arguments
                     out_type_lineSearchRefinement,& ! class for lineSearchRefinement arguments
-                    in_type_summaSolve4homegrown, & ! class for summaSolve4homegrown arguments
-                    io_type_summaSolve4homegrown, & ! class for summaSolve4homegrown arguments
-                    out_type_summaSolve4homegrown   ! class for summaSolve4homegrown arguments
+                    in_type_summaSolv4homegrown, & ! class for summaSolv4homegrown arguments
+                    io_type_summaSolv4homegrown, & ! class for summaSolv4homegrown arguments
+                    out_type_summaSolv4homegrown   ! class for summaSolv4homegrown arguments
 
 
 ! look-up values for the choice of groundwater parameterization
@@ -80,15 +80,15 @@ USE mDecisions_module,only:       &
 
 implicit none
 private
-public :: summaSolve4homegrown
+public :: summaSolv4homegrown
 public :: refine_Newton_step
 public :: checkConv
 contains
 
  ! **************************************************************************************************************************
- ! public subroutine summaSolve4homegrown: calculate the iteration increment, evaluate the new state, and refine if necessary
+ ! public subroutine summaSolv4homegrown: calculate the iteration increment, evaluate the new state, and refine if necessary
  ! **************************************************************************************************************************
- subroutine summaSolve4homegrown(&
+ subroutine summaSolv4homegrown(&
                        ! input: model control
                        in_SS4HG,                & ! intent(in): model control and previous function value
                        ! input: state vectors
@@ -126,8 +126,8 @@ contains
  USE matrixOper_module,   only: scaleMatrices
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
- type(in_type_summaSolve4homegrown),intent(in)    :: in_SS4HG ! model control variables and previous function evaluation
- type(io_type_summaSolve4homegrown),intent(inout) :: io_SS4HG ! first flux call flag and baseflow variables
+ type(in_type_summaSolv4homegrown),intent(in)    :: in_SS4HG ! model control variables and previous function evaluation
+ type(io_type_summaSolv4homegrown),intent(inout) :: io_SS4HG ! first flux call flag and baseflow variables
  ! input: state vectors
  real(rkind),intent(in)          :: stateVecTrial(:)          ! trial state vector
  real(rkind),intent(in)          :: fScale(:)                 ! characteristic scale of the function evaluations
@@ -156,7 +156,7 @@ contains
  real(rkind),intent(out)         :: fluxVecNew(:)             ! new flux vector
  real(rkind),intent(out)         :: resSinkNew(:)             ! sink terms on the RHS of the flux equation
  real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp   ! new residual vector
- type(out_type_summaSolve4homegrown),intent(out) :: out_SS4HG ! new function evaluation, convergence flag, and error control
+ type(out_type_summaSolv4homegrown),intent(out) :: out_SS4HG ! new function evaluation, convergence flag, and error control
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -183,23 +183,23 @@ contains
  ! ***** Compute the Newton Step *****
 
  ! initial setup including computing the Jacobian -- return if error
- call initialize_summaSolve4homegrown; if (return_flag) return 
+ call initialize_summaSolv4homegrown; if (return_flag) return 
  ! compute the Newton step -- return if error
- call update_summaSolve4homegrown;     if (return_flag) return 
+ call update_summaSolv4homegrown;     if (return_flag) return 
  ! final check for errors
- call finalize_summaSolve4homegrown;   if (return_flag) return
+ call finalize_summaSolv4homegrown;   if (return_flag) return
 
  contains
 
-  subroutine initialize_summaSolve4homegrown
-   ! *** Initial steps for the summaSolve4homegrown algorithm (computing the Newton step) ***
+  subroutine initialize_summaSolv4homegrown
+   ! *** Initial steps for the summaSolv4homegrown algorithm (computing the Newton step) ***
 
    associate(&
     err       => out_SS4HG % err      ,& 
     message   => out_SS4HG % message   &     
     &)
     ! initialize error control
-    err=0; message='summaSolve4homegrown/'
+    err=0; message='summaSolv4homegrown/'
     return_flag=.false. ! initialize return flag
    
     ! choose Jacobian type
@@ -220,10 +220,10 @@ contains
 
    ! compute the Jacobian
    call update_Jacobian; if (return_flag) return ! compute Jacobian for Newton step -- return if error
-  end subroutine initialize_summaSolve4homegrown
+  end subroutine initialize_summaSolv4homegrown
 
-  subroutine update_summaSolve4homegrown
-   ! *** Update steps for the summaSolve4homegrown algorithm (computing the Newton step) ***
+  subroutine update_summaSolv4homegrown
+   ! *** Update steps for the summaSolv4homegrown algorithm (computing the Newton step) ***
    call solve_linear_system;             if (return_flag) return ! solve the linear system for the Newton step -- return if error
   
    ! refine Newton step if needed
@@ -232,29 +232,29 @@ contains
                           &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&                ! input-output
                           &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,return_flag)                        ! output
    if (return_flag) return ! return if error
-  end subroutine update_summaSolve4homegrown
+  end subroutine update_summaSolv4homegrown
 
-  subroutine finalize_summaSolve4homegrown
-   ! *** Final steps for the summaSolve4homegrown algorithm (computing the Newton step) ***
+  subroutine finalize_summaSolv4homegrown
+   ! *** Final steps for the summaSolv4homegrown algorithm (computing the Newton step) ***
    associate(err => out_SS4HG % err,message => out_SS4HG % message)
     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
    end associate
-  end subroutine finalize_summaSolve4homegrown
+  end subroutine finalize_summaSolv4homegrown
 
   subroutine update_Jacobian
    ! *** Update Jacobian used for Newton step ***
   
    ! compute the analytical Jacobian matrix
    ! NOTE: The derivatives were computed in the previous call to computFlux
-   !       This occurred either at the call to eval8summa at the start of systemSolve
+   !       This occurred either at the call to eval8summa at the start of systemSolv
    !        or in the call to eval8summa in the previous iteration (within lineSearchRefinement or trustRegionRefinement)
    associate(&
     err       => out_SS4HG % err      ,& 
     message   => out_SS4HG % message   &     
     &)
-    call initialize_computJacob_summaSolve4homegrown
+    call initialize_computJacob_summaSolv4homegrown
     call computJacob(in_computJacob,indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,dMat,aJac,out_computJacob)
-    call finalize_computJacob_summaSolve4homegrown
+    call finalize_computJacob_summaSolv4homegrown
     if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! (check for errors)
 
    end associate
@@ -299,8 +299,8 @@ contains
    end associate
   end subroutine solve_linear_system
 
-  subroutine initialize_computJacob_summaSolve4homegrown
-   ! *** Transfer data to in_computJacob class object from local variables in summaSolve4homegrown ***
+  subroutine initialize_computJacob_summaSolv4homegrown
+   ! *** Transfer data to in_computJacob class object from local variables in summaSolv4homegrown ***
    associate(&
     ixGroundwater  => model_decisions(iLookDECISIONS%groundwatr)%iDecision,&  ! intent(in): [i4b] groundwater parameterization
     dt_cur         => in_SS4HG % dt_cur         ,& ! intent(in): current stepsize
@@ -314,16 +314,16 @@ contains
     &)   
     call in_computJacob % initialize(dt_cur,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel),ixMatrix)
    end associate
-  end subroutine initialize_computJacob_summaSolve4homegrown
+  end subroutine initialize_computJacob_summaSolv4homegrown
 
-  subroutine finalize_computJacob_summaSolve4homegrown
-   ! *** Transfer data from out_computJacob class object to local variables in summaSolve4homegrown ***
+  subroutine finalize_computJacob_summaSolv4homegrown
+   ! *** Transfer data from out_computJacob class object to local variables in summaSolv4homegrown ***
    associate(err => out_SS4HG % err)
     call out_computJacob % finalize(err,cmessage)
    end associate 
-  end subroutine finalize_computJacob_summaSolve4homegrown
+  end subroutine finalize_computJacob_summaSolv4homegrown
 
- end subroutine summaSolve4homegrown
+ end subroutine summaSolv4homegrown
 
  ! *********************************************************************************************************
  ! * module subroutine refine_Newton_step: refine the Newton step if necessary
@@ -337,7 +337,7 @@ contains
   USE eval8summa_module, only: imposeConstraints
   implicit none
   ! input
-  type(in_type_summaSolve4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
+  type(in_type_summaSolv4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
   integer(i4b),intent(in)         :: mSoil                     ! number of soil layers in solution vector
   real(rkind),intent(in)          :: stateVecTrial(:)          ! trial state vector
   real(rkind),intent(in)          :: newtStepScaled(:)         ! scaled newton step
@@ -355,7 +355,7 @@ contains
   type(var_dlength),  intent(in)  :: prog_data                 ! prognostic variables for a local HRU
   ! input-output
   real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
-  type(io_type_summaSolve4homegrown),intent(inout) :: io_SS4HG ! first flux call flag and baseflow variables
+  type(io_type_summaSolv4homegrown),intent(inout) :: io_SS4HG ! first flux call flag and baseflow variables
   type(var_ilength),intent(inout) :: indx_data                 ! indices defining model states and layers
   type(var_dlength),intent(inout) :: diag_data                 ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout) :: flux_data                 ! model fluxes for a local HRU
@@ -366,7 +366,7 @@ contains
   real(rkind),intent(out)         :: fluxVecNew(:)             ! new flux vector
   real(rkind),intent(out)         :: resSinkNew(:)             ! sink terms on the RHS of the flux equation
   real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp   ! new residual vector
-  type(out_type_summaSolve4homegrown),intent(out) :: out_SS4HG ! new function evaluation, convergence flag, and error control
+  type(out_type_summaSolv4homegrown),intent(out) :: out_SS4HG ! new function evaluation, convergence flag, and error control
   logical(lgt),intent(out)        :: return_flag               ! flag that controls execution of return statements
   ! local
   logical(lgt)                    :: doRefine                      ! flag for step refinement
@@ -462,7 +462,7 @@ contains
   implicit none
   ! input
   type(in_type_lineSearchRefinement),intent(in) :: in_LSR      ! class object for intent(in) arguments
-  type(in_type_summaSolve4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
+  type(in_type_summaSolv4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
   integer(i4b),intent(in)         :: mSoil                     ! number of soil layers in solution vector
   real(rkind),intent(in)          :: stateVecTrial(:)          ! trial state vector
   real(rkind),intent(in)          :: newtStepScaled(:)         ! scaled newton step
@@ -480,7 +480,7 @@ contains
   type(var_dlength),  intent(in)  :: prog_data                 ! prognostic variables for a local HRU
   ! input-output
   real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
-  type(io_type_summaSolve4homegrown),intent(inout) :: io_SS4HG ! first flux call flag and baseflow variables
+  type(io_type_summaSolv4homegrown),intent(inout) :: io_SS4HG ! first flux call flag and baseflow variables
   type(var_ilength),intent(inout) :: indx_data                 ! indices defining model states and layers
   type(var_dlength),intent(inout) :: diag_data                 ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout) :: flux_data                 ! model fluxes for a local HRU
@@ -491,7 +491,7 @@ contains
   real(rkind),intent(out)        :: fluxVecNew(:)              ! new flux vector
   real(rkind),intent(out)        :: resSinkNew(:)              ! sink terms on the RHS of the flux equation
   real(qp),intent(out)           :: resVecNew(:) ! NOTE: qp    ! new residual vector
-  type(out_type_summaSolve4homegrown),intent(out) :: out_SS4HG ! new function evaluation, convergence flag, and error control
+  type(out_type_summaSolv4homegrown),intent(out) :: out_SS4HG ! new function evaluation, convergence flag, and error control
   type(out_type_lineSearchRefinement),intent(out) :: out_LSR   ! class object for intent(out) arguments
   ! --------------------------------------------------------------------------------------------------------
   ! local
@@ -664,7 +664,7 @@ contains
   implicit none
   ! input
   type(in_type_lineSearchRefinement),intent(in)   :: in_TRR            ! object for scalar intent(in) arguments -- reusing line search class
-  type(in_type_summaSolve4homegrown),intent(in)   :: in_SS4HG          ! model control variables and previous function evaluation
+  type(in_type_summaSolv4homegrown),intent(in)   :: in_SS4HG          ! model control variables and previous function evaluation
   real(rkind),intent(in)                          :: stateVecTrial(:)  ! trial state vector
   real(rkind),intent(in)                          :: newtStepScaled(:) ! scaled newton step
   real(rkind),intent(in)                          :: aJacScaled(:,:)   ! scaled jacobian matrix
@@ -749,7 +749,7 @@ contains
   real(rkind),intent(in)          :: newtStepScaled(:)         ! scaled newton step
   real(rkind),intent(in)          :: fScale(:)                 ! characteristic scale of the function evaluations
   real(rkind),intent(in)          :: xScale(:)                 ! characteristic scale of the state vector
-  type(in_type_summaSolve4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
+  type(in_type_summaSolv4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
   type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
   type(zLookup),      intent(in)  :: lookup_data               ! lookup tables
   type(var_i),        intent(in)  :: type_data                 ! type of vegetation and soil
@@ -760,14 +760,14 @@ contains
   type(var_dlength),  intent(in)  :: prog_data                 ! prognostic variables for a local HRU
   ! input-output
   real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
-  type(io_type_summaSolve4homegrown),intent(inout) :: io_SS4HG ! first flux call flag and baseflow variables
+  type(io_type_summaSolv4homegrown),intent(inout) :: io_SS4HG ! first flux call flag and baseflow variables
   type(var_ilength),intent(inout) :: indx_data                 ! indices defining model states and layers
   type(var_dlength),intent(inout) :: diag_data                 ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout) :: flux_data                 ! model fluxes for a local HRU
   type(var_dlength),intent(inout) :: deriv_data                ! derivatives in model fluxes w.r.t. relevant state variables
   real(rkind),intent(inout)       :: dBaseflow_dMatric(:,:)    ! derivative in baseflow w.r.t. matric head (s-1)
   ! output
-  type(out_type_summaSolve4homegrown),intent(out) :: out_SS4HG ! new function evaluation, convergence flag, and error control
+  type(out_type_summaSolv4homegrown),intent(out) :: out_SS4HG ! new function evaluation, convergence flag, and error control
   real(rkind),intent(out)         :: stateVecNew(:)            ! new state vector
   real(rkind),intent(out)         :: fluxVecNew(:)             ! new flux vector
   real(rkind),intent(out)         :: resSinkNew(:)             ! sink terms on the RHS of the flux equation
@@ -898,7 +898,7 @@ contains
   real(rkind),intent(in)          :: stateVecTrial(:)          ! trial state vector
   real(qp),intent(in)             :: rVec(:)   ! NOTE: qp      ! residual vector
   real(rkind),intent(in)          :: fScale(:)                 ! characteristic scale of the function evaluations
-  type(in_type_summaSolve4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
+  type(in_type_summaSolv4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
   type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
   type(zLookup),      intent(in)  :: lookup_data               ! lookup tables
   type(var_i),        intent(in)  :: type_data                 ! type of vegetation and soil
@@ -909,7 +909,7 @@ contains
   type(var_dlength),  intent(in)  :: prog_data                 ! prognostic variables for a local HRU
   ! input-output
   real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
-  type(io_type_summaSolve4homegrown),intent(inout) :: io_SS4HG ! first flux call flag and baseflow variables
+  type(io_type_summaSolv4homegrown),intent(inout) :: io_SS4HG ! first flux call flag and baseflow variables
   type(var_ilength),intent(inout) :: indx_data                 ! indices defining model states and layers
   type(var_dlength),intent(inout) :: diag_data                 ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout) :: flux_data                 ! model fluxes for a local HRU
@@ -917,7 +917,7 @@ contains
   real(rkind),intent(inout)       :: dBaseflow_dMatric(:,:)    ! derivative in baseflow w.r.t. matric head (s-1)
   integer(i4b),intent(inout)      :: err                       ! error code
   ! output
-  type(out_type_summaSolve4homegrown),intent(out) :: out_SS4HG ! new function evaluation, convergence flag, and error control
+  type(out_type_summaSolv4homegrown),intent(out) :: out_SS4HG ! new function evaluation, convergence flag, and error control
   real(rkind),intent(out)         :: stateVecNew(:)            ! new state vector
   real(rkind),intent(out)         :: fluxVecNew(:)             ! updated flux vector
   real(rkind),intent(out)         :: resSinkNew(:)             ! sink terms on the RHS of the flux equation
@@ -1009,7 +1009,7 @@ contains
   ! input
   real(rkind),intent(in)          :: stateVecNew(:)            ! updated state vector
   real(rkind),intent(in)          :: fScale(:)                 ! characteristic scale of the function evaluations
-  type(in_type_summaSolve4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
+  type(in_type_summaSolv4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
   type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
   type(zLookup),      intent(in)  :: lookup_data               ! lookup tables
   type(var_i),        intent(in)  :: type_data                 ! type of vegetation and soil
@@ -1020,7 +1020,7 @@ contains
   type(var_dlength),  intent(in)  :: prog_data                 ! prognostic variables for a local HRU
   ! input-output
   real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
-  type(io_type_summaSolve4homegrown),intent(inout) :: io_SS4HG ! first flux call flag and baseflow variables
+  type(io_type_summaSolv4homegrown),intent(inout) :: io_SS4HG ! first flux call flag and baseflow variables
   type(var_ilength),intent(inout) :: indx_data                 ! indices defining model states and layers
   type(var_dlength),intent(inout) :: diag_data                 ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout) :: flux_data                 ! model fluxes for a local HRU
@@ -1118,14 +1118,14 @@ contains
   logical(lgt)                 :: checkConv                    ! flag to denote convergence
   ! dummies
   integer(i4b),intent(in)      :: mSoil                        ! number of soil layers in solution vector
-  type(in_type_summaSolve4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
+  type(in_type_summaSolv4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
   type(var_dlength),intent(in) :: mpar_data                    ! model parameters
   type(var_ilength),intent(in) :: indx_data                    ! indices defining model states and layers
   type(var_dlength),intent(in) :: prog_data                    ! prognostic variables for a local HRU
   real(rkind),intent(in)       :: rVec(:)                      ! residual vector (mixed units)
   real(rkind),intent(in)       :: xInc(:)                      ! iteration increment (mixed units)
   real(rkind),intent(in)       :: xVec(:)                      ! state vector (mixed units)
-  type(out_type_summaSolve4homegrown),intent(in) :: out_SS4HG  ! new function evaluation, convergence flag, and error control
+  type(out_type_summaSolv4homegrown),intent(in) :: out_SS4HG  ! new function evaluation, convergence flag, and error control
   ! locals
   real(rkind),dimension(mSoil) :: psiScale                ! scaling factor for matric head
   real(rkind),parameter        :: xSmall=1.e-0_rkind      ! a small offset
@@ -1240,4 +1240,4 @@ contains
 
  end function checkConv
 
-end module summaSolve4homegrown_module
+end module summaSolv4homegrown_module
