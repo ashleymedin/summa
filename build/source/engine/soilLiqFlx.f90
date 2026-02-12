@@ -959,6 +959,8 @@ contains
    dVolFracIce_dTk(:)     = 0._rkind
    dInfilArea_dWat(:)     = 0._rkind
    dInfilArea_dTk(:)      = 0._rkind
+   dInfilRate_dWat(:)     = 0._rkind
+   dInfilRate_dTk(:)      = 0._rkind
    dxMaxInfilRate_dWat(:) = 0._rkind
    dxMaxInfilRate_dTk(:)  = 0._rkind
    dFrozenArea_dWat(:)    = 0._rkind
