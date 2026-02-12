@@ -163,7 +163,7 @@ subroutine liquidHead(&
     ! ----------------------------------------------------------------------------------------------------
 
     ! check if the derivative is desired
-    if(present(dPsiLiq_dTemp))then
+    if(present(dPsiLiq_dPsi0))then
       ! (check required input derivative is present)
       if(.not.present(dVolTot_dPsi0))then
         message=trim(message)//'dVolTot_dPsi0 argument is missing'
@@ -192,7 +192,7 @@ subroutine liquidHead(&
   ! ** unfrozen soil
   else   ! (no ice)
     matricHeadLiq = matricHeadTotal
-    if(present(dPsiLiq_dTemp)) dPsiLiq_dPsi0 = 1._rkind  ! derivative=1 because values are identical
+    if(present(dPsiLiq_dPsi0)) dPsiLiq_dPsi0 = 1._rkind  ! derivative=1 because values are identical
     if(present(dPsiLiq_dTemp)) dPsiLiq_dTemp = 0._rkind  ! derivative=0 because no impact of temperature for unfrozen conditions
   end if  ! (if ice exists)
 

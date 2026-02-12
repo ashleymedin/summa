@@ -71,37 +71,35 @@ subroutine liquidHeadPrime(&
   ! computes the liquid water matric potential (and the derivatives w.r.t. total matric potential and temperature)
  implicit none
   ! input
-  real(rkind),intent(in)            :: matricHeadTotal                           ! total water matric potential (m)
-  real(rkind),intent(in)            :: matricHeadTotalPrime                      ! total water matric potential time derivative (m s-1)
-  real(rkind),intent(in)            :: volFracLiq                                ! volumetric fraction of liquid water (-)
-  real(rkind),intent(in)            :: volFracIce                                ! volumetric fraction of ice (-)
-  real(rkind),intent(in)            :: vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m ! soil parameters
-  real(rkind),intent(in)  ,optional :: dVolTot_dPsi0                             ! derivative in the soil water characteristic (m-1)
-  real(rkind),intent(in)  ,optional :: dTheta_dT                                 ! derivative in volumetric total water w.r.t. temperature (K-1)
-  real(rkind),intent(in)            :: volFracLiqPrime                           ! volumetric fraction of liquid water time derivative ()
-  real(rkind),intent(in)            :: volFracIcePrime                           ! volumetric fraction of ice time derivative ()
+  real(rkind),intent(in)      :: matricHeadTotal                           ! total water matric potential (m)
+  real(rkind),intent(in)      :: matricHeadTotalPrime                      ! total water matric potential time derivative (m s-1)
+  real(rkind),intent(in)      :: volFracLiq                                ! volumetric fraction of liquid water (-)
+  real(rkind),intent(in)      :: volFracIce                                ! volumetric fraction of ice (-)
+  real(rkind),intent(in)      :: vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m ! soil parameters
+  real(rkind),intent(in)      :: dVolTot_dPsi0                             ! derivative in the soil water characteristic (m-1)
+  real(rkind),intent(in)      :: dTheta_dT                                 ! derivative in volumetric total water w.r.t. temperature (K-1)
+  real(rkind),intent(in)      :: volFracLiqPrime                           ! volumetric fraction of liquid water time derivative ()
+  real(rkind),intent(in)      :: volFracIcePrime                           ! volumetric fraction of ice time derivative ()
   ! output
-  real(rkind),intent(out)           :: matricHeadLiq                             ! liquid water matric potential (m)
-  real(rkind),intent(out)           :: matricHeadLiqPrime                        ! liquid water matric potential time derivative (m s-1)
-  real(rkind),intent(out) ,optional :: dPsiLiq_dPsi0                             ! derivative in the liquid water matric potential w.r.t. the total water matric potential (-)
-  real(rkind),intent(out) ,optional :: dPsiLiq_dTemp                             ! derivative in the liquid water matric potential w.r.t. temperature (m K-1)
+  real(rkind),intent(out)     :: matricHeadLiq                             ! liquid water matric potential (m)
+  real(rkind),intent(out)     :: matricHeadLiqPrime                        ! liquid water matric potential time derivative (m s-1)
+  real(rkind),intent(out)     :: dPsiLiq_dPsi0                             ! derivative in the liquid water matric potential w.r.t. the total water matric potential (-)
+  real(rkind),intent(out)     :: dPsiLiq_dTemp                             ! derivative in the liquid water matric potential w.r.t. temperature (m K-1)
   ! output: error control
-  integer(i4b),intent(out)          :: err                                       ! error code
-  character(*),intent(out)          :: message                                   ! error message
+  integer(i4b),intent(out)    :: err                                       ! error code
+  character(*),intent(out)    :: message                                   ! error message
   ! local
-  real(rkind)                       :: xNum,xDen                                 ! temporary variables (numeratir, denominator)
-  real(rkind)                       :: effSat                                    ! effective saturation (-)
-  real(rkind)                       :: dPsiLiq_dEffSat                           ! derivative in liquid water matric potential w.r.t. effective saturation (m)
-  real(rkind)                       :: dEffSat_dTemp                             ! derivative in effective saturation w.r.t. temperature (K-1)
-  real(rkind)                       :: effSatPrime                               ! effective saturation time derivative (-)
+  real(rkind)                 :: xNum,xDen                                 ! temporary variables (numeratir, denominator)
+  real(rkind)                 :: effSat                                    ! effective saturation (-)
+  real(rkind)                 :: dPsiLiq_dEffSat                           ! derivative in liquid water matric potential w.r.t. effective saturation (m)
+  real(rkind)                 :: dEffSat_dTemp                             ! derivative in effective saturation w.r.t. temperature (K-1)
+  real(rkind)                 :: effSatPrime                               ! effective saturation time derivative (-)
   ! ------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message='liquidHeadPrime/'
 
   ! ** partially frozen soil
   if(volFracIce > epsilon(1._rkind) .and. matricHeadTotal < 0._rkind)then  ! check that ice exists and that the soil is unsaturated
-
-
     ! -----
     ! - compute liquid water matric potential...
     ! ------------------------------------------
@@ -122,49 +120,22 @@ subroutine liquidHeadPrime(&
       matricHeadLiqPrime = 0._rkind
     endif
 
-    ! compute derivative in liquid water matric potential w.r.t. effective saturation (m)
-    if(present(dPsiLiq_dPsi0).or.present(dPsiLiq_dTemp))then
-      dPsiLiq_dEffSat = dPsi_dTheta(effSat,vGn_alpha,0._rkind,1._rkind,vGn_n,vGn_m)
-    endif
+    ! derivative in liquid water matric potential w.r.t. effective saturation (m)
+    dPsiLiq_dEffSat = dPsi_dTheta(effSat,vGn_alpha,0._rkind,1._rkind,vGn_n,vGn_m)
+    ! derivative in the liquid water matric potential w.r.t. the total water matric potential
+    dPsiLiq_dPsi0 = dVolTot_dPsi0*dPsiLiq_dEffSat*xNum/(xDen**2_i4b)
+    ! derivative in the liquid water matric potential w.r.t. temperature
+    dEffSat_dTemp = -dTheta_dT*xNum/(xDen**2_i4b) + dTheta_dT/xDen
+    dPsiLiq_dTemp = dPsiLiq_dEffSat*dEffSat_dTemp
 
-    ! -----
-    ! - compute derivative in the liquid water matric potential w.r.t. the total water matric potential...
-    ! ----------------------------------------------------------------------------------------------------
-
-    ! check if the derivative is desired
-    if(present(dPsiLiq_dTemp))then
-      ! (check required input derivative is present)
-      if(.not.present(dVolTot_dPsi0))then
-        message=trim(message)//'dVolTot_dPsi0 argument is missing'
-        err=20; return
-      endif
-      ! (compute derivative in the liquid water matric potential w.r.t. the total water matric potential)
-      dPsiLiq_dPsi0 = dVolTot_dPsi0*dPsiLiq_dEffSat*xNum/(xDen**2_i4b)
-    endif  ! if dPsiLiq_dTemp is desired
-
-    ! -----
-    ! - compute the derivative in the liquid water matric potential w.r.t. temperature...
-    ! -----------------------------------------------------------------------------------
-
-    ! check if the derivative is desired
-    if(present(dPsiLiq_dTemp))then
-      ! (check required input derivative is present)
-      if(.not.present(dTheta_dT))then
-        message=trim(message)//'dTheta_dT argument is missing'
-        err=20; return
-      endif
-      ! (compute the derivative in the liquid water matric potential w.r.t. temperature)
-      dEffSat_dTemp = -dTheta_dT*xNum/(xDen**2_i4b) + dTheta_dT/xDen
-      dPsiLiq_dTemp = dPsiLiq_dEffSat*dEffSat_dTemp
-    endif  ! if dPsiLiq_dTemp is desired
-
-    ! ** unfrozen soil
+  ! ** unfrozen soil
   else   ! (no ice)
     matricHeadLiq = matricHeadTotal
     matricHeadLiqPrime = matricHeadTotalPrime
-    if(present(dPsiLiq_dTemp)) dPsiLiq_dPsi0 = 1._rkind  ! derivative=1 because values are identical
-    if(present(dPsiLiq_dTemp)) dPsiLiq_dTemp = 0._rkind  ! derivative=0 because no impact of temperature for unfrozen conditions
+    dPsiLiq_dPsi0 = 1._rkind  ! derivative=1 because values are identical
+    dPsiLiq_dTemp = 0._rkind  ! derivative=0 because no impact of temperature for unfrozen conditions
   end if  ! (if ice exists)
+  
   if(volFracLiqPrime==realMissing .or. volFracIcePrime==realMissing) matricHeadLiqPrime = realMissing
 
 end subroutine liquidHeadPrime

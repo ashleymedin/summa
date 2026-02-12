@@ -1266,7 +1266,7 @@ subroutine enthalpy2T_soil(&
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     T = T_out
 
-  ! compute Jacobian terms
+    ! compute Jacobian terms
     if(computeJac)then
       ! NOTE: here fLiq is the total liquid fraction, not fraction of water fraction that is liquid
       xConst       = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
