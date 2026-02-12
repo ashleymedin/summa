@@ -299,7 +299,7 @@ subroutine varSubstep(&
       flux_temp%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:)
     end do
 
-    ! initialize the total energy fluxes (modified in updateProg)
+    ! initialize the total energy fluxes (modified in updatProg)
     sumCanopyEvaporation = 0._rkind  ! canopy evaporation/condensation (kg m-2 s-1)
     sumLatHeatCanopyEvap = 0._rkind  ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
     sumSenHeatCanopy     = 0._rkind  ! sensible heat flux from the canopy to the canopy air space (W m-2)
@@ -448,7 +448,7 @@ subroutine varSubstep(&
       endif
 
       ! update prognostic variables, update balances, and check them for possible step reduction if homegrown or kinsol solver
-      call updateProg(dtSubstep,nSnow,nLake,nSoil,nLayers,untappedMelt,stateVecTrial,stateVecPrime,                              & ! input: states
+      call updatProg(dtSubstep,nSnow,nLake,nSoil,nLayers,untappedMelt,stateVecTrial,stateVecPrime,                               & ! input: states
                       doAdjustTemp,computeVegFlux,computMassBalance,computNrgBalance,computeEnthTemp,enthalpyStateVec,use_lookup,& ! input: model control
                       model_decisions,lookup_data,mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                  & ! input-output: data structures
                       fluxVec,resVec,balance,waterBalanceError,nrgFluxModified,err,message)                                        ! input-output: balances, flags, and error control
@@ -502,7 +502,7 @@ subroutine varSubstep(&
       endif
       if(ixAqWat/=integerMissing) sumBalance(ixAqWat) = sumBalance(ixAqWat) + dtSubstep*balance(ixAqWat)
 
-      ! get the total energy fluxes (modified in updateProg), have to do differently
+      ! get the total energy fluxes (modified in updatProg), have to do differently
       if(nrgFluxModified .or. ixVegNrg/=integerMissing)then
         sumCanopyEvaporation  = sumCanopyEvaporation  + dtSubstep*flux_temp%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)  ! canopy evaporation/condensation (kg m-2 s-1)
         sumLatHeatCanopyEvap  = sumLatHeatCanopyEvap  + dtSubstep*flux_temp%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1)  ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
@@ -629,18 +629,18 @@ end subroutine varSubstep
 
 
 ! **********************************************************************************************************
-! private subroutine updateProg: update prognostic variables
+! private subroutine updatProg: update prognostic variables
 ! **********************************************************************************************************
-subroutine updateProg(dt,nSnow,nLake,nSoil,nLayers,untappedMelt,stateVecTrial,stateVecPrime,                                     & ! input: states
+subroutine updatProg(dt,nSnow,nLake,nSoil,nLayers,untappedMelt,stateVecTrial,stateVecPrime,                                      & ! input: states
                       doAdjustTemp,computeVegFlux,computMassBalance,computNrgBalance,computeEnthTemp,enthalpyStateVec,use_lookup,& ! input: model control
                       model_decisions,lookup_data,mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,                  & ! input-output: data structures
                       fluxVec,resVec,balance,waterBalanceError,nrgFluxModified,err,message)                                        ! input-output: balances, flags, and error control
 USE getVectorz_module,only:varExtract                              ! extract variables from the state vector
 #ifdef SUNDIALS_ACTIVE
-  USE updateDiagnWithPrime_module,only:updateDiagnWithPrime          ! update prognostic variables
+  USE updatDiagnWithPrime_module,only:updatDiagnWithPrime          ! update diagnostic variables
 #endif
-  USE updateDiagn_module,only:updateDiagn                            ! update prognostic variables
-  USE convertEnthalpyTemp_module,only:enthTemp_or_enthalpy                ! add phase change terms to delta temperature component of enthalpy
+  USE updatDiagn_module,only:updatDiagn                            ! update diagnostic variables
+  USE convertEnthalpyTemp_module,only:enthTemp_or_enthalpy         ! add phase change terms to delta temperature component of enthalpy
   implicit none
   ! model control
   real(rkind)      ,intent(in)    :: dt                            ! time step (s)
@@ -751,7 +751,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
     ixCasNrg                  => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)                  ,& ! intent(in)   : [i4b]    index of canopy air space energy state variable
     ixVegNrg                  => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)                  ,& ! intent(in)   : [i4b]    index of canopy energy state variable
     ixVegHyd                  => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)                  ,& ! intent(in)   : [i4b]    index of canopy hydrology state variable (mass)
-     ixAqWat                   => indx_data%var(iLookINDEX%ixAqWat)%dat(1)                   ,& ! intent(in)   : [i4b]    index of water storage in the aquifer
+    ixAqWat                   => indx_data%var(iLookINDEX%ixAqWat)%dat(1)                   ,& ! intent(in)   : [i4b]    index of water storage in the aquifer
     ixSoilOnlyHyd             => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat                ,& ! intent(in)   : [i4b(:)] index in the state subset for hydrology state variables in the soil domain
     ixSnLaSoGlNrg             => indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat                ,& ! intent(in)   : [i4b(:)] index in the state subset for energy state variables in the layer domains
     ixSnLaSoGlHyd             => indx_data%var(iLookINDEX%ixSnLaSoGlHyd)%dat                ,& ! intent(in)   : [i4b(:)] index in the state subset for hydrology state variables in the layer domains
@@ -805,7 +805,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
     ) ! associating flux variables in the data structure
     ! -------------------------------------------------------------------------------------------------------------------
     ! initialize error control
-    err=0; message='updateProg/'
+    err=0; message='updatProg/'
 
     ! initialize flags for water balance error and energy flux modification
     waterBalanceError=.false.
@@ -939,7 +939,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
         endif !(choice of how conservation of energy is implemented)
     
         ! update diagnostic variables
-        call updateDiagnWithPrime(&
+        call updatDiagnWithPrime(&
                     ! input
                     enthalpyStateVec,                 & ! intent(in):    flag if enthalpy is used as state variable
                     use_lookup,                       & ! intent(in):    flag to use the lookup table for soil enthalpy
@@ -983,7 +983,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
 #endif
       case(kinsol, homegrown)
         ! update diagnostic variables
-        call updateDiagn(&
+        call updatDiagn(&
                  ! input
                  computeEnthTemp,           & ! intent(in):    flag if computing temperature component of enthalpy
                  use_lookup,                & ! intent(in):    flag to use the lookup table for soil enthalpy
@@ -1383,6 +1383,6 @@ USE getVectorz_module,only:varExtract                              ! extract var
     ! end associations to info in the data structures
   end associate
 
-end subroutine updateProg
+end subroutine updatProg
 
 end module varSubstep_module

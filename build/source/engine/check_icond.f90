@@ -82,12 +82,12 @@ contains
                        iden_water,&                      ! intrinsic density of liquid water    (kg m-3)
                        gravity,   &                      ! gravitational acceleration           (m s-2)
                        Tfreeze                           ! freezing point of pure water         (K)
- USE updateState_module,only:updateSnLaGl                 ! update snow states
- USE updateState_module,only:updateSoil                   ! update soil states
- USE convertEnthalpyTemp_module,only:T2enthTemp_cas             ! convert temperature to enthalpy for canopy air space
- USE convertEnthalpyTemp_module,only:T2enthTemp_veg             ! convert temperature to enthalpy for vegetation
- USE convertEnthalpyTemp_module,only:T2enthTemp_snLaGl          ! convert temperature to enthalpy for snow, lake, and ice
- USE convertEnthalpyTemp_module,only:T2enthTemp_soil            ! convert temperature to enthalpy for soil
+ USE updatState_module,only:updatSnLaGl                  ! update snow lake glce states
+ USE updatState_module,only:updatSoil                    ! update soil states
+ USE convertEnthalpyTemp_module,only:T2enthTemp_cas      ! convert temperature to enthalpy for canopy air space
+ USE convertEnthalpyTemp_module,only:T2enthTemp_veg      ! convert temperature to enthalpy for vegetation
+ USE convertEnthalpyTemp_module,only:T2enthTemp_snLaGl   ! convert temperature to enthalpy for snow, lake, and ice
+ USE convertEnthalpyTemp_module,only:T2enthTemp_soil     ! convert temperature to enthalpy for soil
  
  implicit none
 
@@ -404,7 +404,7 @@ contains
         if (layerType(iLayer)==iname_glce .or. layerType(iLayer)==iname_lake) frz_scale_use = snowfrz_scale*icefrz_mult
         
         ! ensure consistency among state variables
-        call updateSnLaGl(&
+        call updatSnLaGl(&
                         iLayer>nLayers-noThetaChange,   & ! intent(in):  flag that no liquid water in layer
                         mLayerTemp(iLayer),             & ! intent(in):  temperature (K)
                         scalarTheta,                    & ! intent(in):  volumetric fraction of total water (-)
@@ -433,7 +433,7 @@ contains
        case(iname_soil)
 
        ! ensure consistency among state variables
-        call updateSoil(&
+        call updatSoil(&
                        mLayerTemp(iLayer),              & ! intent(in): layer temperature (K)
                        mLayerMatricHead(iLayer-nSnow-nLake),  & ! intent(in): matric head (m)
                        vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m, & ! intent(in): van Genutchen soil parameters

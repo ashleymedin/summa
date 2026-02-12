@@ -58,8 +58,8 @@ USE data_types,only:&
                     var_dlength,                  & ! data vector with variable length dimension (rkind)
                     zLookup,                      & ! lookup tables
                     model_options,                & ! defines the model decisions
-                    in_type_computeJacob,         & ! class for computeJacob arguments
-                    out_type_computeJacob,        & ! class for computeJacob arguments
+                    in_type_computJacob,         & ! class for computJacob arguments
+                    out_type_computJacob,        & ! class for computJacob arguments
                     in_type_lineSearchRefinement, & ! class for lineSearchRefinement arguments
                     out_type_lineSearchRefinement,& ! class for lineSearchRefinement arguments
                     in_type_summaSolve4homegrown, & ! class for summaSolve4homegrown arguments
@@ -121,7 +121,7 @@ contains
                        resSinkNew,              & ! intent(out):   additional (sink) terms on the RHS of the state equation
                        resVecNew,               & ! intent(out):   new residual vector
                        out_SS4HG)                 ! intent(out):   new function evaluation, convergence flag, and error control  
- USE computeJacob_module, only: computeJacob
+ USE computJacob_module, only: computJacob
  USE matrixOper_module,   only: lapackSolv
  USE matrixOper_module,   only: scaleMatrices
  implicit none
@@ -175,8 +175,8 @@ contains
  logical(lgt)                    :: return_flag                   ! flag that controls execution of return statements
  character(LEN=256)              :: cmessage                      ! error message of downwind routine
  ! class objects for subroutine arguments
- type(in_type_computeJacob)       :: in_computeJacob                ! computeJacob object
- type(out_type_computeJacob)      :: out_computeJacob               ! computeJacob object 
+ type(in_type_computJacob)       :: in_computJacob                ! computJacob object
+ type(out_type_computJacob)      :: out_computJacob               ! computJacob object 
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
 
@@ -245,16 +245,16 @@ contains
    ! *** Update Jacobian used for Newton step ***
   
    ! compute the analytical Jacobian matrix
-   ! NOTE: The derivatives were computed in the previous call to computeFlux
+   ! NOTE: The derivatives were computed in the previous call to computFlux
    !       This occurred either at the call to eval8summa at the start of systemSolve
    !        or in the call to eval8summa in the previous iteration (within lineSearchRefinement or trustRegionRefinement)
    associate(&
     err       => out_SS4HG % err      ,& 
     message   => out_SS4HG % message   &     
     &)
-    call initialize_computeJacob_summaSolve4homegrown
-    call computeJacob(in_computeJacob,indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,dMat,aJac,out_computeJacob)
-    call finalize_computeJacob_summaSolve4homegrown
+    call initialize_computJacob_summaSolve4homegrown
+    call computJacob(in_computJacob,indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,dMat,aJac,out_computJacob)
+    call finalize_computJacob_summaSolve4homegrown
     if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! (check for errors)
 
    end associate
@@ -299,8 +299,8 @@ contains
    end associate
   end subroutine solve_linear_system
 
-  subroutine initialize_computeJacob_summaSolve4homegrown
-   ! *** Transfer data to in_computeJacob class object from local variables in summaSolve4homegrown ***
+  subroutine initialize_computJacob_summaSolve4homegrown
+   ! *** Transfer data to in_computJacob class object from local variables in summaSolve4homegrown ***
    associate(&
     ixGroundwater  => model_decisions(iLookDECISIONS%groundwatr)%iDecision,&  ! intent(in): [i4b] groundwater parameterization
     dt_cur         => in_SS4HG % dt_cur         ,& ! intent(in): current stepsize
@@ -312,16 +312,16 @@ contains
     ixMatrix       => in_SS4HG % ixMatrix       ,& ! intent(in): type of matrix (full or band diagonal)
     computeVegFlux => in_SS4HG % computeVegFlux  & ! intent(in): flag to indicate if computing fluxes over vegetation
     &)   
-    call in_computeJacob % initialize(dt_cur,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel),ixMatrix)
+    call in_computJacob % initialize(dt_cur,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel),ixMatrix)
    end associate
-  end subroutine initialize_computeJacob_summaSolve4homegrown
+  end subroutine initialize_computJacob_summaSolve4homegrown
 
-  subroutine finalize_computeJacob_summaSolve4homegrown
-   ! *** Transfer data from out_computeJacob class object to local variables in summaSolve4homegrown ***
+  subroutine finalize_computJacob_summaSolve4homegrown
+   ! *** Transfer data from out_computJacob class object to local variables in summaSolve4homegrown ***
    associate(err => out_SS4HG % err)
-    call out_computeJacob % finalize(err,cmessage)
+    call out_computJacob % finalize(err,cmessage)
    end associate 
-  end subroutine finalize_computeJacob_summaSolve4homegrown
+  end subroutine finalize_computJacob_summaSolve4homegrown
 
  end subroutine summaSolve4homegrown
 
@@ -333,7 +333,7 @@ contains
                               &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&                ! input-output
                               &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,return_flag)                        ! output
   ! provide access to the external procedures
-  USE matrixOper_module, only: computeGradient
+  USE matrixOper_module, only: computGradient
   USE eval8summa_module, only: imposeConstraints
   implicit none
   ! input
@@ -457,7 +457,7 @@ contains
                                 &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
                                 &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,out_LSR)
   ! provide access to the external procedures
-  USE matrixOper_module, only: computeGradient
+  USE matrixOper_module, only: computGradient
   USE eval8summa_module, only: imposeConstraints
   implicit none
   ! input
@@ -536,7 +536,7 @@ contains
    if (doLineSearch) then
 
     ! compute the gradient of the function vector
-    call computeGradient(ixMatrix,nState,aJacScaled,rVecScaled,gradScaled,err,cmessage)
+    call computGradient(ixMatrix,nState,aJacScaled,rVecScaled,gradScaled,err,cmessage)
     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
 
     ! compute the initial slope
@@ -660,7 +660,7 @@ contains
  subroutine trustRegionRefinement(in_TRR,in_SS4HG,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,stateVecNew,fluxVecNew,resVecNew,out_TRR)
   ! provide access to the matrix routines
   USE matrixOper_module, only: lapackSolv
-  USE matrixOper_module, only: computeGradient
+  USE matrixOper_module, only: computGradient
   implicit none
   ! input
   type(in_type_lineSearchRefinement),intent(in)   :: in_TRR            ! object for scalar intent(in) arguments -- reusing line search class

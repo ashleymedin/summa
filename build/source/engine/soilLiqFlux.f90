@@ -547,8 +547,8 @@ contains
    else
      ! glacier melt opposes the drainage flux
      scalarDrainage = scalarDrainage - scalarGlceMelt 
-     dq_dHydStateBelow(nSoil) = 0._rkind ! will be calculated in computeJacob
-     dq_dNrgStateBelow(nSoil) = 0._rkind ! will be calculated in computeJacob
+     dq_dHydStateBelow(nSoil) = 0._rkind ! will be calculated in computJacob
+     dq_dNrgStateBelow(nSoil) = 0._rkind ! will be calculated in computJacob
    endif
    call out_qDrainFlux % finalize(nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
@@ -1074,7 +1074,7 @@ contains
  end subroutine update_surfaceFlux
 
 subroutine update_volFracLiq_derivatives
-  ! **** Updates the derivatives for volumetric fraction of liquid and ice water in each soil layer ****
+  ! **** updates the derivatives for volumetric fraction of liquid and ice water in each soil layer ****
   ! local variables
   integer(i4b)      :: nLayers         ! number of soil layers to process
   logical(lgt)      :: doIce           ! flag indicating whether ice derivatives are needed
@@ -1148,7 +1148,7 @@ subroutine update_volFracLiq_derivatives
  end subroutine update_volFracLiq_derivatives
 
  subroutine update_surfaceFlux_liquidFlux_derivatives
-  ! **** Updates the derivatives for the liquid flux upper hydrology boundary condition if needed ****
+  ! **** updates the derivatives for the liquid flux upper hydrology boundary condition if needed ****
   associate(&
    ! input: flux at the upper boundary
    scalarRainPlusMelt => in_surfaceFlux % scalarRainPlusMelt , & ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)

@@ -151,7 +151,7 @@ subroutine summaSolve4ida(&
   USE allocspace_module,only:allocLocal                       ! allocate local data structures
   USE getVectorz_module, only:checkFeas                       ! check feasibility of state vector
   USE eval8summaWithPrime_module,only:eval8summa4ida          ! DAE/ODE functions
-  USE computeJacobWithPrime_module,only:computeJacob4ida        ! system Jacobian
+  USE computJacobWithPrime_module,only:computJacob4ida        ! system Jacobian
   USE tol4ida_module,only:computWeight4ida                    ! weight required for tolerances
   USE var_lookup,only:maxvarDecisions                         ! maximum number of decisions
   !======= Declarations =========
@@ -451,7 +451,7 @@ subroutine summaSolve4ida(&
     
     ! Set the user-supplied Jacobian routine
     if(.not.use_fdJac)then
-      retval = FIDASetJacFn(ida_mem, c_funloc(computeJacob4ida))
+      retval = FIDASetJacFn(ida_mem, c_funloc(computJacob4ida))
       if (retval /= 0) then; err=20; message=trim(message)//'error in FIDASetJacFn'; return; endif
     endif
     

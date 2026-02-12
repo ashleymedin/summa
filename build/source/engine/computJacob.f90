@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module computeJacob_module
+module computJacob_module
 
 ! data types
 USE nr_type
@@ -28,8 +28,8 @@ USE data_types,only:&
                     var_ilength,         & ! data vector with variable length dimension (i4b)
                     var_dlength,         & ! data vector with variable length dimension (rkind)
                     model_options,       & ! defines the model decisions
-                    in_type_computeJacob, & ! class for computeJacob arguments
-                    out_type_computeJacob   ! class for computeJacob arguments
+                    in_type_computJacob, & ! class for computJacob arguments
+                    out_type_computJacob   ! class for computJacob arguments
 
 ! named variables for structure elements
 USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
@@ -72,21 +72,21 @@ USE mDecisions_module,only:       &
 
 implicit none
 private
-public::computeJacob
+public::computJacob
 public::fluxJacAdd
 public::ixInd
 #ifdef SUNDIALS_ACTIVE
-public::computeJacob4kinsol
+public::computJacob4kinsol
 #endif
 contains
 
 
 ! **********************************************************************************************************
-! public subroutine computeJacob: compute the Jacobian matrix
+! public subroutine computJacob: compute the Jacobian matrix
 ! **********************************************************************************************************
-subroutine computeJacob(&
+subroutine computJacob(&
                        ! input: model control
-                       in_computeJacob,            & ! intent(in):    model control 
+                       in_computJacob,            & ! intent(in):    model control 
                        ! input: data structures
                        indx_data,                  & ! intent(in):    index data
                        prog_data,                  & ! intent(in):    model prognostic variables for a local HRU
@@ -97,11 +97,11 @@ subroutine computeJacob(&
                        dMat0,                      & ! intent(in):    diagonal of the Jacobian matrix excluding fluxes, not depending on the state vector
                        aJac,                       & ! intent(out):   Jacobian matrix
                        ! output: error control
-                       out_computeJacob)              ! intent(out):   error code and error message
+                       out_computJacob)              ! intent(out):   error code and error message
   ! -----------------------------------------------------------------------------------------------------------------
   implicit none
   ! input: model control
-  type(in_type_computeJacob),intent(in)   :: in_computeJacob        ! model control 
+  type(in_type_computJacob),intent(in)   :: in_computJacob        ! model control 
   ! input: data structures
   type(var_ilength),intent(in)            :: indx_data              ! indices defining model states and layers
   type(var_dlength),intent(in)            :: prog_data              ! prognostic variables for a local HRU
@@ -112,7 +112,7 @@ subroutine computeJacob(&
   real(rkind),intent(in)                  :: dMat0(:)               ! diagonal of the Jacobian matrix excluding fluxes, not depending on the state vector
   real(rkind),intent(out)                 :: aJac(:,:)              ! Jacobian matrix
   ! output variables
-  type(out_type_computeJacob),intent(out) :: out_computeJacob       ! error control
+  type(out_type_computJacob),intent(out) :: out_computJacob       ! error control
   ! -------------------------------------------------------------
   ! * local variables
   ! -------------------------------------------------------------
@@ -133,15 +133,15 @@ subroutine computeJacob(&
   ! associate variables from data structures
   associate(&
     ! model control
-    dt                           => in_computeJacob % dt                                       ,& ! intent(in): length of the time step (seconds)
-    nSnow                        => in_computeJacob % nSnow                                    ,& ! intent(in): number of snow layers
-    nLake                        => in_computeJacob % nLake                                    ,& ! intent(in): number of lake layers
-    nSoil                        => in_computeJacob % nSoil                                    ,& ! intent(in): number of soil layers
-    nGlce                        => in_computeJacob % nGlce                                    ,& ! intent(in): number of glacier ice layers
-    nLayers                      => in_computeJacob % nLayers                                  ,& ! intent(in): total number of layers in the layer domains
-    computeVegFlux               => in_computeJacob % computeVegFlux                           ,& ! intent(in): flag to indicate if computing fluxes over vegetation
-    computeBaseflow              => in_computeJacob % computeBaseflow                          ,& ! intent(in): flag to indicate if computing baseflow
-    ixMatrix                     => in_computeJacob % ixMatrix                                 ,& ! intent(in): form of the Jacobian matrix
+    dt                           => in_computJacob % dt                                       ,& ! intent(in): length of the time step (seconds)
+    nSnow                        => in_computJacob % nSnow                                    ,& ! intent(in): number of snow layers
+    nLake                        => in_computJacob % nLake                                    ,& ! intent(in): number of lake layers
+    nSoil                        => in_computJacob % nSoil                                    ,& ! intent(in): number of soil layers
+    nGlce                        => in_computJacob % nGlce                                    ,& ! intent(in): number of glacier ice layers
+    nLayers                      => in_computJacob % nLayers                                  ,& ! intent(in): total number of layers in the layer domains
+    computeVegFlux               => in_computJacob % computeVegFlux                           ,& ! intent(in): flag to indicate if computing fluxes over vegetation
+    computeBaseflow              => in_computJacob % computeBaseflow                          ,& ! intent(in): flag to indicate if computing baseflow
+    ixMatrix                     => in_computJacob % ixMatrix                                 ,& ! intent(in): form of the Jacobian matrix
     ! indices of model state variables
     ixCasNrg                     => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)                  ,& ! intent(in): [i4b] index of canopy air space energy state variable
     ixVegNrg                     => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)                  ,& ! intent(in): [i4b] index of canopy energy state variable
@@ -206,12 +206,12 @@ subroutine computeJacob(&
     canopyDepth                  => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)         ,& ! intent(in): [dp   ]  canopy depth (m)
     mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth)%dat                  ,& ! intent(in): [dp(:)]  depth of each layer in the sub-domain (m)
     ! output variables
-    err                         => out_computeJacob % err                                     ,& ! error code
-    message                     => out_computeJacob % cmessage                                 & ! error message
+    err                         => out_computJacob % err                                     ,& ! error code
+    message                     => out_computJacob % cmessage                                 & ! error message
     ) ! making association with data in structures
     ! --------------------------------------------------------------
     ! initialize error control
-    err=0; message='computeJacob/'
+    err=0; message='computJacob/'
 
     ! *********************************************************************************************************************************************************
     ! * PART 0: PRELIMINARIES (INITIALIZE JACOBIAN AND COMPUTE TIME-VARIABLE DIAGONAL TERMS)
@@ -380,7 +380,7 @@ subroutine computeJacob(&
 
   end associate ! end association to variables in the data structures  
 
-end subroutine computeJacob
+end subroutine computJacob
 
 ! ***********************************************************************************************************
 ! public subroutine to compute flux parts of the Jacobian that are shared between IDA and BE
@@ -1005,16 +1005,16 @@ end function ixInd
 
 #ifdef SUNDIALS_ACTIVE
 ! **********************************************************************************************************
-! public function computeJacob4kinsol: the interface to compute the Jacobian matrix dF/dy + c dF/dy' for IDA solver
+! public function computJacob4kinsol: the interface to compute the Jacobian matrix dF/dy + c dF/dy' for IDA solver
 ! **********************************************************************************************************
 ! Return values:
 !    0 = success,
 !    1 = recoverable error,
 !   -1 = non-recoverable error
 ! ----------------------------------------------------------------
-integer(c_int) function computeJacob4kinsol(sunvec_y, sunvec_r, sunmat_J, &
+integer(c_int) function computJacob4kinsol(sunvec_y, sunvec_r, sunmat_J, &
                             user_data, sunvec_temp1, sunvec_temp2 &
-                            ) result(ierr) bind(C, name='computeJacob4kinsol')
+                            ) result(ierr) bind(C, name='computJacob4kinsol')
 
   !======= Inclusions ===========
   use, intrinsic :: iso_c_binding
@@ -1040,8 +1040,8 @@ integer(c_int) function computeJacob4kinsol(sunvec_y, sunvec_r, sunmat_J, &
   type(data4kinsol), pointer    :: eqns_data      ! equations data
 
   ! class objects for subroutine arguments
-  type(in_type_computeJacob)     :: in_computeJacob  ! intent(in)  computeJacob arguments
-  type(out_type_computeJacob)    :: out_computeJacob ! intent(out) computeJacob arguments
+  type(in_type_computJacob)     :: in_computJacob  ! intent(in)  computJacob arguments
+  type(out_type_computJacob)    :: out_computJacob ! intent(out) computJacob arguments
 ! ----------------------------------------------------------------
 
   ! get equations data from user-defined data
@@ -1052,13 +1052,13 @@ integer(c_int) function computeJacob4kinsol(sunvec_y, sunvec_r, sunmat_J, &
   if(eqns_data%ixMatrix==ixFullMatrix) Jac(1:eqns_data%nState, 1:eqns_data%nState) => FSUNDenseMatrix_Data(sunmat_J)
 
   ! compute the analytical Jacobian matrix
-  ! NOTE: The derivatives were computed in the previous call to computeFlux
+  ! NOTE: The derivatives were computed in the previous call to computFlux
   !       This occurred either at the call to eval8summa at the start of systemSolve
   !        or in the call to eval8summa in the previous iteration
-  call initialize_computeJacob ! pack in_computeJacob object
-  call computeJacob(&
+  call initialize_computJacob ! pack in_computJacob object
+  call computJacob(&
                 ! input: model control
-                in_computeJacob, &
+                in_computJacob, &
                 ! input: data structures
                 eqns_data%indx_data,               & ! intent(in):    index data
                 eqns_data%prog_data,               & ! intent(in):    model prognostic variables for a local HRU
@@ -1069,8 +1069,8 @@ integer(c_int) function computeJacob4kinsol(sunvec_y, sunvec_r, sunmat_J, &
                 eqns_data%dMat,                    & ! intent(inout): diagonal of the Jacobian matrix
                 Jac,                               & ! intent(out):   Jacobian matrix
                 ! output: error control
-                out_computeJacob)                     ! intent(out):   error code and error message 
-  call finalize_computeJacob ! unpack out_computeJacob object
+                out_computJacob)                     ! intent(out):   error code and error message 
+  call finalize_computJacob ! unpack out_computJacob object
   if(eqns_data%err > 0)then; eqns_data%message=trim(eqns_data%message); ierr=-1; return; endif
   if(eqns_data%err < 0)then; eqns_data%message=trim(eqns_data%message); ierr=1; return; endif                                  
 
@@ -1080,17 +1080,17 @@ integer(c_int) function computeJacob4kinsol(sunvec_y, sunvec_r, sunmat_J, &
 
  contains
 
-  subroutine initialize_computeJacob
-   ! *** Transfer data to in_computeJacob class object from local variables ***
-   call in_computeJacob % initialize(eqns_data%dt_cur,eqns_data%nSnow,eqns_data%nLake,eqns_data%nSoil,eqns_data%nGlce,eqns_data%nLayers,eqns_data%computeVegFlux,(eqns_data%model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel),eqns_data%ixMatrix)
-  end subroutine initialize_computeJacob
+  subroutine initialize_computJacob
+   ! *** Transfer data to in_computJacob class object from local variables ***
+   call in_computJacob % initialize(eqns_data%dt_cur,eqns_data%nSnow,eqns_data%nLake,eqns_data%nSoil,eqns_data%nGlce,eqns_data%nLayers,eqns_data%computeVegFlux,(eqns_data%model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel),eqns_data%ixMatrix)
+  end subroutine initialize_computJacob
 
-  subroutine finalize_computeJacob
-   ! *** Transfer data from out_computeJacob class object to local variables ***
-   call out_computeJacob % finalize(eqns_data % err,eqns_data % message)
-  end subroutine finalize_computeJacob
+  subroutine finalize_computJacob
+   ! *** Transfer data from out_computJacob class object to local variables ***
+   call out_computJacob % finalize(eqns_data % err,eqns_data % message)
+  end subroutine finalize_computJacob
             
-end function computeJacob4kinsol
+end function computJacob4kinsol
 #endif
 
-end module computeJacob_module
+end module computJacob_module

@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module updateDiagn_module
+module updatDiagn_module
 
 ! data types
 USE nr_type
@@ -76,18 +76,18 @@ USE var_lookup,only:iLookPARAM            ! named variables for structure elemen
 USE var_lookup,only:iLookINDEX            ! named variables for structure elements
 
 ! provide access to routines to update states
-USE updateState_module,only:updateSnLaGl   ! update snow states
-USE updateState_module,only:updateSoil     ! update soil states
+USE updatState_module,only:updatSnLaGl    ! update snow lake glce states
+USE updatState_module,only:updatSoil      ! update soil states
 
 ! provide access to functions for the constitutive functions and derivatives
-USE snow_utils_module,only:fracliquid          ! compute the fraction of liquid water (snow)
-USE snow_utils_module,only:dFracLiq_dTk        ! differentiate the freezing curve w.r.t. temperature (snow)
-USE soil_utils_module,only:dTheta_dTk          ! differentiate the freezing curve w.r.t. temperature (soil)
-USE soil_utils_module,only:dTheta_dPsi         ! derivative in the soil water characteristic (soil)
-USE soil_utils_module,only:matricHead          ! compute the matric head based on volumetric water content
-USE soil_utils_module,only:volFracLiq          ! compute volumetric fraction of liquid water
-USE soil_utils_module,only:crit_soilT          ! compute critical temperature below which ice exists
-USE soil_utils_module,only:liquidHead          ! compute the liquid water matric potential
+USE snow_utils_module,only:fracliquid                 ! compute the fraction of liquid water (snow)
+USE snow_utils_module,only:dFracLiq_dTk               ! differentiate the freezing curve w.r.t. temperature (snow)
+USE soil_utils_module,only:dTheta_dTk                 ! differentiate the freezing curve w.r.t. temperature (soil)
+USE soil_utils_module,only:dTheta_dPsi                ! derivative in the soil water characteristic (soil)
+USE soil_utils_module,only:matricHead                 ! compute the matric head based on volumetric water content
+USE soil_utils_module,only:volFracLiq                 ! compute volumetric fraction of liquid water
+USE soil_utils_module,only:crit_soilT                 ! compute critical temperature below which ice exists
+USE soil_utils_module,only:liquidHead                 ! compute the liquid water matric potential
 USE convertEnthalpyTemp_module,only:T2enthTemp_cas    ! convert temperature to enthalpy for canopy air space
 USE convertEnthalpyTemp_module,only:T2enthTemp_veg    ! convert temperature to enthalpy for vegetation
 USE convertEnthalpyTemp_module,only:T2enthTemp_snLaGl ! convert temperature to enthalpy for snow
@@ -98,14 +98,14 @@ USE, intrinsic :: ieee_arithmetic         ! check values (NaN, etc.)
 
 implicit none
 private
-public::updateDiagn
+public::updatDiagn
 
 contains
 
 ! **********************************************************************************************************
-! public subroutine updateDiagn: compute diagnostic variables and derivatives
+! public subroutine updatDiagn: compute diagnostic variables and derivatives
 ! **********************************************************************************************************
-subroutine updateDiagn(&
+subroutine updatDiagn(&
                       ! input
                       computeEnthTemp,                           & ! intent(in):    flag if computing temperature compoment of enthalpy
                       use_lookup,                                & ! intent(in):    flag to use the lookup table for soil enthalpy 
@@ -274,7 +274,7 @@ subroutine updateDiagn(&
     ! --------------------------------------------------------------------------------------------------------------------------------
 
     ! initialize error control
-    err=0; message='updateDiagn/'
+    err=0; message='updatDiagn/'
 
     ! allocate space and assign values to the flag vector
     allocate(computedCoupling(size(ixMapSubset2Full)),stat=err)        ! .true. if computed the coupling for a given state variable
@@ -502,7 +502,7 @@ subroutine updateDiagn(&
             ! *** vegetation canopy
             case(iname_veg)
               ! compute volumetric fraction of liquid water and ice
-              call updateSnLaGl(&
+              call updatSnLaGl(&
                               .false.,                                      & ! intent(in):  flag that no liquid water in layer
                               xTemp,                                        & ! intent(in):  temperature (K)
                               scalarCanopyWatTrial/(iden_water*canopyDepth),& ! intent(in):  volumetric fraction of total water (-)
@@ -521,7 +521,7 @@ subroutine updateDiagn(&
             ! *** snow, lake, glce layers
             case(iname_snow, iname_lake, iname_glce)
               ! compute volumetric fraction of liquid water and ice
-              call updateSnLaGl(&
+              call updatSnLaGl(&
                               iLayer>nLayers-noThetaChange,   & ! intent(in):  flag that no liquid water in layer
                               xTemp,                          & ! intent(in):  temperature (K)
                               mLayerVolFracWatTrial(iLayer),  & ! intent(in):  mass state variable = trial volumetric fraction of water (-)
@@ -535,7 +535,7 @@ subroutine updateDiagn(&
               ! *** soil layers
             case(iname_soil)
               ! compute volumetric fraction of liquid water and ice
-              call updateSoil(&
+              call updatSoil(&
                               xTemp,                                  & ! intent(in):  temperature (K)
                               mLayerMatricHeadTrial(ixControlIndex),  & ! intent(in):  total water matric potential (m)
                               vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),theta_sat(ixControlIndex),theta_res(ixControlIndex),vGn_m(ixControlIndex), & ! intent(in): soil parameters
@@ -782,7 +782,7 @@ subroutine updateDiagn(&
 
   end associate
 
- end subroutine updateDiagn
+ end subroutine updatDiagn
 
 
 ! **********************************************************************************************************
@@ -819,4 +819,4 @@ subroutine xTempSolve(&
   derivative = heatCap + LH_fus*iden_water*dLiq_dT  ! J m-3 K-1
 end subroutine xTempSolve
 
-end module updateDiagn_module
+end module updatDiagn_module

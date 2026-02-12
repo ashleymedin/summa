@@ -136,14 +136,14 @@ subroutine eval8summa(&
   ! provide access to subroutines
   USE getVectorz_module, only:varExtract                ! extract variables from the state vector
   USE getVectorz_module, only:checkFeas                 ! check feasibility of state vector
-  USE updateDiagn_module, only:updateDiagn                ! update prognostic variables
-  USE computeFlux_module, only:soilCmpres                ! compute soil compression
-  USE computeFlux_module, only:computeFlux                ! compute fluxes given a state vector
-  USE heatCapacity_module,only:heatCapacityAnalytic   ! recompute closed form heat capacity (Cp) and derivatives
-  USE heatCapacity_module,only:computeCm                ! compute Cm and derivatives
-  USE heatCapacity_module, only:computeStatMult         ! recompute state multiplier
-  USE computeResid_module,only:computeResid               ! compute residuals given a state vector
-  USE thermConductivity_module,only:thermConductivity ! recompute thermal conductivity and derivatives
+  USE updatDiagn_module, only:updatDiagn                ! update diagnostic variables
+  USE computFlux_module, only:soilCmpres                ! compute soil compression
+  USE computFlux_module, only:computFlux                ! compute fluxes given a state vector
+  USE heatCapacity_module,only:heatCapacityAnalytic     ! recompute closed form heat capacity (Cp) and derivatives
+  USE heatCapacity_module,only:computCm                 ! compute Cm and derivatives
+  USE heatCapacity_module, only:computStatMult          ! recompute state multiplier
+  USE computResid_module,only:computResid               ! compute residuals given a state vector
+  USE thermConductivity_module,only:thermConductivity   ! recompute thermal conductivity and derivatives
   implicit none
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------------------------------------
@@ -383,7 +383,7 @@ subroutine eval8summa(&
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
     ! update diagnostic variables and derivatives
-    call updateDiagn(&
+    call updatDiagn(&
                     ! input
                     ixNrgConserv.ne.closedForm,   & ! intent(in):    flag if computing temperature compoment of enthalpy
                     ixNrgConserv==enthalpyFormLU, & ! intent(in):    flag to use the lookup table for soil temperature-enthalpy
@@ -449,7 +449,7 @@ subroutine eval8summa(&
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  
       ! compute multiplier of state vector
-      call computeStatMult(&
+      call computStatMult(&
                     ! input
                     heatCapVegTrial,    & ! intent(in):  volumetric heat capacity of vegetation canopy
                     mLayerHeatCapTrial, & ! intent(in):  volumetric heat capacity of soil and snow
@@ -503,7 +503,7 @@ subroutine eval8summa(&
 
     if(needStateCm)then
       ! compute C_m
-      call computeCm(&
+      call computCm(&
                  ! input: state variables
                  scalarCanopyTempTrial,     & ! intent(in):    trial value of canopy temperature (K)
                  mLayerTempTrial,           & ! intent(in):    trial value of layer temperature (K)
@@ -534,7 +534,7 @@ subroutine eval8summa(&
     if(ixNumericalMethod==homegrown) checkLWBalance = .true.
 
     ! compute the fluxes for a given state vector
-    call computeFlux(&
+    call computFlux(&
                     ! input-output: model control
                     nSnow,                     & ! intent(in):    number of snow layers
                     nLake,                     & ! intent(in):    number of lake layers
@@ -609,7 +609,7 @@ subroutine eval8summa(&
     endif
 
     ! compute the residual vector
-    call computeResid(&
+    call computResid(&
                       ! input: model control
                       dt_cur,                     & ! intent(in):  length of the time step (seconds)
                       nSnow,                      & ! intent(in):  number of snow layers

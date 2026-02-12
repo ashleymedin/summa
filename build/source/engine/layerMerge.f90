@@ -350,7 +350,7 @@ contains
  USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta      ! metadata
  USE data_types,only:var_ilength,var_dlength                      ! data vectors with variable length dimension
  ! provide access to external modules
- USE snow_utils_module,only:fracliquid                            ! compute fraction of liquid water
+ USE snow_utils_module,only:fracliquid                                         ! compute fraction of liquid water
  USE convertEnthalpyTemp_module,only:enthalpy2T_snLaGlWat,T2enthalpy_snLaGlWat ! convert temperature to liq+ice enthalpy for a snow layer
  implicit none
  ! ------------------------------------------------------------------------------------------------------------

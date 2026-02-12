@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module computeJacobWithPrime_module
+module computJacobWithPrime_module
 
 ! data types
 USE nr_type
@@ -81,15 +81,15 @@ USE mDecisions_module,only:       &
 
 implicit none
 private
-public::computeJacobWithPrime
-public::computeJacob4ida
+public::computJacobWithPrime
+public::computJacob4ida
 contains
 
 
 ! **********************************************************************************************************
-! public subroutine computeJacobWithPrime: compute the Jacobian matrix
+! public subroutine computJacobWithPrime: compute the Jacobian matrix
 ! **********************************************************************************************************
-subroutine computeJacobWithPrime(&
+subroutine computJacobWithPrime(&
                       ! input: model control
                       cj,                         & ! intent(in):    this scalar changes whenever the step size or method order changes
                       dt,                         & ! intent(in):    length of the time step (seconds)
@@ -124,8 +124,8 @@ subroutine computeJacobWithPrime(&
                       err,message)                  ! intent(out):   error code and error message
   ! -----------------------------------------------------------------------------------------------------------------
   ! provide access to subroutines
-  use computeJacob_module,only:fluxJacAdd
-  use computeJacob_module,only:ixInd
+  use computJacob_module,only:fluxJacAdd
+  use computJacob_module,only:ixInd
   ! -----------------------------------------------------------------------------------------------------------------
   implicit none
   ! input: model control
@@ -255,7 +255,7 @@ subroutine computeJacobWithPrime(&
     ) ! making association with data in structures
     ! --------------------------------------------------------------
     ! initialize error control
-    err=0; message='computeJacobWithPrime/'
+    err=0; message='computJacobWithPrime/'
 
     ! *********************************************************************************************************************************************************
     ! * PART 0: PRELIMINARIES (INITIALIZE JACOBIAN AND COMPUTE TIME-VARIABLE DIAGONAL TERMS)
@@ -497,19 +497,19 @@ subroutine computeJacobWithPrime(&
   ! end association to variables in the data structures
   end associate
 
-end subroutine computeJacobWithPrime
+end subroutine computJacobWithPrime
 
 ! **********************************************************************************************************
-! public function computeJacob4ida: the interface to compute the Jacobian matrix dF/dy + c dF/dy' for IDA solver
+! public function computJacob4ida: the interface to compute the Jacobian matrix dF/dy + c dF/dy' for IDA solver
 ! **********************************************************************************************************
 ! Return values:
 !    0 = success,
 !    1 = recoverable error,
 !   -1 = non-recoverable error
 ! ----------------------------------------------------------------
-integer(c_int) function computeJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
+integer(c_int) function computJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
                     sunmat_J, user_data, sunvec_temp1, sunvec_temp2, sunvec_temp3) &
-                    result(ierr) bind(C,name='computeJacob4ida')
+                    result(ierr) bind(C,name='computJacob4ida')
 
   !======= Inclusions ===========
   use, intrinsic :: iso_c_binding
@@ -547,10 +547,10 @@ integer(c_int) function computeJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
   if(eqns_data%ixMatrix==ixFullMatrix) Jac(1:eqns_data%nState, 1:eqns_data%nState) => FSUNDenseMatrix_Data(sunmat_J)
 
   ! compute the analytical Jacobian matrix
-  ! NOTE: The derivatives were computed in the previous call to computeFlux
+  ! NOTE: The derivatives were computed in the previous call to computFlux
   !       This occurred either at the call to eval8summaWithPrime at the start of systemSolve
   !        or in the call to eval8summaWithPrime in the previous iteration
-  call computeJacobWithPrime(&
+  call computJacobWithPrime(&
                 ! input: model control
                 cj,                                       & ! intent(in):    this scalar changes whenever the step size or method order changes
                 1._qp,                                    & ! intent(in):    length of the time step (seconds)
@@ -590,6 +590,6 @@ integer(c_int) function computeJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
   ierr = 0
   return
 
-end function computeJacob4ida
+end function computJacob4ida
 
-end module computeJacobWithPrime_module
+end module computJacobWithPrime_module

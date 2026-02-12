@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module computeResid_module
+module computResid_module
 
 ! data types
 USE nr_type
@@ -70,13 +70,13 @@ USE multiconst,only:&
 ! privacy
 implicit none
 private
-public::computeResid
+public::computResid
 contains
 
 ! **********************************************************************************************************
-! public subroutine computeResid: compute the residual vector
+! public subroutine computResid: compute the residual vector
 ! **********************************************************************************************************
-subroutine computeResid(&
+subroutine computResid(&
                       ! input: model control
                       dt,                        & ! intent(in):  length of the time step (seconds)
                       nSnow,                     & ! intent(in):  number of snow layers
@@ -210,7 +210,7 @@ subroutine computeResid(&
     ) ! association to necessary variables for the residual computations
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
-    err=0; message="computeResid/"
+    err=0; message="computResid/"
 
     ! ---
     ! * compute sink terms...
@@ -295,7 +295,7 @@ subroutine computeResid(&
 
     ! print the state variables if requested
     if(globalPrintFlag)then
-      write(*,'(a)') 'In computeResid:'
+      write(*,'(a)') 'In computResid:'
       write(*,'(a,i4)') '  nSnow = ', nSnow
       write(*,'(a,i4)') '  nLake = ', nLake
       write(*,'(a,i4)') '  nSoil = ', nSoil
@@ -329,6 +329,6 @@ subroutine computeResid(&
 
   end associate
 
-end subroutine computeResid
+end subroutine computResid
 
-end module computeResid_module
+end module computResid_module

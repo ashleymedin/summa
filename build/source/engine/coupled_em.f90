@@ -943,7 +943,7 @@ subroutine coupled_em(&
         if (allocated(mLayerVolFracIceInit)) deallocate(mLayerVolFracIceInit) ! prep for potential size change
         allocate(mLayerVolFracIceInit(nLayers)); mLayerVolFracIceInit = prog_data%var(iLookPROG%mLayerVolFracIce)%dat
 
-        ! make sure have consistent state variables to start, later done in updateDiagn
+        ! make sure have consistent state variables to start, later done in updatDiagn
         ! associate local variables with information in the data structures
         init: associate(&
           ! depth-varying soil parameters

@@ -172,7 +172,7 @@ subroutine groundwatr(&
     ! ************************************************************************************************
 
     ! use private subroutine to compute baseflow (for multiple calls for numerical Jacobian)
-    call computeBaseflow(&
+    call computBaseflow(&
                           ! input: control and state variables
                           nSnow,                   & ! intent(in):    number of snow layers
                           nLake,                   & ! intent(in):    number of lake layers
@@ -203,9 +203,9 @@ end subroutine groundwatr
 
 
 ! ***********************************************************************************************************************
-! * private subroutine computeBaseflow: private subroutine so can be used to test the numerical jacobian
+! * private subroutine computBaseflow: private subroutine so can be used to test the numerical jacobian
 ! ***********************************************************************************************************************
-subroutine computeBaseflow(&
+subroutine computBaseflow(&
                           ! input: control and state variables
                           nSnow,                         & ! intent(in):    number of snow layers
                           nLake,                         & ! intent(in):    number of lake layers
@@ -403,6 +403,6 @@ subroutine computeBaseflow(&
 
   end associate ! end association to data in structures
 
-end subroutine computeBaseflow
+end subroutine computBaseflow
 
 end module groundwatr_module

@@ -77,7 +77,7 @@ contains
 
 
  ! **********************************************************************************************************
- ! public subroutine init_heatCap_thermCond: compute start-of-step diagnostic energy variables (thermal conductivity and heat capacity)
+ ! public subroutine init_heatCap_thermCond: compute start-of-step thermal conductivity and heat capacity
  ! **********************************************************************************************************
  subroutine init_heatCap_thermCond(&
                                    ! input: control variables

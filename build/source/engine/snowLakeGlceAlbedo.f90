@@ -178,7 +178,7 @@ contains
     albedoMin = albedoMinWinter
    end if
    ! compute average albedo
-   call computeAlbedo(scalarSnowAlbedo,refreshFactor,decayFactor,albedoMax,albedoMin)
+   call computAlbedo(scalarSnowAlbedo,refreshFactor,decayFactor,albedoMax,albedoMin)
    ! assume albedo is the same in visible and near infra-red bands, and for direct and diffuse radiation
    spectralSnowAlbedoDiffuse(ixVisible) = scalarSnowAlbedo
    spectralSnowAlbedoDiffuse(ixNearIR)  = scalarSnowAlbedo
@@ -193,8 +193,8 @@ contains
    age3 = albedoSootLoad                                 ! soot loading
    decayFactor = dt*(age1 + age2 + age3)/albedoDecayRate
    ! compute diffuse albedo for the different spectral bands
-   call computeAlbedo(spectralSnowAlbedoDiffuse(ixVisible),refreshFactor,decayFactor,albedoMaxVisible,albedoMinVisible)
-   call computeAlbedo(spectralSnowAlbedoDiffuse(ixNearIR), refreshFactor,decayFactor,albedoMaxNearIR, albedoMinNearIR)
+   call computAlbedo(spectralSnowAlbedoDiffuse(ixVisible),refreshFactor,decayFactor,albedoMaxVisible,albedoMinVisible)
+   call computAlbedo(spectralSnowAlbedoDiffuse(ixNearIR), refreshFactor,decayFactor,albedoMaxNearIR, albedoMinNearIR)
    ! compute factor to modify direct albedo at low zenith angles
    if(cosZenith < 0.5_rkind)then
     fZen = (1._rkind/bPar)*( ((1._rkind + bPar)/(1._rkind + 2._rkind*bPar*cosZenith)) - 1._rkind)
@@ -224,9 +224,9 @@ contains
 
 
  ! *******************************************************************************************************
- ! private subroutine computeAlbedo: compute change in albedo -- implicit solution
+ ! private subroutine computAlbedo: compute change in albedo -- implicit solution
  ! *******************************************************************************************************
- subroutine computeAlbedo(snowLakeGlceAlbedo,refreshFactor,decayFactor,albedoMax,albedoMin)
+ subroutine computAlbedo(snowLakeGlceAlbedo,refreshFactor,decayFactor,albedoMax,albedoMin)
  implicit none
  ! dummy variables
  real(rkind),intent(inout)   :: snowLakeGlceAlbedo    ! snow albedo (-)
@@ -240,7 +240,7 @@ contains
  albedoChange = refreshFactor*(albedoMax - snowLakeGlceAlbedo) - (decayFactor*(snowLakeGlceAlbedo - albedoMin)) / (1._rkind + decayFactor)
  snowLakeGlceAlbedo   = snowLakeGlceAlbedo + albedoChange
  if(snowLakeGlceAlbedo > albedoMax) snowLakeGlceAlbedo = albedoMax
- end subroutine computeAlbedo
+ end subroutine computAlbedo
 
 
 end module snowLakeGlceAlbedo_module

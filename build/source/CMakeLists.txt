@@ -54,11 +54,11 @@ set(UTILMS
     ${ENGINE_DIR}/snow_utils.f90
     ${ENGINE_DIR}/soil_utils.f90
     ${ENGINE_DIR}/time_utils.f90
-    ${ENGINE_DIR}/updateState.f90
+    ${ENGINE_DIR}/updatState.f90
     CACHE INTERNAL "UTILMS")
 set(UTILMS_SUNDIALS
     ${ENGINE_DIR}/soil_utilsAddPrime.f90
-    ${ENGINE_DIR}/updateStateWithPrime.f90
+    ${ENGINE_DIR}/updatStateWithPrime.f90
     CACHE INTERNAL "UTILMS_SUNDIALS")
 
 # NetCDF routines
@@ -98,22 +98,22 @@ set(MODRUN
     ${ENGINE_DIR}/read_force.f90
     ${ENGINE_DIR}/snowLakeGlceAlbedo.f90
     ${ENGINE_DIR}/tempAdjust.f90
-    ${ENGINE_DIR}/updateDiagn.f90
+    ${ENGINE_DIR}/updatDiagn.f90
     ${ENGINE_DIR}/var_derive.f90
     ${ENGINE_DIR}/volicePack.f90
     CACHE INTERNAL "MODRUN")
 set(MODRUN_SUNDIALS
     ${ENGINE_DIR}/tol4ida.f90
-    ${ENGINE_DIR}/updateDiagnWithPrime.f90
+    ${ENGINE_DIR}/updatDiagnWithPrime.f90
     CACHE INTERNAL "MODRUN_SUNDIALS")
 
 # Solver main modules
 set(SOLVER
     ${ENGINE_DIR}/bigAquifer.f90
-    ${ENGINE_DIR}/computeFlux.f90
+    ${ENGINE_DIR}/computFlux.f90
     ${ENGINE_DIR}/heatCapacity.f90
-    ${ENGINE_DIR}/computeJacob.f90
-    ${ENGINE_DIR}/computeResid.f90
+    ${ENGINE_DIR}/computJacob.f90
+    ${ENGINE_DIR}/computResid.f90
     ${ENGINE_DIR}/snowGlceDepth.f90
     ${ENGINE_DIR}/thermConductivity.f90
     ${ENGINE_DIR}/coupled_em.f90
@@ -137,8 +137,8 @@ set(SOLVER
     ${ENGINE_DIR}/vegSWavRad.f90
     CACHE INTERNAL "SOLVER")
 set(SOLVER_SUNDIALS
-    ${ENGINE_DIR}/computeJacobWithPrime.f90
-    ${ENGINE_DIR}/computeResidWithPrime.f90
+    ${ENGINE_DIR}/computJacobWithPrime.f90
+    ${ENGINE_DIR}/computResidWithPrime.f90
     ${ENGINE_DIR}/eval8summaWithPrime.f90
     ${ENGINE_DIR}/summaSolve4ida.f90
     ${ENGINE_DIR}/summaSolve4kinsol.f90

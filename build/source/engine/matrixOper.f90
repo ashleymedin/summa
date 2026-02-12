@@ -37,7 +37,7 @@ implicit none
 private
 public::lapackSolv
 public::scaleMatrices
-public::computeGradient
+public::computGradient
 contains
 
  ! **********************************************************************************************************
@@ -100,9 +100,9 @@ contains
 
 
  ! *********************************************************************************************************
- ! * private subroutine computeGradient: compute the gradient of the function
+ ! * private subroutine computGradient: compute the gradient of the function
  ! *********************************************************************************************************
- subroutine computeGradient(ixMatrix,nState,aJac,rVec,grad,err,message)
+ subroutine computGradient(ixMatrix,nState,aJac,rVec,grad,err,message)
  implicit none
  ! input
  integer(i4b),intent(in)        :: ixMatrix   ! type of matrix (full Jacobian or band diagonal)
@@ -117,7 +117,7 @@ contains
  integer(i4b)                   :: iJac       ! index of model state variable
  integer(i4b)                   :: iState     ! index of the residual vector
  ! initialize error control
- err=0; message='computeGradient/'
+ err=0; message='computGradient/'
 
  ! check if full Jacobian or band-diagonal matrix
  select case(ixMatrix)
@@ -144,7 +144,7 @@ contains
 
  end select  ! (option to solve the linear system A.X=B)
 
- end subroutine computeGradient
+ end subroutine computGradient
 
 
  ! *********************************************************************************************************

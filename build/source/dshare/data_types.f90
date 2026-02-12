@@ -483,7 +483,7 @@ MODULE data_types
  integer(i4b),parameter :: len_msg=256 ! length of character string used in class definitions
 
  ! ***********************************************************************************************************
- ! Define classes used to simplify calls to the subroutines in computeFlux
+ ! Define classes used to simplify calls to the subroutines in computFlux
  ! ***********************************************************************************************************
  ! Note: class procedures are located in the contains block of this (data_types) module
  ! ** vegNrgFlux
@@ -1077,7 +1077,7 @@ MODULE data_types
  ! Define classes used to simplify calls to the subroutines in summaSolve4homegrown
  ! ***********************************************************************************************************
 
- type, public :: in_type_computeJacob  ! class for intent(in) arguments in computeJacob call
+ type, public :: in_type_computJacob  ! class for intent(in) arguments in computJacob call
    ! input: model control
    real(rkind)              :: dt                          ! intent(in): length of the time step (seconds)
    integer(i4b)             :: nSnow                       ! intent(in): number of snow layers
@@ -1089,16 +1089,16 @@ MODULE data_types
    logical(lgt)             :: computeBaseflow             ! intent(in): flag to indicate if computing baseflow
    integer(i4b)             :: ixMatrix                    ! intent(in): form of the Jacobian matrix
   contains
-   procedure :: initialize => initialize_in_computeJacob
- end type in_type_computeJacob
+   procedure :: initialize => initialize_in_computJacob
+ end type in_type_computJacob
 
- type, public :: out_type_computeJacob  ! class for intent(out) arguments in computeJacob call
+ type, public :: out_type_computJacob  ! class for intent(out) arguments in computJacob call
    ! output: error control
    integer(i4b)             :: err                         ! intent(out): error code
    character(len=len_msg)   :: cmessage                    ! intent(out): error message
   contains
-   procedure :: finalize => finalize_out_computeJacob
- end type out_type_computeJacob
+   procedure :: finalize => finalize_out_computJacob
+ end type out_type_computJacob
 
  type, public :: in_type_lineSearchRefinement  ! class for intent(in) arguments in lineSearchRefinement call
    logical(lgt)             :: doSearch                    ! intent(in): flag to do the line search
@@ -2456,9 +2456,9 @@ contains
  end subroutine finalize_out_varSubstep
  ! **** end varSubstep ****
 
- ! **** computeJacob ****
- subroutine initialize_in_computeJacob(in_computeJacob,dt,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,computeBaseflow,ixMatrix)
-  class(in_type_computeJacob),intent(out) :: in_computeJacob           ! class object for intent(in) computeJacob arguments
+ ! **** computJacob ****
+ subroutine initialize_in_computJacob(in_computJacob,dt,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,computeBaseflow,ixMatrix)
+  class(in_type_computJacob),intent(out) :: in_computJacob           ! class object for intent(in) computJacob arguments
   real(rkind),intent(in)              :: dt                          ! intent(in): length of the time step (seconds)
   integer(i4b),intent(in)             :: nSnow                       ! intent(in): number of snow layers
   integer(i4b),intent(in)             :: nLake                       ! intent(in): number of lake layers
@@ -2470,25 +2470,25 @@ contains
   integer(i4b),intent(in)             :: ixMatrix                    ! intent(in): form of the Jacobian matrix                         
  
   ! intent(in) arguments
-  in_computeJacob % dt               =  dt                            ! intent(in): length of the time step (seconds)                    
-  in_computeJacob % nSnow            =  nSnow                         ! intent(in): number of snow layers
-  in_computeJacob % nLake            =  nLake                         ! intent(in): number of lake layers
-  in_computeJacob % nSoil            =  nSoil                         ! intent(in): number of soil layers
-  in_computeJacob % nGlce            =  nGlce                         ! intent(in): number of glacier ice layers
-  in_computeJacob % nLayers          =  nLayers                       ! intent(in): total number of layers in the domain
-  in_computeJacob % computeVegFlux   =  computeVegFlux                ! intent(in): flag to indicate if computing fluxes over vegetation
-  in_computeJacob % computeBaseflow  =  computeBaseflow               ! intent(in): flag to indicate if computing baseflow
-  in_computeJacob % ixMatrix         =  ixMatrix                      ! intent(in): form of the Jacobian matrix                         
- end subroutine initialize_in_computeJacob
+  in_computJacob % dt               =  dt                            ! intent(in): length of the time step (seconds)                    
+  in_computJacob % nSnow            =  nSnow                         ! intent(in): number of snow layers
+  in_computJacob % nLake            =  nLake                         ! intent(in): number of lake layers
+  in_computJacob % nSoil            =  nSoil                         ! intent(in): number of soil layers
+  in_computJacob % nGlce            =  nGlce                         ! intent(in): number of glacier ice layers
+  in_computJacob % nLayers          =  nLayers                       ! intent(in): total number of layers in the domain
+  in_computJacob % computeVegFlux   =  computeVegFlux                ! intent(in): flag to indicate if computing fluxes over vegetation
+  in_computJacob % computeBaseflow  =  computeBaseflow               ! intent(in): flag to indicate if computing baseflow
+  in_computJacob % ixMatrix         =  ixMatrix                      ! intent(in): form of the Jacobian matrix                         
+ end subroutine initialize_in_computJacob
 
- subroutine finalize_out_computeJacob(out_computeJacob,err,cmessage)
-  class(out_type_computeJacob),intent(in) :: out_computeJacob           ! class object for intent(out) computeJacob arguments
+ subroutine finalize_out_computJacob(out_computJacob,err,cmessage)
+  class(out_type_computJacob),intent(in) :: out_computJacob           ! class object for intent(out) computJacob arguments
   integer(i4b),intent(out)               :: err                       ! intent(out): error code
   character(*),intent(out)               :: cmessage                  ! intent(out): error message
   ! intent(out) arguments
-  err               = out_computeJacob % err                           ! intent(out): error code
-  cmessage          = out_computeJacob % cmessage                      ! intent(out): error message                                          
- end subroutine finalize_out_computeJacob
+  err               = out_computJacob % err                           ! intent(out): error code
+  cmessage          = out_computJacob % cmessage                      ! intent(out): error message                                          
+ end subroutine finalize_out_computJacob
 
  ! **** lineSearchRefinement ****
  subroutine initialize_in_lineSearchRefinement(in_lineSearchRefinement,doSearch,fOld)

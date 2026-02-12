@@ -197,7 +197,7 @@ subroutine snowLakeGlceLiqFlux(&
     if (do_snow) then
       if(ixTop==1)then ! compute the liquid flux at the upper boundary (m s-1) if computing top layer as snow
         iLayerLiqFluxSnLaGl(0)      = surface_flux
-        iLayerLiqFluxSnLaGlDeriv(0) = 0._rkind ! computed inside computeJacob*
+        iLayerLiqFluxSnLaGlDeriv(0) = 0._rkind ! computed inside computJacob*
       endif
       do iLayer=ixTop,ixBot  ! loop through snow layers
         if (mLayerVolFracLiqTrial(iLayer) > mLayerThetaResid(iLayer)) then ! check that flow occurs
@@ -234,7 +234,7 @@ subroutine snowLakeGlceLiqFlux(&
     end if  ! end if snow or ice
     if(ixBot==nLayers)then
       iLayerLiqFluxSnLaGl(nLayers) = iLayerLiqFluxSnLaGl(nLayers) + bottom_flux   ! set the bottom flux if already computed
-      iLayerLiqFluxSnLaGlDeriv(nLayers) = iLayerLiqFluxSnLaGlDeriv(nLayers) ! may be modified computed inside computeJacob, currently bottom flux is always 0 so not needed
+      iLayerLiqFluxSnLaGlDeriv(nLayers) = iLayerLiqFluxSnLaGlDeriv(nLayers) ! may be modified computed inside computJacob, currently bottom flux is always 0 so not needed
     end if
 
     ! save the results with index 0

@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module computeFlux_module
+module computFlux_module
 
 ! data types
 USE nr_type
@@ -87,15 +87,15 @@ USE mDecisions_module,only:       &
 
 implicit none
 private
-public::computeFlux
+public::computFlux
 public::soilCmpres
 public::soilCmpresPrime
 
 contains
 ! *********************************************************************************************************
-! public subroutine computeFlux: compute model fluxes
+! public subroutine computFlux: compute model fluxes
 ! *********************************************************************************************************
-subroutine computeFlux(&
+subroutine computFlux(&
                       ! input-output: model control
                       nSnow,                    & ! intent(in):    number of snow layers
                       nLake,                    & ! intent(in):    number of lake layers
@@ -218,9 +218,9 @@ subroutine computeFlux(&
   type(in_type_bigAquifer) :: in_bigAquifer; type(io_type_bigAquifer) :: io_bigAquifer; type(out_type_bigAquifer) :: out_bigAquifer ! bigAquifer arguments
   ! -------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
-  err=0; message='computeFlux/'
+  err=0; message='computFlux/'
 
-  call initialize_computeFlux; if(err/=0)then; return; endif ! Preliminary operations to start routine
+  call initialize_computFlux; if(err/=0)then; return; endif ! Preliminary operations to start routine
 
   ! *** CALCULATE ENERGY FLUXES OVER VEGETATION ***
   associate(&
@@ -310,7 +310,7 @@ subroutine computeFlux(&
         call groundwatr(in_groundwatr,attr_data,mpar_data,prog_data,flux_data,io_groundwatr,out_groundwatr)
         call finalize_groundwatr;   if(err/=0)then; return; endif
       end if
-      call computeBaseflowRunoff ! compute total baseflow from soil and runoff
+      call computBaseflowRunoff ! compute total baseflow from soil and runoff
     end if
   end associate
 
@@ -327,7 +327,7 @@ subroutine computeFlux(&
     end if  ! if computing aquifer fluxes
   end associate
 
-  call finalize_computeFlux; if(err/=0)then; return; endif ! final operations to prep for end of routine
+  call finalize_computFlux; if(err/=0)then; return; endif ! final operations to prep for end of routine
 
 contains
 
@@ -437,7 +437,7 @@ contains
   end associate
  end subroutine zeroBaseflowFluxes
 
- subroutine computeBaseflowRunoff
+ subroutine computBaseflowRunoff
   ! compute total baseflow from the soil zone (needed for mass balance checks) and total runoff, before aquifer fluxes
   ! (Note: scalarSoilBaseflow is zero if topmodel is not used, and no aquifer if glce layers exist)
   ! (Note: scalarSoilBaseflow may need to re-envisioned in topmodel formulation if parts of it flow into neighboring soil rather than exfiltrate)
@@ -451,7 +451,7 @@ contains
    ! compute total runoff
    scalarTotalRunoff = scalarSurfaceRunoff + scalarSoilBaseflow + scalarSoilDrainage ! total runoff (m s-1)
   end associate
- end subroutine computeBaseflowRunoff  
+ end subroutine computBaseflowRunoff  
 
  subroutine zeroAquiferFluxes
   ! set aquifer fluxes to zero (if no aquifer exists)
@@ -467,9 +467,9 @@ contains
   end associate
  end subroutine zeroAquiferFluxes
 
- ! **** Subroutines for starting/ending operations of computeFlux ****
- subroutine initialize_computeFlux
-  ! operations to prep for the start of computeFlux
+ ! **** Subroutines for starting/ending operations of computFlux ****
+ subroutine initialize_computFlux
+  ! operations to prep for the start of computFlux
   associate(&
    numFluxCalls                 => diag_data%var(iLookDIAG%numFluxCalls)%dat(1),         & ! intent(out): [dp] number of flux calls (-)
    ixSpatialGroundwater         => model_decisions(iLookDECISIONS%spatial_gw)%iDecision, & ! intent(in): [i4b] spatial representation of groundwater (local-column or single-basin)
@@ -493,10 +493,10 @@ contains
      iLayerLiqFluxSoil(0:nSoil) = 0._rkind
    end if
   end associate
- end subroutine initialize_computeFlux
+ end subroutine initialize_computFlux
 
- subroutine finalize_computeFlux
-  ! operations to prep for the end of computeFlux
+ subroutine finalize_computFlux
+  ! operations to prep for the end of computFlux
   associate(&
    ixCasNrg                     => indx_data%var(iLookINDEX%ixCasNrg)%dat(1),              & ! intent(in): [i4b] index of canopy air space energy state variable
    ixVegNrg                     => indx_data%var(iLookINDEX%ixVegNrg)%dat(1),              & ! intent(in): [i4b] index of canopy energy state variable
@@ -548,7 +548,7 @@ contains
   end associate
 
    firstFluxCall=.false. ! set the first flux call to false
- end subroutine finalize_computeFlux
+ end subroutine finalize_computFlux
 
  ! ----------------------- Initialize and Finalize procedures for the flux routines -----------------------
  ! **** vegNrgFlux ****
@@ -854,7 +854,7 @@ contains
  end subroutine finalize_bigAquifer
  ! **** end bigAquifer ****
 
-end subroutine computeFlux
+end subroutine computFlux
 
 ! **********************************************************************************************************
 ! public subroutine soilCmpres: compute soil compressibility (-) and its derivative w.r.t matric head (m-1)
@@ -962,4 +962,4 @@ subroutine soilCmpresPrime(&
   end if
 end subroutine soilCmpresPrime
 
-end module computeFlux_module
+end module computFlux_module

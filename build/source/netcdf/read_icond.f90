@@ -309,7 +309,7 @@ contains
  USE data_types,only:gru_hru_dom_intVec                 ! full integer structure
  USE data_types,only:gru_doubleVec                      ! gru-length double precision structure (basin variables)
  USE get_ixName_module,only:get_varTypeName             ! to access type strings for error messages
- USE updateState_module,only:updateSoil                  ! update soil states
+ USE updatState_module,only:updatSoil                   ! update soil states
 
  implicit none
  ! --------------------------------------------------------------------------------------------------------
@@ -663,7 +663,7 @@ else
      jLayer = iLayer+indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSnow)%dat(1)+indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLake)%dat(1)
 
      ! update soil layers
-     call updateSoil(&
+     call updatSoil(&
                     ! input
                     progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerTemp          )%dat(jLayer),& ! intent(in): temperature vector (K)
                     progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerMatricHead    )%dat(iLayer),& ! intent(in): matric head (m)

@@ -1,6 +1,6 @@
 
 
-module computeResidWithPrime_module
+module computResidWithPrime_module
 
 ! data types
 USE nr_type
@@ -51,13 +51,13 @@ USE multiconst,only:&
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
 ! privacy
 implicit none
-public::computeResidWithPrime
+public::computResidWithPrime
 contains
 
 ! **********************************************************************************************************
-! public subroutine computeResidWithPrime: compute the residual vector
+! public subroutine computResidWithPrime: compute the residual vector
 ! **********************************************************************************************************
-subroutine computeResidWithPrime(&
+subroutine computResidWithPrime(&
                       ! input: model control
                       dt,                        & ! intent(in):  length of the time step (seconds)
                       nSnow,                     & ! intent(in):  number of snow layers
@@ -172,7 +172,7 @@ subroutine computeResidWithPrime(&
     ) ! association to necessary variables for the residual computations
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
-    err=0; message="computeResidWithPrime/"
+    err=0; message="computResidWithPrime/"
 
     ! ---
     ! * compute sink terms...
@@ -260,7 +260,7 @@ subroutine computeResidWithPrime(&
 
     ! print the state variables if requested
     if(globalPrintFlag)then
-      write(*,'(a)') 'In computeResidWithPrime:'
+      write(*,'(a)') 'In computResidWithPrime:'
       write(*,'(a,i4)') '  nSnow = ', nSnow
       write(*,'(a,i4)') '  nLake = ', nLake
       write(*,'(a,i4)') '  nSoil = ', nSoil
@@ -295,6 +295,6 @@ subroutine computeResidWithPrime(&
     
   end associate
 
-end subroutine computeResidWithPrime
+end subroutine computResidWithPrime
 
-end module computeResidWithPrime_module
+end module computResidWithPrime_module

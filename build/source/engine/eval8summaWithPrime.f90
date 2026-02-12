@@ -108,14 +108,14 @@ subroutine eval8summaWithPrime(&
   ! provide access to subroutines
   USE getVectorz_module, only:varExtract                    ! extract variables from the state vector
   USE getVectorz_module, only:checkFeas                     ! check feasibility of state vector
-  USE updateDiagnWithPrime_module, only:updateDiagnWithPrime  ! update variables
-  USE computeFlux_module, only:soilCmpresPrime               ! compute soil compression
-  USE computeFlux_module, only:computeFlux                    ! compute fluxes given a state vector
-  USE heatCapacity_module,only:heatCapacityAnalytic       ! recompute closed form heat capacity (Cp) and derivatives
-  USE heatCapacity_module,only:computeCm                    ! compute Cm and derivatives
-  USE heatCapacity_module, only:computeStatMult             ! recompute state multiplier
-  USE computeResidWithPrime_module,only:computeResidWithPrime ! compute residuals given a state vector
-  USE thermConductivity_module,only:thermConductivity     ! recompute thermal conductivity and derivatives
+  USE updatDiagnWithPrime_module, only:updatDiagnWithPrime  ! update variables
+  USE computFlux_module, only:soilCmpresPrime               ! compute soil compression
+  USE computFlux_module, only:computFlux                    ! compute fluxes given a state vector
+  USE heatCapacity_module,only:heatCapacityAnalytic         ! recompute closed form heat capacity (Cp) and derivatives
+  USE heatCapacity_module,only:computCm                     ! compute Cm and derivatives
+  USE heatCapacity_module, only:computStatMult              ! recompute state multiplier
+  USE computResidWithPrime_module,only:computResidWithPrime ! compute residuals given a state vector
+  USE thermConductivity_module,only:thermConductivity       ! recompute thermal conductivity and derivatives
   implicit none
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------------------------------------
@@ -426,7 +426,7 @@ subroutine eval8summaWithPrime(&
     ! update diagnostic variables and derivatives
     ! NOTE: if we are using enthalpy as a state variable, currently all *TempPrime, *IcePrime, and *LiqPrime are set to realMissing
     !       This possibly could cause problems (?) if we use splitting, but we are not using splitting at the moment
-    call updateDiagnWithPrime(&
+    call updatDiagnWithPrime(&
                     ! input
                     ixNrgConserv.ne.closedForm,   & ! intent(in):    flag if need to update temperature from enthalpy
                     ixNrgConserv==enthalpyFormLU, & ! intent(in):    flag to use the lookup table for soil temperature-enthalpy
@@ -503,7 +503,7 @@ subroutine eval8summaWithPrime(&
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! compute multiplier of state vector
-      call computeStatMult(&
+      call computStatMult(&
                     ! input
                     heatCapVegTrial,    & ! intent(in):  volumetric heat capacity of vegetation canopy
                     mLayerHeatCapTrial, & ! intent(in):  volumetric heat capacity of soil and snow
@@ -558,7 +558,7 @@ subroutine eval8summaWithPrime(&
 
     if(needStateCm)then
       ! compute C_m
-      call computeCm(&
+      call computCm(&
                  ! input: state variables
                  scalarCanopyTempTrial,     & ! intent(in):    trial value of canopy temperature (K)
                  mLayerTempTrial,           & ! intent(in):    trial value of layer temperature (K)
@@ -585,7 +585,7 @@ subroutine eval8summaWithPrime(&
     indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) = indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) + 1
 
     ! compute the fluxes for a given state vector
-    call computeFlux(&
+    call computFlux(&
                     ! input-output: model control
                     nSnow,                     & ! intent(in):    number of snow layers
                     nLake,                     & ! intent(in):    number of lake layers
@@ -626,13 +626,13 @@ subroutine eval8summaWithPrime(&
                     deriv_data,                & ! intent(out):   derivatives in model fluxes w.r.t. relevant state variables
                     ! input-output: flux vector and baseflow derivatives
                     ixSaturation,              & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                    dBaseflow_dMatric,         & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1), we will use it later in computeJacobWithPrime
+                    dBaseflow_dMatric,         & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1), we will use it later in computJacobWithPrime
                     fluxVec,                   & ! intent(out):   flux vector (mixed units)
                     ! output: error control
                     err,cmessage)                ! intent(out):   error code and error message
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
-    firstSplitOper = .false. ! after call computeFlux once in dt, no longer firstSplitOper
+    firstSplitOper = .false. ! after call computFlux once in dt, no longer firstSplitOper
 
     ! compute soil compressibility (-) and its derivative w.r.t. matric head (m)
     ! NOTE: we already extracted trial matrix head and volumetric liquid water as part of the flux calculations
@@ -662,7 +662,7 @@ subroutine eval8summaWithPrime(&
     if (insideSUN)then
       dt1 = 1._qp ! always 1 for IDA since using Prime derivatives
 
-      call computeResidWithPrime(&
+      call computResidWithPrime(&
                        ! input: model control
                       dt1,                        & ! intent(in):  length of the residual time step (seconds)
                       nSnow,                      & ! intent(in):  number of snow layers
