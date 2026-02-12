@@ -217,7 +217,7 @@ contains
                   ! input: model control
                   nLake, nSoil, nGlce,                                & ! intent(in): number of lake soil, glce layers
                   vegTypeIndex,                                       & ! intent(in): index of vegetation type
-                  ist, isc,                                           & ! intent(in): indices to define surface type, soil color
+                  isc,                                                & ! intent(in): index to define soil color
                   computeVegFlux,                                     & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                   ix_canopySrad,                                      & ! intent(in): index of method used for transmission of shortwave rad through the canopy
                   ! input: model variables
@@ -270,9 +270,9 @@ contains
  ! ************************************************************************************************
  subroutine canopy_SW(&
                       ! input: model control
-                      nLake, nSoil, nGlce,                                & ! intent(in): number of lake soil, glce layers                      vegTypeIndex,                                       & ! intent(in): index of vegetation type
+                      nLake, nSoil, nGlce,                                & ! intent(in): number of lake soil, glce layers
                       vegTypeIndex,                                       & ! intent(in): index of vegetation type
-                      ist, isc,                                           & ! intent(in): indices to define surface type, soil color
+                      isc,                                                & ! intent(in): index to define soil color
                       computeVegFlux,                                     & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                       ix_canopySrad,                                      & ! intent(in): index of method used for transmission of shortwave rad through the canopy
                       ! input: model variables
@@ -316,7 +316,7 @@ contains
  ! input
  integer(i4b),intent(in)           :: nLake, nSoil, nGlce                       ! number of lake, soil, and glce layers
  integer(i4b),intent(in)           :: vegTypeIndex                              ! vegetation type index
- integer(i4b),intent(in)           :: ist, isc                                  ! indices to define surface type, soil color
+ integer(i4b),intent(in)           :: isc                                       ! index to define soil color
  logical(lgt),intent(in)           :: computeVegFlux                            ! logical flag to compute vegetation fluxes (.false. if veg buried by snow)
  integer(i4b),intent(in)           :: ix_canopySrad                             ! choice of canopy shortwave radiation method
  real(rkind),intent(in)            :: scalarCosZenith                           ! cosine of the solar zenith angle (0-1)
