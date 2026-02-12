@@ -41,7 +41,7 @@ subroutine snowGlceDepth(&
                          nSoil,                    & ! intent(in):    number of soil layers
                          nGlce,                    & ! intent(in):    number of glacier ice layers
                          noThetaChange,            & ! intent(in):    number of layers with no change in total water content (bottom layers)
-                         scalarGroundSublimation,  & ! intent(in):    scalar sublimation of snow (kg m-2)
+                         scalarGroundSublimation,  & ! intent(in):    scalar sublimation of snow/ice (kg m-2)
                          mLayerVolFracLiq,         & ! intent(inout): volumetric fraction of liquid water
                          mLayerVolFracIce,         & ! intent(inout): volumetric fraction of ice
                          mLayerTemp,               & ! intent(in):    temperature of each layer (K)
@@ -59,8 +59,8 @@ subroutine snowGlceDepth(&
   integer(i4b),intent(in)              :: nLake                    ! number of lake layers
   integer(i4b),intent(in)              :: nSoil                    ! number of soil layers
   integer(i4b),intent(in)              :: nGlce                    ! number of glacier ice layers
-  integer(i4b),intent(in)              :: noThetaChange               ! number of layers with no change in total water content (bottom layers)
-  real(rkind),intent(in)               :: scalarGroundSublimation  ! scalar sublimation of snow (kg m-2)
+  integer(i4b),intent(in)              :: noThetaChange            ! number of layers with no change in total water content (bottom layers)
+  real(rkind),intent(in)               :: scalarGroundSublimation  ! scalar sublimation of snow/ice (kg m-2)
   real(rkind),intent(inout)            :: mLayerVolFracLiq(:)      ! volumetric fraction of liquid water
   real(rkind),intent(inout)            :: mLayerVolFracIce(:)      ! volumetric fraction of ice
   real(rkind),intent(in)               :: mLayerTemp(:)            ! temperature of each layer (K)
