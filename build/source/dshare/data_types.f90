@@ -1484,17 +1484,17 @@ contains
 
   ! intent(in) arguments: trial temperature, matric potential, and volumetric fractions
   in_soilLiqFlux % mLayerTempTrial=mLayerTempTrial(nSnow+nLake+1:nSnow+nLake+nSoil)             ! intent(in): trial temperature at the current iteration (K)
-  in_soilLiqFlux % mLayerMatricHeadTrial   =mLayerMatricHeadTrial(1:nSoil)      ! intent(in): matric potential (m)
-  in_soilLiqFlux % mLayerMatricHeadLiqTrial=mLayerMatricHeadLiqTrial(1:nSoil)   ! intent(in): liquid water matric potential (m)
+  in_soilLiqFlux % mLayerMatricHeadTrial=mLayerMatricHeadTrial(1:nSoil)                         ! intent(in): matric potential (m)
+  in_soilLiqFlux % mLayerMatricHeadLiqTrial=mLayerMatricHeadLiqTrial(1:nSoil)                   ! intent(in): liquid water matric potential (m)
   in_soilLiqFlux % mLayerVolFracLiqTrial=mLayerVolFracLiqTrial(nSnow+nLake+1:nSnow+nLake+nSoil) ! intent(in): volumetric fraction of liquid water (-)
   in_soilLiqFlux % mLayerVolFracIceTrial=mLayerVolFracIceTrial(nSnow+nLake+1:nSnow+nLake+nSoil) ! intent(in): volumetric fraction of ice (-)
 
   ! intent(in) arguments: derivatives for liquid water
   associate(&
-   mLayerdTheta_dTk             => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat, & ! intent(in): [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
-   dPsiLiq_dTemp                => deriv_data%var(iLookDERIV%dPsiLiq_dTemp)%dat     ) ! intent(in): [dp(:)] derivative in the liquid water matric potential w.r.t. temperature
-   in_soilLiqFlux % mLayerdTheta_dTk=mLayerdTheta_dTk(nSnow+nLake+1:nSnow+nLake+nSoil)           ! intent(in): derivative in volumetric liquid water content w.r.t. temperature (K-1)
-   in_soilLiqFlux % dPsiLiq_dTemp=dPsiLiq_dTemp(1:nSoil)                         ! intent(in): derivative in liquid water matric potential w.r.t. temperature (m K-1)
+   mLayerdTheta_dTk      => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat, & ! intent(in): [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
+   dPsiLiq_dTemp         => deriv_data%var(iLookDERIV%dPsiLiq_dTemp)%dat     ) ! intent(in): [dp(:)] derivative in the liquid water matric potential w.r.t. temperature
+   in_soilLiqFlux % mLayerdTheta_dTk=mLayerdTheta_dTk(nSnow+nLake+1:nSnow+nLake+nSoil) ! intent(in): derivative in volumetric liquid water content w.r.t. temperature (K-1)
+   in_soilLiqFlux % dPsiLiq_dTemp=dPsiLiq_dTemp(1:nSoil)                               ! intent(in): derivative in liquid water matric potential w.r.t. temperature (m K-1)
   end associate
 
    ! intent(in) arguments: canopy transpiration derivatives
@@ -2237,8 +2237,8 @@ contains
   class(in_type_qDrainFlux),intent(out) :: in_qDrainFlux ! class object for input qDrainFlux variables
   integer(i4b),intent(in)               :: nSoil         ! number of soil layers
   integer(i4b),intent(in)               :: ibeg,iend     ! start and end indices of the soil layers in concatanated snow-soil vector
-  type(in_type_soilLiqFlux),intent(in)   :: in_soilLiqFlux ! input class object for soilLiqFlux
-  type(io_type_soilLiqFlux),intent(in)   :: io_soilLiqFlux ! input-output class object for soilLiqFlux
+  type(in_type_soilLiqFlux),intent(in)  :: in_soilLiqFlux ! input class object for soilLiqFlux
+  type(io_type_soilLiqFlux),intent(in)  :: io_soilLiqFlux ! input-output class object for soilLiqFlux
   type(model_options),intent(in)        :: model_decisions(maxvarDecisions) ! the model decision structure
   type(var_dlength),intent(in)          :: prog_data     ! prognostic variables for a local HRU
   type(var_dlength),intent(in)          :: mpar_data     ! model parameters
