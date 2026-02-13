@@ -245,7 +245,7 @@ end subroutine popStateVec
 
 
 ! **********************************************************************************************************
-! public subroutine getScaling: get scale factors
+! public subroutine getScaling: get scale factors and state multipliers for the function evaluations and state variables
 ! **********************************************************************************************************
 subroutine getScaling(&
                       ! input: data structures
