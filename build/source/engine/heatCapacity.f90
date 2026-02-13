@@ -69,6 +69,7 @@ USE globalData,only:iname_aquifer    ! named variables for the aquifer
 implicit none
 private
 public::computStatMult
+public::init_heatCapacity
 public::heatCapacityAnalytic
 public::computCm
 
@@ -156,6 +157,100 @@ subroutine computStatMult(&
   end associate
 ! end association to variables in the data structure where vector length does not change
 end subroutine computStatMult
+
+ ! **********************************************************************************************************
+ ! public subroutine init_heatCapacity: compute start-of-step heat capacity
+ ! **********************************************************************************************************
+ subroutine init_heatCapacity(&
+                       ! input: control variables
+                       computeVegFlux,          & ! intent(in):    flag to denote if computing the vegetation flux
+                       canopyDepth,             & ! intent(in):    canopy depth (m)
+                       ! input/output: data structures
+                       mpar_data,               & ! intent(in):    model parameters
+                       indx_data,               & ! intent(in):    model layer indices
+                       prog_data,               & ! intent(in):    model prognostic variables for a local HRU
+                       diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
+                       ! output: error control
+                       err,message)               ! intent(out): error control
+  ! --------------------------------------------------------------------------------------------------------------------------------------
+ ! input: model control
+ logical(lgt),intent(in)         :: computeVegFlux         ! logical flag to denote if computing the vegetation flux
+ real(rkind),intent(in)          :: canopyDepth            ! depth of the vegetation canopy (m)
+ ! input/output: data structures
+ type(var_dlength),intent(in)    :: mpar_data              ! model parameters
+ type(var_ilength),intent(in)    :: indx_data              ! model layer indices
+ type(var_dlength),intent(in)    :: prog_data              ! model prognostic variables for a local HRU
+ type(var_dlength),intent(inout) :: diag_data              ! model diagnostic variables for a local HRU
+ ! output: error control
+ integer(i4b),intent(out)        :: err                    ! error code
+ character(*),intent(out)        :: message                ! error message
+ ! --------------------------------------------------------------------------------------------------------------------------------
+ ! local variables
+ integer(i4b)                    :: iLayer                 ! index of model layer
+ integer(i4b)                    :: iSoil                  ! index of soil layer
+  ! --------------------------------------------------------------------------------------------------------------------------------
+ ! associate variables in data structure
+ associate(&
+ ! input: state variables
+ scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),           & ! intent(in): canopy ice content (kg m-2)
+ scalarCanopyLiquid      => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),           & ! intent(in): canopy liquid water content (kg m-2)
+ mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,             & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
+ mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,             & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
+ ! input: coordinate variables
+ nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),                    & ! intent(in): number of snow layers
+ nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1),                    & ! intent(in): number of soil layers
+ nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1),                  & ! intent(in): total number of layers
+ layerType               => indx_data%var(iLookINDEX%layerType)%dat,                   & ! intent(in): layer type (iname_soil or iname_snow)
+ ! input: heat capacity
+ specificHeatVeg         => mpar_data%var(iLookPARAM%specificHeatVeg)%dat(1),          & ! intent(in): specific heat of vegetation (J kg-1 K-1)
+ maxMassVegetation       => mpar_data%var(iLookPARAM%maxMassVegetation)%dat(1),        & ! intent(in): maximum mass of vegetation (kg m-2)
+  ! input: depth varying soil parameters
+ iden_soil               => mpar_data%var(iLookPARAM%soil_dens_intr)%dat,              & ! intent(in): intrinsic density of soil (kg m-3)
+ thCond_soil             => mpar_data%var(iLookPARAM%thCond_soil)%dat,                 & ! intent(in): thermal conductivity of soil (W m-1 K-1)
+ theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat,                   & ! intent(in): soil porosity (-)
+  ! output: diagnostic variables
+ scalarBulkVolHeatCapVeg => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1),   & ! intent(out): volumetric heat capacity of the vegetation (J m-3 K-1)
+ mLayerVolHtCapBulk      => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat,           & ! intent(out): volumetric heat capacity in each layer (J m-3 K-1)
+ )  ! end associate statement
+ ! --------------------------------------------------------------------------------------------------------------------------------
+ ! initialize error control
+ err=0; message="init_heatCapacity/"
+
+ ! initialize the soil layer
+ iSoil=integerMissing
+
+ ! compute the bulk volumetric heat capacity of vegetation (J m-3 K-1)
+ if(computeVegFlux)then
+  scalarBulkVolHeatCapVeg = specificHeatVeg*maxMassVegetation/canopyDepth + & ! vegetation component
+                            Cp_water*scalarCanopyLiquid/canopyDepth       + & ! liquid water component
+                            Cp_ice*scalarCanopyIce/canopyDepth                ! ice component
+ else
+  scalarBulkVolHeatCapVeg = realMissing
+ end if
+
+ ! loop through layers
+ do iLayer=1,nLayers
+  ! get the soil layer
+  if(iLayer>nSnow) iSoil = iLayer-nSnow
+
+  select case(layerType(iLayer))
+   ! * soil
+   case(iname_soil)
+    mLayerVolHtCapBulk(iLayer) = iden_soil(iSoil)  * Cp_soil  * ( 1._rkind - theta_sat(iSoil) ) + & ! soil component
+                                 iden_ice          * Cp_ice   * mLayerVolFracIce(iLayer)        + & ! ice component
+                                 iden_water        * Cp_water * mLayerVolFracLiq(iLayer)        + & ! liquid water component
+                                 iden_air          * Cp_air   * ( theta_sat(iSoil) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) ) ! air component
+   ! * snow
+   case(iname_snow)
+    mLayerVolHtCapBulk(iLayer) = iden_ice          * Cp_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
+                                 iden_water        * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
+                                 iden_air          * Cp_air   * ( 1._rkind - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) ) ! air component
+   case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute volumetric heat capacity'; return
+  end select
+ end do  ! looping through layers
+
+ end associate
+end subroutine init_heatCapacity
 
 ! **********************************************************************************************************
 ! public subroutine heatCapacityAnalytic: compute diagnostic energy variables (heat capacity)
@@ -245,7 +340,7 @@ subroutine heatCapacityAnalytic(&
     ixDomainType_subset     => indx_data%var(iLookINDEX%ixDomainType_subset)%dat  ,& ! intent(in): [i4b(:)] [state subset] id of domain for desired model state variables
     ixControlVolume         => indx_data%var(iLookINDEX%ixControlVolume)%dat      ,& ! intent(in): [i4b(:)] index of the control volume for different domains (veg, snow, soil)
     ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat          ,& ! intent(in): [i4b(:)] indices defining the type of the state (iname_nrgLayer...)
-    ! input: heat capacity and thermal conductivity
+    ! input: heat capacity
     specificHeatVeg         => mpar_data%var(iLookPARAM%specificHeatVeg)%dat(1)   ,& ! intent(in): specific heat of vegetation (J kg-1 K-1)
     maxMassVegetation       => mpar_data%var(iLookPARAM%maxMassVegetation)%dat(1) ,& ! intent(in): maximum mass of vegetation (kg m-2)
     ! input: depth varying soil parameters

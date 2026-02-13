@@ -117,7 +117,6 @@ set(SOLVER
     ${ENGINE_DIR}/snowGlceDepth.f90
     ${ENGINE_DIR}/thermConductivity.f90
     ${ENGINE_DIR}/coupled_em.f90
-    ${ENGINE_DIR}/init_heatCap_thermCond.f90
     ${ENGINE_DIR}/eval8summa.f90
     ${ENGINE_DIR}/groundwatr.f90
     ${ENGINE_DIR}/glacAreaChange.f90

@@ -468,23 +468,22 @@ subroutine eval8summa(&
     endif ! updateStateCp
 
     if(updateFluxCp)then
-      ! update thermal conductivity
+      ! update thermal conductivity, doing for all layers to ensure above and below computed (could be better optimized for state subset)
       call thermConductivity(&
-                          ! input: control variables
-                          nLayers,               & ! intent(in):    total number of layers
                           ! input: state variables
-                          mLayerTempTrial,       & ! intent(in):    trial temperature of layer temperature (K)
-                          mLayerMatricHeadTrial, & ! intent(in):    trial value for total water matric potential (m)
+                          nLayers,               & ! intent(in):    total number of layers
                           mLayerVolFracIceTrial, & ! intent(in):    volumetric fraction of ice at the start of the sub-step (-)
                           mLayerVolFracLiqTrial, & ! intent(in):    volumetric fraction of liquid water at the start of the sub-step (-)
-                         ! input: pre-computed derivatives
-                          mLayerdTheta_dTk,      & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
-                          mLayerFracLiq,         & ! intent(in):    fraction of liquid water (-)
                           ! input/output: data structures
                           mpar_data,             & ! intent(in):    model parameters
                           indx_data,             & ! intent(in):    model layer indices
                           prog_data,             & ! intent(in):    model prognostic variables for a local HRU
                           diag_data,             & ! intent(inout): model diagnostic variables for a local HRU
+                          ! input: pre-computed derivatives
+                          mLayerTempTrial,       & ! intent(in):    trial temperature of layer temperature (K)
+                          mLayerMatricHeadTrial, & ! intent(in):    trial value for total water matric potential (m)                         
+                          mLayerdTheta_dTk,      & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
+                          mLayerFracLiq,         & ! intent(in):    fraction of liquid water (-)
                           ! output: derivatives
                           dThermalC_dWatAbove,   & ! intent(out):   derivative in the thermal conductivity w.r.t. water state in the layer above
                           dThermalC_dWatBelow,   & ! intent(out):   derivative in the thermal conductivity w.r.t. water state in the layer above

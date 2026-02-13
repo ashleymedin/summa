@@ -68,21 +68,20 @@ contains
 !   NOTE: does every layer regardless if layer or layer+1 is in state subset, could fix for speedup
 ! **********************************************************************************************************
 subroutine thermConductivity(&
-                    ! input: control variables
-                    nLayers,                 & ! intent(in):    total number of layers
                     ! input: state variables
-                    mLayerTemp,              & ! intent(in):    temperature at the current iteration (K)
-                    mLayerMatricHead,        & ! intent(in):    matric head at the current iteration(m)
+                    nLayers,                 & ! intent(in):    total number of layers
                     mLayerVolFracIce,        & ! intent(in):    volumetric fraction of ice at the start of the sub-step (-)
                     mLayerVolFracLiq,        & ! intent(in):    volumetric fraction of liquid water at the start of the sub-step (-)
-                    ! input: pre-computed derivatives
-                    mLayerdTheta_dTk,        & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
-                    mLayerFracLiq,           & ! intent(in):    fraction of liquid water (-)
                     ! input/output: data structures
                     mpar_data,               & ! intent(in):    model parameters
                     indx_data,               & ! intent(in):    model layer indices
                     prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                     diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
+                    ! input: pre-computed derivatives
+                    mLayerTemp,              & ! intent(in):    temperature at the current iteration (K)
+                    mLayerMatricHead,        & ! intent(in):    matric head at the current iteration(m)                 
+                    mLayerdTheta_dTk,        & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
+                    mLayerFracLiq,           & ! intent(in):    fraction of liquid water (-)
                     ! output: derivatives
                     dThermalC_dWatAbove,     & ! intent(out):   derivative in the thermal conductivity w.r.t. water state in the layer above
                     dThermalC_dWatBelow,     & ! intent(out):   derivative in the thermal conductivity w.r.t. water state in the layer above
@@ -99,31 +98,31 @@ subroutine thermConductivity(&
 
   implicit none
   ! --------------------------------------------------------------------------------------------------------------------------------------
-  ! input: model control
-  integer(i4b),intent(in)              :: nLayers                  ! total number of layers in the layer domains
-  ! input: trial model state variables
-  real(rkind),intent(in)               :: mLayerTemp(:)            ! temperature in each layer at the current iteration (m)
-  real(rkind),intent(in)               :: mLayerMatricHead(:)      ! matric head in each layer at the current iteration (m)
+  ! input: model state variables
+  integer(i4b),intent(in)              :: nLayers                  ! total number of layers in the snow+soil domain
   real(rkind),intent(in)               :: mLayerVolFracIce(:)      ! volumetric fraction of ice at the current iteration (-)
   real(rkind),intent(in)               :: mLayerVolFracLiq(:)      ! volumetric fraction of liquid at the current iteration (-)
-  ! input: pre-computed derivatives
-  real(rkind),intent(in)               :: mLayerdTheta_dTk(:)      ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
-  real(rkind),intent(in)               :: mLayerFracLiq(:)         ! fraction of liquid water (-)
   ! input/output: data structures
   type(var_dlength),intent(in)         :: mpar_data                ! model parameters
   type(var_ilength),intent(in)         :: indx_data                ! model layer indices
   type(var_dlength),intent(in)         :: prog_data                ! model prognostic variables for a local HRU
   type(var_dlength),intent(inout)      :: diag_data                ! model diagnostic variables for a local HRU
+ ! input: pre-computed derivatives
+  real(rkind),intent(in) ,optional     :: mLayerTemp(:)            ! temperature in each layer at the current iteration (m)
+  real(rkind),intent(in) ,optional     :: mLayerMatricHead(:)      ! matric head in each layer at the current iteration (m)
+  real(rkind),intent(in) ,optional     :: mLayerdTheta_dTk(:)      ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
+  real(rkind),intent(in) ,optional     :: mLayerFracLiq(:)         ! fraction of liquid water (-)
   ! output: derivatives
-  real(rkind),intent(out)              :: dThermalC_dWatAbove(0:)  ! derivative in the thermal conductivity w.r.t. water state in the layer above
-  real(rkind),intent(out)              :: dThermalC_dWatBelow(0:)  ! derivative in the thermal conductivity w.r.t. water state in the layer above
-  real(rkind),intent(out)              :: dThermalC_dTempAbove(0:) ! derivative in the thermal conductivity w.r.t. energy state in the layer above
-  real(rkind),intent(out)              :: dThermalC_dTempBelow(0:) ! derivative in the thermal conductivity w.r.t. energy state in the layer above
+  real(rkind),intent(out),optional     :: dThermalC_dWatAbove(0:)  ! derivative in the thermal conductivity w.r.t. water state in the layer above
+  real(rkind),intent(out),optional     :: dThermalC_dWatBelow(0:)  ! derivative in the thermal conductivity w.r.t. water state in the layer above
+  real(rkind),intent(out),optional     :: dThermalC_dTempAbove(0:) ! derivative in the thermal conductivity w.r.t. energy state in the layer above
+  real(rkind),intent(out),optional     :: dThermalC_dTempBelow(0:) ! derivative in the thermal conductivity w.r.t. energy state in the layer above
   ! output: error control
   integer(i4b),intent(out)             :: err                      ! error code
   character(*),intent(out)             :: message                  ! error message
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! local variables
+  logical(lgt)                         :: derivDesired             ! flag to indicate whether the necessary variables to compute the derivatives are present
   character(LEN=256)                   :: cmessage                 ! error message of downwind routine
   integer(i4b)                         :: iLayer                   ! index of model layer
   integer(i4b)                         :: iSoil                    ! index of soil layer
@@ -196,6 +195,13 @@ subroutine thermConductivity(&
     ! initialize error control
     err=0; message="thermConductivity/"
 
+    ! check that the necessary variables to compute the derivatives are present
+    derivDesired = .true.
+    if(.not. present(mLayerTemp) .or. .not.present(mLayerMatricHead) &
+    .or. .not.present(mLayerdTheta_dTk) .or. .not.present(mLayerFracLiq))then
+      derivDesired = .false.
+    end if
+
     ! initialize the soil layer
     iSoil=integerMissing
 
@@ -232,51 +238,54 @@ subroutine thermConductivity(&
 
         ! ***** soil
         case(iname_soil)
-
-          select case(ixRichards)  ! (form of Richards' equation)
-            case(moisture)
-              dVolFracLiq_dWat = 1._rkind
-              dVolFracIce_dWat = dPsi_dTheta(mLayerVolFracLiq(iLayer),vGn_alpha(iSoil),theta_res(iSoil),theta_sat(iSoil),vGn_n(iSoil),vGn_m(iSoil)) - 1._rkind
-            case(mixdform)
-              Tcrit = crit_soilT( mLayerMatricHead(iSoil) )
-              if(mLayerTemp(iLayer) < Tcrit) then
-                dVolFracLiq_dWat = 0._rkind
-                dVolFracIce_dWat = dTheta_dPsi(mLayerMatricHead(iSoil),vGn_alpha(iSoil),theta_res(iSoil),theta_sat(iSoil),vGn_n(iSoil),vGn_m(iSoil))
-              else
-                dVolFracLiq_dWat = dTheta_dPsi(mLayerMatricHead(iSoil),vGn_alpha(iSoil),theta_res(iSoil),theta_sat(iSoil),vGn_n(iSoil),vGn_m(iSoil))
-                dVolFracIce_dWat = 0._rkind
-              endif
-          end select
-          dVolFracLiq_dTk = mLayerdTheta_dTk(iLayer) !already zeroed out if not below critical temperature
-          dVolFracIce_dTk = -dVolFracLiq_dTk !often can and will simplify one of these terms out
+          if(derivDesired)then
+            select case(ixRichards)  ! (form of Richards' equation)
+              case(moisture)
+                dVolFracLiq_dWat = 1._rkind
+                dVolFracIce_dWat = dPsi_dTheta(mLayerVolFracLiq(iLayer),vGn_alpha(iSoil),theta_res(iSoil),theta_sat(iSoil),vGn_n(iSoil),vGn_m(iSoil)) - 1._rkind
+              case(mixdform)
+                Tcrit = crit_soilT( mLayerMatricHead(iSoil) )
+                if(mLayerTemp(iLayer) < Tcrit) then
+                  dVolFracLiq_dWat = 0._rkind
+                  dVolFracIce_dWat = dTheta_dPsi(mLayerMatricHead(iSoil),vGn_alpha(iSoil),theta_res(iSoil),theta_sat(iSoil),vGn_n(iSoil),vGn_m(iSoil))
+                else
+                  dVolFracLiq_dWat = dTheta_dPsi(mLayerMatricHead(iSoil),vGn_alpha(iSoil),theta_res(iSoil),theta_sat(iSoil),vGn_n(iSoil),vGn_m(iSoil))
+                  dVolFracIce_dWat = 0._rkind
+                endif
+            end select
+            dVolFracLiq_dTk = mLayerdTheta_dTk(iLayer) !already zeroed out if not below critical temperature
+            dVolFracIce_dTk = -dVolFracLiq_dTk !often can and will simplify one of these terms out
+          endif
 
           ! select option for thermal conductivity of soil
           select case(ixThCondSoil)
 
             ! ** function of soil wetness
             case(funcSoilWet)
-
               ! compute the thermal conductivity of the wet material (W m-1)
               lambda_wet  = lambda_wetsoil**( 1._rkind - theta_sat(iSoil) ) * lambda_water**theta_sat(iSoil) * lambda_ice**(theta_sat(iSoil) - mLayerVolFracLiq(iLayer))
-              dlambda_wet_dWat = -lambda_wet * log(lambda_ice) * dVolFracLiq_dWat
-              dlambda_wet_dTk  = -lambda_wet * log(lambda_ice) * dVolFracLiq_dTk
+              if(derivDesired)then
+                dlambda_wet_dWat = -lambda_wet * log(lambda_ice) * dVolFracLiq_dWat
+                dlambda_wet_dTk  = -lambda_wet * log(lambda_ice) * dVolFracLiq_dTk
+              endif
 
               relativeSat = (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))/theta_sat(iSoil)  ! relative saturation
               ! drelativeSat_dWat = dPsi0_dWat/theta_sat(iLayer), and drelativeSat_dTk = 0 (so dkerstenNum_dTk = 0)
               ! compute the Kersten number (-)
               if(relativeSat > 0.1_rkind)then ! log10(0.1) = -1
                 kerstenNum = log10(relativeSat) + 1._rkind
-                dkerstenNum_dWat = (dVolFracIce_dWat + dVolFracLiq_dWat) / ( theta_sat(iSoil) * relativeSat * log(10._rkind) )
+                if(derivDesired) dkerstenNum_dWat = (dVolFracIce_dWat + dVolFracLiq_dWat) / ( theta_sat(iSoil) * relativeSat * log(10._rkind) )
               else
                 kerstenNum = 0._rkind  ! dry thermal conductivity
-                dkerstenNum_dWat = 0._rkind
+                if(derivDesired) dkerstenNum_dWat = 0._rkind
               endif
               ! ...and, compute the thermal conductivity
               mLayerThermalC(iLayer) = kerstenNum*lambda_wet + (1._rkind - kerstenNum)*lambda_drysoil
-
               ! compute derivatives
-              dThermalC_dWat(iLayer) = dkerstenNum_dWat * ( lambda_wet - lambda_drysoil ) + kerstenNum*dlambda_wet_dWat
-              dThermalC_dNrg(iLayer) = kerstenNum*dlambda_wet_dTk
+              if(derivDesired)then
+                dThermalC_dWat(iLayer) = dkerstenNum_dWat * ( lambda_wet - lambda_drysoil ) + kerstenNum*dlambda_wet_dWat
+                dThermalC_dNrg(iLayer) = kerstenNum*dlambda_wet_dTk
+              endif
 
             ! ** mixture of constituents
             case(mixConstit)
@@ -285,21 +294,26 @@ subroutine thermConductivity(&
                                          lambda_water       * mLayerVolFracLiq(iLayer)     + & ! liquid water component
                                          lambda_air         * mLayerVolFracAir(iLayer)         ! air component
               ! compute derivatives
-              dThermalC_dWat(iLayer) = lambda_ice*dVolFracIce_dWat + lambda_water*dVolFracLiq_dWat + lambda_air*(-dVolFracIce_dWat - dVolFracLiq_dWat)
-              dThermalC_dNrg(iLayer) = (lambda_ice - lambda_water) * dVolFracIce_dTk
+              if(derivDesired)then
+                dThermalC_dWat(iLayer) = lambda_ice*dVolFracIce_dWat + lambda_water*dVolFracLiq_dWat + lambda_air*(-dVolFracIce_dWat - dVolFracLiq_dWat)
+                dThermalC_dNrg(iLayer) = (lambda_ice - lambda_water) * dVolFracIce_dTk
+              endif
 
             ! ** test case for the mizoguchi lab experiment, Hansson et al. VZJ 2004
             case(hanssonVZJ)
               fArg  = 1._rkind + f1*mLayerVolFracIce(iLayer)**f2
               xArg  = mLayerVolFracLiq(iLayer) + fArg*mLayerVolFracIce(iLayer)
-              dxArg_dWat = dVolFracLiq_dWat + dVolFracIce_dWat * (1._rkind + f1*(f2+1)*mLayerVolFracIce(iLayer)**f2)
-              dxArg_dTk  = dVolFracIce_dTk * f1*(f2+1)*mLayerVolFracIce(iLayer)**f2
+              if(derivDesired)then
+                dxArg_dWat = dVolFracLiq_dWat + dVolFracIce_dWat * (1._rkind + f1*(f2+1)*mLayerVolFracIce(iLayer)**f2)
+                dxArg_dTk  = dVolFracIce_dTk * f1*(f2+1)*mLayerVolFracIce(iLayer)**f2
+              endif
               ! ...and, compute the thermal conductivity
               mLayerThermalC(iLayer) = c1 + c2*xArg + (c1 - c4)*exp(-(c3*xArg)**c5)
-
               ! compute derivatives
-              dThermalC_dWat(iLayer) = ( c2 - c5*c3*(c3*xArg)**(c5-1)*(c1 - c4)*exp(-(c3*xArg)**c5) ) * dxArg_dWat
-              dThermalC_dNrg(iLayer) = ( c2 - c5*c3*(c3*xArg)**(c5-1)*(c1 - c4)*exp(-(c3*xArg)**c5) ) * dxArg_dTk
+              if(derivDesired)then
+                dThermalC_dWat(iLayer) = ( c2 - c5*c3*(c3*xArg)**(c5-1)*(c1 - c4)*exp(-(c3*xArg)**c5) ) * dxArg_dWat
+                dThermalC_dNrg(iLayer) = ( c2 - c5*c3*(c3*xArg)**(c5-1)*(c1 - c4)*exp(-(c3*xArg)**c5) ) * dxArg_dTk
+              endif
 
             ! ** check
             case default; err=20; message=trim(message)//'unable to identify option for thermal conductivity of soil'; return
@@ -308,31 +322,33 @@ subroutine thermConductivity(&
 
         ! ***** snow
         case(iname_snow)
-          dVolFracIce_dWat = ( 1._rkind - mLayerFracLiq(iLayer) )*(iden_water/iden_ice)
-          dVolFracIce_dTk = -mLayerdTheta_dTk(iLayer)*(iden_water/iden_ice)
+          if(derivDesired)then
+            dVolFracIce_dWat = ( 1._rkind - mLayerFracLiq(iLayer) )*(iden_water/iden_ice)
+            dVolFracIce_dTk = -mLayerdTheta_dTk(iLayer)*(iden_water/iden_ice)
+          endif
 
-          ! temporally constant thermal conductivity
+          ! temporally constant thermal conductivity, derivatives are zero
           if(ixThCondSnow==Smirnova2000)then
             mLayerThermalC(iLayer) = fixedThermalCond_snow
-            dThermalC_dWat(iLayer) = 0._rkind
-            dThermalC_dNrg(iLayer) = 0._rkind
             ! thermal conductivity as a function of snow density
           else
             call tcond_snow(mLayerVolFracIce(iLayer)*iden_ice,  & ! input: snow density (kg m-3)
                             mLayerThermalC(iLayer),             & ! output: thermal conductivity (W m-1 K-1)
                             err,cmessage)                         ! output: error control
             if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-            select case(ixThCondSnow)
-              case(Yen1965)
-                dThermalC_dWat(iLayer) = 2._rkind * 3.217d-6 * mLayerVolFracIce(iLayer) * iden_ice**2_i4b * dVolFracIce_dWat
-                dThermalC_dNrg(iLayer) = 2._rkind * 3.217d-6 * mLayerVolFracIce(iLayer) * iden_ice**2_i4b * dVolFracIce_dTk
-              case(Mellor1977)
-                dThermalC_dWat(iLayer) = 2._rkind * 2.576d-6 * mLayerVolFracIce(iLayer) * iden_ice**2_i4b * dVolFracIce_dWat
-                dThermalC_dNrg(iLayer) = 2._rkind * 2.576d-6 * mLayerVolFracIce(iLayer) * iden_ice**2_i4b * dVolFracIce_dTk
-              case(Jordan1991)
-                dThermalC_dWat(iLayer) = ( 7.75d-5 + 2._rkind * 1.105d-6 * mLayerVolFracIce(iLayer) * iden_ice ) * (lambda_ice-lambda_air) * iden_ice * dVolFracIce_dWat
-                dThermalC_dNrg(iLayer) = ( 7.75d-5 + 2._rkind * 1.105d-6 * mLayerVolFracIce(iLayer) * iden_ice ) * (lambda_ice-lambda_air) * iden_ice * dVolFracIce_dTk
-            end select  ! option for the thermal conductivity of snow
+            if(derivDesired) then
+              select case(ixThCondSnow)
+                case(Yen1965)
+                  dThermalC_dWat(iLayer) = 2._rkind * 3.217d-6 * mLayerVolFracIce(iLayer) * iden_ice**2_i4b * dVolFracIce_dWat
+                  dThermalC_dNrg(iLayer) = 2._rkind * 3.217d-6 * mLayerVolFracIce(iLayer) * iden_ice**2_i4b * dVolFracIce_dTk
+                case(Mellor1977)
+                  dThermalC_dWat(iLayer) = 2._rkind * 2.576d-6 * mLayerVolFracIce(iLayer) * iden_ice**2_i4b * dVolFracIce_dWat
+                  dThermalC_dNrg(iLayer) = 2._rkind * 2.576d-6 * mLayerVolFracIce(iLayer) * iden_ice**2_i4b * dVolFracIce_dTk
+                case(Jordan1991)
+                  dThermalC_dWat(iLayer) = ( 7.75d-5 + 2._rkind * 1.105d-6 * mLayerVolFracIce(iLayer) * iden_ice ) * (lambda_ice-lambda_air) * iden_ice * dVolFracIce_dWat
+                  dThermalC_dNrg(iLayer) = ( 7.75d-5 + 2._rkind * 1.105d-6 * mLayerVolFracIce(iLayer) * iden_ice ) * (lambda_ice-lambda_air) * iden_ice * dVolFracIce_dTk
+              end select  ! option for the thermal conductivity of snow
+            end if
           end if
 
         ! ***** lake, ice
@@ -373,38 +389,48 @@ subroutine thermConductivity(&
       ! compute thermal conductivity
       if(TCn+TCp > epsilon(TCn))then
         iLayerThermalC(iLayer) = (TCn*TCp*(zdn + zdp)) / den
-        dThermalC_dWatBelow(iLayer) = ( TCn*(zdn + zdp) - iLayerThermalC(iLayer)*zdn ) / den * dThermalC_dWat(iLayer+1)
-        dThermalC_dWatAbove(iLayer) = ( TCp*(zdn + zdp) - iLayerThermalC(iLayer)*zdp ) / den * dThermalC_dWat(iLayer)
-        dThermalC_dTempBelow(iLayer) = ( TCn*(zdn + zdp) - iLayerThermalC(iLayer)*zdn ) / den * dThermalC_dNrg(iLayer+1)
-        dThermalC_dTempAbove(iLayer) = ( TCp*(zdn + zdp) - iLayerThermalC(iLayer)*zdp ) / den * dThermalC_dNrg(iLayer)
+        if(derivDesired)then
+          dThermalC_dWatBelow(iLayer) = ( TCn*(zdn + zdp) - iLayerThermalC(iLayer)*zdn ) / den * dThermalC_dWat(iLayer+1)
+          dThermalC_dWatAbove(iLayer) = ( TCp*(zdn + zdp) - iLayerThermalC(iLayer)*zdp ) / den * dThermalC_dWat(iLayer)
+          dThermalC_dTempBelow(iLayer) = ( TCn*(zdn + zdp) - iLayerThermalC(iLayer)*zdn ) / den * dThermalC_dNrg(iLayer+1)
+          dThermalC_dTempAbove(iLayer) = ( TCp*(zdn + zdp) - iLayerThermalC(iLayer)*zdp ) / den * dThermalC_dNrg(iLayer)
+        endif
       else
         iLayerThermalC(iLayer) = (TCn*zdn +  TCp*zdp) / (zdn + zdp)
-        dThermalC_dWatBelow(iLayer) = zdp / (zdn + zdp) * dThermalC_dWat(iLayer+1)
-        dThermalC_dWatAbove(iLayer) = zdn / (zdn + zdp) * dThermalC_dWat(iLayer)
-        dThermalC_dTempBelow(iLayer) = zdp / (zdn + zdp) * dThermalC_dNrg(iLayer+1)
-        dThermalC_dTempAbove(iLayer) = zdn / (zdn + zdp) * dThermalC_dNrg(iLayer)
+        if(derivDesired)then
+          dThermalC_dWatBelow(iLayer) = zdp / (zdn + zdp) * dThermalC_dWat(iLayer+1)
+          dThermalC_dWatAbove(iLayer) = zdn / (zdn + zdp) * dThermalC_dWat(iLayer)
+          dThermalC_dTempBelow(iLayer) = zdp / (zdn + zdp) * dThermalC_dNrg(iLayer+1)
+          dThermalC_dTempAbove(iLayer) = zdn / (zdn + zdp) * dThermalC_dNrg(iLayer)
+        endif
       endif
     end do  ! looping through layers
 
     ! special case of hansson
     if(ixThCondSoil==hanssonVZJ)then
       iLayerThermalC(0) = 28._rkind*(0.5_rkind*(iLayerHeight(1) - iLayerHeight(0)))
-      dThermalC_dWatBelow(0) = 0._rkind
-      dThermalC_dTempBelow(0) = 0._rkind
+      if(derivDesired)then
+         dThermalC_dWatBelow(0) = 0._rkind
+         dThermalC_dTempBelow(0) = 0._rkind
+      endif
     else
       iLayerThermalC(0) = mLayerThermalC(1)
-      dThermalC_dWatBelow(0) = dThermalC_dWat(1)
-      dThermalC_dTempBelow(0) = dThermalC_dNrg(1)
+      if(derivDesired)then
+        dThermalC_dWatBelow(0) = dThermalC_dWat(1)
+        dThermalC_dTempBelow(0) = dThermalC_dNrg(1)
+      endif
     end if
     dThermalC_dWatAbove(0) = realMissing
     dThermalC_dTempAbove(0) = realMissing
 
     ! assume the thermal conductivity at the domain boundaries is equal to the thermal conductivity of the layer
     iLayerThermalC(nLayers) = mLayerThermalC(nLayers)
-    dThermalC_dWatAbove(nLayers) = dThermalC_dWat(nLayers)
-    dThermalC_dTempAbove(nLayers) = dThermalC_dNrg(nLayers)
-    dThermalC_dWatBelow(nLayers) = realMissing
-    dThermalC_dTempBelow(nLayers) = realMissing
+    if(derivDesired)then
+      dThermalC_dWatAbove(nLayers) = dThermalC_dWat(nLayers)
+      dThermalC_dTempAbove(nLayers) = dThermalC_dNrg(nLayers)
+      dThermalC_dWatBelow(nLayers) = realMissing
+      dThermalC_dTempBelow(nLayers) = realMissing
+    endif
 
   ! end association to variables in the data structure
   end associate
