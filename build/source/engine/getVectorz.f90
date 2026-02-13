@@ -258,9 +258,6 @@ subroutine getScaling(&
                       dMat,                    & ! intent(out):   diagonal of the Jacobian matrix excluding fluxes, not depending on the state vector
                       err,message)               ! intent(out):   error control
   ! --------------------------------------------------------------------------------------------------------------------------------
-  USE nr_utils_module,only:arth                   ! get a sequence of numbers arth(start, incr, count)
-  USE f2008_funcs_module,only:findIndex              ! finds the index of the first value within a vector
-  ! --------------------------------------------------------------------------------------------------------------------------------
   ! input: data structures
   type(var_dlength),intent(in)    :: diag_data              ! diagnostic variables for a local HRU
   type(var_ilength),intent(in)    :: indx_data              ! indices defining model states and layers

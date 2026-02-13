@@ -86,9 +86,6 @@ subroutine computStatMult(&
                       ! output
                       sMul,                    & ! intent(out): multiplier for state vector (used in the residual calculations)
                       err,message)               ! intent(out): error control
-! --------------------------------------------------------------------------------------------------------------------------------
-USE nr_utils_module,only:arth                  ! get a sequence of numbers arth(start, incr, count)
-USE f2008_funcs_module,only:findIndex             ! finds the index of the first value within a vector
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! input: data structures
   real(qp),intent(in)             :: heatCapVeg             ! volumetric heat capacity of vegetation (J m-3 K-1)

@@ -42,7 +42,7 @@ contains
  USE netcdf
  USE netcdf_util_module,only:nc_file_open                   ! open netcdf file
  USE netcdf_util_module,only:nc_file_close                  ! close netcdf file
- USE nr_utils_module ,only:arth
+ USE nr_utils_module ,only:arth                             ! use to build vectors with regular increments
  implicit none
 
  character(*),intent(in)              :: attrFile           ! name of attributed file

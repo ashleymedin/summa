@@ -21,7 +21,7 @@
 module childStruc_module
 USE nr_type
 USE globalData,only:integerMissing ! missing value
-USE nr_utils_module,only:arth    ! get a sequence of numbers
+USE nr_utils_module,only:arth      ! use to build vectors with regular increments
 
 implicit none
 private

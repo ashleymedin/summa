@@ -241,11 +241,11 @@ contains
  ! * private subroutine: find first timestep in any of the forcing files...
  ! *************************************************************************
  subroutine getFirstTimestep(currentJulDay,iFile,iRead,ncid,err,message)
- USE netcdf                                            ! netcdf capability
- USE nr_utils_module,only:arth                       ! get a sequence of numbers
+ USE netcdf                                          ! netcdf capability
+ USE nr_utils_module,only:arth                       ! use to build vectors with regular increments
  implicit none
  ! define input
- real(rkind),intent(in)               :: currentJulDay    ! Julian day of current time step
+ real(rkind),intent(in)            :: currentJulDay    ! Julian day of current time step
  ! define input-output variables
  integer(i4b),intent(inout)        :: iFile            ! index of current forcing file in forcing file list
  integer(i4b),intent(inout)        :: iRead            ! index of read position in time dimension in current netcdf file
@@ -262,9 +262,9 @@ contains
  character(len=256),save           :: infile           ! filename
  character(len=256)                :: cmessage         ! error message for downwind routine
  integer(i4b)                      :: nFiles           ! number of forcing files
- real(rkind)                          :: timeVal(1)       ! single time value (restrict time read)
- real(rkind),allocatable              :: fileTime(:)      ! array of time from netcdf file
- real(rkind),allocatable              :: diffTime(:)      ! array of time differences
+ real(rkind)                       :: timeVal(1)       ! single time value (restrict time read)
+ real(rkind),allocatable           :: fileTime(:)      ! array of time from netcdf file
+ real(rkind),allocatable           :: diffTime(:)      ! array of time differences
  ! Start procedure here
  err=0; message="getFirstTimestep/"
 
