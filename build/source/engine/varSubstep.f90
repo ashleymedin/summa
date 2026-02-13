@@ -69,12 +69,12 @@ USE multiconst,only:&
                     LH_vap,         & ! latent heat of vaporization          (J kg-1)
                     iden_ice,       & ! intrinsic density of ice             (kg m-3)
                     iden_water        ! intrinsic density of liquid water    (kg m-3)
-USE globalData,only: verySmall ! a small number
+USE globalData,only:verySmall         ! a small number
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:         &
-                    homegrown      ,& ! homegrown backward Euler solution using concepts from numerical recipes
-                    kinsol         ,& ! SUNDIALS backward Euler solution using Kinsol
+                    homegrown,      & ! homegrown backward Euler solution using concepts from numerical recipes
+                    kinsol,         & ! SUNDIALS backward Euler solution using Kinsol
                     ida               ! SUNDIALS solution using IDA
 
 ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
