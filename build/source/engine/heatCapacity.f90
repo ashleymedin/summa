@@ -29,7 +29,7 @@ USE data_types,only:&
                     var_dlength         ! data vector with variable length dimension (rkind)
 
 ! named variables defining elements in the data structures
-USE var_lookup,only:iLookPARAM,iLookDIAG,iLookINDEX  ! named variables for structure elements
+USE var_lookup,only:iLookPARAM,iLookDIAG,iLookINDEX,iLookPROG  ! named variables for structure elements
 
 ! physical constants
 USE multiconst,only: gravity, &                          ! gravitational acceleration (m s-1)
@@ -210,7 +210,7 @@ end subroutine computStatMult
  theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat,                   & ! intent(in): soil porosity (-)
   ! output: diagnostic variables
  scalarBulkVolHeatCapVeg => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1),   & ! intent(out): volumetric heat capacity of the vegetation (J m-3 K-1)
- mLayerVolHtCapBulk      => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat,           & ! intent(out): volumetric heat capacity in each layer (J m-3 K-1)
+ mLayerVolHtCapBulk      => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat            & ! intent(out): volumetric heat capacity in each layer (J m-3 K-1)
  )  ! end associate statement
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
