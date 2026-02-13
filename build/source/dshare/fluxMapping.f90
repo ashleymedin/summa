@@ -1,10 +1,10 @@
-module flxMapping_module
+module fluxMapping_module
 implicit none
 private
-public::flxMapping
+public::fluxMapping
 contains
 
- subroutine flxMapping(err,message)
+ subroutine fluxMapping(err,message)
  USE nr_type
  ! data types
  USE data_types, only: var_info         ! data type for metadata structure
@@ -40,7 +40,7 @@ contains
  integer(i4b)                   :: nFlux               ! number of fluxes
  integer(i4b),parameter         :: integerUndefined=0  ! named variable to denote that the flux is undefined
  ! initialize error control
- err=0; message='flxMapping/'
+ err=0; message='fluxMapping/'
 
  ! get the number of fluxes
  nFlux = size(flux_meta)
@@ -221,6 +221,6 @@ contains
   flux2state_liq(iVar)%var_info = flux_meta(iVar)
  end do
 
- end subroutine flxMapping
+ end subroutine fluxMapping
 
-end module flxMapping_module
+end module fluxMapping_module

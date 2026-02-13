@@ -70,7 +70,7 @@ subroutine summa_defineGlobalData(err, message)
   USE,intrinsic :: ieee_arithmetic                            ! IEEE arithmetic (obviously)
   ! subroutines and functions: define metadata structures
   USE popMetadat_module,only:popMetadat                       ! module to populate metadata structures
-  USE flxMapping_module,only:flxMapping                       ! module to map fluxes to states
+  USE fluxMapping_module,only:fluxMapping                     ! module to map fluxes to states
   USE checkStruc_module,only:checkStruc                       ! module to check metadata structures
   USE childStruc_module,only:childStruc                       ! module to create a child data structure
   ! miscellaneous global data
@@ -108,7 +108,7 @@ subroutine summa_defineGlobalData(err, message)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! define mapping between fluxes and states
-  call flxMapping(err,cmessage)
+  call fluxMapping(err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! check data structures

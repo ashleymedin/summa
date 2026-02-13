@@ -34,7 +34,7 @@ set(HOOKUP
 # Data modules
 set(DATAMS
     ${DSHARE_DIR}/data_types.f90
-    ${DSHARE_DIR}/flxMapping.f90
+    ${DSHARE_DIR}/fluxMapping.f90
     ${DSHARE_DIR}/get_ixname.f90
     ${DSHARE_DIR}/globalData.f90
     ${DSHARE_DIR}/multiconst.f90
