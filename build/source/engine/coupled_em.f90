@@ -20,25 +20,23 @@
 
 module coupled_em_module
 
-! homegrown solver data types
-USE nr_type
-USE globalData,only: verySmall ! a very small number used as an additive constant to check if substantial difference among real numbers
-
-! physical constants
-USE multiconst,only:&
-                    Tfreeze,      & ! temperature at freezing              (K)
-                    LH_fus,       & ! latent heat of fusion                (J kg-1)
-                    LH_sub,       & ! latent heat of sublimation           (J kg-1)
-                    iden_ice,     & ! intrinsic density of ice             (kg m-3)
-                    iden_water      ! intrinsic density of liquid water    (kg m-3)
-
 ! data types
+USE nr_type
 USE data_types,only:&
                     var_i,               & ! x%var(:)                (i4b)
                     var_d,               & ! x%var(:)                (rkind)
                     var_ilength,         & ! x%var(:)%dat            (i4b)
                     var_dlength,         & ! x%var(:)%dat            (rkind)
                     zLookup                ! x%z(:)%var(:)%lookup(:) (rkind)
+
+! constants
+USE multiconst,only:&
+                    Tfreeze,      & ! temperature at freezing              (K)
+                    LH_fus,       & ! latent heat of fusion                (J kg-1)
+                    LH_sub,       & ! latent heat of sublimation           (J kg-1)
+                    iden_ice,     & ! intrinsic density of ice             (kg m-3)
+                    iden_water      ! intrinsic density of liquid water    (kg m-3)
+USE globalData,only: verySmall      ! a small number
 
 ! named variables for parent structures
 USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure

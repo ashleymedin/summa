@@ -22,32 +22,31 @@ module glacAreaChange_module
 
 ! data types
 USE nr_type
+USE data_types,only:&
+                    var_ilength,     & ! x%var(:)%dat (i4b)
+                    var_dlength,     & ! x%var(:)%dat (rkind)
+                    glac_info,       & ! glacier information data structure
+                    grid_info,       & ! glacier grid info data structure
+                    grid_double        ! x%gru(:)%grid(:)%var(:)%dat2(:,:) (dp)
 
 ! access missing values
 USE globalData,only:integerMissing     ! missing integer number
 USE globalData,only:realMissing        ! missing real number
 
-USE globalData,only:verySmall          ! a very small number used as an additive constant to check if substantial difference among real numbers
+! constants
+USE globalData,only:verySmall          ! a small number
 USE globalData,only:thick4area         ! an arbitrary small threshold for glacier thickness to be considered as glacier area
 USE globalData,only:dJulianStart       ! julian day of start time of simulation
 USE globalData,only:data_step          ! length of time steps for the outermost timeloop
-
-USE data_types,only:var_ilength        ! x%var(:)%dat (i4b)
-USE data_types,only:var_dlength        ! x%var(:)%dat (rkind)
-! define data types
-USE var_lookup,only:iLookGRID          ! named variables for the glacier grid information
-USE var_lookup,only:iLookPROG          ! named variables for the prognostic variables
-
-USE data_types,only:&
-                    glac_info,       & ! glacier information data structure
-                    grid_info,       & ! glacier grid info data structure
-                    grid_double        ! x%gru(:)%grid(:)%var(:)%dat2(:,:) (dp)
-
 USE multiconst,only:&
                     secprday,        & ! seconds per day
                     gravity,         & ! gravitational acceleration    (m s-2)
                     iden_water,      & ! intrinsic density of water    (kg m-3)
                     iden_ice           ! intrinsic density of ice      (kg m-3)
+
+! define data types
+USE var_lookup,only:iLookGRID          ! named variables for the glacier grid information
+USE var_lookup,only:iLookPROG          ! named variables for the prognostic variables
 
 ! access domain types
 USE globalData,only:upland             ! domain type for upland areas
@@ -55,9 +54,6 @@ USE globalData,only:glacCln1           ! first domain type for glacier clean are
 USE globalData,only:glacCln2           ! second domain type for glacier clean areas
 USE globalData,only:glacDbr            ! domain type for glacier debris areas
 USE globalData,only:wetland            ! domain type for wetland areas                
-
-USE var_derive_module,only:rootDensty  ! module to calculate the vertical distribution of roots
-USE var_derive_module,only:satHydCond  ! module to calculate the saturated hydraulic conductivity in each soil layer
 
 implicit none
 
@@ -288,13 +284,13 @@ subroutine glacAreaChange(&
       slope(1,dbr+1) = slope(2,dbr+1)
       intercept(1,dbr+1) = intercept(2,dbr+1)
       if(slope(1,dbr+1)<0._rkind)then ! don't propogate mass balance inversions
-        slope(1,dbr+1) = 1.e-6_rkind
+        slope(1,dbr+1) = verySmall
         intercept(1,dbr+1) = validMassChange(1,dbr+1)
       endif
       slope(validCount(dbr+1)+1,dbr+1) = slope(validCount(dbr+1),dbr+1)
       intercept(validCount(dbr+1)+1,dbr+1) = intercept(validCount(dbr+1),dbr+1)
       if(slope(validCount(dbr+1)+1,dbr+1)<0._rkind)then ! don't propogate mass balance inversions
-        slope(validCount(dbr+1)+1,dbr+1) = 1.e-6_rkind
+        slope(validCount(dbr+1)+1,dbr+1) = verySmall
         intercept(validCount(dbr+1)+1,dbr+1) = validMassChange(validCount(dbr+1),dbr+1)
       endif
       ELA_elev(dbr+1) = -intercept(ind,dbr+1) / slope(ind,dbr+1)
@@ -1282,7 +1278,10 @@ subroutine updateGlacDomain(&
                   flux_data,           & ! intent(inout): model fluxes
                   ! error control
                   err, message)         ! intent(out):   error control
- ! ----- define dummy variables ------------------------------------------------------------------------------------------
+  ! ----- define downstream subroutines -----------------------------------------------------------------------------------
+  USE var_derive_module,only:rootDensty  ! module to calculate the vertical distribution of roots
+  USE var_derive_module,only:satHydCond  ! module to calculate the saturated hydraulic conductivity in each soil layer
+  ! ----- define dummy variables ------------------------------------------------------------------------------------------
   implicit none
   integer(i4b), intent(inout)     :: iglac                   ! glacier domain index
   real(rkind), intent(in)         :: glac_elev(:)             ! elevation of each glacier domain (m) per HRU

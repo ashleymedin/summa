@@ -23,30 +23,31 @@ module soilLiqFlux_module
 
 ! data types
 USE nr_type
-USE data_types,only:var_ilength            ! x%var(:)%dat   (i4b)
-USE data_types,only:var_dlength            ! x%var(:)%dat   (rkind)
-USE data_types,only:in_type_soilLiqFlux    ! derived type for intent(in) arguments
-USE data_types,only:io_type_soilLiqFlux    ! derived type for intent(inout) arguments
-USE data_types,only:out_type_soilLiqFlux   ! derived type for intent(out) arguments
-USE data_types,only:in_type_diagv_node     ! derived type for intent(in) arguments
-USE data_types,only:out_type_diagv_node    ! derived type for intent(out) arguments
-USE data_types,only:in_type_surfaceFlux    ! derived type for intent(in) arguments
-USE data_types,only:io_type_surfaceFlux    ! derived type for intent(inout) arguments
-USE data_types,only:out_type_surfaceFlux   ! derived type for intent(out) arguments
-USE data_types,only:in_type_iLayerFlux     ! derived type for intent(in) arguments
-USE data_types,only:out_type_iLayerFlux    ! derived type for intent(out) arguments
-USE data_types,only:in_type_qDrainFlux     ! derived type for intent(in) arguments
-USE data_types,only:out_type_qDrainFlux    ! derived type for intent(out) arguments
+USE data_types,only:&
+                   var_ilength,           & ! x%var(:)%dat   (i4b)
+                   var_dlength,           & ! x%var(:)%dat   (rkind)
+                   in_type_soilLiqFlux,   & ! derived type for intent(in) arguments
+                   io_type_soilLiqFlux,   & ! derived type for intent(inout) arguments
+                   out_type_soilLiqFlux,  & ! derived type for intent(out) arguments
+                   in_type_diagv_node,    & ! derived type for intent(in) arguments
+                   out_type_diagv_node,   & ! derived type for intent(out) arguments
+                   in_type_surfaceFlux,   & ! derived type for intent(in) arguments
+                   io_type_surfaceFlux,   & ! derived type for intent(inout) arguments
+                   out_type_surfaceFlux,  & ! derived type for intent(out) arguments
+                   in_type_iLayerFlux,    & ! derived type for intent(in) arguments
+                   out_type_iLayerFlux,   & ! derived type for intent(out) arguments
+                   in_type_qDrainFlux,    & ! derived type for intent(in) arguments
+                   out_type_qDrainFlux      ! derived type for intent(out) arguments
 
 ! missing values
 USE globalData,only:integerMissing         ! missing integer
 USE globalData,only:realMissing            ! missing real number
-USE globalData,only:veryBig                ! a very big number
-USE globalData,only:verySmall              ! a small number used as an additive constant to check if substantial difference among real numbers
-USE globalData,only:verySmaller            ! a smaller number used as an additive constant to check if substantial difference among real numbers
 
-! physical constants
+! constants
 USE multiconst,only:iden_water             ! intrinsic density of water    (kg m-3)
+USE globalData,only:veryBig                ! a very big number
+USE globalData,only:verySmall              ! a small number
+USE globalData,only:verySmaller            ! a smaller number than verySmall
 
 ! named variables
 USE var_lookup,only:iLookPROG              ! named variables for structure elements
@@ -735,12 +736,12 @@ contains
    scalarDiffuse = scalardPsi_dTheta * scalarHydCond
    ! compute derivative in hydraulic conductivity (m s-1) and hydraulic diffusivity (m2 s-1)
    if (scalarVolFracIceTrial > epsilon(iceImpedeFac)) then
-     dK_dLiq__noIce   = dHydCond_dLiq(scalarVolFracLiqTrial,scalarSatHydCond,theta_res,theta_sat,vGn_m,.true.)  ! [.true. = analytical]
+     dK_dLiq__noIce   = dHydCond_dLiq(scalarVolFracLiqTrial,scalarSatHydCond,theta_res,theta_sat,vGn_m)
      dHydCond_dVolLiq = hydCond_noIce*dIceImpede_dLiq + dK_dLiq__noIce*iceImpedeFac
    else
-     dHydCond_dVolLiq = dHydCond_dLiq(scalarVolFracLiqTrial,scalarSatHydCond,theta_res,theta_sat,vGn_m,.true.)
+     dHydCond_dVolLiq = dHydCond_dLiq(scalarVolFracLiqTrial,scalarSatHydCond,theta_res,theta_sat,vGn_m)
    end if
-   dPsi_dTheta2a    = dPsi_dTheta2(scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m,.true.)   ! [.true. = analytical] compute derivative in dPsi_dTheta (m)
+   dPsi_dTheta2a    = dPsi_dTheta2(scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
    dDiffuse_dVolLiq = dHydCond_dVolLiq*scalardPsi_dTheta + scalarHydCond*dPsi_dTheta2a
    dHydCond_dMatric = realMissing ! not used, so cause problems
 
@@ -801,12 +802,12 @@ contains
    end if
    ! compute derivatives for micropores
    if (scalarVolFracIceTrial > verySmaller) then
-     dK_dPsi__noIce        = dHydCond_dPsi(scalarMatricHeadLiqTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m,.true.)  ! analytical
+     dK_dPsi__noIce        = dHydCond_dPsi(scalarMatricHeadLiqTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m)
      dHydCondMicro_dTemp   = dPsiLiq_dTemp*dK_dPsi__noIce  ! m s-1 K-1
      dHydCondMicro_dMatric = hydCond_noIce*dIceImpede_dLiq*scalardTheta_dPsi + dK_dPsi__noIce*iceImpedeFac
    else
      dHydCondMicro_dTemp   = 0._rkind
-     dHydCondMicro_dMatric = dHydCond_dPsi(scalarMatricHeadLiqTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m,.true.)
+     dHydCondMicro_dMatric = dHydCond_dPsi(scalarMatricHeadLiqTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m)
    end if
    ! combine derivatives
    dHydCond_dMatric = dHydCondMicro_dMatric + dHydCondMacro_dMatric

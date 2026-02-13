@@ -69,8 +69,7 @@ USE mDecisions_module,only:      &
 implicit none
 private
 public :: snowLakeSoilGlceNrgFlux
-! global parameters
-real(rkind),parameter            :: dx=1.e-10_rkind         ! finite difference increment (K)
+
 contains
 ! **********************************************************************************************************
 ! public subroutine snowLakeSoilGlceNrgFlux: compute energy fluxes and derivatives at layer interfaces
@@ -84,9 +83,9 @@ subroutine snowLakeSoilGlceNrgFlux(&
                       prog_data,                          & ! intent(in):    model prognostic variables for a local HRU
                       diag_data,                          & ! intent(in):    model diagnostic variables for a local HRU
                       flux_data,                          & ! intent(inout): model fluxes for a local HRU
-                      io_snowLakeSoilGlceNrgFlux,                      & ! intent(inout): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+                      io_snowLakeSoilGlceNrgFlux,         & ! intent(inout): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
                       ! output: fluxes and derivatives at all layer interfaces and error control
-                      out_snowLakeSoilGlceNrgFlux)                       ! intent(out):   derivatives and error control
+                      out_snowLakeSoilGlceNrgFlux)          ! intent(out):   derivatives and error control
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! input: model control, fluxes, trial variables, and  derivatives

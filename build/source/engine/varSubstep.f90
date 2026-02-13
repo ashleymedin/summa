@@ -22,7 +22,17 @@ module varSubstep_module
 
 ! data types
 USE nr_type
-USE globalData,only: verySmall ! a very small number used as an additive constant to check if substantial difference among real numbers
+USE data_types,only:&
+                    var_i,              & ! data vector (i4b)
+                    var_d,              & ! data vector (rkind)
+                    var_flagVec,        & ! data vector with variable length dimension (i4b)
+                    var_ilength,        & ! data vector with variable length dimension (i4b)
+                    var_dlength,        & ! data vector with variable length dimension (rkind)
+                    zLookup,            & ! lookup tables
+                    model_options,      & ! defines the model decisions
+                    in_type_varSubstep, & ! class for intent(in) arguments
+                    io_type_varSubstep, & ! class for intent(inout) arguments
+                    out_type_varSubstep   ! class for intent(out) arguments
 
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
@@ -43,19 +53,6 @@ USE globalData,only:iname_lake      ! named variables for lake
 ! global metadata
 USE globalData,only:flux_meta       ! metadata on the model fluxes
 
-! derived types to define the data structures
-USE data_types,only:&
-                    var_i,              & ! data vector (i4b)
-                    var_d,              & ! data vector (rkind)
-                    var_flagVec,        & ! data vector with variable length dimension (i4b)
-                    var_ilength,        & ! data vector with variable length dimension (i4b)
-                    var_dlength,        & ! data vector with variable length dimension (rkind)
-                    zLookup,            & ! lookup tables
-                    model_options,      & ! defines the model decisions
-                    in_type_varSubstep, & ! class for intent(in) arguments
-                    io_type_varSubstep, & ! class for intent(inout) arguments
-                    out_type_varSubstep   ! class for intent(out) arguments
-
 ! provide access to indices that define elements of the data structures
 USE var_lookup,only:iLookFLUX       ! named variables for structure elements
 USE var_lookup,only:iLookPROG       ! named variables for structure elements
@@ -65,9 +62,6 @@ USE var_lookup,only:iLookINDEX      ! named variables for structure elements
 USE var_lookup,only:iLookDERIV      ! named variables for structure elements
 USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
 
-! look up structure for variable types
-USE var_lookup,only:iLookVarType
-
 ! constants
 USE multiconst,only:&
                     Tfreeze,        & ! freezing temperature                 (K)
@@ -75,6 +69,7 @@ USE multiconst,only:&
                     LH_vap,         & ! latent heat of vaporization          (J kg-1)
                     iden_ice,       & ! intrinsic density of ice             (kg m-3)
                     iden_water        ! intrinsic density of liquid water    (kg m-3)
+USE globalData,only: verySmall ! a small number
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:         &

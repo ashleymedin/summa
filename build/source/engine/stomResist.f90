@@ -95,7 +95,6 @@ public::stomResist
 real(rkind),parameter     :: joule2umolConv=4.6_rkind   ! conversion factor from joules to umol photons (umol J-1)
 ! algorithmic parameters
 real(rkind),parameter     :: mpe=1.e-6_rkind            ! prevents overflow error if division by zero, from NOAH mpe value
-real(rkind),parameter     :: dx=1.e-6_rkind             ! finite difference increment
 
 contains
 
@@ -184,7 +183,6 @@ contains
  ! output: carbon dioxide partial pressure of leaf interior (sunlit leaves) (Pa)
  scalarIntercellularCO2Sunlit    => diag_data%var(iLookDIAG%scalarIntercellularCO2Sunlit)%dat(1),   & ! intent(out): [dp] carbon dioxide partial pressure of leaf interior (sunlit leaves) (Pa)
  scalarIntercellularCO2Shaded    => diag_data%var(iLookDIAG%scalarIntercellularCO2Shaded)%dat(1)    & ! intent(out): [dp] carbon dioxide partial pressure of leaf interior (shaded leaves) (Pa)
-
  )
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
@@ -353,7 +351,6 @@ contains
  character(*),intent(out)           :: message                       ! error message
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! general local variables
- logical(lgt),parameter             :: testDerivs=.false.            ! flag to test the derivatives
  real(rkind)                        :: unitConv                      ! unit conversion factor (mol m-3, convert m s-1 --> mol H20 m-2 s-1)
  real(rkind)                        :: rlb                           ! leaf boundary layer rersistance (umol-1 m2 s)
  real(rkind)                        :: x0,x1,x2                      ! temporary variables
@@ -405,7 +402,6 @@ contains
  real(rkind)                        :: dci_dc                        ! final derivative (-)
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! iterative solution
- real(rkind)                        :: func1,func2                   ! functions for numerical derivative calculation
  real(rkind)                        :: cMin,cMax                     ! solution brackets
  real(rkind)                        :: xInc                          ! iteration increment (Pa)
  integer(i4b)                       :: iter                          ! iteration index
@@ -644,14 +640,6 @@ contains
    dci_dc = 0._rkind
   end if
 
-  ! test derivatives
-  if(testDerivs)then
-   func1 = testFunc(ci_old,    cond2photo_slope, airpres, scalarCO2air, ix_bbHumdFunc, ix_bbCO2point, ix_bbAssimFnc)
-   func2 = testFunc(ci_old+dx, cond2photo_slope, airpres, scalarCO2air, ix_bbHumdFunc, ix_bbCO2point, ix_bbAssimFnc)
-   write(*,'(a,1x,20(e20.10,1x))') '(func2 - func1)/dx, dci_dc = ', &
-                                    (func2 - func1)/dx, dci_dc
-  end if  ! if testing the derivatives
-
   ! *****
   ! * iterative solution...
   ! ***********************
@@ -697,43 +685,6 @@ contains
  scalarPhotosynthesis = psn
 
  end associate
-
- contains
-
-  ! ******************************************************
-  ! internal function used to test derivatives
-  function testFunc(ci, cond2photo_slope, airpres, scalarCO2air, ix_bbHumdFunc, ix_bbCO2point, ix_bbAssimFnc)
-  real(rkind),intent(in)     :: ci, cond2photo_slope, airpres, scalarCO2air
-  integer(i4b),intent(in) :: ix_bbHumdFunc, ix_bbCO2point, ix_bbAssimFnc
-  real(rkind)                :: testFunc
-  real(rkind),parameter      :: unUsedInput=0._rkind
-  real(rkind)                :: unUsedOutput
-
-  ! compute gross photosynthesis [follow Farquar (Planta, 1980), as implemented in CLM4 and Noah-MP]
-  call photosynthesis(.false., ix_bbAssimFnc, ci, co2compPt, awb, cp2, vcmax, Js, psn, unUsedOutput)
-
-  ! compute co2 concentration at leaf surface (Pa)
-  x1 = h2o_co2__leafbl * airpres * rlb  ! Pa / (umol co2 m-2 s-1)
-  cs = max(scalarCO2air - (x1 * psn), mpe)   ! Pa (avoid divide by zero)
-
-  ! compute control of the compensation point on stomatal conductance
-  if(ix_bbCO2point == origBWB)then
-   csx = cs
-  else
-   csx = cs - co2compPt
-  end if
-
-  ! compute conductance in the absence of humidity
-  g0 = cond2photo_slope*airpres*psn/csx
-
-  ! use quadratic function to compute stomatal resistance
-  call quadResist(.false.,ix_bbHumdFunc,rlb,fHum,gMin,g0,unUsedInput,rs,unUsedOutput)
-
-  ! compute intercellular co2 partial pressues (Pa)
-  x2 = h2o_co2__stomPores * airpres  ! Pa
-  testFunc = max(cs - x2*psn*rs, 0._rkind)    ! Pa
-
-  end function testFunc
 
  end subroutine stomResist_flex
 

@@ -25,34 +25,6 @@ module summaSolv4ida_module
 USE, intrinsic :: iso_c_binding
 USE nr_type
 USE type4ida
-
-! access missing values
-USE globalData,only:integerMissing  ! missing integer
-USE globalData,only:realMissing     ! missing real number
-USE globalData,only:verySmaller     ! a smaller number used as an additive constant to check if substantial difference among real numbers
-
-! access matrix information
-USE globalData,only: ixFullMatrix   ! named variable for the full Jacobian matrix
-USE globalData,only: ixBandMatrix   ! named variable for the band diagonal matrix
-USE globalData,only: ku             ! number of super-diagonal bands
-USE globalData,only: kl             ! number of sub-diagonal bands
-
-! global metadata
-USE globalData,only:flux_meta       ! metadata on the model fluxes
-
-! constants
-USE multiconst,only: Tfreeze        ! temperature at freezing              (K)
-
-! provide access to indices that define elements of the data structures
-USE var_lookup,only:iLookPROG       ! named variables for structure elements
-USE var_lookup,only:iLookDIAG       ! named variables for structure elements
-USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
-USE var_lookup,only:iLookDERIV     ! named variables for structure elements
-USE var_lookup,only:iLookFLUX       ! named variables for structure elements
-USE var_lookup,only:iLookPARAM      ! named variables for structure elements
-USE var_lookup,only:iLookINDEX      ! named variables for structure elements
-
-! provide access to the derived types to define the data structures
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
                     var_d,        & ! data vector (rkind)
@@ -60,11 +32,38 @@ USE data_types,only:&
                     var_dlength,  & ! data vector with variable length dimension (rkind)
                     model_options   ! defines the model decisions
 
+! access missing values
+USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:realMissing     ! missing real number
+
+! access matrix information
+USE globalData,only:ixFullMatrix    ! named variable for the full Jacobian matrix
+USE globalData,only:ixBandMatrix    ! named variable for the band diagonal matrix
+USE globalData,only:ku              ! number of super-diagonal bands
+USE globalData,only:kl              ! number of sub-diagonal bands
+
+! global metadata
+USE globalData,only:flux_meta       ! metadata on the model fluxes
+
+! constants
+USE multiconst,only:Tfreeze         ! temperature at freezing (K)
+USE globalData,only:verySmall       ! a small number
+USE globalData,only:verySmaller     ! a smaller number than verySmall
+
+! provide access to indices that define elements of the data structures
+USE var_lookup,only:iLookPROG       ! named variables for structure elements
+USE var_lookup,only:iLookDIAG       ! named variables for structure elements
+USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
+USE var_lookup,only:iLookDERIV      ! named variables for structure elements
+USE var_lookup,only:iLookFLUX       ! named variables for structure elements
+USE var_lookup,only:iLookPARAM      ! named variables for structure elements
+USE var_lookup,only:iLookINDEX      ! named variables for structure elements
+
 ! look-up values for the choice of groundwater parameterization
 USE mDecisions_module,only:       &
   qbaseTopmodel,                  & ! TOPMODEL-ish baseflow parameterization
   bigBucket,                      & ! a big bucket (lumped aquifer model)
-  noExplicit                         ! no explicit groundwater parameterization
+  noExplicit                        ! no explicit groundwater parameterization
 
 ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
 USE mDecisions_module,only:       &
@@ -615,7 +614,7 @@ subroutine summaSolv4ida(&
           retval = FIDAReInit(ida_mem, tret(1), sunvec_y, sunvec_yp)
           if (retval /= 0) then; err=20; message=trim(message)//'error in FIDAReInit'; return; endif
           ! don't keep calling if step is small, or took many steps already (prevents root bouncing)
-          if(dt_last(1) < 1.e-6_rkind .or. abs(dt_diff) < 1.e-6_rkind &
+          if(dt_last(1) < verySmall .or. abs(dt_diff) < verySmall &
             .or. (mpar_data%var(iLookPARAM%idaMaxDataWindowSteps)%dat(1)<1.e10_rkind &
             .and. nSteps>=mpar_data%var(iLookPARAM%idaMaxDataWindowSteps)%dat(1)))then ! treat 1e10 as no limit on steps
             retval = FIDARootInit(ida_mem, 0, c_funloc(layerDisCont4ida))

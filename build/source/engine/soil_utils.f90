@@ -53,8 +53,6 @@ public::gammp,gammp_complex
 public::LogSumExp
 public::SoftArgMax
 
-! constant parameters
-real(rkind),parameter     :: dx=-1.e-12_rkind             ! finite difference increment
 contains
 
 
@@ -386,7 +384,7 @@ end function dPsi_dTheta
 ! ******************************************************************************************************************************
 ! public function dPsi_dTheta2: compute the derivative of dPsi_dTheta (m-1)
 ! ******************************************************************************************************************************
-function dPsi_dTheta2(volFracLiq,alpha,theta_res,theta_sat,n,m,lTangent)
+function dPsi_dTheta2(volFracLiq,alpha,theta_res,theta_sat,n,m)
   implicit none
   ! dummies
   real(rkind),intent(in)     :: volFracLiq   ! volumetric liquid water content (-)
@@ -395,19 +393,14 @@ function dPsi_dTheta2(volFracLiq,alpha,theta_res,theta_sat,n,m,lTangent)
   real(rkind),intent(in)     :: theta_sat    ! porosity (-)
   real(rkind),intent(in)     :: n            ! vGn "n" parameter (-)
   real(rkind),intent(in)     :: m            ! vGn "m" parameter (-)
-  logical(lgt),intent(in) :: lTangent     ! method used to compute derivative (.true. = analytical)
   real(rkind)                :: dPsi_dTheta2 ! derivative of the soil water characteristic (m)
   ! locals for analytical derivatives
   real(rkind)                :: xx           ! temporary variable
   real(rkind)                :: y1,d1        ! 1st function and derivative
   real(rkind)                :: y2,d2        ! 2nd function and derivative
   real(rkind)                :: theta_e      ! effective soil moisture
-  ! locals for numerical derivative
-  real(rkind)                :: func0,func1  ! function evaluations
-  ! check if less than saturation
+
   if(volFracLiq < theta_sat)then
-  ! ***** compute analytical derivatives
-  if(lTangent)then
     ! compute the effective saturation
     theta_e = (volFracLiq - theta_res) / (theta_sat - theta_res)
     ! get the first function and derivative
@@ -419,14 +412,8 @@ function dPsi_dTheta2(volFracLiq,alpha,theta_res,theta_sat,n,m,lTangent)
     d2 = ( -(1._rkind - n)/((theta_sat - theta_res)*m*n**2_i4b) ) * xx**(1._rkind/n - 2._rkind) * theta_e**(-1._rkind/m - 1._rkind)
     ! return the derivative
     dPsi_dTheta2 = (d1*y2 + y1*d2)/alpha
-  ! ***** compute numerical derivatives
-  else
-    func0 = dPsi_dTheta(volFracLiq,   alpha,theta_res,theta_sat,n,m)
-    func1 = dPsi_dTheta(volFracLiq+dx,alpha,theta_res,theta_sat,n,m)
-    dPsi_dTheta2 = (func1 - func0)/dx
-  end if
   ! (case where volumetric liquid water content exceeds porosity)
-  else
+  else ! derivative is zero if super-saturated
   dPsi_dTheta2 = 0._rkind
   end if
 end function dPsi_dTheta2
@@ -435,17 +422,16 @@ end function dPsi_dTheta2
 ! ******************************************************************************************************************************
 ! public function dHydCond_dPsi: compute the derivative in hydraulic conductivity w.r.t. matric head (s-1)
 ! ******************************************************************************************************************************
-function dHydCond_dPsi(psi,k_sat,alpha,n,m,lTangent)
+function dHydCond_dPsi(psi,k_sat,alpha,n,m)
   ! computes the derivative in hydraulic conductivity w.r.t matric head,
   !  given psi and soil hydraulic parameters k_sat, alpha, n, and m
   implicit none
   ! dummies
-  real(rkind),intent(in)     :: psi        ! soil water suction (m)
-  real(rkind),intent(in)     :: k_sat      ! saturated hydraulic conductivity (m s-1)
-  real(rkind),intent(in)     :: alpha      ! scaling parameter (m-1)
-  real(rkind),intent(in)     :: n          ! vGn "n" parameter (-)
-  real(rkind),intent(in)     :: m          ! vGn "m" parameter (-)
-  logical(lgt),intent(in) :: lTangent   ! method used to compute derivative (.true. = analytical)
+  real(rkind),intent(in)     :: psi            ! soil water suction (m)
+  real(rkind),intent(in)     :: k_sat          ! saturated hydraulic conductivity (m s-1)
+  real(rkind),intent(in)     :: alpha          ! scaling parameter (m-1)
+  real(rkind),intent(in)     :: n              ! vGn "n" parameter (-)
+  real(rkind),intent(in)     :: m              ! vGn "m" parameter (-)
   real(rkind)                :: dHydCond_dPsi  ! derivative in hydraulic conductivity w.r.t. matric head (s-1)
   ! locals for analytical derivatives
   real(rkind)                :: f_x1          ! f(x) for part of the numerator
@@ -456,13 +442,8 @@ function dHydCond_dPsi(psi,k_sat,alpha,n,m,lTangent)
   real(rkind)                :: d_x2          ! df(x)/dpsi for part of the numerator
   real(rkind)                :: d_nm          ! df(x)/dpsi for the numerator
   real(rkind)                :: d_dm          ! df(x)/dpsi for the denominator
-  ! locals for numerical derivatives
-  real(rkind)                :: hydCond0   ! hydraulic condictivity value for base case
-  real(rkind)                :: hydCond1   ! hydraulic condictivity value for perturbed case
-  ! derivative is zero if saturated
+  
   if(psi<0._rkind)then
-  ! ***** compute analytical derivatives
-  if(lTangent)then
     ! compute the derivative for the numerator
     f_x1 = (psi*alpha)**(n - 1._rkind)
     f_x2 = (1._rkind + (psi*alpha)**n)**(-m)
@@ -475,14 +456,8 @@ function dHydCond_dPsi(psi,k_sat,alpha,n,m,lTangent)
     d_dm = alpha * n*(psi*alpha)**(n - 1._rkind) * (m/2._rkind)*(1._rkind + (psi*alpha)**n)**(m/2._rkind - 1._rkind)
     ! and combine
     dHydCond_dPsi = k_sat*(d_nm*f_dm - d_dm*f_nm) / (f_dm**2_i4b)
-  else
-    ! ***** compute numerical derivatives
-    hydcond0  = hydCond_psi(psi,   k_sat,alpha,n,m)
-    hydcond1  = hydCond_psi(psi+dx,k_sat,alpha,n,m)
-    dHydCond_dPsi = (hydcond1 - hydcond0)/dx
-  end if
-  else
-  dHydCond_dPsi = 0._rkind
+  else ! derivative is zero if super-saturated
+    dHydCond_dPsi = 0._rkind
   end if
 end function dHydCond_dPsi
 
@@ -493,15 +468,14 @@ end function dHydCond_dPsi
 ! computes the derivative in hydraulic conductivity w.r.t the volumetric fraction of liquid water,
 ! given volFracLiq and soil hydraulic parameters k_sat, theta_sat, theta_res, and m
 ! ******************************************************************************************************************************
-function dHydCond_dLiq(volFracLiq,k_sat,theta_res,theta_sat,m,lTangent)
+function dHydCond_dLiq(volFracLiq,k_sat,theta_res,theta_sat,m)
   implicit none
   ! dummies
-  real(rkind),intent(in)     :: volFracLiq ! volumetric fraction of liquid water (-)
-  real(rkind),intent(in)     :: k_sat      ! saturated hydraulic conductivity (m s-1)
-  real(rkind),intent(in)     :: theta_res  ! soil residual volumetric water content (-)
-  real(rkind),intent(in)     :: theta_sat  ! soil porosity (-)
-  real(rkind),intent(in)     :: m          ! vGn "m" parameter (-)
-  logical(lgt),intent(in) :: lTangent   ! method used to compute derivative (.true. = analytical)
+  real(rkind),intent(in)     :: volFracLiq     ! volumetric fraction of liquid water (-)
+  real(rkind),intent(in)     :: k_sat          ! saturated hydraulic conductivity (m s-1)
+  real(rkind),intent(in)     :: theta_res      ! soil residual volumetric water content (-)
+  real(rkind),intent(in)     :: theta_sat      ! soil porosity (-)
+  real(rkind),intent(in)     :: m              ! vGn "m" parameter (-)
   real(rkind)                :: dHydCond_dLiq  ! derivative in hydraulic conductivity w.r.t. matric head (s-1)
   ! locals for analytical derivatives
   real(rkind)                :: theta_e  ! effective soil moisture
@@ -511,13 +485,8 @@ function dHydCond_dLiq(volFracLiq,k_sat,theta_res,theta_sat,m,lTangent)
   real(rkind)                :: p1,p2,p3 ! df(x)/dLiq for different parts of the second function
   real(rkind)                :: f2       ! f(x) for the second function
   real(rkind)                :: d2       ! df(x)/dLiq for the second function
-  ! locals for numerical derivatives
-  real(rkind)                :: hydCond0 ! hydraulic condictivity value for base case
-  real(rkind)                :: hydCond1 ! hydraulic condictivity value for perturbed case
-  ! derivative is zero if super-saturated
+  
   if(volFracLiq < theta_sat)then
-  ! ***** compute analytical derivatives
-  if(lTangent)then
     ! compute the effective saturation
     theta_e = (volFracLiq - theta_res) / (theta_sat - theta_res)
     ! compute the function and derivative of the first fuction
@@ -537,14 +506,8 @@ function dHydCond_dLiq(volFracLiq,k_sat,theta_res,theta_sat,m,lTangent)
     d2 = p1*p2*p3
     ! pull it all together
     dHydCond_dLiq = (d1*f2 + d2*f1)
-  else
-    ! ***** compute numerical derivatives
-    hydcond0 = hydCond_liq(volFracLiq,   k_sat,theta_res,theta_sat,m)
-    hydcond1 = hydCond_liq(volFracLiq+dx,k_sat,theta_res,theta_sat,m)
-    dHydCond_dLiq = (hydcond1 - hydcond0)/dx
-  end if
-  else
-  dHydCond_dLiq = 0._rkind
+  else ! derivative is zero if super-saturated
+    dHydCond_dLiq = 0._rkind
   end if
 end function dHydCond_dLiq
 

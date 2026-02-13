@@ -25,7 +25,9 @@ USE nr_type
 USE globalData,only:integerMissing   ! missing integer
 USE globalData,only:realMissing      ! missing real number
 
+! constants
 USE globalData,only:maxVolIceContent ! snow maximum volumetric ice content to store water (-)
+USE globalData,only:verySmall        ! a small number
 
 ! access domain types
 USE globalData,only:upland          ! domain type for upland areas
@@ -482,7 +484,7 @@ contains
     do iLayer=1,nLayers
      h1 = sum(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(1:iLayer)) ! sum of the depths up to the current layer
      h2 = progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%iLayerHeight)%dat(iLayer) - progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%iLayerHeight)%dat(0)  ! difference between snow-atm interface and bottom of layer
-     if(abs(h1 - h2) > 1.e-6_rkind)then
+     if(abs(h1 - h2) > verySmall)then
       write(message,'(a,1x,i0,a,f6.3,a,f6.3)') trim(message)//'mis-match between layer depth and layer height; layer = ', iLayer, '; sum depths = ',h1,'; height = ',h2
       err=20; return
      end if

@@ -24,8 +24,6 @@ USE netcdf
 USE globalData,only: ixHRUfile_min,ixHRUfile_max
 USE globalData,only: nTimeDelay        ! number of hours in the time delay histogram
 USE globalData,only: nSpecBand         ! number of spectral bands
-USE globalData,only: int8Missing       ! missing integer
-USE globalData,only: verySmaller       ! a smaller number used as an additive constant to check if substantial difference among real numbers
 USE globalData,only: nMeltingIceLayers ! number of glacier ice layers that can have a change in total water content
 USE globalData,only: thick4area        ! an arbitrary small threshold for glacier thickness to be considered as glacier area
 

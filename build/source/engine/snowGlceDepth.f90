@@ -2,20 +2,18 @@ module snowGlceDepth_module
 
 ! data types
 USE nr_type
-USE globalData,only: verySmall ! a very small number used as an additive constant to check if substantial difference among real numbers
+USE data_types,only:&
+                    var_ilength,   & ! x%var(:)%dat            (i4b)
+                    var_dlength,   & ! x%var(:)%dat            (rkind)
+                    zLookup          ! x%z(:)%var(:)%lookup(:) (rkind)
 
-! physical constants
+! constants
 USE multiconst,only:&
                     Tfreeze,      & ! freezing temperature (K)
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_air,     & ! intrinsic density of air (kg m-3)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
-
-! data types
-USE data_types,only:&
-                    var_ilength,   & ! x%var(:)%dat            (i4b)
-                    var_dlength,   & ! x%var(:)%dat            (rkind)
-                    zLookup          ! x%z(:)%var(:)%lookup(:) (rkind)
+USE globalData,only: verySmall      ! a small number
 
 ! named variables for parent structures
 USE var_lookup,only:iLookDECISIONS   ! named variables for elements of the decision structure

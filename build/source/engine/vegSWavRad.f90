@@ -25,8 +25,10 @@ USE nr_type
 USE data_types,only:var_i            ! x%var(:)     (i4b)
 USE data_types,only:var_dlength      ! x%var(:)%dat (rkind)
 
-! physical constants
+! constants
 USE multiconst,only:Tfreeze          ! temperature at freezing (K)
+USE globalData,only:nSpecBand        ! number of spectral bands
+USE globalData,only:verySmall        ! a very small number used as an additive constant to check if substantial difference among real numbers
 
 ! named variables for structure elements
 USE var_lookup,only:iLookTYPE,iLookPROG,iLookDIAG,iLookFLUX
@@ -34,8 +36,6 @@ USE var_lookup,only:iLookTYPE,iLookPROG,iLookDIAG,iLookFLUX
 ! model decisions
 USE globalData,only:model_decisions  ! model decision structure
 USE var_lookup,only:iLookDECISIONS   ! named variables for elements of the decision structure
-USE globalData,only:nSpecBand        ! number of spectral bands
-USE globalData,only:verySmall        ! a very small number used as an additive constant to check if substantial difference among real numbers
 
 ! look-up values for the choice of canopy shortwave radiation method
 USE mDecisions_module,only:        &
