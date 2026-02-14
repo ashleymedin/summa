@@ -438,7 +438,7 @@ subroutine eval8summa(&
                   err,cmessage)                  ! intent(out):   error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  
-      ! compute multiplier of state vector
+      ! recompute multiplier of state vector
       call stateMultiplier(&
                     ! input
                     heatCapVegTrial,    & ! intent(in):  volumetric heat capacity of vegetation canopy

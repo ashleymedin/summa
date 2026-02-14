@@ -259,10 +259,6 @@ subroutine eval8summaWithPrime(&
     dCm_dTk                   => deriv_data%var(iLookDERIV%dCm_dTk)%dat                    ,& ! intent(out): [dp(:)]  derivative in heat capacity w.r.t. temperature (J kg-1 K-2)
     dCm_dTkCanopy             => deriv_data%var(iLookDERIV%dCm_dTkCanopy)%dat(1)           ,& ! intent(out): [dp   ]  derivative in heat capacity w.r.t. canopy temperature (J kg-1 K-2)
     ! mapping
-        nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg)%dat(1),          & ! intent(in): [i4b] number of energy state variables in the snow+soil domain
-    ixLayerState            => indx_data%var(iLookINDEX%ixLayerState)%dat,                & ! intent(in):  list of indices for all model layers
-    ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat,               & ! intent(in):  index in the state subset for energy state variables in the snow+soil domain
-
     ixMapFull2Subset          => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat            ,& ! intent(in):  [i4b(:)] mapping of full state vector to the state subset
     ixControlVolume           => indx_data%var(iLookINDEX%ixControlVolume)%dat             ,& ! intent(in):  [i4b(:)] index of control volume for different domains (veg, snow, soil)
     ! heat capacity
@@ -496,7 +492,7 @@ subroutine eval8summaWithPrime(&
                   err,cmessage)                  ! intent(out):  error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-      ! compute multiplier of state vector
+      ! recompute multiplier of state vector
       call stateMultiplier(&
                     ! inpu
                     heatCapVegTrial,    & ! intent(in):  volumetric heat capacity of vegetation canopy

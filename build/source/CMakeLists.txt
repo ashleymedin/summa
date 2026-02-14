@@ -111,7 +111,7 @@ set(MODRUN_SUNDIALS
 set(SOLVER
     ${ENGINE_DIR}/bigAquifer.f90
     ${ENGINE_DIR}/computFlux.f90
-    ${ENGINE_DIR}/heatCapacity.f90
+    ${ENGINE_DIR}/heat_Cp_Cm.f90
     ${ENGINE_DIR}/computJacob.f90
     ${ENGINE_DIR}/computResid.f90
     ${ENGINE_DIR}/snowGlceDepth.f90

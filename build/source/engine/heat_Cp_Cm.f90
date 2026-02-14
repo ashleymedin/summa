@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module heatCapacity_module
+module heat_Cp_Cm_module
 
 ! data types
 USE nr_type
@@ -328,12 +328,13 @@ subroutine heatCapacity(&
     ! input: coordinate variables
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)             ,& ! intent(in): number of snow layers
     nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1)             ,& ! intent(in): number of lake layers
+    nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)             ,& ! intent(in): number of soil layers
     ! mapping between the full state vector and the state subset
-    ixMapSubset2Full        => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat     ,& ! intent(in): [i4b(:)] [state subset] list of indices of the full state vector in the state subset
+    ixMapSubset2Full        => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat     ,& ! intent(in): [state subset] list of indices of the full state vector in the state subset
     ! type of domain, type of state variable, and index of control volume within domain
-    ixDomainType_subset     => indx_data%var(iLookINDEX%ixDomainType_subset)%dat  ,& ! intent(in): [i4b(:)] [state subset] id of domain for desired model state variables
-    ixControlVolume         => indx_data%var(iLookINDEX%ixControlVolume)%dat      ,& ! intent(in): [i4b(:)] index of the control volume for different domains (veg, snow, soil)
-    ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat          ,& ! intent(in): [i4b(:)] indices defining the type of the state (iname_nrgLayer...)
+    ixDomainType_subset     => indx_data%var(iLookINDEX%ixDomainType_subset)%dat  ,& ! intent(in): [state subset] id of domain for desired model state variables
+    ixControlVolume         => indx_data%var(iLookINDEX%ixControlVolume)%dat      ,& ! intent(in): index of the control volume for different domains (veg, snow, soil)
+    ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat          ,& ! intent(in): indices defining the type of the state (iname_nrgLayer...)
     ! input: heat capacity
     specificHeatVeg         => mpar_data%var(iLookPARAM%specificHeatVeg)%dat(1)   ,& ! intent(in): specific heat of vegetation (J kg-1 K-1)
     maxMassVegetation       => mpar_data%var(iLookPARAM%maxMassVegetation)%dat(1) ,& ! intent(in): maximum mass of vegetation (kg m-2)
@@ -602,4 +603,4 @@ subroutine heatAdvectWat(&
 end subroutine heatAdvectWat
 
 
-end module heatCapacity_module
+end module heat_Cp_Cm_module
