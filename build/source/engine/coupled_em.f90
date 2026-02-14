@@ -146,8 +146,8 @@ subroutine coupled_em(&
   USE volicePack_module,only:newsnwfall                         ! compute change in the top snow layer due to throughfall and unloading
   USE volicePack_module,only:volicePack                         ! merge and sub-divide snow layers, if necessary
   USE layerDivide_module,only:layerDivide                       ! sub-divide layers if they are too thick
-  USE thermConductivity_module,only:thermConductivity           ! compute thermal conductivity of soil and snow layers  
-  USE heatCapacity_module,only:init_heatCapacity                ! compute initial heat capacity 
+  USE thermConductivity_module,only:init_thermConductivity      ! compute initialthermal conductivity of soil and snow layers  
+  USE heat_Cp_Cm_module,only:init_heatCapacity                  ! compute initial heat capacity (Cp)
   ! the model solver
   USE indexState_module,only:indexState                         ! define indices for all model state variables and layers
   USE opSplittin_module,only:opSplittin                         ! solve the system of thermodynamic and hydrology equations for a given substep
@@ -904,11 +904,7 @@ subroutine coupled_em(&
         ! *** compute diagnostic variables for each layer...
         ! --------------------------------------------------
         ! NOTE: this needs to be done AFTER volicePack, since layers may have been sub-divided and/or merged
-        call thermConductivity(&
-                          ! input: state variables
-                          indx_data%var(iLookINDEX%nLayers)%dat(1),      & ! intent(in): total number of layers
-                          prog_data%var(iLookPROG%mLayerVolFracIce)%dat, & ! intent(in): volumetric fraction of ice (-)
-                          prog_data%var(iLookPROG%mLayerVolFracLiq)%dat, & ! intent(in): volumetric fraction of liquid water (-)
+        call init_thermConductivity(&
                           ! input/output: data structures
                           mpar_data,              & ! intent(in):    model parameters
                           indx_data,              & ! intent(in):    model layer indices

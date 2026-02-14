@@ -863,7 +863,7 @@ subroutine soilCmpres(&
                       ! input:
                       dt,                                 & ! intent(in):  length of the time step (seconds)
                       ixRichards,                         & ! intent(in):  choice of option for Richards' equation
-                      ixBeg,ixEnd,                        & ! intent(in):  start and end indices defining desired layers
+                      ixTop,ixBot,                        & ! intent(in):  top and bottom defining desired layers
                       mLayerMatricHead,                   & ! intent(in):  matric head at the start of the time step (m)
                       mLayerMatricHeadTrial,              & ! intent(in):  trial value of matric head (m)
                       mLayerVolFracLiqTrial,              & ! intent(in):  trial value for the volumetric liquid water content in each soil layer (-)
@@ -876,9 +876,9 @@ subroutine soilCmpres(&
                       err,message)                          ! intent(out): error code and error message
   implicit none
   ! input:
-  real(rkind),intent(in)         :: dt                        !  length of the time step (seconds)
+  real(rkind),intent(in)         :: dt                        ! length of the time step (seconds)
   integer(i4b),intent(in)        :: ixRichards                ! choice of option for Richards' equation
-  integer(i4b),intent(in)        :: ixBeg,ixEnd               ! start and end indices defining desired layers
+  integer(i4b),intent(in)        :: ixTop,ixBot               ! top and bottom defining desired layers
   real(rkind),intent(in)         :: mLayerMatricHead(:)       ! matric head at the start of the time step (m)
   real(rkind),intent(in)         :: mLayerMatricHeadTrial(:)  ! trial value for matric head (m)
   real(rkind),intent(in)         :: mLayerVolFracLiqTrial(:)  ! trial value for volumetric fraction of liquid water (-)
@@ -898,7 +898,7 @@ subroutine soilCmpres(&
   ! (only compute for the mixed form of Richards' equation)
   if (ixRichards==mixdform) then
     do iLayer=1,size(mLayerMatricHead)
-      if (iLayer>=ixBeg .and. iLayer<=ixEnd) then
+      if (iLayer>=ixTop .and. iLayer<=ixBot) then
         ! compute the derivative for the compressibility term (m-1), no volume expansion for total water
         dCompress_dPsi(iLayer) = specificStorage*(mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer))/theta_sat(iLayer)
         ! compute the compressibility term (-) per second
@@ -917,7 +917,7 @@ end subroutine soilCmpres
 subroutine soilCmpresPrime(&
                           ! input:
                           ixRichards,                         & ! intent(in):  choice of option for Richards' equation
-                          ixBeg,ixEnd,                        & ! intent(in):  start and end indices defining desired layers
+                          ixTop,ixBot,                        & ! intent(in):  top and bottom defining desired layers
                           mLayerMatricHeadPrime,              & ! intent(in):  matric head at the start of the time step (m)
                           mLayerVolFracLiqTrial,              & ! intent(in):  trial value for the volumetric liquid water content in each soil layer (-)
                           mLayerVolFracIceTrial,              & ! intent(in):  trial value for the volumetric ice content in each soil layer (-)
@@ -930,7 +930,7 @@ subroutine soilCmpresPrime(&
   implicit none
   ! input:
   integer(i4b),intent(in)           :: ixRichards               ! choice of option for Richards' equation
-  integer(i4b),intent(in)           :: ixBeg,ixEnd              ! start and end indices defining desired layers
+  integer(i4b),intent(in)           :: ixTop,ixBot              ! top and bottom defining desired layers
   real(rkind),intent(in)            :: mLayerMatricHeadPrime(:) ! matric head at the start of the time step (m)
   real(rkind),intent(in)            :: mLayerVolFracLiqTrial(:) ! trial value for volumetric fraction of liquid water (-)
   real(rkind),intent(in)            :: mLayerVolFracIceTrial(:) ! trial value for volumetric fraction of ice (-)
@@ -949,7 +949,7 @@ subroutine soilCmpresPrime(&
   ! (only compute for the mixed form of Richards' equation)
   if (ixRichards==mixdform) then
     do iLayer=1,size(mLayerMatricHeadPrime)
-      if (iLayer>=ixBeg .and. iLayer<=ixEnd) then
+      if (iLayer>=ixTop .and. iLayer<=ixBot) then
         ! compute the derivative for the compressibility term (m-1), no volume expansion for total water
         dCompress_dPsi(iLayer) = specificStorage*(mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer))/theta_sat(iLayer)
         ! compute the compressibility term (-) instantaneously
