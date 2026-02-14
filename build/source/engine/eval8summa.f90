@@ -139,9 +139,9 @@ subroutine eval8summa(&
   USE updatDiagn_module, only:updatDiagn                ! update diagnostic variables
   USE computFlux_module, only:soilCmpres                ! compute soil compression
   USE computFlux_module, only:computFlux                ! compute fluxes given a state vector
-  USE heatCapacity_module,only:heatCapacityAnalytic     ! recompute closed form heat capacity (Cp) and derivatives
-  USE heatCapacity_module,only:computCm                 ! compute Cm and derivatives
-  USE heatCapacity_module, only:computStatMult          ! recompute state multiplier
+  USE heat_Cp_Cm_module,only:heatCapacity               ! update heat capacity (Cp) and derivatives
+  USE heat_Cp_Cm_module,only:heatAdvectWat              ! compute heat advected with water (Cm) and derivatives
+  USE heat_Cp_Cm_module,only:stateMultiplier            ! update state multiplier
   USE computResid_module,only:computResid               ! compute residuals given a state vector
   USE thermConductivity_module,only:thermConductivity   ! recompute thermal conductivity and derivatives
   implicit none
@@ -428,7 +428,7 @@ subroutine eval8summa(&
                   indx_data,               & ! intent(in):    model layer indices
                    ! output
                   heatCapVegTrial,         & ! intent(inout): volumetric heat capacity of vegetation canopy
-                  mLayerHeatCapTrial,      & ! intent(inout): volumetric heat capacity of soil and snow
+                  mLayerHeatCapTrial,      & ! intent(inout): volumetric heat capacity of layers
                   dVolHtCapBulk_dPsi0,     & ! intent(inout): derivative in bulk heat capacity w.r.t. matric potential
                   dVolHtCapBulk_dTheta,    & ! intent(inout): derivative in bulk heat capacity w.r.t. volumetric water content
                   dVolHtCapBulk_dCanWat,   & ! intent(inout): derivative in bulk heat capacity w.r.t. volumetric water content
@@ -439,10 +439,10 @@ subroutine eval8summa(&
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  
       ! compute multiplier of state vector
-      call computStatMult(&
+      call stateMultiplier(&
                     ! input
                     heatCapVegTrial,    & ! intent(in):  volumetric heat capacity of vegetation canopy
-                    mLayerHeatCapTrial, & ! intent(in):  volumetric heat capacity of soil and snow
+                    mLayerHeatCapTrial, & ! intent(in):  volumetric heat capacity of layers
                     indx_data,          & ! intent(in):  indices defining model states and layers
                     ! output
                     sMul,               & ! intent(out): multiplier for state vector (used in the residual calculations)

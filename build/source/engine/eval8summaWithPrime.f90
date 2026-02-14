@@ -486,7 +486,7 @@ subroutine eval8summaWithPrime(&
                   indx_data,               & ! intent(in):    model layer indices
                   ! output
                   heatCapVegTrial,         & ! intent(inout): volumetric heat capacity of vegetation canopy
-                  mLayerHeatCapTrial,      & ! intent(inout): volumetric heat capacity of soil and snow
+                  mLayerHeatCapTrial,      & ! intent(inout): volumetric heat capacity of layers
                   dVolHtCapBulk_dPsi0,     & ! intent(inout): derivative in bulk heat capacity w.r.t. matric potential
                   dVolHtCapBulk_dTheta,    & ! intent(inout): derivative in bulk heat capacity w.r.t. volumetric water content
                   dVolHtCapBulk_dCanWat,   & ! intent(inout): derivative in bulk heat capacity w.r.t. volumetric water content
@@ -497,10 +497,10 @@ subroutine eval8summaWithPrime(&
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! compute multiplier of state vector
-      call computStatMult(&
+      call stateMultiplier(&
                     ! inpu
                     heatCapVegTrial,    & ! intent(in):  volumetric heat capacity of vegetation canopy
-                    mLayerHeatCapTrial, & ! intent(in):  volumetric heat capacity of soil and snow
+                    mLayerHeatCapTrial, & ! intent(in):  volumetric heat capacity of layers
                     indx_data,          & ! intent(in):  indices defining model states and layers
                     ! output
                     sMul,               & ! intent(out): multiplier for state vector (used in the residual calculations)

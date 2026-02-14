@@ -68,20 +68,20 @@ USE globalData,only:iname_aquifer    ! named variables for the aquifer
 ! privacy
 implicit none
 private
-public::computStatMult
+public::stateMultiplier
 public::init_heatCapacity
-public::heatCapacityAnalytic
-public::computCm
+public::heatCapacity
+public::heatAdvectWat
 
 contains
 
 
 ! **********************************************************************************************************
-! public subroutine computStatMult: get scale factors
+! public subroutine stateMultiplier: get scale factors for the temperature and water state vector
 ! **********************************************************************************************************
-subroutine computStatMult(&
+subroutine stateMultiplier(&
                       heatCapVeg,              & ! intent(in):  heat capacity for canopy
-                      mLayerHeatCap,           & ! intent(in):  heat capacity for snow and soil
+                      mLayerHeatCap,           & ! intent(in):  heat capacity for layers
                       ! input: data structures
                       indx_data,               & ! intent(in):  indices defining model states and layers
                       ! output
@@ -90,7 +90,7 @@ subroutine computStatMult(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! input: data structures
   real(qp),intent(in)             :: heatCapVeg             ! volumetric heat capacity of vegetation (J m-3 K-1)
-  real(qp),intent(in)             :: mLayerHeatCap(:)       ! volumetric heat capacity of snow and soil (J m-3 K-1)
+  real(qp),intent(in)             :: mLayerHeatCap(:)       ! volumetric heat capacity of layers (J m-3 K-1)
   type(var_ilength),intent(in)    :: indx_data              ! indices defining model states and layers
   ! output: state vectors
   real(qp),intent(inout)          :: sMul(:)    ! NOTE: qp  ! multiplier for state vector (used in the residual calculations)
@@ -119,7 +119,7 @@ subroutine computStatMult(&
     )  ! end association with variables in the data structures
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
-    err=0; message='computStatMult/'
+    err=0; message='stateMultiplier/'
 
     ! -----
     ! * define components of derivative matrices at start of time step (substep)...
@@ -153,7 +153,7 @@ subroutine computStatMult(&
 
   end associate
 ! end association to variables in the data structure where vector length does not change
-end subroutine computStatMult
+end subroutine stateMultiplier
 
  ! **********************************************************************************************************
  ! public subroutine init_heatCapacity: compute start-of-step heat capacity
@@ -195,6 +195,7 @@ end subroutine computStatMult
  mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,             & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
  ! input: coordinate variables
  nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),                    & ! intent(in): number of snow layers
+ nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1),                    & ! intent(in): number of lake layers
  nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1),                  & ! intent(in): total number of layers
  layerType               => indx_data%var(iLookINDEX%layerType)%dat,                   & ! intent(in): layer type (iname_soil or iname_snow)
  ! input: heat capacity
@@ -226,7 +227,7 @@ end subroutine computStatMult
  ! loop through layers
  do iLayer=1,nLayers
   ! get the soil layer
-  if(iLayer>nSnow) iSoil = iLayer-nSnow
+  if(iLayer>nSnow+nLake) iSoil = iLayer-nSnow-nLake
 
   select case(layerType(iLayer))
    ! * soil
@@ -236,7 +237,7 @@ end subroutine computStatMult
                                  iden_water        * Cp_water * mLayerVolFracLiq(iLayer)        + & ! liquid water component
                                  iden_air          * Cp_air   * ( theta_sat(iSoil) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) ) ! air component
    ! * snow
-   case(iname_snow)
+   case(iname_snow, iname_lake, iname_glce)
     mLayerVolHtCapBulk(iLayer) = iden_ice          * Cp_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
                                  iden_water        * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
                                  iden_air          * Cp_air   * ( 1._rkind - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) ) ! air component
@@ -248,10 +249,9 @@ end subroutine computStatMult
 end subroutine init_heatCapacity
 
 ! **********************************************************************************************************
-! public subroutine heatCapacityAnalytic: compute diagnostic energy variables (heat capacity)
-!   NOTE: computing on whole vector, could just compute on state subset
+! public subroutine heatCapacity: compute diagnostic energy variable Cp (change in enthTemp with temperature)
 ! **********************************************************************************************************
-subroutine heatCapacityAnalytic(&
+subroutine heatCapacity(&
                       ! input: state variables
                       canopyDepth,             & ! intent(in):    canopy depth (m)
                       scalarCanopyIce,         & ! intent(in):    trial value for mass of ice on the vegetation canopy (kg m-2)
@@ -328,7 +328,6 @@ subroutine heatCapacityAnalytic(&
     ! input: coordinate variables
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)             ,& ! intent(in): number of snow layers
     nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1)             ,& ! intent(in): number of lake layers
-    nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)             ,& ! intent(in): number of soil layers
     ! mapping between the full state vector and the state subset
     ixMapSubset2Full        => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat     ,& ! intent(in): [i4b(:)] [state subset] list of indices of the full state vector in the state subset
     ! type of domain, type of state variable, and index of control volume within domain
@@ -344,7 +343,7 @@ subroutine heatCapacityAnalytic(&
     )  ! end associate statement
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
-    err=0; message="heatCapacityAnalytic/"
+    err=0; message="heatCapacity/"
 
     ! loop through model state variables
     do iState=1,size(ixMapSubset2Full)
@@ -425,13 +424,12 @@ subroutine heatCapacityAnalytic(&
 
   end associate
 
-end subroutine heatCapacityAnalytic
+end subroutine heatCapacity
 
 ! **********************************************************************************************************
-! public subroutine computCm: compute diagnostic energy variables (change in enthTemp with water)
-!   NOTE: computing on whole vector, could just compute on state subset
+! public subroutine heatAdvectWat: compute diagnostic energy variable Cm (change in enthTemp with water)
 ! **********************************************************************************************************
-subroutine computCm(&
+subroutine heatAdvectWat(&
                       ! input: state variables
                       scalarCanopyTemp,        & ! intent(in):  value of canopy temperature (K)
                       mLayerTemp,              & ! intent(in):  vector of temperature (K)
@@ -488,12 +486,12 @@ subroutine computCm(&
   ! associate variables in data structure
   associate(&
     ! input: coordinate variables
-    nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)             ,& ! intent(in): number of snow layers
-    nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1)             ,& ! intent(in): number of lake layers
-    nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)             ,& ! intent(in): number of soil layers
-    nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)           ,& ! intent(in) : [i4b]    total number of layers
+    nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)             ,& ! intent(in): [i4b] number of snow layers
+    nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1)             ,& ! intent(in): [i4b] number of lake layers
+    nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)             ,& ! intent(in): [i4b] number of soil layers
+    nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)           ,& ! intent(in): [i4b] total number of layers
     snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)     ,& ! intent(in):  [dp] scaling parameter for the snow freezing curve (K-1)
-    noThetaChange           => indx_data%var(iLookINDEX%noThetaChange)%dat(1)     ,& ! number of layers with no change in total water content (bottom layers)
+    noThetaChange           => indx_data%var(iLookINDEX%noThetaChange)%dat(1)     ,& ! intent(in): [i4b] number of layers with no change in total water content (bottom layers)
     ! mapping between the full state vector and the state subset
     ixMapSubset2Full        => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat     ,& ! intent(in): [i4b(:)] [state subset] list of indices of the full state vector in the state subset
     ! type of domain, type of state variable, and index of control volume within domain
@@ -503,7 +501,7 @@ subroutine computCm(&
     )  ! end associate statement
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
-    err=0; message="computCm/"
+    err=0; message="heatAdvectWat/"
 
     ! loop through model state variables
     do iState=1,size(ixMapSubset2Full)
@@ -601,7 +599,7 @@ subroutine computCm(&
 
   end associate
 
-end subroutine computCm
+end subroutine heatAdvectWat
 
 
 end module heatCapacity_module
