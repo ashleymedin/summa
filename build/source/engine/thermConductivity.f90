@@ -290,7 +290,7 @@ subroutine thermConductivity(&
                     mLayerMatricHead,        & ! intent(in):    matric head at the current iteration(m)                 
                     mLayerdTheta_dTk,        & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
                     mLayerFracLiq,           & ! intent(in):    fraction of liquid water (-)
-                    ! output: derivatives
+                    ! input/output: derivatives
                     dThermalC_dWatAbove,     & ! intent(inout): derivative in the thermal conductivity w.r.t. water state in the layer above
                     dThermalC_dWatBelow,     & ! intent(inout): derivative in the thermal conductivity w.r.t. water state in the layer above
                     dThermalC_dTempAbove,    & ! intent(inout): derivative in the thermal conductivity w.r.t. energy state in the layer above
@@ -321,11 +321,11 @@ subroutine thermConductivity(&
   real(rkind),intent(in)               :: mLayerMatricHead(:)      ! matric head in each layer at the current iteration (m)
   real(rkind),intent(in)               :: mLayerdTheta_dTk(:)      ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
   real(rkind),intent(in)               :: mLayerFracLiq(:)         ! fraction of liquid water (-)
-  ! output: derivatives
-  real(rkind),intent(out)              :: dThermalC_dWatAbove(0:)  ! derivative in the thermal conductivity w.r.t. water state in the layer above
-  real(rkind),intent(out)              :: dThermalC_dWatBelow(0:)  ! derivative in the thermal conductivity w.r.t. water state in the layer above
-  real(rkind),intent(out)              :: dThermalC_dTempAbove(0:) ! derivative in the thermal conductivity w.r.t. energy state in the layer above
-  real(rkind),intent(out)              :: dThermalC_dTempBelow(0:) ! derivative in the thermal conductivity w.r.t. energy state in the layer above
+  ! input/output: derivatives
+  real(rkind),intent(inout)            :: dThermalC_dWatAbove(0:)  ! derivative in the thermal conductivity w.r.t. water state in the layer above
+  real(rkind),intent(inout)            :: dThermalC_dWatBelow(0:)  ! derivative in the thermal conductivity w.r.t. water state in the layer above
+  real(rkind),intent(inout)            :: dThermalC_dTempAbove(0:) ! derivative in the thermal conductivity w.r.t. energy state in the layer above
+  real(rkind),intent(inout)            :: dThermalC_dTempBelow(0:) ! derivative in the thermal conductivity w.r.t. energy state in the layer above
   ! output: error control
   integer(i4b),intent(out)             :: err                      ! error code
   character(*),intent(out)             :: message                  ! error message
@@ -402,10 +402,10 @@ subroutine thermConductivity(&
     vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)%dat,                       & ! intent(in):  [dp(:)] van Genutchen "n" parameter (-)
     vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)%dat,                   & ! intent(in):  [dp(:)] van Genutchen "alpha" parameter (m-1)
     theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat,                   & ! intent(in):  [dp(:)] soil residual volumetric water content (-)
-    ! output: diagnostic variables and derivatives (diagnostic as may be treated as constant)
-    mLayerThermalC          => diag_data%var(iLookDIAG%mLayerThermalC)%dat,               & ! intent(out): [dp(:)] thermal conductivity at the mid-point of each layer (W m-1 K-1)
-    iLayerThermalC          => diag_data%var(iLookDIAG%iLayerThermalC)%dat,               & ! intent(out): [dp(:)] thermal conductivity at the interface of each layer (W m-1 K-1)
-    mLayerVolFracAir        => diag_data%var(iLookDIAG%mLayerVolFracAir)%dat              & ! intent(out): [dp(:)] volumetric fraction of air in each layer (-)
+    ! input/output: diagnostic variables and derivatives (diagnostic as may be treated as constant)
+    mLayerThermalC          => diag_data%var(iLookDIAG%mLayerThermalC)%dat,               & ! intent(inout): [dp(:)] thermal conductivity at the mid-point of each layer (W m-1 K-1)
+    iLayerThermalC          => diag_data%var(iLookDIAG%iLayerThermalC)%dat,               & ! intent(inout): [dp(:)] thermal conductivity at the interface of each layer (W m-1 K-1)
+    mLayerVolFracAir        => diag_data%var(iLookDIAG%mLayerVolFracAir)%dat              & ! intent(inout): [dp(:)] volumetric fraction of air in each layer (-)
     )  ! association of local variables with information in the data structures
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control

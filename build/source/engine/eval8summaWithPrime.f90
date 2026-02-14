@@ -529,7 +529,7 @@ subroutine eval8summaWithPrime(&
                           mLayerMatricHeadTrial, & ! intent(in):    trial value for total water matric potential (m)                         
                           mLayerdTheta_dTk,      & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
                           mLayerFracLiq,         & ! intent(in):    fraction of liquid water (-)
-                          ! output: derivatives
+                          ! input/output: derivatives
                           dThermalC_dWatAbove,   & ! intent(inout): derivative in the thermal conductivity w.r.t. water state in the layer above
                           dThermalC_dWatBelow,   & ! intent(inout): derivative in the thermal conductivity w.r.t. water state in the layer above
                           dThermalC_dTempAbove,  & ! intent(inout): derivative in the thermal conductivity w.r.t. energy state in the layer above
