@@ -3,7 +3,7 @@ This page provides simple, high-level documentation about what has changed in ea
 
 ## Pre-release
 ### Major changes
-- General cleanup and shortening of computFlux.f90, vegNrgFlux.f90, ssdNrgFlux.f90, vegLiqFlux.f90, snowLiqFlx.f90, soilLiqFlx.f90, groundwatr.f90, and bigAquifer.f90 
+- General cleanup and shortening of computFlux.f90, vegNrgFlux.f90, snowSoilNrgFlux.f90, vegLiqFlux.f90, snowLiqFlux.f90, soilLiqFlux.f90, groundwatr.f90, and bigAquifer.f90 
 - Added object-oriented methods to simplify flux routine calls in computFlux and improve modularity
     - classes for each flux routine were added to data_types.f90
     - large associate statemements are no longer needed in computFlux (associate blocks are now much shorter)
