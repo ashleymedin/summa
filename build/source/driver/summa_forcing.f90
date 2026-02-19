@@ -45,6 +45,8 @@ contains
  ! timing variables
  USE globalData,only:startRead,endRead                       ! date/time for the start and end of reading forcing data
  USE globalData,only:elapsedRead                             ! elapsed time to read forcing data
+ ! model decisions
+ USE globalData,only:model_decisions                         ! model decision structure
  ! ---------------------------------------------------------------------------------------
  ! * variables
  ! ---------------------------------------------------------------------------------------
@@ -73,6 +75,7 @@ contains
  call read_force(&
                  ! input
                  modelTimeStep,      & ! intent(in):    time step index
+                 model_decisions,    & ! intent(in):    model decisions structure
                  ! input-output
                  iFile,              & ! intent(inout): index of current forcing file in forcing file list
                  forcingStep,        & ! intent(inout): index of read position in time dimension in current netcdf file

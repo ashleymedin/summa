@@ -164,6 +164,9 @@ integer(i4b),parameter,public :: homegrown_SE         = 352    ! homegrown satur
 integer(i4b),parameter,public :: FUSEPRMS             = 353    ! FUSE PRMS surface runoff
 integer(i4b),parameter,public :: FUSEAVIC             = 354    ! FUSE ARNO/VIC surface runoff
 integer(i4b),parameter,public :: FUSETOPM             = 355    ! FUSE TOPMODEL surface runoff
+! look-up values for the handling of forcing data
+integer(i4b),parameter,public :: readPerStep          = 361    ! read forcing data per time step (defualt)
+integer(i4b),parameter,public :: readFullSeries       = 362    ! read full forcing series
 
 ! ----------------------------------------------------------------------------------------------------------- 
 
@@ -701,6 +704,15 @@ subroutine mDecisions(err,message)
     case('FUSETOPM'); model_decisions(iLookDECISIONS%surfRun_SE)%iDecision = FUSETOPM ! use FUSE TOPMODEL for saturation excess surface runoff
     case default
       err=10; message=trim(message)//"unknown option for saturation excess surface runoff method [option="//trim(model_decisions(iLookDECISIONS%surfRun_SE)%cDecision)//"]"; return
+  end select
+
+  ! method used to read forcing data (per step or full read)
+  ! NOTE: use read forcing data per time step as the defualt
+  select case(trim(model_decisions(iLookDECISIONS%read_force)%cDecision))
+    case('readPerStep','notPopulatedYet');  model_decisions(iLookDECISIONS%read_force)%iDecision = readPerStep    ! read forcing data per time step (defualt)
+    case('readFullSeries'               );  model_decisions(iLookDECISIONS%read_force)%iDecision = readFullSeries ! read full forcing series
+    case default
+      err=10; message=trim(message)//"unknown option for method used to read forcing data [option="//trim(model_decisions(iLookDECISIONS%read_force)%cDecision)//"]"; return
   end select
 
   ! -----------------------------------------------------------------------------------------------------------------------------------------------

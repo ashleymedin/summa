@@ -78,6 +78,7 @@ MODULE var_lookup
   integer(i4b)    :: aquiferIni = integerMissing     ! choice of full or empty aquifer at start
   integer(i4b)    :: infRateMax = integerMissing     ! choice of method to determine maximum infiltration rate
   integer(i4b)    :: surfRun_SE = integerMissing     ! choice of parameterization for saturation excess surface runoff
+  integer(i4b)    :: read_force = integerMissing     ! method used to read forcing data (per step or full read)
 
  endtype iLook_decision
 
@@ -984,7 +985,7 @@ MODULE var_lookup
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
                                                                          31, 32, 33, 34, 35, 36, 37, 38, 39, 40,&
-                                                                         41, 42)
+                                                                         41, 42, 43)
  ! named variables: model time
  type(iLook_time),    public,parameter :: iLookTIME     =iLook_time    (  1,  2,  3,  4,  5,  6,  7)
  ! named variables: model forcing data
