@@ -26,38 +26,39 @@ MODULE globalData
   ! data types
   USE nr_type
   USE netcdf
-  USE,intrinsic :: ieee_arithmetic    ! IEEE arithmetic
-  USE data_types,only:gru2hru_map     ! mapping between the GRUs and HRUs
-  USE data_types,only:hru2gru_map     ! mapping between the GRUs and HRUs
-  USE data_types,only:model_options   ! the model decision structure
-  USE data_types,only:file_info       ! metadata for model forcing datafile
-  USE data_types,only:par_info        ! default parameter values and parameter bounds
-  USE data_types,only:var_info        ! metadata for variables in each model structure
-  USE data_types,only:flux2state      ! extended metadata to define flux-to-state mapping
-  USE data_types,only:extended_info   ! extended metadata for variables in each model structure
-  USE data_types,only:struct_info     ! summary information on all data structures
-  USE data_types,only:var_i           ! vector of integers
-  USE data_types,only:gru_hru_int     ! x%gru(:)%hru(:)%var(:)     (i4b)
-  USE data_types,only:gru_hru_double  ! x%gru(:)%hru(:)%var(:)     (rkind)
-  USE data_types,only:gru_double      ! x%gru(:)%var(:)            (rkind)
+  USE,intrinsic :: ieee_arithmetic        ! IEEE arithmetic
+  USE data_types,only:gru2hru_map         ! mapping between the GRUs and HRUs
+  USE data_types,only:hru2gru_map         ! mapping between the GRUs and HRUs
+  USE data_types,only:model_options       ! the model decision structure
+  USE data_types,only:file_info           ! metadata for model forcing datafile
+  USE data_types,only:par_info            ! default parameter values and parameter bounds
+  USE data_types,only:var_info            ! metadata for variables in each model structure
+  USE data_types,only:flux2state          ! extended metadata to define flux-to-state mapping
+  USE data_types,only:extended_info       ! extended metadata for variables in each model structure
+  USE data_types,only:struct_info         ! summary information on all data structures
+  USE data_types,only:var_i               ! vector of integers
+  USE data_types,only:gru_hru_dom_int     ! x%gru(:)%hru(:)%dom(:)%var(:)  (i4b)
+  USE data_types,only:gru_hru_dom_double  ! x%gru(:)%hru(:)%dom(:)%var(:)  (rkind)
+  USE data_types,only:gru_hru_double      ! x%gru(:)%hru(:)%var(:)         (rkind)
+  USE data_types,only:gru_double          ! x%gru(:)%var(:)                (rkind)
   ! number of variables in each data structure
-  USE var_lookup,only:maxvarTime      ! time:                     maximum number variables
-  USE var_lookup,only:maxvarForc      ! forcing data:             maximum number variables
-  USE var_lookup,only:maxvarAttr      ! attributes:               maximum number variables
-  USE var_lookup,only:maxvarType      ! type index:               maximum number variables
-  USE var_lookup,only:maxvarId        ! IDs index:                maximum number variables
-  USE var_lookup,only:maxvarProg      ! prognostic variables:     maximum number variables
-  USE var_lookup,only:maxvarDiag      ! diagnostic variables:     maximum number variables
-  USE var_lookup,only:maxvarFlux      ! model fluxes:             maximum number variables
-  USE var_lookup,only:maxvarDeriv     ! model derivatives:        maximum number variables
-  USE var_lookup,only:maxvarIndx      ! model indices:            maximum number variables
-  USE var_lookup,only:maxvarMpar      ! model parameters:         maximum number variables
-  USE var_lookup,only:maxvarBvar      ! basin-average variables:  maximum number variables
-  USE var_lookup,only:maxvarBpar      ! basin-average parameters: maximum number variables
-  USE var_lookup,only:maxvarGrid      ! glacier grid variables:   maximum number variables
-  USE var_lookup,only:maxvarDecisions ! maximum number of decisions
-  USE var_lookup,only:maxvarFreq      ! maximum number of output files
-  USE var_lookup,only:maxvarLookup    ! maximum number of variables in the lookup
+  USE var_lookup,only:maxvarTime          ! time:                     maximum number variables
+  USE var_lookup,only:maxvarForc          ! forcing data:             maximum number variables
+  USE var_lookup,only:maxvarAttr          ! attributes:               maximum number variables
+  USE var_lookup,only:maxvarType          ! type index:               maximum number variables
+  USE var_lookup,only:maxvarId            ! IDs index:                maximum number variables
+  USE var_lookup,only:maxvarProg          ! prognostic variables:     maximum number variables
+  USE var_lookup,only:maxvarDiag          ! diagnostic variables:     maximum number variables
+  USE var_lookup,only:maxvarFlux          ! model fluxes:             maximum number variables
+  USE var_lookup,only:maxvarDeriv         ! model derivatives:        maximum number variables
+  USE var_lookup,only:maxvarIndx          ! model indices:            maximum number variables
+  USE var_lookup,only:maxvarMpar          ! model parameters:         maximum number variables
+  USE var_lookup,only:maxvarBvar          ! basin-average variables:  maximum number variables
+  USE var_lookup,only:maxvarBpar          ! basin-average parameters: maximum number variables
+  USE var_lookup,only:maxvarGrid          ! glacier grid variables:   maximum number variables
+  USE var_lookup,only:maxvarDecisions     ! maximum number of decisions
+  USE var_lookup,only:maxvarFreq          ! maximum number of output files
+  USE var_lookup,only:maxvarLookup        ! maximum number of variables in the lookup
   implicit none
   private
 

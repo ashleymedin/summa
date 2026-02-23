@@ -493,12 +493,12 @@ contains
  character(*)         , intent(out)    :: message            ! error message
  ! local variables -- temporary data structures
  integer(i4b)                          :: iStruct            ! index of data structure
- type(gru_hru_dom_int),   allocatable  :: tempIndxStruct     ! Indx temp structure: x%gru(:)%hru(:)%dom(:)%var(:) (rkind)
- type(gru_hru_double),    allocatable  :: tempForcStruct     ! Forc temp structure: x%gru(:)%hru(:)%var(:)        (rkind)
- type(gru_hru_dom_double),allocatable  :: tempProgStruct     ! Prog temp structure: x%gru(:)%hru(:)%dom(:)%var(:) (rkind)
- type(gru_hru_dom_double),allocatable  :: tempDiagStruct     ! Diag temp structure: x%gru(:)%hru(:)%dom(:)%var(:) (rkind)
- type(gru_hru_dom_double),allocatable  :: tempFluxStruct     ! Flux temp structure: x%gru(:)%hru(:)%dom(:)%var(:) (rkind)
- type(gru_double),        allocatable  :: tempBvarStruct     ! Bvar temp structure: x%gru(:)%var(:)               (rkind)
+ type(gru_hru_dom_int),   allocatable  :: tempIndx_struct     ! Indx temp structure: x%gru(:)%hru(:)%dom(:)%var(:) (rkind)
+ type(gru_hru_double),    allocatable  :: tempForc_struct     ! Forc temp structure: x%gru(:)%hru(:)%var(:)        (rkind)
+ type(gru_hru_dom_double),allocatable  :: tempProg_struct     ! Prog temp structure: x%gru(:)%hru(:)%dom(:)%var(:) (rkind)
+ type(gru_hru_dom_double),allocatable  :: tempDiag_struct     ! Diag temp structure: x%gru(:)%hru(:)%dom(:)%var(:) (rkind)
+ type(gru_hru_dom_double),allocatable  :: tempFlux_struct     ! Flux temp structure: x%gru(:)%hru(:)%dom(:)%var(:) (rkind)
+ type(gru_double),        allocatable  :: tempBvar_struct     ! Bvar temp structure: x%gru(:)%var(:)               (rkind)
  ! error control
  integer(i4b)                          :: ierr               ! error code of downwind routine
  character(LEN=256)                    :: cmessage           ! error message of downwind routine
