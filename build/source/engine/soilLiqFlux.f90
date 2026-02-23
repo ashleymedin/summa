@@ -136,9 +136,11 @@ subroutine soilLiqFlux(&
   ! local variables: general
   character(LEN=256)                  :: cmessage                      ! error message of downwind routine
   integer(i4b)                        :: nSoil                         ! number of soil layers
-  integer(i4b)                        :: ixTop,ixBot                   ! top and bottom of the soil layers
+  integer(i4b)                        :: ibeg,iend                     ! start and end indices of the soil layers in concatanated snow-lake-soil-glce vector
   integer(i4b)                        :: iLayer,iSoil                  ! index of soil layer
   integer(i4b)                        :: ixLayerDesired(1)             ! layer desired (scalar solution)
+  integer(i4b)                        :: ixTop                         ! top layer in subroutine call
+  integer(i4b)                        :: ixBot                         ! bottom layer in subroutine call
   ! transpiration sink term
   real(rkind),dimension(in_soilLiqFlux % nSoil)    :: mLayerTranspireFrac ! fraction of transpiration allocated to each soil layer (-)
   ! diagnostic variables
@@ -175,12 +177,12 @@ contains
   nSoil = in_soilLiqFlux % nSoil ! get number of soil layers from input arguments
 
   ! get indices for the data structures
-  ixTop = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nLake)%dat(1) + 1
-  ixBot = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nLake)%dat(1) + nSoil
+  ibeg = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nLake)%dat(1) + 1
+  iend = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nLake)%dat(1) + nSoil
 
   ! get a copy of iLayerHeight (for soil layers only)
   ! NOTE: performance hit, though cannot define the shape (0:) with the associate construct
-  iLayerHeight(0:nSoil) = prog_data%var(iLookPROG%iLayerHeight)%dat(ixTop-1:ixBot)  ! height of the layer interfaces (m)
+  iLayerHeight(0:nSoil) = prog_data%var(iLookPROG%iLayerHeight)%dat(ibeg-1:iend)  ! height of the layer interfaces (m)
 
   ! ** initialize error control **
   return_flag=.false.
@@ -408,7 +410,7 @@ contains
   end associate
 
   ! compute surface flux and its derivative...
-  call in_surfaceFlux % initialize(nRoots,ixIce,nSoil,ixTop,ixBot,in_soilLiqFlux,io_soilLiqFlux,&
+  call in_surfaceFlux % initialize(nRoots,ixIce,nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,&
                                  &model_decisions,prog_data,mpar_data,flux_data,diag_data,&
                                  &iLayerHeight,dHydCond_dTemp,iceImpedeFac)
   call io_surfaceFlux % initialize(nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse)
@@ -473,7 +475,7 @@ contains
   ! **** Initialize operations for compute_interface_fluxes_derivatives subroutine ****
   type(in_type_iLayerFlux),intent(out) :: in_iLayerFlux  ! input data object for iLayerFlux
   ! interface local name space to iLayerFlux input object
-  call in_iLayerFlux % initialize(iLayer,nSoil,ixTop,ixBot,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
+  call in_iLayerFlux % initialize(iLayer,nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
                                  &prog_data,mLayerDiffuse,dHydCond_dTemp,dHydCond_dVolLiq,dDiffuse_dVolLiq)
  end subroutine initialize_compute_interface_fluxes_derivatives
 
@@ -514,7 +516,7 @@ contains
  subroutine initialize_compute_drainage_flux(in_qDrainFlux)
   ! **** Initialize operations for compute_drainage_flux ****
   type(in_type_qDrainFlux),intent(out) :: in_qDrainFlux
-  call in_qDrainFlux % initialize(nSoil,ixTop,ixBot,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
+  call in_qDrainFlux % initialize(nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
                                  &prog_data,mpar_data,flux_data,diag_data,iceImpedeFac,&
                                  &dHydCond_dVolLiq,dHydCond_dTemp)
  end subroutine initialize_compute_drainage_flux

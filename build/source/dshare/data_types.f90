@@ -1906,14 +1906,14 @@ contains
  ! **** end diagv_node ****
 
  ! **** surfaceFlux ****
- subroutine initialize_in_surfaceFlux(in_surfaceFlux,nRoots,ixIce,nSoil,ixTop,ixBot,in_soilLiqFlux,io_soilLiqFlux,&
-                                    &model_decisions,prog_data,mpar_data,flux_data,diag_data,&
-                                    &iLayerHeight,dHydCond_dTemp,iceImpedeFac)
+ subroutine initialize_in_surfaceFlux(in_surfaceFlux,nRoots,ixIce,nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,&
+                                     &model_decisions,prog_data,mpar_data,flux_data,diag_data,&
+                                     &iLayerHeight,dHydCond_dTemp,iceImpedeFac)
   class(in_type_surfaceFlux),intent(out) :: in_surfaceFlux ! input object for surfaceFlux
-  integer(i4b),intent(in)               :: nRoots        ! number of soil layers with roots
-  integer(i4b),intent(in)               :: ixIce         ! index of the lowest soil layer that contains ice
-  integer(i4b),intent(in)               :: nSoil         ! number of soil layers
-  integer(i4b),intent(in)               :: ixTop,ixBot     ! top and bottom of the soil layers in concatanated snow-soil vector
+  integer(i4b),intent(in)                :: nRoots         ! number of soil layers with roots
+  integer(i4b),intent(in)                :: ixIce          ! index of the lowest soil layer that contains ice
+  integer(i4b),intent(in)                :: nSoil          ! number of soil layers
+  integer(i4b),intent(in)                :: ibeg,iend      ! start and end indices of the soil layers in concatanated snow-lake-soil-glce vector
   type(in_type_soilLiqFlux),intent(in)   :: in_soilLiqFlux ! input data for soilLiqFlux
   type(io_type_soilLiqFlux),intent(in)   :: io_soilLiqFlux ! input-output class object for soilLiqFlux
   type(model_options),intent(in)         :: model_decisions(maxvarDecisions) ! the model decision structure
@@ -2146,19 +2146,19 @@ contains
  ! **** end surfaceFlux ****
 
  ! **** iLayerFlux ****
- subroutine initialize_in_iLayerFlux(in_iLayerFlux,iLayer,nSoil,ixTop,ixBot,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
+ subroutine initialize_in_iLayerFlux(in_iLayerFlux,iLayer,nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
                                     &prog_data,mLayerDiffuse,dHydCond_dTemp,dHydCond_dVolLiq,dDiffuse_dVolLiq)
-  class(in_type_iLayerFlux),intent(out) :: in_iLayerFlux   ! class object for input iLayerFlux variables
-  integer(i4b),intent(in)               :: nSoil,iLayer    ! number of soil layers and index
-  integer(i4b),intent(in)               :: ixTop,ixBot     ! top and bottom of the soil layers in concatanated snow-soil vector
-  type(in_type_soilLiqFlux),intent(in)  :: in_soilLiqFlux  ! input class object for soilLiqFlux
-  type(io_type_soilLiqFlux),intent(in)  :: io_soilLiqFlux  ! input-output class object for soilLiqFlux
+  class(in_type_iLayerFlux),intent(out) :: in_iLayerFlux ! class object for input iLayerFlux variables
+  integer(i4b),intent(in)               :: nSoil,iLayer  ! number of soil layers and index
+  integer(i4b),intent(in)               :: ibeg,iend     ! start and end indices of the soil layers in concatanated snow-lake-soil-glce vector
+  type(in_type_soilLiqFlux),intent(in)   :: in_soilLiqFlux ! input class object for soilLiqFlux
+  type(io_type_soilLiqFlux),intent(in)   :: io_soilLiqFlux ! input-output class object for soilLiqFlux
   type(model_options),intent(in)        :: model_decisions(maxvarDecisions) ! the model decision structure
-  type(var_dlength),intent(in)          :: prog_data       ! prognostic variables for a local HRU
+  type(var_dlength),intent(in)          :: prog_data     ! prognostic variables for a local HRU
   real(rkind),intent(in)                :: mLayerDiffuse(1:nSoil)  ! diffusivity at layer mid-point (m2 s-1)
-  real(rkind),intent(in) :: dHydCond_dTemp(1:nSoil)        ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
-  real(rkind),intent(in) :: dHydCond_dVolLiq(1:nSoil)      ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
-  real(rkind),intent(in) :: dDiffuse_dVolLiq(1:nSoil)      ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
+  real(rkind),intent(in) :: dHydCond_dTemp(1:nSoil)   ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+  real(rkind),intent(in) :: dHydCond_dVolLiq(1:nSoil) ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
+  real(rkind),intent(in) :: dDiffuse_dVolLiq(1:nSoil) ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
 
   associate(&
    ! intent(in): model control
@@ -2167,7 +2167,7 @@ contains
    mLayerMatricHeadLiqTrial => in_soilLiqFlux % mLayerMatricHeadLiqTrial, & ! liquid matric head in each layer at the current iteration (m)
    mLayerVolFracLiqTrial    => in_soilLiqFlux % mLayerVolFracLiqTrial,    & ! volumetric fraction of liquid water at the current iteration (-)
    ! intent(in): model coordinate variables (adjacent layers)
-   mLayerHeight => prog_data%var(iLookPROG%mLayerHeight)%dat(ixTop:ixBot), & ! height of the layer mid-point (m)
+   mLayerHeight => prog_data%var(iLookPROG%mLayerHeight)%dat(ibeg:iend), & ! height of the layer mid-point (m)
    ! intent(in): temperature derivatives
    dPsiLiq_dTemp => in_soilLiqFlux % dPsiLiq_dTemp, & ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
    ! intent(in): transmittance (adjacent layers)
@@ -2231,22 +2231,22 @@ contains
  ! **** end iLayerFlux ****
 
  ! **** qDrainFlux ****
- subroutine initialize_in_qDrainFlux(in_qDrainFlux,nSoil,ixTop,ixBot,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
+ subroutine initialize_in_qDrainFlux(in_qDrainFlux,nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
                                     &prog_data,mpar_data,flux_data,diag_data,iceImpedeFac,&
                                     &dHydCond_dVolLiq,dHydCond_dTemp)
-  class(in_type_qDrainFlux),intent(out) :: in_qDrainFlux   ! class object for input qDrainFlux variables
-  integer(i4b),intent(in)               :: nSoil           ! number of soil layers
-  integer(i4b),intent(in)               :: ixTop,ixBot     ! top and bottom of the soil layers in concatanated snow-soil vector
-  type(in_type_soilLiqFlux),intent(in)  :: in_soilLiqFlux  ! input class object for soilLiqFlux
-  type(io_type_soilLiqFlux),intent(in)  :: io_soilLiqFlux  ! input-output class object for soilLiqFlux
+  class(in_type_qDrainFlux),intent(out) :: in_qDrainFlux ! class object for input qDrainFlux variables
+  integer(i4b),intent(in)               :: nSoil         ! number of soil layers
+  integer(i4b),intent(in)               :: ibeg,iend     ! start and end indices of the soil layers in concatanated snow-lake-soil-glce vector
+  type(in_type_soilLiqFlux),intent(in)  :: in_soilLiqFlux ! input class object for soilLiqFlux
+  type(io_type_soilLiqFlux),intent(in)  :: io_soilLiqFlux ! input-output class object for soilLiqFlux
   type(model_options),intent(in)        :: model_decisions(maxvarDecisions) ! the model decision structure
-  type(var_dlength),intent(in)          :: prog_data       ! prognostic variables for a local HRU
-  type(var_dlength),intent(in)          :: mpar_data       ! model parameters
-  type(var_dlength),intent(in)          :: flux_data       ! model fluxes for a local HRU
-  type(var_dlength),intent(in)          :: diag_data       ! diagnostic variables for a local HRU
-  real(rkind),intent(in) :: iceImpedeFac(1:nSoil)          ! ice impedence factor at layer mid-points (-)
-  real(rkind),intent(in) :: dHydCond_dVolLiq(1:nSoil)      ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
-  real(rkind),intent(in) :: dHydCond_dTemp(1:nSoil)        ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+  type(var_dlength),intent(in)          :: prog_data     ! prognostic variables for a local HRU
+  type(var_dlength),intent(in)          :: mpar_data     ! model parameters
+  type(var_dlength),intent(in)          :: flux_data     ! model fluxes for a local HRU
+  type(var_dlength),intent(in)          :: diag_data     ! diagnostic variables for a local HRU
+  real(rkind),intent(in) :: iceImpedeFac(1:nSoil)     ! ice impedence factor at layer mid-points (-)
+  real(rkind),intent(in) :: dHydCond_dVolLiq(1:nSoil) ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
+  real(rkind),intent(in) :: dHydCond_dTemp(1:nSoil)   ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
 
   associate(&
    ! intent(in): model control
@@ -2256,8 +2256,8 @@ contains
    mLayerMatricHeadLiqTrial => in_soilLiqFlux % mLayerMatricHeadLiqTrial, & ! liquid matric head in each layer at the current iteration (m)
    mLayerVolFracLiqTrial    => in_soilLiqFlux % mLayerVolFracLiqTrial,    & ! volumetric fraction of liquid water at the current iteration (-)
    ! intent(in): model coordinate variables
-   mLayerDepth  => prog_data%var(iLookPROG%mLayerDepth)%dat(ixTop:ixBot), & ! depth of the layer (m)
-   mLayerHeight => prog_data%var(iLookPROG%mLayerHeight)%dat(ixTop:ixBot),& ! height of the layer mid-point (m)
+   mLayerDepth  => prog_data%var(iLookPROG%mLayerDepth)%dat(ibeg:iend), & ! depth of the layer (m)
+   mLayerHeight => prog_data%var(iLookPROG%mLayerHeight)%dat(ibeg:iend),& ! height of the layer mid-point (m)
    ! intent(in): boundary conditions
    lowerBoundHead  => mpar_data%var(iLookPARAM%lowerBoundHead)%dat(1), & ! lower boundary condition for matric head (m)
    lowerBoundTheta => mpar_data%var(iLookPARAM%lowerBoundTheta)%dat(1),& ! lower boundary condition for volumetric liquid water content (-)

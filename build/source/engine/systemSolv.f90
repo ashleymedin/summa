@@ -756,7 +756,7 @@ contains
    ! compute the total change in storage associated with compression of the soil matrix (kg m-2)
    soilVars: associate(&
     ! layer geometry
-    mLayerDepth        => prog_data%var(iLookPROG%mLayerDepth)%dat          ,& ! depth of each layer in the snow-soil sub-domain (m)
+    mLayerDepth        => prog_data%var(iLookPROG%mLayerDepth)%dat          ,& ! depth of each layer in the layer domains (m)
     mLayerCompress     => diag_data%var(iLookDIAG%mLayerCompress)%dat       ,& ! change in storage associated with compression of the soil matrix (-)
     scalarSoilCompress => diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) & ! total change in storage associated with compression of the soil matrix (kg m-2 s-1)
     )
