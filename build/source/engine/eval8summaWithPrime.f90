@@ -106,16 +106,16 @@ subroutine eval8summaWithPrime(&
                       err,message)                     ! intent(out):   error control
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! provide access to subroutines
-  USE getVectorz_module, only:varExtract                    ! extract variables from the state vector
-  USE getVectorz_module, only:checkFeas                     ! check feasibility of state vector
-  USE updatDiagnWithPrime_module, only:updatDiagnWithPrime  ! update variables
-  USE computFlux_module, only:soilCmpresPrime               ! compute soil compression
-  USE computFlux_module, only:computFlux                    ! compute fluxes given a state vector
-  USE heatCapacity_module,only:heatCapacityAnalytic         ! recompute closed form heat capacity (Cp) and derivatives
-  USE heatCapacity_module,only:computCm                     ! compute Cm and derivatives
-  USE heatCapacity_module, only:computStatMult              ! recompute state multiplier
+  USE getVectorz_module,only:varExtract                     ! extract variables from the state vector
+  USE getVectorz_module,only:checkFeas                      ! check feasibility of state vector
+  USE updatDiagnWithPrime_module,only:updatDiagnWithPrime   ! update variables
+  USE computFlux_module,only:soilCmpresPrime                ! compute soil compression
+  USE computFlux_module,only:computFlux                     ! compute fluxes given a state vector
+  USE heat_Cp_Cm_module,only:heatCapacity                   ! update heat capacity (Cp) and derivatives
+  USE heat_Cp_Cm_module,only:heatAdvectWat                  ! compute heat advected with water (Cm) and derivatives
+  USE heat_Cp_Cm_module,only:stateMultiplier                ! update state multiplier
   USE computResidWithPrime_module,only:computResidWithPrime ! compute residuals given a state vector
-  USE thermConductivity_module,only:thermConductivity       ! recompute thermal conductivity and derivatives
+  USE thermConductivity_module,only:thermConductivity       ! update thermal conductivity and derivatives
   implicit none
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------------------------------------
@@ -208,8 +208,8 @@ subroutine eval8summaWithPrime(&
   real(rkind)                     :: scalarCanopyNrgPrime        ! prime value for energy of the vegetation canopy
   real(rkind),dimension(nLayers)  :: mLayerNrgPrime              ! prime vector of energy of each layer
   ! other local variables
-  integer(i4b)                    :: jState(1)                   ! index of model state for the scalar solution within the soil domain
-  integer(i4b)                    :: ixBeg,ixEnd                 ! index of indices for the soil compression routine
+  integer(i4b)                    :: ixLayerDesired(1)           ! layer desired (scalar solution)
+  integer(i4b)                    :: ixTop,ixBot                 ! top and bottom defining desired layers
   character(LEN=256)              :: cmessage                    ! error message of downwind routine
   logical(lgt)                    :: updateStateCp               ! flag to indicate if we update Cp at each step for LHS, set with nrgConserv choice and updateCp_closedForm flag
   logical(lgt)                    :: updateFluxCp                ! flag to indicate if we update Cp at each step for RHS, set with nrgConserv choice and updateCp_closedForm flag
@@ -309,17 +309,7 @@ subroutine eval8summaWithPrime(&
       err=1; return
     end if
 
-    ! get the start and end indices for the soil compression calculations
-    if(scalarSolution)then
-      jState = pack(ixControlVolume, ixMapFull2Subset/=integerMissing)
-      ixBeg  = jState(1)
-      ixEnd  = jState(1)
-    else
-      ixBeg  = 1
-      ixEnd  = nSoil
-    endif
-
-    ! Canopy layer can disappear even without splitting (snow burial), so need to take from the end of the previous time step
+    ! Canopy layer can disappear even without splitting (snow burial), so need to take last values
     if(ixNrgConserv== enthalpyForm .or. ixNrgConserv == enthalpyFormLU)then ! use state variable as enthalpy, need to compute temperature
       scalarCanopyNrgTrial = scalarCanopyEnthalpyTrial
     else ! use state variable as temperature
@@ -470,8 +460,8 @@ subroutine eval8summaWithPrime(&
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
     if(updateStateCp)then
-      ! *** compute volumetric heat capacity C_p
-      call heatCapacityAnalytic(&
+      ! update heat capacity Cp and its derivatives
+      call heatCapacity(&
                   ! input: state variables
                   canopyDepth,             & ! intent(in):    canopy depth (m)
                   scalarCanopyIceTrial,    & ! intent(in):    trial value for mass of ice on the vegetation canopy (kg m-2)
@@ -492,7 +482,7 @@ subroutine eval8summaWithPrime(&
                   indx_data,               & ! intent(in):    model layer indices
                   ! output
                   heatCapVegTrial,         & ! intent(inout): volumetric heat capacity of vegetation canopy
-                  mLayerHeatCapTrial,      & ! intent(inout): volumetric heat capacity of soil and snow
+                  mLayerHeatCapTrial,      & ! intent(inout): volumetric heat capacity of layers
                   dVolHtCapBulk_dPsi0,     & ! intent(inout): derivative in bulk heat capacity w.r.t. matric potential
                   dVolHtCapBulk_dTheta,    & ! intent(inout): derivative in bulk heat capacity w.r.t. volumetric water content
                   dVolHtCapBulk_dCanWat,   & ! intent(inout): derivative in bulk heat capacity w.r.t. volumetric water content
@@ -502,11 +492,11 @@ subroutine eval8summaWithPrime(&
                   err,cmessage)                  ! intent(out):  error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-      ! compute multiplier of state vector
-      call computStatMult(&
-                    ! input
+      ! recompute multiplier of state vector
+      call stateMultiplier(&
+                    ! inpu
                     heatCapVegTrial,    & ! intent(in):  volumetric heat capacity of vegetation canopy
-                    mLayerHeatCapTrial, & ! intent(in):  volumetric heat capacity of soil and snow
+                    mLayerHeatCapTrial, & ! intent(in):  volumetric heat capacity of layers
                     indx_data,          & ! intent(in):  indices defining model states and layers
                     ! output
                     sMul,               & ! intent(out): multiplier for state vector (used in the residual calculations)
@@ -522,30 +512,30 @@ subroutine eval8summaWithPrime(&
     endif ! updateStateCp
 
     if(updateFluxCp)then
-      ! update thermal conductivity
+      ! update thermal conductivity and its derivatives
       call thermConductivity(&
-                          ! input: control variables
-                          nLayers,               & ! intent(in):    total number of layers
                           ! input: state variables
-                          mLayerTempTrial,       & ! intent(in):    trial temperature of layer temperature (K)
-                          mLayerMatricHeadTrial, & ! intent(in):    trial value for total water matric potential (m)
+                          nLayers,               & ! intent(in):    total number of layers
+                          scalarSolution,        & ! intent(in):    flag to indicate the scalar solution
                           mLayerVolFracIceTrial, & ! intent(in):    volumetric fraction of ice at the start of the sub-step (-)
                           mLayerVolFracLiqTrial, & ! intent(in):    volumetric fraction of liquid water at the start of the sub-step (-)
-                         ! input: pre-computed derivatives
-                          mLayerdTheta_dTk,      & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
-                          mLayerFracLiq,         & ! intent(in):    fraction of liquid water (-)
                           ! input/output: data structures
                           mpar_data,             & ! intent(in):    model parameters
                           indx_data,             & ! intent(in):    model layer indices
                           prog_data,             & ! intent(in):    model prognostic variables for a local HRU
                           diag_data,             & ! intent(inout): model diagnostic variables for a local HRU
-                          ! output: derivative
-                          dThermalC_dWatAbove,   & ! intent(out):   derivative in the thermal conductivity w.r.t. water state in the layer above
-                          dThermalC_dWatBelow,   & ! intent(out):   derivative in the thermal conductivity w.r.t. water state in the layer above
-                          dThermalC_dTempAbove,  & ! intent(out):   derivative in the thermal conductivity w.r.t. energy state in the layer above
-                          dThermalC_dTempBelow,  & ! intent(out):   derivative in the thermal conductivity w.r.t. energy state in the layer above
+                          ! input: pre-computed derivatives
+                          mLayerTempTrial,       & ! intent(in):    trial temperature of layer temperature (K)
+                          mLayerMatricHeadTrial, & ! intent(in):    trial value for total water matric potential (m)                         
+                          mLayerdTheta_dTk,      & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
+                          mLayerFracLiq,         & ! intent(in):    fraction of liquid water (-)
+                          ! input/output: derivatives
+                          dThermalC_dWatAbove,   & ! intent(inout): derivative in the thermal conductivity w.r.t. water state in the layer above
+                          dThermalC_dWatBelow,   & ! intent(inout): derivative in the thermal conductivity w.r.t. water state in the layer above
+                          dThermalC_dTempAbove,  & ! intent(inout): derivative in the thermal conductivity w.r.t. energy state in the layer above
+                          dThermalC_dTempBelow,  & ! intent(inout): derivative in the thermal conductivity w.r.t. energy state in the layer above
                           ! output: error control
-                          err,cmessage)                   ! intent(out): error control
+                          err,cmessage)            ! intent(out): error control
       if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
     else
       ! set flux heat capacity derivatives to 0 for constant through step
@@ -556,8 +546,8 @@ subroutine eval8summaWithPrime(&
     endif ! updateFluxCp
 
     if(needStateCm)then
-      ! compute C_m
-      call computCm(&
+       ! compute heat advected with water Cm and its derivatives
+      call heatAdvectWat(&
                  ! input: state variables
                  scalarCanopyTempTrial,     & ! intent(in):    trial value of canopy temperature (K)
                  mLayerTempTrial,           & ! intent(in):    trial value of layer temperature (K)
@@ -636,10 +626,18 @@ subroutine eval8summaWithPrime(&
     ! compute soil compressibility (-) and its derivative w.r.t. matric head (m)
     ! NOTE: we already extracted trial matrix head and volumetric liquid water as part of the flux calculations
     if(nSoil>0)then
+      if(scalarSolution)then
+        ixLayerDesired = pack(ixControlVolume, ixMapFull2Subset/=integerMissing)
+        ixTop  = ixLayerDesired(1)
+        ixBot  = ixLayerDesired(1)
+      else
+        ixTop  = 1
+        ixBot  = nSoil
+      endif
       call soilCmpresPrime(&
                       ! input:
                       ixRichards,                             & ! intent(in):    choice of option for Richards' equation
-                      ixBeg,ixEnd,                            & ! intent(in):    start and end indices defining desired layers
+                      ixTop,ixBot,                            & ! intent(in):    top and bottom defining desired layers
                       mLayerMatricHeadPrime(1:nSoil),         & ! intent(in):    matric head at the start of the time step (m s-1)
                       mLayerVolFracLiqTrial(nSnow+nLake+1:nSnow+nLake+nSoil), & ! intent(in):    trial value for the volumetric liquid water content in each soil layer (-)
                       mLayerVolFracIceTrial(nSnow+nLake+1:nSnow+nLake+nSoil), & ! intent(in):    trial value for the volumetric ice content in each soil layer (-)
@@ -650,7 +648,6 @@ subroutine eval8summaWithPrime(&
                       dCompress_dPsi,                         & ! intent(inout): derivative in compressibility w.r.t. matric head (m-1)
                       err,cmessage)                             ! intent(out):   error code and error message
       if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-
       ! compute the total change in storage associated with compression of the soil matrix (kg m-2 s-1)
       scalarSoilCompress = sum(mLayerCompress(1:nSoil)*mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil))*iden_water
     else

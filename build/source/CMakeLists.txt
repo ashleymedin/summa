@@ -111,13 +111,12 @@ set(MODRUN_SUNDIALS
 set(SOLVER
     ${ENGINE_DIR}/bigAquifer.f90
     ${ENGINE_DIR}/computFlux.f90
-    ${ENGINE_DIR}/heatCapacity.f90
+    ${ENGINE_DIR}/heat_Cp_Cm.f90
     ${ENGINE_DIR}/computJacob.f90
     ${ENGINE_DIR}/computResid.f90
     ${ENGINE_DIR}/snowGlceDepth.f90
     ${ENGINE_DIR}/thermConductivity.f90
     ${ENGINE_DIR}/coupled_em.f90
-    ${ENGINE_DIR}/init_heatCap_thermCond.f90
     ${ENGINE_DIR}/eval8summa.f90
     ${ENGINE_DIR}/groundwatr.f90
     ${ENGINE_DIR}/glacAreaChange.f90

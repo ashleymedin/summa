@@ -107,7 +107,7 @@ Use one space to indent
 
     ```fortran
 module vegLiqFlux_module
-USE nrtype
+USE nr_type
 implicit none
 private
 public::vegLiqFlux
