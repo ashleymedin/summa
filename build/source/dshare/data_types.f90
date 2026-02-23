@@ -2151,8 +2151,8 @@ contains
   class(in_type_iLayerFlux),intent(out) :: in_iLayerFlux ! class object for input iLayerFlux variables
   integer(i4b),intent(in)               :: nSoil,iLayer  ! number of soil layers and index
   integer(i4b),intent(in)               :: ibeg,iend     ! start and end indices of the soil layers in concatanated snow-lake-soil-glce vector
-  type(in_type_soilLiqFlux),intent(in)   :: in_soilLiqFlux ! input class object for soilLiqFlux
-  type(io_type_soilLiqFlux),intent(in)   :: io_soilLiqFlux ! input-output class object for soilLiqFlux
+  type(in_type_soilLiqFlux),intent(in)  :: in_soilLiqFlux ! input class object for soilLiqFlux
+  type(io_type_soilLiqFlux),intent(in)  :: io_soilLiqFlux ! input-output class object for soilLiqFlux
   type(model_options),intent(in)        :: model_decisions(maxvarDecisions) ! the model decision structure
   type(var_dlength),intent(in)          :: prog_data     ! prognostic variables for a local HRU
   real(rkind),intent(in)                :: mLayerDiffuse(1:nSoil)  ! diffusivity at layer mid-point (m2 s-1)
