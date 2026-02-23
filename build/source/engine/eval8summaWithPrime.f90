@@ -229,7 +229,7 @@ subroutine eval8summaWithPrime(&
     specificStorage           => mpar_data%var(iLookPARAM%specificStorage)%dat(1)          ,& ! intent(in):  [dp]     specific storage coefficient (m-1)
     ! canopy and layer depth
     canopyDepth               => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)         ,& ! intent(in):  [dp   ]  canopy depth (m)
-    mLayerDepth               => prog_data%var(iLookPROG%mLayerDepth)%dat                  ,& ! intent(in):  [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
+    mLayerDepth               => prog_data%var(iLookPROG%mLayerDepth)%dat                  ,& ! intent(in):  [dp(:)]  depth of each layer in the layer domains (m)
     ! model state variables from the start of the data window in case of no water state in glacier ice layers
     mLayerVolFracWat          => prog_data%var(iLookPROG%mLayerVolFracWat)%dat             ,& ! intent(in):  [dp(:)] volumetric fraction of total water (-)
     mLayerVolFracLiq          => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat             ,& ! intent(in):  [dp(:)] volumetric fraction of liquid water (-)

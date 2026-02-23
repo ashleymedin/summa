@@ -136,7 +136,7 @@ subroutine soilLiqFlux(&
   ! local variables: general
   character(LEN=256)                  :: cmessage                      ! error message of downwind routine
   integer(i4b)                        :: nSoil                         ! number of soil layers
-  integer(i4b)                        :: ibeg,iend                     ! start and end indices of the soil layers in concatanated snow-soil vector
+  integer(i4b)                        :: ibeg,iend                     ! start and end indices of the soil layers in concatanated snow-lake-soil-glce vector
   integer(i4b)                        :: iLayer,iSoil                  ! index of soil layer
   integer(i4b)                        :: ixLayerDesired(1)             ! layer desired (scalar solution)
   integer(i4b)                        :: ixTop                         ! top layer in subroutine call

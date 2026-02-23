@@ -238,7 +238,7 @@ subroutine eval8summa(&
     specificStorage           => mpar_data%var(iLookPARAM%specificStorage)%dat(1)           ,& ! intent(in):  [dp]    specific storage coefficient (m-1)
     ! canopy and layer depth  
     canopyDepth               => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)         ,& ! intent(in):  [dp   ] canopy depth (m)
-    mLayerDepth               => prog_data%var(iLookPROG%mLayerDepth)%dat                  ,& ! intent(in):  [dp(:)] depth of each layer in the snow-soil sub-domain (m)
+    mLayerDepth               => prog_data%var(iLookPROG%mLayerDepth)%dat                  ,& ! intent(in):  [dp(:)] depth of each layer in the layer domains (m)
     ! model state variables from the previous solution
     scalarCanairTemp          => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)          ,& ! intent(in):  [dp]    temperature of the canopy air space (K)
     scalarCanopyTemp          => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)          ,& ! intent(in):  [dp]    temperature of the vegetation canopy (K)

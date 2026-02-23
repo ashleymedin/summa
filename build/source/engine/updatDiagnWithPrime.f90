@@ -241,7 +241,7 @@ subroutine updatDiagnWithPrime(&
     nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1)                    ,& ! intent(in):  [i4b]    total number of lake layers
     nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                    ,& ! intent(in):  [i4b]    total number of soil layers
     nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)                  ,& ! intent(in):  [i4b]    total number of layers
-    mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat                  ,& ! intent(in):  [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
+    mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat                  ,& ! intent(in):  [dp(:)]  depth of each layer in the layer domains (m)
     noThetaChange           => indx_data%var(iLookINDEX%noThetaChange)%dat(1)            ,& ! intent(in):  [i4b]    number of layers with no change in total water content (bottom layers)
     ! indices defining model states and layers
     ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)                 ,& ! intent(in):  [i4b]    index of canopy energy state variable

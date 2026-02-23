@@ -229,7 +229,7 @@ subroutine varSubstep(&
     nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)               ,& ! intent(in):    [i4b]    total number of layers
     noThetaChange           => indx_data%var(iLookINDEX%noThetaChange)%dat(1)         ,& ! intent(in):    [i4b]    number of layers with no change in total water content (bottom layers)
     nSoilOnlyHyd            => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology variables in the soil domain
-    mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):    [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
+    mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):    [dp(:)]  depth of each layer in the layer domains (m)
     ! get indices for balances
     ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy air space energy state variable
     ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy energy state variable
@@ -773,7 +773,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
     scalarSenHeatCanopy       => flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)        ,& ! intent(in)   : [dp]     sensible heat flux from the canopy to the canopy air space (W m-2)
     ! domain depth
     canopyDepth               => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)          ,& ! intent(in)   : [dp   ]  canopy depth (m)
-    mLayerDepth               => prog_data%var(iLookPROG%mLayerDepth)%dat                   ,& ! intent(in)   : [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
+    mLayerDepth               => prog_data%var(iLookPROG%mLayerDepth)%dat                   ,& ! intent(in)   : [dp(:)]  depth of each layer in the layer domains (m)
     ! model state variables (vegetation canopy)
     scalarCanairTemp          => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)           ,& ! intent(inout): [dp]     temperature of the canopy air space (K)
     scalarCanopyTemp          => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)           ,& ! intent(inout): [dp]     temperature of the vegetation canopy (K)
