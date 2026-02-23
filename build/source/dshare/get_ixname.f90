@@ -101,6 +101,7 @@ contains
   case('infRateMax'      ); get_ixdecisions=iLookDECISIONS%infRateMax  ! choice of maximum infiltration rate method
   case('surfRun_SE'      ); get_ixdecisions=iLookDECISIONS%surfRun_SE  ! choice of parameterization for saturation excess surface runoff
   case('read_force'      ); get_ixdecisions=iLookDECISIONS%read_force  ! method used to read forcing data (per step or full read)
+  case('write_buff'      ); get_ixdecisions=iLookDECISIONS%write_buff  ! method used to buffer writing of model output (none, full)
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = integerMissing
@@ -1229,7 +1230,7 @@ contains
  end subroutine get_ixUnknown
 
  ! *******************************************************************************************************************
- ! public function get_ixFreq: get the index of the named variables for the output frequencies
+ ! public function get_ixLookup: get the index of the named variables for lookup
  ! *******************************************************************************************************************
  function get_ixLookup(varName)
  USE var_lookup,only:iLookLOOKUP                     ! indices of the named variables

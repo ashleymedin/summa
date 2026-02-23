@@ -121,9 +121,7 @@ contains
   gridStruct           => summa1_struc%gridStruct          , & ! x%gru(:)%grid(:)%var(:)%dat2(:,:) -- basin grid parameters and variables
   ! miscellaneous variables
   dt_init              => summa1_struc%dt_init             , & ! used to initialize the length of the sub-step for each HRU
-  nGRU                 => summa1_struc%nGRU                , & ! number of grouped response units
-  nHRU                 => summa1_struc%nHRU                , & ! number of hydrological response units
-  nDOM                 => summa1_struc%nDOM                  & ! number of domains (max in any HRU)
+  nGRU                 => summa1_struc%nGRU                  & ! number of grouped response units
  ) ! assignment to variables in the data structures
  
  ! ---------------------------------------------------------------------------------------

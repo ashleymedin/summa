@@ -145,7 +145,7 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
     ! gru+hru+dom+z dimensions
     class is (gru_hru_dom_z_vLookup); if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
     ! gru+glacier+grid dimensions
-    class is (gru_grid_double);        if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+    class is (gru_grid_double);       if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
   end select
 
    ! check errors
@@ -629,7 +629,7 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
  ! private subroutine allocateDat_rkind: initialize data dimension of the data structures
  ! ************************************************************************************************
  subroutine allocateDat_rkind(metadata,nSnow,nLake,nSoil,nGlce,nLayers,nGlac, & ! input
-                           varData,err,message)                          ! output
+                              varData,err,message)                              ! output
  ! access subroutines
  USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
 

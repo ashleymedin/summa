@@ -1089,6 +1089,7 @@ subroutine read_output_file(err,message)
     ! option 0: file format = varName | outFreq
     ! option 1: file format = varName | outFreq | statisticName
     ! option 2: file format = varName | outFreq | inst | sum | mean | var | min | max | mode
+    !              e.g.,      varName | outFreq |    0 |   0 |    1 |   0 |   0 |   0 |    0
     select case(nWords)
       case(nameIndex + 2, nameIndex); fileFormat=noStatsDesired   ! no statistic desired (temporally constant variables)
       case(freqIndex + 2           ); fileFormat=provideStatName  ! provide the name of the desired statistic

@@ -73,9 +73,9 @@ contains
 
    ! extract data from the structures
    select type (dat)
-    type is (real(rkind));  tdata = dat(pVar)
-    class is (dlength) ; tdata = dat(pVar)%dat(1)
-    class is (ilength) ; tdata = real(dat(pVar)%dat(1), kind(rkind))
+    type is (real(rkind)); tdata = dat(pVar)
+    class is (dlength)   ; tdata = dat(pVar)%dat(1)
+    class is (ilength)   ; tdata = real(dat(pVar)%dat(1), kind(rkind))
     class default;err=20;message=trim(message)//'dat type not found';return
    end select
 
@@ -122,8 +122,8 @@ contains
  integer(i4b)   ,intent(out)        :: err               ! error code
  character(*)   ,intent(out)        :: message           ! error message
  ! internals
- real(rkind),dimension(maxvarFreq*2):: tstat             ! temporary stats vector
- integer(i4b)                       :: iFreq             ! index of output frequency
+ real(rkind),dimension(maxvarFreq*2) :: tstat             ! temporary stats vector
+ integer(i4b)                        :: iFreq             ! index of output frequency
  ! initialize error control
  err=0; message='calc_stats/'
 

@@ -21,6 +21,9 @@
 module summa_alarms
 ! used to set alarms to write model output
 
+! named variables for time information
+USE globalData, only: numtim                  ! number of model time steps
+
 ! named variables to define new output files
 USE globalData, only: noNewFiles              ! no new output files
 USE globalData, only: newFileEveryOct1        ! create a new file on Oct 1 every year (start of the USA water year)
@@ -53,19 +56,21 @@ public::summa_setWriteAlarms
 contains
 
 ! used to set alarms to write model output
-subroutine summa_setWriteAlarms(oldTime, newTime, endTime,     &   ! time vectors
-                              newOutputFile, defNewOutputFile, &   ! flag to define new output file
-                              ixRestart,     printRestart,     &   ! flag to print the restart file
-                              ixProgress,    printProgress,    &   ! flag to print simulation progress
-                              resetStats,    finalizeStats,    &   ! flags to reset and finalize stats
-                              statCounter,                     &   ! statistics counter
-                              err,message)                         ! error control
+subroutine summa_setWriteAlarms(modelTimeStep,                   &   ! time index
+                                oldTime, newTime, endTime,       &   ! time vectors
+                                newOutputFile, defNewOutputFile, &   ! flag to define new output file
+                                ixRestart,     printRestart,     &   ! flag to print the restart file
+                                ixProgress,    printProgress,    &   ! flag to print simulation progress
+                                resetStats,    finalizeStats,    &   ! flags to reset and finalize stats
+                                statCounter,                     &   ! statistics counter
+                                err,message)                         ! error control
   ! ---------------------------------------------------------------------------------------
   ! data types
   USE nr_type                                                  ! variable types, etc.
   ! ---------------------------------------------------------------------------------------
   implicit none
   ! dummy variables: time vectors
+  integer(i4b),intent(in)               :: modelTimeStep      ! index of model time step
   integer(i4b),intent(in)               :: oldTime(:)         ! time vector from the previous time step
   integer(i4b),intent(in)               :: newTime(:)         ! time vector from the current time step
   integer(i4b),intent(in)               :: endTime(:)         ! time vector at the end of the simulation
@@ -110,6 +115,12 @@ subroutine summa_setWriteAlarms(oldTime, newTime, endTime,     &   ! time vector
     case default; err=20; message=trim(message)//'unable to identify the option to define new output files'; return
 
   end select
+
+  ! check that we do not have multiple files for the buffered write
+  if(defNewOutputFile .and. modelTimeStep>1)then
+   err=10
+   message=trim(message)//'cannot have multiple output files when using the buffered write decision (check the -n option)'; return
+  endif
 
   ! *****************************************************************************
   ! *** define the need to create a restart file
@@ -156,6 +167,9 @@ subroutine summa_setWriteAlarms(oldTime, newTime, endTime,     &   ! time vector
       case(iLookFREQ%timestep); finalizeStats(iFreq)=.true.          ! timestep-level output (no temporal aggregation)
       case default; err=20; message=trim(message)//'unable to identify output frequency'; return
     end select
+
+    ! force finalize the stats if the last model time step
+    if(modelTimeStep == numtim) finalizeStats(iFreq)=.true.
 
     ! reset ouput timestep
     if(resetStats(iFreq)) statCounter(iFreq)=1

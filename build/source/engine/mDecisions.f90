@@ -164,9 +164,12 @@ integer(i4b),parameter,public :: homegrown_SE         = 352    ! homegrown satur
 integer(i4b),parameter,public :: FUSEPRMS             = 353    ! FUSE PRMS surface runoff
 integer(i4b),parameter,public :: FUSEAVIC             = 354    ! FUSE ARNO/VIC surface runoff
 integer(i4b),parameter,public :: FUSETOPM             = 355    ! FUSE TOPMODEL surface runoff
-! look-up values for the handling of forcing data
+! look-up values for the buffered read of forcing data
 integer(i4b),parameter,public :: readPerStep          = 361    ! read forcing data per time step (defualt)
 integer(i4b),parameter,public :: readFullSeries       = 362    ! read full forcing series
+! look-up values for the buffered write of model output
+integer(i4b),parameter,public :: writePerStep         = 371    ! write data per time step (defualt)
+integer(i4b),parameter,public :: writeFullSeries      = 372    ! write all data for a given output file
 
 ! ----------------------------------------------------------------------------------------------------------- 
 
@@ -713,6 +716,15 @@ subroutine mDecisions(err,message)
     case('readFullSeries'               );  model_decisions(iLookDECISIONS%read_force)%iDecision = readFullSeries ! read full forcing series
     case default
       err=10; message=trim(message)//"unknown option for method used to read forcing data [option="//trim(model_decisions(iLookDECISIONS%read_force)%cDecision)//"]"; return
+  end select
+
+  ! method used to write model output (per step or full write)
+  ! NOTE: use per time step as the defualt
+  select case(trim(model_decisions(iLookDECISIONS%write_buff)%cDecision))
+    case('writePerStep','notPopulatedYet');  model_decisions(iLookDECISIONS%write_buff)%iDecision = writePerStep    ! write model output per time step (defualt)
+    case('writeFullSeries'               );  model_decisions(iLookDECISIONS%write_buff)%iDecision = writeFullSeries ! write all data for a given output file
+    case default
+      err=10; message=trim(message)//"unknown option for method used to write model output [option="//trim(model_decisions(iLookDECISIONS%write_buff)%cDecision)//"]"; return
   end select
 
   ! -----------------------------------------------------------------------------------------------------------------------------------------------

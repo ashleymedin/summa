@@ -37,7 +37,9 @@ MODULE globalData
   USE data_types,only:extended_info   ! extended metadata for variables in each model structure
   USE data_types,only:struct_info     ! summary information on all data structures
   USE data_types,only:var_i           ! vector of integers
+  USE data_types,only:gru_hru_int     ! x%gru(:)%hru(:)%var(:)     (i4b)
   USE data_types,only:gru_hru_double  ! x%gru(:)%hru(:)%var(:)     (rkind)
+  USE data_types,only:gru_double      ! x%gru(:)%var(:)            (rkind)
   ! number of variables in each data structure
   USE var_lookup,only:maxvarTime      ! time:                     maximum number variables
   USE var_lookup,only:maxvarForc      ! forcing data:             maximum number variables
@@ -201,114 +203,121 @@ MODULE globalData
   ! ----------------------------------------------------------------------------------------------------------------
 
   ! define the model decisions
-  type(model_options),save,public                :: model_decisions(maxvarDecisions)  ! the model decision structure
+  type(model_options),save,public                  :: model_decisions(maxvarDecisions)  ! the model decision structure
   ! define index variables describing the indices of the first and last HRUs in the forcing file
-  integer(i4b),save,public                       :: ixHRUfile_min                     ! minimum index
-  integer(i4b),save,public                       :: ixHRUfile_max                     ! maximum index
+  integer(i4b),save,public                         :: ixHRUfile_min                     ! minimum index
+  integer(i4b),save,public                         :: ixHRUfile_max                     ! maximum index
   ! define mapping structures
-  type(gru2hru_map),allocatable,save,public      :: gru_struc(:)                      ! gru2hru map
-  type(hru2gru_map),allocatable,save,public      :: index_map(:)                      ! hru2gru map
+  type(gru2hru_map),allocatable,save,public        :: gru_struc(:)                      ! gru2hru map
+  type(hru2gru_map),allocatable,save,public        :: index_map(:)                      ! hru2gru map
   ! define variables used for the vegetation phenology
-  real(rkind),dimension(12),save,public          :: greenVegFrac_monthly              ! fraction of green vegetation in each month (0-1)
-  real(rkind),save,public                        :: minExpLogHgtFac=0.02_rkind        ! factor for minimum height of transition from the exponential to the logarithmic wind profile
+  real(rkind),dimension(12),save,public            :: greenVegFrac_monthly              ! fraction of green vegetation in each month (0-1)
+  real(rkind),save,public                          :: minExpLogHgtFac=0.02_rkind        ! factor for minimum height of transition from the exponential to the logarithmic wind profile
   ! define variable used to smooth the ice freezing curve
-  real(rkind),save,public                        :: icefrz_mult=10._rkind             ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
-  integer(i4b),save,public                       :: nLakeIceLayers_poss=1             ! number of ice layers in a lake that can accumulate 
-  integer(i4b),save,public                       :: nMeltingIceLayers=1               ! number of glacier ice layers that can have a change in total water content 
-  real(rkind),save,public                        :: thick4area=0.1                    ! an arbitrary small threshold for glacier thickness to be considered as glacier area (m)
-  ! define variables used for domain type        
-  integer(i4b),save,public                       :: upland=1                          ! upland domain
-  integer(i4b),save,public                       :: glacCln1=2                        ! glacier clean first domain
-  integer(i4b),save,public                       :: glacCln2=3                        ! glacier clean second domain
-  integer(i4b),save,public                       :: glacDbr=4                         ! glacier debris domain
-  integer(i4b),save,public                       :: wetland=5                         ! wetland/lake domain
+  real(rkind),save,public                          :: icefrz_mult=10._rkind             ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
+  integer(i4b),save,public                         :: nLakeIceLayers_poss=1             ! number of ice layers in a lake that can accumulate 
+  integer(i4b),save,public                         :: nMeltingIceLayers=1               ! number of glacier ice layers that can have a change in total water content 
+  real(rkind),save,public                          :: thick4area=0.1                    ! an arbitrary small threshold for glacier thickness to be considered as glacier area (m)
+  ! define variables used for domain type          
+  integer(i4b),save,public                         :: upland=1                          ! upland domain
+  integer(i4b),save,public                         :: glacCln1=2                        ! glacier clean first domain
+  integer(i4b),save,public                         :: glacCln2=3                        ! glacier clean second domain
+  integer(i4b),save,public                         :: glacDbr=4                         ! glacier debris domain
+  integer(i4b),save,public                         :: wetland=5                         ! wetland/lake domain
   ! define the model output file
-  character(len=256),save,public                 :: fileout=''                        ! output filename
-  character(len=256),save,public                 :: output_fileSuffix=''              ! suffix for the output file
+  character(len=256),save,public                   :: fileout=''                        ! output filename
+  character(len=256),save,public                   :: output_fileSuffix=''              ! suffix for the output file
   ! define controls on model output
-  logical(lgt),dimension(maxvarFreq),save,public :: finalizeStats=.false.             ! flags to finalize statistics
-  integer(i4b),save,public                       :: maxLayers                         ! maximum number of layers
-  integer(i4b),save,public                       :: maxSoilLayers                     ! maximum number of soil layers
-  integer(i4b),save,public                       :: maxSnowLayers                     ! maximum number of snow layers
-  integer(i4b),save,public                       :: maxGlaciers                       ! maximum number of glaciers in a GRU
-  integer(i4b),save,public                       :: maxGrid                           ! maximum number of grids in a GRU
-  integer(i4b),save,public                       :: maxGridX                          ! maximum number of grid cells in the x-direction
-  integer(i4b),save,public                       :: maxGridY                          ! maximum number of grid cells in the y-direction
-  integer(i4b),save,public                       :: maxGlceLayers                     ! maximum number of glacier ice layers on any glacier
-  integer(i4b),save,public                       :: maxWetlands                       ! maximum number of wetlands in a GRU
-  integer(i4b),save,public                       :: maxLakeLayers                     ! maximum number of lake layers
+  logical(lgt),dimension(maxvarFreq),save,public   :: finalizeStats=.false.             ! flags to finalize statistics
+  integer(i4b),save,public                         :: maxLayers                         ! maximum number of layers
+  integer(i4b),save,public                         :: maxSoilLayers                     ! maximum number of soil layers
+  integer(i4b),save,public                         :: maxSnowLayers                     ! maximum number of snow layers
+  integer(i4b),save,public                         :: maxGlaciers                       ! maximum number of glaciers in a GRU
+  integer(i4b),save,public                         :: maxGrid                           ! maximum number of grids in a GRU
+  integer(i4b),save,public                         :: maxGridX                          ! maximum number of grid cells in the x-direction
+  integer(i4b),save,public                         :: maxGridY                          ! maximum number of grid cells in the y-direction
+  integer(i4b),save,public                         :: maxGlceLayers                     ! maximum number of glacier ice layers on any glacier
+  integer(i4b),save,public                         :: maxWetlands                       ! maximum number of wetlands in a GRU
+  integer(i4b),save,public                         :: maxLakeLayers                     ! maximum number of lake layers
   ! define control variables
-  integer(i4b),save,public                       :: startGRU                          ! index of the starting GRU for parallelization run
-  integer(i4b),save,public                       :: checkHRU                          ! index of the HRU for a single HRU run
-  integer(i4b),save,public                       :: iRunMode                          ! define the current running mode
-  integer(i4b),save,public                       :: nThreads=1                        ! number of threads
-  integer(i4b),save,public                       :: ixProgress=ixProgress_id          ! define frequency to write progress
-  integer(i4b),save,public                       :: ixRestart=ixRestart_never         ! define frequency to write restart files
-  integer(i4b),save,public                       :: newOutputFile=noNewFiles          ! define option for new output files
+  integer(i4b),save,public                         :: startGRU                          ! index of the starting GRU for parallelization run
+  integer(i4b),save,public                         :: checkHRU                          ! index of the HRU for a single HRU run
+  integer(i4b),save,public                         :: iRunMode                          ! define the current running mode
+  integer(i4b),save,public                         :: nThreads=1                        ! number of threads
+  integer(i4b),save,public                         :: ixProgress=ixProgress_id          ! define frequency to write progress
+  integer(i4b),save,public                         :: ixRestart=ixRestart_never         ! define frequency to write restart files
+  integer(i4b),save,public                         :: newOutputFile=noNewFiles          ! define option for new output files
   ! define common variables
-  integer(i4b),save,public                       :: numtim                            ! number of time steps
-  integer(i4b),save,public                       :: maxDOM                            ! number of domains (every HRU may have multiple) in the run space
-  integer(i4b),save,public                       :: nHRUrun                           ! number of HRUs in the run space
-  integer(i4b),save,public                       :: nGRUrun                           ! number of GRUs in the run space
-  real(rkind),save,public                        :: data_step                         ! length of the time_step
-  real(rkind),save,public                        :: refJulDay                         ! reference time in fractional julian days
-  real(rkind),save,public                        :: refJulDay_data                    ! reference time in fractional julian days (data files)
-  real(rkind),save,public                        :: dJulianStart                      ! julian day of start time of simulation
-  real(rkind),save,public                        :: dJulianFinsh                      ! julian day of end time of simulation
-  integer(i4b),save,public                       :: nHRUfile                          ! number of HRUs in the file
-  integer(i4b),save,public                       :: urbanVegCategory                  ! vegetation category for urban areas
-  logical(lgt),save,public                       :: globalPrintFlag=.false.           ! flag to compute the Jacobian, residual, and step progress
-  integer(i4b),save,public                       :: chunksize=1024                    ! chunk size for the netcdf read/write
-  integer(i4b),save,public                       :: outputPrecision=nf90_double       ! variable type
-  integer(i4b),save,public                       :: outputCompressionLevel=4          ! output netcdf file deflate level: 0-9. 0 is no compression.
-  ! define vectors for the buffered read
-  integer(i4b),save,public                       :: ixStartRead                       ! start index of the data read
-  real(rkind),save,public,allocatable            :: fulltimeVec(:)                    ! full time vector in an input file (nRead)
-  type(gru_hru_double),save,public,allocatable   :: fullforcingStruct(:)              ! x(:)%gru(:)%hru(:)%var(:)     -- full model forcing data
+  integer(i4b),save,public                         :: numtim                            ! number of time steps
+  integer(i4b),save,public                         :: maxDOM                            ! number of domains (every HRU may have multiple) in the run space
+  integer(i4b),save,public                         :: nHRUrun                           ! number of HRUs in the run space
+  integer(i4b),save,public                         :: nGRUrun                           ! number of GRUs in the run space
+  real(rkind),save,public                          :: data_step                         ! length of the time_step
+  real(rkind),save,public                          :: refJulDay                         ! reference time in fractional julian days
+  real(rkind),save,public                          :: refJulDay_data                    ! reference time in fractional julian days (data files)
+  real(rkind),save,public                          :: dJulianStart                      ! julian day of start time of simulation
+  real(rkind),save,public                          :: dJulianFinsh                      ! julian day of end time of simulation
+  integer(i4b),save,public                         :: nHRUfile                          ! number of HRUs in the file
+  integer(i4b),save,public                         :: urbanVegCategory                  ! vegetation category for urban areas
+  logical(lgt),save,public                         :: globalPrintFlag=.false.           ! flag to compute the Jacobian, residual, and step progress
+  integer(i4b),save,public                         :: chunksize=1024                    ! chunk size for the netcdf read/write
+  integer(i4b),save,public                         :: outputPrecision=nf90_double       ! variable type
+  integer(i4b),save,public                         :: outputCompressionLevel=4          ! output netcdf file deflate level: 0-9. 0 is no compression.
+  ! define data structures for the buffered read
+  integer(i4b),save,public                         :: ixStartRead                       ! start index of the data read
+  real(rkind),save,public,allocatable              :: fulltimeVec(:)                    ! full time vector in an input file (nRead)
+  type(gru_hru_double),save,public,allocatable     :: fullforcingStruct(:)              ! x(:)%gru(:)%hru(:)%var(:) -- full model forcing data
+  ! define data structures for the buffered write  
+  type(gru_hru_dom_int),save,public,allocatable    :: fullIndxSave(:)                   ! x%gru(:)%hru(:)%dom(:)%var(:) -- saved output for indices
+  type(gru_hru_double),save,public,allocatable     :: fullForcSave(:)                   ! x%gru(:)%hru(:)%var(:)        -- saved output for forcing
+  type(gru_hru_dom_double),save,public,allocatable :: fullProgSave(:)                   ! x%gru(:)%hru(:)%dom(:)%var(:) -- saved output for prognostic variables
+  type(gru_hru_dom_double),save,public,allocatable :: fullDiagSave(:)                   ! x%gru(:)%hru(:)%dom(:)%var(:) -- saved output for diagnostic variables
+  type(gru_hru_dom_double),save,public,allocatable :: fullFluxSave(:)                   ! x%gru(:)%hru(:)%dom(:)%var(:) -- saved output for flux variables
+  type(gru_double),save,public,allocatable         :: fullBvarSave(:)                   ! x%gru(:)%var(:)               -- saved output for basin variables
   ! define result from the time calls
-  integer(i4b),dimension(8),save,public          :: startInit,endInit                 ! date/time for the start and end of the initialization
-  integer(i4b),dimension(8),save,public          :: startSetup,endSetup               ! date/time for the start and end of the parameter setup
-  integer(i4b),dimension(8),save,public          :: startRestart,endRestart           ! date/time for the start and end to read restart data
-  integer(i4b),dimension(8),save,public          :: startRead,endRead                 ! date/time for the start and end of the data read
-  integer(i4b),dimension(8),save,public          :: startWrite,endWrite               ! date/time for the start and end of the stats/write
-  integer(i4b),dimension(8),save,public          :: startPhysics,endPhysics           ! date/time for the start and end of the physics
+  integer(i4b),dimension(8),save,public            :: startInit,endInit                 ! date/time for the start and end of the initialization
+  integer(i4b),dimension(8),save,public            :: startSetup,endSetup               ! date/time for the start and end of the parameter setup
+  integer(i4b),dimension(8),save,public            :: startRestart,endRestart           ! date/time for the start and end to read restart data
+  integer(i4b),dimension(8),save,public            :: startRead,endRead                 ! date/time for the start and end of the data read
+  integer(i4b),dimension(8),save,public            :: startWrite,endWrite               ! date/time for the start and end of the stats/write
+  integer(i4b),dimension(8),save,public            :: startPhysics,endPhysics           ! date/time for the start and end of the physics
   ! define elapsed time
-  real(rkind),save,public                        :: elapsedInit                       ! elapsed time for the initialization
-  real(rkind),save,public                        :: elapsedSetup                      ! elapsed time for the parameter setup
-  real(rkind),save,public                        :: elapsedRestart                    ! elapsed time to read restart data
-  real(rkind),save,public                        :: elapsedRead                       ! elapsed time for the data read
-  real(rkind),save,public                        :: elapsedWrite                      ! elapsed time for the stats/write
-  real(rkind),save,public                        :: elapsedPhysics                    ! elapsed time for the physics
-  real(rkind),save,public                        :: elapsedUpdateArea                 ! elapsed time for updating glacier and lake area
+  real(rkind),save,public                          :: elapsedInit                       ! elapsed time for the initialization
+  real(rkind),save,public                          :: elapsedSetup                      ! elapsed time for the parameter setup
+  real(rkind),save,public                          :: elapsedRestart                    ! elapsed time to read restart data
+  real(rkind),save,public                          :: elapsedRead                       ! elapsed time for the data read
+  real(rkind),save,public                          :: elapsedWrite                      ! elapsed time for the stats/write
+  real(rkind),save,public                          :: elapsedPhysics                    ! elapsed time for the physics
+  real(rkind),save,public                          :: elapsedUpdateArea                 ! elapsed time for updating glacier and lake area
   ! define ancillary data structures
-  type(var_i),save,public                        :: startTime                         ! start time for the model simulation
-  type(var_i),save,public                        :: finshTime                         ! end time for the model simulation
-  type(var_i),save,public                        :: refTime                           ! reference time for the model simulation
-  type(var_i),save,public                        :: oldTime                           ! time for the previous model time step
+  type(var_i),save,public                          :: startTime                         ! start time for the model simulation
+  type(var_i),save,public                          :: finshTime                         ! end time for the model simulation
+  type(var_i),save,public                          :: refTime                           ! reference time for the model simulation
+  type(var_i),save,public                          :: oldTime                           ! time for the previous model time step
   ! output file information
-  logical(lgt),dimension(maxvarFreq),save,public :: outFreq                           ! true if the output frequency is desired
-  integer(i4b),dimension(maxvarFreq),save,public :: ncid                              ! netcdf output file id
+  logical(lgt),dimension(maxvarFreq),save,public   :: outFreq                           ! true if the output frequency is desired
+  integer(i4b),dimension(maxvarFreq),save,public   :: ncid                              ! netcdf output file id
   ! look-up values for the choice of the time zone information (formerly in modelDecisions module)
-  integer(i4b),parameter,public                  :: ncTime=1                          ! time zone information from NetCDF file (timeOffset = longitude/15. - ncTimeOffset)
-  integer(i4b),parameter,public                  :: utcTime=2                         ! all times in UTC (timeOffset = longitude/15. hours)
-  integer(i4b),parameter,public                  :: localTime=3                       ! all times local (timeOffset = 0)
+  integer(i4b),parameter,public                    :: ncTime=1                          ! time zone information from NetCDF file (timeOffset = longitude/15. - ncTimeOffset)
+  integer(i4b),parameter,public                    :: utcTime=2                         ! all times in UTC (timeOffset = longitude/15. hours)
+  integer(i4b),parameter,public                    :: localTime=3                       ! all times local (timeOffset = 0)
   ! define metadata for model forcing datafile non-Actors
-  type(file_info),save,public,allocatable        :: forcFileInfo(:)                   ! file info for model forcing data
+  type(file_info),save,public,allocatable          :: forcFileInfo(:)                   ! file info for model forcing data
   ! define indices in the forcing data files non-Actors
-  integer(i4b),save,public                       :: iFile=1                           ! index of current forcing file from forcing file list
-  integer(i4b),save,public                       :: forcingStep=integerMissing        ! index of current time step in current forcing file
-  integer(i4b),save,public                       :: forcNcid=integerMissing           ! netcdf id for current netcdf forcing file
+  integer(i4b),save,public                         :: iFile=1                           ! index of current forcing file from forcing file list
+  integer(i4b),save,public                         :: forcingStep=integerMissing        ! index of current time step in current forcing file
+  integer(i4b),save,public                         :: forcNcid=integerMissing           ! netcdf id for current netcdf forcing file
   ! define controls on model output non-Actors
-  integer(i4b),dimension(maxvarFreq),save,public :: statCounter=0                     ! time counter for stats
-  integer(i4b),dimension(maxvarFreq),save,public :: outputTimeStep=0                  ! timestep in output files
-  logical(lgt),dimension(maxvarFreq),save,public :: resetStats=.true.                 ! flags to reset statistics
+  integer(i4b),dimension(maxvarFreq),save,public   :: statCounter=0                     ! time counter for stats
+  integer(i4b),dimension(maxvarFreq),save,public   :: outputTimeStep=0                  ! timestep in output files
+  logical(lgt),dimension(maxvarFreq),save,public   :: resetStats=.true.                 ! flags to reset statistics
   ! define common variables non-Actors
-  real(rkind),save,public                        :: fracJulDay                        ! fractional julian days since the start of year
-  real(rkind),save,public                        :: tmZoneOffsetFracDay               ! time zone offset in fractional days
-  integer(i4b),save,public                       :: yearLength                        ! number of days in the current year
+  real(rkind),save,public                          :: fracJulDay                        ! fractional julian days since the start of year
+  real(rkind),save,public                          :: tmZoneOffsetFracDay               ! time zone offset in fractional days
+  integer(i4b),save,public                         :: yearLength                        ! number of days in the current year
   ! define fixed dimensions
-  integer(i4b),parameter,public                  :: nSpecBand=2                       ! number of spectral bands
-  integer(i4b),parameter,public                  :: nTimeDelay=2000                   ! number of time steps in the time delay histogram (default: ~1 season = 24*365/4)
+  integer(i4b),parameter,public                    :: nSpecBand=2                       ! number of spectral bands
+  integer(i4b),parameter,public                    :: nTimeDelay=2000                   ! number of time steps in the time delay histogram (default: ~1 season = 24*365/4)
   ! printing step frequency
-  integer(i4b),parameter,public                  :: print_step_freq = 1000            ! frequency (in time steps) to print number of steps taken in solver
+  integer(i4b),parameter,public                    :: print_step_freq = 1000            ! frequency (in time steps) to print number of steps taken in solver
 END MODULE globalData
