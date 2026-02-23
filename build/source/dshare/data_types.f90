@@ -1977,7 +1977,7 @@ contains
 
   associate(&
    ! depth of each soil layer (m)
-   mLayerDepth         => prog_data%var(iLookPROG%mLayerDepth)%dat(ixTop:ixBot) & ! depth of the layer (m)
+   mLayerDepth         => prog_data%var(iLookPROG%mLayerDepth)%dat(ibeg:iend) & ! depth of the layer (m)
   &)
    ! intent(in): depth of each soil layer (m)
    in_surfaceFlux % mLayerDepth     = mLayerDepth  ! depth of each soil layer (m)
