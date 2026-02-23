@@ -124,7 +124,7 @@ subroutine popStateVec(&
     scalarCanopyEnthalpy => prog_data%var(iLookPROG%scalarCanopyEnthalpy)%dat(1) ,& ! intent(in) : [dp]     enthalpy of the vegetation canopy (J m-3)
     scalarCanopyWat      => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)      ,& ! intent(in) : [dp]     mass of total water on the vegetation canopy (kg m-2)
     scalarCanopyLiq      => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)      ,& ! intent(in) : [dp]     mass of liquid water on the vegetation canopy (kg m-2)
-    ! model state variable vectors for the snow-soil layers
+    ! model state variable vectors for the layer domains
     mLayerTemp           => prog_data%var(iLookPROG%mLayerTemp)%dat              ,& ! intent(in) : [dp(:)]  temperature of each snow/soil layer (K)
     mLayerEnthalpy       => prog_data%var(iLookPROG%mLayerEnthalpy)%dat          ,& ! intent(in) : [dp(:)]  enthalpy of each layer (J m-3)
     mLayerVolFracWat     => prog_data%var(iLookPROG%mLayerVolFracWat)%dat        ,& ! intent(in) : [dp(:)]  volumetric fraction of total water (-)
@@ -559,7 +559,7 @@ subroutine varExtract(&
                        scalarCanopyNrgTrial,                      & ! intent(inout):   trial value of canopy energy, temperature (K) or enthalpy (J m-3)
                        scalarCanopyWatTrial,                      & ! intent(inout):   trial value of canopy total water (kg m-2)
                        scalarCanopyLiqTrial,                      & ! intent(inout):   trial value of canopy liquid water (kg m-2)
-                       ! output: variables for the snow-soil domain
+                       ! output: variables for the layer domains
                        mLayerNrgTrial,                            & ! intent(inout):   trial vector of layer energy, temperature (K) or enthalpy (J m-3)
                        mLayerVolFracWatTrial,                     & ! intent(inout):   trial vector of volumetric total water content (-)
                        mLayerVolFracLiqTrial,                     & ! intent(inout):   trial vector of volumetric liquid water content (-)
@@ -580,7 +580,7 @@ subroutine varExtract(&
   real(rkind),intent(inout)          :: scalarCanopyNrgTrial            ! trial value of canopy energy, temperature (K) or enthalpy (J m-3)
   real(rkind),intent(inout)          :: scalarCanopyWatTrial            ! trial value of canopy total water (kg m-2)
   real(rkind),intent(inout)          :: scalarCanopyLiqTrial            ! trial value of canopy liquid water (kg m-2)
-  ! output: variables for the snow-soil domain
+  ! output: variables for the layer domains
   real(rkind),intent(inout)          :: mLayerNrgTrial(:)               ! trial vector of layer energy, temperature (K) or enthalpy (J m-3)
   real(rkind),intent(inout)          :: mLayerVolFracWatTrial(:)        ! trial vector of volumetric total water content (-)
   real(rkind),intent(inout)          :: mLayerVolFracLiqTrial(:)        ! trial vector of volumetric liquid water content (-)

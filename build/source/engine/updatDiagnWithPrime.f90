@@ -136,7 +136,7 @@ subroutine updatDiagnWithPrime(&
                      scalarCanopyWatPrime,                      & ! intent(inout): trial value of time derivative canopy total water (kg m-2)
                      scalarCanopyLiqPrime,                      & ! intent(inout): trial value of time derivative canopy liquid water (kg m-2)
                      scalarCanopyIcePrime,                      & ! intent(inout): trial value of time derivative canopy ice content (kg m-2)
-                     ! output: variables for the snow-soil domain
+                     ! output: variables for the layer domains
                      mLayerTempTrial,                           & ! intent(inout): trial vector of layer temperature (K)
                      mLayerVolFracWatTrial,                     & ! intent(inout): trial vector of volumetric total water content (-)
                      mLayerVolFracLiqTrial,                     & ! intent(inout): trial vector of volumetric liquid water content (-)
@@ -179,7 +179,7 @@ subroutine updatDiagnWithPrime(&
   real(rkind),intent(inout)          :: scalarCanopyWatPrime            ! trial value of time derivative canopy total water (kg m-2)
   real(rkind),intent(inout)          :: scalarCanopyLiqPrime            ! trial value of time derivative canopy liquid water (kg m-2)
   real(rkind),intent(inout)          :: scalarCanopyIcePrime            ! trial value of time derivative canopy ice content (kg m-2)
-  ! output: variables for the snow-soil domain
+  ! output: variables for the layer domains
   real(rkind),intent(inout)          :: mLayerTempTrial(:)              ! trial vector of layer temperature (K)
   real(rkind),intent(inout)          :: mLayerVolFracWatTrial(:)        ! trial vector of volumetric total water content (-)
   real(rkind),intent(inout)          :: mLayerVolFracLiqTrial(:)        ! trial vector of volumetric liquid water content (-)

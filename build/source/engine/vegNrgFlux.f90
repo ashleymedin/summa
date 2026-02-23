@@ -462,7 +462,7 @@ subroutine vegNrgFlux(&
     select case(ix_bcUpprTdyn)
       ! *****
       ! (1) DIRICHLET OR ZERO FLUX BOUNDARY CONDITION...
-      ! ** prescribed temperature or zero flux at the upper boundary of the snow-soil system
+      ! ** prescribed temperature or zero flux at the upper boundary of the layer domains
       ! NOTE: Vegetation fluxes are not computed in this case
       ! ************************************************
        case(prescribedTemp,zeroFlux)

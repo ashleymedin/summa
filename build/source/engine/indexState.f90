@@ -129,7 +129,7 @@ contains
  ! * define the number of state variables...
  ! -----------------------------------------
 
- ! define the number of vegetation state variables (defines position of snow-soil states in the state vector)
+ ! define the number of vegetation state variables (defines position of layer domains in the state vector)
  if(computeVegFlux)then
   nCasNrg   = 1
   nVegNrg   = 1

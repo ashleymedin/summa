@@ -360,7 +360,7 @@ subroutine eval8summa(&
                     scalarCanopyTempTrial,     & ! intent(inout): trial value of canopy temperature (K)
                     scalarCanopyWatTrial,      & ! intent(inout): trial value of canopy total water (kg m-2)
                     scalarCanopyLiqTrial,      & ! intent(inout): trial value of canopy liquid water (kg m-2)
-                    ! output: variables for the snow-soil domain
+                    ! output: variables for the layer domains
                     mLayerTempTrial,           & ! intent(inout): trial vector of layer temperature (K)
                     mLayerVolFracWatTrial,     & ! intent(inout): trial vector of volumetric total water content (-)
                     mLayerVolFracLiqTrial,     & ! intent(inout): trial vector of volumetric liquid water content (-)
@@ -390,7 +390,7 @@ subroutine eval8summa(&
                     scalarCanopyWatTrial,         & ! intent(inout): trial value for canopy total water (kg m-2)
                     scalarCanopyLiqTrial,         & ! intent(inout): trial value for canopy liquid water (kg m-2)
                     scalarCanopyIceTrial,         & ! intent(inout): trial value for canopy ice content (kg m-2)
-                    ! output: variables for the snow-soil domain
+                    ! output: variables for the layer domains
                     mLayerTempTrial,              & ! intent(inout): trial vector of layer temperature (K)
                     mLayerVolFracWatTrial,        & ! intent(inout): trial vector of volumetric total water content (-)
                     mLayerVolFracLiqTrial,        & ! intent(inout): trial vector of volumetric liquid water content (-)

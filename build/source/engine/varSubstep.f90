@@ -853,7 +853,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
                     scalarCanopyNrgTrial,      & ! intent(inout): trial value of energy of the vegetation canopy, temperature (K) or enthalpy (J m-3)
                     scalarCanopyWatTrial,      & ! intent(inout): trial value of canopy total water (kg m-2)
                     scalarCanopyLiqTrial,      & ! intent(inout): trial value of canopy liquid water (kg m-2)
-                    ! output: variables for the snow-soil domain
+                    ! output: variables for the layer domains
                     mLayerNrgTrial,            & ! intent(inout): trial vector of energy, temperature (K) or enthalpy (J m-3)
                     mLayerVolFracWatTrial,     & ! intent(inout): trial vector of volumetric total water content (-)
                     mLayerVolFracLiqTrial,     & ! intent(inout): trial vector of volumetric liquid water content (-)
@@ -910,7 +910,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
                   scalarCanopyNrgPrime,      & ! intent(inout): derivative of energy of the vegetation canopy, temperature (K s-1) or enthalpy (W m-3)
                   scalarCanopyWatPrime,      & ! intent(inout): derivative of canopy total water (kg m-2 s-1)
                   scalarCanopyLiqPrime,      & ! intent(inout): derivative of canopy liquid water (kg m-2 s-1)
-                  ! output: variables for the snow-soil domain
+                  ! output: variables for the layer domains
                   mLayerNrgPrime,            & ! intent(inout): derivative of energy of each layer, temperature (K s-1) or enthalpy (W m-3)
                   mLayerVolFracWatPrime,     & ! intent(inout): derivative of volumetric total water content (-)
                   mLayerVolFracLiqPrime,     & ! intent(inout): derivative of volumetric liquid water content (-)
@@ -960,7 +960,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
                     scalarCanopyWatPrime,             & ! intent(inout): trial value of canopy total water (kg m-2)
                     scalarCanopyLiqPrime,             & ! intent(inout): trial value of canopy liquid water (kg m-2)
                     scalarCanopyIcePrime,             & ! intent(inout): trial value of canopy ice content (kg m-2)
-                    ! output: variables for the snow-soil domain
+                    ! output: variables for the layer domains
                     mLayerTempTrial,                  & ! intent(inout): trial vector of layer temperature (K)
                     mLayerVolFracWatTrial,            & ! intent(inout): trial vector of volumetric total water content (-)
                     mLayerVolFracLiqTrial,            & ! intent(inout): trial vector of volumetric liquid water content (-)
@@ -995,7 +995,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
                  scalarCanopyWatTrial,      & ! intent(inout): trial value of canopy total water (kg m-2)
                  scalarCanopyLiqTrial,      & ! intent(inout): trial value of canopy liquid water (kg m-2)
                  scalarCanopyIceTrial,      & ! intent(inout): trial value of canopy ice content (kg m-2)
-                 ! output: variables for the snow-soil domain
+                 ! output: variables for the layer domains
                  mLayerTempTrial,           & ! intent(inout): trial vector of layer temperature (K)
                  mLayerVolFracWatTrial,     & ! intent(inout): trial vector of volumetric total water content (-)
                  mLayerVolFracLiqTrial,     & ! intent(inout): trial vector of volumetric liquid water content (-)
