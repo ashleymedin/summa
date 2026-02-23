@@ -308,7 +308,7 @@ subroutine glacAreaChange(&
       write(*,'(a,2(1x,f8.2),1x,f5.2,1x,f8.1)') "Original domain elevation (m), area (km2), debris depth (m), mass change (kg m-2) =",&
             elev(i), area(i)*1.e-6_rkind, debris_thick_dom(i), massChange(i)
     enddo
-    write(*,'(a,f6.1)') "ELA used (m) = ",ELA_use
+    write(*,'(a,i8)') "ELA used (m) = ",int(ELA_use)
   endif
 
   ! Initialize new domain vars (would have to have some glacier area to get here so okay to reset, will be recalculated)
