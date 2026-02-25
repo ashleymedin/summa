@@ -188,7 +188,7 @@ contains
    infile=trim(FORCING_PATH)//trim(forcFileInfo(iFile)%filenmData)
 
    ! open up the forcing file
-   call openForcingFile(iFile,trim(infile),ncId,err,cmessage)
+   call openForcingFile(iFile,trim(infile),ncid,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
    ! flag new file
@@ -249,7 +249,7 @@ contains
  ! read forcing data
  ! NOTE: reads data into global variables fulltimeVec and fullforcingStruct
  if(isRead)then
-  call readForcingData(ncId,iFile,ixStartRead,nRead,nHRUlocal,err,cmessage)
+  call readForcingData(ncid,iFile,ixStartRead,nRead,nHRUlocal,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
  endif  ! of reading the forcing data
 
@@ -392,7 +392,7 @@ contains
   infile=trim(FORCING_PATH)//trim(forcFileInfo(iFile)%filenmData)
 
   ! open netCDF file
-  call openForcingFile(iFile,trim(infile),ncId,err,cmessage)
+  call openForcingFile(iFile,trim(infile),ncid,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
   ! how many time steps in current file?
@@ -451,7 +451,7 @@ contains
  ! *************************************************************************
  ! * open the NetCDF forcing file and get the time information
  ! *************************************************************************
- subroutine openForcingFile(iFile,infile,ncId,err,message)
+ subroutine openForcingFile(iFile,infile,ncid,err,message)
  USE netcdf                                              ! netcdf capability
  USE netcdf_util_module,only:nc_file_open                ! open netcdf file
  USE time_utils_module,only:fracDay                      ! compute fractional day
@@ -465,7 +465,7 @@ contains
  ! dummy variables
  integer(i4b),intent(in)           :: iFile              ! index of current forcing file in forcing file list
  character(*) ,intent(in)          :: infile             ! input file
- integer(i4b) ,intent(out)         :: ncId               ! NetCDF ID
+ integer(i4b) ,intent(out)         :: ncid               ! NetCDF ID
  integer(i4b) ,intent(out)         :: err                ! error code
  character(*) ,intent(out)         :: message            ! error message
  ! local variables
@@ -527,13 +527,13 @@ contains
  ! *************************************************************************
  ! * read the NetCDF forcing data
  ! *************************************************************************
- subroutine readForcingData(ncId,iFile,ixStartRead,nRead,nHRUlocal,err,message)
+ subroutine readForcingData(ncid,iFile,ixStartRead,nRead,nHRUlocal,err,message)
  USE netcdf                                            ! netcdf capability
  USE time_utils_module,only:compcalday                 ! convert julian day to calendar date
  USE time_utils_module,only:compjulday                 ! convert calendar date to julian day
  USE get_ixname_module,only:get_ixForce                ! identify index of named variable
  ! dummy variables
- integer(i4b) ,intent(in)                :: ncId               ! NetCDF ID
+ integer(i4b) ,intent(in)                :: ncid               ! NetCDF ID
  integer(i4b) ,intent(in)                :: iFile              ! index of forcing file
  integer(i4b) ,intent(in)                :: ixStartRead        ! starting index in data file
  integer(i4b) ,intent(in)                :: nRead              ! number of time steps for the local data read

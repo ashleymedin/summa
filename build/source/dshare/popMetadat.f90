@@ -52,7 +52,7 @@ subroutine popMetadat(err,message)
   character(*),intent(out)      :: message  ! error message
   ! internals
   character(256)                :: cmessage ! error message
-  integer,dimension(maxVarFreq) :: iMissVec ! vector of missing integers
+  integer,dimension(maxvarFreq) :: iMissVec ! vector of missing integers
   ! initialize error control
   err=0; message='popMetadat/'
 

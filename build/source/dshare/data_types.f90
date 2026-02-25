@@ -308,10 +308,6 @@ MODULE data_types
  type, public :: dom_intVec
   type(var_ilength),allocatable          :: dom(:)                        ! dom(:)%var(:)%dat
  endtype dom_intVec
- ! ** integer type of variable length (8 byte)
- type, public :: dom_int8Vec
-  type(var_i8length),allocatable         :: dom(:)                        ! dom(:)%var(:)%dat
- endtype dom_int8Vec
  ! ** double precision type of fixed length
  type, public :: dom_double
   type(var_d),allocatable                :: dom(:)                        ! dom(:)%var(:)
@@ -334,10 +330,6 @@ MODULE data_types
  type, public :: hru_intVec
   type(var_ilength),allocatable          :: hru(:)                        ! hru(:)%var(:)%dat
  endtype hru_intVec
- ! ** integer type of variable length (8 byte)
- type, public :: hru_int8Vec
-  type(var_i8length),allocatable         :: hru(:)                        ! hru(:)%var(:)%dat
- endtype hru_int8Vec
  ! ** double precision type of fixed length
  type, public :: hru_double
   type(var_d),allocatable                :: hru(:)                        ! hru(:)%var(:)
@@ -360,10 +352,6 @@ MODULE data_types
  type, public :: gru_intVec
   type(var_ilength),allocatable          :: gru(:)                        ! gru(:)%var(:)%dat
  endtype gru_intVec
- ! ** integer type of variable length (8 byte)
- type, public :: gru_int8Vec
-  type(var_i8length),allocatable         :: gru(:)                        ! gru(:)%var(:)%dat
- endtype gru_int8Vec
  ! ** double precision type of fixed length
  type, public :: gru_double
   type(var_d),allocatable                :: gru(:)                        ! gru(:)%var(:)
@@ -386,10 +374,6 @@ MODULE data_types
  type, public :: hru_dom_intVec
   type(dom_intVec),allocatable           :: hru(:)                        ! hru(:)%dom(:)%var(:)%dat
  endtype hru_dom_intVec
- ! ** integer type of variable length (8 byte)
- type, public :: hru_dom_int8Vec
-  type(dom_int8Vec),allocatable          :: hru(:)                        ! hru(:)%dom(:)%var(:)%dat
- endtype hru_dom_int8Vec
  ! ** double precision type of fixed length
  type, public :: hru_dom_double
   type(dom_double),allocatable           :: hru(:)                        ! hru(:)%dom(:)%var(:)
@@ -420,10 +404,6 @@ MODULE data_types
  type, public :: gru_hru_intVec
   type(hru_intVec),allocatable           :: gru(:)                        ! gru(:)%hru(:)%var(:)%dat
  endtype gru_hru_intVec
- ! ** integer type of variable length (8 byte)
- type, public :: gru_hru_int8Vec
-  type(hru_int8Vec),allocatable          :: gru(:)                        ! gru(:)%hru(:)%var(:)%dat
- endtype gru_hru_int8Vec
  ! ** double precision type of fixed length
  type, public :: gru_hru_double
   type(hru_double),allocatable           :: gru(:)                        ! gru(:)%hru(:)%var(:)
@@ -454,10 +434,6 @@ MODULE data_types
  type, public :: gru_hru_dom_intVec
   type(hru_dom_intVec),allocatable       :: gru(:)                        ! gru(:)%hru(:)%dom(:)%var(:)%dat
  endtype gru_hru_dom_intVec
- ! ** integer type of variable length (8 byte)
- type, public :: gru_hru_dom_int8Vec
-  type(hru_dom_int8Vec),allocatable      :: gru(:)                        ! gru(:)%hru(:)%dom(:)%var(:)%dat
- endtype gru_hru_dom_int8Vec
  ! ** double precision type of fixed length
  type, public :: gru_hru_dom_double
   type(hru_dom_double),allocatable       :: gru(:)                        ! gru(:)%hru(:)%dom(:)%var(:)

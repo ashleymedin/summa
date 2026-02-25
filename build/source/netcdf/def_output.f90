@@ -98,7 +98,7 @@ contains
  USE globalData,only:model_decisions                          ! model decisions
  USE globalData,only:ncid                                     ! netcdf file id
  USE globalData,only:outFreq                                  ! output frequencies
- USE var_lookup,only:maxVarFreq                               ! # of available output frequencies
+ USE var_lookup,only:maxvarFreq                               ! # of available output frequencies
  USE get_ixname_module,only:get_freqName                      ! get name of frequency from frequency index
  ! declare dummy variables
  character(*),intent(in)     :: summaVersion                  ! SUMMA version
@@ -294,7 +294,7 @@ contains
  USE var_lookup,only:iLookvarType                   ! look up structure for variable typed
  USE data_types,only:var_info                       ! derived type for metaData
  USE var_lookup,only:iLookSTAT                      ! index into stats structure
- USE var_lookup,only:maxVarFreq                     ! # of available output frequencies
+ USE var_lookup,only:maxvarFreq                     ! # of available output frequencies
  USE get_ixName_module,only:get_varTypeName         ! to access type strings for error messages
  USE get_ixname_module,only:get_statName            ! statistics names for variable defs in output file
  USE globalData,only:nHRUrun                        ! number of HRUs in the current run

@@ -102,7 +102,7 @@ contains
  USE nr_type
  ! data structures
  USE data_types,only:var_info,ilength,dlength ! type dec for meta data structures
- USE var_lookup,only:maxVarFreq       ! # of output frequencies
+ USE var_lookup,only:maxvarFreq       ! # of output frequencies
  ! global variables
  USE globalData,only:data_step        ! forcing timestep
  ! structures of named variables
@@ -137,7 +137,7 @@ contains
  ! ---------------------------------------------
  ! reset statistics at new frequency period
  ! ---------------------------------------------
- do iFreq=1,maxVarFreq                              ! loop through output statistics
+ do iFreq=1,maxvarFreq                              ! loop through output statistics
   if(resetStats(iFreq))then                         ! flag to reset statistics
    if(meta%statIndex(iFreq)==integerMissing) cycle  ! don't bother if output frequency is not desired for a given variable
    if(meta%varType/=iLookVarType%outstat) cycle     ! only calculate stats for scalars
@@ -149,7 +149,7 @@ contains
      tstat(iFreq) = 0._rkind                        !     - resets stat at beginning of period
     case (iLookSTAT%vari)                           ! * variance over period                   
      tstat(iFreq) = 0._rkind                        !     - resets E[X^2] term in var calc    
-     tstat(maxVarFreq+iFreq) = 0._rkind             !     - resets E[X]^2 term                 
+     tstat(maxvarFreq+iFreq) = 0._rkind             !     - resets E[X]^2 term                 
     case (iLookSTAT%mini)                           ! * minimum over period                    
      tstat(iFreq) = huge(tstat(iFreq))              !     - resets stat at beginning of period 
     case (iLookSTAT%maxi)                           ! * maximum over period                    
@@ -168,7 +168,7 @@ contains
  ! ---------------------------------------------
  ! Calculate each statistic that is requested by user
  ! ---------------------------------------------
- do iFreq=1,maxVarFreq                                ! loop through output statistics
+ do iFreq=1,maxvarFreq                                ! loop through output statistics
   if(meta%statIndex(iFreq)==integerMissing) cycle     ! don't bother if output frequency is not desired for a given variab;e
   if(meta%varType/=iLookVarType%outstat) cycle        ! only calculate stats for scalars
   select case(meta%statIndex(iFreq))                  ! act depending on the statistic
@@ -181,7 +181,7 @@ contains
     tstat(iFreq) = tstat(iFreq) + tdata               !     -  increment data
    case (iLookSTAT%vari)                              ! * variance over period                   
     tstat(iFreq) = tstat(iFreq) + tdata**2                     ! - E[X^2] term in var calc    
-    tstat(maxVarFreq+iFreq) = tstat(maxVarFreq+iFreq) + tdata  ! - E[X]^2 term                 
+    tstat(maxvarFreq+iFreq) = tstat(maxvarFreq+iFreq) + tdata  ! - E[X]^2 term                 
    case (iLookSTAT%mini)                              ! * minimum over period                    
     if (tdata<tstat(iFreq)) tstat(iFreq) = tdata      !     - check value 
    case (iLookSTAT%maxi)                              ! * maximum over period                    
@@ -198,7 +198,7 @@ contains
  ! ---------------------------------------------
  ! finalize statistics at end of frequency period
  ! ---------------------------------------------
- do iFreq=1,maxVarFreq                                ! loop through output statistics
+ do iFreq=1,maxvarFreq                                ! loop through output statistics
   if(finalizeStats(iFreq))then
    if(meta%statIndex(iFreq)==integerMissing) cycle     ! don't bother if output frequency is not desired for a given variable
    if(meta%varType/=iLookVarType%outstat) cycle        ! only calculate stats for scalars
@@ -207,8 +207,8 @@ contains
     case (iLookSTAT%mean)                              ! * mean over period
      tstat(iFreq) = tstat(iFreq)/statCounter(iFreq)    !     - normalize sum into mean
     case (iLookSTAT%vari)                              ! * variance over period
-     tstat(maxVarFreq+iFreq) = tstat(maxVarFreq+1)/statCounter(iFreq)            ! E[X] term
-     tstat(iFreq) = tstat(iFreq)/statCounter(iFreq) - tstat(maxVarFreq+iFreq)**2 ! full variance
+     tstat(maxvarFreq+iFreq) = tstat(maxvarFreq+1)/statCounter(iFreq)            ! E[X] term
+     tstat(iFreq) = tstat(iFreq)/statCounter(iFreq) - tstat(maxvarFreq+iFreq)**2 ! full variance
     case default ! do nothing -- don't need finalization for most stats
     ! -------------------------------------------------------------------------------------
    end select

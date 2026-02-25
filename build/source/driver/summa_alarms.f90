@@ -156,7 +156,7 @@ subroutine summa_setWriteAlarms(modelTimeStep,                   &   ! time inde
   ! *****************************************************************************
 
   ! reset output counters/flags
-  do iFreq=1,maxVarFreq  ! loop through output frequencies
+  do iFreq=1,maxvarFreq  ! loop through output frequencies
 
     ! define the need to finalize statistics
     ! NOTE: time vector is configured so that ih=0 at the start of the day, hence day in oldTime and timeStruct%var differ

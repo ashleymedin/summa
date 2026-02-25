@@ -685,7 +685,7 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
     case(iLookVarType%parSoil); allocate(varData%var(iVar)%dat(nSoil),stat=err)
     case(iLookVarType%routing); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
     case(iLookVarType%glacier); allocate(varData%var(iVar)%dat(nGlac),stat=err)
-    case(iLookVarType%outstat); allocate(varData%var(iVar)%dat(maxvarfreq*2),stat=err)
+    case(iLookVarType%outstat); allocate(varData%var(iVar)%dat(maxvarFreq*2),stat=err)
     case(iLookVarType%unknown); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown = special (and valid) case that is allocated later (initialize with zero-length vector)
     case default
      err=40; message=trim(message)//"1. unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(get_varTypeName(metadata(iVar)%vartype))//"']"

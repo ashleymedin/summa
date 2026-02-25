@@ -1057,7 +1057,7 @@ MODULE var_lookup
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
                                                                          81, 82, 83)
  ! named variables: model indices
- type(iLook_index),   public,parameter :: iLookINDEX    =ilook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
+ type(iLook_index),   public,parameter :: iLookINDEX    =iLook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
                                                                          31, 32, 33, 34, 35, 36, 37, 38, 39, 40,&
@@ -1066,23 +1066,23 @@ MODULE var_lookup
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71)
  ! named variables: basin-average parameters
- type(iLook_bpar),    public,parameter :: iLookBPAR     =ilook_bpar    (  1,  2,  3,  4,  5,  6,  7,  8, 9,  10,&
+ type(iLook_bpar),    public,parameter :: iLookBPAR     =iLook_bpar    (  1,  2,  3,  4,  5,  6,  7,  8, 9,  10,&
                                                                           11)
  ! named variables: basin-average variables
- type(iLook_bvar),    public,parameter :: iLookBVAR     =ilook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
+ type(iLook_bvar),    public,parameter :: iLookBVAR     =iLook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24)
  ! named variables: basin-grid variables
- type(iLook_grid),    public,parameter :: iLookGRID     =ilook_grid    (  1,  2,  3,  4,  5)
+ type(iLook_grid),    public,parameter :: iLookGRID     =iLook_grid    (  1,  2,  3,  4,  5)
  ! named variables in varibale type structure
- type(iLook_varType), public,parameter :: iLookVarType  =ilook_varType (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
+ type(iLook_varType), public,parameter :: iLookVarType  =iLook_varType (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17)
  ! number of possible output statistics
- type(iLook_stat),    public,parameter :: iLookSTAT     =ilook_stat    (  1,  2,  3,  4,  5,  6,  7)
+ type(iLook_stat),    public,parameter :: iLookSTAT     =iLook_stat    (  1,  2,  3,  4,  5,  6,  7)
  ! number of possible output frequencies
- type(iLook_freq),    public,parameter :: iLookFREQ     =ilook_freq    (  1,  2,  3,  4)
+ type(iLook_freq),    public,parameter :: iLookFREQ     =iLook_freq    (  1,  2,  3,  4)
  ! named variables in the lookup table structure
- type(iLook_vLookup), public,parameter :: iLookLOOKUP   =ilook_vLookup (  1,  2,  3)
+ type(iLook_vLookup), public,parameter :: iLookLOOKUP   =iLook_vLookup (  1,  2,  3)
  ! define maximum number of variables of each type
  integer(i4b),parameter,public :: maxvarDecisions = storage_size(iLookDECISIONS)/iLength
  integer(i4b),parameter,public :: maxvarTime      = storage_size(iLookTIME)/iLength

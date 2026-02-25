@@ -64,7 +64,7 @@ contains
  integer(i4b),allocatable             :: hru_ix(:)          ! hru index for search
 
  ! define variables for NetCDF file operation
- integer(i4b)                         :: ncID               ! NetCDF file ID
+ integer(i4b)                         :: ncid               ! NetCDF file ID
  integer(i4b)                         :: varID              ! NetCDF variable ID
  integer(i4b)                         :: dimID              ! netcdf file dimension id
  integer(i4b),allocatable             :: nGlac_GRU(:)       ! number of glaciers in gru
@@ -78,19 +78,19 @@ contains
  if(present(startGRU).and.present(checkHRU))then; message=trim(message)//'startGRU and checkHRU both exist, which is not supported'; return; end if
 
  ! open nc file
- call nc_file_open(trim(attrFile),nf90_noWrite,ncID,err,cmessage)
+ call nc_file_open(trim(attrFile),nf90_noWrite,ncid,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
  ! *********************************************************************************************
  ! read and set GRU dimensions
  ! **********************************************************************************************
  ! get gru dimension of whole file
- err = nf90_inq_dimid(ncID,"gru",dimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding gru dimension/'//trim(nf90_strerror(err)); return; end if
- err = nf90_inquire_dimension(ncID, dimId, len = fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inq_dimid(ncid,"gru",dimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding gru dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inquire_dimension(ncid, dimId, len = fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
 
  ! get hru dimension of whole file
- err = nf90_inq_dimid(ncID,"hru",dimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru dimension/'//trim(nf90_strerror(err)); return; end if
- err = nf90_inquire_dimension(ncID, dimId, len = fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inq_dimid(ncid,"hru",dimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inquire_dimension(ncid, dimId, len = fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if
 
  ! get runtime GRU dimensions
  if (present(startGRU)) then
@@ -119,29 +119,29 @@ contains
  allocate(hru_ix(fileHRU),hru_id(fileHRU),hru2gru_id(fileHRU))
 
  ! read gru_id from netcdf file
- err = nf90_inq_varid(ncID,"gruId",varID);     if (err/=0) then; message=trim(message)//'problem finding gruId'; return; end if
- err = nf90_get_var(ncID,varID,gru_id);        if (err/=0) then; message=trim(message)//'problem reading gruId'; return; end if
+ err = nf90_inq_varid(ncid,"gruId",varID);     if (err/=0) then; message=trim(message)//'problem finding gruId'; return; end if
+ err = nf90_get_var(ncid,varID,gru_id);        if (err/=0) then; message=trim(message)//'problem reading gruId'; return; end if
 
  ! read hru_id from netcdf file
- err = nf90_inq_varid(ncID,"hruId",varID);     if (err/=0) then; message=trim(message)//'problem finding hruId'; return; end if
- err = nf90_get_var(ncID,varID,hru_id);        if (err/=0) then; message=trim(message)//'problem reading hruId'; return; end if
+ err = nf90_inq_varid(ncid,"hruId",varID);     if (err/=0) then; message=trim(message)//'problem finding hruId'; return; end if
+ err = nf90_get_var(ncid,varID,hru_id);        if (err/=0) then; message=trim(message)//'problem reading hruId'; return; end if
 
  ! read hru2gru_id from netcdf file
- err = nf90_inq_varid(ncID,"hru2gruId",varID); if (err/=0) then; message=trim(message)//'problem finding hru2gruId'; return; end if
- err = nf90_get_var(ncID,varID,hru2gru_id);    if (err/=0) then; message=trim(message)//'problem reading hru2gruId'; return; end if
+ err = nf90_inq_varid(ncid,"hru2gruId",varID); if (err/=0) then; message=trim(message)//'problem finding hru2gruId'; return; end if
+ err = nf90_get_var(ncid,varID,hru2gru_id);    if (err/=0) then; message=trim(message)//'problem reading hru2gruId'; return; end if
 
  ! read domain information from netcdf file
- err = nf90_inq_varid(ncID,"nGlac",varID)
+ err = nf90_inq_varid(ncid,"nGlac",varID)
  if (err/=0) then
    nGlac_GRU = 0 ! backwards compatibility
  else
-   err = nf90_get_var(ncID,varID,nGlac_GRU);   if (err/=0) then; message=trim(message)//'problem reading nGlac'; return; end if
+   err = nf90_get_var(ncid,varID,nGlac_GRU);   if (err/=0) then; message=trim(message)//'problem reading nGlac'; return; end if
  end if
- err = nf90_inq_varid(ncID,"nWtld",varID) 
+ err = nf90_inq_varid(ncid,"nWtld",varID) 
  if (err/=0) then
    nWtld_GRU = 0 ! backwards compatibility
  else
-   err = nf90_get_var(ncID,varID,nWtld_GRU);      if (err/=0) then; message=trim(message)//'problem reading nWtld'; return; end if
+   err = nf90_get_var(ncid,varID,nWtld_GRU);      if (err/=0) then; message=trim(message)//'problem reading nWtld'; return; end if
  end if
 
  ! array from 1 to total # of HRUs in attributes file
@@ -243,7 +243,7 @@ if (allocated(index_map)) then; err=20; message=trim(message)//'index_map is une
 
  deallocate(gru_id, hru_ix, hru_id, hru2gru_id)
  ! close netcdf file
- call nc_file_close(ncID,err,cmessage)
+ call nc_file_close(ncid,err,cmessage)
  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
 end subroutine read_dimension
@@ -266,7 +266,7 @@ subroutine read_dimensionGrid(attrGlacFile,nGRU,err,message)
   ! define local variables
   character(len=256)                   :: cmessage                ! error message for downwind routine
   integer(i4b)                         :: iGRU,i                  ! loop indices
-  integer(i4b)                         :: ncID                    ! NetCDF file ID
+  integer(i4b)                         :: ncid                    ! NetCDF file ID
   integer(i4b)                         :: varID                   ! NetCDF variable ID
   integer(i4b)                         :: dimID                   ! netcdf file dimension id
   integer(i4b)                         :: fileGRU                 ! number of GRUs in the input file
@@ -282,19 +282,19 @@ subroutine read_dimensionGrid(attrGlacFile,nGRU,err,message)
   err=0; message="read_dimensionGrid/"
 
   ! open file
-  call nc_file_open(trim(attrGlacFile),nf90_noWrite,ncID,err,cmessage)
+  call nc_file_open(trim(attrGlacFile),nf90_noWrite,ncid,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  
   ! *********************************************************************************************
   ! read and set GRU and grid dimensions
   ! **********************************************************************************************
   ! get gru dimension of whole file (might only contain a subset of the GRUs)
-  err = nf90_inq_dimid(ncID,"gru",dimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding gru dimension/'//trim(nf90_strerror(err)); return; end if
-  err = nf90_inquire_dimension(ncID, dimId, len = fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
+  err = nf90_inq_dimid(ncid,"gru",dimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding gru dimension/'//trim(nf90_strerror(err)); return; end if
+  err = nf90_inquire_dimension(ncid, dimId, len = fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
  
   ! get grid dimension of whole file
-  err = nf90_inq_dimid(ncID,"grid",dimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding grid dimension/'//trim(nf90_strerror(err)); return; end if
-  err = nf90_inquire_dimension(ncID, dimId, len = filegrid); if(err/=nf90_noerr)then; message=trim(message)//'problem reading grid dimension/'//trim(nf90_strerror(err)); return; end if
+  err = nf90_inq_dimid(ncid,"grid",dimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding grid dimension/'//trim(nf90_strerror(err)); return; end if
+  err = nf90_inquire_dimension(ncid, dimId, len = filegrid); if(err/=nf90_noerr)then; message=trim(message)//'problem reading grid dimension/'//trim(nf90_strerror(err)); return; end if
  
   ! *********************************************************************************************
   ! read glacier grid information and populate structures
@@ -303,33 +303,33 @@ subroutine read_dimensionGrid(attrGlacFile,nGRU,err,message)
   allocate(gru_id(fileGRU),grid_id(fileGRU,filegrid),dx(fileGRU,filegrid),dy(fileGRU,filegrid),nx(fileGRU,filegrid),ny(fileGRU,filegrid))
  
   ! read gru_id from netcdf file
-  err = nf90_inq_varid(ncID,"gruId",varID);   if (err/=0) then; message=trim(message)//'problem finding gruId'; return; end if
-  err = nf90_get_var(ncID,varID,gru_id);      if (err/=0) then; message=trim(message)//'problem reading gruId'; return; end if
+  err = nf90_inq_varid(ncid,"gruId",varID);   if (err/=0) then; message=trim(message)//'problem finding gruId'; return; end if
+  err = nf90_get_var(ncid,varID,gru_id);      if (err/=0) then; message=trim(message)//'problem reading gruId'; return; end if
  
   ! read grid_id from netcdf file
-  err = nf90_inq_varid(ncID,"gridId",varID); if (err/=0) then; message=trim(message)//'problem finding gridId'; return; end if
-  err = nf90_get_var(ncID,varID,grid_id);    if (err/=0) then; message=trim(message)//'problem reading gridId'; return; end if
+  err = nf90_inq_varid(ncid,"gridId",varID); if (err/=0) then; message=trim(message)//'problem finding gridId'; return; end if
+  err = nf90_get_var(ncid,varID,grid_id);    if (err/=0) then; message=trim(message)//'problem reading gridId'; return; end if
 
   ! read nGrid from netcdf file
   ! (not strictly necessary, as we can get this from gru_struc(iGRU)%nGlac, but useful as a check)
-  err = nf90_inq_varid(ncID,"nGrid",varID);      if (err/=0) then; message=trim(message)//'problem finding nGrid'; return; end if
-  err = nf90_get_var(ncID,varID,nGrid);          if (err/=0) then; message=trim(message)//'problem reading nGrid'; return; end if
+  err = nf90_inq_varid(ncid,"nGrid",varID);      if (err/=0) then; message=trim(message)//'problem finding nGrid'; return; end if
+  err = nf90_get_var(ncid,varID,nGrid);          if (err/=0) then; message=trim(message)//'problem reading nGrid'; return; end if
  
   ! read dx from netcdf file
-  err = nf90_inq_varid(ncID,"dx",varID);      if (err/=0) then; message=trim(message)//'problem finding dx'; return; end if
-  err = nf90_get_var(ncID,varID,dx);          if (err/=0) then; message=trim(message)//'problem reading dx'; return; end if
+  err = nf90_inq_varid(ncid,"dx",varID);      if (err/=0) then; message=trim(message)//'problem finding dx'; return; end if
+  err = nf90_get_var(ncid,varID,dx);          if (err/=0) then; message=trim(message)//'problem reading dx'; return; end if
  
   ! read dy from netcdf file
-  err = nf90_inq_varid(ncID,"dy",varID);      if (err/=0) then; message=trim(message)//'problem finding dy'; return; end if
-  err = nf90_get_var(ncID,varID,dy);          if (err/=0) then; message=trim(message)//'problem reading dy'; return; end if
+  err = nf90_inq_varid(ncid,"dy",varID);      if (err/=0) then; message=trim(message)//'problem finding dy'; return; end if
+  err = nf90_get_var(ncid,varID,dy);          if (err/=0) then; message=trim(message)//'problem reading dy'; return; end if
  
   ! read nx from netcdf file
-  err = nf90_inq_varid(ncID,"nx",varID);      if (err/=0) then; message=trim(message)//'problem finding nx'; return; end if
-  err = nf90_get_var(ncID,varID,nx);          if (err/=0) then; message=trim(message)//'problem reading nx'; return; end if
+  err = nf90_inq_varid(ncid,"nx",varID);      if (err/=0) then; message=trim(message)//'problem finding nx'; return; end if
+  err = nf90_get_var(ncid,varID,nx);          if (err/=0) then; message=trim(message)//'problem reading nx'; return; end if
  
   ! read ny from netcdf file
-  err = nf90_inq_varid(ncID,"ny",varID);      if (err/=0) then; message=trim(message)//'problem finding ny'; return; end if
-  err = nf90_get_var(ncID,varID,ny);          if (err/=0) then; message=trim(message)//'problem reading ny'; return; end if
+  err = nf90_inq_varid(ncid,"ny",varID);      if (err/=0) then; message=trim(message)//'problem finding ny'; return; end if
+  err = nf90_get_var(ncid,varID,ny);          if (err/=0) then; message=trim(message)//'problem reading ny'; return; end if
  
   ! Allocate the mapping array
   allocate(gruid_to_index(fileGRU))
@@ -363,7 +363,7 @@ subroutine read_dimensionGrid(attrGlacFile,nGRU,err,message)
 
   deallocate(gru_id,grid_id,dx,dy,nx,ny,gruid_to_index)
   ! close netcdf file
-  call nc_file_close(ncID,err,cmessage)
+  call nc_file_close(ncid,err,cmessage)
   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
 end subroutine read_dimensionGrid
@@ -409,7 +409,7 @@ subroutine read_attrb(attrFile,nGRU,attrStruct,typeStruct,idStruct,err,message)
  logical(lgt),allocatable             :: checkAttr(:)       ! vector to check if we have all desired local attributes
 
  ! netcdf variables
- integer(i4b)                         :: ncID               ! netcdf file id
+ integer(i4b)                         :: ncid               ! netcdf file id
  character(LEN=nf90_max_name)         :: varName            ! character array of netcdf variable name
  integer(i4b)                         :: nVar               ! number of variables in netcdf local attribute file
  integer(i4b),parameter               :: categorical=101    ! named variable to denote categorical data
@@ -435,11 +435,11 @@ subroutine read_attrb(attrFile,nGRU,attrStruct,typeStruct,idStruct,err,message)
  ! (2) open netcdf file
  ! **********************************************************************************************
  ! open file
- call nc_file_open(trim(attrFile),nf90_noWrite,ncID,err,cmessage)
+ call nc_file_open(trim(attrFile),nf90_noWrite,ncid,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get number of variables total in netcdf file
- err = nf90_inquire(ncID,nvariables=nVar)
+ err = nf90_inquire(ncid,nvariables=nVar)
  call netcdf_err(err,message); if (err/=0) return
 
  ! **********************************************************************************************
@@ -450,7 +450,7 @@ subroutine read_attrb(attrFile,nGRU,attrStruct,typeStruct,idStruct,err,message)
  do iVar = 1,nVar
 
   ! inqure about current variable name, type, number of dimensions
-  err = nf90_inquire_variable(ncID,iVar,name=varName)
+  err = nf90_inquire_variable(ncid,iVar,name=varName)
   if(err/=nf90_noerr)then; message=trim(message)//'problem inquiring variable: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
 
   ! find attribute name
@@ -470,7 +470,7 @@ subroutine read_attrb(attrFile,nGRU,attrStruct,typeStruct,idStruct,err,message)
     ! get data from netcdf file and store in vector
     do iGRU=1,nGRU
      do iHRU = 1,gru_struc(iGRU)%hruCount
-      err = nf90_get_var(ncID,iVar,categorical_var,start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_nc/),count=(/1/))
+      err = nf90_get_var(ncid,iVar,categorical_var,start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_nc/),count=(/1/))
       if(err/=nf90_noerr)then; message=trim(message)//'problem reading: '//trim(varName); return; end if
       typeStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = categorical_var(1)
      end do
@@ -489,7 +489,7 @@ subroutine read_attrb(attrFile,nGRU,attrStruct,typeStruct,idStruct,err,message)
     ! get data from netcdf file and store in vector
     do iGRU=1,nGRU
      do iHRU = 1,gru_struc(iGRU)%hruCount
-      err = nf90_get_var(ncID,iVar,idrelated_var,start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_nc/),count=(/1/))
+      err = nf90_get_var(ncid,iVar,idrelated_var,start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_nc/),count=(/1/))
       if(err/=nf90_noerr)then; message=trim(message)//'problem reading: '//trim(varName); return; end if
       idStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = idrelated_var(1)
      end do
@@ -509,7 +509,7 @@ subroutine read_attrb(attrFile,nGRU,attrStruct,typeStruct,idStruct,err,message)
     ! get data from netcdf file and store in vector
     do iGRU=1,nGRU
      do iHRU = 1, gru_struc(iGRU)%hruCount
-      err = nf90_get_var(ncID,iVar,numeric_var,start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_nc/),count=(/1/))
+      err = nf90_get_var(ncid,iVar,numeric_var,start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_nc/),count=(/1/))
       if(err/=nf90_noerr)then; message=trim(message)//'problem reading: '//trim(varName); return; end if
       attrStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = numeric_var(1)
      end do
@@ -593,7 +593,7 @@ subroutine read_attrb(attrFile,nGRU,attrStruct,typeStruct,idStruct,err,message)
  deallocate(checkId)
  deallocate(checkAttr)
 
- call nc_file_close(ncID,err,cmessage)
+ call nc_file_close(ncid,err,cmessage)
  if (err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
  end subroutine read_attrb
@@ -623,7 +623,7 @@ subroutine read_attrb(attrFile,nGRU,attrStruct,typeStruct,idStruct,err,message)
  ! define local variables
  character(len=256)                   :: cmessage                ! error message for downwind routine
  integer(i4b)                         :: iGRU,i,iHRU,iGrid       ! loop indices
- integer(i4b)                         :: ncID                    ! NetCDF file ID
+ integer(i4b)                         :: ncid                    ! NetCDF file ID
  integer(i4b)                         :: varID                   ! NetCDF variable ID
  integer(i4b)                         :: dimID                   ! netcdf file dimension id
  integer(i4b)                         :: fileGRU                 ! number of GRUs in the input file
@@ -644,19 +644,19 @@ subroutine read_attrb(attrFile,nGRU,attrStruct,typeStruct,idStruct,err,message)
  err=0; message="read_attrbGlac/"
 
  ! open file
- call nc_file_open(trim(attrGlacFile),nf90_noWrite,ncID,err,cmessage)
+ call nc_file_open(trim(attrGlacFile),nf90_noWrite,ncid,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! *********************************************************************************************
  ! read and set GRU and grid dimensions
  ! **********************************************************************************************
  ! get gru dimension of whole file (might only contain a subset of the GRUs)
- err = nf90_inq_dimid(ncID,"gru",dimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding gru dimension/'//trim(nf90_strerror(err)); return; end if
- err = nf90_inquire_dimension(ncID, dimId, len = fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inq_dimid(ncid,"gru",dimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding gru dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inquire_dimension(ncid, dimId, len = fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
 
  ! get grid dimension of whole file
- err = nf90_inq_dimid(ncID,"grid",dimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding grid dimension/'//trim(nf90_strerror(err)); return; end if
- err = nf90_inquire_dimension(ncID, dimId, len = filegrid); if(err/=nf90_noerr)then; message=trim(message)//'problem reading grid dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inq_dimid(ncid,"grid",dimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding grid dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inquire_dimension(ncid, dimId, len = filegrid); if(err/=nf90_noerr)then; message=trim(message)//'problem reading grid dimension/'//trim(nf90_strerror(err)); return; end if
 
  ! *********************************************************************************************
  ! read glacier grid information and populate structures
@@ -665,8 +665,8 @@ subroutine read_attrb(attrFile,nGRU,attrStruct,typeStruct,idStruct,err,message)
  allocate(gru_id(fileGRU))
 
  ! read gru_id from netcdf file
- err = nf90_inq_varid(ncID,"gruId",varID);   if (err/=0) then; message=trim(message)//'problem finding gruId'; return; end if
- err = nf90_get_var(ncID,varID,gru_id);      if (err/=0) then; message=trim(message)//'problem reading gruId'; return; end if
+ err = nf90_inq_varid(ncid,"gruId",varID);   if (err/=0) then; message=trim(message)//'problem finding gruId'; return; end if
+ err = nf90_get_var(ncid,varID,gru_id);      if (err/=0) then; message=trim(message)//'problem reading gruId'; return; end if
 
 ! Allocate the mapping array
  allocate(gruid_to_index(fileGRU))
@@ -683,27 +683,27 @@ subroutine read_attrb(attrFile,nGRU,attrStruct,typeStruct,idStruct,err,message)
  end do
 
  ! get ygrid dimension of whole file
- err = nf90_inq_dimid(ncID,"ygrid",dimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding ygrid dimension/'//trim(nf90_strerror(err)); return; end if
- err = nf90_inquire_dimension(ncID, dimId, len = fileygrid); if(err/=nf90_noerr)then; message=trim(message)//'problem reading ygrid dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inq_dimid(ncid,"ygrid",dimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding ygrid dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inquire_dimension(ncid, dimId, len = fileygrid); if(err/=nf90_noerr)then; message=trim(message)//'problem reading ygrid dimension/'//trim(nf90_strerror(err)); return; end if
 
  ! get xgrid dimension of whole file
- err = nf90_inq_dimid(ncID,"xgrid",dimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding xgrid dimension/'//trim(nf90_strerror(err)); return; end if
- err = nf90_inquire_dimension(ncID, dimId, len = filexgrid); if(err/=nf90_noerr)then; message=trim(message)//'problem reading xgrid dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inq_dimid(ncid,"xgrid",dimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding xgrid dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inquire_dimension(ncid, dimId, len = filexgrid); if(err/=nf90_noerr)then; message=trim(message)//'problem reading xgrid dimension/'//trim(nf90_strerror(err)); return; end if
 
  ! allocate space for glacier grid information
  allocate(bed_elev(fileGRU,filegrid,filexgrid,fileygrid),glacierMask(fileGRU,filegrid,filexgrid,fileygrid),cell2hruId(fileGRU,filegrid,filexgrid,fileygrid))
 
  ! read glacier bed data from netcdf file
- err = nf90_inq_varid(ncID,"bed_elev",varID);       if (err/=0) then; message=trim(message)//'problem finding bed_elev'; return; end if
- err = nf90_get_var(ncID,varID,bed_elev);           if (err/=0) then; message=trim(message)//'problem reading bed_elev'; return; end if
+ err = nf90_inq_varid(ncid,"bed_elev",varID);       if (err/=0) then; message=trim(message)//'problem finding bed_elev'; return; end if
+ err = nf90_get_var(ncid,varID,bed_elev);           if (err/=0) then; message=trim(message)//'problem reading bed_elev'; return; end if
 
  ! read glacier mask data from netcdf file
- err = nf90_inq_varid(ncID,"glacierMask",varID);     if (err/=0) then; message=trim(message)//'problem finding glacierMask'; return; end if
- err = nf90_get_var(ncID,varID,glacierMask);         if (err/=0) then; message=trim(message)//'problem reading glacierMask'; return; end if
+ err = nf90_inq_varid(ncid,"glacierMask",varID);     if (err/=0) then; message=trim(message)//'problem finding glacierMask'; return; end if
+ err = nf90_get_var(ncid,varID,glacierMask);         if (err/=0) then; message=trim(message)//'problem reading glacierMask'; return; end if
 
  ! read cell2hruId data from netcdf file
- err = nf90_inq_varid(ncID,"cell2hruId",varID);     if (err/=0) then; message=trim(message)//'problem finding cell2hruId'; return; end if
- err = nf90_get_var(ncID,varID,cell2hruId);         if (err/=0) then; message=trim(message)//'problem reading cell2hruId'; return; end if
+ err = nf90_inq_varid(ncid,"cell2hruId",varID);     if (err/=0) then; message=trim(message)//'problem finding cell2hruId'; return; end if
+ err = nf90_get_var(ncid,varID,cell2hruId);         if (err/=0) then; message=trim(message)//'problem reading cell2hruId'; return; end if
 
  ! fill structure with data
  do i = 1, fileGRU
@@ -736,7 +736,7 @@ subroutine read_attrb(attrFile,nGRU,attrStruct,typeStruct,idStruct,err,message)
  deallocate(gru_id, gruid_to_index, bed_elev, glacierMask)
 
  ! close netcdf file
- call nc_file_close(ncID,err,cmessage)
+ call nc_file_close(ncid,err,cmessage)
  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
 end subroutine read_attrbGlac

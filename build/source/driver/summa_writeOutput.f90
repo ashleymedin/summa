@@ -210,8 +210,8 @@ contains
  if(modelTimeStep==1)then
 
   ! initialize time step index
-  statCounter(1:maxVarFreq) = 1
-  outputTimeStep(1:maxVarFreq) = 1
+  statCounter(1:maxvarFreq) = 1
+  outputTimeStep(1:maxvarFreq) = 1
 
   ! initialize flags to reset/finalize statistics
   resetStats(:)    = .true.   ! start by resetting statistics
@@ -290,7 +290,7 @@ contains
  ! check the need to create a new output file
  if(defNewOutputFile .or. modelTimeStep==1)then
 
-  ! define summa output files
+  ! define summa output files, also writes attr, type, mpar, and bpar which are constant
   call summa_defineOutputFiles(modelTimeStep, summa1_struc, err, cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
