@@ -29,7 +29,7 @@ A SUMMA restart file is in [NetCDF forma](SUMMA_input#infile_format_nc) and is w
 
 <a id="outfile_history"></a>
 ## Model history files
-SUMMA history files are in [NetCDF format](SUMMA_input#infile_format_nc) and describe the time evolution of SUMMA variables and parameters. The files are written by the `writeParm`, `writeData`, `writeBasin`, and `writeTime` subroutines in `build/source/netcdf/modelwrite.f90`. SUMMA output is pretty flexible. You can output many time-varying model variables and parameters, including summary statistics. You can specify what you want to output in the  [output control file](SUMMA_input#infile_output_control), which is one of SUMMA's required input files.
+SUMMA history files are in [NetCDF format](SUMMA_input#infile_format_nc) and describe the time evolution of SUMMA variables and parameters. The files are written by the `writeParam`, `writeData`, and `writeTime` subroutines in `build/source/netcdf/modelwrite.f90`. SUMMA output is pretty flexible. You can output many time-varying model variables and parameters, including summary statistics. You can specify what you want to output in the  [output control file](SUMMA_input#infile_output_control), which is one of SUMMA's required input files.
 
 The output is organized as a function of time and then as a function of the entire model domain, by GRU, and by HRU. For example, domain average scalar quantities such as `basin__SurfaceRunoff` are arranged along the `time` dimension only. Scalar quantities that vary by HRU will be arranged along both a `time` and `hru` dimension. This should be fairly self-explanatory.
 

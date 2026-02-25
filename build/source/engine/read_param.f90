@@ -99,7 +99,7 @@ contains
  integer(i4b)                              :: parLength        ! length of the parameter data
  integer(i8b),allocatable                  :: hruId(:)         ! HRU identifier in the file
  real(rkind),allocatable                   :: parVector(:)     ! model parameter vector
- logical                                   :: fexist           ! inquire whether the parmTrial file exists
+ logical                                   :: fexist           ! inquire whether the paramTrial file exists
  integer(i4b)                              :: fHRU             ! index of HRU in input file
 
  ! Start procedure here

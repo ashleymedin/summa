@@ -205,7 +205,7 @@ contains
  subroutine ini_create(nGRU,nHRU,maxDOM,infile,ncid,err,message)
  ! variables to define number of steps per file (total number of time steps, step length, etc.)
  USE multiconst,only:secprday           ! number of seconds per day
-! output constraints
+! vector lengths
  USE globalData,only:maxLayers          ! maximum number of layers
  USE globalData,only:maxSoilLayers      ! maximum number of soil layers
  USE globalData,only:maxSnowLayers      ! maximum number of snow layers
@@ -229,7 +229,7 @@ contains
  integer(i4b),parameter      :: scalarLength=1  ! length of scalar variable
 
  ! initialize error control
- err=0;message="f-iniCreate/"
+ err=0;message="ini_create/"
 
  ! create output file
  !err = nf90_create(trim(infile),NF90_64BIT_OFFSET,ncid)
@@ -237,25 +237,25 @@ contains
  message='iCreate[create]'; call netcdf_err(err,message); if (err/=0) return
 
  ! create dimensions
- err = nf90_def_dim(ncid, trim(     gru_DimName), nGRU,                      gru_DimID); message='iCreate[gru]';      call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim(     hru_DimName), nHRU,                      hru_DimID); message='iCreate[hru]';      call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim(     dom_DimName), maxDOM,                    dom_DimID); message='iCreate[dom]';      call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim(timestep_DimName), nf90_unlimited,       timestep_DimID); message='iCreate[time]';     call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim(   depth_DimName), maxSoilLayers,           depth_DimID); message='iCreate[depth]';    call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim(  scalar_DimName), scalarLength,           scalar_DimID); message='iCreate[scalarv]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( wLength_DimName), nSpecBand,             wLength_DimID); message='iCreate[spectral]'; call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( routing_DimName), nTimeDelay,            routing_DimID); message='iCreate[routing]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( glacier_DimName), maxGlaciers,           glacier_DimID); message='iCreate[glac]';     call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( midSnow_DimName), maxSnowLayers,         midSnow_DimID); message='iCreate[midSnow]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( midLake_DimName), maxLakeLayers,         midLake_DimID); message='iCreate[midLake]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( midSoil_DimName), maxSoilLayers,         midSoil_DimID); message='iCreate[midSoil]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( midGlce_DimName), maxGlceLayers,         midGlce_DimID); message='iCreate[midGlce]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( midToto_DimName), maxLayers,             midToto_DimID); message='iCreate[midToto]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( ifcSnow_DimName), maxSnowLayers+1,       ifcSnow_DimID); message='iCreate[ifcSnow]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( ifcLake_DimName), maxLakeLayers+1,       ifcLake_DimID); message='iCreate[ifcLake]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( ifcSoil_DimName), maxSoilLayers,         ifcSoil_DimID); message='iCreate[ifcSoil]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( ifcGlce_DimName), maxGlceLayers+1,       ifcGlce_DimID); message='iCreate[ifcGlce]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( ifcToto_DimName), maxLayers+1,           ifcToto_DimID); message='iCreate[ifcToto]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(     gru_DimName), nGRU,                gru_DimID); message='iCreate[gru]';      call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(     hru_DimName), nHRU,                hru_DimID); message='iCreate[hru]';      call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(     dom_DimName), maxDOM,              dom_DimID); message='iCreate[dom]';      call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(timestep_DimName), nf90_unlimited, timestep_DimID); message='iCreate[time]';     call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(   depth_DimName), maxSoilLayers,     depth_DimID); message='iCreate[depth]';    call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(  scalar_DimName), scalarLength,     scalar_DimID); message='iCreate[scalarv]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( wLength_DimName), nSpecBand,       wLength_DimID); message='iCreate[spectral]'; call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( routing_DimName), nTimeDelay,      routing_DimID); message='iCreate[routing]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( glacier_DimName), maxGlaciers,     glacier_DimID); message='iCreate[glac]';     call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( midSnow_DimName), maxSnowLayers,   midSnow_DimID); message='iCreate[midSnow]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( midLake_DimName), maxLakeLayers,   midLake_DimID); message='iCreate[midLake]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( midSoil_DimName), maxSoilLayers,   midSoil_DimID); message='iCreate[midSoil]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( midGlce_DimName), maxGlceLayers,   midGlce_DimID); message='iCreate[midGlce]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( midToto_DimName), maxLayers,       midToto_DimID); message='iCreate[midToto]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( ifcSnow_DimName), maxSnowLayers+1, ifcSnow_DimID); message='iCreate[ifcSnow]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( ifcLake_DimName), maxLakeLayers+1, ifcLake_DimID); message='iCreate[ifcLake]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( ifcSoil_DimName), maxSoilLayers,   ifcSoil_DimID); message='iCreate[ifcSoil]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( ifcGlce_DimName), maxGlceLayers+1, ifcGlce_DimID); message='iCreate[ifcGlce]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( ifcToto_DimName), maxLayers+1,     ifcToto_DimID); message='iCreate[ifcToto]';  call netcdf_err(err,message); if (err/=0) return
  ! not outputting grid information at this time
  !err = nf90_def_dim(ncid, trim(    grid_DimName), maxGrid,                  grid_DimID); message='iCreate[grid]';     call netcdf_err(err,message); if (err/=0) return
 
@@ -376,9 +376,9 @@ contains
     case(iLookvarType%ifcSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/dom_DimID, hru_DimID, ifcSnow_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ domChunk, hruChunk, layerChunk, int(timeChunk/domChunk)+1 /)
     case(iLookvarType%ifcSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/dom_DimID, hru_DimID, ifcSoil_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ domChunk, hruChunk, layerChunk, int(timeChunk/domChunk)+1 /)
     case(iLookvarType%ifcToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/dom_DimID, hru_DimID, ifcToto_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ domChunk, hruChunk, layerChunk, int(timeChunk/domChunk)+1 /)
-    case(iLookvarType%parSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/dom_DimID, hru_DimID, depth_DimID                  /), err=err, message=cmessage); writechunk=(/ domChunk, hruChunk, layerChunk/)
-    case(iLookvarType%routing); call cloneStruc(dimensionIDs, lowerBound=1, source=(/routing_DimID                                      /), err=err, message=cmessage); writechunk=(/ layerChunk /)
-    case(iLookvarType%glacier); call cloneStruc(dimensionIDs, lowerBound=1, source=(/glacier_DimID                                      /), err=err, message=cmessage); writechunk=(/ layerChunk /)
+    case(iLookvarType%parSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/dom_DimID, hru_DimID, depth_DimID                  /), err=err, message=cmessage); writechunk=(/ domChunk, hruChunk, layerChunk/) ! soil parameters have no time dimension
+    case(iLookvarType%routing); call cloneStruc(dimensionIDs, lowerBound=1, source=(/           gru_DimID, routing_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/           gruChunk, layerChunk, int(timeChunk/gruChunk)+1 /)
+    case(iLookvarType%glacier); call cloneStruc(dimensionIDs, lowerBound=1, source=(/           gru_DimID, glacier_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/           gruChunk, layerChunk, int(timeChunk/gruChunk)+1 /)
    end select
    ! check errors
    if(err/=0)then
