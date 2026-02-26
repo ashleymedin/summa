@@ -55,8 +55,8 @@ module allocspace_progStuct_module
   USE globalData,only:integerMissing         ! missing integer
   USE globalData,only:realMissing            ! missing real number
   
-  USE globalData,only: nTimeDelay            ! number of timesteps in the time delay histogram
-  USE globalData,only: nBand                 ! number of spectral bands
+  USE globalData,only:nTimeDelay             ! number of timesteps in the time delay histogram
+  USE globalData,only:nSpecBand              ! number of spectral bands
   
   ! privacy
   implicit none

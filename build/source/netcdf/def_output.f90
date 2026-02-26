@@ -212,9 +212,9 @@ contains
  USE globalData,only:maxGlceLayers      ! maximum number of glacier ice layers
  USE globalData,only:maxLakeLayers      ! maximum number of lake layers
  USE globalData,only:maxGlaciers        ! maximum number of glaciers in a GRU
- USE globalData,only:nTimeDelay         ! maximum number of time delay routing vectors
+ USE globalData,only:nTimeDelay         ! number of timesteps in the time delay histogram
  USE globalData,only:nSpecBand          ! maximum number of spectral bands
- !USE globalData,only:maxGrid            ! maximum number of grids in a GRU
+ !USE globalData,only:maxGrid            ! maximum number of grids in a GRU, unneeded for now since not outputting grid information
 
  implicit none
  ! declare dummy variables

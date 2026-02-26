@@ -21,11 +21,11 @@
 module read_icond_module
 USE nr_type
 USE netcdf
-USE globalData,only: ixHRUfile_min,ixHRUfile_max
-USE globalData,only: nTimeDelay        ! number of hours in the time delay histogram
-USE globalData,only: nSpecBand         ! number of spectral bands
-USE globalData,only: nMeltingIceLayers ! number of glacier ice layers that can have a change in total water content
-USE globalData,only: thick4area        ! an arbitrary small threshold for glacier thickness to be considered as glacier area
+USE globalData,only:ixHRUfile_min,ixHRUfile_max ! first and last HRUs in the forcing file
+USE globalData,only:nTimeDelay        ! number of timesteps in the time delay histogram
+USE globalData,only:nSpecBand         ! number of spectral bands
+USE globalData,only:nMeltingIceLayers ! number of glacier ice layers that can have a change in total water content
+USE globalData,only:thick4area        ! an arbitrary small threshold for glacier thickness to be considered as glacier area
 
 ! access domain types
 USE globalData,only:upland             ! domain type for upland areas
@@ -95,8 +95,6 @@ contains
  integer(i8b),allocatable    :: hru_id(:)           ! HRU id
  integer(i4b),allocatable    :: gruid_to_index(:)   ! mapping from gru_id to index in gru_struc
  integer(i4b),allocatable    :: hrunc_to_index(:,:) ! mapping from hru_nc to index in gru_struc
- 
-
  ! --------------------------------------------------------------------------------------------------------
  ! initialize error message
  err=0
@@ -229,9 +227,10 @@ contains
    if (.not. no_glceData) err = nf90_get_var(ncid,glceID,glceData2); call netcdf_err(err,message)
    if (.not. no_lakeData) err = nf90_get_var(ncid,lakeID,lakeData2); call netcdf_err(err,message)
  endif
+
+ ! find the min and max hru indices in the state file
  ixHRUfile_min=huge(1)
  ixHRUfile_max=0
- ! find the min and max hru indices in the state file
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
    iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
@@ -240,7 +239,7 @@ contains
   end do
  end do
 
- ! loop over grus in current run to update snow/soil layer information
+ ! loop over grus in current run to update layer information
  do i = 1,fileGRU
   iGRU = gruid_to_index(i)
   do j = 1,gru_struc(iGRU)%hruCount

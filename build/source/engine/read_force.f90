@@ -39,7 +39,7 @@ USE globalData,only:integerMissing            ! integer missing value
 USE globalData,only:gru_struc                 ! gru-hru mapping structures
 
 ! access the minimum and maximum HRUs in the file
-USE globalData,only:ixHRUfile_min,ixHRUfile_max
+USE globalData,only:ixHRUfile_min,ixHRUfile_max ! first and last HRUs in the forcing file
 
 ! global data on the forcing file
 USE globalData,only:numtim                    ! number time steps
