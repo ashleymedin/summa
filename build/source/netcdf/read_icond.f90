@@ -467,10 +467,12 @@ else
 
   do iGRU = 1,nGRU
     nGlac = gru_struc(iGRU)%nGlac ! get dimension of basin glacier variables from attribute file, per GRU
-    if (.not. allocated(gru_struc(iGRU)%glacInfo)) then
-      allocate(gru_struc(iGRU)%glacInfo(gru_struc(iGRU)%nGlac))
+    if(nGlac > 0)then
+      if (.not. allocated(gru_struc(iGRU)%glacInfo)) then
+        allocate(gru_struc(iGRU)%glacInfo(gru_struc(iGRU)%nGlac))
+      endif
+      gru_struc(iGRU)%glacInfo(1:nGlac)%glac_id = glac_id(iGRU,1:nGlac)  ! set grid information (id)
     endif
-    gru_struc(iGRU)%glacInfo(1:nGlac)%glac_id = glac_id(iGRU,1:nGlac)  ! set grid information (id)
   end do
   ! NOTE, we do the mapping from the icond file to the icond grid file in read_icondGlac, no need to do it here
   ! set glacier variables to read

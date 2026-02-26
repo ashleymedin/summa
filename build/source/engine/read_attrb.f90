@@ -157,23 +157,9 @@ if (allocated(index_map)) then; err=20; message=trim(message)//'index_map is une
  ! allocate first level of gru to hru mapping
  allocate(gru_struc(nGRU))
 
-  ! Initialize newly allocated gru_struc elements to safe defaults
+ ! initialize grid variables as they may not be read if there is no grid
  do iGRU = 1, nGRU
-    gru_struc(iGRU)%hruCount = 0
-    gru_struc(iGRU)%gru_id   = 0_i8b
-    gru_struc(iGRU)%gru_nc   = 0
-    gru_struc(iGRU)%nGlac    = 0
-    gru_struc(iGRU)%nWtld    = 0
   gru_struc(iGRU)%nGrid = 0
-    if (allocated(gru_struc(iGRU)%hruInfo)) then
-      deallocate(gru_struc(iGRU)%hruInfo)
-    end if
-    if (allocated(gru_struc(iGRU)%gridInfo)) then
-      deallocate(gru_struc(iGRU)%gridInfo)
-    end if
-    if (allocated(gru_struc(iGRU)%glacInfo)) then
-      deallocate(gru_struc(iGRU)%glacInfo)
-    end if
  end do
 
  ! set gru to hru mapping
