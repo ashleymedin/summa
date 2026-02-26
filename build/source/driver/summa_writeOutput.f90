@@ -81,10 +81,9 @@ USE data_types,only:var_info                  ! data type for metadata
 USE data_types,only:extended_info             ! data type for extended metadata
 USE data_types,only:struct_info               ! summary information on all data structures
 
-! model write options
 USE mDecisions_module,only: &
- writePerStep             , &                 ! read forcing data per time step (defualt)
- writeFullSeries                              ! read full forcing series
+                    writePerStep,        &    ! read forcing data per time step (default)
+                    writeFullSeries           ! read full forcing series
 
 ! safety: set private unless specified otherwise
 implicit none
