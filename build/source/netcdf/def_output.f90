@@ -584,7 +584,7 @@ contains
   integer(i4b),intent(out)    :: err               ! error code
   character(*),intent(out)    :: message           ! error message
   ! define local variables
-  integer(i4b)                :: iGlac,iGRU        ! loop indices
+  integer(i4b)                :: iGrid,iGRU        ! loop indices
   integer(i4b)                :: gridVarID         ! glac varID in netcdf file
   integer(i4b)                :: gruVarID          ! gru varID in netcdf file
   integer(i4b)                :: gridIdVarID       ! gridId varID in netcdf file
@@ -629,10 +629,10 @@ contains
    if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_gruIdVar'; call netcdf_err(err,message); return; end if
  
    ! Grid info
-   do iGlac = 1, gru_struc(iGRU)%nGlac
-    err = nf90_put_var(ncid, gridVarID, iGlac, start=(/iGlac/))
+   do iGrid = 1, gru_struc(iGRU)%nGrid
+    err = nf90_put_var(ncid, gridVarID, iGrid, start=(/iGrid/))
     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_gridVar'; call netcdf_err(err,message); return; end if
-    err = nf90_put_var(ncid, gridIdVarID, gru_struc(iGRU)%gridInfo(iGlac)%grid_id, start=(/iGRU,iGlac/))
+    err = nf90_put_var(ncid, gridIdVarID, gru_struc(iGRU)%gridInfo(iGrid)%grid_id, start=(/iGRU,iGrid/))
     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_gridIdVar'; call netcdf_err(err,message); return; end if
    end do
 
