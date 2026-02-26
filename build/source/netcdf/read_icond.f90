@@ -70,7 +70,7 @@ contains
  integer(i4b)                :: i,j                 ! loop indices
  integer(i4b)                :: ncid                ! netcdf file id
  integer(i4b)                :: dimID               ! netcdf file dimension id
- integer(i4b)                :: varID               ! netcdf variable id
+ integer(i4b)                :: ncVarID             ! netcdf variable id
  integer(i4b)                :: fileGRU             ! number of GRUs in netcdf file
  integer(i4b)                :: fileHRU             ! number of HRUs in netcdf file
  integer(i4b)                :: fileDOM             ! number of domains in netcdf file
@@ -123,21 +123,21 @@ contains
   err = nf90_inquire_dimension(ncid,dimId,len=fileDOM); if(err/=nf90_noerr)then; message=trim(message)//'problem reading dom dimension/'//trim(nf90_strerror(err)); return; end if
   ! read dom_type from netcdf file
   allocate(dom_type(fileDOM,fileHRU))
-  err = nf90_inq_varid(ncid,"domType",varID);  if (err/=nf90_noerr) then; message=trim(message)//'problem finding domType'; return; end if
-  err = nf90_get_var(ncid,varID,dom_type);     if (err/=nf90_noerr) then; message=trim(message)//'problem reading domType'; return; end if
+  err = nf90_inq_varid(ncid,"domType",ncVarID);  if (err/=nf90_noerr) then; message=trim(message)//'problem finding domType'; return; end if
+  err = nf90_get_var(ncid,ncVarID,dom_type);     if (err/=nf90_noerr) then; message=trim(message)//'problem reading domType'; return; end if
  end if
  nDOM = fileDOM
 
  ! check if the file has the hruId variable
  allocate(hru_id(fileHRU))
- err = nf90_inq_varid(ncid,"hruId",varID)
+ err = nf90_inq_varid(ncid,"hruId",ncVarID)
  if (err/=nf90_noerr)then
     write(*,*) 'WARNING: hruId is not in the initial conditions file ... assuming HRUs in attribute order'
     hru_id = [(gru_struc(iGRU)%hruInfo(:)%hru_id, iGRU=1,nGRU)]
     err=nf90_noerr    ! reset this err
  else
   ! read hru_id from netcdf file
-   err = nf90_get_var(ncid,varID,hru_id); if (err/=nf90_noerr) then; message=trim(message)//'problem reading hruId'; return; end if
+   err = nf90_get_var(ncid,ncVarID,hru_id); if (err/=nf90_noerr) then; message=trim(message)//'problem reading hruId'; return; end if
  end if
 
  ! check if the file has the GRU dimension
@@ -152,8 +152,8 @@ contains
    err = nf90_inquire_dimension(ncid,dimID,len=fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
    ! read gru_id from netcdf file
    allocate(gru_id(fileGRU))
-   err = nf90_inq_varid(ncid,"gruId",varID);   if (err/=nf90_noerr) then; message=trim(message)//'problem finding gruId'; return; end if
-   err = nf90_get_var(ncid,varID,gru_id);      if (err/=nf90_noerr) then; message=trim(message)//'problem reading gruId'; return; end if
+   err = nf90_inq_varid(ncid,"gruId",ncVarID);   if (err/=nf90_noerr) then; message=trim(message)//'problem finding gruId'; return; end if
+   err = nf90_get_var(ncid,ncVarID,gru_id);      if (err/=nf90_noerr) then; message=trim(message)//'problem reading gruId'; return; end if
  end if
 
  ! Allocate the mapping arrays
@@ -399,13 +399,13 @@ contains
 
  ! check if the file has the hruId variable
  allocate(hru_id(fileHRU))
- err = nf90_inq_varid(ncid,"hruId",varID)
+ err = nf90_inq_varid(ncid,"hruId",ncVarID)
  if (err/=nf90_noerr)then
     hru_id = [(gru_struc(iGRU)%hruInfo(:)%hru_id, iGRU=1,nGRU)]
     err=nf90_noerr    ! reset this err
  else
   ! read hru_id from netcdf file
-   err = nf90_get_var(ncid,varID,hru_id); if (err/=nf90_noerr) then; message=trim(message)//'problem reading hruId'; return; end if
+   err = nf90_get_var(ncid,ncVarID,hru_id); if (err/=nf90_noerr) then; message=trim(message)//'problem reading hruId'; return; end if
  end if
 
  ! check if the file has the GRU dimension
@@ -1025,7 +1025,7 @@ else
   deallocate(varData, stat=err)
   if(err/=0)then; message=trim(message)//'problem deallocating GRU variable data'; return; endif
  enddo ! end looping through basin variables
- 
+
  deallocate(gru_id,grid_id,gruid_to_index,glacid_to_index,gridid_to_index)
  call nc_file_close(ncid,err,cmessage)
  if(err/=nf90_noerr)then;message=trim(message)//trim(cmessage);return;end if
