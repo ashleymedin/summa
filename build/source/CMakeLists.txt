@@ -13,16 +13,16 @@ set(NOAHMP
 
 # Free versions of numerical recipes utilities for NOAH-MP modules
 set(NRUTIL
-    ${ENGINE_DIR}/f2008_funcs.f90
-    ${ENGINE_DIR}/nr_utils.f90
-    ${DSHARE_DIR}/nr_type.f90
+    ${NUMREC_DIR}/f2008_funcs.f90
+    ${NUMREC_DIR}/nr_utils.f90
+    ${NUMREC_DIR}/nr_type.f90
     CACHE INTERNAL "NRUTIL")
 
 # Free versions of numerical recipes procedures for SUMMA modules
 set(NRPROC
-    ${ENGINE_DIR}/expIntegral.f90
-    ${ENGINE_DIR}/spline_int.f90
-    ${ENGINE_DIR}/hyp_2F1.f90
+    ${NUMREC_DIR}/expIntegral.f90
+    ${NUMREC_DIR}/spline_int.f90
+    ${NUMREC_DIR}/hyp_2F1.f90
     CACHE INTERNAL "NRPROC")
 
 # Hook-up modules
