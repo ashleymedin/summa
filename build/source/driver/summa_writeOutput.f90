@@ -364,44 +364,43 @@ contains
     ! define names of desired data structures
     case('indx','forc','diag','prog','flux','bvar')  ! restrict attention to the variables that we are interested in
 
-    ! get metadata for desired structures
-    call get_metadata(trim(structInfo(iStruct)%structName), meta, stat_meta, child_map, ierr, cmessage)
-    if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
-    ! get statistics data structure as a 1-element vector (maxWrite=1)
-    call get_statisticVec(trim(structInfo(iStruct)%structName), maxWrite, summa1_struc, statsData, ierr, cmessage)
-    if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
-    ! ----- write buffered data --------------------------------------------------
-    if(is_bufferedWrite)then
-
-     ! get saved data for the buffered write
-     call get_savedBuffer(trim(structInfo(iStruct)%structName), bufferData, ierr, cmessage) 
+     ! get metadata for desired structures
+     call get_metadata(trim(structInfo(iStruct)%structName), meta, stat_meta, child_map, ierr, cmessage)
      if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-     ! will only write the (buffered) timestep data but full routine called for convenience
-     call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,statsData(1),bufferData,meta,child_map,indxStruct,ierr,cmessage)
+     ! get statistics data structure as a 1-element vector (maxWrite=1)
+     call get_statisticVec(trim(structInfo(iStruct)%structName), maxWrite, summa1_struc, statsData, ierr, cmessage)
      if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-    ! ----- write data and statistics structures ---------------------------------
-    else  
+     ! ----- write buffered data --------------------------------------------------
+     if(is_bufferedWrite)then
 
-     ! check per step write
-     if(maxWrite/=1)then; err=20; message=trim(message)//'expect maxWrite=1'; return; endif
+      ! get saved data for the buffered write
+      call get_savedBuffer(trim(structInfo(iStruct)%structName), bufferData, ierr, cmessage) 
+      if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-     ! get timestep data structure as a 1-element vector (maxWrite=1)
-     call get_timestepVec(trim(structInfo(iStruct)%structName), maxWrite, summa1_struc, timestepData, ierr, cmessage)
-     if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+      ! will only write the (buffered) timestep data but full routine called for convenience
+      call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,statsData(1),bufferData,meta,child_map,indxStruct,ierr,cmessage)
+      if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-     ! Passes the full metadata structure and the child map (rather than the stats metadata structure) because
-     !  we have the option to write out data of types other than statistics.
-     call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,statsData(1),timestepData,meta,child_map,indxStruct,ierr,cmessage)
-     if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+     ! ----- write data and statistics structures ---------------------------------
+     else  
 
-    endif  ! (write data and statistics structures)
+      ! check per step write
+      if(maxWrite/=1)then; err=20; message=trim(message)//'expect maxWrite=1'; return; endif
+
+      ! get timestep data structure as a 1-element vector (maxWrite=1)
+      call get_timestepVec(trim(structInfo(iStruct)%structName), maxWrite, summa1_struc, timestepData, ierr, cmessage)
+      if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+      ! Passes the full metadata structure and the child map (rather than the stats metadata structure) because
+      !  we have the option to write out data of types other than statistics.
+      call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,statsData(1),timestepData,meta,child_map,indxStruct,ierr,cmessage)
+      if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+     endif  ! (write data and statistics structures)
 
     ! ----------------------------------------------------------------------------
-
     ! just keep going if not interested in a data structure
     case default; cycle
    end select  ! select data structure
