@@ -132,9 +132,9 @@ contains
  allocate(hru_id(fileHRU))
  err = nf90_inq_varid(ncid,"hruId",ncVarID)
  if (err/=nf90_noerr)then
-    write(*,*) 'WARNING: hruId is not in the initial conditions file ... assuming HRUs in attribute order'
+   write(*,*) 'WARNING: hruId is not in the initial conditions file ... assuming HRUs in attribute order'
     hru_id = [(gru_struc(iGRU)%hruInfo(:)%hru_id, iGRU=1,nGRU)]
-    err=nf90_noerr    ! reset this err
+   err=nf90_noerr    ! reset this err
  else
   ! read hru_id from netcdf file
    err = nf90_get_var(ncid,ncVarID,hru_id); if (err/=nf90_noerr) then; message=trim(message)//'problem reading hruId'; return; end if
@@ -145,15 +145,22 @@ contains
  if(err/=nf90_noerr)then         
    write(*,*) 'WARNING: GRU is not in the initial conditions file ... assuming HRUs in attribute order'
    fileGRU = size(gru_struc(:)%gru_id)
-   err=nf90_noerr    ! reset this err
    allocate(gru_id(fileHRU))
    gru_id = gru_struc(:)%gru_id
+   err=nf90_noerr    ! reset this err
  else
    err = nf90_inquire_dimension(ncid,dimID,len=fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
    ! read gru_id from netcdf file
    allocate(gru_id(fileGRU))
-   err = nf90_inq_varid(ncid,"gruId",ncVarID);   if (err/=nf90_noerr) then; message=trim(message)//'problem finding gruId'; return; end if
-   err = nf90_get_var(ncid,ncVarID,gru_id);      if (err/=nf90_noerr) then; message=trim(message)//'problem reading gruId'; return; end if
+   err = nf90_inq_varid(ncid,"gruId",ncVarID)
+   if (err/=nf90_noerr) then
+     write(*,*) 'WARNING: gruId is not in the initial conditions file ... assuming GRUs in attribute order'
+     gru_id = gru_struc(:)%gru_id
+     err=nf90_noerr    ! reset this err
+   else
+     ! read gru_id from netcdf file
+     err = nf90_get_var(ncid,ncVarID,gru_id); if (err/=nf90_noerr) then; message=trim(message)//'problem reading gruId'; return; end if
+   endif
  end if
 
  ! Allocate the mapping arrays
@@ -409,18 +416,24 @@ contains
  end if
 
  ! check if the file has the GRU dimension
- err = nf90_inq_dimid(ncid,"gru",dimID);    
+ err = nf90_inq_dimid(ncid,"gru",dimID)    
  if(err/=nf90_noerr)then         
    fileGRU = size(gru_struc(:)%gru_id)
-   err=nf90_noerr    ! reset this err
    allocate(gru_id(fileHRU))
    gru_id = gru_struc(:)%gru_id
+   err=nf90_noerr    ! reset this err
  else
    err = nf90_inquire_dimension(ncid,dimID,len=fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
    ! read gru_id from netcdf file
    allocate(gru_id(fileGRU))
-   err = nf90_inq_varid(ncid,"gruId",ncVarID);   if (err/=nf90_noerr) then; message=trim(message)//'problem finding gruId'; return; end if
-   err = nf90_get_var(ncid,ncVarID,gru_id);      if (err/=nf90_noerr) then; message=trim(message)//'problem reading gruId'; return; end if
+   err = nf90_inq_varid(ncid,"gruId",ncVarID)
+   if (err/=nf90_noerr) then
+     gru_id = gru_struc(:)%gru_id
+     err=nf90_noerr    ! reset this err
+   else
+     ! read gru_id from netcdf file
+     err = nf90_get_var(ncid,ncVarID,gru_id); if (err/=nf90_noerr) then; message=trim(message)//'problem reading gruId'; return; end if
+   endif
  end if
 
  ! Allocate the mapping arrays
