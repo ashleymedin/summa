@@ -379,7 +379,7 @@ contains
       if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
       ! will only write the (buffered) timestep data but full routine called for convenience
-      call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,statsData(1),bufferData,meta,child_map,indxStruct,ierr,cmessage)
+      call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,meta,statsData(1),bufferData,child_map,indxStruct,ierr,cmessage)
       if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
      ! ----- write data and statistics structures ---------------------------------
@@ -394,7 +394,7 @@ contains
 
       ! Passes the full metadata structure and the child map (rather than the stats metadata structure) because
       !  we have the option to write out data of types other than statistics.
-      call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,statsData(1),timestepData,meta,child_map,indxStruct,ierr,cmessage)
+      call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,meta,statsData(1),timestepData,child_map,indxStruct,ierr,cmessage)
       if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
      endif  ! (write data and statistics structures)

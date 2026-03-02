@@ -151,7 +151,7 @@ contains
  ! **************************************************************************************
  ! public subroutine writeData: write model time-dependent data for each HRU
  ! **************************************************************************************
- subroutine writeData(is_bufferedWrite,finalizeStats,outputTimestep,maxWrite,stat,timestepData,meta,map,indx,err,message)
+ subroutine writeData(is_bufferedWrite,finalizeStats,outputTimestep,maxWrite,meta,stat,dat,map,indx,err,message)
  USE data_types,only:var_info                       ! metadata type
  USE var_lookup,only:maxVarStat                     ! index into stats structure
  USE var_lookup,only:iLookVarType                   ! index into type structure
@@ -162,49 +162,49 @@ contains
  USE get_ixName_module,only:get_statName            ! to access type strings for error messages
  implicit none
  ! declare dummy variables
- logical(lgt)  ,intent(in)          :: is_bufferedWrite                       ! flag for buffered write
- logical(lgt)  ,intent(in)          :: finalizeStats(:)                       ! flags to finalize statistics
- integer(i4b)  ,intent(in)          :: outputTimestep(:)                      ! output time step
- integer(i4b)  ,intent(in)          :: maxWrite                               ! maximum number of steps written
- type(var_info),intent(in)          :: meta(:)                                ! meta data
- class(*)      ,intent(in)          :: stat                                   ! stats data
- class(*)      ,intent(in)          :: timestepData(:)                        ! timestep data
- integer(i4b)  ,intent(in)          :: map(:)                                 ! map into stats child struct
- type(gru_hru_dom_intVec),intent(in):: indx                                   ! index data
- integer(i4b)  ,intent(out)         :: err                                    ! error code
- character(*)  ,intent(out)         :: message                                ! error message
+ logical(lgt)  ,intent(in)          :: is_bufferedWrite                     ! flag for buffered write
+ logical(lgt)  ,intent(in)          :: finalizeStats(:)                     ! flags to finalize statistics
+ integer(i4b)  ,intent(in)          :: outputTimestep(:)                    ! output time step
+ integer(i4b)  ,intent(in)          :: maxWrite                             ! maximum number of steps written
+ type(var_info),intent(in)          :: meta(:)                              ! meta data
+ class(*)      ,intent(in)          :: stat                                 ! stats data
+ class(*)      ,intent(in)          :: dat(:)                               ! timestep or buffer data
+ integer(i4b)  ,intent(in)          :: map(:)                               ! map into stats child struct
+ type(gru_hru_dom_intVec),intent(in):: indx                                 ! index data
+ integer(i4b)  ,intent(out)         :: err                                  ! error code
+ character(*)  ,intent(out)         :: message                              ! error message
  ! local variables
- integer(i4b)                       :: iGRU                                   ! grouped response unit counter
- integer(i4b)                       :: iHRU                                   ! hydrologic response unit counter
- integer(i4b)                       :: iDOM                                   ! domain counter
- integer(i4b)                       :: iVar                                   ! variable index
- integer(i4b)                       :: iStat                                  ! statistics index
- integer(i4b)                       :: iFreq                                  ! frequency index
- integer(i4b)                       :: iTime                                  ! time index
- integer(i4b)                       :: ncVarID                                ! used only for time
- integer(i4b)                       :: nSnow                                  ! number of snow layers
- integer(i4b)                       :: nLake                                  ! number of lake layers
- integer(i4b)                       :: nSoil                                  ! number of soil layers
- integer(i4b)                       :: nGlce                                  ! number of glacier ice layers
- integer(i4b)                       :: nGlac                                  ! number of glaciers in the GRU
- integer(i4b)                       :: nLayers                                ! total number of layers
- integer(i4b)                       :: ixStart                                ! index of the start of data write
- integer(i4b)                       :: nSpace                                 ! number of spatial data elements
+ integer(i4b)                       :: iGRU                                 ! grouped response unit counter
+ integer(i4b)                       :: iHRU                                 ! hydrologic response unit counter
+ integer(i4b)                       :: iDOM                                 ! domain counter
+ integer(i4b)                       :: iVar                                 ! variable index
+ integer(i4b)                       :: iStat                                ! statistics index
+ integer(i4b)                       :: iFreq                                ! frequency index
+ integer(i4b)                       :: iTime                                ! time index
+ integer(i4b)                       :: ncVarID                              ! used only for time
+ integer(i4b)                       :: nSnow                                ! number of snow layers
+ integer(i4b)                       :: nLake                                ! number of lake layers
+ integer(i4b)                       :: nSoil                                ! number of soil layers
+ integer(i4b)                       :: nGlce                                ! number of glacier ice layers
+ integer(i4b)                       :: nGlac                                ! number of glaciers in the GRU
+ integer(i4b)                       :: nLayers                              ! total number of layers
+ integer(i4b)                       :: ixStart                              ! index of the start of data write
+ integer(i4b)                       :: nSpace                               ! number of spatial data elements
  ! output arrays
- integer(i4b)                       :: datLength                              ! length of each data vector
- integer(i4b)                       :: maxLength                              ! maximum length of each data vector
- real(rkind)                        :: timeBuffer(maxWrite)                   ! buffer for all time steps
- real(rkind)                        :: realBuffer(nHRUrun,maxWrite)           ! buffer for all HRUs in the run domain + time steps
- real(rkind)                        :: realBuffer3(maxDOM,nHRUrun,maxWrite)   ! buffer for all HRUs and DOMs in the run domain + time steps
- real(rkind),allocatable            :: realArray(:,:)                         ! real array for all HRUs in the run domain
- integer(i4b),allocatable           :: intArray(:,:)                          ! integer array for all HRUs in the run domain
- real(rkind),allocatable            :: realArray3(:,:,:)                      ! real array for all HRUs and DOMs in the run domain
- integer(i4b),allocatable           :: intArray3(:,:,:)                       ! integer array for all HRUs and DOMs in the run domain
- integer(i4b)                       :: dataType                               ! type of data
- integer(i4b),parameter             :: ixInteger=1001                         ! named variable for integer
- integer(i4b),parameter             :: ixReal=1002                            ! named variable for real
- integer(i4b),parameter             :: ixInteger3=1003                        ! named variable for integer array with 3 dimensions (e.g. dom, hru, time)
- integer(i4b),parameter             :: ixReal3=1004                           ! named variable for real array with 3 dimensions (e.g. dom, hru, time)
+ integer(i4b)                       :: datLength                            ! length of each data vector
+ integer(i4b)                       :: maxLength                            ! maximum length of each data vector
+ real(rkind)                        :: timeBuffer(maxWrite)                 ! buffer for all time steps
+ real(rkind)                        :: realBuffer(nHRUrun,maxWrite)         ! buffer for all HRUs in the run domain + time steps
+ real(rkind)                        :: realBuffer3(maxDOM,nHRUrun,maxWrite) ! buffer for all HRUs and DOMs in the run domain + time steps
+ real(rkind),allocatable            :: realArray(:,:)                       ! real array for all HRUs in the run domain
+ integer(i4b),allocatable           :: intArray(:,:)                        ! integer array for all HRUs in the run domain
+ real(rkind),allocatable            :: realArray3(:,:,:)                    ! real array for all HRUs and DOMs in the run domain
+ integer(i4b),allocatable           :: intArray3(:,:,:)                     ! integer array for all HRUs and DOMs in the run domain
+ integer(i4b)                       :: dataType                             ! type of data
+ integer(i4b),parameter             :: ixInteger=1001                       ! named variable for integer
+ integer(i4b),parameter             :: ixReal=1002                          ! named variable for real
+ integer(i4b),parameter             :: ixInteger3=1003                      ! named variable for integer array with 3 dimensions (e.g. dom, hru, time)
+ integer(i4b),parameter             :: ixReal3=1004                         ! named variable for real array with 3 dimensions (e.g. dom, hru, time)
  ! initialize error control
  err=0;message="writeData/"
 
@@ -253,12 +253,12 @@ contains
     iGRU=1; iHRU=1
 
     ! data bound array access
-    select type(timestepData) ! forcStruc
-     class is (gru_hru_double)   ! x%gru(:)%hru(:)%var(:)
+    select type(dat) ! forcStruc
+     class is (gru_hru_double) ! x%gru(:)%hru(:)%var(:)
 
       ! put data in time buffer
       do iTime=1,maxWrite
-       timeBuffer(iTime) = timestepData(iTime)%gru(iGRU)%hru(iHRU)%var(iVar)
+       timeBuffer(iTime) = dat(iTime)%gru(iGRU)%hru(iHRU)%var(iVar)
       end do
 
      ! check we found the class
@@ -293,20 +293,20 @@ contains
       do iGRU=1,size(gru_struc)
 
        ! identify data structures
-       select type(timestepData)
+       select type(dat)
 
         ! *** HRU DOM structures (indices, ...)
         class is (gru_hru_dom_int)
          do iHRU=1,gru_struc(iGRU)%hruCount
           do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
-           realBuffer3(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = timestepData(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(map(iVar))
+           realBuffer3(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = dat(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(map(iVar))
           end do  ! dom
          end do  ! hru
 
         class is (gru_hru_dom_int8)
          do iHRU=1,gru_struc(iGRU)%hruCount
           do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
-           realBuffer3(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = timestepData(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(map(iVar))
+           realBuffer3(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = dat(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(map(iVar))
           end do  ! dom
          end do  ! hru
   
@@ -314,35 +314,35 @@ contains
         class is (gru_hru_dom_double)
         do iHRU=1,gru_struc(iGRU)%hruCount
          do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
-          realBuffer3(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = timestepData(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(map(iVar))
+          realBuffer3(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = dat(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(map(iVar))
          end do  ! dom
         end do  ! hru
 
         class is (gru_hru_int)
          do iHRU=1,gru_struc(iGRU)%hruCount
-          realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = timestepData(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar))
+          realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = dat(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar))
          end do  ! hru
           
         class is (gru_hru_int8)
          do iHRU=1,gru_struc(iGRU)%hruCount
-          realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = timestepData(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar))
+          realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = dat(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar))
          end do  ! hru
 
         ! *** HRU structures (forcing, ...)
         class is (gru_hru_double)
          do iHRU=1,gru_struc(iGRU)%hruCount
-          realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = timestepData(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar))
+          realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = dat(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar))
          end do  ! hru
 
         class is (gru_int)
-         realBuffer(iGRU,iTime) = timestepData(iTime)%gru(iGRU)%var(map(iVar))
+         realBuffer(iGRU,iTime) = dat(iTime)%gru(iGRU)%var(map(iVar))
  
         class is (gru_int8)
-         realBuffer(iGRU,iTime) = timestepData(iTime)%gru(iGRU)%var(map(iVar))
+         realBuffer(iGRU,iTime) = dat(iTime)%gru(iGRU)%var(map(iVar))
 
         ! *** GRU structures (basin-average variables, ...)
         class is (gru_double)
-         realBuffer(iGRU,iTime) = timestepData(iTime)%gru(iGRU)%var(map(iVar))
+         realBuffer(iGRU,iTime) = dat(iTime)%gru(iGRU)%var(map(iVar))
 
         class default; err=20; message=trim(message)//'scalarv variables must be of type gru_hru_dom_[double or int*], gru_hru_[double or int*], or gru_[double or int*]'; return
        end select  ! time step data structure
@@ -351,7 +351,7 @@ contains
      end do  ! time
                   
      ! write data
-     select type(timestepData)
+     select type(dat)
       class is (gru_hru_dom_int);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer3(1:maxDOM,1:nHRUrun,1:maxWrite),start=(/1,1,1/),count=(/maxDOM,nHRUrun,maxWrite/))
       class is (gru_hru_dom_int8);   err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer3(1:maxDOM,1:nHRUrun,1:maxWrite),start=(/1,1,1/),count=(/maxDOM,nHRUrun,maxWrite/))
       class is (gru_hru_dom_double); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer3(1:maxDOM,1:nHRUrun,1:maxWrite),start=(/1,1,1/),count=(/maxDOM,nHRUrun,maxWrite/))
@@ -429,7 +429,7 @@ contains
     endif
 
     ! initialize the data vectors
-    select type (timestepData)
+    select type (dat)
      class is (gru_hru_dom_doubleVec); nSpace = nHRUrun; realArray3(:,:,:) = realMissing;   dataType=ixReal3
      class is (gru_hru_dom_intVec);    nSpace = nHRUrun; intArray3(:,:,:) = integerMissing; dataType=ixInteger3
      class is (gru_hru_doubleVec); nSpace = nHRUrun; realArray(:,:) = realMissing;   dataType=ixReal
@@ -473,13 +473,13 @@ contains
       end select ! vartype
       
       ! get the data vectors
-      select type (timestepData)
-       class is (gru_hru_dom_doubleVec); realArray3(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = timestepData(1)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(:)
-       class is (gru_hru_dom_intVec);     intArray3(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = timestepData(1)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(:)
-       class is (gru_hru_doubleVec); realArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = timestepData(1)%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:); if(iDOM==1) exit domLoop ! only need to get the HRU-level data once
-       class is (gru_hru_intVec);     intArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = timestepData(1)%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:); if(iDOM==1) exit domLoop ! only need to get the HRU-level data once
-       class is (gru_doubleVec); realArray(iGRU,1:datLength) = timestepData(1)%gru(iGRU)%var(iVar)%dat(:); if(iHRU==1) exit hruLoop ! only need to get the GRU-level data once
-       class is (gru_intVec);     intArray(iGRU,1:datLength) = timestepData(1)%gru(iGRU)%var(iVar)%dat(:); if(iHRU==1) exit hruLoop ! only need to get the GRU-level data once
+      select type (dat)
+       class is (gru_hru_dom_doubleVec); realArray3(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = dat(1)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(:)
+       class is (gru_hru_dom_intVec);     intArray3(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = dat(1)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(:)
+       class is (gru_hru_doubleVec); realArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = dat(1)%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:); if(iDOM==1) exit domLoop ! only need to get the HRU-level data once
+       class is (gru_hru_intVec);     intArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = dat(1)%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:); if(iDOM==1) exit domLoop ! only need to get the HRU-level data once
+       class is (gru_doubleVec); realArray(iGRU,1:datLength) = dat(1)%gru(iGRU)%var(iVar)%dat(:); if(iHRU==1) exit hruLoop ! only need to get the GRU-level data once
+       class is (gru_intVec);     intArray(iGRU,1:datLength) = dat(1)%gru(iGRU)%var(iVar)%dat(:); if(iHRU==1) exit hruLoop ! only need to get the GRU-level data once
       end select
 
       end do domLoop ! DOM loop
