@@ -60,18 +60,18 @@ USE data_types,only:&
 
 
 ! metadata structure
-USE data_types,only:var_info               ! data type for metadata
+USE data_types,only:var_info           ! data type for metadata
 
 ! access missing values
-USE globalData,only:integerMissing         ! missing integer
-USE globalData,only:realMissing            ! missing real number
+USE globalData,only:integerMissing     ! missing integer
+USE globalData,only:realMissing        ! missing real number
 
-USE globalData,only: nTimeDelay            ! number of timesteps in the time delay histogram
-USE globalData,only: nSpecBand             ! number of spectral bands
+USE globalData,only:nTimeDelay        ! number of timesteps in the time delay histogram
+USE globalData,only:nSpecBand         ! number of spectral bands
 
 ! access variable types
-USE var_lookup,only:iLookVarType           ! look up structure for variable typed
-USE var_lookup,only:maxvarFreq             ! allocation dimension (output frequency)
+USE var_lookup,only:iLookVarType       ! look up structure for variable typed
+USE var_lookup,only:maxvarFreq         ! allocation dimension (output frequency)
 
 ! access domain types
 USE globalData,only:upland             ! domain type for upland areas

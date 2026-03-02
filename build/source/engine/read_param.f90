@@ -121,11 +121,11 @@ contains
 
  ! open trial parameters file if it exists
  call nc_file_open(trim(infile),nf90_nowrite,ncid,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+ if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
 
  ! get the number of variables in the parameter file
  err=nf90_inquire(ncid, nDimensions=nDims, nVariables=nVars)
- call netcdf_err(err,message); if (err/=0) then; err=20; return; end if
+ call netcdf_err(err,message); if (err/=nf90_noerr) then; err=20; return; end if
 
  ! initialize the number of GRUs, HRUs, and domains in the file
  nDOM_file=integerMissing
@@ -136,7 +136,7 @@ contains
  do idimid=1,nDims
   ! get the dimension name and length
   err=nf90_inquire_dimension(ncid, idimid, name=dimName, len=dimLength)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+  if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
   ! get the number
   if(trim(dimName)=='dom') nDOM_file=dimLength
   if(trim(dimName)=='hru') nHRU_file=dimLength
@@ -186,14 +186,14 @@ contains
 
   ! get the parameter name
   err=nf90_inquire_variable(ncid, ivarid, name=parName)
-  call netcdf_err(err,message); if (err/=0) then; err=20; return; end if
+  call netcdf_err(err,message); if (err/=nf90_noerr) then; err=20; return; end if
 
   ! special case of the HRU id
   if(trim(parName)=='hruIndex' .or. trim(parName)=='hruId')then
 
    ! read HRUs
    err=nf90_get_var(ncid, ivarid, hruId)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
 
    ! check HRUs  -- expect HRUs to be in the same order as the local attributes
    if (iRunMode==iRunModeFull) then
@@ -243,7 +243,7 @@ contains
 
   ! get the parameter name
   err=nf90_inquire_variable(ncid, ivarid, name=parName)
-  call netcdf_err(err,message); if (err/=0) then; err=20; return; end if
+  call netcdf_err(err,message); if (err/=nf90_noerr) then; err=20; return; end if
 
   ! get the local parameters
   ixParam = get_ixParam( trim(parName) )
@@ -256,13 +256,13 @@ contains
 
    ! get the variable shape
    err=nf90_inquire_variable(ncid, ivarid, nDims=nDims, dimids=idim_list)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
 
    ! get the length of the depth dimension (if it exists)
    if(nDOM_file==integerMissing .and. nDims==2)then
     ! get the information on the 2nd dimension for 2-d variables
     err=nf90_inquire_dimension(ncid, idim_list(2), dimName, nSoil_file)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
 
     ! check that it is the depth dimension
     if(trim(dimName)/='depth')then
@@ -282,7 +282,7 @@ contains
    else if(nDOM_file.ne.integerMissing .and. nDims==3)then
     ! get the information on the 3nd dimension for 2-d variables
     err=nf90_inquire_dimension(ncid, idim_list(3), dimName, nSoil_file)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
 
     ! check that it is the depth dimension
     if(trim(dimName)/='depth')then
@@ -335,7 +335,7 @@ contains
      end select
 
      ! error check for the parameter read
-     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+     if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
 
      ! populate parameter structures with the data using the appropriate size of nSoil, and repeating if necessary
      nSoil = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
@@ -383,7 +383,7 @@ contains
 
    ! read parameter data
    err=nf90_get_var(ncid, ivarid, parVector )
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
 
    ! populate parameter structures
    if (iRunMode==iRunModeGRU) then
@@ -411,7 +411,7 @@ contains
 
  ! close the NetCDF file
  call nc_file_close(ncid,err,cmessage)
- if(err/=0)then
+ if(err/=nf90_noerr)then
   message=trim(message)//'problem closing parameter file '//trim(infile)//': '//trim(cmessage)
   err=20; return
  endif

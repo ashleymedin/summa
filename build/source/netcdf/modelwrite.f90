@@ -30,16 +30,16 @@ USE nr_type
 ! missing values
 USE globalData,only: integerMissing, realMissing
 ! output constraints
-USE globalData,only: maxSnowLayers      ! maximum number of snow layers
-USE globalData,only: maxSoilLayers      ! maximum number of soil layers
-USE globalData,only: maxGlceLayers      ! maximum number of glacier ice layers
-USE globalData,only: maxLakeLayers      ! maximum number of lake layers
-USE globalData,only: maxGlaciers        ! maximum number of glaciers in a GRU
-USE globalData,only: maxGrid            ! maximum number of grids in a GRU
-USE globalData,only: maxGridX           ! maximum number of grid cells in the x-direction
-USE globalData,only: maxGridY           ! maximum number of grid cells in the y-direction
-USE globalData,only: nTimeDelay         ! maximum number of time delay routing vectors
-USE globalData,only: nSpecBand          ! maximum number of spectral bands
+USE globalData,only:maxSnowLayers       ! maximum number of snow layers
+USE globalData,only:maxSoilLayers       ! maximum number of soil layers
+USE globalData,only:maxGlceLayers       ! maximum number of glacier ice layers
+USE globalData,only:maxLakeLayers       ! maximum number of lake layers
+USE globalData,only:maxGlaciers         ! maximum number of glaciers in a GRU
+USE globalData,only:maxGrid             ! maximum number of grids in a GRU
+USE globalData,only:maxGridX            ! maximum number of grid cells in the x-direction
+USE globalData,only:maxGridY            ! maximum number of grid cells in the y-direction
+USE globalData,only:nTimeDelay          ! number of timesteps in the time delay histogram
+USE globalData,only:nSpecBand           ! maximum number of spectral bands
 ! provide access to global data
 USE globalData,only:nGRUrun             ! number of GRUs in the run
 USE globalData,only:nHRUrun             ! number of HRUs in the run
