@@ -302,8 +302,6 @@ subroutine computResid(&
       write(*,'(a,i4)') '  nGlce = ', nLayers - nSnow - nLake - nSoil
       write(*,'(a,i4)') '  nLayers = ', nLayers
       write(*,'(a,f12.5)') '  dt = ', dt
-      write(*,'(a,1x,100(e12.5,1x))') '  sMul = ', sMul(min(iJac1,size(sMul)):min(iJac2,size(sMul)))
-      write(*,'(a,1x,100(e12.5,1x))') '  fVec = ', fVec(min(iJac1,size(fVec)):min(iJac2,size(fVec)))
       write(*,'(a,f12.5)') '  scalarCanairTempTrial = ', scalarCanairTempTrial
       write(*,'(a,f12.5)') '  scalarCanopyTempTrial = ', scalarCanopyTempTrial
       write(*,'(a,f12.5)') '  scalarCanopyWatTrial = ', scalarCanopyWatTrial
@@ -319,13 +317,15 @@ subroutine computResid(&
       write(*,'(a,f12.5)') '  scalarCanairEnthalpyTrial = ', scalarCanairEnthalpyTrial 
       write(*,'(a,f12.5)') '  scalarCanopyEnthTempTrial = ', scalarCanopyEnthTempTrial
       write(*,'(a,1x,100(e12.5,1x))') '  mLayerEnthTempTrial = ', mLayerEnthTempTrial(min(iJac1,size(mLayerEnthTempTrial)):min(iJac2,size(mLayerEnthTempTrial)))
+      write(*,'(a,1x,100(e12.5,1x))') 'sMul = ', sMul(min(iJac1,size(sMul)):min(iJac2,size(sMul)))
     endif
 
-    if(any(isNan(rVec)))then
-      write(*,'(a,1x,100(e12.5,1x))') 'rVec = ', rVec(min(iJac1,size(rVec)):min(iJac2,size(rVec)))
+    ! print result
+    if(globalPrintFlag .or. any(isNan(rVec)))then
       write(*,'(a,1x,100(e12.5,1x))') 'fVec = ', fVec(min(iJac1,size(rVec)):min(iJac2,size(rVec)))
-      message=trim(message)//'NaN in residuals'; err=20; return
+      write(*,'(a,1x,100(e12.5,1x))') 'rVec = ', rVec(min(iJac1,size(rVec)):min(iJac2,size(rVec)))
     endif
+    if(any(isNan(rVec)))then; message=trim(message)//'NaN in residuals'; err=20; return; endif
 
   end associate
 
