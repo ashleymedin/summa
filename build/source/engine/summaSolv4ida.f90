@@ -494,7 +494,7 @@ subroutine summaSolv4ida(&
         if (eqns_data%err/=0)then; message=trim(message)//trim(eqns_data%message); return; endif ! fail from summa problem
         call getErrMessage(retvalr,cmessage) ! fail from solver problem
         message=trim(message)//trim(cmessage)
-        !if(retvalr==-1) err = -20 ! max iterations failure, exit and reduce the data window time in varSubStep
+        !if(retvalr==-1) err = -20 ! max iterations failure, exit and reduce the data window time in varSubstep
         exit
       end if
     
@@ -547,7 +547,7 @@ subroutine summaSolv4ida(&
       ! early return for non-feasible solutions, right now will just fail if goes infeasible
       if(.not.feasible)then
         idaSucceeds = .false.
-        message=trim(message)//trim(cmessage)//'non-feasible' ! err=0 is already set, could make this a warning and reduce the data window time in varSubStep
+        message=trim(message)//trim(cmessage)//'non-feasible' ! err=0 is already set, could make this a warning and reduce the data window time in varSubstep
         exit
       end if
     

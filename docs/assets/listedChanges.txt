@@ -59,7 +59,7 @@ c-17) Use dense matrix as default with vegetation (so transpiration derivatives 
   18) Soil matrix compression per layer and total (mLayerCompres and scalarSoilCompress) are now outputted as averages over the data window (kg m-2 s-1) like all fluxes are done
       Soil matrix compression is used in the balance computations, so to have instantaneous values outputted did not make sense. Does not affect solution.
 c-19) If split to a scalar solution, soil compressibility was outputting as 0. Refactor for BE >1 fixes this since save inner splitting steps.
-      Or, if wanted to fix the old code would need to modify part of varSubStep.
+      Or, if wanted to fix the old code would need to modify part of varSubstep.
 c-20) Need to compute dTheta_dTkCanopy off of trial canopy water instead of previous canopy water, affects Jacobian and temperature adjustment in splitting operations, commit 19fca2ba Jun 7, 2023
 c-21) Flux modification flag was not initialized in varSubstep, commit 312004fd Sep 20, 2022, and commit 0c5af7db Aug 11, 2023
 c-22) SWE mass balance error should fail based on tolerance absConvTol_liquid*iden_water*10._rkind, not 1e-6. commit ? Reza changed this around June 16, 2021.

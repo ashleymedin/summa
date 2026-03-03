@@ -309,7 +309,7 @@ subroutine coupled_em(&
   logical(lgt)                         :: lastInnerStep            ! flag to denote if the last time step in maxstep subStep
   logical(lgt)                         :: do_outer                 ! flag to denote if doing the outer steps surrounding the call to opSplittin
   real(rkind)                          :: dt_solvInner             ! seconds in the maxstep subStep that have been completed
-  logical(lgt),parameter               :: computNrgBalance_var=.true. ! flag to compute enthalpy, must have computNrgBalance true in varSubStep (will compute enthalpy for BE even if not using enthalpy formulation)
+  logical(lgt),parameter               :: computNrgBalance_var=.true. ! flag to compute enthalpy, must have computNrgBalance true in varSubstep (will compute enthalpy for BE even if not using enthalpy formulation)
   logical(lgt)                         :: computeEnthalpy          ! flag to compute enthalpy regardless of the model decision
   logical(lgt)                         :: enthalpyStateVec         ! flag if enthalpy is a state variable (IDA)
   logical(lgt)                         :: use_lookup               ! flag to use the lookup table for soil enthalpy, otherwise use analytical solution
@@ -373,7 +373,7 @@ subroutine coupled_em(&
     call allocLocal(averageFlux_meta(:)%var_info,flux_inner,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
-    ! initialize fluxes to average over data_step (averaged over substep in varSubStep)
+    ! initialize fluxes to average over data_step (averaged over substep in varSubstep)
     do iVar=1,size(averageFlux_meta)
       flux_mean%var(iVar)%dat(:) = 0._rkind
     end do
@@ -1037,7 +1037,7 @@ subroutine coupled_em(&
         sumGlceSublimation   = 0._rkind
         sumLatHeatCanopyEvap = 0._rkind
         sumSenHeatCanopy     = 0._rkind
-        ! initialize fluxes to average over whole_step (averaged over substep in varSubStep)
+        ! initialize fluxes to average over whole_step (averaged over substep in varSubstep)
         do iVar=1,size(averageFlux_meta)
           flux_inner%var(iVar)%dat(:) = 0._rkind
         end do
@@ -1977,7 +1977,7 @@ contains
   ! initialize surface melt pond
   sfcMeltPond       = 0._rkind  ! change in storage associated with the surface melt pond (kg m-2)
 
-  ! initialize average over data_step (averaged over substep in varSubStep)
+  ! initialize average over data_step (averaged over substep in varSubstep)
   meanCanopySublimation = 0._rkind ! mean canopy sublimation
   meanLatHeatCanopyEvap = 0._rkind ! mean latent heat flux for evaporation from the canopy
   meanSenHeatCanopy     = 0._rkind ! mean sensible heat flux from the canopy
