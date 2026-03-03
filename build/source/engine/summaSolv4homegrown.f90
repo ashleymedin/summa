@@ -1232,8 +1232,8 @@ contains
 
    ! print progress towards solution
    if (globalPrintFlag) then
-    write(*,'(a,1x,i4,1x,6(e15.5,1x),7(L1,1x))') 'check convergence: ', iter, &
-     matric_max(1), liquid_max(1), energy_max(1), canopy_max, aquifer_max, soilWatBalErr, matricConv, liquidConv, energyConv, watbalConv, canopyConv, aquiferConv, watbalConv
+    write(*,'(a,1x,i4,1x,6(e15.5,1x),6(L1,1x))') 'check convergence: ', iter, &
+     matric_max(1), liquid_max(1), energy_max(1), canopy_max, aquifer_max, soilWatBalErr, matricConv, liquidConv, energyConv, canopyConv, aquiferConv, watbalConv
    end if
 
   end associate ! end associations with variables in the data structures
