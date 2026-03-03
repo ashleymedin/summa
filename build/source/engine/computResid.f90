@@ -324,7 +324,7 @@ subroutine computResid(&
     if(any(isNan(rVec)))then
       write(*,'(a,1x,100(e12.5,1x))') 'rVec = ', rVec(min(iJac1,size(rVec)):min(iJac2,size(rVec)))
       write(*,'(a,1x,100(e12.5,1x))') 'fVec = ', fVec(min(iJac1,size(rVec)):min(iJac2,size(rVec)))
-       message=trim(message)//'NaN in residuals'; err=20; return
+      message=trim(message)//'NaN in residuals'; err=20; return
     endif
 
   end associate
