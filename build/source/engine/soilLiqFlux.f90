@@ -101,7 +101,6 @@ public::soilLiqFlux
 logical(lgt),parameter :: updateInfil=.true.
 contains
 
-
 ! ***************************************************************************************************************
 ! public subroutine soilLiqFlux: compute liquid water fluxes and their derivatives
 ! ***************************************************************************************************************

@@ -23,16 +23,16 @@ module soil_utils_module
 ! data types
 USE nr_type
 
+! constants
+USE globalData,only:verySmaller ! a smaller number than verySmall
 USE multiconst,only: gravity, & ! acceleration of gravity       (m s-2)
-                     Tfreeze, & ! temperature at freezing    (K)
-                     LH_fus,  & ! latent heat of fusion      (J kg-1, or m2 s-2)
+                     Tfreeze, & ! temperature at freezing       (K)
+                     LH_fus,  & ! latent heat of fusion         (J kg-1, or m2 s-2)
                      R_wv       ! gas constant for water vapor  (J kg-1 K-1; [J = Pa m3])
 
 ! privacy
 implicit none
 private
-
-! routines to make public
 public::iceImpede
 public::dIceImpede_dTemp
 public::hydCond_psi
@@ -52,9 +52,7 @@ public::liquidHead
 public::gammp,gammp_complex
 public::LogSumExp
 public::SoftArgMax
-
 contains
-
 
 ! ******************************************************************************************************************************
 ! public subroutine iceImpede: compute the ice impedence factor
@@ -448,6 +446,7 @@ function dHydCond_dPsi(psi,k_sat,alpha,n,m)
     f_x1 = (psi*alpha)**(n - 1._rkind)
     f_x2 = (1._rkind + (psi*alpha)**n)**(-m)
     d_x1 = alpha * (n - 1._rkind)*(psi*alpha)**(n - 2._rkind)
+    if(n < 2._rkind .and. abs(psi*alpha) < verySmaller) d_x1 = 0._rkind ! keep the derivative at zero to avoid blow-up
     d_x2 = alpha * n*(psi*alpha)**(n - 1._rkind) * (-m)*(1._rkind + (psi*alpha)**n)**(-m - 1._rkind)
     f_nm = (1._rkind - f_x1*f_x2)**2_i4b
     d_nm = (-d_x1*f_x2 - f_x1*d_x2) * 2._rkind*(1._rkind - f_x1*f_x2)
