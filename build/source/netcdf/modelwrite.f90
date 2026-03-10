@@ -205,12 +205,15 @@ contains
  integer(i4b),parameter             :: ixReal=1002                          ! named variable for real
  integer(i4b),parameter             :: ixInteger3=1003                      ! named variable for integer array with 3 dimensions (e.g. dom, hru, time)
  integer(i4b),parameter             :: ixReal3=1004                         ! named variable for real array with 3 dimensions (e.g. dom, hru, time)
+ logical(lgt),parameter             :: allowRoutingOutput = .false.         ! flag to allow routing variable output (currently very large and slow to write, so turned off by default)
  ! initialize error control
  err=0;message="writeData/"
 
  ! allocate real and integer arrays for non-scalar variables to longest possible length
  maxLength = max(nSpecBand,nTimeDelay)
  maxLength = max(maxLength,maxLayers+1)
+ maxLength = max(maxLength,maxGlaciers)
+ if(allowRoutingOutput) maxLength = max(maxLength, nTimeDelay)
  allocate(realArray(nHRUrun,maxLength),intArray(nHRUrun,maxLength),realArray3(maxDOM,nHRUrun,maxLength),intArray3(maxDOM,nHRUrun,maxLength))
 
  ! loop through output frequencies
@@ -279,8 +282,9 @@ contains
    ! define the statistics index
    iStat = meta(iVar)%statIndex(iFreq)
 
-   ! check that the variable is desired
-   if (iStat==integerMissing.or.trim(meta(iVar)%varName)=='unknown') cycle ! can't write unknown variable types currently
+   ! check that the variable is desired, currently do not write large variables (unknown and routing) as they are large and slow things down a lot
+   if (iStat==integerMissing.or.trim(meta(iVar)%varName)=='unknown') cycle
+   if (trim(meta(iVar)%varName)=='routing' .and. .not.allowRoutingOutput) cycle ! routing variable write can be turned on with the allowRoutingOutput flag
 
    ! stats output: only scalar variable type
    if(meta(iVar)%varType==iLookVarType%scalarv) then

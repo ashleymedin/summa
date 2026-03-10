@@ -253,11 +253,11 @@ contains
  err = nf90_def_dim(ncid, trim( midToto_DimName), maxLayers,       midToto_DimID); message='iCreate[midToto]';  call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim( ifcSnow_DimName), maxSnowLayers+1, ifcSnow_DimID); message='iCreate[ifcSnow]';  call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim( ifcLake_DimName), maxLakeLayers+1, ifcLake_DimID); message='iCreate[ifcLake]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim( ifcSoil_DimName), maxSoilLayers,   ifcSoil_DimID); message='iCreate[ifcSoil]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( ifcSoil_DimName), maxSoilLayers+1, ifcSoil_DimID); message='iCreate[ifcSoil]';  call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim( ifcGlce_DimName), maxGlceLayers+1, ifcGlce_DimID); message='iCreate[ifcGlce]';  call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim( ifcToto_DimName), maxLayers+1,     ifcToto_DimID); message='iCreate[ifcToto]';  call netcdf_err(err,message); if (err/=0) return
  ! not outputting grid information at this time
- !err = nf90_def_dim(ncid, trim(    grid_DimName), maxGrid,                  grid_DimID); message='iCreate[grid]';     call netcdf_err(err,message); if (err/=0) return
+ !err = nf90_def_dim(ncid, trim(    grid_DimName), maxGrid,           grid_DimID); message='iCreate[grid]';     call netcdf_err(err,message); if (err/=0) return
 
  ! Leave define mode of NetCDF files
  err = nf90_enddef(ncid);  message='nf90_enddef'; call netcdf_err(err,message); if (err/=0) return
