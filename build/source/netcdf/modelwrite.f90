@@ -236,7 +236,7 @@ contains
 
   ! loop through model variables
   do iVar = 1,size(meta)
-
+    
    ! initialize message
    message=trim(message)//trim(meta(iVar)%varName)//'/'
 

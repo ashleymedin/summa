@@ -120,7 +120,6 @@ contains
  ! *** define the model output file and write parameters
  ! *****************************************************************************
 
-
  ! define the file
  call def_output(summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,nDOM,fileout,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
