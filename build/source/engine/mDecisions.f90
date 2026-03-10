@@ -710,18 +710,18 @@ subroutine mDecisions(err,message)
   end select
 
   ! method used to read forcing data (per step or full read)
-  ! NOTE: use read forcing data per time step as the defualt
+  ! NOTE: use read forcing data per time step as the default
   select case(trim(model_decisions(iLookDECISIONS%read_force)%cDecision))
-    case('readPerStep','notPopulatedYet');  model_decisions(iLookDECISIONS%read_force)%iDecision = readPerStep    ! read forcing data per time step (defualt)
+    case('readPerStep','notPopulatedYet');  model_decisions(iLookDECISIONS%read_force)%iDecision = readPerStep    ! read forcing data per time step (default)
     case('readFullSeries'               );  model_decisions(iLookDECISIONS%read_force)%iDecision = readFullSeries ! read full forcing series
     case default
       err=10; message=trim(message)//"unknown option for method used to read forcing data [option="//trim(model_decisions(iLookDECISIONS%read_force)%cDecision)//"]"; return
   end select
 
   ! method used to write model output (per step or full write)
-  ! NOTE: use per time step as the defualt
+  ! NOTE: use per time step as the default
   select case(trim(model_decisions(iLookDECISIONS%write_buff)%cDecision))
-    case('writePerStep','notPopulatedYet');  model_decisions(iLookDECISIONS%write_buff)%iDecision = writePerStep    ! write model output per time step (defualt)
+    case('writePerStep','notPopulatedYet');  model_decisions(iLookDECISIONS%write_buff)%iDecision = writePerStep    ! write model output per time step (deflt)
     case('writeFullSeries'               );  model_decisions(iLookDECISIONS%write_buff)%iDecision = writeFullSeries ! write all data for a given output file
     case default
       err=10; message=trim(message)//"unknown option for method used to write model output [option="//trim(model_decisions(iLookDECISIONS%write_buff)%cDecision)//"]"; return
