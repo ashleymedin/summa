@@ -721,7 +721,7 @@ subroutine mDecisions(err,message)
   ! method used to write model output (per step or full write)
   ! NOTE: use per time step as the default
   select case(trim(model_decisions(iLookDECISIONS%write_buff)%cDecision))
-    case('writePerStep','notPopulatedYet');  model_decisions(iLookDECISIONS%write_buff)%iDecision = writePerStep    ! write model output per time step (deflt)
+    case('writePerStep','notPopulatedYet');  model_decisions(iLookDECISIONS%write_buff)%iDecision = writePerStep    ! write model output per time step (default)
     case('writeFullSeries'               );  model_decisions(iLookDECISIONS%write_buff)%iDecision = writeFullSeries ! write all data for a given output file
     case default
       err=10; message=trim(message)//"unknown option for method used to write model output [option="//trim(model_decisions(iLookDECISIONS%write_buff)%cDecision)//"]"; return
