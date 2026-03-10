@@ -140,6 +140,7 @@ subroutine liquidHeadPrime(&
 
 end subroutine liquidHeadPrime
 
+
 ! ******************************************************************************************************************************
 ! public function d2Theta_dPsi2: compute the second derivative of the soil water characteristic (m-1)
 ! ******************************************************************************************************************************
@@ -164,6 +165,7 @@ function d2Theta_dPsi2(psi,alpha,theta_res,theta_sat,n,m)
     d2Theta_dPsi2 = 0._rkind
   end if
 end function d2Theta_dPsi2
+
 
 ! ******************************************************************************************************************************
 ! public function d2Theta_dTk2: differentiate the freezing curve w.r.t. temperature

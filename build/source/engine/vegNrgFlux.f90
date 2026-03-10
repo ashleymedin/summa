@@ -510,8 +510,6 @@ subroutine vegNrgFlux(&
           groundNetFlux = -diag_data%var(iLookDIAG%iLayerThermalC)%dat(0)*(groundTempTrial - upperBoundTemp)/(prog_data%var(iLookPROG%mLayerDepth)%dat(1)*0.5_rkind)
         elseif (ix_bcUpprTdyn == zeroFlux) then
           groundNetFlux = 0._rkind
-        else
-          err=20; message=trim(message)//'unable to identify upper boundary condition for thermodynamics: expect the case to be prescribedTemp or zeroFlux'; return
         end if
 
       ! *****

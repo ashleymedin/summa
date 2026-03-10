@@ -266,7 +266,7 @@ subroutine computResid(&
       rVec(ixVegHyd) = sMul(ixVegHyd)*scalarCanopyHydTrial - ( sMul(ixVegHyd)*scalarCanopyHyd + fVec(ixVegHyd)*dt + rAdd(ixVegHyd) )
     endif
 
-    ! compute the residual vector for the snow and soil sub-domains for energy
+    ! compute the residual vector for the layer sub-domains for energy
     if(nSnLaSoGlNrg>0)then
       do concurrent (iLayer=1:nLayers,ixSnLaSoGlNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the layer domains)
         if(mixdformNrg)then
@@ -278,7 +278,7 @@ subroutine computResid(&
       end do  ! looping through non-missing energy state variables in the layer domains
     endif
 
-    ! compute the residual vector for the snow and soil sub-domains for hydrology
+    ! compute the residual vector for the layer sub-domains for hydrology
     ! NOTE: residual depends on choice of state variable
     if(nSnLaSoGlHyd>0)then
       do concurrent (iLayer=1:nLayers,ixSnLaSoGlHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the layer domains)
@@ -287,7 +287,7 @@ subroutine computResid(&
         mLayerVolFracHyd(iLayer)      = merge(mLayerVolFracWat(iLayer),      mLayerVolFracLiq(iLayer),       (ixHydType(iLayer)==iname_watLayer .or. ixHydType(iLayer)==iname_matLayer) )
         ! (compute the residual)
         rVec( ixSnLaSoGlHyd(iLayer) ) = ( mLayerVolFracHydTrial(iLayer) -  mLayerVolFracHyd(iLayer) ) - ( fVec( ixSnLaSoGlHyd(iLayer) )*dt + rAdd( ixSnLaSoGlHyd(iLayer) ) )
-      end do  ! looping through non-missing energy state variables in the layer domains
+      end do  ! looping through non-missing hydrology state variables in the layer domains
     endif
 
     ! compute the residual vector for the aquifer

@@ -133,13 +133,13 @@ subroutine soilLiqFlux(&
   type(out_type_soilLiqFlux),intent(out)  :: out_soilLiqFlux             ! error code and error message
   ! -----------------------------------------------------------------------------------------------------------------------------------------------------
   ! local variables: general
-  character(LEN=256)                  :: cmessage                      ! error message of downwind routine
-  integer(i4b)                        :: nSoil                         ! number of soil layers
-  integer(i4b)                        :: ibeg,iend                     ! start and end indices of the soil layers in concatanated snow-lake-soil-glce vector
-  integer(i4b)                        :: iLayer,iSoil                  ! index of soil layer
-  integer(i4b)                        :: ixLayerDesired(1)             ! layer desired (scalar solution)
-  integer(i4b)                        :: ixTop                         ! top layer in subroutine call
-  integer(i4b)                        :: ixBot                         ! bottom layer in subroutine call
+  character(LEN=256)                               :: cmessage            ! error message of downwind routine
+  integer(i4b)                                     :: nSoil               ! number of soil layers
+  integer(i4b)                                     :: ibeg,iend           ! start and end indices of the soil layers in concatanated snow-lake-soil-glce vector
+  integer(i4b)                                     :: iLayer,iSoil        ! index of soil layer
+  integer(i4b)                                     :: ixLayerDesired(1)   ! layer desired (scalar solution)
+  integer(i4b)                                     :: ixTop               ! top layer in subroutine call
+  integer(i4b)                                     :: ixBot               ! bottom layer in subroutine call
   ! transpiration sink term
   real(rkind),dimension(in_soilLiqFlux % nSoil)    :: mLayerTranspireFrac ! fraction of transpiration allocated to each soil layer (-)
   ! diagnostic variables
@@ -151,11 +151,11 @@ subroutine soilLiqFlux(&
   real(rkind),dimension(0:in_soilLiqFlux % nSoil)  :: iLayerHydCond       ! hydraulic conductivity at layer interface (m s-1)
   real(rkind),dimension(0:in_soilLiqFlux % nSoil)  :: iLayerDiffuse       ! diffusivity at layer interface (m2 s-1)
   ! compute surface flux
-  integer(i4b)                                     :: nRoots                  ! number of soil layers with roots or layers that take infiltration
-  integer(i4b)                                     :: ixIce                   ! index of the lowest soil layer that contains ice
-  real(rkind),dimension(0:in_soilLiqFlux % nSoil)  :: iLayerHeight            ! height of the layer interfaces (m)
+  integer(i4b)                                     :: nRoots              ! number of soil layers with roots or layers that take infiltration
+  integer(i4b)                                     :: ixIce               ! index of the lowest soil layer that contains ice
+  real(rkind),dimension(0:in_soilLiqFlux % nSoil)  :: iLayerHeight        ! height of the layer interfaces (m)
   ! error control
-  logical(lgt)                                     :: return_flag             ! flag for return statements
+  logical(lgt)                                     :: return_flag         ! flag for return statements
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
 
   ! ** Initialize indices, error control, and get layer information **
@@ -808,7 +808,7 @@ contains
      dHydCondMicro_dTemp   = 0._rkind
      dHydCondMicro_dMatric = dHydCond_dPsi(scalarMatricHeadLiqTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m)
    end if
-   ! combine derivatives
+   ! combine matric derivatives
    dHydCond_dMatric = dHydCondMicro_dMatric + dHydCondMacro_dMatric
 
    ! compute analytical derivative for change in ice impedance factor w.r.t. temperature
