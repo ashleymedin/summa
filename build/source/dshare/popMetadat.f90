@@ -573,7 +573,6 @@ subroutine popMetadat(err,message)
   flux_meta(iLookFLUX%scalarThroughfallRain)           = var_info('scalarThroughfallRain'          , 'rain that reaches the ground without ever touching the canopy'    , 'kg m-2 s-1'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%scalarCanopySnowUnloading)       = var_info('scalarCanopySnowUnloading'      , 'unloading of snow from the vegetation canopy'                     , 'kg m-2 s-1'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%scalarCanopyLiqDrainage)         = var_info('scalarCanopyLiqDrainage'        , 'drainage of liquid water from the vegetation canopy'              , 'kg m-2 s-1'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  flux_meta(iLookFLUX%scalarCanopyMeltFreeze)          = var_info('scalarCanopyMeltFreeze'         , 'melt/freeze of water stored in the canopy'                        , 'kg m-2 s-1'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! energy fluxes and for the layers
   flux_meta(iLookFLUX%iLayerConductiveFlux)            = var_info('iLayerConductiveFlux'           , 'conductive energy flux at layer interfaces'                       , 'W m-2'           , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%iLayerAdvectiveFlux)             = var_info('iLayerAdvectiveFlux'            , 'advective energy flux at layer interfaces'                        , 'W m-2'           , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)

@@ -428,11 +428,8 @@ contains
    ! non-scalar variables: regular data structures
    else
 
-    ! cannot get here if buffered write
-    if(is_bufferedWrite)then
-     message=trim(message)//'cannot write non-scalar variables in buffered write'
-     err=20; return
-    endif
+    ! cannot write non-scalar variables in buffered write -- too complicated and slow, so not currently supported
+    if(is_bufferedWrite)then; message="writeData/"; cycle; endif ! for now, just skip instead of demanding an output file change
 
     ! initialize the data vectors
     select type (dat)

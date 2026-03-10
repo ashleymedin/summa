@@ -134,7 +134,6 @@ contains
  flux2state_orig(iLookFLUX%scalarCanopySnowUnloading)       = flux2state(state1=integerMissing,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarThroughfallRain)           = flux2state(state1=iname_watCanopy, state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarCanopyLiqDrainage)         = flux2state(state1=iname_watCanopy, state2=integerMissing)
- flux2state_orig(iLookFLUX%scalarCanopyMeltFreeze)          = flux2state(state1=integerMissing,  state2=integerMissing)
 
  ! energy fluxes and for the layer domains
  flux2state_orig(iLookFLUX%iLayerConductiveFlux)            = flux2state(state1=iname_nrgLayer,  state2=integerMissing)

@@ -734,7 +734,6 @@ contains
   case('scalarThroughfallRain'          ); get_ixFlux = iLookFLUX%scalarThroughfallRain            ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
   case('scalarCanopySnowUnloading'      ); get_ixFlux = iLookFLUX%scalarCanopySnowUnloading        ! unloading of snow from the vegetion canopy (kg m-2 s-1)
   case('scalarCanopyLiqDrainage'        ); get_ixFlux = iLookFLUX%scalarCanopyLiqDrainage          ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
-  case('scalarCanopyMeltFreeze'         ); get_ixFlux = iLookFLUX%scalarCanopyMeltFreeze           ! melt/freeze of water stored in the canopy (kg m-2 s-1)
   ! energy fluxes and for the layers
   case('iLayerConductiveFlux'           ); get_ixFlux = iLookFLUX%iLayerConductiveFlux             ! conductive energy flux at layer interfaces at end of time step (W m-2)
   case('iLayerAdvectiveFlux'            ); get_ixFlux = iLookFLUX%iLayerAdvectiveFlux              ! advective energy flux at layer interfaces at end of time step (W m-2)
