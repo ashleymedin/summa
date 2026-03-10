@@ -175,18 +175,18 @@ c-07) Snow water upper bound should be 1, not iden_ice, commit 265721b5 Feb 13, 
        ! FUSEAVIC     ! FUSE ARNO/VIC surface runoff parameterization
        ! FUSETOPM     ! FUSE TOPMODEL surface runoff parameterization
   45) Changing names of subroutines for consistency and clarity, commits around Feb 14, 2026
-  46) Buffered read of forcing files to reduce I/0, commit c1872fe6 Feb 19, 2026 and cleanup through ~March 10, 2026
+  46) Buffered read of forcing files to reduce I/0, commit c1872fe6 Feb 19, 2026 and cleanup through ~Mar 10, 2026
       Added new decision read_force, with choices:
        ! (33) method used to read forcing data
        ! readPerStep    ! read forcing data per time step (default)
        ! readFullSeries ! read full forcing series in a buffered read
-  47) Buffered write of scalar output to reduce I/0, commit 3b2e095b Feb 19, 2026 and cleanup through ~March 10, 2026
+  47) Buffered write of scalar output to reduce I/0, commit 3b2e095b Feb 19, 2026 and cleanup through ~Mar 10, 2026
       If ask for a non-scalar variable just won't output it
       Added new decision write_buff, with choices:
        ! (34) method used to write model output
        ! writePerStep    ! write model output per time step (default)
        ! writeFullSeries ! write all data for a given output file in a buffered read
-  48) Removing variables that do not point to anything anymore (some of them pointed to a constant value that is no longer accessed this way, commits on March 10, 2026
+  48) Removing variables that do not point to anything anymore (some of them pointed to a constant value that is no longer accessed this way, commits on Mar 10, 2026
        scalarVolHtCap_air
        scalarVolHtCap_ice
        scalarVolHtCap_soil
@@ -201,4 +201,4 @@ c-07) Snow water upper bound should be 1, not iden_ice, commit 265721b5 Feb 13, 
   -49) Smoothing of hydCond_psi function when psi is very small, helps convergence with saturated soil layers, commit 946b6112 Mar 10, 2026
 
 
-March 11, 2026
+Mar 11, 2026
