@@ -24,7 +24,7 @@ module soil_utils_module
 USE nr_type
 
 ! constants
-USE globalData,only:verySmaller ! a smaller number than verySmall
+USE globalData,only: verySmall  ! a small number
 USE multiconst,only: gravity, & ! acceleration of gravity       (m s-2)
                      Tfreeze, & ! temperature at freezing       (K)
                      LH_fus,  & ! latent heat of fusion         (J kg-1, or m2 s-2)
@@ -232,12 +232,22 @@ function hydCond_psi(psi,k_sat,alpha,n,m)
   real(rkind),intent(in)     :: n             ! vGn "n" parameter (-)
   real(rkind),intent(in)     :: m             ! vGn "m" parameter (-)
   real(rkind)                :: hydCond_psi   ! hydraulic conductivity (m s-1)
-  if(psi<0._rkind)then
-  hydCond_psi = k_sat * &
-                ( ( (1._rkind - (psi*alpha)**(n-1._rkind) * (1._rkind + (psi*alpha)**n)**(-m))**2_i4b ) &
-                  / ( (1._rkind + (psi*alpha)**n)**(m/2._rkind) ) )
-  else
+  ! Smooth transition to k_sat as psi -> 0 from below.
+  ! Blend over the interval [-delta,0] using a cubic smoothstep so that value
+  ! and first derivative are continuous at the join.
+  real(rkind) :: t, s, orig_val, f_x1, f_x2
+
+  if (psi >= 0._rkind) then
     hydCond_psi = k_sat
+  else
+    orig_val = k_sat * ( ( (1._rkind - (psi*alpha)**(n-1._rkind) * (1._rkind + (psi*alpha)**n)**(-m))**2_i4b ) / ( (1._rkind + (psi*alpha)**n)**(m/2._rkind) ) )
+    if (psi < -verySmall) then
+      hydCond_psi = orig_val
+    else ! compute original formula and blend to k_sat using a cubic smoothstep
+      t = (psi + verySmall) / verySmall
+      s = 3._rkind*t*t - 2._rkind*t*t*t     ! cubic smoothstep: s(0)=0, s(1)=1, continuous first derivative
+      hydCond_psi = orig_val*(1._rkind - s) + k_sat*s
+    end if
   end if
 end function hydCond_psi
 
@@ -438,23 +448,33 @@ function dHydCond_dPsi(psi,k_sat,alpha,n,m)
   real(rkind)                :: d_x2          ! df(x)/dpsi for part of the numerator
   real(rkind)                :: d_nm          ! df(x)/dpsi for the numerator
   real(rkind)                :: d_dm          ! df(x)/dpsi for the denominator
+  real(rkind)                :: t,s,orig_val,orig_d,ds_dpsi
   
-  if(psi<0._rkind)then
-    ! compute the derivative for the numerator
+  if (psi >= 0._rkind) then
+    dHydCond_dPsi = 0._rkind
+  else
+    ! compute the derivative for the numerator (original Van Genuchten form)
     f_x1 = (psi*alpha)**(n - 1._rkind)
     f_x2 = (1._rkind + (psi*alpha)**n)**(-m)
     d_x1 = alpha * (n - 1._rkind)*(psi*alpha)**(n - 2._rkind)
-    if(n < 2._rkind .and. abs(psi*alpha) < verySmaller) d_x1 = 0._rkind ! keep the derivative at zero to avoid blow-up
     d_x2 = alpha * n*(psi*alpha)**(n - 1._rkind) * (-m)*(1._rkind + (psi*alpha)**n)**(-m - 1._rkind)
     f_nm = (1._rkind - f_x1*f_x2)**2_i4b
     d_nm = (-d_x1*f_x2 - f_x1*d_x2) * 2._rkind*(1._rkind - f_x1*f_x2)
     ! compute the derivative for the denominator
     f_dm = (1._rkind + (psi*alpha)**n)**(m/2._rkind)
     d_dm = alpha * n*(psi*alpha)**(n - 1._rkind) * (m/2._rkind)*(1._rkind + (psi*alpha)**n)**(m/2._rkind - 1._rkind)
-    ! and combine
-    dHydCond_dPsi = k_sat*(d_nm*f_dm - d_dm*f_nm) / (f_dm**2_i4b)
-  else ! derivative is zero if super-saturated
-    dHydCond_dPsi = 0._rkind
+    ! and combine to get the original derivative
+    orig_val = k_sat * (f_nm / f_dm)
+    orig_d   = k_sat*(d_nm*f_dm - d_dm*f_nm) / (f_dm**2_i4b)
+    if(psi < -verySmall) then
+      dHydCond_dPsi = orig_d
+    else ! compute original formula and blend to k_sat using a cubic smoothstep
+      t = (psi + verySmall) / verySmall
+      t = max(0._rkind, min(1._rkind, t))
+      s = 3._rkind*t*t - 2._rkind*t*t*t
+      ds_dpsi = (6._rkind*t*(1._rkind - t)) / verySmall
+      dHydCond_dPsi = orig_d*(1._rkind - s) + (k_sat - orig_val)*ds_dpsi
+    end if
   end if
 end function dHydCond_dPsi
 
