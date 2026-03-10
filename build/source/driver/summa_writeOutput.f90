@@ -156,7 +156,6 @@ contains
  logical(lgt)                          :: defNewOutputFile=.false.   ! flag to define new output files
  logical(lgt)                          :: is_writingOutput=.false.   ! flag to write model output
  logical(lgt)                          :: is_bufferedWrite=.false.   ! flag for buffered write
- integer(i4b)                          :: iTime                      ! indices of time
  integer(i4b)                          :: iGRU,iHRU,iDOM             ! indices of GRUs and HRUs
  integer(i4b)                          :: iStruct                    ! index of model structure
  integer(i4b)                          :: iFreq                      ! index of the output frequency
@@ -491,12 +490,12 @@ contains
  character(*)         , intent(out)    :: message            ! error message
  ! local variables -- temporary data structures
  integer(i4b)                          :: iStruct            ! index of data structure
- type(gru_hru_dom_int),   allocatable  :: tempIndx_struct     ! Indx temp structure: x%gru(:)%hru(:)%dom(:)%var(:) (rkind)
- type(gru_hru_double),    allocatable  :: tempForc_struct     ! Forc temp structure: x%gru(:)%hru(:)%var(:)        (rkind)
- type(gru_hru_dom_double),allocatable  :: tempProg_struct     ! Prog temp structure: x%gru(:)%hru(:)%dom(:)%var(:) (rkind)
- type(gru_hru_dom_double),allocatable  :: tempDiag_struct     ! Diag temp structure: x%gru(:)%hru(:)%dom(:)%var(:) (rkind)
- type(gru_hru_dom_double),allocatable  :: tempFlux_struct     ! Flux temp structure: x%gru(:)%hru(:)%dom(:)%var(:) (rkind)
- type(gru_double),        allocatable  :: tempBvar_struct     ! Bvar temp structure: x%gru(:)%var(:)               (rkind)
+ type(gru_hru_dom_int),   allocatable  :: tempIndx_struct    ! Indx temp structure: x%gru(:)%hru(:)%dom(:)%var(:) (rkind)
+ type(gru_hru_double),    allocatable  :: tempForc_struct    ! Forc temp structure: x%gru(:)%hru(:)%var(:)        (rkind)
+ type(gru_hru_dom_double),allocatable  :: tempProg_struct    ! Prog temp structure: x%gru(:)%hru(:)%dom(:)%var(:) (rkind)
+ type(gru_hru_dom_double),allocatable  :: tempDiag_struct    ! Diag temp structure: x%gru(:)%hru(:)%dom(:)%var(:) (rkind)
+ type(gru_hru_dom_double),allocatable  :: tempFlux_struct    ! Flux temp structure: x%gru(:)%hru(:)%dom(:)%var(:) (rkind)
+ type(gru_double),        allocatable  :: tempBvar_struct    ! Bvar temp structure: x%gru(:)%var(:)               (rkind)
  ! error control
  integer(i4b)                          :: ierr               ! error code of downwind routine
  character(LEN=256)                    :: cmessage           ! error message of downwind routine
@@ -608,7 +607,7 @@ contains
      select case(trim(structInfo(iStruct)%structName))
 
       ! get metadata for desired structures
-      case('indx','forc','diag','prog','flux','bvar')  ! restrict attention to the variables that we are interested in
+      case('indx','forc','prog','diag','flux','bvar')  ! restrict attention to the variables that we are interested in
       call get_metadata(trim(structInfo(iStruct)%structName), meta, stat_meta, child_map, ierr, cmessage)
       if(ierr>0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
@@ -638,8 +637,8 @@ contains
        case('indx'); fullIndxSave(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar) = indxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(pVar)%dat(1)
        case('forc')  ! HRU-only data structure
         if(iDOM==1)  fullForcSave(iTime)%gru(iGRU)%hru(iHRU)%var(iVar) = forcStruct%gru(iGRU)%hru(iHRU)%var(pVar)
-       case('diag'); fullProgSave(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar) = progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(pVar)%dat(1)
-       case('prog'); fullDiagSave(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar) = diagStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(pVar)%dat(1)
+       case('prog'); fullProgSave(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar) = progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(pVar)%dat(1)
+       case('diag'); fullDiagSave(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar) = diagStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(pVar)%dat(1)
        case('flux'); fullFluxSave(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar) = fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(pVar)%dat(1)
        case('bvar')  ! GRU-only data structure
         if(iHRU==1 .and. iDOM==1) fullBvarSave(iTime)%gru(iGRU)%var(iVar) = bvarStruct%gru(iGRU)%var(pVar)%dat(1)

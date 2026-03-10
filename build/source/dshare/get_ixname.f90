@@ -538,14 +538,8 @@ contains
   case('scalarCanopyIceMax'             ); get_ixDiag = iLookDIAG%scalarCanopyIceMax               ! maximum interception storage capacity for ice (kg m-2)
   case('scalarCanopyLiqMax'             ); get_ixDiag = iLookDIAG%scalarCanopyLiqMax               ! maximum interception storage capacity for liquid water (kg m-2)
   case('scalarGrowingSeasonIndex'       ); get_ixDiag = iLookDIAG%scalarGrowingSeasonIndex         ! growing season index (0=off, 1=on)
-  case('scalarVolHtCap_air'             ); get_ixDiag = iLookDIAG%scalarVolHtCap_air               ! volumetric heat capacity air (J m-3 K-1)
-  case('scalarVolHtCap_ice'             ); get_ixDiag = iLookDIAG%scalarVolHtCap_ice               ! volumetric heat capacity ice (J m-3 K-1)
-  case('scalarVolHtCap_soil'            ); get_ixDiag = iLookDIAG%scalarVolHtCap_soil              ! volumetric heat capacity dry soil (J m-3 K-1)
-  case('scalarVolHtCap_water'           ); get_ixDiag = iLookDIAG%scalarVolHtCap_water             ! volumetric heat capacity liquid wat (J m-3 K-1)
   case('mLayerVolHtCapBulk'             ); get_ixDiag = iLookDIAG%mLayerVolHtCapBulk               ! volumetric heat capacity in each layer (J m-3 K-1)
   case('mLayerCm'                       ); get_ixDiag = iLookDIAG%mLayerCm                         ! Cm for each layer (J m-3)
-  case('scalarLambda_drysoil'           ); get_ixDiag = iLookDIAG%scalarLambda_drysoil             ! thermal conductivity of dry soil     (W m-1)
-  case('scalarLambda_wetsoil'           ); get_ixDiag = iLookDIAG%scalarLambda_wetsoil             ! thermal conductivity of wet soil     (W m-1)
   case('mLayerThermalC'                 ); get_ixDiag = iLookDIAG%mLayerThermalC                   ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
   case('iLayerThermalC'                 ); get_ixDiag = iLookDIAG%iLayerThermalC                   ! thermal conductivity at the interface of each layer (W m-1 K-1)
   ! enthalpy
@@ -626,8 +620,6 @@ contains
   case('scalarTotalSoilWat'             ); get_ixDiag = iLookDIAG%scalarTotalSoilWat               ! total mass of water in the soil (kg m-2)
   ! variable shortcuts
   case('scalarVGn_m'                    ); get_ixDiag = iLookDIAG%scalarVGn_m                      ! van Genuchten "m" parameter (-)
-  case('scalarKappa'                    ); get_ixDiag = iLookDIAG%scalarKappa                      ! constant in the freezing curve function (m K-1)
-  case('scalarVolLatHt_fus'             ); get_ixDiag = iLookDIAG%scalarVolLatHt_fus               ! volumetric latent heat of fusion     (J m-3)
   ! timing information
   case('numFluxCalls'                   ); get_ixDiag = iLookDIAG%numFluxCalls                     ! number of flux calls (-)
   case('wallClockTime'                  ); get_ixDiag = iLookDIAG%wallClockTime                    ! wall clock time for physics routines (s)

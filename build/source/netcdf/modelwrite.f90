@@ -246,6 +246,7 @@ contains
 
    ! handle time first
    if (meta(iVar)%varName=='time')then
+    message=trim(message)//':' ! add statistic (none) to message 
 
     ! get variable index
     err = nf90_inq_varid(ncid(iFreq),trim(meta(iVar)%varName),ncVarID)
@@ -281,7 +282,7 @@ contains
 
    ! define the statistics index
    iStat = meta(iVar)%statIndex(iFreq)
-   message=trim(message)//'_'//trim(get_statName(iStat))
+   message=trim(message)//'_'//trim(get_statName(iStat))//':' ! add statistic to message
 
    ! check that the variable is desired, currently do not write large variables (unknown and routing) as they are large and slow things down a lot
    if (iStat==integerMissing .or. meta(iVar)%varType==iLookVarType%unknown .or. meta(iVar)%varType==integerMissing)then; message="writeData/"; cycle; endif 
