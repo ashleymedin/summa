@@ -472,7 +472,7 @@ contains
        case(iLookVarType%glacier); datLength = nGlac
        case default; cycle
       ! case parSoil only in parameters (mpar, not written here) 
-      ! case unknown skipped above; covers all lookup table (lookup), control volume (indx), and grid (grid) variables
+      ! case unknown skipped above
       end select ! vartype
       
       ! get the data vectors
