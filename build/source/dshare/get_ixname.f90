@@ -1174,9 +1174,9 @@ contains
   case(iLookVarType%unknown);get_varTypeName='unknown'
   ! get to here if cannot find the variable
   case default
-   get_VarTypeName = 'missing'
+   get_varTypeName = 'missing'
  end select
- end function get_VarTypeName
+ end function get_varTypeName
 
  ! *******************************************************************************************************************
  ! public subroutine get_ixUnknown: get the index of the named variable type from ANY structure, as well as the
