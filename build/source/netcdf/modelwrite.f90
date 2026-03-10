@@ -210,8 +210,7 @@ contains
  err=0;message="writeData/"
 
  ! allocate real and integer arrays for non-scalar variables to longest possible length
- maxLength = max(nSpecBand,nTimeDelay)
- maxLength = max(maxLength,maxLayers+1)
+ maxLength = max(nSpecBand,maxLayers+1)
  maxLength = max(maxLength,maxGlaciers)
  if(allowRoutingOutput) maxLength = max(maxLength, nTimeDelay)
  allocate(realArray(nHRUrun,maxLength),intArray(nHRUrun,maxLength),realArray3(maxDOM,nHRUrun,maxLength),intArray3(maxDOM,nHRUrun,maxLength))
