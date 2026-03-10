@@ -130,18 +130,9 @@ c-07) Snow water upper bound should be 1, not iden_ice, commit 265721b5 Feb 13, 
  -23) Make scalarAquiferRecharge and scalarAquiferTranspire be held on to if splits to aquifer, since previously only attached to bottom soil layer then became 0
       if split to aquifer, commit scalarAquiferTranspire and Recharge need to be held with aquifer mass split, previously went to 0, commit 0a38c7bf Jun 21, 2025
   24) Changes to infiltration
-       1) Added FUSE choices in decision bcUpprSoiH, commit 7c9463c7 May 28, 2025
-          Choices for bcUpperSoiH are now:
-           ! (15) choice of upper boundary conditions for soil hydrology
-           ! presHead  ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
-           ! liq_flux  ! liquid water flux
-           ! FUSEPRMS  ! FUSE PRMS surface runoff
-           ! FUSEAVIC  ! FUSE ARNO/VIC surface runoff
-           ! FUSETOPM  ! FUSE TOPMODEL surface runoff
-       2) New infiltration method infRateMax decision, with new methods infRateMax=GreenAmpt and infRateMax=noInfExc, commit a8427ddf Jun 19, 2025
+       1) New infiltration method infRateMax decision, with new methods infRateMax=GreenAmpt and infRateMax=noInfExc, commit a8427ddf Jun 19, 2025
           Recommended method is infRateMax=GreenAmpt and is different from previous method of infRateMax=topmodel_GA
-          Decision of numMethod=itertive will give give set infRateMax=topmodel_GA for backwards compatibility.
-          Choices are:
+          Decision of numMethod=itertive will give give set infRateMax=topmodel_GA for backwards compatibility. All choices are:
            ! (31) choice of infiltration rate method
            ! GreenAmpt   ! Green-Ampt
            ! topmodel_GA ! Green-Ampt with TOPMODEL conductivity rate
@@ -175,10 +166,39 @@ c-07) Snow water upper bound should be 1, not iden_ice, commit 265721b5 Feb 13, 
  -41) Fix soil input for non Rosetta choice, commit 4c1e0808 Oct 30, 2025
   42) Documentation updates from Wouter, commits around Oct 30, 2025
  -43) Fix bug in rooting depth computation if it is set larger than the soil depth, caps it, commit fe80aa86 Dec 4, 2025
-  44) More infiltration options with separatation of saturated excess and infiltration excess from Wouter, ongoing
-  45) Make scalarSfcMeltPond an optional input since it is recomputed at start of step -- ongoing??
+  44) More infiltration options with separation of saturated excess infiltration area and infiltration excess, commit	03f98c3a Feb 4, 2026
+      Added FUSE choices in new decision surfRun_SE, with choices:
+       ! (32) choice of saturation excess (SE) surface runoff parameterization
+       ! zero_SE      ! zero SE surface runoff
+       ! homegrown_SE ! SE component of SUMMA's original liquid flux parameterization (default)
+       ! FUSEPRMS     ! FUSE PRMS surface runoff parameterization
+       ! FUSEAVIC     ! FUSE ARNO/VIC surface runoff parameterization
+       ! FUSETOPM     ! FUSE TOPMODEL surface runoff parameterization
+  45) Changing names of subroutines for consistency and clarity, commits around Feb 14, 2026
+  46) Buffered read of forcing files to reduce I/0, commit c1872fe6 Feb 19, 2026 and cleanup through ~March 10, 2026
+      Added new decision read_force, with choices:
+       ! (33) method used to read forcing data
+       ! readPerStep    ! read forcing data per time step (default)
+       ! readFullSeries ! read full forcing series in a buffered read
+  47) Buffered write of scalar output to reduce I/0, commit 3b2e095b Feb 19, 2026 and cleanup through ~March 10, 2026
+      If ask for a non-scalar variable just won't output it
+      Added new decision write_buff, with choices:
+       ! (34) method used to write model output
+       ! writePerStep    ! write model output per time step (default)
+       ! writeFullSeries ! write all data for a given output file in a buffered read
+  48) Removing variables that do not point to anything anymore (some of them pointed to a constant value that is no longer accessed this way, commits on March 10, 2026
+       scalarVolHtCap_air
+       scalarVolHtCap_ice
+       scalarVolHtCap_soil
+       scalarVolHtCap_water
+       scalarLambda_drysoil
+       scalarLambda_wetsoil
+       scalarKappa
+       scalarVolLatHt_fus
+       scalarCanopyMeltFreeze
+   48) Routing histogram variables will not print anymore, since once fixed these to print correctly they slowed the write considerably, commit 7601c6ab Mar 10, 2026
+       These can be turned back on with turning allowRoutingOutput flag to .true.
+  -49) Smoothing of hydCond_psi function when psi is very small, helps convergence with saturated soil layers, commit 946b6112 Mar 10, 2026
 
 
-
-
-Jan 6, 2026
+March 11, 2026
