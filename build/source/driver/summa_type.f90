@@ -74,11 +74,11 @@ type, public :: summa1_type_dec
     type(gru_hru_dom_doubleVec)      :: indxStat                   ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model indices
     type(gru_doubleVec)              :: bvarStat                   ! x%gru(:)%var(:)%dat               -- basin-average variables
     ! define the primary data structures (scalars)
-    type(var_i)                      :: timeStruct                 ! x%var(:)                   -- model time data
-    type(gru_hru_double)             :: forcStruct                 ! x%gru(:)%hru(:)%var(:)     -- model forcing data
-    type(gru_hru_double)             :: attrStruct                 ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
-    type(gru_hru_int)                :: typeStruct                 ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
-    type(gru_hru_int8)               :: idStruct                   ! x%gru(:)%hru(:)%var(:)     --
+    type(var_i)                      :: timeStruct                 ! x%var(:)               -- model time data
+    type(gru_hru_double)             :: forcStruct                 ! x%gru(:)%hru(:)%var(:) -- model forcing data
+    type(gru_hru_double)             :: attrStruct                 ! x%gru(:)%hru(:)%var(:) -- local attributes for each HRU
+    type(gru_hru_int)                :: typeStruct                 ! x%gru(:)%hru(:)%var(:) -- local classification of soil veg etc. for each HRU
+    type(gru_hru_int8)               :: idStruct                   ! x%gru(:)%hru(:)%var(:) -- local values of hru and gru IDs
     ! define the primary data structures (variable length vectors)
     type(gru_hru_dom_intVec)         :: indxStruct                 ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model indices
     type(gru_hru_dom_doubleVec)      :: mparStruct                 ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model parameters
@@ -90,7 +90,7 @@ type, public :: summa1_type_dec
     type(gru_doubleVec)              :: bvarStruct                 ! x%gru(:)%var(:)%dat               -- basin-average variables
     type(gru_grid_double)            :: gridStruct                 ! x%gru(:)%grid(:)%var(:)%dat2(:,:) -- basin grid parameters and variables
     ! define the ancillary data structures
-    type(gru_hru_double)             :: dparStruct                 ! x%gru(:)%hru(:)%var(:)     -- default model parameters
+    type(gru_hru_double)             :: dparStruct                 ! x%gru(:)%hru(:)%var(:) -- default model parameters
     ! define the run-time variables
     type(gru_hru_i)                  :: computeVegFlux             ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
     type(gru_hru_dom_d)              :: dt_init                    ! used to initialize the length of the sub-step for each HRU

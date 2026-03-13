@@ -45,7 +45,7 @@ subroutine popMetadat(err,message)
   USE var_lookup, only: iLookLOOKUP         ! named variables for lookup tables
   USE var_lookup, only: maxvarFreq          ! number of output frequencies
   USE var_lookup, only: maxvarStat          ! number of statistics
-  USE get_ixName_module,only:get_ixVarType  ! to turn vartype strings to integers
+  USE get_ixName_module,only:get_ixVarType  ! to turn varType strings to integers
   
   implicit none
   ! dummy variables
@@ -863,32 +863,32 @@ subroutine read_output_file(err,message)
   USE summaFileManager,only:SETTINGS_PATH       ! path for metadata files
   USE summaFileManager,only:OUTPUT_CONTROL      ! file with output controls
   ! some dimensional parameters
-  USE globalData, only:outFreq                  ! output frequencies
-  USE var_lookup, only:maxvarFreq               ! maximum # of output files
-  USE var_lookup, only:maxvarStat               ! maximum # of statistics
+  USE globalData,only:outFreq                   ! output frequencies
+  USE globalData,only:allowRoutingOutput        ! flag to allow routing variable output
+  USE var_lookup,only:maxvarFreq                ! maximum # of output files
+  USE var_lookup,only:maxvarStat                ! maximum # of statistics
   ! metadata structures
-  USE globalData, only: time_meta               ! data structure for time metadata
-  USE globalData, only: forc_meta               ! data structure for forcing metadata
-  USE globalData, only: type_meta               ! data structure for categorical metadata
-  USE globalData, only: attr_meta               ! data structure for attribute metadata
-  USE globalData, only: mpar_meta               ! data structure for local parameter metadata
-  USE globalData, only: bpar_meta               ! data structure for basin parameter metadata
-  USE globalData, only: bvar_meta               ! data structure for basin model variable metadata
-  USE globalData, only: grid_meta               ! data structure for grid metadata
-  USE globalData, only: indx_meta               ! data structure for index metadata
-  USE globalData, only: prog_meta               ! data structure for local prognostic (state) variables
-  USE globalData, only: diag_meta               ! data structure for local diagnostic variables
-  USE globalData, only: flux_meta               ! data structure for local flux variables
-  USE globalData, only: deriv_meta              ! data structure for local flux derivatives
-  USE globalData, only: outputPrecision         ! data structure for output precision
-  USE globalData, only: outputCompressionLevel  ! data structure for output netcdf deflate level
+  USE globalData,only:time_meta                 ! data structure for time metadata
+  USE globalData,only:forc_meta                 ! data structure for forcing metadata
+  USE globalData,only:type_meta                 ! data structure for categorical metadata
+  USE globalData,only:attr_meta                 ! data structure for attribute metadata
+  USE globalData,only:mpar_meta                 ! data structure for local parameter metadata
+  USE globalData,only:bpar_meta                 ! data structure for basin parameter metadata
+  USE globalData,only:bvar_meta                 ! data structure for basin model variable metadata
+  USE globalData,only:indx_meta                 ! data structure for index metadata
+  USE globalData,only:prog_meta                 ! data structure for local prognostic (state) variables
+  USE globalData,only:diag_meta                 ! data structure for local diagnostic variables
+  USE globalData,only:flux_meta                 ! data structure for local flux variables
+  USE globalData,only:outputPrecision           ! data structure for output precision
+  USE globalData,only:outputCompressionLevel    ! data structure for output netcdf deflate level
   ! structures of named variables
-  USE var_lookup, only: iLookTYPE               ! named variables for categorical data
-  USE var_lookup, only: iLookID                 ! named variables for hru and gru ID metadata
-  USE var_lookup, only: iLookFORCE              ! named variables for forcing data structure
-  USE var_lookup, only: iLookINDEX              ! named variables for index variable data structure
-  USE var_lookup, only: iLookSTAT               ! named variables for statitics variable data structure
-  USE var_lookup, only: iLookFREQ               ! named variables for model output frequencies
+  USE var_lookup,only:iLookTYPE                 ! named variables for categorical data
+  USE var_lookup,only:iLookID                   ! named variables for hru and gru ID metadata
+  USE var_lookup,only:iLookFORCE                ! named variables for forcing data structure
+  USE var_lookup,only:iLookINDEX                ! named variables for index variable data structure
+  USE var_lookup,only:iLookSTAT                 ! named variables for statitics variable data structure
+  USE var_lookup,only:iLookFREQ                 ! named variables for model output frequencies
+  USE var_lookup,only:iLookVarType              ! named variables for variable types
   ! identify indices within structures
   USE get_ixName_module,only:get_ixUnknown      ! identify index in any structure
   USE get_ixname_module,only:get_ixFreq         ! identify index of model output frequency
@@ -902,31 +902,32 @@ subroutine read_output_file(err,message)
   implicit none
 
   ! dummy variables
-  integer(i4b),intent(out)             :: err          ! error code
-  character(*),intent(out)             :: message      ! error message
+  integer(i4b),intent(out)             :: err                      ! error code
+  character(*),intent(out)             :: message                  ! error message
   ! define file format
-  integer(i4b),parameter               :: noStatsDesired=1001   ! no statistic desired (temporally constant variables)
-  integer(i4b),parameter               :: provideStatName=1002  ! provide the name of the desired statistic
-  integer(i4b),parameter               :: provideStatFlags=1003 ! provide flags defining the desired statistic
-  integer(i4b)                         :: fileFormat   ! the file format
+  integer(i4b),parameter               :: noStatsDesired=1001      ! no statistic desired (temporally constant variables)
+  integer(i4b),parameter               :: provideStatName=1002     ! provide the name of the desired statistic
+  integer(i4b),parameter               :: provideStatFlags=1003    ! provide flags defining the desired statistic
+  integer(i4b)                         :: fileFormat               ! the file format
   ! define statistics flags
-  logical(lgt),dimension(maxvarStat)   :: statFlag     ! vector of statistics flags
-  character(len=32)                    :: statName     ! name of desired statistic
-  integer(i4b)                         :: iStat        ! index of statistics vector
+  logical(lgt),dimension(maxvarStat)   :: statFlag                 ! vector of statistics flags
+  character(len=32)                    :: statName                 ! name of desired statistic
+  integer(i4b)                         :: iStat                    ! index of statistics vector
+  integer(i4b)                         :: varType                  ! variable type
   ! define frequency of model output
-  character(len=64)                    :: freqName     ! name of desired output frequency
-  integer(i4b)                         :: iFreq        ! index of frequency vector
+  character(len=64)                    :: freqName                 ! name of desired output frequency
+  integer(i4b)                         :: iFreq                    ! index of frequency vector
   ! general local variables
-  character(LEN=256)                   :: cmessage     ! error message of downwind routine
-  character(LEN=256)                   :: outfile      ! full path of model output file
-  integer(i4b)                         :: unt          ! file unit
-  character(LEN=linewidth),allocatable :: charlines(:) ! vector of character strings
-  character(LEN=64),allocatable        :: lineWords(:) ! vector to parse textline
-  integer(i4b)                         :: nWords       ! number of words in line
-  character(LEN=128)                   :: varName      ! variable name
-  character(LEN=5)                     :: structName   ! name of structure
-  integer(i4b)                         :: vLine        ! index for loop through variables
-  integer(i4b)                         :: vDex         ! index into type lists
+  character(LEN=256)                   :: cmessage                 ! error message of downwind routine
+  character(LEN=256)                   :: outfile                  ! full path of model output file
+  integer(i4b)                         :: unt                      ! file unit
+  character(LEN=linewidth),allocatable :: charlines(:)             ! vector of character strings
+  character(LEN=64),allocatable        :: lineWords(:)             ! vector to parse textline
+  integer(i4b)                         :: nWords                   ! number of words in line
+  character(LEN=128)                   :: varName                  ! variable name
+  character(LEN=6)                     :: structName               ! name of structure
+  integer(i4b)                         :: vLine                    ! index for loop through variables
+  integer(i4b)                         :: vDex                     ! index into type lists
 
   ! initialize error control
   err=0; message='read_output_file/'
@@ -965,9 +966,9 @@ subroutine read_output_file(err,message)
     varName = trim(lineWords(nameIndex))
 
     ! user cannot control time output
-    if (trim(varName)=='time') cycle
+    if (varName=='time') cycle
     ! set precision if it is given
-    if (trim(varName)=='outputPrecision') then
+    if (varName=='outputPrecision') then
       statName = trim(lineWords(nWords))
       if (statName=='single' .or. statName=='float') then
         outputPrecision = nf90_float
@@ -983,7 +984,7 @@ subroutine read_output_file(err,message)
     end if
 
     ! set output netcdf file compression level if given. default is level 4.
-    if (trim(varName)=='outputCompressionLevel') then
+    if (varName=='outputCompressionLevel') then
       statName = trim(lineWords(nWords))
       read(statName, *) outputCompressionLevel
       if ((outputCompressionLevel .LT. 0) .or. (outputCompressionLevel .GT. 9)) then
@@ -1001,17 +1002,11 @@ subroutine read_output_file(err,message)
     call get_ixUnknown(trim(varName),structName,vDex,err,cmessage)
     if (err/=0) then; message=trim(message)//trim(cmessage)// ': deprecated variable name, remove from output file'; return; end if;
 
-    ! id variables should not be specified in output control file
-    if (trim(structName)=='id')then
-    print*,'id variable requested in outputControl, will be skipped: variable='//trim(varName)
-    cycle
-    end if
-
     ! --- identify the desired frequency in the metadata structure  -----------
 
     ! process time-varying variables
     select case(trim(structName))
-      case('indx','forc','prog','diag','flux','bvar','deriv')
+      case('forc','prog','diag','flux','bvar') ! these are all time-varying variables that could be output at different frequencies
 
         ! * ensure that the frequency index exists for time varying variables
         if(nWords<freqIndex)then
@@ -1040,27 +1035,29 @@ subroutine read_output_file(err,message)
 
       ! * grid variables do not change on less than annual-level, currently this will not output as type is 'unknown'
       case('grid')
-        if(nWords<freqIndex) then
-          freqName = 'empty'
-        else
-          freqName = trim(lineWords(freqIndex))
-        endif
+        freqName = trim(lineWords(freqIndex))
         if (freqName/='annual') then
-          write(*,*)'WARNING: grid variable '//trim(varName)//': outputting variable in annual file as it does not change on less than annual level [entered "'//trim(freqName)//'"]'
+          if(varName=='surface_elev' .or. varName=='debris_thick') then
+            write(*,*)'WARNING: grid variable '//trim(varName)//': outputting variable in annual file as it does not change on less than annual level'
+          else if(varName/='cell2hru') then
+            write(*,*)'WARNING: grid structure id not outputted, skipping variable '//trim(varName)
+          else
+            write(*,*)'WARNING: temporally constant grid variable '//trim(varName)//': outputting parameter in annual file with no time dimension'
+          endif
         endif
         iFreq = iLookFREQ%annual
         freqName = 'annual'
 
       ! time and temporally constant variables always outputted at timestep level (no aggregation)
-      case('bpar','attr','type','mpar','time')
+      case('bpar','attr','type','mpar','time','indx')
         if(nWords<freqIndex) then
           freqName = 'empty'
         else
           freqName = trim(lineWords(freqIndex))
         endif
-        if(trim(structName)=='time') then
-          if (freqName/='timestep'.or. freqName/='1') then
-            write(*,*)'WARNING: time variable '//trim(varName)//': outputting time at timestep level since it cannot be aggregated [entered "'//trim(freqName)//'"]'
+        if(structName=='time' .or. structName=='indx') then
+          if (freqName/='timestep' .and. freqName/='1') then
+            write(*,*)'WARNING: timestep only variable '//trim(varName)//': outputting at timestep level since it cannot be aggregated'
           endif
         else
           write(*,*)'WARNING: temporally constant variable '//trim(varName)//': outputting parameter in timestep file with no time dimension'
@@ -1068,8 +1065,17 @@ subroutine read_output_file(err,message)
         iFreq = iLookFREQ%timestep
         freqName = 'timestep'
 
+      case('deriv','lookup') ! we don't output these and keep for internal use only, but we could if there was a desire to do so
+        write(*,*)'WARNING: cannot output '//trim(structName)//' structure data, skipping variable '//trim(varName)
+        cycle
+      case('id') ! gruId and hruId are always written with the call to write_hru_info
+        if(varName/='hruId' .and. varName/='gruId') then
+          write(*,*)'WARNING: outputting id structure data gruId and hruId only, skipping variable '//trim(varName)
+        endif
+        cycle
+
       ! error control
-      case default;  err=20;message=trim(message)//'unable to identify lookup structure';return
+      case default;  err=20;message=trim(message)//'unable to identify lookup structure '//trim(structName);return
     end select
 
     ! --- identify the desired statistic in the metadata structure  -----------
@@ -1109,7 +1115,7 @@ subroutine read_output_file(err,message)
         do iStat = 1,maxVarStat
           if (lineWords(freqIndex + 2*iStat)=='1') then
             statFlag(iStat)=.true.
-            statName = get_statName(istat)
+            statName = get_statName(iStat)
           end if
         end do
         ! check actually defined the statistic (and only defined one statistic)
@@ -1133,41 +1139,39 @@ subroutine read_output_file(err,message)
 
     ! --- populate the metadata that controls the model output  ---------------
 
+    varType = -1_i4b ! initialize variable type (only need for temporally varying structures)
     ! identify data structure
     select case (trim(structName))
 
-      ! temporally constant structures -- request instantaneous, timestep-level output (no aggregation)
-      case('time' ); time_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; time_meta(vDex)%varDesire=.true.   ! timing data
+      ! time and index structures -- request instantaneous, timestep-level output (no aggregation possible)
+      case('time' ); time_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; time_meta(vDex)%varDesire=.true. ! time variable 
+      case('indx' ); indx_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; indx_meta(vDex)%varDesire=.true. ! index variables
+
+      ! grid structures -- request instantaneous, annual-level output (no aggregation since constant over annual time scales)
+      case('grid' ); grid_meta(vDex)%statIndex(iLookFREQ%annual)   = iLookSTAT%inst; grid_meta(vDex)%varDesire=.true.  
 
       ! temporally constant structures -- request instantaneous, timestep-level output (and output with no time dimension, does not change)        
-      case('bpar' ); bpar_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; bpar_meta(vDex)%varDesire=.true.   ! basin parameters
-      case('attr' ); attr_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; attr_meta(vDex)%varDesire=.true.   ! local attributes
-      case('type' ); type_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; type_meta(vDex)%varDesire=.true.   ! local classification
-      case('mpar' ); mpar_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; mpar_meta(vDex)%varDesire=.true.   ! model parameters
-
-      ! index structures -- can only be output at the model time step
-      case('indx' ); indx_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; indx_meta(vDex)%varDesire=.true.
-      if(iFreq/=iLookFREQ%timestep)then
-        message=trim(message)//'index variables can only be output at model timestep'&
-                            //' [evaluating variable "'//trim(varName)//'" for output frequency "'//trim(freqName)//'"]'
-        err=20; return
-      endif
+      case('bpar' ); bpar_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; bpar_meta(vDex)%varDesire=.true. ! basin parameters
+      case('attr' ); attr_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; attr_meta(vDex)%varDesire=.true. ! local attributes
+      case('type' ); type_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; type_meta(vDex)%varDesire=.true. ! local classification
+      case('mpar' ); mpar_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; mpar_meta(vDex)%varDesire=.true. ! model parameters
 
       ! temporally varying structures
-      case('forc' ); call popStat(forc_meta(vDex) , iFreq, iStat, err, cmessage)    ! model forcing data
-      case('prog' ); call popStat(prog_meta(vDex) , iFreq, iStat, err, cmessage)    ! model prognostics
-      case('diag' ); call popStat(diag_meta(vDex) , iFreq, iStat, err, cmessage)    ! model diagnostics
-      case('flux' ); call popStat(flux_meta(vDex) , iFreq, iStat, err, cmessage)    ! model fluxes
-      case('bvar' ); call popStat(bvar_meta(vDex) , iFreq, iStat, err, cmessage)    ! basin variables
-      case('deriv'); call popStat(deriv_meta(vDex), iFreq, iStat, err, cmessage)    ! model derivs
-
-      ! grid structures -- request instantaneous, annual-level output (no aggregation)
-      case('grid' ); grid_meta(vDex)%statIndex(iLookFREQ%annual) = iLookSTAT%inst; grid_meta(vDex)%varDesire=.true.   !  grid data
-
-      ! error control
-      case default;  err=20;message=trim(message)//'unable to identify lookup structure';return
+      case('forc' ); call popStat(forc_meta(vDex), iFreq, iStat, err, cmessage); varType = forc_meta(vDex)%varType    ! model forcing data
+      case('prog' ); call popStat(prog_meta(vDex), iFreq, iStat, err, cmessage); varType = prog_meta(vDex)%varType    ! model prognostics
+      case('diag' ); call popStat(diag_meta(vDex), iFreq, iStat, err, cmessage); varType = diag_meta(vDex)%varType    ! model diagnostics
+      case('flux' ); call popStat(flux_meta(vDex), iFreq, iStat, err, cmessage); varType = flux_meta(vDex)%varType    ! model fluxes
+      case('bvar' ); call popStat(bvar_meta(vDex), iFreq, iStat, err, cmessage); varType = bvar_meta(vDex)%varType    ! basin variables
 
     end select  ! select data structure
+
+    ! warnings for variables that we cannot write
+    if(.not.allowRoutingOutput .and. varType==iLookVarType%routing)then 
+       write(*,*)'WARNING: cannot output routing histogram type data, skipping variable '//trim(varName)
+     endif  ! (if desire routing write)
+    if(varType==iLookVarType%unknown .or. varType==integerMissing)then 
+      write(*,*)'WARNING: cannot output unknown or missing type data, skipping variable '//trim(varName)
+    endif  ! (if desire unknown write)
 
     ! error control from popStat
     if (err/=0) then; message=trim(message)//trim(cmessage);return; end if

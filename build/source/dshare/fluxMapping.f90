@@ -187,7 +187,7 @@ contains
  ! ** check all variables are defined
  do iVar=1,nFlux
   if(flux2state_orig(iVar)%state1==integerUndefined .or. flux2state_orig(iVar)%state2==integerUndefined)then
-   message=trim(message)//'flux-to-state mapping is undefined for variable "'//trim(flux_meta(iVar)%varname)//'"'
+   message=trim(message)//'flux-to-state mapping is undefined for variable "'//trim(flux_meta(iVar)%varName)//'"'
    err=20; return
   endif
  end do

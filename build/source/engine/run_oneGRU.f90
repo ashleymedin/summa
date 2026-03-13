@@ -106,7 +106,7 @@ subroutine run_oneGRU(&
                       ! data structures (input)
                       timeVec,            & ! intent(in):    model time data
                       typeHRU,            & ! intent(in):    local classification of soil veg etc. for each HRU
-                      idHRU,              & ! intent(in):    local classification of hru and gru IDs
+                      idHRU,              & ! intent(in):    local values of hru and gru IDs
                       attrHRU,            & ! intent(in):    local attributes for each HRU
                       lookupHRU,          & ! intent(in):    local lookup tables for each HRU
                       ! data structures (input-output)
@@ -139,7 +139,7 @@ subroutine run_oneGRU(&
   ! data structures (input)
   type(var_i)             , intent(in)    :: timeVec              ! x%var(:)                               -- model time data
   type(hru_int)           , intent(in)    :: typeHRU              ! x%hru(:)%var(:)                        -- local classification of soil veg etc. for each HRU
-  type(hru_int8)          , intent(in)    :: idHRU                ! x%hru(:)%var(:)                        -- local classification of hru and gru IDs
+  type(hru_int8)          , intent(in)    :: idHRU                ! x%hru(:)%var(:)                        -- local values of hru and gru IDs
   type(hru_double)        , intent(in)    :: attrHRU              ! x%hru(:)%var(:)                        -- local attributes for each HRU
   type(hru_dom_z_vLookup) , intent(in)    :: lookupHRU            ! x%hru(:)%dom(:)%z(:)%var(:)%lookup(:) -- lookup values for each HRU
   ! data structures (input-output)

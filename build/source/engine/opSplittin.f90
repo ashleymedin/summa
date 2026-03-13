@@ -727,7 +727,7 @@ subroutine opSplittin(&
     ! check that the desired fluxes were computed
     do iVar=1,size(flux_meta)
      if (neededFlux(iVar) .and. any(fluxCount%var(iVar)%dat==0)) then
-      message=trim(message)//'flux '//trim(flux_meta(iVar)%varname)//' was not computed'
+      message=trim(message)//'flux '//trim(flux_meta(iVar)%varName)//' was not computed'
       err=20; return_flag=.true.; return
      end if
     end do
@@ -1212,20 +1212,20 @@ subroutine opSplittin(&
 
             ! get the offset (ixLayerActive=1,2,3,...nLayers, and soil vectors nSnow+nLake+1, nSnow+nLake+2, ..., nSnow+nLake+nSoil)
             iOffset = 0 ! initialize offset, true for snow
-            if(flux_meta(iVar)%vartype==iLookVarType%midLake .or. flux_meta(iVar)%vartype==iLookVarType%ifcLake) iOffset = nSnow
-            if(flux_meta(iVar)%vartype==iLookVarType%midSoil .or. flux_meta(iVar)%vartype==iLookVarType%ifcSoil) iOffset = nSnow+nLake
-            if(flux_meta(iVar)%vartype==iLookVarType%midGlce .or. flux_meta(iVar)%vartype==iLookVarType%ifcGlce) iOffset = nSnow+nLake+nSoil
+            if(flux_meta(iVar)%varType==iLookVarType%midLake .or. flux_meta(iVar)%varType==iLookVarType%ifcLake) iOffset = nSnow
+            if(flux_meta(iVar)%varType==iLookVarType%midSoil .or. flux_meta(iVar)%varType==iLookVarType%ifcSoil) iOffset = nSnow+nLake
+            if(flux_meta(iVar)%varType==iLookVarType%midGlce .or. flux_meta(iVar)%varType==iLookVarType%ifcGlce) iOffset = nSnow+nLake+nSoil
             jLayer  = iLayer-iOffset
 
             ! identify the minimum layer
-            select case(flux_meta(iVar)%vartype)
+            select case(flux_meta(iVar)%varType)
              case(iLookVarType%ifcToto, iLookVarType%ifcSnow, iLookVarType%ifcLake, iLookVarType%ifcSoil, iLookVarType%ifcGlce); minLayer=merge(jLayer-1, jLayer, jLayer==1)
              case(iLookVarType%midToto, iLookVarType%midSnow, iLookVarType%midLake, iLookVarType%midSoil, iLookVarType%midGlce); minLayer=jLayer
              case default; minLayer=integerMissing
             end select
 
             ! set desired layers
-            select case(flux_meta(iVar)%vartype)
+            select case(flux_meta(iVar)%varType)
              case(iLookVarType%midToto,iLookVarType%ifcToto);                                                                    fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
              case(iLookVarType%midSnow,iLookVarType%ifcSnow); if (iLayer<=nSnow)                                                 fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
              case(iLookVarType%midLake,iLookVarType%ifcLake); if (iLayer<=nSnow+nLake            .and. iLayer>nSnow)             fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
@@ -1234,7 +1234,7 @@ subroutine opSplittin(&
             end select
 
             ! add hydrology states for scalar variables
-            if (iStateTypeSplit==massSplit .and. flux_meta(iVar)%vartype==iLookVarType%scalarv) then
+            if (iStateTypeSplit==massSplit .and. flux_meta(iVar)%varType==iLookVarType%scalarv) then
              select case(iDomainSplit_use) ! need to list all the snow, lake, glce variables (not all soil)
               case(snowSplit) ! snow scalar variables change with the bottom layer
                 if(nSnow>0 .and. iLayer==nSnow)then
@@ -1294,7 +1294,7 @@ subroutine opSplittin(&
 
     ! define if the flux is desired
     if (desiredFlux) neededFlux(iVar)=.true.
-    if ( globalPrintFlag .and. count(fluxMask%var(iVar)%dat)>0 ) print*,'computing flux', trim(flux_meta(iVar)%varname)
+    if ( globalPrintFlag .and. count(fluxMask%var(iVar)%dat)>0 ) print*,'computing flux', trim(flux_meta(iVar)%varName)
 
    end do  ! end looping through fluxes
 

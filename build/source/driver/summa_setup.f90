@@ -330,8 +330,8 @@ endif
    do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
 
     ! NOTE: constant for the dat(:) dimension (normally depth)
-    do ivar=1,size(localParFallback)
-     mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(ivar)%dat(:) = dparStruct%gru(iGRU)%hru(iHRU)%var(ivar)
+    do iVar=1,size(localParFallback)
+     mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(:) = dparStruct%gru(iGRU)%hru(iHRU)%var(iVar)
     end do  ! looping through variables
  
    end do  ! looping through domains

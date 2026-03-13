@@ -41,13 +41,13 @@ def usage():
     sys.stderr.write(use)
     sys.exit(1)
 
-def getNetCDFData(fn, varname):
-    """Read <varname> variables available to be mapped from NetCDF <fn> """
+def getNetCDFData(fn, varName):
+    """Read <varName> variables available to be mapped from NetCDF <fn> """
     f = nc4.Dataset(fn,'r')
-    data = f.variables[varname][:]
+    data = f.variables[varName][:]
     f.close()
 #    ds = xr.open_dataset(fn)
-#    data = ds[varname]
+#    data = ds[varName]
     return data
 
 def getOutputPolyIDs(nc_file):
@@ -85,7 +85,7 @@ def getOutputGlac_surf(nc_file):
 # write gru variables to netcdf output file
 def writeNC_state_vars_GRU(nc_out, newVarName, newVarType, newVarVals):
     """ Write <vars>[gru] array in netCDF4 file,<fn> and variable of
-        <varname> """
+        <varName> """
     print("adding attribute data")
     ncvar = nc_out.createVariable(newVarName, newVarType, ('gru',),fill_value='-999')    
     ncvar[:] = newVarVals   # store data in netcdf file
@@ -93,7 +93,7 @@ def writeNC_state_vars_GRU(nc_out, newVarName, newVarType, newVarVals):
 # write dom, hru, variables to netcdf output file
 def writeNC_state_vars_HRU_DOM(nc_out, newVarName, newVarDim, newVarType, newVarVals):
     """ Write <vars>[hru dom] array in netCDF4 file,<fn> and variable of
-        <varname> """
+        <varName> """
     print("adding HRU_DOM data")
     ncvar = nc_out.createVariable(newVarName, newVarType, (newVarDim,'hru','dom',),fill_value='-999.0')   
     ncvar[:] = newVarVals   # store data in netcdf file
@@ -102,7 +102,7 @@ def writeNC_state_vars_HRU_DOM(nc_out, newVarName, newVarDim, newVarType, newVar
 def writeNC_state_vars_GRU_VEC(nc_out, newVarName, newVarDim, newVarType, newVarVals):
 
     """ Write <vars>[gru] array in netCDF4 file,<fn> and variable of
-        <varname> """
+        <varName> """
 
     print("adding GRU_VEC data")
     if newVarType=='i4' or newVarType=='i8':
@@ -114,7 +114,7 @@ def writeNC_state_vars_GRU_VEC(nc_out, newVarName, newVarDim, newVarType, newVar
 # write dimensions and dimension variables to netcdf output file
 def writeNC_dims(fn,  scalarv, midSoil, midToto, ifcToto, hrus, grus, hru_type, ndom, glac):    
     """ Write <vars>[hru] array in netCDF4 file,<fn> and variable of
-        <varname> """
+        <varName> """
     print("writing output file")
     nc_out = nc4.Dataset(fn, 'w', format='NETCDF4')
 

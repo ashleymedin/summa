@@ -291,7 +291,7 @@ contains
     (time_data(iLookTIME%ih)  ==integerMissing) .or. &
     (time_data(iLookTIME%imin)==integerMissing) )then
   do iline=1,size(time_data)
-   if(time_data(iline)==integerMissing)then; err=40; message=trim(message)//"variableMissing[var='"//trim(time_meta(iline)%varname)//"']"; return; end if
+   if(time_data(iline)==integerMissing)then; err=40; message=trim(message)//"variableMissing[var='"//trim(time_meta(iline)%varName)//"']"; return; end if
   end do
  end if ! if time data is missing
 
@@ -575,7 +575,7 @@ contains
   if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing variable name from netCDF: '//trim(nf90_strerror(err)); return; endif
 
   ! read forcing data for all HRUs and desired number of time steps
-  err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),dataMatrix,start=(/ixHRUfile_min,ixStartRead/),count=(/nHRUlocal,nRead/))
+  err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(iVar),dataMatrix,start=(/ixHRUfile_min,ixStartRead/),count=(/nHRUlocal,nRead/))
   if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing data: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
 
   ! loop through time
@@ -597,12 +597,12 @@ contains
   
      ! check individual data value
      if(dataMatrix(iHRU_local,iTime) < dataMin)then
-      write(message,'(a,f13.5)') trim(message)//'forcing data for variable '//trim(varname)//' is less than minimum allowable value ', dataMin
+      write(message,'(a,f13.5)') trim(message)//'forcing data for variable '//trim(varName)//' is less than minimum allowable value ', dataMin
       err=20; return
      endif
   
      ! put the data into structures
-     fullforcingStruct(iTime)%gru(iGRU)%hru(iHRU)%var(ivar) = dataMatrix(iHRU_local,iTime)
+     fullforcingStruct(iTime)%gru(iGRU)%hru(iHRU)%var(iVar) = dataMatrix(iHRU_local,iTime)
   
     end do  ! looping through HRUs within a given GRU
    end do  ! looping through GRUs
@@ -615,7 +615,7 @@ contains
  if(count(checkForce)<size(forc_meta))then
   do iline=1,size(forc_meta)
    if(.not.checkForce(iline))then
-    message=trim(message)//"variableMissing[var='"//trim(forc_meta(iline)%varname)//"']"
+    message=trim(message)//"variableMissing[var='"//trim(forc_meta(iline)%varName)//"']"
     err=20; return
    endif    ! if variable is missing
   end do   ! looping through variables

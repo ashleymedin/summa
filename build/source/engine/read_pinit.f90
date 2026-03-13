@@ -65,10 +65,10 @@ contains
  ! define local variables for the default model parameters
  integer(i4b)                           :: iend           ! check for the end of the file
  character(LEN=256)                     :: ffmt           ! file format
- character(LEN=32)                      :: varname        ! name of variable
+ character(LEN=32)                      :: varName        ! name of variable
  type(par_info)                         :: parTemp        ! temporary parameter structure
  character(LEN=2)                       :: dLim           ! column delimiter
- integer(i4b)                           :: ivar           ! index of model variable
+ integer(i4b)                           :: iVar           ! index of model variable
  ! Start procedure here
  err=0; message="read_pinit/"
  ! **********************************************************************************************
@@ -110,23 +110,23 @@ contains
   if(iend/=0)exit !end of file
   if (temp(1:1)=='!')cycle
   ! (save data into a temporary variables)
-  read(temp,trim(ffmt),iostat=err) varname, dLim, parTemp%default_val, dLim, parTemp%lower_limit, dLim, parTemp%upper_limit
+  read(temp,trim(ffmt),iostat=err) varName, dLim, parTemp%default_val, dLim, parTemp%lower_limit, dLim, parTemp%upper_limit
   if (err/=0) then; err=30; message=trim(message)//"errorReadLine"; return; end if
   ! (identify the index of the variable in the data structure)
   if(isLocal)then
-   ivar = get_ixParam(trim(varname))
+   iVar = get_ixParam(trim(varName))
   else
-   ivar = get_ixBpar(trim(varname))
+   iVar = get_ixBpar(trim(varName))
   end if
   ! (check that we have successfully found the parameter)
-  if(ivar>0)then
-   if(ivar>size(parFallback))then
-    err=35; message=trim(message)//"indexOutOfRange[var="//trim(varname)//"]"; return
+  if(iVar>0)then
+   if(iVar>size(parFallback))then
+    err=35; message=trim(message)//"indexOutOfRange[var="//trim(varName)//"]"; return
    end if
    ! (put data in the structure)
-   parFallback(ivar)=parTemp
+   parFallback(iVar)=parTemp
   else
-   err=40; message=trim(message)//"variable in parameter file not present in data structure [var="//trim(varname)//"]"; return
+   err=40; message=trim(message)//"variable in parameter file not present in data structure [var="//trim(varName)//"]"; return
   end if
  end do  ! (looping through lines in the file)
 
@@ -193,9 +193,9 @@ contains
  ! NOTE: ultimately need a need a parameter dictionary to ensure that the parameters used are populated
  if(.not.backwardsCompatible)then  ! if we add new variables in future versions of the code, then some may be missing in the input file
   if(any(parFallback(:)%default_val < 0.99_rkind*realMissing))then
-   do ivar=1,size(parFallback)
-    if(parFallback(ivar)%default_val < 0.99_rkind*realMissing)then
-     err=40; message=trim(message)//"variableNonexistent[var="//trim(mpar_meta(ivar)%varname)//"]"; return
+   do iVar=1,size(parFallback)
+    if(parFallback(iVar)%default_val < 0.99_rkind*realMissing)then
+     err=40; message=trim(message)//"variableNonexistent[var="//trim(mpar_meta(iVar)%varName)//"]"; return
     end if
    end do
   end if

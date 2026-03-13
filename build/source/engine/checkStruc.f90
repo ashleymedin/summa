@@ -160,32 +160,32 @@ contains
   do iVar=1,size(metadata)
 
    ! check that this variable is populated
-   if (trim(metadata(iVar)%varname)=='empty') then
+   if (trim(metadata(iVar)%varName)=='empty') then
     write(message,'(a,i0,a)') trim(message)//trim(structInfo(iStruct)%structName)//'_meta structure is not populated for named variable # ',iVar,' in structure iLook'//trim(structInfo(iStruct)%lookName)
     err=20; return
    end if
 
    ! look for the populated variable
-   call get_ixUnknown(trim(metadata(iVar)%varname),typeName,jVar,err,cmessage)
+   call get_ixUnknown(trim(metadata(iVar)%varName),typeName,jVar,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
    ! check that the variable was found at all
    if (jVar==integerMissing) then
-    message = trim(message)//'cannot find variable '//trim(metadata(iVar)%varname)//' in structure '//trim(structInfo(iStruct)%structName)//'_meta; '// &
+    message = trim(message)//'cannot find variable '//trim(metadata(iVar)%varName)//' in structure '//trim(structInfo(iStruct)%structName)//'_meta; '// &
     'you need to add variable to get_ix'//trim(structInfo(iStruct)%structName)
     err=20; return
    end if
 
    ! check that the variable was found in the correct structure
-   if (trim(structInfo(iStruct)%structName)/=typeName) then
-    message=trim(message)//'variable '//trim(metadata(iVar)%varname)//' from structure '//trim(structInfo(iStruct)%structName)//'_meta is in structure '//trim(typeName)//'_meta'
+   if (structInfo(iStruct)%structName/=typeName) then
+    message=trim(message)//'variable '//trim(metadata(iVar)%varName)//' from structure '//trim(structInfo(iStruct)%structName)//'_meta is in structure '//trim(typeName)//'_meta'
     err=20; return
    end if
 
    ! check that the variable index is correct
    ! This can occur because (1) the code in popMetadat is corrupt (e.g., mis-match in look-up variable); or (2) var_lookup is corrupt.
    if (jVar/=iVar) then
-    write(message,'(a,i0,a,i0,a)') trim(message)//'variable '//trim(metadata(iVar)%varname)//' has index ', iVar, &
+    write(message,'(a,i0,a,i0,a)') trim(message)//'variable '//trim(metadata(iVar)%varName)//' has index ', iVar, &
      ' (expect index ', jVar, '); problem possible in popMetadat, get_ix'//trim(structInfo(iStruct)%structName)//', or var_lookup'
     err=20; return
    end if

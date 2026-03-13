@@ -116,7 +116,7 @@ subroutine summa_defineGlobalData(err, message)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! define the mask to identify the subset of variables in the "child" data structure (just scalar variables)
-  flux_mask = (flux_meta(:)%vartype==iLookVarType%scalarv)
+  flux_mask = (flux_meta(:)%varType==iLookVarType%scalarv)
 
   ! create the averageFlux metadata structure
   call childStruc(flux_meta, flux_mask, averageFlux_meta, childFLUX_MEAN, err, cmessage)
@@ -124,12 +124,12 @@ subroutine summa_defineGlobalData(err, message)
 
   ! child metadata structures - so that we do not carry full stats structures around everywhere
   ! only carry stats for variables with output frequency > model time step
-  statForc_mask = (forc_meta(:)%vartype==iLookVarType%scalarv.and.forc_meta(:)%varDesire)
-  statProg_mask = (prog_meta(:)%vartype==iLookVarType%scalarv.and.prog_meta(:)%varDesire)
-  statDiag_mask = (diag_meta(:)%vartype==iLookVarType%scalarv.and.diag_meta(:)%varDesire)
-  statFlux_mask = (flux_meta(:)%vartype==iLookVarType%scalarv.and.flux_meta(:)%varDesire)
-  statIndx_mask = (indx_meta(:)%vartype==iLookVarType%scalarv.and.indx_meta(:)%varDesire)
-  statBvar_mask = (bvar_meta(:)%vartype==iLookVarType%scalarv.and.bvar_meta(:)%varDesire)
+  statForc_mask = (forc_meta(:)%varType==iLookVarType%scalarv.and.forc_meta(:)%varDesire)
+  statProg_mask = (prog_meta(:)%varType==iLookVarType%scalarv.and.prog_meta(:)%varDesire)
+  statDiag_mask = (diag_meta(:)%varType==iLookVarType%scalarv.and.diag_meta(:)%varDesire)
+  statFlux_mask = (flux_meta(:)%varType==iLookVarType%scalarv.and.flux_meta(:)%varDesire)
+  statIndx_mask = (indx_meta(:)%varType==iLookVarType%scalarv.and.indx_meta(:)%varDesire)
+  statBvar_mask = (bvar_meta(:)%varType==iLookVarType%scalarv.and.bvar_meta(:)%varDesire)
 
   ! create the stats metadata structures
   do iStruct=1,size(structInfo)
@@ -146,12 +146,12 @@ subroutine summa_defineGlobalData(err, message)
   end do ! iStruct
 
   ! set all stats metadata to correct var types
-  statForc_meta(:)%vartype = iLookVarType%outstat
-  statProg_meta(:)%vartype = iLookVarType%outstat
-  statDiag_meta(:)%vartype = iLookVarType%outstat
-  statFlux_meta(:)%vartype = iLookVarType%outstat
-  statIndx_meta(:)%vartype = iLookVarType%outstat
-  statBvar_meta(:)%vartype = iLookVarType%outstat
+  statForc_meta(:)%varType = iLookVarType%outstat
+  statProg_meta(:)%varType = iLookVarType%outstat
+  statDiag_meta(:)%varType = iLookVarType%outstat
+  statFlux_meta(:)%varType = iLookVarType%outstat
+  statIndx_meta(:)%varType = iLookVarType%outstat
+  statBvar_meta(:)%varType = iLookVarType%outstat
 
 end subroutine summa_defineGlobalData
 

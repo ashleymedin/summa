@@ -364,7 +364,7 @@ subroutine read_attrb(attrFile,nGRU,attrStruct,typeStruct,idStruct,err,message)
  integer(i4b),intent(in)              :: nGRU               ! number of grouped response units
  type(gru_hru_double),intent(inout)   :: attrStruct         ! local attributes for each HRU
  type(gru_hru_int),intent(inout)      :: typeStruct         ! local classification of soil veg etc. for each HRU
- type(gru_hru_int8),intent(inout)     :: idStruct           ! local classification of hru and gru IDs
+ type(gru_hru_int8),intent(inout)     :: idStruct           ! local values of hru and gru IDs
  integer(i4b),intent(out)             :: err                ! error code
  character(*),intent(out)             :: message            ! error message
  ! define local variables
@@ -536,21 +536,21 @@ subroutine read_attrb(attrFile,nGRU,attrStruct,typeStruct,idStruct,err,message)
  ! check that we have all desired categorical variables
  if(any(.not.checkType))then
   do iCheck = 1,size(type_meta)
-   if(.not.checkType(iCheck))then; err=20; message=trim(message)//'missing variable ['//trim(type_meta(iCheck)%varname)//'] in local attributes file'; return; endif
+   if(.not.checkType(iCheck))then; err=20; message=trim(message)//'missing variable ['//trim(type_meta(iCheck)%varName)//'] in local attributes file'; return; endif
   end do
  endif
 
  ! check that we have all desired ID variables
  if(any(.not.checkId))then
   do iCheck = 1,size(id_meta)
-   if(.not.checkId(iCheck))then; err=20; message=trim(message)//'missing variable ['//trim(id_meta(iCheck)%varname)//'] in local attributes file'; return; endif
+   if(.not.checkId(iCheck))then; err=20; message=trim(message)//'missing variable ['//trim(id_meta(iCheck)%varName)//'] in local attributes file'; return; endif
   end do
  endif
 
  ! check that we have all desired local attributes
  if(any(.not.checkAttr))then
   do iCheck = 1,size(attr_meta)
-   if(.not.checkAttr(iCheck))then; err=20; message=trim(message)//'missing variable ['//trim(attr_meta(iCheck)%varname)//'] in local attributes file'; return; endif
+   if(.not.checkAttr(iCheck))then; err=20; message=trim(message)//'missing variable ['//trim(attr_meta(iCheck)%varName)//'] in local attributes file'; return; endif
   end do
  endif
 

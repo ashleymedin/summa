@@ -527,7 +527,7 @@ contains
  integer(i4b),intent(out)        :: err            ! error code
  character(*),intent(out)        :: message        ! error message
  ! locals
- integer(i4b)                    :: ivar           ! variable index
+ integer(i4b)                    :: iVar           ! variable index
  integer(i4b)                    :: ix_lower       ! lower bound of the vector
  integer(i4b)                    :: ix_upper       ! upper bound of the vector
  real(rkind),allocatable         :: tempVec_rkind(:)  ! temporary vector (double precision)
@@ -545,11 +545,11 @@ contains
  if(err/=0)then; message=trim(message)//'dimensions of data structure and metadata structures do not match'; return; end if
 
  ! ***** loop through model variables and remove one layer
- do ivar=1,size(metaStruct)
+ do iVar=1,size(metaStruct)
 
   ! define bounds
   if (doGlac)then
-   select case(metaStruct(ivar)%vartype)
+   select case(metaStruct(iVar)%varType)
     case(iLookVarType%midGlce); ix_lower=1; ix_upper=nGlce
     case(iLookVarType%midToto); ix_lower=1; ix_upper=nLayers
     case(iLookVarType%ifcGlce); ix_lower=0; ix_upper=nGlce
@@ -557,7 +557,7 @@ contains
     case default; cycle  ! no need to remove soil layers or scalar variables
    end select
   else
-    select case(metaStruct(ivar)%vartype)
+    select case(metaStruct(iVar)%varType)
      case(iLookVarType%midSnow); ix_lower=1; ix_upper=nSnow
      case(iLookVarType%midToto); ix_lower=1; ix_upper=nLayers
      case(iLookVarType%ifcSnow); ix_lower=0; ix_upper=nSnow
@@ -572,19 +572,19 @@ contains
    ! ** double precision
    type is (var_dlength)
     ! check allocated
-    if(.not.allocated(dataStruct%var(ivar)%dat))then; err=20; message='data vector is not allocated'; return; end if
+    if(.not.allocated(dataStruct%var(iVar)%dat))then; err=20; message='data vector is not allocated'; return; end if
     ! allocate the temporary vector
     allocate(tempVec_rkind(ix_lower:ix_upper-1), stat=err)
     if(err/=0)then; err=20; message=trim(message)//'unable to allocate temporary vector'; return; end if
     ! copy elements across to the temporary vector
     if(iLayer>=ix_lower)  tempVec_rkind(iLayer)              = realMissing ! set merged layer to missing (fill in later)
-    if(iLayer>ix_lower)   tempVec_rkind(ix_lower:iLayer-1)   = dataStruct%var(ivar)%dat(ix_lower:iLayer-1)
-    if(iLayer+1<ix_upper) tempVec_rkind(iLayer+1:ix_upper-1) = dataStruct%var(ivar)%dat(iLayer+2:ix_upper)  ! skip iLayer+1
+    if(iLayer>ix_lower)   tempVec_rkind(ix_lower:iLayer-1)   = dataStruct%var(iVar)%dat(ix_lower:iLayer-1)
+    if(iLayer+1<ix_upper) tempVec_rkind(iLayer+1:ix_upper-1) = dataStruct%var(iVar)%dat(iLayer+2:ix_upper)  ! skip iLayer+1
     ! deallocate the data vector: strictly not necessary, but include to be safe
-    deallocate(dataStruct%var(ivar)%dat,stat=err)
+    deallocate(dataStruct%var(iVar)%dat,stat=err)
     if(err/=0)then; err=20; message='problem deallocating data vector'; return; end if
     ! create the new data structure using the temporary vector as the source
-    call cloneStruc(dataStruct%var(ivar)%dat, ix_lower, source=tempVec_rkind, err=err, message=cmessage)
+    call cloneStruc(dataStruct%var(iVar)%dat, ix_lower, source=tempVec_rkind, err=err, message=cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
     ! deallocate the temporary data vector: strictly not necessary, but include to be safe
     deallocate(tempVec_rkind,stat=err)
@@ -593,19 +593,19 @@ contains
    ! ** integer
    type is (var_ilength)
     ! check allocated
-    if(.not.allocated(dataStruct%var(ivar)%dat))then; err=20; message='data vector is not allocated'; return; end if
+    if(.not.allocated(dataStruct%var(iVar)%dat))then; err=20; message='data vector is not allocated'; return; end if
     ! allocate the temporary vector
     allocate(tempVec_i4b(ix_lower:ix_upper-1), stat=err)
     if(err/=0)then; err=20; message=trim(message)//'unable to allocate temporary vector'; return; end if
     ! copy elements across to the temporary vector
     if(iLayer>=ix_lower)  tempVec_i4b(iLayer)              = integerMissing ! set merged layer to missing (fill in later)
-    if(iLayer>ix_lower)   tempVec_i4b(ix_lower:iLayer-1)   = dataStruct%var(ivar)%dat(ix_lower:iLayer-1)
-    if(iLayer+1<ix_upper) tempVec_i4b(iLayer+1:ix_upper-1) = dataStruct%var(ivar)%dat(iLayer+2:ix_upper)  ! skip iLayer+1
+    if(iLayer>ix_lower)   tempVec_i4b(ix_lower:iLayer-1)   = dataStruct%var(iVar)%dat(ix_lower:iLayer-1)
+    if(iLayer+1<ix_upper) tempVec_i4b(iLayer+1:ix_upper-1) = dataStruct%var(iVar)%dat(iLayer+2:ix_upper)  ! skip iLayer+1
     ! deallocate the data vector: strictly not necessary, but include to be safe
-    deallocate(dataStruct%var(ivar)%dat,stat=err)
+    deallocate(dataStruct%var(iVar)%dat,stat=err)
     if(err/=0)then; err=20; message='problem deallocating data vector'; return; end if
     ! create the new data structure using the temporary vector as the source
-    call cloneStruc(dataStruct%var(ivar)%dat, ix_lower, source=tempVec_i4b, err=err, message=cmessage)
+    call cloneStruc(dataStruct%var(iVar)%dat, ix_lower, source=tempVec_i4b, err=err, message=cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
     ! deallocate the temporary data vector: strictly not necessary, but include to be safe
     deallocate(tempVec_i4b,stat=err)

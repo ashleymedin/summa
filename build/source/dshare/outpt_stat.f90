@@ -36,6 +36,7 @@ contains
  USE data_types,only:extended_info,dlength,ilength  ! metadata structure type
  USE var_lookup,only:iLookVarType                   ! named variables for variable types
  USE var_lookup,only:iLookSTAT                      ! named variables for output statistics types
+ USE get_ixname_module,only:get_freqName            ! get name of frequency from frequency index
  implicit none
 
  ! input variables
@@ -65,7 +66,7 @@ contains
   ! don't do anything if var is not requested
   if (.not.meta(iVar)%varDesire) cycle
 
-  ! only treat stats of scalars - all others handled separately
+  ! only treat stats of scalars for now (could add other types of stats in the future)
   if (meta(iVar)%varType==iLookVarType%outstat) then
 
    ! index in parent structure
@@ -80,14 +81,25 @@ contains
    end select
 
    ! calculate statistics
-   if (trim(meta(iVar)%varName)=='time') then
+   if (meta(iVar)%varName=='time') then
     stat(iVar)%dat(iLookSTAT%inst) = tdata
    else
     call calc_stats(meta(iVar),stat(iVar),tdata,resetStats,finalizeStats,statCounter,err,cmessage)
    end if
    if(err/=0)then; message=trim(message)//trim(cmessage);return; end if
 
-  end if  ! if calculating statistics
+  else ! print a warning if user requested statistics for a non-scalar variable (could add other types of stats in the future)
+   if(modelTimeStep==1)then ! only print warning once
+    do iFreq=1,maxvarFreq                                      ! loop through output statistics
+     if(meta(iVar)%statIndex(iFreq)==integerMissing) cycle     ! don't bother if output frequency is not desired for a given variab;e
+     if(meta(iVar)%statIndex(iFreq)/=iLookSTAT%inst)then
+      write(*,*)'WARNING: cannot compute statistics of non-scalar type data, outputting instantaneous variable '//trim(meta(iVar)%varName)//' in '//trim(get_freqName(iFreq))//' output file'
+     end if
+    end do ! looping through frequencies
+   end if  ! (if first step)
+
+  end if  ! (if stat of scarlar)
+
  end do  ! looping through variables
 
  return
@@ -140,7 +152,6 @@ contains
  do iFreq=1,maxvarFreq                              ! loop through output statistics
   if(resetStats(iFreq))then                         ! flag to reset statistics
    if(meta%statIndex(iFreq)==integerMissing) cycle  ! don't bother if output frequency is not desired for a given variable
-   if(meta%varType/=iLookVarType%outstat) cycle     ! only calculate stats for scalars
    select case(meta%statIndex(iFreq))               ! act depending on the statistic
     ! -------------------------------------------------------------------------------------
     case (iLookSTAT%totl)                           ! * summation over period                  
@@ -170,7 +181,6 @@ contains
  ! ---------------------------------------------
  do iFreq=1,maxvarFreq                                ! loop through output statistics
   if(meta%statIndex(iFreq)==integerMissing) cycle     ! don't bother if output frequency is not desired for a given variab;e
-  if(meta%varType/=iLookVarType%outstat) cycle        ! only calculate stats for scalars
   select case(meta%statIndex(iFreq))                  ! act depending on the statistic
    ! -------------------------------------------------------------------------------------
    case (iLookSTAT%inst)                              ! * instantaneous value 

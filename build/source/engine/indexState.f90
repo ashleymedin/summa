@@ -447,7 +447,7 @@ contains
    case(iLookINDEX%ixMatricHead);         call indxSubset(indx_data%var(iVar)%dat, ixSoilState,  matricHead_mask, err, cmessage)
    case default; cycle ! only need to process the above variables
   end select  ! iVar
-  if(err/=0)then; message=trim(message)//trim(cmessage)//'[varname='//trim(indx_meta(ivar)%varname)//']'; return; endif
+  if(err/=0)then; message=trim(message)//trim(cmessage)//'[varName='//trim(indx_meta(iVar)%varName)//']'; return; endif
 
  end do  ! looping through variables in the data structure
 
@@ -520,7 +520,7 @@ contains
   ! get the subset of indices
   ! NOTE: indxSubset(subset, fullVector, mask), provides subset of fullVector where mask==.true.
   call indxSubset(indx_data%var(iVar)%dat,ixSequence,stateTypeMask,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage)//'[varname='//trim(indx_meta(ivar)%varname)//']'; return; endif
+  if(err/=0)then; message=trim(message)//trim(cmessage)//'[varName='//trim(indx_meta(iVar)%varName)//']'; return; endif
 
  end do  ! looping through variables in the data structure
 
@@ -652,14 +652,14 @@ contains
   ! deallocate space
   deallocate(indx_data%var(iVar)%dat,stat=err)
   if(err/=0)then
-   message=trim(message)//'unable to deallocate space for variable '//trim(indx_meta(ivar)%varname)
+   message=trim(message)//'unable to deallocate space for variable '//trim(indx_meta(iVar)%varName)
    err=20; return
   endif
 
   ! allocate space
   allocate(indx_data%var(iVar)%dat(nVec),stat=err)
   if(err/=0)then
-   message=trim(message)//'unable to allocate space for variable '//trim(indx_meta(ivar)%varname)
+   message=trim(message)//'unable to allocate space for variable '//trim(indx_meta(iVar)%varName)
    err=20; return
   endif
 

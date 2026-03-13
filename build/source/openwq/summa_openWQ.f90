@@ -235,7 +235,7 @@ subroutine openWQ_run_time_start_inner(openWQArrayIndex, iGRU, iHRU, &
   ! Copy the prog structure
   do iVar = 1, size(progStruct%gru(iGRU)%hru(iHRU)%var)
     do iDat = 1, size(progStruct%gru(iGRU)%hru(iHRU)%var(iVar)%dat)
-      select case(prog_meta(iVar)%vartype)
+      select case(prog_meta(iVar)%varType)
         case(iLookVarType%ifcSoil);
           offset = 0
         case(iLookVarType%ifcToto);

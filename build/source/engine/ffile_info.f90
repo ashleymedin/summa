@@ -66,7 +66,7 @@ contains
  character(LEN=256)                   :: infile              ! input filename
  integer(i4b)                         :: unt                 ! file unit (free unit output from file_open)
  character(LEN=256)                   :: filenameData        ! name of forcing datafile
- integer(i4b)                         :: ivar                ! index of model variable
+ integer(i4b)                         :: iVar                ! index of model variable
  integer(i4b)                         :: iFile               ! counter for forcing files
  integer(i4b)                         :: nFile               ! number of forcing files in forcing file list
  integer(i4b)                         :: file_nHRU           ! number of HRUs in current forcing file
@@ -188,22 +188,22 @@ contains
     case('time','pptrate','SWRadAtm','LWRadAtm','airtemp','windspd','airpres','spechum')
 
      ! get variable index
-     ivar = get_ixForce(trim(varname))
-     if(ivar < 0)then;                               err=40; message=trim(message)//"variableNotFound[var="//trim(varname)//"]"; return; end if
-     if(ivar>size(forcFileInfo(iFile)%data_id))then; err=35; message=trim(message)//"indexOutOfRange[var="//trim(varname)//"]"; return; end if
+     iVar = get_ixForce(trim(varName))
+     if(iVar < 0)then;                               err=40; message=trim(message)//"variableNotFound[var="//trim(varName)//"]"; return; end if
+     if(iVar>size(forcFileInfo(iFile)%data_id))then; err=35; message=trim(message)//"indexOutOfRange[var="//trim(varName)//"]"; return; end if
 
      ! put netcdf file variable index in the forcing file metadata structure
-     err = nf90_inq_varid(ncid, trim(varName), forcFileInfo(iFile)%data_id(ivar))
+     err = nf90_inq_varid(ncid, trim(varName), forcFileInfo(iFile)%data_id(iVar))
      if(err/=0)then; message=trim(message)//"problem inquiring forcing variable[var="//trim(varName)//"]"; return; end if
 
      ! put variable index of the forcing structure in the metadata structure
-     if(trim(varName)/='time')then
-      forcFileInfo(iFile)%var_ix(iNC)   = ivar
-      forcFileInfo(iFile)%varName(ivar) = trim(varName)
+     if(varName/='time')then
+      forcFileInfo(iFile)%var_ix(iNC)   = iVar
+      forcFileInfo(iFile)%varName(iVar) = trim(varName)
 
      ! get first time from file, place into forcFileInfo
      else
-      err = nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),forcFileInfo(iFile)%firstJulDay,start=(/1/))
+      err = nf90_get_var(ncid,forcFileInfo(iFile)%data_id(iVar),forcFileInfo(iFile)%firstJulDay,start=(/1/))
       if(err/=0)then; message=trim(message)//'problem reading first Julian day'; return; end if
      end if  ! if the variable name is time
 
@@ -232,7 +232,7 @@ contains
     case('hruId')
 
      ! check to see if hruId exists as a variable, this is a required variable
-     err = nf90_inq_varid(ncid,trim(varname),varId)
+     err = nf90_inq_varid(ncid,trim(varName),varId)
      if(err/=0)then; message=trim(message)//'hruId variable not present'; return; endif
 
      ! check that the hruId is what we expect
@@ -263,7 +263,7 @@ contains
   ! check to see if any forcing variables are missed
   if(any(forcFileInfo(iFile)%data_id(:)==integerMissing))then
    do iVar=1,size(forcFileInfo(iFile)%data_id)
-    if(forcFileInfo(iFile)%data_id(iVar)==integerMissing)then; err=40; message=trim(message)//"variable missing [var='"//trim(forcFileInfo(iFile)%varname(iVar))//"']"; return; end if
+    if(forcFileInfo(iFile)%data_id(iVar)==integerMissing)then; err=40; message=trim(message)//"variable missing [var='"//trim(forcFileInfo(iFile)%varName(iVar))//"']"; return; end if
    end do
   end if
 

@@ -20,10 +20,6 @@
 
 module summa_defineOutput                     ! used to define model output files
 
-! access missing values
-USE globalData,only:integerMissing            ! missing integer
-USE globalData,only:realMissing               ! missing real number
-
 ! named variables to define new output files
 USE globalData, only: noNewFiles              ! no new output files
 USE globalData, only: newFileEveryOct1        ! create a new file on Oct 1 every year (start of the USA water year)
@@ -68,28 +64,28 @@ contains
  ! ---------------------------------------------------------------------------------------
  implicit none
  ! dummy variables
- integer(i4b),intent(in)               :: modelTimeStep      ! time step index
- type(summa1_type_dec),intent(inout)   :: summa1_struc       ! master summa data structure
- integer(i4b),intent(out)              :: err                ! error code
- character(*),intent(out)              :: message            ! error message
+ integer(i4b),intent(in)               :: modelTimeStep        ! time step index
+ type(summa1_type_dec),intent(inout)   :: summa1_struc         ! master summa data structure
+ integer(i4b),intent(out)              :: err                  ! error code
+ character(*),intent(out)              :: message              ! error message
  ! local variables
- character(LEN=256)                    :: cmessage           ! error message of downwind routine
- integer(i4b)                          :: iGRU,iHRU,iDOM     ! indices of GRUs, HRUs, and domains
- integer(i4b)                          :: iStruct            ! index of model structure
+ character(LEN=256)                    :: cmessage             ! error message of downwind routine
+ integer(i4b)                          :: iGRU,iHRU,iDOM,iGrid ! indices of GRUs, HRUs, domains, and grids
+ integer(i4b)                          :: iStruct              ! index of model structure
  ! version information generated during compiling
  INCLUDE 'summaversion.inc'
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(&
-  timeStruct           => summa1_struc%timeStruct        , & ! x%var(:)                   -- model time data
-  attrStruct           => summa1_struc%attrStruct        , & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
-  typeStruct           => summa1_struc%typeStruct        , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
-  idStruct             => summa1_struc%idStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
+  timeStruct           => summa1_struc%timeStruct        , & ! x%var(:)               -- model time data
+  attrStruct           => summa1_struc%attrStruct        , & ! x%gru(:)%hru(:)%var(:) -- local attributes for each HRU
+  typeStruct           => summa1_struc%typeStruct        , & ! x%gru(:)%hru(:)%var(:) -- local classification of soil veg etc. for each HRU
+  idStruct             => summa1_struc%idStruct          , & ! x%gru(:)%hru(:)%var(:) -- local classification of soil veg etc. for each HRU
   mparStruct           => summa1_struc%mparStruct        , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model parameters
-  bparStruct           => summa1_struc%bparStruct        , & ! x%gru(:)%var(:)            -- basin-average parameters
+  bparStruct           => summa1_struc%bparStruct        , & ! x%gru(:)%var(:)                   -- basin-average parameters
+  gridStruct           => summa1_struc%gridStruct        , & ! x%gru(:)%var(:)%var(:)%dat2(:,:)  -- basin grid parameters and variables
   nGRU                 => summa1_struc%nGRU              , & ! number of grouped response units
-  nHRU                 => summa1_struc%nHRU              , & ! number of global hydrologic response units
-  nDOM                 => summa1_struc%nDOM                & ! number of global domains (max in any HRU)
+  nHRU                 => summa1_struc%nHRU                & ! number of global hydrologic response units
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
  ! initialize error control
@@ -121,7 +117,7 @@ contains
  ! *****************************************************************************
 
  ! define the file
- call def_output(summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,nDOM,fileout,err,cmessage)
+ call def_output(summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,fileout,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! write parameters for each HRU
@@ -143,8 +139,16 @@ contains
   end do  ! (looping through HRUs)
 
   ! write GRU parameters
-  call writeParam(0,iGRU,bparStruct%gru(iGRU),bpar_meta,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  do iStruct=1,size(structInfo)
+   select case(trim(structInfo(iStruct)%structName))
+    case('bpar'); call writeParam(0,iGRU,bparStruct%gru(iGRU),bpar_meta,err,cmessage)
+    case('grid')
+      do iGrid=1,gru_struc(iGRU)%nGrid
+        call writeGridParam(iGrid,gridStruct%gru(iGRU),grid_meta,err,cmessage)
+      end do
+   end select
+  end do  ! (looping through structures)
+  if(err/=0)then; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; return; endif
 
  end do  ! (looping through GRUs)
 

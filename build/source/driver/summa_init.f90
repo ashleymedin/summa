@@ -121,12 +121,12 @@ subroutine summa_initialize(summa1_struc, err, message)
   ! lookup table data structure
     lookupStruct         => summa1_struc%lookupStruct        , & ! x%gru(:)%hru(:)%z(:)%var(:)%lookup(:) -- lookup tables
     ! statistics structures
-    forcStat             => summa1_struc%forcStat            , & ! x%gru(:)%hru(:)%var(:)%dat -- model forcing data
-    progStat             => summa1_struc%progStat            , & ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
-    diagStat             => summa1_struc%diagStat            , & ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
-    fluxStat             => summa1_struc%fluxStat            , & ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
-    indxStat             => summa1_struc%indxStat            , & ! x%gru(:)%hru(:)%var(:)%dat -- model indices
-    bvarStat             => summa1_struc%bvarStat            , & ! x%gru(:)%var(:)%dat        -- basin-average variables
+    forcStat             => summa1_struc%forcStat            , & ! x%gru(:)%hru(:)%var(:)%dat        -- model forcing data
+    progStat             => summa1_struc%progStat            , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model prognostic (state) variables
+    diagStat             => summa1_struc%diagStat            , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model diagnostic variables
+    fluxStat             => summa1_struc%fluxStat            , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model fluxes
+    indxStat             => summa1_struc%indxStat            , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model indices
+    bvarStat             => summa1_struc%bvarStat            , & ! x%gru(:)%var(:)%dat               -- basin-average variables
     ! primary data structures (scalars)
     timeStruct           => summa1_struc%timeStruct          , & ! x%var(:)               -- model time data
     forcStruct           => summa1_struc%forcStruct          , & ! x%gru(:)%hru(:)%var(:) -- model forcing data
@@ -140,11 +140,11 @@ subroutine summa_initialize(summa1_struc, err, message)
     diagStruct           => summa1_struc%diagStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model diagnostic variables
     fluxStruct           => summa1_struc%fluxStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model fluxes
     ! basin-average structures
-    bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)                    -- basin-average parameters
-    bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat                -- basin-average variables
-    gridStruct           => summa1_struc%gridStruct          , & ! x%gru(:)%grid(:)%var(:)%dat2(:,:)  -- basin grid parameters and variables
+    bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)                   -- basin-average parameters
+    bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat               -- basin-average variables
+    gridStruct           => summa1_struc%gridStruct          , & ! x%gru(:)%grid(:)%var(:)%dat2(:,:) -- basin grid parameters and variables
     ! ancillary data structures
-    dparStruct           => summa1_struc%dparStruct          , & ! x%gru(:)%hru(:)%var(:)     -- default model parameters
+    dparStruct           => summa1_struc%dparStruct          , & ! x%gru(:)%hru(:)%var(:) -- default model parameters
     ! run time variables
     computeVegFlux       => summa1_struc%computeVegFlux      , & ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
     dt_init              => summa1_struc%dt_init             , & ! used to initialize the length of the sub-step for each HRU and DOM
@@ -209,7 +209,7 @@ subroutine summa_initialize(summa1_struc, err, message)
     endif
 
     ! *****************************************************************************
-    ! *** read the number of layers
+    ! *** read the number of layers, also defines maxDOM for the model
     ! *****************************************************************************
     ! set restart filename and read the number of layers from the initial conditions (restart) file
     if(STATE_PATH == '') then
