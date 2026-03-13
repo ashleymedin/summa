@@ -46,6 +46,7 @@ USE globalData,only:nHRUrun             ! number of HRUs in the run
 USE globalData,only:maxDOM              ! maximum number of domains in any HRU
 USE globalData,only:maxLayers           ! maximum number of layers
 USE globalData,only:gru_struc           ! gru->hru mapping structure
+USE globalData,only:allowRoutingOutput  ! flag to allow routing variable output
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
@@ -86,10 +87,12 @@ USE var_lookup, only: maxvarStat ! number of statistics
 implicit none
 private
 public::writeParam
+public::writeGridParam
 public::writeData
+public::writeGridData
 public::writeTime
 public::writeRestart
-public::writeRestartGlac
+public::writeRestartGrid
 
 contains
 
@@ -123,7 +126,7 @@ contains
   if (meta(iVar)%statIndex(iLookFREQ%timestep)==integerMissing) cycle
 
   ! initialize message
-  message=trim(message)//trim(meta(iVar)%varName)//'/'
+  message=trim(message)//trim(meta(iVar)%varName)//':'
 
   select type (struct)
    class is (var_i)
@@ -147,6 +150,59 @@ contains
  end do  ! looping through local column model parameters
 
  end subroutine writeParam
+
+ ! **********************************************************************************************************
+ ! public subroutine writeGridParam: write grid model parameters
+ ! **********************************************************************************************************
+ subroutine writeGridParam(iGrid,iSpatial,struct,meta,err,message)
+ USE globalData,only:ncid                        ! netcdf file ids
+ USE data_types,only:var_info                    ! metadata info
+ USE var_lookup,only:iLookSTAT                   ! index in statistics vector
+ USE var_lookup,only:iLookFREQ                   ! index in vector of model output frequencies
+ implicit none
+
+ ! declare input variables
+ integer(i4b)  ,intent(in)   :: iGrid            ! grid index
+ integer(i4b)  ,intent(in)   :: iSpatial         ! HRU index or GRU index
+ class(*)      ,intent(in)   :: struct           ! data structure
+ type(var_info),intent(in)   :: meta(:)          ! metadata structure
+ integer(i4b)  ,intent(out)  :: err              ! error code
+ character(*)  ,intent(out)  :: message          ! error message
+ ! local variables
+ integer(i4b)                :: nx,ny            ! grid dimensions
+ integer(i4b)                :: iVar             ! loop through variables
+
+ ! initialize error control
+ err=0;message="writeParam/"
+
+ ! loop through local column model parameters
+ do iVar = 1,size(meta)
+
+  ! check that the variable is desired
+  if (meta(iVar)%statIndex(iLookFREQ%annual)==integerMissing) cycle
+
+   ! only write parameters that are not ids (currently only discludes surface_elev, debris_thick, and cell2hru, but could be others in the future)
+   if(meta(iVar)%varName/='surface_elev' .and. meta(iVar)%varName/='debris_thick' .and. meta(iVar)%varName/='cell2hru') then
+
+   ! initialize message
+   message=trim(message)//trim(meta(iVar)%varName)//':'
+
+   select type (struct)
+     class is (var_dlength2)
+      nx = size(struct%var(iVar)%dat2, 1)
+      ny = size(struct%var(iVar)%dat2, 2)
+      err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%annual),(/struct%var(iVar)%dat2/),start=(/iSpatial,iGrid,1,1/),count=(/1,1,nx,ny/))
+     class default; err=20; message=trim(message)//'parameter type must be var_dlength2'; return
+   end select
+   call netcdf_err(err,message); if (err/=0) return
+
+  end if ! if parameter
+
+  ! re-initialize message
+  message="writeGridParam/"
+ end do  ! looping through local column model parameters
+
+ end subroutine writeGridParam
 
  ! **************************************************************************************
  ! public subroutine writeData: write model time-dependent data for each HRU
@@ -205,7 +261,7 @@ contains
  integer(i4b),parameter             :: ixReal=1002                          ! named variable for real
  integer(i4b),parameter             :: ixInteger3=1003                      ! named variable for integer array with 3 dimensions (e.g. dom, hru, time)
  integer(i4b),parameter             :: ixReal3=1004                         ! named variable for real array with 3 dimensions (e.g. dom, hru, time)
- logical(lgt),parameter             :: allowRoutingOutput = .false.         ! flag to allow routing variable output (currently very large and slow to write, so turned off by default)
+
  ! initialize error control
  err=0;message="writeData/"
 
@@ -245,7 +301,7 @@ contains
    ! ****************************************************************************
 
    ! handle time first
-   if (meta(iVar)%varName=='time')then
+   if(meta(iVar)%varName=='time')then
     message=trim(message)//':' ! add statistic (none) to message 
 
     ! get variable index
@@ -429,7 +485,10 @@ contains
    else
 
     ! cannot write non-scalar variables in buffered write -- too complicated and slow, so not currently supported
-    if(is_bufferedWrite)then; message="writeData/"; cycle; endif ! for now, just skip instead of demanding an output file change
+    if(is_bufferedWrite)then
+      write(*,*)'WARNING: cannot output non-scalar type data when using the buffered write option (writeFullSeries), skipping variable '//trim(meta(iVar)%varName)
+      message="writeData/"; cycle
+    endif 
 
     ! initialize the data vectors
     select type (dat)
@@ -473,7 +532,7 @@ contains
        case default; cycle
       ! case parSoil only in parameters (mpar, not written here) 
       ! case unknown skipped above
-      end select ! vartype
+      end select ! varType
       
       ! get the data vectors
       select type (dat)
@@ -505,7 +564,7 @@ contains
      case(iLookVarType%routing); maxLength = nTimeDelay
      case(iLookVarType%glacier); maxLength = maxGlaciers
      case default; cycle
-    end select ! vartype
+    end select ! varType
 
     ! write the data vectors
     select case(dataType)
@@ -527,6 +586,121 @@ contains
  deallocate(realArray,intArray,realArray3,intArray3)
 
  end subroutine writeData
+
+ ! **************************************************************************************
+ ! public subroutine writeGridData: write model grid data for each HRU
+ ! **************************************************************************************
+ subroutine writeGridData(is_bufferedWrite,finalizeStats,outputTimestep,meta,dat2,err,message)
+ USE data_types,only:var_info                       ! metadata type
+ USE var_lookup,only:maxVarStat                     ! index into stats structure
+ USE var_lookup,only:iLookFREQ                      ! index into freq structure
+ USE globalData,only:outFreq,ncid                   ! output file information
+ USE get_ixName_module,only:get_varTypeName         ! to access type strings for error messages
+ USE get_ixName_module,only:get_statName            ! to access type strings for error messages
+ implicit none
+ ! declare dummy variables
+ logical(lgt)  ,intent(in)          :: is_bufferedWrite(:)                  ! flags for buffered write
+ logical(lgt)  ,intent(in)          :: finalizeStats(:)                     ! flags to finalize statistics
+ integer(i4b)  ,intent(in)          :: outputTimestep(:)                    ! output time step
+ type(var_info),intent(in)          :: meta(:)                              ! meta data
+ class(*)      ,intent(in)          :: dat2(:,:)                            ! timestep or buffer data
+ integer(i4b)  ,intent(out)         :: err                                  ! error code
+ character(*)  ,intent(out)         :: message                              ! error message
+ ! local variables
+ integer(i4b)                       :: iGRU                                 ! grouped response unit counter
+ integer(i4b)                       :: iGrid                                ! grid counter
+ integer(i4b)                       :: iVar                                 ! variable index
+ integer(i4b)                       :: iStat                                ! statistics index
+ integer(i4b)                       :: iFreq                                ! frequency index
+ integer(i4b)                       :: ncVarID                              ! used only for time
+ integer(i4b)                       :: nGrid                                ! number of grids in the GRU
+ integer(i4b)                       :: ixStart                              ! index of the start of data write
+ ! output arrays
+ integer(i4b)                       :: datLength                            ! length of each data vector
+ real(rkind)                        :: realArray4(nGRUrun,maxGrid,maxGridX,maxGridY)                  ! real array for all GRUs and grids in the run domain
+ integer(i4b)                       :: dataType                             ! type of data
+ integer(i4b),parameter             :: ixReal4=1001                         ! named variable for real
+
+ ! initialize error control
+ err=0;message="writeGridData/"
+
+ ! loop through output frequencies
+ ! NOTE: grid variables will only be at annual frequency for now, but leaving in in case this changes in the future
+ do iFreq=1,maxvarFreq
+
+  ! skip frequencies that are not needed
+  if(.not.outFreq(iFreq)) cycle
+
+  ! check that we have finalized statistics for a given frequency
+  if(.not.finalizeStats(iFreq)) cycle
+
+  ! get the start index
+  ixStart = outputTimestep(iFreq)
+
+  ! loop through model variables
+  do iVar = 1,size(meta)
+    
+   ! initialize message
+   message=trim(message)//trim(meta(iVar)%varName)
+
+   ! ****************************************************************************
+   ! *** write grid variables (regular data structures -- instantaneous)
+   ! ****************************************************************************
+
+   ! only write variables that change with time (currently only surface_elev and debris_thick, but could be others in the future)
+   if(meta(iVar)%varName=='surface_elev' .or. meta(iVar)%varName=='debris_thick') then
+
+    ! define the statistics index
+    iStat = meta(iVar)%statIndex(iFreq)
+    message=trim(message)//'_'//trim(get_statName(iStat))//':' ! add statistic to message
+
+    ! check that the variable is desired
+    if (iStat==integerMissing)then; message="writeGridData/"; cycle; endif 
+
+    ! cannot write non-scalar variables in buffered write -- too complicated and slow, so not currently supported
+    if(is_bufferedWrite)then
+      write(*,*)'WARNING: cannot output non-scalar type data when using the buffered write option (writeFullSeries), skipping variable '//trim(meta(iVar)%varName)
+      message="writeGridData/"; cycle
+    endif 
+
+    ! initialize the data vectors
+    select type (dat2)
+     class is (gru_grid_double); realArray4(:,:,:,:) = realMissing; dataType=ixReal4
+     class default; err=20; message=trim(message)//'grid structure data should be of type gru_grid_double'; return
+    end select
+
+    ! loop thru GRUs and HRUs
+    do iGRU=1,size(gru_struc)
+     nGrid = gru_struc(iGRU)%nGrid
+     do iGrid = 1,nGrid ! for now all grids are glaciers
+      ! get the length of each data vector
+      nx = gru_struc(iGRU)%gridInfo(iGrid)%nx
+      ny = gru_struc(iGRU)%gridInfo(iGrid)%ny
+
+      ! get the data vectors
+      select type (dat2)
+       class is (gru_grid_double); realArray4(iGRU,iGrid,1:nx,1:ny) = dat2(1,1)%gru(iGRU)%grid(iGrid)%var(iVar)%dat2(:,:)
+      end select
+
+     end do  ! glac loop
+    end do  ! GRU loop
+
+    ! write the data vectors
+    select case(dataType)
+     case(ixReal4); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realArray4(1:nGRUrun,1:maxGrid,1:maxGridX,1:maxGridY),start=(/1,1,1,1,outputTimestep(iFreq)/),count=(/nGRUrun,maxGrid,maxGridX,maxGridY,1/))
+     case default; err=20; message=trim(message)//'data must be of type real'; return
+    end select ! data type
+
+   end if ! not changing with time
+
+   ! process error code
+   call netcdf_err(err,message); if (err/=0) return
+   message="writeGridData/" ! re-initialize message
+
+  end do ! iVar
+ end do ! iFreq
+
+ end subroutine writeGridData
 
  ! **************************************************************************************
  ! public subroutine writeTime: write current time to all files
@@ -583,7 +757,7 @@ contains
  end subroutine writeTime
 
  ! *********************************************************************************************************
- ! public subroutine printRestartFile: print a re-start file
+ ! public subroutine writeRestart: print a re-start file
  ! *********************************************************************************************************
  subroutine writeRestart(filename,         & ! intent(in): name of restart file
                          nGRU,             & ! intent(in): number of global GRUs
@@ -885,9 +1059,9 @@ contains
  end subroutine writeRestart
 
  ! *********************************************************************************************************
- ! public subroutine printRestartFile: print a re-start file
+ ! public subroutine writeRestartGrid: print a re-start file for grids
  ! *********************************************************************************************************
- subroutine writeRestartGlac(filename,         & ! intent(in): name of restart file
+ subroutine writeRestartGrid(filename,         & ! intent(in): name of restart file
                              nGRU,             & ! intent(in): number of global GRUs
                              grid_meta,        & ! intent(in): grid metadata
                              grid_data,        & ! intent(in): grid data
@@ -931,17 +1105,17 @@ contains
  character(len=32),parameter        :: xDimName='xgrid'   ! dimension name for xgrid
  character(len=32),parameter        :: yDimName='ygrid'   ! dimension name for ygrid
  integer(i4b)                       :: iGRU               ! index of GRUs
- integer(i4b)                       :: iGlac              ! index of glaciers
+ integer(i4b)                       :: iGrid              ! index of grids
  integer(i4b)                       :: i                  ! loop index
  integer(i4b)                       :: nx,ny              ! grid dimensions
  integer(i4b)                       :: iVar               ! variable index
- integer(i4b)                       :: nGlac              ! number of glaciers in GRU
+ integer(i4b)                       :: nGrid              ! number of grids in GRU
  character(len=256)                 :: cmessage           ! downstream error message
 
  ! --------------------------------------------------------------------------------------------------------
 
  ! initialize error control
- err=0; message='writeRestartGlac/'
+ err=0; message='writeRestartGrid/'
 
  ! grid variables
  ngdx = (/iLookGRID%surface_elev, iLookGRID%debris_thick/) ! array of desired variable indices
@@ -956,7 +1130,7 @@ contains
  err = nf90_def_dim(ncid,trim(xDimName)      ,maxGridX    , xDimID);   message='iCreate[xgrid]'   ; call netcdf_err(err,message); if(err/=0)return
  err = nf90_def_dim(ncid,trim(yDimName)      ,maxGridY    , yDimID);   message='iCreate[ygrid]'   ; call netcdf_err(err,message); if(err/=0)return
  ! re-initialize error control
- err=0; message='writeRestartGlac/'
+ err=0; message='writeRestartGrid/'
 
  ! define grid variables
  do i = 1,size(ngdx)
@@ -984,17 +1158,17 @@ err = nf90_enddef(ncid); call netcdf_err(err,message); if (err/=0) return
 
 ! write variables
 do iGRU = 1,nGRU
-  nGlac = gru_struc(iGRU)%nGlac
-  do iGlac = 1,nGlac
+  nGrid = gru_struc(iGRU)%nGrid
+  do iGrid = 1,nGrid
     do i = 1,size(ngdx)
       iVar = ngdx(i)
-      nx = gru_struc(iGRU)%gridInfo(iGlac)%nx
-      ny = gru_struc(iGRU)%gridInfo(iGlac)%ny
-      err=nf90_put_var(ncid,ncVarID(i),(/grid_data%gru(iGRU)%grid(iGlac)%var(iVar)%dat2/), start=(/iGRU,iGlac,1,1/),count=(/1,1,nx,ny/))
+      nx = gru_struc(iGRU)%gridInfo(iGrid)%nx
+      ny = gru_struc(iGRU)%gridInfo(iGrid)%ny
+      err=nf90_put_var(ncid,ncVarID(i),(/grid_data%gru(iGRU)%grid(iGrid)%var(iVar)%dat2/), start=(/iGRU,iGrid,1,1/),count=(/1,1,nx,ny/))
       ! error check
       if (err.ne.0) message=trim(message)//'writing variable:'//trim(grid_meta(iVar)%varName)
       call netcdf_err(err,message); if (err/=0) return
-      message = 'writeRestartGlac/'
+      message = 'writeRestartGrid/'
     end do
   end do
 
@@ -1007,6 +1181,6 @@ call write_gridid_info(ncid, gruDimID, ngriDimID, err, cmessage); if(err/=0) the
 call nc_file_close(ncid,err,cmessage)
 if(err/=0)then;message=trim(message)//trim(cmessage);return;end if
 
-end subroutine writeRestartGlac
+end subroutine writeRestartGrid
 
 end module modelwrite_module

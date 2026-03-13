@@ -46,6 +46,8 @@ character(len=32),parameter :: timestep_DimName = 'time'             ! dimension
 character(len=32),parameter :: routing_DimName  = 'tdh'              ! dimension name for the time delay routing vectors
 character(len=32),parameter :: glacier_DimName  = 'glac'             ! dimension name for the number of glaciers
 character(len=32),parameter :: grid_DimName     = 'grid'             ! dimension name for the grid
+character(len=32),parameter :: xDimName         = 'xgrid'            ! dimension name for the x grid
+character(len=32),parameter :: yDimName         = 'ygrid'            ! dimension name for the y grid
 character(len=32),parameter :: midSnow_DimName  = 'midSnow'          ! dimension name for midSnow
 character(len=32),parameter :: midLake_DimName  = 'midLake'          ! dimension name for midLake
 character(len=32),parameter :: midSoil_DimName  = 'midSoil'          ! dimension name for midSoil
@@ -67,7 +69,9 @@ integer(i4b)                :: wLength_dimID                         ! dimension
 integer(i4b)                :: timestep_DimID                        ! dimension name for the time step
 integer(i4b)                :: routing_DimID                         ! dimension name for the time delay routing vectors
 integer(i4b)                :: glacier_DimID                         ! dimension name for the number of glaciers
-!integer(i4b)                :: grid_DimID                            ! dimension name for the grid
+integer(i4b)                :: grid_DimID                            ! dimension name for the grid
+integer(i4b)                :: xDimID                                ! dimension name for the x grid
+integer(i4b)                :: yDimID                                ! dimension name for the y grid
 integer(i4b)                :: midSnow_DimID                         ! dimension name for midSnow
 integer(i4b)                :: midLake_DimID                         ! dimension name for midLake
 integer(i4b)                :: midSoil_DimID                         ! dimension name for midSoil
@@ -88,7 +92,7 @@ contains
  ! **********************************************************************************************************
  ! public subroutine def_output: define model output file
  ! **********************************************************************************************************
- subroutine def_output(summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,maxDOM,infile,err,message)
+ subroutine def_output(summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,infile,err,message)
  USE globalData,only:structInfo                               ! information on the data structures
  USE globalData,only:forc_meta,attr_meta,type_meta            ! metaData structures
  USE globalData,only:prog_meta,diag_meta,flux_meta,deriv_meta ! metaData structures
@@ -107,17 +111,17 @@ contains
  character(*),intent(in)     :: gitHash                       ! git hash
  integer(i4b),intent(in)     :: nGRU                          ! number of GRUs
  integer(i4b),intent(in)     :: nHRU                          ! number of HRUs
- integer(i4b),intent(in)     :: maxDOM                        ! maximum number of domains in any HRU
  character(*),intent(in)     :: infile                        ! file suffix
  integer(i4b),intent(out)    :: err                           ! error code
  character(*),intent(out)    :: message                       ! error message
  ! local variables
- integer(i4b)                :: ivar                          ! loop through model decisions
+ integer(i4b)                :: iVar                          ! loop through model decisions
  integer(i4b)                :: iFreq                         ! loop through output frequencies
  integer(i4b)                :: iStruct                       ! loop through structure types
  character(len=32)           :: fstring                       ! string to hold model output freuqnecy
  character(len=1024)         :: fname                         ! temporary filename
  character(len=256)          :: cmessage                      ! temporary error message
+ logical(lgt)                :: needGrid                      ! if might use grid variables
 
  ! initialize errors
  err=0; message="def_output/"
@@ -143,9 +147,11 @@ contains
   if(.not.outFreq(iFreq)) cycle
 
   ! create file
+  needGrid = .false.
   fstring = get_freqName(iFreq)
   fname   = trim(infile)//'_'//trim(fstring)//'.nc'
-  call ini_create(nGRU,nHRU,maxDOM,trim(fname),ncid(iFreq),err,cmessage)
+  if(trim(fstring)=='annual') needGrid = .true.
+  call ini_create(nGRU,nHRU,trim(fname),needGrid,ncid(iFreq),err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
   print*,'Created output file: '//trim(fname)
 
@@ -176,17 +182,18 @@ contains
     case('mpar'  ); call def_variab(ncid(iFreq),iFreq,needDOM,  noTime,mpar_meta, outputPrecision, err,cmessage)  ! model parameters
     case('bpar'  ); call def_variab(ncid(iFreq),iFreq,needGRU,  noTime,bpar_meta, outputPrecision, err,cmessage)  ! basin-average param
     case('indx'  ); call def_variab(ncid(iFreq),iFreq,needDOM,needTime,indx_meta, nf90_int,        err,cmessage)  ! model variables
-    case('deriv' ); call def_variab(ncid(iFreq),iFreq,needDOM,needTime,deriv_meta,outputPrecision, err,cmessage)  ! model derivatives
+    case('deriv' ); cycle                                                                                         ! model derivatives -- for internal use only, not written to output files
     case('time'  ); call def_variab(ncid(iFreq),iFreq,  noHRU,needTime,time_meta, nf90_int,        err,cmessage)  ! model time data
     case('forc'  ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,forc_meta, outputPrecision, err,cmessage)  ! model forcing data
     case('prog'  ); call def_variab(ncid(iFreq),iFreq,needDOM,needTime,prog_meta, outputPrecision, err,cmessage)  ! model prognostics
     case('diag'  ); call def_variab(ncid(iFreq),iFreq,needDOM,needTime,diag_meta, outputPrecision, err,cmessage)  ! model diagnostic variables
     case('flux'  ); call def_variab(ncid(iFreq),iFreq,needDOM,needTime,flux_meta, outputPrecision, err,cmessage)  ! model fluxes
     case('bvar'  ); call def_variab(ncid(iFreq),iFreq,needGRU,needTime,bvar_meta, outputPrecision, err,cmessage)  ! basin-average variables
-    case('grid'  ); cycle ! call def_variab(ncid(iFreq),iFreq,needGRU,needTime,grid_meta, nf90_int, err,cmessage) ! grid information, not outputting at this time
-    case('id'    ); cycle                                                                                         ! ids -- see write_id_info()
-    case('lookup'); cycle                                                                                         ! not outputting lookup tables
-    case default; err=20; message=trim(message)//'unable to identify lookup structure';
+    case('id'    ); cycle                                                                                         ! ids -- see write_hru_info()
+    case('lookup'); cycle                                                                                         ! lookup structures -- for internal use only, not written to output files
+    case('grid'  )                                                                                                ! grid information
+     if(needGrid)then;call def_variab(ncid(iFreq),iFreq,needGRU,needTime,grid_meta, nf90_int, err,cmessage);else;cycle;endif
+    case default; err=20;message=trim(message)//'unable to identify lookup structure '//trim(structInfo(iStruct)%structName);return
    end select
    ! error handling
    if(err/=0)then;err=20;message=trim(message)//'[structure =  '//trim(structInfo(iStruct)%structName);return;end if
@@ -202,7 +209,7 @@ contains
  ! **********************************************************************************************************
  ! private subroutine ini_create: initial create
  ! **********************************************************************************************************
- subroutine ini_create(nGRU,nHRU,maxDOM,infile,ncid,err,message)
+ subroutine ini_create(nGRU,nHRU,infile,needGrid,ncid,err,message)
  ! variables to define number of steps per file (total number of time steps, step length, etc.)
  USE multiconst,only:secprday           ! number of seconds per day
 ! vector lengths
@@ -214,14 +221,17 @@ contains
  USE globalData,only:maxGlaciers        ! maximum number of glaciers in a GRU
  USE globalData,only:nTimeDelay         ! number of timesteps in the time delay histogram
  USE globalData,only:nSpecBand          ! maximum number of spectral bands
- !USE globalData,only:maxGrid            ! maximum number of grids in a GRU, unneeded for now since not outputting grid information
+ USE globalData,only:maxDOM             ! maximum number of domains in any HRU
+ USE globalData,only:maxGrid            ! maximum number of grids in a GRU
+ USE globalData,only:maxGridX           ! maximum number of grid cells in x direction
+ USE globalData,only:maxGridY           ! maximum number of grid cells in y direction
 
  implicit none
  ! declare dummy variables
  integer(i4b),intent(in)     :: nGRU            ! number of GRUs
  integer(i4b),intent(in)     :: nHRU            ! number of HRUs
- integer(i4b),intent(in)     :: maxDOM          ! maximum number of domains in any HRU
  character(*),intent(in)     :: infile          ! filename
+ logical(lgt),intent(in)     :: needGrid        ! if might use grid variables
  integer(i4b),intent(out)    :: ncid            ! netcdf file id
  integer(i4b),intent(out)    :: err             ! error code
  character(*),intent(out)    :: message         ! error message
@@ -256,8 +266,11 @@ contains
  err = nf90_def_dim(ncid, trim( ifcSoil_DimName), maxSoilLayers+1, ifcSoil_DimID); message='iCreate[ifcSoil]';  call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim( ifcGlce_DimName), maxGlceLayers+1, ifcGlce_DimID); message='iCreate[ifcGlce]';  call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim( ifcToto_DimName), maxLayers+1,     ifcToto_DimID); message='iCreate[ifcToto]';  call netcdf_err(err,message); if (err/=0) return
- ! not outputting grid information at this time
- !err = nf90_def_dim(ncid, trim(    grid_DimName), maxGrid,           grid_DimID); message='iCreate[grid]';     call netcdf_err(err,message); if (err/=0) return
+ if(needGrid)then
+  err = nf90_def_dim(ncid, trim(   grid_DimName), maxGrid,            grid_DimID); message='iCreate[grid]';     call netcdf_err(err,message); if (err/=0) return
+  err = nf90_def_dim(ncid, trim(       xDimName), maxGridX,               xDimID); message='iCreate[xgrid]';    call netcdf_err(err,message); if(err/=0) return
+  err = nf90_def_dim(ncid, trim(       yDimName), maxGridY,               yDimID); message='iCreate[ygrid]';    call netcdf_err(err,message); if(err/=0) return
+ endif
 
  ! Leave define mode of NetCDF files
  err = nf90_enddef(ncid);  message='nf90_enddef'; call netcdf_err(err,message); if (err/=0) return
