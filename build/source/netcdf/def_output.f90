@@ -94,11 +94,10 @@ contains
  ! **********************************************************************************************************
  subroutine def_output(summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,infile,err,message)
  USE globalData,only:structInfo                               ! information on the data structures
- USE globalData,only:forc_meta,attr_meta,type_meta            ! metaData structures
- USE globalData,only:prog_meta,diag_meta,flux_meta,deriv_meta ! metaData structures
- USE globalData,only:mpar_meta,indx_meta                      ! metaData structures
- USE globalData,only:bpar_meta,bvar_meta,time_meta            ! metaData structures
- !USE globalData,only:grid_meta                               ! metaData structures
+ USE globalData,only:time_meta,forc_meta,attr_meta,type_meta  ! metadata structures
+ USE globalData,only:id_meta,prog_meta,diag_meta,flux_meta    ! metadata structures
+ USE globalData,only:mpar_meta,indx_meta,bpar_meta,bvar_meta  ! metadata structures
+ USE globalData,only:deriv_meta,lookup_meta,grid_meta         ! metadata structures
  USE globalData,only:model_decisions                          ! model decisions
  USE globalData,only:ncid                                     ! netcdf file id
  USE globalData,only:outFreq                                  ! output frequencies
@@ -201,6 +200,9 @@ contains
 
   ! write HRU dimension and ID for each output file
   call write_id_info(ncid(iFreq), gru_DimID, hru_DimID, dom_DimID, glacier_DimID, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+
+  ! write grid dimension and ID for each output file if needed
+  if(needGrid) call write_gridid_info(ncid(iFreq), gru_DimID, grid_DimID,err, message)
 
  end do ! iFreq
 
@@ -349,7 +351,7 @@ contains
 
   ! check that the variable is desired
   if (metaData(iVar)%varType==iLookVarType%unknown) cycle
-  if (metaData(iVar)%statIndex(iFreq)==integerMissing .and. metaData(iVar)%varName/='time') cycle
+  if (metaData(iVar)%statIndex(iFreq)==integerMissing .and. trim(metaData(iVar)%varName)/='time') cycle
 
   ! ---------- get the dimension IDs (use cloneStruc, given source) ----------
   gruChunk = min(nGRUrun, chunkSize)
@@ -459,7 +461,7 @@ contains
   call netcdf_err(err,message); if (err/=0) return
 
   ! add NetCDF variable ID to metadata structure
-  metaData(iVar)%ncVarID(iFreq) = iVarID
+  metaData(iVar)%ncVarID(iFreq) = iVarId
 
  end do  ! looping through variables
 

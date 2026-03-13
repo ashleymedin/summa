@@ -197,7 +197,7 @@ contains
      if(err/=0)then; message=trim(message)//"problem inquiring forcing variable[var="//trim(varName)//"]"; return; end if
 
      ! put variable index of the forcing structure in the metadata structure
-     if(varName/='time')then
+     if(trim(varName)/='time')then
       forcFileInfo(iFile)%var_ix(iNC)   = iVar
       forcFileInfo(iFile)%varName(iVar) = trim(varName)
 

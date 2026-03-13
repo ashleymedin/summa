@@ -29,6 +29,7 @@ USE globalData,only:attr_meta                 ! attributes metadata structure
 USE globalData,only:type_meta                 ! veg/soil type metadata structure
 USE globalData,only:mpar_meta                 ! local parameter metadata structure
 USE globalData,only:bpar_meta                 ! basin parameter metadata structure
+USE globalData,only:grid_meta                 ! grid metadata structure
 
 ! named variables
 USE var_lookup,only:iLookTIME                 ! named variables for time data structure
@@ -50,7 +51,7 @@ contains
  USE summa_type, only:summa1_type_dec                        ! master summa data type
  ! functions and subroutines
  USE def_output_module,only:def_output                       ! module to define model output
- USE modelwrite_module,only:writeParam                       ! module to write model parameters
+ USE modelwrite_module,only:writeParam,writeGridParam        ! module to write model parameters
  ! global data structures
  USE globalData,only:gru_struc                               ! gru-hru mapping structures
  USE globalData,only:structInfo                              ! information on the data structures
@@ -144,7 +145,7 @@ contains
     case('bpar'); call writeParam(0,iGRU,bparStruct%gru(iGRU),bpar_meta,err,cmessage)
     case('grid')
       do iGrid=1,gru_struc(iGRU)%nGrid
-        call writeGridParam(iGrid,gridStruct%gru(iGRU),grid_meta,err,cmessage)
+        call writeGridParam(iGRU,iGrid,gridStruct%gru(iGRU),grid_meta,err,cmessage)
       end do
    end select
   end do  ! (looping through structures)

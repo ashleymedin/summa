@@ -191,6 +191,7 @@ MODULE globalData
   integer(i4b),save,public,allocatable        :: fluxChild_map(:)             ! index of the child data structure: stats flux
   integer(i4b),save,public,allocatable        :: indxChild_map(:)             ! index of the child data structure: stats indx
   integer(i4b),save,public,allocatable        :: bvarChild_map(:)             ! index of the child data structure: stats bvar
+  integer(i4b),save,public,allocatable        :: gridChild_map(:)             ! index of the child data structure: stats grid
   ! child metadata structures
   type(extended_info),save,public,allocatable :: statForc_meta(:)             ! child metadata for stats
   type(extended_info),save,public,allocatable :: statProg_meta(:)             ! child metadata for stats
@@ -198,6 +199,7 @@ MODULE globalData
   type(extended_info),save,public,allocatable :: statFlux_meta(:)             ! child metadata for stats
   type(extended_info),save,public,allocatable :: statIndx_meta(:)             ! child metadata for stats
   type(extended_info),save,public,allocatable :: statBvar_meta(:)             ! child metadata for stats
+  type(extended_info),save,public,allocatable :: statGrid_meta(:)             ! child metadata for stats
 
   ! ----------------------------------------------------------------------------------------------------------------
   ! * part 3: run time variables

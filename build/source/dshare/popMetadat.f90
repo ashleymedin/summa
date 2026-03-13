@@ -879,6 +879,7 @@ subroutine read_output_file(err,message)
   USE globalData,only:prog_meta                 ! data structure for local prognostic (state) variables
   USE globalData,only:diag_meta                 ! data structure for local diagnostic variables
   USE globalData,only:flux_meta                 ! data structure for local flux variables
+  USE globalData,only:grid_meta                 ! data structure for grid variable metadata
   USE globalData,only:outputPrecision           ! data structure for output precision
   USE globalData,only:outputCompressionLevel    ! data structure for output netcdf deflate level
   ! structures of named variables
@@ -1037,9 +1038,9 @@ subroutine read_output_file(err,message)
       case('grid')
         freqName = trim(lineWords(freqIndex))
         if (freqName/='annual') then
-          if(varName=='surface_elev' .or. varName=='debris_thick') then
+          if(trim(varName)=='surface_elev' .or. trim(varName)=='debris_thick') then
             write(*,*)'WARNING: grid variable '//trim(varName)//': outputting variable in annual file as it does not change on less than annual level'
-          else if(varName/='cell2hru') then
+          else if(trim(varName)/='cell2hru') then
             write(*,*)'WARNING: grid structure id not outputted, skipping variable '//trim(varName)
           else
             write(*,*)'WARNING: temporally constant grid variable '//trim(varName)//': outputting parameter in annual file with no time dimension'
@@ -1069,7 +1070,7 @@ subroutine read_output_file(err,message)
         write(*,*)'WARNING: cannot output '//trim(structName)//' structure data, skipping variable '//trim(varName)
         cycle
       case('id') ! gruId and hruId are always written with the call to write_hru_info
-        if(varName/='hruId' .and. varName/='gruId') then
+        if(trim(varName)/='hruId' .and. trim(varName)/='gruId') then
           write(*,*)'WARNING: outputting id structure data gruId and hruId only, skipping variable '//trim(varName)
         endif
         cycle

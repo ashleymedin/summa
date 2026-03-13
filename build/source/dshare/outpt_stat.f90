@@ -31,11 +31,12 @@ contains
  ! public subroutine calcStats is called at every model timestep to update/store output statistics
  ! from model variables
  ! ******************************************************************************************************
- subroutine calcStats(stat,dat,meta,resetStats,finalizeStats,statCounter,err,message)
+ subroutine calcStats(stat,dat,meta,resetStats,modelTimeStep,finalizeStats,statCounter,err,message)
  USE nr_type
  USE data_types,only:extended_info,dlength,ilength  ! metadata structure type
  USE var_lookup,only:iLookVarType                   ! named variables for variable types
  USE var_lookup,only:iLookSTAT                      ! named variables for output statistics types
+ USE var_lookup,only:maxvarFreq                     ! maximum number of output files
  USE get_ixname_module,only:get_freqName            ! get name of frequency from frequency index
  implicit none
 
@@ -44,6 +45,7 @@ contains
  class(*)      ,intent(in)      :: dat(:)           ! data
  type(extended_info),intent(in) :: meta(:)          ! metadata
  logical(lgt)  ,intent(in)      :: resetStats(:)    ! vector of flags to reset statistics
+ integer(i4b),intent(in)        :: modelTimeStep    ! time step index
  logical(lgt)  ,intent(in)      :: finalizeStats(:) ! vector of flags to reset statistics
  integer(i4b)  ,intent(in)      :: statCounter(:)   ! number of time steps in each output frequency
 
@@ -53,6 +55,7 @@ contains
 
  ! internals
  character(256)                 :: cmessage         ! error message
+ integer(i4b)                   :: iFreq            ! index for frequency loop
  integer(i4b)                   :: iVar             ! index for varaiable loop
  integer(i4b)                   :: pVar             ! index into parent structure
  real(rkind)                    :: tdata            ! dummy for pulling info from dat structure
@@ -81,7 +84,7 @@ contains
    end select
 
    ! calculate statistics
-   if (meta(iVar)%varName=='time') then
+   if (trim(meta(iVar)%varName)=='time') then
     stat(iVar)%dat(iLookSTAT%inst) = tdata
    else
     call calc_stats(meta(iVar),stat(iVar),tdata,resetStats,finalizeStats,statCounter,err,cmessage)

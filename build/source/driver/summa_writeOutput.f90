@@ -44,6 +44,7 @@ USE globalData,only:statDiag_meta             ! child metadata for stats
 USE globalData,only:statFlux_meta             ! child metadata for stats
 USE globalData,only:statIndx_meta             ! child metadata for stats
 USE globalData,only:statBvar_meta             ! child metadata for stats
+USE globalData,only:statGrid_meta             ! child metadata for stats
 
 ! index of the child data structure
 USE globalData,only:forcChild_map             ! index of the child data structure: stats forc
@@ -52,6 +53,7 @@ USE globalData,only:diagChild_map             ! index of the child data structur
 USE globalData,only:fluxChild_map             ! index of the child data structure: stats flux
 USE globalData,only:indxChild_map             ! index of the child data structure: stats indx
 USE globalData,only:bvarChild_map             ! index of the child data structure: stats bvar
+USE globalData,only:gridChild_map             ! index of the child data structure: stats grid
 
 ! named variables
 USE var_lookup,only:maxvarFreq                ! maximum number of output files
@@ -103,7 +105,7 @@ contains
  USE summa_alarms,only:summa_setWriteAlarms                  ! set alarms to control model output
  USE summa_defineOutput,only:summa_defineOutputFiles         ! define summa output files
  USE modelwrite_module,only:writeRestart,writeRestartGrid    ! module to write model restart
- USE modelwrite_module,only:writeData                        ! module to write model output
+ USE modelwrite_module,only:writeData,writeGridData          ! module to write model output
  USE modelwrite_module,only:writeTime                        ! module to write model time
  USE output_stats,only:calcStats                             ! module for compiling output statistics
  ! global data: general
@@ -310,10 +312,10 @@ contains
      ! calculate output statistics
      do iStruct=1,size(structInfo)
       select case(trim(structInfo(iStruct)%structName))
-       case('prog'); call calcStats(progStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statProg_meta,resetStats,finalizeStats,statCounter,err,cmessage)
-       case('diag'); call calcStats(diagStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,diagStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statDiag_meta,resetStats,finalizeStats,statCounter,err,cmessage)
-       case('flux'); call calcStats(fluxStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statFlux_meta,resetStats,finalizeStats,statCounter,err,cmessage)
-       case('indx'); call calcStats(indxStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,indxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statIndx_meta,resetStats,finalizeStats,statCounter,err,cmessage)
+       case('prog'); call calcStats(progStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statProg_meta,resetStats,modelTimeStep,finalizeStats,statCounter,err,cmessage)
+       case('diag'); call calcStats(diagStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,diagStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statDiag_meta,resetStats,modelTimeStep,finalizeStats,statCounter,err,cmessage)
+       case('flux'); call calcStats(fluxStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statFlux_meta,resetStats,modelTimeStep,finalizeStats,statCounter,err,cmessage)
+       case('indx'); call calcStats(indxStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,indxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statIndx_meta,resetStats,modelTimeStep,finalizeStats,statCounter,err,cmessage)
       end select
       if(err/=0)then; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; return; endif
      end do  ! (looping through structures)
@@ -321,13 +323,13 @@ contains
     end do  ! (looping through domains)
 
     ! calculate output statistics for the HRU-level variables
-    call calcStats(forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,statForc_meta,resetStats,finalizeStats,statCounter,err,cmessage)
+    call calcStats(forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,statForc_meta,resetStats,modelTimeStep,finalizeStats,statCounter,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage)//'[forc stats]'; return; endif
 
   end do  ! (looping through HRUs)
 
   ! calculate basin stats
-  call calcStats(bvarStat%gru(iGRU)%var(:),bvarStruct%gru(iGRU)%var(:),statBvar_meta,resetStats,finalizeStats,statCounter,err,cmessage)
+  call calcStats(bvarStat%gru(iGRU)%var(:),bvarStruct%gru(iGRU)%var(:),statBvar_meta,resetStats,modelTimeStep,finalizeStats,statCounter,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage)//'[bvar stats]'; return; endif
 
  end do  ! (looping through GRUs)
@@ -409,7 +411,7 @@ contains
       if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
       ! get timestep data structure as a 1-element vector (maxWrite=1) since grids only written without buffer
-      call get_timestepVec2(trim(structInfo(iStruct)%structName), 1, summa1_struc, timestepData2, ierr, cmessage2)
+      call get_timestepVec2(trim(structInfo(iStruct)%structName), 1, summa1_struc, timestepData2, ierr, cmessage)
       if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
       ! Passes the full metadata structure and the child map (rather than the stats metadata structure) because
@@ -420,7 +422,7 @@ contains
      else
       if(is_writingOutput .and. any(grid_meta(:)%varDesire .and. (grid_meta(:)%varName=='surface_elev' .or. grid_meta(:)%varName=='debris_thick')))then
         do iVar = 1, size(grid_meta)
-          if(grid_meta(iVar)%varDesire .and. (grid_meta(iVar)%varName=='surface_elev' .or. grid_meta(iVar)%varName=='debris_thick'))then
+          if(grid_meta(iVar)%varDesire .and. (trim(grid_meta(iVar)%varName)=='surface_elev' .or. trim(grid_meta(iVar)%varName)=='debris_thick'))then
             write(*,*)'WARNING: cannot output non-scalar type data when using the buffered write option (writeFullSeries), skipping variable '//trim(grid_meta(iVar)%varName)
           endif
         end do
@@ -655,7 +657,7 @@ contains
      
       ! index in parent structure
       pVar = stat_meta(iVar)%ixParent
-      if(stat_meta(iVar)%varName/=meta(pVar)%varName)then
+      if(trim(stat_meta(iVar)%varName)/=trim(meta(pVar)%varName))then
        message=trim(message)//'variable names do not match'
        err=20; return
       endif

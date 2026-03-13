@@ -1018,7 +1018,7 @@ subroutine vegNrgFlux(&
 
         ! check if evaporation or sublimation
         if (scalarLatHeatSubVapCanopy < LH_vap+verySmall) then ! evaporation
-          ! compute the liquid water deriVarives
+          ! compute the liquid water derivatives
           dCanopyEvaporation_dCanWat  = dLatHeatCanopyEvap_dCanWat/LH_vap    ! (s-1)
           dCanopyEvaporation_dTCanair = dLatHeatCanopyEvap_dTCanair/LH_vap   ! (kg m-2 s-1 K-1)
           dCanopyEvaporation_dTCanopy = dLatHeatCanopyEvap_dTCanopy/LH_vap   ! (kg m-2 s-1 K-1)
@@ -1043,7 +1043,7 @@ subroutine vegNrgFlux(&
           dCanopyTrans_dTGround= dLatHeatCanopyTrans_dTGround/LH_vap
         end if
 
-        ! compute the liquid water deriVarives (ground evap)
+        ! compute the liquid water derivatives (ground evap)
         dGroundEvaporation_dCanWat  = dLatHeatGroundEvap_dCanWat/LH_vap    ! (s-1)
         dGroundEvaporation_dTCanair = dLatHeatGroundEvap_dTCanair/LH_vap   ! (kg m-2 s-1 K-1)
         dGroundEvaporation_dTCanopy = dLatHeatGroundEvap_dTCanopy/LH_vap   ! (kg m-2 s-1 K-1)

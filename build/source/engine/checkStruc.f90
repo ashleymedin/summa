@@ -36,17 +36,13 @@ contains
  ! summary of data structures
  USE globalData,only:structInfo
  ! metadata structures
- USE globalData,only:time_meta,forc_meta,attr_meta,type_meta,id_meta  ! metadata structures
- USE globalData,only:prog_meta,diag_meta,flux_meta,deriv_meta         ! metadata structures
- USE globalData,only:mpar_meta,indx_meta                              ! metadata structures
- USE globalData,only:bpar_meta,bvar_meta,grid_meta                    ! metadata structures
- USE globalData,only:lookup_meta                                      ! metadata structures
+ USE globalData,only:time_meta,forc_meta,attr_meta,type_meta,id_meta      ! metadata structures
+ USE globalData,only:prog_meta,diag_meta,flux_meta,mpar_meta,indx_meta    ! metadata structures
+ USE globalData,only:bpar_meta,bvar_meta,deriv_meta,lookup_meta,grid_meta ! metadata structures
   ! named variables defining strructure elements
- USE var_lookup,only:iLookTIME,iLookFORCE,iLookATTR,iLookTYPE,iLookID ! named variables showing the elements of each data structure
- USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX,iLookDERIV         ! named variables showing the elements of each data structure
- USE var_lookup,only:iLookPARAM,iLookINDEX                            ! named variables showing the elements of each data structure
- USE var_lookup,only:iLookBPAR,iLookBVAR,iLookGRID                    ! named variables showing the elements of each data structure
- USE var_lookup,only:iLookLOOKUP                                      ! named variables showing the elements of each data structure
+ USE var_lookup,only:iLookTIME,iLookFORCE,iLookATTR,iLookTYPE,iLookID     ! named variables showing the elements of each data structure
+ USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX,iLookPARAM,iLookINDEX  ! named variables showing the elements of each data structure
+ USE var_lookup,only:iLookBPAR,iLookBVAR,iLookDERIV,iLookLOOKUP,iLookGRID ! named variables showing the elements of each data structure
  implicit none
  ! dummy variables
  integer(i4b),intent(out)             :: err         ! error code
@@ -80,13 +76,13 @@ contains
    case('mpar');   write(longString,*) iLookPARAM
    case('bpar');   write(longString,*) iLookBPAR
    case('bvar');   write(longString,*) iLookBVAR
-   case('grid');   write(longString,*) iLookGRID
    case('indx');   write(longString,*) iLookINDEX
    case('prog');   write(longString,*) iLookPROG
    case('diag');   write(longString,*) iLookDIAG
    case('flux');   write(longString,*) iLookFLUX
    case('deriv');  write(longString,*) iLookDERIV
    case('lookup'); write(longString,*) iLookLOOKUP
+   case('grid');   write(longString,*) iLookGRID
    case default; err=20; message=trim(message)//'unable to identify lookup structure'; return
   end select
   ! check that the length of the lookup structure matches the number of variables in the data structure
@@ -177,7 +173,7 @@ contains
    end if
 
    ! check that the variable was found in the correct structure
-   if (structInfo(iStruct)%structName/=typeName) then
+   if (trim(structInfo(iStruct)%structName)/=typeName) then
     message=trim(message)//'variable '//trim(metadata(iVar)%varName)//' from structure '//trim(structInfo(iStruct)%structName)//'_meta is in structure '//trim(typeName)//'_meta'
     err=20; return
    end if

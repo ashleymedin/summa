@@ -59,6 +59,7 @@ USE data_types,only:&
                     var_d,                 & ! x%var(:)                          (rkind)
                     var_ilength,           & ! x%var(:)%dat                      (i4b)
                     var_dlength,           & ! x%var(:)%dat                      (rkind)
+                    var_dlength2,          & ! x%var(:)%dat2(:,:)                (rkind)
                     ! gru dimension
                     gru_int,               & ! x%gru(:)%var(:)                   (i4b)
                     gru_int8,              & ! x%gru(:)%var(:)                   (i8b)                  
@@ -154,7 +155,7 @@ contains
  ! **********************************************************************************************************
  ! public subroutine writeGridParam: write grid model parameters
  ! **********************************************************************************************************
- subroutine writeGridParam(iGrid,iSpatial,struct,meta,err,message)
+ subroutine writeGridParam(iSpatial,iGrid,struct,meta,err,message)
  USE globalData,only:ncid                        ! netcdf file ids
  USE data_types,only:var_info                    ! metadata info
  USE var_lookup,only:iLookSTAT                   ! index in statistics vector
@@ -162,8 +163,8 @@ contains
  implicit none
 
  ! declare input variables
- integer(i4b)  ,intent(in)   :: iGrid            ! grid index
  integer(i4b)  ,intent(in)   :: iSpatial         ! HRU index or GRU index
+ integer(i4b)  ,intent(in)   :: iGrid            ! grid index
  class(*)      ,intent(in)   :: struct           ! data structure
  type(var_info),intent(in)   :: meta(:)          ! metadata structure
  integer(i4b)  ,intent(out)  :: err              ! error code
@@ -181,18 +182,18 @@ contains
   ! check that the variable is desired
   if (meta(iVar)%statIndex(iLookFREQ%annual)==integerMissing) cycle
 
-   ! only write parameters that are not ids (currently only discludes surface_elev, debris_thick, and cell2hru, but could be others in the future)
-   if(meta(iVar)%varName/='surface_elev' .and. meta(iVar)%varName/='debris_thick' .and. meta(iVar)%varName/='cell2hru') then
+  ! only write parameters that are not ids (currently only discludes surface_elev, debris_thick, and cell2hru, but could be others in the future)
+  if(trim(meta(iVar)%varName)/='surface_elev' .and. trim(meta(iVar)%varName)/='debris_thick' .and. trim(meta(iVar)%varName)/='cell2hru') then
 
    ! initialize message
    message=trim(message)//trim(meta(iVar)%varName)//':'
 
    select type (struct)
-     class is (var_dlength2)
-      nx = size(struct%var(iVar)%dat2, 1)
-      ny = size(struct%var(iVar)%dat2, 2)
-      err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%annual),(/struct%var(iVar)%dat2/),start=(/iSpatial,iGrid,1,1/),count=(/1,1,nx,ny/))
-     class default; err=20; message=trim(message)//'parameter type must be var_dlength2'; return
+    class is (var_dlength2)
+     nx = size(struct%var(iVar)%dat2, 1)
+     ny = size(struct%var(iVar)%dat2, 2)
+     err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%annual),(/struct%var(iVar)%dat2/),start=(/iSpatial,iGrid,1,1/),count=(/1,1,nx,ny/))
+    class default; err=20; message=trim(message)//'parameter type must be var_dlength2'; return
    end select
    call netcdf_err(err,message); if (err/=0) return
 
@@ -599,27 +600,28 @@ contains
  USE get_ixName_module,only:get_statName            ! to access type strings for error messages
  implicit none
  ! declare dummy variables
- logical(lgt)  ,intent(in)          :: is_bufferedWrite(:)                  ! flags for buffered write
- logical(lgt)  ,intent(in)          :: finalizeStats(:)                     ! flags to finalize statistics
- integer(i4b)  ,intent(in)          :: outputTimestep(:)                    ! output time step
- type(var_info),intent(in)          :: meta(:)                              ! meta data
- class(*)      ,intent(in)          :: dat2(:,:)                            ! timestep or buffer data
- integer(i4b)  ,intent(out)         :: err                                  ! error code
- character(*)  ,intent(out)         :: message                              ! error message
+ logical(lgt)  ,intent(in)   :: is_bufferedWrite       ! flag for buffered write
+ logical(lgt)  ,intent(in)   :: finalizeStats(:)       ! flags to finalize statistics
+ integer(i4b)  ,intent(in)   :: outputTimestep(:)      ! output time step
+ type(var_info),intent(in)   :: meta(:)                ! meta data
+ class(*)      ,intent(in)   :: dat2(:,:)              ! timestep or buffer data
+ integer(i4b)  ,intent(out)  :: err                    ! error code
+ character(*)  ,intent(out)  :: message                ! error message
  ! local variables
- integer(i4b)                       :: iGRU                                 ! grouped response unit counter
- integer(i4b)                       :: iGrid                                ! grid counter
- integer(i4b)                       :: iVar                                 ! variable index
- integer(i4b)                       :: iStat                                ! statistics index
- integer(i4b)                       :: iFreq                                ! frequency index
- integer(i4b)                       :: ncVarID                              ! used only for time
- integer(i4b)                       :: nGrid                                ! number of grids in the GRU
- integer(i4b)                       :: ixStart                              ! index of the start of data write
+ integer(i4b)                :: iGRU                   ! grouped response unit counter
+ integer(i4b)                :: iGrid                  ! grid counter
+ integer(i4b)                :: iVar                   ! variable index
+ integer(i4b)                :: iStat                  ! statistics index
+ integer(i4b)                :: iFreq                  ! frequency index
+ integer(i4b)                :: ncVarID                ! used only for time
+ integer(i4b)                :: nGrid                  ! number of grids in the GRU
+ integer(i4b)                :: nx,ny                  ! number of grid cells in x,y directions
+ integer(i4b)                :: ixStart                ! index of the start of data write
  ! output arrays
- integer(i4b)                       :: datLength                            ! length of each data vector
- real(rkind)                        :: realArray4(nGRUrun,maxGrid,maxGridX,maxGridY)                  ! real array for all GRUs and grids in the run domain
- integer(i4b)                       :: dataType                             ! type of data
- integer(i4b),parameter             :: ixReal4=1001                         ! named variable for real
+ integer(i4b)                :: datLength              ! length of each data vector
+ real(rkind)                 :: realArray4(nGRUrun,maxGrid,maxGridX,maxGridY) ! real array for all GRUs and grids in the run domain
+ integer(i4b)                :: dataType               ! type of data
+ integer(i4b),parameter      :: ixReal4=1001           ! named variable for real
 
  ! initialize error control
  err=0;message="writeGridData/"
