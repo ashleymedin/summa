@@ -67,7 +67,7 @@ contains
   ! don't do anything if var is not requested
   if (.not.meta(iVar)%varDesire) cycle
 
-  ! only treat stats of scalars - all others handled separately
+  ! only treat stats of scalars for now (may want to change this in the future)
   if (meta(iVar)%varType==iLookVarType%outstat) then
 
    ! index in parent structure
@@ -170,7 +170,7 @@ contains
  ! Calculate each statistic that is requested by user
  ! ---------------------------------------------
  do iFreq=1,maxvarFreq                                ! loop through output statistics
-  if(meta%statIndex(iFreq)==integerMissing) cycle     ! don't bother if output frequency is not desired for a given variab;e
+  if(meta%statIndex(iFreq)==integerMissing) cycle     ! don't bother if output frequency is not desired for a given variable
   select case(meta%statIndex(iFreq))                  ! act depending on the statistic
    ! -------------------------------------------------------------------------------------
    case (iLookSTAT%inst)                              ! * instantaneous value 

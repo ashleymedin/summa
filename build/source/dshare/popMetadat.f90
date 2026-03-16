@@ -1030,7 +1030,7 @@ subroutine read_output_file(err,message)
         ! * check that we could find the index
         if(iFreq<0 .or. iFreq>maxvarFreq)then
           message=trim(message)//'unable to identify desired output frequency for variable '//trim(varName)&
-                                //' [entered "'//trim(freqName)//'"]'
+                                //' [entered '//trim(freqName)//', names should be timestep (or 1), day (or 24), month, annual]'
           err=20; return
         endif
 
@@ -1085,16 +1085,16 @@ subroutine read_output_file(err,message)
     ! there are three options to define the statistic:
     ! option 0: file format = varName
     ! option 0: file format = varName | outFreq
-    ! option 1: file format = varName | outFreq | statisticName
-    ! option 2: file format = varName | outFreq | inst | sum | mean | var | min | max | mode
-    !              e.g.,      varName | outFreq |    0 |   0 |    1 |   0 |   0 |   0 |    0
+    ! option 1: file format = varName | outFreq | statisticName (total, instant, mean, variance, minimum, maximum, mode)
+    ! option 2: file format = varName | outFreq | totl | inst | mean | vari | mini | maxi | mode
+    !              e.g.,      varName | outFreq |   0  |    0 |    1 |   0  |    0 |   0  |    0
     select case(nWords)
       case(nameIndex + 2, nameIndex); fileFormat=noStatsDesired   ! no statistic desired (temporally constant variables)
       case(freqIndex + 2           ); fileFormat=provideStatName  ! provide the name of the desired statistic
       case(freqIndex + 2*maxVarStat); fileFormat=provideStatFlags ! provide flags defining the desired statistic
       case default
         message=trim(message)//'unexpected format for variable '//trim(varName)&
-                            //' (format = "'//trim(charLines(vLine))//'")'
+                             //' (format = "'//trim(charLines(vLine))//'")'
         err=20; return
     end select
 
@@ -1108,8 +1108,6 @@ subroutine read_output_file(err,message)
       case(provideStatName); statName = trim(lineWords(freqIndex+2))
 
       ! extract the statistic name from the flags
-      ! NOTE: cannot imagine why someone would want to do this now since the other option is easier
-      !         --> included for backwards compatibility
       case(provideStatFlags)
         ! get statistic name
         statFlag(:) = .false.
@@ -1122,7 +1120,7 @@ subroutine read_output_file(err,message)
         ! check actually defined the statistic (and only defined one statistic)
         if(count(statFlag)/=1)then
           message=trim(message)//'expect only one statistic is defined when using flags to define statistics'&
-                                //': entered "'//trim(charLines(vLine))//'"'
+                               //': entered "'//trim(charLines(vLine))//'"'
           err=20; return
         endif
 
@@ -1134,7 +1132,7 @@ subroutine read_output_file(err,message)
     iStat = get_ixStat(trim(statName))
     if(iStat<0 .or. iStat>maxvarStat)then
       message=trim(message)//'unable to identify desired statistic for variable '//trim(varName)&
-                            //' [evaluating '//trim(statName)//']'
+                           //' [evaluating '//trim(statName)//', names should be total, instant, mean, variance, minimum, maximum, or mode]'
       err=20; return
     endif
 
@@ -1200,7 +1198,9 @@ end subroutine read_output_file
 ! This routine is called by read_output_file
 ! ********************************************************************************************
 subroutine popStat(meta, iFreq, iStat, err, message)
-  USE data_types,only:var_info                  ! meta_data type declaration
+  USE var_lookup,only:iLookVarType              ! look up structure for variable typed
+  USE data_types,only:var_info                  ! derived type for metaData
+  USE var_lookup,only:iLookSTAT                 ! index into stats structure
   USE get_ixname_module,only:get_freqName       ! get name of frequency from frequency index (error control)
   implicit none
   ! dummy variables
@@ -1219,11 +1219,17 @@ subroutine popStat(meta, iFreq, iStat, err, message)
     err=20; return
   endif
 
-  ! identify desired variabe
+  ! identify desired variable
   meta%varDesire = .true.
 
   ! populate structure
   meta%statIndex(iFreq) = iStat
+
+  ! if variable is not scalar, can only be at instantaneous statistic
+  if(meta%varType/=iLookVarType%scalarv .and. iStat/=iLookSTAT%inst)then
+    meta%statIndex(iFreq) = iLookSTAT%inst
+    write(*,*)'WARNING: cannot compute statistics of non-scalar type data, outputting instantaneous variable '//trim(meta%varName)//' in '//trim(get_freqName(iFreq))//' output file'
+  endif
 
 end subroutine popStat
 

@@ -909,8 +909,7 @@ MODULE var_lookup
  endtype iLook_grid
 
  ! ***********************************************************************************************************
- ! (14) structure for looking up the type of a model variable (this is only needed for backward
- ! compatability, and should be removed eventually)
+ ! (14) structure for looking up the type of a model variable
  ! ***********************************************************************************************************
 #ifdef ACTORS_ACTIVE
  type, public, bind(C) :: iLook_varType
@@ -1064,7 +1063,7 @@ MODULE var_lookup
                                                                          21, 22, 23, 24)
  ! named variables: basin-grid variables
  type(iLook_grid),    public,parameter :: iLookGRID     =iLook_grid    (  1,  2,  3,  4,  5)
- ! named variables in varibale type structure
+ ! named variables in variable type structure
  type(iLook_varType), public,parameter :: iLookVarType  =iLook_varType (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17)
  ! number of possible output statistics
