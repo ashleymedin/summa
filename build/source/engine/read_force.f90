@@ -258,7 +258,6 @@ contains
 
  ! get forcing structure for the desired time
  forcStruct = fullforcingStruct(jRead)
- !print*, forcStruct%gru(1)%hru(1)%var
 
 #endif
 

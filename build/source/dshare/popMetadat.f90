@@ -1091,7 +1091,7 @@ subroutine read_output_file(err,message)
     select case(nWords)
       case(nameIndex + 2, nameIndex); fileFormat=noStatsDesired   ! no statistic desired (temporally constant variables)
       case(freqIndex + 2           ); fileFormat=provideStatName  ! provide the name of the desired statistic
-      case(freqIndex + 2*maxvarStat); fileFormat=provideStatFlags ! provide flags defining the desired statistic
+      case(freqIndex + 2*maxvarStat, freqIndex + 2*(maxvarStat+1)); fileFormat=provideStatFlags ! provide flags defining the desired statistic
       case default
         message=trim(message)//'unexpected format for variable '//trim(varName)&
                              //' (format = "'//trim(charLines(vLine))//'")'
@@ -1117,10 +1117,18 @@ subroutine read_output_file(err,message)
             statName = get_statName(iStat)
           end if
         end do
-        ! check actually defined the statistic (and only defined one statistic)
+        ! check actually defined the statistic (and only defined one statistic) that is not the deprecated mode statistic
         if(count(statFlag)/=1)then
-          message=trim(message)//'expect only one statistic is defined when using flags to define statistics'&
+          if(count(statFlag)==0)then
+             message=trim(message)//'no statistic was defined for variable '//trim(varName) 
+             if(nWords==freqIndex + 2*(maxvarStat+1))then
+               if(lineWords(freqIndex + 2*(maxvarStat+1))=='1')&
+                message=trim(message)//' (note, the mode statistic is no longer supported)'
+             endif
+          else
+            message=trim(message)//'expect only one statistic is defined when using flags to define statistics'&
                                //': entered "'//trim(charLines(vLine))//'"'
+          endif
           err=20; return
         endif
 

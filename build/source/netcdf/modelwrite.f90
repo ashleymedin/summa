@@ -749,7 +749,6 @@ contains
    ! add to file
    err = nf90_put_var(ncid(iFreq),ncVarID,(/dat(iVar)/),start=(/outputTimestep(iFreq)/),count=(/1/))
    if (err/=0) message=trim(message)//trim(meta(iVar)%varName)
-   print*, err, trim(meta(iVar)%varName)
    call netcdf_err(err,message)
    if (err/=0) then; err=20; return; end if
 
