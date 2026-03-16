@@ -178,16 +178,16 @@ SUMMA is pretty flexible in its output. There are many variables that you can ou
 
 The output control file includes a listing of model variables that you would like to store, with one model variable per line. The variables that are available for output are the individual entries in the data structures specified in `build/source/dshare/popMetadat.f90`. Because there are many, there is not much point in repeating them here, but we direct the user to the model code. Any of the variables specified in the following structures can be specified in the output control file: the time-varying variables in `forc`, `prog`, `diag`, `flux`, `bvar`; the time-constant parameters in `bpar`, `attr`, `type`, and `mpar`; and the timestep variables of `time` and `indx`. SUMMA will print an warning message if a specific variable cannot be outputted, so the faster way may be to select any variable in `build/source/dshare/popMetadat.f90` and remove it if it is not available for output. At this time, `deriv`,and `lookup` structure variables are not available for output, as well as any variables of type `unknown`. The `id` structure variables of `gruId` and `hruId` will always be outputted for variable identification purposes, but no other `id` variables will be outputted. The `grid` structure variables are available for output, with the time-varying grid variables following the guidance of the other non-scalar time-varying variables, the time-constant grid parameters following the guidance of the other time-constant parameters, and the ID grid variables not outputted.
 
-At a minimum, for any time-varying variable (in `forc`, `prog`, `diag`, `flux`, `bvar`, or some in `grid`), each line in the output control file will contain two fields, separated by a `|`. The first field will be the variable name as specified in `build/source/dshare/popMetadat.f90` (case-sensitive). The second field will be the frequency of the model output specified as timestep (or 1), day (or 24), month, annual. Note that for every variable you can specify multiple frequencies but you need to add a new line in the output control for each frequency. For example to output `scalarSenHeatTotal` at the timestep, 
+At a minimum, for any time-varying variable (in `forc`, `prog`, `diag`, `flux`, `bvar`, or some in `grid`), each line in the output control file will contain two fields, separated by a `|`. The first field will be the variable name as specified in `build/source/dshare/popMetadat.f90` (case-sensitive). The second field will be the frequency of the model output specified as timestep, day, month, or annual. The `timestep` choice can also be inputted as `1`, and the `day` choice can also be inputted as `24`, regardless if the of the length of the actual timestep (i.e. a 30 minute timestep would still be `1` with the day being `24`). Note that for every variable you can specify multiple frequencies but you need to add a new line in the output control for each frequency. For example to output `scalarSenHeatTotal` at the timestep, 
 day, and annual, you would input:
 ```
 scalarSenHeatTotal | 1
-scalarSenHeatTotal | 24
+scalarSenHeatTotal | day
 scalarSenHeatTotal | annual
 ```
 For a scalar variable you can also output a statistical summary if you output variables at a lower frequency than your forcing frequency. To do this, you extend the number of fields you specify in the output control file, with all fields separated by a `|`. The available statistics are the the sum over the interval, the instantaneous value (computed at the last simulated timestep of the calendar day, month, or year), the mean, the variance, the minimum, and the maximum (respective names total, instant, mean, variance, minimum, and maximum). For example
 ```
-scalarSenHeatTotal | 24      | mean
+scalarSenHeatTotal | day     | mean
 ```
 You can also do this with the backwards compatible flags, in order:
 ```
