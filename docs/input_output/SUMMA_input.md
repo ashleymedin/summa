@@ -185,14 +185,14 @@ scalarSenHeatTotal | 1
 scalarSenHeatTotal | 24
 scalarSenHeatTotal | annual
 ```
-For a scalar variable you can also output a statistical summary if you output variables at a lower frequency than your forcing frequency. To do this, you extend the number of fields you specify in the output control file, with all fields separated by a `|`. The available statistics are the the sum over the interval, the instantaneous value (computed at the last  simulated timestep of the calendar day, month, or year), the mean, the variance, the minimum, the maximum, and the mode (respective names total, instant, mean, variance, minimum, maximum, and mode). For example
+For a scalar variable you can also output a statistical summary if you output variables at a lower frequency than your forcing frequency. To do this, you extend the number of fields you specify in the output control file, with all fields separated by a `|`. The available statistics are the the sum over the interval, the instantaneous value (computed at the last simulated timestep of the calendar day, month, or year), the mean, the variance, the minimum, and the maximum (respective names total, instant, mean, variance, minimum, and maximum). For example
 ```
 scalarSenHeatTotal | 24      | mean
 ```
 You can also do this with the backwards compatible flags, in order:
 ```
-! varName          | outFreq | totl | inst | mean | var | min | max | mode
-scalarSenHeatTotal | 24      | 0    | 0    | 1    | 0   | 0   |   0 | 0
+! varName          | outFreq | totl | inst | mean | vari | mini | maxi
+scalarSenHeatTotal | 24      | 0    | 0    | 1    | 0    | 0    | 0
 ```
 In this example, the first line is a comment (starts with `!`) and then the mean is calculated for `scalarSenHeatTotal` across 24 forcing time steps and written to the output file. Note, at this time, you can only specify one statistic per variable per output frequency and you cannot specify the same output frequency twice, even if the statistics are different. The default statistic, if not specified, or if the variable is not scalar, is instantaneous. Of note, since currently the grid variables only change annually, these will be outputted as instantaneous in the annual file regardless of other specifications.
 

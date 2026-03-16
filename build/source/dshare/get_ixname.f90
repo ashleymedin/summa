@@ -1278,7 +1278,6 @@ contains
   case('variance'); get_ixStat = iLookSTAT%vari
   case('minimum' ); get_ixStat = iLookSTAT%mini
   case('maximum' ); get_ixStat = iLookSTAT%maxi
-  case('mode'    ); get_ixStat = iLookSTAT%mode
   ! get to here if cannot find the variable
   case default
    get_ixStat = integerMissing
@@ -1323,7 +1322,6 @@ contains
   case(iLookSTAT%vari);get_statName='variance'
   case(iLookSTAT%mini);get_statName='minimum'
   case(iLookSTAT%maxi);get_statName='maximum'
-  case(iLookSTAT%mode);get_statName='mode'
   ! get to here if cannot find the variable
   case default
    get_statName = 'unknown'

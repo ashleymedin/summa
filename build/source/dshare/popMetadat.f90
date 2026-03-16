@@ -1085,13 +1085,13 @@ subroutine read_output_file(err,message)
     ! there are three options to define the statistic:
     ! option 0: file format = varName
     ! option 0: file format = varName | outFreq
-    ! option 1: file format = varName | outFreq | statisticName (total, instant, mean, variance, minimum, maximum, mode)
-    ! option 2: file format = varName | outFreq | totl | inst | mean | vari | mini | maxi | mode
-    !              e.g.,      varName | outFreq |   0  |    0 |    1 |   0  |    0 |   0  |    0
+    ! option 1: file format = varName | outFreq | statisticName (total, instant, mean, variance, minimum, maximum)
+    ! option 2: file format = varName | outFreq | totl | inst | mean | vari | mini | maxi
+    !              e.g.,      varName | outFreq |   0  |    0 |    1 |   0  |    0 |   0 
     select case(nWords)
       case(nameIndex + 2, nameIndex); fileFormat=noStatsDesired   ! no statistic desired (temporally constant variables)
       case(freqIndex + 2           ); fileFormat=provideStatName  ! provide the name of the desired statistic
-      case(freqIndex + 2*maxVarStat); fileFormat=provideStatFlags ! provide flags defining the desired statistic
+      case(freqIndex + 2*maxvarStat); fileFormat=provideStatFlags ! provide flags defining the desired statistic
       case default
         message=trim(message)//'unexpected format for variable '//trim(varName)&
                              //' (format = "'//trim(charLines(vLine))//'")'
@@ -1111,7 +1111,7 @@ subroutine read_output_file(err,message)
       case(provideStatFlags)
         ! get statistic name
         statFlag(:) = .false.
-        do iStat = 1,maxVarStat
+        do iStat = 1,maxvarStat
           if (lineWords(freqIndex + 2*iStat)=='1') then
             statFlag(iStat)=.true.
             statName = get_statName(iStat)
@@ -1132,7 +1132,7 @@ subroutine read_output_file(err,message)
     iStat = get_ixStat(trim(statName))
     if(iStat<0 .or. iStat>maxvarStat)then
       message=trim(message)//'unable to identify desired statistic for variable '//trim(varName)&
-                           //' [evaluating '//trim(statName)//', names should be total, instant, mean, variance, minimum, maximum, or mode]'
+                           //' [evaluating '//trim(statName)//', names should be total, instant, mean, variance, minimum, or maximum]'
       err=20; return
     endif
 

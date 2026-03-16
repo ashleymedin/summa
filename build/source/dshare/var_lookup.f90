@@ -945,7 +945,6 @@ MODULE var_lookup
   integer(i4b)    :: vari = integerMissing ! variance over period
   integer(i4b)    :: mini = integerMissing ! minimum over period
   integer(i4b)    :: maxi = integerMissing ! maximum over period
-  integer(i4b)    :: mode = integerMissing ! mode over period
  endtype iLook_stat
 
  ! ***********************************************************************************************************
@@ -1067,7 +1066,7 @@ MODULE var_lookup
  type(iLook_varType), public,parameter :: iLookVarType  =iLook_varType (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17)
  ! number of possible output statistics
- type(iLook_stat),    public,parameter :: iLookSTAT     =iLook_stat    (  1,  2,  3,  4,  5,  6,  7)
+ type(iLook_stat),    public,parameter :: iLookSTAT     =iLook_stat    (  1,  2,  3,  4,  5,  6)
  ! number of possible output frequencies
  type(iLook_freq),    public,parameter :: iLookFREQ     =iLook_freq    (  1,  2,  3,  4)
  ! named variables in the lookup table structure

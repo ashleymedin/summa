@@ -210,7 +210,7 @@ contains
  ! **************************************************************************************
  subroutine writeData(is_bufferedWrite,finalizeStats,outputTimestep,maxWrite,meta,stat,dat,map,indx,err,message)
  USE data_types,only:var_info                       ! metadata type
- USE var_lookup,only:maxVarStat                     ! index into stats structure
+ USE var_lookup,only:maxvarStat                     ! index into stats structure
  USE var_lookup,only:iLookVarType                   ! index into type structure
  USE var_lookup,only:iLookINDEX                     ! index into index structure
  USE var_lookup,only:iLookFREQ                      ! index into freq structure

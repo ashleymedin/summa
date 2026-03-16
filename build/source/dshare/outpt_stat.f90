@@ -114,15 +114,15 @@ contains
  USE var_lookup,only:iLookTIME        ! named variables for time information
  implicit none
  ! input variables
- class(var_info),intent(in)         :: meta              ! meta data structure
- class(*)       ,intent(inout)      :: stat              ! statistics structure
- real(rkind)    ,intent(in)         :: tdata             ! data value
- logical(lgt)   ,intent(in)         :: resetStats(:)     ! vector of flags to reset statistics
- logical(lgt)   ,intent(in)         :: finalizeStats(:)  ! vector of flags to reset statistics
- integer(i4b)   ,intent(in)         :: statCounter(:)    ! number of time steps in each output frequency
+ class(var_info),intent(in)          :: meta              ! meta data structure
+ class(*)       ,intent(inout)       :: stat              ! statistics structure
+ real(rkind)    ,intent(in)          :: tdata             ! data value
+ logical(lgt)   ,intent(in)          :: resetStats(:)     ! vector of flags to reset statistics
+ logical(lgt)   ,intent(in)          :: finalizeStats(:)  ! vector of flags to reset statistics
+ integer(i4b)   ,intent(in)          :: statCounter(:)    ! number of time steps in each output frequency
  ! output variables
- integer(i4b)   ,intent(out)        :: err               ! error code
- character(*)   ,intent(out)        :: message           ! error message
+ integer(i4b)   ,intent(out)         :: err               ! error code
+ character(*)   ,intent(out)         :: message           ! error message
  ! internals
  real(rkind),dimension(maxvarFreq*2) :: tstat             ! temporary stats vector
  integer(i4b)                        :: iFreq             ! index of output frequency
@@ -155,8 +155,6 @@ contains
      tstat(iFreq) = huge(tstat(iFreq))              !     - resets stat at beginning of period 
     case (iLookSTAT%maxi)                           ! * maximum over period                    
      tstat(iFreq) = -huge(tstat(iFreq))             !     - resets stat at beginning of period 
-    case (iLookSTAT%mode)                           ! * mode over period      
-     tstat(iFreq) = realMissing                     !     - does not work
     case (iLookSTAT%inst)                           ! * instantaneous -- no need to reset
     case default
      message=trim(message)//'unable to identify type of statistic [reset]'
@@ -186,8 +184,6 @@ contains
     if (tdata<tstat(iFreq)) tstat(iFreq) = tdata      !     - check value 
    case (iLookSTAT%maxi)                              ! * maximum over period                    
     if (tdata>tstat(iFreq)) tstat(iFreq) = tdata      !     - check value 
-   case (iLookSTAT%mode)                              ! * mode over period (does not workind)       
-    tstat(iFreq) = realMissing
    case default
     message=trim(message)//'unable to identify type of statistic [calculating stats]'
     err=20; return
