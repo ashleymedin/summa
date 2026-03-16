@@ -31,12 +31,12 @@ contains
  ! public subroutine calcStats is called at every model timestep to update/store output statistics
  ! from model variables
  ! ******************************************************************************************************
- subroutine calcStats(stat,dat,meta,resetStats,modelTimeStep,finalizeStats,statCounter,err,message)
+ subroutine calcStats(stat,dat,meta,resetStats,finalizeStats,statCounter,err,message)
  USE nr_type
  USE data_types,only:extended_info,dlength,ilength  ! metadata structure type
  USE var_lookup,only:iLookVarType                   ! named variables for variable types
  USE var_lookup,only:iLookSTAT                      ! named variables for output statistics types
- USE var_lookup,only:maxvarFreq                     ! maximum number of output files
+
  USE get_ixname_module,only:get_freqName            ! get name of frequency from frequency index
  implicit none
 
@@ -45,7 +45,6 @@ contains
  class(*)      ,intent(in)      :: dat(:)           ! data
  type(extended_info),intent(in) :: meta(:)          ! metadata
  logical(lgt)  ,intent(in)      :: resetStats(:)    ! vector of flags to reset statistics
- integer(i4b),intent(in)        :: modelTimeStep    ! time step index
  logical(lgt)  ,intent(in)      :: finalizeStats(:) ! vector of flags to reset statistics
  integer(i4b)  ,intent(in)      :: statCounter(:)   ! number of time steps in each output frequency
 
@@ -55,7 +54,6 @@ contains
 
  ! internals
  character(256)                 :: cmessage         ! error message
- integer(i4b)                   :: iFreq            ! index for frequency loop
  integer(i4b)                   :: iVar             ! index for varaiable loop
  integer(i4b)                   :: pVar             ! index into parent structure
  real(rkind)                    :: tdata            ! dummy for pulling info from dat structure
@@ -69,7 +67,7 @@ contains
   ! don't do anything if var is not requested
   if (.not.meta(iVar)%varDesire) cycle
 
-  ! only treat stats of scalars for now (could add other types of stats in the future)
+  ! only treat stats of scalars - all others handled separately
   if (meta(iVar)%varType==iLookVarType%outstat) then
 
    ! index in parent structure
@@ -91,17 +89,7 @@ contains
    end if
    if(err/=0)then; message=trim(message)//trim(cmessage);return; end if
 
-  else ! print a warning if user requested statistics for a non-scalar variable (could add other types of stats in the future)
-   if(modelTimeStep==1)then ! only print warning once
-    do iFreq=1,maxvarFreq                                      ! loop through output statistics
-     if(meta(iVar)%statIndex(iFreq)==integerMissing) cycle     ! don't bother if output frequency is not desired for a given variab;e
-     if(meta(iVar)%statIndex(iFreq)/=iLookSTAT%inst)then
-      write(*,*)'WARNING: cannot compute statistics of non-scalar type data, outputting instantaneous variable '//trim(meta(iVar)%varName)//' in '//trim(get_freqName(iFreq))//' output file'
-     end if
-    end do ! looping through frequencies
-   end if  ! (if first step)
-
-  end if  ! (if stat of scarlar)
+  end if  ! (if stat of scalar)
 
  end do  ! looping through variables
 
@@ -111,7 +99,6 @@ contains
 
  ! ***********************************************************************************
  ! Private subroutine calc_stats is a generic function to deal with any variable type.
- ! Called from compile_stats
  ! ***********************************************************************************
  subroutine calc_stats(meta,stat,tdata,resetStats,finalizeStats,statCounter,err,message)
  USE nr_type
