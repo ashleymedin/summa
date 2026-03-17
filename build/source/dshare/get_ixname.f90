@@ -1129,6 +1129,7 @@ contains
   case('parSoil'); get_ixVarType = iLookVarType%parSoil
   case('routing'); get_ixVarType = iLookVarType%routing
   case('glacier'); get_ixVarType = iLookVarType%glacier
+  case('gridvar'); get_ixVarType = iLookVarType%gridvar
   case('unknown'); get_ixVarType = iLookVarType%unknown
   ! get to here if cannot find the variable
   case default
@@ -1162,6 +1163,7 @@ contains
   case(iLookVarType%parSoil);get_varTypeName='parSoil'
   case(iLookVarType%routing);get_varTypeName='routing'
   case(iLookVarType%glacier);get_varTypeName='glacier'
+  case(iLookVarType%gridvar);get_varTypeName='gridvar'
   case(iLookVarType%unknown);get_varTypeName='unknown'
   ! get to here if cannot find the variable
   case default

@@ -931,6 +931,7 @@ MODULE var_lookup
   integer(i4b)    :: parSoil   = integerMissing ! soil depth
   integer(i4b)    :: routing   = integerMissing ! routing variables
   integer(i4b)    :: glacier   = integerMissing ! basin per glacier variables
+  integer(i4b)    :: gridvar   = integerMissing ! grid variables
   integer(i4b)    :: outstat   = integerMissing ! output statistic
   integer(i4b)    :: unknown   = integerMissing ! cath-cal alternative type
  endtype iLook_varType
@@ -1064,7 +1065,7 @@ MODULE var_lookup
  type(iLook_grid),    public,parameter :: iLookGRID     =iLook_grid    (  1,  2,  3,  4,  5)
  ! named variables in variable type structure
  type(iLook_varType), public,parameter :: iLookVarType  =iLook_varType (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
-                                                                         11, 12, 13, 14, 15, 16, 17)
+                                                                         11, 12, 13, 14, 15, 16, 17, 18)
  ! number of possible output statistics
  type(iLook_stat),    public,parameter :: iLookSTAT     =iLook_stat    (  1,  2,  3,  4,  5,  6)
  ! number of possible output frequencies

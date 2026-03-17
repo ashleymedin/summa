@@ -75,11 +75,11 @@ contains
  subroutine cloneStruc_rv(dataVec,lowerBound,source,mold,err,message)
  implicit none
  ! input-output: data vector for allocation/population
- real(rkind),intent(inout),allocatable     :: dataVec(:)            ! data vector
+ real(rkind),intent(inout),allocatable  :: dataVec(:)            ! data vector
  ! input
  integer(i4b),intent(in)                :: lowerBound            ! lower bound
- real(rkind),intent(in),optional           :: source(lowerBound:)   ! dataVec = shape of source + elements of source
- real(rkind),intent(in),optional           :: mold(lowerBound:)     ! dataVec = shape of mold
+ real(rkind),intent(in),optional        :: source(lowerBound:)   ! dataVec = shape of source + elements of source
+ real(rkind),intent(in),optional        :: mold(lowerBound:)     ! dataVec = shape of mold
  ! error control
  integer(i4b),intent(out)               :: err                   ! error code
  character(*),intent(out)               :: message               ! error message
@@ -106,7 +106,7 @@ contains
  if(present(source))then; upperBound=ubound(source); end if
  if(present(mold))  then; upperBound=ubound(mold);   end if
 
- ! reallocate spcae
+ ! reallocate space
  if(allocated(dataVec)) deallocate(dataVec)
  allocate(dataVec(lowerBound:upperBound(1)),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the data vector'; return; end if
@@ -153,7 +153,7 @@ contains
  if(present(source))then; upperBound=ubound(source); end if
  if(present(mold))  then; upperBound=ubound(mold);   end if
 
- ! reallocate spcae
+ ! reallocate space
  if(allocated(dataVec)) deallocate(dataVec)
  allocate(dataVec(lowerBound:upperBound(1)),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the data vector'; return; end if

@@ -215,13 +215,13 @@ Each forcing file must contain a `time` and a `hru` [dimension](#forcing_file_di
 data_step  | - | double | seconds | Length of time step | Single value that must be the same for all forcing files in the same [list of forcing files file](#infile_forcing_list)
 hruId | hru | int or int64 | - | Index of hydrological response unit (HRU) | Unique numeric ID for each HRU |
 time | time | double | [see below](#forcing_file_time_units) | time since time reference | Time stamps are [period-ending](#forcing_file_time_stamp)
-pptrate  | time, hru | double | kg m-2 s-1 | Precipitation rate | |
-SWRadAtm | time, hru | double | W m-2 | Downward shortwave radiation at the [upper boundary](#forcing_file_upper_boundary) | |
-LWRadAtm | time, hru | double | W m-2 | Downward longwave radiation at the [upper boundary](#forcing_file_upper_boundary) | |
-airtemp  | time, hru | double | K | Air temperature at the [measurement height](#forcing_file_measurement_height) | |
-windspd  | time, hru | double | m s-1 | Wind speed at the [measurement height](#forcing_file_measurement_height) | |
+pptrate  | time, hru | double | kg m-2 s-1 | Precipitation rate |
+SWRadAtm | time, hru | double | W m-2 | Downward shortwave radiation at the [upper boundary](#forcing_file_upper_boundary) |
+LWRadAtm | time, hru | double | W m-2 | Downward longwave radiation at the [upper boundary](#forcing_file_upper_boundary) |
+airtemp  | time, hru | double | K | Air temperature at the [measurement height](#forcing_file_measurement_height) |
+windspd  | time, hru | double | m s-1 | Wind speed at the [measurement height](#forcing_file_measurement_height) |
 airpres  | time, hru | double | Pa | Air pressure at the the [measurement height](#forcing_file_measurement_height)| |
-spechum  | time, hru | double | g g-1 | Specific humidity at the [measurement height](#forcing_file_measurement_height) | |
+spechum  | time, hru | double | g g-1 | Specific humidity at the [measurement height](#forcing_file_measurement_height) |
 
 Notes about forcing file format:
 
@@ -252,29 +252,64 @@ The frequency with which SUMMA writes restart files is specified on the command-
 
 As an input file, the variables that need to be specified in the restart file are a subset of those listed as `iLook_prog` in the `var_lookup` module in `build/source/dshare/var_lookup.f90` (look for the comment `(6) define model prognostic (state) variables`). Variable names must match the code exactly (case-sensitive). Note that not all the variables in `iLook_prog` need to be specified, since some of them can be calculated from other variables. For example, SUMMA calculates `mLayerHeight` from `iLayerHeight` and the variable does not need to be reported separately. For similar reasons, the user does not need to specify `scalarCanopyWat`, `spectralSnowAlbedoDiffuse`, `scalarSurfaceTemp`, `mLayerVolFracWat`,  and `mLayerHeight` since these are skipped when the file is read and calculated internally to ensure consistency. In addition to these variables, the restart file also needs to specify the number of soil and snow layers (`nSoil` and `nSnow`, respectively).
 
-The restart file does not have a time dimension, since it represents a specific moment in time. However, it has the following dimensions,: `hru`, `scalarv`, `spectral`, `ifcSoil`, `ifcToto`, `midSoil`, and `midToto`. These dimensions are described in detail in the section on [SUMMA output file dimensions](SUMMA_output.md#outfile_dimensions) (keep in mind that the restart files are both input and output).
+The restart file does not have a time dimension, since it represents a specific moment in time. However, it has the following dimensions,: `gru`, `hru`, `dom`,`tdh`, `glac`, `scalarv`, `spectral`, `ifcSoil`, `ifcToto`, `midSoil`, and `midToto`. These dimensions are described in detail in the section on [SUMMA output file dimensions](SUMMA_output.md#outfile_dimensions) (keep in mind that the restart files are both input and output).
 
-| Variable | dimension | type | units | long name | notes |
-|----------|-----------|------|-------|-----------|-------|
-| dt_init | scalarv, hru | double | seconds | Length of initial time sub-step at start of next time interval (s) | |
-| nSoil | scalarv, hru | int | - | Number of soil layers | |
-| nSnow | scalarv, hru | int | - |  Number of snow layers | |
-| scalarCanopyIce | scalarv, hru | double | kg m-2 | Mass of ice on the vegetation canopy | |
-| scalarCanopyLiq | scalarv, hru | double | kg m-2 | Mass of liquid water on the vegetation canopy | |
-| scalarCanairTemp | scalarv, hru | double | Pa | Temperature of the canopy air space | |
-| scalarCanopyTemp | scalarv, hru | double | K | Temperature of the vegetation canopy | |
-| scalarSnowAlbedo | scalarv, hru | double | - | Snow albedo for the entire spectral band | |
-| scalarSnowDepth | scalarv, hru | double | m | Total snow depth | |
-| scalarSWE | scalarv, hru | double | kg m-2 | Snow water equivalent | |
-| scalarSfcMeltPond | scalarv, hru | double | kg m-2 | Ponded water caused by melt of the "snow without a layer" |
-| scalarAquiferStorage | scalarv, hru | double | m | Relative aquifer storage -- above bottom of the soil profile | |
-| iLayerHeight | ifcToto, hru | double | m | Height of the layer interface; top of soil = 0 | |
-| mLayerDepth | midToto, hru | double | m | Depth of each layer | |
+| Variable | dimension | type | units | long name |
+|----------|-----------|------|-------|-----------|
+| gruId | gru | int | - | ID defining the grouped (basin) response unit |
+| hruId | hru | int | - | ID defining the hydrologic response unit |
+| domType | hru, dom | int | - | Type defining the domain response unit type |
+| dt_init | scalarv, hru, dom | double | seconds | Length of initial time sub-step at start of next time interval |
+| nSoil | hru, dom | int | - | Number of soil layers |
+| nSnow | hru, dom | int | - |  Number of snow layers |
+| nGlce | hru, dom | int | - |  Number of glacier ice layers |
+| nLake | hru, dom | int | - |  Number of lake layers |
+| DOMarea | scalarv, hru, dom | m2 | Area of the domain |
+| DOMelev | scalarv, hru, dom | m2 | Elevation of the domain |
+| scalarCanopyIce | scalarv, hru, dom | double | kg m-2 | Mass of ice on the vegetation canopy |
+| scalarCanopyLiq | scalarv, hru, dom | double | kg m-2 | Mass of liquid water on the vegetation canopy |
+| scalarCanairTemp | scalarv, hru, dom | double | Pa | Temperature of the canopy air space |
+| scalarCanopyTemp | scalarv, hru, dom | double | K | Temperature of the vegetation canopy |
+| scalarCanopyWat | scalarv, hru, dom | double | K | Mass of water on the vegetation canopy |
+| scalarCanairEnthalpy | scalarv, hru, dom | double | J m-3 | Enthalpy of the canopy air space |
+| scalarCanopyEnthalpy | scalarv, hru, dom | double | J m-3 | Enthalpy of the vegetation canopy |
+| scalarSnowAlbedo | scalarv, hru, dom | double | - | Snow albedo for the entire spectral band |
+| spectralSnowAlbedoDiffuse | spectral, hru, dom | double | - | Diffuse snow albedo for individual spectral bands |
+| scalarSnowDepth | scalarv, hru, dom | double | m | Total snow depth |
+| scalarSurfaceTemp | scalarv, hru, dom | double | K | Surface temperature (just a copy of the upper layer temperature) |
+| scalarSWE | scalarv, hru, dom | double | kg m-2 | Snow water equivalent |
+| scalarGlceWE |  scalarv, hru, dom | double | kg m-2 | glacier ice (not snow) water equivalent change over simulation |
+| scalarSfcMeltPond | scalarv, hru, dom | double | kg m-2 | Ponded water caused by melt of the "snow without a layer" |
+| scalarAquiferStorage | scalarv, hru, dom | double | m | Relative aquifer storage -- above bottom of the soil profile |
+| iLayerHeight | ifcToto, hru | double | m | Height of the layer interface; top of soil = 0 |
+| mLayerDepth | midToto, hru | double | m | Depth of each layer |
  layer |
-| mLayerTemp | midToto, hru | double | K | Temperature of each layer | |
-| mLayerVolFracIce | midToto, hru | double | - | Volumetric fraction of ice in each layer | |
-| mLayerVolFracLiq | midToto, hru | double | - | Volumetric fraction of liquid water in each layer | |
+| mLayerVolFracIce | midToto, hru | double | - | Volumetric fraction of ice in each layer |
+| mLayerVolFracLiq | midToto, hru | double | - | Volumetric fraction of liquid water in each layer |
+| mLayerVolFracWat | midToto, hru | double | - | Volumetric fraction of water in each layer |
+| mLayerTemp | midToto, hru | double | K | Temperature of each layer |
+| mLayeryEnthalpy | scalarv, hru | double | J m-3 | Enthalpy of each layer |
 | mLayerMatricHead | midSoil, hru | double | m | Matric head of water in the soil |
+| routingRunoffFuture | tdh, gru | m s-1 | runoff in future timesteps for histogram |
+| glacMass4AreaChange | scalarv, hru, dom | kg m-2 |since updateJulDay glacier layers together mass change |
+| scalarAblFrac | scalarv, hru, dom | - | fraction of the domain that is in a glacier ablation zone |
+
+If dimension `glac` is greater than zero, it will also include:
+| glacId | glac | int | - | ID defining the glaciers (RGI ID) |
+| basin__GlacierStorage | gru | Gt | glacier storage (ice mass) |
+| glacierAblArea | glac, gru | m2 | per glacier ablation area |
+| glacierAccArea | glac, gru | m2 | per glacier accumulation area |
+| glacIceRunoffFuture | glac, gru | m s-1 | per glacier ice reservoir runoff in future time steps |
+| glacSnowRunoffFuture | glac, gru | m s-1 | per  glacier snow reservoir runoff in future time steps |
+| glacFirnRunoffFuture | glac, gru | m s-1 | per glacier firn reservoir runoff in future time steps |
+| updateJulDay| scalarv, gru | day | julian day at which glacier geometry was last updated
+
+If dimension `grid` is greater than zero (currently equal to `glac`), there will also be a separate restart file created just for grids, with dimensions `gru`, `grid`, `xgrid`, `ygrid`
+| gruId | gru | int | - | ID defining the grouped (basin) response unit |
+| gridId | grid | int | - | ID defining the glaciers (RGI ID) |
+| surface_elev | ygrid, xgrid, grid, gru | m | glacier surface elevation |
+| debris_thick | ygrid, xgrid, grid, gru | m | debris thickness |
+
 
 ## Attribute and parameter files
 SUMMA uses a number of files to specify model attributes and parameters. Although SUMMA's distinction between attributes and parameters is somewhat arbitrary, attributes generally describe characteristics of the model domain that are time-invariant during the simulation, such as GRU and HRU identifiers, spatial organization, an topography. The important part for understanding the organization of the SUMMA input files is that the values specified in the [local attributes file](#infile_local_attributes) do not overlap with those in the various parameter files. Thus, these values do not overwrite any attributes specified elsewhere. In contrast, the various parameter file are read in sequence (as explained in the next paragraph) and parameter values that are read in from the input files successively overwrite values that have been specified earlier.
@@ -292,20 +327,40 @@ The local attributes file contains a `gru` and an `hru` dimension as specified i
 
 | Variable | dimension | type | units | long name | notes |
 |----------|-----------|------|-------|-----------|-------|
-hruId | hru | int | - | Index of hydrological response unit (HRU) | Unique numeric ID for each HRU |
-gruId | gru | int | - | Index of grouped response unit (GRU) | Unique numeric ID for each GRU |
-hru2gruId | hru | int | - | Index of GRU to which the HRU belongs | gruId of the GRU to which the HRU belongs |
-downHRUindex | hru | int | - | Index of downslope HRU (0 = basin outlet) | Downslope HRU must be within the same GRU. If the value is 0, then there is no exchange to a neighboring HRU. Setting this value to 0 for all HRUs emulates a series of independent columns |
-longitude | hru | double | Decimal degree east | Longitude of HRU's centroid | West is negative or greater than 180 |
-latitude | hru | double | Decimal degree north | Latitude of HRU's centroid | South is negative |
-elevation | hru | double | m | Mean elevation of HRU | |
-HRUarea | hru | double | m^2 | Area of HRU | |
-tan_slope | hru | double | m m-1 | Average tangent slope of HRU | |
-contourLength | hru | double | m | Contour length of HRU | Width of a hillslope (m) parallel to a stream. Used in `groundwatr.f90`|
-slopeTypeIndex | hru | int | - |	Index defining slope | |
-soilTypeIndex | hru | int | - |	Index defining soil type | |
-vegTypeIndex | hru | int | - |	Index defining vegetation type | |
-mHeight | hru | double | m | Measurement height above bare ground | |
+| gruId | hru | int | - | ID defining the grouped (basin) response unit | |
+| hruId | gru | int | - | ID defining the hydrologic response unit | |
+| hru2gruId | hru | int | - | Index of GRU to which the HRU belongs | gruId of the GRU to which the HRU belongs |
+| downHRUindex | hru | int | - | Index of downslope HRU (0 = basin outlet) | Downslope HRU must be within the same GRU. If the value is 0, then there is no exchange to a | neighboring HRU. Setting this value to 0 for all HRUs emulates a series of independent columns |
+| longitude | hru | double | Decimal degree east | Longitude of HRU's centroid | West is negative or greater than 180 |
+| latitude | hru | double | Decimal degree north | Latitude of HRU's centroid | South is negative |
+| elevation | hru | double | m | Mean elevation of HRU | |
+| HRUarea | hru | double | m^2 | Area of HRU | |
+| tan_slope | hru | double | m m-1 | Average tangent slope of HRU | |
+| contourLength | hru | double | m | Contour length of HRU | Width of a hillslope (m) parallel to a stream. Used in `groundwatr.f90`|
+| slopeTypeIndex | hru | int | - | Index defining slope | |
+| soilTypeIndex | hru | int | - | Index defining soil type | |
+| vegTypeIndex | hru | int | - | Index defining vegetation type | |
+| mHeight | hru | double | m | Measurement height above bare ground | |
+
+Optionally, these attributes can be added (otherwise will be assumed 0)
+| nGlac | gru | int | number of glaciers in the GRU | |
+| nWtld | gru | int | number of wetlands in the GRU | A placeholder for lakes |
+
+If dimension `grid` is greater than zero (currently equal to `glac`, or `nGlac` above), a separate attribute file just for grids will need to be created, with dimensions `gru`, `grid`, `xgrid`, `ygrid`
+
+| Variable | dimension | type | units | long name | notes |
+|----------|-----------|------|-------|-----------|-------|
+| gruId | gru | int | - | Index of grouped response unit (GRU) | Unique numeric ID for each GRU |
+| gridId | grid | int | - | grid id (non-sequential number) of the grid | matches the glac_id if a glacier |
+| dx | grid, gru | double | m | grid cell size in the x-direction | |
+| dy | grid, gru | double | m | grid cell size in the y-direction | |
+| nx | grid, gru | double | - | number of grid cells in the x-direction | |
+| ny | grid, gru | double | - | number of grid cells in the y-direction | |
+| glacierMask | ygrid, xgrid, grid, gru | - | binary mask of area grid that glacier can grow into | 1 indicates glacier growth possible |
+| cell2hruId | ygrid, xgrid, grid, gru | - | index mapping from grid cells to HRUs | IDs need to match those in hruId from the attributes file |
+| bed_elev | ygrid, xgrid, grid, gru | m | glacier bed elevation | |
+
+
 
 Below is a sample layout of the local attributes file (the output of running `ncdump -h`). In this case,  both the gru and hru dimension are of size 1 (the example is taken from one of the [test cases](../installation/SUMMA_test_cases.md), most of which are point model simulations), but of course there can be many GRUs and HRUs.
 

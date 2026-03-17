@@ -957,7 +957,7 @@ else
            endif
          end do
          if (glacid_to_index(i,j) == -1) then
-           message=trim(message)//'glacier glacId  needs to match a gridId'; err=20; return
+           message=trim(message)//'glacier glacId needs to match a gridId'; err=20; return
          endif
        end do ! glac id loop
 

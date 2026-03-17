@@ -749,11 +749,11 @@ subroutine popMetadat(err,message)
   ! -----
   ! * basin glacier grids
   ! -----------------------------------------
-  grid_meta(iLookGRID%bed_elev)               = var_info('bed_elev'                , 'glacier bed elevation'                                     , 'm'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
-  grid_meta(iLookGRID%cell2hru)               = var_info('cell2hru'                , 'index mapping from grid cells to HRUs'                     , '-'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)   
-  grid_meta(iLookGRID%glacierMask)            = var_info('glacierMask'             , 'binary mask of area grid that glacier can grow into'       , '-'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
-  grid_meta(iLookGRID%surface_elev)           = var_info('surface_elev'            , 'glacier surface elevation'                                 , 'm'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
-  grid_meta(iLookGRID%debris_thick)           = var_info('debris_thick'            , 'debris thickness'                                          , 'm'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
+  grid_meta(iLookGRID%bed_elev)               = var_info('bed_elev'                , 'glacier bed elevation'                                     , 'm'     , get_ixVarType('gridvar'), iMissVec, iMissVec, .false.)
+  grid_meta(iLookGRID%cell2hru)               = var_info('cell2hru'                , 'index mapping from grid cells to HRUs'                     , '-'     , get_ixVarType('gridvar'), iMissVec, iMissVec, .false.)   
+  grid_meta(iLookGRID%glacierMask)            = var_info('glacierMask'             , 'binary mask of area grid that glacier can grow into'       , '-'     , get_ixVarType('gridvar'), iMissVec, iMissVec, .false.)
+  grid_meta(iLookGRID%surface_elev)           = var_info('surface_elev'            , 'glacier surface elevation'                                 , 'm'     , get_ixVarType('gridvar'), iMissVec, iMissVec, .false.)
+  grid_meta(iLookGRID%debris_thick)           = var_info('debris_thick'            , 'debris thickness'                                          , 'm'     , get_ixVarType('gridvar'), iMissVec, iMissVec, .false.)
   ! -----
   ! * temperature and enthalpy lookup tables...
   ! -------------------------------------------
@@ -834,7 +834,7 @@ subroutine popMetadat(err,message)
   indx_meta(iLookINDEX%ixHydLayer)            = var_info('ixHydLayer'           , 'indices IN THE FULL VECTOR for hydrology states in the layer domains'    , '-', get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%ixWatAquifer)          = var_info('ixWatAquifer'         , 'indices IN THE FULL VECTOR for storage of water in the aquifer'          , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! vectors of indices for specific state types IN SPECIFIC SUB-DOMAINS
-  indx_meta(iLookINDEX%ixVolFracWat)          = var_info('ixVolFracWat'         , 'indices IN THE SNOW+SOIL VECTOR for hyd states'                          , '-', get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
+  indx_meta(iLookINDEX%ixVolFracWat)          = var_info('ixVolFracWat'         , 'indices IN THE LAYERS VECTOR for hyd states'                             , '-', get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%ixMatricHead)          = var_info('ixMatricHead'         , 'indices IN THE SOIL VECTOR for hyd states'                               , '-', get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
   ! indices within state vectors
   indx_meta(iLookINDEX%ixAllState)            = var_info('ixAllState'           , 'list of indices for all model state variables'                           , '-', get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
