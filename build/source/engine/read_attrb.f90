@@ -686,14 +686,14 @@ subroutine read_attrb(attrFile,nGRU,attrStruct,typeStruct,idStruct,err,message)
       associate(& 
         bed_elev0     => gridStruct%gru(iGRU)%grid(iGrid)%var(iLookGRID%bed_elev)%dat2(1:nx0,1:ny0)    ,&
         glacierMask0  => gridStruct%gru(iGRU)%grid(iGrid)%var(iLookGRID%glacierMask)%dat2(1:nx0,1:ny0) ,&
-        cell2hru      => gridStruct%gru(iGRU)%grid(iGrid)%var(iLookGRID%cell2hru)%dat2(1:nx0,1:ny0)      &
+        cell2hruId0   => gridStruct%gru(iGRU)%grid(iGrid)%var(iLookGRID%cell2hruId)%dat2(1:nx0,1:ny0)   &
         )
         bed_elev0    = bed_elev(i,iGrid,1:nx0,1:ny0)     ! set bed_elev elevation
         glacierMask0 = glacierMask(i,iGrid,1:nx0,1:ny0)  ! set glacier mask
-        cell2hru     = -1                                ! initialize with an invalid index
+        cell2hruId0  = -1                                ! initialize with an invalid index
         do iHRU = 1, gru_struc(iGRU)%hruCount
           iHRUgrid = iHRU
-          cell2hru = merge(iHRUgrid, cell2hru, cell2hruId(i,iGrid,1:nx0,1:ny0) == gru_struc(iGRU)%hruInfo(iHRU)%hru_id)
+          cell2hruId0 = merge(iHRUgrid, cell2hruId0, cell2hruId(i,iGrid,1:nx0,1:ny0) == gru_struc(iGRU)%hruInfo(iHRU)%hru_id)
         end do
       end associate
       deallocate(iHRUgrid)

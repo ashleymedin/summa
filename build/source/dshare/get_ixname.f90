@@ -1092,7 +1092,7 @@ contains
    select case(trim(varName))
     ! variables for glacier
     case('bed_elev'              ); get_ixGrid = iLookGRID%bed_elev                 ! bed elevation (m)
-    case('cell2hru'              ); get_ixGrid = iLookGRID%cell2hru                 ! index mapping from grid cells to HRUs
+    case('cell2hruId'            ); get_ixGrid = iLookGRID%cell2hruId               ! index mapping from grid cells to HRUs
     case('glacierMask'           ); get_ixGrid = iLookGRID%glacierMask              ! glacier mask
     case('surface_elev'          ); get_ixGrid = iLookGRID%surface_elev             ! glacier surface elevation (m)
     case('debris_thick'          ); get_ixGrid = iLookGRID%debris_thick             ! debris thickness (m)

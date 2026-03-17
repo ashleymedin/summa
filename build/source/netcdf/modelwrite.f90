@@ -174,7 +174,7 @@ contains
  integer(i4b)                :: iVar             ! loop through variables
 
  ! initialize error control
- err=0;message="writeParam/"
+ err=0;message="writeGridParam/"
 
  ! loop through local column model parameters
  do iVar = 1,size(meta)
@@ -182,8 +182,8 @@ contains
   ! check that the variable is desired
   if (meta(iVar)%statIndex(iLookFREQ%annual)==integerMissing) cycle
 
-  ! only write parameters that are not ids (currently only discludes surface_elev, debris_thick, and cell2hru, but could be others in the future)
-  if(trim(meta(iVar)%varName)/='surface_elev' .and. trim(meta(iVar)%varName)/='debris_thick' .and. trim(meta(iVar)%varName)/='cell2hru') then
+  ! only write parameters that are not ids (currently only discludes surface_elev, debris_thick, and cell2hruId, but could be others in the future)
+  if(trim(meta(iVar)%varName)/='surface_elev' .and. trim(meta(iVar)%varName)/='debris_thick' .and. trim(meta(iVar)%varName)/='cell2hruId') then
 
    ! initialize message
    message=trim(message)//trim(meta(iVar)%varName)//':'
@@ -568,7 +568,7 @@ contains
     end select ! varType
 
     ! write the data vectors
-    if(maxLength <= 0) cycle ! skip if there are no layers
+    if(maxLength==0) cycle ! skip if there is no length
     select case(dataType)
      case(ixReal3);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realArray3(1:maxDOM,1:nHRUrun,1:maxLength),start=(/1,1,1,outputTimestep(iFreq)/),count=(/maxDOM,nHRUrun,maxLength,1/))
      case(ixInteger3); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq), intArray3(1:maxDOM,1:nHRUrun,1:maxLength),start=(/1,1,1,outputTimestep(iFreq)/),count=(/maxDOM,nHRUrun,maxLength,1/))
@@ -672,7 +672,7 @@ contains
      class default; err=20; message=trim(message)//'grid structure data should be of type gru_grid_double'; return
     end select
 
-    ! loop thru GRUs and HRUs
+    ! loop thru GRUs and grids
     do iGRU=1,size(gru_struc)
      nGrid = gru_struc(iGRU)%nGrid
      do iGrid = 1,nGrid ! for now all grids are glaciers
@@ -689,6 +689,7 @@ contains
     end do  ! GRU loop
 
     ! write the data vectors
+    if(maxGrid==0) cycle ! skip if there is no length
     select case(dataType)
      case(ixReal4); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realArray4(1:nGRUrun,1:maxGrid,1:maxGridX,1:maxGridY),start=(/1,1,1,1,outputTimestep(iFreq)/),count=(/nGRUrun,maxGrid,maxGridX,maxGridY,1/))
      case default; err=20; message=trim(message)//'data must be of type real'; return

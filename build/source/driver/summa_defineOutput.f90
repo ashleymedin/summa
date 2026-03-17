@@ -144,7 +144,7 @@ contains
    select case(trim(structInfo(iStruct)%structName))
     case('bpar'); call writeParam(0,iGRU,bparStruct%gru(iGRU),bpar_meta,err,cmessage)
     case('grid')
-      do iGrid=1,gru_struc(iGRU)%nGrid
+      do iGrid=1,gru_struc(iGRU)%nGrid ! will not write if there are no grids
         call writeGridParam(iGRU,iGrid,gridStruct%gru(iGRU),grid_meta,err,cmessage)
       end do
    end select
