@@ -750,7 +750,7 @@ subroutine popMetadat(err,message)
   ! * basin glacier grids
   ! -----------------------------------------
   grid_meta(iLookGRID%bed_elev)               = var_info('bed_elev'                , 'glacier bed elevation'                                     , 'm'     , get_ixVarType('gridvar'), iMissVec, iMissVec, .false.)
-  grid_meta(iLookGRID%cell2hruId)             = var_info('cell2hruId'              , 'index mapping from grid cells to HRUs'                     , '-'     , get_ixVarType('gridvar'), iMissVec, iMissVec, .false.)   
+  grid_meta(iLookGRID%cell2hru)               = var_info('cell2hru'                , 'index mapping from grid cells to HRUs'                     , '-'     , get_ixVarType('gridvar'), iMissVec, iMissVec, .false.)   
   grid_meta(iLookGRID%glacierMask)            = var_info('glacierMask'             , 'binary mask of area grid that glacier can grow into'       , '-'     , get_ixVarType('gridvar'), iMissVec, iMissVec, .false.)
   grid_meta(iLookGRID%surface_elev)           = var_info('surface_elev'            , 'glacier surface elevation'                                 , 'm'     , get_ixVarType('gridvar'), iMissVec, iMissVec, .false.)
   grid_meta(iLookGRID%debris_thick)           = var_info('debris_thick'            , 'debris thickness'                                          , 'm'     , get_ixVarType('gridvar'), iMissVec, iMissVec, .false.)
@@ -850,7 +850,7 @@ subroutine popMetadat(err,message)
 
   ! read file to define model output (modifies metadata structures)
   call read_output_file(err,cmessage)
-  if (err.ne.0) message=trim(message)//trim(cmessage)
+  if (err/=0) message=trim(message)//trim(cmessage)
 
 end subroutine popMetadat
 
@@ -1040,7 +1040,7 @@ subroutine read_output_file(err,message)
         if (freqName/='annual') then
           if(trim(varName)=='surface_elev' .or. trim(varName)=='debris_thick') then
             write(*,*)'WARNING: grid variable '//trim(varName)//': outputting variable in annual file as it does not change on less than annual level'
-          else if(trim(varName)/='cell2hruId') then
+          else if(trim(varName)/='cell2hru') then
             write(*,*)'WARNING: grid structure id not outputted, skipping variable '//trim(varName)
           else
             write(*,*)'WARNING: temporally constant grid variable '//trim(varName)//': outputting parameter in annual file with no time dimension'

@@ -104,8 +104,8 @@ contains
  USE mDecisions_module,only:mDecisions                       ! module to read model decisions
  USE summa_alarms,only:summa_setWriteAlarms                  ! set alarms to control model output
  USE summa_defineOutput,only:summa_defineOutputFiles         ! define summa output files
- USE modelwrite_module,only:writeRestart,writeRestartGrid    ! module to write model restart
- USE modelwrite_module,only:writeData,writeGridData          ! module to write model output
+ USE modelwrite_module,only:writeRestart                     ! module to write model restart
+ USE modelwrite_module,only:writeData,writeGridData          ! modules to write model output
  USE modelwrite_module,only:writeTime                        ! module to write model time
  USE output_stats,only:calcStats                             ! module for compiling output statistics
  ! global data: general
@@ -128,7 +128,6 @@ contains
  USE globalData,only:outputTimeStep                          ! timestep in output files
  ! output constraints
  USE globalData,only:maxLayers                               ! maximum number of layers
- USE globalData,only:maxGlaciers                             ! maximum number of glaciers in a GRU
  ! timing variables
  USE globalData,only:startWrite,endWrite                     ! date/time for the start and end of the model writing
  USE globalData,only:elapsedWrite                            ! elapsed time to write data
@@ -151,7 +150,6 @@ contains
  ! local variables
  character(len=256)                    :: timeString                 ! portion of restart file name that contains the write-out time
  character(len=256)                    :: restartFile                ! restart file name
- character(len=256)                    :: restartGlacFile            ! glacier restart file name
  logical(lgt)                          :: printRestart=.false.       ! flag to print a re-start file
  logical(lgt)                          :: printProgress=.false.      ! flag to print simulation progress
  logical(lgt)                          :: defNewOutputFile=.false.   ! flag to define new output files
@@ -450,18 +448,9 @@ contains
     restartFile=trim(STATE_PATH)//trim(OUTPUT_PREFIX)//'_restart_'//trim(timeString)//trim(output_fileSuffix)//'.nc'
   endif
 
-  call writeRestart(restartFile,nGRU,nHRU,nDOM,prog_meta,progStruct,bvar_meta,bvarStruct,maxLayers,indx_meta,indxStruct,err,cmessage)  
+  call writeRestart(restartFile,nGRU,nHRU,nDOM,prog_meta,progStruct,bvar_meta,bvarStruct,maxLayers,indx_meta,indxStruct,grid_meta,gridStruct,err,cmessage)  
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  if(maxGlaciers>0)then
-    if(STATE_PATH == '') then
-      restartGlacFile=trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_restartGrid_'//trim(timeString)//trim(output_fileSuffix)//'.nc'
-    else
-      restartGlacFile=trim(STATE_PATH)//trim(OUTPUT_PREFIX)//'_restartGrid_'//trim(timeString)//trim(output_fileSuffix)//'.nc'
-    endif
-    call writeRestartGrid(restartGlacFile,nGRU,grid_meta,gridStruct,err,cmessage) 
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  endif
  end if
 
  ! *****************************************************************************

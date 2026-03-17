@@ -135,7 +135,7 @@ subroutine glacAreaChange(&
   real(rkind)                        :: area0(nDOM)                     ! initial area of each glacier domain (m2)
   real(rkind), allocatable           :: surface(:,:)                    ! surface elevation of each glacier domain (m)
   real(rkind), allocatable           :: bed(:,:)                        ! bed elevation of each glacier domain (m)
-  integer(i4b), allocatable          :: cell2hruId(:,:)                 ! index mapping from grid cells to HRUs
+  integer(i4b), allocatable          :: cell2hru(:,:)                   ! index mapping from grid cells to HRUs
   integer(i4b), allocatable          :: glacierMask(:,:)                ! 1-0 mask of glacier domain
   real(rkind), allocatable           :: debris(:,:)                     ! debris thickness of each glacier cell (m)
   integer(i4b), allocatable          :: glacClnMask(:,:)                ! mask for clean glacier area
@@ -347,11 +347,11 @@ subroutine glacAreaChange(&
     allocate(hgt(nx,ny), glacClnMask(nx,ny), glacHiMask(nx,ny), glacLoMask(nx,ny), glacDbrMask(nx,ny), glacAblMask(nx,ny))
 
     ! set up grid data
-    allocate(surface(nx,ny), bed(nx,ny), cell2hruId(nx,ny), glacierMask(nx,ny), debris(nx,ny))
+    allocate(surface(nx,ny), bed(nx,ny), cell2hru(nx,ny), glacierMask(nx,ny), debris(nx,ny))
     surface = gridData%grid(iGrid)%var(iLookGRID%surface_elev)%dat2(1:nx,1:ny)
     bed = gridData%grid(iGrid)%var(iLookGRID%bed_elev)%dat2(1:nx,1:ny)
     debris = gridData%grid(iGrid)%var(iLookGRID%debris_thick)%dat2(1:nx,1:ny)
-    cell2hruId = int(gridData%grid(iGrid)%var(iLookGRID%cell2hruId)%dat2(1:nx,1:ny))
+    cell2hru = int(gridData%grid(iGrid)%var(iLookGRID%cell2hru)%dat2(1:nx,1:ny))
     glacierMask = int(gridData%grid(iGrid)%var(iLookGRID%glacierMask)%dat2(1:nx,1:ny))
     if(printFlag)then 
       volume = sum(surface - bed) * dx * dy * 1.e-9_rkind ! km3
@@ -368,7 +368,7 @@ subroutine glacAreaChange(&
     else
       if(printFlag) write(*,'(a,i2,a)') ">GLACIER ",iGlac, " SKIP: no glacier area"
       volume = 0._rkind
-      deallocate(hgt, surface, bed, cell2hruId, glacierMask, debris, glacClnMask, glacHiMask, glacLoMask, glacDbrMask, glacAblMask)
+      deallocate(hgt, surface, bed, cell2hru, glacierMask, debris, glacClnMask, glacHiMask, glacLoMask, glacDbrMask, glacAblMask)
       cycle
     endif
 
@@ -387,8 +387,8 @@ subroutine glacAreaChange(&
     n = 0 ! initialize domain counter
     do iHRU = 1, nHRU
       ! start at last index + 1
-      glacClnMask = merge(1_i4b, 0_i4b, cell2hruId==hruInd(n+1) .and. hgt>thick4area .and. debris< min_thickness)
-      glacDbrMask = merge(1_i4b, 0_i4b, cell2hruId==hruInd(n+1) .and. hgt>thick4area .and. debris>=min_thickness)
+      glacClnMask = merge(1_i4b, 0_i4b, cell2hru==hruInd(n+1) .and. hgt>thick4area .and. debris< min_thickness)
+      glacDbrMask = merge(1_i4b, 0_i4b, cell2hru==hruInd(n+1) .and. hgt>thick4area .and. debris>=min_thickness)
       ! if no domain to go into, then give all area to the other domain
       if(nclean(iHRU)==0 .and. sum(glacClnMask)>0) glacDbrMask = glacDbrMask + glacClnMask ! give all area to debris domain (will reduce average domain debris thickness)
       if(ndebris(iHRU)==0 .and. sum(glacDbrMask)>0) glacClnMask = glacClnMask + glacDbrMask ! give all area to clean domain (will make debris thickness zero)
@@ -451,13 +451,13 @@ subroutine glacAreaChange(&
           ! Calculate areas, elevations, and debris thickness for 2 clean domains
           area(hiInd) = area(hiInd) + sum(glacHiMask)*dx*dy
           elev(hiInd) = elev(hiInd) + sum(surface * glacHiMask) *dx*dy
-          glacAblMask = merge(glacHiMask, 0_i4b, cell2hruId==hruInd(n) .and. hgt>thick4area .and. surface< ELA_use_glac)
+          glacAblMask = merge(glacHiMask, 0_i4b, cell2hru==hruInd(n) .and. hgt>thick4area .and. surface< ELA_use_glac)
           ablFrac(hiInd) = ablFrac(hiInd)+ sum(glacAblMask) *dx*dy
           debris_thick_dom(hiInd) = 0._rkind
 
           area(loInd) = area(loInd) + sum(glacLoMask)*dx*dy
           elev(loInd) = elev(loInd) + sum(surface * glacLoMask) *dx*dy
-          glacAblMask = merge(glacLoMask, 0_i4b, cell2hruId==hruInd(n) .and. hgt>thick4area .and. surface< ELA_use_glac)
+          glacAblMask = merge(glacLoMask, 0_i4b, cell2hru==hruInd(n) .and. hgt>thick4area .and. surface< ELA_use_glac)
           ablFrac(loInd) = ablFrac(loInd)+ sum(glacAblMask) *dx*dy
           debris_thick_dom(loInd) = 0._rkind
         else ! only one clean domain
@@ -465,7 +465,7 @@ subroutine glacAreaChange(&
           area(n) = area(n) + sum(glacClnMask)*dx*dy
           elev(n) = elev(n) + sum(surface * glacClnMask) *dx*dy
           debris_thick_dom(n) = 0._rkind
-          glacAblMask = merge(glacClnMask, 0_i4b, cell2hruId==hruInd(n) .and. hgt>thick4area .and. surface< ELA_use_glac)
+          glacAblMask = merge(glacClnMask, 0_i4b, cell2hru==hruInd(n) .and. hgt>thick4area .and. surface< ELA_use_glac)
           ablFrac(n) = ablFrac(n)+ sum(glacAblMask) *dx*dy
         endif
       endif
@@ -475,7 +475,7 @@ subroutine glacAreaChange(&
         area(n) = area(n) + sum(glacDbrMask)*dx*dy
         elev(n) = elev(n) + sum(surface * glacDbrMask) *dx*dy
         debris_thick_dom(n) = debris_thick_dom(n) + sum(debris * glacDbrMask) *dx*dy
-        glacAblMask = merge(glacDbrMask, 0_i4b, cell2hruId==hruInd(n) .and. hgt>thick4area .and. surface< ELA_use_glac)
+        glacAblMask = merge(glacDbrMask, 0_i4b, cell2hru==hruInd(n) .and. hgt>thick4area .and. surface< ELA_use_glac)
         ablFrac(n) = ablFrac(n)+ sum(glacAblMask) *dx*dy ! should be 1.0
       endif
     enddo
@@ -483,7 +483,7 @@ subroutine glacAreaChange(&
     ! update gridData and deallocate
     gridData%grid(iGrid)%var(iLookGRID%surface_elev)%dat2(1:nx,1:ny) = surface
     gridData%grid(iGrid)%var(iLookGRID%debris_thick)%dat2(1:nx,1:ny) = debris
-    deallocate(hgt, surface, bed, cell2hruId, glacierMask, debris, glacClnMask, glacHiMask, glacLoMask, glacDbrMask, glacAblMask)
+    deallocate(hgt, surface, bed, cell2hru, glacierMask, debris, glacClnMask, glacHiMask, glacLoMask, glacDbrMask, glacAblMask)
 
   enddo ! end of glacier loop
 

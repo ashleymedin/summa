@@ -304,8 +304,7 @@ If dimension `glac` is greater than zero, it will also include:
 | glacFirnRunoffFuture | glac, gru | m s-1 | per glacier firn reservoir runoff in future time steps |
 | updateJulDay| scalarv, gru | day | julian day at which glacier geometry was last updated
 
-If dimension `grid` is greater than zero (currently equal to `glac`), there will also be a separate restart file created just for grids, with dimensions `gru`, `grid`, `xgrid`, `ygrid`
-| gruId | gru | int | - | ID defining the grouped (basin) response unit |
+If dimension `grid` is greater than zero (currently equal to `glac`), it will also include dimensions `grid`, `xgrid`, and `ygrid`, and
 | gridId | grid | int | - | ID defining the glaciers (RGI ID) |
 | surface_elev | ygrid, xgrid, grid, gru | m | glacier surface elevation |
 | debris_thick | ygrid, xgrid, grid, gru | m | debris thickness |
@@ -346,11 +345,7 @@ Optionally, these attributes can be added (otherwise will be assumed 0)
 | nGlac | gru | int | number of glaciers in the GRU | |
 | nWtld | gru | int | number of wetlands in the GRU | A placeholder for lakes |
 
-If dimension `grid` is greater than zero (currently equal to `glac`, or `nGlac` above), a separate attribute file just for grids will need to be created, with dimensions `gru`, `grid`, `xgrid`, `ygrid`
-
-| Variable | dimension | type | units | long name | notes |
-|----------|-----------|------|-------|-----------|-------|
-| gruId | gru | int | - | Index of grouped response unit (GRU) | Unique numeric ID for each GRU |
+If dimension `grid` is greater than zero (currently equal to `glac`), it will need to include dimensions `gru`, `grid`, `xgrid`, `ygrid` and attibutes
 | gridId | grid | int | - | grid id (non-sequential number) of the grid | matches the glac_id if a glacier |
 | dx | grid, gru | double | m | grid cell size in the x-direction | |
 | dy | grid, gru | double | m | grid cell size in the y-direction | |
@@ -359,8 +354,6 @@ If dimension `grid` is greater than zero (currently equal to `glac`, or `nGlac` 
 | glacierMask | ygrid, xgrid, grid, gru | - | binary mask of area grid that glacier can grow into | 1 indicates glacier growth possible |
 | cell2hruId | ygrid, xgrid, grid, gru | - | index mapping from grid cells to HRUs | IDs need to match those in hruId from the attributes file |
 | bed_elev | ygrid, xgrid, grid, gru | m | glacier bed elevation | |
-
-
 
 Below is a sample layout of the local attributes file (the output of running `ncdump -h`). In this case,  both the gru and hru dimension are of size 1 (the example is taken from one of the [test cases](../installation/SUMMA_test_cases.md), most of which are point model simulations), but of course there can be many GRUs and HRUs.
 

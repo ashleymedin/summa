@@ -84,7 +84,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time
  USE mDecisions_module,only:mDecisions                       ! module to read model decisions
  USE ffile_info_module,only:ffile_info                       ! module to read information on forcing datafile
- USE read_attrb_module,only:read_attrb,read_attrbGlac        ! module to read local attributes
+ USE read_attrb_module,only:read_attrb                       ! module to read local attributes
  USE read_pinit_module,only:read_pinit                       ! module to read initial model parameter values
  USE paramCheck_module,only:paramCheck                       ! module to check consistency of model parameters
  USE pOverwrite_module,only:pOverwrite                       ! module to overwrite default parameter values with info from the Noah tables
@@ -119,7 +119,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  USE globalData,only:elapsedSetup                            ! elapsed time for the parameter setup
  ! file paths
  USE summaFileManager,only:SETTINGS_PATH                     ! define path to settings files (e.g., parameters, soil and veg. tables)
- USE summaFileManager,only:LOCAL_ATTRIBUTES,BASIN_ATTRIBGRID ! name of model attributes files, local and basin glacier bed topography
+ USE summaFileManager,only:LOCAL_ATTRIBUTES                  ! name of model attributes files
  USE summaFileManager,only:LOCALPARAM_INFO,BASINPARAM_INFO   ! files defining the default values and constraints for model parameters
  USE summaFileManager,only:GENPARM,VEGPARM,SOILPARM,MPTABLE  ! files defining the noah tables
  ! Noah-MP parameters
@@ -136,7 +136,6 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  ! local variables
  character(len=256)                    :: cmessage           ! error message of downwind routine
  character(len=256)                    :: attrFile           ! attributes file name
- character(len=256)                    :: attrGlacFile       ! glacier attributes file name
  integer(i4b)                          :: jHRU,kHRU          ! HRU indices
  integer(i4b)                          :: iGRU,iHRU,iDOM     ! looping variables
  integer(i4b)                          :: iVar               ! looping variables
@@ -234,33 +233,18 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  attrFile = trim(SETTINGS_PATH)//trim(LOCAL_ATTRIBUTES)
 
  ! read local attributes for each HRU
- call read_attrb(trim(attrFile),nGRU,attrStruct,typeStruct,idStruct,err,cmessage)
+ call read_attrb(trim(attrFile),nGRU,attrStruct,typeStruct,idStruct,gridStruct,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! *****************************************************************************
- ! *** if needed, read basin glacier attributes for each GRU (glacier bed topography)
- ! *****************************************************************************
-
- ! define the basin glacier attributes file
+ ! determine the maximum grid size
  maxGrid = 0
  maxGridX = 0
  maxGridY = 0
- if (BASIN_ATTRIBGRID == 'none') then
-   attrGlacFile = 'none'
- else
-   attrGlacFile = trim(SETTINGS_PATH)//trim(BASIN_ATTRIBGRID)
-
-  ! basin glacier attributes for each GRU
-  call read_attrbGlac(trim(attrGlacFile),nGRU,gridStruct,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  ! determine the maximum grid size
-  do iGRU=1,nGRU
-    maxGrid = max(maxGrid,size(gru_struc(iGRU)%gridInfo(:)%grid_id))
-    maxGridX = max(maxGridX,maxval(gru_struc(iGRU)%gridInfo(:)%nx))
-    maxGridY = max(maxGridY,maxval(gru_struc(iGRU)%gridInfo(:)%ny))
-  end do
-endif
+ do iGRU=1,nGRU
+  maxGrid = max(maxGrid,size(gru_struc(iGRU)%gridInfo(:)%grid_id))
+  maxGridX = max(maxGridX,maxval(gru_struc(iGRU)%gridInfo(:)%nx))
+  maxGridY = max(maxGridY,maxval(gru_struc(iGRU)%gridInfo(:)%ny))
+ end do
 
  ! *****************************************************************************
  ! *** read default model parameters

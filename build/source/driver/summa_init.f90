@@ -47,7 +47,7 @@ USE globalData,only:statBvar_meta                           ! child metadata for
 USE summaFileManager,only:SETTINGS_PATH                     ! define path to settings files (e.g., parameters, soil and veg. tables)
 USE summaFileManager,only:STATE_PATH                        ! optional path to state/init. condition files (defaults to SETTINGS_PATH)
 USE summaFileManager,only:MODEL_INITCOND                    ! name of model initial conditions file
-USE summaFileManager,only:LOCAL_ATTRIBUTES,BASIN_ATTRIBGRID ! name of model attributes files, local and basin glacier bed topography
+USE summaFileManager,only:LOCAL_ATTRIBUTES                  ! name of model attributes files
 USE summaFileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
 
 ! safety: set private unless specified otherwise
@@ -70,7 +70,7 @@ subroutine summa_initialize(summa1_struc, err, message)
   USE summa_globalData,only:summa_defineGlobalData             ! used to define global summa data structures
   USE time_utils_module,only:elapsedSec                        ! calculate the elapsed time
   ! subroutines and functions: read dimensions (NOTE: NetCDF)
-  USE read_attrb_module,only:read_dimension,read_dimensionGrid ! module to read dimensions of GRU and HRU
+  USE read_attrb_module,only:read_dimension                    ! module to read dimensions of GRU and HRU
   USE read_icond_module,only:read_icond_nlayers                ! module to read initial condition dimensions
   ! subroutines and functions: allocate space
   USE allocspace_module,only:allocGlobal                       ! module to allocate space for global data structures
@@ -108,7 +108,6 @@ subroutine summa_initialize(summa1_struc, err, message)
   character(LEN=256)                    :: cmessage           ! error message of downwind routine
   character(len=256)                    :: restartFile        ! restart file name
   character(len=256)                    :: attrFile           ! attributes file name
-  character(len=256)                    :: attrGlacFile       ! glacier attributes file name
   character(len=128)                    :: fmtGruOutput       ! a format string used to write start and end GRU in output file names
   integer(i4b)                          :: iStruct,iGRU,iHRU  ! looping variables
   integer(i4b)                          :: fileGRU            ! [used for filenames] number of GRUs in the input file
@@ -198,15 +197,6 @@ subroutine summa_initialize(summa1_struc, err, message)
       case(iRunModeHRU ); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,err,cmessage,checkHRU=checkHRU)
     end select
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-    if (BASIN_ATTRIBGRID == 'none') then
-      attrGlacFile = 'none'
-    else
-      attrGlacFile = trim(SETTINGS_PATH)//trim(BASIN_ATTRIBGRID)
-      ! basin glacier dimensions for each GRU
-      call read_dimensionGrid(trim(attrGlacFile),nGRU,err,cmessage)
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-    endif
 
     ! *****************************************************************************
     ! *** read the number of layers, also defines maxDOM for the model

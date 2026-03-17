@@ -45,11 +45,11 @@ contains
  ! * desired modules
  ! ---------------------------------------------------------------------------------------
  ! data types
- USE nr_type                                                  ! variable types, etc.
+ USE nr_type                                                 ! variable types, etc.
  USE summa_type, only:summa1_type_dec                        ! master summa data type
  ! functions and subroutines
  USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time
- USE read_icond_module,only:read_icond,read_icondGlac        ! module to read initial conditions
+ USE read_icond_module,only:read_icond                       ! module to read initial conditions
  USE check_icond_module,only:check_icond                     ! module to check initial conditions
  USE var_derive_module,only:calcHeight                       ! module to calculate height at layer interfaces and layer mid-point
  USE var_derive_module,only:v_shortcut                       ! module to calculate "short-cut" variables
@@ -62,7 +62,6 @@ contains
  USE summaFileManager,only:SETTINGS_PATH                     ! path to settings files (e.g., Noah vegetation tables)
  USE summaFileManager,only:STATE_PATH                        ! optional path to state/init. condition files (defaults to SETTINGS_PATH)
  USE summaFileManager,only:MODEL_INITCOND                    ! name of model initial conditions file (defaults to 'none')
- USE summaFileManager,only:MODEL_INITGRID                    ! name of glacier initial conditions file, surface topography
  ! timing variables
  USE globalData,only:startRestart,endRestart                 ! date/time for the start and end of reading model restart files
  USE globalData,only:elapsedRestart                          ! elapsed time to read model restart files
@@ -90,7 +89,6 @@ contains
  ! local variables
  character(LEN=256)                    :: cmessage           ! error message of downwind routine
  character(LEN=256)                    :: restartFile        ! restart file name
- character(LEN=256)                    :: restartGlacFile    ! glacier restart file name
  integer(i4b)                          :: iGRU,iHRU,iDOM     ! looping variables
  logical(lgt)                          :: checkEnthalpy      ! flag if checking enthalpy for consistency
  logical(lgt)                          :: no_dom_vars        ! flag that domain variables are not in initial conditions
@@ -149,32 +147,13 @@ contains
                  progStruct,                    & ! intent(inout): model prognostic variables
                  bvarStruct,                    & ! intent(inout): model basin (GRU) variables
                  indxStruct,                    & ! intent(inout): model indices
+                 gridStruct,                    & ! intent(inout): basin grid parameters and variables
                  no_dom_vars,                   & ! intent(out):   flag that domain variables are not in initial conditions
                  no_ice_vars,                   & ! intent(out):   flag that glacier ice variables are not in initial conditions
                  no_ablfrac,                    & ! intent(out):   flag that glacier ablation fraction variable is not in initial conditions
                  no_icond_enth,                 & ! intent(out):   flag that enthalpy not in initial conditions
                  err,cmessage)                    ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- ! define restart glacier file path/name
- if (MODEL_INITGRID == 'none') then
-  restartGlacFile = 'none'
- else
-  if(STATE_PATH == '') then
-    restartGlacFile = trim(SETTINGS_PATH)//trim(MODEL_INITGRID)
-  else
-    restartGlacFile = trim(STATE_PATH)//trim(MODEL_INITGRID)
-  endif
-
-  ! read initial conditions for glacier surface topography
-  call read_icondGlac(restartGlacFile,               & ! intent(in):    name of glacier initial conditions file (surface topography)
-                      nGRU,                          & ! intent(in):    number of response units
-                      bvarStruct,                    & ! intent(in):    model basin (GRU) variables
-                      gridStruct,                    & ! intent(inout): basin grid parameters and variables
-                      err,cmessage)                    ! intent(out):   error control
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-endif
 
 ! check initial conditions
  checkEnthalpy = .false.

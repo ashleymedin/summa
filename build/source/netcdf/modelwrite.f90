@@ -93,7 +93,6 @@ public::writeData
 public::writeGridData
 public::writeTime
 public::writeRestart
-public::writeRestartGrid
 
 contains
 
@@ -182,8 +181,8 @@ contains
   ! check that the variable is desired
   if (meta(iVar)%statIndex(iLookFREQ%annual)==integerMissing) cycle
 
-  ! only write parameters that are not ids (currently only discludes surface_elev, debris_thick, and cell2hruId, but could be others in the future)
-  if(trim(meta(iVar)%varName)/='surface_elev' .and. trim(meta(iVar)%varName)/='debris_thick' .and. trim(meta(iVar)%varName)/='cell2hruId') then
+  ! only write parameters that are not ids (currently only discludes surface_elev, debris_thick, and cell2hru, but could be others in the future)
+  if(trim(meta(iVar)%varName)/='surface_elev' .and. trim(meta(iVar)%varName)/='debris_thick' .and. trim(meta(iVar)%varName)/='cell2hru') then
 
    ! initialize message
    message=trim(message)//trim(meta(iVar)%varName)//':'
@@ -773,6 +772,8 @@ contains
                          maxLayers,        & ! intent(in): maximum number of layers
                          indx_meta,        & ! intent(in): index metadata
                          indx_data,        & ! intent(in): index data
+                         grid_meta,        & ! intent(in): grid metadata
+                         grid_data,        & ! intent(in): grid data
                          err,message)        ! intent(out): error control
  ! --------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------
@@ -803,6 +804,8 @@ contains
  integer(i4b), intent(in)               :: maxLayers     ! maximum number of total layers
  type(var_info),intent(in)              :: indx_meta(:)  ! metadata
  type(gru_hru_dom_intVec),intent(in)    :: indx_data     ! indexing vars
+ type(var_info),intent(in)              :: grid_meta(:)  ! grid metadata
+ type(gru_grid_double),intent(in)       :: grid_data     ! grid data
  ! output: error control
  integer(i4b),intent(out)               :: err           ! error code
  character(*),intent(out)               :: message       ! error message
@@ -1016,7 +1019,7 @@ contains
        case(iLookVarType%ifcGlce); if (nGlce>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU,1/),count=(/1,1,nGlce+1  /))
        case default; err=20; message=trim(message)//'unknown var type'; return
       end select
-      if (err.ne.0) message=trim(message)//'writing variable:'//trim(prog_meta(iVar)%varName); call netcdf_err(err,message); if (err/=0) return; err=0; message='writeRestart/'
+      if (err/=0) message=trim(message)//'writing variable:'//trim(prog_meta(iVar)%varName); call netcdf_err(err,message); if (err/=0) return; err=0; message='writeRestart/'
 
     end do ! iVar loop
 
@@ -1024,7 +1027,7 @@ contains
     do i=1,size(nidx)
       iVar = nidx(i)
       err=nf90_put_var(ncid,ncVarID(size_prog+i),(/indx_data%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat/),start=(/iDOM,cHRU/),count=(/1,1/))
-      if (err.ne.0) message=trim(message)//'writing variable:'//trim(indx_meta(iVar)%varName); call netcdf_err(err,message); if (err/=0) return; err=0; message='writeRestart/'
+      if (err/=0) message=trim(message)//'writing variable:'//trim(indx_meta(iVar)%varName); call netcdf_err(err,message); if (err/=0) return; err=0; message='writeRestart/'
     end do
   
    end do ! iDOM loop
@@ -1032,7 +1035,7 @@ contains
   
   ! write selected basin variables
   err=nf90_put_var(ncid,ncVarID(nProgVars+1),(/bvar_data%gru(iGRU)%var(iLookBVAR%routingRunoffFuture)%dat/), start=(/iGRU,1/),count=(/1,nTimeDelay/))
-  if (err.ne.0) message=trim(message)//'writing variable:'//trim(bvar_meta(iLookBVAR%routingRunoffFuture)%varName); call netcdf_err(err,message); if (err/=0) return; err=0; message='writeRestart/'
+  if (err/=0) message=trim(message)//'writing variable:'//trim(bvar_meta(iLookBVAR%routingRunoffFuture)%varName); call netcdf_err(err,message); if (err/=0) return; err=0; message='writeRestart/'
 
   if (maxGlaciers > 0)then ! if glaciers are present, include glacier variables
     nGlac = gru_struc(iGRU)%nGlac
@@ -1043,8 +1046,11 @@ contains
        case(iLookVarType%glacier); err=nf90_put_var(ncid,ncVarID(nProgVars+1+i),(/bvar_data%gru(iGRU)%var(iVar)%dat/), start=(/iGRU,1/),count=(/1,nGlac/))
        case default; err=20; message=trim(message)//'unknown var type'; return
       end select
-      if (err.ne.0) message=trim(message)//'writing variable:'//trim(bvar_meta(iVar)%varName); call netcdf_err(err,message); if (err/=0) return; err=0; message='writeRestart/'
+      if (err/=0) message=trim(message)//'writing variable:'//trim(bvar_meta(iVar)%varName); call netcdf_err(err,message); if (err/=0) return; err=0; message='writeRestart/'
     end do
+
+    ! include grids
+    call writeRestartGrid(ncid, nGRU, gruDimID, grid_meta, grid_data, err, cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
   
  end do  ! iGRU loop
@@ -1062,10 +1068,11 @@ contains
  end subroutine writeRestart
 
  ! *********************************************************************************************************
- ! public subroutine writeRestartGrid: print a re-start file for grids
+ ! private subroutine writeRestartGrid: print a re-start file for grids
  ! *********************************************************************************************************
- subroutine writeRestartGrid(filename,         & ! intent(in): name of restart file
+ subroutine writeRestartGrid(ncid,             & ! intent(in): netcdf file id
                              nGRU,             & ! intent(in): number of global GRUs
+                             gruDimID,         & ! intent(in): dimension ID for GRUs
                              grid_meta,        & ! intent(in): grid metadata
                              grid_data,        & ! intent(in): grid data
                              err,message)        ! intent(out): error control
@@ -1074,21 +1081,18 @@ contains
  ! access the derived types to define the data structures
  USE data_types,only:var_info                ! metadata
  ! access named variables defining elements in the data structures
- USE var_lookup,only:iLookINDEX              ! named variables for structure elements
- USE var_lookup,only:iLookVarType            ! named variables for structure elements
  USE var_lookup,only:iLookGRID               ! named variables for structure elements
  ! constants
  USE globalData,only:gru_struc               ! gru-hru mapping structures
  ! external routines
- USE netcdf_util_module,only:nc_file_close   ! close netcdf file
- USE netcdf_util_module,only:nc_file_open    ! open netcdf file
  USE def_output_module,only: write_gridid_info ! write glacier grid information to netcdf file
  
  implicit none
  ! --------------------------------------------------------------------------------------------------------
  ! input
- character(len=256),intent(in)          :: filename      ! name of the restart file
+ integer(i4b),intent(in)                :: ncid          ! netcdf file id
  integer(i4b),intent(in)                :: nGRU          ! number of global GRUs
+ integer(i4b),intent(in)                :: gruDimID      ! variable dimension ID
  type(var_info),intent(in)              :: grid_meta(:)  ! grid metadata
  type(gru_grid_double),intent(in)       :: grid_data     ! grid data
  ! output: error control
@@ -1096,15 +1100,12 @@ contains
  character(*),intent(out)               :: message       ! error message
  ! --------------------------------------------------------------------------------------------------------
  ! local variables
- integer(i4b)                       :: ncid               ! netcdf file id
  integer(i4b),dimension(2)          :: ncVarID            ! netcdf variable id, only one variable currently
  integer(i4b),dimension(2)          :: ngdx               ! intermediate array of loop indices
- integer(i4b)                       :: gruDimID           ! variable dimension ID
- integer(i4b)                       :: ngriDimID          ! variable dimension ID
+ integer(i4b)                       :: gridDimID          ! variable dimension ID
  integer(i4b)                       :: xDimID             ! variable dimension ID
  integer(i4b)                       :: yDimID             ! variable dimension ID
- character(len=32),parameter        :: gruDimName='gru'   ! dimension name for GRUs
- character(len=32),parameter        :: ngriDimName='grid' ! dimension name for grid variables
+ character(len=32),parameter        :: gridDimName='grid' ! dimension name for grid variables
  character(len=32),parameter        :: xDimName='xgrid'   ! dimension name for xgrid
  character(len=32),parameter        :: yDimName='ygrid'   ! dimension name for ygrid
  integer(i4b)                       :: iGRU               ! index of GRUs
@@ -1123,13 +1124,8 @@ contains
  ! grid variables
  ngdx = (/iLookGRID%surface_elev, iLookGRID%debris_thick/) ! array of desired variable indices
 
- ! create file
- err = nf90_create(trim(filename),NF90_NETCDF4,ncid)
- message='iCreate[create]'; call netcdf_err(err,message); if(err/=0)return
-
  ! define dimensions
- err = nf90_def_dim(ncid,trim(gruDimName)    ,nGRU        , gruDimID); message='iCreate[gru]'     ; call netcdf_err(err,message); if(err/=0)return
- err = nf90_def_dim(ncid,trim(ngriDimName)   ,maxGrid     , ngriDimID);message='iCreate[grid]'    ; call netcdf_err(err,message); if(err/=0)return
+ err = nf90_def_dim(ncid,trim(gridDimName)   ,maxGrid     , gridDimID);message='iCreate[grid]'    ; call netcdf_err(err,message); if(err/=0)return
  err = nf90_def_dim(ncid,trim(xDimName)      ,maxGridX    , xDimID);   message='iCreate[xgrid]'   ; call netcdf_err(err,message); if(err/=0)return
  err = nf90_def_dim(ncid,trim(yDimName)      ,maxGridY    , yDimID);   message='iCreate[ygrid]'   ; call netcdf_err(err,message); if(err/=0)return
  ! re-initialize error control
@@ -1138,7 +1134,7 @@ contains
  ! define grid variables
  do i = 1,size(ngdx)
   iVar = ngdx(i)
-  err = nf90_def_var(ncid, trim(grid_meta(iVar)%varName), nf90_double, (/gruDimID, ngriDimID, xDimID, yDimID/), ncVarID(i))
+  err = nf90_def_var(ncid, trim(grid_meta(iVar)%varName), nf90_double, (/gruDimID, gridDimID, xDimID, yDimID/), ncVarID(i))
  
   ! check errors
   if(err/=0)then
@@ -1169,7 +1165,7 @@ do iGRU = 1,nGRU
       ny = gru_struc(iGRU)%gridInfo(iGrid)%ny
       err=nf90_put_var(ncid,ncVarID(i),(/grid_data%gru(iGRU)%grid(iGrid)%var(iVar)%dat2/), start=(/iGRU,iGrid,1,1/),count=(/1,1,nx,ny/))
       ! error check
-      if (err.ne.0) message=trim(message)//'writing variable:'//trim(grid_meta(iVar)%varName)
+      if (err/=0) message=trim(message)//'writing variable:'//trim(grid_meta(iVar)%varName)
       call netcdf_err(err,message); if (err/=0) return
       message = 'writeRestartGrid/'
     end do
@@ -1178,12 +1174,7 @@ do iGRU = 1,nGRU
 end do  ! iGRU loop
 
 ! write grid dimension and ID for file
-print*, gruDimID, ngriDimID, "restart"
-call write_gridid_info(ncid, gruDimID, ngriDimID, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
-
-! close file
-call nc_file_close(ncid,err,cmessage)
-if(err/=0)then;message=trim(message)//trim(cmessage);return;end if
+call write_gridid_info(ncid, gruDimID, gridDimID, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
 end subroutine writeRestartGrid
 
