@@ -853,9 +853,11 @@ else
    call read_icondGlac(ncid, fileGRU, index_to_gruid, bvarData, gridData, err, cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  endif  ! end if case for glac variables being in init. cond. file
 
- deallocate(hru_id,gru_id,index_to_gruid,index_to_hrunc,index_to_glacid)
  call nc_file_close(ncid,err,cmessage)
  if(err/=nf90_noerr)then;message=trim(message)//trim(cmessage);return;end if
+
+ ! cleanup
+ deallocate(hru_id,gru_id,index_to_gruid,index_to_hrunc,index_to_glacid)
 
  end subroutine read_icond
 
@@ -1010,6 +1012,7 @@ else
   if(err/=0)then; message=trim(message)//'problem deallocating GRU variable data'; return; endif
  enddo ! end looping through basin variables
 
+ ! cleanup
  deallocate(gridId,index_to_gridid)
 
  end subroutine read_icondGlac
