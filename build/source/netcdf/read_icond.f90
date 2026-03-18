@@ -50,6 +50,7 @@ contains
  USE nr_type
  USE var_lookup,only:iLookINDEX                        ! variable lookup structure
  USE globalData,only:gru_struc                         ! gru-hru mapping structures
+ USE globalData,only:startGRU                          ! index of first gru for parallel runs
  USE netcdf_util_module,only:nc_file_close             ! close netcdf file
  USE netcdf_util_module,only:nc_file_open              ! close netcdf file
  USE netcdf_util_module,only:netcdf_err                ! netcdf error handling
@@ -94,6 +95,8 @@ contains
  integer(i8b),allocatable    :: hru_id(:)           ! HRU id
  integer(i4b),allocatable    :: index_to_gruid(:)   ! mapping from index to gru_id in gru_struc
  integer(i4b),allocatable    :: index_to_hrunc(:,:) ! mapping from index to hru_nc in gru_struc
+ logical(lgt)                :: has_gru_id          ! flag for whether the file has gru_id
+ logical(lgt)                :: has_hru_id          ! flag for whether the file has hru_id
  ! --------------------------------------------------------------------------------------------------------
  ! initialize error message
  err=0
@@ -101,6 +104,8 @@ contains
  no_glceData = .false.
  no_lakeData = .false.
  no_dom = .false.
+ has_gru_id = .true.
+ has_hru_id = .true.
 
  ! open netcdf file
  call nc_file_open(iconFile,nf90_nowrite,ncid,err,cmessage);
@@ -132,7 +137,7 @@ contains
  err = nf90_inq_varid(ncid,"hruId",ncVarID)
  if (err/=nf90_noerr)then
    write(*,*) 'WARNING: hruId is not in the initial conditions file ... assuming HRUs in attribute order'
-    hru_id = [(gru_struc(iGRU)%hruInfo(:)%hru_id, iGRU=1,nGRU)]
+   has_hru_id = .false.
    err=nf90_noerr    ! reset this err
  else
   ! read hru_id from netcdf file
@@ -143,9 +148,8 @@ contains
  err = nf90_inq_dimid(ncid,"gru",dimID);    
  if(err/=nf90_noerr)then         
    write(*,*) 'WARNING: GRU is not in the initial conditions file ... assuming HRUs in attribute order'
-   fileGRU = size(gru_struc(:)%gru_id)
-   allocate(gru_id(fileHRU))
-   gru_id = gru_struc(:)%gru_id
+   has_gru_id = .false.
+   allocate(gru_id(1)) ! just allocate something to avoid problems with the deallocation at the end
    err=nf90_noerr    ! reset this err
  else
    err = nf90_inquire_dimension(ncid,dimID,len=fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
@@ -154,7 +158,7 @@ contains
    err = nf90_inq_varid(ncid,"gruId",ncVarID)
    if (err/=nf90_noerr) then
      write(*,*) 'WARNING: gruId is not in the initial conditions file ... assuming GRUs in attribute order'
-     gru_id = gru_struc(:)%gru_id
+     has_gru_id = .false.
      err=nf90_noerr    ! reset this err
    else
      ! read gru_id from netcdf file
@@ -166,24 +170,35 @@ contains
  allocate(index_to_gruid(nGRU), index_to_hrunc(nGRU,maxval(gru_struc(:)%hruCount)))
 
  ! Populate the mapping arrays
- do iGRU = 1, nGRU
-   index_to_gruid(iGRU) = -1  ! Initialize with an invalid index
-   do i = 1, fileGRU
-     if (gru_struc(iGRU)%gru_id == gru_id(i)) then
-       index_to_gruid(iGRU) = i
-       do iHRU = 1, gru_struc(iGRU)%hruCount
-         index_to_hrunc(iGRU,iHRU) = -1 
-         do j = 1, fileHRU
-           if (gru_struc(iGRU)%hruInfo(iHRU)%hru_id == hru_id(j)) then
-             index_to_hrunc(iGRU,iHRU) = j
-             exit
-           endif
-         end do
-       end do ! HRU id loop
-       exit
-     endif
+ if(.has_gru_id .and. has_hru_id)then
+   ! if the file has both gru_id and hru_id, use these to populate the mapping arrays
+   do iGRU = 1, nGRU
+     index_to_gruid(iGRU) = -1  ! Initialize with an invalid index
+     do i = 1, fileGRU
+       if (gru_struc(iGRU)%gru_id == gru_id(i)) then
+         index_to_gruid(iGRU) = i
+         do iHRU = 1, gru_struc(iGRU)%hruCount
+           index_to_hrunc(iGRU,iHRU) = -1 
+           do j = 1, fileHRU
+             if (gru_struc(iGRU)%hruInfo(iHRU)%hru_id == hru_id(j)) then
+               index_to_hrunc(iGRU,iHRU) = j
+               exit
+             endif
+           end do
+         end do ! HRU id loop
+         exit
+       endif
+     end do
+   end do ! GRU id loop
+ else
+   ! assume that the order of the HRUs in the file matches the order of the HRUs in the model attributes
+   do iGRU = 1, nGRU
+     index_to_gruid(iGRU) = iGRU + startGRU - 1
+     do iHRU = 1, gru_struc(iGRU)%hruCount
+       index_to_hrunc(iGRU,iHRU) = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
+     end do
    end do
- end do ! GRU id loop
+ endif
 
  ! allocate storage for reading from file (allocate entire file size, even when doing subdomain run)
  allocate(snowData1(fileHRU),snowData2(fileDOM,fileHRU))
@@ -309,6 +324,7 @@ contains
  USE globalData,only:prog_meta                          ! metadata for prognostic variables
  USE globalData,only:bvar_meta                          ! metadata for basin (GRU) variables
  USE globalData,only:gru_struc                          ! gru-hru mapping structures
+ USE globalData,only:startGRU                           ! index of first gru for parallel runs
  USE globalData,only:iname_soil,iname_snow,iname_glce,iname_lake ! named variables to describe the type of 
  USE globalData,only:maxGrid                            ! maximum number of grids in a GRU
  USE netcdf_util_module,only:nc_file_open               ! open netcdf file
@@ -380,6 +396,9 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! Start procedure here
  err=0; message="read_icond/"
+ no_dom = .false.
+ has_gru_id = .true.
+ has_hru_id = .true.
 
  ! --------------------------------------------------------------------------------------------------------
  ! (1) read the file
@@ -387,7 +406,6 @@ contains
  ! open netcdf file
  call nc_file_open(iconFile,nf90_nowrite,ncid,err,cmessage)
  if (err/=nf90_noerr) then; message=trim(message)//trim(cmessage); return; end if
- no_dom = .false.
 
  ! get number of HRUs in file
  err = nf90_inq_dimid(ncid,"hru",dimID);               if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru dimension/'//trim(nf90_strerror(err)); return; end if
@@ -407,8 +425,8 @@ contains
  allocate(hru_id(fileHRU))
  err = nf90_inq_varid(ncid,"hruId",ncVarID)
  if (err/=nf90_noerr)then
-    hru_id = [(gru_struc(iGRU)%hruInfo(:)%hru_id, iGRU=1,nGRU)]
-    err=nf90_noerr    ! reset this err
+   has_hru_id = .false.
+   err=nf90_noerr    ! reset this err
  else
   ! read hru_id from netcdf file
    err = nf90_get_var(ncid,ncVarID,hru_id); if (err/=nf90_noerr) then; message=trim(message)//'problem reading hruId'; return; end if
@@ -417,9 +435,8 @@ contains
  ! check if the file has the GRU dimension
  err = nf90_inq_dimid(ncid,"gru",dimID)    
  if(err/=nf90_noerr)then         
-   fileGRU = size(gru_struc(:)%gru_id)
-   allocate(gru_id(fileHRU))
-   gru_id = gru_struc(:)%gru_id
+   has_gru_id = .false.
+   allocate(gru_id(1)) ! just allocate something to avoid problems with the deallocation at the end
    err=nf90_noerr    ! reset this err
  else
    err = nf90_inquire_dimension(ncid,dimID,len=fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
@@ -427,7 +444,7 @@ contains
    allocate(gru_id(fileGRU))
    err = nf90_inq_varid(ncid,"gruId",ncVarID)
    if (err/=nf90_noerr) then
-     gru_id = gru_struc(:)%gru_id
+     has_gru_id = .false.
      err=nf90_noerr    ! reset this err
    else
      ! read gru_id from netcdf file
@@ -439,24 +456,35 @@ contains
  allocate(index_to_gruid(fileGRU), index_to_hrunc(fileGRU,maxval(gru_struc(:)%hruCount)), index_to_glacid(fileGRU,maxGlaciers))
 
  ! Populate the mapping arrays
- do iGRU = 1, nGRU
-   index_to_gruid(iGRU) = -1  ! Initialize with an invalid index
-   do i = 1, fileGRU
-     if (gru_struc(iGRU)%gru_id == gru_id(i)) then
-       index_to_gruid(iGRU) = i
-       do iHRU = 1, gru_struc(iGRU)%hruCount
-         index_to_hrunc(iGRU,iHRU) = -1 
-         do j = 1, fileHRU 
-           if (gru_struc(iGRU)%hruInfo(iHRU)%hru_id == hru_id(j)) then
-             index_to_hrunc(iGRU,iHRU) = j
-             exit
-           endif
-         end do
-       end do ! HRU id loop
-       exit
-     endif
+ if(.has_gru_id .and. has_hru_id)then
+   ! if the file has both gru_id and hru_id, use these to populate the mapping arrays
+   do iGRU = 1, nGRU
+     index_to_gruid(iGRU) = -1  ! Initialize with an invalid index
+     do i = 1, fileGRU
+       if (gru_struc(iGRU)%gru_id == gru_id(i)) then
+         index_to_gruid(iGRU) = i
+         do iHRU = 1, gru_struc(iGRU)%hruCount
+           index_to_hrunc(iGRU,iHRU) = -1 
+           do j = 1, fileHRU
+             if (gru_struc(iGRU)%hruInfo(iHRU)%hru_id == hru_id(j)) then
+               index_to_hrunc(iGRU,iHRU) = j
+               exit
+             endif
+           end do
+         end do ! HRU id loop
+         exit
+       endif
+     end do
+   end do ! GRU id loop
+ else
+   ! assume that the order of the HRUs in the file matches the order of the HRUs in the model attributes
+   do iGRU = 1, nGRU
+     index_to_gruid(iGRU) = iGRU + startGRU - 1
+     do iHRU = 1, gru_struc(iGRU)%hruCount
+       index_to_hrunc(iGRU,iHRU) = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
+     end do
    end do
- end do ! GRU id loop
+ endif
 
 ! get dimension of basin glac variables from initial conditions file 
 err = nf90_inq_dimid(ncid,"glac",dimID) ! max number of glaciers in any GRU
