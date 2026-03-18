@@ -235,7 +235,7 @@ function hydCond_psi(psi,k_sat,alpha,n,m)
   ! Smooth transition to k_sat as psi -> 0 from below.
   ! Blend over the interval [-delta,0] using a cubic smoothstep so that value
   ! and first derivative are continuous at the join.
-  real(rkind) :: t, s, orig_val, f_x1, f_x2
+  real(rkind) :: t, s, orig_val
 
   if (psi >= 0._rkind) then
     hydCond_psi = k_sat

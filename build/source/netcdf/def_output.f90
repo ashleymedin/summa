@@ -95,9 +95,8 @@ contains
  subroutine def_output(summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,infile,err,message)
  USE globalData,only:structInfo                               ! information on the data structures
  USE globalData,only:time_meta,forc_meta,attr_meta,type_meta  ! metadata structures
- USE globalData,only:id_meta,prog_meta,diag_meta,flux_meta    ! metadata structures
- USE globalData,only:mpar_meta,indx_meta,bpar_meta,bvar_meta  ! metadata structures
- USE globalData,only:deriv_meta,lookup_meta,grid_meta         ! metadata structures
+ USE globalData,only:prog_meta,diag_meta,flux_meta,mpar_meta  ! metadata structures
+ USE globalData,only:indx_meta,bpar_meta,bvar_meta,grid_meta  ! metadata structures
  USE globalData,only:model_decisions                          ! model decisions
  USE globalData,only:ncid                                     ! netcdf file id
  USE globalData,only:outFreq                                  ! output frequencies

@@ -1036,7 +1036,17 @@ subroutine read_output_file(err,message)
 
       ! * grid variables do not change on less than annual-level, currently this will not output as type is 'unknown'
       case('grid')
+
+        ! * ensure that the frequency index exists for time varying variables
+        if(nWords<freqIndex)then
+          message=trim(message)//'must define desired output frequency for time-varing output: variable='//trim(varName)
+          err=20; return
+        endif
+
+        ! * define the frequency name
         freqName = trim(lineWords(freqIndex))
+
+        ! * set frequency to annual
         if (freqName/='annual') then
           if(trim(varName)=='surface_elev' .or. trim(varName)=='debris_thick') then
             write(*,*)'WARNING: grid variable '//trim(varName)//': outputting variable in annual file as it does not change on less than annual level'

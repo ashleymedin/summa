@@ -294,8 +294,8 @@ The restart file does not have a time dimension, since it represents a specific 
 | glacMass4AreaChange | scalarv, hru, dom | kg m-2 |since updateJulDay glacier layers together mass change |
 | scalarAblFrac | scalarv, hru, dom | - | fraction of the domain that is in a glacier ablation zone |
 
-If dimension `glac` is greater than zero, it will also include:
-| glacId | glac | int | - | ID defining the glaciers (RGI ID) |
+If dimension `glac` is greater than zero, the initial conditions will also need to include:
+| glacId | glac, gru | int | - | ID defining the glaciers (RGI ID) |
 | basin__GlacierStorage | gru | Gt | glacier storage (ice mass) |
 | glacierAblArea | glac, gru | m2 | per glacier ablation area |
 | glacierAccArea | glac, gru | m2 | per glacier accumulation area |
@@ -304,8 +304,8 @@ If dimension `glac` is greater than zero, it will also include:
 | glacFirnRunoffFuture | glac, gru | m s-1 | per glacier firn reservoir runoff in future time steps |
 | updateJulDay| scalarv, gru | day | julian day at which glacier geometry was last updated
 
-If dimension `grid` is greater than zero (currently equal to `glac`), it will also include dimensions `grid`, `xgrid`, and `ygrid`, and
-| gridId | grid | int | - | ID defining the glaciers (RGI ID) |
+If dimension `grid` is greater than zero (currently equal to `glac`), the initial conditions will also need to include dimensions `grid`, `xgrid`, and `ygrid`, and
+| gridId | grid, gru| int | - | ID defining the glaciers (RGI ID) |
 | surface_elev | ygrid, xgrid, grid, gru | m | glacier surface elevation |
 | debris_thick | ygrid, xgrid, grid, gru | m | debris thickness |
 
@@ -326,8 +326,8 @@ The local attributes file contains a `gru` and an `hru` dimension as specified i
 
 | Variable | dimension | type | units | long name | notes |
 |----------|-----------|------|-------|-----------|-------|
-| gruId | hru | int | - | ID defining the grouped (basin) response unit | |
-| hruId | gru | int | - | ID defining the hydrologic response unit | |
+| gruId | gru | int | - | ID defining the grouped (basin) response unit | |
+| hruId | hru | int | - | ID defining the hydrologic response unit | |
 | hru2gruId | hru | int | - | Index of GRU to which the HRU belongs | gruId of the GRU to which the HRU belongs |
 | downHRUindex | hru | int | - | Index of downslope HRU (0 = basin outlet) | Downslope HRU must be within the same GRU. If the value is 0, then there is no exchange to a | neighboring HRU. Setting this value to 0 for all HRUs emulates a series of independent columns |
 | longitude | hru | double | Decimal degree east | Longitude of HRU's centroid | West is negative or greater than 180 |
@@ -345,7 +345,8 @@ Optionally, these attributes can be added (otherwise will be assumed 0)
 | nGlac | gru | int | number of glaciers in the GRU | |
 | nWtld | gru | int | number of wetlands in the GRU | A placeholder for lakes |
 
-If dimension `grid` is greater than zero (currently equal to `glac`), it will need to include dimensions `gru`, `grid`, `xgrid`, `ygrid` and attibutes
+If `nGlac` is greater than 0 for any GRU, the attribute file will also need to include dimensions `grid`, `xgrid`, and `ygrid` and attibutes
+| nGrid | gru | int | number of grids in the GRU | currently equal to nGlac |
 | gridId | grid | int | - | grid id (non-sequential number) of the grid | matches the glac_id if a glacier |
 | dx | grid, gru | double | m | grid cell size in the x-direction | |
 | dy | grid, gru | double | m | grid cell size in the y-direction | |

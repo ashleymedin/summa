@@ -311,7 +311,6 @@ contains
  USE globalData,only:prog_meta                          ! metadata for prognostic variables
  USE globalData,only:bvar_meta                          ! metadata for basin (GRU) variables
  USE globalData,only:gru_struc                          ! gru-hru mapping structures
- USE globalData,only:startGRU                           ! index of first gru for parallel runs
  USE globalData,only:iname_soil,iname_snow,iname_glce,iname_lake ! named variables to describe the type of layer
  USE netcdf_util_module,only:nc_file_open               ! open netcdf file
  USE netcdf_util_module,only:nc_file_close              ! close netcdf file
@@ -481,13 +480,14 @@ else
   err = nf90_get_var(ncid,ncVarID,glac_id);       if (err/=nf90_noerr) then; message=trim(message)//'problem reading glacId '; return; end if
 
   ! set grid information (id)
-  do iGRU = 1,nGRU
+  do i = 1,fileGRU
+    iGRU = gruid_to_index(i)
     nGlac = gru_struc(iGRU)%nGlac ! get dimension of basin glacier variables from attribute file, per GRU
     if(nGlac > 0)then
       if (.not. allocated(gru_struc(iGRU)%glacInfo)) then
         allocate(gru_struc(iGRU)%glacInfo(gru_struc(iGRU)%nGlac))
       endif
-      gru_struc(iGRU)%glacInfo(1:nGlac)%glac_id = glac_id(iGRU,1:nGlac)
+      gru_struc(iGRU)%glacInfo(1:nGlac)%glac_id = glac_id(i,1:nGlac)
     endif
   end do
   ! set glacier variables to read
@@ -758,7 +758,7 @@ else
    do j = 1,fileGRU
     iGRU = gruid_to_index(j)
     ! put the data into data structures
-    bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) = varData2((j+startGRU-1),1:nTDH)
+    bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) = varData2(j,1:nTDH)
     ! check whether the first values is set to nf90_fill_double
     if(any(abs(bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) - nf90_fill_double) < epsilon(varData2)))then; err=20; endif
     if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(bvar_meta(iVar)%varName)//"')"; return; endif
@@ -823,10 +823,10 @@ else
      nGlac = gru_struc(iGRU)%nGlac ! get dimension of basin glacier variables from attribute file, per GRU
      select case (bvar_meta(iVar)%varType)
       case (iLookVarType%scalarv)
-        bvarData%gru(iGRU)%var(iVar)%dat(1) = varData2(j+startGRU-1,1)
+        bvarData%gru(iGRU)%var(iVar)%dat(1) = varData2(j,1)
         if(abs(bvarData%gru(iGRU)%var(iVar)%dat(1) - nf90_fill_double) < epsilon(varData2))then; err=20; endif
       case (iLookVarType%glacier)
-        bvarData%gru(iGRU)%var(iVar)%dat(1:nGlac) = varData2(j+startGRU-1,1:nGlac)
+        bvarData%gru(iGRU)%var(iVar)%dat(1:nGlac) = varData2(j,1:nGlac)
         if(any(abs(bvarData%gru(iGRU)%var(iVar)%dat(1:nGlac) - nf90_fill_double) < epsilon(varData2)))then; err=20; endif
       case default
         message=trim(message)//"unexpectedVariableType[name='"//trim(bvar_meta(iVar)%varName)//"';type='"//trim(get_varTypeName(bvar_meta(iVar)%varType))//"']"
@@ -841,7 +841,7 @@ else
  
    end do ! end looping through basin variables
 
-   call read_icondGlac(ncid, nGRU, fileGRU, gruid_to_index, bvarData, gridData, err, cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   call read_icondGlac(ncid, fileGRU, gruid_to_index, bvarData, gridData, err, cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  endif  ! end if case for glac variables being in init. cond. file
 
  deallocate(hru_id,gru_id,gruid_to_index,hrunc_to_index)
@@ -854,7 +854,6 @@ else
  ! private subroutine read_icondGlac: read model initial grid conditions
  ! ************************************************************************************************
  subroutine read_icondGlac(ncid,                          & ! intent(in):    netcdf file ID
-                           nGRU,                          & ! intent(in):    number of GRUs
                            fileGRU,                       & ! intent(in):    number of GRUs in file
                            gruid_to_index,                & ! intent(in):    mapping from gru_id to index in gridData
                            bvarData,                      & ! intent(inout): basin variable data structure
@@ -867,7 +866,6 @@ else
  USE var_lookup,only:iLookBVAR                          ! variable basin variables
  USE globalData,only:grid_meta                          ! metadata for grid variables
  USE globalData,only:gru_struc                          ! gru-hru mapping structures
- USE globalData,only:startGRU                           ! index of first gru for parallel runs
  USE globalData,only:maxGlaciers                        ! maximum number of glaciers in a GRU
  USE netcdf_util_module,only:netcdf_err                 ! netcdf error handling
  USE data_types,only:gru_grid_double                    ! full grid double precision structure
@@ -877,7 +875,6 @@ else
  ! --------------------------------------------------------------------------------------------------------
  ! variable declarations
  integer(i4b)           ,intent(in)        :: ncid                     ! netcdf file ID
- integer(i4b)           ,intent(in)        :: nGRU                     ! number of grouped response units in simulation domain
  integer(i4b)           ,intent(in)        :: fileGRU                  ! number of GRUs in file
  integer(i4b)           ,intent(in)        :: gruid_to_index(:)        ! mapping from gru_id to index in gridData
  type(gru_doubleVec)    ,intent(in)        :: bvarData                 ! basin variable data structure
@@ -885,7 +882,6 @@ else
  integer(i4b)           ,intent(out)       :: err                      ! error code
  character(*)           ,intent(out)       :: message                  ! returned error message
  ! locals
- character(len=256)                        :: cmessage                 ! downstream error message
  integer(i4b)                              :: filexgrid                ! number of xgrid points in file
  integer(i4b)                              :: fileygrid                ! number of ygrid points in file
  integer(i4b)                              :: ny,nx                    ! number of grid points for a glacier
@@ -981,7 +977,7 @@ else
       ny = gru_struc(iGRU)%gridInfo(iGrid)%ny
       nx = gru_struc(iGRU)%gridInfo(iGrid)%nx
       ! put the data into data structures
-      gridData%gru(iGRU)%grid(iGrid)%var(iVar)%dat2(1:nx,1:ny) = varData(k+startGRU-1,j,1:nx,1:ny) 
+      gridData%gru(iGRU)%grid(iGrid)%var(iVar)%dat2(1:nx,1:ny) = varData(k,j,1:nx,1:ny) 
     enddo
     ! correct for negative glacier thickness and note area differences with grid approximation
     if (iVar==iLookGRID%surface_elev) then

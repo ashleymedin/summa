@@ -109,7 +109,6 @@ contains
  integer(i4b)                      :: nRead              ! number of steps in the data read
  integer(i4b)                      :: nHRUlocal          ! number of HRUs in the local simulation
  integer(i4b)                      :: iline              ! loop through lines in the file
- integer(i4b)                      :: iTime              ! index of time
  integer(i4b)                      :: jRead              ! index of time in data subset
  integer(i4b)                      :: iGRU,iHRU          ! index of GRU and HRU
  character(len=256),save           :: infile             ! filename
