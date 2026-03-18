@@ -240,7 +240,7 @@ subroutine read_dimensionGrid(ncid,fileGRU,nGRU,err,message)
   integer(i4b),intent(out)             :: err                     ! error code
   character(*),intent(out)             :: message                 ! error message
   ! define local variables
-  integer(i4b)                         :: iGRU,iGrid              ! loop indices
+  integer(i4b)                         :: iGRU                    ! loop indices
   integer(i4b)                         :: varID                   ! NetCDF variable ID
   integer(i4b)                         :: dimID                   ! netcdf file dimension id
   integer(i4b)                         :: filegrid                ! number of grids in the input file
