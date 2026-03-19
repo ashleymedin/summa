@@ -143,10 +143,10 @@ contains
  ! ---------------------------------------------------------------------------------------
  implicit none
  ! dummy variables
- integer(i4b),intent(in)               :: modelTimeStep            ! time step index
- type(summa1_type_dec),intent(inout)   :: summa1_struc             ! master summa data structure
- integer(i4b),intent(out)              :: err                      ! error code
- character(*),intent(out)              :: message                  ! error message
+ integer(i4b),intent(in)               :: modelTimeStep              ! time step index
+ type(summa1_type_dec),intent(inout)   :: summa1_struc               ! master summa data structure
+ integer(i4b),intent(out)              :: err                        ! error code
+ character(*),intent(out)              :: message                    ! error message
  ! local variables
  character(len=256)                    :: timeString                 ! portion of restart file name that contains the write-out time
  character(len=256)                    :: restartFile                ! restart file name
@@ -290,7 +290,7 @@ contains
  if(defNewOutputFile .or. modelTimeStep==1)then
 
   ! define summa output files, also writes attr, type, mpar, and bpar which are constant
-  call summa_defineOutputFiles(modelTimeStep, summa1_struc, err, cmessage)
+  call summa_defineOutputFiles(modelTimeStep, model_decisions(iLookDECISIONS%write_buff)%iDecision == writeFullSeries, summa1_struc, err, cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! re-initialize the indices for model writing
