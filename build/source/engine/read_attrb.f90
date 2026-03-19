@@ -90,21 +90,21 @@ contains
 
  ! get runtime GRU dimensions
  if (present(startGRU)) then
-  if (nGRU < 1) then; err=20; message=trim(message)//'nGRU < 1 for a startGRU run'; return; end if
-  sGRU = startGRU
+   if (nGRU < 1) then; err=20; message=trim(message)//'nGRU < 1 for a startGRU run'; return; end if
+   sGRU = startGRU
  elseif (present(checkHRU)) then
-  nGRU = 1
+   nGRU = 1
  else
-  sGRU = 1
-  nGRU = fileGRU
+   sGRU = 1
+   nGRU = fileGRU
  endif
 
  ! check dimensions
  if (present(startGRU)) then
-  if(startGRU + nGRU - 1  > fileGRU) then; err=20; message=trim(message)//'startGRU + nGRU is larger than then the GRU dimension'; return; end if
+   if(startGRU + nGRU - 1  > fileGRU) then; err=20; message=trim(message)//'startGRU + nGRU is larger than then the GRU dimension'; return; end if
  end if
  if (present(checkHRU)) then
-  if(checkHRU > fileHRU) then; err=20; message=trim(message)//'checkHRU is larger than then the HRU dimension'; return; end if
+   if(checkHRU > fileHRU) then; err=20; message=trim(message)//'checkHRU is larger than then the HRU dimension'; return; end if
  end if
 
  ! *********************************************************************************************
@@ -154,43 +154,38 @@ if (allocated(index_map)) then; err=20; message=trim(message)//'index_map is une
  ! allocate first level of gru to hru mapping
  allocate(gru_struc(nGRU))
 
- ! initialize grid variables as they may not be read if there is no grid
- do iGRU = 1, nGRU
-  gru_struc(iGRU)%nGrid = 0
- end do
-
  ! set gru to hru mapping
  if (present(checkHRU)) then                                  ! allocate space for single-HRU run
-  ! gru to hru mapping
-  iGRU = 1
-  gru_struc(iGRU)%hruCount             = 1                    ! number of HRUs in each GRU
-  gru_struc(iGRU)%gru_id               = hru2gru_id(checkHRU) ! set gru id
-  gru_struc(iGRU)%gru_nc               = sGRU                 ! set gru index within the netcdf file
-  allocate(gru_struc(iGRU)%hruInfo(gru_struc(iGRU)%hruCount)) ! allocate second level of gru to hru map
-  gru_struc(iGRU)%hruInfo(iGRU)%hru_nc = checkHRU             ! set hru id in attributes netcdf file
-  gru_struc(iGRU)%hruInfo(iGRU)%hru_ix = 1                    ! set index of hru in run space
-  gru_struc(iGRU)%hruInfo(iGRU)%hru_id = hru_id(checkHRU)     ! set id of hru
-  gru_struc(iGRU)%nGlac                = nGlac(sGRU)          ! set number of glaciers in the gru
-  gru_struc(iGRU)%nWtld                = nWtld(sGRU)          ! set number of wetlands in the gru
+   ! gru to hru mapping
+   iGRU = 1
+   gru_struc(iGRU)%hruCount             = 1                    ! number of HRUs in each GRU
+   gru_struc(iGRU)%gru_id               = hru2gru_id(checkHRU) ! set gru id
+   gru_struc(iGRU)%gru_nc               = sGRU                 ! set gru index within the netcdf file
+   allocate(gru_struc(iGRU)%hruInfo(gru_struc(iGRU)%hruCount)) ! allocate second level of gru to hru map
+   gru_struc(iGRU)%hruInfo(iGRU)%hru_nc = checkHRU             ! set hru id in attributes netcdf file
+   gru_struc(iGRU)%hruInfo(iGRU)%hru_ix = 1                    ! set index of hru in run space
+   gru_struc(iGRU)%hruInfo(iGRU)%hru_id = hru_id(checkHRU)     ! set id of hru
+   gru_struc(iGRU)%nGlac                = nGlac(sGRU)          ! set number of glaciers in the gru
+   gru_struc(iGRU)%nWtld                = nWtld(sGRU)          ! set number of wetlands in the gru
 
  else ! allocate space for anything except a single HRU run
-  iHRU = 1
-  do iGRU = 1,nGRU
-    if (count(hru2gru_Id == gru_id(iGRU+sGRU-1)) < 1) then; err=20; message=trim(message)//'problem finding HRUs belonging to GRU'; return; end if
-    gru_struc(iGRU)%hruCount          = count(hru2gru_Id == gru_id(iGRU+sGRU-1))          ! number of HRUs in each GRU
+   iHRU = 1
+   do iGRU = 1,nGRU
+     if (count(hru2gru_Id == gru_id(iGRU+sGRU-1)) < 1) then; err=20; message=trim(message)//'problem finding HRUs belonging to GRU'; return; end if
+     gru_struc(iGRU)%hruCount          = count(hru2gru_Id == gru_id(iGRU+sGRU-1))          ! number of HRUs in each GRU
 #ifdef NGEN_ACTIVE
-    if (gru_struc(iGRU)%hruCount > 1) then; err=20; message=trim(message)//'NGEN currently only supports single-HRU per GRU'; return; end if
-    print *, 'GRU id is ', gru_id(iGRU+sGRU-1)
+     if (gru_struc(iGRU)%hruCount > 1) then; err=20; message=trim(message)//'NGEN currently only supports single-HRU per GRU'; return; end if
+     print *, 'GRU id is ', gru_id(iGRU+sGRU-1)
 #endif
-    gru_struc(iGRU)%gru_id            = gru_id(iGRU+sGRU-1)                               ! set gru id
-    gru_struc(iGRU)%gru_nc            = iGRU+sGRU-1                                       ! set gru index in the netcdf file
-    allocate(gru_struc(iGRU)%hruInfo(gru_struc(iGRU)%hruCount))                           ! allocate second level of gru to hru map
-    gru_struc(iGRU)%hruInfo(:)%hru_nc = pack(hru_ix,hru2gru_id == gru_struc(iGRU)%gru_id) ! set hru id in attributes netcdf file
-    gru_struc(iGRU)%hruInfo(:)%hru_ix = arth(iHRU,1,gru_struc(iGRU)%hruCount)             ! set index of hru in run space
-    gru_struc(iGRU)%hruInfo(:)%hru_id = hru_id(gru_struc(iGRU)%hruInfo(:)%hru_nc)         ! set id of hru
-    gru_struc(iGRU)%nGlac             = nGlac(iGRU+sGRU-1)                                ! set number of glaciers in the gru
-    gru_struc(iGRU)%nWtld             = nWtld(iGRU+sGRU-1)                                ! set number of wetlands in the gru
-    iHRU = iHRU + gru_struc(iGRU)%hruCount
+     gru_struc(iGRU)%gru_id            = gru_id(iGRU+sGRU-1)                               ! set gru id
+     gru_struc(iGRU)%gru_nc            = iGRU+sGRU-1                                       ! set gru index in the netcdf file
+     allocate(gru_struc(iGRU)%hruInfo(gru_struc(iGRU)%hruCount))                           ! allocate second level of gru to hru map
+     gru_struc(iGRU)%hruInfo(:)%hru_nc = pack(hru_ix,hru2gru_id == gru_struc(iGRU)%gru_id) ! set hru id in attributes netcdf file
+     gru_struc(iGRU)%hruInfo(:)%hru_ix = arth(iHRU,1,gru_struc(iGRU)%hruCount)             ! set index of hru in run space
+     gru_struc(iGRU)%hruInfo(:)%hru_id = hru_id(gru_struc(iGRU)%hruInfo(:)%hru_nc)         ! set id of hru
+     gru_struc(iGRU)%nGlac             = nGlac(iGRU+sGRU-1)                                ! set number of glaciers in the gru
+     gru_struc(iGRU)%nWtld             = nWtld(iGRU+sGRU-1)                                ! set number of wetlands in the gru
+     iHRU = iHRU + gru_struc(iGRU)%hruCount
    enddo ! iGRU = 1,nGRU
  end if ! not checkHRU
 
@@ -199,22 +194,27 @@ if (allocated(index_map)) then; err=20; message=trim(message)//'index_map is une
  allocate(index_map(nHRU))                                                                      ! allocate first level of hru to gru mapping
 
  if (present(checkHRU)) then                                                                    ! allocate space for single-HRU run
-  if (nHRU/=1) then; err=-20; message=trim(message)//'wrong # of HRUs for checkHRU run'; return; end if
-  iGRU = 1;
-  index_map(1)%gru_ix      = iGRU                                                               ! index of gru in run space to which the hru belongs
-  index_map(1)%localHRU_ix = hru_ix(1)                                                          ! index of hru within the gru
+   if (nHRU/=1) then; err=-20; message=trim(message)//'wrong # of HRUs for checkHRU run'; return; end if
+   iGRU = 1;
+   index_map(1)%gru_ix      = iGRU                                                               ! index of gru in run space to which the hru belongs
+   index_map(1)%localHRU_ix = hru_ix(1)                                                          ! index of hru within the gru
 
  else ! anything other than a single HRU run
-  do iGRU = 1,nGRU
-   index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%gru_ix      = iGRU                              ! index of gru in run space to which the hru belongs
-   index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%localHRU_ix = hru_ix(1:gru_struc(iGRU)%hruCount)! index of hru within the gru
-  enddo ! iGRU = 1,nGRU
+   do iGRU = 1,nGRU
+     index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%gru_ix      = iGRU                              ! index of gru in run space to which the hru belongs
+     index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%localHRU_ix = hru_ix(1:gru_struc(iGRU)%hruCount)! index of hru within the gru
+   enddo ! iGRU = 1,nGRU
 
  end if ! not checkHRU
 
  ! if necessary, do grid dimensions
  if(sum(gru_struc(1:nGRU)%nGlac)>0)then
-  call read_dimensionGrid(ncid,fileGRU,nGRU,err,message); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   call read_dimensionGrid(ncid,fileGRU,nGRU,err,message); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ else ! no grids
+   do iGRU = 1, nGRU
+     gru_struc(iGRU)%nGrid = 0
+     allocate(gru_struc(iGRU)%gridInfo(0))
+   enddo
  endif
 
  deallocate(gru_id, nGlac, nWtld, hru_ix, hru_id, hru2gru_id)
@@ -302,17 +302,17 @@ subroutine read_dimensionGrid(ncid,fileGRU,nGRU,err,message)
 
   ! Main loop to set grid information
   do iGRU = 1, nGRU
-   gru_struc(iGRU)%nGrid = nGrid(gru_struc(iGRU)%gru_nc)
-   ! consistency check, for now we require that nGlac and nGrid are the same
-   if (gru_struc(iGRU)%nGlac/=gru_struc(iGRU)%nGrid) then; err=20; message=trim(message)//'nGlac and nGrid do not match'; return; end if
-   allocate(gru_struc(iGRU)%gridInfo(gru_struc(iGRU)%nGrid))
-   if (gru_struc(iGRU)%nGrid > 0) then
-     gru_struc(iGRU)%gridInfo(:)%grid_id = grid_id(gru_struc(iGRU)%gru_nc,1:gru_struc(iGRU)%nGrid)  ! set grid information (id)
-     gru_struc(iGRU)%gridInfo(:)%dx      = dx(gru_struc(iGRU)%gru_nc,1:gru_struc(iGRU)%nGrid)       ! set grid information (spacing)
-     gru_struc(iGRU)%gridInfo(:)%dy      = dy(gru_struc(iGRU)%gru_nc,1:gru_struc(iGRU)%nGrid)       ! set grid information (spacing)
-     gru_struc(iGRU)%gridInfo(:)%nx      = nx(gru_struc(iGRU)%gru_nc,1:gru_struc(iGRU)%nGrid)       ! set grid information (size)
-     gru_struc(iGRU)%gridInfo(:)%ny      = ny(gru_struc(iGRU)%gru_nc,1:gru_struc(iGRU)%nGrid)       ! set grid information (size)
-   endif ! if has grid
+    gru_struc(iGRU)%nGrid = nGrid(gru_struc(iGRU)%gru_nc)
+    ! consistency check, require there is a grid for every glacier
+    if (gru_struc(iGRU)%nGlac>gru_struc(iGRU)%nGrid) then; err=20; message=trim(message)//'needs to be as many grids as glaciers'; return; end if
+    allocate(gru_struc(iGRU)%gridInfo(gru_struc(iGRU)%nGrid))
+    if (gru_struc(iGRU)%nGrid > 0) then
+      gru_struc(iGRU)%gridInfo(:)%grid_id = grid_id(gru_struc(iGRU)%gru_nc,1:gru_struc(iGRU)%nGrid)  ! set grid information (id)
+      gru_struc(iGRU)%gridInfo(:)%dx      = dx(gru_struc(iGRU)%gru_nc,1:gru_struc(iGRU)%nGrid)       ! set grid information (spacing)
+      gru_struc(iGRU)%gridInfo(:)%dy      = dy(gru_struc(iGRU)%gru_nc,1:gru_struc(iGRU)%nGrid)       ! set grid information (spacing)
+      gru_struc(iGRU)%gridInfo(:)%nx      = nx(gru_struc(iGRU)%gru_nc,1:gru_struc(iGRU)%nGrid)       ! set grid information (size)
+      gru_struc(iGRU)%gridInfo(:)%ny      = ny(gru_struc(iGRU)%gru_nc,1:gru_struc(iGRU)%nGrid)       ! set grid information (size)
+    endif ! if has grid
   end do ! gru loop
 
   deallocate(grid_id,nGrid,dx,dy,nx,ny)
@@ -399,89 +399,89 @@ subroutine read_attrb(attrFile,nGRU,attrStruct,typeStruct,idStruct,gridStruct,er
  iCheck = 1
  do iVar = 1,nVar
 
-  ! inqure about current variable name, type, number of dimensions
-  err = nf90_inquire_variable(ncid,iVar,name=varName)
-  if(err/=nf90_noerr)then; message=trim(message)//'problem inquiring variable: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
+   ! inqure about current variable name, type, number of dimensions
+   err = nf90_inquire_variable(ncid,iVar,name=varName)
+   if(err/=nf90_noerr)then; message=trim(message)//'problem inquiring variable: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
 
-  ! find attribute name
-  select case(trim(varName))
+   ! find attribute name
+   select case(trim(varName))
 
-   ! ** categorical data
-   case('vegTypeIndex','soilTypeIndex','slopeTypeIndex','downHRUindex')
+     ! ** categorical data
+     case('vegTypeIndex','soilTypeIndex','slopeTypeIndex','downHRUindex')
 
-    ! get the index of the variable
-    varType = categorical
-    varIndx = get_ixType(varName)
-    checkType(varIndx) = .true.
+      ! get the index of the variable
+      varType = categorical
+      varIndx = get_ixType(varName)
+      checkType(varIndx) = .true.
 
-    ! check that the variable could be identified in the data structure
-    if(varIndx < 1)then; err=20; message=trim(message)//'unable to find variable ['//trim(varName)//'] in data structure'; return; endif
+      ! check that the variable could be identified in the data structure
+      if(varIndx < 1)then; err=20; message=trim(message)//'unable to find variable ['//trim(varName)//'] in data structure'; return; endif
 
-    ! get data from netcdf file and store in vector
-    do iGRU=1,nGRU
-     do iHRU = 1,gru_struc(iGRU)%hruCount
-      err = nf90_get_var(ncid,iVar,categorical_var,start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_nc/),count=(/1/))
-      if(err/=nf90_noerr)then; message=trim(message)//'problem reading: '//trim(varName); return; end if
-      typeStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = categorical_var(1)
-     end do
-    end do
+      ! get data from netcdf file and store in vector
+      do iGRU=1,nGRU
+        do iHRU = 1,gru_struc(iGRU)%hruCount
+          err = nf90_get_var(ncid,iVar,categorical_var,start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_nc/),count=(/1/))
+          if(err/=nf90_noerr)then; message=trim(message)//'problem reading: '//trim(varName); return; end if
+          typeStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = categorical_var(1)
+        end do
+      end do
 
-   ! ** ID related data
-   case('hruId')
-    ! get the index of the variable
-    varType = idrelated
-    varIndx = get_ixId(varName)
-    checkId(varIndx) = .true.
+     ! ** ID related data
+     case('hruId')
+      ! get the index of the variable
+      varType = idrelated
+      varIndx = get_ixId(varName)
+      checkId(varIndx) = .true.
 
-    ! check that the variable could be identified in the data structure
-    if(varIndx < 1)then; err=20; message=trim(message)//'unable to find variable ['//trim(varName)//'] in data structure'; return; endif
+      ! check that the variable could be identified in the data structure
+      if(varIndx < 1)then; err=20; message=trim(message)//'unable to find variable ['//trim(varName)//'] in data structure'; return; endif
 
-    ! get data from netcdf file and store in vector
-    do iGRU=1,nGRU
-     do iHRU = 1,gru_struc(iGRU)%hruCount
-      err = nf90_get_var(ncid,iVar,idrelated_var,start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_nc/),count=(/1/))
-      if(err/=nf90_noerr)then; message=trim(message)//'problem reading: '//trim(varName); return; end if
-      idStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = idrelated_var(1)
-     end do
-    end do
+      ! get data from netcdf file and store in vector
+      do iGRU=1,nGRU
+        do iHRU = 1,gru_struc(iGRU)%hruCount
+          err = nf90_get_var(ncid,iVar,idrelated_var,start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_nc/),count=(/1/))
+          if(err/=nf90_noerr)then; message=trim(message)//'problem reading: '//trim(varName); return; end if
+          idStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = idrelated_var(1)
+        end do
+      end do
 
-   ! ** numerical data
-   case('latitude','longitude','elevation','tan_slope','contourLength','HRUarea','mHeight','aspect')
+     ! ** numerical data
+     case('latitude','longitude','elevation','tan_slope','contourLength','HRUarea','mHeight','aspect')
 
-    ! get the index of the variable
-    varType = numerical
-    varIndx = get_ixAttr(varName)
-    checkAttr(varIndx) = .true.
+      ! get the index of the variable
+      varType = numerical
+      varIndx = get_ixAttr(varName)
+      checkAttr(varIndx) = .true.
 
-    ! check that the variable could be identified in the data structure
-    if(varIndx < 1)then; err=20; message=trim(message)//'unable to find variable ['//trim(varName)//'] in data structure'; return; endif
+      ! check that the variable could be identified in the data structure
+      if(varIndx < 1)then; err=20; message=trim(message)//'unable to find variable ['//trim(varName)//'] in data structure'; return; endif
 
-    ! get data from netcdf file and store in vector
-    do iGRU=1,nGRU
-     do iHRU = 1, gru_struc(iGRU)%hruCount
-      err = nf90_get_var(ncid,iVar,numeric_var,start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_nc/),count=(/1/))
-      if(err/=nf90_noerr)then; message=trim(message)//'problem reading: '//trim(varName); return; end if
-      attrStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = numeric_var(1)
-     end do
-    end do
+      ! get data from netcdf file and store in vector
+      do iGRU=1,nGRU
+        do iHRU = 1, gru_struc(iGRU)%hruCount
+          err = nf90_get_var(ncid,iVar,numeric_var,start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_nc/),count=(/1/))
+          if(err/=nf90_noerr)then; message=trim(message)//'problem reading: '//trim(varName); return; end if
+          attrStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = numeric_var(1)
+        end do
+      end do
 
-   ! for GRU domain quantity variables, do nothing (information read above in read_dimension)
-   case('nGlac','nWtld'); cycle
+     ! for GRU domain quantity and grid variables, do nothing (information read above in read_dimension or read_dimensionGrid)
+     case('nGlac','nWtld','nGrid','gridId','nx','ny','dx','dy'); cycle
 
-   ! for mapping variables, do nothing (information read above in read_dimension)   
-   case('hru2gruId','gruId')
-    ! get the index of the variable
-    varType = idrelated
-    varIndx = get_ixId(varName)
-    checkId(varIndx) = .true.
+     ! for mapping variables, do nothing (information read above in read_dimension)   
+     case('hru2gruId','gruId')
+      ! get the index of the variable
+      varType = idrelated
+      varIndx = get_ixId(varName)
+      checkId(varIndx) = .true.
 
-   ! for glacier grid variables, will do later in read_attrbGlac call
-   case('cell2hruId','bed_elev','glacierMask'); cycle
+     ! for glacier grid variables, will do later in read_attrbGlac call
+     case('cell2hruId','bed_elev','glacierMask'); cycle
 
-   ! check that variables are what we expect
-   case default; message=trim(message)//'unknown variable ['//trim(varName)//'] in local attributes file'; err=20; return
+     ! check that variables are what we expect
+     case default; message=trim(message)//'unknown variable ['//trim(varName)//'] in local attributes file'; err=20; return
 
-  end select ! select variable
+   end select ! select variable
 
  end do ! (looping through netcdf local attribute file)
  
@@ -492,9 +492,9 @@ subroutine read_attrb(attrFile,nGRU,attrStruct,typeStruct,idStruct,gridStruct,er
    write(*,*) NEW_LINE('A')//'INFO: aspect not found in the input attribute file, continuing ...'//NEW_LINE('A')
 
    do iGRU=1,nGRU
-    do iHRU = 1, gru_struc(iGRU)%hruCount
-     attrStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = nr_realMissing      ! populate variable with out-of-range value, used later
-    end do
+     do iHRU = 1, gru_struc(iGRU)%hruCount
+       attrStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = nr_realMissing      ! populate variable with out-of-range value, used later
+     end do
    end do
    checkAttr(varIndx) = .true.
  endif
@@ -504,30 +504,30 @@ subroutine read_attrb(attrFile,nGRU,attrStruct,typeStruct,idStruct,gridStruct,er
  ! **********************************************************************************************
  ! check that we have all desired categorical variables
  if(any(.not.checkType))then
-  do iCheck = 1,size(type_meta)
-   if(.not.checkType(iCheck))then; err=20; message=trim(message)//'missing variable ['//trim(type_meta(iCheck)%varName)//'] in local attributes file'; return; endif
-  end do
+   do iCheck = 1,size(type_meta)
+     if(.not.checkType(iCheck))then; err=20; message=trim(message)//'missing variable ['//trim(type_meta(iCheck)%varName)//'] in local attributes file'; return; endif
+   end do
  endif
 
  ! check that we have all desired ID variables
  if(any(.not.checkId))then
-  do iCheck = 1,size(id_meta)
-   if(.not.checkId(iCheck))then; err=20; message=trim(message)//'missing variable ['//trim(id_meta(iCheck)%varName)//'] in local attributes file'; return; endif
-  end do
+   do iCheck = 1,size(id_meta)
+     if(.not.checkId(iCheck))then; err=20; message=trim(message)//'missing variable ['//trim(id_meta(iCheck)%varName)//'] in local attributes file'; return; endif
+   end do
  endif
 
  ! check that we have all desired local attributes
  if(any(.not.checkAttr))then
-  do iCheck = 1,size(attr_meta)
-   if(.not.checkAttr(iCheck))then; err=20; message=trim(message)//'missing variable ['//trim(attr_meta(iCheck)%varName)//'] in local attributes file'; return; endif
-  end do
+   do iCheck = 1,size(attr_meta)
+     if(.not.checkAttr(iCheck))then; err=20; message=trim(message)//'missing variable ['//trim(attr_meta(iCheck)%varName)//'] in local attributes file'; return; endif
+   end do
  endif
 
  ! **********************************************************************************************
  ! (5) get glacier grid variables if needed
  ! **********************************************************************************************
  if(sum(gru_struc(1:nGRU)%nGlac)>0)then
-  call read_attrbGlac(ncid,nGRU,gridStruct,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   call read_attrbGlac(ncid,nGRU,gridStruct,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  endif
 
  ! **********************************************************************************************
@@ -568,7 +568,7 @@ subroutine read_attrb(attrFile,nGRU,attrStruct,typeStruct,idStruct,gridStruct,er
  integer(i4b)                         :: nGrid                   ! number of grids in a GRU
  integer(i4b)                         :: nx,ny                   ! number of grid points in a glacier
  integer(i4b),dimension(3)            :: ngdx                    ! intermediate array of loop indices for grid variables
- real(i4b),allocatable                :: grid_var(:,:,:,:)       ! grid variable read from netcdf file
+ real(rkind),allocatable              :: grid_var(:,:,:,:)       ! grid variable read from netcdf file
  real(rkind),allocatable              :: iHRUgrid(:,:)           ! index of HRU as a grid
  character(LEN=128)                   :: varName                 ! variable name
 
@@ -599,7 +599,7 @@ subroutine read_attrb(attrFile,nGRU,attrStruct,typeStruct,idStruct,gridStruct,er
         allocate(iHRUgrid(nx,ny))
         gridStruct%gru(iGRU)%grid(iGrid)%var(iVar)%dat2(1:nx,1:ny) = -1.0_rkind ! initialize with an invalid index
         do iHRU = 1, gru_struc(iGRU)%hruCount
-          iHRUgrid = iHRU
+          iHRUgrid = real(iHRU, rkind)
           gridStruct%gru(iGRU)%grid(iGrid)%var(iVar)%dat2(1:nx,1:ny) = merge(iHRUgrid, gridStruct%gru(iGRU)%grid(iGrid)%var(iVar)%dat2(1:nx,1:ny), &
                                                                               grid_var(1,1,1:nx,1:ny) == gru_struc(iGRU)%hruInfo(iHRU)%hru_id)
         end do

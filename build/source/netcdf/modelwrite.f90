@@ -130,18 +130,18 @@ contains
 
   select type (struct)
    class is (var_i)
-     if (iDOM==0) err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
-     if (iDOM>0)  err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iDOM,iSpatial/),count=(/1,1/))
-    class is (var_i8)
-     if (iDOM==0) err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
-     if (iDOM>0)  err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iDOM,iSpatial/),count=(/1,1/))
-    class is (var_d)
-     if (iDOM==0) err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
-     if (iDOM>0)  err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iDOM,iSpatial/),count=(/1,1/))
-    class is (var_dlength)
-     if (iDOM==0) err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)%dat/),start=(/iSpatial,1/),count=(/1,size(struct%var(iVar)%dat)/))
-     if (iDOM>0)  err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)%dat/),start=(/iDOM,iSpatial,1/),count=(/1,size(struct%var(iVar)%dat),1/))
-    class default; err=20; message=trim(message)//'parameter type must be var_i, var_i8, var_d, or var_dlength'; return
+    if (iDOM==0) err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
+    if (iDOM>0)  err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iDOM,iSpatial/),count=(/1,1/))
+   class is (var_i8)
+    if (iDOM==0) err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
+    if (iDOM>0)  err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iDOM,iSpatial/),count=(/1,1/))
+   class is (var_d)
+    if (iDOM==0) err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
+    if (iDOM>0)  err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iDOM,iSpatial/),count=(/1,1/))
+   class is (var_dlength)
+    if (iDOM==0) err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)%dat/),start=(/iSpatial,1/),count=(/1,size(struct%var(iVar)%dat)/))
+    if (iDOM>0)  err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)%dat/),start=(/iDOM,iSpatial,1/),count=(/1,size(struct%var(iVar)%dat),1/))
+   class default; err=20; message=trim(message)//'parameter type must be var_i, var_i8, var_d, or var_dlength'; return
   end select
   call netcdf_err(err,message); if (err/=0) return
 
@@ -617,7 +617,6 @@ contains
  integer(i4b)                :: nx,ny                  ! number of grid cells in x,y directions
  integer(i4b)                :: ixStart                ! index of the start of data write
  ! output arrays
- integer(i4b)                :: datLength              ! length of each data vector
  real(rkind)                 :: realArray4(nGRUrun,maxGrid,maxGridX,maxGridY) ! real array for all GRUs and grids in the run domain
  integer(i4b)                :: dataType               ! type of data
  integer(i4b),parameter      :: ixReal4=1001           ! named variable for real

@@ -1050,7 +1050,7 @@ subroutine read_output_file(err,message)
         if (freqName/='annual') then
           if(trim(varName)=='surface_elev' .or. trim(varName)=='debris_thick') then
             write(*,*)'WARNING: grid variable '//trim(varName)//': outputting variable in annual file as it does not change on less than annual level'
-          else if(trim(varName)/='cell2hru') then
+          else if(trim(varName)=='cell2hru') then
             write(*,*)'WARNING: grid structure id not outputted, skipping variable '//trim(varName)
           else
             write(*,*)'WARNING: temporally constant grid variable '//trim(varName)//': outputting parameter in annual file with no time dimension'

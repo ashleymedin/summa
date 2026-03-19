@@ -115,7 +115,7 @@ contains
  err = nf90_inq_dimid(ncid,"hru",dimId);               if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru dimension/'//trim(nf90_strerror(err)); return; end if
  err = nf90_inquire_dimension(ncid,dimId,len=fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if
 
-! get number of domains with type in file, if present
+ ! get number of domains with type in file, if present
  err = nf90_inq_dimid(ncid,"dom",dimId)               
  if(err/=nf90_noerr)then
   fileDOM = 1 ! backwards compatible, just upland domain
@@ -214,13 +214,11 @@ contains
  glceData2 = 0
  lakeData2 = 0
 
- ! count domains and set domain type
+ ! count domains and set domain type, DOM not in attributes so don't have to worry about order of dom_type
  ! NOTE: dom_type 0 will be no domain
- do i = 1,fileGRU
-   iGRU = index_to_gruid(i)
-   do j = 1,gru_struc(iGRU)%hruCount
-     iHRU = index_to_hrunc(i,j)- minval(index_to_hrunc(i,:)) + 1 ! assumes HRUs are in GRU order
-     iHRU_global = index_to_hrunc(i,j)
+ do iGRU = 1,nGRU
+   do iHRU = 1,gru_struc(iGRU)%hruCount
+     iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
      gru_struc(iGRU)%hruInfo(iHRU)%domCount = 1                                              ! upland domain always present, for changing size glaciers and lakes
      if (any(dom_type(1:fileDOM,iHRU_global)==glacCln1)) &
        gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 1   ! glacier clean domain 1 possible
@@ -260,30 +258,30 @@ contains
  ixHRUfile_min=huge(1)
  ixHRUfile_max=0
  do iGRU = 1,nGRU
-  do iHRU = 1,gru_struc(iGRU)%hruCount
-   iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
-   if(iHRU_global < ixHRUfile_min) ixHRUfile_min = iHRU_global
-   if(iHRU_global > ixHRUfile_max) ixHRUfile_max = iHRU_global
-  end do
+   do iHRU = 1,gru_struc(iGRU)%hruCount
+     iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
+     if(iHRU_global < ixHRUfile_min) ixHRUfile_min = iHRU_global
+     if(iHRU_global > ixHRUfile_max) ixHRUfile_max = iHRU_global
+   end do
  end do
 
  ! loop over grus in current run to update layer information
  do iGRU = 1,nGRU
-  do iHRU = 1,gru_struc(iGRU)%hruCount
-   iHRU_global = index_to_hrunc(iGRU,iHRU) ! index of HRU in the netcdf file
-   do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
-    if(no_dom)then
-      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow = snowData1(iHRU_global)
-      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake = lakeData1(iHRU_global)
-      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil = soilData1(iHRU_global)
-      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce = glceData1(iHRU_global)
-    else
-     gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow = snowData2(iDOM,iHRU_global)
-     gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake = lakeData2(iDOM,iHRU_global)
-     gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil = soilData2(iDOM,iHRU_global)
-     gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce = glceData2(iDOM,iHRU_global)
-    endif
-   end do
+   do iHRU = 1,gru_struc(iGRU)%hruCount
+    iHRU_global = index_to_hrunc(iGRU,iHRU) ! index of HRU in the netcdf file
+    do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
+     if(no_dom)then
+       gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow = snowData1(iHRU_global)
+       gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake = lakeData1(iHRU_global)
+       gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil = soilData1(iHRU_global)
+       gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce = glceData1(iHRU_global)
+     else
+       gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow = snowData2(iDOM,iHRU_global)
+       gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake = lakeData2(iDOM,iHRU_global)
+       gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil = soilData2(iDOM,iHRU_global)
+       gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce = glceData2(iDOM,iHRU_global)
+     endif
+    end do
   end do
  end do
 

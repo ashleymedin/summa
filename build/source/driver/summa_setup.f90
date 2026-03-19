@@ -241,9 +241,11 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  maxGridX = 0
  maxGridY = 0
  do iGRU=1,nGRU
-  maxGrid = max(maxGrid,size(gru_struc(iGRU)%gridInfo(:)%grid_id))
-  maxGridX = max(maxGridX,maxval(gru_struc(iGRU)%gridInfo(:)%nx))
-  maxGridY = max(maxGridY,maxval(gru_struc(iGRU)%gridInfo(:)%ny))
+  maxGrid = max(maxGrid,gru_struc(iGRU)%nGrid)
+  if(gru_struc(iGRU)%nGrid>0)then
+    maxGridX = max(maxGridX,maxval(gru_struc(iGRU)%gridInfo(:)%nx))
+    maxGridY = max(maxGridY,maxval(gru_struc(iGRU)%gridInfo(:)%ny))
+  endif
  end do
 
  ! *****************************************************************************

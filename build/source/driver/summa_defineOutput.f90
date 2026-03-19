@@ -148,8 +148,8 @@ contains
         call writeGridParam(iGRU,iGrid,gridStruct%gru(iGRU),grid_meta,err,cmessage)
       end do
    end select
+   if(err/=0)then; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; return; endif
   end do  ! (looping through structures)
-  if(err/=0)then; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; return; endif
 
  end do  ! (looping through GRUs)
 
