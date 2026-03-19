@@ -1080,9 +1080,8 @@ subroutine read_output_file(err,message)
         write(*,*)'WARNING: cannot output '//trim(structName)//' structure data, skipping variable '//trim(varName)
         cycle
       case('id') ! gruId and hruId are always written with the call to write_hru_info
-        if(trim(varName)/='hruId' .and. trim(varName)/='gruId') then
-          write(*,*)'WARNING: outputting id structure data gruId and hruId only, skipping variable '//trim(varName)
-        endif
+        if(trim(varName)/='hruId' .and. trim(varName)/='gruId')&
+        write(*,*)'WARNING: outputting id structure data gruId and hruId only, skipping variable '//trim(varName)
         cycle
 
       ! error control
@@ -1128,13 +1127,13 @@ subroutine read_output_file(err,message)
           end if
         end do
         ! check actually defined the statistic (and only defined one statistic) that is not the deprecated mode statistic
+        if(nWords==freqIndex + 2*(maxvarStat+1))then
+          if(lineWords(freqIndex + 2*(maxvarStat+1))=='1')&
+          write(*,*)'WARNING: the mode statistic is no longer supported, ignorning mode flag for variable '//trim(varName) 
+        endif
         if(count(statFlag)/=1)then
           if(count(statFlag)==0)then
              message=trim(message)//'no statistic was defined for variable '//trim(varName) 
-             if(nWords==freqIndex + 2*(maxvarStat+1))then
-               if(lineWords(freqIndex + 2*(maxvarStat+1))=='1')&
-                message=trim(message)//' (note, the mode statistic is no longer supported)'
-             endif
           else
             message=trim(message)//'expect only one statistic is defined when using flags to define statistics'&
                                //': entered "'//trim(charLines(vLine))//'"'
@@ -1183,12 +1182,10 @@ subroutine read_output_file(err,message)
     end select  ! select data structure
 
     ! warnings for variables that we cannot write
-    if(.not.allowRoutingOutput .and. varType==iLookVarType%routing)then 
-       write(*,*)'WARNING: cannot output routing histogram type data, skipping variable '//trim(varName)
-     endif  ! (if desire routing write)
-    if(varType==iLookVarType%unknown .or. varType==integerMissing)then 
-      write(*,*)'WARNING: cannot output unknown or missing type data, skipping variable '//trim(varName)
-    endif  ! (if desire unknown write)
+    if(.not.allowRoutingOutput .and. varType==iLookVarType%routing)& 
+    write(*,*)'WARNING: cannot output routing histogram type data, skipping variable '//trim(varName)
+    if(varType==iLookVarType%unknown .or. varType==integerMissing)&
+    write(*,*)'WARNING: cannot output unknown or missing type data, skipping variable '//trim(varName)
 
     ! error control from popStat
     if (err/=0) then; message=trim(message)//trim(cmessage);return; end if
