@@ -613,7 +613,6 @@ contains
  integer(i4b)                :: iVar                   ! variable index
  integer(i4b)                :: iStat                  ! statistics index
  integer(i4b)                :: iFreq                  ! frequency index
- integer(i4b)                :: ncVarID                ! used only for time
  integer(i4b)                :: nGrid                  ! number of grids in the GRU
  integer(i4b)                :: nx,ny                  ! number of grid cells in x,y directions
  integer(i4b)                :: ixStart                ! index of the start of data write
