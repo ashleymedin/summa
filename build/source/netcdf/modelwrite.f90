@@ -191,7 +191,7 @@ contains
     class is (var_dlength2)
      nx = size(struct%var(iVar)%dat2, 1)
      ny = size(struct%var(iVar)%dat2, 2)
-     err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%annual),(/struct%var(iVar)%dat2/),start=(/iSpatial,iGrid,1,1/),count=(/1,1,nx,ny/))
+     err = nf90_put_var(ncid(iLookFREQ%annual),meta(iVar)%ncVarID(iLookFREQ%annual),(/struct%var(iVar)%dat2/),start=(/iSpatial,iGrid,1,1/),count=(/1,1,nx,ny/))
     class default; err=20; message=trim(message)//'parameter type must be var_dlength2'; return
    end select
    call netcdf_err(err,message); if (err/=0) return

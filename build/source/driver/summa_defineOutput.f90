@@ -145,7 +145,7 @@ contains
     case('bpar'); call writeParam(0,iGRU,bparStruct%gru(iGRU),bpar_meta,err,cmessage)
     case('grid')
       do iGrid=1,gru_struc(iGRU)%nGrid ! will not write if there are no grids
-        call writeGridParam(iGRU,iGrid,gridStruct%gru(iGRU),grid_meta,err,cmessage)
+        call writeGridParam(iGRU,iGrid,gridStruct%gru(iGRU)%grid(iGrid),grid_meta,err,cmessage)
       end do
    end select
    if(err/=0)then; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; return; endif
