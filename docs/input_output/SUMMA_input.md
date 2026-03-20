@@ -163,10 +163,12 @@ The model decisions and their options or values are listed in the following tabl
 |[spatial_gw](../configuration/SUMMA_model_decisions.md#spatial_gw) | localColumn <br> singleBasin | (38) choice of method for spatial representation of groundwater
 |[subRouting](../configuration/SUMMA_model_decisions.md#subRouting) | timeDlay <br> qInstant | (39) choice of method for sub-grid routing
 |[snowDenNew](../configuration/SUMMA_model_decisions.md#snowDenNew) | hedAndPom <br> anderson <br> pahaut_76 <br> constDens | (40) choice of method for new snow density
-|[nrgConserv](../configuration/SUMMA_model_decisions.md#nrgConserv) | closedForm <br> enthalpyFormLU <br> enthalpyForm | (41) choice of variable in energy equations (BE residual or IDA state variable)
+|[nrgConserv](../configuration/SUMMA_model_decisions.md#nrgConserv) | closedForm <br> enthalpyForm <br> enthalpyFormAN | (41) choice of variable in energy equations (BE residual or IDA state variable)
 |[aquiferIni](../configuration/SUMMA_model_decisions.md#aquiferIni) | fullStart <br> emptyStart | (42) choice of initial fill level for aquifer, should be used at default unless comparing solution methods
 |[infRateMax](../configuration/SUMMA_model_decisions.md#infRateMax) | topmodel_GA <br> GreenAmpt <br> noInfiltrationExcess | (43) choice of parametrization of maximum infiltration rate
-|[surfRun_SE](../configuration/SUMMA_model_decisions.md#surfRun_SE) | homegrown_SE <br> FUSEPRMS <br> FUSEAVIC <br> FUSETOPM <br> zero_SE | (44) choice of initial fill level for aquifer, should be used at default unless comparing solution methods
+|[surfRun_SE](../configuration/SUMMA_model_decisions.md#surfRun_SE) | homegrown_SE <br> FUSEPRMS <br> FUSEAVIC <br> FUSETOPM <br> zero_SE | (44) choice of equation to calculate saturation excess runoff
+|[readForcing](../configuration/SUMMA_model_decisions.md#readForcing) | readPerStep <br> readFullSeries | (45) method used to read forcing data
+|[writeOutput](../configuration/SUMMA_model_decisions.md#writeOutput) | writePerStep <br> writeFullSeries | (46) method used to write model output
 
 The model decisions for each simulation are included as global attributes in [SUMMA output files](SUMMA_output.md).
 

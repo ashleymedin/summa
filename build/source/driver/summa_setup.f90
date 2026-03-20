@@ -54,8 +54,8 @@ USE globalData,only:mpar_meta,bpar_meta ! parameter metadata structures
 ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
 USE mDecisions_module,only:&
   closedForm,    &                      ! use temperature with closed form heat capacity
-  enthalpyFormLU,&                      ! use enthalpy with soil temperature-enthalpy lookup tables
-  enthalpyForm                          ! use enthalpy with soil temperature-enthalpy analytical solution
+  enthalpyForm,  &                      ! use enthalpy with soil temperature-enthalpy lookup tables
+  enthalpyFormAN                        ! use enthalpy with soil temperature-enthalpy analytical solution
 
 ! named variables to define the decisions for snow layers
 USE mDecisions_module,only:&
@@ -256,7 +256,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  select case(model_decisions(iLookDECISIONS%nrgConserv)%iDecision)
    case(closedForm) ! ida temperature state variable
      absEnergyFac = 1.e2_rkind ! energy state variable is 2 orders of magnitude larger than mass state variable
-   case(enthalpyFormLU,enthalpyForm) ! ida enthalpy state variable
+   case(enthalpyForm, enthalpyFormAN) ! ida enthalpy state variable
      absEnergyFac = 1.e7_rkind ! energy state variable is 7 orders of magnitude larger than mass state variable
    case default; err=20; message=trim(message)//'unable to identify option for energy conservation'; return
  end select ! (option for energy conservation)
@@ -389,7 +389,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
     ! NOTE: L is the integral of soil Clapeyron equation liquid water matric potential from temperature
     !       multiply by Cp_liq*iden_water to get temperature component of enthalpy
     needLookup_soil = .false.
-    if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision == enthalpyFormLU .and. gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil > 0) needLookup_soil = .true. 
+    if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision == enthalpyForm .and. gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil > 0) needLookup_soil = .true. 
 
     if(needLookup_soil)then
       call T2L_lookup_soil(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil, &   ! intent(in):    number of soil layers

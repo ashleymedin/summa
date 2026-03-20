@@ -36,8 +36,8 @@ USE var_lookup,only:iLookDERIV                   ! named variables for structure
 ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
 USE mDecisions_module,only:  &
  closedForm,                 & ! use temperature with closed form heat capacity
- enthalpyFormLU,             & ! use enthalpy with soil temperature-enthalpy lookup tables
- enthalpyForm                  ! use enthalpy with soil temperature-enthalpy analytical solution
+ enthalpyForm,               & ! use enthalpy with soil temperature-enthalpy lookup tables
+ enthalpyFormAN                ! use enthalpy with soil temperature-enthalpy analytical solution
 
 implicit none
 private
@@ -296,7 +296,7 @@ subroutine eval8summaWithPrime(&
       end if
     end if ! ( feasibility check )
 
-    if(ixNrgConserv == enthalpyForm .or. ixNrgConserv == enthalpyFormLU)then ! use enthalpy as state variable, do not need state terms but do need flux term
+    if(ixNrgConserv == enthalpyFormAN .or. ixNrgConserv == enthalpyForm)then ! use enthalpy as state variable, do not need state terms but do need flux term
       updateStateCp = .false.
       updateFluxCp  = .true.
       needStateCm   = .false.
@@ -310,7 +310,7 @@ subroutine eval8summaWithPrime(&
     end if
 
     ! Canopy layer can disappear even without splitting (snow burial), so need to take last values
-    if(ixNrgConserv== enthalpyForm .or. ixNrgConserv == enthalpyFormLU)then ! use state variable as enthalpy, need to compute temperature
+    if(ixNrgConserv== enthalpyFormAN .or. ixNrgConserv == enthalpyForm)then ! use state variable as enthalpy, need to compute temperature
       scalarCanopyNrgTrial = scalarCanopyEnthalpyTrial
     else ! use state variable as temperature
       scalarCanopyNrgTrial = scalarCanopyTempTrial
@@ -386,7 +386,7 @@ subroutine eval8summaWithPrime(&
                   err,cmessage)                ! intent(out):   error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
-    if(ixNrgConserv== enthalpyForm .or. ixNrgConserv == enthalpyFormLU)then ! use state variable as enthalpy, need to compute temperature
+    if(ixNrgConserv== enthalpyFormAN .or. ixNrgConserv == enthalpyForm)then ! use state variable as enthalpy, need to compute temperature
       scalarCanairEnthalpyTrial = scalarCanairNrgTrial
       scalarCanopyEnthalpyTrial = scalarCanopyNrgTrial
       mLayerEnthalpyTrial       = mLayerNrgTrial
@@ -419,7 +419,7 @@ subroutine eval8summaWithPrime(&
     call updatDiagnWithPrime(&
                     ! input
                     ixNrgConserv.ne.closedForm,   & ! intent(in):    flag if need to update temperature from enthalpy
-                    ixNrgConserv==enthalpyFormLU, & ! intent(in):    flag to use the lookup table for soil temperature-enthalpy
+                    ixNrgConserv==enthalpyForm,   & ! intent(in):    flag to use the lookup table for soil temperature-enthalpy
                     .true.,                       & ! intent(in):    flag if computing for Jacobian update
                     .false.,                      & ! intent(in):    flag to adjust temperature to account for the energy
                     mpar_data,                    & ! intent(in):    model parameters for a local HRU

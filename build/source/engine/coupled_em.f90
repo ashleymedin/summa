@@ -88,15 +88,15 @@ USE mDecisions_module,only:         &
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:         &
-                      homegrown   ,&      ! homegrown backward Euler solution based on concepts from numerical recipes
+                      homegrown    ,&      ! homegrown backward Euler solution based on concepts from numerical recipes
                       kinsol       ,&      ! SUNDIALS backward Euler solution using Kinsol
                       ida                  ! SUNDIALS solution using IDA
 
 ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
 USE mDecisions_module,only:         &
                     closedForm,     &      ! use temperature with closed form heat capacity
-                    enthalpyFormLU, &      ! use enthalpy with soil temperature-enthalpy lookup tables
-                    enthalpyForm           ! use enthalpy with soil temperature-enthalpy analytical solution
+                    enthalpyForm,   &      ! use enthalpy with soil temperature-enthalpy lookup tables
+                    enthalpyFormAN         ! use enthalpy with soil temperature-enthalpy analytical solution
 
 
 ! privacy
@@ -421,9 +421,9 @@ subroutine coupled_em(&
       if(ixNumericalMethod.ne.ida)then
        if(ixNrgConserv.ne.closedForm .or. computNrgBalance_var) computeEnthalpy = .true. ! compute energy balance or need enthalpy in residual
       else ! enthalpy state variable only implemented for IDA, energy conserved in IDA without using enthTemp
-       if(ixNrgConserv.ne.closedForm) enthalpyStateVec = .true. ! enthalpy as state variable
+       if(ixNrgConserv/=closedForm) enthalpyStateVec = .true. ! enthalpy as state variable
       endif
-      if(ixNrgConserv==enthalpyFormLU) use_lookup = .true. ! use lookup tables for soil temperature-enthalpy instead of analytical solution
+      if(ixNrgConserv==enthalpyForm) use_lookup = .true. ! use lookup tables for soil temperature-enthalpy instead of analytical solution
 
       ! save the liquid water and ice on the vegetation canopy
       scalarInitCanopyLiq = scalarCanopyLiq    ! initial liquid water on the vegetation canopy (kg m-2)

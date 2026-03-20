@@ -404,8 +404,8 @@ Choice of variable in energy equations (BE residual or IDA state variable)
 | Option | Description |
 |---|---|
 | closedForm | **use temperature with closed form heat capacity <br> [Energy paper stub](http://doi.org/)** |
-| enthalpyFormLU | **use enthalpy with soil temperature-enthalpy lookup table <br> [Energy paper stub](http://doi.org/)** |
-| enthalpyForm | **use enthalpy with soil temperature-enthalpy analytical solutions <br> [Energy paper stub](http://doi.org/)** |
+| enthalpyForm | **use enthalpy with soil temperature-enthalpy lookup table <br> [Energy paper stub](http://doi.org/)** |
+| enthalpyFormAN | **use enthalpy with soil temperature-enthalpy analytical solutions <br> [Energy paper stub](http://doi.org/)** |
 
 
 <a id="aquiferIni"></a>
@@ -440,3 +440,23 @@ Choice of equation to calculate saturation excess runoff.
 | FUSEAVIC | **ARNO/VIC saturation excess runoff as implemented in FUSE**|
 | FUSETOPM | **Topmodel saturation excess runoff as implemented in FUSE**|
 | zero_SE | **No saturation excess runoff**|
+
+
+<a id="readForcing"></a>
+## 45. readForcing
+Method used to read forcing data
+
+| Option | Description |
+|---|---|
+| readPerStep | **Read forcing data per time step (default)** |
+| readFullSeries | **Read full forcing series in a buffered read** |
+
+
+<a id="writeOutput"></a>
+## 46. writeOutput
+Method used to write model output
+
+| Option | Description |
+|---|---|
+| writePerStep | **Write model output per time step (default)** |
+| writeFullSeries | **Write all data for a given output file in a buffered read** |

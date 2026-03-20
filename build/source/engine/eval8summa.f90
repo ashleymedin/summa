@@ -65,8 +65,8 @@ USE var_lookup,only:iLookDERIV                   ! named variables for structure
 ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
 USE mDecisions_module,only:  &
  closedForm,                 & ! use temperature with closed form heat capacity
- enthalpyFormLU,             & ! use enthalpy with soil temperature-enthalpy lookup tables
- enthalpyForm                  ! use enthalpy with soil temperature-enthalpy analytical solution
+ enthalpyForm,               & ! use enthalpy with soil temperature-enthalpy lookup tables
+ enthalpyFormAN                ! use enthalpy with soil temperature-enthalpy analytical solution
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:  &
@@ -319,7 +319,7 @@ subroutine eval8summa(&
       end if
     end if ! ( feasibility check )
 
-    if(ixNrgConserv == enthalpyForm .or. ixNrgConserv == enthalpyFormLU)then
+    if(ixNrgConserv == enthalpyFormAN .or. ixNrgConserv == enthalpyForm)then
       ! use mixed form of energy equation, need these true to use for Jacobian
       updateStateCp = .true.
       updateFluxCp  = .true.
@@ -376,7 +376,7 @@ subroutine eval8summa(&
     call updatDiagn(&
                     ! input
                     ixNrgConserv.ne.closedForm,   & ! intent(in):    flag if computing temperature compoment of enthalpy
-                    ixNrgConserv==enthalpyFormLU, & ! intent(in):    flag to use the lookup table for soil temperature-enthalpy
+                    ixNrgConserv==enthalpyForm,   & ! intent(in):    flag to use the lookup table for soil temperature-enthalpy
                     .false.,                      & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
                     mpar_data,                    & ! intent(in):    model parameters for a local HRU
                     indx_data,                    & ! intent(in):    indices defining model states and layers

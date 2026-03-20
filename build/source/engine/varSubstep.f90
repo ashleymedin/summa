@@ -80,8 +80,8 @@ USE mDecisions_module,only:         &
 ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
 USE mDecisions_module,only:         &
                     closedForm,     & ! use temperature with closed form heat capacity
-                    enthalpyFormLU, & ! use enthalpy with soil temperature-enthalpy lookup tables
-                    enthalpyForm      ! use enthalpy with soil temperature-enthalpy analytical solution
+                    enthalpyForm,   & ! use enthalpy with soil temperature-enthalpy lookup tables
+                    enthalpyFormAN    ! use enthalpy with soil temperature-enthalpy analytical solution
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -276,7 +276,7 @@ subroutine varSubstep(&
     use_lookup       = .false.
     if((ixNrgConserv .ne. closedForm .or. computNrgBalance) .and. ixNumericalMethod .ne. ida) computeEnthTemp = .true. ! use enthTemp to conserve energy or compute energy balance
     if(ixNrgConserv .ne. closedForm .and. ixNumericalMethod==ida) enthalpyStateVec = .true. ! enthalpy as state variable
-    if(ixNrgConserv==enthalpyFormLU) use_lookup = .true. ! use lookup tables for soil enthalpy instead of analytical solution
+    if(ixNrgConserv==enthalpyForm) use_lookup = .true. ! use lookup tables for soil enthalpy instead of analytical solution
 
     ! initialize the length of the substep
     dtSubstep = dtInit

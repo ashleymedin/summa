@@ -68,8 +68,8 @@ USE mDecisions_module,only:       &
 ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
 USE mDecisions_module,only:       &
   closedForm,                     & ! use temperature with closed form heat capacity
-  enthalpyFormLU,                 & ! use enthalpy with soil temperature-enthalpy lookup tables
-  enthalpyForm                      ! use enthalpy with soil temperature-enthalpy analytical solution
+  enthalpyForm,                   & ! use enthalpy with soil temperature-enthalpy lookup tables
+  enthalpyFormAN                    ! use enthalpy with soil temperature-enthalpy analytical solution
  
 ! look-up values for method used to compute derivative
 USE mDecisions_module,only:       &
