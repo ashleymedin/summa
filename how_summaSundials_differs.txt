@@ -90,8 +90,8 @@ AFTER tag of v4.0.0-exp-Sundials
       Choices are:
        ! (30) choice of variable in energy equations (BE residual or IDA state variable)
        ! closedForm      ! use temperature with closed form heat capacity
-       ! enthalpyFormLU  ! use enthalpy with soil temperature-enthalpy lookup tables
-       ! enthalpyForm    ! use enthalpy with soil temperature-enthalpy analytical solutions
+       ! enthalpyForm    ! use enthalpy with soil temperature-enthalpy lookup tables
+       ! enthalpyFormAN  ! use enthalpy with soil temperature-enthalpy analytical solutions
   02) New output values of the balances, inputted to the outputControl.txt as:
        balanceCasNrg         | 1
        balanceVegNrg         | 1
@@ -181,7 +181,7 @@ c-07) Snow water upper bound should be 1, not iden_ice, commit 265721b5 Feb 13, 
        ! readPerStep    ! read forcing data per time step (default)
        ! readFullSeries ! read full forcing series in a buffered read
   47) Buffered write of scalar output to reduce I/0, commit 3b2e095b Feb 19, 2026 and cleanup through ~Mar 10, 2026
-      If ask for a non-scalar variable just won't output it
+      If ask for a non-scalar variable just won't output it (also in non-buffered version, deprecated output methods will give warning and not output)
       Added new decision write_buff, with choices:
        ! (34) method used to write model output
        ! writePerStep    ! write model output per time step (default)
