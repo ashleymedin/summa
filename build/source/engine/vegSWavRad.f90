@@ -203,12 +203,12 @@ contains
                   scalarCanopyShadedPAR,                & ! intent(out): average absorbed par for shaded leaves (w m-2)
                   scalarCanopyAbsorbedSolar,            & ! intent(out): solar radiation absorbed by canopy (W m-2)
                   scalarGroundAbsorbedSolar,            & ! intent(out): solar radiation absorbed by ground (W m-2)
-                  scalarTotalReflectedSolar,            & ! intent(out): total reflected solar radiation (W m-2)
+                  scalarTotalReflectedSolar,            & ! intent(out): total reflected solar radiation (W m-2), not used
                   scalarTotalAbsorbedSolar,             & ! intent(out): total absorbed solar radiation (W m-2)
                   scalarCanopyReflectedSolar,           & ! intent(out): solar radiation reflected from the canopy (W m-2)
                   scalarGroundReflectedSolar,           & ! intent(out): solar radiation reflected from the ground (W m-2)
-                  scalarBetweenCanopyGapFraction,       & ! intent(out): between canopy gap fraction for beam (-)
-                  scalarWithinCanopyGapFraction         ) ! intent(out): within canopy gap fraction for beam (-)
+                  scalarBetweenCanopyGapFraction,       & ! intent(out): between canopy gap fraction for beam (-), not used
+                  scalarWithinCanopyGapFraction         ) ! intent(out): within canopy gap fraction for beam (-), not used
 
   ! **** all other options
   case(CLM_2stream,UEB_2stream,NL_scatter,BeersLaw)

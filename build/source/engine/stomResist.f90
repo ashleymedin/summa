@@ -1092,38 +1092,38 @@ contains
 
    ! Ball-Berry
    case(BallBerry)
-   call stomata(&
-                ! input
-                vegTypeIndex,                       & ! intent(in): vegetation type index
-                mpe,                                & ! intent(in): prevents overflow error if division by zero
-                PAR,                                & ! intent(in): average absorbed par (w m-2)
-                scalarFoliageNitrogenFactor,        & ! intent(in): foliage nitrogen concentration (1=saturated)
-                scalarVegetationTemp,               & ! intent(in): vegetation temperature (K)
-                scalarSatVP_VegTemp,                & ! intent(in): saturation vapor pressure at vegetation temperature (Pa)
-                scalarVP_CanopyAir,                 & ! intent(in): canopy air vapor pressure (Pa)
-                airtemp,                            & ! intent(in): air temperature at some height above the surface (K)
-                airpres,                            & ! intent(in): air pressure at some height above the surface (Pa)
-                scalarO2air,                        & ! intent(in): atmospheric o2 concentration (Pa)
-                scalarCO2air,                       & ! intent(in): atmospheric co2 concentration (Pa)
-                scalarGrowingSeasonIndex,           & ! intent(in): growing season index (0=off, 1=on)
-                scalarTranspireLim,                 & ! intent(in): weighted average of the soil moiture factor controlling stomatal resistance (-)
-                scalarLeafResistance,               & ! intent(in): leaf boundary layer resistance (s m-1)
-                ! output
-                scalarStomResist,                   & ! intent(out): stomatal resistance (s m-1)
-                scalarPhotosynthesis                ) ! intent(out): photosynthesis (umolco2 m-2 s-1)
+    call stomata(&
+                 ! input
+                 vegTypeIndex,                       & ! intent(in): vegetation type index
+                 mpe,                                & ! intent(in): prevents overflow error if division by zero
+                 PAR,                                & ! intent(in): average absorbed par (w m-2)
+                 scalarFoliageNitrogenFactor,        & ! intent(in): foliage nitrogen concentration (1=saturated)
+                 scalarVegetationTemp,               & ! intent(in): vegetation temperature (K)
+                 scalarSatVP_VegTemp,                & ! intent(in): saturation vapor pressure at vegetation temperature (Pa)
+                 scalarVP_CanopyAir,                 & ! intent(in): canopy air vapor pressure (Pa)
+                 airtemp,                            & ! intent(in): air temperature at some height above the surface (K)
+                 airpres,                            & ! intent(in): air pressure at some height above the surface (Pa)
+                 scalarO2air,                        & ! intent(in): atmospheric o2 concentration (Pa)
+                 scalarCO2air,                       & ! intent(in): atmospheric co2 concentration (Pa)
+                 scalarGrowingSeasonIndex,           & ! intent(in): growing season index (0=off, 1=on)
+                 scalarTranspireLim,                 & ! intent(in): weighted average of the soil moiture factor controlling stomatal resistance (-)
+                 scalarLeafResistance,               & ! intent(in): leaf boundary layer resistance (s m-1)
+                 ! output
+                 scalarStomResist,                   & ! intent(out): stomatal resistance (s m-1)
+                 scalarPhotosynthesis                ) ! intent(out): photosynthesis (umolco2 m-2 s-1)
 
    ! Jarvis
    case(Jarvis)
-   call canres(&
-                ! input
-                PAR,                                & ! intent(in): average absorbed par (w m-2)
-                scalarVegetationTemp,               & ! intent(in): vegetation temperature (K)
-                scalarTranspireLim,                 & ! intent(in): weighted average of the soil moiture factor controlling stomatal resistance (-)
-                scalarVP_CanopyAir,                 & ! intent(in): canopy air vapor pressure (Pa)
-                airpres,                            & ! intent(in): air pressure at some height above the surface (Pa)
-                ! output
-                scalarStomResist,                   & ! intent(out): stomatal resistance (s m-1)
-                scalarPhotosynthesis                ) ! intent(out): photosynthesis (umolco2 m-2 s-1)
+    call canres(&
+                 ! input
+                 PAR,                                & ! intent(in): average absorbed par (w m-2)
+                 scalarVegetationTemp,               & ! intent(in): vegetation temperature (K)
+                 scalarTranspireLim,                 & ! intent(in): weighted average of the soil moiture factor controlling stomatal resistance (-)
+                 scalarVP_CanopyAir,                 & ! intent(in): canopy air vapor pressure (Pa)
+                 airpres,                            & ! intent(in): air pressure at some height above the surface (Pa)
+                 ! output
+                 scalarStomResist,                   & ! intent(out): stomatal resistance (s m-1)
+                 scalarPhotosynthesis                ) ! intent(out): photosynthesis (umolco2 m-2 s-1)
 
    ! check identified an option
    case default; err=20; message=trim(message)//'unable to identify case for stomatal resistance'; return

@@ -794,9 +794,9 @@ contains
 ! local
   REAL(rkind)                 :: FAGE     !snow age function
   REAL(rkind)                 :: ALB
-  INTEGER              :: IB       !indices
-  INTEGER              :: NBAND    !number of solar radiation wave bands
-  INTEGER              :: IC       !direct beam: ic=0; diffuse: ic=1
+  INTEGER                     :: IB       !indices
+  INTEGER                     :: NBAND    !number of solar radiation wave bands
+  INTEGER                     :: IC       !direct beam: ic=0; diffuse: ic=1
 
   REAL(rkind)                 :: WL       !fraction of LAI+SAI that is LAI
   REAL(rkind)                 :: WS       !fraction of LAI+SAI that is SAI

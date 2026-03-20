@@ -150,27 +150,38 @@ contains
   end if  ! (there is snow enough for a layer on the ground)
   
  ! check if we have isolated the snow-soil domain (used in test cases)
- if(ix_bcUpprTdyn == prescribedTemp .or. ix_bcUpprTdyn == zeroFlux .or. ix_bcUpprSoiH == prescribedHead .or. noVeg) then
+ if(ix_bcUpprTdyn == prescribedTemp .or. ix_bcUpprTdyn == zeroFlux .or. ix_bcUpprSoiH == prescribedHead) then
 
-  ! isolated snow-soil domain: do not compute fluxes over vegetation
-  computeVegFlux = .false.
+   ! isolated snow-soil domain: do not compute fluxes over vegetation
+   computeVegFlux = .false.
 
-  ! set vegetation phenology variables to missing
-  scalarLAI                = realMissing    ! one-sided leaf area index (m2 m-2)
-  scalarSAI                = realMissing    ! one-sided stem area index (m2 m-2)
-  scalarExposedLAI         = realMissing    ! exposed leaf area index after burial by snow (m2 m-2)
-  scalarExposedSAI         = realMissing    ! exposed stem area index after burial by snow (m2 m-2)
-  scalarGrowingSeasonIndex = realMissing    ! growing season index (0=off, 1=on)
-  exposedVAI               = realMissing    ! exposed vegetation area index (m2 m-2)
-  canopyDepth              = realMissing    ! canopy depth (m)
-  heightAboveSnow          = realMissing    ! height top of canopy is above the snow surface (m)
+   ! set vegetation phenology variables to missing
+   scalarLAI                = realMissing    ! one-sided leaf area index (m2 m-2)
+   scalarSAI                = realMissing    ! one-sided stem area index (m2 m-2)
+   scalarExposedLAI         = realMissing    ! exposed leaf area index after burial by snow (m2 m-2)
+   scalarExposedSAI         = realMissing    ! exposed stem area index after burial by snow (m2 m-2)
+   scalarGrowingSeasonIndex = realMissing    ! growing season index (0=off, 1=on)
+   exposedVAI               = realMissing    ! exposed vegetation area index (m2 m-2)
+   canopyDepth              = realMissing    ! canopy depth (m)
+   heightAboveSnow          = realMissing    ! height top of canopy is above the snow surface (m)
 
- ! compute vegetation phenology (checks for complete burial of vegetation)
+ ! check if we are on non-upland domain (noVeg), no vegetation
+ elseif(noVeg)then
+
+   computeVegFlux           = .false.     ! do not compute fluxes over vegetation
+   scalarLAI                = 0._rkind    ! one-sided leaf area index (m2 m-2)
+   scalarSAI                = 0._rkind    ! one-sided stem area index (m2 m-2)
+   scalarExposedLAI         = 0._rkind    ! exposed leaf area index after burial by snow (m2 m-2)
+   scalarExposedSAI         = 0._rkind    ! exposed stem area index after burial by snow (m2 m-2)
+   scalarGrowingSeasonIndex = 0._rkind    ! growing season index (0=off, 1=on)
+   exposedVAI               = 0._rkind    ! exposed vegetation area index (m2 m-2)
+   canopyDepth              = 0._rkind    ! canopy depth (m)
+   heightAboveSnow          = 0._rkind    ! height top of canopy is above the snow surface (m)
+
+ ! determine vegetation phenology
+ ! NOTE: recomputing phenology every sub-step accounts for changes in exposed vegetation associated with changes in snow depth
  else
-
-  ! determine vegetation phenology
-  ! NOTE: recomputing phenology every sub-step accounts for changes in exposed vegetation associated with changes in snow depth
-  call phenology(&
+   call phenology(&
                  ! input
                  vegTypeIndex,                & ! intent(in): vegetation type index
                  urbanVegCategory,            & ! intent(in): vegetation category for urban areas
@@ -197,7 +208,7 @@ contains
 
   ! determine if need to include vegetation in the energy flux routines
   minExpLogHgt = minExpLogHgtFac*sqrt(heightCanopyTop) ! minimum height above ground for logarithmic wind profile (m)
-  computeVegFlux = (exposedVAI > 0.05_rkind .and. heightAboveSnow > z0Ground + minExpLogHgt)
+  computeVegFlux = (exposedVAI > 0.05_rkind .and. heightAboveSnow > z0Ground + minExpLogHgt) ! check for complete burial of vegetatio
 
  end if  ! (check if the snow-soil column is isolated)
 
