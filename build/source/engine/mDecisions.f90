@@ -165,10 +165,10 @@ integer(i4b),parameter,public :: FUSEPRMS             = 353    ! FUSE PRMS surfa
 integer(i4b),parameter,public :: FUSEAVIC             = 354    ! FUSE ARNO/VIC surface runoff
 integer(i4b),parameter,public :: FUSETOPM             = 355    ! FUSE TOPMODEL surface runoff
 ! look-up values for the buffered read of forcing data
-integer(i4b),parameter,public :: readPerStep          = 361    ! read forcing data per time step (defualt)
+integer(i4b),parameter,public :: readPerStep          = 361    ! read forcing data per time step (default)
 integer(i4b),parameter,public :: readFullSeries       = 362    ! read full forcing series
 ! look-up values for the buffered write of model output
-integer(i4b),parameter,public :: writePerStep         = 371    ! write data per time step (defualt)
+integer(i4b),parameter,public :: writePerStep         = 371    ! write data per time step (default)
 integer(i4b),parameter,public :: writeFullSeries      = 372    ! write all data for a given output file
 
 ! ----------------------------------------------------------------------------------------------------------- 

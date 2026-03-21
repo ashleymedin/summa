@@ -64,7 +64,7 @@ USE var_lookup,only:iLookDECISIONS            ! named variables for elements of 
 
 ! look-up values for option to read input data
 USE mDecisions_module,only: &
-  readPerStep             , &  ! read forcing data per time step (defualt)
+  readPerStep             , &  ! read forcing data per time step (default)
   readFullSeries               ! read full forcing series
 
 ! file paths
@@ -217,7 +217,7 @@ contains
 
   ! get the number of time steps to read
   select case(model_decisions(iLookDECISIONS%read_force)%iDecision)
-   case(readPerStep);    nRead=1     ! ** read forcing data per time step (defualt)
+   case(readPerStep);    nRead=1     ! ** read forcing data per time step (default)
    case(readFullSeries)              ! ** read full forcing series
      nRemain = (numtim - iStep) + 1                         ! number of remaining time steps in simulation
      nData   = (forcFileInfo(iFile)%nTimeSteps - iRead) + 1 ! number of remaining data steps in file (starting with iRead)
