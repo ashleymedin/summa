@@ -149,8 +149,24 @@ contains
     scalarGroundSnowFraction  = 0._rkind
   end if  ! (there is snow enough for a layer on the ground)
   
+ ! check if we are on non-upland domain (noVeg)
+ if(noVeg)then
+
+  ! we are on non-upland domain (noVeg), no vegetation: do not compute fluxes over vegetation
+   computeVegFlux           = .false. 
+
+   ! set vegetation phenology variables to zero (no vegetation)
+   scalarLAI                = 0._rkind    ! one-sided leaf area index (m2 m-2)
+   scalarSAI                = 0._rkind    ! one-sided stem area index (m2 m-2)
+   scalarExposedLAI         = 0._rkind    ! exposed leaf area index after burial by snow (m2 m-2)
+   scalarExposedSAI         = 0._rkind    ! exposed stem area index after burial by snow (m2 m-2)
+   scalarGrowingSeasonIndex = 0._rkind    ! growing season index (0=off, 1=on)
+   exposedVAI               = 0._rkind    ! exposed vegetation area index (m2 m-2)
+   canopyDepth              = 0._rkind    ! canopy depth (m)
+   heightAboveSnow          = 0._rkind    ! height top of canopy is above the snow surface (m)
+
  ! check if we have isolated the snow-soil domain (used in test cases)
- if(ix_bcUpprTdyn == prescribedTemp .or. ix_bcUpprTdyn == zeroFlux .or. ix_bcUpprSoiH == prescribedHead) then
+ elseif(ix_bcUpprTdyn == prescribedTemp .or. ix_bcUpprTdyn == zeroFlux .or. ix_bcUpprSoiH == prescribedHead) then
 
    ! isolated snow-soil domain: do not compute fluxes over vegetation
    computeVegFlux = .false.
@@ -164,19 +180,6 @@ contains
    exposedVAI               = realMissing    ! exposed vegetation area index (m2 m-2)
    canopyDepth              = realMissing    ! canopy depth (m)
    heightAboveSnow          = realMissing    ! height top of canopy is above the snow surface (m)
-
- ! check if we are on non-upland domain (noVeg), no vegetation
- elseif(noVeg)then
-
-   computeVegFlux           = .false.     ! do not compute fluxes over vegetation
-   scalarLAI                = 0._rkind    ! one-sided leaf area index (m2 m-2)
-   scalarSAI                = 0._rkind    ! one-sided stem area index (m2 m-2)
-   scalarExposedLAI         = 0._rkind    ! exposed leaf area index after burial by snow (m2 m-2)
-   scalarExposedSAI         = 0._rkind    ! exposed stem area index after burial by snow (m2 m-2)
-   scalarGrowingSeasonIndex = 0._rkind    ! growing season index (0=off, 1=on)
-   exposedVAI               = 0._rkind    ! exposed vegetation area index (m2 m-2)
-   canopyDepth              = 0._rkind    ! canopy depth (m)
-   heightAboveSnow          = 0._rkind    ! height top of canopy is above the snow surface (m)
 
  ! determine vegetation phenology
  ! NOTE: recomputing phenology every sub-step accounts for changes in exposed vegetation associated with changes in snow depth

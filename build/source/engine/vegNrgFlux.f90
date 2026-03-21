@@ -1623,7 +1623,14 @@ subroutine aeroResist(&
     referenceHeight   = z0Canopy+zeroPlaneDisplacement
     windConvFactor    = exp(-windReductionFactor*(1._rkind - (referenceHeight/heightCanopyTopAboveSnow)))
     windspdRefHeight  = windspdCanopyTop*windConvFactor
-    if(heightCanopyTopAboveSnow < referenceHeight)then; err=20; message=trim(message)//'canopy top height above snow < reference height'; return; end if 
+    if(heightCanopyTopAboveSnow < referenceHeight)then
+      if(snowDepth>0 .and. ixVegTraits==vegTypeTable)then
+        message=trim(message)//'canopy top height above snow < reference height, decision veg_traits==vegTypeTable is inappropriate for snowy conditions'
+      else
+        message=trim(message)//'canopy top height above snow < reference height, check for parameter interdependency'
+      end if
+      err=20; return
+    end if 
 
     ! compute windspeed at the bottom of the canopy relative to the snow depth (m s-1)
     windConvFactor       = exp(-windReductionFactor*(1._rkind - (heightCanopyBottomAboveSnow/heightCanopyTopAboveSnow)))
