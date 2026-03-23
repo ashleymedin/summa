@@ -243,7 +243,7 @@ subroutine summa_initialize(summa1_struc, err, message)
         case('bvar'  ); call allocGlobal(bvar_meta,    bvarStruct,    err, cmessage)   ! basin-average variables
         case('grid'  ); call allocGlobal(grid_meta,    gridStruct,    err, cmessage)   ! basin grid parameters and variables
         case('lookup'); call allocGlobal(lookup_meta,  lookupStruct,  err, cmessage)   ! basin-average variables
-        case('deriv' ); cycle
+        case('deriv' ); cycle ! derivatives are not stored in the data structure, but are instead computed on the fly and stored in local variables
         case default; err=20; message='unable to find structure name: '//trim(structInfo(iStruct)%structName)
       end select
       ! check errors

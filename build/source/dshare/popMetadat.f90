@@ -1008,7 +1008,6 @@ subroutine read_output_file(err,message)
     ! process time-varying variables
     select case(trim(structName))
       case('forc','prog','diag','flux','bvar') ! these are all time-varying variables that could be output at different frequencies
-
         ! * ensure that the frequency index exists for time varying variables
         if(nWords<freqIndex)then
           message=trim(message)//'must define desired output frequency for time-varing output: variable='//trim(varName)
@@ -1036,7 +1035,6 @@ subroutine read_output_file(err,message)
 
       ! * grid variables do not change on less than annual-level, currently this will not output as type is 'unknown'
       case('grid')
-
         ! * ensure that the frequency index exists for time varying variables
         if(nWords<freqIndex)then
           message=trim(message)//'must define desired output frequency for time-varing output: variable='//trim(varName)
@@ -1047,14 +1045,13 @@ subroutine read_output_file(err,message)
         freqName = trim(lineWords(freqIndex))
 
         ! * set frequency to annual
-        if (freqName/='annual') then
-          if(trim(varName)=='surface_elev' .or. trim(varName)=='debris_thick') then
-            write(*,*)'WARNING: grid variable '//trim(varName)//': outputting variable in annual file as it does not change on less than annual level'
-          else if(trim(varName)=='cell2hru') then
-            write(*,*)'WARNING: grid structure id not outputted, skipping variable '//trim(varName)
-          else
-            write(*,*)'WARNING: temporally constant grid variable '//trim(varName)//': outputting parameter in annual file with no time dimension'
-          endif
+        if(trim(varName)=='surface_elev' .or. trim(varName)=='debris_thick')then
+          if (freqName/='annual')&
+          write(*,*)'WARNING: grid variable '//trim(varName)//': outputting variable in annual file as it does not change on less than annual level'
+        elseif(trim(varName)=='cell2hru') then
+          write(*,*)'WARNING: grid structure id not outputted, skipping variable '//trim(varName)
+        else
+          write(*,*)'WARNING: temporally constant grid variable '//trim(varName)//': outputting parameter in annual file with no time dimension'
         endif
         iFreq = iLookFREQ%annual
         freqName = 'annual'
@@ -1067,9 +1064,8 @@ subroutine read_output_file(err,message)
           freqName = trim(lineWords(freqIndex))
         endif
         if(structName=='time' .or. structName=='indx') then
-          if (freqName/='timestep' .and. freqName/='1') then
-            write(*,*)'WARNING: timestep only variable '//trim(varName)//': outputting at timestep level since it cannot be aggregated'
-          endif
+          if (freqName/='timestep' .and. freqName/='1')&
+          write(*,*)'WARNING: timestep only variable '//trim(varName)//': outputting at timestep level since it cannot be aggregated'
         else
           write(*,*)'WARNING: temporally constant variable '//trim(varName)//': outputting parameter in timestep file with no time dimension'
         endif

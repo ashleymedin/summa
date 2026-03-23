@@ -424,12 +424,12 @@ contains
     case(iLookVarType%routing)
      if(allowRoutingOutput)then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/           gru_DimID, routing_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/           gruChunk, layerChunk, int(timeChunk/gruChunk)+1 /); else; cycle; endif
     case(iLookVarType%glacier)
-     if(    maxGlaciers>0)then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/           gru_DimID, glacier_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/           gruChunk, layerChunk, int(timeChunk/gruChunk)+1 /); else; cycle; endif
+     if(     maxGlaciers>0)then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/           gru_DimID, glacier_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/           gruChunk, layerChunk, int(timeChunk/gruChunk)+1 /); else; cycle; endif
     case(iLookVarType%gridvar)
      if(trim(metaData(iVar)%varName)=='surface_elev' .or. trim(metaData(iVar)%varName)=='debris_thick') then ! only grid vars curently that change with time
-      call cloneStruc(dimensionIDs, lowerBound=1, source=(/gru_DimID, grid_DimID,xDimID,yDimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ gruChunk, gridChunk, maxGridX, maxGridY, 1 /)
+      if(        maxGrid>0)then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/gru_DimID, grid_DimID,xDimID,yDimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ gruChunk, gridChunk, maxGridX, maxGridY, 1 /); else; cycle; endif
      else
-      call cloneStruc(dimensionIDs, lowerBound=1, source=(/gru_DimID, grid_DimID,xDimID,yDimID/), err=err, message=cmessage); writechunk=(/ gruChunk, gridChunk, maxGridX, maxGridY /)
+      if(        maxGrid>0)then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/gru_DimID, grid_DimID,xDimID,yDimID                /), err=err, message=cmessage); writechunk=(/ gruChunk, gridChunk, maxGridX, maxGridY /); else; cycle; endif
      endif
    end select
    ! check errors
