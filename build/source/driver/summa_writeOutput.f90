@@ -90,6 +90,17 @@ USE mDecisions_module,only: &
 implicit none
 private
 public::summa_writeOutputFiles
+
+type output_struct_cache
+   type(var_info),allocatable :: meta(:)      ! cached metadata for one structure
+   integer(i4b)  ,allocatable :: child_map(:) ! cached child map for one structure
+   class(*)      ,allocatable :: stat(:)      ! cached statistics structure vector
+end type output_struct_cache
+
+type output_grid_cache
+   type(var_info)  ,allocatable :: meta(:)    ! cached metadata for grid structure
+end type output_grid_cache
+
 contains
 
  ! used to define/write output files
@@ -143,33 +154,38 @@ contains
  ! ---------------------------------------------------------------------------------------
  implicit none
  ! dummy variables
- integer(i4b),intent(in)               :: modelTimeStep              ! time step index
- type(summa1_type_dec),intent(inout)   :: summa1_struc               ! master summa data structure
- integer(i4b),intent(out)              :: err                        ! error code
- character(*),intent(out)              :: message                    ! error message
+ integer(i4b),intent(in)               :: modelTimeStep               ! time step index
+ type(summa1_type_dec),intent(inout)   :: summa1_struc                ! master summa data structure
+ integer(i4b),intent(out)              :: err                         ! error code
+ character(*),intent(out)              :: message                     ! error message
  ! local variables
- character(len=256)                    :: timeString                 ! portion of restart file name that contains the write-out time
- character(len=256)                    :: restartFile                ! restart file name
- logical(lgt)                          :: printRestart=.false.       ! flag to print a re-start file
- logical(lgt)                          :: printProgress=.false.      ! flag to print simulation progress
- logical(lgt)                          :: defNewOutputFile=.false.   ! flag to define new output files
- logical(lgt)                          :: is_writingOutput=.false.   ! flag to write model output
- logical(lgt)                          :: is_bufferedWrite=.false.   ! flag for buffered write
- integer(i4b)                          :: iGRU,iHRU,iDOM             ! indices of GRUs and HRUs
- integer(i4b)                          :: iVar                       ! index of variable in the data structure
- integer(i4b)                          :: iStruct                    ! index of model structure
- integer(i4b)                          :: iFreq                      ! index of the output frequency
- integer(i4b)                          :: maxWrite                   ! maximum number of time steps written 
- type(var_info)      , allocatable     :: meta(:)                    ! metadata
- type(extended_info) , allocatable     :: stat_meta(:)               ! statistics metadata (includes only desired variables)
- integer(i4b)        , allocatable     :: child_map(:)               ! index of element in child data structure -- meta(map(iVar)) = stat_meta(iVar)
- class(*)            , allocatable     :: timestepData(:)            ! vector timestep data (unlimited polymorphic structure)
- class(*)            , allocatable     :: timestepData2(:,:)         ! vector timestep data for 2D structures (unlimited polymorphic structure)
- class(*)            , allocatable     :: bufferData(:)              ! vector buffer data (unlimited polymorphic structure) 
- class(*)            , allocatable     :: statsData(:)               ! vector stats data (unlimited polymorphic structure)
+ character(len=256)                    :: timeString                  ! portion of restart file name that contains the write-out time
+ character(len=256)                    :: restartFile                 ! restart file name
+ logical(lgt)                          :: printRestart=.false.        ! flag to print a re-start file
+ logical(lgt)                          :: printProgress=.false.       ! flag to print simulation progress
+ logical(lgt)                          :: defNewOutputFile=.false.    ! flag to define new output files
+ logical(lgt)                          :: is_writingOutput=.false.    ! flag to write model output
+ logical(lgt)                          :: is_bufferedWrite=.false.    ! flag for buffered write
+ logical(lgt)                          :: is_allocatingOutput=.false. ! flag to allocate memory for output variables
+ integer(i4b)                          :: iGRU,iHRU,iDOM              ! indices of GRUs and HRUs
+ integer(i4b)                          :: iVar                        ! index of variable in the data structure
+ integer(i4b)                          :: iStruct                     ! index of model structure
+ integer(i4b)                          :: iFreq                       ! index of the output frequency
+ integer(i4b)                          :: maxWrite                    ! maximum number of time steps written 
+ type(var_info)      , allocatable     :: meta(:)                     ! metadata
+ type(extended_info) , allocatable     :: stat_meta(:)                ! statistics metadata (includes only desired variables)
+ integer(i4b)        , allocatable     :: child_map(:)                ! index of element in child data structure -- meta(map(iVar)) = stat_meta(iVar)
+ class(*)            , allocatable     :: timestepData(:)             ! vector timestep data (unlimited polymorphic structure)
+ class(*)            , allocatable     :: timestepData2(:,:)          ! vector timestep data for 2D structures (unlimited polymorphic structure)
+ class(*)            , allocatable     :: bufferData(:)               ! vector buffer data (unlimited polymorphic structure) 
+ class(*)            , allocatable     :: statsData(:)                ! vector stats data (unlimited polymorphic structure)
+ type(output_struct_cache),allocatable,save :: structCache(:)         ! cached per-structure metadata/maps/stats for repeated writes
+ logical(lgt), allocatable,save             :: hasStructCache(:)      ! flags indicating struct cache has been initialized
+ type(output_grid_cache),save               :: gridCache              ! cached grid metadata
+ logical(lgt), save                         :: hasGridCache=.false.   ! flag indicating grid cache has been initialized
  ! error control
- integer(i4b)                          :: ierr                       ! error code of downwind routine
- character(LEN=256)                    :: cmessage                   ! error message of downwind routine
+ integer(i4b)                          :: ierr                        ! error code of downwind routine
+ character(LEN=256)                    :: cmessage                    ! error message of downwind routine
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(&
@@ -270,8 +286,8 @@ contains
 
  ! identify the need to write output file
  select case(model_decisions(iLookDECISIONS%write_buff)%iDecision)
-  case(writePerStep);    is_writingOutput = .true.
-  case(writeFullSeries); is_writingOutput = (modelTimeStep == numtim)
+  case(writePerStep);    is_writingOutput = .true.; is_allocatingOutput = (modelTimeStep == 1)
+  case(writeFullSeries); is_writingOutput = (modelTimeStep == numtim); is_allocatingOutput = (modelTimeStep == numtim)
   case default
    err=10; message=trim(message)//"unknown option for method used to write model output [option="//trim(model_decisions(iLookDECISIONS%write_buff)%cDecision)//"]"; return
  end select
@@ -307,16 +323,16 @@ contains
   do iHRU=1,gru_struc(iGRU)%hruCount
     do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
 
-     ! calculate output statistics
-     do iStruct=1,size(structInfo)
-      select case(trim(structInfo(iStruct)%structName))
-       case('prog'); call calcStats(progStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statProg_meta,resetStats,finalizeStats,statCounter,err,cmessage)
-       case('diag'); call calcStats(diagStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,diagStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statDiag_meta,resetStats,finalizeStats,statCounter,err,cmessage)
-       case('flux'); call calcStats(fluxStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statFlux_meta,resetStats,finalizeStats,statCounter,err,cmessage)
-       case('indx'); call calcStats(indxStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,indxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statIndx_meta,resetStats,finalizeStats,statCounter,err,cmessage)
-      end select
-      if(err/=0)then; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; return; endif
-     end do  ! (looping through structures)
+      ! calculate output statistics
+      do iStruct=1,size(structInfo)
+       select case(trim(structInfo(iStruct)%structName))
+        case('prog'); call calcStats(progStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statProg_meta,resetStats,finalizeStats,statCounter,err,cmessage)
+        case('diag'); call calcStats(diagStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,diagStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statDiag_meta,resetStats,finalizeStats,statCounter,err,cmessage)
+        case('flux'); call calcStats(fluxStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statFlux_meta,resetStats,finalizeStats,statCounter,err,cmessage)
+        case('indx'); call calcStats(indxStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,indxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statIndx_meta,resetStats,finalizeStats,statCounter,err,cmessage)
+       end select
+       if(err/=0)then; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; return; endif
+      end do  ! (looping through structures)
 
     end do  ! (looping through domains)
 
@@ -365,23 +381,45 @@ contains
     ! define names of desired data structures
     case('indx','forc','prog','diag','flux','bvar')  ! restrict attention to the variables that we are interested in
 
-     ! get metadata for desired structures
-     call get_metadata(trim(structInfo(iStruct)%structName), meta, stat_meta, child_map, ierr, cmessage)
-     if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+     if(is_allocatingOutput)then
+      ! get metadata for desired structures
+      call get_metadata(trim(structInfo(iStruct)%structName), meta, stat_meta, child_map, ierr, cmessage)
+      if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-     ! get statistics data structure as a 1-element vector (maxWrite=1)
-     call get_statisticVec(trim(structInfo(iStruct)%structName), maxWrite, summa1_struc, statsData, ierr, cmessage)
-     if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+      ! get statistics data structure as a 1-element vector (maxWrite=1)
+      call get_statisticVec(trim(structInfo(iStruct)%structName), maxWrite, summa1_struc, statsData, ierr, cmessage)
+      if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+      ! initialize cache arrays on first write allocation
+      if(.not.allocated(structCache))then
+       allocate(structCache(size(structInfo)), hasStructCache(size(structInfo)), stat=ierr)
+       if(ierr/=0)then; err=20; message=trim(message)//'problem allocating structure cache'; return; endif
+       hasStructCache(:)=.false.
+      endif
+
+      ! cache structure-specific values so all structures persist simultaneously
+      structCache(iStruct)%meta = meta
+      structCache(iStruct)%child_map = child_map
+      if(allocated(structCache(iStruct)%stat)) deallocate(structCache(iStruct)%stat, stat=ierr)
+      if(ierr/=0)then; err=20; message=trim(message)//'problem deallocating cached statistics structure'; return; endif
+      allocate(structCache(iStruct)%stat(size(statsData)), source=statsData, stat=ierr)
+      if(ierr/=0)then; err=20; message=trim(message)//'problem caching statistics structure'; return; endif
+      hasStructCache(iStruct)=.true.
+     endif
+
+     if(.not.allocated(structCache) .or. .not.hasStructCache(iStruct))then
+      err=20; message=trim(message)//'missing cached structure data for '//trim(structInfo(iStruct)%structName); return
+     endif
 
      ! ----- write buffered data --------------------------------------------------
      if(is_bufferedWrite)then
 
-      ! get saved data for the buffered write
+      ! get saved data for the buffered write 
       call get_savedBuffer(trim(structInfo(iStruct)%structName), bufferData, ierr, cmessage) 
       if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
       ! will only write the (buffered) timestep data but full routine called for convenience
-      call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,meta,statsData(1),bufferData,child_map,indxStruct,ierr,cmessage)
+      call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,structCache(iStruct)%meta,structCache(iStruct)%stat(1),bufferData,structCache(iStruct)%child_map,indxStruct,ierr,cmessage)
       if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
      ! ----- write data and statistics structures ---------------------------------
@@ -396,7 +434,7 @@ contains
 
       ! Passes the full metadata structure and the child map (rather than the stats metadata structure) because
       !  we have the option to write out data of types other than statistics.
-      call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,meta,statsData(1),timestepData,child_map,indxStruct,ierr,cmessage)
+      call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,structCache(iStruct)%meta,structCache(iStruct)%stat(1),timestepData,structCache(iStruct)%child_map,indxStruct,ierr,cmessage)
       if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
      endif  ! (write data and statistics structures)
@@ -404,9 +442,19 @@ contains
     case('grid') ! write glacier grid information on annual basis if requested
      if(model_decisions(iLookDECISIONS%write_buff)%iDecision == writePerStep)then
      
-      ! get metadata for the grid information
-      call get_metadata(trim(structInfo(iStruct)%structName), meta, stat_meta, child_map, ierr, cmessage)
-      if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+      if(is_allocatingOutput)then
+       ! get metadata for the grid information
+       call get_metadata(trim(structInfo(iStruct)%structName), meta, stat_meta, child_map, ierr, cmessage)
+       if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+       ! cache grid metadata so it persists across structures/time steps
+       gridCache%meta = meta
+       hasGridCache = .true.
+      endif
+
+      if(.not.hasGridCache)then
+       err=20; message=trim(message)//'missing cached grid metadata'; return
+      endif
 
       ! get timestep data structure as a 1-element vector (maxWrite=1) since grids only written without buffer
       call get_timestepVec2(trim(structInfo(iStruct)%structName), 1, summa1_struc, timestepData2, ierr, cmessage)
@@ -414,7 +462,7 @@ contains
 
       ! Passes the full metadata structure and the child map (rather than the stats metadata structure) because
       !  we have the option to write out data of types other than statistics.
-      call writeGridData(is_bufferedWrite,finalizeStats,outputTimeStep,meta,timestepData2,ierr,cmessage)
+      call writeGridData(is_bufferedWrite,finalizeStats,outputTimeStep,gridCache%meta,timestepData2,ierr,cmessage)
       if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
  
      else
@@ -612,30 +660,23 @@ contains
  ! initialize error control
  err=0; message='popBufferStruct/'
 
- ! loop through GRUs and HRUs
- do iGRU=1,nGRU
-  do iHRU=1,gru_struc(iGRU)%hruCount
-   do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
+ ! loop through data structures (outer loop so get_metadata is called once per struct, not once per domain)
+ do iStruct=1,size(structInfo)
 
-    ! loop through data structures
-    do iStruct=1,size(structInfo)  ! loop means we can apply error code at the end
+  ! skip data structures we are not interested in
+  select case(trim(structInfo(iStruct)%structName))
+   case('indx','forc','prog','diag','flux','bvar')  ! restrict attention to the variables that we are interested in
+   case default; cycle
+  end select
 
-     ! ----- get metadata for desired structure -----------------------------------------------------------------------------
+  ! get metadata once per structure
+  call get_metadata(trim(structInfo(iStruct)%structName), meta, stat_meta, child_map, ierr, cmessage)
+  if(ierr>0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-     ! select structure
-     select case(trim(structInfo(iStruct)%structName))
-
-      ! get metadata for desired structures
-      case('indx','forc','prog','diag','flux','bvar')  ! restrict attention to the variables that we are interested in
-      call get_metadata(trim(structInfo(iStruct)%structName), meta, stat_meta, child_map, ierr, cmessage)
-      if(ierr>0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
-      ! just keep going if not interested in a data structure
-      case default; cycle 
-
-     end select  ! select data structure
-
-     ! ----- populate data for desired variables ----------------------------------------------------------------------------
+  ! loop through GRUs and HRUs
+  do iGRU=1,nGRU
+   do iHRU=1,gru_struc(iGRU)%hruCount
+    do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
 
      ! NOTE: use stat_meta because these are the variables desired in the output
      do iVar=1,size(stat_meta) ! skip if size=0
@@ -666,15 +707,15 @@ contains
 
      end do  ! (looping through variables)
 
-    end do  ! (looping through structures)
+    end do  ! (looping through domains)
+   end do  ! (looping through HRUs)
+  end do  ! (looping through GRUs)
 
-    ! deallocate space for metadata structures
-    deallocate(meta, stat_meta, child_map, stat=ierr)
-    if(ierr/=0)then; message=trim(message)//'problem allocating metadata'; err=20; return; endif
+  ! deallocate space for metadata structures
+  deallocate(meta, stat_meta, child_map, stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem deallocating metadata'; err=20; return; endif
 
-   end do  ! (looping through domains)
-  end do  ! (looping through HRUs)
- end do  ! (looping through GRUs)
+ end do  ! (looping through structures)
 
  end associate summaAssociate
 
