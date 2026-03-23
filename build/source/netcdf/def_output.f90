@@ -328,6 +328,7 @@ contains
  USE globalData,only:maxLakeLayers                  ! maximum number of lake layers
  USE globalData,only:maxGlaciers                    ! maximum number of glaciers in a GRU
  USE globalData,only:allowRoutingOutput             ! flag to allow routing variable output
+ USE globalData,only:realMissing                    ! missing value for real variables
 
  implicit none
  ! input
@@ -495,6 +496,12 @@ contains
   ! add units attribute
   err = nf90_put_att(ncid,iVarId,'units',trim(catName))
   call netcdf_err(err,message); if (err/=0) return
+
+  ! add fill value for grid variables (spatial extents vary per tile; unwritten cells must carry realMissing)
+  if(metaData(iVar)%varType==iLookVarType%gridvar) then
+   err = nf90_put_att(ncid,iVarId,'_FillValue',realMissing)
+   call netcdf_err(err,message); if (err/=0) return
+  end if
 
   ! add NetCDF variable ID to metadata structure
   metaData(iVar)%ncVarID(iFreq) = iVarId

@@ -614,11 +614,6 @@ contains
  integer(i4b)                :: iFreq                  ! frequency index
  integer(i4b)                :: nGrid                  ! number of grids in the GRU
  integer(i4b)                :: nx,ny                  ! number of grid cells in x,y directions
- integer(i4b)                :: ixStart                ! index of the start of data write
- ! output arrays
- real(rkind)                 :: realArray4(nGRUrun,maxGrid,maxGridX,maxGridY) ! real array for all GRUs and grids in the run domain
- integer(i4b)                :: dataType               ! type of data
- integer(i4b),parameter      :: ixReal4=1001           ! named variable for real
 
  ! initialize error control
  err=0;message="writeGridData/"
@@ -632,9 +627,6 @@ contains
 
   ! check that we have finalized statistics for a given frequency
   if(.not.finalizeStats(iFreq)) cycle
-
-  ! get the start index
-  ixStart = outputTimestep(iFreq)
 
   ! loop through model variables
   do iVar = 1,size(meta)
@@ -656,13 +648,9 @@ contains
     ! check that the variable is desired
     if (iStat==integerMissing)then; message="writeGridData/"; cycle; endif 
 
-    ! initialize the data vectors
+    ! check data structure type and loop thru GRUs and grids
     select type (datt)
-     class is (gru_grid_double); realArray4(:,:,:,:) = realMissing; dataType=ixReal4
-     class default; err=20; message=trim(message)//'grid structure data should be of type gru_grid_double'; return
-    end select
-
-    ! loop thru GRUs and grids
+     class is (gru_grid_double)
       do iGRU=1,size(gru_struc)
        nGrid = gru_struc(iGRU)%nGrid
        do iGrid = 1,nGrid ! for now all grids are glaciers
@@ -670,25 +658,17 @@ contains
         nx = gru_struc(iGRU)%gridInfo(iGrid)%nx
         ny = gru_struc(iGRU)%gridInfo(iGrid)%ny
 
-      ! get the data vectors
-      select type (datt)
-       class is (gru_grid_double); realArray4(iGRU,iGrid,1:nx,1:ny) = datt%gru(iGRU)%grid(iGrid)%var(iVar)%dat2(:,:)
-      end select
+        ! write only active grid extents to avoid padded slab writes
+        err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),datt%gru(iGRU)%grid(iGrid)%var(iVar)%dat2(:,:), &
+                   start=(/iGRU,iGrid,1,1,outputTimestep(iFreq)/),count=(/1,1,nx,ny,1/))
+        call netcdf_err(err,message); if (err/=0) return
 
-     end do  ! glac loop
+       end do  ! grid loop
       end do  ! GRU loop
-
-    ! write the data vectors
-    if(maxGrid==0) cycle ! skip if there is no length
-    select case(dataType)
-     case(ixReal4); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realArray4(1:nGRUrun,1:maxGrid,1:maxGridX,1:maxGridY),start=(/1,1,1,1,outputTimestep(iFreq)/),count=(/nGRUrun,maxGrid,maxGridX,maxGridY,1/))
-     case default; err=20; message=trim(message)//'data must be of type real'; return
-    end select ! data type
-
+     class default; err=20; message=trim(message)//'grid structure data should be of type gru_grid_double'; return
+    end select
    end if ! not changing with time
 
-   ! process error code
-   call netcdf_err(err,message); if (err/=0) return
    message="writeGridData/" ! re-initialize message
 
   end do ! iVar
