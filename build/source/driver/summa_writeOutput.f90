@@ -91,14 +91,6 @@ implicit none
 private
 public::summa_writeOutputFiles
 
-type output_struct_cache
-   type(var_info),allocatable :: meta(:)            ! cached metadata for one structure
-   integer(i4b)  ,allocatable :: child_map(:)       ! cached child map for one structure
-   class(*)      ,allocatable :: statsData(:)       ! cached statistics structure vector
-   class(*)      ,allocatable :: timestepData(:)    ! cached timestep structure vector
-   class(*)      ,allocatable :: timestepData2(:,:) ! cached timestep structure vector
-end type output_struct_cache
-
 contains
 
  ! used to define/write output files
@@ -122,6 +114,7 @@ contains
  USE globalData,only:forcingStep                             ! index of current time step in current forcing file
  USE globalData,only:gru_struc                               ! gru-hru mapping structures
  USE globalData,only:structInfo                              ! information on the data structures
+ USE globalData,only:fullIndxSave,fullForcSave,fullProgSave,fullDiagSave,fullFluxSave,fullBvarSave ! buffered output arrays
  ! global data: time structures
  USE globalData,only:oldTime                                 ! time from the previous time step
  USE globalData,only:finshTime                               ! end time of simulation
@@ -165,22 +158,11 @@ contains
  logical(lgt)                          :: defNewOutputFile=.false.    ! flag to define new output files
  logical(lgt)                          :: is_writingOutput=.false.    ! flag to write model output
  logical(lgt)                          :: is_bufferedWrite=.false.    ! flag for buffered write
- logical(lgt)                          :: is_allocatingOutput=.false. ! flag to allocate memory for output variables
- logical(lgt)                          :: needGrid=.false.            ! flag that will need to print timestep grid vars
  integer(i4b)                          :: iGRU,iHRU,iDOM              ! indices of GRUs and HRUs
  integer(i4b)                          :: iVar                        ! index of variable in the data structure
  integer(i4b)                          :: iStruct                     ! index of model structure
  integer(i4b)                          :: iFreq                       ! index of the output frequency
  integer(i4b)                          :: maxWrite                    ! maximum number of time steps written 
- type(var_info)      , allocatable     :: meta(:)                     ! metadata
- type(extended_info) , allocatable     :: stat_meta(:)                ! statistics metadata (includes only desired variables)
- integer(i4b)        , allocatable     :: child_map(:)                ! index of element in child data structure -- meta(map(iVar)) = stat_meta(iVar)
- class(*)            , allocatable     :: timestepData(:)             ! vector timestep data (unlimited polymorphic structure)
- class(*)            , allocatable     :: timestepData2(:,:)          ! vector timestep data for 2D structures (unlimited polymorphic structure)
- class(*)            , allocatable     :: bufferData(:)               ! vector buffer data (unlimited polymorphic structure) 
- class(*)            , allocatable     :: statsData(:)                ! vector stats data (unlimited polymorphic structure)
- type(output_struct_cache),allocatable,save :: structCache(:)         ! cached per-structure metadata/maps/stats for repeated writes
- logical(lgt), allocatable,save             :: hasStructCache(:)      ! flags indicating struct cache has been initialized
  ! error control
  integer(i4b)                          :: ierr                        ! error code of downwind routine
  character(LEN=256)                    :: cmessage                    ! error message of downwind routine
@@ -211,8 +193,7 @@ contains
  ! ---------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='summa_writeOutputFiles/'
- if (any(grid_meta(:)%varDesire .and. (grid_meta(:)%varName=='surface_elev' .or. grid_meta(:)%varName=='debris_thick'))) needGrid=.true.
-
+ 
  ! identify the start of the writing
  call date_and_time(values=startWrite)
 
@@ -285,8 +266,8 @@ contains
 
  ! identify the need to write output file
  select case(model_decisions(iLookDECISIONS%write_buff)%iDecision)
-  case(writePerStep);    is_writingOutput = .true.; is_allocatingOutput = (modelTimeStep == 1)
-  case(writeFullSeries); is_writingOutput = (modelTimeStep == numtim); is_allocatingOutput = (modelTimeStep == numtim)
+  case(writePerStep);    is_writingOutput = .true.
+  case(writeFullSeries); is_writingOutput = (modelTimeStep == numtim)
   case default
    err=10; message=trim(message)//"unknown option for method used to write model output [option="//trim(model_decisions(iLookDECISIONS%write_buff)%cDecision)//"]"; return
  end select
@@ -340,7 +321,7 @@ contains
   end do  ! (looping through HRUs)
 
   ! calculate basin stats
-  call calcStats(bvarStat%gru(iGRU)%var(:),bvarStruct%gru(iGRU)%var(:),statBvar_meta,resetStats,finalizeStats,statCounter,err,cmessage)
+  call calcStats(bvarStat%gru(iGRU)%var,bvarStruct%gru(iGRU)%var,statBvar_meta,resetStats,finalizeStats,statCounter,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage)//'[bvar stats]'; return; endif
  end do  ! (looping through GRUs)
 
@@ -364,166 +345,51 @@ contains
  endif  ! (if the writePerStep option)
 
  ! ****************************************************************************
- ! *** allocate memory for output variables
- ! ****************************************************************************
- if(is_allocatingOutput)then
-  do iStruct=1,size(structInfo)  ! loop means we can apply error code at the end
-   select case(trim(structInfo(iStruct)%structName))
-
-    ! define names of desired data structures
-    case('indx','forc','prog','diag','flux','bvar','grid')  ! scalar/stat structures
-     ! get metadata for desired structures
-     call get_metadata(trim(structInfo(iStruct)%structName), meta, stat_meta, child_map, ierr, cmessage)
-     if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
-    ! ----------------------------------------------------------------------------
-    ! just keep going if not interested in a data structure
-    case default; cycle
-
-   end select  ! select data structure
-
-   ! get statistics data structure and allocate memory for timestep data structure if not buffered write
-   select case(trim(structInfo(iStruct)%structName))
-
-    case('indx','forc','prog','diag','flux','bvar')  ! scalar/stat structures
-     ! get statistics data structure
-     call get_statisticVec(trim(structInfo(iStruct)%structName), maxWrite, summa1_struc, statsData, ierr, cmessage)
-     if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
-     ! allocate memory for 1D timestep data structure if not buffered write
-     if(.not.is_bufferedWrite)then
-      call get_timestepVec(trim(structInfo(iStruct)%structName),maxWrite, summa1_struc, timestepData, ierr, cmessage)
-      if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-     else
-      allocate(timestepData(0)) ! timestep data not used for buffered write
-     endif
-     allocate(timestepData2(0,0)) ! 2D timestep data structure not used for scalar/stat structures
-
-    case('grid') ! grid structure with 2D variables, does not use the statistics structure
-     allocate(statsData(0))  ! stats data not used for grid structure
-     allocate(timestepData(0)) ! 1D timestep data structure not used for grid structure
-     if (needGrid)then
-      ! allocate memory for 2D timestep data structure if not buffered write
-      if(.not.is_bufferedWrite)then
-       call get_timestepVec2(trim(structInfo(iStruct)%structName), maxWrite, summa1_struc, timestepData2, ierr, cmessage)
-       if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
-      ! buffer write cannot handle non-scalar data, so issue a warning and skip the variable if did not already warn in the metadata retrieval step
-      else 
-       allocate(timestepData2(0,0)) ! 2D timestep data structure not used for buffered write
-       do iVar = 1, size(grid_meta)
-        if(grid_meta(iVar)%varDesire .and. (trim(grid_meta(iVar)%varName)=='surface_elev' .or. trim(grid_meta(iVar)%varName)=='debris_thick'))&
-        write(*,*)'WARNING: cannot output non-scalar type data when using the buffered write option (writeFullSeries), skipping variable '//trim(grid_meta(iVar)%varName)
-       end do
-      endif
-     else
-      allocate(timestepData2(0,0)); cycle ! 2D timestep data structure not used if not needed
-     endif
-
-   end select  ! select data structure
-
-   ! initialize cache arrays on first write allocation
-   if(.not.allocated(structCache))then
-    allocate(structCache(size(structInfo)), hasStructCache(size(structInfo)), stat=ierr)
-    if(ierr/=0)then; err=20; message=trim(message)//'problem allocating structure cache'; return; endif
-   endif
-
-   ! allocate structure-specific values so all structures persist simultaneously
-   allocate(structCache(iStruct)%meta(size(meta)), source=meta, stat=ierr)
-   if(ierr/=0)then; err=20; message=trim(message)//'problem caching meta structure'; return; endif
-   allocate(structCache(iStruct)%child_map(size(child_map)), source=child_map, stat=ierr)
-   if(ierr/=0)then; err=20; message=trim(message)//'problem caching child map'; return; endif
-   allocate(structCache(iStruct)%statsData(size(statsData)), source=statsData, stat=ierr)
-   if(ierr/=0)then; err=20; message=trim(message)//'problem caching statistics structure'; return; endif
-   allocate(structCache(iStruct)%timestepData(size(timestepData)), structCache(iStruct)%timestepData2(size(timestepData2,1),size(timestepData2,2)), stat=ierr)
-   if(ierr/=0)then; err=20; message=trim(message)//'problem caching timestep data structure'; return; endif
-
-   ! cache structure-specific values so all structures persist simultaneously
-   hasStructCache(iStruct)=.true.
-   structCache(iStruct)%meta = meta
-   structCache(iStruct)%child_map = child_map
-   structCache(iStruct)%statsData = statsData
-   structCache(iStruct)%timestepData = timestepData  
-   structCache(iStruct)%timestepData2 = timestepData2
-   deallocate(meta, stat_meta, child_map, statsData, timestepData, timestepData2, stat=ierr)  ! deallocate in case allocated from a previous structure in the loop
-   if(ierr/=0)then; message=trim(message)//'problem deallocating cached data'; err=20; return; endif
-  end do  ! (looping through data structures)
- endif  ! (if allocating output)
-
- ! ****************************************************************************
  ! *** write model output to the NetCDF file
  ! ****************************************************************************
  if(is_writingOutput)then
   do iStruct=1,size(structInfo)  ! loop means we can apply error code at the end
-   select case(trim(structInfo(iStruct)%structName))
 
-    ! define names of desired data structures
-    case('indx','forc','prog','diag','flux','bvar')  ! restrict attention to the variables that we are interested in
+   ! ----- write buffered data --------------------------------------------------
+   if(is_bufferedWrite)then
+    ! write buffered data directly from full*Save arrays
+    select case(trim(structInfo(iStruct)%structName))
+     case('indx'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,indx_meta,indxStat,fullIndxSave,indxChild_map,indxStruct,ierr,cmessage)
+     case('forc'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,forc_meta,forcStat,fullForcSave,forcChild_map,indxStruct,ierr,cmessage)
+     case('prog'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,prog_meta,progStat,fullProgSave,progChild_map,indxStruct,ierr,cmessage)
+     case('diag'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,diag_meta,diagStat,fullDiagSave,diagChild_map,indxStruct,ierr,cmessage)
+     case('flux'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,flux_meta,fluxStat,fullFluxSave,fluxChild_map,indxStruct,ierr,cmessage)
+     case('bvar'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,bvar_meta,bvarStat,fullBvarSave,bvarChild_map,indxStruct,ierr,cmessage)
+     case('grid') ! buffer write cannot handle non-scalar (grid) data, so issue a warning
+      do iVar = 1, size(grid_meta)
+       if(grid_meta(iVar)%varDesire .and. (trim(grid_meta(iVar)%varName)=='surface_elev' .or. trim(grid_meta(iVar)%varName)=='debris_thick'))&
+       write(*,*)'WARNING: cannot output non-scalar type data when using the buffered write option (writeFullSeries), skipping variable '//trim(grid_meta(iVar)%varName)
+      end do
+      cycle
+     case default; cycle ! just keep going if not interested in a data structure
+    end select
+    if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-     if(.not.allocated(structCache) .or. .not.hasStructCache(iStruct))then
-      err=20; message=trim(message)//'missing cached structure data for '//trim(structInfo(iStruct)%structName); return
-     endif
+   ! ----- write data and statistics structures ---------------------------------
+   else
 
-     ! keep statistics cache current each timestep without reallocation
-     call update_statisticVec(trim(structInfo(iStruct)%structName), summa1_struc, structCache(iStruct)%statsData, ierr, cmessage)
-     if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+    ! check per step write
+    if(maxWrite/=1)then; err=20; message=trim(message)//'expect maxWrite=1'; return; endif
+    ! pass one-step data as length-1 arrays expected by writeData/writeGridData
+    select case(trim(structInfo(iStruct)%structName))
+     case('indx'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,indx_meta,indxStat,[indxStruct],indxChild_map,indxStruct,ierr,cmessage)
+     case('forc'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,forc_meta,forcStat,[forcStruct],forcChild_map,indxStruct,ierr,cmessage)
+     case('prog'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,prog_meta,progStat,[progStruct],progChild_map,indxStruct,ierr,cmessage)
+     case('diag'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,diag_meta,diagStat,[diagStruct],diagChild_map,indxStruct,ierr,cmessage)
+     case('flux'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,flux_meta,fluxStat,[fluxStruct],fluxChild_map,indxStruct,ierr,cmessage)
+     case('bvar'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,bvar_meta,bvarStat,[bvarStruct],bvarChild_map,indxStruct,ierr,cmessage)
+     case('grid'); call writeGridData(finalizeStats,outputTimeStep,grid_meta,gridStruct,ierr,cmessage)
+     case default; cycle ! just keep going if not interested in a data structure
+    end select
+    if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-     ! ----- write buffered data --------------------------------------------------
-     if(is_bufferedWrite)then
+   endif ! (if buffered write)
 
-      ! get saved data for the buffered write 
-      call get_savedBuffer(trim(structInfo(iStruct)%structName), bufferData, ierr, cmessage) 
-      if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
-      ! will only write the (buffered) timestep data but full routine called for convenience
-      call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,structCache(iStruct)%meta,structCache(iStruct)%statsData(1),bufferData,structCache(iStruct)%child_map,indxStruct,ierr,cmessage)
-      if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
-     ! ----- write data and statistics structures ---------------------------------
-     else  
-
-      ! check per step write
-      if(maxWrite/=1)then; err=20; message=trim(message)//'expect maxWrite=1'; return; endif
-
-      ! update timestep data structure as a 1-element vector (maxWrite=1)
-      call update_timestepVec(trim(structInfo(iStruct)%structName), maxWrite, summa1_struc, structCache(iStruct)%timestepData, ierr, cmessage)
-      if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
-      ! Passes the full metadata structure and the child map (rather than the stats metadata structure) because
-      !  we have the option to write out data of types other than statistics.
-      call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,structCache(iStruct)%meta,structCache(iStruct)%statsData(1),structCache(iStruct)%timestepData,structCache(iStruct)%child_map,indxStruct,ierr,cmessage)
-      if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
-     endif  ! (write data and statistics structures)
-    ! ----------------------------------------------------------------------------    
-    case('grid') ! write glacier grid information on annual basis if requested
-     if (needGrid .and. finalizeStats(get_ixFreq('annual')))then
-      if(model_decisions(iLookDECISIONS%write_buff)%iDecision == writePerStep)then ! grids only written without buffer
-
-       if(.not.allocated(structCache) .or. .not.hasStructCache(iStruct))then
-        err=20; message=trim(message)//'missing cached structure data for '//trim(structInfo(iStruct)%structName); return
-       endif
-
-       ! check per step write
-       if(maxWrite/=1)then; err=20; message=trim(message)//'expect maxWrite=1'; return; endif
-
-       ! get timestep data structure
-       call update_timestepVec2(trim(structInfo(iStruct)%structName), maxWrite, summa1_struc, structCache(iStruct)%timestepData2, ierr, cmessage)
-       if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
-       ! Passes the full metadata structure and the child map (rather than the stats metadata structure) because
-       !  we have the option to write out data of types other than statistics.
-       call writeGridData(is_bufferedWrite,finalizeStats,outputTimeStep,structCache(iStruct)%meta,structCache(iStruct)%timestepData2,ierr,cmessage)
-       if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-      endif  ! (if the writePerStep option)
-     else
-       cycle  ! skip writing grid data if not needed
-     endif
-
-    ! ----------------------------------------------------------------------------
-    ! just keep going if not interested in a data structure
-    case default; cycle
-   end select  ! select data structure
   end do  ! (looping through data structures)
  endif  ! (if writing output)
 
@@ -683,9 +549,9 @@ contains
  integer(i4b)                         :: iDOM             ! index of domain
  integer(i4b)                         :: iVar             ! index of variable
  integer(i4b)                         :: pVar             ! index of "parent" variable (i.e., index in the data structure)
+ integer(i4b)                         :: nVar             ! number of variables in the meta data structure
  type(var_info)       , allocatable   :: meta(:)          ! metadata
  type(extended_info)  , allocatable   :: stat_meta(:)     ! statistics metadata (includes only desired variables)
- integer(i4b)         , allocatable   :: child_map(:)     ! index of element in child data structure -- meta(map(iVar)) = stat_meta(iVar) 
  ! error control
  integer(i4b)                         :: ierr             ! local error code
  character(len=256)                   :: cmessage         ! error message of the downwind routine
@@ -708,34 +574,33 @@ contains
  ! loop through data structures
  do iStruct=1,size(structInfo)
 
-  ! skip data structures we are not interested in
+  ! get variables desired in the output
   select case(trim(structInfo(iStruct)%structName))
-   case('indx','forc','prog','diag','flux','bvar')  ! restrict attention to the variables that we are interested in
-   case default; cycle
+   case('indx'); nVar = size(statIndx_meta)
+   case('forc'); nVar = size(statForc_meta)
+   case('prog'); nVar = size(statProg_meta)
+   case('diag'); nVar = size(statDiag_meta)
+   case('flux'); nVar = size(statFlux_meta)
+   case('bvar'); nVar = size(statBvar_meta)
+   case default; cycle! restrict attention to the data structures that we are interested in
   end select
 
-  ! get metadata once per structure
-  call get_metadata(trim(structInfo(iStruct)%structName), meta, stat_meta, child_map, ierr, cmessage)
-  if(ierr>0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+  do iVar=1,nVar ! skip if size=0
+     
+   ! get index in parent structure, don't do anything if var is not requested or not a scalar variable
+   select case(trim(structInfo(iStruct)%structName))
+    case('indx'); if(.not.statIndx_meta(iVar)%varDesire .or. statIndx_meta(iVar)%varType/=iLookVarType%outstat) cycle; pVar = statIndx_meta(iVar)%ixParent
+    case('forc'); if(.not.statForc_meta(iVar)%varDesire .or. statForc_meta(iVar)%varType/=iLookVarType%outstat) cycle; pVar = statForc_meta(iVar)%ixParent
+    case('prog'); if(.not.statProg_meta(iVar)%varDesire .or. statProg_meta(iVar)%varType/=iLookVarType%outstat) cycle; pVar = statProg_meta(iVar)%ixParent
+    case('diag'); if(.not.statDiag_meta(iVar)%varDesire .or. statDiag_meta(iVar)%varType/=iLookVarType%outstat) cycle; pVar = statDiag_meta(iVar)%ixParent
+    case('flux'); if(.not.statFlux_meta(iVar)%varDesire .or. statFlux_meta(iVar)%varType/=iLookVarType%outstat) cycle; pVar = statFlux_meta(iVar)%ixParent
+    case('bvar'); if(.not.statBvar_meta(iVar)%varDesire .or. statBvar_meta(iVar)%varType/=iLookVarType%outstat) cycle; pVar = statBvar_meta(iVar)%ixParent
+   end select
 
   ! loop through GRUs and HRUs
   do iGRU=1,nGRU
    do iHRU=1,gru_struc(iGRU)%hruCount
     do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
-
-     ! NOTE: use stat_meta because these are the variables desired in the output
-     do iVar=1,size(stat_meta) ! skip if size=0
-     
-      ! don't do anything if var is not requested or not a scalar variable
-      if (.not.stat_meta(iVar)%varDesire) cycle                 ! variable not requested
-      if (stat_meta(iVar)%varType/=iLookVarType%outstat) cycle  ! not a scalar variable
-     
-      ! index in parent structure
-      pVar = stat_meta(iVar)%ixParent
-      if(trim(stat_meta(iVar)%varName)/=trim(meta(pVar)%varName))then
-       message=trim(message)//'variable names do not match'
-       err=20; return
-      endif
      
       ! populate GRU+HRU+DOM structures
       select case(trim(structInfo(iStruct)%structName))
@@ -756,314 +621,11 @@ contains
    end do  ! (looping through HRUs)
   end do  ! (looping through GRUs)
 
-  ! deallocate space for metadata structures
-  deallocate(meta, stat_meta, child_map, stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'problem deallocating metadata'; err=20; return; endif
-
  end do  ! (looping through structures)
 
  end associate summaAssociate
 
  end subroutine popBufferStruct
-
- ! *****************************************************************************
- ! *****************************************************************************
-                                     
- subroutine get_metadata(tag, meta, stat_meta, child_map, err, message)
- ! dummy variables
- character(*)        , intent(in)               :: tag            ! name of data structure
- type(var_info)      , intent(out), allocatable :: meta(:)        ! metadata
- type(extended_info) , intent(out), allocatable :: stat_meta(:)   ! statistics metadata
- integer(i4b)        , intent(out), allocatable :: child_map(:)   ! index of the child data structure
- integer(i4b)        , intent(out)              :: err            ! error code
- character(*)        , intent(out)              :: message        ! error message
- ! local variables
- integer(i4b)                                   :: nVar           ! number of variables in the metadata structure
- integer(i4b)                                   :: nSubset        ! number of variables in the statistics metadata structure
- integer(i4b)                                   :: ierr           ! local error code 
- ! initalize error control
- err=0; message='get_metadata/'
-
- ! get size of metadata structures for a given structure
- select case(trim(tag))
-  case('indx'); nVar = size(indx_meta); nSubset = size(statIndx_meta)
-  case('forc'); nVar = size(forc_meta); nSubset = size(statForc_meta)
-  case('prog'); nVar = size(prog_meta); nSubset = size(statProg_meta)
-  case('diag'); nVar = size(diag_meta); nSubset = size(statDiag_meta)
-  case('flux'); nVar = size(flux_meta); nSubset = size(statFlux_meta)
-  case('bvar'); nVar = size(bvar_meta); nSubset = size(statBvar_meta)
-  case('grid'); nVar = size(grid_meta); nSubset = size(statGrid_meta)
-  case default; err=10; message=trim(message)//'data structure not needed -- should not get here'; return  
- end select
-
- ! allocate space for the metadata structures
- allocate(meta(nVar), stat_meta(nSubset), child_map(nVar), stat=ierr)
- if(ierr/=0)then; message=trim(message)//'problem allocating metadata'; err=20; return; endif
-
- ! save metadata
- select case(trim(tag))
-  case('indx'); meta(:) = indx_meta(:); stat_meta(:) = statIndx_meta(:); child_map(:) = indxChild_map(:)
-  case('forc'); meta(:) = forc_meta(:); stat_meta(:) = statForc_meta(:); child_map(:) = forcChild_map(:)
-  case('prog'); meta(:) = prog_meta(:); stat_meta(:) = statProg_meta(:); child_map(:) = progChild_map(:)
-  case('diag'); meta(:) = diag_meta(:); stat_meta(:) = statDiag_meta(:); child_map(:) = diagChild_map(:)
-  case('flux'); meta(:) = flux_meta(:); stat_meta(:) = statFlux_meta(:); child_map(:) = fluxChild_map(:)
-  case('bvar'); meta(:) = bvar_meta(:); stat_meta(:) = statBvar_meta(:); child_map(:) = bvarChild_map(:)
-  case('grid'); meta(:) = grid_meta(:); stat_meta(:) = statGrid_meta(:); child_map(:) = gridChild_map(:)
- end select
-
- end subroutine get_metadata
-
- ! *****************************************************************************
- ! *****************************************************************************
-
- subroutine get_savedBuffer(tag, structVec, err, message)
- ! saved timestep data
- USE globalData,only:fullIndxSave                         ! x(:)%gru(:)%hru(:)%dom(:)%var(:) -- saved output for indices
- USE globalData,only:fullForcSave                         ! x(:)%gru(:)%hru(:)%var(:)        -- saved output for forcing
- USE globalData,only:fullProgSave                         ! x(:)%gru(:)%hru(:)%dom(:)%var(:) -- saved output for prognostic variables
- USE globalData,only:fullDiagSave                         ! x(:)%gru(:)%hru(:)%dom(:)%var(:) -- saved output for diagnostic variables
- USE globalData,only:fullFluxSave                         ! x(:)%gru(:)%hru(:)%dom(:)%var(:) -- saved output for flux variables
- USE globalData,only:fullBvarSave                         ! x(:)%gru(:)%var(:)               -- saved output for basin variables
- ! dummy variables
- character(*) , intent(in)               :: tag            ! name of data structure
- class(*)     , intent(out), allocatable :: structVec(:)   ! vector of any data structure
- integer(i4b) , intent(out)              :: err            ! error code
- character(*) , intent(out)              :: message        ! error message
- ! initialize errror control
- err=0; message='get_savedBuffer/'
-
- ! allocate data
- select case(trim(tag))
-  case('indx'); allocate(structVec, source=fullIndxSave, stat=err)
-  case('forc'); allocate(structVec, source=fullForcSave, stat=err)
-  case('prog'); allocate(structVec, source=fullProgSave, stat=err)
-  case('diag'); allocate(structVec, source=fullDiagSave, stat=err)
-  case('flux'); allocate(structVec, source=fullFluxSave, stat=err)
-  case('bvar'); allocate(structVec, source=fullBvarSave, stat=err)
-  case default; err=20; message=trim(message)//'cannot identify data structure'; return
- end select
-
- ! check errors
- if(err/=0)then
-  message=trim(message)//'problem allocating space for structure '//trim(tag)
-  err=20; return
- endif
-
- end subroutine get_savedBuffer
-
- ! *****************************************************************************
- ! *****************************************************************************
-
- subroutine get_timestepVec(tag, nVec, summaStruct, structVec, err, message)
- USE summa_type,only:summa1_type_dec                                 ! master summa data type
- ! dummy variables
- character(*)          , intent(in)               :: tag             ! name of data structure
- integer(i4b)          , intent(in)               :: nVec            ! number of vector elements
- type(summa1_type_dec) , intent(in)               :: summaStruct     ! master summa data structure
- class(*)              , intent(out), allocatable :: structVec(:)    ! vector of any data structure
- integer(i4b)          , intent(out)              :: err             ! error code
- character(*)          , intent(out)              :: message         ! error message
- ! initialize errror control
- err=0; message='get_timestepVec/'
-
- ! allocate data 
- select case(trim(tag))
-  case('indx'); allocate(structVec(nVec), source=summaStruct%indxStruct, stat=err)
-  case('forc'); allocate(structVec(nVec), source=summaStruct%forcStruct, stat=err)
-  case('prog'); allocate(structVec(nVec), source=summaStruct%progStruct, stat=err)
-  case('diag'); allocate(structVec(nVec), source=summaStruct%diagStruct, stat=err)
-  case('flux'); allocate(structVec(nVec), source=summaStruct%fluxStruct, stat=err)
-  case('bvar'); allocate(structVec(nVec), source=summaStruct%bvarStruct, stat=err)
-  case default; err=20; message=trim(message)//'cannot identify data structure'; return
- end select
-
- ! check errors
- if(err/=0)then
-  message=trim(message)//'problem allocating space for structure '//trim(tag)
-  err=20; return
- endif
-
- end subroutine get_timestepVec
-
-
- ! *****************************************************************************
- ! *****************************************************************************
-
- subroutine update_timestepVec(tag, summaStruct, structVec, err, message)
- USE summa_type,only:summa1_type_dec                                 ! master summa data type
- ! dummy variables
- character(*)          , intent(in)                 :: tag            ! name of data structure
- type(summa1_type_dec) , intent(in)                 :: summaStruct    ! master summa data structure
- class(*)              , intent(inout), allocatable :: structVec(:)   ! cached vector of any data structure
- integer(i4b)          , intent(out)                :: err            ! error code
- character(*)          , intent(out)                :: message        ! error message
- ! initialize errror control
- err=0; message='update_timestepVec/'
-
- if(.not.allocated(structVec))then
-  err=20; message=trim(message)//'time cache is not allocated'; return
- endif
-
- ! update cached values in-place (same dynamic type/shape, no new allocation)
- select case(trim(tag))
-  case('indx'); structVec = summaStruct%indxStruct
-  case('forc'); structVec = summaStruct%forcStruct
-  case('prog'); structVec = summaStruct%progStruct
-  case('diag'); structVec = summaStruct%diagStruct
-  case('flux'); structVec = summaStruct%fluxStruct
-  case('bvar'); structVec = summaStruct%bvarStruct
-  case default; err=20; message=trim(message)//'cannot identify data structure'; return
- end select
-
- end subroutine update_timestepVec
-
-
- ! *****************************************************************************
- ! *****************************************************************************
-
- subroutine get_timestepVec2(tag, nVec, summaStruct, structVec2, err, message)
- USE summa_type,only:summa1_type_dec                                 ! master summa data type
- ! dummy variables
- character(*)          , intent(in)               :: tag             ! name of data structure
- integer(i4b)          , intent(in)               :: nVec            ! number of vector elements
- type(summa1_type_dec) , intent(in)               :: summaStruct     ! master summa data structure
- class(*)              , intent(out), allocatable :: structVec2(:,:) ! 2D vector of any data structure
- integer(i4b)          , intent(out)              :: err             ! error code
- character(*)          , intent(out)              :: message         ! error message
- ! initialize errror control
- err=0; message='get_timestepVec/'
-
- ! allocate data 
- select case(trim(tag))
-  case('grid'); allocate(structVec2(nVec,nVec), source=summaStruct%gridStruct, stat=err)
-  case default; err=20; message=trim(message)//'cannot identify data structure'; return
- end select
-
- ! check errors
- if(err/=0)then
-  message=trim(message)//'problem allocating space for structure '//trim(tag)
-  err=20; return
- endif
-
- end subroutine get_timestepVec2
-
-
- ! *****************************************************************************
- ! *****************************************************************************
-
- subroutine update_timestepVec2(tag, summaStruct, structVec2, err, message)
- USE summa_type,only:summa1_type_dec                                 ! master summa data type
- ! dummy variables
- character(*)          , intent(in)                 :: tag            ! name of data structure
- type(summa1_type_dec) , intent(in)                 :: summaStruct    ! master summa data structure
- class(*)              , intent(inout), allocatable :: structVec2(:,:)! cached 2D vector of any data structure
- integer(i4b)          , intent(out)                :: err            ! error code
- character(*)          , intent(out)                :: message        ! error message
- ! initialize errror control
- err=0; message='update_timestepVec2/'
-
- if(.not.allocated(structVec2))then
-  err=20; message=trim(message)//'time cache is not allocated'; return
- endif
-
- ! update cached values in-place (same dynamic type/shape, no new allocation)
- select case(trim(tag))
-  case('grid'); structVec2 = summaStruct%gridStruct
-  case default; err=20; message=trim(message)//'cannot identify data structure'; return
- end select
-
- end subroutine update_timestepVec2
-
- ! *****************************************************************************
- ! *****************************************************************************
-
- subroutine get_statisticVec(tag, nVec, summaStruct, structVec, err, message)
- USE summa_type,only:summa1_type_dec                                ! master summa data type
- ! dummy variables
- character(*)          , intent(in)               :: tag            ! name of data structure
- integer(i4b)          , intent(in)               :: nVec           ! number of vector elements
- type(summa1_type_dec) , intent(in)               :: summaStruct    ! master summa data structure
- class(*)              , intent(out), allocatable :: structVec(:)   ! vector of any data structure
- integer(i4b)          , intent(out)              :: err            ! error code
- character(*)          , intent(out)              :: message        ! error message
- ! initialize errror control
- err=0; message='get_statisticVec/'
-
- ! allocate data
- select case(trim(tag))
-  case('indx'); allocate(structVec(nVec), source=summaStruct%indxStat, stat=err)
-  case('forc'); allocate(structVec(nVec), source=summaStruct%forcStat, stat=err)
-  case('prog'); allocate(structVec(nVec), source=summaStruct%progStat, stat=err)
-  case('diag'); allocate(structVec(nVec), source=summaStruct%diagStat, stat=err)
-  case('flux'); allocate(structVec(nVec), source=summaStruct%fluxStat, stat=err)
-  case('bvar'); allocate(structVec(nVec), source=summaStruct%bvarStat, stat=err)
-  case default; err=20; message=trim(message)//'cannot identify data structure'; return
- end select
-
- ! check errors
- if(err/=0)then
-  message=trim(message)//'problem allocating space for structure '//trim(tag)
-  err=20; return
- endif
-
- end subroutine get_statisticVec
-
- ! *****************************************************************************
- ! *****************************************************************************
-
- subroutine update_statisticVec(tag, summaStruct, structVec, err, message)
- USE summa_type,only:summa1_type_dec                                ! master summa data type
- ! dummy variables
- character(*)          , intent(in)                 :: tag            ! name of data structure
- type(summa1_type_dec) , intent(in)                 :: summaStruct    ! master summa data structure
- class(*)              , intent(inout), allocatable :: structVec(:)   ! cached vector of any data structure
- integer(i4b)          , intent(out)                :: err            ! error code
- character(*)          , intent(out)                :: message        ! error message
- ! initialize errror control
- err=0; message='update_statisticVec/'
-
- if(.not.allocated(structVec))then
-  err=20; message=trim(message)//'statistics cache is not allocated'; return
- endif
-
- ! update cached values in-place (same dynamic type/shape, no new allocation)
- select case(trim(tag))
-  case('indx'); structVec = summaStruct%indxStat
-  case('forc'); structVec = summaStruct%forcStat
-  case('prog'); structVec = summaStruct%progStat
-  case('diag'); structVec = summaStruct%diagStat
-  case('flux'); structVec = summaStruct%fluxStat
-  case('bvar'); structVec = summaStruct%bvarStat
-  case default; err=20; message=trim(message)//'cannot identify data structure'; return
- end select
-
- end subroutine update_statisticVec
-
- ! *****************************************************************************
- ! *****************************************************************************
-
- subroutine update_statisticVec2(tag, summaStruct, structVec2, err, message)
- USE summa_type,only:summa1_type_dec                                 ! master summa data type
- ! dummy variables
- character(*)          , intent(in)                 :: tag            ! name of data structure
- type(summa1_type_dec) , intent(in)                 :: summaStruct    ! master summa data structure
- class(*)              , intent(inout), allocatable :: structVec2(:,:)! cached 2D vector of any data structure
- integer(i4b)          , intent(out)                :: err            ! error code
- character(*)          , intent(out)                :: message        ! error message
- ! initialize errror control
- err=0; message='update_statisticVec2/'
-
- if(.not.allocated(structVec2))then
-  err=20; message=trim(message)//'statistics cache is not allocated'; return
- endif
-
- ! update cached values in-place (same dynamic type/shape, no new allocation)
- select case(trim(tag))
-  case('grid'); structVec2 = summaStruct%gridStruct
-  case default; err=20; message=trim(message)//'cannot identify data structure'; return
- end select
-
- end subroutine update_statisticVec2
 
  ! *****************************************************************************
  ! *****************************************************************************
