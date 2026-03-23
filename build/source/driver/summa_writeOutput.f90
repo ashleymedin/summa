@@ -550,8 +550,6 @@ contains
  integer(i4b)                         :: iVar             ! index of variable
  integer(i4b)                         :: pVar             ! index of "parent" variable (i.e., index in the data structure)
  integer(i4b)                         :: nVar             ! number of variables in the meta data structure
- type(var_info)       , allocatable   :: meta(:)          ! metadata
- type(extended_info)  , allocatable   :: stat_meta(:)     ! statistics metadata (includes only desired variables)
  ! error control
  integer(i4b)                         :: ierr             ! local error code
  character(len=256)                   :: cmessage         ! error message of the downwind routine
@@ -597,29 +595,27 @@ contains
     case('bvar'); if(.not.statBvar_meta(iVar)%varDesire .or. statBvar_meta(iVar)%varType/=iLookVarType%outstat) cycle; pVar = statBvar_meta(iVar)%ixParent
    end select
 
-  ! loop through GRUs and HRUs
-  do iGRU=1,nGRU
-   do iHRU=1,gru_struc(iGRU)%hruCount
-    do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
-     
-      ! populate GRU+HRU+DOM structures
-      select case(trim(structInfo(iStruct)%structName))
-       case('indx'); fullIndxSave(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar) = indxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(pVar)%dat(1)
-       case('forc')  ! HRU-only data structure
-        if(iDOM==1)  fullForcSave(iTime)%gru(iGRU)%hru(iHRU)%var(iVar) = forcStruct%gru(iGRU)%hru(iHRU)%var(pVar)
-       case('prog'); fullProgSave(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar) = progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(pVar)%dat(1)
-       case('diag'); fullDiagSave(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar) = diagStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(pVar)%dat(1)
-       case('flux'); fullFluxSave(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar) = fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(pVar)%dat(1)
-       case('bvar')  ! GRU-only data structure
-        if(iHRU==1 .and. iDOM==1) fullBvarSave(iTime)%gru(iGRU)%var(iVar) = bvarStruct%gru(iGRU)%var(pVar)%dat(1)
-       case default; err=20; message=trim(message)//'do not expect any other structures than what is listed'; return
-      end select
+   ! loop through GRUs and HRUs
+   do iGRU=1,nGRU
+    do iHRU=1,gru_struc(iGRU)%hruCount
+     do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
+       ! populate GRU+HRU+DOM structures
+       select case(trim(structInfo(iStruct)%structName))
+        case('indx'); fullIndxSave(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar) = indxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(pVar)%dat(1)
+        case('forc')  ! HRU-only data structure
+         if(iDOM==1)  fullForcSave(iTime)%gru(iGRU)%hru(iHRU)%var(iVar) = forcStruct%gru(iGRU)%hru(iHRU)%var(pVar)
+        case('prog'); fullProgSave(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar) = progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(pVar)%dat(1)
+        case('diag'); fullDiagSave(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar) = diagStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(pVar)%dat(1)
+        case('flux'); fullFluxSave(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar) = fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(pVar)%dat(1)
+        case('bvar')  ! GRU-only data structure
+         if(iHRU==1 .and. iDOM==1) fullBvarSave(iTime)%gru(iGRU)%var(iVar) = bvarStruct%gru(iGRU)%var(pVar)%dat(1)
+        case default; err=20; message=trim(message)//'do not expect any other structures than what is listed'; return
+       end select
+     end do  ! (looping through domains)
+    end do  ! (looping through HRUs)
+   end do  ! (looping through GRUs)
 
-     end do  ! (looping through variables)
-
-    end do  ! (looping through domains)
-   end do  ! (looping through HRUs)
-  end do  ! (looping through GRUs)
+  end do  ! (looping through variables)
 
  end do  ! (looping through structures)
 
@@ -631,5 +627,3 @@ contains
  ! *****************************************************************************
 
 end module summa_writeOutput
-
-
