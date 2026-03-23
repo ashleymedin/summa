@@ -44,7 +44,6 @@ USE globalData,only:statDiag_meta             ! child metadata for stats
 USE globalData,only:statFlux_meta             ! child metadata for stats
 USE globalData,only:statIndx_meta             ! child metadata for stats
 USE globalData,only:statBvar_meta             ! child metadata for stats
-USE globalData,only:statGrid_meta             ! child metadata for stats
 
 ! index of the child data structure
 USE globalData,only:forcChild_map             ! index of the child data structure: stats forc
@@ -53,7 +52,6 @@ USE globalData,only:diagChild_map             ! index of the child data structur
 USE globalData,only:fluxChild_map             ! index of the child data structure: stats flux
 USE globalData,only:indxChild_map             ! index of the child data structure: stats indx
 USE globalData,only:bvarChild_map             ! index of the child data structure: stats bvar
-USE globalData,only:gridChild_map             ! index of the child data structure: stats grid
 
 ! named variables
 USE var_lookup,only:maxvarFreq                ! maximum number of output files

@@ -663,12 +663,12 @@ contains
     end select
 
     ! loop thru GRUs and grids
-    do iGRU=1,size(gru_struc)
-     nGrid = gru_struc(iGRU)%nGrid
-     do iGrid = 1,nGrid ! for now all grids are glaciers
-      ! get the length of each data vector
-      nx = gru_struc(iGRU)%gridInfo(iGrid)%nx
-      ny = gru_struc(iGRU)%gridInfo(iGrid)%ny
+      do iGRU=1,size(gru_struc)
+       nGrid = gru_struc(iGRU)%nGrid
+       do iGrid = 1,nGrid ! for now all grids are glaciers
+        ! get the length of each data vector
+        nx = gru_struc(iGRU)%gridInfo(iGrid)%nx
+        ny = gru_struc(iGRU)%gridInfo(iGrid)%ny
 
       ! get the data vectors
       select type (datt)
@@ -676,7 +676,7 @@ contains
       end select
 
      end do  ! glac loop
-    end do  ! GRU loop
+      end do  ! GRU loop
 
     ! write the data vectors
     if(maxGrid==0) cycle ! skip if there is no length

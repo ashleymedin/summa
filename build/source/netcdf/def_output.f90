@@ -319,6 +319,9 @@ contains
  USE globalData,only:nHRUrun                        ! number of HRUs in the current run
  USE globalData,only:nGRUrun                        ! number of GRUs in the current run
  USE globalData,only:maxDOM                         ! maximum number of domains
+ USE globalData,only:maxGrid                        ! maximum number of grids in a GRU
+ USE globalData,only:maxGridX                       ! maximum number of grid cells in the x-direction
+ USE globalData,only:maxGridY                       ! maximum number of grid cells in the y-direction
  USE globalData,only:maxSoilLayers                  ! maximum number of soil layers
  USE globalData,only:maxSnowLayers                  ! maximum number of snow layers
  USE globalData,only:maxGlceLayers                  ! maximum number of glacier ice layers
@@ -348,6 +351,7 @@ contains
  integer(i4b)                  :: domChunk          ! size of domain chunk to try to use
  integer(i4b)                  :: hruChunk          ! size of hru chunk to try to use
  integer(i4b)                  :: gruChunk          ! size of gru chunk to try to use
+ integer(i4b)                  :: gridChunk         ! size of grid chunk to try to use
  integer(i4b)                  :: layerChunk        ! size of layer chunk to try to use
  character(LEN=256)            :: cmessage          ! error message of downwind routine
  character(LEN=256)            :: catName           ! full variable name
@@ -368,6 +372,7 @@ contains
   gruChunk = min(nGRUrun, chunkSize)
   hruChunk = min(nHRUrun, chunkSize)
   domChunk = min(maxDOM,  chunkSize)
+  gridChunk = min(maxGrid, chunkSize)
   timeChunk = chunkSize
   layerChunk = 1
 
@@ -421,9 +426,9 @@ contains
      if(    maxGlaciers>0)then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/           gru_DimID, glacier_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/           gruChunk, layerChunk, int(timeChunk/gruChunk)+1 /); else; cycle; endif
     case(iLookVarType%gridvar)
      if(trim(metaData(iVar)%varName)=='surface_elev' .or. trim(metaData(iVar)%varName)=='debris_thick') then ! only grid vars curently that change with time
-      call cloneStruc(dimensionIDs, lowerBound=1, source=(/gru_DimID, grid_DimID,xDimID,yDimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ gruChunk, 1, 1, 1, int(timeChunk/gruChunk)+1 /)
+      call cloneStruc(dimensionIDs, lowerBound=1, source=(/gru_DimID, grid_DimID,xDimID,yDimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ gruChunk, gridChunk, maxGridX, maxGridY, 1 /)
      else
-      call cloneStruc(dimensionIDs, lowerBound=1, source=(/gru_DimID, grid_DimID,xDimID,yDimID/), err=err, message=cmessage); writechunk=(/ gruChunk, 1, 1, 1 /)
+      call cloneStruc(dimensionIDs, lowerBound=1, source=(/gru_DimID, grid_DimID,xDimID,yDimID/), err=err, message=cmessage); writechunk=(/ gruChunk, gridChunk, maxGridX, maxGridY /)
      endif
    end select
    ! check errors
