@@ -199,6 +199,9 @@ c-07) Snow water upper bound should be 1, not iden_ice, commit 265721b5 Feb 13, 
    48) Routing histogram variables will not print anymore, since once fixed these to print correctly they slowed the write considerably, commit 7601c6ab Mar 10, 2026
        These can be turned back on with turning allowRoutingOutput flag to .true.
   -49) Smoothing of hydCond_psi function when psi is very small, helps convergence with saturated soil layers, commit 946b6112 Mar 10, 2026
+   50) The number of soil layers does not have to be the same in every HRU now, commit eeb800af	Mar 24, 2026
+   51) Add GRU variable basin__StorageChange in kg/m2/s that summarizes the storage changes across the HRUs so that it can be compared to Grace data, commit eeb800af	Mar 24, 2026
 
 
-Mar 11, 2026
+
+Mar 24, 2026
