@@ -147,7 +147,7 @@ contains
  ! check if the file has the GRU dimension
  err = nf90_inq_dimid(ncid,"gru",dimID);    
  if(err/=nf90_noerr)then         
-   write(*,*) 'WARNING: GRU is not in the initial conditions file ... assuming HRUs in attribute order'
+   write(*,*) 'WARNING: GRU is not in the initial conditions file ... assuming GRUs in attribute order'
    has_gru_id = .false.
    allocate(gru_id(1)) ! just allocate something to avoid problems with the deallocation at the end
    err=nf90_noerr    ! reset this err
