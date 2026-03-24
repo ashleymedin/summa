@@ -29,17 +29,20 @@ USE nr_type
 
 ! missing values
 USE globalData,only: integerMissing, realMissing
+
 ! output constraints
 USE globalData,only:maxSnowLayers       ! maximum number of snow layers
 USE globalData,only:maxSoilLayers       ! maximum number of soil layers
 USE globalData,only:maxGlceLayers       ! maximum number of glacier ice layers
 USE globalData,only:maxLakeLayers       ! maximum number of lake layers
+USE globalData,only:maxLayers           ! maximum number of layers
 USE globalData,only:maxGlaciers         ! maximum number of glaciers in a GRU
 USE globalData,only:maxGrid             ! maximum number of grids in a GRU
 USE globalData,only:maxGridX            ! maximum number of grid cells in the x-direction
 USE globalData,only:maxGridY            ! maximum number of grid cells in the y-direction
 USE globalData,only:nTimeDelay          ! number of timesteps in the time delay histogram
 USE globalData,only:nSpecBand           ! maximum number of spectral bands
+
 ! provide access to global data
 USE globalData,only:nGRUrun             ! number of GRUs in the run
 USE globalData,only:nHRUrun             ! number of HRUs in the run
@@ -740,7 +743,6 @@ contains
                          prog_data,        & ! intent(in): prognostics data
                          bvar_meta,        & ! intent(in): basin (gru) variable metadata
                          bvar_data,        & ! intent(in): basin (gru) variable data
-                         maxLayers,        & ! intent(in): maximum number of layers
                          indx_meta,        & ! intent(in): index metadata
                          indx_data,        & ! intent(in): index data
                          grid_meta,        & ! intent(in): grid metadata
@@ -772,7 +774,6 @@ contains
  type(gru_hru_dom_doubleVec),intent(in) :: prog_data     ! prognostic vars
  type(var_info),intent(in)              :: bvar_meta(:)  ! basin variable metadata
  type(gru_doubleVec),intent(in)         :: bvar_data     ! basin variables
- integer(i4b), intent(in)               :: maxLayers     ! maximum number of total layers
  type(var_info),intent(in)              :: indx_meta(:)  ! metadata
  type(gru_hru_dom_intVec),intent(in)    :: indx_data     ! indexing vars
  type(var_info),intent(in)              :: grid_meta(:)  ! grid metadata
@@ -865,7 +866,7 @@ contains
                      err = nf90_def_dim(ncid,trim(hruDimName)    ,nHRU           ,    hruDimID); message='iCreate[hru]'     ; call netcdf_err(err,message); if(err/=0)return
                      err = nf90_def_dim(ncid,trim(domDimName)    ,maxDOM         ,    domDimID); message='iCreate[dom]'     ; call netcdf_err(err,message); if(err/=0)return
                      err = nf90_def_dim(ncid,trim(tdhDimName)    ,nTimeDelay     ,    tdhDimID); message='iCreate[tdh]'     ; call netcdf_err(err,message); if(err/=0)return
- if( maxGlaciers>0)  err = nf90_def_dim(ncid,trim(nglDimName)    ,maxGlaciers    ,    nglDimID); message='iCreate[glac]'    ; call netcdf_err(err,message); if(err/=0)return
+ if(  maxGlaciers>0) err = nf90_def_dim(ncid,trim(nglDimName)    ,maxGlaciers    ,    nglDimID); message='iCreate[glac]'    ; call netcdf_err(err,message); if(err/=0)return
                      err = nf90_def_dim(ncid,trim(scalDimName)   ,nScalar        ,   scalDimID); message='iCreate[scalar]'  ; call netcdf_err(err,message); if(err/=0)return
                      err = nf90_def_dim(ncid,trim(specDimName)   ,nSpecBand      ,   specDimID); message='iCreate[spectral]'; call netcdf_err(err,message); if(err/=0)return
                      err = nf90_def_dim(ncid,trim(midTotoDimName),maxLayers      ,midTotoDimID); message='iCreate[midToto]' ; call netcdf_err(err,message); if(err/=0)return

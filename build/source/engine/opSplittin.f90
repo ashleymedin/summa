@@ -1226,11 +1226,11 @@ subroutine opSplittin(&
 
             ! set desired layers
             select case(flux_meta(iVar)%varType)
-             case(iLookVarType%midToto,iLookVarType%ifcToto);                                                                    fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
-             case(iLookVarType%midSnow,iLookVarType%ifcSnow); if (iLayer<=nSnow)                                                 fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
-             case(iLookVarType%midLake,iLookVarType%ifcLake); if (iLayer<=nSnow+nLake            .and. iLayer>nSnow)             fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
-             case(iLookVarType%midSoil,iLookVarType%ifcSoil); if (iLayer<=nSnow+nLake+nSoil      .and. iLayer>nSnow+nLake)       fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
-             case(iLookVarType%midGlce,iLookVarType%ifcGlce); if (iLayer<=nSnow+nLake+nSoil+nGlce.and. iLayer>nSnow+nLake+nSoil) fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
+             case(iLookVarType%midToto,iLookVarType%ifcToto);                                                               fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
+             case(iLookVarType%midSnow,iLookVarType%ifcSnow); if (iLayer<=nSnow)                                            fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
+             case(iLookVarType%midLake,iLookVarType%ifcLake); if (iLayer<=nSnow+nLake       .and. iLayer>nSnow)             fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
+             case(iLookVarType%midSoil,iLookVarType%ifcSoil); if (iLayer<=nSnow+nLake+nSoil .and. iLayer>nSnow+nLake)       fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
+             case(iLookVarType%midGlce,iLookVarType%ifcGlce); if (iLayer<=nLayers           .and. iLayer>nSnow+nLake+nSoil) fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
             end select
 
             ! add hydrology states for scalar variables
@@ -1707,9 +1707,9 @@ contains
    nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)    ,& ! intent(in): [i4b] number of snow layers
    nLake           => indx_data%var(iLookINDEX%nLake)%dat(1)    ,& ! intent(in): [i4b] number of lake layers
    nSoil           => indx_data%var(iLookINDEX%nSoil)%dat(1)    ,& ! intent(in): [i4b] number of soil layers
-   nGlce           => indx_data%var(iLookINDEX%nGlce)%dat(1)    ,& ! intent(in): [i4b] number of glacier ice layers
+   nLayers         => indx_data%var(iLookINDEX%nLayers)%dat(1)  ,& ! intent(in): [i4b] number of layers
    ixNrgLayer      => indx_data%var(iLookINDEX%ixNrgLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the layer domain
-   split_select % stateMask(ixNrgLayer(max(2,nSnow+nLake+nSoil+1):nSnow+nLake+nSoil+nGlce)) = .true. ! NOTE: (2:) because the top layer in the layer domain included in vegSplit
+   split_select % stateMask(ixNrgLayer(max(2,nSnow+nLake+nSoil+1):nLayers)) = .true. ! NOTE: (2:) because the top layer in the layer domain included in vegSplit
   end associate
  end subroutine stateTypeSplit_subDomain_nrgSplit_glceSplit_stateMask
 
@@ -1776,10 +1776,10 @@ contains
    nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)         ,& ! intent(in): [i4b] number of snow layers
    nLake           => indx_data%var(iLookINDEX%nLake)%dat(1)         ,& ! intent(in): [i4b] number of lake layers
    nSoil           => indx_data%var(iLookINDEX%nSoil)%dat(1)         ,& ! intent(in): [i4b] number of soil layers
-   nGlce           => indx_data%var(iLookINDEX%nGlce)%dat(1)         ,& ! intent(in): [i4b] number of glacier ice layers
+   nLayers         => indx_data%var(iLookINDEX%nLayers)%dat(1)       ,& ! intent(in): [i4b] number of layers
    noThetaChange   => indx_data%var(iLookINDEX%noThetaChange)%dat(1) ,& ! intent(in): [i4b] number of layers with no change in total water content (bottom layers)  
    ixHydLayer      => indx_data%var(iLookINDEX%ixHydLayer)%dat        ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the lake domain
-   split_select % stateMask(ixHydLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange)) = .true.  ! soil hydrology
+   split_select % stateMask(ixHydLayer(nSnow+nLake+nSoil+1:nLayers-noThetaChange)) = .true.  ! soil hydrology
   end associate
  end subroutine stateTypeSplit_subDomain_massSplit_glceSplit_stateMask
 

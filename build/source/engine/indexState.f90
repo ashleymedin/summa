@@ -205,12 +205,7 @@ contains
  ixAllState   = arth(1,1,nState)
  ! remove no water state variables from the list of all state variables, keep at integerMissing
  if(noThetaChange>0) ixAllState(arth(ixTopWat + nVarSnLaSoGl*(nLayers-noThetaChange),nVarSnLaSoGl,noThetaChange)) = integerMissing
- if (nSoil > 0) then
-  ixSoilState = arth(1,1,nSoil)
- else
-  ! Handle the case where nSoil is 0, e.g., set ixSoilState to a default value
-  ixSoilState = 0  ! or another appropriate default value
- endif
+ ixSoilState  = arth(1,1,nSoil)
  ixLayerState = arth(1,1,nLayers)
 
  ! define the state type for the vegetation canopy
@@ -239,25 +234,26 @@ contains
 
  ! define the domain type for snow
  if(nSnow>0)then
-  ixDomainType( ixNrgLayer(1:nSnow) ) = iname_snow
-  ixDomainType( ixHydLayer(1:nSnow) ) = iname_snow
+   ixDomainType( ixNrgLayer(1:nSnow) ) = iname_snow
+   ixDomainType( ixHydLayer(1:nSnow) ) = iname_snow
  endif
 
+ ! define the domain type for lake
  if(nLake>0)then
-  ixDomainType( ixNrgLayer((nSnow+1):(nSnow+nLake)) ) = iname_lake
-  ixDomainType( ixHydLayer((nSnow+1):(nSnow+nLake)) ) = iname_lake
+   ixDomainType( ixNrgLayer((nSnow+1):(nSnow+nLake)) ) = iname_lake
+   ixDomainType( ixHydLayer((nSnow+1):(nSnow+nLake)) ) = iname_lake
  endif
 
  ! define the domain type for soil
- if(nSoil>0)then
-  ixDomainType( ixNrgLayer((nSnow+nLake+1):(nSnow+nLake+nSoil)) ) = iname_soil
-  ixDomainType( ixHydLayer((nSnow+nLake+1):(nSnow+nLake+nSoil)) ) = iname_soil
+ if(nSoil>0)then 
+   ixDomainType( ixNrgLayer((nSnow+nLake+1):(nSnow+nLake+nSoil)) ) = iname_soil
+   ixDomainType( ixHydLayer((nSnow+nLake+1):(nSnow+nLake+nSoil)) ) = iname_soil
  endif
 
  ! define the domain type for glacier ice
  if(nGlce>0)then
-   ixDomainType( ixNrgLayer((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nGlce)) ) = iname_glce
-   ixDomainType( ixHydLayer((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nGlce-noThetaChange)) ) = iname_glce
+   ixDomainType( ixNrgLayer((nSnow+nLake+nSoil+1):nLayers) ) = iname_glce
+   ixDomainType( ixHydLayer((nSnow+nLake+nSoil+1):(nLayers-noThetaChange)) ) = iname_glce
  endif
 
  ! define the domain type for the aquifer
@@ -290,8 +286,8 @@ contains
 
  ! define the index of the each control volume in the glacier ice
  if(nGlce>0)then
-  ixControlVolume( ixNrgLayer((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nGlce)) ) = ixLayerState((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nGlce)) - (nSnow+nLake+nSoil)
-  ixControlVolume( ixHydLayer((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nGlce-noThetaChange)) ) = ixLayerState((nSnow+nLake+nSoil+1):(nSnow+nLake+nSoil+nGlce-noThetaChange)) - (nSnow+nLake+nSoil)
+  ixControlVolume( ixNrgLayer((nSnow+nLake+nSoil+1):nLayers) ) = ixLayerState((nSnow+nLake+nSoil+1):nLayers) - (nSnow+nLake+nSoil)
+  ixControlVolume( ixHydLayer((nSnow+nLake+nSoil+1):(nLayers-noThetaChange)) ) = ixLayerState((nSnow+nLake+nSoil+1):(nLayers-noThetaChange)) - (nSnow+nLake+nSoil)
  endif
 
  ! define the index for the control volumes in the aquifer
@@ -534,15 +530,15 @@ contains
  ixSnowOnlyNrg = ixMapFull2Subset(ixNrgLayer(                  1:nSnow  ))                ! snow layers only
  ixLakeOnlyNrg = ixMapFull2Subset(ixNrgLayer(            nSnow+1:nSnow+nLake))            ! lake layers only
  ixSoilOnlyNrg = ixMapFull2Subset(ixNrgLayer(      nSnow+nLake+1:nSnow+nLake+nSoil))      ! soil layers only
- ixGlceOnlyNrg = ixMapFull2Subset(ixNrgLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce))! glce layers only
+ ixGlceOnlyNrg = ixMapFull2Subset(ixNrgLayer(nSnow+nLake+nSoil+1:nLayers))                ! glce layers only
 
  ! get list of indices for hydrology
  ! NOTE: layers not in the state subset will be missing
- ixSnLaSoGlHyd = ixMapFull2Subset(ixHydLayer(                  1:nLayers-noThetaChange))     ! all layers
+ ixSnLaSoGlHyd = ixMapFull2Subset(ixHydLayer(                  1:nLayers-noThetaChange))  ! all layers
  ixSnowOnlyHyd = ixMapFull2Subset(ixHydLayer(                  1:nSnow  ))                ! snow layers only
  ixLakeOnlyHyd = ixMapFull2Subset(ixHydLayer(            nSnow+1:nSnow+nLake))            ! lake layers only
  ixSoilOnlyHyd = ixMapFull2Subset(ixHydLayer(      nSnow+nLake+1:nSnow+nLake+nSoil))      ! soil layers only
- ixGlceOnlyHyd = ixMapFull2Subset(ixHydLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange)) ! glce layer 1 only
+ ixGlceOnlyHyd = ixMapFull2Subset(ixHydLayer(nSnow+nLake+nSoil+1:nLayers-noThetaChange))  ! glce layer 1 only
 
  ! define active layers (regardless if the splitting operation is energy or mass)
  ixLayerActive =  merge(ixSnLaSoGlNrg, ixSnLaSoGlHyd, ixSnLaSoGlNrg/=integerMissing)

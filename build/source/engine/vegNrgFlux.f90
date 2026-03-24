@@ -127,8 +127,8 @@ subroutine vegNrgFlux(&
   ! utilities
   USE expIntegral_module,only:expInt                             ! function to calculate the exponential integral
   ! conversion functions
-  USE convert_funcs_module,only:satVapPress                         ! function to compute the saturated vapor pressure (Pa)
-  USE convert_funcs_module,only:getLatentHeatValue                  ! function to identify latent heat of vaporization/sublimation (J kg-1)
+  USE convert_funcs_module,only:satVapPress                      ! function to compute the saturated vapor pressure (Pa)
+  USE convert_funcs_module,only:getLatentHeatValue               ! function to identify latent heat of vaporization/sublimation (J kg-1)
   ! stomatal resistance
   USE stomResist_module,only:stomResist                          ! subroutine to calculate stomatal resistance
 
@@ -544,7 +544,7 @@ subroutine vegNrgFlux(&
         ! NOTE: variables are constant over the substep, to simplify relating energy and mass fluxes
         if (firstFluxCall) then
           scalarLatHeatSubVapCanopy = getLatentHeatValue(canopyTempTrial)
-          if (nSnow > 0) then ! case when there is snow on the ground (EXCLUDE "snow without a layer" -- in this case, evaporate from the soil)
+          if (nSnow>0) then ! case when there is snow on the ground (EXCLUDE "snow without a layer" -- in this case, evaporate from the soil)
             if (groundTempTrial > Tfreeze) then; err=20; message=trim(message)//'do not expect ground temperature > 0 when snow is on the ground'; return; end if
             scalarLatHeatSubVapGround = LH_sub  ! sublimation from snow
             ! case when the ground is snow-free
@@ -988,7 +988,7 @@ subroutine vegNrgFlux(&
           scalarGroundSublimation = scalarLatHeatGround/LH_sub
         else
           ! NOTE: this should only occur when we have no snow or lake (?) layers and a soil layer, so check
-          if (nSnow > 0 .or. (nGlce>0 .and. nSoil==0) .or. (nLake>0 .and. groundTempTrial<=Tfreeze)) then; 
+          if (nSnow>0 .or. (nGlce>0 .and. nSoil==0) .or. (nLake>0 .and. groundTempTrial<=Tfreeze)) then; 
             err=20; message=trim(message)//'only expect ground evaporation when there are no snow or frozen lake layers'; return; end if
           scalarGroundEvaporation = scalarLatHeatGround/LH_vap
           scalarGroundSublimation = 0._rkind  ! no sublimation from snow if no snow or glce layers have formed

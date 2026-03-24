@@ -1302,6 +1302,7 @@ subroutine updateGlacDomain(&
   character(*),intent(out)        :: message                  ! error message 
    ! ----- define local variables ------------------------------------------------------------------------------------------
   integer(i4b)                    :: i                        ! loop index
+  integer(i4b)                    :: nLayers                  ! total number of layers
   real(rkind)                     :: layers_thick             ! depth of layers modifying
   real(rkind)                     :: thick_ratio              ! ratio of new layers thickness to previous thickness
   character(len=256)              :: cmessage                 ! error message
@@ -1321,6 +1322,7 @@ subroutine updateGlacDomain(&
    ! ----------------------------------------------------------------------------------------------
    ! initialize
    err=0; message='updateGlacDomain/'
+   nLayers = nSnow + nLake + nSoil + nGlce
 
    ! update glacier domain elevation, area, and ablating fraction and reset mass change
    DOMelev = glac_elev(iglac) ! realMissing if no area
@@ -1339,7 +1341,7 @@ subroutine updateGlacDomain(&
      iLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil) = iLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil)*thick_ratio            
 
      ! recalculate the layer heights below soil
-     do i=nSnow+nLake+nSoil+1,nSnow+nLake+nSoil+nGlce
+     do i=nSnow+nLake+nSoil+1,nLayers
        mLayerHeight(i) = mLayerHeight(i) + glac_debris_thick(iglac) - layers_thick
        iLayerHeight(i) = iLayerHeight(i) + glac_debris_thick(iglac) - layers_thick
      enddo
@@ -1370,7 +1372,7 @@ subroutine updateGlacDomain(&
        iLayerHeight(1:nSnow) = iLayerHeight(1:nSnow)*thick_ratio          
 
        ! recalculate the layer heights below snow
-       do i=nSnow+1,nSnow+nLake+nSoil+nGlce
+       do i=nSnow+1,nLayers
          mLayerHeight(i) = mLayerHeight(i) + verySmall - layers_thick
          iLayerHeight(i) = iLayerHeight(i) + verySmall - layers_thick
        enddo

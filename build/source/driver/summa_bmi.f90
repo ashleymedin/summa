@@ -65,7 +65,9 @@ module summabmi
   USE globalData, only: fileout, output_fileSuffix            ! output filename and suffix
   USE globalData, only: outFreq                               ! output frequency flags
   USE globalData, only: ncid                                  ! netcdf output file id
-  USE globalData, only: maxLayers, maxSnowLayers              ! maximum number of layers and snow layers
+  USE globalData, only: maxLayers,maxSnowLayers,maxLakeLayers,maxGlceLayers,maxSoilLayers ! maximum number of layers
+  USE globalData, only: maxGlaciers,maxWetlands,maxGrid,maxGridX,maxGridY                 ! maximum grids and grid dimensions
+
   USE globalData, only: ixProgress                            ! define frequency to write progress
   USE globalData, only: ixRestart                             ! define frequency to write restart files
   USE globalData, only: newOutputFile                         ! define option for new output files
@@ -111,7 +113,10 @@ module summabmi
      character(len=256)                 :: fileout, output_fileSuffix        ! output filename and suffix
      logical(lgt),dimension(maxvarFreq) :: outFreq                           ! true if the output frequency is desired
      integer(i4b),dimension(maxvarFreq) :: ncid                              ! netcdf output file id
-     integer(i4b)                       :: maxLayers, maxSnowLayers          ! maximum number of layers and snow layers, could be different for different GRUs
+     integer(i4b)                       :: maxLayers,maxSnowLayers           ! maximum number of layers and snow layers, could be different for different GRUs
+     integer(i4b)                       :: maxLakeLayers,maxGlceLayers,maxSoilLayers ! maximum number of lake, glacier, and soil layers
+     integer(i4b)                       :: maxGlaciers,maxWetlands           ! maximum number of glaciers and wetlands, could be different for different GRUs
+     integer(i4b)                       :: maxGrid,maxGridX,maxGridY         ! maximum grids and grid dimensions, could be different for different GRUs
      integer(i4b)                       :: ixProgress                        ! define frequency to write progress
      integer(i4b)                       :: ixRestart                         ! define frequency to write restart files
      integer(i4b)                       :: newOutputFile                     ! define option for new output files
@@ -316,6 +321,14 @@ module summabmi
      this%model%output_fileSuffix = output_fileSuffix
      this%model%maxLayers = maxLayers
      this%model%maxSnowLayers = maxSnowLayers
+     this%model%maxLakeLayers = maxLakeLayers
+     this%model%maxGlceLayers = maxGlceLayers
+     this%model%maxSoilLayers = maxSoilLayers
+     this%model%maxGlaciers = maxGlaciers
+     this%model%maxWetlands = maxWetlands
+     this%model%maxGrid = maxGrid
+     this%model%maxGridX = maxGridX
+     this%model%maxGridY = maxGridY
      this%model%urbanVegCategory = urbanVegCategory
      this%model%ixProgress = ixProgress
      this%model%ixRestart = ixRestart

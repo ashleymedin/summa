@@ -22,7 +22,7 @@ module summa_openwq
 subroutine openwq_init(err)
   USE globalData,only:gru_struc                               ! gru-hru mapping structures
   USE globalData,only:prog_meta
-  USE globalData,only:maxLayers,maxSnowLayers
+  USE globalData,only:maxLayers,maxSnowLayers, maxSoilLayers ! maximum number of layers for snow and soil across all HRUs (used to dimension openWQ state variables)
   USE allocspace_progStuct_module,only:allocGlobal_progStruct ! module to allocate space for global data structures
   implicit none
 
@@ -47,14 +47,13 @@ subroutine openwq_init(err)
 
   hruCount = sum( gru_struc(:)%hruCount )
 
-  nSoil = maxLayers - maxSnowLayers
 
   ! intialize openWQ
   err=openwq_obj%decl(    &
     hruCount,             & ! num HRU
     nCanopy_2openwq,      & ! num layers of canopy (fixed to 1)
     maxSnowLayers,        & ! num layers of snow (fixed to max of 5 because it varies)
-    nSoil,                & ! num layers of soil (variable)
+    maxSoilLayers,        & ! num layers of soil (variable)
     nRunoff_2openwq,      & ! num layers of runoff (fixed to 1)
     nAquifer_2openwq,     & ! num layers of aquifer (fixed to 1)
     nYdirec_2openwq)        ! num of layers in y-dir (set to 1 because not used in summa)

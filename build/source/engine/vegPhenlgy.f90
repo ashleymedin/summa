@@ -143,7 +143,7 @@ contains
 
  ) ! associate variables in data structure
  ! ----------------------------------------------------------------------------------------------------------------------------------
-  if (nSnow > 0) then ! case when there is snow on the ground (EXCLUDE "snow without a layer" -- in this case, evaporate from the soil)
+  if (nSnow>0) then ! case when there is snow on the ground (EXCLUDE "snow without a layer" -- in this case, evaporate from the soil)
     scalarGroundSnowFraction  = 1._rkind
   else ! case when the ground is less than a layer of snow (e.g., bare soil or snow without a layer)
     scalarGroundSnowFraction  = 0._rkind

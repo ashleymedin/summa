@@ -340,13 +340,13 @@ subroutine run_oneGRU(&
       endif
 
       ! ----- calculate weighted basin (GRU) fluxes --------------------------------------------------------------------------------------
-      bvarData%var(iLookBVAR%basin__StorageChange)%dat(1) = bvarData%var(iLookBVAR%basin__StorageChange)%dat(1) + diagHRU%hru(iHRU)%dom(iDOM)%var(iLookDIAG%scalarTotalMassChange)%dat(1) * fracDOM
+      bvarData%var(iLookBVAR%basin__StorageChange)%dat(1)  = bvarData%var(iLookBVAR%basin__StorageChange)%dat(1) + diagHRU%hru(iHRU)%dom(iDOM)%var(iLookDIAG%scalarTotalMassChange)%dat(1)*fracDOM
       if(typeDOM==upland)then
          ! increment basin surface runoff (m s-1)
-        bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)  = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)*fracDOM
+        bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)*fracDOM
 
         ! increment basin soil drainage (m s-1)
-        bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)   = bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSoilDrainage)%dat(1) *fracDOM
+        bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)  = bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSoilDrainage)%dat(1) *fracDOM
 
         ! increment aquifer variables -- ONLY if aquifer baseflow is computed individually for each HRU and aquifer is run
         ! NOTE: groundwater computed later for singleBasin

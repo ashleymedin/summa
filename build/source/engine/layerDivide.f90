@@ -373,13 +373,13 @@ contains
   ! update the layer type
   if(doGlac)then
    ! glacier ice layers
-   layerType(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce+1)= iname_glce
+   layerType(nSnow+nLake+nSoil+1:nLayers+1)= iname_glce
   else
    ! snow layers
-   layerType(1:nSnow+1)                                                = iname_snow
-   if(nLake>0) layerType(nSnow+2:nSnow+nLake+1)                        = iname_lake
-   if(nSoil>0) layerType(nSnow+nLake+2:nSnow+nLake+nSoil+1)            = iname_soil
-   if(nGlce>0) layerType(nSnow+nLake+nSoil+2:nSnow+nLake+nSoil+nGlce+1)= iname_glce
+   layerType(1:nSnow+1)                         = iname_snow
+   layerType(nSnow+2:nSnow+nLake+1)             = iname_lake
+   layerType(nSnow+nLake+2:nSnow+nLake+nSoil+1) = iname_soil
+   layerType(nSnow+nLake+nSoil+2:nLayers+1)     = iname_glce
   end if  ! (if dividing glacier ice layers)
 
   ! identify the number of layers, and check all is a-OK

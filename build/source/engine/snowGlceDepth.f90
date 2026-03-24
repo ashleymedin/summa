@@ -69,11 +69,13 @@ subroutine snowGlceDepth(&
   integer(i4b),intent(out)             :: err                      ! error code
   character(*),intent(out)             :: message                  ! error message
   ! local variables
+  integer(i4b)                         :: nLayers                  ! total number of layers
   character(len=256)                   :: cmessage                 ! error message
   real(rkind)                          :: massLiquid               ! mass liquid water (kg m-2)
   ! -----------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message="snowGlceDepth/"
+  nLayers = nSnow + nLake + nSoil + nGlce ! total number of layers
 
   ! *** compute change in ice content of the top snow or glacier ice layer due to sublimation
   tooMuchSublim = .false.  ! initialize too much sublimation (merge layers) to false
@@ -122,15 +124,15 @@ subroutine snowGlceDepth(&
   if(nGlce>0)then
     call glceReduce(&
                     ! intent(in): variables
-                    nGlce-noThetaChange,                                                         & ! intent(in):    number of glacier ice layers to reduce
-                    mLayerMeltFreeze(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange), & ! intent(in):    volumetric melt in each layer (kg m-3)
+                    nGlce-noThetaChange,                                         & ! intent(in):    number of glacier ice layers to reduce
+                    mLayerMeltFreeze(nSnow+nLake+nSoil+1:nLayers-noThetaChange), & ! intent(in):    volumetric melt in each layer (kg m-3)
                     ! intent(inout): state variables
-                    mLayerDepth(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange),      & ! intent(inout): depth of each layer (m)
-                    mLayerVolFracLiq(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange), & ! intent(inout): volumetric fraction of liquid water (-)
-                    mLayerVolFracIce(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlce-noThetaChange), & ! intent(inout): volumetric fraction of ice (-)
+                    mLayerDepth(nSnow+nLake+nSoil+1:nLayers-noThetaChange),      & ! intent(inout): depth of each layer (m)
+                    mLayerVolFracLiq(nSnow+nLake+nSoil+1:nLayers-noThetaChange), & ! intent(inout): volumetric fraction of liquid water (-)
+                    mLayerVolFracIce(nSnow+nLake+nSoil+1:nLayers-noThetaChange), & ! intent(inout): volumetric fraction of ice (-)
                     ! output: error control
-                    tooMuchSublim,                                                               & ! intent(inout): flag to denote that there was too much melt in a given time step
-                    err,cmessage)                                                                  ! intent(out):   error controls
+                    tooMuchSublim,                                               & ! intent(inout): flag to denote that there was too much melt in a given time step
+                    err,cmessage)                                                  ! intent(out):   error controls
     if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
   endif ! if glacier ice layers exist
 

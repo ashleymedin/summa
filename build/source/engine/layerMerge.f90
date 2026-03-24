@@ -173,7 +173,7 @@ contains
    kLayer=nSnow+nLake+nSoil ! start with top glacier ice layer
    doGlac=.true.
    topLayer=nSnow+nLake+nSoil+1
-   botLayer=nSnow+nLake+nSoil+nGlce
+   botLayer=nLayers
  else
    topLayer=1
    botLayer=nSnow

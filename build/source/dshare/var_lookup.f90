@@ -425,8 +425,10 @@ MODULE var_lookup
   ! enthalpy
   integer(i4b)    :: scalarCanopyEnthTemp            = integerMissing ! temperature component of enthalpy of the vegetation canopy (J m-3)
   integer(i4b)    :: mLayerEnthTemp                  = integerMissing ! temperature component of enthalpy of the layers (J m-3)
-  integer(i4b)    :: scalarTotalSoilEnthalpy         = integerMissing ! total enthalpy of the soil column (J m-3)
   integer(i4b)    :: scalarTotalSnowEnthalpy         = integerMissing ! total enthalpy of the snow column (J m-3)
+  integer(i4b)    :: scalarTotalLakeEnthalpy         = integerMissing ! total enthalpy of the lake column (J m-3)
+  integer(i4b)    :: scalarTotalSoilEnthalpy         = integerMissing ! total enthalpy of the soil column (J m-3)
+  integer(i4b)    :: scalarTotalGlceEnthalpy         = integerMissing ! total enthalpy of the glacier ice column (J m-3)
   ! forcing
   integer(i4b)    :: scalarVPair                     = integerMissing ! vapor pressure of the air above the vegetation canopy (Pa)
   integer(i4b)    :: scalarVP_CanopyAir              = integerMissing ! vapor pressure of the canopy air space (Pa)
@@ -1023,7 +1025,8 @@ MODULE var_lookup
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
                                                                          91, 92, 93, 94, 95, 96, 97, 98, 99,100,&
-                                                                        101,102,103,104,105,106,107,108,109,110)
+                                                                        101,102,103,104,105,106,107,108,109,110,&
+                                                                        111,112)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

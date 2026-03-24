@@ -400,8 +400,10 @@ subroutine popMetadat(err,message)
   ! enthalpy
   diag_meta(iLookDIAG%scalarCanopyEnthTemp)            = var_info('scalarCanopyEnthTemp'           , 'temperature component of enthalpy of the vegetation canopy'       , 'J m-3'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%mLayerEnthTemp)                  = var_info('mLayerEnthTemp'                 , 'temperature component of enthalpy of the layers'                  , 'J m-3'           , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
-  diag_meta(iLookDIAG%scalarTotalSoilEnthalpy)         = var_info('scalarTotalSoilEnthalpy'        , 'total enthalpy of the soil column'                                , 'J m-3'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarTotalSnowEnthalpy)         = var_info('scalarTotalSnowEnthalpy'        , 'total enthalpy of the snow column'                                , 'J m-3'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%scalarTotalLakeEnthalpy)         = var_info('scalarTotalLakeEnthalpy'        , 'total enthalpy of the lake column'                                , 'J m-3'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%scalarTotalSoilEnthalpy)         = var_info('scalarTotalSoilEnthalpy'        , 'total enthalpy of the soil column'                                , 'J m-3'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%scalarTotalGlceEnthalpy)         = var_info('scalarTotalGlceEnthalpy'        , 'total enthalpy of the glacier ice column'                         , 'J m-3'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! forcing
   diag_meta(iLookDIAG%scalarVPair)                     = var_info('scalarVPair'                    , 'vapor pressure of the air above the vegetation canopy'            , 'Pa'              , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarVP_CanopyAir)              = var_info('scalarVP_CanopyAir'             , 'vapor pressure of the canopy air space'                           , 'Pa'              , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)

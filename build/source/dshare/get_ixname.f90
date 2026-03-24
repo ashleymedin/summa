@@ -545,8 +545,10 @@ contains
   ! enthalpy
   case('scalarCanopyEnthTemp'           ); get_ixDiag = iLookDIAG%scalarCanopyEnthTemp             ! temperature component of enthalpy of the vegetation canopy (J m-3)
   case('mLayerEnthTemp'                 ); get_ixDiag = iLookDIAG%mLayerEnthTemp                   ! temperature component of enthalpy of the layers (J m-3)
-  case('scalarTotalSoilEnthalpy'        ); get_ixDiag = iLookDIAG%scalarTotalSoilEnthalpy          ! total enthalpy of the soil column (J m-3)
-  case('scalarTotalSnowEnthalpy'        ); get_ixDiag = iLookDIAG%scalarTotalSnowEnthalpy          ! total enthalpy of the snow column (J m-3)   
+  case('scalarTotalSnowEnthalpy'        ); get_ixDiag = iLookDIAG%scalarTotalSnowEnthalpy          ! total enthalpy of the snow column (J m-3)
+  case('scalarTotalLakeEnthalpy'        ); get_ixDiag = iLookDIAG%scalarTotalLakeEnthalpy          ! total enthalpy of the lake column (J m-3)
+  case('scalarTotalSoilEnthalpy'        ); get_ixDiag = iLookDIAG%scalarTotalSoilEnthalpy          ! total enthalpy of the soil column (J m-3)  
+  case('scalarTotalGlceEnthalpy'        ); get_ixDiag = iLookDIAG%scalarTotalGlceEnthalpy          ! total enthalpy of the glacier ice column (J m-3) 
   ! forcing
   case('scalarVPair'                    ); get_ixDiag = iLookDIAG%scalarVPair                      ! vapor pressure of the air above the vegetation canopy (Pa)
   case('scalarVP_CanopyAir'             ); get_ixDiag = iLookDIAG%scalarVP_CanopyAir               ! vapor pressure of the canopy air space (Pa)

@@ -819,7 +819,7 @@ subroutine fluxJacAdd(&
 
       ! - include derivatives for infiltration into bottom soil layer if there is glacier ice
       if(nSoil>0 .and. ixSoilOnlyHyd(nSoil)/=integerMissing .and. nGlce>0)then
-        do pLayer=nSnow+nLake+nSoil+1,nSnow+nLake+nSoil+nGlce - noThetaChange
+        do pLayer=nSnow+nLake+nSoil+1,nLayers - noThetaChange
           if(ixSnLaSoGlHyd(pLayer)/=integerMissing)then
             ! compute factor to convert liquid water derivative to total water derivative
             select case( ixHydType(pLayer) )
@@ -967,7 +967,7 @@ subroutine fluxJacAdd(&
 
       ! - include derivatives for infiltration into bottom soil layer if there is glacier ice
       if(nSoil>0 .and. ixSoilOnlyHyd(nSoil)/=integerMissing .and. nGlce>0)then
-        do pLayer=nSnow+nLake+nSoil+1,nSnow+nLake+nSoil+nGlce - noThetaChange
+        do pLayer=nSnow+nLake+nSoil+1,nLayers - noThetaChange
           if(ixSnLaSoGlNrg(pLayer)/=integerMissing)then
             if(ixSnLaSoGlNrg(pLayer) - ixSoilOnlyHyd(nSoil) <= ku .or. full)then
               if(pLayer==nSnow+nLake+nSoil+1) then

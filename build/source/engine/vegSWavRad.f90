@@ -66,6 +66,7 @@ contains
                        nLake,                        & ! intent(in):    number of lake layers
                        nSoil,                        & ! intent(in):    number of soil layers
                        nGlce,                        & ! intent(in):    number of glacier ice layers
+                       nLayers,                      & ! intent(in):    total number of layers
                        computeVegFlux,               & ! intent(in):    logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                        type_data,                    & ! intent(in):    classification of veg, soil etc. for a local HRU
                        prog_data,                    & ! intent(inout): model prognostic variables for a local HRU
@@ -81,6 +82,7 @@ contains
  integer(i4b),intent(in)         :: nLake                          ! number of lake layers
  integer(i4b),intent(in)         :: nSoil                          ! number of soil layers
  integer(i4b),intent(in)         :: nGlce                          ! number of glacier ice layers
+ integer(i4b),intent(in)         :: nLayers                        ! total number of layers
  logical(lgt),intent(in)         :: computeVegFlux                 ! logical flag to compute vegetation fluxes (.false. if veg buried by snow)
  type(var_i),intent(in)          :: type_data                      ! classification of veg, soil etc. for a local HRU
  type(var_dlength),intent(inout) :: prog_data                      ! model prognostic variables for a local HRU
@@ -114,7 +116,7 @@ contains
   spectralIncomingDiffuse    => flux_data%var(iLookFLUX%spectralIncomingDiffuse)%dat(1:nSpecBand),   & ! intent(in): incoming diffuse solar radiation in each wave band (w m-2)
   ! input: snow states
   scalarSWE                  => prog_data%var(iLookPROG%scalarSWE)%dat(1),                           & ! intent(in): snow water equivalent on the ground (kg m-2)
-  mLayerVolFracLiq           => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(nSnow+1:nSnow+nLake+nSoil+nGlce),  & ! intent(in): volumetric fraction of liquid water in each layer below snow (-)
+  mLayerVolFracLiq           => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(nSnow+1:nLayers),      & ! intent(in): volumetric fraction of liquid water in each layer below snow (-)
   spectralSnowAlbedoDiffuse  => prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1:nSpecBand), & ! intent(in): diffuse albedo of snow in each spectral band (-)
   scalarSnowAlbedo           => prog_data%var(iLookPROG%scalarSnowAlbedo)%dat(1),                    & ! intent(inout): snow albedo (-)
   scalarGroundSnowFraction   => diag_data%var(iLookDIAG%scalarGroundSnowFraction)%dat(1),            & ! intent(in): fraction of ground covered with snow (-)
@@ -156,7 +158,7 @@ contains
    allocate(mLayerVolFracLiq_use(nSoil_use))
    mLayerVolFracLiq_use = mLayerVolFracLiq(nLake+1:nLake+nSoil)
  else
-   nSoil_use=1 ! will not be used (glacier ice), but must be >0
+   nSoil_use = 1 ! will not be used (glacier ice), but must be >0
    allocate(mLayerVolFracLiq_use(nSoil_use))
    mLayerVolFracLiq_use = 0.5_rkind ! arbitrary value
  endif
