@@ -116,7 +116,6 @@ MODULE data_types
   integer(i4b)                           :: nLake                         ! number of lake layers
   integer(i4b)                           :: nSoil                         ! number of soil layers
   integer(i4b)                           :: nGlce                         ! number of glacier ice layers
-  integer(i4b)                           :: nLayers                       ! total number of layers
  endtype dom_info
 
  ! hru info data structure

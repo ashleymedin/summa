@@ -129,7 +129,7 @@ subroutine run_oneHRU(&
   type(dom_d)        , intent(inout) :: dt_init             ! used to initialize the length of the sub-step for each HRU
   logical(lgt)       , intent(inout) :: computeVegFlux      ! flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
   integer(i4b)       , intent(in)    :: ndom                ! number of domains
-  type(dom_info)     , intent(inout) :: domInfo(:)          ! domain type
+  type(dom_info)     , intent(inout) :: domInfo(:)          ! domain type and number of layers
   ! data structures (input)
   type(var_i)        , intent(in)    :: typeData            ! x%var(:)                 -- local classification of soil veg etc. for each HRU
   type(var_d)        , intent(in)    :: attrData            ! x%var(:)                 -- local attributes for each HRU
@@ -263,7 +263,6 @@ subroutine run_oneHRU(&
     domInfo(i)%nLake   = indxData%dom(i)%var(iLookINDEX%nLake)%dat(1)    ! number of lake layers
     domInfo(i)%nSoil   = indxData%dom(i)%var(iLookINDEX%nSoil)%dat(1)    ! number of soil layers
     domInfo(i)%nGlce   = indxData%dom(i)%var(iLookINDEX%nGlce)%dat(1)    ! number of glacier ice layers
-    domInfo(i)%nLayers = indxData%dom(i)%var(iLookINDEX%nLayers)%dat(1)  ! total number of layers
   end do
 
 end subroutine run_oneHRU
