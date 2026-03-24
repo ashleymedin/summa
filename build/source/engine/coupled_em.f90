@@ -1680,7 +1680,7 @@ subroutine coupled_em(&
           err=20; return
         endif  ! if failed mass balance check
       else
-        massBalance = 0._rkind ! no snow, so no mass balance
+        delSWE = 0._rkind
       endif  ! if snow layers exist
 
       ! -----
