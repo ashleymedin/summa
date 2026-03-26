@@ -42,14 +42,13 @@ USE globalData,only:maxGridX            ! maximum number of grid cells in the x-
 USE globalData,only:maxGridY            ! maximum number of grid cells in the y-direction
 USE globalData,only:nTimeDelay          ! number of timesteps in the time delay histogram
 USE globalData,only:nSpecBand           ! maximum number of spectral bands
+USE globalData,only:allowRoutingOutput  ! flag to allow routing variable output
 
 ! provide access to global data
 USE globalData,only:nGRUrun             ! number of GRUs in the run
 USE globalData,only:nHRUrun             ! number of HRUs in the run
 USE globalData,only:maxDOM              ! maximum number of domains in any HRU
-USE globalData,only:maxLayers           ! maximum number of layers
 USE globalData,only:gru_struc           ! gru->hru mapping structure
-USE globalData,only:allowRoutingOutput  ! flag to allow routing variable output
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
@@ -266,7 +265,7 @@ contains
  integer(i4b),parameter             :: ixReal3=1004                         ! named variable for real array with 3 dimensions (e.g. dom, hru, time)
 
  ! initialize error control
- err=0;message="writeData/"
+ err=0
 
  ! allocate real and integer arrays for non-scalar variables to longest possible length
  maxLength = max(nSpecBand,maxLayers+1)
@@ -294,10 +293,10 @@ contains
   endif
 
   ! loop through model variables
-  do iVar = 1,size(meta)
+  iVar_loop: do iVar = 1,size(meta)
     
    ! initialize message
-   message=trim(message)//trim(meta(iVar)%varName)
+   message="writeData/"//trim(meta(iVar)%varName)
 
    ! ****************************************************************************
    ! *** write time information -- instantaneous
@@ -317,20 +316,15 @@ contains
     ! data bound array access
     select type(datt) ! forcStruc
      class is (gru_hru_double) ! x%gru(:)%hru(:)%var(:)
-
-      ! put data in time buffer
       do iTime=1,maxWrite
        timeBuffer(iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%var(iVar)
       end do
-
-     ! check we found the class
      class default; err=20; message=trim(message)//'time variable must be of type gru_hru_double (forcing data structure)'; return
     end select  ! type of data structure
 
     ! write time
     err = nf90_put_var(ncid(iFreq),ncVarID,(/timeBuffer/),start=(/ixStart/),count=(/maxWrite/))
     call netcdf_err(err,message); if (err/=0) return
-    message="writeData/" ! re-initialize message
     cycle ! move onto the next variable
 
    end if  ! if time
@@ -344,8 +338,8 @@ contains
    message=trim(message)//'_'//trim(get_statName(iStat))//':' ! add statistic to message
 
    ! check that the variable is desired, currently do not write large variables (unknown and routing) as they are large and slow things down a lot
-   if (iStat==integerMissing .or. meta(iVar)%varType==iLookVarType%unknown .or. meta(iVar)%varType==integerMissing)then; message="writeData/"; cycle; endif 
-   if (meta(iVar)%varType==iLookVarType%routing .and. .not.allowRoutingOutput)then; message="writeData/"; cycle; endif ! routing variable write can be turned on with the allowRoutingOutput flag
+   if (iStat==integerMissing .or. meta(iVar)%varType==iLookVarType%unknown .or. meta(iVar)%varType==integerMissing) cycle
+   if (meta(iVar)%varType==iLookVarType%routing .and. .not.allowRoutingOutput) cycle ! routing variable write can be turned on with the allowRoutingOutput flag
 
    ! stats output: only scalar variable type
    if(meta(iVar)%varType==iLookVarType%scalarv) then
@@ -488,10 +482,7 @@ contains
    else
 
     ! cannot write non-scalar variables in buffered write -- too complicated and slow, so not currently supported
-    if(is_bufferedWrite)then
-      write(*,*)'WARNING: cannot output non-scalar type data when using the buffered write option (writeFullSeries), skipping variable '//trim(meta(iVar)%varName)
-      message="writeData/"; cycle
-    endif 
+    if(is_bufferedWrite)then; write(*,*)'WARNING: cannot output non-scalar type data when using the buffered write option (writeFullSeries), skipping variable '//trim(meta(iVar)%varName); cycle; endif 
 
     ! initialize the data vectors
     select type (datt)
@@ -532,7 +523,7 @@ contains
        case(iLookVarType%ifcGlce); datLength = nGlce+1
        case(iLookVarType%routing); datLength = nTimeDelay
        case(iLookVarType%glacier); datLength = nGlac
-       case default; cycle
+       case default; cycle iVar_loop
       ! case parSoil only in parameters (mpar, not written here) 
       ! case unknown skipped above
       end select ! varType
@@ -566,11 +557,11 @@ contains
      case(iLookVarType%ifcGlce); maxLength = maxGlceLayers+1
      case(iLookVarType%routing); maxLength = nTimeDelay
      case(iLookVarType%glacier); maxLength = maxGlaciers
-     case default; cycle
+     case default; cycle iVar_loop
     end select ! varType
 
     ! write the data vectors
-    if(maxLength==0) cycle ! skip if there is no length
+    if(maxLength==0) cycle iVar_loop ! skip if there is no length
     select case(dataType)
      case(ixReal3);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realArray3(1:maxDOM,1:nHRUrun,1:maxLength),start=(/1,1,1,outputTimestep(iFreq)/),count=(/maxDOM,nHRUrun,maxLength,1/))
      case(ixInteger3); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq), intArray3(1:maxDOM,1:nHRUrun,1:maxLength),start=(/1,1,1,outputTimestep(iFreq)/),count=(/maxDOM,nHRUrun,maxLength,1/))
@@ -578,14 +569,11 @@ contains
      case(ixInteger); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq), intArray(1:nSpace,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nSpace,maxLength,1/))
      case default; err=20; message=trim(message)//'data must be of type integer or real'; return
     end select ! data type
+    call netcdf_err(err,message); if (err/=0) return
 
    end if ! not scalarv
 
-   ! process error code
-   call netcdf_err(err,message); if (err/=0) return
-   message="writeData/" ! re-initialize message
-
-  end do ! iVar
+  end do iVar_loop ! iVar
  end do ! iFreq
  deallocate(realArray,intArray,realArray3,intArray3)
 
