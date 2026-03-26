@@ -314,7 +314,7 @@ contains
     iGRU=1; iHRU=1
 
     ! data bound array access
-    select type(datt) ! forcStruc
+    select type (datt) ! forcStruc
      class is (gru_hru_double) ! x%gru(:)%hru(:)%var(:)
       do iTime=1,maxWrite
        timeBuffer(iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%var(iVar)
@@ -347,79 +347,48 @@ contains
     ! ----- writing buffered output data ---------------------------------------
     if(is_bufferedWrite)then
 
-     ! loop through time, DOMS, HRUs and GRUs, and place data in the buffer
+     ! initialize the data vectors
+     select type (datt)
+      class is (gru_hru_dom_double); nSpace = nHRUrun; realBuffer3(:,:) = realMissing; dataType=ixReal3
+      class is (gru_hru_dom_int);    nSpace = nHRUrun; realBuffer3(:,:) = realMissing; dataType=ixReal3
+      class is (gru_hru_dom_int8);   nSpace = nHRUrun; realBuffer3(:,:) = realMissing; dataType=ixReal3
+      class is (gru_hru_double); nSpace = nHRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
+      class is (gru_hru_int);    nSpace = nHRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
+      class is (gru_hru_int8);   nSpace = nHRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
+      class is (gru_double);     nSpace = nGRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
+      class is (gru_int);        nSpace = nGRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
+      class is (gru_int8);       nSpace = nGRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
+      class default; err=20; message=trim(message)//'scalarv variables must be of type gru_hru_dom_[double or int*], gru_hru_[double or int*], or gru_[double or int*]'; return
+     end select
+
+     ! loop through time, GRUs, HRUs, and DOMs
      do iTime=1,maxWrite
-      do iGRU=1,size(gru_struc)
+      gruLoop: do iGRU=1,size(gru_struc)
+       hruLoop: do iHRU = 1, gru_struc(iGRU)%hruCount
+        domLoop: do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
 
-       ! identify data structures
-       select type(datt)
+        ! get the data vectors
+         select type(datt)
+          class is (gru_hru_dom_double); realBuffer3(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(map(iVar))
+          class is (gru_hru_dom_int);    realBuffer3(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(map(iVar))
+          class is (gru_hru_dom_int8);   realBuffer3(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(map(iVar))
+          class is (gru_hru_double); realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar)); exit domLoop ! only need to get the HRU-level data once
+          class is (gru_hru_int);    realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar)); exit domLoop ! only need to get the HRU-level data once
+          class is (gru_hru_int8);   realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar)); exit domLoop ! only need to get the HRU-level data once
+          class is (gru_double); realBuffer(iGRU,iTime) = datt(iTime)%gru(iGRU)%var(map(iVar)); exit hruLoop ! only need to get the GRU-level data once
+          class is (gru_int);    realBuffer(iGRU,iTime) = datt(iTime)%gru(iGRU)%var(map(iVar)); exit hruLoop ! only need to get the GRU-level data once
+          class is (gru_int8);   realBuffer(iGRU,iTime) = datt(iTime)%gru(iGRU)%var(map(iVar)); exit hruLoop ! only need to get the GRU-level data once
+         end select  ! time step data structure
 
-        ! *** HRU DOM structures (indices, ...)
-        class is (gru_hru_dom_int)
-         do iHRU=1,gru_struc(iGRU)%hruCount
-          do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
-           realBuffer3(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(map(iVar))
-          end do  ! dom
-         end do  ! hru
-
-        class is (gru_hru_dom_int8)
-         do iHRU=1,gru_struc(iGRU)%hruCount
-          do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
-           realBuffer3(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(map(iVar))
-          end do  ! dom
-         end do  ! hru
-  
-        ! *** HRU DOM structures (prognostic, diagnostic, ...)
-        class is (gru_hru_dom_double)
-        do iHRU=1,gru_struc(iGRU)%hruCount
-         do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
-          realBuffer3(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(map(iVar))
-         end do  ! dom
-        end do  ! hru
-
-        class is (gru_hru_int)
-         do iHRU=1,gru_struc(iGRU)%hruCount
-          realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar))
-         end do  ! hru
-          
-        class is (gru_hru_int8)
-         do iHRU=1,gru_struc(iGRU)%hruCount
-          realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar))
-         end do  ! hru
-
-        ! *** HRU structures (forcing, ...)
-        class is (gru_hru_double)
-         do iHRU=1,gru_struc(iGRU)%hruCount
-          realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar))
-         end do  ! hru
-
-        class is (gru_int)
-         realBuffer(iGRU,iTime) = datt(iTime)%gru(iGRU)%var(map(iVar))
- 
-        class is (gru_int8)
-         realBuffer(iGRU,iTime) = datt(iTime)%gru(iGRU)%var(map(iVar))
-
-        ! *** GRU structures (basin-average variables, ...)
-        class is (gru_double)
-         realBuffer(iGRU,iTime) = datt(iTime)%gru(iGRU)%var(map(iVar))
-
-        class default; err=20; message=trim(message)//'scalarv variables must be of type gru_hru_dom_[double or int*], gru_hru_[double or int*], or gru_[double or int*]'; return
-       end select  ! time step data structure
-
-      end do  ! gru
+        end do  ! DOM loop
+       end do  ! HRU loop
+      end do  ! GRU loop
      end do  ! time
                   
-     ! write data
-     select type(datt)
-      class is (gru_hru_dom_int);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer3(1:maxDOM,1:nHRUrun,1:maxWrite),start=(/1,1,1/),count=(/maxDOM,nHRUrun,maxWrite/))
-      class is (gru_hru_dom_int8);   err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer3(1:maxDOM,1:nHRUrun,1:maxWrite),start=(/1,1,1/),count=(/maxDOM,nHRUrun,maxWrite/))
-      class is (gru_hru_dom_double); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer3(1:maxDOM,1:nHRUrun,1:maxWrite),start=(/1,1,1/),count=(/maxDOM,nHRUrun,maxWrite/))
-      class is (gru_hru_int);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer(1:nHRUrun,1:maxWrite),start=(/1,1/),count=(/nHRUrun,maxWrite/))
-      class is (gru_hru_int8);   err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer(1:nHRUrun,1:maxWrite),start=(/1,1/),count=(/nHRUrun,maxWrite/))
-      class is (gru_hru_double); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer(1:nHRUrun,1:maxWrite),start=(/1,1/),count=(/nHRUrun,maxWrite/))
-      class is (gru_int);        err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer(1:nGRUrun,1:maxWrite),start=(/1,1/),count=(/nGRUrun,maxWrite/))
-      class is (gru_int8);       err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer(1:nGRUrun,1:maxWrite),start=(/1,1/),count=(/nGRUrun,maxWrite/))
-      class is (gru_double);     err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer(1:nGRUrun,1:maxWrite),start=(/1,1/),count=(/nGRUrun,maxWrite/))
+     ! write the data vectors
+     select case (dataType)
+      class is (ixReal3); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer3(1:maxDOM,1:nSpace,1:maxWrite),start=(/1,1,1/),count=(/maxDOM,nSpace,maxWrite/))
+      class is (ixReal); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer(1:nSpace,1:maxWrite),start=(/1,1/),count=(/nSpace,maxWrite/))
      end select
      call netcdf_err(err,message); if (err/=0) return
 
@@ -429,46 +398,36 @@ contains
     else
 
      ! check that maxWrite==1
-     if(maxWrite/=1)then
-      message=trim(message)//'expect maxWrite=1 when not writing buffered output'
-      err=20; return
-     endif
+     if(maxWrite/=1)then; message=trim(message)//'expect maxWrite=1 when not writing buffered output';err=20; return; endif
 
-     ! loop through DOMS, HRUs and GRUs, and place data in the buffer
-     do iGRU=1,size(gru_struc)
+     ! initialize the data vectors
+     select type (stat)
+      class is (gru_hru_dom_doubleVec); nSpace = nHRUrun; realBuffer3(:,:,:) = realMissing; dataType=ixReal3
+      class is (gru_hru_doubleVec);     nSpace = nHRUrun; realBuffer(:,:) = realMissing;    dataType=ixReal
+      class is (gru_doubleVec);         nSpace = nGRUrun; realBuffer(:,:) = realMissing;    dataType=ixReal
+      class default; message=trim(message)//'stats must be scalarv and of type gru_hru_dom_doubleVec, gru_hru_doubleVec, or gru_doubleVec'; err=20; return
+     end select
+
+     ! loop thru GRUs, HRUs, and DOMs
+     gruLoop: do iGRU=1,size(gru_struc)
+      hruLoop: do iHRU = 1, gru_struc(iGRU)%hruCount
+       domLoop: do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
      
-      ! identify data structures
-      select type(stat)
+        ! get the data vectors
+        select type (stat)
+         class is (gru_hru_dom_doubleVec); realBuffer3(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1) = stat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(map(iVar))%dat(iFreq)
+         class is (gru_hru_doubleVec); realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1) = stat%gru(iGRU)%hru(iHRU)%var(map(iVar))%dat(iFreq); exit domLoop ! only need to get the HRU-level data once
+         class is (gru_doubleVec); realBuffer(iGRU,1) = stat%gru(iGRU)%var(map(iVar))%dat(iFreq); exit hruLoop ! only need to get the GRU-level data once
+        end select  ! stat data structure
 
-       ! *** HRU DOM structures (prognostic, diagnostic, ...)
-       class is (gru_hru_dom_doubleVec)
-        do iHRU=1,gru_struc(iGRU)%hruCount
-         do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
-          realBuffer3(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1) = stat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(map(iVar))%dat(iFreq)
-         end do ! dom
-        end do ! hru
+       end do  ! DOM loop
+      end do  ! HRU loop
+     end do  ! GRU loop
 
-       ! *** HRU structures (forcing, prognostic, diagnostic, ...)
-       class is (gru_hru_doubleVec)
-        do iHRU=1,gru_struc(iGRU)%hruCount
-         realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1) = stat%gru(iGRU)%hru(iHRU)%var(map(iVar))%dat(iFreq)
-        end do
-       
-       ! *** GRU structures (basin-average variables, ...)
-       class is (gru_doubleVec)
-        realBuffer(iGRU,1) = stat%gru(iGRU)%var(map(iVar))%dat(iFreq)
-
-       ! check statistics type
-       class default; message=trim(message)//'stats must be scalarv and of type gru_hru_dom_doubleVec, gru_hru_doubleVec, or gru_doubleVec'; err=20; return
-      end select  ! stat data structure
-
-     end do  ! gru
-
-     ! write data 
-     select type(stat)
-      class is (gru_hru_dom_doubleVec); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer3(1:maxDOM,1:nHRUrun,1),start=(/1,1,outputTimestep(iFreq)/),count=(/maxDOM,nHRUrun,1/))
-      class is (gru_hru_doubleVec); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer(1:nHRUrun,1),start=(/1,outputTimestep(iFreq)/),count=(/nHRUrun,1/))
-      class is (gru_doubleVec);     err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer(1:nGRUrun,1),start=(/1,outputTimestep(iFreq)/),count=(/nGRUrun,1/))
+     ! write the data vectors
+     select case (dataType)
+      case(ixReal3); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer3(1:maxDOM,1:nSpace,1),start=(/1,1,outputTimestep(iFreq)/),count=(/maxDOM,nSpace,1/))
+      case(ixReal);  err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realBuffer(1:nSpace,1),start=(/1,outputTimestep(iFreq)/),count=(/nSpace,1/))
      end select
      call netcdf_err(err,message); if (err/=0) return
      
@@ -488,14 +447,14 @@ contains
     select type (datt)
      class is (gru_hru_dom_doubleVec); nSpace = nHRUrun; realArray3(:,:,:) = realMissing;   dataType=ixReal3
      class is (gru_hru_dom_intVec);    nSpace = nHRUrun; intArray3(:,:,:) = integerMissing; dataType=ixInteger3
-     class is (gru_hru_doubleVec); nSpace = nHRUrun; realArray(:,:) = realMissing;   dataType=ixReal
-     class is (gru_hru_intVec);    nSpace = nHRUrun; intArray(:,:) = integerMissing; dataType=ixInteger
-     class is (gru_doubleVec);     nSpace = nGRUrun; realArray(:,:) = realMissing;   dataType=ixReal
-     class is (gru_intVec);        nSpace = nGRUrun; intArray(:,:) = integerMissing; dataType=ixInteger
+     class is (gru_hru_doubleVec);     nSpace = nHRUrun; realArray(:,:) = realMissing;      dataType=ixReal
+     class is (gru_hru_intVec);        nSpace = nHRUrun; intArray(:,:) = integerMissing;    dataType=ixInteger
+     class is (gru_doubleVec);         nSpace = nGRUrun; realArray(:,:) = realMissing;      dataType=ixReal
+     class is (gru_intVec);            nSpace = nGRUrun; intArray(:,:) = integerMissing;    dataType=ixInteger
      class default; err=20; message=trim(message)//'data is not scalarv so should be either of type gru_hru_dom_[double or int]Vec, gru_hru_[double or int]Vec, or gru_[double or int]Vec'; return
     end select
 
-    ! loop thru GRUs and HRUs
+    ! loop thru GRUs, HRUs, and DOMs
     gruLoop: do iGRU=1,size(gru_struc)
      hruLoop: do iHRU = 1, gru_struc(iGRU)%hruCount
       domLoop: do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
@@ -532,10 +491,10 @@ contains
       select type (datt)
        class is (gru_hru_dom_doubleVec); realArray3(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = datt(1)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(:)
        class is (gru_hru_dom_intVec);     intArray3(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = datt(1)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(:)
-       class is (gru_hru_doubleVec); realArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = datt(1)%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:); if(iDOM==1) exit domLoop ! only need to get the HRU-level data once
-       class is (gru_hru_intVec);     intArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = datt(1)%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:); if(iDOM==1) exit domLoop ! only need to get the HRU-level data once
-       class is (gru_doubleVec); realArray(iGRU,1:datLength) = datt(1)%gru(iGRU)%var(iVar)%dat(:); if(iHRU==1) exit hruLoop ! only need to get the GRU-level data once
-       class is (gru_intVec);     intArray(iGRU,1:datLength) = datt(1)%gru(iGRU)%var(iVar)%dat(:); if(iHRU==1) exit hruLoop ! only need to get the GRU-level data once
+       class is (gru_hru_doubleVec); realArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = datt(1)%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:); exit domLoop ! only need to get the HRU-level data once
+       class is (gru_hru_intVec);     intArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = datt(1)%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:); exit domLoop ! only need to get the HRU-level data once
+       class is (gru_doubleVec); realArray(iGRU,1:datLength) = datt(1)%gru(iGRU)%var(iVar)%dat(:); exit hruLoop ! only need to get the GRU-level data once
+       class is (gru_intVec);     intArray(iGRU,1:datLength) = datt(1)%gru(iGRU)%var(iVar)%dat(:); exit hruLoop ! only need to get the GRU-level data once
       end select
 
       end do domLoop ! DOM loop
@@ -562,9 +521,9 @@ contains
 
     ! write the data vectors
     if(maxLength==0) cycle iVar_loop ! skip if there is no length
-    select case(dataType)
-     case(ixReal3);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realArray3(1:maxDOM,1:nHRUrun,1:maxLength),start=(/1,1,1,outputTimestep(iFreq)/),count=(/maxDOM,nHRUrun,maxLength,1/))
-     case(ixInteger3); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq), intArray3(1:maxDOM,1:nHRUrun,1:maxLength),start=(/1,1,1,outputTimestep(iFreq)/),count=(/maxDOM,nHRUrun,maxLength,1/))
+    select case (dataType)
+     case(ixReal3);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realArray3(1:maxDOM,1:nSpace,1:maxLength),start=(/1,1,1,outputTimestep(iFreq)/),count=(/maxDOM,nSpace,maxLength,1/))
+     case(ixInteger3); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq), intArray3(1:maxDOM,1:nSpace,1:maxLength),start=(/1,1,1,outputTimestep(iFreq)/),count=(/maxDOM,nSpace,maxLength,1/))
      case(ixReal);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realArray(1:nSpace,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nSpace,maxLength,1/))
      case(ixInteger); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq), intArray(1:nSpace,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nSpace,maxLength,1/))
      case default; err=20; message=trim(message)//'data must be of type integer or real'; return
