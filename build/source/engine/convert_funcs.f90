@@ -19,7 +19,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module convert_funcs_module
-USE nr_type                                 ! variable types
+USE nr_type                                ! variable types
 USE multiconst                             ! fixed parameters (lh vapzn, etc.)
 implicit none
 private

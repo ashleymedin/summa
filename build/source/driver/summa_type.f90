@@ -23,7 +23,7 @@ MODULE summa_type
 ! *****************************************************************************
 ! * higher-level derived data types
 ! *****************************************************************************
-USE nr_type          ! variable types, etc.
+USE nr_type         ! variable types, etc.
 USE data_types,only:&
                     ! no spatial dimension
                     var_i,                 & ! x%var(:)            (i4b)

@@ -21,7 +21,7 @@
 module snowLakeGlceLiqFlux_module
 
 ! access modules
-USE nr_type                                ! numerical recipes data types
+USE nr_type                               ! numerical recipes data types
 ! physical constants
 USE multiconst,only:Tfreeze,     &         ! freezing point of pure water (K)
                     iden_ice,iden_water    ! intrinsic density of ice and water (kg m-3)

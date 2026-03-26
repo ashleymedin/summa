@@ -33,7 +33,7 @@ contains
  ! * desired modules
  ! ---------------------------------------------------------------------------------------
  ! data types
- USE nr_type                                                  ! variable types, etc.
+ USE nr_type                                                 ! variable types, etc.
  USE summa_type, only:summa1_type_dec                        ! master summa data type
  ! subroutines and functions
  USE read_force_module,only:read_force                       ! module to read model forcing data

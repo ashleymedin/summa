@@ -68,7 +68,7 @@ subroutine summa_defineGlobalData(err, message)
   ! * desired modules
   ! ---------------------------------------------------------------------------------------
   ! data types
-  USE nr_type                                                  ! variable types, etc.
+  USE nr_type                                                 ! variable types, etc.
   ! subroutines and functions: initial priming
   USE,intrinsic :: ieee_arithmetic                            ! IEEE arithmetic (obviously)
   ! subroutines and functions: define metadata structures

@@ -78,7 +78,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
 ! ---------------------------------------------------------------------------------------
 ! * desired modules
 ! ---------------------------------------------------------------------------------------
- USE nr_type                                                  ! variable types, etc.
+ USE nr_type                                                 ! variable types, etc.
  USE summa_type, only:summa1_type_dec                        ! master summa data type
  ! subroutines and functions
  USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time
@@ -428,10 +428,10 @@ subroutine summa_paramSetup(summa1_struc, err, message)
 
   ! identify the total basin area for a GRU (m2)
   associate(totalArea => bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1) )
-  totalArea = 0._rkind
-  do iHRU=1,gru_struc(iGRU)%hruCount
-   totalArea = totalArea + attrStruct%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)
-  end do
+   totalArea = 0._rkind
+   do iHRU=1,gru_struc(iGRU)%hruCount
+    totalArea = totalArea + attrStruct%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)
+   end do
   end associate
 
  end do ! GRU

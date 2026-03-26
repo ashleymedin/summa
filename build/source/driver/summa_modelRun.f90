@@ -51,7 +51,7 @@ contains
  ! * desired modules
  ! ---------------------------------------------------------------------------------------
  ! data types
- USE nr_type                                                    ! variable types, etc.
+ USE nr_type                                                   ! variable types, etc.
  USE summa_type, only:summa1_type_dec                           ! master summa data type
  ! subroutines and functions
  USE nr_utils_module,only:indexx                                ! sort vectors in ascending order

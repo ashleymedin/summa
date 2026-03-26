@@ -172,7 +172,7 @@ if (allocated(index_map)) then; err=20; message=trim(message)//'index_map is une
    iHRU = 1
    do iGRU = 1,nGRU
      if (count(hru2gru_Id == gru_id(iGRU+sGRU-1)) < 1) then; err=20; message=trim(message)//'problem finding HRUs belonging to GRU'; return; end if
-     gru_struc(iGRU)%hruCount          = count(hru2gru_Id == gru_id(iGRU+sGRU-1))          ! number of HRUs in each GRU
+     gru_struc(iGRU)%hruCount = count(hru2gru_Id == gru_id(iGRU+sGRU-1))          ! number of HRUs in each GRU
 #ifdef NGEN_ACTIVE
      if (gru_struc(iGRU)%hruCount > 1) then; err=20; message=trim(message)//'NGEN currently only supports single-HRU per GRU'; return; end if
      print *, 'GRU id is ', gru_id(iGRU+sGRU-1)

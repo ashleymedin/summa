@@ -65,7 +65,7 @@ USE var_lookup,only:iLookDECISIONS            ! named variables for elements of 
 USE var_lookup,only:iLookVarType              ! named variables for variable types
 
 ! generic variable types
-USE nr_type                                   ! variable types, etc.
+USE nr_type                                  ! variable types, etc.
 USE data_types,only:&
                     ! gru dimension
                     gru_double,          &    ! x%gru(:)%var(:)     (dp)

@@ -47,7 +47,7 @@ contains
  ! * desired modules
  ! ---------------------------------------------------------------------------------------
  ! data types
- USE nr_type                                                  ! variable types, etc.
+ USE nr_type                                                 ! variable types, etc.
  USE summa_type, only:summa1_type_dec                        ! master summa data type
  ! functions and subroutines
  USE def_output_module,only:def_output                       ! module to define model output

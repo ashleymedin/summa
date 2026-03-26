@@ -22,7 +22,7 @@ module summa_util
 ! utilities to manage summa simulation
 
 ! data types
-USE nr_type                              ! high-level data types
+USE nr_type                             ! high-level data types
 
 ! global data
 USE globalData,only:integerMissing      ! missing integer value

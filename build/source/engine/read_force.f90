@@ -21,7 +21,7 @@
 module read_force_module
 
 ! data types
-USE nr_type                                    ! variable types, etc.
+USE nr_type                                   ! variable types, etc.
 
 ! derived data types
 USE data_types,only:var_ilength               ! x%var(:)%dat(:)            (i4b)
