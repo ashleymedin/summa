@@ -63,20 +63,17 @@ USE data_types,only:&
                     var_dlength,           & ! x%var(:)%dat                      (rkind)
                     var_dlength2,          & ! x%var(:)%dat2(:,:)                (rkind)
                     ! gru dimension
-                    gru_int,               & ! x%gru(:)%var(:)                   (i4b)
-                    gru_int8,              & ! x%gru(:)%var(:)                   (i8b)                  
+                    gru_int,               & ! x%gru(:)%var(:)                   (i4b)                
                     gru_double,            & ! x%gru(:)%var(:)                   (rkind)
                     gru_intVec,            & ! x%gru(:)%var(:)%dat               (i4b)
                     gru_doubleVec,         & ! x%gru(:)%var(:)%dat               (rkind)
                     ! gru+hru dimension
                     gru_hru_int,           & ! x%gru(:)%hru(:)%var(:)            (i4b)
-                    gru_hru_int8,          & ! x%gru(:)%hru(:)%var(:)            (i8b)
                     gru_hru_double,        & ! x%gru(:)%hru(:)%var(:)            (rkind)
                     gru_hru_intVec,        & ! x%gru(:)%hru(:)%var(:)%dat        (i4b)
                     gru_hru_doubleVec,     & ! x%gru(:)%hru(:)%var(:)%dat        (rkind)
                     ! gru+hru+dom dimension
                     gru_hru_dom_int,       & ! x%gru(:)%hru(:)%dom(:)%var(:)     (i4b)
-                    gru_hru_dom_int8,      & ! x%gru(:)%hru(:)%dom(:)%var(:)     (i8b)
                     gru_hru_dom_double,    & ! x%gru(:)%hru(:)%dom(:)%var(:)     (rkind)
                     gru_hru_dom_intVec,    & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat (i4b)
                     gru_hru_dom_doubleVec, & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat (rkind)
@@ -351,13 +348,10 @@ contains
      select type (datt)
       class is (gru_hru_dom_double); nSpace = nHRUrun; realBuffer3(:,:,:) = realMissing; dataType=ixReal3
       class is (gru_hru_dom_int);    nSpace = nHRUrun; realBuffer3(:,:,:) = realMissing; dataType=ixReal3
-      class is (gru_hru_dom_int8);   nSpace = nHRUrun; realBuffer3(:,:,:) = realMissing; dataType=ixReal3
       class is (gru_hru_double); nSpace = nHRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
       class is (gru_hru_int);    nSpace = nHRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
-      class is (gru_hru_int8);   nSpace = nHRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
       class is (gru_double);     nSpace = nGRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
       class is (gru_int);        nSpace = nGRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
-      class is (gru_int8);       nSpace = nGRUrun; realBuffer(:,:) = realMissing; dataType=ixReal
       class default; err=20; message=trim(message)//'scalarv variables must be of type gru_hru_dom_[double or int*], gru_hru_[double or int*], or gru_[double or int*]'; return
      end select
 
@@ -371,13 +365,10 @@ contains
          select type(datt)
           class is (gru_hru_dom_double); realBuffer3(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(map(iVar))
           class is (gru_hru_dom_int);    realBuffer3(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(map(iVar))
-          class is (gru_hru_dom_int8);   realBuffer3(iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(map(iVar))
           class is (gru_hru_double); realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar)); exit domLoop1 ! only need to get the HRU-level data once
           class is (gru_hru_int);    realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar)); exit domLoop1 ! only need to get the HRU-level data once
-          class is (gru_hru_int8);   realBuffer(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,iTime) = datt(iTime)%gru(iGRU)%hru(iHRU)%var(map(iVar)); exit domLoop1 ! only need to get the HRU-level data once
           class is (gru_double); realBuffer(iGRU,iTime) = datt(iTime)%gru(iGRU)%var(map(iVar)); exit hruLoop1 ! only need to get the GRU-level data once
           class is (gru_int);    realBuffer(iGRU,iTime) = datt(iTime)%gru(iGRU)%var(map(iVar)); exit hruLoop1 ! only need to get the GRU-level data once
-          class is (gru_int8);   realBuffer(iGRU,iTime) = datt(iTime)%gru(iGRU)%var(map(iVar)); exit hruLoop1 ! only need to get the GRU-level data once
          end select  ! time step data structure
 
         end do domLoop1 ! DOM loop
