@@ -66,8 +66,7 @@ module summabmi
   USE globalData, only: outFreq                               ! output frequency flags
   USE globalData, only: ncid                                  ! netcdf output file id
   USE globalData, only: maxLayers,maxSnowLayers,maxLakeLayers,maxGlceLayers,maxSoilLayers ! maximum number of layers
-  USE globalData, only: maxGlaciers,maxWetlands,maxGrid,maxGridX,maxGridY                 ! maximum grids and grid dimensions
-
+  USE globalData, only: maxGlaciers,maxWetlands,maxGrid,maxGridX,maxGridY ! maximum grids and grid dimensions
   USE globalData, only: ixProgress                            ! define frequency to write progress
   USE globalData, only: ixRestart                             ! define frequency to write restart files
   USE globalData, only: newOutputFile                         ! define option for new output files
