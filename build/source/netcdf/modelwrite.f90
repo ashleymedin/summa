@@ -379,8 +379,6 @@ contains
      call netcdf_err(err,message); if (err/=0) return
 
     ! ----- writing statistics -------------------------------------------------
-
-    ! check that we are not writing buffered data -- writing statistics
     else
 
      ! check that maxWrite==1
