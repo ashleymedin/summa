@@ -206,7 +206,7 @@ contains
  ! **************************************************************************************
  ! public subroutine writeData: write model time-dependent data for each HRU
  ! **************************************************************************************
- subroutine writeData(is_bufferedWrite,finalizeStats,outputTimestep,maxWrite,meta,stat,datt,map,indx,err,message)
+ subroutine writeData(is_bufferedWrite,finalizeStats,outputTimestep,maxLengthAll,maxWrite,meta,stat,datt,map,indx,err,message)
  USE data_types,only:var_info                       ! metadata type
  USE var_lookup,only:maxvarStat                     ! index into stats structure
  USE var_lookup,only:iLookVarType                   ! index into type structure
@@ -217,58 +217,53 @@ contains
  USE get_ixName_module,only:get_statName            ! to access type strings for error messages
  implicit none
  ! declare dummy variables
- logical(lgt)  ,intent(in)          :: is_bufferedWrite                     ! flag for buffered write
- logical(lgt)  ,intent(in)          :: finalizeStats(:)                     ! flags to finalize statistics
- integer(i4b)  ,intent(in)          :: outputTimestep(:)                    ! output time step
- integer(i4b)  ,intent(in)          :: maxWrite                             ! maximum number of steps written
- type(var_info),intent(in)          :: meta(:)                              ! meta data
- class(*)      ,intent(in)          :: stat                                 ! stats data
- class(*)      ,intent(in)          :: datt(:)                              ! timestep or buffer data
- integer(i4b)  ,intent(in)          :: map(:)                               ! map into stats child struct
- type(gru_hru_dom_intVec),intent(in):: indx                                 ! index data
- integer(i4b)  ,intent(out)         :: err                                  ! error code
- character(*)  ,intent(out)         :: message                              ! error message
+ logical(lgt)  ,intent(in)          :: is_bufferedWrite                       ! flag for buffered write
+ logical(lgt)  ,intent(in)          :: finalizeStats(:)                       ! flags to finalize statistics
+ integer(i4b)  ,intent(in)          :: outputTimestep(:)                      ! output time step
+ integer(i4b)  ,intent(in)          :: maxLengthAll                           ! maxLength all data
+ integer(i4b)  ,intent(in)          :: maxWrite                               ! maximum number of steps written
+ type(var_info),intent(in)          :: meta(:)                                ! meta data
+ class(*)      ,intent(in)          :: stat                                   ! stats data
+ class(*)      ,intent(in)          :: datt(:)                                ! timestep or buffer data
+ integer(i4b)  ,intent(in)          :: map(:)                                 ! map into stats child struct
+ type(gru_hru_dom_intVec),intent(in):: indx                                   ! index data
+ integer(i4b)  ,intent(out)         :: err                                    ! error code
+ character(*)  ,intent(out)         :: message                                ! error message
  ! local variables
- integer(i4b)                       :: iGRU                                 ! grouped response unit counter
- integer(i4b)                       :: iHRU                                 ! hydrologic response unit counter
- integer(i4b)                       :: iDOM                                 ! domain counter
- integer(i4b)                       :: iVar                                 ! variable index
- integer(i4b)                       :: iStat                                ! statistics index
- integer(i4b)                       :: iFreq                                ! frequency index
- integer(i4b)                       :: iTime                                ! time index
- integer(i4b)                       :: ncVarID                              ! used only for time
- integer(i4b)                       :: nSnow                                ! number of snow layers
- integer(i4b)                       :: nLake                                ! number of lake layers
- integer(i4b)                       :: nSoil                                ! number of soil layers
- integer(i4b)                       :: nGlce                                ! number of glacier ice layers
- integer(i4b)                       :: nGlac                                ! number of glaciers in the GRU
- integer(i4b)                       :: nLayers                              ! total number of layers
- integer(i4b)                       :: ixStart                              ! index of the start of data write
- integer(i4b)                       :: nSpace                               ! number of spatial data elements
+ integer(i4b)                       :: iGRU                                   ! grouped response unit counter
+ integer(i4b)                       :: iHRU                                   ! hydrologic response unit counter
+ integer(i4b)                       :: iDOM                                   ! domain counter
+ integer(i4b)                       :: iVar                                   ! variable index
+ integer(i4b)                       :: iStat                                  ! statistics index
+ integer(i4b)                       :: iFreq                                  ! frequency index
+ integer(i4b)                       :: iTime                                  ! time index
+ integer(i4b)                       :: ncVarID                                ! used only for time
+ integer(i4b)                       :: nSnow                                  ! number of snow layers
+ integer(i4b)                       :: nLake                                  ! number of lake layers
+ integer(i4b)                       :: nSoil                                  ! number of soil layers
+ integer(i4b)                       :: nGlce                                  ! number of glacier ice layers
+ integer(i4b)                       :: nGlac                                  ! number of glaciers in the GRU
+ integer(i4b)                       :: nLayers                                ! total number of layers
+ integer(i4b)                       :: ixStart                                ! index of the start of data write
+ integer(i4b)                       :: nSpace                                 ! number of spatial data elements
  ! output arrays
- integer(i4b)                       :: datLength                            ! length of each data vector
- integer(i4b)                       :: maxLength                            ! maximum length of each data vector
- real(rkind)                        :: timeBuffer(maxWrite)                 ! buffer for all time steps
- real(rkind)                        :: realBuffer(nHRUrun,maxWrite)         ! buffer for all HRUs in the run domain + time steps
- real(rkind)                        :: realBuffer3(maxDOM,nHRUrun,maxWrite) ! buffer for all HRUs and DOMs in the run domain + time steps
- real(rkind),allocatable            :: realArray(:,:)                       ! real array for all HRUs in the run domain
- integer(i4b),allocatable           :: intArray(:,:)                        ! integer array for all HRUs in the run domain
- real(rkind),allocatable            :: realArray3(:,:,:)                    ! real array for all HRUs and DOMs in the run domain
- integer(i4b),allocatable           :: intArray3(:,:,:)                     ! integer array for all HRUs and DOMs in the run domain
- integer(i4b)                       :: dataType                             ! type of data
- integer(i4b),parameter             :: ixInteger=1001                       ! named variable for integer
- integer(i4b),parameter             :: ixReal=1002                          ! named variable for real
- integer(i4b),parameter             :: ixInteger3=1003                      ! named variable for integer array with 3 dimensions (e.g. dom, hru, time)
- integer(i4b),parameter             :: ixReal3=1004                         ! named variable for real array with 3 dimensions (e.g. dom, hru, time)
+ integer(i4b)                       :: datLength                              ! length of each data vector
+ integer(i4b)                       :: maxLength                              ! maximum length of each data vector
+ real(rkind)                        :: timeBuffer(maxWrite)                   ! buffer for all time steps
+ real(rkind)                        :: realBuffer(nHRUrun,maxWrite)           ! buffer for all HRUs in the run domain + time steps
+ real(rkind)                        :: realBuffer3(maxDOM,nHRUrun,maxWrite)   ! buffer for all HRUs and DOMs in the run domain + time steps
+ real(rkind)                        :: realArray(nHRUrun,maxLengthAll)        ! real array for all HRUs in the run domain
+ integer(i4b)                       :: intArray(nHRUrun,maxLengthAll)         ! integer array for all HRUs in the run domain
+ real(rkind)                        :: realArray3(maxDOM,nHRUrun,maxLengthAll)! real array for all HRUs and DOMs in the run domain
+ integer(i4b)                       :: intArray3(maxDOM,nHRUrun,maxLengthAll) ! integer array for all HRUs and DOMs in the run domain
+ integer(i4b)                       :: dataType                               ! type of data
+ integer(i4b),parameter             :: ixInteger=1001                         ! named variable for integer
+ integer(i4b),parameter             :: ixReal=1002                            ! named variable for real
+ integer(i4b),parameter             :: ixInteger3=1003                        ! named variable for integer array with 3 dimensions (e.g. dom, hru, time)
+ integer(i4b),parameter             :: ixReal3=1004                           ! named variable for real array with 3 dimensions (e.g. dom, hru, time)
 
  ! initialize error control
  err=0
-
- ! allocate real and integer arrays for non-scalar variables to longest possible length
- maxLength = max(nSpecBand,maxLayers+1)
- maxLength = max(maxLength,maxGlaciers)
- if(allowRoutingOutput) maxLength = max(maxLength, nTimeDelay)
- allocate(realArray(nHRUrun,maxLength),intArray(nHRUrun,maxLength),realArray3(maxDOM,nHRUrun,maxLength),intArray3(maxDOM,nHRUrun,maxLength))
 
  ! loop through output frequencies
  do iFreq=1,maxvarFreq
@@ -524,7 +519,6 @@ contains
 
   end do iVarLoop ! iVar
  end do ! iFreq
- deallocate(realArray,intArray,realArray3,intArray3)
 
  end subroutine writeData
 

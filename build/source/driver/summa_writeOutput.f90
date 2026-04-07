@@ -27,6 +27,13 @@ USE globalData, only: newFileEveryOct1        ! create a new file on Oct 1 every
 !  model decisions
 USE globalData,only:model_decisions           ! model decision structure
 
+! provide access to global data
+USE globalData,only:maxLayers                 ! maximum number of layers
+USE globalData,only:nSpecBand                 ! number of spectral bands
+USE globalData,only:nTimeDelay                ! number of timesteps in the time delay histogram
+USE globalData,only:maxGlaciers               ! maximum number of glaciers in a GRU
+USE globalData,only:allowRoutingOutput        ! flag to allow routing variable output
+
 ! metadata
 USE globalData,only:time_meta                 ! metadata on the model time
 USE globalData,only:forc_meta                 ! metadata on the model forcing data
@@ -158,7 +165,8 @@ contains
  integer(i4b)                          :: iVar                        ! index of variable in the data structure
  integer(i4b)                          :: iStruct                     ! index of model structure
  integer(i4b)                          :: iFreq                       ! index of the output frequency
- integer(i4b)                          :: maxWrite                    ! maximum number of time steps written 
+ integer(i4b)                          :: maxLengthAll                 ! maxLength all data writing
+ integer(i4b)                          :: maxWrite                     ! maximum number of time steps written 
  ! error control
  integer(i4b)                          :: ierr                        ! error code of downwind routine
  character(LEN=256)                    :: cmessage                    ! error message of downwind routine
@@ -268,6 +276,11 @@ contains
    err=10; message=trim(message)//"unknown option for method used to write model output [option="//trim(model_decisions(iLookDECISIONS%write_buff)%cDecision)//"]"; return
  end select
 
+ ! find longest possible length
+ maxLengthAll = max(nSpecBand,maxLayers+1)
+ maxLengthAll = max(maxLengthAll,maxGlaciers)
+ if(allowRoutingOutput) maxLengthAll = max(maxLengthAll, nTimeDelay)
+
  ! check if the buffered write
  is_bufferedWrite = (model_decisions(iLookDECISIONS%write_buff)%iDecision == writeFullSeries .and. modelTimeStep == numtim)
 
@@ -350,12 +363,12 @@ contains
    if(is_bufferedWrite)then
     ! write buffered data directly from full*Save arrays
     select case(trim(structInfo(iStruct)%structName))
-     case('indx'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,indx_meta,indxStat,fullIndxSave,indxChild_map,indxStruct,ierr,cmessage)
-     case('forc'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,forc_meta,forcStat,fullForcSave,forcChild_map,indxStruct,ierr,cmessage)
-     case('prog'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,prog_meta,progStat,fullProgSave,progChild_map,indxStruct,ierr,cmessage)
-     case('diag'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,diag_meta,diagStat,fullDiagSave,diagChild_map,indxStruct,ierr,cmessage)
-     case('flux'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,flux_meta,fluxStat,fullFluxSave,fluxChild_map,indxStruct,ierr,cmessage)
-     case('bvar'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,bvar_meta,bvarStat,fullBvarSave,bvarChild_map,indxStruct,ierr,cmessage)
+     case('indx'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,indx_meta,indxStat,fullIndxSave,indxChild_map,indxStruct,ierr,cmessage)
+     case('forc'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,forc_meta,forcStat,fullForcSave,forcChild_map,indxStruct,ierr,cmessage)
+     case('prog'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,prog_meta,progStat,fullProgSave,progChild_map,indxStruct,ierr,cmessage)
+     case('diag'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,diag_meta,diagStat,fullDiagSave,diagChild_map,indxStruct,ierr,cmessage)
+     case('flux'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,flux_meta,fluxStat,fullFluxSave,fluxChild_map,indxStruct,ierr,cmessage)
+     case('bvar'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,bvar_meta,bvarStat,fullBvarSave,bvarChild_map,indxStruct,ierr,cmessage)
      case('grid') ! buffer write cannot handle non-scalar (grid) data, so issue a warning
       do iVar = 1, size(grid_meta)
        if(grid_meta(iVar)%varDesire .and. (trim(grid_meta(iVar)%varName)=='surface_elev' .or. trim(grid_meta(iVar)%varName)=='debris_thick'))&
@@ -373,12 +386,12 @@ contains
     if(maxWrite/=1)then; err=20; message=trim(message)//'expect maxWrite=1'; return; endif
     ! pass one-step data as length-1 arrays expected by writeData/writeGridData
     select case(trim(structInfo(iStruct)%structName))
-     case('indx'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,indx_meta,indxStat,[indxStruct],indxChild_map,indxStruct,ierr,cmessage)
-     case('forc'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,forc_meta,forcStat,[forcStruct],forcChild_map,indxStruct,ierr,cmessage)
-     case('prog'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,prog_meta,progStat,[progStruct],progChild_map,indxStruct,ierr,cmessage)
-     case('diag'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,diag_meta,diagStat,[diagStruct],diagChild_map,indxStruct,ierr,cmessage)
-     case('flux'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,flux_meta,fluxStat,[fluxStruct],fluxChild_map,indxStruct,ierr,cmessage)
-     case('bvar'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxWrite,bvar_meta,bvarStat,[bvarStruct],bvarChild_map,indxStruct,ierr,cmessage)
+     case('indx'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,indx_meta,indxStat,[indxStruct],indxChild_map,indxStruct,ierr,cmessage)
+     case('forc'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,forc_meta,forcStat,[forcStruct],forcChild_map,indxStruct,ierr,cmessage)
+     case('prog'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,prog_meta,progStat,[progStruct],progChild_map,indxStruct,ierr,cmessage)
+     case('diag'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,diag_meta,diagStat,[diagStruct],diagChild_map,indxStruct,ierr,cmessage)
+     case('flux'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,flux_meta,fluxStat,[fluxStruct],fluxChild_map,indxStruct,ierr,cmessage)
+     case('bvar'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,bvar_meta,bvarStat,[bvarStruct],bvarChild_map,indxStruct,ierr,cmessage)
      case('grid'); call writeGridData(finalizeStats,outputTimeStep,grid_meta,gridStruct,ierr,cmessage)
      case default; cycle ! just keep going if not interested in a data structure
     end select

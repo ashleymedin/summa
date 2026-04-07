@@ -234,8 +234,8 @@ MODULE globalData
   logical(lgt),dimension(maxvarFreq),save,public   :: finalizeStats=.false.             ! flags to finalize statistics
   logical(lgt),save,public                         :: allowRoutingOutput=.false.        ! flag to allow routing variable output (currently very large and slow to write, so turned off by default)
   integer(i4b),save,public                         :: maxLayers                         ! maximum number of layers
-  integer(i4b),save,public                         :: maxSoilLayers                     ! maximum number of soil layers
   integer(i4b),save,public                         :: maxSnowLayers                     ! maximum number of snow layers
+  integer(i4b),save,public                         :: maxSoilLayers                     ! maximum number of soil layers
   integer(i4b),save,public                         :: maxGlaciers                       ! maximum number of glaciers in a GRU
   integer(i4b),save,public                         :: maxGrid                           ! maximum number of grids in a GRU
   integer(i4b),save,public                         :: maxGridX                          ! maximum number of grid cells in the x-direction
