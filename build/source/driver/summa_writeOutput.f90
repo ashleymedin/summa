@@ -111,7 +111,9 @@ contains
  USE summa_alarms,only:summa_setWriteAlarms                  ! set alarms to control model output
  USE summa_defineOutput,only:summa_defineOutputFiles         ! define summa output files
  USE modelwrite_module,only:writeRestart                     ! module to write model restart
- USE modelwrite_module,only:writeData,writeGridData          ! modules to write model output
+ USE modelwrite_module,only:writeData_fullSeries             ! module to write buffered model output
+ USE modelwrite_module,only:writeData_perStep                ! module to write per-step model output 
+ USE modelwrite_module,only:writeGridData                    ! module to write model output for the grid structure
  USE modelwrite_module,only:writeTime                        ! module to write model time
  USE output_stats,only:calcStats                             ! module for compiling output statistics
  USE get_ixname_module,only:get_ixFreq                       ! identify index of model output frequency
@@ -165,10 +167,9 @@ contains
  integer(i4b)                          :: iVar                        ! index of variable in the data structure
  integer(i4b)                          :: iStruct                     ! index of model structure
  integer(i4b)                          :: iFreq                       ! index of the output frequency
- integer(i4b)                          :: maxLengthAll                 ! maxLength all data writing
- integer(i4b)                          :: maxWrite                     ! maximum number of time steps written 
+ integer(i4b)                          :: maxLengthAll                ! maxLength all data writing
+ integer(i4b)                          :: maxWrite                    ! maximum number of time steps written 
  ! error control
- integer(i4b)                          :: ierr                        ! error code of downwind routine
  character(LEN=256)                    :: cmessage                    ! error message of downwind routine
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
@@ -235,13 +236,13 @@ contains
 
   ! initialize data structures for the buffered write
   if(modelTimeStep == 1)then
-   call initBufferedWrite(structInfo,numtim,ierr,cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); err=20; return; endif
+   call initBufferedWrite(structInfo,numtim,err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif   ! (if the first time step)
 
   ! populate data structures
-  call popBufferStruct(structInfo,summa1_struc,modelTimeStep,ierr,cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); err=20; return; endif
+  call popBufferStruct(structInfo,summa1_struc,modelTimeStep,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! set the maximum number of data points to write
   maxWrite = numtim
@@ -304,35 +305,37 @@ contains
  end if  ! if defining a new file
 
  ! ****************************************************************************
- ! *** calculate output statistics
+ ! *** calculate output statistics if writing per step
  ! ****************************************************************************
 
- ! loop through GRUs and HRUs
- do iGRU=1,nGRU
-  do iHRU=1,gru_struc(iGRU)%hruCount
-    
-   do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
-    ! calculate output statistics
-    do iStruct=1,size(structInfo)
-     select case(trim(structInfo(iStruct)%structName))
-      case('prog'); call calcStats(progStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statProg_meta,resetStats,finalizeStats,statCounter,err,cmessage)
-      case('diag'); call calcStats(diagStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,diagStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statDiag_meta,resetStats,finalizeStats,statCounter,err,cmessage)
-      case('flux'); call calcStats(fluxStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statFlux_meta,resetStats,finalizeStats,statCounter,err,cmessage)
-      case('indx'); call calcStats(indxStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,indxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statIndx_meta,resetStats,finalizeStats,statCounter,err,cmessage)
-     end select
-     if(err/=0)then; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; return; endif
-    end do  ! (looping through structures)
-   end do  ! (looping through domains)
+ if(model_decisions(iLookDECISIONS%write_buff)%iDecision == writePerStep)then 
+  ! loop through GRUs and HRUs
+  do iGRU=1,nGRU
+   do iHRU=1,gru_struc(iGRU)%hruCount
+     
+    do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
+     ! calculate output statistics
+     do iStruct=1,size(structInfo)
+      select case(trim(structInfo(iStruct)%structName))
+       case('prog'); call calcStats(progStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statProg_meta,resetStats,finalizeStats,statCounter,err,cmessage)
+       case('diag'); call calcStats(diagStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,diagStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statDiag_meta,resetStats,finalizeStats,statCounter,err,cmessage)
+       case('flux'); call calcStats(fluxStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statFlux_meta,resetStats,finalizeStats,statCounter,err,cmessage)
+       case('indx'); call calcStats(indxStat%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,indxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var,statIndx_meta,resetStats,finalizeStats,statCounter,err,cmessage)
+      end select
+      if(err/=0)then; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; return; endif
+     end do  ! (looping through structures)
+    end do  ! (looping through domains)
 
-   ! calculate output statistics for the HRU-level variables
-   call calcStats(forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,statForc_meta,resetStats,finalizeStats,statCounter,err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage)//'[forc stats]'; return; endif
-  end do  ! (looping through HRUs)
+    ! calculate output statistics for the HRU-level variables
+    call calcStats(forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,statForc_meta,resetStats,finalizeStats,statCounter,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage)//'[forc stats]'; return; endif
+   end do  ! (looping through HRUs)
 
-  ! calculate basin stats
-  call calcStats(bvarStat%gru(iGRU)%var,bvarStruct%gru(iGRU)%var,statBvar_meta,resetStats,finalizeStats,statCounter,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage)//'[bvar stats]'; return; endif
- end do  ! (looping through GRUs)
+   ! calculate basin stats
+   call calcStats(bvarStat%gru(iGRU)%var,bvarStruct%gru(iGRU)%var,statBvar_meta,resetStats,finalizeStats,statCounter,err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage)//'[bvar stats]'; return; endif
+  end do  ! (looping through GRUs)
+ endif  ! (if the writePerStep option)
 
  ! ****************************************************************************
  ! *** write integer time information
@@ -363,39 +366,36 @@ contains
    if(is_bufferedWrite)then
     ! write buffered data directly from full*Save arrays
     select case(trim(structInfo(iStruct)%structName))
-     case('indx'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,indx_meta,indxStat,fullIndxSave,indxChild_map,indxStruct,ierr,cmessage)
-     case('forc'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,forc_meta,forcStat,fullForcSave,forcChild_map,indxStruct,ierr,cmessage)
-     case('prog'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,prog_meta,progStat,fullProgSave,progChild_map,indxStruct,ierr,cmessage)
-     case('diag'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,diag_meta,diagStat,fullDiagSave,diagChild_map,indxStruct,ierr,cmessage)
-     case('flux'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,flux_meta,fluxStat,fullFluxSave,fluxChild_map,indxStruct,ierr,cmessage)
-     case('bvar'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,bvar_meta,bvarStat,fullBvarSave,bvarChild_map,indxStruct,ierr,cmessage)
+     case('indx'); call writeData_fullSeries(finalizeStats,maxWrite,indx_meta,fullIndxSave,indxChild_map,indxStruct,err,cmessage)
+     case('forc'); call writeData_fullSeries(finalizeStats,maxWrite,forc_meta,fullForcSave,forcChild_map,indxStruct,err,cmessage)
+     case('prog'); call writeData_fullSeries(finalizeStats,maxWrite,prog_meta,fullProgSave,progChild_map,indxStruct,err,cmessage)
+     case('diag'); call writeData_fullSeries(finalizeStats,maxWrite,diag_meta,fullDiagSave,diagChild_map,indxStruct,err,cmessage)
+     case('flux'); call writeData_fullSeries(finalizeStats,maxWrite,flux_meta,fullFluxSave,fluxChild_map,indxStruct,err,cmessage)
+     case('bvar'); call writeData_fullSeries(finalizeStats,maxWrite,bvar_meta,fullBvarSave,bvarChild_map,indxStruct,err,cmessage)
      case('grid') ! buffer write cannot handle non-scalar (grid) data, so issue a warning
       do iVar = 1, size(grid_meta)
        if(grid_meta(iVar)%varDesire .and. (trim(grid_meta(iVar)%varName)=='surface_elev' .or. trim(grid_meta(iVar)%varName)=='debris_thick'))&
        write(*,*)'WARNING: cannot output non-scalar type data when using the buffered write option (writeFullSeries), skipping variable '//trim(grid_meta(iVar)%varName)
       end do
-      cycle
-     case default; cycle ! just keep going if not interested in a data structure
     end select
-    if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
    ! ----- write data and statistics structures ---------------------------------
    else
 
     ! check per step write
     if(maxWrite/=1)then; err=20; message=trim(message)//'expect maxWrite=1'; return; endif
-    ! pass one-step data as length-1 arrays expected by writeData/writeGridData
+    ! pass one-step data directly to the scalar writeData overload
     select case(trim(structInfo(iStruct)%structName))
-     case('indx'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,indx_meta,indxStat,[indxStruct],indxChild_map,indxStruct,ierr,cmessage)
-     case('forc'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,forc_meta,forcStat,[forcStruct],forcChild_map,indxStruct,ierr,cmessage)
-     case('prog'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,prog_meta,progStat,[progStruct],progChild_map,indxStruct,ierr,cmessage)
-     case('diag'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,diag_meta,diagStat,[diagStruct],diagChild_map,indxStruct,ierr,cmessage)
-     case('flux'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,flux_meta,fluxStat,[fluxStruct],fluxChild_map,indxStruct,ierr,cmessage)
-     case('bvar'); call writeData(is_bufferedWrite,finalizeStats,outputTimeStep,maxLengthAll,maxWrite,bvar_meta,bvarStat,[bvarStruct],bvarChild_map,indxStruct,ierr,cmessage)
-     case('grid'); call writeGridData(finalizeStats,outputTimeStep,grid_meta,gridStruct,ierr,cmessage)
-     case default; cycle ! just keep going if not interested in a data structure
+     case('indx'); call writeData_perStep(finalizeStats,outputTimeStep,maxLengthAll,indx_meta,indxStat,indxStruct,indxChild_map,indxStruct,err,cmessage)
+     case('forc'); call writeData_perStep(finalizeStats,outputTimeStep,maxLengthAll,forc_meta,forcStat,forcStruct,forcChild_map,indxStruct,err,cmessage)
+     case('prog'); call writeData_perStep(finalizeStats,outputTimeStep,maxLengthAll,prog_meta,progStat,progStruct,progChild_map,indxStruct,err,cmessage)
+     case('diag'); call writeData_perStep(finalizeStats,outputTimeStep,maxLengthAll,diag_meta,diagStat,diagStruct,diagChild_map,indxStruct,err,cmessage)
+     case('flux'); call writeData_perStep(finalizeStats,outputTimeStep,maxLengthAll,flux_meta,fluxStat,fluxStruct,fluxChild_map,indxStruct,err,cmessage)
+     case('bvar'); call writeData_perStep(finalizeStats,outputTimeStep,maxLengthAll,bvar_meta,bvarStat,bvarStruct,bvarChild_map,indxStruct,err,cmessage)
+     case('grid'); call writeGridData(finalizeStats,outputTimeStep,grid_meta,gridStruct,err,cmessage)
     end select
-    if(ierr/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
    endif ! (if buffered write)
 
@@ -484,47 +484,44 @@ contains
  type(gru_hru_dom_double),allocatable  :: tempFlux_struct    ! Flux temp structure: x%gru(:)%hru(:)%dom(:)%var(:) (rkind)
  type(gru_double),        allocatable  :: tempBvar_struct    ! Bvar temp structure: x%gru(:)%var(:)               (rkind)
  ! error control
- integer(i4b)                          :: ierr               ! error code of downwind routine
  character(LEN=256)                    :: cmessage           ! error message of downwind routine
  ! ---------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='initBufferedWrite/'
 
  ! allocate space for local data structures
- allocate(tempIndx_struct, tempForc_struct, tempProg_struct, tempDiag_struct, tempFlux_struct, tempBvar_struct, stat=ierr)
- if(ierr/=0)then; err=20; message=trim(message)//'problem allocating temporary data structures'; return; endif
+ allocate(tempIndx_struct, tempForc_struct, tempProg_struct, tempDiag_struct, tempFlux_struct, tempBvar_struct, stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'problem allocating temporary data structures'; return; endif
 
  ! allocate space for temporary data structuress
  do iStruct=1,size(structInfo)  ! loop means we can apply error code at the end
   select case(trim(structInfo(iStruct)%structName))
-   case('indx'); call allocGlobal(statIndx_meta%var_info, tempIndx_struct, ierr, cmessage)
-   case('forc'); call allocGlobal(statForc_meta%var_info, tempForc_struct, ierr, cmessage)
-   case('prog'); call allocGlobal(statProg_meta%var_info, tempProg_struct, ierr, cmessage)
-   case('diag'); call allocGlobal(statDiag_meta%var_info, tempDiag_struct, ierr, cmessage)
-   case('flux'); call allocGlobal(statFlux_meta%var_info, tempFlux_struct, ierr, cmessage)
-   case('bvar'); call allocGlobal(statBvar_meta%var_info, tempBvar_struct, ierr, cmessage)
-   case default; cycle ! do not expect additional data structures
+   case('indx'); call allocGlobal(statIndx_meta%var_info, tempIndx_struct, err, cmessage)
+   case('forc'); call allocGlobal(statForc_meta%var_info, tempForc_struct, err, cmessage)
+   case('prog'); call allocGlobal(statProg_meta%var_info, tempProg_struct, err, cmessage)
+   case('diag'); call allocGlobal(statDiag_meta%var_info, tempDiag_struct, err, cmessage)
+   case('flux'); call allocGlobal(statFlux_meta%var_info, tempFlux_struct, err, cmessage)
+   case('bvar'); call allocGlobal(statBvar_meta%var_info, tempBvar_struct, err, cmessage)
   end select
-  if(ierr/=0)then; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; err=20; return; endif
+  if(err/=0)then; err=20; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; return; endif
  end do  ! (looping through structures)
 
  ! add a time dimension
  do iStruct=1,size(structInfo)  ! loop means we can apply error code at the end
   select case(trim(structInfo(iStruct)%structName))
-   case('indx'); allocate(fullIndxSave(numtim), source=tempIndx_struct, stat=ierr)
-   case('forc'); allocate(fullForcSave(numtim), source=tempForc_struct, stat=ierr)
-   case('prog'); allocate(fullProgSave(numtim), source=tempProg_struct, stat=ierr)
-   case('diag'); allocate(fullDiagSave(numtim), source=tempDiag_struct, stat=ierr)
-   case('flux'); allocate(fullFluxSave(numtim), source=tempFlux_struct, stat=ierr)
-   case('bvar'); allocate(fullBvarSave(numtim), source=tempBvar_struct, stat=ierr)
-   case default; cycle ! do not expect additional data structures
+   case('indx'); allocate(fullIndxSave(numtim), source=tempIndx_struct, stat=err)
+   case('forc'); allocate(fullForcSave(numtim), source=tempForc_struct, stat=err)
+   case('prog'); allocate(fullProgSave(numtim), source=tempProg_struct, stat=err)
+   case('diag'); allocate(fullDiagSave(numtim), source=tempDiag_struct, stat=err)
+   case('flux'); allocate(fullFluxSave(numtim), source=tempFlux_struct, stat=err)
+   case('bvar'); allocate(fullBvarSave(numtim), source=tempBvar_struct, stat=err)
   end select
-  if(ierr/=0)then; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; err=20; return; endif
+  if(err/=0)then; err=20; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; return; endif
  end do  ! (looping through structues)
 
  ! deallocate space for data structures
- deallocate(tempIndx_struct, tempForc_struct, tempProg_struct, tempDiag_struct, tempFlux_struct, tempBvar_struct, stat=ierr)
- if(ierr/=0)then; err=20; message=trim(message)//'problem deallocating temporary data structures'; return; endif
+ deallocate(tempIndx_struct, tempForc_struct, tempProg_struct, tempDiag_struct, tempFlux_struct, tempBvar_struct, stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'problem deallocating temporary data structures'; return; endif
 
  end subroutine initBufferedWrite
 

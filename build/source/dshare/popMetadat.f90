@@ -1127,7 +1127,7 @@ subroutine read_output_file(err,message)
         ! check actually defined the statistic (and only defined one statistic) that is not the deprecated mode statistic
         if(nWords==freqIndex + 2*(maxvarStat+1))then
           if(lineWords(freqIndex + 2*(maxvarStat+1))=='1')&
-          write(*,*)'WARNING: the mode statistic is no longer supported, ignorning mode flag for variable '//trim(varName) 
+          write(*,*)'WARNING: the mode statistic is no longer supported, ignoring mode flag for variable '//trim(varName) 
         endif
         if(count(statFlag)/=1)then
           if(count(statFlag)==0)then
@@ -1149,6 +1149,12 @@ subroutine read_output_file(err,message)
       message=trim(message)//'unable to identify desired statistic for variable '//trim(varName)&
                            //' [evaluating '//trim(statName)//', names should be total, instant, mean, variance, minimum, or maximum]'
       err=20; return
+    endif
+
+    ! if frequency is timestep, only allow instantaneous statistic, change it to this if it is not already this and give a warning
+    if(iFreq==iLookFREQ%timestep .and. iStat/=iLookSTAT%inst)then
+      write(*,*)'WARNING: statistics at timestep level are meaningless, outputting instantaneous variable '//trim(varName)//' in timestep output file '
+      iStat = iLookSTAT%inst
     endif
 
     ! --- populate the metadata that controls the model output  ---------------
