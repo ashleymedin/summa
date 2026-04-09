@@ -627,7 +627,7 @@ contains
     ixSnLaSoGlHyd => indx_data%var(iLookINDEX%ixSnLaSoGlHyd)%dat   ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the layer domains
     nSnLaSoGlNrg  => indx_data%var(iLookINDEX%nSnLaSoGlNrg )%dat(1),& ! intent(in): [i4b] number of energy state variables in the layer domains
     nSnLaSoGlHyd  => indx_data%var(iLookINDEX%nSnLaSoGlHyd )%dat(1) & ! intent(in): [i4b] number of hydrology state variables in the layer domains
-    )
+   )
   
     ! update temperatures (ensure new temperature is consistent with the fluxes)
     if (nSnLaSoGlNrg>0) then

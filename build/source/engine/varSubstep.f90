@@ -260,7 +260,7 @@ subroutine varSubstep(&
       nSnow => indx_data%var(iLookINDEX%nSnow)%dat(1) ,& ! intent(in): [i4b] number of snow layers
       nSoil => indx_data%var(iLookINDEX%nSoil)%dat(1) ,& ! intent(in): [i4b] number of soil layers
       nLake => indx_data%var(iLookINDEX%nLake)%dat(1) ,& ! intent(in): [i4b] number of lake layers
-      nGlce => indx_data%var(iLookINDEX%nGlce)%dat(1)    ! intent(in): [i4b] number of glacier ice layers
+      nGlce => indx_data%var(iLookINDEX%nGlce)%dat(1)  & ! intent(in): [i4b] number of glacier ice layers
     &)
       ! allocate space for the temporary model flux structure
       call allocLocal(flux_meta(:),flux_temp,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
@@ -474,28 +474,26 @@ subroutine varSubstep(&
       associate(&
         nSoil         => indx_data%var(iLookINDEX%nSoil)%dat(1)        ,& ! intent(in): [i4b]    number of soil layers
         nLayers       => indx_data%var(iLookINDEX%nLayers)%dat(1)      ,& ! intent(in): [i4b]    total number of layers
-        noThetaChange           => indx_data%var(iLookINDEX%noThetaChange)%dat(1) ,& ! intent(in):    [i4b]    number of layers with no change in total water content (bottom layers)
         ixCasNrg      => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)     ,& ! intent(in): [i4b]    index of canopy air space energy state variable
         ixVegNrg      => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)     ,& ! intent(in): [i4b]    index of canopy energy state variable
         ixVegHyd      => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)     ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
         ixAqWat       => indx_data%var(iLookINDEX%ixAqWat)%dat(1)      ,& ! intent(in): [i4b]    index of water storage in the aquifer
         ixSoilOnlyHyd => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat   ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the soil domain
-        ixSnLaSoGlHyd => indx_data%var(iLookINDEX%ixSnLaSoGlHyd)%dat   ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the layer domains
-        ixSnLaSoGlNrg => indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat   ,& ! intent(in):    [i4b(:)] index in the state subset for energy state variables in the layer domains
-        nSnowSoilNrg  => indx_data%var(iLookINDEX%nSnowSoilNrg)%dat(1) ,& ! intent(in): [i4b]    number of energy state variables in the snow+soil domain
-        nSnLaSoGlNrg  => indx_data%var(iLookINDEX%nSnLaSoGlNrg)%dat(1) ,& ! intent(in):    [i4b]    number of energy state variables in the layer domains
-        nSnLaSoGlHyd  => indx_data%var(iLookINDEX%nSnLaSoGlHyd)%dat(1) ,& ! intent(in):    [i4b]    number of hydrology state variables in the layer domains
+        ixSnLaSoGlHyd => indx_data%var(iLookINDEX%ixSnLaSoGlHyd)%dat   ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the layer domains
+        ixSnLaSoGlNrg => indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat   ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the layer domains
+        nSnLaSoGlNrg  => indx_data%var(iLookINDEX%nSnLaSoGlNrg)%dat(1) ,& ! intent(in): [i4b]    number of energy state variables in the layer domains
+        nSnLaSoGlHyd  => indx_data%var(iLookINDEX%nSnLaSoGlHyd)%dat(1)  & ! intent(in): [i4b]    number of hydrology state variables in the layer domains
       &)
         ! add balances to the total balances
         if(ixCasNrg/=integerMissing) sumBalance(ixCasNrg) = sumBalance(ixCasNrg) + dtSubstep*balance(ixCasNrg)
         if(ixVegNrg/=integerMissing) sumBalance(ixVegNrg) = sumBalance(ixVegNrg) + dtSubstep*balance(ixVegNrg)
-        if(nSnowSoilNrg>0) then
+        if(nSnLaSoGlNrg>0) then
           do concurrent (ixLayer=1:nLayers,ixSnLaSoGlNrg(ixLayer)/=integerMissing)
             if(ixSnLaSoGlNrg(ixLayer)/=integerMissing) sumBalance(ixSnLaSoGlNrg(ixLayer)) = sumBalance(ixSnLaSoGlNrg(ixLayer)) + dtSubstep*balance(ixSnLaSoGlNrg(ixLayer))
           end do
         endif
         if(ixVegHyd/=integerMissing) sumBalance(ixVegHyd) = sumBalance(ixVegHyd) + dtSubstep*balance(ixVegHyd)
-        if(nSnowSoilHyd>0) then
+        if(nSnLaSoGlHyd>0) then
           do concurrent (ixLayer=1:nLayers,ixSnLaSoGlHyd(ixLayer)/=integerMissing)
             if(ixSnLaSoGlHyd(ixLayer)/=integerMissing) sumBalance(ixSnLaSoGlHyd(ixLayer)) = sumBalance(ixSnLaSoGlHyd(ixLayer)) + dtSubstep*balance(ixSnLaSoGlHyd(ixLayer))
           end do
@@ -538,8 +536,9 @@ subroutine varSubstep(&
           ! associate block for indx_data components
           ! note: using local associate blocks for indx_data components to permit reallocation in systemSolv
           associate(&
-            nLayers       => indx_data%var(iLookINDEX%nLayers)%dat(1)   ,& ! intent(in): [i4b]    total number of layers
-            ixLayerActive => indx_data%var(iLookINDEX%ixLayerActive)%dat & ! intent(in): [i4b(:)] list of indices for all active layers (inactive=integerMissing)
+            nLayers       => indx_data%var(iLookINDEX%nLayers)%dat(1)      ,& ! intent(in): [i4b]    total number of layers
+            noThetaChange => indx_data%var(iLookINDEX%noThetaChange)%dat(1),& ! intent(in): [i4b]    number of layers with no change in total water content (bottom layers)
+            ixLayerActive => indx_data%var(iLookINDEX%ixLayerActive)%dat    & ! intent(in): [i4b(:)] list of indices for all active layers (inactive=integerMissing)
           &)          
             ! ** no domain splitting
             if(count(ixLayerActive/=integerMissing)==nLayers)then
@@ -614,9 +613,8 @@ subroutine varSubstep(&
       ixSoilOnlyHyd => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat   ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the soil domain
       ixSnLaSoGlHyd => indx_data%var(iLookINDEX%ixSnLaSoGlHyd)%dat   ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the layer domains
       ixSnLaSoGlNrg => indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat   ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the layer domains
-      nSnowSoilNrg  => indx_data%var(iLookINDEX%nSnowSoilNrg)%dat(1) ,& ! intent(in): [i4b]    number of energy state variables in the snow+soil domain
       nSnLaSoGlNrg  => indx_data%var(iLookINDEX%nSnLaSoGlNrg)%dat(1) ,& ! intent(in): [i4b]    number of energy state variables in the layer domains
-      nSnLaSoGlHyd  => indx_data%var(iLookINDEX%nSnLaSoGlHyd)%dat(1) ,& ! intent(in): [i4b]    number of hydrology state variables in the layer domains
+      nSnLaSoGlHyd  => indx_data%var(iLookINDEX%nSnLaSoGlHyd)%dat(1)  & ! intent(in): [i4b]    number of hydrology state variables in the layer domains
     &)
       ! save the soil compression diagnostics as averages
       diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sumSoilCompress/dt

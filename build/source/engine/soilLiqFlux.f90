@@ -194,7 +194,7 @@ contains
 
   ! ** get the indices for the soil layers **
   associate(&
-   scalarSolution => in_soilLiqFlux % scalarSolution,             & ! intent(in): flag to denote if implementing the scalar solution
+   scalarSolution => in_soilLiqFlux % scalarSolution,            & ! intent(in): flag to denote if implementing the scalar solution
    ixMatricHead   => indx_data%var(iLookINDEX%ixMatricHead)%dat, & ! intent(in): indices of soil layers where matric head is the state variable
    ixSoilOnlyHyd  => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat & ! intent(in): index in the state subset for hydrology state variables in the soil domain
   &)
@@ -210,7 +210,7 @@ contains
 
   ! ** identify the number of layers that contain roots or take infiltration **
   associate(&
-   rootingDepth => mpar_data%var(iLookPARAM%rootingDepth)%dat(1),& ! intent(in): rooting depth (m)
+   rootingDepth => mpar_data%var(iLookPARAM%rootingDepth)%dat(1), & ! intent(in): rooting depth (m)
    err          => out_soilLiqFlux % err,                         & ! intent(out): error code
    message      => out_soilLiqFlux % cmessage                     & ! intent(out): error message
   &)
