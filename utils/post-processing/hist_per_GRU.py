@@ -367,8 +367,8 @@ def run_loopb(i,var,mx,rep,stat2):
             mn = mx*1e-9
         if var=='wallClockTime': mn = 0.0008
         if fix_units_soil and 'Soil' in var:
-            mn = mn*3600*3.0 # mult by time step and depth to get storage
-            mx = mx*3600*3.0
+            mn = mn*3600*4.0 # mult by time step and depth to get storage
+            mx = mx*3600*4.0
             if 'Nrg' in var:
                 mn=mn*1e-3
                 mx=mx*1e-3
@@ -388,7 +388,7 @@ def run_loopb(i,var,mx,rep,stat2):
         s = summa1[m][var].sel(stat=stat0).where(lambda x: x != 9999)            
         if var=='wallClockTime': s = s.where(lambda x: x != 0) # water bodies should be 0
         if fix_units_soil and 'Soil' in var: 
-            s = s*3600*3.0 # mult by time step and depth to get storage
+            s = s*3600*4.0 # mult by time step and depth to get storage
             if 'Nrg' in var: s = s*1e-3
 
         plot_range = (mn,mx)

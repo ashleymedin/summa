@@ -198,7 +198,7 @@ for plot_var in plot_vars_computed:
         for m in method_name:
             s = summa[m][plot_var].sel(stat=stat0)
             if fix_units_soil and 'Soil' in plot_var: 
-                s = s * 3600 * 3.0  # Multiply by time step and depth to get storage
+                s = s * 3600 * 4.0  # Multiply by time step and depth to get storage
                 if 'Nrg' in plot_var: 
                     s = s * 1e-3
 
@@ -236,8 +236,8 @@ def run_loop(j,var,the_max,stat,row_fill):
         vmin, vmax = the_max * 1e-9, the_max
     if var in ['wallClockTime',]: vmin,vmax = the_max*1e-1, the_max
     if fix_units_soil and 'Soil' in var:
-        vmin = vmin*3600*3.0 # mult by time step and depth to get storage
-        vmax = vmax*3600*3.0
+        vmin = vmin*3600*4.0 # mult by time step and depth to get storage
+        vmax = vmax*3600*4.0
         if 'Nrg' in var: 
             vmin = vmin*1e-3
             vmax = vmax*1e-3
