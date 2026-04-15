@@ -239,9 +239,7 @@ contains
  real(rkind)                        :: realBuffer(nHRUrun,maxWrite)           ! buffer for all HRUs in the run domain + time steps
  real(rkind)                        :: realBuffer3(maxDOM,nHRUrun,maxWrite)   ! buffer for all HRUs and DOMs in the run domain + time steps
  integer(i4b)                       :: dataType                               ! type of data
- integer(i4b),parameter             :: ixInteger=1001                         ! named variable for integer
  integer(i4b),parameter             :: ixReal=1002                            ! named variable for real
- integer(i4b),parameter             :: ixInteger3=1003                        ! named variable for integer array with 3 dimensions (e.g. dom, hru, time)
  integer(i4b),parameter             :: ixReal3=1004                           ! named variable for real array with 3 dimensions (e.g. dom, hru, time)
 
  ! initialize error control
