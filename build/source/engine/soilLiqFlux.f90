@@ -652,7 +652,7 @@ contains
            scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m
          err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return
        end if
-       if (vGn_alpha <= 0._rkind .or. vGn_n <= 1._rkind .or. vGn_m <= 0._rkind .or. theta_sat <= theta_res) then
+       if (vGn_alpha == 0._rkind .or. vGn_n <= 1._rkind .or. vGn_m <= 0._rkind .or. theta_sat <= theta_res) then
          write(cmessage,'(A,1X,ES12.5,1X,ES12.5,1X,ES12.5,1X,ES12.5)') &
            'invalid parameter domain in moisture dPsi_dTheta: alpha,n,m,sat-res=', &
            vGn_alpha,vGn_n,vGn_m,theta_sat-theta_res
@@ -672,7 +672,7 @@ contains
            scalarMatricHeadLiqTrial,scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m
          err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return
        end if
-       if (vGn_alpha <= 0._rkind .or. vGn_n <= 1._rkind .or. vGn_m <= 0._rkind .or. theta_sat <= theta_res) then
+       if (vGn_alpha == 0._rkind .or. vGn_n <= 1._rkind .or. vGn_m <= 0._rkind .or. theta_sat <= theta_res) then
          write(cmessage,'(A,1X,ES12.5,1X,ES12.5,1X,ES12.5,1X,ES12.5,1X,ES12.5,1X,ES12.5)') &
            'invalid domain mixdform: psi,theta,alpha,n,m,sat-res=', &
            scalarMatricHeadLiqTrial,scalarVolFracLiqTrial,vGn_alpha,vGn_n,vGn_m,theta_sat-theta_res
