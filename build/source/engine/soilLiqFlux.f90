@@ -20,7 +20,7 @@
 
 module soilLiqFlux_module
 ! -----------------------------------------------------------------------------------------------------------
-USE, intrinsic :: ieee_arithmetic, only: ieee_is_finite
+! ieee_arithmetic removed: use abs(x) <= huge(x) for finite checks (thread-safe)
 
 ! data types
 USE nr_type
@@ -644,9 +644,9 @@ contains
 
    select case(ixRichards)
      case(moisture)
-       if (.not.ieee_is_finite(scalarVolFracLiqTrial) .or. .not.ieee_is_finite(vGn_alpha) .or. &
-           .not.ieee_is_finite(theta_res) .or. .not.ieee_is_finite(theta_sat) .or. &
-           .not.ieee_is_finite(vGn_n) .or. .not.ieee_is_finite(vGn_m)) then
+       if (abs(scalarVolFracLiqTrial) > huge(scalarVolFracLiqTrial) .or. abs(vGn_alpha) > huge(vGn_alpha) .or. &
+           abs(theta_res) > huge(theta_res) .or. abs(theta_sat) > huge(theta_sat) .or. &
+           abs(vGn_n) > huge(vGn_n) .or. abs(vGn_m) > huge(vGn_m)) then
          write(cmessage,'(A,1X,ES12.5,1X,ES12.5,1X,ES12.5,1X,ES12.5,1X,ES12.5,1X,ES12.5)') &
            'non-finite input in moisture dPsi_dTheta: theta,alpha,res,sat,n,m=', &
            scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m
@@ -659,14 +659,14 @@ contains
          err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return
        end if
        scalardPsi_dTheta = dPsi_dTheta(scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-       if (.not.ieee_is_finite(scalardPsi_dTheta)) then
+       if (abs(scalardPsi_dTheta) > huge(scalardPsi_dTheta)) then
          err=20; message=trim(message)//"non-finite output from moisture dPsi_dTheta"; return_flag=.true.; return
        end if
        scalardTheta_dPsi = realMissing  ! deliberately cause problems if this is ever used
      case(mixdform)
-       if (.not.ieee_is_finite(scalarMatricHeadLiqTrial) .or. .not.ieee_is_finite(scalarVolFracLiqTrial) .or. &
-           .not.ieee_is_finite(vGn_alpha) .or. .not.ieee_is_finite(theta_res) .or. &
-           .not.ieee_is_finite(theta_sat) .or. .not.ieee_is_finite(vGn_n) .or. .not.ieee_is_finite(vGn_m)) then
+       if (abs(scalarMatricHeadLiqTrial) > huge(scalarMatricHeadLiqTrial) .or. abs(scalarVolFracLiqTrial) > huge(scalarVolFracLiqTrial) .or. &
+           abs(vGn_alpha) > huge(vGn_alpha) .or. abs(theta_res) > huge(theta_res) .or. &
+           abs(theta_sat) > huge(theta_sat) .or. abs(vGn_n) > huge(vGn_n) .or. abs(vGn_m) > huge(vGn_m)) then
          write(cmessage,'(A,1X,ES12.5,1X,ES12.5,1X,ES12.5,1X,ES12.5,1X,ES12.5,1X,ES12.5,1X,ES12.5)') &
            'non-finite input in mixdform: psi,theta,alpha,res,sat,n,m=', &
            scalarMatricHeadLiqTrial,scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m
@@ -679,11 +679,11 @@ contains
          err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return
        end if
        scalardTheta_dPsi = dTheta_dPsi(scalarMatricHeadLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-       if (.not.ieee_is_finite(scalardTheta_dPsi)) then
+       if (abs(scalardTheta_dPsi) > huge(scalardTheta_dPsi)) then
          err=20; message=trim(message)//"non-finite output from mixdform dTheta_dPsi"; return_flag=.true.; return
        end if
        scalardPsi_dTheta = dPsi_dTheta(scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-       if (.not.ieee_is_finite(scalardPsi_dTheta)) then
+       if (abs(scalardPsi_dTheta) > huge(scalardPsi_dTheta)) then
          err=20; message=trim(message)//"non-finite output from mixdform dPsi_dTheta"; return_flag=.true.; return
        end if
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
