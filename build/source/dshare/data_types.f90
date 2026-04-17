@@ -1664,7 +1664,7 @@ contains
    ! input: soil parameters
    in_diagv_node % vGn_alpha          = vGn_alpha(iSoil)          ! van Genuchten "alpha" parameter (m-1)
    in_diagv_node % vGn_n              = vGn_n(iSoil)              ! van Genuchten "n" parameter (-)
-   in_diagv_node % vGn_m              = vGn_m(iSoil)              ! van Genuchten "m" parameter (-)
+  in_diagv_node % vGn_m              = 1._rkind - 1._rkind/vGn_n(iSoil) ! recompute van Genuchten "m" from n
    in_diagv_node % mpExp              = mpExp                     ! empirical exponent in macropore flow equation (-)
    in_diagv_node % theta_sat          = theta_sat(iSoil)          ! soil porosity (-)
    in_diagv_node % theta_res          = theta_res(iSoil)          ! soil residual volumetric water content (-)
@@ -1846,7 +1846,7 @@ contains
    ! intent(in): soil parameters
    in_surfaceFlux % vGn_alpha           = vGn_alpha(1)        ! van Genuchten "alpha" parameter (m-1)
    in_surfaceFlux % vGn_n               = vGn_n(1)            ! van Genuchten "n" parameter (-)
-   in_surfaceFlux % vGn_m               = vGn_m(1)            ! van Genuchten "m" parameter (-)
+  in_surfaceFlux % vGn_m               = 1._rkind - 1._rkind/vGn_n(1) ! recompute van Genuchten "m" from n
    in_surfaceFlux % theta_sat           = theta_sat(1)        ! soil porosity (-)
    in_surfaceFlux % theta_res           = theta_res(1)        ! soil residual volumetric water content (-)
    in_surfaceFlux % qSurfScale          = qSurfScale          ! scaling factor in the surface runoff parameterization (-)
@@ -2122,7 +2122,7 @@ contains
    ! intent(in): soil parameters
    in_qDrainFlux % vGn_alpha       = vGn_alpha(nSoil) ! van Genuchten "alpha" parameter (m-1)
    in_qDrainFlux % vGn_n           = vGn_n(nSoil)     ! van Genuchten "n" parameter (-)
-   in_qDrainFlux % vGn_m           = vGn_m(nSoil)     ! van Genuchten "m" parameter (-)
+  in_qDrainFlux % vGn_m           = 1._rkind - 1._rkind/vGn_n(nSoil) ! recompute van Genuchten "m" from n
    in_qDrainFlux % theta_sat       = theta_sat(nSoil) ! soil porosity (-)
    in_qDrainFlux % theta_res       = theta_res(nSoil) ! soil residual volumetric water content (-)
    in_qDrainFlux % kAnisotropic    = kAnisotropic     ! anisotropy factor for lateral hydraulic conductivity (-)

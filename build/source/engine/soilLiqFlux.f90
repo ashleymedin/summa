@@ -588,6 +588,7 @@ subroutine diagv_node(in_diagv_node,out_diagv_node)
   real(rkind)                      :: dK_dPsi__noIce            ! derivative in hydraulic conductivity w.r.t matric head, in the absence of ice (s-1)
   real(rkind)                      :: relSatMP                  ! relative saturation of macropores (-)
   logical(lgt)                     :: return_flag               ! flag for return statements
+  character(len=512)               :: cmessage                  ! local diagnostic message
 
     call initialize_diagv_node
 
@@ -646,10 +647,16 @@ contains
        if (.not.ieee_is_finite(scalarVolFracLiqTrial) .or. .not.ieee_is_finite(vGn_alpha) .or. &
            .not.ieee_is_finite(theta_res) .or. .not.ieee_is_finite(theta_sat) .or. &
            .not.ieee_is_finite(vGn_n) .or. .not.ieee_is_finite(vGn_m)) then
-         err=20; message=trim(message)//"non-finite input in moisture dPsi_dTheta"; return_flag=.true.; return
+         write(cmessage,'(A,1X,ES12.5,1X,ES12.5,1X,ES12.5,1X,ES12.5,1X,ES12.5,1X,ES12.5)') &
+           'non-finite input in moisture dPsi_dTheta: theta,alpha,res,sat,n,m=', &
+           scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m
+         err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return
        end if
        if (vGn_alpha <= 0._rkind .or. vGn_n <= 1._rkind .or. vGn_m <= 0._rkind .or. theta_sat <= theta_res) then
-         err=20; message=trim(message)//"invalid parameter domain in moisture dPsi_dTheta"; return_flag=.true.; return
+         write(cmessage,'(A,1X,ES12.5,1X,ES12.5,1X,ES12.5,1X,ES12.5)') &
+           'invalid parameter domain in moisture dPsi_dTheta: alpha,n,m,sat-res=', &
+           vGn_alpha,vGn_n,vGn_m,theta_sat-theta_res
+         err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return
        end if
        scalardPsi_dTheta = dPsi_dTheta(scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
        if (.not.ieee_is_finite(scalardPsi_dTheta)) then
@@ -660,10 +667,16 @@ contains
        if (.not.ieee_is_finite(scalarMatricHeadLiqTrial) .or. .not.ieee_is_finite(scalarVolFracLiqTrial) .or. &
            .not.ieee_is_finite(vGn_alpha) .or. .not.ieee_is_finite(theta_res) .or. &
            .not.ieee_is_finite(theta_sat) .or. .not.ieee_is_finite(vGn_n) .or. .not.ieee_is_finite(vGn_m)) then
-         err=20; message=trim(message)//"non-finite input in mixdform derivatives"; return_flag=.true.; return
+         write(cmessage,'(A,1X,ES12.5,1X,ES12.5,1X,ES12.5,1X,ES12.5,1X,ES12.5,1X,ES12.5,1X,ES12.5)') &
+           'non-finite input in mixdform: psi,theta,alpha,res,sat,n,m=', &
+           scalarMatricHeadLiqTrial,scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m
+         err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return
        end if
        if (vGn_alpha <= 0._rkind .or. vGn_n <= 1._rkind .or. vGn_m <= 0._rkind .or. theta_sat <= theta_res) then
-         err=20; message=trim(message)//"invalid parameter domain in mixdform derivatives"; return_flag=.true.; return
+         write(cmessage,'(A,1X,ES12.5,1X,ES12.5,1X,ES12.5,1X,ES12.5,1X,ES12.5,1X,ES12.5)') &
+           'invalid domain mixdform: psi,theta,alpha,n,m,sat-res=', &
+           scalarMatricHeadLiqTrial,scalarVolFracLiqTrial,vGn_alpha,vGn_n,vGn_m,theta_sat-theta_res
+         err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return
        end if
        scalardTheta_dPsi = dTheta_dPsi(scalarMatricHeadLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
        if (.not.ieee_is_finite(scalardTheta_dPsi)) then
