@@ -342,10 +342,12 @@ contains
   do iSoil=ixTop,min(ixBot+1,nSoil) ! loop through soil layers
 
    call initialize_compute_diagnostic_variables(in_diagv_node)
+    print*,iSoil, "diag-init", in_diagv_node % ixRichards, model_decisions(iLookDECISIONS%f_Richards)%iDecision
 
    call update_compute_diagnostic_variables(in_diagv_node,out_diagv_node)
 
    call finalize_compute_diagnostic_variables(out_diagv_node); if (return_flag) return
+
 
   end do 
  end subroutine compute_diagnostic_variables
@@ -639,6 +641,8 @@ contains
    err     => out_diagv_node % err    , & ! error code
    message => out_diagv_node % message  & ! error message
   &)
+
+   print*,iSoil, "diag-case", ixRichards
 
    select case(ixRichards)
      case(moisture)
