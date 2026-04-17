@@ -20,6 +20,7 @@
 
 module soilLiqFlux_module
 ! -----------------------------------------------------------------------------------------------------------
+USE, intrinsic :: ieee_arithmetic, only: ieee_is_finite
 
 ! data types
 USE nr_type
@@ -342,7 +343,6 @@ contains
   do iSoil=ixTop,min(ixBot+1,nSoil) ! loop through soil layers
 
    call initialize_compute_diagnostic_variables(in_diagv_node)
-    print*, "diag-init", in_diagv_node % ixRichards, model_decisions(iLookDECISIONS%f_Richards)%iDecision
 
    call update_compute_diagnostic_variables(in_diagv_node,out_diagv_node)
 
@@ -607,12 +607,10 @@ contains
   &)
    err=0; message="diagv_node/"
   end associate
-  print*,"initialize_diagv_node", in_diagv_node % ixRichards, model_decisions(iLookDECISIONS%f_Richards)%iDecision
  end subroutine initialize_diagv_node
 
  subroutine update_diagv_node
   ! **** Update operations for diagv_node ****
-   print*,"update_diagv_node", in_diagv_node % ixRichards, model_decisions(iLookDECISIONS%f_Richards)%iDecision
    call update_diagv_node_characteristic_derivatives; if (return_flag) return
 
    call update_diagv_node_hydraulic_conductivity;     if (return_flag) return
@@ -643,15 +641,38 @@ contains
    message => out_diagv_node % message  & ! error message
   &)
 
-   print*,"diag-case", ixRichards
-
    select case(ixRichards)
      case(moisture)
+       if (.not.ieee_is_finite(scalarVolFracLiqTrial) .or. .not.ieee_is_finite(vGn_alpha) .or. &
+           .not.ieee_is_finite(theta_res) .or. .not.ieee_is_finite(theta_sat) .or. &
+           .not.ieee_is_finite(vGn_n) .or. .not.ieee_is_finite(vGn_m)) then
+         err=20; message=trim(message)//"non-finite input in moisture dPsi_dTheta"; return_flag=.true.; return
+       end if
+       if (vGn_alpha <= 0._rkind .or. vGn_n <= 1._rkind .or. vGn_m <= 0._rkind .or. theta_sat <= theta_res) then
+         err=20; message=trim(message)//"invalid parameter domain in moisture dPsi_dTheta"; return_flag=.true.; return
+       end if
        scalardPsi_dTheta = dPsi_dTheta(scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+       if (.not.ieee_is_finite(scalardPsi_dTheta)) then
+         err=20; message=trim(message)//"non-finite output from moisture dPsi_dTheta"; return_flag=.true.; return
+       end if
        scalardTheta_dPsi = realMissing  ! deliberately cause problems if this is ever used
      case(mixdform)
+       if (.not.ieee_is_finite(scalarMatricHeadLiqTrial) .or. .not.ieee_is_finite(scalarVolFracLiqTrial) .or. &
+           .not.ieee_is_finite(vGn_alpha) .or. .not.ieee_is_finite(theta_res) .or. &
+           .not.ieee_is_finite(theta_sat) .or. .not.ieee_is_finite(vGn_n) .or. .not.ieee_is_finite(vGn_m)) then
+         err=20; message=trim(message)//"non-finite input in mixdform derivatives"; return_flag=.true.; return
+       end if
+       if (vGn_alpha <= 0._rkind .or. vGn_n <= 1._rkind .or. vGn_m <= 0._rkind .or. theta_sat <= theta_res) then
+         err=20; message=trim(message)//"invalid parameter domain in mixdform derivatives"; return_flag=.true.; return
+       end if
        scalardTheta_dPsi = dTheta_dPsi(scalarMatricHeadLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+       if (.not.ieee_is_finite(scalardTheta_dPsi)) then
+         err=20; message=trim(message)//"non-finite output from mixdform dTheta_dPsi"; return_flag=.true.; return
+       end if
        scalardPsi_dTheta = dPsi_dTheta(scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+       if (.not.ieee_is_finite(scalardPsi_dTheta)) then
+         err=20; message=trim(message)//"non-finite output from mixdform dPsi_dTheta"; return_flag=.true.; return
+       end if
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
    end select
 
