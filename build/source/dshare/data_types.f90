@@ -1636,6 +1636,23 @@ contains
    mLayerSatHydCond   => flux_data%var(iLookFLUX%mLayerSatHydCond)%dat,  & ! saturated hydraulic conductivity at the mid-point of each layer (m s-1)
    mLayerSatHydCondMP => flux_data%var(iLookFLUX%mLayerSatHydCondMP)%dat & ! saturated hydraulic conductivity of macropores at the mid-point of each layer (m s-1)
   &)
+   if (iSoil < 1 .or. iSoil > size(mLayerMatricHeadLiqTrial) .or. &
+       iSoil > size(mLayerVolFracLiqTrial) .or. iSoil > size(mLayerVolFracIceTrial) .or. &
+       iSoil > size(mLayerdTheta_dTk) .or. iSoil > size(dPsiLiq_dTemp) .or. &
+       iSoil > size(vGn_alpha) .or. iSoil > size(vGn_n) .or. iSoil > size(vGn_m) .or. &
+       iSoil > size(theta_sat) .or. iSoil > size(theta_res) .or. &
+       iSoil > size(mLayerSatHydCond) .or. iSoil > size(mLayerSatHydCondMP)) then
+    write(*,'(A,I0)') 'initialize_in_diagv_node: iSoil out of bounds, iSoil=', iSoil
+    write(*,'(A,I0,A,I0,A,I0,A,I0)') '  sizes head=', size(mLayerMatricHeadLiqTrial), &
+      ' liq=', size(mLayerVolFracLiqTrial), ' ice=', size(mLayerVolFracIceTrial), &
+      ' dTk=', size(mLayerdTheta_dTk)
+    write(*,'(A,I0,A,I0,A,I0,A,I0)') '  sizes dPsi=', size(dPsiLiq_dTemp), &
+      ' vGn_a=', size(vGn_alpha), ' vGn_n=', size(vGn_n), ' vGn_m=', size(vGn_m)
+    write(*,'(A,I0,A,I0,A,I0,A,I0)') '  sizes th_sat=', size(theta_sat), &
+      ' th_res=', size(theta_res), ' ksat=', size(mLayerSatHydCond), &
+      ' ksatMP=', size(mLayerSatHydCondMP)
+    error stop 9021
+   end if
    ! input: model control
    in_diagv_node % ixRichards    = ixRichards    ! index defining the option for Richards' equation (moisture or mixdform)
     print*,iSoil, "diag-copy", ixRichards, in_diagv_node % ixRichards
@@ -1679,6 +1696,14 @@ contains
    mLayerHydCond     => io_soilLiqFlux % mLayerHydCond,         & ! hydraulic conductivity in each soil layer (m s-1)
    dHydCond_dMatric  => io_soilLiqFlux % dHydCond_dMatric       & ! derivative in hydraulic conductivity w.r.t matric head (s-1)
   &)
+  if (iSoil < 1 .or. iSoil > nSoil .or. iSoil > size(mLayerdPsi_dTheta) .or. &
+     iSoil > size(mLayerdTheta_dPsi) .or. iSoil > size(mLayerHydCond) .or. &
+     iSoil > size(dHydCond_dMatric) .or. iSoil > size(mLayerDiffuse) .or. &
+     iSoil > size(iceImpedeFac) .or. iSoil > size(dHydCond_dVolLiq) .or. &
+     iSoil > size(dDiffuse_dVolLiq) .or. iSoil > size(dHydCond_dTemp)) then
+   write(*,'(A,I0,A,I0)') 'finalize_out_diagv_node: iSoil out of bounds, iSoil=', iSoil, ' nSoil=', nSoil
+   error stop 9022
+  end if
    ! output: derivative in the soil water characteristic
    mLayerdPsi_dTheta(iSoil) = out_diagv_node % scalardPsi_dTheta ! derivative in the soil water characteristic
    mLayerdTheta_dPsi(iSoil) = out_diagv_node % scalardTheta_dPsi ! derivative in the soil water characteristic
