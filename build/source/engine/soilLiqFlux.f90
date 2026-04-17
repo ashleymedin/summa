@@ -607,11 +607,12 @@ contains
   &)
    err=0; message="diagv_node/"
   end associate
+  print*,"initialize_diagv_node", in_diagv_node % ixRichards, model_decisions(iLookDECISIONS%f_Richards)%iDecision
  end subroutine initialize_diagv_node
 
  subroutine update_diagv_node
   ! **** Update operations for diagv_node ****
-
+   print*,"update_diagv_node", in_diagv_node % ixRichards, model_decisions(iLookDECISIONS%f_Richards)%iDecision
    call update_diagv_node_characteristic_derivatives; if (return_flag) return
 
    call update_diagv_node_hydraulic_conductivity;     if (return_flag) return
