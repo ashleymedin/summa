@@ -502,7 +502,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
   !                LAI: Leaf area index (dimensionless)
   !             MAXALB: Upper bound on maximum albedo over deep snow
   !
-  !-----READ IN VEGETAION PROPERTIES FROM VEGPARM.TBL
+  !-----READ IN VEGETATION PROPERTIES FROM VEGPARM.TBL
   !
 
   OPEN(19, FILE=trim(FILENAME_VEGTABLE),FORM='FORMATTED',STATUS='OLD',IOSTAT=ierr)
