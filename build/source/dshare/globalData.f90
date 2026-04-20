@@ -25,6 +25,7 @@
 MODULE globalData
   ! data types
   USE nr_type
+  USE netcdf
   USE data_types,only:gru2hru_map         ! mapping between the GRUs and HRUs
   USE data_types,only:hru2gru_map         ! mapping between the GRUs and HRUs
   USE data_types,only:model_options       ! the model decision structure
