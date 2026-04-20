@@ -198,7 +198,6 @@ subroutine T2L_lookup_soil(nSoil,                         &  ! intent(in):    nu
   integer(i4b)                  :: iSoil                ! loop through soil layers
   integer(i4b)                  :: iLook                ! loop through lookup table
   integer(i4b)                  :: jIntegr8             ! index for numerical integration
-  logical(lgt)                  :: check                ! flag to check allocation, commented out because breaks Actors restart
   real(rkind)                   :: vGn_m                ! van Genuchten "m" parameter (-)
   real(rkind)                   :: vFracLiq             ! volumetric fraction of liquid water (-)
   real(rkind)                   :: matricHead           ! matric head (m)
@@ -214,21 +213,18 @@ subroutine T2L_lookup_soil(nSoil,                         &  ! intent(in):    nu
   ! * allocate space for the lookup table...
   ! ----------------------------------------
 
-  ! initialize checks
-  check=.false.
-
   ! allocate space for soil layers
-  if(allocated(lookup_data%z))then; check=.true.; else; allocate(lookup_data%z(nSoil), stat=err); endif
+  if(.not.allocated(lookup_data%z)) allocate(lookup_data%z(nSoil), stat=err)
   if(err/=0)then; err=20; message=trim(message)//'problem allocating lookup table z dimension dimension'; return; end if
 
   ! allocate space for the variables in the lookup table
   do iSoil=1,nSoil
-    if(allocated(lookup_data%z(iSoil)%var))then; check=.true.; else; allocate(lookup_data%z(iSoil)%var(maxvarLookup), stat=err); endif
+    if(.not.allocated(lookup_data%z(iSoil)%var)) allocate(lookup_data%z(iSoil)%var(maxvarLookup), stat=err)
     if(err/=0)then; err=20; message=trim(message)//'problem allocating lookup table var dimension dimension'; return; end if
 
     ! allocate space for the values in the lookup table
     do iVar=1,maxvarLookup
-      if(allocated(lookup_data%z(iSoil)%var(iVar)%lookup))then; check=.true.; else; allocate(lookup_data%z(iSoil)%var(iVar)%lookup(nLook), stat=err); endif
+      if(.not.allocated(lookup_data%z(iSoil)%var(iVar)%lookup)) allocate(lookup_data%z(iSoil)%var(iVar)%lookup(nLook), stat=err)
       if(err/=0)then; err=20; message=trim(message)//'problem allocating lookup table vaule dimension dimension'; return; end if
 
     end do ! (looping through variables)
