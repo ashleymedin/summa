@@ -343,7 +343,6 @@ contains
  USE netcdf                                            ! netcdf libraries
  USE time_utils_module,only:elapsedSec                 ! calculate the elapsed time
  ! global data
- USE globalData,only: verySmall                        ! a very small number for underflow checking
  USE globalData,only: nThreads                         ! number of threads
  USE globalData,only: startInit                        ! date/time for the start of the initialization
  USE globalData,only: elapsedInit                      ! elapsed time for the initialization
@@ -391,8 +390,6 @@ contains
 
  ! print elapsed time to read the restart data
  write(outunit,"(/,A,1PG15.7,A)")                                             '  elapsed restart = ', elapsedRestart,        ' s'
- ! if restart is small make it 0 to avoid underflow issues in the fraction
- if (elapsedRestart < verySmall) elapsedRestart = 0._rkind
  write(outunit,"(A,1PG15.7)")                                                 ' fraction restart = ', elapsedRestart/elpSec
 
  ! print elapsed time for the data read
