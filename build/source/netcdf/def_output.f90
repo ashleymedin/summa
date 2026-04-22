@@ -181,22 +181,22 @@ contains
   ! define variables
   do iStruct = 1,size(structInfo)
    select case (trim(structInfo(iStruct)%structName))
-    case('attr'  ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,attr_meta, outputPrecision, err,cmessage)  ! local attributes HRU
-    case('type'  ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,type_meta, nf90_int,        err,cmessage)  ! local classification
-    case('mpar'  ); call def_variab(ncid(iFreq),iFreq,needDOM,  noTime,mpar_meta, outputPrecision, err,cmessage)  ! model parameters
-    case('bpar'  ); call def_variab(ncid(iFreq),iFreq,needGRU,  noTime,bpar_meta, outputPrecision, err,cmessage)  ! basin-average param
-    case('indx'  ); call def_variab(ncid(iFreq),iFreq,needDOM,needTime,indx_meta, nf90_int,        err,cmessage)  ! model variables
-    case('deriv' ); cycle                                                                                         ! model derivatives -- for internal use only, not written to output files
-    case('time'  ); call def_variab(ncid(iFreq),iFreq,  noHRU,needTime,time_meta, nf90_int,        err,cmessage)  ! model time data
-    case('forc'  ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,forc_meta, outputPrecision, err,cmessage)  ! model forcing data
-    case('prog'  ); call def_variab(ncid(iFreq),iFreq,needDOM,needTime,prog_meta, outputPrecision, err,cmessage)  ! model prognostics
-    case('diag'  ); call def_variab(ncid(iFreq),iFreq,needDOM,needTime,diag_meta, outputPrecision, err,cmessage)  ! model diagnostic variables
-    case('flux'  ); call def_variab(ncid(iFreq),iFreq,needDOM,needTime,flux_meta, outputPrecision, err,cmessage)  ! model fluxes
-    case('bvar'  ); call def_variab(ncid(iFreq),iFreq,needGRU,needTime,bvar_meta, outputPrecision, err,cmessage)  ! basin-average variables
+    case('attr'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,needHRU,  noTime,attr_meta, outputPrecision, err,cmessage)  ! local attributes HRU
+    case('type'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,needHRU,  noTime,type_meta, nf90_int,        err,cmessage)  ! local classification
+    case('mpar'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,needDOM,  noTime,mpar_meta, outputPrecision, err,cmessage)  ! model parameters
+    case('bpar'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,needGRU,  noTime,bpar_meta, outputPrecision, err,cmessage)  ! basin-average param
+    case('indx'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,needDOM,needTime,indx_meta, nf90_int,        err,cmessage)  ! model variables
+    case('deriv' ); cycle                                                                              ! model derivatives -- for internal use only, not written to output files
+    case('time'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,  noHRU,needTime,time_meta, nf90_int,        err,cmessage)  ! model time data
+    case('forc'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,needHRU,needTime,forc_meta, outputPrecision, err,cmessage)  ! model forcing data
+    case('prog'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,needDOM,needTime,prog_meta, outputPrecision, err,cmessage)  ! model prognostics
+    case('diag'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,needDOM,needTime,diag_meta, outputPrecision, err,cmessage)  ! model diagnostic variables
+    case('flux'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,needDOM,needTime,flux_meta, outputPrecision, err,cmessage)  ! model fluxes
+    case('bvar'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,needGRU,needTime,bvar_meta, outputPrecision, err,cmessage)  ! basin-average variables
     case('id'    ); cycle                                                                                         ! ids -- see write_hru_info()
     case('lookup'); cycle                                                                                         ! lookup structures -- for internal use only, not written to output files
     case('grid'  )                                                                                                ! grid information
-     if(needGrid.and.maxGrid>0)then;call def_variab(ncid(iFreq),iFreq,needGRU,needTime,grid_meta,outputPrecision, err,cmessage);else;cycle;endif
+     if(needGrid.and.maxGrid>0)then;call def_variab(using_buffer,ncid(iFreq),iFreq,needGRU,needTime,grid_meta,outputPrecision, err,cmessage);else;cycle;endif
     case default; err=20;message=trim(message)//'unable to identify lookup structure '//trim(structInfo(iStruct)%structName);return
    end select
    ! error handling
@@ -309,7 +309,7 @@ contains
  ! **********************************************************************************************************
  ! private subroutine def_variab: define variables
  ! **********************************************************************************************************
- subroutine def_variab(ncid,iFreq,spatialDesire,timeDesire,metaData,ivtype,err,message)
+ subroutine def_variab(using_buffer,ncid,iFreq,spatialDesire,timeDesire,metaData,ivtype,err,message)
  USE var_lookup,only:iLookVarType                   ! look up structure for variable typed
  USE data_types,only:var_info                       ! derived type for metaData
  USE var_lookup,only:iLookSTAT                      ! index into stats structure
@@ -332,6 +332,7 @@ contains
 
  implicit none
  ! input
+ logical(lgt)  ,intent(in)     :: using_buffer      ! flag for will do buffered write
  integer(i4b)  ,intent(in)     :: ncid              ! netcdf file id
  integer(i4b)  ,intent(in)     :: iFreq             ! frequency of current file
  integer(i4b)  ,intent(in)     :: spatialDesire     ! variable to define if we desire the HRU dimension
@@ -376,9 +377,8 @@ contains
   gridChunk = min(maxGrid, chunkSize)
   timeChunk = chunkSize
   layerChunk = 1
-
-  ! set the chunk size to the number of time steps for single basin runs
-  if(nGRUrun == 1) timeChunk = numtim
+  timeChunk = min(numtim,chunkSize)
+  if(using_buffer) timeChunk = numtim ! if using buffered write, write all time steps at once
 
   ! special case of the time variable
   if(metaData(iVar)%varName == 'time')then
