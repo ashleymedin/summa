@@ -26,7 +26,6 @@ MODULE globalData
   ! data types
   USE nrtype
   USE netcdf
-  USE,intrinsic :: ieee_arithmetic    ! IEEE arithmetic
   USE data_types,only:gru2hru_map     ! mapping between the GRUs and HRUs
   USE data_types,only:hru2gru_map     ! mapping between the GRUs and HRUs
   USE data_types,only:model_options   ! the model decision structure
