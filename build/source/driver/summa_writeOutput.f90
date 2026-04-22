@@ -260,6 +260,7 @@ contains
 
  ! set alarms to control model output
  call summa_setWriteAlarms(modelTimeStep,                              &   ! time index
+                           model_decisions(iLookDECISIONS%write_buff)%iDecision == writeFullSeries, &   ! flag for buffered write
                            oldTime%var, timeStruct%var, finshTime%var, &   ! time vectors
                            newOutputFile, defNewOutputFile,            &   ! flag to define new output file
                            ixRestart,     printRestart,                &   ! flag to print the restart file

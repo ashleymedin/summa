@@ -57,6 +57,7 @@ contains
 
 ! used to set alarms to write model output
 subroutine summa_setWriteAlarms(modelTimeStep,                   &   ! time index
+                                useBufferedWrite,                &   ! flag for buffered write
                                 oldTime, newTime, endTime,       &   ! time vectors
                                 newOutputFile, defNewOutputFile, &   ! flag to define new output file
                                 ixRestart,     printRestart,     &   ! flag to print the restart file
@@ -71,6 +72,7 @@ subroutine summa_setWriteAlarms(modelTimeStep,                   &   ! time inde
   implicit none
   ! dummy variables: time vectors
   integer(i4b),intent(in)               :: modelTimeStep      ! index of model time step
+  logical(lgt),intent(in)               :: useBufferedWrite   ! flag for buffered write
   integer(i4b),intent(in)               :: oldTime(:)         ! time vector from the previous time step
   integer(i4b),intent(in)               :: newTime(:)         ! time vector from the current time step
   integer(i4b),intent(in)               :: endTime(:)         ! time vector at the end of the simulation
@@ -117,7 +119,7 @@ subroutine summa_setWriteAlarms(modelTimeStep,                   &   ! time inde
   end select
 
   ! check that we do not have multiple files for the buffered write
-  if(defNewOutputFile .and. modelTimeStep>1)then
+  if(defNewOutputFile .and. modelTimeStep>1 .and. useBufferedWrite)then
    err=10
    message=trim(message)//'cannot have multiple output files when using the buffered write decision (check the -n option)'; return
   endif
