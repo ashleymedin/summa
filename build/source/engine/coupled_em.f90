@@ -289,11 +289,6 @@ subroutine coupled_em(&
   real(rkind)                          :: balanceSoilET            ! output from the soil zone
   real(rkind)                          :: balanceAquifer0          ! total aquifer storage at the start of the step (kg m-2)
   real(rkind)                          :: balanceAquifer1          ! total aquifer storage at the end of the step (kg m-2)
-  real(rkind)                          :: massTermSoil             ! soil storage delta used in total mass-change rate (kg m-2)
-  real(rkind)                          :: massTermAq               ! aquifer storage delta used in total mass-change rate (kg m-2)
-  real(rkind)                          :: massTermGlce             ! glacier ice storage delta used in total mass-change rate (kg m-2)
-  real(rkind)                          :: massNumer                ! numerator of total mass-change rate before division by data_step (kg m-2)
-  real(rkind)                          :: massTolRate              ! machine-noise floor for mass-balance deltas (kg m-2)
   real(rkind)                          :: innerBalance(4)          ! inner step balances for domain with one layer
   real(rkind)                          :: meanBalance(12)          ! timestep-average balances for domains
   real(rkind),allocatable              :: innerBalanceLayerMass(:) ! inner step balances for domain with multiple layers
@@ -1873,20 +1868,7 @@ subroutine coupled_em(&
       ! -----
       ! sum of water changes in all of the domains to get the total water change rate
       ! -------------------------------------------------------
-      ! Avoid denormal penalties from cancellation by clamping machine-noise deltas before summation.
-      massTermSoil = scalarTotalSoilWat - balanceSoilWater0
-      massTermAq   = balanceAquifer1 - balanceAquifer0
-      massTermGlce = balanceGlceWE0 - balanceGlceWE
-      massTolRate  = epsilon(1._rkind) * max(1._rkind, abs(scalarTotalSoilWat), abs(balanceSoilWater0), abs(balanceAquifer1), abs(balanceAquifer0), abs(delSWE), abs(delCanWat))
-      if(abs(massTermSoil) < massTolRate) massTermSoil = 0._rkind
-      if(abs(massTermAq)   < massTolRate) massTermAq   = 0._rkind
-      if(abs(massTermGlce) < massTolRate) massTermGlce = 0._rkind
-      if(abs(delLakeWat)   < massTolRate) delLakeWat   = 0._rkind
-      if(abs(delSWE)       < massTolRate) delSWE       = 0._rkind
-      if(abs(delCanWat)    < massTolRate) delCanWat    = 0._rkind
-      massNumer = massTermSoil + delLakeWat + delSWE + massTermGlce + delCanWat + massTermAq
-      if(abs(massNumer) < massTolRate) massNumer = 0._rkind
-      scalarTotalMassChange = massNumer/data_step
+      scalarTotalMassChange = ((scalarTotalSoilWat - balanceSoilWater0) + delLakeWat + delSWE + (balanceGlceWE0-balanceGlceWE) + delCanWat + (balanceAquifer1-balanceAquifer0))/data_step
       
       ! save the average mass change rate for the layers if glacier
       if (is_glac) then
