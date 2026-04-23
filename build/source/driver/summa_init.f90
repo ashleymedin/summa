@@ -48,7 +48,6 @@ USE summaFileManager,only:SETTINGS_PATH                     ! define path to set
 USE summaFileManager,only:STATE_PATH                        ! optional path to state/init. condition files (defaults to SETTINGS_PATH)
 USE summaFileManager,only:MODEL_INITCOND                    ! name of model initial conditions file
 USE summaFileManager,only:LOCAL_ATTRIBUTES                  ! name of model attributes files
-USE summaFileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -315,7 +314,6 @@ subroutine summa_initialize(summa1_struc, err, message)
     ! *****************************************************************************
     ! *** define the suffix for the model output file
     ! *****************************************************************************
-    ! set up the output file names as: OUTPUT_PREFIX'_'output_fileSuffix'_'startGRU-endGRU_outfreq.nc or OUTPUT_PREFIX'_'output_fileSuffix'_'HRU_outfreq.nc;
     if (output_fileSuffix(1:1) /= '_') output_fileSuffix='_'//trim(output_fileSuffix)   ! separate output_fileSuffix from others by underscores
     if (output_fileSuffix(len_trim(output_fileSuffix):len_trim(output_fileSuffix)) == '_') output_fileSuffix(len_trim(output_fileSuffix):len_trim(output_fileSuffix)) = ' '
     select case (iRunMode)
