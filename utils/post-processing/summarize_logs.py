@@ -72,19 +72,61 @@ def tail(folder, file, lines=1, _buffer=4098):
 
     return lines_found[-lines:]
 
+# Define a function to grab the first line in a file
+def head(folder, file, lines=1):
+
+    """Head a file and get X lines from the beginning"""
+
+    # open the file
+    with open(folder + '/' + file,'r') as f:
+
+        # place holder for the lines found
+        lines_found = []
+
+        # loop until we find X lines
+        while len(lines_found) < lines:
+            line = f.readline()
+            if not line: # end of file reached
+                break
+            lines_found.append(line)
+
+    return lines_found[:lines]
+
 # Define a function to handle the three types of log results: success, SUMMA error, non-SUMMA error
 def determine_output(folder,file,nLines=2):
 
     # initialize outputs
     success, summa, other = [0,0,0] # error flags
     time = -1 # times are only extracted for successful simulations - a default negative time allows filtering outside this function
+    out_folder, out_file = '', '' # output file path components
 
-    # get the file contents
-    log_txt = tail(folder,file,nLines)
+    # get the file contents at the end of the file
+    log_txt_end = tail(folder,file,max(nLines,20))
+
+    # get the file contents at the beginning of the file to scan for output file path
+    log_txt_start = head(folder, file, max(nLines,100)) # 
+
+    # scan start lines for outputPath (folder) and end lines for Created output file (filename)
+    for line in log_txt_start:
+        if 'outputPath:' in line:
+            out_folder = os.path.basename(line.split('outputPath:')[-1].strip().rstrip('/'))
+            break
+    for line in log_txt_start:
+        if 'Created output file:' in line:
+            raw = os.path.basename(line.split('Created output file:')[-1].strip())
+            # Strip known timestep suffixes; keep only the base run name
+            for suffix in ('_timestep.nc', '_day.nc'):
+                if raw.endswith(suffix):
+                    raw = raw[:-len(suffix)]
+                    break
+            out_file = raw
+            break
+    if not out_file:
+        out_file = 'output not created'
 
     # loop over the lines in the log text to find what happened
     msg = 'no line read' # initialize output
-    for line in log_txt:
+    for line in log_txt_end:
 
         # determine if the log contains a SUMMA statement
         if 'successfully' in line:
@@ -96,18 +138,18 @@ def determine_output(folder,file,nLines=2):
             # process output flags
             success = 1
             msg = 'success after ' + '{:.2f}'.format(time) + ' h \n' # message string
-            return success, summa, other, msg, time # we know what happened, stop function call
+            return success, summa, other, msg, time, out_folder, out_file # we know what happened, stop function call
 
         elif 'FATAL ERROR' in line:
             summa = 1
             msg = line
-            return success, summa, other, msg, time # we know what happened, stop function call
+            return success, summa, other, msg, time, out_folder, out_file # we know what happened, stop function call
 
     # if we reach this, no SUMMA termination statement was found
     other = 1
     msg = 'check SLURM logs - simulation terminated early at: ' + line
 
-    return success, summa, other, msg, time
+    return success, summa, other, msg, time, out_folder, out_file
 
 # End of sub functions
 # --------------------
@@ -115,17 +157,19 @@ def determine_output(folder,file,nLines=2):
 # -------------------
 # Start of processing
 
-# Remove the summar file if it exists
+# Remove the summary file if it exists
 try:
     os.remove(folder + '/' + summaryFile)
 except OSError:
     pass
 
-# Find the .txt files in the folder
+# Find the files in the folder, disclude slurm files
 files = []
 for file in os.listdir(folder):
     #if file.endswith(".txt"):
     if file.endswith(ext):
+        if 'slurm' in file:
+            continue
         files.append(file)
 
 # Sort the list
@@ -137,32 +181,48 @@ total_success, total_summa, total_other = [0,0,0]
 # Initialize time list
 computation_time = []
 
+# Initialize a list to store per-log results
+results = []
+
+# Loop over the log files
+for file in files:
+
+    size = os.path.getsize(folder + '/' + file)
+    if size == 0:
+        continue
+
+    # Find the result contained in each log file
+    success, summa, other, msg, time, out_folder, out_file = determine_output(folder,file)  # default of using last 2 lines should suffice to catch all success/error cases
+
+    # Increment the counters
+    total_success += success
+    total_summa   += summa
+    total_other   += other
+
+    # Save the computation time (time == -1 if error encountered)
+    computation_time.append(time)
+
+    # Store the log file, output folder, output file, and message as separate columns
+    results.append((file, out_folder, out_file, msg))
+
+# Sort results by log ID / file name before printing
+results.sort(key=lambda x: x[0])
+
 # Open the summary file
 with open(folder + '/' + summaryFile, 'w') as sf:
 
-    # Add a header
-    sf.write('Summarizing log files in ' + folder + '\n \n')
-    sf.write('Log files' + '\n')
-
-    # Loop over the log files
-    for file in files:
-
-        size = os.path.getsize(folder + '/' + file)
-        if (size==0): continue
-
-        # Find the result contained in each log file
-        success, summa, other, msg, time = determine_output(folder,file)  # default of using last 2 lines should suffice to catch all success/error cases
-
-        # Increment the counters
-        total_success += success
-        total_summa   += summa
-        total_other   += other
-
-        # Save the computation time (time == -1 if error encountered)
-        computation_time.append(time)
-
-        # Add the file name and error message to the summary file
-        sf.write(file + '\t' + msg)
+    # Print sorted results to screen and file
+    for result in results:
+        msg = result[3].strip()
+        if msg.startswith('success after'):
+            status = 'success'
+            time_col = msg.replace('success after', '').strip().replace(' h', ' Hours')
+        else:
+            status = msg
+            time_col = 'NOT FINISHED'
+        row = f'{result[0]:<15} | {time_col:>16} | {result[1]:>20} | {result[2]:<21} | {status:<50} \n'
+        print(row, end='')
+        sf.write(row)
 
     # Calculate percentages
     total       = total_success + total_summa + total_other
@@ -178,6 +238,16 @@ with open(folder + '/' + summaryFile, 'w') as sf:
     st_median = sts.median(computation_time)
 
     # add a statistical summary
+    print('\nSuccess stats')
+    print('Success' + '\t \t \t \t {:.2f}% '.format(pct_success))
+    print('SUMMA error' + '\t \t \t {:.2f}% '.format(pct_summa))
+    print('Early termination' + '\t {:.2f}% '.format(pct_other))
+    print('\nTime needed for successful computations')
+    print('Min time ' + '\t \t \t {:.2f} h '.format(st_min))
+    print('Median time ' + '\t \t {:.2f} h '.format(st_median))
+    print('Mean time ' + '\t \t \t {:.2f} h '.format(st_mean))
+    print('Max time ' + '\t \t \t {:.2f} h '.format(st_max))
+
     sf.write('\nSuccess stats' + '\n')
     sf.write('Success' + '\t \t \t \t {:.2f}% \n'.format(pct_success))
     sf.write('SUMMA error' + '\t \t \t {:.2f}% \n'.format(pct_summa))
@@ -188,10 +258,4 @@ with open(folder + '/' + summaryFile, 'w') as sf:
     sf.write('Mean time ' + '\t \t \t {:.2f} h \n'.format(st_mean))
     sf.write('Max time ' + '\t \t \t {:.2f} h \n'.format(st_max))
 
-
-    #sf.write('Min time ' + '\t \t \t \t' + str(min(computation_time)) +'h \n')
-    #sf.write('Median time ' + '\t \t \t' + str(sts.median(computation_time)) +'h \n')
-    #sf.write('Mean time ' + '\t \t \t \t' + str(sts.mean(computation_time)) +'h \n')
-    #sf.write('Max time ' + '\t \t \t \t' + str(max(computation_time)) +'h \n')
-# done, summary file is closed
-# ----------------------------
+print(f'Summary written to {folder}/{summaryFile}')
