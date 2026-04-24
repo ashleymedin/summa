@@ -74,8 +74,8 @@ for filename in os.listdir(log_folder):
                 # Print the filename if the patterns were not found
                 results.append((filename, 'NOT FOUND', '', '', '', '', ''))
 
-# Sort the results by logID
-results.sort(key=lambda x: x[0])
+# Sort the results by file_match, then array before printing
+results.sort(key=lambda x: (x[3], x[4]))
 
 # Calculate summary statistics
 total_success = sum(1 for result in results if 'Hours' in result[1])

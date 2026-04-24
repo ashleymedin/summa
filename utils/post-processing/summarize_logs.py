@@ -205,8 +205,8 @@ for file in files:
     # Store the log file, output folder, output file, and message as separate columns
     results.append((file, out_folder, out_file, msg))
 
-# Sort results by log ID / file name before printing
-results.sort(key=lambda x: x[0])
+# Sort results by output folder, then output file name before printing
+results.sort(key=lambda x: (x[1], x[2]))
 
 # Open the summary file
 with open(folder + '/' + summaryFile, 'w') as sf:
