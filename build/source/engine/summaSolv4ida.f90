@@ -48,7 +48,6 @@ USE globalData,only:flux_meta       ! metadata on the model fluxes
 ! constants
 USE multiconst,only:Tfreeze         ! temperature at freezing (K)
 USE globalData,only:verySmall       ! a small number
-USE globalData,only:verySmaller     ! a smaller number than verySmall
 
 ! provide access to indices that define elements of the data structures
 USE var_lookup,only:iLookPROG       ! named variables for structure elements
@@ -233,6 +232,7 @@ subroutine summaSolv4ida(&
   integer(i4b),allocatable          :: rootsfound(:)                          ! crossing direction of discontinuities
   integer(i4b),allocatable          :: rootdir(:)                             ! forced crossing direction of discontinuities
   logical(lgt)                      :: tinystep                               ! if step goes below small size
+  real(rkind)                       :: small                                  ! value to see if canopy water is just a bit negative, depends on the absolute tolerance for canopy water
   type(var_dlength)                 :: flux_prev                              ! previous model fluxes for a local HRU
   character(LEN=256)                :: cmessage                               ! error message of downwind routine
   real(rkind)                       :: dt_mult                                ! multiplier for time step average values
@@ -526,8 +526,11 @@ subroutine summaSolv4ida(&
       nSteps = nSteps + 1 ! number of time steps taken in solver
 
       ! possible that vegetation water may go a bit negative because of discontinous canopy wetting derivatives, so check and correct
+      !  note, this only seems to be an issue for early steps if start in a dry cold state and temperature is the energy state variable (nrgConserv decision is closedForm)
+      !  (may be related to the discontinuous derivatives when canopy gets wet and with too large of step with temperature state variable)
       if(ixVegHyd/=integerMissing)then
-        if(stateVec(ixVegHyd) < 0._rkind .and. stateVec(ixVegHyd)>= -verySmaller*1.e3_rkind) stateVec(ixVegHyd) = 0._rkind ! set to zero
+        small = 1.e-3_rkind * mpar_data%var(iLookPARAM%absTolWatVeg)%dat(1)
+        if(stateVec(ixVegHyd) < 0._rkind .and. stateVec(ixVegHyd)>= -small) stateVec(ixVegHyd) = 0._rkind ! set to zero
       endif
     
       ! check the feasibility of the solution

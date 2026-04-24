@@ -261,7 +261,7 @@ contains
     parFallback(iLookPARAM%idaMaxOrder)%default_val = 5
   end if
   if (parFallback(iLookPARAM%idaMaxInternalSteps)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%idaMaxInternalSteps)%default_val = 500
+    parFallback(iLookPARAM%idaMaxInternalSteps)%default_val = 999999 ! IDA default is 500, this is often too small for us
   end if
   if (parFallback(iLookPARAM%idaInitStepSize)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%idaInitStepSize)%default_val = 0
@@ -276,10 +276,10 @@ contains
     parFallback(iLookPARAM%idaMaxErrTestFail)%default_val = 50 ! IDA default is 10
   end if
   if (parFallback(iLookPARAM%idaMaxDataWindowSteps)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%idaMaxDataWindowSteps)%default_val = 1.e10_rkind ! default is infinity, if 1e10 or larger then treat as infinity
+    parFallback(iLookPARAM%idaMaxDataWindowSteps)%default_val = 1.e6_rkind ! default is infinity, if 1e10 or larger then treat as infinity
   end if
   if (parFallback(iLookPARAM%idaDetectEvents)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%idaDetectEvents)%default_val = 1._rkind ! default is to detect events
+    parFallback(iLookPARAM%idaDetectEvents)%default_val = 1._rkind ! default is to detect events (0 means do not detect events)
   end if
  end subroutine set_ida_defaults
 
