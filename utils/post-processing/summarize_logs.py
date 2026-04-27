@@ -258,4 +258,4 @@ with open(folder + '/' + summaryFile, 'w') as sf:
     sf.write('Mean time ' + '\t \t \t {:.2f} h \n'.format(st_mean))
     sf.write('Max time ' + '\t \t \t {:.2f} h \n'.format(st_max))
 
-print(f'Summary written to {folder}/{summaryFile}')
+print(f'Summary written to {folder}{summaryFile}')
