@@ -275,10 +275,6 @@ contains
  dataStep = data_step/secprhour  ! time step (hours)
  ahour    = real(jh,kind(rkind)) + real(jmin,kind(rkind))/minprhour - data_step/secprhour  ! decimal hour (start of the step)
 
-#ifdef ACTORS_ACTIVE
-  azimuth = 0._rkind              ! if aspect is not an input attribute, slope & azimuth = zero (flat Earth)
-  slope   = 0._rkind              ! Actors doesn't look for this attribute for some reason FIX
-#else
  ! check slope/aspect intent for radiation calculation
  if(aspect == nr_realMissing)then
   azimuth = 0._rkind              ! if aspect is not an input attribute, slope & azimuth = zero (flat Earth)
@@ -287,7 +283,6 @@ contains
   azimuth = aspect                                  ! in degrees
   slope   = atan(abs(tan_slope))*180._rkind/PI_D    ! convert from m/m to degrees
  endif
-#endif
 
  ! compute the cosine of the solar zenith angle
  call clrsky_rad(jm,jd,ahour,dataStep,   &  ! intent(in): time variables
