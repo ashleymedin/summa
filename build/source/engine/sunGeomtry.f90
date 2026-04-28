@@ -46,34 +46,34 @@ contains
  ! ----------------------------------------------------------------------------------------
  IMPLICIT NONE
  ! Input variables
- INTEGER(I4B), INTENT(IN)                     :: MONTH   ! month as mm integer
- INTEGER(I4B), INTENT(IN)                     :: DAY     ! day of month as dd integer
- real(rkind), INTENT(IN)                      :: HOUR    ! hour of day as real
- real(rkind), INTENT(IN)                      :: DT      ! time step in units of hours
- real(rkind), INTENT(IN)                      :: SLOPE   ! slope of ground surface in degrees
- real(rkind), INTENT(IN)                      :: AZI     ! aspect (azimuth) of ground surface in degrees
- real(rkind), INTENT(IN)                      :: LAT     ! latitude in degrees (negative for southern hemisphere)
+ INTEGER(I4B), INTENT(IN)    :: MONTH   ! month as mm integer
+ INTEGER(I4B), INTENT(IN)    :: DAY     ! day of month as dd integer
+ real(rkind), INTENT(IN)     :: HOUR    ! hour of day as real
+ real(rkind), INTENT(IN)     :: DT      ! time step in units of hours
+ real(rkind), INTENT(IN)     :: SLOPE   ! slope of ground surface in degrees
+ real(rkind), INTENT(IN)     :: AZI     ! aspect (azimuth) of ground surface in degrees
+ real(rkind), INTENT(IN)     :: LAT     ! latitude in degrees (negative for southern hemisphere)
  ! Outputs
- real(rkind), INTENT(OUT)                     :: HRI     ! average radiation index over time step DT
- real(rkind), INTENT(OUT)                     :: COSZEN  ! average cosine of the zenith angle over time step DT
+ real(rkind), INTENT(OUT)    :: HRI     ! average radiation index over time step DT
+ real(rkind), INTENT(OUT)    :: COSZEN  ! average cosine of the zenith angle over time step DT
  ! Internal
- real(rkind)                                  :: CRAD    ! conversion from degrees to radians
- real(rkind)                                  :: YRAD    ! conversion from year to radians
- real(rkind)                                  :: T       ! time from noon in radians
- real(rkind)                                  :: DELT1   ! time step in radians
- real(rkind)                                  :: SLOPE1  ! slope of ground surface in radians
- real(rkind)                                  :: AZI1    ! aspect (azimuth) of ground surface in radians
- real(rkind)                                  :: LAT1    ! latitude in radians
- real(rkind)                                  :: FJULIAN ! julian date as real
- real(rkind)                                  :: D       ! solar declination
- real(rkind)                                  :: LP      ! latitude adjusted for non-level surface (= LAT1 for level surface)
- real(rkind)                                  :: TD      ! used to calculate sunrise/set
- real(rkind)                                  :: TPI     ! used to calculate sunrise/set
- real(rkind)                                  :: TP      ! used to calculate sunrise/set
- real(rkind)                                  :: DDT     ! used to calculate sunrise/set(= 0 for level surface)
- real(rkind)                                  :: T1      ! first time in time step or sunrise
- real(rkind)                                  :: T2      ! last time in time step or sunset
- real(rkind)                                  :: AUX     ! Auxiliary variable used to check whether the sunset/sunrise time calculation can succeed
+ real(rkind)                 :: CRAD    ! conversion from degrees to radians
+ real(rkind)                 :: YRAD    ! conversion from year to radians
+ real(rkind)                 :: T       ! time from noon in radians
+ real(rkind)                 :: DELT1   ! time step in radians
+ real(rkind)                 :: SLOPE1  ! slope of ground surface in radians
+ real(rkind)                 :: AZI1    ! aspect (azimuth) of ground surface in radians
+ real(rkind)                 :: LAT1    ! latitude in radians
+ real(rkind)                 :: FJULIAN ! julian date as real
+ real(rkind)                 :: D       ! solar declination
+ real(rkind)                 :: LP      ! latitude adjusted for non-level surface (= LAT1 for level surface)
+ real(rkind)                 :: TD      ! used to calculate sunrise/set
+ real(rkind)                 :: TPI     ! used to calculate sunrise/set
+ real(rkind)                 :: TP      ! used to calculate sunrise/set
+ real(rkind)                 :: DDT     ! used to calculate sunrise/set(= 0 for level surface)
+ real(rkind)                 :: T1      ! first time in time step or sunrise
+ real(rkind)                 :: T2      ! last time in time step or sunset
+ real(rkind)                 :: AUX     ! Auxiliary variable used to check whether the sunset/sunrise time calculation can succeed
  ! ----------------------------------------------------------------------------------------
  ! CONVERSION FACTORS
  !   degrees to radians
