@@ -61,7 +61,7 @@ if not os.path.exists(des_dir):
 fnl_dir =  top_fold + 'statistics'
 src_dir =  top_fold + 'summa-' + method_name
 ben_dir =  top_fold + 'summa-' + bench_name
-src_pat = 'run1__G*_timestep.nc' # THIS MIGHT NEED TO BE CHANGED FOR OTHER RUNS
+src_pat = '*_timestep.nc' # THIS MIGHT NEED TO BE CHANGED FOR OTHER RUNS
 des_fil  = method_name + '_hrly_diff_stats_{}_{}.nc'
 des_fl2 = method_name + '_hrly_diff_steps_{}_{}.nc'
 des_fl3 = method_name + '_hrly_diff_bals_{}_{}.nc'
