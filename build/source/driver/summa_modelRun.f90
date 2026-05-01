@@ -281,11 +281,6 @@ contains
                   elapsedUpdateArea,            & ! intent(inout): elapsed time for updating glacier and lake area for all GRUs (s)
                   err,cmessage)                   ! intent(out):   error control
 
-  ! Underflow/denormal occur benignly and overflow occurs rarely in the physics; we do not want to stop the model when they occur
-  call ieee_set_flag(ieee_underflow, .false.)
-  call ieee_set_flag(ieee_denormal, .false.)
-  call ieee_set_flag(ieee_overflow, .false.)
-
   ! check errors
   call handle_err(err, cmessage)
 
