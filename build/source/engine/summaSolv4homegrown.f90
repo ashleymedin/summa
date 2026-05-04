@@ -120,6 +120,7 @@ contains
                        fluxVecNew,              & ! intent(out):   new flux vector
                        resSinkNew,              & ! intent(out):   additional (sink) terms on the RHS of the state equation
                        resVecNew,               & ! intent(out):   new residual vector
+                       tooMuchMelt,             & ! intent(inout): flag to denote that ice is insufficient to support melt (used in step refinement)
                        out_SS4HG)                 ! intent(out):   new function evaluation, convergence flag, and error control  
  USE computJacob_module, only: computJacob
  USE matrixOper_module,   only: lapackSolv
@@ -156,7 +157,8 @@ contains
  real(rkind),intent(out)         :: fluxVecNew(:)             ! new flux vector
  real(rkind),intent(out)         :: resSinkNew(:)             ! sink terms on the RHS of the flux equation
  real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp   ! new residual vector
- type(out_type_summaSolv4homegrown),intent(out) :: out_SS4HG ! new function evaluation, convergence flag, and error control
+ logical(lgt),intent(inout)      :: tooMuchMelt               ! flag to denote that ice is insufficient to support melt
+ type(out_type_summaSolv4homegrown),intent(out) :: out_SS4HG  ! new function evaluation, convergence flag, and error control
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -201,6 +203,7 @@ contains
     ! initialize error control
     err=0; message='summaSolv4homegrown/'
     return_flag=.false. ! initialize return flag
+    tooMuchMelt = .false. ! initialize tooMuchMelt flag for use in refine_Newton_step
    
     ! choose Jacobian type
     select case(model_decisions(iLookDECISIONS%fDerivMeth)%iDecision) 
@@ -224,13 +227,14 @@ contains
 
   subroutine update_summaSolv4homegrown
    ! *** Update steps for the summaSolv4homegrown algorithm (computing the Newton step) ***
+   ! solve the linear system for the Newton step
    call solve_linear_system;             if (return_flag) return ! solve the linear system for the Newton step -- return if error
   
    ! refine Newton step if needed
    call refine_Newton_step(in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&         ! input
                           &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,& ! input
                           &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&                ! input-output
-                          &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,return_flag)                        ! output
+                          &stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SS4HG,return_flag)            ! output
    if (return_flag) return ! return if error
   end subroutine update_summaSolv4homegrown
 
@@ -331,7 +335,7 @@ contains
  subroutine refine_Newton_step(in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&         ! input
                               &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,& ! input
                               &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&                ! input-output
-                              &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,return_flag)                        ! output
+                              &stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SS4HG,return_flag)            ! output
   ! provide access to the external procedures
   USE matrixOper_module, only: computGradient
   USE eval8summa_module, only: imposeConstraints
@@ -355,7 +359,7 @@ contains
   type(var_dlength),  intent(in)  :: prog_data                 ! prognostic variables for a local HRU
   ! input-output
   real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
-  type(io_type_summaSolv4homegrown),intent(inout) :: io_SS4HG ! first flux call flag and baseflow variables
+  type(io_type_summaSolv4homegrown),intent(inout) :: io_SS4HG  ! first flux call flag and baseflow variables
   type(var_ilength),intent(inout) :: indx_data                 ! indices defining model states and layers
   type(var_dlength),intent(inout) :: diag_data                 ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout) :: flux_data                 ! model fluxes for a local HRU
@@ -366,7 +370,8 @@ contains
   real(rkind),intent(out)         :: fluxVecNew(:)             ! new flux vector
   real(rkind),intent(out)         :: resSinkNew(:)             ! sink terms on the RHS of the flux equation
   real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp   ! new residual vector
-  type(out_type_summaSolv4homegrown),intent(out) :: out_SS4HG ! new function evaluation, convergence flag, and error control
+  logical(lgt),intent(inout)      :: tooMuchMelt               ! flag to denote that ice is insufficient to support melt
+  type(out_type_summaSolv4homegrown),intent(out) :: out_SS4HG  ! new function evaluation, convergence flag, and error control
   logical(lgt),intent(out)        :: return_flag               ! flag that controls execution of return statements
   ! local
   logical(lgt)                    :: doRefine                      ! flag for step refinement
@@ -439,7 +444,7 @@ contains
                        &in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&                 ! input
                        &mpar_data,forc_data,bvar_data,prog_data,&                                  ! input
                        &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,& ! input-output
-                       &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SRF)             ! output
+                       &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SRF) ! output
     call out_SRF % finalize(fNew,converged,err,cmessage)
    end if
 
@@ -737,7 +742,7 @@ contains
                           &in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&
                           &mpar_data,forc_data,bvar_data,prog_data,&
                           &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
-                          &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SRF)
+                          &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SRF)
   USE,intrinsic :: ieee_arithmetic,only:ieee_is_nan            ! IEEE arithmetic (check NaN)
   USE eval8summa_module,only: imposeConstraints                ! imposeConstraints
   USE globalData,only:dNaN                                     ! double precision NaN
@@ -772,6 +777,7 @@ contains
   real(rkind),intent(out)         :: fluxVecNew(:)             ! new flux vector
   real(rkind),intent(out)         :: resSinkNew(:)             ! sink terms on the RHS of the flux equation
   real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp   ! new residual vector
+  logical(lgt),intent(inout)      :: tooMuchMelt               ! flag to denote that ice is insufficient to support melt
   type(out_type_lineSearchRefinement),intent(out) :: out_SRF   ! object for scalar intent(out) arguments (reusing lineSearchRefinement class)
   ! --------------------------------------------------------------------------------------------------------
   ! local variables
@@ -817,7 +823,7 @@ contains
    end if
 
    ! get the residual vector
-   rVec = real(rVecScaled, rkind)*real(fScale, rkind)
+   rVec = real(rVecScaled, rkind)/real(fScale, rkind)
 
    ! update brackets
    if (rVec(1)<0._rkind) then
@@ -838,7 +844,7 @@ contains
      call getBrackets(stateVecTrial,rVec,fScale,in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&
                      &mpar_data,forc_data,bvar_data,prog_data,&
                      &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
-                     &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,xMin,xMax,err,cmessage)
+                     &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,xMin,xMax,tooMuchMelt,err,cmessage)
      if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
     end if
 
@@ -890,7 +896,7 @@ contains
  subroutine getBrackets(stateVecTrial,rVec,fScale,in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&
                        &mpar_data,forc_data,bvar_data,prog_data,&
                        &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
-                       &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,xMin,xMax,err,message)
+                       &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,xMin,xMax,tooMuchMelt,err,message)
   USE,intrinsic :: ieee_arithmetic,only:ieee_is_nan            ! IEEE arithmetic (check NaN)
   USE eval8summa_module,only: imposeConstraints                ! imposeConstraints
   implicit none
@@ -922,7 +928,8 @@ contains
   real(rkind),intent(out)         :: fluxVecNew(:)             ! updated flux vector
   real(rkind),intent(out)         :: resSinkNew(:)             ! sink terms on the RHS of the flux equation
   real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp   ! updated residual vector
-  real(rkind),intent(out)         :: xMin,xMax                 ! constraints
+  logical(lgt),intent(inout)      :: tooMuchMelt               ! flag to denote that ice is insufficient to support melt
+  real(rkind),intent(inout)       :: xMin,xMax                 ! constraints
   character(*),intent(out)        :: message                   ! error message
   ! locals
   real(rkind)                     :: stateVecPrev(in_SS4HG % nState) ! iteration state vector
@@ -985,8 +992,14 @@ contains
 
    ! check that we found the brackets
    if (iCheck==nCheck) then
-    message=trim(message)//'could not fix the problem where residual and iteration increment are of the same sign'
-    err=20; return
+    ! check if we have too much energy going into a snow or ice layer, which could be the reason for not finding the brackets
+    if ((indx_data%var(iLookINDEX%nSnowOnlyNrg)%dat(1)>0 .or. indx_data%var(iLookINDEX%nGlceOnlyNrg)%dat(1)>0).and. rVec(1)<0._rkind) then
+      tooMuchMelt = .true.
+      err=-20; return ! negative error code to denote a warning
+    else
+      message=trim(message)//'could not fix the problem where residual and iteration increment are of the same sign'
+      err=20; return
+    end if
    endif
 
    ! Save the state vector

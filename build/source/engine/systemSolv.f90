@@ -590,7 +590,7 @@ contains
                             &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,& ! input: data structures
                             &indx_data,diag_data,flux_temp,deriv_data,&                                                ! input-output: data structures
                             &dBaseflow_dMatric,io_SS4HG,&                                                              ! input-output: baseflow
-                            &stateVecNew,fluxVec,resSink,resVecNew,out_SS4HG)                                          ! output
+                            &stateVecNew,fluxVec,resSink,resVecNew,tooMuchMelt,out_SS4HG)                              ! output
    call io_SS4HG % finalize(firstFluxCall,xMin,xMax,ixSaturation)
    call out_SS4HG % finalize(fNew,converged,err,cmessage)                
   end associate
