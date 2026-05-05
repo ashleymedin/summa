@@ -934,7 +934,7 @@ contains
   ! locals
   real(rkind)                     :: stateVecPrev(in_SS4HG % nState) ! iteration state vector
   integer(i4b)                    :: iCheck                          ! check the model state variables
-  integer(i4b),parameter          :: nCheck=100                      ! number of times to check the model state variables
+  integer(i4b),parameter          :: nCheck=10                       ! number of times to check the model state variables
   logical(lgt)                    :: feasible                        ! feasibility of the solution
   real(rkind),parameter           :: delX=1._rkind                   ! trial increment
   real(rkind)                     :: xIncrement(in_SS4HG % nState)   ! trial increment

@@ -42,7 +42,7 @@ BEFORE tag of v4.0.0-exp-Sundials
       absTolMatric              |       1.0d-5 |       1.0d-10|       1.0d-1
       relTolAquifr              |       1.0d-5 |       1.0d-10|       1.0d-1
       absTolAquifr              |       1.0d-5 |       1.0d-10|       1.0d-1
-     This is backwards compatible to give default values if not put in. 
+     This is backwards compatible to give default values if not put in.
      **The relTolTemp* are defaulted (if not written in the parameter file) to be multiplied by absEnergyFac, a factor of 1e2 if nrgConserv=closedForm and 1e7 if nrgConserv=enthalpyForm*
  15) ascii_util.f90 memory leak, commit 44933953 May 9, 2023
  16) Took out all calculation of numerical derivatives in flux routines, commit 9e5b703 Jun 28, 2023
@@ -197,3 +197,5 @@ AFTER tag of v4.0.0-exp-Sundials
 -49) Smoothing of hydCond_psi function when psi is very small, helps convergence with saturated soil layers, commit 946b6112 Mar 10, 2026
  50) The number of soil layers does not have to be the same in every HRU now, commit eeb800af	Mar 24, 2026
  51) Add GRU variable basin__StorageChange in kg/m2/s that summarizes the storage changes across the HRUs so that it can be compared to Grace data, commit eeb800af	Mar 24, 2026
+-52) If scalar solution fails on a snow layer, exit and merge snow layers if failure was from too much energy going into top layer (previous behavior was code failure), commit 7c46a507 May 5, 2026
+     Also changed the number of times it checks the brackets for scalar solution from 100 to 10 since usually by 2 it's found the bracket or not.
