@@ -992,6 +992,13 @@ contains
    scalarSurfaceInfiltration = 0._rkind
   end associate
 
+  ! total soil depth is needed for infiltration area methods, so compute here
+  associate(&
+   mLayerDepth  => in_surfaceFlux % mLayerDepth      & ! depth of soil layers (m) 
+  &)
+   total_soil_depth = sum(mLayerDepth(:))
+  end associate
+
  end subroutine initialize_surfaceFlux
 
  subroutine update_surfaceFlux
@@ -1192,7 +1199,6 @@ subroutine update_volFracLiq_derivatives
    nSoil            => in_surfaceFlux % nSoil,            & ! number of soil layers
    mLayerVolFracLiq => in_surfaceFlux % mLayerVolFracLiq, & ! volumetric liquid water content in each soil layer (-)
    mLayerDepth      => in_surfaceFlux % mLayerDepth,      & ! depth of soil layers (m) 
-   iLayerHeight     => in_surfaceFlux % iLayerHeight,     & ! height at the interface of each layer for soil layers only (m)
    theta_sat        => in_surfaceFlux % theta_sat,        & ! soil porosity (-)
    ! output: error control
    err     => out_surfaceFlux % err    , & ! error code
@@ -1213,7 +1219,7 @@ subroutine update_volFracLiq_derivatives
   ! compute water content in upper FUSE layer
    S1     = sum( mLayerDepth(:) * mLayerVolFracLiq(:) ) ! total water content in upper FUSE layer (m)
    if (S1 <= 0._rkind) then; io_surfaceFlux % scalarInfilArea = 1._rkind; return; end if ! if no water, unsaturated and all area infiltrates
-   S1_max = iLayerHeight(nSoil) * theta_sat             ! max water storage for upper FUSE layer (m)
+   S1_max = total_soil_depth * theta_sat                ! max water storage for upper FUSE layer (m)
 
   ! compute tension water content
    S1_T_max = phi_tens * S1_max
@@ -1253,7 +1259,6 @@ subroutine update_volFracLiq_derivatives
    nSoil            => in_surfaceFlux % nSoil,            & ! number of soil layers
    mLayerVolFracLiq => in_surfaceFlux % mLayerVolFracLiq, & ! volumetric liquid water content in each soil layer (-)
    mLayerDepth      => in_surfaceFlux % mLayerDepth,      & ! depth of soil layers (m) 
-   iLayerHeight     => in_surfaceFlux % iLayerHeight,     & ! height at the interface of each layer for soil layers only (m)
    theta_sat        => in_surfaceFlux % theta_sat,        & ! soil porosity (-)
    ! output: error control
    err     => out_surfaceFlux % err    , & ! error code
@@ -1269,7 +1274,7 @@ subroutine update_volFracLiq_derivatives
    ! compute water content in FUSE layers
    S1     = sum( mLayerDepth(:) * mLayerVolFracLiq(:) ) ! total water content in FUSE layers (m)
    if (S1 <= 0._rkind) then; io_surfaceFlux % scalarInfilArea = 1._rkind; return; end if ! if no water, unsaturated and all area infiltrates
-   S1_max = iLayerHeight(nSoil) * theta_sat             ! max water storage for FUSE layers (m)
+   S1_max = total_soil_depth * theta_sat                ! max water storage for FUSE layers (m)
 
    ! Original FUSE: SatArea = 1 - (1-S1/S1_max)**b_arnovic
    ! Optional: smoothed to prevent negative bases using a smooth approximation of S1_star = min(S1,S1_max)
@@ -1332,7 +1337,6 @@ subroutine update_volFracLiq_derivatives
    nSoil            => in_surfaceFlux % nSoil,            & ! number of soil layers
    mLayerVolFracLiq => in_surfaceFlux % mLayerVolFracLiq, & ! volumetric liquid water content in each soil layer (-)
    mLayerDepth      => in_surfaceFlux % mLayerDepth,      & ! depth of soil layers (m) 
-   iLayerHeight     => in_surfaceFlux % iLayerHeight,     & ! height at the interface of each layer for soil layers only (m)
    theta_sat        => in_surfaceFlux % theta_sat,        & ! soil porosity (-)
    ! output: error control
    err     => out_surfaceFlux % err    , & ! error code
@@ -1348,7 +1352,7 @@ subroutine update_volFracLiq_derivatives
    ! compute water content in lower FUSE layer, here the entire soil column is used
    S1     = sum( mLayerDepth(:) * mLayerVolFracLiq(:) ) ! total water content in lower FUSE layer (m)
    if (S1 <= 0._rkind) then; io_surfaceFlux % scalarInfilArea = 1._rkind; return; end if ! if no water, unsaturated and all area infiltrates
-   S1_max = iLayerHeight(nSoil) * theta_sat             ! max water storage for lower FUSE layer (m)
+   S1_max = total_soil_depth * theta_sat                ! max water storage for lower FUSE layer (m)
 
    ! validate of parameters
    if ((lambda < 5._rkind ).or.(lambda > 10._rkind)) then
@@ -1632,7 +1636,6 @@ subroutine update_volFracLiq_derivatives
    xMaxInfilRate    => io_surfaceFlux % xMaxInfilRate  & ! maximum infiltration rate (m s-1)
   &)
    ! define the depth to the wetting front (m) and derivatives
-   total_soil_depth = sum(mLayerDepth(:))
    depthWettingFront = (rootZoneLiq/availCapacity)*min(rootingDepth,total_soil_depth)
    if(updateInfil)then
      dDepthWettingFront_dWat(:)=( dRootZoneLiq_dWat(:)*min(rootingDepth, total_soil_depth) + dRootZoneIce_dWat(:)*depthWettingFront )/availCapacity
