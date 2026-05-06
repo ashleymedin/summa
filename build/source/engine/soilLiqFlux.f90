@@ -1133,7 +1133,7 @@ subroutine update_volFracLiq_derivatives
      select case(ixRichards)  ! form of Richards' equation
        case(moisture)
          dVolFracLiq_dWat(:) = 1._rkind
-         dVolFracIce_dWat(:) = mLayerdPsi_dTheta(:) - 1._rkind
+         if(doIce) dVolFracIce_dWat(:) = mLayerdPsi_dTheta(:) - 1._rkind
        case(mixdform)
          do iLayer=1,nLayers
            Tcrit = crit_soilT( mLayerMatricHead(iLayer) )
