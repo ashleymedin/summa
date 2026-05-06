@@ -241,7 +241,7 @@ subroutine computBaseflow(&
   type(var_dlength),intent(inout)  :: flux_data               ! model fluxes for a local HRU
   ! output: baseflow
   real(rkind),intent(out)          :: mLayerBaseflow(:)       ! baseflow from each soil layer (m s-1)
-  real(rkind),intent(out)          :: dBaseflow_dVolLiq(:,:)  ! derivative in baseflow w.r.t. matric head (s-1)
+  real(rkind),intent(out)          :: dBaseflow_dVolLiq(:,:)  ! derivative in baseflow w.r.t. volumetric liquid water content (s-1)
   ! ---------------------------------------------------------------------------------------
   ! * local variables
   ! ---------------------------------------------------------------------------------------

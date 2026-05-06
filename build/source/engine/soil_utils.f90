@@ -290,7 +290,7 @@ function volFracLiq(psi,alpha,theta_res,theta_sat,n,m)
   real(rkind)            :: volFracLiq  ! volumetric liquid water content (-)
 
   if(psi<0._rkind)then
-  volFracLiq = theta_res + (theta_sat - theta_res)*(1._rkind + (alpha*psi)**n)**(-m)
+    volFracLiq = theta_res + (theta_sat - theta_res)*(1._rkind + (alpha*psi)**n)**(-m)
   else
     volFracLiq = theta_sat
   end if

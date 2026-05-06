@@ -866,7 +866,7 @@ contains
   case('dq_dNrgStateBelow'              ); get_ixDeriv = iLookDERIV%dq_dNrgStateBelow              ! change in the flux in layer interfaces w.r.t. state variables in the layer below
   case('dq_dNrgStateLayerSurfVec'       ); get_ixDeriv = iLookDERIV%dq_dNrgStateLayerSurfVec       ! change in the flux in soil surface interface w.r.t. state variables in layers
   case('dPsiLiq_dTemp'                  ); get_ixDeriv = iLookDERIV%dPsiLiq_dTemp                  ! derivative in the liquid water matric potential w.r.t. temperature (m K-1)
-  case('dPsiLiq_dPsi0'                  ); get_ixDeriv = iLookDERIV%dPsiLiq_dPsi0                  ! derivative in liquid matric potential w.r.t. total  matric potential (-)
+  case('dPsiLiq_dPsi0'                  ); get_ixDeriv = iLookDERIV%dPsiLiq_dPsi0                  ! derivative in liquid matric potential w.r.t. total matric potential (-)
  ! derivatives in soil transpiration w.r.t. canopy state variables
   case('mLayerdTrans_dTCanair'          ); get_ixDeriv = iLookDERIV%mLayerdTrans_dTCanair          ! derivatives in the soil layer transpiration flux w.r.t. canopy air temperature
   case('mLayerdTrans_dTCanopy'          ); get_ixDeriv = iLookDERIV%mLayerdTrans_dTCanopy          ! derivatives in the soil layer transpiration flux w.r.t. canopy temperature

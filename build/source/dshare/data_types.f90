@@ -1647,8 +1647,8 @@ contains
 
  subroutine finalize_out_soilLiqFlux(out_soilLiqFlux,err,cmessage)
   class(out_type_soilLiqFlux),intent(in) :: out_soilLiqFlux            ! class object for intent(out) soilLiqFlux arguments
-  integer(i4b),intent(out)              :: err                         ! error code
-  character(*),intent(out)              :: cmessage                    ! error message from groundwatr
+  integer(i4b),intent(out)               :: err                        ! error code
+  character(*),intent(out)               :: cmessage                   ! error message from groundwatr
   ! intent(out) arguments
   err                     =out_soilLiqFlux % err                       ! intent(out):   error code
   cmessage                =out_soilLiqFlux % cmessage                  ! intent(out):   error message
@@ -1843,16 +1843,16 @@ contains
 
  subroutine finalize_out_diagv_node(out_diagv_node,iSoil,nSoil,io_soilLiqFlux,mLayerDiffuse,iceImpedeFac,&
                                    &dHydCond_dVolLiq,dDiffuse_dVolLiq,dHydCond_dTemp,err,cmessage)
-  class(out_type_diagv_node),intent(in)  :: out_diagv_node ! class object for output diagv_node variables
-  integer(i4b),intent(in)                :: nSoil,iSoil    ! number of soil layers and index
-  type(io_type_soilLiqFlux),intent(inout) :: io_soilLiqFlux  ! input-output class object for soilLiqFlux
-  real(rkind),intent(inout) :: mLayerDiffuse(1:nSoil)      ! diffusivity at layer mid-point (m2 s-1)
-  real(rkind),intent(inout) :: iceImpedeFac(1:nSoil)       ! ice impedence factor at layer mid-points (-)
-  real(rkind),intent(inout) :: dHydCond_dVolLiq(1:nSoil)   ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
-  real(rkind),intent(inout) :: dDiffuse_dVolLiq(1:nSoil)   ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
-  real(rkind),intent(inout) :: dHydCond_dTemp(1:nSoil)     ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
-  integer(i4b),intent(out)  :: err                         ! error code
-  character(*),intent(out)  :: cmessage                    ! error message
+  class(out_type_diagv_node),intent(in)   :: out_diagv_node ! class object for output diagv_node variables
+  integer(i4b),intent(in)                 :: nSoil,iSoil    ! number of soil layers and index
+  type(io_type_soilLiqFlux),intent(inout) :: io_soilLiqFlux ! input-output class object for soilLiqFlux
+  real(rkind),intent(inout) :: mLayerDiffuse(1:nSoil)       ! diffusivity at layer mid-point (m2 s-1)
+  real(rkind),intent(inout) :: iceImpedeFac(1:nSoil)        ! ice impedence factor at layer mid-points (-)
+  real(rkind),intent(inout) :: dHydCond_dVolLiq(1:nSoil)    ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
+  real(rkind),intent(inout) :: dDiffuse_dVolLiq(1:nSoil)    ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
+  real(rkind),intent(inout) :: dHydCond_dTemp(1:nSoil)      ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+  integer(i4b),intent(out)  :: err                          ! error code
+  character(*),intent(out)  :: cmessage                     ! error message
 
   associate(&
    ! hydraulic conductivity and derivatives
