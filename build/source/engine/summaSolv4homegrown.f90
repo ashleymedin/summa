@@ -227,7 +227,6 @@ contains
 
   subroutine update_summaSolv4homegrown
    ! *** Update steps for the summaSolv4homegrown algorithm (computing the Newton step) ***
-   ! solve the linear system for the Newton step
    call solve_linear_system;             if (return_flag) return ! solve the linear system for the Newton step -- return if error
   
    ! refine Newton step if needed
