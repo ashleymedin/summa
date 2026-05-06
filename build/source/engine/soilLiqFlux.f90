@@ -996,7 +996,7 @@ contains
   associate(&
    mLayerDepth  => in_surfaceFlux % mLayerDepth      & ! depth of soil layers (m) 
   &)
-   total_soil_depth = sum(mLayerDepth(:))
+   total_soil_depth = sum(mLayerDepth)
   end associate
 
  end subroutine initialize_surfaceFlux
