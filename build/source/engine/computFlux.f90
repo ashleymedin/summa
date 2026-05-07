@@ -42,6 +42,7 @@ USE data_types,only:&
 USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
 USE var_lookup,only:iLookPARAM      ! named variables for structure elements
 USE var_lookup,only:iLookFORCE      ! named variables for structure elements
+USE var_lookup,only:iLookATTR       ! named variables for structure elements
 USE var_lookup,only:iLookPROG       ! named variables for structure elements
 USE var_lookup,only:iLookINDEX      ! named variables for structure elements
 USE var_lookup,only:iLookDIAG       ! named variables for structure elements
@@ -207,6 +208,9 @@ subroutine computFlux(&
   character(LEN=256)                 :: cmessage                    ! error message of downwind routine
   real(rkind)                        :: surface_flux                ! surface flux (m s-1) into snow or ice
   real(rkind)                        :: bottom_flux                 ! bottom flux (m s-1) out of snow or ice
+  real(rkind)                        :: total_soil_depth             ! total soil depth (m)
+  real(rkind),dimension(nSoil)       :: fracDepth                   ! fraction of layer depth relative to total soil depth
+  real(rkind),dimension(nSoil)       :: timeScale                   ! time scale for debris runoff generation
   ! ---------------------- classes for flux subroutine arguments (classes defined in data_types module) ----------------------
   !      ** intent(in) arguments **       ||       ** intent(inout) arguments **        ||      ** intent(out) arguments **
   type(in_type_vegNrgFlux) :: in_vegNrgFlux;                                            type(out_type_vegNrgFlux) :: out_vegNrgFlux ! vegNrgFlux arguments
@@ -305,6 +309,7 @@ subroutine computFlux(&
     if (nSoilOnlyHyd>0) then ! check if computing soil hydrology
       if (local_ixGroundwater/=qbaseTopmodel .or. nGlce>0) then ! set baseflow fluxes to zero if the topmodel baseflow routine is not used
         call zeroBaseflowFluxes
+        if (nGlce>0) call debrisRunoff ! compute debris runoff (since coarse debris cannot hold water long term), similar to baseflow in effect as glaciers have no aquifer and thus no baseflow
       else ! compute the baseflow flux for topmodel-ish shallow groundwater
         call initialize_groundwatr; if(err/=0)then; return; endif
         call groundwatr(in_groundwatr,attr_data,mpar_data,prog_data,flux_data,io_groundwatr,out_groundwatr)
@@ -367,7 +372,7 @@ contains
     scalarSnowDrainage = 0._rkind ! drainage from the snow layers (m s-1)
     scalarLakeInflux   = scalarRainPlusMelt ! save for lake flux calculations
    else ! snow layers, take from previous flux calculation
-    scalarLakeInflux   = scalarSnowDrainage              ! save for lake flux calculations
+    scalarLakeInflux   = scalarSnowDrainage ! save for lake flux calculations
     if(nGlce>0)then
      scalarGlacierMelt = scalarSnowDrainage - scalarGlceMelt ! (= above layer positive flux (0) - upward flux) save for glacier melt flow calculations, may be overwritten with addition of above domain fluxes
      ! If couple glacier ice melt with snow drainage and create slush layer then would need the following line
@@ -390,7 +395,7 @@ contains
     scalarLakeInflux   = 0._rkind ! zero out influx to the lake
     ! scalarSoilInflux = scalarRainPlusMelt ! save for soil flux calculations, don't need to do because already saved
    else ! lake layers, take from previous flux calculation
-    scalarRainPlusMelt = scalarLakeDrainage                    ! drainage from the base of the lake
+    scalarRainPlusMelt = scalarLakeDrainage ! drainage from the base of the lake
     if(nGlce>0)then
      scalarGlacierMelt = scalarLakeDrainage - scalarGlceMelt ! save for glacier melt flow calculations, may be overwritten with addition of below domain fluxes
      ! If couple glacier ice melt with lake drainage and create slush layer then would need the following line
@@ -415,9 +420,8 @@ contains
     scalarSoilControl  = 1._rkind ! infiltration not controlled by soil
    else ! soil layers, take from previous flux calculation
     if(nGlce>0)then
-     scalarSoilDrainage = iLayerLiqFluxSoil(nSoil)
-     scalarGlacierMelt = scalarSoilDrainage + scalarSurfaceRunoff ! save for glacier melt flow calculations, soil layers are coupled to glacier ice melt
-     scalarSoilDrainage = scalarSoilDrainage + scalarGlceMelt ! soil drainage is the liquid water flux at the top of the glacier ice layer, remove amount contributed by glacier ice melt (negative flux)
+     scalarSoilDrainage = iLayerLiqFluxSoil(nSoil) + scalarGlceMelt ! soil drainage is the liquid water flux at the top of the glacier ice layer, remove amount contributed by glacier ice melt (negative flux)
+     scalarGlacierMelt  = scalarSurfaceRunoff ! save for glacier melt flow calculations, soil layers are coupled to glacier ice melt
     end if
    end if
   end associate
@@ -788,8 +792,8 @@ contains
    ! compute drainage from the soil zone (needed for mass balance checks and in aquifer recharge)
    scalarSoilDrainage = iLayerLiqFluxSoil(nSoil)
    if(nGlce>0)then
-     scalarGlacierMelt = scalarSoilDrainage + scalarSurfaceRunoff ! save for glacier melt flow calculations, soil layers are coupled to glacier ice melt
      scalarSoilDrainage = scalarSoilDrainage + scalarGlceMelt ! soil drainage is the liquid water flux at the top of the glacier ice layer, remove amount contributed by glacier ice melt (negative flux)
+     scalarGlacierMelt = scalarSurfaceRunoff ! save for glacier melt flow calculations, soil layers are coupled to glacier ice melt
    endif
    ! calculate net liquid water fluxes for each soil layer (s-1)
    if (nStart==0) iLayerLiqFluxSnLaGl(0) = 0._rkind ! then 0 layer is top of soil, iLayerLiqFluxSnLaGl does not exist in soil
@@ -813,6 +817,44 @@ contains
   end associate
  end subroutine finalize_soilLiqFlux
  ! **** end soilLiqFlux ****
+
+ ! **** debrisRunoff ****
+ subroutine debrisRunoff
+  nStart = nSnow + nLake
+  associate(&
+   tan_slope                 => attr_data%var(iLookATTR%tan_slope),                        & ! intent(in):  [dp] tan glacier slope, taken as tan local ground surface slope (-)
+   mLayerDepth               => prog_data%var(iLookPROG%mLayerDepth)%dat,                  & ! intent(in):  [dp(:)] depth of each soil layer (m)
+   scalarRainPlusMelt        => flux_data%var(iLookFLUX%scalarRainPlusMelt)%dat(1),        & ! intent(in):  [dp] rain plus melt plus lake drainage (m s-1)
+   scalarInfiltration           => flux_data%var(iLookFLUX%scalarInfiltration)%dat(1),     & ! intent(in):  [dp] infiltration of water into the soil profile (m s-1)
+   mLayerdTheta_dPsi         => deriv_data%var(iLookDERIV%mLayerdTheta_dPsi)%dat,          & ! intent(in):  [dp(:)] derivative in the soil water characteristic w.r.t. psi
+   mLayerdTheta_dTk          => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat,           & ! intent(in):  [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
+   dPsiLiq_dPsi0             => deriv_data%var(iLookDERIV%dPsiLiq_dPsi0)%dat,              & ! intent(in):  [dp(:)] derivative in liquid water matric pot w.r.t. the total water matric pot (-
+   mLayerDebrisRunoff        => flux_data%var(iLookFLUX%mLayerDebrisRunoff)%dat,           & ! intent(out): [dp(:)] runoff from each debris layer (m s-1)
+   mLayerdDebrisRun_dTk      => deriv_data%var(iLookDERIV%mLayerdDebrisRun_dTk)%dat,       & ! intent(out): [dp(:)] derivative in runoff from each debris layer w.r.t. temperature
+   mLayerdDebrisRun_dPsi0    => deriv_data%var(iLookDERIV%mLayerdDebrisRun_dPsi0)%dat,     & ! intent(out): [dp(:)] derivative in runoff from each debris layer w.r.t. matric potential
+   scalarSurfaceRunoff       => flux_data%var(iLookFLUX%scalarSurfaceRunoff)%dat(1),       & ! intent(out): [dp] surface runoff (m s-1)
+   scalarGlacierMelt         => flux_data%var(iLookFLUX%scalarGlacierMelt)%dat(1)          ) ! intent(out): [dp] glacier ice melt plus snow and soil drainage (m s-1)
+   ! compute runoff loss from each debris layer since coarse debris cannot hold water long term, following approach of Giese et al. (2020)
+   mLayerDebrisRunoff(:)     = 0._rkind ! initialize runoff fraction to zero in all layers
+   mLayerdDebrisRun_dTk(:)   = 0._rkind ! initialize derivatives to zero in all layers
+   mLayerdDebrisRun_dPsi0(:) = 0._rkind ! initialize derivatives to zero in all layers
+   if(nGlce>0)then
+    total_soil_depth = sum(mLayerDepth(nStart+1:nStart+nSoil))
+    do iLayer=1,nSoil
+      fracDepth(iLayer) = mLayerDepth(iLayer+nStart)/total_soil_depth ! fraction of layer depth relative to total soil depth
+      timeScale(iLayer) = 1._rkind + (48._rkind - 1._rkind)*(exp(30._rkind*fracDepth(iLayer))/exp(30._rkind)) ! time scale for runoff generation, increases with depth, scaled to be between 1 and 48 hours (2 days)
+      mLayerDebrisRunoff(iLayer) = (atan(abs(tan_slope))*2._rkind/PI_D) * timeScale(iLayer) * mLayerDepth(iLayer+nStart)*mLayerVolFracLiqTrial(iLayer+nStart) ! runoff from each layer
+      ! derivatives in runoff from each layer
+      mLayerdDebrisRun_dTk(iLayer)   = (atan(abs(tan_slope))*2._rkind/PI_D) * timeScale(iLayer) * mLayerDepth(iLayer+nStart) * mLayerdTheta_dTk(iLayer+nStart)
+      mLayerdDebrisRun_dPsi0(iLayer) = (atan(abs(tan_slope))*2._rkind/PI_D) * timeScale(iLayer) * mLayerDepth(iLayer+nStart) * mLayerdTheta_dPsi(iLayer)
+    end do
+   end if
+   ! add to surface runoff
+   scalarSurfaceRunoff = scalarRainPlusMelt - scalarInfiltration + sum(mLayerDebrisRunoff)
+   if(nGlce>0) scalarGlacierMelt = scalarSurfaceRunoff ! save for glacier melt flow calculations
+  end associate
+ end subroutine debrisRunoff
+ ! **** end debrisRunoff ****
 
  ! **** groundwatr ****
  subroutine initialize_groundwatr

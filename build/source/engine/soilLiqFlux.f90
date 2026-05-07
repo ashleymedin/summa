@@ -135,6 +135,7 @@ subroutine soilLiqFlux(&
   ! local variables: general
   character(LEN=256)                               :: cmessage            ! error message of downwind routine
   integer(i4b)                                     :: nSoil               ! number of soil layers
+  integer(i4b)                                     :: nGlce               ! number of glacier layers
   integer(i4b)                                     :: ibeg,iend           ! start and end indices of the soil layers in concatanated snow-lake-soil-glce vector
   integer(i4b)                                     :: iLayer,iSoil        ! index of soil layer
   integer(i4b)                                     :: ixLayerDesired(1)   ! layer desired (scalar solution)
@@ -174,6 +175,7 @@ contains
 
   ! ** assign variables used in main associate block **
   nSoil = in_soilLiqFlux % nSoil ! get number of soil layers from input arguments
+  nGlce = indx_data%var(iLookINDEX%nGlce)%dat(1)
 
   ! get indices for the data structures
   ibeg = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nLake)%dat(1) + 1
@@ -515,7 +517,7 @@ contains
  subroutine initialize_compute_drainage_flux(in_qDrainFlux)
   ! **** Initialize operations for compute_drainage_flux ****
   type(in_type_qDrainFlux),intent(out) :: in_qDrainFlux
-  call in_qDrainFlux % initialize(nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
+  call in_qDrainFlux % initialize(nSoil,nGlce,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
                                  &prog_data,mpar_data,flux_data,diag_data,iceImpedeFac,&
                                  &dHydCond_dVolLiq,dHydCond_dTemp)
  end subroutine initialize_compute_drainage_flux
@@ -2064,23 +2066,28 @@ contains
   associate(&
    ! input: model control
    bc_lower      => in_qDrainFlux % bc_lower, & ! index defining the type of boundary conditions
+  nGlce          => in_qDrainFlux % nGlce, &    ! number of glacier layers (if any)
    ! output: error control
    err     => out_qDrainFlux % err    , &       ! error code
    message => out_qDrainFlux % message  &       ! error message
   &)
 
    ! determine lower boundary condition
-   select case(bc_lower)
-     case(prescribedHead) ! specified matric head value
-       call update_qDrainFlux_prescribedHead; if (return_flag) return
-     case(funcBottomHead) ! specified matric head function
-       call update_qDrainFlux_funcBottomHead; if (return_flag) return
-     case(freeDrainage)   ! free drainage
-       call update_qDrainFlux_freeDrainage;   if (return_flag) return
-     case(zeroFlux)       ! zero flux
-       call update_qDrainFlux_zeroFlux;       if (return_flag) return
-     case default; err=20; message=trim(message)//'unknown lower boundary condition for soil hydrology'; return_flag=.true.; return
-   end select 
+   if(nGlce>0)then
+    call update_qDrainFlux_zeroFlux; if (return_flag) return ! zero drainage into glacier ice since is impermeable
+   else
+     select case(bc_lower)
+       case(prescribedHead) ! specified matric head value
+         call update_qDrainFlux_prescribedHead; if (return_flag) return
+       case(funcBottomHead) ! specified matric head function
+         call update_qDrainFlux_funcBottomHead; if (return_flag) return
+       case(freeDrainage)   ! free drainage
+         call update_qDrainFlux_freeDrainage;   if (return_flag) return
+       case(zeroFlux)       ! zero flux
+         call update_qDrainFlux_zeroFlux;       if (return_flag) return
+       case default; err=20; message=trim(message)//'unknown lower boundary condition for soil hydrology'; return_flag=.true.; return
+     end select 
+   end if
 
   end associate
  end subroutine update_qDrainFlux

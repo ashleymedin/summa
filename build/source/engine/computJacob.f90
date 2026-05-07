@@ -516,6 +516,8 @@ subroutine fluxJacAdd(&
     mLayerdTrans_dTCanopy        => deriv_data%var(iLookDERIV%mLayerdTrans_dTCanopy)%dat           ,& ! intent(in): [dp(:)]  derivatives in the soil layer transpiration flux w.r.t. canopy temperature
     mLayerdTrans_dTGround        => deriv_data%var(iLookDERIV%mLayerdTrans_dTGround)%dat           ,& ! intent(in): [dp(:)]  derivatives in the soil layer transpiration flux w.r.t. ground temperature
     mLayerdTrans_dCanWat         => deriv_data%var(iLookDERIV%mLayerdTrans_dCanWat)%dat            ,& ! intent(in): [dp(:)]  derivatives in the soil layer transpiration flux w.r.t. canopy total water
+    mLayerdDebrisRun_dTk         => deriv_data%var(iLookDERIV%mLayerdDebrisRun_dTk)%dat            ,& ! intent(in): [dp(:)]  derivatives in the debris runoff flux w.r.t. temperature in layers
+    mLayerdDebrisRun_dPsi0       => deriv_data%var(iLookDERIV%mLayerdDebrisRun_dPsi0)%dat          ,& ! intent(in): [dp(:)]  derivatives in the debris runoff flux w.r.t. matric head in layers
     ! derivatives in aquifer transpiration w.r.t. canopy state variables
     dAquiferTrans_dTCanair       => deriv_data%var(iLookDERIV%dAquiferTrans_dTCanair)%dat(1)       ,& ! intent(in): [dp]     derivative in the aquifer transpiration flux w.r.t. canopy air temperature
     dAquiferTrans_dTCanopy       => deriv_data%var(iLookDERIV%dAquiferTrans_dTCanopy)%dat(1)       ,& ! intent(in): [dp]     derivative in the aquifer transpiration flux w.r.t. canopy temperature
@@ -759,8 +761,11 @@ subroutine fluxJacAdd(&
         jLayer   = iLayer+nSnow+nLake            ! index of layer in the layer system
 
         ! - compute the diagonal elements
-        ! all terms *excluding* baseflow
+        ! all terms *excluding* baseflow and debris runoff derivatives
         aJac(ixInd(full,watState,watState),watState) = (dt/mLayerDepth(jLayer))*(-dq_dHydStateBelow(iLayer-1) + dq_dHydStateAbove(iLayer)) + dMat(watState)
+
+        ! - include derivatives w.r.t. debris runoff
+        aJac(ixInd(full,watState,watState),watState) = (dt/mLayerDepth(jLayer))*(mLayerdDebrisRun_dPsi0(iLayer)) + aJac(ixInd(full,watState,watState),watState)
 
         ! - compute the super-diagonal elements
         if(iLayer>1)then
@@ -882,7 +887,10 @@ subroutine fluxJacAdd(&
           ! - include derivatives in liquid water fluxes w.r.t. temperature for current layer
           aJac(ixInd(full,watState,nrgState),nrgState) = (dt/mLayerDepth(jLayer))*(-dq_dNrgStateBelow(iLayer-1) + dq_dNrgStateAbove(iLayer))   ! dVol/dT (K-1) -- flux depends on ice impedance
 
-         ! - include derivatives w.r.t. ground evaporation
+          ! - include derivatives w.r.t. debris runoff
+          aJac(ixInd(full,watState,nrgState),nrgState) = (dt/mLayerDepth(jLayer))*(mLayerdDebrisRun_dTk(iLayer)) + aJac(ixInd(full,watState,nrgState),nrgState) ! dVol/dT (K-1)
+ 
+          ! - include derivatives w.r.t. ground evaporation
           if(nSnow==0 .and. iLayer==1)then 
             aJac(ixInd(full,ixTopHyd,ixTopNrg),ixTopNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(ixInd(full,ixTopHyd,ixTopNrg),ixTopNrg) ! dVol/dT (K-1)
           endif
