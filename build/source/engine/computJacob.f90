@@ -873,7 +873,7 @@ subroutine fluxJacAdd(&
     ! -----
     ! * cross derivatives in the soil domain...
     ! ----------------------------------------
-    if(nSoilOnlyHyd>0 .and. nSoilOnlyNrg>0)then
+    if(nSoilOnlyHyd>0 .and. (nSoilOnlyNrg>0 .or. computeVegFlux))then
       do iLayer=1,nSoilOnlyNrg
 
         ! - define indices of the soil layers
