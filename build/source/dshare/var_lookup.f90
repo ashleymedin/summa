@@ -599,7 +599,6 @@ MODULE var_lookup
   integer(i4b)    :: scalarCanopyEvaporation         = integerMissing ! canopy evaporation/condensation (kg m-2 s-1)
   integer(i4b)    :: scalarGroundEvaporation         = integerMissing ! ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
   integer(i4b)    :: mLayerTranspire                 = integerMissing ! transpiration loss from each soil layer (m s-1)
-  integer(i4b)    :: mLayerDebrisRunoff              = integerMissing ! debris runoff from each soil layer (m s-1)
   ! liquid and solid water fluxes through the canopy
   integer(i4b)    :: scalarThroughfallSnow           = integerMissing ! snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
   integer(i4b)    :: scalarThroughfallRain           = integerMissing ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
@@ -639,6 +638,8 @@ MODULE var_lookup
   integer(i4b)    :: scalarAquiferRecharge           = integerMissing ! recharge to the aquifer (m s-1)
   integer(i4b)    :: scalarAquiferTranspire          = integerMissing ! transpiration from the aquifer (m s-1)
   integer(i4b)    :: scalarAquiferBaseflow           = integerMissing ! baseflow from the aquifer (m s-1)
+  integer(i4b)    :: mLayerDebrisRunoff              = integerMissing ! debris runoff from each soil layer (m s-1)
+  integer(i4b)    :: scalarDebrisRunoff              = integerMissing ! total debris runoff from the soil profile (m s-1)
   ! derived variables
   integer(i4b)    :: scalarTotalET                   = integerMissing ! total ET (kg m-2 s-1)
   integer(i4b)    :: scalarTotalRunoff               = integerMissing ! total runoff (m s-1)
@@ -730,6 +731,7 @@ MODULE var_lookup
   integer(i4b)    :: mLayerdTrans_dTCanopy           = integerMissing ! derivatives in the soil layer transpiration flux w.r.t. canopy temperature
   integer(i4b)    :: mLayerdTrans_dTGround           = integerMissing ! derivatives in the soil layer transpiration flux w.r.t. ground temperature
   integer(i4b)    :: mLayerdTrans_dCanWat            = integerMissing ! derivatives in the soil layer transpiration flux w.r.t. canopy total water
+  ! derivatives in debris runoff w.r.t. layer state variables
   integer(i4b)    :: mLayerdDebrisRun_dTk            = integerMissing ! derivatives in the soil layer debris runoff flux w.r.t. temperature
   integer(i4b)    :: mLayerdDebrisRun_dPsi0          = integerMissing ! derivatives in the soil layer debris runoff flux w.r.t. total water matric potential
   ! derivatives in aquifer transpiration w.r.t. canopy state variables
@@ -1040,7 +1042,7 @@ MODULE var_lookup
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
-                                                                         91, 92, 93, 94, 95)
+                                                                         91, 92, 93, 94, 95, 96)
  ! named variables: derivatives in model fluxes w.r.t. relevant state variables
  type(iLook_deriv),   public,parameter :: iLookDERIV    =iLook_deriv   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

@@ -208,7 +208,7 @@ subroutine computFlux(&
   character(LEN=256)                 :: cmessage                    ! error message of downwind routine
   real(rkind)                        :: surface_flux                ! surface flux (m s-1) into snow or ice
   real(rkind)                        :: bottom_flux                 ! bottom flux (m s-1) out of snow or ice
-  real(rkind)                        :: total_soil_depth             ! total soil depth (m)
+  real(rkind)                        :: total_soil_depth            ! total soil depth (m)
   real(rkind),dimension(nSoil)       :: fracDepth                   ! fraction of layer depth relative to total soil depth
   real(rkind),dimension(nSoil)       :: timeScale                   ! time scale for debris runoff generation
   ! ---------------------- classes for flux subroutine arguments (classes defined in data_types module) ----------------------
@@ -830,6 +830,7 @@ contains
    mLayerdTheta_dTk          => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat,           & ! intent(in):  [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
    dPsiLiq_dPsi0             => deriv_data%var(iLookDERIV%dPsiLiq_dPsi0)%dat,              & ! intent(in):  [dp(:)] derivative in liquid water matric pot w.r.t. the total water matric pot (-
    mLayerDebrisRunoff        => flux_data%var(iLookFLUX%mLayerDebrisRunoff)%dat,           & ! intent(out): [dp(:)] runoff from each debris layer (m s-1)
+   scalarDebrisRunoff         => flux_data%var(iLookFLUX%scalarDebrisRunoff)%dat(1),       & ! intent(out): [dp] runoff from debris layers (m s-1)
    mLayerdDebrisRun_dTk      => deriv_data%var(iLookDERIV%mLayerdDebrisRun_dTk)%dat,       & ! intent(out): [dp(:)] derivative in runoff from each debris layer w.r.t. temperature
    mLayerdDebrisRun_dPsi0    => deriv_data%var(iLookDERIV%mLayerdDebrisRun_dPsi0)%dat,     & ! intent(out): [dp(:)] derivative in runoff from each debris layer w.r.t. matric potential
    scalarSurfaceRunoff       => flux_data%var(iLookFLUX%scalarSurfaceRunoff)%dat(1),       & ! intent(out): [dp] surface runoff (m s-1)
@@ -850,7 +851,8 @@ contains
     end do
    end if
    ! add to surface runoff
-   scalarSurfaceRunoff = scalarRainPlusMelt - scalarInfiltration + sum(mLayerDebrisRunoff)
+   scalarDebrisRunoff = sum(mLayerDebrisRunoff)
+   scalarSurfaceRunoff = scalarRainPlusMelt - scalarInfiltration + scalarDebrisRunoff
    if(nGlce>0) scalarGlacierMelt = scalarSurfaceRunoff ! save for glacier melt flow calculations
   end associate
  end subroutine debrisRunoff
