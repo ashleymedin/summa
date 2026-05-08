@@ -822,15 +822,18 @@ contains
  subroutine debrisRunoff
   nStart = nSnow + nLake
   associate(&
+   maxstep                   => mpar_data%var(iLookPARAM%maxstep),                         & ! intent(in):  [dp] initial time step (s)
    tan_slope                 => attr_data%var(iLookATTR%tan_slope),                        & ! intent(in):  [dp] tan glacier slope, taken as tan local ground surface slope (-)
-   mLayerDepth               => prog_data%var(iLookPROG%mLayerDepth)%dat,                  & ! intent(in):  [dp(:)] depth of each soil layer (m)
+   mLayerDepth               => prog_data%var(iLookPROG%mLayerDepth)%dat,                  & ! intent(in):  [dp(:)] depth of each layer (m)
+   mLayerHeight              => prog_data%var(iLookPROG%mLayerHeight)%dat,                 & ! intent(in):  [dp(:)] height of the layer mid-point (m)
    scalarRainPlusMelt        => flux_data%var(iLookFLUX%scalarRainPlusMelt)%dat(1),        & ! intent(in):  [dp] rain plus melt plus lake drainage (m s-1)
-   scalarInfiltration           => flux_data%var(iLookFLUX%scalarInfiltration)%dat(1),     & ! intent(in):  [dp] infiltration of water into the soil profile (m s-1)
+   scalarInfiltration        => flux_data%var(iLookFLUX%scalarInfiltration)%dat(1),        & ! intent(in):  [dp] infiltration of water into the soil profile (m s-1)
    mLayerdTheta_dPsi         => deriv_data%var(iLookDERIV%mLayerdTheta_dPsi)%dat,          & ! intent(in):  [dp(:)] derivative in the soil water characteristic w.r.t. psi
    mLayerdTheta_dTk          => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat,           & ! intent(in):  [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
-   dPsiLiq_dPsi0             => deriv_data%var(iLookDERIV%dPsiLiq_dPsi0)%dat,              & ! intent(in):  [dp(:)] derivative in liquid water matric pot w.r.t. the total water matric pot (-
+   debris_runoff_shape       => mpar_data%var(iLookPARAM%debris_runoff_shape),             & ! intent(in):  [dp] shape for runoff generation (hours)   
+   debris_runoff_max         => mpar_data%var(iLookPARAM%debris_runoff_max),               & ! intent(in):  [dp] maximum time scale for runoff generation (hours)
    mLayerDebrisRunoff        => flux_data%var(iLookFLUX%mLayerDebrisRunoff)%dat,           & ! intent(out): [dp(:)] runoff from each debris layer (m s-1)
-   scalarDebrisRunoff         => flux_data%var(iLookFLUX%scalarDebrisRunoff)%dat(1),       & ! intent(out): [dp] runoff from debris layers (m s-1)
+   scalarDebrisRunoff        => flux_data%var(iLookFLUX%scalarDebrisRunoff)%dat(1),        & ! intent(out): [dp] runoff from debris layers (m s-1)
    mLayerdDebrisRun_dTk      => deriv_data%var(iLookDERIV%mLayerdDebrisRun_dTk)%dat,       & ! intent(out): [dp(:)] derivative in runoff from each debris layer w.r.t. temperature
    mLayerdDebrisRun_dPsi0    => deriv_data%var(iLookDERIV%mLayerdDebrisRun_dPsi0)%dat,     & ! intent(out): [dp(:)] derivative in runoff from each debris layer w.r.t. matric potential
    scalarSurfaceRunoff       => flux_data%var(iLookFLUX%scalarSurfaceRunoff)%dat(1),       & ! intent(out): [dp] surface runoff (m s-1)
@@ -842,12 +845,14 @@ contains
    if(nGlce>0)then
     total_soil_depth = sum(mLayerDepth(nStart+1:nStart+nSoil))
     do iLayer=1,nSoil
-      fracDepth(iLayer) = mLayerDepth(iLayer+nStart)/total_soil_depth ! fraction of layer depth relative to total soil depth
-      timeScale(iLayer) = 1._rkind + (48._rkind - 1._rkind)*(exp(30._rkind*fracDepth(iLayer))/exp(30._rkind)) ! time scale for runoff generation, increases with depth, scaled to be between 1 and 48 hours (2 days)
-      mLayerDebrisRunoff(iLayer) = (atan(abs(tan_slope))*2._rkind/PI_D) * timeScale(iLayer) * mLayerDepth(iLayer+nStart)*mLayerVolFracLiqTrial(iLayer+nStart) ! runoff from each layer
+      ! get time scale for runoff generation, increases with depth, scaled to be between maxstep and debris_runoff_max
+      fracDepth(iLayer) = mLayerHeight(iLayer+nStart)/total_soil_depth ! fraction of depth relative to total soil depth
+      timeScale(iLayer) = maxstep + (debris_runoff_max - maxstep)*(exp(debris_runoff_shape*fracDepth(iLayer))/exp(debris_runoff_shape))
+      ! calculate runoff from each layer, increases with slope 
+      mLayerDebrisRunoff(iLayer) = ((atan(abs(tan_slope))*2._rkind/PI_D) / timeScale(iLayer))* mLayerDepth(iLayer+nStart) * mLayerVolFracLiqTrial(iLayer+nStart)
       ! derivatives in runoff from each layer
-      mLayerdDebrisRun_dTk(iLayer)   = (atan(abs(tan_slope))*2._rkind/PI_D) * timeScale(iLayer) * mLayerDepth(iLayer+nStart) * mLayerdTheta_dTk(iLayer+nStart)
-      mLayerdDebrisRun_dPsi0(iLayer) = (atan(abs(tan_slope))*2._rkind/PI_D) * timeScale(iLayer) * mLayerDepth(iLayer+nStart) * mLayerdTheta_dPsi(iLayer)
+      mLayerdDebrisRun_dTk(iLayer)   = ((atan(abs(tan_slope))*2._rkind/PI_D) / timeScale(iLayer))* mLayerDepth(iLayer+nStart) * mLayerdTheta_dTk(iLayer+nStart)
+      mLayerdDebrisRun_dPsi0(iLayer) = ((atan(abs(tan_slope))*2._rkind/PI_D) / timeScale(iLayer))* mLayerDepth(iLayer+nStart) * mLayerdTheta_dPsi(iLayer)
     end do
    end if
    ! add to surface runoff

@@ -167,6 +167,12 @@ contains
   if (parFallback(iLookPARAM%glacierTempReduction)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%glacierTempReduction)%default_val = 0._rkind
   end if
+  if (parFallback(iLookPARAM%debris_runoff_shape)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%debris_runoff_shape)%default_val = 30._rkind ! value from Giese et al. 2020
+  end if
+  if (parFallback(iLookPARAM%debris_runoff_max)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%debris_runoff_max)%default_val = 86400._rkind ! value from Giese et al. 2020
+  end if
  else
   ! glacier parameters
   if (parFallback(iLookBPAR%glacStor_kIce)%default_val < 0.99_rkind*realMissing) then ! 5-29

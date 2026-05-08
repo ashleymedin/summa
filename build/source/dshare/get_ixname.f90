@@ -391,6 +391,8 @@ contains
   case('f_impede'                 ); get_ixParam = iLookPARAM%f_impede               ! ice impedence factor (-)
   case('soilIceScale'             ); get_ixParam = iLookPARAM%soilIceScale           ! scaling factor for depth of soil ice, used to get frozen fraction (m)
   case('soilIceCV'                ); get_ixParam = iLookPARAM%soilIceCV              ! CV of depth of soil ice, used to get frozen fraction (-)
+  case('debris_runoff_shape'      ); get_ixParam = iLookPARAM%debris_runoff_shape    ! shape for runoff generation (-)
+  case('debris_runoff_max'        ); get_ixParam = iLookPARAM%debris_runoff_max      ! maximum time scale for runoff generation (s)
   ! conceptual parameters for surface runoff
   case('FUSE_Ac_max'              ); get_ixParam = iLookPARAM%FUSE_Ac_max            ! FUSE PRMS max saturated area                            
   case('FUSE_phi_tens'            ); get_ixParam = iLookPARAM%FUSE_phi_tens          ! FUSE PRMS tension storage fraction                      
