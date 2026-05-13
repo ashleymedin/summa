@@ -862,9 +862,9 @@ MODULE var_lookup
   integer(i4b)    :: routingGammaShape          = integerMissing ! shape parameter in Gamma distribution used for sub-grid routing (-)
   integer(i4b)    :: routingGammaScale          = integerMissing ! scale parameter in Gamma distribution used for sub-grid routing (s)
   ! glacier melt
-  integer(i4b)    :: glacStor_kIce              = integerMissing ! storage coefficient glacier ice reservoir (hours)
-  integer(i4b)    :: glacStor_kSnow             = integerMissing ! storage coefficient glacier snow reservoir (hours)
-  integer(i4b)    :: glacStor_kFirn             = integerMissing ! storage coefficient glacier firn reservoir (hours)
+  integer(i4b)    :: glacStor_kIce              = integerMissing ! storage coefficient glacier ice reservoir (s)
+  integer(i4b)    :: glacStor_kSnow             = integerMissing ! storage coefficient glacier snow reservoir (s)
+  integer(i4b)    :: glacStor_kFirn             = integerMissing ! storage coefficient glacier firn reservoir (s)
   ! debris advection
   integer(i4b)    :: debrisConc                 = integerMissing ! englacial debris concentration (kg m-3)
   integer(i4b)    :: debrisH_critical           = integerMissing ! critical debris thickness to start debris-free terminal wedge (m)

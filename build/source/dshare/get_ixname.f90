@@ -1028,9 +1028,9 @@ contains
   case('routingGammaShape'        ); get_ixBpar = iLookBPAR%routingGammaShape         ! shape parameter in Gamma distribution used for sub-grid routing (-)
   case('routingGammaScale'        ); get_ixBpar = iLookBPAR%routingGammaScale         ! scale parameter in Gamma distribution used for sub-grid routing (s)
   ! glacier melt
-  case('glacStor_kIce'            ); get_ixBpar = iLookBPAR%glacStor_kIce             ! storage coefficient glacier ice reservoir (hours)
-  case('glacStor_kSnow'           ); get_ixBpar = iLookBPAR%glacStor_kSnow            ! storage coefficient glacier snow reservoir (hours)
-  case('glacStor_kFirn'           ); get_ixBpar = iLookBPAR%glacStor_kFirn            ! storage coefficient glacier firn reservoir (hours)
+  case('glacStor_kIce'            ); get_ixBpar = iLookBPAR%glacStor_kIce             ! storage coefficient glacier ice reservoir (s)
+  case('glacStor_kSnow'           ); get_ixBpar = iLookBPAR%glacStor_kSnow            ! storage coefficient glacier snow reservoir (s)
+  case('glacStor_kFirn'           ); get_ixBpar = iLookBPAR%glacStor_kFirn            ! storage coefficient glacier firn reservoir (s)
   ! debris advection
   case('debrisConc'               ); get_ixBpar = iLookBPAR%debrisConc                ! englacial debris concentration (kg m-3)
   case('debrisH_critical'         ); get_ixBpar = iLookBPAR%debrisH_critical          ! critical debris thickness to start debris-free terminal wedge (m)

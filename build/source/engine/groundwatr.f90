@@ -285,7 +285,7 @@ subroutine computBaseflow(&
     contourLength           => attr_data%var(iLookATTR%contourLength),                   & ! intent(in):  [dp]    length of contour at downslope edge of HRU (m)
     ! input: baseflow parameters
     zScale_TOPMODEL         => mpar_data%var(iLookPARAM%zScale_TOPMODEL)%dat(1),         & ! intent(in):  [dp]    TOPMODEL exponent (-)
-    kAnisotropic            => mpar_data%var(iLookPARAM%kAnisotropic)%dat(1),            & ! intent(in):  [dp]    anisotropy factor for lateral hydraulic conductivity (-
+    kAnisotropic            => mpar_data%var(iLookPARAM%kAnisotropic)%dat(1),            & ! intent(in):  [dp]    anisotropy factor for lateral hydraulic conductivity (-)
     fieldCapacity           => mpar_data%var(iLookPARAM%fieldCapacity)%dat(1),           & ! intent(in):  [dp]    field capacity (-)
     theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat,                  & ! intent(in):  [dp(:)] soil porosity (-)
     ! output: diagnostic variables

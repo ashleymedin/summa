@@ -418,6 +418,7 @@ contains
    if(nSoil==0)then ! no soil layers
     scalarSoilDrainage = 0._rkind ! drainage from the above layer (m s-1)
     scalarSoilControl  = 1._rkind ! infiltration not controlled by soil
+    scalarSurfaceRunoff = scalarRainPlusMelt ! all rain plus melt becomes surface runoff
    else ! soil layers, take from previous flux calculation
     if(nGlce>0)then
      scalarSoilDrainage = iLayerLiqFluxSoil(nSoil) + scalarGlceMelt ! soil drainage is the liquid water flux at the top of the glacier ice layer, remove amount contributed by glacier ice melt (negative flux)

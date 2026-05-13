@@ -24,7 +24,7 @@ USE nr_type
 USE mDecisions_module,only: unDefined
 USE globalData,only:model_decisions
 USE globalData,only:realMissing
-USE multiconst,only:secprday  ! number of seconds in a day
+USE multiconst,only:secprhour  ! number of seconds in an hour
 USE var_lookup,only:iLookDECISIONS,iLookPARAM,iLookBPAR
 implicit none
 private
@@ -176,13 +176,13 @@ contains
  else
   ! glacier parameters
   if (parFallback(iLookBPAR%glacStor_kIce)%default_val < 0.99_rkind*realMissing) then ! 5-29
-   parFallback(iLookBPAR%glacStor_kIce)%default_val = 15._rkind
+   parFallback(iLookBPAR%glacStor_kIce)%default_val = 15._rkind*secprhour! convert from hours to seconds
   end if
   if (parFallback(iLookBPAR%glacStor_kSnow)%default_val < 0.99_rkind*realMissing) then ! 30-149
-   parFallback(iLookBPAR%glacStor_kSnow)%default_val = 90._rkind
+   parFallback(iLookBPAR%glacStor_kSnow)%default_val = 90._rkind*secprhour ! convert from hours to seconds
   end if
   if (parFallback(iLookBPAR%glacStor_kFirn)%default_val < 0.99_rkind*realMissing) then ! 150-1000
-    parFallback(iLookBPAR%glacStor_kFirn)%default_val = 575._rkind
+    parFallback(iLookBPAR%glacStor_kFirn)%default_val = 575._rkind*secprhour ! convert from hours to seconds
   endif
   if (parFallback(iLookBPAR%debrisConc)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookBPAR%debrisConc)%default_val = 5.0_rkind ! 0.1 to 6.4 kg/m3 following Anderson and Anderson (2018)

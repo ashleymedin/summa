@@ -331,9 +331,9 @@ subroutine popMetadat(err,message)
   bpar_meta(iLookBPAR%routingGammaShape)               = var_info('routingGammaShape'              , 'shape parameter in Gamma distribution used for sub-grid routing'  , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bpar_meta(iLookBPAR%routingGammaScale)               = var_info('routingGammaScale'              , 'scale parameter in Gamma distribution used for sub-grid routing'  , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! glacier melt
-  bpar_meta(iLookBPAR%glacStor_kIce)                   = var_info('glacStor_kIce'                  , 'storage coefficient glacier ice reservoir'                        , 'hours'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  bpar_meta(iLookBPAR%glacStor_kSnow)                  = var_info('glacStor_kSnow'                 , 'storage coefficient glacier snow reservoir'                       , 'hours'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  bpar_meta(iLookBPAR%glacStor_kFirn)                  = var_info('glacStor_kFirn'                 , 'storage coefficient glacier firn reservoir'                       , 'hours'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bpar_meta(iLookBPAR%glacStor_kIce)                   = var_info('glacStor_kIce'                  , 'storage coefficient glacier ice reservoir'                        , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bpar_meta(iLookBPAR%glacStor_kSnow)                  = var_info('glacStor_kSnow'                 , 'storage coefficient glacier snow reservoir'                       , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bpar_meta(iLookBPAR%glacStor_kFirn)                  = var_info('glacStor_kFirn'                 , 'storage coefficient glacier firn reservoir'                       , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! debris advection
   bpar_meta(iLookBPAR%debrisConc)                      = var_info('debrisConc'                     , 'englacial debris concentration'                                   , 'kg m-3'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bpar_meta(iLookBPAR%debrisH_critical)                = var_info('debrisH_critical'               , 'critical debris thickness to start debris-free terminal wedge'    , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)

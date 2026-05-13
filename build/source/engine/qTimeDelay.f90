@@ -24,7 +24,6 @@ module qTimeDelay_module
 USE nr_type
 
 ! constants, time information
-USE multiconst,only:secprhour   ! number of seconds in an hour
 USE globalData,only:data_step   ! length of the data step (s)
 USE globalData,only:realMissing ! missing real number
 
@@ -163,18 +162,18 @@ integer(i4b),intent(in)     :: nGlac                     ! number of glaciers in
    ! ice reservoir runoff (m s-1)
    frac = 0._rkind
    if (glacierAblTotal>0._rkind) frac = glacierAblArea(iGlacier)/glacierAblTotal
-   qIce = qIceFuture(iGlacier) + glacIceMelt*frac - glacIceMelt*frac*exp(-data_step/secprhour/glacStor_kIce)
-   qIceFuture(iGlacier) = qIce*exp(-data_step/secprhour/glacStor_kIce) ! place runoff in future time steps 
+   qIce = qIceFuture(iGlacier) + glacIceMelt*frac - glacIceMelt*frac*exp(-data_step/glacStor_kIce)
+   qIceFuture(iGlacier) = qIce*exp(-data_step/glacStor_kIce) ! place runoff in future time steps 
 
    ! snow reservoir runoff (m s-1)
-   qSnow = qSnowFuture(iGlacier) + glacSnowMelt*frac - glacSnowMelt*frac*exp(-data_step/secprhour/glacStor_kSnow)
-   qSnowFuture(iGlacier) = qSnow*exp(-data_step/secprhour/glacStor_kSnow) ! place runoff in future time steps
+   qSnow = qSnowFuture(iGlacier) + glacSnowMelt*frac - glacSnowMelt*frac*exp(-data_step/glacStor_kSnow)
+   qSnowFuture(iGlacier) = qSnow*exp(-data_step/glacStor_kSnow) ! place runoff in future time steps
 
    ! firn reservoir runoff (m s-1)
    frac = 0._rkind ! reset fraction
    if (glacierAccTotal>0._rkind) frac = glacierAccArea(iGlacier)/glacierAccTotal
-   qFirn = qFirnFuture(iGlacier) + glacFirnMelt*frac - glacFirnMelt*frac*exp(-data_step/secprhour/glacStor_kFirn)
-   qFirnFuture(iGlacier) = qFirn*exp(-data_step/secprhour/glacStor_kFirn) ! place runoff in future time steps 
+   qFirn = qFirnFuture(iGlacier) + glacFirnMelt*frac - glacFirnMelt*frac*exp(-data_step/glacStor_kFirn)
+   qFirnFuture(iGlacier) = qFirn*exp(-data_step/glacStor_kFirn) ! place runoff in future time steps 
 
    ! routed glacier runoff (m s-1)
    glacierRoutedRunoff = glacierRoutedRunoff + qIce + qSnow + qFirn 

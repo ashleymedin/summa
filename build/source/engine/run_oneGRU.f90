@@ -487,7 +487,7 @@ subroutine run_oneGRU(&
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
   ! add glacier runoff to overland runoff
-  bvarData%var(iLookBVAR%averageInstantRunoff)%dat(1) = bvarData%var(iLookBVAR%averageInstantRunoff)%dat(1) + bvarData%var(iLookBVAR%glacierRoutedRunoff)%dat(1)
+  bvarData%var(iLookBVAR%averageInstantRunoff)%dat(1) = bvarData%var(iLookBVAR%averageInstantRunoff)%dat(1) + glacIceMelt + glacSnowMelt + glacFirnMelt
   bvarData%var(iLookBVAR%averageRoutedRunoff)%dat(1) = bvarData%var(iLookBVAR%averageRoutedRunoff)%dat(1) + bvarData%var(iLookBVAR%glacierRoutedRunoff)%dat(1)
 
   end associate
