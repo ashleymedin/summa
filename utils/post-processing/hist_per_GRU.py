@@ -273,13 +273,7 @@ def run_loop(i,var,mx,rep,stat):
     s_rel = summa[method_name[0]][var].sel(stat=statr)
     for m in method_name:
         s = summa[m][var].sel(stat=stat0)
-        if do_rel and var != 'wallClockTime': s = s/s_rel
-        if var == 'scalarTotalET' and not do_rel:
-            if stat =='rmse' or stat =='rmnz' or stat=='mean': s = s*31557600 # make annual total
-            if stat =='maxe': s = s*3600 # make hourly max
-        if var == 'averageRoutedRunoff' and not do_rel:
-            if stat =='rmse' or stat =='rmnz' or stat=='mean': s = s*31557600*1000 # make annual total
-            if stat =='maxe': s = s*3600*1000 # make hourly max           
+        if do_rel and var != 'wallClockTime': s = s/s_rel  
         if stat == 'maxe': s = np.fabs(s) # make absolute value norm
         plot_range = (0,mx)
         if stat=='kgem' and var!='wallClockTime': 
