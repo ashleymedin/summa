@@ -128,7 +128,6 @@ contains
  flux2state_orig(iLookFLUX%scalarGroundEvaporation)         = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
  flux2state_orig(iLookFLUX%scalarAquiferTranspire)          = flux2state(state1=iname_watAquifer,state2=iname_watCanopy)
  flux2state_orig(iLookFLUX%mLayerTranspire)                 = flux2state(state1=iname_matLayer,  state2=integerMissing)
- flux2state_orig(iLookFLUX%mLayerDebrisRunoff)              = flux2state(state1=iname_matLayer,  state2=integerMissing)
 
  ! liquid and solid water fluxes through the canopy
  flux2state_orig(iLookFLUX%scalarThroughfallSnow)           = flux2state(state1=integerMissing,  state2=integerMissing)

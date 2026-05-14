@@ -927,7 +927,6 @@ MODULE data_types
    ! input: model control
    integer(i4b) :: ixRichards                ! index defining the option for Richards' equation (moisture or mixdform)
    integer(i4b) :: bc_lower                  ! index defining the type of boundary conditions
-   integer(i4b) :: nGlce                     ! number of glacier ice layers
    ! input: state and diagnostic variables
    real(rkind)  :: nodeMatricHeadLiq         ! liquid matric head in the lowest unsaturated node (m)
    real(rkind)  :: nodeVolFracLiq            ! volumetric liquid water content in the lowest unsaturated node (-)
@@ -2207,12 +2206,11 @@ contains
  ! **** end iLayerFlux ****
 
  ! **** qDrainFlux ****
- subroutine initialize_in_qDrainFlux(in_qDrainFlux,nSoil,nGlce,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
+ subroutine initialize_in_qDrainFlux(in_qDrainFlux,nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
                                     &prog_data,mpar_data,flux_data,diag_data,iceImpedeFac,&
                                     &dHydCond_dVolLiq,dHydCond_dTemp)
   class(in_type_qDrainFlux),intent(out) :: in_qDrainFlux ! class object for input qDrainFlux variables
   integer(i4b),intent(in)               :: nSoil         ! number of soil layers
-  integer(i4b),intent(in)               :: nGlce         ! number of glacier layers
   integer(i4b),intent(in)               :: ibeg,iend     ! start and end indices of the soil layers in concatanated snow-lake-soil-glce vector
   type(in_type_soilLiqFlux),intent(in)  :: in_soilLiqFlux ! input class object for soilLiqFlux
   type(io_type_soilLiqFlux),intent(in)  :: io_soilLiqFlux ! input-output class object for soilLiqFlux
@@ -2258,7 +2256,6 @@ contains
    ! intent(in): model control
    in_qDrainFlux % ixRichards    = ixRichards             ! index defining the form of Richards' equation (moisture or mixdform)
    in_qDrainFlux % bc_lower      = ixBcLowerSoilHydrology ! index defining the type of boundary conditions
-   in_qDrainFlux % nGlce         = nGlce                  ! number of glacier layers, used to determine if soil-glacier drainage is occurring
    ! intent(in): state variables
    in_qDrainFlux % nodeMatricHeadLiq = mLayerMatricHeadLiqTrial(nSoil) ! liquid matric head in the lowest unsaturated node (m)
    in_qDrainFlux % nodeVolFracLiq    = mLayerVolFracLiqTrial(nSoil)    ! volumetric liquid water content the lowest unsaturated node (-)

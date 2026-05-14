@@ -713,7 +713,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
   real(rkind)                     :: canopyBalance0,canopyBalance1 ! canopy storage at start/end of time step
   real(rkind)                     :: soilBalance0,soilBalance1     ! soil storage at start/end of time step
   real(rkind)                     :: vertFlux                      ! change in storage due to vertical fluxes
-  real(rkind)                     :: tranSink,debrSink,baseSink,compSink ! change in storage due to sink terms
+  real(rkind)                     :: tranSink,baseSink,compSink    ! change in storage due to sink terms
   real(rkind)                     :: liqError                      ! water balance error
   real(rkind)                     :: fluxNet                       ! net water fluxes (kg m-2 s-1)
   real(rkind)                     :: superflousWat                 ! superflous water used for evaporation (kg m-2 s-1)
@@ -791,10 +791,9 @@ USE getVectorz_module,only:varExtract                              ! extract var
     scalarCanopyEvaporation   => flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)    ,& ! intent(in)   : [dp]     canopy evaporation/condensation (kg m-2 s-1)
     scalarCanopyLiqDrainage   => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1)    ,& ! intent(in)   : [dp]     drainage liquid water from vegetation canopy (kg m-2 s-1)
     iLayerLiqFluxSoil         => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat             ,& ! intent(in)   : [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
-    iLayerNrgFlux             => flux_data%var(iLookFLUX%iLayerNrgFlux)%dat                 ,& ! intent(in)   : [dp(0:)] vertical energy flux at soil layer interfaces (W m-2 [J m-2 s-1])
+    iLayerNrgFlux             => flux_data%var(iLookFLUX%iLayerNrgFlux)%dat                 ,& ! intent(in)   :
     mLayerNrgFlux             => flux_data%var(iLookFLUX%mLayerNrgFlux)%dat                 ,& ! intent(out)  : [dp]     net energy flux for each layer within the layer domains (J m-3 s-1)
     mLayerTranspire           => flux_data%var(iLookFLUX%mLayerTranspire)%dat               ,& ! intent(in)   : [dp(:)]  transpiration loss from each soil layer (m s-1)
-    mLayerDebrisRunoff         => flux_data%var(iLookFLUX%mLayerDebrisRunoff)%dat           ,& ! intent(in)   : [dp(:)]  debris runoff from each soil layer (m s-1)
     mLayerBaseflow            => flux_data%var(iLookFLUX%mLayerBaseflow)%dat                ,& ! intent(in)   : [dp(:)]  baseflow from each soil layer (m s-1)
     mLayerCompress            => diag_data%var(iLookDIAG%mLayerCompress)%dat                ,& ! intent(in)   : [dp(:)]  change in storage associated with compression of the soil matrix (-)
     ! energy fluxes
@@ -1180,10 +1179,9 @@ USE getVectorz_module,only:varExtract                              ! extract var
             soilBalance1 = sum( (mLayerVolFracLiqTrial(nSnow+nLake+1:nSnow+nLake+nSoil) + mLayerVolFracIceTrial(nSnow+nLake+1:nSnow+nLake+nSoil) )*mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil) )
             vertFlux     = -(iLayerLiqFluxSoil(nSoil) - iLayerLiqFluxSoil(0))*dt           ! m s-1 --> m
             tranSink     = sum(mLayerTranspire)*dt                                         ! m s-1 --> m
-            debrSink     = sum(mLayerDebrisRunoff)*dt                                      ! m s-1 --> m
             baseSink     = sum(mLayerBaseflow)*dt                                          ! m s-1 --> m
             compSink     = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil) )*dt ! m s-1 --> m
-            liqError     = soilBalance1 - (soilBalance0 + vertFlux + tranSink - debrSink - baseSink - compSink)
+            liqError     = soilBalance1 - (soilBalance0 + vertFlux + tranSink - baseSink - compSink)
             if(abs(liqError) > absConvTol_liquid*10._rkind)then   ! *10 because of precision issues
               if(printFlag)then
                 write(*,'(a,1x,f20.10)') 'dt = ', dt
@@ -1191,7 +1189,6 @@ USE getVectorz_module,only:varExtract                              ! extract var
                 write(*,'(a,1x,f20.10)') 'soilBalance1      = ', soilBalance1
                 write(*,'(a,1x,f20.10)') 'vertFlux          = ', vertFlux
                 write(*,'(a,1x,f20.10)') 'tranSink          = ', tranSink
-                write(*,'(a,1x,f20.10)') 'debrSink          = ', debrSink
                 write(*,'(a,1x,f20.10)') 'baseSink          = ', baseSink
                 write(*,'(a,1x,f20.10)') 'compSink          = ', compSink
                 write(*,'(a,1x,f20.10)') 'liqError          = ', liqError

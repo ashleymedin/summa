@@ -188,8 +188,7 @@ subroutine computResid(&
     canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,& ! intent(in): [dp]     canopy depth (m)
     mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in): [dp(:)]  depth of each layer in the layer domains (m)
     ! model fluxes (sink terms in the soil domain)
-    mLayerTranspire         => flux_data%var(iLookFLUX%mLayerTranspire)%dat           ,& ! intent(in): [dp(:)]  transpiration loss from each soil layer (m s-1)
-    mLayerDebrisRunoff      => flux_data%var(iLookFLUX%mLayerDebrisRunoff)%dat        ,& ! intent(in): [dp(:)]  debris runoff from each soil layer (m s-1)
+    mLayerTranspire         => flux_data%var(iLookFLUX%mLayerTranspire)%dat           ,& ! intent(in): [dp]     transpiration loss from each soil layer (m s-1)
     mLayerBaseflow          => flux_data%var(iLookFLUX%mLayerBaseflow)%dat            ,& ! intent(in): [dp(:)]  baseflow from each soil layer (m s-1)
     mLayerCompress          => diag_data%var(iLookDIAG%mLayerCompress)%dat            ,& ! intent(in): [dp(:)]  change in storage associated with compression of the soil matrix (-)
     ! number of state variables of a specific type
@@ -241,7 +240,7 @@ subroutine computResid(&
     ! NOTE 4: same sink terms for matric head and liquid matric potential
     if(nSoilOnlyHyd>0)then
       do concurrent (iLayer=1:nSoil,ixSoilOnlyHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the layer domains)
-        rAdd( ixSoilOnlyHyd(iLayer) ) = rAdd( ixSoilOnlyHyd(iLayer) ) + ( ( mLayerTranspire(iLayer) - mLayerDebrisRunoff(iLayer) - mLayerBaseflow(iLayer) )/mLayerDepth(iLayer+nSnow+nLake) - mLayerCompress(iLayer) )*dt
+        rAdd( ixSoilOnlyHyd(iLayer) ) = rAdd( ixSoilOnlyHyd(iLayer) ) + ( ( mLayerTranspire(iLayer) - mLayerBaseflow(iLayer) )/mLayerDepth(iLayer+nSnow+nLake) - mLayerCompress(iLayer) )*dt
       end do  ! looping through non-missing energy state variables in the layer domains
     endif
 
