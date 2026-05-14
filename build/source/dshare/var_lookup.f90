@@ -295,8 +295,6 @@ MODULE var_lookup
   integer(i4b)    :: f_impede              = integerMissing    ! ice impedence factor (-)
   integer(i4b)    :: soilIceScale          = integerMissing    ! scaling factor for depth of soil ice, used to get frozen fraction (m)
   integer(i4b)    :: soilIceCV             = integerMissing    ! CV of depth of soil ice, used to get frozen fraction (-)
-  integer(i4b)    :: debris_runoff_shape   = integerMissing    ! shape for runoff generation (-)
-  integer(i4b)    :: debris_runoff_max     = integerMissing    ! maximum time scale for runoff generation (s)
   ! conceptual parameters for surface runoff
   integer(i4b)    :: FUSE_Ac_max           = integerMissing    ! FUSE PRMS max saturated area
   integer(i4b)    :: FUSE_phi_tens         = integerMissing    ! FUSE PRMS tension storage fraction
@@ -1016,7 +1014,7 @@ MODULE var_lookup
                                                                         161,162,163,164,165,166,167,168,169,170,&
                                                                         171,172,173,174,175,176,177,178,179,180,&
                                                                         181,182,183,184,185,186,187,188,189,190,&
-                                                                        191,192,193,194,195,196,197,198,199)
+                                                                        191,192,193,194,195,196,197)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

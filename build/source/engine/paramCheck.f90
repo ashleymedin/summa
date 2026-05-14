@@ -181,13 +181,6 @@ contains
   err=20; return
  endif
 
- ! check glacier debris runoff parameters
- if(mpar_data%var(iLookPARAM%debris_runoff_max)%dat(1) <= mpar_data%var(iLookPARAM%maxstep)%dat(1))then
-  print*, 'debris_runoff_max = ', mpar_data%var(iLookPARAM%debris_runoff_max)%dat(1)    
-  message=trim(message)//'debris_runoff_max parameter must be greater than maxstep parameter'
-  err=20; return
- endif
-
  ! end associations to parameter dependencies
  end associate
 
