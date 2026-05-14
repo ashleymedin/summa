@@ -62,19 +62,12 @@ USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the
 
 ! provide access to look-up values for model decisions
 USE mDecisions_module,only:   &
-  ! look-up values for method used to compute derivative
-  numerical,                  & ! numerical solution
-  analytical,                 & ! analytical solution
   ! look-up values for the form of Richards' equation
   moisture,                   & ! moisture-based form of Richards' equation
   mixdform,                   & ! mixed form of Richards' equation
   ! look-up values for the type of hydraulic conductivity profile
   constant,                   & ! constant hydraulic conductivity with depth
   powerLaw_profile,           & ! power-law profile
-  ! look-up values for the choice of groundwater parameterization
-  qbaseTopmodel,              & ! TOPMODEL-ish baseflow parameterization
-  bigBucket,                  & ! a big bucket (lumped aquifer model)
-  noExplicit,                 & ! no explicit groundwater parameterization
   ! look-up values for the choice of boundary conditions for hydrology
   prescribedHead,             & ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
   funcBottomHead,             & ! function of matric head in the lower-most layer
