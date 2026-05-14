@@ -823,7 +823,7 @@ contains
  subroutine debrisRunoff
   nStart = nSnow + nLake
   associate(&
-   maxstep                   => mpar_data%var(iLookPARAM%maxstep)%dat(1),                  & ! intent(in):  [dp] initial time step (s)
+   maxstep                   => mpar_data%var(iLookPARAM%maxstep),                         & ! intent(in):  [dp] initial time step (s)
    tan_slope                 => attr_data%var(iLookATTR%tan_slope),                        & ! intent(in):  [dp] tan glacier slope, taken as tan local ground surface slope (-)
    mLayerDepth               => prog_data%var(iLookPROG%mLayerDepth)%dat,                  & ! intent(in):  [dp(:)] depth of each layer (m)
    mLayerHeight              => prog_data%var(iLookPROG%mLayerHeight)%dat,                 & ! intent(in):  [dp(:)] height of the layer mid-point (m)
@@ -831,8 +831,8 @@ contains
    scalarInfiltration        => flux_data%var(iLookFLUX%scalarInfiltration)%dat(1),        & ! intent(in):  [dp] infiltration of water into the soil profile (m s-1)
    mLayerdTheta_dPsi         => deriv_data%var(iLookDERIV%mLayerdTheta_dPsi)%dat,          & ! intent(in):  [dp(:)] derivative in the soil water characteristic w.r.t. psi
    mLayerdTheta_dTk          => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat,           & ! intent(in):  [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
-   debris_runoff_shape       => mpar_data%var(iLookPARAM%debris_runoff_shape)%dat(1),      & ! intent(in):  [dp] shape for runoff generation (hours)   
-   debris_runoff_max         => mpar_data%var(iLookPARAM%debris_runoff_max)%dat(1),        & ! intent(in):  [dp] maximum time scale for runoff generation (hours)
+   debris_runoff_shape       => mpar_data%var(iLookPARAM%debris_runoff_shape),             & ! intent(in):  [dp] shape for runoff generation (hours)   
+   debris_runoff_max         => mpar_data%var(iLookPARAM%debris_runoff_max),               & ! intent(in):  [dp] maximum time scale for runoff generation (hours)
    mLayerDebrisRunoff        => flux_data%var(iLookFLUX%mLayerDebrisRunoff)%dat,           & ! intent(out): [dp(:)] runoff from each debris layer (m s-1)
    scalarDebrisRunoff        => flux_data%var(iLookFLUX%scalarDebrisRunoff)%dat(1),        & ! intent(out): [dp] runoff from debris layers (m s-1)
    mLayerdDebrisRun_dTk      => deriv_data%var(iLookDERIV%mLayerdDebrisRun_dTk)%dat,       & ! intent(out): [dp(:)] derivative in runoff from each debris layer w.r.t. temperature
