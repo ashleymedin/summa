@@ -228,7 +228,8 @@ subroutine run_oneGRU(&
     do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
       associate(typeDOM => gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type, &
                 DOMarea => progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) )
-        if(typeDOM==wetland) print*, 'ERROR:  wetland fluxes not yet implemented'; stop
+        if(typeDOM==wetland)then; err=20; message=trim(message)//'ERROR:  wetland fluxes not yet implemented'; return; endif
+       
         fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = 0._rkind
         if(DOMarea==0._rkind) cycle ! skip domains with no area
         if(typeDOM==glacCln1 .or. typeDOM==glacCln2 .or. typeDOM==glacDbr)then        
@@ -349,7 +350,7 @@ subroutine run_oneGRU(&
 
         ! ----- calculate weighted basin (GRU) fluxes --------------------------------------------------------------------------------------
         bvarData%var(iLookBVAR%basin__StorageChange)%dat(1)  = bvarData%var(iLookBVAR%basin__StorageChange)%dat(1) + diagHRU%hru(iHRU)%dom(iDOM)%var(iLookDIAG%scalarTotalMassChange)%dat(1)*fracDOM
-        if(typeDOM==upland .or. typeDOM==wetland)then
+        if(typeDOM==upland)then
            ! increment basin surface runoff (m s-1)
           bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)*fracDOM
 
@@ -478,7 +479,7 @@ subroutine run_oneGRU(&
       ! deep aquifer (column outflow will be zero)
       bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1)/totalArea + bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)
     else
-      ! no deep aquifer (may have column outflow from shallow groundwater)
+      ! no deep aquifer (may have column outflow from shallow groundwater then soil drainage will be zero, else the converse is true)
       bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1)/totalArea + bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)
     endif
     
