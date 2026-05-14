@@ -315,15 +315,18 @@ subroutine run_oneGRU(&
     ! identify lateral connectivity
     ! (Note:  for efficiency, this could this be done as a setup task, not every timestep)
     kHRU = 0
-    ! identify the downslope HRU
-    dsHRU: do jHRU=1,gruInfo%hruCount
-      if(typeHRU%hru(iHRU)%var(iLookTYPE%downHRUindex) == idHRU%hru(jHRU)%var(iLookID%hruId))then
-        if(kHRU==0)then  ! check there is a unique match
-          kHRU=jHRU
-          exit dsHRU
-        endif  ! (check there is a unique match)
-      endif  ! (if identified a downslope HRU)
-    enddo dsHRU
+    ! identify the downslope HRU if upland or wetland, so can add lateral flow to downslope upland domain
+    !   assume glacier domains are not laterally connected
+    if(typeDOM==upland .or. typeDOM==wetland)then
+      dsHRU: do jHRU=1,gruInfo%hruCount
+        if(typeHRU%hru(iHRU)%var(iLookTYPE%downHRUindex) == idHRU%hru(jHRU)%var(iLookID%hruId))then
+          if(kHRU==0)then  ! check there is a unique match
+            kHRU=jHRU
+            exit dsHRU
+          endif  ! (check there is a unique match)
+        endif  ! (if identified a downslope HRU)
+      enddo dsHRU
+    endif
     
     do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
       if(progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)==0._rkind) cycle ! skip domains with no area
@@ -332,16 +335,21 @@ subroutine run_oneGRU(&
       ! identify the area covered by the current domain
       fracDOM = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)/ bvarData%var(iLookBVAR%basin__totalArea)%dat(1)
 
-      ! if lateral flows are active, add inflow to the downslope HRU (not active on glacier)
-      if(kHRU > 0)then  ! if there is a downslope HRU
-        fluxHRU%hru(kHRU)%dom(iDOM)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = fluxHRU%hru(kHRU)%dom(iDOM)%var(iLookFLUX%mLayerColumnInflow)%dat(:)  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%mLayerColumnOutflow)%dat(:)
+      ! if lateral flows are active, add inflow to the downslope HRU (current workflow keeps these at 0)
+      if(kHRU > 0)then  ! if there is a downslope HRU, add to upland domain inflow (m3 s-1)
+        fluxHRU%hru(kHRU)%dom(1)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = fluxHRU%hru(kHRU)%dom(1)%var(iLookFLUX%mLayerColumnInflow)%dat(:)  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%mLayerColumnOutflow)%dat(:)
       else ! otherwise just increment basin (GRU) column outflow (m3 s-1) with the hru fraction
-        bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1) = bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1) + sum(fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%mLayerColumnOutflow)%dat(:))
+        if(typeDOM==upland .or. typeDOM==wetland)then
+          bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1) = bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1) + sum(fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%mLayerColumnOutflow)%dat(:))
+          if(typeDOM==wetland)then ! treating as upland, but not implementing wetland-specific fluxes yet
+            ! STUB:  wetland fluxes not yet implemented
+             print*, 'WARNING:  wetland fluxes not yet implemented, treating wetland domain as upland in run_oneGRU'
+          endif
       endif
 
       ! ----- calculate weighted basin (GRU) fluxes --------------------------------------------------------------------------------------
       bvarData%var(iLookBVAR%basin__StorageChange)%dat(1)  = bvarData%var(iLookBVAR%basin__StorageChange)%dat(1) + diagHRU%hru(iHRU)%dom(iDOM)%var(iLookDIAG%scalarTotalMassChange)%dat(1)*fracDOM
-      if(typeDOM==upland)then
+      if(typeDOM==upland .or. typeDOM==wetland)then
          ! increment basin surface runoff (m s-1)
         bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)*fracDOM
 
@@ -359,11 +367,13 @@ subroutine run_oneGRU(&
       else if(typeDOM==glacCln1 .or. typeDOM==glacCln2 .or. typeDOM==glacDbr)then ! collect glacier ablation and accumulation melt m s-1
         ! This logic makes sense if assuming multiple glaciers in each HRU and one HRU per GRU, or one glacier in each GRU with multiple HRUs
         ! If some glaciers are not in a particular glacier HRU, this logic will not capture that
-        glacFirnMelt = glacFirnMelt + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarGlacierMelt)%dat(1) *fracDOM * (1.0_rkind - progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1))
+        glacFirnMelt = glacFirnMelt + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarGlacierMelt)%dat(1) *fracDOM * (1.0_rkind - progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1)) ! no debris in accumulation zone for lateral flow
         if(progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowDepth)%dat(1)>0._rkind)then
-          glacSnowMelt = glacSnowMelt + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarGlacierMelt)%dat(1) *fracDOM * progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1)
+          glacSnowMelt = glacSnowMelt + (fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarGlacierMelt)%dat(1) + sum(fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%mLayerColumnOutflow)%dat(:))/totalArea) &
+                        *fracDOM * progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1)
         else
-          glacIceMelt  = glacIceMelt  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarGlacierMelt)%dat(1) *fracDOM * progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1)
+          glacIceMelt  = glacIceMelt  + (fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarGlacierMelt)%dat(1) + sum(fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%mLayerColumnOutflow)%dat(:))/totalArea) &
+                        *fracDOM * progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1)
         endif
         ! increment basin glacier area (m2)
         bvarData%var(iLookBVAR%basin__GlacierArea)%dat(1) = bvarData%var(iLookBVAR%basin__GlacierArea)%dat(1) + progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
@@ -372,9 +382,6 @@ subroutine run_oneGRU(&
         bvarData%var(iLookBVAR%basin__GlacierStorage)%dat(1) = bvarData%var(iLookBVAR%basin__GlacierStorage)%dat(1) &
                                                                + diagHRU%hru(iHRU)%dom(iDOM)%var(iLookDIAG%scalarTotalMassChange)%dat(1)*data_step &
                                                                * progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)*1.e-12_rkind
-      else if(typeDOM==wetland)then ! collect wetland fluxes
-        ! STUB:  wetland fluxes not yet implemented
-        print*, 'WARNING:  wetland fluxes not yet implemented'
       endif ! (if domain type)
       end associate
     enddo ! (looping through domains)

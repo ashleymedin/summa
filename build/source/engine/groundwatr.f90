@@ -149,12 +149,12 @@ subroutine groundwatr(&
     ! (1) compute the "active" portion of the soil profile
     ! ************************************************************************************************
 
-    ! get index of the lowest saturated layer
-    if (getSatDepth) then  ! NOTE: only compute for the first flux call
+    ! get index of the layer closest to surface that is more than field capacity (NOTE: only compute on the first flux call)
+    if (getSatDepth) then
       ixSaturation = nSoil+1  ! unsaturated profile when ixSaturation>nSoil
       do iLayer=nSoil,1,-1  ! start at the lowest soil layer and work upwards to the top layer
         if (mLayerVolFracLiq(iLayer) > fieldCapacity) then; ixSaturation = iLayer  ! index of saturated layer -- keeps getting over-written as move upwards
-        else; exit; end if                                                        ! only consider saturated layer at the bottom of the soil profile
+        else; exit; end if                                                         ! only consider saturated layer at the bottom of the soil profile
       end do  ! end looping through soil layers
     end if
 
@@ -193,7 +193,7 @@ subroutine groundwatr(&
     ! use the chain rule to compute the baseflow derivative w.r.t. matric head (s-1)
     do iLayer=1,nSoil
       dBaseflow_dMatric(1:iLayer,iLayer) = dBaseflow_dVolLiq(1:iLayer,iLayer)*mLayerdTheta_dPsi(iLayer)
-      if (iLayer<nSoil) dBaseflow_dMatric(iLayer+1:nSoil,iLayer) = 0._rkind
+      if (iLayer<nSoil) dBaseflow_dMatric(iLayer+1:nSoil,iLayer) = 0._rkind ! no dependence of baseflow in a layer on matric head in layers above the layer
     end do
 
   ! end association to variables in data structures

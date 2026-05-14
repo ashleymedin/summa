@@ -468,7 +468,7 @@ subroutine coupled_em(&
     ! NOTE - temporary assignment of minstep to foce something reasonable
     ! changing the maxstep parameter will make the outer and inner loop computations here in coupled_em happen more frequently
     ! changing the be_steps parameter will make the inner loop computations in opSplittin happen more frequently (e.g. be_steps = 32.0 give BE32)
-    minstep = 10._rkind  ! mpar_data%var(iLookPARAM%minstep)%dat(1)  ! minimum time step (s)
+    minstep = mpar_data%var(iLookPARAM%minstep)%dat(1)  ! minimum time step (s)
     maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s)
     maxstep_op = mpar_data%var(iLookPARAM%maxstep)%dat(1)/be_steps  ! maximum time step (s) to run opSplittin over
 
@@ -1740,7 +1740,7 @@ subroutine coupled_em(&
 
         ! get the input and output to/from the soil zone (kg m-2)
         balanceSoilInflux        = averageSoilInflux*iden_water*data_step
-        balanceSoilBaseflow      = averageSoilBaseflow*iden_water*data_step ! currently no baseflow for glacier
+        balanceSoilBaseflow      = averageSoilBaseflow*iden_water*data_step
         balanceSoilDrainage      = (averageSoilDrainage-averageGlceMelt)*iden_water*data_step
         balanceSoilET            = (averageCanopyTranspiration + averageGroundEvaporation)*data_step
         balanceSoilCompress      = averageSoilCompress*data_step
