@@ -197,7 +197,7 @@ end subroutine groundwatr
 
 
 ! ***********************************************************************************************************************
-! * private subroutine computBaseflow: private subroutine so can be used to test the numerical jacobian
+! * private subroutine computBaseflow: compute the baseflow flux and its derivative w.r.t. volumetric liquid water content
 ! ***********************************************************************************************************************
 subroutine computBaseflow(&
                           ! input: control and state variables
