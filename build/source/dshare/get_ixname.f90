@@ -731,6 +731,7 @@ contains
   case('scalarCanopyEvaporation'        ); get_ixFlux = iLookFLUX%scalarCanopyEvaporation          ! canopy evaporation/condensation (kg m-2 s-1)
   case('scalarGroundEvaporation'        ); get_ixFlux = iLookFLUX%scalarGroundEvaporation          ! ground evaporation/condensation (below canopy or non-vegetated) (kg m-2 s-1)
   case('mLayerTranspire'                ); get_ixFlux = iLookFLUX%mLayerTranspire                  ! transpiration loss from each soil layer (m s-1)
+  case('mLayerDebrisRunoff'             ); get_ixFlux = iLookFLUX%mLayerDebrisRunoff               ! debris runoff from each soil layer (m s-1)
   ! liquid and solid water fluxes through the canopy
   case('scalarThroughfallSnow'          ); get_ixFlux = iLookFLUX%scalarThroughfallSnow            ! snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
   case('scalarThroughfallRain'          ); get_ixFlux = iLookFLUX%scalarThroughfallRain            ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
@@ -770,8 +771,6 @@ contains
   case('scalarAquiferRecharge'          ); get_ixFlux = iLookFLUX%scalarAquiferRecharge            ! recharge to the aquifer (m s-1)
   case('scalarAquiferTranspire'         ); get_ixFlux = iLookFLUX%scalarAquiferTranspire           ! transpiration from the aquifer (m s-1)
   case('scalarAquiferBaseflow'          ); get_ixFlux = iLookFLUX%scalarAquiferBaseflow            ! baseflow from the aquifer (m s-1)
-  case('mLayerDebrisRunoff'             ); get_ixFlux = iLookFLUX%mLayerDebrisRunoff               ! debris runoff from each soil layer (m s-1)
-  case('scalarDebrisRunoff'             ); get_ixFlux = iLookFLUX%scalarDebrisRunoff               ! total debris runoff from the soil profile (m s-1)
   ! derived variables
   case('scalarTotalET'                  ); get_ixFlux = iLookFLUX%scalarTotalET                    ! total ET (kg m-2 s-1)
   case('scalarTotalRunoff'              ); get_ixFlux = iLookFLUX%scalarTotalRunoff                ! total runoff (m s-1)
@@ -869,20 +868,19 @@ contains
   case('dq_dNrgStateLayerSurfVec'       ); get_ixDeriv = iLookDERIV%dq_dNrgStateLayerSurfVec       ! change in the flux in soil surface interface w.r.t. state variables in layers
   case('dPsiLiq_dTemp'                  ); get_ixDeriv = iLookDERIV%dPsiLiq_dTemp                  ! derivative in the liquid water matric potential w.r.t. temperature (m K-1)
   case('dPsiLiq_dPsi0'                  ); get_ixDeriv = iLookDERIV%dPsiLiq_dPsi0                  ! derivative in liquid matric potential w.r.t. total matric potential (-)
-  ! derivatives in soil transpiration w.r.t. canopy state variables
+ ! derivatives in soil transpiration w.r.t. canopy state variables
   case('mLayerdTrans_dTCanair'          ); get_ixDeriv = iLookDERIV%mLayerdTrans_dTCanair          ! derivatives in the soil layer transpiration flux w.r.t. canopy air temperature
   case('mLayerdTrans_dTCanopy'          ); get_ixDeriv = iLookDERIV%mLayerdTrans_dTCanopy          ! derivatives in the soil layer transpiration flux w.r.t. canopy temperature
   case('mLayerdTrans_dTGround'          ); get_ixDeriv = iLookDERIV%mLayerdTrans_dTGround          ! derivatives in the soil layer transpiration flux w.r.t. ground temperature
   case('mLayerdTrans_dCanWat'           ); get_ixDeriv = iLookDERIV%mLayerdTrans_dCanWat           ! derivatives in the soil layer transpiration flux w.r.t. canopy total water
-  ! derivatives in debris runoff w.r.t. layer state variables
   case('mLayerdDebrisRun_dTk'           ); get_ixDeriv = iLookDERIV%mLayerdDebrisRun_dTk           ! derivatives in the soil layer debris runoff flux w.r.t. temperature
   case('mLayerdDebrisRun_dPsi0'         ); get_ixDeriv = iLookDERIV%mLayerdDebrisRun_dPsi0         ! derivatives in the soil layer debris runoff flux w.r.t. total water matric potential
-  ! derivatives in aquifer transpiration w.r.t. canopy state variables
+ ! derivatives in aquifer transpiration w.r.t. canopy state variables
   case('dAquiferTrans_dTCanair'         ); get_ixDeriv = iLookDERIV%dAquiferTrans_dTCanair         ! derivative in the aquifer transpiration flux w.r.t. canopy air temperature
   case('dAquiferTrans_dTCanopy'         ); get_ixDeriv = iLookDERIV%dAquiferTrans_dTCanopy         ! derivative in the aquifer transpiration flux w.r.t. canopy temperature
   case('dAquiferTrans_dTGround'         ); get_ixDeriv = iLookDERIV%dAquiferTrans_dTGround         ! derivative in the aquifer transpiration flux w.r.t. ground temperature
   case('dAquiferTrans_dCanWat'          ); get_ixDeriv = iLookDERIV%dAquiferTrans_dCanWat          ! derivative in the aquifer transpiration flux w.r.t. canopy total water
-  ! derivative in liquid water fluxes for the layer domains w.r.t temperature
+ ! derivative in liquid water fluxes for the layer domains w.r.t temperature
   case('dFracLiqWat_dTk'                ); get_ixDeriv = iLookDERIV%dFracLiqWat_dTk                ! derivative in fraction of liquid w.r.t. temperature (not computed for soil)
   case('mLayerdTheta_dTk'               ); get_ixDeriv = iLookDERIV%mLayerdTheta_dTk               ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
   case('mLayerd2Theta_dTk2'             ); get_ixDeriv = iLookDERIV%mLayerd2Theta_dTk2             ! second derivative of volumetric liquid water content w.r.t. temperature

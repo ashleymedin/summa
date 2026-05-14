@@ -284,7 +284,7 @@ subroutine coupled_em(&
   real(rkind)                          :: balanceGlceWE0           ! total glacier ice storage at the start of the step (kg m-2)
   real(rkind)                          :: balanceGlceWE            ! total glacier ice storage at the end of the step (kg m-2)
   real(rkind)                          :: balanceSoilInflux        ! input to the soil zone
-  real(rkind)                          :: balanceSoilFlow          ! output from the soil zone
+  real(rkind)                          :: balanceSoilBaseflow      ! output from the soil zone
   real(rkind)                          :: balanceSoilDrainage      ! output from the soil zone
   real(rkind)                          :: balanceSoilET            ! output from the soil zone
   real(rkind)                          :: balanceAquifer0          ! total aquifer storage at the start of the step (kg m-2)
@@ -1535,7 +1535,6 @@ subroutine coupled_em(&
       averageSoilInflux          => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarInfiltration))%dat(1)        ,& ! influx of water at the top of the soil profile (m s-1)
       averageSoilDrainage        => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSoilDrainage))%dat(1)        ,& ! drainage from the bottom of the soil profile (m s-1)
       averageSoilBaseflow        => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSoilBaseflow))%dat(1)        ,& ! total baseflow from throughout the soil profile (m s-1)
-      averageDebrisRunoff        => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarDebrisRunoff))%dat(1)        ,& ! debris flow from the soil (kg m-2 s-1)
       averageSoilCompress        => diag_data%var(               iLookDIAG%scalarSoilCompress)%dat(1)         ,& ! soil compression (kg m-2 s-1)
       averageGroundEvaporation   => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarGroundEvaporation))%dat(1)   ,& ! soil evaporation (kg m-2 s-1)
       averageCanopyTranspiration => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopyTranspiration))%dat(1) ,& ! canopy transpiration (kg m-2 s-1)
@@ -1740,14 +1739,14 @@ subroutine coupled_em(&
         scalarTotalSoilWat = scalarTotalSoilLiq + scalarTotalSoilIce
 
         ! get the input and output to/from the soil zone (kg m-2)
-        balanceSoilInflux   = averageSoilInflux*iden_water*data_step
-        balanceSoilFlow     = (averageSoilBaseflow + averageDebrisRunoff)*iden_water*data_step ! currently no baseflow for glacier
-        balanceSoilDrainage = (averageSoilDrainage-averageGlceMelt)*iden_water*data_step
-        balanceSoilET       = (averageCanopyTranspiration + averageGroundEvaporation)*data_step
-        balanceSoilCompress = averageSoilCompress*data_step
+        balanceSoilInflux        = averageSoilInflux*iden_water*data_step
+        balanceSoilBaseflow      = averageSoilBaseflow*iden_water*data_step ! currently no baseflow for glacier
+        balanceSoilDrainage      = (averageSoilDrainage-averageGlceMelt)*iden_water*data_step
+        balanceSoilET            = (averageCanopyTranspiration + averageGroundEvaporation)*data_step
+        balanceSoilCompress      = averageSoilCompress*data_step
 
         ! check the soil water balance
-        scalarSoilWatBalError  = scalarTotalSoilWat - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilET - balanceSoilFlow - balanceSoilDrainage - balanceSoilCompress) )
+        scalarSoilWatBalError  = scalarTotalSoilWat - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilET - balanceSoilBaseflow - balanceSoilDrainage - balanceSoilCompress) )
         if(abs(scalarSoilWatBalError) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance_ds)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
           write(*,*)               'solution method       = ', ixSolution
           write(*,'(a,1x,f20.10)') 'data_step             = ', data_step
@@ -1757,7 +1756,7 @@ subroutine coupled_em(&
           write(*,'(a,1x,f20.10)') 'balanceSoilWater0     = ', balanceSoilWater0
           write(*,'(a,1x,f20.10)') 'balanceSoilWater1     = ', scalarTotalSoilWat
           write(*,'(a,1x,f20.10)') 'balanceSoilInflux     = ', balanceSoilInflux
-          write(*,'(a,1x,f20.10)') 'balanceSoilFlow       = ', balanceSoilFlow
+          write(*,'(a,1x,f20.10)') 'balanceSoilBaseflow   = ', balanceSoilBaseflow
           write(*,'(a,1x,f20.10)') 'balanceSoilDrainage   = ', balanceSoilDrainage
           write(*,'(a,1x,f20.10)') 'balanceSoilET         = ', balanceSoilET
           write(*,'(a,1x,f20.10)') 'scalarSoilWatBalError = ', scalarSoilWatBalError

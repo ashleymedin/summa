@@ -1259,9 +1259,9 @@ subroutine opSplittin(&
               case(soilSplit)
                 if(nSoil>0)then
                   if(iLayer==nSnow+nLake+nSoil)then
-                    ! soil drainage, aq recharge, soil baseflow, debris runoff changes with all layers, so compute after bottom layer
+                    ! soil drainage, aq recharge, soil baseflow changes with all layers, so compute after bottom layer
                     if((iVar==iLookFLUX%scalarSoilDrainage .or. iVar==iLookFLUX%scalarAquiferRecharge &
-                     .or. iVar==iLookFLUX%scalarSoilBaseflow .or. iVar==iLookFLUX%scalarDebrisRunoff)) fluxMask%var(iVar)%dat = desiredFlux
+                     .or. iVar==iLookFLUX%scalarSoilBaseflow)) fluxMask%var(iVar)%dat = desiredFlux
                     ! glacier melt changes with the bottom layer
                     if(iVar==iLookFLUX%scalarGlacierMelt .and. nGlce>0) fluxMask%var(iVar)%dat = desiredFlux
                   ! other scalar variables in the soil domain change with the surface layer
