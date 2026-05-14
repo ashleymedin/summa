@@ -440,8 +440,7 @@ contains
 
  subroutine computBaseflowRunoff
   ! compute total baseflow from the soil zone (needed for mass balance checks) and total runoff, before aquifer fluxes
-  ! (Note: scalarSoilBaseflow is zero if topmodel is not used, and no aquifer if glce layers exist)
-  ! (Note: scalarSoilBaseflow may need to re-envisioned in topmodel formulation if parts of it flow into neighboring soil rather than exfiltrate)
+  ! (Note: scalarSoilBaseflow is nonzero only if topmodel or have glacier debris layers)
   associate(&
    scalarSoilBaseflow           => flux_data%var(iLookFLUX%scalarSoilBaseflow)%dat(1),  & ! intent(out): [dp] total baseflow from the soil profile (m s-1)
    mLayerBaseflow               => flux_data%var(iLookFLUX%mLayerBaseflow)%dat,         & ! intent(out): [dp(:)] baseflow from each soil layer (m s-1)
