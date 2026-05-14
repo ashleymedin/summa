@@ -402,7 +402,8 @@ subroutine run_oneGRU(&
                   DOMarea => progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1), &
                   nSnow => gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nSnow, &
                   nLake => gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nLake, &
-                  nSoil => gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nSoil )
+                  nSoil => gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nSoil, &
+                  mLayerDepth => progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(:))
           if(typeDOM==glacCln1 .or. typeDOM==glacCln2 .or. typeDOM==glacDbr)then
             ! average layers mass change for each domain over time since last update
             iglacDOM = iglacDOM + 1
@@ -419,11 +420,11 @@ subroutine run_oneGRU(&
               massChange(iglacDOM) = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%glacMass4AreaChange)%dat(1)
               ! debris thickness is soil thickness in debris domain
               if(typeDOM==glacDbr)then
-                soil_thick = sum(progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+1:nSnow+nLake+nSoil))
+                soil_thick = sum(mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil))
                 iden_soil_mean(iglacDOM) = iden_soil_mean(iglacDOM) + sum(mparHRU%hru(iHRU)%dom(iDOM)%var(iLookPARAM%soil_dens_intr)%dat(1:nSoil) &
-                                     *progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+1:nSnow+nLake+nSoil)) /soil_thick
+                                          *mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil)) /soil_thick
                 theta_sat_mean(iglacDOM) = theta_sat_mean(iglacDOM) + sum(mparHRU%hru(iHRU)%dom(iDOM)%var(iLookPARAM%theta_sat)%dat(1:nSoil) &
-                                     *progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+1:nSnow+nLake+nSoil)) /soil_thick
+                                          *mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil)) /soil_thick
                 glac_debris_thick(iglacDOM) = soil_thick
               else
                 glac_debris_thick(iglacDOM) = 0._rkind
