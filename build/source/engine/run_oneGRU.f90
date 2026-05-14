@@ -315,25 +315,23 @@ subroutine run_oneGRU(&
     ! identify lateral connectivity
     ! (Note:  for efficiency, this could this be done as a setup task, not every timestep)
     kHRU = 0
-    ! identify the downslope HRU if upland or wetland, so can add lateral flow to downslope upland domain
-    !   assume glacier domains are not laterally connected
-    if(typeDOM==upland .or. typeDOM==wetland)then
-      dsHRU: do jHRU=1,gruInfo%hruCount
-        if(typeHRU%hru(iHRU)%var(iLookTYPE%downHRUindex) == idHRU%hru(jHRU)%var(iLookID%hruId))then
-          if(kHRU==0)then  ! check there is a unique match
-            kHRU=jHRU
-            exit dsHRU
-          endif  ! (check there is a unique match)
-        endif  ! (if identified a downslope HRU)
-      enddo dsHRU
-    endif
+    ! identify the downslope HRU
+    dsHRU: do jHRU=1,gruInfo%hruCount
+      if(typeHRU%hru(iHRU)%var(iLookTYPE%downHRUindex) == idHRU%hru(jHRU)%var(iLookID%hruId))then
+        if(kHRU==0)then  ! check there is a unique match
+          kHRU=jHRU
+          exit dsHRU
+        endif  ! (check there is a unique match)
+      endif  ! (if identified a downslope HRU)
+    enddo dsHRU
     
     do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
       if(progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)==0._rkind) cycle ! skip domains with no area
-      associate(typeDOM => gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type)
+      associate(typeDOM => gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type, &
+                totalArea => bvarData%var(iLookBVAR%basin__totalArea)%dat(1) )
 
       ! identify the area covered by the current domain
-      fracDOM = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)/ bvarData%var(iLookBVAR%basin__totalArea)%dat(1)
+      fracDOM = progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)/ totalArea
 
       ! if lateral flows are active, add inflow to the downslope HRU (current workflow keeps these at 0)
       if(kHRU > 0)then  ! if there is a downslope HRU, add to upland domain inflow (m3 s-1)
@@ -345,6 +343,7 @@ subroutine run_oneGRU(&
             ! STUB:  wetland fluxes not yet implemented
              print*, 'WARNING:  wetland fluxes not yet implemented, treating wetland domain as upland in run_oneGRU'
           endif
+        endif
       endif
 
       ! ----- calculate weighted basin (GRU) fluxes --------------------------------------------------------------------------------------

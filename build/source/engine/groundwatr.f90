@@ -41,12 +41,6 @@ USE var_lookup,only:iLookDIAG    ! named variables for structure elements
 USE var_lookup,only:iLookFLUX    ! named variables for structure elements
 USE var_lookup,only:iLookPARAM   ! named variables for structure elements
 
-! look-up values for the choice of groundwater parameterization
-USE mDecisions_module,only:  &
- qbaseTopmodel,              &   ! TOPMODEL-ish baseflow parameterization
- bigBucket,                  &   ! a big bucket (lumped aquifer model)
- noExplicit                      ! no explicit groundwater parameterization
-
 ! privacy
 implicit none
 private
