@@ -101,7 +101,7 @@ end subroutine update_surfaceFlux_example_flux
     * e.g., `call in_surfaceFlux % initialize` points to the `initialize_in_surfaceFlux` class procedure (in the `contains` block of the `data_types` module) for initializing data components:
 
         ```fortran
-        subroutine initialize_in_surfaceFlux(in_surfaceFlux,nRoots,ixIce,nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,&
+        subroutine initialize_in_surfaceFlux(in_surfaceFlux,nRoots,ixIce,nSoil,nGlce,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,&
                                            &model_decisions,prog_data,mpar_data,flux_data,diag_data,&
                                            &iLayerHeight,dHydCond_dTemp,iceImpedeFac)
          class(in_type_surfaceFlux),intent(out) :: in_surfaceFlux ! input object for surfaceFlux
@@ -122,6 +122,7 @@ end subroutine update_surfaceFlux_example_flux
           in_surfaceFlux % nRoots         = nRoots                  ! number of layers that contain roots
           in_surfaceFlux % ixIce          = ixIce                   ! index of lowest ice layer
           in_surfaceFlux % nSoil          = nSoil                   ! number of soil layers
+          in_surfaceFlux % nGlce          = nGlce                   ! number of glacier layers
          end associate
 
          ! [...] ! additional associate blocks here
@@ -131,7 +132,7 @@ end subroutine update_surfaceFlux_example_flux
     * new data components, such as `example_flux_constant`, must be applied within the procedure components:
 
         ```fortran
-        subroutine initialize_in_surfaceFlux(in_surfaceFlux,nRoots,ixIce,nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,&
+        subroutine initialize_in_surfaceFlux(in_surfaceFlux,nRoots,ixIce,nSoil,nGlce,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,&
                                            &model_decisions,prog_data,mpar_data,flux_data,diag_data,&
                                            &iLayerHeight,dHydCond_dTemp,iceImpedeFac,example_flux_constant)
          class(in_type_surfaceFlux),intent(out) :: in_surfaceFlux ! input object for surfaceFlux
@@ -153,6 +154,7 @@ end subroutine update_surfaceFlux_example_flux
           in_surfaceFlux % nRoots         = nRoots                  ! number of layers that contain roots
           in_surfaceFlux % ixIce          = ixIce                   ! index of lowest ice layer
           in_surfaceFlux % nSoil          = nSoil                   ! number of soil layers
+          in_surfaceFlux % nGlce          = nGlce                   ! number of glacier layers
          end associate
          
          ! [...] ! additional associate blocks here

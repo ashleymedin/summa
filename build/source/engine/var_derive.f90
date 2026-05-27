@@ -145,6 +145,7 @@ contains
  real(rkind), parameter          :: rootTolerance = 0.05_rkind ! tolerance for error in doubleExp rooting option
  real(rkind)                     :: error            ! machine precision error in rooting distribution
  real(rkind)                     :: total_soil_depth ! total soil depth (m)
+ real(rkind)                     :: rootingDepth_use  ! rooting depth used in the calculation (m)
  ! initialize error control
  err=0; message='rootDensty/'
 
@@ -163,6 +164,7 @@ contains
  nSnow                 =>indx_data%var(iLookINDEX%nSnow)%dat(1),                & ! number of snow layers
  nLake                 =>indx_data%var(iLookINDEX%nLake)%dat(1),                & ! number of lake layers
  nSoil                 =>indx_data%var(iLookINDEX%nSoil)%dat(1),                & ! number of soil layers
+ nGlce                 =>indx_data%var(iLookINDEX%nGlce)%dat(1),                & ! number of glacier ice layers
  iLayerHeight          =>prog_data%var(iLookPROG%iLayerHeight)%dat,             & ! height of the layer interface (m)
  ! associate the values in the model variable structures
  scalarAquiferRootFrac =>diag_data%var(iLookDIAG%scalarAquiferRootFrac)%dat(1), & ! fraction of roots below the soil profile (in the aquifer)
@@ -172,6 +174,8 @@ contains
 
  ! compute the fraction of roots in each soil layer
  total_soil_depth = iLayerHeight(nSnow+nLake+nSoil) - iLayerHeight(nSnow+nLake)
+ rootingDepth_use = rootingDepth
+ if(nGlce>0) rootingDepth_use = min(rootingDepth,total_soil_depth) ! ensure that rooting depth does not exceed soil depth since no aquifer allowed with glaciers
  do iLayer=(nSnow+nLake+1),(nSnow+nLake+nSoil)
   iSoil = iLayer-nSnow-nLake
   ! different options for the rooting profile
@@ -179,14 +183,14 @@ contains
 
    ! ** option 1: simple power-law profile
    case(powerLaw)
-    if(iLayerHeight(iLayer-1)<rootingDepth)then
+    if(iLayerHeight(iLayer-1)<rootingDepth_use)then
      ! compute the fraction of the rooting depth at the lower and upper interfaces
      if(iLayer==nSnow+nLake+1)then  ! height=0; avoid precision issues
       fracRootLower = 0._rkind
      else
-      fracRootLower = iLayerHeight(iLayer-1)/min(rootingDepth,total_soil_depth)
+      fracRootLower = iLayerHeight(iLayer-1)/min(rootingDepth_use,total_soil_depth)
      end if
-     fracRootUpper = iLayerHeight(iLayer)/min(rootingDepth,total_soil_depth)
+     fracRootUpper = iLayerHeight(iLayer)/min(rootingDepth_use,total_soil_depth)
      if(fracRootUpper>1._rkind) fracRootUpper=1._rkind
      ! compute the root density
      mLayerRootDensity(iSoil) = fracRootUpper**rootDistExp - fracRootLower**rootDistExp
@@ -212,7 +216,7 @@ contains
  ! check that root density is within some reasonable version of machine tolerance
  ! This is the case when root density is greater than 1. Can only happen with powerLaw option.
  error = sum(mLayerRootDensity) - 1._rkind
- if (error > 2._rkind*epsilon(rootingDepth)) then
+ if (error > 2._rkind*epsilon(rootingDepth_use)) then
   message=trim(message)//'problem with the root density calculation'
   err=20; return
  else
@@ -227,7 +231,7 @@ contains
  end if
 
  ! check that roots in the aquifer are appropriate
- if ((ixGroundwater /= bigBucket).and.(scalarAquiferRootFrac > 2._rkind*epsilon(rootingDepth)))then
+ if ((ixGroundwater /= bigBucket).and.(scalarAquiferRootFrac > 2._rkind*epsilon(rootingDepth_use)))then
   if(scalarAquiferRootFrac < rootTolerance) then
    mLayerRootDensity = mLayerRootDensity + scalarAquiferRootFrac/real(nSoil, kind(rkind))
    scalarAquiferRootFrac = 0._rkind
@@ -263,6 +267,7 @@ contains
  integer(i4b)                    :: iSoil               ! index for soil layers
  real(rkind)                     :: ifcDepthScaleFactor ! depth scaling factor (layer interfaces)
  real(rkind)                     :: midDepthScaleFactor ! depth scaling factor (layer midpoints)
+ integer(i4b)                    :: ix_hc_profile       ! index for the choice of the hydraulic conductivity profile
  ! initialize error control
  err=0; message='satHydCond/'
  ! ----------------------------------------------------------------------------------
@@ -289,9 +294,11 @@ contains
  ! ----------------------------------------------------------------------------------
 
  ! NOTE: could do constant profile with the power-law profile with exponent=1, but keep constant profile decision for clarity
+ ix_hc_profile = model_decisions(iLookDECISIONS%hc_profile)%iDecision
+ if(nGlce>0) ix_hc_profile = powerLaw_profile ! force power-law profile if glacier, since glacier debris has lateral (TOPMODEL-ish) flow
  do iLayer=(nSnow+nLake),(nSnow+nLake+nSoil)
   iSoil = iLayer-nSnow-nLake
-  select case(model_decisions(iLookDECISIONS%hc_profile)%iDecision)
+  select case(ix_hc_profile)
 
    ! constant hydraulic conductivity with depth
    case(constant)

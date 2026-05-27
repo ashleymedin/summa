@@ -303,9 +303,9 @@ subroutine computFlux(&
   ! *** CALCULATE THE SHALLOW GROUNDWATER FLOW ***
   associate(nSoilOnlyHyd => indx_data%var(iLookINDEX%nSoilOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the soil domain
     if (nSoilOnlyHyd>0) then ! check if computing soil hydrology
-      if (local_ixGroundwater/=qbaseTopmodel .or. nGlce>0) then ! set baseflow fluxes to zero if the topmodel baseflow routine is not used
+      if (local_ixGroundwater/=qbaseTopmodel .and. nGlce==0) then ! set baseflow fluxes to zero if the topmodel baseflow routine is not used
         call zeroBaseflowFluxes
-      else ! compute the baseflow flux for topmodel-ish shallow groundwater
+      else ! compute the baseflow flux for topmodel-ish shallow groundwater or lateral flow for glacier debris
         call initialize_groundwatr; if(err/=0)then; return; endif
         call groundwatr(in_groundwatr,attr_data,mpar_data,prog_data,flux_data,io_groundwatr,out_groundwatr)
         call finalize_groundwatr;   if(err/=0)then; return; endif

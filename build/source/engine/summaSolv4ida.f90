@@ -324,7 +324,7 @@ subroutine summaSolv4ida(&
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
     
     ! allocate space for other variables
-    if(model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel)then
+    if(model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel .or. (nGlce>0 .and. nSoil>0))then ! need the baseflow derivatives if have TOPMODEL groundwater or glacier debris (since debris has lateral flow)
       allocate(eqns_data%dBaseflow_dMatric(nSoil,nSoil),stat=err)
     else
       allocate(eqns_data%dBaseflow_dMatric(0,0),stat=err)

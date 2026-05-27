@@ -32,7 +32,6 @@ MODULE data_types
  USE var_lookup,only:iLookDECISIONS   ! lookup indices for elements of the decision structure
  USE var_lookup,only:iLookPROG        ! lookup indices for prognostic variables
  implicit none
- ! constants necessary for variable defs
  private
 
  ! ***********************************************************************************************************
@@ -798,6 +797,7 @@ MODULE data_types
    integer(i4b) :: nRoots           ! number of layers that contain roots
    integer(i4b) :: ixIce            ! index of lowest ice layer
    integer(i4b) :: nSoil            ! number of soil layers
+   integer(i4b) :: nGlce            ! number of glacier layers
    ! input: state and diagnostic variables
    real(rkind),allocatable :: mLayerTemp(:)       ! temperature (K)
    real(rkind)             :: scalarMatricHeadLiq ! liquid matric head in the upper-most soil layer (m)
@@ -927,6 +927,7 @@ MODULE data_types
    ! input: model control
    integer(i4b) :: ixRichards                ! index defining the option for Richards' equation (moisture or mixdform)
    integer(i4b) :: bc_lower                  ! index defining the type of boundary conditions
+   integer(i4b) :: nGlce                     ! number of glacier ice layers
    ! input: state and diagnostic variables
    real(rkind)  :: nodeMatricHeadLiq         ! liquid matric head in the lowest unsaturated node (m)
    real(rkind)  :: nodeVolFracLiq            ! volumetric liquid water content in the lowest unsaturated node (-)
@@ -1881,13 +1882,14 @@ contains
  ! **** end diagv_node ****
 
  ! **** surfaceFlux ****
- subroutine initialize_in_surfaceFlux(in_surfaceFlux,nRoots,ixIce,nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,&
+ subroutine initialize_in_surfaceFlux(in_surfaceFlux,nRoots,ixIce,nSoil,nGlce,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,&
                                      &model_decisions,prog_data,mpar_data,flux_data,diag_data,&
                                      &iLayerHeight,dHydCond_dTemp,iceImpedeFac)
   class(in_type_surfaceFlux),intent(out) :: in_surfaceFlux ! input object for surfaceFlux
   integer(i4b),intent(in)                :: nRoots         ! number of soil layers with roots
   integer(i4b),intent(in)                :: ixIce          ! index of the lowest soil layer that contains ice
   integer(i4b),intent(in)                :: nSoil          ! number of soil layers
+  integer(i4b),intent(in)                :: nGlce          ! number of glacier layers
   integer(i4b),intent(in)                :: ibeg,iend      ! start and end indices of the soil layers in concatanated snow-lake-soil-glce vector
   type(in_type_soilLiqFlux),intent(in)   :: in_soilLiqFlux ! input data for soilLiqFlux
   type(io_type_soilLiqFlux),intent(in)   :: io_soilLiqFlux ! input-output class object for soilLiqFlux
@@ -1917,6 +1919,7 @@ contains
    in_surfaceFlux % nRoots         = nRoots                  ! number of layers that contain roots
    in_surfaceFlux % ixIce          = ixIce                   ! index of lowest ice layer
    in_surfaceFlux % nSoil          = nSoil                   ! number of soil layers
+   in_surfaceFlux % nGlce          = nGlce                   ! number of glacier layers
   end associate
 
   associate(&
@@ -2206,11 +2209,12 @@ contains
  ! **** end iLayerFlux ****
 
  ! **** qDrainFlux ****
- subroutine initialize_in_qDrainFlux(in_qDrainFlux,nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
+ subroutine initialize_in_qDrainFlux(in_qDrainFlux,nSoil,nGlce,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
                                     &prog_data,mpar_data,flux_data,diag_data,iceImpedeFac,&
                                     &dHydCond_dVolLiq,dHydCond_dTemp)
   class(in_type_qDrainFlux),intent(out) :: in_qDrainFlux ! class object for input qDrainFlux variables
   integer(i4b),intent(in)               :: nSoil         ! number of soil layers
+  integer(i4b),intent(in)               :: nGlce         ! number of glacier layers
   integer(i4b),intent(in)               :: ibeg,iend     ! start and end indices of the soil layers in concatanated snow-lake-soil-glce vector
   type(in_type_soilLiqFlux),intent(in)  :: in_soilLiqFlux ! input class object for soilLiqFlux
   type(io_type_soilLiqFlux),intent(in)  :: io_soilLiqFlux ! input-output class object for soilLiqFlux
@@ -2254,8 +2258,9 @@ contains
    zScale_TOPMODEL => mpar_data%var(iLookPARAM%zScale_TOPMODEL)%dat(1) & ! TOPMODEL scaling factor (m)
   &)
    ! intent(in): model control
-   in_qDrainFlux % ixRichards    = ixRichards             ! index defining the form of Richards' equation (moisture or mixdform)
-   in_qDrainFlux % bc_lower      = ixBcLowerSoilHydrology ! index defining the type of boundary conditions
+   in_qDrainFlux % ixRichards = ixRichards             ! index defining the form of Richards' equation (moisture or mixdform)
+   in_qDrainFlux % bc_lower   = ixBcLowerSoilHydrology ! index defining the type of boundary conditions
+   in_qDrainFlux % nGlce      = nGlce                  ! number of glacier ice layers
    ! intent(in): state variables
    in_qDrainFlux % nodeMatricHeadLiq = mLayerMatricHeadLiqTrial(nSoil) ! liquid matric head in the lowest unsaturated node (m)
    in_qDrainFlux % nodeVolFracLiq    = mLayerVolFracLiqTrial(nSoil)    ! volumetric liquid water content the lowest unsaturated node (-)

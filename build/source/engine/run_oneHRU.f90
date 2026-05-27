@@ -230,7 +230,6 @@ subroutine run_oneHRU(&
       ! run the model for a single HRU
       call coupled_em(&
                      ! model control
-                     is_glac,             & ! intent(in):    flag to indicate if is a glacier domain
                      hruId,               & ! intent(in):    hruId
                      dt_init%dom(i),      & ! intent(inout): initial time step
                      1,                   & ! intent(in):    used to adjust the length of the timestep with failure in Actors (non-Actors here, always 1)

@@ -1346,21 +1346,21 @@ subroutine updateGlacDomain(&
        iLayerHeight(i) = iLayerHeight(i) + glac_debris_thick(iglac) - layers_thick
      enddo
 
-       ! recalculate vertical distribution of root density
-       call rootDensty(mpar_data,     & ! intent(in):    model parameters
-                       indx_data,     & ! intent(in):    model indices
-                       prog_data,     & ! intent(in):    model prognostic variables
-                       diag_data,     & ! intent(inout): model diagnostic variables
-                       err,cmessage)    ! error control
-       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+     ! recalculate vertical distribution of root density
+     call rootDensty(mpar_data,     & ! intent(in):    model parameters
+                     indx_data,     & ! intent(in):    model indices
+                     prog_data,     & ! intent(in):    model prognostic variables
+                     diag_data,     & ! intent(inout): model diagnostic variables
+                     err,cmessage)    ! error control
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-       ! recalculate saturated hydraulic conductivity in each soil layer
-       call satHydCond(mpar_data,    & ! intent(in):    model parameters
-                       indx_data,    & ! intent(in):    model indices
-                       prog_data,    & ! intent(in):    model prognostic variables
-                       flux_data,    & ! intent(inout): model fluxes
-                       err,cmessage)   ! error control
-       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+     ! recalculate saturated hydraulic conductivity in each soil layer
+     call satHydCond(mpar_data,    & ! intent(in):    model parameters
+                     indx_data,    & ! intent(in):    model indices
+                     prog_data,    & ! intent(in):    model prognostic variables
+                     flux_data,    & ! intent(inout): model fluxes
+                     err,cmessage)   ! error control
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    elseif(DOMarea==0._rkind .and. nSnow>0)then ! no glacier area but still has snow layers, so make snow very thin
      ! scale snow layers so comes back with tiny snow (would prefer 0 thickness but then would have to relayer here)

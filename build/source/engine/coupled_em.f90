@@ -94,9 +94,9 @@ USE mDecisions_module,only:         &
 
 ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
 USE mDecisions_module,only:         &
-                    closedForm,     &      ! use temperature with closed form heat capacity
-                    enthalpyForm,   &      ! use enthalpy with soil temperature-enthalpy lookup tables
-                    enthalpyFormAN         ! use enthalpy with soil temperature-enthalpy analytical solution
+                      closedForm,   &      ! use temperature with closed form heat capacity
+                      enthalpyForm, &      ! use enthalpy with soil temperature-enthalpy lookup tables
+                      enthalpyFormAN       ! use enthalpy with soil temperature-enthalpy analytical solution
 
 
 ! privacy
@@ -111,7 +111,6 @@ contains
 ! ************************************************************************************************
 subroutine coupled_em(&
                       ! model control
-                      is_glac,           & ! intent(in):    flag to indicate if is a glacier domain
                       hruId,             & ! intent(in):    hruId
                       dt_init,           & ! intent(inout): used to initialize the size of the sub-step
                       dt_init_factor,    & ! intent(in):    Used to adjust the length of the timestep in the event of a failure
@@ -165,7 +164,6 @@ subroutine coupled_em(&
   ! * dummy variables
   ! -------------------------------------------------------------------------------------------------------------------------
   ! input-output: control
-  logical(lgt)                         :: is_glac                  ! flag to indicate if is a glacier domain
   integer(i8b),intent(in)              :: hruId                    ! hruId
   real(rkind),intent(inout)            :: dt_init                  ! used to initialize the size of the sub-step
   integer(i4b),intent(in)              :: dt_init_factor           ! Used to adjust the length of the timestep in the event of a failure
@@ -338,7 +336,7 @@ subroutine coupled_em(&
 
   ! check if the aquifer is included
   includeAquifer = (model_decisions(iLookDECISIONS%groundwatr)%iDecision==bigBucket)
-  if (is_glac) includeAquifer = .false. ! no aquifer in glacier domain
+  if (indx_data%var(iLookINDEX%nGlce)%dat(1) > 0) includeAquifer = .false. ! no aquifer in glacier domain
 
   ! initialize variables
   call initialize_coupled_em
@@ -1871,7 +1869,7 @@ subroutine coupled_em(&
       scalarTotalMassChange = ((scalarTotalSoilWat - balanceSoilWater0) + delLakeWat + delSWE + (balanceGlceWE0-balanceGlceWE) + delCanWat + (balanceAquifer1-balanceAquifer0))/data_step
       
       ! save the average mass change rate for the layers if glacier
-      if (is_glac) then
+      if (nGlce>0) then
         glacMass4AreaChange = glacMass4AreaChange + scalarTotalMassChange * data_step
       else
         glacMass4AreaChange = 0._rkind

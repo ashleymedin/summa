@@ -65,9 +65,6 @@ USE mDecisions_module,only:   &
   ! look-up values for the form of Richards' equation
   moisture,                   & ! moisture-based form of Richards' equation
   mixdform,                   & ! mixed form of Richards' equation
-  ! look-up values for the type of hydraulic conductivity profile
-  constant,                   & ! constant hydraulic conductivity with depth
-  powerLaw_profile,           & ! power-law profile
   ! look-up values for the choice of boundary conditions for hydrology
   prescribedHead,             & ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
   funcBottomHead,             & ! function of matric head in the lower-most layer
@@ -128,6 +125,7 @@ subroutine soilLiqFlux(&
   ! local variables: general
   character(LEN=256)                               :: cmessage            ! error message of downwind routine
   integer(i4b)                                     :: nSoil               ! number of soil layers
+  integer(i4b)                                     :: nGlce               ! number of glacier layers
   integer(i4b)                                     :: ibeg,iend           ! start and end indices of the soil layers in concatanated snow-lake-soil-glce vector
   integer(i4b)                                     :: iLayer,iSoil        ! index of soil layer
   integer(i4b)                                     :: ixLayerDesired(1)   ! layer desired (scalar solution)
@@ -167,6 +165,7 @@ contains
 
   ! ** assign variables used in main associate block **
   nSoil = in_soilLiqFlux % nSoil ! get number of soil layers from input arguments
+  nGlce = indx_data%var(iLookINDEX%nGlce)%dat(1) ! get number of glacier layers from index data structure
 
   ! get indices for the data structures
   ibeg = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nLake)%dat(1) + 1
@@ -402,7 +401,7 @@ contains
   end associate
 
   ! compute surface flux and its derivative...
-  call in_surfaceFlux % initialize(nRoots,ixIce,nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,&
+  call in_surfaceFlux % initialize(nRoots,ixIce,nSoil,nGlce,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,&
                                  &model_decisions,prog_data,mpar_data,flux_data,diag_data,&
                                  &iLayerHeight,dHydCond_dTemp,iceImpedeFac)
   call io_surfaceFlux % initialize(nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse)
@@ -508,7 +507,7 @@ contains
  subroutine initialize_compute_drainage_flux(in_qDrainFlux)
   ! **** Initialize operations for compute_drainage_flux ****
   type(in_type_qDrainFlux),intent(out) :: in_qDrainFlux
-  call in_qDrainFlux % initialize(nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
+  call in_qDrainFlux % initialize(nSoil,nGlce,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
                                  &prog_data,mpar_data,flux_data,diag_data,iceImpedeFac,&
                                  &dHydCond_dVolLiq,dHydCond_dTemp)
  end subroutine initialize_compute_drainage_flux
@@ -862,6 +861,7 @@ subroutine surfaceFlux(io_soilLiqFlux,in_surfaceFlux,io_surfaceFlux,out_surfaceF
   real(rkind)                      :: dfracCap(1:in_surfaceFlux % nSoil)  ! derivatives for different parts of a function
   real(rkind)                      :: dfInfRaw(1:in_surfaceFlux % nSoil)  ! derivatives for different parts of a function
   real(rkind)                      :: total_soil_depth                    ! total depth of soil (m)
+  integer(i4b)                     :: ixInfRateMax_use                    ! index for the choice of the maximum infiltration rate
   ! head boundary condition
   real(rkind)                      :: cFlux                               ! capillary flux (m s-1)
   ! simplified Green-Ampt infiltration
@@ -999,24 +999,27 @@ contains
   associate(&
    ! input: model control
    firstSplitOper => in_surfaceFlux % firstSplitOper, & ! flag indicating if desire to compute infiltration
-   bc_upper   => in_surfaceFlux % bc_upper,           & ! index defining the type of boundary conditions
-   ixInfRateMax => in_surfaceFlux % ixInfRateMax,     & ! index defining the maximum infiltration rate method
-   surfRun_SE => in_surfaceFlux % surfRun_SE,         & ! index defining the saturation excess surface runoff method
+   bc_upper       => in_surfaceFlux % bc_upper,       & ! index defining the type of boundary conditions
+   ixInfRateMax   => in_surfaceFlux % ixInfRateMax,   & ! index defining the maximum infiltration rate method
+   nGlce          => in_surfaceFlux % nGlce,          & ! number of glacier layers
+   surfRun_SE     => in_surfaceFlux % surfRun_SE,     & ! index defining the saturation excess surface runoff method
    ! input to compute infiltration
    scalarRainPlusMelt => in_surfaceFlux % scalarRainPlusMelt, & ! rain plus melt plus lake drainage (m s-1)
    ! output: infiltration area and saturated area
-   scalarInfilArea    => io_surfaceFlux % scalarInfilArea,      & ! fraction of area where water can infiltrate, may be frozen (-)
+   scalarInfilArea     => io_surfaceFlux % scalarInfilArea,     & ! fraction of area where water can infiltrate, may be frozen (-)
    scalarSaturatedArea => io_surfaceFlux % scalarSaturatedArea, & ! saturated area fraction (-)
    ! output: runoff and infiltration 
-   scalarSurfaceRunoff_SE    => out_surfaceFlux % scalarSurfaceRunoff_SE,    & ! saturation excess surface runoff (m s-1)
-   scalarSurfaceRunoff       => out_surfaceFlux % scalarSurfaceRunoff,       & ! surface runoff (m s-1)
+   scalarSurfaceRunoff_SE => out_surfaceFlux % scalarSurfaceRunoff_SE, & ! saturation excess surface runoff (m s-1)
+   scalarSurfaceRunoff    => out_surfaceFlux % scalarSurfaceRunoff,    & ! surface runoff (m s-1)
    ! output: derivatives in surface infiltration w.r.t. ...
    dq_dHydStateVec => out_surfaceFlux % dq_dHydStateVec, & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
    dq_dNrgStateVec => out_surfaceFlux % dq_dNrgStateVec, & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
    ! output: error control
-   err      => out_surfaceFlux % err    , & ! error code
-   message  => out_surfaceFlux % message  & ! error message
+   err     => out_surfaceFlux % err    , & ! error code
+   message => out_surfaceFlux % message  & ! error message
   &)
+   ixInfRateMax_use = ixInfRateMax
+   if(nGlce>0) ixInfRateMax_use = topmodel_GA ! if glacier debris, need to use TOPMODEL-ish Green-Ampt to have lateral flow
 
    ! compute the surface flux and its derivative
    if (firstSplitOper .or. updateInfil) then
@@ -1049,7 +1052,7 @@ contains
          scalarSurfaceRunoff_SE = scalarRainPlusMelt * scalarSaturatedArea
 
          ! Calculate maximum infiltration rate and scalarFrozenArea (and their derivatives if needed)
-         select case(ixInfRateMax)       ! maximum infiltration rate method (controls infiltration excess surface runoff)
+         select case(ixInfRateMax_use)       ! maximum infiltration rate method (controls infiltration excess surface runoff)
            case(noInfiltrationExcess)    ! zero infiltration excess surface runoff
              call update_surfaceFlux_liquidFlux_noinfratemax
            case(GreenAmpt, topmodel_GA)  ! infiltration excess runoff possible
@@ -1081,7 +1084,6 @@ subroutine update_volFracLiq_derivatives
 
   associate(&
    ! input: model control
-   ixInfRateMax        => in_surfaceFlux % ixInfRateMax       , & ! index defining the maximum infiltration rate method
    surfRun_SE          => in_surfaceFlux % surfRun_SE         , & ! index defining the saturation excess surface runoff method
    ixRichards          => in_surfaceFlux % ixRichards         , & ! index defining the option for Richards' equation (moisture or mixdform)
    nRoots              => in_surfaceFlux % nRoots             , & ! number of layers that contain roots or take infiltration
@@ -1103,7 +1105,7 @@ subroutine update_volFracLiq_derivatives
      nLayers = nRoots
      doIce = .true.
    else ! might need entire soil column (FUSE methods), might need ice derivatives (infiltration excess method)
-     if (ixInfRateMax == noInfiltrationExcess) then
+     if (ixInfRateMax_use == noInfiltrationExcess) then
        if (surfRun_SE ==zero_SE) then ! no derivatives needed
          nLayers = 0
          doIce = .false.
@@ -1119,7 +1121,7 @@ subroutine update_volFracLiq_derivatives
          nLayers = nSoil
          doIce = .true.
        end if
-     end if ! (if ixInfRateMax)
+     end if ! (if ixInfRateMax_use)
    end if ! (if homegrown_SE)
 
    if (nLayers > 0) then
@@ -1616,8 +1618,6 @@ subroutine update_volFracLiq_derivatives
  subroutine update_surfaceFlux_liquidFlux_computation_max_infiltration_rate
   ! **** Update operations for surfaceFlux: max infiltration rate and derivatives ****
   associate(&
-   ! input: model control
-   ixInfRateMax => in_surfaceFlux % ixInfRateMax , & ! index defining the maximum infiltration rate method (GreenAmpt, topmodel_GA, noInfiltrationExcess)
    ! input: transmittance
    surfaceSatHydCond => in_surfaceFlux % surfaceSatHydCond , & ! saturated hydraulic conductivity at the surface (m s-1)
    ! input: soil parameters
@@ -1636,7 +1636,7 @@ subroutine update_volFracLiq_derivatives
    end if
 
    ! process hydraulic conductivity-controlled infiltration rate
-   select case(ixInfRateMax)  ! maximum infiltration rate parameterization (noInfExcess set in update_surfaceFlux)
+   select case(ixInfRateMax_use)  ! maximum infiltration rate parameterization (noInfExcess set in update_surfaceFlux)
     case(topmodel_GA)
      ! define the hydraulic conductivity at depth=depthWettingFront (m s-1)
      hydCondWettingFront = surfaceSatHydCond * ( (1._rkind - depthWettingFront/total_soil_depth)**(zScale_TOPMODEL - 1._rkind) )
@@ -2027,6 +2027,7 @@ subroutine qDrainFlux(in_qDrainFlux,out_qDrainFlux)
   real(rkind)                      :: zWater                  ! effective water table depth (m)
   real(rkind)                      :: nodePsi                 ! matric head in the lowest unsaturated node (m)
   real(rkind)                      :: cflux                   ! capillary flux (m s-1)
+  integer(i4b)                     :: bc_lower_use            ! mutable copy of lower boundary-condition index
   ! error control
   logical(lgt)                     :: return_flag             ! flag for return statements
   ! -----------------------------------------------------------------------------------------------------------------------------
@@ -2057,13 +2058,16 @@ contains
   associate(&
    ! input: model control
    bc_lower      => in_qDrainFlux % bc_lower, & ! index defining the type of boundary conditions
+   nGlce         => in_qDrainFlux % nGlce,    & ! number of glacier ice layers
    ! output: error control
    err     => out_qDrainFlux % err    , &       ! error code
    message => out_qDrainFlux % message  &       ! error message
   &)
+   bc_lower_use = bc_lower
+   if(nGlce>0) bc_lower_use = zeroFlux ! if glacier debris, nothing can drain into impermeable glacier ice layer
 
    ! determine lower boundary condition
-   select case(bc_lower)
+   select case(bc_lower_use)
      case(prescribedHead) ! specified matric head value
        call update_qDrainFlux_prescribedHead; if (return_flag) return
      case(funcBottomHead) ! specified matric head function

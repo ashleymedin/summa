@@ -316,6 +316,8 @@ contains
   balance(:) = realMissing
 
   associate(&
+   nSoil                => indx_data%var(iLookINDEX%nSoil)%dat(1)              ,& ! intent(in): [i4b] number of soil layers
+   nGlce                => indx_data%var(iLookINDEX%nGlce)%dat(1)              ,& ! intent(in): [i4b] number of glacier ice layers
    ixSpatialGroundwater => model_decisions(iLookDECISIONS%spatial_gw)%iDecision,& ! intent(in): [i4b] spatial representation of groundwater (local-column or single-basin)
    ixGroundwater        => model_decisions(iLookDECISIONS%groundwatr)%iDecision & ! intent(in): [i4b] groundwater parameterization
    &)
@@ -332,7 +334,7 @@ contains
 
    ! identify the matrix solution method, using the full matrix can be slow in many-layered systems
    ! (the type of matrix used to solve the linear system A.X=B)
-   if (local_ixGroundwater==qbaseTopmodel .or. scalarSolution .or. forceFullMatrix .or. computeVegFlux) then
+   if (local_ixGroundwater==qbaseTopmodel .or. (nGlce>0 .and. nSoil>0) .or. scalarSolution .or. forceFullMatrix .or. computeVegFlux) then
      nLeadDim=nState         ! length of the leading dimension
      ixMatrix=ixFullMatrix   ! named variable to denote the full Jacobian matrix
    else
@@ -376,7 +378,7 @@ contains
 
    ! allocate space for the baseflow derivatives
    ! NOTE: needs allocation because only used when baseflow sinks are active
-   if (ixGroundwater==qbaseTopmodel) then
+   if (ixGroundwater==qbaseTopmodel .or. (nGlce>0 .and. nSoil>0)) then ! need the baseflow derivatives if have TOPMODEL groundwater or glacier debris (since debris has lateral flow)
     allocate(dBaseflow_dMatric(nSoil,nSoil),stat=err) ! baseflow depends on total storage in the soil column, hence on matric head in every soil layer
    else
     allocate(dBaseflow_dMatric(0,0),stat=err)         ! allocate zero-length dimensions to avoid passing around an unallocated matrix
