@@ -32,7 +32,6 @@ MODULE data_types
  USE var_lookup,only:iLookDECISIONS   ! lookup indices for elements of the decision structure
  USE var_lookup,only:iLookPROG        ! lookup indices for prognostic variables
  implicit none
- ! constants necessary for variable defs
  private
 
  ! ***********************************************************************************************************
