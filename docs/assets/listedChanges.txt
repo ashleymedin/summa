@@ -162,7 +162,7 @@ AFTER tag of v4.0.0-exp-Sundials
 -41) Fix soil input for non Rosetta choice, commit 4c1e0808 Oct 30, 2025
  42) Documentation updates from Wouter, commits around Oct 30, 2025
 -43) Fix bug in rooting depth computation if it is set larger than the soil depth, caps it, commit fe80aa86 Dec 4, 2025
- 44) More infiltration options with separation of saturated excess infiltration area and infiltration excess, commit	03f98c3a Feb 4, 2026
+ 44) More infiltration options with separation of saturated excess infiltration area and infiltration excess, commit 03f98c3a Feb 4, 2026
      Added FUSE choices in new decision surfRun_SE, with choices:
       ! (32) choice of saturation excess (SE) surface runoff parameterization
       ! zero_SE      ! zero SE surface runoff
@@ -195,7 +195,8 @@ AFTER tag of v4.0.0-exp-Sundials
  48) Routing histogram variables will not print anymore, since once fixed these to print correctly they slowed the write considerably, commit 7601c6ab Mar 10, 2026
      These can be turned back on with turning allowRoutingOutput flag to .true.
 -49) Smoothing of hydCond_psi function when psi is very small, helps convergence with saturated soil layers, commit 946b6112 Mar 10, 2026
- 50) The number of soil layers does not have to be the same in every HRU now, commit eeb800af	Mar 24, 2026
- 51) Add GRU variable basin__StorageChange in kg/m2/s that summarizes the storage changes across the HRUs so that it can be compared to Grace data, commit eeb800af	Mar 24, 2026
+ 50) The number of soil layers does not have to be the same in every HRU now, commit eeb800af Mar 24, 2026
+ 51) Add GRU variable basin__StorageChange in kg/m2/s that summarizes the storage changes across the HRUs so that it can be compared to GRACE data, commit eeb800af	Mar 24, 2026
 -52) If scalar solution fails on a snow layer, exit and merge snow layers if failure was from too much energy going into top layer (previous behavior was code failure), commit 7c46a507 May 5, 2026
      Also changed the number of times it checks the brackets for scalar solution from 100 to 10 since usually by 2 it's found the bracket or not.
+-53) Fix power profile hydraulic conductivity if total soil depth less than compactedDepth, and rewrite to make smooth profile if k_soil differs across layers and take into account differing layer thicknesses (use harmonic mean), commit 8119be7c May 29, 2026
