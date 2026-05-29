@@ -277,7 +277,7 @@ MODULE var_lookup
   integer(i4b)    :: k_macropore           = integerMissing    ! saturated hydraulic conductivity for macropores (m s-1)
   integer(i4b)    :: kAnisotropic          = integerMissing    ! anisotropy factor for lateral hydraulic conductivity (-)
   integer(i4b)    :: zScale_TOPMODEL       = integerMissing    ! TOPMODEL scaling factor used in lower boundary condition for soil (m)
-  integer(i4b)    :: compactedDepth        = integerMissing    ! depth where k_soil reaches the compacted value given by CH78 (m)
+  integer(i4b)    :: compactedDepth        = integerMissing    ! depth where k_soil reaches the compacted value given by Clapp and Hornberger (1978) (m)
   integer(i4b)    :: aquiferBaseflowRate   = integerMissing    ! baseflow rate when aquifer storage = aquiferScaleFactor (m s-1)
   integer(i4b)    :: aquiferScaleFactor    = integerMissing    ! scaling factor for aquifer storage in the big bucket (m)
   integer(i4b)    :: aquiferBaseflowExp    = integerMissing    ! baseflow exponent (-)
