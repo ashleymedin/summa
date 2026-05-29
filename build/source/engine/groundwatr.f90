@@ -145,8 +145,8 @@ subroutine groundwatr(&
     ! (1) compute the "active" portion of the soil profile
     ! ************************************************************************************************
     fieldCapacity_use = fieldCapacity
-    if(nGlce>0) fieldCapacity_use = 0.0_rkind ! if glacier ice layers are present, set field capacity to zero (i.e. all water is "active" for flow)
-    
+    if(nGlce>0) fieldCapacity_use = 0._rkind ! if glacier ice layers are present, set field capacity to zero (i.e. all water is "active" for flow)
+
     ! get index of the layer closest to surface that is more than field capacity (NOTE: only compute on the first flux call)
     if (getSatDepth) then
       ixSaturation = nSoil+1  ! unsaturated profile when ixSaturation>nSoil
@@ -299,7 +299,7 @@ subroutine computBaseflow(&
     ! (1) compute the baseflow flux in each soil layer
     ! ***********************************************************************************************************************
     fieldCapacity_use = fieldCapacity
-    if(nGlce>0) fieldCapacity_use = 0.0_rkind ! if glacier ice layers are present, set field capacity to zero (i.e. all water is "active" for flow)
+    if(nGlce>0) fieldCapacity_use = 0._rkind ! if glacier ice layers are present, set field capacity to zero (i.e. all water is "active" for flow)
 
     ! compute the maximum transmissivity
     ! NOTE: this can be done as a pre-processing step

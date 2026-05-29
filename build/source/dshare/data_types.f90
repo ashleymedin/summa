@@ -798,7 +798,7 @@ MODULE data_types
    integer(i4b) :: nRoots           ! number of layers that contain roots
    integer(i4b) :: ixIce            ! index of lowest ice layer
    integer(i4b) :: nSoil            ! number of soil layers
-   integer(i4b) :: nGlce            ! number of glacier layers
+   integer(i4b) :: nGlce            ! number of glacier ice layers
    ! input: state and diagnostic variables
    real(rkind),allocatable :: mLayerTemp(:)       ! temperature (K)
    real(rkind)             :: scalarMatricHeadLiq ! liquid matric head in the upper-most soil layer (m)
@@ -1663,7 +1663,7 @@ contains
   integer(i4b),intent(in)               :: nSnow                       ! number of snow layers
   integer(i4b),intent(in)               :: nLake                       ! number of lake layers
   integer(i4b),intent(in)               :: nSoil                       ! number of soil layers
-  integer(i4b),intent(in)               :: nGlce                       ! number of glacier layers
+  integer(i4b),intent(in)               :: nGlce                       ! number of glacier ice layers
   logical(lgt),intent(in)               :: firstFluxCall               ! logical flag to compute index of the lowest saturated layer
   real(rkind),intent(in)                :: mLayerVolFracLiqTrial(:)    ! trial value for volumetric fraction of liquid water (-)
   real(rkind),intent(in)                :: mLayerVolFracIceTrial(:)    ! trial value for volumetric fraction of ice (-)
@@ -1675,7 +1675,7 @@ contains
    in_groundwatr % nSnow                    = nSnow                                  ! intent(in):    number of snow layers
    in_groundwatr % nLake                    = nLake                                  ! intent(in):    total number of layers
    in_groundwatr % nSoil                    = nSoil                                  ! intent(in):    number of soil layers
-   in_groundwatr % nGlce                    = nGlce                                  ! intent(in):    number of glacier layers
+   in_groundwatr % nGlce                    = nGlce                                  ! intent(in):    number of glacier ice layers
    in_groundwatr % firstFluxCall            = firstFluxCall                          ! intent(in):    logical flag to compute index of the lowest saturated layer
    in_groundwatr % mLayerdTheta_dPsi        = mLayerdTheta_dPsi                      ! intent(in):    derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
    in_groundwatr % mLayerVolFracLiqTrial    = mLayerVolFracLiqTrial(nSnow+nLake+1:nSnow+nLake+nSoil) ! intent(in):    volumetric fraction of liquid water (-)
@@ -1892,7 +1892,7 @@ contains
   integer(i4b),intent(in)                :: nRoots         ! number of soil layers with roots
   integer(i4b),intent(in)                :: ixIce          ! index of the lowest soil layer that contains ice
   integer(i4b),intent(in)                :: nSoil          ! number of soil layers
-  integer(i4b),intent(in)                :: nGlce          ! number of glacier layers
+  integer(i4b),intent(in)                :: nGlce          ! number of glacier ice layers
   integer(i4b),intent(in)                :: ibeg,iend      ! start and end indices of the soil layers in concatanated snow-lake-soil-glce vector
   type(in_type_soilLiqFlux),intent(in)   :: in_soilLiqFlux ! input data for soilLiqFlux
   type(io_type_soilLiqFlux),intent(in)   :: io_soilLiqFlux ! input-output class object for soilLiqFlux
@@ -1922,7 +1922,7 @@ contains
    in_surfaceFlux % nRoots         = nRoots                  ! number of layers that contain roots
    in_surfaceFlux % ixIce          = ixIce                   ! index of lowest ice layer
    in_surfaceFlux % nSoil          = nSoil                   ! number of soil layers
-   in_surfaceFlux % nGlce          = nGlce                   ! number of glacier layers
+   in_surfaceFlux % nGlce          = nGlce                   ! number of glacier ice layers
   end associate
 
   associate(&
@@ -2217,7 +2217,7 @@ contains
                                     &dHydCond_dVolLiq,dHydCond_dTemp)
   class(in_type_qDrainFlux),intent(out) :: in_qDrainFlux ! class object for input qDrainFlux variables
   integer(i4b),intent(in)               :: nSoil         ! number of soil layers
-  integer(i4b),intent(in)               :: nGlce         ! number of glacier layers
+  integer(i4b),intent(in)               :: nGlce         ! number of glacier ice layers
   integer(i4b),intent(in)               :: ibeg,iend     ! start and end indices of the soil layers in concatanated snow-lake-soil-glce vector
   type(in_type_soilLiqFlux),intent(in)  :: in_soilLiqFlux ! input class object for soilLiqFlux
   type(io_type_soilLiqFlux),intent(in)  :: io_soilLiqFlux ! input-output class object for soilLiqFlux
