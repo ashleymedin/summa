@@ -106,6 +106,7 @@ subroutine groundwatr(&
   ! ---------------------------------------------------------------------------------------
   ! general local variables
   integer(i4b)                                                   :: iLayer            ! index of soil layer
+  real(rkind)                                                    :: fieldCapacity_use ! field capacity used to determine the "active" portion of the soil profile
   real(rkind),dimension(in_groundwatr%nSoil,in_groundwatr%nSoil) :: dBaseflow_dVolLiq ! derivative in the baseflow flux w.r.t. volumetric liquid water content (m s-1)
   ! ***************************************************************************************
   ! ***************************************************************************************
@@ -116,6 +117,7 @@ subroutine groundwatr(&
     nSnow               => in_groundwatr % nSnow,                              & ! intent(in):    [i4b] number of snow layers
     nLake               => in_groundwatr % nLake,                              & ! intent(in):    [i4b] number of lake layers
     nSoil               => in_groundwatr % nSoil,                              & ! intent(in):    [i4b] number of soil layers
+    nGlce               => in_groundwatr % nGlce,                              & ! intent(in):    [i4b] number of glacier ice layers
     getSatDepth         => in_groundwatr % firstFluxCall,                      & ! intent(in):    [lgt] logical flag to compute index of the lowest saturated layer
     ! input: state and diagnostic variables
     mLayerdTheta_dPsi   => in_groundwatr % mLayerdTheta_dPsi,                  & ! intent(in):    [dp] derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
@@ -142,12 +144,14 @@ subroutine groundwatr(&
     ! ************************************************************************************************
     ! (1) compute the "active" portion of the soil profile
     ! ************************************************************************************************
-
+    fieldCapacity_use = fieldCapacity
+    if(nGlce>0) fieldCapacity_use = 0.0_rkind ! if glacier ice layers are present, set field capacity to zero (i.e. all water is "active" for flow)
+    
     ! get index of the layer closest to surface that is more than field capacity (NOTE: only compute on the first flux call)
     if (getSatDepth) then
       ixSaturation = nSoil+1  ! unsaturated profile when ixSaturation>nSoil
       do iLayer=nSoil,1,-1  ! start at the lowest soil layer and work upwards to the top layer
-        if (mLayerVolFracLiq(iLayer) > fieldCapacity) then; ixSaturation = iLayer  ! index of saturated layer -- keeps getting over-written as move upwards
+        if (mLayerVolFracLiq(iLayer) > fieldCapacity_use) then; ixSaturation = iLayer  ! index of saturated layer -- keeps getting over-written as move upwards
         else; exit; end if                                                         ! only consider saturated layer at the bottom of the soil profile
       end do  ! end looping through soil layers
     end if
@@ -171,6 +175,7 @@ subroutine groundwatr(&
                           nSnow,                   & ! intent(in):    number of snow layers
                           nLake,                   & ! intent(in):    number of lake layers
                           nSoil,                   & ! intent(in):    number of soil layers
+                          nGlce,                   & ! intent(in):    number of glacier ice layers
                           .true.,                  & ! intent(in):    .true. if analytical derivatives are desired
                           ixSaturation,            & ! intent(in):    index of upper-most "saturated" layer
                           mLayerVolFracLiq,        & ! intent(in):    volumetric fraction of liquid water in each soil layer (-)
@@ -204,6 +209,7 @@ subroutine computBaseflow(&
                           nSnow,                         & ! intent(in):    number of snow layers
                           nLake,                         & ! intent(in):    number of lake layers
                           nSoil,                         & ! intent(in):    number of soil layers
+                          nGlce,                         & ! intent(in):    number of glacier ice layers
                           derivDesired,                  & ! intent(in):    .true. if derivatives are desired
                           ixSaturation,                  & ! intent(in):    index of upper-most "saturated" layer
                           mLayerVolFracLiq,              & ! intent(in):    volumetric fraction of liquid water in each soil layer (-)
@@ -224,6 +230,7 @@ subroutine computBaseflow(&
   integer(i4b),intent(in)          :: nSnow                   ! number of snow layers
   integer(i4b),intent(in)          :: nLake                   ! number of lake layers
   integer(i4b),intent(in)          :: nSoil                   ! number of soil layers
+  integer(i4b),intent(in)          :: nGlce                   ! number of glacier ice layers
   logical(lgt),intent(in)          :: derivDesired            ! .true. if derivatives are desired
   integer(i4b),intent(in)          :: ixSaturation            ! index of upper-most "saturated" layer
   real(rkind),intent(in)           :: mLayerVolFracLiq(:)     ! volumetric fraction of liquid water (-)
@@ -249,6 +256,7 @@ subroutine computBaseflow(&
   real(rkind),parameter              :: xCenter=0.001_rkind   ! center of the exfiltration function (m)
   real(rkind),parameter              :: xWidth=0.0001_rkind   ! width of the exfiltration function (m)
   real(rkind)                        :: expF,logF             ! logistic smoothing function (-)
+  real(rkind)                        :: fieldCapacity_use     ! field capacity used to determine the "active" portion of the soil profile
   ! local variables for the lateral flux among soil columns
   real(rkind)                        :: activePorosity        ! "active" porosity associated with storage above a threshold (-)
   real(rkind)                        :: drainableWater        ! drainable water in eaxch layer (m)
@@ -290,6 +298,8 @@ subroutine computBaseflow(&
     ! ***********************************************************************************************************************
     ! (1) compute the baseflow flux in each soil layer
     ! ***********************************************************************************************************************
+    fieldCapacity_use = fieldCapacity
+    if(nGlce>0) fieldCapacity_use = 0.0_rkind ! if glacier ice layers are present, set field capacity to zero (i.e. all water is "active" for flow)
 
     ! compute the maximum transmissivity
     ! NOTE: this can be done as a pre-processing step
@@ -298,8 +308,8 @@ subroutine computBaseflow(&
     ! compute the water table thickness (m) and transmissivity in each layer (m2 s-1)
     do iLayer=nSoil,ixSaturation,-1  ! loop through "active" soil layers, from lowest to highest
       ! define drainable water in each layer (m)
-      activePorosity = theta_sat(iLayer) - fieldCapacity ! "active" porosity (-)
-      drainableWater = mLayerDepth(iLayer)*(max(0._rkind,mLayerVolFracLiq(iLayer) - fieldCapacity))/activePorosity
+      activePorosity = theta_sat(iLayer) - fieldCapacity_use ! "active" porosity (-)
+      drainableWater = mLayerDepth(iLayer)*(max(0._rkind,mLayerVolFracLiq(iLayer) - fieldCapacity_use))/activePorosity
       ! compute layer transmissivity
       if (iLayer==nSoil) then
         zActive(iLayer) = drainableWater                                       ! water table thickness associated with storage in a given layer (m)
@@ -372,7 +382,7 @@ subroutine computBaseflow(&
     length2area = tan_slope*contourLength/DOMarea
 
     ! compute the ratio of layer depth to maximum water holding capacity (-)
-    depth2capacity(1:nSoil) = mLayerDepth(1:nSoil)/sum( (theta_sat(1:nSoil) - fieldCapacity)*mLayerDepth(1:nSoil) )
+    depth2capacity(1:nSoil) = mLayerDepth(1:nSoil)/sum( (theta_sat(1:nSoil) - fieldCapacity_use)*mLayerDepth(1:nSoil) )
 
     ! compute the change in dimensionless flux w.r.t. change in dimensionless storage (-)
     dXdS(1:nSoil) = zScale_TOPMODEL*(zActive(1:nSoil)/SoilDepth)**(zScale_TOPMODEL - 1._rkind)

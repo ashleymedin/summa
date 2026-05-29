@@ -434,7 +434,7 @@ contains
  ! input: snow layer indices
  integer(i4b),intent(in)         :: ix_divide         ! index of the layer to divide
  integer(i4b),intent(in)         :: nSnow,nLayers     ! number of snow layers, total number of layers
- logical(lgt),intent(in)         :: doGlac            ! flag for dividing glacier layers
+ logical(lgt),intent(in)         :: doGlac            ! flag for dividing glacier ice layers
  ! output: error control
  integer(i4b),intent(out)        :: err               ! error code
  character(*),intent(out)        :: message           ! error message

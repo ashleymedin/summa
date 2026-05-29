@@ -1096,7 +1096,7 @@ subroutine coupled_em(&
       ! process the flag for too much melt
       if(tooMuchMelt)then
         stepFailure  = .true.
-        if (nSnow>0) doLayerMerge = .true. ! don't merge glacier layers
+        if (nSnow>0) doLayerMerge = .true. ! don't merge glacier ice layers
       else
         doLayerMerge = .false.
       endif
@@ -1236,7 +1236,7 @@ subroutine coupled_em(&
           ! process the flag for too much sublimation
           if(tooMuchSublim)then
             stepFailure  = .true.
-            if (nSnow>0) doLayerMerge = .true. ! don't merge glacier layers
+            if (nSnow>0) doLayerMerge = .true. ! don't merge glacier ice layers
           else
             doLayerMerge = .false.
           endif

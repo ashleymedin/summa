@@ -125,7 +125,7 @@ subroutine soilLiqFlux(&
   ! local variables: general
   character(LEN=256)                               :: cmessage            ! error message of downwind routine
   integer(i4b)                                     :: nSoil               ! number of soil layers
-  integer(i4b)                                     :: nGlce               ! number of glacier layers
+  integer(i4b)                                     :: nGlce               ! number of glacier ice layers
   integer(i4b)                                     :: ibeg,iend           ! start and end indices of the soil layers in concatanated snow-lake-soil-glce vector
   integer(i4b)                                     :: iLayer,iSoil        ! index of soil layer
   integer(i4b)                                     :: ixLayerDesired(1)   ! layer desired (scalar solution)
@@ -165,7 +165,7 @@ contains
 
   ! ** assign variables used in main associate block **
   nSoil = in_soilLiqFlux % nSoil ! get number of soil layers from input arguments
-  nGlce = indx_data%var(iLookINDEX%nGlce)%dat(1) ! get number of glacier layers from index data structure
+  nGlce = indx_data%var(iLookINDEX%nGlce)%dat(1) ! get number of glacier ice layers from index data structure
 
   ! get indices for the data structures
   ibeg = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nLake)%dat(1) + 1
@@ -1001,7 +1001,7 @@ contains
    firstSplitOper => in_surfaceFlux % firstSplitOper, & ! flag indicating if desire to compute infiltration
    bc_upper       => in_surfaceFlux % bc_upper,       & ! index defining the type of boundary conditions
    ixInfRateMax   => in_surfaceFlux % ixInfRateMax,   & ! index defining the maximum infiltration rate method
-   nGlce          => in_surfaceFlux % nGlce,          & ! number of glacier layers
+   nGlce          => in_surfaceFlux % nGlce,          & ! number of glacier ice layers
    surfRun_SE     => in_surfaceFlux % surfRun_SE,     & ! index defining the saturation excess surface runoff method
    ! input to compute infiltration
    scalarRainPlusMelt => in_surfaceFlux % scalarRainPlusMelt, & ! rain plus melt plus lake drainage (m s-1)

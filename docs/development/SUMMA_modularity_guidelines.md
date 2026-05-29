@@ -122,7 +122,7 @@ end subroutine update_surfaceFlux_example_flux
           in_surfaceFlux % nRoots         = nRoots                  ! number of layers that contain roots
           in_surfaceFlux % ixIce          = ixIce                   ! index of lowest ice layer
           in_surfaceFlux % nSoil          = nSoil                   ! number of soil layers
-          in_surfaceFlux % nGlce          = nGlce                   ! number of glacier layers
+          in_surfaceFlux % nGlce          = nGlce                   ! number of glacier ice layers
          end associate
 
          ! [...] ! additional associate blocks here
@@ -154,7 +154,7 @@ end subroutine update_surfaceFlux_example_flux
           in_surfaceFlux % nRoots         = nRoots                  ! number of layers that contain roots
           in_surfaceFlux % ixIce          = ixIce                   ! index of lowest ice layer
           in_surfaceFlux % nSoil          = nSoil                   ! number of soil layers
-          in_surfaceFlux % nGlce          = nGlce                   ! number of glacier layers
+          in_surfaceFlux % nGlce          = nGlce                   ! number of glacier ice layers
          end associate
          
          ! [...] ! additional associate blocks here

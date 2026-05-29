@@ -300,7 +300,7 @@ subroutine computFlux(&
     end if 
   end associate
 
-  ! *** CALCULATE THE SHALLOW GROUNDWATER FLOW ***
+  ! *** CALCULATE THE SHALLOW GROUNDWATER FLOW OR DEBRIS LATERAL FLOW ***
   associate(nSoilOnlyHyd => indx_data%var(iLookINDEX%nSoilOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the soil domain
     if (nSoilOnlyHyd>0) then ! check if computing soil hydrology
       if (local_ixGroundwater/=qbaseTopmodel .and. nGlce==0) then ! set baseflow fluxes to zero if the topmodel baseflow routine is not used
@@ -821,7 +821,7 @@ contains
     message=trim(message)//'expect dBaseflow_dMatric to be nSoil x nSoil'
     err=20; return
   end if
-  call in_groundwatr%initialize(nSnow,nLake,nSoil,firstFluxCall,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,deriv_data)
+  call in_groundwatr%initialize(nSnow,nLake,nSoil,nGlce,firstFluxCall,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,deriv_data)
   call io_groundwatr%initialize(ixSaturation)
  end subroutine initialize_groundwatr
 

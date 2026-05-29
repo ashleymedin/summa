@@ -223,7 +223,7 @@ contains
     mergedLayers=.true.
 
     ! ***** handle special case of a single layer
-    if(nSnow==1)then ! here assuming would not be merging glacier layers if had snow
+    if(nSnow==1)then ! here assuming would not be merging glacier ice layers if had snow
      ! set the variables defining "snow without a layer"
      ! NOTE: ignoring cold content!!! Need to fix later...
      scalarSnowDepth = mLayerDepth(1)

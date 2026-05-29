@@ -561,9 +561,9 @@ subroutine varSubstep(&
                   fluxCount%var(iVar)%dat(ixLayer) = fluxCount%var(iVar)%dat(ixLayer) + 1_i4b
                 endif
               end do
-              ! this is a special case for the liquid flux in the no water glacier layers, always set to zero
+              ! this is a special case for the liquid flux in the no water glacier ice layers, always set to zero
               if(iVar==iLookFLUX%mLayerLiqFluxSnLaGl.or. iVar==iLookFLUX%iLayerLiqFluxSnLaGl)then
-                ! NOTE: this is a special case for the liquid flux in the no water glacier layers, always set to zero
+                ! NOTE: this is a special case for the liquid flux in the no water glacier ice layers, always set to zero
                 flux_mean%var(iVar)%dat(nLayers-noThetaChange+1:nLayers) = 0._rkind
                 fluxCount%var(iVar)%dat(nLayers-noThetaChange+1:nLayers) = 1_i4b
               endif
