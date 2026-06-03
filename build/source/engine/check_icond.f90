@@ -96,49 +96,55 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! variable declarations
  ! dummies
- integer(i4b),intent(in)                   :: nGRU                  ! number of grouped response units
- type(gru_doubleVec),intent(inout)         :: bvarData              ! basin variables
- type(gru_hru_dom_doubleVec),intent(inout) :: progData              ! prognostic vars
- type(gru_hru_dom_doubleVec),intent(inout) :: diagData              ! diagnostic vars
- type(gru_hru_dom_doubleVec),intent(in)    :: mparData              ! parameters
- type(gru_hru_dom_intVec),intent(in)       :: indxData              ! layer indexes
- type(gru_hru_dom_z_vLookup),intent(in)    :: lookupData            ! lookup table data
- type(gru_hru_double),intent(in)           :: attrData              ! attributes
- logical(lgt),intent(in)                   :: checkEnthalpy         ! if true either need enthTemp as starting residual value, or for state variable initialization
- logical(lgt),intent(out)                  :: no_dom_vars           ! if true, no domain area/elevation in initial conditions
- logical(lgt),intent(out)                  :: no_ice_vars           ! if true, no glacier ice variables in initial conditions
- logical(lgt),intent(out)                  :: no_ablfrac            ! if true, no glacier ablation fraction in initial conditions
- logical(lgt),intent(in)                   :: no_icond_enth         ! if true, no enthalpy in initial conditions
- logical(lgt),intent(in)                   :: use_lookup            ! flag to use the lookup table for soil enthalpy, otherwise use hypergeometric function
- integer(i4b),intent(out)                  :: err                   ! error code
- character(*),intent(out)                  :: message               ! returned error message
+ integer(i4b),intent(in)                   :: nGRU                       ! number of grouped response units
+ type(gru_doubleVec),intent(inout)         :: bvarData                   ! basin variables
+ type(gru_hru_dom_doubleVec),intent(inout) :: progData                   ! prognostic vars
+ type(gru_hru_dom_doubleVec),intent(inout) :: diagData                   ! diagnostic vars
+ type(gru_hru_dom_doubleVec),intent(in)    :: mparData                   ! parameters
+ type(gru_hru_dom_intVec),intent(in)       :: indxData                   ! layer indexes
+ type(gru_hru_dom_z_vLookup),intent(in)    :: lookupData                 ! lookup table data
+ type(gru_hru_double),intent(in)           :: attrData                   ! attributes
+ logical(lgt),intent(in)                   :: checkEnthalpy              ! if true either need enthTemp as starting residual value, or for state variable initialization
+ logical(lgt),intent(out)                  :: no_dom_vars                ! if true, no domain area/elevation in initial conditions
+ logical(lgt),intent(out)                  :: no_ice_vars                ! if true, no glacier ice variables in initial conditions
+ logical(lgt),intent(out)                  :: no_ablfrac                 ! if true, no glacier ablation fraction in initial conditions
+ logical(lgt),intent(in)                   :: no_icond_enth              ! if true, no enthalpy in initial conditions
+ logical(lgt),intent(in)                   :: use_lookup                 ! flag to use the lookup table for soil enthalpy, otherwise use hypergeometric function
+ integer(i4b),intent(out)                  :: err                        ! error code
+ character(*),intent(out)                  :: message                    ! returned error message
  ! locals
- character(len=256)                        :: cmessage              ! downstream error message
- integer(i4b)                              :: iGRU,iHRU,iDOM,iGlac  ! loop index
+ character(len=256)                        :: cmessage                   ! downstream error message
+ integer(i4b)                              :: iGRU,iHRU,iDOM,iGlac       ! loop index
  ! temporary variables for realism checks
- integer(i4b)                              :: iLayer                ! index of model layer
- integer(i4b)                              :: iSoil                 ! index of soil layer
- real(rkind)                               :: fLiq                  ! fraction of liquid water on the vegetation canopy (-)
- real(rkind)                               :: vGn_m                 ! van Genutchen "m" parameter (-)
- real(rkind)                               :: scalarTheta           ! liquid water equivalent of total water [liquid water + ice] (-)
- real(rkind)                               :: h1,h2                 ! used to check depth and height are consistent
- real(rkind)                               :: kappa                 ! constant in the freezing curve function (m K-1)
- integer(i4b)                              :: nSnow                 ! number of snow layers
- integer(i4b)                              :: nLake                 ! number of lake layers
- integer(i4b)                              :: nSoil                 ! number of soil layers
- integer(i4b)                              :: nGlce                 ! number of glacier ice layers
- integer(i4b)                              :: nLayers               ! total number of layers
- real(rkind),parameter                     :: xTol=1.e-10_rkind     ! small tolerance to address precision issues
- real(rkind),parameter                     :: areaTol=1.e-1_rkind   ! tolerance to address precision issues in glacier area summation
- real(rkind),parameter                     :: canIceTol=1.e-3_rkind ! small tolerance to allow existence of canopy ice for above-freezing temperatures (kg m-2)
- real(rkind)                               :: remaining_area        ! remaining area of the HRU
- real(rkind)                               :: remaining_elev        ! remaining elevation of the HRU
- real(rkind)                               :: glacierAblAreaTot     ! total basin glacier ablation area from bvarData (m2)
- real(rkind)                               :: glacierAccAreaTot     ! total basin glacier accumulation area from bvarData (m2)
- real(rkind)                               :: area                  ! glacier area for a single glacier (m2)
- real(rkind)                               :: ratio                 ! ratio of glacier area to basin area
- real(rkind)                               :: frz_scale_use         ! scaling parameter for the snow or glce freezing curve (K-1)
- real(rkind)                               :: maxVolIceContent_use  ! maximum volumetric ice content depending if snow or firn
+ integer(i4b)                              :: iLayer                     ! index of model layer
+ integer(i4b)                              :: iSoil                      ! index of soil layer
+ real(rkind)                               :: fLiq                       ! fraction of liquid water on the vegetation canopy (-)
+ real(rkind)                               :: vGn_m                      ! van Genutchen "m" parameter (-)
+ real(rkind)                               :: scalarTheta                ! liquid water equivalent of total water [liquid water + ice] (-)
+ real(rkind)                               :: h1,h2                      ! used to check depth and height are consistent
+ real(rkind)                               :: kappa                      ! constant in the freezing curve function (m K-1)
+ integer(i4b)                              :: nSnow                      ! number of snow layers
+ integer(i4b)                              :: nLake                      ! number of lake layers
+ integer(i4b)                              :: nSoil                      ! number of soil layers
+ integer(i4b)                              :: nGlce                      ! number of glacier ice layers
+ integer(i4b)                              :: nLayers                    ! total number of layers
+ real(rkind),parameter                     :: xTol=1.e-10_rkind          ! small tolerance to address precision issues
+ real(rkind),parameter                     :: areaTol=1.e-1_rkind        ! tolerance to address precision issues in glacier area summation
+ real(rkind),parameter                     :: canIceTol=1.e-3_rkind      ! small tolerance to allow existence of canopy ice for above-freezing temperatures (kg m-2)
+ real(rkind)                               :: remaining_area             ! remaining area to be distributed
+ real(rkind)                               :: remaining_elev             ! remaining elevation to be distributed
+ real(rkind)                               :: remaining_tan_slope        ! remaining tan slope to be distributed (area-weighted)
+ real(rkind)                               :: remaining_aspect_sin       ! remaining sine component for circular aspect mean
+ real(rkind)                               :: remaining_aspect_cos       ! remaining cosine component for circular aspect mean
+ real(rkind),parameter                     :: deg2rad=PI_D/180._rkind    ! convert degrees to radians
+ real(rkind),parameter                     :: rad2deg=180._rkind/PI_D    ! convert radians to degrees
+ real(rkind),parameter                     :: aspect_tol=1.e-12_rkind    ! tolerance for undefined circular mean
+ real(rkind)                               :: glacierAblAreaTot          ! total basin glacier ablation area from bvarData (m2)
+ real(rkind)                               :: glacierAccAreaTot          ! total basin glacier accumulation area from bvarData (m2)
+ real(rkind)                               :: area                       ! glacier area for a single glacier (m2)
+ real(rkind)                               :: ratio                      ! ratio of glacier area to basin area
+ real(rkind)                               :: frz_scale_use              ! scaling parameter for the snow or glce freezing curve (K-1)
+ real(rkind)                               :: maxVolIceContent_use       ! maximum volumetric ice content depending if snow or firn
  ! --------------------------------------------------------------------------------------------------------
 
  ! Start procedure here
@@ -156,39 +162,70 @@ contains
      ! update the HRU area and elevation
      remaining_area = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)
      remaining_elev = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)*attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%elevation)
+     remaining_tan_slope = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)*attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%tan_slope)
+     remaining_aspect_sin = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)*sin(attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%aspect)*deg2rad)
+     remaining_aspect_cos = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)*cos(attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%aspect)*deg2rad)
      do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
-       if(no_ice_vars)then ! set glacier ice variables to zero if they do not exist in the initial conditions file
-         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%glacMass4AreaChange)%dat(1) = 0._rkind
-         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarGlceWE)%dat(1) = 0._rkind
-       endif
-       if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type/=upland) then
-         if(no_dom_vars)then; err=20; message=trim(message)//'problem with getting variable id, var= DOMarea or DOMelev'; return; endif
-         remaining_area = remaining_area - progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
-         remaining_elev = remaining_elev - progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) * progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1)
-       endif
-       if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln1 .or. gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacCln2 &
-       .or. gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr) then
-         if(no_ice_vars) write(*,'(A)') 'WARNING: glacier domain found but glacMass4AreaChange or scalarGlceWE missing, setting both to 0.0.'
-         if(no_ablfrac)then; err=20; message=trim(message)//': problem with getting variable id, var= scalarAblFrac'; return; endif ! scalarAblFrac must exist if glacier domain
-         glacierAblAreaTot = glacierAblAreaTot + progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1)*progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
-         glacierAccAreaTot = glacierAccAreaTot + (1.0_rkind-progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1))*progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
-       else ! not glacier domain, ensure glacier variables are zero
-         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%glacMass4AreaChange)%dat(1) = 0._rkind
-         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarGlceWE)%dat(1) = 0._rkind
-         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1) = 0._rkind
-       end if
+       associate(typeDOM => gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type, &
+                 DOMarea => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1), &
+                 DOMelev => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1), &
+                 DOMtan_slope => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMtan_slope)%dat(1), &
+                 DOMaspect => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMaspect)%dat(1), &
+                 DOMcontourLength => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMcontourLength)%dat(1), &
+                 glacMass4AreaChange => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%glacMass4AreaChange)%dat(1), &
+                 scalarGlceWE => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarGlceWE)%dat(1), &
+                 glacierAblFrac => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAblFrac)%dat(1) )
+         if(no_ice_vars)then ! set glacier ice variables to zero if they do not exist in the initial conditions file
+           glacMass4AreaChange = 0._rkind
+           scalarGlceWE = 0._rkind
+         endif
+         if (typeDOM.ne.upland .and. DOMarea>0._rkind) then
+           if(no_dom_vars)then; err=20; message=trim(message)//'problem with getting variable id, var= DOMarea or DOMelev'; return; endif
+           remaining_area = remaining_area - DOMarea
+           remaining_elev = remaining_elev - DOMarea * DOMelev
+           remaining_tan_slope = remaining_tan_slope - DOMarea * DOMtan_slope
+           remaining_aspect_sin = remaining_aspect_sin - DOMarea*sin(DOMaspect*deg2rad)
+           remaining_aspect_cos = remaining_aspect_cos - DOMarea*cos(DOMaspect*deg2rad)
+         endif
+         if (typeDOM==glacCln1 .or. typeDOM==glacCln2 .or. typeDOM==glacDbr) then
+           if(no_ice_vars) write(*,'(A)') 'WARNING: glacier domain found but glacMass4AreaChange or scalarGlceWE missing, setting both to 0.0.'
+           if(no_ablfrac)then; err=20; message=trim(message)//': problem with getting variable id, var= scalarAblFrac'; return; endif ! scalarAblFrac must exist if glacier domain
+           glacierAblAreaTot = glacierAblAreaTot + glacierAblFrac*DOMarea
+           glacierAccAreaTot = glacierAccAreaTot + (1.0_rkind-glacierAblFrac)*DOMarea
+         else ! not glacier domain, ensure glacier variables are zero
+           glacMass4AreaChange = 0._rkind
+           scalarGlceWE = 0._rkind
+           glacierAblFrac = 0._rkind
+         end if
+       end associate
      end do
      do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
-       if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==upland) then
-         progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) = remaining_area
-         if(remaining_area>0._rkind) then 
-           progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1) = remaining_elev/remaining_area
-         else
-           if (remaining_area<-xTol) write(*,'(A,E22.16,A)') 'WARNING: area of upland HRU (=', remaining_area, ') < 0. Resetting to 0.0'
-           progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1) = 0._rkind
-           progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%elevation)
+       associate(typeDOM => gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type, &
+                 DOMarea => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1), &
+                 DOMelev => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1), &
+                 DOMtan_slope => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMtan_slope)%dat(1), &
+                 DOMaspect => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMaspect)%dat(1), &
+                 DOMcontourLength => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMcontourLength)%dat(1) )
+         if (typeDOM==upland) then
+           DOMarea = remaining_area
+           if(remaining_area>0._rkind)then 
+             DOMelev = remaining_elev/remaining_area
+             DOMtan_slope = remaining_tan_slope/remaining_area
+             if(remaining_aspect_sin**2 + remaining_aspect_cos**2 > aspect_tol)then
+               DOMaspect = modulo(atan2(remaining_aspect_sin,remaining_aspect_cos)*rad2deg,360._rkind)
+             else
+               DOMaspect = 0._rkind
+             endif
+           else
+             if (remaining_area<-xTol) write(*,'(A,E22.16,A)') 'WARNING: area of upland HRU (=', remaining_area, ') < 0. Resetting to 0.0'
+             DOMelev = realMissing
+             DOMarea = 0._rkind
+             DOMtan_slope = realMissing
+             DOMaspect = realMissing
+             DOMcontourLength = 0._rkind
+           end if
          end if
-       end if
+       end associate
      end do
    end do
    ! if they exist, check that the glacier areas are consistent with the basin areas, correct for grid tolerance (only warn if out of tolerance)

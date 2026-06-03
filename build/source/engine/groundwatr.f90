@@ -257,6 +257,7 @@ subroutine computBaseflow(&
   real(rkind),parameter              :: xWidth=0.0001_rkind   ! width of the exfiltration function (m)
   real(rkind)                        :: expF,logF             ! logistic smoothing function (-)
   real(rkind)                        :: fieldCapacity_use     ! field capacity used to determine the "active" portion of the soil profile
+  real(rkind)                        :: kAnisotropic_use     ! anisotropy factor used to compute transmissivity
   ! local variables for the lateral flux among soil columns
   real(rkind)                        :: activePorosity        ! "active" porosity associated with storage above a threshold (-)
   real(rkind)                        :: drainableWater        ! drainable water in eaxch layer (m)
@@ -282,9 +283,9 @@ subroutine computBaseflow(&
     surfaceHydCond          => flux_data%var(iLookFLUX%mLayerSatHydCondMP)%dat(1),       & ! intent(in):  [dp]    saturated hydraulic conductivity at the surface (m s-1)
     mLayerColumnInflow      => flux_data%var(iLookFLUX%mLayerColumnInflow)%dat,          & ! intent(in):  [dp(:)] inflow into each soil layer (m3/s)
     ! input: local attributes
-    DOMarea                 => prog_data%var(iLookPROG%DOMarea)%dat(1),                  & ! intent(in):  [dp]    Domain area in HRU (m2)
-    tan_slope               => attr_data%var(iLookATTR%tan_slope),                       & ! intent(in):  [dp]    tan water table slope, taken as tan local ground surface slope (-)
-    contourLength           => attr_data%var(iLookATTR%contourLength),                   & ! intent(in):  [dp]    length of contour at downslope edge of HRU (m)
+    area                    => prog_data%var(iLookPROG%DOMarea)%dat(1),                  & ! intent(in):  [dp]    Domain area in HRU (m2)
+    tan_slope               => prog_data%var(iLookPROG%DOMtan_slope)%dat(1),             & ! intent(in):  [dp]    tan water table slope, taken as tan local ground surface slope (-)
+    contourLength           => prog_data%var(iLookPROG%DOMcontourLength)%dat(1),         & ! intent(in):  [dp]    length of contour at downslope edge of HRU (m)
     ! input: baseflow parameters
     zScale_TOPMODEL         => mpar_data%var(iLookPARAM%zScale_TOPMODEL)%dat(1),         & ! intent(in):  [dp]    TOPMODEL exponent (-)
     kAnisotropic            => mpar_data%var(iLookPARAM%kAnisotropic)%dat(1),            & ! intent(in):  [dp]    anisotropy factor for lateral hydraulic conductivity (-)
@@ -299,11 +300,15 @@ subroutine computBaseflow(&
     ! (1) compute the baseflow flux in each soil layer
     ! ***********************************************************************************************************************
     fieldCapacity_use = fieldCapacity
-    if(nGlce>0) fieldCapacity_use = 0._rkind ! if glacier ice layers are present, set field capacity to zero (i.e. all water is "active" for flow)
+    kAnisotropic_use = kAnisotropic
+    if(nGlce>0)then
+      fieldCapacity_use = 0._rkind ! if glacier ice layers are present, set field capacity to zero (i.e. all water is "active" for flow)
+      kAnisotropic_use = kAnisotropic*10._rkind ! if glacier ice layers are present, increase anisotropy factor to reflect higher hydraulic conductivity in glacier debris
+    end if
 
     ! compute the maximum transmissivity
     ! NOTE: this can be done as a pre-processing step
-    tran0 = kAnisotropic*surfaceHydCond*soilDepth/zScale_TOPMODEL   ! maximum transmissivity (m2 s-1)
+    tran0 = kAnisotropic_use*surfaceHydCond*soilDepth/zScale_TOPMODEL   ! maximum transmissivity (m2 s-1)
 
     ! compute the water table thickness (m) and transmissivity in each layer (m2 s-1)
     do iLayer=nSoil,ixSaturation,-1  ! loop through "active" soil layers, from lowest to highest
@@ -333,8 +338,8 @@ subroutine computBaseflow(&
     mLayerColumnOutflow(1:nSoil) = trSoil(1:nSoil)*tan_slope*contourLength
 
     ! compute total column inflow and total column outflow (m s-1)
-    totalColumnInflow  = sum(mLayerColumnInflow(1:nSoil))/DOMarea
-    totalColumnOutflow = sum(mLayerColumnOutflow(1:nSoil))/DOMarea
+    totalColumnInflow  = sum(mLayerColumnInflow(1:nSoil))/area
+    totalColumnOutflow = sum(mLayerColumnOutflow(1:nSoil))/area
 
     ! compute the available storage (m)
     availStorage = sum(mLayerDepth(1:nSoil)*(theta_sat(1:nSoil) - (mLayerVolFracLiq(1:nSoil)+mLayerVolFracIce(1:nSoil))))
@@ -359,14 +364,14 @@ subroutine computBaseflow(&
     end if
 
     ! compute the baseflow in each layer (m s-1)
-    mLayerBaseflow(1:nSoil) = (mLayerColumnOutflow(1:nSoil) - mLayerColumnInflow(1:nSoil))/DOMarea
+    mLayerBaseflow(1:nSoil) = (mLayerColumnOutflow(1:nSoil) - mLayerColumnInflow(1:nSoil))/area
 
     ! compute the total baseflow
     qbTotal = sum(mLayerBaseflow)
 
     ! add exfiltration to the baseflow flux at the top layer
     mLayerBaseflow(1)      = mLayerBaseflow(1) + scalarExfiltration
-    mLayerColumnOutflow(1) = mLayerColumnOutflow(1) + scalarExfiltration*DOMarea
+    mLayerColumnOutflow(1) = mLayerColumnOutflow(1) + scalarExfiltration*area
 
     ! ***********************************************************************************************************************
     ! (2) compute the derivative in the baseflow flux w.r.t. volumetric liquid water content (m s-1)
@@ -379,7 +384,7 @@ subroutine computBaseflow(&
     if (.not.derivDesired) return
 
     ! compute ratio of hillslope width to hillslope area (m m-2)
-    length2area = tan_slope*contourLength/DOMarea
+    length2area = tan_slope*contourLength/area
 
     ! compute the ratio of layer depth to maximum water holding capacity (-)
     depth2capacity(1:nSoil) = mLayerDepth(1:nSoil)/sum( (theta_sat(1:nSoil) - fieldCapacity_use)*mLayerDepth(1:nSoil) )

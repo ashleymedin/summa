@@ -85,6 +85,9 @@ subroutine glacAreaChange(&
                     ! mass balance
                     massChange,              & ! intent(in):    rchange in glacier water equivalent (kg m-2) in each glacier domain over the nYears
                     elev,                    & ! intent(inout): elevation in each glacier domain (m)
+                    tan_slope,               & ! intent(inout): tan local ground surface slope of the domain (m/m)
+                    aspect,                  & ! intent(inout): azimuth in degrees East of North of the domain (degrees)
+                    contourLength,           & ! intent(inout): length of contour at downslope edge of the domain (m)
                     ! debris
                     debris_thick_dom,        & ! intent(inout): debris thickness in each glacier domain (m)
                     iden_soil_mean,          & ! intent(in):    mean intrinsic density of soil in each glacier domain (kg m-3)
@@ -116,6 +119,9 @@ subroutine glacAreaChange(&
   ! mass balance, realMissing value if domain is missing (i.e. glacier does not have one of ablation or accumulation)
   real(rkind), intent(in)            :: massChange(:)                   ! change in glacier water equivalent (kg m-2) in each glacier domain
   real(rkind), intent(inout)         :: elev(:)                         ! elevation of each glacier domain (m)
+  real(rkind), intent(inout)         :: tan_slope(:)                    ! tan local ground surface slope of the domain (m/m)
+  real(rkind), intent(inout)         :: aspect(:)                       ! azimuth in degrees East of North of the domain (degrees)
+  real(rkind), intent(inout)         :: contourLength(:)                ! length of contour at downslope edge of the domain (m)
   ! debris
   real(rkind), intent(inout)         :: debris_thick_dom(:)             ! debris thickness in glacier domain (m)
   real(rkind), intent(in)            :: iden_soil_mean(:)               ! mean intrinsic density of soil (kg m-3)
@@ -135,6 +141,10 @@ subroutine glacAreaChange(&
   real(rkind)                        :: area0(nDOM)                     ! initial area of each glacier domain (m2)
   real(rkind), allocatable           :: surface(:,:)                    ! surface elevation of each glacier domain (m)
   real(rkind), allocatable           :: bed(:,:)                        ! bed elevation of each glacier domain (m)
+  real(rkind), allocatable           :: cell_tan_slope(:,:)             ! tan local ground surface slope for each glacier cell (m/m)
+  real(rkind), allocatable           :: cell_aspect(:,:)                ! aspect for each glacier cell as compass bearing (degrees)
+  real(rkind), allocatable           :: dzdx(:,:)                       ! x-gradient of glacier surface elevation (m/m)
+  real(rkind), allocatable           :: dzdy(:,:)                       ! y-gradient of glacier surface elevation (m/m)
   integer(i4b), allocatable          :: cell2hru(:,:)                   ! index mapping from grid cells to HRUs
   integer(i4b), allocatable          :: glacierMask(:,:)                ! 1-0 mask of glacier domain
   real(rkind), allocatable           :: debris(:,:)                     ! debris thickness of each glacier cell (m)
@@ -168,6 +178,11 @@ subroutine glacAreaChange(&
   real(rkind)                        :: cumulativeArea                  ! cumulative area for clean glacier area
   integer(i4b)                       :: numCells                        ! number of cells in glacier grid
   real(rkind)                        :: areaAdd                         ! area to add to each clean high glacier domain
+  real(rkind)                        :: aspect_sin_sum(nDOM)            ! running sine sum for area-weighted domain aspect averaging
+  real(rkind)                        :: aspect_cos_sum(nDOM)            ! running cosine sum for area-weighted domain aspect averaging
+  real(rkind),parameter              :: flat_threshold=1.e-6_rkind      ! threshold below which terrain is treated as flat for aspect
+  real(rkind),parameter              :: deg2rad=PI_D/180._rkind         ! factor to convert degrees to radians
+  real(rkind),parameter              :: rad2deg=180._rkind/PI_D         ! factor to convert radians to degrees
   real(rkind),parameter              :: min_thickness=0.02_rkind        ! minimum thickness of debris cover to be considered as debris cover (m)
   logical(lgt),parameter             :: printFlag=.true.               ! flag to print details for debugging
 
@@ -180,6 +195,8 @@ subroutine glacAreaChange(&
   validCount = 0_i4b
   iden_soil = 0._rkind
   theta_sat = 0._rkind
+  aspect_sin_sum = 0._rkind
+  aspect_cos_sum = 0._rkind
 
   ! Make one mass balance regression for debris 0 and less than 0 (accumulation and clean ablation)
   !  and another mass balance regression for debris 0 and greater than 0 (accumulation and debris ablation)
@@ -316,6 +333,9 @@ subroutine glacAreaChange(&
     area(i) = 0._rkind
     ablFrac(i) = 0._rkind
     elev(i) = 0._rkind
+    tan_slope(i) = 0._rkind
+    aspect(i) = 0._rkind
+    contourLength(i) = 0._rkind
     debris_thick_dom(i) = 0._rkind
   enddo
 
@@ -347,7 +367,8 @@ subroutine glacAreaChange(&
     allocate(hgt(nx,ny), glacClnMask(nx,ny), glacHiMask(nx,ny), glacLoMask(nx,ny), glacDbrMask(nx,ny), glacAblMask(nx,ny))
 
     ! set up grid data
-    allocate(surface(nx,ny), bed(nx,ny), cell2hru(nx,ny), glacierMask(nx,ny), debris(nx,ny))
+    allocate(surface(nx,ny), bed(nx,ny), cell_tan_slope(nx,ny), cell_aspect(nx,ny), dzdx(nx,ny), dzdy(nx,ny), &
+         cell2hru(nx,ny), glacierMask(nx,ny), debris(nx,ny))
     surface = gridData%grid(iGrid)%var(iLookGRID%surface_elev)%dat2(1:nx,1:ny)
     bed = gridData%grid(iGrid)%var(iLookGRID%bed_elev)%dat2(1:nx,1:ny)
     debris = gridData%grid(iGrid)%var(iLookGRID%debris_thick)%dat2(1:nx,1:ny)
@@ -375,6 +396,30 @@ subroutine glacAreaChange(&
     ! update basin variables
     totVolume = totVolume+volume ! add volume to total volume, includes debris, not currently used
     hgt = surface - bed
+
+    ! recalculate tan_slope and aspect as one-sided differences at the edges and centered differences in the interior
+    dzdx = 0._rkind
+    dzdy = 0._rkind
+    if(nx > 1)then
+      dzdx(1,:) = (surface(2,:) - surface(1,:)) / dx
+      dzdx(nx,:) = (surface(nx,:) - surface(nx-1,:)) / dx
+      if(nx > 2) dzdx(2:nx-1,:) = (surface(3:nx,:) - surface(1:nx-2,:)) / (2._rkind*dx)
+    endif
+    if(ny > 1)then
+      dzdy(:,1) = (surface(:,2) - surface(:,1)) / dy
+      dzdy(:,ny) = (surface(:,ny) - surface(:,ny-1)) / dy
+      if(ny > 2) dzdy(:,2:ny-1) = (surface(:,3:ny) - surface(:,1:ny-2)) / (2._rkind*dy)
+    endif
+    cell_tan_slope = sqrt(dzdx**2_i4b + dzdy**2_i4b)
+    cell_aspect = 0._rkind
+    where(.not.(glacierMask==1_i4b .and. hgt>thick4area))
+      cell_tan_slope = 0._rkind
+    elsewhere(cell_tan_slope >= flat_threshold)
+      cell_aspect = modulo(90._rkind - atan2(-dzdx, dzdy)*rad2deg, 360._rkind)
+    elsewhere
+      cell_aspect = 0._rkind
+    end where
+
     glacierAccArea(iGlac) = sum(merge(1_i4b, 0_i4b, hgt>thick4area .and. surface>= ELA_use_glac))*dx*dy
     glacierAblArea(iGlac) = sum(merge(1_i4b, 0_i4b, hgt>thick4area .and. surface<  ELA_use_glac))*dx*dy
     ! debugging print
@@ -448,15 +493,23 @@ subroutine glacAreaChange(&
           ! Set the mask for the other domain
           glacLoMask = merge(glacClnMask, 0_i4b, glacHiMask == 0_i4b)
 
-          ! Calculate areas, elevations, and debris thickness for 2 clean domains
+          ! Calculate areas, elevations, slopes, aspects, contour lengths, and debris thickness for 2 clean domains
           area(hiInd) = area(hiInd) + sum(glacHiMask)*dx*dy
           elev(hiInd) = elev(hiInd) + sum(surface * glacHiMask) *dx*dy
+          tan_slope(hiInd) = tan_slope(hiInd) + sum(cell_tan_slope, mask=glacHiMask==1_i4b) *dx*dy
+          aspect_sin_sum(hiInd) = aspect_sin_sum(hiInd) + sum(sin(cell_aspect*deg2rad), mask=glacHiMask==1_i4b .and. cell_tan_slope>=flat_threshold) *dx*dy
+          aspect_cos_sum(hiInd) = aspect_cos_sum(hiInd) + sum(cos(cell_aspect*deg2rad), mask=glacHiMask==1_i4b .and. cell_tan_slope>=flat_threshold) *dx*dy
+          contourLength(hiInd) = contourLength(hiInd) + sqrt(sum(glacHiMask)*dx*dy)
           glacAblMask = merge(glacHiMask, 0_i4b, cell2hru==hruInd(n) .and. hgt>thick4area .and. surface< ELA_use_glac)
           ablFrac(hiInd) = ablFrac(hiInd)+ sum(glacAblMask) *dx*dy
           debris_thick_dom(hiInd) = 0._rkind
 
           area(loInd) = area(loInd) + sum(glacLoMask)*dx*dy
           elev(loInd) = elev(loInd) + sum(surface * glacLoMask) *dx*dy
+          tan_slope(loInd) = tan_slope(loInd) + sum(cell_tan_slope, mask=glacLoMask==1_i4b) *dx*dy
+          aspect_sin_sum(loInd) = aspect_sin_sum(loInd) + sum(sin(cell_aspect*deg2rad), mask=glacLoMask==1_i4b .and. cell_tan_slope>=flat_threshold) *dx*dy
+          aspect_cos_sum(loInd) = aspect_cos_sum(loInd) + sum(cos(cell_aspect*deg2rad), mask=glacLoMask==1_i4b .and. cell_tan_slope>=flat_threshold) *dx*dy
+          contourLength(loInd) = contourLength(loInd) + sqrt(sum(glacLoMask)*dx*dy)
           glacAblMask = merge(glacLoMask, 0_i4b, cell2hru==hruInd(n) .and. hgt>thick4area .and. surface< ELA_use_glac)
           ablFrac(loInd) = ablFrac(loInd)+ sum(glacAblMask) *dx*dy
           debris_thick_dom(loInd) = 0._rkind
@@ -464,6 +517,10 @@ subroutine glacAreaChange(&
           n = n+1 ! now n is last index of clean domains
           area(n) = area(n) + sum(glacClnMask)*dx*dy
           elev(n) = elev(n) + sum(surface * glacClnMask) *dx*dy
+          tan_slope(n) = tan_slope(n) + sum(cell_tan_slope, mask=glacClnMask==1_i4b) *dx*dy
+          aspect_sin_sum(n) = aspect_sin_sum(n) + sum(sin(cell_aspect*deg2rad), mask=glacClnMask==1_i4b .and. cell_tan_slope>=flat_threshold) *dx*dy
+          aspect_cos_sum(n) = aspect_cos_sum(n) + sum(cos(cell_aspect*deg2rad), mask=glacClnMask==1_i4b .and. cell_tan_slope>=flat_threshold) *dx*dy
+          contourLength(n) = contourLength(n) + sqrt(sum(glacClnMask)*dx*dy)
           debris_thick_dom(n) = 0._rkind
           glacAblMask = merge(glacClnMask, 0_i4b, cell2hru==hruInd(n) .and. hgt>thick4area .and. surface< ELA_use_glac)
           ablFrac(n) = ablFrac(n)+ sum(glacAblMask) *dx*dy
@@ -474,6 +531,10 @@ subroutine glacAreaChange(&
         n = n+1 ! currently only one debris domain possible, now n is last index of debris domains
         area(n) = area(n) + sum(glacDbrMask)*dx*dy
         elev(n) = elev(n) + sum(surface * glacDbrMask) *dx*dy
+        tan_slope(n) = tan_slope(n) + sum(cell_tan_slope, mask=glacDbrMask==1_i4b) *dx*dy
+        aspect_sin_sum(n) = aspect_sin_sum(n) + sum(sin(cell_aspect*deg2rad), mask=glacDbrMask==1_i4b .and. cell_tan_slope>=flat_threshold) *dx*dy
+        aspect_cos_sum(n) = aspect_cos_sum(n) + sum(cos(cell_aspect*deg2rad), mask=glacDbrMask==1_i4b .and. cell_tan_slope>=flat_threshold) *dx*dy
+        contourLength(n) = contourLength(n) + sqrt(sum(glacDbrMask)*dx*dy)
         debris_thick_dom(n) = debris_thick_dom(n) + sum(debris * glacDbrMask) *dx*dy
         glacAblMask = merge(glacDbrMask, 0_i4b, cell2hru==hruInd(n) .and. hgt>thick4area .and. surface< ELA_use_glac)
         ablFrac(n) = ablFrac(n)+ sum(glacAblMask) *dx*dy ! should be 1.0
@@ -483,7 +544,8 @@ subroutine glacAreaChange(&
     ! update gridData and deallocate
     gridData%grid(iGrid)%var(iLookGRID%surface_elev)%dat2(1:nx,1:ny) = surface
     gridData%grid(iGrid)%var(iLookGRID%debris_thick)%dat2(1:nx,1:ny) = debris
-    deallocate(hgt, surface, bed, cell2hru, glacierMask, debris, glacClnMask, glacHiMask, glacLoMask, glacDbrMask, glacAblMask)
+    deallocate(hgt, surface, bed, cell_tan_slope, cell_aspect, dzdx, dzdy, cell2hru, glacierMask, debris, &
+           glacClnMask, glacHiMask, glacLoMask, glacDbrMask, glacAblMask)
 
   enddo ! end of glacier loop
 
@@ -492,11 +554,21 @@ subroutine glacAreaChange(&
     if(elev(iDOM)==0._rkind) elev(iDOM)=realMissing
     if(area(iDOM)>0._rkind)then 
       elev(iDOM) = elev(iDOM) / area(iDOM)
+      tan_slope(iDOM) = tan_slope(iDOM) / area(iDOM)
+      contourLength(iDOM) = contourLength(iDOM) / area(iDOM)
+      if(aspect_sin_sum(iDOM)**2 + aspect_cos_sum(iDOM)**2 > 0._rkind)then
+        aspect(iDOM) = modulo(atan2(aspect_sin_sum(iDOM), aspect_cos_sum(iDOM))*rad2deg, 360._rkind)
+      else
+        aspect(iDOM) = 0._rkind
+      endif
       ablFrac(iDOM) = ablFrac(iDOM) / area(iDOM)
       debris_thick_dom(iDOM) = debris_thick_dom(iDOM) / area(iDOM)
     else
       area(iDOM) = 0._rkind
+      tan_slope(iDOM) = realMissing
+      aspect(iDOM) = realMissing
       ablFrac(iDOM) = 0._rkind
+      contourLength(iDOM) = 0._rkind
       debris_thick_dom(iDOM) = 0._rkind
     endif
   enddo
@@ -586,10 +658,9 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
       return
     endif
 
-    ! get mass balance rate over surface (m s-1)
+    ! get mass balance rate over surface (m s-1) and remove debris from glacier surface for flow calculation
     m_dot = massBalance(S, debris, glacierMask, slope, intercept, t_total, validElev, validCount, maxCount, nx, ny)
-    
-    S = S - debris ! remove debris from glacier surface for flow calculation
+    S = S - debris
 
     ! Call a step of the diffusion scheme
     call diffusion_MUSCL(S, B, glacierMask, gamma, n, cfl, max_dt, nx, ny, dx, dy, div_q, dt_cfl)
@@ -629,11 +700,11 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
   ! debugging print
   if(printFlag)then 
     if(count(H>thick4area)>0_i4b)&
-        write(*,'(a,f4.2,a,2(1x,f6.1),a,2(1x,f6.2))') "  time (yr) = ", t/secprday/365.25_rkind, " mean max H (m) =", &
+        write(*,'(a,f4.2,a,2(1x,f6.1),a,2(1x,f6.2))') " time (yr) = ", t/secprday/365.25_rkind, " mean max H (m) =", &
               sum(H)/count(H>thick4area), maxval(H), ", mean max debris (m) =", sum(debris)/count(H>thick4area), maxval(debris)
   endif
   if(count(H>thick4area)==0_i4b)then
-    if(printFlag) write(*,'(a,f4.2,a)') "  time (yr) = ", t/secprday/365.25_rkind, " no glacier present"
+    if(printFlag) write(*,'(a,f4.2,a)') " time (yr) = ", t/secprday/365.25_rkind, " no glacier present"
     debris = 0._rkind
     S = B
     return
@@ -1263,6 +1334,9 @@ subroutine updateGlacDomain(&
                   iglac,               & ! intent(inout): glacier domain index
                   glac_elev,           & ! intent(in):    elevation of each glacier domain (m) per HRU
                   glac_area,           & ! intent(in):    area of each glacier domain (m2)
+                  glac_tan_slope,      & ! intent(in):    tan local ground surface slope of the domain (m/m)
+                  glac_aspect,         & ! intent(in):    azimuth in degrees East of North of the domain (degrees)
+                  glac_contourLength,  & ! intent(in):    length of contour at downslope edge of the domain (m)
                   glac_ablFrac,        & ! intent(in):    fraction of glacier domain area that is ablating
                   glac_debris_thick,   & ! intent(in):    debris thickness of each glacier domain (m) per HRU
                   dom_type,            & ! intent(in):    domain type
@@ -1286,6 +1360,9 @@ subroutine updateGlacDomain(&
   integer(i4b), intent(inout)     :: iglac                   ! glacier domain index
   real(rkind), intent(in)         :: glac_elev(:)             ! elevation of each glacier domain (m) per HRU
   real(rkind), intent(in)         :: glac_area(:)             ! area of each glacier domain (m2)
+  real(rkind), intent(in)         :: glac_tan_slope(:)        ! tan local ground surface slope of the domain (m/m)
+  real(rkind), intent(in)         :: glac_aspect(:)           ! azimuth in degrees East of North of the domain (degrees)
+  real(rkind), intent(in)         :: glac_contourLength(:)    ! length of contour at downslope edge of the domain (m)
   real(rkind), intent(in)         :: glac_ablFrac(:)          ! fraction of glacier domain area that is ablating
   real(rkind), intent(in)         :: glac_debris_thick(:)     ! debris thickness of each glacier domain (m) per HRU
   integer(i4b), intent(in)        :: dom_type                 ! domain type
@@ -1316,7 +1393,10 @@ subroutine updateGlacDomain(&
     ! glacier domain variables
    glacMass4AreaChange  => prog_data%var(iLookPROG%glacMass4AreaChange)%dat(1), & ! mass change (kg m-2)
    DOMarea              => prog_data%var(iLookPROG%DOMarea)%dat(1),             & ! area of each domain (m2)
-   DOMelev              => prog_data%var(iLookPROG%DOMelev)%dat(1),             & ! elevation of each glacier domain (m)
+   DOMelev              => prog_data%var(iLookPROG%DOMelev)%dat(1),             & ! elevation of each domain (m)
+   DOMtan_slope         => prog_data%var(iLookPROG%DOMtan_slope)%dat(1),        & ! tan local ground surface slope of the domain (m/m)
+   DOMaspect            => prog_data%var(iLookPROG%DOMaspect)%dat(1),           & ! azimuth in degrees East of North of the domain (degrees)
+   DOMcontourLength     => prog_data%var(iLookPROG%DOMcontourLength)%dat(1),    & ! length of contour at downslope edge of the domain (m)
    scalarAblFrac        => prog_data%var(iLookPROG%scalarAblFrac)%dat(1)        & ! fraction of glacier domain area that is ablating
    ) ! end associate
    ! ----------------------------------------------------------------------------------------------
@@ -1327,6 +1407,9 @@ subroutine updateGlacDomain(&
    ! update glacier domain elevation, area, and ablating fraction and reset mass change
    DOMelev = glac_elev(iglac) ! realMissing if no area
    DOMarea = glac_area(iglac) ! may be 0
+   DOMtan_slope = glac_tan_slope(iglac) ! realMissing if no area
+   DOMaspect = glac_aspect(iglac) ! realMissing if no area
+   DOMcontourLength = glac_contourLength(iglac) ! may be 0
    scalarAblFrac = glac_ablFrac(iglac) ! may be 0
    glacMass4AreaChange = 0._rkind ! reset
 

@@ -505,6 +505,9 @@ contains
   case('iLayerHeight'                   ); get_ixProg = iLookPROG%iLayerHeight                     ! height at the interface of each layer (m)
   case('DOMarea'                        ); get_ixProg = iLookPROG%DOMarea                          ! area of the domain (m2)
   case('DOMelev'                        ); get_ixProg = iLookPROG%DOMelev                          ! elevation of the domain (m)
+  case('DOMtan_slope'                   ); get_ixProg = iLookPROG%DOMtan_slope                     ! tan local ground surface slope of the domain (-)
+  case('DOMaspect'                      ); get_ixProg = iLookPROG%DOMaspect                        ! azimuth in degrees East of North of the domain (degrees)
+  case('DOMcontourLength'               ); get_ixProg = iLookPROG%DOMcontourLength                 ! length of contour at downslope edge of the domain (m)
   case('scalarAblFrac'                  ); get_ixProg = iLookPROG%scalarAblFrac                    ! fraction of the domain that is in a glacier ablation zone (-)
   ! get to here if cannot find the variable
   case default

@@ -375,6 +375,9 @@ subroutine popMetadat(err,message)
   prog_meta(iLookPROG%iLayerHeight)                    = var_info('iLayerHeight'                   , 'height of the layer interface (top of soil = 0)'                  , 'm'               , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   prog_meta(iLookPROG%DOMarea)                         = var_info('DOMarea'                        , 'area of the domain'                                               , 'm2'              , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   prog_meta(iLookPROG%DOMelev)                         = var_info('DOMelev'                        , 'elevation of the domain'                                          , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  prog_meta(iLookPROG%DOMtan_slope)                    = var_info('DOMtan_slope'                   , 'tan local ground surface slope of the domain'                             , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  prog_meta(iLookPROG%DOMaspect)                       = var_info('DOMaspect'                      , 'azimuth in degrees East of North of the domain'                             , 'degrees'         , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  prog_meta(iLookPROG%DOMcontourLength)                = var_info('DOMcontourLength'               , 'length of contour at downslope edge of the domain'                 , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   prog_meta(iLookPROG%scalarAblFrac)                   = var_info('scalarAblFrac'                  , 'fraction of the domain that is in a glacier ablation zone'        , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * local model diagnostic variables...

@@ -145,8 +145,8 @@ contains
  ! radiation geometry variables
  latitude                => attr_data%var(iLookATTR%latitude)                     , & ! latitude (degrees north)
  longitude               => attr_data%var(iLookATTR%longitude)                    , & ! longitude (degrees east)
- tan_slope               => attr_data%var(iLookATTR%tan_slope)                    , & ! tan HRU ground surface slope (-)
- aspect                  => attr_data%var(iLookATTR%aspect)                       , & ! mean azimuth of HRU in degrees E of N (degrees)
+ tan_slope               => prog_data%var(iLookPROG%DOMtan_slope)%dat(1)          , & ! tan domain ground surface slope (-)
+ aspect                  => prog_data%var(iLookPROG%DOMaspect)%dat(1)             , & ! mean azimuth of HRU in degrees E of N (degrees)
  cosZenith               => diag_data%var(iLookDIAG%scalarCosZenith)%dat(1)       , & ! average cosine of the zenith angle over time step DT
  ! elevation variables to adjust forcings (assuming forcings are at the HRU mean elevation)
  elevation               => attr_data%var(iLookATTR%elevation)                    , & ! mean elevation of HRU (m)
