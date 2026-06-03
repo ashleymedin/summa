@@ -268,6 +268,9 @@ The restart file does not have a time dimension, since it represents a specific 
 | nLake | hru, dom | int | - |  Number of lake layers |
 | DOMarea | scalarv, hru, dom | m2 | Area of the domain |
 | DOMelev | scalarv, hru, dom | m2 | Elevation of the domain |
+| DOMtan_slope | scalarv, hru, dom | - | tan local ground surface slope of the domain |
+| DOMaspect | scalarv, hru, dom | degrees| azimuth in degrees East of North of the domain |
+| DOMcontourLength | scalarv, hru, dom | m | length of contour at downslope edge of the domain |
 | scalarCanopyIce | scalarv, hru, dom | double | kg m-2 | Mass of ice on the vegetation canopy |
 | scalarCanopyLiq | scalarv, hru, dom | double | kg m-2 | Mass of liquid water on the vegetation canopy |
 | scalarCanairTemp | scalarv, hru, dom | double | Pa | Temperature of the canopy air space |

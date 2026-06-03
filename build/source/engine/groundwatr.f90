@@ -28,14 +28,12 @@ USE multiconst,only:iden_water   ! density of water (kg m-3)
 
 ! derived types to define the data structures
 USE data_types,only:&
-                    var_d,              & ! data vector (rkind)
                     var_dlength,        & ! data vector with variable length dimension (rkind)
                     in_type_groundwatr, & ! intent(in) arguments for groundwatr call
                     io_type_groundwatr, & ! intent(inout) arguments for groundwatr call
                     out_type_groundwatr   ! intent(out) arguments for groundwatr call
 
 ! named variables defining elements in the data structures
-USE var_lookup,only:iLookATTR    ! named variables for structure elements
 USE var_lookup,only:iLookPROG    ! named variables for structure elements
 USE var_lookup,only:iLookDIAG    ! named variables for structure elements
 USE var_lookup,only:iLookFLUX    ! named variables for structure elements
@@ -74,7 +72,6 @@ subroutine groundwatr(&
                       ! input: model control, state variables, and diagnostic variables
                       in_groundwatr,                          & ! intent(in): model control, state variables, and diagnostic variables
                       ! input/output: data structures
-                      attr_data,                              & ! intent(in):    spatial attributes
                       mpar_data,                              & ! intent(in):    model parameters
                       prog_data,                              & ! intent(in):    model prognostic variables for a local HRU
                       flux_data,                              & ! intent(inout): model fluxes for a local HRU
@@ -93,7 +90,6 @@ subroutine groundwatr(&
   ! input: model control, state variables, and diagnostic variables
   type(in_type_groundwatr),intent(in)    :: in_groundwatr     ! model control, state variables, and diagnostic variables   
   ! input-output: data structures
-  type(var_d),intent(in)                 :: attr_data         ! spatial attributes
   type(var_dlength),intent(in)           :: mpar_data         ! model parameters
   type(var_dlength),intent(in)           :: prog_data         ! prognostic variables for a local HRU
   type(var_dlength),intent(inout)        :: flux_data         ! model fluxes for a local HRU
@@ -181,7 +177,6 @@ subroutine groundwatr(&
                           mLayerVolFracLiq,        & ! intent(in):    volumetric fraction of liquid water in each soil layer (-)
                           mLayerVolFracIce,        & ! intent(in):    volumetric fraction of ice in each soil layer (-)
                           ! input/output: data structures
-                          attr_data,               & ! intent(in):    spatial attributes
                           mpar_data,               & ! intent(in):    model parameters
                           prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                           flux_data,               & ! intent(inout): model fluxes for a local HRU
@@ -215,7 +210,6 @@ subroutine computBaseflow(&
                           mLayerVolFracLiq,              & ! intent(in):    volumetric fraction of liquid water in each soil layer (-)
                           mLayerVolFracIce,              & ! intent(in):    volumetric fraction of ice in each soil layer (-)
                           ! input/output: data structures
-                          attr_data,                     & ! intent(in):    spatial attributes
                           mpar_data,                     & ! intent(in):    model parameters
                           prog_data,                     & ! intent(in):    model prognostic variables for a local HRU
                           flux_data,                     & ! intent(inout): model fluxes for a local HRU
@@ -236,7 +230,6 @@ subroutine computBaseflow(&
   real(rkind),intent(in)           :: mLayerVolFracLiq(:)     ! volumetric fraction of liquid water (-)
   real(rkind),intent(in)           :: mLayerVolFracIce(:)     ! volumetric fraction of ice (-)
   ! input/output: data structures
-  type(var_d),intent(in)           :: attr_data               ! spatial attributes
   type(var_dlength),intent(in)     :: mpar_data               ! model parameters
   type(var_dlength),intent(in)     :: prog_data               ! prognostic variables for a local HRU
   type(var_dlength),intent(inout)  :: flux_data               ! model fluxes for a local HRU

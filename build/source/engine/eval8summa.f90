@@ -112,7 +112,6 @@ subroutine eval8summa(&
                       model_decisions,         & ! intent(in):    model decisions
                       lookup_data,             & ! intent(in):    lookup tables
                       type_data,               & ! intent(in):    type of vegetation and soil
-                      attr_data,               & ! intent(in):    spatial attributes
                       mpar_data,               & ! intent(in):    model parameters
                       forc_data,               & ! intent(in):    model forcing data
                       bvar_data,               & ! intent(in):    average model variables for the entire basin
@@ -170,7 +169,6 @@ subroutine eval8summa(&
   type(model_options),intent(in)  :: model_decisions(:)          ! model decisions
   type(zLookup),      intent(in)  :: lookup_data                 ! lookup tables
   type(var_i),        intent(in)  :: type_data                   ! type of vegetation and soil
-  type(var_d),        intent(in)  :: attr_data                   ! spatial attributes
   type(var_dlength),  intent(in)  :: mpar_data                   ! model parameters
   type(var_d),        intent(in)  :: forc_data                   ! model forcing data
   type(var_dlength),  intent(in)  :: bvar_data                   ! model variables for the local basin
@@ -553,7 +551,6 @@ subroutine eval8summa(&
                     ! input: data structures
                     model_decisions,           & ! intent(in):    model decisions
                     type_data,                 & ! intent(in):    type of vegetation and soil
-                    attr_data,                 & ! intent(in):    spatial attributes
                     mpar_data,                 & ! intent(in):    model parameters
                     forc_data,                 & ! intent(in):    model forcing data
                     bvar_data,                 & ! intent(in):    average model variables for the entire basin
@@ -732,7 +729,6 @@ integer(c_int) function eval8summa4kinsol(sunvec_y, sunvec_r, user_data) &
                 eqns_data%model_decisions,         & ! intent(in):    model decisions
                 eqns_data%lookup_data,             & ! intent(in):    lookup data
                 eqns_data%type_data,               & ! intent(in):    type of vegetation and soil
-                eqns_data%attr_data,               & ! intent(in):    spatial attributes
                 eqns_data%mpar_data,               & ! intent(in):    model parameters
                 eqns_data%forc_data,               & ! intent(in):    model forcing data
                 eqns_data%bvar_data,               & ! intent(in):    average model variables for the entire basin

@@ -124,7 +124,6 @@ subroutine computFlux(&
                       ! input: data structures
                       model_decisions,          & ! intent(in):    model decisions
                       type_data,                & ! intent(in):    type of vegetation and soil
-                      attr_data,                & ! intent(in):    spatial attributes
                       mpar_data,                & ! intent(in):    model parameters
                       forc_data,                & ! intent(in):    model forcing data
                       bvar_data,                & ! intent(in):    average model variables for the entire basin
@@ -180,7 +179,6 @@ subroutine computFlux(&
   ! input: data structures
   type(model_options),intent(in)     :: model_decisions(:)          ! model decisions
   type(var_i),        intent(in)     :: type_data                   ! type of vegetation and soil
-  type(var_d),        intent(in)     :: attr_data                   ! spatial attributes
   type(var_dlength),  intent(in)     :: mpar_data                   ! model parameters
   type(var_d),        intent(in)     :: forc_data                   ! model forcing data
   type(var_dlength),  intent(in)     :: bvar_data                   ! model variables for the local basin
@@ -307,7 +305,7 @@ subroutine computFlux(&
         call zeroBaseflowFluxes
       else ! compute the baseflow flux for topmodel-ish shallow groundwater or lateral flow for glacier debris
         call initialize_groundwatr; if(err/=0)then; return; endif
-        call groundwatr(in_groundwatr,attr_data,mpar_data,prog_data,flux_data,io_groundwatr,out_groundwatr)
+        call groundwatr(in_groundwatr,mpar_data,prog_data,flux_data,io_groundwatr,out_groundwatr)
         call finalize_groundwatr;   if(err/=0)then; return; endif
       end if
       call computBaseflowRunoff ! compute total baseflow from soil and runoff

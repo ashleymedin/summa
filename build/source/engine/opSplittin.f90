@@ -201,7 +201,6 @@ subroutine opSplittin(&
                       computeVegFlux,       & ! intent(in):    flag to denote if computing energy flux over vegetation
                        ! input/output: data structures
                       type_data,            & ! intent(in):    type of vegetation and soil
-                      attr_data,            & ! intent(in):    spatial attributes
                       forc_data,            & ! intent(in):    model forcing data
                       mpar_data,            & ! intent(in):    model parameters
                       indx_data,            & ! intent(inout): index data
@@ -242,7 +241,6 @@ subroutine opSplittin(&
   logical(lgt),intent(in)         :: computeVegFlux                 ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
   ! input/output: data structures
   type(var_i),intent(in)          :: type_data                      ! type of vegetation and soil
-  type(var_d),intent(in)          :: attr_data                      ! spatial attributes
   type(var_d),intent(in)          :: forc_data                      ! model forcing data
   type(var_dlength),intent(in)    :: mpar_data                      ! model parameters
   type(var_ilength),intent(inout) :: indx_data                      ! indices for a local HRU
@@ -933,7 +931,7 @@ subroutine opSplittin(&
    ! solve variable subset for one full time step
    call initialize_varSubstep
    call varSubstep(in_varSubstep,io_varSubstep,&                                            ! intent(inout): class objects for model control
-                   model_decisions,lookup_data,type_data,attr_data,forc_data,mpar_data,&    ! intent(inout): data structures for model properties
+                   model_decisions,lookup_data,type_data,forc_data,mpar_data,&              ! intent(inout): data structures for model properties
                    indx_data,prog_data,diag_data,flux_data,flux_mean,deriv_data,bvar_data,&
                    out_varSubstep)                                                          ! intent(out): class object for model control
    call finalize_varSubstep

@@ -101,7 +101,6 @@ subroutine varSubstep(&
                       model_decisions,   & ! intent(in)    : model decisions
                       lookup_data,       & ! intent(in)    : lookup tables
                       type_data,         & ! intent(in)    : type of vegetation and soil
-                      attr_data,         & ! intent(in)    : spatial attributes
                       forc_data,         & ! intent(in)    : model forcing data
                       mpar_data,         & ! intent(in)    : model parameters
                       indx_data,         & ! intent(inout) : index data
@@ -133,7 +132,6 @@ subroutine varSubstep(&
   type(model_options),intent(in)         :: model_decisions(:)        ! model decisions
   type(zLookup),intent(in)               :: lookup_data               ! lookup tables
   type(var_i),intent(in)                 :: type_data                 ! type of vegetation and soil
-  type(var_d),intent(in)                 :: attr_data                 ! spatial attributes
   type(var_d),intent(in)                 :: forc_data                 ! model forcing data
   type(var_dlength),intent(in)           :: mpar_data                 ! model parameters
   type(var_ilength),intent(inout)        :: indx_data                 ! indices for a local HRU
@@ -335,7 +333,6 @@ subroutine varSubstep(&
                       ! input/output: data structures
                       lookup_data,       & ! intent(in):    lookup tables
                       type_data,         & ! intent(in):    type of vegetation and soil
-                      attr_data,         & ! intent(in):    spatial attributes
                       forc_data,         & ! intent(in):    model forcing data
                       mpar_data,         & ! intent(in):    model parameters
                       indx_data,         & ! intent(inout): index data

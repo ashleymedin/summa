@@ -1073,7 +1073,6 @@ subroutine coupled_em(&
                       computeVegFlux,                         & ! intent(in):    logical flag to compute fluxes within the vegetation canopy
                       ! input/output: data structures
                       type_data,                              & ! intent(in):    type of vegetation and soil
-                      attr_data,                              & ! intent(in):    spatial attributes
                       forc_data,                              & ! intent(in):    model forcing data
                       mpar_data,                              & ! intent(in):    model parameters
                       indx_data,                              & ! intent(inout): index data

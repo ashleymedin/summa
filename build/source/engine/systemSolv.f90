@@ -122,7 +122,6 @@ subroutine systemSolv(&
                       ! input/output: data structures
                       lookup_data,       & ! intent(in):    lookup tables
                       type_data,         & ! intent(in):    type of vegetation and soil
-                      attr_data,         & ! intent(in):    spatial attributes
                       forc_data,         & ! intent(in):    model forcing data
                       mpar_data,         & ! intent(in):    model parameters
                       indx_data,         & ! intent(inout): index data
@@ -183,7 +182,6 @@ subroutine systemSolv(&
   ! input/output: data structures
   type(zLookup),intent(in)        :: lookup_data                   ! lookup tables
   type(var_i),intent(in)          :: type_data                     ! type of vegetation and soil
-  type(var_d),intent(in)          :: attr_data                     ! spatial attributes
   type(var_d),intent(in)          :: forc_data                     ! model forcing data
   type(var_dlength),intent(in)    :: mpar_data                     ! model parameters
   type(var_ilength),intent(inout) :: indx_data                     ! indices for a local HRU
@@ -475,7 +473,6 @@ contains
                     model_decisions,         & ! intent(in):    model decisions
                     lookup_data,             & ! intent(in):    lookup tables
                     type_data,               & ! intent(in):    type of vegetation and soil
-                    attr_data,               & ! intent(in):    spatial attributes
                     mpar_data,               & ! intent(in):    model parameters
                     forc_data,               & ! intent(in):    model forcing data
                     bvar_data,               & ! intent(in):    average model variables for the entire basin
@@ -539,7 +536,6 @@ contains
                     model_decisions,         & ! intent(in):    model decisions
                     lookup_data,             & ! intent(in):    lookup table data structure
                     type_data,               & ! intent(in):    type of vegetation and soil
-                    attr_data,               & ! intent(in):    spatial attributes
                     mpar_data,               & ! intent(in):    model parameters
                     forc_data,               & ! intent(in):    model forcing data
                     bvar_data,               & ! intent(in):    average model variables for the entire basin
@@ -587,12 +583,12 @@ contains
    )
    call in_SS4HG % initialize(dt_cur,dt,iter,nSnow,nLake,nSoil,nGlce,nLayers,nLeadDim,nState,ixMatrix,firstSubStep,computeVegFlux,scalarSolution,fOld)
    call io_SS4HG % initialize(firstFluxCall,xMin,xMax,ixSaturation)
-   call summaSolv4homegrown(in_SS4HG,&                                                                                ! input: model control
-                            &stateVecTrial,fScale,xScale,resVec,sMul,dMat,&                                            ! input: state vectors
-                            &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,& ! input: data structures
-                            &indx_data,diag_data,flux_temp,deriv_data,&                                                ! input-output: data structures
-                            &dBaseflow_dMatric,io_SS4HG,&                                                              ! input-output: baseflow
-                            &stateVecNew,fluxVec,resSink,resVecNew,tooMuchMelt,out_SS4HG)                              ! output
+   call summaSolv4homegrown(in_SS4HG,&                                                                       ! input: model control
+                            &stateVecTrial,fScale,xScale,resVec,sMul,dMat,&                                  ! input: state vectors
+                            &model_decisions,lookup_data,type_data,mpar_data,forc_data,bvar_data,prog_data,& ! input: data structures
+                            &indx_data,diag_data,flux_temp,deriv_data,&                                      ! input-output: data structures
+                            &dBaseflow_dMatric,io_SS4HG,&                                                    ! input-output: baseflow
+                            &stateVecNew,fluxVec,resSink,resVecNew,tooMuchMelt,out_SS4HG)                    ! output
    call io_SS4HG % finalize(firstFluxCall,xMin,xMax,ixSaturation)
    call out_SS4HG % finalize(fNew,converged,err,cmessage)                
   end associate
@@ -716,7 +712,6 @@ contains
                        model_decisions,         & ! intent(in):    model decisions
                        lookup_data,             & ! intent(in):    lookup data
                        type_data,               & ! intent(in):    type of vegetation and soil
-                       attr_data,               & ! intent(in):    spatial attributes
                        mpar_data,               & ! intent(in):    model parameters
                        forc_data,               & ! intent(in):    model forcing data
                        bvar_data,               & ! intent(in):    average model variables for the entire basin
@@ -809,7 +804,6 @@ contains
                           model_decisions,         & ! intent(in):    model decisions
                           lookup_data,             & ! intent(in):    lookup tables
                           type_data,               & ! intent(in):    type of vegetation and soil
-                          attr_data,               & ! intent(in):    spatial attributes
                           mpar_data,               & ! intent(in):    model parameters
                           forc_data,               & ! intent(in):    model forcing data
                           bvar_data,               & ! intent(in):    average model variables for the entire basin

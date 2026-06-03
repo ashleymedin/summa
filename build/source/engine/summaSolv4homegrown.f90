@@ -102,7 +102,6 @@ contains
                        model_decisions,         & ! intent(in):    model decisions
                        lookup_data,             & ! intent(in):    lookup tables
                        type_data,               & ! intent(in):    type of vegetation and soil
-                       attr_data,               & ! intent(in):    spatial attributes
                        mpar_data,               & ! intent(in):    model parameters
                        forc_data,               & ! intent(in):    model forcing data
                        bvar_data,               & ! intent(in):    average model variables for the entire basin
@@ -140,7 +139,6 @@ contains
  type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
  type(zLookup),      intent(in)  :: lookup_data               ! lookup tables
  type(var_i),        intent(in)  :: type_data                 ! type of vegetation and soil
- type(var_d),        intent(in)  :: attr_data                 ! spatial attributes
  type(var_dlength),  intent(in)  :: mpar_data                 ! model parameters
  type(var_d),        intent(in)  :: forc_data                 ! model forcing data
  type(var_dlength),  intent(in)  :: bvar_data                 ! model variables for the local basin
@@ -227,13 +225,13 @@ contains
 
   subroutine update_summaSolv4homegrown
    ! *** Update steps for the summaSolv4homegrown algorithm (computing the Newton step) ***
-   call solve_linear_system;             if (return_flag) return ! solve the linear system for the Newton step -- return if error
-  
+   call solve_linear_system; if (return_flag) return ! solve the linear system for the Newton step -- return if error
+
    ! refine Newton step if needed
-   call refine_Newton_step(in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&         ! input
-                          &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,& ! input
-                          &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&                ! input-output
-                          &stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SS4HG,return_flag)            ! output
+   call refine_Newton_step(in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,& ! input
+                          &model_decisions,lookup_data,type_data,mpar_data,forc_data,bvar_data,prog_data,&   ! input
+                          &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&        ! input-output
+                          &stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SS4HG,return_flag)    ! output
    if (return_flag) return ! return if error
   end subroutine update_summaSolv4homegrown
 
@@ -331,10 +329,10 @@ contains
  ! *********************************************************************************************************
  ! * module subroutine refine_Newton_step: refine the Newton step if necessary
  ! *********************************************************************************************************
- subroutine refine_Newton_step(in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&         ! input
-                              &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,& ! input
-                              &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&                ! input-output
-                              &stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SS4HG,return_flag)            ! output
+ subroutine refine_Newton_step(in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,& ! input
+                              &model_decisions,lookup_data,type_data,mpar_data,forc_data,bvar_data,prog_data,&   ! input
+                              &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&        ! input-output
+                              &stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SS4HG,return_flag)    ! output
   ! provide access to the external procedures
   USE matrixOper_module, only: computGradient
   USE eval8summa_module, only: imposeConstraints
@@ -351,7 +349,6 @@ contains
   type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
   type(zLookup),      intent(in)  :: lookup_data               ! lookup tables
   type(var_i),        intent(in)  :: type_data                 ! type of vegetation and soil
-  type(var_d),        intent(in)  :: attr_data                 ! spatial attributes
   type(var_dlength),  intent(in)  :: mpar_data                 ! model parameters
   type(var_d),        intent(in)  :: forc_data                 ! model forcing data
   type(var_dlength),  intent(in)  :: bvar_data                 ! model variables for the local basin
@@ -414,7 +411,7 @@ contains
      case(ixLineSearch)  
       call in_LSR % initialize(doRefine,fOld)    
       call lineSearchRefinement(in_LSR,in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&  ! input
-                               &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,& ! input
+                               &model_decisions,lookup_data,type_data,mpar_data,forc_data,bvar_data,prog_data,&           ! input
                                &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&                ! input-output
                                &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,out_LSR)                            ! output
       call out_LSR % finalize(fNew,converged,err,cmessage)
@@ -431,7 +428,7 @@ contains
      doRefine=.false.;
      call in_LSR % initialize(doRefine,fOld)    
      call lineSearchRefinement(in_LSR,in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&  ! input
-                              &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,& ! input
+                              &model_decisions,lookup_data,type_data,mpar_data,forc_data,bvar_data,prog_data,&           ! input
                               &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&                ! input-output
                               &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,out_LSR)                            ! output
      call out_LSR % finalize(fNew,converged,err,cmessage)
@@ -440,7 +437,7 @@ contains
    ! * case 2: scalar
    else
     call safeRootfinder(mSoil,stateVecTrial,rVecScaled,newtStepScaled,fScale,xScale,&              ! input
-                       &in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&                 ! input
+                       &in_SS4HG,model_decisions,lookup_data,type_data,&                           ! input
                        &mpar_data,forc_data,bvar_data,prog_data,&                                  ! input
                        &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,& ! input-output
                        &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SRF) ! output
@@ -457,7 +454,7 @@ contains
  ! * module subroutine lineSearchRefinement: refine the iteration increment using line searches
  ! *********************************************************************************************************
  subroutine lineSearchRefinement(in_LSR,in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&
-                                &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&
+                                &model_decisions,lookup_data,type_data,mpar_data,forc_data,bvar_data,prog_data,&
                                 &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
                                 &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,out_LSR)
   ! provide access to the external procedures
@@ -477,7 +474,6 @@ contains
   type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
   type(zLookup),      intent(in)  :: lookup_data               ! lookup tables
   type(var_i),        intent(in)  :: type_data                 ! type of vegetation and soil
-  type(var_d),        intent(in)  :: attr_data                 ! spatial attributes
   type(var_dlength),  intent(in)  :: mpar_data                 ! model parameters
   type(var_d),        intent(in)  :: forc_data                 ! model forcing data
   type(var_dlength),  intent(in)  :: bvar_data                 ! model variables for the local basin
@@ -573,7 +569,7 @@ contains
     ! compute the residual vector and function
     ! NOTE: This calls eval8summa in a wrapper subroutine
     call eval8summa_wrapper(stateVecNew,fScale,in_SS4HG,model_decisions,&
-                           &lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&
+                           &lookup_data,type_data,mpar_data,forc_data,bvar_data,prog_data,&
                            &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
                            &fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,cmessage)
     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
@@ -738,7 +734,7 @@ contains
  ! * module subroutine safeRootfinder: refine the 1-d iteration increment using brackets
  ! *********************************************************************************************************
  subroutine safeRootfinder(mSoil,stateVecTrial,rVecscaled,newtStepScaled,fScale,xScale,&
-                          &in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&
+                          &in_SS4HG,model_decisions,lookup_data,type_data,&
                           &mpar_data,forc_data,bvar_data,prog_data,&
                           &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
                           &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SRF)
@@ -757,7 +753,6 @@ contains
   type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
   type(zLookup),      intent(in)  :: lookup_data               ! lookup tables
   type(var_i),        intent(in)  :: type_data                 ! type of vegetation and soil
-  type(var_d),        intent(in)  :: attr_data                 ! spatial attributes
   type(var_dlength),  intent(in)  :: mpar_data                 ! model parameters
   type(var_d),        intent(in)  :: forc_data                 ! model forcing data
   type(var_dlength),  intent(in)  :: bvar_data                 ! model variables for the local basin
@@ -840,7 +835,7 @@ contains
 
     ! get brackets if they do not exist
     if ( ieee_is_nan(xMin) .or. ieee_is_nan(xMax) ) then
-     call getBrackets(stateVecTrial,rVec,fScale,in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&
+     call getBrackets(stateVecTrial,rVec,fScale,in_SS4HG,model_decisions,lookup_data,type_data,&
                      &mpar_data,forc_data,bvar_data,prog_data,&
                      &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
                      &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,xMin,xMax,tooMuchMelt,err,cmessage)
@@ -874,7 +869,7 @@ contains
 
    ! evaluate summa
    call eval8summa_wrapper(stateVecNew,fScale,in_SS4HG,model_decisions,&
-                          &lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&
+                          &lookup_data,type_data,mpar_data,forc_data,bvar_data,prog_data,&
                           &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
                           &fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,cmessage)
    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
@@ -892,7 +887,7 @@ contains
  ! *********************************************************************************************************
  ! * module subroutine getBrackets: get the brackets for safeRootfinder
  ! *********************************************************************************************************
- subroutine getBrackets(stateVecTrial,rVec,fScale,in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&
+ subroutine getBrackets(stateVecTrial,rVec,fScale,in_SS4HG,model_decisions,lookup_data,type_data,&
                        &mpar_data,forc_data,bvar_data,prog_data,&
                        &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
                        &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,xMin,xMax,tooMuchMelt,err,message)
@@ -907,7 +902,6 @@ contains
   type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
   type(zLookup),      intent(in)  :: lookup_data               ! lookup tables
   type(var_i),        intent(in)  :: type_data                 ! type of vegetation and soil
-  type(var_d),        intent(in)  :: attr_data                 ! spatial attributes
   type(var_dlength),  intent(in)  :: mpar_data                 ! model parameters
   type(var_d),        intent(in)  :: forc_data                 ! model forcing data
   type(var_dlength),  intent(in)  :: bvar_data                 ! model variables for the local basin
@@ -970,7 +964,7 @@ contains
    ! evaluate summa
    associate(fNew => out_SS4HG % fNew)
     call eval8summa_wrapper(stateVecNew,fScale,in_SS4HG,model_decisions,&
-                           &lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&
+                           &lookup_data,type_data,mpar_data,forc_data,bvar_data,prog_data,&
                            &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
                            &fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,cmessage)
    end associate
@@ -1013,7 +1007,7 @@ contains
  ! *********************************************************************************************************
  ! NOTE: This is simply a wrapper routine for eval8summa, to reduce the number of calling arguments
  subroutine eval8summa_wrapper(stateVecNew,fScale,in_SS4HG,model_decisions,&
-                              &lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&
+                              &lookup_data,type_data,mpar_data,forc_data,bvar_data,prog_data,&
                               &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
                               &fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,message)
   USE eval8summa_module,only:eval8summa                        ! simulation of fluxes and residuals given a trial state vector
@@ -1025,7 +1019,6 @@ contains
   type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
   type(zLookup),      intent(in)  :: lookup_data               ! lookup tables
   type(var_i),        intent(in)  :: type_data                 ! type of vegetation and soil
-  type(var_d),        intent(in)  :: attr_data                 ! spatial attributes
   type(var_dlength),  intent(in)  :: mpar_data                 ! model parameters
   type(var_d),        intent(in)  :: forc_data                 ! model forcing data
   type(var_dlength),  intent(in)  :: bvar_data                 ! model variables for the local basin
@@ -1094,7 +1087,6 @@ contains
                    model_decisions,         & ! intent(in):    model decisions
                    lookup_data,             & ! intent(in):    lookup tables
                    type_data,               & ! intent(in):    type of vegetation and soil
-                   attr_data,               & ! intent(in):    spatial attributes
                    mpar_data,               & ! intent(in):    model parameters
                    forc_data,               & ! intent(in):    model forcing data
                    bvar_data,               & ! intent(in):    average model variables for the entire basin

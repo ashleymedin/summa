@@ -33,8 +33,7 @@ type data4ida
   type(model_options),allocatable :: model_decisions(:)              ! model decisions
   type(zLookup)                   :: lookup_data                  ! lookup tables
   type(var_i)                     :: type_data                       ! type of vegetation and soil
-  type(var_d)                     :: attr_data                       ! spatial attributes
-  type(var_dlength)               :: mpar_data                       ! model parameters
+   type(var_dlength)               :: mpar_data                       ! model parameters
   type(var_d)                     :: forc_data                       ! model forcing data
   type(var_dlength)               :: bvar_data                       ! model variables for the local basin
   type(var_dlength)               :: prog_data                       ! prognostic variables for a local HRU
