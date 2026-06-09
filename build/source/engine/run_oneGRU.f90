@@ -545,12 +545,12 @@ subroutine run_oneGRU(&
                   gridData,                                   & ! intent(inout): grid data for each grid
                   ! mass balance per glacier domain
                   massChange,                                 & ! intent(in):    since updateJulDay rate glacier water equivalent change (kg m-2 s-1)
-                  glac_elev,                                  & ! intent(inout): elevation of each glacier domain (m) per HRU
-                  glac_tan_slope,                             & ! intent(inout): tan local ground surface slope of the domain (m/m)
-                  glac_aspect,                                & ! intent(inout): azimuth in degrees East of North of the domain (degrees)
-                  glac_contourLength,                         & ! intent(inout): length of contour at downslope edge of the domain (m)
+                  glac_elev,                                  & ! intent(inout): elevation of each glacier domain (m)
+                  glac_tan_slope,                             & ! intent(inout): tan local ground surface slope of each glacier domain (m/m)
+                  glac_aspect,                                & ! intent(inout): azimuth in degrees East of North of each glacier domain (degrees)
+                  glac_contourLength,                         & ! intent(inout): length of contour at downslope edge of each glacier domain (m)
                   ! debris
-                  glac_debris_thick,                          & ! intent(inout): debris thickness of each glacier domain (m) per HRU
+                  glac_debris_thick,                          & ! intent(inout): debris thickness of each glacier domain (m)
                   iden_soil_mean,                             & ! intent(in):    mean soil density (kg m-3)
                   theta_sat_mean,                             & ! intent(in):    mean soil porosity (-)
                   bparData%var(iLookBPAR%debrisConc),         & ! intent(in):    englacial debris concentration (kg m-3)
