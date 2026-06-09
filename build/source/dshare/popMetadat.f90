@@ -334,8 +334,8 @@ subroutine popMetadat(err,message)
   bpar_meta(iLookBPAR%glacStor_kFirn)                  = var_info('glacStor_kFirn'                 , 'storage coefficient glacier firn reservoir'                       , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! debris advection
   bpar_meta(iLookBPAR%debrisConc)                      = var_info('debrisConc'                     , 'englacial debris concentration'                                   , 'kg m-3'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  bpar_meta(iLookBPAR%debrisH_critical)                = var_info('debrisH_critical'               , 'critical debris thickness to start debris-free terminal wedge'    , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  bpar_meta(iLookBPAR%lat_moraine_wid)                 = var_info('lat_moraine_wid'                , 'lateral moraine width or rockfall length'                         , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bpar_meta(iLookBPAR%debrisCritStress)                = var_info('debrisCritStress'               , 'critical driving stress where debris slides on terminal wedge'    , 'Pa'              , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bpar_meta(iLookBPAR%latMoraineWidth)                 = var_info('latMoraineWidth'                , 'lateral moraine width or rockfall length'                         , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * local model prognostic (state) variables...
   ! ---------------------------------------------

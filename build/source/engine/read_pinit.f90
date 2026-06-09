@@ -181,11 +181,11 @@ contains
   if (parFallback(iLookBPAR%debrisConc)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookBPAR%debrisConc)%default_val = 5.0_rkind ! 0.1 to 6.4 kg/m3 following Anderson and Anderson (2018)
   endif
-  if (parFallback(iLookBPAR%debrisH_critical)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookBPAR%debrisH_critical)%default_val = 5.0_rkind ! follow Anderson and Anderson (2018) (m)
+  if (parFallback(iLookBPAR%debrisCritStress)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookBPAR%debrisCritStress)%default_val = 80000 ! 20000-100000 Pa follow Mayer and Licciulli (2021)
   endif
-  if (parFallback(iLookBPAR%lat_moraine_wid)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookBPAR%lat_moraine_wid)%default_val = 200._rkind ! from looking at Alaska glaciers (m)
+  if (parFallback(iLookBPAR%latMoraineWidth)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookBPAR%latMoraineWidth)%default_val = 200._rkind ! from looking at Alaska glaciers (m)
   endif
  end if
 

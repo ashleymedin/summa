@@ -554,8 +554,8 @@ subroutine run_oneGRU(&
                   iden_soil_mean,                             & ! intent(in):    mean soil density (kg m-3)
                   theta_sat_mean,                             & ! intent(in):    mean soil porosity (-)
                   bparData%var(iLookBPAR%debrisConc),         & ! intent(in):    englacial debris concentration (kg m-3)
-                  bparData%var(iLookBPAR%debrisH_critical),   & ! intent(in):    critical debris thickness start debris-free terminal wedge (m)
-                  bparData%var(iLookBPAR%lat_moraine_wid),    & ! intent(in):    lateral moraine width or rockfall length (m)
+                  bparData%var(iLookBPAR%debrisCritStress),   & ! intent(in):    critical driving stress where debris slides on terminal wedge (Pa)
+                  bparData%var(iLookBPAR%latMoraineWidth),    & ! intent(in):    lateral moraine width or rockfall length (m)
                   ! area
                   bvarData%var(iLookBVAR%glacierAblArea)%dat, & ! intent(inout): per glacier ablation area (m2)
                   bvarData%var(iLookBVAR%glacierAccArea)%dat, & ! intent(inout): per glacier accumulation area (m2)

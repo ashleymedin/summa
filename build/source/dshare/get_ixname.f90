@@ -1029,8 +1029,8 @@ contains
   case('glacStor_kFirn'           ); get_ixBpar = iLookBPAR%glacStor_kFirn            ! storage coefficient glacier firn reservoir (s)
   ! debris advection
   case('debrisConc'               ); get_ixBpar = iLookBPAR%debrisConc                ! englacial debris concentration (kg m-3)
-  case('debrisH_critical'         ); get_ixBpar = iLookBPAR%debrisH_critical          ! critical debris thickness to start debris-free terminal wedge (m)
-  case('lat_moraine_wid'          ); get_ixBpar = iLookBPAR%lat_moraine_wid           ! lateral moraine width or rockfall length (m)
+  case('debrisCritStress'         ); get_ixBpar = iLookBPAR%debrisCritStress          ! critical driving stress where debris slides on terminal wedge (Pa)
+  case('latMoraineWidth'          ); get_ixBpar = iLookBPAR%latMoraineWidth           ! lateral moraine width or rockfall length (m)
   ! get to here if cannot find the variable
   case default
    get_ixBpar = integerMissing

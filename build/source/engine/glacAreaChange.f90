@@ -92,9 +92,9 @@ subroutine glacAreaChange(&
                     debris_thick_dom,        & ! intent(inout): debris thickness in each glacier domain (m)
                     iden_soil_mean,          & ! intent(in):    mean intrinsic density of soil in each glacier domain (kg m-3)
                     theta_sat_mean,          & ! intent(in):    mean soil porosity in each glacier domain (-)
-                    dbr_conc,              & ! intent(in):    englacial debris concentration (kg m-3)
-                    dbr_crit,                & ! intent(in):    critical debris thickness start debris-free terminal wedge (m)
-                    lat_moraine_wid,         & ! intent(inout): lateral moraine width (rockfall length) (m)
+                    dbr_conc,                & ! intent(in):    englacial debris concentration (kg m-3)
+                    dbr_crit_stress,         & ! intent(in):    critical driving stress where debris slides on terminal wedge (Pa)
+                    latMoraineWidth,         & ! intent(inout): lateral moraine width (rockfall length) (m)
                     ! area
                     glacierAblArea,          & ! intent(inout): per glacier ablation area (m2)
                     glacierAccArea,          & ! intent(inout): per glacier accumulation area (m2)
@@ -127,8 +127,8 @@ subroutine glacAreaChange(&
   real(rkind), intent(in)            :: iden_soil_mean(:)               ! mean intrinsic density of soil (kg m-3)
   real(rkind), intent(in)            :: theta_sat_mean(:)               ! mean soil porosity (-)
   real(rkind), intent(in)            :: dbr_conc                        ! englacial debris concentration (kg m-3)
-  real(rkind), intent(in)            :: dbr_crit                        ! critical debris thickness start debris-free terminal wedge (m)
-  real(rkind), intent(in)            :: lat_moraine_wid                 ! lateral moraine width (rockfall length) (m) 
+  real(rkind), intent(in)            :: dbr_crit_stress                 ! critical driving stress where debris slides on terminal wedge (Pa)
+  real(rkind), intent(in)            :: latMoraineWidth                 ! lateral moraine width (rockfall length) (m) 
   ! area 
   real(rkind), intent(inout)         :: glacierAblArea(nGlac)           ! per glacier ablation area (m2)
   real(rkind), intent(inout)         :: glacierAccArea(nGlac)           ! per glacier accumulation area (m2)
@@ -385,7 +385,7 @@ subroutine glacAreaChange(&
     ! run flow model if glacier has area
     if(glacierAblArea(iGlac) + glacierAccArea(iGlac)>0._rkind) then
       call run_flowModel(t_total, debris, surface, bed, glacierMask, slope, intercept, validElev, validCount, maxCount, dbr_conc, &
-                         dbr_crit, lat_moraine_wid, iden_soil, theta_sat, ELA_use_glac, nx, ny, dx, dy, volume, printFlag)
+                         dbr_crit_stress, latMoraineWidth, iden_soil, theta_sat, ELA_use_glac, nx, ny, dx, dy, volume, printFlag)
     else
       if(printFlag) write(*,'(a,i2,a)') ">GLACIER ",iGlac, " SKIP: no glacier area"
       volume = 0._rkind
@@ -589,13 +589,13 @@ end subroutine glacAreaChange
 !   Follows the implementation of Jarosch et al., 2013
 ! ************************************************************************************************
 subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, validElev, validCount, maxCount, dbr_conc, &
-                         dbr_crit, lat_moraine_wid, iden_soil, theta_sat, ELA, nx, ny, dx, dy, volume, printFlag)
+                         dbr_crit_stress, latMoraineWidth, iden_soil, theta_sat, ELA, nx, ny, dx, dy, volume, printFlag)
   implicit none
   ! Arguments
   real(rkind), intent(in) :: t_total, dx, dy, B(nx,ny)
   real(rkind), intent(inout) :: debris(nx,ny), S(nx,ny)
   real(rkind), intent(in) :: slope(maxCount+1,2), intercept(maxCount+1,2), validElev(maxCount,2)
-  real(rkind), intent(in) :: dbr_conc, dbr_crit, lat_moraine_wid, iden_soil, theta_sat, ELA
+  real(rkind), intent(in) :: dbr_conc, dbr_crit_stress, latMoraineWidth, iden_soil, theta_sat, ELA
   integer(i4b), intent(in) :: validCount(2), maxCount
   integer(i4b), intent(in) :: ny, nx, glacierMask(nx,ny)
   logical(lgt), intent(in) :: printFlag
@@ -606,7 +606,12 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
   integer(i4b),parameter :: n=3 ! Glen's flow law exponent
   real(rkind),parameter :: A=2.4e-24 ! Modern Glen parameter
   real(rkind),parameter :: cfl= 0.124 ! Courant-Friedrichs-Lewy condition
+  real(rkind) :: drivingStress(nx,ny)
+  real(rkind) :: Sklp(nx,ny), Sklm(nx,ny), Skl(nx,ny), Skpl(nx,ny), Skml(nx,ny)
+  real(rkind) :: S_l_up(nx,ny), S_l_dn(nx,ny), S_k_up(nx,ny), S_k_dn(nx,ny)
+  real(rkind) :: slope_l(nx,ny), slope_k(nx,ny), slope_g(nx,ny)
   integer(i4b) :: i, j, isteps
+  integer(i4b) :: l(ny), lp(ny), lm(ny), lpp(ny), lmm(ny), k(nx), kp(nx), km(nx), kpp(nx), kmm(nx)
 
   gamma = 2._rkind * A * (iden_ice * gravity)**n / (n + 2_i4b)
   max_dt = 31._rkind * secprday! max timestep in seconds, a month
@@ -614,6 +619,28 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
   t = 0._rkind
   isteps = 0 ! counter for debugging print, only print once a max_dt
   volume = 0._rkind
+
+  ! y direction indices
+  l = [(i, i=1, ny)]
+  lp = [(i, i=2, ny), ny]
+  lpp = [(i, i=3, ny), ny, ny]
+  lm = [1, (i, i=1, ny-1)]
+  lmm = [1, 1, (i, i=1, ny-2)]
+  if(ny == 1)then
+    lpp = [1]
+    lmm = [1]
+  endif
+  
+  ! x direction indices
+  k = [(i, i=1, nx)]
+  kp = [(i, i=2, nx), nx]
+  kpp = [(i, i=3, nx), nx, nx]
+  km = [1, (i, i=1, nx-1)]
+  kmm = [1, 1, (i, i=1, nx-2)]
+  if(nx == 1)then
+    kpp = [1]
+    kmm = [1]
+  endif
 
   ! calculation of spatial mask distance to side for lateral moraine rockfall, use same each time step for efficiency
   !  use a two-pass chamfer distance transform algorithm, approximate Euclidean distance
@@ -634,7 +661,7 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
         if(j < ny) distance(i, j) = min(distance(i, j), distance(i, j+1) + dy)
       enddo
     enddo
-    distance = merge(0._rkind, distance, zeroMask==1_i4b) ! set distance to zero where no glacier (may grow into these areas, include them in 0 distance)
+    distance = merge(0._rkind, distance, zeroMask==1_i4b) ! set distance to zero where no glacier (even though may grow into these areas, consider them as 0 distance to side)
   endif
 
   ! time loop
@@ -663,13 +690,20 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
     S = S - debris
 
     ! Call a step of the diffusion scheme
-    call diffusion_MUSCL(S, B, glacierMask, gamma, n, cfl, max_dt, nx, ny, dx, dy, div_q, dt_cfl)
+    call diffusion_MUSCL(S, B, glacierMask, gamma, n, cfl, max_dt, nx, ny, dx, dy, div_q, dt_cfl,&
+                         l, lp, lm, lpp, lmm, k, kp, km, kpp, kmm)
 
     ! update time step
     deltat = min(dt_cfl, dt)
     if(deltat > max_dt) deltat = max_dt
     if(deltat < min_dt) deltat = min_dt
     t = t + deltat
+
+    ! Update debris thickness if there is debris, using englacial debris advection transport model on sub-grid sub-step scale, using previous surface
+    if(sum(debris)>0._rkind)then
+      call run_debrisModel(S, B, debris, latMoraineWidth, gamma, n, deltat, m_dot, distance,&
+                           dbr_conc, theta_sat, iden_soil, ELA, nx, ny, dx, dy,l, lp, lm, k, kp, km)
+    endif
 
     ! Update S (with time discretization S_t+1 - S_t /dt = div(q_t)+ m_dot_t, so S_t+1 = S_t + (m_dot + div(q))*dt)
     S = S + (m_dot + div_q) * deltat
@@ -688,12 +722,47 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
       S = merge(S, meanS, (S - B) <= 1.e6_rkind)
     endif
 
-    ! Update debris thickness if there is debris, using englacial debris advection transport model on sub-grid sub-step scale
-    if(sum(debris)>0._rkind)then
-      call run_debrisModel(S, B, debris, dbr_crit, lat_moraine_wid, gamma, n, deltat, m_dot, distance,&
-                           dbr_conc, theta_sat, iden_soil, ELA, nx, ny, dx, dy) 
-    endif
-    S = S + debris ! add debris back to surface  
+    ! calculate glacier ice surface slope with a finite difference, add debris back to surface for slope calculation
+    Sklp  = S(k ,lp) + debris(k ,lp)
+    Sklm  = S(k ,lm) + debris(k ,lm)
+    Skl   = S(k ,l ) + debris(k ,l )
+    S_l_up = midpt(Sklp, Skl)
+    S_l_dn = midpt(Skl, Sklm)
+    slope_l= (S_l_up - S_l_dn) / dy ! (m m-1)
+
+    Skpl  = S(kp,l ) + debris(kp,l)
+    Skml  = S(km,l ) + debris(km,l)
+    Skl   = S(k ,l ) + debris(k ,l)
+    S_k_up = midpt(Skpl, Skl)
+    S_k_dn = midpt(Skl, Skml)
+    slope_k= (S_k_up - S_k_dn) / dx ! (m m-1)
+
+    ! remove debris downslope of where slope is too steep to hold debris, > yield stress following Mayer and Licciulli (2021)
+    slope_g = merge(sqrt(slope_k**2_i4b + slope_l**2_i4b), 0._rkind, S>B) ! Slope in m/m, set to zero where no glacier
+    drivingStress = (iden_soil*(1._rkind - theta_sat)) * gravity * debris * (abs(slope_g)/sqrt(slope_g**2_i4b + 1_i4b))/1000._rkind ! driving stress in kPa
+    do j = 1, ny
+      do i = 1, nx
+        if(drivingStress(i,j) > 80._rkind)then ! 80 kPa yield stress
+          if(slope_k(i,j) > 0._rkind .and. slope_l(i,j) > 0._rkind)then
+            debris(i:nx,j:ny) = 0._rkind
+            exit
+          elseif(slope_k(i,j) > 0._rkind .and. slope_l(i,j) < 0._rkind)then
+            debris(i:nx, 1:j) = 0._rkind
+            exit
+          elseif(slope_l(i,j) < 0._rkind .and. slope_k(i,j) > 0._rkind)then
+            debris(1:i ,j:ny) = 0._rkind
+            exit
+          elseif(slope_k(i,j) < 0._rkind .and. slope_k(i,j) < 0._rkind)then
+            debris(1:i , 1:j) = 0._rkind
+            exit
+          endif
+        endif
+      enddo
+    enddo
+
+    ! Add debris back to surface
+    S = S + debris  
+
   enddo ! end of time loop
 
   H = merge(S-B, 0._rkind, glacierMask==1_i4b)
@@ -719,14 +788,16 @@ end subroutine run_flowModel
 ! ************************************************************************************************
 ! subroutine diffusion_MUSCL: mass conserving scheme for SIA flow
 ! ************************************************************************************************
-subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, div_q, dt_cfl)
+subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, div_q, dt_cfl, &
+                          l, lp, lm, lpp, lmm, k, kp, km, kpp, kmm)
   implicit none
   ! Arguments
   real(rkind), intent(in) :: S(nx,ny), B(nx,ny), dx, dy, gamma, cfl, max_dt
   integer(i4b), intent(in) :: mask(nx,ny), nx, ny, n
+  integer(i4b), intent(in) :: l(ny), lp(ny), lm(ny), lpp(ny), lmm(ny)
+  integer(i4b), intent(in) :: k(nx), kp(nx), km(nx), kpp(nx), kmm(nx)
   real(rkind), intent(out) :: div_q(nx,ny), dt_cfl
   ! Local variables
-  integer(i4b) :: l(ny), lp(ny), lm(ny), lpp(ny), lmm(ny), k(nx), kp(nx), km(nx), kpp(nx), kmm(nx)
   real(rkind) :: H(nx,ny)
   real(rkind) :: Sklp(nx,ny), Sklm(nx,ny), Skplp(nx,ny), Skplm(nx,ny), Skpl(nx,ny), Skl(nx,ny)
   real(rkind) :: Skmlp(nx,ny), Skmlm(nx,ny), Skml(nx,ny)
@@ -747,28 +818,6 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
   integer(i4b) :: i, j
 
   H = S - B ! H = ice thickness, S = Surface height, B = bed topography
-
-  ! y direction indices
-  l = [(i, i=1, ny)]
-  lp = [(i, i=2, ny), ny]
-  lpp = [(i, i=3, ny), ny, ny]
-  lm = [1, (i, i=1, ny-1)]
-  lmm = [1, 1, (i, i=1, ny-2)]
-  if(ny == 1)then
-    lpp = [1]
-    lmm = [1]
-  endif
-  
-  ! x direction indices
-  k = [(i, i=1, nx)]
-  kp = [(i, i=2, nx), nx]
-  kpp = [(i, i=3, nx), nx, nx]
-  km = [1, (i, i=1, nx-1)]
-  kmm = [1, 1, (i, i=1, nx-2)]
-  if(nx == 1)then
-    kpp = [1]
-    kmm = [1]
-  endif
 
   ! indices
   Sklp  = S(k  ,lp )
@@ -962,43 +1011,34 @@ end function massBalance
 
 ! ************************************************************************************************
 ! private subroutine run_debrisModel: set up englacial debris advection transport model and run
-!   for one sub-time step on a refined grid. Debris input is from rockfall and from englacial debris 
-!   emergence, and output from terminus slumping and ice velocity.
+!   for one sub-time step. Debris input is from englacial debris emergence and lateral moraine rockfall,
+!   and output from terminus slumping and ice velocity.
 !   Follows the implementation of Mayer and Licciulli (2021), from Anderson and Anderson (2016).
 ! ************************************************************************************************
-subroutine run_debrisModel(S, B, debris, dbr_crit, lat_moraine_wid, gamma, n, t_total, m_dot, distance, &
-                           dbr_conc, theta_sat, iden_soil, ELA, nx, ny, dx, dy)
+subroutine run_debrisModel(S, B, debris, latMoraineWidth, gamma, n, t_total, m_dot, distance, &
+                           dbr_conc, theta_sat, iden_soil, ELA, nx, ny, dx, dy, l, lp, lm, k, kp, km)
   implicit none
   ! Arguments
-  real(rkind), intent(in) :: S(nx,ny), B(nx,ny), dbr_crit, distance(nx,ny), lat_moraine_wid
+  real(rkind), intent(in) :: S(nx,ny), B(nx,ny), distance(nx,ny), latMoraineWidth
   real(rkind), intent(in) :: gamma, t_total, m_dot(nx,ny), dbr_conc, theta_sat, iden_soil
   real(rkind), intent(in) :: ELA, dx, dy
   integer(i4b), intent(in) :: n, nx, ny
+  integer(i4b), intent(in) :: l(ny), lp(ny), lm(ny), k(nx), kp(nx), km(nx)
   real(rkind), intent(inout) :: debris(nx,ny)
   ! Local variables
   real(rkind),parameter :: cfl= 0.5 ! Courant-Friedrichs-Lewy condition
   real(rkind) :: Sklp(nx,ny), Sklm(nx,ny), Skl(nx,ny), Skpl(nx,ny), Skml(nx,ny)
   real(rkind) :: S_l_up(nx,ny), S_l_dn(nx,ny), S_k_up(nx,ny), S_k_dn(nx,ny)
   real(rkind) :: slope_l(nx,ny), slope_k(nx,ny), slope(nx,ny), u(nx,ny), v(nx,ny)
-  real(rkind) :: mean_slope, ELA_use, topElev, botElev
+  real(rkind) :: mean_slope, ELA_use, topElev, botElev, influx(nx,ny)
   real(rkind) :: emergenceElev, englacial_emerg(nx, ny), above_ELA_rockfall_area
-  real(rkind) :: rockfall, lat_rockfall(nx, ny), drivingStress(nx,ny)
+  real(rkind) :: rockfall, lat_rockfall(nx, ny)
   real(rkind) :: min_dt, div_uD(nx,ny), t, max_dt, dt, dt_cfl, deltat
-  integer(i4b) :: l(ny), lp(ny), lm(ny), k(nx), kp(nx), km(nx), mask(nx,ny)
-  integer(i4b) :: i, j
+  integer(i4b) :: mask(nx,ny)
 
   max_dt = 7._rkind * secprday ! maximum time step of 1 week
   min_dt = 0._rkind ! min timestep in seconds 
   t = 0._rkind
-
-  ! y direction indices
-  l = [(i, i=1, ny)]
-  lp = [(i, i=2, ny), ny]
-  lm = [1, (i, i=1, ny-1)]
-  ! x direction indices
-  k = [(i, i=1, nx)]
-  kp = [(i, i=2, nx), nx]
-  km = [1, (i, i=1, nx-1)]
 
   ! calculate glacier ice surface slope with a finite difference
   Sklp  = S(k ,lp)
@@ -1015,33 +1055,35 @@ subroutine run_debrisModel(S, B, debris, dbr_crit, lat_moraine_wid, gamma, n, t_
   S_k_dn = midpt(Skl, Skml)
   slope_k= (S_k_up - S_k_dn) / dx ! (m m-1)
 
-  ! Slope in m/m, set to zero where no glacier (above will include some non-glacier areas on sides)
+  ! Slope in m/m, set to zero where no glacier
   slope = merge(sqrt(slope_k**2_i4b + slope_l**2_i4b), 0._rkind, S>B)
   mean_slope = sum(slope)/count(S>B) 
   
   ! Emergence elevation is below ELA by distance from ELA to lateral moraine width
-  !  i.e. emergenceElev = ELA - (topElev - ELA - lat_moraine_wid * mean_slope))
+  !  i.e. emergenceElev = ELA - (topElev - ELA - latMoraineWidth * mean_slope))
   ELA_use = ELA ! from mass balance input
   topElev = maxval(merge(S, 0._rkind, S>B)) ! highest elevation on glacier
   botElev = minval(merge(S, 1.e6_rkind, S>B)) ! lowest elevation on glacier
-  if(ELA_use > topElev - lat_moraine_wid * mean_slope) ELA_use = topElev - lat_moraine_wid * mean_slope
-  emergenceElev = 2._rkind*ELA_use - topElev - lat_moraine_wid * mean_slope ! will not be above ELA
+  if(ELA_use > topElev - latMoraineWidth * mean_slope) ELA_use = topElev - latMoraineWidth * mean_slope
+  emergenceElev = 2._rkind*ELA_use - topElev + latMoraineWidth * mean_slope ! will not be above ELA
 
   ! Calculate near-surface debris concentration below emergence elevation, for now only put in lateral moraine area and central part of glacier
-  englacial_emerg = -merge(m_dot, 0._rkind, (distance<=lat_moraine_wid .or. distance>=maxval(distance)-lat_moraine_wid) .and. S<emergenceElev .and. S>B)&
-                    * dbr_conc * t_total ! (kg m-2)
+  !englacial_emerg = -merge(m_dot, 0._rkind, (distance<=latMoraineWidth .or. distance>=maxval(distance)-latMoraineWidth) .and. S<emergenceElev .and. S>B)&
+  !                 * dbr_conc ! (kg m-2 s-1)
+  ! Calculate near-surface debris concentration below emergence elevation 
+  englacial_emerg = -merge(m_dot, 0._rkind, S<emergenceElev .and. S>B) * dbr_conc ! (kg m-2 s-1)
 
   ! Add rockfall along the sides of the glacier below the ELA
-  ! NOTE: to make rockfall agree with constant englacial debris concentration, influx = outflux, or:
-  !   rockfall(kg m-2) * above_ELA_rockfall_area(m2) =  englacial_emerg(kg m-2) * emergence_area(m2)
-  above_ELA_rockfall_area = sum(merge(1_i4b, 0_i4b, distance<=lat_moraine_wid .and. S>=ELA_use .and. S>B))*dx*dy
-  rockfall = sum(englacial_emerg)*dx*dy/above_ELA_rockfall_area ! (kg m-2)
-  lat_rockfall = merge(rockfall, 0._rkind, distance<=lat_moraine_wid .and. S<ELA_use .and. S>=emergenceElev .and. S>B) ! kg m-2
+  ! NOTE: to make rockfall agree with constant englacial debris concentration (steady state), influx = outflux, or:
+  !   rockfall(kg m-2) * above_ELA_rockfall_area(m2) = englacial_emerg(kg m-2) * emergence_area(m2)
+  above_ELA_rockfall_area = sum(merge(1_i4b, 0_i4b, distance<=latMoraineWidth .and. S>=ELA_use .and. S>B))*dx*dy
+  rockfall = sum(englacial_emerg)*dx*dy/above_ELA_rockfall_area ! (kg m-2 s-1)
+  lat_rockfall = merge(rockfall, 0._rkind, distance<=latMoraineWidth .and. S<ELA_use .and. S>=emergenceElev .and. S>B) ! kg m-2 s-1
 
-  lat_rockfall = 0._rkind ! TURN OFF FOR NOW, and instead just have englacial debris emergence
+  !lat_rockfall = 0._rkind ! TURN OFF FOR NOW, and instead just have englacial debris emergence
 
-  ! Sum for total debris influx in m
-  debris = (lat_rockfall + englacial_emerg)/(iden_soil*(1._rkind - theta_sat)) + debris
+  ! Sum for total debris influx in m/s
+  influx = (lat_rockfall + englacial_emerg)/(iden_soil*(1._rkind - theta_sat)) 
 
   ! Calculate surface velocity using SIA, will be zero where no glacier
   u = gamma * (n + 2_i4b)/(n + 1_i4b) * slope_l**n *(S-B)**(n + 1_i4b) ! (m s-1)
@@ -1049,7 +1091,7 @@ subroutine run_debrisModel(S, B, debris, dbr_crit, lat_moraine_wid, gamma, n, t_
 
   mask = merge(1_i4b, 0_i4b, S>B) ! mask for glacier on subgrid
   
-  ! ** movement with subgrid **
+  ! ** movement with grid **
   do while (t < t_total)
     dt = t_total - t
 
@@ -1062,35 +1104,10 @@ subroutine run_debrisModel(S, B, debris, dbr_crit, lat_moraine_wid, gamma, n, t_
     if(deltat < min_dt) deltat = min_dt
     t = t + deltat 
 
-    ! update debris thickness (with time discretization D_t+1 - D_t /dt  = div(uD_t), so D_t+1 = D_t + div(uD_t)*dt)
-    debris = debris + div_uD * deltat
+    ! update debris thickness (with time discretization D_t+1 - D_t /dt  = div(uD_t) + influx_t, so D_t+1 = D_t + (div(uD_t) + influx)*dt)
+    debris = debris + (div_uD + influx)* deltat
     debris = merge(debris, 0._rkind, debris > 0._rkind) ! prevent negative debris
   enddo
-
-  ! remove debris downslope of where slope is too steep to hold debris, > yield stress of 80kPa following Mayer et al. (2021)
-  drivingStress = (iden_soil*(1._rkind - theta_sat)) * gravity * debris * (abs(slope)/sqrt(slope**2_i4b + 1_i4b))/1000._rkind ! driving stress in kPa
-  do j = 1, ny
-    do i = 1, nx
-      if(drivingStress(i,j) > 80._rkind)then ! 80 kPa yield stress
-        if(slope_k(i,j) > 0._rkind .and. slope_l(i,j) > 0._rkind)then
-          debris(i:nx,j:ny) = 0._rkind
-          exit
-        elseif(slope_k(i,j) > 0._rkind .and. slope_l(i,j) < 0._rkind)then
-          debris(i:nx, 1:j) = 0._rkind
-          exit
-        elseif(slope_l(i,j) < 0._rkind .and. slope_k(i,j) > 0._rkind)then
-          debris(1:i ,j:ny) = 0._rkind
-          exit
-        elseif(slope_k(i,j) < 0._rkind .and. slope_k(i,j) < 0._rkind)then
-          debris(1:i , 1:j) = 0._rkind
-          exit
-        endif
-      endif
-    enddo
-  enddo
-
-  ! remove debris where debris thickness is over critical value-- TURN OFF FOR NOW
-  !debris = merge(debris, 0._rkind, debris<=dbr_crit) ! Check that debris thickness is not over critical value, effectively making terminal clean ice wedge 
 
 end subroutine run_debrisModel
 

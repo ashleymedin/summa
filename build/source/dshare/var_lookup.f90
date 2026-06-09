@@ -863,8 +863,8 @@ MODULE var_lookup
   integer(i4b)    :: glacStor_kFirn             = integerMissing ! storage coefficient glacier firn reservoir (s)
   ! debris advection
   integer(i4b)    :: debrisConc                 = integerMissing ! englacial debris concentration (kg m-3)
-  integer(i4b)    :: debrisH_critical           = integerMissing ! critical debris thickness to start debris-free terminal wedge (m)
-  integer(i4b)    :: lat_moraine_wid            = integerMissing ! lateral moraine width or rockfall length (m)
+  integer(i4b)    :: debrisCritStress           = integerMissing ! critical driving stress where debris slides on terminal wedge (Pa)
+  integer(i4b)    :: latMoraineWidth            = integerMissing ! lateral moraine width or rockfall length (m)
  endtype iLook_bpar
 
  ! ***********************************************************************************************************
