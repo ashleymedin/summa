@@ -1808,7 +1808,7 @@ subroutine coupled_em(&
           err=20; return
         end if
         ! save the glacier ice water equivalent change
-        scalarGlceWE = scalarGlceWE + balanceGlceWE0-balanceGlceWE
+        scalarGlceWE = scalarGlceWE + balanceGlceWE - balanceGlceWE0
 
         ! Reset the layers, ice content will have changed if layers merged
         if (size(depthGlceTopLayer)<nGlce-noThetaChange)then
