@@ -334,6 +334,7 @@ subroutine popMetadat(err,message)
   bpar_meta(iLookBPAR%glacStor_kFirn)                  = var_info('glacStor_kFirn'                 , 'storage coefficient glacier firn reservoir'                       , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! debris advection
   bpar_meta(iLookBPAR%debrisConc)                      = var_info('debrisConc'                     , 'englacial debris concentration'                                   , 'kg m-3'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bpar_meta(iLookBPAR%wallErosionRate)                 = var_info('wallErosionRate'                , 'glacier wall erosion rate input for debris advection'             , 'mm yr-1'         , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bpar_meta(iLookBPAR%debrisCritStress)                = var_info('debrisCritStress'               , 'critical driving stress where debris slides on terminal wedge'    , 'Pa'              , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bpar_meta(iLookBPAR%latMoraineWidth)                 = var_info('latMoraineWidth'                , 'lateral moraine width or rockfall length'                         , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----

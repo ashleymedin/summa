@@ -863,6 +863,7 @@ MODULE var_lookup
   integer(i4b)    :: glacStor_kFirn             = integerMissing ! storage coefficient glacier firn reservoir (s)
   ! debris advection
   integer(i4b)    :: debrisConc                 = integerMissing ! englacial debris concentration (kg m-3)
+  integer(i4b)    :: wallErosionRate            = integerMissing ! glacier wall erosion rate input for debris advection (mm yr-1)
   integer(i4b)    :: debrisCritStress           = integerMissing ! critical driving stress where debris slides on terminal wedge (Pa)
   integer(i4b)    :: latMoraineWidth            = integerMissing ! lateral moraine width or rockfall length (m)
  endtype iLook_bpar
@@ -1063,7 +1064,7 @@ MODULE var_lookup
                                                                          71)
  ! named variables: basin-average parameters
  type(iLook_bpar),    public,parameter :: iLookBPAR     =iLook_bpar    (  1,  2,  3,  4,  5,  6,  7,  8, 9,  10,&
-                                                                          11)
+                                                                          11, 12)
  ! named variables: basin-average variables
  type(iLook_bvar),    public,parameter :: iLookBVAR     =iLook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

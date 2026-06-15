@@ -1029,6 +1029,7 @@ contains
   case('glacStor_kFirn'           ); get_ixBpar = iLookBPAR%glacStor_kFirn            ! storage coefficient glacier firn reservoir (s)
   ! debris advection
   case('debrisConc'               ); get_ixBpar = iLookBPAR%debrisConc                ! englacial debris concentration (kg m-3)
+  case('wallErosionRate'          ); get_ixBpar = iLookBPAR%wallErosionRate           ! glacier wall erosion rate input for debris advection (mm yr-1)
   case('debrisCritStress'         ); get_ixBpar = iLookBPAR%debrisCritStress          ! critical driving stress where debris slides on terminal wedge (Pa)
   case('latMoraineWidth'          ); get_ixBpar = iLookBPAR%latMoraineWidth           ! lateral moraine width or rockfall length (m)
   ! get to here if cannot find the variable

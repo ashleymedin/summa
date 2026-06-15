@@ -182,7 +182,7 @@ contains
     parFallback(iLookBPAR%debrisConc)%default_val = 5.0_rkind ! 0.1 to 6.4 kg/m3 following Anderson and Anderson (2018)
   endif
   if (parFallback(iLookBPAR%wallErosionRate)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookBPAR%wallErosionRate)%default_val = 1.e-6_rkind ! 1e-8 to 1e-6 kg/m2/s following Anderson and Anderson (2016)
+    parFallback(iLookBPAR%wallErosionRate)%default_val = 8.0_rkind ! 1 to 15 mm yr-1 following Anderson and Anderson (2016)
   endif
   if (parFallback(iLookBPAR%debrisCritStress)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookBPAR%debrisCritStress)%default_val = 80000 ! 20000-100000 Pa follow Mayer and Licciulli (2021)
