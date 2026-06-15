@@ -554,7 +554,6 @@ subroutine glacAreaChange(&
 
   ! Set elevations to realMissing if no dom_area in domain
   do iDOM = 1,nDOM
-    if(dom_elev(iDOM)==0._rkind) dom_elev(iDOM)=realMissing
     if(dom_area(iDOM)>0._rkind)then 
       dom_elev(iDOM) = dom_elev(iDOM) / dom_area(iDOM)
       dom_tan_slope(iDOM) = dom_tan_slope(iDOM) / dom_area(iDOM)
@@ -567,6 +566,7 @@ subroutine glacAreaChange(&
       dom_ablFrac(iDOM) = dom_ablFrac(iDOM) / dom_area(iDOM)
       dom_debris_thick(iDOM) = dom_debris_thick(iDOM) / dom_area(iDOM)
     else
+      dom_elev(iDOM) = realMissing
       dom_area(iDOM) = 0._rkind
       dom_tan_slope(iDOM) = realMissing
       dom_aspect(iDOM) = realMissing
@@ -620,8 +620,8 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
   integer(i4b) :: l(ny), lp(ny), lm(ny), lpp(ny), lmm(ny), k(nx), kp(nx), km(nx), kpp(nx), kmm(nx)
 
   gamma = 2._rkind * A * (iden_ice * gravity)**n / (n + 2_i4b)
-  max_dt = 31._rkind * secprday! max timestep in seconds, a month
-  min_dt = 0._rkind ! min timestep in seconds 
+  max_dt = 31._rkind * secprday ! max timestep in seconds, a month
+  min_dt = 60._rkind ! min timestep in seconds (1 minute), to prevent numerical instability
   t = 0._rkind
   isteps = 0 ! counter for debugging print, only print once a max_dt
   volume = 0._rkind
@@ -711,7 +711,7 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
       S = merge(B, S, (S - B) > verySmall .and. glacierMask==0_i4b)
     endif
     ! check that glacier surface is not infinite (unstable), bring down to mean glacier height
-    if(any((S - B) > 1.e6_rkind .and. glacierMask==1_i4b))then
+    if(any(((S - B) > 1.e6_rkind .or. isnan(S-B)) .and. glacierMask==1_i4b))then
       meanS = sum(merge(S, 0._rkind, glacierMask==1_i4b .and. S-B<1.e6_rkind)) / count(S-B<=1.e6_rkind)
       S = merge(S, meanS, (S - B) <= 1.e6_rkind)
     endif
@@ -1039,7 +1039,7 @@ subroutine run_debrisModel(S, B, debris, gamma, n, t_total, m_dot, emergenceMask
   integer(i4b) :: mask(nx,ny)
 
   max_dt = 7._rkind * secprday ! maximum time step of 1 week
-  min_dt = 0._rkind ! min timestep in seconds 
+  min_dt = 60._rkind ! min timestep in seconds (1 minute), to prevent numerical instability
   t = 0._rkind
 
   ! calculate glacier ice surface slope with a finite difference
