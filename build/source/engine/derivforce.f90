@@ -183,9 +183,11 @@ contains
  ! NGEN wants the wind inputted as two components, if not inputting NGEN forcing let the y direction be 0
 #ifdef NGEN_FORCING_ACTIVE
  windspd = sqrt(windspd_x**2_i4b + windspd_y**2_i4b)
+ if(windspd < minwind) windspd=minwind ! ensure wind speed is above a prescribed minimum value
 #else
  windspd_x = windspd
  windspd_y = 0._rkind
+ if(windspd_x < minwind) windspd_x=minwind ! ensure wind speed is above a prescribed minimum value
 #endif
 
  ! check spectral dimension
@@ -275,8 +277,6 @@ contains
  spectralIncomingDiffuse(1) = SWRadAtm*(1._rkind - scalarFractionDirect)*Frad_vis              ! (diffuse vis)
  spectralIncomingDiffuse(2) = SWRadAtm*(1._rkind - scalarFractionDirect)*(1._rkind - Frad_vis)    ! (diffuse nir)
 
- ! ensure wind speed is above a prescribed minimum value
- if(windspd < minwind) windspd=minwind
  ! compute relative humidity (-)
  relhum   = SPHM2RELHM(spechum, airpres, airtemp)
  ! if relative humidity exceeds saturation, then set relative and specific humidity to saturation
