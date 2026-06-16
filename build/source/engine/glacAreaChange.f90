@@ -621,7 +621,7 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
 
   gamma = 2._rkind * A * (iden_ice * gravity)**n / (n + 2_i4b)
   max_dt = 31._rkind * secprday ! max timestep in seconds, a month
-  min_dt = 60._rkind ! min timestep in seconds (1 minute), to prevent numerical instability
+  min_dt = 3600._rkind ! min timestep in seconds, 1 hour
   t = 0._rkind
   isteps = 0 ! counter for debugging print, only print once a max_dt
   volume = 0._rkind
@@ -1038,8 +1038,8 @@ subroutine run_debrisModel(S, B, debris, gamma, n, t_total, m_dot, emergenceMask
   real(rkind) :: min_dt, div_uD(nx,ny), t, max_dt, dt, dt_cfl, deltat
   integer(i4b) :: mask(nx,ny)
 
-  max_dt = 7._rkind * secprday ! maximum time step of 1 week
-  min_dt = 60._rkind ! min timestep in seconds (1 minute), to prevent numerical instability
+  max_dt = 7._rkind * secprday ! maximum timestep in seconds, 1 week
+  min_dt = 3600._rkind ! min timestep in seconds, 1 hour
   t = 0._rkind
 
   ! calculate glacier ice surface slope with a finite difference
