@@ -314,8 +314,6 @@ subroutine coupled_em(&
   logical(lgt)                         :: enthalpyStateVec         ! flag if enthalpy is a state variable (IDA)
   logical(lgt)                         :: use_lookup               ! flag to use the lookup table for soil enthalpy, otherwise use analytical solution
   real(rkind), allocatable             :: depthGlceTopLayer(:)     ! depth of the top glacier ice layers at the start of the time step (m)
-  real(rkind), allocatable             :: iceGlceTopLayer(:)       ! ice content of of the top glacier ice layers at the start of the time step (m)
-  real(rkind), allocatable             :: tempGlceTopLayer(:)      ! temperature of the top glacier ice layers at the start of the time step (K)
   integer(i4b)                         :: noThetaChange            ! number of layers with no change in total water content (bottom layers)
   logical(lgt)                         :: divideLayer              ! flag to denote that a layer was divided
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -1858,6 +1856,7 @@ subroutine coupled_em(&
         scalarGlceWE = 0._rkind
         balanceGlceWE = 0._rkind
       end if ! if glce layers exist
+      deallocate(depthGlceTopLayer)
       
       ! -----
       ! * balance checks for the aquifer...
@@ -1993,16 +1992,12 @@ contains
   allocate(innerBalanceLayerMass(nLayers)); innerBalanceLayerMass = 0._rkind ! mean total balance of mass in layers
   allocate(innerBalanceLayerNrg(nLayers));  innerBalanceLayerNrg = 0._rkind ! mean total balance of energy in layers
   allocate(mLayerVolFracIceInit(nLayers));  mLayerVolFracIceInit = prog_data%var(iLookPROG%mLayerVolFracIce)%dat ! volume fraction of water ice
-  if(nGlce>0)then ! depth, ice content, temp of the top glacier layer at the beginning of the data step
-    allocate(depthGlceTopLayer(nGlce-noThetaChange), iceGlceTopLayer(nGlce-noThetaChange), tempGlceTopLayer(nGlce-noThetaChange))
+  if(nGlce>0)then ! depth of the top glacier layer at the beginning of the data step
+    allocate(depthGlceTopLayer(nGlce-noThetaChange))
     depthGlceTopLayer = prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+nSoil+1:nLayers-noThetaChange)
-    iceGlceTopLayer   = prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow+nLake+nSoil+1:nLayers-noThetaChange)
-    tempGlceTopLayer  = prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+nLake+nSoil+1:nLayers-noThetaChange)
-  else ! no glacier, so set to 0
-    allocate(depthGlceTopLayer(1), iceGlceTopLayer(1), tempGlceTopLayer(1))
+   else ! no glacier, so set to 0
+    allocate(depthGlceTopLayer(1))
     depthGlceTopLayer = 0._rkind
-    iceGlceTopLayer   = 0._rkind
-    tempGlceTopLayer  = 0._rkind
   end if
 
   ! initialize the numerix tracking variables

@@ -118,7 +118,6 @@ contains
  real(rkind),parameter                :: pahautDenWindScal=0.5_rkind   ! Scalar parameter for wind impacts on density using Pahaut (1976) function (-)
  real(rkind)                          :: airpres_base                  ! air pressure at the base elevation (Pa)
  real(rkind),parameter                :: lapseRate=0.006871_rkind      ! lapse rate (K m-1), 6.5C/1km is the standard environmental lapse rate
- real(rkind),parameter                :: wndlapseRate=0.0006426_rkind  ! wind speed lapse rate (m s-1 m-1)
  ! ************************************************************************************************
  ! associate local variables with the information in the data structures
  associate(&
@@ -189,13 +188,12 @@ contains
  ! NGEN wants the wind inputted as two components, if not inputting NGEN forcing let the y direction be 0
 #ifdef NGEN_FORCING_ACTIVE
  windspd = sqrt(windspd_x**2_i4b + windspd_y**2_i4b)
+ if(windspd < minwind) windspd=minwind ! ensure wind speed is above a prescribed minimum value
 #else
  windspd_x = windspd
  windspd_y = 0._rkind
+ if(windspd_x < minwind) windspd_x=minwind ! ensure wind speed is above a prescribed minimum value
 #endif
- windspd   = windspd   + wndlapseRate * (DOMelev - elevation) ! adjust wind speed to domain mean elevation
- windspd_x = windspd_x + wndlapseRate * (DOMelev - elevation) ! adjust wind speed x-component to domain mean elevation
- windspd_y = windspd_y + wndlapseRate * (DOMelev - elevation) ! adjust wind speed y-component to domain mean elevation
 
  ! adjust wind speed and air temperature for glacier katabatic winds, should be related to fetch length
  ! NOTE: Eventually want to have a separate katabatic wind model, but this is a simple first-order approach 
@@ -207,11 +205,6 @@ contains
   windspd_y = windspd_y * glacierWindFactor
   airtemp   = airtemp   - glacierTempReduction
  endif
-
- ! ensure wind speed is above a prescribed minimum value
- if(windspd < minwind)   windspd=minwind
- if(windspd_x < minwind) windspd_x=minwind
- if(windspd_y < minwind) windspd_y=minwind
 
  ! check spectral dimension
  if(size(spectralIncomingDirect) /= nSpecBand .or. size(spectralIncomingDiffuse) /= nSpecBand)then
