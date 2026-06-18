@@ -1040,7 +1040,6 @@ contains
   character(*),intent(out)        :: message                   ! error message
   ! ----------------------------------------------------------------------------------------------------------
   ! local
-  !real(rkind),allocatable         :: fRHS(:)                   ! RHS function for ARKODE
   character(len=256)              :: cmessage                  ! error message of downwind routine
   ! ----------------------------------------------------------------------------------------------------------
   ! initialize error control
@@ -1098,7 +1097,6 @@ contains
                    ! output
                    feasible,                & ! intent(out):   flag to denote the feasibility of the solution
                    fluxVecNew,              & ! intent(out):   new flux vector
-                   !fRHS,                    & ! intent(out):   RHS function for ARKODE
                    resSinkNew,              & ! intent(out):   additional (sink) terms on the RHS of the state equation
                    resVecNew,               & ! intent(out):   new residual vector
                    fNew,                    & ! intent(out):   new function evaluation
