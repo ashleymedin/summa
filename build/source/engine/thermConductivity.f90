@@ -251,7 +251,7 @@ contains
    end if  ! type of layer (internal or lower)
  end do  ! end looping through layers
  ! ***** the upper boundary
- if(ixThCondSoil==hanssonVZJ)then ! special case of hansson
+ if(ixThCondSoil==hanssonVZJ .and. layerType(1)==iname_soil)then ! special case of Hansson
    iLayerThermalC(0) = 28._rkind*(0.5_rkind*(iLayerHeight(1) - iLayerHeight(0)))
  else
    iLayerThermalC(0) = mLayerThermalC(1)
@@ -595,7 +595,7 @@ subroutine thermConductivity(&
       end if  ! type of layer (internal or lower)
     end do  ! end looping through layers
     ! ***** the upper boundary
-    if(ixThCondSoil==hanssonVZJ)then ! special case of hansson
+    if(ixThCondSoil==hanssonVZJ .and. layerType(1)==iname_soil)then ! special case of Hansson
       iLayerThermalC(0) = 28._rkind*(0.5_rkind*(iLayerHeight(1) - iLayerHeight(0)))
       dThermalC_dWatBelow(0) = 0._rkind
       dThermalC_dTempBelow(0) = 0._rkind
