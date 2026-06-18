@@ -170,7 +170,7 @@ contains
    end select
 
   ! *****
-  ! * compute the thermal conductivity of snow and soil at the mid-point of each layer...
+  ! * compute the thermal conductivity at the mid-point of each layer...
   ! *************************************************************************************
   select case(layerType(iLayer))
 
@@ -235,7 +235,7 @@ contains
  end do  ! looping through layers
 
  ! *****
- ! * compute the thermal conductivity of snow at the interface of each layer...
+ ! * compute the thermal conductivity at the interface of each layer...
  ! ****************************************************************************
  ! loop through INTERFACES...
  do iLayer=1,nLayers
@@ -259,7 +259,7 @@ contains
    end if  ! type of layer (internal or lower)
  end do  ! end looping through layers
  ! ***** the upper boundary
- if(ixThCondSoil==hanssonVZJ)then ! special case of hansson
+ if(ixThCondSoil==hanssonVZJ .and. layerType(1)==iname_soil)then ! special case of Hansson
    iLayerThermalC(0) = 28._rkind*(0.5_rkind*(iLayerHeight(1) - iLayerHeight(0)))
  else
    iLayerThermalC(0) = mLayerThermalC(1)
@@ -307,7 +307,7 @@ subroutine thermConductivity(&
   implicit none
   ! --------------------------------------------------------------------------------------------------------------------------------------
   ! input: model state variables
-  integer(i4b),intent(in)              :: nLayers                  ! total number of layers in the snow+soil domain
+  integer(i4b),intent(in)              :: nLayers                  ! total number of layers in the layer domain
   logical,intent(in)                   :: scalarSolution           ! flag to indicate the scalar solution
   real(rkind),intent(in)               :: mLayerVolFracIce(:)      ! volumetric fraction of ice at the current iteration (-)
   real(rkind),intent(in)               :: mLayerVolFracLiq(:)      ! volumetric fraction of liquid at the current iteration (-)
@@ -380,7 +380,7 @@ subroutine thermConductivity(&
     ! input: coordinate variables
     ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1),                 & ! intent(in):  [i4b]   index of canopy air space energy state variable
     ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1),                 & ! intent(in):  [i4b]   index of canopy energy state variable
-    ixTopNrg                => indx_data%var(iLookINDEX%ixTopNrg)%dat(1),                 & ! intent(in):  [i4b]   index of upper-most energy state in the snow+soil subdomain
+    ixTopNrg                => indx_data%var(iLookINDEX%ixTopNrg)%dat(1),                 & ! intent(in):  [i4b]   index of upper-most energy state in the layer subdomain
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),                    & ! intent(in):  [dp]    number of snow layers
     nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1),                    & ! intent(in):  [dp]    number of lake layers
     nSnLaSoGlNrg            => indx_data%var(iLookINDEX%nSnLaSoGlNrg)%dat(1),             & ! intent(in):  [i4b]   number of energy state variables in the layer domains
@@ -411,7 +411,7 @@ subroutine thermConductivity(&
     ! initialize error control
     err=0; message="thermConductivity/"
 
-    ! get the indices for the snow+soil layers
+    ! get the indices for the layers
     doVegNrgFlux = (ixCasNrg/=integerMissing .or. ixVegNrg/=integerMissing .or. ixTopNrg/=integerMissing)
     if (nSnLaSoGlNrg>0) then
       if (scalarSolution) then
@@ -425,7 +425,7 @@ subroutine thermConductivity(&
     elseif (doVegNrgFlux) then ! need top interface, potentially from top layer
       ixTop = 1
       ixBot = 1
-    else ! if not computing fluxes over vegetation and no energy state variables in the snow+soil domain, then we don't need to compute thermal conductivity      
+    else ! if not computing fluxes over vegetation and no energy state variables in the layer domain, then we don't need to compute thermal conductivity      
       return
     endif
 
@@ -451,11 +451,11 @@ subroutine thermConductivity(&
       select case(layerType(iLayer))
         case(iname_soil);                         mLayerVolFracAir(iLayer) = theta_sat(iSoil) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
         case(iname_snow, iname_lake, iname_glce); mLayerVolFracAir(iLayer) = 1._rkind - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
-        case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute volumetric fraction of air'; return
+        case default; err=20; message=trim(message)//'unable to identify type of layer to compute volumetric fraction of air'; return
       end select
 
       ! *****
-      ! * compute the thermal conductivity of snow and soil and derivatives at the mid-point of each layer...
+      ! * compute the thermal conductivity and derivatives at the mid-point of each layer...
       ! ***************************************************************************************************
       dThermalC_dWat(iLayer) = 0._rkind
       dThermalC_dNrg(iLayer) = 0._rkind
@@ -583,7 +583,7 @@ subroutine thermConductivity(&
     end do  ! looping through layers
 
     ! *****
-    ! * compute the thermal conductivity of snow at the interface of each layer...
+    ! * compute the thermal conductivity at the interface of each layer...
     ! ****************************************************************************
     ! loop through INTERFACES...
     do iLayer=ixTop,ixBot
@@ -619,7 +619,7 @@ subroutine thermConductivity(&
       end if  ! type of layer (internal or lower)
     end do  ! end looping through layers
     ! ***** the upper boundary
-    if(ixThCondSoil==hanssonVZJ)then ! special case of hansson
+    if(ixThCondSoil==hanssonVZJ .and. layerType(1)==iname_soil)then ! special case of Hansson
       iLayerThermalC(0) = 28._rkind*(0.5_rkind*(iLayerHeight(1) - iLayerHeight(0)))
       dThermalC_dWatBelow(0) = 0._rkind
       dThermalC_dTempBelow(0) = 0._rkind

@@ -133,15 +133,15 @@ subroutine computJacob(&
   ! associate variables from data structures
   associate(&
     ! model control
-    dt                           => in_computJacob % dt                                       ,& ! intent(in): length of the time step (seconds)
-    nSnow                        => in_computJacob % nSnow                                    ,& ! intent(in): number of snow layers
-    nLake                        => in_computJacob % nLake                                    ,& ! intent(in): number of lake layers
-    nSoil                        => in_computJacob % nSoil                                    ,& ! intent(in): number of soil layers
-    nGlce                        => in_computJacob % nGlce                                    ,& ! intent(in): number of glacier ice layers
-    nLayers                      => in_computJacob % nLayers                                  ,& ! intent(in): total number of layers in the layer domains
-    computeVegFlux               => in_computJacob % computeVegFlux                           ,& ! intent(in): flag to indicate if computing fluxes over vegetation
-    computeBaseflow              => in_computJacob % computeBaseflow                          ,& ! intent(in): flag to indicate if computing baseflow
-    ixMatrix                     => in_computJacob % ixMatrix                                 ,& ! intent(in): form of the Jacobian matrix
+    dt                           => in_computJacob % dt                                        ,& ! intent(in): length of the time step (seconds)
+    nSnow                        => in_computJacob % nSnow                                     ,& ! intent(in): number of snow layers
+    nLake                        => in_computJacob % nLake                                     ,& ! intent(in): number of lake layers
+    nSoil                        => in_computJacob % nSoil                                     ,& ! intent(in): number of soil layers
+    nGlce                        => in_computJacob % nGlce                                     ,& ! intent(in): number of glacier ice layers
+    nLayers                      => in_computJacob % nLayers                                   ,& ! intent(in): total number of layers in the layer domains
+    computeVegFlux               => in_computJacob % computeVegFlux                            ,& ! intent(in): flag to indicate if computing fluxes over vegetation
+    computeBaseflow              => in_computJacob % computeBaseflow                           ,& ! intent(in): flag to indicate if computing baseflow
+    ixMatrix                     => in_computJacob % ixMatrix                                  ,& ! intent(in): form of the Jacobian matrix
     ! indices of model state variables
     ixCasNrg                     => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)                  ,& ! intent(in): [i4b] index of canopy air space energy state variable
     ixVegNrg                     => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)                  ,& ! intent(in): [i4b] index of canopy energy state variable
