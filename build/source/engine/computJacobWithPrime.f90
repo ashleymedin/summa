@@ -403,18 +403,18 @@ subroutine computJacobWithPrime(&
         ! only compute derivatives if the water state for the current layer is within the state subset
         if(watState/=integerMissing)then
           ! - include derivatives in energy fluxes w.r.t. with respect to water for current layer
-          aJac(ixInd(full,nrgState,watState),watState) = mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) * cj &
-                                                       + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer)) &
-                                                       + mLayerCm(jLayer) * d2VolTot_dPsi02(iLayer) * mLayerMatricHeadPrime(iLayer)
+          aJac(ixInd(full,nrgState,watState),watState) = (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer)) &
           if(ixRichards==mixdform)then
-            aJac(ixInd(full,nrgState,watState),watState) = aJac(ixInd(full,nrgState,watState),watState) + dVolHtCapBulk_dPsi0(iLayer) * mLayerTempPrime(jLayer) &
-                                                          + dCm_dPsi0(iLayer) * mLayerVolFracWatPrime(jLayer)
-          elseif(ixRichards==moisture)then
-            aJac(ixInd(full,nrgState,watState),watState) = aJac(ixInd(full,nrgState,watState),watState) + dVolHtCapBulk_dTheta(jLayer) * mLayerTempPrime(jLayer)
-          endif
-          if(mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind))&  ! ice is present
+            aJac(ixInd(full,nrgState,watState),watState) = mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) * cj + dVolHtCapBulk_dPsi0(iLayer) * mLayerTempPrime(jLayer) &
+                                                          + dCm_dPsi0(iLayer) * mLayerVolFracWatPrime(jLayer) + mLayerCm(jLayer) * d2VolTot_dPsi02(iLayer) * mLayerMatricHeadPrime(iLayer) &
+                                                          + aJac(ixInd(full,nrgState,watState),watState) 
+           if(mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind))&  ! ice is present
               aJac(ixInd(full,nrgState,watState),watState) = -LH_fu0*iden_water * dVolTot_dPsi0(iLayer) * cj &
-                                                       - LH_fu0*iden_water * mLayerMatricHeadPrime(iLayer) * d2VolTot_dPsi02(iLayer) + aJac(ixInd(full,nrgState,watState),watState) ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
+                                                            - LH_fu0*iden_water * mLayerMatricHeadPrime(iLayer) * d2VolTot_dPsi02(iLayer) + aJac(ixInd(full,nrgState,watState),watState) ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content                                                         
+          elseif(ixRichards==moisture)then
+            aJac(ixInd(full,nrgState,watState),watState) = mLayerCm(jLayer) * cj + dVolHtCapBulk_dTheta(jLayer) * mLayerTempPrime(jLayer) &
+                                                          + aJac(ixInd(full,nrgState,watState),watState) 
+          endif
         endif ! (if the water state for the current layer is within the state subset)
 
       end do ! (looping through energy states in the soil domain)

@@ -347,16 +347,16 @@ subroutine computJacob(&
         ! only compute derivatives if the water state for the current layer is within the state subset
         if(watState/=integerMissing)then
           ! - include derivatives in energy fluxes w.r.t. with respect to water for current layer
-          aJac(ixInd(full,nrgState,watState),watState) = mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) &
-                                                       + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer))
+          aJac(ixInd(full,nrgState,watState),watState) = (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer))
           if(ixRichards==mixdform)then
-            aJac(ixInd(full,nrgState,watState),watState) = aJac(ixInd(full,nrgState,watState),watState) + dVolHtCapBulk_dPsi0(iLayer) * mLayerdTemp_dt(jLayer) &
-                                                          + dCm_dPsi0(iLayer) * mLayerdWat_dt(jLayer)
-          elseif(ixRichards==moisture)then
-            aJac(ixInd(full,nrgState,watState),watState) = aJac(ixInd(full,nrgState,watState),watState) + dVolHtCapBulk_dTheta(jLayer) * mLayerdTemp_dt(jLayer)
-          endif
-          if(mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind))& ! ice is present
+            aJac(ixInd(full,nrgState,watState),watState) = mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) + dVolHtCapBulk_dPsi0(iLayer) * mLayerdTemp_dt(jLayer) &
+                                                          + dCm_dPsi0(iLayer) * mLayerdWat_dt(jLayer) + aJac(ixInd(full,nrgState,watState),watState)
+            if(mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind))& ! ice is present
               aJac(ixInd(full,nrgState,watState),watState) = -LH_fus*iden_water * dVolTot_dPsi0(iLayer) + aJac(ixInd(full,nrgState,watState),watState)   ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
+          elseif(ixRichards==moisture)then
+            aJac(ixInd(full,nrgState,watState),watState) = mLayerCm(jLayer) + dVolHtCapBulk_dTheta(jLayer) * mLayerdTemp_dt(jLayer) &
+                                                          + aJac(ixInd(full,nrgState,watState),watState)
+          endif
         endif ! (if the water state for the current layer is within the state subset)
 
       end do ! (looping through energy states in the soil domain)
