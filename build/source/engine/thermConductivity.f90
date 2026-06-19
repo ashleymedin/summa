@@ -289,20 +289,19 @@ subroutine thermConductivity(&
                     mLayerTemp,              & ! intent(in):    temperature at the current iteration (K)
                     mLayerMatricHead,        & ! intent(in):    matric head at the current iteration(m)                 
                     mLayerdTheta_dTk,        & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
+                    mLayerdTheta_dPsi,       & ! intent(in):    derivative in volumetric liquid water content w.r.t. liquid matric potential (m-1)
                     mLayerFracLiq,           & ! intent(in):    fraction of liquid water (-)
                     ! input/output: derivatives
                     dThermalC_dWatAbove,     & ! intent(inout): derivative in the thermal conductivity w.r.t. water state in the layer above
-                    dThermalC_dWatBelow,     & ! intent(inout): derivative in the thermal conductivity w.r.t. water state in the layer above
+                    dThermalC_dWatBelow,     & ! intent(inout): derivative in the thermal conductivity w.r.t. water state in the layer below
                     dThermalC_dTempAbove,    & ! intent(inout): derivative in the thermal conductivity w.r.t. energy state in the layer above
-                    dThermalC_dTempBelow,    & ! intent(inout): derivative in the thermal conductivity w.r.t. energy state in the layer above
+                    dThermalC_dTempBelow,    & ! intent(inout): derivative in the thermal conductivity w.r.t. energy state in the layer below
                     ! output: error control
                     err,message)               ! intent(out):   error control
 
   ! utility modules
   USE snow_utils_module,only:tcond_snow     ! compute thermal conductivity of snow
   USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists
-  USE soil_utils_module,only:dTheta_dPsi    ! compute derivative of the soil moisture characteristic w.r.t. psi (m-1)
-  USE soil_utils_module,only:dPsi_dTheta    ! compute derivative of the soil moisture characteristic w.r.t. theta (m)
 
   implicit none
   ! --------------------------------------------------------------------------------------------------------------------------------------
@@ -320,6 +319,7 @@ subroutine thermConductivity(&
   real(rkind),intent(in)               :: mLayerTemp(:)            ! temperature in each layer at the current iteration (m)
   real(rkind),intent(in)               :: mLayerMatricHead(:)      ! matric head in each layer at the current iteration (m)
   real(rkind),intent(in)               :: mLayerdTheta_dTk(:)      ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
+  real(rkind),intent(in)               :: mLayerdTheta_dPsi(:)     ! derivative in volumetric liquid water content w.r.t. liquid matric potential (m-1)
   real(rkind),intent(in)               :: mLayerFracLiq(:)         ! fraction of liquid water (-)
   ! input/output: derivatives
   real(rkind),intent(inout)            :: dThermalC_dWatAbove(0:)  ! derivative in the thermal conductivity w.r.t. water state in the layer above
@@ -466,14 +466,14 @@ subroutine thermConductivity(&
           select case(ixRichards)  ! (form of Richards' equation)
             case(moisture)
               dVolFracLiq_dWat = 1._rkind
-              dVolFracIce_dWat = dPsi_dTheta(mLayerVolFracLiq(iLayer),vGn_alpha(iSoil),theta_res(iSoil),theta_sat(iSoil),vGn_n(iSoil),vGn_m(iSoil)) - 1._rkind
+              dVolFracIce_dWat = 0._rkind
             case(mixdform)
               Tcrit = crit_soilT( mLayerMatricHead(iSoil) )
               if(mLayerTemp(iLayer) < Tcrit) then
                 dVolFracLiq_dWat = 0._rkind
-                dVolFracIce_dWat = dTheta_dPsi(mLayerMatricHead(iSoil),vGn_alpha(iSoil),theta_res(iSoil),theta_sat(iSoil),vGn_n(iSoil),vGn_m(iSoil))
+                dVolFracIce_dWat = mLayerdTheta_dPsi(iSoil)
               else
-                dVolFracLiq_dWat = dTheta_dPsi(mLayerMatricHead(iSoil),vGn_alpha(iSoil),theta_res(iSoil),theta_sat(iSoil),vGn_n(iSoil),vGn_m(iSoil))
+                dVolFracLiq_dWat = mLayerdTheta_dPsi(iSoil)
                 dVolFracIce_dWat = 0._rkind
               endif
           end select

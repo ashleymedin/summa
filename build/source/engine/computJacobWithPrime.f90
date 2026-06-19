@@ -110,7 +110,8 @@ subroutine computJacobWithPrime(&
                       prog_data,                  & ! intent(in):    model prognostic variables for a local HRU
                       diag_data,                  & ! intent(in):    model diagnostic variables for a local HRU
                       deriv_data,                 & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
-                      dBaseflow_dMatric,          & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
+                      dBaseflow_dWat,             & ! intent(in):    derivative in baseflow w.r.t. soil water characteristic
+                      dBaseflow_dTk,              & ! intent(in):    derivative in baseflow w.r.t. temperature (m s-1 K-1)
                       ! input: state variables
                       mLayerTempPrime,            & ! intent(in):    vector of derivative value for layer temperature (K)
                       mLayerMatricHeadPrime,      & ! intent(in):    vector of derivative value for layer matric head
@@ -148,7 +149,8 @@ subroutine computJacobWithPrime(&
   type(var_dlength),intent(in)         :: prog_data                  ! prognostic variables for a local HRU
   type(var_dlength),intent(in)         :: diag_data                  ! diagnostic variables for a local HRU
   type(var_dlength),intent(in)         :: deriv_data                 ! derivatives in model fluxes w.r.t. relevant state variables
-  real(rkind),intent(in)               :: dBaseflow_dMatric(:,:)     ! derivative in baseflow w.r.t. matric head (s-1)
+  real(rkind),intent(in)               :: dBaseflow_dWat(:,:)        ! derivative in baseflow w.r.t. soil water characteristic
+  real(rkind),intent(in)               :: dBaseflow_dTk(:,:)         ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
   ! input: state variables
   real(rkind),intent(in)               :: mLayerTempPrime(:)         ! vector of derivative value for layer temperature
   real(rkind),intent(in)               :: mLayerMatricHeadPrime(:)   ! vector of derivative value for layer matric head
@@ -401,10 +403,15 @@ subroutine computJacobWithPrime(&
         ! only compute derivatives if the water state for the current layer is within the state subset
         if(watState/=integerMissing)then
           ! - include derivatives in energy fluxes w.r.t. with respect to water for current layer
-          aJac(ixInd(full,nrgState,watState),watState) = dVolHtCapBulk_dPsi0(iLayer) * mLayerTempPrime(jLayer) &
-                                                       + mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) * cj + dCm_dPsi0(iLayer) * mLayerVolFracWatPrime(jLayer) &
+          aJac(ixInd(full,nrgState,watState),watState) = mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) * cj &
                                                        + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer)) &
                                                        + mLayerCm(jLayer) * d2VolTot_dPsi02(iLayer) * mLayerMatricHeadPrime(iLayer)
+          if(ixRichards==mixdform)then
+            aJac(ixInd(full,nrgState,watState),watState) = aJac(ixInd(full,nrgState,watState),watState) + dVolHtCapBulk_dPsi0(iLayer) * mLayerTempPrime(jLayer) &
+                                                          + dCm_dPsi0(iLayer) * mLayerVolFracWatPrime(jLayer)
+          elseif(ixRichards==moisture)then
+            aJac(ixInd(full,nrgState,watState),watState) = aJac(ixInd(full,nrgState,watState),watState) + dVolHtCapBulk_dTheta(jLayer) * mLayerTempPrime(jLayer)
+          endif
           if(mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind))&  ! ice is present
               aJac(ixInd(full,nrgState,watState),watState) = -LH_fu0*iden_water * dVolTot_dPsi0(iLayer) * cj &
                                                        - LH_fu0*iden_water * mLayerMatricHeadPrime(iLayer) * d2VolTot_dPsi02(iLayer) + aJac(ixInd(full,nrgState,watState),watState) ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
@@ -417,8 +424,7 @@ subroutine computJacobWithPrime(&
     ! * PART 2: COMPUTE FLUX JACOBIAN TERMS 
     ! *********************************************************************************************************************************************************
     call fluxJacAdd(full,maxVolIceContent_use,dt,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,computeBaseflow,&
-                    indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,&
-                    dMat,aJac,err,cmessage)
+                    indx_data,prog_data,diag_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,dMat,aJac,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     deallocate(dMat)
 
@@ -464,6 +470,8 @@ subroutine computJacobWithPrime(&
             if(iLayer<=nSnow+nLake .or. iLayer>nSnow+nLake+nSoil)then
               aJac(watRows,watState) = aJac(watRows,watState) + aJac(nrgRows,nrgState) * dTemp_dTheta(iLayer)
             else
+              ! derivatives have not been computed for enthalpy form with moisture form
+              if(ixRichards==moisture)then; err=20; message=trim(message)//'cannot use moisture form with enthalpy state'; return; endif
               aJac(watRows,watState) = aJac(watRows,watState) + aJac(nrgRows,nrgState) * dTemp_dPsi0(iLayer-nSnow-nLake)
             endif
           endif
@@ -571,7 +579,8 @@ integer(c_int) function computJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
                 eqns_data%prog_data,                      & ! intent(in):    model prognostic variables for a local HRU
                 eqns_data%diag_data,                      & ! intent(in):    model diagnostic variables for a local HRU
                 eqns_data%deriv_data,                     & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
-                eqns_data%dBaseflow_dMatric,              & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
+                eqns_data%dBaseflow_dWat,                 & ! intent(in):    derivative in baseflow w.r.t. soil water characteristic
+                eqns_data%dBaseflow_dTk,                  & ! intent(in):    derivative in baseflow w.r.t. temperature (m s-1 K-1)
                 ! input: state variables
                 eqns_data%mLayerTempPrime,                & ! intent(in):    derivative value for temperature of each layer (K)
                 eqns_data%mLayerMatricHeadPrime,          & ! intent(in):    derivative value for matric head of each layer (m)

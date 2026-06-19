@@ -135,7 +135,8 @@ subroutine computFlux(&
                       deriv_data,               & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                       ! input-output: flux vector and baseflow derivatives
                       ixSaturation,             & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                      dBaseflow_dMatric,        & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
+                      dBaseflow_dWat,           & ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
+                      dBaseflow_dTk,            & ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
                       fluxVec,                  & ! intent(out):   flux vector (mixed units)
                       ! output: error control
                       err,message)                ! intent(out):   error code and error message
@@ -190,7 +191,8 @@ subroutine computFlux(&
   type(var_dlength),intent(inout)    :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
   ! input-output: flux vector and baseflow derivatives
   integer(i4b),intent(inout)         :: ixSaturation                ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
-  real(rkind),intent(out)            :: dBaseflow_dMatric(:,:)      ! derivative in baseflow w.r.t. matric head (s-1)
+  real(rkind),intent(out)            :: dBaseflow_dWat(:,:)         ! derivative in baseflow w.r.t. soil water characteristic
+  real(rkind),intent(out)            :: dBaseflow_dTk(:,:)          ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
   real(rkind),intent(out)            :: fluxVec(:)                  ! model flux vector (mixed units)
   ! output: error control
   integer(i4b),intent(out)           :: err                         ! error code
@@ -470,8 +472,8 @@ contains
   ! operations to prep for the start of computFlux
   associate(&
    numFluxCalls                 => diag_data%var(iLookDIAG%numFluxCalls)%dat(1),         & ! intent(out): [dp] number of flux calls (-)
-   ixSpatialGroundwater         => model_decisions(iLookDECISIONS%spatial_gw)%iDecision, & ! intent(in): [i4b] spatial representation of groundwater (local-column or single-basin)
-   ixGroundwater                => model_decisions(iLookDECISIONS%groundwatr)%iDecision, & ! intent(in): [i4b] groundwater parameterization
+   ixSpatialGroundwater         => model_decisions(iLookDECISIONS%spatial_gw)%iDecision, & ! intent(in):  [i4b] spatial representation of groundwater (local-column or single-basin)
+   ixGroundwater                => model_decisions(iLookDECISIONS%groundwatr)%iDecision, & ! intent(in):  [i4b] groundwater parameterization
    iLayerLiqFluxSnLaGl          => flux_data%var(iLookFLUX%iLayerLiqFluxSnLaGl)%dat,     & ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
    iLayerLiqFluxSoil            => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat        ) ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
 
@@ -802,7 +804,8 @@ contains
    dq_dHydStateAbove            => deriv_data%var(iLookDERIV%dq_dHydStateAbove)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer above
    dq_dHydStateBelow            => deriv_data%var(iLookDERIV%dq_dHydStateBelow)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer below
    dq_dHydStateLayerSurfVec     => deriv_data%var(iLookDERIV%dq_dHydStateLayerSurfVec)%dat, & ! intent(out): [dp(:)] change in the flux in soil surface interface w.r.t. state variables in layers
-   dPsiLiq_dPsi0                => deriv_data%var(iLookDERIV%dPsiLiq_dPsi0   )%dat          ) ! intent(in):  [dp(:)] derivative in liquid water matric pot w.r.t. the total water matric pot (-)
+   dPsiLiq_dPsi0                => deriv_data%var(iLookDERIV%dPsiLiq_dPsi0)%dat,            &! intent(in):  [dp(:)] derivative in liquid water matric pot w.r.t. the total water matric pot (-)
+   mLayerdPsi_dTheta            => deriv_data%var(iLookDERIV%mLayerdPsi_dTheta)%dat         )! intent(in):  [dp(:)] derivative in matric potential w.r.t. volumetric liquid water content (m-1)
    ! expand derivatives to the total water matric potential
    ! NOTE: arrays are offset because computing derivatives in interface fluxes, at the top and bottom of the layer respectively
    dq_dHydStateAbove(1:nSoil)   = dq_dHydStateAbove(1:nSoil)  *dPsiLiq_dPsi0(1:nSoil)
@@ -815,17 +818,17 @@ contains
  ! **** groundwatr ****
  subroutine initialize_groundwatr
   ! check the derivative matrix is sized appropriately
-  if (size(dBaseflow_dMatric,1)/=nSoil .or. size(dBaseflow_dMatric,2)/=nSoil) then
-    message=trim(message)//'expect dBaseflow_dMatric to be nSoil x nSoil'
+  if (size(dBaseflow_dWat,1)/=nSoil .or. size(dBaseflow_dWat,2)/=nSoil .or. size(dBaseflow_dTk,1)/=nSoil .or. size(dBaseflow_dTk,2)/=nSoil) then
+    message=trim(message)//'expect dBaseflow_dWat and dBaseflow_dTk to be nSoil x nSoil'
     err=20; return
   end if
-  call in_groundwatr%initialize(nSnow,nLake,nSoil,nGlce,firstFluxCall,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,deriv_data)
+  call in_groundwatr%initialize(nSnow,nLake,nSoil,nGlce,firstFluxCall,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,deriv_data,model_decisions)
   call io_groundwatr%initialize(ixSaturation)
  end subroutine initialize_groundwatr
 
  subroutine finalize_groundwatr
   call io_groundwatr%finalize(ixSaturation)
-  call out_groundwatr%finalize(dBaseflow_dMatric,flux_data,err,cmessage)
+  call out_groundwatr%finalize(dBaseflow_dWat,dBaseflow_dTk,flux_data,err,cmessage)
   ! error control
   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
  end subroutine finalize_groundwatr

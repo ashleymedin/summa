@@ -58,8 +58,8 @@ subroutine liquidHeadPrime(&
                       volFracLiq                               ,& ! intent(in)    : volumetric fraction of liquid water (-)
                       volFracIce                               ,& ! intent(in)    : volumetric fraction of ice (-)
                       vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m,& ! intent(in)    : soil parameters
-                      dVolTot_dPsi0                            ,& ! intent(in)    : derivative in the soil water characteristic (m-1)
-                      dTheta_dT                                ,& ! intent(in)    : derivative in volumetric total water w.r.t. temperature (K-1)
+                      dVolTot_dPsi0                            ,& ! intent(in)    : derivative in total volumetric water content w.r.t. matric head (m-1)
+                      dTheta_dT                                ,& ! intent(in)    : derivative in volumetric liquid water w.r.t. temperature (K-1)
                       volFracLiqPrime                          ,& ! intent(in)    : volumetric fraction of liquid water time derivative (-)
                       volFracIcePrime                          ,& ! intent(in)    : volumetric fraction of ice time derivative (-)
                       ! output
@@ -76,8 +76,8 @@ subroutine liquidHeadPrime(&
   real(rkind),intent(in)      :: volFracLiq                                ! volumetric fraction of liquid water (-)
   real(rkind),intent(in)      :: volFracIce                                ! volumetric fraction of ice (-)
   real(rkind),intent(in)      :: vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m ! soil parameters
-  real(rkind),intent(in)      :: dVolTot_dPsi0                             ! derivative in the soil water characteristic (m-1)
-  real(rkind),intent(in)      :: dTheta_dT                                 ! derivative in volumetric total water w.r.t. temperature (K-1)
+  real(rkind),intent(in)      :: dVolTot_dPsi0                             ! derivative in total volumetric water content w.r.t. matric head (m-1)
+  real(rkind),intent(in)      :: dTheta_dT                                 ! derivative in volumetric liquid water w.r.t. temperature (K-1)
   real(rkind),intent(in)      :: volFracLiqPrime                           ! volumetric fraction of liquid water time derivative ()
   real(rkind),intent(in)      :: volFracIcePrime                           ! volumetric fraction of ice time derivative ()
   ! output

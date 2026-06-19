@@ -409,7 +409,7 @@ subroutine heatCapacity(&
                                      iden_water                * Cp_water * mLayerVolFracLiq(iLayer)                 + & ! liquid water component
                                      iden_air                  * Cp_air   * ( theta_sat(ixControlIndex) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) )! air component
            ! derivatives
-           dVolHtCapBulk_dTheta(iLayer) = realMissing ! do not use
+           dVolHtCapBulk_dTheta(iLayer) = iden_water* Cp_water ! use if Richards equation is moisture form
            Tcrit = crit_soilT( mLayerMatricHead(ixControlIndex) )
            if( mLayerTemp(iLayer) < Tcrit)then
              dVolHtCapBulk_dPsi0(ixControlIndex) = (iden_ice * Cp_ice   - iden_air * Cp_air) * dVolTot_dPsi0(ixControlIndex)

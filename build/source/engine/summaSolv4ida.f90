@@ -322,10 +322,11 @@ subroutine summaSolv4ida(&
     
     ! allocate space for other variables
     if(model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel .or. (nGlce>0 .and. nSoil>0))then ! need the baseflow derivatives if have TOPMODEL groundwater or glacier debris (since debris has lateral flow)
-      allocate(eqns_data%dBaseflow_dMatric(nSoil,nSoil),stat=err)
+      allocate(eqns_data%dBaseflow_dWat(nSoil,nSoil),eqns_data%dBaseflow_dTk(nSoil,nSoil),stat=err)
     else
-      allocate(eqns_data%dBaseflow_dMatric(0,0),stat=err)
+      allocate(eqns_data%dBaseflow_dWat(0,0),eqns_data%dBaseflow_dTk(0,0),stat=err)
     end if
+    if (err/=0) then; err=20; message=trim(message)//'unable to allocate space for the baseflow derivatives'; return; end if
     allocate( eqns_data%mLayerTempPrev(nLayers) )
     allocate( eqns_data%mLayerMatricHeadPrev(nSoil) )
     allocate( eqns_data%mLayerTempTrial(nLayers) )
@@ -644,7 +645,8 @@ subroutine summaSolv4ida(&
     deallocate( eqns_data%model_decisions)
     deallocate( eqns_data%sMul )
     deallocate( eqns_data%dMat )
-    deallocate( eqns_data%dBaseflow_dMatric )
+    deallocate( eqns_data%dBaseflow_dWat )
+    deallocate( eqns_data%dBaseflow_dTk )
     deallocate( eqns_data%mLayerTempPrev )
     deallocate( eqns_data%mLayerMatricHeadPrev )
     deallocate( eqns_data%mLayerTempTrial )

@@ -1093,8 +1093,7 @@ subroutine update_volFracLiq_derivatives
    mLayerMatricHead    => in_surfaceFlux % mLayerMatricHead   , & ! matric head in each soil layer (m)
    ! input: pre-computed derivatives in ...
    dTheta_dTk          => in_surfaceFlux % dTheta_dTk         , & ! ... volumetric liquid water content w.r.t. temperature (K-1)
-   dTheta_dPsi         => in_surfaceFlux % dTheta_dPsi        , & ! ... the soil water characteristic w.r.t. psi (m-1)
-   mLayerdPsi_dTheta   => in_surfaceFlux % mLayerdPsi_dTheta  , & ! ... the soil water characteristic w.r.t. theta (m)
+   dTheta_dPsi         => in_surfaceFlux % dTheta_dPsi        , & ! ... liquid water content w.r.t. liquid water matric potential (m-1)
    ! output: error control
    err      => out_surfaceFlux % err    , & ! error code
    message  => out_surfaceFlux % message  & ! error message
@@ -1128,7 +1127,7 @@ subroutine update_volFracLiq_derivatives
      select case(ixRichards)  ! form of Richards' equation
        case(moisture)
          dVolFracLiq_dWat(:) = 1._rkind
-         if(doIce) dVolFracIce_dWat(:) = mLayerdPsi_dTheta(:) - 1._rkind
+         if(doIce) dVolFracIce_dWat(:) = 0._rkind
        case(mixdform)
          do iLayer=1,nLayers
            Tcrit = crit_soilT( mLayerMatricHead(iLayer) )

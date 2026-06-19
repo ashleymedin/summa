@@ -33,6 +33,11 @@ USE data_types,only:&
                     io_type_groundwatr, & ! intent(inout) arguments for groundwatr call
                     out_type_groundwatr   ! intent(out) arguments for groundwatr call
 
+! look-up values for the form of Richards' equation
+USE mDecisions_module,only:       &
+ moisture,                        & ! moisture-based form of Richards' equation
+ mixdform                           ! mixed form of Richards' equation
+
 ! named variables defining elements in the data structures
 USE var_lookup,only:iLookPROG    ! named variables for structure elements
 USE var_lookup,only:iLookDIAG    ! named variables for structure elements
@@ -80,15 +85,9 @@ subroutine groundwatr(&
                       ! output: baseflow and error control
                       out_groundwatr)                           ! intent(out):   baseflow and error control
   ! ---------------------------------------------------------------------------------------
-  ! utility modules
-  USE soil_utils_module,only:volFracLiq                       ! compute volumetric fraction of liquid water as a function of matric head
-  USE soil_utils_module,only:hydCond_psi                      ! compute hydraulic conductivity as a function of matric head
   implicit none
-  ! ---------------------------------------------------------------------------------------
-  ! * dummy variables
-  ! ---------------------------------------------------------------------------------------
   ! input: model control, state variables, and diagnostic variables
-  type(in_type_groundwatr),intent(in)    :: in_groundwatr     ! model control, state variables, and diagnostic variables   
+  type(in_type_groundwatr),intent(in)    :: in_groundwatr     ! model control, state variables, and diagnostic variables
   ! input-output: data structures
   type(var_dlength),intent(in)           :: mpar_data         ! model parameters
   type(var_dlength),intent(in)           :: prog_data         ! prognostic variables for a local HRU
@@ -97,17 +96,14 @@ subroutine groundwatr(&
   type(io_type_groundwatr),intent(inout) :: io_groundwatr     ! index of lowest saturated layer (NOTE: only computed on the first iteration)
   ! output: baseflow and error control
   type(out_type_groundwatr),intent(out)  :: out_groundwatr    ! baseflow and error control
-  ! ---------------------------------------------------------------------------------------
-  ! * local variables
-  ! ---------------------------------------------------------------------------------------
   ! general local variables
-  integer(i4b)                                                   :: iLayer            ! index of soil layer
-  real(rkind)                                                    :: fieldCapacity_use ! field capacity used to determine the "active" portion of the soil profile
-  real(rkind),dimension(in_groundwatr%nSoil,in_groundwatr%nSoil) :: dBaseflow_dVolLiq ! derivative in the baseflow flux w.r.t. volumetric liquid water content (m s-1)
-  ! ***************************************************************************************
+  integer(i4b)                           :: iLayer            ! index of soil layer
+  real(rkind)                            :: fieldCapacity_use ! field capacity used to determine the "active" portion of the soil profile
+  character(len=512)                     :: cmessage                       ! error message
   ! ***************************************************************************************
   ! associate variables in data structures
-  allocate(out_groundwatr % mLayerBaseflow(in_groundwatr%nSoil),out_groundwatr % dBaseflow_dMatric(in_groundwatr%nSoil,in_groundwatr%nSoil)) ! allocate intent(out) data structure components
+  allocate(out_groundwatr % mLayerBaseflow(in_groundwatr%nSoil),out_groundwatr % dBaseflow_dWat(in_groundwatr%nSoil,in_groundwatr%nSoil),&
+           out_groundwatr % dBaseflow_dTk(in_groundwatr%nSoil,in_groundwatr%nSoil)) ! allocate intent(out) data structure components
   associate(&
     ! input: model control
     nSnow               => in_groundwatr % nSnow,                              & ! intent(in):    [i4b] number of snow layers
@@ -115,10 +111,14 @@ subroutine groundwatr(&
     nSoil               => in_groundwatr % nSoil,                              & ! intent(in):    [i4b] number of soil layers
     nGlce               => in_groundwatr % nGlce,                              & ! intent(in):    [i4b] number of glacier ice layers
     getSatDepth         => in_groundwatr % firstFluxCall,                      & ! intent(in):    [lgt] logical flag to compute index of the lowest saturated layer
-    ! input: state and diagnostic variables
-    mLayerdTheta_dPsi   => in_groundwatr % mLayerdTheta_dPsi,                  & ! intent(in):    [dp] derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
+    ixRichards          => in_groundwatr % ixRichards,                         & ! intent(in):    [i4b] index of the form of Richards' equation
+    ! input: diagnostic variables
     mLayerVolFracLiq    => in_groundwatr % mLayerVolFracLiqTrial,              & ! intent(in):    [dp] volumetric fraction of liquid water (-)
     mLayerVolFracIce    => in_groundwatr % mLayerVolFracIceTrial,              & ! intent(in):    [dp] volumetric fraction of ice (-)
+    ! input: derivatives
+    dVolTot_dPsi0       => in_groundwatr % dVolTot_dPsi0,                      & ! intent(in):    [dp] derivative in total volumetric water content w.r.t. matric head (m-1)
+    mLayerdTheta_dPsi   => in_groundwatr % mLayerdTheta_dPsi,                  & ! intent(in):    [dp] derivative in liquid water content w.r.t. matric potential (m-1)
+    mLayerdTheta_dTk    => in_groundwatr % mLayerdTheta_dTk,                   & ! intent(in):    [dp] derivative in volumetric liquid water content w.r.t. temperature (K-1)
     ! input: baseflow parameters
     fieldCapacity       => mpar_data%var(iLookPARAM%fieldCapacity)%dat(1),     & ! intent(in):    [dp] field capacity (-)
     theta_sat           => mpar_data%var(iLookPARAM%theta_sat)%dat,            & ! intent(in):    [dp] soil porosity (-)
@@ -129,11 +129,13 @@ subroutine groundwatr(&
     mLayerColumnOutflow => flux_data%var(iLookFLUX%mLayerColumnOutflow)%dat,   & ! intent(out):   [dp(:)] column outflow from each soil layer (m3 s-1)
     ! output: baseflow
     mLayerBaseflow      => out_groundwatr % mLayerBaseflow,                    & ! intent(out):   [dp(:)]   baseflow from each soil layer (m s-1)
-    dBaseflow_dMatric   => out_groundwatr % dBaseflow_dMatric,                 & ! intent(out):   [dp(:,:)] derivative in baseflow w.r.t. matric head (s-1)
+    dBaseflow_dWat      => out_groundwatr % dBaseflow_dWat,                    & ! intent(out):   [dp(:,:)] derivative in baseflow w.r.t. soil water characteristic
+    dBaseflow_dTk       => out_groundwatr % dBaseflow_dTk,                     & ! intent(out):   [dp(:,:)] derivative in baseflow w.r.t. temperature (m s-1 K-1)
     ! output: error control
     err                 => out_groundwatr % err,                               & ! intent(out):   [i4b]       error code
     message             => out_groundwatr % cmessage                           & ! intent(out):   [character] error message
     )  ! end association to variables in data structures
+
     ! initialize error control
     err=0; message='groundwatr/'
 
@@ -157,12 +159,13 @@ subroutine groundwatr(&
       scalarExfiltration     = 0._rkind   ! exfiltration from the soil profile (m s-1)
       mLayerColumnOutflow(:) = 0._rkind   ! column outflow from each soil layer (m3 s-1)
       mLayerBaseflow(:)      = 0._rkind   ! baseflow from each soil layer (m s-1)
-      dBaseflow_dMatric(:,:) = 0._rkind   ! derivative in baseflow w.r.t. matric head (s-1)
+      dBaseflow_dWat(:,:)    = 0._rkind   ! derivative in baseflow w.r.t. soil water characteristic
+      dBaseflow_dTk(:,:)     = 0._rkind   ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
       return
     end if  ! if some layers are saturated
 
     ! ************************************************************************************************
-    ! (2) compute the baseflow flux and its derivative w.r.t volumetric liquid water content
+    ! (2) compute the baseflow flux and its derivative w.r.t matric head and temperature
     ! ************************************************************************************************
 
     ! use private subroutine to compute baseflow (for multiple calls for numerical Jacobian)
@@ -172,25 +175,25 @@ subroutine groundwatr(&
                           nLake,                   & ! intent(in):    number of lake layers
                           nSoil,                   & ! intent(in):    number of soil layers
                           nGlce,                   & ! intent(in):    number of glacier ice layers
-                          .true.,                  & ! intent(in):    .true. if analytical derivatives are desired
                           ixSaturation,            & ! intent(in):    index of upper-most "saturated" layer
+                          ixRichards,              & ! intent(in):    index of the form of Richards' equation
                           mLayerVolFracLiq,        & ! intent(in):    volumetric fraction of liquid water in each soil layer (-)
                           mLayerVolFracIce,        & ! intent(in):    volumetric fraction of ice in each soil layer (-)
                           ! input/output: data structures
                           mpar_data,               & ! intent(in):    model parameters
                           prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                           flux_data,               & ! intent(inout): model fluxes for a local HRU
+                          ! derivatives
+                          dVolTot_dPsi0,           & ! intent(in):    derivative in total volumetric water content w.r.t. matric head (m-1)
+                          mLayerdTheta_dPsi,       & ! intent(in):    derivative in liquid water content w.r.t. matric potential (m-1)
+                          mLayerdTheta_dTk,        & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
                           ! output: fluxes and derivatives
                           mLayerBaseflow,          & ! intent(out):   baseflow flux in each soil layer (m s-1)
-                          dBaseflow_dVolLiq)         ! intent(out):   derivative in baseflow w.r.t. volumetric liquid water content (s-1)
-
-    ! use the chain rule to compute the baseflow derivative w.r.t. matric head (s-1)
-    do iLayer=1,nSoil
-      dBaseflow_dMatric(1:iLayer,iLayer) = dBaseflow_dVolLiq(1:iLayer,iLayer)*mLayerdTheta_dPsi(iLayer)
-      if (iLayer<nSoil) dBaseflow_dMatric(iLayer+1:nSoil,iLayer) = 0._rkind ! no dependence of baseflow in a layer on matric head in layers above the layer
-    end do
-
-  ! end association to variables in data structures
+                          dBaseflow_dWat,          & ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
+                          dBaseflow_dTk,           & ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
+                          err, cmessage)             ! intent(out):   error control
+   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+   ! end association to variables in data structures
   end associate
 
 end subroutine groundwatr
@@ -205,17 +208,24 @@ subroutine computBaseflow(&
                           nLake,                         & ! intent(in):    number of lake layers
                           nSoil,                         & ! intent(in):    number of soil layers
                           nGlce,                         & ! intent(in):    number of glacier ice layers
-                          derivDesired,                  & ! intent(in):    .true. if derivatives are desired
                           ixSaturation,                  & ! intent(in):    index of upper-most "saturated" layer
+                          ixRichards,                    & ! intent(in):    index of the form of Richards' equation
                           mLayerVolFracLiq,              & ! intent(in):    volumetric fraction of liquid water in each soil layer (-)
                           mLayerVolFracIce,              & ! intent(in):    volumetric fraction of ice in each soil layer (-)
                           ! input/output: data structures
                           mpar_data,                     & ! intent(in):    model parameters
                           prog_data,                     & ! intent(in):    model prognostic variables for a local HRU
                           flux_data,                     & ! intent(inout): model fluxes for a local HRU
+                          ! derivatives
+                          dVolTot_dPsi0,                 & ! intent(in):    derivative in total volumetric water content w.r.t. matric head (m-1)
+                          mLayerdTheta_dPsi,             & ! intent(in):    derivative in liquid water content w.r.t. matric potential (m-1)
+                          mLayerdTheta_dTk,              & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
                           ! output: fluxes and derivatives
                           mLayerBaseflow,                & ! intent(out):   baseflow flux in each soil layer (m s-1)
-                          dBaseflow_dVolLiq)               ! intent(out):   derivative in baseflow w.r.t. volumetric liquid water content (s-1)
+                          dBaseflow_dWat,                & ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
+                          dBaseflow_dTk,                 & ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
+                          ! error handling
+                          err, message)                    ! intent(out):   error control
   implicit none
   ! ---------------------------------------------------------------------------------------
   ! * dummy variables
@@ -225,17 +235,25 @@ subroutine computBaseflow(&
   integer(i4b),intent(in)          :: nLake                   ! number of lake layers
   integer(i4b),intent(in)          :: nSoil                   ! number of soil layers
   integer(i4b),intent(in)          :: nGlce                   ! number of glacier ice layers
-  logical(lgt),intent(in)          :: derivDesired            ! .true. if derivatives are desired
   integer(i4b),intent(in)          :: ixSaturation            ! index of upper-most "saturated" layer
+  integer(i4b),intent(in)          :: ixRichards              ! index of the form of Richards' equation
   real(rkind),intent(in)           :: mLayerVolFracLiq(:)     ! volumetric fraction of liquid water (-)
   real(rkind),intent(in)           :: mLayerVolFracIce(:)     ! volumetric fraction of ice (-)
   ! input/output: data structures
   type(var_dlength),intent(in)     :: mpar_data               ! model parameters
   type(var_dlength),intent(in)     :: prog_data               ! prognostic variables for a local HRU
   type(var_dlength),intent(inout)  :: flux_data               ! model fluxes for a local HRU
+  ! derivatives
+  real(rkind),intent(in)           :: dVolTot_dPsi0(:)        ! derivative in total volumetric water content w.r.t. matric head (m-1)
+  real(rkind),intent(in)           :: mLayerdTheta_dPsi(:)    ! derivative in liquid water content w.r.t. matric potential (m-1)
+  real(rkind),intent(in)           :: mLayerdTheta_dTk(:)     ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
   ! output: baseflow
   real(rkind),intent(out)          :: mLayerBaseflow(:)       ! baseflow from each soil layer (m s-1)
-  real(rkind),intent(out)          :: dBaseflow_dVolLiq(:,:)  ! derivative in baseflow w.r.t. volumetric liquid water content (s-1)
+  real(rkind),intent(out)          :: dBaseflow_dWat(:,:)     ! derivative in baseflow w.r.t. soil water characteristic
+  real(rkind),intent(out)          :: dBaseflow_dTk(:,:)      ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
+  ! error handling
+  integer(i4b), intent(out)        :: err                     ! error code
+  character(*), intent(out)        :: message                 ! error message
   ! ---------------------------------------------------------------------------------------
   ! * local variables
   ! ---------------------------------------------------------------------------------------
@@ -253,18 +271,20 @@ subroutine computBaseflow(&
   real(rkind)                        :: kAnisotropic_use     ! anisotropy factor used to compute transmissivity
   ! local variables for the lateral flux among soil columns
   real(rkind)                        :: activePorosity        ! "active" porosity associated with storage above a threshold (-)
-  real(rkind)                        :: drainableWater        ! drainable water in eaxch layer (m)
+  real(rkind)                        :: drainableWater        ! drainable water in each layer (m)
   real(rkind)                        :: tran0                 ! maximum transmissivity (m2 s-1)
   real(rkind),dimension(nSoil)       :: zActive               ! water table thickness associated with storage below and including the given layer (m)
   real(rkind),dimension(nSoil)       :: trTotal               ! total transmissivity associated with total water table depth zActive (m2 s-1)
   real(rkind),dimension(nSoil)       :: trSoil                ! transmissivity of water in a given layer (m2 s-1)
   ! local variables for the derivatives
+  real(rkind),dimension(nSoil,nSoil) :: dBaseflow_dVolLiq     ! derivative in baseflow w.r.t. volumetric liquid water content (s-1)
   real(rkind)                        :: qbTotal               ! total baseflow (m s-1)
   real(rkind)                        :: length2area           ! ratio of hillslope width to hillslope area (m m-2)
   real(rkind),dimension(nSoil)       :: depth2capacity        ! ratio of layer depth to total subsurface storage capacity (-)
   real(rkind),dimension(nSoil)       :: dXdS                  ! change in dimensionless flux w.r.t. change in dimensionless storage (-)
-  real(rkind),dimension(nSoil)       :: dLogFunc_dLiq         ! derivative in the logistic function w.r.t. volumetric liquid water content (-)
-  real(rkind),dimension(nSoil)       :: dExfiltrate_dVolLiq   ! derivative in exfiltration w.r.t. volumetric liquid water content (-)
+  real(rkind),dimension(nSoil)       :: dLogFunc_dWat         ! derivative in the logistic function w.r.t. soil water characteristic
+  real(rkind),dimension(nSoil)       :: dExfiltrate_dWat      ! derivative in exfiltration w.r.t. soil water characteristic
+  real(rkind),dimension(nSoil)       :: dExfiltrate_dTk       ! derivative in exfiltration w.r.t. temperature (K-1)
   ! ---------------------------------------------------------------------------------------
   ! * association to data in structures
   ! ---------------------------------------------------------------------------------------
@@ -288,7 +308,9 @@ subroutine computBaseflow(&
     scalarExfiltration      => flux_data%var(iLookFLUX%scalarExfiltration)%dat(1),       & ! intent(out): [dp]    exfiltration from the soil profile (m s-1)
     mLayerColumnOutflow     => flux_data%var(iLookFLUX%mLayerColumnOutflow)%dat          & ! intent(out): [dp(:)] column outflow from each soil layer (m3 s-1)
     )  ! end association to variables in data structures
-
+    ! -----------------------------------------------------------------------------------------------------------------------------------------
+    ! initialize error control
+    err=0; message="computBaseflow/"
     ! ***********************************************************************************************************************
     ! (1) compute the baseflow flux in each soil layer
     ! ***********************************************************************************************************************
@@ -342,11 +364,15 @@ subroutine computBaseflow(&
       ! compute the logistic function
       expF = exp((availStorage - xCenter)/xWidth)
       logF = 1._rkind / (1._rkind + expF)
-      ! compute the derivative in the logistic function w.r.t. volumetric liquid water content in each soil layer
-      dLogFunc_dLiq(1:nSoil) = mLayerDepth(1:nSoil)*(expF/xWidth)/(1._rkind + expF)**2_i4b
+      ! compute the derivative in the logistic function w.r.t. volumetric water content in each soil layer, NOTE dLogFunc_dTemp = 0
+      select case (ixRichards)
+       case(moisture); dLogFunc_dWat(1:nSoil) = mLayerDepth(1:nSoil)*(expF/xWidth)/(1._rkind + expF)**2_i4b
+       case(mixdform); dLogFunc_dWat(1:nSoil) = mLayerDepth(1:nSoil)*(expF/xWidth)/(1._rkind + expF)**2_i4b * dVolTot_dPsi0(1:nSoil)
+       case default; err=20; message=trim(message)//'expect ixRichards to be moisture or mixdform'; return
+      end select
     else
       logF             = 0._rkind
-      dLogFunc_dLiq(:) = 0._rkind
+      dLogFunc_dWat(:) = 0._rkind
     end if
 
     ! compute the exfiltration (m s-1)
@@ -372,35 +398,49 @@ subroutine computBaseflow(&
 
     ! initialize the derivative matrix
     dBaseflow_dVolLiq(:,:) = 0._rkind
-
-    ! check if derivatives are actually required
-    if (.not.derivDesired) return
+    dBaseflow_dWat(:,:) = 0._rkind
+    dBaseflow_dTk(:,:) = 0._rkind
 
     ! compute ratio of hillslope width to hillslope area (m m-2)
     length2area = tan_slope*contourLength/area
 
     ! compute the ratio of layer depth to maximum water holding capacity (-)
-    depth2capacity(1:nSoil) = mLayerDepth(1:nSoil)/sum( (theta_sat(1:nSoil) - fieldCapacity_use)*mLayerDepth(1:nSoil) )
+    depth2capacity(1:nSoil) = mLayerDepth(1:nSoil)/(theta_sat(1:nSoil) - fieldCapacity_use)/soilDepth
+    do iLayer=1,nSoil
+      if (mLayerVolFracLiq(iLayer) <= fieldCapacity_use) depth2capacity(iLayer) = 0._rkind
+    end do
 
     ! compute the change in dimensionless flux w.r.t. change in dimensionless storage (-)
-    dXdS(1:nSoil) = zScale_TOPMODEL*(zActive(1:nSoil)/SoilDepth)**(zScale_TOPMODEL - 1._rkind)
+    dXdS(1:nSoil) = zScale_TOPMODEL*(zActive(1:nSoil)/soilDepth)**(zScale_TOPMODEL - 1._rkind)
 
     ! loop through soil layers
     do iLayer=1,nSoil
       ! compute diagonal terms (s-1)
       dBaseflow_dVolLiq(iLayer,iLayer) = tran0*dXdS(iLayer)*depth2capacity(iLayer)*length2area
+      select case (ixRichards)
+       case(moisture); dBaseflow_dWat(iLayer,iLayer) = dBaseflow_dVolLiq(iLayer,iLayer)*mLayerdTheta_dPsi(iLayer)
+       case(mixdform); dBaseflow_dWat(iLayer,iLayer) = dBaseflow_dVolLiq(iLayer,iLayer)
+      end select
+      dBaseflow_dTk(iLayer,iLayer) = dBaseflow_dVolLiq(iLayer,iLayer)*mLayerdTheta_dTk(iLayer)
       ! compute off-diagonal terms
       do jLayer=iLayer+1,nSoil  ! only dependent on layers below
         dBaseflow_dVolLiq(iLayer,jLayer) = tran0*(dXdS(iLayer) - dXdS(iLayer+1))*depth2capacity(jLayer)*length2area
+        select case (ixRichards)
+         case(moisture); dBaseflow_dWat(iLayer,jLayer) = dBaseflow_dVolLiq(iLayer,jLayer)*mLayerdTheta_dPsi(jLayer)
+         case(mixdform); dBaseflow_dWat(iLayer,jLayer) = dBaseflow_dVolLiq(iLayer,jLayer)
+         end select
+        dBaseflow_dTk(iLayer,jLayer) = dBaseflow_dVolLiq(iLayer,jLayer)*mLayerdTheta_dTk(jLayer)
       end do  ! end looping through soil layers
     end do  ! end looping through soil layers
 
-    ! compute the derivative in the exfiltration flux w.r.t. volumetric liquid water content (m s-1)
-    if (qbTotal < 0._rkind) then
+    ! compute the derivative in the exfiltration flux and add to the baseflow derivative matrix
+    if (totalColumnInflow > totalColumnOutflow .and. logF > tiny(1._rkind)) then
       do iLayer=1,nSoil
-        dExfiltrate_dVolLiq(iLayer) = dBaseflow_dVolLiq(iLayer,iLayer)*logF + dLogFunc_dLiq(iLayer)*qbTotal
+        dExfiltrate_dWat(iLayer) = -sum(dBaseflow_dWat(1:nSoil,iLayer))*logF - dLogFunc_dWat(iLayer)*qbTotal
+        dExfiltrate_dTk(iLayer) = -sum(dBaseflow_dTk(1:nSoil,iLayer))*logF
       end do  ! end looping through soil layers
-      dBaseflow_dVolLiq(1,1:nSoil) = dBaseflow_dVolLiq(1,1:nSoil) - dExfiltrate_dVolLiq(1:nSoil)
+      dBaseflow_dWat(1,1:nSoil) = dBaseflow_dWat(1,1:nSoil) + dExfiltrate_dWat(1:nSoil)
+      dBaseflow_dTk(1,1:nSoil) = dBaseflow_dTk(1,1:nSoil) + dExfiltrate_dTk(1:nSoil)
     end if
 
   end associate ! end association to data in structures
