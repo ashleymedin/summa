@@ -193,7 +193,6 @@ subroutine groundwatr(&
                           dBaseflow_dTk,           & ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
                           err, cmessage)             ! intent(out):   error control
    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-   print*, "mLayerdTheta_dPsi: ", mLayerdTheta_dPsi
    ! end association to variables in data structures
   end associate
 
@@ -411,16 +410,16 @@ subroutine computBaseflow(&
       ! compute diagonal terms (s-1)
       dBaseflow_dVolLiq(iLayer,iLayer) = tran0*dXdS(iLayer)*depth2capacity(iLayer)*length2area
       select case (ixRichards)
-       case(moisture); dBaseflow_dWat(iLayer,iLayer) = dBaseflow_dVolLiq(iLayer,iLayer)*mLayerdTheta_dPsi(iLayer)
-       case(mixdform); dBaseflow_dWat(iLayer,iLayer) = dBaseflow_dVolLiq(iLayer,iLayer)
+       case(moisture); dBaseflow_dWat(iLayer,iLayer) = dBaseflow_dVolLiq(iLayer,iLayer)
+       case(mixdform); dBaseflow_dWat(iLayer,iLayer) = dBaseflow_dVolLiq(iLayer,iLayer)*mLayerdTheta_dPsi(iLayer)
       end select
       dBaseflow_dTk(iLayer,iLayer) = dBaseflow_dVolLiq(iLayer,iLayer)*mLayerdTheta_dTk(iLayer)
       ! compute off-diagonal terms
       do jLayer=iLayer+1,nSoil  ! only dependent on layers below
         dBaseflow_dVolLiq(iLayer,jLayer) = tran0*(dXdS(iLayer) - dXdS(iLayer+1))*depth2capacity(jLayer)*length2area
         select case (ixRichards)
-         case(moisture); dBaseflow_dWat(iLayer,jLayer) = dBaseflow_dVolLiq(iLayer,jLayer)*mLayerdTheta_dPsi(jLayer)
-         case(mixdform); dBaseflow_dWat(iLayer,jLayer) = dBaseflow_dVolLiq(iLayer,jLayer)
+         case(moisture); dBaseflow_dWat(iLayer,jLayer) = dBaseflow_dVolLiq(iLayer,jLayer)
+         case(mixdform); dBaseflow_dWat(iLayer,jLayer) = dBaseflow_dVolLiq(iLayer,jLayer)*mLayerdTheta_dPsi(jLayer)
          end select
         dBaseflow_dTk(iLayer,jLayer) = dBaseflow_dVolLiq(iLayer,jLayer)*mLayerdTheta_dTk(jLayer)
       end do  ! end looping through soil layers
@@ -435,12 +434,6 @@ subroutine computBaseflow(&
       dBaseflow_dWat(1,1:nSoil) = dBaseflow_dWat(1,1:nSoil) + dExfiltrate_dWat(1:nSoil)
       dBaseflow_dTk(1,1:nSoil) = dBaseflow_dTk(1,1:nSoil) + dExfiltrate_dTk(1:nSoil)
     end if
-    print*, "zScale_TOPMODEL: ", zScale_TOPMODEL
-     print*, "zActive: ", zActive
-     print*, "dXdS: ", dXdS
-     print*,"tran0,length2area,depth2capacity(iLayer): ", tran0, length2area,depth2capacity(1:nSoil)
-     print*,"tran0*dXdS(iLayer)*depth2capacity(iLayer)*length2area: ", tran0*dXdS(1:nSoil)*depth2capacity(1:nSoil)*length2area
-     print*, "exfiltration: ", dExfiltrate_dWat
 
   end associate ! end association to data in structures
 
