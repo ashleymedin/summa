@@ -826,7 +826,7 @@ subroutine fluxJacAdd(&
           endif
 
           ! - include baseflow derivatives
-          if(computeBaseflow)then ! include if glacier debris as it has lateral flow that behaves like baseflow lateral flow
+          if(computeBaseflow)then
             do pLayer=1,nSoil
               qState = ixSoilOnlyNrg(pLayer)  ! hydrology state index within the state subset
               if(qState/=integerMissing)then
