@@ -119,7 +119,7 @@ subroutine computJacob(&
   real(rkind),intent(in)                  :: dMat0(:)               ! diagonal of the Jacobian matrix excluding fluxes, not depending on the state vector
   real(rkind),intent(out)                 :: aJac(:,:)              ! Jacobian matrix
   ! output variables
-  type(out_type_computJacob),intent(out) :: out_computJacob         ! error control
+  type(out_type_computJacob),intent(out)  :: out_computJacob        ! error control
   ! -------------------------------------------------------------
   ! * local variables
   ! -------------------------------------------------------------
