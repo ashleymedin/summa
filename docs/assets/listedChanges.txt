@@ -200,3 +200,4 @@ AFTER tag of v4.0.0-exp-Sundials
 -52) If scalar solution fails on a snow layer, exit and merge snow layers if failure was from too much energy going into top layer (previous behavior was code failure), commit 7c46a507 May 5, 2026
      Also changed the number of times it checks the brackets for scalar solution from 100 to 10 since usually by 2 it's found the bracket or not.
 -53) Fix power profile hydraulic conductivity if total soil depth less than compactedDepth, and rewrite to make smooth profile if k_soil differs across layers and take into account differing layer thicknesses (use harmonic mean), commit 8119be7c May 29, 2026
+-54) Fix baseflow (groundwatr decisiion qTopmodl) derivatives commit 20f31a76, Jun 20, 2026
