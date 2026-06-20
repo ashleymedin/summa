@@ -188,12 +188,13 @@ contains
  ! NGEN wants the wind inputted as two components, if not inputting NGEN forcing let the y direction be 0
 #ifdef NGEN_FORCING_ACTIVE
  windspd = sqrt(windspd_x**2_i4b + windspd_y**2_i4b)
- if(windspd < minwind) windspd=minwind ! ensure wind speed is above a prescribed minimum value
 #else
  windspd_x = windspd
  windspd_y = 0._rkind
  if(windspd_x < minwind) windspd_x=minwind ! ensure wind speed is above a prescribed minimum value
 #endif
+ if(windspd < minwind) windspd=minwind ! ensure wind speed is above a prescribed minimum value
+
 
  ! adjust wind speed and air temperature for glacier katabatic winds, should be related to fetch length
  ! NOTE: Eventually want to have a separate katabatic wind model, but this is a simple first-order approach 
