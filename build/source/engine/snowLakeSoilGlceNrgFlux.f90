@@ -154,7 +154,7 @@ subroutine snowLakeSoilGlceNrgFlux(&
     upperBoundTemp          => mpar_data%var(iLookPARAM%upperBoundTemp)%dat(1),      & ! intent(in):  temperature of the upper boundary (K)
     lowerBoundTemp          => mpar_data%var(iLookPARAM%lowerBoundTemp)%dat(1),      & ! intent(in):  temperature of the lower boundary (K)
     iLayerThermalC          => diag_data%var(iLookDIAG%iLayerThermalC)%dat,          & ! intent(in):  thermal conductivity at the interface of each layer (W m-1 K-1)
-     ! output: diagnostic fluxes
+    ! output: diagnostic fluxes
     iLayerConductiveFlux => flux_data%var(iLookFLUX%iLayerConductiveFlux)%dat,       & ! intent(out): conductive energy flux at layer interfaces at end of time step (W m-2)
     iLayerAdvectiveFlux  => flux_data%var(iLookFLUX%iLayerAdvectiveFlux)%dat,        & ! intent(out): advective energy flux at layer interfaces at end of time step (W m-2)
     ! output: fluxes and derivatives at all layer interfaces
@@ -190,9 +190,9 @@ subroutine snowLakeSoilGlceNrgFlux(&
     ! -------------------------------------------------------------------------------------------------------------------------
     zeroFlux_noThetaBdry = .false.
     do iLayer=ixTop,ixBot
-      if(layerType(iLayer)==iname_glce .and. iLayer==nLayers-noThetaChange .and. iLayerThermalC(iLayer)>0._rkind .and. mLayerTempTrial(iLayer)>=Tfreeze)then
+      if(layerType(iLayer)==iname_glce .and. iLayer==nLayers-noThetaChange .and. iLayerLiqFluxSnLaGl(iLayer-1) < 0._rkind)then
         zeroFlux_noThetaBdry = .true.
-        iLayerConductiveFlux(iLayer) = 0._rkind ! all melt energy absorbed in top layers of glacier ice
+        iLayerConductiveFlux(iLayer) = 0._rkind ! all melt energy absorbed in top layers of glacier ice, note the flux is from the end of the previous time step
       elseif (iLayer==nLayers) then ! lower boundary fluxes -- positive downwards 
       ! flux depends on the type of lower boundary condition
         select case(ix_bcLowrTdyn) ! identify the lower boundary condition for thermodynamics

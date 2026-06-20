@@ -119,7 +119,6 @@ subroutine snowLakeGlceLiqFlux(&
     ixGlceOnlyHyd    => indx_data%var(iLookINDEX%ixGlceOnlyHyd)%dat,             & ! intent(in):    index in the state subset for hydrology state variables in the glacier ice domain
     ! input: snow properties and parameters
     mLayerVolFracIce => prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nStart+1:nStart+nLayers), & ! intent(in):    volumetric ice content at the start of the time step (-)
-    mLayerTemp       => prog_data%var(iLookPROG%mLayerTemp)%dat(nStart+1:nStart+nLayers),       & ! intent(in):    temperature at the start of the time step (K)
     Fcapil           => mpar_data%var(iLookPARAM%Fcapil)%dat(1),                                & ! intent(in):    capillary retention as a fraction of the total pore volume (-)
     k_snow           => mpar_data%var(iLookPARAM%k_snow)%dat(1),                                & ! intent(in):    hydraulic conductivity of snow (m s-1)    
     mw_exp           => mpar_data%var(iLookPARAM%mw_exp)%dat(1),                                & ! intent(in):    exponent for meltwater flow (-)
@@ -179,17 +178,14 @@ subroutine snowLakeGlceLiqFlux(&
     ! compute properties fixed over the time step
     if (firstFluxCall) then
       ! loop through snow/firn layers
+      mLayerPoreSpace  = 1._rkind - mLayerVolFracIce ! compute the pore space (-)
       if(do_snow)then
         do iLayer=1,nLayers ! loop through snow layers
           multResid = 1._rkind/(1._rkind + exp((mLayerVolFracIce(iLayer)*iden_ice - residThrs)/residScal)) ! compute the reduction in liquid water holding capacity at high snow/ice density (-)
-          mLayerPoreSpace(iLayer)  = 1._rkind - mLayerVolFracIce(iLayer) ! compute the pore space (-)
           mLayerThetaResid(iLayer) = Fcapil*mLayerPoreSpace(iLayer)*multResid ! compute the residual volumetric liquid water content (-)
         end do  ! end looping through snow/firn layers
       else ! glacier ice
-        do iLayer=1,nLayers ! loop through glacier ice layers
-          mLayerPoreSpace(iLayer)  = 1._rkind - mLayerVolFracIce(iLayer) ! compute the pore space (-)
-          mLayerThetaResid(iLayer) = 0._rkind !fracliquid(min(mLayerTemp(iLayer),Tfreeze-0.05),snowfrz_scale*icefrz_mult) ! need to cap residual volumetric liquid water content (-) so does not blow up
-        end do  ! end looping through glacier ice layers
+        mLayerThetaResid = mLayerPoreSpace
       end if  ! end if snow or ice
     end if  ! end if the first flux call
      
@@ -224,7 +220,7 @@ subroutine snowLakeGlceLiqFlux(&
           iLayerLiqFluxSnLaGlDeriv(iLayer) = 0._rkind
         else  ! not the bottom layer
           availCap  = min(mLayerVolFracLiqTrial(iLayer+1),mLayerThetaResid(iLayer+1)) ! available capacity
-          iLayerLiqFluxSnLaGl(iLayer) = - (mLayerVolFracLiqTrial(iLayer+1) - availCap)
+          iLayerLiqFluxSnLaGl(iLayer) = -(mLayerVolFracLiqTrial(iLayer+1) - availCap)
           iLayerLiqFluxSnLaGlDeriv(iLayer) = merge(-1._rkind,0._rkind,mLayerVolFracLiqTrial(iLayer+1)>mLayerThetaResid(iLayer+1)) ! after cancelation, derivative is -1
           ! ** liquid water to passes through ice layers immediately
           iLayerLiqFluxSnLaGl(iLayer) = iLayerLiqFluxSnLaGl(iLayer+1) + iLayerLiqFluxSnLaGl(iLayer)
