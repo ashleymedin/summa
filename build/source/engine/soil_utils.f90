@@ -99,8 +99,8 @@ subroutine liquidHead(&
                      volFracLiq                               ,& ! intent(in)    : volumetric fraction of liquid water (-)
                      volFracIce                               ,& ! intent(in)    : volumetric fraction of ice (-)
                      vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m,& ! intent(in)    : soil parameters
-                     dVolTot_dPsi0                            ,& ! intent(in)    : derivative in the soil water characteristic (m-1)
-                     dTheta_dT                                ,& ! intent(in)    : derivative in volumetric total water w.r.t. temperature (K-1)
+                     dVolTot_dPsi0                            ,& ! intent(in)    : derivative in total volumetric water content w.r.t. matric head (m-1)
+                     dTheta_dT                                ,& ! intent(in)    : derivative in volumetric liquid water w.r.t. temperature (K-1)
                      ! output
                      matricHeadLiq                            ,& ! intent(out)   : liquid water matric potential (m)
                      dPsiLiq_dPsi0                            ,& ! intent(out)   : derivative in the liquid water matric potential w.r.t. the total water matric potential (-)
@@ -112,8 +112,8 @@ subroutine liquidHead(&
   real(rkind),intent(in)            :: volFracLiq                                ! volumetric fraction of liquid water (-)
   real(rkind),intent(in)            :: volFracIce                                ! volumetric fraction of ice (-)
   real(rkind),intent(in)            :: vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m ! soil parameters
-  real(rkind),intent(in)  ,optional :: dVolTot_dPsi0                             ! derivative in the soil water characteristic (m-1)
-  real(rkind),intent(in)  ,optional :: dTheta_dT                                 ! derivative in volumetric total water w.r.t. temperature (K-1)
+  real(rkind),intent(in)  ,optional :: dVolTot_dPsi0                             ! derivative in total volumetric water content w.r.t. matric head (m-1)
+  real(rkind),intent(in)  ,optional :: dTheta_dT                                 ! derivative in volumetric liquid water w.r.t. temperature (K-1)
   ! output
   real(rkind),intent(out)           :: matricHeadLiq                             ! liquid water matric potential (m)
   real(rkind),intent(out) ,optional :: dPsiLiq_dPsi0                             ! derivative in the liquid water matric potential w.r.t. the total water matric potential (-)

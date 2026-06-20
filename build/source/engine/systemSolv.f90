@@ -228,7 +228,8 @@ subroutine systemSolv(&
   logical(lgt),parameter          :: forceFullMatrix=.false.       ! flag to force the use of the full Jacobian matrix
   integer(i4b)                    :: ixMatrix                      ! form of matrix (band diagonal or full matrix)
   type(var_dlength)               :: flux_init                     ! model fluxes at the start of the time step
-  real(rkind),allocatable         :: dBaseflow_dMatric(:,:)        ! derivative in baseflow w.r.t. matric head (s-1)  ! NOTE: allocatable, since not always needed
+  real(rkind),allocatable         :: dBaseflow_dWat(:,:)           ! derivative in baseflow w.r.t. soil water characteristic
+  real(rkind),allocatable         :: dBaseflow_dTk(:,:)            ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
   real(rkind)                     :: stateVecNew(nState)           ! new state vector (mixed units)
   real(rkind)                     :: fluxVec0(nState)              ! flux vector (mixed units)
   real(rkind)                     :: dMat(nState)                  ! diagonal matrix (excludes flux derivatives)
@@ -364,16 +365,15 @@ contains
      allocate( mLayerCmpress_sum(nSoil) )
      allocate( mLayerMatricHeadPrime(nSoil) )
    else
-     allocate( mLayerCmpress_sum(0) )     ! allocate zero-length dimensions to avoid passing around an unallocated matrix
-     allocate( mLayerMatricHeadPrime(0) ) ! allocate zero-length dimensions to avoid passing around an unallocated matrix
+     allocate( mLayerCmpress_sum(0) )
+     allocate( mLayerMatricHeadPrime(0) )
    end if
 
    ! allocate space for the baseflow derivatives
-   ! NOTE: needs allocation because only used when baseflow sinks are active
    if (ixGroundwater==qbaseTopmodel) then
-    allocate(dBaseflow_dMatric(nSoil,nSoil),stat=err) ! baseflow depends on total storage in the soil column, hence on matric head in every soil layer
+    allocate(dBaseflow_dWat(nSoil,nSoil),dBaseflow_dTk(nSoil,nSoil),stat=err)
    else
-    allocate(dBaseflow_dMatric(0,0),stat=err)         ! allocate zero-length dimensions to avoid passing around an unallocated matrix
+     allocate(dBaseflow_dWat(0,0),dBaseflow_dTk(0,0),stat=err)
    end if
    if (err/=0) then; err=20; message=trim(message)//'unable to allocate space for the baseflow derivatives'; return_flag=.true.; return; end if
   end associate
@@ -466,7 +466,8 @@ contains
                     deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                     ! input-output: baseflow
                     ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                    dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
+                    dBaseflow_dWat,          & ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
+                    dBaseflow_dTk,           & ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
                     ! output
                     feasible,                & ! intent(out):   flag to denote the feasibility of the solution
                     fluxVec0,                & ! intent(out):   flux vector
@@ -539,7 +540,8 @@ contains
                     mLayerVolFracWatPrime,   & ! intent(out):   prime vector of volumetric total water content of each snow and soil layer (s-1)
                     ! input-output: baseflow    
                     ixSaturation,            & ! intent(inout): index of the lowest saturated layer
-                    dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
+                    dBaseflow_dWat,          & ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
+                    dBaseflow_dTk,           & ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
                     ! output: flux and residual vectors
                     feasible,                & ! intent(out):   flag to denote the feasibility of the solution
                     fluxVec0,                & ! intent(out):   flux vector
@@ -560,12 +562,12 @@ contains
    )
    call in_SS4HG % initialize(dt_cur,dt,iter,nSnow,nSoil,nLayers,nLeadDim,nState,ixMatrix,firstSubStep,computeVegFlux,scalarSolution,fOld)
    call io_SS4HG % initialize(firstFluxCall,xMin,xMax,ixSaturation)
-   call summaSolv4homegrown(in_SS4HG,&                                                                                ! input: model control
-                            &stateVecTrial,fScale,xScale,resVec,sMul,dMat,&                                            ! input: state vectors
-                            &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,& ! input: data structures
-                            &indx_data,diag_data,flux_temp,deriv_data,&                                                ! input-output: data structures
-                            &dBaseflow_dMatric,io_SS4HG,&                                                              ! input-output: baseflow
-                            &stateVecNew,fluxVec,resSink,resVecNew,tooMuchMelt,out_SS4HG)                              ! output
+   call summaSolv4homegrown(in_SS4HG,&                                                                               ! input: model control
+                            stateVecTrial,fScale,xScale,resVec,sMul,dMat,&                                           ! input: state vectors
+                            model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&! input: data structures
+                            indx_data,diag_data,flux_temp,deriv_data,&                                               ! input-output: data structures
+                            dBaseflow_dWat,dBaseflow_dTk,io_SS4HG,&                                                  ! input-output: baseflow
+                            stateVecNew,fluxVec,resSink,resVecNew,tooMuchMelt,out_SS4HG)                             ! output
    call io_SS4HG % finalize(firstFluxCall,xMin,xMax,ixSaturation)
    call out_SS4HG % finalize(fNew,converged,err,cmessage)                
   end associate
@@ -838,7 +840,8 @@ contains
   ! free memory
   deallocate(mLayerCmpress_sum)
   deallocate(mLayerMatricHeadPrime)
-  deallocate(dBaseflow_dMatric)
+  deallocate(dBaseflow_dWat)
+  deallocate(dBaseflow_dTk)
  end subroutine finalize_systemSolv
 
 end subroutine systemSolv

@@ -827,8 +827,8 @@ contains
   case('dq_dHydStateAbove'              ); get_ixDeriv = iLookDERIV%dq_dHydStateAbove              ! change in the flux in layer interfaces w.r.t. state variables in the layer above
   case('dq_dHydStateBelow'              ); get_ixDeriv = iLookDERIV%dq_dHydStateBelow              ! change in the flux in layer interfaces w.r.t. state variables in the layer below
   case('dq_dHydStateLayerSurfVec'       ); get_ixDeriv = iLookDERIV%dq_dHydStateLayerSurfVec       ! change in the flux in soil surface interface w.r.t. state variables in layers
-  case('mLayerdTheta_dPsi'              ); get_ixDeriv = iLookDERIV%mLayerdTheta_dPsi              ! derivative in the soil water characteristic w.r.t. psi (m-1)
-  case('mLayerdPsi_dTheta'              ); get_ixDeriv = iLookDERIV%mLayerdPsi_dTheta              ! derivative in the soil water characteristic w.r.t. theta (m)
+  case('mLayerdTheta_dPsi'              ); get_ixDeriv = iLookDERIV%mLayerdTheta_dPsi              ! derivative in liquid water content w.r.t. matric potential (m-1)
+  case('mLayerdPsi_dTheta'              ); get_ixDeriv = iLookDERIV%mLayerdPsi_dTheta              ! derivative in matric potential w.r.t. liquid water content (m)
   case('dCompress_dPsi'                 ); get_ixDeriv = iLookDERIV%dCompress_dPsi                 ! derivative in compressibility w.r.t matric head (m-1)
   ! derivative in baseflow flux w.r.t. aquifer storage
   case('dBaseflow_dAquifer'             ); get_ixDeriv = iLookDERIV%dBaseflow_dAquifer             ! derivative in baseflow flux w.r.t. aquifer storage (s-1)

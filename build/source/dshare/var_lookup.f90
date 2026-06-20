@@ -685,8 +685,8 @@ MODULE var_lookup
   integer(i4b)    :: dq_dHydStateAbove               = integerMissing ! change in the flux in layer interfaces w.r.t. state variables in the layer above
   integer(i4b)    :: dq_dHydStateBelow               = integerMissing ! change in the flux in layer interfaces w.r.t. state variables in the layer below
   integer(i4b)    :: dq_dHydStateLayerSurfVec        = integerMissing ! change in the flux in soil surface interface w.r.t. state variables in layers
-  integer(i4b)    :: mLayerdTheta_dPsi               = integerMissing ! derivative in the soil water characteristic w.r.t. psi (m-1)
-  integer(i4b)    :: mLayerdPsi_dTheta               = integerMissing ! derivative in the soil water characteristic w.r.t. theta (m)
+  integer(i4b)    :: mLayerdTheta_dPsi               = integerMissing ! derivative in liquid water content w.r.t. matric potential (m-1)
+  integer(i4b)    :: mLayerdPsi_dTheta               = integerMissing ! derivative in matric potential w.r.t. liquid water content (m)
   integer(i4b)    :: dCompress_dPsi                  = integerMissing ! derivative in compressibility w.r.t matric head (m-1)
   ! derivative in baseflow flux w.r.t. aquifer storage
   integer(i4b)    :: dBaseflow_dAquifer              = integerMissing ! derivative in baseflow flux w.r.t. aquifer storage (s-1)

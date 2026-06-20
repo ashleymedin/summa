@@ -29,7 +29,7 @@ type data4ida
   logical(lgt)                    :: computeVegFlux                  ! flag to indicate if computing fluxes over vegetation
   logical(lgt)                    :: scalarSolution                  ! flag to denote if implementing the scalar solution
   type(model_options),allocatable :: model_decisions(:)              ! model decisions
-  type(zLookup)                   :: lookup_data                  ! lookup tables
+  type(zLookup)                   :: lookup_data                     ! lookup tables
   type(var_i)                     :: type_data                       ! type of vegetation and soil
   type(var_d)                     :: attr_data                       ! spatial attributes
   type(var_dlength)               :: mpar_data                       ! model parameters
@@ -48,7 +48,8 @@ type data4ida
   real(rkind), allocatable        :: atol(:)                         ! vector of absolute tolerances
   real(rkind), allocatable        :: rtol(:)                         ! vector of relative tolerances
   integer(i4b)                    :: ixSaturation                    ! index of the lowest saturated layer
-  real(rkind), allocatable        :: dBaseflow_dMatric(:,:)          ! derivative in baseflow w.r.t. matric head (s-1)
+  real(rkind), allocatable        :: dBaseflow_dWat(:,:)             ! derivative in baseflow w.r.t. soil water characteristic
+  real(rkind), allocatable        :: dBaseflow_dTk(:,:)              ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
   integer(i4b)                    :: err                             ! error code
   character(len=256)              :: message                         ! error message
   real(rkind)                     :: scalarCanopyTempPrev            ! previous value for temperature of the vegetation canopy (K)
