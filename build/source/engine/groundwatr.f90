@@ -434,6 +434,10 @@ subroutine computBaseflow(&
       dBaseflow_dWat(1,1:nSoil) = dBaseflow_dWat(1,1:nSoil) + dExfiltrate_dWat(1:nSoil)
       dBaseflow_dTk(1,1:nSoil) = dBaseflow_dTk(1,1:nSoil) + dExfiltrate_dTk(1:nSoil)
     end if
+    print*, "zScale_TOPMODEL: ", zScale_TOPMODEL
+     print*, "zActive: ", zActive
+     print*, "dXdS: ", dXdS
+     print*, "exfiltration: ", dExfiltrate_dWat
 
   end associate ! end association to data in structures
 
