@@ -400,7 +400,7 @@ subroutine computJacobWithPrime(&
     ! * PART 2: COMPUTE FLUX JACOBIAN TERMS 
     ! *********************************************************************************************************************************************************
     call fluxJacAdd(full,dt,nSnow,nSoil,nLayers,computeVegFlux,computeBaseflow,&
-                    indx_data,prog_data,diag_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,,dMat,aJac,err,cmessage)
+                    indx_data,prog_data,diag_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,dMat,aJac,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     deallocate(dMat)
 
