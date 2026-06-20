@@ -338,6 +338,7 @@ contains
    scalarSurfaceRunoff          => flux_data%var(iLookFLUX%scalarSurfaceRunoff)%dat(1), & ! intent(out): [dp] surface runoff (m s-1)
    scalarSoilDrainage           => flux_data%var(iLookFLUX%scalarSoilDrainage)%dat(1)   ) ! intent(out): [dp] drainage from the soil profile (m s-1)
    scalarSoilBaseflow = sum(mLayerBaseflow)                                               ! baseflow from the soil zone 
+   print *, 'baseflow from soil layers = ', mLayerBaseflow
    scalarTotalRunoff  = scalarSurfaceRunoff + scalarSoilDrainage + scalarSoilBaseflow     ! total runoff
   end associate
  end subroutine computBaseflowRunoff  
