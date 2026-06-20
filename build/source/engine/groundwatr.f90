@@ -394,6 +394,10 @@ subroutine computBaseflow(&
       end do  ! end looping through soil layers
       dBaseflow_dVolLiq(1,1:nSoil) = dBaseflow_dVolLiq(1,1:nSoil) - dExfiltrate_dVolLiq(1:nSoil)
     end if
+    print*, "zScale_TOPMODEL: ", zScale_TOPMODEL
+     print*, "zActive: ", zActive
+     print*, "dXdS: ", dXdS
+     print*, "exfiltration: ", dExfiltrate_dWat
 
   end associate ! end association to data in structures
 

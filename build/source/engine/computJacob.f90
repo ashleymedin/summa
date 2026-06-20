@@ -691,8 +691,10 @@ subroutine fluxJacAdd(&
           do pLayer=1,nSoil
             qState = ixSoilOnlyHyd(pLayer)  ! hydrology state index within the state subset
             if(qState/=integerMissing)then
-              if((pLayer<=iLayer .and. watState - qstate <= kl) .or. (pLayer>iLayer .and. qstate - watState <= ku) .or. full) &
+              if((pLayer<=iLayer .and. watState - qstate <= kl) .or. (pLayer>iLayer .and. qstate - watState <= ku) .or. full) then
+                   print*, "watState=",watState," qState=",qState," dBaseflow_dWat(iLayer,pLayer)=",(dt/mLayerDepth(jLayer))*dBaseflow_dMatric(iLayer,pLayer),aJac(ixInd(full,watState,qState),qState)
                   aJac(ixInd(full,watState,qState),qState) = (dt/mLayerDepth(jLayer))*dBaseflow_dMatric(iLayer,pLayer) + aJac(ixInd(full,watState,qState),qState)
+                  print*, "done",aJac(ixInd(full,watState,qState),qState)
             endif
           end do
         endif ! (if computed baseflow)
