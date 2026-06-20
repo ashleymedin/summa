@@ -418,16 +418,16 @@ subroutine computBaseflow(&
       ! compute diagonal terms (s-1)
       dBaseflow_dVolLiq(iLayer,iLayer) = tran0*dXdS(iLayer)*depth2capacity(iLayer)*length2area
       select case (ixRichards)
-       case(moisture); dBaseflow_dWat(iLayer,iLayer) = dBaseflow_dVolLiq(iLayer,iLayer)*mLayerdTheta_dPsi(iLayer)
-       case(mixdform); dBaseflow_dWat(iLayer,iLayer) = dBaseflow_dVolLiq(iLayer,iLayer)
+       case(moisture); dBaseflow_dWat(iLayer,iLayer) = dBaseflow_dVolLiq(iLayer,iLayer)
+       case(mixdform); dBaseflow_dWat(iLayer,iLayer) = dBaseflow_dVolLiq(iLayer,iLayer)*mLayerdTheta_dPsi(iLayer)
       end select
       dBaseflow_dTk(iLayer,iLayer) = dBaseflow_dVolLiq(iLayer,iLayer)*mLayerdTheta_dTk(iLayer)
       ! compute off-diagonal terms
       do jLayer=iLayer+1,nSoil  ! only dependent on layers below
         dBaseflow_dVolLiq(iLayer,jLayer) = tran0*(dXdS(iLayer) - dXdS(iLayer+1))*depth2capacity(jLayer)*length2area
         select case (ixRichards)
-         case(moisture); dBaseflow_dWat(iLayer,jLayer) = dBaseflow_dVolLiq(iLayer,jLayer)*mLayerdTheta_dPsi(jLayer)
-         case(mixdform); dBaseflow_dWat(iLayer,jLayer) = dBaseflow_dVolLiq(iLayer,jLayer)
+         case(moisture); dBaseflow_dWat(iLayer,jLayer) = dBaseflow_dVolLiq(iLayer,jLayer)
+         case(mixdform); dBaseflow_dWat(iLayer,jLayer) = dBaseflow_dVolLiq(iLayer,jLayer)*mLayerdTheta_dPsi(jLayer)
          end select
         dBaseflow_dTk(iLayer,jLayer) = dBaseflow_dVolLiq(iLayer,jLayer)*mLayerdTheta_dTk(jLayer)
       end do  ! end looping through soil layers
