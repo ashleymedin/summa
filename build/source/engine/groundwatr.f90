@@ -397,7 +397,7 @@ subroutine computBaseflow(&
     print*, "zScale_TOPMODEL: ", zScale_TOPMODEL
      print*, "zActive: ", zActive
      print*, "dXdS: ", dXdS
-     print*, "exfiltration: ", dExfiltrate_dWat
+     print*, "exfiltration: ", dExfiltrate_dVolLiq
 
   end associate ! end association to data in structures
 

@@ -695,6 +695,7 @@ subroutine fluxJacAdd(&
                    print*, "watState=",watState," qState=",qState," dBaseflow_dWat(iLayer,pLayer)=",(dt/mLayerDepth(jLayer))*dBaseflow_dMatric(iLayer,pLayer),aJac(ixInd(full,watState,qState),qState)
                   aJac(ixInd(full,watState,qState),qState) = (dt/mLayerDepth(jLayer))*dBaseflow_dMatric(iLayer,pLayer) + aJac(ixInd(full,watState,qState),qState)
                   print*, "done",aJac(ixInd(full,watState,qState),qState)
+              endif
             endif
           end do
         endif ! (if computed baseflow)
