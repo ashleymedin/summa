@@ -183,13 +183,13 @@ contains
  ! NGEN wants the wind inputted as two components, if not inputting NGEN forcing let the y direction be 0
 #ifdef NGEN_FORCING_ACTIVE
  windspd = sqrt(windspd_x**2_i4b + windspd_y**2_i4b)
- if(windspd < minwind) windspd=minwind ! ensure wind speed is above a prescribed minimum value
 #else
  windspd_x = windspd
  windspd_y = 0._rkind
  if(windspd_x < minwind) windspd_x=minwind ! ensure wind speed is above a prescribed minimum value
 #endif
-
+ if(windspd < minwind) windspd=minwind ! ensure wind speed is above a prescribed minimum value
+ 
  ! check spectral dimension
  if(size(spectralIncomingDirect) /= nSpecBand .or. size(spectralIncomingDiffuse) /= nSpecBand)then
   write(message,'(a,i0,a)') trim(message)//'expect ', nSpecBand, 'spectral classes for radiation'
