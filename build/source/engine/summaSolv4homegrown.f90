@@ -306,7 +306,7 @@ contains
    ! *** Transfer data to in_computJacob class object from local variables in summaSolv4homegrown ***
    associate(&
     ixGroundwater  => model_decisions(iLookDECISIONS%groundwatr)%iDecision,&  ! intent(in): [i4b] groundwater parameterization
-    ixRichards      => model_decisions(iLookDECISIONS%f_Richards)%iDecision,&  ! intent(in): [i4b] index of the form of Richards' equation
+    ixRichards     => model_decisions(iLookDECISIONS%f_Richards)%iDecision,&  ! intent(in): [i4b] index of the form of Richards' equation
     dt_cur         => in_SS4HG % dt_cur         ,& ! intent(in): current stepsize
     nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
     nLake          => in_SS4HG % nLake          ,& ! intent(in): number of lake layers
@@ -333,9 +333,9 @@ contains
  ! * module subroutine refine_Newton_step: refine the Newton step if necessary
  ! *********************************************************************************************************
  subroutine refine_Newton_step(in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&    ! input
-                              &model_decisions,lookup_data,type_data,mpar_data,forc_data,bvar_data,prog_data,&      ! input
-                              &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&! input-output
-                              &stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SS4HG,return_flag)       ! output
+                               model_decisions,lookup_data,type_data,mpar_data,forc_data,bvar_data,prog_data,&      ! input
+                               sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&! input-output
+                               stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SS4HG,return_flag)       ! output
   ! provide access to the external procedures
   USE matrixOper_module, only: computGradient
   USE eval8summa_module, only: imposeConstraints

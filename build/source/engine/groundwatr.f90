@@ -99,7 +99,7 @@ subroutine groundwatr(&
   ! general local variables
   integer(i4b)                           :: iLayer            ! index of soil layer
   real(rkind)                            :: fieldCapacity_use ! field capacity used to determine the "active" portion of the soil profile
-  character(len=512)                     :: cmessage                       ! error message
+  character(len=256)                     :: cmessage          ! error message
   ! ***************************************************************************************
   ! associate variables in data structures
   allocate(out_groundwatr % mLayerBaseflow(in_groundwatr%nSoil),out_groundwatr % dBaseflow_dWat(in_groundwatr%nSoil,in_groundwatr%nSoil),&

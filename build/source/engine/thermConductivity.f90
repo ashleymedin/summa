@@ -332,7 +332,7 @@ subroutine thermConductivity(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! local variables
   character(LEN=256)                   :: cmessage                 ! error message of downwind routine
-  logical(lgt)                         :: doVegNrgFlux                ! flag to compute the energy flux over vegetation
+  logical(lgt)                         :: doVegNrgFlux             ! flag to compute the energy flux over vegetation
   integer(i4b)                         :: iLayer                   ! index of model layers
   integer(i4b)                         :: ixLayerDesired(1)        ! layer desired (scalar solution)
   integer(i4b)                         :: ixTop                    ! top layer in subroutine call
