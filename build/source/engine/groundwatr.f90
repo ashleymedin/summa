@@ -193,6 +193,7 @@ subroutine groundwatr(&
                           dBaseflow_dTk,           & ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
                           err, cmessage)             ! intent(out):   error control
    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+   print*, "mLayerdTheta_dPsi: ", mLayerdTheta_dPsi
    ! end association to variables in data structures
   end associate
 
@@ -437,6 +438,8 @@ subroutine computBaseflow(&
     print*, "zScale_TOPMODEL: ", zScale_TOPMODEL
      print*, "zActive: ", zActive
      print*, "dXdS: ", dXdS
+     print*,"tran0,length2area,depth2capacity(iLayer): ", tran0, length2area,depth2capacity(1:nSoil)
+     print*,"tran0*dXdS(iLayer)*depth2capacity(iLayer)*length2area: ", tran0*dXdS(1:nSoil)*depth2capacity(1:nSoil)*length2area
      print*, "exfiltration: ", dExfiltrate_dWat
 
   end associate ! end association to data in structures
