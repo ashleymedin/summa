@@ -471,8 +471,8 @@ MODULE data_types
    real(rkind)              :: scalarSurfaceRunoff               ! intent(inout): surface runoff (m s-1)
    real(rkind)              :: scalarSurfaceRunoff_IE            ! intent(inout): infiltration excess surface runoff (m s-1)
    real(rkind)              :: scalarSurfaceRunoff_SE            ! intent(inout): saturation excess surface runoff (m s-1)
-   real(rkind), allocatable :: mLayerdTheta_dPsi(:)              ! intent(inout): derivative in the soil water characteristic w.r.t. psi (m-1)
-   real(rkind), allocatable :: mLayerdPsi_dTheta(:)              ! intent(inout): derivative in the soil water characteristic w.r.t. theta (m)
+   real(rkind), allocatable :: mLayerdTheta_dPsi(:)              ! intent(inout): derivative in liquid water content w.r.t. matric potential (m-1)
+   real(rkind), allocatable :: mLayerdPsi_dTheta(:)              ! intent(inout): derivative in matric potential w.r.t. liquid water content (m)
    real(rkind), allocatable :: dHydCond_dMatric(:)               ! intent(inout): derivative in hydraulic conductivity w.r.t matric head (s-1)
    real(rkind)              :: scalarInfiltration                ! intent(inout): surface infiltration rate (m s-1) -- controls on infiltration only computed for iter==1
    real(rkind), allocatable :: iLayerLiqFluxSoil(:)              ! intent(inout): liquid fluxes at layer interfaces (m s-1)
@@ -506,8 +506,11 @@ MODULE data_types
    integer(i4b)             :: nSnow                             ! intent(in):    number of snow layers
    integer(i4b)             :: nSoil                             ! intent(in):    number of soil layers
    integer(i4b)             :: nLayers                           ! intent(in):    total number of layers
+   integer(i4b)             :: ixRichards                        ! intent(in):    index defining the option for Richards' equation
    logical(lgt)             :: firstFluxCall                     ! intent(in):    logical flag to compute index of the lowest saturated layer
-   real(rkind), allocatable :: mLayerdTheta_dPsi(:)              ! intent(in):    derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
+   real(rkind), allocatable :: dVolTot_dPsi0(:)                  ! intent(in):    derivative in total volumetric water content w.r.t. matric head (m-1)
+   real(rkind), allocatable :: mLayerdTheta_dPsi(:)              ! intent(in):    derivative in liquid water content w.r.t. matric potential (m-1)
+   real(rkind), allocatable :: mLayerdTheta_dTk(:)               ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
    real(rkind), allocatable :: mLayerVolFracLiqTrial(:)          ! intent(in):    volumetric fraction of liquid water (-)
    real(rkind), allocatable :: mLayerVolFracIceTrial(:)          ! intent(in):    volumetric fraction of ice (-)
   contains
@@ -523,7 +526,8 @@ MODULE data_types
 
  type, public :: out_type_groundwatr ! class for intent(out) arguments in groundwatr call
    real(rkind), allocatable :: mLayerBaseflow(:)                 ! intent(out):   baseflow from each soil layer (m s-1)
-   real(rkind), allocatable :: dBaseflow_dMatric(:,:)            ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
+   real(rkind), allocatable :: dBaseflow_dWat(:,:)               ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
+   real(rkind), allocatable :: dBaseflow_dTk(:,:)                ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
    integer(i4b)             :: err                               ! intent(out):   error code
    character(len=len_msg)   :: cmessage                          ! intent(out):   error message
   contains
@@ -630,20 +634,19 @@ MODULE data_types
    integer(i4b) :: ixIce            ! index of lowest ice layer
    integer(i4b) :: nSoil            ! number of soil layers
    ! input: state and diagnostic variables
-   real(rkind),allocatable :: mLayerTemp(:)       ! temperature (K)
-   real(rkind)             :: scalarMatricHeadLiq ! liquid matric head in the upper-most soil layer (m)
-   real(rkind),allocatable :: mLayerMatricHead(:) ! matric head in each soil layer (m)
-   real(rkind)             :: scalarVolFracLiq    ! volumetric liquid water content in the upper-most soil layer (-)
-   real(rkind)             :: scalarTotalSoilLiq  ! total liquid water in the soil column (kg m-2)
-   real(rkind),allocatable :: mLayerVolFracLiq(:) ! volumetric liquid water content in each soil layer (-)
-   real(rkind),allocatable :: mLayerVolFracIce(:) ! volumetric ice content in each soil layer (-)
+   real(rkind),allocatable :: mLayerTemp(:)        ! temperature (K)
+   real(rkind)             :: scalarMatricHeadLiq  ! liquid matric head in the upper-most soil layer (m)
+   real(rkind),allocatable :: mLayerMatricHead(:)  ! matric head in each soil layer (m)
+   real(rkind)             :: scalarVolFracLiq     ! volumetric liquid water content in the upper-most soil layer (-)
+   real(rkind)             :: scalarTotalSoilLiq   ! total liquid water in the soil column (kg m-2)
+   real(rkind),allocatable :: mLayerVolFracLiq(:)  ! volumetric liquid water content in each soil layer (-)
+   real(rkind),allocatable :: mLayerVolFracIce(:)  ! volumetric ice content in each soil layer (-)
    ! input: pre-computed derivatives (all of these would need to be recomputed if wanted a numerical derivative)
-   real(rkind),allocatable :: dTheta_dTk(:)          ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
-   real(rkind),allocatable :: dTheta_dPsi(:)         ! derivative in the soil water characteristic w.r.t. psi (m-1)
-   real(rkind),allocatable :: mLayerdPsi_dTheta(:)   ! derivative in the soil water characteristic w.r.t. theta (m)
+   real(rkind),allocatable :: dTheta_dTk(:)        ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
+   real(rkind),allocatable :: dTheta_dPsi(:)       ! derivative in liquid water content w.r.t. matric potential (m-1)
    ! input: depth of each soil layer (m)
-   real(rkind),allocatable :: mLayerDepth(:)         ! depth of each soil layer (m)
-   real(rkind),allocatable :: iLayerHeight(:)        ! height at the interface of each layer (m)
+   real(rkind),allocatable :: mLayerDepth(:)       ! depth of each soil layer (m)
+   real(rkind),allocatable :: iLayerHeight(:)      ! height at the interface of each layer (m)
    ! input: diriclet boundary conditions
    real(rkind) :: upperBoundHead      ! upper boundary condition for matric head (m)
    real(rkind) :: upperBoundTheta     ! upper boundary condition for volumetric liquid water content (-)
@@ -889,6 +892,7 @@ MODULE data_types
    integer(i4b)             :: nLayers                     ! intent(in): total number of layers in the snow+soil domain
    logical(lgt)             :: computeVegFlux              ! intent(in): flag to indicate if computing fluxes over vegetation
    logical(lgt)             :: computeBaseflow             ! intent(in): flag to indicate if computing baseflow
+   integer(i4b)             :: ixRichards                  ! intent(in): index defining the option for Richards' equation (moisture or mixdform)
    integer(i4b)             :: ixMatrix                    ! intent(in): form of the Jacobian matrix
   contains
    procedure :: initialize => initialize_in_computJacob
@@ -1343,14 +1347,14 @@ contains
 
   ! intent(inout) arguments: derivatives, fluxes, and layer properties
   associate(& 
-   mLayerdTheta_dPsi            => deriv_data%var(iLookDERIV%mLayerdTheta_dPsi)%dat,   & ! intent(out): [dp(:)] derivative in the soil water characteristic w.r.t. psi
-   mLayerdPsi_dTheta            => deriv_data%var(iLookDERIV%mLayerdPsi_dTheta)%dat,   & ! intent(out): [dp(:)] derivative in the soil water characteristic w.r.t. theta
+   mLayerdTheta_dPsi            => deriv_data%var(iLookDERIV%mLayerdTheta_dPsi)%dat,   & ! intent(out): [dp(:)] derivative in liquid water content w.r.t. matric potential (m-1)
+   mLayerdPsi_dTheta            => deriv_data%var(iLookDERIV%mLayerdPsi_dTheta)%dat,   & ! intent(out): [dp(:)] derivative in matric potential w.r.t. liquid water content (m)
    scalarInfiltration           => flux_data%var(iLookFLUX%scalarInfiltration)%dat(1), & ! intent(out): [dp] infiltration of water into the soil profile (m s-1)
    iLayerLiqFluxSoil            => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat,     & ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
    mLayerTranspire              => flux_data%var(iLookFLUX%mLayerTranspire)%dat,       & ! intent(out): [dp(:)] transpiration loss from each soil layer (m s-1)
    mLayerHydCond                => flux_data%var(iLookFLUX%mLayerHydCond)%dat          ) ! intent(out): [dp(:)]  hydraulic conductivity in each soil layer (m s-1)
-   io_soilLiqFlux % mLayerdTheta_dPsi       =mLayerdTheta_dPsi        ! intent(inout): derivative in the soil water characteristic w.r.t. psi (m-1)
-   io_soilLiqFlux % mLayerdPsi_dTheta       =mLayerdPsi_dTheta        ! intent(inout): derivative in the soil water characteristic w.r.t. theta (m)
+   io_soilLiqFlux % mLayerdTheta_dPsi       =mLayerdTheta_dPsi        ! intent(inout): derivative in liquid water content w.r.t. matric potential (m-1)
+   io_soilLiqFlux % mLayerdPsi_dTheta       =mLayerdPsi_dTheta        ! intent(inout): derivative in matric potential w.r.t. liquid water content (m)
    io_soilLiqFlux % dHydCond_dMatric        =dHydCond_dMatric         ! intent(inout): derivative in hydraulic conductivity w.r.t matric head (s-1)
    io_soilLiqFlux % scalarInfiltration      =scalarInfiltration       ! intent(inout): surface infiltration rate (m s-1) -- controls on infiltration only computed for iter==1
    io_soilLiqFlux % iLayerLiqFluxSoil       =iLayerLiqFluxSoil        ! intent(inout): liquid fluxes at layer interfaces (m s-1)
@@ -1417,14 +1421,14 @@ contains
 
   ! intent(inout) arguments: derivatives, fluxes, and layer properties
   associate(& 
-   mLayerdTheta_dPsi            => deriv_data%var(iLookDERIV%mLayerdTheta_dPsi)%dat,   & ! intent(out): [dp(:)] derivative in the soil water characteristic w.r.t. psi
-   mLayerdPsi_dTheta            => deriv_data%var(iLookDERIV%mLayerdPsi_dTheta)%dat,   & ! intent(out): [dp(:)] derivative in the soil water characteristic w.r.t. theta
-   scalarInfiltration           => flux_data%var(iLookFLUX%scalarInfiltration)%dat(1), & ! intent(out): [dp] infiltration of water into the soil profile (m s-1)
-   iLayerLiqFluxSoil            => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat,     & ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
-   mLayerTranspire              => flux_data%var(iLookFLUX%mLayerTranspire)%dat,       & ! intent(out): [dp(:)] transpiration loss from each soil layer (m s-1)
-   mLayerHydCond                => flux_data%var(iLookFLUX%mLayerHydCond)%dat          ) ! intent(out): [dp(:)]  hydraulic conductivity in each soil layer (m s-1)
-   mLayerdTheta_dPsi       =io_soilLiqFlux % mLayerdTheta_dPsi        ! intent(inout): derivative in the soil water characteristic w.r.t. psi (m-1)
-   mLayerdPsi_dTheta       =io_soilLiqFlux % mLayerdPsi_dTheta        ! intent(inout): derivative in the soil water characteristic w.r.t. theta (m)
+   mLayerdTheta_dPsi      => deriv_data%var(iLookDERIV%mLayerdTheta_dPsi)%dat,   & ! intent(out): [dp(:)] derivative in liquid water content w.r.t. matric potential (m-1)
+   mLayerdPsi_dTheta      => deriv_data%var(iLookDERIV%mLayerdPsi_dTheta)%dat,   & ! intent(out): [dp(:)] derivative in matric potential w.r.t. liquid water content (m)
+   scalarInfiltration     => flux_data%var(iLookFLUX%scalarInfiltration)%dat(1), & ! intent(out): [dp] infiltration of water into the soil profile (m s-1)
+   iLayerLiqFluxSoil      => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat,     & ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
+   mLayerTranspire        => flux_data%var(iLookFLUX%mLayerTranspire)%dat,       & ! intent(out): [dp(:)] transpiration loss from each soil layer (m s-1)
+   mLayerHydCond          => flux_data%var(iLookFLUX%mLayerHydCond)%dat          ) ! intent(out): [dp(:)]  hydraulic conductivity in each soil layer (m s-1)
+   mLayerdTheta_dPsi       =io_soilLiqFlux % mLayerdTheta_dPsi        ! intent(inout): derivative in liquid water content w.r.t. matric potential (m-1)
+   mLayerdPsi_dTheta       =io_soilLiqFlux % mLayerdPsi_dTheta        ! intent(inout): derivative in matric potential w.r.t. liquid water content (m)
    dHydCond_dMatric        =io_soilLiqFlux % dHydCond_dMatric         ! intent(inout): derivative in hydraulic conductivity w.r.t matric head (s-1)
    scalarInfiltration      =io_soilLiqFlux % scalarInfiltration       ! intent(inout): surface infiltration rate (m s-1) -- controls on infiltration only computed for iter==1
    iLayerLiqFluxSoil       =io_soilLiqFlux % iLayerLiqFluxSoil        ! intent(inout): liquid fluxes at layer interfaces (m s-1)
@@ -1472,7 +1476,7 @@ contains
  ! **** end soilLiqFlux ****
 
  ! **** groundwatr ****
- subroutine initialize_in_groundwatr(in_groundwatr,nSnow,nSoil,nLayers,firstFluxCall,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,deriv_data)
+ subroutine initialize_in_groundwatr(in_groundwatr,nSnow,nSoil,nLayers,firstFluxCall,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,deriv_data,model_decisions)
   class(in_type_groundwatr),intent(out) :: in_groundwatr               ! class object for intent(in) groundwatr arguments
   integer(i4b),intent(in)               :: nSnow                       ! number of snow layers
   integer(i4b),intent(in)               :: nSoil                       ! number of soil layers
@@ -1481,15 +1485,22 @@ contains
   real(rkind),intent(in)                :: mLayerVolFracLiqTrial(:)    ! trial value for volumetric fraction of liquid water (-)
   real(rkind),intent(in)                :: mLayerVolFracIceTrial(:)    ! trial value for volumetric fraction of ice (-)
   type(var_dlength),intent(in)          :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
+  type(model_options),intent(in)        :: model_decisions(maxvarDecisions) ! the model decision structure
  
   associate(&
-   mLayerdTheta_dPsi            => deriv_data%var(iLookDERIV%mLayerdTheta_dPsi)%dat )! intent(out): [dp(:)] derivative in the soil water characteristic w.r.t. psi
+   ixRichards        => model_decisions(iLookDECISIONS%f_Richards)%iDecision, & ! index of the form of Richards' equation
+   dVolTot_dPsi0     => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat,         & ! intent(in): [dp(:)] derivative in total volumetric water content w.r.t. matric head (m-1)
+   mLayerdTheta_dPsi => deriv_data%var(iLookDERIV%mLayerdTheta_dPsi)%dat,     & ! intent(in): [dp(:)] derivative in liquid water content w.r.t. matric potential (m-1)
+   mLayerdTheta_dTk  => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat(nSnow+1:nSnow+nSoil) )! intent(in): [dp(:)] derivative in volumetric liquid water content w.r.t. temperature (K-1)
    ! intent(in) arguments
    in_groundwatr % nSnow                    = nSnow                                  ! intent(in):    number of snow layers
    in_groundwatr % nSoil                    = nSoil                                  ! intent(in):    number of soil layers
    in_groundwatr % nLayers                  = nLayers                                ! intent(in):    total number of layers
    in_groundwatr % firstFluxCall            = firstFluxCall                          ! intent(in):    logical flag to compute index of the lowest saturated layer
-   in_groundwatr % mLayerdTheta_dPsi        = mLayerdTheta_dPsi                      ! intent(in):    derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
+   in_groundwatr % ixRichards               = ixRichards                             ! intent(in):    index of the form of Richards' equation
+   in_groundwatr % dVolTot_dPsi0            = dVolTot_dPsi0                          ! intent(in):    derivative in total volumetric water content w.r.t. matric head (m-1)
+   in_groundwatr % mLayerdTheta_dPsi        = mLayerdTheta_dPsi                      ! intent(in):    derivative in liquid water content w.r.t. matric potential (m-1)
+   in_groundwatr % mLayerdTheta_dTk         = mLayerdTheta_dTk                       ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
    in_groundwatr % mLayerVolFracLiqTrial    = mLayerVolFracLiqTrial(nSnow+1:nLayers) ! intent(in):    volumetric fraction of liquid water (-)
    in_groundwatr % mLayerVolFracIceTrial    = mLayerVolFracIceTrial(nSnow+1:nLayers) ! intent(in):    volumetric fraction of ice (-)
   end associate
@@ -1509,19 +1520,21 @@ contains
   ixSaturation = io_groundwatr % ixSaturation ! intent(inout): index of lowest saturated layer (NOTE: only computed on the first iteration)
  end subroutine finalize_io_groundwatr
 
- subroutine finalize_out_groundwatr(out_groundwatr,dBaseflow_dMatric,flux_data,err,cmessage)
-  class(out_type_groundwatr),intent(in) :: out_groundwatr              ! class object for intent(out) groundwatr arguments
-  real(rkind),intent(out)               :: dBaseflow_dMatric(:,:)      ! derivative in baseflow w.r.t. matric head (s-1)
-  type(var_dlength),intent(inout)       :: flux_data                   ! model fluxes for a local HRU
-  integer(i4b),intent(out)              :: err                         ! error code
-  character(*),intent(out)              :: cmessage                    ! error message from groundwatr
+ subroutine finalize_out_groundwatr(out_groundwatr,dBaseflow_dWat,dBaseflow_dTk,flux_data,err,cmessage)
+  class(out_type_groundwatr),intent(in) :: out_groundwatr          ! class object for intent(out) groundwatr arguments
+  real(rkind),intent(out)               :: dBaseflow_dWat(:,:)     ! derivative in baseflow w.r.t. soil water characteristic
+  real(rkind),intent(out)               :: dBaseflow_dTk(:,:)      ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
+  type(var_dlength),intent(inout)       :: flux_data               ! model fluxes for a local HRU
+  integer(i4b),intent(out)              :: err                     ! error code
+  character(*),intent(out)              :: cmessage                ! error message from groundwatr
   associate(&
-   mLayerBaseflow   => flux_data%var(iLookFLUX%mLayerBaseflow)%dat )     ! intent(out): [dp(:)]  baseflow from each soil layer (m s-1)
+   mLayerBaseflow => flux_data%var(iLookFLUX%mLayerBaseflow)%dat ) ! intent(out): [dp(:)]  baseflow from each soil layer (m s-1)
    ! intent(out) arguments
-   mLayerBaseflow    = out_groundwatr % mLayerBaseflow           ! intent(out):   baseflow from each soil layer (m s-1)
-   dBaseflow_dMatric = out_groundwatr % dBaseflow_dMatric        ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
-   err               = out_groundwatr % err                      ! intent(out):   error code
-   cmessage          = out_groundwatr % cmessage                 ! intent(out):   error message
+   mLayerBaseflow = out_groundwatr % mLayerBaseflow                ! intent(out):   baseflow from each soil layer (m s-1)
+   dBaseflow_dWat = out_groundwatr % dBaseflow_dWat                ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
+   dBaseflow_dTk  = out_groundwatr % dBaseflow_dTk                 ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
+   err            = out_groundwatr % err                           ! intent(out):   error code
+   cmessage       = out_groundwatr % cmessage                      ! intent(out):   error message
   end associate
  end subroutine finalize_out_groundwatr
  ! **** end groundwatr ****
@@ -1672,14 +1685,14 @@ contains
 
   associate(&
    ! hydraulic conductivity and derivatives
-   mLayerdPsi_dTheta => io_soilLiqFlux % mLayerdPsi_dTheta,     & ! derivative in the soil water characteristic w.r.t. theta (m)
-   mLayerdTheta_dPsi => io_soilLiqFlux % mLayerdTheta_dPsi,     & ! derivative in the soil water characteristic w.r.t. psi (m-1)
+   mLayerdPsi_dTheta => io_soilLiqFlux % mLayerdPsi_dTheta,     & ! derivative in matric potential w.r.t. liquid water content (m)
+   mLayerdTheta_dPsi => io_soilLiqFlux % mLayerdTheta_dPsi,     & ! derivative in liquid water content w.r.t. matric potential (m-1)
    mLayerHydCond     => io_soilLiqFlux % mLayerHydCond,         & ! hydraulic conductivity in each soil layer (m s-1)
    dHydCond_dMatric  => io_soilLiqFlux % dHydCond_dMatric       & ! derivative in hydraulic conductivity w.r.t matric head (s-1)
   &)
    ! output: derivative in the soil water characteristic
-   mLayerdPsi_dTheta(iSoil) = out_diagv_node % scalardPsi_dTheta ! derivative in the soil water characteristic
-   mLayerdTheta_dPsi(iSoil) = out_diagv_node % scalardTheta_dPsi ! derivative in the soil water characteristic
+   mLayerdPsi_dTheta(iSoil) = out_diagv_node % scalardPsi_dTheta ! derivative in matric potential w.r.t. liquid water content (m)
+   mLayerdTheta_dPsi(iSoil) = out_diagv_node % scalardTheta_dPsi ! derivative in liquid water content w.r.t. matric potential (m-1)
    ! output: transmittance
    mLayerHydCond(iSoil) = out_diagv_node % scalarHydCond ! hydraulic conductivity at layer mid-points (m s-1)
    mLayerDiffuse(iSoil) = out_diagv_node % scalarDiffuse ! diffusivity at layer mid-points (m2 s-1)
@@ -1757,13 +1770,11 @@ contains
   associate(&
    ! pre-computed derivatives
    mLayerdTheta_dTk       => in_soilLiqFlux % mLayerdTheta_dTk,      & ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
-   mLayerdTheta_dPsi      => io_soilLiqFlux % mLayerdTheta_dPsi,     & ! derivative in the soil water characteristic w.r.t. psi (m-1)
-   mLayerdPsi_dTheta      => io_soilLiqFlux % mLayerdPsi_dTheta      & ! derivative in the soil water characteristic w.r.t. theta (m)
+   mLayerdTheta_dPsi      => io_soilLiqFlux % mLayerdTheta_dPsi      & ! derivative in liquid water content w.r.t. matric potential (m-1)
   &)
    ! intent(in): pre-computed derivatives
    in_surfaceFlux % dTheta_dTk             = mLayerdTheta_dTk       ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
-   in_surfaceFlux % dTheta_dPsi            = mLayerdTheta_dPsi      ! derivative in the soil water characteristic w.r.t. psi (m-1)
-   in_surfaceFlux % mLayerdPsi_dTheta      = mLayerdPsi_dTheta      ! derivative in the soil water characteristic w.r.t. theta (m)
+   in_surfaceFlux % dTheta_dPsi            = mLayerdTheta_dPsi      ! derivative in liquid water content w.r.t. matric potential (m-1)
   end associate
 
   associate(&
@@ -2053,7 +2064,7 @@ contains
    lowerBoundHead  => mpar_data%var(iLookPARAM%lowerBoundHead)%dat(1), & ! lower boundary condition for matric head (m)
    lowerBoundTheta => mpar_data%var(iLookPARAM%lowerBoundTheta)%dat(1),& ! lower boundary condition for volumetric liquid water content (-)
    ! intent(in): derivative in the soil water characteristic
-   mLayerdPsi_dTheta => io_soilLiqFlux % mLayerdPsi_dTheta,     & ! derivative in the soil water characteristic w.r.t. theta (m)
+   mLayerdPsi_dTheta => io_soilLiqFlux % mLayerdPsi_dTheta,     & ! derivative in matric potential w.r.t. liquid water content (m)
    dPsiLiq_dTemp     => in_soilLiqFlux % dPsiLiq_dTemp,         & ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
    ! intent(in): transmittance
    iLayerSatHydCond => flux_data%var(iLookFLUX%iLayerSatHydCond)%dat,& ! saturated hydraulic conductivity at the interface of each layer (m s-1)
@@ -2244,7 +2255,7 @@ contains
  ! **** end varSubstep ****
 
  ! **** computJacob ****
- subroutine initialize_in_computJacob(in_computJacob,dt,nSnow,nSoil,nLayers,computeVegFlux,computeBaseflow,ixMatrix)
+ subroutine initialize_in_computJacob(in_computJacob,dt,nSnow,nSoil,nLayers,computeVegFlux,computeBaseflow,ixRichards,ixMatrix)
   class(in_type_computJacob),intent(out) :: in_computJacob           ! class object for intent(in) computJacob arguments
   real(rkind),intent(in)              :: dt                          ! intent(in): length of the time step (seconds)
   integer(i4b),intent(in)             :: nSnow                       ! intent(in): number of snow layers
@@ -2252,6 +2263,7 @@ contains
   integer(i4b),intent(in)             :: nLayers                     ! intent(in): total number of layers in the snow+soil domain
   logical(lgt),intent(in)             :: computeVegFlux              ! intent(in): flag to indicate if computing fluxes over vegetation
   logical(lgt),intent(in)             :: computeBaseflow             ! intent(in): flag to indicate if computing baseflow
+  integer(i4b),intent(in)             :: ixRichards                  ! intent(in): index defining the form of Richards' equation (moisture or mixdform)
   integer(i4b),intent(in)             :: ixMatrix                    ! intent(in): form of the Jacobian matrix                         
  
   ! intent(in) arguments
@@ -2261,6 +2273,7 @@ contains
   in_computJacob % nLayers          =  nLayers                       ! intent(in): total number of layers in the snow+soil domain
   in_computJacob % computeVegFlux   =  computeVegFlux                ! intent(in): flag to indicate if computing fluxes over vegetation
   in_computJacob % computeBaseflow  =  computeBaseflow               ! intent(in): flag to indicate if computing baseflow
+  in_computJacob % ixRichards       =  ixRichards                    ! intent(in): index defining the form of Richards' equation (moisture or mixdform)
   in_computJacob % ixMatrix         =  ixMatrix                      ! intent(in): form of the Jacobian matrix                         
  end subroutine initialize_in_computJacob
 

@@ -46,7 +46,8 @@ type data4kinsol
   real(qp), allocatable           :: resSink(:)                   ! additional (sink) terms on the RHS of the state equation
   real(rkind),allocatable         :: fScale(:)                    ! characteristic scale of the function evaluations
   real(rkind),allocatable         :: xScale(:)                    ! characteristic scale of the state vector
-  real(rkind), allocatable        :: dBaseflow_dMatric(:,:)       ! derivative in baseflow w.r.t. matric head (s-1)
+  real(rkind), allocatable        :: dBaseflow_dWat(:,:)          ! derivative in baseflow w.r.t. soil water characteristic
+  real(rkind), allocatable        :: dBaseflow_dTk(:,:)           ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
   integer(i4b)                    :: ixSaturation                 ! index of the lowest saturated layer
   logical(lgt)                    :: firstStateIteration          ! flag to denote if we computed an iteration so we know to save the state
   integer(i4b)                    :: err                          ! error code

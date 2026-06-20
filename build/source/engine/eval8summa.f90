@@ -120,7 +120,8 @@ subroutine eval8summa(&
                       deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                       ! input-output: baseflow
                       ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                      dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
+                      dBaseflow_dWat,          & ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
+                      dBaseflow_dTk,           & ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
                       ! output: flux and residual vectors
                       feasible,                & ! intent(out):   flag to denote the feasibility of the solution
                       fluxVec,                 & ! intent(out):   flux vector
@@ -176,7 +177,8 @@ subroutine eval8summa(&
   type(var_dlength),intent(inout) :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
   ! input-output: baseflow
   integer(i4b),intent(inout)      :: ixSaturation                ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
-  real(rkind),intent(out)         :: dBaseflow_dMatric(:,:)      ! derivative in baseflow w.r.t. matric head (s-1)
+  real(rkind),intent(out)         :: dBaseflow_dWat(:,:)         ! derivative in baseflow w.r.t. soil water characteristic
+  real(rkind),intent(out)         :: dBaseflow_dTk(:,:)          ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
   ! output: flux and residual vectors
   logical(lgt),intent(out)        :: feasible                    ! flag to denote the feasibility of the solution
   real(rkind),intent(out)         :: fluxVec(:)                  ! flux vector
@@ -262,6 +264,7 @@ subroutine eval8summa(&
     dVolTot_dPsi0             => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat              ,& ! intent(in):  [dp(:)] derivative in total water content w.r.t. total water matric potential
     dCompress_dPsi            => deriv_data%var(iLookDERIV%dCompress_dPsi)%dat             ,& ! intent(in):  [dp(:)] derivative in compressibility w.r.t. matric head (m-1)
     mLayerdTheta_dTk          => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat           ,& ! intent(in):  [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
+    mLayerdTheta_dPsi         => deriv_data%var(iLookDERIV%mLayerdTheta_dPsi)%dat          ,& ! intent(in):  [dp(:)] derivative of volumetric liquid water content w.r.t. matric potential
     dVolHtCapBulk_dPsi0       => deriv_data%var(iLookDERIV%dVolHtCapBulk_dPsi0)%dat        ,& ! intent(out): [dp(:)] derivative in bulk heat capacity w.r.t. matric potential
     dVolHtCapBulk_dTheta      => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTheta)%dat       ,& ! intent(out): [dp(:)] derivative in bulk heat capacity w.r.t. volumetric water content
     dVolHtCapBulk_dCanWat     => deriv_data%var(iLookDERIV%dVolHtCapBulk_dCanWat)%dat(1)   ,& ! intent(out): [dp]    derivative in bulk heat capacity w.r.t. volumetric water content
@@ -467,6 +470,7 @@ subroutine eval8summa(&
                           mLayerTempTrial,       & ! intent(in):    trial temperature of layer temperature (K)
                           mLayerMatricHeadTrial, & ! intent(in):    trial value for total water matric potential (m)                         
                           mLayerdTheta_dTk,      & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
+                          mLayerdTheta_dPsi,     & ! intent(in):    derivative in volumetric liquid water content w.r.t. matric potential (m-1)                          
                           mLayerFracLiqSnow,     & ! intent(in):    fraction of liquid water (-)
                           ! input/output: derivatives
                           dThermalC_dWatAbove,   & ! intent(inout): derivative in the thermal conductivity w.r.t. water state in the layer above
@@ -555,7 +559,8 @@ subroutine eval8summa(&
                     deriv_data,                & ! intent(out):   derivatives in model fluxes w.r.t. relevant state variables
                     ! input-output: flux vector and baseflow derivatives
                     ixSaturation,              & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                    dBaseflow_dMatric,         & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
+                    dBaseflow_dWat,            & ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
+                    dBaseflow_dTk,             & ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
                     fluxVec,                   & ! intent(out):   flux vector (mixed units)
                     ! output: error control
                     err,cmessage)                ! intent(out):   error code and error message
@@ -731,7 +736,8 @@ integer(c_int) function eval8summa4kinsol(sunvec_y, sunvec_r, user_data) &
                 eqns_data%deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                  ! input-output: baseflow
                 eqns_data%ixSaturation,            & ! intent(inout): index of the lowest saturated layer
-                eqns_data%dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
+                eqns_data%dBaseflow_dWat,          & ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
+                eqns_data%dBaseflow_dTk,           & ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
                  ! output: flux and residual vectors
                 feasible,                          & ! intent(out):   flag to denote the feasibility of the solution always true inside SUNDIALS
                 eqns_data%fluxVec,                 & ! intent(out):   flux vector

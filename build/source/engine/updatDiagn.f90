@@ -80,8 +80,8 @@ USE updatState_module,only:updatSoil      ! update soil states
 ! provide access to functions for the constitutive functions and derivatives
 USE snow_utils_module,only:fracliquid                 ! compute the fraction of liquid water (snow)
 USE snow_utils_module,only:dFracLiq_dTk               ! differentiate the freezing curve w.r.t. temperature (snow)
-USE soil_utils_module,only:dTheta_dTk                 ! differentiate the freezing curve w.r.t. temperature (soil)
-USE soil_utils_module,only:dTheta_dPsi                ! derivative in the soil water characteristic (soil)
+USE soil_utils_module,only:dTheta_dTk                 ! derivative in volumetric liquid water content w.r.t. temperature (soil)
+USE soil_utils_module,only:dTheta_dPsi                ! derivative in liquid water content w.r.t. matric potential (soil)
 USE soil_utils_module,only:matricHead                 ! compute the matric head based on volumetric water content
 USE soil_utils_module,only:volFracLiq                 ! compute volumetric fraction of liquid water
 USE soil_utils_module,only:crit_soilT                 ! compute critical temperature below which ice exists
@@ -748,8 +748,8 @@ subroutine updatDiagn(&
                         mLayerVolFracLiqTrial(iLayer)             ,& ! intent(in):  volumetric fraction of liquid water (-)
                         mLayerVolFracIceTrial(iLayer)             ,& ! intent(in):  volumetric fraction of ice (-)
                         vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),theta_sat(ixControlIndex),theta_res(ixControlIndex),vGn_m(ixControlIndex), & ! intent(in): soil parameters
-                        dVolTot_dPsi0(ixControlIndex)             ,& ! intent(in):  derivative in the soil water characteristic (m-1)
-                        mLayerdTheta_dTk(iLayer)                  ,& ! intent(in):  derivative in volumetric total water w.r.t. temperature (K-1)
+                        dVolTot_dPsi0(ixControlIndex)             ,& ! intent(in):  derivative in total volumetric water content w.r.t. matric head (m-1)
+                        mLayerdTheta_dTk(iLayer)                  ,& ! intent(in):  derivative in volumetric liquid water w.r.t. temperature (K-1)
                         ! output
                         mLayerMatricHeadLiqTrial(ixControlIndex)  ,& ! intent(out): liquid water matric potential (m)
                         dPsiLiq_dPsi0(ixControlIndex)             ,& ! intent(out): derivative in the liquid water matric potential w.r.t. the total water matric potential (-)

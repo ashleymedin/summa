@@ -80,14 +80,14 @@ USE updatStateWithPrime_module,only:updatSoilPrime     ! update soil states
 ! provide access to functions for the constitutive functions and derivatives
 USE snow_utils_module,only:fracliquid                     ! compute the fraction of liquid water (snow)
 USE snow_utils_module,only:dFracLiq_dTk                   ! differentiate the freezing curve w.r.t. temperature (snow)
-USE soil_utils_module,only:dTheta_dTk                     ! differentiate the freezing curve w.r.t. temperature (soil)
-USE soil_utils_module,only:dTheta_dPsi                    ! derivative in the soil water characteristic (soil)
-USE soil_utils_module,only:dPsi_dTheta                    ! derivative in the soil water characteristic (soil)
+USE soil_utils_module,only:dTheta_dTk                     ! derivative in volumetric liquid water content w.r.t. temperature (soil)
+USE soil_utils_module,only:dTheta_dPsi                    ! derivative in liquid water content w.r.t. matric potential (soil)
+USE soil_utils_module,only:dPsi_dTheta                    ! derivative in matric potential w.r.t. liquid water content (soil)
 USE soil_utils_module,only:matricHead                     ! compute the matric head based on volumetric water content
 USE soil_utils_module,only:volFracLiq                     ! compute volumetric fraction of liquid water
 USE soil_utils_module,only:crit_soilT                     ! compute critical temperature below which ice exists
 USE soil_utilsAddPrime_module,only:liquidHeadPrime        ! compute the liquid water matric potential
-USE soil_utilsAddPrime_module,only:d2Theta_dPsi2          ! second derivative in the soil water characteristic (soil)
+USE soil_utilsAddPrime_module,only:d2Theta_dPsi2          ! second derivative in the liquid water content w.r.t. liquid water matric potential (soil)
 USE soil_utilsAddPrime_module,only:d2Theta_dTk2           ! second derivative in the freezing curve w.r.t. temperature (soil)
 USE convertEnthalpyTemp_module,only:enthalpy2T_cas        ! compute canopy air space temperature from enthalpy
 USE convertEnthalpyTemp_module,only:enthalpy2T_veg        ! compute canopy temperature from enthalpy and water content
@@ -835,8 +835,8 @@ subroutine updatDiagnWithPrime(&
                           mLayerVolFracLiqTrial(iLayer)             ,& ! intent(in):  volumetric fraction of liquid water (-)
                           mLayerVolFracIceTrial(iLayer)             ,& ! intent(in):  volumetric fraction of ice (-)
                           vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),theta_sat(ixControlIndex),theta_res(ixControlIndex),vGn_m(ixControlIndex) ,& ! intent(in): soil parameters
-                          dVolTot_dPsi0(ixControlIndex)             ,& ! intent(in):  derivative in the soil water characteristic (m-1)
-                          mLayerdTheta_dTk(iLayer)                  ,& ! intent(in):  derivative in volumetric total water w.r.t. temperature (K-1)
+                          dVolTot_dPsi0(ixControlIndex)             ,& ! intent(in):  derivative in total volumetric water content w.r.t. matric head (m-1)
+                          mLayerdTheta_dTk(iLayer)                  ,& ! intent(in):  derivative in volumetric liquid water w.r.t. temperature (K-1)
                           mLayerVolFracLiqPrime(iLayer)             ,& ! intent(in):  volumetric fraction of liquid water time derivative (-)
                           mLayerVolFracIcePrime(iLayer)             ,& ! intent(in):  volumetric fraction of ice time derivative (-)
                           ! output

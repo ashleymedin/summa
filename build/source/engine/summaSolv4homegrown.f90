@@ -113,7 +113,8 @@ contains
                        flux_data,               & ! intent(inout): model fluxes for a local HRU
                        deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                        ! input-output: baseflow
-                       dBaseflow_dMatric,       & ! intent(inout): derivative in baseflow w.r.t. matric head (s-1)
+                       dBaseflow_dWat,          & ! intent(inout): derivative in baseflow w.r.t. soil water characteristic
+                       dBaseflow_dTk,           & ! intent(inout): derivative in baseflow w.r.t. temperature (m s-1 K-1)
                        io_SS4HG,                & ! intent(inout): first flux call flag, root brackets, index of lowest saturated layer
                        ! output
                        stateVecNew,             & ! intent(out):   new state vector
@@ -151,7 +152,8 @@ contains
  type(var_dlength),intent(inout) :: flux_data                 ! model fluxes for a local HRU
  type(var_dlength),intent(inout) :: deriv_data                ! derivatives in model fluxes w.r.t. relevant state variables
  ! input-output: baseflow
- real(rkind),intent(inout)       :: dBaseflow_dMatric(:,:)    ! derivative in baseflow w.r.t. matric head (s-1)
+ real(rkind),intent(inout)       :: dBaseflow_dWat(:,:)       ! derivative in baseflow w.r.t. soil water characteristic
+ real(rkind),intent(inout)       :: dBaseflow_dTk(:,:)        ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
  ! output: flux and residual vectors
  real(rkind),intent(out)         :: stateVecNew(:)            ! new state vector
  real(rkind),intent(out)         :: fluxVecNew(:)             ! new flux vector
@@ -230,10 +232,10 @@ contains
    call solve_linear_system;             if (return_flag) return ! solve the linear system for the Newton step -- return if error
   
    ! refine Newton step if needed
-   call refine_Newton_step(in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&         ! input
-                          &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,& ! input
-                          &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&                ! input-output
-                          &stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SS4HG,return_flag)            ! output
+   call refine_Newton_step(in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&       ! input
+                          model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&! input
+                          sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&    ! input-output
+                          stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SS4HG,return_flag)           ! output
    if (return_flag) return ! return if error
   end subroutine update_summaSolv4homegrown
 
@@ -256,7 +258,7 @@ contains
     message   => out_SS4HG % message   &     
     &)
     call initialize_computJacob_summaSolv4homegrown
-    call computJacob(in_computJacob,indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,dMat,aJac,out_computJacob)
+    call computJacob(in_computJacob,indx_data,prog_data,diag_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,dMat,aJac,out_computJacob)
     call finalize_computJacob_summaSolv4homegrown
     if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! (check for errors)
 
@@ -306,6 +308,7 @@ contains
    ! *** Transfer data to in_computJacob class object from local variables in summaSolv4homegrown ***
    associate(&
     ixGroundwater  => model_decisions(iLookDECISIONS%groundwatr)%iDecision,&  ! intent(in): [i4b] groundwater parameterization
+    ixRichards     => model_decisions(iLookDECISIONS%f_Richards)%iDecision,&  ! intent(in): [i4b] index of the form of Richards' equation
     dt_cur         => in_SS4HG % dt_cur         ,& ! intent(in): current stepsize
     nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
     nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
@@ -313,7 +316,7 @@ contains
     ixMatrix       => in_SS4HG % ixMatrix       ,& ! intent(in): type of matrix (full or band diagonal)
     computeVegFlux => in_SS4HG % computeVegFlux  & ! intent(in): flag to indicate if computing fluxes over vegetation
     &)   
-    call in_computJacob % initialize(dt_cur,nSnow,nSoil,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel),ixMatrix)
+    call in_computJacob % initialize(dt_cur,nSnow,nSoil,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel),ixRichards,ixMatrix)
    end associate
   end subroutine initialize_computJacob_summaSolv4homegrown
 
@@ -329,47 +332,48 @@ contains
  ! *********************************************************************************************************
  ! * module subroutine refine_Newton_step: refine the Newton step if necessary
  ! *********************************************************************************************************
- subroutine refine_Newton_step(in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&         ! input
-                              &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,& ! input
-                              &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&                ! input-output
-                              &stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SS4HG,return_flag)            ! output
+ subroutine refine_Newton_step(in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&        ! input
+                               model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&! input
+                               sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&    ! input-output
+                               stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SS4HG,return_flag)           ! output
   ! provide access to the external procedures
   USE matrixOper_module, only: computGradient
   USE eval8summa_module, only: imposeConstraints
   implicit none
   ! input
-  type(in_type_summaSolv4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
-  integer(i4b),intent(in)         :: mSoil                     ! number of soil layers in solution vector
-  real(rkind),intent(in)          :: stateVecTrial(:)          ! trial state vector
-  real(rkind),intent(in)          :: newtStepScaled(:)         ! scaled newton step
-  real(rkind),intent(in)          :: aJacScaled(:,:)           ! scaled jacobian matrix
-  real(rkind),intent(in)          :: rVecScaled(:)             ! scaled residual vector
-  real(rkind),intent(in)          :: fScale(:)                 ! characteristic scale of the function evaluations
-  real(rkind),intent(in)          :: xScale(:)                 ! characteristic scale of the state vector
-  type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
-  type(zLookup),      intent(in)  :: lookup_data               ! lookup tables
-  type(var_i),        intent(in)  :: type_data                 ! type of vegetation and soil
-  type(var_d),        intent(in)  :: attr_data                 ! spatial attributes
-  type(var_dlength),  intent(in)  :: mpar_data                 ! model parameters
-  type(var_d),        intent(in)  :: forc_data                 ! model forcing data
-  type(var_dlength),  intent(in)  :: bvar_data                 ! model variables for the local basin
-  type(var_dlength),  intent(in)  :: prog_data                 ! prognostic variables for a local HRU
+  type(in_type_summaSolv4homegrown),intent(in) :: in_SS4HG         ! model control variables and previous function evaluation
+  integer(i4b),intent(in)         :: mSoil                         ! number of soil layers in solution vector
+  real(rkind),intent(in)          :: stateVecTrial(:)              ! trial state vector
+  real(rkind),intent(in)          :: newtStepScaled(:)             ! scaled newton step
+  real(rkind),intent(in)          :: aJacScaled(:,:)               ! scaled jacobian matrix
+  real(rkind),intent(in)          :: rVecScaled(:)                 ! scaled residual vector
+  real(rkind),intent(in)          :: fScale(:)                     ! characteristic scale of the function evaluations
+  real(rkind),intent(in)          :: xScale(:)                     ! characteristic scale of the state vector
+  type(model_options),intent(in)  :: model_decisions(:)            ! model decisions
+  type(zLookup),      intent(in)  :: lookup_data                   ! lookup tables
+  type(var_i),        intent(in)  :: type_data                     ! type of vegetation and soil
+  type(var_d),        intent(in)  :: attr_data                     ! spatial attributes
+  type(var_dlength),  intent(in)  :: mpar_data                     ! model parameters
+  type(var_d),        intent(in)  :: forc_data                     ! model forcing data
+  type(var_dlength),  intent(in)  :: bvar_data                     ! model variables for the local basin
+  type(var_dlength),  intent(in)  :: prog_data                     ! prognostic variables for a local HRU
   ! input-output
-  real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
-  type(io_type_summaSolv4homegrown),intent(inout) :: io_SS4HG  ! first flux call flag and baseflow variables
-  type(var_ilength),intent(inout) :: indx_data                 ! indices defining model states and layers
-  type(var_dlength),intent(inout) :: diag_data                 ! diagnostic variables for a local HRU
-  type(var_dlength),intent(inout) :: flux_data                 ! model fluxes for a local HRU
-  type(var_dlength),intent(inout) :: deriv_data                ! derivatives in model fluxes w.r.t. relevant state variables
-  real(rkind),intent(inout)       :: dBaseflow_dMatric(:,:)    ! derivative in baseflow w.r.t. matric head (s-1)
+  real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp          ! state vector multiplier (used in the residual calculations)
+  type(io_type_summaSolv4homegrown),intent(inout) :: io_SS4HG      ! first flux call flag and baseflow variables
+  type(var_ilength),intent(inout) :: indx_data                     ! indices defining model states and layers
+  type(var_dlength),intent(inout) :: diag_data                     ! diagnostic variables for a local HRU
+  type(var_dlength),intent(inout) :: flux_data                     ! model fluxes for a local HRU
+  type(var_dlength),intent(inout) :: deriv_data                    ! derivatives in model fluxes w.r.t. relevant state variables
+  real(rkind),intent(inout)       :: dBaseflow_dWat(:,:)           ! derivative in baseflow w.r.t. soil water characteristic
+  real(rkind),intent(inout)       :: dBaseflow_dTk(:,:)            ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
   ! output
-  real(rkind),intent(out)         :: stateVecNew(:)            ! new state vector
-  real(rkind),intent(out)         :: fluxVecNew(:)             ! new flux vector
-  real(rkind),intent(out)         :: resSinkNew(:)             ! sink terms on the RHS of the flux equation
-  real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp   ! new residual vector
-  logical(lgt),intent(inout)      :: tooMuchMelt               ! flag to denote that ice is insufficient to support melt
-  type(out_type_summaSolv4homegrown),intent(out) :: out_SS4HG  ! new function evaluation, convergence flag, and error control
-  logical(lgt),intent(out)        :: return_flag               ! flag that controls execution of return statements
+  real(rkind),intent(out)         :: stateVecNew(:)                ! new state vector
+  real(rkind),intent(out)         :: fluxVecNew(:)                 ! new flux vector
+  real(rkind),intent(out)         :: resSinkNew(:)                 ! sink terms on the RHS of the flux equation
+  real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp       ! new residual vector
+  logical(lgt),intent(inout)      :: tooMuchMelt                   ! flag to denote that ice is insufficient to support melt
+  type(out_type_summaSolv4homegrown),intent(out) :: out_SS4HG      ! new function evaluation, convergence flag, and error control
+  logical(lgt),intent(out)        :: return_flag                   ! flag that controls execution of return statements
   ! local
   logical(lgt)                    :: doRefine                      ! flag for step refinement
   integer(i4b),parameter          :: ixLineSearch=1001             ! step refinement = line search
@@ -411,10 +415,10 @@ contains
     select case(ixStepRefinement)
      case(ixLineSearch)  
       call in_LSR % initialize(doRefine,fOld)    
-      call lineSearchRefinement(in_LSR,in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&  ! input
-                               &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,& ! input
-                               &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&                ! input-output
-                               &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,out_LSR)                            ! output
+      call lineSearchRefinement(in_LSR,in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&! input
+                               model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&! input
+                               sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&    ! input-output
+                               stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,out_LSR)                           ! output
       call out_LSR % finalize(fNew,converged,err,cmessage)
      case(ixTrustRegion)
       call in_TRR % initialize(doRefine,fOld)
@@ -428,20 +432,19 @@ contains
     if (err<0) then
      doRefine=.false.;
      call in_LSR % initialize(doRefine,fOld)    
-     call lineSearchRefinement(in_LSR,in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&  ! input
-                              &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,& ! input
-                              &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&                ! input-output
-                              &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,out_LSR)                            ! output
+     call lineSearchRefinement(in_LSR,in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,& ! input
+                              model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&! input
+                              sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&    ! input-output
+                              stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,out_LSR)                           ! output
      call out_LSR % finalize(fNew,converged,err,cmessage)
     end if
  
    ! * case 2: scalar
    else
-    call safeRootfinder(mSoil,stateVecTrial,rVecScaled,newtStepScaled,fScale,xScale,&              ! input
-                       &in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&                 ! input
-                       &mpar_data,forc_data,bvar_data,prog_data,&                                  ! input
-                       &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,& ! input-output
-                       &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SRF) ! output
+    call safeRootfinder(mSoil,stateVecTrial,rVecScaled,newtStepScaled,fScale,xScale,in_SS4HG,model_decisions,&! input
+                        lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&             ! input
+                        sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,& ! input-output
+                        out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SRF)            ! output
     call out_SRF % finalize(fNew,converged,err,cmessage)
    end if
 
@@ -454,47 +457,48 @@ contains
  ! *********************************************************************************************************
  ! * module subroutine lineSearchRefinement: refine the iteration increment using line searches
  ! *********************************************************************************************************
- subroutine lineSearchRefinement(in_LSR,in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&
-                                &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&
-                                &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
-                                &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,out_LSR)
+ subroutine lineSearchRefinement(in_LSR,in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,& ! input
+                                 model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&! input
+                                 sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&    ! input-output
+                                 stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,out_LSR)                           ! output
   ! provide access to the external procedures
   USE matrixOper_module, only: computGradient
   USE eval8summa_module, only: imposeConstraints
   implicit none
   ! input
-  type(in_type_lineSearchRefinement),intent(in) :: in_LSR      ! class object for intent(in) arguments
-  type(in_type_summaSolv4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
-  integer(i4b),intent(in)         :: mSoil                     ! number of soil layers in solution vector
-  real(rkind),intent(in)          :: stateVecTrial(:)          ! trial state vector
-  real(rkind),intent(in)          :: newtStepScaled(:)         ! scaled newton step
-  real(rkind),intent(in)          :: aJacScaled(:,:)           ! scaled jacobian matrix
-  real(rkind),intent(in)          :: rVecScaled(:)             ! scaled residual vector
-  real(rkind),intent(in)          :: fScale(:)                 ! characteristic scale of the function evaluations
-  real(rkind),intent(in)          :: xScale(:)                 ! characteristic scale of the state vector
-  type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
-  type(zLookup),      intent(in)  :: lookup_data               ! lookup tables
-  type(var_i),        intent(in)  :: type_data                 ! type of vegetation and soil
-  type(var_d),        intent(in)  :: attr_data                 ! spatial attributes
-  type(var_dlength),  intent(in)  :: mpar_data                 ! model parameters
-  type(var_d),        intent(in)  :: forc_data                 ! model forcing data
-  type(var_dlength),  intent(in)  :: bvar_data                 ! model variables for the local basin
-  type(var_dlength),  intent(in)  :: prog_data                 ! prognostic variables for a local HRU
+  type(in_type_lineSearchRefinement),intent(in) :: in_LSR         ! class object for intent(in) arguments
+  type(in_type_summaSolv4homegrown),intent(in) :: in_SS4HG        ! model control variables and previous function evaluation
+  integer(i4b),intent(in)         :: mSoil                        ! number of soil layers in solution vector
+  real(rkind),intent(in)          :: stateVecTrial(:)             ! trial state vector
+  real(rkind),intent(in)          :: newtStepScaled(:)            ! scaled newton step
+  real(rkind),intent(in)          :: aJacScaled(:,:)              ! scaled jacobian matrix
+  real(rkind),intent(in)          :: rVecScaled(:)                ! scaled residual vector
+  real(rkind),intent(in)          :: fScale(:)                    ! characteristic scale of the function evaluations
+  real(rkind),intent(in)          :: xScale(:)                    ! characteristic scale of the state vector
+  type(model_options),intent(in)  :: model_decisions(:)           ! model decisions
+  type(zLookup),      intent(in)  :: lookup_data                  ! lookup tables
+  type(var_i),        intent(in)  :: type_data                    ! type of vegetation and soil
+  type(var_d),        intent(in)  :: attr_data                    ! spatial attributes
+  type(var_dlength),  intent(in)  :: mpar_data                    ! model parameters
+  type(var_d),        intent(in)  :: forc_data                    ! model forcing data
+  type(var_dlength),  intent(in)  :: bvar_data                    ! model variables for the local basin
+  type(var_dlength),  intent(in)  :: prog_data                    ! prognostic variables for a local HRU
   ! input-output
-  real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
-  type(io_type_summaSolv4homegrown),intent(inout) :: io_SS4HG ! first flux call flag and baseflow variables
-  type(var_ilength),intent(inout) :: indx_data                 ! indices defining model states and layers
-  type(var_dlength),intent(inout) :: diag_data                 ! diagnostic variables for a local HRU
-  type(var_dlength),intent(inout) :: flux_data                 ! model fluxes for a local HRU
-  type(var_dlength),intent(inout) :: deriv_data                ! derivatives in model fluxes w.r.t. relevant state variables
-  real(rkind),intent(inout)       :: dBaseflow_dMatric(:,:)    ! derivative in baseflow w.r.t. matric head (s-1)
+  real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp         ! state vector multiplier (used in the residual calculations)
+  type(io_type_summaSolv4homegrown),intent(inout) :: io_SS4HG     ! first flux call flag and baseflow variables
+  type(var_ilength),intent(inout) :: indx_data                    ! indices defining model states and layers
+  type(var_dlength),intent(inout) :: diag_data                    ! diagnostic variables for a local HRU
+  type(var_dlength),intent(inout) :: flux_data                    ! model fluxes for a local HRU
+  type(var_dlength),intent(inout) :: deriv_data                   ! derivatives in model fluxes w.r.t. relevant state variables
+  real(rkind),intent(inout)       :: dBaseflow_dWat(:,:)          ! derivative in baseflow w.r.t. soil water characteristic
+  real(rkind),intent(inout)       :: dBaseflow_dTk(:,:)           ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
   ! output
-  real(rkind),intent(out)        :: stateVecNew(:)             ! new state vector
-  real(rkind),intent(out)        :: fluxVecNew(:)              ! new flux vector
-  real(rkind),intent(out)        :: resSinkNew(:)              ! sink terms on the RHS of the flux equation
-  real(qp),intent(out)           :: resVecNew(:) ! NOTE: qp    ! new residual vector
-  type(out_type_summaSolv4homegrown),intent(out) :: out_SS4HG ! new function evaluation, convergence flag, and error control
-  type(out_type_lineSearchRefinement),intent(out) :: out_LSR   ! class object for intent(out) arguments
+  real(rkind),intent(out)        :: stateVecNew(:)                ! new state vector
+  real(rkind),intent(out)        :: fluxVecNew(:)                 ! new flux vector
+  real(rkind),intent(out)        :: resSinkNew(:)                 ! sink terms on the RHS of the flux equation
+  real(qp),intent(out)           :: resVecNew(:) ! NOTE: qp       ! new residual vector
+  type(out_type_summaSolv4homegrown),intent(out) :: out_SS4HG     ! new function evaluation, convergence flag, and error control
+  type(out_type_lineSearchRefinement),intent(out) :: out_LSR      ! class object for intent(out) arguments
   ! --------------------------------------------------------------------------------------------------------
   ! local
   character(len=256)             :: cmessage                      ! error message of downwind routine
@@ -568,10 +572,10 @@ contains
 
     ! compute the residual vector and function
     ! NOTE: This calls eval8summa in a wrapper subroutine
-    call eval8summa_wrapper(stateVecNew,fScale,in_SS4HG,model_decisions,&
-                           &lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&
-                           &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
-                           &fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,cmessage)
+    call eval8summa_wrapper(stateVecNew,fScale,in_SS4HG,model_decisions,&                                        ! input
+                            lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&            ! input
+                            sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&! input-output
+                            fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,cmessage)                          ! output
     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
 
     ! check line search
@@ -664,7 +668,7 @@ contains
   implicit none
   ! input
   type(in_type_lineSearchRefinement),intent(in)   :: in_TRR            ! object for scalar intent(in) arguments -- reusing line search class
-  type(in_type_summaSolv4homegrown),intent(in)   :: in_SS4HG          ! model control variables and previous function evaluation
+  type(in_type_summaSolv4homegrown),intent(in)    :: in_SS4HG          ! model control variables and previous function evaluation
   real(rkind),intent(in)                          :: stateVecTrial(:)  ! trial state vector
   real(rkind),intent(in)                          :: newtStepScaled(:) ! scaled newton step
   real(rkind),intent(in)                          :: aJacScaled(:,:)   ! scaled jacobian matrix
@@ -733,11 +737,10 @@ contains
  ! *********************************************************************************************************
  ! * module subroutine safeRootfinder: refine the 1-d iteration increment using brackets
  ! *********************************************************************************************************
- subroutine safeRootfinder(mSoil,stateVecTrial,rVecscaled,newtStepScaled,fScale,xScale,&
-                          &in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&
-                          &mpar_data,forc_data,bvar_data,prog_data,&
-                          &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
-                          &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SRF)
+ subroutine safeRootfinder(mSoil,stateVecTrial,rVecscaled,newtStepScaled,fScale,xScale,in_SS4HG,model_decisions,&! input
+                           lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&             ! input
+                           sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,& ! input-output
+                           out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SRF)            ! output
   USE,intrinsic :: ieee_arithmetic,only:ieee_is_nan            ! IEEE arithmetic (check NaN)
   USE eval8summa_module,only: imposeConstraints                ! imposeConstraints
   USE globalData,only:dNaN                                     ! double precision NaN
@@ -749,7 +752,7 @@ contains
   real(rkind),intent(in)          :: newtStepScaled(:)         ! scaled newton step
   real(rkind),intent(in)          :: fScale(:)                 ! characteristic scale of the function evaluations
   real(rkind),intent(in)          :: xScale(:)                 ! characteristic scale of the state vector
-  type(in_type_summaSolv4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
+  type(in_type_summaSolv4homegrown),intent(in) :: in_SS4HG     ! model control variables and previous function evaluation
   type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
   type(zLookup),      intent(in)  :: lookup_data               ! lookup tables
   type(var_i),        intent(in)  :: type_data                 ! type of vegetation and soil
@@ -760,14 +763,15 @@ contains
   type(var_dlength),  intent(in)  :: prog_data                 ! prognostic variables for a local HRU
   ! input-output
   real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
-  type(io_type_summaSolv4homegrown),intent(inout) :: io_SS4HG ! first flux call flag and baseflow variables
+  type(io_type_summaSolv4homegrown),intent(inout) :: io_SS4HG  ! first flux call flag and baseflow variables
   type(var_ilength),intent(inout) :: indx_data                 ! indices defining model states and layers
   type(var_dlength),intent(inout) :: diag_data                 ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout) :: flux_data                 ! model fluxes for a local HRU
   type(var_dlength),intent(inout) :: deriv_data                ! derivatives in model fluxes w.r.t. relevant state variables
-  real(rkind),intent(inout)       :: dBaseflow_dMatric(:,:)    ! derivative in baseflow w.r.t. matric head (s-1)
+  real(rkind),intent(inout)       :: dBaseflow_dWat(:,:)       ! derivative in baseflow w.r.t. soil water characteristic
+  real(rkind),intent(inout)       :: dBaseflow_dTk(:,:)        ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
   ! output
-  type(out_type_summaSolv4homegrown),intent(out) :: out_SS4HG ! new function evaluation, convergence flag, and error control
+  type(out_type_summaSolv4homegrown),intent(out) :: out_SS4HG  ! new function evaluation, convergence flag, and error control
   real(rkind),intent(out)         :: stateVecNew(:)            ! new state vector
   real(rkind),intent(out)         :: fluxVecNew(:)             ! new flux vector
   real(rkind),intent(out)         :: resSinkNew(:)             ! sink terms on the RHS of the flux equation
@@ -834,10 +838,10 @@ contains
 
     ! get brackets if they do not exist
     if ( ieee_is_nan(xMin) .or. ieee_is_nan(xMax) ) then
-     call getBrackets(stateVecTrial,rVec,fScale,in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&
-                     &mpar_data,forc_data,bvar_data,prog_data,&
-                     &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
-                     &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,xMin,xMax,tooMuchMelt,err,cmessage)
+     call getBrackets(stateVecTrial,rVec,fScale,in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&     ! input
+                      mpar_data,forc_data,bvar_data,prog_data,&                                                ! input
+                      sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&    ! input-output
+                      out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,xMin,xMax,tooMuchMelt,err,cmessage)! output
      if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
     end if
 
@@ -867,10 +871,10 @@ contains
    end if
 
    ! evaluate summa
-   call eval8summa_wrapper(stateVecNew,fScale,in_SS4HG,model_decisions,&
-                          &lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&
-                          &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
-                          &fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,cmessage)
+   call eval8summa_wrapper(stateVecNew,fScale,in_SS4HG,model_decisions,&                                        ! input
+                           lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&            ! input
+                           sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&! input-output
+                           fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,cmessage)                          ! output
    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
 
    ! check feasibility (should be feasible because of the call to imposeConstraints, except if canopyTemp>canopyTempMax (500._rkind)) 
@@ -886,44 +890,45 @@ contains
  ! *********************************************************************************************************
  ! * module subroutine getBrackets: get the brackets for safeRootfinder
  ! *********************************************************************************************************
- subroutine getBrackets(stateVecTrial,rVec,fScale,in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&
-                       &mpar_data,forc_data,bvar_data,prog_data,&
-                       &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
-                       &out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,xMin,xMax,tooMuchMelt,err,message)
-  USE,intrinsic :: ieee_arithmetic,only:ieee_is_nan            ! IEEE arithmetic (check NaN)
-  USE eval8summa_module,only: imposeConstraints                ! imposeConstraints
+ subroutine getBrackets(stateVecTrial,rVec,fScale,in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&    ! input
+                        mpar_data,forc_data,bvar_data,prog_data,&                                               ! input
+                        sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&   ! input-output
+                        out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,xMin,xMax,tooMuchMelt,err,message)! output
+  USE,intrinsic :: ieee_arithmetic,only:ieee_is_nan                  ! IEEE arithmetic (check NaN)
+  USE eval8summa_module,only: imposeConstraints                      ! imposeConstraints
   implicit none
   ! input
-  real(rkind),intent(in)          :: stateVecTrial(:)          ! trial state vector
-  real(qp),intent(in)             :: rVec(:)   ! NOTE: qp      ! residual vector
-  real(rkind),intent(in)          :: fScale(:)                 ! characteristic scale of the function evaluations
-  type(in_type_summaSolv4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
-  type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
-  type(zLookup),      intent(in)  :: lookup_data               ! lookup tables
-  type(var_i),        intent(in)  :: type_data                 ! type of vegetation and soil
-  type(var_d),        intent(in)  :: attr_data                 ! spatial attributes
-  type(var_dlength),  intent(in)  :: mpar_data                 ! model parameters
-  type(var_d),        intent(in)  :: forc_data                 ! model forcing data
-  type(var_dlength),  intent(in)  :: bvar_data                 ! model variables for the local basin
-  type(var_dlength),  intent(in)  :: prog_data                 ! prognostic variables for a local HRU
+  real(rkind),intent(in)          :: stateVecTrial(:)                ! trial state vector
+  real(qp),intent(in)             :: rVec(:)   ! NOTE: qp            ! residual vector
+  real(rkind),intent(in)          :: fScale(:)                       ! characteristic scale of the function evaluations
+  type(in_type_summaSolv4homegrown),intent(in) :: in_SS4HG           ! model control variables and previous function evaluation
+  type(model_options),intent(in)  :: model_decisions(:)              ! model decisions
+  type(zLookup),      intent(in)  :: lookup_data                     ! lookup tables
+  type(var_i),        intent(in)  :: type_data                       ! type of vegetation and soil
+  type(var_d),        intent(in)  :: attr_data                       ! spatial attributes
+  type(var_dlength),  intent(in)  :: mpar_data                       ! model parameters
+  type(var_d),        intent(in)  :: forc_data                       ! model forcing data
+  type(var_dlength),  intent(in)  :: bvar_data                       ! model variables for the local basin
+  type(var_dlength),  intent(in)  :: prog_data                       ! prognostic variables for a local HRU
   ! input-output
-  real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
-  type(io_type_summaSolv4homegrown),intent(inout) :: io_SS4HG ! first flux call flag and baseflow variables
-  type(var_ilength),intent(inout) :: indx_data                 ! indices defining model states and layers
-  type(var_dlength),intent(inout) :: diag_data                 ! diagnostic variables for a local HRU
-  type(var_dlength),intent(inout) :: flux_data                 ! model fluxes for a local HRU
-  type(var_dlength),intent(inout) :: deriv_data                ! derivatives in model fluxes w.r.t. relevant state variables
-  real(rkind),intent(inout)       :: dBaseflow_dMatric(:,:)    ! derivative in baseflow w.r.t. matric head (s-1)
-  integer(i4b),intent(inout)      :: err                       ! error code
+  real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp            ! state vector multiplier (used in the residual calculations)
+  type(io_type_summaSolv4homegrown),intent(inout) :: io_SS4HG        ! first flux call flag and baseflow variables
+  type(var_ilength),intent(inout) :: indx_data                       ! indices defining model states and layers
+  type(var_dlength),intent(inout) :: diag_data                       ! diagnostic variables for a local HRU
+  type(var_dlength),intent(inout) :: flux_data                       ! model fluxes for a local HRU
+  type(var_dlength),intent(inout) :: deriv_data                      ! derivatives in model fluxes w.r.t. relevant state variables
+  real(rkind),intent(inout)       :: dBaseflow_dWat(:,:)             ! derivative in baseflow w.r.t. soil water characteristic
+  real(rkind),intent(inout)       :: dBaseflow_dTk(:,:)              ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
+  integer(i4b),intent(inout)      :: err                             ! error code
   ! output
-  type(out_type_summaSolv4homegrown),intent(out) :: out_SS4HG ! new function evaluation, convergence flag, and error control
-  real(rkind),intent(out)         :: stateVecNew(:)            ! new state vector
-  real(rkind),intent(out)         :: fluxVecNew(:)             ! updated flux vector
-  real(rkind),intent(out)         :: resSinkNew(:)             ! sink terms on the RHS of the flux equation
-  real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp   ! updated residual vector
-  logical(lgt),intent(inout)      :: tooMuchMelt               ! flag to denote that ice is insufficient to support melt
-  real(rkind),intent(inout)       :: xMin,xMax                 ! constraints
-  character(*),intent(out)        :: message                   ! error message
+  type(out_type_summaSolv4homegrown),intent(out) :: out_SS4HG        ! new function evaluation, convergence flag, and error control
+  real(rkind),intent(out)         :: stateVecNew(:)                  ! new state vector
+  real(rkind),intent(out)         :: fluxVecNew(:)                   ! updated flux vector
+  real(rkind),intent(out)         :: resSinkNew(:)                   ! sink terms on the RHS of the flux equation
+  real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp         ! updated residual vector
+  logical(lgt),intent(inout)      :: tooMuchMelt                     ! flag to denote that ice is insufficient to support melt
+  real(rkind),intent(inout)       :: xMin,xMax                       ! constraints
+  character(*),intent(out)        :: message                         ! error message
   ! locals
   real(rkind)                     :: stateVecPrev(in_SS4HG % nState) ! iteration state vector
   integer(i4b)                    :: iCheck                          ! check the model state variables
@@ -961,10 +966,10 @@ contains
 
    ! evaluate summa
    associate(fNew => out_SS4HG % fNew)
-    call eval8summa_wrapper(stateVecNew,fScale,in_SS4HG,model_decisions,&
-                           &lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&
-                           &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
-                           &fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,cmessage)
+    call eval8summa_wrapper(stateVecNew,fScale,in_SS4HG,model_decisions,&                                        ! input
+                           &lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&            ! input
+                           &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&! input-output
+                           &fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,cmessage)                          ! output
    end associate
    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
 
@@ -1004,16 +1009,16 @@ contains
  ! * module subroutine eval8summa_wrapper: compute the right-hand-side vector
  ! *********************************************************************************************************
  ! NOTE: This is simply a wrapper routine for eval8summa, to reduce the number of calling arguments
- subroutine eval8summa_wrapper(stateVecNew,fScale,in_SS4HG,model_decisions,&
-                              &lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&
-                              &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dMatric,&
-                              &fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,message)
+ subroutine eval8summa_wrapper(stateVecNew,fScale,in_SS4HG,model_decisions,&                                        ! input
+                               lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&            ! input
+                               sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&! input-output
+                               fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,message)                           ! output
   USE eval8summa_module,only:eval8summa                        ! simulation of fluxes and residuals given a trial state vector
   implicit none
   ! input
   real(rkind),intent(in)          :: stateVecNew(:)            ! updated state vector
   real(rkind),intent(in)          :: fScale(:)                 ! characteristic scale of the function evaluations
-  type(in_type_summaSolv4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
+  type(in_type_summaSolv4homegrown),intent(in) :: in_SS4HG     ! model control variables and previous function evaluation
   type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
   type(zLookup),      intent(in)  :: lookup_data               ! lookup tables
   type(var_i),        intent(in)  :: type_data                 ! type of vegetation and soil
@@ -1024,12 +1029,13 @@ contains
   type(var_dlength),  intent(in)  :: prog_data                 ! prognostic variables for a local HRU
   ! input-output
   real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
-  type(io_type_summaSolv4homegrown),intent(inout) :: io_SS4HG ! first flux call flag and baseflow variables
+  type(io_type_summaSolv4homegrown),intent(inout) :: io_SS4HG  ! first flux call flag and baseflow variables
   type(var_ilength),intent(inout) :: indx_data                 ! indices defining model states and layers
   type(var_dlength),intent(inout) :: diag_data                 ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout) :: flux_data                 ! model fluxes for a local HRU
   type(var_dlength),intent(inout) :: deriv_data                ! derivatives in model fluxes w.r.t. relevant state variables
-  real(rkind),intent(inout)       :: dBaseflow_dMatric(:,:)    ! derivative in baseflow w.r.t. matric head (s-1)
+  real(rkind),intent(inout)       :: dBaseflow_dWat(:,:)       ! derivative in baseflow w.r.t. soil water characteristic
+  real(rkind),intent(inout)       :: dBaseflow_dTk(:,:)        ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
   ! output
   real(rkind),intent(out)         :: fluxVecNew(:)             ! updated flux vector
   real(rkind),intent(out)         :: resSinkNew(:)             ! sink terms on the RHS of the flux equation
@@ -1093,7 +1099,8 @@ contains
                    deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                    ! input-output: baseflow
                    ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                   dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
+                   dBaseflow_dWat,          & ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
+                   dBaseflow_dTk,           & ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
                    ! output
                    feasible,                & ! intent(out):   flag to denote the feasibility of the solution
                    fluxVecNew,              & ! intent(out):   new flux vector
@@ -1113,33 +1120,33 @@ contains
  function checkConv(mSoil,in_SS4HG,mpar_data,indx_data,prog_data,rVec,xInc,xVec,out_SS4HG)
   implicit none
   ! result
-  logical(lgt)                 :: checkConv                    ! flag to denote convergence
+  logical(lgt)                 :: checkConv                   ! flag to denote convergence
   ! dummies
-  integer(i4b),intent(in)      :: mSoil                        ! number of soil layers in solution vector
+  integer(i4b),intent(in)      :: mSoil                       ! number of soil layers in solution vector
   type(in_type_summaSolv4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
-  type(var_dlength),intent(in) :: mpar_data                    ! model parameters
-  type(var_ilength),intent(in) :: indx_data                    ! indices defining model states and layers
-  type(var_dlength),intent(in) :: prog_data                    ! prognostic variables for a local HRU
-  real(rkind),intent(in)       :: rVec(:)                      ! residual vector (mixed units)
-  real(rkind),intent(in)       :: xInc(:)                      ! iteration increment (mixed units)
-  real(rkind),intent(in)       :: xVec(:)                      ! state vector (mixed units)
+  type(var_dlength),intent(in) :: mpar_data                   ! model parameters
+  type(var_ilength),intent(in) :: indx_data                   ! indices defining model states and layers
+  type(var_dlength),intent(in) :: prog_data                   ! prognostic variables for a local HRU
+  real(rkind),intent(in)       :: rVec(:)                     ! residual vector (mixed units)
+  real(rkind),intent(in)       :: xInc(:)                     ! iteration increment (mixed units)
+  real(rkind),intent(in)       :: xVec(:)                     ! state vector (mixed units)
   type(out_type_summaSolv4homegrown),intent(in) :: out_SS4HG  ! new function evaluation, convergence flag, and error control
   ! locals
-  real(rkind),dimension(mSoil) :: psiScale                ! scaling factor for matric head
-  real(rkind),parameter        :: xSmall=1.e-0_rkind      ! a small offset
-  real(rkind),parameter        :: scalarTighten=0.1_rkind ! scaling factor for the scalar solution
-  real(rkind)                  :: soilWatbalErr           ! error in the soil water balance
-  real(rkind)                  :: canopy_max              ! absolute value of the residual in canopy water (kg m-2)
-  real(rkind),dimension(1)     :: energy_max              ! maximum absolute value of the energy residual (J m-3)
-  real(rkind),dimension(1)     :: liquid_max              ! maximum absolute value of the volumetric liquid water content residual (-)
-  real(rkind),dimension(1)     :: matric_max              ! maximum absolute value of the matric head iteration increment (m)
-  real(rkind)                  :: aquifer_max             ! absolute value of the residual in aquifer water (m)
-  logical(lgt)                 :: canopyConv              ! flag for canopy water balance convergence
-  logical(lgt)                 :: watbalConv              ! flag for soil water balance convergence
-  logical(lgt)                 :: liquidConv              ! flag for residual convergence
-  logical(lgt)                 :: matricConv              ! flag for matric head convergence
-  logical(lgt)                 :: energyConv              ! flag for energy convergence
-  logical(lgt)                 :: aquiferConv             ! flag for aquifer water balance convergence
+  real(rkind),dimension(mSoil) :: psiScale                    ! scaling factor for matric head
+  real(rkind),parameter        :: xSmall=1.e-0_rkind          ! a small offset
+  real(rkind),parameter        :: scalarTighten=0.1_rkind     ! scaling factor for the scalar solution
+  real(rkind)                  :: soilWatbalErr               ! error in the soil water balance
+  real(rkind)                  :: canopy_max                  ! absolute value of the residual in canopy water (kg m-2)
+  real(rkind),dimension(1)     :: energy_max                  ! maximum absolute value of the energy residual (J m-3)
+  real(rkind),dimension(1)     :: liquid_max                  ! maximum absolute value of the volumetric liquid water content residual (-)
+  real(rkind),dimension(1)     :: matric_max                  ! maximum absolute value of the matric head iteration increment (m)
+  real(rkind)                  :: aquifer_max                 ! absolute value of the residual in aquifer water (m)
+  logical(lgt)                 :: canopyConv                  ! flag for canopy water balance convergence
+  logical(lgt)                 :: watbalConv                  ! flag for soil water balance convergence
+  logical(lgt)                 :: liquidConv                  ! flag for residual convergence
+  logical(lgt)                 :: matricConv                  ! flag for matric head convergence
+  logical(lgt)                 :: energyConv                  ! flag for energy convergence
+  logical(lgt)                 :: aquiferConv                 ! flag for aquifer water balance convergence
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
   associate(&
