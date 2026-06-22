@@ -32,7 +32,6 @@ USE globalData,only:realMissing            ! missing real number
 
 ! physical constants
 USE globalData,only:maxVolIceContent       ! snow maximum volumetric ice content to store water (-)
-USE globalData,only:icefrz_mult            ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
 
 ! named variables
 USE var_lookup,only:iLookINDEX             ! named variables for structure elements
@@ -185,7 +184,7 @@ subroutine snowLakeGlceLiqFlux(&
           mLayerThetaResid(iLayer) = Fcapil*mLayerPoreSpace(iLayer)*multResid ! compute the residual volumetric liquid water content (-)
         end do  ! end looping through snow/firn layers
       else ! glacier ice
-        mLayerThetaResid = mLayerPoreSpace
+        mLayerThetaResid = 0.03_rkind ! 3% reasonable for temperate ice, or non-black ice on lake
       end if  ! end if snow or ice
     end if  ! end if the first flux call
      

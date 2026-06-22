@@ -1657,7 +1657,7 @@ subroutine coupled_em(&
 
       ! check SWE
       if(nSnow>0)then
-        effSnowfall = averageThroughfallSnow + averageCanopySnowUnloading
+        effSnowfall = averageThroughfallSnow + averageCanopySnowUnloading 
         ! effRainfall is averageThroughfallRain + averageCanopyLiqDrainage only over snow             
         delSWE      = scalarSWE - (oldSWE - sfcMeltPond)
         massBalance = delSWE - (effSnowfall + effRainfall + averageSnowSublimation - averageSnowDrainage*iden_water)*data_step
@@ -1737,9 +1737,9 @@ subroutine coupled_em(&
         scalarTotalSoilWat = scalarTotalSoilLiq + scalarTotalSoilIce
 
         ! get the input and output to/from the soil zone (kg m-2)
-        balanceSoilInflux        = averageSoilInflux*iden_water*data_step
+        balanceSoilInflux        = (averageSoilInflux+averageGlceMelt)*iden_water*data_step
         balanceSoilBaseflow      = averageSoilBaseflow*iden_water*data_step
-        balanceSoilDrainage      = (averageSoilDrainage-averageGlceMelt)*iden_water*data_step
+        balanceSoilDrainage      = averageSoilDrainage*iden_water*data_step
         balanceSoilET            = (averageCanopyTranspiration + averageGroundEvaporation)*data_step
         balanceSoilCompress      = averageSoilCompress*data_step
 

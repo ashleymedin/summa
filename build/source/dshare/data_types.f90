@@ -1933,6 +1933,7 @@ contains
    in_surfaceFlux % ixInfRateMax   = ixInfRateMax            ! index defining the maximum infiltration rate parameterization (GreenAmpt or topmodel_GA)
    in_surfaceFlux % surfRun_SE     = surfRun_SE              ! index defining the saturation excess surface runoff method
    in_surfaceFlux % nRoots         = nRoots                  ! number of layers that contain roots
+   if(nGlce > 0) in_surfaceFlux % nRoots = nSoil ! make all glacier debris layers take infiltration
    in_surfaceFlux % ixIce          = ixIce                   ! index of lowest ice layer
    in_surfaceFlux % nSoil          = nSoil                   ! number of soil layers
    in_surfaceFlux % nGlce          = nGlce                   ! number of glacier ice layers
@@ -2027,6 +2028,7 @@ contains
    in_surfaceFlux % qSurfScale          = qSurfScale          ! scaling factor in the surface runoff parameterization (-)
    in_surfaceFlux % zScale_TOPMODEL     = zScale_TOPMODEL     ! scaling factor used to describe decrease in hydraulic conductivity with depth (m)
    in_surfaceFlux % rootingDepth        = rootingDepth        ! rooting depth (m)
+   if(nGlce>0) in_surfaceFlux % rootingDepth = max(rootingDepth,iLayerHeight(nSoil)) ! make all glacier debris layers take infiltration
    in_surfaceFlux % wettingFrontSuction = wettingFrontSuction ! Green-Ampt wetting front suction (m)
    in_surfaceFlux % soilIceScale        = soilIceScale        ! soil ice scaling factor in Gamma distribution used to define frozen area (m)
    in_surfaceFlux % soilIceCV           = soilIceCV           ! soil ice CV in Gamma distribution used to define frozen area (-)

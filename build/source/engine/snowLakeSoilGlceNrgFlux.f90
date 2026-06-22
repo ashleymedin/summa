@@ -190,7 +190,7 @@ subroutine snowLakeSoilGlceNrgFlux(&
     ! -------------------------------------------------------------------------------------------------------------------------
     zeroFlux_noThetaBdry = .false.
     do iLayer=ixTop,ixBot
-      if(layerType(iLayer)==iname_glce .and. iLayer==nLayers-noThetaChange .and. iLayerLiqFluxSnLaGl(iLayer-1) < 0._rkind)then
+      if(layerType(iLayer)==iname_glce .and. iLayer==nLayers-noThetaChange .and. iLayerLiqFluxSnLaGl(iLayer-1) > 0._rkind)then
         zeroFlux_noThetaBdry = .true.
         iLayerConductiveFlux(iLayer) = 0._rkind ! all melt energy absorbed in top layers of glacier ice, note the flux is from the end of the previous time step
       elseif (iLayer==nLayers) then ! lower boundary fluxes -- positive downwards 

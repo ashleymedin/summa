@@ -519,13 +519,21 @@ contains
   call qDrainFlux(in_qDrainFlux,out_qDrainFlux)
  end subroutine update_compute_drainage_flux
 
- subroutine finalize_compute_drainage_flux(out_qDrainFlux)
+ subroutine finalize_compute_drainage_flux(in_qDrainFlux, out_qDrainFlux)
   ! **** finalize operations for compute_drainage_flux ****
-  type(out_type_qDrainFlux),intent(inout) :: out_qDrainFlux
+  type(in_type_qDrainFlux),intent(in) :: in_qDrainFlux
+  type(out_type_qDrainFlux),intent(out) :: out_qDrainFlux
+  ! local variables
+  real(rkind) :: scalarInfilArea_unfrozen ! infiltration area that is not frozen
+
   ! no dependence on the aquifer for drainage, couple to ice layer if it exists
   associate(&
    ! derivatives in flux w.r.t. ...
    scalarGlceMelt => in_soilLiqFlux % scalarGlceMelt,       & ! glacier melt (m s-1)
+   xMaxInfilRate  => in_qDrainFlux % xMaxInfilRate,         & ! maximum infiltration rate (m s-1)
+   scalarInfilArea  => in_qDrainFlux % scalarInfilArea,     & ! fraction of area where water can infiltrate, may be frozen (-)
+   scalarFrozenArea => in_qDrainFlux % scalarFrozenArea,    & ! fraction of area that is considered impermeable due to soil ice (-)
+   scalarMeltInfiltration => out_qDrainFlux % scalarMeltInfiltration, & ! glacier melt infiltration up into soil (m s-1)
    scalarDrainage => out_qDrainFlux % scalarDrainage,       & ! drainage flux from the bottom of the soil profile (m s-1)
    dq_dHydStateBelow => io_soilLiqFlux % dq_dHydStateBelow, & ! ... hydrology state variables in the layer below
    dq_dNrgStateBelow => io_soilLiqFlux % dq_dNrgStateBelow, & ! ... temperature in the layer below (m s-1 K-1)
@@ -533,15 +541,15 @@ contains
    err     => out_soilLiqFlux % err,                        & ! error code
    message => out_soilLiqFlux % cmessage                    & ! error message
   &)
-   if(scalarGlceMelt==0._rkind)then ! then nothing coupled
-     dq_dHydStateBelow(nSoil) = 0._rkind
-     dq_dNrgStateBelow(nSoil) = 0._rkind
-   else
-     ! glacier melt opposes the drainage flux
-     scalarDrainage = scalarDrainage - scalarGlceMelt 
-     dq_dHydStateBelow(nSoil) = 0._rkind ! will be calculated in computJacob
-     dq_dNrgStateBelow(nSoil) = 0._rkind ! will be calculated in computJacob
+   ! NOTE: could also couple aquifer flux as glacier and aquifer do not exist at the same time, but that is not implemented yet
+   if (firstSplitOper .or. updateInfil) then
+     ! unfrozen infiltration area
+     scalarInfilArea_unfrozen=(1._rkind - scalarFrozenArea)*scalarInfilArea
+     scalarMeltInfiltration = scalarInfilArea_unfrozen * max(scalarGlceMelt,xMaxInfilRate)  ! glacier melt is negative (upward flux), may be zero
    endif
+   scalarDrainage = scalarDrainage + scalarMeltInfiltration
+   dq_dHydStateBelow(nSoil) = 0._rkind ! will be calculated in computJacob
+   dq_dNrgStateBelow(nSoil) = 0._rkind ! will be calculated in computJacob
    call out_qDrainFlux % finalize(nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end associate
