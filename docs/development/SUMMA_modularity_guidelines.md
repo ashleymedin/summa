@@ -182,7 +182,7 @@ end subroutine update_surfaceFlux_example_flux
           example_flux_constant => in_surfaceFlux % example_flux_constant
           ! output: runoff and infiltration
           scalarSurfaceRunoff       => out_surfaceFlux % scalarSurfaceRunoff       , & ! surface runoff (m s-1)
-          scalarSurfaceInfiltration => out_surfaceFlux % scalarSurfaceInfiltration   & ! surface infiltration (m s-1)
+          scalarSurfaceInfiltration => io_surfaceFlux % scalarSurfaceInfiltration   & ! surface infiltration (m s-1)
          &)
           scalarSurfaceInfiltration = example_flux_constant                          ! toy model of constant infiltration
           scalarSurfaceRunoff       = scalarRainPlusMelt - scalarSurfaceInfiltration ! compute surface runoff
