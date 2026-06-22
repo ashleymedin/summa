@@ -683,14 +683,15 @@ MODULE data_types
  type, public :: io_type_surfaceFlux    ! intent(inout) data
    ! input-output: hydraulic conductivity and diffusivity at the surface
    ! NOTE: intent(inout) because infiltration may only be computed for the first iteration
-   real(rkind) :: surfaceHydCond      ! hydraulic conductivity (m s-1)
-   real(rkind) :: surfaceDiffuse      ! hydraulic diffusivity at the surface (m
+   real(rkind) :: surfaceHydCond            ! hydraulic conductivity (m s-1)
+   real(rkind) :: surfaceDiffuse            ! hydraulic diffusivity at the surface (m2 s-1)
    ! input-output: surface runoff and infiltration flux (m s-1)
-   real(rkind) :: xMaxInfilRate       ! maximum infiltration rate (m s-1)
-   real(rkind) :: scalarInfilArea     ! fraction of area where water can infiltrate, may be frozen (-)
-   real(rkind) :: scalarSaturatedArea ! fraction of area that is considered saturated (-)
-   real(rkind) :: scalarFrozenArea    ! fraction of area that is considered impermeable due to soil ice (-)
-   real(rkind) :: scalarSoilControl   ! soil control on infiltration for derivative
+   real(rkind) :: xMaxInfilRate             ! maximum infiltration rate (m s-1)
+   real(rkind) :: scalarInfilArea           ! fraction of area where water can infiltrate, may be frozen (-)
+   real(rkind) :: scalarSaturatedArea       ! fraction of area that is considered saturated (-)
+   real(rkind) :: scalarFrozenArea          ! fraction of area that is considered impermeable due to soil ice (-)
+   real(rkind) :: scalarSoilControl         ! soil control on infiltration for derivative
+   real(rkind) :: scalarSurfaceInfiltration ! surface infiltration rate (m s-1)
   contains
    procedure :: initialize => initialize_io_surfaceFlux
    procedure :: finalize   => finalize_io_surfaceFlux
@@ -701,7 +702,6 @@ MODULE data_types
    real(rkind) :: scalarSurfaceRunoff       ! surface runoff (m s-1)
    real(rkind) :: scalarSurfaceRunoff_IE    ! infiltration excess surface runoff (m s-1)
    real(rkind) :: scalarSurfaceRunoff_SE    ! saturation excess surface runoff (m s-1)
-   real(rkind) :: scalarSurfaceInfiltration ! surface infiltration (m s-1)
    ! output: derivatives in surface infiltration w.r.t. ...
    real(rkind),allocatable :: dq_dHydStateVec(:) ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
    real(rkind),allocatable :: dq_dNrgStateVec(:) ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
@@ -1871,11 +1871,12 @@ contains
 
   associate(&
    ! fluxes at layer interfaces and surface runoff
-   xMaxInfilRate       => io_soilLiqFlux % scalarMaxInfilRate,  & ! maximum infiltration rate (m s-1)
-   scalarInfilArea     => io_soilLiqFlux % scalarInfilArea,     & ! fraction of area where water can infiltrate, may be frozen (-)
-   scalarSaturatedArea => io_soilLiqFlux % scalarSaturatedArea, & ! fraction of area that is considered saturated (-)
-   scalarFrozenArea    => io_soilLiqFlux % scalarFrozenArea,    & ! fraction of area that is considered impermeable due to soil ice (-)
-   scalarSoilControl   => io_soilLiqFlux % scalarSoilControl    & ! soil control on infiltration for derivative
+   xMaxInfilRate       => io_soilLiqFlux % scalarMaxInfilRate,      & ! maximum infiltration rate (m s-1)
+   scalarInfilArea     => io_soilLiqFlux % scalarInfilArea,         & ! fraction of area where water can infiltrate, may be frozen (-)
+   scalarSaturatedArea => io_soilLiqFlux % scalarSaturatedArea,     & ! fraction of area that is considered saturated (-)
+   scalarFrozenArea    => io_soilLiqFlux % scalarFrozenArea,        & ! fraction of area that is considered impermeable due to soil ice (-)
+   scalarSoilControl   => io_soilLiqFlux % scalarSoilControl,       & ! soil control on infiltration for derivative
+   scalarSurfaceInfiltration => io_soilLiqFlux % scalarInfiltration & ! surface infiltration (m s-1)
   &)
    ! intent(inout): hydraulic conductivity and diffusivity at the surface
    io_surfaceFlux % surfaceHydCond = iLayerHydCond(0)         ! hydraulic conductivity at the surface (m s-1)
@@ -1886,15 +1887,16 @@ contains
    io_surfaceFlux % scalarSaturatedArea = scalarSaturatedArea ! fraction of area that is considered saturated (-)
    io_surfaceFlux % scalarFrozenArea = scalarFrozenArea       ! fraction of area that is considered impermeable due to soil ice (-)
    io_surfaceFlux % scalarSoilControl = scalarSoilControl     ! soil control on infiltration for derivative
+   io_surfaceFlux % scalarSurfaceInfiltration = scalarSurfaceInfiltration ! surface infiltration (m s-1)
   end associate
  end subroutine initialize_io_surfaceFlux
 
  subroutine finalize_io_surfaceFlux(io_surfaceFlux,nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse)
   class(io_type_surfaceFlux),intent(in)   :: io_surfaceFlux ! input-output object for surfaceFlux
-  integer(i4b),intent(in)                 :: nSoil         ! number of soil layers
+  integer(i4b),intent(in)                 :: nSoil          ! number of soil layers
   type(io_type_soilLiqFlux),intent(inout) :: io_soilLiqFlux ! input-output class object for soilLiqFlux
-  real(rkind),intent(inout) :: iLayerHydCond(0:nSoil)     ! hydraulic conductivity at layer interface (m s-1)
-  real(rkind),intent(inout) :: iLayerDiffuse(0:nSoil)     ! diffusivity at layer interface (m2 s-1)
+  real(rkind),intent(inout) :: iLayerHydCond(0:nSoil)       ! hydraulic conductivity at layer interface (m s-1)
+  real(rkind),intent(inout) :: iLayerDiffuse(0:nSoil)       ! diffusivity at layer interface (m2 s-1)
 
   associate(&
    ! fluxes at layer interfaces and surface runoff
@@ -1902,7 +1904,8 @@ contains
    scalarInfilArea     => io_soilLiqFlux % scalarInfilArea,     & ! fraction of area where water can infiltrate, may be frozen (-)
    scalarSaturatedArea => io_soilLiqFlux % scalarSaturatedArea, & ! fraction of area that is considered saturated (-)
    scalarFrozenArea    => io_soilLiqFlux % scalarFrozenArea,    & ! fraction of area that is considered impermeable due to soil ice (-)
-   scalarSoilControl   => io_soilLiqFlux % scalarSoilControl    & ! soil control on infiltration for derivative
+   scalarSoilControl   => io_soilLiqFlux % scalarSoilControl,   & ! soil control on infiltration for derivative
+   scalarSurfaceInfiltration => io_soilLiqFlux % scalarInfiltration & ! surface infiltration rate (m s-1)
   &)
    ! intent(inout): hydraulic conductivity and diffusivity at the surface
    iLayerHydCond(0) = io_surfaceFlux % surfaceHydCond         ! hydraulic conductivity at the surface (m s-1) 
@@ -1913,6 +1916,7 @@ contains
    scalarSaturatedArea = io_surfaceFlux % scalarSaturatedArea ! fraction of area that is considered saturated (-)
    scalarFrozenArea = io_surfaceFlux % scalarFrozenArea       ! fraction of area that is considered impermeable due to soil ice (-)
    scalarSoilControl = io_surfaceFlux % scalarSoilControl     ! soil control on infiltration for derivative
+   scalarSurfaceInfiltration = io_surfaceFlux % scalarSurfaceInfiltration ! surface infiltration (m s-1)
   end associate
  end subroutine finalize_io_surfaceFlux
 
@@ -1927,16 +1931,14 @@ contains
    scalarSurfaceRunoff       => io_soilLiqFlux % scalarSurfaceRunoff,    & ! surface runoff (m s-1)
    scalarSurfaceRunoff_IE    => io_soilLiqFlux % scalarSurfaceRunoff_IE, & ! infiltration excess surface runoff (m s-1)
    scalarSurfaceRunoff_SE    => io_soilLiqFlux % scalarSurfaceRunoff_SE, & ! saturation excess surface runoff (m s-1)
-   scalarSurfaceInfiltration => io_soilLiqFlux % scalarInfiltration,     & ! surface infiltration rate (m s-1)
-   ! intent(inout): derivatives in surface infiltration in the upper-most soil layer w.r.t ... 
+    ! intent(inout): derivatives in surface infiltration in the upper-most soil layer w.r.t ... 
    dq_dHydStateLayerSurfVec => io_soilLiqFlux % dq_dHydStateLayerSurfVec, & ! ... hydrology state above soil snow or canopy and every soil layer (m s-1 or s-1)
    dq_dNrgStateLayerSurfVec => io_soilLiqFlux % dq_dNrgStateLayerSurfVec  & ! ... temperature above soil snow or canopy and every soil layer (m s-1 or s-1)
   &)
-   ! intent(out): surface runoff and infiltration
-   scalarSurfaceRunoff       = out_surfaceFlux % scalarSurfaceRunoff       ! surface runoff (m s-1)
-   scalarSurfaceRunoff_IE    = out_surfaceFlux % scalarSurfaceRunoff_IE    ! infiltration excess surface runoff (m s-1)
-   scalarSurfaceRunoff_SE    = out_surfaceFlux % scalarSurfaceRunoff_SE    ! saturation excess surface runoff (m s-1)
-   scalarSurfaceInfiltration = out_surfaceFlux % scalarSurfaceInfiltration ! surface infiltration (m s-1)
+   ! intent(out): surface runoff
+   scalarSurfaceRunoff       = out_surfaceFlux % scalarSurfaceRunoff    ! surface runoff (m s-1)
+   scalarSurfaceRunoff_IE    = out_surfaceFlux % scalarSurfaceRunoff_IE ! infiltration excess surface runoff (m s-1)
+   scalarSurfaceRunoff_SE    = out_surfaceFlux % scalarSurfaceRunoff_SE ! saturation excess surface runoff (m s-1)
    ! intent(inout): derivatives in surface infiltration in the upper-most soil layer w.r.t. ...
    dq_dHydStateLayerSurfVec  = out_surfaceFlux % dq_dHydStateVec ! ... hydrology state in above soil snow or canopy and every soil layer  (m s-1 or s-1)
    dq_dNrgStateLayerSurfVec  = out_surfaceFlux % dq_dNrgStateVec ! ... energy state in above soil snow or canopy and every soil layer (m s-1 K-1)
