@@ -569,7 +569,7 @@ contains
    ixRichards            => model_decisions(iLookDECISIONS%f_Richards)%iDecision, & ! index of the form of Richards' equation
    dq_dHydStateAbove     => deriv_data%var(iLookDERIV%dq_dHydStateAbove)%dat,     & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer above
    dq_dHydStateBelow     => deriv_data%var(iLookDERIV%dq_dHydStateBelow)%dat,     & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer below
-   dPsiLiq_dPsi0         => deriv_data%var(iLookDERIV%dPsiLiq_dPsi0)%dat,          )! intent(in):  [dp(:)] derivative in matric potential w.r.t. volumetric liquid water content (m-1)
+   dPsiLiq_dPsi0         => deriv_data%var(iLookDERIV%dPsiLiq_dPsi0)%dat          ) ! intent(in):  [dp(:)] derivative in matric potential w.r.t. volumetric liquid water content (m-1)
    ! expand derivatives to the total water matric potential
    ! NOTE: arrays are offset because computing derivatives in interface fluxes, at the top and bottom of the layer respectively
    if(ixRichards==mixdform)then
