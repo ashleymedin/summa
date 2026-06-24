@@ -943,8 +943,8 @@ contains
   ! initialize derivatives
   associate(&
    ! output: derivatives in surface infiltration w.r.t. ...
-   dq_dHydStateVec => out_surfaceFlux % dq_dHydStateVec , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
-   dq_dNrgStateVec => out_surfaceFlux % dq_dNrgStateVec   & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
+   dq_dHydStateVec => out_surfaceFlux % dq_dHydStateVec , & ! ... hydrology state in every soil layer (m s-1 or s-1)
+   dq_dNrgStateVec => out_surfaceFlux % dq_dNrgStateVec   & ! ... energy state in every soil layer (m s-1 K-1)
   &)
    dVolFracLiq_dWat(:)    = 0._rkind
    dVolFracIce_dWat(:)    = 0._rkind
@@ -1416,8 +1416,8 @@ subroutine update_volFracLiq_derivatives
    scalarSurfaceInfiltration => io_surfaceFlux % scalarSurfaceInfiltration  , & ! surface infiltration (m s-1)
    ! output: derivatives in surface infiltration w.r.t. ...
    scalarSoilControl  => io_surfaceFlux % scalarSoilControl    , & ! soil control on infiltration for derivative
-   dq_dHydStateVec    => out_surfaceFlux % dq_dHydStateVec     , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
-   dq_dNrgStateVec    => out_surfaceFlux % dq_dNrgStateVec     , & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
+   dq_dHydStateVec    => out_surfaceFlux % dq_dHydStateVec     , & ! ... hydrology state in every soil layer (m s-1 or s-1)
+   dq_dNrgStateVec    => out_surfaceFlux % dq_dNrgStateVec     , & ! ... energy state in every soil layer (m s-1 K-1)
    ! output: error control
    err     => out_surfaceFlux % err    , & ! error code
    message => out_surfaceFlux % message  & ! error message
@@ -1715,38 +1715,30 @@ subroutine update_volFracLiq_derivatives
    scalarSaturatedArea => io_surfaceFlux % scalarSaturatedArea, & ! saturated area fraction (-)
    scalarSurfaceInfiltration => io_surfaceFlux % scalarSurfaceInfiltration, & ! surface infiltration (m s-1)
    ! output: derivatives in surface infiltration w.r.t. ...
-   dq_dHydStateVec => out_surfaceFlux % dq_dHydStateVec, & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
-   dq_dNrgStateVec => out_surfaceFlux % dq_dNrgStateVec, & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
+   dq_dHydStateVec => out_surfaceFlux % dq_dHydStateVec, & ! ... hydrology state in every soil layer (m s-1 or s-1)
+   dq_dNrgStateVec => out_surfaceFlux % dq_dNrgStateVec, & ! ... energy state in every soil layer (m s-1 K-1)
    ! output: error control
-   err     => out_surfaceFlux % err    , & ! error code
-   message => out_surfaceFlux % message  & ! error message
+   err     => out_surfaceFlux % err,    & ! error code
+   message => out_surfaceFlux % message & ! error message
   &)
 
   ! check infiltration area and define saturated area
    if (scalarInfilArea < 0._rkind) then; err=20; message=trim(message)//'infiltration area less than zero'; return_flag=.true.; return; end if
    scalarSaturatedArea = 1._rkind - scalarInfilArea
 
-   ! unfrozen infiltration area
+   ! unfrozen infiltration area and infiltration (m s-1)
    scalarInfilArea_unfrozen=(1._rkind - scalarFrozenArea)*scalarInfilArea
-   ! soil control on infiltration for derivative if dependent on scalarRainPlusMelt (needed to compute scalarRainPlusMelt derivative inside computJacob*)
    scalarSoilControl = 0._rkind
-   if (updateInfil .and. xMaxInfilRate > scalarRainPlusMelt) then
-     scalarSoilControl = scalarInfilArea_unfrozen
-   end if
+   scalarSurfaceInfiltration = scalarInfilArea_unfrozen * min(scalarRainPlusMelt,xMaxInfilRate)
 
-   ! infiltration rate derivatives, will stay at zero if no infiltration excess or if infiltration not being updated
+   ! Compute total runoff derivatives, do w.r.t. infiltration only, scalarRainPlusMelt accounted for in computJacob* module
    if(updateInfil)then
-     if (xMaxInfilRate < scalarRainPlusMelt) then ! = dxMaxInfilRate_d, dependent on layers not at surface
+     if (xMaxInfilRate > scalarRainPlusMelt) then
+       scalarSoilControl = scalarInfilArea_unfrozen  ! derivative dependent on scalarRainPlusMelt (needed to compute scalarRainPlusMelt derivative inside computJacob*)
+     elseif (xMaxInfilRate < scalarRainPlusMelt) then !dInfilRate_d dependent on layers not at surface
        dInfilRate_dWat(:) = dxMaxInfilRate_dWat(:)
        dInfilRate_dTk(:)  = dxMaxInfilRate_dTk(:)
      end if
-   end if
-
-   ! compute infiltration (m s-1)
-   scalarSurfaceInfiltration = scalarInfilArea_unfrozen * min(scalarRainPlusMelt,xMaxInfilRate)
-
-   if (updateInfil)then
-     ! Compute total runoff derivatives, do w.r.t. infiltration only, scalarRainPlusMelt accounted for in computJacob* module
      ! Do not need to break into IE and SE components since they are never used separately in the Jacobian assembly
      dq_dHydStateVec(:) = (1._rkind - scalarFrozenArea)&
                          * ( dInfilArea_dWat(:)*min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dWat(:) )&
@@ -1755,9 +1747,6 @@ subroutine update_volFracLiq_derivatives
      dq_dNrgStateVec(:) = (1._rkind - scalarFrozenArea)&
                          * ( dInfilArea_dTk(:) *min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dTk(:)  )&
                          + (-dFrozenArea_dTk(:)) *scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
-   else
-     dq_dHydStateVec(:) = realMissing ! not used, so cause problems
-     dq_dNrgStateVec(:) = realMissing ! not used, so cause problems
    end if
   end associate
 
