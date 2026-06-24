@@ -519,22 +519,18 @@ contains
   call qDrainFlux(in_qDrainFlux,out_qDrainFlux)
  end subroutine update_compute_drainage_flux
 
- subroutine finalize_compute_drainage_flux(in_qDrainFlux, out_qDrainFlux)
+ subroutine finalize_compute_drainage_flux(out_qDrainFlux)
   ! **** finalize operations for compute_drainage_flux ****
-  type(in_type_qDrainFlux),intent(in) :: in_qDrainFlux
   type(out_type_qDrainFlux),intent(out) :: out_qDrainFlux
   ! local variables
   real(rkind) :: scalarInfilArea_unfrozen ! infiltration area that is not frozen
 
   ! no dependence on the aquifer for drainage, couple to ice layer if it exists
   associate(&
-   ! derivatives in flux w.r.t. ...
-   scalarGlceMelt => in_soilLiqFlux % scalarGlceMelt,       & ! glacier melt (m s-1)
-   xMaxInfilRate  => in_qDrainFlux % xMaxInfilRate,         & ! maximum infiltration rate (m s-1)
-   scalarInfilArea  => in_qDrainFlux % scalarInfilArea,     & ! fraction of area where water can infiltrate, may be frozen (-)
-   scalarFrozenArea => in_qDrainFlux % scalarFrozenArea,    & ! fraction of area that is considered impermeable due to soil ice (-)
-   scalarMeltInfiltration => out_qDrainFlux % scalarMeltInfiltration, & ! glacier melt infiltration up into soil (m s-1)
+   ! fluxes
+   scalarMeltInfiltration => io_soilLiqFlux % scalarMeltInfiltration, & ! glacier melt infiltration up into soil (m s-1)
    scalarDrainage => out_qDrainFlux % scalarDrainage,       & ! drainage flux from the bottom of the soil profile (m s-1)
+   ! derivatives in flux w.r.t. ...
    dq_dHydStateBelow => io_soilLiqFlux % dq_dHydStateBelow, & ! ... hydrology state variables in the layer below
    dq_dNrgStateBelow => io_soilLiqFlux % dq_dNrgStateBelow, & ! ... temperature in the layer below (m s-1 K-1)
    ! error control
@@ -542,11 +538,6 @@ contains
    message => out_soilLiqFlux % cmessage                    & ! error message
   &)
    ! NOTE: could also couple aquifer flux as glacier and aquifer do not exist at the same time, but that is not implemented yet
-   if (firstSplitOper .or. updateInfil) then
-     ! unfrozen infiltration area
-     scalarInfilArea_unfrozen=(1._rkind - scalarFrozenArea)*scalarInfilArea
-     scalarMeltInfiltration = scalarInfilArea_unfrozen * max(scalarGlceMelt,xMaxInfilRate)  ! glacier melt is negative (upward flux), may be zero
-   endif
    scalarDrainage = scalarDrainage + scalarMeltInfiltration
    dq_dHydStateBelow(nSoil) = 0._rkind ! will be calculated in computJacob
    dq_dNrgStateBelow(nSoil) = 0._rkind ! will be calculated in computJacob
@@ -869,7 +860,7 @@ subroutine surfaceFlux(io_soilLiqFlux,in_surfaceFlux,io_surfaceFlux,out_surfaceF
   real(rkind)                      :: dfracCap(1:in_surfaceFlux % nSoil)  ! derivatives for different parts of a function
   real(rkind)                      :: dfInfRaw(1:in_surfaceFlux % nSoil)  ! derivatives for different parts of a function
   real(rkind)                      :: total_soil_depth                    ! total depth of soil (m)
-  integer(i4b)                     :: ixInfRateMax_use                    ! index for the choice of the maximum infiltration rate
+  integer(i4b)                     :: ixInfRateMax_use                    ! topmodel_GA choice of the maximum infiltration rate for glacier domains
   ! head boundary condition
   real(rkind)                      :: cFlux                               ! capillary flux (m s-1)
   ! simplified Green-Ampt infiltration
@@ -948,6 +939,8 @@ contains
   ! allocate output object array components
   out_surfaceFlux % dq_dHydStateVec = io_soilLiqFlux % dq_dHydStateLayerSurfVec
   out_surfaceFlux % dq_dNrgStateVec = io_soilLiqFlux % dq_dNrgStateLayerSurfVec
+  out_surfaceFlux % dqGlce_dHydStateVec = io_soilLiqFlux % dq_dHydStateLayerBotVec
+  out_surfaceFlux % dqGlce_dNrgStateVec = io_soilLiqFlux % dq_dNrgStateLayerBotVec
 
   ! initialize error control
   return_flag=.false.
@@ -961,8 +954,11 @@ contains
   ! initialize derivatives
   associate(&
    ! output: derivatives in surface infiltration w.r.t. ...
-   dq_dHydStateVec => out_surfaceFlux % dq_dHydStateVec , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
-   dq_dNrgStateVec => out_surfaceFlux % dq_dNrgStateVec   & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
+   dq_dHydStateVec => out_surfaceFlux % dq_dHydStateVec, & ! ... hydrology state in every soil layer (m s-1 or s-1)
+   dq_dNrgStateVec => out_surfaceFlux % dq_dNrgStateVec, & ! ... energy state in every soil layer (m s-1 K-1)
+   ! output: derivatives in bottom melt infiltration w.r.t. ...
+   dqGlce_dHydStateVec => out_surfaceFlux % dqGlce_dHydStateVec, & ! ... hydrology state in every soil layer (m s-1 or s-1)
+   dqGlce_dNrgStateVec => out_surfaceFlux % dqGlce_dNrgStateVec  & ! ... energy state in every soil layer (m s-1 K-1)
   &)
    dVolFracLiq_dWat(:)    = 0._rkind
    dVolFracIce_dWat(:)    = 0._rkind
@@ -978,6 +974,8 @@ contains
    dFrozenArea_dTk(:)     = 0._rkind
    dq_dHydStateVec(:)     = 0._rkind
    dq_dNrgStateVec(:)     = 0._rkind ! energy state variable is temperature (transformed outside soilLiqFlux_module if needed)
+   dqGlce_dHydStateVec(:) = 0._rkind
+   dqGlce_dNrgStateVec(:) = 0._rkind
   end associate
 
   ! initialize runoff values
@@ -1024,12 +1022,12 @@ contains
    message => out_surfaceFlux % message  & ! error message
   &)
    ixInfRateMax_use = ixInfRateMax
-   if(nGlce>0) ixInfRateMax_use = topmodel_GA ! if glacier debris, need to use TOPMODEL-ish Green-Ampt to have lateral flow
+   if(nGlce>0) ixInfRateMax_use = topmodel_GA ! need to use TOPMODEL-ish Green-Ampt to have lateral flow in glacier debris
 
    ! compute the surface flux and its derivative
    if (firstSplitOper .or. updateInfil) then
      select case(bc_upper)
-       case(prescribedHead) ! head condition, no frozen area and all area infiltrates
+       case(prescribedHead) ! head condition, no frozen area and all area infiltrates (for glacier debris no melt infiltrates)
          call update_surfaceFlux_prescribedHead; if (return_flag) return 
  
        case(liquidFlux)     ! flux condition
@@ -1434,10 +1432,13 @@ subroutine update_volFracLiq_derivatives
    surfaceDiffuse => io_surfaceFlux % surfaceDiffuse , & ! hydraulic diffusivity at the surface (m2 s-1)
    ! output: infiltration
    scalarSurfaceInfiltration => io_surfaceFlux % scalarSurfaceInfiltration  , & ! surface infiltration (m s-1)
+   scalarMeltInfiltration    => io_surfaceFlux % scalarMeltInfiltration     , & ! bottom melt infiltration (m s-1)
    ! output: derivatives in surface infiltration w.r.t. ...
    scalarSoilControl  => io_surfaceFlux % scalarSoilControl    , & ! soil control on infiltration for derivative
-   dq_dHydStateVec    => out_surfaceFlux % dq_dHydStateVec     , & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
-   dq_dNrgStateVec    => out_surfaceFlux % dq_dNrgStateVec     , & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
+   dq_dHydStateVec    => out_surfaceFlux % dq_dHydStateVec     , & ! ... hydrology state in every soil layer (m s-1 or s-1)
+   dq_dNrgStateVec    => out_surfaceFlux % dq_dNrgStateVec     , & ! ... energy state in every soil layer (m s-1 K-1)
+   ! output: derivatives in bottom melt infiltration w.r.t. ...
+   scalarSoilControlBot => io_surfaceFlux % scalarSoilControlBot, & ! soil control on bottom melt infiltration for derivative
    ! output: error control
    err     => out_surfaceFlux % err    , & ! error code
    message => out_surfaceFlux % message  & ! error message
@@ -1460,9 +1461,11 @@ subroutine update_volFracLiq_derivatives
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
    end select  ! end select form of Richards' eqn
 
-   ! compute the total flux
+   ! compute the total flux (no glacier melt infiltration assumed for prescribed head condition)
    scalarSurfaceInfiltration = cflux + surfaceHydCond
    scalarSoilControl = 0._rkind
+   scalarSoilControlBot = 0._rkind
+   scalarMeltInfiltration = 0._rkind
 
    ! compute the derivatives at the surface, only has a non-zero value for the upper-most soil layer
    if(updateInfil)then
@@ -1474,6 +1477,7 @@ subroutine update_volFracLiq_derivatives
      ! note: energy state variable is temperature (transformed outside soilLiqFlux_module if needed)
      dq_dNrgStateVec(1) = -(dHydCond_dTemp/2._rkind)*(scalarMatricHeadLiq - upperBoundHead)/(mLayerDepth(1)*0.5_rkind) + dHydCond_dTemp/2._rkind
    end if
+   ! bottom melt infiltration is not considered for prescribed head condition, so derivatives are zero
 
    ! * additional assignment statements for surfaceFlux input-output object based on presribed head values *
    ! the infiltration is always constrained by the prescribed head so the maximum infiltration rate is set to missing
@@ -1723,7 +1727,9 @@ subroutine update_volFracLiq_derivatives
   ! compute infiltration
   associate(&
    ! input: flux at the upper boundary
-   scalarRainPlusMelt   => in_surfaceFlux % scalarRainPlusMelt, & ! rain plus melt plus lake drainage, used as input to the soil zone before computing surface runoff (m s-1)
+   scalarRainPlusMelt  => in_surfaceFlux % scalarRainPlusMelt,  & ! rain plus melt plus lake drainage, used as input to the soil zone before computing surface runoff (m s-1)
+   scalarGlceMelt      => in_surfaceFlux % scalarGlceMelt,      & ! glacier melt at the bottom of the soil zone (m s-1)
+   nGlce               => in_surfaceFlux % nGlce,               & ! number of glacier ice layers
    ! input-output: surface runoff and infiltration flux (m s-1)
    xMaxInfilRate       => io_surfaceFlux % xMaxInfilRate,       & ! maximum infiltration rate (m s-1)
    scalarSoilControl   => io_surfaceFlux % scalarSoilControl,   & ! soil control on infiltration for derivative
@@ -1731,11 +1737,16 @@ subroutine update_volFracLiq_derivatives
    scalarInfilArea     => io_surfaceFlux % scalarInfilArea,     & ! fraction of area where water can infiltrate, may be frozen (-)
    scalarSaturatedArea => io_surfaceFlux % scalarSaturatedArea, & ! saturated area fraction (-)
    scalarSurfaceInfiltration => io_surfaceFlux % scalarSurfaceInfiltration, & ! surface infiltration (m s-1)
+   scalarSoilControlBot      => io_surfaceFlux % scalarSoilControlBot,      & ! soil control on bottom melt infiltration for derivative
+   scalarMeltInfiltration    => io_surfaceFlux % scalarMeltInfiltration,    & ! bottom melt infiltration (m s-1)
    ! output: derivatives in surface infiltration w.r.t. ...
-   dq_dHydStateVec => out_surfaceFlux % dq_dHydStateVec, & ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
-   dq_dNrgStateVec => out_surfaceFlux % dq_dNrgStateVec, & ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
+   dq_dHydStateVec => out_surfaceFlux % dq_dHydStateVec, & ! ... hydrology state in every soil layer (m s-1 or s-1)
+   dq_dNrgStateVec => out_surfaceFlux % dq_dNrgStateVec, & ! ... energy state in every soil layer (m s-1 K-1)
+   ! output: derivatives in bottom melt infiltration w.r.t. ...
+   dqGlce_dHydStateVec => out_surfaceFlux % dqGlce_dHydStateVec, & ! ... hydrology state in every soil layer (m s-1 or s-1)
+   dqGlce_dNrgStateVec => out_surfaceFlux % dqGlce_dNrgStateVec, & ! ... energy state in every soil layer (m s-1 K-1)
    ! output: error control
-   err     => out_surfaceFlux % err    , & ! error code
+   err     => out_surfaceFlux % err,     & ! error code
    message => out_surfaceFlux % message  & ! error message
   &)
 
@@ -1743,27 +1754,25 @@ subroutine update_volFracLiq_derivatives
    if (scalarInfilArea < 0._rkind) then; err=20; message=trim(message)//'infiltration area less than zero'; return_flag=.true.; return; end if
    scalarSaturatedArea = 1._rkind - scalarInfilArea
 
-   ! unfrozen infiltration area
+   ! unfrozen infiltration area and infiltration (m s-1)
    scalarInfilArea_unfrozen=(1._rkind - scalarFrozenArea)*scalarInfilArea
-   ! soil control on infiltration for derivative if dependent on scalarRainPlusMelt (needed to compute scalarRainPlusMelt derivative inside computJacob*)
    scalarSoilControl = 0._rkind
-   if (updateInfil .and. xMaxInfilRate > scalarRainPlusMelt) then
-     scalarSoilControl = scalarInfilArea_unfrozen
+   scalarSoilControlBot = 0._rkind
+   scalarSurfaceInfiltration = scalarInfilArea_unfrozen * min(scalarRainPlusMelt,xMaxInfilRate)
+   if(nGlce>0)then
+     scalarMeltInfiltration = scalarInfilArea_unfrozen * min(scalarGlceMelt,xMaxInfilRate)
+   else
+     scalarMeltInfiltration = 0._rkind
    end if
 
-   ! infiltration rate derivatives, will stay at zero if no infiltration excess or if infiltration not being updated
+   ! Compute total runoff derivatives, do w.r.t. infiltration only, scalarRainPlusMelt accounted for in computJacob* module
    if(updateInfil)then
-     if (xMaxInfilRate < scalarRainPlusMelt) then ! = dxMaxInfilRate_d, dependent on layers not at surface
+     if (xMaxInfilRate > scalarRainPlusMelt) then
+       scalarSoilControl = scalarInfilArea_unfrozen  ! derivative dependent on scalarRainPlusMelt (needed to compute scalarRainPlusMelt derivative inside computJacob*)
+     elseif (xMaxInfilRate < scalarRainPlusMelt) then ! dInfilRate_d dependent on layers not at surface
        dInfilRate_dWat(:) = dxMaxInfilRate_dWat(:)
        dInfilRate_dTk(:)  = dxMaxInfilRate_dTk(:)
      end if
-   end if
-
-   ! compute infiltration (m s-1)
-   scalarSurfaceInfiltration = scalarInfilArea_unfrozen * min(scalarRainPlusMelt,xMaxInfilRate)
-
-   if (updateInfil)then
-     ! Compute total runoff derivatives, do w.r.t. infiltration only, scalarRainPlusMelt accounted for in computJacob* module
      ! Do not need to break into IE and SE components since they are never used separately in the Jacobian assembly
      dq_dHydStateVec(:) = (1._rkind - scalarFrozenArea)&
                          * ( dInfilArea_dWat(:)*min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dWat(:) )&
@@ -1772,9 +1781,20 @@ subroutine update_volFracLiq_derivatives
      dq_dNrgStateVec(:) = (1._rkind - scalarFrozenArea)&
                          * ( dInfilArea_dTk(:) *min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dTk(:)  )&
                          + (-dFrozenArea_dTk(:)) *scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
-   else
-     dq_dHydStateVec(:) = realMissing ! not used, so cause problems
-     dq_dNrgStateVec(:) = realMissing ! not used, so cause problems
+     if(nGlce>0)then
+       if (xMaxInfilRate > scalarGlceMelt) then
+         scalarSoilControlBot = scalarInfilArea_unfrozen  ! derivative dependent on scalarGlceMelt (needed to compute scalarGlceMelt derivative inside computJacob*)
+       elseif (xMaxInfilRate < scalarGlceMelt) then ! dInfilRate_d dependent on layers not at surface
+         dInfilRate_dWat(:) = dxMaxInfilRate_dWat(:)
+         dInfilRate_dTk(:)  = dxMaxInfilRate_dTk(:)
+       end if
+       dqGlce_dHydStateVec(:) = (1._rkind - scalarFrozenArea)&
+                               * ( dInfilArea_dWat(:)*min(scalarGlceMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dWat(:) )&
+                               + (-dFrozenArea_dWat(:))*scalarInfilArea*min(scalarGlceMelt,xMaxInfilRate)
+       dqGlce_dNrgStateVec(:) = (1._rkind - scalarFrozenArea)&
+                               * ( dInfilArea_dTk(:) *min(scalarGlceMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dTk(:)  )&
+                               + (-dFrozenArea_dTk(:)) *scalarInfilArea*min(scalarGlceMelt,xMaxInfilRate)
+     end if
    end if
   end associate
 

@@ -518,6 +518,7 @@ MODULE data_types
  type, public :: in_type_snowLakeSoilGlceNrgFlux ! class for intent(in) arguments in snowLakeSoilGlceNrgFlux call
    logical(lgt)             :: scalarSolution                    ! intent(in): flag to denote if implementing the scalar solution
    real(rkind)              :: scalarGroundNetNrgFlux            ! intent(in): net energy flux for the ground surface (W m-2)
+   real(rkind)              :: scalarGlceMelt                    ! intent(in): glacier ice melt (m s-1)
    real(rkind), allocatable :: iLayerLiqFluxSnLaGl(:)            ! intent(in): liquid flux at the interface of each snow lake glce (m s-1)
    real(rkind), allocatable :: iLayerLiqFluxSoil(:)              ! intent(in): liquid flux at the interface of each soil layer (m s-1)
    real(rkind), allocatable :: mLayerTempTrial(:)                ! intent(in): temperature in each layer at the current iteration (m)
@@ -622,10 +623,10 @@ MODULE data_types
    real(rkind)              :: dCanopyTrans_dTCanair             ! intent(in):    derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
    real(rkind)              :: dCanopyTrans_dTCanopy             ! intent(in):    derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
    real(rkind)              :: dCanopyTrans_dTGround             ! intent(in):    derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
-   real(rkind)              :: scalarGlceMelt                    ! intent(in):    glacier ice melt (m s-1)
    real(rkind)              :: scalarCanopyTranspiration         ! intent(in):    canopy transpiration (kg m-2 s-1)
    real(rkind)              :: scalarGroundEvaporation           ! intent(in):    ground evaporation (kg m-2 s-1)
    real(rkind)              :: scalarRainPlusMelt                ! intent(in):    rain plus melt plus lake drainage (m s-1)
+   real(rkind)              :: scalarGlceMelt                    ! intent(in):    glacier ice melt (m s-1)
   contains
    procedure :: initialize => initialize_in_soilLiqFlux
  end type in_type_soilLiqFlux
@@ -636,22 +637,26 @@ MODULE data_types
    real(rkind)              :: scalarSaturatedArea               ! intent(inout): fraction of area that is considered saturated (-)
    real(rkind)              :: scalarFrozenArea                  ! intent(inout): fraction of area that is considered impermeable due to soil ice (-)
    real(rkind)              :: scalarSoilControl                 ! intent(inout): soil control on infiltration for derivative
+   real(rkind)              :: scalarSoilControlBot              ! intent(inout): soil control on bottom melt infiltration for derivative
    real(rkind)              :: scalarSurfaceRunoff               ! intent(inout): surface runoff (m s-1)
    real(rkind)              :: scalarSurfaceRunoff_IE            ! intent(inout): infiltration excess surface runoff (m s-1)
    real(rkind)              :: scalarSurfaceRunoff_SE            ! intent(inout): saturation excess surface runoff (m s-1)
    real(rkind), allocatable :: mLayerdTheta_dPsi(:)              ! intent(inout): derivative in liquid water content w.r.t. matric potential (m-1)
    real(rkind), allocatable :: mLayerdPsi_dTheta(:)              ! intent(inout): derivative in matric potential w.r.t. liquid water content (m)
    real(rkind), allocatable :: dHydCond_dMatric(:)               ! intent(inout): derivative in hydraulic conductivity w.r.t matric head (s-1)
-   real(rkind)              :: scalarInfiltration                ! intent(inout): surface infiltration rate (m s-1) -- controls on infiltration only computed for iter==1
+   real(rkind)              :: scalarInfiltration                ! intent(inout): surface infiltration rate (m s-1)
+   real(rkind)              :: scalarMeltInfiltration            ! intent(inout): bottom melt infiltration rate (m s-1)
    real(rkind), allocatable :: iLayerLiqFluxSoil(:)              ! intent(inout): liquid fluxes at layer interfaces (m s-1)
    real(rkind), allocatable :: mLayerTranspire(:)                ! intent(inout): transpiration loss from each soil layer (m s-1)
    real(rkind), allocatable :: mLayerHydCond(:)                  ! intent(inout): hydraulic conductivity in each layer (m s-1)
    real(rkind), allocatable :: dq_dHydStateAbove(:)              ! intent(inout): derivatives in the flux w.r.t. matric head in the layer above (s-1)
    real(rkind), allocatable :: dq_dHydStateBelow(:)              ! intent(inout): derivatives in the flux w.r.t. matric head in the layer below (s-1)
-   real(rkind), allocatable :: dq_dHydStateLayerSurfVec(:)       ! intent(inout): derivative in surface infiltration w.r.t. hydrology state in above soil snow or canopy and every soil layer  (m s-1 or s-1)
+   real(rkind), allocatable :: dq_dHydStateLayerSurfVec(:)       ! intent(inout): derivative in surface infiltration w.r.t. hydrology state in every soil layer (m s-1 or s-1)
+   real(rkind), allocatable :: dq_dHydStateLayerBotVec(:)        ! intent(inout): derivative in bottom melt infiltration w.r.t. hydrology state in every soil layer (m s-1 or s-1)
    real(rkind), allocatable :: dq_dNrgStateAbove(:)              ! intent(inout): derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
    real(rkind), allocatable :: dq_dNrgStateBelow(:)              ! intent(inout): derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
-   real(rkind), allocatable :: dq_dNrgStateLayerSurfVec(:)       ! intent(inout): derivative in surface infiltration w.r.t. energy state in above soil snow or canopy and every soil layer (m s-1 K-1)
+   real(rkind), allocatable :: dq_dNrgStateLayerSurfVec(:)       ! intent(inout): derivative in surface infiltration w.r.t. energy state in every soil layer (m s-1 K-1)
+   real(rkind), allocatable :: dq_dNrgStateLayerBotVec(:)        ! intent(inout): derivative in bottom melt infiltration w.r.t. energy state in every soil layer (m s-1 K-1)
    real(rkind), allocatable :: mLayerdTrans_dTCanair(:)          ! intent(inout): derivatives in the soil layer transpiration flux w.r.t. canopy air temperature
    real(rkind), allocatable :: mLayerdTrans_dTCanopy(:)          ! intent(inout): derivatives in the soil layer transpiration flux w.r.t. canopy temperature
    real(rkind), allocatable :: mLayerdTrans_dTGround(:)          ! intent(inout): derivatives in the soil layer transpiration flux w.r.t. ground temperature
@@ -822,6 +827,8 @@ MODULE data_types
    real(rkind) :: upperBoundTheta     ! upper boundary condition for volumetric liquid water content (-)
    ! input: flux at the upper boundary
    real(rkind) :: scalarRainPlusMelt  ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
+   ! input: flux at the lower boundary
+   real(rkind) :: scalarGlceMelt       ! glacier ice melt, used as input to the soil zone before computing glacier runoff (m s-1)
    ! input: transmittance
    real(rkind) :: surfaceSatHydCond   ! saturated hydraulic conductivity at the surface (m s-1)
    real(rkind) :: dHydCond_dTemp      ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
@@ -862,6 +869,8 @@ MODULE data_types
    real(rkind) :: scalarFrozenArea          ! fraction of area that is considered impermeable due to soil ice (-)
    real(rkind) :: scalarSoilControl         ! soil control on infiltration for derivative
    real(rkind) :: scalarSurfaceInfiltration ! surface infiltration rate (m s-1)
+   real(rkind) :: scalarSoilControlBot      ! soil control on bottom melt infiltration for derivative
+   real(rkind) :: scalarMeltInfiltration    ! bottom melt infiltration (m s-1)
   contains
    procedure :: initialize => initialize_io_surfaceFlux
    procedure :: finalize   => finalize_io_surfaceFlux
@@ -873,8 +882,11 @@ MODULE data_types
    real(rkind) :: scalarSurfaceRunoff_IE    ! infiltration excess surface runoff (m s-1)
    real(rkind) :: scalarSurfaceRunoff_SE    ! saturation excess surface runoff (m s-1)
    ! output: derivatives in surface infiltration w.r.t. ...
-   real(rkind),allocatable :: dq_dHydStateVec(:) ! ... hydrology state in above soil snow or canopy and every soil layer (m s-1 or s-1)
-   real(rkind),allocatable :: dq_dNrgStateVec(:) ! ... energy state in above soil snow or canopy and every soil layer  (m s-1 K-1)
+   real(rkind),allocatable :: dq_dHydStateVec(:) ! ... hydrology state in every soil layer (m s-1 or s-1)
+   real(rkind),allocatable :: dq_dNrgStateVec(:) ! ... energy state in every soil layer (m s-1 K-1)
+   ! output: derivatives in bottom melt infiltration w.r.t. ...
+   real(rkind),allocatable :: dqGlce_dHydStateVec(:) ! ... hydrology state in every glacier ice layer (m s-1 or s-1)
+   real(rkind),allocatable :: dqGlce_dNrgStateVec(:) ! ... energy state in every glacier ice layer (m s-1 K-1)
    ! output: error control
    integer(i4b)            :: err     ! error code
    character(len=len_msg)  :: message ! error message
@@ -1231,14 +1243,14 @@ contains
     dGroundEvaporation_dTCanair  => deriv_data%var(iLookDERIV%dGroundEvaporation_dTCanair)%dat(1), & ! intent(out): [dp] derivative in ground evaporation w.r.t. canopy air temperature
     dGroundEvaporation_dTCanopy  => deriv_data%var(iLookDERIV%dGroundEvaporation_dTCanopy)%dat(1), & ! intent(out): [dp] derivative in ground evaporation w.r.t. canopy temperature
     dGroundEvaporation_dTGround  => deriv_data%var(iLookDERIV%dGroundEvaporation_dTGround)%dat(1)  ) ! intent(out): [dp] derivative in ground evaporation w.r.t. ground temperature
-   dCanopyEvaporation_dCanWat =out_vegNrgFlux % dCanopyEvaporation_dCanWat  ! intent(out): derivative in canopy evaporation w.r.t. canopy total water content (s-1)
-   dCanopyEvaporation_dTCanair=out_vegNrgFlux % dCanopyEvaporation_dTCanair ! intent(out): derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
-   dCanopyEvaporation_dTCanopy=out_vegNrgFlux % dCanopyEvaporation_dTCanopy ! intent(out): derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
-   dCanopyEvaporation_dTGround=out_vegNrgFlux % dCanopyEvaporation_dTGround ! intent(out): derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
-   dGroundEvaporation_dCanWat =out_vegNrgFlux % dGroundEvaporation_dCanWat  ! intent(out): derivative in ground evaporation w.r.t. canopy total water content (s-1)
-   dGroundEvaporation_dTCanair=out_vegNrgFlux % dGroundEvaporation_dTCanair ! intent(out): derivative in ground evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
-   dGroundEvaporation_dTCanopy=out_vegNrgFlux % dGroundEvaporation_dTCanopy ! intent(out): derivative in ground evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
-   dGroundEvaporation_dTGround=out_vegNrgFlux % dGroundEvaporation_dTGround ! intent(out): derivative in ground evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
+   dCanopyEvaporation_dCanWat  =out_vegNrgFlux % dCanopyEvaporation_dCanWat  ! intent(out): derivative in canopy evaporation w.r.t. canopy total water content (s-1)
+   dCanopyEvaporation_dTCanair =out_vegNrgFlux % dCanopyEvaporation_dTCanair ! intent(out): derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+   dCanopyEvaporation_dTCanopy =out_vegNrgFlux % dCanopyEvaporation_dTCanopy ! intent(out): derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
+   dCanopyEvaporation_dTGround =out_vegNrgFlux % dCanopyEvaporation_dTGround ! intent(out): derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
+   dGroundEvaporation_dCanWat  =out_vegNrgFlux % dGroundEvaporation_dCanWat  ! intent(out): derivative in ground evaporation w.r.t. canopy total water content (s-1)
+   dGroundEvaporation_dTCanair =out_vegNrgFlux % dGroundEvaporation_dTCanair ! intent(out): derivative in ground evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+   dGroundEvaporation_dTCanopy =out_vegNrgFlux % dGroundEvaporation_dTCanopy ! intent(out): derivative in ground evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
+   dGroundEvaporation_dTGround =out_vegNrgFlux % dGroundEvaporation_dTGround ! intent(out): derivative in ground evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
   end associate
 
   ! intent(out) arguments: canopy transpiration and net flux derivatives
@@ -1249,12 +1261,12 @@ contains
     dCanopyTrans_dTGround        => deriv_data%var(iLookDERIV%dCanopyTrans_dTGround)%dat(1),  & ! intent(out): [dp] derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
     dCanopyNetFlux_dCanWat       => deriv_data%var(iLookDERIV%dCanopyNetFlux_dCanWat)%dat(1), & ! intent(out): [dp] derivative in net canopy fluxes w.r.t. canopy total water content
     dGroundNetFlux_dCanWat       => deriv_data%var(iLookDERIV%dGroundNetFlux_dCanWat)%dat(1)  ) ! intent(out): [dp] derivative in net ground fluxes w.r.t. canopy total water content
-   dCanopyTrans_dCanWat       =out_vegNrgFlux % dCanopyTrans_dCanWat  ! intent(out): derivative in canopy transpiration w.r.t. canopy total water content (s-1)
-   dCanopyTrans_dTCanair      =out_vegNrgFlux % dCanopyTrans_dTCanair ! intent(out): derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
-   dCanopyTrans_dTCanopy      =out_vegNrgFlux % dCanopyTrans_dTCanopy ! intent(out): derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
-   dCanopyTrans_dTGround      =out_vegNrgFlux % dCanopyTrans_dTGround ! intent(out): derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
-   dCanopyNetFlux_dCanWat     =out_vegNrgFlux % dCanopyNetFlux_dCanWat! intent(out): derivative in net canopy fluxes w.r.t. canopy total water content (J kg-1 s-1)
-   dGroundNetFlux_dCanWat     =out_vegNrgFlux % dGroundNetFlux_dCanWat! intent(out): derivative in net ground fluxes w.r.t. canopy total water content (J kg-1 s-1)
+   dCanopyTrans_dCanWat   =out_vegNrgFlux % dCanopyTrans_dCanWat   ! intent(out): derivative in canopy transpiration w.r.t. canopy total water content (s-1)
+   dCanopyTrans_dTCanair  =out_vegNrgFlux % dCanopyTrans_dTCanair  ! intent(out): derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+   dCanopyTrans_dTCanopy  =out_vegNrgFlux % dCanopyTrans_dTCanopy  ! intent(out): derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
+   dCanopyTrans_dTGround  =out_vegNrgFlux % dCanopyTrans_dTGround  ! intent(out): derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
+   dCanopyNetFlux_dCanWat =out_vegNrgFlux % dCanopyNetFlux_dCanWat ! intent(out): derivative in net canopy fluxes w.r.t. canopy total water content (J kg-1 s-1)
+   dGroundNetFlux_dCanWat =out_vegNrgFlux % dGroundNetFlux_dCanWat ! intent(out): derivative in net ground fluxes w.r.t. canopy total water content (J kg-1 s-1)
   end associate
 
    ! intent(out) arguments: error control
@@ -1273,6 +1285,7 @@ contains
   type(var_dlength),intent(in)          :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
   associate(&
    scalarGroundNetNrgFlux       => flux_data%var(iLookFLUX%scalarGroundNetNrgFlux)%dat(1), & ! intent(out): [dp] net energy flux for the ground surface (W m-2)
+   scalarGlceMelt               => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1),         & ! intent(out): [dp] glacier ice melt (m s-1)
    iLayerLiqFluxSnLaGl          => flux_data%var(iLookFLUX%iLayerLiqFluxSnLaGl)%dat,       & ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
    iLayerLiqFluxSoil            => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat,         & ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
    dThermalC_dWatAbove          => deriv_data%var(iLookDERIV%dThermalC_dWatAbove)%dat,     & ! intent(in):  [dp(:)] derivative in the thermal conductivity w.r.t. water state in the layer above
@@ -1280,15 +1293,16 @@ contains
    dThermalC_dTempAbove         => deriv_data%var(iLookDERIV%dThermalC_dTempAbove)%dat,    & ! intent(in):  [dp(:)] derivative in the thermal conductivity w.r.t. energy state in the layer above
    dThermalC_dTempBelow         => deriv_data%var(iLookDERIV%dThermalC_dTempBelow)%dat     ) ! intent(in):  [dp(:)] derivative in the thermal conductivity w.r.t. energy state in the layer above
    ! intent(in) arguments
-   in_snowLakeSoilGlceNrgFlux % scalarSolution=scalarSolution .and. .not.firstFluxCall ! intent(in): flag to denote if implementing the scalar solution
-   in_snowLakeSoilGlceNrgFlux % scalarGroundNetNrgFlux=scalarGroundNetNrgFlux          ! intent(in): net energy flux for the ground surface (W m-2)
-   in_snowLakeSoilGlceNrgFlux % iLayerLiqFluxSnLaGl=iLayerLiqFluxSnLaGl                ! intent(in): liquid flux at the interface of each snow layer (m s-1)
-   in_snowLakeSoilGlceNrgFlux % iLayerLiqFluxSoil=iLayerLiqFluxSoil                    ! intent(in): liquid flux at the interface of each soil layer (m s-1)
-   in_snowLakeSoilGlceNrgFlux % mLayerTempTrial=mLayerTempTrial                        ! intent(in): temperature in each layer at the current iteration (m)
-   in_snowLakeSoilGlceNrgFlux % dThermalC_dWatAbove=dThermalC_dWatAbove                ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
-   in_snowLakeSoilGlceNrgFlux % dThermalC_dWatBelow=dThermalC_dWatBelow                ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
-   in_snowLakeSoilGlceNrgFlux % dThermalC_dTempAbove=dThermalC_dTempAbove              ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
-   in_snowLakeSoilGlceNrgFlux % dThermalC_dTempBelow=dThermalC_dTempBelow              ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
+   in_snowLakeSoilGlceNrgFlux % scalarSolution = scalarSolution .and. .not.firstFluxCall ! intent(in): flag to denote if implementing the scalar solution
+   in_snowLakeSoilGlceNrgFlux % scalarGroundNetNrgFlux=scalarGroundNetNrgFlux            ! intent(in): net energy flux for the ground surface (W m-2)
+   in_snowLakeSoilGlceNrgFlux % scalarGlceMelt        =scalarGlceMelt                    ! intent(in): glacier ice melt (m s-1)
+   in_snowLakeSoilGlceNrgFlux % iLayerLiqFluxSnLaGl   =iLayerLiqFluxSnLaGl               ! intent(in): liquid flux at the interface of each snow layer (m s-1)
+   in_snowLakeSoilGlceNrgFlux % iLayerLiqFluxSoil     =iLayerLiqFluxSoil                 ! intent(in): liquid flux at the interface of each soil layer (m s-1)
+   in_snowLakeSoilGlceNrgFlux % mLayerTempTrial       =mLayerTempTrial                   ! intent(in): temperature in each layer at the current iteration (m)
+   in_snowLakeSoilGlceNrgFlux % dThermalC_dWatAbove   =dThermalC_dWatAbove               ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
+   in_snowLakeSoilGlceNrgFlux % dThermalC_dWatBelow   =dThermalC_dWatBelow               ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
+   in_snowLakeSoilGlceNrgFlux % dThermalC_dTempAbove  =dThermalC_dTempAbove              ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
+   in_snowLakeSoilGlceNrgFlux % dThermalC_dTempBelow  =dThermalC_dTempBelow              ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
   end associate
  end subroutine initialize_in_snowLakeSoilGlceNrgFlux
 
@@ -1401,9 +1415,9 @@ contains
   type(var_dlength),intent(in)            :: flux_data                   ! model fluxes for a local HRU
   type(var_dlength),intent(in)            :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
   associate(&
-   iLayerLiqFluxSnLaGl            => flux_data%var(iLookFLUX%iLayerLiqFluxSnLaGl)%dat,         & ! intent(in): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
-   iLayerLiqFluxSnLaGlDeriv       => deriv_data%var(iLookDERIV%iLayerLiqFluxSnLaGlDeriv)%dat,  & ! intent(in): [dp(:)] derivative in vertical liquid water flux at layer interfaces
-   surfaceIceMeltFluxDeriv        => deriv_data%var(iLookDERIV%surfaceIceMeltFluxDeriv)%dat(1) ) ! intent(in): [dp] derivative in ice melt flux at top interface
+   iLayerLiqFluxSnLaGl       => flux_data%var(iLookFLUX%iLayerLiqFluxSnLaGl)%dat,         & ! intent(in): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
+   iLayerLiqFluxSnLaGlDeriv  => deriv_data%var(iLookDERIV%iLayerLiqFluxSnLaGlDeriv)%dat,  & ! intent(in): [dp(:)] derivative in vertical liquid water flux at layer interfaces
+   surfaceIceMeltFluxDeriv   => deriv_data%var(iLookDERIV%surfaceIceMeltFluxDeriv)%dat(1) ) ! intent(in): [dp] derivative in ice melt flux at top interface
    io_snowLakeGlceLiqFlux % iLayerLiqFluxSnLaGl      =iLayerLiqFluxSnLaGl       ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
    io_snowLakeGlceLiqFlux % iLayerLiqFluxSnLaGlDeriv =iLayerLiqFluxSnLaGlDeriv  ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
    io_snowLakeGlceLiqFlux % surfaceIceMeltFluxDeriv  =surfaceIceMeltFluxDeriv   ! intent(inout): derivative in ice melt flux at top interface
@@ -1415,9 +1429,9 @@ contains
   type(var_dlength),intent(inout)         :: flux_data                   ! model fluxes for a local HRU
   type(var_dlength),intent(inout)         :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
   associate(&
-   iLayerLiqFluxSnLaGl            => flux_data%var(iLookFLUX%iLayerLiqFluxSnLaGl)%dat,         & ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
-   iLayerLiqFluxSnLaGlDeriv       => deriv_data%var(iLookDERIV%iLayerLiqFluxSnLaGlDeriv)%dat,  & ! intent(out): [dp(:)] derivative in vertical liquid water flux at layer interfaces
-   surfaceIceMeltFluxDeriv        => deriv_data%var(iLookDERIV%surfaceIceMeltFluxDeriv)%dat(1) ) ! intent(out): [dp] derivative in ice melt flux at top interface
+   iLayerLiqFluxSnLaGl       => flux_data%var(iLookFLUX%iLayerLiqFluxSnLaGl)%dat,         & ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
+   iLayerLiqFluxSnLaGlDeriv  => deriv_data%var(iLookDERIV%iLayerLiqFluxSnLaGlDeriv)%dat,  & ! intent(out): [dp(:)] derivative in vertical liquid water flux at layer interfaces
+   surfaceIceMeltFluxDeriv   => deriv_data%var(iLookDERIV%surfaceIceMeltFluxDeriv)%dat(1) ) ! intent(out): [dp] derivative in ice melt flux at top interface
    ! intent(inout) arguments
    iLayerLiqFluxSnLaGl     =io_snowLakeGlceLiqFlux % iLayerLiqFluxSnLaGl        ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
    iLayerLiqFluxSnLaGlDeriv=io_snowLakeGlceLiqFlux % iLayerLiqFluxSnLaGlDeriv   ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
@@ -1480,10 +1494,10 @@ contains
 
    ! intent(in) arguments: canopy transpiration derivatives
   associate(&
-   dCanopyTrans_dCanWat         => deriv_data%var(iLookDERIV%dCanopyTrans_dCanWat)%dat(1),  & ! intent(out): [dp] derivative in canopy transpiration w.r.t. canopy total water content (s-1)
-   dCanopyTrans_dTCanair        => deriv_data%var(iLookDERIV%dCanopyTrans_dTCanair)%dat(1), & ! intent(out): [dp] derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
-   dCanopyTrans_dTCanopy        => deriv_data%var(iLookDERIV%dCanopyTrans_dTCanopy)%dat(1), & ! intent(out): [dp] derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
-   dCanopyTrans_dTGround        => deriv_data%var(iLookDERIV%dCanopyTrans_dTGround)%dat(1)  ) ! intent(out): [dp] derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
+   dCanopyTrans_dCanWat    => deriv_data%var(iLookDERIV%dCanopyTrans_dCanWat)%dat(1),  & ! intent(out): [dp] derivative in canopy transpiration w.r.t. canopy total water content (s-1)
+   dCanopyTrans_dTCanair   => deriv_data%var(iLookDERIV%dCanopyTrans_dTCanair)%dat(1), & ! intent(out): [dp] derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+   dCanopyTrans_dTCanopy   => deriv_data%var(iLookDERIV%dCanopyTrans_dTCanopy)%dat(1), & ! intent(out): [dp] derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
+   dCanopyTrans_dTGround   => deriv_data%var(iLookDERIV%dCanopyTrans_dTGround)%dat(1)  ) ! intent(out): [dp] derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
    in_soilLiqFlux % dCanopyTrans_dCanWat  =dCanopyTrans_dCanWat     ! intent(in): derivative in canopy transpiration w.r.t. canopy total water content (s-1)
    in_soilLiqFlux % dCanopyTrans_dTCanair =dCanopyTrans_dTCanair    ! intent(in): derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
    in_soilLiqFlux % dCanopyTrans_dTCanopy =dCanopyTrans_dTCanopy    ! intent(in): derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
@@ -1518,6 +1532,7 @@ contains
    scalarSaturatedArea    => diag_data%var(iLookDIAG%scalarSaturatedArea)%dat(1),    & ! intent(out): [dp] fraction of area that is considered saturated (-)
    scalarFrozenArea       => diag_data%var(iLookDIAG%scalarFrozenArea)%dat(1),       & ! intent(out): [dp] fraction of area that is considered impermeable due to soil ice (-)
    scalarSoilControl      => diag_data%var(iLookDIAG%scalarSoilControl)%dat(1),      & ! intent(out): [dp] soil control on infiltration for derivative
+   scalarSoilControlBot   => diag_data%var(iLookDIAG%scalarSoilControlBot)%dat(1),   & ! intent(out): [dp] soil control on bottom melt infiltration for derivative
    scalarSurfaceRunoff    => flux_data%var(iLookFLUX%scalarSurfaceRunoff)%dat(1),    & ! intent(out): [dp] surface runoff (m s-1)
    scalarSurfaceRunoff_IE => flux_data%var(iLookFLUX%scalarSurfaceRunoff_IE)%dat(1), & ! intent(out): [dp] infiltration excess surface runoff (m s-1)
    scalarSurfaceRunoff_SE => flux_data%var(iLookFLUX%scalarSurfaceRunoff_SE)%dat(1)  ) ! intent(out): [dp] saturation excess surface runoff (m s-1)
@@ -1526,6 +1541,7 @@ contains
    io_soilLiqFlux % scalarSaturatedArea     =scalarSaturatedArea      ! intent(inout): fraction of area that is considered saturated (-)
    io_soilLiqFlux % scalarFrozenArea        =scalarFrozenArea         ! intent(inout): fraction of area that is considered impermeable due to soil ice (-)
    io_soilLiqFlux % scalarSoilControl       =scalarSoilControl        ! intent(inout): soil control on infiltration for derivative
+   io_soilLiqFlux % scalarSoilControlBot    =scalarSoilControlBot     ! intent(inout): soil control on bottom melt infiltration for derivative
    io_soilLiqFlux % scalarSurfaceRunoff     =scalarSurfaceRunoff      ! intent(inout): surface runoff (m s-1)
    io_soilLiqFlux % scalarSurfaceRunoff_IE  =scalarSurfaceRunoff_IE   ! intent(inout): infiltration excess surface runoff (m s-1)
    io_soilLiqFlux % scalarSurfaceRunoff_SE  =scalarSurfaceRunoff_SE   ! intent(inout): saturation excess surface runoff (m s-1)
@@ -1533,19 +1549,21 @@ contains
 
   ! intent(inout) arguments: derivatives, fluxes, and layer properties
   associate(& 
-   mLayerdTheta_dPsi            => deriv_data%var(iLookDERIV%mLayerdTheta_dPsi)%dat,   & ! intent(out): [dp(:)] derivative in liquid water content w.r.t. matric potential (m-1)
-   mLayerdPsi_dTheta            => deriv_data%var(iLookDERIV%mLayerdPsi_dTheta)%dat,   & ! intent(out): [dp(:)] derivative in matric potential w.r.t. liquid water content (m)
-   scalarInfiltration           => flux_data%var(iLookFLUX%scalarInfiltration)%dat(1), & ! intent(out): [dp] infiltration of water into the soil profile (m s-1)
-   iLayerLiqFluxSoil            => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat,     & ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
-   mLayerTranspire              => flux_data%var(iLookFLUX%mLayerTranspire)%dat,       & ! intent(out): [dp(:)] transpiration loss from each soil layer (m s-1)
-   mLayerHydCond                => flux_data%var(iLookFLUX%mLayerHydCond)%dat          ) ! intent(out): [dp(:)]  hydraulic conductivity in each soil layer (m s-1)
-   io_soilLiqFlux % mLayerdTheta_dPsi       =mLayerdTheta_dPsi        ! intent(inout): derivative in liquid water content w.r.t. matric potential (m-1)
-   io_soilLiqFlux % mLayerdPsi_dTheta       =mLayerdPsi_dTheta        ! intent(inout): derivative in matric potential w.r.t. liquid water content (m)
-   io_soilLiqFlux % dHydCond_dMatric        =dHydCond_dMatric         ! intent(inout): derivative in hydraulic conductivity w.r.t matric head (s-1)
-   io_soilLiqFlux % scalarInfiltration      =scalarInfiltration       ! intent(inout): surface infiltration rate (m s-1) -- controls on infiltration only computed for iter==1
-   io_soilLiqFlux % iLayerLiqFluxSoil       =iLayerLiqFluxSoil        ! intent(inout): liquid fluxes at layer interfaces (m s-1)
-   io_soilLiqFlux % mLayerTranspire         =mLayerTranspire          ! intent(inout): transpiration loss from each soil layer (m s-1)
-   io_soilLiqFlux % mLayerHydCond           =mLayerHydCond            ! intent(inout): hydraulic conductivity in each layer (m s-1)
+   mLayerdTheta_dPsi    => deriv_data%var(iLookDERIV%mLayerdTheta_dPsi)%dat,   & ! intent(out): [dp(:)] derivative in liquid water content w.r.t. matric potential (m-1)
+   mLayerdPsi_dTheta    => deriv_data%var(iLookDERIV%mLayerdPsi_dTheta)%dat,   & ! intent(out): [dp(:)] derivative in matric potential w.r.t. liquid water content (m)
+   scalarInfiltration   => flux_data%var(iLookFLUX%scalarInfiltration)%dat(1), & ! intent(out): [dp] infiltration of water into the soil profile (m s-1)
+   scalarMeltInfiltration => flux_data%var(iLookFLUX%scalarMeltInfiltration)%dat(1), & ! intent(out): [dp] melt infiltration of water into the soil profile (m s-1)
+   iLayerLiqFluxSoil    => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat,     & ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
+   mLayerTranspire      => flux_data%var(iLookFLUX%mLayerTranspire)%dat,       & ! intent(out): [dp(:)] transpiration loss from each soil layer (m s-1)
+   mLayerHydCond        => flux_data%var(iLookFLUX%mLayerHydCond)%dat          ) ! intent(out): [dp(:)]  hydraulic conductivity in each soil layer (m s-1)
+   io_soilLiqFlux % mLayerdTheta_dPsi  =mLayerdTheta_dPsi        ! intent(inout): derivative in liquid water content w.r.t. matric potential (m-1)
+   io_soilLiqFlux % mLayerdPsi_dTheta  =mLayerdPsi_dTheta        ! intent(inout): derivative in matric potential w.r.t. liquid water content (m)
+   io_soilLiqFlux % dHydCond_dMatric   =dHydCond_dMatric         ! intent(inout): derivative in hydraulic conductivity w.r.t matric head (s-1)
+   io_soilLiqFlux % scalarInfiltration =scalarInfiltration       ! intent(inout): surface infiltration rate (m s-1)
+   io_soilLiqFlux % scalarMeltInfiltration =scalarMeltInfiltration ! intent(inout): melt infiltration rate (m s-1)
+   io_soilLiqFlux % iLayerLiqFluxSoil  =iLayerLiqFluxSoil        ! intent(inout): liquid fluxes at layer interfaces (m s-1)
+   io_soilLiqFlux % mLayerTranspire    =mLayerTranspire          ! intent(inout): transpiration loss from each soil layer (m s-1)
+   io_soilLiqFlux % mLayerHydCond      =mLayerHydCond            ! intent(inout): hydraulic conductivity in each layer (m s-1)
   end associate
 
   ! intent(inout) arguments: flux and surface infiltration derivatives
@@ -1553,15 +1571,19 @@ contains
    dq_dHydStateAbove            => deriv_data%var(iLookDERIV%dq_dHydStateAbove)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer above
    dq_dHydStateBelow            => deriv_data%var(iLookDERIV%dq_dHydStateBelow)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer below
    dq_dHydStateLayerSurfVec     => deriv_data%var(iLookDERIV%dq_dHydStateLayerSurfVec)%dat, & ! intent(out): [dp(:)] change in the flux in soil surface interface w.r.t. state variables in layers
+   dq_dHydStateLayerBotVec      => deriv_data%var(iLookDERIV%dq_dHydStateLayerBotVec)%dat,  & ! intent(out): [dp(:)] change in the flux in soil bottom interface w.r.t. state variables in layers
    dq_dNrgStateAbove            => deriv_data%var(iLookDERIV%dq_dNrgStateAbove)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer above
    dq_dNrgStateBelow            => deriv_data%var(iLookDERIV%dq_dNrgStateBelow)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer below
-   dq_dNrgStateLayerSurfVec     => deriv_data%var(iLookDERIV%dq_dNrgStateLayerSurfVec)%dat  ) ! intent(out): [dp(:)] change in the flux in soil surface interface w.r.t. state variables in layers
+   dq_dNrgStateLayerSurfVec     => deriv_data%var(iLookDERIV%dq_dNrgStateLayerSurfVec)%dat, & ! intent(out): [dp(:)] change in the flux in soil surface interface w.r.t. state variables in layers
+   dq_dNrgStateLayerBotVec      => deriv_data%var(iLookDERIV%dq_dNrgStateLayerBotVec)%dat   ) ! intent(out): [dp(:)] change in the flux in soil bottom interface w.r.t. state variables in layers
    io_soilLiqFlux % dq_dHydStateAbove       =dq_dHydStateAbove        ! intent(inout): derivatives in the flux w.r.t. matric head in the layer above (s-1)
    io_soilLiqFlux % dq_dHydStateBelow       =dq_dHydStateBelow        ! intent(inout): derivatives in the flux w.r.t. matric head in the layer below (s-1)
-   io_soilLiqFlux % dq_dHydStateLayerSurfVec=dq_dHydStateLayerSurfVec ! intent(inout): derivative in surface infiltration w.r.t. hydrology state in above soil snow or canopy and every soil layer  (m s-1 or s-1)
+   io_soilLiqFlux % dq_dHydStateLayerSurfVec=dq_dHydStateLayerSurfVec ! intent(inout): derivative in surface infiltration w.r.t. hydrology state in every soil layer (m s-1 or s-1)
+   io_soilLiqFlux % dq_dHydStateLayerBotVec =dq_dHydStateLayerBotVec  ! intent(inout): derivative in bottom melt infiltration w.r.t. hydrology state in every soil layer (m s-1 or s-1)
    io_soilLiqFlux % dq_dNrgStateAbove       =dq_dNrgStateAbove        ! intent(inout): derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
    io_soilLiqFlux % dq_dNrgStateBelow       =dq_dNrgStateBelow        ! intent(inout): derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
-   io_soilLiqFlux % dq_dNrgStateLayerSurfVec=dq_dNrgStateLayerSurfVec ! intent(inout): derivative in surface infiltration w.r.t. energy state in above soil snow or canopy and every soil layer (m s-1 K-1)
+   io_soilLiqFlux % dq_dNrgStateLayerSurfVec=dq_dNrgStateLayerSurfVec ! intent(inout): derivative in surface infiltration w.r.t. energy state in every soil layer (m s-1 K-1)
+   io_soilLiqFlux % dq_dNrgStateLayerBotVec =dq_dNrgStateLayerBotVec  ! intent(inout): derivative in bottom melt infiltration w.r.t. energy state in every soil layer (m s-1 K-1)
   end associate
 
   ! intent(inout) arguments: transpiration flux derivatives
@@ -1592,6 +1614,7 @@ contains
    scalarSaturatedArea    => diag_data%var(iLookDIAG%scalarSaturatedArea)%dat(1),    & ! intent(out): [dp] fraction of area that is considered saturated (-)
    scalarFrozenArea       => diag_data%var(iLookDIAG%scalarFrozenArea)%dat(1),       & ! intent(out): [dp] fraction of area that is considered impermeable due to soil ice (-)
    scalarSoilControl      => diag_data%var(iLookDIAG%scalarSoilControl)%dat(1),      & ! intent(out): [dp] soil control on infiltration for derivative
+   scalarSoilControlBot   => diag_data%var(iLookDIAG%scalarSoilControlBot)%dat(1),   & ! intent(out): [dp] soil control on bottom melt infiltration for derivative
    scalarSurfaceRunoff    => flux_data%var(iLookFLUX%scalarSurfaceRunoff)%dat(1),    & ! intent(out): [dp] surface runoff (m s-1)
    scalarSurfaceRunoff_IE => flux_data%var(iLookFLUX%scalarSurfaceRunoff_IE)%dat(1), & ! intent(out): [dp] infiltration excess surface runoff (m s-1)
    scalarSurfaceRunoff_SE => flux_data%var(iLookFLUX%scalarSurfaceRunoff_SE)%dat(1)  ) ! intent(out): [dp] saturation excess surface runoff (m s-1)
@@ -1600,6 +1623,7 @@ contains
    scalarSaturatedArea     =io_soilLiqFlux % scalarSaturatedArea      ! intent(inout): fraction of area that is considered saturated (-)
    scalarFrozenArea        =io_soilLiqFlux % scalarFrozenArea         ! intent(inout): fraction of area that is considered impermeable due to soil ice (-)
    scalarSoilControl       =io_soilLiqFlux % scalarSoilControl        ! intent(inout): soil control on infiltration for derivative
+   scalarSoilControlBot    =io_soilLiqFlux % scalarSoilControlBot     ! intent(inout): soil control on bottom melt infiltration for derivative
    scalarSurfaceRunoff     =io_soilLiqFlux % scalarSurfaceRunoff      ! intent(inout): surface runoff (m s-1)
    scalarSurfaceRunoff_IE  =io_soilLiqFlux % scalarSurfaceRunoff_IE   ! intent(inout): infiltration excess surface runoff (m s-1)
    scalarSurfaceRunoff_SE  =io_soilLiqFlux % scalarSurfaceRunoff_SE   ! intent(inout): saturation excess surface runoff (m s-1)
@@ -1610,13 +1634,15 @@ contains
    mLayerdTheta_dPsi      => deriv_data%var(iLookDERIV%mLayerdTheta_dPsi)%dat,   & ! intent(out): [dp(:)] derivative in liquid water content w.r.t. matric potential (m-1)
    mLayerdPsi_dTheta      => deriv_data%var(iLookDERIV%mLayerdPsi_dTheta)%dat,   & ! intent(out): [dp(:)] derivative in matric potential w.r.t. liquid water content (m)
    scalarInfiltration     => flux_data%var(iLookFLUX%scalarInfiltration)%dat(1), & ! intent(out): [dp] infiltration of water into the soil profile (m s-1)
+   scalarMeltInfiltration => flux_data%var(iLookFLUX%scalarMeltInfiltration)%dat(1), & ! intent(out): [dp] melt infiltration of water into the soil profile (m s-1)
    iLayerLiqFluxSoil      => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat,     & ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
    mLayerTranspire        => flux_data%var(iLookFLUX%mLayerTranspire)%dat,       & ! intent(out): [dp(:)] transpiration loss from each soil layer (m s-1)
    mLayerHydCond          => flux_data%var(iLookFLUX%mLayerHydCond)%dat          ) ! intent(out): [dp(:)]  hydraulic conductivity in each soil layer (m s-1)
    mLayerdTheta_dPsi       =io_soilLiqFlux % mLayerdTheta_dPsi        ! intent(inout): derivative in liquid water content w.r.t. matric potential (m-1)
    mLayerdPsi_dTheta       =io_soilLiqFlux % mLayerdPsi_dTheta        ! intent(inout): derivative in matric potential w.r.t. liquid water content (m)
    dHydCond_dMatric        =io_soilLiqFlux % dHydCond_dMatric         ! intent(inout): derivative in hydraulic conductivity w.r.t matric head (s-1)
-   scalarInfiltration      =io_soilLiqFlux % scalarInfiltration       ! intent(inout): surface infiltration rate (m s-1) -- controls on infiltration only computed for iter==1
+   scalarInfiltration      =io_soilLiqFlux % scalarInfiltration       ! intent(inout): surface infiltration rate (m s-1)
+   scalarMeltInfiltration  =io_soilLiqFlux % scalarMeltInfiltration   ! intent(inout): melt infiltration rate (m s-1)
    iLayerLiqFluxSoil       =io_soilLiqFlux % iLayerLiqFluxSoil        ! intent(inout): liquid fluxes at layer interfaces (m s-1)
    mLayerTranspire         =io_soilLiqFlux % mLayerTranspire          ! intent(inout): transpiration loss from each soil layer (m s-1)
    mLayerHydCond           =io_soilLiqFlux % mLayerHydCond            ! intent(inout): hydraulic conductivity in each layer (m s-1)
@@ -1627,15 +1653,19 @@ contains
    dq_dHydStateAbove            => deriv_data%var(iLookDERIV%dq_dHydStateAbove)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer above
    dq_dHydStateBelow            => deriv_data%var(iLookDERIV%dq_dHydStateBelow)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer below
    dq_dHydStateLayerSurfVec     => deriv_data%var(iLookDERIV%dq_dHydStateLayerSurfVec)%dat, & ! intent(out): [dp(:)] change in the flux in soil surface interface w.r.t. state variables in layers
+   dq_dHydStateLayerBotVec      => deriv_data%var(iLookDERIV%dq_dHydStateLayerBotVec)%dat,  & ! intent(out): [dp(:)] change in the flux in soil bottom interface w.r.t. state variables in layers
    dq_dNrgStateAbove            => deriv_data%var(iLookDERIV%dq_dNrgStateAbove)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer above
    dq_dNrgStateBelow            => deriv_data%var(iLookDERIV%dq_dNrgStateBelow)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer below
-   dq_dNrgStateLayerSurfVec     => deriv_data%var(iLookDERIV%dq_dNrgStateLayerSurfVec)%dat  ) ! intent(out): [dp(:)] change in the flux in soil surface interface w.r.t. state variables in layers
+   dq_dNrgStateLayerSurfVec     => deriv_data%var(iLookDERIV%dq_dNrgStateLayerSurfVec)%dat, & ! intent(out): [dp(:)] change in the flux in soil surface interface w.r.t. state variables in layers
+   dq_dNrgStateLayerBotVec      => deriv_data%var(iLookDERIV%dq_dNrgStateLayerBotVec)%dat  ) ! intent(out): [dp(:)] change in the flux in soil bottom interface w.r.t. state variables in layers
    dq_dHydStateAbove       =io_soilLiqFlux % dq_dHydStateAbove        ! intent(inout): derivatives in the flux w.r.t. matric head in the layer above (s-1)
    dq_dHydStateBelow       =io_soilLiqFlux % dq_dHydStateBelow        ! intent(inout): derivatives in the flux w.r.t. matric head in the layer below (s-1)
-   dq_dHydStateLayerSurfVec=io_soilLiqFlux % dq_dHydStateLayerSurfVec ! intent(inout): derivative in surface infiltration w.r.t. hydrology state in above soil snow or canopy and every soil layer  (m s-1 or s-1)
+   dq_dHydStateLayerSurfVec=io_soilLiqFlux % dq_dHydStateLayerSurfVec ! intent(inout): derivative in surface infiltration w.r.t. hydrology state in every soil layer (m s-1 or s-1)
+   dq_dHydStateLayerBotVec =io_soilLiqFlux % dq_dHydStateLayerBotVec  ! intent(inout): derivative in bottom melt infiltration w.r.t. hydrology state in every soil layer (m s-1 or s-1)
    dq_dNrgStateAbove       =io_soilLiqFlux % dq_dNrgStateAbove        ! intent(inout): derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
    dq_dNrgStateBelow       =io_soilLiqFlux % dq_dNrgStateBelow        ! intent(inout): derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
-   dq_dNrgStateLayerSurfVec=io_soilLiqFlux % dq_dNrgStateLayerSurfVec ! intent(inout): derivative in surface infiltration w.r.t. energy state in above soil snow or canopy and every soil layer (m s-1 K-1)
+   dq_dNrgStateLayerSurfVec=io_soilLiqFlux % dq_dNrgStateLayerSurfVec ! intent(inout): derivative in surface infiltration w.r.t. energy state in every soil layer (m s-1 K-1)
+   dq_dNrgStateLayerBotVec =io_soilLiqFlux % dq_dNrgStateLayerBotVec  ! intent(inout): derivative in bottom melt infiltration w.r.t. energy state in every soil layer (m s-1 K-1)
   end associate
 
   ! intent(inout) arguments: transpiration flux derivatives
@@ -1989,10 +2019,13 @@ contains
 
   associate(&
    ! flux at the upper boundary
-   scalarRainPlusMelt  => in_soilLiqFlux % scalarRainPlusMelt & ! rain plus melt (m s-1)
+   scalarRainPlusMelt  => in_soilLiqFlux % scalarRainPlusMelt, & ! rain plus melt (m s-1)
+   scalarGlceMelt      => in_soilLiqFlux % scalarGlceMelt      & ! glacier melt (m s-1)
   &)
    ! intent(in): flux at the upper boundary
    in_surfaceFlux % scalarRainPlusMelt = scalarRainPlusMelt ! rain plus melt (m s-1)
+   ! intent(in): flux at the lower boundary
+   in_surfaceFlux % scalarGlceMelt = scalarGlceMelt ! glacier melt (m s-1)
   end associate
 
   associate(&
@@ -2063,23 +2096,27 @@ contains
 
   associate(&
    ! fluxes at layer interfaces and surface runoff
-   xMaxInfilRate       => io_soilLiqFlux % scalarMaxInfilRate,      & ! maximum infiltration rate (m s-1)
-   scalarInfilArea     => io_soilLiqFlux % scalarInfilArea,         & ! fraction of area where water can infiltrate, may be frozen (-)
-   scalarSaturatedArea => io_soilLiqFlux % scalarSaturatedArea,     & ! fraction of area that is considered saturated (-)
-   scalarFrozenArea    => io_soilLiqFlux % scalarFrozenArea,        & ! fraction of area that is considered impermeable due to soil ice (-)
-   scalarSoilControl   => io_soilLiqFlux % scalarSoilControl,       & ! soil control on infiltration for derivative
-   scalarSurfaceInfiltration => io_soilLiqFlux % scalarInfiltration & ! surface infiltration (m s-1)
+   xMaxInfilRate       => io_soilLiqFlux % scalarMaxInfilRate,          & ! maximum infiltration rate (m s-1)
+   scalarInfilArea     => io_soilLiqFlux % scalarInfilArea,             & ! fraction of area where water can infiltrate, may be frozen (-)
+   scalarSaturatedArea => io_soilLiqFlux % scalarSaturatedArea,         & ! fraction of area that is considered saturated (-)
+   scalarFrozenArea    => io_soilLiqFlux % scalarFrozenArea,            & ! fraction of area that is considered impermeable due to soil ice (-)
+   scalarSoilControl   => io_soilLiqFlux % scalarSoilControl,           & ! soil control on infiltration for derivative
+   scalarSurfaceInfiltration => io_soilLiqFlux % scalarInfiltration,    & ! surface infiltration (m s-1)
+   scalarSoilControlBot      => io_soilLiqFlux % scalarSoilControlBot,  & ! soil control on bottom melt infiltration for derivative
+   scalarMeltInfiltration    => io_soilLiqFlux % scalarMeltInfiltration & ! bottom melt infiltration (m s-1)
   &)
    ! intent(inout): hydraulic conductivity and diffusivity at the surface
    io_surfaceFlux % surfaceHydCond = iLayerHydCond(0)         ! hydraulic conductivity at the surface (m s-1)
    io_surfaceFlux % surfaceDiffuse = iLayerDiffuse(0)         ! hydraulic diffusivity at the surface (m2 s-1)
    ! intent(inout): fluxes at layer interfaces and surface runoff
-   io_surfaceFlux % xMaxInfilRate    = xMaxInfilRate          ! maximum infiltration rate (m s-1)
-   io_surfaceFlux % scalarInfilArea  = scalarInfilArea        ! fraction of unfrozen area where water can infiltrate (-)
+   io_surfaceFlux % xMaxInfilRate       = xMaxInfilRate       ! maximum infiltration rate (m s-1)
+   io_surfaceFlux % scalarInfilArea     = scalarInfilArea     ! fraction of unfrozen area where water can infiltrate (-)
    io_surfaceFlux % scalarSaturatedArea = scalarSaturatedArea ! fraction of area that is considered saturated (-)
-   io_surfaceFlux % scalarFrozenArea = scalarFrozenArea       ! fraction of area that is considered impermeable due to soil ice (-)
-   io_surfaceFlux % scalarSoilControl = scalarSoilControl     ! soil control on infiltration for derivative
+   io_surfaceFlux % scalarFrozenArea    = scalarFrozenArea    ! fraction of area that is considered impermeable due to soil ice (-)
+   io_surfaceFlux % scalarSoilControl   = scalarSoilControl   ! soil control on infiltration for derivative
    io_surfaceFlux % scalarSurfaceInfiltration = scalarSurfaceInfiltration ! surface infiltration (m s-1)
+   io_surfaceFlux % scalarSoilControlBot      = scalarSoilControlBot      ! soil control on bottom melt infiltration for derivative
+   io_surfaceFlux % scalarMeltInfiltration    = scalarMeltInfiltration    ! bottom melt infiltration (m s-1)
   end associate
  end subroutine initialize_io_surfaceFlux
 
@@ -2097,7 +2134,9 @@ contains
    scalarSaturatedArea => io_soilLiqFlux % scalarSaturatedArea, & ! fraction of area that is considered saturated (-)
    scalarFrozenArea    => io_soilLiqFlux % scalarFrozenArea,    & ! fraction of area that is considered impermeable due to soil ice (-)
    scalarSoilControl   => io_soilLiqFlux % scalarSoilControl,   & ! soil control on infiltration for derivative
-   scalarSurfaceInfiltration => io_soilLiqFlux % scalarInfiltration & ! surface infiltration rate (m s-1)
+   scalarSurfaceInfiltration => io_soilLiqFlux % scalarInfiltration,    & ! surface infiltration rate (m s-1)
+   scalarSoilControlBot      => io_soilLiqFlux % scalarSoilControlBot,  & ! soil control on bottom melt infiltration for derivative
+   scalarMeltInfiltration    => io_soilLiqFlux % scalarMeltInfiltration & ! bottom melt infiltration (m s-1)
   &)
    ! intent(inout): hydraulic conductivity and diffusivity at the surface
    iLayerHydCond(0) = io_surfaceFlux % surfaceHydCond         ! hydraulic conductivity at the surface (m s-1) 
@@ -2109,6 +2148,8 @@ contains
    scalarFrozenArea    = io_surfaceFlux % scalarFrozenArea    ! fraction of area that is considered impermeable due to soil ice (-)
    scalarSoilControl   = io_surfaceFlux % scalarSoilControl   ! soil control on infiltration for derivative
    scalarSurfaceInfiltration = io_surfaceFlux % scalarSurfaceInfiltration ! surface infiltration (m s-1)
+   scalarSoilControlBot      = io_surfaceFlux % scalarSoilControlBot      ! soil control on bottom melt infiltration for derivative
+   scalarMeltInfiltration    = io_surfaceFlux % scalarMeltInfiltration    ! bottom melt infiltration (m s-1)
   end associate
  end subroutine finalize_io_surfaceFlux
 
@@ -2123,17 +2164,23 @@ contains
    scalarSurfaceRunoff       => io_soilLiqFlux % scalarSurfaceRunoff,    & ! surface runoff (m s-1)
    scalarSurfaceRunoff_IE    => io_soilLiqFlux % scalarSurfaceRunoff_IE, & ! infiltration excess surface runoff (m s-1)
    scalarSurfaceRunoff_SE    => io_soilLiqFlux % scalarSurfaceRunoff_SE, & ! saturation excess surface runoff (m s-1)
-    ! intent(inout): derivatives in surface infiltration in the upper-most soil layer w.r.t ... 
-   dq_dHydStateLayerSurfVec => io_soilLiqFlux % dq_dHydStateLayerSurfVec, & ! ... hydrology state above soil snow or canopy and every soil layer (m s-1 or s-1)
-   dq_dNrgStateLayerSurfVec => io_soilLiqFlux % dq_dNrgStateLayerSurfVec  & ! ... temperature above soil snow or canopy and every soil layer (m s-1 or s-1)
+   ! intent(inout): derivatives in surface infiltration in the upper-most soil layer w.r.t ... 
+   dq_dHydStateLayerSurfVec  => io_soilLiqFlux % dq_dHydStateLayerSurfVec, & ! ... hydrology state above soil snow or canopy and every soil layer (m s-1 or s-1)
+   dq_dNrgStateLayerSurfVec  => io_soilLiqFlux % dq_dNrgStateLayerSurfVec, & ! ... temperature above soil snow or canopy and every soil layer (m s-1 or s-1)
+   ! intent(inout): derivatives in bottom melt infiltration in the bottom-most soil layer w.r.t. ...
+   dq_dHydStateLayerBotVec   => io_soilLiqFlux % dq_dHydStateLayerBotVec, & ! ... hydrology state in every soil layer (m s-1 or s-1)
+   dq_dNrgStateLayerBotVec   => io_soilLiqFlux % dq_dNrgStateLayerBotVec  & ! ... energy state in every soil layer (m s-1 K-1)
   &)
    ! intent(out): surface runoff
    scalarSurfaceRunoff       = out_surfaceFlux % scalarSurfaceRunoff    ! surface runoff (m s-1)
    scalarSurfaceRunoff_IE    = out_surfaceFlux % scalarSurfaceRunoff_IE ! infiltration excess surface runoff (m s-1)
    scalarSurfaceRunoff_SE    = out_surfaceFlux % scalarSurfaceRunoff_SE ! saturation excess surface runoff (m s-1)
    ! intent(inout): derivatives in surface infiltration in the upper-most soil layer w.r.t. ...
-   dq_dHydStateLayerSurfVec  = out_surfaceFlux % dq_dHydStateVec ! ... hydrology state in above soil snow or canopy and every soil layer  (m s-1 or s-1)
-   dq_dNrgStateLayerSurfVec  = out_surfaceFlux % dq_dNrgStateVec ! ... energy state in above soil snow or canopy and every soil layer (m s-1 K-1)
+   dq_dHydStateLayerSurfVec  = out_surfaceFlux % dq_dHydStateVec ! ... hydrology state in every soil layer (m s-1 or s-1)
+   dq_dNrgStateLayerSurfVec  = out_surfaceFlux % dq_dNrgStateVec ! ... energy state in every soil layer (m s-1 K-1)
+    ! intent(inout): derivatives in bottom melt infiltration in the bottom-most soil layer w.r.t. ...
+   dq_dHydStateLayerBotVec   = out_surfaceFlux % dqGlce_dHydStateVec ! ... hydrology state in every soil layer (m s-1 or s-1)
+   dq_dNrgStateLayerBotVec   = out_surfaceFlux % dqGlce_dNrgStateVec ! ... energy state in every soil layer (m s-1 K-1)
   end associate
   ! intent(out): error control
   err      = out_surfaceFlux % err     ! error code

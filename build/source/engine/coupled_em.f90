@@ -1537,7 +1537,7 @@ subroutine coupled_em(&
       averageGroundEvaporation   => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarGroundEvaporation))%dat(1)   ,& ! soil evaporation (kg m-2 s-1)
       averageCanopyTranspiration => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopyTranspiration))%dat(1) ,& ! canopy transpiration (kg m-2 s-1)
       ! glacier fluxes
-      averageGlceMelt            => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarGlceMelt))%dat(1)              ,& ! glacier ice melt (m s-1)
+      averageGlceMelt            => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarGlceMelt))%dat(1)            ,& ! glacier ice melt (m s-1)
       ! state variables in the vegetation canopy
       scalarCanopyWat            => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)                           ,& ! canopy water content (kg m-2)
       scalarCanopyIce            => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)                           ,& ! ice content of the vegetation canopy (kg m-2)
@@ -1737,9 +1737,9 @@ subroutine coupled_em(&
         scalarTotalSoilWat = scalarTotalSoilLiq + scalarTotalSoilIce
 
         ! get the input and output to/from the soil zone (kg m-2)
-        balanceSoilInflux        = (averageSoilInflux+averageGlceMelt)*iden_water*data_step
+        balanceSoilInflux        = (averageSoilInflux)*iden_water*data_step
         balanceSoilBaseflow      = averageSoilBaseflow*iden_water*data_step
-        balanceSoilDrainage      = averageSoilDrainage*iden_water*data_step
+        balanceSoilDrainage      = averageSoilDrainage*iden_water*data_step ! note, may contain glacier melt infiltration and be negative
         balanceSoilET            = (averageCanopyTranspiration + averageGroundEvaporation)*data_step
         balanceSoilCompress      = averageSoilCompress*data_step
 

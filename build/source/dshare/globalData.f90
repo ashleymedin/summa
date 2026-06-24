@@ -129,6 +129,7 @@ MODULE globalData
   integer(i4b),parameter,public               :: iJac1=1                            ! first layer of the Jacobian to print
   integer(i4b),parameter,public               :: iJac2=100                          ! last layer of the Jacobian to print 
   ! define limit checks
+  real(rkind),parameter,public                :: iceResidWaterFrac=0.03_rkind       ! residual volumetric liquid water content in ice (-), 0.03 to keep from melting up to 0.05K below freezing, 0.03 for temperate glacier ice
   real(rkind),parameter,public                :: maxVolIceContent=0.7               ! snow maximum volumetric ice content to store water (-)
   real(rkind),parameter,public                :: verySmall=1.e-6_rkind              ! a small number
   real(rkind),parameter,public                :: verySmaller=1.e-12_rkind           ! a smaller number than verySmall

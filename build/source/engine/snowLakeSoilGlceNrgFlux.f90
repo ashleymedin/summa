@@ -34,6 +34,7 @@ USE data_types,only:out_type_snowLakeSoilGlceNrgFlux ! intent(out) arguments for
 USE multiconst,only:Tfreeze,     &  ! freezing point of pure water (K)
                     iden_water,  &  ! intrinsic density of water    (kg m-3)
                     Cp_water        ! specific heat of liquid water (J kg-1 K-1)
+USE globalData,only:iceResidWaterFrac ! residual volumetric liquid water content in ice (-)
 
 ! missing values
 USE globalData,only:integerMissing  ! missing integer
@@ -127,6 +128,7 @@ subroutine snowLakeSoilGlceNrgFlux(&
     groundNetFlux              => in_snowLakeSoilGlceNrgFlux % scalarGroundNetNrgFlux,     & ! intent(in):    net energy flux for the ground surface (W m-2)
     dGroundNetFlux_dGroundTemp => io_snowLakeSoilGlceNrgFlux % dGroundNetFlux_dGroundTemp, & ! intent(inout): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
     ! input: liquid water fluxes
+    scalarGlceMelt             => in_snowLakeSoilGlceNrgFlux % scalarGlceMelt,             & ! intent(in):    glacier ice melt (m s-1)
     iLayerLiqFluxSnLaGl        => in_snowLakeSoilGlceNrgFlux % iLayerLiqFluxSnLaGl,        & ! intent(in):    liquid flux at the interface of each snow layer (m s-1)
     iLayerLiqFluxSoil          => in_snowLakeSoilGlceNrgFlux % iLayerLiqFluxSoil,          & ! intent(in):    liquid flux at the interface of each soil layer (m s-1)
     ! input: trial model state variables
@@ -189,9 +191,11 @@ subroutine snowLakeSoilGlceNrgFlux(&
     ! ***** compute the conductive fluxes at layer interfaces *****
     ! -------------------------------------------------------------------------------------------------------------------------
     zeroFlux_noThetaBdry = .false.
+    if(nGlce>0)then ! check if liquid flux at the top of glacier ice (m s-1) for melting ice
+      if (scalarGlceMelt < 0._rkind) zeroFlux_noThetaBdry = .true.
+    end if
     do iLayer=ixTop,ixBot
-      if(layerType(iLayer)==iname_glce .and. iLayer==nLayers-noThetaChange .and. iLayerLiqFluxSnLaGl(iLayer-1) > 0._rkind)then
-        zeroFlux_noThetaBdry = .true.
+      if(iLayer==nLayers-noThetaChange .and. zeroFlux_noThetaBdry)then
         iLayerConductiveFlux(iLayer) = 0._rkind ! all melt energy absorbed in top layers of glacier ice, note the flux is from the end of the previous time step
       elseif (iLayer==nLayers) then ! lower boundary fluxes -- positive downwards 
       ! flux depends on the type of lower boundary condition
@@ -214,7 +218,7 @@ subroutine snowLakeSoilGlceNrgFlux(&
         case(iname_soil);                       qFlux = iLayerLiqFluxSoil(iLayer-nSnow-nLake)
         case default; err=20; message=trim(message)//'unable to identify layer type'; return
       end select
-      if(layerType(iLayer)==iname_glce .and. iLayer==nLayers-noThetaChange .and. zeroFlux_noThetaBdry)then
+      if(iLayer==nLayers-noThetaChange .and. zeroFlux_noThetaBdry)then
         iLayerAdvectiveFlux(iLayer) = 0._rkind ! all melt energy absorbed in top layers of glacier ice
       elseif (iLayer==nLayers) then ! compute fluxes at the lower boundary -- positive downwards
         iLayerAdvectiveFlux(iLayer) = -Cp_water*iden_water*qFlux*(lowerBoundTemp - mLayerTempTrial(iLayer))
@@ -269,7 +273,7 @@ subroutine snowLakeSoilGlceNrgFlux(&
 
     ! loop through INTERFACES...
     do iLayer=ixTop,ixBot
-      if(layerType(iLayer)==iname_glce .and. iLayer==nLayers-noThetaChange .and. zeroFlux_noThetaBdry)then
+      if(iLayer==nLayers-noThetaChange .and. zeroFlux_noThetaBdry)then
         dFlux_dWatAbove(iLayer)  = 0._rkind 
         dFlux_dTempAbove(iLayer) = 0._rkind
         dFlux_dWatBelow(iLayer)  = 0._rkind
