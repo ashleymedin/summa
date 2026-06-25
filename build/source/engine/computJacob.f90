@@ -352,7 +352,7 @@ subroutine computJacob(&
             aJac(ixInd(full,nrgState,watState),watState) = mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) + dVolHtCapBulk_dPsi0(iLayer) * mLayerdTemp_dt(jLayer) &
                                                           + dCm_dPsi0(iLayer) * mLayerdWat_dt(jLayer) + aJac(ixInd(full,nrgState,watState),watState)
             if(mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind))& ! ice is present
-              aJac(ixInd(full,nrgState,watState),watState) = -LH_fus*iden_water * dVolTot_dPsi0(iLayer) + aJac(ixInd(full,nrgState,watState),watState)   ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
+                aJac(ixInd(full,nrgState,watState),watState) = -LH_fus*iden_water * dVolTot_dPsi0(iLayer) + aJac(ixInd(full,nrgState,watState),watState)   ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
           elseif(ixRichards==moisture)then
             aJac(ixInd(full,nrgState,watState),watState) = mLayerCm(jLayer) + dVolHtCapBulk_dTheta(jLayer) * mLayerdTemp_dt(jLayer) &
                                                           + aJac(ixInd(full,nrgState,watState),watState)
@@ -537,7 +537,7 @@ subroutine fluxJacAdd(&
     dAquiferTrans_dCanWat        => deriv_data%var(iLookDERIV%dAquiferTrans_dCanWat)%dat(1)        ,& ! intent(in): [dp]     derivative in the aquifer transpiration flux w.r.t. canopy total water
     ! derivative in liquid water fluxes at the interface of snow, lake, glce layers w.r.t. volumetric liquid water content in the layer above
     iLayerLiqFluxSnLaGlDeriv     => deriv_data%var(iLookDERIV%iLayerLiqFluxSnLaGlDeriv)%dat        ,& ! intent(in): [dp(:)]  derivative in vertical liquid water flux at layer interfaces
-    surfaceIceMeltFluxDeriv      => deriv_data%var(iLookDERIV%surfaceIceMeltFluxDeriv)%dat(1)      ,& ! intent(in): [dp]     derivative in ice melt flux at top interface
+    scalarSurfaceIceMeltDeriv    => deriv_data%var(iLookDERIV%scalarSurfaceIceMeltDeriv)%dat(1)    ,& ! intent(in): [dp]     derivative in ice melt flux at top interface
     ! derivative in liquid water fluxes for the soil domain w.r.t hydrology state variables
     dq_dHydStateAbove            => deriv_data%var(iLookDERIV%dq_dHydStateAbove)%dat               ,& ! intent(in): [dp(:)]  derivatives in  flux at layer interfaces w.r.t. states in the layer above
     dq_dHydStateBelow            => deriv_data%var(iLookDERIV%dq_dHydStateBelow)%dat               ,& ! intent(in): [dp(:)]  derivatives in  flux at layer interfaces w.r.t. states in the layer below
@@ -661,7 +661,7 @@ subroutine fluxJacAdd(&
           iLayer = qLayer
           endLayerWat = nSnow + nLake
           solid = .false.
-          if(qLayer>nSnow .and. mLayerVolFracIce(jLayer)>maxVolIceContent_use) solid = .true. ! lake ice is solid, will need rethinking but stuf for now
+          if(qLayer>nSnow .and. mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind)) solid = .true. ! lake ice is solid
         else
           jLayer = qLayer + nSoil
           iLayer = qLayer - nSnow - nLake
@@ -682,10 +682,10 @@ subroutine fluxJacAdd(&
         ! - diagonal elements, water does not move downwards in ice or upwards in snow
         ! NOTE: if unfrozen lake then dq_dHydStateBelow(0) should be some spillover from below, FIX with lakes  
         if(solid)then
-          if(qLayer==nSnow+1 .or. qLayer==nSnow+nLake+1)then
-            aJac(ixInd(full,watState,watState),watState) = (dt/mLayerDepth(jLayer))*(-surfaceIceMeltFluxDeriv*convLiq2tot) + dMat(watState)
+          if(qLayer==nSnow+1 .or.(qLayer==nSnow+nLake+1 .and. nSoil==0))then
+            aJac(ixInd(full,watState,watState),watState) = (dt/mLayerDepth(jLayer))*(-scalarSurfaceIceMeltDeriv*convLiq2tot) + dMat(watState)
           else
-            aJac(ixInd(full,watState,nrgState),nrgState) = (dt/mLayerDepth(jLayer))*(-iLayerLiqFluxSnLaGlDeriv(jLayer-1)*convLiq2tot) + dMat(watState)
+            aJac(ixInd(full,watState,watState),watState) = (dt/mLayerDepth(jLayer))*(-iLayerLiqFluxSnLaGlDeriv(jLayer-1)*convLiq2tot) + dMat(watState)
           endif
         else
           aJac(ixInd(full,watState,watState),watState) = (dt/mLayerDepth(jLayer))*iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot + dMat(watState)
@@ -712,7 +712,7 @@ subroutine fluxJacAdd(&
           endLayerWat = nSnow + nLake
           endLayerNrg = nSnow + nLake
           solid = .false.
-          if(qLayer>nSnow .and. mLayerVolFracIce(jLayer)>maxVolIceContent_use) solid = .true. ! lake ice is solid, will need rethinking
+          if(qLayer>nSnow .and. mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind)) solid = .true. ! lake ice is solid
         else
           jLayer = qLayer + nSoil
           iLayer = qLayer - nSnow - nLake
@@ -729,8 +729,8 @@ subroutine fluxJacAdd(&
           ! - include derivatives of water fluxes w.r.t energy fluxes for current layer, water does not move downwards in ice or upwards in snow
           ! NOTE: if unfrozen lake then dq_dNrgStateBelow(0) should be some spillover from below, FIX with lakes  
           if(solid)then
-            if(qLayer==nSnow+1 .or. qLayer==nSnow+nLake+1)then     
-              aJac(ixInd(full,watState,nrgState),nrgState) = (dt/mLayerDepth(jLayer))*(-surfaceIceMeltFluxDeriv*mLayerdTheta_dTk(jLayer))  ! (dVol/dT)
+            if(qLayer==nSnow+1 .or. (qLayer==nSnow+nLake+1 .and. nSoil==0))then     
+              aJac(ixInd(full,watState,nrgState),nrgState) = (dt/mLayerDepth(jLayer))*(-scalarSurfaceIceMeltDeriv*mLayerdTheta_dTk(jLayer))  ! (dVol/dT)
             else
               aJac(ixInd(full,watState,nrgState),nrgState) = (dt/mLayerDepth(jLayer))*(-iLayerLiqFluxSnLaGlDeriv(jLayer-1)*mLayerdTheta_dTk(jLayer))  ! (dVol/dT)
             endif
@@ -803,7 +803,13 @@ subroutine fluxJacAdd(&
         ! - include derivatives for surface infiltration below surface
         if(ixSoilOnlyHyd(1)/=integerMissing .and. all(dq_dHydStateLayerSurfVec/=realMissing))then
            if(watState - ixSoilOnlyHyd(1) <= ku .or. full) &
-             aJac(ixInd(full,ixSoilOnlyHyd(1),watState),watState) = -(dt/mLayerDepth(nSnow+nLake+1))*dq_dHydStateLayerSurfVec(iLayer) + aJac(ixInd(full,ixSoilOnlyHyd(1),watState),watState)
+               aJac(ixInd(full,ixSoilOnlyHyd(1),watState),watState) = -(dt/mLayerDepth(nSnow+nLake+1))*dq_dHydStateLayerSurfVec(iLayer) + aJac(ixInd(full,ixSoilOnlyHyd(1),watState),watState)
+        endif
+
+        ! - include derivatives for melt infiltration above bottom
+        if(ixSoilOnlyHyd(nSoil)/=integerMissing .and. all(dq_dHydStateLayerBotVec/=realMissing))then
+           if(watState - ixSoilOnlyHyd(nSoil) <= ku .or. full) &
+             aJac(ixInd(full,ixSoilOnlyHyd(nSoil),watState),watState) = -(dt/mLayerDepth(nSnow+nLake+nSoil))*dq_dHydStateLayerBotVec(iLayer) + aJac(ixInd(full,ixSoilOnlyHyd(nSoil),watState),watState)
         endif
       end do ! (looping through hydrology states in the soil domain)
 
@@ -834,7 +840,7 @@ subroutine fluxJacAdd(&
         end do ! (looping through snow/lake layers above soil until non-dense layer)
       endif ! (if snow or lake present above soil)
 
-      ! - include derivatives for infiltration into bottom soil layer if there is glacier ice
+      ! - include derivatives for melt infiltration into bottom soil layer if there is glacier ice
       if(nSoil>0 .and. ixSoilOnlyHyd(nSoil)/=integerMissing .and. nGlce>0)then
         do pLayer=nSnow+nLake+nSoil+1,nLayers-noThetaChange
           if(ixSnLaSoGlHyd(pLayer)/=integerMissing)then
@@ -843,13 +849,8 @@ subroutine fluxJacAdd(&
               case(iname_watLayer); convLiq2tot = mLayerFracLiq(pLayer)
               case default;         convLiq2tot = 1._rkind
             end select
-            if(ixSnLaSoGlHyd(pLayer) - ixSoilOnlyHyd(nSoil) <= ku .or. full)then
-              if(pLayer==nSnow+nLake+nSoil+1) then
-                aJac(ixInd(full,ixSoilOnlyHyd(nSoil),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer)) = (dt/mLayerDepth(nSnow+nLake+nSoil))*(-surfaceIceMeltFluxDeriv*convLiq2tot) + aJac(ixInd(full,ixSoilOnlyHyd(nSoil),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer))
-              else
-                aJac(ixInd(full,ixSoilOnlyHyd(nSoil),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer)) = (dt/mLayerDepth(nSnow+nLake+nSoil))*(-iLayerLiqFluxSnLaGlDeriv(pLayer)*convLiq2tot) + aJac(ixInd(full,ixSoilOnlyHyd(nSoil),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer))
-              endif
-            endif
+            if(ixSnLaSoGlHyd(pLayer) - ixSoilOnlyHyd(nSoil) <= ku .or. full) &
+                aJac(ixInd(full,ixSoilOnlyHyd(nSoil),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer)) = (dt/mLayerDepth(nSnow+nLake+nSoil))*(-scalarSoilControlBot*iLayerLiqFluxSnLaGlDeriv(pLayer)*convLiq2tot) + aJac(ixInd(full,ixSoilOnlyHyd(nSoil),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer))
           endif
         end do ! (looping through glacier ice layers below soil)
       endif ! (if glacier ice present below soil)
@@ -947,7 +948,7 @@ subroutine fluxJacAdd(&
               qState = ixSoilOnlyNrg(pLayer)  ! hydrology state index within the state subset
               if(qState/=integerMissing)then
                 if((pLayer<=iLayer .and. watState - qstate <= kl) .or. (pLayer>iLayer .and. qstate - watState <= ku) .or. full) &
-                  aJac(ixInd(full,watState,qState),qState) = (dt/mLayerDepth(jLayer))*dBaseflow_dTk(iLayer,pLayer) + aJac(ixInd(full,watState,qState),qState)
+                    aJac(ixInd(full,watState,qState),qState) = (dt/mLayerDepth(jLayer))*dBaseflow_dTk(iLayer,pLayer) + aJac(ixInd(full,watState,qState),qState)
               endif
             end do
           endif ! (if computed baseflow)
@@ -967,7 +968,13 @@ subroutine fluxJacAdd(&
           ! - include derivatives for surface infiltration below surface
           if(ixSoilOnlyHyd(1)/=integerMissing .and. all(dq_dNrgStateLayerSurfVec/=realMissing))then
             if(nrgState - ixSoilOnlyHyd(1) <= ku .or. full) &
-              aJac(ixInd(full,ixSoilOnlyHyd(1),nrgState),nrgState) = -(dt/mLayerDepth(nSnow+nLake+1))*dq_dNrgStateLayerSurfVec(iLayer) + aJac(ixInd(full,ixSoilOnlyHyd(1),nrgState),nrgState)
+                aJac(ixInd(full,ixSoilOnlyHyd(1),nrgState),nrgState) = -(dt/mLayerDepth(nSnow+nLake+1))*dq_dNrgStateLayerSurfVec(iLayer) + aJac(ixInd(full,ixSoilOnlyHyd(1),nrgState),nrgState)
+          endif
+
+          ! - include derivatives for melt infiltration above bottom
+          if(ixSoilOnlyHyd(nSoil)/=integerMissing .and. all(dq_dNrgStateLayerBotVec/=realMissing))then
+            if(nrgState - ixSoilOnlyHyd(nSoil) <= ku .or. full) &
+                aJac(ixInd(full,ixSoilOnlyHyd(nSoil),nrgState),nrgState) = -(dt/mLayerDepth(nSnow+nLake+1))*dq_dNrgStateLayerBotVec(iLayer) + aJac(ixInd(full,ixSoilOnlyHyd(nSoil),nrgState),nrgState)
           endif
         endif ! (if the energy state for the current layer is within the state subset)
       end do ! (looping through energy states in the soil domain)
@@ -993,17 +1000,12 @@ subroutine fluxJacAdd(&
         end do ! (looping through snow/lake layers above soil until non-dense layer)
       endif ! (if snow or lake present above soil)
 
-      ! - include derivatives for infiltration into bottom soil layer if there is glacier ice
+      ! - include derivatives for melt infiltration into bottom soil layer if there is glacier ice
       if(nSoil>0 .and. ixSoilOnlyHyd(nSoil)/=integerMissing .and. nGlce>0)then
         do pLayer=nSnow+nLake+nSoil+1,nLayers-noThetaChange
           if(ixSnLaSoGlNrg(pLayer)/=integerMissing)then
-            if(ixSnLaSoGlNrg(pLayer) - ixSoilOnlyHyd(nSoil) <= ku .or. full)then
-              if(pLayer==nSnow+nLake+nSoil+1) then
-                aJac(ixInd(full,ixSoilOnlyHyd(nSoil),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer)) = (dt/mLayerDepth(nSnow+nLake+nSoil))*(-surfaceIceMeltFluxDeriv*mLayerdTheta_dTk(pLayer)) + aJac(ixInd(full,ixSoilOnlyHyd(nSoil),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer))
-              else
-                aJac(ixInd(full,ixSoilOnlyHyd(nSoil),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer)) = (dt/mLayerDepth(nSnow+nLake+nSoil))*(-iLayerLiqFluxSnLaGlDeriv(pLayer)*mLayerdTheta_dTk(pLayer)) + aJac(ixInd(full,ixSoilOnlyHyd(nSoil),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer))
-              endif
-            endif
+            if(ixSnLaSoGlNrg(pLayer) - ixSoilOnlyHyd(nSoil) <= ku .or. full) &
+                aJac(ixInd(full,ixSoilOnlyHyd(nSoil),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer)) = (dt/mLayerDepth(nSnow+nLake+nSoil))*(-scalarSoilControlBot*iLayerLiqFluxSnLaGlDeriv(pLayer)*mLayerdTheta_dTk(pLayer)) + aJac(ixInd(full,ixSoilOnlyHyd(nSoil),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer))
           endif
         end do ! (looping through glacier ice layers below soil)
       endif ! (if glacier ice present below soil)

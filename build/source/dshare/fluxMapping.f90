@@ -29,6 +29,8 @@ contains
  USE globalData, only: iname_watSnow    ! named variable defining the total water in the snowpack
  USE globalData, only: iname_watLake    ! named variable defining the total water in the lake
  USE globalData, only: iname_watGlce    ! named variable defining the total water in the glacier ice
+ USE globalData, only: iname_watIce     ! named variable defining the total water in the lake or glacier ice
+
  ! access missing values
  USE globalData,only:integerMissing    ! missing integer
  implicit none
@@ -144,10 +146,10 @@ contains
  ! liquid water fluxes for the snow lake glce domain
  flux2state_orig(iLookFLUX%scalarSnowDrainage)              = flux2state(state1=iname_watLayer,  state2=iname_watSnow)
  flux2state_orig(iLookFLUX%scalarLakeDrainage)              = flux2state(state1=iname_watLayer,  state2=iname_watLake)
- flux2state_orig(iLookFLUX%scalarLakeInflux)                = flux2state(state1=iname_watLayer,  state2=iname_watLake)
- flux2state_orig(iLookFLUX%scalarGlceMelt)                  = flux2state(state1=iname_watLayer,  state2=iname_watGlce)
- flux2state_orig(iLookFLUX%iLayerLiqFluxSnLaGl)             = flux2state(state1=iname_watLayer,  state2=iname_matLayer)
- flux2state_orig(iLookFLUX%mLayerLiqFluxSnLaGl)             = flux2state(state1=iname_watLayer,  state2=iname_matLayer)
+ flux2state_orig(iLookFLUX%scalarGlceMelt)                  = flux2state(state1=iname_watLayer,  state2=iname_watIce)
+ flux2state_orig(iLookFLUX%iLayerLiqFluxSnLaGl)             = flux2state(state1=iname_watLayer,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarSurfaceIceMelt)            = flux2state(state1=iname_watLayer,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%mLayerLiqFluxSnLaGl)             = flux2state(state1=iname_watLayer,  state2=integerMissing)
 
  ! liquid water fluxes for the soil domain
  flux2state_orig(iLookFLUX%scalarRainPlusMelt)              = flux2state(state1=iname_matLayer,  state2=integerMissing)

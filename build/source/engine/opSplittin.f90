@@ -43,6 +43,7 @@ USE globalData,only:iname_watAquifer ! named variable defining the water storage
 USE globalData,only:iname_watSnow    ! named variable defining the total water in the snowpack
 USE globalData,only:iname_watLake    ! named variable defining the total water in the lake
 USE globalData,only:iname_watGlce    ! named variable defining the total water in the glacier ice
+USE globalData,only:iname_watIce     ! named variable defining the total water in the lake or glacier ice
 
 ! global metadata
 USE globalData,only:flux_meta        ! metadata on the model fluxes
@@ -104,7 +105,7 @@ integer(i4b),parameter  :: soilSplit=4                ! order in sequence for th
 integer(i4b),parameter  :: glceSplit=5                ! order in sequence for the ice split
 integer(i4b),parameter  :: aquiferSplit=6             ! order in sequence for the aquifer split
 integer(i4b),parameter  :: iDomainSplit_nrg_map(6) =(/vegSplit,snowSplit,lakeSplit,soilSplit,glceSplit,aquiferSplit/) ! mapping of the energy split order
-integer(i4b),parameter  :: iDomainSplit_mass_map(6)=(/vegSplit,glceSplit,snowSplit,lakeSplit,soilSplit,aquiferSplit/) ! mapping of the mass split order
+integer(i4b),parameter  :: iDomainSplit_mass_map(6)=(/vegSplit,glceSplit,lakeSplit,snowSplit,soilSplit,aquiferSplit/) ! mapping of the mass split order
 
 ! named variables for the solution method
 integer(i4b),parameter  :: vector=1                   ! vector solution method
@@ -1148,6 +1149,7 @@ subroutine opSplittin(&
       if(nSnow==0 .and. flux2state_orig(iVar)%state2 == iname_watSnow) desiredFlux=.false.
       if(nLake==0 .and. flux2state_orig(iVar)%state2 == iname_watLake) desiredFlux=.false.
       if(nGlce==0 .and. flux2state_orig(iVar)%state2 == iname_watGlce) desiredFlux=.false.
+      if((nGlce==0 .and. nLake==0) .and. flux2state_orig(iVar)%state2 == iname_watIce) desiredFlux=.false.      
      end associate
 
      ! make sure firstFluxCall fluxes are included in the mask
@@ -1171,6 +1173,7 @@ subroutine opSplittin(&
         if(nSnow==0 .and. flux2state_liq(iVar)%state2 == iname_watSnow) desiredFlux=.false.
         if(nLake==0 .and. flux2state_liq(iVar)%state2 == iname_watLake) desiredFlux=.false.
         if(nGlce==0 .and. flux2state_liq(iVar)%state2 == iname_watGlce) desiredFlux=.false.
+        if((nGlce==0 .and. nLake==0) .and. flux2state_orig(iVar)%state2 == iname_watIce) desiredFlux=.false.
        case default; err=20; message=trim(message)//'unable to identify split based on state type'; return_flag=.true.; return
       end select
      end associate
@@ -1250,7 +1253,7 @@ subroutine opSplittin(&
                     ! glacier melt changes with the bottom layer if no soil
                     if(iVar==iLookFLUX%scalarGlacierMelt .and. nGlce>0 .and. nSoil==0) fluxMask%var(iVar)%dat = desiredFlux
                   ! other scalar variables in the lake domain change with the surface layer
-                  elseif(iLayer==nSnow+1 .and. iname_watLake==flux2state_liq(iVar)%state2)then
+                  elseif(iLayer==nSnow+1 .and. iname_watLake==flux2state_liq(iVar)%state2 .or. iname_watIce==flux2state_liq(iVar)%state2)then
                     fluxMask%var(iVar)%dat = desiredFlux
                   end if
                 end if
@@ -1271,7 +1274,7 @@ subroutine opSplittin(&
                 if(nGlce>0 .and. iLayer==nSnow+nLake+nSoil+1)then
                   if(iVar==iLookFLUX%scalarGlacierMelt .and. nSnow+nLake+nSoil==0)then
                     fluxMask%var(iVar)%dat = desiredFlux
-                  elseif(iname_watGlce==flux2state_liq(iVar)%state2)then
+                  elseif(iname_watGlce==flux2state_liq(iVar)%state2 .or. iname_watIce==flux2state_liq(iVar)%state2)then
                     fluxMask%var(iVar)%dat = desiredFlux
                   end if
                 end if

@@ -114,6 +114,7 @@ MODULE globalData
   integer(i4b),parameter,public               :: iname_watSnow=3007                 ! named variable defining the water storage in the snowpack  
   integer(i4b),parameter,public               :: iname_watLake=3008                 ! named variable defining the water storage in the lake
   integer(i4b),parameter,public               :: iname_watGlce=3009                 ! named variable defining the water storage in the glacier ice
+  integer(i4b),parameter,public               :: iname_watIce=3010                  ! named variable defining the water storage in the lake or glacier ice
   ! define named variables to describe the form and structure of the band-diagonal matrices used in the numerical solver
   ! NOTE: This indexing scheme provides the matrix structure expected by lapack and sundials. Specifically, they require kl extra rows for additional storage.
   !       Consequently, all indices are offset by kl and the total number of bands for storage is 2*kl+ku+1 instead of kl+ku+1.

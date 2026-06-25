@@ -129,10 +129,11 @@ subroutine snowLakeSoilGlceNrgFlux(&
     dGroundNetFlux_dGroundTemp => io_snowLakeSoilGlceNrgFlux % dGroundNetFlux_dGroundTemp, & ! intent(inout): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
     ! input: liquid water fluxes
     scalarGlceMelt             => in_snowLakeSoilGlceNrgFlux % scalarGlceMelt,             & ! intent(in):    glacier ice melt (m s-1)
-    iLayerLiqFluxSnLaGl        => in_snowLakeSoilGlceNrgFlux % iLayerLiqFluxSnLaGl,        & ! intent(in):    liquid flux at the interface of each snow layer (m s-1)
+    iLayerLiqFluxSnLaGl        => in_snowLakeSoilGlceNrgFlux % iLayerLiqFluxSnLaGl,        & ! intent(in):    liquid flux at the interface of each snow, lake, glce layer (m s-1)
+    scalarSurfaceIceMelt       => in_snowLakeSoilGlceNrgFlux % scalarSurfaceIceMelt,       & ! intent(in):    liquid flux at the top of ice layer (m s-1)
     iLayerLiqFluxSoil          => in_snowLakeSoilGlceNrgFlux % iLayerLiqFluxSoil,          & ! intent(in):    liquid flux at the interface of each soil layer (m s-1)
     ! input: trial model state variables
-    mLayerTempTrial            => in_snowLakeSoilGlceNrgFlux % mLayerTempTrial,            & ! intent(in):     temperature in each layer at the current iteration (m)
+    mLayerTempTrial            => in_snowLakeSoilGlceNrgFlux % mLayerTempTrial,            & ! intent(in):    temperature in each layer at the current iteration (m)
     ! input: derivatives
     dThermalC_dWatAbove        => in_snowLakeSoilGlceNrgFlux % dThermalC_dWatAbove,  & ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
     dThermalC_dWatBelow        => in_snowLakeSoilGlceNrgFlux % dThermalC_dWatBelow,  & ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
@@ -218,9 +219,13 @@ subroutine snowLakeSoilGlceNrgFlux(&
         case(iname_soil);                       qFlux = iLayerLiqFluxSoil(iLayer-nSnow-nLake)
         case default; err=20; message=trim(message)//'unable to identify layer type'; return
       end select
+      ! surface ice melt, propagates upwards and if above layer not coupled, two fluxes here
+      if(mLayerTempTrial(iLayer)<=Tfreeze) then ! can't be unfrozen lake
+        if ((iLayer==nSnow+nLake+nSoil+1 .and. nSoil==0) .or. (iLayer==nSnow+nLake+1 .and. nLake>0)) qFlux = scalarSurfaceIceMelt
+      end if
       if(iLayer==nLayers-noThetaChange .and. zeroFlux_noThetaBdry)then
         iLayerAdvectiveFlux(iLayer) = 0._rkind ! all melt energy absorbed in top layers of glacier ice
-      elseif (iLayer==nLayers) then ! compute fluxes at the lower boundary -- positive downwards
+      elseif(iLayer==nLayers) then ! compute fluxes at the lower boundary -- positive downwards
         iLayerAdvectiveFlux(iLayer) = -Cp_water*iden_water*qFlux*(lowerBoundTemp - mLayerTempTrial(iLayer))
       else ! compute fluxes within the domain -- positive downwards
         iLayerAdvectiveFlux(iLayer) = -Cp_water*iden_water*qFlux*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer))

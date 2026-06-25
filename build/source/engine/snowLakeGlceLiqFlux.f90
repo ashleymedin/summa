@@ -129,7 +129,6 @@ subroutine snowLakeGlceLiqFlux(&
     ! input-output: fluxes and derivatives
     iLayerLiqFluxSnLaGl0      => io_snowLakeGlceLiqFlux % iLayerLiqFluxSnLaGl,           & ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
     iLayerLiqFluxSnLaGlDeriv0 => io_snowLakeGlceLiqFlux % iLayerLiqFluxSnLaGlDeriv,      & ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
-    surfaceIceMeltFluxDeriv   => io_snowLakeGlceLiqFlux % surfaceIceMeltFluxDeriv,       & ! intent(inout): derivative in ice melt flux at top interface
     ! output: error control
     err                    => out_snowLakeGlceLiqFlux % err,                             & ! intent(out):   error code
     message                => out_snowLakeGlceLiqFlux % cmessage                         & ! intent(out):   error message
@@ -226,7 +225,6 @@ subroutine snowLakeGlceLiqFlux(&
           iLayerLiqFluxSnLaGl(iLayer) = iLayerLiqFluxSnLaGl(iLayer+1) + iLayerLiqFluxSnLaGl(iLayer)
         end if
       end do  ! end loop through glacier ice layers
-      surfaceIceMeltFluxDeriv = iLayerLiqFluxSnLaGlDeriv(0) ! if we have a frozen supraglacial lake, then this won't be uniquely defined (unlikely problem)
     end if  ! end if snow or ice
     if(ixBot==nLayers)then
       iLayerLiqFluxSnLaGl(nLayers) = iLayerLiqFluxSnLaGl(nLayers) + bottom_flux   ! set the bottom flux if already computed

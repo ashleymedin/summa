@@ -112,11 +112,11 @@ subroutine soilLiqFlux(&
   ! input: model control, trial state variables, derivatives, and fluxes
   type(in_type_soilLiqFlux),intent(in)    :: in_soilLiqFlux              ! model control, trial state variables, derivatives, and fluxes
   ! input-output: data structures
-  type(var_dlength),intent(in)           :: mpar_data                  ! model parameters
-  type(var_ilength),intent(in)           :: indx_data                  ! state vector geometry
-  type(var_dlength),intent(in)           :: prog_data                  ! prognostic variables for a local HRU
-  type(var_dlength),intent(inout)        :: diag_data                  ! diagnostic variables for a local HRU
-  type(var_dlength),intent(inout)        :: flux_data                  ! model fluxes for a local HRU
+  type(var_dlength),intent(in)            :: mpar_data                   ! model parameters
+  type(var_ilength),intent(in)            :: indx_data                   ! state vector geometry
+  type(var_dlength),intent(in)            :: prog_data                   ! prognostic variables for a local HRU
+  type(var_dlength),intent(inout)         :: diag_data                   ! diagnostic variables for a local HRU
+  type(var_dlength),intent(inout)         :: flux_data                   ! model fluxes for a local HRU
   ! input-output: diagnostic variables, fluxes, and derivatives
   type(io_type_soilLiqFlux),intent(inout) :: io_soilLiqFlux              ! diagnostic variables, fluxes, and derivatives
   ! output: error control
