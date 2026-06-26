@@ -173,7 +173,7 @@ contains
 
  ! compute the fraction of roots in each soil layer
  rootingDepth_use = rootingDepth
- if(nGlce>0) rootingDepth_use = min(rootingDepth,iLayerHeight(nSnow+nLake+nSoil)) ! ensure that rooting depth does not exceed soil depth since no aquifer allowed with glaciers
+ if(nGlce>0) rootingDepth_use = iLayerHeight(nSnow+nLake+nSoil) ! rooting depth is soil depth if glacier debris
  do iLayer=(nSnow+nLake+1),(nSnow+nLake+nSoil)
   iSoil = iLayer-nSnow-nLake
   ! different options for the rooting profile

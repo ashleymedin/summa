@@ -474,6 +474,7 @@ subroutine coupled_em(&
     ! compute the number of layers with roots or layers that take infiltration
     if(nSoil>0)then
       nLayersRoots = count(prog_data%var(iLookPROG%iLayerHeight)%dat(nSnow+nLake:(nSnow+nLake+nSoil-1)) < mpar_data%var(iLookPARAM%rootingDepth)%dat(1)-verySmall)
+      if(nGlce>0) nLayersRoots = nSoil ! if glacier ice exists, then all soil layers are considered to have roots
       if(nLayersRoots==0)then
         message=trim(message)//'no roots within the soil profile'
         err=20; return

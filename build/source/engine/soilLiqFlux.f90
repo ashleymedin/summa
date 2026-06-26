@@ -207,6 +207,7 @@ contains
    message      => out_soilLiqFlux % cmessage                     & ! intent(out): error message
   &)
    nRoots = count(iLayerHeight(0:nSoil-1) < rootingDepth-verySmall)
+   if(nGlce>0) nRoots = nSoil ! if glacier ice exists, then all soil layers are considered to have roots
    if(nRoots==0)then; message=trim(message)//'no layers with roots/infiltration'; err=20; return_flag=.true.; return; end if
   end associate
 
@@ -521,25 +522,28 @@ contains
 
  subroutine finalize_compute_drainage_flux(out_qDrainFlux)
   ! **** finalize operations for compute_drainage_flux ****
-  type(out_type_qDrainFlux),intent(out) :: out_qDrainFlux
+  type(out_type_qDrainFlux),intent(in) :: out_qDrainFlux
   associate(&
-   ! fluxes
-   scalarMeltInfiltration => io_soilLiqFlux % scalarMeltInfiltration, & ! glacier melt infiltration up into soil (m s-1)
-   scalarDrainage => out_qDrainFlux % scalarDrainage,       & ! drainage flux from the bottom of the soil profile (m s-1)
-   ! derivatives in flux w.r.t. ...
-   dq_dHydStateBelow => io_soilLiqFlux % dq_dHydStateBelow, & ! ... hydrology state variables in the layer below
-   dq_dNrgStateBelow => io_soilLiqFlux % dq_dNrgStateBelow, & ! ... temperature in the layer below (m s-1 K-1)
-   ! error control
-   err     => out_soilLiqFlux % err,                        & ! error code
-   message => out_soilLiqFlux % cmessage                    & ! error message
+   err     => out_soilLiqFlux % err,                       & ! error code
+   message => out_soilLiqFlux % cmessage                   & ! error message
   &)
-   ! no dependence on the aquifer for drainage, couple to ice layer if it exists
-   ! NOTE: could also couple aquifer flux as glacier and aquifer do not exist at the same time, but that is not implemented yet
-   scalarDrainage = scalarDrainage + scalarMeltInfiltration
-   dq_dHydStateBelow(nSoil) = 0._rkind ! will be calculated in computJacob
-   dq_dNrgStateBelow(nSoil) = 0._rkind ! will be calculated in computJacob
    call out_qDrainFlux % finalize(nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
+  end associate
+
+  ! glacier ice melt infiltration at bottom of soil profile but currently no dependence on the aquifer for drainage
+  associate(&
+   ! flux
+   scalarMeltInfiltration => io_soilLiqFlux % scalarMeltInfiltration, & ! intent(in): melt infiltration (m s-1)
+   iLayerLiqFluxSoil      => io_soilLiqFlux % iLayerLiqFluxSoil,      & ! liquid flux at soil layer interfaces (m s-1)
+    ! derivatives in flux w.r.t. ...
+   dq_dHydStateBelow => io_soilLiqFlux % dq_dHydStateBelow, & ! ... hydrology state variables in the layer below
+   dq_dNrgStateBelow => io_soilLiqFlux % dq_dNrgStateBelow  & ! ... temperature in the layer below (m s-1 K-1)
+  &)
+   ! NOTE: could also couple aquifer flux as glacier and aquifer do not exist at the same time, but that is not implemented
+   iLayerLiqFluxSoil(nSoil) = iLayerLiqFluxSoil(nSoil) + scalarMeltInfiltration
+   dq_dHydStateBelow(nSoil) = 0._rkind ! will be calculated in computJacob
+   dq_dNrgStateBelow(nSoil) = 0._rkind ! will be calculated in computJacob
   end associate
  end subroutine finalize_compute_drainage_flux
 end subroutine soilLiqFlux
@@ -2113,7 +2117,7 @@ contains
    theta_res       => in_qDrainFlux % theta_res      , &      ! soil residual volumetric water content (-)
    ! output: hydraulic conductivity at the bottom of the unsaturated zone
    bottomHydCond => out_qDrainFlux % bottomHydCond, &         ! hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
-   bottomDiffuse => out_qDrainFlux % bottomDiffuse, &         ! hydraulic diffusivity at the bottom of the unsatuarted zone (m2 s-1)
+   bottomDiffuse => out_qDrainFlux % bottomDiffuse, &         ! hydraulic diffusivity at the bottom of the unsaturated zone (m2 s-1)
    ! output: drainage flux from the bottom of the soil profile
    scalarDrainage => out_qDrainFlux % scalarDrainage, &       ! drainage flux from the bottom of the soil profile (m s-1)
    ! output: derivatives in drainage flux w.r.t. ...

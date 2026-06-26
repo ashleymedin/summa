@@ -980,7 +980,7 @@ MODULE data_types
  type, public :: out_type_qDrainFlux ! intent(out) data
    ! output: hydraulic conductivity at the bottom of the unsaturated zone
    real(rkind) :: bottomHydCond      ! hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
-   real(rkind) :: bottomDiffuse      ! hydraulic diffusivity at the bottom of the unsatuarted zone (m2 s-1)
+   real(rkind) :: bottomDiffuse      ! hydraulic diffusivity at the bottom of the unsaturated zone (m2 s-1)
    ! output: drainage flux from the bottom of the soil profile
    real(rkind) :: scalarDrainage     ! drainage flux from the bottom of the soil profile (m s-1)
    ! output: derivatives in drainage flux
@@ -1554,14 +1554,14 @@ contains
    iLayerLiqFluxSoil    => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat,     & ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
    mLayerTranspire      => flux_data%var(iLookFLUX%mLayerTranspire)%dat,       & ! intent(out): [dp(:)] transpiration loss from each soil layer (m s-1)
    mLayerHydCond        => flux_data%var(iLookFLUX%mLayerHydCond)%dat          ) ! intent(out): [dp(:)]  hydraulic conductivity in each soil layer (m s-1)
-   io_soilLiqFlux % mLayerdTheta_dPsi  =mLayerdTheta_dPsi        ! intent(inout): derivative in liquid water content w.r.t. matric potential (m-1)
-   io_soilLiqFlux % mLayerdPsi_dTheta  =mLayerdPsi_dTheta        ! intent(inout): derivative in matric potential w.r.t. liquid water content (m)
-   io_soilLiqFlux % dHydCond_dMatric   =dHydCond_dMatric         ! intent(inout): derivative in hydraulic conductivity w.r.t matric head (s-1)
-   io_soilLiqFlux % scalarInfiltration =scalarInfiltration       ! intent(inout): surface infiltration rate (m s-1)
+   io_soilLiqFlux % mLayerdTheta_dPsi      =mLayerdTheta_dPsi      ! intent(inout): derivative in liquid water content w.r.t. matric potential (m-1)
+   io_soilLiqFlux % mLayerdPsi_dTheta      =mLayerdPsi_dTheta      ! intent(inout): derivative in matric potential w.r.t. liquid water content (m)
+   io_soilLiqFlux % dHydCond_dMatric       =dHydCond_dMatric       ! intent(inout): derivative in hydraulic conductivity w.r.t matric head (s-1)
+   io_soilLiqFlux % scalarInfiltration     =scalarInfiltration     ! intent(inout): surface infiltration rate (m s-1)
    io_soilLiqFlux % scalarMeltInfiltration =scalarMeltInfiltration ! intent(inout): melt infiltration rate (m s-1)
-   io_soilLiqFlux % iLayerLiqFluxSoil  =iLayerLiqFluxSoil        ! intent(inout): liquid fluxes at layer interfaces (m s-1)
-   io_soilLiqFlux % mLayerTranspire    =mLayerTranspire          ! intent(inout): transpiration loss from each soil layer (m s-1)
-   io_soilLiqFlux % mLayerHydCond      =mLayerHydCond            ! intent(inout): hydraulic conductivity in each layer (m s-1)
+   io_soilLiqFlux % iLayerLiqFluxSoil      =iLayerLiqFluxSoil      ! intent(inout): liquid fluxes at layer interfaces (m s-1)
+   io_soilLiqFlux % mLayerTranspire        =mLayerTranspire        ! intent(inout): transpiration loss from each soil layer (m s-1)
+   io_soilLiqFlux % mLayerHydCond          =mLayerHydCond          ! intent(inout): hydraulic conductivity in each layer (m s-1)
   end associate
 
   ! intent(inout) arguments: flux and surface infiltration derivatives
@@ -1961,7 +1961,6 @@ contains
    in_surfaceFlux % ixInfRateMax   = ixInfRateMax            ! index defining the maximum infiltration rate parameterization (GreenAmpt or topmodel_GA)
    in_surfaceFlux % surfRun_SE     = surfRun_SE              ! index defining the saturation excess surface runoff method
    in_surfaceFlux % nRoots         = nRoots                  ! number of layers that contain roots
-   if(nGlce > 0) in_surfaceFlux % nRoots = nSoil ! make all glacier debris layers take infiltration
    in_surfaceFlux % ixIce          = ixIce                   ! index of lowest ice layer
    in_surfaceFlux % nSoil          = nSoil                   ! number of soil layers
    in_surfaceFlux % nGlce          = nGlce                   ! number of glacier ice layers
@@ -2373,8 +2372,8 @@ contains
    dq_dNrgStateAbove => io_soilLiqFlux % dq_dNrgStateAbove & ! ... temperature in the layer above (m s-1 K-1)
   &)
    ! intent(out): hydraulic conductivity and diffusivity at the surface
-   iLayerHydCond(nSoil) = out_qDrainFlux % bottomHydCond ! hydraulic conductivity at the bottom of the unsatuarted zone (m s-1)
-   iLayerDiffuse(nSoil) = out_qDrainFlux % bottomDiffuse ! hydraulic diffusivity at the bottom of the unsatuarted zone (m2 s-1)
+   iLayerHydCond(nSoil) = out_qDrainFlux % bottomHydCond ! hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
+   iLayerDiffuse(nSoil) = out_qDrainFlux % bottomDiffuse ! hydraulic diffusivity at the bottom of the unsaturated zone (m2 s-1)
    ! intent(out): drainage flux
    iLayerLiqFluxSoil(nSoil) = out_qDrainFlux % scalarDrainage ! drainage flux (m s-1) 
    ! intent(out): derivatives in drainage flux w.r.t. ...
