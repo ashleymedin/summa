@@ -17,7 +17,7 @@ module load netcdf-fortran/4.6.1
 #module load netcdf-fortran/4.5.3
 
 # Actors install of sundials
-#export SUNDIALS_DIR="$CMAKE_PREFIX_PATH:$HOME/Summa-Actors/utils/dependencies/sundials/"
+#export SUNDIALS_DIR="$CMAKE_PREFIX_PATH:$HOME/Summa-Actors/utils/dependencies/install/sundials/"
 #
 # Regular install of sundials
 export SUNDIALS_DIR=$HOME/SummaSundials/sundials/instdir/

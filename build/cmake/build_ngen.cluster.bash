@@ -36,7 +36,7 @@ export DPython_NumPy_INCLUDE_DIR
 
 #export FLAGS_OPT="-flto=1"                                   # -flto=1 is slow to compile, but might want to use
 
-export SUNDIALS_DIR="$CMAKE_PREFIX_PATH:$HOME/Summa-Actors/utils/dependencies/sundials/"
+export SUNDIALS_DIR="$CMAKE_PREFIX_PATH:$HOME/Summa-Actors/utils/dependencies/install/sundials/"
 
 # Build SUMMA NGEN below
 cmake -B extern/iso_c_fortran_bmi/cmake_build -S extern/iso_c_fortran_bmi
