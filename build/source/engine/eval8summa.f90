@@ -1061,8 +1061,8 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           elseif(xInc(ixSnLaSoGlHyd(iLayer)) > 1._rkind - scalarIce - scalarLiq)then
             xInc(ixSnLaSoGlHyd(iLayer)) = 0.5_rkind*(1._rkind - scalarIce - scalarLiq)
           endif
-        end do ! (looping through lake layers)
-      endif ! (if there are state variables for liquid water in the lake domain)
+        end do ! (looping through snow, lake, glce layers)
+      endif ! (if there are state variables for liquid water in the snow, lake,  domain)
        
       ! impose bounds for soil water, change in total water is only due to liquid flux
       if(nSoilOnlyHyd>0)then
