@@ -797,7 +797,7 @@ MODULE data_types
  type, public :: out_type_qDrainFlux ! intent(out) data
    ! output: hydraulic conductivity at the bottom of the unsaturated zone
    real(rkind) :: bottomHydCond      ! hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
-   real(rkind) :: bottomDiffuse      ! hydraulic diffusivity at the bottom of the unsatuarted zone (m2 s-1)
+   real(rkind) :: bottomDiffuse      ! hydraulic diffusivity at the bottom of the unsaturated zone (m2 s-1)
    ! output: drainage flux from the bottom of the soil profile
    real(rkind) :: scalarDrainage     ! drainage flux from the bottom of the soil profile (m s-1)
    ! output: derivatives in drainage flux
@@ -2134,8 +2134,8 @@ contains
    dq_dNrgStateAbove => io_soilLiqFlux % dq_dNrgStateAbove & ! ... temperature in the layer above (m s-1 K-1)
   &)
    ! intent(out): hydraulic conductivity and diffusivity at the surface
-   iLayerHydCond(nSoil) = out_qDrainFlux % bottomHydCond ! hydraulic conductivity at the bottom of the unsatuarted zone (m s-1)
-   iLayerDiffuse(nSoil) = out_qDrainFlux % bottomDiffuse ! hydraulic diffusivity at the bottom of the unsatuarted zone (m2 s-1)
+   iLayerHydCond(nSoil) = out_qDrainFlux % bottomHydCond ! hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
+   iLayerDiffuse(nSoil) = out_qDrainFlux % bottomDiffuse ! hydraulic diffusivity at the bottom of the unsaturated zone (m2 s-1)
    ! intent(out): drainage flux
    iLayerLiqFluxSoil(nSoil) = out_qDrainFlux % scalarDrainage    ! drainage flux (m s-1)
    ! intent(out): derivatives in drainage flux w.r.t. ...

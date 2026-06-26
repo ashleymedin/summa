@@ -2064,7 +2064,7 @@ contains
    theta_res       => in_qDrainFlux % theta_res      , &      ! soil residual volumetric water content (-)
    ! output: hydraulic conductivity at the bottom of the unsaturated zone
    bottomHydCond => out_qDrainFlux % bottomHydCond, &         ! hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
-   bottomDiffuse => out_qDrainFlux % bottomDiffuse, &         ! hydraulic diffusivity at the bottom of the unsatuarted zone (m2 s-1)
+   bottomDiffuse => out_qDrainFlux % bottomDiffuse, &         ! hydraulic diffusivity at the bottom of the unsaturated zone (m2 s-1)
    ! output: drainage flux from the bottom of the soil profile
    scalarDrainage => out_qDrainFlux % scalarDrainage, &       ! drainage flux from the bottom of the soil profile (m s-1)
    ! output: derivatives in drainage flux w.r.t. ...
