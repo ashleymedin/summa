@@ -866,7 +866,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
   
     ! identify which constraints to impose
     select case(ixNumericalMethod)
-    case(ida); err=20; message=trim(message)//'should not be imposing constraints for IDA solver'; return
+      case(ida); err=20; message=trim(message)//'should not be imposing constraints for IDA solver'; return
       case(kinsol)
         small_delTemp       = .true.      ! flag to constain temperature change to be less than zMaxTempIncrement
         zMaxTempIncrement   = 10._rkind   ! maximum temperature increment (K)
