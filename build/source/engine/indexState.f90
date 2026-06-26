@@ -205,7 +205,8 @@ contains
  ixAllState   = arth(1,1,nState)
  ! remove no water state variables from the list of all state variables, keep at integerMissing
  if(noThetaChange>0) ixAllState(arth(ixTopWat + nVarSnLaSoGl*(nLayers-noThetaChange),nVarSnLaSoGl,noThetaChange)) = integerMissing
- ixSoilState  = arth(1,1,nSoil)
+ ixSoilState = integerMissing
+ if(nSoil>0) ixSoilState  = arth(1,1,nSoil)
  ixLayerState = arth(1,1,nLayers)
 
  ! define the state type for the vegetation canopy

@@ -808,7 +808,7 @@ subroutine fluxJacAdd(&
 
         ! - include derivatives for melt infiltration above bottom
         if(ixSoilOnlyHyd(nSoil)/=integerMissing .and. all(dq_dHydStateLayerBotVec/=realMissing))then
-           if(watState - ixSoilOnlyHyd(nSoil) <= ku .or. full) &
+           if(ixSoilOnlyHyd(nSoil) - watState <= kl .or. full) &
              aJac(ixInd(full,ixSoilOnlyHyd(nSoil),watState),watState) = -(dt/mLayerDepth(nSnow+nLake+nSoil))*dq_dHydStateLayerBotVec(iLayer) + aJac(ixInd(full,ixSoilOnlyHyd(nSoil),watState),watState)
         endif
       end do ! (looping through hydrology states in the soil domain)
@@ -973,7 +973,7 @@ subroutine fluxJacAdd(&
 
           ! - include derivatives for melt infiltration above bottom
           if(ixSoilOnlyHyd(nSoil)/=integerMissing .and. all(dq_dNrgStateLayerBotVec/=realMissing))then
-            if(nrgState - ixSoilOnlyHyd(nSoil) <= ku .or. full) &
+            if(ixSoilOnlyHyd(nSoil) - nrgState <= kl .or. full) &
                 aJac(ixInd(full,ixSoilOnlyHyd(nSoil),nrgState),nrgState) = -(dt/mLayerDepth(nSnow+nLake+1))*dq_dNrgStateLayerBotVec(iLayer) + aJac(ixInd(full,ixSoilOnlyHyd(nSoil),nrgState),nrgState)
           endif
         endif ! (if the energy state for the current layer is within the state subset)
