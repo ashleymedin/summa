@@ -454,7 +454,7 @@ contains
  end if
 
  ! Allocate the mapping arrays
- allocate(index_to_gruid(fileGRU), index_to_hrunc(fileGRU,maxval(gru_struc(:)%hruCount)), index_to_glacid(fileGRU,maxGlaciers))
+ allocate(index_to_gruid(nGRU), index_to_hrunc(nGRU,maxval(gru_struc(:)%hruCount)), index_to_glacid(nGRU,maxGlaciers))
 
  ! Populate the mapping arrays
  if(has_gru_id .and. has_hru_id)then
