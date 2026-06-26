@@ -893,7 +893,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
       case(homegrown)
         small_delTemp       = .true.      ! flag to constain temperature change to be less than zMaxTempIncrement
         zMaxTempIncrement   = 10._rkind   ! maximum temperature increment (K)
-        small_delMatric     = .true.      ! flag to constain matric head change to be less than zMaxMatricIncrement
+        small_delMatric     = .false.      ! flag to constain matric head change to be less than zMaxMatricIncrement
         zMaxMatricIncrement = 10._rkind   ! maximum matric head increment (m)
         detect_events       = .true.      ! flag to do freezing point event detection and cross-over with epsT
         epsT                = 1.e-7_rkind ! small interval above/below critical (K)
@@ -1057,6 +1057,12 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           if(ixStateType_subset( ixSnLaSoGlHyd(iLayer) ) == iname_watLayer .and. jLayer> nSnow) iceFlux_possible = 1._rkind
           ! checking if drain more than what is available or add more than possible, constrained iteration increment -- simplified bi-section
           if(-xInc(ixSnLaSoGlHyd(iLayer)) > scalarLiq + scalarIce*iceFlux_possible) then
+            ! THIS is prob, in top snow layer with soil water below freezing, and the snow is melting, so the snow liquid content is going negative, 
+            ! but the soil is frozen, so the snow melt water cannot infiltrate into the soil, bottom snow layers are not melting
+            ! more layers should melt? snow should be less dense? if too much air, then get rid of it?
+            ! This is a problem with the model physics, but we can constrain the snow water content to be non-negative.
+            ! or, do we need a slush layer to hold the snow melt water until it can infiltrate into the soil?
+           print*, "imposeConstraints: warning, snow/lake/glce water increment exceeds physical bounds, layer=",iLayer," xInc=",xInc(ixSnLaSoGlHyd(iLayer))," scalarIce=",scalarIce," scalarLiq=",scalarLiq, -0.5_rkind*(scalarLiq + scalarIce*iceFlux_possible)
             xInc(ixSnLaSoGlHyd(iLayer)) = -0.5_rkind*(scalarLiq + scalarIce*iceFlux_possible)
           elseif(xInc(ixSnLaSoGlHyd(iLayer)) > 1._rkind - scalarIce - scalarLiq)then
             xInc(ixSnLaSoGlHyd(iLayer)) = 0.5_rkind*(1._rkind - scalarIce - scalarLiq)
