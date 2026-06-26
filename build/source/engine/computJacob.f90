@@ -327,8 +327,8 @@ subroutine computJacob(&
           if(ixRichards==mixdform)then
             aJac(ixInd(full,nrgState,watState),watState) = mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) + dVolHtCapBulk_dPsi0(iLayer) * mLayerdTemp_dt(jLayer) &
                                                           + dCm_dPsi0(iLayer) * mLayerdWat_dt(jLayer) + aJac(ixInd(full,nrgState,watState),watState)
-            if(mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind))& ! ice is present
-              aJac(ixInd(full,nrgState,watState),watState) = -LH_fus*iden_water * dVolTot_dPsi0(iLayer) + aJac(ixInd(full,nrgState,watState),watState)   ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
+            if(mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind)) & ! ice is present
+               aJac(ixInd(full,nrgState,watState),watState) = -LH_fus*iden_water * dVolTot_dPsi0(iLayer) + aJac(ixInd(full,nrgState,watState),watState)   ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
           elseif(ixRichards==moisture)then
             aJac(ixInd(full,nrgState,watState),watState) = mLayerCm(jLayer) + dVolHtCapBulk_dTheta(jLayer) * mLayerdTemp_dt(jLayer) &
                                                           + aJac(ixInd(full,nrgState,watState),watState)
@@ -707,7 +707,7 @@ subroutine fluxJacAdd(&
             qState = ixSoilOnlyHyd(pLayer)  ! hydrology state index within the state subset
             if(qState/=integerMissing)then
               if((pLayer<=iLayer .and. watState - qstate <= kl) .or. (pLayer>iLayer .and. qstate - watState <= ku) .or. full) &
-                aJac(ixInd(full,watState,qState),qState) = (dt/mLayerDepth(jLayer))*dBaseflow_dWat(iLayer,pLayer) + aJac(ixInd(full,watState,qState),qState)
+                  aJac(ixInd(full,watState,qState),qState) = (dt/mLayerDepth(jLayer))*dBaseflow_dWat(iLayer,pLayer) + aJac(ixInd(full,watState,qState),qState)
             endif
           end do
         endif ! (if computed baseflow)
@@ -831,7 +831,7 @@ subroutine fluxJacAdd(&
               qState = ixSoilOnlyNrg(pLayer)  ! hydrology state index within the state subset
               if(qState/=integerMissing)then
                 if((pLayer<=iLayer .and. watState - qstate <= kl) .or. (pLayer>iLayer .and. qstate - watState <= ku) .or. full) &
-                  aJac(ixInd(full,watState,qState),qState) = (dt/mLayerDepth(jLayer))*dBaseflow_dTk(iLayer,pLayer) + aJac(ixInd(full,watState,qState),qState)
+                    aJac(ixInd(full,watState,qState),qState) = (dt/mLayerDepth(jLayer))*dBaseflow_dTk(iLayer,pLayer) + aJac(ixInd(full,watState,qState),qState)
               endif
             end do
           endif ! (if computed baseflow)
