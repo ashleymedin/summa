@@ -522,10 +522,6 @@ contains
  subroutine finalize_compute_drainage_flux(out_qDrainFlux)
   ! **** finalize operations for compute_drainage_flux ****
   type(out_type_qDrainFlux),intent(out) :: out_qDrainFlux
-  ! local variables
-  real(rkind) :: scalarInfilArea_unfrozen ! infiltration area that is not frozen
-
-  ! no dependence on the aquifer for drainage, couple to ice layer if it exists
   associate(&
    ! fluxes
    scalarMeltInfiltration => io_soilLiqFlux % scalarMeltInfiltration, & ! glacier melt infiltration up into soil (m s-1)
@@ -537,6 +533,7 @@ contains
    err     => out_soilLiqFlux % err,                        & ! error code
    message => out_soilLiqFlux % cmessage                    & ! error message
   &)
+   ! no dependence on the aquifer for drainage, couple to ice layer if it exists
    ! NOTE: could also couple aquifer flux as glacier and aquifer do not exist at the same time, but that is not implemented yet
    scalarDrainage = scalarDrainage + scalarMeltInfiltration
    dq_dHydStateBelow(nSoil) = 0._rkind ! will be calculated in computJacob
