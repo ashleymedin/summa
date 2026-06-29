@@ -100,7 +100,7 @@ contains
 
 
  ! *********************************************************************************************************
- ! * private subroutine computGradient: compute the gradient of the function
+ ! * public subroutine computGradient: compute the gradient of the function
  ! *********************************************************************************************************
  subroutine computGradient(ixMatrix,nState,aJac,rVec,grad,err,message)
  implicit none
