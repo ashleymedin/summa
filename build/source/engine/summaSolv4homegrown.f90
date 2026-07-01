@@ -1135,7 +1135,7 @@ contains
   real(rkind),dimension(mSoil) :: psiScale                    ! scaling factor for matric head
   real(rkind),parameter        :: xSmall=1.e-0_rkind          ! a small offset
   real(rkind),parameter        :: scalarTighten=0.1_rkind     ! scaling factor for the scalar solution
-  real(rkind)                  :: soilWatbalErr               ! error in the soil water balance
+  real(rkind)                  :: soilWatBalErr               ! error in the soil water balance
   real(rkind)                  :: canopy_max                  ! absolute value of the residual in canopy water (kg m-2)
   real(rkind),dimension(1)     :: energy_max                  ! maximum absolute value of the energy residual (J m-3)
   real(rkind),dimension(1)     :: liquid_max                  ! maximum absolute value of the volumetric liquid water content residual (-)
@@ -1217,9 +1217,9 @@ contains
    ! check convergence based on the soil water balance error (m)
    if (size(ixMatOnly)>0) then
     soilWatBalErr = sum( real(rVec(ixMatOnly), rkind)*mLayerDepth(nSnow+ixMatricHead) )
-    watbalConv    = (abs(soilWatbalErr) < absConvTol_liquid)  ! absolute error in total soil water balance (m)
+    watbalConv    = (abs(soilWatBalErr) < absConvTol_liquid)  ! absolute error in total soil water balance (m)
    else
-    soilWatbalErr = realMissing
+    soilWatBalErr = realMissing
     watbalConv    = .true.
    end if
 
