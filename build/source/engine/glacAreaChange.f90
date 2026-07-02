@@ -296,10 +296,10 @@ subroutine glacAreaChange(&
       do i = 1, validCount(dbr+1)-1 ! point 1 is the highest elevation
         slope(i+1,dbr+1)= (validMassChange(i+1,dbr+1) - validMassChange(i,dbr+1)) / (validElev(i+1,dbr+1) - validElev(i,dbr+1))
         intercept(i+1,dbr+1) = validMassChange(i,dbr+1) - slope(i+1,dbr+1) * validElev(i,dbr+1)
-        if(validMassChange(i,dbr+1) >= 0._rkind) ind = i ! find the index of the last positive mass balance point
+        if(validMassChange(i,dbr+1) >= 0._rkind) ind = i+1 ! find the index of the first negative mass balance point
       enddo
-      if(ind == validCount(dbr+1)-1) ind = validCount(dbr+1)+1 ! all domains accumulation, extrapolate below lowest point
-      if(ind == 0) ind = 1 ! all domains ablation, extrapolate above highest point
+      if(ind == validCount(dbr+1) .and. validMassChange(validCount(dbr+1),dbr+1) >= 0._rkind) ind = validCount(dbr+1)+1 ! all domains accumulation
+      if(ind == 0) ind = 1 ! all domains ablation
       slope(1,dbr+1) = slope(2,dbr+1)
       intercept(1,dbr+1) = intercept(2,dbr+1)
       if(slope(1,dbr+1)<0._rkind)then ! don't propogate mass balance inversions

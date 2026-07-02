@@ -886,8 +886,8 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
         small_delTemp       = .true.      ! flag to constain temperature change to be less than zMaxTempIncrement
         zMaxTempIncrement   = 10._rkind   ! maximum temperature increment (K)
         small_delMatric     = .true.      ! flag to constain matric head change to be less than zMaxMatricIncrement
+        if(nGlce>0 .or. nLake>0) small_delMatric = .false. ! no matric head constraint for saturated glacier debris or lake soil 
         zMaxMatricIncrement = 10._rkind   ! maximum matric head increment (m)
-        if(nGlce>0 .or. nLake>0) zMaxMatricIncrement = 100._rkind ! increase matric head increment (m) bigger for saturated glacier debris or lake soil 
         detect_events       = .true.      ! flag to do freezing point event detection and cross-over with epsT, works best if on
         epsT                = 1.e-7_rkind ! small interval above/below critical (K), works better if larger
         water_bounds        = .true.      ! flag to force water bounds, works best if on
@@ -895,8 +895,8 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
         small_delTemp       = .true.      ! flag to constain temperature change to be less than zMaxTempIncrement
         zMaxTempIncrement   = 10._rkind   ! maximum temperature increment (K)
         small_delMatric     = .true.      ! flag to constain matric head change to be less than zMaxMatricIncrement
+        if(nGlce>0 .or. nLake>0) small_delMatric = .false. ! no matric head constraint for saturated glacier debris or lake soil 
         zMaxMatricIncrement = 10._rkind   ! maximum matric head increment (m)
-        if(nGlce>0 .or. nLake>0) zMaxMatricIncrement = 100._rkind ! increase matric head increment (m) bigger for saturated glacier debris or lake soil 
         detect_events       = .true.      ! flag to do freezing point event detection and cross-over with epsT
         epsT                = 1.e-7_rkind ! small interval above/below critical (K)
         water_bounds        = .true.      ! flag to force water bounds
