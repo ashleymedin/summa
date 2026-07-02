@@ -320,6 +320,16 @@ subroutine glacAreaChange(&
         if(ind == validCount(dbr+1)) ELA_elev(dbr+1) = -1.e6_rkind ! ended in inversion and all domains are accumulation
       endif
     endif
+    ! debugging print
+    if(printFlag)then
+      do i = 1, validCount(dbr+1)
+        write(*,'(a,i1,a,2(1x,f7.1),a,2(1x,e9.2))') "Debris presence ", dbr, "   Valid sorted elevation, mass change =", validElev(i,dbr+1), validMassChange(i,dbr+1), &
+                "   slope, intercept = ", slope(i,dbr+1), intercept(i,dbr+1)
+      enddo
+      write(*,'(a,i1,a,a,2(1x,e9.2))') "Debris presence ", dbr, "   Valid sorted elevation, mass change = xxxxxxx xxxxxxx", &
+                "   slope, intercept = ", slope(i+1,dbr+1), intercept(i+1,dbr+1)
+      write(*,'(a,i4,a,i8)') "Index for ELA = ", ind, " ELA elevation = ", int(ELA_elev(dbr+1))
+    endif
   enddo ! end of loop for debris elevation relationships 
   ELA_use = ELA_elev(1) ! default to clean ablation ELA
   if(ELA_use<0._rkind)then ! no clean ablation
@@ -329,10 +339,9 @@ subroutine glacAreaChange(&
   ! debugging print
   if(printFlag)then
     do i = 1, nDOM
-      write(*,'(a,2(1x,f8.2),1x,f5.2,1x,f8.1)') "Original domain elevation (m), dom_area (km2), debris depth (m), mass change (kg m-2) =",&
+      write(*,'(a,1x,f7.1,1x,f4.1,1x,f5.2,1x,f7.1)') "Original domain elevation (m), dom_area (km2), debris depth (m), mass change (kg m-2) =",&
             dom_elev(i), dom_area(i)*1.e-6_rkind, dom_debris_thick(i), dom_massChange(i)
     enddo
-    write(*,'(a,i8)') "ELA used (m) = ",int(ELA_use)
   endif
 
   ! Initialize new domain vars (would have to have some glacier area to get here so okay to reset, will be recalculated)
@@ -779,11 +788,11 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
   ! debugging print
   if(printFlag)then 
     if(count(H>thick4area)>0_i4b)&
-        write(*,'(a,f4.2,a,2(1x,f6.1),a,2(1x,f6.2))') " time (yr) = ", t/secprday/365.25_rkind, " mean max H (m) =", &
+        write(*,'(a,f4.2,a,2(1x,f6.1),a,2(1x,f6.2))') "  time (yr) = ", t/secprday/365.25_rkind, " mean max H (m) =", &
               sum(H)/count(H>thick4area), maxval(H), ", mean max debris (m) =", sum(debris)/count(H>thick4area), maxval(debris)
   endif
   if(count(H>thick4area)==0_i4b)then
-    if(printFlag) write(*,'(a,f4.2,a)') " time (yr) = ", t/secprday/365.25_rkind, " no glacier present"
+    if(printFlag) write(*,'(a,f4.2,a)') "  time (yr) = ", t/secprday/365.25_rkind, " no glacier present"
     S = B
     return
   endif
