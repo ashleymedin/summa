@@ -282,7 +282,7 @@ subroutine glacAreaChange(&
     enddo
     
     ! Calculate piecewise linear regression for mass balance as a function of elevation 
-    !   also find ELA elevation, assuming monotonically decreasing mass balance with elevation decrease
+    !   also find ELA elevation, assuming monotonically increasing mass balance with elevation
     if(validCount(dbr+1) == 1)then
       slope(1,dbr+1) = 0._rkind
       intercept(1,dbr+1) = validMassChange(1,dbr+1)
@@ -293,28 +293,33 @@ subroutine glacAreaChange(&
       endif
     else
       ind = 0
-      do i = 1, validCount(dbr+1)-1
+      do i = 1, validCount(dbr+1)-1 ! point 1 is the highest elevation
         slope(i+1,dbr+1)= (validMassChange(i+1,dbr+1) - validMassChange(i,dbr+1)) / (validElev(i+1,dbr+1) - validElev(i,dbr+1))
         intercept(i+1,dbr+1) = validMassChange(i,dbr+1) - slope(i+1,dbr+1) * validElev(i,dbr+1)
-        if(validMassChange(i,dbr+1) >= 0._rkind) ind = i
+        if(validMassChange(i,dbr+1) >= 0._rkind) ind = i ! find the index of the last positive mass balance point
       enddo
       if(ind == validCount(dbr+1)-1) ind = validCount(dbr+1)+1 ! all domains accumulation, extrapolate below lowest point
       if(ind == 0) ind = 1 ! all domains ablation, extrapolate above highest point
       slope(1,dbr+1) = slope(2,dbr+1)
       intercept(1,dbr+1) = intercept(2,dbr+1)
       if(slope(1,dbr+1)<0._rkind)then ! don't propogate mass balance inversions
-        slope(1,dbr+1) = verySmall
+        slope(1,dbr+1) = 0._rkind
         intercept(1,dbr+1) = validMassChange(1,dbr+1)
       endif
       slope(validCount(dbr+1)+1,dbr+1) = slope(validCount(dbr+1),dbr+1)
       intercept(validCount(dbr+1)+1,dbr+1) = intercept(validCount(dbr+1),dbr+1)
       if(slope(validCount(dbr+1)+1,dbr+1)<0._rkind)then ! don't propogate mass balance inversions
-        slope(validCount(dbr+1)+1,dbr+1) = verySmall
+        slope(validCount(dbr+1)+1,dbr+1) = 0._rkind
         intercept(validCount(dbr+1)+1,dbr+1) = validMassChange(validCount(dbr+1),dbr+1)
       endif
-      ELA_elev(dbr+1) = -intercept(ind,dbr+1) / slope(ind,dbr+1)
+      if (slope(ind,dbr+1) /= 0._rkind) then
+        ELA_elev(dbr+1) = -intercept(ind,dbr+1) / slope(ind,dbr+1)
+      else
+        ELA_elev(dbr+1) = validElev(ind,dbr+1) ! if slope is zero, ELA is at the last valid elevation
+        if(ind == 1) ELA_elev(dbr+1) = 1.e6_rkind ! ended in inversion and all domains are ablation
+        if(ind == validCount(dbr+1)) ELA_elev(dbr+1) = -1.e6_rkind ! ended in inversion and all domains are accumulation
+      endif
     endif
-
   enddo ! end of loop for debris elevation relationships 
   ELA_use = ELA_elev(1) ! default to clean ablation ELA
   if(ELA_use<0._rkind)then ! no clean ablation
@@ -997,11 +1002,10 @@ function massBalance(S, debris, glacierMask, slope, intercept, t_total, validEle
         dbr = 0
         if(debris(k,j) > 0._rkind) dbr = 1
         ! find the index of the elevation in the validElev array
-        ind = 0
+        ind = validCount(dbr+1)+1 ! elevation above the valid elevation, extrapolate up
         do i = 1, validCount(dbr+1)
           if(S(k,j) <= validElev(i,dbr+1)) ind = i
         enddo
-        if(ind == 0) ind = validCount(dbr+1)+1 ! elevation is below the lowest valid elevation, extrapolate down
         massBalance(k,j) = (slope(ind,dbr+1) * S(k,j) + intercept(ind,dbr+1))/ t_total
       endif
     enddo
