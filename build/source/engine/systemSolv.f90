@@ -600,7 +600,7 @@ contains
   fOld          = fNew
   resVec        = resVecNew
   stateVecTrial = stateVecNew
-  stateVecPrime = stateVecTrial  !prime values not used here, dummy
+  stateVecPrime = stateVecTrial  ! prime values not used here, dummy
   nSteps = 1 ! number of time steps taken in solver
  end subroutine Newton_step
 

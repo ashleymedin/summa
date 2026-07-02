@@ -317,7 +317,7 @@ subroutine computBaseflow(&
     fieldCapacity_use = fieldCapacity
     kAnisotropic_use = kAnisotropic
     if(nGlce>0)then
-      fieldCapacity_use = 100._rkind ! if glacier ice layers are present, set field capacity to zero (i.e. all water is "active" for flow)
+      fieldCapacity_use = 0._rkind ! if glacier ice layers are present, set field capacity to zero (i.e. all water is "active" for flow)
       kAnisotropic_use = kAnisotropic*10._rkind ! if glacier ice layers are present, increase anisotropy factor to reflect higher hydraulic conductivity in glacier debris
     end if
 

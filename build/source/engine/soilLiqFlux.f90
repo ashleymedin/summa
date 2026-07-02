@@ -88,7 +88,7 @@ private
 public::soilLiqFlux
 
 ! flag to denote if updating infiltration during iterations for testing purposes
-logical(lgt),parameter :: updateInfil=.false.
+logical(lgt),parameter :: updateInfil=.true.
 contains
 
 ! ***************************************************************************************************************

@@ -1295,7 +1295,7 @@ subroutine opSplittin(&
 
     ! define if the flux is desired
     if (desiredFlux) neededFlux(iVar)=.true.
-    if ( globalPrintFlag .and. count(fluxMask%var(iVar)%dat)>0 ) print*,'computing flux', trim(flux_meta(iVar)%varName)
+    if ( globalPrintFlag .and. count(fluxMask%var(iVar)%dat)>0 ) print*,'computing flux ', trim(flux_meta(iVar)%varName)
 
    end do  ! end looping through fluxes
 
