@@ -1139,7 +1139,7 @@ contains
   real(rkind),dimension(mSoil) :: psiScale                    ! scaling factor for matric head
   real(rkind),parameter        :: xSmall=1.e-0_rkind          ! a small offset
   real(rkind),parameter        :: scalarTighten=0.1_rkind     ! scaling factor for the scalar solution
-  real(rkind)                  :: soilWatbalErr               ! error in the soil water balance
+  real(rkind)                  :: soilWatBalErr               ! error in the soil water balance
   real(rkind)                  :: canopy_max                  ! absolute value of the residual in canopy water (kg m-2)
   real(rkind),dimension(1)     :: energy_max                  ! maximum absolute value of the energy residual (J m-3)
   real(rkind),dimension(1)     :: liquid_max                  ! maximum absolute value of the volumetric liquid water content residual (-)
@@ -1157,6 +1157,7 @@ contains
    ! model control
    iter                    => in_SS4HG % iter                                   ,& ! intent(in): iteration index
    nSnow                   => in_SS4HG % nSnow                                  ,& ! intent(in): number of snow layers
+   nLake                   => in_SS4HG % nLake                                  ,& ! intent(in): number of lake layers
    scalarSolution          => in_SS4HG % scalarSolution                         ,& ! intent(in): flag to denote if implementing the scalar solution
    ! convergence parameters
    absConvTol_liquid       => mpar_data%var(iLookPARAM%absConvTol_liquid)%dat(1),&  ! intent(in): [dp] absolute convergence tolerance for vol frac liq water (-)
@@ -1208,7 +1209,7 @@ contains
    end if
 
    ! check convergence based on the iteration increment for matric head
-   ! NOTE: scale by matric head to avoid unnecessarily tight convergence when there is no water
+   ! NOTE: scale by matric head to avoid unnecessarily tight convergence when there is no water or there is saturated flow (matric head is very large)
    if (size(ixMatOnly)>0) then
     psiScale   = abs( xVec(ixMatOnly) ) + xSmall ! avoid divide by zero
     matric_max = maxval(abs( xInc(ixMatOnly)/psiScale ) )
@@ -1220,10 +1221,10 @@ contains
 
    ! check convergence based on the soil water balance error (m)
    if (size(ixMatOnly)>0) then
-    soilWatBalErr = sum( real(rVec(ixMatOnly), rkind)*mLayerDepth(nSnow+ixMatricHead) )
-    watbalConv    = (abs(soilWatbalErr) < absConvTol_liquid)  ! absolute error in total soil water balance (m)
+    soilWatBalErr = sum( real(rVec(ixMatOnly), rkind)*mLayerDepth(nSnow+nLake+ixMatricHead) )
+    watbalConv    = (abs(soilWatBalErr) < absConvTol_liquid)  ! absolute error in total soil water balance (m)
    else
-    soilWatbalErr = realMissing
+    soilWatBalErr = realMissing
     watbalConv    = .true.
    end if
 
