@@ -665,16 +665,16 @@ for i,(var,the_max,the_max2) in enumerate(zip(plot_vars,maxes,maxes2)):
 
         base_row = base_row*2
         if one_plot:
-            plt_name = [f"({chr(97+2*n+base_row)}) {plt_titl[i] + ' ' + plt_name0[j]}" for n,j in enumerate(use_meth)]
+            plt_name = [f"({chr(97+4*n+base_row)}) {plt_titl[i] + ' ' + plt_name0[j]}" for n,j in enumerate(use_meth)]
         else:
-            plt_name = [f"({chr(97+2*n+base_row)}) {plt_name0[j]}" for n,j in enumerate(use_meth)]
+            plt_name = [f"({chr(97+4*n+base_row)}) {plt_name0[j]}" for n,j in enumerate(use_meth)]
         run_loop(i,var,the_max,stat, row_fill)
 
         base_row = base_row+1
         if one_plot:
-            plt_name = [f"({chr(97+2*n+base_row)}) {plt_titl[i] + ' ' + plt_name0[j]}" for n,j in enumerate(use_meth)]
+            plt_name = [f"({chr(97+4*n+base_row)}) {plt_titl[i] + ' ' + plt_name0[j]}" for n,j in enumerate(use_meth)]
         else:
-            plt_name = [f"({chr(97+2*n+base_row)}) {plt_name0[j]}" for n,j in enumerate(use_meth)]
+            plt_name = [f"({chr(97+4*n+base_row)}) {plt_name0[j]}" for n,j in enumerate(use_meth)]
         if stat=='avge': 
             stat2 = 'maxe'
         else:
