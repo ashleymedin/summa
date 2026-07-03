@@ -817,17 +817,12 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
     ixNumericalMethod  => model_decisions(iLookDECISIONS%num_method)%iDecision ,& ! intent(in):  [i4b]   choice of numerical solver
     ! indices of model state variables
     ixNrgOnly          => indx_data%var(iLookINDEX%ixNrgOnly)%dat              ,& ! intent(in): [i4b(:)] list of indices in the state subset for energy states
-    ixHydOnly          => indx_data%var(iLookINDEX%ixHydOnly)%dat              ,& ! intent(in): [i4b(:)] list of indices in the state subset for hydrology states
     ixMatOnly          => indx_data%var(iLookINDEX%ixMatOnly)%dat              ,& ! intent(in): [i4b(:)] list of indices in the state subset for matric head states
-    ixMassOnly         => indx_data%var(iLookINDEX%ixMassOnly)%dat             ,& ! intent(in): [i4b(:)] list of indices in the state subset for canopy storage states
     ixHydType          => indx_data%var(iLookINDEX%ixHydType)%dat              ,& ! intent(in): [i4b(:)] index of the type of hydrology states in snow+soil domain
     ixStateType_subset => indx_data%var(iLookINDEX%ixStateType_subset)%dat     ,& ! intent(in): [i4b(:)] named variables defining the states in the subset
     ! indices for specific state variables
-    ixCasNrg           => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)            ,& ! intent(in): [i4b]    index of canopy air space energy state variable
     ixVegNrg           => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)            ,& ! intent(in): [i4b]    index of canopy energy state variable
     ixVegHyd           => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)            ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
-    ixTopNrg           => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)            ,& ! intent(in): [i4b]    index of upper-most energy state in the snow-soil subdomain
-    ixTopHyd           => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)            ,& ! intent(in): [i4b]    index of upper-most hydrology state in the snow-soil subdomain
     ! vector of energy indices for the snow and soil domains
     ! NOTE: states not in the subset are equal to integerMissing
     ixSnowSoilNrg      => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat          ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
