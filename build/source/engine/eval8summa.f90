@@ -822,7 +822,6 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
   logical(lgt)                             :: detect_events              ! flag to do freezing point event detection and cross-over with epsT
   logical(lgt)                             :: water_bounds               ! flag to force water to not go above or below physical bounds  
   real(rkind)                              :: frz_scale_use              ! scaling parameter for the snow or glce freezing curve (K-1)
-  real(rkind)                              :: iceFlux_possible           ! 0 or 1 flag to indicate if ice flux is possible
   ! -----------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
   associate(&
@@ -830,14 +829,11 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
     ixNumericalMethod  => model_decisions(iLookDECISIONS%num_method)%iDecision ,& ! intent(in):  [i4b]   choice of numerical solver
     ! indices of model state variables
     ixNrgOnly          => indx_data%var(iLookINDEX%ixNrgOnly)%dat              ,& ! intent(in): [i4b(:)] list of indices in the state subset for energy states
-    ixHydOnly          => indx_data%var(iLookINDEX%ixHydOnly)%dat              ,& ! intent(in): [i4b(:)] list of indices in the state subset for hydrology states
     ixMatOnly          => indx_data%var(iLookINDEX%ixMatOnly)%dat              ,& ! intent(in): [i4b(:)] list of indices in the state subset for matric head states
-    ixMassOnly         => indx_data%var(iLookINDEX%ixMassOnly)%dat             ,& ! intent(in): [i4b(:)] list of indices in the state subset for canopy storage states
     ixHydType          => indx_data%var(iLookINDEX%ixHydType)%dat              ,& ! intent(in): [i4b(:)] index of the type of hydrology states in layer domains
     ixStateType_subset => indx_data%var(iLookINDEX%ixStateType_subset)%dat     ,& ! intent(in): [i4b(:)] named variables defining the states in the subset
     noThetaChange      => indx_data%var(iLookINDEX%noThetaChange)%dat(1)       ,& ! intent(in): [i4b]    number of layers with no water state
     ! indices for specific state variables
-    ixCasNrg           => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)            ,& ! intent(in): [i4b]    index of canopy air space energy state variable
     ixVegNrg           => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)            ,& ! intent(in): [i4b]    index of canopy energy state variable
     ixVegHyd           => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)            ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
     ! vector of energy indices for the layer domains
@@ -1055,11 +1051,9 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
             case default; err=20; message=trim(message)//'expect ixStateType_subset to be iname_watLayer or iname_liqLayer for snow, lake, glce hydrology'; return
           end select
           scalarIce = merge(stateVecPrev(ixSnLaSoGlHyd(iLayer)) - scalarLiq,mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
-          iceFlux_possible = 0._rkind
-          if(ixStateType_subset( ixSnLaSoGlHyd(iLayer) ) == iname_watLayer .and. jLayer> nSnow) iceFlux_possible = 1._rkind
           ! checking if drain more than what is available or add more than possible, constrained iteration increment -- simplified bi-section
-          if(-xInc(ixSnLaSoGlHyd(iLayer)) > scalarLiq + scalarIce*iceFlux_possible) then
-            xInc(ixSnLaSoGlHyd(iLayer)) = -0.5_rkind*(scalarLiq + scalarIce*iceFlux_possible)
+          if(-xInc(ixSnLaSoGlHyd(iLayer)) > scalarLiq) then
+            xInc(ixSnLaSoGlHyd(iLayer)) = -0.5_rkind*scalarLiq
           elseif(xInc(ixSnLaSoGlHyd(iLayer)) > 1._rkind - scalarIce - scalarLiq)then
             xInc(ixSnLaSoGlHyd(iLayer)) = 0.5_rkind*(1._rkind - scalarIce - scalarLiq)
           endif
