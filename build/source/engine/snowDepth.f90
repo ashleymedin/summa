@@ -226,34 +226,27 @@ end subroutine snowDepth
   CR_grainGrowth = grainGrowthRate*chi1*chi2*chi3
 
   ! **** compute the compaction associated with over-burden pressure (s-1)
-  ! compute the weight imposed on the current layer (kg m-2)
-  halfWeight = (massIceOld + massLiqOld)/2._rkind  ! there is some over-burden pressure from the layer itself
-  weightSnow = weightSnow + halfweight          ! add half of the weight from the current layer
-  ! compute the increase in compaction under colder snow temperatures (-)
-  chi4 = exp(-tempScalOvrbdn*(Tfreeze - mLayerTemp(iSnow)))
-  ! compute the increase in compaction under low density snow (-)
-  chi5 = exp(-densScalOvrbdn*mLayerVolFracIceNew(iSnow)*iden_ice)
-  ! compute the compaction associated with over-burden pressure (s-1)
-  CR_ovrvdnPress = (weightSnow/baseViscosity)*chi4*chi5
-  ! update the snow weight with the halfWeight not yet used
-  weightSnow = weightSnow + halfweight          ! add half of the weight from the current layer
+  halfWeight = (massIceOld + massLiqOld)/2._rkind  ! half of the weight from the current layer
+  weightSnow = weightSnow + halfweight             ! there is some over-burden pressure from the layer itself, add half
+  chi4 = exp(-tempScalOvrbdn*(Tfreeze - mLayerTemp(iSnow)))       ! increase in compaction under colder snow temperatures (-)
+  chi5 = exp(-densScalOvrbdn*mLayerVolFracIceNew(iSnow)*iden_ice) ! increase in compaction under low density snow (-)
+  CR_ovrbdnPress = (weightSnow/baseViscosity)*chi4*chi5 ! compaction associated with over-burden pressure (s-1)
+  weightSnow = weightSnow + halfweight                  ! update the snow weight, add half of the weight from the current layer
 
-  ! *** compute the compaction rate associated with snow melt (s-1)
+  ! *** compute the compaction rate associated with snowmelt (s-1)
   ! NOTE: loss of ice due to snowmelt is implicit, so can be updated directly
   if(iden_ice*mLayerVolFracIceNew(iSnow) < snwDensityMax)then ! only collapse layers if below a critical density
-   ! (compute volumetric losses of ice due to melt and sublimation)
-   volFracIceLoss = max(0._rkind,mLayerMeltFreeze(iSnow)/iden_ice)  ! volumetric fraction of ice lost due to melt (-)
-   ! (adjust snow depth to account for cavitation)
-   scalarDepthNew = mLayerDepth(iSnow) * mLayerVolFracIceNew(iSnow)/(mLayerVolFracIceNew(iSnow) + volFracIceLoss)
-  else
-   scalarDepthNew = mLayerDepth(iSnow)
+    volFracIceLoss = max(0._rkind,mLayerMeltFreeze(iSnow)/iden_ice)  ! volumetric fraction of ice lost due to melt (-)
+    scalarDepthNew = mLayerDepth(iSnow) * mLayerVolFracIceNew(iSnow)/(mLayerVolFracIceNew(iSnow) + volFracIceLoss) ! adjust snow depth to account for cavitation
+  else ! do not allow collapse of snow layers
+    scalarDepthNew = mLayerDepth(iSnow)
   end if
-  ! compute the total compaction rate associated with metamorphism
-  CR_metamorph = CR_grainGrowth + CR_ovrvdnPress
+
+  ! **** compute the total compaction rate associated with metamorphism
+  CR_metamorph = CR_grainGrowth + CR_ovrbdnPress
   ! update depth due to metamorphism (implicit solution)
-  ! Ensure that the new depth is in line with the maximum amount of compaction that
-  ! can occur given the masses of ice and liquid in the layer
   scalarDepthNew = scalarDepthNew/(1._rkind + CR_metamorph*dt)
+  ! ensure that the new depth is in line with the maximum amount of compaction that can occur given the masses of ice and liquid in the layer
   scalarDepthMin = (massIceOld / iden_ice) + (massLiqOld / iden_water)
   mLayerDepth(iSnow) = max(scalarDepthMin, scalarDepthNew)
 
