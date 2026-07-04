@@ -190,7 +190,7 @@ end subroutine snowDepth
  real(rkind)                         :: massLiqOld                  ! mass of liquid water in the snow layer (kg m-2)
  real(rkind)                         :: scalarDepthNew              ! updated layer depth (m)
  real(rkind)                         :: scalarDepthMin              ! minimum layer depth (m)
- real(rkind)                         :: volFracIceLoss              ! volumetric fraction of ice lost due to melt and sublimation (-)
+ real(rkind)                         :: volFracIceLoss              ! volumetric fraction of ice lost due to melt (-)
  real(rkind), dimension(nSnow)       :: mLayerVolFracAirNew         ! volumetric fraction of air in each layer after compaction (-)
  real(rkind),parameter               :: snwden_min=100._rkind       ! minimum snow density for reducing metamorphism rate (kg m-3)
  real(rkind),parameter               :: snwDensityMax=550._rkind    ! maximum snow density for collapse under melt (kg m-3)
