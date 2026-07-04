@@ -793,27 +793,27 @@ subroutine vegNrgFlux(&
         ! compute the relative humidity in the top soil layer and the resistance at the ground surface
         ! NOTE: computations are based on start-of-step values, so only compute for the first flux call
         if (firstFluxCall) then
+          scalarSoilResistance = 0._rkind
+          soilRelHumidity_noSnow = 0._rkind
           if (nSoil>0)then
-            ! soil water evaporation factor [0-1]
-            soilEvapFactor = mLayerVolFracLiq(nSnow+1)/(theta_sat - theta_res)
+            soilEvapFactor = mLayerVolFracLiq(nSnow+1)/(theta_sat - theta_res) ! soil water evaporation factor [0-1]
             ! resistance from the soil [s m-1]
-            scalarSoilResistance = scalarGroundSnowFraction*1._rkind + (1._rkind - scalarGroundSnowFraction)*EXP(8.25_rkind - 4.225_rkind*soilEvapFactor)  ! Sellers (1992)
-          !scalarSoilResistance = scalarGroundSnowFraction*0._rkind + (1._rkind - scalarGroundSnowFraction)*exp(8.25_rkind - 6.0_rkind*soilEvapFactor)    ! Niu adjustment to decrease resitance for wet soil
-          end if
-                  
-          ! relative humidity in the soil pores [0-1]
-          if (mLayerMatricHead(1) > -1.e+6_rkind) then  ! avoid problems with numerical precision when soil is very dry
-            if (groundTempTrial < 0._rkind) then
-              soilRelHumidity_noSnow = exp( (mLayerMatricHead(1)*gravity) / (groundTempTrial*R_wv) )
-              if (soilRelHumidity_noSnow > 1._rkind) then; soilRelHumidity_noSnow = 1._rkind; end if
+            scalarSoilResistance = scalarGroundSnowFraction + (1._rkind - scalarGroundSnowFraction)*EXP(8.25_rkind - 4.225_rkind*soilEvapFactor)  ! Sellers (1992)
+            !scalarSoilResistance =  (1._rkind - scalarGroundSnowFraction)*exp(8.25_rkind - 6.0_rkind*soilEvapFactor)    ! Niu adjustment to decrease resitance for wet soil
+
+            ! relative humidity in the soil pores [0-1]
+            if (mLayerMatricHead(1) > -1.e+6_rkind) then  ! avoid problems with numerical precision when soil is very dry
+              if (groundTempTrial < 0._rkind) then
+                soilRelHumidity_noSnow = exp( (mLayerMatricHead(1)*gravity) / (groundTempTrial*R_wv) )
+                if (soilRelHumidity_noSnow > 1._rkind) then; soilRelHumidity_noSnow = 1._rkind; end if
+              else
+                soilRelHumidity_noSnow = 1._rkind
+              end if
             else
-              soilRelHumidity_noSnow = 1._rkind
-            end if ! end if ground temperature is positive
-          else
-            soilRelHumidity_noSnow = 0._rkind
-          end if ! end if matric head is very low
-          ! scalarSoilRelHumidity  = scalarGroundSnowFraction*1._rkind + (1._rkind - scalarGroundSnowFraction)*soilRelHumidity_noSnow ! original
-          scalarSoilRelHumidity  = scalarGroundSnowFraction + (1._rkind - scalarGroundSnowFraction)*soilRelHumidity_noSnow ! factor of unity removed for speed
+              soilRelHumidity_noSnow = 0._rkind
+            end if
+          end if ! (if there is soil)
+          scalarSoilRelHumidity  = scalarGroundSnowFraction + (1._rkind - scalarGroundSnowFraction)*soilRelHumidity_noSnow
         end if  ! end if the first flux call
 
         ! compute turbulent heat fluxes
