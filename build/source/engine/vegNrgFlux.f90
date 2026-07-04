@@ -819,24 +819,20 @@ subroutine vegNrgFlux(&
         TG_celcius = groundTempTrial - Tfreeze
         call satVapPress(TG_celcius, scalarSatVP_GroundTemp, dSVPGround_dGroundTemp)
 
-        ! compute the relative humidity in the top soil layer and the soil resistance at the ground surface
+        ! compute the relative humidity in the top layer and surface resistance to ground evaporation/sublimation (as opposed to aerodynamic resistance)
         ! NOTE: computations are based on start-of-step values, so only compute for the first flux call
         if (firstFluxCall) then
-          ! soil resistance from the first layer under the canopy [s m-1] (whether canopy is present or not)
-          if (nLake>0)then
-            scalarSoilResistance = 0._rkind         
-          else if (nSoil>0)then
-            ! soil water evaporation factor [0-1]
-            soilEvapFactor = mLayerVolFracLiq(nSnow+nLake+1)/(theta_sat(1) - theta_res(1))
-            ! resistance from the soil [s m-1]
-            scalarSoilResistance = scalarGroundSnowFraction*1._rkind + (1._rkind - scalarGroundSnowFraction)*EXP(8.25_rkind - 4.225_rkind*soilEvapFactor)  ! Sellers (1992)
-            !scalarSoilResistance = scalarGroundSnowFraction*0._rkind + (1._rkind - scalarGroundSnowFraction)*exp(8.25_rkind - 6.0_rkind*soilEvapFactor)    ! Niu adjustment to decrease resistance for wet soil
-          else if (nGlce>0)then ! ice below snow
-            scalarSoilResistance = 0._rkind
-          end if
+          scalarSoilResistance = 0._rkind
+          soilRelHumidity_noSnow = 0._rkind
+          if (nLake>0)then ! lake is above the soil
+            scalarSoilResistance = 1._rkind ! surface resistance to ground evaporation/sublimation
+            soilRelHumidity_noSnow = 1._rkind ! surface relative humidity is always 1
+          else if (nSoil>0)then 
+            soilEvapFactor = mLayerVolFracLiq(nSnow+nLake+1)/(theta_sat(1) - theta_res(1)) ! soil water evaporation factor [0-1]
+            ! resistance imposed by the molecular diffusion in the soil surface layer (s m-1)
+            scalarSoilResistance = scalarGroundSnowFraction + (1._rkind - scalarGroundSnowFraction)*EXP(8.25_rkind - 4.225_rkind*soilEvapFactor)  ! Sellers (1992)
+            !scalarSoilResistance = scalarGroundSnowFraction + (1._rkind - scalarGroundSnowFraction)*exp(8.25_rkind - 6.0_rkind*soilEvapFactor) ! Niu adjustment to decrease resistance for wet soil
 
-          ! relative humidity in the soil pores [0-1], only need if computing vegetation fluxes ever, so not if lake or ice
-          if (nLake==0 .and. nGlce==0) then
             ! compute the relative humidity in the soil pores
             if (mLayerMatricHead(1) > -1.e+6_rkind) then  ! avoid problems with numerical precision when soil is very dry
               if (groundTempTrial < 0._rkind) then
@@ -844,16 +840,16 @@ subroutine vegNrgFlux(&
                 if (soilRelHumidity_noSnow > 1._rkind) then; soilRelHumidity_noSnow = 1._rkind; end if
               else
                 soilRelHumidity_noSnow = 1._rkind
-              end if ! end if ground temperature is positive
+              end if
             else
               soilRelHumidity_noSnow = 0._rkind
-            end if ! end if matric head is very low
-            ! scalarSoilRelHumidity  = scalarGroundSnowFraction*1._rkind + (1._rkind - scalarGroundSnowFraction)*soilRelHumidity_noSnow ! original
-            scalarSoilRelHumidity  = scalarGroundSnowFraction + (1._rkind - scalarGroundSnowFraction)*soilRelHumidity_noSnow ! factor of unity removed for speed
-          else
-            scalarSoilRelHumidity = 0._rkind
-          end if
-        end if  ! end if the first flux call
+            end if
+          else if (nGlce>0)then ! no glacier debris cover so surface is ice
+            scalarSoilResistance = 1._rkind ! surface resistance to ground evaporation/sublimation
+            soilRelHumidity_noSnow = 1._rkind ! surface relative humidity is always 1
+          end if ! (determining layer under the snow)
+          scalarSoilRelHumidity  = scalarGroundSnowFraction + (1._rkind - scalarGroundSnowFraction)*soilRelHumidity_noSnow
+        end if   ! (if the first flux call)
 
         ! compute turbulent heat fluxes
         call turbFluxes(&
@@ -2196,7 +2192,7 @@ subroutine turbFluxes(&
     evapConductance    = 0._rkind
     transConductance   = 0._rkind
   end if
-  groundConductanceLH = 1._rkind/(groundResistance + soilResistance)  ! NOTE: soilResistance accounts for fractional snow, and =0 when snow cover is 100%
+  groundConductanceLH = 1._rkind/(groundResistance + soilResistance)  ! NOTE: soilResistance accounts for fractional snow 
   if(groundConductanceLH < 0._rkind) groundConductanceLH = 0._rkind   ! to avoid negative conductance, will make large residual error instead of old version where failed outright
   totalConductanceLH  = evapConductance + transConductance + groundConductanceLH + canopyConductance
   if(totalConductanceLH  < 0._rkind) totalConductanceLH  = epsilon(1._rkind)    ! to avoid division by zero, will make large residual error instead of old version where failed outright
