@@ -219,7 +219,7 @@ subroutine run_oneGRU(&
   bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = 0._rkind ! transpiration loss from the aquifer (m s-1)
 
   ! initialize storage change variable
-  bvarData%var(iLookBVAR%basin__StorageChange)%dat(1)    = 0._rkind ! change in total basin storage (m s-1)
+  bvarData%var(iLookBVAR%basin__StorageChange)%dat(1)    = 0._rkind ! change in total basin storage (kg m-2 s-1)
 
   ! initialize glacier variables
   glacIceMelt  = 0._rkind ! glacier ice reservoir melt (m3 s-1)
