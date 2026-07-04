@@ -234,6 +234,7 @@ subroutine coupled_em(&
   real(rkind),allocatable              :: mLayerVolFracIceInit(:)  ! initial vector for volumetric fraction of ice (-)
   logical(lgt)                         :: noVeg                    ! flag to denote that there is no vegetation (lake or glacier)
   real(rkind)                          :: frz_scale_use            ! scaling parameter for the snow or glce freezing curve (K-1)
+  real(rkind)                          :: glceReduceLiq            ! liquid water squeezed out of glacier ice layers (m s-1)
   ! check SWE
   real(rkind)                          :: oldSWE                   ! SWE at the start of the substep
   real(rkind)                          :: delSWE                   ! change in SWE over the subtep
@@ -1159,7 +1160,9 @@ subroutine coupled_em(&
           mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,           & ! volumetric fraction of ice in the layer domains (-)
           mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,           & ! volumetric fraction of liquid water in the layer domains (-)
           mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat,           & ! volumetric fraction of total water (-)
-          mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat                 & ! depth of each layer (m)
+          mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat,                & ! depth of each layer (m)
+          scalarGlceMelt          => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1),          & ! glacier ice melt (m s-1)
+          scalarGlacierMelt       => flux_data%var(iLookFLUX%scalarGlacierMelt)%dat(1)        & ! glacier ice melt plus snow and debris drainage (m s-1)
           ) ! associations to variables in data structures
 
           ! compute the melt in each layer, no ice expansion allowed for soil
@@ -1228,11 +1231,16 @@ subroutine coupled_em(&
                     mLayerMeltFreeze,                         & ! intent(in):    melt-freeze in each layer (kg m-3)
                     mpar_data,                                & ! intent(in):    model parameters
                     ! output
+                    glceReduceLiq,                            & ! intent(out):   liquid water squeezed out of glacier layers (m s-1)
                     tooMuchSublim,                            & ! intent(out):   flag to denote that there was too much sublimation in a given time step
                     mLayerDepth,                              & ! intent(inout): depth of each layer (m)
                     ! error control
                     err,cmessage)                               ! intent(out):   error control
           if(err/=0)then; message=trim(message)//trim(cmessage); return; end if ! err could be 20 or 55 here
+
+          ! add the liquid water squeezed out of glacier ice layers to the glacier melt
+          scalarGlceMelt = scalarGlceMelt - glceReduceLiq ! negative values here as representing upwards flux of water from the glacier ice layers            
+          scalarGlacierMelt = scalarGlacierMelt + glceReduceLiq          
 
           ! process the flag for too much sublimation
           if(tooMuchSublim)then
