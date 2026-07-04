@@ -1857,9 +1857,6 @@ subroutine coupled_em(&
           iLayerHeight(jLayer) = iLayerHeight(jLayer-1) + mLayerDepth(jLayer)
           mLayerHeight(jLayer) = (iLayerHeight(jLayer-1) + iLayerHeight(jLayer))/2._rkind
         end do
-
-        ! switch direction of the glacier melt since upwards flux so stored negative
-        flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1) = -flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1)
         
       else ! no glacier layers
         scalarGlceWE = 0._rkind
