@@ -1761,7 +1761,7 @@ subroutine update_volFracLiq_derivatives
    scalarSoilControlBot = 0._rkind
    scalarSurfaceInfiltration = scalarInfilArea_unfrozen * min(scalarRainPlusMelt,xMaxInfilRate)
    if(nGlce>0)then
-     scalarMeltInfiltration = scalarInfilArea_unfrozen * min(scalarGlceMelt,xMaxInfilRate)
+     scalarMeltInfiltration = scalarInfilArea_unfrozen * max(scalarGlceMelt,-xMaxInfilRate) ! upwards flux is negative
    else
      scalarMeltInfiltration = 0._rkind
    end if
@@ -1783,18 +1783,18 @@ subroutine update_volFracLiq_derivatives
                          * ( dInfilArea_dTk(:) *min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dTk(:)  )&
                          + (-dFrozenArea_dTk(:)) *scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
      if(nGlce>0)then
-       if (xMaxInfilRate > scalarGlceMelt) then
+       if (-xMaxInfilRate < scalarGlceMelt) then
          scalarSoilControlBot = scalarInfilArea_unfrozen  ! derivative dependent on scalarGlceMelt (needed to compute scalarGlceMelt derivative inside computJacob*)
-       elseif (xMaxInfilRate < scalarGlceMelt) then ! dInfilRate_d dependent on layers not at surface
+       elseif (-xMaxInfilRate > scalarGlceMelt) then ! dInfilRate_d dependent on layers not at surface
          dInfilRate_dWat(:) = dxMaxInfilRate_dWat(:)
          dInfilRate_dTk(:)  = dxMaxInfilRate_dTk(:)
        end if
        dqGlce_dHydStateVec(:) = (1._rkind - scalarFrozenArea)&
-                               * ( dInfilArea_dWat(:)*min(scalarGlceMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dWat(:) )&
-                               + (-dFrozenArea_dWat(:))*scalarInfilArea*min(scalarGlceMelt,xMaxInfilRate)
+                               * ( dInfilArea_dWat(:)*max(scalarGlceMelt,-xMaxInfilRate) - scalarInfilArea*dInfilRate_dWat(:) )&
+                               + (-dFrozenArea_dWat(:))*scalarInfilArea*max(scalarGlceMelt,-xMaxInfilRate)
        dqGlce_dNrgStateVec(:) = (1._rkind - scalarFrozenArea)&
-                               * ( dInfilArea_dTk(:) *min(scalarGlceMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dTk(:)  )&
-                               + (-dFrozenArea_dTk(:)) *scalarInfilArea*min(scalarGlceMelt,xMaxInfilRate)
+                               * ( dInfilArea_dTk(:) *max(scalarGlceMelt,-xMaxInfilRate) - scalarInfilArea*dInfilRate_dTk(:)  )&
+                               + (-dFrozenArea_dTk(:)) *scalarInfilArea*max(scalarGlceMelt,-xMaxInfilRate)
      end if
    end if
   end associate
