@@ -877,6 +877,13 @@ contains
                            fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,cmessage)                          ! output
    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
 
+   ! check root brackets
+   if (globalPrintFlag) then
+    write(*,'(a,1x,10(e17.10,1x))') 'fNew                           = ', fNew
+    write(*,'(a,1x,10(e17.10,1x))') 'resVecNew                      = ', resVecNew(min(iJac1,nState):min(iJac2,nState))
+    write(*,'(a,1x,10(e17.10,1x))') 'xInc                           = ', xInc(min(iJac1,nState):min(iJac2,nState))
+   end if
+
    ! check feasibility (should be feasible because of the call to imposeConstraints, except if canopyTemp>canopyTempMax (500._rkind)) 
    if (.not.feasible) then; err=20; message=trim(message)//'state vector not feasible'; return; end if
 

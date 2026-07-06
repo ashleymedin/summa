@@ -1207,10 +1207,10 @@ subroutine opSplittin(&
                 if(nSnow>0 .and. iLayer==nSnow) fluxMask%var(iVar)%dat = desiredFlux
               case(soilSplit)
                 if(nSoil>0)then
-                  if(iLayer==nLayers)then 
-                    ! soil drainage, aq recharge, soil baseflow changes with all layers, so compute after bottom layer
-                    if((iVar==iLookFLUX%scalarSoilDrainage .or. iVar==iLookFLUX%scalarAquiferRecharge &
-                     .or. iVar==iLookFLUX%scalarSoilBaseflow)) fluxMask%var(iVar)%dat = desiredFlux
+                  ! variables that change with the bottom layer 
+                  if(iVar==iLookFLUX%scalarSoilDrainage .or. iVar==iLookFLUX%scalarAquiferRecharge &
+                    .or. iVar==iLookFLUX%scalarSoilBaseflow)then ! baseflow changes with all layers so compute after the bottom layer
+                    if(iLayer==nSnow+nSoil) fluxMask%var(iVar)%dat = desiredFlux
                   ! other scalar variables in the soil domain change with the surface layer
                   elseif(iLayer==nSnow+1)then
                     fluxMask%var(iVar)%dat = desiredFlux
