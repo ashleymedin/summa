@@ -236,7 +236,7 @@ end subroutine stateMultiplier
                                  iden_ice          * Cp_ice   * mLayerVolFracIce(iLayer)        + & ! ice component
                                  iden_water        * Cp_water * mLayerVolFracLiq(iLayer)        + & ! liquid water component
                                  iden_air          * Cp_air   * ( theta_sat(iSoil) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) ) ! air component
-   ! * snow
+   ! * snow, lake, and glacier ice
    case(iname_snow, iname_lake, iname_glce)
     mLayerVolHtCapBulk(iLayer) = iden_ice          * Cp_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
                                  iden_water        * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component

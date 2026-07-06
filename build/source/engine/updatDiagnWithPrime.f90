@@ -514,13 +514,13 @@ subroutine updatDiagnWithPrime(&
       ! compute the critical soil temperature below which ice exists
       select case(ixDomainType)
         case(iname_veg, iname_snow, iname_lake, iname_glce); Tcrit = Tfreeze
-        case(iname_soil);                                   Tcrit = crit_soilT( mLayerMatricHeadTrial(ixControlIndex) )
+        case(iname_soil);                                    Tcrit = crit_soilT( mLayerMatricHeadTrial(ixControlIndex) )
         case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_glce'; return
       end select
 
       ! initialize temperature
       select case(ixDomainType)
-        case(iname_veg);                                     xTemp = scalarCanopyTempTrial
+        case(iname_veg);                                      xTemp = scalarCanopyTempTrial
         case(iname_snow, iname_lake, iname_soil, iname_glce); xTemp = mLayerTempTrial(iLayer)
         case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_glce'; return
       end select

@@ -34,7 +34,6 @@ USE data_types,only:out_type_snowLakeSoilGlceNrgFlux ! intent(out) arguments for
 USE multiconst,only:Tfreeze,     &  ! freezing point of pure water (K)
                     iden_water,  &  ! intrinsic density of water    (kg m-3)
                     Cp_water        ! specific heat of liquid water (J kg-1 K-1)
-USE globalData,only:iceResidWaterFrac ! residual volumetric liquid water content in ice (-)
 
 ! missing values
 USE globalData,only:integerMissing  ! missing integer

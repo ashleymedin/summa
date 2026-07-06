@@ -1083,7 +1083,7 @@ subroutine enthalpy2T_snLaGl(&
       denthIce_dWat = iden_water * Cp_ice * ( diffT - integral )
       denthAir_dWat = -iden_air * Cp_air * ( (iden_water/iden_ice)*(diffT-integral) + integral )
       dH_dWat       = denthLiq_dWat + denthIce_dWat + denthAir_dWat - iden_water * LH_fus * (1._rkind - fLiq)
-      if (noLiq) dH_dWat = 0._rkind ! no liquid water, so no derivative w.r.t. water content
+      if (noLiq) dH_dWat = 0._rkind ! no liquid water change, so no derivative w.r.t. water content
 
       dT_dEnthalpy = 1._rkind / dH_dT 
       dT_dWat      = -dH_dWat / dH_dT  ! NOTE, while it is not generally appropriate to cancel partial derivatives, here this is true if it is multiplied by -1
