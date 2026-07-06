@@ -317,14 +317,16 @@ contains
  subroutine zeroBaseflowFluxes
   ! set baseflow fluxes to zero if the topmodel baseflow routine is not used
   associate(&
+   scalarSoilBaseflow          => flux_data%var(iLookFLUX%scalarSoilBaseflow)%dat(1), & ! intent(out): [dp] total baseflow from the soil profile (m s-1)
    scalarExfiltration          => flux_data%var(iLookFLUX%scalarExfiltration)%dat(1), & ! intent(out): [dp] exfiltration from the soil profile (m s-1)
    mLayerColumnOutflow         => flux_data%var(iLookFLUX%mLayerColumnOutflow)%dat,   & ! intent(out): [dp(:)] column outflow from each soil layer (m3 s-1)
    mLayerBaseflow              => flux_data%var(iLookFLUX%mLayerBaseflow)%dat         ) ! intent(out): [dp(:)] baseflow from each soil layer (m s-1)
    ! diagnostic variables in the data structures
    scalarExfiltration     = 0._rkind  ! exfiltration from the soil profile (m s-1)
    mLayerColumnOutflow(:) = 0._rkind  ! column outflow from each soil layer (m3 s-1)
-   ! variables needed for the numerical solution
+   ! flux variables in the data structures
    mLayerBaseflow(:)      = 0._rkind  ! baseflow from each soil layer (m s-1)
+   scalarSoilBaseflow     = 0._rkind  ! total baseflow from the soil profile (m s-1)
   end associate
  end subroutine zeroBaseflowFluxes
 
