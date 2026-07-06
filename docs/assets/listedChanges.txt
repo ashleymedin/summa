@@ -121,7 +121,7 @@ AFTER tag of v4.0.0-exp-Sundials
 -18) Cap infiltration at soil depth so doesn't give a Nan if rooting depth > soil depth, commit 53c79aef Jan 10, 2025
  19) Expand expanded veg table size for Ignacio's Plumber data, commit 2f740f41 Jan 8, 2025
 -20) Correct NaN value that results from a large ground roughness parameter (capped function), commit bcb5f6b5 Jan 22, 2025
--21) Made soil scalarv variables were compute with the correct soil layer when splitting to a scalar solution (previous version lead to balance errors if vars where large enough), commit b5b8d314 Jan 28, 2025
+-21) Made soil scalarv variables compute with the correct soil layer when splitting to a scalar solution (previous version lead to balance errors if vars where large enough), commit b5b8d314 Jan 28, 2025
 -22) Make fluxes output as mean over data window, group agreed that this makes more sense than the backwards compatible where they were just the ending solution of the flux (rate over the last substep). commit b5b8d314 Jan 28, 2025
 -23) Make scalarAquiferRecharge and scalarAquiferTranspire be held on to if splits to aquifer, since previously only attached to bottom soil layer then became 0
      if split to aquifer, commit scalarAquiferTranspire and Recharge need to be held with aquifer mass split, previously went to 0, commit 0a38c7bf Jun 21, 2025
