@@ -1237,21 +1237,17 @@ subroutine opSplittin(&
             ! add hydrology states for scalar variables
             if (iStateTypeSplit==massSplit .and. flux_meta(iVar)%varType==iLookVarType%scalarv) then
              select case(iDomainSplit_use) ! need to list all the snow, lake, glce variables (not all soil)
-              case(snowSplit) ! snow scalar variables change with the bottom layer
+              case(snowSplit) 
+                ! snow scalar variables change with the bottom layer
                 if(nSnow>0 .and. iLayer==nSnow)then
-                  if(iVar==iLookFLUX%scalarGlacierMelt .and. nGlce>0 .and. nLake==0 .and. nSoil==0)then
-                    fluxMask%var(iVar)%dat = desiredFlux
-                  elseif(iname_watSnow==flux2state_liq(iVar)%state2)then
-                    fluxMask%var(iVar)%dat = desiredFlux 
-                  end if
+                  if((iVar==iLookFLUX%scalarGlacierMelt .and. nGlce>0 .and. nLake+nSoil==0) .or. iname_watSnow==flux2state_liq(iVar)%state2) &
+                     fluxMask%var(iVar)%dat = desiredFlux 
                 end if
               case(lakeSplit)
                 if(nLake>0)then
-                  if(iLayer==nSnow+nLake)then
-                    ! lake drainage changes with the bottom layer
-                    if(iVar==iLookFLUX%scalarLakeDrainage) fluxMask%var(iVar)%dat = desiredFlux
-                    ! glacier melt changes with the bottom layer if no soil
-                    if(iVar==iLookFLUX%scalarGlacierMelt .and. nGlce>0 .and. nSoil==0) fluxMask%var(iVar)%dat = desiredFlux
+                  ! variables that change with the bottom layer 
+                  if(iVar==iLookFLUX%scalarLakeDrainage .or. (iVar==iLookFLUX%scalarGlacierMelt .and. nGlce>0 .and. nSoil==0))then 
+                    if(iLayer==nSnow+nLake) fluxMask%var(iVar)%dat = desiredFlux
                   ! other scalar variables in the lake domain change with the surface layer
                   elseif(iLayer==nSnow+1 .and. iname_watLake==flux2state_liq(iVar)%state2 .or. iname_watIce==flux2state_liq(iVar)%state2)then
                     fluxMask%var(iVar)%dat = desiredFlux
@@ -1259,24 +1255,21 @@ subroutine opSplittin(&
                 end if
               case(soilSplit)
                 if(nSoil>0)then
-                  if(iLayer==nSnow+nLake+nSoil)then
-                    ! soil drainage, aq recharge, soil baseflow changes with all layers, so compute after bottom layer
-                    if((iVar==iLookFLUX%scalarSoilDrainage .or. iVar==iLookFLUX%scalarAquiferRecharge &
-                     .or. iVar==iLookFLUX%scalarSoilBaseflow .or. iVar==iLookFLUX%scalarMeltInfiltration)) fluxMask%var(iVar)%dat = desiredFlux
-                    ! glacier melt changes with the bottom layer (soil drainage and melt infiltration are computed after the bottom layer, so compute glacier melt after the bottom layer)
-                    if((iVar==iLookFLUX%scalarGlacierMelt .or. iVar==iLookFLUX%scalarMeltInfiltration) .and. nGlce>0) fluxMask%var(iVar)%dat = desiredFlux
+                  ! variables that change with the bottom layer 
+                  if(iVar==iLookFLUX%scalarSoilDrainage .or. iVar==iLookFLUX%scalarAquiferRecharge &
+                    .or. iVar==iLookFLUX%scalarSoilBaseflow & ! baseflow changes with all layers so compute after the bottom layer
+                    .or. iVar==iLookFLUX%scalarMeltInfiltration .or. (iVar==iLookFLUX%scalarGlacierMelt .and. nGlce>0))then
+                    if(iLayer==nSnow+nLake+nSoil) fluxMask%var(iVar)%dat = desiredFlux
                   ! other scalar variables in the soil domain change with the surface layer
                   elseif(iLayer==nSnow+nLake+1)then
                     fluxMask%var(iVar)%dat = desiredFlux
                   end if
                 end if
-              case(glceSplit) ! glacier scalar variables change with the surface layer
+              case(glceSplit) 
+                ! glacier scalar variables change with the surface layer
                 if(nGlce>0 .and. iLayer==nSnow+nLake+nSoil+1)then
-                  if(iVar==iLookFLUX%scalarGlacierMelt .and. nSnow+nLake+nSoil==0)then
-                    fluxMask%var(iVar)%dat = desiredFlux
-                  elseif(iname_watGlce==flux2state_liq(iVar)%state2 .or. iname_watIce==flux2state_liq(iVar)%state2)then
-                    fluxMask%var(iVar)%dat = desiredFlux
-                  end if
+                  if(iVar==iLookFLUX%scalarGlacierMelt .or. iname_watGlce==flux2state_liq(iVar)%state2 .or. iname_watIce==flux2state_liq(iVar)%state2) &
+                     fluxMask%var(iVar)%dat = desiredFlux
                 end if
              end select
             end if  ! if hydrology split and scalar
