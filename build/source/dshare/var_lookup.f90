@@ -624,7 +624,6 @@ MODULE var_lookup
   integer(i4b)    :: scalarRainPlusMelt              = integerMissing ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
   integer(i4b)    :: scalarMaxInfilRate              = integerMissing ! maximum infiltration rate (m s-1)
   integer(i4b)    :: scalarInfiltration              = integerMissing ! infiltration of water into the soil profile (m s-1)
-  integer(i4b)    :: scalarMeltInfiltration          = integerMissing ! infiltration of glacier meltwater into the soil profile (m s-1)
   integer(i4b)    :: scalarExfiltration              = integerMissing ! exfiltration of water from the top of the soil profile (m s-1)
   integer(i4b)    :: scalarSurfaceRunoff             = integerMissing ! surface runoff (m s-1)
   integer(i4b)    :: scalarSurfaceRunoff_IE          = integerMissing ! infiltration excess surface runoff (m s-1)
@@ -1044,7 +1043,7 @@ MODULE var_lookup
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
-                                                                         91, 92, 93, 94, 95)
+                                                                         91, 92, 93, 94)
  ! named variables: derivatives in model fluxes w.r.t. relevant state variables
  type(iLook_deriv),   public,parameter :: iLookDERIV    =iLook_deriv   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

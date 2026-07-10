@@ -155,7 +155,6 @@ contains
  flux2state_orig(iLookFLUX%scalarRainPlusMelt)              = flux2state(state1=iname_matLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarMaxInfilRate)              = flux2state(state1=iname_matLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarInfiltration)              = flux2state(state1=iname_matLayer,  state2=integerMissing)
- flux2state_orig(iLookFLUX%scalarMeltInfiltration)          = flux2state(state1=iname_matLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarExfiltration)              = flux2state(state1=iname_matLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarSurfaceRunoff)             = flux2state(state1=iname_matLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarSurfaceRunoff_IE)          = flux2state(state1=iname_matLayer,  state2=integerMissing)
@@ -170,7 +169,7 @@ contains
  flux2state_orig(iLookFLUX%mLayerColumnInflow)              = flux2state(state1=integerMissing,  state2=integerMissing)
  flux2state_orig(iLookFLUX%mLayerColumnOutflow)             = flux2state(state1=iname_matLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarSoilBaseflow)              = flux2state(state1=iname_matLayer,  state2=integerMissing)
- flux2state_orig(iLookFLUX%scalarSoilDrainage)              = flux2state(state1=iname_matLayer,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarSoilDrainage)              = flux2state(state1=iname_matLayer,  state2=iname_watGlce)
 
  ! liquid water fluxes for the aquifer domain
  flux2state_orig(iLookFLUX%scalarAquiferRecharge)           = flux2state(state1=iname_watAquifer,state2=iname_matLayer)

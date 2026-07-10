@@ -645,7 +645,6 @@ MODULE data_types
    real(rkind), allocatable :: mLayerdPsi_dTheta(:)              ! intent(inout): derivative in matric potential w.r.t. liquid water content (m)
    real(rkind), allocatable :: dHydCond_dMatric(:)               ! intent(inout): derivative in hydraulic conductivity w.r.t matric head (s-1)
    real(rkind)              :: scalarInfiltration                ! intent(inout): surface infiltration rate (m s-1)
-   real(rkind)              :: scalarMeltInfiltration            ! intent(inout): bottom melt infiltration rate (m s-1)
    real(rkind), allocatable :: iLayerLiqFluxSoil(:)              ! intent(inout): liquid fluxes at layer interfaces (m s-1)
    real(rkind), allocatable :: mLayerTranspire(:)                ! intent(inout): transpiration loss from each soil layer (m s-1)
    real(rkind), allocatable :: mLayerHydCond(:)                  ! intent(inout): hydraulic conductivity in each layer (m s-1)
@@ -865,7 +864,6 @@ MODULE data_types
    real(rkind) :: scalarFrozenArea          ! fraction of area that is considered impermeable due to soil ice (-)
    real(rkind) :: scalarSoilControl         ! soil control on infiltration for derivative
    real(rkind) :: scalarSurfaceInfiltration ! surface infiltration rate (m s-1)
-   real(rkind) :: scalarMeltInfiltration    ! bottom melt infiltration (m s-1)
   contains
    procedure :: initialize => initialize_io_surfaceFlux
    procedure :: finalize   => finalize_io_surfaceFlux
@@ -1551,7 +1549,6 @@ contains
    mLayerdTheta_dPsi    => deriv_data%var(iLookDERIV%mLayerdTheta_dPsi)%dat,   & ! intent(out): [dp(:)] derivative in liquid water content w.r.t. matric potential (m-1)
    mLayerdPsi_dTheta    => deriv_data%var(iLookDERIV%mLayerdPsi_dTheta)%dat,   & ! intent(out): [dp(:)] derivative in matric potential w.r.t. liquid water content (m)
    scalarInfiltration   => flux_data%var(iLookFLUX%scalarInfiltration)%dat(1), & ! intent(out): [dp] infiltration of water into the soil profile (m s-1)
-   scalarMeltInfiltration => flux_data%var(iLookFLUX%scalarMeltInfiltration)%dat(1), & ! intent(out): [dp] melt infiltration of water into the soil profile (m s-1)
    iLayerLiqFluxSoil    => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat,     & ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
    mLayerTranspire      => flux_data%var(iLookFLUX%mLayerTranspire)%dat,       & ! intent(out): [dp(:)] transpiration loss from each soil layer (m s-1)
    mLayerHydCond        => flux_data%var(iLookFLUX%mLayerHydCond)%dat          ) ! intent(out): [dp(:)]  hydraulic conductivity in each soil layer (m s-1)
@@ -1559,7 +1556,6 @@ contains
    io_soilLiqFlux % mLayerdPsi_dTheta      =mLayerdPsi_dTheta      ! intent(inout): derivative in matric potential w.r.t. liquid water content (m)
    io_soilLiqFlux % dHydCond_dMatric       =dHydCond_dMatric       ! intent(inout): derivative in hydraulic conductivity w.r.t matric head (s-1)
    io_soilLiqFlux % scalarInfiltration     =scalarInfiltration     ! intent(inout): surface infiltration rate (m s-1)
-   io_soilLiqFlux % scalarMeltInfiltration =scalarMeltInfiltration ! intent(inout): melt infiltration rate (m s-1)
    io_soilLiqFlux % iLayerLiqFluxSoil      =iLayerLiqFluxSoil      ! intent(inout): liquid fluxes at layer interfaces (m s-1)
    io_soilLiqFlux % mLayerTranspire        =mLayerTranspire        ! intent(inout): transpiration loss from each soil layer (m s-1)
    io_soilLiqFlux % mLayerHydCond          =mLayerHydCond          ! intent(inout): hydraulic conductivity in each layer (m s-1)
@@ -1629,7 +1625,6 @@ contains
    mLayerdTheta_dPsi      => deriv_data%var(iLookDERIV%mLayerdTheta_dPsi)%dat,   & ! intent(out): [dp(:)] derivative in liquid water content w.r.t. matric potential (m-1)
    mLayerdPsi_dTheta      => deriv_data%var(iLookDERIV%mLayerdPsi_dTheta)%dat,   & ! intent(out): [dp(:)] derivative in matric potential w.r.t. liquid water content (m)
    scalarInfiltration     => flux_data%var(iLookFLUX%scalarInfiltration)%dat(1), & ! intent(out): [dp] infiltration of water into the soil profile (m s-1)
-   scalarMeltInfiltration => flux_data%var(iLookFLUX%scalarMeltInfiltration)%dat(1), & ! intent(out): [dp] melt infiltration of water into the soil profile (m s-1)
    iLayerLiqFluxSoil      => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat,     & ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
    mLayerTranspire        => flux_data%var(iLookFLUX%mLayerTranspire)%dat,       & ! intent(out): [dp(:)] transpiration loss from each soil layer (m s-1)
    mLayerHydCond          => flux_data%var(iLookFLUX%mLayerHydCond)%dat          ) ! intent(out): [dp(:)]  hydraulic conductivity in each soil layer (m s-1)
@@ -1637,7 +1632,6 @@ contains
    mLayerdPsi_dTheta       =io_soilLiqFlux % mLayerdPsi_dTheta        ! intent(inout): derivative in matric potential w.r.t. liquid water content (m)
    dHydCond_dMatric        =io_soilLiqFlux % dHydCond_dMatric         ! intent(inout): derivative in hydraulic conductivity w.r.t matric head (s-1)
    scalarInfiltration      =io_soilLiqFlux % scalarInfiltration       ! intent(inout): surface infiltration rate (m s-1)
-   scalarMeltInfiltration  =io_soilLiqFlux % scalarMeltInfiltration   ! intent(inout): melt infiltration rate (m s-1)
    iLayerLiqFluxSoil       =io_soilLiqFlux % iLayerLiqFluxSoil        ! intent(inout): liquid fluxes at layer interfaces (m s-1)
    mLayerTranspire         =io_soilLiqFlux % mLayerTranspire          ! intent(inout): transpiration loss from each soil layer (m s-1)
    mLayerHydCond           =io_soilLiqFlux % mLayerHydCond            ! intent(inout): hydraulic conductivity in each layer (m s-1)
@@ -2088,8 +2082,7 @@ contains
    scalarSaturatedArea => io_soilLiqFlux % scalarSaturatedArea,         & ! fraction of area that is considered saturated (-)
    scalarFrozenArea    => io_soilLiqFlux % scalarFrozenArea,            & ! fraction of area that is considered impermeable due to soil ice (-)
    scalarSoilControl   => io_soilLiqFlux % scalarSoilControl,           & ! soil control on infiltration for derivative
-   scalarSurfaceInfiltration => io_soilLiqFlux % scalarInfiltration,    & ! surface infiltration (m s-1)
-   scalarMeltInfiltration    => io_soilLiqFlux % scalarMeltInfiltration & ! bottom melt infiltration (m s-1)
+   scalarSurfaceInfiltration => io_soilLiqFlux % scalarInfiltration     & ! surface infiltration (m s-1)
   &)
    ! intent(inout): hydraulic conductivity and diffusivity at the surface
    io_surfaceFlux % surfaceHydCond = iLayerHydCond(0)         ! hydraulic conductivity at the surface (m s-1)
@@ -2101,7 +2094,6 @@ contains
    io_surfaceFlux % scalarFrozenArea    = scalarFrozenArea    ! fraction of area that is considered impermeable due to soil ice (-)
    io_surfaceFlux % scalarSoilControl   = scalarSoilControl   ! soil control on infiltration for derivative
    io_surfaceFlux % scalarSurfaceInfiltration = scalarSurfaceInfiltration ! surface infiltration (m s-1)
-   io_surfaceFlux % scalarMeltInfiltration    = scalarMeltInfiltration    ! bottom melt infiltration (m s-1)
   end associate
  end subroutine initialize_io_surfaceFlux
 
@@ -2119,8 +2111,7 @@ contains
    scalarSaturatedArea => io_soilLiqFlux % scalarSaturatedArea, & ! fraction of area that is considered saturated (-)
    scalarFrozenArea    => io_soilLiqFlux % scalarFrozenArea,    & ! fraction of area that is considered impermeable due to soil ice (-)
    scalarSoilControl   => io_soilLiqFlux % scalarSoilControl,   & ! soil control on infiltration for derivative
-   scalarSurfaceInfiltration => io_soilLiqFlux % scalarInfiltration,    & ! surface infiltration rate (m s-1)
-   scalarMeltInfiltration    => io_soilLiqFlux % scalarMeltInfiltration & ! bottom melt infiltration (m s-1)
+   scalarSurfaceInfiltration => io_soilLiqFlux % scalarInfiltration    & ! surface infiltration rate (m s-1)
   &)
    ! intent(inout): hydraulic conductivity and diffusivity at the surface
    iLayerHydCond(0) = io_surfaceFlux % surfaceHydCond         ! hydraulic conductivity at the surface (m s-1) 
@@ -2132,7 +2123,6 @@ contains
    scalarFrozenArea    = io_surfaceFlux % scalarFrozenArea    ! fraction of area that is considered impermeable due to soil ice (-)
    scalarSoilControl   = io_surfaceFlux % scalarSoilControl   ! soil control on infiltration for derivative
    scalarSurfaceInfiltration = io_surfaceFlux % scalarSurfaceInfiltration ! surface infiltration (m s-1)
-    scalarMeltInfiltration    = io_surfaceFlux % scalarMeltInfiltration    ! bottom melt infiltration (m s-1)
   end associate
  end subroutine finalize_io_surfaceFlux
 

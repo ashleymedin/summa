@@ -756,7 +756,6 @@ contains
   case('scalarRainPlusMelt'             ); get_ixFlux = iLookFLUX%scalarRainPlusMelt               ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
   case('scalarMaxInfilRate'             ); get_ixFlux = iLookFLUX%scalarMaxInfilRate               ! maximum infiltration rate (m s-1)
   case('scalarInfiltration'             ); get_ixFlux = iLookFLUX%scalarInfiltration               ! infiltration of water into the soil profile (m s-1)
-  case('scalarMeltInfiltration'         ); get_ixFlux = iLookFLUX%scalarMeltInfiltration           ! infiltration of glacier meltwater into the soil profile (m s-1)
   case('scalarExfiltration'             ); get_ixFlux = iLookFLUX%scalarExfiltration               ! exfiltration of water from the top of the soil profile (m s-1)
   case('scalarSurfaceRunoff'            ); get_ixFlux = iLookFLUX%scalarSurfaceRunoff              ! surface runoff (m s-1)
   case('scalarSurfaceRunoff_IE'         ); get_ixFlux = iLookFLUX%scalarSurfaceRunoff_IE           ! infiltration excess surface runoff (m s-1)
