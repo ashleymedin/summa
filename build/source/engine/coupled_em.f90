@@ -720,7 +720,7 @@ subroutine coupled_em(&
       if(globalPrintFlag)then
         write(*,'(a,1x,4(f13.5,1x))') ' start of step: dt_init, dt_sub, dt_solv, data_step: ', dt_init, dt_sub, dt_solv, data_step
         print*, 'stepFailure = ', stepFailure
-        print*, 'before resizeData: nSnow, nSoil = ', nSnow, nSoil
+        print*, 'before resizeData: nSnow, nLake, nSoil, nGlce = ', nSnow, nLake, nSoil, nGlce
       endif
 
       ! increment the number of sub-steps
