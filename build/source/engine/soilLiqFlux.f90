@@ -527,7 +527,7 @@ contains
    if(err/=0)then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end associate
 
-  ! no dependence on the aquifer for drainage
+  ! no dependence on the aquifer for drainage currently, but keep this here in case we want to couple some day
   associate(&
    ! derivatives in flux w.r.t. ...
    dq_dHydStateBelow => io_soilLiqFlux % dq_dHydStateBelow,& ! ... hydrology state variables in the layer below
