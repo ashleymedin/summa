@@ -542,15 +542,13 @@ subroutine fluxJacAdd(&
     dq_dHydStateAbove            => deriv_data%var(iLookDERIV%dq_dHydStateAbove)%dat               ,& ! intent(in): [dp(:)]  derivatives in  flux at layer interfaces w.r.t. states in the layer above
     dq_dHydStateBelow            => deriv_data%var(iLookDERIV%dq_dHydStateBelow)%dat               ,& ! intent(in): [dp(:)]  derivatives in  flux at layer interfaces w.r.t. states in the layer below
     dq_dHydStateLayerSurfVec     => deriv_data%var(iLookDERIV%dq_dHydStateLayerSurfVec)%dat        ,& ! intent(in): [dp(:)]  derivatives in  the flux in soil surface interface w.r.t. state variables in layers
-    dq_dHydStateLayerBotVec      => deriv_data%var(iLookDERIV%dq_dHydStateLayerBotVec)%dat         ,& ! intent(in): [dp(:)]  derivatives in  the flux in soil bottom interface w.r.t. state variables in layers
-    ! derivative in baseflow flux w.r.t. aquifer storage
+     ! derivative in baseflow flux w.r.t. aquifer storage
     dBaseflow_dAquifer           => deriv_data%var(iLookDERIV%dBaseflow_dAquifer)%dat(1)           ,& ! intent(in): [dp(:)]  derivative in baseflow flux w.r.t. aquifer storage (s-1)
     ! derivative in liquid water fluxes for the soil domain w.r.t energy state variables
     dq_dNrgStateAbove            => deriv_data%var(iLookDERIV%dq_dNrgStateAbove)%dat               ,& ! intent(in): [dp(:)]  derivatives in  flux at layer interfaces w.r.t. states in the layer above
     dq_dNrgStateBelow            => deriv_data%var(iLookDERIV%dq_dNrgStateBelow)%dat               ,& ! intent(in): [dp(:)]  derivatives in  flux at layer interfaces w.r.t. states in the layer below
     dq_dNrgStateLayerSurfVec     => deriv_data%var(iLookDERIV%dq_dNrgStateLayerSurfVec)%dat        ,& ! intent(in): [dp(:)]  derivatives in  the flux in soil surface interface w.r.t. state variables in layers
-    dq_dNrgStateLayerBotVec      => deriv_data%var(iLookDERIV%dq_dNrgStateLayerBotVec)%dat         ,& ! intent(in): [dp(:)]  derivatives in  the flux in soil bottom interface w.r.t. state variables in layers
-    ! derivative in liquid water fluxes for the layer domains w.r.t temperature
+      ! derivative in liquid water fluxes for the layer domains w.r.t temperature
     mLayerdTheta_dTk             => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat                ,& ! intent(in): [dp(:)]  derivative in volumetric liquid water content w.r.t. temperature
     ! diagnostic variables
     scalarFracLiqVeg             => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)               ,& ! intent(in): [dp]     fraction of liquid water on vegetation (-)
@@ -805,12 +803,6 @@ subroutine fluxJacAdd(&
            if(watState - ixSoilOnlyHyd(1) <= ku .or. full) &
                aJac(ixInd(full,ixSoilOnlyHyd(1),watState),watState) = -(dt/mLayerDepth(nSnow+nLake+1))*dq_dHydStateLayerSurfVec(iLayer) + aJac(ixInd(full,ixSoilOnlyHyd(1),watState),watState)
         endif
-
-        ! - include derivatives for melt infiltration above bottom
-        if(ixSoilOnlyHyd(nSoil)/=integerMissing .and. all(dq_dHydStateLayerBotVec/=realMissing))then
-           if(ixSoilOnlyHyd(nSoil) - watState <= kl .or. full) &
-             aJac(ixInd(full,ixSoilOnlyHyd(nSoil),watState),watState) = -(dt/mLayerDepth(nSnow+nLake+nSoil))*dq_dHydStateLayerBotVec(iLayer) + aJac(ixInd(full,ixSoilOnlyHyd(nSoil),watState),watState)
-        endif
       end do ! (looping through hydrology states in the soil domain)
 
       ! - include derivatives for surface infiltration above surface if there is snow/lake (vegetation handled already)
@@ -969,12 +961,6 @@ subroutine fluxJacAdd(&
           if(ixSoilOnlyHyd(1)/=integerMissing .and. all(dq_dNrgStateLayerSurfVec/=realMissing))then
             if(nrgState - ixSoilOnlyHyd(1) <= ku .or. full) &
                 aJac(ixInd(full,ixSoilOnlyHyd(1),nrgState),nrgState) = -(dt/mLayerDepth(nSnow+nLake+1))*dq_dNrgStateLayerSurfVec(iLayer) + aJac(ixInd(full,ixSoilOnlyHyd(1),nrgState),nrgState)
-          endif
-
-          ! - include derivatives for melt infiltration above bottom
-          if(ixSoilOnlyHyd(nSoil)/=integerMissing .and. all(dq_dNrgStateLayerBotVec/=realMissing))then
-            if(ixSoilOnlyHyd(nSoil) - nrgState <= kl .or. full) &
-                aJac(ixInd(full,ixSoilOnlyHyd(nSoil),nrgState),nrgState) = -(dt/mLayerDepth(nSnow+nLake+1))*dq_dNrgStateLayerBotVec(iLayer) + aJac(ixInd(full,ixSoilOnlyHyd(nSoil),nrgState),nrgState)
           endif
         endif ! (if the energy state for the current layer is within the state subset)
       end do ! (looping through energy states in the soil domain)

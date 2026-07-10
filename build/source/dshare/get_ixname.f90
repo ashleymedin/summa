@@ -861,7 +861,6 @@ contains
   case('dq_dHydStateAbove'              ); get_ixDeriv = iLookDERIV%dq_dHydStateAbove              ! change in the flux in layer interfaces w.r.t. state variables in the layer above
   case('dq_dHydStateBelow'              ); get_ixDeriv = iLookDERIV%dq_dHydStateBelow              ! change in the flux in layer interfaces w.r.t. state variables in the layer below
   case('dq_dHydStateLayerSurfVec'       ); get_ixDeriv = iLookDERIV%dq_dHydStateLayerSurfVec       ! change in the flux in soil surface interface w.r.t. state variables in layers
-  case('dq_dHydStateLayerBotVec'        ); get_ixDeriv = iLookDERIV%dq_dHydStateLayerBotVec        ! change in the flux in soil bottom interface w.r.t. state variables in layers
   case('mLayerdTheta_dPsi'              ); get_ixDeriv = iLookDERIV%mLayerdTheta_dPsi              ! derivative in liquid water content w.r.t. matric potential (m-1)
   case('mLayerdPsi_dTheta'              ); get_ixDeriv = iLookDERIV%mLayerdPsi_dTheta              ! derivative in matric potential w.r.t. liquid water content (m)
   case('dCompress_dPsi'                 ); get_ixDeriv = iLookDERIV%dCompress_dPsi                 ! derivative in compressibility w.r.t matric head (m-1)
@@ -871,7 +870,6 @@ contains
   case('dq_dNrgStateAbove'              ); get_ixDeriv = iLookDERIV%dq_dNrgStateAbove              ! change in the flux in layer interfaces w.r.t. state variables in the layer above
   case('dq_dNrgStateBelow'              ); get_ixDeriv = iLookDERIV%dq_dNrgStateBelow              ! change in the flux in layer interfaces w.r.t. state variables in the layer below
   case('dq_dNrgStateLayerSurfVec'       ); get_ixDeriv = iLookDERIV%dq_dNrgStateLayerSurfVec       ! change in the flux in soil surface interface w.r.t. state variables in layers
-  case('dq_dNrgStateLayerBotVec'        ); get_ixDeriv = iLookDERIV%dq_dNrgStateLayerBotVec        ! change in the flux in soil bottom interface w.r.t. state variables in layers
   case('dPsiLiq_dTemp'                  ); get_ixDeriv = iLookDERIV%dPsiLiq_dTemp                  ! derivative in the liquid water matric potential w.r.t. temperature (m K-1)
   case('dPsiLiq_dPsi0'                  ); get_ixDeriv = iLookDERIV%dPsiLiq_dPsi0                  ! derivative in liquid matric potential w.r.t. total matric potential (-)
  ! derivatives in soil transpiration w.r.t. canopy state variables

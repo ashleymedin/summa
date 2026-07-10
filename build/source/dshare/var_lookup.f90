@@ -718,7 +718,6 @@ MODULE var_lookup
   integer(i4b)    :: dq_dHydStateAbove               = integerMissing ! change in the flux in layer interfaces w.r.t. state variables in the layer above
   integer(i4b)    :: dq_dHydStateBelow               = integerMissing ! change in the flux in layer interfaces w.r.t. state variables in the layer below
   integer(i4b)    :: dq_dHydStateLayerSurfVec        = integerMissing ! change in the flux in soil surface interface w.r.t. state variables in layers
-  integer(i4b)    :: dq_dHydStateLayerBotVec         = integerMissing ! change in the flux in soil bottom interface w.r.t. state variables in layers
   integer(i4b)    :: mLayerdTheta_dPsi               = integerMissing ! derivative in liquid water content w.r.t. matric potential (m-1)
   integer(i4b)    :: mLayerdPsi_dTheta               = integerMissing ! derivative in matric potential w.r.t. liquid water content (m)
   integer(i4b)    :: dCompress_dPsi                  = integerMissing ! derivative in compressibility w.r.t matric head (m-1)
@@ -728,7 +727,6 @@ MODULE var_lookup
   integer(i4b)    :: dq_dNrgStateAbove               = integerMissing ! change in the flux in layer interfaces w.r.t. state variables in the layer above
   integer(i4b)    :: dq_dNrgStateBelow               = integerMissing ! change in the flux in layer interfaces w.r.t. state variables in the layer below
   integer(i4b)    :: dq_dNrgStateLayerSurfVec        = integerMissing ! change in the flux in soil surface interface w.r.t. state variables in layers
-  integer(i4b)    :: dq_dNrgStateLayerBotVec         = integerMissing ! change in the flux in soil bottom interface w.r.t. state variables in layers
   integer(i4b)    :: dPsiLiq_dTemp                   = integerMissing ! derivative in the liquid water matric potential w.r.t. temperature (m K-1)
   integer(i4b)    :: dPsiLiq_dPsi0                   = integerMissing ! derivative in liquid water matric potential w.r.t. the total water matric potential (-)
   ! derivatives in soil transpiration w.r.t. canopy state variables
@@ -1056,7 +1054,7 @@ MODULE var_lookup
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
-                                                                         81, 82, 83, 84, 85)
+                                                                         81, 82, 83)
  ! named variables: model indices
  type(iLook_index),   public,parameter :: iLookINDEX    =iLook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

@@ -652,11 +652,9 @@ MODULE data_types
    real(rkind), allocatable :: dq_dHydStateAbove(:)              ! intent(inout): derivatives in the flux w.r.t. matric head in the layer above (s-1)
    real(rkind), allocatable :: dq_dHydStateBelow(:)              ! intent(inout): derivatives in the flux w.r.t. matric head in the layer below (s-1)
    real(rkind), allocatable :: dq_dHydStateLayerSurfVec(:)       ! intent(inout): derivative in surface infiltration w.r.t. hydrology state in every soil layer (m s-1 or s-1)
-   real(rkind), allocatable :: dq_dHydStateLayerBotVec(:)        ! intent(inout): derivative in bottom melt infiltration w.r.t. hydrology state in every soil layer (m s-1 or s-1)
    real(rkind), allocatable :: dq_dNrgStateAbove(:)              ! intent(inout): derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
    real(rkind), allocatable :: dq_dNrgStateBelow(:)              ! intent(inout): derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
    real(rkind), allocatable :: dq_dNrgStateLayerSurfVec(:)       ! intent(inout): derivative in surface infiltration w.r.t. energy state in every soil layer (m s-1 K-1)
-   real(rkind), allocatable :: dq_dNrgStateLayerBotVec(:)        ! intent(inout): derivative in bottom melt infiltration w.r.t. energy state in every soil layer (m s-1 K-1)
    real(rkind), allocatable :: mLayerdTrans_dTCanair(:)          ! intent(inout): derivatives in the soil layer transpiration flux w.r.t. canopy air temperature
    real(rkind), allocatable :: mLayerdTrans_dTCanopy(:)          ! intent(inout): derivatives in the soil layer transpiration flux w.r.t. canopy temperature
    real(rkind), allocatable :: mLayerdTrans_dTGround(:)          ! intent(inout): derivatives in the soil layer transpiration flux w.r.t. ground temperature
@@ -884,9 +882,6 @@ MODULE data_types
    ! output: derivatives in surface infiltration w.r.t. ...
    real(rkind),allocatable :: dq_dHydStateVec(:) ! ... hydrology state in every soil layer (m s-1 or s-1)
    real(rkind),allocatable :: dq_dNrgStateVec(:) ! ... energy state in every soil layer (m s-1 K-1)
-   ! output: derivatives in bottom melt infiltration w.r.t. ...
-   real(rkind),allocatable :: dqGlce_dHydStateVec(:) ! ... hydrology state in every glacier ice layer (m s-1 or s-1)
-   real(rkind),allocatable :: dqGlce_dNrgStateVec(:) ! ... energy state in every glacier ice layer (m s-1 K-1)
    ! output: error control
    integer(i4b)            :: err     ! error code
    character(len=len_msg)  :: message ! error message
@@ -1569,19 +1564,15 @@ contains
    dq_dHydStateAbove            => deriv_data%var(iLookDERIV%dq_dHydStateAbove)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer above
    dq_dHydStateBelow            => deriv_data%var(iLookDERIV%dq_dHydStateBelow)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer below
    dq_dHydStateLayerSurfVec     => deriv_data%var(iLookDERIV%dq_dHydStateLayerSurfVec)%dat, & ! intent(out): [dp(:)] change in the flux in soil surface interface w.r.t. state variables in layers
-   dq_dHydStateLayerBotVec      => deriv_data%var(iLookDERIV%dq_dHydStateLayerBotVec)%dat,  & ! intent(out): [dp(:)] change in the flux in soil bottom interface w.r.t. state variables in layers
    dq_dNrgStateAbove            => deriv_data%var(iLookDERIV%dq_dNrgStateAbove)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer above
    dq_dNrgStateBelow            => deriv_data%var(iLookDERIV%dq_dNrgStateBelow)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer below
-   dq_dNrgStateLayerSurfVec     => deriv_data%var(iLookDERIV%dq_dNrgStateLayerSurfVec)%dat, & ! intent(out): [dp(:)] change in the flux in soil surface interface w.r.t. state variables in layers
-   dq_dNrgStateLayerBotVec      => deriv_data%var(iLookDERIV%dq_dNrgStateLayerBotVec)%dat   ) ! intent(out): [dp(:)] change in the flux in soil bottom interface w.r.t. state variables in layers
+   dq_dNrgStateLayerSurfVec     => deriv_data%var(iLookDERIV%dq_dNrgStateLayerSurfVec)%dat  ) ! intent(out): [dp(:)] change in the flux in soil surface interface w.r.t. state variables in layers
    io_soilLiqFlux % dq_dHydStateAbove       =dq_dHydStateAbove        ! intent(inout): derivatives in the flux w.r.t. matric head in the layer above (s-1)
    io_soilLiqFlux % dq_dHydStateBelow       =dq_dHydStateBelow        ! intent(inout): derivatives in the flux w.r.t. matric head in the layer below (s-1)
    io_soilLiqFlux % dq_dHydStateLayerSurfVec=dq_dHydStateLayerSurfVec ! intent(inout): derivative in surface infiltration w.r.t. hydrology state in every soil layer (m s-1 or s-1)
-   io_soilLiqFlux % dq_dHydStateLayerBotVec =dq_dHydStateLayerBotVec  ! intent(inout): derivative in bottom melt infiltration w.r.t. hydrology state in every soil layer (m s-1 or s-1)
    io_soilLiqFlux % dq_dNrgStateAbove       =dq_dNrgStateAbove        ! intent(inout): derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
    io_soilLiqFlux % dq_dNrgStateBelow       =dq_dNrgStateBelow        ! intent(inout): derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
    io_soilLiqFlux % dq_dNrgStateLayerSurfVec=dq_dNrgStateLayerSurfVec ! intent(inout): derivative in surface infiltration w.r.t. energy state in every soil layer (m s-1 K-1)
-   io_soilLiqFlux % dq_dNrgStateLayerBotVec =dq_dNrgStateLayerBotVec  ! intent(inout): derivative in bottom melt infiltration w.r.t. energy state in every soil layer (m s-1 K-1)
   end associate
 
   ! intent(inout) arguments: transpiration flux derivatives
@@ -1651,19 +1642,15 @@ contains
    dq_dHydStateAbove            => deriv_data%var(iLookDERIV%dq_dHydStateAbove)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer above
    dq_dHydStateBelow            => deriv_data%var(iLookDERIV%dq_dHydStateBelow)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer below
    dq_dHydStateLayerSurfVec     => deriv_data%var(iLookDERIV%dq_dHydStateLayerSurfVec)%dat, & ! intent(out): [dp(:)] change in the flux in soil surface interface w.r.t. state variables in layers
-   dq_dHydStateLayerBotVec      => deriv_data%var(iLookDERIV%dq_dHydStateLayerBotVec)%dat,  & ! intent(out): [dp(:)] change in the flux in soil bottom interface w.r.t. state variables in layers
    dq_dNrgStateAbove            => deriv_data%var(iLookDERIV%dq_dNrgStateAbove)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer above
    dq_dNrgStateBelow            => deriv_data%var(iLookDERIV%dq_dNrgStateBelow)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer below
-   dq_dNrgStateLayerSurfVec     => deriv_data%var(iLookDERIV%dq_dNrgStateLayerSurfVec)%dat, & ! intent(out): [dp(:)] change in the flux in soil surface interface w.r.t. state variables in layers
-   dq_dNrgStateLayerBotVec      => deriv_data%var(iLookDERIV%dq_dNrgStateLayerBotVec)%dat  ) ! intent(out): [dp(:)] change in the flux in soil bottom interface w.r.t. state variables in layers
+   dq_dNrgStateLayerSurfVec     => deriv_data%var(iLookDERIV%dq_dNrgStateLayerSurfVec)%dat  ) ! intent(out): [dp(:)] change in the flux in soil surface interface w.r.t. state variables in layers
    dq_dHydStateAbove       =io_soilLiqFlux % dq_dHydStateAbove        ! intent(inout): derivatives in the flux w.r.t. matric head in the layer above (s-1)
    dq_dHydStateBelow       =io_soilLiqFlux % dq_dHydStateBelow        ! intent(inout): derivatives in the flux w.r.t. matric head in the layer below (s-1)
    dq_dHydStateLayerSurfVec=io_soilLiqFlux % dq_dHydStateLayerSurfVec ! intent(inout): derivative in surface infiltration w.r.t. hydrology state in every soil layer (m s-1 or s-1)
-   dq_dHydStateLayerBotVec =io_soilLiqFlux % dq_dHydStateLayerBotVec  ! intent(inout): derivative in bottom melt infiltration w.r.t. hydrology state in every soil layer (m s-1 or s-1)
    dq_dNrgStateAbove       =io_soilLiqFlux % dq_dNrgStateAbove        ! intent(inout): derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
    dq_dNrgStateBelow       =io_soilLiqFlux % dq_dNrgStateBelow        ! intent(inout): derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
    dq_dNrgStateLayerSurfVec=io_soilLiqFlux % dq_dNrgStateLayerSurfVec ! intent(inout): derivative in surface infiltration w.r.t. energy state in every soil layer (m s-1 K-1)
-   dq_dNrgStateLayerBotVec =io_soilLiqFlux % dq_dNrgStateLayerBotVec  ! intent(inout): derivative in bottom melt infiltration w.r.t. energy state in every soil layer (m s-1 K-1)
   end associate
 
   ! intent(inout) arguments: transpiration flux derivatives
@@ -2163,10 +2150,7 @@ contains
    scalarSurfaceRunoff_SE    => io_soilLiqFlux % scalarSurfaceRunoff_SE, & ! saturation excess surface runoff (m s-1)
    ! intent(inout): derivatives in surface infiltration in the upper-most soil layer w.r.t ... 
    dq_dHydStateLayerSurfVec  => io_soilLiqFlux % dq_dHydStateLayerSurfVec, & ! ... hydrology state above soil snow or canopy and every soil layer (m s-1 or s-1)
-   dq_dNrgStateLayerSurfVec  => io_soilLiqFlux % dq_dNrgStateLayerSurfVec, & ! ... temperature above soil snow or canopy and every soil layer (m s-1 or s-1)
-   ! intent(inout): derivatives in bottom melt infiltration in the bottom-most soil layer w.r.t. ...
-   dq_dHydStateLayerBotVec   => io_soilLiqFlux % dq_dHydStateLayerBotVec, & ! ... hydrology state in every soil layer (m s-1 or s-1)
-   dq_dNrgStateLayerBotVec   => io_soilLiqFlux % dq_dNrgStateLayerBotVec  & ! ... energy state in every soil layer (m s-1 K-1)
+   dq_dNrgStateLayerSurfVec  => io_soilLiqFlux % dq_dNrgStateLayerSurfVec  & ! ... temperature above soil snow or canopy and every soil layer (m s-1 or s-1)
   &)
    ! intent(out): surface runoff
    scalarSurfaceRunoff       = out_surfaceFlux % scalarSurfaceRunoff    ! surface runoff (m s-1)
@@ -2175,9 +2159,6 @@ contains
    ! intent(inout): derivatives in surface infiltration in the upper-most soil layer w.r.t. ...
    dq_dHydStateLayerSurfVec  = out_surfaceFlux % dq_dHydStateVec ! ... hydrology state in every soil layer (m s-1 or s-1)
    dq_dNrgStateLayerSurfVec  = out_surfaceFlux % dq_dNrgStateVec ! ... energy state in every soil layer (m s-1 K-1)
-    ! intent(inout): derivatives in bottom melt infiltration in the bottom-most soil layer w.r.t. ...
-   dq_dHydStateLayerBotVec   = out_surfaceFlux % dqGlce_dHydStateVec ! ... hydrology state in every soil layer (m s-1 or s-1)
-   dq_dNrgStateLayerBotVec   = out_surfaceFlux % dqGlce_dNrgStateVec ! ... energy state in every soil layer (m s-1 K-1)
   end associate
   ! intent(out): error control
   err      = out_surfaceFlux % err     ! error code
