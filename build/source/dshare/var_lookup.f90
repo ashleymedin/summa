@@ -494,7 +494,7 @@ MODULE var_lookup
   integer(i4b)    :: scalarSaturatedArea             = integerMissing ! fraction of area that is considered saturated (-)
   integer(i4b)    :: scalarFrozenArea                = integerMissing ! fraction of area that is considered impermeable due to soil ice (-)
   integer(i4b)    :: scalarSoilControl               = integerMissing ! soil control on infiltration for derivative
-  integer(i4b)    :: scalarSoilControlBot            = integerMissing ! soil control on bottom melt infiltration for derivative
+  integer(i4b)    :: scalarSoilControlBot            = integerMissing ! soil control on bottom capillary fluxes for derivative
   integer(i4b)    :: mLayerVolFracAir                = integerMissing ! volumetric fraction of air in each layer (-)
   integer(i4b)    :: mLayerTcrit                     = integerMissing ! critical soil temperature above which all water is unfrozen (K)
   integer(i4b)    :: mLayerCompress                  = integerMissing ! change in volumetric water content due to compression of soil (s-1)

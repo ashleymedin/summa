@@ -637,7 +637,7 @@ MODULE data_types
    real(rkind)              :: scalarSaturatedArea               ! intent(inout): fraction of area that is considered saturated (-)
    real(rkind)              :: scalarFrozenArea                  ! intent(inout): fraction of area that is considered impermeable due to soil ice (-)
    real(rkind)              :: scalarSoilControl                 ! intent(inout): soil control on infiltration for derivative
-   real(rkind)              :: scalarSoilControlBot              ! intent(inout): soil control on bottom melt infiltration for derivative
+   real(rkind)              :: scalarSoilControlBot              ! intent(inout): soil control on bottom capillary fluxes for derivative
    real(rkind)              :: scalarSurfaceRunoff               ! intent(inout): surface runoff (m s-1)
    real(rkind)              :: scalarSurfaceRunoff_IE            ! intent(inout): infiltration excess surface runoff (m s-1)
    real(rkind)              :: scalarSurfaceRunoff_SE            ! intent(inout): saturation excess surface runoff (m s-1)
@@ -825,8 +825,6 @@ MODULE data_types
    real(rkind) :: upperBoundTheta     ! upper boundary condition for volumetric liquid water content (-)
    ! input: flux at the upper boundary
    real(rkind) :: scalarRainPlusMelt  ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
-   ! input: flux at the lower boundary
-   real(rkind) :: scalarGlceMelt       ! glacier ice melt, used as input to the soil zone before computing glacier runoff (m s-1)
    ! input: transmittance
    real(rkind) :: surfaceSatHydCond   ! saturated hydraulic conductivity at the surface (m s-1)
    real(rkind) :: dHydCond_dTemp      ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
@@ -867,7 +865,6 @@ MODULE data_types
    real(rkind) :: scalarFrozenArea          ! fraction of area that is considered impermeable due to soil ice (-)
    real(rkind) :: scalarSoilControl         ! soil control on infiltration for derivative
    real(rkind) :: scalarSurfaceInfiltration ! surface infiltration rate (m s-1)
-   real(rkind) :: scalarSoilControlBot      ! soil control on bottom melt infiltration for derivative
    real(rkind) :: scalarMeltInfiltration    ! bottom melt infiltration (m s-1)
   contains
    procedure :: initialize => initialize_io_surfaceFlux
@@ -946,6 +943,7 @@ MODULE data_types
    real(rkind)  :: nodeDepth                 ! depth of the lowest unsaturated soil layer (m)
    real(rkind)  :: nodeHeight                ! height of the lowest unsaturated soil node (m)
    ! input: diriclet boundary conditions
+   real(rkind)  :: scalarGlceMelt            ! glacier ice melt (m s-1)
    real(rkind)  :: lowerBoundHead            ! lower boundary condition for matric head (m)
    real(rkind)  :: lowerBoundTheta           ! lower boundary condition for volumetric liquid water content (-)
    ! input: derivative in soil water characteristic
@@ -971,6 +969,14 @@ MODULE data_types
   contains
    procedure :: initialize => initialize_in_qDrainFlux
  end type in_type_qDrainFlux
+
+ type, public :: io_type_qDrainFlux ! intent(inout) data
+   ! input-output: soil control 
+   real(rkind) ::    scalarSoilControlBot    ! soil control on bottom capillary fluxes for derivative
+  contains
+   procedure :: initialize => initialize_io_qDrainFlux
+   procedure :: finalize   => finalize_io_qDrainFlux
+ end type io_type_qDrainFlux
 
  type, public :: out_type_qDrainFlux ! intent(out) data
    ! output: hydraulic conductivity at the bottom of the unsaturated zone
@@ -1525,7 +1531,7 @@ contains
    scalarSaturatedArea    => diag_data%var(iLookDIAG%scalarSaturatedArea)%dat(1),    & ! intent(out): [dp] fraction of area that is considered saturated (-)
    scalarFrozenArea       => diag_data%var(iLookDIAG%scalarFrozenArea)%dat(1),       & ! intent(out): [dp] fraction of area that is considered impermeable due to soil ice (-)
    scalarSoilControl      => diag_data%var(iLookDIAG%scalarSoilControl)%dat(1),      & ! intent(out): [dp] soil control on infiltration for derivative
-   scalarSoilControlBot   => diag_data%var(iLookDIAG%scalarSoilControlBot)%dat(1),   & ! intent(out): [dp] soil control on bottom melt infiltration for derivative
+   scalarSoilControlBot   => diag_data%var(iLookDIAG%scalarSoilControlBot)%dat(1),   & ! intent(out): [dp] soil control on bottom capillary fluxes for derivative
    scalarSurfaceRunoff    => flux_data%var(iLookFLUX%scalarSurfaceRunoff)%dat(1),    & ! intent(out): [dp] surface runoff (m s-1)
    scalarSurfaceRunoff_IE => flux_data%var(iLookFLUX%scalarSurfaceRunoff_IE)%dat(1), & ! intent(out): [dp] infiltration excess surface runoff (m s-1)
    scalarSurfaceRunoff_SE => flux_data%var(iLookFLUX%scalarSurfaceRunoff_SE)%dat(1)  ) ! intent(out): [dp] saturation excess surface runoff (m s-1)
@@ -1534,7 +1540,7 @@ contains
    io_soilLiqFlux % scalarSaturatedArea     =scalarSaturatedArea      ! intent(inout): fraction of area that is considered saturated (-)
    io_soilLiqFlux % scalarFrozenArea        =scalarFrozenArea         ! intent(inout): fraction of area that is considered impermeable due to soil ice (-)
    io_soilLiqFlux % scalarSoilControl       =scalarSoilControl        ! intent(inout): soil control on infiltration for derivative
-   io_soilLiqFlux % scalarSoilControlBot    =scalarSoilControlBot     ! intent(inout): soil control on bottom melt infiltration for derivative
+   io_soilLiqFlux % scalarSoilControlBot    =scalarSoilControlBot     ! intent(inout): soil control on bottom capillary fluxes for derivative
    io_soilLiqFlux % scalarSurfaceRunoff     =scalarSurfaceRunoff      ! intent(inout): surface runoff (m s-1)
    io_soilLiqFlux % scalarSurfaceRunoff_IE  =scalarSurfaceRunoff_IE   ! intent(inout): infiltration excess surface runoff (m s-1)
    io_soilLiqFlux % scalarSurfaceRunoff_SE  =scalarSurfaceRunoff_SE   ! intent(inout): saturation excess surface runoff (m s-1)
@@ -1603,7 +1609,7 @@ contains
    scalarSaturatedArea    => diag_data%var(iLookDIAG%scalarSaturatedArea)%dat(1),    & ! intent(out): [dp] fraction of area that is considered saturated (-)
    scalarFrozenArea       => diag_data%var(iLookDIAG%scalarFrozenArea)%dat(1),       & ! intent(out): [dp] fraction of area that is considered impermeable due to soil ice (-)
    scalarSoilControl      => diag_data%var(iLookDIAG%scalarSoilControl)%dat(1),      & ! intent(out): [dp] soil control on infiltration for derivative
-   scalarSoilControlBot   => diag_data%var(iLookDIAG%scalarSoilControlBot)%dat(1),   & ! intent(out): [dp] soil control on bottom melt infiltration for derivative
+   scalarSoilControlBot   => diag_data%var(iLookDIAG%scalarSoilControlBot)%dat(1),   & ! intent(out): [dp] soil control on bottom capillary fluxes for derivative
    scalarSurfaceRunoff    => flux_data%var(iLookFLUX%scalarSurfaceRunoff)%dat(1),    & ! intent(out): [dp] surface runoff (m s-1)
    scalarSurfaceRunoff_IE => flux_data%var(iLookFLUX%scalarSurfaceRunoff_IE)%dat(1), & ! intent(out): [dp] infiltration excess surface runoff (m s-1)
    scalarSurfaceRunoff_SE => flux_data%var(iLookFLUX%scalarSurfaceRunoff_SE)%dat(1)  ) ! intent(out): [dp] saturation excess surface runoff (m s-1)
@@ -1612,7 +1618,7 @@ contains
    scalarSaturatedArea     =io_soilLiqFlux % scalarSaturatedArea      ! intent(inout): fraction of area that is considered saturated (-)
    scalarFrozenArea        =io_soilLiqFlux % scalarFrozenArea         ! intent(inout): fraction of area that is considered impermeable due to soil ice (-)
    scalarSoilControl       =io_soilLiqFlux % scalarSoilControl        ! intent(inout): soil control on infiltration for derivative
-   scalarSoilControlBot    =io_soilLiqFlux % scalarSoilControlBot     ! intent(inout): soil control on bottom melt infiltration for derivative
+   scalarSoilControlBot    =io_soilLiqFlux % scalarSoilControlBot     ! intent(inout): soil control on bottom capillary fluxes for derivative
    scalarSurfaceRunoff     =io_soilLiqFlux % scalarSurfaceRunoff      ! intent(inout): surface runoff (m s-1)
    scalarSurfaceRunoff_IE  =io_soilLiqFlux % scalarSurfaceRunoff_IE   ! intent(inout): infiltration excess surface runoff (m s-1)
    scalarSurfaceRunoff_SE  =io_soilLiqFlux % scalarSurfaceRunoff_SE   ! intent(inout): saturation excess surface runoff (m s-1)
@@ -2003,13 +2009,10 @@ contains
 
   associate(&
    ! flux at the upper boundary
-   scalarRainPlusMelt  => in_soilLiqFlux % scalarRainPlusMelt, & ! rain plus melt (m s-1)
-   scalarGlceMelt      => in_soilLiqFlux % scalarGlceMelt      & ! glacier melt (m s-1)
+   scalarRainPlusMelt  => in_soilLiqFlux % scalarRainPlusMelt & ! rain plus melt (m s-1)
   &)
    ! intent(in): flux at the upper boundary
    in_surfaceFlux % scalarRainPlusMelt = scalarRainPlusMelt ! rain plus melt (m s-1)
-   ! intent(in): flux at the lower boundary
-   in_surfaceFlux % scalarGlceMelt = scalarGlceMelt ! glacier melt (m s-1)
   end associate
 
   associate(&
@@ -2086,7 +2089,6 @@ contains
    scalarFrozenArea    => io_soilLiqFlux % scalarFrozenArea,            & ! fraction of area that is considered impermeable due to soil ice (-)
    scalarSoilControl   => io_soilLiqFlux % scalarSoilControl,           & ! soil control on infiltration for derivative
    scalarSurfaceInfiltration => io_soilLiqFlux % scalarInfiltration,    & ! surface infiltration (m s-1)
-   scalarSoilControlBot      => io_soilLiqFlux % scalarSoilControlBot,  & ! soil control on bottom melt infiltration for derivative
    scalarMeltInfiltration    => io_soilLiqFlux % scalarMeltInfiltration & ! bottom melt infiltration (m s-1)
   &)
    ! intent(inout): hydraulic conductivity and diffusivity at the surface
@@ -2099,7 +2101,6 @@ contains
    io_surfaceFlux % scalarFrozenArea    = scalarFrozenArea    ! fraction of area that is considered impermeable due to soil ice (-)
    io_surfaceFlux % scalarSoilControl   = scalarSoilControl   ! soil control on infiltration for derivative
    io_surfaceFlux % scalarSurfaceInfiltration = scalarSurfaceInfiltration ! surface infiltration (m s-1)
-   io_surfaceFlux % scalarSoilControlBot      = scalarSoilControlBot      ! soil control on bottom melt infiltration for derivative
    io_surfaceFlux % scalarMeltInfiltration    = scalarMeltInfiltration    ! bottom melt infiltration (m s-1)
   end associate
  end subroutine initialize_io_surfaceFlux
@@ -2119,7 +2120,6 @@ contains
    scalarFrozenArea    => io_soilLiqFlux % scalarFrozenArea,    & ! fraction of area that is considered impermeable due to soil ice (-)
    scalarSoilControl   => io_soilLiqFlux % scalarSoilControl,   & ! soil control on infiltration for derivative
    scalarSurfaceInfiltration => io_soilLiqFlux % scalarInfiltration,    & ! surface infiltration rate (m s-1)
-   scalarSoilControlBot      => io_soilLiqFlux % scalarSoilControlBot,  & ! soil control on bottom melt infiltration for derivative
    scalarMeltInfiltration    => io_soilLiqFlux % scalarMeltInfiltration & ! bottom melt infiltration (m s-1)
   &)
    ! intent(inout): hydraulic conductivity and diffusivity at the surface
@@ -2132,8 +2132,7 @@ contains
    scalarFrozenArea    = io_surfaceFlux % scalarFrozenArea    ! fraction of area that is considered impermeable due to soil ice (-)
    scalarSoilControl   = io_surfaceFlux % scalarSoilControl   ! soil control on infiltration for derivative
    scalarSurfaceInfiltration = io_surfaceFlux % scalarSurfaceInfiltration ! surface infiltration (m s-1)
-   scalarSoilControlBot      = io_surfaceFlux % scalarSoilControlBot      ! soil control on bottom melt infiltration for derivative
-   scalarMeltInfiltration    = io_surfaceFlux % scalarMeltInfiltration    ! bottom melt infiltration (m s-1)
+    scalarMeltInfiltration    = io_surfaceFlux % scalarMeltInfiltration    ! bottom melt infiltration (m s-1)
   end associate
  end subroutine finalize_io_surfaceFlux
 
@@ -2281,6 +2280,7 @@ contains
    mLayerDepth  => prog_data%var(iLookPROG%mLayerDepth)%dat(ibeg:iend), & ! depth of the layer (m)
    mLayerHeight => prog_data%var(iLookPROG%mLayerHeight)%dat(ibeg:iend),& ! height of the layer mid-point (m)
    ! intent(in): boundary conditions
+   scalarGlceMelt  => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1),  & ! intent(out): [dp] glacier ice melt (m s-1)
    lowerBoundHead  => mpar_data%var(iLookPARAM%lowerBoundHead)%dat(1), & ! lower boundary condition for matric head (m)
    lowerBoundTheta => mpar_data%var(iLookPARAM%lowerBoundTheta)%dat(1),& ! lower boundary condition for volumetric liquid water content (-)
    ! intent(in): derivative in the soil water characteristic
@@ -2311,6 +2311,7 @@ contains
    in_qDrainFlux % nodeDepth  = mLayerDepth(nSoil)  ! depth of the lowest unsaturated soil layer (m)
    in_qDrainFlux % nodeHeight = mLayerHeight(nSoil) ! height of the lowest unsaturated soil node (m)
    ! intent(in): boundary conditions
+   in_qDrainFlux % scalarGlceMelt  = scalarGlceMelt  ! glacier ice melt (m s-1)
    in_qDrainFlux % lowerBoundHead  = lowerBoundHead  ! lower boundary condition (m)
    in_qDrainFlux % lowerBoundTheta = lowerBoundTheta ! lower boundary condition (-)
    ! intent(in): derivative in the soil water characteristic
@@ -2335,6 +2336,30 @@ contains
    in_qDrainFlux % zScale_TOPMODEL = zScale_TOPMODEL  ! TOPMODEL scaling factor (m)
   end associate
  end subroutine initialize_in_qDrainFlux
+
+ subroutine initialize_io_qDrainFlux(io_qDrainFlux,io_soilLiqFlux)
+  class(io_type_qDrainFlux),intent(out) :: io_qDrainFlux ! input-output object for qDrainFlux
+  type(io_type_soilLiqFlux),intent(in)  :: io_soilLiqFlux ! input-output class object for soilLiqFlux
+ 
+  associate(&
+   ! intent(inout): drainage flux and derivatives
+   scalarSoilControlBot => io_soilLiqFlux % scalarSoilControlBot & ! soil control on capi
+  &)
+   io_qDrainFlux % scalarSoilControlBot = scalarSoilControlBot ! soil control on bottom capillary fluxes for derivative
+  end associate
+ end subroutine initialize_io_qDrainFlux
+
+ subroutine finalize_io_qDrainFlux(io_qDrainFlux,io_soilLiqFlux)
+  class(io_type_qDrainFlux),intent(in)    :: io_qDrainFlux ! input-output object for qDrainFlux
+  type(io_type_soilLiqFlux),intent(inout) :: io_soilLiqFlux ! input-output class object for soilLiqFlux
+
+  associate(&
+   ! intent(inout): drainage flux and derivatives
+   scalarSoilControlBot => io_soilLiqFlux % scalarSoilControlBot & ! soil control on bottom capillary fluxes for derivative
+  &)
+   scalarSoilControlBot = io_qDrainFlux % scalarSoilControlBot ! soil control on bottom capillary fluxes for derivative
+  end associate
+ end subroutine finalize_io_qDrainFlux
 
  subroutine finalize_out_qDrainFlux(out_qDrainFlux,nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse,err,cmessage)
   class(out_type_qDrainFlux),intent(in) :: out_qDrainFlux   ! class object for output qDrainFlux variables

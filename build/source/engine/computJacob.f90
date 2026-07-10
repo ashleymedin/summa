@@ -554,7 +554,7 @@ subroutine fluxJacAdd(&
     scalarFracLiqVeg             => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)               ,& ! intent(in): [dp]     fraction of liquid water on vegetation (-)
     mLayerFracLiq                => diag_data%var(iLookDIAG%mLayerFracLiq)%dat                     ,& ! intent(in): [dp(:)]  fraction of liquid water in each snow, lake, or glce layer (-)
     scalarSoilControl            => diag_data%var(iLookDIAG%scalarSoilControl)%dat(1)              ,& ! intent(in): [dp]     soil control on infiltration for derivative
-    scalarSoilControlBot         => diag_data%var(iLookDIAG%scalarSoilControlBot)%dat(1)           ,& ! intent(in): [dp]     soil control on bottom melt infiltration for derivative
+    scalarSoilControlBot         => diag_data%var(iLookDIAG%scalarSoilControlBot)%dat(1)           ,& ! intent(in): [dp]     soil control on bottom capillary fluxes for derivative
     mLayerVolFracIce             => prog_data%var(iLookPROG%mLayerVolFracIce)%dat                  ,& ! intent(in): [dp(:)]  volumetric fraction of ice in each layer start of step (-)
     ! canopy and layer depth
     canopyDepth                  => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)              ,& ! intent(in): [dp   ]  canopy depth (m)

@@ -37,6 +37,7 @@ USE data_types,only:&
                    in_type_iLayerFlux,    & ! derived type for intent(in) arguments
                    out_type_iLayerFlux,   & ! derived type for intent(out) arguments
                    in_type_qDrainFlux,    & ! derived type for intent(in) arguments
+                   io_type_qDrainFlux,    & ! derived type for intent(inout) arguments
                    out_type_qDrainFlux      ! derived type for intent(out) arguments
 
 ! missing values
@@ -410,8 +411,8 @@ contains
 
  subroutine update_compute_surface_infiltration(in_surfaceFlux,io_surfaceFlux,out_surfaceFlux)
   ! **** Update operations for compute_surface_infiltration ****
-  type(in_type_surfaceFlux) ,intent(in)    ::  in_surfaceFlux
-  type(io_type_surfaceFlux) ,intent(inout) ::  io_surfaceFlux
+  type(in_type_surfaceFlux) ,intent(in)    :: in_surfaceFlux
+  type(io_type_surfaceFlux) ,intent(inout) :: io_surfaceFlux
   type(out_type_surfaceFlux),intent(out)   :: out_surfaceFlux
   call surfaceFlux(io_soilLiqFlux,in_surfaceFlux,io_surfaceFlux,out_surfaceFlux)
  end subroutine update_compute_surface_infiltration
@@ -495,34 +496,42 @@ contains
  subroutine compute_drainage_flux
   ! **** Compute the drainage flux from the bottom of the soil profile and its derivative ****
   type(in_type_qDrainFlux)  :: in_qDrainFlux
+  type(io_type_qDrainFlux)  :: io_qDrainFlux
   type(out_type_qDrainFlux) :: out_qDrainFlux
 
-  call initialize_compute_drainage_flux(in_qDrainFlux)
+  call initialize_compute_drainage_flux(in_qDrainFlux,io_qDrainFlux)
 
-  call update_compute_drainage_flux(in_qDrainFlux,out_qDrainFlux)
-
-  call finalize_compute_drainage_flux(out_qDrainFlux); if (return_flag) return
+  call update_compute_drainage_flux(in_qDrainFlux,io_qDrainFlux,out_qDrainFlux)
+ 
+  call finalize_compute_drainage_flux(io_qDrainFlux,out_qDrainFlux); if (return_flag) return
 
  end subroutine compute_drainage_flux
 
- subroutine initialize_compute_drainage_flux(in_qDrainFlux)
+ subroutine initialize_compute_drainage_flux(in_qDrainFlux,io_qDrainFlux)
   ! **** Initialize operations for compute_drainage_flux ****
   type(in_type_qDrainFlux),intent(out) :: in_qDrainFlux
+  type(io_type_qDrainFlux),intent(out) :: io_qDrainFlux
   call in_qDrainFlux % initialize(nSoil,nGlce,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
                                  &prog_data,mpar_data,flux_data,diag_data,iceImpedeFac,&
                                  &dHydCond_dVolLiq,dHydCond_dTemp)
+  call io_qDrainFlux % initialize(io_soilLiqFlux)
  end subroutine initialize_compute_drainage_flux
 
- subroutine update_compute_drainage_flux(in_qDrainFlux,out_qDrainFlux)
+subroutine update_compute_drainage_flux(in_qDrainFlux,io_qDrainFlux,out_qDrainFlux)
   ! **** Update operations for compute_drainage_flux ****
-  type(in_type_qDrainFlux) ,intent(in)  :: in_qDrainFlux
-  type(out_type_qDrainFlux),intent(out) :: out_qDrainFlux
-  call qDrainFlux(in_qDrainFlux,out_qDrainFlux)
+  type(in_type_qDrainFlux) ,intent(in)   :: in_qDrainFlux
+  type(io_type_qDrainFlux),intent(inout) :: io_qDrainFlux
+  type(out_type_qDrainFlux),intent(out)  :: out_qDrainFlux
+  call qDrainFlux(in_qDrainFlux,io_qDrainFlux,out_qDrainFlux)
  end subroutine update_compute_drainage_flux
 
- subroutine finalize_compute_drainage_flux(out_qDrainFlux)
+ subroutine finalize_compute_drainage_flux(io_qDrainFlux,out_qDrainFlux)
   ! **** finalize operations for compute_drainage_flux ****
+  type(io_type_qDrainFlux),intent(inout) :: io_qDrainFlux
   type(out_type_qDrainFlux),intent(in) :: out_qDrainFlux
+
+  ! interface object data components with local name space
+  call io_qDrainFlux % finalize(io_soilLiqFlux)
   associate(&
    err     => out_soilLiqFlux % err,                       & ! error code
    message => out_soilLiqFlux % cmessage                   & ! error message
@@ -531,19 +540,15 @@ contains
    if(err/=0)then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end associate
 
-  ! glacier ice melt infiltration at bottom of soil profile but currently no dependence on the aquifer for drainage
+  ! no dependence on the aquifer for drainage currently, but keep this here in case we want to couple some day
+  ! NOTE: glacier coupling terms are computed in Jacobian directly
   associate(&
-   ! flux
-   scalarMeltInfiltration => io_soilLiqFlux % scalarMeltInfiltration, & ! intent(in): melt infiltration (m s-1)
-   iLayerLiqFluxSoil      => io_soilLiqFlux % iLayerLiqFluxSoil,      & ! liquid flux at soil layer interfaces (m s-1)
-    ! derivatives in flux w.r.t. ...
-   dq_dHydStateBelow => io_soilLiqFlux % dq_dHydStateBelow, & ! ... hydrology state variables in the layer below
-   dq_dNrgStateBelow => io_soilLiqFlux % dq_dNrgStateBelow  & ! ... temperature in the layer below (m s-1 K-1)
+   ! derivatives in flux w.r.t. ...
+   dq_dHydStateBelow => io_soilLiqFlux % dq_dHydStateBelow,& ! ... hydrology state variables in the layer below
+   dq_dNrgStateBelow => io_soilLiqFlux % dq_dNrgStateBelow & ! ... temperature in the layer below (m s-1 K-1)
   &)
-   ! NOTE: could also couple aquifer flux as glacier and aquifer do not exist at the same time, but that is not implemented
-   iLayerLiqFluxSoil(nSoil) = iLayerLiqFluxSoil(nSoil) + scalarMeltInfiltration
-   dq_dHydStateBelow(nSoil) = 0._rkind ! will be calculated in computJacob
-   dq_dNrgStateBelow(nSoil) = 0._rkind ! will be calculated in computJacob
+   dq_dHydStateBelow(nSoil) = 0._rkind  ! keep this here in case we want to couple some day....
+   dq_dNrgStateBelow(nSoil) = 0._rkind  ! keep this here in case we want to couple some day....
   end associate
  end subroutine finalize_compute_drainage_flux
 end subroutine soilLiqFlux
@@ -1717,7 +1722,6 @@ subroutine update_volFracLiq_derivatives
   associate(&
    ! input: flux at the upper boundary
    scalarRainPlusMelt  => in_surfaceFlux % scalarRainPlusMelt,  & ! rain plus melt plus lake drainage, used as input to the soil zone before computing surface runoff (m s-1)
-   scalarGlceMelt      => in_surfaceFlux % scalarGlceMelt,      & ! glacier melt at the bottom of the soil zone (m s-1)
    ! input-output: surface runoff and infiltration flux (m s-1)
    xMaxInfilRate       => io_surfaceFlux % xMaxInfilRate,       & ! maximum infiltration rate (m s-1)
    scalarSoilControl   => io_surfaceFlux % scalarSoilControl,   & ! soil control on infiltration for derivative
@@ -1980,7 +1984,7 @@ end subroutine iLayerFlux
 ! ***************************************************************************************************************
 ! private subroutine qDrainFlux: compute the drainage flux from the bottom of the soil profile and its derivative
 ! ***************************************************************************************************************
-subroutine qDrainFlux(in_qDrainFlux,out_qDrainFlux)
+subroutine qDrainFlux(in_qDrainFlux,io_qDrainFlux,out_qDrainFlux)
   USE soil_utils_module,only:volFracLiq  ! compute volumetric fraction of liquid water as a function of matric head (-)
   USE soil_utils_module,only:matricHead  ! compute matric head as a function of volumetric fraction of liquid water (m)
   USE soil_utils_module,only:hydCond_psi ! compute hydraulic conductivity as a function of matric head (m s-1)
@@ -1991,12 +1995,17 @@ subroutine qDrainFlux(in_qDrainFlux,out_qDrainFlux)
   ! -----------------------------------------------------------------------------------------------------------------------------
   ! input: model control, variables, boundary conditions, transmittance variables, and soil parameters
   type(in_type_qDrainFlux) ,intent(in)  :: in_qDrainFlux      ! object for qDrainFlux input data
+  ! input-output: soil control for derivatives
+  type(io_type_qDrainFlux),intent(inout):: io_qDrainFlux      ! object for qDrainFlux input-output data
   ! output: hydraulic conductivity and diffusivity, drainage fluxes and derivatives, and error control
   type(out_type_qDrainFlux),intent(out) :: out_qDrainFlux     ! object for qDrainFlux output data
   ! -----------------------------------------------------------------------------------------------------------------------------
   ! local variables
+   ! local variables (Darcy flux)
   real(rkind)                      :: zWater                  ! effective water table depth (m)
   real(rkind)                      :: nodePsi                 ! matric head in the lowest unsaturated node (m)
+  real(rkind)                      :: dPsi                    ! spatial difference in matric head (m)
+  real(rkind)                      :: dz                      ! spatial difference in layer mid-points (m)
   real(rkind)                      :: cflux                   ! capillary flux (m s-1)
   integer(i4b)                     :: bc_lower_use            ! mutable copy of lower boundary-condition index
   ! error control
@@ -2046,7 +2055,11 @@ contains
      case(freeDrainage)   ! free drainage
        call update_qDrainFlux_freeDrainage;   if (return_flag) return
      case(zeroFlux)       ! zero flux
-       call update_qDrainFlux_zeroFlux;       if (return_flag) return
+       if(nGlce>0)then
+         call compute_capillaryFlux;      if (return_flag) return
+       else
+         call update_qDrainFlux_zeroFlux; if (return_flag) return
+       end if
      case default; err=20; message=trim(message)//'unknown lower boundary condition for soil hydrology'; return_flag=.true.; return
    end select 
 
@@ -2227,6 +2240,54 @@ contains
 
   end associate
  end subroutine update_qDrainFlux_zeroFlux
+
+
+ subroutine compute_capillaryFlux
+  ! ** Compute the capillary flux at the bottom boundary **
+  associate(&
+   ! input: state and diagnostic variables
+   scalarGlceMelt    => in_qDrainFlux % scalarGlceMelt,    & ! glacier melt at the bottom of the soil zone (m s-1)
+   nodeMatricHeadLiq => in_qDrainFlux % nodeMatricHeadLiq, &  ! liquid matric head in the lowest soil layer (m)
+   nodeDepth         => in_qDrainFlux % nodeDepth,         &  ! depth of the lowest soil layer (m)
+   ! input: transmittance
+   nodeHydCond       => in_qDrainFlux % nodeHydCond,       &  ! hydraulic conductivity at the node itself (m s-1)
+   ! input: transmittance derivatives
+   dHydCond_dMatric => in_qDrainFlux % dHydCond_dMatric,   &  ! derivative in hydraulic conductivity w.r.t. matric head (s-1)
+   dHydCond_dTemp   => in_qDrainFlux % dHydCond_dTemp,     &  ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+   ! input: derivatives in soil water characteristic
+   node_dPsiLiq_dTemp  => in_qDrainFlux % node_dPsiLiq_dTemp , &  ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
+   ! input-output: derivatives
+   scalarSoilControlBot => io_qDrainFlux % scalarSoilControlBot, & ! soil control on bottom capillary fluxes for derivative
+   ! output: drainage flux from the bottom of the soil profile
+   scalarDrainage => out_qDrainFlux % scalarDrainage,      &  ! drainage flux from the bottom of the soil profile (m s-1)
+   ! output: derivatives in drainage flux w.r.t. ...
+   dq_dHydStateUnsat => out_qDrainFlux % dq_dHydStateUnsat, & ! ... state variable in lowest soil layer (m s-1 or s-1)
+   dq_dNrgStateUnsat => out_qDrainFlux % dq_dNrgStateUnsat  & ! ... energy state variable in lowest soil layer (m s-1 K-1)
+  &)
+
+   dz = nodeDepth/2._rkind
+   ! compute the capillary flux
+   dPsi          = -nodeMatricHeadLiq
+   cflux         = -nodeHydCond * dPsi/dz
+   ! compute the total flux (add gravity flux, positive downwards)
+   scalarDrainage = cflux + nodeHydCond
+
+   ! derivatives with above water (computed before constraint)
+   dq_dHydStateUnsat = -dHydCond_dMatric*dPsi/dz + nodeHydCond/dz + dHydCond_dMatric
+   dq_dNrgStateUnsat = -dHydCond_dTemp*dPsi/dz + nodeHydCond*node_dPsiLiq_dTemp/dz + dHydCond_dTemp
+
+   ! Constrain flux: can't drain into glacier and can't exceed melt supply
+   scalarSoilControlBot = 0._rkind ! need for derivatives
+   if (scalarDrainage < scalarGlceMelt .or. scalarDrainage > 0._rkind) then
+     dq_dHydStateUnsat = 0._rkind
+     dq_dNrgStateUnsat = 0._rkind
+     if (scalarDrainage < scalarGlceMelt) scalarSoilControlBot = 1._rkind
+   endif
+   scalarDrainage = max(scalarGlceMelt, min(0._rkind, scalarDrainage))
+
+  end associate
+ end subroutine compute_capillaryFlux
+
 
  subroutine finalize_qDrainFlux
   ! ** Finalize operations for qDrainFlux **
