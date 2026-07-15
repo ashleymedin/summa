@@ -832,7 +832,7 @@ subroutine fluxJacAdd(&
         end do ! (looping through snow/lake layers above soil until non-dense layer)
       endif ! (if snow or lake present above soil)
 
-      ! - include derivatives for melt infiltration into bottom soil layer if there is glacier ice
+      ! - include derivatives for flux into bottom soil layer if there is glacier ice
       if(nSoil>0 .and. ixSoilOnlyHyd(nSoil)/=integerMissing .and. nGlce>0)then
         do pLayer=nSnow+nLake+nSoil+1,nLayers-noThetaChange
           if(ixSnLaSoGlHyd(pLayer)/=integerMissing)then
@@ -986,7 +986,7 @@ subroutine fluxJacAdd(&
         end do ! (looping through snow/lake layers above soil until non-dense layer)
       endif ! (if snow or lake present above soil)
 
-      ! - include derivatives for melt infiltration into bottom soil layer if there is glacier ice
+      ! - include derivatives for flux into bottom soil layer if there is glacier ice
       if(nSoil>0 .and. ixSoilOnlyHyd(nSoil)/=integerMissing .and. nGlce>0)then
         do pLayer=nSnow+nLake+nSoil+1,nLayers-noThetaChange
           if(ixSnLaSoGlNrg(pLayer)/=integerMissing)then

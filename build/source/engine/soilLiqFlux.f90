@@ -513,7 +513,7 @@ contains
   type(io_type_qDrainFlux),intent(out) :: io_qDrainFlux
   call in_qDrainFlux % initialize(nSoil,nGlce,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
                                  &prog_data,mpar_data,flux_data,diag_data,iceImpedeFac,&
-                                 &dHydCond_dVolLiq,dHydCond_dTemp)
+                                 &mLayerDiffuse,dHydCond_dVolLiq,dHydCond_dTemp,dDiffuse_dVolLiq)
   call io_qDrainFlux % initialize(io_soilLiqFlux)
  end subroutine initialize_compute_drainage_flux
 
@@ -2005,6 +2005,7 @@ subroutine qDrainFlux(in_qDrainFlux,io_qDrainFlux,out_qDrainFlux)
   real(rkind)                      :: zWater                  ! effective water table depth (m)
   real(rkind)                      :: nodePsi                 ! matric head in the lowest unsaturated node (m)
   real(rkind)                      :: dPsi                    ! spatial difference in matric head (m)
+  real(rkind)                      :: dLiq                    ! spatial difference in volumetric liquid water (-)
   real(rkind)                      :: dz                      ! spatial difference in layer mid-points (m)
   real(rkind)                      :: cflux                   ! capillary flux (m s-1)
   integer(i4b)                     :: bc_lower_use            ! mutable copy of lower boundary-condition index
@@ -2245,15 +2246,20 @@ contains
  subroutine compute_capillaryFlux
   ! ** Compute the capillary flux at the bottom boundary **
   associate(&
+   ! input: model control
+   ixRichards    => in_qDrainFlux % ixRichards   , &          ! index defining the option for Richards' equation (moisture or mixdform)
    ! input: state and diagnostic variables
    scalarGlceMelt    => in_qDrainFlux % scalarGlceMelt,    & ! glacier melt at the bottom of the soil zone (m s-1)
    nodeMatricHeadLiq => in_qDrainFlux % nodeMatricHeadLiq, &  ! liquid matric head in the lowest soil layer (m)
+   nodeVolFracLiq    => in_qDrainFlux % nodeVolFracLiq   , &  ! volumetric liquid water content in the lowest soil layer (-)
    nodeDepth         => in_qDrainFlux % nodeDepth,         &  ! depth of the lowest soil layer (m)
    ! input: transmittance
    nodeHydCond       => in_qDrainFlux % nodeHydCond,       &  ! hydraulic conductivity at the node itself (m s-1)
+   nodeDiffuse       => in_qDrainFlux % nodeDiffuse,       &  ! diffusivity at layer mid-points (m2 s-1)
    ! input: transmittance derivatives
    dHydCond_dMatric => in_qDrainFlux % dHydCond_dMatric,   &  ! derivative in hydraulic conductivity w.r.t. matric head (s-1)
    dHydCond_dTemp   => in_qDrainFlux % dHydCond_dTemp,     &  ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+   dDiffuse_dVolLiq => in_qDrainFlux % dDiffuse_dVolLiq,   &  ! derivative in hydraulic diffusivity w.r.t. volumetric liquid water content (m2 s-1)
    ! input: derivatives in soil water characteristic
    node_dPsiLiq_dTemp  => in_qDrainFlux % node_dPsiLiq_dTemp , &  ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
    ! input-output: derivatives
@@ -2262,19 +2268,28 @@ contains
    scalarDrainage => out_qDrainFlux % scalarDrainage,      &  ! drainage flux from the bottom of the soil profile (m s-1)
    ! output: derivatives in drainage flux w.r.t. ...
    dq_dHydStateUnsat => out_qDrainFlux % dq_dHydStateUnsat, & ! ... state variable in lowest soil layer (m s-1 or s-1)
-   dq_dNrgStateUnsat => out_qDrainFlux % dq_dNrgStateUnsat  & ! ... energy state variable in lowest soil layer (m s-1 K-1)
+   dq_dNrgStateUnsat => out_qDrainFlux % dq_dNrgStateUnsat,  & ! ... energy state variable in lowest soil layer (m s-1 K-1)
+   ! output: error control
+   err     => out_qDrainFlux % err    , &                     ! error code
+   message => out_qDrainFlux % message  &                     ! error message
   &)
 
    dz = nodeDepth/2._rkind
-   ! compute the capillary flux
-   dPsi          = -nodeMatricHeadLiq
-   cflux         = -nodeHydCond * dPsi/dz
+   ! compute the capillary flux and derivatives
+   select case(ixRichards)  ! select form of Richards' equation
+     case(moisture)
+       dLiq  = -nodeVolFracLiq
+       cflux = -nodeDiffuse * dLiq/dz
+       dq_dHydStateUnsat = -dDiffuse_dVolLiq*dLiq/dz + nodeDiffuse/dz + dDiffuse_dVolLiq 
+     case(mixdform)
+       dPsi  = -nodeMatricHeadLiq
+       cflux = -nodeHydCond * dPsi/dz
+       dq_dHydStateUnsat = -dHydCond_dMatric*dPsi/dz + nodeHydCond/dz + dHydCond_dMatric
+       dq_dNrgStateUnsat = -dHydCond_dTemp*dPsi/dz + nodeHydCond*node_dPsiLiq_dTemp/dz + dHydCond_dTemp
+     case default; err=10; message=trim(message)//"unable to identify option for Richards' equation"; return_flag=.true.; return
+   end select
    ! compute the total flux (add gravity flux, positive downwards)
    scalarDrainage = cflux + nodeHydCond
-
-   ! derivatives with above water (computed before constraint)
-   dq_dHydStateUnsat = -dHydCond_dMatric*dPsi/dz + nodeHydCond/dz + dHydCond_dMatric
-   dq_dNrgStateUnsat = -dHydCond_dTemp*dPsi/dz + nodeHydCond*node_dPsiLiq_dTemp/dz + dHydCond_dTemp
 
    ! Constrain flux: can't drain into glacier and can't exceed melt supply
    scalarSoilControlBot = 0._rkind ! need for derivatives

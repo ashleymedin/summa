@@ -951,11 +951,13 @@ MODULE data_types
    real(rkind)  :: surfaceSatHydCond         ! saturated hydraulic conductivity at the surface (m s-1)
    real(rkind)  :: bottomSatHydCond          ! saturated hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
    real(rkind)  :: nodeHydCond               ! hydraulic conductivity at the node itself (m s-1)
+   real(rkind)  :: nodeDiffuse               ! hydraulic diffusivity at the node itself (m2 s-1)
    real(rkind)  :: iceImpedeFac              ! ice impedence factor in the upper-most soil layer (-)
    ! input: transmittance derivatives
    real(rkind)  :: dHydCond_dVolLiq          ! derivative in hydraulic conductivity w.r.t. volumetric liquid water content (m s-1)
    real(rkind)  :: dHydCond_dMatric          ! derivative in hydraulic conductivity w.r.t. matric head (s-1)
    real(rkind)  :: dHydCond_dTemp            ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+   real(rkind)  :: dDiffuse_dVolLiq          ! derivative in hydraulic diffusivity w.r.t. volumetric liquid water content (m2 s-1)
    ! input: soil parameters
    real(rkind)  :: vGn_alpha                 ! van Genuchten "alpha" parameter (m-1)
    real(rkind)  :: vGn_n                     ! van Genuchten "n" parameter (-)
@@ -2243,7 +2245,7 @@ contains
  ! **** qDrainFlux ****
  subroutine initialize_in_qDrainFlux(in_qDrainFlux,nSoil,nGlce,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
                                     &prog_data,mpar_data,flux_data,diag_data,iceImpedeFac,&
-                                    &dHydCond_dVolLiq,dHydCond_dTemp)
+                                    &mLayerDiffuse,dHydCond_dVolLiq,dHydCond_dTemp,dDiffuse_dVolLiq)
   class(in_type_qDrainFlux),intent(out) :: in_qDrainFlux ! class object for input qDrainFlux variables
   integer(i4b),intent(in)               :: nSoil         ! number of soil layers
   integer(i4b),intent(in)               :: nGlce         ! number of glacier ice layers
@@ -2256,8 +2258,10 @@ contains
   type(var_dlength),intent(in)          :: flux_data     ! model fluxes for a local HRU
   type(var_dlength),intent(in)          :: diag_data     ! diagnostic variables for a local HRU
   real(rkind),intent(in) :: iceImpedeFac(1:nSoil)     ! ice impedence factor at layer mid-points (-)
+  real(rkind),intent(in) :: mLayerDiffuse(1:nSoil)   ! diffusivity at layer mid-point (m2 s-1)
   real(rkind),intent(in) :: dHydCond_dVolLiq(1:nSoil) ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
   real(rkind),intent(in) :: dHydCond_dTemp(1:nSoil)   ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+  real(rkind),intent(in) :: dDiffuse_dVolLiq(1:nSoil) ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
 
   associate(&
    ! intent(in): model control
@@ -2278,7 +2282,7 @@ contains
    dPsiLiq_dTemp     => in_soilLiqFlux % dPsiLiq_dTemp,         & ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
    ! intent(in): transmittance
    iLayerSatHydCond => flux_data%var(iLookFLUX%iLayerSatHydCond)%dat,& ! saturated hydraulic conductivity at the interface of each layer (m s-1)
-   mLayerHydCond    => io_soilLiqFlux % mLayerHydCond,                & ! hydraulic conductivity in each soil layer (m s-1)
+   mLayerHydCond    => io_soilLiqFlux % mLayerHydCond,               & ! hydraulic conductivity in each soil layer (m s-1)
    ! intent(in): transmittance derivatives
    dHydCond_dMatric => io_soilLiqFlux % dHydCond_dMatric,& ! derivative in hydraulic conductivity w.r.t matric head (s-1)
    ! intent(in): soil parameters
@@ -2311,11 +2315,13 @@ contains
    in_qDrainFlux % surfaceSatHydCond = iLayerSatHydCond(0)     ! saturated hydraulic conductivity at the surface (m s-1)
    in_qDrainFlux % bottomSatHydCond  = iLayerSatHydCond(nSoil) ! saturated hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
    in_qDrainFlux % nodeHydCond       = mLayerHydCond(nSoil)    ! hydraulic conductivity at the node itself (m s-1)
+   in_qDrainFlux % nodeDiffuse       = mLayerDiffuse(nSoil)    ! hydraulic diffusivity at the node itself (m2 s-1)
    in_qDrainFlux % iceImpedeFac      = iceImpedeFac(nSoil)     ! ice impedence factor in the lower-most soil layer (-)
    ! intent(in): derivatives in hydraulic conductivity w.r.t. ...
    in_qDrainFlux % dHydCond_dVolLiq = dHydCond_dVolLiq(nSoil) ! ... volumetric liquid water content (m s-1)
    in_qDrainFlux % dHydCond_dMatric = dHydCond_dMatric(nSoil) ! ... matric head (s-1)
    in_qDrainFlux % dHydCond_dTemp   = dHydCond_dTemp(nSoil)   ! ... temperature (m s-1 K-1)
+   in_qDrainFlux % dDiffuse_dVolLiq = dDiffuse_dVolLiq(nSoil) ! derivative in hydraulic diffusivity w.r.t. volumetric liquid water content (m2 s-1)
    ! intent(in): soil parameters
    in_qDrainFlux % vGn_alpha       = vGn_alpha(nSoil) ! van Genuchten "alpha" parameter (m-1)
    in_qDrainFlux % vGn_n           = vGn_n(nSoil)     ! van Genuchten "n" parameter (-)
