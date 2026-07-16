@@ -740,6 +740,7 @@ contains
    dPsi_dTheta2a    = dPsi_dTheta2(scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
    dDiffuse_dVolLiq = dHydCond_dVolLiq*scalardPsi_dTheta + scalarHydCond*dPsi_dTheta2a
    dHydCond_dMatric = realMissing ! not used, so cause problems
+   dHydCond_dTemp   = realMissing ! not used, so cause problems
 
   end associate
  end subroutine update_diagv_node_hydraulic_conductivity_moisture_form
@@ -2055,11 +2056,11 @@ contains
        call update_qDrainFlux_funcBottomHead; if (return_flag) return
      case(freeDrainage)   ! free drainage
        call update_qDrainFlux_freeDrainage;   if (return_flag) return
-     case(zeroFlux)       ! zero flux
+     case(zeroFlux)       ! zero flux from soil but allow for capillary flux upwards glacier ice melt
        if(nGlce>0)then
-         call compute_capillaryFlux;      if (return_flag) return
+         call update_qDrainFlux_capillaryFlux; if (return_flag) return
        else
-         call update_qDrainFlux_zeroFlux; if (return_flag) return
+         call update_qDrainFlux_zeroFlux;      if (return_flag) return
        end if
      case default; err=20; message=trim(message)//'unknown lower boundary condition for soil hydrology'; return_flag=.true.; return
    end select 
@@ -2243,7 +2244,7 @@ contains
  end subroutine update_qDrainFlux_zeroFlux
 
 
- subroutine compute_capillaryFlux
+ subroutine update_qDrainFlux_capillaryFlux
   ! ** Compute the capillary flux at the bottom boundary **
   associate(&
    ! input: model control
@@ -2260,6 +2261,7 @@ contains
    dHydCond_dMatric => in_qDrainFlux % dHydCond_dMatric,   &  ! derivative in hydraulic conductivity w.r.t. matric head (s-1)
    dHydCond_dTemp   => in_qDrainFlux % dHydCond_dTemp,     &  ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
    dDiffuse_dVolLiq => in_qDrainFlux % dDiffuse_dVolLiq,   &  ! derivative in hydraulic diffusivity w.r.t. volumetric liquid water content (m2 s-1)
+   dHydCond_dVolLiq => in_qDrainFlux % dHydCond_dVolLiq,   &  ! derivative in hydraulic conductivity w.r.t. volumetric liquid water content (m2 s-1)
    ! input: derivatives in soil water characteristic
    node_dPsiLiq_dTemp  => in_qDrainFlux % node_dPsiLiq_dTemp , &  ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
    ! input-output: derivatives
@@ -2274,22 +2276,25 @@ contains
    message => out_qDrainFlux % message  &                     ! error message
   &)
 
-   dz = nodeDepth/2._rkind
-   ! compute the capillary flux and derivatives
+   dz = nodeDepth*0.5_rkind
+   ! compute the capillary flux
    select case(ixRichards)  ! select form of Richards' equation
      case(moisture)
-       dLiq  = -nodeVolFracLiq
+       dLiq  = 1._rkind - nodeVolFracLiq ! lower layer is pure water
        cflux = -nodeDiffuse * dLiq/dz
-       dq_dHydStateUnsat = -dDiffuse_dVolLiq*dLiq/dz + nodeDiffuse/dz + dDiffuse_dVolLiq 
      case(mixdform)
        dPsi  = -nodeMatricHeadLiq
        cflux = -nodeHydCond * dPsi/dz
-       dq_dHydStateUnsat = -dHydCond_dMatric*dPsi/dz + nodeHydCond/dz + dHydCond_dMatric
-       dq_dNrgStateUnsat = -dHydCond_dTemp*dPsi/dz + nodeHydCond*node_dPsiLiq_dTemp/dz + dHydCond_dTemp
-     case default; err=10; message=trim(message)//"unable to identify option for Richards' equation"; return_flag=.true.; return
+     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
    end select
-   ! compute the total flux (add gravity flux, positive downwards)
-   scalarDrainage = cflux + nodeHydCond
+   scalarDrainage = cflux + nodeHydCond ! compute the total flux (add gravity flux, positive downwards)
+
+   ! derivatives
+   select case(ixRichards)  ! select form of Richards' equation
+     case(moisture); dq_dHydStateUnsat = -dDiffuse_dVolLiq*dLiq/dz + nodeDiffuse/dz + dHydCond_dVolLiq
+     case(mixdform); dq_dHydStateUnsat = -dHydCond_dMatric*dPsi/dz + nodeHydCond/dz + dHydCond_dMatric
+   end select
+   dq_dNrgStateUnsat = -dHydCond_dTemp*dPsi/dz + nodeHydCond*node_dPsiLiq_dTemp/dz + dHydCond_dTemp
 
    ! Constrain flux: can't drain into glacier and can't exceed melt supply
    scalarSoilControlBot = 0._rkind ! need for derivatives
@@ -2301,7 +2306,7 @@ contains
    scalarDrainage = max(scalarGlceMelt, min(0._rkind, scalarDrainage))
 
   end associate
- end subroutine compute_capillaryFlux
+ end subroutine update_qDrainFlux_capillaryFlux
 
 
  subroutine finalize_qDrainFlux
