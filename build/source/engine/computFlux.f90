@@ -585,7 +585,7 @@ contains
        dq_dNrgStateAbove(1:nSoil)   = dq_dHydStateAbove(1:nSoil)  *mLayerdTheta_dTk(1:nSoil)
        dq_dNrgStateBelow(0:nSoil-1) = dq_dHydStateBelow(0:nSoil-1)*mLayerdTheta_dTk(1:nSoil)
        dq_dNrgStateLayerSurfVec(1:nSoil) = dq_dHydStateLayerSurfVec(1:nSoil)*mLayerdTheta_dTk(1:nSoil)
-     case(mixedForm)
+     case(mixdForm)
        dq_dHydStateAbove(1:nSoil)   = dq_dHydStateAbove(1:nSoil)  *dPsiLiq_dPsi0(1:nSoil)
        dq_dHydStateBelow(0:nSoil-1) = dq_dHydStateBelow(0:nSoil-1)*dPsiLiq_dPsi0(1:nSoil)
        if (ixBcUpper==prescribedHead) dq_dHydStateLayerSurfVec(1) = dq_dHydStateLayerSurfVec(1)*dPsiLiq_dPsi0(1)
