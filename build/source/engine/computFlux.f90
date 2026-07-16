@@ -866,19 +866,33 @@ contains
   end associate
 
   associate(&
-   ixRichards                  => model_decisions(iLookDECISIONS%f_Richards)%iDecision,    & ! intent(in):    [index of the form of Richards' equation
-   dq_dHydStateAbove           => deriv_data%var(iLookDERIV%dq_dHydStateAbove)%dat,        & ! intent(out):   [dp(:)] change in flux at layer interfaces w.r.t. states in the layer above
-   dq_dHydStateBelow           => deriv_data%var(iLookDERIV%dq_dHydStateBelow)%dat,        & ! intent(out):   [dp(:)] change in flux at layer interfaces w.r.t. states in the layer below
+   ixRichards                  => model_decisions(iLookDECISIONS%f_Richards)%iDecision,    & ! index of the form of Richards' equation
+   ixBcUpper                   => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision,    & ! index defining the type of boundary conditions
+   dq_dHydStateAbove           => deriv_data%var(iLookDERIV%dq_dHydStateAbove)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer above
+   dq_dHydStateBelow           => deriv_data%var(iLookDERIV%dq_dHydStateBelow)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer below
+   dq_dHydStateLayerSurfVec    => deriv_data%var(iLookDERIV%dq_dHydStateLayerSurfVec)%dat, & ! intent(out): [dp(:)] change in the flux in soil surface interface w.r.t. state variables in layers
+   dq_dNrgStateAbove           => deriv_data%var(iLookDERIV%dq_dNrgStateAbove)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer above
+   dq_dNrgStateBelow           => deriv_data%var(iLookDERIV%dq_dNrgStateBelow)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer below
+   dq_dNrgStateLayerSurfVec    => deriv_data%var(iLookDERIV%dq_dNrgStateLayerSurfVec)%dat, & ! intent(out): [dp(:)] change in the flux in soil surface interface w.r.t. state variables in layers
+   mLayerdTheta_dTk            => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat(nStart+1:nStart+nSoil), & ! intent(in): [dp(:)]  derivatives in volumetric liquid water content w.r.t. temperature
    iLayerLiqFluxSnLaGlDeriv    => deriv_data%var(iLookDERIV%iLayerLiqFluxSnLaGlDeriv)%dat, & ! intent(inout): [dp(:)]  derivative in vertical liquid water flux at layer interfaces
    dPsiLiq_dPsi0               => deriv_data%var(iLookDERIV%dPsiLiq_dPsi0)%dat             ) ! intent(in):    [dp(:)] derivative in liquid water matric pot w.r.t. the total water matric pot (-)
    ! expand derivatives to the total water matric potential
    ! NOTE: arrays are offset because computing derivatives in interface fluxes, at the top and bottom of the layer respectively
-   if(ixRichards==mixdform)then
-     dq_dHydStateAbove(1:nSoil)   = dq_dHydStateAbove(1:nSoil)  *dPsiLiq_dPsi0(1:nSoil)
-     dq_dHydStateBelow(0:nSoil-1) = dq_dHydStateBelow(0:nSoil-1)*dPsiLiq_dPsi0(1:nSoil)
-   end if
+   select case(ixRichards)
+     case(moisture)
+       dq_dNrgStateAbove(1:nSoil)   = dq_dHydStateAbove(1:nSoil)  *mLayerdTheta_dTk(1:nSoil)
+       dq_dNrgStateBelow(0:nSoil-1) = dq_dHydStateBelow(0:nSoil-1)*mLayerdTheta_dTk(1:nSoil)
+       dq_dNrgStateLayerSurfVec(1:nSoil) = dq_dHydStateLayerSurfVec(1:nSoil)*mLayerdTheta_dTk(1:nSoil)
+     case(mixedForm)
+       dq_dHydStateAbove(1:nSoil)   = dq_dHydStateAbove(1:nSoil)  *dPsiLiq_dPsi0(1:nSoil)
+       dq_dHydStateBelow(0:nSoil-1) = dq_dHydStateBelow(0:nSoil-1)*dPsiLiq_dPsi0(1:nSoil)
+       if (ixBcUpper==prescribedHead) dq_dHydStateLayerSurfVec(1) = dq_dHydStateLayerSurfVec(1)*dPsiLiq_dPsi0(1)
+     case default; err=20; message=trim(message)//"unknown form of Richards' equation"; return
+    end select
+  ! iLayerLiqFluxSnLaGlDeriv does not exist in soil but could exist at the bottom of the soil domain
    do iLayer=1,nSoil-1
-     iLayerLiqFluxSnLaGlDeriv(iLayer+nStart) = realMissing ! iLayerLiqFluxSnLaGlDeriv does not exist in soil but could exist at the bottom of the soil domain
+     iLayerLiqFluxSnLaGlDeriv(iLayer+nStart) = realMissing
    end do
    if(nGlce==0) iLayerLiqFluxSnLaGlDeriv(nSoil+nStart) = realMissing ! if nothing below the soil domain, then does not exist
   end associate
