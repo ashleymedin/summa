@@ -709,7 +709,8 @@ contains
    ! output: transmittance derivatives in ...
    dHydCond_dVolLiq => out_diagv_node % dHydCond_dVolLiq, & ! ... hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
    dDiffuse_dVolLiq => out_diagv_node % dDiffuse_dVolLiq, & ! ... hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
-   dHydCond_dMatric => out_diagv_node % dHydCond_dMatric  & ! ... hydraulic conductivity w.r.t matric head (s-1)
+   dHydCond_dMatric => out_diagv_node % dHydCond_dMatric, & ! ... hydraulic conductivity w.r.t matric head (s-1)
+   dHydCond_dTemp   => out_diagv_node % dHydCond_dTemp    & ! ... hydraulic conductivity w.r.t temperature (m s-1 K-1)
   &)
 
    ! compute the hydraulic conductivity (m s-1) and diffusivity (m2 s-1) for a given layer
@@ -726,6 +727,7 @@ contains
    dPsi_dTheta2a    = dPsi_dTheta2(scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
    dDiffuse_dVolLiq = dHydCond_dVolLiq*scalardPsi_dTheta + scalarHydCond*dPsi_dTheta2a
    dHydCond_dMatric = realMissing ! not used, so cause problems
+   dHydCond_dTemp   = realMissing ! not used, so cause problems
 
   end associate
  end subroutine update_diagv_node_hydraulic_conductivity_moisture_form
