@@ -60,7 +60,7 @@ subroutine snowGlceDepth(&
   integer(i4b),intent(in)              :: nSoil                    ! number of soil layers
   integer(i4b),intent(in)              :: nGlce                    ! number of glacier ice layers
   integer(i4b),intent(in)              :: noThetaChange            ! number of layers with no change in total water content (bottom layers)
-  real(rkind),intent(in)               :: scalarGroundSublimation  ! scalar sublimation of snow/ice (kg m-2)
+  real(rkind),intent(in)               :: scalarGroundSublimation  ! scalar sublimation of snow/ice (kg m-2 s-1)
   real(rkind),intent(inout)            :: mLayerVolFracLiq(:)      ! volumetric fraction of liquid water
   real(rkind),intent(inout)            :: mLayerVolFracIce(:)      ! volumetric fraction of ice
   real(rkind),intent(in)               :: mLayerTemp(:)            ! temperature of each layer (K)
@@ -130,7 +130,6 @@ subroutine snowGlceDepth(&
                     dt_sub,                                                      & ! intent(in):    time step (s)
                     nGlce-noThetaChange,                                         & ! intent(in):    number of glacier ice layers to reduce
                     mLayerMeltFreeze(nSnow+nLake+nSoil+1:nLayers-noThetaChange), & ! intent(in):    volumetric melt in each layer (kg m-3)
-                    scalarGroundSublimation,                                     & ! intent(in):    scalar sublimation/frost of ice (kg m-2)
                     ! intent(inout): state variables
                     mLayerDepth(nSnow+nLake+nSoil+1:nLayers-noThetaChange),      & ! intent(inout): depth of each layer (m)
                     mLayerVolFracLiq(nSnow+nLake+nSoil+1:nLayers-noThetaChange), & ! intent(inout): volumetric fraction of liquid water (-)
@@ -299,9 +298,8 @@ subroutine glceReduce(&
                       ! intent(in): variables
                       dt,                             & ! intent(in):    time step (s)
                       nGlce,                          & ! intent(in):    number of glacier ice layers
-                      mLayerMeltFreeze,               & ! intent(in):    volumnetric melt in each layer (kg m-3)
-                      sublimation,                    & ! intent(in):    sublimation/frost of ice (kg m-2)
-                      ! intent(inout): state variables
+                      mLayerMeltFreeze,               & ! intent(in):    volumetric melt in each layer (kg m-3)
+                       ! intent(inout): state variables
                       mLayerDepth,                    & ! intent(inout): depth of each layer (m)
                       mLayerVolFracLiqNew,            & ! intent(inout): volumetric fraction of liquid water (-)
                       mLayerVolFracIceNew,            & ! intent(inout): volumetric fraction of ice (-)
@@ -316,7 +314,6 @@ subroutine glceReduce(&
   real(rkind),intent(in)              :: dt                       ! time step (seconds)
   integer(i4b),intent(in)             :: nGlce                    ! number of glacier ice layers
   real(rkind),intent(in)              :: mLayerMeltFreeze(:)      ! volumetric melt in each layer (kg m-3)
-  real(rkind),intent(in)              :: sublimation              ! sublimation/frost of ice (kg m-2)
   ! intent(inout): state variables
   real(rkind),intent(inout)           :: mLayerDepth(:)           ! depth of each layer (m)
   real(rkind),intent(inout)           :: mLayerVolFracLiqNew(:)   ! volumetric fraction of liquid water in each snow layer after iterations (-)
@@ -345,14 +342,13 @@ subroutine glceReduce(&
 
   ! loop through glce layers
   do iGlce=1,nGlce
-    ! save mass of ice, liq, and air (mass does not change)
+    ! save mass of liquid water and ice (mass does not change)
     massIceOld = iden_ice*mLayerVolFracIceNew(iGlce)*mLayerDepth(iGlce)   ! (kg m-2)
     massLiqOld = iden_water*mLayerVolFracLiqNew(iGlce)*mLayerDepth(iGlce) ! (kg m-2)
 
-    ! adjust depth in proportion to the amount of ice lost/gained in the layer (m)
+    ! adjust depth in proportion to the amount of ice lost/gained in the layer (m), keeping ice fraction constant
     volFracIceChange = mLayerMeltFreeze(iGlce)/iden_ice  ! volumetric fraction of ice lost/gained due to melt/refreeze (-)
-    if (iGlce == 1) volFracIceChange = volFracIceChange + max(0._rkind, sublimation/(mLayerDepth(iGlce)*iden_ice)) ! add sublimation for the top layer
-    scalarDepthNew = mLayerDepth(iGlce) * mLayerVolFracIceNew(iGlce) / (mLayerVolFracIceNew(iGlce)+volFracIceChange)
+    scalarDepthNew = massIceOld/((mLayerVolFracIceNew(iGlce)+volFracIceChange)*iden_ice)
     if(abs(scalarDepthNew - mLayerDepth(iGlce)) < verySmall) then
       scalarDepthNew = mLayerDepth(iGlce) ! don't bother if the change is very small
       return
@@ -371,19 +367,19 @@ subroutine glceReduce(&
     endif
 
     ! update volumetric ice and liquid water content
-    mLayerVolFracIceNew(iGlce) = massIceOld/(mLayerDepth(iGlce)*iden_ice)
+    mLayerVolFracIceNew(iGlce) = massIceOld/(mLayerDepth(iGlce)*iden_ice) ! mLayerVolFracIceNew(iGlce)+volFracIceChange
     mLayerVolFracLiqNew(iGlce) = massLiqRetained/(mLayerDepth(iGlce)*iden_water)
     mLayerVolFracAirNew(iGlce) = 1.0_rkind - mLayerVolFracIceNew(iGlce) - mLayerVolFracLiqNew(iGlce)
 
   end do  ! looping through glce layers
 
-  ! check for low/high glce density
+  ! check for low/high glce density, could happen from initial condition consistency recalculation of liquid if start very near the freezing point
   if(any(mLayerVolFracIceNew(1:nGlce)*iden_ice + mLayerVolFracLiqNew(1:nGlce)*iden_water + mLayerVolFracAirNew(1:nGlce)*iden_air < minLayerDensity) .or. &
      any(mLayerVolFracIceNew(1:nGlce) + mLayerVolFracLiqNew(1:nGlce) + mLayerVolFracAirNew(1:nGlce) > 1._rkind))then
     do iGlce=1,nGlce
       write(*,*) 'iGlce, volFracIce, density = ', iGlce, mLayerVolFracIceNew(iGlce),  mLayerVolFracIceNew(iGlce)*iden_ice
     end do
-    message=trim(message)//'unreasonable value for glce density'
+    message=trim(message)//'unreasonable value for glce density, likely due to initial condition near Tfreeze'
     err=20; return
   end if
 
