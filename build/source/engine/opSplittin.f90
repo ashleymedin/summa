@@ -1146,10 +1146,10 @@ subroutine opSplittin(&
     if (ixCoupling==fullyCoupled) then ! * identify flux mask for the fully coupled solution
      associate(ixStateType_subset => indx_data%var(iLookINDEX%ixStateType_subset)%dat) ! intent(in):  [i4b(:)] [state subset] type of desired model state variables
       desiredFlux = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2)
-      if(nSnow==0 .and. flux2state_orig(iVar)%state2 == iname_watSnow) desiredFlux=.false.
-      if(nLake==0 .and. flux2state_orig(iVar)%state2 == iname_watLake) desiredFlux=.false.
-      if(nGlce==0 .and. flux2state_orig(iVar)%state2 == iname_watGlce) desiredFlux=.false.
-      if((nGlce==0 .and. nLake==0) .and. flux2state_orig(iVar)%state2 == iname_watIce) desiredFlux=.false.      
+      if(nSnow==0 .and. flux2state_orig(iVar)%state1 == iname_watSnow) desiredFlux=.false.
+      if(nLake==0 .and. flux2state_orig(iVar)%state1 == iname_watLake) desiredFlux=.false.
+      if(nGlce==0 .and. flux2state_orig(iVar)%state1 == iname_watGlce) desiredFlux=.false.
+      if((nGlce==0 .and. nLake==0) .and. flux2state_orig(iVar)%state1 == iname_watIce) desiredFlux=.false.
      end associate
 
      ! make sure firstFluxCall fluxes are included in the mask
@@ -1170,10 +1170,10 @@ subroutine opSplittin(&
        case(nrgSplit);  desiredFlux = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2)
        case(massSplit)
         desiredFlux = any(ixStateType_subset==flux2state_liq(iVar)%state1)  .or. any(ixStateType_subset==flux2state_liq(iVar)%state2)
-        if(nSnow==0 .and. flux2state_liq(iVar)%state2 == iname_watSnow) desiredFlux=.false.
-        if(nLake==0 .and. flux2state_liq(iVar)%state2 == iname_watLake) desiredFlux=.false.
-        if(nGlce==0 .and. flux2state_liq(iVar)%state2 == iname_watGlce) desiredFlux=.false.
-        if((nGlce==0 .and. nLake==0) .and. flux2state_orig(iVar)%state2 == iname_watIce) desiredFlux=.false.
+        if(nSnow==0 .and. flux2state_liq(iVar)%state1 == iname_watSnow) desiredFlux=.false.
+        if(nLake==0 .and. flux2state_liq(iVar)%state1 == iname_watLake) desiredFlux=.false.
+        if(nGlce==0 .and. flux2state_liq(iVar)%state1 == iname_watGlce) desiredFlux=.false.
+        if((nGlce==0 .and. nLake==0) .and. flux2state_orig(iVar)%state1 == iname_watIce) desiredFlux=.false.
        case default; err=20; message=trim(message)//'unable to identify split based on state type'; return_flag=.true.; return
       end select
      end associate
@@ -1240,7 +1240,7 @@ subroutine opSplittin(&
               case(snowSplit) 
                 ! snow scalar variables change with the bottom layer
                 if(nSnow>0 .and. iLayer==nSnow)then
-                  if((iVar==iLookFLUX%scalarGlacierMelt .and. nGlce>0 .and. nLake+nSoil==0) .or. iname_watSnow==flux2state_liq(iVar)%state2) &
+                  if((iVar==iLookFLUX%scalarGlacierMelt .and. nGlce>0 .and. nLake+nSoil==0) .or. iname_watSnow==flux2state_liq(iVar)%state1) &
                      fluxMask%var(iVar)%dat = desiredFlux 
                 end if
               case(lakeSplit)
@@ -1249,7 +1249,7 @@ subroutine opSplittin(&
                   if(iVar==iLookFLUX%scalarLakeDrainage .or. (iVar==iLookFLUX%scalarGlacierMelt .and. nGlce>0 .and. nSoil==0))then 
                     if(iLayer==nSnow+nLake) fluxMask%var(iVar)%dat = desiredFlux
                   ! other scalar variables in the lake domain change with the surface layer
-                  elseif(iLayer==nSnow+1 .and. iname_watLake==flux2state_liq(iVar)%state2 .or. iname_watIce==flux2state_liq(iVar)%state2)then
+                  elseif(iLayer==nSnow+1 .and. iname_watLake==flux2state_liq(iVar)%state1 .or. iname_watIce==flux2state_liq(iVar)%state1)then
                     fluxMask%var(iVar)%dat = desiredFlux
                   end if
                 end if
@@ -1268,7 +1268,8 @@ subroutine opSplittin(&
               case(glceSplit) 
                 ! glacier scalar variables change with the surface layer
                 if(nGlce>0 .and. iLayer==nSnow+nLake+nSoil+1)then
-                  if(iVar==iLookFLUX%scalarGlacierMelt .or. iname_watGlce==flux2state_liq(iVar)%state2 .or. iname_watIce==flux2state_liq(iVar)%state2) &
+                  if(iVar==iLookFLUX%scalarGlacierMelt .or. iname_watGlce==flux2state_liq(iVar)%state1 .or. &
+                     iname_watGlce==flux2state_liq(iVar)%state2 .or. iname_watIce==flux2state_liq(iVar)%state1) &
                      fluxMask%var(iVar)%dat = desiredFlux
                 end if
              end select
