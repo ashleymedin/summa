@@ -144,12 +144,12 @@ contains
  flux2state_orig(iLookFLUX%mLayerNrgFlux)                   = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
 
  ! liquid water fluxes for the snow lake glce domain
- flux2state_orig(iLookFLUX%scalarSnowDrainage)              = flux2state(state1=iname_watLayer,  state2=iname_watSnow)
- flux2state_orig(iLookFLUX%scalarLakeDrainage)              = flux2state(state1=iname_watLayer,  state2=iname_watLake)
- flux2state_orig(iLookFLUX%scalarGlceMelt)                  = flux2state(state1=iname_watLayer,  state2=iname_watGlce)
- flux2state_orig(iLookFLUX%iLayerLiqFluxSnLaGl)             = flux2state(state1=iname_watLayer,  state2=iname_matLayer)
- flux2state_orig(iLookFLUX%scalarSurfaceIceMelt)            = flux2state(state1=iname_watLayer,  state2=iname_watIce)
- flux2state_orig(iLookFLUX%mLayerLiqFluxSnLaGl)             = flux2state(state1=iname_watLayer,  state2=iname_matLayer)
+ flux2state_orig(iLookFLUX%scalarSnowDrainage)              = flux2state(state1=iname_watSnow,   state2=iname_watLayer)
+ flux2state_orig(iLookFLUX%scalarLakeDrainage)              = flux2state(state1=iname_watLake,   state2=iname_watLayer)
+ flux2state_orig(iLookFLUX%scalarGlceMelt)                  = flux2state(state1=iname_watGlce,   state2=iname_watLayer)
+ flux2state_orig(iLookFLUX%iLayerLiqFluxSnLaGl)             = flux2state(state1=iname_matLayer,  state2=iname_watLayer)
+ flux2state_orig(iLookFLUX%scalarSurfaceIceMelt)            = flux2state(state1=iname_watIce,    state2=iname_watLayer)
+ flux2state_orig(iLookFLUX%mLayerLiqFluxSnLaGl)             = flux2state(state1=iname_matLayer,  state2=iname_watLayer)
 
  ! liquid water fluxes for the soil domain
  flux2state_orig(iLookFLUX%scalarRainPlusMelt)              = flux2state(state1=iname_matLayer,  state2=integerMissing)
