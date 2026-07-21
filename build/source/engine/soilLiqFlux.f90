@@ -1719,12 +1719,16 @@ subroutine update_volFracLiq_derivatives
   real(rkind) :: dSatRoot_dWat(1:in_surfaceFlux % nSoil) ! derivative of satRootZone w.r.t. water state (-)
   real(rkind) :: dSatRoot_dTk(1:in_surfaceFlux % nSoil)  ! derivative of satRootZone w.r.t. temperature (K)
   integer(i4b) :: ixTop, ixBot             ! top and bottom layer indices for the active root zone
+  integer(i4b) :: bc_lower_use             ! mutable copy of lower boundary-condition index
 
   ! compute infiltration
   associate(&
    ! input: model control and state
-   surfRun_SE        => in_surfaceFlux % surfRun_SE,             & ! index defining the saturation excess surface runoff method
+   surfRun_SE        => in_surfaceFlux % surfRun_SE,            & ! index defining the saturation excess surface runoff method
+   ixRichards        => in_surfaceFlux % ixRichards,            & ! index defining the option for Richards' equation (moisture or mixdform)
+   bc_lower          => in_surfaceFlux % bc_lower,              & ! index defining the lower boundary condition
    nSoil             => in_surfaceFlux % nSoil,                 & ! number of soil layers
+   nGlce             => in_surfaceFlux % nGlce,                 & ! number of glacier debris layers
    nRoots            => in_surfaceFlux % nRoots,                & ! number of layers that contain roots or take infiltration (-)
    ixIce             => in_surfaceFlux % ixIce,                 & ! index of lowest ice layer
    mLayerVolFracLiq  => in_surfaceFlux % mLayerVolFracLiq,      & ! volumetric liquid water content in each soil layer (-)
@@ -1751,6 +1755,9 @@ subroutine update_volFracLiq_derivatives
   ! check infiltration area and define saturated area
    if (scalarInfilArea < 0._rkind) then; err=20; message=trim(message)//'infiltration area less than zero'; return_flag=.true.; return; end if
 
+   bc_lower_use = bc_lower
+   if(nGlce>0) bc_lower_use = zeroFlux ! if glacier debris, nothing can drain into impermeable glacier ice layer
+
    ! Apply a smooth limiter as the infiltration area's soil layers approaches full saturation to avoid discontinuous zeroing of infiltration
    if(surfRun_SE==homegrown_SE)then ! infiltration area based on all layers
      ixTop = ixIce + 1
@@ -1759,7 +1766,7 @@ subroutine update_volFracLiq_derivatives
      ixTop = 1
      ixBot = nSoil
    end if
-   if (ixTop <= ixBot) then
+   if (ixTop <= ixBot .and. bc_lower_use/=freeDrainage) then
      rootZoneDepth = sum(mLayerDepth(ixTop:ixBot))
      if (rootZoneDepth > verySmall .and. theta_sat > verySmall) then
        satRootZone = sum(mLayerVolFracLiq(ixTop:ixBot)*mLayerDepth(ixTop:ixBot)) / (theta_sat*rootZoneDepth)
