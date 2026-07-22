@@ -184,7 +184,7 @@ end subroutine snowDepth
  real(rkind)                         :: halfWeight                  ! half of the weight of the current snow layer (kg m-2)
  real(rkind)                         :: weightSnow                  ! total weight of snow above the current snow layer (kg m-2)
  real(rkind)                         :: CR_grainGrowth              ! compaction rate for grain growth (s-1)
- real(rkind)                         :: CR_ovrvdnPress              ! compaction rate associated with over-burden pressure (s-1)
+ real(rkind)                         :: CR_ovrbdnPress              ! compaction rate associated with over-burden pressure (s-1)
  real(rkind)                         :: CR_metamorph                ! compaction rate for metamorphism (s-1)
  real(rkind)                         :: massIceOld                  ! mass of ice in the snow layer (kg m-2)
  real(rkind)                         :: massLiqOld                  ! mass of liquid water in the snow layer (kg m-2)
