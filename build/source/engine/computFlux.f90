@@ -892,7 +892,7 @@ contains
     message=trim(message)//'expect dBaseflow_dWat and dBaseflow_dTk to be nSoil x nSoil'
     err=20; return
   end if
-  call in_groundwatr%initialize(nSnow,nLake,nSoil,nGlce,firstFluxCall,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,deriv_data,model_decisions)
+  call in_groundwatr%initialize(nSnow,nLake,nSoil,nGlce,firstFluxCall,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,deriv_data)
   call io_groundwatr%initialize(ixSaturation)
  end subroutine initialize_groundwatr
 

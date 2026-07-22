@@ -139,7 +139,6 @@ subroutine soilLiqFlux(&
   real(rkind),dimension(in_soilLiqFlux % nSoil)    :: iceImpedeFac        ! ice impedence factor at layer mid-points (-)
   real(rkind),dimension(in_soilLiqFlux % nSoil)    :: dHydCond_dTemp      ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
   real(rkind),dimension(0:in_soilLiqFlux % nSoil)  :: iLayerHydCond       ! hydraulic conductivity at layer interface (m s-1)
-  real(rkind),dimension(0:in_soilLiqFlux % nSoil)  :: iLayerDiffuse       ! diffusivity at layer interface (m2 s-1)
   ! compute surface flux
   integer(i4b)                                     :: nRoots              ! number of soil layers with roots or layers that take infiltration
   integer(i4b)                                     :: ixIce               ! index of the lowest soil layer that contains ice
@@ -346,7 +345,7 @@ contains
   ! **** Initialize operations for the compute_diagnostic_variables subroutine ****
   type(in_type_diagv_node),intent(out) :: in_diagv_node  ! input data object for diagv_node
   ! interface local name space to input data object for diagv_node
-  call in_diagv_node % initialize(iSoil,in_soilLiqFlux,model_decisions,diag_data,mpar_data,flux_data)
+  call in_diagv_node % initialize(iSoil,in_soilLiqFlux,diag_data,mpar_data,flux_data)
  end subroutine initialize_compute_diagnostic_variables
 
  subroutine update_compute_diagnostic_variables(in_diagv_node,out_diagv_node)
@@ -404,7 +403,7 @@ contains
   call in_surfaceFlux % initialize(nRoots,ixIce,nSoil,nGlce,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,&
                                  &model_decisions,prog_data,mpar_data,flux_data,diag_data,&
                                  &iLayerHeight,dHydCond_dTemp,iceImpedeFac)
-  call io_surfaceFlux % initialize(nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse)
+  call io_surfaceFlux % initialize(nSoil,io_soilLiqFlux,iLayerHydCond)
  end subroutine initialize_compute_surface_infiltration
 
  subroutine update_compute_surface_infiltration(in_surfaceFlux,io_surfaceFlux,out_surfaceFlux)
@@ -421,7 +420,7 @@ contains
   type(out_type_surfaceFlux),intent(in) :: out_surfaceFlux
 
   ! interface object data components with local name space
-  call io_surfaceFlux % finalize(nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse)
+  call io_surfaceFlux % finalize(nSoil,io_soilLiqFlux,iLayerHydCond)
   associate(&
    err     => out_soilLiqFlux % err,     & ! error code
    message => out_soilLiqFlux % cmessage & ! error message
@@ -466,7 +465,7 @@ contains
   ! **** Initialize operations for compute_interface_fluxes_derivatives subroutine ****
   type(in_type_iLayerFlux),intent(out) :: in_iLayerFlux  ! input data object for iLayerFlux
   ! interface local name space to iLayerFlux input object
-  call in_iLayerFlux % initialize(iLayer,nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
+  call in_iLayerFlux % initialize(iLayer,nSoil,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,&
                                  &prog_data,dHydCond_dTemp)
  end subroutine initialize_compute_interface_fluxes_derivatives
 
@@ -486,7 +485,7 @@ contains
    err     => out_soilLiqFlux % err,                       & ! error code
    message => out_soilLiqFlux % cmessage                   & ! error message
   &)
-   call out_iLayerFlux % finalize(iLayer,nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse,err,cmessage)
+   call out_iLayerFlux % finalize(iLayer,nSoil,io_soilLiqFlux,iLayerHydCond,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end associate
  end subroutine finalize_compute_interface_fluxes_derivatives
@@ -534,7 +533,7 @@ subroutine update_compute_drainage_flux(in_qDrainFlux,io_qDrainFlux,out_qDrainFl
    err     => out_soilLiqFlux % err,                       & ! error code
    message => out_soilLiqFlux % cmessage                   & ! error message
   &)
-   call out_qDrainFlux % finalize(nSoil,io_soilLiqFlux,iLayerHydCond,iLayerDiffuse,err,cmessage)
+   call out_qDrainFlux % finalize(nSoil,io_soilLiqFlux,iLayerHydCond,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end associate
 
@@ -1316,10 +1315,9 @@ subroutine update_volFracLiq_derivatives
    vGn_alpha           => in_surfaceFlux % vGn_alpha           , & ! van Genuchten "alpha" parameter (m-1)
    vGn_n               => in_surfaceFlux % vGn_n               , & ! van Genuchten "n" parameter (-)
    vGn_m               => in_surfaceFlux % vGn_m               , & ! van Genuchten "m" parameter (-)
-   ! input-output: hydraulic conductivity and diffusivity at the surface
+   ! input-output: hydraulic conductivity at the surface
    ! NOTE: intent(inout) because infiltration may only be computed for the first iteration
    surfaceHydCond => io_surfaceFlux % surfaceHydCond , & ! hydraulic conductivity (m s-1)
-   surfaceDiffuse => io_surfaceFlux % surfaceDiffuse , & ! hydraulic diffusivity at the surface (m2 s-1)
    ! output: infiltration
    scalarSurfaceInfiltration => io_surfaceFlux % scalarSurfaceInfiltration  , & ! surface infiltration (m s-1)
    ! output: derivatives in surface infiltration w.r.t. ...
@@ -1333,7 +1331,6 @@ subroutine update_volFracLiq_derivatives
 
    ! compute transmission and the capillary flux
    surfaceHydCond = hydCond_psi(upperBoundHead,surfaceSatHydCond,vGn_alpha,vGn_n,vGn_m) * iceImpedeFac
-   surfaceDiffuse = realMissing
    cflux = -surfaceHydCond*(scalarMatricHeadLiq - upperBoundHead) / (mLayerDepth(1)*0.5_rkind)
 
    ! compute the total flux (no glacier melt infiltration assumed for prescribed head condition)
@@ -1690,15 +1687,13 @@ subroutine update_volFracLiq_derivatives
    end if
   end associate
 
-  ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
+  ! set surface hydraulic conductivity to missing (not used for flux condition)
   associate(&
-   ! input-output: hydraulic conductivity and diffusivity at the surface
+   ! input-output: hydraulic conductivity at the surface
    ! NOTE: intent(inout) because infiltration may only be computed for the first iteration
-   surfaceHydCond => io_surfaceFlux % surfaceHydCond , & ! hydraulic conductivity (m s-1)
-   surfaceDiffuse => io_surfaceFlux % surfaceDiffuse   & ! hydraulic diffusivity at the surface (m2 s-1)
+   surfaceHydCond => io_surfaceFlux % surfaceHydCond   & ! hydraulic conductivity (m s-1)
   &)
    surfaceHydCond = realMissing
-   surfaceDiffuse = realMissing
   end associate
 
  end subroutine update_surfaceFlux_liquidFlux_infiltration
@@ -1780,7 +1775,6 @@ contains
    nodeHydCondTrial => in_iLayerFlux % nodeHydCondTrial, & ! hydraulic conductivity at layer mid-points (m s-1)
    ! output: tranmsmittance at the layer interface (scalars)
    iLayerHydCond => out_iLayerFlux % iLayerHydCond, & ! hydraulic conductivity at the interface between layers (m s-1)
-   iLayerDiffuse => out_iLayerFlux % iLayerDiffuse, & ! hydraulic diffusivity at the interface between layers (m2 s-1)
    ! output: vertical flux at the layer interface (scalars)
    iLayerLiqFluxSoil => out_iLayerFlux % iLayerLiqFluxSoil, & ! vertical flux of liquid water at the layer interface (m s-1)
    ! output: error control
@@ -1797,7 +1791,6 @@ contains
    end if
 
    dz = nodeHeight(ixLower) - nodeHeight(ixUpper)
-   iLayerDiffuse = realMissing
    dPsi          = nodeMatricHeadLiqTrial(ixLower) - nodeMatricHeadLiqTrial(ixUpper)
    cflux         = -iLayerHydCond * dPsi/dz
    ! compute the total flux (add gravity flux, positive downwards)
@@ -1822,7 +1815,6 @@ contains
    dHydCond_dMatric => in_iLayerFlux % dHydCond_dMatric, & ! derivative in hydraulic conductivity w.r.t matric head (m s-1)
    ! output: tranmsmittance at the layer interface (scalars)
    iLayerHydCond => out_iLayerFlux % iLayerHydCond, & ! hydraulic conductivity at the interface between layers (m s-1)
-   iLayerDiffuse => out_iLayerFlux % iLayerDiffuse, & ! hydraulic diffusivity at the interface between layers (m2 s-1)
    ! output: derivatives in fluxes w.r.t. ...
    dq_dHydStateAbove => out_iLayerFlux % dq_dHydStateAbove, & ! ... matric head or volumetric liquid water in the layer above (m s-1 or s-1)
    dq_dHydStateBelow => out_iLayerFlux % dq_dHydStateBelow, & ! ... matric head or volumetric liquid water in the layer below (m s-1 or s-1)
