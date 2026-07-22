@@ -242,8 +242,6 @@ contains
   ! boundary conditions
   case('upperBoundHead'           ); get_ixParam = iLookPARAM%upperBoundHead         ! matric head of the upper boundary (m)
   case('lowerBoundHead'           ); get_ixParam = iLookPARAM%lowerBoundHead         ! matric head of the lower boundary (m)
-  case('upperBoundTheta'          ); get_ixParam = iLookPARAM%upperBoundTheta        ! volumetric liquid water content at the upper boundary (-)
-  case('lowerBoundTheta'          ); get_ixParam = iLookPARAM%lowerBoundTheta        ! volumetric liquid water content at the lower boundary (-)
   case('upperBoundTemp'           ); get_ixParam = iLookPARAM%upperBoundTemp         ! temperature of the upper boundary (K)
   case('lowerBoundTemp'           ); get_ixParam = iLookPARAM%lowerBoundTemp         ! temperature of the lower boundary (K)
   ! precipitation partitioning
@@ -828,7 +826,6 @@ contains
   case('dq_dHydStateBelow'              ); get_ixDeriv = iLookDERIV%dq_dHydStateBelow              ! change in the flux in layer interfaces w.r.t. state variables in the layer below
   case('dq_dHydStateLayerSurfVec'       ); get_ixDeriv = iLookDERIV%dq_dHydStateLayerSurfVec       ! change in the flux in soil surface interface w.r.t. state variables in layers
   case('mLayerdTheta_dPsi'              ); get_ixDeriv = iLookDERIV%mLayerdTheta_dPsi              ! derivative in liquid water content w.r.t. matric potential (m-1)
-  case('mLayerdPsi_dTheta'              ); get_ixDeriv = iLookDERIV%mLayerdPsi_dTheta              ! derivative in matric potential w.r.t. liquid water content (m)
   case('dCompress_dPsi'                 ); get_ixDeriv = iLookDERIV%dCompress_dPsi                 ! derivative in compressibility w.r.t matric head (m-1)
   ! derivative in baseflow flux w.r.t. aquifer storage
   case('dBaseflow_dAquifer'             ); get_ixDeriv = iLookDERIV%dBaseflow_dAquifer             ! derivative in baseflow flux w.r.t. aquifer storage (s-1)

@@ -63,7 +63,6 @@ end subroutine update_surfaceFlux_example_flux
           ! input: model control
           logical(lgt) :: firstSplitOper   ! flag indicating if desire to compute infiltration
           logical(lgt) :: deriv_desired    ! flag to indicate if derivatives are desired
-          integer(i4b) :: ixRichards       ! index defining the option for the Richards equation (moisture or mixdform)
           integer(i4b) :: bc_upper         ! index defining the type of boundary conditions
           integer(i4b) :: nRoots           ! number of layers that contain roots
           integer(i4b) :: ixIce            ! index of lowest ice layer
@@ -82,7 +81,6 @@ end subroutine update_surfaceFlux_example_flux
       ! input: model control
       logical(lgt) :: firstSplitOper   ! flag indicating if desire to compute infiltration
       logical(lgt) :: deriv_desired    ! flag to indicate if derivatives are desired
-      integer(i4b) :: ixRichards       ! index defining the option for the Richards equation (moisture or mixdform)
       integer(i4b) :: bc_upper         ! index defining the type of boundary conditions
       integer(i4b) :: nRoots           ! number of layers that contain roots
       integer(i4b) :: ixIce            ! index of lowest ice layer
@@ -111,13 +109,11 @@ end subroutine update_surfaceFlux_example_flux
           ! model control
           firstSplitOper         => in_soilLiqFlux % firstSplitOper,                      & ! flag to compute infiltration
           deriv_desired          => in_soilLiqFlux % deriv_desired,                       & ! flag indicating if derivatives are desired
-          ixRichards             => model_decisions(iLookDECISIONS%f_Richards)%iDecision,& ! index of the form of the Richards equation
           ixBcUpperSoilHydrology => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision & ! index defining the type of boundary conditions
          &)
           ! intent(in): model control
           in_surfaceFlux % firstSplitOper = firstSplitOper          ! flag indicating if desire to compute infiltration
           in_surfaceFlux % deriv_desired  = deriv_desired           ! flag indicating if derivatives are desired
-          in_surfaceFlux % ixRichards     = ixRichards              ! index defining the form of the Richards equation (moisture or mixdform)
           in_surfaceFlux % bc_upper       = ixBcUpperSoilHydrology  ! index defining the type of boundary conditions (Neumann or Dirichlet)
           in_surfaceFlux % nRoots         = nRoots                  ! number of layers that contain roots
           in_surfaceFlux % ixIce          = ixIce                   ! index of lowest ice layer
@@ -142,13 +138,11 @@ end subroutine update_surfaceFlux_example_flux
           ! model control
           firstSplitOper         => in_soilLiqFlux % firstSplitOper,                      & ! flag to compute infiltration
           deriv_desired          => in_soilLiqFlux % deriv_desired,                       & ! flag indicating if derivatives are desired
-          ixRichards             => model_decisions(iLookDECISIONS%f_Richards)%iDecision,& ! index of the form of the Richards equation
           ixBcUpperSoilHydrology => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision & ! index defining the type of boundary conditions
          &)
           ! intent(in): model control
           in_surfaceFlux % firstSplitOper = firstSplitOper          ! flag indicating if desire to compute infiltration
           in_surfaceFlux % deriv_desired  = deriv_desired           ! flag indicating if derivatives are desired
-          in_surfaceFlux % ixRichards     = ixRichards              ! index defining the form of the Richards equation (moisture or mixdform)
           in_surfaceFlux % bc_upper       = ixBcUpperSoilHydrology  ! index defining the type of boundary conditions (Neumann or Dirichlet)
           in_surfaceFlux % nRoots         = nRoots                  ! number of layers that contain roots
           in_surfaceFlux % ixIce          = ixIce                   ! index of lowest ice layer

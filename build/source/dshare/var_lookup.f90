@@ -147,8 +147,6 @@ MODULE var_lookup
   ! boundary conditions
   integer(i4b)    :: upperBoundHead        = integerMissing    ! matric head of the upper boundary (m)
   integer(i4b)    :: lowerBoundHead        = integerMissing    ! matric head of the lower boundary (m)
-  integer(i4b)    :: upperBoundTheta       = integerMissing    ! volumetric liquid water content of the upper boundary (-)
-  integer(i4b)    :: lowerBoundTheta       = integerMissing    ! volumetric liquid water content of the lower boundary (-)
   integer(i4b)    :: upperBoundTemp        = integerMissing    ! temperature of the upper boundary (K)
   integer(i4b)    :: lowerBoundTemp        = integerMissing    ! temperature of the lower boundary (K)
   ! precipitation partitioning
@@ -686,7 +684,6 @@ MODULE var_lookup
   integer(i4b)    :: dq_dHydStateBelow               = integerMissing ! change in the flux in layer interfaces w.r.t. state variables in the layer below
   integer(i4b)    :: dq_dHydStateLayerSurfVec        = integerMissing ! change in the flux in soil surface interface w.r.t. state variables in layers
   integer(i4b)    :: mLayerdTheta_dPsi               = integerMissing ! derivative in liquid water content w.r.t. matric potential (m-1)
-  integer(i4b)    :: mLayerdPsi_dTheta               = integerMissing ! derivative in matric potential w.r.t. liquid water content (m)
   integer(i4b)    :: dCompress_dPsi                  = integerMissing ! derivative in compressibility w.r.t matric head (m-1)
   ! derivative in baseflow flux w.r.t. aquifer storage
   integer(i4b)    :: dBaseflow_dAquifer              = integerMissing ! derivative in baseflow flux w.r.t. aquifer storage (s-1)
@@ -932,7 +929,7 @@ MODULE var_lookup
                                                                         151,152,153,154,155,156,157,158,159,160,&
                                                                         161,162,163,164,165,166,167,168,169,170,&
                                                                         171,172,173,174,175,176,177,178,179,180,&
-                                                                        181,182,183,184,185,186,187,188,189)
+                                                                        181,182,183,184,185,186,187)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -968,7 +965,7 @@ MODULE var_lookup
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
-                                                                         81, 82)
+                                                                         81)
  ! named variables: model indices
  type(iLook_index),   public,parameter :: iLookINDEX    =iLook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
