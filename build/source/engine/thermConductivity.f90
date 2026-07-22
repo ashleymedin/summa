@@ -51,10 +51,7 @@ USE mDecisions_module,only:      &
  ! look-up values for choice of thermal conductivity representation for soil
  funcSoilWet,                    & ! function of soil wetness
  mixConstit,                     & ! mixture of constituents
- hanssonVZJ,                     & ! test case for the mizoguchi lab experiment, Hansson et al. VZJ 2004
- ! look-up values for the form of Richards' equation
- moisture,                       & ! moisture-based form of Richards' equation
- mixdform                          ! mixed form of Richards' equation
+ hanssonVZJ                        ! test case for the mizoguchi lab experiment, Hansson et al. VZJ 2004
 
 ! privacy
 implicit none
@@ -374,7 +371,6 @@ subroutine thermConductivity(&
   ! associate variables in data structure
   associate(&
     ! input: model decisions
-    ixRichards              => model_decisions(iLookDECISIONS%f_Richards)%iDecision,      & ! intent(in):  [i4b]   index of the form of Richards' equation
     ixThCondSnow            => model_decisions(iLookDECISIONS%thCondSnow)%iDecision,      & ! intent(in):  [i4b]   choice of method for thermal conductivity of snow
     ixThCondSoil            => model_decisions(iLookDECISIONS%thCondSoil)%iDecision,      & ! intent(in):  [i4b]   choice of method for thermal conductivity of soil
     ! input: coordinate variables
@@ -463,20 +459,14 @@ subroutine thermConductivity(&
       select case(layerType(iLayer))
 
         case(iname_soil)
-          select case(ixRichards)  ! (form of Richards' equation)
-            case(moisture)
-              dVolFracLiq_dWat = 1._rkind
-              dVolFracIce_dWat = 0._rkind
-            case(mixdform)
-              Tcrit = crit_soilT( mLayerMatricHead(iSoil) )
-              if(mLayerTemp(iLayer) < Tcrit) then
-                dVolFracLiq_dWat = 0._rkind
-                dVolFracIce_dWat = mLayerdTheta_dPsi(iSoil)
-              else
-                dVolFracLiq_dWat = mLayerdTheta_dPsi(iSoil)
-                dVolFracIce_dWat = 0._rkind
-              endif
-          end select
+          Tcrit = crit_soilT( mLayerMatricHead(iSoil) )
+          if(mLayerTemp(iLayer) < Tcrit) then
+            dVolFracLiq_dWat = 0._rkind
+            dVolFracIce_dWat = mLayerdTheta_dPsi(iSoil)
+          else
+            dVolFracLiq_dWat = mLayerdTheta_dPsi(iSoil)
+            dVolFracIce_dWat = 0._rkind
+          endif
           dVolFracLiq_dTk = mLayerdTheta_dTk(iLayer) !already zeroed out if not below critical temperature
           dVolFracIce_dTk = -dVolFracLiq_dTk !often can and will simplify one of these terms out
 

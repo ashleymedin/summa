@@ -201,3 +201,5 @@ AFTER tag of v4.0.0-exp-Sundials
      Also changed the number of times it checks the brackets for scalar solution from 100 to 10 since usually by 2 it's found the bracket or not.
 -53) Fix power profile hydraulic conductivity if total soil depth less than compactedDepth, and rewrite to make smooth profile if k_soil differs across layers and take into account differing layer thicknesses (use harmonic mean), commit 8119be7c May 29, 2026
 -54) Fix baseflow derivatives (decision groundwatr == qTopmodl) commit 84009cb6, Jun 20, 2026
+-55) Turn off (smmothly) condensation into saturated soil and infiltration into over-pressured soil with no water exit (no flux BC and no lateral flow)
+-56) Remove deprecated moisture-based Richards' equation, f_Richards decision still can be included but does not do anything but mixed form

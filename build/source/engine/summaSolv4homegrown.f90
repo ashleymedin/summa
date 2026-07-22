@@ -306,7 +306,6 @@ contains
    ! *** Transfer data to in_computJacob class object from local variables in summaSolv4homegrown ***
    associate(&
     ixGroundwater  => model_decisions(iLookDECISIONS%groundwatr)%iDecision,&  ! intent(in): [i4b] groundwater parameterization
-    ixRichards     => model_decisions(iLookDECISIONS%f_Richards)%iDecision,&  ! intent(in): [i4b] index of the form of Richards' equation
     dt_cur         => in_SS4HG % dt_cur         ,& ! intent(in): current stepsize
     nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
     nLake          => in_SS4HG % nLake          ,& ! intent(in): number of lake layers
@@ -316,7 +315,7 @@ contains
     ixMatrix       => in_SS4HG % ixMatrix       ,& ! intent(in): type of matrix (full or band diagonal)
     computeVegFlux => in_SS4HG % computeVegFlux  & ! intent(in): flag to indicate if computing fluxes over vegetation
     &)   
-    call in_computJacob % initialize(dt_cur,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel),ixRichards,ixMatrix)
+    call in_computJacob % initialize(dt_cur,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel),ixMatrix)
    end associate
   end subroutine initialize_computJacob_summaSolv4homegrown
 

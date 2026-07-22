@@ -68,11 +68,6 @@ USE mDecisions_module,only:       &
  bigBucket,                       & ! a big bucket (lumped aquifer model)
  noExplicit                         ! no explicit groundwater parameterization
 
-! look-up values for the form of Richards' equation
-USE mDecisions_module,only:       &
- moisture,                        & ! moisture-based form of Richards' equation
- mixdform                           ! mixed form of Richards' equation
-
 ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
 USE mDecisions_module,only:       &
  closedForm,                      & ! use temperature with closed form heat capacity
@@ -103,7 +98,6 @@ subroutine computJacobWithPrime(&
                       ixMatrix,                   & ! intent(in):    form of the Jacobian matrix
                       specificStorage,            & ! intent(in):    specific storage coefficient (m-1)
                       theta_sat,                  & ! intent(in):    soil porosity (-)
-                      ixRichards,                 & ! intent(in):    choice of option for Richards' equation
                       enthalpyStateVec,           & ! intent(in):    flag if enthalpy is state variable
                       ! input: data structures
                       indx_data,                  & ! intent(in):    index data
@@ -142,7 +136,6 @@ subroutine computJacobWithPrime(&
   integer(i4b),intent(in)              :: ixMatrix                   ! form of the Jacobian matrix
   real(rkind),intent(in)               :: specificStorage            ! specific storage coefficient (m-1)
   real(rkind),intent(in)               :: theta_sat(:)               ! soil porosity (-)
-  integer(i4b),intent(in)              :: ixRichards                 ! choice of option for Richards' equation
   logical(lgt),intent(in)              :: enthalpyStateVec           ! flag if enthalpy is state variable
   ! input: data structures
   type(var_ilength),intent(in)         :: indx_data                  ! indices defining model states and layers
@@ -295,8 +288,7 @@ subroutine computJacobWithPrime(&
     do iLayer=1,nSoil
       if(ixSoilOnlyHyd(iLayer)/=integerMissing)then ! writes over dMat(ixSoilOnlyHyd(iLayer) = 1.0 * cj above
         dMat(ixSoilOnlyHyd(iLayer)) = ( dVolTot_dPsi0(iLayer) + dCompress_dPsi(iLayer) ) * cj + d2VolTot_dPsi02(iLayer) * mLayerMatricHeadPrime(iLayer)
-        if(ixRichards==mixdform)&
-            dMat(ixSoilOnlyHyd(iLayer)) = dMat(ixSoilOnlyHyd(iLayer)) + specificStorage * dVolTot_dPsi0(iLayer) * mLayerMatricHeadPrime(iLayer)/theta_sat(iLayer)
+        dMat(ixSoilOnlyHyd(iLayer)) = dMat(ixSoilOnlyHyd(iLayer)) + specificStorage * dVolTot_dPsi0(iLayer) * mLayerMatricHeadPrime(iLayer)/theta_sat(iLayer)
       endif
     end do
 
@@ -404,17 +396,12 @@ subroutine computJacobWithPrime(&
         if(watState/=integerMissing)then
           ! - include derivatives in energy fluxes w.r.t. with respect to water for current layer
           aJac(ixInd(full,nrgState,watState),watState) = (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer))
-          if(ixRichards==mixdform)then
-            aJac(ixInd(full,nrgState,watState),watState) = mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) * cj + dVolHtCapBulk_dPsi0(iLayer) * mLayerTempPrime(jLayer) &
-                                                          + dCm_dPsi0(iLayer) * mLayerVolFracWatPrime(jLayer) + mLayerCm(jLayer) * d2VolTot_dPsi02(iLayer) * mLayerMatricHeadPrime(iLayer) &
-                                                          + aJac(ixInd(full,nrgState,watState),watState) 
-           if(mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind))&  ! ice is present
-              aJac(ixInd(full,nrgState,watState),watState) = -LH_fu0*iden_water * dVolTot_dPsi0(iLayer) * cj &
-                                                            - LH_fu0*iden_water * mLayerMatricHeadPrime(iLayer) * d2VolTot_dPsi02(iLayer) + aJac(ixInd(full,nrgState,watState),watState) ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content                                                         
-          elseif(ixRichards==moisture)then
-            aJac(ixInd(full,nrgState,watState),watState) = mLayerCm(jLayer) * cj + dVolHtCapBulk_dTheta(jLayer) * mLayerTempPrime(jLayer) &
-                                                          + aJac(ixInd(full,nrgState,watState),watState) 
-          endif
+          aJac(ixInd(full,nrgState,watState),watState) = mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) * cj + dVolHtCapBulk_dPsi0(iLayer) * mLayerTempPrime(jLayer) &
+                                                        + dCm_dPsi0(iLayer) * mLayerVolFracWatPrime(jLayer) + mLayerCm(jLayer) * d2VolTot_dPsi02(iLayer) * mLayerMatricHeadPrime(iLayer) &
+                                                        + aJac(ixInd(full,nrgState,watState),watState) 
+          if(mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind))&  ! ice is present
+             aJac(ixInd(full,nrgState,watState),watState) = -LH_fu0*iden_water * dVolTot_dPsi0(iLayer) * cj &
+                                                           - LH_fu0*iden_water * mLayerMatricHeadPrime(iLayer) * d2VolTot_dPsi02(iLayer) + aJac(ixInd(full,nrgState,watState),watState) ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
         endif ! (if the water state for the current layer is within the state subset)
 
       end do ! (looping through energy states in the soil domain)
@@ -470,8 +457,6 @@ subroutine computJacobWithPrime(&
             if(iLayer<=nSnow+nLake .or. iLayer>nSnow+nLake+nSoil)then
               aJac(watRows,watState) = aJac(watRows,watState) + aJac(nrgRows,nrgState) * dTemp_dTheta(iLayer)
             else
-              ! derivatives have not been computed for enthalpy form with moisture form
-              if(ixRichards==moisture)then; err=20; message=trim(message)//'cannot use moisture form with enthalpy state'; return; endif
               aJac(watRows,watState) = aJac(watRows,watState) + aJac(nrgRows,nrgState) * dTemp_dPsi0(iLayer-nSnow-nLake)
             endif
           endif
@@ -572,7 +557,6 @@ integer(c_int) function computJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
                 eqns_data%ixMatrix,                                                            & ! intent(in): form of the Jacobian matrix
                 eqns_data%mpar_data%var(iLookPARAM%specificStorage)%dat(1),                    & ! intent(in): specific storage coefficient (m-1)
                 eqns_data%mpar_data%var(iLookPARAM%theta_sat)%dat,                             & ! intent(in): soil porosity (-)
-                eqns_data%model_decisions(iLookDECISIONS%f_Richards)%iDecision,                & ! intent(in): choice of option for Richards' equation
                 eqns_data%model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm,  & ! intent(in): flag if enthalpy is state variable
                 ! input: data structures
                 eqns_data%indx_data,                      & ! intent(in):    index data
