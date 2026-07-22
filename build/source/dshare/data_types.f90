@@ -642,7 +642,6 @@ MODULE data_types
    real(rkind)              :: scalarSurfaceRunoff_IE            ! intent(inout): infiltration excess surface runoff (m s-1)
    real(rkind)              :: scalarSurfaceRunoff_SE            ! intent(inout): saturation excess surface runoff (m s-1)
    real(rkind), allocatable :: mLayerdTheta_dPsi(:)              ! intent(inout): derivative in liquid water content w.r.t. matric potential (m-1)
-   real(rkind), allocatable :: mLayerdPsi_dTheta(:)              ! intent(inout): derivative in matric potential w.r.t. liquid water content (m)
    real(rkind), allocatable :: dHydCond_dMatric(:)               ! intent(inout): derivative in hydraulic conductivity w.r.t matric head (s-1)
    real(rkind)              :: scalarInfiltration                ! intent(inout): surface infiltration rate (m s-1)
    real(rkind), allocatable :: iLayerLiqFluxSoil(:)              ! intent(inout): liquid fluxes at layer interfaces (m s-1)
@@ -677,7 +676,6 @@ MODULE data_types
    integer(i4b)             :: nLake                             ! intent(in):    number of lake layers
    integer(i4b)             :: nSoil                             ! intent(in):    number of soil layers
    integer(i4b)             :: nGlce                             ! intent(in):    number of glacier ice layers
-   integer(i4b)             :: ixRichards                        ! intent(in):    index defining the option for Richards' equation
    logical(lgt)             :: firstFluxCall                     ! intent(in):    logical flag to compute index of the lowest saturated layer
    real(rkind), allocatable :: dVolTot_dPsi0(:)                  ! intent(in):    derivative in total volumetric water content w.r.t. matric head (m-1)
    real(rkind), allocatable :: mLayerdTheta_dPsi(:)              ! intent(in):    derivative in liquid water content w.r.t. matric potential (m-1)
@@ -747,8 +745,6 @@ MODULE data_types
 
  ! ** diagv_node
  type, public :: in_type_diagv_node ! intent(in) data
-   ! input: model control
-   integer(i4b)           :: ixRichards                ! index defining the option for Richards' equation (moisture or mixdform)
    ! input: state and diagnostic variables
    real(rkind)            :: scalarMatricHeadLiqTrial  ! liquid matric head in each layer (m)
    real(rkind)            :: scalarVolFracLiqTrial     ! volumetric fraction of liquid water in a given layer (-)
@@ -798,7 +794,6 @@ MODULE data_types
    ! input: model control
    logical(lgt) :: firstSplitOper   ! flag indicating if desire to compute infiltration
    integer(i4b) :: bc_lower         ! index defining the type of lower boundary conditions
-   integer(i4b) :: ixRichards       ! index defining the option for Richards' equation (moisture or mixdform)
    integer(i4b) :: ixInfRateMax     ! index defining the maximum infiltration rate method (GreenAmpt or topmodel_GA)
    integer(i4b) :: surfRun_SE       ! index defining the saturation excess surface runoff method
    integer(i4b) :: ix_groundwatr    ! index defining the groundwater parameterization
@@ -823,7 +818,6 @@ MODULE data_types
    real(rkind),allocatable :: iLayerHeight(:)      ! height at the interface of each layer (m)
    ! input: diriclet boundary conditions
    real(rkind) :: upperBoundHead      ! upper boundary condition for matric head (m)
-   real(rkind) :: upperBoundTheta     ! upper boundary condition for volumetric liquid water content (-)
    ! input: flux at the upper boundary
    real(rkind) :: scalarRainPlusMelt  ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
    ! input: transmittance
@@ -889,11 +883,8 @@ MODULE data_types
 
  ! ** iLayerFlux
  type, public :: in_type_iLayerFlux ! intent(in) data
-   ! input: model control
-   integer(i4b) :: ixRichards    ! index defining the option for Richards' equation (moisture or mixdform)
    ! input: state variables
    real(rkind),allocatable :: nodeMatricHeadLiqTrial(:) ! liquid matric head at the soil nodes (m)
-   real(rkind),allocatable :: nodeVolFracLiqTrial(:)    ! volumetric fraction of liquid water at the soil nodes (-)
    ! input: model coordinate variables
    real(rkind),allocatable :: nodeHeight(:)             ! height at the mid-point of the lower layer (m)
    ! input: temperature derivatives
@@ -933,21 +924,17 @@ MODULE data_types
  ! ** qDrainFlux
  type, public :: in_type_qDrainFlux ! intent(in) data
    ! input: model control
-   integer(i4b) :: ixRichards                ! index defining the option for Richards' equation (moisture or mixdform)
    integer(i4b) :: bc_lower                  ! index defining the type of boundary conditions
    integer(i4b) :: nGlce                     ! number of glacier ice layers
    ! input: state and diagnostic variables
    real(rkind)  :: nodeMatricHeadLiq         ! liquid matric head in the lowest unsaturated node (m)
-   real(rkind)  :: nodeVolFracLiq            ! volumetric liquid water content in the lowest unsaturated node (-)
    ! input: model coordinate variables
    real(rkind)  :: nodeDepth                 ! depth of the lowest unsaturated soil layer (m)
    real(rkind)  :: nodeHeight                ! height of the lowest unsaturated soil node (m)
    ! input: diriclet boundary conditions
    real(rkind)  :: scalarGlceMelt            ! glacier ice melt (m s-1)
    real(rkind)  :: lowerBoundHead            ! lower boundary condition for matric head (m)
-   real(rkind)  :: lowerBoundTheta           ! lower boundary condition for volumetric liquid water content (-)
    ! input: derivative in soil water characteristic
-   real(rkind)  :: node_dPsi_dTheta          ! derivative of the soil moisture characteristic w.r.t. theta (m)
    real(rkind)  :: node_dPsiLiq_dTemp        ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
    ! input: transmittance
    real(rkind)  :: surfaceSatHydCond         ! saturated hydraulic conductivity at the surface (m s-1)
@@ -1082,7 +1069,6 @@ MODULE data_types
    integer(i4b)             :: nLayers                     ! intent(in): total number of layers in the domains
    logical(lgt)             :: computeVegFlux              ! intent(in): flag to indicate if computing fluxes over vegetation
    logical(lgt)             :: computeBaseflow             ! intent(in): flag to indicate if computing baseflow
-   integer(i4b)             :: ixRichards                  ! intent(in): index defining the option for Richards' equation (moisture or mixdform)
    integer(i4b)             :: ixMatrix                    ! intent(in): form of the Jacobian matrix
   contains
    procedure :: initialize => initialize_in_computJacob
@@ -1551,13 +1537,11 @@ contains
   ! intent(inout) arguments: derivatives, fluxes, and layer properties
   associate(& 
    mLayerdTheta_dPsi    => deriv_data%var(iLookDERIV%mLayerdTheta_dPsi)%dat,   & ! intent(out): [dp(:)] derivative in liquid water content w.r.t. matric potential (m-1)
-   mLayerdPsi_dTheta    => deriv_data%var(iLookDERIV%mLayerdPsi_dTheta)%dat,   & ! intent(out): [dp(:)] derivative in matric potential w.r.t. liquid water content (m)
    scalarInfiltration   => flux_data%var(iLookFLUX%scalarInfiltration)%dat(1), & ! intent(out): [dp] infiltration of water into the soil profile (m s-1)
    iLayerLiqFluxSoil    => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat,     & ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
    mLayerTranspire      => flux_data%var(iLookFLUX%mLayerTranspire)%dat,       & ! intent(out): [dp(:)] transpiration loss from each soil layer (m s-1)
    mLayerHydCond        => flux_data%var(iLookFLUX%mLayerHydCond)%dat          ) ! intent(out): [dp(:)]  hydraulic conductivity in each soil layer (m s-1)
    io_soilLiqFlux % mLayerdTheta_dPsi      =mLayerdTheta_dPsi      ! intent(inout): derivative in liquid water content w.r.t. matric potential (m-1)
-   io_soilLiqFlux % mLayerdPsi_dTheta      =mLayerdPsi_dTheta      ! intent(inout): derivative in matric potential w.r.t. liquid water content (m)
    io_soilLiqFlux % dHydCond_dMatric       =dHydCond_dMatric       ! intent(inout): derivative in hydraulic conductivity w.r.t matric head (s-1)
    io_soilLiqFlux % scalarInfiltration     =scalarInfiltration     ! intent(inout): surface infiltration rate (m s-1)
    io_soilLiqFlux % iLayerLiqFluxSoil      =iLayerLiqFluxSoil      ! intent(inout): liquid fluxes at layer interfaces (m s-1)
@@ -1627,13 +1611,11 @@ contains
   ! intent(inout) arguments: derivatives, fluxes, and layer properties
   associate(& 
    mLayerdTheta_dPsi      => deriv_data%var(iLookDERIV%mLayerdTheta_dPsi)%dat,   & ! intent(out): [dp(:)] derivative in liquid water content w.r.t. matric potential (m-1)
-   mLayerdPsi_dTheta      => deriv_data%var(iLookDERIV%mLayerdPsi_dTheta)%dat,   & ! intent(out): [dp(:)] derivative in matric potential w.r.t. liquid water content (m)
    scalarInfiltration     => flux_data%var(iLookFLUX%scalarInfiltration)%dat(1), & ! intent(out): [dp] infiltration of water into the soil profile (m s-1)
    iLayerLiqFluxSoil      => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat,     & ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
    mLayerTranspire        => flux_data%var(iLookFLUX%mLayerTranspire)%dat,       & ! intent(out): [dp(:)] transpiration loss from each soil layer (m s-1)
    mLayerHydCond          => flux_data%var(iLookFLUX%mLayerHydCond)%dat          ) ! intent(out): [dp(:)]  hydraulic conductivity in each soil layer (m s-1)
    mLayerdTheta_dPsi       =io_soilLiqFlux % mLayerdTheta_dPsi        ! intent(inout): derivative in liquid water content w.r.t. matric potential (m-1)
-   mLayerdPsi_dTheta       =io_soilLiqFlux % mLayerdPsi_dTheta        ! intent(inout): derivative in matric potential w.r.t. liquid water content (m)
    dHydCond_dMatric        =io_soilLiqFlux % dHydCond_dMatric         ! intent(inout): derivative in hydraulic conductivity w.r.t matric head (s-1)
    scalarInfiltration      =io_soilLiqFlux % scalarInfiltration       ! intent(inout): surface infiltration rate (m s-1)
    iLayerLiqFluxSoil       =io_soilLiqFlux % iLayerLiqFluxSoil        ! intent(inout): liquid fluxes at layer interfaces (m s-1)
@@ -1694,7 +1676,6 @@ contains
   type(model_options),intent(in)        :: model_decisions(maxvarDecisions) ! the model decision structure
  
   associate(&
-   ixRichards        => model_decisions(iLookDECISIONS%f_Richards)%iDecision, & ! index of the form of Richards' equation
    dVolTot_dPsi0     => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat,         & ! intent(in): [dp(:)] derivative in total volumetric water content w.r.t. matric head (m-1)
    mLayerdTheta_dPsi => deriv_data%var(iLookDERIV%mLayerdTheta_dPsi)%dat,     & ! intent(in): [dp(:)] derivative in liquid water content w.r.t. matric potential (m-1)
    mLayerdTheta_dTk  => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat(nSnow+nLake+1:nSnow+nLake+nSoil) )! intent(in): [dp(:)] derivative in volumetric liquid water content w.r.t. temperature (K-1)
@@ -1703,7 +1684,6 @@ contains
    in_groundwatr % nLake                    = nLake                                  ! intent(in):    total number of layers
    in_groundwatr % nSoil                    = nSoil                                  ! intent(in):    number of soil layers
    in_groundwatr % nGlce                    = nGlce                                  ! intent(in):    number of glacier ice layers
-   in_groundwatr % ixRichards               = ixRichards                             ! intent(in):    index of the form of Richards' equation
    in_groundwatr % firstFluxCall            = firstFluxCall                          ! intent(in):    logical flag to compute index of the lowest saturated layer
    in_groundwatr % dVolTot_dPsi0            = dVolTot_dPsi0                          ! intent(in):    derivative in total volumetric water content w.r.t. matric head (m-1)
    in_groundwatr % mLayerdTheta_dPsi        = mLayerdTheta_dPsi                      ! intent(in):    derivative in liquid water content w.r.t. matric potential (m-1)
@@ -1835,8 +1815,6 @@ contains
   type(var_dlength),intent(in)          :: flux_data                        ! model fluxes for a local HRU
 
   associate(&
-   ! intent(in): model control
-   ixRichards    => model_decisions(iLookDECISIONS%f_Richards)%iDecision, & ! index of the form of Richards' equation
    ! intent(in): state variables
    mLayerMatricHeadLiqTrial => in_soilLiqFlux % mLayerMatricHeadLiqTrial, & ! liquid matric head in each layer at the current iteration (m)
    mLayerVolFracLiqTrial    => in_soilLiqFlux % mLayerVolFracLiqTrial,    & ! volumetric fraction of liquid water at the current iteration (-)
@@ -1855,8 +1833,6 @@ contains
    mLayerSatHydCond   => flux_data%var(iLookFLUX%mLayerSatHydCond)%dat,  & ! saturated hydraulic conductivity at the mid-point of each layer (m s-1)
    mLayerSatHydCondMP => flux_data%var(iLookFLUX%mLayerSatHydCondMP)%dat & ! saturated hydraulic conductivity of macropores at the mid-point of each layer (m s-1)
   &)
-   ! input: model control
-   in_diagv_node % ixRichards    = ixRichards    ! index defining the option for Richards' equation (moisture or mixdform)
    ! input: state variables
    in_diagv_node % scalarMatricHeadLiqTrial = mLayerMatricHeadLiqTrial(iSoil) ! liquid matric head in each layer (m)
    in_diagv_node % scalarVolFracLiqTrial    = mLayerVolFracLiqTrial(iSoil)    ! volumetric fraction of liquid water in a given layer (-)
@@ -1892,13 +1868,11 @@ contains
 
   associate(&
    ! hydraulic conductivity and derivatives
-   mLayerdPsi_dTheta => io_soilLiqFlux % mLayerdPsi_dTheta,     & ! derivative in matric potential w.r.t. liquid water content (m)
    mLayerdTheta_dPsi => io_soilLiqFlux % mLayerdTheta_dPsi,     & ! derivative in liquid water content w.r.t. matric potential (m-1)
    mLayerHydCond     => io_soilLiqFlux % mLayerHydCond,         & ! hydraulic conductivity in each soil layer (m s-1)
    dHydCond_dMatric  => io_soilLiqFlux % dHydCond_dMatric       & ! derivative in hydraulic conductivity w.r.t matric head (s-1)
   &)
    ! output: derivative in the soil water characteristic
-   mLayerdPsi_dTheta(iSoil) = out_diagv_node % scalardPsi_dTheta ! derivative in matric potential w.r.t. liquid water content (m)
    mLayerdTheta_dPsi(iSoil) = out_diagv_node % scalardTheta_dPsi ! derivative in liquid water content w.r.t. matric potential (m-1)
    ! output: transmittance
    mLayerHydCond(iSoil) = out_diagv_node % scalarHydCond ! hydraulic conductivity at layer mid-points (m s-1)
@@ -1940,7 +1914,6 @@ contains
   associate(&
    ! model control
    firstSplitOper         => in_soilLiqFlux % firstSplitOper,                     & ! flag to compute infiltration
-   ixRichards             => model_decisions(iLookDECISIONS%f_Richards)%iDecision,& ! index of the form of Richards' equation
    ixBcLowerSoilHydrology => model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision,& ! index of the lower boundary conditions for soil hydrology
    ixBcUpperSoilHydrology => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision,& ! index defining the type of boundary conditions
    ixInfRateMax           => model_decisions(iLookDECISIONS%infRateMax)%iDecision,& ! index of the maximum infiltration rate parameterization
@@ -1950,7 +1923,6 @@ contains
    ! intent(in): model control
    in_surfaceFlux % firstSplitOper = firstSplitOper          ! flag indicating if desire to compute infiltration
    in_surfaceFlux % bc_lower       = ixBcLowerSoilHydrology  ! index defining the type of boundary conditions at the bottom of the soil
-   in_surfaceFlux % ixRichards     = ixRichards              ! index defining the form of Richards' equation (moisture or mixdform)
    in_surfaceFlux % bc_upper       = ixBcUpperSoilHydrology  ! index defining the type of boundary conditions (Neumann or Dirichlet)
    in_surfaceFlux % ixInfRateMax   = ixInfRateMax            ! index defining the maximum infiltration rate parameterization (GreenAmpt or topmodel_GA)
    in_surfaceFlux % surfRun_SE     = surfRun_SE              ! index defining the saturation excess surface runoff method
@@ -2001,12 +1973,10 @@ contains
 
   associate(&
    ! boundary conditions
-   upperBoundHead      => mpar_data%var(iLookPARAM%upperBoundHead)%dat(1), & ! upper boundary condition for matric head (m)
-   upperBoundTheta     => mpar_data%var(iLookPARAM%upperBoundTheta)%dat(1) & ! upper boundary condition for volumetric liquid water content (-)
+   upperBoundHead      => mpar_data%var(iLookPARAM%upperBoundHead)%dat(1) & ! upper boundary condition for matric head (m)
   &)
    ! intent(in): boundary conditions
    in_surfaceFlux % upperBoundHead  = upperBoundHead  ! upper boundary condition (m)
-   in_surfaceFlux % upperBoundTheta = upperBoundTheta ! upper boundary condition (-)
   end associate
 
   associate(&
@@ -2179,8 +2149,6 @@ contains
   real(rkind),intent(in) :: dDiffuse_dVolLiq(1:nSoil) ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
 
   associate(&
-   ! intent(in): model control
-   ixRichards    => model_decisions(iLookDECISIONS%f_Richards)%iDecision,& ! index of the form of Richards' equation
    ! intent(in): state variables (adjacent layers)
    mLayerMatricHeadLiqTrial => in_soilLiqFlux % mLayerMatricHeadLiqTrial, & ! liquid matric head in each layer at the current iteration (m)
    mLayerVolFracLiqTrial    => in_soilLiqFlux % mLayerVolFracLiqTrial,    & ! volumetric fraction of liquid water at the current iteration (-)
@@ -2193,11 +2161,8 @@ contains
    ! intent(in): transmittance derivatives (adjacent layers)
    dHydCond_dMatric => io_soilLiqFlux % dHydCond_dMatric & ! derivative in hydraulic conductivity w.r.t matric head (s-1)
   &)
-   ! intent(in): model control
-   in_iLayerFlux % ixRichards    = ixRichards    ! index defining the form of Richards' equation (moisture or mixdform)
    ! intent(in): state variables (adjacent layers)
    in_iLayerFlux % nodeMatricHeadLiqTrial = mLayerMatricHeadLiqTrial(iLayer:iLayer+1) ! liquid matric head at the soil nodes (m)
-   in_iLayerFlux % nodeVolFracLiqTrial    = mLayerVolFracLiqTrial(iLayer:iLayer+1)    ! volumetric liquid water content at the soil nodes (-)
    ! intent(in): model coordinate variables (adjacent layers)
    in_iLayerFlux % nodeHeight = mLayerHeight(iLayer:iLayer+1) ! height of the soil nodes (m)
    ! intent(in): temperature derivatives
@@ -2271,7 +2236,6 @@ contains
 
   associate(&
    ! intent(in): model control
-   ixRichards             => model_decisions(iLookDECISIONS%f_Richards)%iDecision,& ! index of the form of Richards' equation
    ixBcLowerSoilHydrology => model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision,& ! index of the lower boundary conditions for soil hydrology
    ! intent(in): state variables
    mLayerMatricHeadLiqTrial => in_soilLiqFlux % mLayerMatricHeadLiqTrial, & ! liquid matric head in each layer at the current iteration (m)
@@ -2282,9 +2246,7 @@ contains
    ! intent(in): boundary conditions
    scalarGlceMelt  => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1),  & ! intent(out): [dp] glacier ice melt (m s-1)
    lowerBoundHead  => mpar_data%var(iLookPARAM%lowerBoundHead)%dat(1), & ! lower boundary condition for matric head (m)
-   lowerBoundTheta => mpar_data%var(iLookPARAM%lowerBoundTheta)%dat(1),& ! lower boundary condition for volumetric liquid water content (-)
    ! intent(in): derivative in the soil water characteristic
-   mLayerdPsi_dTheta => io_soilLiqFlux % mLayerdPsi_dTheta,     & ! derivative in matric potential w.r.t. liquid water content (m)
    dPsiLiq_dTemp     => in_soilLiqFlux % dPsiLiq_dTemp,         & ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
    ! intent(in): transmittance
    iLayerSatHydCond => flux_data%var(iLookFLUX%iLayerSatHydCond)%dat,& ! saturated hydraulic conductivity at the interface of each layer (m s-1)
@@ -2301,21 +2263,17 @@ contains
    zScale_TOPMODEL => mpar_data%var(iLookPARAM%zScale_TOPMODEL)%dat(1) & ! TOPMODEL scaling factor (m)
   &)
    ! intent(in): model control
-   in_qDrainFlux % ixRichards = ixRichards             ! index defining the form of Richards' equation (moisture or mixdform)
    in_qDrainFlux % bc_lower   = ixBcLowerSoilHydrology ! index defining the type of boundary conditions
    in_qDrainFlux % nGlce      = nGlce                  ! number of glacier ice layers
    ! intent(in): state variables
    in_qDrainFlux % nodeMatricHeadLiq = mLayerMatricHeadLiqTrial(nSoil) ! liquid matric head in the lowest unsaturated node (m)
-   in_qDrainFlux % nodeVolFracLiq    = mLayerVolFracLiqTrial(nSoil)    ! volumetric liquid water content the lowest unsaturated node (-)
    ! intent(in): model coordinate variables
    in_qDrainFlux % nodeDepth  = mLayerDepth(nSoil)  ! depth of the lowest unsaturated soil layer (m)
    in_qDrainFlux % nodeHeight = mLayerHeight(nSoil) ! height of the lowest unsaturated soil node (m)
    ! intent(in): boundary conditions
    in_qDrainFlux % scalarGlceMelt  = scalarGlceMelt  ! glacier ice melt (m s-1)
    in_qDrainFlux % lowerBoundHead  = lowerBoundHead  ! lower boundary condition (m)
-   in_qDrainFlux % lowerBoundTheta = lowerBoundTheta ! lower boundary condition (-)
    ! intent(in): derivative in the soil water characteristic
-   in_qDrainFlux % node_dPsi_dTheta   = mLayerdPsi_dTheta(nSoil) ! derivative in the soil water characteristic
    in_qDrainFlux % node_dPsiLiq_dTemp = dPsiLiq_dTemp(nSoil)     ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
    ! intent(in): transmittance
    in_qDrainFlux % surfaceSatHydCond = iLayerSatHydCond(0)     ! saturated hydraulic conductivity at the surface (m s-1)
@@ -2507,7 +2465,7 @@ contains
  ! **** end varSubstep ****
 
  ! **** computJacob ****
- subroutine initialize_in_computJacob(in_computJacob,dt,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,computeBaseflow,ixRichards,ixMatrix)
+subroutine initialize_in_computJacob(in_computJacob,dt,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,computeBaseflow,ixMatrix)
   class(in_type_computJacob),intent(out) :: in_computJacob           ! class object for intent(in) computJacob arguments
   real(rkind),intent(in)              :: dt                          ! intent(in): length of the time step (seconds)
   integer(i4b),intent(in)             :: nSnow                       ! intent(in): number of snow layers
@@ -2517,7 +2475,6 @@ contains
   integer(i4b),intent(in)             :: nLayers                     ! intent(in): total number of layers in the domain
   logical(lgt),intent(in)             :: computeVegFlux              ! intent(in): flag to indicate if computing fluxes over vegetation
   logical(lgt),intent(in)             :: computeBaseflow             ! intent(in): flag to indicate if computing baseflow
-  integer(i4b),intent(in)             :: ixRichards                  ! intent(in): index defining the form of Richards' equation (moisture or mixdform)
   integer(i4b),intent(in)             :: ixMatrix                    ! intent(in): form of the Jacobian matrix                         
  
   ! intent(in) arguments
@@ -2529,7 +2486,6 @@ contains
   in_computJacob % nLayers          =  nLayers                       ! intent(in): total number of layers in the domain
   in_computJacob % computeVegFlux   =  computeVegFlux                ! intent(in): flag to indicate if computing fluxes over vegetation
   in_computJacob % computeBaseflow  =  computeBaseflow               ! intent(in): flag to indicate if computing baseflow
-  in_computJacob % ixRichards       =  ixRichards                    ! intent(in): index defining the form of Richards' equation (moisture or mixdform)
   in_computJacob % ixMatrix         =  ixMatrix                      ! intent(in): form of the Jacobian matrix                         
  end subroutine initialize_in_computJacob
 
