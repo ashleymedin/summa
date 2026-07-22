@@ -71,7 +71,6 @@ integer(i4b),parameter,public :: sparseCanopy         = 111    ! fraction of rai
 integer(i4b),parameter,public :: storageFunc          = 112    ! throughfall a function of canopy storage; 100% throughfall when canopy is at capacity
 integer(i4b),parameter,public :: unDefined            = 113    ! option is undefined (backwards compatibility)
 ! look-up values for the form of Richards' equation
-integer(i4b),parameter,public :: moisture             = 121    ! moisture-based form of Richards' equation
 integer(i4b),parameter,public :: mixdform             = 122    ! mixed form of Richards' equation
 ! look-up values for the choice of groundwater parameterization
 integer(i4b),parameter,public :: qbaseTopmodel        = 131    ! TOPMODEL-ish baseflow parameterization
@@ -485,9 +484,10 @@ subroutine mDecisions(err,message)
   ! identify the form of Richards' equation, now deprecated as mixed form is the only option, but still included for backwards compatibility
   select case(trim(model_decisions(iLookDECISIONS%f_Richards)%cDecision))
     case('mixdform', 'notPopulatedYet'); model_decisions(iLookDECISIONS%f_Richards)%iDecision = mixdform            ! mixed form
-    case('moisture',default)
-      write(*,'(a)') 'DEPRECATION WARNING: f_Richards option "'//trim(richardsOption)//'" is ignored; mixed form (mixdform) is always used.'
+    case default
+      write(*,'(a)') 'WARNING: f_Richards option "'//trim(model_decisions(iLookDECISIONS%f_Richards)%cDecision)//'" is ignored; mixed form (mixdform) is always used'
       model_decisions(iLookDECISIONS%f_Richards)%cDecision = 'mixdform'
+      model_decisions(iLookDECISIONS%f_Richards)%iDecision = mixdform
   end select
 
   ! identify the groundwater parameterization
