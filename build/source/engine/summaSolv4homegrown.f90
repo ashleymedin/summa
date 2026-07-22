@@ -1222,8 +1222,13 @@ contains
 
    ! check convergence based on the soil water balance error (m)
    if (size(ixMatOnly)>0) then
-    soilWatBalErr = sum( real(rVec(ixMatOnly), rkind)*mLayerDepth(nSnow+ixMatricHead) )
-    watbalConv    = (abs(soilWatBalErr) < absConvTol_liquid)  ! absolute error in total soil water balance (m)
+    soilWatBalErr = sum( real(rVec(ixMatOnly), rkind)*mLayerDepth(nSnow+nLake+ixMatricHead) )
+    ! (tighter convergence for the scalar solution)
+    if (scalarSolution) then
+      watbalConv = (abs(soilWatBalErr) < absConvTol_liquid*scalarTighten)  ! absolute error in total soil water balance (m)
+    else
+      watbalConv = (abs(soilWatBalErr) < absConvTol_liquid)                ! absolute error in total soil water balance (m)
+    endif
    else
     soilWatBalErr = realMissing
     watbalConv    = .true.

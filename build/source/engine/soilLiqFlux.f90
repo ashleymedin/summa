@@ -1497,9 +1497,6 @@ subroutine update_volFracLiq_derivatives
   ! **** Update operations for surfaceFlux: infiltrating area (ignoring frozen area) for homegrown saturation excess condition ****
   associate(&
    ! input: model control
-   nSoil            => in_surfaceFlux % nSoil               , & ! number of soil layers
-   nRoots           => in_surfaceFlux % nRoots              , & ! number of layers that contain roots
-   ixIce            => in_surfaceFlux % ixIce               , & ! index of lowest ice layer
    mLayerVolFracLiq => in_surfaceFlux % mLayerVolFracLiq    , & ! volumetric liquid water content in each soil layer (-)
    mLayerDepth      => in_surfaceFlux % mLayerDepth         , & ! depth of each soil layer (m)
    ! input: soil parameters
@@ -1526,15 +1523,6 @@ subroutine update_volFracLiq_derivatives
      endif
    else
      scalarInfilArea = 1._rkind ! derivatives are zero
-   end if
-
-   ! check to ensure we are not infiltrating into a fully saturated column
-   if (ixIce<nRoots) then
-     if (sum(mLayerVolFracLiq(ixIce+1:nRoots)*mLayerDepth(ixIce+1:nRoots)) > 0.9999_rkind*theta_sat*sum(mLayerDepth(ixIce+1:nRoots))) then 
-      scalarInfilArea    = 0._rkind
-      dInfilArea_dWat(:) = 0._rkind
-      dInfilArea_dTk(:)  = 0._rkind
-     end if
    end if
   end associate
  end subroutine update_surfaceFlux_liquidFlux_computation_homegrown
@@ -1570,9 +1558,29 @@ subroutine update_volFracLiq_derivatives
   ! **** Update operations for surfaceFlux: final infiltration calculations ****
   ! local variables
   real(rkind) :: scalarInfilArea_unfrozen ! infiltration area that is not frozen
+  real(rkind) :: rootZoneDepth            ! depth of active root-zone layers used in saturation limiter (m)
+  real(rkind) :: satRootZone              ! mean root-zone saturation ratio, normalized by theta_sat (-)
+  real(rkind) :: satLimiter               ! smooth limiter that drives infiltration area to zero near saturation (-)
+  real(rkind) :: satLimiter_prev          ! pre-limiter infiltration area used for chain rule (-)
+  real(rkind) :: satArg                   ! argument of tanh saturation limiter (-)
+  real(rkind) :: dSatLimiter_dSat         ! derivative of limiter w.r.t. satRootZone (-)
+  real(rkind),parameter :: satCutoff=0.9999_rkind ! saturation threshold for reducing infiltration area (-)
+  real(rkind),parameter :: satWidth =0.0005_rkind ! smoothing width for saturation limiter (-)
+  real(rkind) :: dSatRoot_dWat(1:in_surfaceFlux % nSoil) ! derivative of satRootZone w.r.t. water state (-)
+  real(rkind) :: dSatRoot_dTk(1:in_surfaceFlux % nSoil)  ! derivative of satRootZone w.r.t. temperature (K)
+  integer(i4b) :: ixTop, ixBot             ! top and bottom layer indices for the active root zone
 
   ! compute infiltration
   associate(&
+   ! input: model control and state
+   surfRun_SE        => in_surfaceFlux % surfRun_SE,             & ! index defining the saturation excess surface runoff method
+   nSoil             => in_surfaceFlux % nSoil,                 & ! number of soil layers
+   nRoots            => in_surfaceFlux % nRoots,                & ! number of layers that contain roots or take infiltration (-)
+   ixIce             => in_surfaceFlux % ixIce,                 & ! index of lowest ice layer
+   mLayerVolFracLiq  => in_surfaceFlux % mLayerVolFracLiq,      & ! volumetric liquid water content in each soil layer (-)
+   mLayerDepth       => in_surfaceFlux % mLayerDepth,           & ! depth of each soil layer (m)
+   ! input: soil parameters
+   theta_sat         => in_surfaceFlux % theta_sat,             & ! soil porosity (-)
    ! input: flux at the upper boundary
    scalarRainPlusMelt   => in_surfaceFlux % scalarRainPlusMelt, & ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
    ! input-output: surface runoff and infiltration flux (m s-1)
@@ -1592,6 +1600,36 @@ subroutine update_volFracLiq_derivatives
 
   ! check infiltration area and define saturated area
    if (scalarInfilArea < 0._rkind) then; err=20; message=trim(message)//'infiltration area less than zero'; return_flag=.true.; return; end if
+
+   ! Apply a smooth limiter as the infiltration area's soil layers approaches full saturation to avoid discontinuous zeroing of infiltration
+   if(surfRun_SE==homegrown_SE)then ! infiltration area based on all layers
+     ixTop = ixIce + 1
+     ixBot = nRoots
+   else ! if not homegrown_SE, infiltration area based on all layers
+     ixTop = 1
+     ixBot = nSoil
+   end if
+   if (ixTop <= ixBot) then
+     rootZoneDepth = sum(mLayerDepth(ixTop:ixBot))
+     if (rootZoneDepth > verySmall .and. theta_sat > verySmall) then
+       satRootZone = sum(mLayerVolFracLiq(ixTop:ixBot)*mLayerDepth(ixTop:ixBot)) / (theta_sat*rootZoneDepth)
+       satArg = (satRootZone - satCutoff)/satWidth
+       satLimiter = 0.5_rkind*(1._rkind - tanh(satArg))
+       dSatLimiter_dSat = -0.5_rkind*(1._rkind - tanh(satArg)**2_i4b)/satWidth
+
+       dSatRoot_dWat(:) = 0._rkind
+       dSatRoot_dTk(:)  = 0._rkind
+       dSatRoot_dWat(ixTop:ixBot) = (mLayerDepth(ixTop:ixBot)/(theta_sat*rootZoneDepth)) * dVolFracLiq_dWat(ixTop:ixBot)
+       dSatRoot_dTk(ixTop:ixBot)  = (mLayerDepth(ixTop:ixBot)/(theta_sat*rootZoneDepth)) * dVolFracLiq_dTk(ixTop:ixBot)
+
+       satLimiter_prev = scalarInfilArea
+       scalarInfilArea = scalarInfilArea*satLimiter
+       if(updateInfil)then
+         dInfilArea_dWat(:) = dInfilArea_dWat(:)*satLimiter + satLimiter_prev*dSatLimiter_dSat*dSatRoot_dWat(:)
+         dInfilArea_dTk(:)  = dInfilArea_dTk(:)*satLimiter  + satLimiter_prev*dSatLimiter_dSat*dSatRoot_dTk(:)
+       end if
+     end if
+   end if
    scalarSaturatedArea = 1._rkind - scalarInfilArea
 
    ! unfrozen infiltration area and infiltration (m s-1)
