@@ -1621,7 +1621,7 @@ subroutine update_volFracLiq_derivatives
 
   ! Close infiltration under saturation for blocked lower boundaries
   rootZoneDepth = sum(mLayerDepth(ixTop:ixBot))
-  if (ixTop <= ixBot .and. bc_lower/=freeDrainage .and. ix_groundwatr/=qbaseTopmodel) then
+  if (ixTop <= ixBot .and. bc_lower/=freeDrainage) then
     ! drives infiltration area to zero once positive pressure becomes large
     posHead(:) = 0._rkind
     dPosHead_dPsi(:) = 0._rkind
