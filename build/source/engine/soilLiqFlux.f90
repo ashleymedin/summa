@@ -76,8 +76,12 @@ USE mDecisions_module,only:   &
   FUSETOPM,                   & ! FUSE TOPMODEL surface runoff parameterization 
   ! look-up values for the maximum infiltration rate parameterization
   GreenAmpt,                  & ! Green-Ampt parameterization
-  topmodel_GA,                & ! Green-Ampt parameterization with conductivity profile from TOPMODEL-ish parameterization  
-  noInfiltrationExcess          ! no infiltration excess runoff
+  topmodel_GA,                & ! Green-Ampt parameterization with conductivity profile from TOPMODEL-ish parameterization
+  noInfiltrationExcess,       & ! no infiltration excess runoff
+  ! look-up values for the choice of groundwater parameterization
+  qbaseTopmodel,              & ! TOPMODEL-ish baseflow parameterization
+  bigBucket,                  & ! a big bucket (lumped aquifer model)
+  noExplicit                    ! no explicit groundwater parameterization
 
 ! -----------------------------------------------------------------------------------------------------------
 implicit none
@@ -1559,28 +1563,29 @@ subroutine update_volFracLiq_derivatives
   ! local variables
   real(rkind) :: scalarInfilArea_unfrozen ! infiltration area that is not frozen
   real(rkind) :: rootZoneDepth            ! depth of active root-zone layers used in saturation limiter (m)
-  real(rkind) :: satRootZone              ! mean root-zone saturation ratio, normalized by theta_sat (-)
-  real(rkind) :: satLimiter               ! smooth limiter that drives infiltration area to zero near saturation (-)
-  real(rkind) :: satLimiter_prev          ! pre-limiter infiltration area used for chain rule (-)
-  real(rkind) :: satArg                   ! argument of tanh saturation limiter (-)
-  real(rkind) :: dSatLimiter_dSat         ! derivative of limiter w.r.t. satRootZone (-)
-  real(rkind),parameter :: satCutoff=0.9999_rkind ! saturation threshold for reducing infiltration area (-)
-  real(rkind),parameter :: satWidth =0.0005_rkind ! smoothing width for saturation limiter (-)
-  real(rkind) :: dSatRoot_dWat(1:in_surfaceFlux % nSoil) ! derivative of satRootZone w.r.t. water state (-)
-  real(rkind) :: dSatRoot_dTk(1:in_surfaceFlux % nSoil)  ! derivative of satRootZone w.r.t. temperature (K)
+  real(rkind) :: compHeadRootZone         ! mean positive pressure head over active layers (m)
+  real(rkind) :: compLimiter              ! smooth limiter that closes infiltration area under strong compression (-)
+  real(rkind) :: compLimiter_prev         ! pre-limiter infiltration area used for chain rule (-)
+  real(rkind) :: compArg                  ! argument of logistic compression limiter (-)
+  real(rkind) :: dCompLimiter_dHead       ! derivative of compression limiter w.r.t. mean positive head (m-1)
+  real(rkind),parameter :: compHeadCutoff=1._rkind   ! positive head where compression closure begins (m)
+  real(rkind),parameter :: compHeadWidth =0.02_rkind ! smoothing width for compression closure (m)
+  real(rkind),parameter :: headSmooth =1.e-4_rkind   ! smoothing for max(psi,0) approximation (m)
+  real(rkind) :: posHead(1:in_surfaceFlux % nSoil)   ! smooth positive part of matric head (m)
+  real(rkind) :: dPosHead_dPsi(1:in_surfaceFlux % nSoil) ! derivative of smooth positive head w.r.t. matric head (-)
+  real(rkind) :: dCompHead_dWat(1:in_surfaceFlux % nSoil) ! derivative of mean positive head w.r.t. hyd state (m)
   integer(i4b) :: ixTop, ixBot             ! top and bottom layer indices for the active root zone
-  integer(i4b) :: bc_lower_use             ! mutable copy of lower boundary-condition index
 
   ! compute infiltration
   associate(&
    ! input: model control and state
+   ix_groundwatr     => in_surfaceFlux % ix_groundwatr,         & ! index defining the groundwater parameterization
    surfRun_SE        => in_surfaceFlux % surfRun_SE,            & ! index defining the saturation excess surface runoff method
-   ixRichards        => in_surfaceFlux % ixRichards,            & ! index defining the option for Richards' equation (moisture or mixdform)
    bc_lower          => in_surfaceFlux % bc_lower,              & ! index defining the lower boundary condition
    nSoil             => in_surfaceFlux % nSoil,                 & ! number of soil layers
-   nGlce             => in_surfaceFlux % nGlce,                 & ! number of glacier debris layers
    nRoots            => in_surfaceFlux % nRoots,                & ! number of layers that contain roots or take infiltration (-)
    ixIce             => in_surfaceFlux % ixIce,                 & ! index of lowest ice layer
+   mLayerMatricHead  => in_surfaceFlux % mLayerMatricHead,      & ! matric head in each soil layer (m)
    mLayerVolFracLiq  => in_surfaceFlux % mLayerVolFracLiq,      & ! volumetric liquid water content in each soil layer (-)
    mLayerDepth       => in_surfaceFlux % mLayerDepth,           & ! depth of each soil layer (m)
    ! input: soil parameters
@@ -1605,10 +1610,7 @@ subroutine update_volFracLiq_derivatives
   ! check infiltration area and define saturated area
    if (scalarInfilArea < 0._rkind) then; err=20; message=trim(message)//'infiltration area less than zero'; return_flag=.true.; return; end if
 
-   bc_lower_use = bc_lower
-   if(nGlce>0) bc_lower_use = zeroFlux ! if glacier debris, nothing can drain into impermeable glacier ice layer
-
-   ! Apply a smooth limiter as the infiltration area's soil layers approaches full saturation to avoid discontinuous zeroing of infiltration
+   ! Saturation-area limiters
    if(surfRun_SE==homegrown_SE)then ! infiltration area based on all layers
      ixTop = ixIce + 1
      ixBot = nRoots
@@ -1616,26 +1618,31 @@ subroutine update_volFracLiq_derivatives
      ixTop = 1
      ixBot = nSoil
    end if
-   if (ixTop <= ixBot .and. bc_lower_use/=freeDrainage) then
-     rootZoneDepth = sum(mLayerDepth(ixTop:ixBot))
-     if (rootZoneDepth > verySmall .and. theta_sat > verySmall) then
-       satRootZone = sum(mLayerVolFracLiq(ixTop:ixBot)*mLayerDepth(ixTop:ixBot)) / (theta_sat*rootZoneDepth)
-       satArg = (satRootZone - satCutoff)/satWidth
-       satLimiter = 0.5_rkind*(1._rkind - tanh(satArg))
-       dSatLimiter_dSat = -0.5_rkind*(1._rkind - tanh(satArg)**2_i4b)/satWidth
 
-       dSatRoot_dWat(:) = 0._rkind
-       dSatRoot_dTk(:)  = 0._rkind
-       dSatRoot_dWat(ixTop:ixBot) = (mLayerDepth(ixTop:ixBot)/(theta_sat*rootZoneDepth)) * dVolFracLiq_dWat(ixTop:ixBot)
-       dSatRoot_dTk(ixTop:ixBot)  = (mLayerDepth(ixTop:ixBot)/(theta_sat*rootZoneDepth)) * dVolFracLiq_dTk(ixTop:ixBot)
+  ! Close infiltration under saturation for blocked lower boundaries
+  rootZoneDepth = sum(mLayerDepth(ixTop:ixBot))
+  if (ixTop <= ixBot .and. bc_lower/=freeDrainage .and. ix_groundwatr/=qbaseTopmodel) then
+    ! drives infiltration area to zero once positive pressure becomes large
+    posHead(:) = 0._rkind
+    dPosHead_dPsi(:) = 0._rkind
+    posHead(ixTop:ixBot) = 0.5_rkind*(mLayerMatricHead(ixTop:ixBot) + sqrt(mLayerMatricHead(ixTop:ixBot)**2_i4b + headSmooth**2_i4b)) ! smooth positive part of matric head (m)
+    dPosHead_dPsi(ixTop:ixBot) = 0.5_rkind*(1._rkind + mLayerMatricHead(ixTop:ixBot)/sqrt(mLayerMatricHead(ixTop:ixBot)**2_i4b + headSmooth**2_i4b))
 
-       satLimiter_prev = scalarInfilArea
-       scalarInfilArea = scalarInfilArea*satLimiter
-       if(updateInfil)then
-         dInfilArea_dWat(:) = dInfilArea_dWat(:)*satLimiter + satLimiter_prev*dSatLimiter_dSat*dSatRoot_dWat(:)
-         dInfilArea_dTk(:)  = dInfilArea_dTk(:)*satLimiter  + satLimiter_prev*dSatLimiter_dSat*dSatRoot_dTk(:)
-       end if
-     end if
+    ! compute derivatives of mean positive head w.r.t. water state variables
+    dCompHead_dWat(:) = 0._rkind
+    compHeadRootZone = sum(posHead(ixTop:ixBot)*mLayerDepth(ixTop:ixBot))/rootZoneDepth
+    compArg = (compHeadRootZone - compHeadCutoff)/compHeadWidth
+    compLimiter = 1._rkind/(1._rkind + exp(2._rkind*compArg))
+    dCompLimiter_dHead = -(2._rkind/compHeadWidth)*compLimiter*(1._rkind - compLimiter)
+    dCompHead_dWat(ixTop:ixBot) = (mLayerDepth(ixTop:ixBot)/rootZoneDepth) * dPosHead_dPsi(ixTop:ixBot)
+
+    ! apply compression limiter to infiltration area and compute derivatives
+    compLimiter_prev = scalarInfilArea
+    scalarInfilArea = scalarInfilArea*compLimiter
+    if(updateInfil)then
+      dInfilArea_dWat(:) = dInfilArea_dWat(:)*compLimiter + compLimiter_prev*dCompLimiter_dHead*dCompHead_dWat(:)
+      dInfilArea_dTk(:)  = dInfilArea_dTk(:)*compLimiter
+    end if
    end if
    scalarSaturatedArea = 1._rkind - scalarInfilArea
 

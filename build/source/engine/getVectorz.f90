@@ -74,8 +74,6 @@ USE snow_utils_module,only:fracliquid     ! compute the fraction of liquid water
 USE snow_utils_module,only:dFracLiq_dTk   ! differentiate the freezing curve w.r.t. temperature (snow)
 USE soil_utils_module,only:dTheta_dTk     ! differentiate the freezing curve w.r.t. temperature (soil)
 USE soil_utils_module,only:dTheta_dPsi    ! derivative in the soil water characteristic (soil)
-USE soil_utils_module,only:dPsi_dTheta    ! derivative in the soil water characteristic (soil)
-USE soil_utils_module,only:matricHead     ! compute the matric head based on volumetric water content
 USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water
 
 implicit none

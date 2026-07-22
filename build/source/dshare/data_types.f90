@@ -623,6 +623,7 @@ MODULE data_types
    integer(i4b) :: bc_lower         ! index defining the type of lower boundary conditions
    integer(i4b) :: ixInfRateMax     ! index defining the maximum infiltration rate method (GreenAmpt or topmodel_GA)
    integer(i4b) :: surfRun_SE       ! index defining the saturation excess surface runoff method
+   integer(i4b) :: ix_groundwatr    ! index defining the groundwater parameterization
    integer(i4b) :: bc_upper         ! index defining the type of boundary conditions
    integer(i4b) :: nRoots           ! number of layers that contain roots
    integer(i4b) :: ixIce            ! index of lowest ice layer
@@ -1692,7 +1693,8 @@ contains
    ixBcLowerSoilHydrology => model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision,& ! index of the lower boundary conditions for soil hydrology
    ixBcUpperSoilHydrology => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision,& ! index defining the type of boundary conditions
    ixInfRateMax           => model_decisions(iLookDECISIONS%infRateMax)%iDecision,& ! index of the maximum infiltration rate parameterization
-   surfRun_SE             => model_decisions(iLookDECISIONS%surfRun_SE)%iDecision & ! index defining the saturation excess surface runoff method
+   surfRun_SE             => model_decisions(iLookDECISIONS%surfRun_SE)%iDecision,& ! index defining the saturation excess surface runoff method
+   ix_groundwatr          => model_decisions(iLookDECISIONS%groundwatr)%iDecision & ! index defining the groundwater parameterization
   &)
    ! intent(in): model control
    in_surfaceFlux % firstSplitOper = firstSplitOper          ! flag indicating if desire to compute infiltration
@@ -1700,6 +1702,7 @@ contains
    in_surfaceFlux % bc_upper       = ixBcUpperSoilHydrology  ! index defining the type of boundary conditions (Neumann or Dirichlet)
    in_surfaceFlux % ixInfRateMax   = ixInfRateMax            ! index defining the maximum infiltration rate parameterization (GreenAmpt or topmodel_GA)
    in_surfaceFlux % surfRun_SE     = surfRun_SE              ! index defining the saturation excess surface runoff method
+   in_surfaceFlux % ix_groundwatr  = ix_groundwatr           ! index defining the groundwater parameterization
    in_surfaceFlux % nRoots         = nRoots                  ! number of layers that contain roots
    in_surfaceFlux % ixIce          = ixIce                   ! index of lowest ice layer
    in_surfaceFlux % nSoil          = nSoil                   ! number of soil layers

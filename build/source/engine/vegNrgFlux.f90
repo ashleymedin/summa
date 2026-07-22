@@ -162,6 +162,12 @@ subroutine vegNrgFlux(&
   real(rkind)                        :: exposedVAI                      ! exposed vegetation area index (m2 m-2)
   real(rkind)                        :: totalCanopyWater                ! total water on the vegetation canopy (kg m-2)
   real(rkind)                        :: scalarAquiferStorage            ! aquifer storage (m)
+  real(rkind)                        :: condToSoilLimiter              ! smooth limiter for condensation into pressurized top soil (-)
+  real(rkind)                        :: posHeadTop                      ! smooth positive part of top-layer matric head (m)
+  real(rkind)                        :: condHeadArg                     ! nondimensional argument for condensation limiter (-)
+  real(rkind),parameter              :: condHeadCutoff=0._rkind         ! positive head where condensation-to-soil closure begins (m)
+  real(rkind),parameter              :: condHeadWidth=0.02_rkind        ! smoothing width for condensation-to-soil closure (m)
+  real(rkind),parameter              :: condHeadSmooth=1.e-4_rkind      ! smoothing for max(psi,0) approximation (m)
   ! saturation vapor pressure of veg
   real(rkind)                        :: TV_celcius                      ! vegetaion temperature (C)
   real(rkind)                        :: TG_celcius                      ! ground temperature (C)
@@ -313,7 +319,7 @@ subroutine vegNrgFlux(&
     windspd                         => forc_data%var(iLookFORCE%windspd),                              & ! intent(in): [dp] wind speed at adjusted measurement height (m s-1)
     airpres                         => forc_data%var(iLookFORCE%airpres),                              & ! intent(in): [dp] air pressure at adjusted measurement height (Pa)
     LWRadAtm                        => forc_data%var(iLookFORCE%LWRadAtm),                             & ! intent(in): [dp] downwelling longwave radiation at the upper boundary (W m-2)
-    scalarVPair                     => diag_data%var(iLookDIAG%scalarVPair)%dat(1),                    & ! intent(in): [dp] vapor pressure at adjusted measurement height (Pa)
+    scalarVPair                     => diag_data%var(iLookDIAG%scalarVPair)%dat(1),                    & ! intent(in): [dp] vapor pressure of the air above the vegetation canopy (Pa)
     scalarO2air                     => diag_data%var(iLookDIAG%scalarO2air)%dat(1),                    & ! intent(in): [dp] atmospheric o2 concentration (Pa)
     scalarCO2air                    => diag_data%var(iLookDIAG%scalarCO2air)%dat(1),                   & ! intent(in): [dp] atmospheric co2 concentration (Pa)
     scalarTwetbulb                  => diag_data%var(iLookDIAG%scalarTwetbulb)%dat(1),                 & ! intent(in): [dp] wetbulb temperature (K)
@@ -953,6 +959,16 @@ subroutine vegNrgFlux(&
           scalarSnowSublimation   = 0._rkind  ! no sublimation from snow if no snow layers have formed
         end if
 
+        ! Smoothly reduce atmospheric condensation into soil as top-layer positive head increases
+        condToSoilLimiter = 1._rkind
+        if (nSoil>0 .and. scalarGroundEvaporation > 0._rkind) then
+          posHeadTop = 0.5_rkind*(mLayerMatricHead(1) + sqrt(mLayerMatricHead(1)**2_i4b + condHeadSmooth**2_i4b))
+          condHeadArg = (posHeadTop - condHeadCutoff)/condHeadWidth
+          condToSoilLimiter = 1._rkind/(1._rkind + exp(2._rkind*condHeadArg))
+          scalarGroundEvaporation = scalarGroundEvaporation*condToSoilLimiter
+          scalarGroundSublimation = scalarGroundSublimation*condToSoilLimiter
+        end if
+
         ! ***** AND STITCH EVERYTHING TOGETHER  *****************************************************************************************************************
  
         ! compute derived fluxes
@@ -1007,6 +1023,10 @@ subroutine vegNrgFlux(&
         dGroundEvaporation_dTCanair = dLatHeatGroundEvap_dTCanair/LH_vap   ! (kg m-2 s-1 K-1)
         dGroundEvaporation_dTCanopy = dLatHeatGroundEvap_dTCanopy/LH_vap   ! (kg m-2 s-1 K-1)
         dGroundEvaporation_dTGround = dLatHeatGroundEvap_dTGround/LH_vap   ! (kg m-2 s-1 K-1)
+        dGroundEvaporation_dCanWat  = dGroundEvaporation_dCanWat*condToSoilLimiter
+        dGroundEvaporation_dTCanair = dGroundEvaporation_dTCanair*condToSoilLimiter
+        dGroundEvaporation_dTCanopy = dGroundEvaporation_dTCanopy*condToSoilLimiter
+        dGroundEvaporation_dTGround = dGroundEvaporation_dTGround*condToSoilLimiter
 
         ! compute the cross derivative terms (only related to turbulent fluxes; specifically canopy evaporation and transpiration)
         dCanopyNetFlux_dCanWat = dTurbFluxCanopy_dCanWat  ! derivative in net canopy fluxes w.r.t. canopy total water content (J kg-1 s-1)
