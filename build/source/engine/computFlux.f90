@@ -70,14 +70,9 @@ USE mDecisions_module,only:       &
  bigBucket,                       & ! a big bucket (lumped aquifer model)
  noExplicit                         ! no explicit groundwater parameterization
 
-! look-up values for the form of Richards' equation
-USE mDecisions_module,only:       &
- moisture,                        & ! moisture-based form of Richards' equation
- mixdform                           ! mixed form of Richards' equation
-
 ! look-up values for the choice of boundary conditions for hydrology
 USE mDecisions_module,only:       &
- prescribedHead,                  & ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
+ prescribedHead,                  & ! prescribed head
  funcBottomHead,                  & ! function of matric head in the lower-most layer
  freeDrainage,                    & ! free drainage
  liquidFlux,                      & ! liquid water flux
@@ -568,7 +563,6 @@ contains
   end associate
 
   associate(&
-   ixRichards                  => model_decisions(iLookDECISIONS%f_Richards)%iDecision,    & ! index of the form of Richards' equation
    ixBcUpper                   => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision,    & ! index defining the type of boundary conditions
    dq_dHydStateAbove           => deriv_data%var(iLookDERIV%dq_dHydStateAbove)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer above
    dq_dHydStateBelow           => deriv_data%var(iLookDERIV%dq_dHydStateBelow)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer below
@@ -576,21 +570,12 @@ contains
    dq_dNrgStateAbove           => deriv_data%var(iLookDERIV%dq_dNrgStateAbove)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer above
    dq_dNrgStateBelow           => deriv_data%var(iLookDERIV%dq_dNrgStateBelow)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer below
    dq_dNrgStateLayerSurfVec    => deriv_data%var(iLookDERIV%dq_dNrgStateLayerSurfVec)%dat, & ! intent(out): [dp(:)] change in the flux in soil surface interface w.r.t. state variables in layers
-   mLayerdTheta_dTk            => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat(nSnow+1:nLayers), & ! intent(in): [dp(:)]  derivatives in volumetric liquid water content w.r.t. temperature
    dPsiLiq_dPsi0               => deriv_data%var(iLookDERIV%dPsiLiq_dPsi0)%dat             ) ! intent(in):  [dp(:)] derivative in matric potential w.r.t. volumetric liquid water content (m-1)
    ! expand derivatives to the total water matric potential
    ! NOTE: arrays are offset because computing derivatives in interface fluxes, at the top and bottom of the layer respectively
-   select case(ixRichards)
-     case(moisture)
-       dq_dNrgStateAbove(1:nSoil)   = dq_dHydStateAbove(1:nSoil)  *mLayerdTheta_dTk(1:nSoil)
-       dq_dNrgStateBelow(0:nSoil-1) = dq_dHydStateBelow(0:nSoil-1)*mLayerdTheta_dTk(1:nSoil)
-       dq_dNrgStateLayerSurfVec(1:nSoil) = dq_dHydStateLayerSurfVec(1:nSoil)*mLayerdTheta_dTk(1:nSoil)
-     case(mixdForm)
-       dq_dHydStateAbove(1:nSoil)   = dq_dHydStateAbove(1:nSoil)  *dPsiLiq_dPsi0(1:nSoil)
-       dq_dHydStateBelow(0:nSoil-1) = dq_dHydStateBelow(0:nSoil-1)*dPsiLiq_dPsi0(1:nSoil)
-       if (ixBcUpper==prescribedHead) dq_dHydStateLayerSurfVec(1) = dq_dHydStateLayerSurfVec(1)*dPsiLiq_dPsi0(1)
-     case default; err=20; message=trim(message)//"unknown form of Richards' equation"; return
-    end select
+   dq_dHydStateAbove(1:nSoil)   = dq_dHydStateAbove(1:nSoil)  *dPsiLiq_dPsi0(1:nSoil)
+   dq_dHydStateBelow(0:nSoil-1) = dq_dHydStateBelow(0:nSoil-1)*dPsiLiq_dPsi0(1:nSoil)
+   if (ixBcUpper==prescribedHead) dq_dHydStateLayerSurfVec(1) = dq_dHydStateLayerSurfVec(1)*dPsiLiq_dPsi0(1)
   end associate
  end subroutine finalize_soilLiqFlux
  ! **** end soilLiqFlux ****
@@ -644,7 +629,6 @@ end subroutine computFlux
 subroutine soilCmpres(&
                       ! input:
                       dt,                                 & ! intent(in):  length of the time step (seconds)
-                      ixRichards,                         & ! intent(in):  choice of option for Richards' equation
                       ixTop,ixBot,                        & ! intent(in):  top and bottom defining desired layers
                       mLayerMatricHead,                   & ! intent(in):  matric head at the start of the time step (m)
                       mLayerMatricHeadTrial,              & ! intent(in):  trial value of matric head (m)
@@ -659,7 +643,6 @@ subroutine soilCmpres(&
   implicit none
   ! input:
   real(rkind),intent(in)         :: dt                        ! length of the time step (seconds)
-  integer(i4b),intent(in)        :: ixRichards                ! choice of option for Richards' equation
   integer(i4b),intent(in)        :: ixTop,ixBot               ! top and bottom defining desired layers
   real(rkind),intent(in)         :: mLayerMatricHead(:)       ! matric head at the start of the time step (m)
   real(rkind),intent(in)         :: mLayerMatricHeadTrial(:)  ! trial value for matric head (m)
@@ -677,20 +660,14 @@ subroutine soilCmpres(&
   ! --------------------------------------------------------------
   ! initialize error control
   err=0; message='soilCmpres/'
-  ! (only compute for the mixed form of Richards' equation)
-  if (ixRichards==mixdform) then
-    do iLayer=1,size(mLayerMatricHead)
-      if (iLayer>=ixTop .and. iLayer<=ixBot) then
-        ! compute the derivative for the compressibility term (m-1), no volume expansion for total water
-        dCompress_dPsi(iLayer) = specificStorage*(mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer))/theta_sat(iLayer)
-        ! compute the compressibility term (-) per second
-        compress(iLayer) = (mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer))*dCompress_dPsi(iLayer)/dt
-      end if
-    end do
-  else
-    compress(:)       = 0._rkind
-    dCompress_dPsi(:) = 0._rkind
-  end if
+  do iLayer=1,size(mLayerMatricHead)
+    if (iLayer>=ixTop .and. iLayer<=ixBot) then
+      ! compute the derivative for the compressibility term (m-1), no volume expansion for total water
+      dCompress_dPsi(iLayer) = specificStorage*(mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer))/theta_sat(iLayer)
+      ! compute the compressibility term (-) per second
+      compress(iLayer) = (mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer))*dCompress_dPsi(iLayer)/dt
+    end if
+  end do
 end subroutine soilCmpres
 
 ! **********************************************************************************************************
@@ -698,7 +675,6 @@ end subroutine soilCmpres
 ! **********************************************************************************************************
 subroutine soilCmpresPrime(&
                           ! input:
-                          ixRichards,                         & ! intent(in):  choice of option for Richards' equation
                           ixTop,ixBot,                        & ! intent(in):  top and bottom defining desired layers
                           mLayerMatricHeadPrime,              & ! intent(in):  matric head at the start of the time step (m)
                           mLayerVolFracLiqTrial,              & ! intent(in):  trial value for the volumetric liquid water content in each soil layer (-)
@@ -711,7 +687,6 @@ subroutine soilCmpresPrime(&
                           err,message)                          ! intent(out): error code and error message
   implicit none
   ! input:
-  integer(i4b),intent(in)           :: ixRichards               ! choice of option for Richards' equation
   integer(i4b),intent(in)           :: ixTop,ixBot              ! top and bottom defining desired layers
   real(rkind),intent(in)            :: mLayerMatricHeadPrime(:) ! matric head at the start of the time step (m)
   real(rkind),intent(in)            :: mLayerVolFracLiqTrial(:) ! trial value for volumetric fraction of liquid water (-)
@@ -728,20 +703,14 @@ subroutine soilCmpresPrime(&
   ! --------------------------------------------------------------
   ! initialize error control
   err=0; message='soilCmpresPrime/'
-  ! (only compute for the mixed form of Richards' equation)
-  if (ixRichards==mixdform) then
-    do iLayer=1,size(mLayerMatricHeadPrime)
-      if (iLayer>=ixTop .and. iLayer<=ixBot) then
-        ! compute the derivative for the compressibility term (m-1), no volume expansion for total water
-        dCompress_dPsi(iLayer) = specificStorage*(mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer))/theta_sat(iLayer)
-        ! compute the compressibility term (-) instantaneously
-        compress(iLayer) = mLayerMatricHeadPrime(iLayer) * dCompress_dPsi(iLayer)
-      end if
-    end do
-  else
-    compress(:)       = 0._rkind
-    dCompress_dPsi(:) = 0._rkind
-  end if
+  do iLayer=1,size(mLayerMatricHeadPrime)
+    if (iLayer>=ixTop .and. iLayer<=ixBot) then
+      ! compute the derivative for the compressibility term (m-1), no volume expansion for total water
+      dCompress_dPsi(iLayer) = specificStorage*(mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer))/theta_sat(iLayer)
+      ! compute the compressibility term (-) instantaneously
+      compress(iLayer) = mLayerMatricHeadPrime(iLayer) * dCompress_dPsi(iLayer)
+    end if
+  end do
 end subroutine soilCmpresPrime
 
 end module computFlux_module

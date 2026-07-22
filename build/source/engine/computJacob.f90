@@ -70,11 +70,6 @@ USE mDecisions_module,only:       &
  bigBucket,                       & ! a big bucket (lumped aquifer model)
  noExplicit                         ! no explicit groundwater parameterization
 
-! look-up values for the form of Richards' equation
-USE mDecisions_module,only:       &
- moisture,                        & ! moisture-based form of Richards' equation
- mixdform                           ! mixed form of Richards' equation
-
 implicit none
 private
 public::computJacob
@@ -143,7 +138,6 @@ subroutine computJacob(&
     nLayers                      => in_computJacob % nLayers                                   ,& ! intent(in): total number of layers in the snow and soil domains
     computeVegFlux               => in_computJacob % computeVegFlux                            ,& ! intent(in): flag to indicate if computing fluxes over vegetation
     computeBaseflow              => in_computJacob % computeBaseflow                           ,& ! intent(in): flag to indicate if computing baseflow
-    ixRichards                   => in_computJacob % ixRichards                                ,& ! intent(in): choice of option for Richards' equation
     ixMatrix                     => in_computJacob % ixMatrix                                  ,& ! intent(in): form of the Jacobian matrix
     ! indices of model state variables
     ixCasNrg                     => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)                  ,& ! intent(in): [i4b] index of canopy air space energy state variable
@@ -324,15 +318,10 @@ subroutine computJacob(&
         if(watState/=integerMissing)then
           ! - include derivatives in energy fluxes w.r.t. with respect to water for current layer
           aJac(ixInd(full,nrgState,watState),watState) = (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer))
-          if(ixRichards==mixdform)then
-            aJac(ixInd(full,nrgState,watState),watState) = mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) + dVolHtCapBulk_dPsi0(iLayer) * mLayerdTemp_dt(jLayer) &
-                                                          + dCm_dPsi0(iLayer) * mLayerdWat_dt(jLayer) + aJac(ixInd(full,nrgState,watState),watState)
-            if(mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind)) & ! ice is present
-               aJac(ixInd(full,nrgState,watState),watState) = -LH_fus*iden_water * dVolTot_dPsi0(iLayer) + aJac(ixInd(full,nrgState,watState),watState)   ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
-          elseif(ixRichards==moisture)then
-            aJac(ixInd(full,nrgState,watState),watState) = mLayerCm(jLayer) + dVolHtCapBulk_dTheta(jLayer) * mLayerdTemp_dt(jLayer) &
-                                                          + aJac(ixInd(full,nrgState,watState),watState)
-          endif
+          aJac(ixInd(full,nrgState,watState),watState) = mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) + dVolHtCapBulk_dPsi0(iLayer) * mLayerdTemp_dt(jLayer) &
+                                                        + dCm_dPsi0(iLayer) * mLayerdWat_dt(jLayer) + aJac(ixInd(full,nrgState,watState),watState)
+          if(mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind)) & ! ice is present
+             aJac(ixInd(full,nrgState,watState),watState) = -LH_fus*iden_water * dVolTot_dPsi0(iLayer) + aJac(ixInd(full,nrgState,watState),watState)   ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
         endif ! (if the water state for the current layer is within the state subset)
 
       end do ! (looping through energy states in the soil domain)
@@ -975,7 +964,7 @@ integer(c_int) function computJacob4kinsol(sunvec_y, sunvec_r, sunmat_J, &
   subroutine initialize_computJacob
    ! *** Transfer data to in_computJacob class object from local variables ***
    call in_computJacob % initialize(eqns_data%dt_cur,eqns_data%nSnow,eqns_data%nSoil,eqns_data%nLayers,eqns_data%computeVegFlux,&
-      (eqns_data%model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel),eqns_data%model_decisions(iLookDECISIONS%f_Richards)%iDecision,eqns_data%ixMatrix)
+      (eqns_data%model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel),eqns_data%ixMatrix)
   end subroutine initialize_computJacob
 
   subroutine finalize_computJacob

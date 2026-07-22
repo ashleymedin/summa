@@ -34,11 +34,6 @@ USE data_types,only:&
                     io_type_groundwatr, & ! intent(inout) arguments for groundwatr call
                     out_type_groundwatr   ! intent(out) arguments for groundwatr call
 
-! look-up values for the form of Richards' equation
-USE mDecisions_module,only:       &
- moisture,                        & ! moisture-based form of Richards' equation
- mixdform                           ! mixed form of Richards' equation
-
 ! named variables defining elements in the data structures
 USE var_lookup,only:iLookATTR    ! named variables for structure elements
 USE var_lookup,only:iLookPROG    ! named variables for structure elements
@@ -113,7 +108,6 @@ subroutine groundwatr(&
     nSoil               => in_groundwatr % nSoil,                              & ! intent(in):    [i4b] number of soil layers
     nLayers             => in_groundwatr % nLayers,                            & ! intent(in):    [i4b] total number of layers
     getSatDepth         => in_groundwatr % firstFluxCall,                      & ! intent(in):    [lgt] logical flag to compute index of the lowest saturated layer
-    ixRichards          => in_groundwatr % ixRichards,                         & ! intent(in):    [i4b] index of the form of Richards' equation
     ! input: diagnostic variables
     mLayerVolFracLiq    => in_groundwatr % mLayerVolFracLiqTrial,              & ! intent(in):    [dp] volumetric fraction of liquid water (-)
     mLayerVolFracIce    => in_groundwatr % mLayerVolFracIceTrial,              & ! intent(in):    [dp] volumetric fraction of ice (-)
@@ -175,7 +169,6 @@ subroutine groundwatr(&
                           nSoil,                   & ! intent(in):    number of soil layers
                           nLayers,                 & ! intent(in):    total number of layers
                           ixSaturation,            & ! intent(in):    index of upper-most "saturated" layer
-                          ixRichards,              & ! intent(in):    index of the form of Richards' equation
                           mLayerVolFracLiq,        & ! intent(in):    volumetric fraction of liquid water in each soil layer (-)
                           mLayerVolFracIce,        & ! intent(in):    volumetric fraction of ice in each soil layer (-)
                           ! input/output: data structures
@@ -208,7 +201,6 @@ subroutine computBaseflow(&
                           nSoil,                         & ! intent(in):    number of soil layers
                           nLayers,                       & ! intent(in):    total number of layers
                           ixSaturation,                  & ! intent(in):    index of upper-most "saturated" layer
-                          ixRichards,                    & ! intent(in):    index of the form of Richards' equation
                           mLayerVolFracLiq,              & ! intent(in):    volumetric fraction of liquid water in each soil layer (-)
                           mLayerVolFracIce,              & ! intent(in):    volumetric fraction of ice in each soil layer (-)
                           ! input/output: data structures
@@ -235,7 +227,6 @@ subroutine computBaseflow(&
   integer(i4b),intent(in)          :: nSoil                   ! number of soil layers
   integer(i4b),intent(in)          :: nLayers                 ! total number of layers
   integer(i4b),intent(in)          :: ixSaturation            ! index of upper-most "saturated" layer
-  integer(i4b),intent(in)          :: ixRichards              ! index of the form of Richards' equation
   real(rkind),intent(in)           :: mLayerVolFracLiq(:)     ! volumetric fraction of liquid water (-)
   real(rkind),intent(in)           :: mLayerVolFracIce(:)     ! volumetric fraction of ice (-)
   ! input/output: data structures
@@ -357,11 +348,7 @@ subroutine computBaseflow(&
       expF = exp((availStorage - xCenter)/xWidth)
       logF = 1._rkind / (1._rkind + expF)
       ! compute the derivative in the logistic function w.r.t. volumetric water content in each soil layer, NOTE dLogFunc_dTemp = 0
-      select case (ixRichards)
-       case(moisture); dLogFunc_dWat(1:nSoil) = mLayerDepth(1:nSoil)*(expF/xWidth)/(1._rkind + expF)**2_i4b
-       case(mixdform); dLogFunc_dWat(1:nSoil) = mLayerDepth(1:nSoil)*(expF/xWidth)/(1._rkind + expF)**2_i4b * dVolTot_dPsi0(1:nSoil)
-       case default; err=20; message=trim(message)//'expect ixRichards to be moisture or mixdform'; return
-      end select
+      dLogFunc_dWat(1:nSoil) = mLayerDepth(1:nSoil)*(expF/xWidth)/(1._rkind + expF)**2_i4b * dVolTot_dPsi0(1:nSoil)
     else
       logF             = 0._rkind
       dLogFunc_dWat(:) = 0._rkind
@@ -409,18 +396,12 @@ subroutine computBaseflow(&
     do iLayer=1,nSoil
       ! compute diagonal terms (s-1)
       dBaseflow_dVolLiq(iLayer,iLayer) = tran0*dXdS(iLayer)*depth2capacity(iLayer)*length2area
-      select case (ixRichards)
-       case(moisture); dBaseflow_dWat(iLayer,iLayer) = dBaseflow_dVolLiq(iLayer,iLayer)
-       case(mixdform); dBaseflow_dWat(iLayer,iLayer) = dBaseflow_dVolLiq(iLayer,iLayer)*mLayerdTheta_dPsi(iLayer)
-      end select
+      dBaseflow_dWat(iLayer,iLayer) = dBaseflow_dVolLiq(iLayer,iLayer)*mLayerdTheta_dPsi(iLayer)
       dBaseflow_dTk(iLayer,iLayer) = dBaseflow_dVolLiq(iLayer,iLayer)*mLayerdTheta_dTk(iLayer)
       ! compute off-diagonal terms
       do jLayer=iLayer+1,nSoil  ! only dependent on layers below
         dBaseflow_dVolLiq(iLayer,jLayer) = tran0*(dXdS(iLayer) - dXdS(iLayer+1))*depth2capacity(jLayer)*length2area
-        select case (ixRichards)
-         case(moisture); dBaseflow_dWat(iLayer,jLayer) = dBaseflow_dVolLiq(iLayer,jLayer)
-         case(mixdform); dBaseflow_dWat(iLayer,jLayer) = dBaseflow_dVolLiq(iLayer,jLayer)*mLayerdTheta_dPsi(jLayer)
-         end select
+        dBaseflow_dWat(iLayer,jLayer) = dBaseflow_dVolLiq(iLayer,jLayer)*mLayerdTheta_dPsi(jLayer)
         dBaseflow_dTk(iLayer,jLayer) = dBaseflow_dVolLiq(iLayer,jLayer)*mLayerdTheta_dTk(jLayer)
       end do  ! end looping through soil layers
     end do  ! end looping through soil layers

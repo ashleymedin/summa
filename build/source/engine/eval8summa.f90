@@ -228,7 +228,6 @@ subroutine eval8summa(&
     ! model decisions
     ixNumericalMethod         => model_decisions(iLookDECISIONS%num_method)%iDecision       ,& ! intent(in):  [i4b]   choice of numerical solver
     ixNrgConserv              => model_decisions(iLookDECISIONS%nrgConserv)%iDecision       ,& ! intent(in):  [i4b]   choice of variable in either energy backward Euler residual or IDA state variable
-    ixRichards                => model_decisions(iLookDECISIONS%f_Richards)%iDecision       ,& ! intent(in):  [i4b]   index of the form of Richards' equation
     ! soil parameters
     theta_sat                 => mpar_data%var(iLookPARAM%theta_sat)%dat                    ,& ! intent(in):  [dp(:)] soil porosity (-)
     specificStorage           => mpar_data%var(iLookPARAM%specificStorage)%dat(1)           ,& ! intent(in):  [dp]    specific storage coefficient (m-1)
@@ -580,7 +579,6 @@ subroutine eval8summa(&
       call soilCmpres(&
                       ! input:
                       dt_cur,                                 & ! intent(in):    length of the time step (seconds)
-                      ixRichards,                             & ! intent(in):    choice of option for Richards' equation
                       ixTop,ixBot,                            & ! intent(in):    top and bottom defining desired layers
                       mLayerMatricHead(1:nSoil),              & ! intent(in):    matric head at the start of the time step (m)
                       mLayerMatricHeadTrial(1:nSoil),         & ! intent(in):    trial value of matric head (m)
