@@ -112,6 +112,11 @@ contains
   ! (save data into a temporary variables)
   read(temp,trim(ffmt),iostat=err) varName, dLim, parTemp%default_val, dLim, parTemp%lower_limit, dLim, parTemp%upper_limit
   if (err/=0) then; err=30; message=trim(message)//"errorReadLine"; return; end if
+  ! skip deprecated parameters (for backwards compatibility with existing parameter input files)
+  if (trim(varName) == 'upperBoundTheta' .or. trim(varName) == 'lowerBoundTheta')then
+    write(*,'(a)') "WARNING: deprecated parameter '"//trim(varName)//"' found in parameter input file -- ignoring this parameter"
+    cycle
+  end if
   ! (identify the index of the variable in the data structure)
   if(isLocal)then
    iVar = get_ixParam(trim(varName))
