@@ -186,8 +186,10 @@ contains
 #else
  windspd_x = windspd
  windspd_y = 0._rkind
+ if(windspd_x < minwind) windspd_x=minwind ! ensure wind speed is above a prescribed minimum value
 #endif
-
+ if(windspd < minwind) windspd=minwind ! ensure wind speed is above a prescribed minimum value
+ 
  ! check spectral dimension
  if(size(spectralIncomingDirect) /= nSpecBand .or. size(spectralIncomingDiffuse) /= nSpecBand)then
   write(message,'(a,i0,a)') trim(message)//'expect ', nSpecBand, 'spectral classes for radiation'
@@ -275,8 +277,6 @@ contains
  spectralIncomingDiffuse(1) = SWRadAtm*(1._rkind - scalarFractionDirect)*Frad_vis              ! (diffuse vis)
  spectralIncomingDiffuse(2) = SWRadAtm*(1._rkind - scalarFractionDirect)*(1._rkind - Frad_vis)    ! (diffuse nir)
 
- ! ensure wind speed is above a prescribed minimum value
- if(windspd < minwind) windspd=minwind
  ! compute relative humidity (-)
  relhum   = SPHM2RELHM(spechum, airpres, airtemp)
  ! if relative humidity exceeds saturation, then set relative and specific humidity to saturation

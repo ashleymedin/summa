@@ -68,11 +68,6 @@ USE mDecisions_module,only:       &
  bigBucket,                       & ! a big bucket (lumped aquifer model)
  noExplicit                         ! no explicit groundwater parameterization
 
-! look-up values for the form of Richards' equation
-USE mDecisions_module,only:       &
- moisture,                        & ! moisture-based form of Richards' equation
- mixdform                           ! mixed form of Richards' equation
-
 ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
 USE mDecisions_module,only:       &
  closedForm,                      & ! use temperature with closed form heat capacity
@@ -101,14 +96,14 @@ subroutine computJacobWithPrime(&
                       ixMatrix,                   & ! intent(in):    form of the Jacobian matrix
                       specificStorage,            & ! intent(in):    specific storage coefficient (m-1)
                       theta_sat,                  & ! intent(in):    soil porosity (-)
-                      ixRichards,                 & ! intent(in):    choice of option for Richards' equation
                       enthalpyStateVec,           & ! intent(in):    flag if enthalpy is state variable
                       ! input: data structures
                       indx_data,                  & ! intent(in):    index data
                       prog_data,                  & ! intent(in):    model prognostic variables for a local HRU
                       diag_data,                  & ! intent(in):    model diagnostic variables for a local HRU
                       deriv_data,                 & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
-                      dBaseflow_dMatric,          & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
+                      dBaseflow_dWat,             & ! intent(in):    derivative in baseflow w.r.t. soil water characteristic
+                      dBaseflow_dTk,              & ! intent(in):    derivative in baseflow w.r.t. temperature (m s-1 K-1)
                       ! input: state variables
                       mLayerTempPrime,            & ! intent(in):    vector of derivative value for layer temperature (K)
                       mLayerMatricHeadPrime,      & ! intent(in):    vector of derivative value for layer matric head
@@ -137,14 +132,14 @@ subroutine computJacobWithPrime(&
   integer(i4b),intent(in)              :: ixMatrix                   ! form of the Jacobian matrix
   real(rkind),intent(in)               :: specificStorage            ! specific storage coefficient (m-1)
   real(rkind),intent(in)               :: theta_sat(:)               ! soil porosity (-)
-  integer(i4b),intent(in)              :: ixRichards                 ! choice of option for Richards' equation
   logical(lgt),intent(in)              :: enthalpyStateVec           ! flag if enthalpy is state variable
   ! input: data structures
   type(var_ilength),intent(in)         :: indx_data                  ! indices defining model states and layers
   type(var_dlength),intent(in)         :: prog_data                  ! prognostic variables for a local HRU
   type(var_dlength),intent(in)         :: diag_data                  ! diagnostic variables for a local HRU
   type(var_dlength),intent(in)         :: deriv_data                 ! derivatives in model fluxes w.r.t. relevant state variables
-  real(rkind),intent(in)               :: dBaseflow_dMatric(:,:)     ! derivative in baseflow w.r.t. matric head (s-1)
+  real(rkind),intent(in)               :: dBaseflow_dWat(:,:)        ! derivative in baseflow w.r.t. soil water characteristic
+  real(rkind),intent(in)               :: dBaseflow_dTk(:,:)         ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
   ! input: state variables
   real(rkind),intent(in)               :: mLayerTempPrime(:)         ! vector of derivative value for layer temperature
   real(rkind),intent(in)               :: mLayerMatricHeadPrime(:)   ! vector of derivative value for layer matric head
@@ -283,8 +278,7 @@ subroutine computJacobWithPrime(&
     do iLayer=1,nSoil
       if(ixSoilOnlyHyd(iLayer)/=integerMissing)then ! writes over dMat(ixSoilOnlyHyd(iLayer) = 1.0 * cj above
         dMat(ixSoilOnlyHyd(iLayer)) = ( dVolTot_dPsi0(iLayer) + dCompress_dPsi(iLayer) ) * cj + d2VolTot_dPsi02(iLayer) * mLayerMatricHeadPrime(iLayer)
-        if(ixRichards==mixdform)&
-            dMat(ixSoilOnlyHyd(iLayer)) = dMat(ixSoilOnlyHyd(iLayer)) + specificStorage * dVolTot_dPsi0(iLayer) * mLayerMatricHeadPrime(iLayer)/theta_sat(iLayer)
+        dMat(ixSoilOnlyHyd(iLayer)) = dMat(ixSoilOnlyHyd(iLayer)) + specificStorage * dVolTot_dPsi0(iLayer) * mLayerMatricHeadPrime(iLayer)/theta_sat(iLayer)
       endif
     end do
 
@@ -377,13 +371,13 @@ subroutine computJacobWithPrime(&
         ! only compute derivatives if the water state for the current layer is within the state subset
         if(watState/=integerMissing)then
           ! - include derivatives in energy fluxes w.r.t. with respect to water for current layer
-          aJac(ixInd(full,nrgState,watState),watState) = dVolHtCapBulk_dPsi0(iLayer) * mLayerTempPrime(jLayer) &
-                                                       + mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) * cj + dCm_dPsi0(iLayer) * mLayerVolFracWatPrime(jLayer) &
-                                                       + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer)) &
-                                                       + mLayerCm(jLayer) * d2VolTot_dPsi02(iLayer) * mLayerMatricHeadPrime(iLayer)
+          aJac(ixInd(full,nrgState,watState),watState) = (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer))
+          aJac(ixInd(full,nrgState,watState),watState) = mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) * cj + dVolHtCapBulk_dPsi0(iLayer) * mLayerTempPrime(jLayer) &
+                                                        + dCm_dPsi0(iLayer) * mLayerVolFracWatPrime(jLayer) + mLayerCm(jLayer) * d2VolTot_dPsi02(iLayer) * mLayerMatricHeadPrime(iLayer) &
+                                                        + aJac(ixInd(full,nrgState,watState),watState) 
           if(mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind))&  ! ice is present
-              aJac(ixInd(full,nrgState,watState),watState) = -LH_fu0*iden_water * dVolTot_dPsi0(iLayer) * cj &
-                                                       - LH_fu0*iden_water * mLayerMatricHeadPrime(iLayer) * d2VolTot_dPsi02(iLayer) + aJac(ixInd(full,nrgState,watState),watState) ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
+             aJac(ixInd(full,nrgState,watState),watState) = -LH_fu0*iden_water * dVolTot_dPsi0(iLayer) * cj &
+                                                           - LH_fu0*iden_water * mLayerMatricHeadPrime(iLayer) * d2VolTot_dPsi02(iLayer) + aJac(ixInd(full,nrgState,watState),watState) ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content                                                         
         endif ! (if the water state for the current layer is within the state subset)
 
       end do ! (looping through energy states in the soil domain)
@@ -393,8 +387,7 @@ subroutine computJacobWithPrime(&
     ! * PART 2: COMPUTE FLUX JACOBIAN TERMS 
     ! *********************************************************************************************************************************************************
     call fluxJacAdd(full,dt,nSnow,nSoil,nLayers,computeVegFlux,computeBaseflow,&
-                    indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,&
-                    dMat,aJac,err,cmessage)
+                    indx_data,prog_data,diag_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,dMat,aJac,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     deallocate(dMat)
 
@@ -537,14 +530,14 @@ integer(c_int) function computJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
                 eqns_data%ixMatrix,                                                            & ! intent(in): form of the Jacobian matrix
                 eqns_data%mpar_data%var(iLookPARAM%specificStorage)%dat(1),                    & ! intent(in): specific storage coefficient (m-1)
                 eqns_data%mpar_data%var(iLookPARAM%theta_sat)%dat,                             & ! intent(in): soil porosity (-)
-                eqns_data%model_decisions(iLookDECISIONS%f_Richards)%iDecision,                & ! intent(in): choice of option for Richards' equation
                 eqns_data%model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm,  & ! intent(in): flag if enthalpy is state variable
                 ! input: data structures
                 eqns_data%indx_data,                      & ! intent(in):    index data
                 eqns_data%prog_data,                      & ! intent(in):    model prognostic variables for a local HRU
                 eqns_data%diag_data,                      & ! intent(in):    model diagnostic variables for a local HRU
                 eqns_data%deriv_data,                     & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
-                eqns_data%dBaseflow_dMatric,              & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
+                eqns_data%dBaseflow_dWat,                 & ! intent(in):    derivative in baseflow w.r.t. soil water characteristic
+                eqns_data%dBaseflow_dTk,                  & ! intent(in):    derivative in baseflow w.r.t. temperature (m s-1 K-1)
                 ! input: state variables
                 eqns_data%mLayerTempPrime,                & ! intent(in):    derivative value for temperature of each snow+soil layer (K)
                 eqns_data%mLayerMatricHeadPrime,          & ! intent(in):    derivative value for matric head of each snow+soil layer (m)

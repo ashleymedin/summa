@@ -49,10 +49,7 @@ USE mDecisions_module,only:      &
  ! look-up values for choice of thermal conductivity representation for soil
  funcSoilWet,                    & ! function of soil wetness
  mixConstit,                     & ! mixture of constituents
- hanssonVZJ,                     & ! test case for the mizoguchi lab experiment, Hansson et al. VZJ 2004
- ! look-up values for the form of Richards' equation
- moisture,                       & ! moisture-based form of Richards' equation
- mixdform                          ! mixed form of Richards' equation
+ hanssonVZJ                        ! test case for the mizoguchi lab experiment, Hansson et al. VZJ 2004
 
 ! privacy
 implicit none
@@ -227,7 +224,7 @@ contains
  end do  ! looping through layers
 
  ! *****
- ! * compute the thermal conductivity of snow at the interface of each layer...
+ ! * compute the thermal conductivity at the interface of each layer...
  ! ****************************************************************************
  ! loop through INTERFACES...
  do iLayer=1,nLayers
@@ -251,7 +248,7 @@ contains
    end if  ! type of layer (internal or lower)
  end do  ! end looping through layers
  ! ***** the upper boundary
- if(ixThCondSoil==hanssonVZJ)then ! special case of hansson
+ if(ixThCondSoil==hanssonVZJ .and. layerType(1)==iname_soil)then ! special case of Hansson
    iLayerThermalC(0) = 28._rkind*(0.5_rkind*(iLayerHeight(1) - iLayerHeight(0)))
  else
    iLayerThermalC(0) = mLayerThermalC(1)
@@ -281,20 +278,19 @@ subroutine thermConductivity(&
                     mLayerTemp,              & ! intent(in):    temperature at the current iteration (K)
                     mLayerMatricHead,        & ! intent(in):    matric head at the current iteration(m)                 
                     mLayerdTheta_dTk,        & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
+                    mLayerdTheta_dPsi,       & ! intent(in):    derivative in volumetric liquid water content w.r.t. liquid matric potential (m-1)
                     mLayerFracLiqSnow,       & ! intent(in):    fraction of liquid water (-)
                     ! input/output: derivatives
                     dThermalC_dWatAbove,     & ! intent(inout): derivative in the thermal conductivity w.r.t. water state in the layer above
-                    dThermalC_dWatBelow,     & ! intent(inout): derivative in the thermal conductivity w.r.t. water state in the layer above
+                    dThermalC_dWatBelow,     & ! intent(inout): derivative in the thermal conductivity w.r.t. water state in the layer below
                     dThermalC_dTempAbove,    & ! intent(inout): derivative in the thermal conductivity w.r.t. energy state in the layer above
-                    dThermalC_dTempBelow,    & ! intent(inout): derivative in the thermal conductivity w.r.t. energy state in the layer above
+                    dThermalC_dTempBelow,    & ! intent(inout): derivative in the thermal conductivity w.r.t. energy state in the layer below
                     ! output: error control
                     err,message)               ! intent(out):   error control
 
   ! utility modules
   USE snow_utils_module,only:tcond_snow     ! compute thermal conductivity of snow
   USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists
-  USE soil_utils_module,only:dTheta_dPsi    ! compute derivative of the soil moisture characteristic w.r.t. psi (m-1)
-  USE soil_utils_module,only:dPsi_dTheta    ! compute derivative of the soil moisture characteristic w.r.t. theta (m)
 
   implicit none
   ! --------------------------------------------------------------------------------------------------------------------------------------
@@ -312,6 +308,7 @@ subroutine thermConductivity(&
   real(rkind),intent(in)               :: mLayerTemp(:)            ! temperature in each layer at the current iteration (m)
   real(rkind),intent(in)               :: mLayerMatricHead(:)      ! matric head in each layer at the current iteration (m)
   real(rkind),intent(in)               :: mLayerdTheta_dTk(:)      ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
+  real(rkind),intent(in)               :: mLayerdTheta_dPsi(:)     ! derivative in volumetric liquid water content w.r.t. liquid matric potential (m-1)
   real(rkind),intent(in)               :: mLayerFracLiqSnow(:)     ! fraction of liquid water (-)
   ! input/output: derivatives
   real(rkind),intent(inout)            :: dThermalC_dWatAbove(0:)  ! derivative in the thermal conductivity w.r.t. water state in the layer above
@@ -324,7 +321,7 @@ subroutine thermConductivity(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! local variables
   character(LEN=256)                   :: cmessage                 ! error message of downwind routine
-  logical(lgt)                         :: doVegNrgFlux                ! flag to compute the energy flux over vegetation
+  logical(lgt)                         :: doVegNrgFlux             ! flag to compute the energy flux over vegetation
   integer(i4b)                         :: iLayer                   ! index of model layers
   integer(i4b)                         :: ixLayerDesired(1)        ! layer desired (scalar solution)
   integer(i4b)                         :: ixTop                    ! top layer in subroutine call
@@ -366,7 +363,6 @@ subroutine thermConductivity(&
   ! associate variables in data structure
   associate(&
     ! input: model decisions
-    ixRichards              => model_decisions(iLookDECISIONS%f_Richards)%iDecision,      & ! intent(in):  [i4b]   index of the form of Richards' equation
     ixThCondSnow            => model_decisions(iLookDECISIONS%thCondSnow)%iDecision,      & ! intent(in):  [i4b]   choice of method for thermal conductivity of snow
     ixThCondSoil            => model_decisions(iLookDECISIONS%thCondSoil)%iDecision,      & ! intent(in):  [i4b]   choice of method for thermal conductivity of soil
     ! input: coordinate variables
@@ -456,20 +452,14 @@ subroutine thermConductivity(&
       select case(layerType(iLayer))
 
         case(iname_soil)
-          select case(ixRichards)  ! (form of Richards' equation)
-            case(moisture)
-              dVolFracLiq_dWat = 1._rkind
-              dVolFracIce_dWat = dPsi_dTheta(mLayerVolFracLiq(iLayer),vGn_alpha(iSoil),theta_res(iSoil),theta_sat(iSoil),vGn_n(iSoil),vGn_m(iSoil)) - 1._rkind
-            case(mixdform)
-              Tcrit = crit_soilT( mLayerMatricHead(iSoil) )
-              if(mLayerTemp(iLayer) < Tcrit) then
-                dVolFracLiq_dWat = 0._rkind
-                dVolFracIce_dWat = dTheta_dPsi(mLayerMatricHead(iSoil),vGn_alpha(iSoil),theta_res(iSoil),theta_sat(iSoil),vGn_n(iSoil),vGn_m(iSoil))
-              else
-                dVolFracLiq_dWat = dTheta_dPsi(mLayerMatricHead(iSoil),vGn_alpha(iSoil),theta_res(iSoil),theta_sat(iSoil),vGn_n(iSoil),vGn_m(iSoil))
-                dVolFracIce_dWat = 0._rkind
-              endif
-          end select
+          Tcrit = crit_soilT( mLayerMatricHead(iSoil) )
+          if(mLayerTemp(iLayer) < Tcrit) then
+            dVolFracLiq_dWat = 0._rkind
+            dVolFracIce_dWat = mLayerdTheta_dPsi(iSoil)
+          else
+            dVolFracLiq_dWat = mLayerdTheta_dPsi(iSoil)
+            dVolFracIce_dWat = 0._rkind
+          endif
           dVolFracLiq_dTk = mLayerdTheta_dTk(iLayer) !already zeroed out if not below critical temperature
           dVolFracIce_dTk = -dVolFracLiq_dTk !often can and will simplify one of these terms out
 
@@ -559,7 +549,7 @@ subroutine thermConductivity(&
     end do  ! looping through layers
 
     ! *****
-    ! * compute the thermal conductivity of snow at the interface of each layer...
+    ! * compute the thermal conductivity at the interface of each layer...
     ! ****************************************************************************
     ! loop through INTERFACES...
     do iLayer=ixTop,ixBot
@@ -595,7 +585,7 @@ subroutine thermConductivity(&
       end if  ! type of layer (internal or lower)
     end do  ! end looping through layers
     ! ***** the upper boundary
-    if(ixThCondSoil==hanssonVZJ)then ! special case of hansson
+    if(ixThCondSoil==hanssonVZJ .and. layerType(1)==iname_soil)then ! special case of Hansson
       iLayerThermalC(0) = 28._rkind*(0.5_rkind*(iLayerHeight(1) - iLayerHeight(0)))
       dThermalC_dWatBelow(0) = 0._rkind
       dThermalC_dTempBelow(0) = 0._rkind

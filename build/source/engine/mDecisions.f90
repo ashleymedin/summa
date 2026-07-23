@@ -71,7 +71,6 @@ integer(i4b),parameter,public :: sparseCanopy         = 111    ! fraction of rai
 integer(i4b),parameter,public :: storageFunc          = 112    ! throughfall a function of canopy storage; 100% throughfall when canopy is at capacity
 integer(i4b),parameter,public :: unDefined            = 113    ! option is undefined (backwards compatibility)
 ! look-up values for the form of Richards' equation
-integer(i4b),parameter,public :: moisture             = 121    ! moisture-based form of Richards' equation
 integer(i4b),parameter,public :: mixdform             = 122    ! mixed form of Richards' equation
 ! look-up values for the choice of groundwater parameterization
 integer(i4b),parameter,public :: qbaseTopmodel        = 131    ! TOPMODEL-ish baseflow parameterization
@@ -482,12 +481,13 @@ subroutine mDecisions(err,message)
       err=10; message=trim(message)//"unknown canopy interception parameterization [option="//trim(model_decisions(iLookDECISIONS%cIntercept)%cDecision)//"]"; return
   end select
 
-  ! identify the form of Richards' equation
+  ! identify the form of Richards' equation, now deprecated as mixed form is the only option, but still included for backwards compatibility
   select case(trim(model_decisions(iLookDECISIONS%f_Richards)%cDecision))
-    case('moisture'); model_decisions(iLookDECISIONS%f_Richards)%iDecision = moisture            ! moisture-based form
-    case('mixdform'); model_decisions(iLookDECISIONS%f_Richards)%iDecision = mixdform            ! mixed form
+    case('mixdform', 'notPopulatedYet'); model_decisions(iLookDECISIONS%f_Richards)%iDecision = mixdform            ! mixed form
     case default
-      err=10; message=trim(message)//"unknown form of Richards' equation [option="//trim(model_decisions(iLookDECISIONS%f_Richards)%cDecision)//"]"; return
+      write(*,'(a)') 'WARNING: f_Richards option "'//trim(model_decisions(iLookDECISIONS%f_Richards)%cDecision)//'" is ignored; mixed form (mixdform) is always used'
+      model_decisions(iLookDECISIONS%f_Richards)%cDecision = 'mixdform'
+      model_decisions(iLookDECISIONS%f_Richards)%iDecision = mixdform
   end select
 
   ! identify the groundwater parameterization

@@ -121,8 +121,8 @@ AFTER tag of v4.0.0-exp-Sundials
 -18) Cap infiltration at soil depth so doesn't give a Nan if rooting depth > soil depth, commit 53c79aef Jan 10, 2025
  19) Expand expanded veg table size for Ignacio's Plumber data, commit 2f740f41 Jan 8, 2025
 -20) Correct NaN value that results from a large ground roughness parameter (capped function), commit bcb5f6b5 Jan 22, 2025
--21) Made soil scalarv variables were compute with the correct soil layer when splitting to a scalar solution (previous version lead to balance errors if vars where large enough), commit b5b8d314 Jan 28, 2025
--22) Make fluxes output as mean over data window, group agreed that this makes more sense than the backwards compatible where they were just the ending solution of the flux (rate over the last substep). commit b5b8d314 Jan 28, 2025
+-21) Made soil scalarv variables compute with the correct soil layer when splitting to a scalar solution (previous version lead to balance errors if vars where large enough), commit b5b8d314 Jan 28, 2025 and commit f53bc3a5 Jul 6, 2026
+-22) Make fluxes output as mean over data window, group agreed that this makes more sense than the backwards compatible where they were just the ending solution of the flux (rate over the last substep) commit b5b8d314 Jan 28, 2025
 -23) Make scalarAquiferRecharge and scalarAquiferTranspire be held on to if splits to aquifer, since previously only attached to bottom soil layer then became 0
      if split to aquifer, commit scalarAquiferTranspire and Recharge need to be held with aquifer mass split, previously went to 0, commit 0a38c7bf Jun 21, 2025
  24) Changes to infiltration
@@ -162,7 +162,7 @@ AFTER tag of v4.0.0-exp-Sundials
 -41) Fix soil input for non Rosetta choice, commit 4c1e0808 Oct 30, 2025
  42) Documentation updates from Wouter, commits around Oct 30, 2025
 -43) Fix bug in rooting depth computation if it is set larger than the soil depth, caps it, commit fe80aa86 Dec 4, 2025
- 44) More infiltration options with separation of saturated excess infiltration area and infiltration excess, commit	03f98c3a Feb 4, 2026
+ 44) More infiltration options with separation of saturated excess infiltration area and infiltration excess, commit 03f98c3a Feb 4, 2026
      Added FUSE choices in new decision surfRun_SE, with choices:
       ! (32) choice of saturation excess (SE) surface runoff parameterization
       ! zero_SE      ! zero SE surface runoff
@@ -195,7 +195,12 @@ AFTER tag of v4.0.0-exp-Sundials
  48) Routing histogram variables will not print anymore, since once fixed these to print correctly they slowed the write considerably, commit 7601c6ab Mar 10, 2026
      These can be turned back on with turning allowRoutingOutput flag to .true.
 -49) Smoothing of hydCond_psi function when psi is very small, helps convergence with saturated soil layers, commit 946b6112 Mar 10, 2026
- 50) The number of soil layers does not have to be the same in every HRU now, commit eeb800af	Mar 24, 2026
- 51) Add GRU variable basin__StorageChange in kg/m2/s that summarizes the storage changes across the HRUs so that it can be compared to Grace data, commit eeb800af	Mar 24, 2026
+ 50) The number of soil layers does not have to be the same in every HRU now, commit eeb800af Mar 24, 2026
+ 51) Add GRU variable basin__StorageChange in kg/m2/s that summarizes the storage changes across the HRUs so that it can be compared to GRACE data, commit eeb800af	Mar 24, 2026
 -52) If scalar solution fails on a snow layer, exit and merge snow layers if failure was from too much energy going into top layer (previous behavior was code failure), commit 7c46a507 May 5, 2026
      Also changed the number of times it checks the brackets for scalar solution from 100 to 10 since usually by 2 it's found the bracket or not.
+-53) Fix power profile hydraulic conductivity if total soil depth less than compactedDepth, and rewrite to make smooth profile if k_soil differs across layers and take into account differing layer thicknesses (use harmonic mean), commit 8119be7c May 29, 2026
+-54) Fix baseflow derivatives (decision groundwatr == qTopmodl) commit 84009cb6, Jun 20, 2026
+-55) Turn off (smoothly) condensation into saturated soil and infiltration into over-pressured soil with no water exit (no flux BC and no lateral flow), last bit of sat soil, commits around 87967f22 Jul 22, 2026
+ 56) Remove deprecated moisture-based Richards' equation, f_Richards decision still can be included but does not do anything but mixed form, commits around b99de74f	Jul 22, 2026
+

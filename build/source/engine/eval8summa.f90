@@ -120,7 +120,8 @@ subroutine eval8summa(&
                       deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                       ! input-output: baseflow
                       ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                      dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
+                      dBaseflow_dWat,          & ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
+                      dBaseflow_dTk,           & ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
                       ! output: flux and residual vectors
                       feasible,                & ! intent(out):   flag to denote the feasibility of the solution
                       fluxVec,                 & ! intent(out):   flux vector
@@ -176,7 +177,8 @@ subroutine eval8summa(&
   type(var_dlength),intent(inout) :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
   ! input-output: baseflow
   integer(i4b),intent(inout)      :: ixSaturation                ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
-  real(rkind),intent(out)         :: dBaseflow_dMatric(:,:)      ! derivative in baseflow w.r.t. matric head (s-1)
+  real(rkind),intent(out)         :: dBaseflow_dWat(:,:)         ! derivative in baseflow w.r.t. soil water characteristic
+  real(rkind),intent(out)         :: dBaseflow_dTk(:,:)          ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
   ! output: flux and residual vectors
   logical(lgt),intent(out)        :: feasible                    ! flag to denote the feasibility of the solution
   real(rkind),intent(out)         :: fluxVec(:)                  ! flux vector
@@ -226,7 +228,6 @@ subroutine eval8summa(&
     ! model decisions
     ixNumericalMethod         => model_decisions(iLookDECISIONS%num_method)%iDecision       ,& ! intent(in):  [i4b]   choice of numerical solver
     ixNrgConserv              => model_decisions(iLookDECISIONS%nrgConserv)%iDecision       ,& ! intent(in):  [i4b]   choice of variable in either energy backward Euler residual or IDA state variable
-    ixRichards                => model_decisions(iLookDECISIONS%f_Richards)%iDecision       ,& ! intent(in):  [i4b]   index of the form of Richards' equation
     ! soil parameters
     theta_sat                 => mpar_data%var(iLookPARAM%theta_sat)%dat                    ,& ! intent(in):  [dp(:)] soil porosity (-)
     specificStorage           => mpar_data%var(iLookPARAM%specificStorage)%dat(1)           ,& ! intent(in):  [dp]    specific storage coefficient (m-1)
@@ -262,6 +263,7 @@ subroutine eval8summa(&
     dVolTot_dPsi0             => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat              ,& ! intent(in):  [dp(:)] derivative in total water content w.r.t. total water matric potential
     dCompress_dPsi            => deriv_data%var(iLookDERIV%dCompress_dPsi)%dat             ,& ! intent(in):  [dp(:)] derivative in compressibility w.r.t. matric head (m-1)
     mLayerdTheta_dTk          => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat           ,& ! intent(in):  [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
+    mLayerdTheta_dPsi         => deriv_data%var(iLookDERIV%mLayerdTheta_dPsi)%dat          ,& ! intent(in):  [dp(:)] derivative of volumetric liquid water content w.r.t. matric potential
     dVolHtCapBulk_dPsi0       => deriv_data%var(iLookDERIV%dVolHtCapBulk_dPsi0)%dat        ,& ! intent(out): [dp(:)] derivative in bulk heat capacity w.r.t. matric potential
     dVolHtCapBulk_dTheta      => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTheta)%dat       ,& ! intent(out): [dp(:)] derivative in bulk heat capacity w.r.t. volumetric water content
     dVolHtCapBulk_dCanWat     => deriv_data%var(iLookDERIV%dVolHtCapBulk_dCanWat)%dat(1)   ,& ! intent(out): [dp]    derivative in bulk heat capacity w.r.t. volumetric water content
@@ -467,6 +469,7 @@ subroutine eval8summa(&
                           mLayerTempTrial,       & ! intent(in):    trial temperature of layer temperature (K)
                           mLayerMatricHeadTrial, & ! intent(in):    trial value for total water matric potential (m)                         
                           mLayerdTheta_dTk,      & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
+                          mLayerdTheta_dPsi,     & ! intent(in):    derivative in volumetric liquid water content w.r.t. matric potential (m-1)                          
                           mLayerFracLiqSnow,     & ! intent(in):    fraction of liquid water (-)
                           ! input/output: derivatives
                           dThermalC_dWatAbove,   & ! intent(inout): derivative in the thermal conductivity w.r.t. water state in the layer above
@@ -555,7 +558,8 @@ subroutine eval8summa(&
                     deriv_data,                & ! intent(out):   derivatives in model fluxes w.r.t. relevant state variables
                     ! input-output: flux vector and baseflow derivatives
                     ixSaturation,              & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                    dBaseflow_dMatric,         & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
+                    dBaseflow_dWat,            & ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
+                    dBaseflow_dTk,             & ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
                     fluxVec,                   & ! intent(out):   flux vector (mixed units)
                     ! output: error control
                     err,cmessage)                ! intent(out):   error code and error message
@@ -575,7 +579,6 @@ subroutine eval8summa(&
       call soilCmpres(&
                       ! input:
                       dt_cur,                                 & ! intent(in):    length of the time step (seconds)
-                      ixRichards,                             & ! intent(in):    choice of option for Richards' equation
                       ixTop,ixBot,                            & ! intent(in):    top and bottom defining desired layers
                       mLayerMatricHead(1:nSoil),              & ! intent(in):    matric head at the start of the time step (m)
                       mLayerMatricHeadTrial(1:nSoil),         & ! intent(in):    trial value of matric head (m)
@@ -731,7 +734,8 @@ integer(c_int) function eval8summa4kinsol(sunvec_y, sunvec_r, user_data) &
                 eqns_data%deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                  ! input-output: baseflow
                 eqns_data%ixSaturation,            & ! intent(inout): index of the lowest saturated layer
-                eqns_data%dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
+                eqns_data%dBaseflow_dWat,          & ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
+                eqns_data%dBaseflow_dTk,           & ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
                  ! output: flux and residual vectors
                 feasible,                          & ! intent(out):   flag to denote the feasibility of the solution always true inside SUNDIALS
                 eqns_data%fluxVec,                 & ! intent(out):   flux vector
@@ -811,17 +815,12 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
     ixNumericalMethod  => model_decisions(iLookDECISIONS%num_method)%iDecision ,& ! intent(in):  [i4b]   choice of numerical solver
     ! indices of model state variables
     ixNrgOnly          => indx_data%var(iLookINDEX%ixNrgOnly)%dat              ,& ! intent(in): [i4b(:)] list of indices in the state subset for energy states
-    ixHydOnly          => indx_data%var(iLookINDEX%ixHydOnly)%dat              ,& ! intent(in): [i4b(:)] list of indices in the state subset for hydrology states
     ixMatOnly          => indx_data%var(iLookINDEX%ixMatOnly)%dat              ,& ! intent(in): [i4b(:)] list of indices in the state subset for matric head states
-    ixMassOnly         => indx_data%var(iLookINDEX%ixMassOnly)%dat             ,& ! intent(in): [i4b(:)] list of indices in the state subset for canopy storage states
     ixHydType          => indx_data%var(iLookINDEX%ixHydType)%dat              ,& ! intent(in): [i4b(:)] index of the type of hydrology states in snow+soil domain
     ixStateType_subset => indx_data%var(iLookINDEX%ixStateType_subset)%dat     ,& ! intent(in): [i4b(:)] named variables defining the states in the subset
     ! indices for specific state variables
-    ixCasNrg           => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)            ,& ! intent(in): [i4b]    index of canopy air space energy state variable
     ixVegNrg           => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)            ,& ! intent(in): [i4b]    index of canopy energy state variable
     ixVegHyd           => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)            ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
-    ixTopNrg           => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)            ,& ! intent(in): [i4b]    index of upper-most energy state in the snow-soil subdomain
-    ixTopHyd           => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)            ,& ! intent(in): [i4b]    index of upper-most hydrology state in the snow-soil subdomain
     ! vector of energy indices for the snow and soil domains
     ! NOTE: states not in the subset are equal to integerMissing
     ixSnowSoilNrg      => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat          ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
@@ -860,7 +859,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
   
     ! identify which constraints to impose
     select case(ixNumericalMethod)
-    case(ida); err=20; message=trim(message)//'should not be imposing constraints for IDA solver'; return
+      case(ida); err=20; message=trim(message)//'should not be imposing constraints for IDA solver'; return
       case(kinsol)
         small_delTemp       = .true.      ! flag to constain temperature change to be less than zMaxTempIncrement
         zMaxTempIncrement   = 10._rkind   ! maximum temperature increment (K)

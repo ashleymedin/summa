@@ -242,8 +242,6 @@ contains
   ! boundary conditions
   case('upperBoundHead'           ); get_ixParam = iLookPARAM%upperBoundHead         ! matric head of the upper boundary (m)
   case('lowerBoundHead'           ); get_ixParam = iLookPARAM%lowerBoundHead         ! matric head of the lower boundary (m)
-  case('upperBoundTheta'          ); get_ixParam = iLookPARAM%upperBoundTheta        ! volumetric liquid water content at the upper boundary (-)
-  case('lowerBoundTheta'          ); get_ixParam = iLookPARAM%lowerBoundTheta        ! volumetric liquid water content at the lower boundary (-)
   case('upperBoundTemp'           ); get_ixParam = iLookPARAM%upperBoundTemp         ! temperature of the upper boundary (K)
   case('lowerBoundTemp'           ); get_ixParam = iLookPARAM%lowerBoundTemp         ! temperature of the lower boundary (K)
   ! precipitation partitioning
@@ -372,7 +370,7 @@ contains
   case('k_macropore'              ); get_ixParam = iLookPARAM%k_macropore            ! saturated hydraulic conductivity for the macropores (m s-1)
   case('kAnisotropic'             ); get_ixParam = iLookPARAM%kAnisotropic           ! anisotropy factor for lateral hydraulic conductivity (-)
   case('zScale_TOPMODEL'          ); get_ixParam = iLookPARAM%zScale_TOPMODEL        ! TOPMODEL scaling factor used in lower boundary condition for soil (m)
-  case('compactedDepth'           ); get_ixParam = iLookPARAM%compactedDepth         ! depth where k_soil reaches the compacted value given by CH78 (m)
+  case('compactedDepth'           ); get_ixParam = iLookPARAM%compactedDepth         ! depth where k_soil reaches the compacted value given by Clapp and Hornberger (1978) (m)
   case('aquiferBaseflowRate'      ); get_ixParam = iLookPARAM%aquiferBaseflowRate    ! baseflow rate when aquifer storage = aquiferScaleFactor (m s-1)
   case('aquiferScaleFactor'       ); get_ixParam = iLookPARAM%aquiferScaleFactor     ! scaling factor for aquifer storage in the big bucket (m)
   case('aquiferBaseflowExp'       ); get_ixParam = iLookPARAM%aquiferBaseflowExp     ! baseflow exponent (-)
@@ -827,8 +825,7 @@ contains
   case('dq_dHydStateAbove'              ); get_ixDeriv = iLookDERIV%dq_dHydStateAbove              ! change in the flux in layer interfaces w.r.t. state variables in the layer above
   case('dq_dHydStateBelow'              ); get_ixDeriv = iLookDERIV%dq_dHydStateBelow              ! change in the flux in layer interfaces w.r.t. state variables in the layer below
   case('dq_dHydStateLayerSurfVec'       ); get_ixDeriv = iLookDERIV%dq_dHydStateLayerSurfVec       ! change in the flux in soil surface interface w.r.t. state variables in layers
-  case('mLayerdTheta_dPsi'              ); get_ixDeriv = iLookDERIV%mLayerdTheta_dPsi              ! derivative in the soil water characteristic w.r.t. psi (m-1)
-  case('mLayerdPsi_dTheta'              ); get_ixDeriv = iLookDERIV%mLayerdPsi_dTheta              ! derivative in the soil water characteristic w.r.t. theta (m)
+  case('mLayerdTheta_dPsi'              ); get_ixDeriv = iLookDERIV%mLayerdTheta_dPsi              ! derivative in liquid water content w.r.t. matric potential (m-1)
   case('dCompress_dPsi'                 ); get_ixDeriv = iLookDERIV%dCompress_dPsi                 ! derivative in compressibility w.r.t matric head (m-1)
   ! derivative in baseflow flux w.r.t. aquifer storage
   case('dBaseflow_dAquifer'             ); get_ixDeriv = iLookDERIV%dBaseflow_dAquifer             ! derivative in baseflow flux w.r.t. aquifer storage (s-1)

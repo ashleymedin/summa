@@ -127,12 +127,11 @@ contains
  integer(i4b)                            :: jHRU,kHRU              ! index of the hydrologic response unit
  real(rkind)                             :: fracHRU                ! fractional area of a given HRU (-)
  logical(lgt)                            :: computeVegFluxFlag     ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
-
+ ! ----------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; write(message, '(A21,I0,A10,I0,A2)' ) 'run_oneGRU (gru nc = ',gruInfo%gru_nc,', gruId = ',gruInfo%gru_id,')/'
 
  ! ----- basin initialization --------------------------------------------------------------------------------------------
-
  ! initialize runoff variables
  bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)    = 0._rkind  ! surface runoff (m s-1)
  bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)     = 0._rkind  ! soil drainage (m s-1)
@@ -145,7 +144,7 @@ contains
  bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = 0._rkind ! transpiration loss from the aquifer (m s-1)
 
  ! initialize storage change variable
- bvarData%var(iLookBVAR%basin__StorageChange)%dat(1)    = 0._rkind ! change in total basin storage (m s-1)
+ bvarData%var(iLookBVAR%basin__StorageChange)%dat(1)    = 0._rkind ! change in total basin storage (kg m-2 s-1)
 
  ! initialize total inflow for each layer in a soil column
  do iHRU=1,gruInfo%hruCount

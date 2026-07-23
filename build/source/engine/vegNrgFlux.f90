@@ -162,6 +162,12 @@ subroutine vegNrgFlux(&
   real(rkind)                        :: exposedVAI                      ! exposed vegetation area index (m2 m-2)
   real(rkind)                        :: totalCanopyWater                ! total water on the vegetation canopy (kg m-2)
   real(rkind)                        :: scalarAquiferStorage            ! aquifer storage (m)
+  real(rkind)                        :: condToSoilLimiter              ! smooth limiter for condensation into pressurized top soil (-)
+  real(rkind)                        :: posHeadTop                      ! smooth positive part of top-layer matric head (m)
+  real(rkind)                        :: condHeadArg                     ! nondimensional argument for condensation limiter (-)
+  real(rkind),parameter              :: condHeadCutoff=0._rkind         ! positive head where condensation-to-soil closure begins (m)
+  real(rkind),parameter              :: condHeadWidth=0.02_rkind        ! smoothing width for condensation-to-soil closure (m)
+  real(rkind),parameter              :: condHeadSmooth=1.e-4_rkind      ! smoothing for max(psi,0) approximation (m)
   ! saturation vapor pressure of veg
   real(rkind)                        :: TV_celcius                      ! vegetaion temperature (C)
   real(rkind)                        :: TG_celcius                      ! ground temperature (C)
@@ -313,7 +319,7 @@ subroutine vegNrgFlux(&
     windspd                         => forc_data%var(iLookFORCE%windspd),                              & ! intent(in): [dp] wind speed at adjusted measurement height (m s-1)
     airpres                         => forc_data%var(iLookFORCE%airpres),                              & ! intent(in): [dp] air pressure at adjusted measurement height (Pa)
     LWRadAtm                        => forc_data%var(iLookFORCE%LWRadAtm),                             & ! intent(in): [dp] downwelling longwave radiation at the upper boundary (W m-2)
-    scalarVPair                     => diag_data%var(iLookDIAG%scalarVPair)%dat(1),                    & ! intent(in): [dp] vapor pressure at adjusted measurement height (Pa)
+    scalarVPair                     => diag_data%var(iLookDIAG%scalarVPair)%dat(1),                    & ! intent(in): [dp] vapor pressure of the air above the vegetation canopy (Pa)
     scalarO2air                     => diag_data%var(iLookDIAG%scalarO2air)%dat(1),                    & ! intent(in): [dp] atmospheric o2 concentration (Pa)
     scalarCO2air                    => diag_data%var(iLookDIAG%scalarCO2air)%dat(1),                   & ! intent(in): [dp] atmospheric co2 concentration (Pa)
     scalarTwetbulb                  => diag_data%var(iLookDIAG%scalarTwetbulb)%dat(1),                 & ! intent(in): [dp] wetbulb temperature (K)
@@ -790,31 +796,31 @@ subroutine vegNrgFlux(&
         TG_celcius = groundTempTrial - Tfreeze
         call satVapPress(TG_celcius, scalarSatVP_GroundTemp, dSVPGround_dGroundTemp)
 
-        ! compute the relative humidity in the top soil layer and the resistance at the ground surface
+        ! compute the relative humidity in the top layer and surface resistance to ground evaporation/sublimation (as opposed to aerodynamic resistance)
         ! NOTE: computations are based on start-of-step values, so only compute for the first flux call
         if (firstFluxCall) then
+          scalarSoilResistance = 0._rkind
+          soilRelHumidity_noSnow = 0._rkind
           if (nSoil>0)then
-            ! soil water evaporation factor [0-1]
-            soilEvapFactor = mLayerVolFracLiq(nSnow+1)/(theta_sat - theta_res)
-            ! resistance from the soil [s m-1]
-            scalarSoilResistance = scalarGroundSnowFraction*1._rkind + (1._rkind - scalarGroundSnowFraction)*EXP(8.25_rkind - 4.225_rkind*soilEvapFactor)  ! Sellers (1992)
-          !scalarSoilResistance = scalarGroundSnowFraction*0._rkind + (1._rkind - scalarGroundSnowFraction)*exp(8.25_rkind - 6.0_rkind*soilEvapFactor)    ! Niu adjustment to decrease resitance for wet soil
-          end if
-                  
-          ! relative humidity in the soil pores [0-1]
-          if (mLayerMatricHead(1) > -1.e+6_rkind) then  ! avoid problems with numerical precision when soil is very dry
-            if (groundTempTrial < 0._rkind) then
-              soilRelHumidity_noSnow = exp( (mLayerMatricHead(1)*gravity) / (groundTempTrial*R_wv) )
-              if (soilRelHumidity_noSnow > 1._rkind) then; soilRelHumidity_noSnow = 1._rkind; end if
+            soilEvapFactor = mLayerVolFracLiq(nSnow+1)/(theta_sat - theta_res) ! soil water evaporation factor [0-1]
+            ! resistance imposed by the molecular diffusion in the soil surface layer (s m-1)
+            scalarSoilResistance = scalarGroundSnowFraction + (1._rkind - scalarGroundSnowFraction)*EXP(8.25_rkind - 4.225_rkind*soilEvapFactor)  ! Sellers (1992)
+            !scalarSoilResistance = scalarGroundSnowFraction + (1._rkind - scalarGroundSnowFraction)*exp(8.25_rkind - 6.0_rkind*soilEvapFactor) ! Niu adjustment to decrease resistance for wet soil
+
+            ! relative humidity in the soil pores [0-1]
+            if (mLayerMatricHead(1) > -1.e+6_rkind) then  ! avoid problems with numerical precision when soil is very dry
+              if (groundTempTrial < 0._rkind) then
+                soilRelHumidity_noSnow = exp( (mLayerMatricHead(1)*gravity) / (groundTempTrial*R_wv) )
+                if (soilRelHumidity_noSnow > 1._rkind) then; soilRelHumidity_noSnow = 1._rkind; end if
+              else
+                soilRelHumidity_noSnow = 1._rkind
+              end if
             else
-              soilRelHumidity_noSnow = 1._rkind
-            end if ! end if ground temperature is positive
-          else
-            soilRelHumidity_noSnow = 0._rkind
-          end if ! end if matric head is very low
-          ! scalarSoilRelHumidity  = scalarGroundSnowFraction*1._rkind + (1._rkind - scalarGroundSnowFraction)*soilRelHumidity_noSnow ! original
-          scalarSoilRelHumidity  = scalarGroundSnowFraction + (1._rkind - scalarGroundSnowFraction)*soilRelHumidity_noSnow ! factor of unity removed for speed
-        end if  ! end if the first flux call
+              soilRelHumidity_noSnow = 0._rkind
+            end if
+          end if ! (if there is soil)
+          scalarSoilRelHumidity  = scalarGroundSnowFraction + (1._rkind - scalarGroundSnowFraction)*soilRelHumidity_noSnow
+        end if  ! (if the first flux call)
 
         ! compute turbulent heat fluxes
         call turbFluxes(&
@@ -953,6 +959,16 @@ subroutine vegNrgFlux(&
           scalarSnowSublimation   = 0._rkind  ! no sublimation from snow if no snow layers have formed
         end if
 
+        ! Smoothly reduce atmospheric condensation into soil as top-layer positive head increases
+        condToSoilLimiter = 1._rkind
+        if (nSoil>0 .and. scalarGroundEvaporation > 0._rkind) then
+          posHeadTop = 0.5_rkind*(mLayerMatricHead(1) + sqrt(mLayerMatricHead(1)**2_i4b + condHeadSmooth**2_i4b))
+          condHeadArg = (posHeadTop - condHeadCutoff)/condHeadWidth
+          condToSoilLimiter = 1._rkind/(1._rkind + exp(2._rkind*condHeadArg))
+          scalarGroundEvaporation = scalarGroundEvaporation*condToSoilLimiter
+          scalarSnowSublimation = scalarSnowSublimation*condToSoilLimiter
+        end if
+
         ! ***** AND STITCH EVERYTHING TOGETHER  *****************************************************************************************************************
  
         ! compute derived fluxes
@@ -1007,6 +1023,10 @@ subroutine vegNrgFlux(&
         dGroundEvaporation_dTCanair = dLatHeatGroundEvap_dTCanair/LH_vap   ! (kg m-2 s-1 K-1)
         dGroundEvaporation_dTCanopy = dLatHeatGroundEvap_dTCanopy/LH_vap   ! (kg m-2 s-1 K-1)
         dGroundEvaporation_dTGround = dLatHeatGroundEvap_dTGround/LH_vap   ! (kg m-2 s-1 K-1)
+        dGroundEvaporation_dCanWat  = dGroundEvaporation_dCanWat*condToSoilLimiter
+        dGroundEvaporation_dTCanair = dGroundEvaporation_dTCanair*condToSoilLimiter
+        dGroundEvaporation_dTCanopy = dGroundEvaporation_dTCanopy*condToSoilLimiter
+        dGroundEvaporation_dTGround = dGroundEvaporation_dTGround*condToSoilLimiter
 
         ! compute the cross derivative terms (only related to turbulent fluxes; specifically canopy evaporation and transpiration)
         dCanopyNetFlux_dCanWat = dTurbFluxCanopy_dCanWat  ! derivative in net canopy fluxes w.r.t. canopy total water content (J kg-1 s-1)
@@ -2155,7 +2175,7 @@ subroutine turbFluxes(&
     evapConductance    = 0._rkind
     transConductance   = 0._rkind
   end if
-  groundConductanceLH = 1._rkind/(groundResistance + soilResistance)  ! NOTE: soilResistance accounts for fractional snow, and =0 when snow cover is 100%
+  groundConductanceLH = 1._rkind/(groundResistance + soilResistance)  ! NOTE: soilResistance accounts for fractional snow
   if(groundConductanceLH < 0._rkind) groundConductanceLH = 0._rkind   ! to avoid negative conductance, will make large residual error instead of old version where failed outright
   totalConductanceLH  = evapConductance + transConductance + groundConductanceLH + canopyConductance
   if(totalConductanceLH  < 0._rkind) totalConductanceLH  = epsilon(1._rkind)    ! to avoid division by zero, will make large residual error instead of old version where failed outright

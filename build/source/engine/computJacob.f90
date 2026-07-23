@@ -92,7 +92,8 @@ subroutine computJacob(&
                        prog_data,                  & ! intent(in):    model prognostic variables for a local HRU
                        diag_data,                  & ! intent(in):    model diagnostic variables for a local HRU
                        deriv_data,                 & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
-                       dBaseflow_dMatric,          & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
+                       dBaseflow_dWat,             & ! intent(in):    derivative in baseflow w.r.t. soil water characteristic
+                       dBaseflow_dTk,              & ! intent(in):    derivative in baseflow w.r.t. temperature (m s-1 K-1)
                        ! input-output: Jacobian and its diagonal
                        dMat0,                      & ! intent(in):    diagonal of the Jacobian matrix excluding fluxes, not depending on the state vector
                        aJac,                       & ! intent(out):   Jacobian matrix
@@ -101,31 +102,32 @@ subroutine computJacob(&
   ! -----------------------------------------------------------------------------------------------------------------
   implicit none
   ! input: model control
-  type(in_type_computJacob),intent(in)   :: in_computJacob ! model control 
+  type(in_type_computJacob),intent(in)    :: in_computJacob         ! model control 
   ! input: data structures
-  type(var_ilength),intent(in)           :: indx_data       ! indices defining model states and layers
-  type(var_dlength),intent(in)           :: prog_data       ! prognostic variables for a local HRU
-  type(var_dlength),intent(in)           :: diag_data       ! diagnostic variables for a local HRU
-  type(var_dlength),intent(in)           :: deriv_data      ! derivatives in model fluxes w.r.t. relevant state variables
-  real(rkind),intent(in)                 :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
+  type(var_ilength),intent(in)            :: indx_data              ! indices defining model states and layers
+  type(var_dlength),intent(in)            :: prog_data              ! prognostic variables for a local HRU
+  type(var_dlength),intent(in)            :: diag_data              ! diagnostic variables for a local HRU
+  type(var_dlength),intent(in)            :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
+  real(rkind),intent(in)                  :: dBaseflow_dWat(:,:)    ! derivative in baseflow w.r.t. soil water characteristic
+  real(rkind),intent(in)                  :: dBaseflow_dTk(:,:)     ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
   ! input-output: Jacobian and its diagonal
-  real(rkind),intent(in)                 :: dMat0(:)        ! diagonal of the Jacobian matrix excluding fluxes, not depending on the state vector
-  real(rkind),intent(out)                :: aJac(:,:)       ! Jacobian matrix
+  real(rkind),intent(in)                  :: dMat0(:)               ! diagonal of the Jacobian matrix excluding fluxes, not depending on the state vector
+  real(rkind),intent(out)                 :: aJac(:,:)              ! Jacobian matrix
   ! output variables
-  type(out_type_computJacob),intent(out) :: out_computJacob ! error control
-  ! --------------------------------------------------------------
+  type(out_type_computJacob),intent(out)  :: out_computJacob        ! error control
+  ! -------------------------------------------------------------
   ! * local variables
   ! --------------------------------------------------------------
-  real(rkind),allocatable                :: dMat(:)         ! diagonal of the Jacobian matrix excluding fluxes, depending on the state vector
+  real(rkind),allocatable                 :: dMat(:)                ! diagonal of the Jacobian matrix excluding fluxes, depending on the state vector
   ! indices of model state variables
-  integer(i4b)                           :: nrgState        ! energy state variable
-  integer(i4b)                           :: watState        ! hydrology state variable
-  integer(i4b)                           :: nState          ! number of state variables
+  integer(i4b)                            :: nrgState               ! energy state variable
+  integer(i4b)                            :: watState               ! hydrology state variable
+  integer(i4b)                            :: nState                 ! number of state variables
   ! indices of model layers
-  integer(i4b)                           :: iLayer          ! index of model layer
-  integer(i4b)                           :: jLayer          ! index of model layer within the full state vector (hydrology)
-  character(LEN=256)                     :: cmessage        ! error message of downwind routine
-  logical(lgt)                           :: full            ! flag to indicate if the matrix is full (true) or banded (false)
+  integer(i4b)                            :: iLayer                 ! index of model layer
+  integer(i4b)                            :: jLayer                 ! index of model layer within the full state vector (hydrology)
+  character(LEN=256)                      :: cmessage               ! error message of downwind routine
+  logical(lgt)                            :: full                   ! flag to indicate if the matrix is full (true) or banded (false)
   ! --------------------------------------------------------------
   ! associate variables from data structures
   associate(&
@@ -315,11 +317,11 @@ subroutine computJacob(&
         ! only compute derivatives if the water state for the current layer is within the state subset
         if(watState/=integerMissing)then
           ! - include derivatives in energy fluxes w.r.t. with respect to water for current layer
-          aJac(ixInd(full,nrgState,watState),watState) = dVolHtCapBulk_dPsi0(iLayer) * mLayerdTemp_dt(jLayer) &
-                                                       + mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) + dCm_dPsi0(iLayer) * mLayerdWat_dt(jLayer) &
-                                                       + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer))
-          if(mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind))& ! ice is present
-              aJac(ixInd(full,nrgState,watState),watState) = -LH_fus*iden_water * dVolTot_dPsi0(iLayer) + aJac(ixInd(full,nrgState,watState),watState)   ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
+          aJac(ixInd(full,nrgState,watState),watState) = (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer))
+          aJac(ixInd(full,nrgState,watState),watState) = mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) + dVolHtCapBulk_dPsi0(iLayer) * mLayerdTemp_dt(jLayer) &
+                                                        + dCm_dPsi0(iLayer) * mLayerdWat_dt(jLayer) + aJac(ixInd(full,nrgState,watState),watState)
+          if(mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind)) & ! ice is present
+             aJac(ixInd(full,nrgState,watState),watState) = -LH_fus*iden_water * dVolTot_dPsi0(iLayer) + aJac(ixInd(full,nrgState,watState),watState)   ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
         endif ! (if the water state for the current layer is within the state subset)
 
       end do ! (looping through energy states in the soil domain)
@@ -329,8 +331,7 @@ subroutine computJacob(&
     ! * PART 2: COMPUTE FLUX JACOBIAN TERMS 
     ! *********************************************************************************************************************************************************
     call fluxJacAdd(full,dt,nSnow,nSoil,nLayers,computeVegFlux,computeBaseflow,&
-                    indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,&
-                    dMat,aJac,err,cmessage)
+                    indx_data,prog_data,diag_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,dMat,aJac,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     deallocate(dMat)
     
@@ -375,7 +376,8 @@ subroutine fluxJacAdd(&
                       prog_data,                  & ! intent(in):    model prognostic variables for a local HRU
                       diag_data,                  & ! intent(in):    model diagnostic variables for a local HRU
                       deriv_data,                 & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
-                      dBaseflow_dMatric,          & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
+                      dBaseflow_dWat,             & ! intent(in):    derivative in baseflow w.r.t. soil water characteristic
+                      dBaseflow_dTk,              & ! intent(in):    derivative in baseflow w.r.t. temperature (m s-1 K-1)
                       ! input-output: Jacobian and its diagonal
                       dMat,                       & ! intent(in):    diagonal of the Jacobian matrix
                       aJac,                       & ! intent(inout): Jacobian matrix with flux terms added
@@ -396,7 +398,8 @@ subroutine fluxJacAdd(&
   type(var_dlength),intent(in)         :: prog_data                  ! prognostic variables for a local HRU
   type(var_dlength),intent(in)         :: diag_data                  ! diagnostic variables for a local HRU
   type(var_dlength),intent(in)         :: deriv_data                 ! derivatives in model fluxes w.r.t. relevant state variables
-  real(rkind),intent(in)               :: dBaseflow_dMatric(:,:)     ! derivative in baseflow w.r.t. matric head (s-1)
+  real(rkind),intent(in)               :: dBaseflow_dWat(:,:)        ! derivative in baseflow w.r.t. soil water characteristic
+  real(rkind),intent(in)               :: dBaseflow_dTk(:,:)         ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
   ! input-output: Jacobian and its diagonal
   real(rkind),intent(in)               :: dMat(:)                    ! diagonal of the Jacobian matrix
   real(rkind),intent(inout)            :: aJac(:,:)                  ! Jacobian matrix with flux terms added
@@ -688,12 +691,12 @@ subroutine fluxJacAdd(&
         endif
 
         ! - include baseflow derivatives
-        if(computeBaseflow .and. nSoilOnlyHyd==nSoil)then
+        if(computeBaseflow)then
           do pLayer=1,nSoil
             qState = ixSoilOnlyHyd(pLayer)  ! hydrology state index within the state subset
             if(qState/=integerMissing)then
               if((pLayer<=iLayer .and. watState - qstate <= kl) .or. (pLayer>iLayer .and. qstate - watState <= ku) .or. full) &
-                  aJac(ixInd(full,watState,qState),qState) = (dt/mLayerDepth(jLayer))*dBaseflow_dMatric(iLayer,pLayer) + aJac(ixInd(full,watState,qState),qState)
+                  aJac(ixInd(full,watState,qState),qState) = (dt/mLayerDepth(jLayer))*dBaseflow_dWat(iLayer,pLayer) + aJac(ixInd(full,watState,qState),qState)
             endif
           end do
         endif ! (if computed baseflow)
@@ -810,17 +813,28 @@ subroutine fluxJacAdd(&
           if(iLayer<nSoil)then ! have layer below
             if(ixSnowSoilNrg(jLayer+1)/=integerMissing) aJac(ixInd(full,ixSnowSoilNrg(jLayer+1),watState),watState) = (dt/mLayerDepth(jLayer+1))*(-dNrgFlux_dWatAbove(jLayer) )
           endif
+
+          ! - include baseflow derivatives
+          if(computeBaseflow)then
+            do pLayer=1,nSoil
+              qState = ixSoilOnlyNrg(pLayer)  ! hydrology state index within the state subset
+              if(qState/=integerMissing)then
+                if((pLayer<=iLayer .and. watState - qstate <= kl) .or. (pLayer>iLayer .and. qstate - watState <= ku) .or. full) &
+                    aJac(ixInd(full,watState,qState),qState) = (dt/mLayerDepth(jLayer))*dBaseflow_dTk(iLayer,pLayer) + aJac(ixInd(full,watState,qState),qState)
+              endif
+            end do
+          endif ! (if computed baseflow)
         endif ! (if the water state for the current layer is within the state subset)
 
         if(nrgState/=integerMissing)then
           ! - compute super-diagonal elements
           if(iLayer>1)then
-            if(ixSoilOnlyHyd(iLayer-1)/=integerMissing) aJac(ixInd(full,ixSoilOnlyHyd(iLayer-1),nrgState),nrgState) = (dt/mLayerDepth(jLayer-1))*( dq_dNrgStateBelow(iLayer-1))   ! K-1
+            if(ixSoilOnlyHyd(iLayer-1)/=integerMissing) aJac(ixInd(full,ixSoilOnlyHyd(iLayer-1),nrgState),nrgState) = (dt/mLayerDepth(jLayer-1))*( dq_dNrgStateBelow(iLayer-1)) + aJac(ixInd(full,ixSoilOnlyHyd(iLayer-1),nrgState),nrgState) ! K-1
           endif
 
           ! compute sub-diagonal elements
           if(iLayer<nSoil)then
-            if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixInd(full,ixSoilOnlyHyd(iLayer+1),nrgState),nrgState) = (dt/mLayerDepth(jLayer+1))*(-dq_dNrgStateAbove(iLayer))     ! K-1
+            if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixInd(full,ixSoilOnlyHyd(iLayer+1),nrgState),nrgState) = (dt/mLayerDepth(jLayer+1))*(-dq_dNrgStateAbove(iLayer)) + aJac(ixInd(full,ixSoilOnlyHyd(iLayer+1),nrgState),nrgState) ! K-1
           endif
 
           ! - include derivatives for surface infiltration below surface
@@ -930,7 +944,8 @@ integer(c_int) function computJacob4kinsol(sunvec_y, sunvec_r, sunmat_J, &
                 eqns_data%prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                 eqns_data%diag_data,               & ! intent(in):    model diagnostic variables for a local HRU
                 eqns_data%deriv_data,              & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
-                eqns_data%dBaseflow_dMatric,       & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
+                eqns_data%dBaseflow_dWat,          & ! intent(in):    derivative in baseflow w.r.t. soil water characteristic
+                eqns_data%dBaseflow_dTk,           & ! intent(in):    derivative in baseflow w.r.t. temperature (m s-1 K-1)
                 ! input-output: Jacobian and its diagonal
                 eqns_data%dMat,                    & ! intent(inout): diagonal of the Jacobian matrix
                 Jac,                               & ! intent(out):   Jacobian matrix
@@ -948,7 +963,8 @@ integer(c_int) function computJacob4kinsol(sunvec_y, sunvec_r, sunmat_J, &
 
   subroutine initialize_computJacob
    ! *** Transfer data to in_computJacob class object from local variables ***
-   call in_computJacob % initialize(eqns_data%dt_cur,eqns_data%nSnow,eqns_data%nSoil,eqns_data%nLayers,eqns_data%computeVegFlux,(eqns_data%model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel),eqns_data%ixMatrix)
+   call in_computJacob % initialize(eqns_data%dt_cur,eqns_data%nSnow,eqns_data%nSoil,eqns_data%nLayers,eqns_data%computeVegFlux,&
+      (eqns_data%model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel),eqns_data%ixMatrix)
   end subroutine initialize_computJacob
 
   subroutine finalize_computJacob
