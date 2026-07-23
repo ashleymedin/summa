@@ -702,9 +702,9 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
                          l, lp, lm, lpp, lmm, k, kp, km, kpp, kmm)
 
     ! update time step
-    deltat = min(dt_cfl, dt)
-    if(deltat > max_dt) deltat = max_dt
-    if(deltat < min_dt) deltat = min_dt
+    deltat = min(dt_cfl, dt, max_dt)
+    ! Apply a floor only when it does not violate CFL stability.
+    if(dt_cfl >= min_dt .and. deltat < min_dt) deltat = min_dt
     debris_half_dt = 0.5_rkind*deltat
     t = t + deltat
 
@@ -726,8 +726,8 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
     endif
     ! check that glacier surface is not infinite (unstable), bring down to mean glacier height
     if(any(((S - B) > 1.e6_rkind .or. isnan(S-B)) .and. glacierMask==1_i4b))then
-      meanS = sum(merge(S, 0._rkind, glacierMask==1_i4b .and. S-B<1.e6_rkind)) / count(S-B<=1.e6_rkind)
-      S = merge(S, meanS, (S - B) <= 1.e6_rkind)
+      meanS = sum(merge(S, 0._rkind, glacierMask==1_i4b .and. (S-B)<1.e6_rkind)) / count((S-B)<=1.e6_rkind)
+      S = merge(S, meanS, ((S - B)) <= 1.e6_rkind)
     endif
 
     ! refresh m_dot on the updated surface
@@ -780,8 +780,7 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
     endif
 
     ! add debris back to surface
-    S = S + debris  
-
+    S = S + debris
   enddo ! end of time loop
 
   H = merge(S-B, 0._rkind, glacierMask==1_i4b)
@@ -835,7 +834,8 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
   real(rkind) :: divisor, div_k(nx,ny), div_l(nx,ny)
   integer(i4b) :: i, j
 
-  H = S - B ! H = ice thickness, S = Surface height, B = bed topography
+  ! Keep diffusion thickness nonnegative and zero outside glacier mask.
+  H = merge(max(S - B, 0._rkind), 0._rkind, mask==1_i4b) ! H = ice thickness, S = surface height, B = bed topography
 
   ! indices
   Sklp  = S(k  ,lp )
@@ -861,10 +861,14 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
   ! calculate l+1/2 index
   H_l_up_m = minus(Hklm, Hkl, Hklp)
   H_l_up_p = pluss(Hkl, Hklp, Hklpp)
+  H_l_up_m = max(H_l_up_m, 0._rkind)
+  H_l_up_p = max(H_l_up_p, 0._rkind)
 
   ! calculate l-1/2 index
   H_l_dn_m = minus(Hklmm, Hklm, Hkl)
   H_l_dn_p = pluss(Hklm, Hkl, Hklp)
+  H_l_dn_m = max(H_l_dn_m, 0._rkind)
+  H_l_dn_p = max(H_l_dn_p, 0._rkind)
 
   ! calculate l flux
   f_l_p = flux(Skpl, Skml, Skplp, Skmlp, Sklp, Skl, dy, dx, n)
@@ -917,10 +921,14 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
   ! calculate k+1/2 index
   H_k_up_m = minus(Hkml, Hkl, Hkpl)
   H_k_up_p = pluss(Hkl, Hkpl, Hkppl)
+  H_k_up_m = max(H_k_up_m, 0._rkind)
+  H_k_up_p = max(H_k_up_p, 0._rkind)
 
   ! calculate k-1/2 index
   H_k_dn_m = minus(Hkmml, Hkml, Hkl)
   H_k_dn_p = pluss(Hkml, Hkl, Hkpl)
+  H_k_dn_m = max(H_k_dn_m, 0._rkind)
+  H_k_dn_p = max(H_k_dn_p, 0._rkind)
 
   ! calculate k flux
   f_k_p = flux(Sklp, Sklm, Skplp, Skplm, Skpl, Skl, dx, dy, n)
