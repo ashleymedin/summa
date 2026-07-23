@@ -2092,7 +2092,7 @@ contains
   &)
 
    dz = nodeDepth*0.5_rkind
-   ! compute the capillary flux (mixed form only)
+   ! compute the capillary flux
    dPsi  = -nodeMatricHeadLiq ! if not saturated, then matric head is negative
    cflux = -bottomSatHydCond * dPsi/dz
    scalarDrainage = cflux + bottomSatHydCond ! compute the total flux (add gravity flux, positive downwards)

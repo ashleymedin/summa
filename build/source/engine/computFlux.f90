@@ -857,7 +857,7 @@ contains
    if(nGlce==0) iLayerLiqFluxSnLaGl(nSoil+nStart) = realMissing ! if nothing below the soil domain, then does not exist
    ! compute drainage from the soil zone (needed for mass balance checks and in aquifer recharge)
    scalarSoilDrainage = iLayerLiqFluxSoil(nSoil)
-   if(nGlce>0) scalarGlacierMelt = scalarSoilDrainage + scalarSurfaceRunoff - scalarSurfaceRunoff ! save for glacier melt flow calculations, may be overwritten with addition of below domain fluxes
+   if(nGlce>0) scalarGlacierMelt = scalarSoilDrainage + scalarSurfaceRunoff - scalarGlceMelt ! save for glacier melt flow calculations, may be overwritten with addition of below domain fluxes
   end associate
 
   associate(&
