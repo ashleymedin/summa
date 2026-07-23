@@ -966,7 +966,7 @@ subroutine vegNrgFlux(&
           condHeadArg = (posHeadTop - condHeadCutoff)/condHeadWidth
           condToSoilLimiter = 1._rkind/(1._rkind + exp(2._rkind*condHeadArg))
           scalarGroundEvaporation = scalarGroundEvaporation*condToSoilLimiter
-          scalarGroundSublimation = scalarGroundSublimation*condToSoilLimiter
+          scalarSnowSublimation = scalarSnowSublimation*condToSoilLimiter
         end if
 
         ! ***** AND STITCH EVERYTHING TOGETHER  *****************************************************************************************************************
