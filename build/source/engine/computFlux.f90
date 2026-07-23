@@ -846,6 +846,7 @@ contains
    mLayerDepth                 => prog_data%var(iLookPROG%mLayerDepth)%dat,             & ! intent(in):    [dp(:)]  depth of each layer in the sub-domain (m)
    scalarSurfaceRunoff         => flux_data%var(iLookFLUX%scalarSurfaceRunoff)%dat(1),  & ! intent(in):    [dp] surface runoff (m s-1)
    scalarSoilDrainage          => flux_data%var(iLookFLUX%scalarSoilDrainage)%dat(1),   & ! intent(in):    [dp] drainage from the soil profile (m s-1)
+   scalarGlceMelt              => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1),       & ! intent(in):  [dp]  glacier ice melt (m s-1)
    scalarGlacierMelt           => flux_data%var(iLookFLUX%scalarGlacierMelt)%dat(1)     ) ! intent(out):   [dp] glacier ice melt plus snow and soil drainage (m s-1)
    ! calculate net liquid water fluxes for each soil layer (s-1)
    if (nStart==0) iLayerLiqFluxSnLaGl(0) = 0._rkind ! then 0 layer is top of soil, iLayerLiqFluxSnLaGl does not exist in soil
