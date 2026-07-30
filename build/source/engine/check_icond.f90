@@ -472,15 +472,15 @@ contains
        case(iname_soil)
 
        ! ensure consistency among state variables
-        call updatSoil(&
-                       mLayerTemp(iLayer),              & ! intent(in): layer temperature (K)
-                       mLayerMatricHead(iLayer-nSnow-nLake),  & ! intent(in): matric head (m)
-                       vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m, & ! intent(in): van Genutchen soil parameters
-                       scalarTheta,                     & ! intent(out): volumetric fraction of total water (-)
-                       mLayerVolFracLiq(iLayer),        & ! intent(out): volumetric fraction of liquid water (-)
-                       mLayerVolFracIce(iLayer),        & ! intent(out): volumetric fraction of ice (-)
-                       err,cmessage)                      ! intent(out): error control
-        if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+       call updatSoil(&
+                      mLayerTemp(iLayer),              & ! intent(in): layer temperature (K)
+                      mLayerMatricHead(iLayer-nSnow-nLake),  & ! intent(in): matric head (m)
+                      vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m, & ! intent(in): van Genutchen soil parameters
+                      scalarTheta,                     & ! intent(out): volumetric fraction of total water (-)
+                      mLayerVolFracLiq(iLayer),        & ! intent(out): volumetric fraction of liquid water (-)
+                      mLayerVolFracIce(iLayer),        & ! intent(out): volumetric fraction of ice (-)
+                      err,cmessage)                      ! intent(out): error control
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
        if(checkEnthalpy)then ! enthalpy as state variable or in residual
          if(no_icond_enth)then ! no enthalpy in icond file
