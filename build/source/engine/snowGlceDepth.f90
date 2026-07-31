@@ -349,13 +349,10 @@ subroutine glceReduce(&
     ! adjust depth in proportion to the amount of ice lost/gained in the layer (m), keeping ice fraction constant
     volFracIceChange = mLayerMeltFreeze(iGlce)/iden_ice  ! volumetric fraction of ice lost/gained due to melt/refreeze (-)
     scalarDepthNew = massIceOld/((mLayerVolFracIceNew(iGlce)+volFracIceChange)*iden_ice)
-    if(abs(scalarDepthNew - mLayerDepth(iGlce)) < verySmall) then
-      scalarDepthNew = mLayerDepth(iGlce) ! don't bother if the change is very small
-      return
-    end if
     mLayerDepth(iGlce) = scalarDepthNew
 
-    ! Keep liquid water fraction in the layer constant or less; excess liquid is squeezed out
+    ! Keep liquid water fraction in the layer constant; excess liquid is squeezed out
+    ! Note, if it got colder the depth icreases and thus adds a bit of water to the layer, but will be corrected when the layer is reduced to the active layer depth
     massLiqRetained = iden_water*mLayerVolFracLiqNew(iGlce)*mLayerDepth(iGlce) ! kg m-2
     layerReduceLiq = max(0._rkind, massLiqOld - massLiqRetained) ! only take away liquid water, don't add any
     glceReduceLiq = (glceReduceLiq + layerReduceLiq)/(iden_water*dt) ! convert to m s-1
@@ -366,7 +363,7 @@ subroutine glceReduce(&
       return
     endif
 
-    ! update volumetric ice and liquid water content
+    ! update volumetric ice and liquid water content, should be the same but for consistency redo
     mLayerVolFracIceNew(iGlce) = massIceOld/(mLayerDepth(iGlce)*iden_ice) ! mLayerVolFracIceNew(iGlce)+volFracIceChange
     mLayerVolFracLiqNew(iGlce) = massLiqRetained/(mLayerDepth(iGlce)*iden_water)
     mLayerVolFracAirNew(iGlce) = 1.0_rkind - mLayerVolFracIceNew(iGlce) - mLayerVolFracLiqNew(iGlce)
