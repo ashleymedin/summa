@@ -510,7 +510,6 @@ contains
    case(iLookINDEX%ixNrgOnly);  stateTypeMask = (ixStateType_subset==iname_nrgCanair .or. ixStateType_subset==iname_nrgCanopy .or. ixStateType_subset==iname_nrgLayer)  ! list of indices for all energy states
    case(iLookINDEX%ixHydOnly)
     stateTypeMask = (ixStateType_subset==iname_watLayer  .or. ixStateType_subset==iname_liqLayer .or. ixStateType_subset==iname_matLayer .or. ixStateType_subset==iname_lmpLayer)   ! list of indices for all hydrology states
-    if(nGlce>0 .or. nLake>0) stateTypeMask = (ixStateType_subset==iname_watLayer  .or. ixStateType_subset==iname_liqLayer) ! for saturated glacier debris or lake soil don't include matric states since convergence criteria is too strict
    case(iLookINDEX%ixMatOnly);  stateTypeMask = (ixStateType_subset==iname_matLayer  .or. ixStateType_subset==iname_lmpLayer)   ! list of indices for matric head state variables
    case(iLookINDEX%ixMassOnly); stateTypeMask = (ixStateType_subset==iname_watCanopy)   ! list of indices for hydrology states (mass of water)
    case default; cycle ! only need to process the above variables

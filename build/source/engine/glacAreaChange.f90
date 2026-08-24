@@ -186,7 +186,7 @@ subroutine glacAreaChange(&
   real(rkind),parameter              :: deg2rad=PI_D/180._rkind         ! factor to convert degrees to radians
   real(rkind),parameter              :: rad2deg=180._rkind/PI_D         ! factor to convert radians to degrees
   real(rkind),parameter              :: min_thickness=0.02_rkind        ! minimum thickness of debris cover to be considered as debris cover (m)
-  logical(lgt),parameter             :: printFlag=.true.               ! flag to print details for debugging
+  logical(lgt),parameter             :: printFlag=.false.               ! flag to print details for debugging
 
   ! ----------------------------------------------------------------------------------------------
   ! initialize
