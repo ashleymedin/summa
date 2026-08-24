@@ -1145,6 +1145,8 @@ contains
   real(rkind),dimension(mSoil) :: psiScale                    ! scaling factor for matric head
   real(rkind),parameter        :: xSmall=1.e-0_rkind          ! a small offset
   real(rkind),parameter        :: scalarTighten=0.1_rkind     ! scaling factor for the scalar solution
+  real(rkind),parameter        :: saturatedLoosen=100._rkind  ! scaling factor for saturated glacier debris or lake soil 
+  real(rkind)                  :: loosen                      ! scaling factor for loosening convergence criteria
   real(rkind)                  :: soilWatBalErr               ! error in the soil water balance
   real(rkind)                  :: canopy_max                  ! absolute value of the residual in canopy water (kg m-2)
   real(rkind),dimension(1)     :: energy_max                  ! maximum absolute value of the energy residual (J m-3)
@@ -1164,6 +1166,8 @@ contains
    iter                    => in_SS4HG % iter                                   ,& ! intent(in): iteration index
    nSnow                   => in_SS4HG % nSnow                                  ,& ! intent(in): number of snow layers
    nLake                   => in_SS4HG % nLake                                  ,& ! intent(in): number of lake layers
+   nSoil                   => in_SS4HG % nSoil                                  ,& ! intent(in): number of soil layers
+   nGlce                   => in_SS4HG % nGlce                                  ,& ! intent(in): number of glce layers
    scalarSolution          => in_SS4HG % scalarSolution                         ,& ! intent(in): flag to denote if implementing the scalar solution
    ! convergence parameters
    absConvTol_liquid       => mpar_data%var(iLookPARAM%absConvTol_liquid)%dat(1),&  ! intent(in): [dp] absolute convergence tolerance for vol frac liq water (-)
@@ -1203,11 +1207,13 @@ contains
    ! check convergence based on the residuals for volumetric liquid water content (-)
    if (size(ixHydOnly)>0) then
     liquid_max = real(maxval(abs( rVec(ixHydOnly) ) ), rkind)
+    loosen = 1._rkind
+    if (nSoil>0 .and. nGlce+nLake>0 ) loosen = saturatedLoosen  ! for saturated glacier debris or lake soil convergence criteria is too strict
     ! (tighter convergence for the scalar solution)
     if (scalarSolution) then
-     liquidConv = (liquid_max(1) < absConvTol_liquid*scalarTighten)   ! (based on the residual)
+     liquidConv = (liquid_max(1) < absConvTol_liquid*scalarTighten*loosen)   ! (based on the residual)
     else
-     liquidConv = (liquid_max(1) < absConvTol_liquid)                 ! (based on the residual)
+     liquidConv = (liquid_max(1) < absConvTol_liquid*loosen)                 ! (based on the residual)
     end if
    else
     liquid_max = realMissing
