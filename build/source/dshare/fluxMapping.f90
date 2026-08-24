@@ -169,7 +169,7 @@ contains
  flux2state_orig(iLookFLUX%mLayerColumnInflow)              = flux2state(state1=integerMissing,  state2=integerMissing)
  flux2state_orig(iLookFLUX%mLayerColumnOutflow)             = flux2state(state1=iname_matLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarSoilBaseflow)              = flux2state(state1=iname_matLayer,  state2=integerMissing)
- flux2state_orig(iLookFLUX%scalarSoilDrainage)              = flux2state(state1=iname_matLayer,  state2=iname_watGlce)
+ flux2state_orig(iLookFLUX%scalarSoilDrainage)              = flux2state(state1=iname_matLayer,  state2=integerMissing)
 
  ! liquid water fluxes for the aquifer domain
  flux2state_orig(iLookFLUX%scalarAquiferRecharge)           = flux2state(state1=iname_watAquifer,state2=iname_matLayer)
