@@ -591,7 +591,7 @@ contains
 
     ! check convergence
     ! NOTE: some efficiency gains possible by scaling the full newton step outside the line search loop
-    converged = checkConv(mSoil,in_SS4HG,mpar_data,indx_data,prog_data,resVecNew,newtStepScaled*xScale,stateVecNew,out_SS4HG)
+    converged = checkConv(nState,mSoil,in_SS4HG,mpar_data,indx_data,prog_data,resVecNew,newtStepScaled*xScale,stateVecNew,out_SS4HG)
     if (converged) return
 
     ! early return if not computing the line search
@@ -888,7 +888,7 @@ contains
    if (.not.feasible) then; err=20; message=trim(message)//'state vector not feasible'; return; end if
 
    ! check convergence
-   converged = checkConv(mSoil,in_SS4HG,mpar_data,indx_data,prog_data,resVecNew,xInc,stateVecNew,out_SS4HG)
+   converged = checkConv(nState,mSoil,in_SS4HG,mpar_data,indx_data,prog_data,resVecNew,xInc,stateVecNew,out_SS4HG)
 
   end associate
 
@@ -1127,11 +1127,12 @@ contains
  ! *********************************************************************************************************
  ! module function checkConv: check convergence based on the residual vector
  ! *********************************************************************************************************
- function checkConv(mSoil,in_SS4HG,mpar_data,indx_data,prog_data,rVec,xInc,xVec,out_SS4HG)
+ function checkConv(nState,mSoil,in_SS4HG,mpar_data,indx_data,prog_data,rVec,xInc,xVec,out_SS4HG)
   implicit none
   ! result
   logical(lgt)                 :: checkConv                   ! flag to denote convergence
   ! dummies
+  integer(i4b),intent(in)      :: nState                      ! number of states
   integer(i4b),intent(in)      :: mSoil                       ! number of soil layers in solution vector
   type(in_type_summaSolv4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
   type(var_dlength),intent(in) :: mpar_data                   ! model parameters
@@ -1143,9 +1144,10 @@ contains
   type(out_type_summaSolv4homegrown),intent(in) :: out_SS4HG  ! new function evaluation, convergence flag, and error control
   ! locals
   real(rkind),dimension(mSoil) :: psiScale                    ! scaling factor for matric head
+  real(rkind),dimension(nState):: rVecScaled                  ! scaled rVec for saturated soil
   real(rkind),parameter        :: xSmall=1.e-0_rkind          ! a small offset
   real(rkind),parameter        :: scalarTighten=0.1_rkind     ! scaling factor for the scalar solution
-  real(rkind),parameter        :: saturatedLoosen=100._rkind  ! scaling factor for saturated glacier debris or lake soil 
+  real(rkind),parameter        :: saturatedLoosen=1.e3_rkind  ! scaling factor for saturated glacier debris or lake soil 
   real(rkind)                  :: loosen                      ! scaling factor for loosening convergence criteria
   real(rkind)                  :: soilWatBalErr               ! error in the soil water balance
   real(rkind)                  :: canopy_max                  ! absolute value of the residual in canopy water (kg m-2)
@@ -1206,14 +1208,14 @@ contains
 
    ! check convergence based on the residuals for volumetric liquid water content (-)
    if (size(ixHydOnly)>0) then
-    liquid_max = real(maxval(abs( rVec(ixHydOnly) ) ), rkind)
-    loosen = 1._rkind
-    if (nSoil>0 .and. nGlce+nLake>0 ) loosen = saturatedLoosen  ! for saturated glacier debris or lake soil convergence criteria is too strict
+    rVecScaled = rVec
+    if(size(ixMatOnly)>0 .and. nGlce+nLake>0) rVecScaled(ixMatOnly) = rVec(ixMatOnly)/saturatedLoosen ! for saturated glacier debris or lake soil convergence criteria is too strict
+    liquid_max = real(maxval(abs( rVecScaled(ixHydOnly) ) ), rkind) ! included ixMatOnly
     ! (tighter convergence for the scalar solution)
     if (scalarSolution) then
-     liquidConv = (liquid_max(1) < absConvTol_liquid*scalarTighten*loosen)   ! (based on the residual)
+     liquidConv = (liquid_max(1) < absConvTol_liquid*scalarTighten)   ! (based on the residual)
     else
-     liquidConv = (liquid_max(1) < absConvTol_liquid*loosen)                 ! (based on the residual)
+     liquidConv = (liquid_max(1) < absConvTol_liquid)                 ! (based on the residual)
     end if
    else
     liquid_max = realMissing
