@@ -80,7 +80,7 @@ subroutine summa_initialize(summa1_struc, err, message)
   USE globalData,only:elapsedRead                              ! elapsed time for the data read
   USE globalData,only:elapsedWrite                             ! elapsed time for the stats/write
   USE globalData,only:elapsedPhysics                           ! elapsed time for the physics
-  USE globalData,only:elapsedUpdateArea                        ! elapsed time for updating glacier and lake area
+  USE globalData,only:elapsedUpdateArea                        ! elapsed time for updating glacier and wetland area
   ! model time structures
   USE globalData,only:startTime                                ! start time
   USE globalData,only:finshTime                                ! end time

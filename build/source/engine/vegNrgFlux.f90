@@ -511,7 +511,7 @@ subroutine vegNrgFlux(&
         dCanopyTrans_dTGround= 0._rkind         ! derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
 
         ! compute fluxes and derivatives -- separate approach for prescribed temperature and zero flux,
-        !   derivative in net ground flux w.r.t. ground temperature (W m-2 K-1) computed inside snow lake soil ice (snLaSoGl) energy flux routine
+        !   derivative in net ground flux w.r.t. ground temperature (W m-2 K-1) computed inside snow lake soil glce energy flux routine
         if (ix_bcUpprTdyn == prescribedTemp) then
           groundNetFlux = -diag_data%var(iLookDIAG%iLayerThermalC)%dat(0)*(groundTempTrial - upperBoundTemp)/(prog_data%var(iLookPROG%mLayerDepth)%dat(1)*0.5_rkind)
         elseif (ix_bcUpprTdyn == zeroFlux) then

@@ -611,7 +611,7 @@ MODULE var_lookup
   integer(i4b)    :: iLayerAdvectiveFlux             = integerMissing ! advective energy flux at layer interfaces (W m-2)
   integer(i4b)    :: iLayerNrgFlux                   = integerMissing ! energy flux at layer interfaces (W m-2)
   integer(i4b)    :: mLayerNrgFlux                   = integerMissing ! net energy flux for each layer in the layer domains (J m-3 s-1)
-  ! liquid water fluxes for the snow lake ice
+  ! liquid water fluxes for the snow lake glce
   integer(i4b)    :: scalarSnowDrainage              = integerMissing ! drainage from the bottom of the snow profile (m s-1)
   integer(i4b)    :: scalarLakeDrainage              = integerMissing ! drainage from the bottom of the lake profile (m s-1)
   integer(i4b)    :: scalarGlceMelt                  = integerMissing ! glacier ice melt (m s-1)

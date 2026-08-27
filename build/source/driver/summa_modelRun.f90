@@ -39,7 +39,7 @@ USE globalData,only:fracJulDay       ! fractional julian days since the start of
 USE globalData,only:yearLength       ! number of days in the current year
 
 ! access domain types
-USE globalData,only:upland             ! domain type for upland areas
+USE globalData,only:upland           ! horizontal domain type for upland areas
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -65,7 +65,7 @@ contains
  USE globalData,only:model_decisions                            ! model decision structure
  USE globalData,only:startPhysics,endPhysics                    ! date/time for the start and end of the initialization
  USE globalData,only:elapsedPhysics                             ! elapsed time for the initialization
- USE globalData,only:elapsedUpdateArea                          ! elapsed time for updating glacier and lake area
+ USE globalData,only:elapsedUpdateArea                          ! elapsed time for updating glacier and wetland area
  ! ---------------------------------------------------------------------------------------
  ! * variables
  ! ---------------------------------------------------------------------------------------
@@ -278,7 +278,7 @@ contains
                   bvarStruct%gru(iGRU),         & ! intent(inout): basin-average variables
                   gridStruct%gru(iGRU),         & ! intent(inout): basin grid parameters and variables
                   ! error control
-                  elapsedUpdateArea,            & ! intent(inout): elapsed time for updating glacier and lake area for all GRUs (s)
+                  elapsedUpdateArea,            & ! intent(inout): elapsed time for updating glacier and wetland area for all GRUs (s)
                   err,cmessage)                   ! intent(out):   error control
 
   ! check errors

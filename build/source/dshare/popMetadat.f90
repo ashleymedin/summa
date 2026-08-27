@@ -119,7 +119,7 @@ subroutine popMetadat(err,message)
   ! snow properties
   mpar_meta(iLookPARAM%snowfrz_scale)                 = var_info('snowfrz_scale'                   , 'scaling parameter for the freezing curve for snow'                , 'K-1'             , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%fixedThermalCond_snow)         = var_info('fixedThermalCond_snow'           , 'temporally constant thermal conductivity for snow'                , 'W m-1 K-1'       , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  ! snow, lake, ice albedo
+  ! snow lake glce albedo
   mpar_meta(iLookPARAM%albedoMax)                     = var_info('albedoMax'                       , 'maximum snow albedo (single spectral band)'                       , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%albedoMinWinter)               = var_info('albedoMinWinter'                 , 'minimum snow albedo during winter (single spectral band)'         , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%albedoMinSpring)               = var_info('albedoMinSpring'                 , 'minimum snow albedo during spring (single spectral band)'         , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
@@ -583,13 +583,13 @@ subroutine popMetadat(err,message)
   flux_meta(iLookFLUX%iLayerAdvectiveFlux)             = var_info('iLayerAdvectiveFlux'            , 'advective energy flux at layer interfaces'                        , 'W m-2'           , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%iLayerNrgFlux)                   = var_info('iLayerNrgFlux'                  , 'energy flux at layer interfaces'                                  , 'W m-2'           , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%mLayerNrgFlux)                   = var_info('mLayerNrgFlux'                  , 'net energy flux for each layer within the layer domains'          , 'J m-3 s-1'       , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
-  ! liquid water fluxes for the snow lake ice
+  ! liquid water fluxes for the snow lake glce
   flux_meta(iLookFLUX%scalarSnowDrainage)              = var_info('scalarSnowDrainage'             , 'drainage from the bottom of the snow profile'                     , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%scalarLakeDrainage)              = var_info('scalarLakeDrainage'             , 'drainage from the bottom of the lake'                             , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%scalarGlceMelt)                  = var_info('scalarGlceMelt'                 , 'glacier ice melt'                                                 , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  flux_meta(iLookFLUX%iLayerLiqFluxSnLaGl)             = var_info('iLayerLiqFluxSnLaGl'            , 'liquid flux at snow lake ice layer interfaces'                    , 'm s-1'           , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
+  flux_meta(iLookFLUX%iLayerLiqFluxSnLaGl)             = var_info('iLayerLiqFluxSnLaGl'            , 'liquid flux at snow lake glce layer interfaces'                   , 'm s-1'           , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%scalarSurfaceIceMelt)            = var_info('scalarSurfaceIceMelt'           , 'surface ice melt flux'                                            , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  flux_meta(iLookFLUX%mLayerLiqFluxSnLaGl)             = var_info('mLayerLiqFluxSnLaGl'            , 'net liquid water flux for each snow lake ice layer'               , 's-1'             , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+  flux_meta(iLookFLUX%mLayerLiqFluxSnLaGl)             = var_info('mLayerLiqFluxSnLaGl'            , 'net liquid water flux for each snow lake glce layer'              , 's-1'             , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   ! liquid water fluxes for the soil
   flux_meta(iLookFLUX%scalarRainPlusMelt)              = var_info('scalarRainPlusMelt'             , 'rain plus melt, used as input to soil before surface runoff'      , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%scalarMaxInfilRate)              = var_info('scalarMaxInfilRate'             , 'maximum infiltration rate'                                        , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)

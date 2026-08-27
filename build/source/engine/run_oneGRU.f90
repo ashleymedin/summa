@@ -78,11 +78,11 @@ USE var_lookup,only:iLookDECISIONS     ! look-up values for model decisions
 USE globalData,only:realMissing        ! missing real number
 
 ! access domain types
-USE globalData,only:upland             ! domain type for upland areas
-USE globalData,only:glacCln1           ! first domain type for glacier clean areas
-USE globalData,only:glacCln2           ! second domain type for glacier clean areas
-USE globalData,only:glacDbr            ! domain type for glacier debris areas
-USE globalData,only:wetland            ! domain type for wetland areas
+USE globalData,only:upland             ! horizontal domain type for upland areas
+USE globalData,only:glacCln1           ! first horizontal domain type for glacier clean areas
+USE globalData,only:glacCln2           ! second horizontal domain type for glacier clean areas
+USE globalData,only:glacDbr            ! horizontal domain type for glacier debris areas
+USE globalData,only:wetland            ! horizontal domain type for wetland areas
 
 ! provide access to the named variables that describe model decisions
 USE mDecisions_module,only:&           ! look-up values for the choice of method for the spatial representation of groundwater
@@ -120,7 +120,7 @@ subroutine run_oneGRU(&
                       bvarData,           & ! intent(inout): basin-average variables
                       gridData,           & ! intent(inout): basin glacier grids, may be null
                       ! error control
-                      elapsedUpdateArea,  & ! intent(inout): elapsed time for updating glacier and lake area for all GRUs (s)
+                      elapsedUpdateArea,  & ! intent(inout): elapsed time for updating glacier and wetland area for all GRUs (s)
                       err,message)          ! intent(out):   error control
   ! ----- define downstream subroutines -----------------------------------------------------------------------------------
   USE run_oneHRU_module,only:run_oneHRU                       ! module to run for one HRU
@@ -153,7 +153,7 @@ subroutine run_oneGRU(&
   type(var_dlength)       , intent(inout) :: bvarData             ! x%var(:)%dat                 -- basin-average variables
   type(grid_double)       , intent(inout) :: gridData             ! x%grid(:)%var(:)%dat2(:,:)   -- basin grids, currently used for glaciers only
   ! error control
-  real(rkind)             , intent(inout) :: elapsedUpdateArea    ! time for updating glacier and lake area for all GRUs (s)
+  real(rkind)             , intent(inout) :: elapsedUpdateArea    ! time for updating glacier and wetland area for all GRUs (s)
   integer(i4b)            , intent(out)   :: err                  ! error code
   character(*)            , intent(out)   :: message              ! error message
   ! ----- define local variables ------------------------------------------------------------------------------------------
@@ -181,7 +181,7 @@ subroutine run_oneGRU(&
   integer(i4b), allocatable           :: ndebris(:)                     ! number of debris glacier HRUs in each glacier domain
   logical(lgt)                        :: computeVegFluxFlag             ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
   logical(lgt)                        :: updateGlacArea                 ! flag to update glacier area
-  logical(lgt)                        :: updateLakeArea                 ! flag to update lake area
+  logical(lgt)                        :: updateLakeArea                 ! flag to update wetland area
   logical(lgt)                        :: has_glacier                    ! flag to indicate if glaciers are present in HRU
   real(rkind)                         :: remaining_area                 ! remaining area to be distributed
   real(rkind)                         :: remaining_elev                 ! remaining elevation to be distributed
@@ -201,7 +201,7 @@ subroutine run_oneGRU(&
   real(rkind),parameter               :: deg2rad=PI_D/180._rkind        ! convert degrees to radians
   real(rkind),parameter               :: rad2deg=180._rkind/PI_D        ! convert radians to degrees
   real(rkind),parameter               :: aspect_tol=1.e-12_rkind        ! tolerance for undefined circular mean
-  integer(i4b),dimension(8)           :: startUpdateArea, endUpdateArea ! time at end of updating glacier and lake area
+  integer(i4b),dimension(8)           :: startUpdateArea, endUpdateArea ! time at end of updating glacier and wetland area
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; write(message, '(A21,I0,A10,I0,A2)' ) 'run_oneGRU (gru_nc = ',gruInfo%gru_nc,', gruId = ',gruInfo%gru_id,')/'
@@ -226,7 +226,7 @@ subroutine run_oneGRU(&
   glacSnowMelt = 0._rkind ! glacier snow reservoir melt (m3 s-1)
   glacFirnMelt = 0._rkind ! glacier firn reservoir melt (m3 s-1)
   updateGlacArea = .false. ! initialize flag to update glacier area
-  updateLakeArea = .false. ! initialize flag to update lake area
+  updateLakeArea = .false. ! initialize flag to update wetland area
   bvarData%var(iLookBVAR%basin__GlacierArea)%dat(1) = 0._rkind ! glacier area (m2)
   nglacDOM = 0 ! initialize number of glacier domains in the GRU
   nglacHRU = 0 ! initialize number of glacier HRUs in the GRU
@@ -606,7 +606,7 @@ subroutine run_oneGRU(&
 
   if(updateGlacArea .or. updateLakeArea)then
     do iHRU=1,gruInfo%hruCount
-      ! update the upland coordinate variables for the HRU based on the new glacier and lake areas
+      ! update the upland coordinate variables for the HRU based on the new glacier and wetland areas
       ! NOTE: contour length is not updated as we do not know how much of the original contour length is associated with the glacier/lake 
       remaining_area = attrHRU%hru(iHRU)%var(iLookATTR%HRUarea)
       remaining_elev = attrHRU%hru(iHRU)%var(iLookATTR%HRUarea)*attrHRU%hru(iHRU)%var(iLookATTR%elevation)
@@ -656,7 +656,7 @@ subroutine run_oneGRU(&
         end associate
       enddo ! (looping through domains)
     enddo ! (looping through HRUs)
-  endif ! (if updated glacier or lake area)
+  endif ! (if updated glacier or wetland area)
   call date_and_time(values=endUpdateArea)
 
   ! aggregate the elapsed time for the update area routines

@@ -42,11 +42,11 @@ USE var_lookup,only:iLookDECISIONS      ! look-up values for model decisions
 USE globalData,only:urbanVegCategory    ! vegetation category for urban areas
 
 ! access domain types
-USE globalData,only:upland             ! domain type for upland areas
-USE globalData,only:glacCln1           ! first domain type for glacier clean areas
-USE globalData,only:glacCln2           ! second domain type for glacier clean areas
-USE globalData,only:glacDbr            ! domain type for glacier debris areas
-USE globalData,only:wetland            ! domain type for wetland areas
+USE globalData,only:upland             ! horizontal domain type for upland areas
+USE globalData,only:glacCln1           ! first horizontal domain type for glacier clean areas
+USE globalData,only:glacCln2           ! second horizontal domain type for glacier clean areas
+USE globalData,only:glacDbr            ! horizontal domain type for glacier debris areas
+USE globalData,only:wetland            ! horizontal domain type for wetland areas
 
 ! metadata structures
 USE globalData,only:mpar_meta,bpar_meta ! parameter metadata structures

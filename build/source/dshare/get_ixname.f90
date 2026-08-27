@@ -252,7 +252,7 @@ contains
   ! freezing curve for snow
   case('snowfrz_scale'            ); get_ixParam = iLookPARAM%snowfrz_scale          ! scaling parameter for the freezing curve for snow (K-1)
   case('fixedThermalCond_snow'    ); get_ixParam = iLookPARAM%fixedThermalCond_snow  ! temporally constant thermal conductivity for snow (W m-1 K-1)
-  ! snow lake, ice albedo
+  ! snow lake glce albedo
   case('albedoMax'                ); get_ixParam = iLookPARAM%albedoMax              ! maximum snow albedo for a single spectral band (-)
   case('albedoMinWinter'          ); get_ixParam = iLookPARAM%albedoMinWinter        ! minimum snow albedo during winter for a single spectral band (-)
   case('albedoMinSpring'          ); get_ixParam = iLookPARAM%albedoMinSpring        ! minimum snow albedo during spring for a single spectral band (-)
@@ -743,7 +743,7 @@ contains
   case('iLayerAdvectiveFlux'            ); get_ixFlux = iLookFLUX%iLayerAdvectiveFlux              ! advective energy flux at layer interfaces at end of time step (W m-2)
   case('iLayerNrgFlux'                  ); get_ixFlux = iLookFLUX%iLayerNrgFlux                    ! energy flux at layer interfaces at the end of the time step (W m-2)
   case('mLayerNrgFlux'                  ); get_ixFlux = iLookFLUX%mLayerNrgFlux                    ! net energy flux for each layer in the layer domains (J m-3 s-1)
-  ! liquid water fluxes for the snow lake ice
+  ! liquid water fluxes for the snow lake glce
   case('scalarSnowDrainage'             ); get_ixFlux = iLookFLUX%scalarSnowDrainage               ! drainage from the bottom of the snow profile (m s-1)
   case('scalarLakeDrainage'             ); get_ixFlux = iLookFLUX%scalarLakeDrainage               ! drainage from the bottom of the lake (m s-1)
   case('scalarGlceMelt'                 ); get_ixFlux = iLookFLUX%scalarGlceMelt                   ! glacier ice melt (m s-1)
@@ -851,7 +851,7 @@ contains
   case('dNrgFlux_dWatBelow'             ); get_ixDeriv = iLookDERIV%dNrgFlux_dWatBelow             ! derivatives in the flux w.r.t. water state in the layer below
   ! derivative in liquid water fluxes at the interface of snow lake glce layers w.r.t. volumetric liquid water content in the layer above
   case('iLayerLiqFluxSnLaGlDeriv'       ); get_ixDeriv = iLookDERIV%iLayerLiqFluxSnLaGlDeriv       ! derivative in vertical liquid water flux at layer interfaces (m s-1)
-  case('scalarSurfaceIceMeltDeriv'      ); get_ixDeriv = iLookDERIV%scalarSurfaceIceMeltDeriv      ! derivative in ice melt flux at top interface of lake or glacier (m s-1)
+  case('scalarSurfaceIceMeltDeriv'      ); get_ixDeriv = iLookDERIV%scalarSurfaceIceMeltDeriv      ! derivative in ice melt flux at top interface of wetland or glacier (m s-1)
   ! derivative in liquid water fluxes for the soil domain w.r.t hydrology state variables
   case('dVolTot_dPsi0'                  ); get_ixDeriv = iLookDERIV%dVolTot_dPsi0                  ! derivative in total water content w.r.t. total water matric potential (m-1)
   case('d2VolTot_dPsi02'                ); get_ixDeriv = iLookDERIV%d2VolTot_dPsi02                ! second derivative in total water content w.r.t. total water matric potential

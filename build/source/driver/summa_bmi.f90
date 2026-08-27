@@ -113,7 +113,7 @@ module summabmi
      logical(lgt),dimension(maxvarFreq) :: outFreq                           ! true if the output frequency is desired
      integer(i4b),dimension(maxvarFreq) :: ncid                              ! netcdf output file id
      integer(i4b)                       :: maxLayers,maxSnowLayers           ! maximum number of layers and snow layers, could be different for different GRUs
-     integer(i4b)                       :: maxLakeLayers,maxGlceLayers,maxSoilLayers ! maximum number of lake, glacier, and soil layers
+     integer(i4b)                       :: maxLakeLayers,maxGlceLayers,maxSoilLayers ! maximum number of lake, soil, and glce layers
      integer(i4b)                       :: maxGlaciers,maxWetlands           ! maximum number of glaciers and wetlands, could be different for different GRUs
      integer(i4b)                       :: maxGrid,maxGridX,maxGridY         ! maximum grids and grid dimensions, could be different for different GRUs
      integer(i4b)                       :: ixProgress                        ! define frequency to write progress

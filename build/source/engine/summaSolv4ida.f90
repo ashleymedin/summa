@@ -849,7 +849,7 @@ subroutine find_rootdir(eqns_data,rootdir)
     else 
       i = j + nSoil
     endif
-    ! identify the critical point when the snow lake ice layer begins to freeze
+    ! identify the critical point when the snow lake glce layer begins to freeze
     if(eqns_data%indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat(i)/=integerMissing)then
       ind = ind+1
       rootdir(ind) = 1
@@ -954,7 +954,7 @@ integer(c_int) function layerDisCont4ida(t, sunvec_u, sunvec_up, gout, user_data
     else 
       i = j + nSoil
     endif
-    ! identify the critical point when the snow lake ice layer begins to freeze
+    ! identify the critical point when the snow lake glce layer begins to freeze
     if(eqns_data%indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat(i)/=integerMissing)then
       ind = ind+1
       if(enthalpyStateVec)then

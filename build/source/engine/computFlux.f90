@@ -647,8 +647,8 @@ contains
   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
   associate(&
    noThetaChange               => indx_data%var(iLookINDEX%noThetaChange)%dat(1),              & ! intent(in):    [int] number of layers with no change in total water content (bottom layers)
-   mLayerLiqFluxSnLaGl         => flux_data%var(iLookFLUX%mLayerLiqFluxSnLaGl)%dat,            & ! intent(out):   [dp] net liquid water flux for each snow lake ice layer (s-1)
-   iLayerLiqFluxSnLaGl         => flux_data%var(iLookFLUX%iLayerLiqFluxSnLaGl)%dat,            & ! intent(in):    [dp(0:)] vertical liquid water flux at snow lake ice layer interfaces (-)
+   mLayerLiqFluxSnLaGl         => flux_data%var(iLookFLUX%mLayerLiqFluxSnLaGl)%dat,            & ! intent(out):   [dp] net liquid water flux for each snow lake glce layer (s-1)
+   iLayerLiqFluxSnLaGl         => flux_data%var(iLookFLUX%iLayerLiqFluxSnLaGl)%dat,            & ! intent(in):    [dp(0:)] vertical liquid water flux at snow lake glce layer interfaces (-)
    iLayerLiqFluxSnLaGlDeriv    => deriv_data%var(iLookDERIV%iLayerLiqFluxSnLaGlDeriv)%dat,     & ! intent(inout): [dp(:)] derivative in vertical liquid water flux at layer interfaces
    scalarSurfaceIceMelt        => flux_data%var(iLookFLUX%scalarSurfaceIceMelt)%dat(1),        & ! intent(out):   [dp] liquid water flux at the top of the glacier ice layer (m s-1)
    scalarSurfaceIceMeltDeriv   => deriv_data%var(iLookDERIV%scalarSurfaceIceMeltDeriv)%dat(1), & ! intent(out):   [dp] derivative in liquid water flux at the top of the glacier ice layer (s-1)

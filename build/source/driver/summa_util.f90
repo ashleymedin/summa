@@ -351,7 +351,7 @@ contains
  USE globalData,only: elapsedRead                      ! elapsed time for the data read
  USE globalData,only: elapsedWrite                     ! elapsed time for the stats/write
  USE globalData,only: elapsedPhysics                   ! elapsed time for the physics
- USE globalData,only: elapsedUpdateArea                ! elapsed time for updating glacier and lake area
+ USE globalData,only: elapsedUpdateArea                ! elapsed time for updating glacier and wetland area
  implicit none
  ! define dummy variables
  integer(i4b),intent(in)            :: err             ! error code
@@ -404,7 +404,7 @@ contains
  write(outunit,"(/,A,1PG15.7,A)")                                          '     elapsed physics = ', elapsedPhysics,        ' s'
  write(outunit,"(A,1PG15.7)")                                              '    fraction physics = ', elapsedPhysics/elpSec
 
- ! print elapsed time for updating glacier and lake area
+ ! print elapsed time for updating glacier and wetland area
  write(outunit,"(/,A,1PG15.7,A)")                                          ' elapsed update area = ', elapsedUpdateArea,     ' s'
  write(outunit,"(A,1PG15.7)")                                              'fraction update area = ', elapsedUpdateArea/elpSec
 

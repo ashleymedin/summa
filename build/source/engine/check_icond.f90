@@ -30,13 +30,13 @@ USE globalData,only:maxVolIceContent ! snow maximum volumetric ice content to st
 USE globalData,only:verySmall        ! a small number
 
 ! access domain types
-USE globalData,only:upland          ! domain type for upland areas
-USE globalData,only:glacCln1        ! first domain type for glacier clean areas
-USE globalData,only:glacCln2        ! second domain type for glacier clean areas
-USE globalData,only:glacDbr         ! domain type for glacier debris areas
-USE globalData,only:wetland         ! domain type for wetland areas
+USE globalData,only:upland           ! horizontal domain type for upland areas
+USE globalData,only:glacCln1         ! first horizontal domain type for glacier clean areas
+USE globalData,only:glacCln2         ! second horizontal domain type for glacier clean areas
+USE globalData,only:glacDbr          ! horizontal domain type for glacier debris areas
+USE globalData,only:wetland          ! horizontal domain type for wetland areas
 
-USE globalData,only:icefrz_mult     ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
+USE globalData,only:icefrz_mult      ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
 
 implicit none
 private

@@ -40,11 +40,11 @@ USE globalData,only:greenVegFrac_monthly   ! fraction of green vegetation in eac
 USE globalData,only:overwriteRSMIN         ! flag to overwrite RSMIN
 
 ! access domain types
-USE globalData,only:upland                 ! domain type for upland areas
-USE globalData,only:glacCln1               ! first domain type for glacier clean areas
-USE globalData,only:glacCln2               ! second domain type for glacier clean areas
-USE globalData,only:glacDbr                ! domain type for glacier debris areas
-USE globalData,only:wetland                ! domain type for wetland areas
+USE globalData,only:upland                 ! horizontal domain type for upland areas
+USE globalData,only:glacCln1               ! first horizontal domain type for glacier clean areas
+USE globalData,only:glacCln2               ! second horizontal domain type for glacier clean areas
+USE globalData,only:glacDbr                ! horizontal domain type for glacier debris areas
+USE globalData,only:wetland                ! horizontal domain type for wetland areas
 
 ! provide access to Noah-MP constants
 USE module_sf_noahmplsm,only:isWater       ! parameter for water land cover type

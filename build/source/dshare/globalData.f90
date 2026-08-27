@@ -222,12 +222,12 @@ MODULE globalData
   integer(i4b),save,public                         :: nLakeIceLayers_poss=1             ! number of ice layers in a lake that can accumulate 
   integer(i4b),save,public                         :: nMeltingIceLayers=1               ! number of glacier ice layers that can have a change in total water content 
   real(rkind),save,public                          :: thick4area=0.1                    ! an arbitrary small threshold for glacier thickness to be considered as glacier area (m)
-  ! define variables used for domain type          
+  ! define variables used for horizontal domain type          
   integer(i4b),save,public                         :: upland=1                          ! upland domain
   integer(i4b),save,public                         :: glacCln1=2                        ! glacier clean first domain
   integer(i4b),save,public                         :: glacCln2=3                        ! glacier clean second domain
   integer(i4b),save,public                         :: glacDbr=4                         ! glacier debris domain
-  integer(i4b),save,public                         :: wetland=5                         ! wetland/lake domain
+  integer(i4b),save,public                         :: wetland=5                         ! wetland domain
   ! define the model output file
   character(len=256),save,public                   :: fileout=''                        ! output filename
   character(len=256),save,public                   :: output_fileSuffix=''              ! suffix for the output file
@@ -293,7 +293,7 @@ MODULE globalData
   real(rkind),save,public                          :: elapsedRead                       ! elapsed time for the data read
   real(rkind),save,public                          :: elapsedWrite                      ! elapsed time for the stats/write
   real(rkind),save,public                          :: elapsedPhysics                    ! elapsed time for the physics
-  real(rkind),save,public                          :: elapsedUpdateArea                 ! elapsed time for updating glacier and lake area
+  real(rkind),save,public                          :: elapsedUpdateArea                 ! elapsed time for updating glacier and wetland area
   ! define ancillary data structures
   type(var_i),save,public                          :: startTime                         ! start time for the model simulation
   type(var_i),save,public                          :: finshTime                         ! end time for the model simulation
