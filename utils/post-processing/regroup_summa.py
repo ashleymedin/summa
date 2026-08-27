@@ -1,10 +1,9 @@
-# concatenate the outputs of a split domain summa run into fewer groups
-# written originally by Manab Saharia, updated by Hongli Liu and Andy Wood, and W. Knoben
-# modified by A. Van Beusekom (2023)
-#   Best to comment out parallel processing lines and run that way on Graham or for full dataset
+# regroup summa runs output into different group size
+# written by A. Van Beusekom (2025)
 
 # Run:
-# python concat_groups_split_summa.py sundials_1en8
+# python regroup_summa.py sundials_1en8
+# or python regroup_summa.py sundials_1en8 $SLURM_ARRAY_TASK_ID
 
 import os
 from glob import glob
@@ -12,46 +11,48 @@ import netCDF4 as nc
 import numpy as np
 import sys
 
-catby_num   = 2 #number of files to cat into one, if had to divide runs from regular batches into sub-batches to finish in 7 days
+# number of groups to divide the output into
+num_groups = 65
+gru_num = 517315  # Number of GRUs 
 
-missing = False # if appending nan hrus to batch because failed
-missgru = 72055933 # batch 205 summa-be32 value
+missing = False  # if appending nan hrus to batch because failed
+missgru = 72055933  # batch 205 summa-be32 value
 misshru = missgru  # could be different
 
-run_batch = False # run by batch
+run_batch = True # run by batch
 if run_batch:
-    top_fold    = '/home/avanb/scratch/'
+    top_fold = '/project/k/kshook/avanb/enthalpy_paper/runs/'
+    job_index = int(sys.argv[2])  # Job array index
 else: # run with python parallel processing
     import multiprocessing as mp
-    top_fold    = '/home/avanb/scratch/'
+    top_fold = '/project/k/kshook/avanb/enthalpy_paper/runs/'
 
-method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en8 or be64)
-ncdir        = top_fold + 'summa-' + method_name + '_nocat'
-file_pattern = 'run1__G*_timestep.nc'
-ctdir        = top_fold + 'summa-' + method_name
+method_name = sys.argv[1]  # sys.argv values are strings by default so this is fine (sundials_1en8 or be64)
+ncdir = top_fold + 'summa-' + method_name + '_nocat'
+file_pattern = 'run1_G*_timestep.nc'
+ctdir = top_fold + 'summa-' + method_name
 
-# get list of split summa output files (hardwired pattern)
-outfilelist0 = glob((ncdir+'/'+file_pattern))
+# Get list of split summa output files (hardwired pattern)
+outfilelist0 = glob((ncdir + '/' + file_pattern))
 outfilelist0.sort()
 
+# Variables to exclude
+exclude_vars = [
+    'scalarCanopyWat', 'scalarSWE', 'balanceCasNrg', 'balanceVegNrg', 
+    'balanceSnowNrg', 'balanceVegMass', 'balanceSnowMass', 'balanceSoilMass', 
+    'balanceAqMass', 'scalarTotalET'
+]
+
 # -- functions
-def get_stat(g,catby_num,outfilelist0,ctdir):
-    outfilelist = outfilelist0[(catby_num*g):(catby_num*(g+1))]
-    gru_num = 0
-    hru_num = 0
-    subset0 = outfilelist[0].split('/')[-1].split('_')[-2]
-    subset1 = outfilelist[-1].split('/')[-1].split('_')[-2]
-    out_name = 'run1__'+subset0[0:7]+subset1[7:14]+'_timestep.nc' # will fail if GRU numbers are more than 6 digits
+def concatenate_files_in_range(outfilelist0, ctdir, start_gru, end_gru):
+    out_name = f'run1__G{start_gru:06d}-{end_gru:06d}_timestep.nc'
+    filtered_files = [file for file in outfilelist0 if int(file.split('/')[-1].split('_')[1][1:7]) <= end_gru and int(file.split('/')[-1].split('_')[1][8:14]) >= start_gru]
+    gru_num = end_gru - start_gru + 1
+    hru_num = end_gru - start_gru + 1
 
-    for file in outfilelist:
-        f = nc.Dataset(file)
-        gru_num = gru_num+len(f.dimensions['gru'])
-        hru_num = hru_num+len(f.dimensions['hru'])
-        # extract the subset IDs
-
-        # write output
-    with nc.Dataset(outfilelist[0]) as src:
-        with nc.Dataset(ctdir+'/'+out_name, "w") as dst:
+    # Write output
+    with nc.Dataset(filtered_files[0]) as src:
+        with nc.Dataset(ctdir + '/' + out_name, "w") as dst:
             # copy dimensions
             for name, dimension in src.dimensions.items():
                 if name == 'gru':
@@ -65,10 +66,11 @@ def get_stat(g,catby_num,outfilelist0,ctdir):
             gru_vars = [] # variable name, gru axis in variable dimension for concatenation.
             hru_vars = []
             for name, variable in src.variables.items():
+                if name in exclude_vars:
+                    continue
                 x = dst.createVariable(name, variable.datatype, variable.dimensions)
                 dst[name].setncatts(src[name].__dict__)
-                # Note here the variable dimension name is the same, but size has been updated for gru and hru.
-
+    
                 # Assign different values depending on dimension
                 dims = variable.dimensions
                 if 'gru' in dims:
@@ -82,15 +84,24 @@ def get_stat(g,catby_num,outfilelist0,ctdir):
             Dict = {}
             gru_vars_num = len(gru_vars)
             hru_vars_num = len(hru_vars)
-            for i,file in enumerate(outfilelist):
+            for i, file in enumerate(filtered_files):
+                start_file = int(file.split('/')[-1].split('_')[1][1:7])
+                end_file = int(file.split('/')[-1].split('_')[1][8:14])
+                start = 0
+                end = None
+                if i==0: start = start_gru-start_file
+                if i==len(filtered_files)-1: end = end_gru - end_file
+                if end == 0: end = None
 
                 print("combining file %d %s" % (i,file))
-                # f = nc.Dataset(os.path.join(ncdir, file))
                 f = nc.Dataset(file)
                 for j in range(gru_vars_num):
                     gru_var_name = gru_vars[j][0]
                     dim_index = gru_vars[j][1]
                     data=f[gru_var_name][:]
+                    slices = [slice(None)] * data.ndim
+                    slices[dim_index] = slice(start, end)
+                    data = data[tuple(slices)]
                     if i == 0:
                         Dict[gru_var_name]=data
                     else:
@@ -100,6 +111,9 @@ def get_stat(g,catby_num,outfilelist0,ctdir):
                     hru_var_name = hru_vars[j][0]
                     dim_index = hru_vars[j][1]
                     data=f[hru_var_name][:]
+                    slices = [slice(None)] * data.ndim
+                    slices[dim_index] = slice(start, end)
+                    data = data[tuple(slices)]
                     if i == 0:
                         Dict[hru_var_name]=data
                     else:
@@ -113,40 +127,34 @@ def get_stat(g,catby_num,outfilelist0,ctdir):
 
             #if missing HRUs, this is slow or broken
             if missing:
-                new_index = np.append(dst["gru"].values,missgru)
+                new_index = np.append(dst["gru"][:],missgru)
                 dst.reindex({"gru": new_index})
                 dst.sel(gru=missgru)["gruId"] = missgru
 
-                new_index = np.append(dst["hru"].values,misshru)
+                new_index = np.append(dst["hru"][:],misshru)
                 dst.reindex({"hru": new_index})
                 dst.sel(gru=misshru)["hruId"] = misshru
 
-            # Temporarily create gruId from hruId
-            #if gru_num == hru_num:
-            #    gruId = dst.createVariable('gruId', dst['hruId'].datatype, ('gru',))
-            #    gruId.long_name = "ID of group of response unit (GRU)"
-            #    gruId.units = dst['hruId'].units
-            #    dst.variables['gruId'][:] = dst.variables['hruId'][:]
-            #else:
-            #    print('Warning: gruId variable cannot be created since it has different size from hruId')
+        print("wrote output: %s" % (ctdir + '/' + out_name))
 
-        print("wrote output: %s" % (ctdir+'/'+out_name))
+    return out_name
 
-    return #nothing
 # -- end functions
+
+def process_group(g):
+    size_g = int(np.ceil(gru_num / num_groups))
+    start_gru = g * size_g + 1
+    end_gru = min((g + 1) * size_g, gru_num)
+    concatenate_files_in_range(outfilelist0, ctdir, start_gru, end_gru)
 
 if run_batch:
     # -- no parallel processing
-    for g in range(0,int(len(outfilelist0)/catby_num)):
-        get_stat(g,catby_num,outfilelist0,ctdir)
+    process_group(job_index)
 else:
     # -- start parallel processing
     ncpus = int(os.environ.get('SLURM_CPUS_PER_TASK',default=1))
     if __name__ == "__main__":
         pool = mp.Pool(processes=ncpus)
-        results = [pool.apply_async(get_stat, args=(g,catby_num,outfilelist0,ctdir)) for g in range(0,int(len(outfilelist0)/catby_num))]
+        results = [pool.apply_async(process_group, args=(g,)) for g in range(num_groups)]
         dojob = [p.get() for p in results]
         pool.close()
-    # -- end parallel processing
-
-

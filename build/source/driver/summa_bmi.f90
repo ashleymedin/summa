@@ -53,8 +53,7 @@ module summabmi
   USE summa_util, only: stop_program                          ! used to stop the summa program (with errors)
   USE summa_util, only: handle_err                            ! used to process errors
   ! global data
-  USE globalData, only: numtim                                ! number of model time steps
-  USE globalData, only: print_step_freq
+  USE globalData, only: print_step_freq                       ! frequency of printing model output
   USE globalData, only: dJulianStart                          ! julian day of start time of simulation
   USE globalData, only: dJulianFinsh                          ! julian day of end time of simulation
   USE globalData, only: data_step                             ! length of time steps for the outermost timeloop
@@ -66,7 +65,8 @@ module summabmi
   USE globalData, only: fileout, output_fileSuffix            ! output filename and suffix
   USE globalData, only: outFreq                               ! output frequency flags
   USE globalData, only: ncid                                  ! netcdf output file id
-  USE globalData, only: maxLayers,maxSnowLayers,maxSoilLayers ! maximum number of layers and snow soil layers
+  USE globalData, only: maxLayers,maxSnowLayers,maxLakeLayers,maxGlceLayers,maxSoilLayers ! maximum number of layers
+  USE globalData, only: maxGlaciers,maxWetlands,maxGrid,maxGridX,maxGridY ! maximum grids and grid dimensions
   USE globalData, only: ixProgress                            ! define frequency to write progress
   USE globalData, only: ixRestart                             ! define frequency to write restart files
   USE globalData, only: newOutputFile                         ! define option for new output files
@@ -112,7 +112,10 @@ module summabmi
      character(len=256)                 :: fileout, output_fileSuffix        ! output filename and suffix
      logical(lgt),dimension(maxvarFreq) :: outFreq                           ! true if the output frequency is desired
      integer(i4b),dimension(maxvarFreq) :: ncid                              ! netcdf output file id
-     integer(i4b)                       :: maxLayers,maxSnowLayers,maxSoilLayers ! maximum number of layers and snow soil layers, could be different for different GRUs
+     integer(i4b)                       :: maxLayers,maxSnowLayers           ! maximum number of layers and snow layers, could be different for different GRUs
+     integer(i4b)                       :: maxLakeLayers,maxGlceLayers,maxSoilLayers ! maximum number of lake, soil, and glce layers
+     integer(i4b)                       :: maxGlaciers,maxWetlands           ! maximum number of glaciers and wetlands, could be different for different GRUs
+     integer(i4b)                       :: maxGrid,maxGridX,maxGridY         ! maximum grids and grid dimensions, could be different for different GRUs
      integer(i4b)                       :: ixProgress                        ! define frequency to write progress
      integer(i4b)                       :: ixRestart                         ! define frequency to write restart files
      integer(i4b)                       :: newOutputFile                     ! define option for new output files
@@ -317,7 +320,14 @@ module summabmi
      this%model%output_fileSuffix = output_fileSuffix
      this%model%maxLayers = maxLayers
      this%model%maxSnowLayers = maxSnowLayers
+     this%model%maxLakeLayers = maxLakeLayers
+     this%model%maxGlceLayers = maxGlceLayers
      this%model%maxSoilLayers = maxSoilLayers
+     this%model%maxGlaciers = maxGlaciers
+     this%model%maxWetlands = maxWetlands
+     this%model%maxGrid = maxGrid
+     this%model%maxGridX = maxGridX
+     this%model%maxGridY = maxGridY
      this%model%urbanVegCategory = urbanVegCategory
      this%model%ixProgress = ixProgress
      this%model%ixRestart = ixRestart
@@ -1305,9 +1315,9 @@ module summabmi
      integer ::  iGRU, jHRU, i
 
      summaVars: associate(&
-      timeStruct           => this%model%summa1_struc(n)%timeStruct  , & ! x%var(:)                   -- model time data
-      forcStruct           => this%model%summa1_struc(n)%forcStruct  , & ! x%gru(:)%hru(:)%var(:)     -- model forcing data
-      diagStruct           => this%model%summa1_struc(n)%diagStruct    & ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
+      timeStruct           => this%model%summa1_struc(n)%timeStruct  , & ! x%var(:)                          -- model time data
+      forcStruct           => this%model%summa1_struc(n)%forcStruct  , & ! x%gru(:)%hru(:)%var(:)            -- model forcing data
+      diagStruct           => this%model%summa1_struc(n)%diagStruct    & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model diagnostic variables
       )
 
       if(name(1:5)=='model')then ! not currently used, left in for future integer type needs
@@ -1321,7 +1331,7 @@ module summabmi
           do jHRU = 1, gru_struc(iGRU)%hruCount
             i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
             select case (name)
-            ! input
+            ! input is same for all domains (for now)
             case('atmosphere_water__precipitation_mass_flux')
               forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%pptrate) = src_arr(i)
             case('land_surface_air__temperature')
@@ -1329,9 +1339,9 @@ module summabmi
             case('atmosphere_air_water~vapor__relative_saturation')
               forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%spechum) = src_arr(i)
             case('land_surface_wind__x_component_of_velocity')
-              diagStruct%gru(iGRU)%hru(jHRU)%var(iLookDIAG%windspd_x)%dat(1) = src_arr(i)
+              diagStruct%gru(iGRU)%hru(jHRU)%dom(:)%var(iLookDIAG%windspd_x)%dat(1) = src_arr(i) ! same for all domains for now
             case('land_surface_wind__y_component_of_velocity')
-              diagStruct%gru(iGRU)%hru(jHRU)%var(iLookDIAG%windspd_y)%dat(1) = src_arr(i)
+              diagStruct%gru(iGRU)%hru(jHRU)%dom(:)%var(iLookDIAG%windspd_y)%dat(1) = src_arr(i) ! same for all domains for now
             case('land_surface_wind__speed')
               forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%windspd) = src_arr(i)
             case('land_surface_radiation~incoming~shortwave__energy_flux')
@@ -1355,15 +1365,16 @@ module summabmi
      character (len=*), intent(in) :: name
      real, target, intent(out)    :: target_arr(sum(gru_struc(:)%hruCount))
      integer, target, intent(out) :: itarget_arr
-     integer ::  iGRU, jHRU, i
+     integer ::  iGRU, jHRU, i, iDOM
+     real :: fracDOM
 
      summaVars: associate(&
-      timeStruct           => this%model%summa1_struc(n)%timeStruct  , & ! x%var(:)                   -- model time data
-      forcStruct           => this%model%summa1_struc(n)%forcStruct  , & ! x%gru(:)%hru(:)%var(:)     -- model forcing data
-      progStruct           => this%model%summa1_struc(n)%progStruct  , & ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
-      diagStruct           => this%model%summa1_struc(n)%diagStruct  , & ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
-      fluxStruct           => this%model%summa1_struc(n)%fluxStruct  , & ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
-      bvarStruct           => this%model%summa1_struc(n)%bvarStruct    & ! x%gru(:)%var(:)%dat        -- model basin (GRU) variables
+      timeStruct           => this%model%summa1_struc(n)%timeStruct  , & ! x%var(:)                          -- model time data
+      forcStruct           => this%model%summa1_struc(n)%forcStruct  , & ! x%gru(:)%hru(:)%var(:)            -- model forcing data
+      progStruct           => this%model%summa1_struc(n)%progStruct  , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model prognostic (state) variables
+      diagStruct           => this%model%summa1_struc(n)%diagStruct  , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model diagnostic variables
+      fluxStruct           => this%model%summa1_struc(n)%fluxStruct  , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model fluxes
+      bvarStruct           => this%model%summa1_struc(n)%bvarStruct    & ! x%gru(:)%var(:)%dat               -- model basin (GRU) variables
       )
       target_arr = -999.0
       itarget_arr = -999
@@ -1378,62 +1389,67 @@ module summabmi
           do jHRU = 1, gru_struc(iGRU)%hruCount
             i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
             if (i > do_nHRU) return
-            select case (name)
-            ! input
-            case('atmosphere_water__precipitation_mass_flux')
-              target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%pptrate)
-            case('land_surface_air__temperature')
-              target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airtemp)
-            case('atmosphere_air_water~vapor__relative_saturation')
-              target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%spechum)
-            case('land_surface_wind__x_component_of_velocity')
-              target_arr(i) = diagStruct%gru(iGRU)%hru(jHRU)%var(iLookDIAG%windspd_x)%dat(1)
-            case('land_surface_wind__y_component_of_velocity')
-              target_arr(i) = diagStruct%gru(iGRU)%hru(jHRU)%var(iLookDIAG%windspd_y)%dat(1)
-            case('land_surface_wind__speed')
-              target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%windspd)
-            case('land_surface_radiation~incoming~shortwave__energy_flux')
-              target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%SWRadAtm)
-            case('land_surface_radiation~incoming~longwave__energy_flux')
-              target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%LWRadAtm)
-            case('land_surface_air__pressure')
-              target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airpres)
+            target_arr(i) = 0._rkind
+            do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
+              fracDOM = progStruct%hru(jHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)/ bvarStruct%var(iLookBVAR%basin__totalArea)%dat(1)
 
-            ! output
-            case('land_surface_water__runoff_volume_flux')
-              target_arr(i) = bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoff)%dat(1)
-              !target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)
-            case('land_surface_water__evaporation_mass_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarGroundEvaporation)%dat(1)
-            case('land_vegetation_water__evaporation_mass_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)
-            case('land_vegetation_water__transpiration_mass_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanopyTranspiration)%dat(1)
-            case('snowpack__sublimation_mass_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarSnowSublimation)%dat(1)
-            case('land_vegetation_water__sublimation_mass_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanopySublimation)%dat(1)
-            case('snowpack_mass')
-              target_arr(i) = progStruct%gru(iGRU)%hru(jHRU)%var(iLookPROG%scalarSWE)%dat(1)
-            case('soil_water__mass')
-              target_arr(i) = diagStruct%gru(iGRU)%hru(jHRU)%var(iLookDIAG%scalarTotalSoilWat)%dat(1)
-            case('land_vegetation_water__mass')
-              target_arr(i) = progStruct%gru(iGRU)%hru(jHRU)%var(iLookPROG%scalarCanopyWat)%dat(1)
-            case('land_surface_radiation~net~total__energy_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarNetRadiation)%dat(1)
-            case('land_atmosphere_heat~net~latent__energy_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarLatHeatTotal)%dat(1)
-            case('land_atmosphere_heat~net~sensible__energy_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarSenHeatTotal)%dat(1)
-            case('atmosphere_energy~net~total__energy_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanairNetNrgFlux)%dat(1)
-            case('land_vegetation_energy~net~total__energy_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanopyNetNrgFlux)%dat(1)
-            case('land_surface_energy~net~total__energy_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarGroundNetNrgFlux)%dat(1)
-            case('land_surface_water__baseflow_volume_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1)
-            end select
+              select case (name)
+              ! input is same for all domains (for now)
+              case('atmosphere_water__precipitation_mass_flux')
+                target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%pptrate); exit
+              case('land_surface_air__temperature')
+                target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airtemp); exit
+              case('atmosphere_air_water~vapor__relative_saturation')
+                target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%spechum); exit
+              case('land_surface_wind__x_component_of_velocity')
+                target_arr(i) = diagStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookDIAG%windspd_x)%dat(1); exit ! same for all domains for now
+              case('land_surface_wind__y_component_of_velocity')
+                target_arr(i) = diagStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookDIAG%windspd_y)%dat(1); exit ! same for all domains for now
+              case('land_surface_wind__speed')
+                target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%windspd); exit
+              case('land_surface_radiation~incoming~shortwave__energy_flux')
+                target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%SWRadAtm); exit
+              case('land_surface_radiation~incoming~longwave__energy_flux')
+                target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%LWRadAtm); exit
+              case('land_surface_air__pressure')
+                target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airpres); exit
+
+              ! output is averaged over domains
+              case('land_surface_water__runoff_volume_flux')
+                target_arr(i) = bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoff)%dat(1); exit
+                !target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1) * fracDOM
+              case('land_surface_water__evaporation_mass_flux')
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(:)%var(iLookFLUX%scalarGroundEvaporation)%dat(1) * fracDOM
+              case('land_vegetation_water__evaporation_mass_flux')
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) * fracDOM
+              case('land_vegetation_water__transpiration_mass_flux')
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarCanopyTranspiration)%dat(1) * fracDOM
+              case('snowpack__sublimation_mass_flux')
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarGroundSublimation)%dat(1) * fracDOM
+              case('land_vegetation_water__sublimation_mass_flux')
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarCanopySublimation)%dat(1) * fracDOM
+              case('snowpack_mass')
+                target_arr(i) = target_arr(i) + progStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookPROG%scalarSWE)%dat(1) * fracDOM
+              case('soil_water__mass')
+                target_arr(i) = target_arr(i) + diagStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookDIAG%scalarTotalSoilWat)%dat(1) * fracDOM
+              case('land_vegetation_water__mass')
+                target_arr(i) = target_arr(i) + progStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookPROG%scalarCanopyWat)%dat(1) * fracDOM
+              case('land_surface_radiation~net~total__energy_flux')
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarNetRadiation)%dat(1) * fracDOM
+              case('land_atmosphere_heat~net~latent__energy_flux')
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarLatHeatTotal)%dat(1) * fracDOM
+              case('land_atmosphere_heat~net~sensible__energy_flux')
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarSenHeatTotal)%dat(1) * fracDOM
+              case('atmosphere_energy~net~total__energy_flux')
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarCanairNetNrgFlux)%dat(1) * fracDOM
+              case('land_vegetation_energy~net~total__energy_flux')
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarCanopyNetNrgFlux)%dat(1) * fracDOM
+              case('land_surface_energy~net~total__energy_flux')
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarGroundNetNrgFlux)%dat(1) * fracDOM
+              case('land_surface_water__baseflow_volume_flux')
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) * fracDOM
+              end select
+            end do
           end do
         end do
       endif

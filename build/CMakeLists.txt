@@ -184,7 +184,6 @@ if (USE_OPENWQ)
     list(APPEND EXT_TARGETS openWQ)
 endif ()
 
-
 # Define version number
 set(VERSIONFILE     ${DRIVER_DIR}/summaversion.inc)
 execute_process(

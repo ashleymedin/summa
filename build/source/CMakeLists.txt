@@ -13,7 +13,7 @@ set(NOAHMP
 
 # Free versions of numerical recipes utilities for NOAH-MP modules
 set(NRUTIL
-    ${NUMREC_DIR}/f2008funcs.f90
+    ${NUMREC_DIR}/f2008_funcs.f90
     ${NUMREC_DIR}/nr_utils.f90
     ${NUMREC_DIR}/nr_type.f90
     CACHE INTERNAL "NRUTIL")
@@ -96,7 +96,7 @@ set(MODRUN
     ${ENGINE_DIR}/layerDivide.f90
     ${ENGINE_DIR}/qTimeDelay.f90
     ${ENGINE_DIR}/read_force.f90
-    ${ENGINE_DIR}/snowAlbedo.f90
+    ${ENGINE_DIR}/snowLakeGlceAlbedo.f90
     ${ENGINE_DIR}/tempAdjust.f90
     ${ENGINE_DIR}/updatDiagn.f90
     ${ENGINE_DIR}/var_derive.f90
@@ -114,17 +114,18 @@ set(SOLVER
     ${ENGINE_DIR}/heat_Cp_Cm.f90
     ${ENGINE_DIR}/computJacob.f90
     ${ENGINE_DIR}/computResid.f90
-    ${ENGINE_DIR}/snowDepth.f90
+    ${ENGINE_DIR}/snowGlceDepth.f90
     ${ENGINE_DIR}/thermConductivity.f90
     ${ENGINE_DIR}/coupled_em.f90
     ${ENGINE_DIR}/eval8summa.f90
     ${ENGINE_DIR}/groundwatr.f90
+    ${ENGINE_DIR}/glacAreaChange.f90
     ${ENGINE_DIR}/opSplittin.f90
     ${ENGINE_DIR}/run_oneGRU.f90
     ${ENGINE_DIR}/run_oneHRU.f90
-    ${ENGINE_DIR}/snowLiqFlux.f90
+    ${ENGINE_DIR}/snowLakeGlceLiqFlux.f90
     ${ENGINE_DIR}/soilLiqFlux.f90
-    ${ENGINE_DIR}/snowSoilNrgFlux.f90
+    ${ENGINE_DIR}/snowLakeSoilGlceNrgFlux.f90
     ${ENGINE_DIR}/stomResist.f90
     ${ENGINE_DIR}/summaSolv4homegrown.f90
     ${ENGINE_DIR}/systemSolv.f90

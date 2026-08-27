@@ -182,6 +182,7 @@ subroutine mDecisions(err,message)
   USE multiconst,only:secprday               ! number of seconds in a day
   USE var_lookup,only:iLookTIME              ! named variables that identify indices in the time structures
   USE globalData,only:refTime,refJulDay      ! reference time
+  USE globalData,only:realMissing            ! missing value for real numbers
   USE globalData,only:oldTime                ! time from the previous time step
   USE globalData,only:startTime,finshTime    ! start/end time of simulation
   USE globalData,only:dJulianStart           ! julian day of start time of simulation
@@ -435,9 +436,9 @@ subroutine mDecisions(err,message)
   ! for backward Euler solution, enthalpyFormAN has better coincidence of energy conservation
   ! in IDA solution, enthalpyFormAN makes the state variables to be enthalpy and the residual is computed in enthalpy space
   select case(trim(model_decisions(iLookDECISIONS%nrgConserv)%cDecision))
-    case('closedForm'    ); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = closedForm       ! use temperature with closed form heat capacity
-    case('enthalpyForm'); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = enthalpyForm       ! use enthalpy with soil temperature-enthalpy lookup tables
-    case('enthalpyFormAN'  ); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = enthalpyFormAN ! use enthalpy with soil temperature-enthalpy analytical solution
+    case('closedForm'    ); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = closedForm     ! use temperature with closed form heat capacity
+    case('enthalpyForm'  ); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = enthalpyForm   ! use enthalpy with soil temperature-enthalpy lookup tables
+    case('enthalpyFormAN'); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = enthalpyFormAN ! use enthalpy with soil temperature-enthalpy analytical solution
     case default
       if (trim(model_decisions(iLookDECISIONS%num_method)%cDecision)=='itertive')then
         model_decisions(iLookDECISIONS%nrgConserv)%iDecision = closedForm ! included for backwards compatibility

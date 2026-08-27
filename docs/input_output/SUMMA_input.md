@@ -178,9 +178,10 @@ The output control file is an [ASCII file](#infile_format_ASCII) that specifies 
 
 SUMMA is pretty flexible in its output. There are many variables that you can output and for most of them you can also choose to record summary statistics. For example, you can configure the model to run with meteorological forcings that are defined every hour, but only save summary output with a daily time step. This flexibility comes at the small price that you need to be clear in specifying what output you want.
 
-The output control file includes a listing of model variables that you would like to store, with one model variable per line. The variables that are available for output are the individual entries in the data structures specified in `build/source/dshare/popMetadat.f90`. Because there are many, there is not much point in repeating them here, but we direct the user to the model code. Any of the variables specified in the following structures can be specified in the output control file: the time-varying variables in `forc`, `prog`, `diag`, `flux`, `bvar`; the time-constant parameters in `bpar`, `attr`, `type`, and `mpar`; and the timestep variables of `time` and `indx`. SUMMA will print an warning message if a specific variable cannot be outputted, so the faster way may be to select any variable in `build/source/dshare/popMetadat.f90` and remove it if it is not available for output. At this time, `deriv`,and `lookup` structure variables are not available for output, as well as any variables of type `unknown`. The `id` structure variables of `gruId` and `hruId` will always be outputted for variable identification purposes, but no other `id` variables will be outputted.
+The output control file includes a listing of model variables that you would like to store, with one model variable per line. The variables that are available for output are the individual entries in the data structures specified in `build/source/dshare/popMetadat.f90`. Because there are many, there is not much point in repeating them here, but we direct the user to the model code. Any of the variables specified in the following structures can be specified in the output control file: the time-varying variables in `forc`, `prog`, `diag`, `flux`, `bvar`; the time-constant parameters in `bpar`, `attr`, `type`, and `mpar`; and the timestep variables of `time` and `indx`. SUMMA will print an warning message if a specific variable cannot be outputted, so the faster way may be to select any variable in `build/source/dshare/popMetadat.f90` and remove it if it is not available for output. At this time, `deriv`,and `lookup` structure variables are not available for output, as well as any variables of type `unknown`. The `id` structure variables of `gruId` and `hruId` will always be outputted for variable identification purposes, but no other `id` variables will be outputted. The `grid` structure variables are available for output, with the time-varying grid variables following the guidance of the other non-scalar time-varying variables, the time-constant grid parameters following the guidance of the other time-constant parameters, and the ID grid variables not outputted.
 
-At a minimum, for any time-varying variable (in `forc`, `prog`, `diag`, `flux`, or `bvar`), each line in the output control file will contain two fields, separated by a `|`. The first field will be the variable name as specified in `build/source/dshare/popMetadat.f90` (case-sensitive). The second field will be the frequency of the model output specified as timestep, day, month, or annual. The `timestep` choice can also be inputted as `1`, and the `day` choice can also be inputted as `24`, regardless if the of the length of the actual timestep (i.e. a 30 minute timestep would still be `1` with the day being `24`). Note that for every variable you can specify multiple frequencies but you need to add a new line in the output control for each frequency. For example to output `scalarSenHeatTotal` at the timestep, day, and annual, you would input:
+At a minimum, for any time-varying variable (in `forc`, `prog`, `diag`, `flux`, `bvar`, or some in `grid`), each line in the output control file will contain two fields, separated by a `|`. The first field will be the variable name as specified in `build/source/dshare/popMetadat.f90` (case-sensitive). The second field will be the frequency of the model output specified as timestep, day, month, or annual. The `timestep` choice can also be inputted as `1`, and the `day` choice can also be inputted as `24`, regardless if the of the length of the actual timestep (i.e. a 30 minute timestep would still be `1` with the day being `24`). Note that for every variable you can specify multiple frequencies but you need to add a new line in the output control for each frequency. For example to output `scalarSenHeatTotal` at the timestep, 
+day, and annual, you would input:
 ```
 scalarSenHeatTotal | 1
 scalarSenHeatTotal | day
@@ -195,9 +196,9 @@ You can also do this with the backwards compatible flags, in order:
 ! varName          | outFreq | totl | inst | mean | vari | mini | maxi
 scalarSenHeatTotal | 24      | 0    | 0    | 1    | 0    | 0    | 0
 ```
-In this example, the first line is a comment (starts with `!`) and then the mean is calculated for `scalarSenHeatTotal` across 24 forcing time steps and written to the output file. Note, at this time, you can only specify one statistic per variable per output frequency and you cannot specify the same output frequency twice, even if the statistics are different. The default statistic, if not specified, or if the variable is not scalar, is instantaneous. 
+In this example, the first line is a comment (starts with `!`) and then the mean is calculated for `scalarSenHeatTotal` across 24 forcing time steps and written to the output file. Note, at this time, you can only specify one statistic per variable per output frequency and you cannot specify the same output frequency twice, even if the statistics are different. The default statistic, if not specified, or if the variable is not scalar, is instantaneous. Of note, since currently the grid variables only change annually, these will be outputted as instantaneous in the annual file regardless of other specifications.
 
-The time-constant parameters (in `bpar`, `attr`, `type`, or `mpar`) do not have to have a frequency field, as they will be outputted without a time dimension in the timestep file (regardless if different frequency is submitted). The timestep variables (in `time` or `indx`) cannot be agggregated to frequencies longer than a timestep, so they also do not have to have a frequency field and will be outputted in the timestep file (regardless if different frequency is submitted), this time with a time dimension.
+The time-constant parameters (in `bpar`, `attr`, `type`, `mpar`, or some in `grid`) do not have to have a frequency field, as they will be outputted without a time dimension in the timestep file (regardless if different frequency is submitted), except grid parameters which will be outputted in the annual file. The timestep variables in `time` and `indx` cannot be agggregated to frequencies longer than a timestep, so they also do not have to have a frequency field and will be outputted in the timestep file (regardless if different frequency is submitted), this time with a time dimension.
 
 Additionally, you can specify the output precision by adding the line `outputPrecision | <precision>` to the output control file where `<precision>` is one of `float`, `single`, or `double`. The default precision if this is not included is `double`. Both `single` and `float` correspond to single precision. The output compression level can be specified by adding the line `outputCompressionLevel | <compression>` to the output control file where `<compression>` is 0-9. Higher levels mean smaller files but slower write/read speed. The default compression level is 4. 
 
@@ -221,7 +222,7 @@ SWRadAtm | time, hru | double | W m-2 | Downward shortwave radiation at the [upp
 LWRadAtm | time, hru | double | W m-2 | Downward longwave radiation at the [upper boundary](#forcing_file_upper_boundary) |
 airtemp  | time, hru | double | K | Air temperature at the [measurement height](#forcing_file_measurement_height) |
 windspd  | time, hru | double | m s-1 | Wind speed at the [measurement height](#forcing_file_measurement_height) |
-airpres  | time, hru | double | Pa | Air pressure at the the [measurement height](#forcing_file_measurement_height)|
+airpres  | time, hru | double | Pa | Air pressure at the the [measurement height](#forcing_file_measurement_height)| |
 spechum  | time, hru | double | g g-1 | Specific humidity at the [measurement height](#forcing_file_measurement_height) |
 
 Notes about forcing file format:
@@ -253,29 +254,38 @@ The frequency with which SUMMA writes restart files is specified on the command-
 
 As an input file, the variables that need to be specified in the restart file are a subset of those listed as `iLook_prog` in the `var_lookup` module in `build/source/dshare/var_lookup.f90` (look for the comment `(6) define model prognostic (state) variables`). Variable names must match the code exactly (case-sensitive). Note that not all the variables in `iLook_prog` need to be specified, since some of them can be calculated from other variables. For example, SUMMA calculates `mLayerHeight` from `iLayerHeight` and the variable does not need to be reported separately. For similar reasons, the user does not need to specify `scalarCanopyWat`, `spectralSnowAlbedoDiffuse`, `scalarSurfaceTemp`, `mLayerVolFracWat`,  and `mLayerHeight` since these are skipped when the file is read and calculated internally to ensure consistency. In addition to these variables, the restart file also needs to specify the number of soil and snow layers (`nSoil` and `nSnow`, respectively).
 
-The restart file does not have a time dimension, since it represents a specific moment in time. However, it has the following dimensions,: `gru`, `hru`, `tdh`, `scalarv`, `spectral`, `ifcSoil`, `ifcToto`, `midSoil`, and `midToto`. These dimensions are described in detail in the section on [SUMMA output file dimensions](SUMMA_output.md#outfile_dimensions) (keep in mind that the restart files are both input and output).
+The restart file does not have a time dimension, since it represents a specific moment in time. However, it has the following dimensions,: `gru`, `hru`, `dom`,`tdh`, `glac`, `scalarv`, `spectral`, `ifcSoil`, `ifcToto`, `midSoil`, and `midToto`. These dimensions are described in detail in the section on [SUMMA output file dimensions](SUMMA_output.md#outfile_dimensions) (keep in mind that the restart files are both input and output).
 
-| Variable | dimension | type | units | long name | notes |
-|----------|-----------|------|-------|-----------|-------|
+| Variable | dimension | type | units | long name |
+|----------|-----------|------|-------|-----------|
 | gruId | gru | int | - | ID defining the grouped (basin) response unit |
 | hruId | hru | int | - | ID defining the hydrologic response unit |
-| dt_init | scalarv, hru | double | seconds | Length of initial time sub-step at start of next time interval |
-| nSoil | hru | int | - | Number of soil layers |
-| nSnow | hru | int | - |  Number of snow layers |
-| scalarCanopyIce | scalarv, hru | double | kg m-2 | Mass of ice on the vegetation canopy |
-| scalarCanopyLiq | scalarv, hru | double | kg m-2 | Mass of liquid water on the vegetation canopy |
-| scalarCanairTemp | scalarv, hru | double | Pa | Temperature of the canopy air space |
-| scalarCanopyTemp | scalarv, hru | double | K | Temperature of the vegetation canopy |
-| scalarCanopyWat | scalarv, hru | double | K | Mass of water on the vegetation canopy |
-| scalarCanairEnthalpy | scalarv, hru | double | J m-3 | Enthalpy of the canopy air space |
-| scalarCanopyEnthalpy | scalarv, hru | double | J m-3 | Enthalpy of the vegetation canopy |
-| scalarSnowAlbedo | scalarv, hru | double | - | Snow albedo for the entire spectral band |
-| spectralSnowAlbedoDiffuse | spectral, hru | double | - | Diffuse snow albedo for individual spectral bands |
-| scalarSnowDepth | scalarv, hru | double | m | Total snow depth |
-| scalarSurfaceTemp | scalarv, hru | double | K | Surface temperature (just a copy of the upper layer temperature) |
-| scalarSWE | scalarv, hru | double | kg m-2 | Snow water equivalent |
-| scalarSfcMeltPond | scalarv, hru | double | kg m-2 | Ponded water caused by melt of the "snow without a layer" |
-| scalarAquiferStorage | scalarv, hru | double | m | Relative aquifer storage -- above bottom of the soil profile |
+| domType | hru, dom | int | - | Type defining the domain response unit type |
+| dt_init | scalarv, hru, dom | double | seconds | Length of initial time sub-step at start of next time interval |
+| nSoil | hru, dom | int | - | Number of soil layers |
+| nSnow | hru, dom | int | - |  Number of snow layers |
+| nGlce | hru, dom | int | - |  Number of glacier ice layers |
+| nLake | hru, dom | int | - |  Number of lake layers |
+| DOMarea | scalarv, hru, dom | m2 | Area of the domain |
+| DOMelev | scalarv, hru, dom | m2 | Elevation of the domain |
+| DOMtan_slope | scalarv, hru, dom | - | tan local ground surface slope of the domain |
+| DOMaspect | scalarv, hru, dom | degrees| azimuth in degrees East of North of the domain |
+| DOMcontourLength | scalarv, hru, dom | m | length of contour at downslope edge of the domain |
+| scalarCanopyIce | scalarv, hru, dom | double | kg m-2 | Mass of ice on the vegetation canopy |
+| scalarCanopyLiq | scalarv, hru, dom | double | kg m-2 | Mass of liquid water on the vegetation canopy |
+| scalarCanairTemp | scalarv, hru, dom | double | Pa | Temperature of the canopy air space |
+| scalarCanopyTemp | scalarv, hru, dom | double | K | Temperature of the vegetation canopy |
+| scalarCanopyWat | scalarv, hru, dom | double | K | Mass of water on the vegetation canopy |
+| scalarCanairEnthalpy | scalarv, hru, dom | double | J m-3 | Enthalpy of the canopy air space |
+| scalarCanopyEnthalpy | scalarv, hru, dom | double | J m-3 | Enthalpy of the vegetation canopy |
+| scalarSnowAlbedo | scalarv, hru, dom | double | - | Snow albedo for the entire spectral band |
+| spectralSnowAlbedoDiffuse | spectral, hru, dom | double | - | Diffuse snow albedo for individual spectral bands |
+| scalarSnowDepth | scalarv, hru, dom | double | m | Total snow depth |
+| scalarSurfaceTemp | scalarv, hru, dom | double | K | Surface temperature (just a copy of the upper layer temperature) |
+| scalarSWE | scalarv, hru, dom | double | kg m-2 | Snow water equivalent |
+| scalarGlceWE |  scalarv, hru, dom | double | kg m-2 | glacier ice (not snow) water equivalent change over simulation |
+| scalarSfcMeltPond | scalarv, hru, dom | double | kg m-2 | Ponded water caused by melt of the "snow without a layer" |
+| scalarAquiferStorage | scalarv, hru, dom | double | m | Relative aquifer storage -- above bottom of the soil profile |
 | iLayerHeight | ifcToto, hru | double | m | Height of the layer interface; top of soil = 0 |
 | mLayerDepth | midToto, hru | double | m | Depth of each layer |
  layer |
@@ -286,6 +296,24 @@ The restart file does not have a time dimension, since it represents a specific 
 | mLayeryEnthalpy | scalarv, hru | double | J m-3 | Enthalpy of each layer |
 | mLayerMatricHead | midSoil, hru | double | m | Matric head of water in the soil |
 | routingRunoffFuture | tdh, gru | m s-1 | runoff in future timesteps for histogram |
+| glacMass4AreaChange | scalarv, hru, dom | kg m-2 |since updateJulDay glacier layers together mass change |
+| scalarAblFrac | scalarv, hru, dom | - | fraction of the domain that is in a glacier ablation zone |
+
+If dimension `glac` is greater than zero, the initial conditions will also need to include:
+| glacId | glac, gru | int | - | ID defining the glaciers (RGI ID) |
+| basin__GlacierStorage | gru | Gt | glacier storage (ice mass) |
+| glacierAblArea | glac, gru | m2 | per glacier ablation area |
+| glacierAccArea | glac, gru | m2 | per glacier accumulation area |
+| glacIceRunoffFuture | glac, gru | m s-1 | per glacier ice reservoir runoff in future time steps |
+| glacSnowRunoffFuture | glac, gru | m s-1 | per  glacier snow reservoir runoff in future time steps |
+| glacFirnRunoffFuture | glac, gru | m s-1 | per glacier firn reservoir runoff in future time steps |
+| updateJulDay| scalarv, gru | day | julian day at which glacier geometry was last updated
+
+If dimension `grid` is greater than zero (currently equal to `glac`), the initial conditions will also need to include dimensions `grid`, `xgrid`, and `ygrid`, and
+| gridId | grid, gru| int | - | ID defining the glaciers (RGI ID) |
+| surface_elev | ygrid, xgrid, grid, gru | m | glacier surface elevation |
+| debris_thick | ygrid, xgrid, grid, gru | m | debris thickness |
+
 
 ## Attribute and parameter files
 SUMMA uses a number of files to specify model attributes and parameters. Although SUMMA's distinction between attributes and parameters is somewhat arbitrary, attributes generally describe characteristics of the model domain that are time-invariant during the simulation, such as GRU and HRU identifiers, spatial organization, an topography. The important part for understanding the organization of the SUMMA input files is that the values specified in the [local attributes file](#infile_local_attributes) do not overlap with those in the various parameter files. Thus, these values do not overwrite any attributes specified elsewhere. In contrast, the various parameter file are read in sequence (as explained in the next paragraph) and parameter values that are read in from the input files successively overwrite values that have been specified earlier.
@@ -317,6 +345,21 @@ The local attributes file contains a `gru` and an `hru` dimension as specified i
 | soilTypeIndex | hru | int | - | Index defining soil type | |
 | vegTypeIndex | hru | int | - | Index defining vegetation type | |
 | mHeight | hru | double | m | Measurement height above bare ground | |
+
+Optionally, these attributes can be added (otherwise will be assumed 0)
+| nGlac | gru | int | number of glaciers in the GRU | |
+| nWtld | gru | int | number of wetlands in the GRU | A placeholder for lakes |
+
+If `nGlac` is greater than 0 for any GRU, the attribute file will also need to include dimensions `grid`, `xgrid`, and `ygrid` and attibutes
+| nGrid | gru | int | number of grids in the GRU | currently equal to nGlac |
+| gridId | grid | int | - | grid id (non-sequential number) of the grid | matches the glac_id if a glacier |
+| dx | grid, gru | double | m | grid cell size in the x-direction | |
+| dy | grid, gru | double | m | grid cell size in the y-direction | |
+| nx | grid, gru | double | - | number of grid cells in the x-direction | |
+| ny | grid, gru | double | - | number of grid cells in the y-direction | |
+| glacierMask | ygrid, xgrid, grid, gru | - | binary mask of area grid that glacier can grow into | 1 indicates glacier growth possible |
+| cell2hruId | ygrid, xgrid, grid, gru | - | index mapping from grid cells to HRUs | IDs need to match those in hruId from the attributes file |
+| bed_elev | ygrid, xgrid, grid, gru | m | glacier bed elevation | |
 
 Below is a sample layout of the local attributes file (the output of running `ncdump -h`). In this case,  both the gru and hru dimension are of size 1 (the example is taken from one of the [test cases](../installation/SUMMA_test_cases.md), most of which are point model simulations), but of course there can be many GRUs and HRUs.
 
