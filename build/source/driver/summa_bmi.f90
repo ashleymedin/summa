@@ -370,7 +370,14 @@ module summabmi
      outFreq = this%model%outFreq
      maxLayers = this%model%maxLayers
      maxSnowLayers = this%model%maxSnowLayers
+     maxLakeLayers = this%model%maxLakeLayers
+     maxGlceLayers = this%model%maxGlceLayers
      maxSoilLayers = this%model%maxSoilLayers
+     maxGlaciers = this%model%maxGlaciers
+     maxWetlands = this%model%maxWetlands
+     maxGrid = this%model%maxGrid
+     maxGridX = this%model%maxGridX
+     maxGridY = this%model%maxGridY
      urbanVegCategory = this%model%urbanVegCategory
      ixProgress = this%model%ixProgress
      ixRestart = this%model%ixRestart

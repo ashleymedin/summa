@@ -892,9 +892,6 @@ else
  ! cleanup
  deallocate(hru_id,gru_id,index_to_gruid,index_to_hrunc,index_to_glacid)
 
- ! cleanup
- deallocate(gru_id,hru_id,index_to_gruid,index_to_hrunc)
-
  end subroutine read_icond
 
  ! ************************************************************************************************

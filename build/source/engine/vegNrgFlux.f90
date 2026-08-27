@@ -1006,16 +1006,6 @@ subroutine vegNrgFlux(&
           scalarGroundSublimation = scalarGroundSublimation*condToSoilLimiter
         end if
 
-        ! Smoothly reduce atmospheric condensation into soil as top-layer positive head increases
-        condToSoilLimiter = 1._rkind
-        if (nSoil>0 .and. scalarGroundEvaporation > 0._rkind) then
-          posHeadTop = 0.5_rkind*(mLayerMatricHead(1) + sqrt(mLayerMatricHead(1)**2_i4b + condHeadSmooth**2_i4b))
-          condHeadArg = (posHeadTop - condHeadCutoff)/condHeadWidth
-          condToSoilLimiter = 1._rkind/(1._rkind + exp(2._rkind*condHeadArg))
-          scalarGroundEvaporation = scalarGroundEvaporation*condToSoilLimiter
-          scalarSnowSublimation = scalarSnowSublimation*condToSoilLimiter
-        end if
-
         ! ***** AND STITCH EVERYTHING TOGETHER  *****************************************************************************************************************
  
         ! compute derived fluxes

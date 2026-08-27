@@ -103,7 +103,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  USE globalData,only:startGRU                                ! index of the starting GRU for parallelization run
  USE globalData,only:checkHRU                                ! index of the HRU for a single HRU run
  USE globalData,only:iRunMode                                ! define the current running mode
-! output constraints
+ ! output constraints
  USE globalData,only:maxLayers                               ! maximum number of layers
  USE globalData,only:maxSoilLayers                           ! maximum number of soil layers
  USE globalData,only:maxSnowLayers                           ! maximum number of snow layers

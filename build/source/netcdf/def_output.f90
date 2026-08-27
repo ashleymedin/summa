@@ -245,6 +245,7 @@ contains
  character(*),intent(out)    :: message         ! error message
  ! define local variables
  integer(i4b),parameter      :: scalarLength=1  ! length of scalar variable
+
  ! initialize error control
  err=0;message="ini_create/"
 

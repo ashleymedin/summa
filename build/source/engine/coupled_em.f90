@@ -932,16 +932,7 @@ subroutine coupled_em(&
                           ! output: error control
                           err,cmessage)             ! intent(out): error control
         if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
-        call init_thermConductivity(&
-                          ! input/output: data structures
-                          mpar_data,              & ! intent(in):    model parameters
-                          indx_data,              & ! intent(in):    model layer indices
-                          prog_data,              & ! intent(in):    model prognostic variables for a local HRU
-                          diag_data,              & ! intent(inout): model diagnostic variables for a local HRU
-                          ! output: error control
-                          err,cmessage)             ! intent(out): error control
-        if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
-        
+
         ! *** compute melt of the "snow without a layer"...
         ! -------------------------------------------------
         ! NOTE: forms a surface melt pond, which drains into the upper-most soil/lake/ice layer through the time step

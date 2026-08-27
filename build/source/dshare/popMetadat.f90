@@ -1164,10 +1164,6 @@ subroutine read_output_file(err,message)
     varType = -1_i4b ! initialize variable type (only need for temporally varying structures)
     ! identify data structure
     select case (trim(structName))
-      
-      ! time and index structures -- request instantaneous, timestep-level output (no aggregation possible)
-      case('time' ); time_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; time_meta(vDex)%varDesire=.true. ! time variable 
-      case('indx' ); indx_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; indx_meta(vDex)%varDesire=.true. ! index variables
 
       ! time and index structures -- request instantaneous, timestep-level output (no aggregation possible)
       case('time' ); time_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; time_meta(vDex)%varDesire=.true. ! time variable 

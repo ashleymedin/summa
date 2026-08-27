@@ -234,7 +234,6 @@ subroutine varSubstep(&
     )  ! end association with variables in the data structures
     ! *********************************************************************************************************************************************************
 
-
     ! initialize flag for the success of the substepping
     failedMinimumStep=.false.
 
