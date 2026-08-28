@@ -2,13 +2,13 @@
   
 # Build nextgen on Mac, from ngen directory put this one directory up and run this as ../build_ngen.mac.bash
 # Environment variables may be set within this script (see examples below) or in the terminal environment before executing this script
-# activate correct python environment, here is an example with conda environment named pyngen
-: "${PYNGEN_CONDA_ENV:=pyngen}"
+# activate correct python environment, here is an example with conda environment named ngen
+: "${PYNGEN_CONDA_ENV:=ngen}"
 # try common conda install locations; adjust if your conda is elsewhere
 if [ -f "${HOME}/opt/anaconda3/etc/profile.d/conda.sh" ]; then
   . "${HOME}/opt/anaconda3/etc/profile.d/conda.sh"
-elif [ -f "/Users/amedin/opt/anaconda3/etc/profile.d/conda.sh" ]; then
-  . "/Users/amedin/opt/anaconda3/etc/profile.d/conda.sh"
+elif [ -f "${HOME}/miniconda3/etc/profile.d/conda.sh" ]; then
+  . "${HOME}/miniconda3/etc/profile.d/conda.sh"
 elif command -v conda >/dev/null 2>&1; then
   eval "$(conda shell.bash hook)" || true
 fi
