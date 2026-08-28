@@ -3,7 +3,85 @@
 We have successfully installed SUMMA on a number of Unix-like (\*nix) operating systems, including Linux and Darwin (Mac OS X). Since we do a lot of our development on OS X, we have a [separate page](SUMMA_on_OS_X.md) on how to install the necessary tools and libraries on that platform. If you do not want to deal with installing programs and libraries and just want to run SUMMA, then we also have a SUMMA release that uses [Docker](https://www.docker.com). Details can be found on our [SUMMA using Docker](SUMMA_docker.md) page. If you plan to use Docker, then you can skip the rest of this page.
 
 ## Dependencies
-To compile SUMMA, you will need:
+To compile SUMMA, you will need (longer descriptions at the [bottom](#extended-description-of-dependencies) of this page):
+
+* A Fortran compiler. The open source GNU Fortran compiler (`gfortran`) is a good choice.
+* The [NetCDF](http://www.unidata.ucar.edu/software/netcdf/) libraries, compiled/installed with Fortran support (i.e., `libnetcdff.*` is available on the system)
+* The [LAPACK](http://www.netlib.org/lapack/) (Linear Algebra PACKage) library
+* A copy of the SUMMA source code
+
+Optional but highly recommended:
+
+* The [SUNDIALS](https://sundials.readthedocs.io/en/latest/index.html) library, to benefit from recent advances to SUMMA's numerical implementation. Without the SUNDIALS library, the modeling options `num_method = kinsol` and `num_method = ida` won't work. SUNDIALS requires specific install instructions because by default its fortran module won't be build. A typical install will look as follows:
+
+```bash
+git clone https://github.com/LLNL/sundials.git sundials-software
+cd sundials-software
+git fetch --all --tags --prune
+git checkout tags/vX.Y.Z (use most recent tag)
+cd sundials
+mkdir builddir && mkdir instdir && cd builddir
+cmake ../../sundials-software/ -DEXAMPLES_ENABLE_C=OFF -DEXAMPLES_ENABLE_F2003=OFF -DBUILD_FORTRAN_MODULE_INTERFACE=ON -DCMAKE_Fortran_COMPILER=gfortran -DCMAKE_INSTALL_PREFIX=../../sundials/instdir -DEXAMPLES_INSTALL_PATH=../../sundials/instdir/examples
+make
+make install
+```
+
+## Compilation
+The preferred method to compile SUMMA is with `CMake`. This enables parallelization for faster builds and is generally easier than the [legacy approach using a Makefile](#legacy-makefile-instructions). CMake instructions can be found below.
+
+### CMake
+
+The SUMMA repository contains a number of CMake scripts in the `summa/build/cmake` directory. These scripts use CMake to compile SUMMA using the general `CMakeLists.txt` file found in the `summa/build` directory. The scripts compile SUMMA with a number of different options and for different OSX scenarios. Briefly:
+
+- `FindNetCDF.cmake`: used to find the location (i.e., system path) for the Fortran NetCDF library. This path is needed in the actual compile scripts. 
+- `FindOpenBLAS.cmake`: used to find the location (i.e., system path) for the OpenBLAS library. This path is needed in the actual compile scripts.
+- `build.cluster.bash`:  compile SUMMA with SUNDIALS support on Digital Research Alliance Canada (DRAC) or similar infrastructure (e.g. Graham, Fir).
+- `build.mac.bash`:  compile SUMMA with SUNDIALS support on macOS. Assumes MacPorts as local library manager (see example below).
+- `build.pc.bash`:  compile SUMMA with SUNDIALS support on Windows. Experimental.
+- `build_actors.cluster.bash`:  compile SUMMA with SUNDIALS and Actors support on Digital Research Alliance Canada or similar infrastructure (e.g. Graham, Fir). Key difference: addition of `caf` library and `-DUSE_ACTORS=ON` flag.
+- `build_actors.mac.bash`:  compile SUMMA with SUNDIALS and Actors support on macOS. Assumes MacPorts as local library manager (see example below). Key difference: addition of `-DUSE_ACTORS=ON` flag.
+- `build_ngen.cluster.bash`: compile SUMMA with SUNDIALS support and NextGen integration on DRAC or similar. See specific instructions inside script.
+- `build_ngen.mac.bash`: compile SUMMA with SUNDIALS support and NextGen integration on macOS. See specific instructions inside script.
+- `summabmi.pc.in`: support file for NextGen integration.
+
+Most users will be able to compile SUMMA using one of the scripts above, after ensuring the paths in the scripts are set appropriately. As an example, imagine you're compiling on macOS but use Homebrew to manage your libraries, and that you installed SUNDIALS somewhere that's not the top-level summa folder. In this case, the default (MacPorts) path to the `gfortran` compiler, as well as the path to the SUNDIALS install directory, in the `build.mac.bash` script are not correct. You would need to update the script as follows:
+
+```bash
+#!/bin/bash
+export FC=/opt/homebrew/bin/gfortran                             # Fortran compiler family
+export LIBRARY_LINKS='-llapack'                               # list of library links
+export SUNDIALS_DIR=/your/path/to/sundials/instdir/
+
+cmake -B ../cmake_build -S ../. -DUSE_SUNDIALS=ON -DSPECIFY_LAPACK_LINKS=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build ../cmake_build --target all -j
+```
+
+You can test if SUMMA was compiled successfully by navigating to the new `bin` directory and running the newly created executable without any command line arguments. If the compilation is successful, you will see the help output as shown below:
+
+```bash
+> cd ~/path/to/summa/bin
+> ./summa_sundials.exe
+
+Usage: summa.exe -m master_file [-s fileSuffix] [-g startGRU countGRU] [-h iHRU] [-r freqRestart] [-p freqProgress] [-c]
+ summa.exe          summa executable
+
+Running options:
+ -m --master        Define path/name of master file (required)
+ -n --newFile       Define frequency [noNewFiles,newFileEveryOct1] of new output files
+ -s --suffix        Add fileSuffix to the output files
+ -g --gru           Run a subset of countGRU GRUs starting from index startGRU
+ -h --hru           Run a single HRU with index of iHRU
+ -r --restart       Define frequency [y,m,d,e,never] to write restart files
+ -p --progress      Define frequency [m,d,h,never] to print progress
+ -v --version       Display version information of the current build
+```
+
+Continue reading [SUMMA configuration](../configuration/SUMMA_configuration.md) to learn more about how to configure SUMMA for your application. We strongly recommend that you get the [test applications](SUMMA_test_cases.md) to help you get started.
+
+## Extra
+
+### Extended description of dependencies
+This is an extended description of the shorter list described above. To compile SUMMA, you will need:
 
  * a Fortran compiler. We have successfully used the intel Fortran compiler (`ifort`, version 17.x) and the GNU Fortran compiler (`gfortran`, version 6 or higher), the latter of which is freely available. Since we do not use any compiler-specific extensions, you should be able to compile SUMMA with other Fortran compilers as well.
 
@@ -17,25 +95,17 @@ To compile SUMMA, you will need:
 
  * the [LAPACK](http://www.netlib.org/lapack/) (Linear Algebra PACKage) library provides a series of routines for linear algebra operations, including matrix solvers. How to install the library depends on your \*nix variant and is not covered here. For example, on OS X you will get all the necessary LAPACK routines by installing the ATLAS software (again, this is easiest using a package manager; note that ATLAS can take many hours to build the first time when you install it).
 
- * the [ATLAS](http://math-atlas.sourceforge.net/) (Automatically Tuned Linear Algebra Software) library. Note that this is required on OS X using the gfortran compiler to be able to use LAPACK. It's not clear that this is used on other \*nix machines.
-
  * a copy of the SUMMA source code from [this repo](https://github.com/NCAR/summa). You have a number of options:
 
     * If you just want to use the latest stable release of SUMMA, then simply look for the [latest release](https://github.com/NCAR/summa/releases);
     * If you want the latest and greatest (and potentially erroneous), download a copy of the [development branch](https://github.com/ncar/summa/tree/develop) (or clone it);
     * If you may want to do SUMMA development, then fork the repo on github and start editing your own copy.
+    
+    
+### Legacy Makefile instructions
+These instructions have been included here for legacy users. If possible, use the CMake instructions for an easier install experience. 
 
-    Note that you will not be able to contribute to the main SUMMA repo directly. If you are seriously interested in contributing, spend a little time learning git. It will be useful anyway. For more information about working with the SUMMA code, please see the following documents:
-
-    * [SUMMA and Git](../development/SUMMA_and_git.md)
-    * [Git Workflow for SUMMA](../development/SUMMA_git_workflow.md)
-    * [SUMMA Coding Conventions](../development/SUMMA_coding_conventions.md)
-
-## Compilation
-To compile SUMMA there are two methods, each of which is described in detail below. The first method uses a `Makefile` and is the traditional way to compile SUMMA. The second method uses `CMake` and enables parallelization for faster builds.
-
-### Makefile
-Once you have all the above, you can compile SUMMA using the following steps for using the `Makefile`:
+Once you have all the listed dependencies, you can compile SUMMA using the following steps for using the `Makefile`:
 
  1. Navigate to your local copy of the SUMMA directory and go to the `build` subdirectory;
 
@@ -129,25 +199,3 @@ Lapack and blas libraries are loaded with library argument `-mkl`.
 ```
 
 If you get this far then SUMMA is installed correctly and functional.
-
-## CMake
-
-Most users will be able to compile SUMMA using the following steps, even on Digital Alliance of Canada machines (loaded modules usually automatically set the necessary CMake variables):
-```bash
-cd summa/build/cmake
-./compile_script.sh
-```
-If the compilation is successful, you will see the help output from running `summa.exe` in `summa/bin/` as shown in the Makefile instructions above.
-
-If you encounter issues with dependencies, it is most likely because they are installed in a non-standard location. If this is the case, you can set the `CMAKE_PREFIX_PATH` variable in the `compile_script.sh` script to the location of the dependencies. For example, if the NetCDF libraries are installed in `/home/some_user/netcdf`, you would modify the `compile_script.sh` script as follows:
-```bash
-#!/bin/bash
-
-export CMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH:/home/some_user/netcdf"
-
-cmake -B cmake_build -S ../. 
-cmake --build cmake_build --target all -j 
-```
-
-
-Continue reading [SUMMA configuration](../configuration/SUMMA_configuration.md) to learn more about how to configure SUMMA for your application. We strongly recommend that you get the [test applications](SUMMA_test_cases.md) to help you get started.

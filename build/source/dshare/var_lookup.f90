@@ -20,12 +20,15 @@
 
 MODULE var_lookup
  ! defines named variables used to index array elements
- USE nrtype, integerMissing=>nr_integerMissing
+#ifdef ACTORS_ACTIVE
+ USE, intrinsic :: iso_c_binding
+#endif
+ USE nr_type, integerMissing=>nr_integerMissing
  implicit none
  private
  ! local variables
  integer(i4b),parameter            :: ixVal =1                      ! an example 4 byte integer
- integer(8),parameter              :: ix8Val=2                      ! an example 8 byte integer
+ integer(i8b),parameter            :: ix8Val=2                      ! an example 8 byte integer
  integer(i4b),parameter            :: iLength =storage_size(ixVal)   ! size of the example 4 byte integer
  integer(i4b),parameter            :: i8Length=storage_size(ix8Val)  ! size of the example 8 byte integer
 
@@ -33,7 +36,7 @@ MODULE var_lookup
  ! (0) define model decisions
  ! ***************************************************************************************
  type, public  ::  iLook_decision
-  integer(i4b)    :: soilCatTbl = integerMissing     ! soil-category dateset
+  integer(i4b)    :: soilCatTbl = integerMissing     ! soil-category dataset
   integer(i4b)    :: vegeParTbl = integerMissing     ! vegetation category dataset
   integer(i4b)    :: soilStress = integerMissing     ! choice of function for the soil moisture control on stomatal resistance
   integer(i4b)    :: stomResist = integerMissing     ! choice of function for stomatal resistance
@@ -71,6 +74,13 @@ MODULE var_lookup
   integer(i4b)    :: spatial_gw = integerMissing     ! choice of method for spatial representation of groundwater
   integer(i4b)    :: subRouting = integerMissing     ! choice of method for sub-grid routing
   integer(i4b)    :: snowDenNew = integerMissing     ! choice of method for new snow density
+  integer(i4b)    :: nrgConserv = integerMissing     ! choice of variable in either energy backward Euler residual or IDA state variable
+  integer(i4b)    :: aquiferIni = integerMissing     ! choice of full or empty aquifer at start
+  integer(i4b)    :: infRateMax = integerMissing     ! choice of method to determine maximum infiltration rate
+  integer(i4b)    :: surfRun_SE = integerMissing     ! choice of parameterization for saturation excess surface runoff
+  integer(i4b)    :: read_force = integerMissing     ! method used to read forcing data (per step or full read)
+  integer(i4b)    :: write_buff = integerMissing     ! method used to buffer model write (none, per file)
+
  endtype iLook_decision
 
  ! ***********************************************************************************************************
@@ -125,7 +135,9 @@ MODULE var_lookup
  end type iLook_type
 
  type, public  ::  iLook_id
-  integer(8)    :: hruId         = integerMissing  ! ID label defining hydrologic response unit (-)
+  integer(i8b)    :: hruId         = integerMissing  ! ID label defining hydrologic response unit (-)
+  integer(i8b)    :: gruId         = integerMissing  ! ID label defining grouped response unit (-)
+  integer(i8b)    :: hru2gruId     = integerMissing  ! ID label defining GRU to which HRU belongs (-)
  end type iLook_id
 
  ! ***********************************************************************************************************
@@ -135,8 +147,6 @@ MODULE var_lookup
   ! boundary conditions
   integer(i4b)    :: upperBoundHead        = integerMissing    ! matric head of the upper boundary (m)
   integer(i4b)    :: lowerBoundHead        = integerMissing    ! matric head of the lower boundary (m)
-  integer(i4b)    :: upperBoundTheta       = integerMissing    ! volumetric liquid water content of the upper boundary (-)
-  integer(i4b)    :: lowerBoundTheta       = integerMissing    ! volumetric liquid water content of the lower boundary (-)
   integer(i4b)    :: upperBoundTemp        = integerMissing    ! temperature of the upper boundary (K)
   integer(i4b)    :: lowerBoundTemp        = integerMissing    ! temperature of the lower boundary (K)
   ! precipitation partitioning
@@ -186,7 +196,7 @@ MODULE var_lookup
   ! turbulent heat fluxes
   integer(i4b)    :: z0Snow                = integerMissing    ! roughness length of snow (m)
   integer(i4b)    :: z0Soil                = integerMissing    ! roughness length of bare soil below the canopy (m)
-  integer(i4b)    :: z0Canopy              = integerMissing    ! roughness length of the canopy (m)
+  integer(i4b)    :: z0Canopy              = integerMissing    ! roughness length of the canopy (m), only used if decision veg_traits==vegTypeTable
   integer(i4b)    :: zpdFraction           = integerMissing    ! zero plane displacement / canopy height (-)
   integer(i4b)    :: critRichNumber        = integerMissing    ! critical value for the bulk Richardson number (-)
   integer(i4b)    :: Louis79_bparam        = integerMissing    ! parameter in Louis (1979) stability function (-)
@@ -265,7 +275,7 @@ MODULE var_lookup
   integer(i4b)    :: k_macropore           = integerMissing    ! saturated hydraulic conductivity for macropores (m s-1)
   integer(i4b)    :: kAnisotropic          = integerMissing    ! anisotropy factor for lateral hydraulic conductivity (-)
   integer(i4b)    :: zScale_TOPMODEL       = integerMissing    ! TOPMODEL scaling factor used in lower boundary condition for soil (m)
-  integer(i4b)    :: compactedDepth        = integerMissing    ! depth where k_soil reaches the compacted value given by CH78 (m)
+  integer(i4b)    :: compactedDepth        = integerMissing    ! depth where k_soil reaches the compacted value given by Clapp and Hornberger (1978) (m)
   integer(i4b)    :: aquiferBaseflowRate   = integerMissing    ! baseflow rate when aquifer storage = aquiferScaleFactor (m s-1)
   integer(i4b)    :: aquiferScaleFactor    = integerMissing    ! scaling factor for aquifer storage in the big bucket (m)
   integer(i4b)    :: aquiferBaseflowExp    = integerMissing    ! baseflow exponent (-)
@@ -275,20 +285,51 @@ MODULE var_lookup
   integer(i4b)    :: f_impede              = integerMissing    ! ice impedence factor (-)
   integer(i4b)    :: soilIceScale          = integerMissing    ! scaling factor for depth of soil ice, used to get frozen fraction (m)
   integer(i4b)    :: soilIceCV             = integerMissing    ! CV of depth of soil ice, used to get frozen fraction (-)
+  ! conceptual parameters for surface runoff
+  integer(i4b)    :: FUSE_Ac_max           = integerMissing    ! FUSE PRMS max saturated area
+  integer(i4b)    :: FUSE_phi_tens         = integerMissing    ! FUSE PRMS tension storage fraction
+  integer(i4b)    :: FUSE_b                = integerMissing    ! FUSE ARNO/VIC exponent
+  integer(i4b)    :: FUSE_lambda           = integerMissing    ! FUSE TOPMODEL gamma distribution lambda parameter
+  integer(i4b)    :: FUSE_chi              = integerMissing    ! FUSE TOPMODEL gamma distribution chi    parameter
+  integer(i4b)    :: FUSE_mu               = integerMissing    ! FUSE TOPMODEL gamma distribution mu     parameter
+  integer(i4b)    :: FUSE_n                = integerMissing    ! FUSE TOPMODEL exponent
   ! algorithmic control parameters
   integer(i4b)    :: minwind               = integerMissing    ! minimum wind speed (m s-1)
   integer(i4b)    :: minstep               = integerMissing    ! minimum length of the time step
-  integer(i4b)    :: maxstep               = integerMissing    ! maximum length of the time step
+  integer(i4b)    :: maxstep               = integerMissing    ! maximum length of the time step (data window)
+  integer(i4b)    :: be_steps              = integerMissing    ! number of equal substeps to dividing the data window for BE
   integer(i4b)    :: wimplicit             = integerMissing    ! weight assigned to the start-of-step fluxes
-  integer(i4b)    :: maxiter               = integerMissing    ! maximum number of iteration
-  integer(i4b)    :: relConvTol_liquid     = integerMissing    ! relative convergence tolerance for vol frac liq water (-)
-  integer(i4b)    :: absConvTol_liquid     = integerMissing    ! absolute convergence tolerance for vol frac liq water (-)
-  integer(i4b)    :: relConvTol_matric     = integerMissing    ! relative convergence tolerance for matric head (-)
-  integer(i4b)    :: absConvTol_matric     = integerMissing    ! absolute convergence tolerance for matric head (m)
-  integer(i4b)    :: relConvTol_energy     = integerMissing    ! relative convergence tolerance for energy (-)
-  integer(i4b)    :: absConvTol_energy     = integerMissing    ! absolute convergence tolerance for energy (J m-3)
-  integer(i4b)    :: relConvTol_aquifr     = integerMissing    ! relative convergence tolerance for aquifer storage (-)
-  integer(i4b)    :: absConvTol_aquifr     = integerMissing    ! absolute convergence tolerance for aquifer storage (J m-3)
+  integer(i4b)    :: maxiter               = integerMissing    ! maximum number of iterations homegrown and kinsol
+  integer(i4b)    :: relConvTol_liquid     = integerMissing    ! BE relative convergence tolerance for vol frac liq water homegrown (-)
+  integer(i4b)    :: absConvTol_liquid     = integerMissing    ! BE absolute convergence tolerance for vol frac liq water homegrown (-)
+  integer(i4b)    :: relConvTol_matric     = integerMissing    ! BE relative convergence tolerance for matric head homegrown (-)
+  integer(i4b)    :: absConvTol_matric     = integerMissing    ! BE absolute convergence tolerance for matric head homegrown (m)
+  integer(i4b)    :: relConvTol_energy     = integerMissing    ! BE relative convergence tolerance for energy homegrown (-)
+  integer(i4b)    :: absConvTol_energy     = integerMissing    ! BE absolute convergence tolerance for energy homegrown (J m-3)
+  integer(i4b)    :: relConvTol_aquifr     = integerMissing    ! BE relative convergence tolerance for aquifer storage homegrown (-)
+  integer(i4b)    :: absConvTol_aquifr     = integerMissing    ! BE absolute convergence tolerance for aquifer storage homegrown (J m-3)
+  integer(i4b)    :: relTolTempCas         = integerMissing    ! IDA relative error tolerance for canopy temperature state variable
+  integer(i4b)    :: absTolTempCas         = integerMissing    ! IDA absolute error tolerance for canopy temperature state variable
+  integer(i4b)    :: relTolTempVeg         = integerMissing    ! IDA relative error tolerance for vegitation temp state var
+  integer(i4b)    :: absTolTempVeg         = integerMissing    ! IDA absolute error tolerance for vegitation temp state var
+  integer(i4b)    :: relTolWatVeg          = integerMissing    ! IDA relative error tolerance for vegitation hydrology
+  integer(i4b)    :: absTolWatVeg          = integerMissing    ! IDA absolute error tolerance for vegitation hydrology
+  integer(i4b)    :: relTolTempSoilSnow    = integerMissing    ! IDA relative error tolerance for snow+soil energy
+  integer(i4b)    :: absTolTempSoilSnow    = integerMissing    ! IDA absolute error tolerance for snow+soil energy
+  integer(i4b)    :: relTolWatSnow         = integerMissing    ! IDA relative error tolerance for snow hydrology
+  integer(i4b)    :: absTolWatSnow         = integerMissing    ! IDA absolute error tolerance for snow hydrology
+  integer(i4b)    :: relTolMatric          = integerMissing    ! IDA relative error tolerance for matric head
+  integer(i4b)    :: absTolMatric          = integerMissing    ! IDA absolute error tolerance for matric head
+  integer(i4b)    :: relTolAquifr          = integerMissing    ! IDA relative error tolerance for aquifer hydrology
+  integer(i4b)    :: absTolAquifr          = integerMissing    ! IDA absolute error tolerance for aquifer hydrology
+  integer(i4b)    :: idaMaxOrder           = integerMissing    ! maximum order for IDA
+  integer(i4b)    :: idaMaxInternalSteps   = integerMissing    ! maximum number of internal steps for IDA before tout
+  integer(i4b)    :: idaInitStepSize       = integerMissing    ! initial step size for IDA
+  integer(i4b)    :: idaMinStepSize        = integerMissing    ! minimum step size for IDA
+  integer(i4b)    :: idaMaxStepSize        = integerMissing    ! maximum step size for IDA
+  integer(i4b)    :: idaMaxErrTestFail     = integerMissing    ! maximum number of error test failures for IDA
+  integer(i4b)    :: idaMaxDataWindowSteps = integerMissing    ! maximum number of steps with event detection for IDA per data window
+  integer(i4b)    :: idaDetectEvents       = integerMissing    ! flag to turn on event detection in IDA, 0=off, 1=on
   integer(i4b)    :: zmin                  = integerMissing    ! minimum layer depth (m)
   integer(i4b)    :: zmax                  = integerMissing    ! maximum layer depth (m)
   integer(i4b)    :: zminLayer1            = integerMissing    ! minimum layer depth for the 1st (top) layer (m)
@@ -304,7 +345,7 @@ MODULE var_lookup
   integer(i4b)    :: zmaxLayer2_upper      = integerMissing    ! maximum layer depth for the 2nd layer when > 2 layers (m)
   integer(i4b)    :: zmaxLayer3_upper      = integerMissing    ! maximum layer depth for the 3rd layer when > 3 layers (m)
   integer(i4b)    :: zmaxLayer4_upper      = integerMissing    ! maximum layer depth for the 4th layer when > 4 layers (m)
- endtype ilook_param
+ endtype iLook_param
 
  ! ***********************************************************************************************************
  ! (6) define model prognostic (state) variables
@@ -330,6 +371,10 @@ MODULE var_lookup
   integer(i4b)    :: mLayerVolFracLiq            = integerMissing    ! volumetric fraction of liquid water in each layer (-)
   integer(i4b)    :: mLayerVolFracWat            = integerMissing    ! volumetric fraction of total water in each layer (-)
   integer(i4b)    :: mLayerMatricHead            = integerMissing    ! matric head of water in the soil (m)
+  ! enthalpy
+  integer(i4b)    :: scalarCanairEnthalpy        = integerMissing    ! enthalpy of the canopy air space (J m-3)
+  integer(i4b)    :: scalarCanopyEnthalpy        = integerMissing    ! enthalpy of the vegetation canopy (J m-3)
+  integer(i4b)    :: mLayerEnthalpy              = integerMissing    ! enthalpy of the snow+soil layers (J m-3)
   ! other state variables
   integer(i4b)    :: scalarAquiferStorage        = integerMissing    ! relative aquifer storage -- above bottom of the soil profile (m)
   integer(i4b)    :: scalarSurfaceTemp           = integerMissing    ! surface temperature (K)
@@ -345,8 +390,8 @@ MODULE var_lookup
  type, public :: iLook_diag
   ! local properties
   integer(i4b)    :: scalarCanopyDepth               = integerMissing ! canopy depth (m)
-  integer(i4b)    :: scalarGreenVegFraction          = integerMissing ! green vegetation fraction used to compute LAI (-)
   integer(i4b)    :: scalarBulkVolHeatCapVeg         = integerMissing ! bulk volumetric heat capacity of vegetation (J m-3 K-1)
+  integer(i4b)    :: scalarCanopyCm                  = integerMissing ! Cm for vegetation canopy (J kg-1)
   integer(i4b)    :: scalarCanopyEmissivity          = integerMissing ! effective canopy emissivity (-)
   integer(i4b)    :: scalarRootZoneTemp              = integerMissing ! average temperature of the root zone (K)
   integer(i4b)    :: scalarLAI                       = integerMissing ! one-sided leaf area index (m2 m-2)
@@ -357,15 +402,15 @@ MODULE var_lookup
   integer(i4b)    :: scalarCanopyIceMax              = integerMissing ! maximum interception storage capacity for ice (kg m-2)
   integer(i4b)    :: scalarCanopyLiqMax              = integerMissing ! maximum interception storage capacity for liquid water (kg m-2)
   integer(i4b)    :: scalarGrowingSeasonIndex        = integerMissing ! growing season index (0=off, 1=on)
-  integer(i4b)    :: scalarVolHtCap_air              = integerMissing ! volumetric heat capacity air (J m-3 K-1)
-  integer(i4b)    :: scalarVolHtCap_ice              = integerMissing ! volumetric heat capacity ice (J m-3 K-1)
-  integer(i4b)    :: scalarVolHtCap_soil             = integerMissing ! volumetric heat capacity dry soil (J m-3 K-1)
-  integer(i4b)    :: scalarVolHtCap_water            = integerMissing ! volumetric heat capacity liquid wat (J m-3 K-1)
   integer(i4b)    :: mLayerVolHtCapBulk              = integerMissing ! volumetric heat capacity in each layer (J m-3 K-1)
-  integer(i4b)    :: scalarLambda_drysoil            = integerMissing ! thermal conductivity of dry soil     (W m-1 K-1)
-  integer(i4b)    :: scalarLambda_wetsoil            = integerMissing ! thermal conductivity of wet soil     (W m-1 K-1)
+  integer(i4b)    :: mLayerCm                        = integerMissing ! Cm for each layer (J m-3)
   integer(i4b)    :: mLayerThermalC                  = integerMissing ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
   integer(i4b)    :: iLayerThermalC                  = integerMissing ! thermal conductivity at the interface of each layer (W m-1 K-1)
+  ! enthalpy
+  integer(i4b)    :: scalarCanopyEnthTemp            = integerMissing ! temperature component of enthalpy of the vegetation canopy (J m-3)
+  integer(i4b)    :: mLayerEnthTemp                  = integerMissing ! temperature component of enthalpy of the snow+soil layers (J m-3)
+  integer(i4b)    :: scalarTotalSnowEnthalpy         = integerMissing ! total enthalpy of the snow column (J m-3)
+  integer(i4b)    :: scalarTotalSoilEnthalpy         = integerMissing ! total enthalpy of the soil column (J m-3)
   ! forcing
   integer(i4b)    :: scalarVPair                     = integerMissing ! vapor pressure of the air above the vegetation canopy (Pa)
   integer(i4b)    :: scalarVP_CanopyAir              = integerMissing ! vapor pressure of the canopy air space (Pa)
@@ -374,6 +419,8 @@ MODULE var_lookup
   integer(i4b)    :: scalarNewSnowDensity            = integerMissing ! density of fresh snow (kg m-3)
   integer(i4b)    :: scalarO2air                     = integerMissing ! atmospheric o2 concentration (Pa)
   integer(i4b)    :: scalarCO2air                    = integerMissing ! atmospheric co2 concentration (Pa)
+  integer(i4b)    :: windspd_x                       = integerMissing ! wind speed at 10 meter height in x-direction (m s-1)
+  integer(i4b)    :: windspd_y                       = integerMissing ! wind speed at 10 meter height in y-direction (m s-1)
   ! shortwave radiation
   integer(i4b)    :: scalarCosZenith                 = integerMissing ! cosine of the solar zenith angle (0-1)
   integer(i4b)    :: scalarFractionDirect            = integerMissing ! fraction of direct radiation (0-1)
@@ -416,28 +463,50 @@ MODULE var_lookup
   integer(i4b)    :: mLayerThetaResid                = integerMissing ! residual volumetric water content in each snow layer (-)
   integer(i4b)    :: mLayerPoreSpace                 = integerMissing ! total pore space in each snow layer (-)
   integer(i4b)    :: mLayerMeltFreeze                = integerMissing ! change in ice content due to melt/freeze in each layer (kg m-3)
+  ! total mass changes 
+  integer(i4b)    :: scalarTotalMassChange           = integerMissing ! mass change of all system together (kg m-2 s-1)
   ! soil hydrology
-  integer(i4b)    :: scalarInfilArea                 = integerMissing ! fraction of unfrozen area where water can infiltrate (-)
+  integer(i4b)    :: scalarInfilArea                 = integerMissing ! fraction of area where water can infiltrate, may be frozen (-)
+  integer(i4b)    :: scalarSaturatedArea             = integerMissing ! fraction of area that is considered saturated (-)
   integer(i4b)    :: scalarFrozenArea                = integerMissing ! fraction of area that is considered impermeable due to soil ice (-)
-  integer(i4b)    :: scalarSoilControl               = integerMissing ! soil control on infiltration: 1=controlling; 0=not (-)
+  integer(i4b)    :: scalarSoilControl               = integerMissing ! soil control on infiltration for derivative
   integer(i4b)    :: mLayerVolFracAir                = integerMissing ! volumetric fraction of air in each layer (-)
   integer(i4b)    :: mLayerTcrit                     = integerMissing ! critical soil temperature above which all water is unfrozen (K)
-  integer(i4b)    :: mLayerCompress                  = integerMissing ! change in volumetric water content due to compression of soil (-)
-  integer(i4b)    :: scalarSoilCompress              = integerMissing ! change in total soil storage due to compression of the soil matrix (kg m-2)
+  integer(i4b)    :: mLayerCompress                  = integerMissing ! change in volumetric water content due to compression of soil (s-1)
+  integer(i4b)    :: scalarSoilCompress              = integerMissing ! change in total soil storage due to compression of the soil matrix (kg m-2 s-1)
   integer(i4b)    :: mLayerMatricHeadLiq             = integerMissing ! matric potential of liquid water (m)
   ! mass balance check
-  integer(i4b)    :: scalarSoilWatBalError           = integerMissing ! error in the total soil water balance (kg m-2)
-  integer(i4b)    :: scalarAquiferBalError           = integerMissing ! error in the aquifer water balance (kg m-2)
   integer(i4b)    :: scalarTotalSoilLiq              = integerMissing ! total mass of liquid water in the soil (kg m-2)
   integer(i4b)    :: scalarTotalSoilIce              = integerMissing ! total mass of ice in the soil (kg m-2)
   integer(i4b)    :: scalarTotalSoilWat              = integerMissing ! total mass of water in the soil (kg m-2)
   ! variable shortcuts
   integer(i4b)    :: scalarVGn_m                     = integerMissing ! van Genuchten "m" parameter (-)
-  integer(i4b)    :: scalarKappa                     = integerMissing ! constant in the freezing curve function (m K-1)
-  integer(i4b)    :: scalarVolLatHt_fus              = integerMissing ! volumetric latent heat of fusion     (J m-3)
-  ! timing information
+  ! number of function evaluations
   integer(i4b)    :: numFluxCalls                    = integerMissing ! number of flux calls (-)
-  integer(i4b)    :: wallClockTime                   = integerMissing ! wall clock time (s)
+  integer(i4b)    :: wallClockTime                   = integerMissing ! wall clock time for physics routines(s)
+  integer(i4b)    :: meanStepSize                    = integerMissing ! mean time step size over data window (s)
+  ! balances
+  integer(i4b)    :: balanceCasNrg                   = integerMissing ! balance of energy in the canopy air space (W m-3)
+  integer(i4b)    :: balanceVegNrg                   = integerMissing ! balance of energy in the vegetation (W m-3)
+  integer(i4b)    :: balanceLayerNrg                 = integerMissing ! balance of energy in each snow+soil layer (W m-3)
+  integer(i4b)    :: balanceSnowNrg                  = integerMissing ! balance of energy in the snow (W m-3)
+  integer(i4b)    :: balanceSoilNrg                  = integerMissing ! balance of energy in the soil (W m-3)
+  integer(i4b)    :: balanceVegMass                  = integerMissing ! balance of water in the vegetation (kg m-3 s-1)
+  integer(i4b)    :: balanceLayerMass                = integerMissing ! balance of water in each snow+soil layer (kg m-3 s-1)
+  integer(i4b)    :: balanceSnowMass                 = integerMissing ! balance of water in the snow (kg m-3 s-1)
+  integer(i4b)    :: balanceSoilMass                 = integerMissing ! balance of water in the soil (kg m-3 s-1)
+  integer(i4b)    :: balanceAqMass                   = integerMissing ! balance of water in the aquifer (kg m-2 s-1) (no depth to aquifer)
+  ! sundials integrator stats
+  integer(i4b)    :: numSteps                        = integerMissing ! 
+  integer(i4b)    :: numResEvals                     = integerMissing ! 
+  integer(i4b)    :: numLinSolvSetups                = integerMissing ! 
+  integer(i4b)    :: numErrTestFails                 = integerMissing ! 
+  integer(i4b)    :: kLast                           = integerMissing ! 
+  integer(i4b)    :: kCur                            = integerMissing ! 
+  integer(i4b)    :: hInitUsed                       = integerMissing ! 
+  integer(i4b)    :: hLast                           = integerMissing ! 
+  integer(i4b)    :: hCur                            = integerMissing ! 
+  integer(i4b)    :: tCur                            = integerMissing ! 
  endtype iLook_diag
 
  ! ***********************************************************************************************************
@@ -504,13 +573,12 @@ MODULE var_lookup
   integer(i4b)    :: scalarCanopyTranspiration       = integerMissing ! canopy transpiration (kg m-2 s-1)
   integer(i4b)    :: scalarCanopyEvaporation         = integerMissing ! canopy evaporation/condensation (kg m-2 s-1)
   integer(i4b)    :: scalarGroundEvaporation         = integerMissing ! ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
-  integer(i4b)    :: mLayerTranspire                 = integerMissing ! transpiration loss from each soil layer (kg m-2 s-1)
+  integer(i4b)    :: mLayerTranspire                 = integerMissing ! transpiration loss from each soil layer (m s-1)
   ! liquid and solid water fluxes through the canopy
   integer(i4b)    :: scalarThroughfallSnow           = integerMissing ! snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
   integer(i4b)    :: scalarThroughfallRain           = integerMissing ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
   integer(i4b)    :: scalarCanopySnowUnloading       = integerMissing ! unloading of snow from the vegetion canopy (kg m-2 s-1)
   integer(i4b)    :: scalarCanopyLiqDrainage         = integerMissing ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
-  integer(i4b)    :: scalarCanopyMeltFreeze          = integerMissing ! melt/freeze of water stored in the canopy (kg m-2 s-1)
   ! energy fluxes and for the snow and soil domains
   integer(i4b)    :: iLayerConductiveFlux            = integerMissing ! conductive energy flux at layer interfaces (W m-2)
   integer(i4b)    :: iLayerAdvectiveFlux             = integerMissing ! advective energy flux at layer interfaces (W m-2)
@@ -526,6 +594,8 @@ MODULE var_lookup
   integer(i4b)    :: scalarInfiltration              = integerMissing ! infiltration of water into the soil profile (m s-1)
   integer(i4b)    :: scalarExfiltration              = integerMissing ! exfiltration of water from the top of the soil profile (m s-1)
   integer(i4b)    :: scalarSurfaceRunoff             = integerMissing ! surface runoff (m s-1)
+  integer(i4b)    :: scalarSurfaceRunoff_IE          = integerMissing ! infiltration excess surface runoff (m s-1)
+  integer(i4b)    :: scalarSurfaceRunoff_SE          = integerMissing ! saturation excess surface runoff (m s-1)
   integer(i4b)    :: mLayerSatHydCondMP              = integerMissing ! saturated hydraulic conductivity of macropores in each layer (m s-1)
   integer(i4b)    :: mLayerSatHydCond                = integerMissing ! saturated hydraulic conductivity in each layer (m s-1)
   integer(i4b)    :: iLayerSatHydCond                = integerMissing ! saturated hydraulic conductivity at each layer interface (m s-1)
@@ -557,47 +627,99 @@ MODULE var_lookup
   integer(i4b)    :: dCanopyNetFlux_dCanairTemp      = integerMissing ! derivative in net canopy flux w.r.t. canopy air temperature (W m-2 K-1)
   integer(i4b)    :: dCanopyNetFlux_dCanopyTemp      = integerMissing ! derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
   integer(i4b)    :: dCanopyNetFlux_dGroundTemp      = integerMissing ! derivative in net canopy flux w.r.t. ground temperature (W m-2 K-1)
-  integer(i4b)    :: dCanopyNetFlux_dCanLiq          = integerMissing ! derivative in net canopy fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
+  integer(i4b)    :: dCanopyNetFlux_dCanWat          = integerMissing ! derivative in net canopy fluxes w.r.t. canopy total water content (J kg-1 s-1)
   integer(i4b)    :: dGroundNetFlux_dCanairTemp      = integerMissing ! derivative in net ground flux w.r.t. canopy air temperature (W m-2 K-1)
   integer(i4b)    :: dGroundNetFlux_dCanopyTemp      = integerMissing ! derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
   integer(i4b)    :: dGroundNetFlux_dGroundTemp      = integerMissing ! derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
-  integer(i4b)    :: dGroundNetFlux_dCanLiq          = integerMissing ! derivative in net ground fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
+  integer(i4b)    :: dGroundNetFlux_dCanWat          = integerMissing ! derivative in net ground fluxes w.r.t. canopy total water content (J kg-1 s-1)
   ! derivatives in evaporative fluxes w.r.t. relevant state variables
   integer(i4b)    :: dCanopyEvaporation_dTCanair     = integerMissing ! derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
   integer(i4b)    :: dCanopyEvaporation_dTCanopy     = integerMissing ! derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
   integer(i4b)    :: dCanopyEvaporation_dTGround     = integerMissing ! derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
-  integer(i4b)    :: dCanopyEvaporation_dCanLiq      = integerMissing ! derivative in canopy evaporation w.r.t. canopy liquid water content (s-1)
+  integer(i4b)    :: dCanopyEvaporation_dCanWat      = integerMissing ! derivative in canopy evaporation w.r.t. canopy total water content (s-1)
   integer(i4b)    :: dGroundEvaporation_dTCanair     = integerMissing ! derivative in ground evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
   integer(i4b)    :: dGroundEvaporation_dTCanopy     = integerMissing ! derivative in ground evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
   integer(i4b)    :: dGroundEvaporation_dTGround     = integerMissing ! derivative in ground evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
-  integer(i4b)    :: dGroundEvaporation_dCanLiq      = integerMissing ! derivative in ground evaporation w.r.t. canopy liquid water content (s-1)
-  ! derivatives in canopy water w.r.t canopy temperature
+  integer(i4b)    :: dGroundEvaporation_dCanWat      = integerMissing ! derivative in ground evaporation w.r.t. canopy total water content (s-1)
+  ! derivatives in transpiration
+  integer(i4b)    :: dCanopyTrans_dTCanair           = integerMissing !  derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+  integer(i4b)    :: dCanopyTrans_dTCanopy           = integerMissing ! derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
+  integer(i4b)    :: dCanopyTrans_dTGround           = integerMissing ! derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
+  integer(i4b)    :: dCanopyTrans_dCanWat            = integerMissing ! derivative in canopy transpiration w.r.t. canopy total water content (s-1)
+ ! derivatives in canopy water w.r.t canopy temperature
   integer(i4b)    :: dTheta_dTkCanopy                = integerMissing ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
+  integer(i4b)    :: d2Theta_dTkCanopy2              = integerMissing ! second derivative of volumetric liquid water content w.r.t. temperature
   integer(i4b)    :: dCanLiq_dTcanopy                = integerMissing ! derivative of canopy liquid storage w.r.t. temperature (kg m-2 K-1)
+  integer(i4b)    :: dFracLiqVeg_dTkCanopy           = integerMissing !  derivative in fraction of (throughfall + drainage)  w.r.t. temperature
   ! derivatives in canopy liquid fluxes w.r.t. canopy water
   integer(i4b)    :: scalarCanopyLiqDeriv            = integerMissing ! derivative in (throughfall + canopy drainage) w.r.t. canopy liquid water (s-1)
   integer(i4b)    :: scalarThroughfallRainDeriv      = integerMissing ! derivative in throughfall w.r.t. canopy liquid water (s-1)
   integer(i4b)    :: scalarCanopyLiqDrainageDeriv    = integerMissing ! derivative in canopy drainage w.r.t. canopy liquid water (s-1)
+  ! energy derivatives that might be treated as constant if heat capacity and thermal conductivity not updated
+  integer(i4b)    :: dVolHtCapBulk_dPsi0             = integerMissing ! derivative in bulk heat capacity w.r.t. matric potential
+  integer(i4b)    :: dVolHtCapBulk_dTheta            = integerMissing ! derivative in bulk heat capacity w.r.t. volumetric water content
+  integer(i4b)    :: dVolHtCapBulk_dCanWat           = integerMissing ! derivative in bulk heat capacity w.r.t. canopy volumetric water content
+  integer(i4b)    :: dVolHtCapBulk_dTk               = integerMissing ! derivative in bulk heat capacity w.r.t. temperature
+  integer(i4b)    :: dVolHtCapBulk_dTkCanopy         = integerMissing ! derivative in bulk heat capacity w.r.t. canopy temperature
+  integer(i4b)    :: dThermalC_dTempAbove            = integerMissing ! derivative in the thermal conductivity w.r.t. energy state in the layer above
+  integer(i4b)    :: dThermalC_dTempBelow            = integerMissing ! derivative in the thermal conductivity w.r.t. energy state in the layer above
+  integer(i4b)    :: dThermalC_dWatAbove             = integerMissing ! derivative in the thermal conductivity w.r.t. water state in the layer above
+  integer(i4b)    :: dThermalC_dWatBelow             = integerMissing ! derivative in the thermal conductivity w.r.t. water state in the layer above
+  ! energy derivatives that might be treated as constant if Cm not updated
+  integer(i4b)    :: dCm_dPsi0                       = integerMissing ! derivative in heat capacity w.r.t. matric potential (J kg-1)
+  integer(i4b)    :: dCm_dTk                         = integerMissing ! derivative in heat capacity w.r.t. temperature (J kg-1 K-2)
+  integer(i4b)    :: dCm_dTkCanopy                   = integerMissing ! derivative in heat capacity w.r.t. canopy temperature (J kg-1 K-2)
   ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. temperature in layers above and below
   integer(i4b)    :: dNrgFlux_dTempAbove             = integerMissing ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
   integer(i4b)    :: dNrgFlux_dTempBelow             = integerMissing ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
+  ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. water state in layers above and below
+  integer(i4b)    :: dNrgFlux_dWatAbove              = integerMissing ! derivatives in the flux w.r.t. water state in the layer above
+  integer(i4b)    :: dNrgFlux_dWatBelow              = integerMissing ! derivatives in the flux w.r.t. water state in the layer below
   ! derivative in liquid water fluxes at the interface of snow layers w.r.t. volumetric liquid water content in the layer above
   integer(i4b)    :: iLayerLiqFluxSnowDeriv          = integerMissing ! derivative in vertical liquid water flux at layer interfaces (m s-1)
   ! derivative in liquid water fluxes for the soil domain w.r.t hydrology state variables
   integer(i4b)    :: dVolTot_dPsi0                   = integerMissing ! derivative in total water content w.r.t. total water matric potential (m-1)
+  integer(i4b)    :: d2VolTot_dPsi02                 = integerMissing ! second derivative in total water content w.r.t. total water matric potential
   integer(i4b)    :: dq_dHydStateAbove               = integerMissing ! change in the flux in layer interfaces w.r.t. state variables in the layer above
   integer(i4b)    :: dq_dHydStateBelow               = integerMissing ! change in the flux in layer interfaces w.r.t. state variables in the layer below
-  integer(i4b)    :: mLayerdTheta_dPsi               = integerMissing ! derivative in the soil water characteristic w.r.t. psi (m-1)
-  integer(i4b)    :: mLayerdPsi_dTheta               = integerMissing ! derivative in the soil water characteristic w.r.t. theta (m)
+  integer(i4b)    :: dq_dHydStateLayerSurfVec        = integerMissing ! change in the flux in soil surface interface w.r.t. state variables in layers
+  integer(i4b)    :: mLayerdTheta_dPsi               = integerMissing ! derivative in liquid water content w.r.t. matric potential (m-1)
   integer(i4b)    :: dCompress_dPsi                  = integerMissing ! derivative in compressibility w.r.t matric head (m-1)
   ! derivative in baseflow flux w.r.t. aquifer storage
   integer(i4b)    :: dBaseflow_dAquifer              = integerMissing ! derivative in baseflow flux w.r.t. aquifer storage (s-1)
   ! derivative in liquid water fluxes for the soil domain w.r.t energy state variables
   integer(i4b)    :: dq_dNrgStateAbove               = integerMissing ! change in the flux in layer interfaces w.r.t. state variables in the layer above
   integer(i4b)    :: dq_dNrgStateBelow               = integerMissing ! change in the flux in layer interfaces w.r.t. state variables in the layer below
-  integer(i4b)    :: mLayerdTheta_dTk                = integerMissing ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
+  integer(i4b)    :: dq_dNrgStateLayerSurfVec        = integerMissing ! change in the flux in soil surface interface w.r.t. state variables in layers
   integer(i4b)    :: dPsiLiq_dTemp                   = integerMissing ! derivative in the liquid water matric potential w.r.t. temperature (m K-1)
   integer(i4b)    :: dPsiLiq_dPsi0                   = integerMissing ! derivative in liquid water matric potential w.r.t. the total water matric potential (-)
+  ! derivatives in soil transpiration w.r.t. canopy state variables
+  integer(i4b)    :: mLayerdTrans_dTCanair           = integerMissing ! derivatives in the soil layer transpiration flux w.r.t. canopy air temperature
+  integer(i4b)    :: mLayerdTrans_dTCanopy           = integerMissing ! derivatives in the soil layer transpiration flux w.r.t. canopy temperature
+  integer(i4b)    :: mLayerdTrans_dTGround           = integerMissing ! derivatives in the soil layer transpiration flux w.r.t. ground temperature
+  integer(i4b)    :: mLayerdTrans_dCanWat            = integerMissing ! derivatives in the soil layer transpiration flux w.r.t. canopy total water
+  ! derivatives in aquifer transpiration w.r.t. canopy state variables
+  integer(i4b)    :: dAquiferTrans_dTCanair          = integerMissing ! derivative in the aquifer transpiration flux w.r.t. canopy air temperature
+  integer(i4b)    :: dAquiferTrans_dTCanopy          = integerMissing ! derivative in the aquifer transpiration flux w.r.t. canopy temperature
+  integer(i4b)    :: dAquiferTrans_dTGround          = integerMissing ! derivative in the aquifer transpiration flux w.r.t. ground temperature
+  integer(i4b)    :: dAquiferTrans_dCanWat           = integerMissing ! derivative in the aquifer transpiration flux w.r.t. canopy total water
+ ! derivative in liquid water fluxes for the soil and snow domain w.r.t temperature
+  integer(i4b)    :: dFracLiqWat_dTk                 = integerMissing ! derivative in fraction of liquid water w.r.t. temperature
+  integer(i4b)    :: mLayerdTheta_dTk                = integerMissing ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
+  integer(i4b)    :: mLayerd2Theta_dTk2              = integerMissing ! second derivative of volumetric liquid water content w.r.t. temperature
+ ! derivatives in time
+  integer(i4b)    :: mLayerdTemp_dt                  = integerMissing ! timestep change in layer temperature
+  integer(i4b)    :: scalarCanopydTemp_dt            = integerMissing ! timestep change in canopy temperature
+  integer(i4b)    :: mLayerdWat_dt                   = integerMissing ! timestep change in layer volumetric fraction of total water
+  integer(i4b)    :: scalarCanopydWat_dt             = integerMissing ! timestep change in canopy water content
+  ! derivatives of temperature if enthalpy is the state variable
+  integer(i4b)    :: dCanairTemp_dEnthalpy           = integerMissing ! derivative of canopy air temperature w.r.t. enthalpy
+  integer(i4b)    :: dCanopyTemp_dEnthalpy           = integerMissing ! derivative of canopy temperature w.r.t. enthalpy 
+  integer(i4b)    :: dTemp_dEnthalpy                 = integerMissing ! derivative of temperature w.r.t. enthalpy      
+  integer(i4b)    :: dCanopyTemp_dCanWat             = integerMissing ! derivative of canopy temperature w.r.t. volumetric water content  
+  integer(i4b)    :: dTemp_dTheta                    = integerMissing ! derivative of temperature w.r.t. volumetric water content         
+  integer(i4b)    :: dTemp_dPsi0                     = integerMissing ! derivative of temperature w.r.t. total water matric potential         
+
  endtype iLook_deriv
 
  ! ***********************************************************************************************************
@@ -707,6 +829,7 @@ MODULE var_lookup
   integer(i4b)    :: basin__AquiferTranspire    = integerMissing ! transpiration from the aquifer (m s-1)
   integer(i4b)    :: basin__TotalRunoff         = integerMissing ! total runoff to channel from all active components (m s-1)
   integer(i4b)    :: basin__SoilDrainage        = integerMissing ! soil drainage (m s-1)
+  integer(i4b)    :: basin__StorageChange       = integerMissing ! change in total basin storage (kg m-2 s-1)
   ! define variables for runoff
   integer(i4b)    :: routingRunoffFuture        = integerMissing ! runoff in future time steps (m s-1)
   integer(i4b)    :: routingFractionFuture      = integerMissing ! fraction of runoff in future time steps (-)
@@ -715,10 +838,13 @@ MODULE var_lookup
  endtype iLook_bvar
 
  ! ***********************************************************************************************************
- ! (13) structure for looking up the type of a model variable (this is only needed for backward
- ! compatability, and should be removed eventually)
+ ! (13) structure for looking up the type of a model variable
  ! ***********************************************************************************************************
+#ifdef ACTORS_ACTIVE
+ type, public, bind(C) :: iLook_varType
+#else
  type, public :: iLook_varType
+#endif
   integer(i4b)    :: scalarv   = integerMissing ! scalar variables
   integer(i4b)    :: wLength   = integerMissing ! # spectral bands
   integer(i4b)    :: midSnow   = integerMissing ! mid-layer snow variables
@@ -743,7 +869,6 @@ MODULE var_lookup
   integer(i4b)    :: vari = integerMissing ! variance over period
   integer(i4b)    :: mini = integerMissing ! minimum over period
   integer(i4b)    :: maxi = integerMissing ! maximum over period
-  integer(i4b)    :: mode = integerMissing ! mode over period
  endtype iLook_stat
 
  ! ***********************************************************************************************************
@@ -757,6 +882,15 @@ MODULE var_lookup
  endtype iLook_freq
 
  ! ***********************************************************************************************************
+ ! (16) structure for looking up lookup tables
+ ! ***********************************************************************************************************
+ type, public :: iLook_vLookup
+  integer(i4b)    :: temperature = integerMissing ! temperature (K)
+  integer(i4b)    :: psiLiq_int  = integerMissing ! integral of mLayerPsiLiq from Tfreeze to Tk (K)
+  integer(i4b)    :: deriv2      = integerMissing ! second derivatives of the interpolating function
+ endtype iLook_vLookup
+
+ ! ***********************************************************************************************************
  ! (X) define data structures and maximum number of variables of each type
  ! ***********************************************************************************************************
 
@@ -764,22 +898,18 @@ MODULE var_lookup
  type(iLook_decision),public,parameter :: iLookDECISIONS=iLook_decision(  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
-                                                                         31, 32, 33, 34, 35, 36, 37, 38)
+                                                                         31, 32, 33, 34, 35, 36, 37, 38, 39, 40,&
+                                                                         41, 42, 43, 44)
  ! named variables: model time
  type(iLook_time),    public,parameter :: iLookTIME     =iLook_time    (  1,  2,  3,  4,  5,  6,  7)
-
  ! named variables: model forcing data
  type(iLook_force),   public,parameter :: iLookFORCE    =iLook_force   (  1,  2,  3,  4,  5,  6,  7,  8)
-
  ! named variables: model attributes
  type(iLook_attr),    public,parameter :: iLookATTR     =iLook_attr    (  1,  2,  3,  4,  5,  6,  7,  8)
-
  ! named variables: soil and vegetation types
  type(iLook_type),    public,parameter :: iLookTYPE     =iLook_type    (  1,  2,  3,  4)
-
  ! named variables: hru and gru IDs and associated information
- type(iLook_id),      public,parameter :: iLookID       =iLook_id      (  1)
-
+ type(iLook_id),      public,parameter :: iLookID       =iLook_id      (  1,  2, 3)
  ! named variables: model parameters
  type(iLook_param),   public,parameter :: iLookPARAM    =iLook_param   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -796,13 +926,14 @@ MODULE var_lookup
                                                                         121,122,123,124,125,126,127,128,129,130,&
                                                                         131,132,133,134,135,136,137,138,139,140,&
                                                                         141,142,143,144,145,146,147,148,149,150,&
-                                                                        151,152,153,154,155,156,157,158,159)
-
+                                                                        151,152,153,154,155,156,157,158,159,160,&
+                                                                        161,162,163,164,165,166,167,168,169,170,&
+                                                                        171,172,173,174,175,176,177,178,179,180,&
+                                                                        181,182,183,184,185,186,187)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
-                                                                         21)
-
+                                                                         21, 22, 23, 24)
  ! named variables: model diagnostic variables
  type(iLook_diag),    public,parameter :: iLookDIAG     =iLook_diag    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -812,7 +943,9 @@ MODULE var_lookup
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
-                                                                         81, 82, 83, 84)
+                                                                         81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
+                                                                         91, 92, 93, 94, 95, 96, 97, 98, 99,100,&
+                                                                        101,102,103, 104)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -822,39 +955,38 @@ MODULE var_lookup
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
-                                                                         81, 82, 83, 84, 85, 86, 87, 88, 89)
-
+                                                                         81, 82, 83, 84, 85, 86, 87, 88, 89, 90)
  ! named variables: derivatives in model fluxes w.r.t. relevant state variables
  type(iLook_deriv),   public,parameter :: iLookDERIV    =iLook_deriv   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
-                                                                         31, 32, 33, 34, 35, 36, 37, 38, 39)
-
+                                                                         31, 32, 33, 34, 35, 36, 37, 38, 39, 40,&
+                                                                         41, 42, 43, 44, 45, 46, 47, 48, 49, 50,&
+                                                                         51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
+                                                                         61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
+                                                                         71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
+                                                                         81)
  ! named variables: model indices
- type(iLook_index),   public,parameter :: iLookINDEX    =ilook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
+ type(iLook_index),   public,parameter :: iLookINDEX    =iLook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
                                                                          31, 32, 33, 34, 35, 36, 37, 38, 39, 40,&
                                                                          41, 42, 43, 44, 45, 46, 47, 48, 49, 50,&
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60)
-
  ! named variables: basin-average parameters
- type(iLook_bpar),    public,parameter :: iLookBPAR     =ilook_bpar    (  1,  2,  3,  4,  5)
-
+ type(iLook_bpar),    public,parameter :: iLookBPAR     =iLook_bpar    (  1,  2,  3,  4,  5)
  ! named variables: basin-average variables
- type(iLook_bvar),    public,parameter :: iLookBVAR     =ilook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
-                                                                         11, 12, 13)
-
- ! named variables in varibale type structure
- type(iLook_varType), public,parameter :: iLookVarType  =ilook_varType (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
+ type(iLook_bvar),    public,parameter :: iLookBVAR     =iLook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
+                                                                         11, 12, 13, 14)
+ ! named variables in variable type structure
+ type(iLook_varType), public,parameter :: iLookVarType  =iLook_varType (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12)
-
  ! number of possible output statistics
- type(iLook_stat),    public,parameter :: iLookStat     =ilook_stat    (  1,  2,  3,  4,  5,  6,  7)
-
+ type(iLook_stat),    public,parameter :: iLookSTAT     =iLook_stat    (  1,  2,  3,  4,  5,  6)
  ! number of possible output frequencies
- type(iLook_freq),    public,parameter :: iLookFreq     =ilook_freq    (  1,  2,  3,  4)
-
+ type(iLook_freq),    public,parameter :: iLookFREQ     =iLook_freq    (  1,  2,  3,  4)
+ ! named variables in the lookup table structure
+ type(iLook_vLookup), public,parameter :: iLookLOOKUP   =iLook_vLookup (  1,  2,  3)
  ! define maximum number of variables of each type
  integer(i4b),parameter,public :: maxvarDecisions = storage_size(iLookDECISIONS)/iLength
  integer(i4b),parameter,public :: maxvarTime      = storage_size(iLookTIME)/iLength
@@ -871,14 +1003,14 @@ MODULE var_lookup
  integer(i4b),parameter,public :: maxvarBpar      = storage_size(iLookBPAR)/iLength
  integer(i4b),parameter,public :: maxvarBvar      = storage_size(iLookBVAR)/iLength
  integer(i4b),parameter,public :: maxvarVarType   = storage_size(iLookVarType)/iLength
- integer(i4b),parameter,public :: maxvarStat      = storage_size(iLookStat)/iLength
- integer(i4b),parameter,public :: maxvarFreq      = storage_size(iLookFreq)/iLength
+ integer(i4b),parameter,public :: maxvarStat      = storage_size(iLookSTAT)/iLength
+ integer(i4b),parameter,public :: maxvarFreq      = storage_size(iLookFREQ)/iLength
+ integer(i4b),parameter,public :: maxvarLookup    = storage_size(iLookLOOKUP)/iLength
 
  ! ***********************************************************************************************************
  ! (Y) define ancillary look-up structures
  ! ***********************************************************************************************************
 
  integer(i4b),allocatable,save,public   :: childFLUX_MEAN(:)  ! index of the child data structure: mean flux
-
 
 END MODULE var_lookup

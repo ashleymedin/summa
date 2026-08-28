@@ -21,7 +21,7 @@
 module time_utils_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! model constants
 USE multiconst,only:secprday,secprhour,secprmin  ! seconds in an (day, hour, minute)
@@ -328,7 +328,7 @@ contains
  integer(i4b), intent(out)     :: id           ! day
  integer(i4b), intent(out)     :: ih           ! hour
  integer(i4b), intent(out)     :: imin         ! minute
- real(rkind),     intent(out)     :: dsec         ! seconds
+ real(rkind),  intent(out)     :: dsec         ! seconds
  integer(i4b), intent(out)     :: err          ! error code
  character(*), intent(out)     :: message      ! error message
 

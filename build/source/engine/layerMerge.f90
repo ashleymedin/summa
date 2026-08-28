@@ -21,11 +21,11 @@
 module layerMerge_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
-USE globalData,only:realMissing     ! missing double precision number
+USE globalData,only:realMissing     ! missing real number
 
 ! access named variables for snow and soil
 USE globalData,only:iname_snow        ! named variables for snow
@@ -41,9 +41,9 @@ USE multiconst,only:&
 
 ! access the derived types to define the data structures
 USE data_types,only:&
-                    var_d,            & ! data vector (dp)
+                    var_d,            & ! data vector (rkind)
                     var_ilength,      & ! data vector with variable length dimension (i4b)
-                    var_dlength,      & ! data vector with variable length dimension (dp)
+                    var_dlength,      & ! data vector with variable length dimension (rkind)
                     model_options       ! defines the model decisions
 
 ! access named variables defining elements in the data structures
@@ -133,7 +133,7 @@ contains
  ) ! end associate statement
  ! --------------------------------------------------------------------------------------------------------
 
- ! identify algorithmic control parameters to syb-divide and combine snow layers
+ ! identify algorithmic control parameters to sub-divide and combine snow layers
  zminLayer = (/zminLayer1, zminLayer2, zminLayer3, zminLayer4, zminLayer5/)
 
  ! intialize the modified layers flag
@@ -248,8 +248,6 @@ contains
 
   end do ! (looping through snow layers)
 
-  !print*, 'ksnow = ', ksnow
-
   ! exit if finished
   if(kSnow==nCheck)exit
 
@@ -293,13 +291,13 @@ contains
  ! ***********************************************************************************************************
  subroutine layer_combine(mpar_data,prog_data,diag_data,flux_data,indx_data,iSnow,err,message)
  ! provide access to variables in the data structures
- USE var_lookup,only:iLookPARAM,iLookPROG,iLookINDEX           ! named variables for structure elements
- USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta   ! metadata
- USE data_types,only:var_ilength,var_dlength                   ! data vectors with variable length dimension
- USE data_types,only:var_d                                     ! data structures with fixed dimension
+ USE var_lookup,only:iLookPARAM,iLookPROG,iLookINDEX              ! named variables for structure elements
+ USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta      ! metadata
+ USE data_types,only:var_ilength,var_dlength                      ! data vectors with variable length dimension
+ USE data_types,only:var_d                                        ! data structures with fixed dimension
  ! provide access to external modules
- USE snow_utils_module,only:fracliquid                         ! compute fraction of liquid water
- USE convE2Temp_module,only:E2T_nosoil,temp2ethpy              ! convert temperature to enthalpy
+ USE snow_utils_module,only:fracliquid                                   ! compute fraction of liquid water
+ USE convertEnthalpyTemp_module,only:enthalpy2T_snwWat,T2enthalpy_snwWat ! convert temperature to liq+ice enthalpy for a snow layer
  implicit none
  ! ------------------------------------------------------------------------------------------------------------
  ! input/output: data structures
@@ -316,18 +314,18 @@ contains
  ! ------------------------------------------------------------------------------------------------------------
  ! local variables
  character(len=256)              :: cmessage                 ! error message for downwind routine
- real(rkind)                        :: massIce(2)               ! mass of ice in the two layers identified for combination (kg m-2)
- real(rkind)                        :: massLiq(2)               ! mass of liquid water in the two layers identified for combination (kg m-2)
- real(rkind)                        :: bulkDenWat(2)            ! bulk density if total water (liquid water plus ice) in the two layers identified for combination (kg m-3)
- real(rkind)                        :: cBulkDenWat              ! combined bulk density of total water (liquid water plus ice) in the two layers identified for combination (kg m-3)
- real(rkind)                        :: cTemp                    ! combined layer temperature
- real(rkind)                        :: cDepth                   ! combined layer depth
- real(rkind)                        :: cVolFracIce              ! combined layer volumetric fraction of ice
- real(rkind)                        :: cVolFracLiq              ! combined layer volumetric fraction of liquid water
- real(rkind)                        :: l1Enthalpy,l2Enthalpy    ! enthalpy in the two layers identified for combination (J m-3)
- real(rkind)                        :: cEnthalpy                ! combined layer enthalpy (J m-3)
- real(rkind)                        :: fLiq                     ! fraction of liquid water at the combined temperature cTemp
- real(rkind),parameter              :: eTol=1.e-1_rkind            ! tolerance for the enthalpy-->temperature conversion (J m-3)
+ real(rkind)                     :: massIce(2)               ! mass of ice in the two layers identified for combination (kg m-2)
+ real(rkind)                     :: massLiq(2)               ! mass of liquid water in the two layers identified for combination (kg m-2)
+ real(rkind)                     :: bulkDenWat(2)            ! bulk density if total water (liquid water plus ice) in the two layers identified for combination (kg m-3)
+ real(rkind)                     :: cBulkDenWat              ! combined bulk density of total water (liquid water plus ice) in the two layers identified for combination (kg m-3)
+ real(rkind)                     :: cTemp                    ! combined layer temperature
+ real(rkind)                     :: cDepth                   ! combined layer depth
+ real(rkind)                     :: cVolFracIce              ! combined layer volumetric fraction of ice
+ real(rkind)                     :: cVolFracLiq              ! combined layer volumetric fraction of liquid water
+ real(rkind)                     :: l1Enthalpy,l2Enthalpy    ! enthalpy in the two layers identified for combination (J m-3)
+ real(rkind)                     :: cEnthalpy                ! combined layer enthalpy (J m-3)
+ real(rkind)                     :: fLiq                     ! fraction of liquid water at the combined temperature cTemp
+ real(rkind),parameter           :: eTol=1.e-1_rkind         ! tolerance for the enthalpy-->temperature conversion (J m-3)
  integer(i4b)                    :: nSnow                    ! number of snow layers
  integer(i4b)                    :: nSoil                    ! number of soil layers
  integer(i4b)                    :: nLayers                  ! total number of layers
@@ -363,19 +361,19 @@ contains
  cBulkDenWat     = (mLayerDepth(isnow)*bulkDenWat(1) + mLayerDepth(isnow+1)*bulkDenWat(2))/cDepth
 
  ! compute enthalpy for each layer (J m-3)
- l1Enthalpy  = temp2ethpy(mLayerTemp(iSnow),  BulkDenWat(1),snowfrz_scale)
- l2Enthalpy  = temp2ethpy(mLayerTemp(iSnow+1),BulkDenWat(2),snowfrz_scale)
+ l1Enthalpy = T2enthalpy_snwWat(mLayerTemp(iSnow),  BulkDenWat(1),snowfrz_scale)
+ l2Enthalpy = T2enthalpy_snwWat(mLayerTemp(iSnow+1),BulkDenWat(2),snowfrz_scale)
 
  ! compute combined enthalpy (J m-3)
- cEnthalpy   = (mLayerDepth(isnow)*l1Enthalpy + mLayerDepth(isnow+1)*l2Enthalpy)/cDepth
+ cEnthalpy = (mLayerDepth(isnow)*l1Enthalpy + mLayerDepth(isnow+1)*l2Enthalpy)/cDepth
 
  ! convert enthalpy (J m-3) to temperature (K)
- call E2T_nosoil(cEnthalpy,cBulkDenWat,snowfrz_scale,cTemp,err,cmessage)
+ call enthalpy2T_snwWat(cEnthalpy,cBulkDenWat,snowfrz_scale,cTemp,err,cmessage)
  if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; end if
 
  ! test enthalpy conversion
- if(abs(temp2ethpy(cTemp,cBulkDenWat,snowfrz_scale)/cBulkDenWat - cEnthalpy/cBulkDenWat) > eTol)then
-  write(*,'(a,1x,f12.5,1x,2(e20.10,1x))') 'enthalpy test', cBulkDenWat, temp2ethpy(cTemp,cBulkDenWat,snowfrz_scale)/cBulkDenWat, cEnthalpy/cBulkDenWat
+ if(abs(T2enthalpy_snwWat(cTemp,cBulkDenWat,snowfrz_scale)/cBulkDenWat - cEnthalpy/cBulkDenWat) > eTol)then
+  write(*,'(a,1x,f12.5,1x,2(e20.10,1x))') 'enthalpy test', cBulkDenWat, T2enthalpy_snwWat(cTemp,cBulkDenWat,snowfrz_scale)/cBulkDenWat, cEnthalpy/cBulkDenWat
   message=trim(message)//'problem with enthalpy-->temperature conversion'
   err=20; return
  end if
@@ -456,7 +454,7 @@ contains
  integer(i4b),intent(out)        :: err            ! error code
  character(*),intent(out)        :: message        ! error message
  ! locals
- integer(i4b)                    :: ivar           ! variable index
+ integer(i4b)                    :: iVar           ! variable index
  integer(i4b)                    :: ix_lower       ! lower bound of the vector
  integer(i4b)                    :: ix_upper       ! upper bound of the vector
  real(rkind),allocatable            :: tempVec_rkind(:)  ! temporary vector (double precision)
@@ -474,10 +472,10 @@ contains
  if(err/=0)then; message=trim(message)//'dimensions of data structure and metadata structures do not match'; return; end if
 
  ! ***** loop through model variables and remove one layer
- do ivar=1,size(metaStruct)
+ do iVar=1,size(metaStruct)
 
   ! define bounds
-  select case(metaStruct(ivar)%vartype)
+  select case(metaStruct(iVar)%varType)
    case(iLookVarType%midSnow); ix_lower=1; ix_upper=nSnow
    case(iLookVarType%midToto); ix_lower=1; ix_upper=nLayers
    case(iLookVarType%ifcSnow); ix_lower=0; ix_upper=nSnow
@@ -491,19 +489,19 @@ contains
    ! ** double precision
    type is (var_dlength)
     ! check allocated
-    if(.not.allocated(dataStruct%var(ivar)%dat))then; err=20; message='data vector is not allocated'; return; end if
+    if(.not.allocated(dataStruct%var(iVar)%dat))then; err=20; message='data vector is not allocated'; return; end if
     ! allocate the temporary vector
     allocate(tempVec_rkind(ix_lower:ix_upper-1), stat=err)
     if(err/=0)then; err=20; message=trim(message)//'unable to allocate temporary vector'; return; end if
     ! copy elements across to the temporary vector
     if(iSnow>=ix_lower)  tempVec_rkind(iSnow)              = realMissing ! set merged layer to missing (fill in later)
-    if(iSnow>ix_lower)   tempVec_rkind(ix_lower:iSnow-1)   = dataStruct%var(ivar)%dat(ix_lower:iSnow-1)
-    if(iSnow+1<ix_upper) tempVec_rkind(iSnow+1:ix_upper-1) = dataStruct%var(ivar)%dat(iSnow+2:ix_upper)  ! skip iSnow+1
+    if(iSnow>ix_lower)   tempVec_rkind(ix_lower:iSnow-1)   = dataStruct%var(iVar)%dat(ix_lower:iSnow-1)
+    if(iSnow+1<ix_upper) tempVec_rkind(iSnow+1:ix_upper-1) = dataStruct%var(iVar)%dat(iSnow+2:ix_upper)  ! skip iSnow+1
     ! deallocate the data vector: strictly not necessary, but include to be safe
-    deallocate(dataStruct%var(ivar)%dat,stat=err)
+    deallocate(dataStruct%var(iVar)%dat,stat=err)
     if(err/=0)then; err=20; message='problem deallocating data vector'; return; end if
     ! create the new data structure using the temporary vector as the source
-    call cloneStruc(dataStruct%var(ivar)%dat, ix_lower, source=tempVec_rkind, err=err, message=cmessage)
+    call cloneStruc(dataStruct%var(iVar)%dat, ix_lower, source=tempVec_rkind, err=err, message=cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
     ! deallocate the temporary data vector: strictly not necessary, but include to be safe
     deallocate(tempVec_rkind,stat=err)
@@ -512,19 +510,19 @@ contains
    ! ** integer
    type is (var_ilength)
     ! check allocated
-    if(.not.allocated(dataStruct%var(ivar)%dat))then; err=20; message='data vector is not allocated'; return; end if
+    if(.not.allocated(dataStruct%var(iVar)%dat))then; err=20; message='data vector is not allocated'; return; end if
     ! allocate the temporary vector
     allocate(tempVec_i4b(ix_lower:ix_upper-1), stat=err)
     if(err/=0)then; err=20; message=trim(message)//'unable to allocate temporary vector'; return; end if
     ! copy elements across to the temporary vector
     if(iSnow>=ix_lower)  tempVec_i4b(iSnow)              = integerMissing ! set merged layer to missing (fill in later)
-    if(iSnow>ix_lower)   tempVec_i4b(ix_lower:iSnow-1)   = dataStruct%var(ivar)%dat(ix_lower:iSnow-1)
-    if(iSnow+1<ix_upper) tempVec_i4b(iSnow+1:ix_upper-1) = dataStruct%var(ivar)%dat(iSnow+2:ix_upper)  ! skip iSnow+1
+    if(iSnow>ix_lower)   tempVec_i4b(ix_lower:iSnow-1)   = dataStruct%var(iVar)%dat(ix_lower:iSnow-1)
+    if(iSnow+1<ix_upper) tempVec_i4b(iSnow+1:ix_upper-1) = dataStruct%var(iVar)%dat(iSnow+2:ix_upper)  ! skip iSnow+1
     ! deallocate the data vector: strictly not necessary, but include to be safe
-    deallocate(dataStruct%var(ivar)%dat,stat=err)
+    deallocate(dataStruct%var(iVar)%dat,stat=err)
     if(err/=0)then; err=20; message='problem deallocating data vector'; return; end if
     ! create the new data structure using the temporary vector as the source
-    call cloneStruc(dataStruct%var(ivar)%dat, ix_lower, source=tempVec_i4b, err=err, message=cmessage)
+    call cloneStruc(dataStruct%var(iVar)%dat, ix_lower, source=tempVec_i4b, err=err, message=cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
     ! deallocate the temporary data vector: strictly not necessary, but include to be safe
     deallocate(tempVec_i4b,stat=err)

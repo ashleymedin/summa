@@ -27,8 +27,11 @@ USE globalData,only:realMissing     ! missing real number
 ! runtime options
 USE globalData,only:iRunModeFull,iRunModeGRU,iRunModeHRU ! run modes
 
+! input sizes
+USE globalData,only:maxSoilLayers          ! maximum number of soil layers
+
 ! common modules
-USE nrtype
+USE nr_type
 USE netcdf
 USE netcdf_util_module,only:nc_file_close  ! close netcdf file
 USE netcdf_util_module,only:nc_file_open   ! open netcdf file
@@ -52,7 +55,7 @@ contains
  ! used to read model initial conditions
  USE summaFileManager,only:SETTINGS_PATH             ! path for metadata files
  USE summaFileManager,only:PARAMETER_TRIAL           ! file with parameter trial values
- USE get_ixname_module,only:get_ixparam,get_ixbpar   ! access function to find index of elements in structure
+ USE get_ixname_module,only:get_ixParam,get_ixBpar   ! access function to find index of elements in structure
  USE globalData,only:index_map,gru_struc             ! mapping from global HRUs to the elements in the data structures
  USE var_lookup,only:iLookPARAM,iLookTYPE,iLookID    ! named variables to index elements of the data vectors
  implicit none
@@ -78,8 +81,8 @@ contains
  integer(i4b)                          :: ncid             ! netcdf id
  integer(i4b)                          :: nDims            ! number of dimensions
  integer(i4b)                          :: nVars            ! number of variables
- integer(i4b)                          :: idimid           ! dimension index
- integer(i4b)                          :: ivarid           ! variable index
+ integer(i4b)                          :: iDimId           ! dimension index
+ integer(i4b)                          :: iVarId           ! variable index
  character(LEN=64)                     :: dimName          ! dimension name
  character(LEN=64)                     :: parName          ! parameter name
  integer(i4b)                          :: dimLength        ! dimension length
@@ -89,9 +92,9 @@ contains
  integer(i4b)                          :: idim_list(2)     ! list of dimension ids
  ! data in the netcdf file
  integer(i4b)                          :: parLength        ! length of the parameter data
- integer(8),allocatable                :: hruId(:)         ! HRU identifier in the file
- real(rkind),allocatable                  :: parVector(:)     ! model parameter vector
- logical                               :: fexist           ! inquire whether the parmTrial file exists
+ integer(i8b),allocatable              :: hruId(:)         ! HRU identifier in the file
+ real(rkind),allocatable               :: parVector(:)     ! model parameter vector
+ logical                               :: fexist           ! inquire whether the paramTrial file exists
  integer(i4b)                          :: fHRU             ! index of HRU in input file
 
  ! Start procedure here
@@ -113,21 +116,21 @@ contains
 
  ! open trial parameters file if it exists
  call nc_file_open(trim(infile),nf90_nowrite,ncid,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+ if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
 
  ! get the number of variables in the parameter file
  err=nf90_inquire(ncid, nDimensions=nDims, nVariables=nVars)
- call netcdf_err(err,message); if (err/=0) then; err=20; return; end if
+ call netcdf_err(err,message); if (err/=nf90_noerr) then; err=20; return; end if
 
  ! initialize the number of HRUs
  nHRU_file=integerMissing
  nGRU_file=integerMissing
 
  ! get the length of the dimensions
- do idimid=1,nDims
+ do iDimId=1,nDims
   ! get the dimension name and length
-  err=nf90_inquire_dimension(ncid, idimid, name=dimName, len=dimLength)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+  err=nf90_inquire_dimension(ncid, iDimId, name=dimName, len=dimLength)
+  if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
   ! get the number of HRUs
   if(trim(dimName)=='hru') nHRU_file=dimLength
   if(trim(dimName)=='gru') nGRU_file=dimLength
@@ -143,21 +146,21 @@ contains
  endif
 
  ! check have the correct number of HRUs
- if ((irunMode==irunModeFull).and.(nHRU_file/=nHRU)) then
+ if ((iRunMode==iRunModeFull).and.(nHRU_file/=nHRU)) then
   message=trim(message)//'incorrect number of HRUs in file '//trim(infile)
   err=20; return
  endif
- if ((irunMode==irunModeHRU).and.(nHRU_file<checkHRU)) then
+ if ((iRunMode==iRunModeHRU).and.(nHRU_file<checkHRU)) then
   message=trim(message)//'not enough HRUs in file '//trim(infile)
   err=20; return
  endif
 
  ! check have the correct number of GRUs
- if ((irunMode==irunModeGRU).and.(nGRU_file<startGRU).and.(nGRU_file/=integerMissing)) then
+ if ((iRunMode==iRunModeGRU).and.(nGRU_file<startGRU).and.(nGRU_file/=integerMissing)) then
   message=trim(message)//'not enough GRUs in file '//trim(infile)
   err=20; return
  endif
- if ((irunMode==irunModeFull).and.(nGRU_file/=nGRU).and.(nGRU_file/=integerMissing)) then
+ if ((iRunMode==iRunModeFull).and.(nGRU_file/=nGRU).and.(nGRU_file/=integerMissing)) then
   message=trim(message)//'incorrect number of GRUs in file '//trim(infile)
   err=20; return
  endif
@@ -167,18 +170,18 @@ contains
  ! **********************************************************************************************
 
  ! loop through the parameters in the NetCDF file
- do ivarid=1,nVars
+ do iVarId=1,nVars
 
   ! get the parameter name
-  err=nf90_inquire_variable(ncid, ivarid, name=parName)
-  call netcdf_err(err,message); if (err/=0) then; err=20; return; end if
+  err=nf90_inquire_variable(ncid, iVarId, name=parName)
+  call netcdf_err(err,message); if (err/=nf90_noerr) then; err=20; return; end if
 
   ! special case of the HRU id
   if(trim(parName)=='hruIndex' .or. trim(parName)=='hruId')then
 
    ! read HRUs
-   err=nf90_get_var(ncid, ivarid, hruId)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   err=nf90_get_var(ncid, iVarId, hruId)
+   if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
 
    ! check HRUs  -- expect HRUs to be in the same order as the local attributes
    if (iRunMode==iRunModeFull) then
@@ -206,7 +209,7 @@ contains
     iGRU=index_map(1)%gru_ix
     localHRU_ix=index_map(1)%localHRU_ix
     if(hruId(checkHRU)/=idStruct%gru(iGRU)%hru(localHRU_ix)%var(iLookID%hruId))then
-     write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', idStruct%gru(iGRU)%hru(localHRU_ix)%var(iLookID%hruId), '(param HRU = ', hruId(iHRU), ')'
+     write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', idStruct%gru(iGRU)%hru(localHRU_ix)%var(iLookID%hruId), '(param HRU = ', hruId(checkHRU), ')'
      err=20; return
     endif
 
@@ -224,14 +227,14 @@ contains
  ! **********************************************************************************************
 
  ! loop through the parameters in the NetCDF file
- do ivarid=1,nVars
+ do iVarId=1,nVars
 
   ! get the parameter name
-  err=nf90_inquire_variable(ncid, ivarid, name=parName)
-  call netcdf_err(err,message); if (err/=0) then; err=20; return; end if
+  err=nf90_inquire_variable(ncid, iVarId, name=parName)
+  call netcdf_err(err,message); if (err/=nf90_noerr) then; err=20; return; end if
 
   ! get the local parameters
-  ixParam = get_ixparam( trim(parName) )
+  ixParam = get_ixParam( trim(parName) )
   if(ixParam/=integerMissing)then
 
    ! **********************************************************************************************
@@ -239,15 +242,15 @@ contains
    ! **********************************************************************************************
 
    ! get the variable shape
-   err=nf90_inquire_variable(ncid, ivarid, nDims=nDims, dimids=idim_list)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   err=nf90_inquire_variable(ncid, iVarId, nDims=nDims, dimids=idim_list)
+   if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
 
    ! get the length of the depth dimension (if it exists)
    if(nDims==2)then
 
     ! get the information on the 2nd dimension for 2-d variables
     err=nf90_inquire_dimension(ncid, idim_list(2), dimName, nSoil_file)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
 
     ! check that it is the depth dimension
     if(trim(dimName)/='depth')then
@@ -255,8 +258,8 @@ contains
      err=20; return
     endif
 
-    ! check that the dimension length is correct
-    if(size(mparStruct%gru(iGRU)%hru(localHRU_ix)%var(ixParam)%dat) /= nSoil_file)then
+    ! check that the dimension length is correct (maxSoilLayers is the maximum number of soil layers in the model)
+    if(maxSoilLayers /= nSoil_file)then
      message=trim(message)//'unexpected number of soil layers in parameter file'
      err=20; return
     endif
@@ -285,13 +288,13 @@ contains
 
     ! read parameter data
     select case(nDims)
-     case(1); err=nf90_get_var(ncid, ivarid, parVector, start=(/fHRU/), count=(/1/) )
-     case(2); err=nf90_get_var(ncid, ivarid, parVector, start=(/fHRU,1/), count=(/1,nSoil_file/) )
+     case(1); err=nf90_get_var(ncid, iVarId, parVector, start=(/fHRU/), count=(/1/) )
+     case(2); err=nf90_get_var(ncid, iVarId, parVector, start=(/fHRU,1/), count=(/1,nSoil_file/) )
      case default; err=20; message=trim(message)//'unexpected number of dimensions for parameter '//trim(parName)
     end select
 
     ! error check for the parameter read
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
 
     ! populate parameter structures
     select case(nDims)
@@ -317,7 +320,7 @@ contains
   else
 
    ! get the parameter index
-   ixParam = get_ixbpar( trim(parName) )
+   ixParam = get_ixBpar( trim(parName) )
 
    ! allow extra variables in the file that are not used
    if(ixParam==integerMissing) cycle
@@ -330,8 +333,8 @@ contains
    endif
 
    ! read parameter data
-   err=nf90_get_var(ncid, ivarid, parVector )
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   err=nf90_get_var(ncid, iVarId, parVector )
+   if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
 
    ! populate parameter structures
    if (iRunMode==iRunModeGRU) then
@@ -357,9 +360,12 @@ contains
 
  end do ! (looping through the parameters in the NetCDF file)
 
-  ! close the netcdf file
-  call nc_file_close(ncid, err, cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+  ! close the NetCDF file
+ call nc_file_close(ncid,err,cmessage)
+ if(err/=nf90_noerr)then
+  message=trim(message)//'problem closing parameter file '//trim(infile)//': '//trim(cmessage)
+  err=20; return
+ endif
 
  end subroutine read_param
 

@@ -21,13 +21,13 @@
 module volicePack_module
 
 ! data types
-USE nrtype
+USE nr_type
 
 ! derived types to define the data structures
 USE data_types,only:&
-                    var_d,            & ! data vector (dp)
+                    var_d,            & ! data vector (rkind)
                     var_ilength,      & ! data vector with variable length dimension (i4b)
-                    var_dlength,      & ! data vector with variable length dimension (dp)
+                    var_dlength,      & ! data vector with variable length dimension (rkind)
                     model_options       ! defines the model decisions
 
 ! named variables for snow and soil
@@ -39,11 +39,6 @@ USE var_lookup,only:iLookINDEX          ! named variables for structure elements
 
 ! physical constants
 USE multiconst,only:&
-                    Tfreeze,  & ! freezing point              (K)
-                    LH_fus,   & ! latent heat of fusion       (J kg-1)
-                    LH_vap,   & ! latent heat of vaporization (J kg-1)
-                    LH_sub,   & ! latent heat of sublimation  (J kg-1)
-                    iden_air, & ! intrinsic density of air    (kg m-3)
                     iden_ice, & ! intrinsic density of ice    (kg m-3)
                     iden_water  ! intrinsic density of water  (kg m-3)
 
@@ -97,19 +92,21 @@ contains
  ! initialize error control
  err=0; message='volicePack/'
 
- ! divide snow layers if too thick
- call layerDivide(&
-                  ! input/output: model data structures
-                  model_decisions,             & ! intent(in):    model decisions
-                  mpar_data,                   & ! intent(in):    model parameters
-                  indx_data,                   & ! intent(inout): type of each layer
-                  prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
-                  diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
-                  flux_data,                   & ! intent(inout): model fluxes for a local HRU
-                  ! output
-                  divideLayer,                 & ! intent(out): flag to denote that layers were modified
-                  err,cmessage)                  ! intent(out): error control
- if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; end if
+ ! divide snow layers if too thick, don't do it if need to merge
+ if (.not.tooMuchMelt)then
+   call layerDivide(&
+                    ! input/output: model data structures
+                    model_decisions,             & ! intent(in):    model decisions
+                    mpar_data,                   & ! intent(in):    model parameters
+                    indx_data,                   & ! intent(inout): type of each layer
+                    prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
+                    diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
+                    flux_data,                   & ! intent(inout): model fluxes for a local HRU
+                    ! output
+                    divideLayer,                 & ! intent(out): flag to denote that layers were modified
+                    err,cmessage)                  ! intent(out): error control
+   if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; end if
+ endif
 
  ! merge snow layers if they are too thin
  call layerMerge(&
@@ -153,10 +150,10 @@ contains
                        ! input/output: state variables
                        scalarSWE,                 & ! SWE (kg m-2)
                        scalarSnowDepth,           & ! total snow depth (m)
-                       surfaceLayerTemp,          & ! temperature of each layer (K)
-                       surfaceLayerDepth,         & ! depth of each layer (m)
-                       surfaceLayerVolFracIce,    & ! volumetric fraction of ice in each layer (-)
-                       surfaceLayerVolFracLiq,    & ! volumetric fraction of liquid water in each layer (-)
+                       surfaceLayerTemp,          & ! temperature of surface layer (K)
+                       surfaceLayerDepth,         & ! depth of surface layer (m)
+                       surfaceLayerVolFracIce,    & ! volumetric fraction of ice in surface layer (-)
+                       surfaceLayerVolFracLiq,    & ! volumetric fraction of liquid water in surface layer (-)
                        ! output: error control
                        err,message                ) ! error control
  ! computational modules
@@ -165,7 +162,7 @@ contains
  implicit none
  ! input: model control
  real(rkind),intent(in)                 :: dt                         ! time step (seconds)
- logical(lgt),intent(in)             :: snowLayers                 ! logical flag if snow layers exist
+ logical(lgt),intent(in)                :: snowLayers                 ! logical flag if snow layers exist
  real(rkind),intent(in)                 :: fc_param                   ! freeezing curve parameter for snow (K-1)
  ! input: diagnostic scalar variables
  real(rkind),intent(in)                 :: scalarSnowfallTemp         ! computed temperature of fresh snow (K)
@@ -175,13 +172,13 @@ contains
  ! input/output: state variables
  real(rkind),intent(inout)              :: scalarSWE                  ! SWE (kg m-2)
  real(rkind),intent(inout)              :: scalarSnowDepth            ! total snow depth (m)
- real(rkind),intent(inout)              :: surfaceLayerTemp           ! temperature of each layer (K)
+ real(rkind),intent(inout)              :: surfaceLayerTemp           ! temperature of surface layer (K)
  real(rkind),intent(inout)              :: surfaceLayerDepth          ! depth of each layer (m)
- real(rkind),intent(inout)              :: surfaceLayerVolFracIce     ! volumetric fraction of ice in each layer (-)
- real(rkind),intent(inout)              :: surfaceLayerVolFracLiq     ! volumetric fraction of liquid water in each layer (-)
+ real(rkind),intent(inout)              :: surfaceLayerVolFracIce     ! volumetric fraction of ice in surface layer (-)
+ real(rkind),intent(inout)              :: surfaceLayerVolFracLiq     ! volumetric fraction of liquid water in surface layer (-)
  ! output: error control
- integer(i4b),intent(out)            :: err                        ! error code
- character(*),intent(out)            :: message                    ! error message
+ integer(i4b),intent(out)               :: err                        ! error code
+ character(*),intent(out)               :: message                    ! error message
  ! define local variables
  real(rkind)                            :: newSnowfall                ! new snowfall -- throughfall and unloading (kg m-2 s-1)
  real(rkind)                            :: newSnowDepth               ! new snow depth (m)
@@ -194,7 +191,7 @@ contains
  real(rkind)                            :: tempSWE0                   ! temporary SWE before snowfall, used to check mass balance (kg m-2)
  real(rkind)                            :: tempSWE1                   ! temporary SWE after snowfall, used to check mass balance (kg m-2)
  real(rkind)                            :: xMassBalance               ! mass balance check (kg m-2)
- real(rkind),parameter                  :: verySmall=1.e-8_rkind         ! a very small number -- used to check mass balance
+ real(rkind),parameter                  :: massBalTol=1.e-8_rkind     ! tolerance for mass balance check (kg m-2)
  ! initialize error control
  err=0; message="newsnwfall/"
 
@@ -223,9 +220,6 @@ contains
   totalMassIceSurfLayer  = iden_ice*surfaceLayerVolFracIce*surfaceLayerDepth + newSnowfall*dt
   ! get the total snow depth
   totalDepthSurfLayer    = surfaceLayerDepth + newSnowDepth
-  !write(*,'(a,1x,10(f20.10,1x))') 'scalarSnowfallTemp, surfaceLayerTemp, newSnowDepth, surfaceLayerDepth, tempSWE0, totalMassIceSurfLayer/totalDepthSurfLayer = ', &
-  !                                 scalarSnowfallTemp, surfaceLayerTemp, newSnowDepth, surfaceLayerDepth, tempSWE0, totalMassIceSurfLayer/totalDepthSurfLayer
-
   ! compute the new temperature
   surfaceLayerTemp       = (surfaceLayerTemp*surfaceLayerDepth + scalarSnowfallTemp*newSnowDepth) / totalDepthSurfLayer
   ! compute new SWE for the upper layer (kg m-2)
@@ -243,7 +237,7 @@ contains
 
   ! check SWE
   xMassBalance = tempSWE1 - (tempSWE0 + newSnowfall*dt)
-  if (abs(xMassBalance) > verySmall)then
+  if (abs(xMassBalance) > massBalTol)then
    write(*,'(a,1x,f20.10)') 'SWE mass balance = ', xMassBalance
    message=trim(message)//'mass balance problem'
    err=20; return

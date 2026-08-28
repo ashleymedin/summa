@@ -1,5 +1,5 @@
 MODULE module_sf_noahlsm
-  USE nrtype
+  USE nr_type
   USE module_model_constants
 
 !   REAL(rkind), PARAMETER    :: CP = 1004.5
@@ -11,7 +11,7 @@ MODULE module_sf_noahlsm
 ! VEGETATION PARAMETERS
         INTEGER :: LUCATS , BARE
         INTEGER :: NATURAL
-        integer, PARAMETER :: NLUS=50
+        integer, PARAMETER :: NLUS=200
         CHARACTER(LEN=256) LUTYPE
         INTEGER, DIMENSION(1:NLUS) :: NROTBL
         real, dimension(1:NLUS) ::  SNUPTBL, RSTBL, RGLTBL, HSTBL,                &
@@ -42,6 +42,5 @@ MODULE module_sf_noahlsm
         REAL(rkind) ::  LVCOEF_DATA
 
         CHARACTER*256  :: err_message
-        integer, private :: iloc, jloc
 
 END MODULE module_sf_noahlsm

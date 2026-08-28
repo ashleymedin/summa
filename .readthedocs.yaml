@@ -12,3 +12,8 @@ build:
 
 mkdocs:
   configuration: mkdocs.yml
+
+# Specify the python packages we need to build properly
+python:
+  install:
+    - requirements: docs/requirements.txt  

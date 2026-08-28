@@ -21,7 +21,7 @@
 module layerDivide_module
 
 ! variable types
-USE nrtype
+USE nr_type
 
 ! physical constants
 USE multiconst,only:&
@@ -34,16 +34,16 @@ USE globalData,only:iname_soil        ! named variables for soil
 
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
-USE globalData,only:realMissing     ! missing double precision number
+USE globalData,only:realMissing     ! missing real number
 
 ! access metadata
 USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta   ! metadata
 
 ! access the derived types to define the data structures
 USE data_types,only:&
-                    var_d,            & ! data vector (dp)
+                    var_d,            & ! data vector (rkind)
                     var_ilength,      & ! data vector with variable length dimension (i4b)
-                    var_dlength,      & ! data vector with variable length dimension (dp)
+                    var_dlength,      & ! data vector with variable length dimension (rkind)
                     model_options       ! defines the model decisions
 
 ! access named variables defining elements in the data structures
@@ -76,7 +76,8 @@ public::layerDivide
 
 contains
 
- ! ***********************************************************************************************************
+
+  ! ***********************************************************************************************************
  ! public subroutine layerDivide: add new snowfall to the system, and increase number of snow layers if needed
  ! ***********************************************************************************************************
  subroutine layerDivide(&
@@ -131,7 +132,7 @@ contains
  real(rkind)                     :: fracLiq                ! fraction of liquid water (-)
  integer(i4b),parameter          :: ixVisible=1            ! named variable to define index in array of visible part of the spectrum
  integer(i4b),parameter          :: ixNearIR=2             ! named variable to define index in array of near IR part of the spectrum
- real(rkind),parameter           :: verySmall=1.e-10_rkind ! a very small number (used for error checking)
+ real(rkind),parameter           :: snowDepthTol=1.e-10_rkind ! tolerance for the snow depth difference (m)
  ! --------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="layerDivide/"
@@ -184,7 +185,7 @@ contains
   ! check if create the first snow layer
   select case(ix_snowLayers)
    case(sameRulesAllLayers);    createLayer = (scalarSnowDepth > zmax)
-   case(rulesDependLayerIndex); createLayer = (scalarSnowDepth > (zminLayer1 + zmaxLayer1_lower)/2._rkind) ! Initialize the first layer if we're halfway between the minimum and maximum depth for this layer. This gives some room for the layer to change depth in either direction and avoids excessive layer creation/deletion
+   case(rulesDependLayerIndex); createLayer = (scalarSnowDepth > zmaxLayer1_lower)
    case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
   end select ! (option to combine/sub-divide snow layers)
 
@@ -221,12 +222,12 @@ contains
    mLayerTemp(1)        = min(maxFrozenSnowTemp,surfaceLayerSoilTemp)    ! snow temperature  (K)
 
    ! compute the fraction of liquid water associated with the layer temperature
-   fracLiq      = fracliquid(mLayerTemp(1),fc_param)
+   fracLiq = fracliquid(mLayerTemp(1),fc_param)
 
    ! compute volumeteric fraction of liquid water and ice
    volFracWater = (scalarSWE/scalarSnowDepth)/iden_water  ! volumetric fraction of total water (liquid and ice)
    mLayerVolFracIce(1) = (1._rkind - fracLiq)*volFracWater*(iden_water/iden_ice)   ! volumetric fraction of ice (-)
-   mLayerVolFracLiq(1) =          fracLiq *volFracWater                         ! volumetric fraction of liquid water (-)
+   mLayerVolFracLiq(1) =             fracLiq *volFracWater                         ! volumetric fraction of liquid water (-)
 
    ! end association with local variables to the information in the data structures)
    end associate
@@ -342,11 +343,11 @@ contains
   end do
 
   ! check
-  if(abs(sum(mLayerDepth(1:nSnow)) - scalarSnowDepth) > verySmall)then
+  if(abs(sum(mLayerDepth(1:nSnow)) - scalarSnowDepth) > snowDepthTol)then
    print*, 'nSnow = ', nSnow
    write(*,'(a,1x,f30.25,1x)') 'sum(mLayerDepth(1:nSnow)) = ', sum(mLayerDepth(1:nSnow))
    write(*,'(a,1x,f30.25,1x)') 'scalarSnowDepth           = ', scalarSnowDepth
-   write(*,'(a,1x,f30.25,1x)') 'epsilon(scalarSnowDepth)  = ', epsilon(scalarSnowDepth)
+   write(*,'(a,1x,f30.25,1x)') 'snowDepthTol              = ', snowDepthTol
    message=trim(message)//'sum of layer depths does not equal snow depth'
    err=20; return
   end if
@@ -360,6 +361,7 @@ contains
  end associate
 
  end subroutine layerDivide
+
 
 
  ! ************************************************************************************************
@@ -384,7 +386,7 @@ contains
  character(*),intent(out)        :: message           ! error message
  ! ---------------------------------------------------------------------------------------------
  ! local variables
- integer(i4b)                    :: ivar              ! index of model variable
+ integer(i4b)                    :: iVar              ! index of model variable
  integer(i4b)                    :: ix_lower          ! lower bound of the vector
  integer(i4b)                    :: ix_upper          ! upper bound of the vector
  logical(lgt)                    :: stateVariable     ! .true. if variable is a state variable
@@ -396,10 +398,10 @@ contains
  err=0; message='addModelLayer/'
 
  ! ***** add a layer to each model variable
- do ivar=1,size(metaStruct)
+ do iVar=1,size(metaStruct)
 
   ! define bounds
-  select case(metaStruct(ivar)%vartype)
+  select case(metaStruct(iVar)%varType)
    case(iLookVarType%midSnow); ix_lower=1; ix_upper=nSnow
    case(iLookVarType%midToto); ix_lower=1; ix_upper=nLayers
    case(iLookVarType%ifcSnow); ix_lower=0; ix_upper=nSnow
@@ -408,7 +410,7 @@ contains
   end select
 
   ! identify whether it is a state variable
-  select case(trim(metaStruct(ivar)%varname))
+  select case(trim(metaStruct(iVar)%varName))
    case('mLayerDepth','mLayerTemp','mLayerVolFracIce','mLayerVolFracLiq'); stateVariable=.true.
    case default; stateVariable=.false.
   end select
@@ -419,28 +421,28 @@ contains
    ! ** double precision
    type is (var_dlength)
     ! check allocated
-    if(.not.allocated(dataStruct%var(ivar)%dat))then; err=20; message='data vector is not allocated'; return; end if
+    if(.not.allocated(dataStruct%var(iVar)%dat))then; err=20; message='data vector is not allocated'; return; end if
     ! assign the data vector to the temporary vector
-    call cloneStruc(tempVec_rkind, ix_lower, source=dataStruct%var(ivar)%dat, err=err, message=cmessage)
+    call cloneStruc(tempVec_rkind, ix_lower, source=dataStruct%var(iVar)%dat, err=err, message=cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
     ! reallocate space for the new vector
-    deallocate(dataStruct%var(ivar)%dat,stat=err)
+    deallocate(dataStruct%var(iVar)%dat,stat=err)
     if(err/=0)then; err=20; message='problem in attempt to deallocate memory for data vector'; return; end if
-    allocate(dataStruct%var(ivar)%dat(ix_lower:ix_upper+1),stat=err)
+    allocate(dataStruct%var(iVar)%dat(ix_lower:ix_upper+1),stat=err)
     if(err/=0)then; err=20; message='problem in attempt to reallocate memory for data vector'; return; end if
     ! populate the state vector
     if(stateVariable)then
      if(ix_upper > 0)then  ! (only copy data if the vector exists -- can be a variable for snow, with no layers)
       if(ix_divide > 0)then
-       dataStruct%var(ivar)%dat(1:ix_divide)            = tempVec_rkind(1:ix_divide)  ! copy data
-       dataStruct%var(ivar)%dat(ix_divide+1)            = tempVec_rkind(ix_divide)    ! repeat data for the sub-divided layer
+       dataStruct%var(iVar)%dat(1:ix_divide) = tempVec_rkind(1:ix_divide)  ! copy data
+       dataStruct%var(iVar)%dat(ix_divide+1) = tempVec_rkind(ix_divide)    ! repeat data for the sub-divided layer
       end if
       if(ix_upper > ix_divide) &
-       dataStruct%var(ivar)%dat(ix_divide+2:ix_upper+1) = tempVec_rkind(ix_divide+1:ix_upper)  ! copy data
+       dataStruct%var(iVar)%dat(ix_divide+2:ix_upper+1) = tempVec_rkind(ix_divide+1:ix_upper)  ! copy data
      end if  ! if the vector exists
     ! not a state variable
     else
-     dataStruct%var(ivar)%dat(:) = realMissing
+     dataStruct%var(iVar)%dat(:) = realMissing
     end if
     ! deallocate the temporary vector: strictly not necessary, but include to be safe
     deallocate(tempVec_rkind,stat=err)
@@ -449,28 +451,28 @@ contains
    ! ** integer
    type is (var_ilength)
     ! check allocated
-    if(.not.allocated(dataStruct%var(ivar)%dat))then; err=20; message='data vector is not allocated'; return; end if
+    if(.not.allocated(dataStruct%var(iVar)%dat))then; err=20; message='data vector is not allocated'; return; end if
     ! assign the data vector to the temporary vector
-    call cloneStruc(tempVec_i4b, ix_lower, source=dataStruct%var(ivar)%dat, err=err, message=cmessage)
+    call cloneStruc(tempVec_i4b, ix_lower, source=dataStruct%var(iVar)%dat, err=err, message=cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
     ! reallocate space for the new vector
-    deallocate(dataStruct%var(ivar)%dat,stat=err)
+    deallocate(dataStruct%var(iVar)%dat,stat=err)
     if(err/=0)then; err=20; message='problem in attempt to deallocate memory for data vector'; return; end if
-    allocate(dataStruct%var(ivar)%dat(ix_lower:ix_upper+1),stat=err)
+    allocate(dataStruct%var(iVar)%dat(ix_lower:ix_upper+1),stat=err)
     if(err/=0)then; err=20; message='problem in attempt to reallocate memory for data vector'; return; end if
     ! populate the state vector
     if(stateVariable)then
      if(ix_upper > 0)then  ! (only copy data if the vector exists -- can be a variable for snow, with no layers)
       if(ix_divide > 0)then
-       dataStruct%var(ivar)%dat(1:ix_divide)            = tempVec_i4b(1:ix_divide)  ! copy data
-       dataStruct%var(ivar)%dat(ix_divide+1)            = tempVec_i4b(ix_divide)    ! repeat data for the sub-divided layer
+       dataStruct%var(iVar)%dat(1:ix_divide) = tempVec_i4b(1:ix_divide)  ! copy data
+       dataStruct%var(iVar)%dat(ix_divide+1) = tempVec_i4b(ix_divide)    ! repeat data for the sub-divided layer
       end if
       if(ix_upper > ix_divide) &
-       dataStruct%var(ivar)%dat(ix_divide+2:ix_upper+1) = tempVec_i4b(ix_divide+1:ix_upper)  ! copy data
+       dataStruct%var(iVar)%dat(ix_divide+2:ix_upper+1) = tempVec_i4b(ix_divide+1:ix_upper)  ! copy data
      end if  ! if the vector exists
     ! not a state variable
     else
-     dataStruct%var(ivar)%dat(:) = integerMissing
+     dataStruct%var(iVar)%dat(:) = integerMissing
     end if
     ! deallocate the temporary vector: strictly not necessary, but include to be safe
     deallocate(tempVec_i4b,stat=err)

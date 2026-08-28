@@ -19,7 +19,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module mDecisions_module
-USE nrtype
+USE nr_type
 USE var_lookup, only: maxvarDecisions  ! maximum number of decisions
 implicit none
 private
@@ -57,8 +57,9 @@ integer(i4b),parameter,public :: minFunc              =  62    ! do not enable c
 integer(i4b),parameter,public :: constantScaling      =  71    ! constant scaling factor
 integer(i4b),parameter,public :: laiScaling           =  72    ! exponential function of LAI (Leuning, Plant Cell Env 1995: "Scaling from..." [eq 9])
 ! look-up values for the choice of numerical method
-integer(i4b),parameter,public :: bEuler               =  81    ! home-grown backward Euler solution with long time steps
-integer(i4b),parameter,public :: sundials             =  82    ! SUNDIALS/IDA solution
+integer(i4b),parameter,public :: homegrown            =  81    ! homegrown backward Euler solution using concepts from numerical recipes
+integer(i4b),parameter,public :: kinsol               =  82    ! SUNDIALS backward Euler solution using Kinsol
+integer(i4b),parameter,public :: ida                  =  83    ! SUNDIALS solution using IDA
 ! look-up values for method used to compute derivative
 integer(i4b),parameter,public :: numerical            =  91    ! numerical solution
 integer(i4b),parameter,public :: analytical           =  92    ! analytical solution
@@ -70,7 +71,6 @@ integer(i4b),parameter,public :: sparseCanopy         = 111    ! fraction of rai
 integer(i4b),parameter,public :: storageFunc          = 112    ! throughfall a function of canopy storage; 100% throughfall when canopy is at capacity
 integer(i4b),parameter,public :: unDefined            = 113    ! option is undefined (backwards compatibility)
 ! look-up values for the form of Richards' equation
-integer(i4b),parameter,public :: moisture             = 121    ! moisture-based form of Richards' equation
 integer(i4b),parameter,public :: mixdform             = 122    ! mixed form of Richards' equation
 ! look-up values for the choice of groundwater parameterization
 integer(i4b),parameter,public :: qbaseTopmodel        = 131    ! TOPMODEL-ish baseflow parameterization
@@ -122,7 +122,7 @@ integer(i4b),parameter,public :: constantSettlement   = 251    ! constant settle
 integer(i4b),parameter,public :: andersonEmpirical    = 252    ! semi-empirical method of Anderson (1976)
 ! look-up values for the choice of method to combine and sub-divide snow layers
 integer(i4b),parameter,public :: sameRulesAllLayers   = 261    ! same combination/sub-division rules applied to all layers
-integer(i4b),parameter,public :: rulesDependLayerIndex= 262    ! combination/sub-dividion rules depend on layer index
+integer(i4b),parameter,public :: rulesDependLayerIndex= 262    ! combination/sub-division rules depend on layer index
 ! look-up values for the choice of thermal conductivity representation for snow
 integer(i4b),parameter,public :: Yen1965              = 271    ! Yen (1965)
 integer(i4b),parameter,public :: Mellor1977           = 272    ! Mellor (1977)
@@ -146,605 +146,692 @@ integer(i4b),parameter,public :: pahaut_76            = 314    ! Pahaut 1976, wi
 ! look-up values for the choice of snow unloading from the canopy
 integer(i4b),parameter,public :: meltDripUnload       = 321    ! Hedstrom and Pomeroy (1998), Storck et al 2002 (snowUnloadingCoeff & ratioDrip2Unloading)
 integer(i4b),parameter,public :: windUnload           = 322    ! Roesch et al 2001, formulate unloading based on wind and temperature
-! -----------------------------------------------------------------------------------------------------------
+! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
+integer(i4b),parameter,public :: closedForm           = 323    ! use temperature with closed form heat capacity
+integer(i4b),parameter,public :: enthalpyForm         = 324    ! use enthalpy with soil temperature-enthalpy lookup tables
+integer(i4b),parameter,public :: enthalpyFormAN       = 325    ! use enthalpy with soil temperature-enthalpy analytical solution
+! look-up values for the choice of choice of full or empty aquifer at start
+integer(i4b),parameter,public :: fullStart            = 326    ! full aquifer at start
+integer(i4b),parameter,public :: emptyStart           = 327    ! empty aquifer at start
+! look-up values for the infiltration method
+integer(i4b),parameter,public :: GreenAmpt            = 331    ! Green-Ampt
+integer(i4b),parameter,public :: topmodel_GA          = 332    ! Green-Ampt-ish for use with qbaseTopmodel hydraulic conductivity
+integer(i4b),parameter,public :: noInfiltrationExcess = 333    ! No infiltration excess runoff
+! look-up values for the saturation excess surface runoff method
+integer(i4b),parameter,public :: zero_SE              = 351    ! zero saturation excess surface runoff
+integer(i4b),parameter,public :: homegrown_SE         = 352    ! homegrown saturation excess surface runoff
+integer(i4b),parameter,public :: FUSEPRMS             = 353    ! FUSE PRMS surface runoff
+integer(i4b),parameter,public :: FUSEAVIC             = 354    ! FUSE ARNO/VIC surface runoff
+integer(i4b),parameter,public :: FUSETOPM             = 355    ! FUSE TOPMODEL surface runoff
+! look-up values for the buffered read of forcing data
+integer(i4b),parameter,public :: readPerStep          = 361    ! read forcing data per time step (default)
+integer(i4b),parameter,public :: readFullSeries       = 362    ! read full forcing series
+! look-up values for the buffered write of model output
+integer(i4b),parameter,public :: writePerStep         = 371    ! write data per time step (default)
+integer(i4b),parameter,public :: writeFullSeries      = 372    ! write all data for a given output file
+
+! ----------------------------------------------------------------------------------------------------------- 
 
 contains
+  
+! ************************************************************************************************
+! public subroutine mDecisions: save model decisions as named integers
+! ************************************************************************************************
+subroutine mDecisions(err,message)
+  ! model time structures
+  USE multiconst,only:secprday               ! number of seconds in a day
+  USE var_lookup,only:iLookTIME              ! named variables that identify indices in the time structures
+  USE globalData,only:refTime,refJulDay      ! reference time
+  USE globalData,only:oldTime                ! time from the previous time step
+  USE globalData,only:startTime,finshTime    ! start/end time of simulation
+  USE globalData,only:dJulianStart           ! julian day of start time of simulation
+  USE globalData,only:dJulianFinsh           ! julian day of end time of simulation
+  USE globalData,only:data_step              ! length of data step (s)
+  USE globalData,only:numtim                 ! number of time steps in the simulation
+  ! model decision structures
+  USE globalData,only:model_decisions        ! model decision structure
+  USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
+  ! forcing metadata
+  USE globalData,only:forc_meta              ! metadata structures
+  USE var_lookup,only:iLookFORCE             ! named variables to define structure elements
+  ! Noah-MP decision structures
+  USE noahmp_globals,only:DVEG               ! decision for dynamic vegetation
+  USE noahmp_globals,only:OPT_RAD            ! decision for canopy radiation
+  USE noahmp_globals,only:OPT_ALB            ! decision for snow albedo
+  ! time utility programs
+  USE time_utils_module,only:extractTime     ! extract time info from units string
+  USE time_utils_module,only:compjulday      ! compute the julian day
+  USE time_utils_module,only:fracDay         ! compute fractional day
+  USE summaFileManager,only: SIM_START_TM, SIM_END_TM   ! time info from control file module
 
- ! ************************************************************************************************
- ! public subroutine mDecisions: save model decisions as named integers
- ! ************************************************************************************************
- subroutine mDecisions(err,message)
- ! model time structures
- USE multiconst,only:secprday               ! number of seconds in a day
- USE var_lookup,only:iLookTIME              ! named variables that identify indices in the time structures
- USE globalData,only:refTime,refJulday      ! reference time
- USE globalData,only:oldTime                ! time from the previous time step
- USE globalData,only:startTime,finshTime    ! start/end time of simulation
- USE globalData,only:dJulianStart           ! julian day of start time of simulation
- USE globalData,only:dJulianFinsh           ! julian day of end time of simulation
- USE globalData,only:data_step              ! length of data step (s)
- USE globalData,only:numtim                 ! number of time steps in the simulation
- ! model decision structures
- USE globaldata,only:model_decisions        ! model decision structure
- USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
- ! forcing metadata
- USE globalData,only:forc_meta              ! metadata structures
- USE var_lookup,only:iLookFORCE             ! named variables to define structure elements
- ! Noah-MP decision structures
- USE noahmp_globals,only:DVEG               ! decision for dynamic vegetation
- USE noahmp_globals,only:OPT_RAD            ! decision for canopy radiation
- USE noahmp_globals,only:OPT_ALB            ! decision for snow albedo
- ! time utility programs
- USE time_utils_module,only:extractTime     ! extract time info from units string
- USE time_utils_module,only:compjulday      ! compute the julian day
- USE time_utils_module,only:fracDay         ! compute fractional day
- USE summaFileManager,only: SIM_START_TM, SIM_END_TM   ! time info from control file module
+  implicit none
+  ! define output
+  integer(i4b),intent(out)             :: err            ! error code
+  character(*),intent(out)             :: message        ! error message
 
- implicit none
- ! define output
- integer(i4b),intent(out)             :: err            ! error code
- character(*),intent(out)             :: message        ! error message
- ! define local variables
- character(len=256)                   :: cmessage       ! error message for downwind routine
- real(rkind)                             :: dsec,dsec_tz   ! second
- ! initialize error control
- err=0; message='mDecisions/'
+  ! define local variables
+  character(len=256)                   :: cmessage       ! error message for downwind routine
+  real(rkind)                          :: dsec,dsec_tz   ! second
+  ! initialize error control
+  err=0; message='mDecisions/'
 
- ! -------------------------------------------------------------------------------------------------
- ! -------------------------------------------------------------------------------------------------
+  ! read information from model decisions file, and populate model decisions structure
+  call readoption(err,cmessage)
+  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
- ! read information from model decisions file, and populate model decisions structure
- call readoption(err,cmessage)
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
- ! -------------------------------------------------------------------------------------------------
+  ! put reference time information into the time structures
+  call extractTime(forc_meta(iLookFORCE%time)%varunit,                     & ! date-time string
+                    refTime%var(iLookTIME%iyyy),                           & ! year
+                    refTime%var(iLookTIME%im),                             & ! month
+                    refTime%var(iLookTIME%id),                             & ! day
+                    refTime%var(iLookTIME%ih),                             & ! hour
+                    refTime%var(iLookTIME%imin),                           & ! minute
+                    dsec,                                                  & ! second
+                    refTime%var(iLookTIME%ih_tz),                          & ! time zone hour
+                    refTime%var(iLookTIME%imin_tz),                        & ! time zone minute
+                    dsec_tz,                                               & ! time zone seconds
+                    err,cmessage)                                            ! error control
+  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
- ! put reference time information into the time structures
- call extractTime(forc_meta(iLookFORCE%time)%varunit,                    & ! date-time string
-                  refTime%var(iLookTIME%iyyy),                           & ! year
-                  refTime%var(iLookTIME%im),                             & ! month
-                  refTime%var(iLookTIME%id),                             & ! day
-                  refTime%var(iLookTIME%ih),                             & ! hour
-                  refTime%var(iLookTIME%imin),                           & ! minute
-                  dsec,                                                  & ! second
-                  refTime%var(iLookTIME%ih_tz),                          & ! time zone hour
-                  refTime%var(iLookTIME%imin_tz),                        & ! time zone minute
-                  dsec_tz,                                               & ! time zone seconds
-                  err,cmessage)                                            ! error control
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+  ! compute the julian date (fraction of day) for the reference time
+  call compjulday(&
+                  refTime%var(iLookTIME%iyyy),                            & ! year
+                  refTime%var(iLookTIME%im),                              & ! month
+                  refTime%var(iLookTIME%id),                              & ! day
+                  refTime%var(iLookTIME%ih),                              & ! hour
+                  refTime%var(iLookTIME%imin),                            & ! minute
+                  0._rkind,                                               & ! second
+                  refJulDay,                                              & ! julian date for the start of the simulation
+                  err, cmessage)                                            ! error control
+  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
- ! compute the julian date (fraction of day) for the reference time
- call compjulday(&
-                 refTime%var(iLookTIME%iyyy),                           & ! year
-                 refTime%var(iLookTIME%im),                             & ! month
-                 refTime%var(iLookTIME%id),                             & ! day
-                 refTime%var(iLookTIME%ih),                             & ! hour
-                 refTime%var(iLookTIME%imin),                           & ! minute
-                 0._rkind,                                                 & ! second
-                 refJulday,                                             & ! julian date for the start of the simulation
-                 err, cmessage)                                           ! error control
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+  ! put simulation start time information into the time structures
+  call extractTime(trim(SIM_START_TM),                                     & ! date-time string
+                    startTime%var(iLookTIME%iyyy),                         & ! year
+                    startTime%var(iLookTIME%im),                           & ! month
+                    startTime%var(iLookTIME%id),                           & ! day
+                    startTime%var(iLookTIME%ih),                           & ! hour
+                    startTime%var(iLookTIME%imin),                         & ! minute
+                    dsec,                                                  & ! second
+                    startTime%var(iLookTIME%ih_tz),                        & ! time zone hour
+                    startTime%var(iLookTIME%imin_tz),                      & ! time zone minnute
+                    dsec_tz,                                               & ! time zone seconds
+                    err,cmessage)                                            ! error control
+  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
- ! put simulation start time information into the time structures
- call extractTime(trim(SIM_START_TM),                                    & ! date-time string
-                  startTime%var(iLookTIME%iyyy),                         & ! year
-                  startTime%var(iLookTIME%im),                           & ! month
-                  startTime%var(iLookTIME%id),                           & ! day
-                  startTime%var(iLookTIME%ih),                           & ! hour
-                  startTime%var(iLookTIME%imin),                         & ! minute
-                  dsec,                                                  & ! second
-                  startTime%var(iLookTIME%ih_tz),                        & ! time zone hour
-                  startTime%var(iLookTIME%imin_tz),                      & ! time zone minnute
-                  dsec_tz,                                               & ! time zone seconds
-                  err,cmessage)                                            ! error control
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+  ! compute the julian date (fraction of day) for the start of the simulation
+  call compjulday(&
+                  startTime%var(iLookTIME%iyyy),                           & ! year
+                  startTime%var(iLookTIME%im),                             & ! month
+                  startTime%var(iLookTIME%id),                             & ! day
+                  startTime%var(iLookTIME%ih),                             & ! hour
+                  startTime%var(iLookTIME%imin),                           & ! minute
+                  0._rkind,                                                & ! second
+                  dJulianStart,                                            & ! julian date for the start of the simulation
+                  err, cmessage)                                             ! error control
+  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
- ! compute the julian date (fraction of day) for the start of the simulation
- call compjulday(&
-                 startTime%var(iLookTIME%iyyy),                         & ! year
-                 startTime%var(iLookTIME%im),                           & ! month
-                 startTime%var(iLookTIME%id),                           & ! day
-                 startTime%var(iLookTIME%ih),                           & ! hour
-                 startTime%var(iLookTIME%imin),                         & ! minute
-                 0._rkind,                                                 & ! second
-                 dJulianStart,                                          & ! julian date for the start of the simulation
-                 err, cmessage)                                           ! error control
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+  ! put simulation end time information into the time structures
+  call extractTime(trim(SIM_END_TM),                                       & ! date-time string
+                    finshTime%var(iLookTIME%iyyy),                         & ! year
+                    finshTime%var(iLookTIME%im),                           & ! month
+                    finshTime%var(iLookTIME%id),                           & ! day
+                    finshTime%var(iLookTIME%ih),                           & ! hour
+                    finshTime%var(iLookTIME%imin),                         & ! minute
+                    dsec,                                                  & ! second
+                    finshTime%var(iLookTIME%ih_tz),                        & ! time zone hour
+                    finshTime%var(iLookTIME%imin_tz),                      & ! time zone minnute
+                    dsec_tz,                                               & ! time zone seconds
+                    err,cmessage)                                            ! error control
+  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
- ! put simulation end time information into the time structures
- call extractTime(trim(SIM_END_TM),                                      & ! date-time string
+  ! compute the julian date (fraction of day) for the end of the simulation
+  call compjulday(&
                   finshTime%var(iLookTIME%iyyy),                         & ! year
                   finshTime%var(iLookTIME%im),                           & ! month
                   finshTime%var(iLookTIME%id),                           & ! day
                   finshTime%var(iLookTIME%ih),                           & ! hour
                   finshTime%var(iLookTIME%imin),                         & ! minute
-                  dsec,                                                  & ! second
-                  finshTime%var(iLookTIME%ih_tz),                        & ! time zone hour
-                  finshTime%var(iLookTIME%imin_tz),                      & ! time zone minnute
-                  dsec_tz,                                               & ! time zone seconds
-                  err,cmessage)                                            ! error control
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+                  0._rkind,                                              & ! second
+                  dJulianFinsh,                                          & ! julian date for the end of the simulation
+                  err, cmessage)                                           ! error control
+  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
- ! compute the julian date (fraction of day) for the end of the simulation
- call compjulday(&
-                 finshTime%var(iLookTIME%iyyy),                         & ! year
-                 finshTime%var(iLookTIME%im),                           & ! month
-                 finshTime%var(iLookTIME%id),                           & ! day
-                 finshTime%var(iLookTIME%ih),                           & ! hour
-                 finshTime%var(iLookTIME%imin),                         & ! minute
-                 0._rkind,                                                 & ! second
-                 dJulianFinsh,                                          & ! julian date for the end of the simulation
-                 err, cmessage)                                           ! error control
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+  ! check start and finish time
+#ifndef NGEN_ACTIVE
+  write(*,'(a,i4,1x,4(i2,1x))') 'startTime: iyyy, im, id, ih, imin = ', startTime%var(1:5)
+  write(*,'(a,i4,1x,4(i2,1x))') 'finshTime: iyyy, im, id, ih, imin = ', finshTime%var(1:5)
+#endif
+  ! check that simulation end time is > start time
+  if(dJulianFinsh < dJulianStart)then; err=20; message=trim(message)//'end time of simulation occurs before start time'; return; end if
 
- ! check start and finish time
- write(*,'(a,i4,1x,4(i2,1x))') 'startTime: iyyy, im, id, ih, imin = ', startTime%var(1:5)
- write(*,'(a,i4,1x,4(i2,1x))') 'finshTime: iyyy, im, id, ih, imin = ', finshTime%var(1:5)
+  ! initialize the old time vector (time from the previous time step)
+  oldTime%var(:) = startTime%var(:)
 
- ! check that simulation end time is > start time
- if(dJulianFinsh < dJulianStart)then; err=20; message=trim(message)//'end time of simulation occurs before start time'; return; end if
+  ! compute the number of time steps
+  numtim = nint( (dJulianFinsh - dJulianStart)*secprday/data_step ) + 1
 
- ! initialize the old time vector (time from the previous time step)
- oldTime%var(:) = startTime%var(:)
 
- ! compute the number of time steps
- numtim = nint( (dJulianFinsh - dJulianStart)*secprday/data_step ) + 1
- write(*,'(a,1x,i10)') 'number of time steps = ', numtim
+  ! set Noah-MP options
+  DVEG=3      ! option for dynamic vegetation
+  OPT_RAD=3   ! option for canopy radiation
+  OPT_ALB=2   ! option for snow albedo
 
- ! -------------------------------------------------------------------------------------------------
+  ! set zero option for thee category tables
+  ! NOTE: we want to keep track of these decisions, but not used in the physics routines
+  model_decisions(iLookDECISIONS%soilCatTbl)%iDecision = 0
+  model_decisions(iLookDECISIONS%vegeParTbl)%iDecision = 0
 
- ! set Noah-MP options
- DVEG=3      ! option for dynamic vegetation
- OPT_RAD=3   ! option for canopy radiation
- OPT_ALB=2   ! option for snow albedo
-
- ! set zero option for thee category tables
- ! NOTE: we want to keep track of these decisions, but not used in the physics routines
- model_decisions(iLookDECISIONS%soilCatTbl)%iDecision = 0
- model_decisions(iLookDECISIONS%vegeParTbl)%iDecision = 0
-
- ! identify the choice of function for the soil moisture control on stomatal resistance
- select case(trim(model_decisions(iLookDECISIONS%soilStress)%cDecision))
-  case('NoahType'); model_decisions(iLookDECISIONS%soilStress)%iDecision = NoahType             ! thresholded linear function of volumetric liquid water content
-  case('CLM_Type'); model_decisions(iLookDECISIONS%soilStress)%iDecision = CLM_Type             ! thresholded linear function of matric head
-  case('SiB_Type'); model_decisions(iLookDECISIONS%soilStress)%iDecision = SiB_Type             ! exponential of the log of matric head
-  case default
-   err=10; message=trim(message)//"unknown soil moisture function [option="//trim(model_decisions(iLookDECISIONS%soilStress)%cDecision)//"]"; return
- end select
-
- ! identify the choice of function for stomatal resistance
- select case(trim(model_decisions(iLookDECISIONS%stomResist)%cDecision))
-  case('BallBerry'          ); model_decisions(iLookDECISIONS%stomResist)%iDecision = BallBerry           ! Ball-Berry
-  case('Jarvis'             ); model_decisions(iLookDECISIONS%stomResist)%iDecision = Jarvis              ! Jarvis
-  case('simpleResistance'   ); model_decisions(iLookDECISIONS%stomResist)%iDecision = simpleResistance    ! simple resistance formulation
-  case('BallBerryFlex'      ); model_decisions(iLookDECISIONS%stomResist)%iDecision = BallBerryFlex       ! flexible Ball-Berry scheme
-  case('BallBerryTest'      ); model_decisions(iLookDECISIONS%stomResist)%iDecision = BallBerryTest       ! flexible Ball-Berry scheme (testing)
-  case default
-   err=10; message=trim(message)//"unknown stomatal resistance function [option="//trim(model_decisions(iLookDECISIONS%stomResist)%cDecision)//"]"; return
- end select
-
- ! identify the leaf temperature controls on photosynthesis + stomatal resistance
- if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
-  select case(trim(model_decisions(iLookDECISIONS%bbTempFunc)%cDecision))
-   case('q10Func'            ); model_decisions(iLookDECISIONS%bbTempFunc)%iDecision = q10Func
-   case('Arrhenius'          ); model_decisions(iLookDECISIONS%bbTempFunc)%iDecision = Arrhenius
-   case default
-    err=10; message=trim(message)//"unknown leaf temperature function [option="//trim(model_decisions(iLookDECISIONS%bbTempFunc)%cDecision)//"]"; return
+  ! identify the choice of function for the soil moisture control on stomatal resistance
+  select case(trim(model_decisions(iLookDECISIONS%soilStress)%cDecision))
+    case('NoahType'); model_decisions(iLookDECISIONS%soilStress)%iDecision = NoahType             ! thresholded linear function of volumetric liquid water content
+    case('CLM_Type'); model_decisions(iLookDECISIONS%soilStress)%iDecision = CLM_Type             ! thresholded linear function of matric head
+    case('SiB_Type'); model_decisions(iLookDECISIONS%soilStress)%iDecision = SiB_Type             ! exponential of the log of matric head
+    case default
+      err=10; message=trim(message)//"unknown soil moisture function [option="//trim(model_decisions(iLookDECISIONS%soilStress)%cDecision)//"]"; return
   end select
- end if
 
- ! identify the humidity controls on stomatal resistance
- if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
-  select case(trim(model_decisions(iLookDECISIONS%bbHumdFunc)%cDecision))
-   case('humidLeafSurface'   ); model_decisions(iLookDECISIONS%bbHumdFunc)%iDecision = humidLeafSurface
-   case('scaledHyperbolic'   ); model_decisions(iLookDECISIONS%bbHumdFunc)%iDecision = scaledHyperbolic
-   case default
-    err=10; message=trim(message)//"unknown humidity function [option="//trim(model_decisions(iLookDECISIONS%bbHumdFunc)%cDecision)//"]"; return
+  ! identify the choice of function for stomatal resistance
+  select case(trim(model_decisions(iLookDECISIONS%stomResist)%cDecision))
+    case('BallBerry'          ); model_decisions(iLookDECISIONS%stomResist)%iDecision = BallBerry           ! Ball-Berry
+    case('Jarvis'             ); model_decisions(iLookDECISIONS%stomResist)%iDecision = Jarvis              ! Jarvis
+    case('simpleResistance'   ); model_decisions(iLookDECISIONS%stomResist)%iDecision = simpleResistance    ! simple resistance formulation
+    case('BallBerryFlex'      ); model_decisions(iLookDECISIONS%stomResist)%iDecision = BallBerryFlex       ! flexible Ball-Berry scheme
+    case('BallBerryTest'      ); model_decisions(iLookDECISIONS%stomResist)%iDecision = BallBerryTest       ! flexible Ball-Berry scheme (testing)
+    case default
+      err=10; message=trim(message)//"unknown stomatal resistance function [option="//trim(model_decisions(iLookDECISIONS%stomResist)%cDecision)//"]"; return
   end select
- end if
 
- ! identify functions for electron transport function (dependence of photosynthesis on PAR)
- if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
-  select case(trim(model_decisions(iLookDECISIONS%bbElecFunc)%cDecision))
-   case('linear'             ); model_decisions(iLookDECISIONS%bbElecFunc)%iDecision = linear
-   case('linearJmax'         ); model_decisions(iLookDECISIONS%bbElecFunc)%iDecision = linearJmax
-   case('quadraticJmax'      ); model_decisions(iLookDECISIONS%bbElecFunc)%iDecision = quadraticJmax
-   case default
-    err=10; message=trim(message)//"unknown electron transport function [option="//trim(model_decisions(iLookDECISIONS%bbElecFunc)%cDecision)//"]"; return
-  end select
- end if
-
- ! identify the use of the co2 compensation point in the stomatal conductance calaculations
- if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
-  select case(trim(model_decisions(iLookDECISIONS%bbCO2point)%cDecision))
-   case('origBWB'            ); model_decisions(iLookDECISIONS%bbCO2point)%iDecision = origBWB
-   case('Leuning'            ); model_decisions(iLookDECISIONS%bbCO2point)%iDecision = Leuning
-   case default
-    err=10; message=trim(message)//"unknown option for the co2 compensation point [option="//trim(model_decisions(iLookDECISIONS%bbCO2point)%cDecision)//"]"; return
-  end select
- end if
-
- ! identify the iterative numerical solution method used in the Ball-Berry stomatal resistance parameterization
- if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
-  select case(trim(model_decisions(iLookDECISIONS%bbNumerics)%cDecision))
-   case('NoahMPsolution'     ); model_decisions(iLookDECISIONS%bbNumerics)%iDecision = NoahMPsolution  ! the NoahMP solution (and CLM4): fixed point iteration; max 3 iterations
-   case('newtonRaphson'      ); model_decisions(iLookDECISIONS%bbNumerics)%iDecision = newtonRaphson   ! full Newton-Raphson iterative solution to convergence
-   case default
-    err=10; message=trim(message)//"unknown option for the Ball-Berry numerical solution [option="//trim(model_decisions(iLookDECISIONS%bbNumerics)%cDecision)//"]"; return
-  end select
- end if
-
- ! identify the controls on carbon assimilation
- if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
-  select case(trim(model_decisions(iLookDECISIONS%bbAssimFnc)%cDecision))
-   case('colimitation'       ); model_decisions(iLookDECISIONS%bbAssimFnc)%iDecision = colimitation    ! enable colimitation, as described by Collatz et al. (1991) and Sellers et al. (1996)
-   case('minFunc'            ); model_decisions(iLookDECISIONS%bbAssimFnc)%iDecision = minFunc         ! do not enable colimitation: use minimum of the three controls on carbon assimilation
-   case default
-    err=10; message=trim(message)//"unknown option for the controls on carbon assimilation [option="//trim(model_decisions(iLookDECISIONS%bbAssimFnc)%cDecision)//"]"; return
-  end select
- end if
-
- ! identify the scaling of photosynthesis from the leaf to the canopy
- if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
-  select case(trim(model_decisions(iLookDECISIONS%bbCanIntg8)%cDecision))
-   case('constantScaling'    ); model_decisions(iLookDECISIONS%bbCanIntg8)%iDecision = constantScaling ! constant scaling factor
-   case('laiScaling'         ); model_decisions(iLookDECISIONS%bbCanIntg8)%iDecision = laiScaling      ! exponential function of LAI (Leuning, Plant Cell Env 1995: "Scaling from..." [eq 9])
-   case default
-    err=10; message=trim(message)//"unknown option for scaling of photosynthesis from the leaf to the canopy [option="//trim(model_decisions(iLookDECISIONS%bbCanIntg8)%cDecision)//"]"; return
-  end select
- end if
-
- ! identify the numerical method
- select case(trim(model_decisions(iLookDECISIONS%num_method)%cDecision))
-  case('bEuler'   ); model_decisions(iLookDECISIONS%num_method)%iDecision = bEuler             ! home-grown backward Euler solution with long time steps
-  case('itertive' ); model_decisions(iLookDECISIONS%num_method)%iDecision = bEuler             ! home-grown backward Euler solution (included for backwards compatibility)
-  case('sundials' ); model_decisions(iLookDECISIONS%num_method)%iDecision = sundials           ! SUNDIALS/IDA solution
-  case default
-   err=10; message=trim(message)//"unknown numerical method [option="//trim(model_decisions(iLookDECISIONS%num_method)%cDecision)//"]"; return
- end select
-
- ! identify the method used to calculate flux derivatives
- select case(trim(model_decisions(iLookDECISIONS%fDerivMeth)%cDecision))
-  case('numericl'); model_decisions(iLookDECISIONS%fDerivMeth)%iDecision = numerical           ! numerical
-  case('analytic'); model_decisions(iLookDECISIONS%fDerivMeth)%iDecision = analytical          ! analytical
-  case default
-   err=10; message=trim(message)//"unknown method used to calculate flux derivatives [option="//trim(model_decisions(iLookDECISIONS%fDerivMeth)%cDecision)//"]"; return
- end select
-
- ! identify the method used to determine LAI and SAI
- select case(trim(model_decisions(iLookDECISIONS%LAI_method)%cDecision))
-  case('monTable');  model_decisions(iLookDECISIONS%LAI_method)%iDecision = monthlyTable       ! LAI/SAI taken directly from a monthly table for different vegetation classes
-  case('specified'); model_decisions(iLookDECISIONS%LAI_method)%iDecision = specified          ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
-  case default
-   err=10; message=trim(message)//"unknown method to determine LAI and SAI [option="//trim(model_decisions(iLookDECISIONS%LAI_method)%cDecision)//"]"; return
- end select
-
- ! identify the canopy interception parameterization
- select case(trim(model_decisions(iLookDECISIONS%cIntercept)%cDecision))
-  case('notPopulatedYet'); model_decisions(iLookDECISIONS%cIntercept)%iDecision = unDefined
-  case('sparseCanopy');    model_decisions(iLookDECISIONS%cIntercept)%iDecision = sparseCanopy
-  case('storageFunc');     model_decisions(iLookDECISIONS%cIntercept)%iDecision = storageFunc
-  case default
-   err=10; message=trim(message)//"unknown canopy interception parameterization [option="//trim(model_decisions(iLookDECISIONS%cIntercept)%cDecision)//"]"; return
- end select
-
- ! identify the form of Richards' equation
- select case(trim(model_decisions(iLookDECISIONS%f_Richards)%cDecision))
-  case('moisture'); model_decisions(iLookDECISIONS%f_Richards)%iDecision = moisture            ! moisture-based form
-  case('mixdform'); model_decisions(iLookDECISIONS%f_Richards)%iDecision = mixdform            ! mixed form
-  case default
-   err=10; message=trim(message)//"unknown form of Richards' equation [option="//trim(model_decisions(iLookDECISIONS%f_Richards)%cDecision)//"]"; return
- end select
-
- ! identify the groundwater parameterization
- select case(trim(model_decisions(iLookDECISIONS%groundwatr)%cDecision))
-  case('qTopmodl'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = qbaseTopmodel       ! TOPMODEL-ish baseflow parameterization
-  case('bigBuckt'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = bigBucket           ! a big bucket (lumped aquifer model)
-  case('noXplict'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = noExplicit          ! no explicit groundwater parameterization
-  case default
-   err=10; message=trim(message)//"unknown groundwater parameterization [option="//trim(model_decisions(iLookDECISIONS%groundwatr)%cDecision)//"]"; return
- end select
-
- ! identify the hydraulic conductivity profile
- select case(trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision))
-  case('constant'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = constant            ! constant hydraulic conductivity with depth
-  case('pow_prof'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = powerLaw_profile    ! power-law profile
-  case default
-   err=10; message=trim(message)//"unknown hydraulic conductivity profile [option="//trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision)//"]"; return
- end select
-
- ! identify the upper boundary conditions for thermodynamics
- select case(trim(model_decisions(iLookDECISIONS%bcUpprTdyn)%cDecision))
-  case('presTemp'); model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision = prescribedTemp      ! prescribed temperature
-  case('nrg_flux'); model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision = energyFlux          ! energy flux
-  case('zeroFlux'); model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision = zeroFlux            ! zero flux
-  case default
-   err=10; message=trim(message)//"unknown upper boundary conditions for thermodynamics [option="//trim(model_decisions(iLookDECISIONS%bcUpprTdyn)%cDecision)//"]"; return
- end select
-
- ! identify the lower boundary conditions for thermodynamics
- select case(trim(model_decisions(iLookDECISIONS%bcLowrTdyn)%cDecision))
-  case('presTemp'); model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision = prescribedTemp      ! prescribed temperature
-  case('zeroFlux'); model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision = zeroFlux            ! zero flux
-  case default
-   err=10; message=trim(message)//"unknown lower boundary conditions for thermodynamics [option="//trim(model_decisions(iLookDECISIONS%bcLowrTdyn)%cDecision)//"]"; return
- end select
-
- ! identify the upper boundary conditions for soil hydrology
- select case(trim(model_decisions(iLookDECISIONS%bcUpprSoiH)%cDecision))
-  case('presHead'); model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision = prescribedHead      ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
-  case('liq_flux'); model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision = liquidFlux          ! liquid water flux
-  case default
-   err=10; message=trim(message)//"unknown upper boundary conditions for soil hydrology [option="//trim(model_decisions(iLookDECISIONS%bcUpprSoiH)%cDecision)//"]"; return
- end select
-
- ! identify the lower boundary conditions for soil hydrology
- select case(trim(model_decisions(iLookDECISIONS%bcLowrSoiH)%cDecision))
-  case('presHead'); model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision = prescribedHead      ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
-  case('bottmPsi'); model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision = funcBottomHead      ! function of matric head in the lower-most layer
-  case('drainage'); model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision = freeDrainage        ! free drainage
-  case('zeroFlux'); model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision = zeroFlux            ! zero flux
-  case default
-   err=10; message=trim(message)//"unknown lower boundary conditions for soil hydrology [option="//trim(model_decisions(iLookDECISIONS%bcLowrSoiH)%cDecision)//"]"; return
- end select
-
- ! identify the choice of parameterization for vegetation roughness length and displacement height
- select case(trim(model_decisions(iLookDECISIONS%veg_traits)%cDecision))
-  case('Raupach_BLM1994'); model_decisions(iLookDECISIONS%veg_traits)%iDecision = Raupach_BLM1994  ! Raupach (BLM 1994) "Simplified expressions..."
-  case('CM_QJRMS1988'   ); model_decisions(iLookDECISIONS%veg_traits)%iDecision = CM_QJRMS1988     ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
-  case('vegTypeTable'   ); model_decisions(iLookDECISIONS%veg_traits)%iDecision = vegTypeTable     ! constant parameters dependent on the vegetation type
-  case default
-   err=10; message=trim(message)//"unknown parameterization for vegetation roughness length and displacement height [option="//trim(model_decisions(iLookDECISIONS%veg_traits)%cDecision)//"]"; return
- end select
-
- ! identify the choice of parameterization for the rooting profile
- ! NOTE: for backwards compatibility select powerLaw if rooting profile is undefined
- select case(trim(model_decisions(iLookDECISIONS%rootProfil)%cDecision))
-  case('powerLaw','notPopulatedYet');  model_decisions(iLookDECISIONS%rootProfil)%iDecision = powerLaw      ! simple power-law rooting profile
-  case('doubleExp');                   model_decisions(iLookDECISIONS%rootProfil)%iDecision = doubleExp     ! the double exponential function of Xeng et al. (JHM 2001)
-  case default
-   err=10; message=trim(message)//"unknown parameterization for rooting profile [option="//trim(model_decisions(iLookDECISIONS%rootProfil)%cDecision)//"]"; return
- end select
-
- ! identify the choice of parameterization for canopy emissivity
- select case(trim(model_decisions(iLookDECISIONS%canopyEmis)%cDecision))
-  case('simplExp'); model_decisions(iLookDECISIONS%canopyEmis)%iDecision = simplExp            ! simple exponential function
-  case('difTrans'); model_decisions(iLookDECISIONS%canopyEmis)%iDecision = difTrans            ! parameterized as a function of diffuse transmissivity
-  case default
-   err=10; message=trim(message)//"unknown parameterization for canopy emissivity [option="//trim(model_decisions(iLookDECISIONS%canopyEmis)%cDecision)//"]"; return
- end select
-
- ! choice of parameterization for snow interception
- select case(trim(model_decisions(iLookDECISIONS%snowIncept)%cDecision))
-  case('stickySnow'); model_decisions(iLookDECISIONS%snowIncept)%iDecision = stickySnow        ! maximum interception capacity an increasing function of temerature
-  case('lightSnow' ); model_decisions(iLookDECISIONS%snowIncept)%iDecision = lightSnow         ! maximum interception capacity an inverse function of new snow density
-  case default
-  err=10; message=trim(message)//"unknown option for snow interception capacity[option="//trim(model_decisions(iLookDECISIONS%snowIncept)%cDecision)//"]"; return
- end select
-
- ! identify the choice of wind profile
- select case(trim(model_decisions(iLookDECISIONS%windPrfile)%cDecision))
-  case('exponential'   ); model_decisions(iLookDECISIONS%windPrfile)%iDecision = exponential      ! exponential wind profile extends to the surface
-  case('logBelowCanopy'); model_decisions(iLookDECISIONS%windPrfile)%iDecision = logBelowCanopy   ! logarithmic profile below the vegetation canopy
-  case default
-   err=10; message=trim(message)//"unknown option for choice of wind profile[option="//trim(model_decisions(iLookDECISIONS%windPrfile)%cDecision)//"]"; return
- end select
-
- ! identify the choice of atmospheric stability function
- select case(trim(model_decisions(iLookDECISIONS%astability)%cDecision))
-  case('standard'); model_decisions(iLookDECISIONS%astability)%iDecision = standard            ! standard MO similarity, a la Anderson (1976)
-  case('louisinv'); model_decisions(iLookDECISIONS%astability)%iDecision = louisInversePower   ! Louis (1979) inverse power function
-  case('mahrtexp'); model_decisions(iLookDECISIONS%astability)%iDecision = mahrtExponential    ! Mahrt (1987) exponential
-  case default
-   err=10; message=trim(message)//"unknown stability function [option="//trim(model_decisions(iLookDECISIONS%astability)%cDecision)//"]"; return
- end select
-
- ! choice of canopy shortwave radiation method
- select case(trim(model_decisions(iLookDECISIONS%canopySrad)%cDecision))
-  case('noah_mp'    ); model_decisions(iLookDECISIONS%canopySrad)%iDecision = noah_mp          ! full Noah-MP implementation (including albedo)
-  case('CLM_2stream'); model_decisions(iLookDECISIONS%canopySrad)%iDecision = CLM_2stream      ! CLM 2-stream model (see CLM documentation)
-  case('UEB_2stream'); model_decisions(iLookDECISIONS%canopySrad)%iDecision = UEB_2stream      ! UEB 2-stream model (Mahat and Tarboton, WRR 2011)
-  case('NL_scatter' ); model_decisions(iLookDECISIONS%canopySrad)%iDecision = NL_scatter       ! Simplified method Nijssen and Lettenmaier (JGR 1999)
-  case('BeersLaw'   ); model_decisions(iLookDECISIONS%canopySrad)%iDecision = BeersLaw         ! Beer's Law (as implemented in VIC)
-  case default
-   err=10; message=trim(message)//"unknown canopy radiation method [option="//trim(model_decisions(iLookDECISIONS%canopySrad)%cDecision)//"]"; return
- end select
-
- ! choice of albedo representation
- select case(trim(model_decisions(iLookDECISIONS%alb_method)%cDecision))
-  case('conDecay'); model_decisions(iLookDECISIONS%alb_method)%iDecision = constantDecay       ! constant decay (e.g., VIC, CLASS)
-  case('varDecay'); model_decisions(iLookDECISIONS%alb_method)%iDecision = variableDecay       ! variable decay (e.g., BATS approach, with destructive metamorphism + soot content)
-  case default
-   err=10; message=trim(message)//"unknown option for snow albedo [option="//trim(model_decisions(iLookDECISIONS%alb_method)%cDecision)//"]"; return
- end select
-
- ! choice of snow compaction routine
- select case(trim(model_decisions(iLookDECISIONS%compaction)%cDecision))
-  case('consettl'); model_decisions(iLookDECISIONS%compaction)%iDecision = constantSettlement  ! constant settlement rate
-  case('anderson'); model_decisions(iLookDECISIONS%compaction)%iDecision = andersonEmpirical   ! semi-empirical method of Anderson (1976)
-  case default
-   err=10; message=trim(message)//"unknown option for snow compaction [option="//trim(model_decisions(iLookDECISIONS%compaction)%cDecision)//"]"; return
- end select
-
- ! choice of method to combine and sub-divide snow layers
- select case(trim(model_decisions(iLookDECISIONS%snowLayers)%cDecision))
-  case('jrdn1991'); model_decisions(iLookDECISIONS%snowLayers)%iDecision = sameRulesAllLayers    ! SNTHERM option: same combination/sub-dividion rules applied to all layers
-  case('CLM_2010'); model_decisions(iLookDECISIONS%snowLayers)%iDecision = rulesDependLayerIndex ! CLM option: combination/sub-dividion rules depend on layer index
-  case default
-   err=10; message=trim(message)//"unknown option for combination/sub-division of snow layers [option="//trim(model_decisions(iLookDECISIONS%snowLayers)%cDecision)//"]"; return
- end select
-
- ! choice of thermal conductivity representation for snow
- select case(trim(model_decisions(iLookDECISIONS%thCondSnow)%cDecision))
-  case('tyen1965'); model_decisions(iLookDECISIONS%thCondSnow)%iDecision = Yen1965             ! Yen (1965)
-  case('melr1977'); model_decisions(iLookDECISIONS%thCondSnow)%iDecision = Mellor1977          ! Mellor (1977)
-  case('jrdn1991'); model_decisions(iLookDECISIONS%thCondSnow)%iDecision = Jordan1991          ! Jordan (1991)
-  case('smnv2000'); model_decisions(iLookDECISIONS%thCondSnow)%iDecision = Smirnova2000        ! Smirnova et al. (2000)
-  case default
-   err=10; message=trim(message)//"unknown option for thermal conductivity of snow [option="//trim(model_decisions(iLookDECISIONS%thCondSnow)%cDecision)//"]"; return
- end select
-
- ! choice of thermal conductivity representation for soil
- select case(trim(model_decisions(iLookDECISIONS%thCondSoil)%cDecision))
-  case('funcSoilWet'); model_decisions(iLookDECISIONS%thCondSoil)%iDecision = funcSoilWet      ! function of soil wetness
-  case('mixConstit' ); model_decisions(iLookDECISIONS%thCondSoil)%iDecision = mixConstit       ! mixture of constituents
-  case('hanssonVZJ' ); model_decisions(iLookDECISIONS%thCondSoil)%iDecision = hanssonVZJ       ! test case for the mizoguchi lab experiment, Hansson et al. VZJ 2004
-  case default
-   err=10; message=trim(message)//"unknown option for thermal conductivity of soil [option="//trim(model_decisions(iLookDECISIONS%thCondSoil)%cDecision)//"]"; return
- end select
-
- ! choice of method for the spatial representation of groundwater
- select case(trim(model_decisions(iLookDECISIONS%spatial_gw)%cDecision))
-  case('localColumn'); model_decisions(iLookDECISIONS%spatial_gw)%iDecision = localColumn       ! separate groundwater in each local soil column
-  case('singleBasin'); model_decisions(iLookDECISIONS%spatial_gw)%iDecision = singleBasin       ! single groundwater store over the entire basin
-  case default
-   err=10; message=trim(message)//"unknown option for spatial representation of groundwater [option="//trim(model_decisions(iLookDECISIONS%spatial_gw)%cDecision)//"]"; return
- end select
-
- ! choice of routing method
- select case(trim(model_decisions(iLookDECISIONS%subRouting)%cDecision))
-  case('timeDlay'); model_decisions(iLookDECISIONS%subRouting)%iDecision = timeDelay           ! time-delay histogram
-  case('qInstant'); model_decisions(iLookDECISIONS%subRouting)%iDecision = qInstant            ! instantaneous routing
-  case default
-   err=10; message=trim(message)//"unknown option for sub-grid routing [option="//trim(model_decisions(iLookDECISIONS%subRouting)%cDecision)//"]"; return
- end select
-
- ! choice of new snow density
- ! NOTE: use hedAndPom as the default, where density method is undefined (not populated yet)
- select case(trim(model_decisions(iLookDECISIONS%snowDenNew)%cDecision))
-  case('hedAndPom','notPopulatedYet'); model_decisions(iLookDECISIONS%snowDenNew)%iDecision = hedAndPom           ! Hedstrom and Pomeroy (1998), expoential increase
-  case('anderson');                    model_decisions(iLookDECISIONS%snowDenNew)%iDecision = anderson            ! Anderson 1976
-  case('pahaut_76');                   model_decisions(iLookDECISIONS%snowDenNew)%iDecision = pahaut_76           ! Pahaut 1976, wind speed dependent (derived from Col de Porte, French Alps)
-  case('constDens');                   model_decisions(iLookDECISIONS%snowDenNew)%iDecision = constDens           ! Constant new snow density
-  case default
-   err=10; message=trim(message)//"unknown option for new snow density [option="//trim(model_decisions(iLookDECISIONS%snowDenNew)%cDecision)//"]"; return
- end select
-
- ! choice of snow unloading from canopy
- select case(trim(model_decisions(iLookDECISIONS%snowUnload)%cDecision))
-  case('meltDripUnload','notPopulatedYet'); model_decisions(iLookDECISIONS%snowUnload)%iDecision = meltDripUnload  ! Hedstrom and Pomeroy (1998), Storck et al 2002 (snowUnloadingCoeff & ratioDrip2Unloading)
-  case('windUnload');                       model_decisions(iLookDECISIONS%snowUnload)%iDecision = windUnload          ! Roesch et al 2001, formulate unloading based on wind and temperature
-  case default
-   err=10; message=trim(message)//"unknown option for snow unloading [option="//trim(model_decisions(iLookDECISIONS%snowUnload)%cDecision)//"]"; return
- end select
-
-
- ! -----------------------------------------------------------------------------------------------------------------------------------------------
- ! check for consistency among options
- ! -----------------------------------------------------------------------------------------------------------------------------------------------
-
- ! check there is prescribedHead for soil hydrology when zeroFlux or prescribedTemp for thermodynamics
- !select case(model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision)
- ! case(prescribedTemp,zeroFlux)
- !  if(model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision /= prescribedHead)then
- !   message=trim(message)//'upper boundary condition for soil hydology must be presHead with presTemp and zeroFlux options for thermodynamics'
- !   err=20; return
- !  end if
- !end select
-
- ! check there is prescribedTemp or zeroFlux for thermodynamics when using prescribedHead for soil hydrology
- !select case(model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision)
- ! case(prescribedHead)
- !  ! check that upper boundary condition for thermodynamics is presTemp or zeroFlux
- !  select case(model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision)
- !   case(prescribedTemp,zeroFlux) ! do nothing: this is OK
- !   case default
- !    message=trim(message)//'upper boundary condition for thermodynamics must be presTemp or zeroFlux with presHead option for soil hydology'
- !    err=20; return
- !  end select
- !end select
-
- ! check zero flux lower boundary for topmodel baseflow option
- select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
-  case(qbaseTopmodel)
-   if(model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision /= zeroFlux)then
-    message=trim(message)//'lower boundary condition for soil hydology must be zeroFlux with qbaseTopmodel option for groundwater'
-    err=20; return
-   end if
- end select
-
- ! check power-law profile is selected when using topmodel baseflow option
- select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
-  case(qbaseTopmodel)
-   if(model_decisions(iLookDECISIONS%hc_profile)%iDecision /= powerLaw_profile)then
-    message=trim(message)//'power-law transmissivity profile must be selected when using topmodel baseflow option'
-    err=20; return
-   end if
- end select
-
- ! check bigBucket groundwater option is used when for spatial groundwater is singleBasin
- if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == singleBasin)then
-  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision /= bigBucket)then
-   message=trim(message)//'groundwater parameterization must be bigBucket when using singleBasin for spatial_gw'
-   err=20; return
+  ! identify the leaf temperature controls on photosynthesis + stomatal resistance
+  if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
+    select case(trim(model_decisions(iLookDECISIONS%bbTempFunc)%cDecision))
+      case('q10Func'            ); model_decisions(iLookDECISIONS%bbTempFunc)%iDecision = q10Func
+      case('Arrhenius'          ); model_decisions(iLookDECISIONS%bbTempFunc)%iDecision = Arrhenius
+      case default
+        err=10; message=trim(message)//"unknown leaf temperature function [option="//trim(model_decisions(iLookDECISIONS%bbTempFunc)%cDecision)//"]"; return
+    end select
   end if
- end if
 
- ! ensure that the LAI seaonality option is switched off (this was a silly idea, in retrospect)
- !if(model_decisions(iLookDECISIONS%LAI_method)%iDecision == specified)then
- ! message=trim(message)//'parameterization of LAI in terms of seasonal cycle of green veg fraction was a silly idea '&
- !                      //' -- the LAI_method option ["specified"] is no longer supported'
- ! err=20; return
- !end if
+  ! identify the humidity controls on stomatal resistance
+  if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
+    select case(trim(model_decisions(iLookDECISIONS%bbHumdFunc)%cDecision))
+      case('humidLeafSurface'   ); model_decisions(iLookDECISIONS%bbHumdFunc)%iDecision = humidLeafSurface
+      case('scaledHyperbolic'   ); model_decisions(iLookDECISIONS%bbHumdFunc)%iDecision = scaledHyperbolic
+      case default
+        err=10; message=trim(message)//"unknown humidity function [option="//trim(model_decisions(iLookDECISIONS%bbHumdFunc)%cDecision)//"]"; return
+    end select
+  end if
 
- end subroutine mDecisions
+  ! identify functions for electron transport function (dependence of photosynthesis on PAR)
+  if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
+    select case(trim(model_decisions(iLookDECISIONS%bbElecFunc)%cDecision))
+      case('linear'             ); model_decisions(iLookDECISIONS%bbElecFunc)%iDecision = linear
+      case('linearJmax'         ); model_decisions(iLookDECISIONS%bbElecFunc)%iDecision = linearJmax
+      case('quadraticJmax'      ); model_decisions(iLookDECISIONS%bbElecFunc)%iDecision = quadraticJmax
+      case default
+        err=10; message=trim(message)//"unknown electron transport function [option="//trim(model_decisions(iLookDECISIONS%bbElecFunc)%cDecision)//"]"; return
+    end select
+  end if
 
+  ! identify the use of the co2 compensation point in the stomatal conductance calaculations
+  if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
+    select case(trim(model_decisions(iLookDECISIONS%bbCO2point)%cDecision))
+      case('origBWB'            ); model_decisions(iLookDECISIONS%bbCO2point)%iDecision = origBWB
+      case('Leuning'            ); model_decisions(iLookDECISIONS%bbCO2point)%iDecision = Leuning
+      case default
+        err=10; message=trim(message)//"unknown option for the co2 compensation point [option="//trim(model_decisions(iLookDECISIONS%bbCO2point)%cDecision)//"]"; return
+    end select
+  end if
 
- ! ************************************************************************************************
- ! private subroutine readoption: read information from model decisions file
- ! ************************************************************************************************
- subroutine readoption(err,message)
- ! used to read information from model decisions file
- USE ascii_util_module,only:file_open       ! open file
- USE ascii_util_module,only:linewidth       ! max character number for one line
- USE ascii_util_module,only:get_vlines      ! get a vector of non-comment lines
- USE summaFileManager,only:SETTINGS_PATH    ! path for metadata files
- USE summaFileManager,only:M_DECISIONS      ! definition of modeling options
- USE get_ixname_module,only:get_ixdecisions ! identify index of named variable
- USE globalData,only:model_decisions        ! model decision structure
- implicit none
- ! define output
- integer(i4b),intent(out)             :: err            ! error code
- character(*),intent(out)             :: message        ! error message
- ! define local variables
- character(len=256)                   :: cmessage       ! error message for downwind routine
- character(LEN=256)                   :: infile         ! input filename
- integer(i4b)                         :: unt            ! file unit (free unit output from file_open)
- character(LEN=linewidth),allocatable :: charline(:)    ! vector of character strings
- integer(i4b)                         :: nDecisions     ! number of model decisions
- integer(i4b)                         :: iDecision      ! index of model decisions
- character(len=32)                    :: decision       ! name of model decision
- character(len=32)                    :: option         ! option for model decision
- integer(i4b)                         :: iVar           ! index of the decision in the data structure
- ! Start procedure here
- err=0; message='readoption/'
- ! build filename
- infile = trim(SETTINGS_PATH)//trim(M_DECISIONS)
- write(*,'(2(a,1x))') 'decisions file = ', trim(infile)
- ! open file
- call file_open(trim(infile),unt,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
- ! get a list of character strings from non-comment lines
- call get_vlines(unt,charline,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
- ! close the file unit
- close(unt)
- ! get the number of model decisions
- nDecisions = size(charline)
- ! populate the model decisions structure
- do iDecision=1,nDecisions
-  ! extract name of decision and the decision selected
-  read(charline(iDecision),*,iostat=err) option, decision
-  if (err/=0) then; err=30; message=trim(message)//"errorReadLine"; return; end if
-  ! get the index of the decision in the data structure
-  iVar = get_ixdecisions(trim(option))
-  write(*,'(i4,1x,a)') iDecision, trim(option)//': '//trim(decision)
-  if(iVar<=0)then; err=40; message=trim(message)//"cannotFindDecisionIndex[name='"//trim(option)//"']"; return; end if
+  ! identify the iterative numerical solution method used in the Ball-Berry stomatal resistance parameterization
+  if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
+    select case(trim(model_decisions(iLookDECISIONS%bbNumerics)%cDecision))
+      case('NoahMPsolution'     ); model_decisions(iLookDECISIONS%bbNumerics)%iDecision = NoahMPsolution  ! the NoahMP solution (and CLM4): fixed point iteration; max 3 iterations
+      case('newtonRaphson'      ); model_decisions(iLookDECISIONS%bbNumerics)%iDecision = newtonRaphson   ! full Newton-Raphson iterative solution to convergence
+      case default
+        err=10; message=trim(message)//"unknown option for the Ball-Berry numerical solution [option="//trim(model_decisions(iLookDECISIONS%bbNumerics)%cDecision)//"]"; return
+    end select
+  end if
+
+  ! identify the controls on carbon assimilation
+  if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
+    select case(trim(model_decisions(iLookDECISIONS%bbAssimFnc)%cDecision))
+      case('colimitation'       ); model_decisions(iLookDECISIONS%bbAssimFnc)%iDecision = colimitation    ! enable colimitation, as described by Collatz et al. (1991) and Sellers et al. (1996)
+      case('minFunc'            ); model_decisions(iLookDECISIONS%bbAssimFnc)%iDecision = minFunc         ! do not enable colimitation: use minimum of the three controls on carbon assimilation
+      case default
+        err=10; message=trim(message)//"unknown option for the controls on carbon assimilation [option="//trim(model_decisions(iLookDECISIONS%bbAssimFnc)%cDecision)//"]"; return
+    end select
+  end if
+
+  ! identify the scaling of photosynthesis from the leaf to the canopy
+  if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
+    select case(trim(model_decisions(iLookDECISIONS%bbCanIntg8)%cDecision))
+      case('constantScaling'    ); model_decisions(iLookDECISIONS%bbCanIntg8)%iDecision = constantScaling ! constant scaling factor
+      case('laiScaling'         ); model_decisions(iLookDECISIONS%bbCanIntg8)%iDecision = laiScaling      ! exponential function of LAI (Leuning, Plant Cell Env 1995: "Scaling from..." [eq 9])
+      case default
+        err=10; message=trim(message)//"unknown option for scaling of photosynthesis from the leaf to the canopy [option="//trim(model_decisions(iLookDECISIONS%bbCanIntg8)%cDecision)//"]"; return
+    end select
+  end if
+
+  ! identify the numerical method
+  select case(trim(model_decisions(iLookDECISIONS%num_method)%cDecision))
+    case('homegrown'); model_decisions(iLookDECISIONS%num_method)%iDecision = homegrown   ! homegrown backward Euler solution using concepts from numerical recipes
+    case('itertive' ); model_decisions(iLookDECISIONS%num_method)%iDecision = homegrown   ! homegrown backward Euler solution (included for backwards compatibility)
+    case('kinsol'   ); model_decisions(iLookDECISIONS%num_method)%iDecision = kinsol      ! SUNDIALS backward Euler solution using Kinsol
+    case('ida'      ); model_decisions(iLookDECISIONS%num_method)%iDecision = ida         ! SUNDIALS solution using IDA
+    case default
+      err=10; message=trim(message)//"unknown numerical method [option="//trim(model_decisions(iLookDECISIONS%num_method)%cDecision)//"]"; return
+  end select
+
+  ! make sure compiled with SUNDIALS if want to use it
+#ifndef SUNDIALS_ACTIVE
+  if(model_decisions(iLookDECISIONS%num_method)%iDecision==ida .or. model_decisions(iLookDECISIONS%num_method)%iDecision==kinsol)then
+    err=20; message=trim(message)//'cannot use num_method as ida or kinsol if did not compile with -DCMAKE_BUILD_TYPE=Sundials'; return
+  endif
+#endif
+
+  ! choice of variable in either energy backward Euler residual or IDA state variable 
+  ! for backward Euler solution, enthalpyFormAN has better coincidence of energy conservation
+  ! in IDA solution, enthalpyFormAN makes the state variables to be enthalpy and the residual is computed in enthalpy space
+  select case(trim(model_decisions(iLookDECISIONS%nrgConserv)%cDecision))
+    case('closedForm'    ); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = closedForm       ! use temperature with closed form heat capacity
+    case('enthalpyForm'); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = enthalpyForm       ! use enthalpy with soil temperature-enthalpy lookup tables
+    case('enthalpyFormAN'  ); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = enthalpyFormAN ! use enthalpy with soil temperature-enthalpy analytical solution
+    case default
+      if (trim(model_decisions(iLookDECISIONS%num_method)%cDecision)=='itertive')then
+        model_decisions(iLookDECISIONS%nrgConserv)%iDecision = closedForm ! included for backwards compatibility
+      else
+        err=10; message=trim(message)//"unknown choice of variable in either energy backward Euler residual or IDA state variable [option="//trim(model_decisions(iLookDECISIONS%nrgConserv)%cDecision)//"]"; return
+      endif
+  end select
+
+  ! choice of choice of full or empty aquifer at start
+  ! default ('notPopulatedYet') start with this full, since easier to spin up by draining than filling (filling we need to wait for precipitation)
+  ! but, if want to compare model method outputs, empty start leads to quicker equilibrium
+  select case(trim(model_decisions(iLookDECISIONS%aquiferIni)%cDecision))
+    case('fullStart','notPopulatedYet'); model_decisions(iLookDECISIONS%aquiferIni)%iDecision = fullStart        ! start with full aquifer
+    case('emptyStart'); model_decisions(iLookDECISIONS%aquiferIni)%iDecision = emptyStart       ! start with empty aquifer
+    case default
+      err=10; message=trim(message)//"unknown choice of full or empty aquifer at start [option="//trim(model_decisions(iLookDECISIONS%aquiferIni)%cDecision)//"]"; return
+  end select
+
+  ! identify the method used to calculate flux derivatives
+  select case(trim(model_decisions(iLookDECISIONS%fDerivMeth)%cDecision))
+    case('numericl'); model_decisions(iLookDECISIONS%fDerivMeth)%iDecision = numerical           ! numerical
+    case('analytic'); model_decisions(iLookDECISIONS%fDerivMeth)%iDecision = analytical          ! analytical
+    case default
+      err=10; message=trim(message)//"unknown method used to calculate flux derivatives [option="//trim(model_decisions(iLookDECISIONS%fDerivMeth)%cDecision)//"]"; return
+  end select
+
+  ! identify the method used to determine LAI and SAI
+  select case(trim(model_decisions(iLookDECISIONS%LAI_method)%cDecision))
+    case('monTable');  model_decisions(iLookDECISIONS%LAI_method)%iDecision = monthlyTable       ! LAI/SAI taken directly from a monthly table for different vegetation classes
+    case('specified'); model_decisions(iLookDECISIONS%LAI_method)%iDecision = specified          ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
+    case default
+      err=10; message=trim(message)//"unknown method to determine LAI and SAI [option="//trim(model_decisions(iLookDECISIONS%LAI_method)%cDecision)//"]"; return
+  end select
+
+  ! identify the canopy interception parameterization
+  select case(trim(model_decisions(iLookDECISIONS%cIntercept)%cDecision))
+    case('notPopulatedYet'); model_decisions(iLookDECISIONS%cIntercept)%iDecision = unDefined
+    case('sparseCanopy');    model_decisions(iLookDECISIONS%cIntercept)%iDecision = sparseCanopy
+    case('storageFunc');     model_decisions(iLookDECISIONS%cIntercept)%iDecision = storageFunc
+    case default
+      err=10; message=trim(message)//"unknown canopy interception parameterization [option="//trim(model_decisions(iLookDECISIONS%cIntercept)%cDecision)//"]"; return
+  end select
+
+  ! identify the form of Richards' equation, now deprecated as mixed form is the only option, but still included for backwards compatibility
+  select case(trim(model_decisions(iLookDECISIONS%f_Richards)%cDecision))
+    case('mixdform', 'notPopulatedYet'); model_decisions(iLookDECISIONS%f_Richards)%iDecision = mixdform            ! mixed form
+    case default
+      write(*,'(a)') 'WARNING: f_Richards option "'//trim(model_decisions(iLookDECISIONS%f_Richards)%cDecision)//'" is ignored; mixed form (mixdform) is always used'
+      model_decisions(iLookDECISIONS%f_Richards)%cDecision = 'mixdform'
+      model_decisions(iLookDECISIONS%f_Richards)%iDecision = mixdform
+  end select
+
+  ! identify the groundwater parameterization
+  select case(trim(model_decisions(iLookDECISIONS%groundwatr)%cDecision))
+    case('qTopmodl'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = qbaseTopmodel       ! TOPMODEL-ish baseflow parameterization
+    case('bigBuckt'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = bigBucket           ! a big bucket (lumped aquifer model)
+    case('noXplict'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = noExplicit          ! no explicit groundwater parameterization
+    case default
+      err=10; message=trim(message)//"unknown groundwater parameterization [option="//trim(model_decisions(iLookDECISIONS%groundwatr)%cDecision)//"]"; return
+  end select
+
+  ! identify the hydraulic conductivity profile
+  select case(trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision))
+    case('constant'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = constant            ! constant hydraulic conductivity with depth
+    case('pow_prof'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = powerLaw_profile    ! power-law profile
+    case default
+      err=10; message=trim(message)//"unknown hydraulic conductivity profile [option="//trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision)//"]"; return
+  end select
+
+  ! identify the upper boundary conditions for thermodynamics
+  select case(trim(model_decisions(iLookDECISIONS%bcUpprTdyn)%cDecision))
+    case('presTemp'); model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision = prescribedTemp      ! prescribed temperature
+    case('nrg_flux'); model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision = energyFlux          ! energy flux
+    case('zeroFlux'); model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision = zeroFlux            ! zero flux
+    case default
+      err=10; message=trim(message)//"unknown upper boundary conditions for thermodynamics [option="//trim(model_decisions(iLookDECISIONS%bcUpprTdyn)%cDecision)//"]"; return
+  end select
+
+  ! identify the lower boundary conditions for thermodynamics
+  select case(trim(model_decisions(iLookDECISIONS%bcLowrTdyn)%cDecision))
+    case('presTemp'); model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision = prescribedTemp      ! prescribed temperature
+    case('zeroFlux'); model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision = zeroFlux            ! zero flux
+    case default
+      err=10; message=trim(message)//"unknown lower boundary conditions for thermodynamics [option="//trim(model_decisions(iLookDECISIONS%bcLowrTdyn)%cDecision)//"]"; return
+  end select
+
+  ! identify the upper boundary conditions for soil hydrology
+  select case(trim(model_decisions(iLookDECISIONS%bcUpprSoiH)%cDecision))
+    case('presHead'); model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision = prescribedHead      ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
+    case('liq_flux'); model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision = liquidFlux          ! liquid water flux
+    case default
+      err=10; message=trim(message)//"unknown upper boundary conditions for soil hydrology [option="//trim(model_decisions(iLookDECISIONS%bcUpprSoiH)%cDecision)//"]"; return
+  end select
+
+  ! identify the lower boundary conditions for soil hydrology
+  select case(trim(model_decisions(iLookDECISIONS%bcLowrSoiH)%cDecision))
+    case('presHead'); model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision = prescribedHead      ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
+    case('bottmPsi'); model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision = funcBottomHead      ! function of matric head in the lower-most layer
+    case('drainage'); model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision = freeDrainage        ! free drainage
+    case('zeroFlux'); model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision = zeroFlux            ! zero flux
+    case default
+      err=10; message=trim(message)//"unknown lower boundary conditions for soil hydrology [option="//trim(model_decisions(iLookDECISIONS%bcLowrSoiH)%cDecision)//"]"; return
+  end select
+
+  ! identify the choice of parameterization for vegetation roughness length and displacement height
+  select case(trim(model_decisions(iLookDECISIONS%veg_traits)%cDecision))
+    case('Raupach_BLM1994'); model_decisions(iLookDECISIONS%veg_traits)%iDecision = Raupach_BLM1994  ! Raupach (BLM 1994) "Simplified expressions..."
+    case('CM_QJRMS1988'   ); model_decisions(iLookDECISIONS%veg_traits)%iDecision = CM_QJRMS1988     ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
+    case('vegTypeTable'   ); model_decisions(iLookDECISIONS%veg_traits)%iDecision = vegTypeTable     ! constant parameters dependent on the vegetation type
+    case default
+      err=10; message=trim(message)//"unknown parameterization for vegetation roughness length and displacement height [option="//trim(model_decisions(iLookDECISIONS%veg_traits)%cDecision)//"]"; return
+  end select
+
+  ! identify the choice of parameterization for the rooting profile
+  ! NOTE: for backwards compatibility select powerLaw if rooting profile is undefined
+  select case(trim(model_decisions(iLookDECISIONS%rootProfil)%cDecision))
+    case('powerLaw','notPopulatedYet');  model_decisions(iLookDECISIONS%rootProfil)%iDecision = powerLaw      ! simple power-law rooting profile
+    case('doubleExp');                   model_decisions(iLookDECISIONS%rootProfil)%iDecision = doubleExp     ! the double exponential function of Xeng et al. (JHM 2001)
+    case default
+      err=10; message=trim(message)//"unknown parameterization for rooting profile [option="//trim(model_decisions(iLookDECISIONS%rootProfil)%cDecision)//"]"; return
+  end select
+
+  ! identify the choice of parameterization for canopy emissivity
+  select case(trim(model_decisions(iLookDECISIONS%canopyEmis)%cDecision))
+    case('simplExp'); model_decisions(iLookDECISIONS%canopyEmis)%iDecision = simplExp            ! simple exponential function
+    case('difTrans'); model_decisions(iLookDECISIONS%canopyEmis)%iDecision = difTrans            ! parameterized as a function of diffuse transmissivity
+    case default
+      err=10; message=trim(message)//"unknown parameterization for canopy emissivity [option="//trim(model_decisions(iLookDECISIONS%canopyEmis)%cDecision)//"]"; return
+  end select
+
+  ! choice of parameterization for snow interception
+  select case(trim(model_decisions(iLookDECISIONS%snowIncept)%cDecision))
+    case('stickySnow'); model_decisions(iLookDECISIONS%snowIncept)%iDecision = stickySnow        ! maximum interception capacity an increasing function of temerature
+    case('lightSnow' ); model_decisions(iLookDECISIONS%snowIncept)%iDecision = lightSnow         ! maximum interception capacity an inverse function of new snow density
+    case default
+      err=10; message=trim(message)//"unknown option for snow interception capacity[option="//trim(model_decisions(iLookDECISIONS%snowIncept)%cDecision)//"]"; return
+  end select
+
+  ! identify the choice of wind profile
+  select case(trim(model_decisions(iLookDECISIONS%windPrfile)%cDecision))
+    case('exponential'   ); model_decisions(iLookDECISIONS%windPrfile)%iDecision = exponential      ! exponential wind profile extends to the surface
+    case('logBelowCanopy'); model_decisions(iLookDECISIONS%windPrfile)%iDecision = logBelowCanopy   ! logarithmic profile below the vegetation canopy
+    case default
+      err=10; message=trim(message)//"unknown option for choice of wind profile[option="//trim(model_decisions(iLookDECISIONS%windPrfile)%cDecision)//"]"; return
+  end select
+
+  ! identify the choice of atmospheric stability function
+  select case(trim(model_decisions(iLookDECISIONS%astability)%cDecision))
+    case('standard'); model_decisions(iLookDECISIONS%astability)%iDecision = standard            ! standard MO similarity, a la Anderson (1976)
+    case('louisinv'); model_decisions(iLookDECISIONS%astability)%iDecision = louisInversePower   ! Louis (1979) inverse power function
+    case('mahrtexp'); model_decisions(iLookDECISIONS%astability)%iDecision = mahrtExponential    ! Mahrt (1987) exponential
+    case default
+      err=10; message=trim(message)//"unknown stability function [option="//trim(model_decisions(iLookDECISIONS%astability)%cDecision)//"]"; return
+  end select
+
+  ! choice of canopy shortwave radiation method
+  select case(trim(model_decisions(iLookDECISIONS%canopySrad)%cDecision))
+    case('noah_mp'    ); model_decisions(iLookDECISIONS%canopySrad)%iDecision = noah_mp          ! full Noah-MP implementation (including albedo)
+    case('CLM_2stream'); model_decisions(iLookDECISIONS%canopySrad)%iDecision = CLM_2stream      ! CLM 2-stream model (see CLM documentation)
+    case('UEB_2stream'); model_decisions(iLookDECISIONS%canopySrad)%iDecision = UEB_2stream      ! UEB 2-stream model (Mahat and Tarboton, WRR 2011)
+    case('NL_scatter' ); model_decisions(iLookDECISIONS%canopySrad)%iDecision = NL_scatter       ! Simplified method Nijssen and Lettenmaier (JGR 1999)
+    case('BeersLaw'   ); model_decisions(iLookDECISIONS%canopySrad)%iDecision = BeersLaw         ! Beer's Law (as implemented in VIC)
+    case default
+      err=10; message=trim(message)//"unknown canopy radiation method [option="//trim(model_decisions(iLookDECISIONS%canopySrad)%cDecision)//"]"; return
+  end select
+
+  ! choice of albedo representation
+  select case(trim(model_decisions(iLookDECISIONS%alb_method)%cDecision))
+    case('conDecay'); model_decisions(iLookDECISIONS%alb_method)%iDecision = constantDecay       ! constant decay (e.g., VIC, CLASS)
+    case('varDecay'); model_decisions(iLookDECISIONS%alb_method)%iDecision = variableDecay       ! variable decay (e.g., BATS approach, with destructive metamorphism + soot content)
+    case default
+      err=10; message=trim(message)//"unknown option for snow albedo [option="//trim(model_decisions(iLookDECISIONS%alb_method)%cDecision)//"]"; return
+  end select
+
+  ! choice of snow compaction routine
+  select case(trim(model_decisions(iLookDECISIONS%compaction)%cDecision))
+    case('consettl'); model_decisions(iLookDECISIONS%compaction)%iDecision = constantSettlement  ! constant settlement rate
+    case('anderson'); model_decisions(iLookDECISIONS%compaction)%iDecision = andersonEmpirical   ! semi-empirical method of Anderson (1976)
+    case default
+      err=10; message=trim(message)//"unknown option for snow compaction [option="//trim(model_decisions(iLookDECISIONS%compaction)%cDecision)//"]"; return
+  end select
+
+  ! choice of method to combine and sub-divide snow layers
+  select case(trim(model_decisions(iLookDECISIONS%snowLayers)%cDecision))
+    case('jrdn1991'); model_decisions(iLookDECISIONS%snowLayers)%iDecision = sameRulesAllLayers    ! SNTHERM option: same combination/sub-dividion rules applied to all layers
+    case('CLM_2010'); model_decisions(iLookDECISIONS%snowLayers)%iDecision = rulesDependLayerIndex ! CLM option: combination/sub-dividion rules depend on layer index
+    case default
+      err=10; message=trim(message)//"unknown option for combination/sub-division of snow layers [option="//trim(model_decisions(iLookDECISIONS%snowLayers)%cDecision)//"]"; return
+  end select
+
+  ! choice of thermal conductivity representation for snow
+  select case(trim(model_decisions(iLookDECISIONS%thCondSnow)%cDecision))
+    case('tyen1965'); model_decisions(iLookDECISIONS%thCondSnow)%iDecision = Yen1965             ! Yen (1965)
+    case('melr1977'); model_decisions(iLookDECISIONS%thCondSnow)%iDecision = Mellor1977          ! Mellor (1977)
+    case('jrdn1991'); model_decisions(iLookDECISIONS%thCondSnow)%iDecision = Jordan1991          ! Jordan (1991)
+    case('smnv2000'); model_decisions(iLookDECISIONS%thCondSnow)%iDecision = Smirnova2000        ! Smirnova et al. (2000)
+    case default
+      err=10; message=trim(message)//"unknown option for thermal conductivity of snow [option="//trim(model_decisions(iLookDECISIONS%thCondSnow)%cDecision)//"]"; return
+  end select
+
+  ! choice of thermal conductivity representation for soil
+  select case(trim(model_decisions(iLookDECISIONS%thCondSoil)%cDecision))
+    case('funcSoilWet'); model_decisions(iLookDECISIONS%thCondSoil)%iDecision = funcSoilWet      ! function of soil wetness
+    case('mixConstit' ); model_decisions(iLookDECISIONS%thCondSoil)%iDecision = mixConstit       ! mixture of constituents
+    case('hanssonVZJ' ); model_decisions(iLookDECISIONS%thCondSoil)%iDecision = hanssonVZJ       ! test case for the mizoguchi lab experiment, Hansson et al. VZJ 2004
+    case default
+      err=10; message=trim(message)//"unknown option for thermal conductivity of soil [option="//trim(model_decisions(iLookDECISIONS%thCondSoil)%cDecision)//"]"; return
+  end select
+
+  ! choice of method for the spatial representation of groundwater
+  select case(trim(model_decisions(iLookDECISIONS%spatial_gw)%cDecision))
+    case('localColumn'); model_decisions(iLookDECISIONS%spatial_gw)%iDecision = localColumn       ! separate groundwater in each local soil column
+    case('singleBasin'); model_decisions(iLookDECISIONS%spatial_gw)%iDecision = singleBasin       ! single groundwater store over the entire basin
+    case default
+      err=10; message=trim(message)//"unknown option for spatial representation of groundwater [option="//trim(model_decisions(iLookDECISIONS%spatial_gw)%cDecision)//"]"; return
+  end select
+
+  ! choice of routing method
+  select case(trim(model_decisions(iLookDECISIONS%subRouting)%cDecision))
+    case('timeDlay'); model_decisions(iLookDECISIONS%subRouting)%iDecision = timeDelay           ! time-delay histogram
+    case('qInstant'); model_decisions(iLookDECISIONS%subRouting)%iDecision = qInstant            ! instantaneous routing
+    case default
+      err=10; message=trim(message)//"unknown option for sub-grid routing [option="//trim(model_decisions(iLookDECISIONS%subRouting)%cDecision)//"]"; return
+  end select
+
+  ! choice of new snow density
+  ! NOTE: use hedAndPom as the default, where density method is undefined (not populated yet)
+  select case(trim(model_decisions(iLookDECISIONS%snowDenNew)%cDecision))
+    case('hedAndPom','notPopulatedYet'); model_decisions(iLookDECISIONS%snowDenNew)%iDecision = hedAndPom           ! Hedstrom and Pomeroy (1998), expoential increase
+    case('anderson');                    model_decisions(iLookDECISIONS%snowDenNew)%iDecision = anderson            ! Anderson 1976
+    case('pahaut_76');                   model_decisions(iLookDECISIONS%snowDenNew)%iDecision = pahaut_76           ! Pahaut 1976, wind speed dependent (derived from Col de Porte, French Alps)
+    case('constDens');                   model_decisions(iLookDECISIONS%snowDenNew)%iDecision = constDens           ! Constant new snow density
+    case default
+      err=10; message=trim(message)//"unknown option for new snow density [option="//trim(model_decisions(iLookDECISIONS%snowDenNew)%cDecision)//"]"; return
+  end select
+
+  ! choice of snow unloading from canopy
+  select case(trim(model_decisions(iLookDECISIONS%snowUnload)%cDecision))
+    case('meltDripUnload','notPopulatedYet'); model_decisions(iLookDECISIONS%snowUnload)%iDecision = meltDripUnload  ! Hedstrom and Pomeroy (1998), Storck et al 2002 (snowUnloadingCoeff & ratioDrip2Unloading)
+    case('windUnload');                       model_decisions(iLookDECISIONS%snowUnload)%iDecision = windUnload          ! Roesch et al 2001, formulate unloading based on wind and temperature
+    case default
+      err=10; message=trim(message)//"unknown option for snow unloading [option="//trim(model_decisions(iLookDECISIONS%snowUnload)%cDecision)//"]"; return
+  end select
+
+  ! choice of maximum infiltration rate method (for liq_flux soil hydrology upper boundary condition only, all others go by the behavior of noInfExc)
+  ! NOTE: use topmodel_GA as the default, where infiltration method is undefined (not populated yet)
+  select case(trim(model_decisions(iLookDECISIONS%infRateMax)%cDecision))
+    case('GreenAmpt'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = GreenAmpt     ! Green-Ampt
+    case('topmodel_GA'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = topmodel_GA ! Green-Ampt with TOPMODEL conductivity rate
+    case('noInfExc'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = noInfiltrationExcess ! no infiltration excess runoff (saturation excess may still occur)
+    case default
+      if (trim(model_decisions(iLookDECISIONS%num_method)%cDecision)=='itertive')then
+        model_decisions(iLookDECISIONS%infRateMax)%iDecision = topmodel_GA ! included for backwards compatibility
+      else
+        err=10; message=trim(message)//"unknown option for infiltration method [option="//trim(model_decisions(iLookDECISIONS%infRateMax)%cDecision)//"]"; return
+      endif
+  end select
+
+  ! choice of method for saturation excess surface runoff
+  ! NOTE: use homegrown surface runoff procedure as the default
+  select case(trim(model_decisions(iLookDECISIONS%surfRun_SE)%cDecision))
+    case('zero_SE'); model_decisions(iLookDECISIONS%surfRun_SE)%iDecision = zero_SE           ! saturation excess surface runoff is zero
+    case('homegrown_SE','notPopulatedYet'); model_decisions(iLookDECISIONS%surfRun_SE)%iDecision = homegrown_SE ! use SUMMA's homegrown surface runoff procedure for saturation excess runoff
+    case('FUSEPRMS'); model_decisions(iLookDECISIONS%surfRun_SE)%iDecision = FUSEPRMS ! use FUSE PRMS for saturation excess surface runoff
+    case('FUSEAVIC'); model_decisions(iLookDECISIONS%surfRun_SE)%iDecision = FUSEAVIC ! use FUSE ARNO/VIC for saturation excess surface runoff
+    case('FUSETOPM'); model_decisions(iLookDECISIONS%surfRun_SE)%iDecision = FUSETOPM ! use FUSE TOPMODEL for saturation excess surface runoff
+    case default
+      err=10; message=trim(message)//"unknown option for saturation excess surface runoff method [option="//trim(model_decisions(iLookDECISIONS%surfRun_SE)%cDecision)//"]"; return
+  end select
+
+  ! method used to read forcing data (per step or full read)
+  ! NOTE: use read forcing data per time step as the default
+  select case(trim(model_decisions(iLookDECISIONS%read_force)%cDecision))
+    case('readPerStep','notPopulatedYet');  model_decisions(iLookDECISIONS%read_force)%iDecision = readPerStep    ! read forcing data per time step (default)
+    case('readFullSeries'               );  model_decisions(iLookDECISIONS%read_force)%iDecision = readFullSeries ! read full forcing series
+    case default
+      err=10; message=trim(message)//"unknown option for method used to read forcing data [option="//trim(model_decisions(iLookDECISIONS%read_force)%cDecision)//"]"; return
+  end select
+
+  ! method used to write model output (per step or full write)
+  ! NOTE: use per time step as the default
+  select case(trim(model_decisions(iLookDECISIONS%write_buff)%cDecision))
+    case('writePerStep','notPopulatedYet');  model_decisions(iLookDECISIONS%write_buff)%iDecision = writePerStep    ! write model output per time step (default)
+    case('writeFullSeries'               );  model_decisions(iLookDECISIONS%write_buff)%iDecision = writeFullSeries ! write all data for a given output file
+    case default
+      err=10; message=trim(message)//"unknown option for method used to write model output [option="//trim(model_decisions(iLookDECISIONS%write_buff)%cDecision)//"]"; return
+  end select
+
+  ! -----------------------------------------------------------------------------------------------------------------------------------------------
+  ! check for consistency among options
+  ! -----------------------------------------------------------------------------------------------------------------------------------------------
+  ! check zero flux lower boundary for topmodel baseflow option
+  select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
+    case(qbaseTopmodel)
+      if(model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision /= zeroFlux)then
+        message=trim(message)//'lower boundary condition for soil hydology must be zeroFlux with qbaseTopmodel option for groundwater (set "bcLowrSoiH" to "zeroFlux" in model decisions input file)'
+        err=20; return
+      end if
+  end select
+
+  ! check power-law profile is selected when using topmodel baseflow option
+  select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
+    case(qbaseTopmodel)
+      if(model_decisions(iLookDECISIONS%hc_profile)%iDecision /= powerLaw_profile)then
+        message=trim(message)//'power-law hydraulic conductivity profile must be selected when using topmodel baseflow option (set "hc_profile" to "pow_prof" in model decisions input file)'
+        err=20; return
+      end if
+  end select
+
+  ! check bigBucket groundwater option is used when for spatial groundwater is singleBasin
+  if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == singleBasin)then
+    if(model_decisions(iLookDECISIONS%groundwatr)%iDecision /= bigBucket)then
+      message=trim(message)//'groundwater parameterization must be bigBucket when using singleBasin for spatial_gw (set "groundwatr" to "bigBuckt" in model decisions input file)'
+      err=20; return
+    end if
+  end if
+
+  ! check that maximum infiltration rate assumption aligns with groundwater option
+  ! TOPMODEL baseflow assumes a reduction in hydraulic conductivity with depth, possibly to 0 at the bottom of the soil, and infiltration rate assumptions must match these conductivities
+  ! BigBucket means we have an aquifer below the soil column, for which Green-Ampt is the most basic assumption. TOPMODEL_GA is not appropriate for this but for backward compatability we throw a warning instead of a graceful exit
+  select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
+    case(qbaseTopmodel)
+      if(model_decisions(iLookDECISIONS%infRateMax)%iDecision /= topModel_GA)then
+        message=trim(message)//'maximum infiltration rate method must be topmodel_GA when using qTopmodl for groundwatr, not '//trim(model_decisions(iLookDECISIONS%infRateMax)%cDecision)//' (set "infRateMax" to "topmodel_GA" in model decisions input file)'
+        err=20; return
+      end if
+    case(bigBucket)
+      if(model_decisions(iLookDECISIONS%infRateMax)%iDecision == topModel_GA)then
+        write(*,*) 'DEPRECATION WARNING: Combining groundwater parametrization bigBucket with maximum infiltration rate method topModel_GA is not recommended. This was the default in SUMMA v3.x.x and below, but is not appropriate for this groundwater option. Please use Green-Ampt instead (set "infRateMax" to "GreenAmpt" in model decisions input file)'
+        ! This preps us for when we want to remove this option in the future
+        !message=trim(message)//'maximum infiltration rate method (infRateMax) cannot be topModel_GA when using BigBucket for groundwater, use GreenAmpt instead'
+        !err=20; return
+      end if
+  end select
+
+end subroutine mDecisions
+
+! ************************************************************************************************
+! private subroutine readoption: read information from model decisions file
+! ************************************************************************************************
+subroutine readoption(err,message)
+  ! used to read information from model decisions file
+  USE ascii_util_module,only:file_open       ! open file
+  USE ascii_util_module,only:linewidth       ! max character number for one line
+  USE ascii_util_module,only:get_vlines      ! get a vector of non-comment lines
+  USE summaFileManager,only:SETTINGS_PATH    ! path for metadata files
+  USE summaFileManager,only:M_DECISIONS      ! definition of modeling options
+  USE get_ixname_module,only:get_ixdecisions ! identify index of named variable
+  USE globalData,only:model_decisions        ! model decision structure
+  implicit none
+  ! define output
+  integer(i4b),intent(out)             :: err            ! error code
+  character(*),intent(out)             :: message        ! error message
+  ! define local variables
+  character(len=256)                   :: cmessage       ! error message for downwind routine
+  character(LEN=256)                   :: infile         ! input filename
+  integer(i4b)                         :: unt            ! file unit (free unit output from file_open)
+  character(LEN=linewidth),allocatable :: charline(:)    ! vector of character strings
+  integer(i4b)                         :: nDecisions     ! number of model decisions
+  integer(i4b)                         :: iDecision      ! index of model decisions
+  character(len=32)                    :: decision       ! name of model decision
+  character(len=32)                    :: option         ! option for model decision
+  integer(i4b)                         :: iVar           ! index of the decision in the data structure
+  ! Start procedure here
+  err=0; message='readoption/'
+  ! build filename
+  infile = trim(SETTINGS_PATH)//trim(M_DECISIONS)
+#ifndef NGEN_ACTIVE
+  write(*,'(2(a,1x))') 'decisions file = ', trim(infile)
+#endif
+  ! open file
+  call file_open(trim(infile),unt,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+  ! get a list of character strings from non-comment lines
+  call get_vlines(unt,charline,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+  ! close the file unit
+  close(unt)
+  ! get the number of model decisions
+  nDecisions = size(charline)
   ! populate the model decisions structure
-  model_decisions(iVar)%cOption   = trim(option)
-  model_decisions(iVar)%cDecision = trim(decision)
- end do
- end subroutine readoption
-
-
+  do iDecision=1,nDecisions
+    ! extract name of decision and the decision selected
+    read(charline(iDecision),*,iostat=err) option, decision
+    if (err/=0) then; err=30; message=trim(message)//"errorReadLine"; return; end if
+    ! get the index of the decision in the data structure
+    iVar = get_ixdecisions(trim(option))
+#ifndef NGEN_ACTIVE
+    write(*,'(i4,1x,a)') iDecision, trim(option)//': '//trim(decision)
+#endif
+    if(iVar<=0)then; err=40; message=trim(message)//"cannotFindDecisionIndex[name='"//trim(option)//"']"; return; end if
+    ! populate the model decisions structure
+    model_decisions(iVar)%cOption   = trim(option)
+    model_decisions(iVar)%cDecision = trim(decision)
+  end do
+end subroutine readoption
 end module mDecisions_module

@@ -19,7 +19,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module read_pinit_module
-USE nrtype
+USE nr_type
 ! check for when model decisions are undefined
 USE mDecisions_module,only: unDefined
 USE globalData,only:model_decisions
@@ -34,7 +34,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_pinit: read default model parameter values and constraints
  ! ************************************************************************************************
- subroutine read_pinit(filenm,isLocal,mpar_meta,parFallback,err,message)
+ subroutine read_pinit(filenm,isLocal,absEnergyFac,mpar_meta,parFallback,err,message)
  ! used to read metadata on the forcing data file
  USE summaFileManager,only:SETTINGS_PATH   ! path for input parameter and other configuration files
  USE ascii_util_module,only:file_open      ! open ascii file
@@ -47,6 +47,7 @@ contains
  ! define input
  character(*),intent(in)                :: filenm         ! name of file containing default values and constraints of model parameters
  logical(lgt),intent(in)                :: isLocal        ! .true. if the file describes local column parameters
+ real(rkind),intent(in)                 :: absEnergyFac   ! multiplier for absolute value of energy state variable (for enthalpy or temperature)
  type(var_info),intent(in)              :: mpar_meta(:)   ! metadata for model parameters
  ! define output
  type(par_info),intent(out)             :: parFallback(:) ! default values and constraints of model parameters
@@ -63,10 +64,10 @@ contains
  ! define local variables for the default model parameters
  integer(i4b)                           :: iend           ! check for the end of the file
  character(LEN=256)                     :: ffmt           ! file format
- character(LEN=32)                      :: varname        ! name of variable
+ character(LEN=32)                      :: varName        ! name of variable
  type(par_info)                         :: parTemp        ! temporary parameter structure
  character(LEN=2)                       :: dLim           ! column delimiter
- integer(i4b)                           :: ivar           ! index of model variable
+ integer(i4b)                           :: iVar           ! index of model variable
  ! Start procedure here
  err=0; message="read_pinit/"
  ! **********************************************************************************************
@@ -108,34 +109,52 @@ contains
   if(iend/=0)exit !end of file
   if (temp(1:1)=='!')cycle
   ! (save data into a temporary variables)
-  read(temp,trim(ffmt),iostat=err) varname, dLim, parTemp%default_val, dLim, parTemp%lower_limit, dLim, parTemp%upper_limit
+  read(temp,trim(ffmt),iostat=err) varName, dLim, parTemp%default_val, dLim, parTemp%lower_limit, dLim, parTemp%upper_limit
   if (err/=0) then; err=30; message=trim(message)//"errorReadLine"; return; end if
+  ! skip deprecated parameters (for backwards compatibility with existing parameter input files)
+  if (trim(varName) == 'upperBoundTheta' .or. trim(varName) == 'lowerBoundTheta')then
+    write(*,'(a)') "WARNING: deprecated parameter '"//trim(varName)//"' found in parameter input file -- ignoring this parameter"
+    cycle
+  end if
   ! (identify the index of the variable in the data structure)
   if(isLocal)then
-   ivar = get_ixParam(trim(varname))
+   iVar = get_ixParam(trim(varName))
   else
-   ivar = get_ixBpar(trim(varname))
+   iVar = get_ixBpar(trim(varName))
   end if
   ! (check that we have successfully found the parameter)
-  if(ivar>0)then
-   if(ivar>size(parFallback))then
-    err=35; message=trim(message)//"indexOutOfRange[var="//trim(varname)//"]"; return
+  if(iVar>0)then
+   if(iVar>size(parFallback))then
+    err=35; message=trim(message)//"indexOutOfRange[var="//trim(varName)//"]"; return
    end if
    ! (put data in the structure)
-   parFallback(ivar)=parTemp
-   !write(*,'(a,1x,i4,1x,a30,1x,f20.10,1x)') 'ivar, trim(varname), parFallback(ivar)%default_val = ', &
-   !                                          ivar, trim(varname), parFallback(ivar)%default_val
+   parFallback(iVar)=parTemp
   else
-   err=40; message=trim(message)//"variable in parameter file not present in data structure [var="//trim(varname)//"]"; return
+   err=40; message=trim(message)//"variable in parameter file not present in data structure [var="//trim(varName)//"]"; return
   end if
  end do  ! (looping through lines in the file)
+
+ ! add these defaults for backwards compatibility with existing parameter input files
+ if (isLocal) then ! dealing with parameters for local column
+  ! add these defaults for backwards compatibility pre Sundials
+  if (parFallback(iLookPARAM%be_steps)%default_val < 0.99_rkind*realMissing) then
+   parFallback(iLookPARAM%be_steps)%default_val = 1._rkind
+  end if
+  call set_ida_defaults(absEnergyFac, parFallback, err, cmessage)
+  if (err /= 0) then; message = trim(message)//trim(cmessage); return; end if
+
+  ! set FUSE parameter defaults (if not already set) for backwards compatibility
+  call set_FUSE_defaults(parFallback, err, cmessage)
+  if (err /= 0) then; message = trim(message)//trim(cmessage); return; end if
+ end if
+
  ! check we have populated all variables
  ! NOTE: ultimately need a need a parameter dictionary to ensure that the parameters used are populated
  if(.not.backwardsCompatible)then  ! if we add new variables in future versions of the code, then some may be missing in the input file
   if(any(parFallback(:)%default_val < 0.99_rkind*realMissing))then
-   do ivar=1,size(parFallback)
-    if(parFallback(ivar)%default_val < 0.99_rkind*realMissing)then
-     err=40; message=trim(message)//"variableNonexistent[var="//trim(mpar_meta(ivar)%varname)//"]"; return
+   do iVar=1,size(parFallback)
+    if(parFallback(iVar)%default_val < 0.99_rkind*realMissing)then
+     err=40; message=trim(message)//"variableNonexistent[var="//trim(mpar_meta(iVar)%varName)//"]"; return
     end if
    end do
   end if
@@ -148,9 +167,135 @@ contains
    end if
   end if
  end if
+ 
  ! close file unit
  close(unt)
  end subroutine read_pinit
 
+ ! ************************************************************************************************
+ ! Subroutine to separate the default settings of the IDA solver from the rest of the model parameters
+ ! ************************************************************************************************
+ subroutine set_ida_defaults(absEnergyFac, parFallback, err, message)
+ USE data_types,only:par_info              ! data type for parameter constraints
+ implicit none
+ ! define input
+ real(rkind),intent(in)                 :: absEnergyFac   ! multiplier for absolute value of energy state variable (for enthalpy or temperature)
+ type(par_info),intent(out)             :: parFallback(:) ! default values and constraints of model parameters
+ integer(i4b),intent(out)               :: err            ! error code
+ character(*),intent(out)               :: message        ! error message
+ ! local varaibles
+ integer(i4b)                           :: i   
+ real(rkind)                            :: default_relTol = 1.e-5_rkind 
+ real(rkind)                            :: default_absTol = 1.e-5_rkind
+ integer(i4b), dimension(7)             :: relTol_paramIndx = [iLookPARAM%relTolTempCas, iLookPARAM%relTolTempVeg, iLookPARAM%relTolWatVeg, &
+                                                               iLookPARAM%relTolTempSoilSnow, iLookPARAM%relTolWatSnow, iLookPARAM%relTolMatric, &
+                                                               iLookPARAM%relTolAquifr]
+ integer(i4b), dimension(3)             :: absTolTemp_paramIndx = [iLookPARAM%absTolTempCas, iLookPARAM%absTolTempVeg, iLookPARAM%absTolTempSoilSnow]
+ integer(i4b), dimension(4)             :: absTolWat_paramIndx =  [iLookPARAM%absTolWatVeg, iLookPARAM%absTolWatSnow, iLookPARAM%absTolMatric, &
+                                                                   iLookPARAM%absTolAquifr]
+ err=0 ! initialize error code
+ message="set_ida_defaults/"
+ 
+  ! Relative Tolerances
+  do i = 1, size(relTol_paramIndx)
+    if (parFallback(relTol_paramIndx(i))%default_val < 0.99_rkind*realMissing) then
+      parFallback(relTol_paramIndx(i))%default_val = default_relTol
+    end if
+  end do
+
+  ! Absolute Tolerances
+  do i = 1, size(absTolTemp_paramIndx)
+    if (parFallback(absTolTemp_paramIndx(i))%default_val < 0.99_rkind*realMissing) then
+      parFallback(absTolTemp_paramIndx(i))%default_val = default_absTol*absEnergyFac ! scale by absolute energy multiplier
+    end if
+  end do
+  do i = 1, size(absTolWat_paramIndx)
+    if (parFallback(absTolWat_paramIndx(i))%default_val < 0.99_rkind*realMissing) then
+      parFallback(absTolWat_paramIndx(i))%default_val = default_absTol
+    end if
+  end do
+
+  ! IDA Solver Parameters
+  if (parFallback(iLookPARAM%idaMaxOrder)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%idaMaxOrder)%default_val = 5
+  end if
+  if (parFallback(iLookPARAM%idaMaxInternalSteps)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%idaMaxInternalSteps)%default_val = 999999 ! IDA default is 500, this is often too small for us
+  end if
+  if (parFallback(iLookPARAM%idaInitStepSize)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%idaInitStepSize)%default_val = 0
+  end if
+  if (parFallback(iLookPARAM%idaMinStepSize)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%idaMinStepSize)%default_val = 0 ! IDA default is 0
+  end if
+  if (parFallback(iLookPARAM%idaMaxStepSize)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%idaMaxStepSize)%default_val = 0 ! 0 means IDA's default of infinity
+  end if
+  if (parFallback(iLookPARAM%idaMaxErrTestFail)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%idaMaxErrTestFail)%default_val = 50 ! IDA default is 10
+  end if
+  if (parFallback(iLookPARAM%idaMaxDataWindowSteps)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%idaMaxDataWindowSteps)%default_val = 1.e6_rkind ! default is infinity, if 1e10 or larger then treat as infinity
+  end if
+  if (parFallback(iLookPARAM%idaDetectEvents)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%idaDetectEvents)%default_val = 1._rkind ! default is to detect events (0 means do not detect events)
+  end if
+ end subroutine set_ida_defaults
+
+ 
+ ! ************************************************************************************************
+ ! Subroutine to set the FUSE default values if they are not already set
+ ! ************************************************************************************************
+ subroutine set_FUSE_defaults(parFallback, err, message)
+  USE data_types       ,only:par_info                   ! data type for parameter constraints
+  USE mDecisions_module,only:FUSEPRMS,FUSEAVIC,FUSETOPM ! model decision parameters 
+  implicit none
+  ! define dummy arguments
+  type(par_info),intent(inout)           :: parFallback(:) ! default values and constraints of model parameters
+  integer(i4b),intent(out)               :: err            ! error code
+  character(*),intent(out)               :: message        ! error message
+  !local variables
+  logical(lgt)                           :: warning_flag   ! flag for warnings to standard output 
+
+  ! initialize error control
+  err=0
+  message="set_FUSE_defaults/"
+  warning_flag=.false.
+
+  ! set FUSE parameter defaults for backwards compatibility
+  if (parFallback(iLookPARAM%FUSE_Ac_max)%default_val == realMissing) then   ! FUSE PRMS max saturated area
+   parFallback(iLookPARAM%FUSE_Ac_max)%default_val=0.95_rkind; warning_flag=.true.
+  end if
+  if (parFallback(iLookPARAM%FUSE_phi_tens)%default_val == realMissing) then ! FUSE PRMS tension storage fraction
+   parFallback(iLookPARAM%FUSE_phi_tens)%default_val=0.5_rkind; warning_flag=.true.
+  end if
+  if (parFallback(iLookPARAM%FUSE_b)%default_val == realMissing) then        ! FUSE ARNO/VIC exponent
+   parFallback(iLookPARAM%FUSE_b)%default_val=2._rkind; warning_flag=.true.
+  end if
+  if (parFallback(iLookPARAM%FUSE_lambda)%default_val == realMissing) then   ! FUSE TOPMODEL gamma distribution lambda parameter
+   parFallback(iLookPARAM%FUSE_lambda)%default_val=7._rkind; warning_flag=.true.
+  end if
+  if (parFallback(iLookPARAM%FUSE_chi)%default_val == realMissing) then      ! FUSE TOPMODEL gamma distribution chi    parameter
+   parFallback(iLookPARAM%FUSE_chi)%default_val=3._rkind; warning_flag=.true.
+  end if
+  if (parFallback(iLookPARAM%FUSE_mu)%default_val == realMissing) then       ! FUSE TOPMODEL gamma distribution mu     parameter
+   parFallback(iLookPARAM%FUSE_mu)%default_val=3._rkind; warning_flag=.true.
+  end if
+  if (parFallback(iLookPARAM%FUSE_n)%default_val == realMissing) then        ! FUSE TOPMODEL exponent
+   parFallback(iLookPARAM%FUSE_n)%default_val=4._rkind; warning_flag=.true.
+  end if
+
+  ! issue a warning if FUSE model decision choices used but default parameters not found in local parameters file
+  if ((model_decisions(iLookDECISIONS%surfRun_SE)%iDecision == FUSEPRMS).or.&
+     &(model_decisions(iLookDECISIONS%surfRun_SE)%iDecision == FUSEAVIC).or.&
+     &(model_decisions(iLookDECISIONS%surfRun_SE)%iDecision == FUSETOPM)) then
+     if (warning_flag) then
+      print '(a136)', " WARNING: some FUSE parameters required by model decisions but are not in the local parameters file&
+                      & -- default values have been assumed."
+      print '(a1)',   " "
+     end if
+  end if
+
+ end subroutine set_FUSE_defaults
 
 end module read_pinit_module

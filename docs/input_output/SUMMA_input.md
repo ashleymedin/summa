@@ -54,27 +54,24 @@ The following items must be provided in the master configuration file. Order is 
 - `noahmpTableFile` : File path to the noah mp parameter table (defaults to `MPTABLE.TBL`) (relative to `settingsPath`).
 - `outFilePrefix` : Text string prepended to each output filename to identify a specific model setup. Note that the user can further modify the output file name at run-time by using the `-s|--suffix` command-line option.
 
-And example of this file is provide [here](#fileMgr_example).
+An example of this file is provide [here](#fileMgr_example).
 
 <a id="simulStartEndTimes"></a>
-## 1. Simulation Start and End Times
+###  Note on Simulation Start and End Times
 Start and end of the simulation are specified as `'YYYY-MM-DD hh:mm'`. Note that the strings needs to be enclosed in single quotes. These indicates the end of the first and last time step. Since the time stamps in the [forcing files](#infile_meteorological_forcing) are period-ending, SUMMA will start reading the forcing file for the time stamp that equals `simulStart`.
 
 <a id="tmZoneInfo"></a>
-##  2. tmZoneInfo
+###  Note on tmZoneInfo
 The time zone information should be specified consistently in all the model forcing files. The local time for the individual model elements is calculated as `localTime = inputTime + timeOffset`, where `localTime` is the time in which local noon coincides with solar noon, `inputTime` is the time in the model forcing files, and `timeOffset` is determined according to the `tmZoneInfo` option that is selected. The `simulStart` and
 `simulFinsh` time stamps must be consistent with the `tmZoneInfo` option. The `utcTime` option is recommended for large domain simulations (but you need to ensure that your forcing files are consistent with this option).
 
 Time stamps in the output files will be consistent with the `tmZoneInfo` option selected.
 
-| Option    | Description                                                                                                                                                                                                 |
-|-----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `ncTime`  | Time zone information is parsed as `ncTimeOffset` from the `units` attribute of the `time` variable in the NetCDF file. `timeOffset` is calculated as `timeOffset = longitude/15 - ncTimeOffset`.[^1] [^2]  |
-| `utcTime` | `timeOffset` is calculated as `timeOffset = longitude/15` hours, assuming all timestamps in the forcing files are in UTC. Preferred for large-domain simulations spanning multiple time zones.[^2]          |
-| `localTime` | `timeOffset` is equal to zero.                                                                                                                                                                            |
-
-[^1]: The `units` attribute must comply with the [CF conventions](http://cfconventions.org/Data/cf-conventions/cf-conventions-1.7/build/ch04s04.html).
-[^2]: Internally, the code uses fractional days, so `longitude/360` is used instead of `longitude/15`.
+| Option | Description |
+|---|---|
+| `ncTime` | Time zone information is parsed as `ncTimeOffset` from the `units` attribute of the `time` variable in the NetCDF file with the meteorological forcings. The `timeOffset` is then calculated as `timeOffset = longitude/15 - ncTimeOffset`. The `units` attribute must be compliant with the [CF conventions](http://cfconventions.org/Data/cf-conventions/cf-conventions-1.7/build/ch04s04.html).  Note that the code internally uses fractional days and thus uses `longitude/360`. [^1] [^2] |
+| utcTime | `timeOffset` is calculated as `timeOffset = longitude/15` hours. In essence this assumes that all time stamps in the forcing files are in UTC. This is the preferred option for large-domain simulations that span multiple time zones. Note that the code internally uses fractional days and thus uses `longitude/360`. |
+| localTime | `timeOffset` is equal to zero. |
 
 For example, assume that a model element has longitude -120º (or 120W) and the `units` attribute of the `time` variable in the NetCDF forcing file is `seconds since 1992-01-01 00:00:00 -6:00`. For each of the `tmZoneInfo` options this will be processed the following way:
 
@@ -87,7 +84,7 @@ For example, assume that a model element has longitude -120º (or 120W) and the 
 Specifying time zone information in the NetCDF file and overriding it with the `tmZoneInfo` option can be confusing and is only provided to give the user some flexibility.
 
 <a id="fileMgr_example"></a>
-------------------
+###  Filemanager example
 ```
 controlVersion:    'SUMMA_FILE_MANAGER_V2.0'          ! file manager version
 
@@ -113,13 +110,12 @@ initCondFile      'coldState.3l3h_100cm.nc'           ! initial conditions
 trialParamFile    'trialParams.v1.nc'                 ! trial parameter file
 outFilePrefix     'sf_flathead_v1'                    ! output_prefix
 ```
-------------------
 
 <a id="infile_model_decisions"></a>
 ## 3. Model decisions file
 The model decisions file is an [ASCII file](#infile_format_ASCII) that indicates the model decisions with which SUMMA is configured. The model decisions file is parsed by `build/source/engine/mDecisions.f90`, which also serves as the file of record for all available options for the individual model decisions. The names for the model decisions are found in `build/source/dshare/get_ixname.f90:function get_ixdecisions(varName)`. Detailed information about the individual model decisions and their associated options can be found in the [configuration section](../configuration/SUMMA_model_decisions.md).
 
-Model decisions can be specified in any order with one decision per line. The decisions take the form `<keyword> <value>`, where `<keyword>` is the decision to be made and `<value>` is the option that is selected for that decision. For example, the line `f_Richards mixdform` indicates that the mixed form of the Richards's equation (unsaturated/saturated flow) should be used in the simulation (`mixdform` option for the `f_Richards` decision). Another option for this model decision would be `moisture`, which would be the moisture-based form (only unsaturated flow).
+Model decisions can be specified in any order with one decision per line. The decisions take the form `<keyword> <value>`, where `<keyword>` is the decision to be made and `<value>` is the option that is selected for that decision. For example, the line `num_method homegrown` indicates that the homegrown version of the solver should be used in the simulation(`homegrown` option for the `num_method` decision). Another option for this model decision would be `ida` which indicates the SUNDIALS IDA solver will be used.
 
 The model decisions file must also contain the start (`simulStart`) and end (`simulFinsh`) times of the simulation. These are specified as `'YYYY-MM-DD hh:mm'` and must be enclosed in single quotes. They are typically the first model decisions to be specified.
 
@@ -131,7 +127,7 @@ The model decisions and their options or values are listed in the following tabl
 |[simulFinsh](../configuration/SUMMA_model_decisions.md#simulFinsh) | 'YYYY-MM-DD hh:mm' | ( 2) simulation end time
 |[tmZoneInfo](../configuration/SUMMA_model_decisions.md#tmZoneInfo) | ncTime <br> utcTime <br> localTime | ( 3) time zone information
 |[soilCatTbl](../configuration/SUMMA_model_decisions.md#soilCatTbl) | STAS <br> STAS-RUC <br> ROSETTA | ( 4) soil-category dataset
-|[vegeParTbl](../configuration/SUMMA_model_decisions.md#vegeParTbl) | USGS <nr> MODIFIED_IGBP_MODIS_NOAH | ( 5) vegetation category dataset
+|[vegeParTbl](../configuration/SUMMA_model_decisions.md#vegeParTbl) | USGS <br> MODIFIED_IGBP_MODIS_NOAH | ( 5) vegetation category dataset
 |[soilStress](../configuration/SUMMA_model_decisions.md#soilStress) | NoahType <br> CLM_Type <br> SiB_Type | ( 6) choice of function for the soil moisture control on stomatal resistance
 |[stomResist](../configuration/SUMMA_model_decisions.md#stomResist) | BallBerry <br> Jarvis <br> simpleResistance <br> BallBerryFlex <br> BallBerryTest | ( 7) choice of function for stomatal resistance
 |[bbTempFunc](../configuration/SUMMA_model_decisions.md#bbTempFunc) | q10Func <br> Arrhenius | ( 8) Ball-Berry: leaf temperature controls on photosynthesis + stomatal resistance
@@ -141,7 +137,7 @@ The model decisions and their options or values are listed in the following tabl
 |[bbNumerics](../configuration/SUMMA_model_decisions.md#bbNumerics) | NoahMPsolution <br> newtonRaphson | (12) Ball-Berry: iterative numerical solution method
 |[bbAssimFnc](../configuration/SUMMA_model_decisions.md#bbAssimFnc) | colimitation <br> minFunc | (13) Ball-Berry: controls on carbon assimilation
 |[bbCanIntg8](../configuration/SUMMA_model_decisions.md#bbCanIntg8) | constantScaling <br> laiScaling | (14) Ball-Berry: scaling of photosynthesis from the leaf to the canopy
-|[num_method](../configuration/SUMMA_model_decisions.md#num_method) | itertive <br> non_iter <br> itersurf | (15) choice of numerical method
+|[num_method](../configuration/SUMMA_model_decisions.md#num_method) | itertive <br> homegrown <br> kinsol <br> ida| (15) choice of numerical method
 |[fDerivMeth](../configuration/SUMMA_model_decisions.md#fDerivMeth) | numericl <br> analytic | (16) choice of method to calculate flux derivatives
 |[LAI_method](../configuration/SUMMA_model_decisions.md#LAI_method) | monTable <br> specified | (17) choice of method to determine LAI and SAI
 |[cIntercept](../configuration/SUMMA_model_decisions.md#cIntercept) | sparseCanopy <br> storageFunc <br> notPopulatedYet | (18) choice of parameterization for canopy interception
@@ -167,6 +163,12 @@ The model decisions and their options or values are listed in the following tabl
 |[spatial_gw](../configuration/SUMMA_model_decisions.md#spatial_gw) | localColumn <br> singleBasin | (38) choice of method for spatial representation of groundwater
 |[subRouting](../configuration/SUMMA_model_decisions.md#subRouting) | timeDlay <br> qInstant | (39) choice of method for sub-grid routing
 |[snowDenNew](../configuration/SUMMA_model_decisions.md#snowDenNew) | hedAndPom <br> anderson <br> pahaut_76 <br> constDens | (40) choice of method for new snow density
+|[nrgConserv](../configuration/SUMMA_model_decisions.md#nrgConserv) | closedForm <br> enthalpyForm <br> enthalpyFormAN | (41) choice of variable in energy equations (BE residual or IDA state variable)
+|[aquiferIni](../configuration/SUMMA_model_decisions.md#aquiferIni) | fullStart <br> emptyStart | (42) choice of initial fill level for aquifer, should be used at default unless comparing solution methods
+|[infRateMax](../configuration/SUMMA_model_decisions.md#infRateMax) | topmodel_GA <br> GreenAmpt <br> noInfiltrationExcess | (43) choice of parametrization of maximum infiltration rate
+|[surfRun_SE](../configuration/SUMMA_model_decisions.md#surfRun_SE) | homegrown_SE <br> FUSEPRMS <br> FUSEAVIC <br> FUSETOPM <br> zero_SE | (44) choice of equation to calculate saturation excess runoff
+|[readForcing](../configuration/SUMMA_model_decisions.md#readForcing) | readPerStep <br> readFullSeries | (45) method used to read forcing data
+|[writeOutput](../configuration/SUMMA_model_decisions.md#writeOutput) | writePerStep <br> writeFullSeries | (46) method used to write model output
 
 The model decisions for each simulation are included as global attributes in [SUMMA output files](SUMMA_output.md).
 
@@ -176,18 +178,28 @@ The output control file is an [ASCII file](#infile_format_ASCII) that specifies 
 
 SUMMA is pretty flexible in its output. There are many variables that you can output and for most of them you can also choose to record summary statistics. For example, you can configure the model to run with meteorological forcings that are defined every hour, but only save summary output with a daily time step. This flexibility comes at the small price that you need to be clear in specifying what output you want.
 
-The output control file includes a listing of model variables that you would like to store, with one model variable per line. The variables that are available for output are the individual entries in the data structures specified in `build/source/dshare/var_lookup.f90`. Because there are many, there is not much point in repeating them here, but we direct the user to the model code. Any of the variables specified in the following structures can be specified in the output control file: `iLook_time`, `iLook_force`, `iLook_attr`, `iLook_type`, `iLook_param`, `iLook_index`, `iLook_prog`, `iLook_diag`, `iLook_flux`, `iLook_bpar`, `iLook_bvar`, `iLook_deriv`. SUMMA will print an error message if a specific variable cannot be output, so the faster way may be to select any variable in `build/source/dshare/var_lookup.f90` and remove it if it is not available for output. In addition, some of the variables may only be useful for debugging use, but that is up to the user.
+The output control file includes a listing of model variables that you would like to store, with one model variable per line. The variables that are available for output are the individual entries in the data structures specified in `build/source/dshare/popMetadat.f90`. Because there are many, there is not much point in repeating them here, but we direct the user to the model code. Any of the variables specified in the following structures can be specified in the output control file: the time-varying variables in `forc`, `prog`, `diag`, `flux`, `bvar`; the time-constant parameters in `bpar`, `attr`, `type`, and `mpar`; and the timestep variables of `time` and `indx`. SUMMA will print an warning message if a specific variable cannot be outputted, so the faster way may be to select any variable in `build/source/dshare/popMetadat.f90` and remove it if it is not available for output. At this time, `deriv`,and `lookup` structure variables are not available for output, as well as any variables of type `unknown`. The `id` structure variables of `gruId` and `hruId` will always be outputted for variable identification purposes, but no other `id` variables will be outputted.
 
-At a minimum, each line in the output control file will contain two fields, separated by a `|`. The first field will be the variable name as specified in `build/source/dshare/var_lookup.f90` (case-sensitive). The second field will be the frequency of the model output specified as a multiple of the time resolution in the model forcing files. Thus, if you want to output data for every forcing time step, then this value should be equal to 1. If you want daily output and your forcing frequency is 3 hours, then this value should be equal to 8. Note that you can specify different output frequencies for separate variables, but at this time you can specify only a single output frequency for each variable. For example, you can store `scalarSenHeatTotal` with an output frequency of 1 and `scalarLatHeatTotal` with an output frequency of 8, but you cannot specify two different output frequencies for `scalarSenHeatTotal`.
-
-For most variables you can also output a statistical summary if you output variables at a lower frequency than your forcing frequency. To do this, you extend the number of fields you specify in the output control file, with all fields separated by a `|`. For the fields after the first two, you specify a series of 0's and 1's, which indicate that a specific statistic should not (0) or should be stored (1). The available statistics are (in order) the instantaneous value, the sum over the interval, the mean, the variance, the minimum, the maximum and the mode. So, a complete line in the output control file would be
+At a minimum, for any time-varying variable (in `forc`, `prog`, `diag`, `flux`, or `bvar`), each line in the output control file will contain two fields, separated by a `|`. The first field will be the variable name as specified in `build/source/dshare/popMetadat.f90` (case-sensitive). The second field will be the frequency of the model output specified as timestep, day, month, or annual. The `timestep` choice can also be inputted as `1`, and the `day` choice can also be inputted as `24`, regardless if the of the length of the actual timestep (i.e. a 30 minute timestep would still be `1` with the day being `24`). Note that for every variable you can specify multiple frequencies but you need to add a new line in the output control for each frequency. For example to output `scalarSenHeatTotal` at the timestep, day, and annual, you would input:
 ```
-! varName          | outFreq | sum | inst | mean | var | min | max | mode
-scalarSenHeatTotal | 24      | 0   | 1    | 1    | 0   | 1   | 1   | 0
+scalarSenHeatTotal | 1
+scalarSenHeatTotal | day
+scalarSenHeatTotal | annual
 ```
-In this example, the first line is a comment (starts with `!`) and then the sum, mean, min, max are calculated for `scalarSenHeatTotal` across 24 forcing time steps and written to the output file.
+For a scalar variable you can also output a statistical summary if you output variables at a lower frequency than your forcing frequency. To do this, you extend the number of fields you specify in the output control file, with all fields separated by a `|`. The available statistics are the the sum over the interval, the instantaneous value (computed at the last simulated timestep of the calendar day, month, or year), the mean, the variance, the minimum, and the maximum (respective names total, instant, mean, variance, minimum, and maximum). For example
+```
+scalarSenHeatTotal | day     | mean
+```
+You can also do this with the backwards compatible flags, in order:
+```
+! varName          | outFreq | totl | inst | mean | vari | mini | maxi
+scalarSenHeatTotal | 24      | 0    | 0    | 1    | 0    | 0    | 0
+```
+In this example, the first line is a comment (starts with `!`) and then the mean is calculated for `scalarSenHeatTotal` across 24 forcing time steps and written to the output file. Note, at this time, you can only specify one statistic per variable per output frequency and you cannot specify the same output frequency twice, even if the statistics are different. The default statistic, if not specified, or if the variable is not scalar, is instantaneous. 
 
-Additionally, you can specify the output precision by adding the line `outputPrecision | <precision>` to the output control file where `<precision>` is one of `float`, `single`, or `double`. The default precision if this is not included is `double`. Both `single` and `float` correspond to single precision.
+The time-constant parameters (in `bpar`, `attr`, `type`, or `mpar`) do not have to have a frequency field, as they will be outputted without a time dimension in the timestep file (regardless if different frequency is submitted). The timestep variables (in `time` or `indx`) cannot be agggregated to frequencies longer than a timestep, so they also do not have to have a frequency field and will be outputted in the timestep file (regardless if different frequency is submitted), this time with a time dimension.
+
+Additionally, you can specify the output precision by adding the line `outputPrecision | <precision>` to the output control file where `<precision>` is one of `float`, `single`, or `double`. The default precision if this is not included is `double`. Both `single` and `float` correspond to single precision. The output compression level can be specified by adding the line `outputCompressionLevel | <compression>` to the output control file where `<compression>` is 0-9. Higher levels mean smaller files but slower write/read speed. The default compression level is 4. 
 
 <a id="infile_forcing_list"></a>
 ## 5. List of forcing files file
@@ -204,13 +216,13 @@ Each forcing file must contain a `time` and a `hru` [dimension](#forcing_file_di
 data_step  | - | double | seconds | Length of time step | Single value that must be the same for all forcing files in the same [list of forcing files file](#infile_forcing_list)
 hruId | hru | int or int64 | - | Index of hydrological response unit (HRU) | Unique numeric ID for each HRU |
 time | time | double | [see below](#forcing_file_time_units) | time since time reference | Time stamps are [period-ending](#forcing_file_time_stamp)
-pptrate  | time, hru | double | kg m-2 s-1 | Precipitation rate | |
-SWRadAtm | time, hru | double | W m-2 | Downward shortwave radiation at the [upper boundary](#forcing_file_upper_boundary) | |
-LWRadAtm | time, hru | double | W m-2 | Downward longwave radiation at the [upper boundary](#forcing_file_upper_boundary) | |
-airtemp  | time, hru | double | K | Air temperature at the [measurement height](#forcing_file_measurement_height) | |
-windspd  | time, hru | double | m s-1 | Wind speed at the [measurement height](#forcing_file_measurement_height) | |
-airpres  | time, hru | double | Pa | Air pressure at the the [measurement height](#forcing_file_measurement_height)| |
-spechum  | time, hru | double | g g-1 | Specific humidity at the [measurement height](#forcing_file_measurement_height) | |
+pptrate  | time, hru | double | kg m-2 s-1 | Precipitation rate |
+SWRadAtm | time, hru | double | W m-2 | Downward shortwave radiation at the [upper boundary](#forcing_file_upper_boundary) |
+LWRadAtm | time, hru | double | W m-2 | Downward longwave radiation at the [upper boundary](#forcing_file_upper_boundary) |
+airtemp  | time, hru | double | K | Air temperature at the [measurement height](#forcing_file_measurement_height) |
+windspd  | time, hru | double | m s-1 | Wind speed at the [measurement height](#forcing_file_measurement_height) |
+airpres  | time, hru | double | Pa | Air pressure at the the [measurement height](#forcing_file_measurement_height)|
+spechum  | time, hru | double | g g-1 | Specific humidity at the [measurement height](#forcing_file_measurement_height) |
 
 Notes about forcing file format:
 
@@ -226,6 +238,13 @@ Notes about forcing file format:
 
 SUMMA uses **adaptive time stepping** to solve the model equations. Atmospheric conditions are kept constant during the adaptive sub-steps that occur during a meteorological forcing time step.
 
+### Common pitfalls
+SUMMA requires complete timeseries in the meteorological forcing files; missing values such as `NaN` are not allowed. By design, SUMMA does not check the input files to limit the number of computations performed. The user is expected to ensure forcing files are completely and contain realistic. However, `NaN` values do have a tendency to slip in. In such cases SUMMA will usually abort a run early, with the following error message:
+
+```
+Note: The following floating-point exceptions are signalling: IEEE_INVALID_FLAG
+```
+
 <a id="infile_initial_conditions"></a>
 ## Initial conditions, restart or state file
 The initial conditions, restart, or state file is a [NetCDF file](#infile_format_nc) that specifies the model states at the start of the model simulation. This file is required. You will need to generate one before you run the model for the first time, but after that the model restart file can be the result from an earlier model simulation. The file is written by `build/source/netcdf/modelwrite.f90:writeRestart()` and read by `build/source/netcdf/read_icond.f90:read_icond_nlayers()` (number of snow and soil layers) and `build/source/netcdf/read_icond.f90:read_icond()` (actual model states).
@@ -234,29 +253,39 @@ The frequency with which SUMMA writes restart files is specified on the command-
 
 As an input file, the variables that need to be specified in the restart file are a subset of those listed as `iLook_prog` in the `var_lookup` module in `build/source/dshare/var_lookup.f90` (look for the comment `(6) define model prognostic (state) variables`). Variable names must match the code exactly (case-sensitive). Note that not all the variables in `iLook_prog` need to be specified, since some of them can be calculated from other variables. For example, SUMMA calculates `mLayerHeight` from `iLayerHeight` and the variable does not need to be reported separately. For similar reasons, the user does not need to specify `scalarCanopyWat`, `spectralSnowAlbedoDiffuse`, `scalarSurfaceTemp`, `mLayerVolFracWat`,  and `mLayerHeight` since these are skipped when the file is read and calculated internally to ensure consistency. In addition to these variables, the restart file also needs to specify the number of soil and snow layers (`nSoil` and `nSnow`, respectively).
 
-The restart file does not have a time dimension, since it represents a specific moment in time. However, it has the following dimensions,: `hru`, `scalarv`, `spectral`, `ifcSoil`, `ifcToto`, `midSoil`, and `midToto`. These dimensions are described in detail in the section on [SUMMA output file dimensions](SUMMA_output.md#outfile_dimensions) (keep in mind that the restart files are both input and output).
+The restart file does not have a time dimension, since it represents a specific moment in time. However, it has the following dimensions,: `gru`, `hru`, `tdh`, `scalarv`, `spectral`, `ifcSoil`, `ifcToto`, `midSoil`, and `midToto`. These dimensions are described in detail in the section on [SUMMA output file dimensions](SUMMA_output.md#outfile_dimensions) (keep in mind that the restart files are both input and output).
 
 | Variable | dimension | type | units | long name | notes |
 |----------|-----------|------|-------|-----------|-------|
-| dt_init | scalarv, hru | double | seconds | Length of initial time sub-step at start of next time interval (s) | |
-| nSoil | scalarv, hru | int | - | Number of soil layers | |
-| nSnow | scalarv, hru | int | - |  Number of snow layers | |
-| scalarCanopyIce | scalarv, hru | double | kg m-2 | Mass of ice on the vegetation canopy | |
-| scalarCanopyLiq | scalarv, hru | double | kg m-2 | Mass of liquid water on the vegetation canopy | |
-| scalarCanairTemp | scalarv, hru | double | Pa | Temperature of the canopy air space | |
-| scalarCanopyTemp | scalarv, hru | double | K | Temperature of the vegetation canopy | |
-| scalarSnowAlbedo | scalarv, hru | double | - | Snow albedo for the entire spectral band | |
-| scalarSnowDepth | scalarv, hru | double | m | Total snow depth | |
-| scalarSWE | scalarv, hru | double | kg m-2 | Snow water equivalent | |
+| gruId | gru | int | - | ID defining the grouped (basin) response unit |
+| hruId | hru | int | - | ID defining the hydrologic response unit |
+| dt_init | scalarv, hru | double | seconds | Length of initial time sub-step at start of next time interval |
+| nSoil | hru | int | - | Number of soil layers |
+| nSnow | hru | int | - |  Number of snow layers |
+| scalarCanopyIce | scalarv, hru | double | kg m-2 | Mass of ice on the vegetation canopy |
+| scalarCanopyLiq | scalarv, hru | double | kg m-2 | Mass of liquid water on the vegetation canopy |
+| scalarCanairTemp | scalarv, hru | double | Pa | Temperature of the canopy air space |
+| scalarCanopyTemp | scalarv, hru | double | K | Temperature of the vegetation canopy |
+| scalarCanopyWat | scalarv, hru | double | K | Mass of water on the vegetation canopy |
+| scalarCanairEnthalpy | scalarv, hru | double | J m-3 | Enthalpy of the canopy air space |
+| scalarCanopyEnthalpy | scalarv, hru | double | J m-3 | Enthalpy of the vegetation canopy |
+| scalarSnowAlbedo | scalarv, hru | double | - | Snow albedo for the entire spectral band |
+| spectralSnowAlbedoDiffuse | spectral, hru | double | - | Diffuse snow albedo for individual spectral bands |
+| scalarSnowDepth | scalarv, hru | double | m | Total snow depth |
+| scalarSurfaceTemp | scalarv, hru | double | K | Surface temperature (just a copy of the upper layer temperature) |
+| scalarSWE | scalarv, hru | double | kg m-2 | Snow water equivalent |
 | scalarSfcMeltPond | scalarv, hru | double | kg m-2 | Ponded water caused by melt of the "snow without a layer" |
-| scalarAquiferStorage | scalarv, hru | double | m | Relative aquifer storage -- above bottom of the soil profile | |
-| iLayerHeight | ifcToto, hru | double | m | Height of the layer interface; top of soil = 0 | |
-| mLayerDepth | midToto, hru | double | m | Depth of each layer | |
+| scalarAquiferStorage | scalarv, hru | double | m | Relative aquifer storage -- above bottom of the soil profile |
+| iLayerHeight | ifcToto, hru | double | m | Height of the layer interface; top of soil = 0 |
+| mLayerDepth | midToto, hru | double | m | Depth of each layer |
  layer |
-| mLayerTemp | midToto, hru | double | K | Temperature of each layer | |
-| mLayerVolFracIce | midToto, hru | double | - | Volumetric fraction of ice in each layer | |
-| mLayerVolFracLiq | midToto, hru | double | - | Volumetric fraction of liquid water in each layer | |
+| mLayerVolFracIce | midToto, hru | double | - | Volumetric fraction of ice in each layer |
+| mLayerVolFracLiq | midToto, hru | double | - | Volumetric fraction of liquid water in each layer |
+| mLayerVolFracWat | midToto, hru | double | - | Volumetric fraction of water in each layer |
+| mLayerTemp | midToto, hru | double | K | Temperature of each layer |
+| mLayeryEnthalpy | scalarv, hru | double | J m-3 | Enthalpy of each layer |
 | mLayerMatricHead | midSoil, hru | double | m | Matric head of water in the soil |
+| routingRunoffFuture | tdh, gru | m s-1 | runoff in future timesteps for histogram |
 
 ## Attribute and parameter files
 SUMMA uses a number of files to specify model attributes and parameters. Although SUMMA's distinction between attributes and parameters is somewhat arbitrary, attributes generally describe characteristics of the model domain that are time-invariant during the simulation, such as GRU and HRU identifiers, spatial organization, an topography. The important part for understanding the organization of the SUMMA input files is that the values specified in the [local attributes file](#infile_local_attributes) do not overlap with those in the various parameter files. Thus, these values do not overwrite any attributes specified elsewhere. In contrast, the various parameter file are read in sequence (as explained in the next paragraph) and parameter values that are read in from the input files successively overwrite values that have been specified earlier.
@@ -274,20 +303,20 @@ The local attributes file contains a `gru` and an `hru` dimension as specified i
 
 | Variable | dimension | type | units | long name | notes |
 |----------|-----------|------|-------|-----------|-------|
-hruId | hru | int | - | Index of hydrological response unit (HRU) | Unique numeric ID for each HRU |
-gruId | gru | int | - | Index of grouped response unit (GRU) | Unique numeric ID for each GRU |
-hru2gruId | hru | int | - | Index of GRU to which the HRU belongs | gruId of the GRU to which the HRU belongs |
-downHRUindex | hru | int | - | Index of downslope HRU (0 = basin outlet) | Downslope HRU must be within the same GRU. If the value is 0, then there is no exchange to a neighboring HRU. Setting this value to 0 for all HRUs emulates a series of independent columns |
-longitude | hru | double | Decimal degree east | Longitude of HRU's centroid | West is negative or greater than 180 |
-latitude | hru | double | Decimal degree north | Latitude of HRU's centroid | South is negative |
-elevation | hru | double | m | Mean elevation of HRU | |
-HRUarea | hru | double | m^2 | Area of HRU | |
-tan_slope | hru | double | m m-1 | Average tangent slope of HRU | |
-contourLength | hru | double | m | Contour length of HRU | Width of a hillslope (m) parallel to a stream. Used in `groundwatr.f90`|
-slopeTypeIndex | hru | int | - |	Index defining slope | |
-soilTypeIndex | hru | int | - |	Index defining soil type | |
-vegTypeIndex | hru | int | - |	Index defining vegetation type | |
-mHeight | hru | double | m | Measurement height above bare ground | |
+| gruId | gru | int | - | ID defining the grouped (basin) response unit | |
+| hruId | hru | int | - | ID defining the hydrologic response unit | |
+| hru2gruId | hru | int | - | Index of GRU to which the HRU belongs | gruId of the GRU to which the HRU belongs |
+| downHRUindex | hru | int | - | Index of downslope HRU (0 = basin outlet) | Downslope HRU must be within the same GRU. If the value is 0, then there is no exchange to a | neighboring HRU. Setting this value to 0 for all HRUs emulates a series of independent columns |
+| longitude | hru | double | Decimal degree east | Longitude of HRU's centroid | West is negative or greater than 180 |
+| latitude | hru | double | Decimal degree north | Latitude of HRU's centroid | South is negative |
+| elevation | hru | double | m | Mean elevation of HRU | |
+| HRUarea | hru | double | m^2 | Area of HRU | |
+| tan_slope | hru | double | m m-1 | Average tangent slope of HRU | |
+| contourLength | hru | double | m | Contour length of HRU | Width of a hillslope (m) parallel to a stream. Used in `groundwatr.f90`|
+| slopeTypeIndex | hru | int | - | Index defining slope | |
+| soilTypeIndex | hru | int | - | Index defining soil type | |
+| vegTypeIndex | hru | int | - | Index defining vegetation type | |
+| mHeight | hru | double | m | Measurement height above bare ground | |
 
 Below is a sample layout of the local attributes file (the output of running `ncdump -h`). In this case,  both the gru and hru dimension are of size 1 (the example is taken from one of the [test cases](../installation/SUMMA_test_cases.md), most of which are point model simulations), but of course there can be many GRUs and HRUs.
 
