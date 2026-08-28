@@ -21,7 +21,8 @@
 module qTimeDelay_module
 
 ! data types
-USE nrtype
+USE nr_type
+USE globalData,only:realMissing               ! missing real number
 
 ! look-up values for the sub-grid routing method
 USE mDecisions_module,only:      &
@@ -49,18 +50,18 @@ contains
                       err,message)              ! error control
  implicit none
  ! input
- integer(i4b),intent(in)    :: ixRouting              ! index for routing method
- real(rkind),intent(in)        :: averageTotalRunoff     ! total runoff to the channel from all active components (m s-1)
- real(rkind),intent(in)        :: fracFuture(:)          ! fraction of runoff in future time steps (m s-1)
- real(rkind),intent(inout)     :: qFuture(:)             ! runoff in future time steps (m s-1)
+ integer(i4b),intent(in)    :: ixRouting                 ! index for routing method
+ real(rkind),intent(in)     :: averageTotalRunoff        ! total runoff to the channel from all active components (m s-1)
+ real(rkind),intent(in)     :: fracFuture(:)             ! fraction of runoff in future time steps (m s-1)
+ real(rkind),intent(inout)  :: qFuture(:)                ! runoff in future time steps (m s-1)
  ! output
- real(rkind),intent(out)       :: averageInstantRunoff   ! instantaneous runoff (m s-1)
- real(rkind),intent(out)       :: averageRoutedRunoff    ! routed runoff (m s-1)
- integer(i4b),intent(out)   :: err                    ! error code
- character(*),intent(out)   :: message                ! error message
+ real(rkind),intent(out)    :: averageInstantRunoff      ! instantaneous runoff (m s-1)
+ real(rkind),intent(out)    :: averageRoutedRunoff       ! routed runoff (m s-1)
+ integer(i4b),intent(out)   :: err                       ! error code
+ character(*),intent(out)   :: message                   ! error message
  ! internal
- integer(i4b)               :: nTDH                   ! number of points in the time-delay histogram
- integer(i4b)               :: iFuture                ! index in time delay histogram
+ integer(i4b)               :: nTDH                      ! number of points in the time-delay histogram
+ integer(i4b)               :: iFuture                   ! index in time delay histogram
  ! initialize error control
  err=0; message='qOverland/'
 
@@ -91,6 +92,11 @@ contains
   case default; err=20; message=trim(message)//'cannot find option for sub-grid routing'; return
 
  end select ! (select option for sub-grid routing)
+ ! For open water SUMMA doesn't run any calculations
+ !  the values for any output variables in the netCDF will stay at the value at which they were initialized, which may be a large negative
+ ! Coast may be similarly large and negative
+ !if (averageRoutedRunoff < 0._rkind) averageRoutedRunoff = realMissing
+
 
  end subroutine qOverland
 

@@ -20,7 +20,7 @@
 
 module paramCheck_module
 ! define numerical recipes data type
-USE nrtype
+USE nr_type
 ! define look-up values for the choice of method to combine and sub-divide snow layers
 USE mDecisions_module,only:&
  sameRulesAllLayers, & ! SNTHERM option: same combination/sub-dividion rules applied to all layers
@@ -39,7 +39,7 @@ contains
  USE globalData,only:model_decisions  ! model decision structure
  USE var_lookup,only:iLookDECISIONS   ! named variables for elements of the decision structure
  ! SUMMA look-up variables
- USE data_types,only:var_dlength      ! data vector with variable length dimension (dp): x%var(:)%dat(:)
+ USE data_types,only:var_dlength      ! data vector with variable length dimension (rkind): x%var(:)%dat(:)
  USE var_lookup,only:iLookPARAM       ! named variables for elements of the data structures
  implicit none
  ! define input
@@ -49,9 +49,9 @@ contains
  character(*),intent(out)        :: message              ! error message
  ! local variables
  integer(i4b)                    :: iLayer               ! index of model layers
- real(rkind),dimension(5)           :: zminLayer            ! minimum layer depth in each layer (m)
- real(rkind),dimension(4)           :: zmaxLayer_lower      ! lower value of maximum layer depth
- real(rkind),dimension(4)           :: zmaxLayer_upper      ! upper value of maximum layer depth
+ real(rkind),dimension(5)        :: zminLayer            ! minimum layer depth in each layer (m)
+ real(rkind),dimension(4)        :: zmaxLayer_lower      ! lower value of maximum layer depth
+ real(rkind),dimension(4)        :: zmaxLayer_upper      ! upper value of maximum layer depth
  ! Start procedure here
  err=0; message="paramCheck/"
 
@@ -107,7 +107,8 @@ contains
  ! -------------------------------------------------------------------------------------------------------------------------------------------
 
  ! *****
- ! * check parameter dependencies...
+ ! * check soil parameter dependencies...
+ ! theta_res < critSoilWilting < critSoilTranspire < fieldCapacit < theta_sat
  ! *********************************
 
  ! associations
@@ -116,8 +117,8 @@ contains
  heightCanopyTop        => mpar_data%var(iLookPARAM%heightCanopyTop)%dat(1),   & ! intent(in): [dp] height at the top of the vegetation canopy (m)
  heightCanopyBottom     => mpar_data%var(iLookPARAM%heightCanopyBottom)%dat(1),& ! intent(in): [dp] height at the bottom of the vegetation canopy (m)
  ! transpiration
- critSoilWilting        => mpar_data%var(iLookPARAM%critSoilWilting)%dat,      & ! intent(in): [dp] critical vol. liq. water content when plants are wilting (-)
- critSoilTranspire      => mpar_data%var(iLookPARAM%critSoilTranspire)%dat,    & ! intent(in): [dp] critical vol. liq. water content when transpiration is limited (-)
+ critSoilWilting        => mpar_data%var(iLookPARAM%critSoilWilting)%dat(1),   & ! intent(in): [dp] critical vol. liq. water content when plants are wilting (-)
+ critSoilTranspire      => mpar_data%var(iLookPARAM%critSoilTranspire)%dat(1), & ! intent(in): [dp] critical vol. liq. water content when transpiration is limited (-)
  ! soil properties
  fieldCapacity          => mpar_data%var(iLookPARAM%fieldCapacity)%dat(1),     & ! intent(in): [dp]    field capacity (-)
  theta_sat              => mpar_data%var(iLookPARAM%theta_sat)%dat,            & ! intent(in): [dp(:)] soil porosity (-)
@@ -161,14 +162,22 @@ contains
  end if
 
  ! check transpiration
- if( any(critSoilTranspire < critSoilWilting) )then
-  write(message,'(a,i0,a)') trim(message)//'critical point for transpiration is less than the wilting point'
+ if( critSoilTranspire < critSoilWilting )then
+  print*, 'critSoilTranspire = ', critSoilTranspire
+  print*, 'critSoilWilting   = ', critSoilWilting
+  message=trim(message)//'critical point for transpiration is less than the wilting point' // &
+                         '[NOTE: if overwriting Noah-MP soil table values in paramTrial or calibrating, must overwrite all soil parameters]'
+ 
   err=20; return
  endif
 
  ! check porosity
  if( any(theta_sat < theta_res) )then
-  write(message,'(a,i0,a)') trim(message)//'porosity is less than the residual liquid water content'
+  print*, 'theta_res = ', theta_res
+  print*, 'theta_sat = ', theta_sat
+  message=trim(message)//'porosity is less than the residual liquid water content '// &
+                         '[NOTE: if overwriting Noah-MP soil table values in paramTrial or calibrating, must overwrite all soil parameters]'
+ 
   err=20; return
  endif
 

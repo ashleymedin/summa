@@ -19,9 +19,9 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module childStruc_module
-USE nrtype
+USE nr_type
 USE globalData,only:integerMissing ! missing value
-USE nr_utility_module,only:arth    ! get a sequence of numbers
+USE nr_utils_module,only:arth      ! use to build vectors with regular increments
 
 implicit none
 private

@@ -1,9 +1,15 @@
 # What's new
-This page provides simple, high-level documentation about what has changed in each new release of SUMMA. Please add any changes made in pull requests to under the `Pre-release` header. Use `Minor changes` for changes that do not affect science outputs or are likely to affect only a minority of users. Use `Major changes` for anything else.
+This page provides simple, high-level documentation about what has changed in each new release of SUMMA. Please add any changes made in pull requests to under the `Pre-release` header. Use `Minor changes` sub-heading for changes that do not affect science outputs or are likely to affect only a minority of users. Use `Major changes` for anything else.
 
 ## Pre-release
 ### Major changes
-- 
+- General cleanup and shortening of computFlux.f90, vegNrgFlux.f90, snowSoilNrgFlux.f90, vegLiqFlux.f90, snowLiqFlux.f90, soilLiqFlux.f90, groundwatr.f90, and bigAquifer.f90 
+- Added object-oriented methods to simplify flux routine calls in computFlux and improve modularity
+    - classes for each flux routine were added to data_types.f90
+    - large associate statemements are no longer needed in computFlux (associate blocks are now much shorter)
+    - the length of computFlux has been decreased substantially
+- Added a new decision to set maximum infiltration rate method
+- Bug fix: fixed a problem with snow sublimation due to a bug in transitioning from exponential to log wind profile below canopy.
 
 ### Minor changes
 - Updated SWE balance check in coupled_em for cases where all snow melts in one of the substeps

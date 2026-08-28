@@ -21,10 +21,7 @@
 module matrixOper_module
 
 ! data types
-USE nrtype
-
-! access the global print flag
-USE globalData,only:globalPrintFlag
+USE nr_type
 
 ! access named variables to describe the form and structure of the matrices used in the numerical solver
 USE globalData,only: nRHS           ! number of unknown variables on the RHS of the linear system A.X=B
@@ -40,7 +37,7 @@ implicit none
 private
 public::lapackSolv
 public::scaleMatrices
-public::computeGradient
+public::computGradient
 contains
 
  ! **********************************************************************************************************
@@ -51,11 +48,11 @@ contains
  ! input variables
  integer(i4b),intent(in)         :: ixMatrix          ! type of matrix (full Jacobian or band diagonal)
  integer(i4b),intent(in)         :: nState            ! number of state variables
- real(rkind),intent(in)             :: aJac(:,:)         ! original Jacobian matrix
- real(rkind),intent(in)             :: fScale(:)         ! function scaling vector
- real(rkind),intent(in)             :: xScale(:)         ! "variable" scaling vector, i.e., for state variables
+ real(rkind),intent(in)          :: aJac(:,:)         ! original Jacobian matrix
+ real(rkind),intent(in)          :: fScale(:)         ! characteristic scale of the function evaluations
+ real(rkind),intent(in)          :: xScale(:)         ! characteristic scale of the state vector
  ! output variables
- real(rkind),intent(out)            :: aJacScaled(:,:)   ! scaled Jacobian matrix
+ real(rkind),intent(out)         :: aJacScaled(:,:)   ! scaled Jacobian matrix
  integer(i4b),intent(out)        :: err               ! error code
  character(*),intent(out)        :: message           ! error message
  ! ---------------------------------------------------------------------------------------------------------
@@ -103,24 +100,24 @@ contains
 
 
  ! *********************************************************************************************************
- ! * private subroutine computeGradient: compute the gradient of the function
+ ! * public subroutine computGradient: compute the gradient of the function
  ! *********************************************************************************************************
- subroutine computeGradient(ixMatrix,nState,aJac,rVec,grad,err,message)
+ subroutine computGradient(ixMatrix,nState,aJac,rVec,grad,err,message)
  implicit none
  ! input
  integer(i4b),intent(in)        :: ixMatrix   ! type of matrix (full Jacobian or band diagonal)
  integer(i4b),intent(in)        :: nState     ! number of state variables
- real(rkind),intent(in)            :: aJac(:,:)  ! jacobian matrix
- real(rkind),intent(in)            :: rVec(:)    ! residual vector
+ real(rkind),intent(in)         :: aJac(:,:)  ! jacobian matrix
+ real(rkind),intent(in)         :: rVec(:)    ! residual vector
  ! output
- real(rkind),intent(out)           :: grad(:)    ! gradient
+ real(rkind),intent(out)        :: grad(:)    ! gradient
  integer(i4b),intent(out)       :: err        ! error code
  character(*),intent(out)       :: message    ! error message
  ! local
  integer(i4b)                   :: iJac       ! index of model state variable
  integer(i4b)                   :: iState     ! index of the residual vector
  ! initialize error control
- err=0; message='computeGradient/'
+ err=0; message='computGradient/'
 
  ! check if full Jacobian or band-diagonal matrix
  select case(ixMatrix)
@@ -147,7 +144,7 @@ contains
 
  end select  ! (option to solve the linear system A.X=B)
 
- end subroutine computeGradient
+ end subroutine computGradient
 
 
  ! *********************************************************************************************************
@@ -158,13 +155,13 @@ contains
  ! dummy
  integer(i4b),intent(in)        :: ixMatrix      ! type of matrix (full Jacobian or band diagonal)
  integer(i4b),intent(in)        :: nState        ! number of state variables
- real(rkind),intent(inout)         :: aJac(:,:)     ! input = the Jacobian matrix A; output = decomposed matrix
- real(rkind),intent(in)            :: rVec(:)       ! the residual vector B
- real(rkind),intent(out)           :: xInc(:)       ! the solution vector X
+ real(rkind),intent(inout)      :: aJac(:,:)     ! input = the Jacobian matrix A; output = decomposed matrix
+ real(rkind),intent(in)         :: rVec(:)       ! the residual vector B
+ real(rkind),intent(out)        :: xInc(:)       ! the solution vector X
  integer(i4b),intent(out)       :: err           ! error code
  character(*),intent(out)       :: message       ! error message
  ! local
- real(rkind)                       :: rhs(nState,1) ! the nState-by-nRHS matrix of matrix B, for the linear system A.X=B
+ real(rkind)                    :: rhs(nState,1) ! the nState-by-nRHS matrix of matrix B, for the linear system A.X=B
  integer(i4b)                   :: iPiv(nState)  ! defines if row i of the matrix was interchanged with row iPiv(i)
  ! initialize error control
  select case(ixMatrix)
@@ -172,6 +169,8 @@ contains
   case(ixBandMatrix); message='lapackSolv/dgbsv/'
   case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
  end select
+
+ !call openblas_set_num_threads(1) ! set the number of threads to 1
 
  ! form the rhs matrix
  ! NOTE: copy the vector here to ensure that the residual vector is not overwritten
