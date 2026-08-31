@@ -155,7 +155,7 @@ AFTER tag of v4.0.0-exp-Sundials
 -35) Change soil emissivity from 0.98 to 0.96 and snow emissivity from 0.99 to 0.98 as in Jin and Liang 2006, Hori 2006, commit 424e6063 Aug 7, 2025
      The veg emissivity was renamed leaf emissivity and ultimately unchanged from 0.98 after reading Ma et al. 2019 (was changed in this commit but changed back).
  36) Infiltration options from Sean (FUSE, saturation excess computation (commits around August 30, 2025)
--37) Infiltration now changes during the timestep and all derivatives are computed (in FUSE commits)
+-37) Infiltration now changes during the timestep and all derivatives are computed (in FUSE commits, January 2026)
  38) Removal of debugging commented out lines as well as debugging subroutines, and globalPrintFlux now only prints Jacobian, residual, states, and related items, commit 1b12a62a Sep 13, 2025
  39) Simplify Jacobian routines so no repeated code for banded vs full matrix and flux Jacobian terms are separated out from diagonal (and cross-derivatives between nrg and hyd of same layer) terms, end on commit c5dd721f Sep 24, 2025
  40) Works for NexGen submodule inclusion, and now has NexGen test_case for Provo and other basin in folder test_ngen, commits Oct 31, 2025 to Nov 18, 2025
