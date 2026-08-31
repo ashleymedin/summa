@@ -234,6 +234,7 @@ MODULE globalData
   ! define controls on model output
   logical(lgt),dimension(maxvarFreq),save,public   :: finalizeStats=.false.             ! flags to finalize statistics
   logical(lgt),save,public                         :: allowRoutingOutput=.false.        ! flag to allow routing variable output (currently very large and slow to write, so turned off by default)
+  logical(lgt),save,public                         :: mflowCoupledGW=.false.            ! flag: groundwater is handled by a coupled MODFLOW 6 model (set when groundwatr="modflow", used by the summa_modflow6 driver)
   integer(i4b),save,public                         :: maxLayers                         ! maximum number of layers
   integer(i4b),save,public                         :: maxSnowLayers                     ! maximum number of snow layers
   integer(i4b),save,public                         :: maxSoilLayers                     ! maximum number of soil layers

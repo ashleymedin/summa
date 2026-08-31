@@ -96,6 +96,8 @@ module summabmi
   USE var_lookup, only: iLookFLUX                             ! named variables for local flux variables
   USE var_lookup, only: iLookDIAG                             ! named variables for local diagnostic variables
   USE var_lookup, only: iLookPROG                             ! named variables for local prognostic variables
+  USE var_lookup, only: iLookPARAM                            ! named variables for local model parameters
+  USE var_lookup, only: iLookINDEX                            ! named variables for local model indices
   USE var_lookup, only: iLookBVAR                             ! named variables for basin (GRU) variables
   USE var_lookup, only: maxvarDecisions                       ! maximum number of decisions
   USE var_lookup, only: maxvarFreq                            ! maximum number of output files
@@ -227,12 +229,14 @@ module summabmi
   ! define parameters for the model simulation
   integer(i4b), parameter            :: n=1                        ! number of instantiations
   ! Exchange items
+  ! NOTE: the final input item ('soil_water_sat-zone_top__head') is only used by the coupled
+  !       MODFLOW 6 driver (summa_modflow6); it is harmless for other drivers, which never set it.
 #ifdef NGEN_ACTIVE
-  integer, parameter :: input_item_count = 8
+  integer, parameter :: input_item_count = 9
 #else
-  integer, parameter :: input_item_count = 7
+  integer, parameter :: input_item_count = 8
 #endif
-  integer, parameter :: output_item_count = 16
+  integer, parameter :: output_item_count = 17
   character (len=BMI_MAX_VAR_NAME), target,dimension(input_item_count)  :: input_items
   character (len=BMI_MAX_VAR_NAME), target,dimension(output_item_count) :: output_items
   ! ---------------------------------------------------------------------------------------
@@ -549,6 +553,9 @@ module summabmi
      input_items(5) = 'land_surface_radiation~incoming~shortwave__energy_flux'
      input_items(6) = 'land_surface_radiation~incoming~longwave__energy_flux'
      input_items(7) = 'land_surface_air__pressure'
+     ! matric head (m) at the base of the soil column, used as the prescribed-head lower
+     ! boundary condition when groundwater is handled by a coupled MODFLOW 6 model
+     input_items(input_item_count) = 'soil_water_sat-zone_top__head'
 
      names => input_items
      bmi_status = BMI_SUCCESS
@@ -576,6 +583,7 @@ module summabmi
      output_items(14)= 'land_vegetation_energy~net~total__energy_flux'
      output_items(15)= 'land_surface_energy~net~total__energy_flux'
      output_items(16)= 'land_surface_water__baseflow_volume_flux'
+     output_items(17)= 'soil_water__drainage_volume_flux'   ! drainage from the base of the soil column (recharge to MODFLOW 6)
      names => output_items
      bmi_status = BMI_SUCCESS
    end function summa_output_var_names
@@ -938,6 +946,7 @@ module summabmi
      case('land_surface_radiation~incoming~shortwave__energy_flux') ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_surface_radiation~incoming~longwave__energy_flux')  ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_surface_air__pressure')                             ; units = 'kg m-1 s-2'; bmi_status = BMI_SUCCESS
+     case('soil_water_sat-zone_top__head')                          ; units = 'm'         ; bmi_status = BMI_SUCCESS
 
      ! output
      case('land_surface_water__runoff_volume_flux')        ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
@@ -956,6 +965,7 @@ module summabmi
      case('land_vegetation_energy~net~total__energy_flux') ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_surface_energy~net~total__energy_flux')    ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_surface_water__baseflow_volume_flux')      ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
+     case('soil_water__drainage_volume_flux')             ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
      case default; units = "-"; bmi_status = BMI_FAILURE
      end select
    end function summa_var_units
@@ -1319,11 +1329,13 @@ module summabmi
      character (len=*), intent(in) :: name
      real, intent(in)    :: src_arr(sum(gru_struc(:)%hruCount))
      integer, intent(in) :: isrc_arr
-     integer ::  iGRU, jHRU, i
+     integer ::  iGRU, jHRU, i, iDOM
 
      summaVars: associate(&
       timeStruct           => this%model%summa1_struc(n)%timeStruct  , & ! x%var(:)                          -- model time data
       forcStruct           => this%model%summa1_struc(n)%forcStruct  , & ! x%gru(:)%hru(:)%var(:)            -- model forcing data
+      mparStruct           => this%model%summa1_struc(n)%mparStruct  , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model parameters
+      indxStruct           => this%model%summa1_struc(n)%indxStruct  , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model indices
       diagStruct           => this%model%summa1_struc(n)%diagStruct    & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model diagnostic variables
       )
 
@@ -1357,6 +1369,14 @@ module summabmi
               forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%LWRadAtm) = src_arr(i)
             case('land_surface_air__pressure')
               forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airpres) = src_arr(i)
+            ! prescribed-head lower boundary condition for soil hydrology, supplied by the
+            ! coupled MODFLOW 6 water table (groundwatr="modflow"); glacier domains keep their
+            ! own (blocked) lower boundary and are skipped, lake domains are treated as soil
+            case('soil_water_sat-zone_top__head')
+              do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
+                if(indxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1) == 0) &
+                  mparStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPARAM%lowerBoundHead)%dat(1) = src_arr(i)
+              end do
             end select
           end do
         end do
@@ -1455,6 +1475,8 @@ module summabmi
                 target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarGroundNetNrgFlux)%dat(1) * fracDOM
               case('land_surface_water__baseflow_volume_flux')
                 target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) * fracDOM
+              case('soil_water__drainage_volume_flux')
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarSoilDrainage)%dat(1) * fracDOM
               end select
             end do
           end do

@@ -28,6 +28,9 @@ set(CMAKE_CONFIGURATION_TYPES Release Debug)
 option(USE_SUNDIALS "Use IDA solver from SUNDIALS suite" OFF)
 option(USE_NEXTGEN "Use NextGen Framework" OFF)
 option(USE_OPENWQ "Use OpenWQ Framework" OFF)
+option(USE_MODFLOW6 "Build the summa_modflow6 SUMMA/MODFLOW 6 coupler executable" OFF)
+# directory that contains the MODFLOW 6 shared library (libmf6); required with USE_MODFLOW6
+set(MODFLOW6_LIB_DIR "" CACHE PATH "directory containing the MODFLOW 6 shared library (libmf6)")
 set(EXT_TARGETS) # list of external targets to link to
 
 # Set Default Executable Name
@@ -65,6 +68,36 @@ if (USE_NEXTGEN)
 else()
     LIST(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_SOURCE_DIR}/cmake/")
     LIST(INSERT CMAKE_PREFIX_PATH 0 "${CMAKE_SOURCE_DIR}/cmake/")
+endif()
+
+# MODFLOW 6 coupler: builds the standard (non-NextGen) SUMMA shared library together with
+# the SUMMA BMI module (summa_bmi.f90) and links the executable against libmf6.
+if (USE_MODFLOW6)
+    if (USE_NEXTGEN)
+        message(FATAL_ERROR "USE_MODFLOW6 and USE_NEXTGEN are mutually exclusive")
+    endif()
+    message("ENABLING MODFLOW 6 COUPLER")
+    add_compile_definitions(MODFLOW_ACTIVE)
+    set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran)
+    # The SUMMA BMI module (summa_bmi.f90, non-NextGen path) uses the CSDMS bmi-fortran
+    # bindings, i.e. the module "bmif_2_0" from library target "bmif". Provide it either
+    # from a sibling checkout of the NOAA-OWP iso_c_fortran_bmi repo (which vendors it, as
+    # the NextGen build expects) or by fetching bmi-fortran directly.
+    if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../iso_c_fortran_bmi/CMakeLists.txt")
+        add_subdirectory(../iso_c_fortran_bmi ${CMAKE_BINARY_DIR}/iso_c_bmi)
+    endif()
+    if (NOT TARGET bmif)
+        include(FetchContent)
+        FetchContent_Declare(bmi_fortran
+            GIT_REPOSITORY https://github.com/csdms/bmi-fortran.git
+            GIT_TAG        v2.0)
+        FetchContent_MakeAvailable(bmi_fortran)
+    endif()
+    if (NOT TARGET bmif)
+        message(FATAL_ERROR "USE_MODFLOW6: could not provide the bmi-fortran 'bmif' target "
+                            "(module bmif_2_0). Check out iso_c_fortran_bmi next to the summa "
+                            "repo or make bmi-fortran available.")
+    endif()
 endif()
 
 # OpenWQ Framework
@@ -170,6 +203,13 @@ if (USE_NEXTGEN)
     set(SUMMA_ALL ${SUMMA_ALL} ${DRIVER_NEXTGEN})
 endif()
 
+if (USE_MODFLOW6)
+    # include the SUMMA BMI module in the library and build the coupler as the main program
+    set(SUMMA_ALL ${SUMMA_ALL} ${DRIVER_NEXTGEN})
+    set(MAIN_SUMMA ${DRIVER_DIR}/summa_modflow6.f90)
+    set(EXEC_NAME summa_modflow6)
+endif()
+
 if (USE_SUNDIALS)
     set(COMM_ALL ${COMM_ALL} ${DATAMS_SUNDIALS} ${UTILMS_SUNDIALS})
     set(SUMMA_ALL ${SUMMA_ALL} ${MODRUN_SUNDIALS} ${SOLVER_SUNDIALS})
@@ -248,8 +288,26 @@ else()
 	add_library(summa SHARED ${SUMMA_ALL})
 	target_compile_options(summa PRIVATE ${FLAGS_ALL})
 	target_link_libraries(summa PUBLIC ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM ${LIBRARY_LINKS})
+	if (USE_MODFLOW6)
+		# summa_bmi.f90 (in the library) needs the CSDMS bmi-fortran module bmif_2_0
+		target_link_libraries(summa PUBLIC bmif)
+	endif()
 	add_executable(${EXEC_NAME} ${MAIN_SUMMA})
 	target_compile_options(${EXEC_NAME} PRIVATE ${FLAGS_ALL})
 	set_property(TARGET ${EXEC_NAME} PROPERTY LINKER_LANGUAGE Fortran)
 	target_link_libraries(${EXEC_NAME} summa ${EXT_TARGETS} ${LIBRARY_LINKS})
+	if (USE_MODFLOW6)
+		if (NOT MODFLOW6_LIB_DIR)
+			message(FATAL_ERROR "USE_MODFLOW6=ON requires -DMODFLOW6_LIB_DIR=<dir containing libmf6>")
+		endif()
+		find_library(MF6_LIB NAMES mf6 libmf6 PATHS "${MODFLOW6_LIB_DIR}" NO_DEFAULT_PATH)
+		if (NOT MF6_LIB)
+			message(FATAL_ERROR "could not find libmf6 in ${MODFLOW6_LIB_DIR}")
+		endif()
+		target_link_libraries(${EXEC_NAME} bmif "${MF6_LIB}")
+		# so the executable can find libmf6 at run time without LD_LIBRARY_PATH
+		set_target_properties(${EXEC_NAME} PROPERTIES
+			BUILD_RPATH "${MODFLOW6_LIB_DIR}"
+			INSTALL_RPATH "${MODFLOW6_LIB_DIR}")
+	endif()
 endif()

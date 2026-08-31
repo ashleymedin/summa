@@ -76,6 +76,7 @@ integer(i4b),parameter,public :: mixdform             = 122    ! mixed form of R
 integer(i4b),parameter,public :: qbaseTopmodel        = 131    ! TOPMODEL-ish baseflow parameterization
 integer(i4b),parameter,public :: bigBucket            = 132    ! a big bucket (lumped aquifer model)
 integer(i4b),parameter,public :: noExplicit           = 133    ! no explicit groundwater parameterization
+integer(i4b),parameter,public :: modflowCpl           = 134    ! groundwater handled externally by a coupled MODFLOW 6 model (summa_modflow6)
 ! look-up values for the choice of hydraulic conductivity profile
 integer(i4b),parameter,public :: constant             = 141    ! constant hydraulic conductivity with depth
 integer(i4b),parameter,public :: powerLaw_profile     = 142    ! power-law profile
@@ -191,6 +192,7 @@ subroutine mDecisions(err,message)
   USE globalData,only:numtim                 ! number of time steps in the simulation
   ! model decision structures
   USE globalData,only:model_decisions        ! model decision structure
+  USE globalData,only:mflowCoupledGW         ! flag: groundwater is handled by a coupled MODFLOW 6 model
   USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
   ! forcing metadata
   USE globalData,only:forc_meta              ! metadata structures
@@ -496,6 +498,13 @@ subroutine mDecisions(err,message)
     case('qTopmodl'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = qbaseTopmodel       ! TOPMODEL-ish baseflow parameterization
     case('bigBuckt'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = bigBucket           ! a big bucket (lumped aquifer model)
     case('noXplict'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = noExplicit          ! no explicit groundwater parameterization
+    case('modflow')                                                                             ! groundwater handled by a coupled MODFLOW 6 model
+#ifdef MODFLOW_ACTIVE
+      model_decisions(iLookDECISIONS%groundwatr)%iDecision = modflowCpl
+      mflowCoupledGW = .true.
+#else
+      err=20; message=trim(message)//'groundwatr="modflow" requires building SUMMA with MODFLOW support (configure with -DUSE_MODFLOW6=ON and run the summa_modflow6 executable)'; return
+#endif
     case default
       err=10; message=trim(message)//"unknown groundwater parameterization [option="//trim(model_decisions(iLookDECISIONS%groundwatr)%cDecision)//"]"; return
   end select
@@ -752,6 +761,15 @@ subroutine mDecisions(err,message)
   if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == singleBasin)then
     if(model_decisions(iLookDECISIONS%groundwatr)%iDecision /= bigBucket)then
       message=trim(message)//'groundwater parameterization must be bigBucket when using singleBasin for spatial_gw (set "groundwatr" to "bigBuckt" in model decisions input file)'
+      err=20; return
+    end if
+  end if
+
+  ! check the MODFLOW-coupled groundwater option uses a prescribed-head lower boundary for soil hydrology
+  ! (the coupled MODFLOW 6 water table is passed to SUMMA each step through the "lowerBoundHead" parameter)
+  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == modflowCpl)then
+    if(model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision /= prescribedHead)then
+      message=trim(message)//'lower boundary condition for soil hydrology must be prescribedHead with groundwatr="modflow" (set "bcLowrSoiH" to "presHead" in model decisions input file)'
       err=20; return
     end if
   end if
