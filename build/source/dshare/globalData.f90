@@ -258,6 +258,7 @@ MODULE globalData
   integer(i4b),save,public                         :: maxDOM                            ! number of domains (every HRU may have multiple) in the run space
   integer(i4b),save,public                         :: nHRUrun                           ! number of HRUs in the run space
   integer(i4b),save,public                         :: nGRUrun                           ! number of GRUs in the run space
+  real(rkind),allocatable,save,public              :: mfAquiferBaseflow(:)              ! aquifer baseflow from MODFLOW 6 (m s-1, + = out of aquifer)
   real(rkind),save,public                          :: data_step                         ! length of the time_step
   real(rkind),save,public                          :: refJulDay                         ! reference time in fractional julian days
   real(rkind),save,public                          :: refJulDay_data                    ! reference time in fractional julian days (data files)

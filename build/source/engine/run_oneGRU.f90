@@ -83,12 +83,14 @@ USE globalData,only:glacCln1           ! first horizontal domain type for glacie
 USE globalData,only:glacCln2           ! second horizontal domain type for glacier clean areas
 USE globalData,only:glacDbr            ! horizontal domain type for glacier debris areas
 USE globalData,only:wetland            ! horizontal domain type for wetland areas
+USE globalData,only:mfAquiferBaseflow  ! MODFLOW 6 coupler: per-HRU aquifer baseflow (m s-1), indexed by hru_ix
 
 ! provide access to the named variables that describe model decisions
 USE mDecisions_module,only:&           ! look-up values for the choice of method for the spatial representation of groundwater
  localColumn, &                        ! separate groundwater representation in each local soil column
  singleBasin, &                        ! single groundwater store over the entire basin
- bigBucket                             ! a big bucket (lumped aquifer model)
+ bigBucket,   &                        ! a big bucket (lumped aquifer model)
+ modflowCpl                            ! groundwater handled by a coupled MODFLOW 6 model (summa_modflow6)
 ! -----------------------------------------------------------------------------------------------------------------------------------
 implicit none
 private
@@ -374,10 +376,21 @@ subroutine run_oneGRU(&
           ! increment aquifer variables -- ONLY if aquifer baseflow is computed individually for each HRU and aquifer is run
           ! NOTE: groundwater computed later for singleBasin
           ! NOTE: no groundwater for glacier
-          if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == localColumn .and. model_decisions(iLookDECISIONS%groundwatr)%iDecision == bigBucket)then
+          if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == localColumn .and. &
+             model_decisions(iLookDECISIONS%groundwatr)%iDecision == bigBucket)then
             bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferRecharge)%dat(1) *fracDOM
             bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferTranspire)%dat(1)*fracDOM
             bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) *fracDOM
+          ! modflowCpl: SUMMA runs no aquifer.  Recharge to the (MODFLOW) aquifer is just the SUMMA soil-column drainage, set it here directly.  
+          ! Baseflow is taken from the MODFLOW aquifer via the mfAquiferBaseflow channel (indexed by hru_ix).  Both are written into fluxHRU for per-HRU output
+          else if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == localColumn .and. &
+                  model_decisions(iLookDECISIONS%groundwatr)%iDecision == modflowCpl)then
+            fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferRecharge)%dat(1) = fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSoilDrainage)%dat(1)
+            bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1) = bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1) + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSoilDrainage)%dat(1)*fracDOM
+            if(allocated(mfAquiferBaseflow))then
+              fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) = mfAquiferBaseflow(gruInfo%hruInfo(iHRU)%hru_ix)
+              bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1) = bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1) + mfAquiferBaseflow(gruInfo%hruInfo(iHRU)%hru_ix)*fracDOM
+            end if
           endif
         else if(typeDOM==glacCln1 .or. typeDOM==glacCln2 .or. typeDOM==glacDbr)then ! collect glacier ablation and accumulation melt m s-1
           ! This logic makes sense if assuming multiple glaciers in each HRU and one HRU per GRU, or one glacier in each GRU with multiple HRUs
@@ -499,7 +512,8 @@ subroutine run_oneGRU(&
     endif
 
     ! calculate total runoff depending on whether aquifer is connected
-    if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == bigBucket)then
+    if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == bigBucket .or. &
+       model_decisions(iLookDECISIONS%groundwatr)%iDecision == modflowCpl)then
       ! deep aquifer (column outflow will be zero)
       bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1)/totalArea + bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)
     else

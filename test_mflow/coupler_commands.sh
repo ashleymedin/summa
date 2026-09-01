@@ -20,11 +20,10 @@
 #   fileManager.txt              SUMMA file manager (its modelDecisions.txt must set
 #                                 groundwatr = modflow  and  bcLowrSoiH = presHead)
 #
-# map_file format (whitespace separated, '#' comments ignored), one line per SUMMA HRU
-# in BMI flatten order:
-#     iHRU   nPairs   cell_1 w_1   cell_2 w_2  ...
-# where cell_k is the row-major horizontal MODFLOW cell index (irow-1)*ncol + icol and the
-# weights w_k sum to 1.
+# map_file format: one "iHRU  cell  weight" triple per line (whitespace separated;
+# blank lines and '#' comments ignored).  An HRU may span any number of lines.
+# cell is the row-major horizontal MODFLOW index (irow-1)*ncol + icol; weights are
+# normalised per HRU, so put e.g. 1.0 on every line to spread an HRU over its cells.
 #
 # Usage:  ./coupler_commands.sh  /path/to/MODFLOW_CASE  /path/to/SUMMA_FILEMANAGER  [/path/to/summa_modflow6.exe]
 # ---------------------------------------------------------------------------------------
@@ -56,6 +55,8 @@ CONFIG=$(cd "$MODFLOW_CASE/.." 2>/dev/null && pwd)/summa_modflow6.config || true
 cd "$MODFLOW_CASE"
 "$EXE" "$FILE_MANAGER" "$CONFIG"
 
-echo "done. check:"
-echo "  - the SUMMA output NetCDF scalarSoilDrainage should match the MODFLOW 6 RCH inflow"
-echo "  - the SUMMA output NetCDF scalarAquiferStorage should match the MODFLOW 6 GWF storage change"
+echo "done. check (SUMMA output NetCDF vs the MODFLOW 6 listing budget):"
+echo "  - scalarSoilDrainage    <-> RCH (RCHA) inflow          [coupler imposes this on MODFLOW]"
+echo "  - scalarAquiferBaseflow <-> bflow package (CHD/DRN/..) discharge over the same HRUs"
+echo "  - scalarAquiferStorage   = Sy * (MODFLOW water table - soil-column base); a copy for"
+echo "                             inspecting the water-table position, not an independent check"

@@ -63,6 +63,7 @@ module summabmi
   USE globalData, only: ixRestart_iy,ixRestart_im,ixRestart_id,ixRestart_end,ixRestart_never ! restart file frequency options
   USE globalData, only: gru_struc                             ! HRU information for given GRU
   USE globalData, only: index_map                             ! GRU information for given HRU
+  USE globalData, only: mfAquiferBaseflow                     ! MODFLOW 6 coupler aquifer-baseflow feedback channel
   USE globalData, only: model_decisions                       ! model decision structure 
   USE globalData, only: fileout, output_fileSuffix            ! output filename and suffix
   USE globalData, only: outFreq                               ! output frequency flags
@@ -235,9 +236,9 @@ module summabmi
   ! NOTE: the final input item ('soil_water_sat-zone_top__head') is only used by the coupled
   !       MODFLOW 6 driver (summa_modflow6); it is harmless for other drivers, which never set it.
 #ifdef NGEN_ACTIVE
-  integer, parameter :: input_item_count = 9
+  integer, parameter :: input_item_count = 11
 #else
-  integer, parameter :: input_item_count = 8
+  integer, parameter :: input_item_count = 10
 #endif
   integer, parameter :: output_item_count = 17
   character (len=BMI_MAX_VAR_NAME), target,dimension(input_item_count)  :: input_items
@@ -554,15 +555,24 @@ module summabmi
 #ifdef NGEN_ACTIVE
      input_items(4) = 'land_surface_wind__x_component_of_velocity'
      input_items(8) = 'land_surface_wind__y_component_of_velocity'
+     input_items(9) = 'soil_water_sat-zone_top__head'
 #else
      input_items(4) = 'land_surface_wind__speed'
+     input_items(8) = 'soil_water_sat-zone_top__head'
 #endif
      input_items(5) = 'land_surface_radiation~incoming~shortwave__energy_flux'
      input_items(6) = 'land_surface_radiation~incoming~longwave__energy_flux'
      input_items(7) = 'land_surface_air__pressure'
      ! matric head (m) at the base of the soil column, used as the prescribed-head lower
      ! boundary condition when groundwater is handled by a coupled MODFLOW 6 model
-     input_items(input_item_count) = 'soil_water_sat-zone_top__head'
+     ! (index 8 non-NGEN / 9 NGEN, set above)
+     !
+     ! groundwater feedback written per HRU by the summa_modflow6 coupler from the
+     ! MODFLOW 6 solution (groundwatr="modflow"): aquifer baseflow flux (m s-1) and
+     ! relative aquifer storage (m).  (Recharge is not exchanged - it equals the
+     ! SUMMA soil drainage, which SUMMA already has.)
+     input_items(input_item_count-1) = 'land_surface_water__baseflow_volume_flux'
+     input_items(input_item_count)   = 'aquifer_water__storage_thickness'
 
      names => input_items
      bmi_status = BMI_SUCCESS
@@ -988,8 +998,9 @@ module summabmi
      case('land_surface_radiation~incoming~longwave__energy_flux')  ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_surface_air__pressure')                             ; units = 'kg m-1 s-2'; bmi_status = BMI_SUCCESS
      case('soil_water_sat-zone_top__head')                          ; units = 'm'         ; bmi_status = BMI_SUCCESS
+     case('aquifer_water__storage_thickness')                       ; units = 'm'         ; bmi_status = BMI_SUCCESS
 
-     ! output
+     ! output (note: 'land_surface_water__baseflow_volume_flux' below is also a valid input)
      case('land_surface_water__runoff_volume_flux')        ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
      case('land_surface_water__evaporation_mass_flux')     ; units = 'mm s-1'    ; bmi_status = BMI_SUCCESS !equivalent kg m-2 s-1
      case('land_vegetation_water__evaporation_mass_flux')  ; units = 'mm s-1'    ; bmi_status = BMI_SUCCESS !equivalent kg m-2 s-1
@@ -1377,6 +1388,7 @@ module summabmi
       forcStruct           => this%model%summa1_struc(n)%forcStruct  , & ! x%gru(:)%hru(:)%var(:)            -- model forcing data
       mparStruct           => this%model%summa1_struc(n)%mparStruct  , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model parameters
       indxStruct           => this%model%summa1_struc(n)%indxStruct  , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model indices
+      progStruct           => this%model%summa1_struc(n)%progStruct  , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model prognostic (state) variables
       diagStruct           => this%model%summa1_struc(n)%diagStruct    & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model diagnostic variables
       )
 
@@ -1421,6 +1433,24 @@ module summabmi
               do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
                 if(indxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1) == 0) &
                   mparStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPARAM%lowerBoundHead)%dat(1) = src_arr(i)
+              end do
+            ! groundwater state/flux from the coupled MODFLOW 6 model (groundwatr="modflow"):
+            ! SUMMA does not compute an aquifer in this mode.  Baseflow goes into a globalData
+            ! channel (SUMMA overwrites every scalar flux during a step, so it cannot be
+            ! written straight into fluxStruct here) - run_oneGRU reads the channel for the
+            ! modflowCpl branch.  Storage is a prog var left untouched by the solver in this
+            ! mode, so it is written directly.  hru_ix indexing == the BMI grid-0 flatten
+            ! order for the uniform-HRU layout the coupler assumes.  (Aquifer recharge is not
+            ! exchanged: it equals scalarSoilDrainage, set by SUMMA in the same branch.)
+            case('land_surface_water__baseflow_volume_flux')
+              if(.not.allocated(mfAquiferBaseflow))then
+                allocate(mfAquiferBaseflow(sum(gru_struc(:)%hruCount))); mfAquiferBaseflow = 0._rkind
+              end if
+              mfAquiferBaseflow(i) = src_arr(i)
+            case('aquifer_water__storage_thickness')
+              do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
+                if(indxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1) == 0) &
+                  progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%scalarAquiferStorage)%dat(1) = src_arr(i)
               end do
             end select
           end do

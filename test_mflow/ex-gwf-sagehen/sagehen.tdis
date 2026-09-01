@@ -1,8 +1,10 @@
 # Time discretisation - SECONDS, one stress period of 744 hourly steps.
-# The coupler advances MODFLOW exactly once per SUMMA data step, so the number
-# of steps here (744) must be >= the number of SUMMA data steps (numtim) and
-# perlen/nstp must equal the SUMMA data_step (3600 s).
-#   744 steps * 3600 s = 2678400 s  (1980-01-01 00:00 .. 1980-01-31 23:00, hourly)
+# The coupler advances MODFLOW exactly once per SUMMA forcing data step, so:
+#   * the MODFLOW time step length (here perlen/nstp) must equal SUMMA's data_step
+#     - the forcing file's data_step attribute, 3600 s for this Sagehen forcing;
+#   * the total number of MODFLOW steps (744) must be >= SUMMA's numtim (number of
+#     data steps in the simulated period).
+#   744 steps * 3600 s = 2678400 s  (2019-01-01 00:00 .. 2019-01-31 23:00, hourly)
 BEGIN OPTIONS
   TIME_UNITS  SECONDS
 END OPTIONS
