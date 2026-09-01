@@ -1398,7 +1398,7 @@ module summabmi
             if (i > do_nHRU) return
             target_arr(i) = 0._rkind
             do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
-              fracDOM = progStruct%hru(jHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)/ bvarStruct%var(iLookBVAR%basin__totalArea)%dat(1)
+              fracDOM = progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)/ bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1)
 
               select case (name)
               ! input is same for all domains (for now)
