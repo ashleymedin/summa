@@ -53,6 +53,7 @@ module summabmi
   USE summa_util, only: stop_program                          ! used to stop the summa program (with errors)
   USE summa_util, only: handle_err                            ! used to process errors
   ! global data
+  USE globalData, only: integerMissing                        ! missing integer
   USE globalData, only: print_step_freq                       ! frequency of printing model output
   USE globalData, only: dJulianStart                          ! julian day of start time of simulation
   USE globalData, only: dJulianFinsh                          ! julian day of end time of simulation
@@ -1424,37 +1425,36 @@ module summabmi
               ! output is averaged over domains
               case('land_surface_water__runoff_volume_flux')
                 target_arr(i) = bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoff)%dat(1); exit
-                !target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1) * fracDOM
               case('land_surface_water__evaporation_mass_flux')
-                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(:)%var(iLookFLUX%scalarGroundEvaporation)%dat(1) * fracDOM
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarGroundEvaporation)%dat(1) * fracDOM
               case('land_vegetation_water__evaporation_mass_flux')
-                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) * fracDOM
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) * fracDOM
               case('land_vegetation_water__transpiration_mass_flux')
-                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarCanopyTranspiration)%dat(1) * fracDOM
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarCanopyTranspiration)%dat(1) * fracDOM
               case('snowpack__sublimation_mass_flux')
-                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarGroundSublimation)%dat(1) * fracDOM
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarGroundSublimation)%dat(1) * fracDOM
               case('land_vegetation_water__sublimation_mass_flux')
-                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarCanopySublimation)%dat(1) * fracDOM
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarCanopySublimation)%dat(1) * fracDOM
               case('snowpack_mass')
-                target_arr(i) = target_arr(i) + progStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookPROG%scalarSWE)%dat(1) * fracDOM
+                target_arr(i) = target_arr(i) + progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%scalarSWE)%dat(1) * fracDOM
               case('soil_water__mass')
-                target_arr(i) = target_arr(i) + diagStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookDIAG%scalarTotalSoilWat)%dat(1) * fracDOM
+                target_arr(i) = target_arr(i) + diagStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookDIAG%scalarTotalSoilWat)%dat(1) * fracDOM
               case('land_vegetation_water__mass')
-                target_arr(i) = target_arr(i) + progStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookPROG%scalarCanopyWat)%dat(1) * fracDOM
+                target_arr(i) = target_arr(i) + progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyWat)%dat(1) * fracDOM
               case('land_surface_radiation~net~total__energy_flux')
-                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarNetRadiation)%dat(1) * fracDOM
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarNetRadiation)%dat(1) * fracDOM
               case('land_atmosphere_heat~net~latent__energy_flux')
-                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarLatHeatTotal)%dat(1) * fracDOM
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarLatHeatTotal)%dat(1) * fracDOM
               case('land_atmosphere_heat~net~sensible__energy_flux')
-                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarSenHeatTotal)%dat(1) * fracDOM
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarSenHeatTotal)%dat(1) * fracDOM
               case('atmosphere_energy~net~total__energy_flux')
-                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarCanairNetNrgFlux)%dat(1) * fracDOM
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarCanairNetNrgFlux)%dat(1) * fracDOM
               case('land_vegetation_energy~net~total__energy_flux')
-                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarCanopyNetNrgFlux)%dat(1) * fracDOM
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarCanopyNetNrgFlux)%dat(1) * fracDOM
               case('land_surface_energy~net~total__energy_flux')
-                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarGroundNetNrgFlux)%dat(1) * fracDOM
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarGroundNetNrgFlux)%dat(1) * fracDOM
               case('land_surface_water__baseflow_volume_flux')
-                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(1)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) * fracDOM
+                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) * fracDOM
               end select
             end do
           end do
