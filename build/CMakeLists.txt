@@ -209,12 +209,12 @@ set(SUMMA_ALL ${NETCDF} ${PRELIM} ${MODRUN} ${SOLVER} ${DRIVER})
 set(MAIN_SUMMA ${DRIVER_DIR}/summa_driver.f90)
 
 if (USE_NEXTGEN)
-    set(SUMMA_ALL ${SUMMA_ALL} ${DRIVER_NEXTGEN})
+    set(SUMMA_ALL ${SUMMA_ALL} ${DRIVER_BMI})
 endif()
 
 if (USE_MODFLOW6)
     # include the SUMMA BMI module in the library and build the coupler as the main program
-    set(SUMMA_ALL ${SUMMA_ALL} ${DRIVER_NEXTGEN})
+    set(SUMMA_ALL ${SUMMA_ALL} ${DRIVER_BMI})
     set(MAIN_SUMMA ${DRIVER_DIR}/summa_modflow6.f90)
     set(EXEC_NAME summa_modflow6)
 endif()

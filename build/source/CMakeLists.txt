@@ -157,6 +157,6 @@ set(DRIVER
     ${DRIVER_DIR}/summa_modelRun.f90
     ${DRIVER_DIR}/summa_writeOutput.f90
     CACHE INTERNAL "DRIVER")
-set(DRIVER_NEXTGEN
+set(DRIVER_BMI
     ${DRIVER_DIR}/summa_bmi.f90
-    CACHE INTERNAL "DRIVER_NEXTGEN")
+    CACHE INTERNAL "DRIVER_BMI")
