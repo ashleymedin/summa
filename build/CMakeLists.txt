@@ -87,11 +87,20 @@ if (USE_MODFLOW6)
         add_subdirectory(../iso_c_fortran_bmi ${CMAKE_BINARY_DIR}/iso_c_bmi)
     endif()
     if (NOT TARGET bmif)
+        # Fetch the CSDMS bmi-fortran sources only; do NOT let its CMakeLists.txt
+        # configure (as a subdirectory it names its targets "${CMAKE_PROJECT_NAME}_*"
+        # which resolves to "summa_*", so no "bmif" target would ever appear).
+        # SOURCE_SUBDIR points at a non-existent dir so MakeAvailable skips add_subdirectory.
         include(FetchContent)
         FetchContent_Declare(bmi_fortran
             GIT_REPOSITORY https://github.com/csdms/bmi-fortran.git
-            GIT_TAG        v2.0)
+            GIT_TAG        v2.0
+            SOURCE_SUBDIR  do-not-configure)
         FetchContent_MakeAvailable(bmi_fortran)
+        # Build the single-source module ourselves as target "bmif" (module bmif_2_0).
+        # CMAKE_Fortran_MODULE_DIRECTORY (set above) puts bmif_2_0.mod where summa looks.
+        add_library(bmif STATIC ${bmi_fortran_SOURCE_DIR}/bmi.f90)
+        set_target_properties(bmif PROPERTIES POSITION_INDEPENDENT_CODE ON)
     endif()
     if (NOT TARGET bmif)
         message(FATAL_ERROR "USE_MODFLOW6: could not provide the bmi-fortran 'bmif' target "

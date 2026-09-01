@@ -28,33 +28,19 @@ export DPython3_EXECUTABLE
 meson setup --prefix=`pwd` --libdir=bin builddir
 meson install -C builddir
 
-
 # Mac Example using MacPorts:
 export FC=/opt/local/bin/gfortran                             # Fortran compiler family
 #export FLAGS_OPT="-flto=1"                                   # -flto=1 is slow to compile, but might want to use
 export LIBRARY_LINKS='-llapack'                               # list of library links
 export SUNDIALS_DIR=../../SummaSundials/sundials/instdir/     # will not be used if -DUSE_SUNDIALS=OFF
 
-# Build SUMMA NGEN below, may wish to turn -DUSE_SUNDIALS=ON (must install Sundials first)
-
-cmake -B extern/summa/cmake_build -S extern/summa -DUSE_NEXTGEN=ON -DUSE_SUNDIALS=OFF -DSPECIFY_LAPACK_LINKS=ON -DCMAKE_BUILD_TYPE=Release
-cmake --build extern/summa/cmake_build --target all -j
-
-
-#=========================================================================================
-# Build the SUMMA <-> MODFLOW 6 coupler (summa_modflow6)
-#
-# Run this script from the modflow6 directory (../build_mflow.mac.bash). The MODFLOW 6
-# shared library (libmf6) is installed above into modflow6/bin; point the SUMMA build at it.
-#
+# Build SUMMA MODFLOW below, may wish to turn -DUSE_SUNDIALS=ON (must install Sundials first)
 # The coupled MODFLOW 6 model must use length unit metres, TDIS TIME_UNITS SECONDS with one
 # time step per SUMMA data step, contain an RCH package with READASARRAYS, and a single GWF
 # model discretised with DIS. The SUMMA model decisions must set groundwatr = modflow and
 # bcLowrSoiH = presHead. The executable is written to srcextern/summa/bin/summa_modflow6.
-#=========================================================================================
-
 MF6_BIN="$(cd "$(pwd)/bin" && pwd)"
-cmake -B srcextern/summa/build/cmake_build_mf6 -S srcextern/summa/build \
+cmake -B srcextern/summa/build/cmake_build -S srcextern/summa/build \
       -DUSE_MODFLOW6=ON -DMODFLOW6_LIB_DIR="${MF6_BIN}" \
       -DUSE_SUNDIALS=OFF -DSPECIFY_LAPACK_LINKS=ON -DCMAKE_BUILD_TYPE=Release
-cmake --build srcextern/summa/build/cmake_build_mf6 --target all -j
+cmake --build srcextern/summa/build/cmake_build --target all -j
