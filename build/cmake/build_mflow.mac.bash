@@ -42,5 +42,5 @@ export SUNDIALS_DIR=../../SummaSundials/sundials/instdir/     # will not be used
 MF6_BIN="$(cd "$(pwd)/bin" && pwd)"
 cmake -B srcextern/summa/build/cmake_build -S srcextern/summa/build \
       -DUSE_MODFLOW6=ON -DMODFLOW6_LIB_DIR="${MF6_BIN}" \
-      -DUSE_SUNDIALS=OFF -DSPECIFY_LAPACK_LINKS=ON -DCMAKE_BUILD_TYPE=Release
+      -DUSE_SUNDIALS=ON -DSPECIFY_LAPACK_LINKS=ON -DCMAKE_BUILD_TYPE=Release
 cmake --build srcextern/summa/build/cmake_build --target all -j

@@ -55,3 +55,9 @@ test_ngen/domain_provo/simulations/*.nc
 test_ngen/domain_provo/simulations/*.csv
 test_mflow/domain_sagehen/forcing/SUMMA_input/*.nc
 test_mflow/domain_sagehen/simulations/run_1/SUMMA/*.nc
+# MODFLOW 6 run artifacts from the coupler smoke test
+test_mflow/**/*.lst
+test_mflow/**/*.hds
+test_mflow/**/*.cbc
+test_mflow/**/mfsim.stdout
+test_mflow/**/*.stdout

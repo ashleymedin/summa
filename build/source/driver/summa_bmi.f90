@@ -342,6 +342,9 @@ module summabmi
      this%model%ixHRUfile_min = ixHRUfile_min
      this%model%ixHRUfile_max = ixHRUfile_max
      this%model%forcFileInfo = forcFileInfo
+     this%model%iFile = iFile
+     this%model%forcingStep = forcingStep
+     this%model%forcNcid = forcNcid
 #endif
      ! update global variables in the model structure that change during the model simulation
      this%model%timeStep = 1
@@ -443,6 +446,7 @@ module summabmi
      this%model%iFile = iFile
      this%model%forcingStep = forcingStep
      this%model%forcNcid = forcNcid
+     this%model%forcFileInfo = forcFileInfo
 #endif
      this%model%statCounter = statCounter
      this%model%outputTimeStep = outputTimeStep

@@ -1,0 +1,14 @@
+# Node property flow.  ICELLTYPE 1 -> convertible (unconfined) with Newton.
+# K  from kh1.txt (m/s), K33 from kv1.txt (m/s).
+BEGIN OPTIONS
+  SAVE_FLOWS
+END OPTIONS
+
+BEGIN GRIDDATA
+  ICELLTYPE
+    CONSTANT  1
+  K
+    OPEN/CLOSE  kh1.txt
+  K33
+    OPEN/CLOSE  kv1.txt
+END GRIDDATA

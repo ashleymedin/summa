@@ -1,11 +1,11 @@
 controlVersion       'SUMMA_FILE_MANAGER_V3.0.0' ! file manager version
-simStartTime         '1980-01-01 00:00' !
-simEndTime           '2019-12-31 23:00' !
+simStartTime         '2019-01-01 00:00' !
+simEndTime           '2019-01-31 23:00' ! 744 hourly steps, matches sagehen.tdis and the 201901 forcing file
 tmZoneInfo           'utcTime' !
 outFilePrefix        'run1' !
-settingsPath         '/domain_Sagehen/settings/SUMMA/' !
-forcingPath          '/domain_Sagehen/forcing/SUMMA_input/' !
-outputPath           '/domain_Sagehen/simulations/run_1/SUMMA/' !
+settingsPath         '../domain_sagehen/settings/SUMMA/' ! relative to MODFLOW_CASE (run.sh cwd)
+forcingPath          '../domain_sagehen/forcing/SUMMA_input/' !
+outputPath           '../domain_sagehen/simulations/run_1/SUMMA/' !
 initConditionFile    'coldState.nc' ! Relative to settingsPath
 attributeFile        'attributes.nc' ! Relative to settingsPath
 trialParamFile       'trialParams.nc' ! Relative to settingsPath

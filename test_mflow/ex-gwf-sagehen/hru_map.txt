@@ -1,0 +1,7 @@
+# HRU -> MODFLOW horizontal-cell weight map (read by summa_modflow6).
+# One record per SUMMA HRU, in BMI flatten order:
+#   iHRU   nPairs   cell_1 w_1   cell_2 w_2  ...
+# cell = (irow-1)*ncol + icol  (row-major, ncol = 81);  weights sum to 1.
+#
+# Single HRU -> one active cell (row 30, col 30):  (30-1)*81 + 30 = 2379
+1   1   2379   1.0

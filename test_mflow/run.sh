@@ -1,0 +1,1 @@
+./coupler_commands.sh ex-gwf-sagehen domain_sagehen/settings/SUMMA/fileManager.txt

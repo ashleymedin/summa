@@ -84,14 +84,20 @@ contains
  ! initialize error control
  err=0; message='getCommandArguments/'
 
-#ifdef NGEN_ACTIVE
-  ! no command arguments with NGen
+#if defined(NGEN_ACTIVE) || defined(MODFLOW_ACTIVE)
+  ! coupled/BMI mode (NextGen, or the MODFLOW 6 coupler): the host program owns the
+  ! command line, so do not parse it here - the file manager is supplied through the
+  ! BMI initialize() argument.  Use full-domain defaults.
   nArgument = 0
   checkHRU = integerMissing
   nGRU = 1; nHRU = integerMissing
   newOutputFile = noNewFiles
-  ixProgress = ixProgress_never ! NGen prints own progress
+  ixProgress = ixProgress_never ! host prints its own progress
   iRunMode = iRunModeGRU
+#ifdef MODFLOW_ACTIVE
+  startGRU = 1
+  ixRestart = ixRestart_never
+#endif
 #else
  ! check number of command-line arguments
  nArgument = command_argument_count()

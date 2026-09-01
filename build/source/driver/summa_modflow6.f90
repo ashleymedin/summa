@@ -135,7 +135,7 @@ program summa_modflow6
   namelist /coupler/ mf6_model_name, rch_package_name, soil_thickness, map_file, feedback
 
   ! ---- SUMMA side ----
-  type(summa_bmi)             :: summa
+  type(summa_bmi)            :: summa
   integer                    :: istat, nHRU, modelTimeStep
   character(len=1024)        :: file_manager, config_file
   real, allocatable          :: drain_hru(:)     ! per-HRU soil drainage        (m s-1)
@@ -237,12 +237,9 @@ contains
     call mf6_ptr_scalar(trim(mf6_model_name)//'/DIS/ANGROT',  angrot)
 
     ! -- coupling time-step consistency --
-    istat = mf6_get_time_step(dt_mf6)
-    if (abs(dt_mf6 - real(data_step, c_double)) > 1.0e-6_c_double*real(data_step, c_double)) then
-      write(*,'(a,g0,a,g0)') 'summa_modflow6: MODFLOW time step (', dt_mf6, &
-            ') must equal the SUMMA data step (', data_step, ')'
-      error stop 1
-    end if
+    ! NB: MODFLOW's delt is only set once the first time step is prepared, so it is
+    ! not meaningful yet right after initialize(); the delt == data_step check is
+    ! therefore deferred to the first iteration of run_coupler (see below).
     istat = mf6_get_end_time(tend_mf6)
     if (tend_mf6 < numtim*real(data_step, c_double)*(1.0_c_double - 1.0e-6_c_double)) then
       write(*,'(a)') 'summa_modflow6: WARNING - MODFLOW simulation is shorter than the SUMMA simulation'
@@ -274,6 +271,15 @@ contains
 
       ! 4. advance MODFLOW 6 one coupling step
       istat = mf6_prepare_time_step(real(data_step, c_double))
+      if (modelTimeStep == 1) then
+        ! delt is now set: verify one MODFLOW time step == one SUMMA data step
+        istat = mf6_get_time_step(dt_mf6)
+        if (abs(dt_mf6 - real(data_step, c_double)) > 1.0e-6_c_double*real(data_step, c_double)) then
+          write(*,'(a,g0,a,g0,a)') 'summa_modflow6: MODFLOW time step (', dt_mf6, &
+                ') must equal the SUMMA data step (', data_step, ')'
+          error stop 1
+        end if
+      end if
       istat = mf6_do_time_step()
       istat = mf6_finalize_time_step()
 
