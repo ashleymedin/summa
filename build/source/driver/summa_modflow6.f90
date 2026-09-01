@@ -50,8 +50,6 @@ program summa_modflow6
   !   &coupler
   !     mf6_model_name   = 'MYMODEL'   ! GWF model name, as in mfsim.nam (upper case)
   !     rch_package_name = 'RCHA'      ! RCH package name, as in the GWF name file (upper case)
-  !     soil_thickness   = 2.0         ! m, thickness of the SUMMA soil column (used to place
-  !                                    !    the soil base relative to the HRU surface elevation)
   !     map_file         = ''          ! optional HRU->cell weight file; if blank a nearest-cell
   !                                    !    map is built from the MODFLOW 6 DIS grid geometry
   !     feedback         = .true.      ! .false. => one-way (SUMMA drainage -> MODFLOW only)
@@ -129,10 +127,9 @@ program summa_modflow6
   ! ---- configuration ----
   character(len=256) :: mf6_model_name   = ''
   character(len=256) :: rch_package_name = 'RCHA'
-  real(rkind)        :: soil_thickness   = 2.0_rkind
   character(len=256) :: map_file         = ''
   logical            :: feedback         = .true.
-  namelist /coupler/ mf6_model_name, rch_package_name, soil_thickness, map_file, feedback
+  namelist /coupler/ mf6_model_name, rch_package_name, map_file, feedback
 
   ! ---- SUMMA side ----
   type(summa_bmi)            :: summa
@@ -141,6 +138,7 @@ program summa_modflow6
   real, allocatable          :: drain_hru(:)     ! per-HRU soil drainage        (m s-1)
   real, allocatable          :: head_hru(:)      ! per-HRU prescribed head      (m, matric head at soil base)
   double precision, allocatable :: hru_x(:), hru_y(:), hru_z(:)  ! HRU centroid lon/lat and surface elevation
+  double precision, allocatable :: soil_thk(:)   ! per-HRU SUMMA soil-column thickness (m), read from SUMMA
 
   ! ---- MODFLOW 6 side ----
   real(c_double), pointer    :: mf6_head(:) => null()      ! GWF dependent variable  <MODEL>/X       (nodes)
@@ -217,6 +215,8 @@ contains
     istat = summa%get_grid_x(0, hru_x)   ! HRU longitude  (deg or projected x, must match MODFLOW grid CRS)
     istat = summa%get_grid_y(0, hru_y)   ! HRU latitude   (deg or projected y)
     istat = summa%get_grid_z(0, hru_z)   ! HRU surface elevation (m)
+    allocate(soil_thk(nHRU))
+    istat = summa%get_soil_thickness(soil_thk)  ! SUMMA soil-column depth per HRU (m)
     head_hru = 0.0
 
     ! -- initialize MODFLOW 6 (reads mfsim.nam from the current working directory) --
@@ -333,7 +333,8 @@ contains
   ! MODFLOW head (m, per node)  ->  SUMMA prescribed lower-BC matric head (m, per HRU).
   ! The head is sampled at the top-most active node of each mapped column and converted
   ! to a matric (pressure) head at the base of the SUMMA soil column:
-  !     lowerBoundHead = h_mf6 - (z_surface_HRU - soil_thickness)
+  !     lowerBoundHead = h_mf6 - (z_surface_HRU - soil_thk(HRU))
+  ! where soil_thk is SUMMA's own per-HRU soil-column depth.
   ! positive => saturated / positive pressure head at the soil base.
   ! ==================================================================================
   subroutine gather_head_to_hru
@@ -352,7 +353,7 @@ contains
         end if
       end do
       if (wsum > 0.0_c_double) then
-        zbase = real(hru_z(i), c_double) - real(soil_thickness, c_double)
+        zbase = real(hru_z(i), c_double) - real(soil_thk(i), c_double)
         head_hru(i) = real(hsum / wsum - zbase)
       end if
     end do

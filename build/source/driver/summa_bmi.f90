@@ -171,6 +171,7 @@ module summabmi
      procedure :: get_grid_x => summa_grid_x
      procedure :: get_grid_y => summa_grid_y
      procedure :: get_grid_z => summa_grid_z
+     procedure :: get_soil_thickness => summa_soil_thickness  ! non-BMI: per-HRU soil-column depth (m), for the MODFLOW 6 coupler
      procedure :: get_grid_node_count => summa_grid_node_count
      procedure :: get_grid_edge_count => summa_grid_edge_count
      procedure :: get_grid_face_count => summa_grid_face_count
@@ -817,6 +818,40 @@ module summabmi
       end select
      end associate summaVars
    end function summa_grid_z
+
+   ! Thickness of the SUMMA soil column for each HRU (m), measured from the ground
+   ! surface (iLayerHeight = 0) down to the base of the lowest soil layer. 
+   ! Non-BMI helper: used by the MODFLOW 6 coupler in place of a
+   ! hard-coded soil_thickness.  HRU order matches BMI grid 0 (get_grid_x/y/z).
+   function summa_soil_thickness(this, thickness) result (bmi_status)
+     class (summa_bmi), intent(in) :: this
+     double precision, dimension(:), intent(out) :: thickness
+     integer :: bmi_status, iGRU, jHRU, iDOM, i, ixDOM, nSnow, nLake, nSoil
+
+     summaVars: associate(&
+      progStruct => this%model%summa1_struc(n)%progStruct , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat
+      indxStruct => this%model%summa1_struc(n)%indxStruct   & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat
+      )
+      do iGRU = 1, this%model%summa1_struc(n)%nGRU
+        do jHRU = 1, gru_struc(iGRU)%hruCount
+          i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
+          ! prefer the first non-glacier domain; fall back to domain 1
+          ixDOM = 1
+          do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
+            if (indxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1) == 0) then
+              ixDOM = iDOM; exit
+            end if
+          end do
+          nSnow = indxStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookINDEX%nSnow)%dat(1)
+          nLake = indxStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookINDEX%nLake)%dat(1)
+          nSoil = indxStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookINDEX%nSoil)%dat(1)
+          thickness(i) = progStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookPROG%iLayerHeight)%dat(nSnow+nLake+nSoil) &
+                       - progStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookPROG%iLayerHeight)%dat(nSnow+nLake)
+        end do
+      end do
+      bmi_status = BMI_SUCCESS
+     end associate summaVars
+   end function summa_soil_thickness
 
    ! Get the number of nodes in an unstructured grid
    function summa_grid_node_count(this, grid, count) result(bmi_status)
