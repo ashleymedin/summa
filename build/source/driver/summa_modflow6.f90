@@ -58,6 +58,11 @@ program summa_modflow6
   !                                    !    ('' => skip the baseflow feedback)
   !     map_file           = ''        ! optional HRU->cell weight file; if blank a nearest-cell
   !                                    !    map is built from the MODFLOW 6 DIS grid geometry
+  !     mf6_epsg           = 0         ! EPSG code of the MODFLOW grid's projected CRS, used only to
+  !                                    !    reproject SUMMA's lon/lat HRU centres before the built-in
+  !                                    !    nearest-cell map (nHRU>1; see nearest_hru).  Only WGS84 UTM
+  !                                    !    is supported (32601-32660 N, 32701-32760 S); 0 = no
+  !                                    !    reprojection (fine when nHRU==1, or with an explicit map_file)
   !     feedback           = .true.    ! .false. => one-way (SUMMA drainage -> MODFLOW only)
   !   /
   !
@@ -141,8 +146,13 @@ program summa_modflow6
   character(len=256) :: rch_package_name   = 'RCHA'
   character(len=256) :: bflow_package_name = 'CHD'
   character(len=256) :: map_file           = ''
+  integer             :: mf6_epsg           = 0
   logical            :: feedback           = .true.
-  namelist /coupler/ mf6_model_name, rch_package_name, bflow_package_name, map_file, feedback
+  namelist /coupler/ mf6_model_name, rch_package_name, bflow_package_name, map_file, mf6_epsg, feedback
+
+  ! -- reprojection state for the built-in nearest-cell map (nHRU>1 only; see nearest_hru) --
+  integer :: utm_zone = 0
+  logical :: utm_north = .true., use_utm = .false.
 
   ! ---- SUMMA side ----
   type(summa_bmi)            :: summa
@@ -215,6 +225,11 @@ contains
     call to_upper(mf6_model_name)
     call to_upper(rch_package_name)
     call to_upper(bflow_package_name)
+    if (mf6_epsg /= 0) then
+      use_utm = utm_zone_from_epsg(mf6_epsg, utm_zone, utm_north)
+      if (.not. use_utm) write(*,'(a,i0,a)') 'summa_modflow6: WARNING - mf6_epsg=',mf6_epsg, &
+        ' is not a supported WGS84 UTM code (32601-32660 N, 32701-32760 S); ignoring it.'
+    end if
 
     ! -- initialize SUMMA through its BMI --
     istat = summa%initialize(trim(file_manager))
@@ -537,36 +552,152 @@ contains
     end if
   end function cell_spacing
 
+  ! Assign every ACTIVE MODFLOW cell to its nearest SUMMA HRU centre (a per-cell
+  ! "which HRU owns me" / Thiessen assignment) so an HRU naturally ends up covering
+  ! however many cells are nearest to it - unlike a per-HRU nearest-cell search,
+  ! this needs no per-HRU cell count ahead of time and gives every active cell to
+  ! exactly one HRU (matching what a hand-built map_file for a lumped HRU would do).
+  !
+  ! CAVEAT: SUMMA HRU centres (hru_x, hru_y) are typically longitude/latitude
+  ! (degrees) while the MODFLOW DIS grid (cellx, celly) is in a projected CRS
+  ! (metres); comparing the two directly is only meaningful when nHRU==1 - the
+  ! whole grid then trivially belongs to the one HRU, no distance comparison
+  ! needed at all - or when hru_x/hru_y already happen to be in the grid's
+  ! projected system. For nHRU>1 with mismatched coordinates this default is not
+  ! reliable: supply map_file instead (a warning is printed if that looks likely).
   subroutine build_nearest_cell_map
-    integer :: i, j, k, cbest
-    real(c_double) :: gx, gy, ca, sa, lx, ly, dbest, dist
+    integer :: i, j, c, ih, nMapped
+    integer, allocatable :: cnt(:), fill(:)
 
-    allocate(map_ptr(nHRU+1), map_cell(nHRU), map_wgt(nHRU))
+    if (nHRU > 1 .and. .not. use_utm .and. &
+        all(abs(hru_x) <= 180.0_c_double) .and. all(abs(hru_y) <= 90.0_c_double)) &
+      write(*,'(a)') 'summa_modflow6: WARNING - nearest-cell auto-map with nHRU>1 and HRU '// &
+        'coordinates that look like lon/lat: the MODFLOW grid is usually projected (metres), '// &
+        'so this default cell assignment is unlikely to be meaningful. Set mf6_epsg (WGS84 UTM) '// &
+        'or supply map_file instead.'
+
+    allocate(cnt(nHRU)); cnt = 0
+    nMapped = 0
+    do i = 1, nrow
+      do j = 1, ncol
+        c = (i-1)*ncol + j
+        if (to_reduced(c) <= 0) cycle   ! skip inactive cells (no HRU should collect from them)
+        ih = nearest_hru(i, j)
+        cnt(ih) = cnt(ih) + 1
+        nMapped = nMapped + 1
+      end do
+    end do
+
+    allocate(map_ptr(nHRU+1))
+    map_ptr(1) = 1
+    do ih = 1, nHRU
+      map_ptr(ih+1) = map_ptr(ih) + cnt(ih)
+    end do
+    allocate(map_cell(nMapped), map_wgt(nMapped))
+    allocate(fill(nHRU)); fill = map_ptr(1:nHRU)
+
+    do i = 1, nrow
+      do j = 1, ncol
+        c = (i-1)*ncol + j
+        if (to_reduced(c) <= 0) cycle
+        ih = nearest_hru(i, j)
+        map_cell(fill(ih)) = c
+        map_wgt(fill(ih))  = 1.0
+        fill(ih) = fill(ih) + 1
+      end do
+    end do
+  end subroutine build_nearest_cell_map
+
+  ! Nearest SUMMA HRU centre to MODFLOW row i, col j (grid-local frame).  Trivially
+  ! HRU 1 when there is only one HRU, so no coordinate comparison (and hence no CRS
+  ! agreement) is needed in the common single-lumped-HRU case.  For nHRU>1, hru_x/
+  ! hru_y (assumed WGS84 lon/lat) are reprojected to the grid's UTM zone first when
+  ! mf6_epsg identifies one (use_utm); otherwise they are compared as-is.
+  integer function nearest_hru(i, j) result(ibest)
+    integer, intent(in) :: i, j
+    integer :: ih
+    real(c_double) :: wx, wy, gx, gy, ca, sa, lx, ly, dbest, dist
+    if (nHRU == 1) then
+      ibest = 1; return
+    end if
     ca = cos(-real(angrot, c_double) * acos(-1.0_c_double) / 180.0_c_double)
     sa = sin(-real(angrot, c_double) * acos(-1.0_c_double) / 180.0_c_double)
-    do i = 1, nHRU
+    dbest = huge(dbest)
+    ibest = 1
+    do ih = 1, nHRU
+      if (use_utm) then
+        call lonlat_to_utm(hru_x(ih), hru_y(ih), utm_zone, utm_north, wx, wy)
+      else
+        wx = real(hru_x(ih), c_double); wy = real(hru_y(ih), c_double)
+      end if
       ! world -> grid-local frame (translate by origin, rotate by -angrot)
-      gx = real(hru_x(i), c_double) - real(xorigin, c_double)
-      gy = real(hru_y(i), c_double) - real(yorigin, c_double)
+      gx = wx - real(xorigin, c_double)
+      gy = wy - real(yorigin, c_double)
       lx = ca*gx - sa*gy
       ly = sa*gx + ca*gy
-      dbest = huge(dbest)
-      cbest = 1
-      do j = 1, nrow
-        do k = 1, ncol
-          dist = (lx - cellx(k))**2 + (ly - celly(j))**2
-          if (dist < dbest) then
-            dbest = dist
-            cbest = (j-1)*ncol + k
-          end if
-        end do
-      end do
-      map_ptr(i)  = i
-      map_cell(i) = cbest
-      map_wgt(i)  = 1.0
+      dist = (lx - cellx(j))**2 + (ly - celly(i))**2
+      if (dist < dbest) then
+        dbest = dist
+        ibest = ih
+      end if
     end do
-    map_ptr(nHRU+1) = nHRU + 1
-  end subroutine build_nearest_cell_map
+  end function nearest_hru
+
+  ! EPSG -> (UTM zone, hemisphere) for the WGS84 UTM series (32601-32660 N, 32701-32760 S).
+  ! Returns .false. (zone/north undefined) for any other EPSG code.
+  logical function utm_zone_from_epsg(epsg, zone, north) result(ok)
+    integer, intent(in)  :: epsg
+    integer, intent(out) :: zone
+    logical, intent(out) :: north
+    ok = .true.
+    if (epsg >= 32601 .and. epsg <= 32660) then
+      zone = epsg - 32600; north = .true.
+    else if (epsg >= 32701 .and. epsg <= 32760) then
+      zone = epsg - 32700; north = .false.
+    else
+      zone = 0; north = .true.; ok = .false.
+    end if
+  end function utm_zone_from_epsg
+
+  ! WGS84 lon/lat (degrees) -> UTM easting/northing (m): the standard closed-form
+  ! forward transverse-Mercator series (Snyder/USGS), accurate to well under a
+  ! metre within a UTM zone - ample for nearest-cell matching.
+  subroutine lonlat_to_utm(lon_deg, lat_deg, zone, north, easting, northing)
+    double precision, intent(in) :: lon_deg, lat_deg
+    integer,          intent(in) :: zone
+    logical,          intent(in) :: north
+    real(c_double),   intent(out) :: easting, northing
+    real(c_double), parameter :: a  = 6378137.0_c_double              ! WGS84 semi-major axis (m)
+    real(c_double), parameter :: f  = 1.0_c_double/298.257223563_c_double
+    real(c_double), parameter :: k0 = 0.9996_c_double                 ! UTM scale factor
+    real(c_double) :: pi, e2, ep2, lon0, phi, lam, rn, t, cc, am, m
+
+    pi   = acos(-1.0_c_double)
+    e2   = f*(2.0_c_double - f)
+    ep2  = e2/(1.0_c_double - e2)
+    lon0 = (real(zone, c_double) - 1.0_c_double)*6.0_c_double - 180.0_c_double + 3.0_c_double
+
+    phi = real(lat_deg, c_double)*pi/180.0_c_double
+    lam = (real(lon_deg, c_double) - lon0)*pi/180.0_c_double
+
+    rn = a/sqrt(1.0_c_double - e2*sin(phi)**2)
+    t  = tan(phi)**2
+    cc = ep2*cos(phi)**2
+    am = lam*cos(phi)
+
+    m = a*( (1.0_c_double - e2/4.0_c_double - 3.0_c_double*e2**2/64.0_c_double - 5.0_c_double*e2**3/256.0_c_double)*phi &
+           - (3.0_c_double*e2/8.0_c_double + 3.0_c_double*e2**2/32.0_c_double + 45.0_c_double*e2**3/1024.0_c_double)*sin(2.0_c_double*phi) &
+           + (15.0_c_double*e2**2/256.0_c_double + 45.0_c_double*e2**3/1024.0_c_double)*sin(4.0_c_double*phi) &
+           - (35.0_c_double*e2**3/3072.0_c_double)*sin(6.0_c_double*phi) )
+
+    easting = k0*rn*( am + (1.0_c_double-t+cc)*am**3/6.0_c_double &
+            + (5.0_c_double-18.0_c_double*t+t**2+72.0_c_double*cc-58.0_c_double*ep2)*am**5/120.0_c_double ) &
+            + 500000.0_c_double
+    northing = k0*( m + rn*tan(phi)*( am**2/2.0_c_double &
+             + (5.0_c_double-t+9.0_c_double*cc+4.0_c_double*cc**2)*am**4/24.0_c_double &
+             + (61.0_c_double-58.0_c_double*t+t**2+600.0_c_double*cc-330.0_c_double*ep2)*am**6/720.0_c_double ) )
+    if (.not. north) northing = northing + 10000000.0_c_double
+  end subroutine lonlat_to_utm
 
   ! Weight-file format: one  "iHRU  cell  weight"  triple per line (whitespace
   ! separated); blank lines and lines beginning with "#" are ignored.  A given HRU
