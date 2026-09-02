@@ -46,18 +46,20 @@ build/source/openwq/openwq
 utils/pre-processing/*.nc
 # vscode related files
 .vscode
-# test files
+# NextGen test files
 test_ngen/gauge_01073000/simulations/run_1/SUMMA/*.nc
+test_ngen/gauge_01073000/simulations/run_1/SUMMA/*.txt
 test_ngen/domain_provo/forcing/*.nc
 test_ngen/domain_provo/forcing/SUMMA_input/*.nc
 test_ngen/domain_provo/simulations/run_1/SUMMA/*.nc
+test_ngen/domain_provo/simulations/run_1/SUMMA/*.txt
 test_ngen/domain_provo/simulations/*.nc
 test_ngen/domain_provo/simulations/*.csv
-test_mflow/domain_sagehen/forcing/SUMMA_input/*.nc
+# MODFLOW 6 test run output
 test_mflow/domain_sagehen/simulations/run_1/SUMMA/*.nc
-# MODFLOW 6 run artifacts from the coupler smoke test
-test_mflow/**/*.lst
-test_mflow/**/*.hds
-test_mflow/**/*.cbc
-test_mflow/**/mfsim.stdout
-test_mflow/**/*.stdout
+test_mflow/domain_sagehen/simulations/run_1/SUMMA/*.txt
+test_mflow/ex-gwf-sagehen/*.lst
+test_mflow/ex-gwf-sagehen/*.hds
+test_mflow/ex-gwf-sagehen/*.cbc
+test_mflow/ex-gwf-sagehen/*.stdout
+test_mflow/ex-gwf-sagehen/*.dis.grb

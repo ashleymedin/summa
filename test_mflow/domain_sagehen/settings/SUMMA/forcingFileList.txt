@@ -1,12 +1,1 @@
 NWAM_SUMMA_forcing_201901.nc
-NWAM_SUMMA_forcing_201902.nc
-NWAM_SUMMA_forcing_201903.nc
-NWAM_SUMMA_forcing_201904.nc
-NWAM_SUMMA_forcing_201905.nc
-NWAM_SUMMA_forcing_201906.nc
-NWAM_SUMMA_forcing_201907.nc
-NWAM_SUMMA_forcing_201908.nc
-NWAM_SUMMA_forcing_201909.nc
-NWAM_SUMMA_forcing_201910.nc
-NWAM_SUMMA_forcing_201911.nc
-NWAM_SUMMA_forcing_201912.nc
