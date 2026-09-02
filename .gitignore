@@ -46,7 +46,7 @@ build/source/openwq/openwq
 utils/pre-processing/*.nc
 # vscode related files
 .vscode
-# NextGen test files
+# NextGen test run output and forcing
 test_ngen/gauge_01073000/simulations/run_1/SUMMA/*.nc
 test_ngen/gauge_01073000/simulations/run_1/SUMMA/*.txt
 test_ngen/domain_provo/forcing/*.nc
