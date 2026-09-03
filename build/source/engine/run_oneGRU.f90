@@ -270,19 +270,18 @@ subroutine run_oneGRU(&
         associate(typeDOM => gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type)
           if(typeDOM==glacCln1 .or. typeDOM==glacCln2 .or. typeDOM==glacDbr)then
             nglacDOM = nglacDOM + 1
-            if(.not.has_glacier)then 
+            if(.not.has_glacier)then
               has_glacier = .true. ! set flag to indicate if glaciers are present in HRU
-              nglacHRU = nglacHRU + 1 
+              nglacHRU = nglacHRU + 1
             endif
           endif
         end associate
       enddo
     enddo
+    allocate(glac_elev(nglacDOM),glac_debris_thick(nglacDOM),glac_area(nglacDOM),glac_ablFrac(nglacDOM),massChange(nglacDOM), &
+             glac_hru(nglacDOM),iden_soil_mean(nglacDOM),theta_sat_mean(nglacDOM),nclean(nglacHRU),ndebris(nglacHRU), &
+             glac_tan_slope(nglacDOM),glac_aspect(nglacDOM),glac_contourLength(nglacDOM))
   endif
-  if(nglacDOM==0) nglacDOM=1 ! allocate at some size
-  allocate(glac_elev(nglacDOM),glac_debris_thick(nglacDOM),glac_area(nglacDOM),glac_ablFrac(nglacDOM),massChange(nglacDOM), & 
-           glac_hru(nglacDOM),iden_soil_mean(nglacDOM),theta_sat_mean(nglacDOM),nclean(nglacHRU),ndebris(nglacHRU), & 
-           glac_tan_slope(nglacDOM),glac_aspect(nglacDOM),glac_contourLength(nglacDOM))
 
   ! ********** RUN FOR ONE HRU ********************************************************************************************
   do iHRU=1,gruInfo%hruCount
@@ -601,8 +600,9 @@ subroutine run_oneGRU(&
         end associate
       enddo ! (looping through domains)
     enddo ! (looping through HRUs)
+    deallocate(glac_elev,glac_debris_thick,glac_area,glac_ablFrac,massChange,glac_hru,iden_soil_mean, &
+               theta_sat_mean,nclean,ndebris,glac_tan_slope,glac_aspect,glac_contourLength)
   endif ! (if updateGlacArea)
-  deallocate(glac_elev,glac_debris_thick,glac_area,massChange,glac_hru,iden_soil_mean,theta_sat_mean)
 
   if(updateGlacArea .or. updateLakeArea)then
     do iHRU=1,gruInfo%hruCount
