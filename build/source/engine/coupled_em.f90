@@ -1861,7 +1861,7 @@ subroutine coupled_em(&
         scalarGlceWE = 0._rkind
         balanceGlceWE = 0._rkind
       end if ! if glce layers exist
-      deallocate(depthGlceTopLayer)
+      if(allocated(depthGlceTopLayer)) deallocate(depthGlceTopLayer)
       
       ! -----
       ! * balance checks for the aquifer...
@@ -1997,12 +1997,9 @@ contains
   allocate(innerBalanceLayerMass(nLayers)); innerBalanceLayerMass = 0._rkind ! mean total balance of mass in layers
   allocate(innerBalanceLayerNrg(nLayers));  innerBalanceLayerNrg = 0._rkind ! mean total balance of energy in layers
   allocate(mLayerVolFracIceInit(nLayers));  mLayerVolFracIceInit = prog_data%var(iLookPROG%mLayerVolFracIce)%dat ! volume fraction of water ice
-  if(nGlce>0)then ! depth of the top glacier layer at the beginning of the data step
+  if(nGlce>0)then ! depth of the top glacier layer at the beginning of the data step (deallocated after the glacier balance check)
     allocate(depthGlceTopLayer(nGlce-noThetaChange))
     depthGlceTopLayer = prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+nSoil+1:nLayers-noThetaChange)
-   else ! no glacier, so set to 0
-    allocate(depthGlceTopLayer(1))
-    depthGlceTopLayer = 0._rkind
   end if
 
   ! initialize the numerix tracking variables

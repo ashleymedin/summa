@@ -53,7 +53,6 @@ module summabmi
   USE summa_util, only: stop_program                          ! used to stop the summa program (with errors)
   USE summa_util, only: handle_err                            ! used to process errors
   ! global data
-  ! access missing values
   USE globalData, only: integerMissing                        ! missing integer
   USE globalData, only: print_step_freq                       ! frequency of printing model output
   USE globalData, only: dJulianStart                          ! julian day of start time of simulation

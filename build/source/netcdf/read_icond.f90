@@ -149,7 +149,6 @@ contains
  if(err/=nf90_noerr)then         
    write(*,*) 'WARNING: GRU is not in the initial conditions file ... assuming GRUs in attribute order'
    has_gru_id = .false.
-   allocate(gru_id(1)) ! just allocate something to avoid problems with the deallocation at the end
    err=nf90_noerr    ! reset this err
  else
    err = nf90_inquire_dimension(ncid,dimID,len=fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
@@ -291,7 +290,8 @@ contains
 
  ! cleanup
  deallocate(snowData1,lakeData1,soilData1,glceData1,snowData2,lakeData2,soilData2,glceData2,dom_type)
- deallocate(gru_id,hru_id,index_to_gruid,index_to_hrunc)
+ deallocate(hru_id,index_to_gruid,index_to_hrunc)
+ if(allocated(gru_id)) deallocate(gru_id)  ! not allocated when the file has no gru dimension
 
  end subroutine read_icond_nlayers
 
@@ -437,7 +437,6 @@ contains
  err = nf90_inq_dimid(ncid,"gru",dimID)    
  if(err/=nf90_noerr)then         
    has_gru_id = .false.
-   allocate(gru_id(1)) ! just allocate something to avoid problems with the deallocation at the end
    err=nf90_noerr    ! reset this err
  else
    err = nf90_inquire_dimension(ncid,dimID,len=fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
@@ -890,7 +889,8 @@ else
  if(err/=nf90_noerr)then;message=trim(message)//trim(cmessage);return;end if
 
  ! cleanup
- deallocate(hru_id,gru_id,index_to_gruid,index_to_hrunc,index_to_glacid)
+ deallocate(hru_id,index_to_gruid,index_to_hrunc,index_to_glacid)
+ if(allocated(gru_id)) deallocate(gru_id)  ! not allocated when the file has no gru dimension
 
  end subroutine read_icond
 
