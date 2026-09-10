@@ -68,6 +68,13 @@ covers the user-facing highlights.
 
 ## Pre-release
 ### Major changes
+- New `groundwatr = modflow` option: groundwater is handled by a coupled MODFLOW 6 model
+  instead of a SUMMA aquifer. Requires `bcLowrSoiH = presHead`, a `-DUSE_MODFLOW6=ON` build,
+  and the new `summa_modflow6` coupler executable (which drives both models). Each data step
+  SUMMA sends soil-column drainage to the MODFLOW 6 recharge package and takes the MODFLOW
+  water-table head back as the soil-column lower boundary; MODFLOW then supplies
+  `scalarAquiferBaseflow` (routed into streamflow) and `scalarAquiferStorage`. See
+  [`groundwatr`](configuration/SUMMA_model_decisions.md#groundwatr).
 - General cleanup and shortening of computFlux.f90, vegNrgFlux.f90, snowSoilNrgFlux.f90, vegLiqFlux.f90, snowLiqFlux.f90, soilLiqFlux.f90, groundwatr.f90, and bigAquifer.f90 
 - Added object-oriented methods to simplify flux routine calls in computFlux and improve modularity
     - classes for each flux routine were added to data_types.f90

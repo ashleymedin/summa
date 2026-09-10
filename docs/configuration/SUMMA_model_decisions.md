@@ -38,7 +38,7 @@ There are 44 model decisions. Defaults (used for `notPopulatedYet` where accepte
 | 14 | [LAI_method](#lai_method) | monTable, specified | source of LAI/SAI |
 | 15 | [cIntercept](#cintercept) | **notPopulatedYet**, sparseCanopy, storageFunc | canopy interception |
 | 16 | [f_Richards](#f_richards) | **mixdform** | form of Richards' equation |
-| 17 | [groundwatr](#groundwatr) | qTopmodl, bigBuckt, noXplict | groundwater parameterization |
+| 17 | [groundwatr](#groundwatr) | qTopmodl, bigBuckt, noXplict, modflow | groundwater parameterization |
 | 18 | [hc_profile](#hc_profile) | constant, pow_prof, exp_prof | hydraulic-conductivity profile with depth |
 | 19 | [bcUpprTdyn](#bcupprtdyn) | presTemp, nrg_flux, zeroFlux | upper boundary condition, thermodynamics |
 | 20 | [bcLowrTdyn](#bclowrtdyn) | presTemp, zeroFlux | lower boundary condition, thermodynamics |
@@ -225,8 +225,18 @@ The moisture-based form was removed; `mixdform` (or `notPopulatedYet`) is the on
 | qTopmodl | TOPMODEL-style baseflow from a per-column store |
 | bigBuckt | lumped "big bucket" aquifer model |
 | noXplict | no explicit groundwater; soil drainage leaves the column |
+| modflow | groundwater handled externally by a coupled MODFLOW 6 model; SUMMA runs no aquifer of its own |
 
 See also [`spatial_gw`](#spatial_gw), which sets whether the store is per column or per basin.
+
+With `modflow`, each data step SUMMA sends the soil-column drainage to the MODFLOW 6
+recharge package and receives the MODFLOW water-table head back as the soil-column lower
+boundary condition, so it **requires** [`bcLowrSoiH`](#bclowrsoih) `= presHead`. It is
+only available in a build configured with `-DUSE_MODFLOW6=ON` and must be run through the
+`summa_modflow6` coupler executable (which also drives MODFLOW 6); a plain `summa` run
+with `groundwatr = modflow` is rejected at start-up. MODFLOW then supplies
+`scalarAquiferBaseflow` (routed into streamflow) and `scalarAquiferStorage`, and
+`scalarAquiferRecharge` is set equal to the soil-column drainage.
 
 <a id="hc_profile"></a>
 ## 18. hc_profile — hydraulic-conductivity profile
@@ -271,6 +281,9 @@ See also [`spatial_gw`](#spatial_gw), which sets whether the store is per column
 | bottmPsi | flux computed from the matric head gradient in the lowest layer |
 | drainage | free (gravity) drainage |
 | zeroFlux | zero liquid water flux at the bottom of the soil column |
+
+[`groundwatr`](#groundwatr) `= modflow` forces `presHead` here (the prescribed head is the
+coupled MODFLOW 6 water table); any other value is rejected at start-up.
 
 <a id="veg_traits"></a>
 ## 23. veg_traits — roughness length and displacement height

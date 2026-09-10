@@ -142,7 +142,7 @@ All 44 decisions must be present. The model decisions and their options are list
 | 14 |[LAI_method](../configuration/SUMMA_model_decisions.md#lai_method) | monTable <br> specified | source of LAI and SAI
 | 15 |[cIntercept](../configuration/SUMMA_model_decisions.md#cintercept) | **notPopulatedYet** <br> sparseCanopy <br> storageFunc | canopy interception
 | 16 |[f_Richards](../configuration/SUMMA_model_decisions.md#f_richards) | **mixdform** | form of Richards' equation (the `moisture` form was removed)
-| 17 |[groundwatr](../configuration/SUMMA_model_decisions.md#groundwatr) | qTopmodl <br> bigBuckt <br> noXplict | groundwater parameterization
+| 17 |[groundwatr](../configuration/SUMMA_model_decisions.md#groundwatr) | qTopmodl <br> bigBuckt <br> noXplict <br> modflow | groundwater parameterization
 | 18 |[hc_profile](../configuration/SUMMA_model_decisions.md#hc_profile) | constant <br> pow_prof <br> exp_prof | hydraulic conductivity profile
 | 19 |[bcUpprTdyn](../configuration/SUMMA_model_decisions.md#bcupprtdyn) | presTemp <br> nrg_flux <br> zeroFlux | upper boundary condition, thermodynamics
 | 20 |[bcLowrTdyn](../configuration/SUMMA_model_decisions.md#bclowrtdyn) | presTemp <br> zeroFlux | lower boundary condition, thermodynamics
