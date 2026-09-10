@@ -26,8 +26,6 @@
 ! ====================================================================
 upperBoundHead            |      -0.7500 |    -100.0000 |      -0.0100
 lowerBoundHead            |       0.0000 |    -100.0000 |      -0.0100
-upperBoundTheta           |       0.2004 |       0.1020 |       0.3680
-lowerBoundTheta           |       0.1100 |       0.1020 |       0.3680
 upperBoundTemp            |     272.1600 |     270.1600 |     280.1600
 lowerBoundTemp            |     274.1600 |     270.1600 |     280.1600
 ! ====================================================================
@@ -223,4 +221,3 @@ minTempUnloading          |       270.16 |       260.16 |       273.16
 minWindUnloading          |       0.0000 |       0.0000 |       10.000
 rateTempUnloading         |      1.87d+5 |       1.0d+5 |       3.0d+5
 rateWindUnloading         |      1.56d+5 |       1.0d+5 |       3.0d+5
-! history Wed Jul 29 16:01:34 2020: /home/wknoben/summa/utils/convert_summa_config_v2_v3.py fileManager.txt
