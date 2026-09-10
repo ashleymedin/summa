@@ -1018,7 +1018,7 @@ module summabmi
      case('land_vegetation_energy~net~total__energy_flux') ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_surface_energy~net~total__energy_flux')    ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_surface_water__baseflow_volume_flux')      ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
-     case('soil_water__drainage_volume_flux')             ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
+     case('soil_water__drainage_volume_flux')              ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
      case default; units = "-"; bmi_status = BMI_FAILURE
      end select
    end function summa_var_units
@@ -1427,23 +1427,14 @@ module summabmi
               forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%LWRadAtm) = src_arr(i)
             case('land_surface_air__pressure')
               forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airpres) = src_arr(i)
-            ! prescribed-head lower boundary condition for soil hydrology, supplied by the
-            ! coupled MODFLOW 6 water table (groundwatr="modflow"); glacier domains keep their
-            ! own (blocked) lower boundary and are skipped, lake domains are treated as soil
+            ! prescribed-head lower boundary condition for soil hydrology, supplied by the coupled MODFLOW 6 water table
             case('soil_water_sat-zone_top__head')
               do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
                 if(indxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1) == 0) &
                   mparStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPARAM%lowerBoundHead)%dat(1) = src_arr(i)
               end do
-            ! groundwater state/flux from the coupled MODFLOW 6 model (groundwatr="modflow"):
-            ! SUMMA does not compute an aquifer in this mode.  Baseflow goes into a globalData
-            ! channel (SUMMA overwrites every scalar flux during a step, so it cannot be
-            ! written straight into fluxStruct here) - run_oneGRU reads the channel for the
-            ! modflowCpl branch.  Storage is a prog var left untouched by the solver in this
-            ! mode, so it is written directly.  hru_ix indexing == the BMI grid-0 flatten
-            ! order for the uniform-HRU layout the coupler assumes.  (Aquifer recharge is not
-            ! exchanged: it equals scalarSoilDrainage, set by SUMMA in the same branch.)
-            case('land_surface_water__baseflow_volume_flux')
+            ! groundwater state/flux from the coupled MODFLOW 6 model 
+            case('land_surface_water__baseflow_volume_flux') ! SUMMA overwrites every scalar flux during a step, so it cannot be written straight into fluxStruct
               if(.not.allocated(mfAquiferBaseflow))then
                 allocate(mfAquiferBaseflow(sum(gru_struc(:)%hruCount))); mfAquiferBaseflow = 0._rkind
               end if
@@ -1548,7 +1539,7 @@ module summabmi
                 target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarCanopyNetNrgFlux)%dat(1) * fracDOM
               case('land_surface_energy~net~total__energy_flux')
                 target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarGroundNetNrgFlux)%dat(1) * fracDOM
-              case('land_surface_water__baseflow_volume_flux')
+              case('land_surface_water__baseflow_volume_flux') ! also a valid input, see assign_basin_field above
                 target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) * fracDOM
               case('soil_water__drainage_volume_flux')
                 target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarSoilDrainage)%dat(1) * fracDOM

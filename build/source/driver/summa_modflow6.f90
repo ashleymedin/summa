@@ -567,7 +567,7 @@ contains
   ! reliable: supply map_file instead (a warning is printed if that looks likely).
   subroutine build_nearest_cell_map
     integer :: i, j, c, ih, nMapped
-    integer, allocatable :: cnt(:), fill(:)
+    integer, allocatable :: count(:), fill(:)
 
     if (nHRU > 1 .and. .not. use_utm .and. &
         all(abs(hru_x) <= 180.0_c_double) .and. all(abs(hru_y) <= 90.0_c_double)) &
@@ -576,14 +576,14 @@ contains
         'so this default cell assignment is unlikely to be meaningful. Set mf6_epsg (WGS84 UTM) '// &
         'or supply map_file instead.'
 
-    allocate(cnt(nHRU)); cnt = 0
+    allocate(count(nHRU)); count = 0
     nMapped = 0
     do i = 1, nrow
       do j = 1, ncol
         c = (i-1)*ncol + j
         if (to_reduced(c) <= 0) cycle   ! skip inactive cells (no HRU should collect from them)
         ih = nearest_hru(i, j)
-        cnt(ih) = cnt(ih) + 1
+        count(ih) = count(ih) + 1
         nMapped = nMapped + 1
       end do
     end do
@@ -591,7 +591,7 @@ contains
     allocate(map_ptr(nHRU+1))
     map_ptr(1) = 1
     do ih = 1, nHRU
-      map_ptr(ih+1) = map_ptr(ih) + cnt(ih)
+      map_ptr(ih+1) = map_ptr(ih) + count(ih)
     end do
     allocate(map_cell(nMapped), map_wgt(nMapped))
     allocate(fill(nHRU)); fill = map_ptr(1:nHRU)
@@ -706,7 +706,7 @@ contains
   ! relative (e.g. put 1.0 on every line to spread an HRU evenly over its cells).
   subroutine read_map_file
     integer :: fu, rc, i, ih, cel
-    integer, allocatable :: cnt(:), fill(:)
+    integer, allocatable :: count(:), fill(:)
     real    :: wgt
     real(c_double) :: wsum
     character(len=256) :: line
@@ -717,7 +717,7 @@ contains
       error stop 1
     end if
 
-    allocate(cnt(nHRU)); cnt = 0
+    allocate(count(nHRU)); count = 0
 
     ! first pass: count triples per HRU
     do
@@ -731,14 +731,14 @@ contains
         write(*,*) 'summa_modflow6: bad line in map_file: '//trim(line); error stop 1
       end if
       if (ih < 1 .or. ih > nHRU) cycle
-      cnt(ih) = cnt(ih) + 1
+      count(ih) = count(ih) + 1
     end do
     rewind(fu)
 
     allocate(map_ptr(nHRU+1))
     map_ptr(1) = 1
     do i = 1, nHRU
-      map_ptr(i+1) = map_ptr(i) + cnt(i)
+      map_ptr(i+1) = map_ptr(i) + count(i)
     end do
     allocate(map_cell(map_ptr(nHRU+1)-1), map_wgt(map_ptr(nHRU+1)-1))
     allocate(fill(nHRU)); fill = map_ptr(1:nHRU)
