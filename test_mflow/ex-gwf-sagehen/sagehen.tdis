@@ -4,7 +4,8 @@
 #     - the forcing file's data_step attribute, 3600 s for this Sagehen forcing;
 #   * the total number of MODFLOW steps (744) must be >= SUMMA's numtim (number of
 #     data steps in the simulated period).
-#   744 steps * 3600 s = 2678400 s  (2019-01-01 00:00 .. 2019-01-31 23:00, hourly)
+#   72 steps * 3600 s = 259200 s  (2019-08-01 00:00 .. 2019-08-03 23:00, hourly)
+#   short shallow-water-table coupling test; bump to 744 / 2678400.0 for the full month
 BEGIN OPTIONS
   TIME_UNITS  SECONDS
 END OPTIONS
@@ -15,5 +16,5 @@ END DIMENSIONS
 
 BEGIN PERIODDATA
 #  perlen      nstp   tsmult
-   2678400.0   744    1.0
+   259200.0    72     1.0
 END PERIODDATA
