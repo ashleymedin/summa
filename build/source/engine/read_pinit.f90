@@ -172,6 +172,10 @@ contains
   if (parFallback(iLookPARAM%glacierTempReduction)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%glacierTempReduction)%default_val = 0._rkind
   end if
+  ! exponential hydraulic conductivity profile
+  if (parFallback(iLookPARAM%f_hydCond)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%f_hydCond)%default_val = 3._rkind ! 1-5 m-1 for supraglacial debris and weathered shallow till
+  end if
  else
   ! glacier parameters
   if (parFallback(iLookBPAR%glacStor_kIce)%default_val < 0.99_rkind*realMissing) then ! 5-29

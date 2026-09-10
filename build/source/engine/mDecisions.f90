@@ -80,6 +80,7 @@ integer(i4b),parameter,public :: modflowCpl           = 134    ! groundwater han
 ! look-up values for the choice of hydraulic conductivity profile
 integer(i4b),parameter,public :: constant             = 141    ! constant hydraulic conductivity with depth
 integer(i4b),parameter,public :: powerLaw_profile     = 142    ! power-law profile
+integer(i4b),parameter,public :: expLaw_profile       = 143    ! exponential profile, K(z) = K_0*exp(-f*z), finite at the base of the soil
 ! look-up values for the choice of boundary conditions for thermodynamics
 integer(i4b),parameter,public :: prescribedTemp       = 151    ! prescribed temperature
 integer(i4b),parameter,public :: energyFlux           = 152    ! energy flux
@@ -513,6 +514,7 @@ subroutine mDecisions(err,message)
   select case(trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision))
     case('constant'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = constant            ! constant hydraulic conductivity with depth
     case('pow_prof'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = powerLaw_profile    ! power-law profile
+    case('exp_prof'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = expLaw_profile      ! exponential profile
     case default
       err=10; message=trim(message)//"unknown hydraulic conductivity profile [option="//trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision)//"]"; return
   end select
@@ -748,11 +750,13 @@ subroutine mDecisions(err,message)
       end if
   end select
 
-  ! check power-law profile is selected when using topmodel baseflow option
+  ! check a depth-varying conductivity profile is selected when using topmodel baseflow option
+  ! NOTE: the baseflow transmissivity is the vertical integral of the conductivity profile, so both are supported
   select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
     case(qbaseTopmodel)
-      if(model_decisions(iLookDECISIONS%hc_profile)%iDecision /= powerLaw_profile)then
-        message=trim(message)//'power-law hydraulic conductivity profile must be selected when using topmodel baseflow option (set "hc_profile" to "pow_prof" in model decisions input file)'
+      if(model_decisions(iLookDECISIONS%hc_profile)%iDecision /= powerLaw_profile .and. &
+         model_decisions(iLookDECISIONS%hc_profile)%iDecision /= expLaw_profile)then
+        message=trim(message)//'a power-law or exponential hydraulic conductivity profile must be selected when using topmodel baseflow option (set "hc_profile" to "pow_prof" or "exp_prof" in model decisions input file)'
         err=20; return
       end if
   end select
