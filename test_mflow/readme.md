@@ -21,6 +21,16 @@ This folder contains a case study to show how a typical SUMMA setup looks coupli
   ! Coupling requires SUMMA to be built with -DUSE_MODFLOW6=ON (sets MODFLOW_ACTIVE) and
   ! the SUMMA model decision  groundwatr = modflow  with  bcLowrSoiH = presHead.
   !
+  ! groundwatr = modLatflow does the same coupling and additionally runs TOPMODEL-style
+  ! lateral flow through the soil column above the MODFLOW water table, for hillslopes
+  ! where water moves downslope through the soil as well as recharging the aquifer.  It
+  ! also requires  hc_profile = exp_prof  (and so infRateMax = topmodel_GA or noInfExc):
+  ! the lateral transmissivity is the vertical integral of the conductivity over the soil
+  ! column alone, since MODFLOW carries everything below it, and exp_prof is the profile
+  ! that integrates to a finite base instead of assuming a shallow aquifer of its own.
+  ! The lateral flow is reported as basin__ColumnOutflow, added to total runoff alongside
+  ! the MODFLOW baseflow.  This test case uses  groundwatr = modflow.
+  !
   ! The MODFLOW 6 model (read from mfsim.nam in the working directory) must:
   !   * use length unit metres and TDIS TIME_UNITS SECONDS,
   !   * have exactly one MODFLOW time step per SUMMA forcing data step: MODFLOW delt

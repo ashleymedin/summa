@@ -71,6 +71,8 @@ USE mDecisions_module,only:       &
 ! look-up values for the choice of groundwater parameterization
 USE mDecisions_module,only:       &
  qbaseTopmodel,                   & ! TOPMODEL-ish baseflow parameterization
+ modflowCpl,                      & ! MODFLOW coupled groundwater parameterization
+ modLatFlow,                      & ! as modflowCpl, plus lateral flow in the soil above
  bigBucket,                       & ! a big bucket (lumped aquifer model)
  noExplicit                         ! no explicit groundwater parameterization
 
@@ -307,7 +309,7 @@ subroutine computFlux(&
   ! *** CALCULATE THE SHALLOW GROUNDWATER FLOW OR DEBRIS LATERAL FLOW ***
   associate(nSoilOnlyHyd => indx_data%var(iLookINDEX%nSoilOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the soil domain
     if (nSoilOnlyHyd>0) then ! check if computing soil hydrology
-      if (local_ixGroundwater/=qbaseTopmodel .and. nGlce==0) then ! set baseflow fluxes to zero if the topmodel baseflow routine is not used
+      if (local_ixGroundwater/=qbaseTopmodel .and. local_ixGroundwater/=modLatFlow .and. nGlce==0) then ! set baseflow fluxes to zero if no soil lateral flow routine is used
         call zeroBaseflowFluxes
       else ! compute the baseflow flux for topmodel-ish shallow groundwater or lateral flow for glacier debris
         call initialize_groundwatr; if(err/=0)then; return; endif

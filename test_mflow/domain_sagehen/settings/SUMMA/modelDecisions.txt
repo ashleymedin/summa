@@ -76,15 +76,16 @@ write_buff                      writePerStep    ! (31) method used to write mode
 ! specified ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
 ! -----------------------------------------------------------------------------------------------
 ! (08) choice of groundwater parameterization
-! qTopmodl  ! topmodel parameterization
-! bigBuckt  ! a big bucket (lumped aquifer model)
-! noXplict  ! no explicit groundwater parameterization
-! modflow   ! couple with MODFLOW6 (no aquifer modelled in SUMMA)
+! qTopmodl   ! topmodel parameterization
+! bigBuckt   ! a big bucket (lumped aquifer model)
+! noXplict   ! no explicit groundwater parameterization
+! modflow    ! couple with MODFLOW6 (no aquifer modelled in SUMMA)
+! modLatflow ! couple with MODFLOW6 but allow lateral flow in soil column (no aquifer modelled in SUMMA)
 ! -----------------------------------------------------------------------------------------------
 ! (09) choice of hydraulic conductivity profile
 ! constant  ! constant hydraulic conductivity with depth (not allowed with groundwatr == qTopmodl)
 ! pow_prof  ! power-law profile (original TOPMODEL-ish form)
-! exp_prof  ! exponential profile, only for >=v4.1 (used internally for glacier debris; not allowed with groundwatr == qTopmodl)
+! exp_prof  ! exponential profile, only for >=v4.1 (used internally for glacier debris; required with groundwatr == modLatflow; not allowed with groundwatr == qTopmodl)
 ! -----------------------------------------------------------------------------------------------
 ! (10) choice of upper boundary conditions for thermodynamics
 ! presTemp  ! prescribed temperature

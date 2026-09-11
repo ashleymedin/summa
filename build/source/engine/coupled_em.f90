@@ -71,32 +71,34 @@ USE globalData,only:maxGlceLayers          ! maximum number of glacier ice layer
 USE globalData,only:icefrz_mult            ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
 
 ! look-up values for the maximum interception capacity
-USE mDecisions_module,only:         &
-                      stickySnow,   &      ! maximum interception capacity an increasing function of temerature
-                      lightSnow            ! maximum interception capacity an inverse function of new snow density
+USE mDecisions_module,only:       &
+ stickySnow,                      & ! maximum interception capacity an increasing function of temerature
+ lightSnow                          ! maximum interception capacity an inverse function of new snow density
 
 ! look-up values for the groundwater parameterization
-USE mDecisions_module,only:         &
-                      qbaseTopmodel,&      ! TOPMODEL-ish baseflow parameterization
-                      bigBucket    ,&      ! a big bucket (lumped aquifer model)
-                      noExplicit           ! no explicit groundwater parameterization
+USE mDecisions_module,only:       &
+ qbaseTopmodel,                   & ! TOPMODEL-ish baseflow parameterization
+ modflowCpl,                      & ! MODFLOW coupled groundwater parameterization
+ modLatFlow,                      & ! as modflowCpl, plus lateral flow in the soil above
+ bigBucket,                       & ! a big bucket (lumped aquifer model)
+ noExplicit                         ! no explicit groundwater parameterization
 
 ! look-up values for the spatial representation of groundwater
-USE mDecisions_module,only:         &
-                      localColumn  ,&      ! separate groundwater representation in each local soil column
-                      singleBasin          ! single groundwater store over the entire basin
+USE mDecisions_module,only:       &
+ localColumn                     ,& ! separate groundwater representation in each local soil column
+ singleBasin                        ! single groundwater store over the entire basin
 
 ! look-up values for the numerical method
-USE mDecisions_module,only:         &
-                      homegrown    ,&      ! homegrown backward Euler solution based on concepts from numerical recipes
-                      kinsol       ,&      ! SUNDIALS backward Euler solution using Kinsol
-                      ida                  ! SUNDIALS solution using IDA
+USE mDecisions_module,only:       &
+ homegrown                       ,& ! homegrown backward Euler solution based on concepts from numerical recipes
+ kinsol                          ,& ! SUNDIALS backward Euler solution using Kinsol
+ ida                                ! SUNDIALS solution using IDA
 
 ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
-USE mDecisions_module,only:         &
-                      closedForm,   &      ! use temperature with closed form heat capacity
-                      enthalpyForm, &      ! use enthalpy with soil temperature-enthalpy lookup tables
-                      enthalpyFormAN       ! use enthalpy with soil temperature-enthalpy analytical solution
+USE mDecisions_module,only:       &
+ closedForm,                      & ! use temperature with closed form heat capacity
+ enthalpyForm,                    & ! use enthalpy with soil temperature-enthalpy lookup tables
+ enthalpyFormAN                     ! use enthalpy with soil temperature-enthalpy analytical solution
 
 
 ! privacy

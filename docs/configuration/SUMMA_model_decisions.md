@@ -38,7 +38,7 @@ There are 44 model decisions. Defaults (used for `notPopulatedYet` where accepte
 | 14 | [LAI_method](#lai_method) | monTable, specified | source of LAI/SAI |
 | 15 | [cIntercept](#cintercept) | **notPopulatedYet**, sparseCanopy, storageFunc | canopy interception |
 | 16 | [f_Richards](#f_richards) | **mixdform** | form of Richards' equation |
-| 17 | [groundwatr](#groundwatr) | qTopmodl, bigBuckt, noXplict, modflow | groundwater parameterization |
+| 17 | [groundwatr](#groundwatr) | qTopmodl, bigBuckt, noXplict, modflow, modLatflow | groundwater parameterization |
 | 18 | [hc_profile](#hc_profile) | constant, pow_prof, exp_prof | hydraulic-conductivity profile with depth |
 | 19 | [bcUpprTdyn](#bcupprtdyn) | presTemp, nrg_flux, zeroFlux | upper boundary condition, thermodynamics |
 | 20 | [bcLowrTdyn](#bclowrtdyn) | presTemp, zeroFlux | lower boundary condition, thermodynamics |
@@ -225,7 +225,8 @@ The moisture-based form was removed; `mixdform` (or `notPopulatedYet`) is the on
 | qTopmodl | TOPMODEL-style baseflow from a per-column store |
 | bigBuckt | lumped "big bucket" aquifer model |
 | noXplict | no explicit groundwater; soil drainage leaves the column |
-| modflow | groundwater handled externally by a coupled MODFLOW 6 model; SUMMA runs no aquifer of its own |
+| modflow | couple with MODFLOW 6 (no aquifer modelled in SUMMA) |
+| modLatflow | couple with MODFLOW 6 but allow lateral flow in the soil column (no aquifer modelled in SUMMA) |
 
 See also [`spatial_gw`](#spatial_gw), which sets whether the store is per column or per basin.
 
@@ -237,6 +238,16 @@ only available in a build configured with `-DUSE_MODFLOW6=ON` and must be run th
 with `groundwatr = modflow` is rejected at start-up. MODFLOW then supplies
 `scalarAquiferBaseflow` (routed into streamflow) and `scalarAquiferStorage`, and
 `scalarAquiferRecharge` is set equal to the soil-column drainage.
+
+`modLatflow` is `modflow` plus lateral flow through the soil column itself, for hillslopes
+where water moves downslope through the soil as well as recharging the aquifer. It shares
+every requirement of `modflow` above, and additionally **requires**
+[`hc_profile`](#hc_profile) `= exp_prof`: the lateral transmissivity is the vertical
+integral of the conductivity over the soil column alone, since MODFLOW carries everything
+below it, and the exponential profile is the one that integrates to a finite base rather
+than assuming a shallow aquifer of its own. That in turn requires
+[`infRateMax`](#infratemax) `= topmodel_GA` (or `noInfExc`). The lateral flow appears as
+`basin__ColumnOutflow` and is added to total runoff alongside the MODFLOW baseflow.
 
 <a id="hc_profile"></a>
 ## 18. hc_profile — hydraulic-conductivity profile
@@ -251,8 +262,9 @@ with `groundwatr = modflow` is rejected at start-up. MODFLOW then supplies
 depth and so require `topmodel_GA` (or `noInfExc`), which evaluates the conductivity at the wetting front.
 
 [`groundwatr`](#groundwatr) `qTopmodl` requires `pow_prof`, the only option whose transmissivity represents a shallow aquifer.
-`exp_prof` instead stops at an impermeable base, which suits glacier debris over ice or soil over an external aquifer, and is not
-yet selectable with `qTopmodl`. Glacier domains use it internally whatever this decision is set to.
+`exp_prof` instead stops at an impermeable base, so it is not selectable with `qTopmodl`; it is the profile for lateral flow with
+no shallow aquifer of its own, which is glacier debris over ice (used internally whatever this decision is set to) or soil over an
+external aquifer, and it is accordingly required by `modLatflow`.
 
 The decay rate for `exp_prof` is the parameter `f_hydCond` (m-1), default 3, a supraglacial-debris value; deep soil columns want a
 smaller one, since 3 m-1 leaves only ~1e-5 of the surface conductivity at 4 m.

@@ -85,6 +85,8 @@ USE mDecisions_module,only:   &
   expLaw_profile,             & ! exponential profile
   ! look-up values for the choice of groundwater parameterization
   qbaseTopmodel,              & ! TOPMODEL-ish baseflow parameterization
+  modflowCpl,                 & ! MODFLOW coupled parameterization
+  modLatFlow,                 & ! as modflowCpl, plus lateral flow in the soil above
   bigBucket,                  & ! a big bucket (lumped aquifer model)
   noExplicit                    ! no explicit groundwater parameterization
 

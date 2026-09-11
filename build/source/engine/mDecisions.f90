@@ -77,6 +77,7 @@ integer(i4b),parameter,public :: qbaseTopmodel        = 131    ! TOPMODEL-ish ba
 integer(i4b),parameter,public :: bigBucket            = 132    ! a big bucket (lumped aquifer model)
 integer(i4b),parameter,public :: noExplicit           = 133    ! no explicit groundwater parameterization
 integer(i4b),parameter,public :: modflowCpl           = 134    ! groundwater handled externally by a coupled MODFLOW 6 model (summa_modflow6)
+integer(i4b),parameter,public :: modLatFlow           = 135    ! as modflowCpl, plus TOPMODEL-ish lateral flow in the soil above the MODFLOW water table
 ! look-up values for the choice of hydraulic conductivity profile
 integer(i4b),parameter,public :: constant             = 141    ! constant hydraulic conductivity with depth
 integer(i4b),parameter,public :: powerLaw_profile     = 142    ! power-law profile
@@ -506,6 +507,13 @@ subroutine mDecisions(err,message)
 #else
       err=20; message=trim(message)//'groundwatr="modflow" requires building SUMMA with MODFLOW support (configure with -DUSE_MODFLOW6=ON and run the summa_modflow6 executable)'; return
 #endif
+    case('modLatflow')                                                                          ! as "modflow", plus lateral flow in the soil above
+#ifdef MODFLOW_ACTIVE
+      model_decisions(iLookDECISIONS%groundwatr)%iDecision = modLatFlow
+      mflowCoupledGW = .true.
+#else
+      err=20; message=trim(message)//'groundwatr="modLatflow" requires building SUMMA with MODFLOW support (configure with -DUSE_MODFLOW6=ON and run the summa_modflow6 executable)'; return
+#endif
     case default
       err=10; message=trim(message)//"unknown groundwater parameterization [option="//trim(model_decisions(iLookDECISIONS%groundwatr)%cDecision)//"]"; return
   end select
@@ -779,9 +787,20 @@ subroutine mDecisions(err,message)
 
   ! check the MODFLOW-coupled groundwater option uses a prescribed-head lower boundary for soil hydrology
   ! (the coupled MODFLOW 6 water table is passed to SUMMA each step through the "lowerBoundHead" parameter)
-  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == modflowCpl)then
+  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == modflowCpl .or. &
+     model_decisions(iLookDECISIONS%groundwatr)%iDecision == modLatFlow)then
     if(model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision /= prescribedHead)then
-      message=trim(message)//'lower boundary condition for soil hydrology must be prescribedHead with groundwatr="modflow" (set "bcLowrSoiH" to "presHead" in model decisions input file)'
+      message=trim(message)//'lower boundary condition for soil hydrology must be prescribedHead with groundwatr="modflow" or "modLatflow" (set "bcLowrSoiH" to "presHead" in model decisions input file)'
+      err=20; return
+    end if
+  end if
+
+  ! check the conductivity profile for the MODFLOW-coupled option that also does lateral flow in the soil
+  ! NOTE: the lateral transmissivity is the vertical integral of the conductivity over the soil column only, since MODFLOW carries
+  !       everything below it, which is exactly what exp_prof represents (finite base, no shallow aquifer of its own)
+  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == modLatFlow)then
+    if(model_decisions(iLookDECISIONS%hc_profile)%iDecision /= expLaw_profile)then
+      message=trim(message)//'an exponential hydraulic conductivity profile must be selected with groundwatr="modLatflow" (set "hc_profile" to "exp_prof" in model decisions input file)'
       err=20; return
     end if
   end if

@@ -81,7 +81,22 @@ program summa_modflow6
   use globalData,      only : data_step            ! length of a SUMMA data step (s)
   use globalData,      only : model_decisions      ! SUMMA model decision structure
   use var_lookup,      only : iLookDECISIONS       ! named indices into model_decisions
-  use mDecisions_module, only : modflowCpl, prescribedHead
+
+  ! look-up values for the choice of groundwater parameterization
+  USE mDecisions_module,only:       &
+   qbaseTopmodel,                   & ! TOPMODEL-ish baseflow parameterization
+   modflowCpl,                      & ! MODFLOW coupled groundwater parameterization
+   modLatFlow,                      & ! as modflowCpl, plus lateral flow in the soil above
+   bigBucket,                       & ! a big bucket (lumped aquifer model)
+   noExplicit                         ! no explicit groundwater parameterization
+  
+  ! look-up values for the choice of boundary conditions for hydrology
+  USE mDecisions_module,only:       &
+   prescribedHead,                  & ! prescribed head
+   funcBottomHead,                  & ! function of matric head in the lower-most layer
+   freeDrainage,                    & ! free drainage
+   liquidFlux,                      & ! liquid water flux
+   zeroFlux                           ! zero flux
 
   implicit none
 
@@ -236,8 +251,9 @@ contains
     if (istat /= BMI_OK) then; write(*,*) 'summa_modflow6: SUMMA initialize failed'; error stop 1; end if
 
     ! -- the coupled-groundwater decision must be active --
-    if (model_decisions(iLookDECISIONS%groundwatr)%iDecision /= modflowCpl) then
-      write(*,*) 'summa_modflow6: SUMMA model decision groundwatr must be "modflow" for the coupler'
+    if (model_decisions(iLookDECISIONS%groundwatr)%iDecision /= modflowCpl .and. &
+        model_decisions(iLookDECISIONS%groundwatr)%iDecision /= modLatFlow) then
+      write(*,*) 'summa_modflow6: SUMMA model decision groundwatr must be "modflow" or "modLatflow" for the coupler'
       error stop 1
     end if
     if (model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision /= prescribedHead) then

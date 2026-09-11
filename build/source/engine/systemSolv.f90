@@ -86,6 +86,8 @@ USE mDecisions_module,only:&
 ! look-up values for the choice of groundwater parameterization
 USE mDecisions_module,only:  &
                     qbaseTopmodel,& ! TOPMODEL-ish baseflow parameterization
+                    modflowCpl,   & ! MODFLOW coupled parameterization
+                    modLatFlow,   & ! as modflowCpl, plus lateral flow in the soil above
                     bigBucket,    & ! a big bucket (lumped aquifer model)
                     noExplicit      ! no explicit groundwater parameterization
 
@@ -333,7 +335,7 @@ contains
 
    ! identify the matrix solution method, using the full matrix can be slow in many-layered systems
    ! (the type of matrix used to solve the linear system A.X=B)
-   if (local_ixGroundwater==qbaseTopmodel .or. (nGlce>0 .and. nSoil>0) .or. scalarSolution .or. forceFullMatrix .or. computeVegFlux) then
+   if (local_ixGroundwater==qbaseTopmodel .or. local_ixGroundwater==modLatFlow .or. (nGlce>0 .and. nSoil>0) .or. scalarSolution .or. forceFullMatrix .or. computeVegFlux) then
      nLeadDim=nState         ! length of the leading dimension
      ixMatrix=ixFullMatrix   ! named variable to denote the full Jacobian matrix
    else
@@ -376,7 +378,7 @@ contains
    end if
 
    ! allocate space for the baseflow derivatives
-   if(ixGroundwater==qbaseTopmodel .or. (nGlce>0 .and. nSoil>0))then ! need the baseflow derivatives if have TOPMODEL groundwater or glacier debris (since debris has lateral flow)
+   if(ixGroundwater==qbaseTopmodel .or. ixGroundwater==modLatFlow .or. (nGlce>0 .and. nSoil>0))then ! need the baseflow derivatives if have TOPMODEL groundwater or glacier debris (since debris has lateral flow)
      allocate(dBaseflow_dWat(nSoil,nSoil),dBaseflow_dTk(nSoil,nSoil),stat=err)
    else
      allocate(dBaseflow_dWat(0,0),dBaseflow_dTk(0,0),stat=err)

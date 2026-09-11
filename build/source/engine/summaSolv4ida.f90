@@ -61,6 +61,8 @@ USE var_lookup,only:iLookINDEX      ! named variables for structure elements
 ! look-up values for the choice of groundwater parameterization
 USE mDecisions_module,only:       &
   qbaseTopmodel,                  & ! TOPMODEL-ish baseflow parameterization
+  modflowCpl,                     & ! MODFLOW coupled parameterization
+  modLatFlow,                     & ! as modflowCpl, plus lateral flow in the soil above
   bigBucket,                      & ! a big bucket (lumped aquifer model)
   noExplicit                        ! no explicit groundwater parameterization
 
@@ -321,7 +323,7 @@ subroutine summaSolv4ida(&
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
     
     ! allocate space for other variables
-    if(model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel .or. (nGlce>0 .and. nSoil>0))then ! need the baseflow derivatives if have TOPMODEL groundwater or glacier debris (since debris has lateral flow)
+    if(model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel .or. model_decisions(iLookDECISIONS%groundwatr)%iDecision==modLatFlow .or. (nGlce>0 .and. nSoil>0))then ! need the baseflow derivatives if have TOPMODEL groundwater or glacier debris (since debris has lateral flow)
       allocate(eqns_data%dBaseflow_dWat(nSoil,nSoil),eqns_data%dBaseflow_dTk(nSoil,nSoil),stat=err)
     else
       allocate(eqns_data%dBaseflow_dWat(0,0),eqns_data%dBaseflow_dTk(0,0),stat=err)
