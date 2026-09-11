@@ -255,7 +255,7 @@ than assuming a shallow aquifer of its own. That in turn requires
 | Option | Description |
 |---|---|
 | constant | saturated hydraulic conductivity constant with depth |
-| pow_prof | power-law decrease with depth, floored at the compacted value below `compactedDepth` |
+| pow_prof | power-law decrease with depth, normalized to `k_soil` at `compactedDepth` and reaching zero at the base of the soil |
 | exp_prof | exponential decrease with depth, `K(z) = k_soil * exp(-f_hydCond * z)`, finite at the base of the soil |
 
 `constant` means a homogeneous column, so it pairs with [`infRateMax`](#infratemax) `GreenAmpt`. `pow_prof` and `exp_prof` vary with
@@ -266,8 +266,12 @@ depth and so require `topmodel_GA` (or `noInfExc`), which evaluates the conducti
 no shallow aquifer of its own, which is glacier debris over ice (used internally whatever this decision is set to) or soil over an
 external aquifer, and it is accordingly required by `modLatflow`.
 
-The decay rate for `exp_prof` is the parameter `f_hydCond` (m-1), default 3, a supraglacial-debris value; deep soil columns want a
-smaller one, since 3 m-1 leaves only ~1e-5 of the surface conductivity at 4 m.
+`pow_prof` cannot be used with [`bcLowrSoiH`](#bclowrsoih) `presHead`: its conductivity is exactly zero at the base of the soil, so a
+prescribed head can drive no drainage. That rules it out for the MODFLOW-coupled options, which require `presHead`. Use `exp_prof`,
+which decays with depth but stays finite there.
+
+The decay rate for `exp_prof` is the parameter `f_hydCond` (m-1), default 0.75, a soil-column value leaving ~5% of the surface
+conductivity at 4 m. Supraglacial debris is 1-5 m-1 over a 0.3-1 m depth, so glacier runs should set it explicitly.
 
 <a id="bcupprtdyn"></a>
 ## 19. bcUpprTdyn — upper boundary condition, thermodynamics
