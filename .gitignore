@@ -61,6 +61,8 @@ test_ngen/domain_provo/simulations/*.csv
 # MODFLOW 6 test run output
 test_mflow/domain_sagehen/simulations/run_1/SUMMA/*.nc
 test_mflow/domain_sagehen/simulations/run_1/SUMMA/*.txt
+test_mflow/domain_cascade/simulations/run_1/SUMMA/*.nc
+test_mflow/domain_cascade/simulations/run_1/SUMMA/*.txt
 test_mflow/ex-gwf-sagehen/*.lst
 test_mflow/ex-gwf-sagehen/*.hds
 test_mflow/ex-gwf-sagehen/*.cbc

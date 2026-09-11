@@ -40,6 +40,11 @@ This folder contains a case study to show how a typical SUMMA setup looks coupli
   !   * contain an RCH package with READASARRAYS,
   !   * be a single GWF model discretised with DIS.
   !
+  ! coupler_commands.sh takes the config with  -c/--config PATH ; without it the config is
+  ! read from one directory above MODFLOW_CASE.  Passing it explicitly lets several cases
+  ! share one MODFLOW model directory while each keeps its own coupler settings (model and
+  ! package names, HRU->cell map_file, feedback), as test_mflow/domain_cascade does.
+  !
   ! Configuration (Fortran namelist), default file name "summa_modflow6.config":
   !
   !   &coupler
