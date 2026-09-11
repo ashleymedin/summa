@@ -20,10 +20,16 @@
 
 program summa_modflow6
   ! ****************************************************************************************
-  ! *** Thin BMI coupler: SUMMA land model  <-->  MODFLOW 6 groundwater model          ***
+  ! *** Thin BMI coupler: SUMMA land model  <-->  MODFLOW 6 groundwater model             ***
   ! ****************************************************************************************
   !
-  ! Each SUMMA data step:
+  ! See test_mflow/README.md for the same material with worked examples and two test cases.
+  !
+  ! Usage:  summa_modflow6.exe <fileManager.txt> <summa_modflow6.config>
+  !         or through test_mflow/coupler_commands.sh, which resolves paths and cds into the
+  !         MODFLOW case directory for you.
+  !
+  ! --- the exchange, once per SUMMA data step ---------------------------------------------
   !   1. (feedback) the MODFLOW 6 water-table head from the previous step is written into
   !      SUMMA as the prescribed-head lower boundary condition of the soil column
   !      (BMI input  "soil_water_sat-zone_top__head", parameter "lowerBoundHead").
@@ -36,19 +42,34 @@ program summa_modflow6
   !   5. the new MODFLOW 6 head field is read back and aggregated per SUMMA HRU,
   !      ready to be applied at step 1 of the next iteration (explicit, one-step lag).
   !
-  ! Coupling requires SUMMA to be built with -DUSE_MODFLOW6=ON (sets MODFLOW_ACTIVE) and
-  ! the SUMMA model decision  groundwatr = modflow  with  bcLowrSoiH = presHead.
+  ! With feedback = .true. two groundwater quantities are written back into SUMMA each step,
+  ! so its water balance and routed streamflow include the aquifer:
+  !     scalarAquiferStorage  = Sy * (MODFLOW water table - soil-column base)
+  !     scalarAquiferBaseflow = MODFLOW <bflow_package_name> outflow over the HRU footprint
+  ! (scalarAquiferRecharge is not exchanged - SUMMA sets it to its own soil drainage.)
   !
-  ! The MODFLOW 6 model (read from mfsim.nam in the working directory) must:
-  !   * use length unit metres and TDIS TIME_UNITS SECONDS,
-  !   * have exactly one MODFLOW time step per SUMMA forcing data step: MODFLOW delt
-  !     must equal SUMMA's data_step (taken from the forcing file's data_step
-  !     attribute, constant for the run; the coupler reads it at runtime and checks
-  !     it against MODFLOW delt).
-  !   * contain an RCH package with READASARRAYS,
-  !   * be a single GWF model discretised with DIS.
+  ! --- required SUMMA model decisions ------------------------------------------------------
+  ! Build with -DUSE_MODFLOW6=ON (sets MODFLOW_ACTIVE); a plain summa run with either
+  ! groundwater option below is rejected at start-up.
   !
-  ! Configuration (Fortran namelist), default file name "summa_modflow6.config":
+  !   groundwatr = modflow      bcLowrSoiH = presHead
+  !   groundwatr = modLatflow   bcLowrSoiH = presHead, hc_profile = exp_prof,
+  !                             infRateMax = topmodel_GA (or noInfExc)
+  !
+  ! modLatflow does the same coupling and additionally runs TOPMODEL-style lateral flow
+  ! through the soil column above the MODFLOW water table, for hillslopes where water moves
+  ! downslope through the soil as well as recharging the aquifer.  It requires exp_prof
+  ! because the lateral transmissivity is the vertical integral of the conductivity over the
+  ! soil column alone, MODFLOW carrying everything below it, and exp_prof is the profile that
+  ! integrates to a finite base rather than assuming a shallow aquifer of its own.  The
+  ! lateral flow is reported as basin__ColumnOutflow and added to total runoff alongside the
+  ! MODFLOW baseflow.
+  !
+  ! The MODFLOW 6 model is read from mfsim.nam in the working directory.  What the coupler
+  ! requires of it is checked at start-up by check_mf6_model (units, DIS, RCH READASARRAYS)
+  ! and on the first step (one MODFLOW time step per SUMMA data step); see test_mflow/README.md.
+  !
+  ! --- configuration -----------------------------------------------------------------------
   !
   !   &coupler
   !     mf6_model_name     = 'MYMODEL' ! GWF model name, as in mfsim.nam (upper case)
@@ -66,13 +87,10 @@ program summa_modflow6
   !     feedback           = .true.    ! .false. => one-way (SUMMA drainage -> MODFLOW only)
   !   /
   !
-  ! With feedback = .true. the coupler writes two groundwater quantities back into SUMMA
-  ! each step so its water balance and routed streamflow include the aquifer:
-  !     scalarAquiferStorage  = Sy * (MODFLOW water table - soil-column base)
-  !     scalarAquiferBaseflow = MODFLOW <bflow_package_name> outflow over the HRU footprint
-  ! (scalarAquiferRecharge is not exchanged - SUMMA sets it to its own soil drainage.)
-  !
-  ! Usage:  summa_modflow6.exe <fileManager.txt> [summa_modflow6.config]
+  ! map_file format: one "iHRU  cell  weight" triple per line (whitespace separated; blank
+  ! lines and '#' comments ignored).  cell is the row-major horizontal MODFLOW index
+  ! (irow-1)*ncol + icol; weights are normalised per HRU, so put e.g. 1.0 on every line to
+  ! spread an HRU over its cells.  An HRU may span any number of lines.
 
   use, intrinsic :: iso_c_binding
   use nr_type
@@ -214,13 +232,14 @@ contains
     integer :: fu, rc, nred_len
 
     ! -- command line: file manager (required), config file (optional) --
-    if (command_argument_count() < 1) then
-      write(*,*) 'usage: summa_modflow6 <fileManager.txt> [summa_modflow6.config]'
+    if (command_argument_count() < 2) then
+      write(*,*) 'usage: summa_modflow6 <fileManager.txt> <summa_modflow6.config>'
+      write(*,*) '  the config is required: each case keeps its own beside its settings, so several'
+      write(*,*) '  cases can share one MODFLOW model directory'
       error stop 1
     end if
     call get_command_argument(1, file_manager)
-    config_file = 'summa_modflow6.config'
-    if (command_argument_count() >= 2) call get_command_argument(2, config_file)
+    call get_command_argument(2, config_file)
 
     open(action='read', file=trim(config_file), iostat=rc, newunit=fu)
     if (rc /= 0) then
@@ -277,6 +296,7 @@ contains
     if (istat /= BMI_OK) then; write(*,*) 'summa_modflow6: MODFLOW 6 initialize failed'; error stop 1; end if
 
     ! -- DIS grid dimensions, then pointers to the MODFLOW 6 arrays we exchange --
+    call check_mf6_model
     call mf6_ptr_int_arr(trim(mf6_model_name)//'/DIS/MSHAPE', mf6_mshape, 3)
     nlay = mf6_mshape(1); nrow = mf6_mshape(2); ncol = mf6_mshape(3)
     call mf6_ptr_double(trim(mf6_model_name)//'/X', mf6_head, &
@@ -552,7 +572,127 @@ contains
     else
       call build_nearest_cell_map
     end if
+
+    call check_hru_elevation
   end subroutine build_map
+
+  ! The coupler makes a handful of assumptions about the MODFLOW 6 model it is handed, and every
+  ! one of them fails silently rather than loudly if it is wrong: fluxes off by a fixed factor,
+  ! a water table interpreted in the wrong units, recharge landing on the wrong cells.  Check
+  ! them here, right after mf6_initialize, before any of it can be mistaken for a bad simulation.
+  ! test_mflow/README.md states the same requirements for whoever builds the MODFLOW model.
+  subroutine check_mf6_model
+    integer(c_int), pointer :: itmuni(:) => null(), lenuni(:) => null(), mshape(:) => null()
+    real(c_double), pointer :: rch(:) => null()
+    integer(c_int) :: nbytes, isize
+    integer :: ncpl
+    character(len=12), parameter :: tunit(0:5) = [ character(len=12) :: &
+        'undefined', 'seconds', 'minutes', 'hours', 'days', 'years' ]
+    character(len=12), parameter :: lunit(0:3) = [ character(len=12) :: &
+        'undefined', 'feet', 'meters', 'centimeters' ]
+
+    ! -- time unit: SUMMA's data_step and every flux exchanged here are per second --
+    if (mf6_try_ptr_int('TDIS/ITMUNI', itmuni)) then
+      if (itmuni(1) == 0) then
+        write(*,'(a)') 'summa_modflow6: WARNING - TDIS has no TIME_UNITS; assuming SECONDS. '// &
+              'The MODFLOW delt check below is then the only guard on the time unit.'
+      else if (itmuni(1) /= 1) then
+        write(*,'(a)') 'summa_modflow6: TDIS TIME_UNITS must be SECONDS, not '// &
+              trim(tunit(min(max(itmuni(1),0),5)))
+        error stop 1
+      end if
+    end if
+
+    ! -- length unit: heads, elevations and cell geometry are all read as metres --
+    if (mf6_try_ptr_int(trim(mf6_model_name)//'/DIS/LENUNI', lenuni)) then
+      if (lenuni(1) == 0) then
+        write(*,'(a)') 'summa_modflow6: WARNING - DIS has no LENGTH_UNITS; assuming METERS. '// &
+              'HRU elevations are checked against DIS TOP below, which will catch feet.'
+      else if (lenuni(1) /= 2) then
+        write(*,'(a)') 'summa_modflow6: DIS LENGTH_UNITS must be METERS, not '// &
+              trim(lunit(min(max(lenuni(1),0),3)))
+        error stop 1
+      end if
+    end if
+
+    ! -- a single GWF model: anything else in the simulation is simply not coupled --
+    if (mf6_get_var_nbytes(cstr('__INPUT__/SIM/NAM/MTYPE'), nbytes) == BMI_OK .and. &
+        mf6_get_var_itemsize(cstr('__INPUT__/SIM/NAM/MTYPE'), isize) == BMI_OK) then
+      if (isize > 0 .and. nbytes/isize > 1) &
+        write(*,'(a,i0,a)') 'summa_modflow6: WARNING - mfsim.nam lists ', nbytes/isize, &
+              ' models; only '//trim(mf6_model_name)//' is coupled to SUMMA'
+    end if
+
+    ! -- discretised with DIS: MSHAPE is (nlay,nrow,ncol) for DIS, shorter for DISV/DISU, and
+    !    the HRU->cell map, the nearest-cell map and the RCH array all index a structured grid
+    if (.not. mf6_try_ptr_int(trim(mf6_model_name)//'/DIS/MSHAPE', mshape)) then
+      write(*,'(a)') 'summa_modflow6: no DIS grid found for GWF model '//trim(mf6_model_name)// &
+            ' - check mf6_model_name in the config (upper case, as in mfsim.nam); the coupler '// &
+            'requires a single GWF model discretised with DIS, not DISV or DISU'
+      error stop 1
+    end if
+    if (size(mshape) /= 3) then
+      write(*,'(a,i0,a)') 'summa_modflow6: '//trim(mf6_model_name)//' is not a DIS grid '// &
+            '(MSHAPE has ', size(mshape), ' entries, DIS has 3); DISV and DISU are not supported'
+      error stop 1
+    end if
+    ncpl = mshape(2) * mshape(3)
+
+    ! -- RCH with READASARRAYS: RECHARGE is then one value per horizontal cell, which is what
+    !    scatter_drainage_to_rch writes into; a list-based RCH gives one value per list entry
+    if (.not. mf6_try_ptr_double(trim(mf6_model_name)//'/'//trim(rch_package_name)// &
+                                 '/RECHARGE', rch)) then
+      write(*,'(a)') 'summa_modflow6: no RCH package '//trim(rch_package_name)//' in GWF model '// &
+            trim(mf6_model_name)//' - check rch_package_name in the config (upper case, as in '// &
+            'the GWF name file)'
+      error stop 1
+    end if
+    if (size(rch) /= ncpl) then
+      write(*,'(a,i0,a,i0,a)') 'summa_modflow6: RCH package '//trim(rch_package_name)// &
+            ' must be declared READASARRAYS: its RECHARGE array has ', size(rch), &
+            ' entries, not one per horizontal cell (', ncpl, ')'
+      error stop 1
+    end if
+  end subroutine check_mf6_model
+
+  ! Each HRU's SUMMA elevation must be the land surface of the MODFLOW cells it maps to, because
+  ! gather_head_to_hru forms  lowerBoundHead = h_mf6 - (z_surface_HRU - soil_thickness).  If the two
+  ! disagree the soil column is handed a water table that is metres above or below it, and SUMMA
+  ! fails to converge with no indication of why, so check it up front rather than leave it to chance.
+  subroutine check_hru_elevation
+    real(c_double), pointer :: mf6_top(:) => null()
+    real(c_double) :: zsum, wsum, ztop
+    integer :: i, k, c, node, nbad
+    real(c_double), parameter :: z_tol = 10.0_c_double   ! m, generous: catches wrong-band mistakes
+
+    call mf6_ptr_double(trim(mf6_model_name)//'/DIS/TOP', mf6_top, &
+                        mf6_var_count(trim(mf6_model_name)//'/DIS/TOP'))
+    if (.not. associated(mf6_top)) return      ! nothing to check against
+    nbad = 0
+    do i = 1, nHRU
+      zsum = 0.0_c_double; wsum = 0.0_c_double
+      do k = map_ptr(i), map_ptr(i+1) - 1
+        c = map_cell(k)
+        node = top_active_node(c)            ! DIS/TOP is in reduced node numbering, as DIS/X is
+        if (node < 1 .or. node > size(mf6_top)) cycle
+        zsum = zsum + real(map_wgt(k), c_double) * mf6_top(node)
+        wsum = wsum + real(map_wgt(k), c_double)
+      end do
+      if (wsum <= 0.0_c_double) cycle
+      ztop = zsum / wsum
+      if (abs(ztop - real(hru_z(i), c_double)) > z_tol) then
+        nbad = nbad + 1
+        write(*,'(a,i0,2(a,f10.2),a)') 'summa_modflow6: HRU ', i, ' elevation ', hru_z(i), &
+          ' m disagrees with the mean land surface of its MODFLOW cells, ', ztop, ' m'
+      end if
+    end do
+    if (nbad > 0) then
+      write(*,'(a)') 'summa_modflow6: set each HRU elevation in attributes.nc to the mean land '// &
+        'surface of the cells it maps to, or fix the map_file; lowerBoundHead is formed from the '// &
+        'difference, so a mismatch puts the water table off the soil column.'
+      error stop 1
+    end if
+  end subroutine check_hru_elevation
 
   real(c_double) function cell_spacing(centres, idx, ncell) result(d)
     real(c_double), intent(in) :: centres(:)
@@ -573,6 +713,16 @@ contains
   ! however many cells are nearest to it - unlike a per-HRU nearest-cell search,
   ! this needs no per-HRU cell count ahead of time and gives every active cell to
   ! exactly one HRU (matching what a hand-built map_file for a lumped HRU would do).
+  !
+  ! --- mapping HRUs to cells ---------------------------------------------------------------
+  ! HRUs may each own a disjoint set of cells, down to one cell per HRU; they need not overlap
+  ! and need not cover the whole grid.
+  !
+  ! An HRU's elevation in attributes.nc must be the mean land surface of the cells it maps to,
+  ! since gather_head_to_hru forms
+  !     lowerBoundHead = h_mf6 - (z_surface_HRU - soil_thickness)
+  ! and a mismatch hands the soil column a water table metres above or below it.  That is
+  ! checked against DIS/TOP in check_hru_elevation at start-up rather than left to chance.
   !
   ! CAVEAT: SUMMA HRU centres (hru_x, hru_y) are typically longitude/latitude
   ! (degrees) while the MODFLOW DIS grid (cellx, celly) is in a projected CRS

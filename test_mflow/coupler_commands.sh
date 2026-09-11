@@ -25,11 +25,12 @@
 # cell is the row-major horizontal MODFLOW index (irow-1)*ncol + icol; weights are
 # normalised per HRU, so put e.g. 1.0 on every line to spread an HRU over its cells.
 #
-# Usage:  ./coupler_commands.sh [-c CONFIG] MODFLOW_CASE SUMMA_FILEMANAGER [summa_modflow6.exe]
+# Usage:  ./coupler_commands.sh -c CONFIG MODFLOW_CASE SUMMA_FILEMANAGER [summa_modflow6.exe]
 #
-#   -c, --config CONFIG   path to summa_modflow6.config.  Default: MODFLOW_CASE/../summa_modflow6.config,
-#                         so several cases can share one MODFLOW model directory while each keeps its own
-#                         coupler settings (model/package names, HRU->cell map_file, feedback).
+#   -c, --config CONFIG   path to this case's summa_modflow6.config (required).  Each case keeps its
+#                         own config beside its settings, so several cases can share one MODFLOW model
+#                         directory while differing in model/package names, HRU->cell map_file and
+#                         feedback.
 # ---------------------------------------------------------------------------------------
 set -euo pipefail
 
@@ -43,8 +44,9 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-MODFLOW_CASE=${1:?"usage: $0 [-c CONFIG] MODFLOW_CASE SUMMA_FILEMANAGER [summa_modflow6_exe]"}
-SUMMA_FILEMANAGER=${2:?"usage: $0 [-c CONFIG] MODFLOW_CASE SUMMA_FILEMANAGER [summa_modflow6_exe]"}
+MODFLOW_CASE=${1:?"usage: $0 -c CONFIG MODFLOW_CASE SUMMA_FILEMANAGER [summa_modflow6_exe]"}
+SUMMA_FILEMANAGER=${2:?"usage: $0 -c CONFIG MODFLOW_CASE SUMMA_FILEMANAGER [summa_modflow6_exe]"}
+[ -n "$CONFIG_ARG" ] || { echo "$0: -c/--config is required (each case has its own summa_modflow6.config)"; exit 1; }
 if [ $# -ge 3 ]; then
   EXE=$3
 else
@@ -55,15 +57,10 @@ else
 fi
 
 # Resolve to absolute paths so they survive the cd into MODFLOW_CASE.
-# Without -c, summa_modflow6.config is taken one directory ABOVE mfsim.nam (i.e. above MODFLOW_CASE).
 EXE=$(cd "$(dirname "$EXE")" 2>/dev/null && pwd)/$(basename "$EXE") || true
 FILE_MANAGER=$(cd "$(dirname "$SUMMA_FILEMANAGER")" 2>/dev/null && pwd)/$(basename "$SUMMA_FILEMANAGER") || true
-if [ -n "$CONFIG_ARG" ]; then
-  CONFIG=$(cd "$(dirname "$CONFIG_ARG")" 2>/dev/null && pwd)/$(basename "$CONFIG_ARG") || true
-  [ -f "$CONFIG" ] || CONFIG=$CONFIG_ARG   # unresolvable: keep what was typed, for the error below
-else
-  CONFIG=$(cd "$MODFLOW_CASE/.." 2>/dev/null && pwd)/summa_modflow6.config || true
-fi
+CONFIG=$(cd "$(dirname "$CONFIG_ARG")" 2>/dev/null && pwd)/$(basename "$CONFIG_ARG") || true
+[ -f "$CONFIG" ] || CONFIG=$CONFIG_ARG   # unresolvable: keep what was typed, for the error below
 
 [ -x "$EXE" ]                    || { echo "coupler executable not found/executable: $EXE"; exit 1; }
 [ -f "$MODFLOW_CASE/mfsim.nam" ] || { echo "missing $MODFLOW_CASE/mfsim.nam"; exit 1; }
