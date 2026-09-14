@@ -91,7 +91,7 @@ USE mDecisions_module,only:       &
  modflowCpl,                      & ! MODFLOW coupled groundwater parameterization
  modLatFlow,                      & ! as modflowCpl, plus lateral flow in the soil above
  bigBucket,                       & ! a big bucket (lumped aquifer model)
- noExplicit                        ! no explicit groundwater parameterization
+ noExplicit                         ! no explicit groundwater parameterization
 
 ! look-up values for the choice of method for the spatial representation of groundwater
 USE mDecisions_module,only:       & 

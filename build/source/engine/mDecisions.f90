@@ -20,7 +20,11 @@
 
 module mDecisions_module
 USE nr_type
+USE globalData, only: isPrint          ! flag to enable informational screen/log output
 USE var_lookup, only: maxvarDecisions  ! maximum number of decisions
+USE build_options, only: ngen_active      ! flag for nextgen
+USE build_options, only: sundials_active  ! flag for the SUNDIALS solvers
+USE build_options, only: modflow_active   ! flag for the MODFLOW 6 coupler
 implicit none
 private
 public::mDecisions
@@ -304,10 +308,10 @@ subroutine mDecisions(err,message)
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
   ! check start and finish time
-#ifndef NGEN_ACTIVE
-  write(*,'(a,i4,1x,4(i2,1x))') 'startTime: iyyy, im, id, ih, imin = ', startTime%var(1:5)
-  write(*,'(a,i4,1x,4(i2,1x))') 'finshTime: iyyy, im, id, ih, imin = ', finshTime%var(1:5)
-#endif
+  if (.not.ngen_active)then
+    if(isPrint) write(*,'(a,i4,1x,4(i2,1x))') 'startTime: iyyy, im, id, ih, imin = ', startTime%var(1:5)
+    if(isPrint) write(*,'(a,i4,1x,4(i2,1x))') 'finshTime: iyyy, im, id, ih, imin = ', finshTime%var(1:5)
+  endif
   ! check that simulation end time is > start time
   if(dJulianFinsh < dJulianStart)then; err=20; message=trim(message)//'end time of simulation occurs before start time'; return; end if
 
@@ -430,11 +434,11 @@ subroutine mDecisions(err,message)
   end select
 
   ! make sure compiled with SUNDIALS if want to use it
-#ifndef SUNDIALS_ACTIVE
-  if(model_decisions(iLookDECISIONS%num_method)%iDecision==ida .or. model_decisions(iLookDECISIONS%num_method)%iDecision==kinsol)then
-    err=20; message=trim(message)//'cannot use num_method as ida or kinsol if did not compile with -DCMAKE_BUILD_TYPE=Sundials'; return
+  if(.not.sundials_active)then
+    if(model_decisions(iLookDECISIONS%num_method)%iDecision==ida .or. model_decisions(iLookDECISIONS%num_method)%iDecision==kinsol)then
+      err=20; message=trim(message)//'cannot use num_method as ida or kinsol if did not compile with -DCMAKE_BUILD_TYPE=Sundials'; return
+    endif
   endif
-#endif
 
   ! choice of variable in either energy backward Euler residual or IDA state variable 
   ! for backward Euler solution, enthalpyFormAN has better coincidence of energy conservation
@@ -501,19 +505,17 @@ subroutine mDecisions(err,message)
     case('bigBuckt'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = bigBucket           ! a big bucket (lumped aquifer model)
     case('noXplict'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = noExplicit          ! no explicit groundwater parameterization
     case('modflow')                                                                             ! groundwater handled by a coupled MODFLOW 6 model
-#ifdef MODFLOW_ACTIVE
+      if(.not.modflow_active)then
+        err=20; message=trim(message)//'groundwatr="modflow" requires building SUMMA with MODFLOW support (configure with -DUSE_MODFLOW6=ON and run the summa_modflow6 executable)'; return
+      endif
       model_decisions(iLookDECISIONS%groundwatr)%iDecision = modflowCpl
       mflowCoupledGW = .true.
-#else
-      err=20; message=trim(message)//'groundwatr="modflow" requires building SUMMA with MODFLOW support (configure with -DUSE_MODFLOW6=ON and run the summa_modflow6 executable)'; return
-#endif
     case('modLatflow')                                                                          ! as "modflow", plus lateral flow in the soil above
-#ifdef MODFLOW_ACTIVE
+      if(.not.modflow_active)then
+        err=20; message=trim(message)//'groundwatr="modLatflow" requires building SUMMA with MODFLOW support (configure with -DUSE_MODFLOW6=ON and run the summa_modflow6 executable)'; return
+      endif
       model_decisions(iLookDECISIONS%groundwatr)%iDecision = modLatFlow
       mflowCoupledGW = .true.
-#else
-      err=20; message=trim(message)//'groundwatr="modLatflow" requires building SUMMA with MODFLOW support (configure with -DUSE_MODFLOW6=ON and run the summa_modflow6 executable)'; return
-#endif
     case default
       err=10; message=trim(message)//"unknown groundwater parameterization [option="//trim(model_decisions(iLookDECISIONS%groundwatr)%cDecision)//"]"; return
   end select
@@ -759,35 +761,28 @@ subroutine mDecisions(err,message)
   end select
 
   ! check the conductivity profile is compatible with the topmodel baseflow option
-  ! NOTE: elsewhere hc_profile only sets the vertical conductivity, since computBaseflow runs for qTopmodl (and glaciers) alone,
-  !       so exp_prof is unrestricted there. Only with qTopmodl does it change the transmissivity, to the finite impermeable base
-  !       form that has no aquifer beneath, which is the MODFLOW-coupled case and is not enabled yet. Glacier domains do not need
-  !       it selectable, they override to expLaw_profile internally in satHydCond, soilLiqFlux and computBaseflow.
+  ! NOTE: hc_profile only sets the vertical conductivity, except where computBaseflow also uses it for transmissivity:
+  !       qTopmodl (pow_prof, the classical TOPMODEL form) here, and modLatFlow (exp_prof, the finite-base form for
+  !       lateral flow above the MODFLOW water table) below. Glacier domains override to exp_prof internally.
   select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
     case(qbaseTopmodel)
       if(model_decisions(iLookDECISIONS%hc_profile)%iDecision == expLaw_profile)then
-        message=trim(message)//'the exponential hydraulic conductivity profile is not yet selectable with the topmodel baseflow &
-          &option: it makes the transmissivity the finite impermeable base form, lateral flow with no shallow aquifer beneath, &
-          &which is reserved for the MODFLOW coupled aquifer (set "hc_profile" to "pow_prof" in model decisions input file)'
+        message=trim(message)//'exp_prof is the finite-base transmissivity form for modLatFlow, not qTopmodl &
+          &(set "hc_profile" to "pow_prof")'
         err=20; return
       end if
       if(model_decisions(iLookDECISIONS%hc_profile)%iDecision /= powerLaw_profile)then
-        message=trim(message)//'a power-law hydraulic conductivity profile must be selected when using topmodel baseflow option (set "hc_profile" to "pow_prof" in model decisions input file)'
+        message=trim(message)//'qTopmodl requires hc_profile = pow_prof'
         err=20; return
       end if
   end select
 
   ! check the conductivity profile is compatible with the lower boundary condition
-  ! NOTE: the power-law conductivity reaches exactly zero at the base of the soil, so iLayerSatHydCond(nSoil)
-  !       is zero and the prescribed-head drainage flux, scalarDrainage = cflux + bottomSatHydCond, is
-  !       identically zero whatever head is prescribed. That is a silent no-op, so reject it rather than
-  !       flooring the profile: use exp_prof, which decays with depth but stays finite at the base. This is
-  !       also why the MODFLOW-coupled options, which require presHead, cannot run a power-law profile.
+  ! NOTE: pow_prof conductivity is exactly zero at the soil base, so a prescribed-head drainage flux is always
+  !       zero - a silent no-op - reject it rather than flooring the profile.
   if(model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision == prescribedHead .and. &
      model_decisions(iLookDECISIONS%hc_profile)%iDecision == powerLaw_profile)then
-    message=trim(message)//'a power-law hydraulic conductivity profile cannot be used with a prescribed-head lower &
-      &boundary: the conductivity is zero at the base of the soil, so the prescribed head can drive no drainage &
-      &(set "hc_profile" to "exp_prof" or "constant" in model decisions input file)'
+    message=trim(message)//'pow_prof conductivity is zero at the base of the soil, so presHead can drive no drainage (set "hc_profile" to "exp_prof" or "constant")'
     err=20; return
   end if
 
@@ -819,11 +814,9 @@ subroutine mDecisions(err,message)
     end if
   end if
   
-  ! check that the maximum infiltration rate assumption matches the hydraulic conductivity profile
-  ! NOTE: the two infiltration options differ in whether the conductivity varies with depth, which is an hc_profile property and
-  !       not a groundwatr one. GreenAmpt assumes homogeneous soil and uses the surface conductivity, topmodel_GA evaluates the
-  !       hc_profile conductivity at the wetting front, and noInfExc uses neither. The qTopmodl requirement follows from this,
-  !       since qTopmodl already requires a depth-varying profile.
+  ! check infRateMax matches the hydraulic conductivity profile (an hc_profile property, not groundwatr)
+  ! NOTE: GreenAmpt assumes homogeneous soil (surface conductivity); topmodel_GA evaluates conductivity at the
+  !       wetting front, so needs a depth-varying profile - which is also why qTopmodl requires it; noInfExc uses neither.
   select case(model_decisions(iLookDECISIONS%hc_profile)%iDecision)
     case(powerLaw_profile, expLaw_profile)
       if(model_decisions(iLookDECISIONS%infRateMax)%iDecision /= topModel_GA .and. &
@@ -839,10 +832,9 @@ subroutine mDecisions(err,message)
       end if
   end select
 
-  ! BigBucket means we have an aquifer below the soil column, for which Green-Ampt is the most basic assumption. TOPMODEL_GA is not appropriate for this but for backward compatability we throw a warning instead of a graceful exit
-  ! NOTE: only advise this for a constant conductivity profile. With a depth-varying profile the check above requires topmodel_GA,
-  !       so advising GreenAmpt here would contradict it, and escalating this to an error would leave that combination with no
-  !       legal infRateMax at all
+  ! bigBucket's aquifer below the soil column suits GreenAmpt best; topmodel_GA only warns (not errors) for backward compatibility.
+  ! NOTE: only for hc_profile=constant - with a depth-varying profile the check above already requires topmodel_GA, so advising
+  !       GreenAmpt here would contradict it and leave that combination with no legal infRateMax.
   select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
     case(bigBucket)
       if(model_decisions(iLookDECISIONS%infRateMax)%iDecision == topModel_GA .and. &
@@ -886,9 +878,9 @@ subroutine readoption(err,message)
   err=0; message='readoption/'
   ! build filename
   infile = trim(SETTINGS_PATH)//trim(M_DECISIONS)
-#ifndef NGEN_ACTIVE
-  write(*,'(2(a,1x))') 'decisions file = ', trim(infile)
-#endif
+  if (.not.ngen_active)then
+    if(isPrint) write(*,'(2(a,1x))') 'decisions file = ', trim(infile)
+  endif
   ! open file
   call file_open(trim(infile),unt,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
@@ -906,9 +898,9 @@ subroutine readoption(err,message)
     if (err/=0) then; err=30; message=trim(message)//"errorReadLine"; return; end if
     ! get the index of the decision in the data structure
     iVar = get_ixdecisions(trim(option))
-#ifndef NGEN_ACTIVE
-    write(*,'(i4,1x,a)') iDecision, trim(option)//': '//trim(decision)
-#endif
+    if (.not.ngen_active)then
+      if(isPrint) write(*,'(i4,1x,a)') iDecision, trim(option)//': '//trim(decision)
+    endif
     if(iVar<=0)then; err=40; message=trim(message)//"cannotFindDecisionIndex[name='"//trim(option)//"']"; return; end if
     ! populate the model decisions structure
     model_decisions(iVar)%cOption   = trim(option)

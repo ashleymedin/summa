@@ -267,8 +267,7 @@ no shallow aquifer of its own, which is glacier debris over ice (used internally
 external aquifer, and it is accordingly required by `modLatflow`.
 
 `pow_prof` cannot be used with [`bcLowrSoiH`](#bclowrsoih) `presHead`: its conductivity is exactly zero at the base of the soil, so a
-prescribed head can drive no drainage. That rules it out for the MODFLOW-coupled options, which require `presHead`. Use `exp_prof`,
-which decays with depth but stays finite there.
+prescribed head can drive no drainage. That rules it out for the MODFLOW-coupled options, which require `presHead`. Use `exp_prof`, which decays with depth but stays finite there.
 
 The decay rate for `exp_prof` is the parameter `f_hydCond` (m-1), default 0.75, a soil-column value leaving ~5% of the surface
 conductivity at 4 m. Supraglacial debris is 1-5 m-1 over a 0.3-1 m depth, so glacier runs should set it explicitly.
