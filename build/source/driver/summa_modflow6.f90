@@ -23,10 +23,10 @@ program summa_modflow6
   ! *** Thin BMI coupler: SUMMA land model  <-->  MODFLOW 6 groundwater model             ***
   ! ****************************************************************************************
   !
-  ! See test_mflow/README.md for the same material with worked examples and two test cases.
+  ! See utils/test/test_mflow/README.md for the same material with worked examples and two test cases.
   !
   ! Usage:  summa_modflow6.exe <fileManager.txt> <summa_modflow6.config>
-  !         or through test_mflow/coupler_commands.sh, which resolves paths and cds into the
+  !         or through utils/test/test_mflow/coupler_commands.sh, which resolves paths and cds into the
   !         MODFLOW case directory for you.
   !
   ! --- the exchange, once per SUMMA data step ---------------------------------------------
@@ -67,7 +67,7 @@ program summa_modflow6
   !
   ! The MODFLOW 6 model is read from mfsim.nam in the working directory.  What the coupler
   ! requires of it is checked at start-up by check_mf6_model (units, DIS, RCH READASARRAYS)
-  ! and on the first step (one MODFLOW time step per SUMMA data step); see test_mflow/README.md.
+  ! and on the first step (one MODFLOW time step per SUMMA data step); see utils/test/test_mflow/README.md.
   !
   ! --- configuration -----------------------------------------------------------------------
   !
@@ -580,7 +580,7 @@ contains
   ! one of them fails silently rather than loudly if it is wrong: fluxes off by a fixed factor,
   ! a water table interpreted in the wrong units, recharge landing on the wrong cells.  Check
   ! them here, right after mf6_initialize, before any of it can be mistaken for a bad simulation.
-  ! test_mflow/README.md states the same requirements for whoever builds the MODFLOW model.
+  ! utils/test/test_mflow/README.md states the same requirements for whoever builds the MODFLOW model.
   subroutine check_mf6_model
     integer(c_int), pointer :: itmuni(:) => null(), lenuni(:) => null(), mshape(:) => null()
     real(c_double), pointer :: rch(:) => null()
