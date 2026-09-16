@@ -33,6 +33,15 @@ option(USE_MODFLOW6 "Build the summa_modflow6 SUMMA/MODFLOW 6 coupler executable
 # directory that contains the MODFLOW 6 shared library (libmf6); required with USE_MODFLOW6
 set(MODFLOW6_LIB_DIR "" CACHE PATH "directory containing the MODFLOW 6 shared library (libmf6)")
 option(USE_MPI "Use MPI parallelization" OFF)
+option(USE_TOML "Build the TOML configuration reader (needed for -c)" OFF)
+
+# The TOML reader is only wanted by things that actually read TOML: the mizuRoute
+# configuration, and the calibration driver's run manifest (built with MPI). A plain run
+# driven by a file manager never touches it, so it is off unless something needs it and
+# the toml-f submodule is then not required either.
+if (USE_MIZUROUTE OR USE_MPI)
+    set(USE_TOML ON)
+endif()
 set(EXT_TARGETS) # list of external targets to link to
 
 # Set top-level directory
@@ -123,26 +132,34 @@ if (USE_MPI)
 
     find_package(MPI REQUIRED COMPONENTS Fortran)
 
+    add_library(PARALLEL_UTILS STATIC
+        source/parallel/mpi_context.f90
+        source/parallel/error_utils.f90
+    )
+
+    target_link_libraries(PARALLEL_UTILS PUBLIC
+        SUMMA_NRTYPE
+        MPI::MPI_Fortran
+    )
+endif()
+
+# TOML parser
+# NOTE: paths here are relative to F_MASTER, not to this file, because this same file is
+#       also used as ngen/extern/summa/CMakeLists.txt, where the SUMMA source sits one
+#       directory deeper. F_MASTER accounts for that; see above.
+if (USE_TOML)
+    message("ENABLING TOML CONFIGURATION READER")
+    add_compile_definitions(TOML_ACTIVE)
+    set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
     add_subdirectory(
-        ${F_MASTER}/external/parallel-utils
-        ${CMAKE_BINARY_DIR}/parallel-utils
+        ${F_MASTER}/external/toml-f
+        ${CMAKE_BINARY_DIR}/toml-f
     )
 endif()
 
 # mizuRoute
 if (USE_MIZUROUTE)
-
-    # TOML parser, used only by the mizuRoute configuration reader
-    set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-
-    # NOTE: paths here are relative to F_MASTER, not to this file, because this same
-    #       file is also used as ngen/extern/summa/CMakeLists.txt, where the SUMMA
-    #       source sits one directory deeper. F_MASTER accounts for that; see above.
-    add_subdirectory(
-        ${F_MASTER}/external/toml-f
-        ${CMAKE_BINARY_DIR}/toml-f
-    )
 
     message("ENABLING MIZUROUTE")
 
@@ -177,6 +194,13 @@ endif()
 
 set(EXEC_NAME     "summa${EXEC_SUFFIX}.exe")
 set(EXEC_NAME_MPI "summa${EXEC_SUFFIX}_mpi.exe")
+set(EXEC_NAME_OPT "summa${EXEC_SUFFIX}_opt.exe")
+
+message("Executable name: ${EXEC_NAME}")
+if (USE_MPI)
+    message("MPI executable name: ${EXEC_NAME_MPI}")
+    message("calibration executable name: ${EXEC_NAME_OPT}")
+endif()
 
 get_filename_component(F_MASTER "${F_MASTER}" REALPATH)
 get_filename_component(PARENT_DIR "${PARENT_DIR}" REALPATH)
@@ -240,6 +264,7 @@ endif()
 set(DRIVER_DIR ${F_MASTER}/build/source/driver)
 set(OBJFNC_DIR ${F_MASTER}/build/source/objfunc)
 set(DSHARE_DIR ${F_MASTER}/build/source/dshare)
+set(CALIBR_DIR ${F_MASTER}/build/source/calibration)
 set(ENGINE_DIR ${F_MASTER}/build/source/engine)
 set(HOOKUP_DIR ${F_MASTER}/build/source/hookup)
 set(NETCDF_DIR ${F_MASTER}/build/source/netcdf)
@@ -262,7 +287,12 @@ set_source_files_properties(${NOAHMP} PROPERTIES Fortran_FORMAT FREE)
 #=========================================================================================
 
 set(COMM_ALL ${NRPROC} ${HOOKUP} ${DATAMS} ${UTILMS})
-set(SUMMA_ALL ${NETCDF} ${PRELIM} ${MODRUN} ${SOLVER} ${OBJFNC} ${DRIVER})
+set(SUMMA_ALL ${NETCDF} ${PRELIM} ${MODRUN} ${SOLVER} ${OBJFNC} ${CALIBR} ${DRIVER})
+
+# the TOML configuration reader, only when one is being built
+if (USE_TOML)
+    set(SUMMA_ALL ${SUMMA_ALL} ${DRIVER_TOML})
+endif()
 set(MAIN_SUMMA ${DRIVER_DIR}/summa_driver.f90)
 
 # Numerical type definitions used throughout SUMMA
@@ -280,6 +310,7 @@ target_include_directories(SUMMA_DATA_TYPES PUBLIC ${CMAKE_BINARY_DIR}/summa_dat
 
 if (USE_MPI)
     set(MAIN_SUMMA_MPI ${DRIVER_DIR}/summa_driver_mpi.f90)
+    set(MAIN_SUMMA_OPT ${DRIVER_DIR}/summa_driver_opt.f90)
 
 endif()
 
@@ -314,7 +345,6 @@ endif()
 if (USE_MIZUROUTE)
 
     # the TOML configuration reader is only built with mizuRoute, its only consumer
-    set(SUMMA_ALL ${SUMMA_ALL} ${DRIVER_MIZUROUTE})
 
     # mizuRoute type and interface definitions
     add_library(MIZUROUTE_TYPES STATIC ${MIZU_TYPE})
@@ -444,10 +474,15 @@ else()
     target_link_libraries(summa PUBLIC bmif)
   endif()
 
+  if (USE_TOML)
+    target_link_libraries(summa PRIVATE toml-f-lib)
+    target_include_directories(summa PRIVATE ${CMAKE_BINARY_DIR}/toml-f/include)
+  endif()
+
   # Optional mizuRoute coupling
   if (USE_MIZUROUTE)
     target_compile_definitions(summa PRIVATE MIZUROUTE_ACTIVE)
-    target_link_libraries(summa PRIVATE MIZUROUTE_COUPLING toml-f-lib)
+    target_link_libraries(summa PRIVATE MIZUROUTE_COUPLING)
   endif()
 
   # Serial SUMMA executable
@@ -475,7 +510,15 @@ else()
     add_executable(${EXEC_NAME_MPI} ${MAIN_SUMMA_MPI})
     target_compile_options(${EXEC_NAME_MPI} PRIVATE ${FLAGS_ALL})
     set_property(TARGET ${EXEC_NAME_MPI} PROPERTY LINKER_LANGUAGE Fortran)
-    target_link_libraries(${EXEC_NAME_MPI} PRIVATE summa parallel_utils)
+    target_link_libraries(${EXEC_NAME_MPI} PRIVATE summa PARALLEL_UTILS)
+  endif()
+
+  # Parallel optimization SUMMA executable
+  if (USE_MPI)
+    add_executable(${EXEC_NAME_OPT} ${CALIBR_MPI} ${MAIN_SUMMA_OPT})
+    target_compile_options(${EXEC_NAME_OPT} PRIVATE ${FLAGS_ALL})
+    set_property(TARGET ${EXEC_NAME_OPT} PROPERTY LINKER_LANGUAGE Fortran)
+    target_link_libraries(${EXEC_NAME_OPT} PRIVATE summa PARALLEL_UTILS)
   endif()
 
   # MPI MODFLOW 6 coupler executable
@@ -483,7 +526,7 @@ else()
     add_executable(${EXEC_NAME_MODFLOW_MPI} ${MAIN_SUMMA_MODFLOW_MPI})
     target_compile_options(${EXEC_NAME_MODFLOW_MPI} PRIVATE ${FLAGS_ALL})
     set_property(TARGET ${EXEC_NAME_MODFLOW_MPI} PROPERTY LINKER_LANGUAGE Fortran)
-    target_link_libraries(${EXEC_NAME_MODFLOW_MPI} PRIVATE summa parallel_utils bmif "${MF6_LIB}")
+    target_link_libraries(${EXEC_NAME_MODFLOW_MPI} PRIVATE summa PARALLEL_UTILS bmif "${MF6_LIB}")
     # so the executable can find libmf6 at run time without LD_LIBRARY_PATH
     set_target_properties(${EXEC_NAME_MODFLOW_MPI} PROPERTIES
       BUILD_RPATH "${MODFLOW6_LIB_DIR}"
