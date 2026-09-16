@@ -156,6 +156,7 @@ module summabmi
      procedure :: get_input_var_names => summa_input_var_names
      procedure :: get_output_var_names => summa_output_var_names
      procedure :: initialize => summa_bmi_initialize
+     procedure :: initialize_mpi => summa_bmi_initialize_mpi  ! non-BMI: places an MPI communicator/rank/size into the run's parallel context first, so SUMMA GRUs split across ranks
      procedure :: finalize => summa_finalize
      procedure :: get_start_time => summa_start_time
      procedure :: get_end_time => summa_end_time
@@ -259,6 +260,27 @@ module summabmi
    function summa_bmi_initialize(this, config_file) result (bmi_status)
      class (summa_bmi), intent(out) :: this
      character (len=*), intent(in) :: config_file
+     integer  :: bmi_status
+     ! serial run: this is the sole instance, comm/rank/size take their (comm=-1,rank=0,size=1) defaults
+     bmi_status = summa_bmi_initialize_core(this, config_file, -1, 0, 1)
+   end function summa_bmi_initialize
+
+   ! *****************************************************************************
+   ! * model setup/initialization, MPI-aware (non-BMI: standard BMI initialize() has no
+   ! * room for a communicator/rank/size; see the initialize_mpi binding above)
+   ! *****************************************************************************
+   function summa_bmi_initialize_mpi(this, config_file, comm, rank, size) result (bmi_status)
+     class (summa_bmi), intent(out) :: this
+     character (len=*), intent(in) :: config_file
+     integer(i4b),       intent(in) :: comm, rank, size
+     integer  :: bmi_status
+     bmi_status = summa_bmi_initialize_core(this, config_file, comm, rank, size)
+   end function summa_bmi_initialize_mpi
+
+   function summa_bmi_initialize_core(this, config_file, comm, rank, size) result (bmi_status)
+     class (summa_bmi), intent(out) :: this
+     character (len=*), intent(in) :: config_file
+     integer(i4b),       intent(in) :: comm, rank, size          ! MPI parallel context (comm=-1,rank=0,size=1 if serial)
      ! error control
      integer(i4b)                       :: err=0                      ! error code
      character(len=1024)                :: message=''                 ! error message
@@ -289,6 +311,12 @@ module summabmi
      ! allocate space for the master summa structure
      allocate(this%model%summa1_struc(n), stat=err)
      if(err/=0) call stop_program(1, 'problem allocating master summa structure')
+
+     ! parallel execution context (comm=-1,rank=0,size=1 for a serial/BMI run); summa_initialize
+     ! below uses this to split the GRUs in the run domain across ranks (see summa_work_balance)
+     this%model%summa1_struc(n)%parallel%comm = comm
+     this%model%summa1_struc(n)%parallel%rank = rank
+     this%model%summa1_struc(n)%parallel%size = size
 
      ! if using the BMI interface, there is an argument pointing to the file manager file
      !  then make sure summaFileManagerFile is set before executing initialization
@@ -372,7 +400,7 @@ module summabmi
      this%model%elapsedWrite = elapsedWrite
      this%model%elapsedPhysics = elapsedPhysics
      bmi_status = BMI_SUCCESS
-   end function summa_bmi_initialize
+   end function summa_bmi_initialize_core
 
    ! *****************************************************************************
    ! * advance model by one time step.

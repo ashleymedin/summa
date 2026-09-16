@@ -292,11 +292,18 @@ if (USE_MODFLOW6)
     set(SUMMA_ALL ${SUMMA_ALL} ${DRIVER_BMI})
     set(MAIN_SUMMA ${DRIVER_DIR}/summa_modflow6.f90)
     set(EXEC_NAME "summa_modflow6${EXEC_SUFFIX}.exe")
+    if (USE_MPI)
+        set(MAIN_SUMMA_MODFLOW_MPI ${DRIVER_DIR}/summa_modflow6_mpi.f90)
+        set(EXEC_NAME_MODFLOW_MPI "summa_modflow6_mpi${EXEC_SUFFIX}.exe")
+    endif()
 endif()
 
 message("Executable name: ${EXEC_NAME}")
 if (USE_MPI)
     message("MPI executable name: ${EXEC_NAME_MPI}")
+    if (USE_MODFLOW6)
+        message("MPI MODFLOW 6 coupler executable name: ${EXEC_NAME_MODFLOW_MPI}")
+    endif()
 endif()
 
 if (USE_SUNDIALS)
@@ -378,11 +385,6 @@ file(APPEND ${VERSIONFILE} "character(len=64), parameter     :: gitBranch = '${G
 file(APPEND ${VERSIONFILE} "character(len=64), parameter     :: gitHash = '${GITHASH}'")
 
 # Build SUMMA_NOAHMP Object
-#
-# NOTE: the module directory is set explicitly, as it is for every other target here.
-#       Without it the modules land in whatever the default happens to be, which is
-#       shared with SUMMA_COMM in the standalone build but not in the NextGen build,
-#       where CMAKE_Fortran_MODULE_DIRECTORY is set and SUMMA_COMM overrides it.
 add_library(SUMMA_NOAHMP OBJECT ${NOAHMP} ${NRUTIL})
 target_compile_options(SUMMA_NOAHMP PRIVATE ${FLAGS_NOAH})
 set_target_properties(SUMMA_NOAHMP PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/summa_noahmp_mod)
@@ -474,6 +476,18 @@ else()
     target_compile_options(${EXEC_NAME_MPI} PRIVATE ${FLAGS_ALL})
     set_property(TARGET ${EXEC_NAME_MPI} PROPERTY LINKER_LANGUAGE Fortran)
     target_link_libraries(${EXEC_NAME_MPI} PRIVATE summa parallel_utils)
+  endif()
+
+  # MPI MODFLOW 6 coupler executable
+  if (USE_MPI AND USE_MODFLOW6)
+    add_executable(${EXEC_NAME_MODFLOW_MPI} ${MAIN_SUMMA_MODFLOW_MPI})
+    target_compile_options(${EXEC_NAME_MODFLOW_MPI} PRIVATE ${FLAGS_ALL})
+    set_property(TARGET ${EXEC_NAME_MODFLOW_MPI} PROPERTY LINKER_LANGUAGE Fortran)
+    target_link_libraries(${EXEC_NAME_MODFLOW_MPI} PRIVATE summa parallel_utils bmif "${MF6_LIB}")
+    # so the executable can find libmf6 at run time without LD_LIBRARY_PATH
+    set_target_properties(${EXEC_NAME_MODFLOW_MPI} PROPERTIES
+      BUILD_RPATH "${MODFLOW6_LIB_DIR}"
+      INSTALL_RPATH "${MODFLOW6_LIB_DIR}")
   endif()
 
 endif()

@@ -89,6 +89,25 @@ rather than a stop, since a missing declaration is not proof of the wrong unit.
 `-c/--config` is **required**: each case keeps its own config beside its settings. The
 executable defaults to `../bin/summa_modflow6.exe`.
 
+### MPI (`summa_modflow6_mpi.exe`)
+
+Built alongside the plain coupler when both `-DUSE_MODFLOW6=ON` and `-DUSE_MPI=ON` are set.
+It splits SUMMA's GRUs across MPI ranks the same way `summa_mpi.exe` does for a plain
+(non-coupled) run; MODFLOW 6 itself stays a serial singleton on rank 0, since this libmf6
+build has no PETSc/MPI support and the coupled model is one shared aquifer grid under
+potentially many GRUs, not one MODFLOW grid per GRU (see the header of
+`summa_modflow6_mpi.f90` for the full rationale). In `build/CMakeLists.txt` it links both
+halves of that: `parallel_utils` for the GRU split (as `summa_mpi.exe` does) and
+`bmif`/`MF6_LIB` for driving MODFLOW 6 (as the plain `summa_modflow6.exe` does). Run it
+directly (it takes the same file manager/config arguments as the plain coupler, not through
+`coupler_commands.sh`):
+
+    cd MODFLOW_CASE && mpirun -n <nranks> /path/to/summa_modflow6_mpi.exe SUMMA_FILEMANAGER CONFIG
+
+`<nranks>` must not exceed the number of GRUs in the run domain - a rank left with zero
+GRUs hits a pre-existing SUMMA-core limitation in forcing-file reading, independent of
+MODFLOW coupling (the same constraint applies to the plain `summa_mpi.exe`).
+
 ## Coupler configuration
 
 A Fortran namelist, conventionally `summa_modflow6.config` inside the case directory:
