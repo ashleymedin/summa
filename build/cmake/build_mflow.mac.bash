@@ -36,7 +36,7 @@ export SUNDIALS_DIR=../../SummaSundials/sundials/instdir/     # will not be used
 
 MF6_BIN="$(cd "$(pwd)/bin" && pwd)"
 cmake -B srcextern/summa/build/cmake_build -S srcextern/summa/build \
-    -DUSE_MODFLOW6=ON
+    -DUSE_MODFLOW6=ON \
     -DMODFLOW6_LIB_DIR="${MF6_BIN}" \
     -DUSE_SUNDIALS=ON \
     -DUSE_MPI=OFF \

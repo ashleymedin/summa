@@ -178,11 +178,6 @@ endif()
 set(EXEC_NAME     "summa${EXEC_SUFFIX}.exe")
 set(EXEC_NAME_MPI "summa${EXEC_SUFFIX}_mpi.exe")
 
-message("Executable name: ${EXEC_NAME}")
-if (USE_MPI)
-    message("MPI executable name: ${EXEC_NAME_MPI}")
-endif()
-
 get_filename_component(F_MASTER "${F_MASTER}" REALPATH)
 get_filename_component(PARENT_DIR "${PARENT_DIR}" REALPATH)
 get_filename_component(EXEC_DIR "${EXEC_DIR}" REALPATH)
@@ -296,7 +291,12 @@ if (USE_MODFLOW6)
     # include the SUMMA BMI module in the library and build the coupler as the main program
     set(SUMMA_ALL ${SUMMA_ALL} ${DRIVER_BMI})
     set(MAIN_SUMMA ${DRIVER_DIR}/summa_modflow6.f90)
-    set(EXEC_NAME summa_modflow6.exe)
+    set(EXEC_NAME "summa_modflow6${EXEC_SUFFIX}.exe")
+endif()
+
+message("Executable name: ${EXEC_NAME}")
+if (USE_MPI)
+    message("MPI executable name: ${EXEC_NAME_MPI}")
 endif()
 
 if (USE_SUNDIALS)
