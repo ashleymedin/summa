@@ -264,3 +264,15 @@ AFTER tag of v4.0.0-exp-Sundials
       ! modflow    ! couple with MODFLOW6 (no aquifer modelled in SUMMA)
       ! modLatflow ! couple with MODFLOW6 but allow lateral flow in soil column (no aquifer modelled in SUMMA)
      modLatflow requires hc_profile = exp_prof and modLatflow and modflow require bcLowrSoiH = presHead.
+ 64) Domain-parallel MPI: GRUs distributed across ranks, PR #631 -DUSE_MPI=ON 
+     Builds a second executable (summa[_sundials]_mpi.exe); each rank reads/writes only its own GRUs.
+     Also, later, added summa_modflow6_mpi coupler executable (-DUSE_MODFLOW6=ON -DUSE_MPI=ON), Sep 16, 2026
+     Splits SUMMA's GRUs across MPI ranks the same way the plain summa_mpi build does. MODFLOW 6 itself stays a serial singleton on rank 0 for now.
+ 65) Optional coupling to mizuRoute for river-network routing, PR #632 -DUSE_MIZUROUTE=ON
+     Configured via a new TOML file (-c). Adds Q_reach, q_basin, upArea outputs (off by default). Requires the full domain on one process -- incompatible with -g and MPI domain parallelism.
+ 66) Objective-function evaluation and command-line parameter overrides, PR #637
+     New build/source/objfunc/ computes streamflow metrics (kge, kgep, nse, mae, rmse) against observations. Parameters can be overridden via --param <name> <value>. 
+     Simulation lifecycle refactored into summa_simulation (reusable in-process); executable names now record build options so variant builds can share bin/.
+ 67) Automatic parameter calibration, PR #639
+     New build/source/calibration/ (DDS sampling, parameter search, NetCDF output) and driver summa_driver_opt.f90. Two-level MPI: domain parallelism plus instance parallelism across calibration trials, scheduled dynamically. 
+     Multi-case runs via a --manifest file. Config moves to TOML (legacy -m/--control still accepted). parallel-utils submodule vendored into build/source/parallel/.

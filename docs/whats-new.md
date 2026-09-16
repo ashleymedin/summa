@@ -82,6 +82,11 @@ covers the user-facing highlights.
   water-table head back as the soil-column lower boundary; MODFLOW then supplies
   `scalarAquiferBaseflow` (routed into streamflow) and `scalarAquiferStorage`. See
   [`groundwatr`](configuration/SUMMA_model_decisions.md#groundwatr).
+- New `summa_modflow6_mpi` coupler executable (`-DUSE_MODFLOW6=ON -DUSE_MPI=ON`): splits
+  SUMMA's GRUs across MPI ranks as the plain `summa_mpi` build does, while MODFLOW 6 stays a
+  serial singleton on rank 0 (one shared aquifer grid under potentially many GRUs, and this
+  libmf6 build has no PETSc/MPI support of its own). See
+  `utils/test/test_mflow/README.md#mpi-summa_modflow6_mpiexe`.
 - General cleanup and shortening of computFlux.f90, vegNrgFlux.f90, snowSoilNrgFlux.f90, vegLiqFlux.f90, snowLiqFlux.f90, soilLiqFlux.f90, groundwatr.f90, and bigAquifer.f90 
 - Added object-oriented methods to simplify flux routine calls in computFlux and improve modularity
     - classes for each flux routine were added to data_types.f90
