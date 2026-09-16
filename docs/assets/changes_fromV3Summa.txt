@@ -255,8 +255,8 @@ AFTER tag of v4.0.0-exp-Sundials
 -61) Consistent association of the iden_ice/iden_water density ratio to (iden_ice/iden_water) because it is faster (inconsistent variations differ by 1 ULP), commit cde6aeeb Sep 11, 2026
  62) Fixed lateral flow HRUs within a GRU to run in cascade (topological) order instead of array order, commit 90edb489 Sep 11, 2026
      The lateral outflow of an HRU is added to the inflow of its downslope HRU (downHRUindex) as each HRU is run, and the inflow
-     is zeroed at the start of every step, so a contributor run after its receiver would have its water silently dropped rather than delayed. 
- 63) New groundwatr options for coupling to MODFLOW6 commit 75fcc934 Sep 11, 2026 and commits a month prior. 
+     is zeroed at the start of every step, so a contributor run after its receiver would have its water silently dropped rather than delayed.
+ 63) New groundwatr options for coupling to MODFLOW6 commit 75fcc934 Sep 11, 2026 and commits a month prior.
      These send recharge to MODFLOW and MODFLOW sends back aquifer values in a loose 2-way coupling (one data window lag).
       ! qTopmodl   ! topmodel parameterization
       ! bigBuckt   ! a big bucket (lumped aquifer model)
