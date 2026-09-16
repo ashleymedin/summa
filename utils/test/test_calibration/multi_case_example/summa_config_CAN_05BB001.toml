@@ -18,7 +18,7 @@ basin_dir = "data/century/test/exp01/domain/{case_name}"
 
 # Runtime work directory. Unlike basin-specific settings files, this must be
 # expanded to a complete filesystem path.
-work_path = "{home}/{basin_dir}/work"
+work_path = "{home}/{basin_dir}/work/"
 
 start_time = "1982-10-01 00:00"
 end_time   = "1990-09-30 23:00"
