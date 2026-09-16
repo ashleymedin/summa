@@ -664,8 +664,8 @@ contains
  real(rkind)                        :: elpSec          ! elapsed seconds
  logical(lgt)                       :: doHalt          ! .true. if this call should stop the program
 
- ! a caller that is itself the main program, such as the MODFLOW 6 coupler, asks to
- ! return so that it can finish its own shutdown rather than being stopped from here
+ ! a caller that is itself the main program, such as a BMI host, asks to return so
+ ! that it can finish its own shutdown rather than being stopped from here
  doHalt = .true.
  if(present(halt)) doHalt = halt
 
