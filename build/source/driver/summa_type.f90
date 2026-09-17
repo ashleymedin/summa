@@ -94,6 +94,11 @@ type, public :: config_info
   ! configuration flags
   logical(lgt)                   :: read_cli = .true.       ! .true. = read command-line interface
   logical(lgt)                   :: read_config = .true.    ! .true. = read configuration files
+  ! .true. when SUMMA is a library and the host program owns the command line, so argv is not
+  ! parsed and the run controls are set for it instead (the BMI sets this; see summa_util.f90).
+  ! It is a property of the caller, not of the build: a MODFLOW 6 build also contains programs
+  ! that do own their command line, such as the calibration driver.
+  logical(lgt)                   :: host_owns_cli = .false.
   ! Multi-case configuration
   integer(i4b)                   :: cases_per_node = 1      ! Number of concurrent cases per node
   character(len=:),  allocatable :: manifest_file           ! Path and name of the multi-case manifest
@@ -140,7 +145,11 @@ type, public :: config_info
   character(len=:), allocatable  :: config_file             ! SUMMA TOML configuration file
   ! User configuration options
   logical(lgt)                   :: use_mizuroute = .false. ! Enable coupled mizuRoute for this simulation
+  logical(lgt)                   :: use_modflow = .false.   ! Enable coupled MODFLOW 6 for this simulation
   logical(lgt)                   :: write_timeseries = .true.  ! Write SUMMA time-series output file
+  ! Coupled MODFLOW 6 (only read when use_modflow is set; see mf6_coupling.f90)
+  character(len=:), allocatable  :: modflow_config          ! &coupler namelist file for the MODFLOW 6 coupling
+  character(len=:), allocatable  :: modflow_run_dir         ! directory holding the MODFLOW 6 mfsim.nam
 #ifdef MIZUROUTE_ACTIVE
   type(mizuroute_info)           :: mizu_info               ! mizuRoute configuration infirmation
 #endif

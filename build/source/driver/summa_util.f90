@@ -58,7 +58,6 @@ contains
  subroutine getCommandArguments(config, err, message)
  ! build options
  USE build_options, only: ngen_active
- USE build_options, only: modflow_active
  implicit none
  ! dummy variables
  type(config_info), intent(inout)       :: config              ! summa configuration info
@@ -71,10 +70,13 @@ contains
  message='getCommandArguments/'
 
  ! parse the command-line arguments
- ! NOTE: not under NextGen or the MODFLOW 6 coupler, where SUMMA is a library and the
- !       host program owns the command line. Parsing there finds no arguments, prints
- !       the usage text and fails. apply_command_args supplies the settings instead.
- if(.not.(ngen_active .or. modflow_active))then
+ ! NOTE: not under NextGen, nor for any host that owns the command line itself (the BMI,
+ !       and so the MODFLOW 6 couplers through it). Parsing there would find the host's own
+ !       arguments, print the usage text and fail. apply_command_args supplies the settings
+ !       instead. This is deliberately a property of the caller rather than of the build:
+ !       a MODFLOW 6 build also contains programs that do own their command line, such as
+ !       the calibration driver, and those must still be able to parse it.
+ if(.not.(ngen_active .or. config%host_owns_cli))then
    call parse_command_args(cli_opts, err, cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  endif
@@ -431,7 +433,6 @@ contains
    USE globalData, only: ixRestart
    ! build options
    USE build_options, only: ngen_active
-   USE build_options, only: modflow_active
    implicit none
    ! dummy variables
    type(cli_options),       intent(in)    :: opts
@@ -442,12 +443,12 @@ contains
    err = 0
    message = 'apply_command_args/'
 
-   ! *** coupled runtime configuration: NextGen and the MODFLOW 6 coupler
+   ! *** coupled runtime configuration: NextGen and the MODFLOW 6 couplers
    !
    ! Both run SUMMA as a library, with the host program owning the command line, so
    ! the run controls are set here rather than parsed.
 
-   if(ngen_active .or. modflow_active)then
+   if(ngen_active .or. config%host_owns_cli)then
 
      checkHRU      = integerMissing
      newOutputFile = noNewFiles
@@ -461,7 +462,7 @@ contains
      !       catchment this BMI instance is running, and summa_bmi_initialize has
      !       already taken it from the NextGen parameters namelist. The MODFLOW 6
      !       coupler runs one GRU domain, so it does set it.
-     if(modflow_active)then
+     if(.not.ngen_active)then
        startGRU  = 1
        ixRestart = ixRestart_never
      endif

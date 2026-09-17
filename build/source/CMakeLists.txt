@@ -188,6 +188,7 @@ set(DRIVER
     ${DRIVER_DIR}/summa_writeOutput.f90
     ${DRIVER_DIR}/summa_simulation.f90
     ${DRIVER_DIR}/summa_spinup.f90
+    ${DRIVER_DIR}/summa_mf6_exchange.f90
     CACHE INTERNAL "DRIVER")
 set(DRIVER_TOML
     ${DRIVER_DIR}/summa_config.f90
@@ -195,5 +196,11 @@ set(DRIVER_TOML
 set(DRIVER_BMI
     ${DRIVER_DIR}/summa_bmi.f90
     CACHE INTERNAL "DRIVER_BMI")
+# The MODFLOW 6 side of the coupling, shared by the standalone couplers and the calibration
+# driver.  Only built with USE_MODFLOW6, because it calls libmf6 directly; its SUMMA-side
+# counterpart (summa_mf6_exchange.f90, in DRIVER above) touches no MODFLOW code and always builds.
+set(DRIVER_MODFLOW
+    ${DRIVER_DIR}/mf6_coupling.f90
+    CACHE INTERNAL "DRIVER_MODFLOW")
 # TOML configuration reader: only built with mizuRoute, which is its only consumer
 

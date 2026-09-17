@@ -43,6 +43,14 @@ module summabmi
   USE data_types, only: file_info                             ! metadata for model forcing datafile
   USE data_types, only: var_i                                 ! vector of integers
   ! subroutines and functions: model setup
+  ! per-HRU exchange with the coupled MODFLOW 6 model; shared with the calibration driver, which
+  ! runs SUMMA without the BMI (see summa_mf6_exchange.f90 and summa_simulation.f90)
+  USE summa_mf6_exchange, only: mf6x_hru_longitude, mf6x_hru_latitude, mf6x_hru_elevation
+  USE summa_mf6_exchange, only: mf6x_soil_thickness
+  USE summa_mf6_exchange, only: mf6x_get_drainage
+  USE summa_mf6_exchange, only: mf6x_put_lower_bound_head
+  USE summa_mf6_exchange, only: mf6x_put_aquifer_storage
+  USE summa_mf6_exchange, only: mf6x_put_aquifer_baseflow
   USE summa_init, only: summa_initialize                      ! used to allocate/initialize summa data structures
   USE summa_setup, only: summa_paramSetup                     ! used to initialize parameter data structures (e.g. vegetation and soil parameters)
   USE summa_restart, only: summa_readRestart                  ! used to read restart data and reset the model state
@@ -301,6 +309,11 @@ module summabmi
      ! allocate space for the master summa structure
      allocate(this%model%summa1_struc(n), stat=err)
      if(err/=0) call stop_program(1, 'problem allocating master summa structure')
+
+     ! under the BMI the host program owns the command line (the coupler's own arguments are
+     ! there, not SUMMA's), so argv is not parsed and the run controls are set for us instead;
+     ! see getCommandArguments/apply_command_args in summa_util.f90
+     config%host_owns_cli = .true.
 
      ! parallel execution context (comm=-1,rank=0,size=1 for a serial/BMI run); summa_initialize
      ! below uses this to split the GRUs in the run domain across ranks (see summa_work_balance)
@@ -799,20 +812,13 @@ module summabmi
      class (summa_bmi), intent(in) :: this
      integer, intent(in) :: grid
      double precision, dimension(:), intent(out) :: x
-     integer :: bmi_status, iGRU, jHRU
+     integer :: bmi_status
 
-     summaVars: associate(attrStruct => this%model%summa1_struc(n)%attrStruct    & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
-      )
-      select case(grid)
-      case default
-        do iGRU = 1, this%model%summa1_struc(n)%nGRU_local
-          do jHRU = 1, gru_struc(iGRU)%hruCount
-            x((iGRU-1) * gru_struc(iGRU)%hruCount + jHRU) = attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%longitude)
-          end do
-        end do
-        bmi_status = BMI_SUCCESS
-      end select
-     end associate summaVars
+     select case(grid)
+     case default
+       call mf6x_hru_longitude(this%model%summa1_struc(n), x)
+       bmi_status = BMI_SUCCESS
+     end select
    end function summa_grid_x
 
    ! Y-coordinates of grid nodes, latitude (degrees north)
@@ -820,20 +826,13 @@ module summabmi
      class (summa_bmi), intent(in) :: this
      integer, intent(in) :: grid
      double precision, dimension(:), intent(out) :: y
-     integer :: bmi_status, iGRU, jHRU
+     integer :: bmi_status
 
-     summaVars: associate(attrStruct => this%model%summa1_struc(n)%attrStruct    & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
-      )
-      select case(grid)
-      case default
-        do iGRU = 1, this%model%summa1_struc(n)%nGRU_local
-          do jHRU = 1, gru_struc(iGRU)%hruCount
-            y((iGRU-1) * gru_struc(iGRU)%hruCount + jHRU) = attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%latitude)
-          end do
-        end do
-        bmi_status = BMI_SUCCESS
-      end select
-     end associate summaVars
+     select case(grid)
+     case default
+       call mf6x_hru_latitude(this%model%summa1_struc(n), y)
+       bmi_status = BMI_SUCCESS
+     end select
    end function summa_grid_y
 
    ! Z-coordinates of grid nodes, elevation (m)
@@ -841,20 +840,13 @@ module summabmi
      class (summa_bmi), intent(in) :: this
      integer, intent(in) :: grid
      double precision, dimension(:), intent(out) :: z
-     integer :: bmi_status, iGRU, jHRU
+     integer :: bmi_status
 
-     summaVars: associate(attrStruct => this%model%summa1_struc(n)%attrStruct    & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
-      )
-      select case(grid)
-      case default
-        do iGRU = 1, this%model%summa1_struc(n)%nGRU_local
-          do jHRU = 1, gru_struc(iGRU)%hruCount
-            z((iGRU-1) * gru_struc(iGRU)%hruCount + jHRU) = attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%elevation)
-          end do
-        end do
-        bmi_status = BMI_SUCCESS
-      end select
-     end associate summaVars
+     select case(grid)
+     case default
+       call mf6x_hru_elevation(this%model%summa1_struc(n), z)
+       bmi_status = BMI_SUCCESS
+     end select
    end function summa_grid_z
 
    ! Thickness of the SUMMA soil column for each HRU (m), measured from the ground
@@ -864,31 +856,10 @@ module summabmi
    function summa_soil_thickness(this, thickness) result (bmi_status)
      class (summa_bmi), intent(in) :: this
      double precision, dimension(:), intent(out) :: thickness
-     integer :: bmi_status, iGRU, jHRU, iDOM, i, ixDOM, nSnow, nLake, nSoil
+     integer :: bmi_status
 
-     summaVars: associate(&
-      progStruct => this%model%summa1_struc(n)%progStruct , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat
-      indxStruct => this%model%summa1_struc(n)%indxStruct   & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat
-      )
-      do iGRU = 1, this%model%summa1_struc(n)%nGRU_local
-        do jHRU = 1, gru_struc(iGRU)%hruCount
-          i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
-          ! prefer the first non-glacier domain; fall back to domain 1
-          ixDOM = 1
-          do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
-            if (indxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1) == 0) then
-              ixDOM = iDOM; exit
-            end if
-          end do
-          nSnow = indxStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookINDEX%nSnow)%dat(1)
-          nLake = indxStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookINDEX%nLake)%dat(1)
-          nSoil = indxStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookINDEX%nSoil)%dat(1)
-          thickness(i) = progStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookPROG%iLayerHeight)%dat(nSnow+nLake+nSoil) &
-                       - progStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookPROG%iLayerHeight)%dat(nSnow+nLake)
-        end do
-      end do
-      bmi_status = BMI_SUCCESS
-     end associate summaVars
+     call mf6x_soil_thickness(this%model%summa1_struc(n), thickness)
+     bmi_status = BMI_SUCCESS
    end function summa_soil_thickness
 
    ! Get the number of nodes in an unstructured grid
@@ -1406,6 +1377,17 @@ module summabmi
      integer, intent(in) :: isrc_arr
      integer ::  iGRU, jHRU, i, iDOM
 
+     ! the coupled MODFLOW 6 inputs are whole-array assignments, shared with the calibration
+     ! driver so that both routes into the coupling write the same fields the same way
+     select case (name)
+     case('soil_water_sat-zone_top__head')          ! prescribed-head lower BC from the MODFLOW water table
+       call mf6x_put_lower_bound_head(this%model%summa1_struc(n), src_arr); return
+     case('aquifer_water__storage_thickness')       ! aquifer storage from the coupled MODFLOW model
+       call mf6x_put_aquifer_storage(this%model%summa1_struc(n), src_arr); return
+     case('land_surface_water__baseflow_volume_flux')  ! aquifer baseflow from the coupled MODFLOW model
+       call mf6x_put_aquifer_baseflow(this%model%summa1_struc(n), src_arr); return
+     end select
+
      summaVars: associate(&
       timeStruct           => this%model%summa1_struc(n)%timeStruct  , & ! x%var(:)                          -- model time data
       forcStruct           => this%model%summa1_struc(n)%forcStruct  , & ! x%gru(:)%hru(:)%var(:)            -- model forcing data
@@ -1448,23 +1430,7 @@ module summabmi
               forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%LWRadAtm) = src_arr(i)
             case('land_surface_air__pressure')
               forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airpres) = src_arr(i)
-            ! prescribed-head lower boundary condition for soil hydrology, supplied by the coupled MODFLOW 6 water table
-            case('soil_water_sat-zone_top__head')
-              do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
-                if(indxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1) == 0) &
-                  mparStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPARAM%lowerBoundHead)%dat(1) = src_arr(i)
-              end do
-            ! groundwater state/flux from the coupled MODFLOW 6 model 
-            case('land_surface_water__baseflow_volume_flux') ! SUMMA overwrites every scalar flux during a step, so it cannot be written straight into fluxStruct
-              if(.not.allocated(mfAquiferBaseflow))then
-                allocate(mfAquiferBaseflow(sum(gru_struc(:)%hruCount))); mfAquiferBaseflow = 0._rkind
-              end if
-              mfAquiferBaseflow(i) = src_arr(i)
-            case('aquifer_water__storage_thickness')
-              do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
-                if(indxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1) == 0) &
-                  progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%scalarAquiferStorage)%dat(1) = src_arr(i)
-              end do
+            ! NOTE: the coupled MODFLOW 6 inputs are handled above, before this loop
             end select
           end do
         end do
@@ -1481,6 +1447,14 @@ module summabmi
      integer, target, intent(out) :: itarget_arr
      integer ::  iGRU, jHRU, i, iDOM
      real :: fracDOM
+
+     ! the recharge the coupler imposes on MODFLOW; shared with the calibration driver, so both
+     ! routes into the coupling read the same flux the same way
+     if (name == 'soil_water__drainage_volume_flux') then
+       itarget_arr = -999
+       call mf6x_get_drainage(this%model%summa1_struc(n), target_arr)
+       return
+     end if
 
      summaVars: associate(&
       timeStruct           => this%model%summa1_struc(n)%timeStruct  , & ! x%var(:)                          -- model time data
@@ -1559,8 +1533,7 @@ module summabmi
                 target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarGroundNetNrgFlux)%dat(1) * fracDOM
               case('land_surface_water__baseflow_volume_flux') ! also a valid input, see assign_basin_field above
                 target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) * fracDOM
-              case('soil_water__drainage_volume_flux')
-                target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarSoilDrainage)%dat(1) * fracDOM
+              ! NOTE: 'soil_water__drainage_volume_flux' is handled above, before this loop
               end select
             end do
           end do
