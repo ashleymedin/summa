@@ -108,6 +108,28 @@ directly (it takes the same file manager/config arguments as the plain coupler, 
 GRUs hits a pre-existing SUMMA-core limitation in forcing-file reading, independent of
 MODFLOW coupling (the same constraint applies to the plain `summa_mpi.exe`).
 
+### Parameter calibration (`summa_modflow6_opt.exe`)
+
+The calibration driver evaluates each parameter sample as a full coupled SUMMA/MODFLOW 6
+simulation. It is the same program as the uncoupled `summa_opt.exe` - with `-DUSE_MODFLOW6=ON`
+the calibration executable is simply renamed - and it couples whenever `simulation.use_modflow`
+is set in the TOML configuration, so one binary covers both. See
+`utils/test/test_calibration/README.md` for how to configure and run it.
+
+## Where the coupling lives
+
+The MODFLOW side is one module, `build/source/driver/mf6_coupling.f90`: the libmf6 bindings,
+the HRU-to-cell map, the start-up checks, and the per-step exchange. Its interface is per-HRU
+arrays in and per-HRU arrays out, so it knows nothing about SUMMA data structures, and all
+three drivers share it - the serial coupler, the MPI coupler, and the calibration driver.
+(The two couplers previously carried the same ~600 lines twice, verbatim.)
+
+The SUMMA side is `build/source/driver/summa_mf6_exchange.f90`: the per-HRU getters and
+setters for the exchanged quantities, plus the HRU geometry the cell map is built from. It
+too has one implementation with two users - `summa_bmi.f90`'s `get_value`/`set_value` for the
+coupler variable names delegate to it, and the calibration driver, which runs SUMMA without
+the BMI, calls it directly.
+
 ## Coupler configuration
 
 A Fortran namelist, conventionally `summa_modflow6.config` inside the case directory:

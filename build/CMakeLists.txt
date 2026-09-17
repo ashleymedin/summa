@@ -319,13 +319,21 @@ if (USE_NEXTGEN)
 endif()
 
 if (USE_MODFLOW6)
-    # include the SUMMA BMI module in the library and build the coupler as the main program
-    set(SUMMA_ALL ${SUMMA_ALL} ${DRIVER_BMI})
+    # include the SUMMA BMI module and the MODFLOW 6 coupling modules in the library, and
+    # build the coupler as the main program
+    set(SUMMA_ALL ${SUMMA_ALL} ${DRIVER_BMI} ${DRIVER_MODFLOW})
     set(MAIN_SUMMA ${DRIVER_DIR}/summa_modflow6.f90)
     set(EXEC_NAME "summa_modflow6${EXEC_SUFFIX}.exe")
     if (USE_MPI)
         set(MAIN_SUMMA_MODFLOW_MPI ${DRIVER_DIR}/summa_modflow6_mpi.f90)
         set(EXEC_NAME_MODFLOW_MPI "summa_modflow6_mpi${EXEC_SUFFIX}.exe")
+        # The calibration driver is the same program either way: it evaluates each parameter
+        # sample as a coupled SUMMA/MODFLOW 6 simulation when simulation.use_modflow is set in
+        # the TOML configuration, and as a plain SUMMA run when it is not.  So this build's
+        # calibration executable is simply renamed, the way EXEC_NAME is above, rather than
+        # built a second time (two targets over one set of sources would also race for the
+        # shared Fortran module directory).
+        set(EXEC_NAME_OPT "summa_modflow6_opt${EXEC_SUFFIX}.exe")
     endif()
 endif()
 
@@ -334,6 +342,7 @@ if (USE_MPI)
     message("MPI executable name: ${EXEC_NAME_MPI}")
     if (USE_MODFLOW6)
         message("MPI MODFLOW 6 coupler executable name: ${EXEC_NAME_MODFLOW_MPI}")
+        message("MODFLOW 6 calibration executable name: ${EXEC_NAME_OPT}")
     endif()
 endif()
 
@@ -470,8 +479,22 @@ else()
   target_compile_options(summa PRIVATE ${FLAGS_ALL})
   target_link_libraries(summa PUBLIC SUMMA_TYPES ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM ${LIBRARY_LINKS})
   if (USE_MODFLOW6)
-    # summa_bmi.f90 (in the library) needs the CSDMS bmi-fortran module bmif_2_0
-    target_link_libraries(summa PUBLIC bmif)
+    # summa_bmi.f90 (in the library) needs the CSDMS bmi-fortran module bmif_2_0, and
+    # mf6_coupling.f90 (also in the library, so that summa_simulation.f90 can run a coupled
+    # simulation per calibration sample) calls libmf6 directly.  Both are PUBLIC so that every
+    # executable linking summa resolves them.
+    if (NOT MODFLOW6_LIB_DIR)
+      message(FATAL_ERROR "USE_MODFLOW6=ON requires -DMODFLOW6_LIB_DIR=<dir containing libmf6>")
+    endif()
+    find_library(MF6_LIB NAMES mf6 libmf6 PATHS "${MODFLOW6_LIB_DIR}" NO_DEFAULT_PATH)
+    if (NOT MF6_LIB)
+      message(FATAL_ERROR "could not find libmf6 in ${MODFLOW6_LIB_DIR}")
+    endif()
+    target_link_libraries(summa PUBLIC bmif "${MF6_LIB}")
+    # so anything linking the library finds libmf6 at run time without LD_LIBRARY_PATH
+    set_target_properties(summa PROPERTIES
+      BUILD_RPATH "${MODFLOW6_LIB_DIR}"
+      INSTALL_RPATH "${MODFLOW6_LIB_DIR}")
   endif()
 
   if (USE_TOML)
@@ -491,15 +514,7 @@ else()
   set_property(TARGET ${EXEC_NAME} PROPERTY LINKER_LANGUAGE Fortran)
   target_link_libraries(${EXEC_NAME} PRIVATE summa)
   if (USE_MODFLOW6)
-    if (NOT MODFLOW6_LIB_DIR)
-      message(FATAL_ERROR "USE_MODFLOW6=ON requires -DMODFLOW6_LIB_DIR=<dir containing libmf6>")
-    endif()
-    find_library(MF6_LIB NAMES mf6 libmf6 PATHS "${MODFLOW6_LIB_DIR}" NO_DEFAULT_PATH)
-    if (NOT MF6_LIB)
-      message(FATAL_ERROR "could not find libmf6 in ${MODFLOW6_LIB_DIR}")
-    endif()
-    target_link_libraries(${EXEC_NAME} PRIVATE bmif "${MF6_LIB}")
-    # so the executable can find libmf6 at run time without LD_LIBRARY_PATH
+    # bmif and libmf6 come through summa (PUBLIC, see above); the rpath does not, so set it here
     set_target_properties(${EXEC_NAME} PROPERTIES
       BUILD_RPATH "${MODFLOW6_LIB_DIR}"
       INSTALL_RPATH "${MODFLOW6_LIB_DIR}")
@@ -513,12 +528,20 @@ else()
     target_link_libraries(${EXEC_NAME_MPI} PRIVATE summa PARALLEL_UTILS)
   endif()
 
-  # Parallel optimization SUMMA executable
+  # Parallel optimization SUMMA executable.  With USE_MODFLOW6 this is the coupled calibration
+  # driver (renamed above); each parameter sample is then evaluated as a coupled SUMMA/MODFLOW 6
+  # simulation whenever simulation.use_modflow is set in the TOML configuration.
   if (USE_MPI)
     add_executable(${EXEC_NAME_OPT} ${CALIBR_MPI} ${MAIN_SUMMA_OPT})
     target_compile_options(${EXEC_NAME_OPT} PRIVATE ${FLAGS_ALL})
     set_property(TARGET ${EXEC_NAME_OPT} PROPERTY LINKER_LANGUAGE Fortran)
     target_link_libraries(${EXEC_NAME_OPT} PRIVATE summa PARALLEL_UTILS)
+    if (USE_MODFLOW6)
+      # so the executable can find libmf6 at run time without LD_LIBRARY_PATH
+      set_target_properties(${EXEC_NAME_OPT} PROPERTIES
+        BUILD_RPATH "${MODFLOW6_LIB_DIR}"
+        INSTALL_RPATH "${MODFLOW6_LIB_DIR}")
+    endif()
   endif()
 
   # MPI MODFLOW 6 coupler executable
@@ -526,7 +549,7 @@ else()
     add_executable(${EXEC_NAME_MODFLOW_MPI} ${MAIN_SUMMA_MODFLOW_MPI})
     target_compile_options(${EXEC_NAME_MODFLOW_MPI} PRIVATE ${FLAGS_ALL})
     set_property(TARGET ${EXEC_NAME_MODFLOW_MPI} PROPERTY LINKER_LANGUAGE Fortran)
-    target_link_libraries(${EXEC_NAME_MODFLOW_MPI} PRIVATE summa PARALLEL_UTILS bmif "${MF6_LIB}")
+    target_link_libraries(${EXEC_NAME_MODFLOW_MPI} PRIVATE summa PARALLEL_UTILS)
     # so the executable can find libmf6 at run time without LD_LIBRARY_PATH
     set_target_properties(${EXEC_NAME_MODFLOW_MPI} PROPERTIES
       BUILD_RPATH "${MODFLOW6_LIB_DIR}"

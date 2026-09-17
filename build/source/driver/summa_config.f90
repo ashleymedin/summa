@@ -1,6 +1,7 @@
 module summa_config
 
 use build_options, only: mizuroute_active
+use build_options, only: modflow_active
 
 USE nr_type
 USE summa_type, only: config_info       ! summa configuation info
@@ -128,6 +129,7 @@ contains
     integer(i4b)       :: i,j,k
     character(len=256) :: cmessage
     logical(lgt)       :: mizuroute_config_present = .false.
+    logical(lgt)       :: modflow_config_present = .false.
     logical(lgt)       :: hasObs                      ! .true. if streamflow observations are configured
 
     err = 0
@@ -199,6 +201,17 @@ contains
                                     config, err, cmessage)
             if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+          ! ----- parse the MODFLOW 6 section of the TOML table -----
+          case ("modflow")
+            modflow_config_present = .true.
+            if (modflow_active) then
+              call parse_summa_config(subtable,              &
+                                      trim(sections(i)%key), &
+                                      trim(keys(j)%key),     &
+                                      config, err, cmessage)
+              if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+            endif
+
           ! ----- parse the mizuRoute sections of the TOML table -----
           case ("mizuRoute", "hydrofabric", "remapping")
             mizuroute_config_present = .true.
@@ -244,6 +257,34 @@ contains
       write(iulog,*) 'WARNING: mizuRoute configuration was provided, but use_mizuroute is false.'
       write(iulog,*) '         Set simulation.use_mizuroute = true to run coupled mizuRoute, or remove the '
       write(iulog,*) '         mizuRoute, hydrofabric, and remapping sections if routing is not required.'
+    endif
+
+    ! Coupled MODFLOW 6 requires an executable built with the coupler, because the libmf6
+    ! calls it makes only exist there.
+    if (config%use_modflow .and. .not.modflow_active) then
+      message=trim(message)//'coupled MODFLOW 6 was requested for this simulation, but this '// &
+                             'executable was not built with MODFLOW 6 support (-DUSE_MODFLOW6=ON).'
+      err=20; return
+    endif
+
+    ! The coupler is driven from a &coupler namelist naming the GWF model and its packages;
+    ! without one there is nothing to couple to.
+    if (config%use_modflow)then
+      if(.not.allocated(config%modflow_config))then
+        message=trim(message)//'simulation.use_modflow is true but modflow.config_file is not set; '// &
+                               'it must name the &coupler namelist file for this case.'
+        err=20; return
+      endif
+      ! default: MODFLOW reads mfsim.nam from the working directory, as the standalone couplers do
+      if(.not.allocated(config%modflow_run_dir)) config%modflow_run_dir = '.'
+    endif
+
+    ! MODFLOW configuration is ignored unless coupled MODFLOW 6 is explicitly enabled for the
+    ! simulation. Warn, because the supplied configuration suggests it was meant to run.
+    if (modflow_config_present .and. .not.config%use_modflow) then
+      write(iulog,*) 'WARNING: MODFLOW 6 configuration was provided, but use_modflow is false.'
+      write(iulog,*) '         Set simulation.use_modflow = true to run coupled MODFLOW 6, or remove the '
+      write(iulog,*) '         modflow section if groundwater coupling is not required.'
     endif
 
     ! ----- set default objective function settings -----
@@ -310,7 +351,12 @@ contains
       case ("simulation.work_path"         ); call get_value(subtable, trim(key), config%work_path        , stat=istat)
       case ("simulation.case_name"         ); call get_value(subtable, trim(key), config%case_name        , stat=istat)  
       case ("simulation.use_mizuroute"     ); call get_value(subtable, trim(key), config%use_mizuroute    , stat=istat)
+      case ("simulation.use_modflow"       ); call get_value(subtable, trim(key), config%use_modflow      , stat=istat)
       case ("simulation.write_timeseries"  ); call get_value(subtable, trim(key), config%write_timeseries , stat=istat)
+
+      ! ---- coupled MODFLOW 6 (see mf6_coupling.f90) ----
+      case ("modflow.config_file"          ); call get_value(subtable, trim(key), config%modflow_config   , stat=istat)
+      case ("modflow.run_dir"              ); call get_value(subtable, trim(key), config%modflow_run_dir  , stat=istat)
 
       ! ---- SUMMA files: paths ----
       case ("summa_files.settings_path"    ); call get_value(subtable, trim(key), config%settings_path    , stat=istat)

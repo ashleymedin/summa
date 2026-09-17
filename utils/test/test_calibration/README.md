@@ -14,6 +14,52 @@ observations, and routed streamflow is produced by mizuRoute. In a build without
 simulated flow series is never filled, so there is nothing to score. This is a real constraint
 of the current design, not a property of these tests.
 
+## Calibrating a MODFLOW 6 coupled case
+
+A build with `-DUSE_MODFLOW6=ON` names its calibration executable `summa_modflow6_opt.exe`.
+It is the same driver as `summa_opt.exe`; what changes is that each parameter sample can be
+evaluated as a full coupled SUMMA/MODFLOW 6 simulation rather than a plain SUMMA run. Turn
+that on per case in the TOML configuration:
+
+```toml
+[simulation]
+use_modflow = true
+
+[modflow]
+config_file = "/abs/path/to/summa_modflow6.config"   # the &coupler namelist, as for the standalone couplers
+run_dir     = "/abs/path/to/the/MODFLOW/model"       # the directory holding mfsim.nam
+```
+
+The model decisions must be the coupler's, exactly as for `summa_modflow6.exe`:
+`groundwatr = modflow` (or `modLatflow`) and `bcLowrSoiH = presHead`. The run is rejected at
+start-up otherwise.
+
+Each MPI rank is an independent model instance, so each gets its own MODFLOW run directory,
+`modflow_rank####` under the case's output path, populated once by copying `run_dir` and
+reused by every sample that rank evaluates. They are copies rather than symlinks because
+MODFLOW writes its listing, head and budget files into its working directory, and ranks
+sharing one directory would overwrite each other's output. Budget for the disk this needs:
+one copy of the MODFLOW model per rank.
+
+Within a rank, every sample runs its own complete MODFLOW simulation, started and finalized
+around the SUMMA run, so each trial sees the same aquifer initial condition and trials stay
+comparable.
+
+**The aquifer is not spun up with the soil column.** The calibration's one-year cold-start
+spinup runs coupled, but MODFLOW restarts each sample from the initial head in its own input
+(`STRT`), while SUMMA restarts from the spun-up state. Set `STRT` to a sensible water table
+for the calibration period rather than relying on the spinup to settle it.
+
+**This needs mizuRoute as well**, for the same reason every other calibration does: the
+objective compares routed streamflow against gauge observations. A coupled calibration build
+is therefore `-DUSE_MPI=ON -DUSE_MIZUROUTE=ON -DUSE_MODFLOW6=ON`.
+
+There is no bundled end-to-end test of this path: it needs a domain that has a MODFLOW model,
+a mizuRoute topology, streamflow observations, and a year of forcing before the calibration
+period, and no domain in this repository has all four. The pieces it is built from are
+covered separately - `utils/test/test_mflow` exercises the coupling itself, and
+`test_calibration_bow.sh` below exercises the calibration machinery.
+
 ## `test_calibration_bow.sh`
 
 A short, self-contained calibration on the Bow River at Banff (CAN_05BB001). Everything it needs

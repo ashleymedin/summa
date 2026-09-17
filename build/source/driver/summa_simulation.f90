@@ -19,7 +19,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 module summa_simulation
 
-USE nr_type, only: i4b, rkind
+USE nr_type, only: i4b, rkind, lgt
 USE summa_type, only: config_info
 USE summa_type, only: summa1_type_dec
 USE summa_type, only: parallel_context_type
@@ -41,6 +41,21 @@ USE build_options, only: openwq_active
 #ifdef MIZUROUTE_ACTIVE
 USE mizuroute_coupling,        only: get_mizuroute_streamflow
 USE finalize_mizuroute_module, only: finalize_mizuroute
+#endif
+
+#ifdef MODFLOW_ACTIVE
+! Coupled MODFLOW 6: the calibration driver runs SUMMA directly rather than through its BMI,
+! so it drives the coupling here instead of in summa_modflow6.f90.  mf6_coupling is the same
+! MODFLOW side that the standalone couplers use, and summa_mf6_exchange the same SUMMA side.
+USE mf6_coupling,       only: mf6_coupler_type
+USE mf6_coupling,       only: mf6_prepare_run_dir
+USE summa_mf6_exchange, only: mf6x_hru_count
+USE summa_mf6_exchange, only: mf6x_hru_longitude, mf6x_hru_latitude, mf6x_hru_elevation
+USE summa_mf6_exchange, only: mf6x_soil_thickness
+USE summa_mf6_exchange, only: mf6x_get_drainage
+USE summa_mf6_exchange, only: mf6x_put_lower_bound_head
+USE summa_mf6_exchange, only: mf6x_put_aquifer_storage
+USE summa_mf6_exchange, only: mf6x_put_aquifer_baseflow
 #endif
 
 #ifdef OPENWQ_ACTIVE
@@ -312,6 +327,9 @@ contains
     USE var_lookup, only: iLookFORCE
     USE globalData, only: forc_meta
     USE globalData, only: numtim
+#ifdef MODFLOW_ACTIVE
+    USE globalData, only: data_step                            ! length of a SUMMA data step (s)
+#endif
     ! dummy arguments
     type(summa1_type_dec), intent(inout)       :: summa_struct  ! top-level SUMMA data structure
     real(rkind), allocatable, intent(out)      :: timeSim(:)    ! simulation time
@@ -323,9 +341,29 @@ contains
     ! locals
     integer(i4b)                               :: modelTimeStep ! index of model time step
     character(len=512)                         :: cmessage      ! error message of downwind routine
-   
+#ifdef MODFLOW_ACTIVE
+    ! coupled MODFLOW 6 state, live only while summa_struct%config%use_modflow is set
+    type(mf6_coupler_type)                     :: coupler       ! the MODFLOW 6 side of the coupling
+    logical(lgt)                               :: coupled       ! .true. if this run is coupled to MODFLOW 6
+    real, allocatable                          :: drain_hru(:)  ! per-HRU soil drainage (m s-1), SUMMA -> MODFLOW
+    real, allocatable                          :: head_hru(:)   ! per-HRU prescribed head (m), MODFLOW -> SUMMA
+    real, allocatable                          :: stor_hru(:)   ! per-HRU aquifer storage (m), MODFLOW -> SUMMA
+    real, allocatable                          :: bflow_hru(:)  ! per-HRU aquifer baseflow (m s-1), MODFLOW -> SUMMA
+#endif
+
     err=0
     message='run_summa/'
+
+#ifdef MODFLOW_ACTIVE
+    ! start the coupled MODFLOW 6 model, if this case is configured for one
+    coupled = summa_struct%config%use_modflow
+    if(coupled)then
+      call start_modflow(summa_struct, coupler,                        &
+                         drain_hru, head_hru, stor_hru, bflow_hru,     &
+                         err, cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+#endif
 
     ! define units for time and flow
     timeUnits = trim(forc_meta(iLookFORCE%time)%varunit) ! time since reference (varies)
@@ -337,6 +375,18 @@ contains
 
     ! loop through time
     do modelTimeStep=1,numtim
+
+#ifdef MODFLOW_ACTIVE
+      ! push the previous step's MODFLOW 6 state into SUMMA, before the physics reads it
+      ! (explicit, one-step lag; see mf6_coupling.f90 for the full exchange)
+      if(coupled)then
+        if(coupler%feedback .and. modelTimeStep > 1)then
+          call mf6x_put_lower_bound_head(summa_struct, head_hru)
+          if(coupler%have_sy)    call mf6x_put_aquifer_storage(summa_struct, stor_hru)
+          if(coupler%have_bflow) call mf6x_put_aquifer_baseflow(summa_struct, bflow_hru)
+        endif
+      endif
+#endif
 
       ! read model forcing data
       call summa_readForcing(modelTimeStep, summa_struct, err, cmessage)
@@ -364,11 +414,103 @@ contains
       call summa_writeOutputFiles(modelTimeStep, summa_struct, err, cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+#ifdef MODFLOW_ACTIVE
+      ! SUMMA drainage -> MODFLOW recharge, advance MODFLOW one step, read the new water table
+      ! back ready for the next iteration
+      if(coupled)then
+        call mf6x_get_drainage(summa_struct, drain_hru)
+        call coupler%step(modelTimeStep, dble(data_step),           &
+                          drain_hru, head_hru, stor_hru, bflow_hru, &
+                          err, cmessage)
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      endif
+#endif
+
       ! finalize OpenWQ time step
       if(openwq_active) call openwq_run_time_end(summa_struct)
     enddo
 
+#ifdef MODFLOW_ACTIVE
+    ! shut MODFLOW down: the next parameter sample starts its own simulation, from the same
+    ! aquifer initial condition this one started from
+    if(coupled)then
+      call coupler%finalize(err, cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+#endif
+
   end subroutine run_summa
+
+#ifdef MODFLOW_ACTIVE
+  ! **************************************************************************************************
+  ! Start the coupled MODFLOW 6 model for this simulation.
+  !
+  ! Each model instance gets its own MODFLOW run directory under the case's output path, because
+  ! libmf6 writes its listing and budget files into the working directory and the calibration
+  ! driver runs one instance per MPI rank at the same time.  The directory is populated from the
+  ! configured model directory on the first sample and reused by the rest.
+  ! **************************************************************************************************
+  subroutine start_modflow(summa_struct, coupler, drain_hru, head_hru, stor_hru, bflow_hru, err, message)
+    USE globalData,       only: numtim               ! number of SUMMA data steps
+    USE globalData,       only: data_step            ! length of a SUMMA data step (s)
+    USE globalData,       only: model_decisions      ! SUMMA model decision structure
+    USE summaFileManager, only: OUTPUT_PATH          ! path for this case's output
+    USE var_lookup,       only: iLookDECISIONS       ! named indices into model_decisions
+    USE mDecisions_module,only: modflowCpl           ! MODFLOW coupled groundwater parameterization
+    USE mDecisions_module,only: modLatFlow           ! as modflowCpl, plus lateral flow in the soil above
+    USE mDecisions_module,only: prescribedHead       ! prescribed head lower boundary condition
+    ! dummy arguments
+    type(summa1_type_dec),  intent(inout) :: summa_struct
+    type(mf6_coupler_type), intent(inout) :: coupler
+    real, allocatable,      intent(out)   :: drain_hru(:), head_hru(:), stor_hru(:), bflow_hru(:)
+    integer(i4b),           intent(out)   :: err
+    character(*),           intent(out)   :: message
+    ! locals
+    integer(i4b)                  :: nHRU
+    double precision, allocatable :: hru_x(:), hru_y(:), hru_z(:), soil_thk(:)
+    character(len=256)            :: run_dir
+    character(len=4)              :: rankString
+    character(len=256)            :: cmessage
+
+    err=0
+    message='start_modflow/'
+
+    ! the coupled-groundwater decisions must be active, exactly as for the standalone couplers
+    if(model_decisions(iLookDECISIONS%groundwatr)%iDecision /= modflowCpl .and. &
+       model_decisions(iLookDECISIONS%groundwatr)%iDecision /= modLatFlow)then
+      message=trim(message)//'SUMMA model decision groundwatr must be "modflow" or "modLatflow" '// &
+                             'when simulation.use_modflow is set'
+      err=20; return
+    endif
+    if(model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision /= prescribedHead)then
+      message=trim(message)//'SUMMA model decision bcLowrSoiH must be "presHead" '// &
+                             'when simulation.use_modflow is set'
+      err=20; return
+    endif
+
+    ! per-HRU exchange buffers, in the HRU order the coupler's cell map is built in
+    nHRU = mf6x_hru_count()
+    allocate(drain_hru(nHRU), head_hru(nHRU), stor_hru(nHRU), bflow_hru(nHRU))
+    head_hru = 0.0; stor_hru = 0.0; bflow_hru = 0.0
+    allocate(hru_x(nHRU), hru_y(nHRU), hru_z(nHRU), soil_thk(nHRU))
+    call mf6x_hru_longitude(summa_struct, hru_x)
+    call mf6x_hru_latitude(summa_struct, hru_y)
+    call mf6x_hru_elevation(summa_struct, hru_z)
+    call mf6x_soil_thickness(summa_struct, soil_thk)
+
+    ! this instance's own MODFLOW directory (one per rank; sequential samples on a rank share it)
+    write(rankString,'(I4.4)') summa_struct%instance_parallel%rank
+    run_dir = trim(OUTPUT_PATH)//'modflow_rank'//rankString
+    call mf6_prepare_run_dir(trim(summa_struct%config%modflow_run_dir), trim(run_dir), err, cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    call coupler%init(trim(summa_struct%config%modflow_config), trim(run_dir), &
+                      nHRU, hru_x, hru_y, hru_z, soil_thk,                     &
+                      numtim, dble(data_step), err, cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  end subroutine start_modflow
+#endif
 
   ! **************************************************************************************************
   ! finalize SUMMA
