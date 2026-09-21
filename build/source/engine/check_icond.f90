@@ -392,12 +392,12 @@ contains
      end if
 
      ! number of layers
-     nSnow   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
-     nLake   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake
+     nSnow    = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
+     nLake    = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake
      nLakeFrz = indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLakeFrz)%dat(1)
-     nSoil   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
-     nGlce   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce
-     nLayers = nSnow + nLake + nSoil + nGlce
+     nSoil    = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
+     nGlce    = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce
+     nLayers  = nSnow + nLake + nSoil + nGlce
 
      ! compute the maximum volumetric ice content for the layer domains
      if(nGlce>0)then ! snow can be firn

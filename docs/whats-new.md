@@ -114,9 +114,12 @@ covers the user-facing highlights.
   at the bottom-soil temperature, routed through the same unit hydrograph), and walks the
   reaches upstream to downstream after each routing step. Ice that forms in the water rises
   into an ice cover (a lake layer treated like glacier ice, `nLakeFrz` in the restart file)
-  that breaks up below `lakeIceMinThick`; snow can build on it. Follows Wanders et al. (2019,
-  WRR) after van Beek et al. (2012, WRR).
-  New output `T_reach`, `v_reach`, `scalarStreamTemp`, `averageRoutedRunoffTemp` and the
+  that breaks up below `lakeIceMinThick`; snow can build on it. The reach volume holds the
+  ice too (the column takes it off before imposing its liquid), and the routing sees the
+  cover through the Manning n of the reach (composite of bed and ice underside, Wanders
+  eqs. 12-13). Follows Wanders et al. (2019, WRR) after van Beek et al. (2012, WRR).
+  New output `T_reach`, `v_reach`, `n_reach`, `ice_reach`, `scalarStreamTemp`,
+  `scalarLakeIceThick`, `averageRoutedRunoffTemp` and the
   `scalarStream*` fluxes; new attribute `streamSegId`; new parameters `streamMinDepth`,
   `lakeMixingThermalC` and `lakeIceMinThick`; new restart variables `routingNrgFuture` and
   `nLakeFrz`. Runs without stream HRUs are unchanged.

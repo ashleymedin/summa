@@ -211,6 +211,24 @@ advected by the reach flow. A cover thinner than `lakeIceMinThick` (5 mm,
 the breakup thickness of Wanders et al.) returns to the water. Snow builds
 on the cover; rain and snowmelt on the cover run off into the reach.
 
+The reach volume mizuRoute carries is all the water of the reach, ice
+included: the column takes its own frozen water (the cover and any ice still
+in the water) off the reach depth before it imposes the liquid, so freezing
+thins the flow beneath the cover and the melt of the cover returns to it
+without leaving the reach; only sublimation from a bare cover is debited from
+the reach, like evaporation from open water. What the routing sees of the ice
+is the roughness: before each routing step the Manning n of a reach with an
+ice cover is the composite of the bed and the underside of the ice, weighted
+by their wetted perimeters (Wanders et al. eq. 12, after Winsemius et al.
+2013), with the roughness of the ice from Nezhikovskiy (1964),
+`n_i = 0.0493 h^-0.23 z^0.57` for a water depth `h` and ice thickness `z`
+(eq. 13); the width the cover adds to the wetted perimeter is folded into the
+n handed to mizuRoute, since the routing takes its hydraulic radius from the
+bed alone (`set_mizuroute_reach_roughness`). A broken-up cover moves with the
+water and leaves the roughness alone. The floodplain term of Wanders' eq. 11
+(`n_f = 0.1`) is in the same composite but inert, since the coupled build does
+not yet expose mizuRoute's floodplain geometry.
+
 The sequence within a time step is:
 
 ```text
@@ -222,6 +240,10 @@ land HRUs of every GRU (run_oneGRU, parallel over GRUs)
 coupling(:)%qsim, coupling(:)%esim          (m s-1 and W m-2 per GRU)
     |
     | ------------------ coupling interface ------------------
+    v
+Manning n of each reach from the ice cover  (set_mizuroute_reach_roughness)
+its column had after the last step
+    |
     v
 mizuRoute routes the water                  (route_mizuroute_from_summa)
     |
@@ -241,7 +263,7 @@ network pass, reaches in routing order      (run_streamNetwork, serial)
     |  temperature becomes the outflow temperature of the reach; a reach with
     |  no stream HRU only mixes what flows into it
     v
-T_reach, v_reach output; scalarStream* fluxes and scalarStreamTemp per stream HRU
+T_reach, v_reach, n_reach, ice_reach output; scalarStream* fluxes and scalarStreamTemp per stream HRU
 ```
 
 The per-reach arrays live in `summa1_type_dec%stream_net` (`data_types.f90`,
@@ -253,15 +275,19 @@ them; the network pass and the column physics are SUMMA code
 
 Approximations of this first implementation: one well-mixed column per reach
 (no longitudinal sub-reaches); the liquid depth of the column is prescribed
-from the reach volume once per step (each lake layer keeping its share of the
-column, with a floor so a layer that melted or sublimated away refills), so the
-water mass stays entirely in mizuRoute; the ice cover is at most one layer
-(`nLakeIceLayers_poss` in `globalData.f90`) and forms only once enough ice
-is present to stand (twice `lakeIceMinThick`); no bed seepage
-or hyporheic exchange; no shortwave penetration below the top lake layer;
-mizuRoute never sees the ice, so winter depth and velocity are open-water
-values; and open-water evaporation exceeding all other runoff of a GRU is not
-debited from the channel (the network takes no negative lateral inflow). The
+from the reach volume less its frozen water once per step (each lake layer
+keeping its share of the column, with a floor so a layer that melted or
+sublimated away refills), so the water mass stays entirely in mizuRoute; the
+ice cover is at most one layer (`nLakeIceLayers_poss` in `globalData.f90`)
+and forms only once enough ice is present to stand (twice `lakeIceMinThick`;
+a water layer that is mostly ice before then is mixed over the water layers);
+no bed seepage or hyporheic exchange; no shortwave penetration below the top
+lake layer; the ice reaches the routing only through the roughness, not
+through the discharge it holds back while it forms (small at the freezing
+rates of a reach, and not representable in a routing scheme whose state is the
+discharge); the reported velocity is the open-water one; and open-water
+evaporation exceeding all other runoff of a GRU is not debited from the
+channel (the network takes no negative lateral inflow). The
 network pass is serial and, like the rest of the coupled mizuRoute, needs the
 whole domain on one process.
 

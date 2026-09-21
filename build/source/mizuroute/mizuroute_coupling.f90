@@ -22,6 +22,7 @@ module mizuroute_coupling
   public :: get_mizuroute_streamflow
   public :: init_stream_network_from_summa
   public :: get_mizuroute_reach_hydraulics
+  public :: set_mizuroute_reach_roughness
   public :: remap_lateral_energy
 
   ! *****************************************************************************
@@ -227,6 +228,14 @@ module mizuroute_coupling
   ! by mizuRoute. The per-reach arrays live in summaStruct%stream_net; this
   ! module only fills the mizuRoute side of them.
   !
+  ! The reach volume mizuRoute carries is all the water of the reach, ice
+  ! included: the column takes its own ice off before it imposes the liquid
+  ! depth, so freezing thins the flow and the melt of the cover returns to it.
+  ! What the routing sees of the ice is the roughness: before each routing
+  ! step the Manning n of a reach with an ice cover is raised for the friction
+  ! of the cover and the wetted perimeter it adds (set_mizuroute_reach_roughness,
+  ! Wanders et al. 2019 eqs 12-13).
+  !
   ! Possible HRU-level coupling
   ! ---------------------------
   !
@@ -382,7 +391,8 @@ contains
   message = 'write_mizuroute_output_from_summa/'
   if(any(summaStruct%stream_net%ixDOM > 0))then
     call write_mizuroute_output(ncid, istart, numtim, summaStruct%config%mizu_info, summaStruct%mizu_domain, ierr, cmessage, &
-                                tReach=summaStruct%stream_net%tOutHist, vReach=summaStruct%stream_net%velHist)
+                                tReach=summaStruct%stream_net%tOutHist, vReach=summaStruct%stream_net%velHist,           &
+                                nReach=summaStruct%stream_net%manNHist, iceReach=summaStruct%stream_net%iceHist)
   else
     call write_mizuroute_output(ncid, istart, numtim, summaStruct%config%mizu_info, summaStruct%mizu_domain, ierr, cmessage)
   endif
@@ -439,9 +449,11 @@ contains
            net%ixGRU(net%nSeg), net%ixHRU(net%nSeg), net%ixDOM(net%nSeg), net%length(net%nSeg),                 &
            net%qUp(net%nSeg), net%qLat(net%nSeg), net%qOut(net%nSeg), net%vol(net%nSeg), net%depth(net%nSeg),     &
            net%velocity(net%nSeg), net%eLat(net%nSeg), net%tLat(net%nSeg), net%tUp(net%nSeg), net%tOut(net%nSeg),   &
-           net%tOutHist(net%nSeg,summaStruct%n_write), net%velHist(net%nSeg,summaStruct%n_write), stat=ierr)
+           net%manN(net%nSeg), net%manNeff(net%nSeg), net%liqDepth(net%nSeg), net%iceThick(net%nSeg),               &
+           net%tOutHist(net%nSeg,summaStruct%n_write), net%velHist(net%nSeg,summaStruct%n_write),                   &
+           net%manNHist(net%nSeg,summaStruct%n_write), net%iceHist(net%nSeg,summaStruct%n_write), stat=ierr)
   if(ierr/=0)then; message=trim(message)//'problem allocating the stream network'; return; endif
-  net%tOutHist(:,:) = Tfreeze; net%velHist(:,:) = 0._rkind
+  net%tOutHist(:,:) = Tfreeze; net%velHist(:,:) = 0._rkind; net%manNHist(:,:) = 0._rkind; net%iceHist(:,:) = 0._rkind
 
   ! topology
   net%ixUps(:,:) = 0
@@ -487,10 +499,11 @@ contains
         ' has area ',domArea(iGRU),' m2 but its reach is ',reachArea,' m2 (length x width); the reach volume per unit area uses the reach'
   end do
 
-  ! initial values
+  ! initial values; the bed roughness is the routing parameter, kept here since the routing is handed the effective one
   net%qUp(:) = 0._rkind; net%qLat(:) = 0._rkind; net%qOut(:) = 0._rkind
   net%vol(:) = realMissing; net%depth(:) = 0._rkind; net%velocity(:) = 0._rkind
   net%eLat(:) = 0._rkind; net%tLat(:) = Tfreeze; net%tUp(:) = Tfreeze; net%tOut(:) = Tfreeze
+  net%manN(:) = core%param(:)%R_MAN_N; net%manNeff(:) = net%manN(:); net%liqDepth(:) = 0._rkind; net%iceThick(:) = 0._rkind
 
   end associate
   end subroutine init_stream_network_from_summa
@@ -502,7 +515,8 @@ contains
   ! the IRF, KW, MC and DW methods; for the others the depth falls back to
   ! the Manning normal depth. The depth passed to SUMMA is the reach volume
   ! spread over the reach planform area (length x width of the routing
-  ! geometry), so the SUMMA column has the mean depth of the reach.
+  ! geometry), so the SUMMA column has the mean depth of the reach. It is the
+  ! depth of all the reach water, ice included; the column takes its ice off.
   subroutine get_mizuroute_reach_hydraulics(summaStruct, ierr, message)
   USE public_var, only: realMissing
   USE hydraulic,  only: flow_depth, flow_area
@@ -547,6 +561,66 @@ contains
 
   end associate
   end subroutine get_mizuroute_reach_hydraulics
+
+  !-----------------------------------------------------------------------
+  ! Reach roughness before a routing step: the ice cover of the stream column
+  !-----------------------------------------------------------------------
+  ! Wanders et al. (2019), after Winsemius et al. (2013): the Manning n of the
+  ! reach is the composite of the bed and the surfaces the water also touches,
+  ! weighted by their wetted perimeters,
+  !     n = [ (Pc nc^1.5 + Pf nf^1.5 + w ni^1.5) / (Pc + Pf + w) ]^(1/1.5)
+  ! with Pc the wetted perimeter of the channel, Pf that of the floodplain
+  ! (eq 11, nf = 0.1 for floodways with timber and underbrush) and w the width
+  ! of the ice cover, which rests on the whole water surface (eq 12), with the
+  ! roughness of the underside of the ice from Nezhikovskiy (1964),
+  !     ni = 0.0493 h^-0.23 z^0.57                                     (eq 13)
+  ! for a water depth h and an ice thickness z. The cover also adds w to the
+  ! wetted perimeter; the routing computes its hydraulic radius from the bed
+  ! alone, so the perimeter it adds goes into the n it is handed, n_eff = n
+  ! [(Pc+Pf+w)/(Pc+Pf)]^(2/3), which gives the same Manning velocity. A cover
+  ! thinner than the breakup thickness is not there (the column removed it):
+  ! broken ice moves with the water and does not change the roughness. The
+  ! floodplain term is inert until the coupled build exposes the floodplain
+  ! geometry (the bankfull depth is then far above the water). The depth and
+  ! cover are those the column had after the last network pass.
+  subroutine set_mizuroute_reach_roughness(summaStruct, ierr, message)
+  USE hydraulic, only: Pwet, Btop
+  type(summa1_type_dec), intent(inout) :: summaStruct
+  integer(i4b),          intent(out)   :: ierr
+  character(*),          intent(out)   :: message
+  integer(i4b)                         :: iSeg
+  real(rkind)                          :: h, z             ! water depth beneath the ice, ice thickness (m)
+  real(rkind)                          :: Pc, Pf, w        ! wetted perimeters of the channel and floodplain, width of the ice cover (m)
+  real(rkind)                          :: ni, n            ! Manning n of the ice underside and of the composite (s m-1/3)
+  real(rkind), parameter               :: nFloodplain = 0.1_rkind  ! Manning n of the floodplain (s m-1/3), Wanders et al. (2019)
+  real(rkind), parameter               :: minDepth = 0.01_rkind    ! depth below which the ice roughness is not evaluated (m)
+
+  ierr = 0
+  message = 'set_mizuroute_reach_roughness/'
+  associate(net => summaStruct%stream_net, core => summaStruct%mizu_domain%river_network%core)
+
+  do iSeg=1,net%nSeg
+    if(net%ixDOM(iSeg) < 1) cycle
+    z = net%iceThick(iSeg)
+    h = max(net%liqDepth(iSeg), minDepth)
+    associate(b => core%param(iSeg)%R_WIDTH, zc => core%param(iSeg)%SIDE_SLOPE, &
+              zf => core%param(iSeg)%FLDP_SLOPE, bankDepth => core%param(iSeg)%R_DEPTH)
+      Pc = Pwet(min(h, bankDepth), b, zc, zf=zf, bankDepth=bankDepth)
+      Pf = Pwet(h, b, zc, zf=zf, bankDepth=bankDepth) - Pc
+      w  = merge(Btop(h, b, zc, zf=zf, bankDepth=bankDepth), 0._rkind, z > 0._rkind)
+    end associate
+    if(z > 0._rkind)then
+      ni = 0.0493_rkind * h**(-0.23_rkind) * z**0.57_rkind
+    else
+      ni = 0._rkind
+    end if
+    n = ( (Pc*net%manN(iSeg)**1.5_rkind + Pf*nFloodplain**1.5_rkind + w*ni**1.5_rkind)/(Pc + Pf + w) )**(1._rkind/1.5_rkind)
+    net%manNeff(iSeg) = n * ((Pc + Pf + w)/(Pc + Pf))**(2._rkind/3._rkind)
+    core%param(iSeg)%R_MAN_N = net%manNeff(iSeg)
+  end do
+
+  end associate
+  end subroutine set_mizuroute_reach_roughness
 
   !-----------------------------------------------------------------------
   ! Remap the energy flux carried by the GRU runoff onto the reaches

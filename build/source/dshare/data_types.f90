@@ -250,12 +250,18 @@ MODULE data_types
    real(rkind), allocatable              :: vol(:)                        ! water volume in the reach (m3), realMissing if the routing method has none
    real(rkind), allocatable              :: depth(:)                      ! mean liquid depth of the reach (m)
    real(rkind), allocatable              :: velocity(:)                   ! mean velocity of the reach (m s-1)
+   real(rkind), allocatable              :: manN(:)                       ! Manning roughness of the channel bed, from the routing parameters (s m-1/3)
+   real(rkind), allocatable              :: manNeff(:)                    ! Manning roughness the routing uses, raised by the ice cover of the stream column (s m-1/3)
+   real(rkind), allocatable              :: liqDepth(:)                   ! liquid depth of the stream column beneath its ice, after the network pass (m)
+   real(rkind), allocatable              :: iceThick(:)                   ! thickness of the ice cover of the stream column, after the network pass (m)
    real(rkind), allocatable              :: eLat(:)                       ! energy flux carried by the lateral inflow (W)
    real(rkind), allocatable              :: tLat(:)                       ! temperature of the lateral inflow (K)
    real(rkind), allocatable              :: tUp(:)                        ! flow-weighted temperature of the upstream inflow (K)
    real(rkind), allocatable              :: tOut(:)                       ! temperature of the water leaving the reach (K)
    real(rkind), allocatable              :: tOutHist(:,:)                 ! tOut per output buffer step (nSeg, n_write)
    real(rkind), allocatable              :: velHist(:,:)                  ! velocity per output buffer step (nSeg, n_write)
+   real(rkind), allocatable              :: manNHist(:,:)                 ! manNeff per output buffer step (nSeg, n_write)
+   real(rkind), allocatable              :: iceHist(:,:)                  ! iceThick per output buffer step (nSeg, n_write)
  end type stream_network
 
  ! ***********************************************************************************************************

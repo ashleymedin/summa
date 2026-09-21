@@ -541,10 +541,11 @@ MODULE var_lookup
   integer(i4b)    :: hCur                            = integerMissing ! step size to be used on the next internal step 
   integer(i4b)    :: tCur                            = integerMissing ! current time reached by the integrator
   ! stream and lake column
-  integer(i4b)    :: scalarStreamDepth               = integerMissing ! liquid depth of the stream water column prescribed from mizuRoute (m)
+  integer(i4b)    :: scalarStreamDepth               = integerMissing ! mean depth of the reach water (liquid and ice) from mizuRoute (m)
   integer(i4b)    :: scalarStreamVelocity            = integerMissing ! reach mean velocity from mizuRoute (m s-1)
   integer(i4b)    :: scalarStreamTemp                = integerMissing ! liquid-weighted temperature of the stream water column, the reach outlet temperature (K)
   integer(i4b)    :: scalarLakeLiqDepth              = integerMissing ! total liquid depth of the lake layers (m)
+  integer(i4b)    :: scalarLakeIceThick              = integerMissing ! thickness of the ice cover of the lake layers (m)
   integer(i4b)    :: scalarStreamSfcInflowTemp       = integerMissing ! temperature of the rain plus melt entering the top of the open water column (K)
  endtype iLook_diag
 
@@ -1057,7 +1058,7 @@ MODULE var_lookup
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
                                                                          91, 92, 93, 94, 95, 96, 97, 98, 99,100,&
                                                                         101,102,103,104,105,106,107,108,109,110,&
-                                                                        111,112,113,114,115,116,117,118)
+                                                                        111,112,113,114,115,116,117,118,119)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

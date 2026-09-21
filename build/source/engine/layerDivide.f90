@@ -84,6 +84,7 @@ contains
  subroutine layerDivide(&
                         ! input/output: model data structures
                         doGlac,                          & ! intent(in):    flag to denote if we are dividing glacier ice layers
+                        doLake,                          & ! intent(in):    flag to denote if we are dividing lake ice layers
                         maxLayers,                       & ! intent(in):    maximum number of snow/firn/ice layers
                         model_decisions,                 & ! intent(in):    model decisions
                         mpar_data,                       & ! intent(in):    model parameters
@@ -103,6 +104,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! input/output: model data structures
  logical(lgt),intent(in)            :: doGlac                 ! flag to denote if we are dividing glacier ice layers
+ logical(lgt),intent(in)            :: doLake                 ! flag to denote if we are dividing lake ice layers
  integer(i4b),intent(in)            :: maxLayers              ! maximum number of snow/firn/ice layers
  type(model_options),intent(in)     :: model_decisions(:)     ! model decisions
  type(var_dlength),intent(in)       :: mpar_data              ! model parameters
@@ -118,6 +120,7 @@ contains
  ! define local variables
  character(LEN=256)                 :: cmessage               ! error message of downwind routine
  integer(i4b)                       :: nSnow                  ! number of snow layers
+ integer(i4b)                       :: nLakeFrz               ! number of frozen lake layers
  integer(i4b)                       :: nLake                  ! number of lake layers
  integer(i4b)                       :: nSoil                  ! number of soil layers
  integer(i4b)                       :: nGlce                  ! number of glacier ice layers
@@ -142,6 +145,8 @@ contains
  integer(i4b),parameter             :: ixVisible=1            ! named variable to define index in array of visible part of the spectrum
  integer(i4b),parameter             :: ixNearIR=2             ! named variable to define index in array of near IR part of the spectrum
  real(rkind),parameter              :: snowDepthTol=1.e-10_rkind ! tolerance for the snow depth difference (m)
+ integer(i4b)                       :: topLayer               ! index of the top layer of snow/ice
+ integer(i4b)                       :: botLayer               ! index of the bottom layer of snow/ice
  ! --------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="layerDivide/"
@@ -177,19 +182,26 @@ contains
 
  ! ---------------------------------------------------------------------------------------------------
 
- ! initialize the number of snow layers
- nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
- nLake   = indx_data%var(iLookINDEX%nLake)%dat(1)
- nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
- nGlce   = indx_data%var(iLookINDEX%nGlce)%dat(1)
- nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
+ ! initialize the number of layers
+ nSnow    = indx_data%var(iLookINDEX%nSnow)%dat(1)
+ nLakeFrz = indx_data%var(iLookINDEX%nLakeFrz)%dat(1)
+ nLake    = indx_data%var(iLookINDEX%nLake)%dat(1)
+ nSoil    = indx_data%var(iLookINDEX%nSoil)%dat(1)
+ nGlce    = indx_data%var(iLookINDEX%nGlce)%dat(1)
+ nLayers  = indx_data%var(iLookINDEX%nLayers)%dat(1)
 
  ! number of layers possible to divide
  if(doGlac)then
-   nDivLayers = nGlce-noThetaChange
+   topLayer=nSnow+nLake+nSoil+1
+   botLayer=nSnow+nLake+nSoil+nGlce-noThetaChange
+ elseif(doLake)then
+   topLayer=nSnow+1
+   botLayer=nSnow+nLakeFrz
  else
-   nDivLayers = nSnow
+   topLayer=1
+   botLayer=nSnow
  end if
+ nDivLayers = botLayer-topLayer+1
 
  ! initialize flag to denote that a layer was divided
  divideLayer=.false.
@@ -210,7 +222,7 @@ contains
   end if
 
  ! ***** special case of no snow layers to divide
- if(nSnow==0 .and. .not.doGlac)then
+ if(nSnow==0 .and. .not.doGlac .and. .not.doLake)then
 
   ! check if create the first snow layer
   select case(ix_snowLayers)
@@ -227,10 +239,10 @@ contains
 
    ! add a layer to all model variables
    iLayer=0 ! (layer to divide: 0 is the special case of "snow without a layer")
-   call addModelLayer(prog_data,prog_meta,iLayer,nSnow,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-   call addModelLayer(diag_data,diag_meta,iLayer,nSnow,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-   call addModelLayer(flux_data,flux_meta,iLayer,nSnow,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-   call addModelLayer(indx_data,indx_meta,iLayer,nSnow,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   call addModelLayer(prog_data,prog_meta,iLayer,1,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   call addModelLayer(diag_data,diag_meta,iLayer,1,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   call addModelLayer(flux_data,flux_meta,iLayer,1,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   call addModelLayer(indx_data,indx_meta,iLayer,1,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
    ! set the state of the new layer (the layer vectors have just been reallocated, so through the accessors)
    ! get the layer depth
@@ -285,7 +297,7 @@ contains
    divideLayer=.false.
 
    ! if dividing glacier ice layers, force division of the top layer only
-   if (doGlac)then 
+   if (doGlac .or. doLake)then 
      if(iLayer==1)then
        zMaxCheck = depth(iLayer)
      else
@@ -313,23 +325,20 @@ contains
 
    ! check the need to sub-divide
    if(depth(iLayer) > zmaxCheck)then
-
     ! flag that layers were divided
     divideLayer=.true.
 
     ! add a layer to all model variables
-    call addModelLayer(prog_data,prog_meta,iLayer,nDivLayers,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-    call addModelLayer(diag_data,diag_meta,iLayer,nDivLayers,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-    call addModelLayer(flux_data,flux_meta,iLayer,nDivLayers,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-    call addModelLayer(indx_data,indx_meta,iLayer,nDivLayers,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    call addModelLayer(prog_data,prog_meta,iLayer,topLayer,botLayer,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    call addModelLayer(diag_data,diag_meta,iLayer,topLayer,botLayer,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    call addModelLayer(flux_data,flux_meta,iLayer,topLayer,botLayer,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    call addModelLayer(indx_data,indx_meta,iLayer,topLayer,botLayer,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
     ! define the layer depth
     depthOriginal = depth(iLayer)
     call setDepth(iLayer,   fracTop*depthOriginal)
     call setDepth(iLayer+1, (1._rkind - fracTop)*depthOriginal)
-
     exit  ! NOTE: only sub-divide one layer per substep
-
    end if   ! (if sub-dividing layer)
 
   end do  ! (looping through layers)
@@ -358,13 +367,18 @@ contains
   if(doGlac)then
    ! glacier ice layers
    layerType(nSnow+nLake+nSoil+1:nLayers+1)= iname_glce
+  elseif(doLake)then
+   ! snow layers
+   layerType(nSnow+2:nSnow+nLake+1)             = iname_lake
+   layerType(nSnow+nLake+2:nSnow+nLake+nSoil+1) = iname_soil
+   layerType(nSnow+nLake+nSoil+2:nLayers+1)     = iname_glce
   else
    ! snow layers
    layerType(1:nSnow+1)                         = iname_snow
    layerType(nSnow+2:nSnow+nLake+1)             = iname_lake
    layerType(nSnow+nLake+2:nSnow+nLake+nSoil+1) = iname_soil
    layerType(nSnow+nLake+nSoil+2:nLayers+1)     = iname_glce
-  end if  ! (if dividing glacier ice layers)
+  end if
 
   ! identify the number of layers, and check all is a-OK
   nSnow   = count(layerType(1:nLayers+1)==iname_snow)
@@ -417,7 +431,7 @@ contains
  ! ************************************************************************************************
  ! private subroutine addModelLayer: add an additional layer to all model vectors
  ! ************************************************************************************************
- subroutine addModelLayer(dataStruct,metaStruct,ix_divide,nSnow,nLayers,doGlac,err,message)
+ subroutine addModelLayer(dataStruct,metaStruct,ix_divide,topLayer,botLayer,nLayers,err,message)
  USE var_lookup,only:iLookVarType                     ! look up structure for variable typed
  USE get_ixName_module,only:get_varTypeName           ! to access type strings for error messages
  USE f2008_funcs_module,only:cloneStruc               ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
@@ -426,24 +440,23 @@ contains
  implicit none
  ! ---------------------------------------------------------------------------------------------
  ! input/output: data structures
- class(*),intent(inout)          :: dataStruct        ! data structure
- type(var_info),intent(in)       :: metaStruct(:)     ! metadata structure
+ class(*),intent(inout)          :: dataStruct         ! data structure
+ type(var_info),intent(in)       :: metaStruct(:)      ! metadata structure
  ! input: snow layer indices
- integer(i4b),intent(in)         :: ix_divide         ! index of the layer to divide
- integer(i4b),intent(in)         :: nSnow,nLayers     ! number of snow layers, total number of layers
- logical(lgt),intent(in)         :: doGlac            ! flag for dividing glacier ice layers
+ integer(i4b),intent(in)         :: ix_divide          ! index of the layer to divide
+ integer(i4b),intent(in)         :: topLayer,botLayer,nLayers ! top and bottom layer, total number of layers
  ! output: error control
- integer(i4b),intent(out)        :: err               ! error code
- character(*),intent(out)        :: message           ! error message
+ integer(i4b),intent(out)        :: err                ! error code
+ character(*),intent(out)        :: message            ! error message
  ! ---------------------------------------------------------------------------------------------
  ! local variables
- integer(i4b)                    :: iVar              ! index of model variable
- integer(i4b)                    :: ix_lower          ! lower bound of the vector
- integer(i4b)                    :: ix_upper          ! upper bound of the vector
- logical(lgt)                    :: stateVariable     ! .true. if variable is a state variable
- real(rkind),allocatable         :: tempVec_rkind(:)  ! temporary vector (double precision)
- integer(i4b),allocatable        :: tempVec_i4b(:)    ! temporary vector (integer)
- character(LEN=256)              :: cmessage          ! error message of downwind routine
+ integer(i4b)                    :: iVar               ! index of model variable
+ integer(i4b)                    :: ix_lower           ! lower bound of the vector
+ integer(i4b)                    :: ix_upper           ! upper bound of the vector
+ logical(lgt)                    :: stateVariable      ! .true. if variable is a state variable
+ real(rkind),allocatable         :: tempVec_rkind(:)   ! temporary vector (double precision)
+ integer(i4b),allocatable        :: tempVec_i4b(:)     ! temporary vector (integer)
+ character(LEN=256)              :: cmessage           ! error message of downwind routine
  ! ---------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='addModelLayer/'
@@ -452,23 +465,13 @@ contains
  do iVar=1,size(metaStruct)
 
   ! define bounds
-  if(doGlac)then ! note here nSnow will be nGlce
-    select case(metaStruct(iVar)%varType)
-     case(iLookVarType%midGlce); ix_lower=nLayers-nSnow+1; ix_upper=nLayers
-     case(iLookVarType%midToto); ix_lower=1; ix_upper=nLayers
-     case(iLookVarType%ifcGlce); ix_lower=nLayers-nSnow; ix_upper=nLayers
-     case(iLookVarType%ifcToto); ix_lower=0; ix_upper=nLayers
-     case default; cycle
-    end select
-  else
-    select case(metaStruct(iVar)%varType)
-     case(iLookVarType%midSnow); ix_lower=1; ix_upper=nSnow
-     case(iLookVarType%midToto); ix_lower=1; ix_upper=nLayers
-     case(iLookVarType%ifcSnow); ix_lower=0; ix_upper=nSnow
-     case(iLookVarType%ifcToto); ix_lower=0; ix_upper=nLayers
-     case default; cycle
-    end select
-  endif
+  select case(metaStruct(iVar)%varType)
+   case(iLookVarType%midSnow); ix_lower=topLayer; ix_upper=botLayer
+   case(iLookVarType%midToto); ix_lower=1; ix_upper=nLayers
+   case(iLookVarType%ifcSnow); ix_lower=topLayer-1; ix_upper=botLayer
+   case(iLookVarType%ifcToto); ix_lower=0; ix_upper=nLayers
+   case default; cycle
+  end select
 
   ! identify whether it is a state variable
   select case(trim(metaStruct(iVar)%varName))

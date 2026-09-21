@@ -44,6 +44,7 @@ USE build_options, only: mizuroute_active
 #ifdef MIZUROUTE_ACTIVE
 USE mizuroute_coupling, only: route_mizuroute_from_summa
 USE mizuroute_coupling, only: get_mizuroute_reach_hydraulics
+USE mizuroute_coupling, only: set_mizuroute_reach_roughness
 USE mizuroute_coupling, only: remap_lateral_energy
 #endif
 USE streamTemp_module,  only: run_streamNetwork
@@ -315,6 +316,11 @@ contains
      summa1_struc%coupling(iGRU)%esim = iden_water*Cp_water*summa1_struc%coupling(iGRU)%qsim &
                                         *summa1_struc%bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoffTemp)%dat(1)
    enddo
+   ! the reaches with a stream column are routed with the roughness of their ice cover, as the column left it last step
+   if(any(summa1_struc%stream_net%ixDOM > 0))then
+     call set_mizuroute_reach_roughness(summa1_struc, err, cmessage)
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   endif
    call route_mizuroute_from_summa(modelTimeStep, summa1_struc, err, cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -346,6 +352,8 @@ contains
      iSeg = merge(1, modelTimeStep, summa1_struc%n_write == 1)
      summa1_struc%stream_net%tOutHist(:,iSeg) = summa1_struc%stream_net%tOut(:)
      summa1_struc%stream_net%velHist(:,iSeg)  = summa1_struc%stream_net%velocity(:)
+     summa1_struc%stream_net%manNHist(:,iSeg) = summa1_struc%stream_net%manNeff(:)
+     summa1_struc%stream_net%iceHist(:,iSeg)  = summa1_struc%stream_net%iceThick(:)
    endif  ! (if there are stream domains)
   endif  ! (if mizuRoute is selected)
  endif  ! (if mizuroute was built)

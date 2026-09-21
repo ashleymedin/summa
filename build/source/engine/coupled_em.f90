@@ -193,6 +193,7 @@ subroutine coupled_em(&
   integer(i4b)                         :: nSnow                    ! number of snow layers
   integer(i4b)                         :: nLake                    ! number of lake layers
   integer(i4b)                         :: nLakeFrz                 ! number of frozen (ice cover) lake layers at the top of the lake
+  real(rkind)                          :: streamFrozenDepth        ! water the stream column holds frozen, as liquid water equivalent (m)
   logical(lgt)                         :: modifiedIce              ! flag to denote that the lake ice cover changed the layers
   integer(i4b)                         :: nSoil                    ! number of soil layers
   integer(i4b)                         :: nGlce                    ! number of glacier ice layers
@@ -229,6 +230,7 @@ subroutine coupled_em(&
   logical(lgt)                         :: tooMuchMelt              ! flag to denote that there was too much melt in a given time step
   logical(lgt)                         :: tooMuchSublim            ! flag to denote that there was too much sublimation in a given time step
   logical(lgt)                         :: doLayerMerge             ! flag to denote the need to merge snow layers
+  logical(lgt)                         :: doLakeBreakup            ! flag to denote the need to break up the lake ice cover (too much melt with no snow on it)
   logical(lgt),parameter               :: backwardsCompatibility=.false.  ! flag to denote a desire to ensure backwards compatibility with previous branches
   logical(lgt)                         :: checkMassBalance_ds      ! flag to check the mass balance over the data step
   type(var_ilength)                    :: indx_temp                ! temporary model index variables saved only on outer loop
@@ -348,12 +350,20 @@ subroutine coupled_em(&
   ! ---------------------------------------------------------------------------
   ! The coupled river network routes the water, so the liquid depth of the lake layers is prescribed once per
   ! data step from the reach volume (scalarStreamDepth, set by the network pass), floored so a dry reach keeps
-  ! a column. Ice is left where it is; temperatures are kept and the enthalpy follows.
+  ! a column. The reach volume is all the water of the reach, ice included: what the column holds frozen (the
+  ! ice cover with its residual liquid, and ice still in the water) is taken off before the liquid is imposed,
+  ! so freezing thins the flow beneath the cover and the melt of the cover returns to it without leaving the
+  ! reach. Ice is left where it is; temperatures are kept and the enthalpy follows.
   if(indx_data%var(iLookINDEX%domType)%dat(1)==stream)then
     nLakeFrz = indx_data%var(iLookINDEX%nLakeFrz)%dat(1)
+    associate(mLayerDepth => prog_data%var(iLookPROG%mLayerDepth)%dat, mLayerVolFracIce => prog_data%var(iLookPROG%mLayerVolFracIce)%dat, &
+              mLayerVolFracLiq => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat)
+      streamFrozenDepth = sum(mLayerDepth(nSnow+1:nSnow+nLake)*mLayerVolFracIce(nSnow+1:nSnow+nLake))*(iden_ice/iden_water) &
+                        + sum(mLayerDepth(nSnow+1:nSnow+nLakeFrz)*mLayerVolFracLiq(nSnow+1:nSnow+nLakeFrz))
+    end associate
     call lakePrescribeDepth(&
                     nSnow+nLakeFrz,nLake-nLakeFrz,                                          & ! intent(in):    number of layers above the water layers, and of water layers
-                    max(diag_data%var(iLookDIAG%scalarStreamDepth)%dat(1), mpar_data%var(iLookPARAM%streamMinDepth)%dat(1)), & ! intent(in): liquid depth to impose (m)
+                    max(diag_data%var(iLookDIAG%scalarStreamDepth)%dat(1) - streamFrozenDepth, mpar_data%var(iLookPARAM%streamMinDepth)%dat(1)), & ! intent(in): liquid depth to impose (m)
                     prog_data%var(iLookPROG%mLayerDepth)%dat,                               & ! intent(inout): depth of each layer (m)
                     prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,                          & ! intent(inout): volumetric fraction of liquid water (-)
                     prog_data%var(iLookPROG%mLayerVolFracIce)%dat,                          & ! intent(inout): volumetric fraction of ice (-)
@@ -834,7 +844,7 @@ subroutine coupled_em(&
 
         ! *** grow or break up the ice cover of the lake layers...
         ! ---------------------------------------------------------
-        call lakeIceCover(mpar_data,indx_data,prog_data,diag_data,flux_data,modifiedIce,err,cmessage)
+        call lakeIceCover(doLakeBreakup,mpar_data,indx_data,prog_data,diag_data,flux_data,modifiedIce,err,cmessage)
         if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
         modifiedLayers = modifiedLayers .or. modifiedIce
 
@@ -1136,8 +1146,11 @@ subroutine coupled_em(&
       if(tooMuchMelt)then
         stepFailure  = .true.
         if (nSnow>0) doLayerMerge = .true. ! don't merge glacier ice layers
+        ! a bare lake ice cover that cannot absorb the step's energy is returned to the water (the lake analog of the snow merge)
+        if (nSnow==0 .and. nLakeFrz>0) doLakeBreakup = .true.
       else
-        doLayerMerge = .false.
+        doLayerMerge  = .false.
+        doLakeBreakup = .false.
       endif
 
       ! handle special case of the step failure
@@ -1284,8 +1297,11 @@ subroutine coupled_em(&
           if(tooMuchSublim)then
             stepFailure  = .true.
             if (nSnow>0) doLayerMerge = .true. ! don't merge glacier ice layers
+            ! a bare lake ice cover that cannot absorb the step's energy is returned to the water (the lake analog of the snow merge)
+            if (nSnow==0 .and. nLakeFrz>0) doLakeBreakup = .true.
           else
-            doLayerMerge = .false.
+            doLayerMerge  = .false.
+            doLakeBreakup = .false.
           endif
 
           ! handle special case of the step failure
@@ -1541,15 +1557,17 @@ subroutine coupled_em(&
                     err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
-    ! lake column summary: the liquid depth and the liquid-weighted temperature, which for a stream is the reach outlet temperature
+    ! lake column summary: the liquid depth, the ice cover thickness, and the liquid-weighted temperature, which for a stream is the reach outlet temperature
     associate(&
       mLayerDepth        => prog_data%var(iLookPROG%mLayerDepth)%dat                ,& ! depth of each layer (m)
       mLayerTemp         => prog_data%var(iLookPROG%mLayerTemp)%dat                 ,& ! temperature of each layer (K)
       mLayerVolFracLiq   => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat           ,& ! volumetric fraction of liquid water in each layer (-)
       scalarLakeLiqDepth => diag_data%var(iLookDIAG%scalarLakeLiqDepth)%dat(1)      ,& ! total liquid depth of the lake layers (m)
+      scalarLakeIceThick => diag_data%var(iLookDIAG%scalarLakeIceThick)%dat(1)      ,& ! thickness of the ice cover of the lake layers (m)
       scalarStreamTemp   => diag_data%var(iLookDIAG%scalarStreamTemp)%dat(1)         ) ! liquid-weighted temperature of the lake layers (K)
       if(nLake>0)then
         nLakeFrz = indx_data%var(iLookINDEX%nLakeFrz)%dat(1)
+        scalarLakeIceThick = sum(mLayerDepth(nSnow+1:nSnow+nLakeFrz))
         scalarLakeLiqDepth = sum(mLayerDepth(nSnow+nLakeFrz+1:nSnow+nLake)*mLayerVolFracLiq(nSnow+nLakeFrz+1:nSnow+nLake))
         if(scalarLakeLiqDepth > verySmall)then
           scalarStreamTemp = sum(mLayerDepth(nSnow+nLakeFrz+1:nSnow+nLake)*mLayerVolFracLiq(nSnow+nLakeFrz+1:nSnow+nLake) &
@@ -1559,6 +1577,7 @@ subroutine coupled_em(&
         end if
       else
         scalarLakeLiqDepth = 0._rkind
+        scalarLakeIceThick = 0._rkind
         scalarStreamTemp   = realMissing
       end if
     end associate
@@ -1883,6 +1902,7 @@ subroutine coupled_em(&
             call layerDivide(&
                     ! input/output: model data structures
                     .true.,                      & ! intent(in):    flag to denote that we are dividing glacier ice layers
+                    .false.,                     & ! intent(in):    flag to denote that we are not dividing lake ice layers
                     maxGlceLayers,               & ! intent(in):    maximum number of ice layers
                     model_decisions,             & ! intent(in):    model decisions
                     mpar_data,                   & ! intent(in):    model parameters
@@ -2095,8 +2115,9 @@ contains
   meanBalance = 0._rkind
 
   ! start by assuming that the step is successful
-  stepFailure  = .false.
-  doLayerMerge = .false.
+  stepFailure   = .false.
+  doLayerMerge  = .false.
+  doLakeBreakup = .false.
 
   ! initialize flags to modify the veg layers or modify snow layers
   modifiedLayers    = .false.    ! flag to denote that snow layers were modified
