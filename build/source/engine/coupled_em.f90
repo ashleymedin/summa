@@ -824,7 +824,7 @@ subroutine coupled_em(&
 
         ! *** merge/sub-divide snow/firn/ice layers...
         ! -----------------------------------
-        ! NOTE: lake layers keep a fixed count (ice forms and melts in place), so only snow and glacier ice layers are merged or divided
+        ! NOTE: only snow and glacier ice layers are merged or divided here; the lake ice cover is created and removed by lakeIceCover below
         maxSnowIceLayers = maxSnowLayers
         if (nSnow==0 .and. nLake==0 .and. nGlce>0) maxSnowIceLayers = maxGlceLayers ! merging glacier ice layers
         call volicePack(&
@@ -1902,7 +1902,6 @@ subroutine coupled_em(&
             call layerDivide(&
                     ! input/output: model data structures
                     .true.,                      & ! intent(in):    flag to denote that we are dividing glacier ice layers
-                    .false.,                     & ! intent(in):    flag to denote that we are not dividing lake ice layers
                     maxGlceLayers,               & ! intent(in):    maximum number of ice layers
                     model_decisions,             & ! intent(in):    model decisions
                     mpar_data,                   & ! intent(in):    model parameters

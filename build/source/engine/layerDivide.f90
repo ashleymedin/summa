@@ -84,7 +84,6 @@ contains
  subroutine layerDivide(&
                         ! input/output: model data structures
                         doGlac,                          & ! intent(in):    flag to denote if we are dividing glacier ice layers
-                        doLake,                          & ! intent(in):    flag to denote if we are dividing lake ice layers
                         maxLayers,                       & ! intent(in):    maximum number of snow/firn/ice layers
                         model_decisions,                 & ! intent(in):    model decisions
                         mpar_data,                       & ! intent(in):    model parameters
@@ -104,7 +103,6 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! input/output: model data structures
  logical(lgt),intent(in)            :: doGlac                 ! flag to denote if we are dividing glacier ice layers
- logical(lgt),intent(in)            :: doLake                 ! flag to denote if we are dividing lake ice layers
  integer(i4b),intent(in)            :: maxLayers              ! maximum number of snow/firn/ice layers
  type(model_options),intent(in)     :: model_decisions(:)     ! model decisions
  type(var_dlength),intent(in)       :: mpar_data              ! model parameters
@@ -120,7 +118,6 @@ contains
  ! define local variables
  character(LEN=256)                 :: cmessage               ! error message of downwind routine
  integer(i4b)                       :: nSnow                  ! number of snow layers
- integer(i4b)                       :: nLakeFrz               ! number of frozen lake layers
  integer(i4b)                       :: nLake                  ! number of lake layers
  integer(i4b)                       :: nSoil                  ! number of soil layers
  integer(i4b)                       :: nGlce                  ! number of glacier ice layers
@@ -184,19 +181,16 @@ contains
 
  ! initialize the number of layers
  nSnow    = indx_data%var(iLookINDEX%nSnow)%dat(1)
- nLakeFrz = indx_data%var(iLookINDEX%nLakeFrz)%dat(1)
  nLake    = indx_data%var(iLookINDEX%nLake)%dat(1)
  nSoil    = indx_data%var(iLookINDEX%nSoil)%dat(1)
  nGlce    = indx_data%var(iLookINDEX%nGlce)%dat(1)
  nLayers  = indx_data%var(iLookINDEX%nLayers)%dat(1)
 
  ! number of layers possible to divide
+ ! NOTE: lake layers are never divided here: the ice cover of a lake is created, thickened and broken up by lakeIceCover
  if(doGlac)then
    topLayer=nSnow+nLake+nSoil+1
    botLayer=nSnow+nLake+nSoil+nGlce-noThetaChange
- elseif(doLake)then
-   topLayer=nSnow+1
-   botLayer=nSnow+nLakeFrz
  else
    topLayer=1
    botLayer=nSnow
@@ -222,7 +216,7 @@ contains
   end if
 
  ! ***** special case of no snow layers to divide
- if(nSnow==0 .and. .not.doGlac .and. .not.doLake)then
+ if(nSnow==0 .and. .not.doGlac)then
 
   ! check if create the first snow layer
   select case(ix_snowLayers)
@@ -297,7 +291,7 @@ contains
    divideLayer=.false.
 
    ! if dividing glacier ice layers, force division of the top layer only
-   if (doGlac .or. doLake)then 
+   if (doGlac)then
      if(iLayer==1)then
        zMaxCheck = depth(iLayer)
      else
@@ -367,11 +361,6 @@ contains
   if(doGlac)then
    ! glacier ice layers
    layerType(nSnow+nLake+nSoil+1:nLayers+1)= iname_glce
-  elseif(doLake)then
-   ! snow layers
-   layerType(nSnow+2:nSnow+nLake+1)             = iname_lake
-   layerType(nSnow+nLake+2:nSnow+nLake+nSoil+1) = iname_soil
-   layerType(nSnow+nLake+nSoil+2:nLayers+1)     = iname_glce
   else
    ! snow layers
    layerType(1:nSnow+1)                         = iname_snow

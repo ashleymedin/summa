@@ -100,7 +100,6 @@ contains
    call layerDivide(&
                     ! input/output: model data structures
                     .false.,                     & ! intent(in):    flag to denote that we are not dividing glacier ice layers since they currently do not grow
-                    .false.,                     & ! intent(in):    flag to denote that we are not dividing lake ice layers OR SHOULD WE
                     maxLayers,                   & ! intent(in):    maximum number of snow/firn layers
                     model_decisions,             & ! intent(in):    model decisions
                     mpar_data,                   & ! intent(in):    model parameters
@@ -114,7 +113,8 @@ contains
    if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; end if
  endif
 
- ! merge snow/firn/ice layers if they are too thin, here assuming merging ice layers only if there is no snow/firn
+ ! merge snow/firn/ice layers if they are too thin, here assuming merging glacier ice layers only if there is no snow/firn
+ ! NOTE: lake layers are not merged or divided here; the ice cover of a lake is handled by lakeIceCover
  call layerMerge(&
                  ! input/output: model data structures
                  maxLayers,                   & ! intent(in):    maximum number of snow/firn/ice layers

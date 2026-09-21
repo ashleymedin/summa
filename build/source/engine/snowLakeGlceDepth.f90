@@ -145,7 +145,7 @@ subroutine snowIceDepth(&
                     tooMuchLakeMelt,                                 & ! intent(inout): flag to denote that the cover melted away
                     err,cmessage)                                      ! intent(out):   error control
     if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
-    ! a cover that melted away within the step keeps a token thickness; lakeIceCover returns it to the water at the next outer step
+    ! a cover that melted away within the step keeps a token thickness; lakeIceCover returns it to the water at the start of the next substep
     if(tooMuchLakeMelt)then
       mLayerDepth(nSnow+1:nSnow+nLakeFrz) = max(mLayerDepth(nSnow+1:nSnow+nLakeFrz), 1.e-4_rkind)
     else
