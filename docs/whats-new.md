@@ -39,6 +39,10 @@ covers the user-facing highlights.
   scaffolded but not yet active). Data structures gained a `dom` dimension throughout; the
   restart and attributes files gained `dom`, `glac` and glacier-grid variables. Runs without
   glaciers or wetlands are unchanged.
+- Glacier area evolves during a run: once a year a shallow-ice flow model with debris
+  transport is run on a per-glacier grid and the glacier domains are rebuilt from the result
+  (see [glacier geometry updates](configuration/SUMMA_configuration.md#glacier-geometry-updates)).
+  Four new GRU parameters control the debris model; all have defaults.
 - The number of soil layers no longer has to be the same in every HRU.
 
 ### Parallelization
