@@ -768,11 +768,9 @@ contains
    do iLayer=1,nLake
      mLayerLiqFluxSnLaGl(iLayer+nStart) = -(iLayerLiqFluxSnLaGl(iLayer+nStart) - iLayerLiqFluxSnLaGl(iLayer-1+nStart))/mLayerDepth(iLayer+nStart)
    end do
-   ! the liquid layers of a stream hold the water the river network routes: what arrives at their top (snow drainage,
-   ! ice melt) joins the flow, so it is not stored in them
+   ! the liquid layers of a stream hold the water the river network routes: what arrives at their top (snow drainage, ice melt) joins the flow, so it is not stored in them
    if(domType==stream) mLayerLiqFluxSnLaGl(nStart+nLake_frz+1:nStart+nLake) = 0._rkind
    ! no ice melt if there is no ice cover; with one, the rain and melt that ran off the ice join the flow too
-   ! (scalarRainPlusMelt is still what arrived at the top of the lake here; it becomes the lake drainage below)
    if(nLake_frz==0)then
      scalarSurfaceIceMelt      = 0._rkind
      scalarSurfaceIceMeltDeriv = 0._rkind
@@ -781,7 +779,7 @@ contains
    end if
    ! drainage from the lake (needed for mass balance checks), and the forcing for the domain beneath
    scalarLakeDrainage = iLayerLiqFluxSnLaGl(nLake+nStart)
-   scalarRainPlusMelt = scalarLakeDrainage
+   scalarRainPlusMelt = scalarLakeDrainage ! forcing for the domain beneath the lake
    if(nGlce>0) scalarGlacierMelt = scalarLakeDrainage + scalarSurfaceRunoff - scalarGlceMelt ! save for glacier melt flow calculations, may be overwritten with addition of below domain fluxes
   end associate
  end subroutine finalize_lakeLiqFlux
@@ -817,7 +815,7 @@ contains
    scalarGlceMelt              => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1),     & ! intent(in):  [dp]  glacier ice melt (m s-1)
    scalarGlacierMelt           => flux_data%var(iLookFLUX%scalarGlacierMelt)%dat(1)   ) ! intent(out): [dp] glacier ice melt plus snow and soil drainage (m s-1)
    ! define forcing for the beneath domain
-   scalarRainPlusMelt = iLayerLiqFluxSnLaGl(nSnow+nStart) ! drainage from the base of the snowpack
+   scalarRainPlusMelt = iLayerLiqFluxSnLaGl(nSnow+nStart) ! drainage from the base of the snowpack, which is the forcing for the domain beneath
    ! calculate net liquid water fluxes for each snow layer (s-1)
    do iLayer=1,nSnow
      mLayerLiqFluxSnLaGl(iLayer+nStart) = -(iLayerLiqFluxSnLaGl(iLayer+nStart) - iLayerLiqFluxSnLaGl(iLayer-1+nStart))/mLayerDepth(iLayer+nStart)

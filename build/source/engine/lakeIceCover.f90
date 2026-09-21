@@ -35,8 +35,8 @@ module lakeIceCover_module
 ! where the ice moves, and not inside the solver.
 
 USE nr_type
-USE data_types,only:var_ilength,var_dlength,var_info  ! data vectors with variable length dimension, and metadata
-USE multiconst,only:Tfreeze,iden_ice,iden_water        ! physical constants
+USE data_types,only:var_ilength,var_dlength,var_info ! data vectors with variable length dimension, and metadata
+USE multiconst,only:Tfreeze,iden_ice,iden_water      ! physical constants
 USE globalData,only:realMissing,integerMissing       ! missing values
 USE globalData,only:iname_lake                       ! named variable for lake layers
 USE globalData,only:iceResidWaterFrac                ! residual volumetric liquid water content in ice (-)
@@ -86,6 +86,8 @@ subroutine lakeIceCover(mpar_data,indx_data,prog_data,diag_data,flux_data,modifi
   err=0; message='lakeIceCover/'
   modifiedLayers = .false.
 
+  ! NOTE: the layer vectors are reallocated when a layer is added or removed, so they are referenced through the
+  !       data structure rather than through an associate block
   nSnow    = indx_data%var(iLookINDEX%nSnow)%dat(1)
   nLake    = indx_data%var(iLookINDEX%nLake)%dat(1)
   nSoil    = indx_data%var(iLookINDEX%nSoil)%dat(1)
@@ -95,8 +97,7 @@ subroutine lakeIceCover(mpar_data,indx_data,prog_data,diag_data,flux_data,modifi
   if(nLake==0) return
   if(nLakeFrz >= nLake)then; err=20; message=trim(message)//'the lake has no water layer beneath its ice'; return; end if
 
-  ! NOTE: the layer vectors are reallocated when a layer is added or removed, so they are referenced through the
-  !       data structure rather than through an associate block
+  ! minimum ice cover mass is sized for the minimum thickness at ice density, with no liquid
   minMassIce = mpar_data%var(iLookPARAM%lakeIceMinThick)%dat(1)*iden_ice*(1._rkind - iceResidWaterFrac)
 
   ! ***** breakup: an ice cover too thin to stand returns to the water beneath
@@ -112,8 +113,8 @@ subroutine lakeIceCover(mpar_data,indx_data,prog_data,diag_data,flux_data,modifi
       ! its temperature is the liquid-weighted one (the cover's liquid is at the freezing point)
       depthNew = (massLiqWat + massLiqCover)/iden_water + (massIceWat + massIceCover)/iden_ice
       call setTemp(ixWat, (massLiqWat*temp(ixWat) + massLiqCover*Tfreeze)/max(massLiqWat + massLiqCover, verySmall))
-      call setLiq (ixWat, (massLiqWat + massLiqCover)/(iden_water*depthNew))
-      call setIce (ixWat, (massIceWat + massIceCover)/(iden_ice*depthNew))
+      call setLiq(ixWat, (massLiqWat + massLiqCover)/(iden_water*depthNew))
+      call setIce(ixWat, (massIceWat + massIceCover)/(iden_ice*depthNew))
       call setDepth(ixWat, depthNew)
       ! remove the ice layer from all model vectors
       call rmLakeLayer(prog_data,prog_meta,ixIce,nSnow,nLake,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
@@ -146,9 +147,9 @@ subroutine lakeIceCover(mpar_data,indx_data,prog_data,diag_data,flux_data,modifi
       if(iLayer==ixWat) massLiqWat = massLiqWat - massLiq
       if(massLiqWat < verySmall)then; err=20; message=trim(message)//'a lake water layer froze solid; its ice should have moved to the cover earlier'; return; end if
       call setDepth(iLayer, massLiqWat/iden_water)
-      call setLiq  (iLayer, 1._rkind)
-      call setIce  (iLayer, 0._rkind)
-      call setTemp (iLayer, max(temp(iLayer), Tfreeze)) ! the water is liquid again; its cold content went into the ice
+      call setLiq(iLayer, 1._rkind)
+      call setIce(iLayer, 0._rkind)
+      call setTemp(iLayer, max(temp(iLayer), Tfreeze)) ! the water is liquid again; its cold content went into the ice
     end do
     if(nLakeFrz==0)then
       ! create the ice layer above the water layer, then set its state
@@ -160,19 +161,19 @@ subroutine lakeIceCover(mpar_data,indx_data,prog_data,diag_data,flux_data,modifi
       nLake = nLake + 1; nLakeFrz = 1; nLayers = nLayers + 1
       ixIce = ixWat  ! the new layer took the water layer's place, the water layer is now beneath it
       call setDepth(ixIce, depthIce)
-      call setIce  (ixIce, massIce/(iden_ice*depthIce))
-      call setLiq  (ixIce, massLiq/(iden_water*depthIce))
-      call setTemp (ixIce, iceTemp(liq(ixIce),ice(ixIce)))
+      call setIce(ixIce, massIce/(iden_ice*depthIce))
+      call setLiq(ixIce, massLiq/(iden_water*depthIce))
+      call setTemp(ixIce, iceTemp(liq(ixIce),ice(ixIce)))
     else
       ! thicken the bottom ice layer with the new ice
       ixIce = nSnow + nLakeFrz
       massIceCover = depth(ixIce)*ice(ixIce)*iden_ice
       massLiqCover = depth(ixIce)*liq(ixIce)*iden_water
       depthNew = (massIceCover + massIce + massLiqCover + massLiq)/iden_ice  ! liquid sized at the density of ice, as above
-      call setIce  (ixIce, (massIceCover + massIce)/(iden_ice*depthNew))
-      call setLiq  (ixIce, (massLiqCover + massLiq)/(iden_water*depthNew))
+      call setIce(ixIce, (massIceCover + massIce)/(iden_ice*depthNew))
+      call setLiq(ixIce, (massLiqCover + massLiq)/(iden_water*depthNew))
       call setDepth(ixIce, depthNew)
-      call setTemp (ixIce, min(temp(ixIce), iceTemp(liq(ixIce),ice(ixIce))))
+      call setTemp(ixIce, min(temp(ixIce), iceTemp(liq(ixIce),ice(ixIce))))
     end if
     modifiedLayers = .true.
   end if
