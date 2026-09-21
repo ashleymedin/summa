@@ -269,7 +269,7 @@ AFTER tag of v4.0.0-exp-Sundials
  67) Stream temperature on the coupled river network (stream HRUs, lake layers as a mixed column), commits d632b36a to de2ae997 Sep 21, 2026
      A GRU may hold one stream HRU whose "stream" domain (domType 6, globalData stream, fixed area) is the water column of its reach:
       lake layers over soil and aquifer. mizuRoute routes the water and hands back reach discharge, volume and lateral inflow
-      (streamSegId attribute links the HRU to its reach); SUMMA solves the column energy balance in the new engine/streamtemp.f90,
+      (streamSegId attribute links the HRU to its reach); SUMMA solves the column energy balance in the new engine/streamTemp.f90,
       walking the reaches upstream to downstream after each routing step, with the heat advected from upstream reaches and from
       the GRU runoff. Follows Wanders et al. (2019, WRR) after van Beek et al. (2012, WRR).
      run_oneGRU accumulates the energy carried by the runoff handed to the channel (surface runoff at the top-layer temperature,

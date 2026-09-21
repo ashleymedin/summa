@@ -56,13 +56,13 @@ USE data_types,only:out_type_snowLakeGlceLiqFlux    ! data type for intent(out) 
 ! privacy
 implicit none
 private
-public :: snowLakeGlceLiqFlux
+public :: snowIceLiqFlux
 public :: lakeLiqFlux
 contains
 ! ************************************************************************************************
-! public subroutine snowLakeGlceLiqFlux: compute liquid water flux through the snowpack
+! public subroutine snowIceLiqFlux: compute liquid water flux through the snowpack, lake ice, and glacier ice layers
 ! ************************************************************************************************
-subroutine snowLakeGlceLiqFlux(&
+subroutine snowIceLiqFlux(&
                       ! input: model control, forcing, and model state vector
                       in_snowLakeGlceLiqFlux,           & ! intent(in):    model control, forcing, and model state vector
                       ! input-output: data structures
@@ -142,7 +142,7 @@ subroutine snowLakeGlceLiqFlux(&
     ) ! end association of local variables with information in the data structures
     ! ------------------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
-    err=0; message='snowLakeGlceLiqFlux/'
+    err=0; message='snowIceLiqFlux/'
 
     ! initialize with index 0
     iLayerLiqFluxSnLaGl = iLayerLiqFluxSnLaGl0(nStart:nLayers+nStart)
@@ -216,7 +216,7 @@ subroutine snowLakeGlceLiqFlux(&
           iLayerLiqFluxSnLaGl(iLayer)      = 0._rkind
           iLayerLiqFluxSnLaGlDeriv(iLayer) = 0._rkind
         end if  ! storage above residual content
-      end do  ! end loop through snow/glce layers
+      end do  ! end loop through snow layers
     else ! ice
       if(ixTop==1) ixTop = 0 ! include the 0 index if the top layer is included, since surface flux downwards is 0 (impermeable) 
       do iLayer=ixBot,ixTop,-1 ! loop through glacier ice layers
@@ -231,7 +231,7 @@ subroutine snowLakeGlceLiqFlux(&
           ! ** liquid water to passes through ice layers immediately
           iLayerLiqFluxSnLaGl(iLayer) = iLayerLiqFluxSnLaGl(iLayer+1) + iLayerLiqFluxSnLaGl(iLayer)
         end if
-      end do  ! end loop through glacier ice layers
+      end do  ! end loop through ice layers
     end if  ! end if snow or ice
     if(ixBot==nLayers)then
       iLayerLiqFluxSnLaGl(nLayers) = iLayerLiqFluxSnLaGl(nLayers) + bottom_flux   ! set the bottom flux if already computed
@@ -244,30 +244,18 @@ subroutine snowLakeGlceLiqFlux(&
 
   end associate ! end association of local variables with information in the data structures
 
-end subroutine snowLakeGlceLiqFlux
+end subroutine snowIceLiqFlux
 
 ! **********************************************************************************************************
 ! public subroutine lakeLiqFlux: liquid water fluxes through the liquid (unfrozen) lake layers
 ! **********************************************************************************************************
-!
-! Same interface as snowLakeGlceLiqFlux, so computFlux drives it the same way: the in-object gives the number
-! of liquid lake layers, their start index (nSnow + nLake_frz, below any frozen lake layers that go through
-! the glacier-ice branch of snowLakeGlceLiqFlux), the flux arriving at the top and the flux already known
-! at the bottom, and the io-object carries the interface fluxes iLayerLiqFluxSnLaGl(0:nLayers). The generic
-! finalize in computFlux then forms the net layer fluxes and scalarLakeDrainage from the interface fluxes.
-!
-!  * stream: the reach water column. The water mass is routed by the coupled river network (mizuRoute),
-!            so no water moves vertically through the liquid lake layers: every interface flux is zero and
-!            the liquid depth is prescribed from the reach volume once per data step (lakePrescribeDepth).
-!            What arrives at the top (rain, melt from the snow above, the melt pond of "snow without a
-!            layer", melt of the ice cover) joins the reach flow at once and is passed on as
-!            scalarStreamSfcInflow so that its heat can be added to the water column; evaporation leaves the
-!            same way. Their net, scalarStreamRunoff, is the water the stream domain itself hands to the
-!            river network. Ice forms and melts in place in the lake layers for now (no separate ice layer).
-!
+!  * stream: the reach water column. The water mass is routed by the coupled river network, so no water 
+!            moves vertically through the liquid lake layers: every interface flux is zero and the liquid
+!            depth is prescribed from the reach volume once per data step. What arrives at the top joins the
+!            reach flow at once and is passed on so that its heat can be added to the water column;
+!            evaporation leaves the same way.
 !  * wetland: a sub-GRU lake or pothole whose water balance would be solved here (inflow at the top, spill
 !            over the outlet, seepage to the soil through the bottom flux). Not yet implemented.
-!
 subroutine lakeLiqFlux(&
                        ! input: model control, forcing, and model state vector
                        in_snowLakeGlceLiqFlux,  & ! intent(in):    model control, forcing, and model state vector

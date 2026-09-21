@@ -74,9 +74,6 @@ contains
 ! ************************************************************************************************
 ! public subroutine stream_domain_map: locate the stream HRU and domain of each GRU
 ! ************************************************************************************************
-! Per GRU: the reach id the stream HRU asks for (attribute streamSegId, 0 = the reach the GRU drains
-! to), the index of that HRU within the GRU and of the stream domain within the HRU (0 = none).
-! check_icond has already made sure there is at most one stream HRU per GRU.
 subroutine stream_domain_map(nGRU,gru_struc,typeStruct,streamSegId,ixStreamHRU,ixStreamDOM,nStream)
   implicit none
   integer(i4b),intent(in)          :: nGRU              ! number of GRUs
@@ -87,7 +84,8 @@ subroutine stream_domain_map(nGRU,gru_struc,typeStruct,streamSegId,ixStreamHRU,i
   integer(i4b),intent(out)         :: ixStreamDOM(nGRU) ! index of the stream domain within that HRU (0 = none)
   integer(i4b),intent(out)         :: nStream           ! number of stream HRUs
   integer(i4b)                     :: iGRU,iHRU,iDOM    ! loop indices
-  streamSegId(:) = 0; ixStreamHRU(:) = 0; ixStreamDOM(:) = 0; nStream = 0
+  streamSegId(:) = 0; ixStreamHRU(:) = 0; ixStreamDOM(:) = 0; nStream = 0 ! initialize
+  ! check_icond has already made sure there is at most one stream HRU per GRU.
   do iGRU=1,nGRU
     do iHRU=1,gru_struc(iGRU)%hruCount
       do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
@@ -129,33 +127,33 @@ subroutine run_streamNetwork(&
   USE run_oneHRU_module,only:run_oneHRU   ! module to run for one HRU
   implicit none
   ! the river network
-  type(stream_network),intent(inout)        :: net              ! per-reach hydraulics and temperatures
+  type(stream_network),intent(inout)        :: net                  ! per-reach hydraulics and temperatures
   ! model control
-  type(gru2hru_map),intent(inout)           :: gru_struc(:)     ! HRU information for each GRU
-  type(gru_hru_dom_d),intent(inout)         :: dt_init          ! used to initialize the length of the sub-step for each domain
-  type(gru_hru_i),intent(inout)             :: computeVegFlux   ! flag to indicate if we are computing fluxes over vegetation
+  type(gru2hru_map),intent(inout)           :: gru_struc(:)         ! HRU information for each GRU
+  type(gru_hru_dom_d),intent(inout)         :: dt_init              ! used to initialize the length of the sub-step for each domain
+  type(gru_hru_i),intent(inout)             :: computeVegFlux       ! flag to indicate if we are computing fluxes over vegetation
   ! data structures (input)
-  type(gru_hru_int),intent(in)              :: typeStruct       ! local classification of soil veg etc. for each HRU
-  type(gru_hru_double),intent(in)           :: attrStruct       ! local attributes for each HRU
-  type(gru_hru_dom_z_vLookup),intent(in)    :: lookupStruct     ! lookup tables for each HRU
+  type(gru_hru_int),intent(in)              :: typeStruct           ! local classification of soil veg etc. for each HRU
+  type(gru_hru_double),intent(in)           :: attrStruct           ! local attributes for each HRU
+  type(gru_hru_dom_z_vLookup),intent(in)    :: lookupStruct         ! lookup tables for each HRU
   ! data structures (input-output)
-  type(gru_hru_dom_doubleVec),intent(in)    :: mparStruct       ! local model parameters
-  type(gru_hru_dom_intVec),intent(inout)    :: indxStruct       ! model indices
-  type(gru_hru_double),intent(inout)        :: forcStruct       ! model forcing data
-  type(gru_hru_dom_doubleVec),intent(inout) :: progStruct       ! model prognostic (state) variables
-  type(gru_hru_dom_doubleVec),intent(inout) :: diagStruct       ! model diagnostic variables
-  type(gru_hru_dom_doubleVec),intent(inout) :: fluxStruct       ! model fluxes
-  type(gru_doubleVec),intent(inout)         :: bvarStruct       ! basin-average variables
+  type(gru_hru_dom_doubleVec),intent(in)    :: mparStruct           ! local model parameters
+  type(gru_hru_dom_intVec),intent(inout)    :: indxStruct           ! model indices
+  type(gru_hru_double),intent(inout)        :: forcStruct           ! model forcing data
+  type(gru_hru_dom_doubleVec),intent(inout) :: progStruct           ! model prognostic (state) variables
+  type(gru_hru_dom_doubleVec),intent(inout) :: diagStruct           ! model diagnostic variables
+  type(gru_hru_dom_doubleVec),intent(inout) :: fluxStruct           ! model fluxes
+  type(gru_doubleVec),intent(inout)         :: bvarStruct           ! basin-average variables
   ! error control
-  integer(i4b),intent(out)                  :: err              ! error code
-  character(*),intent(out)                  :: message          ! error message
+  integer(i4b),intent(out)                  :: err                  ! error code
+  character(*),intent(out)                  :: message              ! error message
   ! local variables
-  character(len=256)                        :: cmessage         ! error message of downwind routine
-  integer(i4b)                              :: iSeq,iSeg,iUps   ! loop indices
-  integer(i4b)                              :: jSeg             ! index of an upstream reach
-  integer(i4b)                              :: iGRU,iHRU,iDOM   ! indices of the stream domain
-  real(rkind)                               :: qUpSum,eUpSum    ! discharge and energy flux arriving from upstream
-  logical(lgt)                              :: computeVegFluxFlag
+  character(len=256)                        :: cmessage             ! error message of downwind routine
+  integer(i4b)                              :: iSeq,iSeg,iUps       ! loop indices
+  integer(i4b)                              :: jSeg                 ! index of an upstream reach
+  integer(i4b)                              :: iGRU,iHRU,iDOM       ! indices of the stream domain
+  real(rkind)                               :: qUpSum,eUpSum        ! discharge and energy flux arriving from upstream
+  logical(lgt)                              :: computeVegFluxFlag   ! flag to indicate if we are computing fluxes over vegetation
   real(rkind),parameter                     :: minFlow=1.e-12_rkind ! flow below which a temperature is not defined (m3 s-1)
   ! ----------------------------------------------------------------------------------------------------------------------
   err=0; message='run_streamNetwork/'

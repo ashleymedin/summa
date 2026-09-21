@@ -29,7 +29,7 @@ module lakeIceCover_module
 !   * freeze-up: ice that formed in the water layers (their energy dropped below the plateau at
 !     the freezing point; the water is mixed, so it rises) is moved into the ice cover, creating
 !     the ice layer when the cover is thick enough to stand on its own, otherwise thickening it;
-!   * breakup:   an ice cover thinner than lakeIceMinThick (5 mm in flowing water, Wanders et al.)
+!   * breakup: an ice cover thinner than lakeIceMinThick (5 mm in flowing water, Wanders et al.)
 !     returns to the water beneath, mass and latent heat conserved.
 ! The mass of a lake layer sets its depth (no air), so the 9% expansion on freezing happens here,
 ! where the ice moves, and not inside the solver.
@@ -137,7 +137,7 @@ subroutine lakeIceCover(mpar_data,indx_data,prog_data,diag_data,flux_data,modifi
   if( (nLakeFrz==0 .and. massIceWat >= 2._rkind*minMassIce) .or. (nLakeFrz>0 .and. massIceWat > 0._rkind) )then
     massIce  = massIceWat
     ! the ice keeps a residual liquid fraction, taken from the top water layer; the layer is sized for that liquid at
-    ! the density of ice, so the ice fraction stays at or below one when the residual freezes later (glceReduce keeps
+    ! the density of ice, so the ice fraction stays at or below one when the residual freezes later (iceReduce keeps
     ! the fractions as it thins)
     massLiq  = min(iceResidWaterFrac*massIce*(iden_water/iden_ice)/(1._rkind - iceResidWaterFrac), 0.5_rkind*depth(ixWat)*liq(ixWat)*iden_water)
     depthIce = (massIce + massLiq)/iden_ice
