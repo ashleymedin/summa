@@ -1,4 +1,4 @@
-module snowGlceDepth_module
+module snowLakeGlceDepth_module
 
 ! data types
 USE nr_type
@@ -28,6 +28,7 @@ USE var_lookup,only:iLookINDEX       ! named variables for structure elements
 implicit none
 private
 public::snowGlceDepth
+public::lakePrescribeDepth
 contains
 
 ! ************************************************************************************************
@@ -75,6 +76,7 @@ subroutine snowGlceDepth(&
   integer(i4b)                         :: nLayers                  ! total number of layers
   character(len=256)                   :: cmessage                 ! error message
   real(rkind)                          :: massLiquid               ! mass liquid water (kg m-2)
+  real(rkind)                          :: massIce                  ! mass of ice in the top lake layer (kg m-2)
   ! -----------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message="snowGlceDepth/"
@@ -82,7 +84,12 @@ subroutine snowGlceDepth(&
 
   ! *** compute change in ice content of the top snow or glacier ice layer due to sublimation
   tooMuchSublim = .false.  ! initialize too much sublimation (merge layers) to false
-  if(nSnow>0 .or. (nLake>0 .and. mLayerTemp(1)<Tfreeze) .or. (nGlce>0 .and. nSoil==0) )then ! snow or ice layers exist on top
+  ! NOTE: a lake surface may have crossed the freezing point within the step (the latent heat choice is made at the first
+  !       flux call), so a lake is not checked for consistency: sublimation just comes off whatever ice the top layer holds
+  if(nSnow==0 .and. nLake>0)then ! lake ice on top: take the sublimation from the ice mass, lakeResize then sets the depth
+    massIce = max(mLayerDepth(1)*mLayerVolFracIce(1)*iden_ice + dt_sub*scalarGroundSublimation, 0._rkind) ! (kg m-2)
+    mLayerVolFracIce(1) = massIce/(mLayerDepth(1)*iden_ice)
+  else if(nSnow>0 .or. (nGlce>0 .and. nSoil==0) )then ! snow or ice layers exist on top
     massLiquid = mLayerDepth(1)*mLayerVolFracLiq(1)*iden_water ! save the mass of liquid water (kg m-2)
 
     ! add/remove the depth of snow/ice gained/lost by frost/sublimation (m)
@@ -92,7 +99,7 @@ subroutine snowGlceDepth(&
       return
     endif
     mLayerVolFracLiq(1) = massLiquid / (mLayerDepth(1)*iden_water) ! update the volumetric fraction of liquid water
-  else ! no snow or ice
+  else if(nLake==0)then ! no snow or ice
     if(abs(scalarGroundSublimation) > verySmall)then ! check that sublimation is zero
       message=trim(message)//'sublimation of snow and ice has been computed when no snow or ice exists'
       err=20; return
@@ -122,6 +129,17 @@ subroutine snowGlceDepth(&
                     err,cmessage)                     ! intent(out): error control
     if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
   end if ! if snow layers exist
+
+  ! *** keep the lake layers full of liquid and ice (freezing expands, melting contracts the layer)...
+  if(nLake>0)then
+    call lakeResize(&
+                    nLake,                                    & ! intent(in):    number of lake layers
+                    mLayerDepth(nSnow+1:nSnow+nLake),         & ! intent(inout): depth of each lake layer (m)
+                    mLayerVolFracLiq(nSnow+1:nSnow+nLake),    & ! intent(inout): volumetric fraction of liquid water (-)
+                    mLayerVolFracIce(nSnow+1:nSnow+nLake),    & ! intent(inout): volumetric fraction of ice (-)
+                    err,cmessage)                               ! intent(out):   error control
+    if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
+  end if
 
   ! *** reduce ice depth if melt occurred
   if(nGlce>0)then
@@ -382,4 +400,113 @@ subroutine glceReduce(&
 
 end subroutine glceReduce
 
-end module snowGlceDepth_module
+! ************************************************************************************************
+! private subroutine lakeResize: keep each lake layer exactly full of liquid water and ice
+! ************************************************************************************************
+! A lake layer holds no air: its depth follows the mass it contains. The phase change in the solver
+! keeps the mass fixed while ice (at iden_ice) replaces liquid (at iden_water), so the volume the mass
+! wants to occupy grows ~9% on freezing and shrinks again on melting. This resets the depth to that
+! volume, at constant mass and temperature, playing the role that snowDensify and glceReduce play for
+! snow and glacier ice.
+subroutine lakeResize(&
+                      nLake,                          & ! intent(in):    number of lake layers
+                      mLayerDepth,                    & ! intent(inout): depth of each lake layer (m)
+                      mLayerVolFracLiq,               & ! intent(inout): volumetric fraction of liquid water (-)
+                      mLayerVolFracIce,               & ! intent(inout): volumetric fraction of ice (-)
+                      err,message)                      ! intent(out):   error control
+  implicit none
+  integer(i4b),intent(in)             :: nLake                    ! number of lake layers
+  real(rkind),intent(inout)           :: mLayerDepth(:)           ! depth of each lake layer (m)
+  real(rkind),intent(inout)           :: mLayerVolFracLiq(:)      ! volumetric fraction of liquid water (-)
+  real(rkind),intent(inout)           :: mLayerVolFracIce(:)      ! volumetric fraction of ice (-)
+  integer(i4b),intent(out)            :: err                      ! error code
+  character(*),intent(out)            :: message                  ! error message
+  ! local variables
+  integer(i4b)                        :: iLake                    ! index of lake layers
+  real(rkind)                         :: massLiq                  ! mass of liquid water in the layer (kg m-2)
+  real(rkind)                         :: massIce                  ! mass of ice in the layer (kg m-2)
+  real(rkind)                         :: depthNew                 ! depth the liquid and ice occupy (m)
+  ! -----------------------------------------------------------------------------------------------------------------------------------------
+  err=0; message="lakeResize/"
+  do iLake=1,nLake
+    massLiq  = iden_water*mLayerVolFracLiq(iLake)*mLayerDepth(iLake)
+    massIce  = iden_ice  *mLayerVolFracIce(iLake)*mLayerDepth(iLake)
+    depthNew = massLiq/iden_water + massIce/iden_ice
+    if(depthNew < verySmall)then
+      write(message,'(a,i0,3(a,es12.4))') trim(message)//'lake layer has no water: layer = ',iLake,', depth = ',mLayerDepth(iLake), &
+                                          ', volFracLiq = ',mLayerVolFracLiq(iLake),', volFracIce = ',mLayerVolFracIce(iLake)
+      err=20; return
+    end if
+    mLayerDepth(iLake)      = depthNew
+    mLayerVolFracLiq(iLake) = massLiq/(iden_water*depthNew)
+    mLayerVolFracIce(iLake) = massIce/(iden_ice*depthNew)
+  end do
+end subroutine lakeResize
+
+! ************************************************************************************************
+! public subroutine lakePrescribeDepth: set the liquid water in the lake layers of a stream from the reach volume
+! ************************************************************************************************
+! The river network routes the water mass, so once per data step the liquid in the stream's lake layers
+! is reset to the reach volume per unit area (floored at streamMinDepth). The layers keep their share of
+! the column depth: each is filled to its share of the new total depth (liquid plus the ice it already
+! holds), so a layer whose ice melts keeps its thickness rather than shrinking to its residual liquid,
+! and a layer that is more ice than its share gets no liquid, the others taking that water. Ice mass
+! and temperatures are untouched; depths then follow from lakeResize.
+subroutine lakePrescribeDepth(&
+                      nSnow,                          & ! intent(in):    number of snow layers
+                      nLake,                          & ! intent(in):    number of lake layers
+                      liqDepth,                       & ! intent(in):    liquid depth of the water column to impose (m)
+                      mLayerDepth,                    & ! intent(inout): depth of each layer (m)
+                      mLayerVolFracLiq,               & ! intent(inout): volumetric fraction of liquid water (-)
+                      mLayerVolFracIce,               & ! intent(inout): volumetric fraction of ice (-)
+                      err,message)                      ! intent(out):   error control
+  implicit none
+  integer(i4b),intent(in)             :: nSnow                    ! number of snow layers
+  integer(i4b),intent(in)             :: nLake                    ! number of lake layers
+  real(rkind),intent(in)              :: liqDepth                 ! liquid depth of the water column to impose (m)
+  real(rkind),intent(inout)           :: mLayerDepth(:)           ! depth of each layer (m)
+  real(rkind),intent(inout)           :: mLayerVolFracLiq(:)      ! volumetric fraction of liquid water (-)
+  real(rkind),intent(inout)           :: mLayerVolFracIce(:)      ! volumetric fraction of ice (-)
+  integer(i4b),intent(out)            :: err                      ! error code
+  character(*),intent(out)            :: message                  ! error message
+  ! local variables
+  character(len=256)                  :: cmessage                 ! error message of downwind routine
+  integer(i4b)                        :: iLake,iLayer             ! layer indices
+  real(rkind)                         :: share(nLake)             ! share of the column depth of each lake layer (-)
+  real(rkind)                         :: iceVol(nLake)            ! depth of ice in each lake layer (m)
+  real(rkind)                         :: liqNew(nLake)            ! liquid depth of each lake layer after the reset (m)
+  real(rkind)                         :: totDepth                 ! total depth of the column, liquid plus ice (m)
+  real(rkind)                         :: excess                   ! liquid that does not fit its layer's share (m)
+  real(rkind)                         :: room                     ! liquid the other layers can take (m)
+  real(rkind),parameter               :: minShare=0.1_rkind       ! smallest share of the column a layer keeps, relative to an equal split (-)
+  ! -----------------------------------------------------------------------------------------------------------------------------------------
+  err=0; message="lakePrescribeDepth/"
+  if(nLake<1)then; err=20; message=trim(message)//'expect at least one lake layer in a stream domain'; return; end if
+  ! the present geometry, and the ice each layer holds
+  ! NOTE: a floor on the share keeps a layer that sublimated or melted away from vanishing for good
+  share  = mLayerDepth(nSnow+1:nSnow+nLake)/sum(mLayerDepth(nSnow+1:nSnow+nLake))
+  share  = max(share, minShare/real(nLake,rkind))
+  share  = share/sum(share)
+  iceVol = mLayerDepth(nSnow+1:nSnow+nLake)*mLayerVolFracIce(nSnow+1:nSnow+nLake)
+  totDepth = liqDepth + sum(iceVol)
+  ! fill each layer to its share of the new column; ice beyond a layer's share pushes its liquid to the other layers
+  liqNew = share*totDepth - iceVol
+  excess = -sum(liqNew, mask=liqNew<0._rkind)
+  where(liqNew < 0._rkind) liqNew = 0._rkind
+  if(excess > 0._rkind)then
+    room = sum(liqNew)
+    if(room > verySmall)then
+      liqNew = liqNew*(1._rkind - excess/room)
+    end if
+  end if
+  ! set the liquid at the present depths; lakeResize then sets the depth the liquid and ice fill
+  do iLake=1,nLake
+    iLayer = nSnow+iLake
+    mLayerVolFracLiq(iLayer) = max(liqNew(iLake),0._rkind)/mLayerDepth(iLayer)
+  end do
+  call lakeResize(nLake,mLayerDepth(nSnow+1:nSnow+nLake),mLayerVolFracLiq(nSnow+1:nSnow+nLake),mLayerVolFracIce(nSnow+1:nSnow+nLake),err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+end subroutine lakePrescribeDepth
+
+end module snowLakeGlceDepth_module
+

@@ -43,7 +43,11 @@ USE globalData,only:upland           ! horizontal domain type for upland areas
 USE build_options, only: mizuroute_active
 #ifdef MIZUROUTE_ACTIVE
 USE mizuroute_coupling, only: route_mizuroute_from_summa
+USE mizuroute_coupling, only: get_mizuroute_reach_hydraulics
+USE mizuroute_coupling, only: remap_lateral_energy
 #endif
+USE streamtemp_module,  only: run_streamNetwork
+USE multiconst,         only: iden_water, Cp_water
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -98,6 +102,7 @@ contains
  integer*8, allocatable                :: timeGRUstart(:)       ! time GRUs start
  real(rkind),  allocatable             :: timeGRUcompleted(:)   ! time required to complete each GRU
  real(rkind),  allocatable             :: timeGRU(:)            ! time spent on each GRU
+ integer(i4b)                          :: iSeg                  ! reach index
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(&
@@ -304,12 +309,44 @@ contains
  if(mizuroute_active)then ! build-time capability
   if (summa1_struc%config%use_mizuroute) then
 
-   ! transfer routed runoff from summa into the coupling structure to pass to mizuRoute
+   ! transfer routed runoff from summa into the coupling structure to pass to mizuRoute, with the heat it carries
    do iGRU = 1,summa1_struc%nGRU_local
      summa1_struc%coupling(iGRU)%qsim = summa1_struc%bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoff)%dat(1)
+     summa1_struc%coupling(iGRU)%esim = iden_water*Cp_water*summa1_struc%coupling(iGRU)%qsim &
+                                        *summa1_struc%bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoffTemp)%dat(1)
    enddo
    call route_mizuroute_from_summa(modelTimeStep, summa1_struc, err, cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! ----- stream temperature: the network pass over the stream domains -----------
+   ! the reaches now have this step's discharge and volume; the stream domains are run in routing order
+   if(any(summa1_struc%stream_net%ixDOM > 0))then
+     call get_mizuroute_reach_hydraulics(summa1_struc, err, cmessage)
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+     call remap_lateral_energy(summa1_struc, err, cmessage)
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+     call run_streamNetwork(&
+                     summa1_struc%stream_net,       & ! intent(inout): per-reach hydraulics (in) and temperatures (out)
+                     gru_struc,                     & ! intent(inout): HRU information for each GRU
+                     summa1_struc%dt_init,          & ! intent(inout): used to initialize the length of the sub-step for each HRU
+                     summa1_struc%computeVegFlux,   & ! intent(inout): flag to indicate if we are computing fluxes over vegetation
+                     summa1_struc%typeStruct,       & ! intent(in):    local classification of soil veg etc. for each HRU
+                     summa1_struc%attrStruct,       & ! intent(in):    local attributes for each HRU
+                     summa1_struc%lookupStruct,     & ! intent(in):    local lookup tables for each HRU
+                     summa1_struc%mparStruct,       & ! intent(in):    local model parameters
+                     summa1_struc%indxStruct,       & ! intent(inout): model indices
+                     summa1_struc%forcStruct,       & ! intent(inout): model forcing data
+                     summa1_struc%progStruct,       & ! intent(inout): prognostic variables
+                     summa1_struc%diagStruct,       & ! intent(inout): diagnostic variables
+                     summa1_struc%fluxStruct,       & ! intent(inout): model fluxes
+                     summa1_struc%bvarStruct,       & ! intent(inout): basin-average variables
+                     err,cmessage)                    ! intent(out):   error control
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+     ! keep this step's reach temperature and velocity for the output buffer
+     iSeg = merge(1, modelTimeStep, summa1_struc%n_write == 1)
+     summa1_struc%stream_net%tOutHist(:,iSeg) = summa1_struc%stream_net%tOut(:)
+     summa1_struc%stream_net%velHist(:,iSeg)  = summa1_struc%stream_net%velocity(:)
+   endif  ! (if there are stream domains)
   endif  ! (if mizuRoute is selected)
  endif  ! (if mizuroute was built)
 

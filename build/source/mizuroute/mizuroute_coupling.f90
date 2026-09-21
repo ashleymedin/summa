@@ -9,11 +9,20 @@ module mizuroute_coupling
   implicit none
   private
 
+  ! SUMMA physical constants, restated here because this module must not see the SUMMA module
+  ! tree (multiconst sits next to globalData and var_lookup, whose names mizuRoute shares)
+  real(rkind), parameter :: iden_water = 1000._rkind   ! intrinsic density of liquid water (kg m-3), as multiconst
+  real(rkind), parameter :: Cp_water   = 4181._rkind   ! specific heat of liquid water (J kg-1 K-1), as multiconst
+  real(rkind), parameter :: Tfreeze    = 273.16_rkind  ! freezing point of pure water (K), as multiconst
+
   public :: init_mizuroute_from_summa
   public :: route_mizuroute_from_summa
   public :: define_mizuroute_output_from_summa
   public :: write_mizuroute_output_from_summa
   public :: get_mizuroute_streamflow
+  public :: init_stream_network_from_summa
+  public :: get_mizuroute_reach_hydraulics
+  public :: remap_lateral_energy
 
   ! *****************************************************************************
   ! SUMMA--mizuRoute coupling interface
@@ -204,6 +213,20 @@ module mizuroute_coupling
   ! required), aggregation of runoff to river reaches, and routing through the
   ! explicit river network.
   !
+  ! Stream temperature exchange
+  ! ---------------------------
+  !
+  ! When SUMMA carries stream domains (the reach water column of a GRU), a
+  ! second exchange runs after the routing step. mizuRoute hands back, per
+  ! reach, the discharge leaving the reach, the water volume and the lateral
+  ! inflow it received (get_mizuroute_reach_hydraulics), and the energy flux
+  ! carried by the GRU runoff (coupling(:)%esim) is remapped onto the reaches
+  ! exactly like the runoff itself (remap_lateral_energy). SUMMA then walks
+  ! the reaches in routing order and solves the water column of each stream
+  ! domain, so temperature is routed downstream by SUMMA while water is routed
+  ! by mizuRoute. The per-reach arrays live in summaStruct%stream_net; this
+  ! module only fills the mizuRoute side of them.
+  !
   ! Possible HRU-level coupling
   ! ---------------------------
   !
@@ -336,7 +359,8 @@ contains
   
   ierr = 0
   message = 'define_mizuroute_output_from_summa/'
-  call define_mizuroute_output(ncid, summaStruct%config%mizu_info, summaStruct%mizu_domain, ierr, cmessage)
+  call define_mizuroute_output(ncid, summaStruct%config%mizu_info, summaStruct%mizu_domain, ierr, cmessage, &
+                               write_stream=any(summaStruct%stream_net%ixDOM > 0))
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   
   end subroutine define_mizuroute_output_from_summa
@@ -356,12 +380,12 @@ contains
 
   ierr = 0
   message = 'write_mizuroute_output_from_summa/'
-  call write_mizuroute_output(ncid,                         &
-                              istart,                       &
-                              numtim,                       &
-                              summaStruct%config%mizu_info, &
-                              summaStruct%mizu_domain,      &
-                              ierr, cmessage)
+  if(any(summaStruct%stream_net%ixDOM > 0))then
+    call write_mizuroute_output(ncid, istart, numtim, summaStruct%config%mizu_info, summaStruct%mizu_domain, ierr, cmessage, &
+                                tReach=summaStruct%stream_net%tOutHist, vReach=summaStruct%stream_net%velHist)
+  else
+    call write_mizuroute_output(ncid, istart, numtim, summaStruct%config%mizu_info, summaStruct%mizu_domain, ierr, cmessage)
+  endif
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   end subroutine write_mizuroute_output_from_summa
@@ -381,5 +405,200 @@ contains
   simFlow = summaStruct%mizu_domain%river_network%driver%method(1)%streamflow(ixSeg,idx_buff)
 
   end subroutine get_mizuroute_streamflow
+
+  !-----------------------------------------------------------------------
+  ! Build the river network as seen by the stream temperature model
+  !-----------------------------------------------------------------------
+  ! The SUMMA side supplies, per GRU, the reach id its stream HRU stands for
+  ! (0 = the reach the GRU drains to) and where that stream domain lives.
+  ! Everything else comes from the mizuRoute topology.
+  subroutine init_stream_network_from_summa(summaStruct, streamSegId, ixStreamHRU, ixStreamDOM, domArea, ierr, message)
+  USE var_lookup, only: ixNTOPO, ixHRU2SEG
+  USE public_var, only: realMissing, iulog
+  type(summa1_type_dec), intent(inout) :: summaStruct
+  integer(i4b),          intent(in)    :: streamSegId(:)   ! per GRU: reach id of the stream HRU (0 = reach mapped from the GRU id)
+  integer(i4b),          intent(in)    :: ixStreamHRU(:)   ! per GRU: index of the stream HRU within the GRU (0 = none)
+  integer(i4b),          intent(in)    :: ixStreamDOM(:)   ! per GRU: index of the stream domain within that HRU
+  real(rkind),           intent(in)    :: domArea(:)       ! per GRU: planform area of the stream domain (m2)
+  integer(i4b),          intent(out)   :: ierr
+  character(*),          intent(out)   :: message
+  integer(i4b)                         :: iGRU, iSeg, iHRU, jSeg, nUps, maxUps
+  real(rkind)                          :: reachArea        ! reach planform area from the routing geometry (m2)
+
+  ierr = 0
+  message = 'init_stream_network_from_summa/'
+  associate(net => summaStruct%stream_net, core => summaStruct%mizu_domain%river_network%core, &
+            driver => summaStruct%mizu_domain%river_network%driver)
+
+  net%nSeg = core%topology%n_seg
+  maxUps = 0
+  do iSeg=1,net%nSeg
+    maxUps = max(maxUps, size(core%ntopo(iSeg)%UREACHI))
+  end do
+  allocate(net%segId(net%nSeg), net%rchOrder(net%nSeg), net%nUps(net%nSeg), net%ixUps(max(maxUps,1),net%nSeg), &
+           net%ixGRU(net%nSeg), net%ixHRU(net%nSeg), net%ixDOM(net%nSeg), net%length(net%nSeg),                 &
+           net%qUp(net%nSeg), net%qLat(net%nSeg), net%qOut(net%nSeg), net%vol(net%nSeg), net%depth(net%nSeg),     &
+           net%velocity(net%nSeg), net%eLat(net%nSeg), net%tLat(net%nSeg), net%tUp(net%nSeg), net%tOut(net%nSeg),   &
+           net%tOutHist(net%nSeg,summaStruct%n_write), net%velHist(net%nSeg,summaStruct%n_write), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating the stream network'; return; endif
+  net%tOutHist(:,:) = Tfreeze; net%velHist(:,:) = 0._rkind
+
+  ! topology
+  net%ixUps(:,:) = 0
+  do iSeg=1,net%nSeg
+    net%segId(iSeg)    = core%ntopo(iSeg)%REACHID
+    net%rchOrder(iSeg) = core%topology%ntopo(iSeg)%var(ixNTOPO%rchOrder)%dat(1)
+    net%length(iSeg)   = core%param(iSeg)%RLENGTH
+    nUps = size(core%ntopo(iSeg)%UREACHI)
+    net%nUps(iSeg) = nUps
+    if(nUps>0) net%ixUps(1:nUps,iSeg) = core%ntopo(iSeg)%UREACHI(1:nUps)
+  end do
+
+  ! the stream domain standing for each reach
+  net%ixGRU(:) = 0; net%ixHRU(:) = 0; net%ixDOM(:) = 0
+  do iGRU=1,summaStruct%nGRU_local
+    if(ixStreamHRU(iGRU) < 1) cycle
+    if(streamSegId(iGRU) > 0)then
+      jSeg = findloc(driver%seg_id, streamSegId(iGRU), dim=1)
+      if(jSeg < 1)then
+        write(message,'(a,i0,a,i0,a)') trim(message)//'streamSegId ',streamSegId(iGRU),' of the stream HRU in GRU ',summaStruct%gru_struc(iGRU)%gru_id,' is not a reach of the river network'
+        ierr=20; return
+      endif
+    else
+      ! the reach the GRU drains to: the routing HRU with the GRU id (only meaningful without spatial remapping)
+      iHRU = findloc(driver%hru_id, int(summaStruct%gru_struc(iGRU)%gru_id,kind=i4b), dim=1)
+      if(iHRU < 1)then
+        write(message,'(a,i0,a)') trim(message)//'GRU ',summaStruct%gru_struc(iGRU)%gru_id,' has a stream HRU but no routing HRU with its id; give the reach with streamSegId'
+        ierr=20; return
+      endif
+      jSeg = core%topology%hru2seg(iHRU)%var(ixHRU2SEG%hruSegIndex)%dat(1)
+    endif
+    if(net%ixGRU(jSeg) > 0)then
+      write(message,'(a,i0,a)') trim(message)//'reach ',net%segId(jSeg),' is represented by more than one stream HRU'
+      ierr=20; return
+    endif
+    net%ixGRU(jSeg) = iGRU
+    net%ixHRU(jSeg) = ixStreamHRU(iGRU)
+    net%ixDOM(jSeg) = ixStreamDOM(iGRU)
+    ! the column is the reach: its area should be the reach planform area, or the residence time is off by the ratio
+    reachArea = core%param(jSeg)%RLENGTH*core%param(jSeg)%R_WIDTH
+    if(abs(domArea(iGRU) - reachArea) > 0.1_rkind*reachArea) &
+      write(iulog,'(a,i0,a,es10.3,a,es10.3,a)') ' WARNING: stream domain of GRU ',summaStruct%gru_struc(iGRU)%gru_id, &
+        ' has area ',domArea(iGRU),' m2 but its reach is ',reachArea,' m2 (length x width); the reach volume per unit area uses the reach'
+  end do
+
+  ! initial values
+  net%qUp(:) = 0._rkind; net%qLat(:) = 0._rkind; net%qOut(:) = 0._rkind
+  net%vol(:) = realMissing; net%depth(:) = 0._rkind; net%velocity(:) = 0._rkind
+  net%eLat(:) = 0._rkind; net%tLat(:) = Tfreeze; net%tUp(:) = Tfreeze; net%tOut(:) = Tfreeze
+
+  end associate
+  end subroutine init_stream_network_from_summa
+
+  !-----------------------------------------------------------------------
+  ! Reach hydraulics after a routing step: discharge, lateral inflow, volume, depth, velocity
+  !-----------------------------------------------------------------------
+  ! Uses the first configured routing method. The volume is only carried by
+  ! the IRF, KW, MC and DW methods; for the others the depth falls back to
+  ! the Manning normal depth. The depth passed to SUMMA is the reach volume
+  ! spread over the reach planform area (length x width of the routing
+  ! geometry), so the SUMMA column has the mean depth of the reach.
+  subroutine get_mizuroute_reach_hydraulics(summaStruct, ierr, message)
+  USE public_var, only: realMissing
+  USE hydraulic,  only: flow_depth, flow_area
+  type(summa1_type_dec), intent(inout) :: summaStruct
+  integer(i4b),          intent(out)   :: ierr
+  character(*),          intent(out)   :: message
+  integer(i4b)                         :: iSeg
+  real(rkind)                          :: yNorm, aFlow, reachArea
+  real(rkind), parameter               :: minVol = 1.e-6_rkind
+
+  ierr = 0
+  message = 'get_mizuroute_reach_hydraulics/'
+  associate(net => summaStruct%stream_net, core => summaStruct%mizu_domain%river_network%core)
+
+  do iSeg=1,net%nSeg
+    net%qOut(iSeg) = core%flux(iSeg)%ROUTE(1)%REACH_Q
+    net%qUp(iSeg)  = core%flux(iSeg)%ROUTE(1)%REACH_INFLOW
+    net%qLat(iSeg) = core%flux(iSeg)%BASIN_QR(1)
+    net%vol(iSeg)  = core%flux(iSeg)%ROUTE(1)%REACH_VOL(1)
+    reachArea = net%length(iSeg)*core%param(iSeg)%R_WIDTH
+    ! Manning normal depth for the discharge: the depth where the routing method carries no volume, and the
+    ! floor for the velocity (a reach whose volume has not caught up with its discharge is not moving at Q L/V)
+    yNorm = 0._rkind
+    if(net%qOut(iSeg) > 0._rkind) &
+      yNorm = flow_depth(net%qOut(iSeg), core%param(iSeg)%R_WIDTH, core%param(iSeg)%SIDE_SLOPE, &
+                         core%param(iSeg)%R_SLOPE, core%param(iSeg)%R_MAN_N, &
+                         zf=core%param(iSeg)%FLDP_SLOPE, bankDepth=core%param(iSeg)%R_DEPTH)
+    if(net%vol(iSeg) > minVol .and. reachArea > 0._rkind)then
+      net%depth(iSeg) = net%vol(iSeg)/reachArea
+    else
+      net%vol(iSeg)   = realMissing
+      net%depth(iSeg) = yNorm
+    endif
+    if(net%qOut(iSeg) > 0._rkind)then
+      aFlow = flow_area(max(net%depth(iSeg),yNorm), core%param(iSeg)%R_WIDTH, core%param(iSeg)%SIDE_SLOPE, &
+                        zf=core%param(iSeg)%FLDP_SLOPE, bankDepth=core%param(iSeg)%R_DEPTH)
+      net%velocity(iSeg) = net%qOut(iSeg)/max(aFlow, minVol)
+    else
+      net%velocity(iSeg) = 0._rkind
+    endif
+  end do
+
+  end associate
+  end subroutine get_mizuroute_reach_hydraulics
+
+  !-----------------------------------------------------------------------
+  ! Remap the energy flux carried by the GRU runoff onto the reaches
+  !-----------------------------------------------------------------------
+  ! The energy flux density (W m-2) goes through the same spatial remapping
+  ! and basin-to-reach aggregation as the runoff depth, so dividing by the
+  ! reach lateral inflow gives its flow-weighted temperature.
+  subroutine remap_lateral_energy(summaStruct, ierr, message)
+  USE process_remap_module, only: remap_runoff
+  USE process_remap_module, only: basin2reach
+  type(summa1_type_dec), intent(inout) :: summaStruct
+  integer(i4b),          intent(out)   :: ierr
+  character(*),          intent(out)   :: message
+  real(rkind), allocatable             :: qSave(:)         ! the runoff, put back after the remapping
+  real(rkind), allocatable             :: basinNrg(:)      ! energy flux density on the routing HRUs (W m-2)
+  real(rkind), parameter               :: rhoCp = iden_water*Cp_water ! rho_w * Cp_w (J m-3 K-1)
+  real(rkind), parameter               :: minFlow = 1.e-12_rkind
+  integer(i4b)                         :: iSeg
+  character(len=256)                   :: cmessage
+
+  ierr = 0
+  message = 'remap_lateral_energy/'
+  associate(net => summaStruct%stream_net, info => summaStruct%config%mizu_info, &
+            core => summaStruct%mizu_domain%river_network%core, domain => summaStruct%mizu_domain)
+
+  allocate(basinNrg(size(core%runoff%basinRunoff)), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating basinNrg'; return; endif
+
+  ! the energy flux density takes the place of the runoff for the remapping, then the runoff is restored
+  qSave = core%runoff%sim
+  core%runoff%sim(:) = summaStruct%coupling(:)%esim
+  if(info%do_remapping)then
+    call remap_runoff(core%runoff, domain%remap%routing, basinNrg, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  else
+    basinNrg = core%runoff%sim
+  endif
+  core%runoff%sim = qSave
+
+  ! aggregate to the reaches (W), no lower limit since this is not a runoff
+  call basin2reach(basinNrg, core%ntopo, core%param, net%eLat, ierr, cmessage, limitRunoff=.false.)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  do iSeg=1,net%nSeg
+    if(net%qLat(iSeg) > minFlow)then
+      net%tLat(iSeg) = max(net%eLat(iSeg)/(rhoCp*net%qLat(iSeg)), Tfreeze)
+    else
+      net%tLat(iSeg) = Tfreeze
+    endif
+  end do
+
+  end associate
+  end subroutine remap_lateral_energy
 
 end module mizuroute_coupling

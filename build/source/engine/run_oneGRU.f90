@@ -25,6 +25,9 @@ USE nr_type
 
 ! physical constants
 USE multiconst,only: iden_ice           ! intrinsic density of ice (kg m-3)
+USE multiconst,only: iden_water         ! intrinsic density of water (kg m-3)
+USE multiconst,only: Cp_water           ! specific heat of liquid water (J kg-1 K-1)
+USE multiconst,only: Tfreeze            ! freezing point of pure water (K)
 
 ! constants
 USE globalData,only: yes,no             ! .true. and .false.
@@ -83,6 +86,7 @@ USE globalData,only:glacCln1           ! first horizontal domain type for glacie
 USE globalData,only:glacCln2           ! second horizontal domain type for glacier clean areas
 USE globalData,only:glacDbr            ! horizontal domain type for glacier debris areas
 USE globalData,only:wetland            ! horizontal domain type for wetland areas
+USE globalData,only:stream             ! horizontal domain type for stream reaches
 
 ! look-up values for the choice of groundwater parameterization
 USE mDecisions_module,only:       &
@@ -205,6 +209,12 @@ subroutine run_oneGRU(&
   real(rkind)                         :: glacFirnMelt                   ! glacier firn reservoir melt (m3 s-1)
   real(rkind)                         :: sec_since_last_update          ! seconds since last update
   real(rkind)                         :: soil_thick                     ! depth of soil== debris in debris domain of glacier HRU
+  integer(i4b)                        :: ixStreamHRU                    ! index of the HRU holding the stream domain (0 = none)
+  real(rkind)                         :: basinNrgFlux                   ! instantaneous energy flux carried by the runoff handed to the channel (W m-2)
+  real(rkind)                         :: routedNrgFlux                  ! routed energy flux carried by the runoff (W m-2)
+  real(rkind)                         :: notUsedNrgFlux                 ! instantaneous energy flux returned by the routing (W m-2)
+  real(rkind)                         :: tempTop                        ! temperature of the water leaving the surface of a domain (K)
+  real(rkind)                         :: tempBot                        ! temperature of the water draining from the bottom of a domain (K)
   integer(i4b)                        :: nSnow                          ! number of snow layers in debris domain
   integer(i4b)                        :: nLake                          ! number of lake layers in debris domain (should be 0)
   integer(i4b)                        :: nSoil                          ! number of soil layers in debris domain
@@ -243,11 +253,14 @@ subroutine run_oneGRU(&
 
   ! initialize total inflow for each layer in a soil column and glacier size allocation
   check_updateGlacArea = .true.
+  ixStreamHRU = 0
+  basinNrgFlux = 0._rkind
   do iHRU=1,gruInfo%hruCount
     do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
       associate(typeDOM => gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type, &
                 DOMarea => progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) )
         if(typeDOM==wetland)then; err=20; message=trim(message)//'ERROR:  wetland fluxes not yet implemented'; return; endif
+        if(typeDOM==stream .and. DOMarea>0._rkind) ixStreamHRU = iHRU ! the reach water column, run in the network pass (at most one per GRU)
 
         fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = 0._rkind
         if(DOMarea==0._rkind) cycle ! skip domains with no area
@@ -300,6 +313,7 @@ subroutine run_oneGRU(&
   do iHRU=1,gruInfo%hruCount
     dsHRU: do jHRU=1,gruInfo%hruCount
       if(typeHRU%hru(iHRU)%var(iLookTYPE%downHRUindex) == idHRU%hru(jHRU)%var(iLookID%hruId))then
+        if(jHRU==ixStreamHRU) exit dsHRU      ! draining to the stream HRU is draining to the channel: treat as a GRU outlet
         downIdx(iHRU) = jHRU                  ! first match wins, as before
         inDegree(jHRU) = inDegree(jHRU) + 1
         exit dsHRU
@@ -391,6 +405,12 @@ subroutine run_oneGRU(&
             fluxHRU%hru(kHRU)%dom(1)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = fluxHRU%hru(kHRU)%dom(1)%var(iLookFLUX%mLayerColumnInflow)%dat(:)  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%mLayerColumnOutflow)%dat(:)
           else ! otherwise just increment basin (GRU) column outflow (m3 s-1) with the hru fraction
             bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1) = bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1) + sum(fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%mLayerColumnOutflow)%dat(:))
+            ! the water leaving each soil layer carries that layer's temperature to the channel (W m-2 over the GRU)
+            associate(nSnow => gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nSnow, nLake => gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nLake, &
+                      nSoil => gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nSoil, mLayerTemp => progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerTemp)%dat)
+              basinNrgFlux = basinNrgFlux + iden_water*Cp_water*sum( fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%mLayerColumnOutflow)%dat(1:nSoil) &
+                                                                    *mLayerTemp(nSnow+nLake+1:nSnow+nLake+nSoil) )/totalArea
+            end associate
           endif
         endif ! (if upland domain)
 
@@ -411,6 +431,30 @@ subroutine run_oneGRU(&
             bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferTranspire)%dat(1)*fracDOM
             bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) *fracDOM
           endif
+
+          ! the heat carried by this runoff, for the temperature of the water handed to the channel (W m-2 over the GRU):
+          ! surface runoff leaves at the surface layer temperature (melt water at the freezing point), drainage and
+          ! baseflow at the temperature of the bottom of the soil column, which the aquifer is taken to share
+          associate(nSnow => gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nSnow, nLake => gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nLake, &
+                    nSoil => gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nSoil, mLayerTemp => progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerTemp)%dat)
+            tempTop = max(mLayerTemp(1), Tfreeze)
+            tempBot = mLayerTemp(nSnow+nLake+nSoil)
+            basinNrgFlux = basinNrgFlux + iden_water*Cp_water*fracDOM*fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)*tempTop
+            ! the same components as basin__TotalRunoff below: aquifer baseflow with a deep aquifer, soil drainage without one
+            if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == bigBucket)then
+              if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == localColumn) &
+                basinNrgFlux = basinNrgFlux + iden_water*Cp_water*fracDOM*fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1)*tempBot
+            else
+              basinNrgFlux = basinNrgFlux + iden_water*Cp_water*fracDOM*fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSoilDrainage)%dat(1)*tempBot
+            endif
+          end associate
+
+        else if(typeDOM==stream)then
+          ! the reach itself: rain and melt on the water minus evaporation join the flow, at the column temperature
+          ! NOTE: the stream domain runs in the network pass, so these are the values of the previous step
+          bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarStreamRunoff)%dat(1)*fracDOM
+          basinNrgFlux = basinNrgFlux + iden_water*Cp_water*fracDOM*fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarStreamRunoff)%dat(1) &
+                                       *max(diagHRU%hru(iHRU)%dom(iDOM)%var(iLookDIAG%scalarStreamTemp)%dat(1), Tfreeze)
         else if(typeDOM==glacCln1 .or. typeDOM==glacCln2 .or. typeDOM==glacDbr)then ! collect glacier ablation and accumulation melt m s-1
           ! This logic makes sense if assuming multiple glaciers in each HRU and one HRU per GRU, or one glacier in each GRU with multiple HRUs
           ! If some glaciers are not in a particular glacier HRU, this logic will not capture that
@@ -538,6 +582,12 @@ subroutine run_oneGRU(&
       ! no deep aquifer (may have column outflow from shallow groundwater then soil drainage will be zero, else the converse is true)
       bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1)/totalArea + bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)
     endif
+    ! evaporation from open water (a stream domain) can exceed the rest of the runoff on a dry day; the river
+    ! network takes no negative lateral inflow, so that small loss is then not debited from the channel
+    if(ixStreamHRU > 0 .and. bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) < 0._rkind)then
+      basinNrgFlux = 0._rkind
+      bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) = 0._rkind
+    endif
     
     call qOverland(&
                    ! input
@@ -554,6 +604,26 @@ subroutine run_oneGRU(&
     ! add glacier runoff to overland runoff
     bvarData%var(iLookBVAR%averageInstantRunoff)%dat(1) = bvarData%var(iLookBVAR%averageInstantRunoff)%dat(1) + glacIceMelt + glacSnowMelt + glacFirnMelt
     bvarData%var(iLookBVAR%averageRoutedRunoff)%dat(1) = bvarData%var(iLookBVAR%averageRoutedRunoff)%dat(1) + bvarData%var(iLookBVAR%glacierRoutedRunoff)%dat(1)
+
+    ! route the heat carried by the runoff through the same time delay (the routing is linear), so the temperature
+    ! of the water handed to the river network is consistent with the routed runoff; glacier runoff arrives at the freezing point
+    call qOverland(&
+                   ! input
+                   model_decisions(iLookDECISIONS%subRouting)%iDecision, & ! intent(in):    index for routing method
+                   basinNrgFlux,                                         & ! intent(in):    energy flux carried by the runoff to the channel (W m-2)
+                   bvarData%var(iLookBVAR%routingFractionFuture)%dat,    & ! intent(in):    fraction of runoff in future time steps (-)
+                   bvarData%var(iLookBVAR%routingNrgFuture)%dat,         & ! intent(inout): energy flux in future time steps (W m-2)
+                   ! output
+                   notUsedNrgFlux,                                       & ! intent(out):   instantaneous energy flux (W m-2)
+                   routedNrgFlux,                                        & ! intent(out):   routed energy flux (W m-2)
+                   err,cmessage)                                           ! intent(out):   error control
+    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+    routedNrgFlux = routedNrgFlux + iden_water*Cp_water*Tfreeze*bvarData%var(iLookBVAR%glacierRoutedRunoff)%dat(1)
+    if(bvarData%var(iLookBVAR%averageRoutedRunoff)%dat(1) > tiny(routedNrgFlux))then
+      bvarData%var(iLookBVAR%averageRoutedRunoffTemp)%dat(1) = max(routedNrgFlux/(iden_water*Cp_water*bvarData%var(iLookBVAR%averageRoutedRunoff)%dat(1)), Tfreeze)
+    else
+      bvarData%var(iLookBVAR%averageRoutedRunoffTemp)%dat(1) = Tfreeze
+    endif
 
   end associate
 

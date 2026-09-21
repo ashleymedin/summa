@@ -55,6 +55,7 @@ USE globalData,only:integerMissing   ! missing integer
 USE globalData,only:realMissing      ! missing real
 
 USE globalData,only:icefrz_mult      ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
+USE globalData,only:lakefrz_mult     ! freezing curve scaling factor multiplier of snow to lake water
 
 ! domain types
 USE globalData,only:iname_cas        ! named variables for canopy air space
@@ -558,7 +559,8 @@ subroutine heatAdvectWat(&
               dCm_dTk(iLayer) = iden_water * Cp_water - iden_air * Cp_air
             else
               frz_scale_use = snowfrz_scale
-              if(ixDomainType==iname_lake .or. ixDomainType==iname_glce) frz_scale_use = snowfrz_scale*icefrz_mult
+              if(ixDomainType==iname_lake) frz_scale_use = snowfrz_scale*lakefrz_mult
+              if(ixDomainType==iname_glce) frz_scale_use = snowfrz_scale*icefrz_mult
 
               fLiq = fracliquid(mLayerTemp(iLayer),frz_scale_use,iLayer>nLayers-noThetaChange)
               if(iLayer>nLayers-noThetaChange) then

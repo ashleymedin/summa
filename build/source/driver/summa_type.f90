@@ -65,6 +65,7 @@ USE data_types,  only : &
                     gru2hru_map,           & ! x(iGRU)%hruinfo(iHRU)%y
                     hru2gru_map              ! x(iHRU)%y
 USE data_types,      only: q_coupling      ! x(:)%id, x(:)%qsim
+USE data_types,      only: stream_network  ! the river network as seen by the stream temperature model
 
 ! access missing values
 USE globalData,only:integerMissing      ! missing integer
@@ -207,6 +208,7 @@ type, public :: summa1_type_dec
     integer(i4b)                     :: n_write                    ! length of the output buffer
     ! generic runoff coupling data
     type(q_coupling), allocatable    :: coupling(:)                ! x(:)%id, x(:)%qsim
+    type(stream_network)             :: stream_net                 ! per-reach hydraulics and temperatures for the stream domains
 #ifdef MIZUROUTE_ACTIVE
     type(mizuroute_domain)           :: mizu_domain                ! mizuroute domain data
 #endif

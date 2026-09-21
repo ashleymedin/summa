@@ -132,6 +132,7 @@ MODULE var_lookup
   integer(i4b)    :: soilTypeIndex = integerMissing  ! index defining soil type (-)
   integer(i4b)    :: slopeTypeIndex= integerMissing  ! index defining slope (-)
   integer(i4b)    :: downHRUindex  = integerMissing  ! index of downslope HRU (0 = basin outlet)
+  integer(i4b)    :: streamSegId   = integerMissing  ! mizuRoute reach id of a stream HRU (0 = reach mapped from the GRU id; optional)
  end type iLook_type
 
  type, public  ::  iLook_id
@@ -354,6 +355,9 @@ MODULE var_lookup
   integer(i4b)    :: zmaxLayer2_upper      = integerMissing    ! maximum layer depth for the 2nd layer when > 2 layers (m)
   integer(i4b)    :: zmaxLayer3_upper      = integerMissing    ! maximum layer depth for the 3rd layer when > 3 layers (m)
   integer(i4b)    :: zmaxLayer4_upper      = integerMissing    ! maximum layer depth for the 4th layer when > 4 layers (m)
+  ! lake and stream column
+  integer(i4b)    :: streamMinDepth        = integerMissing    ! minimum liquid depth of the stream water column prescribed from mizuRoute (m)
+  integer(i4b)    :: lakeMixingThermalC    = integerMissing    ! effective thermal conductivity between liquid lake layers, emulating turbulent mixing (W m-1 K-1)
  endtype iLook_param
 
  ! ***********************************************************************************************************
@@ -534,7 +538,13 @@ MODULE var_lookup
   integer(i4b)    :: hInitUsed                       = integerMissing ! step size used on the first internal step 
   integer(i4b)    :: hLast                           = integerMissing ! step size used on the last internal step 
   integer(i4b)    :: hCur                            = integerMissing ! step size to be used on the next internal step 
-  integer(i4b)    :: tCur                            = integerMissing ! current time reached by the integrator 
+  integer(i4b)    :: tCur                            = integerMissing ! current time reached by the integrator
+  ! stream and lake column
+  integer(i4b)    :: scalarStreamDepth               = integerMissing ! liquid depth of the stream water column prescribed from mizuRoute (m)
+  integer(i4b)    :: scalarStreamVelocity            = integerMissing ! reach mean velocity from mizuRoute (m s-1)
+  integer(i4b)    :: scalarStreamTemp                = integerMissing ! liquid-weighted temperature of the stream water column, the reach outlet temperature (K)
+  integer(i4b)    :: scalarLakeLiqDepth              = integerMissing ! total liquid depth of the lake layers (m)
+  integer(i4b)    :: scalarStreamSfcInflowTemp       = integerMissing ! temperature of the rain plus melt entering the top of the open water column (K)
  endtype iLook_diag
 
  ! ***********************************************************************************************************
@@ -646,6 +656,15 @@ MODULE var_lookup
   integer(i4b)    :: scalarTotalRunoff               = integerMissing ! total runoff (m s-1)
   integer(i4b)    :: scalarGlacierMelt               = integerMissing ! glacier melt (goes into glacier internal reservoir) (m s-1)
   integer(i4b)    :: scalarNetRadiation              = integerMissing ! net radiation (W m-2)
+  ! stream domain: reach water fluxes set by the network pass and read inside the column
+  integer(i4b)    :: scalarStreamInflow              = integerMissing ! discharge entering the reach from upstream reaches (m3 s-1)
+  integer(i4b)    :: scalarStreamInflowTemp          = integerMissing ! flow-weighted temperature of the upstream inflow (K)
+  integer(i4b)    :: scalarStreamLatInflow           = integerMissing ! lateral inflow to the reach from its local catchment (m3 s-1)
+  integer(i4b)    :: scalarStreamLatInflowTemp       = integerMissing ! temperature of the lateral inflow (K)
+  integer(i4b)    :: scalarStreamOutflow             = integerMissing ! discharge leaving the reach (m3 s-1)
+  integer(i4b)    :: scalarStreamSfcInflow           = integerMissing ! rain plus melt drainage entering the top of the open water column (m s-1)
+  integer(i4b)    :: mLayerLakeAdvNrgFlux            = integerMissing ! advective energy source in each lake layer from reach inflow and outflow (J m-3 s-1)
+  integer(i4b)    :: scalarStreamRunoff              = integerMissing ! net water the stream domain itself adds to the reach: rain + melt - evaporation (m s-1)
  endtype iLook_flux
 
  ! ***********************************************************************************************************
@@ -751,8 +770,9 @@ MODULE var_lookup
   integer(i4b)    :: dTemp_dEnthalpy                 = integerMissing ! derivative of temperature w.r.t. enthalpy      
   integer(i4b)    :: dCanopyTemp_dCanWat             = integerMissing ! derivative of canopy temperature w.r.t. volumetric water content  
   integer(i4b)    :: dTemp_dTheta                    = integerMissing ! derivative of temperature w.r.t. volumetric water content         
-  integer(i4b)    :: dTemp_dPsi0                     = integerMissing ! derivative of temperature w.r.t. total water matric potential         
-
+  integer(i4b)    :: dTemp_dPsi0                     = integerMissing ! derivative of temperature w.r.t. total water matric potential
+  ! derivative of the lake advective energy source
+  integer(i4b)    :: dLakeAdvNrgFlux_dTemp           = integerMissing ! derivative of the lake advective energy source w.r.t. the layer temperature (J m-3 s-1 K-1)
  endtype iLook_deriv
 
  ! ***********************************************************************************************************
@@ -843,6 +863,8 @@ MODULE var_lookup
   integer(i4b)     :: numberDomainSplitNrg  = integerMissing  ! number of domain splitting solutions for energy                          (-)
   integer(i4b)     :: numberDomainSplitMass = integerMissing  ! number of domain splitting solutions for mass                            (-)
   integer(i4b)     :: numberScalarSolutions = integerMissing  ! number of scalar solutions                                               (-)
+  ! domain type
+  integer(i4b)     :: domType               = integerMissing  ! horizontal domain type (upland, glacier, wetland, stream)                 (-)
  endtype iLook_index
 
  ! ***********************************************************************************************************
@@ -899,6 +921,9 @@ MODULE var_lookup
   integer(i4b)    :: glacSnowRunoffFuture       = integerMissing ! per glacier snow reservoir runoff in future time steps (m s-1)
   integer(i4b)    :: glacFirnRunoffFuture       = integerMissing ! per glacier firn reservoir runoff in future time steps (m s-1)
   integer(i4b)    :: glacierRoutedRunoff        = integerMissing ! lapsed glacier runoff (m s-1)
+  ! define variables for the temperature of the runoff handed to the river network
+  integer(i4b)    :: routingNrgFuture           = integerMissing ! energy flux of runoff in future time steps (W m-2)
+  integer(i4b)    :: averageRoutedRunoffTemp    = integerMissing ! temperature of the routed runoff (K)
  endtype iLook_bvar
 
  ! ***********************************************************************************************************
@@ -989,7 +1014,7 @@ MODULE var_lookup
  ! named variables: model attributes
  type(iLook_attr),    public,parameter :: iLookATTR     =iLook_attr    (  1,  2,  3,  4,  5,  6,  7,  8)
  ! named variables: soil and vegetation types
- type(iLook_type),    public,parameter :: iLookTYPE     =iLook_type    (  1,  2,  3,  4)
+ type(iLook_type),    public,parameter :: iLookTYPE     =iLook_type    (  1,  2,  3,  4,  5)
  ! named variables: hru and gru IDs and associated information
  type(iLook_id),      public,parameter :: iLookID       =iLook_id      (  1,  2,  3)
  ! named variables: model parameters
@@ -1012,7 +1037,7 @@ MODULE var_lookup
                                                                         161,162,163,164,165,166,167,168,169,170,&
                                                                         171,172,173,174,175,176,177,178,179,180,&
                                                                         181,182,183,184,185,186,187,188,189,190,&
-                                                                        191,192,193,194,195,196)
+                                                                        191,192,193,194,195,196,197,198)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -1030,7 +1055,7 @@ MODULE var_lookup
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
                                                                          91, 92, 93, 94, 95, 96, 97, 98, 99,100,&
                                                                         101,102,103,104,105,106,107,108,109,110,&
-                                                                        111,112,113)
+                                                                        111,112,113,114,115,116,117,118)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -1041,7 +1066,8 @@ MODULE var_lookup
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
-                                                                         91, 92, 93, 94)
+                                                                         91, 92, 93, 94, 95, 96, 97, 98, 99,100,&
+                                                                        101,102)
  ! named variables: derivatives in model fluxes w.r.t. relevant state variables
  type(iLook_deriv),   public,parameter :: iLookDERIV    =iLook_deriv   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -1051,7 +1077,7 @@ MODULE var_lookup
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
-                                                                         81, 82)
+                                                                         81, 82, 83)
  ! named variables: model indices
  type(iLook_index),   public,parameter :: iLookINDEX    =iLook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -1060,14 +1086,14 @@ MODULE var_lookup
                                                                          41, 42, 43, 44, 45, 46, 47, 48, 49, 50,&
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
-                                                                         71)
+                                                                         71, 72)
  ! named variables: basin-average parameters
  type(iLook_bpar),    public,parameter :: iLookBPAR     =iLook_bpar    (  1,  2,  3,  4,  5,  6,  7,  8, 9,  10,&
                                                                           11, 12)
  ! named variables: basin-average variables
  type(iLook_bvar),    public,parameter :: iLookBVAR     =iLook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
-                                                                         21, 22, 23, 24)
+                                                                         21, 22, 23, 24, 25, 26)
  ! named variables: basin-grid variables
  type(iLook_grid),    public,parameter :: iLookGRID     =iLook_grid    (  1,  2,  3,  4,  5)
  ! named variables in variable type structure
