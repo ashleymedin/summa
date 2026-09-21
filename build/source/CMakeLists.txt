@@ -104,6 +104,7 @@ set(MODRUN
     ${ENGINE_DIR}/indexState.f90
     ${ENGINE_DIR}/layerMerge.f90
     ${ENGINE_DIR}/layerDivide.f90
+    ${ENGINE_DIR}/lakeIceCover.f90
     ${ENGINE_DIR}/qTimeDelay.f90
     ${ENGINE_DIR}/read_force.f90
     ${ENGINE_DIR}/snowLakeGlceAlbedo.f90

@@ -169,11 +169,12 @@ if np.isnan(T_runoff).any() or (T_runoff < TFREEZE - 1e-6).any() or T_runoff.max
 else:
     print(f"  runoff temp:       {T_runoff.min():.2f} to {T_runoff.max():.2f} K")
 
-# freeze-up: after a cold week (mean air well below freezing) some reach must carry ice
+# freeze-up: after a cold week (mean air well below freezing) some reach must carry an ice cover: a lake
+# layer of (nearly) solid ice, which snow (volFracIce below ~0.7) and frozen soil (below theta_sat) never reach
 ax_dom = dims_ice.index("dom"); ax_hru = dims_ice.index("hru"); ax_lay = dims_ice.index("midToto")
 ice_s = np.take(np.take(ice, stream, axis=ax_hru), 1, axis=ax_dom)   # (time, midToto, stream HRU)
-ice_top = np.take(ice_s, 0, axis=ax_lay if ax_lay < ax_dom else ax_lay - 1)
-frac_frozen = np.nanmean(ice_top[-24:] > 0.01)
+ice_cover = np.any(ice_s > 0.9, axis=ax_lay if ax_lay < ax_dom else ax_lay - 1)
+frac_frozen = np.nanmean(ice_cover[-24:])
 week_air = np.nanmean(airT[-24*7:])
 if week_air < TFREEZE - 3.0 and frac_frozen == 0.0:
     print(f"FAIL: a week of air at {week_air:.1f} K and no reach carries ice"); fail = True

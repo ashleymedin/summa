@@ -38,7 +38,6 @@ USE globalData,only:wetland          ! horizontal domain type for wetland areas
 USE globalData,only:stream           ! horizontal domain type for stream reaches
 
 USE globalData,only:icefrz_mult      ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
-USE globalData,only:lakefrz_mult     ! freezing curve scaling factor multiplier of snow to lake water
 
 implicit none
 private
@@ -127,6 +126,7 @@ contains
  real(rkind)                               :: kappa                      ! constant in the freezing curve function (m K-1)
  integer(i4b)                              :: nSnow                      ! number of snow layers
  integer(i4b)                              :: nLake                      ! number of lake layers
+ integer(i4b)                              :: nLakeFrz                   ! number of frozen (ice cover) lake layers
  integer(i4b)                              :: nSoil                      ! number of soil layers
  integer(i4b)                              :: nGlce                      ! number of glacier ice layers
  integer(i4b)                              :: nLayers                    ! total number of layers
@@ -394,6 +394,7 @@ contains
      ! number of layers
      nSnow   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
      nLake   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake
+     nLakeFrz = indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLakeFrz)%dat(1)
      nSoil   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
      nGlce   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce
      nLayers = nSnow + nLake + nSoil + nGlce
@@ -431,7 +432,7 @@ contains
           if(mLayerVolFracIce(iLayer) < 0._rkind  )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0: layer = '   ,iLayer; err=20; return; end if
           ! lake layers hold no air: liquid + ice fill the layer volume (depth follows the mass, see lakeResize)
           is_stream = (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==stream)
-          if(is_stream .and. abs(mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer) - 1._rkind) > 1.e-3_rkind)then
+          if(is_stream .and. iLayer>nSnow+nLakeFrz .and. abs(mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer) - 1._rkind) > 1.e-3_rkind)then
             write(message,'(a,1x,i0)') trim(message)//'lake layers in a stream domain must have volFracLiq + volFracIce = 1 (no air): layer = ',iLayer; err=20; return
           end if
         else if (layerType(iLayer)==iname_glce) then ! glacier ice should be mostly ice
@@ -480,8 +481,7 @@ contains
           end if
         endif
         if (layerType(iLayer)==iname_snow) frz_scale_use = snowfrz_scale
-        if (layerType(iLayer)==iname_glce) frz_scale_use = snowfrz_scale*icefrz_mult
-        if (layerType(iLayer)==iname_lake) frz_scale_use = snowfrz_scale*lakefrz_mult
+        if (layerType(iLayer)==iname_glce .or. layerType(iLayer)==iname_lake) frz_scale_use = snowfrz_scale*icefrz_mult
         
         ! ensure consistency among state variables
         call updatSnLaGl(&

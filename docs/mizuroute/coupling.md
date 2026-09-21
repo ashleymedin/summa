@@ -200,8 +200,16 @@ entering from upstream and from the local catchment,
 rho_w c_p d(h T)/dt = H_surface + H_bed + rho_w c_p [ Q_up (T_up - T) + q_lat (T_lat - T) + q_sfc (T_sfc - T) ] / A
 ```
 
-with `A` the reach planform area. Ice forms and melts in place in the lake
-layers through the enthalpy formulation, and snow can build on the ice.
+with `A` the reach planform area. Ice is treated as in van Beek et al.: when
+the water column reaches the freezing point and the energy balance is still
+negative, ice forms in the water layers and, once per step, rises into an
+**ice cover** at the top of the lake layers (`lakeIceCover.f90`, index
+`nLakeFrz` counts the cover layers). The cover is a lake layer handled like
+glacier ice: impermeable, sharp freezing curve, melt squeezed to its surface
+and into the flow, thinning as it melts; the water beneath stays mixed and
+advected by the reach flow. A cover thinner than `lakeIceMinThick` (5 mm,
+the breakup thickness of Wanders et al.) returns to the water. Snow builds
+on the cover; rain and snowmelt on the cover run off into the reach.
 
 The sequence within a time step is:
 
@@ -247,10 +255,9 @@ Approximations of this first implementation: one well-mixed column per reach
 (no longitudinal sub-reaches); the liquid depth of the column is prescribed
 from the reach volume once per step (each lake layer keeping its share of the
 column, with a floor so a layer that melted or sublimated away refills), so the
-water mass stays entirely in mizuRoute; ice is a phase of the lake layers
-rather than a separate cover (a partly frozen top layer is a mush at the
-freezing point, with the snow freezing curve, `lakefrz_mult` in
-`globalData.f90`, rather than the sharper glacier-ice one); no bed seepage
+water mass stays entirely in mizuRoute; the ice cover is at most one layer
+(`nLakeIceLayers_poss` in `globalData.f90`) and forms only once enough ice
+is present to stand (twice `lakeIceMinThick`); no bed seepage
 or hyporheic exchange; no shortwave penetration below the top lake layer;
 mizuRoute never sees the ice, so winter depth and velocity are open-water
 values; and open-water evaporation exceeding all other runoff of a GRU is not

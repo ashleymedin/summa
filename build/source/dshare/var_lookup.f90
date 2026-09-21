@@ -358,6 +358,7 @@ MODULE var_lookup
   ! lake and stream column
   integer(i4b)    :: streamMinDepth        = integerMissing    ! minimum liquid depth of the stream water column prescribed from mizuRoute (m)
   integer(i4b)    :: lakeMixingThermalC    = integerMissing    ! effective thermal conductivity between liquid lake layers, emulating turbulent mixing (W m-1 K-1)
+  integer(i4b)    :: lakeIceMinThick       = integerMissing    ! ice cover thinner than this breaks up and returns to the water (m)
  endtype iLook_param
 
  ! ***********************************************************************************************************
@@ -865,6 +866,7 @@ MODULE var_lookup
   integer(i4b)     :: numberScalarSolutions = integerMissing  ! number of scalar solutions                                               (-)
   ! domain type
   integer(i4b)     :: domType               = integerMissing  ! horizontal domain type (upland, glacier, wetland, stream)                 (-)
+  integer(i4b)     :: nLakeFrz              = integerMissing  ! number of frozen (ice cover) lake layers at the top of the lake           (-)
  endtype iLook_index
 
  ! ***********************************************************************************************************
@@ -1037,7 +1039,7 @@ MODULE var_lookup
                                                                         161,162,163,164,165,166,167,168,169,170,&
                                                                         171,172,173,174,175,176,177,178,179,180,&
                                                                         181,182,183,184,185,186,187,188,189,190,&
-                                                                        191,192,193,194,195,196,197,198)
+                                                                        191,192,193,194,195,196,197,198,199)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -1086,7 +1088,7 @@ MODULE var_lookup
                                                                          41, 42, 43, 44, 45, 46, 47, 48, 49, 50,&
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
-                                                                         71, 72)
+                                                                         71, 72, 73)
  ! named variables: basin-average parameters
  type(iLook_bpar),    public,parameter :: iLookBPAR     =iLook_bpar    (  1,  2,  3,  4,  5,  6,  7,  8, 9,  10,&
                                                                           11, 12)
