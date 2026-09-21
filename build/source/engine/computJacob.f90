@@ -514,6 +514,8 @@ subroutine fluxJacAdd(&
     ! derivatives in energy fluxes at the interface of layers w.r.t. water state in layers above and below
     dNrgFlux_dWatAbove           => deriv_data%var(iLookDERIV%dNrgFlux_dWatAbove)%dat              ,& ! intent(in): [dp(:)]  derivatives in the flux w.r.t. water state in the layer above
     dNrgFlux_dWatBelow           => deriv_data%var(iLookDERIV%dNrgFlux_dWatBelow)%dat              ,& ! intent(in): [dp(:)]  derivatives in the flux w.r.t. water state in the layer below
+    ! derivative in the advective energy source of the lake layers w.r.t. the layer temperature
+    dLakeAdvNrgFlux_dTemp        => deriv_data%var(iLookDERIV%dLakeAdvNrgFlux_dTemp)%dat           ,& ! intent(in): [dp(:)]  derivative of the lake advective energy source w.r.t. temperature
     ! derivatives in soil transpiration w.r.t. canopy state variables
     mLayerdTrans_dTCanair        => deriv_data%var(iLookDERIV%mLayerdTrans_dTCanair)%dat           ,& ! intent(in): [dp(:)]  derivatives in the soil layer transpiration flux w.r.t. canopy air temperature
     mLayerdTrans_dTCanopy        => deriv_data%var(iLookDERIV%mLayerdTrans_dTCanopy)%dat           ,& ! intent(in): [dp(:)]  derivatives in the soil layer transpiration flux w.r.t. canopy temperature
@@ -623,6 +625,9 @@ subroutine fluxJacAdd(&
 
         ! - diagonal elements
         aJac(ixInd(full,nrgState,nrgState),nrgState) = (dt/mLayerDepth(iLayer))*(-dNrgFlux_dTempBelow(iLayer-1) + dNrgFlux_dTempAbove(iLayer)) + dMat(nrgState)
+        ! - heat carried by the reach flow through a lake layer (a volumetric source, so no interface terms)
+        if(iLayer>nSnow .and. iLayer<=nSnow+nLake) &
+          aJac(ixInd(full,nrgState,nrgState),nrgState) = aJac(ixInd(full,nrgState,nrgState),nrgState) - dt*dLakeAdvNrgFlux_dTemp(iLayer-nSnow)
 
         ! - super-diagonal elements
         if(iLayer>1)then
@@ -728,7 +733,7 @@ subroutine fluxJacAdd(&
 
         if(watState/=integerMissing)then
           ! - include derivatives of heat capacity w.r.t water for layer above
-          if(qLayer>1 .or. (qLayer==1 .and. nSnow==0 .and. nSoil>0))then ! have layer above
+          if(jLayer>1)then ! have layer above (snow above snow, lake or ice; soil above glacier ice)
             if(ixSnLaSoGlNrg(jLayer-1)/=integerMissing) aJac(ixInd(full,ixSnLaSoGlNrg(jLayer-1),watState),watState) = (dt/mLayerDepth(jLayer-1))*( dNrgFlux_dWatBelow(jLayer-1) )
           endif
 

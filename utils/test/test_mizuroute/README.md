@@ -10,6 +10,7 @@ you're checking:
 | **toy problem** | Bundled Provo domain + a made-up, single-chain river network. No real-world meaning; exists purely to exercise the coupling machinery. | `./test_mizuroute_bundled.sh` | `toy_prob/` (generated, gitignored) |
 | **Provo, real network** | Same bundled Provo domain, but routed through its *real* hydrofabric network, so it can be compared against the same domain routed with t-route/ngen. | `./test_mizuroute_provo_real_network.sh`, then `compare_to_troute.py` | `provo_real_network/` (generated, gitignored) |
 | **Bow real data** | A real, independent SUMMA-mizuRoute case study (Bow River at Banff): real forcing, real network + remapping, observed streamflow, KGE evaluation. Not a pass/fail check against anything above. | see [`bow_real_data/README.md`](bow_real_data/README.md), then `check_objective_func.R` | `bow_real_data/work/` (generated, gitignored) |
+| **stream temperature** | The toy problem again, but every GRU large enough gets a stream HRU (the water column of its reach), so SUMMA solves reach temperatures on the chain network. Checks the runoff transfer, physical temperatures, column-vs-reach consistency, the lake energy balance and freeze-up over Oct-Dec. | `./test_streamtemp_bundled.sh` | `stream_prob/` (generated, gitignored) |
 
 Only the toy problem is expected to run unmodified right after a fresh
 checkout -- it needs nothing beyond a mizuRoute-enabled build. `bow_real_data`
@@ -30,6 +31,23 @@ that runoff transfer is exact, drainage area accumulates correctly down the
 chain, and mass is conserved through the network. This is the only script
 here that needs nothing beyond a fresh checkout and a mizuRoute-enabled
 build; run it after touching the coupling code.
+
+## `test_streamtemp_bundled.sh` -- stream temperature on the toy network
+
+```
+./test_streamtemp_bundled.sh [work_dir]
+```
+
+`make_stream_domain.py` writes a copy of the bundled Provo settings in which
+every GRU large enough to hold its reach gets a second, **stream** HRU
+(`domType` 6): two lake layers over the land HRU's soil column, an area of
+reach length x width (taken from the land HRU, so GRU areas are unchanged),
+and `streamSegId` pointing at the GRU's reach in the chain. The forcing and
+trial parameters of the land HRU are duplicated for it. The run then covers
+the whole bundled forcing (Oct-Dec 2017, `SIM_END` to shorten it) and the
+check reads the `T_reach`/`v_reach` output next to `Q_reach`. The one GRU too
+small for its reach keeps no stream HRU, so that reach exercises the
+mixing-only path. See [the coupling description](../../../docs/mizuroute/coupling.md#stream-temperature-exchange).
 
 ## `test_mizuroute_provo_real_network.sh` -- the real Provo network
 

@@ -185,6 +185,79 @@ could in principle instead supply runoff from individual SUMMA HRUs and rely on
 mizuRoute for the subsequent spatial aggregation and unresolved-network
 routing, but this configuration is not currently implemented.
 
+## Stream temperature exchange
+
+When SUMMA carries **stream HRUs** (see the [input description](../input_output/SUMMA_input.md#infile_stream)),
+a second exchange runs after every routing step. mizuRoute keeps routing the
+water; SUMMA solves the temperature of the water column of each reach and
+routes heat downstream itself. The formulation follows Wanders et al. (2019,
+*WRR*, DynWat) after van Beek et al. (2012, *WRR*): a well-mixed reach whose
+energy balance is the surface exchange (SUMMA's usual bare-surface fluxes over
+open water or ice), conduction to the bed and the heat carried by the water
+entering from upstream and from the local catchment,
+
+```text
+rho_w c_p d(h T)/dt = H_surface + H_bed + rho_w c_p [ Q_up (T_up - T) + q_lat (T_lat - T) + q_sfc (T_sfc - T) ] / A
+```
+
+with `A` the reach planform area. Ice forms and melts in place in the lake
+layers through the enthalpy formulation, and snow can build on the ice.
+
+The sequence within a time step is:
+
+```text
+land HRUs of every GRU (run_oneGRU, parallel over GRUs)
+    |  runoff and the heat it carries, both through the SUMMA unit hydrograph:
+    |  surface runoff at the surface-layer temperature, drainage and baseflow
+    |  at the bottom-soil temperature, glacier melt at the freezing point
+    v
+coupling(:)%qsim, coupling(:)%esim          (m s-1 and W m-2 per GRU)
+    |
+    | ------------------ coupling interface ------------------
+    v
+mizuRoute routes the water                  (route_mizuroute_from_summa)
+    |
+    v
+reach discharge, upstream inflow, volume,   (get_mizuroute_reach_hydraulics)
+lateral inflow; depth = volume / (length x width), velocity = Q length / volume
+    |
+    v
+energy flux remapped and aggregated to      (remap_lateral_energy: the same
+reaches, divided by the lateral inflow       remap_runoff + basin2reach as the runoff)
+    |
+    | ------------------ back to SUMMA ------------------
+    v
+network pass, reaches in routing order      (run_streamNetwork, serial)
+    |  T_up from the outflow of the upstream reaches, then the stream domain of
+    |  the reach is run (run_oneHRU with streamPass=.true.), and its column
+    |  temperature becomes the outflow temperature of the reach; a reach with
+    |  no stream HRU only mixes what flows into it
+    v
+T_reach, v_reach output; scalarStream* fluxes and scalarStreamTemp per stream HRU
+```
+
+The per-reach arrays live in `summa1_type_dec%stream_net` (`data_types.f90`,
+type `stream_network`). The coupling module only fills the mizuRoute side of
+them; the network pass and the column physics are SUMMA code
+(`streamtemp.f90`, the lake layers of `coupled_em`, the advective source in
+`snowLakeSoilGlceNrgFlux.f90`, `lakeLiqFlux` in `snowLakeGlceLiqFlux.f90`,
+`lakeResize`/`lakePrescribeDepth` in `snowLakeGlceDepth.f90`).
+
+Approximations of this first implementation: one well-mixed column per reach
+(no longitudinal sub-reaches); the liquid depth of the column is prescribed
+from the reach volume once per step (each lake layer keeping its share of the
+column, with a floor so a layer that melted or sublimated away refills), so the
+water mass stays entirely in mizuRoute; ice is a phase of the lake layers
+rather than a separate cover (a partly frozen top layer is a mush at the
+freezing point, with the snow freezing curve, `lakefrz_mult` in
+`globalData.f90`, rather than the sharper glacier-ice one); no bed seepage
+or hyporheic exchange; no shortwave penetration below the top lake layer;
+mizuRoute never sees the ice, so winter depth and velocity are open-water
+values; and open-water evaporation exceeding all other runoff of a GRU is not
+debited from the channel (the network takes no negative lateral inflow). The
+network pass is serial and, like the rest of the coupled mizuRoute, needs the
+whole domain on one process.
+
 ## Build-system separation
 
 The software boundary described above is also reflected in the CMake build

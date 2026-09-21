@@ -201,6 +201,7 @@ contains
   case('soilTypeIndex'  ); get_ixType = iLookTYPE%soilTypeIndex      ! index defining soil type
   case('slopeTypeIndex' ); get_ixType = iLookTYPE%slopeTypeIndex     ! index defining slope
   case('downHRUindex'   ); get_ixType = iLookTYPE%downHRUindex       ! index of downslope HRU (0 = basin outlet)
+  case('streamSegId'    ); get_ixType = iLookTYPE%streamSegId        ! mizuRoute reach id of a stream HRU (0 = reach mapped from the GRU id)
   ! get to here if cannot find the variable
   case default
    get_ixType = integerMissing
@@ -450,6 +451,9 @@ contains
   case('zmaxLayer2_upper'         ); get_ixParam = iLookPARAM%zmaxLayer2_upper       ! maximum layer depth for the 2nd layer when > 2 layers (m)
   case('zmaxLayer3_upper'         ); get_ixParam = iLookPARAM%zmaxLayer3_upper       ! maximum layer depth for the 3rd layer when > 3 layers (m)
   case('zmaxLayer4_upper'         ); get_ixParam = iLookPARAM%zmaxLayer4_upper       ! maximum layer depth for the 4th layer when > 4 layers (m)                              
+  ! lake and stream column
+  case('streamMinDepth'           ); get_ixParam = iLookPARAM%streamMinDepth         ! minimum liquid depth of the stream water column (m)
+  case('lakeMixingThermalC'       ); get_ixParam = iLookPARAM%lakeMixingThermalC     ! effective thermal conductivity between liquid lake layers (W m-1 K-1)
   ! get to here if cannot find the variable
   case default
    get_ixParam = integerMissing
@@ -655,6 +659,12 @@ contains
   case('hLast'                          ); get_ixDiag = iLookDIAG%hLast                            ! step size used on the last internal step
   case('hCur'                           ); get_ixDiag = iLookDIAG%hCur                             ! step size to be used on the next internal step
   case('tCur'                           ); get_ixDiag = iLookDIAG%tCur                             ! current time reached by the integrator
+  ! stream and lake column
+  case('scalarStreamDepth'              ); get_ixDiag = iLookDIAG%scalarStreamDepth                ! liquid depth of the stream water column (m)
+  case('scalarStreamVelocity'           ); get_ixDiag = iLookDIAG%scalarStreamVelocity             ! reach mean velocity (m s-1)
+  case('scalarStreamTemp'               ); get_ixDiag = iLookDIAG%scalarStreamTemp                 ! reach outlet temperature (K)
+  case('scalarLakeLiqDepth'             ); get_ixDiag = iLookDIAG%scalarLakeLiqDepth               ! total liquid depth of the lake layers (m)
+  case('scalarStreamSfcInflowTemp'      ); get_ixDiag = iLookDIAG%scalarStreamSfcInflowTemp        ! temperature of the rain plus melt entering the open water column (K)
   ! get to here if cannot find the variable
   case default
    get_ixDiag = integerMissing
@@ -778,6 +788,15 @@ contains
   case('scalarTotalRunoff'              ); get_ixFlux = iLookFLUX%scalarTotalRunoff                ! total runoff (m s-1)
   case('scalarGlacierMelt'              ); get_ixFlux = iLookFLUX%scalarGlacierMelt                ! glacier melt (goes into glacier internal reservoir) (m s-1)
   case('scalarNetRadiation'             ); get_ixFlux = iLookFLUX%scalarNetRadiation               ! net radiation (W m-2)
+  ! stream domain: reach water fluxes
+  case('scalarStreamInflow'             ); get_ixFlux = iLookFLUX%scalarStreamInflow               ! discharge entering the reach from upstream (m3 s-1)
+  case('scalarStreamInflowTemp'         ); get_ixFlux = iLookFLUX%scalarStreamInflowTemp           ! temperature of the upstream inflow (K)
+  case('scalarStreamLatInflow'          ); get_ixFlux = iLookFLUX%scalarStreamLatInflow            ! lateral inflow from the local catchment (m3 s-1)
+  case('scalarStreamLatInflowTemp'      ); get_ixFlux = iLookFLUX%scalarStreamLatInflowTemp        ! temperature of the lateral inflow (K)
+  case('scalarStreamOutflow'            ); get_ixFlux = iLookFLUX%scalarStreamOutflow              ! discharge leaving the reach (m3 s-1)
+  case('scalarStreamSfcInflow'          ); get_ixFlux = iLookFLUX%scalarStreamSfcInflow            ! rain plus melt entering the open water column (m s-1)
+  case('mLayerLakeAdvNrgFlux'           ); get_ixFlux = iLookFLUX%mLayerLakeAdvNrgFlux             ! advective energy source in each lake layer (J m-3 s-1)
+  case('scalarStreamRunoff'             ); get_ixFlux = iLookFLUX%scalarStreamRunoff               ! net water the stream domain adds to the reach (m s-1)
   ! return missing if variable not found
   case default
    get_ixFlux = integerMissing
@@ -895,6 +914,7 @@ contains
   case('dCanopyTemp_dCanWat'            ); get_ixDeriv = iLookDERIV%dCanopyTemp_dCanWat            ! derivative of canopy temperature w.r.t. volumetric water content  
   case('dTemp_dTheta'                   ); get_ixDeriv = iLookDERIV%dTemp_dTheta                   ! derivative of temperature w.r.t. volumetric water content         
   case('dTemp_dPsi0'                    ); get_ixDeriv = iLookDERIV%dTemp_dPsi0                    ! derivative of temperature w.r.t. total water matric potential         
+  case('dLakeAdvNrgFlux_dTemp'          ); get_ixDeriv = iLookDERIV%dLakeAdvNrgFlux_dTemp          ! derivative of the lake advective energy source w.r.t. layer temperature
 
   case default
    get_ixDeriv = integerMissing
@@ -997,6 +1017,7 @@ contains
   case('numberDomainSplitNrg' ); get_ixINDEX = iLookINDEX%numberDomainSplitNrg  ! number of domain splitting solutions for energy                         (-)
   case('numberDomainSplitMass'); get_ixINDEX = iLookINDEX%numberDomainSplitMass ! number of domain splitting solutions for mass                           (-)
   case('numberScalarSolutions'); get_ixINDEX = iLookINDEX%numberScalarSolutions ! number of scalar solutions                                              (-)
+  case('domType'              ); get_ixINDEX = iLookINDEX%domType               ! horizontal domain type (upland, glacier, wetland, stream)                (-)
   ! default
   case default
    get_ixIndex = integerMissing
@@ -1077,6 +1098,8 @@ contains
   case('glacSnowRunoffFuture'          ); get_ixBvar = iLookBVAR%glacSnowRunoffFuture            ! per glacier snow reservoir runoff in future time steps (m s-1)
   case('glacFirnRunoffFuture'          ); get_ixBvar = iLookBVAR%glacFirnRunoffFuture            ! per glacier firn reservoir runoff in future time steps (m s-1)
   case('glacierRoutedRunoff'           ); get_ixBvar = iLookBVAR%glacierRoutedRunoff             ! lapsed glacier runoff (m s-1)
+  case('routingNrgFuture'              ); get_ixBvar = iLookBVAR%routingNrgFuture                ! energy flux of runoff in future time steps (W m-2)
+  case('averageRoutedRunoffTemp'       ); get_ixBvar = iLookBVAR%averageRoutedRunoffTemp         ! temperature of the routed runoff (K)
   ! get to here if cannot find the variable
   case default
    get_ixBvar = integerMissing

@@ -40,6 +40,7 @@ USE globalData,only:glacCln1           ! first horizontal domain type for glacie
 USE globalData,only:glacCln2           ! second horizontal domain type for glacier clean areas
 USE globalData,only:glacDbr            ! horizontal domain type for glacier debris areas
 USE globalData,only:wetland            ! horizontal domain type for wetland areas
+USE globalData,only:stream             ! horizontal domain type for stream reaches
 
 implicit none
 private
@@ -162,6 +163,8 @@ contains
        gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 1   ! glacier debris domain possible
      if (any(dom_type(1:fileDOM,iHRU_global)==wetland)) &
        gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 1   ! wetland domain possible
+     if (any(dom_type(1:fileDOM,iHRU_global)==stream)) &
+       gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 1   ! stream domain possible
      allocate(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(gru_struc(iGRU)%hruInfo(iHRU)%domCount)) ! allocate third level of gru to hru map
      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(:)%dom_type = dom_type(1:gru_struc(iGRU)%hruInfo(iHRU)%domCount,iHRU_global)
    enddo
@@ -208,6 +211,7 @@ contains
    if (any(dom_type(1:fileDOM,iHRU_file)==glacCln2)) domCount_file = domCount_file + 1
    if (any(dom_type(1:fileDOM,iHRU_file)==glacDbr))  domCount_file = domCount_file + 1
    if (any(dom_type(1:fileDOM,iHRU_file)==wetland))  domCount_file = domCount_file + 1
+   if (any(dom_type(1:fileDOM,iHRU_file)==stream))   domCount_file = domCount_file + 1
    do iDOM = 1,domCount_file
      if(no_dom)then
        nSoil_file = soilData1(iHRU_file); nLake_file = lakeData1(iHRU_file); nGlce_file = glceData1(iHRU_file)
@@ -311,7 +315,7 @@ contains
  integer(i4b)                              :: fileGRU                       ! number of GRUs in file
  integer(i4b)                              :: fileDOM                       ! number of domains in netcdf file
  integer(i4b)                              :: iVar,i,j                      ! loop indices
- integer(i4b),dimension(1)                 :: nrdx                          ! intermediate array of loop indices for basin variables
+ integer(i4b),dimension(2)                 :: nrdx                          ! intermediate array of loop indices for basin variables
  integer(i4b),dimension(7)                 :: ngdx                          ! intermediate array of loop indices for glacier variables
  integer(i4b)                              :: iGRU,iHRU,iDOM,iGlac,iGrid    ! loop indices
  integer(i4b)                              :: dimID                         ! varible dimension ids
@@ -576,6 +580,7 @@ else
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSoil)%dat(1)   = nSoil
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1)   = nGlce
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLayers)%dat(1) = nSnow + nLake + nSoil + nGlce
+    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%domType)%dat(1) = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type
 
     ! define layers that will not have a change in total water content
     noThetaChange = 0
@@ -658,10 +663,19 @@ else
    return
   endif
 
-  ! loop through specific basin variables (currently 1 but loop provided to enable inclusion of others)
-  nrdx = (/iLookBVAR%routingRunoffFuture/)   ! array of desired variable indices
+  ! loop through specific basin variables
+  nrdx = (/iLookBVAR%routingRunoffFuture, iLookBVAR%routingNrgFuture/)   ! array of desired variable indices
   do i = 1,size(nrdx)
    iVar = nrdx(i)
+
+   ! the runoff energy flux is new, so older restart files will not have it: start from zero (runoff at the freezing point)
+   if(iVar == iLookBVAR%routingNrgFuture)then
+    err = nf90_inq_varid(ncid,trim(bvar_meta(iVar)%varName),ncVarID)
+    if(err/=nf90_noerr)then
+     write(iulog,*) 'WARNING: routingNrgFuture is not in the initial conditions file ... using zeros'
+     err=nf90_noerr; cycle
+    endif
+   endif
 
    ! get tdh dimension Id in file (should be 'tdh')
    err = nf90_inq_dimid(ncid,trim(tdhDimName), dimID)

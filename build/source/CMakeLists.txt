@@ -124,7 +124,7 @@ set(SOLVER
     ${ENGINE_DIR}/heat_Cp_Cm.f90
     ${ENGINE_DIR}/computJacob.f90
     ${ENGINE_DIR}/computResid.f90
-    ${ENGINE_DIR}/snowGlceDepth.f90
+    ${ENGINE_DIR}/snowLakeGlceDepth.f90
     ${ENGINE_DIR}/thermConductivity.f90
     ${ENGINE_DIR}/coupled_em.f90
     ${ENGINE_DIR}/eval8summa.f90
@@ -137,6 +137,7 @@ set(SOLVER
     ${ENGINE_DIR}/soilLiqFlux.f90
     ${ENGINE_DIR}/snowLakeSoilGlceNrgFlux.f90
     ${ENGINE_DIR}/stomResist.f90
+    ${ENGINE_DIR}/streamtemp.f90
     ${ENGINE_DIR}/summaSolv4homegrown.f90
     ${ENGINE_DIR}/systemSolv.f90
     ${ENGINE_DIR}/varSubstep.f90

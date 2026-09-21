@@ -89,6 +89,7 @@ contains
  integer(i4b)                    :: iLayer                 ! index of model layer
  integer(i4b)                    :: iSoil                  ! index of soil layer
  real(rkind)                     :: TCn                    ! thermal conductivity below the layer interface (W m-1 K-1)
+ real(rkind)                     :: lambda_liq             ! thermal conductivity of the liquid: molecular, or the mixing value in a lake (W m-1 K-1)
  real(rkind)                     :: TCp                    ! thermal conductivity above the layer interface (W m-1 K-1)
  real(rkind)                     :: zdn                    ! height difference between interface and lower value (m)
  real(rkind)                     :: zdp                    ! height difference between interface and upper value (m)
@@ -126,6 +127,7 @@ contains
  iLayerHeight            => prog_data%var(iLookPROG%iLayerHeight)%dat,                 & ! intent(in): height at the interface of each layer (m)
  ! input: thermal conductivity
  fixedThermalCond_snow   => mpar_data%var(iLookPARAM%fixedThermalCond_snow)%dat(1),    & ! intent(in): temporally constant thermal conductivity of snow (W m-1 K-1)
+ lakeMixingThermalC      => mpar_data%var(iLookPARAM%lakeMixingThermalC)%dat(1),       & ! intent(in): effective thermal conductivity of liquid lake water, emulating turbulent mixing (W m-1 K-1)
  ! input: depth varying soil parameters
  iden_soil               => mpar_data%var(iLookPARAM%soil_dens_intr)%dat,              & ! intent(in): intrinsic density of soil (kg m-3)
  thCond_soil             => mpar_data%var(iLookPARAM%thCond_soil)%dat,                 & ! intent(in): thermal conductivity of soil (W m-1 K-1)
@@ -221,8 +223,10 @@ contains
      endif
 
      case(iname_lake, iname_glce)
+       ! liquid lake water is stirred by the flow, so its effective conductivity is the mixing value rather than the molecular one
+       lambda_liq = merge(lakeMixingThermalC, lambda_water, layerType(iLayer)==iname_lake)
        mLayerThermalC(iLayer) = lambda_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
-                                lambda_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
+                                lambda_liq   * mLayerVolFracLiq(iLayer)     + & ! liquid water component
                                 lambda_air   * mLayerVolFracAir(iLayer)         ! air component
 
      ! * error check
@@ -336,6 +340,7 @@ subroutine thermConductivity(&
   integer(i4b)                         :: ixBot                    ! bottom layer in subroutine call
   integer(i4b)                         :: iSoil                    ! index of soil layer
   real(rkind)                          :: TCn                      ! thermal conductivity below the layer interface (W m-1 K-1)
+  real(rkind)                          :: lambda_liq               ! thermal conductivity of the liquid: molecular, or the mixing value in a lake (W m-1 K-1)
   real(rkind)                          :: TCp                      ! thermal conductivity above the layer interface (W m-1 K-1)
   real(rkind)                          :: zdn                      ! height difference between interface and lower value (m)
   real(rkind)                          :: zdp                      ! height difference between interface and upper value (m)
@@ -387,6 +392,7 @@ subroutine thermConductivity(&
     iLayerHeight            => prog_data%var(iLookPROG%iLayerHeight)%dat,                 & ! intent(in):  [dp(:)] height at the interface of each layer (m)
     ! input: heat capacity and thermal conductivity
     fixedThermalCond_snow   => mpar_data%var(iLookPARAM%fixedThermalCond_snow)%dat(1),    & ! intent(in):  [dp]    temporally constant thermal conductivity of snow (W m-1 K-1)
+    lakeMixingThermalC      => mpar_data%var(iLookPARAM%lakeMixingThermalC)%dat(1),       & ! intent(in):  [dp]    effective thermal conductivity of liquid lake water, emulating turbulent mixing (W m-1 K-1)
     ! input: depth varying soil parameters
     iden_soil               => mpar_data%var(iLookPARAM%soil_dens_intr)%dat,              & ! intent(in):  [dp(:)] intrinsic density of soil (kg m-3)
     thCond_soil             => mpar_data%var(iLookPARAM%thCond_soil)%dat,                 & ! intent(in):  [dp(:)] thermal conductivity of soil (W m-1 K-1)
@@ -559,12 +565,14 @@ subroutine thermConductivity(&
           end if
           dVolFracLiq_dWat = mLayerFracLiq(iLayer)
           dVolFracLiq_dTk  = mLayerdTheta_dTk(iLayer)
+          ! liquid lake water is stirred by the flow, so its effective conductivity is the mixing value rather than the molecular one
+          lambda_liq = merge(lakeMixingThermalC, lambda_water, layerType(iLayer)==iname_lake)
           mLayerThermalC(iLayer) = lambda_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
-                                   lambda_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
+                                   lambda_liq   * mLayerVolFracLiq(iLayer)     + & ! liquid water component
                                    lambda_air   * mLayerVolFracAir(iLayer)         ! air component
           ! compute derivatives
-          dThermalC_dWat(iLayer) = lambda_ice*dVolFracIce_dWat + lambda_water*dVolFracLiq_dWat + lambda_air*(-dVolFracIce_dWat - dVolFracLiq_dWat)
-          dThermalC_dNrg(iLayer) = (lambda_ice - lambda_water) * dVolFracIce_dTk
+          dThermalC_dWat(iLayer) = lambda_ice*dVolFracIce_dWat + lambda_liq*dVolFracLiq_dWat + lambda_air*(-dVolFracIce_dWat - dVolFracLiq_dWat)
+          dThermalC_dNrg(iLayer) = (lambda_ice - lambda_liq) * dVolFracIce_dTk
 
         ! * error check
         case default; err=20; message=trim(message)//'unable to identify type of layer to compute thermal conductivity'; return

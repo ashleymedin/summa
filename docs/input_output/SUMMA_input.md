@@ -261,7 +261,7 @@ The restart file does not have a time dimension, since it represents a specific 
 |----------|-----------|------|-------|-----------|
 | gruId | gru | int | - | ID defining the grouped (basin) response unit |
 | hruId | hru | int | - | ID defining the hydrologic response unit |
-| domType | hru, dom | int | - | Type defining the domain response unit type |
+| domType | hru, dom | int | - | Type defining the domain response unit type: 1 upland, 2 and 3 clean glacier, 4 debris-covered glacier, 5 wetland (not yet active), 6 stream (see [stream temperature](#infile_stream)) |
 | dt_init | scalarv, hru, dom | double | seconds | Length of initial time sub-step at start of next time interval |
 | nSoil | hru, dom | int | - | Number of soil layers |
 | nSnow | hru, dom | int | - |  Number of snow layers |
@@ -298,6 +298,12 @@ The restart file does not have a time dimension, since it represents a specific 
 | routingRunoffFuture | tdh, gru | double | m s-1 | runoff in future timesteps for histogram |
 | glacMass4AreaChange | scalarv, hru, dom | kg m-2 |since updateJulDay glacier layers together mass change |
 | scalarAblFrac | scalarv, hru, dom | - | fraction of the domain that is in a glacier ablation zone |
+| routingNrgFuture | tdh, gru | double | W m-2 | energy flux carried by the runoff in future timesteps (stream temperature; zeros if absent) |
+
+<a id="infile_stream"></a>
+### Stream HRUs (stream temperature)
+
+With coupled mizuRoute (`use_mizuroute = true`, see the [mizuRoute coupling](../mizuroute/coupling.md)) a GRU may hold one **stream HRU**: the water column of the river reach the GRU drains to, whose temperature SUMMA solves while mizuRoute routes the water. A stream HRU is an HRU whose `domType` list holds a `stream` domain (6) and whose upland domain has `DOMarea = 0`: the stream domain takes the whole `HRUarea`, which should be the planform area of the reach (length x width of the routing geometry, since the reach volume is spread over it). Its column is `nLake` lake layers (at least one; two is a good default, a thin top layer where ice forms and the rest of the water below) over `nSoil` soil layers and the aquifer, with no vegetation; lake layers start with `mLayerVolFracLiq + mLayerVolFracIce = 1`. The restart file then needs `nLake`, `domType` and the `DOM*` variables. The attributes file may give `streamSegId`, the mizuRoute reach id the stream HRU stands for (0 or absent: the reach the GRU drains to in the routing topology). Runs without stream HRUs are unchanged. Lake layers are only accepted in stream domains; the wetland domain (5) is not yet active.
 
 If dimension `glac` is greater than zero, the initial conditions will also need to include:
 | glacId | glac, gru | int | - | ID defining the glaciers (RGI ID) |
@@ -349,6 +355,7 @@ The local attributes file contains a `gru` and an `hru` dimension as specified i
 Optionally, these attributes can be added (otherwise will be assumed 0)
 | nGlac | gru | int | number of glaciers in the GRU | |
 | nWtld | gru | int | number of wetlands in the GRU | A placeholder for lakes |
+| streamSegId | hru | int | mizuRoute reach id of a stream HRU | 0 (or absent) means the reach the GRU drains to; only read for stream HRUs, see [stream HRUs](#infile_stream) |
 
 If `nGlac` is greater than 0 for any GRU, the attribute file will also need to include dimensions `grid`, `xgrid`, and `ygrid` and attibutes
 | nGrid | gru | int | number of grids in the GRU | currently equal to nGlac |

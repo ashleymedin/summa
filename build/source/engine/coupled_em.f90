@@ -66,9 +66,10 @@ USE globalData,only:model_decisions        ! model decision structure
 USE globalData,only:globalPrintFlag        ! the global print flag
 USE globalData,only:realMissing            ! missing real number
 USE globalData,only:maxSnowLayers          ! maximum number of snow layers
-USE globalData,only:maxLakeLayers          ! maximum number of lake layers
 USE globalData,only:maxGlceLayers          ! maximum number of glacier ice layers
 USE globalData,only:icefrz_mult            ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
+USE globalData,only:lakefrz_mult           ! freezing curve scaling factor multiplier of snow to lake water
+USE globalData,only:stream                 ! horizontal domain type for a stream reach
 
 ! look-up values for the maximum interception capacity
 USE mDecisions_module,only:         &
@@ -154,7 +155,8 @@ subroutine coupled_em(&
   ! additional subroutines
   USE tempAdjust_module,only:tempAdjust                         ! adjust snow temperature associated with new snowfall
   USE var_derive_module,only:calcHeight                         ! module to calculate height at layer interfaces and layer mid-point
-  USE snowGlceDepth_module,only:snowGlceDepth                   ! compute snow/glce depth
+  USE snowLakeGlceDepth_module,only:snowGlceDepth                   ! compute snow/glce depth
+  USE snowLakeGlceDepth_module,only:lakePrescribeDepth              ! set the stream water column from the reach volume
   USE convertEnthalpyTemp_module,only:T2enthTemp_veg            ! convert temperature to enthalpy for vegetation
   USE convertEnthalpyTemp_module,only:T2enthTemp_snLaGl         ! convert temperature to enthalpy for snow, lake, and ice
   USE convertEnthalpyTemp_module,only:T2enthTemp_soil           ! convert temperature to enthalpy for soil
@@ -339,6 +341,36 @@ subroutine coupled_em(&
 
   ! initialize variables
   call initialize_coupled_em
+
+  ! *** stream domain: impose the reach water column from the river network...
+  ! ---------------------------------------------------------------------------
+  ! The coupled river network routes the water, so the liquid depth of the lake layers is prescribed once per
+  ! data step from the reach volume (scalarStreamDepth, set by the network pass), floored so a dry reach keeps
+  ! a column. Ice is left where it is; temperatures are kept and the enthalpy follows.
+  if(indx_data%var(iLookINDEX%domType)%dat(1)==stream)then
+    call lakePrescribeDepth(&
+                    nSnow,nLake,                                                            & ! intent(in):    number of snow and lake layers
+                    max(diag_data%var(iLookDIAG%scalarStreamDepth)%dat(1), mpar_data%var(iLookPARAM%streamMinDepth)%dat(1)), & ! intent(in): liquid depth to impose (m)
+                    prog_data%var(iLookPROG%mLayerDepth)%dat,                               & ! intent(inout): depth of each layer (m)
+                    prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,                          & ! intent(inout): volumetric fraction of liquid water (-)
+                    prog_data%var(iLookPROG%mLayerVolFracIce)%dat,                          & ! intent(inout): volumetric fraction of ice (-)
+                    err,cmessage)                                                             ! intent(out):   error control
+    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+    call calcHeight(indx_data,prog_data,err,cmessage) ! layer heights follow the new depths
+    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+    do iLayer=nSnow+1,nSnow+nLake ! the enthalpy per unit volume follows the new liquid and ice fractions
+      prog_data%var(iLookPROG%mLayerVolFracWat)%dat(iLayer) = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(iLayer) &
+                                                              + prog_data%var(iLookPROG%mLayerVolFracIce)%dat(iLayer)*(iden_ice/iden_water)
+      call T2enthTemp_snLaGl(&
+                    .false.,                                                                & ! intent(in):  flag that no liquid water in layer
+                    mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)*lakefrz_mult,            & ! intent(in):  scaling parameter for the lake freezing curve (K-1)
+                    prog_data%var(iLookPROG%mLayerTemp)%dat(iLayer),                        & ! intent(in):  layer temperature (K)
+                    prog_data%var(iLookPROG%mLayerVolFracWat)%dat(iLayer),                  & ! intent(in):  volumetric total water content (-)
+                    diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(iLayer))                      ! intent(out): temperature component of enthalpy (J m-3)
+      prog_data%var(iLookPROG%mLayerEnthalpy)%dat(iLayer) = diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(iLayer) &
+                                                            - iden_ice*LH_fus*prog_data%var(iLookPROG%mLayerVolFracIce)%dat(iLayer)
+    end do
+  end if
 
   ! link canopy depth to the information in the data structure
   canopy: associate(&
@@ -779,14 +811,9 @@ subroutine coupled_em(&
 
         ! *** merge/sub-divide snow/firn/ice layers...
         ! -----------------------------------
+        ! NOTE: lake layers keep a fixed count (ice forms and melts in place), so only snow and glacier ice layers are merged or divided
         maxSnowIceLayers = maxSnowLayers
-        if (nSnow==0)then
-          if (nLake>0)then
-            maxSnowIceLayers = maxLakeLayers ! merging lake ice layers
-          else 
-            if (nGlce>0) maxSnowIceLayers = maxGlceLayers ! merging glacier ice layers
-          end if
-        end if
+        if (nSnow==0 .and. nLake==0 .and. nGlce>0) maxSnowIceLayers = maxGlceLayers ! merging glacier ice layers
         call volicePack(&
                         ! input/output: model data structures
                         maxSnowIceLayers,           & ! intent(in):    maximum number of snow/firn/ice layers
@@ -844,7 +871,7 @@ subroutine coupled_em(&
               if (jLayer<=nSnow+nLake)then
                 iLayer = jLayer
                 frz_scale_use = snowfrz_scale
-                if (jLayer>nSnow) frz_scale_use = snowfrz_scale*icefrz_mult
+                if (jLayer>nSnow) frz_scale_use = snowfrz_scale*lakefrz_mult
               else
                 iLayer = jLayer + nSoil
                 frz_scale_use = snowfrz_scale*icefrz_mult
@@ -993,7 +1020,7 @@ subroutine coupled_em(&
             if (nLake>0 .or. (nLake==0 .and. nSoil==0 .and. nGlce>0))then
               call T2enthTemp_snLaGl(&
                        .false.,                                            & ! intent(in):  flag that no liquid water in layer, never true for top layer
-                       snowfrz_scale*icefrz_mult,                          & ! intent(in):  scaling parameter for the lfreezing curve  (K-1)
+                       snowfrz_scale*merge(lakefrz_mult,icefrz_mult,nLake>0), & ! intent(in): scaling parameter for the lake or ice freezing curve (K-1)
                        prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1),   & ! intent(in):  layer temperature (K)
                        mLayerVolFracWat(nSnow+1),                          & ! intent(in):  volumetric total water content (-)
                        diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(nSnow+1)) ! intent(out): temperature component of enthalpy of each layer (J m-3)
@@ -1288,7 +1315,7 @@ subroutine coupled_em(&
               if (jLayer<=nSnow+nLake)then
                 iLayer = jLayer
                 frz_scale_use = snowfrz_scale
-                if (jLayer>nSnow) frz_scale_use = snowfrz_scale*icefrz_mult
+                if (jLayer>nSnow) frz_scale_use = snowfrz_scale*lakefrz_mult
               else
                 iLayer = jLayer + nSoil
                 frz_scale_use = snowfrz_scale*icefrz_mult
@@ -1502,6 +1529,26 @@ subroutine coupled_em(&
                     ! output: error control
                     err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+
+    ! lake column summary: the liquid depth and the liquid-weighted temperature, which for a stream is the reach outlet temperature
+    associate(&
+      mLayerDepth        => prog_data%var(iLookPROG%mLayerDepth)%dat                ,& ! depth of each layer (m)
+      mLayerTemp         => prog_data%var(iLookPROG%mLayerTemp)%dat                 ,& ! temperature of each layer (K)
+      mLayerVolFracLiq   => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat           ,& ! volumetric fraction of liquid water in each layer (-)
+      scalarLakeLiqDepth => diag_data%var(iLookDIAG%scalarLakeLiqDepth)%dat(1)      ,& ! total liquid depth of the lake layers (m)
+      scalarStreamTemp   => diag_data%var(iLookDIAG%scalarStreamTemp)%dat(1)         ) ! liquid-weighted temperature of the lake layers (K)
+      if(nLake>0)then
+        scalarLakeLiqDepth = sum(mLayerDepth(nSnow+1:nSnow+nLake)*mLayerVolFracLiq(nSnow+1:nSnow+nLake))
+        if(scalarLakeLiqDepth > verySmall)then
+          scalarStreamTemp = sum(mLayerDepth(nSnow+1:nSnow+nLake)*mLayerVolFracLiq(nSnow+1:nSnow+nLake)*mLayerTemp(nSnow+1:nSnow+nLake))/scalarLakeLiqDepth
+        else
+          scalarStreamTemp = Tfreeze ! frozen solid
+        end if
+      else
+        scalarLakeLiqDepth = 0._rkind
+        scalarStreamTemp   = realMissing
+      end if
+    end associate
 
     ! overwrite flux_data and soil compression with the timestep-average value (returns timestep-average fluxes for scalar variables)
     do iVar=1,size(averageFlux_meta)
@@ -1749,6 +1796,7 @@ subroutine coupled_em(&
         balanceSoilBaseflow      = averageSoilBaseflow*iden_water*data_step
         balanceSoilDrainage      = averageSoilDrainage*iden_water*data_step ! note, may contain glacier melt infiltration and be negative
         balanceSoilET            = (averageCanopyTranspiration + averageGroundEvaporation)*data_step
+        if(nLake>0) balanceSoilET = averageCanopyTranspiration*data_step ! evaporation is from the lake surface, not the soil beneath it
         balanceSoilCompress      = averageSoilCompress*data_step
 
         ! check the soil water balance

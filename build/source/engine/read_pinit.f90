@@ -175,6 +175,13 @@ contains
   if (parFallback(iLookPARAM%glacierTempReduction)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%glacierTempReduction)%default_val = 0._rkind
   end if
+  ! stream and lake column parameters
+  if (parFallback(iLookPARAM%streamMinDepth)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%streamMinDepth)%default_val = 0.05_rkind ! floor on the liquid depth prescribed from mizuRoute so a dry reach keeps a column (m)
+  end if
+  if (parFallback(iLookPARAM%lakeMixingThermalC)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%lakeMixingThermalC)%default_val = 1000._rkind ! large, so a multi-layer stream column stays well mixed (W m-1 K-1)
+  end if
   ! exponential hydraulic conductivity profile
   if (parFallback(iLookPARAM%f_hydCond)%default_val < 0.99_rkind*realMissing) then
     ! NOTE: a soil-column value, leaving ~5% of the surface conductivity at 4 m. Supraglacial debris is 1-5 m-1 over a 0.3-1 m

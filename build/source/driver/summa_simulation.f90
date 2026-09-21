@@ -30,16 +30,20 @@ USE summa_restart, only: summa_readRestart
 USE summa_forcing, only: summa_readForcing
 USE summa_modelRun, only: summa_runPhysics
 USE summa_writeOutput, only: summa_writeOutputFiles
+USE streamtemp_module, only: stream_domain_map
+USE var_lookup, only: iLookPROG              ! named variables for the prognostic variables
 
 USE globalData, only: integerMissing
 USE globalData, only: realMissing
 USE globalData, only: iulog
+USE globalData, only: gru_struc                ! gru-hru mapping structures, with the domain information
 
 USE build_options, only: mizuroute_active
 USE build_options, only: openwq_active
 
 #ifdef MIZUROUTE_ACTIVE
 USE mizuroute_coupling,        only: get_mizuroute_streamflow
+USE mizuroute_coupling,        only: init_stream_network_from_summa
 USE finalize_mizuroute_module, only: finalize_mizuroute
 #endif
 
@@ -281,6 +285,12 @@ contains
     integer(i4b)           , intent(out)      :: err
     character(*)           , intent(out)      :: message
     character(len=256) :: cmessage
+    integer(i4b), allocatable :: streamSegId(:)   ! per GRU: reach id of the stream HRU (0 = reach mapped from the GRU id)
+    integer(i4b), allocatable :: ixStreamHRU(:)   ! per GRU: index of the stream HRU within the GRU (0 = none)
+    integer(i4b), allocatable :: ixStreamDOM(:)   ! per GRU: index of the stream domain within that HRU
+    real(rkind),  allocatable :: domArea(:)       ! per GRU: planform area of the stream domain (m2)
+    integer(i4b)              :: nStream          ! number of stream HRUs
+    integer(i4b)              :: iGRU             ! GRU index
 
     err = 0
     message = 'initialize_summa/'
@@ -296,6 +306,30 @@ contains
     ! read restart data and reset model state
     call summa_readRestart(summa_struct, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! stream temperature: which reach of the river network each stream HRU stands for
+    ! NOTE: after the restart read, since the domain types and the attributes are known by then
+    allocate(streamSegId(summa_struct%nGRU_local), ixStreamHRU(summa_struct%nGRU_local), ixStreamDOM(summa_struct%nGRU_local), &
+             domArea(summa_struct%nGRU_local))
+    call stream_domain_map(summa_struct%nGRU_local, gru_struc, summa_struct%typeStruct, &
+                           streamSegId, ixStreamHRU, ixStreamDOM, nStream)
+    domArea(:) = 0._rkind
+    do iGRU=1,summa_struct%nGRU_local
+      if(ixStreamHRU(iGRU) > 0) domArea(iGRU) = summa_struct%progStruct%gru(iGRU)%hru(ixStreamHRU(iGRU))%dom(ixStreamDOM(iGRU))%var(iLookPROG%DOMarea)%dat(1)
+    end do
+    if(nStream > 0)then
+      if(.not.(mizuroute_active .and. summa_struct%config%use_mizuroute))then
+        message=trim(message)//'stream domains need the coupled river network: build with mizuRoute and set use_mizuroute = true'
+        err=20; return
+      endif
+    endif
+    if(mizuroute_active)then ! build-time capability
+     if(summa_struct%config%use_mizuroute)then
+      call init_stream_network_from_summa(summa_struct, streamSegId, ixStreamHRU, ixStreamDOM, domArea, err, cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+     endif
+    endif
+    deallocate(streamSegId, ixStreamHRU, ixStreamDOM, domArea)
 
     ! initialize OpenWQ
     if(openwq_active)then

@@ -45,6 +45,7 @@ USE globalData,only:glacCln1               ! first horizontal domain type for gl
 USE globalData,only:glacCln2               ! second horizontal domain type for glacier clean areas
 USE globalData,only:glacDbr                ! horizontal domain type for glacier debris areas
 USE globalData,only:wetland                ! horizontal domain type for wetland areas
+USE globalData,only:stream                 ! horizontal domain type for stream reaches
 
 ! provide access to Noah-MP constants
 USE module_sf_noahmplsm,only:isWater       ! parameter for water land cover type
@@ -116,7 +117,8 @@ subroutine run_oneHRU(&
                       diagData,            & ! intent(inout): diagnostic variables for a local HRU
                       fluxData,            & ! intent(inout): model fluxes for a local HRU
                       ! error control
-                      err,message)           ! intent(out):   error control
+                      err,message,         & ! intent(out):   error control
+                      streamPass)            ! intent(in):    optional: run only the stream domain (network pass) instead of everything but the stream domain
   ! ----- define downstream subroutines -----------------------------------------------------------------------------------
   USE module_sf_noahmplsm,only:redprm          ! module to assign more Noah-MP parameters
   USE derivforce_module,only:derivforce        ! module to compute derived forcing data
@@ -145,8 +147,11 @@ subroutine run_oneHRU(&
   ! error control
   integer(i4b)       , intent(out)   :: err                 ! error code
   character(*)       , intent(out)   :: message             ! error message
+  logical(lgt), optional, intent(in) :: streamPass          ! run only the stream domain (network pass); default runs everything but the stream domain
   ! ----- define local variables ------------------------------------------------------------------------------------------
   integer(i4b)                      :: i, iVar             ! loop index
+  logical(lgt)                      :: doStream            ! flag for the network pass over stream domains
+  logical(lgt)                      :: runDomain           ! flag to run the current domain in this pass
   logical(lgt)                      :: use_computeVegFlux  ! computeVegFlux flag for the current domain
   logical(lgt)                      :: is_glac             ! flag to indicate if is a glacier domain
   type(var_d)                       :: forcData0           ! original forcings
@@ -154,6 +159,11 @@ subroutine run_oneHRU(&
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
   ! save original forcings
   forcData0 = forcData 
+
+  ! the stream domain is the reach water column: it is run in the network pass, after the river network has routed
+  ! this step's runoff, so that it sees the reach inflow and the upstream temperature of the same step
+  doStream = .false.
+  if(present(streamPass)) doStream = streamPass
 
   ! loop over each domain
   do i = 1, ndom
@@ -166,8 +176,14 @@ subroutine run_oneHRU(&
     ! initialize the number of flux calls
     diagData%dom(i)%var(iLookDIAG%numFluxCalls)%dat(1) = 0._rkind
 
+    ! skip the domains that belong to the other pass, leaving their fluxes as they are
+    runDomain = ( (domInfo(i)%dom_type == stream) .eqv. doStream )
+    if(.not. runDomain) cycle
+
     ! if water pixel or if the fraction of the domain is zero, do not run the model
-    if ( typeData%var(iLookTYPE%vegTypeIndex)==isWater .or. progData%dom(i)%var(iLookPROG%DOMarea)%dat(1) <= 0._rkind )then
+    ! NOTE: a stream or wetland domain is water by design, so the water vegetation class does not switch it off
+    if ( (typeData%var(iLookTYPE%vegTypeIndex)==isWater .and. domInfo(i)%dom_type/=stream .and. domInfo(i)%dom_type/=wetland) &
+         .or. progData%dom(i)%var(iLookPROG%DOMarea)%dat(1) <= 0._rkind )then
       ! Set wall_clock time to zero so it does not get a random value
       diagData%dom(i)%var(iLookDIAG%wallClockTime)%dat(1) = 0._rkind
 
@@ -203,7 +219,7 @@ subroutine run_oneHRU(&
         use_computeVegFlux = computeVegFlux
 
       elseif ( domInfo(i)%dom_type == glacCln1 .or. domInfo(i)%dom_type == glacCln2 .or. domInfo(i)%dom_type == glacDbr .or. &
-               domInfo(i)%dom_type == wetland )then ! don't need vegetation parameters for glaciers
+               domInfo(i)%dom_type == wetland  .or. domInfo(i)%dom_type == stream )then ! no vegetation on glaciers or open water
         use_computeVegFlux = .false.
         if (domInfo(i)%dom_type == glacCln1 .or. domInfo(i)%dom_type == glacCln2 .or. domInfo(i)%dom_type == glacDbr)&
             is_glac = .true.
