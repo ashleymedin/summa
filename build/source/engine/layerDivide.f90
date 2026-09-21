@@ -232,35 +232,22 @@ contains
    call addModelLayer(flux_data,flux_meta,iLayer,nSnow,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
    call addModelLayer(indx_data,indx_meta,iLayer,nSnow,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
-   ! associate local variables to the information in the data structures
-   ! NOTE: need to do this here, since state vectors have just been modified
-   associate(&
-   ! coordinate variables
-   mLayerDepth      => prog_data%var(iLookPROG%mLayerDepth)%dat        ,& ! depth of each layer (m)
-   ! model state variables
-   mLayerTemp       => prog_data%var(iLookPROG%mLayerTemp)%dat         ,& ! temperature of each layer (K)
-   mLayerVolFracIce => prog_data%var(iLookPROG%mLayerVolFracIce)%dat   ,& ! volumetric fraction of ice in each layer (-)
-   mLayerVolFracLiq => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat    & ! volumetric fraction of liquid water in each layer (-)
-   ) ! (association of local variables to the information in the data structures)
-
+   ! set the state of the new layer (the layer vectors have just been reallocated, so through the accessors)
    ! get the layer depth
-   mLayerDepth(1) = scalarSnowDepth
+   call setDepth(1, scalarSnowDepth)
 
    ! compute surface layer temperature
-   surfaceLayerSoilTemp = mLayerTemp(2)    ! temperature of the top soil layer (K)
+   surfaceLayerSoilTemp = temp(2)    ! temperature of the top soil layer (K)
    maxFrozenSnowTemp    = templiquid(unfrozenLiq,snowfrz_scale)          ! snow temperature at fraction "unfrozenLiq" (K)
-   mLayerTemp(1)        = min(maxFrozenSnowTemp,surfaceLayerSoilTemp)    ! snow temperature  (K)
+   call setTemp(1, min(maxFrozenSnowTemp,surfaceLayerSoilTemp))          ! snow temperature  (K)
 
    ! compute the fraction of liquid water associated with the layer temperature
-   fracLiq = fracliquid(mLayerTemp(1),snowfrz_scale)
+   fracLiq = fracliquid(temp(1),snowfrz_scale)
 
    ! compute volumeteric fraction of liquid water and ice
    volFracWater = (scalarSWE/scalarSnowDepth)/iden_water  ! volumetric fraction of total water (liquid and ice)
-   mLayerVolFracIce(1) = (1._rkind - fracLiq)*volFracWater*(iden_water/iden_ice)   ! volumetric fraction of ice (-)
-   mLayerVolFracLiq(1) =             fracLiq *volFracWater                         ! volumetric fraction of liquid water (-)
-
-   ! end association with local variables to the information in the data structures)
-   end associate
+   call setIce(1, (1._rkind - fracLiq)*volFracWater*(iden_water/iden_ice))   ! volumetric fraction of ice (-)
+   call setLiq(1,             fracLiq *volFracWater                        )   ! volumetric fraction of liquid water (-)
 
    ! initialize albedo
    ! NOTE: albedo is computed within the Noah-MP radiation routine
@@ -300,9 +287,9 @@ contains
    ! if dividing glacier ice layers, force division of the top layer only
    if (doGlac)then 
      if(iLayer==1)then
-       zMaxCheck = prog_data%var(iLookPROG%mLayerDepth)%dat(iLayer)
+       zMaxCheck = depth(iLayer)
      else
-       zMaxCheck = prog_data%var(iLookPROG%mLayerDepth)%dat(iLayer)+1._rkind 
+       zMaxCheck = depth(iLayer)+1._rkind
      end if
    else ! (dividing snow layers)
      ! identify the maximum depth of the layer
@@ -325,7 +312,7 @@ contains
    end if  ! (if dividing glacier ice layers)
 
    ! check the need to sub-divide
-   if(prog_data%var(iLookPROG%mLayerDepth)%dat(iLayer) > zmaxCheck)then
+   if(depth(iLayer) > zmaxCheck)then
 
     ! flag that layers were divided
     divideLayer=.true.
@@ -337,11 +324,9 @@ contains
     call addModelLayer(indx_data,indx_meta,iLayer,nDivLayers,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
     ! define the layer depth
-    layerSplit: associate(mLayerDepth => prog_data%var(iLookPROG%mLayerDepth)%dat)
-    depthOriginal = mLayerDepth(iLayer)
-    mLayerDepth(iLayer)   = fracTop*depthOriginal
-    mLayerDepth(iLayer+1) = (1._rkind - fracTop)*depthOriginal
-    end associate layerSplit
+    depthOriginal = depth(iLayer)
+    call setDepth(iLayer,   fracTop*depthOriginal)
+    call setDepth(iLayer+1, (1._rkind - fracTop)*depthOriginal)
 
     exit  ! NOTE: only sub-divide one layer per substep
 
@@ -357,9 +342,8 @@ contains
  ! update coordinates
  if(divideLayer)then
 
-  ! associate coordinate variables in data structure
+  ! associate coordinate variables in data structure (after the last reallocation of the layer vectors)
   geometry: associate(&
-  mLayerDepth      => prog_data%var(iLookPROG%mLayerDepth)%dat        ,& ! depth of the layer (m)
   mLayerHeight     => prog_data%var(iLookPROG%mLayerHeight)%dat       ,& ! height of the layer mid-point (m)
   iLayerHeight     => prog_data%var(iLookPROG%iLayerHeight)%dat       ,& ! height of the layer interface (m)
   layerType        => indx_data%var(iLookINDEX%layerType)%dat         ,& ! type of each layer (iname_snow or iname_soil)
@@ -392,14 +376,14 @@ contains
   ! re-set coordinate variables
   iLayerHeight(0) = -scalarSnowDepth
   do jLayer=1,nLayers
-   iLayerHeight(jLayer) = iLayerHeight(jLayer-1) + mLayerDepth(jLayer)
+   iLayerHeight(jLayer) = iLayerHeight(jLayer-1) + depth(jLayer)
    mLayerHeight(jLayer) = (iLayerHeight(jLayer-1) + iLayerHeight(jLayer))/2._rkind
   end do
 
   ! check
-  if(abs(sum(mLayerDepth(1:nSnow)) - scalarSnowDepth) > snowDepthTol)then
+  if(abs(sum(prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow)) - scalarSnowDepth) > snowDepthTol)then
    print*, 'nSnow = ', nSnow
-   write(*,'(a,1x,f30.25,1x)') 'sum(mLayerDepth(1:nSnow)) = ', sum(mLayerDepth(1:nSnow))
+   write(*,'(a,1x,f30.25,1x)') 'sum(mLayerDepth(1:nSnow)) = ', sum(prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow))
    write(*,'(a,1x,f30.25,1x)') 'scalarSnowDepth           = ', scalarSnowDepth
    write(*,'(a,1x,f30.25,1x)') 'snowDepthTol              = ', snowDepthTol
    message=trim(message)//'sum of layer depths does not equal snow depth'
@@ -413,6 +397,19 @@ contains
 
  ! end associate variables in data structure
  end associate
+
+ contains
+
+  ! accessors to the layer state, valid across the reallocation of the layer vectors (an associate name would be left
+  ! pointing at the old allocation once a layer is added or removed)
+  function depth(i); integer(i4b),intent(in) :: i; real(rkind) :: depth; depth = prog_data%var(iLookPROG%mLayerDepth)%dat(i);      end function depth
+  function temp(i);  integer(i4b),intent(in) :: i; real(rkind) :: temp;  temp  = prog_data%var(iLookPROG%mLayerTemp)%dat(i);       end function temp
+  function liq(i);   integer(i4b),intent(in) :: i; real(rkind) :: liq;   liq   = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(i); end function liq
+  function ice(i);   integer(i4b),intent(in) :: i; real(rkind) :: ice;   ice   = prog_data%var(iLookPROG%mLayerVolFracIce)%dat(i); end function ice
+  subroutine setDepth(i,x); integer(i4b),intent(in) :: i; real(rkind),intent(in) :: x; prog_data%var(iLookPROG%mLayerDepth)%dat(i)      = x; end subroutine setDepth
+  subroutine setTemp(i,x);  integer(i4b),intent(in) :: i; real(rkind),intent(in) :: x; prog_data%var(iLookPROG%mLayerTemp)%dat(i)       = x; end subroutine setTemp
+  subroutine setLiq(i,x);   integer(i4b),intent(in) :: i; real(rkind),intent(in) :: x; prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(i) = x; end subroutine setLiq
+  subroutine setIce(i,x);   integer(i4b),intent(in) :: i; real(rkind),intent(in) :: x; prog_data%var(iLookPROG%mLayerVolFracIce)%dat(i) = x; end subroutine setIce
 
  end subroutine layerDivide
 

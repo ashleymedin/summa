@@ -193,21 +193,15 @@ contains
   ! loop through snow/firn/ice layers
   do iLayer=kLayer+1,nCheck
 
-   ! associate local variables with the information in the data structures
-   ! NOTE: do this here, since the layer variables are re-defined
-   associate(&
-   mLayerDepth      => prog_data%var(iLookPROG%mLayerDepth)%dat         , &    ! depth of each layer (m)
-   mLayerVolFracIce => prog_data%var(iLookPROG%mLayerVolFracIce)%dat    , &    ! volumetric fraction of ice in each layer  (-)
-   mLayerVolFracLiq => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat      &    ! volumetric fraction of liquid water in each layer (-)
-   ) ! (associating local variables with the information in the data structures)
+   ! NOTE: the layer state is read through the accessors, since the layer vectors are reallocated as layers are removed
 
    ! check if the layer depth is less than the depth threshold
    if (doGlac) then
-      removeLayer = (mLayerDepth(iLayer) < zminLayer(iLayer-nSnow-nLake-nSoil))
+      removeLayer = (depth(iLayer) < zminLayer(iLayer-nSnow-nLake-nSoil))
     else
       select case(ix_snowLayers)
-       case(sameRulesAllLayers);    removeLayer = (mLayerDepth(iLayer) < zmin)
-       case(rulesDependLayerIndex); removeLayer = (mLayerDepth(iLayer) < zminLayer(iLayer))
+       case(sameRulesAllLayers);    removeLayer = (depth(iLayer) < zmin)
+       case(rulesDependLayerIndex); removeLayer = (depth(iLayer) < zminLayer(iLayer))
        case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
      end select ! (option to combine/sub-divide snow layers)
    end if
@@ -226,8 +220,8 @@ contains
     if(nSnow==1)then ! here assuming would not be merging glacier ice layers if had snow
      ! set the variables defining "snow without a layer"
      ! NOTE: ignoring cold content!!! Need to fix later...
-     scalarSnowDepth = mLayerDepth(1)
-     scalarSWE       = (mLayerVolFracIce(1)*iden_ice + mLayerVolFracLiq(1)*iden_water)*mLayerDepth(1)
+     scalarSnowDepth = depth(1)
+     scalarSWE       = (ice(1)*iden_ice + liq(1)*iden_water)*depth(1)
      ! remove the top layer from all model variable vectors
      ! NOTE: nSnow-1 = 0, so routine removes layer #1
      call rmLyAllVars(doGlac,prog_data,prog_meta,nSnow-1,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
@@ -267,7 +261,7 @@ contains
     elseif(iLayer==botLayer)then
      jLayer = botLayer-1  ! lower-most layer, combine with its upper neighbor
     else
-     if(mLayerDepth(iLayer-1)<mLayerDepth(iLayer+1))then; jLayer = iLayer-1; else; jLayer = iLayer+1; end if
+     if(depth(iLayer-1)<depth(iLayer+1))then; jLayer = iLayer-1; else; jLayer = iLayer+1; end if
     end if
 
     ! ***** combine layers
@@ -295,9 +289,6 @@ contains
    end if  ! (if layer is below the mass threshold)
 
    kLayer=iLayer ! ksnow is used for completion test, so include here
-
-   ! end association of local variables with the information in the data structures
-   end associate
 
   end do ! (looping through snow layers)
 
@@ -335,6 +326,19 @@ contains
 
  ! end association to variables in the data structure
  end associate
+
+ contains
+
+  ! accessors to the layer state, valid across the reallocation of the layer vectors (an associate name would be left
+  ! pointing at the old allocation once a layer is added or removed)
+  function depth(i); integer(i4b),intent(in) :: i; real(rkind) :: depth; depth = prog_data%var(iLookPROG%mLayerDepth)%dat(i);      end function depth
+  function temp(i);  integer(i4b),intent(in) :: i; real(rkind) :: temp;  temp  = prog_data%var(iLookPROG%mLayerTemp)%dat(i);       end function temp
+  function liq(i);   integer(i4b),intent(in) :: i; real(rkind) :: liq;   liq   = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(i); end function liq
+  function ice(i);   integer(i4b),intent(in) :: i; real(rkind) :: ice;   ice   = prog_data%var(iLookPROG%mLayerVolFracIce)%dat(i); end function ice
+  subroutine setDepth(i,x); integer(i4b),intent(in) :: i; real(rkind),intent(in) :: x; prog_data%var(iLookPROG%mLayerDepth)%dat(i)      = x; end subroutine setDepth
+  subroutine setTemp(i,x);  integer(i4b),intent(in) :: i; real(rkind),intent(in) :: x; prog_data%var(iLookPROG%mLayerTemp)%dat(i)       = x; end subroutine setTemp
+  subroutine setLiq(i,x);   integer(i4b),intent(in) :: i; real(rkind),intent(in) :: x; prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(i) = x; end subroutine setLiq
+  subroutine setIce(i,x);   integer(i4b),intent(in) :: i; real(rkind),intent(in) :: x; prog_data%var(iLookPROG%mLayerVolFracIce)%dat(i) = x; end subroutine setIce
 
  end subroutine layerMerge
 
@@ -387,19 +391,16 @@ contains
  integer(i4b)                    :: nGlce                    ! number of glacier ice layers
  integer(i4b)                    :: nLayers                  ! total number of layers
  real(rkind)                     :: frz_scale_use            ! scaling parameter for the snow or glce freezing curve (K-1)
+ integer(i4b)                    :: k                        ! index of the two layers to combine
 
  ! initialize error control
  err=0; message="layer_combine/"
 
  ! associate local variables with information in the data structures
+ ! NOTE: the layer state is read and written through the accessors, since the layer vectors are reallocated when the layer is removed
  associate(&
  ! model parameters
- snowfrz_scale    => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1), & ! scaling parameter for the freezing curve for snow (K-1)
- ! model state variables
- mLayerTemp       => prog_data%var(iLookPROG%mLayerTemp)%dat       , & ! temperature of each layer (K)
- mLayerDepth      => prog_data%var(iLookPROG%mLayerDepth)%dat      , & ! depth of each layer (m)
- mLayerVolFracIce => prog_data%var(iLookPROG%mLayerVolFracIce)%dat , & ! volumetric fraction of ice in each layer  (-)
- mLayerVolFracLiq => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat   & ! volumetric fraction of liquid water in each layer (-)
+ snowfrz_scale    => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)  & ! scaling parameter for the freezing curve for snow (K-1)
  ) ! (association of local variables with information in the data structures)
 
  ! initialize the number of snow layers
@@ -416,22 +417,22 @@ contains
  end if
 
  ! compute combined depth
- cDepth       = mLayerDepth(iLayer) + mLayerDepth(iLayer+1)
+ cDepth       = depth(iLayer) + depth(iLayer+1)
 
- ! compute mass of each layer (kg m-2)
- massIce(1:2) = iden_ice*mLayerVolFracIce(iLayer:iLayer+1)*mLayerDepth(iLayer:iLayer+1)
- massLiq(1:2) = iden_water*mLayerVolFracLiq(iLayer:iLayer+1)*mLayerDepth(iLayer:iLayer+1)
-
- ! compute bulk density of water (kg m-3)
- bulkDenWat(1:2) = (massIce(1:2) + massLiq(1:2))/mLayerDepth(iLayer:iLayer+1)
- cBulkDenWat     = (mLayerDepth(iLayer)*bulkDenWat(1) + mLayerDepth(iLayer+1)*bulkDenWat(2))/cDepth
+ ! compute mass of each layer (kg m-2), and the bulk density of water (kg m-3)
+ do k=1,2
+   massIce(k)    = iden_ice*ice(iLayer+k-1)*depth(iLayer+k-1)
+   massLiq(k)    = iden_water*liq(iLayer+k-1)*depth(iLayer+k-1)
+   bulkDenWat(k) = (massIce(k) + massLiq(k))/depth(iLayer+k-1)
+ end do
+ cBulkDenWat     = (depth(iLayer)*bulkDenWat(1) + depth(iLayer+1)*bulkDenWat(2))/cDepth
 
  ! compute enthalpy for each layer (J m-3)
- l1Enthalpy = T2enthalpy_snLaGlWat(mLayerTemp(iLayer),  bulkDenWat(1),frz_scale_use)
- l2Enthalpy = T2enthalpy_snLaGlWat(mLayerTemp(iLayer+1),bulkDenWat(2),frz_scale_use)
+ l1Enthalpy = T2enthalpy_snLaGlWat(temp(iLayer),  bulkDenWat(1),frz_scale_use)
+ l2Enthalpy = T2enthalpy_snLaGlWat(temp(iLayer+1),bulkDenWat(2),frz_scale_use)
 
  ! compute combined enthalpy (J m-3)
- cEnthalpy = (mLayerDepth(iLayer)*l1Enthalpy + mLayerDepth(iLayer+1)*l2Enthalpy)/cDepth
+ cEnthalpy = (depth(iLayer)*l1Enthalpy + depth(iLayer+1)*l2Enthalpy)/cDepth
 
  ! convert enthalpy (J m-3) to temperature (K)
  call enthalpy2T_snLaGlWat(cEnthalpy,cBulkDenWat,frz_scale_use,cTemp,.not.doGlac,err,cmessage)
@@ -446,8 +447,8 @@ contains
 
  ! check temperature is within the two temperatures
  ! NOTE: use tolerance, for cases of merging a layer that has just been split
- if(cTemp > max(mLayerTemp(iLayer),mLayerTemp(iLayer+1))+eTol)then; err=20; message=trim(message)//'merged temperature > max(temp1,temp2)'; return; end if
- if(cTemp < min(mLayerTemp(iLayer),mLayerTemp(iLayer+1))-eTol)then; err=20; message=trim(message)//'merged temperature < min(temp1,temp2)'; return; end if
+ if(cTemp > max(temp(iLayer),temp(iLayer+1))+eTol)then; err=20; message=trim(message)//'merged temperature > max(temp1,temp2)'; return; end if
+ if(cTemp < min(temp(iLayer),temp(iLayer+1))-eTol)then; err=20; message=trim(message)//'merged temperature < min(temp1,temp2)'; return; end if
 
  ! compute volumetric fraction of liquid water
  fLiq = fracliquid(cTemp,frz_scale_use)
@@ -485,10 +486,10 @@ contains
  nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
 
  ! ***** put state variables for the combined layer in the appropriate place
- prog_data%var(iLookPROG%mLayerTemp)%dat(iLayer)       = cTemp
- prog_data%var(iLookPROG%mLayerDepth)%dat(iLayer)      = cDepth
- prog_data%var(iLookPROG%mLayerVolFracIce)%dat(iLayer) = cVolFracIce
- prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(iLayer) = cVolFracLiq
+ call setTemp (iLayer, cTemp)
+ call setDepth(iLayer, cDepth)
+ call setIce  (iLayer, cVolFracIce)
+ call setLiq  (iLayer, cVolFracLiq)
 
  ! ***** adjust coordinate variables
  call calcHeight(&
@@ -498,6 +499,19 @@ contains
                  ! output: error control
                  err,cmessage)
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+
+ contains
+
+  ! accessors to the layer state, valid across the reallocation of the layer vectors (an associate name would be left
+  ! pointing at the old allocation once a layer is added or removed)
+  function depth(i); integer(i4b),intent(in) :: i; real(rkind) :: depth; depth = prog_data%var(iLookPROG%mLayerDepth)%dat(i);      end function depth
+  function temp(i);  integer(i4b),intent(in) :: i; real(rkind) :: temp;  temp  = prog_data%var(iLookPROG%mLayerTemp)%dat(i);       end function temp
+  function liq(i);   integer(i4b),intent(in) :: i; real(rkind) :: liq;   liq   = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(i); end function liq
+  function ice(i);   integer(i4b),intent(in) :: i; real(rkind) :: ice;   ice   = prog_data%var(iLookPROG%mLayerVolFracIce)%dat(i); end function ice
+  subroutine setDepth(i,x); integer(i4b),intent(in) :: i; real(rkind),intent(in) :: x; prog_data%var(iLookPROG%mLayerDepth)%dat(i)      = x; end subroutine setDepth
+  subroutine setTemp(i,x);  integer(i4b),intent(in) :: i; real(rkind),intent(in) :: x; prog_data%var(iLookPROG%mLayerTemp)%dat(i)       = x; end subroutine setTemp
+  subroutine setLiq(i,x);   integer(i4b),intent(in) :: i; real(rkind),intent(in) :: x; prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(i) = x; end subroutine setLiq
+  subroutine setIce(i,x);   integer(i4b),intent(in) :: i; real(rkind),intent(in) :: x; prog_data%var(iLookPROG%mLayerVolFracIce)%dat(i) = x; end subroutine setIce
 
  end subroutine layer_combine
 
