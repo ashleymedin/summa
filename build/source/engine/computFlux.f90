@@ -202,7 +202,6 @@ subroutine computFlux(&
   integer(i4b)                       :: domType                     ! horizontal domain type
   integer(i4b)                       :: nLake_frz                   ! number of frozen (ice) lake layers at the top of the lake
   real(rkind)                        :: surfaceFluxTemp             ! temperature of the rain plus melt reaching the top of the lake (K)
-  real(rkind)                        :: rainPlusMeltTop             ! rain plus melt reaching the top of the lake, ice cover or open water (m s-1)
   integer(i4b)                       :: local_ixGroundwater         ! local index for groundwater representation
   integer(i4b)                       :: iLayer,nStart               ! index control of model layers
   logical(lgt)                       :: doVegNrgFlux                ! flag to compute the energy flux over vegetation
@@ -727,7 +726,6 @@ contains
    scalarCanopyLiqDrainage => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1), & ! intent(in): [dp] drainage of liquid water from the vegetation canopy (kg m-2 s-1)
    scalarSurfaceIceMelt    => flux_data%var(iLookFLUX%scalarSurfaceIceMelt)%dat(1),    & ! intent(in): [dp] melt water leaving the top of the ice (m s-1, negative upward)
    airtemp                 => forc_data%var(iLookFORCE%airtemp)                        ) ! intent(in): [dp] air temperature (K)
-   rainPlusMeltTop = scalarRainPlusMelt ! what the snow module (or forcingNoSnow) delivered to the top of the lake
    if(nLake_frz>0)then ! ice cover: what arrives at the top is the melt of the ice (rain and snow melt run off the ice)
      surface_flux    = -scalarSurfaceIceMelt
      surfaceFluxTemp = Tfreeze
@@ -755,7 +753,7 @@ contains
     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
   end if
   associate(&
-   scalarRainPlusMelt          => flux_data%var(iLookFLUX%scalarRainPlusMelt)%dat(1),          & ! intent(out): [dp] water reaching the top of the domain beneath the lake (m s-1)
+   scalarRainPlusMelt          => flux_data%var(iLookFLUX%scalarRainPlusMelt)%dat(1),          & ! intent(inout): [dp] in: rain plus melt reaching the top of the lake; out: water reaching the top of the domain beneath it (m s-1)
    mLayerLiqFluxSnLaGl         => flux_data%var(iLookFLUX%mLayerLiqFluxSnLaGl)%dat,            & ! intent(out): [dp(:)] net liquid water flux for each lake layer (s-1)
    iLayerLiqFluxSnLaGl         => flux_data%var(iLookFLUX%iLayerLiqFluxSnLaGl)%dat,            & ! intent(in):  [dp(0:)] vertical liquid water flux at layer interfaces (m s-1)
    mLayerDepth                 => prog_data%var(iLookPROG%mLayerDepth)%dat,                    & ! intent(in):  [dp(:)] depth of each layer (m)
@@ -773,16 +771,17 @@ contains
    ! the liquid layers of a stream hold the water the river network routes: what arrives at their top (snow drainage,
    ! ice melt) joins the flow, so it is not stored in them
    if(domType==stream) mLayerLiqFluxSnLaGl(nStart+nLake_frz+1:nStart+nLake) = 0._rkind
-   ! drainage from the lake (needed for mass balance checks), and the forcing for the domain beneath
-   scalarLakeDrainage = iLayerLiqFluxSnLaGl(nLake+nStart)
-   scalarRainPlusMelt = scalarLakeDrainage
    ! no ice melt if there is no ice cover; with one, the rain and melt that ran off the ice join the flow too
+   ! (scalarRainPlusMelt is still what arrived at the top of the lake here; it becomes the lake drainage below)
    if(nLake_frz==0)then
      scalarSurfaceIceMelt      = 0._rkind
      scalarSurfaceIceMeltDeriv = 0._rkind
    else if(domType==stream)then
-     scalarStreamRunoff = scalarStreamRunoff + rainPlusMeltTop
+     scalarStreamRunoff = scalarStreamRunoff + scalarRainPlusMelt
    end if
+   ! drainage from the lake (needed for mass balance checks), and the forcing for the domain beneath
+   scalarLakeDrainage = iLayerLiqFluxSnLaGl(nLake+nStart)
+   scalarRainPlusMelt = scalarLakeDrainage
    if(nGlce>0) scalarGlacierMelt = scalarLakeDrainage + scalarSurfaceRunoff - scalarGlceMelt ! save for glacier melt flow calculations, may be overwritten with addition of below domain fluxes
   end associate
  end subroutine finalize_lakeLiqFlux
