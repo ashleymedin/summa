@@ -34,6 +34,18 @@ module lakeIceCover_module
 !     the snow layer merge on too much melt).
 ! The mass of a lake layer sets its depth (no air), so the 9% expansion on freezing happens here,
 ! where the ice moves, and not inside the solver.
+!
+! This module owns the lake layering: layerDivide and layerMerge never touch lake layers, and the
+! cover is a single layer (nLakeFrz is 0 or 1) however thick it grows. A cover of several layers,
+! to resolve the temperature gradient through thick ice, would be built here too:
+!   * divide the bottom ice layer when it grows past a thickness threshold (an ice parameter, not
+!     the snow zmax), duplicating its state at half the depth with addLakeLayer, up to
+!     nLakeIceLayers_poss layers (summa_setup already sizes the ice enthalpy lookup for it);
+!   * merge an ice layer thinner than a threshold into its ice neighbour, conserving mass and
+!     enthalpy as layer_combine of layerMerge does, before the breakup test on the bottom one;
+!   * on a forced breakup, return the bottom ice layer to the water and let the next step decide
+!     about the rest, or merge the cover into one layer first.
+! The rest of the model already indexes the cover as nSnow+1:nSnow+nLakeFrz.
 
 USE nr_type
 USE data_types,only:var_ilength,var_dlength,var_info ! data vectors with variable length dimension, and metadata
@@ -175,6 +187,8 @@ subroutine lakeIceCover(forceBreakup,mpar_data,indx_data,prog_data,diag_data,flu
       call setTemp(ixIce, iceTemp(liq(ixIce),ice(ixIce)))
     else
       ! thicken the bottom ice layer with the new ice
+      ! NOTE: a cover of several layers (nLakeIceLayers_poss > 1) would divide this layer here once it is thick enough,
+      !       see the module header; for now the cover stays a single layer however thick it grows
       ixIce = nSnow + nLakeFrz
       massIceCover = depth(ixIce)*ice(ixIce)*iden_ice
       massLiqCover = depth(ixIce)*liq(ixIce)*iden_water
