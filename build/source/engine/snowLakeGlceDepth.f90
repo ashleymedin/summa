@@ -340,7 +340,7 @@ end subroutine snowDensify
 
 
 ! ************************************************************************************************
-! private subroutine iceReduce: compute change ice depth over the time step
+! private subroutine iceReduce: compute change of ice depth over the time step
 ! ************************************************************************************************
 ! reduce the depth of ice layers due to melt, and squeeze out excess liquid water to keep the
 ! volumetric fraction of ice and liquid water constant
