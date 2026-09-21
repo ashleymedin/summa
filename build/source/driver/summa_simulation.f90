@@ -30,7 +30,7 @@ USE summa_restart, only: summa_readRestart
 USE summa_forcing, only: summa_readForcing
 USE summa_modelRun, only: summa_runPhysics
 USE summa_writeOutput, only: summa_writeOutputFiles
-USE streamtemp_module, only: stream_domain_map
+USE streamTemp_module, only: stream_domain_map
 USE var_lookup, only: iLookPROG              ! named variables for the prognostic variables
 
 USE globalData, only: integerMissing
