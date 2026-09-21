@@ -142,7 +142,7 @@ subroutine computFlux(&
   USE vegNrgFlux_module,only:vegNrgFlux                           ! compute energy fluxes over vegetation
   USE snowLakeSoilGlceNrgFlux_module,only:snowLakeSoilGlceNrgFlux ! compute energy fluxes throughout the layers
   USE vegLiqFlux_module,only:vegLiqFlux                           ! compute liquid water fluxes through vegetation
-  USE snowLakeGlceLiqFlux_module,only:snowLakeGlceLiqFlux         ! compute liquid water fluxes through non-soil layers
+  USE snowLakeGlceLiqFlux_module,only:snowIceLiqFlux              ! compute liquid water fluxes through snow, lake ice, and glacier ice layers
   USE snowLakeGlceLiqFlux_module,only:lakeLiqFlux                 ! liquid water fluxes through the lake layers (stream or wetland)
   USE soilLiqFlux_module,only:soilLiqFlux                         ! compute liquid water fluxes through soil
   USE groundwatr_module,only:groundwatr                           ! compute the baseflow flux
@@ -207,8 +207,9 @@ subroutine computFlux(&
   logical(lgt)                       :: doVegNrgFlux                ! flag to compute the energy flux over vegetation
   real(rkind),dimension(nSoil)       :: dHydCond_dMatric            ! derivative in hydraulic conductivity w.r.t matric head (s-1)
   character(LEN=256)                 :: cmessage                    ! error message of downwind routine
-  real(rkind)                        :: surface_flux                ! surface flux (m s-1) into snow or ice
-  real(rkind)                        :: bottom_flux                 ! bottom flux (m s-1) out of snow or ice
+  real(rkind)                        :: surface_flux                ! surface flux (m s-1) into snow, lake, or glacier ice
+  real(rkind)                        :: bottom_flux                 ! bottom flux (m s-1) out of snow, lake, or glacier ice
+  logical(lgt)                       :: do_snow                     ! flag to denote if doing snow layers
   ! ---------------------- classes for flux subroutine arguments (classes defined in data_types module) ----------------------
   !      ** intent(in) arguments **       ||       ** intent(inout) arguments **        ||      ** intent(out) arguments **
   type(in_type_vegNrgFlux) :: in_vegNrgFlux;                                            type(out_type_vegNrgFlux) :: out_vegNrgFlux ! vegNrgFlux arguments
@@ -261,7 +262,7 @@ subroutine computFlux(&
   associate(nGlceOnlyHyd => indx_data%var(iLookINDEX%nGlceOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the glacier ice
     if (nGlceOnlyHyd>0) then ! if necessary, calculate the liquid flux through glacier ice
       call initialize_glceLiqFlux
-      call snowLakeGlceLiqFlux(in_snowLakeGlceLiqFlux,mpar_data,indx_data,prog_data,diag_data,io_snowLakeGlceLiqFlux,out_snowLakeGlceLiqFlux)
+      call snowIceLiqFlux(in_snowLakeGlceLiqFlux,mpar_data,indx_data,prog_data,diag_data,io_snowLakeGlceLiqFlux,out_snowLakeGlceLiqFlux)
       call finalize_glceLiqFlux; if(err/=0)then; return; endif
     else
       call zeroGlacierFluxes ! set glacier ice fluxes to zero if there are no glacier ice layers
@@ -272,7 +273,7 @@ subroutine computFlux(&
   associate(nSnowOnlyHyd => indx_data%var(iLookINDEX%nSnowOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the snow
     if (nSnowOnlyHyd>0) then ! if necessary, compute liquid fluxes through snow
       call initialize_snowLiqFlux
-      call snowLakeGlceLiqFlux(in_snowLakeGlceLiqFlux,mpar_data,indx_data,prog_data,diag_data,io_snowLakeGlceLiqFlux,out_snowLakeGlceLiqFlux)
+      call snowIceLiqFlux(in_snowLakeGlceLiqFlux,mpar_data,indx_data,prog_data,diag_data,io_snowLakeGlceLiqFlux,out_snowLakeGlceLiqFlux)
       call finalize_snowLiqFlux; if(err/=0)then; return; endif
     else
       call forcingNoSnow ! define forcing for the domain beneath for the case of no snow layers
@@ -287,7 +288,7 @@ subroutine computFlux(&
     if (nLakeOnlyHyd>0) then ! if necessary, compute liquid fluxes through lake
       if (nLake_frz>0) then
         call initialize_frzlakeLiqFlux
-        call snowLakeGlceLiqFlux(in_snowLakeGlceLiqFlux,mpar_data,indx_data,prog_data,diag_data,io_snowLakeGlceLiqFlux,out_snowLakeGlceLiqFlux)
+        call snowIceLiqFlux(in_snowLakeGlceLiqFlux,mpar_data,indx_data,prog_data,diag_data,io_snowLakeGlceLiqFlux,out_snowLakeGlceLiqFlux)
         call finalize_frzlakeLiqFlux; if(err/=0)then; return; endif
       end if
       if (nLake-nLake_frz>0) then
@@ -646,7 +647,8 @@ contains
    surface_flux = 0._rkind ! no surface flux for glacier ice layers since impermeable
    bottom_flux = 0._rkind ! no bottom flux for glacier ice layers
    nStart = nSnow + nLake + nSoil
-   call in_snowLakeGlceLiqFlux%initialize(nGlce-noThetaChange,nStart,.true.,.false.,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+   do_snow = .false. ! not doing snow layers here
+   call in_snowLakeGlceLiqFlux%initialize(nGlce-noThetaChange,nStart,nGlce>0,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
    call io_snowLakeGlceLiqFlux%initialize(flux_data,deriv_data) ! only compute liquid water fluxes for top layers
   end associate
  end subroutine initialize_glceLiqFlux
@@ -697,7 +699,8 @@ contains
   surface_flux = 0._rkind ! ice is impermeable: what arrives at the top runs off (it joins the flow or the melt pond)
   bottom_flux = 0._rkind  ! no flux at the base of the ice: melt leaves upward
   nStart = nSnow
-  call in_snowLakeGlceLiqFlux%initialize(nLake_frz,nStart,.true.,.false.,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+  do_snow = .false. ! not doing snow layers here
+  call in_snowLakeGlceLiqFlux%initialize(nLake_frz,nStart,nGlce>0,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
   call io_snowLakeGlceLiqFlux%initialize(flux_data,deriv_data)
  end subroutine initialize_frzlakeLiqFlux
 
@@ -740,7 +743,8 @@ contains
    end if
    bottom_flux = 0._rkind ! no seepage through the bed yet (a lake on glacier ice would couple to scalarGlceMelt here)
    nStart = nSnow + nLake_frz
-   call in_snowLakeGlceLiqFlux%initialize(nLake-nLake_frz,nStart,nGlce>0,.false.,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+   do_snow = .false. ! not doing snow layers here
+   call in_snowLakeGlceLiqFlux%initialize(nLake-nLake_frz,nStart,nGlce>0,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
    call io_snowLakeGlceLiqFlux%initialize(flux_data,deriv_data)
   end associate
  end subroutine initialize_lakeLiqFlux
@@ -795,7 +799,8 @@ contains
    bottom_flux = 0._rkind ! bottom flux for snow layers (m s-1)
    !if (nLake==0 .and. nSoil==0) bottom_flux = scalarGlceMelt ! leave this here in case want to couple with glacier ice melt for slush layer, will change derivatives
    nStart = 0
-   call in_snowLakeGlceLiqFlux%initialize(nSnow,nStart,nGlce>0,.true.,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+   do_snow = .true. ! doing snow layers here, so set to true
+   call in_snowLakeGlceLiqFlux%initialize(nSnow,nStart,nGlce>0,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
    call io_snowLakeGlceLiqFlux%initialize(flux_data,deriv_data)
   end associate
  end subroutine initialize_snowLiqFlux

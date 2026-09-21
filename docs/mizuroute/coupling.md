@@ -247,7 +247,7 @@ T_reach, v_reach output; scalarStream* fluxes and scalarStreamTemp per stream HR
 The per-reach arrays live in `summa1_type_dec%stream_net` (`data_types.f90`,
 type `stream_network`). The coupling module only fills the mizuRoute side of
 them; the network pass and the column physics are SUMMA code
-(`streamtemp.f90`, the lake layers of `coupled_em`, the advective source in
+(`streamTemp.f90`, the lake layers of `coupled_em`, the advective source in
 `snowLakeSoilGlceNrgFlux.f90`, `lakeLiqFlux` in `snowLakeGlceLiqFlux.f90`,
 `lakeResize`/`lakePrescribeDepth` in `snowLakeGlceDepth.f90`).
 

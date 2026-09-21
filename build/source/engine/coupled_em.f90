@@ -154,9 +154,9 @@ subroutine coupled_em(&
   ! additional subroutines
   USE tempAdjust_module,only:tempAdjust                         ! adjust snow temperature associated with new snowfall
   USE var_derive_module,only:calcHeight                         ! module to calculate height at layer interfaces and layer mid-point
-  USE snowLakeGlceDepth_module,only:snowGlceDepth                   ! compute snow/glce depth
-  USE snowLakeGlceDepth_module,only:lakePrescribeDepth              ! set the stream water column from the reach volume
-  USE lakeIceCover_module,only:lakeIceCover                         ! grow or break up the ice cover of the lake layers
+  USE snowLakeGlceDepth_module,only:snowIceDepth                ! compute snow/ice depth
+  USE snowLakeGlceDepth_module,only:lakePrescribeDepth          ! set the stream water column from the reach volume
+  USE lakeIceCover_module,only:lakeIceCover                     ! grow or break up the ice cover of the lake layers
   USE convertEnthalpyTemp_module,only:T2enthTemp_veg            ! convert temperature to enthalpy for vegetation
   USE convertEnthalpyTemp_module,only:T2enthTemp_snLaGl         ! convert temperature to enthalpy for snow, lake, and ice
   USE convertEnthalpyTemp_module,only:T2enthTemp_soil           ! convert temperature to enthalpy for soil
@@ -1254,7 +1254,7 @@ subroutine coupled_em(&
           !   and account for compaction and cavitation in the snowpack and ice thickness reduction...
           ! ------------------------------------------------------------------------------------------
           groundSublimation = (sumSnowSublimation + sumLakeSublimation + sumGlceSublimation)/whole_step  ! kg m-2 s-1
-          call snowGlceDepth(&
+          call snowIceDepth(&
                     whole_step,                               & ! intent(in):    length of whole step for surface drainage and average flux
                     nSnow,                                    & ! intent(in):    number of snow layers
                     nLake,                                    & ! intent(in):    number of lake layers

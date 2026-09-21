@@ -138,7 +138,7 @@ set(SOLVER
     ${ENGINE_DIR}/soilLiqFlux.f90
     ${ENGINE_DIR}/snowLakeSoilGlceNrgFlux.f90
     ${ENGINE_DIR}/stomResist.f90
-    ${ENGINE_DIR}/streamtemp.f90
+    ${ENGINE_DIR}/streamTemp.f90
     ${ENGINE_DIR}/summaSolv4homegrown.f90
     ${ENGINE_DIR}/systemSolv.f90
     ${ENGINE_DIR}/varSubstep.f90
