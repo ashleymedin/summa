@@ -270,7 +270,7 @@ contains
       nGlce   = indx_data%var(iLookINDEX%nGlce)%dat(1)
       nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
       if(doGlac)then
-        botLayer=nSnow+nLake+nSoil+nGlce
+        botLayer=nSnow+nLake+nSoil+nGlce-noThetaChange
       else
         botLayer=nSnow
       end if
@@ -509,6 +509,7 @@ contains
  ! ***********************************************************************************************************
  ! removes layer "iLayer+1" and sets layer "iLayer" to a missing value
  ! (layer "iLayer" will be filled with a combined layer later)
+ ! iLayer indexes the whole column; the snow and glacier domain vectors start at the top of their domain
  ! ***********************************************************************************************************
  subroutine rmLyAllVars(doGlac,dataStruct,metaStruct,iLayer,nSnow,nGlce,nLayers,err,message)
  USE var_lookup,only:iLookVarType                 ! look up structure for variable typed
@@ -523,7 +524,7 @@ contains
  class(*),intent(inout)          :: dataStruct     ! data structure
  type(var_info),intent(in)       :: metaStruct(:)  ! metadata structure
  ! input: snow layer indices
- integer(i4b),intent(in)         :: iLayer          ! new layer
+ integer(i4b),intent(in)         :: iLayer          ! new layer (index in the whole column)
  integer(i4b),intent(in)         :: nSnow,nGlce,nLayers ! number of snow, glacier ice layers, total number of layers
  ! output: error control
  integer(i4b),intent(out)        :: err            ! error code
@@ -532,6 +533,7 @@ contains
  integer(i4b)                    :: iVar           ! variable index
  integer(i4b)                    :: ix_lower       ! lower bound of the vector
  integer(i4b)                    :: ix_upper       ! upper bound of the vector
+ integer(i4b)                    :: ix_rm          ! index of the new layer within the vector
  real(rkind),allocatable         :: tempVec_rkind(:)  ! temporary vector (double precision)
  integer(i4b),allocatable        :: tempVec_i4b(:) ! temporary vector (integer)
  character(LEN=256)              :: cmessage       ! error message of downwind routine
@@ -549,21 +551,21 @@ contains
  ! ***** loop through model variables and remove one layer
  do iVar=1,size(metaStruct)
 
-  ! define bounds
+  ! define bounds, and the index of the new layer within the vector (the glacier domain vectors start below the layers above the glacier)
   if (doGlac)then
    select case(metaStruct(iVar)%varType)
-    case(iLookVarType%midGlce); ix_lower=1; ix_upper=nGlce
-    case(iLookVarType%midToto); ix_lower=1; ix_upper=nLayers
-    case(iLookVarType%ifcGlce); ix_lower=0; ix_upper=nGlce
-    case(iLookVarType%ifcToto); ix_lower=0; ix_upper=nLayers
+    case(iLookVarType%midGlce); ix_lower=1; ix_upper=nGlce;   ix_rm=iLayer-(nLayers-nGlce)
+    case(iLookVarType%midToto); ix_lower=1; ix_upper=nLayers; ix_rm=iLayer
+    case(iLookVarType%ifcGlce); ix_lower=0; ix_upper=nGlce;   ix_rm=iLayer-(nLayers-nGlce)
+    case(iLookVarType%ifcToto); ix_lower=0; ix_upper=nLayers; ix_rm=iLayer
     case default; cycle  ! no need to remove soil layers or scalar variables
    end select
   else
     select case(metaStruct(iVar)%varType)
-     case(iLookVarType%midSnow); ix_lower=1; ix_upper=nSnow
-     case(iLookVarType%midToto); ix_lower=1; ix_upper=nLayers
-     case(iLookVarType%ifcSnow); ix_lower=0; ix_upper=nSnow
-     case(iLookVarType%ifcToto); ix_lower=0; ix_upper=nLayers
+     case(iLookVarType%midSnow); ix_lower=1; ix_upper=nSnow;   ix_rm=iLayer
+     case(iLookVarType%midToto); ix_lower=1; ix_upper=nLayers; ix_rm=iLayer
+     case(iLookVarType%ifcSnow); ix_lower=0; ix_upper=nSnow;   ix_rm=iLayer
+     case(iLookVarType%ifcToto); ix_lower=0; ix_upper=nLayers; ix_rm=iLayer
      case default; cycle  ! no need to remove soil layers or scalar variables
     end select
    end if
@@ -579,9 +581,9 @@ contains
     allocate(tempVec_rkind(ix_lower:ix_upper-1), stat=err)
     if(err/=0)then; err=20; message=trim(message)//'unable to allocate temporary vector'; return; end if
     ! copy elements across to the temporary vector
-    if(iLayer>=ix_lower)  tempVec_rkind(iLayer)              = realMissing ! set merged layer to missing (fill in later)
-    if(iLayer>ix_lower)   tempVec_rkind(ix_lower:iLayer-1)   = dataStruct%var(iVar)%dat(ix_lower:iLayer-1)
-    if(iLayer+1<ix_upper) tempVec_rkind(iLayer+1:ix_upper-1) = dataStruct%var(iVar)%dat(iLayer+2:ix_upper)  ! skip iLayer+1
+    if(ix_rm>=ix_lower)  tempVec_rkind(ix_rm)              = realMissing ! set merged layer to missing (fill in later)
+    if(ix_rm>ix_lower)   tempVec_rkind(ix_lower:ix_rm-1)   = dataStruct%var(iVar)%dat(ix_lower:ix_rm-1)
+    if(ix_rm+1<ix_upper) tempVec_rkind(ix_rm+1:ix_upper-1) = dataStruct%var(iVar)%dat(ix_rm+2:ix_upper)  ! skip ix_rm+1
     ! deallocate the data vector: strictly not necessary, but include to be safe
     deallocate(dataStruct%var(iVar)%dat,stat=err)
     if(err/=0)then; err=20; message='problem deallocating data vector'; return; end if
@@ -600,9 +602,9 @@ contains
     allocate(tempVec_i4b(ix_lower:ix_upper-1), stat=err)
     if(err/=0)then; err=20; message=trim(message)//'unable to allocate temporary vector'; return; end if
     ! copy elements across to the temporary vector
-    if(iLayer>=ix_lower)  tempVec_i4b(iLayer)              = integerMissing ! set merged layer to missing (fill in later)
-    if(iLayer>ix_lower)   tempVec_i4b(ix_lower:iLayer-1)   = dataStruct%var(iVar)%dat(ix_lower:iLayer-1)
-    if(iLayer+1<ix_upper) tempVec_i4b(iLayer+1:ix_upper-1) = dataStruct%var(iVar)%dat(iLayer+2:ix_upper)  ! skip iLayer+1
+    if(ix_rm>=ix_lower)  tempVec_i4b(ix_rm)              = integerMissing ! set merged layer to missing (fill in later)
+    if(ix_rm>ix_lower)   tempVec_i4b(ix_lower:ix_rm-1)   = dataStruct%var(iVar)%dat(ix_lower:ix_rm-1)
+    if(ix_rm+1<ix_upper) tempVec_i4b(ix_rm+1:ix_upper-1) = dataStruct%var(iVar)%dat(ix_rm+2:ix_upper)  ! skip ix_rm+1
     ! deallocate the data vector: strictly not necessary, but include to be safe
     deallocate(dataStruct%var(iVar)%dat,stat=err)
     if(err/=0)then; err=20; message='problem deallocating data vector'; return; end if
