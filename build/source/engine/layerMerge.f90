@@ -41,7 +41,9 @@ USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta   ! metadata
 ! physical constants
 USE multiconst,only:&
                     iden_ice,       & ! intrinsic density of ice             (kg m-3)
-                    iden_water        ! intrinsic density of liquid water    (kg m-3)
+                    iden_water,     & ! intrinsic density of liquid water    (kg m-3)
+                    Cp_ice,         & ! specific heat of ice                 (J kg-1 K-1)
+                    Cp_water          ! specific heat of liquid water        (J kg-1 K-1)
 
 ! access the derived types to define the data structures
 USE data_types,only:&
@@ -369,6 +371,7 @@ contains
  real(rkind)                     :: l1Enthalpy,l2Enthalpy    ! enthalpy in the two layers identified for combination (J m-3)
  real(rkind)                     :: cEnthalpy                ! combined layer enthalpy (J m-3)
  real(rkind)                     :: fLiq                     ! fraction of liquid water at the combined temperature cTemp
+ real(rkind)                     :: heatCap(2)               ! heat capacity of the ice and liquid water in the two layers (J m-2 K-1)
  real(rkind),parameter           :: eTol=1.e-1_rkind         ! tolerance for the enthalpy-->temperature conversion (J m-3)
  integer(i4b)                    :: nSnow                    ! number of snow layers
  integer(i4b)                    :: nLake                    ! number of lake layers
@@ -441,6 +444,19 @@ contains
  ! compute volumetric fraction of ice and liquid water
  cVolFracLiq =          fLiq *cBulkDenWat/iden_water
  cVolFracIce = (1._rkind - fLiq)*cBulkDenWat/iden_ice
+
+ ! glacier ice: keep the ice and liquid water as they are, with the temperature that conserves the sensible heat (exact for
+ ! a fixed composition). The liquid in melting ice is held at its residual content by drainage, and the ice freezing curve
+ ! is so steep there that the liquid re-derived above from the merged temperature turns the temperature tolerance of the
+ ! solver into a change of ice and liquid at every merge (the enthalpy conversion above is kept for its checks).
+ if(doGlac)then
+  do k=1,2
+    heatCap(k) = Cp_ice*massIce(k) + Cp_water*massLiq(k)
+  end do
+  cTemp       = (heatCap(1)*temp(iLayer) + heatCap(2)*temp(iLayer+1))/(heatCap(1) + heatCap(2))
+  cVolFracIce = (massIce(1) + massIce(2))/(iden_ice*cDepth)
+  cVolFracLiq = (massLiq(1) + massLiq(2))/(iden_water*cDepth)
+ end if
 
  ! end association of local variables with information in the data structures
  end associate
