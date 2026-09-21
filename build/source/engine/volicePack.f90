@@ -95,11 +95,12 @@ contains
  ! initialize error control
  err=0; message='volicePack/'
 
- ! divide snow/firn layers if too thick, don't do it if need to merge (note, ice layers do not grow so do not divide)
+ ! divide snow/firn/ice layers if too thick, don't do it if need to merge (note, ice layers do not grow so do not divide)
  if (.not.tooMuchMelt)then
    call layerDivide(&
                     ! input/output: model data structures
                     .false.,                     & ! intent(in):    flag to denote that we are not dividing glacier ice layers since they currently do not grow
+                    .false.,                     & ! intent(in):    flag to denote that we are not dividing lake ice layers OR SHOULD WE
                     maxLayers,                   & ! intent(in):    maximum number of snow/firn layers
                     model_decisions,             & ! intent(in):    model decisions
                     mpar_data,                   & ! intent(in):    model parameters

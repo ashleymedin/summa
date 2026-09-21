@@ -345,18 +345,18 @@ end subroutine snowDensify
 ! reduce the depth of ice layers due to melt, and squeeze out excess liquid water to keep the
 ! volumetric fraction of ice and liquid water constant
 subroutine iceReduce(&
-                      ! intent(in): variables
-                      dt,                             & ! intent(in):    time step (s)
-                      nIce,                           & ! intent(in):    number ofice layers
-                      mLayerMeltFreeze,               & ! intent(in):    volumetric melt in each layer (kg m-3)
-                       ! intent(inout): state variables
-                      mLayerDepth,                    & ! intent(inout): depth of each layer (m)
-                      mLayerVolFracLiqNew,            & ! intent(inout): volumetric fraction of liquid water (-)
-                      mLayerVolFracIceNew,            & ! intent(inout): volumetric fraction of ice (-)
-                      iceReduceLiq,                   & ! intent(out):   liquid water squeezed out of the layers (kg m-2)
-                      ! output: error control
-                      tooMuchMelt,                    & ! intent(inout): flag to denote that there was too much melt in a given time step
-                      err,message)                      ! intent(out):   error control
+                     ! intent(in): variables
+                     dt,                             & ! intent(in):    time step (s)
+                     nIce,                           & ! intent(in):    number ofice layers
+                     mLayerMeltFreeze,               & ! intent(in):    volumetric melt in each layer (kg m-3)
+                      ! intent(inout): state variables
+                     mLayerDepth,                    & ! intent(inout): depth of each layer (m)
+                     mLayerVolFracLiqNew,            & ! intent(inout): volumetric fraction of liquid water (-)
+                     mLayerVolFracIceNew,            & ! intent(inout): volumetric fraction of ice (-)
+                     iceReduceLiq,                   & ! intent(out):   liquid water squeezed out of the layers (kg m-2)
+                     ! output: error control
+                     tooMuchMelt,                    & ! intent(inout): flag to denote that there was too much melt in a given time step
+                     err,message)                      ! intent(out):   error control
   ! -----------------------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! intent(in): variables
@@ -401,7 +401,7 @@ subroutine iceReduce(&
     mLayerDepth(iIce) = scalarDepthNew
 
     ! Keep liquid water fraction in the layer constant; excess liquid is squeezed out
-    ! Note, if it got colder the depth icreases and thus adds a bit of water to the layer, but will be corrected when the layer is reduced to the active layer depth
+    ! Note, if it got colder the depth increases and thus adds a bit of water to the layer, but will be corrected when the layer is reduced to the active layer depth
     massLiqRetained = iden_water*mLayerVolFracLiqNew(iIce)*mLayerDepth(iIce) ! kg m-2
     layerReduceLiq = max(0._rkind, massLiqOld - massLiqRetained) ! only take away liquid water, don't add any
     iceReduceLiq = (iceReduceLiq + layerReduceLiq)/(iden_water*dt) ! convert to m s-1

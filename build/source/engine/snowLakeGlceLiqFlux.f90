@@ -292,7 +292,7 @@ subroutine lakeLiqFlux(&
   associate(&
     ! input: model control
     nLayers                   => in_snowLakeGlceLiqFlux % nLayers,                        & ! intent(in):  number of liquid lake layers
-    nStart                    => in_snowLakeGlceLiqFlux % nStart,                         & ! intent(in):  index of the layer above the liquid lake layers (nSnow + nLake_frz)
+    nStart                    => in_snowLakeGlceLiqFlux % nStart,                         & ! intent(in):  index of the layer above the liquid lake layers (nSnow + nLakeFrz)
     surface_flux              => in_snowLakeGlceLiqFlux % surface_flux,                   & ! intent(in):  water arriving at the top of the liquid lake layers (m s-1)
     bottom_flux               => in_snowLakeGlceLiqFlux % bottom_flux,                    & ! intent(in):  flux at the bottom of the lake if already computed (m s-1)
     ! input-output: interface fluxes
@@ -300,6 +300,7 @@ subroutine lakeLiqFlux(&
     iLayerLiqFluxSnLaGlDeriv  => io_snowLakeGlceLiqFlux % iLayerLiqFluxSnLaGlDeriv,       & ! intent(inout): [dp(0:)] derivative in the interface flux w.r.t. the layer above
     ! stream domain
     scalarGroundEvaporation   => flux_data%var(iLookFLUX%scalarGroundEvaporation)%dat(1),    & ! intent(in):  [dp] evaporation from the open water surface (kg m-2 s-1)
+    scalarGroundSublimation   => flux_data%var(iLookFLUX%scalarGroundSublimation)%dat(1),    & ! intent(in):  [dp] sublimation from the water surface once it froze (kg m-2 s-1)
     scalarStreamSfcInflow     => flux_data%var(iLookFLUX%scalarStreamSfcInflow)%dat(1),      & ! intent(out): [dp] rain plus melt entering the open water column (m s-1)
     scalarStreamRunoff        => flux_data%var(iLookFLUX%scalarStreamRunoff)%dat(1),         & ! intent(out): [dp] net water the stream domain adds to the reach (m s-1)
     scalarStreamSfcInflowTemp => diag_data%var(iLookDIAG%scalarStreamSfcInflowTemp)%dat(1),  & ! intent(out): [dp] temperature of the rain plus melt entering the open water column (K)
@@ -328,8 +329,11 @@ subroutine lakeLiqFlux(&
         scalarStreamSfcInflow     = 0._rkind
         scalarStreamSfcInflowTemp = Tfreeze
       end if
-      ! net water the stream domain itself hands to the reach (evaporation is negative water)
+      ! net water the stream domain itself hands to the reach (evaporation is negative water; so is sublimation from a
+      ! surface that froze within the step, when nothing lies on the water: with snow or an ice cover on top the layer
+      ! above loses it, and the ice branch sets the runoff)
       scalarStreamRunoff = surface_flux - scalarGroundEvaporation/iden_water
+      if(nStart==0) scalarStreamRunoff = scalarStreamRunoff - scalarGroundSublimation/iden_water
 
     else if(domType==wetland)then
       ! ***** wetland: sub-GRU lake or pothole, mass balance solved here

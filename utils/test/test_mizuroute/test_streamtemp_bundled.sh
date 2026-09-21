@@ -122,6 +122,8 @@ with Dataset(output_file) as d:
         return np.ma.filled(d.variables[name][:].astype("f8"), np.nan)
     T_reach = get("T_reach")                 # (time, seg)
     v_reach = get("v_reach")
+    n_reach = get("n_reach")
+    ice_reach = get("ice_reach")
     q_basin = get("q_basin")                 # (time, mizu_hru)
     runoff = get("averageRoutedRunoff")      # (time, gru)
     T_runoff = get("averageRoutedRunoffTemp")
@@ -183,6 +185,19 @@ else:
 
 # velocity from the routing
 print(f"  velocity:          {np.nanmin(v_reach):.3f} to {np.nanmax(v_reach):.3f} m s-1")
+
+# the roughness the routing used: the bed value on open water, raised under an ice cover (Wanders et al. 2019 eqs 12-13);
+# the routing of a step uses the cover the column had after the previous step
+ice_prev = np.vstack([np.zeros_like(ice_reach[:1]), ice_reach[:-1]])
+n_open = n_reach[ice_prev <= 0.0]; n_ice = n_reach[ice_prev > 0.0]
+n_bed = np.nanmin(n_reach[:, seg_ix])
+if n_open.size and np.nanmax(np.abs(n_open - n_bed)) > 1e-12:
+    print("FAIL: n_reach differs from the bed roughness on ice-free reaches"); fail = True
+elif n_ice.size and np.nanmin(n_ice) <= n_bed:
+    print("FAIL: n_reach not raised under an ice cover"); fail = True
+else:
+    print(f"  roughness:         bed {n_bed:.4f}, under ice up to {np.nanmax(n_ice) if n_ice.size else n_bed:.4f} "
+          f"(ice up to {np.nanmax(ice_reach):.3f} m)")
 
 # energy balance of the water column (W m-3), stream domains only
 bal_s = np.take(np.take(bal, stream, axis=dims_bal.index("hru")), 1, axis=dims_bal.index("dom"))

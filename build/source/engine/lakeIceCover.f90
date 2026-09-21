@@ -19,7 +19,6 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module lakeIceCover_module
-
 ! The ice cover of a lake or stream, after van Beek et al. (2012) and Wanders et al. (2019):
 ! an ice layer at the freezing point on top of a mixed water body. The lake layers are of two
 ! kinds, both of type iname_lake: the top nLakeFrz are ice (ice density, residual liquid, treated
@@ -30,7 +29,9 @@ module lakeIceCover_module
 !     the freezing point; the water is mixed, so it rises) is moved into the ice cover, creating
 !     the ice layer when the cover is thick enough to stand on its own, otherwise thickening it;
 !   * breakup: an ice cover thinner than lakeIceMinThick (5 mm in flowing water, Wanders et al.)
-!     returns to the water beneath, mass and latent heat conserved.
+!     returns to the water beneath, mass and latent heat conserved; the same happens when forced,
+!     after a step failed because the cover could not absorb the step's energy (the lake analog of
+!     the snow layer merge on too much melt).
 ! The mass of a lake layer sets its depth (no air), so the 9% expansion on freezing happens here,
 ! where the ice moves, and not inside the solver.
 
@@ -55,10 +56,11 @@ contains
 ! ************************************************************************************************
 ! public subroutine lakeIceCover: grow or break up the ice cover of the lake layers
 ! ************************************************************************************************
-subroutine lakeIceCover(mpar_data,indx_data,prog_data,diag_data,flux_data,modifiedLayers,err,message)
+subroutine lakeIceCover(forceBreakup,mpar_data,indx_data,prog_data,diag_data,flux_data,modifiedLayers,err,message)
   USE var_derive_module,only:calcHeight   ! compute the height at layer interfaces and layer mid-points
   USE snow_utils_module,only:templiquid   ! temperature at which the freezing curve gives a liquid fraction
   implicit none
+  logical(lgt),intent(in)         :: forceBreakup    ! flag to return the ice cover to the water whatever its thickness
   type(var_dlength),intent(in)    :: mpar_data       ! model parameters
   type(var_ilength),intent(inout) :: indx_data       ! model indices
   type(var_dlength),intent(inout) :: prog_data       ! model prognostic variables
@@ -78,8 +80,11 @@ subroutine lakeIceCover(mpar_data,indx_data,prog_data,diag_data,flux_data,modifi
   real(rkind)                     :: depthIce        ! thickness the ice takes at ice density (m)
   real(rkind)                     :: massIceCover    ! ice mass of the cover (kg m-2)
   real(rkind)                     :: massLiqCover    ! liquid mass of the cover (kg m-2)
-  real(rkind)                     :: massLiqWat      ! liquid mass of the top water layer (kg m-2)
-  real(rkind)                     :: massIceWat      ! ice mass of the top water layer (kg m-2)
+  real(rkind)                     :: massLiqWat      ! liquid mass of the water layers (kg m-2)
+  real(rkind)                     :: massIceWat      ! ice mass of the water layers (kg m-2)
+  real(rkind)                     :: tempWat         ! liquid-weighted temperature of the water layers (K)
+  real(rkind)                     :: depthWat        ! total depth of the water layers (m)
+  logical(lgt)                    :: mixWat          ! flag to mix the ice and liquid over the water layers
   real(rkind)                     :: depthNew        ! updated layer depth (m)
   real(rkind)                     :: minMassIce      ! ice mass of a cover at the minimum thickness (kg m-2)
   ! ----------------------------------------------------------------------------------------------------------------
@@ -100,12 +105,12 @@ subroutine lakeIceCover(mpar_data,indx_data,prog_data,diag_data,flux_data,modifi
   ! minimum ice cover mass is sized for the minimum thickness at ice density, with no liquid
   minMassIce = mpar_data%var(iLookPARAM%lakeIceMinThick)%dat(1)*iden_ice*(1._rkind - iceResidWaterFrac)
 
-  ! ***** breakup: an ice cover too thin to stand returns to the water beneath
+  ! ***** breakup: an ice cover too thin to stand, or one that could not absorb the step's energy, returns to the water beneath
   if(nLakeFrz > 0)then
     ixIce = nSnow + nLakeFrz
     ixWat = ixIce + 1
     massIceCover = depth(ixIce)*ice(ixIce)*iden_ice
-    if(massIceCover < minMassIce)then
+    if(massIceCover < minMassIce .or. forceBreakup)then
       massLiqCover = depth(ixIce)*liq(ixIce)*iden_water
       massLiqWat   = depth(ixWat)*liq(ixWat)*iden_water
       massIceWat   = depth(ixWat)*ice(ixWat)*iden_ice
@@ -128,28 +133,32 @@ subroutine lakeIceCover(mpar_data,indx_data,prog_data,diag_data,flux_data,modifi
 
   ! ***** freeze-up: ice that formed in the water (well mixed, so in any water layer) rises into the cover
   ixWat = nSnow + nLakeFrz + 1
-  massIceWat = 0._rkind
+  massIceWat = 0._rkind; massLiqWat = 0._rkind; tempWat = 0._rkind; depthWat = 0._rkind
   do iLayer=ixWat,nSnow+nLake
     massIceWat = massIceWat + depth(iLayer)*ice(iLayer)*iden_ice
+    massLiqWat = massLiqWat + depth(iLayer)*liq(iLayer)*iden_water
+    tempWat    = tempWat    + depth(iLayer)*liq(iLayer)*iden_water*temp(iLayer)
+    depthWat   = depthWat   + depth(iLayer)
   end do
-  ! a new cover needs to be thick enough to stand (twice the breakup thickness, so it is not undone at once);
-  ! an existing cover takes whatever ice there is
-  if( (nLakeFrz==0 .and. massIceWat >= 2._rkind*minMassIce) .or. (nLakeFrz>0 .and. massIceWat > 0._rkind) )then
+  if(massLiqWat > verySmall) tempWat = tempWat/massLiqWat ! liquid-weighted temperature of the water
+  ! a new cover needs to be thick enough to stand (twice the breakup thickness, so it is not undone at once), and is not
+  ! re-formed from ice a forced breakup just returned to the water; an existing cover takes whatever ice there is
+  if( (nLakeFrz==0 .and. massIceWat >= 2._rkind*minMassIce .and. .not.forceBreakup) .or. (nLakeFrz>0 .and. massIceWat > 0._rkind) )then
+    if(massLiqWat < verySmall)then; err=20; message=trim(message)//'the lake water froze solid'; return; end if
     massIce  = massIceWat
-    ! the ice keeps a residual liquid fraction, taken from the top water layer; the layer is sized for that liquid at
-    ! the density of ice, so the ice fraction stays at or below one when the residual freezes later (iceReduce keeps
-    ! the fractions as it thins)
-    massLiq  = min(iceResidWaterFrac*massIce*(iden_water/iden_ice)/(1._rkind - iceResidWaterFrac), 0.5_rkind*depth(ixWat)*liq(ixWat)*iden_water)
+    ! the ice keeps a residual liquid fraction, taken from the water; the layer is sized for that liquid at the density
+    ! of ice, so the ice fraction stays at or below one when the residual freezes later (iceReduce keeps the fractions
+    ! as it thins)
+    massLiq  = min(iceResidWaterFrac*massIce*(iden_water/iden_ice)/(1._rkind - iceResidWaterFrac), 0.5_rkind*massLiqWat)
     depthIce = (massIce + massLiq)/iden_ice
-    ! each water layer keeps its liquid at full liquid density; the top one also gives up the residual that goes with the ice
+    ! the water is mixed: the liquid left shares out over the water layers by their depths, at full liquid density and at
+    ! its liquid-weighted temperature, so a thin layer that froze solid is water again (its cold content went into the ice)
+    massLiqWat = massLiqWat - massLiq
     do iLayer=ixWat,nSnow+nLake
-      massLiqWat = depth(iLayer)*liq(iLayer)*iden_water
-      if(iLayer==ixWat) massLiqWat = massLiqWat - massLiq
-      if(massLiqWat < verySmall)then; err=20; message=trim(message)//'a lake water layer froze solid; its ice should have moved to the cover earlier'; return; end if
-      call setDepth(iLayer, massLiqWat/iden_water)
+      call setDepth(iLayer, massLiqWat*depth(iLayer)/(depthWat*iden_water))
       call setLiq(iLayer, 1._rkind)
       call setIce(iLayer, 0._rkind)
-      call setTemp(iLayer, max(temp(iLayer), Tfreeze)) ! the water is liquid again; its cold content went into the ice
+      call setTemp(iLayer, max(tempWat, Tfreeze))
     end do
     if(nLakeFrz==0)then
       ! create the ice layer above the water layer, then set its state
@@ -176,6 +185,24 @@ subroutine lakeIceCover(mpar_data,indx_data,prog_data,diag_data,flux_data,modifi
       call setTemp(ixIce, min(temp(ixIce), iceTemp(liq(ixIce),ice(ixIce))))
     end if
     modifiedLayers = .true.
+  else if(nLakeFrz==0 .and. massIceWat > 0._rkind)then
+    ! too little ice yet for a cover: a water layer that is more ice than water (a thin top layer freezes first) is no
+    ! longer a water layer, so the ice and liquid mix over the water layers, as the frazil would in the flow
+    mixWat = .false.
+    do iLayer=ixWat,nSnow+nLake
+      if(ice(iLayer) > liq(iLayer)) mixWat = .true.
+    end do
+    if(mixWat)then
+      if(massLiqWat < verySmall)then; err=20; message=trim(message)//'the lake water froze solid'; return; end if
+      do iLayer=ixWat,nSnow+nLake
+        depthNew = (massLiqWat/iden_water + massIceWat/iden_ice)*depth(iLayer)/depthWat
+        call setLiq(iLayer, massLiqWat*depth(iLayer)/(depthWat*iden_water*depthNew))
+        call setIce(iLayer, massIceWat*depth(iLayer)/(depthWat*iden_ice*depthNew))
+        call setDepth(iLayer, depthNew)
+        call setTemp(iLayer, iceTemp(liq(iLayer),ice(iLayer))) ! on the freezing curve, as the solver left the layers
+      end do
+      modifiedLayers = .true.
+    end if
   end if
 
   ! save the layer counts and types, and the heights that follow from the new depths

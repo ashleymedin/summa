@@ -530,10 +530,11 @@ subroutine popMetadat(err,message)
   diag_meta(iLookDIAG%hCur)                            = var_info('hCur'                           , 'step size to be used on the next internal step'                   , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%tCur)                            = var_info('tCur'                           , 'current time reached by the integrator'                           , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! stream and lake column
-  diag_meta(iLookDIAG%scalarStreamDepth)               = var_info('scalarStreamDepth'              , 'liquid depth of the stream water column prescribed from mizuRoute', 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%scalarStreamDepth)               = var_info('scalarStreamDepth'              , 'mean depth of the reach water (liquid and ice) from mizuRoute'    , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarStreamVelocity)            = var_info('scalarStreamVelocity'           , 'reach mean velocity from mizuRoute'                               , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarStreamTemp)                = var_info('scalarStreamTemp'               , 'liquid-weighted temperature of the stream column (reach outlet temperature)', 'K'     , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarLakeLiqDepth)              = var_info('scalarLakeLiqDepth'             , 'total liquid depth of the lake layers'                            , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%scalarLakeIceThick)              = var_info('scalarLakeIceThick'             , 'thickness of the ice cover of the lake layers'                    , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarStreamSfcInflowTemp)       = var_info('scalarStreamSfcInflowTemp'      , 'temperature of the rain plus melt entering the open water column' , 'K'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * local model fluxes...
@@ -651,7 +652,7 @@ subroutine popMetadat(err,message)
   flux_meta(iLookFLUX%scalarStreamOutflow)             = var_info('scalarStreamOutflow'            , 'discharge leaving the reach'                                      , 'm3 s-1'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%scalarStreamSfcInflow)           = var_info('scalarStreamSfcInflow'          , 'rain plus melt drainage entering the top of the open water column', 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%mLayerLakeAdvNrgFlux)            = var_info('mLayerLakeAdvNrgFlux'           , 'advective energy source in each lake layer from reach inflow and outflow', 'J m-3 s-1', get_ixVarType('midLake'), iMissVec, iMissVec, .false.)
-  flux_meta(iLookFLUX%scalarStreamRunoff)              = var_info('scalarStreamRunoff'             , 'net water the stream domain adds to the reach (rain + melt - evaporation)', 'm s-1'   , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  flux_meta(iLookFLUX%scalarStreamRunoff)              = var_info('scalarStreamRunoff'             , 'net water the stream domain adds to the reach (rain + snowmelt - evaporation - sublimation)', 'm s-1', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * local flux derivatives...
   ! ---------------------------

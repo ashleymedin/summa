@@ -200,7 +200,7 @@ subroutine computFlux(&
   ! * local variables
   ! -------------------------------------------------------------------------------------------------------------------------
   integer(i4b)                       :: domType                     ! horizontal domain type
-  integer(i4b)                       :: nLake_frz                   ! number of frozen (ice) lake layers at the top of the lake
+  integer(i4b)                       :: nLakeFrz                    ! number of frozen (ice) lake layers at the top of the lake
   real(rkind)                        :: surfaceFluxTemp             ! temperature of the rain plus melt reaching the top of the lake (K)
   integer(i4b)                       :: local_ixGroundwater         ! local index for groundwater representation
   integer(i4b)                       :: iLayer,nStart               ! index control of model layers
@@ -282,18 +282,18 @@ subroutine computFlux(&
 
   ! *** CALCULATE THE LIQUID FLUX THROUGH LAKE ***
   ! NOTE: after the snow, since what drains from the snow (or the rain and melt pond when there is no snow) arrives at the lake top
-  ! NOTE: frozen lake layers (the top nLake_frz) are ice: impermeable, with melt squeezed upward through the glacier-ice branch;
+  ! NOTE: frozen lake layers (the top nLakeFrz) are ice: impermeable, with melt squeezed upward through the glacier-ice branch;
   !       the liquid layers beneath go through lakeLiqFlux; the generic finalize forms the layer fluxes and the lake drainage
   associate(nLakeOnlyHyd => indx_data%var(iLookINDEX%nLakeOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the lake
     if (nLakeOnlyHyd>0) then ! if necessary, compute liquid fluxes through lake
-      if (nLake_frz>0) then
+      if (nLakeFrz>0) then
         call initialize_frzlakeLiqFlux
         call snowIceLiqFlux(in_snowLakeGlceLiqFlux,mpar_data,indx_data,prog_data,diag_data,io_snowLakeGlceLiqFlux,out_snowLakeGlceLiqFlux)
         call finalize_frzlakeLiqFlux; if(err/=0)then; return; endif
       end if
-      if (nLake-nLake_frz>0) then
+      if (nLake-nLakeFrz>0) then
         call initialize_lakeLiqFlux
-        call lakeLiqFlux(in_snowLakeGlceLiqFlux,domType,surfaceFluxTemp,mLayerTempTrial(nSnow+nLake_frz+1),indx_data,prog_data,diag_data,flux_data,io_snowLakeGlceLiqFlux,out_snowLakeGlceLiqFlux)
+        call lakeLiqFlux(in_snowLakeGlceLiqFlux,domType,surfaceFluxTemp,mLayerTempTrial(nSnow+nLakeFrz+1),indx_data,prog_data,diag_data,flux_data,io_snowLakeGlceLiqFlux,out_snowLakeGlceLiqFlux)
       end if
       call finalize_lakeLiqFlux; if(err/=0)then; return; endif
     else
@@ -491,7 +491,7 @@ contains
 
    numFluxCalls = numFluxCalls+1 ! increment the number of flux calls
    domType   = indx_data%var(iLookINDEX%domType)%dat(1)
-   nLake_frz = indx_data%var(iLookINDEX%nLakeFrz)%dat(1) ! the ice cover: the top lake layers that are ice, taking the glacier-ice branch of the liquid flux
+   nLakeFrz = indx_data%var(iLookINDEX%nLakeFrz)%dat(1) ! the ice cover: the top lake layers that are ice, taking the glacier-ice branch of the liquid flux
 
    ! modify the groundwater representation for this single-column implementation
    select case(ixSpatialGroundwater)
@@ -700,7 +700,7 @@ contains
   bottom_flux = 0._rkind  ! no flux at the base of the ice: melt leaves upward
   nStart = nSnow
   do_snow = .false. ! not doing snow layers here
-  call in_snowLakeGlceLiqFlux%initialize(nLake_frz,nStart,nGlce>0,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+  call in_snowLakeGlceLiqFlux%initialize(nLakeFrz,nStart,nGlce>0,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
   call io_snowLakeGlceLiqFlux%initialize(flux_data,deriv_data)
  end subroutine initialize_frzlakeLiqFlux
 
@@ -729,7 +729,7 @@ contains
    scalarCanopyLiqDrainage => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1), & ! intent(in): [dp] drainage of liquid water from the vegetation canopy (kg m-2 s-1)
    scalarSurfaceIceMelt    => flux_data%var(iLookFLUX%scalarSurfaceIceMelt)%dat(1),    & ! intent(in): [dp] melt water leaving the top of the ice (m s-1, negative upward)
    airtemp                 => forc_data%var(iLookFORCE%airtemp)                        ) ! intent(in): [dp] air temperature (K)
-   if(nLake_frz>0)then ! ice cover: what arrives at the top is the melt of the ice (rain and snow melt run off the ice)
+   if(nLakeFrz>0)then ! ice cover: what arrives at the top is the melt of the ice (rain and snow melt run off the ice)
      surface_flux    = -scalarSurfaceIceMelt
      surfaceFluxTemp = Tfreeze
    else
@@ -742,16 +742,16 @@ contains
      end if
    end if
    bottom_flux = 0._rkind ! no seepage through the bed yet (a lake on glacier ice would couple to scalarGlceMelt here)
-   nStart = nSnow + nLake_frz
+   nStart = nSnow + nLakeFrz
    do_snow = .false. ! not doing snow layers here
-   call in_snowLakeGlceLiqFlux%initialize(nLake-nLake_frz,nStart,nGlce>0,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+   call in_snowLakeGlceLiqFlux%initialize(nLake-nLakeFrz,nStart,nGlce>0,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
    call io_snowLakeGlceLiqFlux%initialize(flux_data,deriv_data)
   end associate
  end subroutine initialize_lakeLiqFlux
 
  subroutine finalize_lakeLiqFlux
   nStart = nSnow
-  if(nLake-nLake_frz>0)then
+  if(nLake-nLakeFrz>0)then
     call io_snowLakeGlceLiqFlux%finalize(flux_data,deriv_data)
     call out_snowLakeGlceLiqFlux%finalize(err,cmessage)
     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
@@ -763,6 +763,7 @@ contains
    mLayerDepth                 => prog_data%var(iLookPROG%mLayerDepth)%dat,                    & ! intent(in):  [dp(:)] depth of each layer (m)
    scalarSurfaceRunoff         => flux_data%var(iLookFLUX%scalarSurfaceRunoff)%dat(1),         & ! intent(in):  [dp] surface runoff (m s-1)
    scalarStreamRunoff          => flux_data%var(iLookFLUX%scalarStreamRunoff)%dat(1),          & ! intent(inout): [dp] net water the stream domain adds to the reach (m s-1)
+   scalarGroundSublimation     => flux_data%var(iLookFLUX%scalarGroundSublimation)%dat(1),     & ! intent(in):  [dp] sublimation from the ice cover (kg m-2 s-1)
    scalarLakeDrainage          => flux_data%var(iLookFLUX%scalarLakeDrainage)%dat(1),          & ! intent(out): [dp] drainage from the bottom of the lake (m s-1)
    scalarSurfaceIceMelt        => flux_data%var(iLookFLUX%scalarSurfaceIceMelt)%dat(1),        & ! intent(out): [dp] melt water leaving the top of the ice (m s-1)
    scalarSurfaceIceMeltDeriv   => deriv_data%var(iLookDERIV%scalarSurfaceIceMeltDeriv)%dat(1), & ! intent(out): [dp] derivative in the surface ice melt (s-1)
@@ -773,13 +774,16 @@ contains
      mLayerLiqFluxSnLaGl(iLayer+nStart) = -(iLayerLiqFluxSnLaGl(iLayer+nStart) - iLayerLiqFluxSnLaGl(iLayer-1+nStart))/mLayerDepth(iLayer+nStart)
    end do
    ! the liquid layers of a stream hold the water the river network routes: what arrives at their top (snow drainage, ice melt) joins the flow, so it is not stored in them
-   if(domType==stream) mLayerLiqFluxSnLaGl(nStart+nLake_frz+1:nStart+nLake) = 0._rkind
-   ! no ice melt if there is no ice cover; with one, the rain and melt that ran off the ice join the flow too
-   if(nLake_frz==0)then
+   if(domType==stream) mLayerLiqFluxSnLaGl(nStart+nLakeFrz+1:nStart+nLake) = 0._rkind
+   ! no ice melt if there is no ice cover; with one, the reach gets the rain and snowmelt that ran off the ice, less what a
+   ! bare cover sublimates (with snow on it, the snow sublimates). The melt of the cover itself is not runoff: the ice is
+   ! part of the reach volume the river network carries, and its melt only moves from the cover to the flow beneath
+   if(nLakeFrz==0)then
      scalarSurfaceIceMelt      = 0._rkind
      scalarSurfaceIceMeltDeriv = 0._rkind
    else if(domType==stream)then
-     scalarStreamRunoff = scalarStreamRunoff + scalarRainPlusMelt
+     scalarStreamRunoff = scalarRainPlusMelt
+     if(nSnow==0) scalarStreamRunoff = scalarStreamRunoff - scalarGroundSublimation/iden_water
    end if
    ! drainage from the lake (needed for mass balance checks), and the forcing for the domain beneath
    scalarLakeDrainage = iLayerLiqFluxSnLaGl(nLake+nStart)

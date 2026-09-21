@@ -27,7 +27,8 @@ module streamTemp_module
 !   * mixes the outflow of the upstream reaches into the temperature of the inflow,
 !   * hands the stream domain its reach inflow, lateral inflow and their temperatures, its outflow and
 !     the reach depth and velocity, and runs the column 
-!   * reads back the column temperature as the temperature of the water leaving the reach.
+!   * reads back the column temperature as the temperature of the water leaving the reach, and its liquid
+!     depth and ice cover, from which the coupling sets the roughness of the reach for the next routing step.
 
 ! data types
 USE nr_type
@@ -207,8 +208,11 @@ subroutine run_streamNetwork(&
                      err,cmessage,                           & ! intent(out):   error control
                      streamPass=.true.)                        ! intent(in):    only the stream domain
       if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-      ! the column temperature is the temperature of the water leaving the reach
-      net%tOut(iSeg) = diagStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookDIAG%scalarStreamTemp)%dat(1)
+      ! the column temperature is the temperature of the water leaving the reach; its liquid depth and ice cover set
+      ! the roughness of the reach at the next routing step
+      net%tOut(iSeg)     = diagStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookDIAG%scalarStreamTemp)%dat(1)
+      net%liqDepth(iSeg) = diagStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookDIAG%scalarLakeLiqDepth)%dat(1)
+      net%iceThick(iSeg) = diagStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookDIAG%scalarLakeIceThick)%dat(1)
 
     else
       ! ***** no stream domain: the reach only mixes what reaches it (no exchange with the atmosphere or bed)
