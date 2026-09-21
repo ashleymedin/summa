@@ -182,6 +182,9 @@ contains
   if (parFallback(iLookPARAM%lakeMixingThermalC)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%lakeMixingThermalC)%default_val = 1000._rkind ! large, so a multi-layer stream column stays well mixed (W m-1 K-1)
   end if
+  if (parFallback(iLookPARAM%lakeIceMinThick)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%lakeIceMinThick)%default_val = 0.005_rkind ! 5 mm: the minimum ice thickness of flowing water in Wanders et al. (2019), below which the cover breaks up (m)
+  end if
   ! exponential hydraulic conductivity profile
   if (parFallback(iLookPARAM%f_hydCond)%default_val < 0.99_rkind*realMissing) then
     ! NOTE: a soil-column value, leaving ~5% of the surface conductivity at 4 m. Supraglacial debris is 1-5 m-1 over a 0.3-1 m

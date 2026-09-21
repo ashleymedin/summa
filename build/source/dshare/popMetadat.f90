@@ -336,6 +336,7 @@ subroutine popMetadat(err,message)
   ! lake and stream column
   mpar_meta(iLookPARAM%streamMinDepth)                 = var_info('streamMinDepth'                 , 'minimum liquid depth of the stream water column prescribed from mizuRoute', 'm'       , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%lakeMixingThermalC)             = var_info('lakeMixingThermalC'             , 'effective thermal conductivity between liquid lake layers (turbulent mixing)', 'W m-1 K-1', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%lakeIceMinThick)                = var_info('lakeIceMinThick'                , 'ice cover thinner than this breaks up and returns to the water'   , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin parameter data...
   ! -------------------------
@@ -890,6 +891,7 @@ subroutine popMetadat(err,message)
   indx_meta(iLookINDEX%numberDomainSplitMass) = var_info('numberDomainSplitMass', 'number of domain splitting solutions for mass'                           , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%numberScalarSolutions) = var_info('numberScalarSolutions', 'number of scalar solutions'                                              , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%domType)               = var_info('domType'              , 'horizontal domain type (upland, glacier, wetland, stream)'               , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  indx_meta(iLookINDEX%nLakeFrz)              = var_info('nLakeFrz'             , 'number of frozen (ice cover) lake layers at the top of the lake'         , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
 
   ! read file to define model output (modifies metadata structures)
   call read_output_file(err,cmessage)

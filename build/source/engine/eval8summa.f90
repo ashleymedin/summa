@@ -35,7 +35,6 @@ USE globalData,only:iname_matLayer  ! named variable defining the total water ma
 USE globalData,only:iname_lmpLayer  ! named variable defining the liquid water matric potential state variable for soil layers
 
 USE globalData,only:icefrz_mult     ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
-USE globalData,only:lakefrz_mult    ! freezing curve scaling factor multiplier of snow to lake water
 
 ! constants
 USE multiconst,only:&
@@ -1030,7 +1029,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           if (jLayer <= nSnow+nLake) then
             iLayer = jLayer
             frz_scale_use = snowfrz_scale
-            if (jLayer>nSnow) frz_scale_use = snowfrz_scale*lakefrz_mult
+            if (jLayer>nSnow) frz_scale_use = snowfrz_scale*icefrz_mult
           else
             iLayer = jLayer + nSoil
             frz_scale_use = snowfrz_scale*icefrz_mult
@@ -1051,8 +1050,8 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           end select
           scalarIce = merge(stateVecPrev(ixSnLaSoGlHyd(iLayer)) - scalarLiq,mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
           ! checking if drain more than what is available or add more than possible, constrained iteration increment -- simplified bi-section
-          ! NOTE: a lake layer has no upper bound within a step (no water enters it, and freezing ice may exceed the layer
-          !       volume until lakeResize expands the layer between substeps)
+          ! NOTE: a lake layer has no upper bound within a step: it holds no air, so ice forming in it (or melt collecting in the
+          !       ice cover before it drains) may exceed the layer volume until lakeResize sets the depth to the mass between steps
           if(-xInc(ixSnLaSoGlHyd(iLayer)) > scalarLiq) then
             xInc(ixSnLaSoGlHyd(iLayer)) = -0.5_rkind*scalarLiq
           elseif(xInc(ixSnLaSoGlHyd(iLayer)) > 1._rkind - scalarIce - scalarLiq .and. .not.(jLayer>nSnow .and. jLayer<=nSnow+nLake))then

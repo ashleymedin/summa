@@ -516,6 +516,7 @@ subroutine fluxJacAdd(&
     dNrgFlux_dWatBelow           => deriv_data%var(iLookDERIV%dNrgFlux_dWatBelow)%dat              ,& ! intent(in): [dp(:)]  derivatives in the flux w.r.t. water state in the layer below
     ! derivative in the advective energy source of the lake layers w.r.t. the layer temperature
     dLakeAdvNrgFlux_dTemp        => deriv_data%var(iLookDERIV%dLakeAdvNrgFlux_dTemp)%dat           ,& ! intent(in): [dp(:)]  derivative of the lake advective energy source w.r.t. temperature
+    nLakeFrz                     => indx_data%var(iLookINDEX%nLakeFrz)%dat(1)                      ,& ! intent(in): [i4b]    number of frozen (ice cover) lake layers at the top of the lake
     ! derivatives in soil transpiration w.r.t. canopy state variables
     mLayerdTrans_dTCanair        => deriv_data%var(iLookDERIV%mLayerdTrans_dTCanair)%dat           ,& ! intent(in): [dp(:)]  derivatives in the soil layer transpiration flux w.r.t. canopy air temperature
     mLayerdTrans_dTCanopy        => deriv_data%var(iLookDERIV%mLayerdTrans_dTCanopy)%dat           ,& ! intent(in): [dp(:)]  derivatives in the soil layer transpiration flux w.r.t. canopy temperature
@@ -652,8 +653,7 @@ subroutine fluxJacAdd(&
           jLayer = qLayer
           iLayer = qLayer
           endLayerWat = nSnow + nLake
-          solid = .false.
-          if(qLayer>nSnow .and. mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind)) solid = .true. ! lake ice is solid
+          solid = (qLayer>nSnow .and. qLayer<=nSnow+nLakeFrz) ! the lake ice cover is solid, the lake water beneath is not
         else
           jLayer = qLayer + nSoil
           iLayer = qLayer - nSnow - nLake
@@ -703,8 +703,7 @@ subroutine fluxJacAdd(&
           iLayer = qLayer
           endLayerWat = nSnow + nLake
           endLayerNrg = nSnow + nLake
-          solid = .false.
-          if(qLayer>nSnow .and. mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind)) solid = .true. ! lake ice is solid
+          solid = (qLayer>nSnow .and. qLayer<=nSnow+nLakeFrz) ! the lake ice cover is solid, the lake water beneath is not
         else
           jLayer = qLayer + nSoil
           iLayer = qLayer - nSnow - nLake

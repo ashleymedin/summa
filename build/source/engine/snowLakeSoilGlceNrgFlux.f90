@@ -163,6 +163,7 @@ subroutine snowLakeSoilGlceNrgFlux(&
     ! input: coordinate variables
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),               & ! intent(in):  number of snow layers
     nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1),               & ! intent(in):  number of lake layers
+    nLakeFrz                => indx_data%var(iLookINDEX%nLakeFrz)%dat(1),            & ! intent(in):  number of frozen (ice cover) lake layers at the top of the lake
     nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1),               & ! intent(in):  number of soil layers
     nGlce                   => indx_data%var(iLookINDEX%nGlce)%dat(1),               & ! intent(in):  number of glacier ice layers
     noThetaChange           => indx_data%var(iLookINDEX%noThetaChange)%dat(1),       & ! intent(in):  number of layers with no change in total water content (bottom layers)
@@ -266,18 +267,18 @@ subroutine snowLakeSoilGlceNrgFlux(&
     ! (Q_up at T_up), from the local catchment (q_lat at T_lat) and from the surface (rain and melt, q_sfc at T_sfc) is mixed
     ! into the liquid part of the column and the same amount leaves at the column temperature, so per unit volume of layer i
     !     S_i = w_i * rho_w c_p [ Q_up (T_up - T_i) + q_lat (T_lat - T_i) + q_sfc (T_sfc - T_i) ] / (A h_liq)
-    ! with w_i the layer's share of the liquid depth h_liq. Ice takes no part: a frozen layer keeps only its residual liquid
-    ! and so a vanishing share of the exchange, while the flow continues beneath it. Writing the exchange as (T_in - T_i)
+    ! with w_i the layer's share of the liquid depth h_liq. The ice cover (the top nLakeFrz lake layers) takes no part:
+    ! the flow continues beneath it. Writing the exchange as (T_in - T_i)
     ! rather than as separate inflow and outflow enthalpies is what lets the liquid depth be reset from the reach volume
     ! between steps without an energy imbalance.
     if(nLake>0)then
       mLayerLakeAdvNrgFlux(:)  = 0._rkind
       dLakeAdvNrgFlux_dTemp(:) = 0._rkind
       if(domType==stream)then
-        lakeLiqDepth = sum(mLayerDepth(nSnow+1:nSnow+nLake)*mLayerVolFracLiqTrial(nSnow+1:nSnow+nLake))
+        lakeLiqDepth = sum(mLayerDepth(nSnow+nLakeFrz+1:nSnow+nLake)*mLayerVolFracLiqTrial(nSnow+nLakeFrz+1:nSnow+nLake))
         if(lakeLiqDepth > verySmall .and. DOMarea > 0._rkind)then
           advScale = Cp_water*iden_water/(DOMarea*lakeLiqDepth)
-          do iLayer=nSnow+1,nSnow+nLake
+          do iLayer=nSnow+nLakeFrz+1,nSnow+nLake
             if(iLayer<ixTop .or. iLayer>ixBot) cycle ! scalar solution: only the layer being solved
             liqWeight = mLayerDepth(iLayer)*mLayerVolFracLiqTrial(iLayer)/lakeLiqDepth
             mLayerLakeAdvNrgFlux(iLayer-nSnow) = liqWeight*advScale*( &

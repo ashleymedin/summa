@@ -108,12 +108,15 @@ covers the user-facing highlights.
   inflow; SUMMA solves the column energy balance with the heat advected from upstream reaches
   and from the GRU runoff (surface runoff at the top-layer temperature, drainage and baseflow
   at the bottom-soil temperature, routed through the same unit hydrograph), and walks the
-  reaches upstream to downstream after each routing step. Ice forms in the lake layers and
-  snow can build on it. Follows Wanders et al. (2019, WRR) after van Beek et al. (2012, WRR).
+  reaches upstream to downstream after each routing step. Ice that forms in the water rises
+  into an ice cover (a lake layer treated like glacier ice, `nLakeFrz` in the restart file)
+  that breaks up below `lakeIceMinThick`; snow can build on it. Follows Wanders et al. (2019,
+  WRR) after van Beek et al. (2012, WRR).
   New output `T_reach`, `v_reach`, `scalarStreamTemp`, `averageRoutedRunoffTemp` and the
-  `scalarStream*` fluxes; new attribute `streamSegId`; new parameters `streamMinDepth` and
-  `lakeMixingThermalC`; new restart variable `routingNrgFuture`. Runs without stream HRUs are
-  unchanged. Test: `utils/test/test_mizuroute/test_streamtemp_bundled.sh`.
+  `scalarStream*` fluxes; new attribute `streamSegId`; new parameters `streamMinDepth`,
+  `lakeMixingThermalC` and `lakeIceMinThick`; new restart variables `routingNrgFuture` and
+  `nLakeFrz`. Runs without stream HRUs are unchanged.
+  Test: `utils/test/test_mizuroute/test_streamtemp_bundled.sh`.
 - Optional coupling to the OpenWQ water-quality framework (`build/source/openwq/`).
 - Runs as a NextGen submodule; NextGen test cases are in `utils/test/test_ngen/`.
 - Large refactor: object-oriented flux routines, much shorter `computFlux.f90` and the

@@ -68,7 +68,6 @@ USE globalData,only:realMissing            ! missing real number
 USE globalData,only:maxSnowLayers          ! maximum number of snow layers
 USE globalData,only:maxGlceLayers          ! maximum number of glacier ice layers
 USE globalData,only:icefrz_mult            ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
-USE globalData,only:lakefrz_mult           ! freezing curve scaling factor multiplier of snow to lake water
 USE globalData,only:stream                 ! horizontal domain type for a stream reach
 
 ! look-up values for the maximum interception capacity
@@ -157,6 +156,7 @@ subroutine coupled_em(&
   USE var_derive_module,only:calcHeight                         ! module to calculate height at layer interfaces and layer mid-point
   USE snowLakeGlceDepth_module,only:snowGlceDepth                   ! compute snow/glce depth
   USE snowLakeGlceDepth_module,only:lakePrescribeDepth              ! set the stream water column from the reach volume
+  USE lakeIceCover_module,only:lakeIceCover                         ! grow or break up the ice cover of the lake layers
   USE convertEnthalpyTemp_module,only:T2enthTemp_veg            ! convert temperature to enthalpy for vegetation
   USE convertEnthalpyTemp_module,only:T2enthTemp_snLaGl         ! convert temperature to enthalpy for snow, lake, and ice
   USE convertEnthalpyTemp_module,only:T2enthTemp_soil           ! convert temperature to enthalpy for soil
@@ -192,6 +192,8 @@ subroutine coupled_em(&
   character(len=256)                   :: cmessage                 ! error message
   integer(i4b)                         :: nSnow                    ! number of snow layers
   integer(i4b)                         :: nLake                    ! number of lake layers
+  integer(i4b)                         :: nLakeFrz                 ! number of frozen (ice cover) lake layers at the top of the lake
+  logical(lgt)                         :: modifiedIce              ! flag to denote that the lake ice cover changed the layers
   integer(i4b)                         :: nSoil                    ! number of soil layers
   integer(i4b)                         :: nGlce                    ! number of glacier ice layers
   integer(i4b)                         :: nLayers                  ! total number of layers
@@ -348,8 +350,9 @@ subroutine coupled_em(&
   ! data step from the reach volume (scalarStreamDepth, set by the network pass), floored so a dry reach keeps
   ! a column. Ice is left where it is; temperatures are kept and the enthalpy follows.
   if(indx_data%var(iLookINDEX%domType)%dat(1)==stream)then
+    nLakeFrz = indx_data%var(iLookINDEX%nLakeFrz)%dat(1)
     call lakePrescribeDepth(&
-                    nSnow,nLake,                                                            & ! intent(in):    number of snow and lake layers
+                    nSnow+nLakeFrz,nLake-nLakeFrz,                                          & ! intent(in):    number of layers above the water layers, and of water layers
                     max(diag_data%var(iLookDIAG%scalarStreamDepth)%dat(1), mpar_data%var(iLookPARAM%streamMinDepth)%dat(1)), & ! intent(in): liquid depth to impose (m)
                     prog_data%var(iLookPROG%mLayerDepth)%dat,                               & ! intent(inout): depth of each layer (m)
                     prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,                          & ! intent(inout): volumetric fraction of liquid water (-)
@@ -358,12 +361,12 @@ subroutine coupled_em(&
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
     call calcHeight(indx_data,prog_data,err,cmessage) ! layer heights follow the new depths
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-    do iLayer=nSnow+1,nSnow+nLake ! the enthalpy per unit volume follows the new liquid and ice fractions
+    do iLayer=nSnow+nLakeFrz+1,nSnow+nLake ! the enthalpy per unit volume of the water layers follows the new liquid and ice fractions
       prog_data%var(iLookPROG%mLayerVolFracWat)%dat(iLayer) = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(iLayer) &
                                                               + prog_data%var(iLookPROG%mLayerVolFracIce)%dat(iLayer)*(iden_ice/iden_water)
       call T2enthTemp_snLaGl(&
                     .false.,                                                                & ! intent(in):  flag that no liquid water in layer
-                    mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)*lakefrz_mult,            & ! intent(in):  scaling parameter for the lake freezing curve (K-1)
+                    mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)*icefrz_mult,             & ! intent(in):  scaling parameter for the lake freezing curve (K-1)
                     prog_data%var(iLookPROG%mLayerTemp)%dat(iLayer),                        & ! intent(in):  layer temperature (K)
                     prog_data%var(iLookPROG%mLayerVolFracWat)%dat(iLayer),                  & ! intent(in):  volumetric total water content (-)
                     diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(iLayer))                      ! intent(out): temperature component of enthalpy (J m-3)
@@ -829,12 +832,19 @@ subroutine coupled_em(&
                         err,cmessage)                 ! intent(out): error control
         if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
 
+        ! *** grow or break up the ice cover of the lake layers...
+        ! ---------------------------------------------------------
+        call lakeIceCover(mpar_data,indx_data,prog_data,diag_data,flux_data,modifiedIce,err,cmessage)
+        if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
+        modifiedLayers = modifiedLayers .or. modifiedIce
+
         ! save the number of layers
         nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
         nLake   = indx_data%var(iLookINDEX%nLake)%dat(1)
         nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
         nGlce   = indx_data%var(iLookINDEX%nGlce)%dat(1)
         nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
+        nLakeFrz = indx_data%var(iLookINDEX%nLakeFrz)%dat(1)
 
         ! compute the indices for the model state variables
         if(firstSubStep .or. modifiedVegState .or. modifiedLayers)then
@@ -871,7 +881,7 @@ subroutine coupled_em(&
               if (jLayer<=nSnow+nLake)then
                 iLayer = jLayer
                 frz_scale_use = snowfrz_scale
-                if (jLayer>nSnow) frz_scale_use = snowfrz_scale*lakefrz_mult
+                if (jLayer>nSnow) frz_scale_use = snowfrz_scale*icefrz_mult
               else
                 iLayer = jLayer + nSoil
                 frz_scale_use = snowfrz_scale*icefrz_mult
@@ -1020,7 +1030,7 @@ subroutine coupled_em(&
             if (nLake>0 .or. (nLake==0 .and. nSoil==0 .and. nGlce>0))then
               call T2enthTemp_snLaGl(&
                        .false.,                                            & ! intent(in):  flag that no liquid water in layer, never true for top layer
-                       snowfrz_scale*merge(lakefrz_mult,icefrz_mult,nLake>0), & ! intent(in): scaling parameter for the lake or ice freezing curve (K-1)
+                       snowfrz_scale*icefrz_mult,                          & ! intent(in):  scaling parameter for the lfreezing curve  (K-1)
                        prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1),   & ! intent(in):  layer temperature (K)
                        mLayerVolFracWat(nSnow+1),                          & ! intent(in):  volumetric total water content (-)
                        diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(nSnow+1)) ! intent(out): temperature component of enthalpy of each layer (J m-3)
@@ -1248,6 +1258,7 @@ subroutine coupled_em(&
                     whole_step,                               & ! intent(in):    length of whole step for surface drainage and average flux
                     nSnow,                                    & ! intent(in):    number of snow layers
                     nLake,                                    & ! intent(in):    number of lake layers
+                    nLakeFrz,                                 & ! intent(in):    number of frozen (ice cover) lake layers
                     nSoil,                                    & ! intent(in):    number of soil layers
                     nGlce,                                    & ! intent(in):    number of glacier ice layers
                     noThetaChange,                            & ! intent(in):    number of layers with no change in total water content (bottom layers)
@@ -1315,7 +1326,7 @@ subroutine coupled_em(&
               if (jLayer<=nSnow+nLake)then
                 iLayer = jLayer
                 frz_scale_use = snowfrz_scale
-                if (jLayer>nSnow) frz_scale_use = snowfrz_scale*lakefrz_mult
+                if (jLayer>nSnow) frz_scale_use = snowfrz_scale*icefrz_mult
               else
                 iLayer = jLayer + nSoil
                 frz_scale_use = snowfrz_scale*icefrz_mult
@@ -1538,9 +1549,11 @@ subroutine coupled_em(&
       scalarLakeLiqDepth => diag_data%var(iLookDIAG%scalarLakeLiqDepth)%dat(1)      ,& ! total liquid depth of the lake layers (m)
       scalarStreamTemp   => diag_data%var(iLookDIAG%scalarStreamTemp)%dat(1)         ) ! liquid-weighted temperature of the lake layers (K)
       if(nLake>0)then
-        scalarLakeLiqDepth = sum(mLayerDepth(nSnow+1:nSnow+nLake)*mLayerVolFracLiq(nSnow+1:nSnow+nLake))
+        nLakeFrz = indx_data%var(iLookINDEX%nLakeFrz)%dat(1)
+        scalarLakeLiqDepth = sum(mLayerDepth(nSnow+nLakeFrz+1:nSnow+nLake)*mLayerVolFracLiq(nSnow+nLakeFrz+1:nSnow+nLake))
         if(scalarLakeLiqDepth > verySmall)then
-          scalarStreamTemp = sum(mLayerDepth(nSnow+1:nSnow+nLake)*mLayerVolFracLiq(nSnow+1:nSnow+nLake)*mLayerTemp(nSnow+1:nSnow+nLake))/scalarLakeLiqDepth
+          scalarStreamTemp = sum(mLayerDepth(nSnow+nLakeFrz+1:nSnow+nLake)*mLayerVolFracLiq(nSnow+nLakeFrz+1:nSnow+nLake) &
+                                 *mLayerTemp(nSnow+nLakeFrz+1:nSnow+nLake))/scalarLakeLiqDepth
         else
           scalarStreamTemp = Tfreeze ! frozen solid
         end if
@@ -2038,6 +2051,7 @@ contains
   nSoil = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
   nGlce = count(indx_data%var(iLookINDEX%layerType)%dat==iname_glce)
   nLayers = nSnow + nLake + nSoil + nGlce
+  nLakeFrz = indx_data%var(iLookINDEX%nLakeFrz)%dat(1)
 
   noThetaChange = indx_data%var(iLookINDEX%noThetaChange)%dat(1) ! number of layers with no change in total water content (bottom layers)
 

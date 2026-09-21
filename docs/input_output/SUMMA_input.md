@@ -266,7 +266,8 @@ The restart file does not have a time dimension, since it represents a specific 
 | nSoil | hru, dom | int | - | Number of soil layers |
 | nSnow | hru, dom | int | - |  Number of snow layers |
 | nGlce | hru, dom | int | - |  Number of glacier ice layers |
-| nLake | hru, dom | int | - |  Number of lake layers |
+| nLake | hru, dom | int | - |  Number of lake layers (ice cover and water) |
+| nLakeFrz | hru, dom | int | - |  Number of ice cover layers at the top of the lake layers (optional, 0 when absent) |
 | DOMarea | scalarv, hru, dom | double | m2 | Area of the domain |
 | DOMelev | scalarv, hru, dom | double | m | Elevation of the domain |
 | DOMtan_slope | scalarv, hru, dom | double | - | tan local ground surface slope of the domain |
@@ -303,7 +304,7 @@ The restart file does not have a time dimension, since it represents a specific 
 <a id="infile_stream"></a>
 ### Stream HRUs (stream temperature)
 
-With coupled mizuRoute (`use_mizuroute = true`, see the [mizuRoute coupling](../mizuroute/coupling.md)) a GRU may hold one **stream HRU**: the water column of the river reach the GRU drains to, whose temperature SUMMA solves while mizuRoute routes the water. A stream HRU is an HRU whose `domType` list holds a `stream` domain (6) and whose upland domain has `DOMarea = 0`: the stream domain takes the whole `HRUarea`, which should be the planform area of the reach (length x width of the routing geometry, since the reach volume is spread over it). Its column is `nLake` lake layers (at least one; two is a good default, a thin top layer where ice forms and the rest of the water below) over `nSoil` soil layers and the aquifer, with no vegetation; lake layers start with `mLayerVolFracLiq + mLayerVolFracIce = 1`. The restart file then needs `nLake`, `domType` and the `DOM*` variables. The attributes file may give `streamSegId`, the mizuRoute reach id the stream HRU stands for (0 or absent: the reach the GRU drains to in the routing topology). Runs without stream HRUs are unchanged. Lake layers are only accepted in stream domains; the wetland domain (5) is not yet active.
+With coupled mizuRoute (`use_mizuroute = true`, see the [mizuRoute coupling](../mizuroute/coupling.md)) a GRU may hold one **stream HRU**: the water column of the river reach the GRU drains to, whose temperature SUMMA solves while mizuRoute routes the water. A stream HRU is an HRU whose `domType` list holds a `stream` domain (6) and whose upland domain has `DOMarea = 0`: the stream domain takes the whole `HRUarea`, which should be the planform area of the reach (length x width of the routing geometry, since the reach volume is spread over it). Its column is `nLake` lake layers (at least one water layer; the top `nLakeFrz` of them are the ice cover, which the model grows and breaks up itself, so a cold start needs none) over `nSoil` soil layers and the aquifer, with no vegetation; lake water layers start with `mLayerVolFracLiq + mLayerVolFracIce = 1`. The restart file then needs `nLake`, `domType` and the `DOM*` variables (`nLakeFrz` when the run starts with an ice cover). The attributes file may give `streamSegId`, the mizuRoute reach id the stream HRU stands for (0 or absent: the reach the GRU drains to in the routing topology). Runs without stream HRUs are unchanged. Lake layers are only accepted in stream domains; the wetland domain (5) is not yet active.
 
 If dimension `glac` is greater than zero, the initial conditions will also need to include:
 | glacId | glac, gru | int | - | ID defining the glaciers (RGI ID) |

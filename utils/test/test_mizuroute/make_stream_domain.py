@@ -35,7 +35,7 @@ VEG_WATER = 16
 # reach geometry, as make_test_topology.py and the mizuRoute default parameters (wscale)
 SEGMENT_LENGTH_M = 5000.0
 WSCALE = 0.001
-# lake layers of the water column: a thin top layer where ice forms, the rest below
+# lake water layers of the water column (the ice cover, when it forms, is a further layer the model adds on top)
 LAKE_DEPTHS = [0.2, 0.8]
 LAKE_TEMP_K = 278.0
 STREAM_ID_OFFSET = 100000

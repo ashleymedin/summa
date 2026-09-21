@@ -454,6 +454,7 @@ contains
   ! lake and stream column
   case('streamMinDepth'           ); get_ixParam = iLookPARAM%streamMinDepth         ! minimum liquid depth of the stream water column (m)
   case('lakeMixingThermalC'       ); get_ixParam = iLookPARAM%lakeMixingThermalC     ! effective thermal conductivity between liquid lake layers (W m-1 K-1)
+  case('lakeIceMinThick'          ); get_ixParam = iLookPARAM%lakeIceMinThick        ! ice cover thinner than this breaks up and returns to the water (m)
   ! get to here if cannot find the variable
   case default
    get_ixParam = integerMissing
@@ -1018,6 +1019,7 @@ contains
   case('numberDomainSplitMass'); get_ixINDEX = iLookINDEX%numberDomainSplitMass ! number of domain splitting solutions for mass                           (-)
   case('numberScalarSolutions'); get_ixINDEX = iLookINDEX%numberScalarSolutions ! number of scalar solutions                                              (-)
   case('domType'              ); get_ixINDEX = iLookINDEX%domType               ! horizontal domain type (upland, glacier, wetland, stream)                (-)
+  case('nLakeFrz'             ); get_ixINDEX = iLookINDEX%nLakeFrz              ! number of frozen (ice cover) lake layers at the top of the lake          (-)
   ! default
   case default
    get_ixIndex = integerMissing

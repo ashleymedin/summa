@@ -121,6 +121,7 @@ contains
  ! input: coordinate variables
  nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),                    & ! intent(in): number of snow layers
  nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1),                    & ! intent(in): number of lake layers
+ nLakeFrz                => indx_data%var(iLookINDEX%nLakeFrz)%dat(1),                 & ! intent(in): number of frozen (ice cover) lake layers at the top of the lake
  nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1),                  & ! intent(in): total number of layers
  layerType               => indx_data%var(iLookINDEX%layerType)%dat,                   & ! intent(in): layer type (iname_soil or iname_snow)
  mLayerHeight            => prog_data%var(iLookPROG%mLayerHeight)%dat,                 & ! intent(in): height at the mid-point of each layer (m)
@@ -224,7 +225,7 @@ contains
 
      case(iname_lake, iname_glce)
        ! liquid lake water is stirred by the flow, so its effective conductivity is the mixing value rather than the molecular one
-       lambda_liq = merge(lakeMixingThermalC, lambda_water, layerType(iLayer)==iname_lake)
+       lambda_liq = merge(lakeMixingThermalC, lambda_water, layerType(iLayer)==iname_lake .and. iLayer>nSnow+nLakeFrz) ! lake water is stirred, the ice cover is not
        mLayerThermalC(iLayer) = lambda_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
                                 lambda_liq   * mLayerVolFracLiq(iLayer)     + & ! liquid water component
                                 lambda_air   * mLayerVolFracAir(iLayer)         ! air component
@@ -384,6 +385,7 @@ subroutine thermConductivity(&
     ixTopNrg                => indx_data%var(iLookINDEX%ixTopNrg)%dat(1),                 & ! intent(in):  [i4b]   index of upper-most energy state in the layer subdomain
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),                    & ! intent(in):  [dp]    number of snow layers
     nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1),                    & ! intent(in):  [dp]    number of lake layers
+    nLakeFrz                => indx_data%var(iLookINDEX%nLakeFrz)%dat(1),                 & ! intent(in):  [i4b]   number of frozen (ice cover) lake layers at the top of the lake
     nSnLaSoGlNrg            => indx_data%var(iLookINDEX%nSnLaSoGlNrg)%dat(1),             & ! intent(in):  [i4b]   number of energy state variables in the layer domains
     layerType               => indx_data%var(iLookINDEX%layerType)%dat,                   & ! intent(in):  [dp(:)] layer type (iname_soil or iname_snow)
     ixLayerState            => indx_data%var(iLookINDEX%ixLayerState)%dat,                & ! intent(in):  [i4b(:)]list of indices for all model layers
@@ -566,7 +568,7 @@ subroutine thermConductivity(&
           dVolFracLiq_dWat = mLayerFracLiq(iLayer)
           dVolFracLiq_dTk  = mLayerdTheta_dTk(iLayer)
           ! liquid lake water is stirred by the flow, so its effective conductivity is the mixing value rather than the molecular one
-          lambda_liq = merge(lakeMixingThermalC, lambda_water, layerType(iLayer)==iname_lake)
+          lambda_liq = merge(lakeMixingThermalC, lambda_water, layerType(iLayer)==iname_lake .and. iLayer>nSnow+nLakeFrz) ! lake water is stirred, the ice cover is not
           mLayerThermalC(iLayer) = lambda_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
                                    lambda_liq   * mLayerVolFracLiq(iLayer)     + & ! liquid water component
                                    lambda_air   * mLayerVolFracAir(iLayer)         ! air component

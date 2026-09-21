@@ -216,7 +216,6 @@ MODULE globalData
   real(rkind),save,public                          :: minExpLogHgtFac=0.02_rkind        ! factor for minimum height of transition from the exponential to the logarithmic wind profile
   ! define variable used to smooth the ice freezing curve
   real(rkind),save,public                          :: icefrz_mult=10._rkind             ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
-  real(rkind),save,public                          :: lakefrz_mult=1._rkind             ! freezing curve scaling factor multiplier of snow to lake water: kept as smooth as snow, since a stream column freezes and thaws within a step and a sharper curve stalls the solver
   integer(i4b),save,public                         :: nLakeIceLayers_poss=1             ! number of ice layers in a lake that can accumulate 
   integer(i4b),save,public                         :: nMeltingIceLayers=1               ! number of glacier ice layers that can have a change in total water content 
   real(rkind),save,public                          :: thick4area=0.1                    ! an arbitrary small threshold for glacier thickness to be considered as glacier area (m)
