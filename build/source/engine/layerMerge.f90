@@ -486,10 +486,10 @@ contains
  nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
 
  ! ***** put state variables for the combined layer in the appropriate place
- call setTemp (iLayer, cTemp)
+ call setTemp(iLayer, cTemp)
  call setDepth(iLayer, cDepth)
- call setIce  (iLayer, cVolFracIce)
- call setLiq  (iLayer, cVolFracLiq)
+ call setIce(iLayer, cVolFracIce)
+ call setLiq(iLayer, cVolFracLiq)
 
  ! ***** adjust coordinate variables
  call calcHeight(&
