@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module streamtemp_module
+module streamTemp_module
 ! Water is routed by mizuRoute; heat is routed here. Each GRU may hold one stream HRU: a river-only HRU whose 
 ! stream domain is the water column of the reach the GRU drains to. The physics of that column live in the
 ! usual SUMMA routines. This module does the network part, following Wanders et al. (2019, WRR, DynWat) after 
@@ -224,4 +224,4 @@ subroutine run_streamNetwork(&
 
 end subroutine run_streamNetwork
 
-end module streamtemp_module
+end module streamTemp_module
