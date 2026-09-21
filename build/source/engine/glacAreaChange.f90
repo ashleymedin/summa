@@ -376,7 +376,6 @@ subroutine glacAreaChange(&
     if(dom_area(iDOM)>0._rkind)then
       dom_elev(iDOM)          = dom_elev(iDOM)/dom_area(iDOM)
       dom_tan_slope(iDOM)     = dom_tan_slope(iDOM)/dom_area(iDOM)
-      dom_contourLength(iDOM) = dom_contourLength(iDOM)/dom_area(iDOM)
       dom_ablFrac(iDOM)       = dom_ablFrac(iDOM)/dom_area(iDOM)
       dom_debris_thick(iDOM)  = dom_debris_thick(iDOM)/dom_area(iDOM)
       dom_aspect(iDOM)        = 0._rkind
@@ -403,20 +402,20 @@ subroutine glacAreaChange(&
 
 contains
 
-  ! add the cells selected by mask to the running area-weighted sums of domain iDom
-  subroutine addCellsToDomain(iDom, mask)
+  ! add the cells selected by mask to the running area-weighted sums of domain iDOM
+  subroutine addCellsToDomain(iDOM, mask)
     implicit none
-    integer(i4b), intent(in) :: iDom                 ! domain index
+    integer(i4b), intent(in) :: iDOM                 ! domain index
     logical(lgt), intent(in) :: mask(nx,ny)          ! cells to add
     real(rkind)              :: area                 ! area of the cells (m2)
     area = count(mask)*dx*dy
-    dom_area(iDom)          = dom_area(iDom)          + area
-    dom_elev(iDom)          = dom_elev(iDom)          + sum(surface, mask=mask)*dx*dy
-    dom_tan_slope(iDom)     = dom_tan_slope(iDom)     + sum(cell_tan_slope, mask=mask)*dx*dy
-    aspect_sin_sum(iDom)    = aspect_sin_sum(iDom)    + sum(sin(cell_aspect*deg2rad), mask=mask .and. cell_tan_slope>=flat_threshold)*dx*dy
-    aspect_cos_sum(iDom)    = aspect_cos_sum(iDom)    + sum(cos(cell_aspect*deg2rad), mask=mask .and. cell_tan_slope>=flat_threshold)*dx*dy
-    dom_contourLength(iDom) = dom_contourLength(iDom) + sqrt(area)
-    dom_ablFrac(iDom)       = dom_ablFrac(iDom)       + count(mask .and. surface<ELA_use_glac)*dx*dy
+    dom_area(iDOM)          = dom_area(iDOM)          + area
+    dom_elev(iDOM)          = dom_elev(iDOM)          + sum(surface, mask=mask)*dx*dy
+    dom_tan_slope(iDOM)     = dom_tan_slope(iDOM)     + sum(cell_tan_slope, mask=mask)*dx*dy
+    aspect_sin_sum(iDOM)    = aspect_sin_sum(iDOM)    + sum(sin(cell_aspect*deg2rad), mask=mask .and. cell_tan_slope>=flat_threshold)*dx*dy
+    aspect_cos_sum(iDOM)    = aspect_cos_sum(iDOM)    + sum(cos(cell_aspect*deg2rad), mask=mask .and. cell_tan_slope>=flat_threshold)*dx*dy
+    dom_contourLength(iDOM) = dom_contourLength(iDOM) + sqrt(area)
+    dom_ablFrac(iDOM)       = dom_ablFrac(iDOM)       + count(mask .and. surface<ELA_use_glac)*dx*dy
   end subroutine addCellsToDomain
 
 end subroutine glacAreaChange
