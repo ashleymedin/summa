@@ -46,7 +46,7 @@ USE mizuroute_coupling, only: route_mizuroute_from_summa
 USE mizuroute_coupling, only: get_mizuroute_reach_hydraulics
 USE mizuroute_coupling, only: remap_lateral_energy
 #endif
-USE streamtemp_module,  only: run_streamNetwork
+USE streamTemp_module,  only: run_streamNetwork
 USE multiconst,         only: iden_water, Cp_water
 
 ! safety: set private unless specified otherwise

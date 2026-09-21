@@ -19,21 +19,15 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module streamtemp_module
-
-! Stream temperature on the coupled river network.
-!
-! Water is routed by mizuRoute; heat is routed here. Each GRU may hold one stream HRU, whose stream domain
-! is the water column of the reach the GRU drains to (nSnow + nLake + nSoil layers and the aquifer, no
-! upland domain). The physics of that column live in the usual SUMMA routines (the lake layers of
-! coupled_em, with the advective source of snowLakeSoilGlceNrgFlux). This module does the network part,
-! following Wanders et al. (2019, WRR, DynWat) after van Beek et al. (2012, WRR): once the land HRUs have
-! run and mizuRoute has routed this step's runoff, it walks the reaches from upstream to downstream and
+! Water is routed by mizuRoute; heat is routed here. Each GRU may hold one stream HRU: a river-only HRU whose 
+! stream domain is the water column of the reach the GRU drains to. The physics of that column live in the
+! usual SUMMA routines. This module does the network part, following Wanders et al. (2019, WRR, DynWat) after 
+! van Beek et al. (2012, WRR): once the land HRUs have run and mizuRoute has routed this step's runoff, it 
+! walks the reaches from upstream to downstream and
 !   * mixes the outflow of the upstream reaches into the temperature of the inflow,
 !   * hands the stream domain its reach inflow, lateral inflow and their temperatures, its outflow and
-!     the reach depth and velocity, and runs the column (run_oneHRU with streamPass=.true.),
+!     the reach depth and velocity, and runs the column 
 !   * reads back the column temperature as the temperature of the water leaving the reach.
-! A reach without a stream HRU just mixes what reaches it, so every reach of the network has an outlet
-! temperature and the stream HRUs can be sparse.
 
 ! data types
 USE nr_type
