@@ -47,6 +47,7 @@ module summabmi
   ! runs SUMMA without the BMI (see summa_mf6_exchange.f90 and summa_simulation.f90)
   USE summa_mf6_exchange, only: mf6x_hru_longitude, mf6x_hru_latitude, mf6x_hru_elevation
   USE summa_mf6_exchange, only: mf6x_soil_thickness
+  USE summa_mf6_exchange, only: mf6x_hru_area
   USE summa_mf6_exchange, only: mf6x_get_drainage
   USE summa_mf6_exchange, only: mf6x_put_lower_bound_head
   USE summa_mf6_exchange, only: mf6x_put_aquifer_storage
@@ -184,6 +185,7 @@ module summabmi
      procedure :: get_grid_y => summa_grid_y
      procedure :: get_grid_z => summa_grid_z
      procedure :: get_soil_thickness => summa_soil_thickness  ! non-BMI: per-HRU soil-column depth (m), for the MODFLOW 6 coupler
+     procedure :: get_hru_area => summa_hru_area              ! non-BMI: per-HRU plan area (m2), for the MODFLOW 6 coupler
      procedure :: get_grid_node_count => summa_grid_node_count
      procedure :: get_grid_edge_count => summa_grid_edge_count
      procedure :: get_grid_face_count => summa_grid_face_count
@@ -861,6 +863,18 @@ module summabmi
      call mf6x_soil_thickness(this%model%summa1_struc(n), thickness)
      bmi_status = BMI_SUCCESS
    end function summa_soil_thickness
+
+   ! HRU plan area (m2) from attributes.nc.  Non-BMI helper: the MODFLOW 6 coupler checks it
+   ! against the summed plan area of the cells each HRU maps to, and uses it to turn per-HRU
+   ! fluxes into volumes for the coupled budget.  HRU order matches BMI grid 0.
+   function summa_hru_area(this, area) result (bmi_status)
+     class (summa_bmi), intent(in) :: this
+     double precision, dimension(:), intent(out) :: area
+     integer :: bmi_status
+
+     call mf6x_hru_area(this%model%summa1_struc(n), area)
+     bmi_status = BMI_SUCCESS
+   end function summa_hru_area
 
    ! Get the number of nodes in an unstructured grid
    function summa_grid_node_count(this, grid, count) result(bmi_status)

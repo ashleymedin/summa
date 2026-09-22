@@ -58,7 +58,18 @@ module mf6_coupling
   !     rch_package_name   = 'RCHA'    ! RCH package name, as in the GWF name file (upper case)
   !     bflow_package_name = 'CHD'     ! head-dependent boundary package (CHD/DRN/RIV/GHB) whose
   !                                    !    simulated flow feeds back per HRU as scalarAquiferBaseflow
-  !                                    !    ('' => skip the baseflow feedback)
+  !                                    !    ('' => skip the baseflow feedback).  Shorthand for a
+  !                                    !    one-entry bnd_package_names table with role 'baseflow';
+  !                                    !    ignored when bnd_package_names is given.
+  !     bnd_package_names  = 'CHD','DRN'            ! up to MAXBND head-dependent boundary packages
+  !     bnd_package_roles  = 'baseflow','surface_discharge'   ! what SUMMA does with each one's flow:
+  !                                    !    'baseflow'          -> scalarAquiferBaseflow, reaches routing
+  !                                    !    'surface_discharge' -> added to SUMMA's surface runoff
+  !                                    !    'gw_et'             -> groundwater ET actually taken
+  !                                    !    Packages sharing a role are summed.
+  !     evt_package_name   = ''        ! EVT package (READASARRAYS) whose RATE array is overwritten
+  !                                    !    each step with SUMMA's aquifer transpiration demand
+  !                                    !    ('' => groundwater ET is not driven from SUMMA)
   !     map_file           = ''        ! optional HRU->cell weight file; if blank a nearest-cell
   !                                    !    map is built from the MODFLOW 6 DIS grid geometry
   !     mf6_epsg           = 0         ! EPSG code of the MODFLOW grid's projected CRS, used only to
@@ -96,6 +107,37 @@ module mf6_coupling
   public :: mf6_prepare_run_dir
 
   integer, parameter :: BMI_OK = 0
+
+  ! ------------------------------------------------------------------------------------
+  ! Boundary-package roles.
+  !
+  ! What SUMMA does with a returned flux is a property of the ROLE, not of the MODFLOW
+  ! package that supplied it.  That indirection is deliberate: the upstream Sagehen model
+  ! (the MODFLOW 6 expression of the GSFLOW design) returns water to the land surface from
+  ! DRN and groundwater ET from UZF, whereas this coupler starts with DRN and EVT.  Keeping
+  ! the role separate from the package means swapping in UZF later is a change here and not
+  ! a change in SUMMA.
+  !
+  !   ROLE_BASEFLOW      -> scalarAquiferBaseflow: reaches routing (basin__AquiferBaseflow)
+  !   ROLE_SURFACE_DISCH -> groundwater discharge at land surface: added to surface runoff
+  !   ROLE_GW_ET         -> groundwater evapotranspiration actually taken by MODFLOW
+  ! ------------------------------------------------------------------------------------
+  integer, parameter :: ROLE_BASEFLOW      = 1
+  integer, parameter :: ROLE_SURFACE_DISCH = 2
+  integer, parameter :: ROLE_GW_ET         = 3
+  integer, parameter :: MAXBND             = 8     ! max boundary packages in the &coupler table
+
+  character(len=20), parameter :: ROLE_NAME(3) = [ character(len=20) :: &
+      'baseflow', 'surface_discharge', 'gw_et' ]
+
+  ! One head-dependent boundary package whose simulated flow feeds back to SUMMA.
+  type :: mf6_bnd_type
+    character(len=256)      :: name  = ''
+    integer                 :: role  = 0
+    logical                 :: found = .false.
+    real(c_double), pointer :: simvals(:)  => null()   ! <MODEL>/<PKG>/SIMVALS  (m3 s-1, + into aquifer)
+    integer(c_int), pointer :: nodelist(:) => null()   ! <MODEL>/<PKG>/NODELIST (REDUCED node numbers)
+  end type mf6_bnd_type
 
   ! ------------------------------------------------------------------------------------
   ! MODFLOW 6 shared library (libmf6): bind directly to the exported C entry points.
@@ -175,16 +217,20 @@ module mf6_coupling
     ! ---- configuration, from the &coupler namelist ----
     character(len=256)  :: mf6_model_name     = ''
     character(len=256)  :: rch_package_name   = 'RCHA'
-    character(len=256)  :: bflow_package_name = 'CHD'
+    character(len=256)  :: bflow_package_name = 'CHD'   ! back-compatible alias for a single role=baseflow entry
+    character(len=256)  :: evt_package_name   = ''      ! EVT package driven with SUMMA's aquifer transpiration demand
     character(len=256)  :: map_file           = ''
     integer             :: mf6_epsg           = 0
     character(len=1024) :: run_dir            = '.'      ! directory holding mfsim.nam ('.' = process cwd)
     character(len=1024) :: saved_dir          = ''       ! cwd to return to, while inside run_dir
 
     ! ---- what the driver needs to know; set by mf6_init ----
-    logical, public :: feedback   = .true.   ! .false. => one-way (SUMMA drainage -> MODFLOW only)
-    logical, public :: have_sy    = .false.  ! STO/SY found, so aquifer storage can be fed back
-    logical, public :: have_bflow = .false.  ! bflow package found, so baseflow can be fed back
+    logical, public :: feedback     = .true.   ! .false. => one-way (SUMMA drainage -> MODFLOW only)
+    logical, public :: have_sy      = .false.  ! STO/SY found, so aquifer storage can be fed back
+    logical, public :: have_bflow   = .false.  ! a role=baseflow package was found
+    logical, public :: have_surfdis = .false.  ! a role=surface_discharge package was found
+    logical, public :: have_gwet    = .false.  ! a role=gw_et package was found
+    logical, public :: have_evt     = .false.  ! an EVT package is available to drive with SUMMA demand
 
     ! ---- reprojection state for the built-in nearest-cell map (nHRU>1 only; see nearest_hru) ----
     integer :: utm_zone = 0
@@ -193,8 +239,16 @@ module mf6_coupling
     ! ---- SUMMA-side geometry, kept because gather_head_to_hru needs it every step ----
     integer                       :: nHRU = 0
     double precision, allocatable :: hru_x(:), hru_y(:), hru_z(:)  ! HRU centroid lon/lat and surface elevation
+    double precision, allocatable :: hru_area(:)                   ! per-HRU plan area from attributes.nc (m2)
     double precision, allocatable :: soil_thk(:)                   ! per-HRU SUMMA soil-column thickness (m)
     real,             allocatable :: sy_hru(:)                     ! per-HRU MODFLOW specific yield (-), map-weighted
+
+    ! ---- coupled budget diagnostic (see mf6_budget_report) ----
+    logical          :: budget = .false.    ! report the per-step coupled budget
+    double precision :: bud_sent = 0.d0     ! cumulative volume SUMMA sent as recharge (m3)
+    double precision :: bud_taken = 0.d0    ! cumulative volume MODFLOW's RCH array received (m3)
+    double precision :: bud_back(3) = 0.d0  ! cumulative volume returned, by role (m3)
+    double precision :: bud_etdem = 0.d0    ! cumulative aquifer-transpiration demand sent (m3)
 
     ! ---- MODFLOW 6 side ----
     real(c_double), pointer :: mf6_head(:) => null()      ! GWF dependent variable  <MODEL>/X       (REDUCED nodes)
@@ -202,9 +256,13 @@ module mf6_coupling
     integer(c_int), pointer :: mf6_mshape(:) => null()    ! DIS grid shape          <MODEL>/DIS/MSHAPE (nlay,nrow,ncol)
     integer(c_int), pointer :: mf6_nodered(:) => null()   ! DIS full->reduced node map <MODEL>/DIS/NODEREDUCED (present only when the grid is reduced)
     real(c_double), pointer :: mf6_sy(:) => null()        ! STO specific yield      <MODEL>/STO/SY  (REDUCED nodes)
-    real(c_double), pointer :: bnd_simvals(:) => null()   ! boundary pkg simulated flow <MODEL>/<BPKG>/SIMVALS (m3 s-1, + = into aquifer)
-    integer(c_int), pointer :: bnd_nodelist(:) => null()  ! boundary pkg cell list  <MODEL>/<BPKG>/NODELIST (REDUCED node numbers)
+    real(c_double), pointer :: mf6_evt(:) => null()       ! EVT max rate array      <MODEL>/<EVT>/RATE (user cells, READASARRAYS)
     logical                 :: grid_reduced = .false.
+
+    ! ---- head-dependent boundary packages fed back to SUMMA, by role ----
+    integer              :: nbnd = 0
+    type(mf6_bnd_type)   :: bnd(MAXBND)
+
     real(c_double), pointer :: cellx(:) => null(), celly(:) => null()
     real(c_double), pointer :: xorigin => null(), yorigin => null(), angrot => null()
     integer                 :: nlay = 0, nrow = 0, ncol = 0
@@ -228,13 +286,19 @@ module mf6_coupling
     procedure, private :: leave_run_dir         => mf6_leave_run_dir
     procedure, private :: check_model           => mf6_check_model
     procedure, private :: check_hru_elevation   => mf6_check_hru_elevation
+    procedure, private :: check_hru_area        => mf6_check_hru_area
+    procedure, private :: budget_accumulate     => mf6_budget_accumulate
+    procedure, private :: budget_report         => mf6_budget_report
     procedure, private :: build_map             => mf6_build_map
     procedure, private :: build_nearest_cell_map=> mf6_build_nearest_cell_map
     procedure, private :: read_map_file         => mf6_read_map_file
     procedure, private :: build_sy_hru          => mf6_build_sy_hru
     procedure, private :: scatter_drainage_to_rch => mf6_scatter_drainage_to_rch
+    procedure, private :: scatter_hru_to_array  => mf6_scatter_hru_to_array
     procedure, private :: gather_head_to_hru    => mf6_gather_head_to_hru
     procedure, private :: gather_aquifer_to_hru => mf6_gather_aquifer_to_hru
+    procedure, private :: gather_boundary_to_hru=> mf6_gather_boundary_to_hru
+    procedure, private :: gather_role_to_hru    => mf6_gather_role_to_hru
     procedure, private :: nearest_hru           => mf6_nearest_hru
     procedure, private :: top_active_node       => mf6_top_active_node
     procedure, private :: to_reduced            => mf6_to_reduced
@@ -249,7 +313,7 @@ contains
   ! mf6_step is in that same order.
   ! ==================================================================================
   subroutine mf6_init(this, config_file, run_dir, nHRU, hru_x, hru_y, hru_z, soil_thk, &
-                      nSummaSteps, summa_data_step, err, message)
+                      nSummaSteps, summa_data_step, err, message, hru_area)
     class(mf6_coupler_type), intent(inout) :: this
     character(len=*),        intent(in)    :: config_file       ! &coupler namelist file
     character(len=*),        intent(in)    :: run_dir           ! directory holding mfsim.nam ('.' = process cwd)
@@ -260,7 +324,8 @@ contains
     double precision,        intent(in)    :: summa_data_step   ! length of a SUMMA data step (s)
     integer,                 intent(out)   :: err
     character(len=*),        intent(out)   :: message
-    integer        :: nred_len, nvar
+    double precision, optional, intent(in) :: hru_area(:)       ! HRU plan area (m2); enables the area and budget checks
+    integer        :: nred_len, nvar, ib
     integer        :: istat
     real(c_double) :: tend_mf6
 
@@ -278,6 +343,9 @@ contains
     this%hru_y    = hru_y(1:nHRU)
     this%hru_z    = hru_z(1:nHRU)
     this%soil_thk = soil_thk(1:nHRU)
+    if (present(hru_area)) then
+      allocate(this%hru_area(nHRU)); this%hru_area = hru_area(1:nHRU)
+    end if
 
     call this%enter_run_dir(err, message)
     if (err /= 0) return
@@ -331,12 +399,36 @@ contains
     if (this%feedback) then
       allocate(this%sy_hru(nHRU)); this%sy_hru = 0.0
       this%have_sy = mf6_try_ptr_double(trim(this%mf6_model_name)//'/STO/SY', this%mf6_sy)
-      if (len_trim(this%bflow_package_name) > 0) then
-        this%have_bflow = &
-          mf6_try_ptr_double(trim(this%mf6_model_name)//'/'//trim(this%bflow_package_name)//'/SIMVALS',  this%bnd_simvals) .and. &
-          mf6_try_ptr_int   (trim(this%mf6_model_name)//'/'//trim(this%bflow_package_name)//'/NODELIST', this%bnd_nodelist)
-        if (.not. this%have_bflow) write(*,'(a)') 'summa_modflow6: WARNING - boundary package "'// &
-          trim(this%bflow_package_name)//'" not found; scalarAquiferBaseflow feedback disabled'
+
+      ! every boundary package in the table: SIMVALS + NODELIST, or a warning and that role off
+      do ib = 1, this%nbnd
+        this%bnd(ib)%found = &
+          mf6_try_ptr_double(trim(this%mf6_model_name)//'/'//trim(this%bnd(ib)%name)//'/SIMVALS',  this%bnd(ib)%simvals) .and. &
+          mf6_try_ptr_int   (trim(this%mf6_model_name)//'/'//trim(this%bnd(ib)%name)//'/NODELIST', this%bnd(ib)%nodelist)
+        if (.not. this%bnd(ib)%found) write(*,'(a)') 'summa_modflow6: WARNING - boundary package "'// &
+          trim(this%bnd(ib)%name)//'" (role '//trim(ROLE_NAME(this%bnd(ib)%role))// &
+          ') not found; that feedback is disabled'
+      end do
+      this%have_bflow   = any(this%bnd(1:this%nbnd)%found .and. this%bnd(1:this%nbnd)%role == ROLE_BASEFLOW)
+      this%have_surfdis = any(this%bnd(1:this%nbnd)%found .and. this%bnd(1:this%nbnd)%role == ROLE_SURFACE_DISCH)
+      this%have_gwet    = any(this%bnd(1:this%nbnd)%found .and. this%bnd(1:this%nbnd)%role == ROLE_GW_ET)
+    end if
+
+    ! -- EVT: the one package SUMMA writes into rather than reads from (Phase 3).  READASARRAYS,
+    !    so RATE is one value per horizontal cell, exactly like RCH's RECHARGE.
+    if (len_trim(this%evt_package_name) > 0) then
+      this%have_evt = mf6_try_ptr_double(trim(this%mf6_model_name)//'/'// &
+                                         trim(this%evt_package_name)//'/RATE', this%mf6_evt)
+      if (this%have_evt) then
+        if (size(this%mf6_evt) /= this%nrow*this%ncol) then
+          write(message,'(a,i0,a,i0,a)') 'EVT package '//trim(this%evt_package_name)// &
+                ' must be declared READASARRAYS: its RATE array has ', size(this%mf6_evt), &
+                ' entries, not one per horizontal cell (', this%nrow*this%ncol, ')'
+          err = 20; call this%leave_run_dir(); return
+        end if
+      else
+        write(*,'(a)') 'summa_modflow6: WARNING - EVT package "'//trim(this%evt_package_name)// &
+          '" not found; groundwater evapotranspiration is not driven from SUMMA'
       end if
     end if
 
@@ -353,8 +445,15 @@ contains
     call this%build_map(err, message)
     if (err /= 0) then; call this%leave_run_dir(); return; end if
 
+    ! -- HRU area vs mapped-cell area: the silent failure mode behind Equation (2) --
+    call this%check_hru_area
+
     ! -- per-HRU specific yield (map-weighted), fixed for the run --
     if (this%feedback .and. this%have_sy) call this%build_sy_hru
+
+    ! the coupled budget needs HRU areas to convert per-HRU fluxes to volumes
+    this%budget = allocated(this%hru_area)
+    this%bud_sent = 0.d0; this%bud_taken = 0.d0; this%bud_back = 0.d0; this%bud_etdem = 0.d0
 
     call this%leave_run_dir()
   end subroutine mf6_init
@@ -366,7 +465,8 @@ contains
   ! head_hru/stor_hru/bflow_hru are the driver's own lagged feedback arrays: they are read
   ! back here for the next step, and are left untouched when feedback is off.
   ! ==================================================================================
-  subroutine mf6_step(this, istep, summa_data_step, drain_hru, head_hru, stor_hru, bflow_hru, err, message)
+  subroutine mf6_step(this, istep, summa_data_step, drain_hru, head_hru, stor_hru, bflow_hru, err, message, &
+                      surfdis_hru, gwet_demand_hru, gwet_hru)
     class(mf6_coupler_type), intent(inout) :: this
     integer,                 intent(in)    :: istep             ! 1-based coupling step index
     double precision,        intent(in)    :: summa_data_step   ! length of a SUMMA data step (s)
@@ -376,6 +476,10 @@ contains
     real,                    intent(inout) :: bflow_hru(:)      ! per-HRU aquifer baseflow (m s-1, + = out of aquifer)
     integer,                 intent(out)   :: err
     character(len=*),        intent(out)   :: message
+    ! optional extra exchange channels; a driver that does not pass them behaves exactly as before
+    real, optional,          intent(inout) :: surfdis_hru(:)      ! per-HRU groundwater discharge at land surface (m s-1, + = out)
+    real, optional,          intent(in)    :: gwet_demand_hru(:)  ! per-HRU aquifer transpiration DEMAND from SUMMA (m s-1, + = out)
+    real, optional,          intent(inout) :: gwet_hru(:)         ! per-HRU groundwater ET ACTUALLY taken by MODFLOW (m s-1, + = out)
     integer        :: istat
     real(c_double) :: dt_mf6
 
@@ -386,6 +490,11 @@ contains
 
     ! 3. SUMMA soil drainage -> MODFLOW 6 RCH recharge array
     call this%scatter_drainage_to_rch(drain_hru)
+
+    ! 3b. SUMMA aquifer transpiration demand -> MODFLOW 6 EVT rate array.  MODFLOW applies its
+    !     own water-table-depth limiting, so what it actually takes comes back at step 5.
+    if (this%have_evt .and. present(gwet_demand_hru)) &
+      call this%scatter_hru_to_array(gwet_demand_hru, this%mf6_evt)
 
     ! 4. advance MODFLOW 6 one coupling step
     istat = mf6_prepare_time_step(real(summa_data_step, c_double))
@@ -406,7 +515,14 @@ contains
     if (this%feedback) then
       call this%gather_head_to_hru(head_hru)
       call this%gather_aquifer_to_hru(head_hru, stor_hru, bflow_hru)
+      if (this%have_surfdis .and. present(surfdis_hru)) &
+        call this%gather_role_to_hru(ROLE_SURFACE_DISCH, surfdis_hru)
+      if (this%have_gwet .and. present(gwet_hru)) &
+        call this%gather_role_to_hru(ROLE_GW_ET, gwet_hru)
     end if
+
+    ! 6. accumulate the coupled budget, now that both sides of this step are known
+    call this%budget_accumulate(summa_data_step, drain_hru, bflow_hru, surfdis_hru, gwet_hru, gwet_demand_hru)
 
     call this%leave_run_dir()
   end subroutine mf6_step
@@ -419,9 +535,12 @@ contains
     class(mf6_coupler_type), intent(inout) :: this
     integer,                 intent(out)   :: err
     character(len=*),        intent(out)   :: message
-    integer :: istat
+    integer :: istat, ib
 
     err = 0; message = ''
+
+    ! report before tearing anything down, so a failed finalize still leaves the budget visible
+    call this%budget_report
 
     call this%enter_run_dir(err, message)
     if (err == 0) then
@@ -435,6 +554,7 @@ contains
     if (allocated(this%hru_x))     deallocate(this%hru_x)
     if (allocated(this%hru_y))     deallocate(this%hru_y)
     if (allocated(this%hru_z))     deallocate(this%hru_z)
+    if (allocated(this%hru_area))  deallocate(this%hru_area)
     if (allocated(this%soil_thk))  deallocate(this%soil_thk)
     if (allocated(this%sy_hru))    deallocate(this%sy_hru)
     if (allocated(this%map_ptr))   deallocate(this%map_ptr)
@@ -443,11 +563,15 @@ contains
     if (allocated(this%cell_area)) deallocate(this%cell_area)
     this%mf6_head     => null()
     this%mf6_rch      => null()
+    this%mf6_evt      => null()
     this%mf6_mshape   => null()
     this%mf6_nodered  => null()
     this%mf6_sy       => null()
-    this%bnd_simvals  => null()
-    this%bnd_nodelist => null()
+    do ib = 1, MAXBND
+      this%bnd(ib)%simvals  => null()
+      this%bnd(ib)%nodelist => null()
+      this%bnd(ib)%found    = .false.
+    end do
     this%cellx        => null()
     this%celly        => null()
     this%xorigin      => null()
@@ -456,6 +580,10 @@ contains
     this%grid_reduced = .false.
     this%have_sy      = .false.
     this%have_bflow   = .false.
+    this%have_surfdis = .false.
+    this%have_gwet    = .false.
+    this%have_evt     = .false.
+    this%budget       = .false.
     this%nHRU         = 0
   end subroutine mf6_finalize_coupler
 
@@ -521,11 +649,15 @@ contains
     character(len=*),        intent(in)    :: config_file
     integer,                 intent(out)   :: err
     character(len=*),        intent(out)   :: message
-    integer :: fu, rc
+    integer :: fu, rc, ib, ir
     character(len=256) :: mf6_model_name, rch_package_name, bflow_package_name, map_file
+    character(len=256) :: evt_package_name
+    character(len=256) :: bnd_package_names(MAXBND)
+    character(len=32)  :: bnd_package_roles(MAXBND)
     integer            :: mf6_epsg
     logical            :: feedback
-    namelist /coupler/ mf6_model_name, rch_package_name, bflow_package_name, map_file, mf6_epsg, feedback
+    namelist /coupler/ mf6_model_name, rch_package_name, bflow_package_name, evt_package_name, &
+                       bnd_package_names, bnd_package_roles, map_file, mf6_epsg, feedback
 
     err = 0; message = ''
 
@@ -533,6 +665,9 @@ contains
     mf6_model_name     = ''
     rch_package_name   = 'RCHA'
     bflow_package_name = 'CHD'
+    evt_package_name   = ''
+    bnd_package_names  = ''
+    bnd_package_roles  = ''
     map_file           = ''
     mf6_epsg           = 0
     feedback           = .true.
@@ -553,6 +688,7 @@ contains
     this%mf6_model_name     = mf6_model_name
     this%rch_package_name   = rch_package_name
     this%bflow_package_name = bflow_package_name
+    this%evt_package_name   = evt_package_name
     this%map_file           = map_file
     this%mf6_epsg           = mf6_epsg
     this%feedback           = feedback
@@ -560,6 +696,34 @@ contains
     call to_upper(this%mf6_model_name)
     call to_upper(this%rch_package_name)
     call to_upper(this%bflow_package_name)
+    call to_upper(this%evt_package_name)
+
+    ! -- build the boundary-package table --
+    ! Two ways in, and the explicit table wins.  If bnd_package_names is left blank the single
+    ! bflow_package_name entry is used as role=baseflow, which is exactly what every config
+    ! written before this table existed means, so they keep working untouched.
+    this%nbnd = 0
+    if (len_trim(bnd_package_names(1)) > 0) then
+      do ib = 1, MAXBND
+        if (len_trim(bnd_package_names(ib)) == 0) cycle
+        call to_upper(bnd_package_names(ib))
+        call to_lower(bnd_package_roles(ib))
+        ir = role_code(bnd_package_roles(ib))
+        if (ir == 0) then
+          message = 'unknown bnd_package_roles entry "'//trim(bnd_package_roles(ib))// &
+                '" for package "'//trim(bnd_package_names(ib))//'" in '//trim(config_file)// &
+                ' - expected one of: '//trim(ROLE_NAME(1))//', '//trim(ROLE_NAME(2))//', '//trim(ROLE_NAME(3))
+          err = 20; return
+        end if
+        this%nbnd = this%nbnd + 1
+        this%bnd(this%nbnd)%name = bnd_package_names(ib)
+        this%bnd(this%nbnd)%role = ir
+      end do
+    else if (len_trim(this%bflow_package_name) > 0) then
+      this%nbnd = 1
+      this%bnd(1)%name = this%bflow_package_name
+      this%bnd(1)%role = ROLE_BASEFLOW
+    end if
 
     if (this%mf6_epsg /= 0) then
       this%use_utm = utm_zone_from_epsg(this%mf6_epsg, this%utm_zone, this%utm_north)
@@ -619,8 +783,22 @@ contains
   subroutine mf6_scatter_drainage_to_rch(this, drain_hru)
     class(mf6_coupler_type), intent(inout) :: this
     real,                    intent(in)    :: drain_hru(:)
+    call this%scatter_hru_to_array(drain_hru, this%mf6_rch)
+  end subroutine mf6_scatter_drainage_to_rch
+
+  ! ==================================================================================
+  ! The general version: a per-HRU flux (m s-1) onto a READASARRAYS per-horizontal-cell
+  ! MODFLOW array.  RCH's RECHARGE and EVT's RATE are both shaped this way, so both go
+  ! through here rather than repeating the weighting.  Cells with no mapped HRU get zero.
+  ! ==================================================================================
+  subroutine mf6_scatter_hru_to_array(this, flux_hru, arr)
+    class(mf6_coupler_type), intent(inout) :: this
+    real,                    intent(in)    :: flux_hru(:)
+    real(c_double), pointer, intent(inout) :: arr(:)
     real(c_double), allocatable :: num(:), den(:)
     integer :: i, k, c
+
+    if (.not. associated(arr)) return
 
     allocate(num(this%nrow*this%ncol), den(this%nrow*this%ncol))
     num = 0.0_c_double
@@ -629,21 +807,21 @@ contains
       do k = this%map_ptr(i), this%map_ptr(i+1) - 1
         c = this%map_cell(k)
         if (c < 1 .or. c > this%nrow*this%ncol) cycle
-        num(c) = num(c) + real(this%map_wgt(k), c_double) * this%cell_area(c) * real(drain_hru(i), c_double)
+        num(c) = num(c) + real(this%map_wgt(k), c_double) * this%cell_area(c) * real(flux_hru(i), c_double)
         den(c) = den(c) + real(this%map_wgt(k), c_double) * this%cell_area(c)
       end do
     end do
 
-    ! RECHARGE is indexed by horizontal cell (row-major) for READASARRAYS RCH
-    do c = 1, min(size(this%mf6_rch), this%nrow*this%ncol)
+    ! the array is indexed by horizontal cell (row-major) for a READASARRAYS package
+    do c = 1, min(size(arr), this%nrow*this%ncol)
       if (den(c) > 0.0_c_double) then
-        this%mf6_rch(c) = num(c) / den(c)
+        arr(c) = num(c) / den(c)
       else
-        this%mf6_rch(c) = 0.0_c_double
+        arr(c) = 0.0_c_double
       end if
     end do
     deallocate(num, den)
-  end subroutine mf6_scatter_drainage_to_rch
+  end subroutine mf6_scatter_hru_to_array
 
   ! ==================================================================================
   ! MODFLOW head (m, per node)  ->  SUMMA prescribed lower-BC matric head (m, per HRU).
@@ -688,8 +866,7 @@ contains
     real,                    intent(in)    :: head_hru(:)
     real,                    intent(inout) :: stor_hru(:)
     real,                    intent(inout) :: bflow_hru(:)
-    integer :: i, k, c, kb, nr
-    real(c_double) :: fnum, aden
+    integer :: i
 
     if (this%have_sy) then
       do i = 1, this%nHRU
@@ -697,26 +874,84 @@ contains
       end do
     end if
 
-    if (this%have_bflow) then
-      do i = 1, this%nHRU
-        fnum = 0.0_c_double     ! signed boundary flow over the HRU's mapped cells (m3 s-1, + into aquifer)
-        aden = 0.0_c_double     ! matching mapped-cell plan area (m2)
-        do k = this%map_ptr(i), this%map_ptr(i+1) - 1
-          c = this%map_cell(k)
-          if (c < 1 .or. c > this%nrow*this%ncol) cycle
-          nr = this%to_reduced(c)                  ! boundary NODELIST holds reduced node numbers
-          if (nr > 0) then
-            do kb = 1, size(this%bnd_simvals)
-              if (this%bnd_nodelist(kb) == nr) &
-                fnum = fnum + real(this%map_wgt(k), c_double) * this%bnd_simvals(kb)
-            end do
-          end if
-          aden = aden + real(this%map_wgt(k), c_double) * this%cell_area(c)
-        end do
-        if (aden > 0.0_c_double) bflow_hru(i) = real(-fnum / aden)
-      end do
-    end if
+    if (this%have_bflow) call this%gather_role_to_hru(ROLE_BASEFLOW, bflow_hru)
   end subroutine mf6_gather_aquifer_to_hru
+
+  ! ==================================================================================
+  ! Sum every boundary package carrying the given role into one per-HRU flux.
+  !
+  ! Several packages may share a role (two drain packages both discharging at land
+  ! surface, say), so the contributions add.  Packages that were not found are skipped,
+  ! which is what makes a missing optional package a warning at init rather than a crash
+  ! here.  head_hru is left alone when no package carries the role, so the driver's
+  ! lagged array simply keeps its previous value - the same contract as gather_head_to_hru.
+  ! ==================================================================================
+  subroutine mf6_gather_role_to_hru(this, role, out_hru)
+    class(mf6_coupler_type), intent(inout) :: this
+    integer,                 intent(in)    :: role
+    real,                    intent(inout) :: out_hru(:)
+    integer :: ib
+    logical :: first
+
+    first = .true.
+    do ib = 1, this%nbnd
+      if (this%bnd(ib)%role /= role) cycle
+      if (.not. this%bnd(ib)%found) cycle
+      call this%gather_boundary_to_hru(ib, out_hru, accumulate = .not. first)
+      first = .false.
+    end do
+  end subroutine mf6_gather_role_to_hru
+
+  ! ==================================================================================
+  ! One boundary package's simulated flow  ->  per-HRU flux (m s-1, + = out of aquifer).
+  !
+  !     out_hru(i) = -( sum_k w_ik * Q_k ) / ( sum_k w_ik * A_k )
+  !
+  ! MODFLOW reports boundary flow as a volumetric rate (m3 s-1) that is positive INTO the
+  ! aquifer, so the sign flips: a drain or a constant head taking water out of the aquifer
+  ! becomes a positive outward flux per unit area.  NODELIST holds reduced node numbers,
+  ! which differ from full-grid numbering wherever IDOMAIN deactivates cells, hence
+  ! to_reduced.  This is the gather that used to be inline in gather_aquifer_to_hru; it is
+  ! separate now because roles other than baseflow need exactly the same arithmetic.
+  ! ==================================================================================
+  subroutine mf6_gather_boundary_to_hru(this, ib, out_hru, accumulate)
+    class(mf6_coupler_type), intent(inout) :: this
+    integer,                 intent(in)    :: ib           ! index into this%bnd
+    real,                    intent(inout) :: out_hru(:)
+    logical, optional,       intent(in)    :: accumulate   ! .true. => add to out_hru rather than overwrite
+    integer :: i, k, c, kb, nr
+    real(c_double) :: fnum, aden
+    real           :: flux
+    logical        :: add
+
+    add = .false.
+    if (present(accumulate)) add = accumulate
+
+    do i = 1, this%nHRU
+      fnum = 0.0_c_double     ! signed boundary flow over the HRU's mapped cells (m3 s-1, + into aquifer)
+      aden = 0.0_c_double     ! matching mapped-cell plan area (m2)
+      do k = this%map_ptr(i), this%map_ptr(i+1) - 1
+        c = this%map_cell(k)
+        if (c < 1 .or. c > this%nrow*this%ncol) cycle
+        nr = this%to_reduced(c)                  ! boundary NODELIST holds reduced node numbers
+        if (nr > 0) then
+          do kb = 1, size(this%bnd(ib)%simvals)
+            if (this%bnd(ib)%nodelist(kb) == nr) &
+              fnum = fnum + real(this%map_wgt(k), c_double) * this%bnd(ib)%simvals(kb)
+          end do
+        end if
+        aden = aden + real(this%map_wgt(k), c_double) * this%cell_area(c)
+      end do
+      if (aden > 0.0_c_double) then
+        flux = real(-fnum / aden)
+        if (add) then
+          out_hru(i) = out_hru(i) + flux
+        else
+          out_hru(i) = flux
+        end if
+      end if
+    end do
+  end subroutine mf6_gather_boundary_to_hru
 
   ! Map-weighted MODFLOW specific yield per HRU (fixed for the run).
   subroutine mf6_build_sy_hru(this)
@@ -932,6 +1167,126 @@ contains
       err = 20; return
     end if
   end subroutine mf6_check_hru_elevation
+
+  ! ==================================================================================
+  ! Each HRU's area in attributes.nc must equal the summed plan area of the MODFLOW cells
+  ! it maps to, or recharge VOLUME is not conserved across the interface.
+  !
+  ! scatter_hru_to_array writes a weight-weighted mean of HRU drainage RATES, because the
+  ! cell area is common to every contribution to a given cell and cancels.  MODFLOW then
+  ! multiplies that rate by ITS cell area, so the volume that arrives is
+  !     sum_c A_c * q      instead of      A_HRU * q,
+  ! and the two agree only when the areas do.  The same applies in reverse to the baseflow
+  ! gather, which divides by mapped-cell area and is then applied per unit HRU area.
+  !
+  ! This is a warning rather than a hard stop: a nearest-cell map over a real basin will
+  ! rarely match exactly, and the honest response is to say by how much rather than to
+  ! refuse to run.  The elevation check above stops because a bad elevation makes SUMMA
+  ! fail to converge; a bad area silently mis-scales a flux, which is why it is reported
+  ! here AND accumulated by the budget diagnostic every step.
+  ! ==================================================================================
+  subroutine mf6_check_hru_area(this)
+    class(mf6_coupler_type), intent(inout) :: this
+    integer :: i, k, c, nbad
+    real(c_double) :: amap, rel, worst
+    integer :: iworst
+
+    if (.not. allocated(this%hru_area)) return
+
+    nbad = 0; worst = 0.0_c_double; iworst = 0
+    do i = 1, this%nHRU
+      amap = 0.0_c_double
+      do k = this%map_ptr(i), this%map_ptr(i+1) - 1
+        c = this%map_cell(k)
+        if (c < 1 .or. c > this%nrow*this%ncol) cycle
+        amap = amap + this%cell_area(c)      ! full plan area of every cell this HRU touches
+      end do
+      if (this%hru_area(i) <= 0.0d0 .or. amap <= 0.0_c_double) cycle
+      rel = abs(amap - this%hru_area(i)) / this%hru_area(i)
+      if (rel > 0.01_c_double) then
+        nbad = nbad + 1
+        if (rel > worst) then; worst = rel; iworst = i; end if
+        if (nbad <= 5) write(*,'(a,i0,a,g0,a,g0,a,f0.1,a)') &
+          'summa_modflow6: WARNING - HRU ', i, ' area ', this%hru_area(i), &
+          ' m2 but its mapped MODFLOW cells total ', amap, ' m2 (', 100.0_c_double*rel, '% out)'
+      end if
+    end do
+
+    if (nbad > 0) then
+      write(*,'(a,i0,a,i0,a,f0.1,a,i0,a)') 'summa_modflow6: WARNING - ', nbad, ' of ', this%nHRU, &
+        ' HRUs disagree with their mapped cell area by more than 1% (worst ', &
+        100.0_c_double*worst, '% at HRU ', iworst, '). Recharge VOLUME is not conserved for those '// &
+        'HRUs: the scatter conserves rate, not volume. Supply a map_file with exact intersection '// &
+        'weights, or correct HRUarea in attributes.nc.'
+    end if
+  end subroutine mf6_check_hru_area
+
+  ! ==================================================================================
+  ! Per-step coupled budget: what SUMMA sent, what MODFLOW took, what came back.
+  !
+  ! Section 8.4 of the write-up notes that SUMMA's coupled water balance is an assembly of
+  ! quantities from two models at two different times whose closure has never been audited.
+  ! This is that audit.  Volumes are accumulated over the run and reported at finalize:
+  !
+  !   sent   = sum_i A_HRU,i * q_i * dt                (what SUMMA handed over)
+  !   taken  = sum_c A_c * R_c * dt                    (what MODFLOW's RCH array actually got)
+  !   back   = sum_i A_HRU,i * f_i * dt  per role      (what came back to SUMMA)
+  !
+  ! sent /= taken is exactly the area mismatch check_hru_area warns about, measured in m3
+  ! rather than percent.  The residual sent - taken is NOT the same thing as MODFLOW's own
+  ! budget discrepancy, which is dominated by the one-step lag (section 8.2); this isolates
+  ! the mapping error from the lag error, which is the point of reporting it separately.
+  ! ==================================================================================
+  subroutine mf6_budget_accumulate(this, dt, drain_hru, bflow_hru, surfdis_hru, gwet_hru, gwet_demand_hru)
+    class(mf6_coupler_type), intent(inout) :: this
+    double precision,        intent(in)    :: dt
+    real,                    intent(in)    :: drain_hru(:)
+    real,                    intent(in)    :: bflow_hru(:)
+    real, optional,          intent(in)    :: surfdis_hru(:), gwet_hru(:), gwet_demand_hru(:)
+    integer :: i, c
+
+    if (.not. this%budget) return
+
+    ! SUMMA side: per-HRU flux over the HRU's own area
+    do i = 1, this%nHRU
+      this%bud_sent = this%bud_sent + this%hru_area(i) * dble(drain_hru(i)) * dt
+      if (this%have_bflow)   this%bud_back(ROLE_BASEFLOW) = &
+        this%bud_back(ROLE_BASEFLOW) + this%hru_area(i) * dble(bflow_hru(i)) * dt
+      if (present(surfdis_hru) .and. this%have_surfdis) this%bud_back(ROLE_SURFACE_DISCH) = &
+        this%bud_back(ROLE_SURFACE_DISCH) + this%hru_area(i) * dble(surfdis_hru(i)) * dt
+      if (present(gwet_hru) .and. this%have_gwet) this%bud_back(ROLE_GW_ET) = &
+        this%bud_back(ROLE_GW_ET) + this%hru_area(i) * dble(gwet_hru(i)) * dt
+      if (present(gwet_demand_hru)) &
+        this%bud_etdem = this%bud_etdem + this%hru_area(i) * dble(gwet_demand_hru(i)) * dt
+    end do
+
+    ! MODFLOW side: the RCH array as it now stands, over the cells' own areas
+    do c = 1, min(size(this%mf6_rch), this%nrow*this%ncol)
+      this%bud_taken = this%bud_taken + this%cell_area(c) * this%mf6_rch(c) * dt
+    end do
+  end subroutine mf6_budget_accumulate
+
+  subroutine mf6_budget_report(this)
+    class(mf6_coupler_type), intent(in) :: this
+    double precision :: resid, pct
+
+    if (.not. this%budget) return
+
+    resid = this%bud_sent - this%bud_taken
+    pct   = 0.d0
+    if (abs(this%bud_sent) > 0.d0) pct = 100.d0 * resid / this%bud_sent
+
+    write(*,'(a)')        'summa_modflow6: coupled water budget over the run (m3)'
+    write(*,'(a,g0)')     '  SUMMA drainage sent      : ', this%bud_sent
+    write(*,'(a,g0)')     '  MODFLOW recharge received: ', this%bud_taken
+    write(*,'(a,g0,a,f0.3,a)') '  mapping residual         : ', resid, '  (', pct, '% of sent)'
+    if (this%have_bflow)   write(*,'(a,g0)') '  returned as baseflow     : ', this%bud_back(ROLE_BASEFLOW)
+    if (this%have_surfdis) write(*,'(a,g0)') '  returned at land surface : ', this%bud_back(ROLE_SURFACE_DISCH)
+    if (this%have_gwet)    write(*,'(a,g0)') '  taken as groundwater ET  : ', this%bud_back(ROLE_GW_ET)
+    if (this%have_evt)     write(*,'(a,g0)') '  ET demand sent           : ', this%bud_etdem
+    if (abs(pct) > 1.d0) write(*,'(a)') '  NOTE: a non-zero mapping residual is the HRU/cell area mismatch, '// &
+      'not the coupling lag; see the HRU area warnings at start-up.'
+  end subroutine mf6_budget_report
 
   real(c_double) function cell_spacing(centres, idx, ncell) result(d)
     real(c_double), intent(in) :: centres(:)
@@ -1300,5 +1655,24 @@ contains
       if (k >= iachar('a') .and. k <= iachar('z')) s(i:i) = achar(k - 32)
     end do
   end subroutine to_upper
+
+  subroutine to_lower(s)
+    character(len=*), intent(inout) :: s
+    integer :: i, k
+    do i = 1, len_trim(s)
+      k = iachar(s(i:i))
+      if (k >= iachar('A') .and. k <= iachar('Z')) s(i:i) = achar(k + 32)
+    end do
+  end subroutine to_lower
+
+  ! Boundary-package role name -> role code; 0 if the name is not one we know.
+  integer function role_code(name) result(ir)
+    character(len=*), intent(in) :: name
+    integer :: i
+    ir = 0
+    do i = 1, size(ROLE_NAME)
+      if (trim(name) == trim(ROLE_NAME(i))) then; ir = i; return; end if
+    end do
+  end function role_code
 
 end module mf6_coupling
