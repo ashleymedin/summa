@@ -253,6 +253,8 @@ module mf6_coupling
     double precision, allocatable :: soil_thk(:)                   ! per-HRU SUMMA soil-column thickness (m)
     real,             allocatable :: sy_hru(:)                     ! per-HRU MODFLOW specific yield (-), map-weighted
 
+    integer :: nss_steps = 0                ! leading steady-state MODFLOW steps run before the coupled period
+
     ! ---- coupled budget diagnostic (see mf6_budget_report) ----
     logical          :: budget = .false.    ! report the per-step coupled budget
     double precision :: bud_sent = 0.d0     ! cumulative volume SUMMA sent as recharge (m3)
@@ -297,6 +299,7 @@ module mf6_coupling
     procedure, private :: check_model           => mf6_check_model
     procedure, private :: check_hru_elevation   => mf6_check_hru_elevation
     procedure, private :: check_hru_area        => mf6_check_hru_area
+    procedure, private :: is_steady_state       => mf6_is_steady_state
     procedure, private :: head_restart_in       => mf6_head_restart_read
     procedure, private :: head_restart_out      => mf6_head_restart_write
     procedure, private :: resolve_path          => mf6_resolve_path
@@ -521,9 +524,40 @@ contains
     ! MODFLOW solved that step with the model builder's placeholder constant instead - silently,
     ! because it is one step in seventy-two.  Preparing first and scattering after is the correct
     ! order: the reload happens, then SUMMA's values overwrite it, then the solve sees them.
-    istat = mf6_prepare_time_step(real(summa_data_step, c_double))
+    ! Leading steady-state stress periods are run out here, before the coupled loop proper.
+    !
+    ! The upstream Sagehen example equilibrates the water table with a steady-state first stress
+    ! period and only then goes transient; that was simplified out when this test model was built
+    ! (section 6.1), and section 8.5 wants it back, because otherwise the coupled model starts from
+    ! whatever STRT happens to contain.  MODFLOW reports the current period's steady-state flag in
+    ! <MODEL>/ISS, but only once the step is prepared, so the shape here is prepare-then-test:
+    ! a steady-state step is solved and skipped, and the loop exits on the first transient step,
+    ! which is the one the coupling actually drives.
+    !
+    ! A steady-state step is deliberately NOT given SUMMA's drainage.  It is solved with whatever
+    ! the RCH package's own PERIOD block supplies - a climatological mean the model builder
+    ! provides - because an instantaneous first-hour drainage rate is not a sensible thing to
+    ! equilibrate an aquifer against.  That is also why the scatter sits after this loop.
+    !
+    ! Models with no steady-state period read ISS = 0 on the first prepare and fall straight
+    ! through, so nothing changes for them.
+    do
+      istat = mf6_prepare_time_step(real(summa_data_step, c_double))
+      if (istep /= 1) exit                      ! only leading periods; later steps are transient
+      if (.not. this%is_steady_state()) exit
+      istat = mf6_do_time_step()
+      istat = mf6_finalize_time_step()
+      this%nss_steps = this%nss_steps + 1
+    end do
+    if (istep == 1 .and. this%nss_steps > 0) then
+      write(*,'(a,i0,a)') 'summa_modflow6: ran ', this%nss_steps, &
+            ' steady-state MODFLOW step(s) before the coupled period, to equilibrate the water table'
+    end if
+
     if (istep == 1) then
-      ! delt is now set: verify one MODFLOW time step == one SUMMA data step
+      ! delt is now set, and this is the first TRANSIENT step: verify one MODFLOW step == one
+      ! SUMMA data step.  Deliberately checked here rather than on a steady-state step, whose
+      ! perlen has nothing to do with the coupling interval.
       istat = mf6_get_time_step(dt_mf6)
       if (abs(dt_mf6 - real(summa_data_step, c_double)) > 1.0e-6_c_double*real(summa_data_step, c_double)) then
         write(message,'(a,g0,a,g0,a)') 'MODFLOW time step (', dt_mf6, &
@@ -1208,6 +1242,22 @@ contains
       err = 20; return
     end if
   end subroutine mf6_check_hru_elevation
+
+  ! Is the stress period MODFLOW has just prepared a steady-state one?
+  !
+  ! <MODEL>/ISS is the GWF model's steady-state flag (gwf.f90 allocates it; gwf-sto.f90 points at
+  ! it and sets it from each period's STO PERIOD block).  It is only meaningful once a step has
+  ! been prepared, which is why callers prepare first and ask afterwards.  A model with no STO
+  ! package, or one where the flag cannot be read, is treated as transient - the safe default,
+  ! since that is exactly how the coupler behaved before steady-state periods were supported.
+  logical function mf6_is_steady_state(this) result(ss)
+    class(mf6_coupler_type), intent(in) :: this
+    integer(c_int), pointer :: iss(:) => null()
+    ss = .false.
+    if (.not. mf6_try_ptr_int(trim(this%mf6_model_name)//'/ISS', iss)) return
+    if (size(iss) < 1) return
+    ss = (iss(1) /= 0)
+  end function mf6_is_steady_state
 
   ! ==================================================================================
   ! Coupled restart of the MODFLOW head field.

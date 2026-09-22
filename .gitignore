@@ -108,6 +108,11 @@ utils/test/test_mflow/ex-gwf-sagehen/*.hds
 utils/test/test_mflow/ex-gwf-sagehen/*.cbc
 utils/test/test_mflow/ex-gwf-sagehen/*.stdout
 utils/test/test_mflow/ex-gwf-sagehen/*.dis.grb
+utils/test/test_mflow/ex-gwf-sagehen-ss/*.lst
+utils/test/test_mflow/ex-gwf-sagehen-ss/*.hds
+utils/test/test_mflow/ex-gwf-sagehen-ss/*.cbc
+utils/test/test_mflow/ex-gwf-sagehen-ss/*.stdout
+utils/test/test_mflow/ex-gwf-sagehen-ss/*.dis.grb
 build/cmake_build_mpi
 build/cmake_build_nosun
 
