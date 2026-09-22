@@ -2028,7 +2028,6 @@ contains
   ! mass change is in scalarGlceWE). A top layer thinned below zminLayer is merged into the one beneath by layerMerge
   ! within the step; here the count is restored by dividing the top layer back (layerDivide duplicates its state and
   ! every other vector of the layer, so the step's diagnostics stay defined), and the depths and heights are reset.
-  ! NOTE: called after the associations to the layer vectors are out of scope, since the vectors are reallocated
   integer(i4b),intent(out)   :: err       ! error code
   character(*),intent(out)   :: message   ! error message
   integer(i4b)               :: iLayer    ! layer index
