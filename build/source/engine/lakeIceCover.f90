@@ -37,7 +37,7 @@ module lakeIceCover_module
 !
 ! This module owns the lake layering: layerDivide and layerMerge never touch lake layers, and the
 ! cover is a single layer (nLakeFrz is 0 or 1) however thick it grows. A cover of several layers,
-! to resolve the temperature gradient through thick ice, would be built here too:
+! to resolve the temperature gradient through thick ice, should be built here once wetlands are implemented:
 !   * divide the bottom ice layer when it grows past a thickness threshold (an ice parameter, not
 !     the snow zmax), duplicating its state at half the depth with addLakeLayer, up to
 !     nLakeIceLayers_poss layers (summa_setup already sizes the ice enthalpy lookup for it);
@@ -45,7 +45,6 @@ module lakeIceCover_module
 !     enthalpy as layer_combine of layerMerge does, before the breakup test on the bottom one;
 !   * on a forced breakup, return the bottom ice layer to the water and let the next step decide
 !     about the rest, or merge the cover into one layer first.
-! The rest of the model already indexes the cover as nSnow+1:nSnow+nLakeFrz.
 
 USE nr_type
 USE data_types,only:var_ilength,var_dlength,var_info ! data vectors with variable length dimension, and metadata
