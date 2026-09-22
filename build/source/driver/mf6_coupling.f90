@@ -511,15 +511,16 @@ contains
     call this%enter_run_dir(err, message)
     if (err /= 0) return
 
-    ! 3. SUMMA soil drainage -> MODFLOW 6 RCH recharge array
-    call this%scatter_drainage_to_rch(drain_hru)
-
-    ! 3b. SUMMA aquifer transpiration demand -> MODFLOW 6 EVT rate array.  MODFLOW applies its
-    !     own water-table-depth limiting, so what it actually takes comes back at step 5.
-    if (this%have_evt .and. present(gwet_demand_hru)) &
-      call this%scatter_hru_to_array(gwet_demand_hru, this%mf6_evt)
-
-    ! 4. advance MODFLOW 6 one coupling step
+    ! 3. prepare the MODFLOW time step FIRST.
+    !
+    ! The scatter must come after this, not before.  prepare_time_step runs each package's *_rp,
+    ! and bnd_rp re-reads the package's PERIOD block whenever a new stress period starts
+    ! (BoundaryPackage.f90: "if (this%ionper < kper)").  For RCH READASARRAYS that reload
+    ! overwrites the whole RECHARGE array with the value in the input file.  Scattering before
+    ! prepare therefore threw SUMMA's drainage away on the first step of every stress period, and
+    ! MODFLOW solved that step with the model builder's placeholder constant instead - silently,
+    ! because it is one step in seventy-two.  Preparing first and scattering after is the correct
+    ! order: the reload happens, then SUMMA's values overwrite it, then the solve sees them.
     istat = mf6_prepare_time_step(real(summa_data_step, c_double))
     if (istep == 1) then
       ! delt is now set: verify one MODFLOW time step == one SUMMA data step
@@ -531,6 +532,16 @@ contains
         call this%leave_run_dir(); return
       end if
     end if
+
+    ! 4. SUMMA soil drainage -> MODFLOW 6 RCH recharge array
+    call this%scatter_drainage_to_rch(drain_hru)
+
+    ! 4b. SUMMA aquifer transpiration demand -> MODFLOW 6 EVT rate array.  MODFLOW applies its
+    !     own water-table-depth limiting, so what it actually takes comes back at step 5.
+    if (this%have_evt .and. present(gwet_demand_hru)) &
+      call this%scatter_hru_to_array(gwet_demand_hru, this%mf6_evt)
+
+    ! 4c. solve
     istat = mf6_do_time_step()
     istat = mf6_finalize_time_step()
 
@@ -1321,17 +1332,35 @@ contains
     class(mf6_coupler_type), intent(inout) :: this
     integer :: i, k, c, nbad
     real(c_double) :: amap, rel, worst
+    real(c_double), allocatable :: wcell(:)
     integer :: iworst
 
     if (.not. allocated(this%hru_area)) return
 
+    ! Total weight landing on each cell, so a cell shared between HRUs is apportioned rather than
+    ! counted once per owner.  This is the same denominator the scatter uses: cell c receives the
+    ! weighted MEAN rate sum_i w_ic q_i / sum_i w_ic, so HRU i's share of that cell's volume is
+    ! w_ic / sum_j w_jc.  The 4-HRU Sagehen map has two HRUs deliberately sharing 1700 cells, and
+    ! without this apportioning each would appear to own the whole of them.
+    allocate(wcell(this%nrow*this%ncol)); wcell = 0.0_c_double
+    do i = 1, this%nHRU
+      do k = this%map_ptr(i), this%map_ptr(i+1) - 1
+        c = this%map_cell(k)
+        if (c < 1 .or. c > this%nrow*this%ncol) cycle
+        wcell(c) = wcell(c) + real(this%map_wgt(k), c_double)
+      end do
+    end do
+
     nbad = 0; worst = 0.0_c_double; iworst = 0
     do i = 1, this%nHRU
+      ! effective mapped area: sum_k (w_ik / sum_j w_jk) * A_k.  Recharge VOLUME is conserved for
+      ! HRU i exactly when this equals its area in attributes.nc.
       amap = 0.0_c_double
       do k = this%map_ptr(i), this%map_ptr(i+1) - 1
         c = this%map_cell(k)
         if (c < 1 .or. c > this%nrow*this%ncol) cycle
-        amap = amap + this%cell_area(c)      ! full plan area of every cell this HRU touches
+        if (wcell(c) <= 0.0_c_double) cycle
+        amap = amap + (real(this%map_wgt(k), c_double) / wcell(c)) * this%cell_area(c)
       end do
       if (this%hru_area(i) <= 0.0d0 .or. amap <= 0.0_c_double) cycle
       rel = abs(amap - this%hru_area(i)) / this%hru_area(i)
@@ -1351,6 +1380,7 @@ contains
         'HRUs: the scatter conserves rate, not volume. Supply a map_file with exact intersection '// &
         'weights, or correct HRUarea in attributes.nc.'
     end if
+    deallocate(wcell)
   end subroutine mf6_check_hru_area
 
   ! ==================================================================================
