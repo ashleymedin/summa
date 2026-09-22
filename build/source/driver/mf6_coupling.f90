@@ -326,7 +326,8 @@ contains
   ! mf6_step is in that same order.
   ! ==================================================================================
   subroutine mf6_init(this, config_file, run_dir, nHRU, hru_x, hru_y, hru_z, soil_thk, &
-                      nSummaSteps, summa_data_step, err, message, hru_area)
+                      nSummaSteps, summa_data_step, err, message, hru_area, &
+                      restart_read, restart_write)
     class(mf6_coupler_type), intent(inout) :: this
     character(len=*),        intent(in)    :: config_file       ! &coupler namelist file
     character(len=*),        intent(in)    :: run_dir           ! directory holding mfsim.nam ('.' = process cwd)
@@ -338,6 +339,9 @@ contains
     integer,                 intent(out)   :: err
     character(len=*),        intent(out)   :: message
     double precision, optional, intent(in) :: hru_area(:)       ! HRU plan area (m2); enables the area and budget checks
+    ! head-restart paths set by the caller; these override whatever the &coupler namelist says, so a
+    ! driver can run the same config as a spin-up (write) and then as an evaluation run (read)
+    character(len=*), optional, intent(in) :: restart_read, restart_write
     integer        :: nred_len, nvar, ib
     integer        :: istat
     real(c_double) :: tend_mf6
@@ -348,6 +352,8 @@ contains
     this%run_dir = run_dir
     call this%read_config(config_file, err, message)
     if (err /= 0) return
+    if (present(restart_read))  this%head_restart_read  = restart_read
+    if (present(restart_write)) this%head_restart_write = restart_write
 
     ! -- SUMMA-side geometry (kept: gather_head_to_hru needs hru_z and soil_thk every step) --
     this%nHRU = nHRU
