@@ -50,6 +50,7 @@ contains
     USE summaFileManager, only: SIM_START_TM,SIM_END_TM
     ! SUMMA simulation
     USE summa_simulation, only: run_simulation
+    USE summa_simulation, only: mf6_spinup_phase
     implicit none
     ! dummy variables
     type(config_info),           intent(inout) :: config             ! SUMMA configuration structure
@@ -99,6 +100,10 @@ contains
     ! write the common restart state on rank 0 only
     ixRestart=merge(ixRestart_end, ixRestart_never, instance_parallel%rank == 0)
 
+    ! tell start_modflow that this coupled run is the spin-up, so it WRITES the aquifer head field
+    ! that every later parameter sample will read back (section 8.5)
+    mf6_spinup_phase=.true.
+
     ! run SUMMA for one year following the cold start
     call run_simulation(config,                 & ! SUMMA configuration structure
                         domain_parallel,        & ! MPI context for domain parallelism
@@ -110,6 +115,7 @@ contains
     
     ! restore original global simulation settings
     ! NOTE: Do this before processing the error code
+    mf6_spinup_phase=.false.
     SIM_START_TM=simStartOriginal
     SIM_END_TM=simEndOriginal
     output_fileSuffix=outputFileSuffix_orig

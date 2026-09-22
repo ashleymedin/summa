@@ -72,6 +72,13 @@ private
 
 public :: run_simulation
 public :: evaluate_objective
+public :: mf6_spinup_phase
+
+! .true. only while the shared one-year cold-start spin-up is running.  start_modflow reads it to
+! decide whether this coupled run WRITES the spun-up aquifer head field or READS it: without that,
+! every parameter sample restarted MODFLOW from IC/STRT while SUMMA restarted from the spun-up
+! state, so the soil column and the aquifer were equilibrated to different things (section 8.5).
+logical(lgt), save :: mf6_spinup_phase = .false.
 
 contains
 
@@ -470,6 +477,7 @@ contains
     integer(i4b)                  :: nHRU
     double precision, allocatable :: hru_x(:), hru_y(:), hru_z(:), soil_thk(:), hru_area(:)
     character(len=256)            :: run_dir
+    character(len=512)            :: head_file   ! per-rank spun-up MODFLOW head field (coupled restart)
     character(len=4)              :: rankString
     character(len=256)            :: cmessage
 
@@ -506,9 +514,23 @@ contains
     call mf6_prepare_run_dir(trim(summa_struct%config%modflow_run_dir), trim(run_dir), err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    call coupler%init(trim(summa_struct%config%modflow_config), trim(run_dir), &
-                      nHRU, hru_x, hru_y, hru_z, soil_thk,                     &
-                      numtim, dble(data_step), err, cmessage, hru_area=hru_area)
+    ! Coupled restart of the aquifer (section 8.5).  The one-year cold-start spin-up runs redundantly
+    ! on every rank, so each rank writes its own spun-up head field and then reads that same file back
+    ! for every parameter sample it evaluates.  Per-rank rather than shared on purpose: the files are
+    ! identical anyway, and this needs no barrier between the spin-up and the first sample.
+    head_file = trim(OUTPUT_PATH)//'modflow_spinup_heads_rank'//rankString//'.bin'
+
+    if(mf6_spinup_phase)then
+      call coupler%init(trim(summa_struct%config%modflow_config), trim(run_dir), &
+                        nHRU, hru_x, hru_y, hru_z, soil_thk,                     &
+                        numtim, dble(data_step), err, cmessage, hru_area=hru_area, &
+                        restart_write=trim(head_file))
+    else
+      call coupler%init(trim(summa_struct%config%modflow_config), trim(run_dir), &
+                        nHRU, hru_x, hru_y, hru_z, soil_thk,                     &
+                        numtim, dble(data_step), err, cmessage, hru_area=hru_area, &
+                        restart_read=trim(head_file))
+    endif
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   end subroutine start_modflow
