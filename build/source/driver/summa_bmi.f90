@@ -48,6 +48,7 @@ module summabmi
   USE summa_mf6_exchange, only: mf6x_hru_longitude, mf6x_hru_latitude, mf6x_hru_elevation
   USE summa_mf6_exchange, only: mf6x_soil_thickness
   USE summa_mf6_exchange, only: mf6x_hru_area
+  USE summa_mf6_exchange, only: mf6x_put_surface_discharge
   USE summa_mf6_exchange, only: mf6x_get_drainage
   USE summa_mf6_exchange, only: mf6x_put_lower_bound_head
   USE summa_mf6_exchange, only: mf6x_put_aquifer_storage
@@ -239,9 +240,9 @@ module summabmi
   ! NOTE: the final input item ('soil_water_sat-zone_top__head') is only used by the coupled
   !       MODFLOW 6 driver (summa_modflow6); it is harmless for other drivers, which never set it.
 #ifdef NGEN_ACTIVE
-  integer, parameter :: input_item_count = 11
+  integer, parameter :: input_item_count = 12
 #else
-  integer, parameter :: input_item_count = 10
+  integer, parameter :: input_item_count = 11
 #endif
   integer, parameter :: output_item_count = 17
   character (len=BMI_MAX_VAR_NAME), target,dimension(input_item_count)  :: input_items
@@ -614,8 +615,11 @@ module summabmi
      ! MODFLOW 6 solution (groundwatr="modflow"): aquifer baseflow flux (m s-1) and
      ! relative aquifer storage (m).  (Recharge is not exchanged - it equals the
      ! SUMMA soil drainage, which SUMMA already has.)
-     input_items(input_item_count-1) = 'land_surface_water__baseflow_volume_flux'
-     input_items(input_item_count)   = 'aquifer_water__storage_thickness'
+     input_items(input_item_count-2) = 'land_surface_water__baseflow_volume_flux'
+     input_items(input_item_count-1) = 'aquifer_water__storage_thickness'
+     ! groundwater discharge at land surface (m s-1), from a MODFLOW boundary package with
+     ! role = surface_discharge (a DRN at DIS/TOP).  Added to SUMMA's surface runoff.
+     input_items(input_item_count)   = 'land_surface_water__domain_outflow_volume_flux'
 
      names => input_items
      bmi_status = BMI_SUCCESS
@@ -1030,6 +1034,7 @@ module summabmi
      case('land_vegetation_energy~net~total__energy_flux') ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_surface_energy~net~total__energy_flux')    ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_surface_water__baseflow_volume_flux')      ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
+     case('land_surface_water__domain_outflow_volume_flux'); units = 'm s-1'     ; bmi_status = BMI_SUCCESS
      case('soil_water__drainage_volume_flux')              ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
      case default; units = "-"; bmi_status = BMI_FAILURE
      end select
@@ -1400,6 +1405,8 @@ module summabmi
        call mf6x_put_aquifer_storage(this%model%summa1_struc(n), src_arr); return
      case('land_surface_water__baseflow_volume_flux')  ! aquifer baseflow from the coupled MODFLOW model
        call mf6x_put_aquifer_baseflow(this%model%summa1_struc(n), src_arr); return
+     case('land_surface_water__domain_outflow_volume_flux')  ! groundwater discharge at land surface
+       call mf6x_put_surface_discharge(this%model%summa1_struc(n), src_arr); return
      end select
 
      summaVars: associate(&

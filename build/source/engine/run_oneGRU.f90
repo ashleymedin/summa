@@ -84,6 +84,7 @@ USE globalData,only:glacCln2           ! second horizontal domain type for glaci
 USE globalData,only:glacDbr            ! horizontal domain type for glacier debris areas
 USE globalData,only:wetland            ! horizontal domain type for wetland areas
 USE globalData,only:mfAquiferBaseflow  ! MODFLOW 6 coupler: per-HRU aquifer baseflow (m s-1), indexed by hru_ix
+USE globalData,only:mfSurfaceDischarge ! MODFLOW 6 coupler: per-HRU groundwater discharge at land surface (m s-1), indexed by hru_ix
 
 ! look-up values for the choice of groundwater parameterization
 USE mDecisions_module,only:       &
@@ -424,6 +425,17 @@ subroutine run_oneGRU(&
             if(allocated(mfAquiferBaseflow))then
               fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) = mfAquiferBaseflow(gruInfo%hruInfo(iHRU)%hru_ix)
               bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1) = bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1) + mfAquiferBaseflow(gruInfo%hruInfo(iHRU)%hru_ix)*fracDOM
+            end if
+            ! Groundwater discharge at land surface from MODFLOW (a DRN at DIS/TOP, role =
+            ! surface_discharge): the water the aquifer cannot hold once the water table reaches
+            ! the ground.  It is saturation-excess RUNOFF, so it joins basin__SurfaceRunoff and
+            ! must NOT go through the aquifer-baseflow or column-outflow terms, or Eq. (6)
+            ! double-counts it.  In GSFLOW this water is routed to the nearest downgradient
+            ! stream reach by MVR; with no SFR network here it returns to SUMMA's surface runoff
+            ! and routes from there.
+            if(allocated(mfSurfaceDischarge))then
+              bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) &
+                                                                  + mfSurfaceDischarge(gruInfo%hruInfo(iHRU)%hru_ix)*fracDOM
             end if
           endif
         else if(typeDOM==glacCln1 .or. typeDOM==glacCln2 .or. typeDOM==glacDbr)then ! collect glacier ablation and accumulation melt m s-1

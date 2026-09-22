@@ -112,6 +112,7 @@ program summa_modflow6
   real, allocatable      :: drain_hru(:)     ! per-HRU soil drainage        (m s-1)
   real, allocatable      :: head_hru(:)      ! per-HRU prescribed head      (m, matric head at soil base)
   real, allocatable      :: bflow_hru(:)     ! per-HRU aquifer baseflow     (m s-1, + = out of aquifer)  -> scalarAquiferBaseflow
+  real, allocatable      :: surfdis_hru(:)   ! per-HRU groundwater discharge at land surface (m s-1) -> surface runoff
   real, allocatable      :: stor_hru(:)      ! per-HRU relative aquifer storage (m of water)              -> scalarAquiferStorage
   double precision, allocatable :: hru_x(:), hru_y(:), hru_z(:)  ! HRU centroid lon/lat and surface elevation
   double precision, allocatable :: soil_thk(:)   ! per-HRU SUMMA soil-column thickness (m), read from SUMMA
@@ -156,8 +157,8 @@ contains
     istat = summa%get_grid_size(0, nHRU)
     ! the feedback buffers are allocated whether or not feedback is on: they are handed to
     ! the coupler either way, and it simply leaves them alone when there is no feedback
-    allocate(drain_hru(nHRU), head_hru(nHRU), bflow_hru(nHRU), stor_hru(nHRU))
-    bflow_hru = 0.0; stor_hru = 0.0
+    allocate(drain_hru(nHRU), head_hru(nHRU), bflow_hru(nHRU), stor_hru(nHRU), surfdis_hru(nHRU))
+    bflow_hru = 0.0; stor_hru = 0.0; surfdis_hru = 0.0
     allocate(hru_x(nHRU), hru_y(nHRU), hru_z(nHRU), soil_thk(nHRU), hru_area(nHRU))
     istat = summa%get_grid_x(0, hru_x)   ! HRU longitude  (deg or projected x, must match MODFLOW grid CRS)
     istat = summa%get_grid_y(0, hru_y)   ! HRU latitude   (deg or projected y)
@@ -186,6 +187,7 @@ contains
         istat = summa%set_value('soil_water_sat-zone_top__head', head_hru)
         if (coupler%have_sy)    istat = summa%set_value('aquifer_water__storage_thickness', stor_hru)
         if (coupler%have_bflow) istat = summa%set_value('land_surface_water__baseflow_volume_flux', bflow_hru)
+        if (coupler%have_surfdis) istat = summa%set_value('land_surface_water__domain_outflow_volume_flux', surfdis_hru)
       end if
 
       ! 2. advance SUMMA one data step (reads forcing, runs physics, writes output)
@@ -195,7 +197,8 @@ contains
       ! 3-5. SUMMA drainage -> MODFLOW recharge, advance MODFLOW, read the new water table back
       istat = summa%get_value('soil_water__drainage_volume_flux', drain_hru)
       call coupler%step(modelTimeStep, dble(data_step), &
-                        drain_hru, head_hru, stor_hru, bflow_hru, err, message)
+                        drain_hru, head_hru, stor_hru, bflow_hru, err, message, &
+                        surfdis_hru=surfdis_hru)
       if (err /= 0) then; write(*,'(a)') 'summa_modflow6: '//trim(message); error stop 1; end if
     end do
   end subroutine run_coupler
