@@ -45,6 +45,8 @@ module summa_mf6_exchange
 
   USE globalData, only: gru_struc            ! HRU information for given GRU
   USE globalData, only: mfAquiferBaseflow    ! MODFLOW 6 coupler aquifer-baseflow feedback channel
+  USE globalData, only: mfSurfaceDischarge   ! MODFLOW 6 coupler groundwater-discharge-at-surface channel
+  USE globalData, only: mfAquiferTranspire   ! MODFLOW 6 coupler groundwater-ET feedback channel
 
   USE var_lookup, only: iLookATTR            ! named variables for real valued attribute data structure
   USE var_lookup, only: iLookINDEX           ! named variables for local model indices
@@ -60,11 +62,15 @@ module summa_mf6_exchange
   public :: mf6x_hru_longitude
   public :: mf6x_hru_latitude
   public :: mf6x_hru_elevation
+  public :: mf6x_hru_area
   public :: mf6x_soil_thickness
   public :: mf6x_get_drainage
   public :: mf6x_put_lower_bound_head
   public :: mf6x_put_aquifer_storage
   public :: mf6x_put_aquifer_baseflow
+  public :: mf6x_put_surface_discharge
+  public :: mf6x_get_aquifer_transpire
+  public :: mf6x_put_aquifer_transpire
 
 contains
 
@@ -125,6 +131,27 @@ contains
       end do
     end associate
   end subroutine mf6x_hru_elevation
+
+  ! **************************************************************************************************
+  ! HRU plan area (m2), as given in attributes.nc.
+  !
+  ! The coupler checks this against the summed plan area of the MODFLOW cells each HRU maps to.
+  ! The scatter conserves recharge RATE, not VOLUME (it is a weight-weighted mean of HRU drainage
+  ! rates), so volume is conserved only when the two areas agree - which is why the check exists.
+  ! **************************************************************************************************
+  subroutine mf6x_hru_area(summa_struct, area)
+    type(summa1_type_dec), intent(in)  :: summa_struct
+    double precision,      intent(out) :: area(:)
+    integer(i4b) :: iGRU, jHRU
+    associate(attrStruct => summa_struct%attrStruct)
+      do iGRU = 1, summa_struct%nGRU_local
+        do jHRU = 1, gru_struc(iGRU)%hruCount
+          area((iGRU-1) * gru_struc(iGRU)%hruCount + jHRU) = &
+            attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%HRUarea)
+        end do
+      end do
+    end associate
+  end subroutine mf6x_hru_area
 
   ! **************************************************************************************************
   ! Thickness of the SUMMA soil column for each HRU (m), measured from the ground surface
@@ -248,5 +275,87 @@ contains
       end do
     end do
   end subroutine mf6x_put_aquifer_baseflow
+
+  ! **************************************************************************************************
+  ! Groundwater discharge at land surface from the coupled MODFLOW 6 model (m s-1, + = out of aquifer).
+  !
+  ! This is the water the aquifer cannot hold once the water table reaches land surface, taken from
+  ! whichever boundary package carries role 'surface_discharge' (a DRN at DIS/TOP, as in the upstream
+  ! Sagehen model).  It is added to SUMMA's surface runoff, not to the aquifer baseflow term, so it
+  ! reaches routing as saturation-excess runoff rather than as baseflow.
+  !
+  ! Same channel reasoning as mf6x_put_aquifer_baseflow above: fluxStruct scalars do not survive a step.
+  ! **************************************************************************************************
+  subroutine mf6x_put_surface_discharge(summa_struct, discharge)
+    type(summa1_type_dec), intent(inout) :: summa_struct
+    real,                  intent(in)    :: discharge(:)
+    integer(i4b) :: iGRU, jHRU, i
+    if (.not. allocated(mfSurfaceDischarge)) then
+      allocate(mfSurfaceDischarge(sum(gru_struc(:)%hruCount))); mfSurfaceDischarge = 0._rkind
+    end if
+    do iGRU = 1, summa_struct%nGRU_local
+      do jHRU = 1, gru_struc(iGRU)%hruCount
+        i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
+        mfSurfaceDischarge(i) = discharge(i)
+      end do
+    end do
+  end subroutine mf6x_put_surface_discharge
+
+  ! **************************************************************************************************
+  ! Groundwater evapotranspiration actually taken by MODFLOW 6 (m s-1, + = out of aquifer).
+  !
+  ! SUMMA sends a transpiration DEMAND down (see mf6x_get_aquifer_transpire) and MODFLOW decides how
+  ! much of it the water table can actually supply.  The two differ whenever the water table drops
+  ! below the EVT extraction depth; the gap is reported by the coupled budget diagnostic rather than
+  ! fed back into SUMMA's energy balance, which would need the tight (XMI) coupling.
+  ! **************************************************************************************************
+  subroutine mf6x_put_aquifer_transpire(summa_struct, transpire)
+    type(summa1_type_dec), intent(inout) :: summa_struct
+    real,                  intent(in)    :: transpire(:)
+    integer(i4b) :: iGRU, jHRU, i
+    if (.not. allocated(mfAquiferTranspire)) then
+      allocate(mfAquiferTranspire(sum(gru_struc(:)%hruCount))); mfAquiferTranspire = 0._rkind
+    end if
+    do iGRU = 1, summa_struct%nGRU_local
+      do jHRU = 1, gru_struc(iGRU)%hruCount
+        i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
+        mfAquiferTranspire(i) = transpire(i)
+      end do
+    end do
+  end subroutine mf6x_put_aquifer_transpire
+
+  ! **************************************************************************************************
+  ! SUMMA's aquifer transpiration DEMAND, per HRU (m s-1, + = out of aquifer).
+  !
+  ! This is scalarAquiferTranspire as bigAquifer computes it: the aquifer's share of the canopy
+  ! transpiration the energy balance has already closed, partitioned by root fraction and the aquifer
+  ! transpiration limiting factor.  Sending it to MODFLOW's EVT package therefore moves water between
+  ! sources without creating any, and costs no energy-balance consistency.
+  ! **************************************************************************************************
+  subroutine mf6x_get_aquifer_transpire(summa_struct, demand)
+    type(summa1_type_dec), intent(in)  :: summa_struct
+    real,                  intent(out) :: demand(:)
+    integer(i4b) :: iGRU, jHRU, iDOM, i
+    real         :: fracDOM
+    ! NB: weighted exactly as mf6x_get_drainage weights soil drainage, so the demand and the
+    !     recharge it accompanies are aggregated on the same footing.
+    associate(progStruct => summa_struct%progStruct, &
+              fluxStruct => summa_struct%fluxStruct, &
+              bvarStruct => summa_struct%bvarStruct)
+      demand = 0.0
+      do iGRU = 1, summa_struct%nGRU_local
+        do jHRU = 1, gru_struc(iGRU)%hruCount
+          i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
+          demand(i) = 0._rkind
+          do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
+            fracDOM = progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) &
+                    / bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1)
+            demand(i) = demand(i) &
+                      + fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferTranspire)%dat(1) * fracDOM
+          end do
+        end do
+      end do
+    end associate
+  end subroutine mf6x_get_aquifer_transpire
 
 end module summa_mf6_exchange

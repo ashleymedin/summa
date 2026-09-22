@@ -52,6 +52,7 @@ USE mf6_coupling,       only: mf6_prepare_run_dir
 USE summa_mf6_exchange, only: mf6x_hru_count
 USE summa_mf6_exchange, only: mf6x_hru_longitude, mf6x_hru_latitude, mf6x_hru_elevation
 USE summa_mf6_exchange, only: mf6x_soil_thickness
+USE summa_mf6_exchange, only: mf6x_hru_area
 USE summa_mf6_exchange, only: mf6x_get_drainage
 USE summa_mf6_exchange, only: mf6x_put_lower_bound_head
 USE summa_mf6_exchange, only: mf6x_put_aquifer_storage
@@ -467,7 +468,7 @@ contains
     character(*),           intent(out)   :: message
     ! locals
     integer(i4b)                  :: nHRU
-    double precision, allocatable :: hru_x(:), hru_y(:), hru_z(:), soil_thk(:)
+    double precision, allocatable :: hru_x(:), hru_y(:), hru_z(:), soil_thk(:), hru_area(:)
     character(len=256)            :: run_dir
     character(len=4)              :: rankString
     character(len=256)            :: cmessage
@@ -492,11 +493,12 @@ contains
     nHRU = mf6x_hru_count()
     allocate(drain_hru(nHRU), head_hru(nHRU), stor_hru(nHRU), bflow_hru(nHRU))
     head_hru = 0.0; stor_hru = 0.0; bflow_hru = 0.0
-    allocate(hru_x(nHRU), hru_y(nHRU), hru_z(nHRU), soil_thk(nHRU))
+    allocate(hru_x(nHRU), hru_y(nHRU), hru_z(nHRU), soil_thk(nHRU), hru_area(nHRU))
     call mf6x_hru_longitude(summa_struct, hru_x)
     call mf6x_hru_latitude(summa_struct, hru_y)
     call mf6x_hru_elevation(summa_struct, hru_z)
     call mf6x_soil_thickness(summa_struct, soil_thk)
+    call mf6x_hru_area(summa_struct, hru_area)
 
     ! this instance's own MODFLOW directory (one per rank; sequential samples on a rank share it)
     write(rankString,'(I4.4)') summa_struct%instance_parallel%rank
@@ -506,7 +508,7 @@ contains
 
     call coupler%init(trim(summa_struct%config%modflow_config), trim(run_dir), &
                       nHRU, hru_x, hru_y, hru_z, soil_thk,                     &
-                      numtim, dble(data_step), err, cmessage)
+                      numtim, dble(data_step), err, cmessage, hru_area=hru_area)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   end subroutine start_modflow
