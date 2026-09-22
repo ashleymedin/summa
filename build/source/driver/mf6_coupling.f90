@@ -70,6 +70,14 @@ module mf6_coupling
   !     evt_package_name   = ''        ! EVT package (READASARRAYS) whose RATE array is overwritten
   !                                    !    each step with SUMMA's aquifer transpiration demand
   !                                    !    ('' => groundwater ET is not driven from SUMMA)
+  !     head_restart_read  = ''        ! read the initial head field from this file instead of IC/STRT
+  !     head_restart_write = ''        ! write the final head field here, for a later restart.
+  !                                    !    Together these are the coupled restart: run the spin-up
+  !                                    !    with _write set, then every later run with _read set, so
+  !                                    !    the aquifer and SUMMA's soil column start equilibrated to
+  !                                    !    the same thing.  Relative paths resolve against the PROCESS
+  !                                    !    working directory, not run_dir, so every calibration rank
+  !                                    !    reads the one file the shared spin-up wrote.
   !     map_file           = ''        ! optional HRU->cell weight file; if blank a nearest-cell
   !                                    !    map is built from the MODFLOW 6 DIS grid geometry
   !     mf6_epsg           = 0         ! EPSG code of the MODFLOW grid's projected CRS, used only to
@@ -220,6 +228,8 @@ module mf6_coupling
     character(len=256)  :: bflow_package_name = 'CHD'   ! back-compatible alias for a single role=baseflow entry
     character(len=256)  :: evt_package_name   = ''      ! EVT package driven with SUMMA's aquifer transpiration demand
     character(len=256)  :: map_file           = ''
+    character(len=1024) :: head_restart_read  = ''    ! read the initial head field from here, overriding IC/STRT
+    character(len=1024) :: head_restart_write = ''    ! write the final head field here, for a later restart
     integer             :: mf6_epsg           = 0
     character(len=1024) :: run_dir            = '.'      ! directory holding mfsim.nam ('.' = process cwd)
     character(len=1024) :: saved_dir          = ''       ! cwd to return to, while inside run_dir
@@ -287,6 +297,9 @@ module mf6_coupling
     procedure, private :: check_model           => mf6_check_model
     procedure, private :: check_hru_elevation   => mf6_check_hru_elevation
     procedure, private :: check_hru_area        => mf6_check_hru_area
+    procedure, private :: head_restart_in       => mf6_head_restart_read
+    procedure, private :: head_restart_out      => mf6_head_restart_write
+    procedure, private :: resolve_path          => mf6_resolve_path
     procedure, private :: budget_accumulate     => mf6_budget_accumulate
     procedure, private :: budget_report         => mf6_budget_report
     procedure, private :: build_map             => mf6_build_map
@@ -445,6 +458,10 @@ contains
     call this%build_map(err, message)
     if (err /= 0) then; call this%leave_run_dir(); return; end if
 
+    ! -- coupled restart: overwrite STRT-derived heads with a previously saved field --
+    call this%head_restart_in(err, message)
+    if (err /= 0) then; call this%leave_run_dir(); return; end if
+
     ! -- HRU area vs mapped-cell area: the silent failure mode behind Equation (2) --
     call this%check_hru_area
 
@@ -544,6 +561,7 @@ contains
 
     call this%enter_run_dir(err, message)
     if (err == 0) then
+      call this%head_restart_out          ! before finalize: libmf6 is about to free X
       istat = mf6_finalize()
       call this%leave_run_dir()
       if (istat /= BMI_OK) then; message = 'MODFLOW 6 finalize failed'; err = 20; end if
@@ -652,12 +670,14 @@ contains
     integer :: fu, rc, ib, ir
     character(len=256) :: mf6_model_name, rch_package_name, bflow_package_name, map_file
     character(len=256) :: evt_package_name
+    character(len=1024):: head_restart_read, head_restart_write
     character(len=256) :: bnd_package_names(MAXBND)
     character(len=32)  :: bnd_package_roles(MAXBND)
     integer            :: mf6_epsg
     logical            :: feedback
     namelist /coupler/ mf6_model_name, rch_package_name, bflow_package_name, evt_package_name, &
-                       bnd_package_names, bnd_package_roles, map_file, mf6_epsg, feedback
+                       bnd_package_names, bnd_package_roles, map_file, mf6_epsg, feedback, &
+                       head_restart_read, head_restart_write
 
     err = 0; message = ''
 
@@ -668,6 +688,8 @@ contains
     evt_package_name   = ''
     bnd_package_names  = ''
     bnd_package_roles  = ''
+    head_restart_read  = ''
+    head_restart_write = ''
     map_file           = ''
     mf6_epsg           = 0
     feedback           = .true.
@@ -689,6 +711,8 @@ contains
     this%rch_package_name   = rch_package_name
     this%bflow_package_name = bflow_package_name
     this%evt_package_name   = evt_package_name
+    this%head_restart_read  = head_restart_read
+    this%head_restart_write = head_restart_write
     this%map_file           = map_file
     this%mf6_epsg           = mf6_epsg
     this%feedback           = feedback
@@ -1167,6 +1191,108 @@ contains
       err = 20; return
     end if
   end subroutine mf6_check_hru_elevation
+
+  ! ==================================================================================
+  ! Coupled restart of the MODFLOW head field.
+  !
+  ! Without this, MODFLOW always starts from whatever IC/STRT contains.  In calibration that
+  ! is actively wrong: the one-year cold-start spin-up leaves SUMMA equilibrated and shared
+  ! across parameter samples, but every sample restarts MODFLOW from raw STRT, so the soil
+  ! column and the aquifer are equilibrated to different things (section 8.5).  Writing the
+  ! head field at the end of the spin-up and reading it back at the start of every sample
+  ! makes the two consistent, at one small file per rank.
+  !
+  ! Writing X straight into the memory manager after initialize() is enough: MODFLOW's
+  ! gwf_ad copies x into xold at the start of every non-retry time step (gwf.f90), so the
+  ! value written here becomes both the initial head AND the previous-step head, which is
+  ! what a restart means.  There is no need to write XOLD separately.
+  !
+  ! The file carries the grid shape and the reduced node count so that restarting into a
+  ! different model fails loudly instead of scrambling the head field.
+  !
+  ! Paths are resolved against the process working directory, not the MODFLOW run directory:
+  ! a calibration gives every rank its own run_dir, and all of them must read the ONE head
+  ! file the shared spin-up wrote.
+  ! ==================================================================================
+  subroutine mf6_head_restart_read(this, err, message)
+    class(mf6_coupler_type), intent(inout) :: this
+    integer,                 intent(out)   :: err
+    character(len=*),        intent(out)   :: message
+    character(len=8)  :: magic
+    integer           :: fu, rc, nlay, nrow, ncol, n
+    logical           :: there
+    character(len=1024) :: path
+
+    err = 0; message = ''
+    if (len_trim(this%head_restart_read) == 0) return
+
+    path = this%resolve_path(this%head_restart_read)
+    inquire(file=trim(path), exist=there)
+    if (.not. there) then
+      write(*,'(a)') 'summa_modflow6: WARNING - head_restart_read file "'//trim(path)// &
+        '" does not exist; starting MODFLOW from IC/STRT instead'
+      return
+    end if
+
+    open(newunit=fu, file=trim(path), form='unformatted', access='stream', &
+         action='read', status='old', iostat=rc)
+    if (rc /= 0) then
+      message = 'cannot open head restart file '//trim(path); err = 20; return
+    end if
+    read(fu, iostat=rc) magic, nlay, nrow, ncol, n
+    if (rc /= 0 .or. magic /= 'SUMMF6HD') then
+      close(fu); message = trim(path)//' is not a SUMMA-MODFLOW head restart file'; err = 20; return
+    end if
+    if (nlay /= this%nlay .or. nrow /= this%nrow .or. ncol /= this%ncol .or. n /= size(this%mf6_head)) then
+      close(fu)
+      write(message,'(a,i0,a,i0,a,i0,a,i0,a,i0,a,i0,a,i0,a,i0,a)') &
+        'head restart file '//trim(path)//' was written for a different model: ', &
+        nlay, 'x', nrow, 'x', ncol, ' with ', n, ' active nodes, but this model is ', &
+        this%nlay, 'x', this%nrow, 'x', this%ncol, ' with ', size(this%mf6_head), ' active nodes'
+      err = 20; return
+    end if
+    read(fu, iostat=rc) this%mf6_head
+    close(fu)
+    if (rc /= 0) then
+      message = 'error reading heads from '//trim(path); err = 20; return
+    end if
+    write(*,'(a,i0,a)') 'summa_modflow6: restarted MODFLOW from ', n, ' heads in '//trim(path)
+  end subroutine mf6_head_restart_read
+
+  subroutine mf6_head_restart_write(this)
+    class(mf6_coupler_type), intent(inout) :: this
+    integer :: fu, rc
+    character(len=1024) :: path
+
+    if (len_trim(this%head_restart_write) == 0) return
+    if (.not. associated(this%mf6_head)) return
+
+    path = this%resolve_path(this%head_restart_write)
+    open(newunit=fu, file=trim(path), form='unformatted', access='stream', &
+         action='write', status='replace', iostat=rc)
+    if (rc /= 0) then
+      write(*,'(a)') 'summa_modflow6: WARNING - cannot write head restart file '//trim(path)
+      return
+    end if
+    write(fu) 'SUMMF6HD', this%nlay, this%nrow, this%ncol, size(this%mf6_head)
+    write(fu) this%mf6_head
+    close(fu)
+    write(*,'(a,i0,a)') 'summa_modflow6: wrote ', size(this%mf6_head), ' MODFLOW heads to '//trim(path)
+  end subroutine mf6_head_restart_write
+
+  ! A relative path is taken relative to the process working directory, which while inside the
+  ! run directory is remembered in saved_dir.  run_dir = '.' means no directory change happened
+  ! at all, so the path is already correct as written.
+  function mf6_resolve_path(this, path) result(full)
+    class(mf6_coupler_type), intent(in) :: this
+    character(len=*),        intent(in) :: path
+    character(len=1024) :: full
+    if (path(1:1) == '/' .or. len_trim(this%saved_dir) == 0) then
+      full = path
+    else
+      full = trim(this%saved_dir)//'/'//trim(path)
+    end if
+  end function mf6_resolve_path
 
   ! ==================================================================================
   ! Each HRU's area in attributes.nc must equal the summed plan area of the MODFLOW cells
