@@ -302,4 +302,9 @@ AFTER tag of v4.0.0-exp-Sundials
       stored. The annual mean starts at the first air temperature the run sees, so it needs a year of spin-up.
       In permafrost the formula's deep-groundwater bound (the mean annual air temperature) is below freezing and the
       result is mostly clipped at Tfreeze, so soilColumn with bcLowrTdyn = geoFlux is the better cold-region choice.
+ 71) Fix the restart file write for a multi-GRU run with glaciers, Sep 24, 2026
+     writeRestartGrid loops over every GRU itself, but was called from inside writeRestart's own GRU loop, so with more
+      than one GRU the second call redefined the grid dimension and the write died with "String match to name in use"
+      (and the grids of every GRU were written once per GRU). Called once after the loop now, re-entering define mode
+      since the file is in data mode by then.
      
