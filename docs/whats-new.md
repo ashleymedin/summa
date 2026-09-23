@@ -148,6 +148,9 @@ covers the user-facing highlights.
   optional restart variables `scalarAirTempWindow` and `scalarAirTempAnnual`. In permafrost
   `airTScale` needs care: its deep-groundwater bound is the mean annual air temperature, which
   is below freezing, so the result is mostly clipped at 0 C.
+- Fixed: writing a restart file failed with "String match to name in use" for any run with more
+  than one GRU and a glacier grid, because the grid write was called once per GRU when it
+  already loops over every GRU itself.
 - Optional coupling to the OpenWQ water-quality framework (`build/source/openwq/`).
 - Runs as a NextGen submodule; NextGen test cases are in `utils/test/test_ngen/`.
 - Large refactor: object-oriented flux routines, much shorter `computFlux.f90` and the
