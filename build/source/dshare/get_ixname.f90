@@ -455,6 +455,8 @@ contains
   case('streamMinDepth'           ); get_ixParam = iLookPARAM%streamMinDepth         ! minimum liquid depth of the stream water column (m)
   case('lakeMixingThermalC'       ); get_ixParam = iLookPARAM%lakeMixingThermalC     ! effective thermal conductivity between liquid lake layers (W m-1 K-1)
   case('lakeIceMinThick'          ); get_ixParam = iLookPARAM%lakeIceMinThick        ! ice cover thinner than this breaks up and returns to the water (m)
+  ! lower boundary condition for thermodynamics
+  case('geothermalFlux'           ); get_ixParam = iLookPARAM%geothermalFlux         ! geothermal heat flux into the base of the soil column (W m-2)
   ! get to here if cannot find the variable
   case default
    get_ixParam = integerMissing

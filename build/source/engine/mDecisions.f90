@@ -88,6 +88,7 @@ integer(i4b),parameter,public :: expLaw_profile       = 143    ! exponential pro
 integer(i4b),parameter,public :: prescribedTemp       = 151    ! prescribed temperature
 integer(i4b),parameter,public :: energyFlux           = 152    ! energy flux
 integer(i4b),parameter,public :: zeroFlux             = 153    ! zero flux
+integer(i4b),parameter,public :: prescribedFlux       = 154    ! prescribed flux (geothermal heat flux at the base of the soil)
 ! look-up values for the choice of boundary conditions for hydrology
 integer(i4b),parameter,public :: liquidFlux           = 161    ! liquid water flux
 integer(i4b),parameter,public :: prescribedHead       = 162    ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
@@ -523,6 +524,7 @@ subroutine mDecisions(err,message)
   select case(trim(model_decisions(iLookDECISIONS%bcLowrTdyn)%cDecision))
     case('presTemp'); model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision = prescribedTemp      ! prescribed temperature
     case('zeroFlux'); model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision = zeroFlux            ! zero flux
+    case('geoFlux');  model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision = prescribedFlux      ! prescribed geothermal heat flux
     case default
       err=10; message=trim(message)//"unknown lower boundary conditions for thermodynamics [option="//trim(model_decisions(iLookDECISIONS%bcLowrTdyn)%cDecision)//"]"; return
   end select

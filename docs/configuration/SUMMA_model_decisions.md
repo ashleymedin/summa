@@ -41,7 +41,7 @@ There are 44 model decisions. Defaults (used for `notPopulatedYet` where accepte
 | 17 | [groundwatr](#groundwatr) | qTopmodl, bigBuckt, noXplict | groundwater parameterization |
 | 18 | [hc_profile](#hc_profile) | constant, pow_prof, exp_prof | hydraulic-conductivity profile with depth |
 | 19 | [bcUpprTdyn](#bcupprtdyn) | presTemp, nrg_flux, zeroFlux | upper boundary condition, thermodynamics |
-| 20 | [bcLowrTdyn](#bclowrtdyn) | presTemp, zeroFlux | lower boundary condition, thermodynamics |
+| 20 | [bcLowrTdyn](#bclowrtdyn) | presTemp, zeroFlux, geoFlux | lower boundary condition, thermodynamics |
 | 21 | [bcUpprSoiH](#bcupprsoih) | presHead, liq_flux | upper boundary condition, soil hydrology |
 | 22 | [bcLowrSoiH](#bclowrsoih) | presHead, bottmPsi, drainage, zeroFlux | lower boundary condition, soil hydrology |
 | 23 | [veg_traits](#veg_traits) | Raupach_BLM1994, CM_QJRMS1988, vegTypeTable | vegetation roughness length and displacement height |
@@ -266,6 +266,22 @@ conductivity at 4 m. Supraglacial debris is 1-5 m-1 over a 0.3-1 m depth, so gla
 |---|---|
 | presTemp | prescribed temperature at the bottom of the soil column |
 | zeroFlux | zero energy flux at the bottom of the soil column |
+| geoFlux | prescribed geothermal heat flux into the bottom of the soil column |
+
+`presTemp` holds the base of the column at `lowerBoundTemp`, which is only physical if the
+column reaches the depth where the annual temperature signal is damped out. `zeroFlux`
+insulates the base instead, so a shallow column has no thermal memory below the seasonal
+cycle and its bottom temperature tracks the surface with a lag.
+
+`geoFlux` prescribes the geothermal heat flux `geothermalFlux` (W m-2, default 0.06, the
+continental average; roughly 0.03 in old cratons and 0.1 in tectonically active regions)
+entering the base of the column. It is the right lower boundary for a deep column in
+permafrost or cold-region work: the long-term temperature gradient at the base is
+`geothermalFlux`/`thCond_soil` rather than zero, so the deep column keeps a realistic
+temperature and the water draining from it is not simply a lagged copy of the surface.
+The flux is applied only where the bottom layer is soil; under a glacier or lake column the
+base stays zero flux, since the impermeable ice at the base of a glacier column has no way to
+drain the melt the flux would produce.
 
 <a id="bcupprsoih"></a>
 ## 21. bcUpprSoiH — upper boundary condition, soil hydrology

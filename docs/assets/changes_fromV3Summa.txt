@@ -278,4 +278,10 @@ AFTER tag of v4.0.0-exp-Sundials
       of bed and ice underside weighted by wetted perimeter (Wanders eqs 12-13, Nezhikovskiy ice roughness), floodplain term of eq 11 stubbed in, inert.
      New outputs T_reach, v_reach, n_reach, ice_reach, scalarStreamTemp, scalarLakeIceThick, averageRoutedRunoffTemp, scalarStream* fluxes;
       new parameters streamMinDepth, lakeMixingThermalC, lakeIceMinThick; new restart variables routingNrgFuture, nLakeFrz.
+ 68) Geothermal heat flux as a lower boundary condition for thermodynamics, Sep 24, 2026
+     New bcLowrTdyn option geoFlux prescribes the heat flux geothermalFlux (W m-2, default 0.06) into the base of the column,
+      so a deep column holds the long-term gradient geothermalFlux/thCond_soil at its base instead of being insulated (zeroFlux)
+      or pinned to lowerBoundTemp (presTemp). Applied only where the bottom layer is soil: a glacier column keeps zero flux,
+      since its basal ice is impermeable and cannot drain the melt the flux would make. The flux does not depend on the state,
+      so its derivatives are those of zeroFlux. New parameter geothermalFlux (defaults in read_pinit, so old parameter files still run).
      
