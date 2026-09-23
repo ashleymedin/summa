@@ -192,6 +192,19 @@ contains
     parFallback(iLookPARAM%geothermalFlux)%lower_limit = 0._rkind
     parFallback(iLookPARAM%geothermalFlux)%upper_limit = 0.2_rkind
   end if
+  ! temperature of the groundwater reaching the channel, only used with gwTempSrc = airTScale
+  if (parFallback(iLookPARAM%C_ATGW)%default_val < 0.99_rkind*realMissing) then
+    ! NOTE: 0 is deep, temporally invariant groundwater and 1 is shallow groundwater following the ground surface;
+    !       Wade et al. (2024) tune this per stream order, so it is a calibration parameter with no useful default
+    parFallback(iLookPARAM%C_ATGW)%default_val = 0.5_rkind
+    parFallback(iLookPARAM%C_ATGW)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%C_ATGW)%upper_limit = 1._rkind
+  end if
+  if (parFallback(iLookPARAM%gwTempWindow)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%gwTempWindow)%default_val = 7._rkind  ! middle of the 2-14 day range of Wade et al. (2024)
+    parFallback(iLookPARAM%gwTempWindow)%lower_limit = 1._rkind
+    parFallback(iLookPARAM%gwTempWindow)%upper_limit = 60._rkind
+  end if
   ! exponential hydraulic conductivity profile
   if (parFallback(iLookPARAM%f_hydCond)%default_val < 0.99_rkind*realMissing) then
     ! NOTE: a soil-column value, leaving ~5% of the surface conductivity at 4 m. Supraglacial debris is 1-5 m-1 over a 0.3-1 m

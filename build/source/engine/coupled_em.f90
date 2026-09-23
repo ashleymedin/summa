@@ -35,7 +35,8 @@ USE multiconst,only:&
                     LH_fus,       & ! latent heat of fusion                (J kg-1)
                     LH_sub,       & ! latent heat of sublimation           (J kg-1)
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
-                    iden_water      ! intrinsic density of liquid water    (kg m-3)
+                    iden_water,   & ! intrinsic density of liquid water    (kg m-3)
+                    secprday        ! number of seconds in a day           (s)
 USE globalData,only: verySmall      ! a small number
 
 ! named variables for parent structures
@@ -45,6 +46,7 @@ USE var_lookup,only:iLookDIAG              ! named variables for structure eleme
 USE var_lookup,only:iLookFLUX              ! named variables for structure elements
 USE var_lookup,only:iLookPARAM             ! named variables for structure elements
 USE var_lookup,only:iLookINDEX             ! named variables for structure elements
+USE var_lookup,only:iLookFORCE             ! named variables for structure elements
 USE globalData,only:iname_snow             ! named variables for snow
 USE globalData,only:iname_soil             ! named variables for soil
 USE globalData,only:iname_glce             ! named variables for glacier ice
@@ -213,6 +215,8 @@ subroutine coupled_em(&
   logical(lgt)                         :: computeVegFluxOld        ! flag to indicate if we are computing fluxes over vegetation on the previous sub step
   logical(lgt)                         :: includeAquifer           ! flag to denote that an aquifer is included
   real(rkind)                          :: rechargeTemp             ! temperature of the water recharging the aquifer (K)
+  real(rkind)                          :: wghtWindow               ! weight of this step in the running mean over gwTempWindow (-)
+  real(rkind)                          :: wghtAnnual               ! weight of this step in the running mean over a year (-)
   logical(lgt)                         :: modifiedLayers           ! flag to denote that snow layers were modified
   logical(lgt)                         :: modifiedVegState         ! flag to denote that vegetation states were modified
   integer(i4b)                         :: maxSnowIceLayers         ! maximum number of snow/firn/ice layers
@@ -2016,6 +2020,29 @@ subroutine coupled_em(&
           endif  ! no recharge over the step: the water that leaves takes the store's own temperature, so the store does not change
         end associate
       endif
+
+      ! -----
+      ! * running means of the air temperature...
+      ! -----------------------------------------
+      ! For gwTempSrc = airTScale the groundwater reaching the channel is bounded by the temperature of deep groundwater
+      ! (the mean annual air temperature) and the ground surface (a smoothed daily air temperature), and a coefficient picks
+      ! where between the two the water is sourced from (Wade et al., 2024, EMS, eq. 9).  Both bounds are kept here as
+      ! exponential running means, which need one number each rather than a window of past forcing and so restart cleanly.
+      ! The weight is the fraction of the averaging window this step covers, capped at one for a step longer than the window.
+      associate(&
+        scalarAirTempWindow => prog_data%var(iLookPROG%scalarAirTempWindow)%dat(1) ,& ! running mean of the air temperature over gwTempWindow (K)
+        scalarAirTempAnnual => prog_data%var(iLookPROG%scalarAirTempAnnual)%dat(1) ,& ! running mean of the air temperature over a year (K)
+        gwTempWindow        => mpar_data%var(iLookPARAM%gwTempWindow)%dat(1)       ,& ! averaging window of the air temperature the groundwater follows (days)
+        scalarAirtemp       => forc_data%var(iLookFORCE%airtemp)                    ) ! air temperature (K)
+        ! absent from the initial conditions file, both means start at the first air temperature the run sees, so the
+        ! annual mean needs a year of spin-up before it means what its name says
+        if(scalarAirTempWindow < 0.99_rkind*realMissing) scalarAirTempWindow = scalarAirtemp
+        if(scalarAirTempAnnual < 0.99_rkind*realMissing) scalarAirTempAnnual = scalarAirtemp
+        wghtWindow = min(data_step/(gwTempWindow*secprday), 1._rkind)
+        wghtAnnual = min(data_step/(365._rkind*secprday),   1._rkind)
+        scalarAirTempWindow = scalarAirTempWindow + wghtWindow*(scalarAirtemp - scalarAirTempWindow)
+        scalarAirTempAnnual = scalarAirTempAnnual + wghtAnnual*(scalarAirtemp - scalarAirTempAnnual)
+      end associate
 
       ! save the surface temperature (just to make things easier to visualize)
       prog_data%var(iLookPROG%scalarSurfaceTemp)%dat(1) = prog_data%var(iLookPROG%mLayerTemp)%dat(1)

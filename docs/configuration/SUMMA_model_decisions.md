@@ -66,6 +66,7 @@ There are 44 model decisions. Defaults (used for `notPopulatedYet` where accepte
 | 42 | [surfRun_SE](#surfrun_se) | **homegrown_SE**, FUSEPRMS, FUSEAVIC, FUSETOPM, zero_SE | saturation-excess surface runoff |
 | 43 | [read_force](#read_force) | **readPerStep**, readFullSeries | how forcing data are read |
 | 44 | [write_buff](#write_buff) | **writePerStep**, writeFullSeries | how model output is buffered before writing |
+| 45 | [gwTempSrc](#gwtempsrc) | **soilColumn**, airTScale | where the temperature of groundwater reaching the channel comes from |
 
 ---
 
@@ -503,3 +504,41 @@ Renamed from `writeOutput` in earlier versions.
 |---|---|
 | writePerStep | write model output every time step (default; also selected by `notPopulatedYet`) |
 | writeFullSeries | buffer a whole output file in memory and write it once |
+
+<a id="gwtempsrc"></a>
+## 45. gwTempSrc — temperature of the groundwater reaching the channel
+
+| Option | Description |
+|---|---|
+| soilColumn | from the model's own column: the aquifer store with `groundwatr = bigBuckt`, the base of the soil column without one (default; also selected by `notPopulatedYet`) |
+| airTScale | scaled from the air temperature between its annual mean and a smoothed daily mean, after Wade et al. (2024) |
+
+`soilColumn` is the physically-based option: recharge mixes into the aquifer store, which
+relaxes towards the recharge temperature with a time constant of storage over recharge, so
+baseflow carries a damped, lagged version of the seasonal cycle. How much damping you get
+depends on how much water the store holds; a nearly empty bucket simply tracks the base of the
+soil column.
+
+`airTScale` is the cheap alternative of Wade et al. (2024, *Environmental Modelling and
+Software* 171:105866, eq. 9). The groundwater temperature is bounded below by deep groundwater,
+approximated by the mean annual air temperature, and above by the ground surface, approximated
+by a smoothed daily air temperature, and one coefficient picks the effective sourcing depth:
+
+```
+T_GW = C_ATGW * (AT_D - AT) + AT
+```
+
+with `C_ATGW` (0-1) the coefficient, `AT_D` the air temperature averaged over `gwTempWindow`
+days (2-14 in Wade et al.) and `AT` the mean annual air temperature. `C_ATGW = 0` is deep,
+temporally invariant groundwater and `C_ATGW = 1` is shallow groundwater that follows the
+ground surface. Both means are kept as running means of the forcing, so no extra input is
+needed, but the annual mean starts at the first air temperature the run sees and needs a year
+of spin-up before it means what its name says. They are written to the restart file
+(`scalarAirTempWindow`, `scalarAirTempAnnual`), so a spun-up run carries them forward.
+
+In permafrost this option needs care: its lower bound is the mean annual air temperature, which
+is below freezing, while real sub-permafrost or talik groundwater is at or above 0 C. The
+result is floored at freezing, so the formula there mostly returns 0 C rather than anything
+physical. `soilColumn` with a geothermal lower boundary ([`bcLowrTdyn`](#bclowrtdyn) `geoFlux`)
+is the better choice for cold regions; `airTScale` is a calibration knob for temperate basins,
+where Wade et al. tuned it per stream order.

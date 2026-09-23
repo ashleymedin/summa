@@ -102,6 +102,7 @@ contains
   case('surfRun_SE'      ); get_ixdecisions=iLookDECISIONS%surfRun_SE  ! choice of parameterization for saturation excess surface runoff
   case('read_force'      ); get_ixdecisions=iLookDECISIONS%read_force  ! method used to read forcing data (per step or full read)
   case('write_buff'      ); get_ixdecisions=iLookDECISIONS%write_buff  ! method used to buffer writing of model output (none, full)
+  case('gwTempSrc'       ); get_ixdecisions=iLookDECISIONS%gwTempSrc   ! choice of where the temperature of groundwater reaching the channel comes from
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = integerMissing
@@ -457,6 +458,9 @@ contains
   case('lakeIceMinThick'          ); get_ixParam = iLookPARAM%lakeIceMinThick        ! ice cover thinner than this breaks up and returns to the water (m)
   ! lower boundary condition for thermodynamics
   case('geothermalFlux'           ); get_ixParam = iLookPARAM%geothermalFlux         ! geothermal heat flux into the base of the soil column (W m-2)
+  ! temperature of the groundwater reaching the channel
+  case('C_ATGW'                   ); get_ixParam = iLookPARAM%C_ATGW                 ! air temperature to groundwater temperature coefficient (-)
+  case('gwTempWindow'             ); get_ixParam = iLookPARAM%gwTempWindow           ! averaging window of the air temperature the groundwater follows (days)
   ! get to here if cannot find the variable
   case default
    get_ixParam = integerMissing
@@ -505,6 +509,8 @@ contains
   ! other state variables
   case('scalarAquiferStorage'           ); get_ixProg = iLookPROG%scalarAquiferStorage             ! relative aquifer storage -- above bottom of the soil profile (m)
   case('scalarAquiferTemp'              ); get_ixProg = iLookPROG%scalarAquiferTemp                ! temperature of the water in the aquifer (K)
+  case('scalarAirTempWindow'            ); get_ixProg = iLookPROG%scalarAirTempWindow              ! running mean of the air temperature over gwTempWindow (K)
+  case('scalarAirTempAnnual'            ); get_ixProg = iLookPROG%scalarAirTempAnnual              ! running mean of the air temperature over a year (K)
   case('scalarSurfaceTemp'              ); get_ixProg = iLookPROG%scalarSurfaceTemp                ! surface temperature (K)
   ! coordinate variables
   case('mLayerDepth'                    ); get_ixProg = iLookPROG%mLayerDepth                      ! depth of each layer (m)

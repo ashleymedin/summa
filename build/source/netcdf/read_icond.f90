@@ -465,6 +465,8 @@ else
       prog_meta(iVar)%varName=='glacMass4AreaChange'       )then; err=nf90_noerr; no_ice_vars=.true.; cycle; endif ! backwards compatible, may be missing, correct in check_icond
    if(prog_meta(iVar)%varName=='scalarAblFrac'             )then; err=nf90_noerr; no_ablfrac=.true.; cycle; endif ! backwards compatible, may be missing, correct in check_icond
    if(prog_meta(iVar)%varName=='scalarAquiferTemp'         )then; err=nf90_noerr; cycle; endif ! backwards compatible, may be missing: stays realMissing and check_icond sets it from the soil column
+   if(prog_meta(iVar)%varName=='scalarAirTempWindow'   .or. &
+      prog_meta(iVar)%varName=='scalarAirTempAnnual'        )then; err=nf90_noerr; cycle; endif ! backwards compatible, may be missing: stays realMissing and the first forcing step starts the running mean
    if(prog_meta(iVar)%varName=='scalarCanairEnthalpy' .or. &
       prog_meta(iVar)%varName=='scalarCanopyEnthalpy' .or. &  
       prog_meta(iVar)%varName=='mLayerEnthalpy'            )then; err=nf90_noerr; no_icond_enth=.true.; cycle; endif ! skip enthalpy variables if not in file

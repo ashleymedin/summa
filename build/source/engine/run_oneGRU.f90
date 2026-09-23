@@ -97,6 +97,10 @@ USE mDecisions_module,only:       &
  localColumn,                     & ! separate groundwater representation in each local soil column
  singleBasin                        ! single groundwater store over the entire basin
 
+! look-up values for where the temperature of the groundwater reaching the channel comes from
+USE mDecisions_module,only:       &
+ airScaledTemp                      ! air temperature scaled between its annual mean and a smoothed daily mean
+
  implicit none
 private
 public::run_oneGRU
@@ -187,6 +191,7 @@ subroutine run_oneGRU(&
   real(rkind)                         :: notUsedNrgFlux                 ! instantaneous energy flux returned by the routing (W m-2)
   real(rkind)                         :: tempTop                        ! temperature of the water leaving the surface of a domain (K)
   real(rkind)                         :: tempBot                        ! temperature of the water draining from the bottom of a domain (K)
+  real(rkind)                         :: tempGW                         ! temperature of the groundwater reaching the channel (K)
   ! glacier area update
   logical(lgt)                        :: updateGlacArea                 ! flag to update glacier area this time step
   logical(lgt)                        :: updateLakeArea                 ! flag to update wetland area this time step
@@ -374,6 +379,7 @@ subroutine run_oneGRU(&
                 prog       => progHRU%hru(iHRU)%dom(iDOM)%var, &
                 diag       => diagHRU%hru(iHRU)%dom(iDOM)%var, &
                 bvar       => bvarData%var, &
+                mpar       => mparHRU%hru(iHRU)%dom(iDOM)%var, &
                 DOMarea    => progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1), &
                 mLayerTemp => progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerTemp)%dat, &
                 totalArea  => bvarData%var(iLookBVAR%basin__totalArea)%dat(1))
@@ -410,13 +416,26 @@ subroutine run_oneGRU(&
           tempTop = max(mLayerTemp(1), Tfreeze)
           tempBot = max(mLayerTemp(nSnow+nLake+nSoil), Tfreeze)
           basinNrgFlux = basinNrgFlux + iden_water*Cp_water*fracDOM*flux(iLookFLUX%scalarSurfaceRunoff)%dat(1)*tempTop
+          ! the groundwater reaching the channel: from the model's own column, or scaled from the air temperature between
+          ! deep groundwater (the annual mean) and the ground surface (a smoothed daily mean), Wade et al. (2024, EMS, eq. 9)
+          if(model_decisions(iLookDECISIONS%gwTempSrc)%iDecision == airScaledTemp)then
+            tempGW = max(mpar(iLookPARAM%C_ATGW)%dat(1)*(prog(iLookPROG%scalarAirTempWindow)%dat(1) - prog(iLookPROG%scalarAirTempAnnual)%dat(1)) &
+                         + prog(iLookPROG%scalarAirTempAnnual)%dat(1), Tfreeze)
+          else
+            tempGW = max(prog(iLookPROG%scalarAquiferTemp)%dat(1), Tfreeze) ! the aquifer store, which lags and damps the soil column
+          endif
           ! the same components as basin__TotalRunoff below: aquifer baseflow with a deep aquifer, soil drainage without one
           if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == bigBucket)then
             if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == localColumn) &
-              basinNrgFlux = basinNrgFlux + iden_water*Cp_water*fracDOM*flux(iLookFLUX%scalarAquiferBaseflow)%dat(1) &
-                                            *max(prog(iLookPROG%scalarAquiferTemp)%dat(1), Tfreeze)
+              basinNrgFlux = basinNrgFlux + iden_water*Cp_water*fracDOM*flux(iLookFLUX%scalarAquiferBaseflow)%dat(1)*tempGW
           else
-            basinNrgFlux = basinNrgFlux + iden_water*Cp_water*fracDOM*flux(iLookFLUX%scalarSoilDrainage)%dat(1)*tempBot
+            ! without an aquifer the drainage leaves the base of the soil column directly, unless the air-scaled option
+            ! is asked for, which stands in for the groundwater the column does not represent
+            if(model_decisions(iLookDECISIONS%gwTempSrc)%iDecision == airScaledTemp)then
+              basinNrgFlux = basinNrgFlux + iden_water*Cp_water*fracDOM*flux(iLookFLUX%scalarSoilDrainage)%dat(1)*tempGW
+            else
+              basinNrgFlux = basinNrgFlux + iden_water*Cp_water*fracDOM*flux(iLookFLUX%scalarSoilDrainage)%dat(1)*tempBot
+            endif
           endif
         else if(typeDOM==stream)then
           ! the reach itself: rain and melt on the water minus evaporation join the flow, at the column temperature
