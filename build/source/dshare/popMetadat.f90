@@ -337,6 +337,8 @@ subroutine popMetadat(err,message)
   mpar_meta(iLookPARAM%streamMinDepth)                 = var_info('streamMinDepth'                 , 'minimum liquid depth of the stream water column prescribed from mizuRoute', 'm'       , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%lakeMixingThermalC)             = var_info('lakeMixingThermalC'             , 'effective thermal conductivity between liquid lake layers (turbulent mixing)', 'W m-1 K-1', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%lakeIceMinThick)                = var_info('lakeIceMinThick'                , 'ice cover thinner than this breaks up and returns to the water'   , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! lower boundary condition for thermodynamics
+  mpar_meta(iLookPARAM%geothermalFlux)                 = var_info('geothermalFlux'                 , 'geothermal heat flux into the base of the soil column'            , 'W m-2'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin parameter data...
   ! -------------------------

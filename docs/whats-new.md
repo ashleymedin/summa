@@ -124,6 +124,13 @@ covers the user-facing highlights.
   `lakeMixingThermalC` and `lakeIceMinThick`; new restart variables `routingNrgFuture` and
   `nLakeFrz`. Runs without stream HRUs are unchanged.
   Test: `utils/test/test_mizuroute/test_streamtemp_bundled.sh`.
+- New `bcLowrTdyn` option `geoFlux` prescribes a geothermal heat flux into the base of the
+  soil column (new parameter `geothermalFlux`, W m-2, default 0.06), so a deep column keeps a
+  realistic temperature at depth instead of being insulated (`zeroFlux`) or pinned to
+  `lowerBoundTemp` (`presTemp`). This matters for permafrost and cold-region runs, where the
+  temperature at the base of the column sets the temperature of the water draining from it.
+  The flux is applied only where the bottom layer is soil; glacier and lake columns keep zero
+  flux. Existing parameter files need no change (the parameter has a default).
 - Optional coupling to the OpenWQ water-quality framework (`build/source/openwq/`).
 - Runs as a NextGen submodule; NextGen test cases are in `utils/test/test_ngen/`.
 - Large refactor: object-oriented flux routines, much shorter `computFlux.f90` and the

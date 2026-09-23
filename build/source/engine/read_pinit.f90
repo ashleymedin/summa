@@ -185,6 +185,13 @@ contains
   if (parFallback(iLookPARAM%lakeIceMinThick)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%lakeIceMinThick)%default_val = 0.005_rkind ! 5 mm: the minimum ice thickness of flowing water in Wanders et al. (2019), below which the cover breaks up (m)
   end if
+  ! geothermal heat flux into the base of the soil column, only used with bcLowrTdyn = geoFlux
+  if (parFallback(iLookPARAM%geothermalFlux)%default_val < 0.99_rkind*realMissing) then
+    ! NOTE: 0.06 W m-2 is the continental average; it ranges from ~0.03 in old cratons to ~0.1 in tectonically active regions
+    parFallback(iLookPARAM%geothermalFlux)%default_val = 0.06_rkind
+    parFallback(iLookPARAM%geothermalFlux)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%geothermalFlux)%upper_limit = 0.2_rkind
+  end if
   ! exponential hydraulic conductivity profile
   if (parFallback(iLookPARAM%f_hydCond)%default_val < 0.99_rkind*realMissing) then
     ! NOTE: a soil-column value, leaving ~5% of the surface conductivity at 4 m. Supraglacial debris is 1-5 m-1 over a 0.3-1 m
