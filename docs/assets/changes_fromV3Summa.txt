@@ -266,3 +266,8 @@ AFTER tag of v4.0.0-exp-Sundials
  66) Automatic parameter calibration, PR #639
      New build/source/calibration/ (DDS sampling, parameter search, NetCDF output) and driver summa_driver_opt.f90. Two-level MPI: domain parallelism plus instance parallelism across calibration trials, scheduled dynamically. 
      Multi-case runs via a --manifest file. Config moves to TOML (legacy -m/--control still accepted). parallel-utils submodule vendored into build/source/parallel/.
+ 67) Fix the restart file write for a multi-GRU run with glaciers
+     writeRestartGrid loops over every GRU itself, but was called from inside writeRestart's own GRU loop, so with more
+      than one GRU the second call redefined the grid dimension and the write died with "String match to name in use"
+      (and the grids of every GRU were written once per GRU). Called once after the loop now, re-entering define mode
+      since the file is in data mode by then.
