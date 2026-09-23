@@ -288,6 +288,7 @@ The restart file does not have a time dimension, since it represents a specific 
 | scalarGlceWE |  scalarv, hru, dom | double | kg m-2 | glacier ice (not snow) water equivalent change over simulation |
 | scalarSfcMeltPond | scalarv, hru, dom | double | kg m-2 | Ponded water caused by melt of the "snow without a layer" |
 | scalarAquiferStorage | scalarv, hru, dom | double | m | Relative aquifer storage -- above bottom of the soil profile |
+| scalarAquiferTemp | scalarv, hru, dom | double | K | Temperature of the water in the aquifer (optional; set from the base of the soil column when absent) |
 | iLayerHeight | ifcToto, hru, dom | double | m | Height of the layer interface; top of soil = 0 |
 | mLayerDepth | midToto, hru, dom | double | m | Depth of each layer |
 | mLayerVolFracIce | midToto, hru, dom | double | - | Volumetric fraction of ice in each layer |

@@ -131,6 +131,15 @@ covers the user-facing highlights.
   temperature at the base of the column sets the temperature of the water draining from it.
   The flux is applied only where the bottom layer is soil; glacier and lake columns keep zero
   flux. Existing parameter files need no change (the parameter has a default).
+- The aquifer carries its own temperature, `scalarAquiferTemp` (a new, optional restart
+  variable). Recharge arrives at the temperature of the base of the soil column and mixes into
+  the store, while baseflow and transpiration leave at the store's own temperature, so the
+  aquifer relaxes towards the recharge temperature with a time constant of storage over
+  recharge. Baseflow handed to the channel now carries that temperature instead of the
+  temperature of the bottom soil layer, which damps and lags the seasonal cycle as a real
+  aquifer does. Runoff temperatures are also floored at freezing everywhere, since the water
+  leaving the column is liquid even where the layer it left is frozen. Water and energy states
+  are unchanged; only the temperature of the water handed to the river network changes.
 - Optional coupling to the OpenWQ water-quality framework (`build/source/openwq/`).
 - Runs as a NextGen submodule; NextGen test cases are in `utils/test/test_ngen/`.
 - Large refactor: object-oriented flux routines, much shorter `computFlux.f90` and the
