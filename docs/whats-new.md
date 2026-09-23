@@ -113,6 +113,9 @@ covers the user-facing highlights.
 
 ## Pre-release
 ### Major changes
+- Fixed: writing a restart file failed with "String match to name in use" for any run with more
+  than one GRU and a glacier grid, because the grid write was called once per GRU when it
+  already loops over every GRU itself.
 - General cleanup and shortening of computFlux.f90, vegNrgFlux.f90, snowSoilNrgFlux.f90, vegLiqFlux.f90, snowLiqFlux.f90, soilLiqFlux.f90, groundwatr.f90, and bigAquifer.f90 
 - Added object-oriented methods to simplify flux routine calls in computFlux and improve modularity
     - classes for each flux routine were added to data_types.f90
