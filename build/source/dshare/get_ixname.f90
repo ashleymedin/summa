@@ -504,6 +504,7 @@ contains
   case('mLayerEnthalpy'                 ); get_ixProg = iLookPROG%mLayerEnthalpy                   ! enthalpy of the layers (J m-3)
   ! other state variables
   case('scalarAquiferStorage'           ); get_ixProg = iLookPROG%scalarAquiferStorage             ! relative aquifer storage -- above bottom of the soil profile (m)
+  case('scalarAquiferTemp'              ); get_ixProg = iLookPROG%scalarAquiferTemp                ! temperature of the water in the aquifer (K)
   case('scalarSurfaceTemp'              ); get_ixProg = iLookPROG%scalarSurfaceTemp                ! surface temperature (K)
   ! coordinate variables
   case('mLayerDepth'                    ); get_ixProg = iLookPROG%mLayerDepth                      ! depth of each layer (m)

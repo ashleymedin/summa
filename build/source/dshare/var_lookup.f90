@@ -407,6 +407,8 @@ MODULE var_lookup
   integer(i4b)    :: DOMaspect                   = integerMissing    ! azimuth in degrees East of North of the domain (degrees)
   integer(i4b)    :: DOMcontourLength            = integerMissing    ! length of contour at downslope edge of the domain (m)
   integer(i4b)    :: scalarAblFrac               = integerMissing    ! fraction of the domain that is in a glacier ablation zone (-)
+  ! temperature of the aquifer store
+  integer(i4b)    :: scalarAquiferTemp           = integerMissing    ! temperature of the water in the aquifer (K)
  endtype iLook_prog
 
  ! ***********************************************************************************************************
@@ -1047,7 +1049,7 @@ MODULE var_lookup
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
-                                                                         31, 32)
+                                                                         31, 32, 33)
  ! named variables: model diagnostic variables
  type(iLook_diag),    public,parameter :: iLookDIAG     =iLook_diag    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

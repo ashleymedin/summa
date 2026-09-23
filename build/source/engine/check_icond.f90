@@ -339,6 +339,7 @@ contains
     maxMassVegetation    => mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%maxMassVegetation)%dat(1)   ,& ! maximum mass of vegetation (kg m-2)
     ! state variables in the layer domains
     mLayerTemp           => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerTemp)%dat              ,& ! temperature (K)
+    scalarAquiferTemp    => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAquiferTemp)%dat(1)   ,& ! temperature of the water in the aquifer (K)
     mLayerEnthTemp       => diagData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookDIAG%mLayerEnthTemp)%dat          ,& ! temperature component of enthalpy (J m-3)
     mLayerEnthalpy       => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerEnthalpy)%dat          ,& ! enthalpy (J m-3)
     mLayerVolFracLiq     => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerVolFracLiq)%dat        ,& ! volumetric fraction of liquid water in each snow layer (-)
@@ -398,6 +399,16 @@ contains
      nSoil    = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
      nGlce    = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce
      nLayers  = nSnow + nLake + nSoil + nGlce
+
+     ! the aquifer temperature is optional in the initial conditions file: start it at the temperature of the water
+     ! draining into it, the bottom of the soil column floored at freezing (a column with no soil has no aquifer)
+     if(scalarAquiferTemp < 0.99_rkind*realMissing)then
+       if(nSoil>0)then
+         scalarAquiferTemp = max(mLayerTemp(nSnow+nLake+nSoil), Tfreeze)
+       else
+         scalarAquiferTemp = Tfreeze
+       endif
+     endif
 
      ! compute the maximum volumetric ice content for the layer domains
      if(nGlce>0)then ! snow can be firn

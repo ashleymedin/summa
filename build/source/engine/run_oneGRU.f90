@@ -386,8 +386,10 @@ subroutine run_oneGRU(&
             fluxHRU%hru(kHRU)%dom(1)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = fluxHRU%hru(kHRU)%dom(1)%var(iLookFLUX%mLayerColumnInflow)%dat(:) + flux(iLookFLUX%mLayerColumnOutflow)%dat(:)
           else
             bvar(iLookBVAR%basin__ColumnOutflow)%dat(1) = bvar(iLookBVAR%basin__ColumnOutflow)%dat(1) + sum(flux(iLookFLUX%mLayerColumnOutflow)%dat(:))
-            ! the water leaving each soil layer carries that layer's temperature to the channel (W m-2 over the GRU)
-            basinNrgFlux = basinNrgFlux + iden_water*Cp_water*sum(flux(iLookFLUX%mLayerColumnOutflow)%dat(1:nSoil)*mLayerTemp(nSnow+nLake+1:nSnow+nLake+nSoil))/totalArea
+            ! the water leaving each soil layer carries that layer's temperature to the channel (W m-2 over the GRU),
+            ! and it leaves as liquid water, so no colder than freezing even out of a frozen layer
+            basinNrgFlux = basinNrgFlux + iden_water*Cp_water*sum(flux(iLookFLUX%mLayerColumnOutflow)%dat(1:nSoil) &
+                                                                  *max(mLayerTemp(nSnow+nLake+1:nSnow+nLake+nSoil), Tfreeze))/totalArea
           endif
         endif
 
@@ -402,15 +404,17 @@ subroutine run_oneGRU(&
             bvar(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = bvar(iLookBVAR%basin__AquiferBaseflow)%dat(1)  + flux(iLookFLUX%scalarAquiferBaseflow)%dat(1) *fracDOM
           endif
           ! the heat carried by this runoff, for the temperature of the water handed to the channel (W m-2 over the GRU):
-          ! surface runoff leaves at the surface layer temperature (melt water at the freezing point), drainage and
-          ! baseflow at the temperature of the bottom of the soil column, which the aquifer is taken to share
+          ! surface runoff leaves at the surface layer temperature and drainage at the temperature of the bottom of the
+          ! soil column, both as liquid water, so no colder than freezing. Baseflow from a deep aquifer instead leaves at
+          ! the aquifer's own temperature, which lags and damps the soil column (see the aquifer store in coupled_em)
           tempTop = max(mLayerTemp(1), Tfreeze)
-          tempBot = mLayerTemp(nSnow+nLake+nSoil)
+          tempBot = max(mLayerTemp(nSnow+nLake+nSoil), Tfreeze)
           basinNrgFlux = basinNrgFlux + iden_water*Cp_water*fracDOM*flux(iLookFLUX%scalarSurfaceRunoff)%dat(1)*tempTop
           ! the same components as basin__TotalRunoff below: aquifer baseflow with a deep aquifer, soil drainage without one
           if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == bigBucket)then
             if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == localColumn) &
-              basinNrgFlux = basinNrgFlux + iden_water*Cp_water*fracDOM*flux(iLookFLUX%scalarAquiferBaseflow)%dat(1)*tempBot
+              basinNrgFlux = basinNrgFlux + iden_water*Cp_water*fracDOM*flux(iLookFLUX%scalarAquiferBaseflow)%dat(1) &
+                                            *max(prog(iLookPROG%scalarAquiferTemp)%dat(1), Tfreeze)
           else
             basinNrgFlux = basinNrgFlux + iden_water*Cp_water*fracDOM*flux(iLookFLUX%scalarSoilDrainage)%dat(1)*tempBot
           endif

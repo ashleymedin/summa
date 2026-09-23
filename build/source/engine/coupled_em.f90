@@ -212,6 +212,7 @@ subroutine coupled_em(&
   integer(i4b)                         :: nsub_success             ! number of successful substeps
   logical(lgt)                         :: computeVegFluxOld        ! flag to indicate if we are computing fluxes over vegetation on the previous sub step
   logical(lgt)                         :: includeAquifer           ! flag to denote that an aquifer is included
+  real(rkind)                          :: rechargeTemp             ! temperature of the water recharging the aquifer (K)
   logical(lgt)                         :: modifiedLayers           ! flag to denote that snow layers were modified
   logical(lgt)                         :: modifiedVegState         ! flag to denote that vegetation states were modified
   integer(i4b)                         :: maxSnowIceLayers         ! maximum number of snow/firn/ice layers
@@ -1989,6 +1990,33 @@ subroutine coupled_em(&
       if(nGlce>0) scalarTotalGlceEnthalpy = sum(mLayerEnthalpy(nSnow+nLake+nSoil+1:nLayers) * mLayerDepth(nSnow+nLake+nSoil+1:nLayers))&
                                             /sum(mLayerDepth(nSnow+nLake+nSoil+1:nLayers))
       
+      ! -----
+      ! * temperature of the water in the aquifer...
+      ! --------------------------------------------
+      ! The aquifer is a well-mixed store: the water that recharges it arrives at the temperature of the bottom of the
+      ! soil column and mixes in, while baseflow and transpiration leave at the store's own temperature and so do not
+      ! change it.  With S the storage and R the recharge, d(S*T)/dt = R*T_rech - (Q_base + E)*T and dS/dt = R - Q_base - E,
+      ! so S*dT/dt = R*(T_rech - T): the store relaxes towards the recharge temperature with a time constant S/R, which for
+      ! a real aquifer is months to years.  That damping is the point: baseflow then carries a lagged, muted version of the
+      ! seasonal cycle rather than the temperature of whichever soil layer happens to sit at the base of the column.
+      ! Integrated exactly over the data step for constant R and S, which is stable for any step length.
+      if(includeAquifer .and. nSoil>0)then
+        associate(&
+          scalarAquiferTemp     => prog_data%var(iLookPROG%scalarAquiferTemp)%dat(1)    ,& ! temperature of the water in the aquifer (K)
+          averageAquiferRecharge=> flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarAquiferRecharge))%dat(1), & ! recharge to the aquifer (m s-1)
+          mLayerTemp            => prog_data%var(iLookPROG%mLayerTemp)%dat               ) ! temperature of each layer (K)
+          ! the recharge is liquid water, so it arrives no colder than freezing even when the base of the soil is frozen
+          rechargeTemp = max(mLayerTemp(nSnow+nLake+nSoil), Tfreeze)
+          if(averageAquiferRecharge > 0._rkind)then
+            if(scalarAquiferStorage > verySmall)then
+              scalarAquiferTemp = rechargeTemp + (scalarAquiferTemp - rechargeTemp)*exp(-averageAquiferRecharge*data_step/scalarAquiferStorage)
+            else
+              scalarAquiferTemp = rechargeTemp ! an empty store mixes within the step, so it takes the temperature of the water arriving
+            endif
+          endif  ! no recharge over the step: the water that leaves takes the store's own temperature, so the store does not change
+        end associate
+      endif
+
       ! save the surface temperature (just to make things easier to visualize)
       prog_data%var(iLookPROG%scalarSurfaceTemp)%dat(1) = prog_data%var(iLookPROG%mLayerTemp)%dat(1)
 

@@ -389,6 +389,7 @@ subroutine popMetadat(err,message)
   prog_meta(iLookPROG%mLayerEnthalpy)                  = var_info('mLayerEnthalpy'                 , 'enthalpy of the layers'                                           , 'J m-3'           , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   ! other state variables
   prog_meta(iLookPROG%scalarAquiferStorage)            = var_info('scalarAquiferStorage'           , 'water required to bring aquifer to the bottom of the soil profile', 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  prog_meta(iLookPROG%scalarAquiferTemp)               = var_info('scalarAquiferTemp'              , 'temperature of the water in the aquifer'                          , 'K'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   prog_meta(iLookPROG%scalarSurfaceTemp)               = var_info('scalarSurfaceTemp'              , 'surface temperature (just a copy of the upper-layer temperature)' , 'K'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! define coordinate variables
   prog_meta(iLookPROG%mLayerDepth)                     = var_info('mLayerDepth'                    , 'depth of each layer'                                              , 'm'               , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
