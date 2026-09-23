@@ -289,6 +289,8 @@ The restart file does not have a time dimension, since it represents a specific 
 | scalarSfcMeltPond | scalarv, hru, dom | double | kg m-2 | Ponded water caused by melt of the "snow without a layer" |
 | scalarAquiferStorage | scalarv, hru, dom | double | m | Relative aquifer storage -- above bottom of the soil profile |
 | scalarAquiferTemp | scalarv, hru, dom | double | K | Temperature of the water in the aquifer (optional; set from the base of the soil column when absent) |
+| scalarAirTempWindow | scalarv, hru, dom | double | K | Running mean of the air temperature over `gwTempWindow` (optional; starts at the first air temperature when absent) |
+| scalarAirTempAnnual | scalarv, hru, dom | double | K | Running mean of the air temperature over a year (optional; starts at the first air temperature when absent) |
 | iLayerHeight | ifcToto, hru, dom | double | m | Height of the layer interface; top of soil = 0 |
 | mLayerDepth | midToto, hru, dom | double | m | Depth of each layer |
 | mLayerVolFracIce | midToto, hru, dom | double | - | Volumetric fraction of ice in each layer |

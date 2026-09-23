@@ -80,6 +80,7 @@ MODULE var_lookup
   integer(i4b)    :: surfRun_SE = integerMissing     ! choice of parameterization for saturation excess surface runoff
   integer(i4b)    :: read_force = integerMissing     ! method used to read forcing data (per step or full read)
   integer(i4b)    :: write_buff = integerMissing     ! method used to buffer model write (none, per file)
+  integer(i4b)    :: gwTempSrc  = integerMissing     ! choice of where the temperature of groundwater reaching the channel comes from
 
  endtype iLook_decision
 
@@ -361,6 +362,9 @@ MODULE var_lookup
   integer(i4b)    :: lakeIceMinThick       = integerMissing    ! ice cover thinner than this breaks up and returns to the water (m)
   ! lower boundary condition for thermodynamics
   integer(i4b)    :: geothermalFlux        = integerMissing    ! geothermal heat flux into the base of the soil column (W m-2)
+  ! temperature of the groundwater reaching the channel
+  integer(i4b)    :: C_ATGW                = integerMissing    ! air temperature to groundwater temperature coefficient (-)
+  integer(i4b)    :: gwTempWindow          = integerMissing    ! averaging window of the air temperature the groundwater follows (days)
  endtype iLook_param
 
  ! ***********************************************************************************************************
@@ -409,6 +413,9 @@ MODULE var_lookup
   integer(i4b)    :: scalarAblFrac               = integerMissing    ! fraction of the domain that is in a glacier ablation zone (-)
   ! temperature of the aquifer store
   integer(i4b)    :: scalarAquiferTemp           = integerMissing    ! temperature of the water in the aquifer (K)
+  ! running means of the air temperature, for the temperature of the groundwater reaching the channel
+  integer(i4b)    :: scalarAirTempWindow         = integerMissing    ! running mean of the air temperature over gwTempWindow (K)
+  integer(i4b)    :: scalarAirTempAnnual         = integerMissing    ! running mean of the air temperature over a year (K)
  endtype iLook_prog
 
  ! ***********************************************************************************************************
@@ -1013,7 +1020,7 @@ MODULE var_lookup
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
                                                                          31, 32, 33, 34, 35, 36, 37, 38, 39, 40,&
-                                                                         41, 42, 43, 44)
+                                                                         41, 42, 43, 44, 45)
  ! named variables: model time
  type(iLook_time),    public,parameter :: iLookTIME     =iLook_time    (  1,  2,  3,  4,  5,  6,  7)
  ! named variables: model forcing data
@@ -1044,12 +1051,13 @@ MODULE var_lookup
                                                                         161,162,163,164,165,166,167,168,169,170,&
                                                                         171,172,173,174,175,176,177,178,179,180,&
                                                                         181,182,183,184,185,186,187,188,189,190,&
-                                                                        191,192,193,194,195,196,197,198,199,200)
+                                                                        191,192,193,194,195,196,197,198,199,200,&
+                                                                        201,202)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
-                                                                         31, 32, 33)
+                                                                         31, 32, 33, 34, 35)
  ! named variables: model diagnostic variables
  type(iLook_diag),    public,parameter :: iLookDIAG     =iLook_diag    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

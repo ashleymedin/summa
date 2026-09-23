@@ -140,6 +140,14 @@ covers the user-facing highlights.
   aquifer does. Runoff temperatures are also floored at freezing everywhere, since the water
   leaving the column is liquid even where the layer it left is frozen. Water and energy states
   are unchanged; only the temperature of the water handed to the river network changes.
+- New `gwTempSrc` decision chooses where the temperature of the groundwater reaching the
+  channel comes from: `soilColumn` (the aquifer store or the base of the soil column, the
+  default and the previous behaviour) or `airTScale`, the coefficient of Wade et al. (2024)
+  that scales the air temperature between its annual mean (deep groundwater) and a smoothed
+  daily mean (the ground surface), with new parameters `C_ATGW` and `gwTempWindow` and new
+  optional restart variables `scalarAirTempWindow` and `scalarAirTempAnnual`. In permafrost
+  `airTScale` needs care: its deep-groundwater bound is the mean annual air temperature, which
+  is below freezing, so the result is mostly clipped at 0 C.
 - Optional coupling to the OpenWQ water-quality framework (`build/source/openwq/`).
 - Runs as a NextGen submodule; NextGen test cases are in `utils/test/test_ngen/`.
 - Large refactor: object-oriented flux routines, much shorter `computFlux.f90` and the

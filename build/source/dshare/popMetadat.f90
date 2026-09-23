@@ -339,6 +339,9 @@ subroutine popMetadat(err,message)
   mpar_meta(iLookPARAM%lakeIceMinThick)                = var_info('lakeIceMinThick'                , 'ice cover thinner than this breaks up and returns to the water'   , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! lower boundary condition for thermodynamics
   mpar_meta(iLookPARAM%geothermalFlux)                 = var_info('geothermalFlux'                 , 'geothermal heat flux into the base of the soil column'            , 'W m-2'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! temperature of the groundwater reaching the channel
+  mpar_meta(iLookPARAM%C_ATGW)                         = var_info('C_ATGW'                         , 'air temperature to groundwater temperature coefficient'           , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%gwTempWindow)                   = var_info('gwTempWindow'                   , 'averaging window of the air temperature the groundwater follows'  , 'days'            , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin parameter data...
   ! -------------------------
@@ -390,6 +393,8 @@ subroutine popMetadat(err,message)
   ! other state variables
   prog_meta(iLookPROG%scalarAquiferStorage)            = var_info('scalarAquiferStorage'           , 'water required to bring aquifer to the bottom of the soil profile', 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   prog_meta(iLookPROG%scalarAquiferTemp)               = var_info('scalarAquiferTemp'              , 'temperature of the water in the aquifer'                          , 'K'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  prog_meta(iLookPROG%scalarAirTempWindow)             = var_info('scalarAirTempWindow'            , 'running mean of the air temperature over gwTempWindow'            , 'K'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  prog_meta(iLookPROG%scalarAirTempAnnual)             = var_info('scalarAirTempAnnual'            , 'running mean of the air temperature over a year'                  , 'K'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   prog_meta(iLookPROG%scalarSurfaceTemp)               = var_info('scalarSurfaceTemp'              , 'surface temperature (just a copy of the upper-layer temperature)' , 'K'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! define coordinate variables
   prog_meta(iLookPROG%mLayerDepth)                     = var_info('mLayerDepth'                    , 'depth of each layer'                                              , 'm'               , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)

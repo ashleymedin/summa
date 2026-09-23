@@ -175,6 +175,9 @@ integer(i4b),parameter,public :: readFullSeries       = 362    ! read full forci
 ! look-up values for the buffered write of model output
 integer(i4b),parameter,public :: writePerStep         = 371    ! write data per time step (default)
 integer(i4b),parameter,public :: writeFullSeries      = 372    ! write all data for a given output file
+! look-up values for the choice of where the temperature of groundwater reaching the channel comes from
+integer(i4b),parameter,public :: soilColumnTemp       = 381    ! the model's own soil column (the aquifer store, or the base of the soil)
+integer(i4b),parameter,public :: airScaledTemp        = 382    ! air temperature scaled between its annual mean and a smoothed daily mean
 
 ! ----------------------------------------------------------------------------------------------------------- 
 contains
@@ -729,6 +732,15 @@ subroutine mDecisions(err,message)
     case('writeFullSeries'               );  model_decisions(iLookDECISIONS%write_buff)%iDecision = writeFullSeries ! write all data for a given output file
     case default
       err=10; message=trim(message)//"unknown option for method used to write model output [option="//trim(model_decisions(iLookDECISIONS%write_buff)%cDecision)//"]"; return
+  end select
+
+  ! where the temperature of the groundwater reaching the channel comes from
+  ! NOTE: the model's own soil column is the default
+  select case(trim(model_decisions(iLookDECISIONS%gwTempSrc)%cDecision))
+    case('soilColumn','notPopulatedYet'); model_decisions(iLookDECISIONS%gwTempSrc)%iDecision = soilColumnTemp ! from the soil column (default)
+    case('airTScale'                   ); model_decisions(iLookDECISIONS%gwTempSrc)%iDecision = airScaledTemp  ! scaled air temperature, Wade et al. (2024)
+    case default
+      err=10; message=trim(message)//"unknown option for the source of the groundwater temperature [option="//trim(model_decisions(iLookDECISIONS%gwTempSrc)%cDecision)//"]"; return
   end select
 
   ! -----------------------------------------------------------------------------------------------------------------------------------------------
