@@ -271,3 +271,11 @@ AFTER tag of v4.0.0-exp-Sundials
       than one GRU the second call redefined the grid dimension and the write died with "String match to name in use"
       (and the grids of every GRU were written once per GRU). Called once after the loop now, re-entering define mode
       since the file is in data mode by then.
+ 68) Cap the lateral outflow of a soil layer at the water it holds
+     computBaseflow set mLayerColumnOutflow from the transmissivity profile alone, with nothing tying it to the water in
+      the layer, so a thin layer of high conductivity on a steep slope could be asked for more than it holds over the step.
+      Each layer is now capped at its drainable water spread over the data step, as the smooth minimum q_max*tanh(q/q_max),
+      with d/dq and d/d(volFracLiq) carried into dBaseflow_dVolLiq/dWat/dTk.
+     NOTE: smoothed with tanh rather than the logistic the exfiltration uses, because the logistic smooth minimum
+      f*q + (1-f)*q_max is not monotone in q (its derivative turns negative just past the cap) and the solver cannot
+      then find a step; tanh has the same two limits, a derivative in (0,1], and needs no width parameter.
