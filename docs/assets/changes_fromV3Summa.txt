@@ -312,4 +312,13 @@ AFTER tag of v4.0.0-exp-Sundials
       than one GRU the second call redefined the grid dimension and the write died with "String match to name in use"
       (and the grids of every GRU were written once per GRU). Called once after the loop now, re-entering define mode
       since the file is in data mode by then.
+ 72) Frozen-ground diagnostics and ice-impeded lateral flow, Sep 24, 2026
+     New diagnostics scalarFrostTableDepth (depth to the top of the shallowest frozen soil layer) and scalarActiveLayerDepth
+      (thickness of the soil above the perennially frozen ground below it), computed in coupled_em at the end of the data
+      step from the ice in the soil layers; realMissing when the column has no such boundary. The two differ when a column
+      freezes from both ends, the autumn state of a permafrost column.
+     groundwatr.f90 scales each layer's TOPMODEL transmissivity by its ice impedance factor 10**(-f_impede*volFracIce),
+      the same factor soilLiqFlux applies to the vertical conductivity, and carries it into dBaseflow_dWat/dTk (the row
+      scales with the factor, and the factor's own temperature dependence adds a diagonal term). Before this a frozen layer
+      drained laterally at its full rate: drainableWater already counted liquid only, but the conductivity did not.
      
