@@ -545,6 +545,9 @@ subroutine popMetadat(err,message)
   diag_meta(iLookDIAG%scalarLakeLiqDepth)              = var_info('scalarLakeLiqDepth'             , 'total liquid depth of the lake layers'                            , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarLakeIceThick)              = var_info('scalarLakeIceThick'             , 'thickness of the ice cover of the lake layers'                    , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarStreamSfcInflowTemp)       = var_info('scalarStreamSfcInflowTemp'      , 'temperature of the rain plus melt entering the open water column' , 'K'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! frozen ground
+  diag_meta(iLookDIAG%scalarFrostTableDepth)           = var_info('scalarFrostTableDepth'          , 'depth to the top of the shallowest frozen soil layer'             , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%scalarActiveLayerDepth)          = var_info('scalarActiveLayerDepth'         , 'thickness of the soil above the perennially frozen ground below it', 'm'              , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * local model fluxes...
   ! -----------------------

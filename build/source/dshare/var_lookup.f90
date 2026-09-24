@@ -557,6 +557,9 @@ MODULE var_lookup
   integer(i4b)    :: scalarLakeLiqDepth              = integerMissing ! total liquid depth of the lake layers (m)
   integer(i4b)    :: scalarLakeIceThick              = integerMissing ! thickness of the ice cover of the lake layers (m)
   integer(i4b)    :: scalarStreamSfcInflowTemp       = integerMissing ! temperature of the rain plus melt entering the top of the open water column (K)
+  ! frozen ground
+  integer(i4b)    :: scalarFrostTableDepth           = integerMissing ! depth below the soil surface of the top of the shallowest frozen soil layer (m)
+  integer(i4b)    :: scalarActiveLayerDepth          = integerMissing ! thickness of the soil above the perennially frozen ground below it (m)
  endtype iLook_diag
 
  ! ***********************************************************************************************************
@@ -1071,7 +1074,8 @@ MODULE var_lookup
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
                                                                          91, 92, 93, 94, 95, 96, 97, 98, 99,100,&
                                                                         101,102,103,104,105,106,107,108,109,110,&
-                                                                        111,112,113,114,115,116,117,118,119)
+                                                                        111,112,113,114,115,116,117,118,119,120,&
+                                                                        121)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

@@ -151,6 +151,17 @@ covers the user-facing highlights.
 - Fixed: writing a restart file failed with "String match to name in use" for any run with more
   than one GRU and a glacier grid, because the grid write was called once per GRU when it
   already loops over every GRU itself.
+- New frozen-ground diagnostics `scalarFrostTableDepth` (depth to the top of the shallowest
+  frozen soil layer, the freezing front working down from the surface) and
+  `scalarActiveLayerDepth` (the thickness of soil above the perennially frozen ground below it).
+  The two differ whenever a column freezes from both ends, which is the autumn state of a
+  permafrost column and the one a single thaw depth cannot describe. Both are missing when the
+  column has no such boundary.
+- Lateral flow out of a frozen soil layer is now impeded by its ice: the TOPMODEL transmissivity
+  of each layer is scaled by the same `10**(-f_impede * volFracIce)` factor `soilLiqFlux`
+  applies to the vertical conductivity, with the matching derivatives. Before this, a frozen
+  layer still drained laterally at its full rate, since the transmissivity profile is built from
+  the saturated conductivity alone. Affects `groundwatr = qTopmodl` runs with frozen soil.
 - Optional coupling to the OpenWQ water-quality framework (`build/source/openwq/`).
 - Runs as a NextGen submodule; NextGen test cases are in `utils/test/test_ngen/`.
 - Large refactor: object-oriented flux routines, much shorter `computFlux.f90` and the

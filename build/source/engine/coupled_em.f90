@@ -2000,6 +2000,35 @@ subroutine coupled_em(&
                                             /sum(mLayerDepth(nSnow+nLake+nSoil+1:nLayers))
       
       ! -----
+      ! * frozen ground: the frost table and the active layer...
+      ! --------------------------------------------------------
+      ! Two depths below the soil surface, both from the ice in the soil layers at the end of the step:
+      !   the frost table is the top of the shallowest frozen layer, the freezing front working down from the surface
+      !   the active layer is the ground above the perennially frozen ground, so the top of the deepest run of frozen
+      !     layers that reaches the base of the column: the two differ whenever the column freezes from both ends, which
+      !     is the autumn state of a permafrost column and the one a single "thaw depth" cannot describe
+      ! A layer counts as frozen when it holds any ice at all; missing means there is no such boundary in the column,
+      ! an entirely thawed column for the frost table, and no frozen base for the active layer.
+      if(nSoil>0)then
+        associate(&
+          scalarFrostTableDepth  => diag_data%var(iLookDIAG%scalarFrostTableDepth)%dat(1) ,& ! depth to the top of the shallowest frozen soil layer (m)
+          scalarActiveLayerDepth => diag_data%var(iLookDIAG%scalarActiveLayerDepth)%dat(1) ) ! thickness of the soil above the perennially frozen ground (m)
+          scalarFrostTableDepth  = realMissing
+          scalarActiveLayerDepth = realMissing
+          do iLayer=nSnow+nLake+1,nSnow+nLake+nSoil ! down from the soil surface: the first frozen layer is the frost table
+            if(mLayerVolFracIce(iLayer) > verySmall)then
+              scalarFrostTableDepth = iLayerHeight(iLayer-1)
+              exit
+            end if
+          end do
+          do iLayer=nSnow+nLake+nSoil,nSnow+nLake+1,-1 ! up from the base: the frozen run that reaches it is the permafrost
+            if(mLayerVolFracIce(iLayer) <= verySmall) exit
+            scalarActiveLayerDepth = iLayerHeight(iLayer-1)
+          end do
+        end associate
+      end if
+
+      ! -----
       ! * temperature of the water in the aquifer...
       ! --------------------------------------------
       ! The aquifer is a well-mixed store: the water that recharges it arrives at the temperature of the bottom of the

@@ -672,6 +672,9 @@ contains
   case('scalarStreamDepth'              ); get_ixDiag = iLookDIAG%scalarStreamDepth                ! liquid depth of the stream water column (m)
   case('scalarStreamVelocity'           ); get_ixDiag = iLookDIAG%scalarStreamVelocity             ! reach mean velocity (m s-1)
   case('scalarStreamTemp'               ); get_ixDiag = iLookDIAG%scalarStreamTemp                 ! reach outlet temperature (K)
+  ! frozen ground
+  case('scalarFrostTableDepth'          ); get_ixDiag = iLookDIAG%scalarFrostTableDepth            ! depth to the top of the shallowest frozen soil layer (m)
+  case('scalarActiveLayerDepth'         ); get_ixDiag = iLookDIAG%scalarActiveLayerDepth           ! thickness of the soil above the perennially frozen ground below it (m)
   case('scalarLakeLiqDepth'             ); get_ixDiag = iLookDIAG%scalarLakeLiqDepth               ! total liquid depth of the lake layers (m)
   case('scalarLakeIceThick'             ); get_ixDiag = iLookDIAG%scalarLakeIceThick               ! thickness of the ice cover of the lake layers (m)
   case('scalarStreamSfcInflowTemp'      ); get_ixDiag = iLookDIAG%scalarStreamSfcInflowTemp        ! temperature of the rain plus melt entering the open water column (K)
