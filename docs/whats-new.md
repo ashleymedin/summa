@@ -113,6 +113,14 @@ covers the user-facing highlights.
 
 ## Pre-release
 ### Major changes
+- Fixed: writing a restart file failed for any run with more than one GRU and a glacier grid.
+- A soil layer's lateral outflow is capped at the drainable water it holds over the data step.
+- The infiltration closure under saturation scales to the depth of the zone it averages over, so
+  a thin glacier debris column closes off as a soil column does.
+- Exfiltration returns the surplus a nearly full column cannot store whatever face it arrived
+  through, not only the lateral inflow. This closes the water balance of a glacier debris column
+  fed by melt from below; a free-draining soil column is unchanged, since the relief only opens
+  once available storage falls below 2 mm.
 - New `groundwatr = modflow` option: groundwater is handled by a coupled MODFLOW 6 model
   instead of a SUMMA aquifer. Requires `bcLowrSoiH = presHead`, a `-DUSE_MODFLOW6=ON` build,
   and the new `summa_modflow6` coupler executable (which drives both models). Each data step
