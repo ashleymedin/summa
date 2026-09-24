@@ -466,11 +466,7 @@ contains
     call this%enter_run_dir(err, message)
     if (err /= 0) return
 
-    ! 3. prepare the step, then run out any leading steady-state stress periods.  Preparing before
-    !    scattering matters: prepare_time_step reloads a package's PERIOD block at the start of each
-    !    stress period, which would overwrite the scattered array.  <MODEL>/ISS is only meaningful
-    !    once a step is prepared, hence prepare-then-test.  A steady-state step keeps the RCH
-    !    package's own recharge rather than SUMMA's instantaneous drainage.
+    ! 3. prepare the step, then solve out any leading steady-state stress periods
     do
       istat = mf6_prepare_time_step(real(summa_data_step, c_double))
       if (istep /= 1) exit                      ! only leading periods; later steps are transient
@@ -485,10 +481,8 @@ contains
     end if
 
     if (istep == 1) then
-      ! delt is now set, and this is the first TRANSIENT step: verify one MODFLOW step == one
-      ! SUMMA data step.  Deliberately checked here rather than on a steady-state step, whose
-      ! perlen has nothing to do with the coupling interval.
-      istat = mf6_get_time_step(dt_mf6)
+      ! one MODFLOW time step must equal one SUMMA data step
+            istat = mf6_get_time_step(dt_mf6)
       if (abs(dt_mf6 - real(summa_data_step, c_double)) > 1.0e-6_c_double*real(summa_data_step, c_double)) then
         write(message,'(a,g0,a,g0,a)') 'MODFLOW time step (', dt_mf6, &
               ') must equal the SUMMA data step (', summa_data_step, ')'
@@ -700,11 +694,8 @@ contains
     call to_upper(this%bflow_package_name)
     call to_upper(this%evt_package_name)
 
-    ! -- build the boundary-package table --
-    ! Two ways in, and the explicit table wins.  If bnd_package_names is left blank the single
-    ! bflow_package_name entry is used as role=baseflow, which is exactly what every config
-    ! written before this table existed means, so they keep working untouched.
-    this%nbnd = 0
+    ! boundary-package table; a blank bnd_package_names falls back to bflow_package_name as role=baseflow
+        this%nbnd = 0
     if (len_trim(bnd_package_names(1)) > 0) then
       do ib = 1, MAXBND
         if (len_trim(bnd_package_names(ib)) == 0) cycle
@@ -1318,12 +1309,8 @@ contains
 
     if (.not. allocated(this%hru_area)) return
 
-    ! Total weight landing on each cell, so a cell shared between HRUs is apportioned rather than
-    ! counted once per owner.  This is the same denominator the scatter uses: cell c receives the
-    ! weighted MEAN rate sum_i w_ic q_i / sum_i w_ic, so HRU i's share of that cell's volume is
-    ! w_ic / sum_j w_jc.  The 4-HRU Sagehen map has two HRUs deliberately sharing 1700 cells, and
-    ! without this apportioning each would appear to own the whole of them.
-    allocate(wcell(this%nrow*this%ncol)); wcell = 0.0_c_double
+    ! total weight on each cell, so a shared cell is apportioned between its owners
+        allocate(wcell(this%nrow*this%ncol)); wcell = 0.0_c_double
     do i = 1, this%nHRU
       do k = this%map_ptr(i), this%map_ptr(i+1) - 1
         c = this%map_cell(k)
@@ -1334,9 +1321,8 @@ contains
 
     nbad = 0; worst = 0.0_c_double; iworst = 0
     do i = 1, this%nHRU
-      ! effective mapped area: sum_k (w_ik / sum_j w_jk) * A_k.  Recharge VOLUME is conserved for
-      ! HRU i exactly when this equals its area in attributes.nc.
-      amap = 0.0_c_double
+      ! effective mapped area: sum_k (w_ik / sum_j w_jk) A_k
+            amap = 0.0_c_double
       do k = this%map_ptr(i), this%map_ptr(i+1) - 1
         c = this%map_cell(k)
         if (c < 1 .or. c > this%nrow*this%ncol) cycle
