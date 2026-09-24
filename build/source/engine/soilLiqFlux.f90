@@ -1685,12 +1685,7 @@ subroutine update_volFracLiq_derivatives
     posHead(ixTop:ixBot) = 0.5_rkind*(mLayerMatricHead(ixTop:ixBot) + sqrt(mLayerMatricHead(ixTop:ixBot)**2_i4b + headSmooth**2_i4b)) ! smooth positive part of matric head (m)
     dPosHead_dPsi(ixTop:ixBot) = 0.5_rkind*(1._rkind + mLayerMatricHead(ixTop:ixBot)/sqrt(mLayerMatricHead(ixTop:ixBot)**2_i4b + headSmooth**2_i4b))
 
-    ! The closure begins at a metre of positive head, a depth a soil column can hold but a thin one cannot: the debris
-    ! veneer of a glacier is as little as min_thickness (20 mm), so it would have to pond tens of times its own
-    ! thickness before infiltration closed, and the water it cannot store is lost from the balance instead. Never ask
-    ! for more head than the zone is deep. The smoothing width stays where it was for a column of a metre or more, and
-    ! is narrowed for a thinner one only as far as a quarter of its cutoff, which keeps the closure off while the zone
-    ! is unsaturated without making the logistic so sharp that the solver cannot step across it.
+    ! the closure cannot ask for more head than the zone is deep, nor a width that outruns its cutoff
     compHeadCutoff_use = min(compHeadCutoff, rootZoneDepth)
     compHeadWidth_use  = min(compHeadWidth, 0.25_rkind*compHeadCutoff_use)
 

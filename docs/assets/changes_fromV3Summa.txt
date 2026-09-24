@@ -267,44 +267,12 @@ AFTER tag of v4.0.0-exp-Sundials
      New build/source/calibration/ (DDS sampling, parameter search, NetCDF output) and driver summa_driver_opt.f90. Two-level MPI: domain parallelism plus instance parallelism across calibration trials, scheduled dynamically. 
      Multi-case runs via a --manifest file. Config moves to TOML (legacy -m/--control still accepted). parallel-utils submodule vendored into build/source/parallel/.
  67) Fix the restart file write for a multi-GRU run with glaciers
-     writeRestartGrid loops over every GRU itself, but was called from inside writeRestart's own GRU loop, so with more
-      than one GRU the second call redefined the grid dimension and the write died with "String match to name in use"
-      (and the grids of every GRU were written once per GRU). Called once after the loop now, re-entering define mode
-      since the file is in data mode by then.
- 68) Cap the lateral outflow of a soil layer at the water it holds
-     computBaseflow set mLayerColumnOutflow from the transmissivity profile alone, with nothing tying it to the water in
-      the layer, so a thin layer of high conductivity on a steep slope could be asked for more than it holds over the step.
-      Each layer is now capped at its drainable water spread over the data step, as the smooth minimum q_max*tanh(q/q_max),
-      with d/dq and d/d(volFracLiq) carried into dBaseflow_dVolLiq/dWat/dTk.
-     NOTE: smoothed with tanh rather than the logistic the exfiltration uses, because the logistic smooth minimum
-      f*q + (1-f)*q_max is not monotone in q (its derivative turns negative just past the cap) and the solver cannot
-      then find a step; tanh has the same two limits, a derivative in (0,1], and needs no width parameter.
- 69) Scale the infiltration closure to the depth of the zone it averages over
-     The closure that shuts infiltration off under saturation with a blocked lower boundary began at a fixed metre of
-      positive head, which a soil column can hold but a glacier debris veneer cannot: debris is as thin as min_thickness
-      (20 mm), so it would have to pond tens of times its own thickness before the closure engaged, and the water it
-      could not store was lost from the balance instead. The cutoff is now min(1 m, rootZoneDepth) and the smoothing
-      width min(0.02 m, a quarter of that cutoff), narrow enough to leave the closure off while the zone is unsaturated
-      and wide enough that the solver can still step across it.
-     Only binds where the root zone is shallower than a metre, and only where the block already applied (a blocked lower
-      boundary, or any glacier domain), so a free-draining soil column is untouched.
-     On gulkana this cuts the infiltration into a saturated debris column from 0.59 to 0.07 kg m-2 over the step. It does
-      NOT close the debris-column mass balance: the melt arriving through the lower boundary then grows to fill the same
-      gap, because that boundary flux is clamped into [scalarGlceMelt, 0] and acts as a slack variable rather than an
-      independent flux. Giese et al. (2020, The Cryosphere 14:1555) avoid this by adding the melt of the top ice layer to
-      the overlying debris as a mass source, with the Darcy conductivity at the debris-ice interface set to zero in both
-      directions, and by giving every debris layer a linear-reservoir runoff sink.
- 70) Exfiltrate the surplus a full soil column cannot store, whatever face it arrived through
-     The exfiltration in computBaseflow returned the surplus of the lateral inflow over the lateral outflow, so it only
-      relieved a column filled from upslope. A column filled through its own surface, or through its base by the glacier
-      melt entering a debris column, had nothing to relieve it: it saturated, and the water it could not store left the
-      mass balance rather than the column. The surplus is now everything arriving less everything leaving sideways,
-        exfilDrive = totalColumnInflow + (iLayerLiqFluxSoil(0) - iLayerLiqFluxSoil(nSoil)) - totalColumnOutflow
-      the vertical part being the difference of the column's own boundary fluxes, the same pair the mass balance uses.
-      The logistic on the available storage is unchanged, so nothing exfiltrates until the column is nearly full, and
-      the derivative keeps its form with -qbTotal replaced by exfilDrive (the vertical fluxes are taken as given here,
-      as the lateral inflow always was; their derivatives belong to soilLiqFlux).
-     This is what closes the debris-column mass balance: gulkana now restart-cycles indefinitely (five cycles tested),
-      where before it failed on the second. A qTopmodl upland is unaffected in practice: on the reynolds distributed
-      test the exfiltration is identically zero both before and after, since the relief only opens when the available
-      storage falls below 2 mm, which a free-draining 2 m soil column does not reach.
+     writeRestartGrid loops over every GRU itself, so it is called once after writeRestart's GRU loop, not inside it.
+ 68) Cap the lateral outflow of a soil layer at the drainable water it holds over the data step
+     The smooth minimum q_max*tanh(q/q_max), monotone where a logistic one is not, with its derivatives in dBaseflow_d*.
+ 69) Scale the infiltration closure under saturation to the depth of the zone it averages over
+     Cutoff min(1 m, rootZoneDepth) and width min(0.02 m, a quarter of it), so a debris veneer closes as a soil column does.
+ 70) Exfiltrate the surplus a nearly full soil column cannot store, whatever face it arrived through
+     exfilDrive = totalColumnInflow + (iLayerLiqFluxSoil(0) - iLayerLiqFluxSoil(nSoil)) - totalColumnOutflow, was lateral only.
+     Closes the debris-column water balance, so gulkana restart-cycles (five tested); a qTopmodl upland is unchanged in
+      practice, its exfiltration identically zero either way, since the relief opens only below 2 mm available storage.
