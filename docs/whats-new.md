@@ -162,6 +162,13 @@ covers the user-facing highlights.
   applies to the vertical conductivity, with the matching derivatives. Before this, a frozen
   layer still drained laterally at its full rate, since the transmissivity profile is built from
   the saturated conductivity alone. Affects `groundwatr = qTopmodl` runs with frozen soil.
+- New `hyporhTdyn` decision adds the conceptual hyporheic exchange of Wade et al. (2024) to a
+  stream domain: `proxy` returns a fraction `hypFrac` of the reach flow at the temperature the
+  reach had `hypLag` hours ago, written as one more inflow exchange so no water moves. It damps
+  the diurnal swing without changing the mean; on the bundled stream test with `hypFrac` 0.4 and
+  `hypLag` 12 h the outlet's mean daily range falls from 0.76 K to 0.35 K. New parameters
+  `hypFrac` and `hypLag`, new restart variable `hypTempPast`, and the diagnostic
+  `scalarHypTemp`. The default `none` is the previous zero-exchange behaviour.
 - Optional coupling to the OpenWQ water-quality framework (`build/source/openwq/`).
 - Runs as a NextGen submodule; NextGen test cases are in `utils/test/test_ngen/`.
 - Large refactor: object-oriented flux routines, much shorter `computFlux.f90` and the

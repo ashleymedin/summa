@@ -442,6 +442,12 @@ subroutine run_oneGRU(&
           ! NOTE: the stream domain runs in the network pass, so these are the values of the previous step
           bvar(iLookBVAR%basin__SurfaceRunoff)%dat(1) = bvar(iLookBVAR%basin__SurfaceRunoff)%dat(1) + flux(iLookFLUX%scalarStreamRunoff)%dat(1)*fracDOM
           basinNrgFlux = basinNrgFlux + iden_water*Cp_water*fracDOM*flux(iLookFLUX%scalarStreamRunoff)%dat(1)*max(diag(iLookDIAG%scalarStreamTemp)%dat(1), Tfreeze)
+          ! remember this step's outlet temperature for the hyporheic return flow, newest first, so that the next step
+          ! averages over the residence time. The column read the buffer before this push, so it sees only past steps.
+          associate(hypTempPast => bvar(iLookBVAR%hypTempPast)%dat)
+            hypTempPast(2:size(hypTempPast)) = hypTempPast(1:size(hypTempPast)-1)
+            hypTempPast(1) = max(diag(iLookDIAG%scalarStreamTemp)%dat(1), Tfreeze)
+          end associate
         else if(typeDOM==glacCln1 .or. typeDOM==glacCln2 .or. typeDOM==glacDbr)then
           ! glacier melt (m s-1) into the firn reservoir from the accumulation zone, and the snow or ice reservoir from the ablation zone
           ! NOTE: assumes either one HRU per GRU with many glaciers, or one glacier per GRU with many HRUs;

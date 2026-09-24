@@ -67,6 +67,7 @@ There are 44 model decisions. Defaults (used for `notPopulatedYet` where accepte
 | 43 | [read_force](#read_force) | **readPerStep**, readFullSeries | how forcing data are read |
 | 44 | [write_buff](#write_buff) | **writePerStep**, writeFullSeries | how model output is buffered before writing |
 | 45 | [deepTherml](#deeptherml) | **none**, aquiferTemp, airTempGW | deep thermal state below the hydrologically active soil column |
+| 46 | [hyporhTdyn](#hyporhtdyn) | **none**, proxy | hyporheic exchange in a stream domain |
 
 ---
 
@@ -564,3 +565,38 @@ groundwater is at or above 0 C. The result is floored at freezing, so the formul
 returns 0 C rather than anything physical. That is why it is a per-basin opt-in rather than a
 default: it is useful in parts of Alaska, not all of it. `aquiferTemp` with a geothermal lower
 boundary ([`bcLowrTdyn`](#bclowrtdyn) `presFlux`) is the process-based cold-region path.
+
+<a id="hyporhtdyn"></a>
+## 46. hyporhTdyn — hyporheic exchange in a stream domain
+
+| Option | Description |
+|---|---|
+| none | no exchange with the bed (default; also selected by `notPopulatedYet`) |
+| proxy | a tuned fraction of the reach flow returns at the temperature the reach had `hypLag` hours ago, after Wade et al. (2024) |
+
+SUMMA's stream domain otherwise assumes zero exchange with the bed. `proxy` is the conceptual
+representation of Wade et al. (2024, *Environmental Modelling and Software* 171:105866,
+eqs. 11-12): a fraction `hypFrac` of the reach flow leaves into the bed and returns at
+`scalarHypTemp`, the mean of the reach's own outlet temperature over the previous `hypLag`
+hours:
+
+```latex
+\Phi_{hyp} = \frac{H_{frac}\,Q}{V}\,(T_{hyp} - T)
+```
+
+It is written as one more `(T_in - T)` exchange alongside the upstream, lateral and surface
+inflows, so it moves no water: the flow returns what it took, and the mean reach temperature is
+unchanged while the diurnal swing is damped. In Wade et al. this was the single largest
+accuracy gain of the whole study, cutting headwater daily-maximum error from 3.70 to 1.44 C.
+
+`hypFrac` (0-1) and `hypLag` (1-24 h) are both tuned; the 0.2 and 6 h defaults are a starting
+point, not a recommendation. Wade et al. tune them per stream order, which here means one value
+per reach: a stream domain is the only domain with area in its HRU, so an HRU-level parameter
+already gives one value per reach. The reach's temperature history is kept in the restart
+variable `hypTempPast`; a run that starts without one builds the history as it goes and leaves
+the exchange out of the energy balance until it has some.
+
+The mechanism is not blocked by permafrost, since streams usually keep an unfrozen talik even
+under continuous permafrost, but it has not been validated there. `hypFrac` and `hypLag` are an
+empirical fit rather than derived SUMMA physics, which is why this is opt-in and separate from
+[`deepTherml`](#deeptherml): the two compose, and either can be used without the other.

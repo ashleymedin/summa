@@ -179,6 +179,9 @@ integer(i4b),parameter,public :: writeFullSeries      = 372    ! write all data 
 integer(i4b),parameter,public :: noDeepTherml         = 381    ! none: the base of the soil column itself, floored at freezing
 integer(i4b),parameter,public :: aquiferTempState     = 382    ! a well-mixed temperature carried by the big-bucket aquifer store
 integer(i4b),parameter,public :: airTempGW            = 383    ! groundwater temperature scaled from the air temperature (Wade et al., 2024)
+! look-up values for the choice of hyporheic exchange treatment in a stream domain
+integer(i4b),parameter,public :: noHyporheic          = 391    ! none: no exchange with the bed
+integer(i4b),parameter,public :: hyporheicProxy       = 392    ! a lagged return of a fraction of the flow (Wade et al., 2024)
 
 ! ----------------------------------------------------------------------------------------------------------- 
 contains
@@ -744,6 +747,15 @@ subroutine mDecisions(err,message)
     case('airTempGW'             ); model_decisions(iLookDECISIONS%deepTherml)%iDecision = airTempGW        ! scaled air temperature, Wade et al. (2024)
     case default
       err=10; message=trim(message)//"unknown option for the deep thermal state [option="//trim(model_decisions(iLookDECISIONS%deepTherml)%cDecision)//"]"; return
+  end select
+
+  ! the treatment of hyporheic exchange in a stream domain
+  ! NOTE: none is the default, so an existing configuration keeps the behaviour it had
+  select case(trim(model_decisions(iLookDECISIONS%hyporhTdyn)%cDecision))
+    case('none','notPopulatedYet'); model_decisions(iLookDECISIONS%hyporhTdyn)%iDecision = noHyporheic    ! no exchange with the bed (default)
+    case('proxy'                 ); model_decisions(iLookDECISIONS%hyporhTdyn)%iDecision = hyporheicProxy ! lagged return flow, Wade et al. (2024)
+    case default
+      err=10; message=trim(message)//"unknown option for hyporheic exchange [option="//trim(model_decisions(iLookDECISIONS%hyporhTdyn)%cDecision)//"]"; return
   end select
 
   ! -----------------------------------------------------------------------------------------------------------------------------------------------

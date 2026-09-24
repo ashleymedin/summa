@@ -322,7 +322,7 @@ contains
  integer(i4b)                              :: fileGRU                       ! number of GRUs in file
  integer(i4b)                              :: fileDOM                       ! number of domains in netcdf file
  integer(i4b)                              :: iVar,i,j                      ! loop indices
- integer(i4b),dimension(2)                 :: nrdx                          ! intermediate array of loop indices for basin variables
+ integer(i4b),dimension(3)                 :: nrdx                          ! intermediate array of loop indices for basin variables
  integer(i4b),dimension(7)                 :: ngdx                          ! intermediate array of loop indices for glacier variables
  integer(i4b)                              :: iGRU,iHRU,iDOM,iGlac,iGrid    ! loop indices
  integer(i4b)                              :: dimID                         ! varible dimension ids
@@ -694,7 +694,7 @@ else
   endif
 
   ! loop through specific basin variables
-  nrdx = (/iLookBVAR%routingRunoffFuture, iLookBVAR%routingNrgFuture/)   ! array of desired variable indices
+  nrdx = (/iLookBVAR%routingRunoffFuture, iLookBVAR%routingNrgFuture, iLookBVAR%hypTempPast/)   ! array of desired variable indices
   do i = 1,size(nrdx)
    iVar = nrdx(i)
 
@@ -703,6 +703,16 @@ else
     err = nf90_inq_varid(ncid,trim(bvar_meta(iVar)%varName),ncVarID)
     if(err/=nf90_noerr)then
      write(iulog,*) 'WARNING: routingNrgFuture is not in the initial conditions file ... using zeros'
+     err=nf90_noerr; cycle
+    endif
+   endif
+
+   ! likewise the reach temperature history, which is only used with hyporhTdyn = proxy: with no history the
+   ! hyporheic exchange stays out of the energy balance until the run has filled the residence time
+   if(iVar == iLookBVAR%hypTempPast)then
+    err = nf90_inq_varid(ncid,trim(bvar_meta(iVar)%varName),ncVarID)
+    if(err/=nf90_noerr)then
+     write(iulog,*) 'WARNING: hypTempPast is not in the initial conditions file ... starting with no reach temperature history'
      err=nf90_noerr; cycle
     endif
    endif

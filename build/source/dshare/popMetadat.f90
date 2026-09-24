@@ -341,6 +341,9 @@ subroutine popMetadat(err,message)
   mpar_meta(iLookPARAM%lowerBoundNrgFlux)              = var_info('lowerBoundNrgFlux'              , 'energy flux at the lower boundary, the geothermal heat flux'      , 'W m-2'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! temperature of the groundwater reaching the channel
   mpar_meta(iLookPARAM%gwTempWindow)                   = var_info('gwTempWindow'                   , 'averaging window of the air temperature the groundwater follows'  , 'days'            , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! hyporheic exchange in a stream domain
+  mpar_meta(iLookPARAM%hypFrac)                        = var_info('hypFrac'                        , 'fraction of the reach flow returned as hyporheic flow'            , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%hypLag)                         = var_info('hypLag'                         , 'residence time of the hyporheic flow paths'                       , 'h'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin parameter data...
   ! -------------------------
@@ -548,6 +551,8 @@ subroutine popMetadat(err,message)
   ! frozen ground
   diag_meta(iLookDIAG%scalarFrostTableDepth)           = var_info('scalarFrostTableDepth'          , 'depth to the top of the shallowest frozen soil layer'             , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarActiveLayerDepth)          = var_info('scalarActiveLayerDepth'         , 'thickness of the soil above the perennially frozen ground below it', 'm'              , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! hyporheic exchange
+  diag_meta(iLookDIAG%scalarHypTemp)                   = var_info('scalarHypTemp'                  , 'temperature of the hyporheic return flow'                         , 'K'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * local model fluxes...
   ! -----------------------
@@ -801,6 +806,7 @@ subroutine popMetadat(err,message)
   bvar_meta(iLookBVAR%glacierRoutedRunoff)     = var_info('glacierRoutedRunoff'    , 'lapsed glacier runoff'                                         , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! runoff temperature handed to the river network
   bvar_meta(iLookBVAR%routingNrgFuture)        = var_info('routingNrgFuture'       , 'energy flux of runoff in future time steps'                    , 'W m-2' , get_ixVarType('routing'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%hypTempPast)             = var_info('hypTempPast'            , 'reach outlet temperature in past time steps'                   , 'K'     , get_ixVarType('routing'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%averageRoutedRunoffTemp) = var_info('averageRoutedRunoffTemp', 'temperature of the routed runoff'                              , 'K'     , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin glacier grids

@@ -81,6 +81,7 @@ MODULE var_lookup
   integer(i4b)    :: read_force = integerMissing     ! method used to read forcing data (per step or full read)
   integer(i4b)    :: write_buff = integerMissing     ! method used to buffer model write (none, per file)
   integer(i4b)    :: deepTherml = integerMissing     ! choice of deep thermal state below the hydrologically active soil column
+  integer(i4b)    :: hyporhTdyn = integerMissing     ! choice of hyporheic exchange treatment in a stream domain
 
  endtype iLook_decision
 
@@ -364,6 +365,9 @@ MODULE var_lookup
   integer(i4b)    :: lowerBoundNrgFlux     = integerMissing    ! energy flux into the base of the soil column, the geothermal heat flux (W m-2)
   ! temperature of the groundwater reaching the channel
   integer(i4b)    :: gwTempWindow          = integerMissing    ! averaging window of the air temperature the groundwater follows (days)
+  ! hyporheic exchange in a stream domain
+  integer(i4b)    :: hypFrac               = integerMissing    ! fraction of the reach flow returned as hyporheic flow (-)
+  integer(i4b)    :: hypLag                = integerMissing    ! residence time of the hyporheic flow paths (h)
  endtype iLook_param
 
  ! ***********************************************************************************************************
@@ -560,6 +564,8 @@ MODULE var_lookup
   ! frozen ground
   integer(i4b)    :: scalarFrostTableDepth           = integerMissing ! depth below the soil surface of the top of the shallowest frozen soil layer (m)
   integer(i4b)    :: scalarActiveLayerDepth          = integerMissing ! thickness of the soil above the perennially frozen ground below it (m)
+  ! hyporheic exchange
+  integer(i4b)    :: scalarHypTemp                   = integerMissing ! temperature of the hyporheic return flow (K)
  endtype iLook_diag
 
  ! ***********************************************************************************************************
@@ -941,6 +947,7 @@ MODULE var_lookup
   integer(i4b)    :: glacierRoutedRunoff        = integerMissing ! lapsed glacier runoff (m s-1)
   ! define variables for the temperature of the runoff handed to the river network
   integer(i4b)    :: routingNrgFuture           = integerMissing ! energy flux of runoff in future time steps (W m-2)
+  integer(i4b)    :: hypTempPast               = integerMissing ! reach outlet temperature in past time steps, for the hyporheic return flow (K)
   integer(i4b)    :: averageRoutedRunoffTemp    = integerMissing ! temperature of the routed runoff (K)
  endtype iLook_bvar
 
@@ -1024,7 +1031,7 @@ MODULE var_lookup
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
                                                                          31, 32, 33, 34, 35, 36, 37, 38, 39, 40,&
-                                                                         41, 42, 43, 44, 45)
+                                                                         41, 42, 43, 44, 45, 46)
  ! named variables: model time
  type(iLook_time),    public,parameter :: iLookTIME     =iLook_time    (  1,  2,  3,  4,  5,  6,  7)
  ! named variables: model forcing data
@@ -1056,7 +1063,7 @@ MODULE var_lookup
                                                                         171,172,173,174,175,176,177,178,179,180,&
                                                                         181,182,183,184,185,186,187,188,189,190,&
                                                                         191,192,193,194,195,196,197,198,199,200,&
-                                                                        201)
+                                                                        201,202,203)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -1075,7 +1082,7 @@ MODULE var_lookup
                                                                          91, 92, 93, 94, 95, 96, 97, 98, 99,100,&
                                                                         101,102,103,104,105,106,107,108,109,110,&
                                                                         111,112,113,114,115,116,117,118,119,120,&
-                                                                        121)
+                                                                        121,122)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -1113,7 +1120,7 @@ MODULE var_lookup
  ! named variables: basin-average variables
  type(iLook_bvar),    public,parameter :: iLookBVAR     =iLook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
-                                                                         21, 22, 23, 24, 25, 26)
+                                                                         21, 22, 23, 24, 25, 26, 27)
  ! named variables: basin-grid variables
  type(iLook_grid),    public,parameter :: iLookGRID     =iLook_grid    (  1,  2,  3,  4,  5)
  ! named variables in variable type structure

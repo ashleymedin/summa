@@ -41,6 +41,7 @@ nrgConserv                      enthalpyForm    ! choice of variable in either e
 read_force                      readFullSeries  ! method used to read forcing data (per step or full read)
 write_buff                      writeFullSeries ! method used to read forcing data (per step or full read
 deepTherml                      none            ! choice of deep thermal state below the soil column
+hyporhTdyn                      none            ! hyporheic exchange in a stream domain
 ! ***********************************************************************************************
 ! ***** description of the options available -- nothing below this point is read ****************
 ! ***********************************************************************************************
@@ -177,5 +178,9 @@ deepTherml                      none            ! choice of deep thermal state b
 ! none        ! the base of the soil column itself, floored at freezing (default)
 ! aquiferTemp ! a well-mixed temperature carried by the big-bucket aquifer store (needs groundwatr = bigBuckt)
 ! airTempGW   ! groundwater temperature scaled from the air temperature, Wade et al. (2024)
+! -----------------------------------------------------------------------------------------------
+! hyporheic exchange in a stream domain
+! none   ! no exchange with the bed (default)
+! proxy  ! a tuned fraction of the flow returns at the temperature the reach had hypLag hours ago, Wade et al. (2024)
 ! ***********************************************************************************************
 ! history Wed Jul 29 16:01:34 2020: /home/wknoben/summa/utils/convert_summa_config_v2_v3.py fileManager.txt

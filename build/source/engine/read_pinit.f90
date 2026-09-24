@@ -191,6 +191,18 @@ contains
     parFallback(iLookPARAM%gwTempWindow)%lower_limit = 1._rkind
     parFallback(iLookPARAM%gwTempWindow)%upper_limit = 60._rkind
   end if
+  ! hyporheic exchange in a stream domain, only used with hyporhTdyn = proxy
+  ! NOTE: Wade et al. (2024) tune both, per stream order, over these ranges; the defaults are only a starting point
+  if (parFallback(iLookPARAM%hypFrac)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%hypFrac)%default_val = 0.2_rkind
+    parFallback(iLookPARAM%hypFrac)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%hypFrac)%upper_limit = 1._rkind
+  end if
+  if (parFallback(iLookPARAM%hypLag)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%hypLag)%default_val = 6._rkind
+    parFallback(iLookPARAM%hypLag)%lower_limit = 1._rkind
+    parFallback(iLookPARAM%hypLag)%upper_limit = 24._rkind
+  end if
   ! energy flux at the base of the soil column, the geothermal heat flux, only used with bcLowrTdyn = presFlux
   if (parFallback(iLookPARAM%lowerBoundNrgFlux)%default_val < 0.99_rkind*realMissing) then
     ! NOTE: 0.06 W m-2 is the continental average; it ranges from ~0.03 in old cratons to ~0.1 in tectonically active regions
