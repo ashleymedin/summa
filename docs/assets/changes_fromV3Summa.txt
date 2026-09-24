@@ -267,24 +267,23 @@ AFTER tag of v4.0.0-exp-Sundials
  66) Automatic parameter calibration, PR #639
      New build/source/calibration/ (DDS sampling, parameter search, NetCDF output) and driver summa_driver_opt.f90. Two-level MPI: domain parallelism plus instance parallelism across calibration trials, scheduled dynamically. 
      Multi-case runs via a --manifest file. Config moves to TOML (legacy -m/--control still accepted). parallel-utils submodule vendored into build/source/parallel/.
- 67) Stream temperature on the coupled river network (stream HRUs, lake layers as a mixed column), commits d632b36a to de2ae997 Sep 21, 2026
-     A GRU may hold one stream HRU: its reach's water column (lake layers over soil/aquifer, linked via streamSegId). mizuRoute returns reach discharge, 
-      volume and lateral inflow; new streamTemp.f90 solves the column energy balance upstream to downstream each step, advecting heat from upstream 
-      reaches and GRU runoff (Wanders et al. 2019, WRR, after van Beek et al. 2012, WRR). run_oneGRU routes the runoff's energy alongside the water
-      Ice forming in the water rises into an ice cover, treated like glacier ice, breaking up below lakeIceMinThick.
-      The reach volume mizuRoute carries is all the reach water, ice included: the column takes its frozen water off before imposing the
-      liquid depth, so freezing thins the flow under the cover and the cover's melt returns to it (not runoff); sublimation from a bare
-      cover is debited like evaporation. The routing sees the ice through the Manning n of the reach, set before each routing step as the composite 
-      of bed and ice underside weighted by wetted perimeter (Wanders eqs 12-13, Nezhikovskiy ice roughness), floodplain term of eq 11 stubbed in, inert.
-     New outputs T_reach, v_reach, n_reach, ice_reach, scalarStreamTemp, scalarLakeIceThick, averageRoutedRunoffTemp, scalarStream* fluxes;
-      new parameters streamMinDepth, lakeMixingThermalC, lakeIceMinThick; new restart variables routingNrgFuture, nLakeFrz.
  68) Geothermal heat flux as a lower boundary condition for thermodynamics, commit 3f26663d Sep 24, 2026
      New bcLowrTdyn option presFlux prescribes lowerBoundNrgFlux (W m-2, default 0.06) into the base of a soil column.
  69) The aquifer carries its own temperature, commit 85296798 Sep 24, 2026
      New prognostic scalarAquiferTemp, a well-mixed store, S*dT/dt = R*(T_rech - T); runoff temperatures floored at Tfreeze.
  70) The deep thermal state below the soil column, after Wade et al. (2024, EMS 171:105866, eq. 9), commits 6ae0264a to 66b0f726 Sep 24, 2026
      New decision deepTherml (none | aquiferTemp | airTempGW, default none); basin parameter C_ATGW, parameter gwTempWindow.
- 71) Frozen-ground diagnostics, and ice-impeded lateral flow, commit 6575b412 Sep 24, 2026
+ 71) Fix the restart file write for a multi-GRU run with glaciers, commit 3e75ea76 (29dc01f6 on develop) Sep 24, 2026
+     writeRestartGrid loops over every GRU itself, so it is called once after writeRestart's GRU loop, not inside it.
+ 72) Frozen-ground diagnostics, and ice-impeded lateral flow, commit 6575b412 Sep 24, 2026
      New scalarFrostTableDepth and scalarActiveLayerDepth; each layer's transmissivity scaled by its ice impedance factor.
- 72) Hyporheic exchange in a stream domain, after Wade et al. (2024, EMS 171:105866, eqs. 11-12), commit e305fdf1 Sep 24, 2026
+ 73) Hyporheic exchange in a stream domain, after Wade et al. (2024, EMS 171:105866, eqs. 11-12), commit e305fdf1 Sep 24, 2026
      New decision hyporhTdyn (none | proxy, default none), parameters hypFrac and hypLag, restart variable hypTempPast.
+ 74) Cap the lateral outflow of a soil layer at the drainable water it holds over the data step, commit aae78d23 Sep 24, 2026
+     The smooth minimum q_max*tanh(q/q_max), monotone where a logistic one is not, with its derivatives in dBaseflow_d*.
+ 75) Scale the infiltration closure under saturation to the depth of the zone it averages over, commit a52791c6 Sep 24, 2026
+     Cutoff min(1 m, rootZoneDepth) and width min(0.02 m, a quarter of it), so a debris veneer closes as a soil column does.
+ 76) Exfiltrate the surplus a nearly full soil column cannot store, whatever face it arrived through, commit a7126fbc Sep 24, 2026
+     exfilDrive = totalColumnInflow + (iLayerLiqFluxSoil(0) - iLayerLiqFluxSoil(nSoil)) - totalColumnOutflow, was lateral only.
+     Closes the debris-column water balance, so gulkana restart-cycles (five tested); a qTopmodl upland is unchanged in
+      practice, its exfiltration identically zero either way, since the relief opens only below 2 mm available storage.
