@@ -176,7 +176,7 @@ subroutine snowLakeSoilGlceNrgFlux(&
     ! input: thermal properties
     upperBoundTemp          => mpar_data%var(iLookPARAM%upperBoundTemp)%dat(1),      & ! intent(in):  temperature of the upper boundary (K)
     lowerBoundTemp          => mpar_data%var(iLookPARAM%lowerBoundTemp)%dat(1),      & ! intent(in):  temperature of the lower boundary (K)
-    geothermalFlux          => mpar_data%var(iLookPARAM%geothermalFlux)%dat(1),      & ! intent(in):  geothermal heat flux into the base of the soil column (W m-2)
+    lowerBoundNrgFlux       => mpar_data%var(iLookPARAM%lowerBoundNrgFlux)%dat(1),   & ! intent(in):  energy flux at the lower boundary, the geothermal heat flux (W m-2)
     iLayerThermalC          => diag_data%var(iLookDIAG%iLayerThermalC)%dat,          & ! intent(in):  thermal conductivity at the interface of each layer (W m-1 K-1)
     ! output: diagnostic fluxes
     iLayerConductiveFlux => flux_data%var(iLookFLUX%iLayerConductiveFlux)%dat,       & ! intent(out): conductive energy flux at layer interfaces at end of time step (W m-2)
@@ -231,7 +231,7 @@ subroutine snowLakeSoilGlceNrgFlux(&
           ! and the base of a lake column is the lake bed, which the soil column below it (if any) already sees
           case(prescribedFlux)
             if(layerType(iLayer)==iname_soil)then
-              iLayerConductiveFlux(iLayer) = -geothermalFlux
+              iLayerConductiveFlux(iLayer) = -lowerBoundNrgFlux
             else
               iLayerConductiveFlux(iLayer) = 0._rkind
             end if

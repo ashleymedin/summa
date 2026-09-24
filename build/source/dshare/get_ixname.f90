@@ -102,7 +102,7 @@ contains
   case('surfRun_SE'      ); get_ixdecisions=iLookDECISIONS%surfRun_SE  ! choice of parameterization for saturation excess surface runoff
   case('read_force'      ); get_ixdecisions=iLookDECISIONS%read_force  ! method used to read forcing data (per step or full read)
   case('write_buff'      ); get_ixdecisions=iLookDECISIONS%write_buff  ! method used to buffer writing of model output (none, full)
-  case('gwTempSrc'       ); get_ixdecisions=iLookDECISIONS%gwTempSrc   ! choice of where the temperature of groundwater reaching the channel comes from
+  case('deepTherml'      ); get_ixdecisions=iLookDECISIONS%deepTherml  ! choice of deep thermal state below the hydrologically active soil column
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = integerMissing
@@ -457,9 +457,8 @@ contains
   case('lakeMixingThermalC'       ); get_ixParam = iLookPARAM%lakeMixingThermalC     ! effective thermal conductivity between liquid lake layers (W m-1 K-1)
   case('lakeIceMinThick'          ); get_ixParam = iLookPARAM%lakeIceMinThick        ! ice cover thinner than this breaks up and returns to the water (m)
   ! lower boundary condition for thermodynamics
-  case('geothermalFlux'           ); get_ixParam = iLookPARAM%geothermalFlux         ! geothermal heat flux into the base of the soil column (W m-2)
+  case('lowerBoundNrgFlux'        ); get_ixParam = iLookPARAM%lowerBoundNrgFlux      ! energy flux at the lower boundary, the geothermal heat flux (W m-2)
   ! temperature of the groundwater reaching the channel
-  case('C_ATGW'                   ); get_ixParam = iLookPARAM%C_ATGW                 ! air temperature to groundwater temperature coefficient (-)
   case('gwTempWindow'             ); get_ixParam = iLookPARAM%gwTempWindow           ! averaging window of the air temperature the groundwater follows (days)
   ! get to here if cannot find the variable
   case default
@@ -1064,6 +1063,8 @@ contains
   case('wallErosionRate'          ); get_ixBpar = iLookBPAR%wallErosionRate           ! glacier wall erosion rate input for debris advection (mm yr-1)
   case('debrisCritStress'         ); get_ixBpar = iLookBPAR%debrisCritStress          ! critical driving stress where debris slides on terminal wedge (Pa)
   case('latMoraineWidth'          ); get_ixBpar = iLookBPAR%latMoraineWidth           ! lateral moraine width or rockfall length (m)
+  ! temperature of the groundwater reaching the channel
+  case('C_ATGW'                   ); get_ixBpar = iLookBPAR%C_ATGW                    ! air temperature to groundwater temperature coefficient (-)
   ! get to here if cannot find the variable
   case default
    get_ixBpar = integerMissing

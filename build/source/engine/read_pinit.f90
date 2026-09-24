@@ -185,25 +185,18 @@ contains
   if (parFallback(iLookPARAM%lakeIceMinThick)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%lakeIceMinThick)%default_val = 0.005_rkind ! 5 mm: the minimum ice thickness of flowing water in Wanders et al. (2019), below which the cover breaks up (m)
   end if
-  ! geothermal heat flux into the base of the soil column, only used with bcLowrTdyn = geoFlux
-  if (parFallback(iLookPARAM%geothermalFlux)%default_val < 0.99_rkind*realMissing) then
-    ! NOTE: 0.06 W m-2 is the continental average; it ranges from ~0.03 in old cratons to ~0.1 in tectonically active regions
-    parFallback(iLookPARAM%geothermalFlux)%default_val = 0.06_rkind
-    parFallback(iLookPARAM%geothermalFlux)%lower_limit = 0._rkind
-    parFallback(iLookPARAM%geothermalFlux)%upper_limit = 0.2_rkind
-  end if
-  ! temperature of the groundwater reaching the channel, only used with gwTempSrc = airTScale
-  if (parFallback(iLookPARAM%C_ATGW)%default_val < 0.99_rkind*realMissing) then
-    ! NOTE: 0 is deep, temporally invariant groundwater and 1 is shallow groundwater following the ground surface;
-    !       Wade et al. (2024) tune this per stream order, so it is a calibration parameter with no useful default
-    parFallback(iLookPARAM%C_ATGW)%default_val = 0.5_rkind
-    parFallback(iLookPARAM%C_ATGW)%lower_limit = 0._rkind
-    parFallback(iLookPARAM%C_ATGW)%upper_limit = 1._rkind
-  end if
+  ! averaging window of the air temperature the groundwater follows, only used with deepTherml = airTempGW
   if (parFallback(iLookPARAM%gwTempWindow)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%gwTempWindow)%default_val = 7._rkind  ! middle of the 2-14 day range of Wade et al. (2024)
+    parFallback(iLookPARAM%gwTempWindow)%default_val = 7._rkind ! middle of the 2-14 day range of Wade et al. (2024)
     parFallback(iLookPARAM%gwTempWindow)%lower_limit = 1._rkind
     parFallback(iLookPARAM%gwTempWindow)%upper_limit = 60._rkind
+  end if
+  ! energy flux at the base of the soil column, the geothermal heat flux, only used with bcLowrTdyn = presFlux
+  if (parFallback(iLookPARAM%lowerBoundNrgFlux)%default_val < 0.99_rkind*realMissing) then
+    ! NOTE: 0.06 W m-2 is the continental average; it ranges from ~0.03 in old cratons to ~0.1 in tectonically active regions
+    parFallback(iLookPARAM%lowerBoundNrgFlux)%default_val = 0.06_rkind
+    parFallback(iLookPARAM%lowerBoundNrgFlux)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%lowerBoundNrgFlux)%upper_limit = 0.2_rkind
   end if
   ! exponential hydraulic conductivity profile
   if (parFallback(iLookPARAM%f_hydCond)%default_val < 0.99_rkind*realMissing) then
@@ -233,6 +226,14 @@ contains
   endif
   if (parFallback(iLookBPAR%latMoraineWidth)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookBPAR%latMoraineWidth)%default_val = 200._rkind ! from looking at Alaska glaciers (m)
+  endif
+  ! temperature of the groundwater reaching the channel, only used with deepTherml = airTempGW
+  if (parFallback(iLookBPAR%C_ATGW)%default_val < 0.99_rkind*realMissing) then
+    ! NOTE: 0 is deep, temporally invariant groundwater and 1 is shallow groundwater following the ground surface.
+    !       Wade et al. (2024) tune this per stream order, so 0.5 is only a neutral starting point for a calibration
+    parFallback(iLookBPAR%C_ATGW)%default_val = 0.5_rkind
+    parFallback(iLookBPAR%C_ATGW)%lower_limit = 0._rkind
+    parFallback(iLookBPAR%C_ATGW)%upper_limit = 1._rkind
   endif
  end if
 

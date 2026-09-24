@@ -338,9 +338,8 @@ subroutine popMetadat(err,message)
   mpar_meta(iLookPARAM%lakeMixingThermalC)             = var_info('lakeMixingThermalC'             , 'effective thermal conductivity between liquid lake layers (turbulent mixing)', 'W m-1 K-1', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%lakeIceMinThick)                = var_info('lakeIceMinThick'                , 'ice cover thinner than this breaks up and returns to the water'   , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! lower boundary condition for thermodynamics
-  mpar_meta(iLookPARAM%geothermalFlux)                 = var_info('geothermalFlux'                 , 'geothermal heat flux into the base of the soil column'            , 'W m-2'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%lowerBoundNrgFlux)              = var_info('lowerBoundNrgFlux'              , 'energy flux at the lower boundary, the geothermal heat flux'      , 'W m-2'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! temperature of the groundwater reaching the channel
-  mpar_meta(iLookPARAM%C_ATGW)                         = var_info('C_ATGW'                         , 'air temperature to groundwater temperature coefficient'           , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%gwTempWindow)                   = var_info('gwTempWindow'                   , 'averaging window of the air temperature the groundwater follows'  , 'days'            , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin parameter data...
@@ -360,6 +359,8 @@ subroutine popMetadat(err,message)
   bpar_meta(iLookBPAR%wallErosionRate)                 = var_info('wallErosionRate'                , 'glacier wall erosion rate input for debris advection'             , 'mm yr-1'         , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bpar_meta(iLookBPAR%debrisCritStress)                = var_info('debrisCritStress'               , 'critical driving stress where debris slides on terminal wedge'    , 'Pa'              , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bpar_meta(iLookBPAR%latMoraineWidth)                 = var_info('latMoraineWidth'                , 'lateral moraine width or rockfall length'                         , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! temperature of the groundwater reaching the channel
+  bpar_meta(iLookBPAR%C_ATGW)                          = var_info('C_ATGW'                         , 'air temperature to groundwater temperature coefficient'           , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * local model prognostic (state) variables...
   ! ---------------------------------------------

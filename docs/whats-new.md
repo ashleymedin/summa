@@ -124,30 +124,30 @@ covers the user-facing highlights.
   `lakeMixingThermalC` and `lakeIceMinThick`; new restart variables `routingNrgFuture` and
   `nLakeFrz`. Runs without stream HRUs are unchanged.
   Test: `utils/test/test_mizuroute/test_streamtemp_bundled.sh`.
-- New `bcLowrTdyn` option `geoFlux` prescribes a geothermal heat flux into the base of the
-  soil column (new parameter `geothermalFlux`, W m-2, default 0.06), so a deep column keeps a
-  realistic temperature at depth instead of being insulated (`zeroFlux`) or pinned to
-  `lowerBoundTemp` (`presTemp`). This matters for permafrost and cold-region runs, where the
-  temperature at the base of the column sets the temperature of the water draining from it.
-  The flux is applied only where the bottom layer is soil; glacier and lake columns keep zero
-  flux. Existing parameter files need no change (the parameter has a default).
-- The aquifer carries its own temperature, `scalarAquiferTemp` (a new, optional restart
-  variable). Recharge arrives at the temperature of the base of the soil column and mixes into
-  the store, while baseflow and transpiration leave at the store's own temperature, so the
-  aquifer relaxes towards the recharge temperature with a time constant of storage over
-  recharge. Baseflow handed to the channel now carries that temperature instead of the
-  temperature of the bottom soil layer, which damps and lags the seasonal cycle as a real
-  aquifer does. Runoff temperatures are also floored at freezing everywhere, since the water
-  leaving the column is liquid even where the layer it left is frozen. Water and energy states
-  are unchanged; only the temperature of the water handed to the river network changes.
-- New `gwTempSrc` decision chooses where the temperature of the groundwater reaching the
-  channel comes from: `soilColumn` (the aquifer store or the base of the soil column, the
-  default and the previous behaviour) or `airTScale`, the coefficient of Wade et al. (2024)
-  that scales the air temperature between its annual mean (deep groundwater) and a smoothed
-  daily mean (the ground surface), with new parameters `C_ATGW` and `gwTempWindow` and new
-  optional restart variables `scalarAirTempWindow` and `scalarAirTempAnnual`. In permafrost
-  `airTScale` needs care: its deep-groundwater bound is the mean annual air temperature, which
-  is below freezing, so the result is mostly clipped at 0 C.
+- New `bcLowrTdyn` option `presFlux` prescribes an energy flux into the base of the soil column
+  (new parameter `lowerBoundNrgFlux`, W m-2, default 0.06, the continental geothermal heat
+  flux), so a deep column keeps a realistic temperature at depth instead of being insulated
+  (`zeroFlux`) or pinned to `lowerBoundTemp` (`presTemp`). This matters for permafrost and
+  cold-region runs, where the temperature at the base of the column sets the temperature of the
+  water draining from it. The flux is applied only where the bottom layer is soil; glacier and
+  lake columns keep zero flux. Existing parameter files need no change (the parameter has a
+  default).
+- New `deepTherml` decision sets the deep thermal state below the hydrologically active soil
+  column, which is what fixes the temperature of the water groundwater hands to the channel.
+  `none` (the default) is the previous behaviour, the base of the soil column, now floored at
+  freezing since the water leaving is liquid even where the layer it left is frozen.
+  `aquiferTemp` gives the big-bucket aquifer its own temperature `scalarAquiferTemp` (a new,
+  optional restart variable): recharge arrives at the soil-base temperature and mixes in while
+  the outflows leave at the store's temperature, so the store relaxes towards the recharge
+  temperature with a time constant of storage over recharge, damping and lagging the seasonal
+  cycle as a real aquifer does. It requires `groundwatr = bigBuckt`. `airTempGW` is the
+  coefficient of Wade et al. (2024), which scales the air temperature between its annual mean
+  (deep groundwater) and a smoothed daily mean (the ground surface), with the new basin
+  parameter `C_ATGW`, the new parameter `gwTempWindow`, and new optional restart variables
+  `scalarAirTempWindow` and `scalarAirTempAnnual`. In permafrost `airTempGW` needs care: its
+  deep-groundwater bound is the mean annual air temperature, which is below freezing in the
+  colder zones, so the result is mostly clipped at 0 C. Existing configurations get `none` and
+  are unchanged except for the freezing floor.
 - Fixed: writing a restart file failed with "String match to name in use" for any run with more
   than one GRU and a glacier grid, because the grid write was called once per GRU when it
   already loops over every GRU itself.

@@ -88,7 +88,7 @@ integer(i4b),parameter,public :: expLaw_profile       = 143    ! exponential pro
 integer(i4b),parameter,public :: prescribedTemp       = 151    ! prescribed temperature
 integer(i4b),parameter,public :: energyFlux           = 152    ! energy flux
 integer(i4b),parameter,public :: zeroFlux             = 153    ! zero flux
-integer(i4b),parameter,public :: prescribedFlux       = 154    ! prescribed flux (geothermal heat flux at the base of the soil)
+integer(i4b),parameter,public :: prescribedFlux       = 154    ! prescribed energy flux (the geothermal heat flux at the base of the soil)
 ! look-up values for the choice of boundary conditions for hydrology
 integer(i4b),parameter,public :: liquidFlux           = 161    ! liquid water flux
 integer(i4b),parameter,public :: prescribedHead       = 162    ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
@@ -175,9 +175,10 @@ integer(i4b),parameter,public :: readFullSeries       = 362    ! read full forci
 ! look-up values for the buffered write of model output
 integer(i4b),parameter,public :: writePerStep         = 371    ! write data per time step (default)
 integer(i4b),parameter,public :: writeFullSeries      = 372    ! write all data for a given output file
-! look-up values for the choice of where the temperature of groundwater reaching the channel comes from
-integer(i4b),parameter,public :: soilColumnTemp       = 381    ! the model's own soil column (the aquifer store, or the base of the soil)
-integer(i4b),parameter,public :: airScaledTemp        = 382    ! air temperature scaled between its annual mean and a smoothed daily mean
+! look-up values for the choice of deep thermal state below the hydrologically active soil column
+integer(i4b),parameter,public :: noDeepTherml         = 381    ! none: the base of the soil column itself, floored at freezing
+integer(i4b),parameter,public :: aquiferTempState     = 382    ! a well-mixed temperature carried by the big-bucket aquifer store
+integer(i4b),parameter,public :: airTempGW            = 383    ! groundwater temperature scaled from the air temperature (Wade et al., 2024)
 
 ! ----------------------------------------------------------------------------------------------------------- 
 contains
@@ -527,7 +528,7 @@ subroutine mDecisions(err,message)
   select case(trim(model_decisions(iLookDECISIONS%bcLowrTdyn)%cDecision))
     case('presTemp'); model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision = prescribedTemp      ! prescribed temperature
     case('zeroFlux'); model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision = zeroFlux            ! zero flux
-    case('geoFlux');  model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision = prescribedFlux      ! prescribed geothermal heat flux
+    case('presFlux'); model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision = prescribedFlux       ! prescribed energy flux (geothermal)
     case default
       err=10; message=trim(message)//"unknown lower boundary conditions for thermodynamics [option="//trim(model_decisions(iLookDECISIONS%bcLowrTdyn)%cDecision)//"]"; return
   end select
@@ -734,18 +735,27 @@ subroutine mDecisions(err,message)
       err=10; message=trim(message)//"unknown option for method used to write model output [option="//trim(model_decisions(iLookDECISIONS%write_buff)%cDecision)//"]"; return
   end select
 
-  ! where the temperature of the groundwater reaching the channel comes from
-  ! NOTE: the model's own soil column is the default
-  select case(trim(model_decisions(iLookDECISIONS%gwTempSrc)%cDecision))
-    case('soilColumn','notPopulatedYet'); model_decisions(iLookDECISIONS%gwTempSrc)%iDecision = soilColumnTemp ! from the soil column (default)
-    case('airTScale'                   ); model_decisions(iLookDECISIONS%gwTempSrc)%iDecision = airScaledTemp  ! scaled air temperature, Wade et al. (2024)
+  ! the deep thermal state below the hydrologically active soil column, which sets the temperature of the water it hands
+  ! to the channel
+  ! NOTE: none is the default, so an existing configuration keeps the behaviour it had
+  select case(trim(model_decisions(iLookDECISIONS%deepTherml)%cDecision))
+    case('none','notPopulatedYet'); model_decisions(iLookDECISIONS%deepTherml)%iDecision = noDeepTherml     ! the base of the soil column (default)
+    case('aquiferTemp'           ); model_decisions(iLookDECISIONS%deepTherml)%iDecision = aquiferTempState ! a temperature carried by the aquifer store
+    case('airTempGW'             ); model_decisions(iLookDECISIONS%deepTherml)%iDecision = airTempGW        ! scaled air temperature, Wade et al. (2024)
     case default
-      err=10; message=trim(message)//"unknown option for the source of the groundwater temperature [option="//trim(model_decisions(iLookDECISIONS%gwTempSrc)%cDecision)//"]"; return
+      err=10; message=trim(message)//"unknown option for the deep thermal state [option="//trim(model_decisions(iLookDECISIONS%deepTherml)%cDecision)//"]"; return
   end select
 
   ! -----------------------------------------------------------------------------------------------------------------------------------------------
   ! check for consistency among options
   ! -----------------------------------------------------------------------------------------------------------------------------------------------
+  ! the aquifer temperature is a state of the big-bucket store, so there is nothing for it to attach to without one
+  if(model_decisions(iLookDECISIONS%deepTherml)%iDecision == aquiferTempState .and. &
+     model_decisions(iLookDECISIONS%groundwatr)%iDecision /= bigBucket)then
+    message=trim(message)//'expect "groundwatr" decision to equal bigBuckt with the aquiferTemp option for deepTherml: there is no aquifer store to carry a temperature'
+    err=20; return
+  endif
+
   ! check zero flux lower boundary for topmodel baseflow option
   select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
     case(qbaseTopmodel)
