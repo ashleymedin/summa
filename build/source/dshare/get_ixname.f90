@@ -103,6 +103,7 @@ contains
   case('read_force'      ); get_ixdecisions=iLookDECISIONS%read_force  ! method used to read forcing data (per step or full read)
   case('write_buff'      ); get_ixdecisions=iLookDECISIONS%write_buff  ! method used to buffer writing of model output (none, full)
   case('deepTherml'      ); get_ixdecisions=iLookDECISIONS%deepTherml  ! choice of deep thermal state below the hydrologically active soil column
+  case('hyporhTdyn'      ); get_ixdecisions=iLookDECISIONS%hyporhTdyn  ! choice of hyporheic exchange treatment in a stream domain
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = integerMissing
@@ -460,6 +461,9 @@ contains
   case('lowerBoundNrgFlux'        ); get_ixParam = iLookPARAM%lowerBoundNrgFlux      ! energy flux at the lower boundary, the geothermal heat flux (W m-2)
   ! temperature of the groundwater reaching the channel
   case('gwTempWindow'             ); get_ixParam = iLookPARAM%gwTempWindow           ! averaging window of the air temperature the groundwater follows (days)
+  ! hyporheic exchange in a stream domain
+  case('hypFrac'                  ); get_ixParam = iLookPARAM%hypFrac                ! fraction of the reach flow returned as hyporheic flow (-)
+  case('hypLag'                   ); get_ixParam = iLookPARAM%hypLag                 ! residence time of the hyporheic flow paths (h)
   ! get to here if cannot find the variable
   case default
    get_ixParam = integerMissing
@@ -675,6 +679,8 @@ contains
   ! frozen ground
   case('scalarFrostTableDepth'          ); get_ixDiag = iLookDIAG%scalarFrostTableDepth            ! depth to the top of the shallowest frozen soil layer (m)
   case('scalarActiveLayerDepth'         ); get_ixDiag = iLookDIAG%scalarActiveLayerDepth           ! thickness of the soil above the perennially frozen ground below it (m)
+  ! hyporheic exchange
+  case('scalarHypTemp'                  ); get_ixDiag = iLookDIAG%scalarHypTemp                    ! temperature of the hyporheic return flow (K)
   case('scalarLakeLiqDepth'             ); get_ixDiag = iLookDIAG%scalarLakeLiqDepth               ! total liquid depth of the lake layers (m)
   case('scalarLakeIceThick'             ); get_ixDiag = iLookDIAG%scalarLakeIceThick               ! thickness of the ice cover of the lake layers (m)
   case('scalarStreamSfcInflowTemp'      ); get_ixDiag = iLookDIAG%scalarStreamSfcInflowTemp        ! temperature of the rain plus melt entering the open water column (K)
@@ -1115,6 +1121,7 @@ contains
   case('glacFirnRunoffFuture'          ); get_ixBvar = iLookBVAR%glacFirnRunoffFuture            ! per glacier firn reservoir runoff in future time steps (m s-1)
   case('glacierRoutedRunoff'           ); get_ixBvar = iLookBVAR%glacierRoutedRunoff             ! lapsed glacier runoff (m s-1)
   case('routingNrgFuture'              ); get_ixBvar = iLookBVAR%routingNrgFuture                ! energy flux of runoff in future time steps (W m-2)
+  case('hypTempPast'                   ); get_ixBvar = iLookBVAR%hypTempPast                     ! reach outlet temperature in past time steps (K)
   case('averageRoutedRunoffTemp'       ); get_ixBvar = iLookBVAR%averageRoutedRunoffTemp         ! temperature of the routed runoff (K)
   ! get to here if cannot find the variable
   case default

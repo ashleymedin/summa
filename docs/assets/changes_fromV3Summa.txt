@@ -321,4 +321,15 @@ AFTER tag of v4.0.0-exp-Sundials
       the same factor soilLiqFlux applies to the vertical conductivity, and carries it into dBaseflow_dWat/dTk (the row
       scales with the factor, and the factor's own temperature dependence adds a diagonal term). Before this a frozen layer
       drained laterally at its full rate: drainableWater already counted liquid only, but the conductivity did not.
+ 73) Hyporheic exchange in a stream domain, after Wade et al. (2024), Sep 24, 2026
+     New decision hyporhTdyn (none | proxy, default none = the previous zero-exchange behaviour), separate from deepTherml
+      so the two compose. proxy adds hypFrac*Q*(T_hyp - T)/V to the stream column's advective source, with T_hyp the mean
+      of the reach's own outlet temperature over the previous hypLag hours (Wade, Kelleher and Kurylyk, 2024, Environmental
+      Modelling and Software 171:105866, eqs 11-12). Written as one more (T_in - T) exchange, so no water moves and the
+      mean reach temperature is unchanged while the diurnal swing is damped.
+     New parameters hypFrac (0-1) and hypLag (1-24 h), kept at HRU level since a stream domain is the only domain with area
+      in its HRU, so that is already one value per reach; new restart variable hypTempPast (the reach temperature history,
+      a ring buffer on the tdh dimension, newest first) and diagnostic scalarHypTemp.
+     On the bundled stream test with hypFrac 0.4 and hypLag 12 h the outlet reach's mean daily temperature range falls from
+      0.756 K to 0.346 K and its largest daily range from 3.91 K to 1.28 K, with the mean unchanged.
      

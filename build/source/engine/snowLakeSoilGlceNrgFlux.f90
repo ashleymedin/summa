@@ -69,7 +69,9 @@ USE mDecisions_module,only:      &
  prescribedTemp,                 &  ! prescribed temperature
  energyFlux,                     &  ! energy flux
  zeroFlux,                       &  ! zero flux
- prescribedFlux                     ! prescribed flux (geothermal heat flux at the base of the soil)
+ prescribedFlux,                 &  ! prescribed flux (geothermal heat flux at the base of the soil)
+ ! look-up values for the treatment of hyporheic exchange in a stream domain
+ hyporheicProxy                     ! a lagged return of a fraction of the reach flow (Wade et al., 2024)
 ! -------------------------------------------------------------------------------------------------
 implicit none
 private
@@ -115,6 +117,7 @@ subroutine snowLakeSoilGlceNrgFlux(&
   real(rkind)                         :: qFlux                      ! liquid flux at layer interfaces (m s-1)
   real(rkind)                         :: dz                         ! height difference (m)
   logical(lgt)                        :: zeroFlux_noThetaBdry       ! flag to denote if zero flux at noThetaChange boundary
+  real(rkind)                         :: hypFlow                    ! hyporheic return flow (m3 s-1)
   real(rkind)                         :: lakeLiqDepth               ! total liquid depth of the lake layers (m)
   real(rkind)                         :: liqWeight                  ! share of the reach exchange taken by a lake layer (-)
   real(rkind)                         :: advScale                   ! rho*Cp/(area*liquid depth): converts m3 s-1 K to J m-3 s-1 (J m-6 K-1... per layer share)
@@ -153,6 +156,8 @@ subroutine snowLakeSoilGlceNrgFlux(&
     scalarStreamLatInflowTemp  => flux_data%var(iLookFLUX%scalarStreamLatInflowTemp)%dat(1),&! intent(in):    temperature of the lateral inflow (K)
     scalarStreamSfcInflow      => flux_data%var(iLookFLUX%scalarStreamSfcInflow)%dat(1),   & ! intent(in):    rain plus melt entering the open water column (m s-1)
     scalarStreamSfcInflowTemp  => diag_data%var(iLookDIAG%scalarStreamSfcInflowTemp)%dat(1),&! intent(in):    temperature of the rain plus melt (K)
+    scalarHypTemp              => diag_data%var(iLookDIAG%scalarHypTemp)%dat(1),           & ! intent(in):    temperature of the hyporheic return flow (K)
+    hypFrac                    => mpar_data%var(iLookPARAM%hypFrac)%dat(1),                & ! intent(in):    fraction of the reach flow returned as hyporheic flow (-)
     ! input: derivatives
     dThermalC_dWatAbove        => in_snowLakeSoilGlceNrgFlux % dThermalC_dWatAbove,  & ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
     dThermalC_dWatBelow        => in_snowLakeSoilGlceNrgFlux % dThermalC_dWatBelow,  & ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
@@ -161,6 +166,7 @@ subroutine snowLakeSoilGlceNrgFlux(&
     ! input: boundary conditions
     ix_bcUpprTdyn           => model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision, & ! intent(in):  method used to calculate the upper boundary condition for thermodynamics
     ix_bcLowrTdyn           => model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision, & ! intent(in):  method used to calculate the lower boundary condition for thermodynamics
+    ix_hyporhTdyn           => model_decisions(iLookDECISIONS%hyporhTdyn)%iDecision, & ! intent(in):  treatment of hyporheic exchange in a stream domain
     ! input: coordinate variables
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),               & ! intent(in):  number of snow layers
     nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1),               & ! intent(in):  number of lake layers
@@ -286,6 +292,11 @@ subroutine snowLakeSoilGlceNrgFlux(&
       mLayerLakeAdvNrgFlux(:)  = 0._rkind
       dLakeAdvNrgFlux_dTemp(:) = 0._rkind
       if(domType==stream)then
+        ! Hyporheic exchange (Wade et al. 2024, EMS, eqs. 11-12): a tuned fraction of the reach flow leaves into the bed and
+        ! returns at the temperature the reach had over the previous hypLag hours, held in scalarHypTemp. Written as one more
+        ! (T_in - T_i) exchange, so it damps the diurnal signal without moving any water: the flow returns what it took.
+        hypFlow = 0._rkind
+        if(ix_hyporhTdyn==hyporheicProxy .and. scalarHypTemp > 0._rkind) hypFlow = hypFrac*(scalarStreamInflow + scalarStreamLatInflow)
         lakeLiqDepth = sum(mLayerDepth(nSnow+nLakeFrz+1:nSnow+nLake)*mLayerVolFracLiqTrial(nSnow+nLakeFrz+1:nSnow+nLake))
         if(lakeLiqDepth > verySmall .and. DOMarea > 0._rkind)then
           advScale = Cp_water*iden_water/(DOMarea*lakeLiqDepth)
@@ -295,8 +306,10 @@ subroutine snowLakeSoilGlceNrgFlux(&
             mLayerLakeAdvNrgFlux(iLayer-nSnow) = liqWeight*advScale*( &
                                                     scalarStreamInflow   *(scalarStreamInflowTemp    - mLayerTempTrial(iLayer)) &
                                                   + scalarStreamLatInflow*(scalarStreamLatInflowTemp - mLayerTempTrial(iLayer)) &
-                                                  + scalarStreamSfcInflow*DOMarea*(scalarStreamSfcInflowTemp - mLayerTempTrial(iLayer)) )
-            dLakeAdvNrgFlux_dTemp(iLayer-nSnow) = -liqWeight*advScale*(scalarStreamInflow + scalarStreamLatInflow + scalarStreamSfcInflow*DOMarea)
+                                                  + scalarStreamSfcInflow*DOMarea*(scalarStreamSfcInflowTemp - mLayerTempTrial(iLayer)) &
+                                                  + hypFlow*(scalarHypTemp - mLayerTempTrial(iLayer)) )
+            dLakeAdvNrgFlux_dTemp(iLayer-nSnow) = -liqWeight*advScale*(scalarStreamInflow + scalarStreamLatInflow + scalarStreamSfcInflow*DOMarea &
+                                                                       + hypFlow)
           end do
         end if
       end if

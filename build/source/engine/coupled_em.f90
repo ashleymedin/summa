@@ -36,7 +36,8 @@ USE multiconst,only:&
                     LH_sub,       & ! latent heat of sublimation           (J kg-1)
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water,   & ! intrinsic density of liquid water    (kg m-3)
-                    secprday        ! number of seconds in a day           (s)
+                    secprday,     & ! number of seconds in a day           (s)
+                    secprhour       ! number of seconds in an hour         (s)
 USE globalData,only: verySmall      ! a small number
 
 ! named variables for parent structures
@@ -47,6 +48,7 @@ USE var_lookup,only:iLookFLUX              ! named variables for structure eleme
 USE var_lookup,only:iLookPARAM             ! named variables for structure elements
 USE var_lookup,only:iLookINDEX             ! named variables for structure elements
 USE var_lookup,only:iLookFORCE             ! named variables for structure elements
+USE var_lookup,only:iLookBVAR              ! named variables for structure elements
 USE globalData,only:iname_snow             ! named variables for snow
 USE globalData,only:iname_soil             ! named variables for soil
 USE globalData,only:iname_glce             ! named variables for glacier ice
@@ -92,6 +94,10 @@ USE mDecisions_module,only:         &
 USE mDecisions_module,only:         &
                       aquiferTempState,&   ! a well-mixed temperature carried by the big-bucket aquifer store
                       airTempGW            ! groundwater temperature scaled from the air temperature (Wade et al., 2024)
+
+! look-up values for the treatment of hyporheic exchange in a stream domain
+USE mDecisions_module,only:         &
+                      hyporheicProxy       ! a lagged return of a fraction of the reach flow (Wade et al., 2024)
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:         &
@@ -222,6 +228,7 @@ subroutine coupled_em(&
   real(rkind)                          :: rechargeTemp             ! temperature of the water recharging the aquifer (K)
   real(rkind)                          :: wghtWindow               ! weight of this step in the running mean over gwTempWindow (-)
   real(rkind)                          :: wghtAnnual               ! weight of this step in the running mean over a year (-)
+  integer(i4b)                         :: nHyp                     ! number of past steps in the hyporheic residence time (-)
   logical(lgt)                         :: modifiedLayers           ! flag to denote that snow layers were modified
   logical(lgt)                         :: modifiedVegState         ! flag to denote that vegetation states were modified
   integer(i4b)                         :: maxSnowIceLayers         ! maximum number of snow/firn/ice layers
@@ -1999,6 +2006,28 @@ subroutine coupled_em(&
       if(nGlce>0) scalarTotalGlceEnthalpy = sum(mLayerEnthalpy(nSnow+nLake+nSoil+1:nLayers) * mLayerDepth(nSnow+nLake+nSoil+1:nLayers))&
                                             /sum(mLayerDepth(nSnow+nLake+nSoil+1:nLayers))
       
+      ! -----
+      ! * temperature of the hyporheic return flow...
+      ! ---------------------------------------------
+      ! The reach's own outlet temperature over the previous hypLag hours, the mean of the entries the network pass has
+      ! pushed into hypTempPast (Wade et al. 2024, EMS, eq. 11). Entries that have not been filled yet are missing, so a
+      ! run starts with whatever history it has and the mean is over that; before the first step there is none, and the
+      ! flux routine leaves the exchange out.
+      if(indx_data%var(iLookINDEX%domType)%dat(1)==stream .and. model_decisions(iLookDECISIONS%hyporhTdyn)%iDecision == hyporheicProxy)then
+        associate(&
+          scalarHypTemp => diag_data%var(iLookDIAG%scalarHypTemp)%dat(1)    ,& ! temperature of the hyporheic return flow (K)
+          hypLag        => mpar_data%var(iLookPARAM%hypLag)%dat(1)          ,& ! residence time of the hyporheic flow paths (h)
+          hypTempPast   => bvar_data%var(iLookBVAR%hypTempPast)%dat          ) ! reach outlet temperature in past time steps (K)
+          nHyp = max(1, min(size(hypTempPast), nint(hypLag*secprhour/data_step)))
+          nHyp = count(hypTempPast(1:nHyp) > 0._rkind) ! only the steps that have been filled
+          if(nHyp > 0)then
+            scalarHypTemp = sum(hypTempPast(1:nHyp))/real(nHyp, rkind)
+          else
+            scalarHypTemp = realMissing
+          endif
+        end associate
+      endif
+
       ! -----
       ! * frozen ground: the frost table and the active layer...
       ! --------------------------------------------------------
