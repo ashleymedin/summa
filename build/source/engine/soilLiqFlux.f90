@@ -292,14 +292,7 @@ contains
    err          => out_soilLiqFlux % err,     & ! intent(out): error code
    message      => out_soilLiqFlux % cmessage & ! intent(out): error message
   &)
-   ! Check the fractions account for all of the transpiration.
-   !
-   ! The soil-layer fractions sum to one only when every root is inside the soil column.  When some
-   ! roots reach below it, scalarTranspireLim carries the aquifer's contribution too:
-   !   scalarTranspireLim = sum(rootDensity*transpireLim) + aquiferRootFrac*transpireLimAqfr
-   ! so the soil fractions necessarily sum to 1 MINUS the aquifer's share, and demanding exactly one
-   ! rejects the very configuration aquifer transpiration exists for.  Check the complete partition
-   ! instead: soil share + aquifer share = 1.
+   ! soil-layer fractions plus the aquifer's share account for all transpiration
    aquiferTranspireFrac = 0._rkind
    if (scalarTranspireLim > tiny(scalarTranspireLim)) &
      aquiferTranspireFrac = scalarAquiferRootFrac*scalarTranspireLimAqfr/scalarTranspireLim
