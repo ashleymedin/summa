@@ -22,6 +22,10 @@ Still to do:
   properties, and which lower boundary conditions to pair with it.
 - `utils/test/README.md` and `utils/test/test_regression/README.md` do not mention that the
   bundled stream-temperature test also exercises `hyporhTdyn`.
+- `docs/input_output/SUMMA_input.md` does not list `nBedrock` among the initial-conditions
+  variables, beside `nSoil` and `nLakeFrz`.
+- No test case exercises `deepTherml = bedrockLyrs`; it has been run only from a hand-built
+  cold state in a scratch directory.
 
 ## Design note worth writing up
 
