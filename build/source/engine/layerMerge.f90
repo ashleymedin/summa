@@ -445,10 +445,7 @@ contains
  cVolFracLiq =          fLiq *cBulkDenWat/iden_water
  cVolFracIce = (1._rkind - fLiq)*cBulkDenWat/iden_ice
 
- ! glacier ice: keep the ice and liquid water as they are, with the temperature that conserves the sensible heat (exact for
- ! a fixed composition). The liquid in melting ice is held at its residual content by drainage, and the ice freezing curve
- ! is so steep there that the liquid re-derived above from the merged temperature turns the temperature tolerance of the
- ! solver into a change of ice and liquid at every merge (the enthalpy conversion above is kept for its checks).
+ ! glacier ice: keep the ice and liquid as they are, at the temperature that conserves the sensible heat
  if(doGlac)then
   do k=1,2
     heatCap(k) = Cp_ice*massIce(k) + Cp_water*massLiq(k)

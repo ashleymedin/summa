@@ -376,10 +376,8 @@ contains
       endif
 
       ! ---------------------------------------------------------------------------------------------
-      ! Check that at least one feasible parameter combination exists.
-      !
-      ! Sampled parameters use their smallest feasible physical value. Non-sampled parameters use
-      ! their scalar trial value.
+      ! Check that at least one feasible parameter combination exists, sampled parameters at their
+      ! smallest feasible value and the rest at their scalar trial value
       ! ---------------------------------------------------------------------------------------------
       do i=1,nOrdered
         ixParam = search%ordered(iConstraint)%param_index(i)

@@ -365,12 +365,7 @@ subroutine coupled_em(&
 
   ! *** stream domain: impose the reach water column from the river network...
   ! ---------------------------------------------------------------------------
-  ! The coupled river network routes the water, so the liquid depth of the lake layers is prescribed once per
-  ! data step from the reach volume (scalarStreamDepth, set by the network pass), floored so a dry reach keeps
-  ! a column. The reach volume is all the water of the reach, ice included: what the column holds frozen (the
-  ! ice cover with its residual liquid, and ice still in the water) is taken off before the liquid is imposed,
-  ! so freezing thins the flow beneath the cover and the melt of the cover returns to it without leaving the
-  ! reach. Ice is left where it is; temperatures are kept and the enthalpy follows.
+  ! the lake layers take their liquid depth from the reach volume, less the ice the column already holds
   if(indx_data%var(iLookINDEX%domType)%dat(1)==stream)then
     nLakeFrz = indx_data%var(iLookINDEX%nLakeFrz)%dat(1)
     associate(mLayerDepth => prog_data%var(iLookPROG%mLayerDepth)%dat, mLayerVolFracIce => prog_data%var(iLookPROG%mLayerVolFracIce)%dat, &
@@ -1913,10 +1908,7 @@ subroutine coupled_em(&
         ! save the glacier ice water equivalent change
         scalarGlceWE = scalarGlceWE + balanceGlceWE - balanceGlceWE0
 
-        ! reset the glacier depths (the top layers keep a prescribed depth, the ice they lost to melt replaced from beneath),
-        ! and recalculate the layer heights
-        ! NOTE: if a top layer was merged within the step, the layer count is restored first by restoreGlceLayers at the end
-        !       of the step, once these associations to the layer vectors are out of scope (the vectors are reallocated)
+        ! the top glacier layers keep their prescribed depth; restoreGlceLayers restores the count after the step
         if(size(depthGlceTopLayer) == nGlce-noThetaChange)then
           mLayerDepth(nSnow+nLake+nSoil+1:nLayers-noThetaChange) = depthGlceTopLayer
           do jLayer=nSnow+nLake+nSoil+1,nLayers
