@@ -279,13 +279,16 @@ AFTER tag of v4.0.0-exp-Sundials
      New outputs T_reach, v_reach, n_reach, ice_reach, scalarStreamTemp, scalarLakeIceThick, averageRoutedRunoffTemp, scalarStream* fluxes;
       new parameters streamMinDepth, lakeMixingThermalC, lakeIceMinThick; new restart variables routingNrgFuture, nLakeFrz.
  68) Geothermal heat flux as a lower boundary condition for thermodynamics, Sep 24, 2026
-     New bcLowrTdyn option geoFlux prescribes the heat flux geothermalFlux (W m-2, default 0.06) into the base of the column,
-      so a deep column holds the long-term gradient geothermalFlux/thCond_soil at its base instead of being insulated (zeroFlux)
+     New bcLowrTdyn option presFlux prescribes the energy flux lowerBoundNrgFlux (W m-2, default 0.06, the continental geothermal
+      heat flux) into the base of the column,
+      so a deep column holds the long-term gradient lowerBoundNrgFlux/thCond_soil at its base instead of being insulated (zeroFlux)
       or pinned to lowerBoundTemp (presTemp). Applied only where the bottom layer is soil: a glacier column keeps zero flux,
       since its basal ice is impermeable and cannot drain the melt the flux would make. The flux does not depend on the state,
-      so its derivatives are those of zeroFlux. New parameter geothermalFlux (defaults in read_pinit, so old parameter files still run).
+      so its derivatives are those of zeroFlux, and like presTemp it is a prescribed constant rather than a computed flux.
+      New parameter lowerBoundNrgFlux (defaults in read_pinit, so old parameter files still run).
  69) The aquifer carries its own temperature, Sep 24, 2026
-     New prognostic scalarAquiferTemp (K), optional in the initial conditions file: absent, check_icond starts it at the
+     New prognostic scalarAquiferTemp (K), opt-in through deepTherml = aquiferTemp (see 70) and requiring groundwatr =
+      bigBuckt, optional in the initial conditions file: absent, check_icond starts it at the
       temperature of the base of the soil column floored at freezing. coupled_em mixes it once per data step, treating the
       store as well mixed: recharge R arrives at the soil-base temperature and the outflows leave at the store temperature,
       so S*dT/dt = R*(T_rech - T), integrated exactly over the step. run_oneGRU hands baseflow to the channel at this
@@ -293,15 +296,17 @@ AFTER tag of v4.0.0-exp-Sundials
       liquid even where the layer it left is frozen). Water and energy states are bit-identical; only the runoff temperature
       changes. The damping scales with storage: an empty bucket tracks the soil base, a 1.3 m store damps a 10.4 K seasonal
       swing to 2.9 K.
- 70) Air-temperature-scaled groundwater temperature, after Wade et al. (2024), Sep 24, 2026
-     New decision gwTempSrc: soilColumn (the aquifer store or the base of the soil column, the default and the previous
-      behaviour) or airTScale, T_GW = C_ATGW*(AT_D - AT) + AT with AT_D a running mean of the air temperature over
-      gwTempWindow days and AT a running annual mean (Wade, Kelleher and Kurylyk, 2024, Environmental Modelling and
-      Software 171:105866, eq. 9). New parameters C_ATGW (0-1) and gwTempWindow (days); new optional restart variables
+ 70) The deep thermal state below the soil column, and air-temperature-scaled groundwater after Wade et al. (2024), Sep 24, 2026
+     New decision deepTherml (none | aquiferTemp | airTempGW, default none = the previous behaviour, the base of the soil
+      column now floored at Tfreeze). aquiferTemp is the store of 69, gated on groundwatr = bigBuckt and rejected at
+      decision-read time with qTopmodl or noXplicit. airTempGW is T_GW = C_ATGW*(AT_D - AT) + AT with AT_D a running mean
+      of the air temperature over gwTempWindow days and AT a running annual mean (Wade, Kelleher and Kurylyk, 2024,
+      Environmental Modelling and Software 171:105866, eq. 9). New basin parameter C_ATGW (0-1, tuned per stream order in
+      Wade et al.) and new parameter gwTempWindow (days); new optional restart variables
       scalarAirTempWindow and scalarAirTempAnnual, kept as exponential running means so no window of past forcing is
       stored. The annual mean starts at the first air temperature the run sees, so it needs a year of spin-up.
       In permafrost the formula's deep-groundwater bound (the mean annual air temperature) is below freezing and the
-      result is mostly clipped at Tfreeze, so soilColumn with bcLowrTdyn = geoFlux is the better cold-region choice.
+      result is mostly clipped at Tfreeze, so aquiferTemp with bcLowrTdyn = presFlux is the better cold-region choice.
  71) Fix the restart file write for a multi-GRU run with glaciers, Sep 24, 2026
      writeRestartGrid loops over every GRU itself, but was called from inside writeRestart's own GRU loop, so with more
       than one GRU the second call redefined the grid dimension and the write died with "String match to name in use"

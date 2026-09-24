@@ -41,7 +41,7 @@ There are 44 model decisions. Defaults (used for `notPopulatedYet` where accepte
 | 17 | [groundwatr](#groundwatr) | qTopmodl, bigBuckt, noXplict | groundwater parameterization |
 | 18 | [hc_profile](#hc_profile) | constant, pow_prof, exp_prof | hydraulic-conductivity profile with depth |
 | 19 | [bcUpprTdyn](#bcupprtdyn) | presTemp, nrg_flux, zeroFlux | upper boundary condition, thermodynamics |
-| 20 | [bcLowrTdyn](#bclowrtdyn) | presTemp, zeroFlux, geoFlux | lower boundary condition, thermodynamics |
+| 20 | [bcLowrTdyn](#bclowrtdyn) | presTemp, zeroFlux, presFlux | lower boundary condition, thermodynamics |
 | 21 | [bcUpprSoiH](#bcupprsoih) | presHead, liq_flux | upper boundary condition, soil hydrology |
 | 22 | [bcLowrSoiH](#bclowrsoih) | presHead, bottmPsi, drainage, zeroFlux | lower boundary condition, soil hydrology |
 | 23 | [veg_traits](#veg_traits) | Raupach_BLM1994, CM_QJRMS1988, vegTypeTable | vegetation roughness length and displacement height |
@@ -66,7 +66,7 @@ There are 44 model decisions. Defaults (used for `notPopulatedYet` where accepte
 | 42 | [surfRun_SE](#surfrun_se) | **homegrown_SE**, FUSEPRMS, FUSEAVIC, FUSETOPM, zero_SE | saturation-excess surface runoff |
 | 43 | [read_force](#read_force) | **readPerStep**, readFullSeries | how forcing data are read |
 | 44 | [write_buff](#write_buff) | **writePerStep**, writeFullSeries | how model output is buffered before writing |
-| 45 | [gwTempSrc](#gwtempsrc) | **soilColumn**, airTScale | where the temperature of groundwater reaching the channel comes from |
+| 45 | [deepTherml](#deeptherml) | **none**, aquiferTemp, airTempGW | deep thermal state below the hydrologically active soil column |
 
 ---
 
@@ -267,18 +267,19 @@ conductivity at 4 m. Supraglacial debris is 1-5 m-1 over a 0.3-1 m depth, so gla
 |---|---|
 | presTemp | prescribed temperature at the bottom of the soil column |
 | zeroFlux | zero energy flux at the bottom of the soil column |
-| geoFlux | prescribed geothermal heat flux into the bottom of the soil column |
+| presFlux | prescribed energy flux into the bottom of the soil column, the geothermal heat flux |
 
 `presTemp` holds the base of the column at `lowerBoundTemp`, which is only physical if the
 column reaches the depth where the annual temperature signal is damped out. `zeroFlux`
 insulates the base instead, so a shallow column has no thermal memory below the seasonal
 cycle and its bottom temperature tracks the surface with a lag.
 
-`geoFlux` prescribes the geothermal heat flux `geothermalFlux` (W m-2, default 0.06, the
-continental average; roughly 0.03 in old cratons and 0.1 in tectonically active regions)
-entering the base of the column. It is the right lower boundary for a deep column in
-permafrost or cold-region work: the long-term temperature gradient at the base is
-`geothermalFlux`/`thCond_soil` rather than zero, so the deep column keeps a realistic
+`presFlux` prescribes the energy flux `lowerBoundNrgFlux` (W m-2, default 0.06, the continental
+average geothermal heat flux; roughly 0.03 in old cratons and 0.1 in tectonically active
+regions) entering the base of the column. Like `presTemp` it is a prescribed constant, not a
+computed or time-varying flux. It is the right lower boundary for a deep column in permafrost
+or cold-region work: the long-term temperature gradient at the base is
+`lowerBoundNrgFlux`/`thCond_soil` rather than zero, so the deep column keeps a realistic
 temperature and the water draining from it is not simply a lagged copy of the surface.
 The flux is applied only where the bottom layer is soil; under a glacier or lake column the
 base stays zero flux, since the impermeable ice at the base of a glacier column has no way to
@@ -505,40 +506,61 @@ Renamed from `writeOutput` in earlier versions.
 | writePerStep | write model output every time step (default; also selected by `notPopulatedYet`) |
 | writeFullSeries | buffer a whole output file in memory and write it once |
 
-<a id="gwtempsrc"></a>
-## 45. gwTempSrc — temperature of the groundwater reaching the channel
+<a id="deeptherml"></a>
+## 45. deepTherml — deep thermal state below the soil column
+
+The temperature of the water that groundwater hands to the channel. The choices are whichever
+mechanisms exist in the code, not a fixed set decided up front.
 
 | Option | Description |
 |---|---|
-| soilColumn | from the model's own column: the aquifer store with `groundwatr = bigBuckt`, the base of the soil column without one (default; also selected by `notPopulatedYet`) |
-| airTScale | scaled from the air temperature between its annual mean and a smoothed daily mean, after Wade et al. (2024) |
+| none | the base of the hydrologically active soil column itself, floored at freezing (default; also selected by `notPopulatedYet`) |
+| aquiferTemp | a well-mixed temperature carried by the big-bucket aquifer store |
+| airTempGW | groundwater temperature scaled from the air temperature, after Wade et al. (2024) |
 
-`soilColumn` is the physically-based option: recharge mixes into the aquifer store, which
-relaxes towards the recharge temperature with a time constant of storage over recharge, so
-baseflow carries a damped, lagged version of the seasonal cycle. How much damping you get
-depends on how much water the store holds; a nearly empty bucket simply tracks the base of the
-soil column.
+`none` is what SUMMA did before this decision existed, so an existing configuration keeps its
+behaviour on upgrade. The only change is that the temperature is floored at freezing: the water
+leaving the column is liquid even where the layer it left is frozen.
 
-`airTScale` is the cheap alternative of Wade et al. (2024, *Environmental Modelling and
+`aquiferTemp` gives the big-bucket aquifer its own temperature, `scalarAquiferTemp` (a new,
+optional restart variable). Recharge arrives at the temperature of the base of the soil column
+and mixes into the store, while baseflow and transpiration leave at the store's own temperature
+and so do not change it:
+
+```latex
+S \frac{dT}{dt} = R\,(T_{rech} - T)
+```
+
+so the store relaxes towards the recharge temperature with a time constant of storage over
+recharge, which for a real aquifer is months to years. That damping is the point. How much you
+get depends on how much water the store holds: with `aquiferScaleFactor` and
+`aquiferBaseflowRate` set so the bucket is nearly empty, the aquifer temperature simply tracks
+the base of the soil column. It requires [`groundwatr`](#groundwatr) `= bigBuckt`, since there
+is no store to carry a temperature otherwise, and is rejected at start-up with `qTopmodl` or
+`noXplict`.
+
+`airTempGW` is the cheap alternative of Wade et al. (2024, *Environmental Modelling and
 Software* 171:105866, eq. 9). The groundwater temperature is bounded below by deep groundwater,
 approximated by the mean annual air temperature, and above by the ground surface, approximated
 by a smoothed daily air temperature, and one coefficient picks the effective sourcing depth:
 
-```
-T_GW = C_ATGW * (AT_D - AT) + AT
+```latex
+T_{GW} = C_{ATGW}\,(AT_D - AT) + AT
 ```
 
-with `C_ATGW` (0-1) the coefficient, `AT_D` the air temperature averaged over `gwTempWindow`
-days (2-14 in Wade et al.) and `AT` the mean annual air temperature. `C_ATGW = 0` is deep,
-temporally invariant groundwater and `C_ATGW = 1` is shallow groundwater that follows the
-ground surface. Both means are kept as running means of the forcing, so no extra input is
-needed, but the annual mean starts at the first air temperature the run sees and needs a year
-of spin-up before it means what its name says. They are written to the restart file
-(`scalarAirTempWindow`, `scalarAirTempAnnual`), so a spun-up run carries them forward.
+`C_ATGW` (0-1) is a **basin** parameter, in `basinParamInfo.txt`, since Wade et al. tune it per
+stream order; `AT_D` is the air temperature averaged over `gwTempWindow` days (2-14 in Wade et
+al.) and `AT` its annual mean. `C_ATGW = 0` is deep, temporally invariant groundwater and
+`C_ATGW = 1` is shallow groundwater that follows the ground surface; the 0.5 default is a
+neutral starting point for a calibration, not a recommendation. Both means are kept as running
+means of the forcing, so no extra input is needed, but the annual mean starts at the first air
+temperature the run sees and needs a year of spin-up before it means what its name says. They
+are written to the restart file (`scalarAirTempWindow`, `scalarAirTempAnnual`), so a spun-up run
+carries them forward.
 
-In permafrost this option needs care: its lower bound is the mean annual air temperature, which
-is below freezing, while real sub-permafrost or talik groundwater is at or above 0 C. The
-result is floored at freezing, so the formula there mostly returns 0 C rather than anything
-physical. `soilColumn` with a geothermal lower boundary ([`bcLowrTdyn`](#bclowrtdyn) `geoFlux`)
-is the better choice for cold regions; `airTScale` is a calibration knob for temperate basins,
-where Wade et al. tuned it per stream order.
+In permafrost `airTempGW` needs care: its lower bound is the mean annual air temperature, which
+is below freezing in the colder interior and northern zones, while real sub-permafrost or talik
+groundwater is at or above 0 C. The result is floored at freezing, so the formula there mostly
+returns 0 C rather than anything physical. That is why it is a per-basin opt-in rather than a
+default: it is useful in parts of Alaska, not all of it. `aquiferTemp` with a geothermal lower
+boundary ([`bcLowrTdyn`](#bclowrtdyn) `presFlux`) is the process-based cold-region path.

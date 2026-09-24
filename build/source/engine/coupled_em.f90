@@ -88,6 +88,11 @@ USE mDecisions_module,only:         &
                       localColumn  ,&      ! separate groundwater representation in each local soil column
                       singleBasin          ! single groundwater store over the entire basin
 
+! look-up values for the deep thermal state below the hydrologically active soil column
+USE mDecisions_module,only:         &
+                      aquiferTempState,&   ! a well-mixed temperature carried by the big-bucket aquifer store
+                      airTempGW            ! groundwater temperature scaled from the air temperature (Wade et al., 2024)
+
 ! look-up values for the numerical method
 USE mDecisions_module,only:         &
                       homegrown    ,&      ! homegrown backward Euler solution based on concepts from numerical recipes
@@ -2004,7 +2009,9 @@ subroutine coupled_em(&
       ! a real aquifer is months to years.  That damping is the point: baseflow then carries a lagged, muted version of the
       ! seasonal cycle rather than the temperature of whichever soil layer happens to sit at the base of the column.
       ! Integrated exactly over the data step for constant R and S, which is stable for any step length.
-      if(includeAquifer .and. nSoil>0)then
+      ! Opt-in through deepTherml = aquiferTemp: without it the store carries no temperature and the water handed to the
+      ! channel leaves at the temperature of the base of the soil column, as it did before.
+      if(model_decisions(iLookDECISIONS%deepTherml)%iDecision == aquiferTempState .and. includeAquifer .and. nSoil>0)then
         associate(&
           scalarAquiferTemp     => prog_data%var(iLookPROG%scalarAquiferTemp)%dat(1)    ,& ! temperature of the water in the aquifer (K)
           averageAquiferRecharge=> flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarAquiferRecharge))%dat(1), & ! recharge to the aquifer (m s-1)
@@ -2024,25 +2031,27 @@ subroutine coupled_em(&
       ! -----
       ! * running means of the air temperature...
       ! -----------------------------------------
-      ! For gwTempSrc = airTScale the groundwater reaching the channel is bounded by the temperature of deep groundwater
+      ! For deepTherml = airTempGW the groundwater reaching the channel is bounded by the temperature of deep groundwater
       ! (the mean annual air temperature) and the ground surface (a smoothed daily air temperature), and a coefficient picks
       ! where between the two the water is sourced from (Wade et al., 2024, EMS, eq. 9).  Both bounds are kept here as
       ! exponential running means, which need one number each rather than a window of past forcing and so restart cleanly.
       ! The weight is the fraction of the averaging window this step covers, capped at one for a step longer than the window.
-      associate(&
-        scalarAirTempWindow => prog_data%var(iLookPROG%scalarAirTempWindow)%dat(1) ,& ! running mean of the air temperature over gwTempWindow (K)
-        scalarAirTempAnnual => prog_data%var(iLookPROG%scalarAirTempAnnual)%dat(1) ,& ! running mean of the air temperature over a year (K)
-        gwTempWindow        => mpar_data%var(iLookPARAM%gwTempWindow)%dat(1)       ,& ! averaging window of the air temperature the groundwater follows (days)
-        scalarAirtemp       => forc_data%var(iLookFORCE%airtemp)                    ) ! air temperature (K)
-        ! absent from the initial conditions file, both means start at the first air temperature the run sees, so the
-        ! annual mean needs a year of spin-up before it means what its name says
-        if(scalarAirTempWindow < 0.99_rkind*realMissing) scalarAirTempWindow = scalarAirtemp
-        if(scalarAirTempAnnual < 0.99_rkind*realMissing) scalarAirTempAnnual = scalarAirtemp
-        wghtWindow = min(data_step/(gwTempWindow*secprday), 1._rkind)
-        wghtAnnual = min(data_step/(365._rkind*secprday),   1._rkind)
-        scalarAirTempWindow = scalarAirTempWindow + wghtWindow*(scalarAirtemp - scalarAirTempWindow)
-        scalarAirTempAnnual = scalarAirTempAnnual + wghtAnnual*(scalarAirtemp - scalarAirTempAnnual)
-      end associate
+      if(model_decisions(iLookDECISIONS%deepTherml)%iDecision == airTempGW)then
+        associate(&
+          scalarAirTempWindow => prog_data%var(iLookPROG%scalarAirTempWindow)%dat(1) ,& ! running mean of the air temperature over gwTempWindow (K)
+          scalarAirTempAnnual => prog_data%var(iLookPROG%scalarAirTempAnnual)%dat(1) ,& ! running mean of the air temperature over a year (K)
+          gwTempWindow        => mpar_data%var(iLookPARAM%gwTempWindow)%dat(1)       ,& ! averaging window of the air temperature the groundwater follows (days)
+          scalarAirtemp       => forc_data%var(iLookFORCE%airtemp)                    ) ! air temperature (K)
+          ! absent from the initial conditions file, both means start at the first air temperature the run sees, so the
+          ! annual mean needs a year of spin-up before it means what its name says
+          if(scalarAirTempWindow < 0.99_rkind*realMissing) scalarAirTempWindow = scalarAirtemp
+          if(scalarAirTempAnnual < 0.99_rkind*realMissing) scalarAirTempAnnual = scalarAirtemp
+          wghtWindow = min(data_step/(gwTempWindow*secprday), 1._rkind)
+          wghtAnnual = min(data_step/(365._rkind*secprday),   1._rkind)
+          scalarAirTempWindow = scalarAirTempWindow + wghtWindow*(scalarAirtemp - scalarAirTempWindow)
+          scalarAirTempAnnual = scalarAirTempAnnual + wghtAnnual*(scalarAirtemp - scalarAirTempAnnual)
+        end associate
+      endif
 
       ! save the surface temperature (just to make things easier to visualize)
       prog_data%var(iLookPROG%scalarSurfaceTemp)%dat(1) = prog_data%var(iLookPROG%mLayerTemp)%dat(1)

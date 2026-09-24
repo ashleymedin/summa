@@ -80,7 +80,7 @@ MODULE var_lookup
   integer(i4b)    :: surfRun_SE = integerMissing     ! choice of parameterization for saturation excess surface runoff
   integer(i4b)    :: read_force = integerMissing     ! method used to read forcing data (per step or full read)
   integer(i4b)    :: write_buff = integerMissing     ! method used to buffer model write (none, per file)
-  integer(i4b)    :: gwTempSrc  = integerMissing     ! choice of where the temperature of groundwater reaching the channel comes from
+  integer(i4b)    :: deepTherml = integerMissing     ! choice of deep thermal state below the hydrologically active soil column
 
  endtype iLook_decision
 
@@ -361,9 +361,8 @@ MODULE var_lookup
   integer(i4b)    :: lakeMixingThermalC    = integerMissing    ! effective thermal conductivity between liquid lake layers, emulating turbulent mixing (W m-1 K-1)
   integer(i4b)    :: lakeIceMinThick       = integerMissing    ! ice cover thinner than this breaks up and returns to the water (m)
   ! lower boundary condition for thermodynamics
-  integer(i4b)    :: geothermalFlux        = integerMissing    ! geothermal heat flux into the base of the soil column (W m-2)
+  integer(i4b)    :: lowerBoundNrgFlux     = integerMissing    ! energy flux into the base of the soil column, the geothermal heat flux (W m-2)
   ! temperature of the groundwater reaching the channel
-  integer(i4b)    :: C_ATGW                = integerMissing    ! air temperature to groundwater temperature coefficient (-)
   integer(i4b)    :: gwTempWindow          = integerMissing    ! averaging window of the air temperature the groundwater follows (days)
  endtype iLook_param
 
@@ -901,6 +900,8 @@ MODULE var_lookup
   integer(i4b)    :: wallErosionRate            = integerMissing ! glacier wall erosion rate input for debris advection (mm yr-1)
   integer(i4b)    :: debrisCritStress           = integerMissing ! critical driving stress where debris slides on terminal wedge (Pa)
   integer(i4b)    :: latMoraineWidth            = integerMissing ! lateral moraine width or rockfall length (m)
+  ! temperature of the groundwater reaching the channel
+  integer(i4b)    :: C_ATGW                     = integerMissing ! air temperature to groundwater temperature coefficient (-)
  endtype iLook_bpar
 
  ! ***********************************************************************************************************
@@ -1052,7 +1053,7 @@ MODULE var_lookup
                                                                         171,172,173,174,175,176,177,178,179,180,&
                                                                         181,182,183,184,185,186,187,188,189,190,&
                                                                         191,192,193,194,195,196,197,198,199,200,&
-                                                                        201,202)
+                                                                        201)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -1104,7 +1105,7 @@ MODULE var_lookup
                                                                          71, 72, 73)
  ! named variables: basin-average parameters
  type(iLook_bpar),    public,parameter :: iLookBPAR     =iLook_bpar    (  1,  2,  3,  4,  5,  6,  7,  8, 9,  10,&
-                                                                          11, 12)
+                                                                          11, 12, 13)
  ! named variables: basin-average variables
  type(iLook_bvar),    public,parameter :: iLookBVAR     =iLook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
