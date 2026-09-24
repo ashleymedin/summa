@@ -206,6 +206,7 @@ subroutine computFlux(&
   integer(i4b)                       :: iLayer,nStart               ! index control of model layers
   logical(lgt)                       :: doVegNrgFlux                ! flag to compute the energy flux over vegetation
   real(rkind),dimension(nSoil)       :: dHydCond_dMatric            ! derivative in hydraulic conductivity w.r.t matric head (s-1)
+  integer(i4b)                       :: nSoilHyd                    ! number of hydrologically active soil layers
   character(LEN=256)                 :: cmessage                    ! error message of downwind routine
   real(rkind)                        :: surface_flux                ! surface flux (m s-1) into snow, lake, or glacier ice
   real(rkind)                        :: bottom_flux                 ! bottom flux (m s-1) out of snow, lake, or glacier ice
@@ -302,6 +303,7 @@ subroutine computFlux(&
   end associate
 
   ! *** CALCULATE THE LIQUID FLUX THROUGH SOIL ***
+  nSoilHyd = nSoil - indx_data%var(iLookINDEX%nBedrock)%dat(1)
   associate(nSoilOnlyHyd => indx_data%var(iLookINDEX%nSoilOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the soil
     if (nSoilOnlyHyd>0) then ! if necessary, calculate the liquid flux through soil
       call initialize_soilLiqFlux
@@ -862,14 +864,15 @@ contains
    scalarGlacierMelt           => flux_data%var(iLookFLUX%scalarGlacierMelt)%dat(1)     ) ! intent(out):   [dp] glacier ice melt plus snow and soil drainage (m s-1)
    ! calculate net liquid water fluxes for each soil layer (s-1)
    if (nStart==0) iLayerLiqFluxSnLaGl(0) = 0._rkind ! then 0 layer is top of soil, iLayerLiqFluxSnLaGl does not exist in soil
+   mLayerLiqFluxSoil(1:nSoil) = 0._rkind ! bedrock at the base of the column takes no water
    do iLayer=1,nSoil
      if(iLayer/=nSoil) iLayerLiqFluxSnLaGl(iLayer+nStart) = realMissing ! iLayerLiqFluxSnLaGl does not exist in soil but could exist at the bottom of the soil domain
      mLayerLiqFluxSnLaGl(iLayer+nStart) = realMissing ! iLayerLiqFluxSnLaGl does not exist in soil
-     mLayerLiqFluxSoil(iLayer) = -(iLayerLiqFluxSoil(iLayer) - iLayerLiqFluxSoil(iLayer-1))/mLayerDepth(iLayer+nStart)
+     if(iLayer<=nSoilHyd) mLayerLiqFluxSoil(iLayer) = -(iLayerLiqFluxSoil(iLayer) - iLayerLiqFluxSoil(iLayer-1))/mLayerDepth(iLayer+nStart)
    end do
    if(nGlce==0) iLayerLiqFluxSnLaGl(nSoil+nStart) = realMissing ! if nothing below the soil domain, then does not exist
    ! compute drainage from the soil zone (needed for mass balance checks and in aquifer recharge)
-   scalarSoilDrainage = iLayerLiqFluxSoil(nSoil)
+   scalarSoilDrainage = iLayerLiqFluxSoil(nSoilHyd)
    if(nGlce>0) scalarGlacierMelt = scalarSoilDrainage + scalarSurfaceRunoff - scalarGlceMelt ! save for glacier melt flow calculations, may be overwritten with addition of below domain fluxes
   end associate
 
