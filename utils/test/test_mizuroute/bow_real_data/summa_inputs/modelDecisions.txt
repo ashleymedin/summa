@@ -40,6 +40,7 @@ infRateMax                      GreenAmpt       ! infiltration parameterization
 nrgConserv                      enthalpyForm    ! choice of variable in either energy backward Euler residual or IDA state variable
 read_force                      readFullSeries  ! method used to read forcing data (per step or full read)
 write_buff                      writeFullSeries ! method used to read forcing data (per step or full read
+deepTherml                      none            ! choice of deep thermal state below the soil column
 ! ***********************************************************************************************
 ! ***** description of the options available -- nothing below this point is read ****************
 ! ***********************************************************************************************
@@ -99,6 +100,7 @@ write_buff                      writeFullSeries ! method used to read forcing da
 ! (14) choice of lower boundary conditions for thermodynamics
 ! presTemp  ! prescribed temperature
 ! zeroFlux  ! zero flux
+! presFlux  ! prescribed energy flux, the geothermal heat flux (parameter lowerBoundNrgFlux)
 ! -----------------------------------------------------------------------------------------------
 ! (15) choice of upper boundary conditions for soil hydrology
 ! presHead  ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
@@ -169,5 +171,11 @@ write_buff                      writeFullSeries ! method used to read forcing da
 ! (29) choice of method for sub-grid routing
 ! timeDlay  ! time-delay histogram
 ! qInstant  ! instantaneous routing
+! -----------------------------------------------------------------------------------------------
+! (30) choice of deep thermal state below the soil column, which sets the temperature of the
+!     water the groundwater hands to the channel
+! none        ! the base of the soil column itself, floored at freezing (default)
+! aquiferTemp ! a well-mixed temperature carried by the big-bucket aquifer store (needs groundwatr = bigBuckt)
+! airTempGW   ! groundwater temperature scaled from the air temperature, Wade et al. (2024)
 ! ***********************************************************************************************
 ! history Wed Jul 29 16:01:34 2020: /home/wknoben/summa/utils/convert_summa_config_v2_v3.py fileManager.txt
