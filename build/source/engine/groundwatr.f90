@@ -294,6 +294,7 @@ subroutine computBaseflow(&
   ! local variables for the derivatives
   real(rkind),dimension(nSoil,nSoil) :: dBaseflow_dVolLiq     ! derivative in baseflow w.r.t. volumetric liquid water content (s-1)
   real(rkind)                        :: qbTotal               ! total baseflow (m s-1)
+  real(rkind)                        :: exfilDrive            ! surplus the column cannot store, which it must return (m s-1)
   real(rkind)                        :: length2area           ! ratio of hillslope width to hillslope area (m m-2)
   real(rkind),dimension(nSoil)       :: depth2capacity        ! ratio of layer depth to total subsurface storage capacity (-)
   real(rkind),dimension(nSoil)       :: dXdS                  ! change in dimensionless flux w.r.t. change in dimensionless storage (-)
@@ -319,6 +320,7 @@ subroutine computBaseflow(&
     mLayerSatHydCond        => flux_data%var(iLookFLUX%mLayerSatHydCond)%dat,            & ! intent(in):  [dp(:)] micropore conductivity at the mid-point of each layer (m s-1)
     iLayerSatHydCond        => flux_data%var(iLookFLUX%iLayerSatHydCond)%dat,            & ! intent(in):  [dp(:)] micropore conductivity at layer interfaces, index 0 is the soil surface (m s-1)
     mLayerColumnInflow      => flux_data%var(iLookFLUX%mLayerColumnInflow)%dat,          & ! intent(in):  [dp(:)] inflow into each soil layer (m3/s)
+    iLayerLiqFluxSoil       => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat,           & ! intent(in):  [dp(0:)] liquid flux at soil layer interfaces, index 0 is the soil surface (m s-1)
     ! input: local attributes
     area                    => prog_data%var(iLookPROG%DOMarea)%dat(1),                  & ! intent(in):  [dp]    Domain area in HRU (m2)
     tan_slope               => prog_data%var(iLookPROG%DOMtan_slope)%dat(1),             & ! intent(in):  [dp]    tan water table slope, taken as tan local ground surface slope (-)
@@ -470,9 +472,20 @@ subroutine computBaseflow(&
       dLogFunc_dWat(:) = 0._rkind
     end if
 
-    ! compute the exfiltration (m s-1)
-    if (totalColumnInflow > totalColumnOutflow .and. logF > tiny(1._rkind)) then
-      scalarExfiltration = logF*(totalColumnInflow - totalColumnOutflow)  ! m s-1
+    ! ***** compute the exfiltration (m s-1) *****
+    ! A column with no room left has to return the water it cannot take. The surplus is everything arriving minus
+    ! everything leaving sideways: the lateral inflow from upslope, plus the net gain across the column's own top and
+    ! bottom faces, less the lateral outflow. Taking the vertical part as the difference of the two boundary fluxes is
+    ! what makes this the surplus the mass balance sees, since that is the same pair the balance check uses: it counts
+    ! rain and melt soaking in at the surface, less evaporation, and the glacier melt entering the base of a debris
+    ! column, which is negative drainage.
+    ! NOTE: before this, only the lateral inflow counted, so a column filled from its own surface or from the ice
+    !       beneath it had nothing to relieve it: it saturated, and the water it could not store left the mass balance
+    !       instead of the column. A column fed only from upslope, which is what the original expression assumed, is
+    !       unaffected, since the vertical term is then the small net of infiltration against evaporation.
+    exfilDrive = totalColumnInflow + (iLayerLiqFluxSoil(0) - iLayerLiqFluxSoil(nSoil)) - totalColumnOutflow
+    if (exfilDrive > 0._rkind .and. logF > tiny(1._rkind)) then
+      scalarExfiltration = logF*exfilDrive  ! m s-1
     else
       scalarExfiltration = 0._rkind
     end if
@@ -542,9 +555,11 @@ subroutine computBaseflow(&
     end if
 
     ! compute the derivative in the exfiltration flux and add to the baseflow derivative matrix
-    if (totalColumnInflow > totalColumnOutflow .and. logF > tiny(1._rkind)) then
+    ! NOTE: the vertical boundary fluxes are taken as given here, as the lateral inflow always was: their derivatives
+    !       belong to soilLiqFlux and are already in the Jacobian through the layer fluxes themselves
+    if (exfilDrive > 0._rkind .and. logF > tiny(1._rkind)) then
       do iLayer=1,nSoil
-        dExfiltrate_dWat(iLayer) = -sum(dBaseflow_dWat(1:nSoil,iLayer))*logF - dLogFunc_dWat(iLayer)*qbTotal
+        dExfiltrate_dWat(iLayer) = -sum(dBaseflow_dWat(1:nSoil,iLayer))*logF + dLogFunc_dWat(iLayer)*exfilDrive
         dExfiltrate_dTk(iLayer) = -sum(dBaseflow_dTk(1:nSoil,iLayer))*logF
       end do  ! end looping through soil layers
       dBaseflow_dWat(1,1:nSoil) = dBaseflow_dWat(1,1:nSoil) + dExfiltrate_dWat(1:nSoil)

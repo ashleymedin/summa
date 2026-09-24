@@ -294,3 +294,17 @@ AFTER tag of v4.0.0-exp-Sundials
       independent flux. Giese et al. (2020, The Cryosphere 14:1555) avoid this by adding the melt of the top ice layer to
       the overlying debris as a mass source, with the Darcy conductivity at the debris-ice interface set to zero in both
       directions, and by giving every debris layer a linear-reservoir runoff sink.
+ 70) Exfiltrate the surplus a full soil column cannot store, whatever face it arrived through
+     The exfiltration in computBaseflow returned the surplus of the lateral inflow over the lateral outflow, so it only
+      relieved a column filled from upslope. A column filled through its own surface, or through its base by the glacier
+      melt entering a debris column, had nothing to relieve it: it saturated, and the water it could not store left the
+      mass balance rather than the column. The surplus is now everything arriving less everything leaving sideways,
+        exfilDrive = totalColumnInflow + (iLayerLiqFluxSoil(0) - iLayerLiqFluxSoil(nSoil)) - totalColumnOutflow
+      the vertical part being the difference of the column's own boundary fluxes, the same pair the mass balance uses.
+      The logistic on the available storage is unchanged, so nothing exfiltrates until the column is nearly full, and
+      the derivative keeps its form with -qbTotal replaced by exfilDrive (the vertical fluxes are taken as given here,
+      as the lateral inflow always was; their derivatives belong to soilLiqFlux).
+     This is what closes the debris-column mass balance: gulkana now restart-cycles indefinitely (five cycles tested),
+      where before it failed on the second. A qTopmodl upland is unaffected in practice: on the reynolds distributed
+      test the exfiltration is identically zero both before and after, since the relief only opens when the available
+      storage falls below 2 mm, which a free-draining 2 m soil column does not reach.
