@@ -279,10 +279,6 @@ AFTER tag of v4.0.0-exp-Sundials
      New scalarFrostTableDepth and scalarActiveLayerDepth; each layer's transmissivity scaled by its ice impedance factor.
  73) Hyporheic exchange in a stream domain, after Wade et al. (2024, EMS 171:105866, eqs. 11-12), commit e305fdf1 Sep 24, 2026
      New decision hyporhTdyn (none | proxy, default none), parameters hypFrac and hypLag, restart variable hypTempPast.
- 74) Fix the order of the mass split by domain, Sep 25, 2026
-     The water chain runs down, snow drainage to the lake surface and lake drainage to the soil surface, so the lake was
-      being solved before the snow that feeds it. Order is now glacier, whose melt rises into the layers above, then
-      snow, lake, soil. A frozen lake takes no snow drainage at all, so only an open lake was affected.
  74) Cap the lateral outflow of a soil layer at the drainable water it holds over the data step, commit aae78d23 Sep 24, 2026
      The smooth minimum q_max*tanh(q/q_max), monotone where a logistic one is not, with its derivatives in dBaseflow_d*.
  75) Scale the infiltration closure under saturation to the depth of the zone it averages over, commit a52791c6 Sep 24, 2026
@@ -291,3 +287,15 @@ AFTER tag of v4.0.0-exp-Sundials
      exfilDrive = totalColumnInflow + (iLayerLiqFluxSoil(0) - iLayerLiqFluxSoil(nSoil)) - totalColumnOutflow, was lateral only.
      Closes the debris-column water balance, so gulkana restart-cycles (five tested); a qTopmodl upland is unchanged in
       practice, its exfiltration identically zero either way, since the relief opens only below 2 mm available storage.
+ 77) Fix the order of the mass split by domain, commit cc2ef1f3 Sep 25, 2026
+     The water chain runs down, snow drainage to the lake surface and lake drainage to the soil surface, so the lake was
+      solved before the snow that feeds it. Order is now glacier, whose melt rises into the layers above, then snow,
+      lake, soil. A frozen lake takes no snow drainage at all, so only an open lake was affected.
+ 78) Thermal-only bedrock layers below the soil, deepTherml = bedrockLyrs, Sep 25, 2026
+     New optional coldState variable nBedrock: the deepest soil layers carry energy states but no hydrology, the way the
+      noThetaChange glacier ice layers do. check_icond starts them on the steady gradient the geothermal flux holds,
+      T(z) = T_active_base + q*(z - z_base)/thCond_soil, so the column begins in equilibrium with bcLowrTdyn = presFlux
+      and needs no spin-up, as glacier ice needs none.
+     On gulkana, 8 active layers over 7 bedrock layers to 30 m: the base drifts 0.09 K over 15 months where the same
+      column with every layer active and a uniform start drifts 1.36 K, and its annual range there is 0.09 K against
+      1.35 K. The seasonal wave damps from 30.96 K at the surface to 7.10 K at 4 m to 0.09 K at 30 m.
