@@ -260,6 +260,7 @@ subroutine summaSolv4ida(&
     nSnLaSoGlNrg            => indx_data%var(iLookINDEX%nSnLaSoGlNrg )%dat(1) ,& ! intent(in): [i4b]    number of energy state variables in the layers
     nSnLaSoGlHyd            => indx_data%var(iLookINDEX%nSnLaSoGlHyd )%dat(1) ,& ! intent(in): [i4b]    number of hydrology variables in the layers
     nSoilOnlyHyd            => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1) ,& ! intent(in): [i4b]    number of hydrology variables in the soil
+    nLakeFrz                => indx_data%var(iLookINDEX%nLakeFrz)%dat(1)     ,& ! intent(in): [i4b]    number of frozen (ice cover) lake layers at the top of the lake
     ! model indices
     ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)      ,& ! intent(in): [i4b]    index of canopy air space energy state variable
     ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)      ,& ! intent(in): [i4b]    index of canopy energy state variable
@@ -268,6 +269,7 @@ subroutine summaSolv4ida(&
     ixSnLaSoGlNrg           => indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the layers
     ixSnLaSoGlHyd           => indx_data%var(iLookINDEX%ixSnLaSoGlHyd)%dat    ,& ! intent(in): [i4b(:)] indices for hydrology states in the layers
     ixSnowOnlyNrg           => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the snow
+    ixLakeOnlyNrg           => indx_data%var(iLookINDEX%ixLakeOnlyNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the lake
     ixGlceOnlyNrg           => indx_data%var(iLookINDEX%ixGlceOnlyNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the glacier ice
     ixSoilOnlyNrg           => indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the soil
     ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat    ,& ! intent(in): [i4b(:)] indices for hydrology states in the soil
@@ -507,17 +509,22 @@ subroutine summaSolv4ida(&
           if (stateVec(ixSnowOnlyNrg(i)) > Tfreeze) tooMuchMelt = .true. !need to merge
         endif
       enddo
-      ! for lakes, will need to merge if an ice layer completely melts, not implemented yet
-      if (nGlce>0) then
-        ! loop through non-missing energy state variables in the glacier domain to see if need to merge 
-        do concurrent (i=1:nGlce,ixGlceOnlyNrg(i)/=integerMissing)
-          if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm)then !using enthalpy as state variable
-            if (stateVec(ixGlceOnlyNrg(i)) > 0._rkind) tooMuchMelt = .true. !need to merge
-          else
-            if (stateVec(ixGlceOnlyNrg(i)) > Tfreeze) tooMuchMelt = .true. !need to merge
-          endif
-        enddo
-      endif
+      ! loop through non-missing energy state variables in the ice cover of the lake domain (the top nLakeFrz
+      do concurrent (i=1:nLakeFrz,ixLakeOnlyNrg(i)/=integerMissing)
+        if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm)then !using enthalpy as state variable
+          if (stateVec(ixLakeOnlyNrg(i)) > 0._rkind) tooMuchMelt = .true. !need to merge
+        else
+          if (stateVec(ixLakeOnlyNrg(i)) > Tfreeze) tooMuchMelt = .true. !need to merge
+        endif
+      enddo
+      ! loop through non-missing energy state variables in the glacier domain to see if need to merge 
+      do concurrent (i=1:nGlce,ixGlceOnlyNrg(i)/=integerMissing)
+        if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm)then !using enthalpy as state variable
+          if (stateVec(ixGlceOnlyNrg(i)) > 0._rkind) tooMuchMelt = .true. !need to merge
+        else
+          if (stateVec(ixGlceOnlyNrg(i)) > Tfreeze) tooMuchMelt = .true. !need to merge
+        endif
+      enddo
       if(tooMuchMelt)exit
     
       ! get the last stepsize and difference from previous end time, not necessarily the same

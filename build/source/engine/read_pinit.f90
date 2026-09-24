@@ -175,6 +175,41 @@ contains
   if (parFallback(iLookPARAM%glacierTempReduction)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%glacierTempReduction)%default_val = 0._rkind
   end if
+  ! stream and lake column parameters
+  if (parFallback(iLookPARAM%streamMinDepth)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%streamMinDepth)%default_val = 0.05_rkind ! floor on the liquid depth prescribed from mizuRoute so a dry reach keeps a column (m)
+  end if
+  if (parFallback(iLookPARAM%lakeMixingThermalC)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%lakeMixingThermalC)%default_val = 1000._rkind ! large, so a multi-layer stream column stays well mixed (W m-1 K-1)
+  end if
+  if (parFallback(iLookPARAM%lakeIceMinThick)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%lakeIceMinThick)%default_val = 0.005_rkind ! 5 mm: the minimum ice thickness of flowing water in Wanders et al. (2019), below which the cover breaks up (m)
+  end if
+  ! averaging window of the air temperature the groundwater follows, only used with deepTherml = airTempGW
+  if (parFallback(iLookPARAM%gwTempWindow)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%gwTempWindow)%default_val = 7._rkind ! middle of the 2-14 day range of Wade et al. (2024)
+    parFallback(iLookPARAM%gwTempWindow)%lower_limit = 1._rkind
+    parFallback(iLookPARAM%gwTempWindow)%upper_limit = 60._rkind
+  end if
+  ! hyporheic exchange in a stream domain, only used with hyporhTdyn = proxy
+  ! NOTE: Wade et al. (2024) tune both, per stream order, over these ranges; the defaults are only a starting point
+  if (parFallback(iLookPARAM%hypFrac)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%hypFrac)%default_val = 0.2_rkind
+    parFallback(iLookPARAM%hypFrac)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%hypFrac)%upper_limit = 1._rkind
+  end if
+  if (parFallback(iLookPARAM%hypLag)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%hypLag)%default_val = 6._rkind
+    parFallback(iLookPARAM%hypLag)%lower_limit = 1._rkind
+    parFallback(iLookPARAM%hypLag)%upper_limit = 24._rkind
+  end if
+  ! energy flux at the base of the soil column, the geothermal heat flux, only used with bcLowrTdyn = presFlux
+  if (parFallback(iLookPARAM%lowerBoundNrgFlux)%default_val < 0.99_rkind*realMissing) then
+    ! NOTE: 0.06 W m-2 is the continental average; it ranges from ~0.03 in old cratons to ~0.1 in tectonically active regions
+    parFallback(iLookPARAM%lowerBoundNrgFlux)%default_val = 0.06_rkind
+    parFallback(iLookPARAM%lowerBoundNrgFlux)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%lowerBoundNrgFlux)%upper_limit = 0.2_rkind
+  end if
   ! exponential hydraulic conductivity profile
   if (parFallback(iLookPARAM%f_hydCond)%default_val < 0.99_rkind*realMissing) then
     ! NOTE: a soil-column value, leaving ~5% of the surface conductivity at 4 m. Supraglacial debris is 1-5 m-1 over a 0.3-1 m
@@ -203,6 +238,14 @@ contains
   endif
   if (parFallback(iLookBPAR%latMoraineWidth)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookBPAR%latMoraineWidth)%default_val = 200._rkind ! from looking at Alaska glaciers (m)
+  endif
+  ! temperature of the groundwater reaching the channel, only used with deepTherml = airTempGW
+  if (parFallback(iLookBPAR%C_ATGW)%default_val < 0.99_rkind*realMissing) then
+    ! NOTE: 0 is deep, temporally invariant groundwater and 1 is shallow groundwater following the ground surface.
+    !       Wade et al. (2024) tune this per stream order, so 0.5 is only a neutral starting point for a calibration
+    parFallback(iLookBPAR%C_ATGW)%default_val = 0.5_rkind
+    parFallback(iLookBPAR%C_ATGW)%lower_limit = 0._rkind
+    parFallback(iLookBPAR%C_ATGW)%upper_limit = 1._rkind
   endif
  end if
 

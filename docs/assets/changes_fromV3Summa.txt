@@ -214,6 +214,7 @@ AFTER tag of v4.0.0-exp-Sundials
       ! 3 glacier clean ablation    (glacCln2) ! glacier ice column
       ! 4 glacier debris ablation   (glacDbr)  ! glacier ice column, debris-covered
       ! 5 wetland                   (wetland)  ! recognized by the data structures but wetland fluxes are not yet implemented
+      ! 6 stream                    (stream)   ! stream column, added later see 67
      A "dom" dimension was added throughout the data structures (gru -> hru -> dom -> var), and to the restart and attributes files.
      The layer system now tracks snow / lake / soil / glacier ice layers together (new INDEX variables nLakeOnly*, nGlceOnly*, nSnLaSoGl*,
      and layer counts nLake and nGlce); as in change 50 the number of soil layers can differ between columns.
@@ -276,14 +277,35 @@ AFTER tag of v4.0.0-exp-Sundials
  67) Automatic parameter calibration, PR #639
      New build/source/calibration/ (DDS sampling, parameter search, NetCDF output) and driver summa_driver_opt.f90. Two-level MPI: domain parallelism plus instance parallelism across calibration trials, scheduled dynamically. 
      Multi-case runs via a --manifest file. Config moves to TOML (legacy -m/--control still accepted). parallel-utils submodule vendored into build/source/parallel/.
--68) var_derive.f90 root density normalisation no longer fills a deficit, only trims an excess, commit 40e9929d Sep 24, 2026
+ 68) Stream temperature on the coupled river network (stream HRUs, lake layers as a mixed column), commits d632b36a to de2ae997 Sep 21, 2026
+     A GRU may hold one stream HRU: its reach's water column (lake layers over soil/aquifer, linked via streamSegId). mizuRoute returns reach discharge, 
+      volume and lateral inflow; new streamTemp.f90 solves the column energy balance upstream to downstream each step, advecting heat from upstream 
+      reaches and GRU runoff (Wanders et al. 2019, WRR, after van Beek et al. 2012, WRR). run_oneGRU routes the runoff's energy alongside the water
+      Ice forming in the water rises into an ice cover, treated like glacier ice, breaking up below lakeIceMinThick.
+      The reach volume mizuRoute carries is all the reach water, ice included: the column takes its frozen water off before imposing the
+      liquid depth, so freezing thins the flow under the cover and the cover's melt returns to it (not runoff); sublimation from a bare
+      cover is debited like evaporation. The routing sees the ice through the Manning n of the reach, set before each routing step as the composite 
+      of bed and ice underside weighted by wetted perimeter (Wanders eqs 12-13, Nezhikovskiy ice roughness), floodplain term of eq 11 stubbed in, inert.
+     New outputs T_reach, v_reach, n_reach, ice_reach, scalarStreamTemp, scalarLakeIceThick, averageRoutedRunoffTemp, scalarStream* fluxes;
+      new parameters streamMinDepth, lakeMixingThermalC, lakeIceMinThick; new restart variables routingNrgFuture, nLakeFrz.
+ 69) Geothermal heat flux as a lower boundary condition for thermodynamics, commit 3f26663d Sep 24, 2026
+     New bcLowrTdyn option presFlux prescribes lowerBoundNrgFlux (W m-2, default 0.06) into the base of a soil column.
+ 70) The aquifer carries its own temperature, commit 85296798 Sep 24, 2026
+     New prognostic scalarAquiferTemp, a well-mixed store, S*dT/dt = R*(T_rech - T); runoff temperatures floored at Tfreeze.
+ 71) The deep thermal state below the soil column, after Wade et al. (2024, EMS 171:105866, eq. 9), commits 6ae0264a to 66b0f726 Sep 24, 2026
+     New decision deepTherml (none | aquiferTemp | airTempGW, default none); basin parameter C_ATGW, parameter gwTempWindow.
+ 72) Frozen-ground diagnostics, and ice-impeded lateral flow, commit 6575b412 Sep 24, 2026
+     New scalarFrostTableDepth and scalarActiveLayerDepth; each layer's transmissivity scaled by its ice impedance factor.
+ 73) Hyporheic exchange in a stream domain, after Wade et al. (2024, EMS 171:105866, eqs. 11-12), commit e305fdf1 Sep 24, 2026
+     New decision hyporhTdyn (none | proxy, default none), parameters hypFrac and hypLag, restart variable hypTempPast.
+-74) var_derive.f90 root density normalisation no longer fills a deficit, only trims an excess, commit 40e9929d Sep 24, 2026
      The check exists to trim the excess the powerLaw profile can produce. The sign was flipped to do that in commit 3b7de324 Oct 17, 2016,
      but the same statement also redistributed a DEFICIT back into the soil layers, forcing sum(mLayerRootDensity) to exactly 1.
      A deficit is what roots below the soil column look like, so scalarAquiferRootFrac was driven to zero unconditionally and
      bigAquifer's aquifer transpiration term was unreachable in practice - for bigBuckt as well as the new coupled options.
      Affects any configuration with rootingDepth greater than the soil depth under rootProfil=doubleExp; powerLaw clamps the
      rooting depth to the soil depth and so is unaffected.
- 69) New MODFLOW6 coupling capabilities, commits b194e270 through 126cd42a Sep 23-24, 2026
+ 75) New MODFLOW6 coupling capabilities, commits b194e270 through 126cd42a Sep 23-24, 2026
      Boundary packages are now named in the &coupler namelist with a role (baseflow, surface_discharge, gw_et) rather than a single
      bflow_package_name, which is retained as a one-entry baseflow table. Packages sharing a role are summed.
      Groundwater discharge at land surface (DRN at DIS/TOP) returns to SUMMA as surface runoff via mfSurfaceDischarge.
@@ -294,8 +316,7 @@ AFTER tag of v4.0.0-exp-Sundials
      starts from the aquifer the shared spin-up produced.
      Steady-state first stress periods are detected via <MODEL>/ISS and run out before the coupled loop.
      Start-up now checks HRU area against effective mapped cell area, and a coupled water budget is reported per run.
--70) mf6_coupling.f90 recharge is scattered after prepare_time_step rather than before, commit 24caa7ce Sep 24, 2026
+-76) mf6_coupling.f90 recharge is scattered after prepare_time_step rather than before, commit 24caa7ce Sep 24, 2026
      prepare_time_step reloads a package's PERIOD block at the start of each stress period, which overwrote the scattered
      RECHARGE array, so MODFLOW solved the first step of every stress period with the input file's placeholder value instead
      of SUMMA's drainage.
-

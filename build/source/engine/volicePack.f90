@@ -95,7 +95,7 @@ contains
  ! initialize error control
  err=0; message='volicePack/'
 
- ! divide snow/firn layers if too thick, don't do it if need to merge (note, ice layers do not grow so do not divide)
+ ! divide snow/firn/ice layers if too thick, don't do it if need to merge (note, ice layers do not grow so do not divide)
  if (.not.tooMuchMelt)then
    call layerDivide(&
                     ! input/output: model data structures
@@ -113,7 +113,8 @@ contains
    if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; end if
  endif
 
- ! merge snow/firn/ice layers if they are too thin, here assuming merging ice layers only if there is no snow/firn
+ ! merge snow/firn/ice layers if they are too thin, here assuming merging glacier ice layers only if there is no snow/firn
+ ! NOTE: lake layers are not merged or divided here; the ice cover of a lake is handled by lakeIceCover
  call layerMerge(&
                  ! input/output: model data structures
                  maxLayers,                   & ! intent(in):    maximum number of snow/firn/ice layers

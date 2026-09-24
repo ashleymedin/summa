@@ -235,6 +235,8 @@ subroutine computBaseflow(&
                           dBaseflow_dTk,                 & ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
                           ! error handling
                           err, message)                    ! intent(out):   error control
+  USE soil_utils_module,only:iceImpede        ! compute the ice impedance factor
+  USE soil_utils_module,only:dIceImpede_dTemp ! compute the derivative in the ice impedance factor w.r.t. temperature (K-1)
   implicit none
   ! ---------------------------------------------------------------------------------------
   ! * dummy variables
@@ -267,6 +269,11 @@ subroutine computBaseflow(&
   ! ---------------------------------------------------------------------------------------
   ! general local variables
   integer(i4b)                       :: iLayer,jLayer         ! index of model layer
+  ! local variables for the ice impedance of the lateral flow
+  real(rkind)                        :: iceImpedeFac(nSoil)   ! ice impedance factor of each soil layer (-)
+  real(rkind)                        :: dIceImpede_dT(nSoil)  ! derivative in the ice impedance factor w.r.t. temperature (K-1)
+  real(rkind)                        :: dImpede_dLiq          ! derivative in the ice impedance factor w.r.t. liquid water, zero in SUMMA (-)
+  real(rkind)                        :: trSoilNoIce(nSoil)    ! transmissivity of each layer before the ice impedance (m2 s-1)
   ! local variables for the exfiltration
   real(rkind)                        :: totalColumnInflow     ! total column inflow (m s-1)
   real(rkind)                        :: totalColumnOutflow    ! total column outflow (m s-1)
@@ -317,6 +324,7 @@ subroutine computBaseflow(&
     f_hydCond               => mpar_data%var(iLookPARAM%f_hydCond)%dat(1),               & ! intent(in):  [dp]    decay rate of hydraulic conductivity with depth (m-1)
     kAnisotropic            => mpar_data%var(iLookPARAM%kAnisotropic)%dat(1),            & ! intent(in):  [dp]    anisotropy factor for lateral hydraulic conductivity (-)
     fieldCapacity           => mpar_data%var(iLookPARAM%fieldCapacity)%dat(1),           & ! intent(in):  [dp]    field capacity (-)
+    f_impede                => mpar_data%var(iLookPARAM%f_impede)%dat(1),                & ! intent(in):  [dp]    ice impedance parameter (-)
     theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat,                  & ! intent(in):  [dp(:)] soil porosity (-)
     ! output: diagnostic variables
     scalarExfiltration      => flux_data%var(iLookFLUX%scalarExfiltration)%dat(1),       & ! intent(out): [dp]    exfiltration from the soil profile (m s-1)
@@ -340,10 +348,7 @@ subroutine computBaseflow(&
     ix_hc_profile = model_decisions(iLookDECISIONS%hc_profile)%iDecision
     if(nGlce>0) ix_hc_profile = expLaw_profile ! must match the override in satHydCond
 
-    ! the transmissivity integrals below are written in terms of the conductivity at the soil surface, but
-    ! mLayerSatHydCondMP(1) is the macropore value at the first layer midpoint, already scaled by the depth
-    ! profile. satHydCond applies that same scaling to the micropore conductivity, and evaluates it at both
-    ! the midpoint and the surface interface, so their ratio recovers the surface value for any profile.
+    ! the transmissivity integrals want the conductivity at the soil surface, which this ratio recovers for any profile
     surfaceHydCond_use = surfaceHydCond*iLayerSatHydCond(0)/mLayerSatHydCond(1)
 
     ! compute the water table thickness (m) in each layer, working from the bottom of the profile up
@@ -374,10 +379,7 @@ subroutine computBaseflow(&
         xTrans(1:nSoil) = exp(-f_hydCond*(soilDepth - zActive(1:nSoil))) - exp(-f_hydCond*soilDepth)
         dXdS(1:nSoil)   = soilDepth*f_hydCond*exp(-f_hydCond*(soilDepth - zActive(1:nSoil)))
 
-      ! power-law transmissivity, the classical TOPMODEL-ish form (Ambroise et al. 1996), the integral of
-      !  K_0*(1-z/D)**(zScale_TOPMODEL-1) over the saturated thickness
-      ! NOTE: this is the exact integral of the profile satHydCond builds, which decays to zero at the base
-      !       of the soil; that zero is the Beven-Kirkby premise of the shallow aquifer, not an artifact
+      ! power-law transmissivity (Ambroise et al. 1996), the integral of K_0*(1-z/D)**(zScale_TOPMODEL-1), zero at the base
       case(powerLaw_profile)
         tran0 = kAnisotropic_use*surfaceHydCond_use*soilDepth/zScale_TOPMODEL
         xTrans(1:nSoil) = (zActive(1:nSoil)/soilDepth)**zScale_TOPMODEL
@@ -406,6 +408,14 @@ subroutine computBaseflow(&
 
     ! set un-used portions of the vectors to zero
     if (ixSaturation>1) trSoil(1:ixSaturation-1) = 0._rkind
+
+    ! ice impedes the lateral flow as it does the vertical, through the same 10**(-f_impede*volFracIce)
+    do iLayer=1,nSoil
+      call iceImpede(mLayerVolFracIce(iLayer),f_impede,iceImpedeFac(iLayer),dImpede_dLiq)
+      call dIceImpede_dTemp(mLayerVolFracIce(iLayer),mLayerdTheta_dTk(iLayer),f_impede,dIceImpede_dT(iLayer))
+    end do
+    trSoilNoIce(1:nSoil) = trSoil(1:nSoil)
+    trSoil(1:nSoil)      = trSoil(1:nSoil)*iceImpedeFac(1:nSoil)
 
     ! compute the outflow from each layer (m3 s-1)
     mLayerColumnOutflow(1:nSoil) = trSoil(1:nSoil)*tan_slope*contourLength
@@ -477,6 +487,14 @@ subroutine computBaseflow(&
         dBaseflow_dTk(iLayer,jLayer) = dBaseflow_dVolLiq(iLayer,jLayer)*mLayerdTheta_dTk(jLayer)
       end do  ! end looping through soil layers
     end do  ! end looping through soil layers
+
+    ! the row scales with the layer's impedance factor, whose own temperature dependence adds to the diagonal
+    do iLayer=1,nSoil
+      dBaseflow_dVolLiq(iLayer,:) = dBaseflow_dVolLiq(iLayer,:)*iceImpedeFac(iLayer)
+      dBaseflow_dWat(iLayer,:)    = dBaseflow_dWat(iLayer,:)   *iceImpedeFac(iLayer)
+      dBaseflow_dTk(iLayer,:)     = dBaseflow_dTk(iLayer,:)    *iceImpedeFac(iLayer)
+      dBaseflow_dTk(iLayer,iLayer) = dBaseflow_dTk(iLayer,iLayer) + trSoilNoIce(iLayer)*dIceImpede_dT(iLayer)*length2area
+    end do
 
     ! trSoil is clamped to zero above the saturated zone, so the outflow of those layers does not respond to
     ! the state at all and their derivative rows must be zero to match. Without this the rows depend on the

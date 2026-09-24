@@ -527,6 +527,10 @@ subroutine checkFeas(&
           case(iname_snow,iname_lake,iname_glce); xMax = merge(1._rkind, 1._rkind - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
           case(iname_soil);                       xMax = merge(theta_sat(iLayer-nSnow-nLake), theta_sat(iLayer-nSnow-nLake) - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
         end select
+        ! a lake layer holds no air: a water layer sits at its bound (all water) and, while ice forms in it, ice at its own density
+        ! can exceed the layer volume; melt collecting in the ice cover before it drains does the same. lakeResize sets the depth
+        ! to the mass between steps, so only the lower bound is checked here.
+        if(layerType(iLayer)==iname_lake) xMax = huge(xMax)
 
         ! --> check
         if(stateVec( ixSnLaSoGlHyd(iLayer) ) < xMin .or. stateVec( ixSnLaSoGlHyd(iLayer) ) > xMax)then 

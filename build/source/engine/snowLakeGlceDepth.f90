@@ -1,4 +1,4 @@
-module snowGlceDepth_module
+module snowLakeGlceDepth_module
 
 ! data types
 USE nr_type
@@ -27,16 +27,18 @@ USE var_lookup,only:iLookINDEX       ! named variables for structure elements
 ! privacy
 implicit none
 private
-public::snowGlceDepth
+public::snowIceDepth
+public::lakePrescribeDepth
 contains
 
 ! ************************************************************************************************
-! public subroutine snowGlceDepth: compute snow depth for one sub timestep
+! public subroutine snowIceDepth: compute snow and ice depth for one sub timestep
 ! ************************************************************************************************
-subroutine snowGlceDepth(&
+subroutine snowIceDepth(&
                          dt_sub,                   & ! intent(in):    time step (s)
                          nSnow,                    & ! intent(in):    number of snow layers
                          nLake,                    & ! intent(in):    number of lake layers
+                         nLakeFrz,                 & ! intent(in):    number of frozen (ice cover) lake layers at the top of the lake
                          nSoil,                    & ! intent(in):    number of soil layers
                          nGlce,                    & ! intent(in):    number of glacier ice layers
                          noThetaChange,            & ! intent(in):    number of layers with no change in total water content (bottom layers)
@@ -57,6 +59,7 @@ subroutine snowGlceDepth(&
   real(qp),intent(in)                  :: dt_sub                   ! time step (s)
   integer(i4b),intent(in)              :: nSnow                    ! number of snow layers
   integer(i4b),intent(in)              :: nLake                    ! number of lake layers
+  integer(i4b),intent(in)              :: nLakeFrz                 ! number of frozen (ice cover) lake layers at the top of the lake
   integer(i4b),intent(in)              :: nSoil                    ! number of soil layers
   integer(i4b),intent(in)              :: nGlce                    ! number of glacier ice layers
   integer(i4b),intent(in)              :: noThetaChange            ! number of layers with no change in total water content (bottom layers)
@@ -75,14 +78,20 @@ subroutine snowGlceDepth(&
   integer(i4b)                         :: nLayers                  ! total number of layers
   character(len=256)                   :: cmessage                 ! error message
   real(rkind)                          :: massLiquid               ! mass liquid water (kg m-2)
+  real(rkind)                          :: lakeReduceLiq            ! liquid water squeezed out of the lake ice cover as it thins (m s-1), not used: the melt already left through the ice branch
+  logical(lgt)                         :: tooMuchLakeMelt          ! flag to denote that the ice cover melted away within the step
   ! -----------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
-  err=0; message="snowGlceDepth/"
+  err=0; message="snowIceDepth/"
+  tooMuchLakeMelt = .false.
   nLayers = nSnow + nLake + nSoil + nGlce ! total number of layers
 
   ! *** compute change in ice content of the top snow or glacier ice layer due to sublimation
   tooMuchSublim = .false.  ! initialize too much sublimation (merge layers) to false
-  if(nSnow>0 .or. (nLake>0 .and. mLayerTemp(1)<Tfreeze) .or. (nGlce>0 .and. nSoil==0) )then ! snow or ice layers exist on top
+  ! NOTE: a lake surface may have crossed the freezing point within the step (the latent heat choice is made at the first
+  !       flux call), so a lake is not checked for consistency: sublimation from open lake water is left unaccounted, and the
+  !       ice cover of a lake sublimates like glacier ice
+  if(nSnow>0 .or. (nLake>0 .and. nLakeFrz>0) .or. (nGlce>0 .and. nSoil==0) )then ! snow or ice layers exist on top
     massLiquid = mLayerDepth(1)*mLayerVolFracLiq(1)*iden_water ! save the mass of liquid water (kg m-2)
 
     ! add/remove the depth of snow/ice gained/lost by frost/sublimation (m)
@@ -92,7 +101,7 @@ subroutine snowGlceDepth(&
       return
     endif
     mLayerVolFracLiq(1) = massLiquid / (mLayerDepth(1)*iden_water) ! update the volumetric fraction of liquid water
-  else ! no snow or ice
+  else if(nLake==0)then ! no snow or ice
     if(abs(scalarGroundSublimation) > verySmall)then ! check that sublimation is zero
       message=trim(message)//'sublimation of snow and ice has been computed when no snow or ice exists'
       err=20; return
@@ -123,9 +132,48 @@ subroutine snowGlceDepth(&
     if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
   end if ! if snow layers exist
 
+  ! *** thin the ice cover of the lake as it melts, like glacier ice (the squeezed liquid joins the flow through the ice branch)...
+  if(nLakeFrz>0)then
+    call iceReduce(&
+                    dt_sub,                                          & ! intent(in):    time step (s)
+                    nLakeFrz,                                        & ! intent(in):    number of ice cover layers to reduce
+                    mLayerMeltFreeze(nSnow+1:nSnow+nLakeFrz),        & ! intent(in):    volumetric melt in each layer (kg m-3)
+                    mLayerDepth(nSnow+1:nSnow+nLakeFrz),             & ! intent(inout): depth of each layer (m)
+                    mLayerVolFracLiq(nSnow+1:nSnow+nLakeFrz),        & ! intent(inout): volumetric fraction of liquid water (-)
+                    mLayerVolFracIce(nSnow+1:nSnow+nLakeFrz),        & ! intent(inout): volumetric fraction of ice (-)
+                    lakeReduceLiq,                                   & ! intent(out):   liquid water squeezed out of the ice cover (m s-1)
+                    tooMuchLakeMelt,                                 & ! intent(inout): flag to denote that the cover melted away
+                    err,cmessage)                                      ! intent(out):   error control
+    if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
+    ! a cover that melted away within the step keeps a token thickness; lakeIceCover returns it to the water at the start of the next substep
+    if(tooMuchLakeMelt)then
+      mLayerDepth(nSnow+1:nSnow+nLakeFrz) = max(mLayerDepth(nSnow+1:nSnow+nLakeFrz), 1.e-4_rkind)
+    else
+      ! the cover holds no air either: melt that collected in it before draining, or refrozen residual water, sets its depth
+      call lakeResize(&
+                      nLakeFrz,                                        & ! intent(in):    number of ice cover layers
+                      mLayerDepth(nSnow+1:nSnow+nLakeFrz),             & ! intent(inout): depth of each ice cover layer (m)
+                      mLayerVolFracLiq(nSnow+1:nSnow+nLakeFrz),        & ! intent(inout): volumetric fraction of liquid water (-)
+                      mLayerVolFracIce(nSnow+1:nSnow+nLakeFrz),        & ! intent(inout): volumetric fraction of ice (-)
+                      err,cmessage)                                      ! intent(out):   error control
+      if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
+    end if
+  end if
+
+  ! *** keep the lake water layers full of liquid and ice (freezing expands, melting contracts the layer)...
+  if(nLake-nLakeFrz>0)then
+    call lakeResize(&
+                    nLake-nLakeFrz,                                    & ! intent(in):    number of water layers
+                    mLayerDepth(nSnow+nLakeFrz+1:nSnow+nLake),         & ! intent(inout): depth of each water layer (m)
+                    mLayerVolFracLiq(nSnow+nLakeFrz+1:nSnow+nLake),    & ! intent(inout): volumetric fraction of liquid water (-)
+                    mLayerVolFracIce(nSnow+nLakeFrz+1:nSnow+nLake),    & ! intent(inout): volumetric fraction of ice (-)
+                    err,cmessage)                                        ! intent(out):   error control
+    if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
+  end if
+
   ! *** reduce ice depth if melt occurred
   if(nGlce>0)then
-    call glceReduce(&
+    call iceReduce(&
                     ! intent(in): variables
                     dt_sub,                                                      & ! intent(in):    time step (s)
                     nGlce-noThetaChange,                                         & ! intent(in):    number of glacier ice layers to reduce
@@ -143,7 +191,7 @@ subroutine snowGlceDepth(&
     glceReduceLiq = 0._rkind
   endif ! if glacier ice layers exist
 
-end subroutine snowGlceDepth
+end subroutine snowIceDepth
 
 
 ! ************************************************************************************************
@@ -292,41 +340,41 @@ end subroutine snowDensify
 
 
 ! ************************************************************************************************
-! private subroutine glceReduce: compute change of ice depth over the time step
+! private subroutine iceReduce: compute change of ice depth over the time step
 ! ************************************************************************************************
 ! reduce the depth of ice layers due to melt, and squeeze out excess liquid water to keep the
 ! volumetric fraction of ice and liquid water constant
-subroutine glceReduce(&
-                      ! intent(in): variables
-                      dt,                             & ! intent(in):    time step (s)
-                      nGlce,                          & ! intent(in):    number of glacier ice layers
-                      mLayerMeltFreeze,               & ! intent(in):    volumetric melt in each layer (kg m-3)
-                       ! intent(inout): state variables
-                      mLayerDepth,                    & ! intent(inout): depth of each layer (m)
-                      mLayerVolFracLiqNew,            & ! intent(inout): volumetric fraction of liquid water (-)
-                      mLayerVolFracIceNew,            & ! intent(inout): volumetric fraction of ice (-)
-                      glceReduceLiq,                  & ! intent(out):   glacier liquid water squeezed out of the layers (kg m-2)
-                      ! output: error control
-                      tooMuchMelt,                    & ! intent(inout): flag to denote that there was too much melt in a given time step
-                      err,message)                      ! intent(out):   error control
+subroutine iceReduce(&
+                     ! intent(in): variables
+                     dt,                             & ! intent(in):    time step (s)
+                     nIce,                           & ! intent(in):    number ofice layers
+                     mLayerMeltFreeze,               & ! intent(in):    volumetric melt in each layer (kg m-3)
+                      ! intent(inout): state variables
+                     mLayerDepth,                    & ! intent(inout): depth of each layer (m)
+                     mLayerVolFracLiqNew,            & ! intent(inout): volumetric fraction of liquid water (-)
+                     mLayerVolFracIceNew,            & ! intent(inout): volumetric fraction of ice (-)
+                     iceReduceLiq,                   & ! intent(out):   liquid water squeezed out of the layers (kg m-2)
+                     ! output: error control
+                     tooMuchMelt,                    & ! intent(inout): flag to denote that there was too much melt in a given time step
+                     err,message)                      ! intent(out):   error control
   ! -----------------------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! intent(in): variables
-  real(rkind),intent(in)              :: dt                       ! time step (seconds)
-  integer(i4b),intent(in)             :: nGlce                    ! number of glacier ice layers
-  real(rkind),intent(in)              :: mLayerMeltFreeze(:)      ! volumetric melt in each layer (kg m-3)
+  real(rkind),intent(in)              :: dt                          ! time step (seconds)
+  integer(i4b),intent(in)             :: nIce                        ! number of ice layers
+  real(rkind),intent(in)              :: mLayerMeltFreeze(:)         ! volumetric melt in each layer (kg m-3)
   ! intent(inout): state variables
-  real(rkind),intent(inout)           :: mLayerDepth(:)           ! depth of each layer (m)
-  real(rkind),intent(inout)           :: mLayerVolFracLiqNew(:)   ! volumetric fraction of liquid water in each layer after iterations (-)
-  real(rkind),intent(inout)           :: mLayerVolFracIceNew(:)   ! volumetric fraction of ice in each layer after iterations (-)
-  real(rkind),intent(out)             :: glceReduceLiq            ! glacier liquid water squeezed out of the layers (kg m-2)
+  real(rkind),intent(inout)           :: mLayerDepth(:)              ! depth of each layer (m)
+  real(rkind),intent(inout)           :: mLayerVolFracLiqNew(:)      ! volumetric fraction of liquid water in each layer after iterations (-)
+  real(rkind),intent(inout)           :: mLayerVolFracIceNew(:)      ! volumetric fraction of ice in each layer after iterations (-)
+  real(rkind),intent(out)             :: iceReduceLiq                ! liquid water squeezed out of the layers (kg m-2)
   ! intent(out): error control
-  logical(lgt),intent(inout)          :: tooMuchMelt              ! flag to denote that there was too much melt in a given time step
-  integer(i4b),intent(out)            :: err                      ! error code
-  character(*),intent(out)            :: message                  ! error message
+  logical(lgt),intent(inout)          :: tooMuchMelt                 ! flag to denote that there was too much melt in a given time step
+  integer(i4b),intent(out)            :: err                         ! error code
+  character(*),intent(out)            :: message                     ! error message
   ! -----------------------------------------------------------------------------------------------------------------------------------------
   ! define local variables
-  integer(i4b)                        :: iGlce                       ! index of glce layers
+  integer(i4b)                        :: iIce                        ! index of ice layers
   real(rkind)                         :: massIceOld                  ! mass of ice in the layer (kg m-2)
   real(rkind)                         :: massLiqOld                  ! mass of liquid water in the layer (kg m-2)
   real(rkind)                         :: scalarDepthNew              ! updated layer depth (m)
@@ -334,53 +382,155 @@ subroutine glceReduce(&
   real(rkind)                         :: volFracIceChange            ! volumetric fraction of ice lost/gained due to melt and sublimation (-)
   real(rkind)                         :: massLiqRetained             ! retained liquid water in the shrunken layer (kg m-2)
   real(rkind)                         :: layerReduceLiq              ! liquid water squeezed from current layer (kg m-2)
-  real(rkind), dimension(nGlce)       :: mLayerVolFracAirNew         ! volumetric fraction of air in each layer after compaction (-)
-  real(rkind),parameter               :: minLayerDensity=730._rkind  ! minimum glce density allowed for any layer (kg m-3) (roughly 80% ice)
+  real(rkind),dimension(nIce)         :: mLayerVolFracAirNew         ! volumetric fraction of air in each layer after compaction (-)
+  real(rkind),parameter               :: minLayerDensity=730._rkind  ! minimum ice density allowed for any layer (kg m-3) (roughly 80% ice)
   ! -----------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
-  err=0; message="glceReduce/"
-  glceReduceLiq = 0._rkind ! initialize the amount of liquid water squeezed out of the glacier ice layers (kg m-2)
+  err=0; message="iceReduce/"
+  iceReduceLiq = 0._rkind ! initialize the amount of liquid water squeezed out of the ice layers (kg m-2)
 
-  ! loop through glce layers
-  do iGlce=1,nGlce
+  ! loop through ice layers
+  do iIce=1,nIce
     ! save mass of liquid water and ice (mass does not change)
-    massIceOld = iden_ice*mLayerVolFracIceNew(iGlce)*mLayerDepth(iGlce)   ! (kg m-2)
-    massLiqOld = iden_water*mLayerVolFracLiqNew(iGlce)*mLayerDepth(iGlce) ! (kg m-2)
+    massIceOld = iden_ice*mLayerVolFracIceNew(iIce)*mLayerDepth(iIce)   ! (kg m-2)
+    massLiqOld = iden_water*mLayerVolFracLiqNew(iIce)*mLayerDepth(iIce) ! (kg m-2)
 
     ! adjust depth in proportion to the amount of ice lost/gained in the layer (m), keeping ice fraction constant
-    volFracIceChange = mLayerMeltFreeze(iGlce)/iden_ice  ! volumetric fraction of ice lost/gained due to melt/refreeze (-)
-    scalarDepthNew = massIceOld/((mLayerVolFracIceNew(iGlce)+volFracIceChange)*iden_ice)
-    mLayerDepth(iGlce) = scalarDepthNew
+    volFracIceChange = mLayerMeltFreeze(iIce)/iden_ice  ! volumetric fraction of ice lost/gained due to melt/refreeze (-)
+    scalarDepthNew = massIceOld/((mLayerVolFracIceNew(iIce)+volFracIceChange)*iden_ice)
+    mLayerDepth(iIce) = scalarDepthNew
 
     ! Keep liquid water fraction in the layer constant; excess liquid is squeezed out
-    ! Note, if it got colder the depth icreases and thus adds a bit of water to the layer, but will be corrected when the layer is reduced to the active layer depth
-    massLiqRetained = iden_water*mLayerVolFracLiqNew(iGlce)*mLayerDepth(iGlce) ! kg m-2
+    ! Note, if it got colder the depth increases and thus adds a bit of water to the layer, but will be corrected when the layer is reduced to the active layer depth
+    massLiqRetained = iden_water*mLayerVolFracLiqNew(iIce)*mLayerDepth(iIce) ! kg m-2
     layerReduceLiq = max(0._rkind, massLiqOld - massLiqRetained) ! only take away liquid water, don't add any
-    glceReduceLiq = (glceReduceLiq + layerReduceLiq)/(iden_water*dt) ! convert to m s-1
+    iceReduceLiq = (iceReduceLiq + layerReduceLiq)/(iden_water*dt) ! convert to m s-1
 
     ! check that we did not remove the entire layer
-    if(mLayerDepth(iGlce) < verySmall)then
+    if(mLayerDepth(iIce) < verySmall)then
       tooMuchMelt=.true.
       return
     endif
 
     ! update volumetric ice and liquid water content, should be the same but for consistency redo
-    mLayerVolFracIceNew(iGlce) = massIceOld/(mLayerDepth(iGlce)*iden_ice) ! mLayerVolFracIceNew(iGlce)+volFracIceChange
-    mLayerVolFracLiqNew(iGlce) = massLiqRetained/(mLayerDepth(iGlce)*iden_water)
-    mLayerVolFracAirNew(iGlce) = 1.0_rkind - mLayerVolFracIceNew(iGlce) - mLayerVolFracLiqNew(iGlce)
+    mLayerVolFracIceNew(iIce) = massIceOld/(mLayerDepth(iIce)*iden_ice) ! mLayerVolFracIceNew(iIce)+volFracIceChange
+    mLayerVolFracLiqNew(iIce) = massLiqRetained/(mLayerDepth(iIce)*iden_water)
+    mLayerVolFracAirNew(iIce) = 1.0_rkind - mLayerVolFracIceNew(iIce) - mLayerVolFracLiqNew(iIce)
 
-  end do  ! looping through glce layers
+  end do  ! looping through ice layers
 
-  ! check for low/high glce density, could happen from initial condition consistency recalculation of liquid if start very near the freezing point
-  if(any(mLayerVolFracIceNew(1:nGlce)*iden_ice + mLayerVolFracLiqNew(1:nGlce)*iden_water + mLayerVolFracAirNew(1:nGlce)*iden_air < minLayerDensity) .or. &
-     any(mLayerVolFracIceNew(1:nGlce) + mLayerVolFracLiqNew(1:nGlce) + mLayerVolFracAirNew(1:nGlce) > 1._rkind))then
-    do iGlce=1,nGlce
-      write(*,*) 'iGlce, volFracIce, density = ', iGlce, mLayerVolFracIceNew(iGlce),  mLayerVolFracIceNew(iGlce)*iden_ice
+  ! check for low/high ice density, could happen from initial condition consistency recalculation of liquid if start very near the freezing point
+  if(any(mLayerVolFracIceNew(1:nIce)*iden_ice + mLayerVolFracLiqNew(1:nIce)*iden_water + mLayerVolFracAirNew(1:nIce)*iden_air < minLayerDensity) .or. &
+     any(mLayerVolFracIceNew(1:nIce) + mLayerVolFracLiqNew(1:nIce) + mLayerVolFracAirNew(1:nIce) > 1._rkind))then
+    do iIce=1,nIce
+      write(*,*) 'iIce, volFracIce, density = ', iIce, mLayerVolFracIceNew(iIce),  mLayerVolFracIceNew(iIce)*iden_ice
     end do
-    message=trim(message)//'unreasonable value for glce density, likely due to initial condition near Tfreeze'
+    message=trim(message)//'unreasonable value for ice density (lake or glacier), likely due to initial condition near Tfreeze'
     err=20; return
   end if
 
-end subroutine glceReduce
+end subroutine iceReduce
 
-end module snowGlceDepth_module
+! ************************************************************************************************
+! private subroutine lakeResize: keep each lake layer exactly full of liquid water and ice
+! ************************************************************************************************
+! The phase change in the solver keeps the mass fixed while ice (at iden_ice) replaces liquid (at 
+! iden_water), so the volume the mass wants to occupy grows ~9% on freezing and shrinks again on melting.
+subroutine lakeResize(&
+                      nLake,                          & ! intent(in):    number of lake layers
+                      mLayerDepth,                    & ! intent(inout): depth of each lake layer (m)
+                      mLayerVolFracLiq,               & ! intent(inout): volumetric fraction of liquid water (-)
+                      mLayerVolFracIce,               & ! intent(inout): volumetric fraction of ice (-)
+                      err,message)                      ! intent(out):   error control
+  implicit none
+  integer(i4b),intent(in)             :: nLake                    ! number of lake layers
+  real(rkind),intent(inout)           :: mLayerDepth(:)           ! depth of each lake layer (m)
+  real(rkind),intent(inout)           :: mLayerVolFracLiq(:)      ! volumetric fraction of liquid water (-)
+  real(rkind),intent(inout)           :: mLayerVolFracIce(:)      ! volumetric fraction of ice (-)
+  integer(i4b),intent(out)            :: err                      ! error code
+  character(*),intent(out)            :: message                  ! error message
+  ! local variables
+  integer(i4b)                        :: iLake                    ! index of lake layers
+  real(rkind)                         :: massLiq                  ! mass of liquid water in the layer (kg m-2)
+  real(rkind)                         :: massIce                  ! mass of ice in the layer (kg m-2)
+  real(rkind)                         :: depthNew                 ! depth the liquid and ice occupy (m)
+  ! -----------------------------------------------------------------------------------------------------------------------------------------
+  err=0; message="lakeResize/"
+  do iLake=1,nLake
+    massLiq  = iden_water*mLayerVolFracLiq(iLake)*mLayerDepth(iLake)
+    massIce  = iden_ice  *mLayerVolFracIce(iLake)*mLayerDepth(iLake)
+    depthNew = massLiq/iden_water + massIce/iden_ice ! depth the liquid and ice occupy (m), no air in a lake layer
+    if(depthNew < verySmall)then
+      write(message,'(a,i0,3(a,es12.4))') trim(message)//'lake layer has no water: layer = ',iLake,', depth = ',mLayerDepth(iLake), &
+                                          ', volFracLiq = ',mLayerVolFracLiq(iLake),', volFracIce = ',mLayerVolFracIce(iLake)
+      err=20; return
+    end if
+    mLayerDepth(iLake)      = depthNew
+    mLayerVolFracLiq(iLake) = massLiq/(iden_water*depthNew)
+    mLayerVolFracIce(iLake) = massIce/(iden_ice*depthNew)
+  end do
+end subroutine lakeResize
+
+! ************************************************************************************************
+! public subroutine lakePrescribeDepth: set the liquid water in the lake layers of a stream from the reach volume
+! ************************************************************************************************
+! The river network routes the water mass, so once per data step the liquid in the stream's lake layers
+! is reset to the reach volume per unit area. The layers keep their share of the column depth. 
+subroutine lakePrescribeDepth(&
+                      nSnow,                          & ! intent(in):    number of snow layers
+                      nLake,                          & ! intent(in):    number of lake layers
+                      liqDepth,                       & ! intent(in):    liquid depth of the water column to impose (m)
+                      mLayerDepth,                    & ! intent(inout): depth of each layer (m)
+                      mLayerVolFracLiq,               & ! intent(inout): volumetric fraction of liquid water (-)
+                      mLayerVolFracIce,               & ! intent(inout): volumetric fraction of ice (-)
+                      err,message)                      ! intent(out):   error control
+  implicit none
+  integer(i4b),intent(in)             :: nSnow                    ! number of snow layers
+  integer(i4b),intent(in)             :: nLake                    ! number of lake layers
+  real(rkind),intent(in)              :: liqDepth                 ! liquid depth of the water column to impose (m)
+  real(rkind),intent(inout)           :: mLayerDepth(:)           ! depth of each layer (m)
+  real(rkind),intent(inout)           :: mLayerVolFracLiq(:)      ! volumetric fraction of liquid water (-)
+  real(rkind),intent(inout)           :: mLayerVolFracIce(:)      ! volumetric fraction of ice (-)
+  integer(i4b),intent(out)            :: err                      ! error code
+  character(*),intent(out)            :: message                  ! error message
+  ! local variables
+  character(len=256)                  :: cmessage                 ! error message of downwind routine
+  integer(i4b)                        :: iLake,iLayer             ! layer indices
+  real(rkind)                         :: share(nLake)             ! share of the column depth of each lake layer (-)
+  real(rkind)                         :: iceVol(nLake)            ! depth of ice in each lake layer (m)
+  real(rkind)                         :: liqNew(nLake)            ! liquid depth of each lake layer after the reset (m)
+  real(rkind)                         :: totDepth                 ! total depth of the column, liquid plus ice (m)
+  real(rkind)                         :: excess                   ! liquid that does not fit its layer's share (m)
+  real(rkind)                         :: room                     ! liquid the other layers can take (m)
+  real(rkind),parameter               :: minShare=0.1_rkind       ! smallest share of the column a layer keeps, relative to an equal split (-)
+  ! -----------------------------------------------------------------------------------------------------------------------------------------
+  err=0; message="lakePrescribeDepth/"
+  if(nLake<1)then; err=20; message=trim(message)//'expect at least one lake layer in a stream domain'; return; end if
+  ! the present geometry, and the ice each layer holds
+  ! NOTE: a floor on the share keeps a layer that sublimated or melted away from vanishing for good
+  share  = mLayerDepth(nSnow+1:nSnow+nLake)/sum(mLayerDepth(nSnow+1:nSnow+nLake))
+  share  = max(share, minShare/real(nLake,rkind))
+  share  = share/sum(share)
+  iceVol = mLayerDepth(nSnow+1:nSnow+nLake)*mLayerVolFracIce(nSnow+1:nSnow+nLake)
+  totDepth = liqDepth + sum(iceVol)
+  ! fill each layer to its share of the new column; ice beyond a layer's share pushes its liquid to the other layers
+  liqNew = share*totDepth - iceVol
+  excess = -sum(liqNew, mask=liqNew<0._rkind)
+  where(liqNew < 0._rkind) liqNew = 0._rkind
+  if(excess > 0._rkind)then
+    room = sum(liqNew)
+    if(room > verySmall)then
+      liqNew = liqNew*(1._rkind - excess/room)
+    end if
+  end if
+  ! set the liquid at the present depths; lakeResize then sets the depth the liquid and ice fill
+  do iLake=1,nLake
+    iLayer = nSnow+iLake
+    mLayerVolFracLiq(iLayer) = max(liqNew(iLake),0._rkind)/mLayerDepth(iLayer)
+  end do
+  call lakeResize(nLake,mLayerDepth(nSnow+1:nSnow+nLake),mLayerVolFracLiq(nSnow+1:nSnow+nLake),mLayerVolFracIce(nSnow+1:nSnow+nLake),err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+end subroutine lakePrescribeDepth
+
+end module snowLakeGlceDepth_module
+

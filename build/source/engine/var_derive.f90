@@ -27,7 +27,8 @@ USE data_types,only:var_d          ! x%var(:)     (rkind)
 USE data_types,only:var_ilength    ! x%var(:)%dat (i4b)
 USE data_types,only:var_dlength    ! x%var(:)%dat (rkind)
 ! named variables for snow and soil
-USE globalData,only:iname_snow     ! named variables for snow
+USE globalData,only:iname_snow
+USE globalData,only:iname_lake         ! named variables for lake
 USE globalData,only:iname_soil     ! named variables for soil
 ! named variables
 USE globalData,only:data_step      ! time step of forcing data
@@ -117,7 +118,8 @@ contains
 
  ! initialize layer height as the top of the snowpack -- positive downward
  ixLower=lbound(iLayerHeight); if(ixLower(1) > 0)then; err=20; message=trim(message)//'unexpected lower bound for iLayerHeight'; return; endif
- iLayerHeight(0) = -sum(mLayerDepth, mask=layerType==iname_snow)
+ ! the origin is the top of the soil: snow and lake layers above it have negative heights
+ iLayerHeight(0) = -sum(mLayerDepth, mask=(layerType==iname_snow .or. layerType==iname_lake))
 
  ! loop through layers
  do iLayer=1,nLayers
@@ -451,6 +453,7 @@ contains
  routingGammaShape => bpar_data%var(iLookBPAR%routingGammaShape),           & ! shape parameter in Gamma distribution used for sub-grid routing (-)
  routingGammaScale => bpar_data%var(iLookBPAR%routingGammaScale),           & ! scale parameter in Gamma distribution used for sub-grid routing (s)
  runoffFuture      => bvar_data%var(iLookBVAR%routingRunoffFuture)%dat,     & ! runoff in future time steps (m s-1)
+ nrgFuture         => bvar_data%var(iLookBVAR%routingNrgFuture)%dat,        & ! energy flux of runoff in future time steps (W m-2)
  fractionFuture    => bvar_data%var(iLookBVAR%routingFractionFuture)%dat    & ! fraction of runoff in future time steps (-)
  ) ! end associate
  ! ----------------------------------------------------------------------------------
@@ -461,8 +464,9 @@ contains
  ! identify number of points in the time-delay runoff variable (should be allocated match nTimeDelay)
  nTDH = size(runoffFuture)
 
- ! initialize runoffFuture (will be overwritten by initial conditions file values if present)
+ ! initialize runoffFuture and nrgFuture (will be overwritten by initial conditions file values if present)
  runoffFuture(1:nTDH) = 0._rkind
+ nrgFuture(1:nTDH)    = 0._rkind
 
  ! select option for sub-grid routing
  select case(ixRouting)

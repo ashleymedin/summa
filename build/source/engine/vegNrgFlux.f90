@@ -989,16 +989,18 @@ subroutine vegNrgFlux(&
             scalarCanopyTranspiration = scalarLatHeatCanopyTrans/LH_vap
           end if
         end if
+        ! NOTE: a lake surface picks evaporation or sublimation from its temperature on the first flux call and keeps it
+        !       for the substep, so its top layer may cross the freezing point in between; no consistency check for lakes
         if (scalarLatHeatSubVapGround > LH_vap+verySmall) then ! ground sublimation
           ! NOTE: this should only occur when we have formed snow or glce layers on top, so check
-          if (nSnow == 0 .and. (nGlce==0 .or. (nGlce>0 .and. nSoil>0)) .and. (nLake==0 .or. (nLake>0 .and. groundTempTrial>Tfreeze))) then; 
+          if (nSnow == 0 .and. (nGlce==0 .or. (nGlce>0 .and. nSoil>0)) .and. nLake==0) then; 
             err=20; message=trim(message)//'only expect sublimation when we have formed some snow or ice layers'; return; end if
           scalarGroundEvaporation = 0._rkind  ! ground evaporation is zero once the snow or ice has formed
           scalarGroundSublimation = scalarLatHeatGround/LH_sub
         else
-          ! NOTE: this should only occur when we have no snow or lake (?) layers and a soil layer, so check
-          if (nSnow>0 .or. (nGlce>0 .and. nSoil==0) .or. (nLake>0 .and. groundTempTrial<=Tfreeze)) then; 
-            err=20; message=trim(message)//'only expect ground evaporation when there are no snow or frozen lake layers'; return; end if
+          ! NOTE: this should only occur when we have no snow layers and a soil or lake layer, so check
+          if (nSnow>0 .or. (nGlce>0 .and. nSoil==0)) then; 
+            err=20; message=trim(message)//'only expect ground evaporation when there are no snow layers'; return; end if
           scalarGroundEvaporation = scalarLatHeatGround/LH_vap
           scalarGroundSublimation = 0._rkind  ! no sublimation from snow if no snow or glce layers have formed
         end if
