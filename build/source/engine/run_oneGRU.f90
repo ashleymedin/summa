@@ -85,6 +85,7 @@ USE globalData,only:glacDbr            ! horizontal domain type for glacier debr
 USE globalData,only:wetland            ! horizontal domain type for wetland areas
 USE globalData,only:mfAquiferBaseflow  ! MODFLOW 6 coupler: per-HRU aquifer baseflow (m s-1), indexed by hru_ix
 USE globalData,only:mfSurfaceDischarge ! MODFLOW 6 coupler: per-HRU groundwater discharge at land surface (m s-1), indexed by hru_ix
+USE globalData,only:mfAquiferTranspire ! MODFLOW 6 coupler: per-HRU groundwater ET actually taken by MODFLOW (m s-1), indexed by hru_ix
 
 ! look-up values for the choice of groundwater parameterization
 USE mDecisions_module,only:       &
@@ -436,6 +437,19 @@ subroutine run_oneGRU(&
             if(allocated(mfSurfaceDischarge))then
               bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) &
                                                                   + mfSurfaceDischarge(gruInfo%hruInfo(iHRU)%hru_ix)*fracDOM
+            end if
+            ! Groundwater ET that MODFLOW actually supplied (EVT, role = gw_et).  Reported only:
+            ! scalarCanopyTranspiration already accounts for this water on the energy side, and the
+            ! aquifer it came from is MODFLOW's, so adding it to a SUMMA state would double-count it.
+            ! What is worth seeing is how it compares with the demand SUMMA sent, which is what the
+            ! coupler's budget diagnostic reports; closing the gap needs the tight (XMI) coupling.
+            ! NOTE the sign flip: the coupler reports every returned flux positive OUT of the
+            ! aquifer, whereas SUMMA's scalarAquiferTranspire is negative for water lost (see
+            ! computFlux.f90:555), so negate to keep SUMMA's own convention in its output.
+            if(allocated(mfAquiferTranspire))then
+              fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferTranspire)%dat(1) = -mfAquiferTranspire(gruInfo%hruInfo(iHRU)%hru_ix)
+              bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) &
+                                                                    - mfAquiferTranspire(gruInfo%hruInfo(iHRU)%hru_ix)*fracDOM
             end if
           endif
         else if(typeDOM==glacCln1 .or. typeDOM==glacCln2 .or. typeDOM==glacDbr)then ! collect glacier ablation and accumulation melt m s-1

@@ -141,6 +141,7 @@ subroutine soilLiqFlux(&
   integer(i4b)                                     :: ixBot               ! bottom layer in subroutine call
   ! transpiration sink term
   real(rkind),dimension(in_soilLiqFlux % nSoil)    :: mLayerTranspireFrac ! fraction of transpiration allocated to each soil layer (-)
+  real(rkind)                                      :: aquiferTranspireFrac ! fraction of transpiration taken from below the soil column (-)
   ! diagnostic variables
   real(rkind),dimension(in_soilLiqFlux % nSoil)    :: iceImpedeFac        ! ice impedence factor at layer mid-points (-)
   real(rkind),dimension(in_soilLiqFlux % nSoil)    :: dHydCond_dTemp      ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
@@ -285,12 +286,25 @@ contains
  subroutine finalize_transpiration_loss_fraction
   ! **** Finalize operations for the fraction of transpiration loss from each soil layer *****
   associate(&
+   scalarTranspireLim     => diag_data%var(iLookDIAG%scalarTranspireLim)%dat(1),     & ! intent(in): weighted average of the transpiration limiting factor (-)
+   scalarTranspireLimAqfr => diag_data%var(iLookDIAG%scalarTranspireLimAqfr)%dat(1), & ! intent(in): transpiration limiting factor for the aquifer (-)
+   scalarAquiferRootFrac  => diag_data%var(iLookDIAG%scalarAquiferRootFrac)%dat(1),  & ! intent(in): fraction of roots below the soil profile (-)
    err          => out_soilLiqFlux % err,     & ! intent(out): error code
    message      => out_soilLiqFlux % cmessage & ! intent(out): error message
   &)
-   ! check fractions sum to one
-   if (abs(sum(mLayerTranspireFrac) - 1._rkind) > verySmaller) then
-     message=trim(message)//'fraction transpiration in soil layers does not sum to one'; err=20; return_flag=.true.; return
+   ! Check the fractions account for all of the transpiration.
+   !
+   ! The soil-layer fractions sum to one only when every root is inside the soil column.  When some
+   ! roots reach below it, scalarTranspireLim carries the aquifer's contribution too:
+   !   scalarTranspireLim = sum(rootDensity*transpireLim) + aquiferRootFrac*transpireLimAqfr
+   ! so the soil fractions necessarily sum to 1 MINUS the aquifer's share, and demanding exactly one
+   ! rejects the very configuration aquifer transpiration exists for.  Check the complete partition
+   ! instead: soil share + aquifer share = 1.
+   aquiferTranspireFrac = 0._rkind
+   if (scalarTranspireLim > tiny(scalarTranspireLim)) &
+     aquiferTranspireFrac = scalarAquiferRootFrac*scalarTranspireLimAqfr/scalarTranspireLim
+   if (abs(sum(mLayerTranspireFrac) + aquiferTranspireFrac - 1._rkind) > verySmaller) then
+     message=trim(message)//'fraction transpiration in soil layers and aquifer does not sum to one'; err=20; return_flag=.true.; return
    end if
   end associate
  end subroutine finalize_transpiration_loss_fraction

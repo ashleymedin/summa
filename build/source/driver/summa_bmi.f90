@@ -49,6 +49,8 @@ module summabmi
   USE summa_mf6_exchange, only: mf6x_soil_thickness
   USE summa_mf6_exchange, only: mf6x_hru_area
   USE summa_mf6_exchange, only: mf6x_put_surface_discharge
+  USE summa_mf6_exchange, only: mf6x_get_aquifer_transpire
+  USE summa_mf6_exchange, only: mf6x_put_aquifer_transpire
   USE summa_mf6_exchange, only: mf6x_get_drainage
   USE summa_mf6_exchange, only: mf6x_put_lower_bound_head
   USE summa_mf6_exchange, only: mf6x_put_aquifer_storage
@@ -244,7 +246,7 @@ module summabmi
 #else
   integer, parameter :: input_item_count = 11
 #endif
-  integer, parameter :: output_item_count = 17
+  integer, parameter :: output_item_count = 18
   character (len=BMI_MAX_VAR_NAME), target,dimension(input_item_count)  :: input_items
   character (len=BMI_MAX_VAR_NAME), target,dimension(output_item_count) :: output_items
   ! Buffers behind summa_get_ptr_int/float.  The BMI contract is that the returned pointer
@@ -612,7 +614,7 @@ module summabmi
      ! (index 8 non-NGEN / 9 NGEN, set above)
      !
      ! groundwater feedback written per HRU by the summa_modflow6 coupler from the
-     ! MODFLOW 6 solution (groundwatr="modflow"): aquifer baseflow flux (m s-1) and
+     ! MODFLOW 6 solution (groundwatr="modflow" or "modLatFlow"): aquifer baseflow flux (m s-1) and
      ! relative aquifer storage (m).  (Recharge is not exchanged - it equals the
      ! SUMMA soil drainage, which SUMMA already has.)
      input_items(input_item_count-2) = 'land_surface_water__baseflow_volume_flux'
@@ -648,6 +650,10 @@ module summabmi
      output_items(15)= 'land_surface_energy~net~total__energy_flux'
      output_items(16)= 'land_surface_water__baseflow_volume_flux'
      output_items(17)= 'soil_water__drainage_volume_flux'   ! drainage from the base of the soil column (recharge to MODFLOW 6)
+     ! aquifer transpiration DEMAND: the share of canopy transpiration the deep roots want from
+     ! below the soil column.  Read as an output (SUMMA -> MODFLOW EVT) and written back as an
+     ! input with what MODFLOW could actually supply.
+     output_items(18)= 'land_vegetation_water__aquifer_transpiration_volume_flux'
      names => output_items
      bmi_status = BMI_SUCCESS
    end function summa_output_var_names
@@ -1036,6 +1042,7 @@ module summabmi
      case('land_surface_water__baseflow_volume_flux')      ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
      case('land_surface_water__domain_outflow_volume_flux'); units = 'm s-1'     ; bmi_status = BMI_SUCCESS
      case('soil_water__drainage_volume_flux')              ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
+     case('land_vegetation_water__aquifer_transpiration_volume_flux') ; units = 'm s-1' ; bmi_status = BMI_SUCCESS
      case default; units = "-"; bmi_status = BMI_FAILURE
      end select
    end function summa_var_units
@@ -1407,6 +1414,8 @@ module summabmi
        call mf6x_put_aquifer_baseflow(this%model%summa1_struc(n), src_arr); return
      case('land_surface_water__domain_outflow_volume_flux')  ! groundwater discharge at land surface
        call mf6x_put_surface_discharge(this%model%summa1_struc(n), src_arr); return
+     case('land_vegetation_water__aquifer_transpiration_volume_flux')  ! groundwater ET MODFLOW actually supplied
+       call mf6x_put_aquifer_transpire(this%model%summa1_struc(n), src_arr); return
      end select
 
      summaVars: associate(&
@@ -1474,6 +1483,11 @@ module summabmi
      if (name == 'soil_water__drainage_volume_flux') then
        itarget_arr = -999
        call mf6x_get_drainage(this%model%summa1_struc(n), target_arr)
+       return
+     end if
+     if (name == 'land_vegetation_water__aquifer_transpiration_volume_flux') then
+       itarget_arr = -999
+       call mf6x_get_aquifer_transpire(this%model%summa1_struc(n), target_arr)
        return
      end if
 

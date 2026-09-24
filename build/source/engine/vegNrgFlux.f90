@@ -317,6 +317,9 @@ subroutine vegNrgFlux(&
     critSoilWilting                 => mpar_data%var(iLookPARAM%critSoilWilting)%dat(1),               & ! intent(in): [dp] critical vol. liq. water content when plants are wilting (-)
     critSoilTranspire               => mpar_data%var(iLookPARAM%critSoilTranspire)%dat(1),             & ! intent(in): [dp] critical vol. liq. water content when transpiration is limited (-)
     critAquiferTranspire            => mpar_data%var(iLookPARAM%critAquiferTranspire)%dat(1),          & ! intent(in): [dp] critical aquifer storage value when transpiration is limited (m)
+    rootingDepth                    => mpar_data%var(iLookPARAM%rootingDepth)%dat(1),                  & ! intent(in): [dp] rooting depth (m)
+    lowerBoundHead                  => mpar_data%var(iLookPARAM%lowerBoundHead)%dat(1),                & ! intent(in): [dp] matric head at the base of the soil column (m); set from the MODFLOW water table when coupled
+    iLayerHeight                    => prog_data%var(iLookPROG%iLayerHeight)%dat,                     & ! intent(in): [dp(0:)] height of each layer interface (m), for the soil-column depth
     minStomatalResistance           => mpar_data%var(iLookPARAM%minStomatalResistance)%dat(1),         & ! intent(in): [dp] mimimum stomatal resistance (s m-1)
     ! input: forcing at the upper boundary
     mHeight                         => diag_data%var(iLookDIAG%scalarAdjMeasHeight)%dat(1),            & ! intent(in): [dp] measurement height, adjusted to be above vegetation canopy and snow (m)
@@ -736,6 +739,8 @@ subroutine vegNrgFlux(&
                             critSoilWilting,                   & ! intent(in):  critical vol. liq. water content when plants are wilting (-)
                             critSoilTranspire,                 & ! intent(in):  critical vol. liq. water content when transpiration is limited (-)
                             critAquiferTranspire,              & ! intent(in):  critical aquifer storage value when transpiration is limited (m)
+                            max(rootingDepth - (iLayerHeight(nSnow+nLake+nSoil) - iLayerHeight(nSnow+nLake)), 0._rkind), & ! intent(in): how far roots reach below the soil column (m)
+                            lowerBoundHead,                    & ! intent(in):  matric head at the base of the soil column (m)
                             ! output
                             scalarTranspireLim,                & ! intent(out): weighted average of the transpiration limiting factor (-)
                             mLayerTranspireLim(1:nSoil),       & ! intent(out): transpiration limiting factor in each layer (-)
@@ -1858,6 +1863,8 @@ subroutine soilResist(&
                       critSoilWilting,          & ! intent(in):  critical vol. liq. water content when plants are wilting (-)
                       critSoilTranspire,        & ! intent(in):  critical vol. liq. water content when transpiration is limited (-)
                       critAquiferTranspire,     & ! intent(in):  critical aquifer storage value when transpiration is limited (m)
+                      aquiferRootReach,         & ! intent(in):  depth roots reach below the base of the soil column (m)
+                      lowerBoundHead,           & ! intent(in):  matric head at the base of the soil column (m), = MODFLOW water table when coupled
                       ! output
                       wAvgTranspireLimitFac,    & ! intent(out): weighted average of the transpiration limiting factor (-)
                       mLayerTranspireLimitFac,  & ! intent(out): transpiration limiting factor in each layer (-)
@@ -1866,6 +1873,7 @@ subroutine soilResist(&
   ! -----------------------------------------------------------------------------------------------------------------------------------------
   USE mDecisions_module, only: NoahType,CLM_Type,SiB_Type         ! options for the choice of function for the soil moisture control on stomatal resistance
   USE mDecisions_module, only: bigBucket                          ! named variable that defines the "bigBucket" groundwater parameterization
+  USE mDecisions_module, only: modflowCpl,modLatFlow               ! groundwater handled by a coupled MODFLOW 6 model
   implicit none
   ! input (model decisions)
   integer(i4b),intent(in)          :: ixSoilResist                ! choice of function for the soil moisture control on stomatal resistance
@@ -1883,6 +1891,8 @@ subroutine soilResist(&
   real(rkind),intent(in)           :: critSoilWilting             ! critical vol. liq. water content when plants are wilting (-)
   real(rkind),intent(in)           :: critSoilTranspire           ! critical vol. liq. water content when transpiration is limited (-)
   real(rkind),intent(in)           :: critAquiferTranspire        ! critical aquifer storage value when transpiration is limited (m)
+  real(rkind),intent(in)           :: aquiferRootReach            ! depth roots reach below the base of the soil column (m)
+  real(rkind),intent(in)           :: lowerBoundHead              ! matric head at the base of the soil column (m)
   ! output
   real(rkind),intent(out)          :: wAvgTranspireLimitFac       ! intent(out): weighted average of the transpiration limiting factor (-)
   real(rkind),intent(out)          :: mLayerTranspireLimitFac(:)  ! intent(out): transpiration limiting factor in each layer (-)
@@ -1926,14 +1936,50 @@ subroutine soilResist(&
 
   ! ** compute the factor limiting evaporation in the aquifer
   if (scalarAquiferRootFrac > eps) then
-    ! check that aquifer root fraction is allowed
-    if (ixGroundwater /= bigBucket) then
-      message=trim(message)//'aquifer evaporation only allowed for the big groundwater bucket -- increase the soil depth to account for roots'
-      err=20; return
-    end if
-    ! compute the factor limiting evaporation for the aquifer
-    aquiferTranspireLimitFac = min(scalarAquiferStorage/critAquiferTranspire, 1._rkind)
-  else  ! if there are roots in the aquifer
+    select case(ixGroundwater)
+
+      ! bigBucket: the aquifer is a local store SUMMA integrates, so its absolute storage is the
+      ! measure of how much water the deep roots can reach.
+      case(bigBucket)
+        aquiferTranspireLimitFac = min(scalarAquiferStorage/critAquiferTranspire, 1._rkind)
+
+      ! Coupled MODFLOW 6: there is no local aquifer store, so storage is the wrong measure.
+      ! scalarAquiferStorage in this mode is a diagnostic RELATIVE thickness, Sy*(water table -
+      ! soil base), which is freely negative whenever the water table sits below the soil column -
+      ! the normal case in a mountain basin - so scaling it by critAquiferTranspire (a parameter
+      ! calibrated against bigBucket's absolute store) would give a meaningless, often negative,
+      ! limiting factor.
+      !
+      ! What actually controls deep transpiration here is how far the water table has fallen
+      ! relative to how far the roots reach.  lowerBoundHead is the matric head at the base of the
+      ! soil column, which the coupler sets from the MODFLOW water table: >= 0 means saturated at
+      ! or above the soil base, and a negative value means the water table lies that many metres
+      ! below it.  So ramp linearly from fully available at the soil base to nothing once the water
+      ! table passes the deepest root:
+      !
+      !   fac = 1                                  water table at or above the soil base
+      !   fac = 1 - |psi| / aquiferRootReach       water table within reach of the roots
+      !   fac = 0                                  water table below the deepest root
+      !
+      ! This is deliberately the same shape as MODFLOW's own EVT extraction-depth function, so the
+      ! stress SUMMA applies to stomatal resistance and the water MODFLOW is willing to give up
+      ! agree instead of contradicting each other.  Set the EVT package's SURFACE to the soil base
+      ! and its DEPTH to aquiferRootReach to line the two up exactly.
+      case(modflowCpl,modLatFlow)
+        if (aquiferRootReach <= eps) then
+          aquiferTranspireLimitFac = 0._rkind   ! roots do not actually reach below the soil column
+        else if (lowerBoundHead >= 0._rkind) then
+          aquiferTranspireLimitFac = 1._rkind
+        else
+          aquiferTranspireLimitFac = max(1._rkind + lowerBoundHead/aquiferRootReach, 0._rkind)
+        end if
+
+      case default
+        message=trim(message)//'aquifer evaporation only allowed for the big groundwater bucket or a '// &
+                'coupled MODFLOW 6 model -- increase the soil depth to account for roots'
+        err=20; return
+    end select
+  else  ! no roots in the aquifer
     aquiferTranspireLimitFac = 0._rkind
   end if
 
