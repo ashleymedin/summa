@@ -2009,10 +2009,7 @@ subroutine coupled_em(&
       ! -----
       ! * temperature of the hyporheic return flow...
       ! ---------------------------------------------
-      ! The reach's own outlet temperature over the previous hypLag hours, the mean of the entries the network pass has
-      ! pushed into hypTempPast (Wade et al. 2024, EMS, eq. 11). Entries that have not been filled yet are missing, so a
-      ! run starts with whatever history it has and the mean is over that; before the first step there is none, and the
-      ! flux routine leaves the exchange out.
+      ! the reach's own outlet temperature over the previous hypLag hours (Wade et al. 2024, EMS, eq. 11)
       if(indx_data%var(iLookINDEX%domType)%dat(1)==stream .and. model_decisions(iLookDECISIONS%hyporhTdyn)%iDecision == hyporheicProxy)then
         associate(&
           scalarHypTemp => diag_data%var(iLookDIAG%scalarHypTemp)%dat(1)    ,& ! temperature of the hyporheic return flow (K)
@@ -2031,26 +2028,20 @@ subroutine coupled_em(&
       ! -----
       ! * frozen ground: the frost table and the active layer...
       ! --------------------------------------------------------
-      ! Two depths below the soil surface, both from the ice in the soil layers at the end of the step:
-      !   the frost table is the top of the shallowest frozen layer, the freezing front working down from the surface
-      !   the active layer is the ground above the perennially frozen ground, so the top of the deepest run of frozen
-      !     layers that reaches the base of the column: the two differ whenever the column freezes from both ends, which
-      !     is the autumn state of a permafrost column and the one a single "thaw depth" cannot describe
-      ! A layer counts as frozen when it holds any ice at all; missing means there is no such boundary in the column,
-      ! an entirely thawed column for the frost table, and no frozen base for the active layer.
+      ! the frost table is the top of the shallowest frozen layer, the active layer the ground above the frozen base
       if(nSoil>0)then
         associate(&
           scalarFrostTableDepth  => diag_data%var(iLookDIAG%scalarFrostTableDepth)%dat(1) ,& ! depth to the top of the shallowest frozen soil layer (m)
           scalarActiveLayerDepth => diag_data%var(iLookDIAG%scalarActiveLayerDepth)%dat(1) ) ! thickness of the soil above the perennially frozen ground (m)
           scalarFrostTableDepth  = realMissing
           scalarActiveLayerDepth = realMissing
-          do iLayer=nSnow+nLake+1,nSnow+nLake+nSoil ! down from the soil surface: the first frozen layer is the frost table
+          do iLayer=nSnow+nLake+1,nSnow+nLake+nSoil ! down from the surface to the first frozen layer
             if(mLayerVolFracIce(iLayer) > verySmall)then
               scalarFrostTableDepth = iLayerHeight(iLayer-1)
               exit
             end if
           end do
-          do iLayer=nSnow+nLake+nSoil,nSnow+nLake+1,-1 ! up from the base: the frozen run that reaches it is the permafrost
+          do iLayer=nSnow+nLake+nSoil,nSnow+nLake+1,-1 ! up from the base through the frozen run
             if(mLayerVolFracIce(iLayer) <= verySmall) exit
             scalarActiveLayerDepth = iLayerHeight(iLayer-1)
           end do
@@ -2060,48 +2051,35 @@ subroutine coupled_em(&
       ! -----
       ! * temperature of the water in the aquifer...
       ! --------------------------------------------
-      ! The aquifer is a well-mixed store: the water that recharges it arrives at the temperature of the bottom of the
-      ! soil column and mixes in, while baseflow and transpiration leave at the store's own temperature and so do not
-      ! change it.  With S the storage and R the recharge, d(S*T)/dt = R*T_rech - (Q_base + E)*T and dS/dt = R - Q_base - E,
-      ! so S*dT/dt = R*(T_rech - T): the store relaxes towards the recharge temperature with a time constant S/R, which for
-      ! a real aquifer is months to years.  That damping is the point: baseflow then carries a lagged, muted version of the
-      ! seasonal cycle rather than the temperature of whichever soil layer happens to sit at the base of the column.
-      ! Integrated exactly over the data step for constant R and S, which is stable for any step length.
-      ! Opt-in through deepTherml = aquiferTemp: without it the store carries no temperature and the water handed to the
-      ! channel leaves at the temperature of the base of the soil column, as it did before.
+      ! a well-mixed store: S*dT/dt = R*(T_rech - T), integrated exactly over the step
       if(model_decisions(iLookDECISIONS%deepTherml)%iDecision == aquiferTempState .and. includeAquifer .and. nSoil>0)then
         associate(&
           scalarAquiferTemp     => prog_data%var(iLookPROG%scalarAquiferTemp)%dat(1)    ,& ! temperature of the water in the aquifer (K)
           averageAquiferRecharge=> flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarAquiferRecharge))%dat(1), & ! recharge to the aquifer (m s-1)
           mLayerTemp            => prog_data%var(iLookPROG%mLayerTemp)%dat               ) ! temperature of each layer (K)
-          ! the recharge is liquid water, so it arrives no colder than freezing even when the base of the soil is frozen
+          ! the recharge is liquid water
           rechargeTemp = max(mLayerTemp(nSnow+nLake+nSoil), Tfreeze)
           if(averageAquiferRecharge > 0._rkind)then
             if(scalarAquiferStorage > verySmall)then
               scalarAquiferTemp = rechargeTemp + (scalarAquiferTemp - rechargeTemp)*exp(-averageAquiferRecharge*data_step/scalarAquiferStorage)
             else
-              scalarAquiferTemp = rechargeTemp ! an empty store mixes within the step, so it takes the temperature of the water arriving
+              scalarAquiferTemp = rechargeTemp ! an empty store mixes within the step
             endif
-          endif  ! no recharge over the step: the water that leaves takes the store's own temperature, so the store does not change
+          endif  ! with no recharge the store keeps its temperature
         end associate
       endif
 
       ! -----
       ! * running means of the air temperature...
       ! -----------------------------------------
-      ! For deepTherml = airTempGW the groundwater reaching the channel is bounded by the temperature of deep groundwater
-      ! (the mean annual air temperature) and the ground surface (a smoothed daily air temperature), and a coefficient picks
-      ! where between the two the water is sourced from (Wade et al., 2024, EMS, eq. 9).  Both bounds are kept here as
-      ! exponential running means, which need one number each rather than a window of past forcing and so restart cleanly.
-      ! The weight is the fraction of the averaging window this step covers, capped at one for a step longer than the window.
+      ! the two bounds of Wade et al. (2024, EMS, eq. 9), as exponential running means weighted by the step
       if(model_decisions(iLookDECISIONS%deepTherml)%iDecision == airTempGW)then
         associate(&
           scalarAirTempWindow => prog_data%var(iLookPROG%scalarAirTempWindow)%dat(1) ,& ! running mean of the air temperature over gwTempWindow (K)
           scalarAirTempAnnual => prog_data%var(iLookPROG%scalarAirTempAnnual)%dat(1) ,& ! running mean of the air temperature over a year (K)
           gwTempWindow        => mpar_data%var(iLookPARAM%gwTempWindow)%dat(1)       ,& ! averaging window of the air temperature the groundwater follows (days)
           scalarAirtemp       => forc_data%var(iLookFORCE%airtemp)                    ) ! air temperature (K)
-          ! absent from the initial conditions file, both means start at the first air temperature the run sees, so the
-          ! annual mean needs a year of spin-up before it means what its name says
+          ! absent from the initial conditions file, both means start at the first air temperature seen
           if(scalarAirTempWindow < 0.99_rkind*realMissing) scalarAirTempWindow = scalarAirtemp
           if(scalarAirTempAnnual < 0.99_rkind*realMissing) scalarAirTempAnnual = scalarAirtemp
           wghtWindow = min(data_step/(gwTempWindow*secprday), 1._rkind)

@@ -415,10 +415,7 @@ subroutine computBaseflow(&
     ! set un-used portions of the vectors to zero
     if (ixSaturation>1) trSoil(1:ixSaturation-1) = 0._rkind
 
-    ! ice blocks the lateral flow the same way it blocks the vertical flow: scale each layer's transmissivity by its own
-    ! ice impedance factor, the same 10**(-f_impede*volFracIce) that soilLiqFlux applies to the conductivity. Without this
-    ! a frozen layer still drains laterally at its full rate, because the transmissivity profile is built from the
-    ! saturated conductivity alone. The drainable water already counts liquid only, so this is the conductivity half of it.
+    ! ice impedes the lateral flow as it does the vertical, through the same 10**(-f_impede*volFracIce)
     do iLayer=1,nSoil
       call iceImpede(mLayerVolFracIce(iLayer),f_impede,iceImpedeFac(iLayer),dImpede_dLiq)
       call dIceImpede_dTemp(mLayerVolFracIce(iLayer),mLayerdTheta_dTk(iLayer),f_impede,dIceImpede_dT(iLayer))
@@ -497,8 +494,7 @@ subroutine computBaseflow(&
       end do  ! end looping through soil layers
     end do  ! end looping through soil layers
 
-    ! the outflow of each layer now carries that layer's ice impedance factor, so its whole derivative row scales with it,
-    ! and the factor's own dependence on temperature (through the ice content) adds a diagonal term
+    ! the row scales with the layer's impedance factor, whose own temperature dependence adds to the diagonal
     do iLayer=1,nSoil
       dBaseflow_dVolLiq(iLayer,:) = dBaseflow_dVolLiq(iLayer,:)*iceImpedeFac(iLayer)
       dBaseflow_dWat(iLayer,:)    = dBaseflow_dWat(iLayer,:)   *iceImpedeFac(iLayer)
