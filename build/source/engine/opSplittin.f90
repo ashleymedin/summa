@@ -1760,8 +1760,9 @@ contains
    nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)    ,& ! intent(in): [i4b] number of snow layers
    nLake           => indx_data%var(iLookINDEX%nLake)%dat(1)    ,& ! intent(in): [i4b] number of lake layers
    nSoil           => indx_data%var(iLookINDEX%nSoil)%dat(1)    ,& ! intent(in): [i4b] number of soil layers
+   nBedrock        => indx_data%var(iLookINDEX%nBedrock)%dat(1) ,& ! intent(in): [i4b] number of thermal-only bedrock layers
    ixHydLayer      => indx_data%var(iLookINDEX%ixHydLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the layer domain
-   split_select % stateMask(ixHydLayer(nSnow+nLake+1:nSnow+nLake+nSoil)) = .true.  ! soil hydrology
+   if(nSoil>nBedrock) split_select % stateMask(ixHydLayer(nSnow+nLake+1:nSnow+nLake+nSoil-nBedrock)) = .true.  ! soil hydrology
   end associate
  end subroutine stateTypeSplit_subDomain_massSplit_soilSplit_stateMask
 

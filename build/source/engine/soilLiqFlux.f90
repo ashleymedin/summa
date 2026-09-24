@@ -267,15 +267,16 @@ contains
  subroutine update_transpiration_loss_fraction
   ! **** Update the fraction of transpiration loss from each soil layer *****
   associate(&
+   nSoil              => in_soilLiqFlux % nSoil,                             & ! intent(in): number of hydrologically active soil layers
    scalarTranspireLim => diag_data%var(iLookDIAG%scalarTranspireLim)%dat(1), & ! intent(in): weighted average of the transpiration limiting factor (-)
    mLayerRootDensity  => diag_data%var(iLookDIAG%mLayerRootDensity)%dat,     & ! intent(in): root density in each layer (-)
    mLayerTranspireLim => diag_data%var(iLookDIAG%mLayerTranspireLim)%dat     & ! intent(in): transpiration limiting factor in each layer (-)
   &)
    ! transpiration may be non-zero even if the soil moisture limiting factor is zero
    if (scalarTranspireLim > tiny(scalarTranspireLim)) then
-    mLayerTranspireFrac(:) = mLayerRootDensity(:)*mLayerTranspireLim(:)/scalarTranspireLim
+    mLayerTranspireFrac(1:nSoil) = mLayerRootDensity(1:nSoil)*mLayerTranspireLim(1:nSoil)/scalarTranspireLim
    else ! possibility of non-zero conductance and therefore transpiration in this case
-    mLayerTranspireFrac(:) = mLayerRootDensity(:) / sum(mLayerRootDensity)
+    mLayerTranspireFrac(1:nSoil) = mLayerRootDensity(1:nSoil) / sum(mLayerRootDensity(1:nSoil))
    end if
   end associate
  end subroutine update_transpiration_loss_fraction
@@ -309,22 +310,22 @@ contains
    dCanopyTrans_dTCanopy => in_soilLiqFlux % dCanopyTrans_dTCanopy, & ! ... w.r.t. canopy temperature (kg m-2 s-1 K-1)
    dCanopyTrans_dTGround => in_soilLiqFlux % dCanopyTrans_dTGround, & ! ... w.r.t. ground temperature (kg m-2 s-1 K-1)
    ! intent(in): index of the upper boundary conditions for soil hydrology
-   ixBcUpperSoilHydrology => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision &
+   ixBcUpperSoilHydrology => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision, &
+   nSoil                  => in_soilLiqFlux % nSoil &  ! number of hydrologically active soil layers
   &)
-   if (ixBcUpperSoilHydrology==prescribedHead) then ! special case of prescribed head -- no transpiration
-    mLayerTranspire(:)      = 0._rkind
-    ! derivatives in transpiration w.r.t. canopy state variables
-    mLayerdTrans_dCanWat(:) = 0._rkind
-    mLayerdTrans_dTCanair(:)= 0._rkind
-    mLayerdTrans_dTCanopy(:)= 0._rkind
-    mLayerdTrans_dTGround(:)= 0._rkind
-   else
-    mLayerTranspire(:) = mLayerTranspireFrac(:)*scalarCanopyTranspiration/iden_water
+   ! bedrock at the base of the column takes no transpiration
+   mLayerTranspire(:)      = 0._rkind
+   mLayerdTrans_dCanWat(:) = 0._rkind
+   mLayerdTrans_dTCanair(:)= 0._rkind
+   mLayerdTrans_dTCanopy(:)= 0._rkind
+   mLayerdTrans_dTGround(:)= 0._rkind
+   if (ixBcUpperSoilHydrology/=prescribedHead) then ! prescribed head is the special case of no transpiration
+    mLayerTranspire(1:nSoil) = mLayerTranspireFrac(1:nSoil)*scalarCanopyTranspiration/iden_water
     ! * derivatives in transpiration w.r.t. canopy state variables *
-    mLayerdTrans_dCanWat(:)  = mLayerTranspireFrac(:)*dCanopyTrans_dCanWat /iden_water
-    mLayerdTrans_dTCanair(:) = mLayerTranspireFrac(:)*dCanopyTrans_dTCanair/iden_water
-    mLayerdTrans_dTCanopy(:) = mLayerTranspireFrac(:)*dCanopyTrans_dTCanopy/iden_water
-    mLayerdTrans_dTGround(:) = mLayerTranspireFrac(:)*dCanopyTrans_dTGround/iden_water
+    mLayerdTrans_dCanWat(1:nSoil)  = mLayerTranspireFrac(1:nSoil)*dCanopyTrans_dCanWat /iden_water
+    mLayerdTrans_dTCanair(1:nSoil) = mLayerTranspireFrac(1:nSoil)*dCanopyTrans_dTCanair/iden_water
+    mLayerdTrans_dTCanopy(1:nSoil) = mLayerTranspireFrac(1:nSoil)*dCanopyTrans_dTCanopy/iden_water
+    mLayerdTrans_dTGround(1:nSoil) = mLayerTranspireFrac(1:nSoil)*dCanopyTrans_dTGround/iden_water
    end if
   end associate
  end subroutine update_transpiration_loss
