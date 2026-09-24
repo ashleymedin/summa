@@ -802,7 +802,8 @@ contains
  integer(i4b)                       :: ncid          ! netcdf file id
  integer(i4b),allocatable           :: ncVarID(:)    ! netcdf variable id
  integer(i4b),dimension(7)          :: ngdx          ! intermediate array of loop indices for glacier variables
- integer(i4b),dimension(4)          :: nidx          ! intermediate array of loop indices for index variables
+ integer(i4b),dimension(3)          :: nrdx          ! intermediate array of loop indices for time delay histogram variables
+ integer(i4b),dimension(5)          :: nidx          ! intermediate array of loop indices for index variables
  integer(i4b)                       :: nSnow         ! number of snow layers
  integer(i4b)                       :: nLake         ! number of lake layers
  integer(i4b)                       :: nSoil         ! number of soil layers
@@ -863,10 +864,13 @@ contains
  nProgVars = size(prog_meta)
 
  ! index variables
- nidx = (/iLookINDEX%nSnow, iLookINDEX%nLake, iLookINDEX%nSoil, iLookINDEX%nGlce/)
+ nidx = (/iLookINDEX%nSnow, iLookINDEX%nLake, iLookINDEX%nSoil, iLookINDEX%nGlce, iLookINDEX%nLakeFrz/)
+
+ ! time delay histogram variables: routed runoff and the energy flux it carries
+ nrdx = (/iLookBVAR%routingRunoffFuture, iLookBVAR%routingNrgFuture, iLookBVAR%hypTempPast/)
 
  ! include additional basin variable in ID array
- size_prog = nProgVars+1 ! +1 for future runoff variable
+ size_prog = nProgVars+size(nrdx) ! + future runoff and runoff energy variables
  if (maxGlaciers > 0)then
    ngdx = (/iLookBVAR%basin__GlacierStorage,iLookBVAR%updateJulDay,iLookBVAR%glacierAblArea,iLookBVAR%glacierAccArea,iLookBVAR%glacIceRunoffFuture,iLookBVAR%glacSnowRunoffFuture,iLookBVAR%glacFirnRunoffFuture/)
    size_prog =  size_prog+size(ngdx)
@@ -923,23 +927,26 @@ contains
  end do ! iVar
  
  ! define selected basin variables (derived) -- e.g., hillslope routing, number of glaciers, area of glaciers, etc.
- err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%routingRunoffFuture)%varName), nf90_double, (/gruDimID, tdhDimID /), ncVarID(nProgVars+1))
- if(err/=0)then; message=trim(message)//' [variable '//trim(bvar_meta(iLookBVAR%routingRunoffFuture)%varName)//']'; return; end if
- err = nf90_put_att(ncid,ncVarID(nProgVars+1),'long_name',trim(bvar_meta(iLookBVAR%routingRunoffFuture)%vardesc));   call netcdf_err(err,message)
- err = nf90_put_att(ncid,ncVarID(nProgVars+1),'units'    ,trim(bvar_meta(iLookBVAR%routingRunoffFuture)%varunit));   call netcdf_err(err,message)
+ do i = 1,size(nrdx)
+  iVar = nrdx(i)
+  err = nf90_def_var(ncid, trim(bvar_meta(iVar)%varName), nf90_double, (/gruDimID, tdhDimID /), ncVarID(nProgVars+i))
+  if(err/=0)then; message=trim(message)//' [variable '//trim(bvar_meta(iVar)%varName)//']'; return; end if
+  err = nf90_put_att(ncid,ncVarID(nProgVars+i),'long_name',trim(bvar_meta(iVar)%vardesc));   call netcdf_err(err,message)
+  err = nf90_put_att(ncid,ncVarID(nProgVars+i),'units'    ,trim(bvar_meta(iVar)%varunit));   call netcdf_err(err,message)
+ end do
 
  if(maxGlaciers > 0)then ! if glaciers are present, include glacier variables
    do i = 1,size(ngdx)
     iVar = ngdx(i)
     select case(bvar_meta(iVar)%varType)
-     case(iLookVarType%scalarv); err = nf90_def_var(ncid,trim(bvar_meta(iVar)%varName),nf90_double,(/gruDimID,scalDimID /),ncVarID(nProgVars+1+i))
-     case(iLookVarType%glacier); err = nf90_def_var(ncid,trim(bvar_meta(iVar)%varName),nf90_double,(/gruDimID,nglDimID/),ncVarID(nProgVars+1+i))
+     case(iLookVarType%scalarv); err = nf90_def_var(ncid,trim(bvar_meta(iVar)%varName),nf90_double,(/gruDimID,scalDimID /),ncVarID(nProgVars+size(nrdx)+i))
+     case(iLookVarType%glacier); err = nf90_def_var(ncid,trim(bvar_meta(iVar)%varName),nf90_double,(/gruDimID,nglDimID/),ncVarID(nProgVars+size(nrdx)+i))
     end select
     if(err/=0)then; message=trim(message)//' [variable '//trim(bvar_meta(iVar)%varName)//']';return; end if
 
     ! add parameter description and units
-    err = nf90_put_att(ncid,ncVarID(nProgVars+1+i),'long_name',trim(bvar_meta(iVar)%vardesc)); call netcdf_err(err,message)
-    err = nf90_put_att(ncid,ncVarID(nProgVars+1+i),'units',trim(bvar_meta(iVar)%varunit)); call netcdf_err(err,message)
+    err = nf90_put_att(ncid,ncVarID(nProgVars+size(nrdx)+i),'long_name',trim(bvar_meta(iVar)%vardesc)); call netcdf_err(err,message)
+    err = nf90_put_att(ncid,ncVarID(nProgVars+size(nrdx)+i),'units',trim(bvar_meta(iVar)%varunit)); call netcdf_err(err,message)
    end do ! iVar
  endif ! (if glaciers)
   
@@ -1022,26 +1029,32 @@ contains
   end do ! iHRU loop
   
   ! write selected basin variables
-  err=nf90_put_var(ncid,ncVarID(nProgVars+1),(/bvar_data%gru(iGRU)%var(iLookBVAR%routingRunoffFuture)%dat/), start=(/iGRU,1/),count=(/1,nTimeDelay/))
-  if (err/=0) message=trim(message)//'writing variable:'//trim(bvar_meta(iLookBVAR%routingRunoffFuture)%varName); call netcdf_err(err,message); if (err/=0) return; err=0; message='writeRestart/'
+  do i=1,size(nrdx)
+    iVar = nrdx(i)
+    err=nf90_put_var(ncid,ncVarID(nProgVars+i),(/bvar_data%gru(iGRU)%var(iVar)%dat/), start=(/iGRU,1/),count=(/1,nTimeDelay/))
+    if (err/=0) message=trim(message)//'writing variable:'//trim(bvar_meta(iVar)%varName); call netcdf_err(err,message); if (err/=0) return; err=0; message='writeRestart/'
+  end do
 
   if (maxGlaciers > 0)then ! if glaciers are present, include glacier variables
     nGlac = gru_struc(iGRU)%nGlac
     do i=1,size(ngdx)
       iVar = ngdx(i)
       select case(bvar_meta(iVar)%varType)
-       case(iLookVarType%scalarv); err=nf90_put_var(ncid,ncVarID(nProgVars+1+i),(/bvar_data%gru(iGRU)%var(iVar)%dat/), start=(/iGRU,1/),count=(/1,nScalar/))
-       case(iLookVarType%glacier); err=nf90_put_var(ncid,ncVarID(nProgVars+1+i),(/bvar_data%gru(iGRU)%var(iVar)%dat/), start=(/iGRU,1/),count=(/1,nGlac/))
+       case(iLookVarType%scalarv); err=nf90_put_var(ncid,ncVarID(nProgVars+size(nrdx)+i),(/bvar_data%gru(iGRU)%var(iVar)%dat/), start=(/iGRU,1/),count=(/1,nScalar/))
+       case(iLookVarType%glacier); err=nf90_put_var(ncid,ncVarID(nProgVars+size(nrdx)+i),(/bvar_data%gru(iGRU)%var(iVar)%dat/), start=(/iGRU,1/),count=(/1,nGlac/))
        case default; err=20; message=trim(message)//'unknown var type'; return
       end select
       if (err/=0) message=trim(message)//'writing variable:'//trim(bvar_meta(iVar)%varName); call netcdf_err(err,message); if (err/=0) return; err=0; message='writeRestart/'
     end do
-
-    ! include grids
-    call writeRestartGrid(ncid, nGRU_local, gruDimID, grid_meta, grid_data, err, cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
   
  end do  ! iGRU loop
+
+ ! include grids: writeRestartGrid loops over every GRU itself, so it is called once, after the GRU loop,
+ ! rather than inside it, where the second GRU would find the grid dimension already defined
+ if (maxGlaciers > 0)then
+   call writeRestartGrid(ncid, nGRU_local, gruDimID, grid_meta, grid_data, err, cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ endif
 
  ! write dimensions and ID for file
  call write_id_info(ncid, gruDimID, hruDimID, domDimID, nglDimID, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
@@ -1111,6 +1124,10 @@ contains
 
  ! grid variables
  ngdx = (/iLookGRID%surface_elev, iLookGRID%debris_thick/) ! array of desired variable indices
+
+ ! the prognostic, basin and index variables have already been written, so the file is in data mode
+ err = nf90_redef(ncid); message='iRedef[grid]'; call netcdf_err(err,message); if(err/=0)return
+ err=0; message='writeRestartGrid/'
 
  ! define dimensions
  err = nf90_def_dim(ncid,trim(gridDimName)   ,maxGrid     , gridDimID);message='iCreate[grid]'    ; call netcdf_err(err,message); if(err/=0)return

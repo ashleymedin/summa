@@ -195,9 +195,8 @@ subroutine glacAreaChange(&
   area0 = dom_area
 
   ! ----------------------------------------------------------------------------------------------
-  ! Fit mass change as a piecewise linear function of elevation, once through the clean domains
-  !  (column 1) and once through the debris-covered domains (column 2). Domains with no area have
-  !  realMissing elevation and are excluded; a column is empty if the GRU has no domains of that kind.
+  ! Fit mass change as a piecewise linear function of elevation, clean domains in column 1 and
+  !  debris-covered in column 2, excluding the domains with no area
   ! ----------------------------------------------------------------------------------------------
   isValid(:,1) = dom_elev/=realMissing .and. dom_debris_thick==0._rkind
   isValid(:,2) = dom_elev/=realMissing .and. dom_debris_thick> 0._rkind

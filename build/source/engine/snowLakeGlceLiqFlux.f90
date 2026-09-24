@@ -34,11 +34,17 @@ USE globalData,only:realMissing            ! missing real number
 USE globalData,only:maxVolIceContent       ! snow maximum volumetric ice content to store water (-)
 USE globalData,only:iceResidWaterFrac      ! residual volumetric liquid water content in ice (-)
 
+! horizontal domain types
+USE globalData,only:wetland                ! sub-GRU lake or pothole: mass balance solved here (not yet implemented)
+USE globalData,only:stream                 ! reach water column: mass balance solved by the coupled river network
+
 ! named variables
 USE var_lookup,only:iLookINDEX             ! named variables for structure elements
 USE var_lookup,only:iLookPARAM             ! named variables for structure elements
 USE var_lookup,only:iLookPROG              ! named variables for structure elements
 USE var_lookup,only:iLookDIAG              ! named variables for structure elements
+USE var_lookup,only:iLookFLUX              ! named variables for structure elements
+USE var_lookup,only:iLookDERIV             ! named variables for structure elements
 
 ! data types
 USE data_types,only:var_dlength            ! x%var(:)%dat [rkind]
@@ -50,12 +56,13 @@ USE data_types,only:out_type_snowLakeGlceLiqFlux    ! data type for intent(out) 
 ! privacy
 implicit none
 private
-public :: snowLakeGlceLiqFlux
+public :: snowIceLiqFlux
+public :: lakeLiqFlux
 contains
 ! ************************************************************************************************
-! public subroutine snowLakeGlceLiqFlux: compute liquid water flux through the snowpack
+! public subroutine snowIceLiqFlux: compute liquid water flux through the snowpack, lake ice, and glacier ice layers
 ! ************************************************************************************************
-subroutine snowLakeGlceLiqFlux(&
+subroutine snowIceLiqFlux(&
                       ! input: model control, forcing, and model state vector
                       in_snowLakeGlceLiqFlux,           & ! intent(in):    model control, forcing, and model state vector
                       ! input-output: data structures
@@ -135,7 +142,7 @@ subroutine snowLakeGlceLiqFlux(&
     ) ! end association of local variables with information in the data structures
     ! ------------------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
-    err=0; message='snowLakeGlceLiqFlux/'
+    err=0; message='snowIceLiqFlux/'
 
     ! initialize with index 0
     iLayerLiqFluxSnLaGl = iLayerLiqFluxSnLaGl0(nStart:nLayers+nStart)
@@ -209,7 +216,7 @@ subroutine snowLakeGlceLiqFlux(&
           iLayerLiqFluxSnLaGl(iLayer)      = 0._rkind
           iLayerLiqFluxSnLaGlDeriv(iLayer) = 0._rkind
         end if  ! storage above residual content
-      end do  ! end loop through snow/glce layers
+      end do  ! end loop through snow layers
     else ! ice
       if(ixTop==1) ixTop = 0 ! include the 0 index if the top layer is included, since surface flux downwards is 0 (impermeable) 
       do iLayer=ixBot,ixTop,-1 ! loop through glacier ice layers
@@ -224,7 +231,7 @@ subroutine snowLakeGlceLiqFlux(&
           ! ** liquid water to passes through ice layers immediately
           iLayerLiqFluxSnLaGl(iLayer) = iLayerLiqFluxSnLaGl(iLayer+1) + iLayerLiqFluxSnLaGl(iLayer)
         end if
-      end do  ! end loop through glacier ice layers
+      end do  ! end loop through ice layers
     end if  ! end if snow or ice
     if(ixBot==nLayers)then
       iLayerLiqFluxSnLaGl(nLayers) = iLayerLiqFluxSnLaGl(nLayers) + bottom_flux   ! set the bottom flux if already computed
@@ -237,6 +244,108 @@ subroutine snowLakeGlceLiqFlux(&
 
   end associate ! end association of local variables with information in the data structures
 
-end subroutine snowLakeGlceLiqFlux
+end subroutine snowIceLiqFlux
+
+! **********************************************************************************************************
+! public subroutine lakeLiqFlux: liquid water fluxes through the liquid (unfrozen) lake layers
+! **********************************************************************************************************
+!  * stream: the reach water column. The water mass is routed by the coupled river network, so no water 
+!            moves vertically through the liquid lake layers: every interface flux is zero and the liquid
+!            depth is prescribed from the reach volume once per data step. What arrives at the top joins the
+!            reach flow at once and is passed on so that its heat can be added to the water column;
+!            evaporation leaves the same way.
+!  * wetland: a sub-GRU lake or pothole whose water balance would be solved here (inflow at the top, spill
+!            over the outlet, seepage to the soil through the bottom flux). Not yet implemented.
+subroutine lakeLiqFlux(&
+                       ! input: model control, forcing, and model state vector
+                       in_snowLakeGlceLiqFlux,  & ! intent(in):    model control, forcing, and model state vector
+                       domType,                 & ! intent(in):    horizontal domain type (stream or wetland)
+                       surfaceFluxTemp,         & ! intent(in):    temperature of the water arriving at the top (K)
+                       topLayerTemp,            & ! intent(in):    trial temperature of the top liquid lake layer (K)
+                       ! input-output: data structures
+                       indx_data,               & ! intent(in):    model indices
+                       prog_data,               & ! intent(in):    model prognostic variables for a local HRU
+                       diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
+                       flux_data,               & ! intent(inout): model fluxes for a local HRU
+                       ! input-output: fluxes and derivatives
+                       io_snowLakeGlceLiqFlux,  & ! intent(inout): interface fluxes and derivatives
+                       ! output: error control
+                       out_snowLakeGlceLiqFlux)   ! intent(out):   error control
+  implicit none
+  ! input: model control, forcing, and model state vector
+  type(in_type_snowLakeGlceLiqFlux),intent(in)  :: in_snowLakeGlceLiqFlux     ! model control, forcing, and model state vector
+  integer(i4b),intent(in)           :: domType                    ! horizontal domain type
+  real(rkind),intent(in)            :: surfaceFluxTemp            ! temperature of the water arriving at the top (K)
+  real(rkind),intent(in)            :: topLayerTemp               ! trial temperature of the top liquid lake layer (K)
+  ! input-output: data structures
+  type(var_ilength),intent(in)      :: indx_data                  ! model indices
+  type(var_dlength),intent(in)      :: prog_data                  ! prognostic variables for a local HRU
+  type(var_dlength),intent(inout)   :: diag_data                  ! diagnostic variables for a local HRU
+  type(var_dlength),intent(inout)   :: flux_data                  ! model fluxes for a local HRU
+  ! input-output: fluxes and derivatives
+  type(io_type_snowLakeGlceLiqFlux),intent(inout) :: io_snowLakeGlceLiqFlux   ! interface fluxes and derivatives
+  ! output: error control
+  type(out_type_snowLakeGlceLiqFlux),intent(out)  :: out_snowLakeGlceLiqFlux  ! error control
+  ! local variables
+  integer(i4b)                      :: iLayer                     ! layer index
+  ! ------------------------------------------------------------------------------------------------------------------------------------------
+  associate(&
+    ! input: model control
+    nLayers                   => in_snowLakeGlceLiqFlux % nLayers,                        & ! intent(in):  number of liquid lake layers
+    nStart                    => in_snowLakeGlceLiqFlux % nStart,                         & ! intent(in):  index of the layer above the liquid lake layers (nSnow + nLakeFrz)
+    surface_flux              => in_snowLakeGlceLiqFlux % surface_flux,                   & ! intent(in):  water arriving at the top of the liquid lake layers (m s-1)
+    bottom_flux               => in_snowLakeGlceLiqFlux % bottom_flux,                    & ! intent(in):  flux at the bottom of the lake if already computed (m s-1)
+    ! input-output: interface fluxes
+    iLayerLiqFluxSnLaGl       => io_snowLakeGlceLiqFlux % iLayerLiqFluxSnLaGl,            & ! intent(inout): [dp(0:)] liquid flux at snow, lake, glce layer interfaces (m s-1)
+    iLayerLiqFluxSnLaGlDeriv  => io_snowLakeGlceLiqFlux % iLayerLiqFluxSnLaGlDeriv,       & ! intent(inout): [dp(0:)] derivative in the interface flux w.r.t. the layer above
+    ! stream domain
+    scalarGroundEvaporation   => flux_data%var(iLookFLUX%scalarGroundEvaporation)%dat(1),    & ! intent(in):  [dp] evaporation from the open water surface (kg m-2 s-1)
+    scalarGroundSublimation   => flux_data%var(iLookFLUX%scalarGroundSublimation)%dat(1),    & ! intent(in):  [dp] sublimation from the water surface once it froze (kg m-2 s-1)
+    scalarStreamSfcInflow     => flux_data%var(iLookFLUX%scalarStreamSfcInflow)%dat(1),      & ! intent(out): [dp] rain plus melt entering the open water column (m s-1)
+    scalarStreamRunoff        => flux_data%var(iLookFLUX%scalarStreamRunoff)%dat(1),         & ! intent(out): [dp] net water the stream domain adds to the reach (m s-1)
+    scalarStreamSfcInflowTemp => diag_data%var(iLookDIAG%scalarStreamSfcInflowTemp)%dat(1),  & ! intent(out): [dp] temperature of the rain plus melt entering the open water column (K)
+    ! output: error control
+    err                       => out_snowLakeGlceLiqFlux % err,                           & ! intent(out): error code
+    message                   => out_snowLakeGlceLiqFlux % cmessage                       ) ! intent(out): error message
+    ! ------------------------------------------------------------------------------------------------------------------------------------------
+    ! initialize error control
+    err=0; message='lakeLiqFlux/'
+
+    ! NOTE: the domain types are module variables rather than parameters, so no select case
+    if(domType==stream)then
+      ! ***** stream: the reach water column, mass handled by the river network
+      ! what arrives at the top joins the flow at once rather than entering the column: no interface flux carries it down
+      ! (the interface above, index nStart, keeps the drainage the layer above computed, since that layer needs its bottom flux)
+      do iLayer=nStart+1,nStart+nLayers
+        iLayerLiqFluxSnLaGl(iLayer)      = 0._rkind
+        iLayerLiqFluxSnLaGlDeriv(iLayer) = 0._rkind
+      end do
+      iLayerLiqFluxSnLaGl(nStart+nLayers) = bottom_flux ! zero for now: no seepage through the bed
+      ! rain and melt join the flow: through the water column when it is open, straight to the reach when it is ice covered
+      if(topLayerTemp > Tfreeze)then
+        scalarStreamSfcInflow     = surface_flux
+        scalarStreamSfcInflowTemp = surfaceFluxTemp
+      else
+        scalarStreamSfcInflow     = 0._rkind
+        scalarStreamSfcInflowTemp = Tfreeze
+      end if
+      ! net water the stream domain itself hands to the reach (evaporation is negative water; so is sublimation from a
+      ! surface that froze within the step, when nothing lies on the water: with snow or an ice cover on top the layer
+      ! above loses it, and the ice branch sets the runoff)
+      scalarStreamRunoff = surface_flux - scalarGroundEvaporation/iden_water
+      if(nStart==0) scalarStreamRunoff = scalarStreamRunoff - scalarGroundSublimation/iden_water
+
+    else if(domType==wetland)then
+      ! ***** wetland: sub-GRU lake or pothole, mass balance solved here
+      ! surface_flux is the inflow, the interior fluxes are zero, the bottom flux is seepage, spill leaves the top layer
+      err=20; message=trim(message)//'wetland lake mass balance not implemented'; return
+
+    else
+      err=20; message=trim(message)//'lake layers are only expected in stream or wetland domains'; return
+    end if
+
+  end associate
+
+end subroutine lakeLiqFlux
 
 end module snowLakeGlceLiqFlux_module

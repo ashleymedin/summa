@@ -224,7 +224,8 @@ MODULE globalData
   integer(i4b),save,public                         :: glacCln1=2                        ! glacier clean first domain
   integer(i4b),save,public                         :: glacCln2=3                        ! glacier clean second domain
   integer(i4b),save,public                         :: glacDbr=4                         ! glacier debris domain
-  integer(i4b),save,public                         :: wetland=5                         ! wetland domain
+  integer(i4b),save,public                         :: wetland=5                         ! wetland domain (sub-GRU lake/pothole, mass balance in SUMMA, area may change)
+  integer(i4b),save,public                         :: stream=6                          ! stream domain (reach water column, mass in coupled mizuRoute, fixed area, one per GRU)
   ! define the model output file
   character(len=256),save,public                   :: fileout=''                        ! output filename
   character(len=256),save,public                   :: output_fileSuffix=''              ! suffix for the output file

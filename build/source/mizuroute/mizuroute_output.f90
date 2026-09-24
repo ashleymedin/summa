@@ -17,7 +17,7 @@ contains
   !-----------------------------------------------------------------------
   ! Add mizuRoute output variables to an existing SUMMA NetCDF file
   !-----------------------------------------------------------------------
-  subroutine define_mizuroute_output(ncid, info, domain, ierr, message)
+  subroutine define_mizuroute_output(ncid, info, domain, ierr, message, write_stream)
     use globaldata,     only: routeMethods
     use init_mizuRoute, only: route_method_name
 
@@ -26,9 +26,11 @@ contains
     type(mizuroute_domain), intent(in)  :: domain
     integer(i4b),           intent(out) :: ierr
     character(*),           intent(out) :: message
+    logical(lgt), optional, intent(in)  :: write_stream   ! also define the stream temperature, velocity, roughness and ice cover of each reach
     integer(i4b) :: dim_time, dim_hru, dim_seg, dim_method
     integer(i4b) :: varid_hru, varid_seg, varid_method
-    integer(i4b) :: varid_uparea, varid_qbasin, varid_Qreach
+    integer(i4b) :: varid_uparea, varid_qbasin, varid_Qreach, varid_Treach, varid_vreach, varid_nreach, varid_icereach
+    integer(i4b), dimension(2) :: dimids_seg
     integer(i4b), dimension(2) :: dimids_basin
     integer(i4b), dimension(3) :: dimids_reach
     integer(i4b) :: iRoute
@@ -54,6 +56,7 @@ contains
       ierr = nf90_def_dim(ncid, 'method',   size(routeMethods), dim_method); if(ierr/=nf90_noerr) exit netcdf_block
       dimids_basin = (/ dim_hru, dim_time /)
       dimids_reach = (/ dim_method, dim_seg, dim_time /)
+      dimids_seg   = (/ dim_seg, dim_time /)
 
       ! upstream area
       ierr = nf90_def_var(ncid, 'upArea', NF90_DOUBLE, (/dim_seg/), varid_uparea);    if(ierr/=nf90_noerr) exit netcdf_block
@@ -75,6 +78,28 @@ contains
         ierr = nf90_put_att(ncid, varid_Qreach, 'long_name', &
                             'streamflow at the downstream end of each river reach');    if(ierr/=nf90_noerr) exit netcdf_block
         ierr = nf90_put_att(ncid, varid_Qreach, 'units', 'm3 s-1');                     if(ierr/=nf90_noerr) exit netcdf_block
+      endif
+
+      ! stream temperature and velocity of each reach (first routing method), when SUMMA carries stream domains
+      if (present(write_stream)) then
+       if (write_stream) then
+        ierr = nf90_def_var(ncid, 'T_reach', NF90_DOUBLE, dimids_seg, varid_Treach);    if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_put_att(ncid, varid_Treach, 'long_name', &
+                            'temperature of the water leaving each river reach');       if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_put_att(ncid, varid_Treach, 'units', 'K');                          if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_def_var(ncid, 'v_reach', NF90_DOUBLE, dimids_seg, varid_vreach);    if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_put_att(ncid, varid_vreach, 'long_name', &
+                            'mean velocity of each river reach (first routing method)'); if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_put_att(ncid, varid_vreach, 'units', 'm s-1');                      if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_def_var(ncid, 'n_reach', NF90_DOUBLE, dimids_seg, varid_nreach);    if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_put_att(ncid, varid_nreach, 'long_name', &
+                            'Manning roughness used to route each river reach (bed, raised by an ice cover)'); if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_put_att(ncid, varid_nreach, 'units', 's m-1/3');                    if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_def_var(ncid, 'ice_reach', NF90_DOUBLE, dimids_seg, varid_icereach); if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_put_att(ncid, varid_icereach, 'long_name', &
+                            'thickness of the ice cover of each river reach');           if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_put_att(ncid, varid_icereach, 'units', 'm');                         if(ierr/=nf90_noerr) exit netcdf_block
+       endif
       endif
 
       ! coordinate variables: mizu_hru
@@ -124,7 +149,7 @@ contains
   !-----------------------------------------------------------------------
   ! Write mizuRoute streamflow to an existing host-model NetCDF file
   !-----------------------------------------------------------------------
-  subroutine write_mizuroute_output(ncid, istart, numtim, info, domain, ierr, message)
+  subroutine write_mizuroute_output(ncid, istart, numtim, info, domain, ierr, message, tReach, vReach, nReach, iceReach)
     integer(i4b),            intent(in)  :: ncid
     integer(i4b),            intent(in)  :: istart
     integer(i4b),            intent(in)  :: numtim
@@ -132,9 +157,13 @@ contains
     type(mizuroute_domain),  intent(in)  :: domain
     integer(i4b),            intent(out) :: ierr
     character(*),            intent(out) :: message
-    integer(i4b) :: varid_qbasin, varid_Qreach
+    real(dp),    optional,   intent(in)  :: tReach(:,:)   ! stream temperature of each reach per buffer step (K)
+    real(dp),    optional,   intent(in)  :: vReach(:,:)   ! mean velocity of each reach per buffer step (m s-1)
+    real(dp),    optional,   intent(in)  :: nReach(:,:)   ! Manning roughness of each reach per buffer step (s m-1/3)
+    real(dp),    optional,   intent(in)  :: iceReach(:,:) ! ice cover thickness of each reach per buffer step (m)
+    integer(i4b) :: varid_qbasin, varid_Qreach, varid_Treach, varid_vreach, varid_nreach, varid_icereach
     integer(i4b) :: iRoute
-    integer(i4b), dimension(2) :: start2_basin, count2_basin
+    integer(i4b), dimension(2) :: start2_basin, count2_basin, start2_seg, count2_seg
     integer(i4b), dimension(3) :: start3_reach, count3_reach
   
     ierr = 0
@@ -165,6 +194,30 @@ contains
                               start=start3_reach, count=count3_reach)
           if(ierr/=nf90_noerr) exit netcdf_block
         enddo
+      endif
+
+      ! stream temperature and velocity
+      if (present(tReach)) then
+        start2_seg = (/1,          istart/)
+        count2_seg = (/info%n_seg, numtim/)
+        ierr = nf90_inq_varid(ncid, 'T_reach', varid_Treach);                          if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_put_var(ncid, varid_Treach, tReach(:,1:numtim), start=start2_seg, count=count2_seg)
+        if(ierr/=nf90_noerr) exit netcdf_block
+      endif
+      if (present(vReach)) then
+        ierr = nf90_inq_varid(ncid, 'v_reach', varid_vreach);                          if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_put_var(ncid, varid_vreach, vReach(:,1:numtim), start=start2_seg, count=count2_seg)
+        if(ierr/=nf90_noerr) exit netcdf_block
+      endif
+      if (present(nReach)) then
+        ierr = nf90_inq_varid(ncid, 'n_reach', varid_nreach);                          if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_put_var(ncid, varid_nreach, nReach(:,1:numtim), start=start2_seg, count=count2_seg)
+        if(ierr/=nf90_noerr) exit netcdf_block
+      endif
+      if (present(iceReach)) then
+        ierr = nf90_inq_varid(ncid, 'ice_reach', varid_icereach);                      if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_put_var(ncid, varid_icereach, iceReach(:,1:numtim), start=start2_seg, count=count2_seg)
+        if(ierr/=nf90_noerr) exit netcdf_block
       endif
 
     end block netcdf_block

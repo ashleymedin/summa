@@ -1050,9 +1050,10 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           end select
           scalarIce = merge(stateVecPrev(ixSnLaSoGlHyd(iLayer)) - scalarLiq,mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
           ! checking if drain more than what is available or add more than possible, constrained iteration increment -- simplified bi-section
+          ! NOTE: the upper bound is the air space 1 - ice - liq, which a lake layer does not have, so it has no upper bound
           if(-xInc(ixSnLaSoGlHyd(iLayer)) > scalarLiq) then
             xInc(ixSnLaSoGlHyd(iLayer)) = -0.5_rkind*scalarLiq
-          elseif(xInc(ixSnLaSoGlHyd(iLayer)) > 1._rkind - scalarIce - scalarLiq)then
+          elseif(xInc(ixSnLaSoGlHyd(iLayer)) > 1._rkind - scalarIce - scalarLiq .and. .not.(jLayer>nSnow .and. jLayer<=nSnow+nLake))then
             xInc(ixSnLaSoGlHyd(iLayer)) = 0.5_rkind*(1._rkind - scalarIce - scalarLiq)
           endif
         end do ! (looping through snow, lake, glce layers)
