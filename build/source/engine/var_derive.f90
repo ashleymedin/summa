@@ -47,6 +47,8 @@ USE mDecisions_module,only: &
 ! look-up values for the choice of groundwater parameterization
 USE mDecisions_module,only: &
  bigBucket,                 & ! a big bucket (lumped aquifer model)
+ modflowCpl,                & ! groundwater handled by a coupled MODFLOW 6 model
+ modLatFlow,                & ! as modflowCpl, plus TOPMODEL lateral flow within the soil column
  noExplicit                   ! no explicit groundwater parameterization
 
 ! look-up values for the choice of groundwater parameterization
@@ -223,7 +225,20 @@ contains
  if (error > 2._rkind*epsilon(rootingDepth_use)) then
   message=trim(message)//'problem with the root density calculation'
   err=20; return
- else
+ else if (error > 0._rkind .or. (ixGroundwater /= modflowCpl .and. ixGroundwater /= modLatFlow)) then
+  ! error > 0 is the excess this check exists for, and trimming it is right in every configuration.
+  !
+  ! error < 0 is different: it means the rooting profile genuinely puts some roots BELOW the soil
+  ! column, which is what scalarAquiferRootFrac is computed from just below.  Redistributing that
+  ! deficit into the soil layers forces the sum to exactly 1 and so drives scalarAquiferRootFrac to
+  ! zero, which is why aquifer transpiration has never been reachable: bigAquifer computes it, but
+  ! the fraction it scales by is always 0.  For a coupled MODFLOW model the saturated zone below the
+  ! soil column is real and can supply that water, so the deficit is preserved and soilResist ramps
+  ! it off as the water table falls past the deepest root.
+  !
+  ! Deliberately scoped to the coupled decisions.  The same deficit-filling silently disables
+  ! aquifer transpiration for bigBucket, but changing it there would move every existing bigBucket
+  ! run's results, which is not this change's business.
   mLayerRootDensity = mLayerRootDensity - error/real(nSoil,kind(rkind))
  end if
 
@@ -235,7 +250,12 @@ contains
  end if
 
  ! check that roots in the aquifer are appropriate
- if ((ixGroundwater /= bigBucket).and.(scalarAquiferRootFrac > 2._rkind*epsilon(rootingDepth_use)))then
+ ! A coupled MODFLOW 6 model carries the saturated zone below the soil column, so roots reaching
+ ! into it are meaningful in exactly the way they are for the big bucket: soilResist ramps the
+ ! aquifer transpiration limiting factor off as the MODFLOW water table falls past the deepest
+ ! root, and the resulting demand is imposed on MODFLOW's EVT package.
+ if ((ixGroundwater /= bigBucket).and.(ixGroundwater /= modflowCpl).and.(ixGroundwater /= modLatFlow) &
+     .and.(scalarAquiferRootFrac > 2._rkind*epsilon(rootingDepth_use)))then
   if(scalarAquiferRootFrac < rootTolerance) then
    mLayerRootDensity = mLayerRootDensity + scalarAquiferRootFrac/real(nSoil, kind(rkind))
    scalarAquiferRootFrac = 0._rkind

@@ -41,6 +41,7 @@ module summa_mf6_exchange
   !       silently move every coupled run's HRU->cell mapping, so it is left as it is.
 
   USE nr_type,    only: i4b, rkind
+  USE multiconst, only: iden_water     ! intrinsic density of liquid water (kg m-3)
   USE summa_type, only: summa1_type_dec
 
   USE globalData, only: gru_struc            ! HRU information for given GRU
@@ -53,6 +54,7 @@ module summa_mf6_exchange
   USE var_lookup, only: iLookPROG            ! named variables for local prognostic variables
   USE var_lookup, only: iLookPARAM           ! named variables for local model parameters
   USE var_lookup, only: iLookFLUX            ! named variables for local flux variables
+  USE var_lookup, only: iLookDIAG            ! named variables for local diagnostic variables
   USE var_lookup, only: iLookBVAR            ! named variables for basin (GRU) variables
 
   implicit none
@@ -336,10 +338,25 @@ contains
     type(summa1_type_dec), intent(in)  :: summa_struct
     real,                  intent(out) :: demand(:)
     integer(i4b) :: iGRU, jHRU, iDOM, i
-    real         :: fracDOM
-    ! NB: weighted exactly as mf6x_get_drainage weights soil drainage, so the demand and the
-    !     recharge it accompanies are aggregated on the same footing.
+    real(rkind)  :: fracDOM, frac, tlim
+    ! Reproduces bigAquifer's partition (bigAquifer.f90:112-113) from post-step diagnostics:
+    !
+    !   aquiferTranspireFrac   = scalarAquiferRootFrac * scalarTranspireLimAqfr / scalarTranspireLim
+    !   scalarAquiferTranspire = aquiferTranspireFrac * scalarCanopyTranspiration / iden_water
+    !
+    ! It is computed here rather than in computFlux because in coupled mode there is no aquifer
+    ! state: ixAqWat is integerMissing, so computFlux never enters its aquifer block and bigAquifer
+    ! is never called.  Nothing is lost by deriving it afterwards - the quantity is a pure sink that
+    ! leaves SUMMA for MODFLOW and enters no SUMMA state equation, and the derivatives bigAquifer
+    ! would also produce are only ever used in ixAqWat-indexed Jacobian entries that do not exist
+    ! in this mode (computJacob.f90:858,861).
+    !
+    ! This is a DEMAND, not an extraction.  The energy balance behind scalarCanopyTranspiration has
+    ! already closed, and scalarTranspireLimAqfr has already told stomatal resistance how much deep
+    ! water is available, so sending this to MODFLOW's EVT package moves water between sources
+    ! without creating any.  MODFLOW decides what it can actually supply.
     associate(progStruct => summa_struct%progStruct, &
+              diagStruct => summa_struct%diagStruct, &
               fluxStruct => summa_struct%fluxStruct, &
               bvarStruct => summa_struct%bvarStruct)
       demand = 0.0
@@ -348,11 +365,26 @@ contains
           i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
           demand(i) = 0._rkind
           do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
+            tlim = diagStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookDIAG%scalarTranspireLim)%dat(1)
+            if (tlim <= 0._rkind) cycle       ! no transpiration at all, so no aquifer share
+            frac = diagStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookDIAG%scalarAquiferRootFrac)%dat(1) &
+                 * diagStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookDIAG%scalarTranspireLimAqfr)%dat(1) / tlim
+            if (frac <= 0._rkind) cycle       ! no roots below the soil column, or water table out of reach
             fracDOM = progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) &
                     / bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1)
+            ! SIGN: scalarCanopyTranspiration (kg m-2 s-1) is NEGATIVE while water leaves the
+            ! canopy - the same convention bigAquifer inherits, which is why computFlux assembles
+            ! the aquifer balance as dS/dt = scalarAquiferTranspire + recharge - baseflow
+            ! (computFlux.f90:555) with a negative transpire term.  MODFLOW's EVT RATE is a
+            ! positive maximum extraction rate, so negate to get a demand positive out of the
+            ! aquifer, matching the convention of every other flux this module hands the coupler.
             demand(i) = demand(i) &
-                      + fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferTranspire)%dat(1) * fracDOM
+                      - frac * fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarCanopyTranspiration)%dat(1) &
+                        / iden_water * fracDOM
           end do
+          ! after the negation a negative demand means condensation onto the canopy, which the
+          ! aquifer plays no part in
+          if (demand(i) < 0._rkind) demand(i) = 0._rkind
         end do
       end do
     end associate

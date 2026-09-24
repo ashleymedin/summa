@@ -1,0 +1,28 @@
+# Array-based evapotranspiration (READASARRAYS) - groundwater ET (section 8.1).
+#
+# The coupler overwrites the RATE array in memory (SAGEHEN/EVTA/RATE) every step with SUMMA's
+# aquifer transpiration demand: the share of canopy transpiration that its deep roots want from
+# below the soil column.  MODFLOW then decides how much of that the water table can actually
+# supply, and the coupler reads the result back as role = gw_et.
+#
+# SURFACE and DEPTH are chosen to match the SUMMA-side ramp in soilResist exactly, so the stress
+# SUMMA applies to stomatal resistance and the water MODFLOW is willing to give up agree:
+#   SURFACE = land surface - 4.0 m  (the base of the SUMMA soil column, where psi is measured)
+#   DEPTH   = 2.0 m                  (rootingDepth 6.0 m - soil depth 4.0 m: how far roots reach below it)
+# MODFLOW's default EVT behaviour is a linear ramp from SURFACE down to SURFACE-DEPTH, which is
+# the same shape as 1 + psi/aquiferRootReach.
+BEGIN OPTIONS
+  READASARRAYS
+  SAVE_FLOWS
+END OPTIONS
+
+BEGIN PERIOD 1
+  IEVT
+    CONSTANT  1
+  SURFACE
+    OPEN/CLOSE  evtsurf1.txt
+  RATE
+    CONSTANT  0.0
+  DEPTH
+    CONSTANT  2.0000
+END PERIOD
