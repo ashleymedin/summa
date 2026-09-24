@@ -19,56 +19,51 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 program summa_modflow6
-  ! ****************************************************************************************
-  ! *** Thin BMI coupler: SUMMA land model  <-->  MODFLOW 6 groundwater model             ***
-  ! ****************************************************************************************
+  ! Thin BMI coupler: SUMMA land model <-> MODFLOW 6 groundwater model.
   !
-  ! This program is only the SUMMA side and the time loop: it drives SUMMA through its BMI
-  ! and hands each step's soil drainage to mf6_coupling, which owns everything MODFLOW.  See
-  ! mf6_coupling.f90 for the exchange itself, the &coupler namelist, and the HRU->cell map,
-  ! and utils/test/test_mflow/README.md for worked examples and two test cases.
+  ! This program is the SUMMA side and the time loop only: it drives SUMMA through its BMI and hands
+  ! each step's soil drainage to mf6_coupling, which owns everything MODFLOW.  See mf6_coupling.f90
+  ! for the exchange, the &coupler namelist and the HRU->cell map, and
+  ! utils/test/test_mflow/README.md for the test cases.
   !
   ! Usage:  summa_modflow6.exe <fileManager.txt> <summa_modflow6.config>
-  !         or through utils/test/test_mflow/coupler_commands.sh, which resolves paths and cds into the
-  !         MODFLOW case directory for you.
+  !         or through utils/test/test_mflow/coupler_commands.sh, which resolves paths and cds into
+  !         the MODFLOW case directory.
   !
-  ! --- the exchange, once per SUMMA data step ---------------------------------------------
-  !   1. (feedback) the MODFLOW 6 water-table head from the previous step is written into
-  !      SUMMA as the prescribed-head lower boundary condition of the soil column
-  !      (BMI input  "soil_water_sat-zone_top__head", parameter "lowerBoundHead").
-  !   2. SUMMA advances one step.
-  !   3. the drainage out the base of the SUMMA soil column
-  !      (BMI output "soil_water__drainage_volume_flux", flux "scalarSoilDrainage")
-  !      is regridded onto the MODFLOW 6 grid and written into the RCH package
-  !      RECHARGE array.
-  !   4. MODFLOW 6 advances one step (prepare/do/finalize_time_step).
-  !   5. the new MODFLOW 6 head field is read back and aggregated per SUMMA HRU,
-  !      ready to be applied at step 1 of the next iteration (explicit, one-step lag).
+  ! One exchange per SUMMA data step, explicit with a one-step lag.  Steps 1 and 2 are here, steps 3
+  ! to 5 are mf6_coupling's mf6_step:
+  !   1. (feedback) the previous step's MODFLOW state is written into SUMMA
+  !   2. SUMMA advances one step
+  !   3. soil drainage is regridded onto the MODFLOW grid and written into the RCH RECHARGE array,
+  !      and the aquifer transpiration demand into the EVT RATE array
+  !   4. MODFLOW advances one step (prepare/do/finalize_time_step), leading steady-state stress
+  !      periods having been solved out first
+  !   5. the new head field and the boundary-package flows are read back and aggregated per HRU
   !
-  ! Steps 3 to 5 are mf6_coupling's mf6_step; steps 1 and 2 are here.
-  !
-  ! With feedback = .true. two groundwater quantities are written back into SUMMA each step,
-  ! so its water balance and routed streamflow include the aquifer:
-  !     scalarAquiferStorage  = Sy * (MODFLOW water table - soil-column base)
-  !     scalarAquiferBaseflow = MODFLOW <bflow_package_name> outflow over the HRU footprint
+  ! With feedback = .true. these come back each step, so SUMMA's water balance and routed streamflow
+  ! include the aquifer:
+  !     lowerBoundHead          prescribed head at the base of the soil column (enters the solver)
+  !     scalarAquiferStorage    Sy * (MODFLOW water table - soil-column base), diagnostic
+  !     scalarAquiferBaseflow   role=baseflow package outflow over the HRU footprint
+  !     mfSurfaceDischarge      role=surface_discharge outflow, added to SUMMA's surface runoff
+  !     scalarAquiferTranspire  role=gw_et extraction, against the demand SUMMA sent
+  !     scalarTranspireLimAqfr  aquifer transpiration limiting factor, evaluated per MODFLOW cell
   ! (scalarAquiferRecharge is not exchanged - SUMMA sets it to its own soil drainage.)
   !
-  ! --- required SUMMA model decisions ------------------------------------------------------
-  ! Build with -DUSE_MODFLOW6=ON (sets MODFLOW_ACTIVE); a plain summa run with either
-  ! groundwater option below is rejected at start-up.
+  ! Required SUMMA model decisions.  Build with -DUSE_MODFLOW6=ON (sets MODFLOW_ACTIVE); a plain
+  ! summa run with either groundwater option is rejected at start-up.
   !
   !   groundwatr = modflow      bcLowrSoiH = presHead
   !   groundwatr = modLatflow   bcLowrSoiH = presHead, hc_profile = exp_prof,
   !                             infRateMax = topmodel_GA (or noInfExc)
   !
-  ! modLatflow does the same coupling and additionally runs TOPMODEL-style lateral flow
-  ! through the soil column above the MODFLOW water table, for hillslopes where water moves
-  ! downslope through the soil as well as recharging the aquifer.  It requires exp_prof
-  ! because the lateral transmissivity is the vertical integral of the conductivity over the
-  ! soil column alone, MODFLOW carrying everything below it, and exp_prof is the profile that
-  ! integrates to a finite base rather than assuming a shallow aquifer of its own.  The
-  ! lateral flow is reported as basin__ColumnOutflow and added to total runoff alongside the
-  ! MODFLOW baseflow.
+  ! modLatflow additionally runs TOPMODEL-style lateral flow through the soil column above the
+  ! MODFLOW water table, for hillslopes where water moves downslope through the soil as well as
+  ! recharging the aquifer.  It requires exp_prof because the lateral transmissivity is the vertical
+  ! integral of the conductivity over the soil column alone, MODFLOW carrying everything below it,
+  ! and exp_prof integrates to a finite base rather than assuming a shallow aquifer of its own.  The
+  ! lateral flow is reported as basin__ColumnOutflow and added to total runoff alongside the MODFLOW
+  ! baseflow.
   !
   ! The MODFLOW 6 model is read from mfsim.nam in the working directory.  What the coupler
   ! requires of it is checked at start-up by mf6_coupling (units, DIS, RCH READASARRAYS)

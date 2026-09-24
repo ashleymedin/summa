@@ -544,10 +544,7 @@ contains
     call mf6_prepare_run_dir(trim(summa_struct%config%modflow_run_dir), trim(run_dir), err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! Coupled restart of the aquifer (section 8.5).  The one-year cold-start spin-up runs redundantly
-    ! on every rank, so each rank writes its own spun-up head field and then reads that same file back
-    ! for every parameter sample it evaluates.  Per-rank rather than shared on purpose: the files are
-    ! identical anyway, and this needs no barrier between the spin-up and the first sample.
+    ! per-rank coupled restart: the shared spin-up writes the aquifer head field, samples read it
     head_file = trim(OUTPUT_PATH)//'modflow_spinup_heads_rank'//rankString//'.bin'
 
     if(mf6_spinup_phase)then
