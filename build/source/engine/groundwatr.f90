@@ -26,6 +26,10 @@ USE nr_type
 ! model constants
 USE multiconst,only:iden_water   ! density of water (kg m-3)
 
+! length of the data step, the longest a layer drains before the outflow is recomputed
+USE globalData,only:data_step    ! length of the data step (s)
+USE globalData,only:verySmall    ! a small number
+
 ! derived types to define the data structures
 USE data_types,only:&
                     var_dlength,        & ! data vector with variable length dimension (rkind)
@@ -296,6 +300,13 @@ subroutine computBaseflow(&
   real(rkind),dimension(nSoil)       :: dLogFunc_dWat         ! derivative in the logistic function w.r.t. soil water characteristic
   real(rkind),dimension(nSoil)       :: dExfiltrate_dWat      ! derivative in exfiltration w.r.t. soil water characteristic
   real(rkind),dimension(nSoil)       :: dExfiltrate_dTk       ! derivative in exfiltration w.r.t. temperature (K-1)
+  ! local variables for the cap on the lateral outflow
+  real(rkind)                        :: qOutflow              ! uncapped lateral outflow of a layer (m s-1)
+  real(rkind)                        :: qOutflowMax           ! the same layer's drainable water spread over the data step (m s-1)
+  real(rkind)                        :: xCap                  ! ratio of the outflow to the cap (-)
+  real(rkind)                        :: tCap,sqCap            ! tanh of that ratio, and its derivative (-)
+  real(rkind),dimension(nSoil)       :: dCap_dOutflow         ! derivative of the capped outflow w.r.t. the uncapped outflow (-)
+  real(rkind),dimension(nSoil)       :: dCap_dLiq             ! derivative of the capped outflow w.r.t. this layer's liquid water (m s-1)
   ! ---------------------------------------------------------------------------------------
   ! * association to data in structures
   ! ---------------------------------------------------------------------------------------
@@ -410,6 +421,36 @@ subroutine computBaseflow(&
     ! compute the outflow from each layer (m3 s-1)
     mLayerColumnOutflow(1:nSoil) = trSoil(1:nSoil)*tan_slope*contourLength
 
+    ! ***** cap the outflow at the water the layer can actually supply *****
+    ! The transmissivity profile sets the outflow from the conductivity and the water table thickness, with nothing
+    ! tying it to the water that is there: a thin layer of high conductivity on a steep slope (glacier debris, where
+    ! kAnisotropic is ten times larger and the field capacity is zero) can be asked for more water than it holds over
+    ! the step, and the soil mass balance then fails. Cap each layer at its own drainable water spread over the data
+    ! step, the longest it drains before the outflow is recomputed:
+    !     q_capped = q_max * tanh(q/q_max)
+    ! which is q where the layer has water to spare and tends to q_max where it does not.
+    ! NOTE: this is smoothed like the exfiltration below, but not with that logistic. A logistic smooth minimum,
+    !       f*q + (1-f)*q_max with f = 1/(1+exp((q-q_max)/w)), is not monotone in q: its derivative turns negative
+    !       just past the cap, and the solver cannot then find a step. tanh is the same smooth minimum with the same
+    !       two limits and a derivative that stays in (0,1], and it needs no width parameter, since the layer's own
+    !       capacity sets the scale.
+    do iLayer=1,nSoil
+      dCap_dOutflow(iLayer) = 1._rkind ! no cap: the outflow passes through unchanged
+      dCap_dLiq(iLayer)     = 0._rkind
+      qOutflow    = mLayerColumnOutflow(iLayer)/area                                                          ! m s-1
+      qOutflowMax = mLayerDepth(iLayer)*max(0._rkind, mLayerVolFracLiq(iLayer) - fieldCapacity_use)/data_step ! m s-1
+      ! a layer at or below field capacity has no drainable water, and the transmissivity profile already gives it
+      ! no outflow, so there is nothing to cap
+      if(qOutflow > 0._rkind .and. qOutflowMax > tiny(qOutflowMax))then
+        xCap  = qOutflow/qOutflowMax
+        tCap  = tanh(xCap)
+        sqCap = 1._rkind - tCap*tCap ! sech^2, the derivative of tanh
+        mLayerColumnOutflow(iLayer) = qOutflowMax*tCap*area
+        dCap_dOutflow(iLayer) = sqCap                                                  ! d(q_capped)/dq
+        dCap_dLiq(iLayer)     = (tCap - xCap*sqCap)*mLayerDepth(iLayer)/data_step      ! d(q_capped)/d(volFracLiq)
+      end if
+    end do
+
     ! compute total column inflow and total column outflow (m s-1)
     totalColumnInflow  = sum(mLayerColumnInflow(1:nSoil))/area
     totalColumnOutflow = sum(mLayerColumnOutflow(1:nSoil))/area
@@ -477,6 +518,17 @@ subroutine computBaseflow(&
         dBaseflow_dTk(iLayer,jLayer) = dBaseflow_dVolLiq(iLayer,jLayer)*mLayerdTheta_dTk(jLayer)
       end do  ! end looping through soil layers
     end do  ! end looping through soil layers
+
+    ! carry the cap on the outflow into the derivatives: the whole row scales by d(q_capped)/dq, and the cap's own
+    ! dependence on this layer's liquid water adds to the diagonal, through the same chain rule as the terms above
+    do iLayer=1,nSoil
+      dBaseflow_dVolLiq(iLayer,:) = dBaseflow_dVolLiq(iLayer,:)*dCap_dOutflow(iLayer)
+      dBaseflow_dWat(iLayer,:)    = dBaseflow_dWat(iLayer,:)   *dCap_dOutflow(iLayer)
+      dBaseflow_dTk(iLayer,:)     = dBaseflow_dTk(iLayer,:)    *dCap_dOutflow(iLayer)
+      dBaseflow_dVolLiq(iLayer,iLayer) = dBaseflow_dVolLiq(iLayer,iLayer) + dCap_dLiq(iLayer)
+      dBaseflow_dWat(iLayer,iLayer)    = dBaseflow_dWat(iLayer,iLayer)    + dCap_dLiq(iLayer)*mLayerdTheta_dPsi(iLayer)
+      dBaseflow_dTk(iLayer,iLayer)     = dBaseflow_dTk(iLayer,iLayer)     + dCap_dLiq(iLayer)*mLayerdTheta_dTk(iLayer)
+    end do
 
     ! trSoil is clamped to zero above the saturated zone, so the outflow of those layers does not respond to
     ! the state at all and their derivative rows must be zero to match. Without this the rows depend on the
