@@ -1038,6 +1038,7 @@ contains
   case('numberScalarSolutions'); get_ixINDEX = iLookINDEX%numberScalarSolutions ! number of scalar solutions                                              (-)
   case('domType'              ); get_ixINDEX = iLookINDEX%domType               ! horizontal domain type (upland, glacier, wetland, stream)                (-)
   case('nLakeFrz'             ); get_ixINDEX = iLookINDEX%nLakeFrz              ! number of frozen (ice cover) lake layers at the top of the lake          (-)
+  case('nBedrock'             ); get_ixINDEX = iLookINDEX%nBedrock              ! number of thermal-only bedrock layers at the base of the soil column    (-)
   ! default
   case default
    get_ixIndex = integerMissing

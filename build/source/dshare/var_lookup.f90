@@ -887,6 +887,7 @@ MODULE var_lookup
   ! domain type
   integer(i4b)     :: domType               = integerMissing  ! horizontal domain type (upland, glacier, wetland, stream)                 (-)
   integer(i4b)     :: nLakeFrz              = integerMissing  ! number of frozen (ice cover) lake layers at the top of the lake           (-)
+  integer(i4b)     :: nBedrock              = integerMissing  ! number of thermal-only bedrock layers at the base of the soil column     (-)
  endtype iLook_index
 
  ! ***********************************************************************************************************
@@ -1113,7 +1114,7 @@ MODULE var_lookup
                                                                          41, 42, 43, 44, 45, 46, 47, 48, 49, 50,&
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
-                                                                         71, 72, 73)
+                                                                         71, 72, 73, 74)
  ! named variables: basin-average parameters
  type(iLook_bpar),    public,parameter :: iLookBPAR     =iLook_bpar    (  1,  2,  3,  4,  5,  6,  7,  8, 9,  10,&
                                                                           11, 12, 13)

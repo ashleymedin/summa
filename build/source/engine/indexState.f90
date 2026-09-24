@@ -96,6 +96,7 @@ contains
  ! indices of model state variables
  integer(i4b)                    :: ixTopNrg               ! index of upper-most energy state in the layers
  integer(i4b)                    :: ixTopWat               ! index of upper-most total water state in the layers
+ integer(i4b)                    :: nSoilHyd               ! number of hydrologically active soil layers
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! make association with variables in the data structures
  associate(&
@@ -220,8 +221,12 @@ contains
  ixStateType(ixNrgLayer) = iname_nrgLayer
 
  ! define the state type for the domain (hydrology)
+ ! the deepest soil layers may be thermal-only bedrock, which carries no hydrology state
+ nSoilHyd = nSoil
+ if(nGlce==0) nSoilHyd = nSoil - noThetaChange
+
  ixStateType( ixHydLayer(1:(nLayers-noThetaChange)) ) = iname_watLayer
- if(nSoil>0) ixStateType( ixHydLayer((nSnow+nLake+1):(nSnow+nLake+nSoil)) ) = iname_matLayer ! refine later to be either iname_watLayer or iname_matLayer
+ if(nSoilHyd>0) ixStateType( ixHydLayer((nSnow+nLake+1):(nSnow+nLake+nSoilHyd)) ) = iname_matLayer ! refine later to be either iname_watLayer or iname_matLayer
 
  ! define the state type for the aquifer
  if(includeAquifer) ixStateType( ixWatAquifer(1) ) = iname_watAquifer
@@ -248,7 +253,7 @@ contains
  ! define the domain type for soil
  if(nSoil>0)then 
    ixDomainType( ixNrgLayer((nSnow+nLake+1):(nSnow+nLake+nSoil)) ) = iname_soil
-   ixDomainType( ixHydLayer((nSnow+nLake+1):(nSnow+nLake+nSoil)) ) = iname_soil
+   if(nSoilHyd>0) ixDomainType( ixHydLayer((nSnow+nLake+1):(nSnow+nLake+nSoilHyd)) ) = iname_soil
  endif
 
  ! define the domain type for glacier ice
@@ -282,7 +287,7 @@ contains
  ! define the index of the each control volume in the soil
  if(nSoil>0)then
   ixControlVolume( ixNrgLayer((nSnow+nLake+1):(nSnow+nLake+nSoil)) ) = ixSoilState(1:nSoil)
-  ixControlVolume( ixHydLayer((nSnow+nLake+1):(nSnow+nLake+nSoil)) ) = ixSoilState(1:nSoil)
+  if(nSoilHyd>0) ixControlVolume( ixHydLayer((nSnow+nLake+1):(nSnow+nLake+nSoilHyd)) ) = ixSoilState(1:nSoilHyd)
  endif
 
  ! define the index of the each control volume in the glacier ice
@@ -326,6 +331,7 @@ contains
  ! local variables
  integer(i4b)                                    :: iVar            ! variable index
  integer(i4b)                                    :: iLayer          ! layer index
+ integer(i4b)                                    :: nSoilHyd        ! number of hydrologically active soil layers
  integer(i4b)                                    :: ixVegWat        ! index of total water in the vegetation canopy
  integer(i4b)                                    :: ixVegLiq        ! index of liquid water in the vegetation canopy
  integer(i4b)                                    :: ixTopWat        ! index of upper-most total water state in the layers
@@ -538,7 +544,10 @@ contains
  ixSnLaSoGlHyd = ixMapFull2Subset(ixHydLayer(                  1:nLayers-noThetaChange))  ! all layers
  ixSnowOnlyHyd = ixMapFull2Subset(ixHydLayer(                  1:nSnow  ))                ! snow layers only
  ixLakeOnlyHyd = ixMapFull2Subset(ixHydLayer(            nSnow+1:nSnow+nLake))            ! lake layers only
- ixSoilOnlyHyd = ixMapFull2Subset(ixHydLayer(      nSnow+nLake+1:nSnow+nLake+nSoil))      ! soil layers only
+ ixSoilOnlyHyd = integerMissing                                                           ! thermal-only bedrock keeps no hydrology state
+ nSoilHyd = nSoil
+ if(nGlce==0) nSoilHyd = nSoil - noThetaChange
+ if(nSoilHyd>0) ixSoilOnlyHyd(1:nSoilHyd) = ixMapFull2Subset(ixHydLayer(nSnow+nLake+1:nSnow+nLake+nSoilHyd)) ! soil layers only
  ixGlceOnlyHyd = ixMapFull2Subset(ixHydLayer(nSnow+nLake+nSoil+1:nLayers-noThetaChange))  ! glce layer 1 only
 
  ! define active layers (regardless if the splitting operation is energy or mass)
