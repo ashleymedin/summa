@@ -400,8 +400,7 @@ contains
      nGlce    = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce
      nLayers  = nSnow + nLake + nSoil + nGlce
 
-     ! the aquifer temperature is optional in the initial conditions file: start it at the temperature of the water
-     ! draining into it, the bottom of the soil column floored at freezing (a column with no soil has no aquifer)
+     ! the aquifer starts at the temperature of the water draining into it
      if(scalarAquiferTemp < 0.99_rkind*realMissing)then
        if(nSoil>0)then
          scalarAquiferTemp = max(mLayerTemp(nSnow+nLake+nSoil), Tfreeze)

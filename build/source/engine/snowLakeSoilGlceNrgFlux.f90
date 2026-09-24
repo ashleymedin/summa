@@ -232,9 +232,7 @@ subroutine snowLakeSoilGlceNrgFlux(&
         select case(ix_bcLowrTdyn) ! identify the lower boundary condition for thermodynamics
           case(prescribedTemp); iLayerConductiveFlux(iLayer) = -iLayerThermalC(iLayer)*(lowerBoundTemp - mLayerTempTrial(iLayer))/(mLayerDepth(iLayer)*0.5_rkind)
           case(zeroFlux);       iLayerConductiveFlux(iLayer) = 0._rkind
-          ! geothermal heat enters from below, so the flux is negative in the positive-downwards convention. It is only applied
-          ! under a soil column: the base of a glacier column is impermeable ice with no way to drain the melt the flux would make,
-          ! and the base of a lake column is the lake bed, which the soil column below it (if any) already sees
+          ! geothermal heat enters from below, so it is negative here, and only under a soil column
           case(prescribedFlux)
             if(layerType(iLayer)==iname_soil)then
               iLayerConductiveFlux(iLayer) = -lowerBoundNrgFlux
@@ -292,9 +290,7 @@ subroutine snowLakeSoilGlceNrgFlux(&
       mLayerLakeAdvNrgFlux(:)  = 0._rkind
       dLakeAdvNrgFlux_dTemp(:) = 0._rkind
       if(domType==stream)then
-        ! Hyporheic exchange (Wade et al. 2024, EMS, eqs. 11-12): a tuned fraction of the reach flow leaves into the bed and
-        ! returns at the temperature the reach had over the previous hypLag hours, held in scalarHypTemp. Written as one more
-        ! (T_in - T_i) exchange, so it damps the diurnal signal without moving any water: the flow returns what it took.
+        ! a fraction of the reach flow returns at the temperature it had hypLag ago (Wade et al. 2024, EMS, eqs. 11-12)
         hypFlow = 0._rkind
         if(ix_hyporhTdyn==hyporheicProxy .and. scalarHypTemp > 0._rkind) hypFlow = hypFrac*(scalarStreamInflow + scalarStreamLatInflow)
         lakeLiqDepth = sum(mLayerDepth(nSnow+nLakeFrz+1:nSnow+nLake)*mLayerVolFracLiqTrial(nSnow+nLakeFrz+1:nSnow+nLake))

@@ -409,17 +409,11 @@ subroutine run_oneGRU(&
             bvar(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvar(iLookBVAR%basin__AquiferTranspire)%dat(1) + flux(iLookFLUX%scalarAquiferTranspire)%dat(1)*fracDOM
             bvar(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = bvar(iLookBVAR%basin__AquiferBaseflow)%dat(1)  + flux(iLookFLUX%scalarAquiferBaseflow)%dat(1) *fracDOM
           endif
-          ! the heat carried by this runoff, for the temperature of the water handed to the channel (W m-2 over the GRU):
-          ! surface runoff leaves at the surface layer temperature and drainage at the temperature of the bottom of the
-          ! soil column, both as liquid water, so no colder than freezing. Baseflow from a deep aquifer instead leaves at
-          ! the aquifer's own temperature, which lags and damps the soil column (see the aquifer store in coupled_em)
+          ! the heat carried by the runoff to the channel, all of it liquid water (W m-2 over the GRU)
           tempTop = max(mLayerTemp(1), Tfreeze)
           tempBot = max(mLayerTemp(nSnow+nLake+nSoil), Tfreeze)
           basinNrgFlux = basinNrgFlux + iden_water*Cp_water*fracDOM*flux(iLookFLUX%scalarSurfaceRunoff)%dat(1)*tempTop
-          ! the deep thermal state sets the temperature of the water the groundwater hands to the channel: the base of the
-          ! soil column itself with deepTherml = none, the aquifer store's own temperature with aquiferTemp, or the air
-          ! temperature scaled between its annual mean (deep groundwater) and a smoothed daily mean (the ground surface)
-          ! with airTempGW, Wade et al. (2024, EMS, eq. 9)
+          ! the deep thermal state sets the temperature of the groundwater reaching the channel
           select case(model_decisions(iLookDECISIONS%deepTherml)%iDecision)
             case(aquiferTempState)
               tempGW = max(prog(iLookPROG%scalarAquiferTemp)%dat(1), Tfreeze) ! lags and damps the soil column
@@ -442,8 +436,7 @@ subroutine run_oneGRU(&
           ! NOTE: the stream domain runs in the network pass, so these are the values of the previous step
           bvar(iLookBVAR%basin__SurfaceRunoff)%dat(1) = bvar(iLookBVAR%basin__SurfaceRunoff)%dat(1) + flux(iLookFLUX%scalarStreamRunoff)%dat(1)*fracDOM
           basinNrgFlux = basinNrgFlux + iden_water*Cp_water*fracDOM*flux(iLookFLUX%scalarStreamRunoff)%dat(1)*max(diag(iLookDIAG%scalarStreamTemp)%dat(1), Tfreeze)
-          ! remember this step's outlet temperature for the hyporheic return flow, newest first, so that the next step
-          ! averages over the residence time. The column read the buffer before this push, so it sees only past steps.
+          ! this step's outlet temperature for the hyporheic return flow, newest first
           associate(hypTempPast => bvar(iLookBVAR%hypTempPast)%dat)
             hypTempPast(2:size(hypTempPast)) = hypTempPast(1:size(hypTempPast)-1)
             hypTempPast(1) = max(diag(iLookDIAG%scalarStreamTemp)%dat(1), Tfreeze)
