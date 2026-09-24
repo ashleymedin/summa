@@ -287,3 +287,12 @@ AFTER tag of v4.0.0-exp-Sundials
      exfilDrive = totalColumnInflow + (iLayerLiqFluxSoil(0) - iLayerLiqFluxSoil(nSoil)) - totalColumnOutflow, was lateral only.
      Closes the debris-column water balance, so gulkana restart-cycles (five tested); a qTopmodl upland is unchanged in
       practice, its exfiltration identically zero either way, since the relief opens only below 2 mm available storage.
+-77) var_derive.f90 root density normalisation trims an excess but no longer fills a deficit, commit 0dd366a3 Sep 25, 2026
+     sum(mLayerRootDensity) below one means the rooting profile puts roots BELOW the soil column, which is what
+     scalarAquiferRootFrac is computed from on the next line. Redistributing that deficit back into the soil layers forced the
+     sum to exactly one and drove scalarAquiferRootFrac to zero unconditionally, so bigAquifer's aquifer transpiration term was
+     unreachable in practice - the code computes it, but the fraction it scales by was always zero.
+     The check exists to trim the excess the powerLaw profile can produce, and the sign was flipped to do that in commit
+     3b7de324 Oct 17, 2016; trimming an excess is right, filling a deficit is not.
+     Affects configurations with rootingDepth greater than the soil depth under rootProfil=doubleExp. powerLaw clamps the
+     rooting depth to the soil depth and so cannot produce a deficit at all.
