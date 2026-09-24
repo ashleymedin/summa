@@ -7,7 +7,7 @@ settingsPath         '../domain_sagehen1/settings/SUMMA/' ! relative to MODFLOW_
 forcingPath          '../domain_sagehen1/forcing/SUMMA_input/' !
 outputPath           '../domain_sagehen1/simulations/run_1/SUMMA/' !
 initConditionFile    'coldState.nc' ! Relative to settingsPath
-attributeFile        'attributes.nc' ! Relative to settingsPath
+attributeFile        'attributes_deeproot.nc' ! Relative to settingsPath
 trialParamFile       'trialParams.nc' ! Relative to settingsPath
 forcingListFile      'forcingFileList.txt' ! Relative to settingsPath
 decisionsFile        'modelDecisions_deeproot.txt' ! Relative to settingsPath
