@@ -338,6 +338,8 @@ contains
  integer(i4b),allocatable                  :: frzData2(:,:)                 ! number of frozen lake layers in the file (dom,hru)
  logical(lgt)                              :: no_frzData                    ! flag that the number of frozen lake layers is not in the file
  integer(i4b)                              :: noThetaChange                 ! number of layers with no change in total water content (bottom layers)
+ integer(i4b)                              :: nBedrock                      ! number of thermal-only bedrock layers at the base of the soil column
+ integer(i4b),allocatable                  :: bedData2(:,:)                 ! number of bedrock layers in the file (dom,hru)
  integer(i4b)                              :: nTDH                          ! number of points in time-delay 
  integer(i4b)                              :: nGlac                         ! number of glaciers in basin
  integer(i4b)                              :: fileglac                      ! max number of glaciers in any GRU
@@ -591,6 +593,20 @@ else
   if(err/=nf90_noerr)then; message=trim(message)//'problem reading nLakeFrz'; return; endif
  endif
  err = nf90_noerr
+
+ ! the number of thermal-only bedrock layers is optional: none when absent
+ allocate(bedData2(fileDOM,fileHRU)); bedData2 = 0
+ err = nf90_inq_varid(ncid,trim(indx_meta(iLookINDEX%nBedrock)%varName),ncVarID)
+ if(err==nf90_noerr)then
+  if(no_dom)then
+   err = nf90_get_var(ncid,ncVarID,bedData2(1,:)); call netcdf_err(err,message)
+  else
+   err = nf90_get_var(ncid,ncVarID,bedData2);      call netcdf_err(err,message)
+  endif
+  if(err/=nf90_noerr)then; message=trim(message)//'problem reading nBedrock'; return; endif
+ endif
+ err = nf90_noerr
+
  do iGRU = 1,nGRU_local
   do iHRU = 1,gru_struc(iGRU)%hruCount
    iHRU_global = index_to_hrunc(iGRU,iHRU) ! index of HRU in the netcdf file
@@ -613,13 +629,21 @@ else
     endif
 
     ! define layers that will not have a change in total water content
+    nBedrock = bedData2(iDOM,iHRU_global)
     noThetaChange = 0
     if(nGlce>0)then
       noThetaChange = nGlce - nMeltingIceLayers
       ! need at least one glacier top layer with a theta change
       if(noThetaChange>=nGlce)then; err=20; message=trim(message)//'number of glacier ice layers without a change in total water content is not less than the number of glacier ice layers'; return; endif
+      if(nBedrock>0)then; err=20; message=trim(message)//'bedrock layers are for a soil column: a glacier domain already has thermal-only ice layers'; return; endif
+      nBedrock = 0
+    elseif(nBedrock>0)then
+      ! the bedrock layers are the deepest soil layers, and at least one soil layer keeps its hydrology
+      if(nBedrock>=nSoil)then; err=20; message=trim(message)//'nBedrock must leave at least one hydrologically active soil layer'; return; endif
+      noThetaChange = nBedrock
     endif
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%noThetaChange)%dat(1) = noThetaChange
+    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nBedrock)%dat(1)      = nBedrock
 
     ! set layer type
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%layerType)%dat(1:nSnow) = iname_snow

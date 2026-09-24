@@ -22,6 +22,9 @@ module check_icond_module
 USE nr_type
 
 ! access missing values
+USE globalData,only:model_decisions  ! model decision structure
+USE var_lookup,only:iLookDECISIONS   ! named variables for elements of the decision structure
+USE mDecisions_module,only:prescribedFlux ! prescribed energy flux at the lower boundary
 USE globalData,only:integerMissing   ! missing integer
 USE globalData,only:realMissing      ! missing real number
 
@@ -127,6 +130,8 @@ contains
  integer(i4b)                              :: nSnow                      ! number of snow layers
  integer(i4b)                              :: nLake                      ! number of lake layers
  integer(i4b)                              :: nLakeFrz                   ! number of frozen (ice cover) lake layers
+ integer(i4b)                              :: nBedrock                   ! number of thermal-only bedrock layers
+ integer(i4b)                              :: iTop                       ! index of the deepest hydrologically active soil layer
  integer(i4b)                              :: nSoil                      ! number of soil layers
  integer(i4b)                              :: nGlce                      ! number of glacier ice layers
  integer(i4b)                              :: nLayers                    ! total number of layers
@@ -399,6 +404,21 @@ contains
      nSoil    = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
      nGlce    = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce
      nLayers  = nSnow + nLake + nSoil + nGlce
+
+     ! bedrock starts on the steady gradient the geothermal flux holds, so it needs no spin-up
+     nBedrock = indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nBedrock)%dat(1)
+     if(nBedrock>0 .and. model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision==prescribedFlux)then
+       associate(&
+         mLayerHeight      => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerHeight)%dat          ,& ! height of the layer mid-points (m)
+         lowerBoundNrgFlux => mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%lowerBoundNrgFlux)%dat(1) ,& ! geothermal heat flux (W m-2)
+         thCond_soil       => mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%thCond_soil)%dat           ) ! thermal conductivity of soil (W m-1 K-1)
+         iTop = nSnow + nLake + nSoil - nBedrock
+         do iLayer = iTop+1, nSnow+nLake+nSoil
+           mLayerTemp(iLayer) = mLayerTemp(iTop) &
+                                + lowerBoundNrgFlux*(mLayerHeight(iLayer) - mLayerHeight(iTop))/thCond_soil(iLayer-nSnow-nLake)
+         end do
+       end associate
+     endif
 
      ! the aquifer starts at the temperature of the water draining into it
      if(scalarAquiferTemp < 0.99_rkind*realMissing)then

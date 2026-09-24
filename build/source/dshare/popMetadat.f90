@@ -911,6 +911,7 @@ subroutine popMetadat(err,message)
   indx_meta(iLookINDEX%numberScalarSolutions) = var_info('numberScalarSolutions', 'number of scalar solutions'                                              , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%domType)               = var_info('domType'              , 'horizontal domain type (upland, glacier, wetland, stream)'               , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   indx_meta(iLookINDEX%nLakeFrz)              = var_info('nLakeFrz'             , 'number of frozen (ice cover) lake layers at the top of the lake'         , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  indx_meta(iLookINDEX%nBedrock)              = var_info('nBedrock'             , 'number of thermal-only bedrock layers at the base of the soil column'    , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
 
   ! read file to define model output (modifies metadata structures)
   call read_output_file(err,cmessage)
