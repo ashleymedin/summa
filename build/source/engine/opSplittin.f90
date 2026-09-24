@@ -105,7 +105,7 @@ integer(i4b),parameter  :: soilSplit=4                ! order in sequence for th
 integer(i4b),parameter  :: glceSplit=5                ! order in sequence for the ice split
 integer(i4b),parameter  :: aquiferSplit=6             ! order in sequence for the aquifer split
 integer(i4b),parameter  :: iDomainSplit_nrg_map(6) =(/vegSplit,snowSplit,lakeSplit,soilSplit,glceSplit,aquiferSplit/) ! mapping of the energy split order
-integer(i4b),parameter  :: iDomainSplit_mass_map(6)=(/vegSplit,glceSplit,lakeSplit,snowSplit,soilSplit,aquiferSplit/) ! mapping of the mass split order
+integer(i4b),parameter  :: iDomainSplit_mass_map(6)=(/vegSplit,glceSplit,snowSplit,lakeSplit,soilSplit,aquiferSplit/) ! mapping of the mass split order: glacier melt rises into the layers above, the rest drains down
 
 ! named variables for the solution method
 integer(i4b),parameter  :: vector=1                   ! vector solution method
@@ -1195,15 +1195,15 @@ subroutine opSplittin(&
       fluxMask%var(iVar)%dat = .false. ! initialize to .false.
       if (desiredFlux) then ! only need to proceed if the flux is desired
        select case(iDomainSplit_use) ! different domain splitting operations
-        case(vegSplit) ! canopy fluxes -- (:1) gets the upper boundary(0) if it exists
+        case(vegSplit) ! canopy fluxes -- (:1) gets the upper boundary(0) if it exists, and a flux of a domain with no layers has none
          if (ixSolution==vector) then ! vector solution (should only be present for energy)
-          fluxMask%var(iVar)%dat(:1) = desiredFlux
+          if (size(fluxMask%var(iVar)%dat)>0) fluxMask%var(iVar)%dat(:1) = desiredFlux
           if (ixStateThenDomain>1 .and. iStateTypeSplit/=nrgSplit) then
            message=trim(message)//'only expect a vector solution for the vegetation domain for energy'
            err=20; return_flag=.true.; return
           end if
          else                         ! scalar solution
-          fluxMask%var(iVar)%dat(:1) = desiredFlux
+          if (size(fluxMask%var(iVar)%dat)>0) fluxMask%var(iVar)%dat(:1) = desiredFlux
          end if
         case(snowSplit,lakeSplit,soilSplit,glceSplit) ! fluxes through layers
 
@@ -1234,6 +1234,17 @@ subroutine opSplittin(&
              case(iLookVarType%midGlce,iLookVarType%ifcGlce); if (iLayer<=nLayers           .and. iLayer>nSnow+nLake+nSoil) fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
             end select
 
+            ! bedrock carries no hydrology state, so its soil fluxes are the zeros computFlux writes, accounted here
+            if (iDomainSplit_use==soilSplit .and. iStateTypeSplit==massSplit) then
+             associate(nBedrock => indx_data%var(iLookINDEX%nBedrock)%dat(1))
+              if (nBedrock>0) then
+               select case(flux_meta(iVar)%varType)
+                case(iLookVarType%midSoil,iLookVarType%ifcSoil); fluxMask%var(iVar)%dat(nSoil-nBedrock+1:nSoil) = desiredFlux
+               end select
+              end if
+             end associate
+            end if
+
             ! add hydrology states for scalar variables
             if (iStateTypeSplit==massSplit .and. flux_meta(iVar)%varType==iLookVarType%scalarv) then
              select case(iDomainSplit_use) ! need to list all the snow, lake, glce variables (not all soil)
@@ -1255,11 +1266,11 @@ subroutine opSplittin(&
                 end if
               case(soilSplit)
                 if(nSoil>0)then
-                  ! variables that change with the bottom layer 
+                  ! variables that change with the bottom layer, which is the deepest one that carries water
                   if(iVar==iLookFLUX%scalarSoilDrainage .or. iVar==iLookFLUX%scalarAquiferRecharge &
                     .or. iVar==iLookFLUX%scalarSoilBaseflow & ! baseflow changes with all layers so compute after the bottom layer
                     .or. (iVar==iLookFLUX%scalarGlacierMelt .and. nGlce>0))then
-                    if(iLayer==nSnow+nLake+nSoil) fluxMask%var(iVar)%dat = desiredFlux
+                    if(iLayer==nSnow+nLake+nSoil-indx_data%var(iLookINDEX%nBedrock)%dat(1)) fluxMask%var(iVar)%dat = desiredFlux
                   ! other scalar variables in the soil domain change with the surface layer
                   elseif(iLayer==nSnow+nLake+1)then
                     fluxMask%var(iVar)%dat = desiredFlux
