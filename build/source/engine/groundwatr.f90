@@ -423,33 +423,19 @@ subroutine computBaseflow(&
     ! compute the outflow from each layer (m3 s-1)
     mLayerColumnOutflow(1:nSoil) = trSoil(1:nSoil)*tan_slope*contourLength
 
-    ! ***** cap the outflow at the water the layer can actually supply *****
-    ! The transmissivity profile sets the outflow from the conductivity and the water table thickness, with nothing
-    ! tying it to the water that is there: a thin layer of high conductivity on a steep slope (glacier debris, where
-    ! kAnisotropic is ten times larger and the field capacity is zero) can be asked for more water than it holds over
-    ! the step, and the soil mass balance then fails. Cap each layer at its own drainable water spread over the data
-    ! step, the longest it drains before the outflow is recomputed:
-    !     q_capped = q_max * tanh(q/q_max)
-    ! which is q where the layer has water to spare and tends to q_max where it does not.
-    ! NOTE: this is smoothed like the exfiltration below, but not with that logistic. A logistic smooth minimum,
-    !       f*q + (1-f)*q_max with f = 1/(1+exp((q-q_max)/w)), is not monotone in q: its derivative turns negative
-    !       just past the cap, and the solver cannot then find a step. tanh is the same smooth minimum with the same
-    !       two limits and a derivative that stays in (0,1], and it needs no width parameter, since the layer's own
-    !       capacity sets the scale.
+    ! cap each layer's outflow at the drainable water it holds over the data step, smoothly
     do iLayer=1,nSoil
-      dCap_dOutflow(iLayer) = 1._rkind ! no cap: the outflow passes through unchanged
+      dCap_dOutflow(iLayer) = 1._rkind
       dCap_dLiq(iLayer)     = 0._rkind
       qOutflow    = mLayerColumnOutflow(iLayer)/area                                                          ! m s-1
       qOutflowMax = mLayerDepth(iLayer)*max(0._rkind, mLayerVolFracLiq(iLayer) - fieldCapacity_use)/data_step ! m s-1
-      ! a layer at or below field capacity has no drainable water, and the transmissivity profile already gives it
-      ! no outflow, so there is nothing to cap
       if(qOutflow > 0._rkind .and. qOutflowMax > tiny(qOutflowMax))then
         xCap  = qOutflow/qOutflowMax
         tCap  = tanh(xCap)
-        sqCap = 1._rkind - tCap*tCap ! sech^2, the derivative of tanh
+        sqCap = 1._rkind - tCap*tCap ! sech^2
         mLayerColumnOutflow(iLayer) = qOutflowMax*tCap*area
-        dCap_dOutflow(iLayer) = sqCap                                                  ! d(q_capped)/dq
-        dCap_dLiq(iLayer)     = (tCap - xCap*sqCap)*mLayerDepth(iLayer)/data_step      ! d(q_capped)/d(volFracLiq)
+        dCap_dOutflow(iLayer) = sqCap                                             ! d(q_capped)/dq
+        dCap_dLiq(iLayer)     = (tCap - xCap*sqCap)*mLayerDepth(iLayer)/data_step ! d(q_capped)/d(volFracLiq)
       end if
     end do
 
@@ -472,17 +458,7 @@ subroutine computBaseflow(&
       dLogFunc_dWat(:) = 0._rkind
     end if
 
-    ! ***** compute the exfiltration (m s-1) *****
-    ! A column with no room left has to return the water it cannot take. The surplus is everything arriving minus
-    ! everything leaving sideways: the lateral inflow from upslope, plus the net gain across the column's own top and
-    ! bottom faces, less the lateral outflow. Taking the vertical part as the difference of the two boundary fluxes is
-    ! what makes this the surplus the mass balance sees, since that is the same pair the balance check uses: it counts
-    ! rain and melt soaking in at the surface, less evaporation, and the glacier melt entering the base of a debris
-    ! column, which is negative drainage.
-    ! NOTE: before this, only the lateral inflow counted, so a column filled from its own surface or from the ice
-    !       beneath it had nothing to relieve it: it saturated, and the water it could not store left the mass balance
-    !       instead of the column. A column fed only from upslope, which is what the original expression assumed, is
-    !       unaffected, since the vertical term is then the small net of infiltration against evaporation.
+    ! the surplus a nearly full column returns: everything arriving, less what leaves sideways (m s-1)
     exfilDrive = totalColumnInflow + (iLayerLiqFluxSoil(0) - iLayerLiqFluxSoil(nSoil)) - totalColumnOutflow
     if (exfilDrive > 0._rkind .and. logF > tiny(1._rkind)) then
       scalarExfiltration = logF*exfilDrive  ! m s-1
@@ -532,8 +508,7 @@ subroutine computBaseflow(&
       end do  ! end looping through soil layers
     end do  ! end looping through soil layers
 
-    ! carry the cap on the outflow into the derivatives: the whole row scales by d(q_capped)/dq, and the cap's own
-    ! dependence on this layer's liquid water adds to the diagonal, through the same chain rule as the terms above
+    ! carry the cap into the derivatives: the row scales by d(q_capped)/dq, the cap's own dependence adds to the diagonal
     do iLayer=1,nSoil
       dBaseflow_dVolLiq(iLayer,:) = dBaseflow_dVolLiq(iLayer,:)*dCap_dOutflow(iLayer)
       dBaseflow_dWat(iLayer,:)    = dBaseflow_dWat(iLayer,:)   *dCap_dOutflow(iLayer)
@@ -555,8 +530,7 @@ subroutine computBaseflow(&
     end if
 
     ! compute the derivative in the exfiltration flux and add to the baseflow derivative matrix
-    ! NOTE: the vertical boundary fluxes are taken as given here, as the lateral inflow always was: their derivatives
-    !       belong to soilLiqFlux and are already in the Jacobian through the layer fluxes themselves
+    ! NOTE: the vertical boundary fluxes are taken as given, as the lateral inflow is
     if (exfilDrive > 0._rkind .and. logF > tiny(1._rkind)) then
       do iLayer=1,nSoil
         dExfiltrate_dWat(iLayer) = -sum(dBaseflow_dWat(1:nSoil,iLayer))*logF + dLogFunc_dWat(iLayer)*exfilDrive
