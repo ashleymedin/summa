@@ -348,10 +348,7 @@ subroutine computBaseflow(&
     ix_hc_profile = model_decisions(iLookDECISIONS%hc_profile)%iDecision
     if(nGlce>0) ix_hc_profile = expLaw_profile ! must match the override in satHydCond
 
-    ! the transmissivity integrals below are written in terms of the conductivity at the soil surface, but
-    ! mLayerSatHydCondMP(1) is the macropore value at the first layer midpoint, already scaled by the depth
-    ! profile. satHydCond applies that same scaling to the micropore conductivity, and evaluates it at both
-    ! the midpoint and the surface interface, so their ratio recovers the surface value for any profile.
+    ! the transmissivity integrals want the conductivity at the soil surface, which this ratio recovers for any profile
     surfaceHydCond_use = surfaceHydCond*iLayerSatHydCond(0)/mLayerSatHydCond(1)
 
     ! compute the water table thickness (m) in each layer, working from the bottom of the profile up
@@ -382,10 +379,7 @@ subroutine computBaseflow(&
         xTrans(1:nSoil) = exp(-f_hydCond*(soilDepth - zActive(1:nSoil))) - exp(-f_hydCond*soilDepth)
         dXdS(1:nSoil)   = soilDepth*f_hydCond*exp(-f_hydCond*(soilDepth - zActive(1:nSoil)))
 
-      ! power-law transmissivity, the classical TOPMODEL-ish form (Ambroise et al. 1996), the integral of
-      !  K_0*(1-z/D)**(zScale_TOPMODEL-1) over the saturated thickness
-      ! NOTE: this is the exact integral of the profile satHydCond builds, which decays to zero at the base
-      !       of the soil; that zero is the Beven-Kirkby premise of the shallow aquifer, not an artifact
+      ! power-law transmissivity (Ambroise et al. 1996), the integral of K_0*(1-z/D)**(zScale_TOPMODEL-1), zero at the base
       case(powerLaw_profile)
         tran0 = kAnisotropic_use*surfaceHydCond_use*soilDepth/zScale_TOPMODEL
         xTrans(1:nSoil) = (zActive(1:nSoil)/soilDepth)**zScale_TOPMODEL

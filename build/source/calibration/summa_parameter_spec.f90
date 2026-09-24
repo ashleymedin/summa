@@ -110,11 +110,8 @@ contains
     endif
 
     ! -----------------------------------------------------------------------------------------------
-    ! Populate master parameter registry from SUMMA metadata.
-    !
-    ! trial_value is initialized from the SUMMA default. For sampled parameters this value is not
-    ! used during sampling. For non-sampled constraint parameters it becomes the scalar value that
-    ! will be applied across the model domain for every trial.
+    ! Populate master parameter registry from SUMMA metadata; trial_value starts at the SUMMA default,
+    ! which a non-sampled constraint parameter keeps for every trial
     ! -----------------------------------------------------------------------------------------------
     allocate(spec%params(nParam),stat=err)
     if(err/=0)then
@@ -138,9 +135,7 @@ contains
     enddo
 
     ! -----------------------------------------------------------------------------------------------
-    ! Apply configured parameter transformations.
-    !
-    ! Transformations are meaningful only for sampled parameters.
+    ! Apply configured parameter transformations, which are meaningful only for sampled parameters
     ! -----------------------------------------------------------------------------------------------
     if(allocated(config%calib%param_transform))then
       do i=1,size(config%calib%param_transform)

@@ -298,16 +298,8 @@ contains
   time_conv   = 1._rkind   ! no conversion needed: summa runoff time = s-1
  
   ! -----------------------------------------------------------------------
-  ! Initialize the mizuRoute domain
-  !
-  ! This performs the major mizuRoute initialization operations, including:
-  !   - reading routing configuration and parameter information
-  !   - reading the river-network topology
-  !   - constructing the river-network data structures
-  !   - allocating the runoff and river-routing data structures
-  !   - populating the host-model runoff IDs
-  !   - reading spatial-remapping information, when required
-  !   - constructing the indices required for spatial remapping
+  ! Initialize the mizuRoute domain: configuration, river-network topology and data structures,
+  ! runoff and routing arrays, host-model runoff IDs, and the spatial remapping when required
   ! -----------------------------------------------------------------------
   call init_mizuroute_domain(summaStruct%instance_parallel%rank, &
                              info, domain, nSpace, n_write,      &

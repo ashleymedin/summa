@@ -1050,11 +1050,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           end select
           scalarIce = merge(stateVecPrev(ixSnLaSoGlHyd(iLayer)) - scalarLiq,mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
           ! checking if drain more than what is available or add more than possible, constrained iteration increment -- simplified bi-section
-          ! NOTE: the upper bound is the air space of the layer, 1 - ice - liq, which water entering the layer may fill. Snow and
-          !       glacier ice hold air (snow compacts and glacier ice thins keeping its fractions, so the space stays positive),
-          !       and the bound stands. A lake layer holds no air: its depth is set to its mass between steps (lakeResize), so
-          !       the space is zero and, while ice forming in the water or melt collecting in the ice cover exceeds the layer
-          !       volume within a step, negative, which would push water out of the layer. So no upper bound for lake layers.
+          ! NOTE: the upper bound is the air space 1 - ice - liq, which a lake layer does not have, so it has no upper bound
           if(-xInc(ixSnLaSoGlHyd(iLayer)) > scalarLiq) then
             xInc(ixSnLaSoGlHyd(iLayer)) = -0.5_rkind*scalarLiq
           elseif(xInc(ixSnLaSoGlHyd(iLayer)) > 1._rkind - scalarIce - scalarLiq .and. .not.(jLayer>nSnow .and. jLayer<=nSnow+nLake))then

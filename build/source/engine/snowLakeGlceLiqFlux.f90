@@ -337,10 +337,7 @@ subroutine lakeLiqFlux(&
 
     else if(domType==wetland)then
       ! ***** wetland: sub-GRU lake or pothole, mass balance solved here
-      ! Intended interface: surface_flux is the inflow at the top (rain, melt, and the upland runoff of the same HRU);
-      ! the interface fluxes within the lake are zero (well mixed); the bottom flux is the seepage to the soil,
-      ! and spill over the outlet leaves from the top layer; the area then follows the stored volume
-      ! (updateLakeArea in run_oneGRU).
+      ! surface_flux is the inflow, the interior fluxes are zero, the bottom flux is seepage, spill leaves the top layer
       err=20; message=trim(message)//'wetland lake mass balance not implemented'; return
 
     else

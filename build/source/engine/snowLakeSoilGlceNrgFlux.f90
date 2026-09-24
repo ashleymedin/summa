@@ -278,14 +278,8 @@ subroutine snowLakeSoilGlceNrgFlux(&
     ! -------------------------------------------------------------------------------------------------------------------------
     ! ***** compute the advective energy source in the lake layers of a stream *****
     ! -------------------------------------------------------------------------------------------------------------------------
-    ! The reach is a well-mixed water column (Wanders et al. 2019, after van Beek et al. 2012): water arriving from upstream
-    ! (Q_up at T_up), from the local catchment (q_lat at T_lat) and from the surface (rain and melt, q_sfc at T_sfc) is mixed
-    ! into the liquid part of the column and the same amount leaves at the column temperature, so per unit volume of layer i
-    !     S_i = w_i * rho_w c_p [ Q_up (T_up - T_i) + q_lat (T_lat - T_i) + q_sfc (T_sfc - T_i) ] / (A h_liq)
-    ! with w_i the layer's share of the liquid depth h_liq. The ice cover (the top nLakeFrz lake layers) takes no part:
-    ! the flow continues beneath it. Writing the exchange as (T_in - T_i)
-    ! rather than as separate inflow and outflow enthalpies is what lets the liquid depth be reset from the reach volume
-    ! between steps without an energy imbalance.
+    ! a well-mixed column (Wanders et al. 2019, after van Beek et al. 2012), each inflow as w_i*rho_w*c_p*Q*(T_in - T_i)/(A*h_liq)
+    ! the ice cover, the top nLakeFrz lake layers, takes no part
     if(nLake>0)then
       mLayerLakeAdvNrgFlux(:)  = 0._rkind
       dLakeAdvNrgFlux_dTemp(:) = 0._rkind

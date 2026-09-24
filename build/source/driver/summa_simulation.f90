@@ -206,11 +206,7 @@ contains
       return
     endif
 
-    ! calibration run: send model chatter to stderr so stdout carries only the metric.
-    ! NOTE: only when logging is still going to stdout. A caller that has already chosen a
-    !       destination -- the calibration driver opens a per-rank log file -- owns iulog,
-    !       and overwriting it here left that file open and closed the caller's stderr
-    !       instead, which is how stray fort.0 files appeared.
+    ! calibration run: send model chatter to stderr so stdout carries only the metric, unless a caller owns iulog
     if(iulog == output_unit) iulog = error_unit
 
     ! read observed streamflow
