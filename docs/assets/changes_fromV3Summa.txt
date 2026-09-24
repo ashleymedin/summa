@@ -279,3 +279,18 @@ AFTER tag of v4.0.0-exp-Sundials
      NOTE: smoothed with tanh rather than the logistic the exfiltration uses, because the logistic smooth minimum
       f*q + (1-f)*q_max is not monotone in q (its derivative turns negative just past the cap) and the solver cannot
       then find a step; tanh has the same two limits, a derivative in (0,1], and needs no width parameter.
+ 69) Scale the infiltration closure to the depth of the zone it averages over
+     The closure that shuts infiltration off under saturation with a blocked lower boundary began at a fixed metre of
+      positive head, which a soil column can hold but a glacier debris veneer cannot: debris is as thin as min_thickness
+      (20 mm), so it would have to pond tens of times its own thickness before the closure engaged, and the water it
+      could not store was lost from the balance instead. The cutoff is now min(1 m, rootZoneDepth) and the smoothing
+      width min(0.02 m, a quarter of that cutoff), narrow enough to leave the closure off while the zone is unsaturated
+      and wide enough that the solver can still step across it.
+     Only binds where the root zone is shallower than a metre, and only where the block already applied (a blocked lower
+      boundary, or any glacier domain), so a free-draining soil column is untouched.
+     On gulkana this cuts the infiltration into a saturated debris column from 0.59 to 0.07 kg m-2 over the step. It does
+      NOT close the debris-column mass balance: the melt arriving through the lower boundary then grows to fill the same
+      gap, because that boundary flux is clamped into [scalarGlceMelt, 0] and acts as a slack variable rather than an
+      independent flux. Giese et al. (2020, The Cryosphere 14:1555) avoid this by adding the melt of the top ice layer to
+      the overlying debris as a mass source, with the Darcy conductivity at the debris-ice interface set to zero in both
+      directions, and by giving every debris layer a linear-reservoir runoff sink.
