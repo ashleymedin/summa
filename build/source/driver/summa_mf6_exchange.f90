@@ -74,6 +74,7 @@ module summa_mf6_exchange
   public :: mf6x_put_surface_discharge
   public :: mf6x_get_aquifer_transpire
   public :: mf6x_put_aquifer_transpire
+  public :: mf6x_put_transpire_lim_aqfr
 
 contains
 
@@ -360,6 +361,37 @@ contains
       end do
     end do
   end subroutine mf6x_put_aquifer_transpire
+
+  ! **************************************************************************************************
+  ! Aquifer transpiration limiting factor from the coupled MODFLOW 6 model (-), per HRU.
+  !
+  ! The coupler evaluates the water-table ramp CELL BY CELL and sends the map-weighted mean, because
+  ! the ramp is clipped and therefore nonlinear: f(mean psi) is not mean f(psi) whenever the water
+  ! table varies inside an HRU, and on a real basin it varies by tens of metres.  soilResist uses
+  ! this value directly for the coupled decisions instead of deriving one from the mean water table,
+  ! which makes a single lumped HRU as accurate on this term as one HRU per MODFLOW cell.
+  !
+  ! It is written into diagStruct, where soilResist reads it back as an input.  Nothing in
+  ! coupled_em or varSubstep resets scalarTranspireLimAqfr between steps, so unlike the flux
+  ! channels this one does not need a globalData side-channel.
+  ! **************************************************************************************************
+  subroutine mf6x_put_transpire_lim_aqfr(summa_struct, limit)
+    type(summa1_type_dec), intent(inout) :: summa_struct
+    real,                  intent(in)    :: limit(:)
+    integer(i4b) :: iGRU, jHRU, iDOM, i
+    associate(diagStruct => summa_struct%diagStruct, &
+              indxStruct => summa_struct%indxStruct)
+      do iGRU = 1, summa_struct%nGRU_local
+        do jHRU = 1, gru_struc(iGRU)%hruCount
+          i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
+          do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
+            if (indxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1) == 0) &
+              diagStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookDIAG%scalarTranspireLimAqfr)%dat(1) = limit(i)
+          end do
+        end do
+      end do
+    end associate
+  end subroutine mf6x_put_transpire_lim_aqfr
 
   ! **************************************************************************************************
   ! SUMMA's aquifer transpiration DEMAND, per HRU (m s-1, + = out of aquifer).

@@ -52,6 +52,7 @@ module summabmi
   USE summa_mf6_exchange, only: mf6x_put_surface_discharge
   USE summa_mf6_exchange, only: mf6x_get_aquifer_transpire
   USE summa_mf6_exchange, only: mf6x_put_aquifer_transpire
+  USE summa_mf6_exchange, only: mf6x_put_transpire_lim_aqfr
   USE summa_mf6_exchange, only: mf6x_get_drainage
   USE summa_mf6_exchange, only: mf6x_put_lower_bound_head
   USE summa_mf6_exchange, only: mf6x_put_aquifer_storage
@@ -244,9 +245,9 @@ module summabmi
   ! NOTE: the final input item ('soil_water_sat-zone_top__head') is only used by the coupled
   !       MODFLOW 6 driver (summa_modflow6); it is harmless for other drivers, which never set it.
 #ifdef NGEN_ACTIVE
-  integer, parameter :: input_item_count = 12
+  integer, parameter :: input_item_count = 13
 #else
-  integer, parameter :: input_item_count = 11
+  integer, parameter :: input_item_count = 12
 #endif
   integer, parameter :: output_item_count = 18
   character (len=BMI_MAX_VAR_NAME), target,dimension(input_item_count)  :: input_items
@@ -619,11 +620,13 @@ module summabmi
      ! MODFLOW 6 solution (groundwatr="modflow" or "modLatFlow"): aquifer baseflow flux (m s-1) and
      ! relative aquifer storage (m).  (Recharge is not exchanged - it equals the
      ! SUMMA soil drainage, which SUMMA already has.)
-     input_items(input_item_count-2) = 'land_surface_water__baseflow_volume_flux'
-     input_items(input_item_count-1) = 'aquifer_water__storage_thickness'
+     input_items(input_item_count-3) = 'land_surface_water__baseflow_volume_flux'
+     input_items(input_item_count-2) = 'aquifer_water__storage_thickness'
      ! groundwater discharge at land surface (m s-1), from a MODFLOW boundary package with
      ! role = surface_discharge (a DRN at DIS/TOP).  Added to SUMMA's surface runoff.
-     input_items(input_item_count)   = 'land_surface_water__domain_outflow_volume_flux'
+     input_items(input_item_count-1) = 'land_surface_water__domain_outflow_volume_flux'
+     ! aquifer transpiration limiting factor (-), evaluated per MODFLOW cell by the coupler
+     input_items(input_item_count)   = 'land_vegetation_water__aquifer_transpiration_limit'
 
      names => input_items
      bmi_status = BMI_SUCCESS
@@ -1056,6 +1059,7 @@ module summabmi
      case('land_surface_water__domain_outflow_volume_flux'); units = 'm s-1'     ; bmi_status = BMI_SUCCESS
      case('soil_water__drainage_volume_flux')              ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
      case('land_vegetation_water__aquifer_transpiration_volume_flux') ; units = 'm s-1' ; bmi_status = BMI_SUCCESS
+     case('land_vegetation_water__aquifer_transpiration_limit') ; units = '-'   ; bmi_status = BMI_SUCCESS
      case default; units = "-"; bmi_status = BMI_FAILURE
      end select
    end function summa_var_units
@@ -1429,6 +1433,8 @@ module summabmi
        call mf6x_put_surface_discharge(this%model%summa1_struc(n), src_arr); return
      case('land_vegetation_water__aquifer_transpiration_volume_flux')  ! groundwater ET MODFLOW actually supplied
        call mf6x_put_aquifer_transpire(this%model%summa1_struc(n), src_arr); return
+     case('land_vegetation_water__aquifer_transpiration_limit')  ! cell-wise aquifer transpiration limiting factor
+       call mf6x_put_transpire_lim_aqfr(this%model%summa1_struc(n), src_arr); return
      end select
 
      summaVars: associate(&

@@ -168,6 +168,7 @@ subroutine vegNrgFlux(&
   real(rkind),parameter              :: condHeadWidth=0.02_rkind        ! smoothing width for condensation-to-soil closure (m)
   real(rkind),parameter              :: condHeadSmooth=1.e-4_rkind      ! smoothing for max(psi,0) approximation (m)
   ! saturation vapor pressure of veg
+  real(rkind)                           :: aqfrLimCpl                   ! aquifer transpiration limiting factor supplied by the MODFLOW coupler (-)
   real(rkind)                        :: TV_celcius                      ! vegetaion temperature (C)
   real(rkind)                        :: TG_celcius                      ! ground temperature (C)
   real(rkind)                        :: dSVPCanopy_dCanopyTemp          ! derivative in canopy saturated vapor pressure w.r.t. vegetation temperature (Pa/K)
@@ -318,7 +319,6 @@ subroutine vegNrgFlux(&
     critSoilTranspire               => mpar_data%var(iLookPARAM%critSoilTranspire)%dat(1),             & ! intent(in): [dp] critical vol. liq. water content when transpiration is limited (-)
     critAquiferTranspire            => mpar_data%var(iLookPARAM%critAquiferTranspire)%dat(1),          & ! intent(in): [dp] critical aquifer storage value when transpiration is limited (m)
     rootingDepth                    => mpar_data%var(iLookPARAM%rootingDepth)%dat(1),                  & ! intent(in): [dp] rooting depth (m)
-    lowerBoundHead                  => mpar_data%var(iLookPARAM%lowerBoundHead)%dat(1),                & ! intent(in): [dp] matric head at the base of the soil column (m); set from the MODFLOW water table when coupled
     iLayerHeight                    => prog_data%var(iLookPROG%iLayerHeight)%dat,                     & ! intent(in): [dp(0:)] height of each layer interface (m), for the soil-column depth
     minStomatalResistance           => mpar_data%var(iLookPARAM%minStomatalResistance)%dat(1),         & ! intent(in): [dp] mimimum stomatal resistance (s m-1)
     ! input: forcing at the upper boundary
@@ -721,6 +721,9 @@ subroutine vegNrgFlux(&
         !         (3) stomatal resistance does not change rapidly
         if (firstFluxCall) then
           if (nSoil>0) then ! could have soil with lake, need values for aquifer
+            ! the coupler-supplied aquifer limiting factor is read before the call, because soilResist
+            ! also writes scalarTranspireLimAqfr as an output and the two would otherwise alias
+            aqfrLimCpl = scalarTranspireLimAqfr
             ! compute soil moisture factor controlling stomatal resistance, and for transpiration limiting factor in aquifer and soil
             call soilResist(&
                             ! input (model decisions)
@@ -740,7 +743,7 @@ subroutine vegNrgFlux(&
                             critSoilTranspire,                 & ! intent(in):  critical vol. liq. water content when transpiration is limited (-)
                             critAquiferTranspire,              & ! intent(in):  critical aquifer storage value when transpiration is limited (m)
                             max(rootingDepth - (iLayerHeight(nSnow+nLake+nSoil) - iLayerHeight(nSnow+nLake)), 0._rkind), & ! intent(in): how far roots reach below the soil column (m)
-                            lowerBoundHead,                    & ! intent(in):  matric head at the base of the soil column (m)
+                            aqfrLimCpl,                        & ! intent(in):  limiting factor supplied by the MODFLOW coupler (-)
                             ! output
                             scalarTranspireLim,                & ! intent(out): weighted average of the transpiration limiting factor (-)
                             mLayerTranspireLim(1:nSoil),       & ! intent(out): transpiration limiting factor in each layer (-)
@@ -1864,7 +1867,7 @@ subroutine soilResist(&
                       critSoilTranspire,        & ! intent(in):  critical vol. liq. water content when transpiration is limited (-)
                       critAquiferTranspire,     & ! intent(in):  critical aquifer storage value when transpiration is limited (m)
                       aquiferRootReach,         & ! intent(in):  depth roots reach below the base of the soil column (m)
-                      lowerBoundHead,           & ! intent(in):  matric head at the base of the soil column (m), = MODFLOW water table when coupled
+                      aquiferLimitFacCpl,       & ! intent(in):  aquifer transpiration limiting factor supplied by the MODFLOW coupler (-)
                       ! output
                       wAvgTranspireLimitFac,    & ! intent(out): weighted average of the transpiration limiting factor (-)
                       mLayerTranspireLimitFac,  & ! intent(out): transpiration limiting factor in each layer (-)
@@ -1892,7 +1895,7 @@ subroutine soilResist(&
   real(rkind),intent(in)           :: critSoilTranspire           ! critical vol. liq. water content when transpiration is limited (-)
   real(rkind),intent(in)           :: critAquiferTranspire        ! critical aquifer storage value when transpiration is limited (m)
   real(rkind),intent(in)           :: aquiferRootReach            ! depth roots reach below the base of the soil column (m)
-  real(rkind),intent(in)           :: lowerBoundHead              ! matric head at the base of the soil column (m)
+  real(rkind),intent(in)           :: aquiferLimitFacCpl          ! aquifer transpiration limiting factor from the MODFLOW coupler (-)
   ! output
   real(rkind),intent(out)          :: wAvgTranspireLimitFac       ! intent(out): weighted average of the transpiration limiting factor (-)
   real(rkind),intent(out)          :: mLayerTranspireLimitFac(:)  ! intent(out): transpiration limiting factor in each layer (-)
@@ -1943,35 +1946,28 @@ subroutine soilResist(&
       case(bigBucket)
         aquiferTranspireLimitFac = min(scalarAquiferStorage/critAquiferTranspire, 1._rkind)
 
-      ! Coupled MODFLOW 6: there is no local aquifer store, so storage is the wrong measure.
-      ! scalarAquiferStorage in this mode is a diagnostic RELATIVE thickness, Sy*(water table -
-      ! soil base), which is freely negative whenever the water table sits below the soil column -
-      ! the normal case in a mountain basin - so scaling it by critAquiferTranspire (a parameter
-      ! calibrated against bigBucket's absolute store) would give a meaningless, often negative,
-      ! limiting factor.
+      ! Coupled MODFLOW 6: the factor is supplied, not derived here.
       !
-      ! What actually controls deep transpiration here is how far the water table has fallen
-      ! relative to how far the roots reach.  lowerBoundHead is the matric head at the base of the
-      ! soil column, which the coupler sets from the MODFLOW water table: >= 0 means saturated at
-      ! or above the soil base, and a negative value means the water table lies that many metres
-      ! below it.  So ramp linearly from fully available at the soil base to nothing once the water
-      ! table passes the deepest root:
+      ! Storage is the wrong measure in this mode - scalarAquiferStorage is a diagnostic RELATIVE
+      ! thickness on a different datum from bigBucket's absolute store, and freely negative - but so
+      ! is the water table, if it is taken as an HRU mean.  The ramp
       !
-      !   fac = 1                                  water table at or above the soil base
-      !   fac = 1 - |psi| / aquiferRootReach       water table within reach of the roots
-      !   fac = 0                                  water table below the deepest root
+      !     f(psi) = clamp(1 + psi/aquiferRootReach, 0, 1)
       !
-      ! This is deliberately the same shape as MODFLOW's own EVT extraction-depth function, so the
-      ! stress SUMMA applies to stomatal resistance and the water MODFLOW is willing to give up
-      ! agree instead of contradicting each other.  Set the EVT package's SURFACE to the soil base
-      ! and its DEPTH to aquiferRootReach to line the two up exactly.
+      ! is clipped and therefore nonlinear, so evaluating it at the mean water table is not the same
+      ! as averaging it over the water table's distribution, and on a real basin psi varies by tens
+      ! of metres within one HRU.  Sagehen: f(mean psi) = 0 against mean f(psi) = 0.54 across the
+      ! 3387 cells of a single HRU.
+      !
+      ! So the coupler evaluates f per MODFLOW cell, against each cell's own land surface, and sends
+      ! the map-weighted mean; mf6x_put_transpire_lim_aqfr writes it into diag and it arrives here.
+      ! A lumped HRU is then as accurate on this term as one HRU per cell, and the factor no longer
+      ! depends on the HRU elevation at all.  The value carries the usual one-step lag.
       case(modflowCpl,modLatFlow)
         if (aquiferRootReach <= eps) then
           aquiferTranspireLimitFac = 0._rkind   ! roots do not actually reach below the soil column
-        else if (lowerBoundHead >= 0._rkind) then
-          aquiferTranspireLimitFac = 1._rkind
         else
-          aquiferTranspireLimitFac = max(1._rkind + lowerBoundHead/aquiferRootReach, 0._rkind)
+          aquiferTranspireLimitFac = min(max(aquiferLimitFacCpl, 0._rkind), 1._rkind)
         end if
 
       case default

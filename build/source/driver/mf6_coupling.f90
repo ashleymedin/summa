@@ -270,6 +270,7 @@ module mf6_coupling
     integer(c_int), pointer :: mf6_nodered(:) => null()   ! DIS full->reduced node map <MODEL>/DIS/NODEREDUCED (present only when the grid is reduced)
     real(c_double), pointer :: mf6_sy(:) => null()        ! STO specific yield      <MODEL>/STO/SY  (REDUCED nodes)
     real(c_double), pointer :: mf6_evt(:) => null()       ! EVT max rate array      <MODEL>/<EVT>/RATE (user cells, READASARRAYS)
+    real(c_double), pointer :: mf6_top(:) => null()       ! DIS land surface        <MODEL>/DIS/TOP (REDUCED nodes)
     logical                 :: grid_reduced = .false.
 
     ! ---- head-dependent boundary packages fed back to SUMMA, by role ----
@@ -316,6 +317,7 @@ module mf6_coupling
     procedure, private :: gather_aquifer_to_hru => mf6_gather_aquifer_to_hru
     procedure, private :: gather_boundary_to_hru=> mf6_gather_boundary_to_hru
     procedure, private :: gather_role_to_hru    => mf6_gather_role_to_hru
+    procedure, private :: gather_gwet_limit    => mf6_gather_gwet_limit
     procedure, private :: nearest_hru           => mf6_nearest_hru
     procedure, private :: top_active_node       => mf6_top_active_node
     procedure, private :: to_reduced            => mf6_to_reduced
@@ -400,6 +402,9 @@ contains
     nvar = mf6_var_count(trim(this%mf6_model_name)//'/'//trim(this%rch_package_name)//'/RECHARGE', err, message)
     call mf6_ptr_double(trim(this%mf6_model_name)//'/'//trim(this%rch_package_name)//'/RECHARGE', &
                         this%mf6_rch, nvar, err, message)
+    if (err /= 0) then; call this%leave_run_dir(); return; end if
+    nvar = mf6_var_count(trim(this%mf6_model_name)//'/DIS/TOP', err, message)
+    call mf6_ptr_double(trim(this%mf6_model_name)//'/DIS/TOP', this%mf6_top, nvar, err, message)
     if (err /= 0) then; call this%leave_run_dir(); return; end if
     call mf6_ptr_double(trim(this%mf6_model_name)//'/DIS/CELLX', this%cellx, this%ncol, err, message)
     if (err /= 0) then; call this%leave_run_dir(); return; end if
@@ -497,7 +502,7 @@ contains
   ! back here for the next step, and are left untouched when feedback is off.
   ! ==================================================================================
   subroutine mf6_step(this, istep, summa_data_step, drain_hru, head_hru, stor_hru, bflow_hru, err, message, &
-                      surfdis_hru, gwet_demand_hru, gwet_hru)
+                      surfdis_hru, gwet_demand_hru, gwet_hru, gwet_lim_hru)
     class(mf6_coupler_type), intent(inout) :: this
     integer,                 intent(in)    :: istep             ! 1-based coupling step index
     double precision,        intent(in)    :: summa_data_step   ! length of a SUMMA data step (s)
@@ -511,6 +516,7 @@ contains
     real, optional,          intent(inout) :: surfdis_hru(:)      ! per-HRU groundwater discharge at land surface (m s-1, + = out)
     real, optional,          intent(in)    :: gwet_demand_hru(:)  ! per-HRU aquifer transpiration DEMAND from SUMMA (m s-1, + = out)
     real, optional,          intent(inout) :: gwet_hru(:)         ! per-HRU groundwater ET ACTUALLY taken by MODFLOW (m s-1, + = out)
+    real, optional,          intent(inout) :: gwet_lim_hru(:)     ! per-HRU aquifer transpiration limiting factor (-), cell-wise mean
     integer        :: istat
     real(c_double) :: dt_mf6
 
@@ -592,6 +598,8 @@ contains
         call this%gather_role_to_hru(ROLE_SURFACE_DISCH, surfdis_hru)
       if (this%have_gwet .and. present(gwet_hru)) &
         call this%gather_role_to_hru(ROLE_GW_ET, gwet_hru)
+      ! the limiting factor SUMMA will apply next step, evaluated cell by cell here
+      if (present(gwet_lim_hru)) call this%gather_gwet_limit(gwet_lim_hru)
     end if
 
     ! 6. accumulate the coupled budget, now that both sides of this step are known
@@ -639,6 +647,7 @@ contains
     this%mf6_head     => null()
     this%mf6_rch      => null()
     this%mf6_evt      => null()
+    this%mf6_top      => null()
     this%mf6_mshape   => null()
     this%mf6_nodered  => null()
     this%mf6_sy       => null()
@@ -959,6 +968,59 @@ contains
   end subroutine mf6_gather_aquifer_to_hru
 
   ! ==================================================================================
+  ! The aquifer transpiration limiting factor, computed PER CELL and then averaged.
+  !
+  ! This is the quantity SUMMA's soilResist used to derive itself from the HRU-mean water table.
+  ! Doing it that way is wrong whenever the water table varies inside an HRU, because the ramp
+  !
+  !     f(psi) = clamp(1 + psi/reach, 0, 1)
+  !
+  ! is clipped and therefore nonlinear, so f(mean psi) /= mean f(psi).  On the bundled Sagehen
+  ! domain psi spans -53.6 m to +4.1 m across the 3387 cells of a single HRU, and the difference is
+  ! not subtle: f(mean psi) = 0 against mean f(psi) = 0.54.  Nine HRUs recover only part of it, and
+  ! convergence needs roughly one HRU per cell.
+  !
+  ! The fix is to evaluate the ramp at the scale the head field is defined on, which is here, and
+  ! hand SUMMA the map-weighted mean of the FACTOR.  One HRU is then as accurate as one per cell.
+  !
+  ! It also removes this term's dependence on the HRU elevation: psi is formed per cell from that
+  ! cell's own DIS/TOP, so an offset between attributes.nc elevation and the mean land surface -
+  ! which shifts lowerBoundHead, and used to shift this factor with it - no longer touches it.
+  !
+  ! reach is SUMMA's rootingDepth minus its soil-column depth, per HRU.  A zero reach means no
+  ! roots below the soil column, so the factor is zero and nothing is asked of MODFLOW.
+  ! ==================================================================================
+  subroutine mf6_gather_gwet_limit(this, lim_hru)
+    class(mf6_coupler_type), intent(inout) :: this
+    real,                    intent(inout) :: lim_hru(:)
+    integer :: i, k, c, node
+    real(c_double) :: fsum, wsum, psi, reach, fac
+
+    if (.not. allocated(this%root_reach)) return
+    if (.not. associated(this%mf6_top)) return
+
+    do i = 1, this%nHRU
+      reach = real(this%root_reach(i), c_double)
+      if (reach <= 0.0_c_double) then; lim_hru(i) = 0.0; cycle; end if
+      fsum = 0.0_c_double; wsum = 0.0_c_double
+      do k = this%map_ptr(i), this%map_ptr(i+1) - 1
+        c = this%map_cell(k)
+        node = this%top_active_node(c)
+        if (node < 1 .or. node > size(this%mf6_head)) cycle
+        if (node > size(this%mf6_top)) cycle
+        ! psi at the base of SUMMA's soil column, using THIS cell's land surface
+        psi = this%mf6_head(node) - (this%mf6_top(node) - real(this%soil_thk(i), c_double))
+        fac = 1.0_c_double + psi/reach
+        if (fac < 0.0_c_double) fac = 0.0_c_double
+        if (fac > 1.0_c_double) fac = 1.0_c_double
+        fsum = fsum + real(this%map_wgt(k), c_double) * fac
+        wsum = wsum + real(this%map_wgt(k), c_double)
+      end do
+      if (wsum > 0.0_c_double) lim_hru(i) = real(fsum / wsum)
+    end do
+  end subroutine mf6_gather_gwet_limit
+
+  ! ==================================================================================
   ! Sum every boundary package carrying the given role into one per-HRU flux.
   !
   ! Several packages may share a role (two drain packages both discharging at land
@@ -1212,36 +1274,26 @@ contains
     class(mf6_coupler_type), intent(inout) :: this
     integer,                 intent(out)   :: err
     character(len=*),        intent(out)   :: message
-    real(c_double), pointer :: mf6_top(:) => null()
     real(c_double) :: zsum, wsum, ztop, dz, dz_worst, z_tol
     integer :: i, k, c, node, nbad, nvar, i_worst
     real(c_double), parameter :: z_tol_default = 10.0_c_double   ! m, generous: catches wrong-band mistakes
 
     err = 0; message = ''
 
-    nvar = mf6_var_count(trim(this%mf6_model_name)//'/DIS/TOP', err, message)
-    call mf6_ptr_double(trim(this%mf6_model_name)//'/DIS/TOP', mf6_top, nvar, err, message)
-    if (err /= 0) return
-    if (.not. associated(mf6_top)) return      ! nothing to check against
+    if (.not. associated(this%mf6_top)) return      ! nothing to check against
 
-    ! The tolerance has to be tight enough to matter for what the elevation is USED for.
+    ! 10 m is generous but adequate, because the HRU elevation feeds only ONE thing: lowerBoundHead,
+    ! the prescribed head at the base of the soil column.  An offset of a few metres shifts that
+    ! boundary condition but still leaves SUMMA solvable.
     !
-    ! 10 m is fine when the only consumer is the soil-column lower boundary condition: a
-    ! prescribed head that is 10 m out still leaves SUMMA solvable.  It is far too loose once
-    ! groundwater ET is active, because the aquifer transpiration ramp in soilResist spans only
-    ! aquiferRootReach - typically a couple of metres - so an elevation offset SMALLER than the
-    ! 10 m tolerance can still move the limiting factor across its whole range from 0 to 1.
-    !
-    ! The bundled 1-HRU Sagehen case is exactly that: its attributes.nc elevation is 2158.52 m
-    ! against a mean DIS TOP of 2161.66 m over the 3387 cells it maps to.  The 3.14 m offset
-    ! passed the 10 m check and on its own flipped scalarTranspireLimAqfr from 0 to 1.
+    ! It used to feed a second thing.  The aquifer transpiration ramp was derived from
+    ! lowerBoundHead, and its span is only aquiferRootReach - a couple of metres - so an offset well
+    ! inside this tolerance could move the limiting factor across its whole range.  The bundled
+    ! 1-HRU Sagehen case did exactly that: 2158.52 m in attributes.nc against a mean DIS TOP of
+    ! 2161.66 m, a 3.15 m offset that passed the check and flipped the factor from 0 to 1.  That
+    ! sensitivity is gone now that gather_gwet_limit evaluates the ramp per cell against each cell's
+    ! own DIS/TOP, so the tolerance goes back to serving the boundary condition alone.
     z_tol = z_tol_default
-    if (this%have_evt .or. this%have_gwet) then
-      if (allocated(this%root_reach)) then
-        z_tol = min(z_tol_default, 0.25d0*maxval(this%root_reach))
-        if (z_tol < 0.05d0) z_tol = 0.05d0
-      end if
-    end if
 
     nbad = 0; dz_worst = 0.0_c_double; i_worst = 0
     do i = 1, this%nHRU
@@ -1249,8 +1301,8 @@ contains
       do k = this%map_ptr(i), this%map_ptr(i+1) - 1
         c = this%map_cell(k)
         node = this%top_active_node(c)       ! DIS/TOP is in reduced node numbering, as DIS/X is
-        if (node < 1 .or. node > size(mf6_top)) cycle
-        zsum = zsum + real(this%map_wgt(k), c_double) * mf6_top(node)
+        if (node < 1 .or. node > size(this%mf6_top)) cycle
+        zsum = zsum + real(this%map_wgt(k), c_double) * this%mf6_top(node)
         wsum = wsum + real(this%map_wgt(k), c_double)
       end do
       if (wsum <= 0.0_c_double) cycle
