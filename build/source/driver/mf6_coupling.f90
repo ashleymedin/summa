@@ -20,92 +20,44 @@
 
 module mf6_coupling
   ! ****************************************************************************************
-  ! *** The MODFLOW 6 side of the SUMMA <-> MODFLOW 6 coupling                           ***
+  ! *** The MODFLOW 6 side of the SUMMA <-> MODFLOW 6 coupling.
   ! ****************************************************************************************
   !
-  ! Everything here talks to libmf6 and to a grid; nothing here knows about SUMMA data
-  ! structures.  The interface is per-HRU arrays in and per-HRU arrays out, so every driver
-  ! that can produce a per-HRU soil drainage and accept a per-HRU water table can use it:
+  ! Talks only to libmf6 and to a grid: per-HRU arrays in, per-HRU arrays out, no SUMMA data
+  ! structures.  Used by summa_modflow6.f90, summa_modflow6_mpi.f90 and summa_simulation.f90.
   !
-  !   summa_modflow6.f90        serial coupler, SUMMA driven through its BMI
-  !   summa_modflow6_mpi.f90    as above with SUMMA's GRUs split across ranks; MODFLOW 6
-  !                             stays a serial singleton on rank 0, which is the only rank
-  !                             that calls into this module
-  !   summa_simulation.f90      one coupled run per calibration parameter sample
-  !
-  ! --- the exchange, once per SUMMA data step ---------------------------------------------
-  ! The driver owns steps 1 and 2, this module owns steps 3 to 5 (see mf6_step):
-  !   1. (feedback) the MODFLOW 6 water-table head from the previous step is written into
-  !      SUMMA as the prescribed-head lower boundary condition of the soil column
-  !      (parameter "lowerBoundHead").
-  !   2. SUMMA advances one step.
-  !   3. the drainage out the base of the SUMMA soil column ("scalarSoilDrainage") is
-  !      regridded onto the MODFLOW 6 grid and written into the RCH package RECHARGE array.
-  !   4. MODFLOW 6 advances one step (prepare/do/finalize_time_step).
-  !   5. the new MODFLOW 6 head field is read back and aggregated per SUMMA HRU, ready to be
-  !      applied at step 1 of the next iteration (explicit, one-step lag).
-  !
-  ! With feedback = .true. two further groundwater quantities come back each step, so SUMMA's
-  ! water balance and routed streamflow include the aquifer:
-  !     scalarAquiferStorage  = Sy * (MODFLOW water table - soil-column base)
-  !     scalarAquiferBaseflow = MODFLOW <bflow_package_name> outflow over the HRU footprint
-  ! (scalarAquiferRecharge is not exchanged - SUMMA sets it to its own soil drainage.)
-  !
-  ! --- configuration -----------------------------------------------------------------------
+  ! One exchange per SUMMA data step, explicit with a one-step lag.  The driver writes the
+  ! previous head into SUMMA as lowerBoundHead and advances SUMMA; mf6_step scatters the soil
+  ! drainage into RCH, advances MODFLOW one step, and gathers the new head and the feedback
+  ! fluxes per HRU.
   !
   !   &coupler
   !     mf6_model_name     = 'MYMODEL' ! GWF model name, as in mfsim.nam (upper case)
-  !     rch_package_name   = 'RCHA'    ! RCH package name, as in the GWF name file (upper case)
-  !     bflow_package_name = 'CHD'     ! head-dependent boundary package (CHD/DRN/RIV/GHB) whose
-  !                                    !    simulated flow feeds back per HRU as scalarAquiferBaseflow
-  !                                    !    ('' => skip the baseflow feedback).  Shorthand for a
-  !                                    !    one-entry bnd_package_names table with role 'baseflow';
-  !                                    !    ignored when bnd_package_names is given.
-  !     bnd_package_names  = 'CHD','DRN'            ! up to MAXBND head-dependent boundary packages
-  !     bnd_package_roles  = 'baseflow','surface_discharge'   ! what SUMMA does with each one's flow:
-  !                                    !    'baseflow'          -> scalarAquiferBaseflow, reaches routing
-  !                                    !    'surface_discharge' -> added to SUMMA's surface runoff
-  !                                    !    'gw_et'             -> groundwater ET actually taken
-  !                                    !    Packages sharing a role are summed.
-  !     evt_package_name   = ''        ! EVT package (READASARRAYS) whose RATE array is overwritten
-  !                                    !    each step with SUMMA's aquifer transpiration demand
-  !                                    !    ('' => groundwater ET is not driven from SUMMA)
-  !     head_restart_read  = ''        ! read the initial head field from this file instead of IC/STRT
-  !     head_restart_write = ''        ! write the final head field here, for a later restart.
-  !                                    !    Together these are the coupled restart: run the spin-up
-  !                                    !    with _write set, then every later run with _read set, so
-  !                                    !    the aquifer and SUMMA's soil column start equilibrated to
-  !                                    !    the same thing.  Relative paths resolve against the PROCESS
-  !                                    !    working directory, not run_dir, so every calibration rank
-  !                                    !    reads the one file the shared spin-up wrote.
-  !     map_file           = ''        ! optional HRU->cell weight file; if blank a nearest-cell
-  !                                    !    map is built from the MODFLOW 6 DIS grid geometry
-  !     mf6_epsg           = 0         ! EPSG code of the MODFLOW grid's projected CRS, used only to
-  !                                    !    reproject SUMMA's lon/lat HRU centres before the built-in
-  !                                    !    nearest-cell map (nHRU>1; see nearest_hru).  Only WGS84 UTM
-  !                                    !    is supported (32601-32660 N, 32701-32760 S); 0 = no
-  !                                    !    reprojection (fine when nHRU==1, or with an explicit map_file)
+  !     rch_package_name   = 'RCHA'    ! RCH package name (READASARRAYS), as in the GWF name file
+  !     bflow_package_name = 'CHD'     ! shorthand for a one-entry role='baseflow' table below
+  !     bnd_package_names  = 'CHD','DRN'                      ! up to MAXBND boundary packages
+  !     bnd_package_roles  = 'baseflow','surface_discharge'    ! baseflow | surface_discharge | gw_et
+  !     evt_package_name   = ''        ! EVT package driven with SUMMA's aquifer transpiration demand
+  !     head_restart_read  = ''        ! initial head field, in place of IC/STRT
+  !     head_restart_write = ''        ! final head field, for a later restart
+  !     map_file           = ''        ! HRU->cell weights; blank builds a nearest-cell map
+  !     mf6_epsg           = 0         ! WGS84 UTM code for reprojecting HRU lon/lat; 0 = none
   !     feedback           = .true.    ! .false. => one-way (SUMMA drainage -> MODFLOW only)
   !   /
   !
-  ! map_file format: one "iHRU  cell  weight" triple per line (whitespace separated; blank
-  ! lines and '#' comments ignored).  cell is the row-major horizontal MODFLOW index
-  ! (irow-1)*ncol + icol; weights are normalised per HRU, so put e.g. 1.0 on every line to
-  ! spread an HRU over its cells.  An HRU may span any number of lines.
+  ! Roles are summed when several packages share one, and are how SUMMA consumes a returned flux:
+  ! baseflow reaches routing, surface_discharge is added to surface runoff, gw_et is groundwater
+  ! evapotranspiration.  Restart paths resolve against the process working directory, not run_dir.
   !
-  ! --- the run directory ---------------------------------------------------------------------
-  ! libmf6 reads mfsim.nam from the process working directory and writes its listing, head and
-  ! budget files there, so two MODFLOW instances in one directory overwrite each other's output.
-  ! A driver that runs several coupled models at once (the calibration driver: one model instance
-  ! per MPI rank) therefore passes each one its own run_dir, and this module enters and leaves it
-  ! around every libmf6 call.  run_dir = '.' (the default, and what the standalone couplers pass)
-  ! means "the process working directory", and no directory change happens at all.
+  ! map_file format: one "iHRU cell weight" triple per line, cell being the row-major horizontal
+  ! index (irow-1)*ncol + icol, weights normalised per HRU, blank lines and '#' ignored.
   !
-  ! --- lifetime ------------------------------------------------------------------------------
-  ! mf6_init .. repeated mf6_step .. mf6_finalize is one MODFLOW simulation, and a coupler object
-  ! may be initialized again afterwards for the next one; the calibration driver does exactly that,
-  ! one MODFLOW simulation per parameter sample, so that every sample starts from the same aquifer
-  ! initial condition.  libmf6 is process-global, so only one coupler can be live at a time.
+  ! libmf6 reads mfsim.nam from the process working directory and writes its output there, so each
+  ! concurrent instance is given its own run_dir and this module enters and leaves it around every
+  ! libmf6 call; run_dir = '.' means no directory change at all.
+  !
+  ! mf6_init .. repeated mf6_step .. mf6_finalize is one MODFLOW simulation, and the object may be
+  ! initialized again for the next.  libmf6 is process-global, so only one coupler can be live.
 
   use, intrinsic :: iso_c_binding
   implicit none
@@ -116,20 +68,9 @@ module mf6_coupling
 
   integer, parameter :: BMI_OK = 0
 
-  ! ------------------------------------------------------------------------------------
-  ! Boundary-package roles.
-  !
-  ! What SUMMA does with a returned flux is a property of the ROLE, not of the MODFLOW
-  ! package that supplied it.  That indirection is deliberate: the upstream Sagehen model
-  ! (the MODFLOW 6 expression of the GSFLOW design) returns water to the land surface from
-  ! DRN and groundwater ET from UZF, whereas this coupler starts with DRN and EVT.  Keeping
-  ! the role separate from the package means swapping in UZF later is a change here and not
-  ! a change in SUMMA.
-  !
-  !   ROLE_BASEFLOW      -> scalarAquiferBaseflow: reaches routing (basin__AquiferBaseflow)
-  !   ROLE_SURFACE_DISCH -> groundwater discharge at land surface: added to surface runoff
-  !   ROLE_GW_ET         -> groundwater evapotranspiration actually taken by MODFLOW
-  ! ------------------------------------------------------------------------------------
+  ! Boundary-package roles: how SUMMA consumes a returned flux, independent of which package
+  ! supplied it.  baseflow reaches routing, surface_discharge is added to surface runoff, gw_et is
+  ! groundwater evapotranspiration.
   integer, parameter :: ROLE_BASEFLOW      = 1
   integer, parameter :: ROLE_SURFACE_DISCH = 2
   integer, parameter :: ROLE_GW_ET         = 3
@@ -525,33 +466,11 @@ contains
     call this%enter_run_dir(err, message)
     if (err /= 0) return
 
-    ! 3. prepare the MODFLOW time step FIRST.
-    !
-    ! The scatter must come after this, not before.  prepare_time_step runs each package's *_rp,
-    ! and bnd_rp re-reads the package's PERIOD block whenever a new stress period starts
-    ! (BoundaryPackage.f90: "if (this%ionper < kper)").  For RCH READASARRAYS that reload
-    ! overwrites the whole RECHARGE array with the value in the input file.  Scattering before
-    ! prepare therefore threw SUMMA's drainage away on the first step of every stress period, and
-    ! MODFLOW solved that step with the model builder's placeholder constant instead - silently,
-    ! because it is one step in seventy-two.  Preparing first and scattering after is the correct
-    ! order: the reload happens, then SUMMA's values overwrite it, then the solve sees them.
-    ! Leading steady-state stress periods are run out here, before the coupled loop proper.
-    !
-    ! The upstream Sagehen example equilibrates the water table with a steady-state first stress
-    ! period and only then goes transient; that was simplified out when this test model was built
-    ! (section 6.1), and section 8.5 wants it back, because otherwise the coupled model starts from
-    ! whatever STRT happens to contain.  MODFLOW reports the current period's steady-state flag in
-    ! <MODEL>/ISS, but only once the step is prepared, so the shape here is prepare-then-test:
-    ! a steady-state step is solved and skipped, and the loop exits on the first transient step,
-    ! which is the one the coupling actually drives.
-    !
-    ! A steady-state step is deliberately NOT given SUMMA's drainage.  It is solved with whatever
-    ! the RCH package's own PERIOD block supplies - a climatological mean the model builder
-    ! provides - because an instantaneous first-hour drainage rate is not a sensible thing to
-    ! equilibrate an aquifer against.  That is also why the scatter sits after this loop.
-    !
-    ! Models with no steady-state period read ISS = 0 on the first prepare and fall straight
-    ! through, so nothing changes for them.
+    ! 3. prepare the step, then run out any leading steady-state stress periods.  Preparing before
+    !    scattering matters: prepare_time_step reloads a package's PERIOD block at the start of each
+    !    stress period, which would overwrite the scattered array.  <MODEL>/ISS is only meaningful
+    !    once a step is prepared, hence prepare-then-test.  A steady-state step keeps the RCH
+    !    package's own recharge rather than SUMMA's instantaneous drainage.
     do
       istat = mf6_prepare_time_step(real(summa_data_step, c_double))
       if (istep /= 1) exit                      ! only leading periods; later steps are transient
@@ -672,16 +591,9 @@ contains
   end subroutine mf6_finalize_coupler
 
   ! ==================================================================================
-  ! Give one model instance its own copy of a MODFLOW 6 model directory.
-  !
-  ! libmf6 writes its listing, head and budget files into the working directory, so several
-  ! instances sharing one directory overwrite each other's output.  The calibration driver
-  ! runs one instance per MPI rank, so each rank gets its own directory here, populated once
-  ! from the master model directory and reused for every parameter sample afterwards.
-  !
-  ! The contents are copied rather than symlinked on purpose: MODFLOW opens its output files
-  ! for writing, and writing through a symlink would land back in the master directory, which
-  ! is the collision this is meant to prevent.
+  ! Give one model instance its own copy of a MODFLOW 6 model directory, since libmf6 writes its
+  ! output into the working directory.  Contents are copied rather than symlinked, because writing
+  ! through a symlink would land back in the master directory.
   ! ==================================================================================
   subroutine mf6_prepare_run_dir(master_dir, run_dir, err, message)
     character(len=*), intent(in)  :: master_dir   ! directory holding the MODFLOW 6 mfsim.nam
@@ -968,27 +880,9 @@ contains
   end subroutine mf6_gather_aquifer_to_hru
 
   ! ==================================================================================
-  ! The aquifer transpiration limiting factor, computed PER CELL and then averaged.
-  !
-  ! This is the quantity SUMMA's soilResist used to derive itself from the HRU-mean water table.
-  ! Doing it that way is wrong whenever the water table varies inside an HRU, because the ramp
-  !
-  !     f(psi) = clamp(1 + psi/reach, 0, 1)
-  !
-  ! is clipped and therefore nonlinear, so f(mean psi) /= mean f(psi).  On the bundled Sagehen
-  ! domain psi spans -53.6 m to +4.1 m across the 3387 cells of a single HRU, and the difference is
-  ! not subtle: f(mean psi) = 0 against mean f(psi) = 0.54.  Nine HRUs recover only part of it, and
-  ! convergence needs roughly one HRU per cell.
-  !
-  ! The fix is to evaluate the ramp at the scale the head field is defined on, which is here, and
-  ! hand SUMMA the map-weighted mean of the FACTOR.  One HRU is then as accurate as one per cell.
-  !
-  ! It also removes this term's dependence on the HRU elevation: psi is formed per cell from that
-  ! cell's own DIS/TOP, so an offset between attributes.nc elevation and the mean land surface -
-  ! which shifts lowerBoundHead, and used to shift this factor with it - no longer touches it.
-  !
-  ! reach is SUMMA's rootingDepth minus its soil-column depth, per HRU.  A zero reach means no
-  ! roots below the soil column, so the factor is zero and nothing is asked of MODFLOW.
+  ! Aquifer transpiration limiting factor per HRU: the clipped water-table ramp
+  ! clamp(1 + psi/reach, 0, 1) evaluated at each mapped cell against that cell's own DIS/TOP and
+  ! returned as the map-weighted mean.  reach is rootingDepth minus the soil-column depth.
   ! ==================================================================================
   subroutine mf6_gather_gwet_limit(this, lim_hru)
     class(mf6_coupler_type), intent(inout) :: this
@@ -1021,13 +915,7 @@ contains
   end subroutine mf6_gather_gwet_limit
 
   ! ==================================================================================
-  ! Sum every boundary package carrying the given role into one per-HRU flux.
-  !
-  ! Several packages may share a role (two drain packages both discharging at land
-  ! surface, say), so the contributions add.  Packages that were not found are skipped,
-  ! which is what makes a missing optional package a warning at init rather than a crash
-  ! here.  head_hru is left alone when no package carries the role, so the driver's
-  ! lagged array simply keeps its previous value - the same contract as gather_head_to_hru.
+  ! Sum every found boundary package carrying the given role into one per-HRU flux.
   ! ==================================================================================
   subroutine mf6_gather_role_to_hru(this, role, out_hru)
     class(mf6_coupler_type), intent(inout) :: this
@@ -1046,16 +934,10 @@ contains
   end subroutine mf6_gather_role_to_hru
 
   ! ==================================================================================
-  ! One boundary package's simulated flow  ->  per-HRU flux (m s-1, + = out of aquifer).
-  !
-  !     out_hru(i) = -( sum_k w_ik * Q_k ) / ( sum_k w_ik * A_k )
-  !
-  ! MODFLOW reports boundary flow as a volumetric rate (m3 s-1) that is positive INTO the
-  ! aquifer, so the sign flips: a drain or a constant head taking water out of the aquifer
-  ! becomes a positive outward flux per unit area.  NODELIST holds reduced node numbers,
-  ! which differ from full-grid numbering wherever IDOMAIN deactivates cells, hence
-  ! to_reduced.  This is the gather that used to be inline in gather_aquifer_to_hru; it is
-  ! separate now because roles other than baseflow need exactly the same arithmetic.
+  ! One boundary package's simulated flow  ->  per-HRU flux (m s-1, + = out of aquifer):
+  !     out_hru(i) = -( sum_k w_ik Q_k ) / ( sum_k w_ik A_k )
+  ! MODFLOW reports boundary flow positive INTO the aquifer, hence the sign flip; NODELIST holds
+  ! reduced node numbers, hence to_reduced.
   ! ==================================================================================
   subroutine mf6_gather_boundary_to_hru(this, ib, out_hru, accumulate)
     class(mf6_coupler_type), intent(inout) :: this
@@ -1282,17 +1164,7 @@ contains
 
     if (.not. associated(this%mf6_top)) return      ! nothing to check against
 
-    ! 10 m is generous but adequate, because the HRU elevation feeds only ONE thing: lowerBoundHead,
-    ! the prescribed head at the base of the soil column.  An offset of a few metres shifts that
-    ! boundary condition but still leaves SUMMA solvable.
-    !
-    ! It used to feed a second thing.  The aquifer transpiration ramp was derived from
-    ! lowerBoundHead, and its span is only aquiferRootReach - a couple of metres - so an offset well
-    ! inside this tolerance could move the limiting factor across its whole range.  The bundled
-    ! 1-HRU Sagehen case did exactly that: 2158.52 m in attributes.nc against a mean DIS TOP of
-    ! 2161.66 m, a 3.15 m offset that passed the check and flipped the factor from 0 to 1.  That
-    ! sensitivity is gone now that gather_gwet_limit evaluates the ramp per cell against each cell's
-    ! own DIS/TOP, so the tolerance goes back to serving the boundary condition alone.
+    ! tolerance serves lowerBoundHead, the prescribed head at the base of the soil column
     z_tol = z_tol_default
 
     nbad = 0; dz_worst = 0.0_c_double; i_worst = 0
@@ -1347,26 +1219,10 @@ contains
   end function mf6_is_steady_state
 
   ! ==================================================================================
-  ! Coupled restart of the MODFLOW head field.
-  !
-  ! Without this, MODFLOW always starts from whatever IC/STRT contains.  In calibration that
-  ! is actively wrong: the one-year cold-start spin-up leaves SUMMA equilibrated and shared
-  ! across parameter samples, but every sample restarts MODFLOW from raw STRT, so the soil
-  ! column and the aquifer are equilibrated to different things (section 8.5).  Writing the
-  ! head field at the end of the spin-up and reading it back at the start of every sample
-  ! makes the two consistent, at one small file per rank.
-  !
-  ! Writing X straight into the memory manager after initialize() is enough: MODFLOW's
-  ! gwf_ad copies x into xold at the start of every non-retry time step (gwf.f90), so the
-  ! value written here becomes both the initial head AND the previous-step head, which is
-  ! what a restart means.  There is no need to write XOLD separately.
-  !
-  ! The file carries the grid shape and the reduced node count so that restarting into a
-  ! different model fails loudly instead of scrambling the head field.
-  !
-  ! Paths are resolved against the process working directory, not the MODFLOW run directory:
-  ! a calibration gives every rank its own run_dir, and all of them must read the ONE head
-  ! file the shared spin-up wrote.
+  ! Coupled restart of the MODFLOW head field: <MODEL>/X is written before finalize and read back
+  ! over IC/STRT after initialize.  gwf_ad copies x into xold on every non-retry step, so writing X
+  ! alone sets both the initial and the previous-step head.  The file carries a magic string, the
+  ! grid shape and the reduced node count.  Paths resolve against the process working directory.
   ! ==================================================================================
   subroutine mf6_head_restart_read(this, err, message)
     class(mf6_coupler_type), intent(inout) :: this
@@ -1449,21 +1305,9 @@ contains
   end function mf6_resolve_path
 
   ! ==================================================================================
-  ! Each HRU's area in attributes.nc must equal the summed plan area of the MODFLOW cells
-  ! it maps to, or recharge VOLUME is not conserved across the interface.
-  !
-  ! scatter_hru_to_array writes a weight-weighted mean of HRU drainage RATES, because the
-  ! cell area is common to every contribution to a given cell and cancels.  MODFLOW then
-  ! multiplies that rate by ITS cell area, so the volume that arrives is
-  !     sum_c A_c * q      instead of      A_HRU * q,
-  ! and the two agree only when the areas do.  The same applies in reverse to the baseflow
-  ! gather, which divides by mapped-cell area and is then applied per unit HRU area.
-  !
-  ! This is a warning rather than a hard stop: a nearest-cell map over a real basin will
-  ! rarely match exactly, and the honest response is to say by how much rather than to
-  ! refuse to run.  The elevation check above stops because a bad elevation makes SUMMA
-  ! fail to converge; a bad area silently mis-scales a flux, which is why it is reported
-  ! here AND accumulated by the budget diagnostic every step.
+  ! Warn where an HRU's area disagrees with its effective mapped cell area,
+  ! sum_k (w_ik / sum_j w_jk) A_k, since the scatter conserves recharge rate and not volume.
+  ! A cell shared between HRUs is apportioned by weight share, the same denominator the scatter uses.
   ! ==================================================================================
   subroutine mf6_check_hru_area(this)
     class(mf6_coupler_type), intent(inout) :: this
@@ -1521,20 +1365,11 @@ contains
   end subroutine mf6_check_hru_area
 
   ! ==================================================================================
-  ! Per-step coupled budget: what SUMMA sent, what MODFLOW took, what came back.
-  !
-  ! Section 8.4 of the write-up notes that SUMMA's coupled water balance is an assembly of
-  ! quantities from two models at two different times whose closure has never been audited.
-  ! This is that audit.  Volumes are accumulated over the run and reported at finalize:
-  !
-  !   sent   = sum_i A_HRU,i * q_i * dt                (what SUMMA handed over)
-  !   taken  = sum_c A_c * R_c * dt                    (what MODFLOW's RCH array actually got)
-  !   back   = sum_i A_HRU,i * f_i * dt  per role      (what came back to SUMMA)
-  !
-  ! sent /= taken is exactly the area mismatch check_hru_area warns about, measured in m3
-  ! rather than percent.  The residual sent - taken is NOT the same thing as MODFLOW's own
-  ! budget discrepancy, which is dominated by the one-step lag (section 8.2); this isolates
-  ! the mapping error from the lag error, which is the point of reporting it separately.
+  ! Coupled budget, accumulated per step and reported at finalize (m3):
+  !   sent  = sum_i A_HRU,i q_i dt      what SUMMA handed over
+  !   taken = sum_c A_c R_c dt          what MODFLOW's RCH array received
+  !   back  = sum_i A_HRU,i f_i dt      what came back, per role
+  ! The residual sent - taken is the mapping error, separate from the one-step lag error.
   ! ==================================================================================
   subroutine mf6_budget_accumulate(this, dt, drain_hru, bflow_hru, surfdis_hru, gwet_hru, gwet_demand_hru)
     class(mf6_coupler_type), intent(inout) :: this
@@ -1601,29 +1436,8 @@ contains
     end if
   end function cell_spacing
 
-  ! Assign every ACTIVE MODFLOW cell to its nearest SUMMA HRU centre (a per-cell
-  ! "which HRU owns me" / Thiessen assignment) so an HRU naturally ends up covering
-  ! however many cells are nearest to it - unlike a per-HRU nearest-cell search,
-  ! this needs no per-HRU cell count ahead of time and gives every active cell to
-  ! exactly one HRU (matching what a hand-built map_file for a lumped HRU would do).
-  !
-  ! --- mapping HRUs to cells ---------------------------------------------------------------
-  ! HRUs may each own a disjoint set of cells, down to one cell per HRU; they need not overlap
-  ! and need not cover the whole grid.
-  !
-  ! An HRU's elevation in attributes.nc must be the mean land surface of the cells it maps to,
-  ! since gather_head_to_hru forms
-  !     lowerBoundHead = h_mf6 - (z_surface_HRU - soil_thickness)
-  ! and a mismatch hands the soil column a water table metres above or below it.  That is
-  ! checked against DIS/TOP in check_hru_elevation at start-up rather than left to chance.
-  !
-  ! CAVEAT: SUMMA HRU centres (hru_x, hru_y) are typically longitude/latitude
-  ! (degrees) while the MODFLOW DIS grid (cellx, celly) is in a projected CRS
-  ! (metres); comparing the two directly is only meaningful when nHRU==1 - the
-  ! whole grid then trivially belongs to the one HRU, no distance comparison
-  ! needed at all - or when hru_x/hru_y already happen to be in the grid's
-  ! projected system. For nHRU>1 with mismatched coordinates this default is not
-  ! reliable: supply map_file instead (a warning is printed if that looks likely).
+  ! Assign every active MODFLOW cell to its nearest SUMMA HRU centre, so every active cell has
+  ! exactly one owner without needing a per-HRU cell count ahead of time.
   subroutine mf6_build_nearest_cell_map(this)
     class(mf6_coupler_type), intent(inout) :: this
     integer :: i, j, c, ih, nMapped

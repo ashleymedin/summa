@@ -394,13 +394,7 @@ subroutine run_oneGRU(&
               flux(iLookFLUX%scalarAquiferBaseflow)%dat(1)  = mfAquiferBaseflow(gruInfo%hruInfo(iHRU)%hru_ix)
               bvar(iLookBVAR%basin__AquiferBaseflow)%dat(1) = bvar(iLookBVAR%basin__AquiferBaseflow)%dat(1) + mfAquiferBaseflow(gruInfo%hruInfo(iHRU)%hru_ix)*fracDOM
             end if
-            ! Groundwater discharge at land surface from MODFLOW (a DRN at DIS/TOP, role =
-            ! surface_discharge): the water the aquifer cannot hold once the water table reaches
-            ! the ground.  It is saturation-excess RUNOFF, so it joins basin__SurfaceRunoff and
-            ! must NOT go through the aquifer-baseflow or column-outflow terms, or Eq. (6)
-            ! double-counts it.  In GSFLOW this water is routed to the nearest downgradient
-            ! stream reach by MVR; with no SFR network here it returns to SUMMA's surface runoff
-            ! and routes from there.
+            ! groundwater discharge at land surface is saturation-excess runoff, not baseflow
             if(allocated(mfSurfaceDischarge))then
               bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) &
                                                                   + mfSurfaceDischarge(gruInfo%hruInfo(iHRU)%hru_ix)*fracDOM
@@ -410,9 +404,7 @@ subroutine run_oneGRU(&
             ! aquifer it came from is MODFLOW's, so adding it to a SUMMA state would double-count it.
             ! What is worth seeing is how it compares with the demand SUMMA sent, which is what the
             ! coupler's budget diagnostic reports; closing the gap needs the tight (XMI) coupling.
-            ! NOTE the sign flip: the coupler reports every returned flux positive OUT of the
-            ! aquifer, whereas SUMMA's scalarAquiferTranspire is negative for water lost (see
-            ! computFlux.f90:555), so negate to keep SUMMA's own convention in its output.
+            ! negated: the coupler reports fluxes positive out of the aquifer, SUMMA negative for water lost
             if(allocated(mfAquiferTranspire))then
               fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferTranspire)%dat(1) = -mfAquiferTranspire(gruInfo%hruInfo(iHRU)%hru_ix)
               bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) &

@@ -721,8 +721,7 @@ subroutine vegNrgFlux(&
         !         (3) stomatal resistance does not change rapidly
         if (firstFluxCall) then
           if (nSoil>0) then ! could have soil with lake, need values for aquifer
-            ! the coupler-supplied aquifer limiting factor is read before the call, because soilResist
-            ! also writes scalarTranspireLimAqfr as an output and the two would otherwise alias
+            ! read before the call: soilResist also writes scalarTranspireLimAqfr, which would alias
             aqfrLimCpl = scalarTranspireLimAqfr
             ! compute soil moisture factor controlling stomatal resistance, and for transpiration limiting factor in aquifer and soil
             call soilResist(&
@@ -1941,28 +1940,11 @@ subroutine soilResist(&
   if (scalarAquiferRootFrac > eps) then
     select case(ixGroundwater)
 
-      ! bigBucket: the aquifer is a local store SUMMA integrates, so its absolute storage is the
-      ! measure of how much water the deep roots can reach.
+      ! bigBucket: absolute storage in the local aquifer store limits deep transpiration
       case(bigBucket)
         aquiferTranspireLimitFac = min(scalarAquiferStorage/critAquiferTranspire, 1._rkind)
 
-      ! Coupled MODFLOW 6: the factor is supplied, not derived here.
-      !
-      ! Storage is the wrong measure in this mode - scalarAquiferStorage is a diagnostic RELATIVE
-      ! thickness on a different datum from bigBucket's absolute store, and freely negative - but so
-      ! is the water table, if it is taken as an HRU mean.  The ramp
-      !
-      !     f(psi) = clamp(1 + psi/aquiferRootReach, 0, 1)
-      !
-      ! is clipped and therefore nonlinear, so evaluating it at the mean water table is not the same
-      ! as averaging it over the water table's distribution, and on a real basin psi varies by tens
-      ! of metres within one HRU.  Sagehen: f(mean psi) = 0 against mean f(psi) = 0.54 across the
-      ! 3387 cells of a single HRU.
-      !
-      ! So the coupler evaluates f per MODFLOW cell, against each cell's own land surface, and sends
-      ! the map-weighted mean; mf6x_put_transpire_lim_aqfr writes it into diag and it arrives here.
-      ! A lumped HRU is then as accurate on this term as one HRU per cell, and the factor no longer
-      ! depends on the HRU elevation at all.  The value carries the usual one-step lag.
+      ! coupled MODFLOW: the coupler supplies the factor, evaluated per cell against each cell's water table
       case(modflowCpl,modLatFlow)
         if (aquiferRootReach <= eps) then
           aquiferTranspireLimitFac = 0._rkind   ! roots do not actually reach below the soil column

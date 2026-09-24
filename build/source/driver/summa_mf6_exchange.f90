@@ -137,11 +137,7 @@ contains
   end subroutine mf6x_hru_elevation
 
   ! **************************************************************************************************
-  ! HRU plan area (m2), as given in attributes.nc.
-  !
-  ! The coupler checks this against the summed plan area of the MODFLOW cells each HRU maps to.
-  ! The scatter conserves recharge RATE, not VOLUME (it is a weight-weighted mean of HRU drainage
-  ! rates), so volume is conserved only when the two areas agree - which is why the check exists.
+  ! HRU plan area (m2) from attributes.nc, for the coupler's area check and coupled budget.
   ! **************************************************************************************************
   subroutine mf6x_hru_area(summa_struct, area)
     type(summa1_type_dec), intent(in)  :: summa_struct
@@ -158,10 +154,7 @@ contains
   end subroutine mf6x_hru_area
 
   ! **************************************************************************************************
-  ! How far roots reach BELOW the base of the soil column, per HRU (m): rootingDepth - soil depth,
-  ! floored at zero.  This is the span of soilResist's aquifer transpiration ramp, and the coupler
-  ! uses it to decide how tight the HRU-elevation check has to be: an elevation offset smaller than
-  ! this span can still move the limiting factor across its whole range.
+  ! How far roots reach below the base of the soil column (m): rootingDepth - soil depth, floored at zero.
   ! **************************************************************************************************
   subroutine mf6x_root_reach(summa_struct, reach)
     type(summa1_type_dec), intent(in)  :: summa_struct
@@ -315,14 +308,8 @@ contains
   end subroutine mf6x_put_aquifer_baseflow
 
   ! **************************************************************************************************
-  ! Groundwater discharge at land surface from the coupled MODFLOW 6 model (m s-1, + = out of aquifer).
-  !
-  ! This is the water the aquifer cannot hold once the water table reaches land surface, taken from
-  ! whichever boundary package carries role 'surface_discharge' (a DRN at DIS/TOP, as in the upstream
-  ! Sagehen model).  It is added to SUMMA's surface runoff, not to the aquifer baseflow term, so it
-  ! reaches routing as saturation-excess runoff rather than as baseflow.
-  !
-  ! Same channel reasoning as mf6x_put_aquifer_baseflow above: fluxStruct scalars do not survive a step.
+  ! Groundwater discharge at land surface from MODFLOW (m s-1, + = out of aquifer), added to SUMMA's
+  ! surface runoff.  Uses the mfSurfaceDischarge channel, since fluxStruct scalars do not survive a step.
   ! **************************************************************************************************
   subroutine mf6x_put_surface_discharge(summa_struct, discharge)
     type(summa1_type_dec), intent(inout) :: summa_struct
@@ -340,12 +327,7 @@ contains
   end subroutine mf6x_put_surface_discharge
 
   ! **************************************************************************************************
-  ! Groundwater evapotranspiration actually taken by MODFLOW 6 (m s-1, + = out of aquifer).
-  !
-  ! SUMMA sends a transpiration DEMAND down (see mf6x_get_aquifer_transpire) and MODFLOW decides how
-  ! much of it the water table can actually supply.  The two differ whenever the water table drops
-  ! below the EVT extraction depth; the gap is reported by the coupled budget diagnostic rather than
-  ! fed back into SUMMA's energy balance, which would need the tight (XMI) coupling.
+  ! Groundwater evapotranspiration actually taken by MODFLOW (m s-1, + = out of aquifer).
   ! **************************************************************************************************
   subroutine mf6x_put_aquifer_transpire(summa_struct, transpire)
     type(summa1_type_dec), intent(inout) :: summa_struct
@@ -363,17 +345,8 @@ contains
   end subroutine mf6x_put_aquifer_transpire
 
   ! **************************************************************************************************
-  ! Aquifer transpiration limiting factor from the coupled MODFLOW 6 model (-), per HRU.
-  !
-  ! The coupler evaluates the water-table ramp CELL BY CELL and sends the map-weighted mean, because
-  ! the ramp is clipped and therefore nonlinear: f(mean psi) is not mean f(psi) whenever the water
-  ! table varies inside an HRU, and on a real basin it varies by tens of metres.  soilResist uses
-  ! this value directly for the coupled decisions instead of deriving one from the mean water table,
-  ! which makes a single lumped HRU as accurate on this term as one HRU per MODFLOW cell.
-  !
-  ! It is written into diagStruct, where soilResist reads it back as an input.  Nothing in
-  ! coupled_em or varSubstep resets scalarTranspireLimAqfr between steps, so unlike the flux
-  ! channels this one does not need a globalData side-channel.
+  ! Aquifer transpiration limiting factor (-) from the coupler, evaluated per MODFLOW cell.
+  ! Written into diag, where soilResist reads it back as an input.
   ! **************************************************************************************************
   subroutine mf6x_put_transpire_lim_aqfr(summa_struct, limit)
     type(summa1_type_dec), intent(inout) :: summa_struct
@@ -394,34 +367,15 @@ contains
   end subroutine mf6x_put_transpire_lim_aqfr
 
   ! **************************************************************************************************
-  ! SUMMA's aquifer transpiration DEMAND, per HRU (m s-1, + = out of aquifer).
-  !
-  ! This is scalarAquiferTranspire as bigAquifer computes it: the aquifer's share of the canopy
-  ! transpiration the energy balance has already closed, partitioned by root fraction and the aquifer
-  ! transpiration limiting factor.  Sending it to MODFLOW's EVT package therefore moves water between
-  ! sources without creating any, and costs no energy-balance consistency.
+  ! SUMMA's aquifer transpiration demand, per HRU (m s-1, + = out of aquifer): the aquifer's share of
+  ! canopy transpiration, scalarAquiferRootFrac * scalarTranspireLimAqfr / scalarTranspireLim.
   ! **************************************************************************************************
   subroutine mf6x_get_aquifer_transpire(summa_struct, demand)
     type(summa1_type_dec), intent(in)  :: summa_struct
     real,                  intent(out) :: demand(:)
     integer(i4b) :: iGRU, jHRU, iDOM, i
     real(rkind)  :: fracDOM, frac, tlim
-    ! Reproduces bigAquifer's partition (bigAquifer.f90:112-113) from post-step diagnostics:
-    !
-    !   aquiferTranspireFrac   = scalarAquiferRootFrac * scalarTranspireLimAqfr / scalarTranspireLim
-    !   scalarAquiferTranspire = aquiferTranspireFrac * scalarCanopyTranspiration / iden_water
-    !
-    ! It is computed here rather than in computFlux because in coupled mode there is no aquifer
-    ! state: ixAqWat is integerMissing, so computFlux never enters its aquifer block and bigAquifer
-    ! is never called.  Nothing is lost by deriving it afterwards - the quantity is a pure sink that
-    ! leaves SUMMA for MODFLOW and enters no SUMMA state equation, and the derivatives bigAquifer
-    ! would also produce are only ever used in ixAqWat-indexed Jacobian entries that do not exist
-    ! in this mode (computJacob.f90:858,861).
-    !
-    ! This is a DEMAND, not an extraction.  The energy balance behind scalarCanopyTranspiration has
-    ! already closed, and scalarTranspireLimAqfr has already told stomatal resistance how much deep
-    ! water is available, so sending this to MODFLOW's EVT package moves water between sources
-    ! without creating any.  MODFLOW decides what it can actually supply.
+    ! weighted as mf6x_get_drainage weights drainage
     associate(progStruct => summa_struct%progStruct, &
               diagStruct => summa_struct%diagStruct, &
               fluxStruct => summa_struct%fluxStruct, &
@@ -439,18 +393,12 @@ contains
             if (frac <= 0._rkind) cycle       ! no roots below the soil column, or water table out of reach
             fracDOM = progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) &
                     / bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1)
-            ! SIGN: scalarCanopyTranspiration (kg m-2 s-1) is NEGATIVE while water leaves the
-            ! canopy - the same convention bigAquifer inherits, which is why computFlux assembles
-            ! the aquifer balance as dS/dt = scalarAquiferTranspire + recharge - baseflow
-            ! (computFlux.f90:555) with a negative transpire term.  MODFLOW's EVT RATE is a
-            ! positive maximum extraction rate, so negate to get a demand positive out of the
-            ! aquifer, matching the convention of every other flux this module hands the coupler.
+            ! negated: scalarCanopyTranspiration is negative for water leaving the canopy
             demand(i) = demand(i) &
                       - frac * fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarCanopyTranspiration)%dat(1) &
                         / iden_water * fracDOM
           end do
-          ! after the negation a negative demand means condensation onto the canopy, which the
-          ! aquifer plays no part in
+          ! a negative demand is condensation, which the aquifer plays no part in
           if (demand(i) < 0._rkind) demand(i) = 0._rkind
         end do
       end do
