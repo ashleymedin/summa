@@ -66,6 +66,7 @@ module summa_mf6_exchange
   public :: mf6x_hru_elevation
   public :: mf6x_hru_area
   public :: mf6x_soil_thickness
+  public :: mf6x_root_reach
   public :: mf6x_get_drainage
   public :: mf6x_put_lower_bound_head
   public :: mf6x_put_aquifer_storage
@@ -154,6 +155,40 @@ contains
       end do
     end associate
   end subroutine mf6x_hru_area
+
+  ! **************************************************************************************************
+  ! How far roots reach BELOW the base of the soil column, per HRU (m): rootingDepth - soil depth,
+  ! floored at zero.  This is the span of soilResist's aquifer transpiration ramp, and the coupler
+  ! uses it to decide how tight the HRU-elevation check has to be: an elevation offset smaller than
+  ! this span can still move the limiting factor across its whole range.
+  ! **************************************************************************************************
+  subroutine mf6x_root_reach(summa_struct, reach)
+    type(summa1_type_dec), intent(in)  :: summa_struct
+    double precision,      intent(out) :: reach(:)
+    integer(i4b) :: iGRU, jHRU, iDOM, i, ixDOM, nSnow, nLake, nSoil
+    real(rkind)  :: soilDepth
+    associate(progStruct => summa_struct%progStruct, &
+              indxStruct => summa_struct%indxStruct, &
+              mparStruct => summa_struct%mparStruct)
+      do iGRU = 1, summa_struct%nGRU_local
+        do jHRU = 1, gru_struc(iGRU)%hruCount
+          i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
+          ixDOM = 1
+          do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
+            if (indxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1) == 0) then
+              ixDOM = iDOM; exit
+            end if
+          end do
+          nSnow = indxStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookINDEX%nSnow)%dat(1)
+          nLake = indxStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookINDEX%nLake)%dat(1)
+          nSoil = indxStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookINDEX%nSoil)%dat(1)
+          soilDepth = progStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookPROG%iLayerHeight)%dat(nSnow+nLake+nSoil) &
+                    - progStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookPROG%iLayerHeight)%dat(nSnow+nLake)
+          reach(i) = max(mparStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookPARAM%rootingDepth)%dat(1) - soilDepth, 0._rkind)
+        end do
+      end do
+    end associate
+  end subroutine mf6x_root_reach
 
   ! **************************************************************************************************
   ! Thickness of the SUMMA soil column for each HRU (m), measured from the ground surface

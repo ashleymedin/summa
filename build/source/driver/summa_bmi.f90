@@ -48,6 +48,7 @@ module summabmi
   USE summa_mf6_exchange, only: mf6x_hru_longitude, mf6x_hru_latitude, mf6x_hru_elevation
   USE summa_mf6_exchange, only: mf6x_soil_thickness
   USE summa_mf6_exchange, only: mf6x_hru_area
+  USE summa_mf6_exchange, only: mf6x_root_reach
   USE summa_mf6_exchange, only: mf6x_put_surface_discharge
   USE summa_mf6_exchange, only: mf6x_get_aquifer_transpire
   USE summa_mf6_exchange, only: mf6x_put_aquifer_transpire
@@ -189,6 +190,7 @@ module summabmi
      procedure :: get_grid_z => summa_grid_z
      procedure :: get_soil_thickness => summa_soil_thickness  ! non-BMI: per-HRU soil-column depth (m), for the MODFLOW 6 coupler
      procedure :: get_hru_area => summa_hru_area              ! non-BMI: per-HRU plan area (m2), for the MODFLOW 6 coupler
+     procedure :: get_root_reach => summa_root_reach          ! non-BMI: per-HRU root reach below the soil column (m)
      procedure :: get_grid_node_count => summa_grid_node_count
      procedure :: get_grid_edge_count => summa_grid_edge_count
      procedure :: get_grid_face_count => summa_grid_face_count
@@ -885,6 +887,17 @@ module summabmi
      call mf6x_hru_area(this%model%summa1_struc(n), area)
      bmi_status = BMI_SUCCESS
    end function summa_hru_area
+
+   ! How far roots reach below the base of the soil column (m).  Non-BMI helper: the MODFLOW 6
+   ! coupler uses it to size the HRU-elevation tolerance when groundwater ET is active.
+   function summa_root_reach(this, reach) result (bmi_status)
+     class (summa_bmi), intent(in) :: this
+     double precision, dimension(:), intent(out) :: reach
+     integer :: bmi_status
+
+     call mf6x_root_reach(this%model%summa1_struc(n), reach)
+     bmi_status = BMI_SUCCESS
+   end function summa_root_reach
 
    ! Get the number of nodes in an unstructured grid
    function summa_grid_node_count(this, grid, count) result(bmi_status)

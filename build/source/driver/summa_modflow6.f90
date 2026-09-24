@@ -119,6 +119,7 @@ program summa_modflow6
   double precision, allocatable :: hru_x(:), hru_y(:), hru_z(:)  ! HRU centroid lon/lat and surface elevation
   double precision, allocatable :: soil_thk(:)   ! per-HRU SUMMA soil-column thickness (m), read from SUMMA
   double precision, allocatable :: hru_area(:)   ! per-HRU plan area (m2), for the area check and coupled budget
+  double precision, allocatable :: root_reach(:) ! per-HRU root reach below the soil column (m)
   integer :: nlay, nrow, ncol
 
   call initialize_coupler
@@ -162,18 +163,19 @@ contains
     allocate(drain_hru(nHRU), head_hru(nHRU), bflow_hru(nHRU), stor_hru(nHRU), surfdis_hru(nHRU), &
              gwet_dem_hru(nHRU), gwet_hru(nHRU))
     bflow_hru = 0.0; stor_hru = 0.0; surfdis_hru = 0.0; gwet_dem_hru = 0.0; gwet_hru = 0.0
-    allocate(hru_x(nHRU), hru_y(nHRU), hru_z(nHRU), soil_thk(nHRU), hru_area(nHRU))
+    allocate(hru_x(nHRU), hru_y(nHRU), hru_z(nHRU), soil_thk(nHRU), hru_area(nHRU), root_reach(nHRU))
     istat = summa%get_grid_x(0, hru_x)   ! HRU longitude  (deg or projected x, must match MODFLOW grid CRS)
     istat = summa%get_grid_y(0, hru_y)   ! HRU latitude   (deg or projected y)
     istat = summa%get_grid_z(0, hru_z)   ! HRU surface elevation (m)
     istat = summa%get_soil_thickness(soil_thk)  ! SUMMA soil-column depth per HRU (m)
     istat = summa%get_hru_area(hru_area)        ! HRU plan area (m2)
+    istat = summa%get_root_reach(root_reach)   ! how far roots reach below the soil column (m)
     head_hru = 0.0
 
     ! -- start MODFLOW 6 and build the HRU -> cell map (run_dir '.': MODFLOW reads mfsim.nam
     !    from the working directory, as this program has always done) --
     call coupler%init(trim(config_file), '.', nHRU, hru_x, hru_y, hru_z, soil_thk, &
-                      numtim, dble(data_step), err, message, hru_area=hru_area)
+                      numtim, dble(data_step), err, message, hru_area=hru_area, root_reach=root_reach)
     if (err /= 0) then; write(*,'(a)') 'summa_modflow6: '//trim(message); error stop 1; end if
 
     call coupler%grid_shape(nlay, nrow, ncol)

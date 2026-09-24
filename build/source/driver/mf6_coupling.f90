@@ -251,6 +251,7 @@ module mf6_coupling
     double precision, allocatable :: hru_x(:), hru_y(:), hru_z(:)  ! HRU centroid lon/lat and surface elevation
     double precision, allocatable :: hru_area(:)                   ! per-HRU plan area from attributes.nc (m2)
     double precision, allocatable :: soil_thk(:)                   ! per-HRU SUMMA soil-column thickness (m)
+    double precision, allocatable :: root_reach(:)                 ! per-HRU depth roots reach below the soil column (m)
     real,             allocatable :: sy_hru(:)                     ! per-HRU MODFLOW specific yield (-), map-weighted
 
     integer :: nss_steps = 0                ! leading steady-state MODFLOW steps run before the coupled period
@@ -330,7 +331,7 @@ contains
   ! ==================================================================================
   subroutine mf6_init(this, config_file, run_dir, nHRU, hru_x, hru_y, hru_z, soil_thk, &
                       nSummaSteps, summa_data_step, err, message, hru_area, &
-                      restart_read, restart_write)
+                      restart_read, restart_write, root_reach)
     class(mf6_coupler_type), intent(inout) :: this
     character(len=*),        intent(in)    :: config_file       ! &coupler namelist file
     character(len=*),        intent(in)    :: run_dir           ! directory holding mfsim.nam ('.' = process cwd)
@@ -342,6 +343,7 @@ contains
     integer,                 intent(out)   :: err
     character(len=*),        intent(out)   :: message
     double precision, optional, intent(in) :: hru_area(:)       ! HRU plan area (m2); enables the area and budget checks
+    double precision, optional, intent(in) :: root_reach(:)     ! how far roots reach below the soil column (m); tightens the elevation check when groundwater ET is on
     ! head-restart paths set by the caller; these override whatever the &coupler namelist says, so a
     ! driver can run the same config as a spin-up (write) and then as an evaluation run (read)
     character(len=*), optional, intent(in) :: restart_read, restart_write
@@ -367,6 +369,9 @@ contains
     this%soil_thk = soil_thk(1:nHRU)
     if (present(hru_area)) then
       allocate(this%hru_area(nHRU)); this%hru_area = hru_area(1:nHRU)
+    end if
+    if (present(root_reach)) then
+      allocate(this%root_reach(nHRU)); this%root_reach = root_reach(1:nHRU)
     end if
 
     call this%enter_run_dir(err, message)
@@ -625,6 +630,7 @@ contains
     if (allocated(this%hru_z))     deallocate(this%hru_z)
     if (allocated(this%hru_area))  deallocate(this%hru_area)
     if (allocated(this%soil_thk))  deallocate(this%soil_thk)
+    if (allocated(this%root_reach)) deallocate(this%root_reach)
     if (allocated(this%sy_hru))    deallocate(this%sy_hru)
     if (allocated(this%map_ptr))   deallocate(this%map_ptr)
     if (allocated(this%map_cell))  deallocate(this%map_cell)
@@ -1207,9 +1213,9 @@ contains
     integer,                 intent(out)   :: err
     character(len=*),        intent(out)   :: message
     real(c_double), pointer :: mf6_top(:) => null()
-    real(c_double) :: zsum, wsum, ztop
-    integer :: i, k, c, node, nbad, nvar
-    real(c_double), parameter :: z_tol = 10.0_c_double   ! m, generous: catches wrong-band mistakes
+    real(c_double) :: zsum, wsum, ztop, dz, dz_worst, z_tol
+    integer :: i, k, c, node, nbad, nvar, i_worst
+    real(c_double), parameter :: z_tol_default = 10.0_c_double   ! m, generous: catches wrong-band mistakes
 
     err = 0; message = ''
 
@@ -1217,7 +1223,27 @@ contains
     call mf6_ptr_double(trim(this%mf6_model_name)//'/DIS/TOP', mf6_top, nvar, err, message)
     if (err /= 0) return
     if (.not. associated(mf6_top)) return      ! nothing to check against
-    nbad = 0
+
+    ! The tolerance has to be tight enough to matter for what the elevation is USED for.
+    !
+    ! 10 m is fine when the only consumer is the soil-column lower boundary condition: a
+    ! prescribed head that is 10 m out still leaves SUMMA solvable.  It is far too loose once
+    ! groundwater ET is active, because the aquifer transpiration ramp in soilResist spans only
+    ! aquiferRootReach - typically a couple of metres - so an elevation offset SMALLER than the
+    ! 10 m tolerance can still move the limiting factor across its whole range from 0 to 1.
+    !
+    ! The bundled 1-HRU Sagehen case is exactly that: its attributes.nc elevation is 2158.52 m
+    ! against a mean DIS TOP of 2161.66 m over the 3387 cells it maps to.  The 3.14 m offset
+    ! passed the 10 m check and on its own flipped scalarTranspireLimAqfr from 0 to 1.
+    z_tol = z_tol_default
+    if (this%have_evt .or. this%have_gwet) then
+      if (allocated(this%root_reach)) then
+        z_tol = min(z_tol_default, 0.25d0*maxval(this%root_reach))
+        if (z_tol < 0.05d0) z_tol = 0.05d0
+      end if
+    end if
+
+    nbad = 0; dz_worst = 0.0_c_double; i_worst = 0
     do i = 1, this%nHRU
       zsum = 0.0_c_double; wsum = 0.0_c_double
       do k = this%map_ptr(i), this%map_ptr(i+1) - 1
@@ -1229,18 +1255,27 @@ contains
       end do
       if (wsum <= 0.0_c_double) cycle
       ztop = zsum / wsum
-      if (abs(ztop - real(this%hru_z(i), c_double)) > z_tol) then
+      dz = ztop - real(this%hru_z(i), c_double)
+      if (abs(dz) > abs(dz_worst)) then; dz_worst = dz; i_worst = i; end if
+      if (abs(dz) > z_tol) then
         nbad = nbad + 1
-        write(*,'(a,i0,2(a,f10.2),a)') 'summa_modflow6: HRU ', i, ' elevation ', this%hru_z(i), &
-          ' m disagrees with the mean land surface of its MODFLOW cells, ', ztop, ' m'
+        write(*,'(a,i0,2(a,f10.2),a,f8.2,a)') 'summa_modflow6: HRU ', i, ' elevation ', this%hru_z(i), &
+          ' m disagrees with the mean land surface of its MODFLOW cells, ', ztop, ' m (out by ', dz, ' m)'
       end if
     end do
     if (nbad > 0) then
-      message = 'set each HRU elevation in attributes.nc to the mean land '// &
+      write(message,'(a,f0.2,a)') 'set each HRU elevation in attributes.nc to the mean land '// &
         'surface of the cells it maps to, or fix the map_file; lowerBoundHead is formed from the '// &
-        'difference, so a mismatch puts the water table off the soil column.'
+        'difference, so a mismatch puts the water table off the soil column. Tolerance in use: ', &
+        z_tol, ' m'
       err = 20; return
     end if
+
+    ! Report the offset even when it passes, because it is a SYSTEMATIC bias in psi rather than
+    ! noise: every HRU's water table is shifted by it, in the same direction, for the whole run.
+    if (i_worst > 0 .and. abs(dz_worst) > 0.25d0) &
+      write(*,'(a,f0.2,a,i0,a)') 'summa_modflow6: NOTE - largest HRU elevation offset from mean DIS TOP is ', &
+        dz_worst, ' m (HRU ', i_worst, '); this shifts the water table SUMMA sees by that amount'
   end subroutine mf6_check_hru_elevation
 
   ! Is the stress period MODFLOW has just prepared a steady-state one?
