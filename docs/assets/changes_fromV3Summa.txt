@@ -320,3 +320,10 @@ AFTER tag of v4.0.0-exp-Sundials
      prepare_time_step reloads a package's PERIOD block at the start of each stress period, which overwrote the scattered
      RECHARGE array, so MODFLOW solved the first step of every stress period with the input file's placeholder value instead
      of SUMMA's drainage.
+ 77) New flux scalarAquiferSeepage, and downHRUindex topology reporting, commit 9c021c1e Sep 25, 2026
+     scalarAquiferSeepage holds the groundwater seepage a coupled MODFLOW model returns at land surface, per HRU, separately
+     from SUMMA's own saturation excess. The mass still joins basin__SurfaceRunoff; the coupled budget warns when the seepage
+     exceeds 10% of the recharge sent, since the land-surface drain is a cap on the water table rather than a transport path
+     (water the aquifer cannot hold normally leaves through the soil column, as an upward flux across the presHead boundary).
+     run_oneGRU already rejected loops in the downHRUindex cascade; it now also reports, once per GRU, HRUs whose downHRUindex
+     names no HRU in the GRU (silently treated as outlets), HRUs draining to a HIGHER HRU, and how many HRUs drain out of the GRU.
