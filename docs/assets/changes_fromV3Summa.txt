@@ -267,25 +267,28 @@ AFTER tag of v4.0.0-exp-Sundials
  66) Automatic parameter calibration, PR #639
      New build/source/calibration/ (DDS sampling, parameter search, NetCDF output) and driver summa_driver_opt.f90. Two-level MPI: domain parallelism plus instance parallelism across calibration trials, scheduled dynamically. 
      Multi-case runs via a --manifest file. Config moves to TOML (legacy -m/--control still accepted). parallel-utils submodule vendored into build/source/parallel/.
- 68) Geothermal heat flux as a lower boundary condition for thermodynamics, commit 3f26663d Sep 24, 2026
-     New bcLowrTdyn option presFlux prescribes lowerBoundNrgFlux (W m-2, default 0.06) into the base of a soil column.
- 69) The aquifer carries its own temperature, commit 85296798 Sep 24, 2026
-     New prognostic scalarAquiferTemp, a well-mixed store, S*dT/dt = R*(T_rech - T); runoff temperatures floored at Tfreeze.
- 70) The deep thermal state below the soil column, after Wade et al. (2024, EMS 171:105866, eq. 9), commits 6ae0264a to 66b0f726 Sep 24, 2026
-     New decision deepTherml (none | aquiferTemp | airTempGW, default none); basin parameter C_ATGW, parameter gwTempWindow.
- 71) Fix the restart file write for a multi-GRU run with glaciers, commit 3e75ea76 (29dc01f6 on develop) Sep 24, 2026
-     writeRestartGrid loops over every GRU itself, so it is called once after writeRestart's GRU loop, not inside it.
- 72) Frozen-ground diagnostics, and ice-impeded lateral flow, commit 6575b412 Sep 24, 2026
-     New scalarFrostTableDepth and scalarActiveLayerDepth; each layer's transmissivity scaled by its ice impedance factor.
- 73) Hyporheic exchange in a stream domain, after Wade et al. (2024, EMS 171:105866, eqs. 11-12), commit e305fdf1 Sep 24, 2026
+ 67) Allow baseflow to have a temperature, various commits Sept 24-26 2026
+      1) Geothermal heat flux as a lower boundary condition for thermodynamics-- New bcLowrTdyn option presFlux prescribes lowerBoundNrgFlux (W m-2, default 0.06) into the base of a soil column.
+      2) Frozen-ground diagnostics, and ice-impeded lateral flow, scalarFrostTableDepth and scalarActiveLayerDepth; each layer's transmissivity scaled by its ice impedance factor.
+      3) The aquifer carries its own temperature, new prognostic scalarAquiferTemp, a well-mixed store, S*dT/dt = R*(T_rech - T); runoff temperatures floored at Tfreeze.
+      4) The deep thermal state below the soil column, deepTherml
+          ! none        ! the base of the soil column itself, floored at freezing
+          ! aquiferTemp ! a well-mixed temperature carried by the big-bucket aquifer store
+          ! airTempGW   ! groundwater temperature scaled from the air temperature, Wade et al. (2024)
+          ! bedrockLyrs ! the deepest soil layers carry heat alone, extending the column into bedrock      
+      5) Thermal-only bedrock layers below the soil are built (5 layers to 30 m) if bedrockLyrs is chosen
+         check_icond starts them on the steady gradient the geothermal flux holds, T(z) = T_active_base + q*(z - z_base)/thCond_soil, so the column begins in equilibrium with bcLowrTdyn = presFlux
+         nBedrock is an index variable written to the restart, so a restart keeps the layers it already carries instead of
+         building more. The parameter file still holds only the soil layers the user set up; the bedrock entries of the
+         depth-varying parameters take the deepest soil value and are then overwritten with thCond_bedrock (2.5 W m-1 K-1)
+         and theta_sat_bedrock (0.05), the bedrock starting saturated at zero matric head.
+ 68) Hyporheic exchange in a stream domain, after Wade et al. (2024, EMS 171:105866, eqs. 11-12), commit e305fdf1 Sep 24, 2026
      New decision hyporhTdyn (none | proxy, default none), parameters hypFrac and hypLag, restart variable hypTempPast.
- 74) Cap the lateral outflow of a soil layer at the drainable water it holds over the data step, commit aae78d23 Sep 24, 2026
+ 69) Cap the lateral outflow of a soil layer at the drainable water it holds over the data step, commit aae78d23 Sep 24, 2026
      The smooth minimum q_max*tanh(q/q_max), monotone where a logistic one is not, with its derivatives in dBaseflow_d*.
- 75) Scale the infiltration closure under saturation to the depth of the zone it averages over, commit a52791c6 Sep 24, 2026
-     Cutoff min(1 m, rootZoneDepth) and width min(0.02 m, a quarter of it), so a debris veneer closes as a soil column does.
- 76) Exfiltrate the surplus a nearly full soil column cannot store, whatever face it arrived through, commit a7126fbc Sep 24, 2026
+-70) Exfiltrate the surplus a nearly full soil column cannot store, whatever face it arrived through, commit a7126fbc Sep 24, 2026
      exfilDrive = totalColumnInflow + (iLayerLiqFluxSoil(0) - iLayerLiqFluxSoil(nSoil)) - totalColumnOutflow, was lateral only.
-     Closes the debris-column water balance, so gulkana restart-cycles (five tested); a qTopmodl upland is unchanged in
-      practice, its exfiltration identically zero either way, since the relief opens only below 2 mm available storage.
--77) var_derive.f90 root density normalisation only trims an excess, no longer fills a deficit, commit 0dd366a3 Sep 25, 2026
+     Closes the debris-column water balance; a qTopmodl upland is unchanged in practice, its exfiltration identically zero either way, since the relief opens only below 2 mm available storage.
+-71) var_derive.f90 root density normalisation only trims an excess, no longer fills a deficit, commit 0dd366a3 Sep 25, 2026
      scalarAquiferRootFrac was forced to zero, so bigAquifer's aquifer transpiration was unreachable for bigBuckt too.
+
