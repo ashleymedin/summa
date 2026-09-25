@@ -54,8 +54,45 @@ RMSE) count negatively - so a larger sum is always a better fit whatever mix of 
 a single target of weight one that sum is the metric itself, which is exactly what DDS maximized
 before targets existed.
 
-`variable` accepts `streamflow` (or `discharge`) today. Groundwater level, baseflow and stream
-temperature arrive with the coupling work that produces them.
+`variable` accepts `streamflow` (or `discharge`) for the routed flow mizuRoute produces, or the name
+of any variable SUMMA knows - `basin__StorageChange`, `scalarStreamTemp`, `lowerBoundHead` - which is
+collected over the run as an area-weighted basin mean. A name SUMMA does not know is refused when the
+calibration starts, rather than after a simulation has been paid for.
+
+### Comparing things that are not measured the way the model carries them
+
+Some observations cannot be compared against a model variable as it stands. GRACE reports basin water
+storage once a month, as a departure in millimetres from a multi-year mean; SUMMA carries the rate
+storage is changing at, every time step. A target says what has to happen for the two to be
+comparable:
+
+```toml
+[[calibration.target]]
+name           = "grace_tws"
+variable       = "basin__StorageChange"   # kg m-2 s-1, which is mm of water per second
+obs_file       = "Gulkana_HRUs_GRUs_grace_tws_anomaly.csv"
+obs_format     = "csv"                    # dated rows, one column per processing centre
+vname_obs      = "grace_jpl_anomaly"      # JPL, for a glacierized basin
+obs_units      = "mm"
+accumulate     = true                     # integrate the rate into the storage itself
+cadence        = "monthly"                # average to the month the satellite reports
+baseline_start = "2004-01-01"             # express both sides as departures from the same mean,
+baseline_end   = "2009-12-31"             #   which is the baseline GRACE anomalies are relative to
+metric         = "rmse"
+```
+
+- `obs_format` is `netcdf` (the default) or `csv`. A CSV holds the date in its first column, named or
+  not, and is read by column name, so one file can serve several targets.
+- `obs_units` supplies the units for a format that does not carry them.
+- `accumulate` integrates a rate into the quantity the observations report. Integrating kg m-2 s-1
+  over seconds leaves kg m-2, which is millimetres of water.
+- `cadence` is `native` (compared step for step, as streamflow is) or `monthly`.
+- `baseline_start`/`baseline_end` express **both** series as departures from their own mean over that
+  period. Doing it to both sides is what removes the constant of integration an accumulated series
+  carries, which is what makes an integrated rate comparable to a storage anomaly at all.
+
+Observations no longer have to arrive on a regular timestep. Each observation covers the span since
+the one before it, so a monthly product, whose months are 28 to 31 days long, aligns like any other.
 
 ## Calibrating a MODFLOW 6 coupled case
 
