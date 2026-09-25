@@ -276,6 +276,7 @@ contains
                        no_ice_vars,                   & ! intent(out):   flag that glacier ice variables are not in initial conditions
                        no_ablfrac,                    & ! intent(out):   flag that glacier ablation fraction variable is not in initial conditions
                        no_icond_enth,                 & ! intent(out):   flag that enthalpy variables are not in the initial conditions
+                       aq_started,                    & ! intent(out):   flag that the aquifer in the initial conditions has already been started
                        err,message)                     ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------
  ! modules
@@ -314,6 +315,7 @@ contains
  logical                    ,intent(out)   :: no_ice_vars                   ! flag that glacier ice variables are not in initial conditions
  logical                    ,intent(out)   :: no_ablfrac                    ! flag that glacier ablation fraction variable is not in initial conditions
  logical                    ,intent(out)   :: no_icond_enth                 ! flag that enthalpy variables are not in initial conditions
+ logical                    ,intent(out)   :: aq_started                    ! flag that the aquifer in the initial conditions has already been started
  integer(i4b)               ,intent(out)   :: err                           ! error code
  character(*)               ,intent(out)   :: message                       ! returned error message
  ! locals
@@ -327,6 +329,7 @@ contains
  integer(i4b)                              :: iGRU,iHRU,iDOM,iGlac,iGrid    ! loop indices
  integer(i4b)                              :: dimID                         ! varible dimension ids
  integer(i4b)                              :: ncVarID                       ! variable ID in netcdf file
+ integer(i4b)                              :: aqStartFlag                   ! aquifer start flag as stored in the initial conditions file
  character(256)                            :: dimName                       ! not used except as a placeholder in call to inq_dim function
  integer(i4b)                              :: dimLen                        ! data dimensions
  integer(i4b)                              :: ncid                          ! netcdf file ID
@@ -367,6 +370,11 @@ contains
  ! open netcdf file
  call nc_file_open(iconFile,nf90_nowrite,ncid,err,cmessage)
  if (err/=nf90_noerr) then; message=trim(message)//trim(cmessage); return; end if
+
+ ! a restart file written by SUMMA carries this flag, a hand-made cold start does not
+ err = nf90_get_att(ncid,nf90_global,'aqEmptyStarted',aqStartFlag)
+ if(err/=nf90_noerr)then; aqStartFlag=0; err=nf90_noerr; endif
+ aq_started = (aqStartFlag==1)
 
  ! build mappings from local GRU/HRU indices to initial-conditions file indices
  call build_icond_index_map(ncid, nGRU_local, fileGRU, fileHRU, index_to_gruid, index_to_hrunc, err, cmessage)
