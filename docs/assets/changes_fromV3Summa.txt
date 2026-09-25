@@ -327,3 +327,7 @@ AFTER tag of v4.0.0-exp-Sundials
      (water the aquifer cannot hold normally leaves through the soil column, as an upward flux across the presHead boundary).
      run_oneGRU already rejected loops in the downHRUindex cascade; it now also reports, once per GRU, HRUs whose downHRUindex
      names no HRU in the GRU (silently treated as outlets), HRUs draining to a HIGHER HRU, and how many HRUs drain out of the GRU.
+ 78) run_oneGRU.f90 builds the downHRUindex cascade order once per GRU instead of every data step, commit e9c746a3 Sep 25, 2026
+     The match of downHRUindex against hruId is O(hruCount^2) and was repeated every step for a topology that never changes;
+     at a few hundred HRUs per GRU that is of the order of 10^10 comparisons over a simulated year. The order is cached in
+     module state keyed by gru_id and hruCount. Results are unchanged (the 4-HRU Sagehen cases are bit-identical).
