@@ -315,3 +315,5 @@ AFTER tag of v4.0.0-exp-Sundials
      Closes the debris-column water balance; a qTopmodl upland is unchanged in practice, its exfiltration identically zero either way, since the relief opens only below 2 mm available storage.
 -73) var_derive.f90 root density normalisation only trims an excess, no longer fills a deficit, commit 0dd366a3 Sep 25, 2026
      scalarAquiferRootFrac was forced to zero, so bigAquifer's aquifer transpiration was unreachable for bigBuckt too.
+ 74) aquiferIni=emptyStart empties the aquifer on a cold start only, stamping aqEmptyStarted=1 on every restart file, commit c350f6f2 Sep 25, 2026
+ 
