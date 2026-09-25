@@ -299,3 +299,15 @@ AFTER tag of v4.0.0-exp-Sundials
      On gulkana, 8 active layers over 7 bedrock layers to 30 m: the base drifts 0.09 K over 15 months where the same
       column with every layer active and a uniform start drifts 1.36 K, and its annual range there is 0.09 K against
       1.35 K. The seasonal wave damps from 30.96 K at the surface to 7.10 K at 4 m to 0.09 K at 30 m.
+ 79) Build the bedrock layers rather than asking for them, commit 00536bd5 Sep 25, 2026
+     deepTherml = bedrockLyrs now appends the bedrock itself, so a cold start gives the soil layers it always gave and
+      the model adds nBedrockLayers (5) layers growing geometrically to bedrockDepth (30 m), both in globalData beside
+      nMeltingIceLayers. nSoil grows by that count, which happens in summa_init once the decisions are read and before
+      the data structures are allocated, so the layers are sized in from the start.
+     nBedrock is an index variable written to the restart, so a restart keeps the layers it already carries instead of
+      building more. The parameter file still holds only the soil layers the user set up; the bedrock entries of the
+      depth-varying parameters take the deepest soil value and are then overwritten with thCond_bedrock (2.5 W m-1 K-1)
+      and theta_sat_bedrock (0.05), the bedrock starting saturated at zero matric head.
+     The steady profile now comes off iLayerHeight. It used to use mLayerHeight, which calcHeight does not fill until
+      after check_icond, so every bedrock layer started at the temperature of the layer above it instead of on the
+      gradient.
