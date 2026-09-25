@@ -957,10 +957,10 @@ contains
  ! initialize error control
  err=0; message='gndAlbedo/'
 
- if (nLake>0) then ! compute lake albedo
+ if (nLake>0) then ! compute lake albedo: ice when the surface is at or below freezing, open water otherwise
     if (scalarTemperatureUpper<=Tfreeze) then
       spectralLakeAlbedo = spectralFrznWatAlbedo
-    else if (nGlce>0) then
+    else
       spectralLakeAlbedo = spectralOpenWatAlbedo
     end if
  else if (nSoil>0) then

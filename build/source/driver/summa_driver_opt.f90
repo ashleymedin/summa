@@ -183,9 +183,7 @@ program summa_driver_opt
     ! -------------------------------------------------------------------------
     ! Partition ranks on each node among independent cases
     ! -------------------------------------------------------------------------
-    ! Calibration groups must be equal-sized, and each needs at least two ranks: one
-    ! coordinates the search and the rest evaluate samples. Rather than refusing to run,
-    ! reduce cases_per_node to the largest workable value and say so.
+    ! groups are equal-sized and need two ranks each, so cases_per_node drops to the largest workable value
     requested_cases=config%cases_per_node
 
     if(node_parallel%size < 2)then

@@ -40,6 +40,8 @@ USE globalData,only:glacCln1           ! first horizontal domain type for glacie
 USE globalData,only:glacCln2           ! second horizontal domain type for glacier clean areas
 USE globalData,only:glacDbr            ! horizontal domain type for glacier debris areas
 USE globalData,only:wetland            ! horizontal domain type for wetland areas
+USE globalData,only:stream             ! horizontal domain type for stream reaches
+USE globalData,only:nLakeIceLayers_poss ! number of ice cover layers a lake can grow
 
 implicit none
 private
@@ -162,6 +164,8 @@ contains
        gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 1   ! glacier debris domain possible
      if (any(dom_type(1:fileDOM,iHRU_global)==wetland)) &
        gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 1   ! wetland domain possible
+     if (any(dom_type(1:fileDOM,iHRU_global)==stream)) &
+       gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 1   ! stream domain possible
      allocate(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(gru_struc(iGRU)%hruInfo(iHRU)%domCount)) ! allocate third level of gru to hru map
      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(:)%dom_type = dom_type(1:gru_struc(iGRU)%hruInfo(iHRU)%domCount,iHRU_global)
    enddo
@@ -208,6 +212,7 @@ contains
    if (any(dom_type(1:fileDOM,iHRU_file)==glacCln2)) domCount_file = domCount_file + 1
    if (any(dom_type(1:fileDOM,iHRU_file)==glacDbr))  domCount_file = domCount_file + 1
    if (any(dom_type(1:fileDOM,iHRU_file)==wetland))  domCount_file = domCount_file + 1
+   if (any(dom_type(1:fileDOM,iHRU_file)==stream))   domCount_file = domCount_file + 1
    do iDOM = 1,domCount_file
      if(no_dom)then
        nSoil_file = soilData1(iHRU_file); nLake_file = lakeData1(iHRU_file); nGlce_file = glceData1(iHRU_file)
@@ -218,6 +223,11 @@ contains
      maxLakeLayers = max(maxLakeLayers, nLake_file)
      maxGlceLayers = max(maxGlceLayers, nGlce_file)
      maxTotoLayers = max(maxTotoLayers, nSoil_file + nLake_file + nGlce_file)
+     ! room for the ice cover that forms on top of the lake water (extra lake layers)
+     if(nLake_file>0)then
+       maxLakeLayers = max(maxLakeLayers, nLake_file + nLakeIceLayers_poss)
+       maxTotoLayers = max(maxTotoLayers, nSoil_file + nLake_file + nLakeIceLayers_poss + nGlce_file)
+     endif
    end do
 
  end do
@@ -277,6 +287,7 @@ contains
  USE var_lookup,only:iLookINDEX                         ! variable lookup structure
  USE globalData,only:prog_meta                          ! metadata for prognostic variables
  USE globalData,only:bvar_meta                          ! metadata for basin (GRU) variables
+ USE globalData,only:indx_meta                          ! metadata for index variables
  USE globalData,only:iname_soil,iname_snow,iname_glce,iname_lake ! named variables to describe the type of 
  USE globalData,only:maxGlaciers                        ! maximum number of glaciers in a GRU
  USE netcdf_util_module,only:nc_file_open               ! open netcdf file
@@ -311,7 +322,7 @@ contains
  integer(i4b)                              :: fileGRU                       ! number of GRUs in file
  integer(i4b)                              :: fileDOM                       ! number of domains in netcdf file
  integer(i4b)                              :: iVar,i,j                      ! loop indices
- integer(i4b),dimension(1)                 :: nrdx                          ! intermediate array of loop indices for basin variables
+ integer(i4b),dimension(3)                 :: nrdx                          ! intermediate array of loop indices for basin variables
  integer(i4b),dimension(7)                 :: ngdx                          ! intermediate array of loop indices for glacier variables
  integer(i4b)                              :: iGRU,iHRU,iDOM,iGlac,iGrid    ! loop indices
  integer(i4b)                              :: dimID                         ! varible dimension ids
@@ -324,6 +335,8 @@ contains
  real(rkind),allocatable                   :: varData2(:,:)                 ! variable data storage
  real(rkind),allocatable                   :: varData3(:,:,:)               ! variable data storage
  integer(i4b)                              :: nSnow,nLake,nSoil,nGlce,nToto ! # layers
+ integer(i4b),allocatable                  :: frzData2(:,:)                 ! number of frozen lake layers in the file (dom,hru)
+ logical(lgt)                              :: no_frzData                    ! flag that the number of frozen lake layers is not in the file
  integer(i4b)                              :: noThetaChange                 ! number of layers with no change in total water content (bottom layers)
  integer(i4b)                              :: nTDH                          ! number of points in time-delay 
  integer(i4b)                              :: nGlac                         ! number of glaciers in basin
@@ -451,6 +464,9 @@ else
    if(prog_meta(iVar)%varName=='scalarGlceWE'         .or. &
       prog_meta(iVar)%varName=='glacMass4AreaChange'       )then; err=nf90_noerr; no_ice_vars=.true.; cycle; endif ! backwards compatible, may be missing, correct in check_icond
    if(prog_meta(iVar)%varName=='scalarAblFrac'             )then; err=nf90_noerr; no_ablfrac=.true.; cycle; endif ! backwards compatible, may be missing, correct in check_icond
+   if(prog_meta(iVar)%varName=='scalarAquiferTemp'         )then; err=nf90_noerr; cycle; endif ! backwards compatible, may be missing: stays realMissing and check_icond sets it from the soil column
+   if(prog_meta(iVar)%varName=='scalarAirTempWindow'   .or. &
+      prog_meta(iVar)%varName=='scalarAirTempAnnual'        )then; err=nf90_noerr; cycle; endif ! backwards compatible, may be missing: stays realMissing and the first forcing step starts the running mean
    if(prog_meta(iVar)%varName=='scalarCanairEnthalpy' .or. &
       prog_meta(iVar)%varName=='scalarCanopyEnthalpy' .or. &  
       prog_meta(iVar)%varName=='mLayerEnthalpy'            )then; err=nf90_noerr; no_icond_enth=.true.; cycle; endif ! skip enthalpy variables if not in file
@@ -562,8 +578,22 @@ else
  ! --------------------------------------------------------------------------------------------------------
  ! (3) set number of layers
  ! --------------------------------------------------------------------------------------------------------
+ ! the number of frozen (ice cover) lake layers is optional: an ice-free lake when absent
+ allocate(frzData2(fileDOM,fileHRU)); frzData2 = 0
+ err = nf90_inq_varid(ncid,trim(indx_meta(iLookINDEX%nLakeFrz)%varName),ncVarID)
+ no_frzData = (err/=nf90_noerr)
+ if(.not.no_frzData)then
+  if(no_dom)then
+   err = nf90_get_var(ncid,ncVarID,frzData2(1,:)); call netcdf_err(err,message)
+  else
+   err = nf90_get_var(ncid,ncVarID,frzData2);      call netcdf_err(err,message)
+  endif
+  if(err/=nf90_noerr)then; message=trim(message)//'problem reading nLakeFrz'; return; endif
+ endif
+ err = nf90_noerr
  do iGRU = 1,nGRU_local
   do iHRU = 1,gru_struc(iGRU)%hruCount
+   iHRU_global = index_to_hrunc(iGRU,iHRU) ! index of HRU in the netcdf file
    do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
 
     ! save the number of layers
@@ -576,6 +606,11 @@ else
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSoil)%dat(1)   = nSoil
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1)   = nGlce
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLayers)%dat(1) = nSnow + nLake + nSoil + nGlce
+    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%domType)%dat(1) = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type
+    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLakeFrz)%dat(1) = frzData2(min(iDOM,fileDOM),iHRU_global)
+    if(frzData2(min(iDOM,fileDOM),iHRU_global) >= nLake .and. nLake > 0)then
+     err=20; message=trim(message)//'the frozen lake layers (nLakeFrz) must leave at least one water layer'; return
+    endif
 
     ! define layers that will not have a change in total water content
     noThetaChange = 0
@@ -658,10 +693,29 @@ else
    return
   endif
 
-  ! loop through specific basin variables (currently 1 but loop provided to enable inclusion of others)
-  nrdx = (/iLookBVAR%routingRunoffFuture/)   ! array of desired variable indices
+  ! loop through specific basin variables
+  nrdx = (/iLookBVAR%routingRunoffFuture, iLookBVAR%routingNrgFuture, iLookBVAR%hypTempPast/)   ! array of desired variable indices
   do i = 1,size(nrdx)
    iVar = nrdx(i)
+
+   ! the runoff energy flux is new, so older restart files will not have it: start from zero (runoff at the freezing point)
+   if(iVar == iLookBVAR%routingNrgFuture)then
+    err = nf90_inq_varid(ncid,trim(bvar_meta(iVar)%varName),ncVarID)
+    if(err/=nf90_noerr)then
+     write(iulog,*) 'WARNING: routingNrgFuture is not in the initial conditions file ... using zeros'
+     err=nf90_noerr; cycle
+    endif
+   endif
+
+   ! likewise the reach temperature history, which is only used with hyporhTdyn = proxy: with no history the
+   ! hyporheic exchange stays out of the energy balance until the run has filled the residence time
+   if(iVar == iLookBVAR%hypTempPast)then
+    err = nf90_inq_varid(ncid,trim(bvar_meta(iVar)%varName),ncVarID)
+    if(err/=nf90_noerr)then
+     write(iulog,*) 'WARNING: hypTempPast is not in the initial conditions file ... starting with no reach temperature history'
+     err=nf90_noerr; cycle
+    endif
+   endif
 
    ! get tdh dimension Id in file (should be 'tdh')
    err = nf90_inq_dimid(ncid,trim(tdhDimName), dimID)

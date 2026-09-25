@@ -86,7 +86,7 @@ USE mDecisions_module,only:   &
   ! look-up values for the choice of groundwater parameterization
   qbaseTopmodel,              & ! TOPMODEL-ish baseflow parameterization
   modflowCpl,                 & ! MODFLOW coupled parameterization
-  modLatFlow,                 & ! as modflowCpl, plus lateral flow in the soil above
+  modLatflow,                 & ! as modflowCpl, plus lateral flow in the soil above
   bigBucket,                  & ! a big bucket (lumped aquifer model)
   noExplicit                    ! no explicit groundwater parameterization
 
@@ -141,6 +141,7 @@ subroutine soilLiqFlux(&
   integer(i4b)                                     :: ixBot               ! bottom layer in subroutine call
   ! transpiration sink term
   real(rkind),dimension(in_soilLiqFlux % nSoil)    :: mLayerTranspireFrac ! fraction of transpiration allocated to each soil layer (-)
+  real(rkind)                                      :: aquiferTranspireFrac ! fraction of transpiration taken from below the soil column (-)
   ! diagnostic variables
   real(rkind),dimension(in_soilLiqFlux % nSoil)    :: iceImpedeFac        ! ice impedence factor at layer mid-points (-)
   real(rkind),dimension(in_soilLiqFlux % nSoil)    :: dHydCond_dTemp      ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
@@ -285,12 +286,18 @@ contains
  subroutine finalize_transpiration_loss_fraction
   ! **** Finalize operations for the fraction of transpiration loss from each soil layer *****
   associate(&
+   scalarTranspireLim     => diag_data%var(iLookDIAG%scalarTranspireLim)%dat(1),     & ! intent(in): weighted average of the transpiration limiting factor (-)
+   scalarTranspireLimAqfr => diag_data%var(iLookDIAG%scalarTranspireLimAqfr)%dat(1), & ! intent(in): transpiration limiting factor for the aquifer (-)
+   scalarAquiferRootFrac  => diag_data%var(iLookDIAG%scalarAquiferRootFrac)%dat(1),  & ! intent(in): fraction of roots below the soil profile (-)
    err          => out_soilLiqFlux % err,     & ! intent(out): error code
    message      => out_soilLiqFlux % cmessage & ! intent(out): error message
   &)
-   ! check fractions sum to one
-   if (abs(sum(mLayerTranspireFrac) - 1._rkind) > verySmaller) then
-     message=trim(message)//'fraction transpiration in soil layers does not sum to one'; err=20; return_flag=.true.; return
+   ! soil-layer fractions plus the aquifer's share account for all transpiration
+   aquiferTranspireFrac = 0._rkind
+   if (scalarTranspireLim > tiny(scalarTranspireLim)) &
+     aquiferTranspireFrac = scalarAquiferRootFrac*scalarTranspireLimAqfr/scalarTranspireLim
+   if (abs(sum(mLayerTranspireFrac) + aquiferTranspireFrac - 1._rkind) > verySmaller) then
+     message=trim(message)//'fraction transpiration in soil layers and aquifer does not sum to one'; err=20; return_flag=.true.; return
    end if
   end associate
  end subroutine finalize_transpiration_loss_fraction
@@ -1680,7 +1687,7 @@ subroutine update_volFracLiq_derivatives
 
   ! Close infiltration under saturation for blocked lower boundaries
   rootZoneDepth = sum(mLayerDepth(ixTop:ixBot))
-  if (ixTop <= ixBot .and. (bc_lower/=freeDrainage .or. nGlce>0)) then ! glacier always has lower boundary zero flux (blocked boundary)
+  if (ixTop <= ixBot .and. (bc_lower/=freeDrainage .or. nGlce>0)) then ! glacier always has lower blocked boundary
     ! drives infiltration area to zero once positive pressure becomes large
     posHead(:) = 0._rkind
     dPosHead_dPsi(:) = 0._rkind

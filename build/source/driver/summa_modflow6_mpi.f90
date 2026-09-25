@@ -58,7 +58,7 @@ program summa_modflow6_mpi
   USE mDecisions_module,only:       &
    qbaseTopmodel,                   & ! TOPMODEL-ish baseflow parameterization
    modflowCpl,                      & ! MODFLOW coupled groundwater parameterization
-   modLatFlow,                      & ! as modflowCpl, plus lateral flow in the soil above
+   modLatflow,                      & ! as modflowCpl, plus lateral flow in the soil above
    bigBucket,                       & ! a big bucket (lumped aquifer model)
    noExplicit                         ! no explicit groundwater parameterization
 
@@ -99,10 +99,12 @@ program summa_modflow6_mpi
   real, allocatable          :: stor_hru(:)      ! per-HRU relative aquifer storage (m of water)              -> scalarAquiferStorage
   double precision, allocatable :: hru_x(:), hru_y(:), hru_z(:)  ! HRU centroid lon/lat and surface elevation
   double precision, allocatable :: soil_thk(:)   ! per-HRU SUMMA soil-column thickness (m), read from SUMMA
+  double precision, allocatable :: hru_area(:)   ! per-HRU plan area (m2), for the area check and coupled budget
 
   ! ---- this rank's local slice (every rank allocates these; sized nHRU_local) ----
   real, allocatable          :: drain_hru_local(:), head_hru_local(:), bflow_hru_local(:), stor_hru_local(:)
   double precision, allocatable :: hru_x_local(:), hru_y_local(:), hru_z_local(:), soil_thk_local(:)
+  double precision, allocatable :: hru_area_local(:)
 
   ! ---- rank-0 bookkeeping for MPI_Gatherv/MPI_Scatterv (counts/displs are per-HRU-variable, in
   !      rank order; valid because summa_work_balance's balance_even gives every rank a contiguous
@@ -152,7 +154,7 @@ contains
 
     ! -- the coupled-groundwater decision must be active (same model_decisions on every rank) --
     if (model_decisions(iLookDECISIONS%groundwatr)%iDecision /= modflowCpl .and. &
-        model_decisions(iLookDECISIONS%groundwatr)%iDecision /= modLatFlow) then
+        model_decisions(iLookDECISIONS%groundwatr)%iDecision /= modLatflow) then
       write(*,*) 'summa_modflow6_mpi: SUMMA model decision groundwatr must be "modflow" or "modLatflow" for the coupler'
       call MPI_Abort(MPI_COMM_WORLD, 1, mpi_ierr)
     end if
@@ -172,6 +174,8 @@ contains
     istat = summa%get_grid_z(0, hru_z_local)   ! HRU surface elevation (m)
     allocate(soil_thk_local(nHRU_local))
     istat = summa%get_soil_thickness(soil_thk_local)  ! SUMMA soil-column depth per HRU (m)
+    allocate(hru_area_local(nHRU_local))
+    istat = summa%get_hru_area(hru_area_local)        ! HRU plan area (m2)
     head_hru_local = 0.0
 
     ! -- gather local HRU counts to build the rank-order partition (see hru_counts/hru_displs above),
@@ -185,18 +189,19 @@ contains
         hru_displs(i) = hru_displs(i-1) + hru_counts(i-1)
       end do
       allocate(drain_hru(nHRU), head_hru(nHRU), bflow_hru(nHRU), stor_hru(nHRU))
-      allocate(hru_x(nHRU), hru_y(nHRU), hru_z(nHRU), soil_thk(nHRU))
+      allocate(hru_x(nHRU), hru_y(nHRU), hru_z(nHRU), soil_thk(nHRU), hru_area(nHRU))
       head_hru = 0.0; bflow_hru = 0.0; stor_hru = 0.0
     else
       ! placeholders: never dereferenced off rank 0, but must be allocated to legally pass as the
       ! (rank-0-significant) recvbuf/sendbuf argument of the Gatherv/Scatterv calls below
       allocate(drain_hru(1), head_hru(1), bflow_hru(1), stor_hru(1))
-      allocate(hru_x(1), hru_y(1), hru_z(1), soil_thk(1))
+      allocate(hru_x(1), hru_y(1), hru_z(1), soil_thk(1), hru_area(1))
     end if
     call gatherv_dp(hru_x_local, hru_x)
     call gatherv_dp(hru_y_local, hru_y)
     call gatherv_dp(hru_z_local, hru_z)
     call gatherv_dp(soil_thk_local, soil_thk)
+    call gatherv_dp(hru_area_local, hru_area)
 
     ! ================================================================================
     ! MODFLOW 6 runs on rank 0 alone; the other ranks' SUMMA instances are driven
@@ -204,7 +209,7 @@ contains
     ! ================================================================================
     if (myrank == 0) then
       call coupler%init(trim(config_file), '.', nHRU, hru_x, hru_y, hru_z, soil_thk, &
-                        numtim, dble(data_step), err, message)
+                        numtim, dble(data_step), err, message, hru_area=hru_area)
       if (err /= 0) then
         write(*,'(a)') 'summa_modflow6_mpi: '//trim(message)
         call MPI_Abort(MPI_COMM_WORLD, 1, mpi_ierr)

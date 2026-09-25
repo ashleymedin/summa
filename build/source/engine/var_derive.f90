@@ -27,7 +27,8 @@ USE data_types,only:var_d          ! x%var(:)     (rkind)
 USE data_types,only:var_ilength    ! x%var(:)%dat (i4b)
 USE data_types,only:var_dlength    ! x%var(:)%dat (rkind)
 ! named variables for snow and soil
-USE globalData,only:iname_snow     ! named variables for snow
+USE globalData,only:iname_snow
+USE globalData,only:iname_lake         ! named variables for lake
 USE globalData,only:iname_soil     ! named variables for soil
 ! named variables
 USE globalData,only:data_step      ! time step of forcing data
@@ -47,6 +48,8 @@ USE mDecisions_module,only: &
 ! look-up values for the choice of groundwater parameterization
 USE mDecisions_module,only: &
  bigBucket,                 & ! a big bucket (lumped aquifer model)
+ modflowCpl,                & ! groundwater handled by a coupled MODFLOW 6 model
+ modLatflow,                & ! as modflowCpl, plus TOPMODEL lateral flow within the soil column
  noExplicit                   ! no explicit groundwater parameterization
 
 ! look-up values for the choice of groundwater parameterization
@@ -115,7 +118,8 @@ contains
 
  ! initialize layer height as the top of the snowpack -- positive downward
  ixLower=lbound(iLayerHeight); if(ixLower(1) > 0)then; err=20; message=trim(message)//'unexpected lower bound for iLayerHeight'; return; endif
- iLayerHeight(0) = -sum(mLayerDepth, mask=layerType==iname_snow)
+ ! the origin is the top of the soil: snow and lake layers above it have negative heights
+ iLayerHeight(0) = -sum(mLayerDepth, mask=(layerType==iname_snow .or. layerType==iname_lake))
 
  ! loop through layers
  do iLayer=1,nLayers
@@ -217,13 +221,12 @@ contains
 
  end do  ! (looping thru layers)
 
- ! check that root density is within some reasonable version of machine tolerance
- ! This is the case when root density is greater than 1. Can only happen with powerLaw option.
+ ! trim any excess root density above one; a deficit is roots below the soil column
  error = sum(mLayerRootDensity) - 1._rkind
  if (error > 2._rkind*epsilon(rootingDepth_use)) then
   message=trim(message)//'problem with the root density calculation'
   err=20; return
- else
+ else if (error > 0._rkind) then
   mLayerRootDensity = mLayerRootDensity - error/real(nSoil,kind(rkind))
  end if
 
@@ -234,19 +237,20 @@ contains
   scalarAquiferRootFrac = 0._rkind
  end if
 
- ! check that roots in the aquifer are appropriate
- if ((ixGroundwater /= bigBucket).and.(scalarAquiferRootFrac > 2._rkind*epsilon(rootingDepth_use)))then
+ ! roots below the soil column need an aquifer to draw from
+ if ((ixGroundwater /= bigBucket).and.(ixGroundwater /= modflowCpl).and.(ixGroundwater /= modLatflow) &
+     .and.(scalarAquiferRootFrac > 2._rkind*epsilon(rootingDepth_use)))then
   if(scalarAquiferRootFrac < rootTolerance) then
    mLayerRootDensity = mLayerRootDensity + scalarAquiferRootFrac/real(nSoil, kind(rkind))
    scalarAquiferRootFrac = 0._rkind
   else
    select case(ixRootProfile)
-    case(powerLaw);  message=trim(message)//'roots in the aquifer only allowed for the big bucket gw parameterization: check that rooting depth < soil depth'
-    case(doubleExp); message=trim(message)//'roots in the aquifer only allowed for the big bucket gw parameterization: increase soil depth to alow for exponential roots'
+    case(powerLaw);  message=trim(message)//'roots in the aquifer require the bigBucket or a coupled MODFLOW groundwater parameterization: check that rooting depth < soil depth'
+    case(doubleExp); message=trim(message)//'roots in the aquifer require the bigBucket or a coupled MODFLOW groundwater parameterization: increase soil depth to allow for exponential roots'
    end select
    err=10; return
   end if  ! if roots in the aquifer
- end if  ! if not the big bucket
+ end if  ! if no aquifer to draw from
 
  end associate
 
@@ -449,6 +453,7 @@ contains
  routingGammaShape => bpar_data%var(iLookBPAR%routingGammaShape),           & ! shape parameter in Gamma distribution used for sub-grid routing (-)
  routingGammaScale => bpar_data%var(iLookBPAR%routingGammaScale),           & ! scale parameter in Gamma distribution used for sub-grid routing (s)
  runoffFuture      => bvar_data%var(iLookBVAR%routingRunoffFuture)%dat,     & ! runoff in future time steps (m s-1)
+ nrgFuture         => bvar_data%var(iLookBVAR%routingNrgFuture)%dat,        & ! energy flux of runoff in future time steps (W m-2)
  fractionFuture    => bvar_data%var(iLookBVAR%routingFractionFuture)%dat    & ! fraction of runoff in future time steps (-)
  ) ! end associate
  ! ----------------------------------------------------------------------------------
@@ -459,8 +464,9 @@ contains
  ! identify number of points in the time-delay runoff variable (should be allocated match nTimeDelay)
  nTDH = size(runoffFuture)
 
- ! initialize runoffFuture (will be overwritten by initial conditions file values if present)
+ ! initialize runoffFuture and nrgFuture (will be overwritten by initial conditions file values if present)
  runoffFuture(1:nTDH) = 0._rkind
+ nrgFuture(1:nTDH)    = 0._rkind
 
  ! select option for sub-grid routing
  select case(ixRouting)

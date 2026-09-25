@@ -106,6 +106,69 @@ covers the user-facing highlights.
   (`-DUSE_MIZUROUTE=ON`), adding `Q_reach`, `q_basin` and `upArea` output. Coupled mizuRoute
   needs the whole domain on one process, so it rejects `-g` and MPI domain parallelism
   (PR #632).
+- Stream temperature on the coupled river network: a GRU may hold a **stream HRU** whose
+  `stream` domain (`domType` 6) is the water column of its reach (lake layers over soil and
+  aquifer). mizuRoute routes the water and hands back reach discharge, volume and lateral
+  inflow; SUMMA solves the column energy balance with the heat advected from upstream reaches
+  and from the GRU runoff (surface runoff at the top-layer temperature, drainage and baseflow
+  at the bottom-soil temperature, routed through the same unit hydrograph), and walks the
+  reaches upstream to downstream after each routing step. Ice that forms in the water rises
+  into an ice cover (a lake layer treated like glacier ice, `nLakeFrz` in the restart file)
+  that breaks up below `lakeIceMinThick`; snow can build on it. The reach volume holds the
+  ice too (the column takes it off before imposing its liquid), and the routing sees the
+  cover through the Manning n of the reach (composite of bed and ice underside, Wanders
+  eqs. 12-13). Follows Wanders et al. (2019, WRR) after van Beek et al. (2012, WRR).
+  New output `T_reach`, `v_reach`, `n_reach`, `ice_reach`, `scalarStreamTemp`,
+  `scalarLakeIceThick`, `averageRoutedRunoffTemp` and the
+  `scalarStream*` fluxes; new attribute `streamSegId`; new parameters `streamMinDepth`,
+  `lakeMixingThermalC` and `lakeIceMinThick`; new restart variables `routingNrgFuture` and
+  `nLakeFrz`. Runs without stream HRUs are unchanged.
+  Test: `utils/test/test_mizuroute/test_streamtemp_bundled.sh`.
+- New `bcLowrTdyn` option `presFlux` prescribes an energy flux into the base of the soil column
+  (new parameter `lowerBoundNrgFlux`, W m-2, default 0.06, the continental geothermal heat
+  flux), so a deep column keeps a realistic temperature at depth instead of being insulated
+  (`zeroFlux`) or pinned to `lowerBoundTemp` (`presTemp`). This matters for permafrost and
+  cold-region runs, where the temperature at the base of the column sets the temperature of the
+  water draining from it. The flux is applied only where the bottom layer is soil; glacier and
+  lake columns keep zero flux. Existing parameter files need no change (the parameter has a
+  default).
+- New `deepTherml` decision sets the deep thermal state below the hydrologically active soil
+  column, which is what fixes the temperature of the water groundwater hands to the channel.
+  `none` (the default) is the previous behaviour, the base of the soil column, now floored at
+  freezing since the water leaving is liquid even where the layer it left is frozen.
+  `aquiferTemp` gives the big-bucket aquifer its own temperature `scalarAquiferTemp` (a new,
+  optional restart variable): recharge arrives at the soil-base temperature and mixes in while
+  the outflows leave at the store's temperature, so the store relaxes towards the recharge
+  temperature with a time constant of storage over recharge, damping and lagging the seasonal
+  cycle as a real aquifer does. It requires `groundwatr = bigBuckt`. `airTempGW` is the
+  coefficient of Wade et al. (2024), which scales the air temperature between its annual mean
+  (deep groundwater) and a smoothed daily mean (the ground surface), with the new basin
+  parameter `C_ATGW`, the new parameter `gwTempWindow`, and new optional restart variables
+  `scalarAirTempWindow` and `scalarAirTempAnnual`. In permafrost `airTempGW` needs care: its
+  deep-groundwater bound is the mean annual air temperature, which is below freezing in the
+  colder zones, so the result is mostly clipped at 0 C. Existing configurations get `none` and
+  are unchanged except for the freezing floor.
+- Fixed: writing a restart file failed with "String match to name in use" for any run with more
+  than one GRU and a glacier grid, because the grid write was called once per GRU when it
+  already loops over every GRU itself.
+- New frozen-ground diagnostics `scalarFrostTableDepth` (depth to the top of the shallowest
+  frozen soil layer, the freezing front working down from the surface) and
+  `scalarActiveLayerDepth` (the thickness of soil above the perennially frozen ground below it).
+  The two differ whenever a column freezes from both ends, which is the autumn state of a
+  permafrost column and the one a single thaw depth cannot describe. Both are missing when the
+  column has no such boundary.
+- Lateral flow out of a frozen soil layer is now impeded by its ice: the TOPMODEL transmissivity
+  of each layer is scaled by the same `10**(-f_impede * volFracIce)` factor `soilLiqFlux`
+  applies to the vertical conductivity, with the matching derivatives. Before this, a frozen
+  layer still drained laterally at its full rate, since the transmissivity profile is built from
+  the saturated conductivity alone. Affects `groundwatr = qTopmodl` runs with frozen soil.
+- New `hyporhTdyn` decision adds the conceptual hyporheic exchange of Wade et al. (2024) to a
+  stream domain: `proxy` returns a fraction `hypFrac` of the reach flow at the temperature the
+  reach had `hypLag` hours ago, written as one more inflow exchange so no water moves. It damps
+  the diurnal swing without changing the mean; on the bundled stream test with `hypFrac` 0.4 and
+  `hypLag` 12 h the outlet's mean daily range falls from 0.76 K to 0.35 K. New parameters
+  `hypFrac` and `hypLag`, new restart variable `hypTempPast`, and the diagnostic
+  `scalarHypTemp`. The default `none` is the previous zero-exchange behaviour.
 - Optional coupling to the OpenWQ water-quality framework (`build/source/openwq/`).
 - Runs as a NextGen submodule; NextGen test cases are in `utils/test/test_ngen/`.
 - Large refactor: object-oriented flux routines, much shorter `computFlux.f90` and the

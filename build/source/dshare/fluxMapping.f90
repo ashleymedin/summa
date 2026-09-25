@@ -159,6 +159,7 @@ contains
  flux2state_orig(iLookFLUX%scalarSurfaceRunoff)             = flux2state(state1=iname_matLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarSurfaceRunoff_IE)          = flux2state(state1=iname_matLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarSurfaceRunoff_SE)          = flux2state(state1=iname_matLayer,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarAquiferSeepage)            = flux2state(state1=integerMissing, state2=integerMissing)
  flux2state_orig(iLookFLUX%mLayerSatHydCondMP)              = flux2state(state1=integerMissing,  state2=integerMissing)
  flux2state_orig(iLookFLUX%mLayerSatHydCond)                = flux2state(state1=integerMissing,  state2=integerMissing)
  flux2state_orig(iLookFLUX%iLayerSatHydCond)                = flux2state(state1=integerMissing,  state2=integerMissing)
@@ -180,6 +181,16 @@ contains
  flux2state_orig(iLookFLUX%scalarTotalRunoff)               = flux2state(state1=iname_matLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarGlacierMelt)               = flux2state(state1=iname_watLayer,  state2=iname_matLayer)
  flux2state_orig(iLookFLUX%scalarNetRadiation)              = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
+
+ ! stream domain: reach inflow/outflow and their temperatures are inputs set by the network pass (no state dependence, so never reset)
+ flux2state_orig(iLookFLUX%scalarStreamInflow)              = flux2state(state1=integerMissing,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarStreamInflowTemp)          = flux2state(state1=integerMissing,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarStreamLatInflow)           = flux2state(state1=integerMissing,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarStreamLatInflowTemp)       = flux2state(state1=integerMissing,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarStreamOutflow)             = flux2state(state1=integerMissing,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarStreamSfcInflow)           = flux2state(state1=iname_watLake,   state2=iname_watLayer)
+ flux2state_orig(iLookFLUX%mLayerLakeAdvNrgFlux)            = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarStreamRunoff)              = flux2state(state1=iname_watLake,   state2=iname_watLayer)
 
  ! ** copy across flux metadata
  do iVar=1,nFlux

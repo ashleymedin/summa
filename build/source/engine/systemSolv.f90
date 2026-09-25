@@ -87,7 +87,7 @@ USE mDecisions_module,only:&
 USE mDecisions_module,only:  &
                     qbaseTopmodel,& ! TOPMODEL-ish baseflow parameterization
                     modflowCpl,   & ! MODFLOW coupled parameterization
-                    modLatFlow,   & ! as modflowCpl, plus lateral flow in the soil above
+                    modLatflow,   & ! as modflowCpl, plus lateral flow in the soil above
                     bigBucket,    & ! a big bucket (lumped aquifer model)
                     noExplicit      ! no explicit groundwater parameterization
 
@@ -335,7 +335,7 @@ contains
 
    ! identify the matrix solution method, using the full matrix can be slow in many-layered systems
    ! (the type of matrix used to solve the linear system A.X=B)
-   if (local_ixGroundwater==qbaseTopmodel .or. local_ixGroundwater==modLatFlow .or. (nGlce>0 .and. nSoil>0) .or. scalarSolution .or. forceFullMatrix .or. computeVegFlux) then
+   if (local_ixGroundwater==qbaseTopmodel .or. local_ixGroundwater==modLatflow .or. (nGlce>0 .and. nSoil>0) .or. scalarSolution .or. forceFullMatrix .or. computeVegFlux) then
      nLeadDim=nState         ! length of the leading dimension
      ixMatrix=ixFullMatrix   ! named variable to denote the full Jacobian matrix
    else
@@ -378,7 +378,7 @@ contains
    end if
 
    ! allocate space for the baseflow derivatives
-   if(ixGroundwater==qbaseTopmodel .or. ixGroundwater==modLatFlow .or. (nGlce>0 .and. nSoil>0))then ! need the baseflow derivatives if have TOPMODEL groundwater or glacier debris (since debris has lateral flow)
+   if(ixGroundwater==qbaseTopmodel .or. ixGroundwater==modLatflow .or. (nGlce>0 .and. nSoil>0))then ! need the baseflow derivatives if have TOPMODEL groundwater or glacier debris (since debris has lateral flow)
      allocate(dBaseflow_dWat(nSoil,nSoil),dBaseflow_dTk(nSoil,nSoil),stat=err)
    else
      allocate(dBaseflow_dWat(0,0),dBaseflow_dTk(0,0),stat=err)
@@ -410,9 +410,10 @@ contains
     flux_temp%var(iVar)%dat(:) = flux_init%var(iVar)%dat(:)
   end do
 
-  ! check the need to merge snow or glacier ice layers
+  ! check the need to merge snow or ice layers
   associate(&
    nSnow            => indx_data%var(iLookINDEX%nSnow)%dat(1)        ,& ! intent(in): [i4b]   number of snow layers
+   nLakeFrz         => indx_data%var(iLookINDEX%nLakeFrz)%dat(1)     ,& ! intent(in): [i4b]   number of frozen lake layers
    nLake            => indx_data%var(iLookINDEX%nLake)%dat(1)        ,& ! intent(in): [i4b]   number of lake layers
    nSoil            => indx_data%var(iLookINDEX%nSoil)%dat(1)        ,& ! intent(in): [i4b]   number of soil layers
    nGlce            => indx_data%var(iLookINDEX%nGlce)%dat(1)        ,& ! intent(in): [i4b]   number of glacier ice layers
@@ -421,10 +422,13 @@ contains
    mLayerTemp       => prog_data%var(iLookPROG%mLayerTemp)%dat       ,& ! intent(in): [dp(:)] temperature of each snow/soil layer (K)
    snowfrz_scale    => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1) & ! intent(in): [dp]    scaling parameter for the snow freezing curve (K-1)
    &)
-   ! check the need to merge snow or glacier ice layers
-   if (nSnow>0 .or. (nSnow==0 .and. nGlce>0) ) then
+   if (nSnow+nGlce+nLakeFrz>0 ) then
      if (nSnow==0)then 
-      top = 1 + nLake + nSoil ! has glacier, so shouldn't be a lake, but just for completeness
+      if (nLakeFrz>0) then
+        top = 1
+      else
+        top = 1 + nSoil + nLake ! glacier could have debris or non-frozen lake on top
+      end if
       frz_scale_use = snowfrz_scale*icefrz_mult
      else
       top = 1

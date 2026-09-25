@@ -47,6 +47,12 @@ module summabmi
   ! runs SUMMA without the BMI (see summa_mf6_exchange.f90 and summa_simulation.f90)
   USE summa_mf6_exchange, only: mf6x_hru_longitude, mf6x_hru_latitude, mf6x_hru_elevation
   USE summa_mf6_exchange, only: mf6x_soil_thickness
+  USE summa_mf6_exchange, only: mf6x_hru_area
+  USE summa_mf6_exchange, only: mf6x_root_reach
+  USE summa_mf6_exchange, only: mf6x_put_surface_discharge
+  USE summa_mf6_exchange, only: mf6x_get_aquifer_transpire
+  USE summa_mf6_exchange, only: mf6x_put_aquifer_transpire
+  USE summa_mf6_exchange, only: mf6x_put_transpire_lim_aqfr
   USE summa_mf6_exchange, only: mf6x_get_drainage
   USE summa_mf6_exchange, only: mf6x_put_lower_bound_head
   USE summa_mf6_exchange, only: mf6x_put_aquifer_storage
@@ -184,6 +190,8 @@ module summabmi
      procedure :: get_grid_y => summa_grid_y
      procedure :: get_grid_z => summa_grid_z
      procedure :: get_soil_thickness => summa_soil_thickness  ! non-BMI: per-HRU soil-column depth (m), for the MODFLOW 6 coupler
+     procedure :: get_hru_area => summa_hru_area              ! non-BMI: per-HRU plan area (m2), for the MODFLOW 6 coupler
+     procedure :: get_root_reach => summa_root_reach          ! non-BMI: per-HRU root reach below the soil column (m)
      procedure :: get_grid_node_count => summa_grid_node_count
      procedure :: get_grid_edge_count => summa_grid_edge_count
      procedure :: get_grid_face_count => summa_grid_face_count
@@ -237,11 +245,11 @@ module summabmi
   ! NOTE: the final input item ('soil_water_sat-zone_top__head') is only used by the coupled
   !       MODFLOW 6 driver (summa_modflow6); it is harmless for other drivers, which never set it.
 #ifdef NGEN_ACTIVE
-  integer, parameter :: input_item_count = 11
+  integer, parameter :: input_item_count = 13
 #else
-  integer, parameter :: input_item_count = 10
+  integer, parameter :: input_item_count = 12
 #endif
-  integer, parameter :: output_item_count = 17
+  integer, parameter :: output_item_count = 18
   character (len=BMI_MAX_VAR_NAME), target,dimension(input_item_count)  :: input_items
   character (len=BMI_MAX_VAR_NAME), target,dimension(output_item_count) :: output_items
   ! Buffers behind summa_get_ptr_int/float.  The BMI contract is that the returned pointer
@@ -609,11 +617,16 @@ module summabmi
      ! (index 8 non-NGEN / 9 NGEN, set above)
      !
      ! groundwater feedback written per HRU by the summa_modflow6 coupler from the
-     ! MODFLOW 6 solution (groundwatr="modflow"): aquifer baseflow flux (m s-1) and
+     ! MODFLOW 6 solution (groundwatr="modflow" or "modLatflow"): aquifer baseflow flux (m s-1) and
      ! relative aquifer storage (m).  (Recharge is not exchanged - it equals the
      ! SUMMA soil drainage, which SUMMA already has.)
-     input_items(input_item_count-1) = 'land_surface_water__baseflow_volume_flux'
-     input_items(input_item_count)   = 'aquifer_water__storage_thickness'
+     input_items(input_item_count-3) = 'land_surface_water__baseflow_volume_flux'
+     input_items(input_item_count-2) = 'aquifer_water__storage_thickness'
+     ! groundwater discharge at land surface (m s-1), from a MODFLOW boundary package with
+     ! role = surface_discharge (a DRN at DIS/TOP).  Added to SUMMA's surface runoff.
+     input_items(input_item_count-1) = 'land_surface_water__domain_outflow_volume_flux'
+     ! aquifer transpiration limiting factor (-), evaluated per MODFLOW cell by the coupler
+     input_items(input_item_count)   = 'land_vegetation_water__aquifer_transpiration_limit'
 
      names => input_items
      bmi_status = BMI_SUCCESS
@@ -642,6 +655,10 @@ module summabmi
      output_items(15)= 'land_surface_energy~net~total__energy_flux'
      output_items(16)= 'land_surface_water__baseflow_volume_flux'
      output_items(17)= 'soil_water__drainage_volume_flux'   ! drainage from the base of the soil column (recharge to MODFLOW 6)
+     ! aquifer transpiration DEMAND: the share of canopy transpiration the deep roots want from
+     ! below the soil column.  Read as an output (SUMMA -> MODFLOW EVT) and written back as an
+     ! input with what MODFLOW could actually supply.
+     output_items(18)= 'land_vegetation_water__aquifer_transpiration_volume_flux'
      names => output_items
      bmi_status = BMI_SUCCESS
    end function summa_output_var_names
@@ -862,6 +879,29 @@ module summabmi
      bmi_status = BMI_SUCCESS
    end function summa_soil_thickness
 
+   ! HRU plan area (m2) from attributes.nc.  Non-BMI helper: the MODFLOW 6 coupler checks it
+   ! against the summed plan area of the cells each HRU maps to, and uses it to turn per-HRU
+   ! fluxes into volumes for the coupled budget.  HRU order matches BMI grid 0.
+   function summa_hru_area(this, area) result (bmi_status)
+     class (summa_bmi), intent(in) :: this
+     double precision, dimension(:), intent(out) :: area
+     integer :: bmi_status
+
+     call mf6x_hru_area(this%model%summa1_struc(n), area)
+     bmi_status = BMI_SUCCESS
+   end function summa_hru_area
+
+   ! How far roots reach below the base of the soil column (m).  Non-BMI helper: the MODFLOW 6
+   ! coupler uses it to size the HRU-elevation tolerance when groundwater ET is active.
+   function summa_root_reach(this, reach) result (bmi_status)
+     class (summa_bmi), intent(in) :: this
+     double precision, dimension(:), intent(out) :: reach
+     integer :: bmi_status
+
+     call mf6x_root_reach(this%model%summa1_struc(n), reach)
+     bmi_status = BMI_SUCCESS
+   end function summa_root_reach
+
    ! Get the number of nodes in an unstructured grid
    function summa_grid_node_count(this, grid, count) result(bmi_status)
      class(summa_bmi), intent(in) :: this
@@ -1016,7 +1056,10 @@ module summabmi
      case('land_vegetation_energy~net~total__energy_flux') ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_surface_energy~net~total__energy_flux')    ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_surface_water__baseflow_volume_flux')      ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
+     case('land_surface_water__domain_outflow_volume_flux'); units = 'm s-1'     ; bmi_status = BMI_SUCCESS
      case('soil_water__drainage_volume_flux')              ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
+     case('land_vegetation_water__aquifer_transpiration_volume_flux') ; units = 'm s-1' ; bmi_status = BMI_SUCCESS
+     case('land_vegetation_water__aquifer_transpiration_limit') ; units = '-'   ; bmi_status = BMI_SUCCESS
      case default; units = "-"; bmi_status = BMI_FAILURE
      end select
    end function summa_var_units
@@ -1386,6 +1429,12 @@ module summabmi
        call mf6x_put_aquifer_storage(this%model%summa1_struc(n), src_arr); return
      case('land_surface_water__baseflow_volume_flux')  ! aquifer baseflow from the coupled MODFLOW model
        call mf6x_put_aquifer_baseflow(this%model%summa1_struc(n), src_arr); return
+     case('land_surface_water__domain_outflow_volume_flux')  ! groundwater discharge at land surface
+       call mf6x_put_surface_discharge(this%model%summa1_struc(n), src_arr); return
+     case('land_vegetation_water__aquifer_transpiration_volume_flux')  ! groundwater ET MODFLOW actually supplied
+       call mf6x_put_aquifer_transpire(this%model%summa1_struc(n), src_arr); return
+     case('land_vegetation_water__aquifer_transpiration_limit')  ! cell-wise aquifer transpiration limiting factor
+       call mf6x_put_transpire_lim_aqfr(this%model%summa1_struc(n), src_arr); return
      end select
 
      summaVars: associate(&
@@ -1453,6 +1502,11 @@ module summabmi
      if (name == 'soil_water__drainage_volume_flux') then
        itarget_arr = -999
        call mf6x_get_drainage(this%model%summa1_struc(n), target_arr)
+       return
+     end if
+     if (name == 'land_vegetation_water__aquifer_transpiration_volume_flux') then
+       itarget_arr = -999
+       call mf6x_get_aquifer_transpire(this%model%summa1_struc(n), target_arr)
        return
      end if
 

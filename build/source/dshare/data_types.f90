@@ -227,7 +227,42 @@ MODULE data_types
  type, public :: q_coupling
    integer(i8b)                          :: id                            ! identifier of the runoff element
    real(rkind)                           :: qsim                          ! simulated runoff for this element (m s-1)
+   real(rkind)                           :: esim = 0._rkind               ! energy flux carried by that runoff, rho*Cp*qsim*T (W m-2)
  end type q_coupling
+
+ ! ***********************************************************************************************************
+ ! stream temperature: the river network as seen by SUMMA
+ ! ***********************************************************************************************************
+ ! One entry per river reach. Filled from the coupled river network after each routing step 
+ type, public :: stream_network
+   integer(i4b)                          :: nSeg = 0                      ! number of reaches
+   integer(i4b), allocatable             :: segId(:)                      ! reach id
+   integer(i4b), allocatable             :: rchOrder(:)                   ! reach indices in processing order (upstream before downstream)
+   integer(i4b), allocatable             :: nUps(:)                       ! number of reaches draining directly into each reach
+   integer(i4b), allocatable             :: ixUps(:,:)                    ! indices of those reaches (maxUps, nSeg)
+   integer(i4b), allocatable             :: ixGRU(:)                      ! GRU holding the stream HRU of the reach (0 = none)
+   integer(i4b), allocatable             :: ixHRU(:)                      ! that HRU, within its GRU
+   integer(i4b), allocatable             :: ixDOM(:)                      ! the stream domain, within that HRU (0 = none)
+   real(rkind), allocatable              :: length(:)                     ! reach length (m)
+   real(rkind), allocatable              :: qUp(:)                        ! discharge entering from upstream reaches (m3 s-1)
+   real(rkind), allocatable              :: qLat(:)                       ! lateral inflow from the local catchment (m3 s-1)
+   real(rkind), allocatable              :: qOut(:)                       ! discharge leaving the reach (m3 s-1)
+   real(rkind), allocatable              :: vol(:)                        ! water volume in the reach (m3), realMissing if the routing method has none
+   real(rkind), allocatable              :: depth(:)                      ! mean liquid depth of the reach (m)
+   real(rkind), allocatable              :: velocity(:)                   ! mean velocity of the reach (m s-1)
+   real(rkind), allocatable              :: manN(:)                       ! Manning roughness of the channel bed, from the routing parameters (s m-1/3)
+   real(rkind), allocatable              :: manNeff(:)                    ! Manning roughness the routing uses, raised by the ice cover of the stream column (s m-1/3)
+   real(rkind), allocatable              :: liqDepth(:)                   ! liquid depth of the stream column beneath its ice, after the network pass (m)
+   real(rkind), allocatable              :: iceThick(:)                   ! thickness of the ice cover of the stream column, after the network pass (m)
+   real(rkind), allocatable              :: eLat(:)                       ! energy flux carried by the lateral inflow (W)
+   real(rkind), allocatable              :: tLat(:)                       ! temperature of the lateral inflow (K)
+   real(rkind), allocatable              :: tUp(:)                        ! flow-weighted temperature of the upstream inflow (K)
+   real(rkind), allocatable              :: tOut(:)                       ! temperature of the water leaving the reach (K)
+   real(rkind), allocatable              :: tOutHist(:,:)                 ! tOut per output buffer step (nSeg, n_write)
+   real(rkind), allocatable              :: velHist(:,:)                  ! velocity per output buffer step (nSeg, n_write)
+   real(rkind), allocatable              :: manNHist(:,:)                 ! manNeff per output buffer step (nSeg, n_write)
+   real(rkind), allocatable              :: iceHist(:,:)                  ! iceThick per output buffer step (nSeg, n_write)
+ end type stream_network
 
  ! ***********************************************************************************************************
  ! hierarchal derived data types
@@ -595,6 +630,7 @@ MODULE data_types
    real(rkind), allocatable :: iLayerLiqFluxSnLaGl(:)            ! intent(in): liquid flux at the interface of each snow lake glce (m s-1)
    real(rkind), allocatable :: iLayerLiqFluxSoil(:)              ! intent(in): liquid flux at the interface of each soil layer (m s-1)
    real(rkind), allocatable :: mLayerTempTrial(:)                ! intent(in): temperature in each layer at the current iteration (m)
+   real(rkind), allocatable :: mLayerVolFracLiqTrial(:)          ! intent(in): volumetric fraction of liquid water in each layer at the current iteration (-)
    real(rkind), allocatable :: dThermalC_dWatAbove(:)            ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
    real(rkind), allocatable :: dThermalC_dWatBelow(:)            ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
    real(rkind), allocatable :: dThermalC_dTempAbove(:)           ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
@@ -616,6 +652,8 @@ MODULE data_types
    real(rkind), allocatable :: dNrgFlux_dTempBelow(:)            ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
    real(rkind), allocatable :: dNrgFlux_dWatAbove(:)             ! intent(out): derivatives in the flux w.r.t. water state in the layer above (J m-2 s-1 K-1)
    real(rkind), allocatable :: dNrgFlux_dWatBelow(:)             ! intent(out): derivatives in the flux w.r.t. water state in the layer below (J m-2 s-1 K-1)
+   real(rkind), allocatable :: mLayerLakeAdvNrgFlux(:)           ! intent(out): advective energy source in each lake layer from reach inflow and outflow (J m-3 s-1)
+   real(rkind), allocatable :: dLakeAdvNrgFlux_dTemp(:)          ! intent(out): derivative of the lake advective energy source w.r.t. the layer temperature (J m-3 s-1 K-1)
    integer(i4b)             :: err                               ! intent(out): error code
    character(len=len_msg)   :: cmessage                          ! intent(out): error message
   contains
@@ -1327,11 +1365,12 @@ contains
  ! **** end vegNrgFlux ****
 
  ! **** snowLakeSoilGlceNrgFlux ****
- subroutine initialize_in_snowLakeSoilGlceNrgFlux(in_snowLakeSoilGlceNrgFlux,scalarSolution,firstFluxCall,mLayerTempTrial,flux_data,deriv_data)
+ subroutine initialize_in_snowLakeSoilGlceNrgFlux(in_snowLakeSoilGlceNrgFlux,scalarSolution,firstFluxCall,mLayerTempTrial,mLayerVolFracLiqTrial,flux_data,deriv_data)
   class(in_type_snowLakeSoilGlceNrgFlux),intent(out) :: in_snowLakeSoilGlceNrgFlux  ! class object for intent(in) snowLakeSoilGlceNrgFlux arguments
   logical(lgt),intent(in)               :: scalarSolution              ! flag to denote if implementing the scalar solution
   logical(lgt),intent(in)               :: firstFluxCall               ! flag to indicate if we are processing the first flux call
   real(rkind),intent(in)                :: mLayerTempTrial(:)          ! trial value for temperature of each snow/soil layer (K)
+  real(rkind),intent(in)                :: mLayerVolFracLiqTrial(:)    ! trial value for volumetric fraction of liquid water in each layer (-)
   type(var_dlength),intent(in)          :: flux_data                   ! model fluxes for a local HRU
   type(var_dlength),intent(in)          :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
   associate(&
@@ -1352,6 +1391,7 @@ contains
    in_snowLakeSoilGlceNrgFlux % iLayerLiqFluxSnLaGl   =iLayerLiqFluxSnLaGl               ! intent(in): liquid flux at the interface of each snow, lake, glce layer (m s-1)
    in_snowLakeSoilGlceNrgFlux % iLayerLiqFluxSoil     =iLayerLiqFluxSoil                 ! intent(in): liquid flux at the interface of each soil layer (m s-1)
    in_snowLakeSoilGlceNrgFlux % mLayerTempTrial       =mLayerTempTrial                   ! intent(in): temperature in each layer at the current iteration (m)
+   in_snowLakeSoilGlceNrgFlux % mLayerVolFracLiqTrial =mLayerVolFracLiqTrial             ! intent(in): volumetric fraction of liquid water in each layer at the current iteration (-)
    in_snowLakeSoilGlceNrgFlux % dThermalC_dWatAbove   =dThermalC_dWatAbove               ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
    in_snowLakeSoilGlceNrgFlux % dThermalC_dWatBelow   =dThermalC_dWatBelow               ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
    in_snowLakeSoilGlceNrgFlux % dThermalC_dTempAbove  =dThermalC_dTempAbove              ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
@@ -1390,9 +1430,15 @@ contains
    dNrgFlux_dTempAbove          => deriv_data%var(iLookDERIV%dNrgFlux_dTempAbove)%dat, & ! intent(out): [dp(:)] derivatives in the flux w.r.t. temperature in the layer above
    dNrgFlux_dTempBelow          => deriv_data%var(iLookDERIV%dNrgFlux_dTempBelow)%dat, & ! intent(out): [dp(:)] derivatives in the flux w.r.t. temperature in the layer below
    dNrgFlux_dWatAbove           => deriv_data%var(iLookDERIV%dNrgFlux_dWatAbove)%dat,  & ! intent(out):  [dp(:)] derivatives in the flux w.r.t. water state in the layer above
-   dNrgFlux_dWatBelow           => deriv_data%var(iLookDERIV%dNrgFlux_dWatBelow)%dat   ) ! intent(out): [dp(:)] derivatives in the flux w.r.t. water state in the layer below
+   dNrgFlux_dWatBelow           => deriv_data%var(iLookDERIV%dNrgFlux_dWatBelow)%dat,  & ! intent(out): [dp(:)] derivatives in the flux w.r.t. water state in the layer below
+   mLayerLakeAdvNrgFlux         => flux_data%var(iLookFLUX%mLayerLakeAdvNrgFlux)%dat,  & ! intent(out): [dp(:)] advective energy source in each lake layer (J m-3 s-1)
+   dLakeAdvNrgFlux_dTemp        => deriv_data%var(iLookDERIV%dLakeAdvNrgFlux_dTemp)%dat ) ! intent(out): [dp(:)] derivative of the lake advective energy source w.r.t. temperature
    ! intent(out) arguments
    iLayerNrgFlux      =out_snowLakeSoilGlceNrgFlux % iLayerNrgFlux          ! intent(out): energy flux at the layer interfaces (W m-2)
+   if(size(mLayerLakeAdvNrgFlux)>0)then
+    mLayerLakeAdvNrgFlux =out_snowLakeSoilGlceNrgFlux % mLayerLakeAdvNrgFlux   ! intent(out): advective energy source in each lake layer (J m-3 s-1)
+    dLakeAdvNrgFlux_dTemp=out_snowLakeSoilGlceNrgFlux % dLakeAdvNrgFlux_dTemp  ! intent(out): derivative of the lake advective energy source w.r.t. temperature
+   endif
    dNrgFlux_dTempAbove=out_snowLakeSoilGlceNrgFlux % dNrgFlux_dTempAbove    ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
    dNrgFlux_dTempBelow=out_snowLakeSoilGlceNrgFlux % dNrgFlux_dTempBelow    ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
    dNrgFlux_dWatAbove =out_snowLakeSoilGlceNrgFlux % dNrgFlux_dWatAbove     ! intent(out): derivatives in the flux w.r.t. water state in the layer above (J m-2 s-1 K-1)
@@ -1561,6 +1607,7 @@ contains
    scalarGlceMelt               => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1)             ) ! intent(out): [dp]  glacier ice melt (m s-1)
    in_soilLiqFlux % scalarCanopyTranspiration=scalarCanopyTranspiration                          ! intent(in): canopy transpiration (kg m-2 s-1)
    in_soilLiqFlux % scalarGroundEvaporation  =scalarGroundEvaporation                            ! intent(in): ground evaporation (kg m-2 s-1)
+   if(nLake>0) in_soilLiqFlux % scalarGroundEvaporation = 0._rkind                               ! evaporation is from the lake surface, not the soil beneath it
    in_soilLiqFlux % scalarRainPlusMelt       =scalarRainPlusMelt                                 ! intent(in): rain plus melt plus lake drainage (m s-1)
    in_soilLiqFlux % scalarGlceMelt           =scalarGlceMelt                                     ! intent(in):  glacier ice melt (m s-1)
   end associate

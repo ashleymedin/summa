@@ -1,7 +1,7 @@
 # SUMMA / MODFLOW 6 coupled test cases
 
 A thin BMI coupler runs SUMMA as the land model and MODFLOW 6 as the groundwater model.
-This folder holds the coupler driver script, the shared MODFLOW 6 model, and two cases.
+This folder holds the coupler driver script, two MODFLOW 6 models, and five cases.
 
 ## Cases
 
@@ -10,15 +10,24 @@ This folder holds the coupler driver script, the shared MODFLOW 6 model, and two
 | `./run_sagehen1.sh` | `domain_sagehen1` | 1 | `modflow` | the basic one-way/two-way coupling |
 | `./run_sagehen4.sh` | `domain_sagehen4` | 4 | `modLatflow` | lateral flow between HRUs; guards the cascade ordering in `run_oneGRU` |
 | `./run_sagehen4_noLatflow.sh` | `domain_sagehen4` | 4 | `modflow` | the same four HRUs without lateral flow |
+| `./run_sagehen1_steady.sh` | `domain_sagehen1` | 1 | `modflow` | steady-state first stress period, and a DRN at land surface returning groundwater discharge as surface runoff |
+| `./run_sagehen1_deeproot.sh` | `domain_sagehen1` | 1 | `modflow` | groundwater evapotranspiration through an EVT package |
 
 `domain_sagehen4` carries two file managers, `fileManager_latflow.txt` and
 `fileManager_noLatflow.txt`, whose decision files differ on the `groundwatr` line alone, so
 running the pair isolates what lateral flow contributes. They write `run1_latflow*` and
 `run1_noLatflow*`, so neither overwrites the other.
 
-Both share the MODFLOW 6 model in `ex-gwf-sagehen` and run the same 72 hourly steps.
-Each case carries its own `summa_modflow6.config`, so they can differ in package names,
-HRU→cell map and feedback while pointing at one model directory.
+The first three share the MODFLOW 6 model in `ex-gwf-sagehen`; the last two use
+`ex-gwf-sagehen-ss`, which adds a steady-state first stress period plus DRN and EVT packages.
+All five run the same 72 hourly steps. Each case carries its own `summa_modflow6.config`, so
+they can differ in package names, roles, HRU→cell map and feedback.
+
+`run_sagehen1_deeproot.sh` is a mechanism test rather than a realistic Sagehen setup: it sets
+`rootingDepth` to 6 m against a 4 m soil column with `rootProfil = doubleExp` and both root
+scale factors at their lower bound, because the bundled parameters otherwise place 99.98% of
+roots inside the soil column and groundwater ET never switches on. Note that `powerLaw` clamps
+the rooting depth to the soil depth, so it can never place roots below the column.
 
 Build the coupler first, with `-DUSE_MODFLOW6=ON` (see `build/cmake/build_mflow.mac.bash`);
 it lands in `srcextern/summa/bin/summa_modflow6.exe`.
@@ -33,18 +42,48 @@ Each SUMMA data step:
 2. SUMMA advances one step.
 3. the drainage out the base of the SUMMA soil column
    (BMI output `soil_water__drainage_volume_flux`, flux `scalarSoilDrainage`)
-   is regridded onto the MODFLOW 6 grid and written into the RCH package `RECHARGE` array.
-4. MODFLOW 6 advances one step (prepare / do / finalize_time_step).
-5. the new head field is read back and aggregated per HRU, ready for step 1 of the next
-   iteration — so the exchange is **explicit, with a one-step lag**.
+   is regridded onto the MODFLOW 6 grid and written into the RCH package `RECHARGE` array,
+   and the aquifer transpiration demand into the EVT package `RATE` array.
+4. MODFLOW 6 advances one step (prepare / do / finalize_time_step). Leading steady-state
+   stress periods are solved out first, using the RCH package's own recharge rather than
+   SUMMA's.
+5. the new head field and each named boundary package's flow are read back and aggregated per
+   HRU, ready for step 1 of the next iteration — so the exchange is **explicit, with a
+   one-step lag**.
+
+The scatter happens after `prepare_time_step`, not before: `prepare_time_step` reloads a
+package's `PERIOD` block at the start of each stress period, which would overwrite it.
 
 With `feedback = .true.` the coupler also writes back, each step, so that SUMMA's water
 balance and routed streamflow include the aquifer:
 
-    scalarAquiferStorage  = Sy * (MODFLOW water table - soil-column base)
-    scalarAquiferBaseflow = MODFLOW <bflow_package_name> outflow over the HRU footprint
+    scalarAquiferStorage    Sy * (MODFLOW water table - soil-column base), diagnostic only
+    scalarAquiferBaseflow   role=baseflow package outflow over the HRU footprint
+    mfSurfaceDischarge      role=surface_discharge outflow, added to SUMMA's surface runoff
+    scalarAquiferTranspire  role=gw_et extraction, against the demand SUMMA sent
+    scalarTranspireLimAqfr  aquifer transpiration limiting factor, per MODFLOW cell
 
 `scalarAquiferRecharge` is not exchanged — SUMMA sets it to its own soil drainage.
+
+Boundary packages are named with a **role** rather than individually, so what SUMMA does with
+a returned flux is separate from which MODFLOW package supplied it:
+
+    bnd_package_names  = 'CHD', 'DRN', 'EVTA'
+    bnd_package_roles  = 'baseflow', 'surface_discharge', 'gw_et'
+
+Packages sharing a role are summed. `bflow_package_name` still works as a one-entry
+`baseflow` table. `evt_package_name` names the EVT package whose `RATE` array SUMMA's demand
+is written into; its `SURFACE` should sit at the base of the soil column and its `DEPTH` be
+large, because the demand has already been reduced by `scalarTranspireLimAqfr` and a second
+extinction ramp in MODFLOW would apply the same limit twice.
+
+`head_restart_read` / `head_restart_write` save and reload the MODFLOW head field, so an
+aquifer spun up once can start every later run. The calibration driver wires this up
+automatically, per rank.
+
+Start-up reports each HRU's area against its effective mapped cell area, and the run ends with
+a coupled water budget: what SUMMA sent, what MODFLOW's RCH array received, what came back by
+role, and the residual.
 
 ## SUMMA model decisions
 
