@@ -30,16 +30,20 @@ USE summa_restart, only: summa_readRestart
 USE summa_forcing, only: summa_readForcing
 USE summa_modelRun, only: summa_runPhysics
 USE summa_writeOutput, only: summa_writeOutputFiles
+USE streamTemp_module, only: stream_domain_map
+USE var_lookup, only: iLookPROG              ! named variables for the prognostic variables
 
 USE globalData, only: integerMissing
 USE globalData, only: realMissing
 USE globalData, only: iulog
+USE globalData, only: gru_struc                ! gru-hru mapping structures, with the domain information
 
 USE build_options, only: mizuroute_active
 USE build_options, only: openwq_active
 
 #ifdef MIZUROUTE_ACTIVE
 USE mizuroute_coupling,        only: get_mizuroute_streamflow
+USE mizuroute_coupling,        only: init_stream_network_from_summa
 USE finalize_mizuroute_module, only: finalize_mizuroute
 #endif
 
@@ -52,6 +56,7 @@ USE mf6_coupling,       only: mf6_prepare_run_dir
 USE summa_mf6_exchange, only: mf6x_hru_count
 USE summa_mf6_exchange, only: mf6x_hru_longitude, mf6x_hru_latitude, mf6x_hru_elevation
 USE summa_mf6_exchange, only: mf6x_soil_thickness
+USE summa_mf6_exchange, only: mf6x_hru_area
 USE summa_mf6_exchange, only: mf6x_get_drainage
 USE summa_mf6_exchange, only: mf6x_put_lower_bound_head
 USE summa_mf6_exchange, only: mf6x_put_aquifer_storage
@@ -71,6 +76,13 @@ private
 
 public :: run_simulation
 public :: evaluate_objective
+public :: mf6_spinup_phase
+
+! .true. only while the shared one-year cold-start spin-up is running.  start_modflow reads it to
+! decide whether this coupled run WRITES the spun-up aquifer head field or READS it: without that,
+! every parameter sample restarted MODFLOW from IC/STRT while SUMMA restarted from the spun-up
+! state, so the soil column and the aquifer were equilibrated to different things (section 8.5).
+logical(lgt), save :: mf6_spinup_phase = .false.
 
 contains
 
@@ -217,11 +229,7 @@ contains
       return
     endif
 
-    ! calibration run: send model chatter to stderr so stdout carries only the metric.
-    ! NOTE: only when logging is still going to stdout. A caller that has already chosen a
-    !       destination -- the calibration driver opens a per-rank log file -- owns iulog,
-    !       and overwriting it here left that file open and closed the caller's stderr
-    !       instead, which is how stray fort.0 files appeared.
+    ! calibration run: send model chatter to stderr so stdout carries only the metric, unless a caller owns iulog
     if(iulog == output_unit) iulog = error_unit
 
     ! read observed streamflow
@@ -296,6 +304,12 @@ contains
     integer(i4b)           , intent(out)      :: err
     character(*)           , intent(out)      :: message
     character(len=256) :: cmessage
+    integer(i4b), allocatable :: streamSegId(:)   ! per GRU: reach id of the stream HRU (0 = reach mapped from the GRU id)
+    integer(i4b), allocatable :: ixStreamHRU(:)   ! per GRU: index of the stream HRU within the GRU (0 = none)
+    integer(i4b), allocatable :: ixStreamDOM(:)   ! per GRU: index of the stream domain within that HRU
+    real(rkind),  allocatable :: domArea(:)       ! per GRU: planform area of the stream domain (m2)
+    integer(i4b)              :: nStream          ! number of stream HRUs
+    integer(i4b)              :: iGRU             ! GRU index
 
     err = 0
     message = 'initialize_summa/'
@@ -311,6 +325,30 @@ contains
     ! read restart data and reset model state
     call summa_readRestart(summa_struct, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! stream temperature: which reach of the river network each stream HRU stands for
+    ! NOTE: after the restart read, since the domain types and the attributes are known by then
+    allocate(streamSegId(summa_struct%nGRU_local), ixStreamHRU(summa_struct%nGRU_local), ixStreamDOM(summa_struct%nGRU_local), &
+             domArea(summa_struct%nGRU_local))
+    call stream_domain_map(summa_struct%nGRU_local, gru_struc, summa_struct%typeStruct, &
+                           streamSegId, ixStreamHRU, ixStreamDOM, nStream)
+    domArea(:) = 0._rkind
+    do iGRU=1,summa_struct%nGRU_local
+      if(ixStreamHRU(iGRU) > 0) domArea(iGRU) = summa_struct%progStruct%gru(iGRU)%hru(ixStreamHRU(iGRU))%dom(ixStreamDOM(iGRU))%var(iLookPROG%DOMarea)%dat(1)
+    end do
+    if(nStream > 0)then
+      if(.not.(mizuroute_active .and. summa_struct%config%use_mizuroute))then
+        message=trim(message)//'stream domains need the coupled river network: build with mizuRoute and set use_mizuroute = true'
+        err=20; return
+      endif
+    endif
+    if(mizuroute_active)then ! build-time capability
+     if(summa_struct%config%use_mizuroute)then
+      call init_stream_network_from_summa(summa_struct, streamSegId, ixStreamHRU, ixStreamDOM, domArea, err, cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+     endif
+    endif
+    deallocate(streamSegId, ixStreamHRU, ixStreamDOM, domArea)
 
     ! initialize OpenWQ
     if(openwq_active)then
@@ -457,7 +495,7 @@ contains
     USE summaFileManager, only: OUTPUT_PATH          ! path for this case's output
     USE var_lookup,       only: iLookDECISIONS       ! named indices into model_decisions
     USE mDecisions_module,only: modflowCpl           ! MODFLOW coupled groundwater parameterization
-    USE mDecisions_module,only: modLatFlow           ! as modflowCpl, plus lateral flow in the soil above
+    USE mDecisions_module,only: modLatflow           ! as modflowCpl, plus lateral flow in the soil above
     USE mDecisions_module,only: prescribedHead       ! prescribed head lower boundary condition
     ! dummy arguments
     type(summa1_type_dec),  intent(inout) :: summa_struct
@@ -467,8 +505,9 @@ contains
     character(*),           intent(out)   :: message
     ! locals
     integer(i4b)                  :: nHRU
-    double precision, allocatable :: hru_x(:), hru_y(:), hru_z(:), soil_thk(:)
+    double precision, allocatable :: hru_x(:), hru_y(:), hru_z(:), soil_thk(:), hru_area(:)
     character(len=256)            :: run_dir
+    character(len=512)            :: head_file   ! per-rank spun-up MODFLOW head field (coupled restart)
     character(len=4)              :: rankString
     character(len=256)            :: cmessage
 
@@ -477,7 +516,7 @@ contains
 
     ! the coupled-groundwater decisions must be active, exactly as for the standalone couplers
     if(model_decisions(iLookDECISIONS%groundwatr)%iDecision /= modflowCpl .and. &
-       model_decisions(iLookDECISIONS%groundwatr)%iDecision /= modLatFlow)then
+       model_decisions(iLookDECISIONS%groundwatr)%iDecision /= modLatflow)then
       message=trim(message)//'SUMMA model decision groundwatr must be "modflow" or "modLatflow" '// &
                              'when simulation.use_modflow is set'
       err=20; return
@@ -492,11 +531,12 @@ contains
     nHRU = mf6x_hru_count()
     allocate(drain_hru(nHRU), head_hru(nHRU), stor_hru(nHRU), bflow_hru(nHRU))
     head_hru = 0.0; stor_hru = 0.0; bflow_hru = 0.0
-    allocate(hru_x(nHRU), hru_y(nHRU), hru_z(nHRU), soil_thk(nHRU))
+    allocate(hru_x(nHRU), hru_y(nHRU), hru_z(nHRU), soil_thk(nHRU), hru_area(nHRU))
     call mf6x_hru_longitude(summa_struct, hru_x)
     call mf6x_hru_latitude(summa_struct, hru_y)
     call mf6x_hru_elevation(summa_struct, hru_z)
     call mf6x_soil_thickness(summa_struct, soil_thk)
+    call mf6x_hru_area(summa_struct, hru_area)
 
     ! this instance's own MODFLOW directory (one per rank; sequential samples on a rank share it)
     write(rankString,'(I4.4)') summa_struct%instance_parallel%rank
@@ -504,9 +544,20 @@ contains
     call mf6_prepare_run_dir(trim(summa_struct%config%modflow_run_dir), trim(run_dir), err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    call coupler%init(trim(summa_struct%config%modflow_config), trim(run_dir), &
-                      nHRU, hru_x, hru_y, hru_z, soil_thk,                     &
-                      numtim, dble(data_step), err, cmessage)
+    ! per-rank coupled restart: the shared spin-up writes the aquifer head field, samples read it
+    head_file = trim(OUTPUT_PATH)//'modflow_spinup_heads_rank'//rankString//'.bin'
+
+    if(mf6_spinup_phase)then
+      call coupler%init(trim(summa_struct%config%modflow_config), trim(run_dir), &
+                        nHRU, hru_x, hru_y, hru_z, soil_thk,                     &
+                        numtim, dble(data_step), err, cmessage, hru_area=hru_area, &
+                        restart_write=trim(head_file))
+    else
+      call coupler%init(trim(summa_struct%config%modflow_config), trim(run_dir), &
+                        nHRU, hru_x, hru_y, hru_z, soil_thk,                     &
+                        numtim, dble(data_step), err, cmessage, hru_area=hru_area, &
+                        restart_read=trim(head_file))
+    endif
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   end subroutine start_modflow

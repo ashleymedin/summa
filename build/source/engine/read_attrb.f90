@@ -535,7 +535,7 @@ subroutine read_attrb(attrFile,nGRU_local,attrStruct,typeStruct,idStruct,gridStr
    select case(trim(varName))
 
      ! ** categorical data
-     case('vegTypeIndex','soilTypeIndex','slopeTypeIndex','downHRUindex')
+     case('vegTypeIndex','soilTypeIndex','slopeTypeIndex','downHRUindex','streamSegId')
 
       ! get the index of the variable
       varType = categorical
@@ -624,6 +624,17 @@ subroutine read_attrb(attrFile,nGRU_local,attrStruct,typeStruct,idStruct,gridStr
      end do
    end do
    checkAttr(varIndx) = .true.
+ endif
+
+ ! ** now handle the optional streamSegId variable if it's missing (0 = use the reach mapped from the GRU id)
+ varIndx = get_ixType('streamSegId')
+ if(.not. checkType(varIndx)) then
+   do iGRU=1,nGRU_local
+     do iHRU = 1, gru_struc(iGRU)%hruCount
+       typeStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = 0
+     end do
+   end do
+   checkType(varIndx) = .true.
  endif
 
  ! **********************************************************************************************

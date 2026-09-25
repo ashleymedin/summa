@@ -82,7 +82,7 @@ integer(i4b),parameter,public :: qbaseTopmodel        = 131    ! TOPMODEL-ish ba
 integer(i4b),parameter,public :: bigBucket            = 132    ! a big bucket (lumped aquifer model)
 integer(i4b),parameter,public :: noExplicit           = 133    ! no explicit groundwater parameterization
 integer(i4b),parameter,public :: modflowCpl           = 134    ! groundwater handled externally by a coupled MODFLOW 6 model (summa_modflow6)
-integer(i4b),parameter,public :: modLatFlow           = 135    ! as modflowCpl, plus TOPMODEL-ish lateral flow in the soil above the MODFLOW water table
+integer(i4b),parameter,public :: modLatflow           = 135    ! as modflowCpl, plus TOPMODEL-ish lateral flow in the soil above the MODFLOW water table
 ! look-up values for the choice of hydraulic conductivity profile
 integer(i4b),parameter,public :: constant             = 141    ! constant hydraulic conductivity with depth
 integer(i4b),parameter,public :: powerLaw_profile     = 142    ! power-law profile
@@ -91,6 +91,7 @@ integer(i4b),parameter,public :: expLaw_profile       = 143    ! exponential pro
 integer(i4b),parameter,public :: prescribedTemp       = 151    ! prescribed temperature
 integer(i4b),parameter,public :: energyFlux           = 152    ! energy flux
 integer(i4b),parameter,public :: zeroFlux             = 153    ! zero flux
+integer(i4b),parameter,public :: prescribedFlux       = 154    ! prescribed energy flux (the geothermal heat flux at the base of the soil)
 ! look-up values for the choice of boundary conditions for hydrology
 integer(i4b),parameter,public :: liquidFlux           = 161    ! liquid water flux
 integer(i4b),parameter,public :: prescribedHead       = 162    ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
@@ -177,6 +178,13 @@ integer(i4b),parameter,public :: readFullSeries       = 362    ! read full forci
 ! look-up values for the buffered write of model output
 integer(i4b),parameter,public :: writePerStep         = 371    ! write data per time step (default)
 integer(i4b),parameter,public :: writeFullSeries      = 372    ! write all data for a given output file
+! look-up values for the choice of deep thermal state below the hydrologically active soil column
+integer(i4b),parameter,public :: noDeepTherml         = 381    ! none: the base of the soil column itself, floored at freezing
+integer(i4b),parameter,public :: aquiferTempState     = 382    ! a well-mixed temperature carried by the big-bucket aquifer store
+integer(i4b),parameter,public :: airTempGW            = 383    ! groundwater temperature scaled from the air temperature (Wade et al., 2024)
+! look-up values for the choice of hyporheic exchange treatment in a stream domain
+integer(i4b),parameter,public :: noHyporheic          = 391    ! none: no exchange with the bed
+integer(i4b),parameter,public :: hyporheicProxy       = 392    ! a lagged return of a fraction of the flow (Wade et al., 2024)
 
 ! ----------------------------------------------------------------------------------------------------------- 
 contains
@@ -511,7 +519,7 @@ subroutine mDecisions(err,message)
       if(.not.modflow_active)then
         err=20; message=trim(message)//'groundwatr="modLatflow" requires building SUMMA with MODFLOW support (configure with -DUSE_MODFLOW6=ON and run the summa_modflow6 executable)'; return
       endif
-      model_decisions(iLookDECISIONS%groundwatr)%iDecision = modLatFlow
+      model_decisions(iLookDECISIONS%groundwatr)%iDecision = modLatflow
       mflowCoupledGW = .true.
     case default
       err=10; message=trim(message)//"unknown groundwater parameterization [option="//trim(model_decisions(iLookDECISIONS%groundwatr)%cDecision)//"]"; return
@@ -539,6 +547,7 @@ subroutine mDecisions(err,message)
   select case(trim(model_decisions(iLookDECISIONS%bcLowrTdyn)%cDecision))
     case('presTemp'); model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision = prescribedTemp      ! prescribed temperature
     case('zeroFlux'); model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision = zeroFlux            ! zero flux
+    case('presFlux'); model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision = prescribedFlux       ! prescribed energy flux (geothermal)
     case default
       err=10; message=trim(message)//"unknown lower boundary conditions for thermodynamics [option="//trim(model_decisions(iLookDECISIONS%bcLowrTdyn)%cDecision)//"]"; return
   end select
@@ -745,9 +754,36 @@ subroutine mDecisions(err,message)
       err=10; message=trim(message)//"unknown option for method used to write model output [option="//trim(model_decisions(iLookDECISIONS%write_buff)%cDecision)//"]"; return
   end select
 
+  ! the deep thermal state below the hydrologically active soil column, which sets the temperature of the water it hands
+  ! to the channel
+  ! NOTE: none is the default, so an existing configuration keeps the behaviour it had
+  select case(trim(model_decisions(iLookDECISIONS%deepTherml)%cDecision))
+    case('none','notPopulatedYet'); model_decisions(iLookDECISIONS%deepTherml)%iDecision = noDeepTherml     ! the base of the soil column (default)
+    case('aquiferTemp'           ); model_decisions(iLookDECISIONS%deepTherml)%iDecision = aquiferTempState ! a temperature carried by the aquifer store
+    case('airTempGW'             ); model_decisions(iLookDECISIONS%deepTherml)%iDecision = airTempGW        ! scaled air temperature, Wade et al. (2024)
+    case default
+      err=10; message=trim(message)//"unknown option for the deep thermal state [option="//trim(model_decisions(iLookDECISIONS%deepTherml)%cDecision)//"]"; return
+  end select
+
+  ! the treatment of hyporheic exchange in a stream domain
+  ! NOTE: none is the default, so an existing configuration keeps the behaviour it had
+  select case(trim(model_decisions(iLookDECISIONS%hyporhTdyn)%cDecision))
+    case('none','notPopulatedYet'); model_decisions(iLookDECISIONS%hyporhTdyn)%iDecision = noHyporheic    ! no exchange with the bed (default)
+    case('proxy'                 ); model_decisions(iLookDECISIONS%hyporhTdyn)%iDecision = hyporheicProxy ! lagged return flow, Wade et al. (2024)
+    case default
+      err=10; message=trim(message)//"unknown option for hyporheic exchange [option="//trim(model_decisions(iLookDECISIONS%hyporhTdyn)%cDecision)//"]"; return
+  end select
+
   ! -----------------------------------------------------------------------------------------------------------------------------------------------
   ! check for consistency among options
   ! -----------------------------------------------------------------------------------------------------------------------------------------------
+  ! the aquifer temperature is a state of the big-bucket store, so there is nothing for it to attach to without one
+  if(model_decisions(iLookDECISIONS%deepTherml)%iDecision == aquiferTempState .and. &
+     model_decisions(iLookDECISIONS%groundwatr)%iDecision /= bigBucket)then
+    message=trim(message)//'expect "groundwatr" decision to equal bigBuckt with the aquiferTemp option for deepTherml: there is no aquifer store to carry a temperature'
+    err=20; return
+  endif
+
   ! check zero flux lower boundary for topmodel baseflow option
   select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
     case(qbaseTopmodel)
@@ -759,12 +795,12 @@ subroutine mDecisions(err,message)
 
   ! check the conductivity profile is compatible with the topmodel baseflow option
   ! NOTE: hc_profile only sets the vertical conductivity, except where computBaseflow also uses it for transmissivity:
-  !       qTopmodl (pow_prof, the classical TOPMODEL form) here, and modLatFlow (exp_prof, the finite-base form for
+  !       qTopmodl (pow_prof, the classical TOPMODEL form) here, and modLatflow (exp_prof, the finite-base form for
   !       lateral flow above the MODFLOW water table) below. Glacier domains override to exp_prof internally.
   select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
     case(qbaseTopmodel)
       if(model_decisions(iLookDECISIONS%hc_profile)%iDecision == expLaw_profile)then
-        message=trim(message)//'exp_prof is the finite-base transmissivity form for modLatFlow, not qTopmodl &
+        message=trim(message)//'exp_prof is the finite-base transmissivity form for modLatflow, not qTopmodl &
           &(set "hc_profile" to "pow_prof")'
         err=20; return
       end if
@@ -794,7 +830,7 @@ subroutine mDecisions(err,message)
   ! check the MODFLOW-coupled groundwater option uses a prescribed-head lower boundary for soil hydrology
   ! (the coupled MODFLOW 6 water table is passed to SUMMA each step through the "lowerBoundHead" parameter)
   if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == modflowCpl .or. &
-     model_decisions(iLookDECISIONS%groundwatr)%iDecision == modLatFlow)then
+     model_decisions(iLookDECISIONS%groundwatr)%iDecision == modLatflow)then
     if(model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision /= prescribedHead)then
       message=trim(message)//'lower boundary condition for soil hydrology must be prescribedHead with groundwatr="modflow" or "modLatflow" (set "bcLowrSoiH" to "presHead" in model decisions input file)'
       err=20; return
@@ -804,7 +840,7 @@ subroutine mDecisions(err,message)
   ! check the conductivity profile for the MODFLOW-coupled option that also does lateral flow in the soil
   ! NOTE: the lateral transmissivity is the vertical integral of the conductivity over the soil column only, since MODFLOW carries
   !       everything below it, which is exactly what exp_prof represents (finite base, no shallow aquifer of its own)
-  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == modLatFlow)then
+  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == modLatflow)then
     if(model_decisions(iLookDECISIONS%hc_profile)%iDecision /= expLaw_profile)then
       message=trim(message)//'an exponential hydraulic conductivity profile must be selected with groundwatr="modLatflow" (set "hc_profile" to "exp_prof" in model decisions input file)'
       err=20; return

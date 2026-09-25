@@ -71,7 +71,7 @@ USE data_types,only:&
 USE mDecisions_module,only:       &
   qbaseTopmodel,                  & ! TOPMODEL-ish baseflow parameterization
   modflowCpl,                     & ! MODFLOW coupled parameterization
-  modLatFlow,                     & ! as modflowCpl, plus lateral flow in the soil above
+  modLatflow,                     & ! as modflowCpl, plus lateral flow in the soil above
   bigBucket,                      & ! a big bucket (lumped aquifer model)
   noExplicit                        ! no explicit groundwater parameterization
 
@@ -317,7 +317,7 @@ contains
     ixMatrix       => in_SS4HG % ixMatrix       ,& ! intent(in): type of matrix (full or band diagonal)
     computeVegFlux => in_SS4HG % computeVegFlux  & ! intent(in): flag to indicate if computing fluxes over vegetation
     &)   
-    call in_computJacob % initialize(dt_cur,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel .or. ixGroundwater==modLatFlow),ixMatrix)
+    call in_computJacob % initialize(dt_cur,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel .or. ixGroundwater==modLatflow),ixMatrix)
    end associate
   end subroutine initialize_computJacob_summaSolv4homegrown
 
@@ -945,6 +945,7 @@ contains
   real(rkind),parameter           :: delX=1._rkind                   ! trial increment
   real(rkind)                     :: xIncrement(in_SS4HG % nState)   ! trial increment
   character(len=256)              :: cmessage                        ! error message of downwind routine
+  logical(lgt)                    :: isLakeIceState                  ! flag that the state being solved here is a lake ice-cover layer
   ! initialize
   err=0; message='getBrackets/'
 
@@ -999,7 +1000,9 @@ contains
    ! check that we found the brackets
    if (iCheck==nCheck) then
     ! check if we have too much energy going into a snow or ice layer, which could be the reason for not finding the brackets
-    if ((indx_data%var(iLookINDEX%nSnowOnlyNrg)%dat(1)>0 .or. indx_data%var(iLookINDEX%nGlceOnlyNrg)%dat(1)>0) .and. rVec(1)<0._rkind) then
+    isLakeIceState = any(indx_data%var(iLookINDEX%ixLakeOnlyNrg)%dat(1:indx_data%var(iLookINDEX%nLakeFrz)%dat(1)) == 1)
+    if ((indx_data%var(iLookINDEX%nSnowOnlyNrg)%dat(1)>0 .or. indx_data%var(iLookINDEX%nGlceOnlyNrg)%dat(1)>0 &
+         .or. isLakeIceState) .and. rVec(1)<0._rkind) then
       tooMuchMelt = .true.
       err=-20; return ! negative error code to denote a warning
     else

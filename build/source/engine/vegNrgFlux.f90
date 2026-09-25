@@ -168,6 +168,7 @@ subroutine vegNrgFlux(&
   real(rkind),parameter              :: condHeadWidth=0.02_rkind        ! smoothing width for condensation-to-soil closure (m)
   real(rkind),parameter              :: condHeadSmooth=1.e-4_rkind      ! smoothing for max(psi,0) approximation (m)
   ! saturation vapor pressure of veg
+  real(rkind)                           :: aqfrLimCpl                   ! aquifer transpiration limiting factor supplied by the MODFLOW coupler (-)
   real(rkind)                        :: TV_celcius                      ! vegetaion temperature (C)
   real(rkind)                        :: TG_celcius                      ! ground temperature (C)
   real(rkind)                        :: dSVPCanopy_dCanopyTemp          ! derivative in canopy saturated vapor pressure w.r.t. vegetation temperature (Pa/K)
@@ -317,6 +318,8 @@ subroutine vegNrgFlux(&
     critSoilWilting                 => mpar_data%var(iLookPARAM%critSoilWilting)%dat(1),               & ! intent(in): [dp] critical vol. liq. water content when plants are wilting (-)
     critSoilTranspire               => mpar_data%var(iLookPARAM%critSoilTranspire)%dat(1),             & ! intent(in): [dp] critical vol. liq. water content when transpiration is limited (-)
     critAquiferTranspire            => mpar_data%var(iLookPARAM%critAquiferTranspire)%dat(1),          & ! intent(in): [dp] critical aquifer storage value when transpiration is limited (m)
+    rootingDepth                    => mpar_data%var(iLookPARAM%rootingDepth)%dat(1),                  & ! intent(in): [dp] rooting depth (m)
+    iLayerHeight                    => prog_data%var(iLookPROG%iLayerHeight)%dat,                     & ! intent(in): [dp(0:)] height of each layer interface (m), for the soil-column depth
     minStomatalResistance           => mpar_data%var(iLookPARAM%minStomatalResistance)%dat(1),         & ! intent(in): [dp] mimimum stomatal resistance (s m-1)
     ! input: forcing at the upper boundary
     mHeight                         => diag_data%var(iLookDIAG%scalarAdjMeasHeight)%dat(1),            & ! intent(in): [dp] measurement height, adjusted to be above vegetation canopy and snow (m)
@@ -718,6 +721,8 @@ subroutine vegNrgFlux(&
         !         (3) stomatal resistance does not change rapidly
         if (firstFluxCall) then
           if (nSoil>0) then ! could have soil with lake, need values for aquifer
+            ! read before the call: soilResist also writes scalarTranspireLimAqfr, which would alias
+            aqfrLimCpl = scalarTranspireLimAqfr
             ! compute soil moisture factor controlling stomatal resistance, and for transpiration limiting factor in aquifer and soil
             call soilResist(&
                             ! input (model decisions)
@@ -736,6 +741,8 @@ subroutine vegNrgFlux(&
                             critSoilWilting,                   & ! intent(in):  critical vol. liq. water content when plants are wilting (-)
                             critSoilTranspire,                 & ! intent(in):  critical vol. liq. water content when transpiration is limited (-)
                             critAquiferTranspire,              & ! intent(in):  critical aquifer storage value when transpiration is limited (m)
+                            max(rootingDepth - (iLayerHeight(nSnow+nLake+nSoil) - iLayerHeight(nSnow+nLake)), 0._rkind), & ! intent(in): how far roots reach below the soil column (m)
+                            aqfrLimCpl,                        & ! intent(in):  limiting factor supplied by the MODFLOW coupler (-)
                             ! output
                             scalarTranspireLim,                & ! intent(out): weighted average of the transpiration limiting factor (-)
                             mLayerTranspireLim(1:nSoil),       & ! intent(out): transpiration limiting factor in each layer (-)
@@ -982,16 +989,18 @@ subroutine vegNrgFlux(&
             scalarCanopyTranspiration = scalarLatHeatCanopyTrans/LH_vap
           end if
         end if
+        ! NOTE: a lake surface picks evaporation or sublimation from its temperature on the first flux call and keeps it
+        !       for the substep, so its top layer may cross the freezing point in between; no consistency check for lakes
         if (scalarLatHeatSubVapGround > LH_vap+verySmall) then ! ground sublimation
           ! NOTE: this should only occur when we have formed snow or glce layers on top, so check
-          if (nSnow == 0 .and. (nGlce==0 .or. (nGlce>0 .and. nSoil>0)) .and. (nLake==0 .or. (nLake>0 .and. groundTempTrial>Tfreeze))) then; 
+          if (nSnow == 0 .and. (nGlce==0 .or. (nGlce>0 .and. nSoil>0)) .and. nLake==0) then; 
             err=20; message=trim(message)//'only expect sublimation when we have formed some snow or ice layers'; return; end if
           scalarGroundEvaporation = 0._rkind  ! ground evaporation is zero once the snow or ice has formed
           scalarGroundSublimation = scalarLatHeatGround/LH_sub
         else
-          ! NOTE: this should only occur when we have no snow or lake (?) layers and a soil layer, so check
-          if (nSnow>0 .or. (nGlce>0 .and. nSoil==0) .or. (nLake>0 .and. groundTempTrial<=Tfreeze)) then; 
-            err=20; message=trim(message)//'only expect ground evaporation when there are no snow or frozen lake layers'; return; end if
+          ! NOTE: this should only occur when we have no snow layers and a soil or lake layer, so check
+          if (nSnow>0 .or. (nGlce>0 .and. nSoil==0)) then; 
+            err=20; message=trim(message)//'only expect ground evaporation when there are no snow layers'; return; end if
           scalarGroundEvaporation = scalarLatHeatGround/LH_vap
           scalarGroundSublimation = 0._rkind  ! no sublimation from snow if no snow or glce layers have formed
         end if
@@ -1858,6 +1867,8 @@ subroutine soilResist(&
                       critSoilWilting,          & ! intent(in):  critical vol. liq. water content when plants are wilting (-)
                       critSoilTranspire,        & ! intent(in):  critical vol. liq. water content when transpiration is limited (-)
                       critAquiferTranspire,     & ! intent(in):  critical aquifer storage value when transpiration is limited (m)
+                      aquiferRootReach,         & ! intent(in):  depth roots reach below the base of the soil column (m)
+                      aquiferLimitFacCpl,       & ! intent(in):  aquifer transpiration limiting factor supplied by the MODFLOW coupler (-)
                       ! output
                       wAvgTranspireLimitFac,    & ! intent(out): weighted average of the transpiration limiting factor (-)
                       mLayerTranspireLimitFac,  & ! intent(out): transpiration limiting factor in each layer (-)
@@ -1866,6 +1877,7 @@ subroutine soilResist(&
   ! -----------------------------------------------------------------------------------------------------------------------------------------
   USE mDecisions_module, only: NoahType,CLM_Type,SiB_Type         ! options for the choice of function for the soil moisture control on stomatal resistance
   USE mDecisions_module, only: bigBucket                          ! named variable that defines the "bigBucket" groundwater parameterization
+  USE mDecisions_module, only: modflowCpl,modLatflow               ! groundwater handled by a coupled MODFLOW 6 model
   implicit none
   ! input (model decisions)
   integer(i4b),intent(in)          :: ixSoilResist                ! choice of function for the soil moisture control on stomatal resistance
@@ -1883,6 +1895,8 @@ subroutine soilResist(&
   real(rkind),intent(in)           :: critSoilWilting             ! critical vol. liq. water content when plants are wilting (-)
   real(rkind),intent(in)           :: critSoilTranspire           ! critical vol. liq. water content when transpiration is limited (-)
   real(rkind),intent(in)           :: critAquiferTranspire        ! critical aquifer storage value when transpiration is limited (m)
+  real(rkind),intent(in)           :: aquiferRootReach            ! depth roots reach below the base of the soil column (m)
+  real(rkind),intent(in)           :: aquiferLimitFacCpl          ! aquifer transpiration limiting factor from the MODFLOW coupler (-)
   ! output
   real(rkind),intent(out)          :: wAvgTranspireLimitFac       ! intent(out): weighted average of the transpiration limiting factor (-)
   real(rkind),intent(out)          :: mLayerTranspireLimitFac(:)  ! intent(out): transpiration limiting factor in each layer (-)
@@ -1926,14 +1940,26 @@ subroutine soilResist(&
 
   ! ** compute the factor limiting evaporation in the aquifer
   if (scalarAquiferRootFrac > eps) then
-    ! check that aquifer root fraction is allowed
-    if (ixGroundwater /= bigBucket) then
-      message=trim(message)//'aquifer evaporation only allowed for the big groundwater bucket -- increase the soil depth to account for roots'
-      err=20; return
-    end if
-    ! compute the factor limiting evaporation for the aquifer
-    aquiferTranspireLimitFac = min(scalarAquiferStorage/critAquiferTranspire, 1._rkind)
-  else  ! if there are roots in the aquifer
+    select case(ixGroundwater)
+
+      ! bigBucket: absolute storage in the local aquifer store limits deep transpiration
+      case(bigBucket)
+        aquiferTranspireLimitFac = min(scalarAquiferStorage/critAquiferTranspire, 1._rkind)
+
+      ! coupled MODFLOW: the coupler supplies the factor, evaluated per cell against each cell's water table
+      case(modflowCpl,modLatflow)
+        if (aquiferRootReach <= eps) then
+          aquiferTranspireLimitFac = 0._rkind   ! roots do not actually reach below the soil column
+        else
+          aquiferTranspireLimitFac = min(max(aquiferLimitFacCpl, 0._rkind), 1._rkind)
+        end if
+
+      case default
+        message=trim(message)//'aquifer evaporation only allowed for the big groundwater bucket or a '// &
+                'coupled MODFLOW 6 model -- increase the soil depth to account for roots'
+        err=20; return
+    end select
+  else  ! no roots in the aquifer
     aquiferTranspireLimitFac = 0._rkind
   end if
 

@@ -35,6 +35,7 @@ USE globalData,only:glacCln1         ! first horizontal domain type for glacier 
 USE globalData,only:glacCln2         ! second horizontal domain type for glacier clean areas
 USE globalData,only:glacDbr          ! horizontal domain type for glacier debris areas
 USE globalData,only:wetland          ! horizontal domain type for wetland areas
+USE globalData,only:stream           ! horizontal domain type for stream reaches
 
 USE globalData,only:icefrz_mult      ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
 
@@ -125,6 +126,7 @@ contains
  real(rkind)                               :: kappa                      ! constant in the freezing curve function (m K-1)
  integer(i4b)                              :: nSnow                      ! number of snow layers
  integer(i4b)                              :: nLake                      ! number of lake layers
+ integer(i4b)                              :: nLakeFrz                   ! number of frozen (ice cover) lake layers
  integer(i4b)                              :: nSoil                      ! number of soil layers
  integer(i4b)                              :: nGlce                      ! number of glacier ice layers
  integer(i4b)                              :: nLayers                    ! total number of layers
@@ -145,6 +147,9 @@ contains
  real(rkind)                               :: ratio                      ! ratio of glacier area to basin area
  real(rkind)                               :: frz_scale_use              ! scaling parameter for the snow or glce freezing curve (K-1)
  real(rkind)                               :: maxVolIceContent_use       ! maximum volumetric ice content depending if snow or firn
+ integer(i4b)                              :: nStreamHRU                 ! number of stream HRUs in a GRU (at most one)
+ logical(lgt)                              :: has_stream                 ! flag that the HRU has a stream domain
+ logical(lgt)                              :: is_stream                  ! flag that the domain is a stream domain
  ! --------------------------------------------------------------------------------------------------------
 
  ! Start procedure here
@@ -158,7 +163,9 @@ contains
  do iGRU = 1,nGRU
    glacierAblAreaTot = 0._rkind
    glacierAccAreaTot = 0._rkind
+   nStreamHRU = 0
    do iHRU=1,gru_struc(iGRU)%hruCount
+     has_stream = .false.
      ! update the HRU area and elevation
      remaining_area = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)
      remaining_elev = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)*attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%elevation)
@@ -197,8 +204,22 @@ contains
            scalarGlceWE = 0._rkind
            glacierAblFrac = 0._rkind
          end if
+         ! a stream domain is the reach water column: it needs lake layers and is the only domain with area in its HRU
+         if (typeDOM==stream) then
+           has_stream = .true.
+           nStreamHRU = nStreamHRU + 1
+           if(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake < 1)then
+             err=20; message=trim(message)//'a stream domain needs at least one lake layer (nLake >= 1)'; return
+           endif
+           if(DOMarea <= 0._rkind)then
+             err=20; message=trim(message)//'a stream domain needs DOMarea > 0 (the reach planform area)'; return
+           endif
+         end if
        end associate
      end do
+     if(has_stream .and. remaining_area > xTol*attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea))then
+       err=20; message=trim(message)//'a stream HRU has no upland domain: the stream DOMarea must equal HRUarea'; return
+     endif
      do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
        associate(typeDOM => gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type, &
                  DOMarea => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1), &
@@ -238,6 +259,10 @@ contains
        end associate
      end do
    end do
+   ! mizuRoute routes one reach per GRU, so at most one stream HRU can represent it
+   if(nStreamHRU > 1)then
+     err=20; write(message,'(a,i0,a)') trim(message)//'GRU ',iGRU,' has more than one stream HRU; only one stream HRU per GRU is allowed'; return
+   endif
    ! if they exist, check that the glacier areas are consistent with the basin areas, correct for grid tolerance (only warn if out of tolerance)
    if (gru_struc(iGRU)%nGlac>0) then
      if(sum(bvarData%gru(iGRU)%var(iLookBVAR%glacierAblArea)%dat)>0._rkind)then
@@ -314,6 +339,7 @@ contains
     maxMassVegetation    => mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%maxMassVegetation)%dat(1)   ,& ! maximum mass of vegetation (kg m-2)
     ! state variables in the layer domains
     mLayerTemp           => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerTemp)%dat              ,& ! temperature (K)
+    scalarAquiferTemp    => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAquiferTemp)%dat(1)   ,& ! temperature of the water in the aquifer (K)
     mLayerEnthTemp       => diagData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookDIAG%mLayerEnthTemp)%dat          ,& ! temperature component of enthalpy (J m-3)
     mLayerEnthalpy       => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerEnthalpy)%dat          ,& ! enthalpy (J m-3)
     mLayerVolFracLiq     => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerVolFracLiq)%dat        ,& ! volumetric fraction of liquid water in each snow layer (-)
@@ -367,11 +393,21 @@ contains
      end if
 
      ! number of layers
-     nSnow   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
-     nLake   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake
-     nSoil   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
-     nGlce   = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce
-     nLayers = nSnow + nLake + nSoil + nGlce
+     nSnow    = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow
+     nLake    = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake
+     nLakeFrz = indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLakeFrz)%dat(1)
+     nSoil    = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
+     nGlce    = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce
+     nLayers  = nSnow + nLake + nSoil + nGlce
+
+     ! the aquifer starts at the temperature of the water draining into it
+     if(scalarAquiferTemp < 0.99_rkind*realMissing)then
+       if(nSoil>0)then
+         scalarAquiferTemp = max(mLayerTemp(nSnow+nLake+nSoil), Tfreeze)
+       else
+         scalarAquiferTemp = Tfreeze
+       endif
+     endif
 
      ! compute the maximum volumetric ice content for the layer domains
      if(nGlce>0)then ! snow can be firn
@@ -404,6 +440,11 @@ contains
         end if
         if (layerType(iLayer)==iname_lake) then ! lake could be all liquid
           if(mLayerVolFracIce(iLayer) < 0._rkind  )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0: layer = '   ,iLayer; err=20; return; end if
+          ! lake layers hold no air: liquid + ice fill the layer volume (depth follows the mass, see lakeResize)
+          is_stream = (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==stream)
+          if(is_stream .and. iLayer>nSnow+nLakeFrz .and. abs(mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer) - 1._rkind) > 1.e-3_rkind)then
+            write(message,'(a,1x,i0)') trim(message)//'lake layers in a stream domain must have volFracLiq + volFracIce = 1 (no air): layer = ',iLayer; err=20; return
+          end if
         else if (layerType(iLayer)==iname_glce) then ! glacier ice should be mostly ice
           if(mLayerVolFracIce(iLayer) < 0.80_rkind)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0.80: layer = ',iLayer; err=20; return; end if
         else if (layerType(iLayer)==iname_snow) then ! 

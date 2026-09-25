@@ -38,12 +38,16 @@ USE multiconst,only:Tfreeze,     &  ! freezing point of pure water (K)
 ! missing values
 USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number
+USE globalData,only:verySmall       ! a small number
 
 ! named variables for snow and soil
 USE globalData,only:iname_snow      ! named variables for snow
 USE globalData,only:iname_soil      ! named variables for soil
 USE globalData,only:iname_glce      ! named variables for glacier ice
 USE globalData,only:iname_lake      ! named variables for lake
+
+! horizontal domain types
+USE globalData,only:stream          ! stream domain: reach water column with advection from the river network
 
 ! named variables
 USE var_lookup,only:iLookPROG       ! named variables for structure elements
@@ -64,7 +68,10 @@ USE mDecisions_module,only:      &
  ! look-up values for choice of boundary conditions for thermodynamics
  prescribedTemp,                 &  ! prescribed temperature
  energyFlux,                     &  ! energy flux
- zeroFlux                           ! zero flux
+ zeroFlux,                       &  ! zero flux
+ prescribedFlux,                 &  ! prescribed flux (geothermal heat flux at the base of the soil)
+ ! look-up values for the treatment of hyporheic exchange in a stream domain
+ hyporheicProxy                     ! a lagged return of a fraction of the reach flow (Wade et al., 2024)
 ! -------------------------------------------------------------------------------------------------
 implicit none
 private
@@ -110,6 +117,10 @@ subroutine snowLakeSoilGlceNrgFlux(&
   real(rkind)                         :: qFlux                      ! liquid flux at layer interfaces (m s-1)
   real(rkind)                         :: dz                         ! height difference (m)
   logical(lgt)                        :: zeroFlux_noThetaBdry       ! flag to denote if zero flux at noThetaChange boundary
+  real(rkind)                         :: hypFlow                    ! hyporheic return flow (m3 s-1)
+  real(rkind)                         :: lakeLiqDepth               ! total liquid depth of the lake layers (m)
+  real(rkind)                         :: liqWeight                  ! share of the reach exchange taken by a lake layer (-)
+  real(rkind)                         :: advScale                   ! rho*Cp/(area*liquid depth): converts m3 s-1 K to J m-3 s-1 (J m-6 K-1... per layer share)
   ! ------------------------------------------------------------------------------------------------------------------------------------------------------
   ! allocate intent(out) data structure components
   nLayers=indx_data%var(iLookINDEX%nLayers)%dat(1)
@@ -118,7 +129,9 @@ subroutine snowLakeSoilGlceNrgFlux(&
     out_snowLakeSoilGlceNrgFlux % dNrgFlux_dTempAbove(0:nLayers),                    & ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
     out_snowLakeSoilGlceNrgFlux % dNrgFlux_dTempBelow(0:nLayers),                    & ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
     out_snowLakeSoilGlceNrgFlux % dNrgFlux_dWatAbove(0:nLayers),                     & ! derivatives in the flux w.r.t. water state in the layer above (J m-2 s-1 K-1)
-    out_snowLakeSoilGlceNrgFlux % dNrgFlux_dWatBelow(0:nLayers))                       ! derivatives in the flux w.r.t. water state in the layer below (J m-2 s-1 K-1)
+    out_snowLakeSoilGlceNrgFlux % dNrgFlux_dWatBelow(0:nLayers),                     & ! derivatives in the flux w.r.t. water state in the layer below (J m-2 s-1 K-1)
+    out_snowLakeSoilGlceNrgFlux % mLayerLakeAdvNrgFlux(indx_data%var(iLookINDEX%nLake)%dat(1)),  & ! advective energy source in each lake layer (J m-3 s-1)
+    out_snowLakeSoilGlceNrgFlux % dLakeAdvNrgFlux_dTemp(indx_data%var(iLookINDEX%nLake)%dat(1)))   ! derivative of the lake advective energy source w.r.t. temperature (J m-3 s-1 K-1)
   ! make association of local variables with information in the data structures
   associate(&
     ! input: model control
@@ -133,6 +146,18 @@ subroutine snowLakeSoilGlceNrgFlux(&
     iLayerLiqFluxSoil          => in_snowLakeSoilGlceNrgFlux % iLayerLiqFluxSoil,          & ! intent(in):    liquid flux at the interface of each soil layer (m s-1)
     ! input: trial model state variables
     mLayerTempTrial            => in_snowLakeSoilGlceNrgFlux % mLayerTempTrial,            & ! intent(in):    temperature in each layer at the current iteration (m)
+    mLayerVolFracLiqTrial      => in_snowLakeSoilGlceNrgFlux % mLayerVolFracLiqTrial,      & ! intent(in):    volumetric fraction of liquid water in each layer at the current iteration (-)
+    ! input: stream domain, reach water fluxes set by the network pass
+    domType                    => indx_data%var(iLookINDEX%domType)%dat(1),                & ! intent(in):    horizontal domain type
+    DOMarea                    => prog_data%var(iLookPROG%DOMarea)%dat(1),                 & ! intent(in):    area of the domain, the reach planform area for a stream (m2)
+    scalarStreamInflow         => flux_data%var(iLookFLUX%scalarStreamInflow)%dat(1),      & ! intent(in):    discharge entering the reach from upstream (m3 s-1)
+    scalarStreamInflowTemp     => flux_data%var(iLookFLUX%scalarStreamInflowTemp)%dat(1),  & ! intent(in):    temperature of the upstream inflow (K)
+    scalarStreamLatInflow      => flux_data%var(iLookFLUX%scalarStreamLatInflow)%dat(1),   & ! intent(in):    lateral inflow from the local catchment (m3 s-1)
+    scalarStreamLatInflowTemp  => flux_data%var(iLookFLUX%scalarStreamLatInflowTemp)%dat(1),&! intent(in):    temperature of the lateral inflow (K)
+    scalarStreamSfcInflow      => flux_data%var(iLookFLUX%scalarStreamSfcInflow)%dat(1),   & ! intent(in):    rain plus melt entering the open water column (m s-1)
+    scalarStreamSfcInflowTemp  => diag_data%var(iLookDIAG%scalarStreamSfcInflowTemp)%dat(1),&! intent(in):    temperature of the rain plus melt (K)
+    scalarHypTemp              => diag_data%var(iLookDIAG%scalarHypTemp)%dat(1),           & ! intent(in):    temperature of the hyporheic return flow (K)
+    hypFrac                    => mpar_data%var(iLookPARAM%hypFrac)%dat(1),                & ! intent(in):    fraction of the reach flow returned as hyporheic flow (-)
     ! input: derivatives
     dThermalC_dWatAbove        => in_snowLakeSoilGlceNrgFlux % dThermalC_dWatAbove,  & ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
     dThermalC_dWatBelow        => in_snowLakeSoilGlceNrgFlux % dThermalC_dWatBelow,  & ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
@@ -141,9 +166,11 @@ subroutine snowLakeSoilGlceNrgFlux(&
     ! input: boundary conditions
     ix_bcUpprTdyn           => model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision, & ! intent(in):  method used to calculate the upper boundary condition for thermodynamics
     ix_bcLowrTdyn           => model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision, & ! intent(in):  method used to calculate the lower boundary condition for thermodynamics
+    ix_hyporhTdyn           => model_decisions(iLookDECISIONS%hyporhTdyn)%iDecision, & ! intent(in):  treatment of hyporheic exchange in a stream domain
     ! input: coordinate variables
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),               & ! intent(in):  number of snow layers
     nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1),               & ! intent(in):  number of lake layers
+    nLakeFrz                => indx_data%var(iLookINDEX%nLakeFrz)%dat(1),            & ! intent(in):  number of frozen (ice cover) lake layers at the top of the lake
     nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1),               & ! intent(in):  number of soil layers
     nGlce                   => indx_data%var(iLookINDEX%nGlce)%dat(1),               & ! intent(in):  number of glacier ice layers
     noThetaChange           => indx_data%var(iLookINDEX%noThetaChange)%dat(1),       & ! intent(in):  number of layers with no change in total water content (bottom layers)
@@ -155,6 +182,7 @@ subroutine snowLakeSoilGlceNrgFlux(&
     ! input: thermal properties
     upperBoundTemp          => mpar_data%var(iLookPARAM%upperBoundTemp)%dat(1),      & ! intent(in):  temperature of the upper boundary (K)
     lowerBoundTemp          => mpar_data%var(iLookPARAM%lowerBoundTemp)%dat(1),      & ! intent(in):  temperature of the lower boundary (K)
+    lowerBoundNrgFlux       => mpar_data%var(iLookPARAM%lowerBoundNrgFlux)%dat(1),   & ! intent(in):  energy flux at the lower boundary, the geothermal heat flux (W m-2)
     iLayerThermalC          => diag_data%var(iLookDIAG%iLayerThermalC)%dat,          & ! intent(in):  thermal conductivity at the interface of each layer (W m-1 K-1)
     ! output: diagnostic fluxes
     iLayerConductiveFlux => flux_data%var(iLookFLUX%iLayerConductiveFlux)%dat,       & ! intent(out): conductive energy flux at layer interfaces at end of time step (W m-2)
@@ -165,6 +193,8 @@ subroutine snowLakeSoilGlceNrgFlux(&
     dFlux_dTempBelow     => out_snowLakeSoilGlceNrgFlux % dNrgFlux_dTempBelow,    & ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
     dFlux_dWatAbove      => out_snowLakeSoilGlceNrgFlux % dNrgFlux_dWatAbove,     & ! intent(out): derivatives in the flux w.r.t. water state in the layer above (J m-2 s-1 K-1)
     dFlux_dWatBelow      => out_snowLakeSoilGlceNrgFlux % dNrgFlux_dWatBelow,     & ! intent(out): derivatives in the flux w.r.t. water state in the layer below (J m-2 s-1 K-1)
+    mLayerLakeAdvNrgFlux => out_snowLakeSoilGlceNrgFlux % mLayerLakeAdvNrgFlux,   & ! intent(out): advective energy source in each lake layer (J m-3 s-1)
+    dLakeAdvNrgFlux_dTemp=> out_snowLakeSoilGlceNrgFlux % dLakeAdvNrgFlux_dTemp,  & ! intent(out): derivative of the lake advective energy source w.r.t. temperature (J m-3 s-1 K-1)
     ! output: error control
     err                  => out_snowLakeSoilGlceNrgFlux % err,                    & ! intent(out): error code
     message              => out_snowLakeSoilGlceNrgFlux % cmessage                & ! intent(out): error message
@@ -202,6 +232,13 @@ subroutine snowLakeSoilGlceNrgFlux(&
         select case(ix_bcLowrTdyn) ! identify the lower boundary condition for thermodynamics
           case(prescribedTemp); iLayerConductiveFlux(iLayer) = -iLayerThermalC(iLayer)*(lowerBoundTemp - mLayerTempTrial(iLayer))/(mLayerDepth(iLayer)*0.5_rkind)
           case(zeroFlux);       iLayerConductiveFlux(iLayer) = 0._rkind
+          ! geothermal heat enters from below, so it is negative here, and only under a soil column
+          case(prescribedFlux)
+            if(layerType(iLayer)==iname_soil)then
+              iLayerConductiveFlux(iLayer) = -lowerBoundNrgFlux
+            else
+              iLayerConductiveFlux(iLayer) = 0._rkind
+            end if
         end select  ! identifying the lower boundary condition for thermodynamics
       else ! domain boundary fluxes -- positive downwards
         iLayerConductiveFlux(iLayer)  = -iLayerThermalC(iLayer)*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer)) / &
@@ -237,6 +274,36 @@ subroutine snowLakeSoilGlceNrgFlux(&
     ! NOTE: ignore advective fluxes for now
     iLayerNrgFlux(0)           = groundNetFlux ! from vegNrgFlux module
     iLayerNrgFlux(ixTop:ixBot) = iLayerConductiveFlux(ixTop:ixBot)
+
+    ! -------------------------------------------------------------------------------------------------------------------------
+    ! ***** compute the advective energy source in the lake layers of a stream *****
+    ! -------------------------------------------------------------------------------------------------------------------------
+    ! a well-mixed column (Wanders et al. 2019, after van Beek et al. 2012), each inflow as w_i*rho_w*c_p*Q*(T_in - T_i)/(A*h_liq)
+    ! the ice cover, the top nLakeFrz lake layers, takes no part
+    if(nLake>0)then
+      mLayerLakeAdvNrgFlux(:)  = 0._rkind
+      dLakeAdvNrgFlux_dTemp(:) = 0._rkind
+      if(domType==stream)then
+        ! a fraction of the reach flow returns at the temperature it had hypLag ago (Wade et al. 2024, EMS, eqs. 11-12)
+        hypFlow = 0._rkind
+        if(ix_hyporhTdyn==hyporheicProxy .and. scalarHypTemp > 0._rkind) hypFlow = hypFrac*(scalarStreamInflow + scalarStreamLatInflow)
+        lakeLiqDepth = sum(mLayerDepth(nSnow+nLakeFrz+1:nSnow+nLake)*mLayerVolFracLiqTrial(nSnow+nLakeFrz+1:nSnow+nLake))
+        if(lakeLiqDepth > verySmall .and. DOMarea > 0._rkind)then
+          advScale = Cp_water*iden_water/(DOMarea*lakeLiqDepth)
+          do iLayer=nSnow+nLakeFrz+1,nSnow+nLake
+            if(iLayer<ixTop .or. iLayer>ixBot) cycle ! scalar solution: only the layer being solved
+            liqWeight = mLayerDepth(iLayer)*mLayerVolFracLiqTrial(iLayer)/lakeLiqDepth
+            mLayerLakeAdvNrgFlux(iLayer-nSnow) = liqWeight*advScale*( &
+                                                    scalarStreamInflow   *(scalarStreamInflowTemp    - mLayerTempTrial(iLayer)) &
+                                                  + scalarStreamLatInflow*(scalarStreamLatInflowTemp - mLayerTempTrial(iLayer)) &
+                                                  + scalarStreamSfcInflow*DOMarea*(scalarStreamSfcInflowTemp - mLayerTempTrial(iLayer)) &
+                                                  + hypFlow*(scalarHypTemp - mLayerTempTrial(iLayer)) )
+            dLakeAdvNrgFlux_dTemp(iLayer-nSnow) = -liqWeight*advScale*(scalarStreamInflow + scalarStreamLatInflow + scalarStreamSfcInflow*DOMarea &
+                                                                       + hypFlow)
+          end do
+        end if
+      end if
+    end if
 
     ! -------------------------------------------------------------------------------------------------------------------
     ! ***** compute the derivative in fluxes at layer interfaces w.r.t state in the layer above and the layer below *****
@@ -290,7 +357,7 @@ subroutine snowLakeSoilGlceNrgFlux(&
             dz = mLayerDepth(iLayer)*0.5_rkind
             dFlux_dWatAbove(iLayer)  = -dThermalC_dWatAbove(iLayer) * ( lowerBoundTemp - mLayerTempTrial(iLayer) )/dz
             dFlux_dTempAbove(iLayer) = -dThermalC_dTempAbove(iLayer) * ( lowerBoundTemp - mLayerTempTrial(iLayer) )/dz + iLayerThermalC(iLayer)/dz
-          case(zeroFlux)  ! zero flux at the lower boundary
+          case(zeroFlux,prescribedFlux)  ! zero flux, or a prescribed (geothermal) flux: neither depends on the state
             dFlux_dWatAbove(iLayer) = 0._rkind
             dFlux_dTempAbove(iLayer) = 0._rkind
           case default; err=20; message=trim(message)//'unable to identify lower boundary condition for thermodynamics'; return

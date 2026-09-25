@@ -41,16 +41,20 @@ module summa_mf6_exchange
   !       silently move every coupled run's HRU->cell mapping, so it is left as it is.
 
   USE nr_type,    only: i4b, rkind
+  USE multiconst, only: iden_water     ! intrinsic density of liquid water (kg m-3)
   USE summa_type, only: summa1_type_dec
 
   USE globalData, only: gru_struc            ! HRU information for given GRU
   USE globalData, only: mfAquiferBaseflow    ! MODFLOW 6 coupler aquifer-baseflow feedback channel
+  USE globalData, only: mfSurfaceDischarge   ! MODFLOW 6 coupler groundwater-discharge-at-surface channel
+  USE globalData, only: mfAquiferTranspire   ! MODFLOW 6 coupler groundwater-ET feedback channel
 
   USE var_lookup, only: iLookATTR            ! named variables for real valued attribute data structure
   USE var_lookup, only: iLookINDEX           ! named variables for local model indices
   USE var_lookup, only: iLookPROG            ! named variables for local prognostic variables
   USE var_lookup, only: iLookPARAM           ! named variables for local model parameters
   USE var_lookup, only: iLookFLUX            ! named variables for local flux variables
+  USE var_lookup, only: iLookDIAG            ! named variables for local diagnostic variables
   USE var_lookup, only: iLookBVAR            ! named variables for basin (GRU) variables
 
   implicit none
@@ -60,11 +64,17 @@ module summa_mf6_exchange
   public :: mf6x_hru_longitude
   public :: mf6x_hru_latitude
   public :: mf6x_hru_elevation
+  public :: mf6x_hru_area
   public :: mf6x_soil_thickness
+  public :: mf6x_root_reach
   public :: mf6x_get_drainage
   public :: mf6x_put_lower_bound_head
   public :: mf6x_put_aquifer_storage
   public :: mf6x_put_aquifer_baseflow
+  public :: mf6x_put_surface_discharge
+  public :: mf6x_get_aquifer_transpire
+  public :: mf6x_put_aquifer_transpire
+  public :: mf6x_put_transpire_lim_aqfr
 
 contains
 
@@ -125,6 +135,54 @@ contains
       end do
     end associate
   end subroutine mf6x_hru_elevation
+
+  ! **************************************************************************************************
+  ! HRU plan area (m2) from attributes.nc, for the coupler's area check and coupled budget.
+  ! **************************************************************************************************
+  subroutine mf6x_hru_area(summa_struct, area)
+    type(summa1_type_dec), intent(in)  :: summa_struct
+    double precision,      intent(out) :: area(:)
+    integer(i4b) :: iGRU, jHRU
+    associate(attrStruct => summa_struct%attrStruct)
+      do iGRU = 1, summa_struct%nGRU_local
+        do jHRU = 1, gru_struc(iGRU)%hruCount
+          area((iGRU-1) * gru_struc(iGRU)%hruCount + jHRU) = &
+            attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%HRUarea)
+        end do
+      end do
+    end associate
+  end subroutine mf6x_hru_area
+
+  ! **************************************************************************************************
+  ! How far roots reach below the base of the soil column (m): rootingDepth - soil depth, floored at zero.
+  ! **************************************************************************************************
+  subroutine mf6x_root_reach(summa_struct, reach)
+    type(summa1_type_dec), intent(in)  :: summa_struct
+    double precision,      intent(out) :: reach(:)
+    integer(i4b) :: iGRU, jHRU, iDOM, i, ixDOM, nSnow, nLake, nSoil
+    real(rkind)  :: soilDepth
+    associate(progStruct => summa_struct%progStruct, &
+              indxStruct => summa_struct%indxStruct, &
+              mparStruct => summa_struct%mparStruct)
+      do iGRU = 1, summa_struct%nGRU_local
+        do jHRU = 1, gru_struc(iGRU)%hruCount
+          i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
+          ixDOM = 1
+          do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
+            if (indxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1) == 0) then
+              ixDOM = iDOM; exit
+            end if
+          end do
+          nSnow = indxStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookINDEX%nSnow)%dat(1)
+          nLake = indxStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookINDEX%nLake)%dat(1)
+          nSoil = indxStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookINDEX%nSoil)%dat(1)
+          soilDepth = progStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookPROG%iLayerHeight)%dat(nSnow+nLake+nSoil) &
+                    - progStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookPROG%iLayerHeight)%dat(nSnow+nLake)
+          reach(i) = max(mparStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookPARAM%rootingDepth)%dat(1) - soilDepth, 0._rkind)
+        end do
+      end do
+    end associate
+  end subroutine mf6x_root_reach
 
   ! **************************************************************************************************
   ! Thickness of the SUMMA soil column for each HRU (m), measured from the ground surface
@@ -248,5 +306,103 @@ contains
       end do
     end do
   end subroutine mf6x_put_aquifer_baseflow
+
+  ! **************************************************************************************************
+  ! Groundwater discharge at land surface from MODFLOW (m s-1, + = out of aquifer), added to SUMMA's
+  ! surface runoff.  Uses the mfSurfaceDischarge channel, since fluxStruct scalars do not survive a step.
+  ! **************************************************************************************************
+  subroutine mf6x_put_surface_discharge(summa_struct, discharge)
+    type(summa1_type_dec), intent(inout) :: summa_struct
+    real,                  intent(in)    :: discharge(:)
+    integer(i4b) :: iGRU, jHRU, i
+    if (.not. allocated(mfSurfaceDischarge)) then
+      allocate(mfSurfaceDischarge(sum(gru_struc(:)%hruCount))); mfSurfaceDischarge = 0._rkind
+    end if
+    do iGRU = 1, summa_struct%nGRU_local
+      do jHRU = 1, gru_struc(iGRU)%hruCount
+        i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
+        mfSurfaceDischarge(i) = discharge(i)
+      end do
+    end do
+  end subroutine mf6x_put_surface_discharge
+
+  ! **************************************************************************************************
+  ! Groundwater evapotranspiration actually taken by MODFLOW (m s-1, + = out of aquifer).
+  ! **************************************************************************************************
+  subroutine mf6x_put_aquifer_transpire(summa_struct, transpire)
+    type(summa1_type_dec), intent(inout) :: summa_struct
+    real,                  intent(in)    :: transpire(:)
+    integer(i4b) :: iGRU, jHRU, i
+    if (.not. allocated(mfAquiferTranspire)) then
+      allocate(mfAquiferTranspire(sum(gru_struc(:)%hruCount))); mfAquiferTranspire = 0._rkind
+    end if
+    do iGRU = 1, summa_struct%nGRU_local
+      do jHRU = 1, gru_struc(iGRU)%hruCount
+        i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
+        mfAquiferTranspire(i) = transpire(i)
+      end do
+    end do
+  end subroutine mf6x_put_aquifer_transpire
+
+  ! **************************************************************************************************
+  ! Aquifer transpiration limiting factor (-) from the coupler, evaluated per MODFLOW cell.
+  ! Written into diag, where soilResist reads it back as an input.
+  ! **************************************************************************************************
+  subroutine mf6x_put_transpire_lim_aqfr(summa_struct, limit)
+    type(summa1_type_dec), intent(inout) :: summa_struct
+    real,                  intent(in)    :: limit(:)
+    integer(i4b) :: iGRU, jHRU, iDOM, i
+    associate(diagStruct => summa_struct%diagStruct, &
+              indxStruct => summa_struct%indxStruct)
+      do iGRU = 1, summa_struct%nGRU_local
+        do jHRU = 1, gru_struc(iGRU)%hruCount
+          i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
+          do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
+            if (indxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1) == 0) &
+              diagStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookDIAG%scalarTranspireLimAqfr)%dat(1) = limit(i)
+          end do
+        end do
+      end do
+    end associate
+  end subroutine mf6x_put_transpire_lim_aqfr
+
+  ! **************************************************************************************************
+  ! SUMMA's aquifer transpiration demand, per HRU (m s-1, + = out of aquifer): the aquifer's share of
+  ! canopy transpiration, scalarAquiferRootFrac * scalarTranspireLimAqfr / scalarTranspireLim.
+  ! **************************************************************************************************
+  subroutine mf6x_get_aquifer_transpire(summa_struct, demand)
+    type(summa1_type_dec), intent(in)  :: summa_struct
+    real,                  intent(out) :: demand(:)
+    integer(i4b) :: iGRU, jHRU, iDOM, i
+    real(rkind)  :: fracDOM, frac, tlim
+    ! weighted as mf6x_get_drainage weights drainage
+    associate(progStruct => summa_struct%progStruct, &
+              diagStruct => summa_struct%diagStruct, &
+              fluxStruct => summa_struct%fluxStruct, &
+              bvarStruct => summa_struct%bvarStruct)
+      demand = 0.0
+      do iGRU = 1, summa_struct%nGRU_local
+        do jHRU = 1, gru_struc(iGRU)%hruCount
+          i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
+          demand(i) = 0._rkind
+          do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
+            tlim = diagStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookDIAG%scalarTranspireLim)%dat(1)
+            if (tlim <= 0._rkind) cycle       ! no transpiration at all, so no aquifer share
+            frac = diagStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookDIAG%scalarAquiferRootFrac)%dat(1) &
+                 * diagStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookDIAG%scalarTranspireLimAqfr)%dat(1) / tlim
+            if (frac <= 0._rkind) cycle       ! no roots below the soil column, or water table out of reach
+            fracDOM = progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) &
+                    / bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1)
+            ! negated: scalarCanopyTranspiration is negative for water leaving the canopy
+            demand(i) = demand(i) &
+                      - frac * fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarCanopyTranspiration)%dat(1) &
+                        / iden_water * fracDOM
+          end do
+          ! a negative demand is condensation, which the aquifer plays no part in
+          if (demand(i) < 0._rkind) demand(i) = 0._rkind
+        end do
+      end do
+    end associate
+  end subroutine mf6x_get_aquifer_transpire
 
 end module summa_mf6_exchange
