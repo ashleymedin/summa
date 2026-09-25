@@ -339,3 +339,6 @@ AFTER tag of v4.0.0-exp-Sundials
      basin__AquiferStorage is neither written to nor read from the restart file, so spatial_gw=singleBasin still starts at the
      aquiferIni fill level; that store is unreachable in any case, run_oneGRU rejecting singleBasin until the bigBucket basin
      code is ported.
+ 79) Fixed the Bow test's modelDecisions.txt and synced its comments with the other bundled tests, commit 95a2337e Sep 25, 2026
+     Its comments were shifted one decision off from f_Richards through subRouting; f_Richards is removed, nrgConserv is now
+     set explicitly to enthalpyForm (was implicitly closedForm), and num_method is homegrown instead of itertive.
