@@ -217,6 +217,7 @@ subroutine eval8summa(&
   logical(lgt)                    :: checkLWBalance              ! flag to check longwave balance
   integer(i4b)                    :: ixLayerDesired(1)           ! layer desired (scalar solution)
   integer(i4b)                    :: ixTop,ixBot                 ! top and bottom defining desired layers
+  integer(i4b)                    :: nSoilHyd                    ! number of hydrologically active soil layers
   real(rkind),dimension(nState)   :: rVecScaled                  ! scaled residual vector
   character(LEN=256)              :: cmessage                    ! error message of downwind routine
   logical(lgt)                    :: updateStateCp               ! flag to indicate if we update Cp at each step for LHS, set with nrgConserv choice and updateCp_closedForm flag
@@ -574,14 +575,15 @@ subroutine eval8summa(&
 
     ! compute soil compressibility (-) and its derivative w.r.t. matric head (m)
     ! NOTE: we already extracted trial matrix head and volumetric liquid water as part of the flux calculations
-    if(nSoil>0)then
+    nSoilHyd = nSoil - merge(indx_data%var(iLookINDEX%noThetaChange)%dat(1), 0, indx_data%var(iLookINDEX%nGlce)%dat(1)==0)
+    if(nSoilHyd>0)then
       if(scalarSolution)then
         ixLayerDesired = pack(ixControlVolume, ixMapFull2Subset/=integerMissing)
         ixTop  = ixLayerDesired(1)
         ixBot  = ixLayerDesired(1)
       else
         ixTop  = 1
-        ixBot  = nSoil
+        ixBot  = nSoilHyd
       endif
       call soilCmpres(&
                       ! input:
@@ -598,8 +600,13 @@ subroutine eval8summa(&
                       dCompress_dPsi,                         & ! intent(inout): derivative in compressibility w.r.t. matric head (m-1)
                       err,cmessage)                             ! intent(out):   error code and error message
       if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+      ! bedrock at the base of the column holds its water, so it never compresses
+      if(nSoilHyd<nSoil)then
+        mLayerCompress(nSoilHyd+1:nSoil) = 0._rkind
+        dCompress_dPsi(nSoilHyd+1:nSoil) = 0._rkind
+      endif
       ! compute the total change in storage associated with compression of the soil matrix (kg m-2 s-1)
-      scalarSoilCompress = sum(mLayerCompress(1:nSoil)*mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil))*iden_water
+      scalarSoilCompress = sum(mLayerCompress(1:nSoilHyd)*mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoilHyd))*iden_water
     else
       scalarSoilCompress = 0._qp
     endif

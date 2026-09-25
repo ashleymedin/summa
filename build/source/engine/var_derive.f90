@@ -153,6 +153,7 @@ contains
  real(rkind), parameter          :: rootTolerance = 0.05_rkind ! tolerance for error in doubleExp rooting option
  real(rkind)                     :: error            ! machine precision error in rooting distribution
  real(rkind)                     :: rootingDepth_use  ! rooting depth used in the calculation (m)
+ integer(i4b)                    :: nSoilHyd         ! number of hydrologically active soil layers
  ! initialize error control
  err=0; message='rootDensty/'
 
@@ -172,6 +173,7 @@ contains
  nLake                 =>indx_data%var(iLookINDEX%nLake)%dat(1),                & ! number of lake layers
  nSoil                 =>indx_data%var(iLookINDEX%nSoil)%dat(1),                & ! number of soil layers
  nGlce                 =>indx_data%var(iLookINDEX%nGlce)%dat(1),                & ! number of glacier ice layers
+ noThetaChange         =>indx_data%var(iLookINDEX%noThetaChange)%dat(1),        & ! number of layers with no change in total water content (bottom layers)
  iLayerHeight          =>prog_data%var(iLookPROG%iLayerHeight)%dat,             & ! height of the layer interface (m)
  ! associate the values in the model variable structures
  scalarAquiferRootFrac =>diag_data%var(iLookDIAG%scalarAquiferRootFrac)%dat(1), & ! fraction of roots below the soil profile (in the aquifer)
@@ -179,10 +181,14 @@ contains
  ) ! end associate
  ! ----------------------------------------------------------------------------------
 
+ ! roots only occupy the soil layers that carry a water state, the bedrock below them holds none
+ nSoilHyd = nSoil - merge(noThetaChange, 0, nGlce==0)
+ mLayerRootDensity(:) = 0._rkind
+
  ! compute the fraction of roots in each soil layer
- rootingDepth_use = rootingDepth
+ rootingDepth_use = min(rootingDepth, iLayerHeight(nSnow+nLake+nSoilHyd))
  if(nGlce>0) rootingDepth_use = iLayerHeight(nSnow+nLake+nSoil) ! rooting depth is soil depth if glacier debris
- do iLayer=(nSnow+nLake+1),(nSnow+nLake+nSoil)
+ do iLayer=(nSnow+nLake+1),(nSnow+nLake+nSoilHyd)
   iSoil = iLayer-nSnow-nLake
   ! different options for the rooting profile
   select case(ixRootProfile)
@@ -194,9 +200,9 @@ contains
      if(iLayer==nSnow+nLake+1)then  ! height=0; avoid precision issues
       fracRootLower = 0._rkind
      else
-      fracRootLower = iLayerHeight(iLayer-1)/min(rootingDepth_use,iLayerHeight(nSnow+nLake+nSoil))
+      fracRootLower = iLayerHeight(iLayer-1)/min(rootingDepth_use,iLayerHeight(nSnow+nLake+nSoilHyd))
      end if
-     fracRootUpper = iLayerHeight(iLayer)/min(rootingDepth_use,iLayerHeight(nSnow+nLake+nSoil))
+     fracRootUpper = iLayerHeight(iLayer)/min(rootingDepth_use,iLayerHeight(nSnow+nLake+nSoilHyd))
      if(fracRootUpper>1._rkind) fracRootUpper=1._rkind
      ! compute the root density
      mLayerRootDensity(iSoil) = fracRootUpper**rootDistExp - fracRootLower**rootDistExp
@@ -226,7 +232,7 @@ contains
   message=trim(message)//'problem with the root density calculation'
   err=20; return
  else
-  mLayerRootDensity = mLayerRootDensity - error/real(nSoil,kind(rkind))
+  mLayerRootDensity(1:nSoilHyd) = mLayerRootDensity(1:nSoilHyd) - error/real(nSoilHyd,kind(rkind))
  end if
 
  ! compute fraction of roots in the aquifer
@@ -239,7 +245,7 @@ contains
  ! check that roots in the aquifer are appropriate
  if ((ixGroundwater /= bigBucket).and.(scalarAquiferRootFrac > 2._rkind*epsilon(rootingDepth_use)))then
   if(scalarAquiferRootFrac < rootTolerance) then
-   mLayerRootDensity = mLayerRootDensity + scalarAquiferRootFrac/real(nSoil, kind(rkind))
+   mLayerRootDensity(1:nSoilHyd) = mLayerRootDensity(1:nSoilHyd) + scalarAquiferRootFrac/real(nSoilHyd, kind(rkind))
    scalarAquiferRootFrac = 0._rkind
   else
    select case(ixRootProfile)

@@ -461,6 +461,9 @@ contains
   case('lowerBoundNrgFlux'        ); get_ixParam = iLookPARAM%lowerBoundNrgFlux      ! energy flux at the lower boundary, the geothermal heat flux (W m-2)
   ! temperature of the groundwater reaching the channel
   case('gwTempWindow'             ); get_ixParam = iLookPARAM%gwTempWindow           ! averaging window of the air temperature the groundwater follows (days)
+  ! thermal-only bedrock at the base of the soil column
+  case('thCond_bedrock'           ); get_ixParam = iLookPARAM%thCond_bedrock         ! thermal conductivity of the bedrock below the soil column (W m-1 K-1)
+  case('theta_sat_bedrock'        ); get_ixParam = iLookPARAM%theta_sat_bedrock      ! porosity of the bedrock below the soil column (-)
   ! hyporheic exchange in a stream domain
   case('hypFrac'                  ); get_ixParam = iLookPARAM%hypFrac                ! fraction of the reach flow returned as hyporheic flow (-)
   case('hypLag'                   ); get_ixParam = iLookPARAM%hypLag                 ! residence time of the hyporheic flow paths (h)
@@ -967,6 +970,7 @@ contains
   case('nNrgState'            ); get_ixINDEX = iLookINDEX%nNrgState             ! number of energy state variables                                         (-)
   case('nWatState'            ); get_ixINDEX = iLookINDEX%nWatState             ! number of "total water" states (vol. total water content)                (-)
   case('noThetaChange'        ); get_ixINDEX = iLookINDEX%noThetaChange         ! number of layers with no change in theta (bottom layers)                 (-)
+  case('nBedrock'             ); get_ixINDEX = iLookINDEX%nBedrock              ! number of thermal-only bedrock layers at the base of the soil column     (-)
   case('nMatState'            ); get_ixINDEX = iLookINDEX%nMatState             ! number of matric head state variables                                    (-)
   case('nMassState'           ); get_ixINDEX = iLookINDEX%nMassState            ! number of hydrology state variables (mass of water)                      (-)
   case('nState'               ); get_ixINDEX = iLookINDEX%nState                ! total number of model state variables                                    (-)
@@ -1038,7 +1042,6 @@ contains
   case('numberScalarSolutions'); get_ixINDEX = iLookINDEX%numberScalarSolutions ! number of scalar solutions                                              (-)
   case('domType'              ); get_ixINDEX = iLookINDEX%domType               ! horizontal domain type (upland, glacier, wetland, stream)                (-)
   case('nLakeFrz'             ); get_ixINDEX = iLookINDEX%nLakeFrz              ! number of frozen (ice cover) lake layers at the top of the lake          (-)
-  case('nBedrock'             ); get_ixINDEX = iLookINDEX%nBedrock              ! number of thermal-only bedrock layers at the base of the soil column    (-)
   ! default
   case default
    get_ixIndex = integerMissing

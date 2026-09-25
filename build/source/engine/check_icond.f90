@@ -74,7 +74,8 @@ contains
  USE var_lookup,only:iLookDIAG                           ! variable lookup structure
  USE var_lookup,only:iLookINDEX                          ! variable lookup structure
  USE var_lookup,only:iLookATTR                           ! variable lookup structure
- USE globalData,only:gru_struc                           ! gru-hru mapping structures
+ USE globalData,only:bedrockDepth                    ! depth of the base of the bedrock layers (m)
+USE globalData,only:gru_struc                           ! gru-hru mapping structures
  USE data_types,only:gru_doubleVec                       ! gru double precision structure no hru no domain
  USE data_types,only:gru_hru_doubleVec                   ! hru double precision structure no domain
  USE data_types,only:gru_hru_dom_doubleVec               ! full double precision structure
@@ -131,6 +132,9 @@ contains
  integer(i4b)                              :: nLake                      ! number of lake layers
  integer(i4b)                              :: nLakeFrz                   ! number of frozen (ice cover) lake layers
  integer(i4b)                              :: nBedrock                   ! number of thermal-only bedrock layers
+ real(rkind)                               :: thickTotal                 ! total thickness of the bedrock (m)
+ real(rkind)                               :: thickFirst                 ! thickness of the uppermost bedrock layer (m)
+ real(rkind)                               :: growth                     ! ratio of the thickness of one bedrock layer to the one above (-)
  integer(i4b)                              :: iTop                       ! index of the deepest hydrologically active soil layer
  integer(i4b)                              :: nSoil                      ! number of soil layers
  integer(i4b)                              :: nGlce                      ! number of glacier ice layers
@@ -405,18 +409,51 @@ contains
      nGlce    = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce
      nLayers  = nSnow + nLake + nSoil + nGlce
 
-     ! bedrock starts on the steady gradient the geothermal flux holds, so it needs no spin-up
-     nBedrock = indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nBedrock)%dat(1)
-     if(nBedrock>0 .and. model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision==prescribedFlux)then
+     ! build the bedrock below the soil column and start it on the steady gradient the geothermal flux holds, so it needs no spin-up
+     nBedrock = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nBedrock
+     if(nBedrock>0)then
        associate(&
-         mLayerHeight      => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerHeight)%dat          ,& ! height of the layer mid-points (m)
+         mLayerDepth       => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat           ,& ! depth of each layer (m)
+         iLayerHeight      => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%iLayerHeight)%dat          ,& ! height of the layer interfaces (m)
          lowerBoundNrgFlux => mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%lowerBoundNrgFlux)%dat(1) ,& ! geothermal heat flux (W m-2)
+         theta_sat_bedrock => mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%theta_sat_bedrock)%dat(1) ,& ! porosity of bedrock (-)
          thCond_soil       => mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%thCond_soil)%dat           ) ! thermal conductivity of soil (W m-1 K-1)
-         iTop = nSnow + nLake + nSoil - nBedrock
-         do iLayer = iTop+1, nSnow+nLake+nSoil
-           mLayerTemp(iLayer) = mLayerTemp(iTop) &
-                                + lowerBoundNrgFlux*(mLayerHeight(iLayer) - mLayerHeight(iTop))/thCond_soil(iLayer-nSnow-nLake)
-         end do
+
+         iTop = nSnow + nLake + nSoil - nBedrock  ! deepest soil layer that carries water
+
+         ! the bedrock layers grow geometrically from the base of the soil to the base of the bedrock
+         if(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%bedrockNew)then
+           if(bedrockDepth <= iLayerHeight(iTop))then
+             write(message,'(a,f0.2,a)') trim(message)//'bedrockDepth must be below the base of the soil column (',iLayerHeight(iTop),' m)'
+             err=20; return
+           endif
+           thickTotal = bedrockDepth - iLayerHeight(iTop)
+           growth = 1.5_rkind                                             ! each bedrock layer is half again as thick as the one above
+           thickFirst = thickTotal*(growth - 1._rkind)/(growth**nBedrock - 1._rkind)
+           do iLayer = iTop+1, nSnow+nLake+nSoil
+             mLayerDepth(iLayer)  = thickFirst*growth**(iLayer - iTop - 1)
+             iLayerHeight(iLayer) = iLayerHeight(iLayer-1) + mLayerDepth(iLayer)
+           end do
+           iLayerHeight(nSnow+nLake+nSoil) = bedrockDepth                 ! remove any rounding in the geometric sum
+           mLayerDepth(nSnow+nLake+nSoil)  = bedrockDepth - iLayerHeight(nSnow+nLake+nSoil-1)
+           ! bedrock below the water table is saturated and never changes its water
+           do iLayer = iTop+1, nSnow+nLake+nSoil
+             mLayerVolFracLiq(iLayer)  = theta_sat_bedrock
+             mLayerVolFracIce(iLayer)  = 0._rkind
+             mLayerMatricHead(iLayer-nSnow-nLake) = 0._rkind
+           end do
+         endif
+
+         ! the steady profile the geothermal flux holds, off the layer interfaces since the mid-points are not computed yet
+         if(model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision==prescribedFlux)then
+           do iLayer = iTop+1, nSnow+nLake+nSoil
+             mLayerTemp(iLayer) = mLayerTemp(iTop) + lowerBoundNrgFlux &
+                                  *(0.5_rkind*(iLayerHeight(iLayer)+iLayerHeight(iLayer-1)) - 0.5_rkind*(iLayerHeight(iTop)+iLayerHeight(iTop-1))) &
+                                  /thCond_soil(iLayer-nSnow-nLake)
+           end do
+         elseif(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%bedrockNew)then
+           mLayerTemp(iTop+1:nSnow+nLake+nSoil) = mLayerTemp(iTop)       ! no geothermal flux to set a gradient
+         endif
        end associate
      endif
 

@@ -303,7 +303,7 @@ subroutine computFlux(&
   end associate
 
   ! *** CALCULATE THE LIQUID FLUX THROUGH SOIL ***
-  nSoilHyd = nSoil - indx_data%var(iLookINDEX%nBedrock)%dat(1)
+  nSoilHyd = nSoil - merge(indx_data%var(iLookINDEX%noThetaChange)%dat(1), 0, nGlce==0)
   associate(nSoilOnlyHyd => indx_data%var(iLookINDEX%nSoilOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the soil
     if (nSoilOnlyHyd>0) then ! if necessary, calculate the liquid flux through soil
       call initialize_soilLiqFlux
@@ -840,15 +840,15 @@ contains
 
  ! **** soilLiqFlux ****
  subroutine initialize_soilLiqFlux
-  call in_soilLiqFlux%initialize(nSnow,nLake,nSoil,firstSplitOper,scalarSolution,firstFluxCall,scalarAquiferStorageTrial,&
+  call in_soilLiqFlux%initialize(nSnow,nLake,nSoilHyd,firstSplitOper,scalarSolution,firstFluxCall,scalarAquiferStorageTrial,&
                                 mLayerTempTrial,mLayerMatricHeadTrial,mLayerMatricHeadLiqTrial,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,&
                                 flux_data,deriv_data)
-  call io_soilLiqFlux%initialize(nSoil,dHydCond_dMatric,flux_data,diag_data,deriv_data)
+  call io_soilLiqFlux%initialize(nSoilHyd,dHydCond_dMatric,flux_data,diag_data,deriv_data)
  end subroutine initialize_soilLiqFlux
 
  subroutine finalize_soilLiqFlux
   nStart = nSnow + nLake
-  call io_soilLiqFlux%finalize(nSoil,dHydCond_dMatric,flux_data,diag_data,deriv_data)
+  call io_soilLiqFlux%finalize(nSoilHyd,dHydCond_dMatric,flux_data,diag_data,deriv_data)
   call out_soilLiqFlux%finalize(err,cmessage)
   ! error control
   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
@@ -873,6 +873,7 @@ contains
    if(nGlce==0) iLayerLiqFluxSnLaGl(nSoil+nStart) = realMissing ! if nothing below the soil domain, then does not exist
    ! compute drainage from the soil zone (needed for mass balance checks and in aquifer recharge)
    scalarSoilDrainage = iLayerLiqFluxSoil(nSoilHyd)
+   if(nSoilHyd<nSoil) iLayerLiqFluxSoil(nSoilHyd+1:nSoil) = 0._rkind ! bedrock passes water on without storing it
    if(nGlce>0) scalarGlacierMelt = scalarSoilDrainage + scalarSurfaceRunoff - scalarGlceMelt ! save for glacier melt flow calculations, may be overwritten with addition of below domain fluxes
   end associate
 
@@ -889,8 +890,13 @@ contains
    dPsiLiq_dPsi0               => deriv_data%var(iLookDERIV%dPsiLiq_dPsi0)%dat             ) ! intent(in):    [dp(:)] derivative in liquid water matric pot w.r.t. the total water matric pot (-)
    ! expand derivatives to the total water matric potential
    ! NOTE: arrays are offset because computing derivatives in interface fluxes, at the top and bottom of the layer respectively
-   dq_dHydStateAbove(1:nSoil)   = dq_dHydStateAbove(1:nSoil)  *dPsiLiq_dPsi0(1:nSoil)
-   dq_dHydStateBelow(0:nSoil-1) = dq_dHydStateBelow(0:nSoil-1)*dPsiLiq_dPsi0(1:nSoil)
+   dq_dHydStateAbove(1:nSoilHyd)   = dq_dHydStateAbove(1:nSoilHyd)  *dPsiLiq_dPsi0(1:nSoilHyd)
+   dq_dHydStateBelow(0:nSoilHyd-1) = dq_dHydStateBelow(0:nSoilHyd-1)*dPsiLiq_dPsi0(1:nSoilHyd)
+   ! interfaces within the bedrock carry no water state, so their derivatives stay at zero
+   if(nSoilHyd<nSoil)then
+     dq_dHydStateAbove(nSoilHyd+1:nSoil) = 0._rkind; dq_dNrgStateAbove(nSoilHyd+1:nSoil) = 0._rkind
+     dq_dHydStateBelow(nSoilHyd:nSoil)   = 0._rkind; dq_dNrgStateBelow(nSoilHyd:nSoil)   = 0._rkind
+   endif
    if (ixBcUpper==prescribedHead) dq_dHydStateLayerSurfVec(1) = dq_dHydStateLayerSurfVec(1)*dPsiLiq_dPsi0(1)
   ! iLayerLiqFluxSnLaGlDeriv does not exist in soil but could exist at the bottom of the soil domain
    do iLayer=1,nSoil-1
@@ -908,7 +914,7 @@ contains
     message=trim(message)//'expect dBaseflow_dWat and dBaseflow_dTk to be nSoil x nSoil'
     err=20; return
   end if
-  call in_groundwatr%initialize(nSnow,nLake,nSoil,nGlce,firstFluxCall,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,deriv_data)
+  call in_groundwatr%initialize(nSnow,nLake,nSoilHyd,nGlce,firstFluxCall,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,deriv_data)
   call io_groundwatr%initialize(ixSaturation)
  end subroutine initialize_groundwatr
 

@@ -1236,10 +1236,10 @@ subroutine opSplittin(&
 
             ! bedrock carries no hydrology state, so its soil fluxes are the zeros computFlux writes, accounted here
             if (iDomainSplit_use==soilSplit .and. iStateTypeSplit==massSplit) then
-             associate(nBedrock => indx_data%var(iLookINDEX%nBedrock)%dat(1))
-              if (nBedrock>0) then
+             associate(noThetaChange => indx_data%var(iLookINDEX%noThetaChange)%dat(1))
+              if (nGlce==0 .and. noThetaChange>0) then
                select case(flux_meta(iVar)%varType)
-                case(iLookVarType%midSoil,iLookVarType%ifcSoil); fluxMask%var(iVar)%dat(nSoil-nBedrock+1:nSoil) = desiredFlux
+                case(iLookVarType%midSoil,iLookVarType%ifcSoil); fluxMask%var(iVar)%dat(nSoil-noThetaChange+1:nSoil) = desiredFlux
                end select
               end if
              end associate
@@ -1270,7 +1270,7 @@ subroutine opSplittin(&
                   if(iVar==iLookFLUX%scalarSoilDrainage .or. iVar==iLookFLUX%scalarAquiferRecharge &
                     .or. iVar==iLookFLUX%scalarSoilBaseflow & ! baseflow changes with all layers so compute after the bottom layer
                     .or. (iVar==iLookFLUX%scalarGlacierMelt .and. nGlce>0))then
-                    if(iLayer==nSnow+nLake+nSoil-indx_data%var(iLookINDEX%nBedrock)%dat(1)) fluxMask%var(iVar)%dat = desiredFlux
+                    if(iLayer==nSnow+nLake+nSoil-merge(indx_data%var(iLookINDEX%noThetaChange)%dat(1),0,nGlce==0)) fluxMask%var(iVar)%dat = desiredFlux
                   ! other scalar variables in the soil domain change with the surface layer
                   elseif(iLayer==nSnow+nLake+1)then
                     fluxMask%var(iVar)%dat = desiredFlux
@@ -1767,13 +1767,17 @@ contains
 
  subroutine stateTypeSplit_subDomain_massSplit_soilSplit_stateMask
   ! *** Get mass state soil subdomain split stateMask  ***
+  integer(i4b) :: nSoilHyd ! number of hydrologically active soil layers
   associate(&
    nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)    ,& ! intent(in): [i4b] number of snow layers
    nLake           => indx_data%var(iLookINDEX%nLake)%dat(1)    ,& ! intent(in): [i4b] number of lake layers
    nSoil           => indx_data%var(iLookINDEX%nSoil)%dat(1)    ,& ! intent(in): [i4b] number of soil layers
-   nBedrock        => indx_data%var(iLookINDEX%nBedrock)%dat(1) ,& ! intent(in): [i4b] number of thermal-only bedrock layers
+   nGlce           => indx_data%var(iLookINDEX%nGlce)%dat(1)    ,& ! intent(in): [i4b] number of glacier ice layers
+   noThetaChange   => indx_data%var(iLookINDEX%noThetaChange)%dat(1),& ! intent(in): [i4b] layers with no change in total water content
    ixHydLayer      => indx_data%var(iLookINDEX%ixHydLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the layer domain
-   if(nSoil>nBedrock) split_select % stateMask(ixHydLayer(nSnow+nLake+1:nSnow+nLake+nSoil-nBedrock)) = .true.  ! soil hydrology
+   ! below a soil column those layers are bedrock, which carries no hydrology state
+   nSoilHyd = nSoil - merge(noThetaChange, 0, nGlce==0)
+   if(nSoilHyd>0) split_select % stateMask(ixHydLayer(nSnow+nLake+1:nSnow+nLake+nSoilHyd)) = .true.  ! soil hydrology
   end associate
  end subroutine stateTypeSplit_subDomain_massSplit_soilSplit_stateMask
 
