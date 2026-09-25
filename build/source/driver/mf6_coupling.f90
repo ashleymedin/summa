@@ -1406,6 +1406,19 @@ contains
     if (this%have_evt)     write(*,'(a,g0)') '  ET demand sent           : ', this%bud_etdem
     if (abs(pct) > 1.d0) write(*,'(a)') '  NOTE: a non-zero mapping residual is the HRU/cell area mismatch, '// &
       'not the coupling lag; see the HRU area warnings at start-up.'
+
+    ! A land-surface drain exists to stop the water table rising above ground, not to move water.
+    ! Water the aquifer cannot hold should normally leave through the soil column, as a head-driven
+    ! upward flux across the prescribed-head lower boundary, so a seepage term of the same order as
+    ! the recharge means the drain is carrying flow the soil column should have taken.
+    if (this%have_surfdis .and. abs(this%bud_sent) > 0.d0) then
+      if (abs(this%bud_back(ROLE_SURFACE_DISCH)) > 0.1d0*abs(this%bud_sent)) &
+        write(*,'(a,f0.1,a)') '  WARNING: land-surface seepage is ', &
+          100.d0*abs(this%bud_back(ROLE_SURFACE_DISCH)/this%bud_sent), &
+          '% of the recharge sent. The drain is a head cap, not a transport path: check that the '// &
+          'aquifer can accept its recharge (conductivity, outlet capacity, STRT) rather than '// &
+          'pinning the water table at land surface.'
+    end if
   end subroutine mf6_budget_report
 
   real(c_double) function cell_spacing(centres, idx, ncell) result(d)

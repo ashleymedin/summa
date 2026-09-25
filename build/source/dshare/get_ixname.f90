@@ -788,6 +788,7 @@ contains
   case('scalarSurfaceRunoff'            ); get_ixFlux = iLookFLUX%scalarSurfaceRunoff              ! surface runoff (m s-1)
   case('scalarSurfaceRunoff_IE'         ); get_ixFlux = iLookFLUX%scalarSurfaceRunoff_IE           ! infiltration excess surface runoff (m s-1)
   case('scalarSurfaceRunoff_SE'         ); get_ixFlux = iLookFLUX%scalarSurfaceRunoff_SE           ! saturation excess surface runoff (m s-1)
+  case('scalarAquiferSeepage'           ); get_ixFlux = iLookFLUX%scalarAquiferSeepage             ! groundwater seepage at land surface from the coupled aquifer (m s-1)
   case('mLayerSatHydCondMP'             ); get_ixFlux = iLookFLUX%mLayerSatHydCondMP               ! saturated hydraulic conductivity of macropores in each layer (m s-1)
   case('mLayerSatHydCond'               ); get_ixFlux = iLookFLUX%mLayerSatHydCond                 ! saturated hydraulic conductivity in each layer (m s-1)
   case('iLayerSatHydCond'               ); get_ixFlux = iLookFLUX%iLayerSatHydCond                 ! saturated hydraulic conductivity in each layer interface (m s-1)
