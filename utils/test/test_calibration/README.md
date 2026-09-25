@@ -14,6 +14,49 @@ observations, and routed streamflow is produced by mizuRoute. In a build without
 simulated flow series is never filled, so there is nothing to score. This is a real constraint
 of the current design, not a property of these tests.
 
+## Calibration targets
+
+A calibration scores each parameter trial against one or more **targets**. A target names an observed
+series, the simulated variable it is compared against, and the metric that scores the two together.
+
+A configuration that names no target is calibrating the one streamflow series in `[observations]`, and
+is read as a calibration with exactly one target - which is what every configuration written before
+targets existed does, unchanged. To score a trial against more than one thing, list the targets:
+
+```toml
+[[calibration.target]]
+name      = "discharge"
+variable  = "streamflow"
+obs_file  = "CAN_05BB001_daily_flow_observations.nc"
+vname_obs = "q_obs"
+metric    = "kge"
+weight    = 1.0
+
+[[calibration.target]]
+name      = "discharge_error"
+variable  = "streamflow"
+obs_file  = "CAN_05BB001_daily_flow_observations.nc"
+metric    = "rmse"
+weight    = 0.1
+```
+
+Only `obs_file` is required. `obs_path`, `vname_obs`, `metric` and `obs_transform` fall back to the
+`[observations]` and `[calibration]` settings when a target does not state its own.
+
+Each trial runs the model **once** and scores that one simulation against every target, because the
+targets are different views of the same simulation and have to come from the same run to be
+comparable. The trials file records every target's value: `objective` gains a `target` dimension, and
+`target_name` labels it.
+
+DDS searches on one number, so it collapses the targets into a weighted sum. Targets are oriented
+before they are combined - efficiencies (KGE, KGE', NSE) count as they stand, error metrics (MAE,
+RMSE) count negatively - so a larger sum is always a better fit whatever mix of metrics is used. With
+a single target of weight one that sum is the metric itself, which is exactly what DDS maximized
+before targets existed.
+
+`variable` accepts `streamflow` (or `discharge`) today. Groundwater level, baseflow and stream
+temperature arrive with the coupling work that produces them.
+
 ## Calibrating a MODFLOW 6 coupled case
 
 A build with `-DUSE_MODFLOW6=ON` names its calibration executable `summa_modflow6_opt.exe`.

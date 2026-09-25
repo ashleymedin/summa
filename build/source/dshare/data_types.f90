@@ -87,7 +87,23 @@ MODULE data_types
  end type ordered_constraint
 
  ! -----------------------------------------------------------------------------------------------------------
- 
+ ! One calibration target: an observed series, the simulated variable it is compared against, and the
+ ! metric that scores the two together.  A calibration owns a list of these and evaluates every one of
+ ! them for each parameter trial, so a single-objective calibration is simply a list of length one.
+ type,public  :: target_info
+  character(len=64)              :: name = ''               ! target name, used to label the output
+  character(len=64)              :: variable = 'streamflow' ! simulated variable compared against the observations
+  character(len=:),  allocatable :: obs_path                ! path to the observation file
+  character(len=:),  allocatable :: obs_file                ! observation file
+  character(len=:),  allocatable :: vname_obs               ! name of the observed variable within that file
+  character(len=16)              :: metric = 'kge'          ! kge, kgep, nse, mae, rmse
+  character(len=16)              :: obs_transform = 'none'  ! none, log, power, box-cox
+  real(rkind)                    :: weight = 1.0_rkind      ! weight given to this target when the objectives
+                                                            !  are scalarized for a single-objective search
+ end type target_info
+
+ ! -----------------------------------------------------------------------------------------------------------
+
  ! calibration configuration
  type,public  :: calib_info
   character(len=:),  allocatable :: metric             ! KGE, KGEp, NSE, RMSE, MAE
@@ -97,6 +113,7 @@ MODULE data_types
   character(len=64), allocatable :: param_list(:)      ! Parameters included in optimization
   type(param_transform_info), allocatable :: param_transform(:)  ! parameter transformations
   type(ordered_constraint),   allocatable :: ordered(:)          ! ordered parameter constraints
+  type(target_info),          allocatable :: targets(:)          ! calibration targets, one per objective
   integer(i4b)                   :: n_samples = 5000    ! number of parameter samples to evaluate
   logical(lgt)                   :: write_aligned = .false. ! flag to write the aligned sim/obs time series
  end type calib_info

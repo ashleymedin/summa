@@ -190,6 +190,14 @@ contains
           cycle
         endif
 
+        ! ----- calibration targets are parsed as a complete array of tables -----
+        if(trim(sections(i)%key) == "calibration" .and. &
+           trim(keys(j)%key)     == "target")then
+          call parse_calibration_targets(subtable, config, err, cmessage)
+          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+          cycle
+        endif
+
         ! select section
         select case (trim(sections(i)%key))
 
@@ -296,6 +304,9 @@ contains
     if(allocated(config%obs%obs_file))then
       if(len_trim(config%obs%obs_file) > 0) hasObs = .true.
     endif
+    if(allocated(config%calib%targets))then
+      if(size(config%calib%targets) > 0) hasObs = .true.
+    endif
 
     if(hasObs)then
       ! set default objective-function metric
@@ -309,9 +320,184 @@ contains
         config%calib%obs_transform = 'none'
         write(iulog,*) 'WARNING: observation transformation not specified; using none'
       endif
+
+      ! A configuration that names no target is calibrating the one streamflow series in
+      ! [observations], so express that as the single target the objective code now expects.
+      ! Everything downstream then sees a target list, whether or not the user wrote one.
+      call set_default_calibration_target(config, err, cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
   end subroutine load_summa_config
+
+  ! **************************************************************************************************
+  ! Express a configuration that names no calibration target as a single-target calibration.
+  !
+  ! The legacy configuration carries one observed streamflow series in [observations] and one metric
+  ! in [calibration].  That is a calibration with exactly one target, so it is stored as one, and the
+  ! objective code needs only the target list.
+  ! **************************************************************************************************
+  subroutine set_default_calibration_target(config, ierr, message)
+    implicit none
+    type(config_info), intent(inout) :: config
+    integer(i4b),      intent(out)   :: ierr
+    character(*),      intent(out)   :: message
+
+    ierr = 0
+    message = 'set_default_calibration_target/'
+
+    ! an explicit target list wins
+    if(allocated(config%calib%targets))then
+      if(size(config%calib%targets) > 0) return
+      deallocate(config%calib%targets)
+    endif
+
+    ! without an observation file there is nothing to build a target from
+    if(.not.allocated(config%obs%obs_file)) return
+    if(len_trim(config%obs%obs_file) == 0) return
+
+    allocate(config%calib%targets(1), stat=ierr)
+    if(ierr/=0)then
+      message=trim(message)//'unable to allocate the default calibration target'
+      return
+    endif
+
+    config%calib%targets(1)%name     = 'streamflow'
+    config%calib%targets(1)%variable = 'streamflow'
+    if(allocated(config%obs%obs_path)) config%calib%targets(1)%obs_path = trim(config%obs%obs_path)
+    config%calib%targets(1)%obs_file = trim(config%obs%obs_file)
+    if(allocated(config%obs%vname_obsflow))then
+      config%calib%targets(1)%vname_obs = trim(config%obs%vname_obsflow)
+    else
+      config%calib%targets(1)%vname_obs = 'q_obs'
+    endif
+    config%calib%targets(1)%metric        = trim(config%calib%metric)
+    config%calib%targets(1)%obs_transform = trim(config%calib%obs_transform)
+    config%calib%targets(1)%weight        = 1.0_rkind
+
+  end subroutine set_default_calibration_target
+
+  ! **************************************************************************************************
+  ! Parse the calibration targets.
+  !
+  ! Reads the [[calibration.target]] array of tables.  Each target names an observed series, the
+  ! simulated variable it is compared against, and the metric that scores them; a calibration
+  ! evaluates every target for each parameter trial.  Only `obs_file` is required: a target inherits
+  ! the observation path and the metric settings from the rest of the configuration when it does not
+  ! state its own.
+  ! **************************************************************************************************
+  subroutine parse_calibration_targets(subtable, config, ierr, message)
+    use tomlf_all, only: toml_table, toml_array, get_value, len
+    implicit none
+
+    type(toml_table), pointer, intent(in)    :: subtable
+    type(config_info),         intent(inout) :: config
+    integer(i4b),              intent(out)   :: ierr
+    character(*),              intent(out)   :: message
+    type(toml_array), pointer     :: targets
+    type(toml_table), pointer     :: target_table
+    character(len=:), allocatable :: cvalue
+    integer(i4b) :: i
+    integer(i4b) :: istat
+    integer(i4b) :: ntargets
+
+    ierr = 0
+    message = 'parse_calibration_targets/'
+
+    ! get the array of targets
+    call get_value(subtable, 'target', targets, requested=.false., stat=istat)
+    if(.not.associated(targets)) return
+    ntargets = len(targets)
+    if(ntargets < 1)then
+      message=trim(message)//'[[calibration.target]] is present but names no targets'
+      ierr=20; return
+    endif
+
+    ! the previous case's targets may still be allocated
+    if(allocated(config%calib%targets)) deallocate(config%calib%targets)
+    allocate(config%calib%targets(ntargets), stat=ierr)
+    if(ierr/=0)then
+      message=trim(message)//'unable to allocate the calibration targets'
+      return
+    endif
+
+    do i=1,ntargets
+
+      call get_value(targets, i, target_table, stat=istat)
+      if(istat/=0 .or. .not.associated(target_table))then
+        write(message,'(A,I0)') trim(message)//'unable to read calibration target, i = ',i
+        ierr=20; return
+      endif
+
+      ! observation file: the one setting a target cannot inherit
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(target_table, 'obs_file', cvalue, stat=istat)
+      if(istat/=0 .or. .not.allocated(cvalue))then
+        write(message,'(A,I0)') trim(message)//'obs_file not defined for calibration target, i = ',i
+        ierr=20; return
+      endif
+      config%calib%targets(i)%obs_file = trim(cvalue)
+
+      ! target name, defaulting to its position so every target is labelled in the output
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(target_table, 'name', cvalue, stat=istat)
+      if(istat==0 .and. allocated(cvalue))then
+        config%calib%targets(i)%name = trim(cvalue)
+      else
+        write(config%calib%targets(i)%name,'(A,I0)') 'target', i
+      endif
+
+      ! simulated variable this target is compared against
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(target_table, 'variable', cvalue, stat=istat)
+      if(istat==0 .and. allocated(cvalue)) config%calib%targets(i)%variable = trim(cvalue)
+
+      ! observation path, inherited from [observations] when the target does not state one
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(target_table, 'obs_path', cvalue, stat=istat)
+      if(istat==0 .and. allocated(cvalue))then
+        config%calib%targets(i)%obs_path = trim(cvalue)
+      else if(allocated(config%obs%obs_path))then
+        config%calib%targets(i)%obs_path = trim(config%obs%obs_path)
+      else
+        config%calib%targets(i)%obs_path = ''
+      endif
+
+      ! name of the observed variable within the file
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(target_table, 'vname_obs', cvalue, stat=istat)
+      if(istat==0 .and. allocated(cvalue))then
+        config%calib%targets(i)%vname_obs = trim(cvalue)
+      else if(allocated(config%obs%vname_obsflow))then
+        config%calib%targets(i)%vname_obs = trim(config%obs%vname_obsflow)
+      else
+        config%calib%targets(i)%vname_obs = 'q_obs'
+      endif
+
+      ! metric, inherited from [calibration] when the target does not state one
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(target_table, 'metric', cvalue, stat=istat)
+      if(istat==0 .and. allocated(cvalue))then
+        config%calib%targets(i)%metric = trim(cvalue)
+      else if(allocated(config%calib%metric))then
+        config%calib%targets(i)%metric = trim(config%calib%metric)
+      endif
+
+      ! observation transformation, inherited the same way
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(target_table, 'obs_transform', cvalue, stat=istat)
+      if(istat==0 .and. allocated(cvalue))then
+        config%calib%targets(i)%obs_transform = trim(cvalue)
+      else if(allocated(config%calib%obs_transform))then
+        config%calib%targets(i)%obs_transform = trim(config%calib%obs_transform)
+      endif
+
+      ! weight used when the targets are scalarized for a single-objective search
+      call get_value(target_table, 'weight', config%calib%targets(i)%weight, stat=istat)
+
+    enddo
+
+  end subroutine parse_calibration_targets
   
   ! **************************************************************************************************
   ! Parse summa configuration.
@@ -521,9 +707,10 @@ contains
     type(config_info), intent(inout) :: config              ! SUMMA configuration information
     integer(i4b),      intent(out)   :: err                 ! error code
     character(*),      intent(out)   :: message             ! error message
-    logical(lgt), parameter :: isPrint=.false.              ! temporary diagnostic output 
+    logical(lgt), parameter :: isPrint=.false.              ! temporary diagnostic output
+    integer(i4b) :: iTarget                                 ! calibration target index
     character(len=256) :: cmessage                          ! message returned by called routines
-  
+
     err=0
     message='expand_summa_config/'
   
@@ -625,10 +812,23 @@ contains
     ! ---- observation paths and filenames ----
     call expand_config_string(config%obs%obs_path,config,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  
+
     call expand_config_string(config%obs%obs_file,config,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  
+
+    ! ---- per-target observation paths and filenames ----
+    ! A target names its own observation file, so it needs the same placeholder expansion the
+    ! [observations] section gets; a multi-case run relies on it to reach each case's own data.
+    if(allocated(config%calib%targets))then
+      do iTarget=1,size(config%calib%targets)
+        call expand_config_string(config%calib%targets(iTarget)%obs_path,config,err,cmessage)
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+        call expand_config_string(config%calib%targets(iTarget)%obs_file,config,err,cmessage)
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      enddo
+    endif
+
     ! temporary diagnostic output
     if(isPrint)then
       write(*,'(A)') 'Expanded SUMMA configuration:'
