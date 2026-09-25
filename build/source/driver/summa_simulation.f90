@@ -233,6 +233,28 @@ contains
   end subroutine evaluate_objective
 
   ! **************************************************************************************************
+  ! Return the position of a name in a list, or integerMissing when it is not there.
+  !
+  ! Two targets scoring the same SUMMA variable - the same storage series against two products, say -
+  ! collect it once.
+  ! **************************************************************************************************
+  pure function find_series_name(names,name) result(iName)
+    character(*), intent(in) :: names(:)
+    character(*), intent(in) :: name
+    integer(i4b)             :: iName
+    integer(i4b) :: i
+
+    iName=integerMissing
+    do i=1,size(names)
+      if(trim(names(i))==trim(name))then
+        iName=i
+        return
+      endif
+    enddo
+
+  end function find_series_name
+
+  ! **************************************************************************************************
   ! Evaluate every calibration target for a specified parameter vector.
   !
   ! The routine initializes SUMMA, runs the model once, and then scores that one simulation against
@@ -254,10 +276,15 @@ contains
     use globalData, only: ncid
     USE globalData, only: output_fileSuffix
     use var_lookup, only: iLookFREQ
+    use globalData,              only: numtim
     use read_flowobs_module,     only: read_observations
     use timeseries_alignment,    only: align_timeseries
     use metrics,                 only: compute_metric
     use write_evaluation_module, only: write_evaluation
+    use simulated_series,        only: sim_series_type
+    use simulated_series,        only: init_simulated_series
+    use simulated_series,        only: find_simulated_series
+    use simulated_series,        only: is_routed_streamflow
     ! dummy arguments
     type(config_info),           intent(inout) :: config
     type(parallel_context_type), intent(in)    :: domain_parallel
@@ -288,6 +315,12 @@ contains
     real(rkind), allocatable           :: timeAligned(:)     ! common time vector
     real(rkind), allocatable           :: flowSimAligned(:)  ! flow simulations aligned to the common time period
     real(rkind), allocatable           :: flowObsAligned(:)  ! flow observations aligned to the common time period
+    type(sim_series_type), allocatable :: series(:)          ! SUMMA variables the targets asked for
+    character(len=64),     allocatable :: seriesName(:)      ! names of those variables
+    integer(i4b)                       :: nSeries            ! number of them
+    integer(i4b)                       :: iSeries            ! index of one of them
+    real(rkind), allocatable           :: valSim(:)          ! the simulated series for the current target
+    character(len=:), allocatable      :: valSimUnits        ! its units
     character(len=256)                 :: cmessage           ! error message of downwind routine
 
     err=0
@@ -340,26 +373,57 @@ contains
     ! calibration run: send model chatter to stderr so stdout carries only the metric, unless a caller owns iulog
     if(iulog == output_unit) iulog = error_unit
 
+    ! the SUMMA variables the targets ask for, resolved before the run so an unknown name is refused
+    ! here rather than after a simulation has been paid for.  Routed streamflow is not among them: it
+    ! comes from mizuRoute, not from a SUMMA structure.
+    nSeries=0
+    allocate(seriesName(nTarget),stat=err)
+    if(err/=0)then
+      message=trim(message)//'problem allocating the simulated-series names'
+      return
+    endif
+    do iTarget=1,nTarget
+      associate(calTarget => summa1_struc(n)%config%calib%targets(iTarget))
+      if(.not.is_routed_streamflow(calTarget%variable))then
+        if(find_series_name(seriesName(1:nSeries),calTarget%variable) == integerMissing)then
+          nSeries=nSeries+1
+          seriesName(nSeries)=calTarget%variable
+        endif
+      endif
+      end associate
+    enddo
+
+    call init_simulated_series(seriesName(1:nSeries),numtim,series,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
     ! run SUMMA once; every target scores this same simulation
-    call run_summa(summa1_struc(n), timeSim,flowSim, timeSimUnits,flowSimUnits, err,cmessage)
+    if(nSeries > 0)then
+      call run_summa(summa1_struc(n), timeSim,flowSim, timeSimUnits,flowSimUnits, err,cmessage, series=series)
+    else
+      call run_summa(summa1_struc(n), timeSim,flowSim, timeSimUnits,flowSimUnits, err,cmessage)
+    endif
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! score the simulation against each calibration target
     do iTarget=1,nTarget
       associate(calTarget => summa1_struc(n)%config%calib%targets(iTarget))
 
-      ! the simulated series this target is compared against.  Only routed streamflow is available
-      ! from a SUMMA run today; the groundwater and stream-temperature series come with the targets
-      ! that need them.
-      select case(trim(calTarget%variable))
-        case ('streamflow','discharge')
-          ! flowSim, as returned by run_summa above
-        case default
+      ! the simulated series this target is compared against: routed streamflow from mizuRoute, or
+      ! the SUMMA variable of that name, collected over the run just completed
+      if(allocated(valSim)) deallocate(valSim)
+      if(is_routed_streamflow(calTarget%variable))then
+        valSim=flowSim
+        valSimUnits=flowSimUnits
+      else
+        iSeries=find_simulated_series(series,calTarget%variable)
+        if(iSeries == integerMissing)then
           message=trim(message)//'calibration target "'//trim(calTarget%name)// &
-                  '" asks for simulated variable "'//trim(calTarget%variable)// &
-                  '", which is not available yet; use "streamflow"'
+                  '" asks for simulated variable "'//trim(calTarget%variable)//'", which was not collected'
           err=20; return
-      end select
+        endif
+        valSim=series(iSeries)%values
+        valSimUnits=trim(series(iSeries)%units)
+      endif
 
       ! read this target's observations
       if(allocated(timeObs)) deallocate(timeObs)
@@ -375,7 +439,7 @@ contains
       if(allocated(timeAligned))    deallocate(timeAligned)
       if(allocated(flowSimAligned)) deallocate(flowSimAligned)
       if(allocated(flowObsAligned)) deallocate(flowObsAligned)
-      call align_timeseries(timeSim,flowSim,timeSimUnits,flowSimUnits, &
+      call align_timeseries(timeSim,valSim,timeSimUnits,valSimUnits,   &
                             timeObs,flowObs,timeObsUnits,flowObsUnits, &
                             summa1_struc(n)%config%calib%start_date,   &
                             summa1_struc(n)%config%calib%end_date,     &
@@ -504,10 +568,12 @@ contains
   ! **************************************************************************************************
   ! run SUMMA
   ! **************************************************************************************************
-  subroutine run_summa(summa_struct, timeSim,flowSim, timeUnits,flowUnits, err,message)
+  subroutine run_summa(summa_struct, timeSim,flowSim, timeUnits,flowUnits, err,message, series)
     USE var_lookup, only: iLookFORCE
     USE globalData, only: forc_meta
     USE globalData, only: numtim
+    USE simulated_series, only: sim_series_type
+    USE simulated_series, only: collect_simulated_series
 #ifdef MODFLOW_ACTIVE
     USE globalData, only: data_step                            ! length of a SUMMA data step (s)
 #endif
@@ -519,6 +585,8 @@ contains
     character(len=:), allocatable, intent(out) :: flowUnits     ! units for simulated streamflow
     integer(i4b), intent(out)                  :: err           ! error code
     character(*), intent(out)                  :: message       ! error message
+    ! SUMMA variables a calibration target asked for, recorded as the run proceeds
+    type(sim_series_type), optional, intent(inout) :: series(:)
     ! locals
     integer(i4b)                               :: modelTimeStep ! index of model time step
     character(len=512)                         :: cmessage      ! error message of downwind routine
@@ -583,12 +651,21 @@ contains
       ! transfer SUMMA fluxes to OpenWQ
       if(openwq_active) call openwq_run_space_step(summa_struct)
 
+      ! the simulation time axis, which every calibration target shares.  It comes from the forcing,
+      ! not from the routing, so a target that does not need routed flow still has a time coordinate.
+      timeSim(modelTimeStep) = summa_struct%forcStruct%gru(1)%hru(1)%var(iLookFORCE%time)
+
       ! save streamflow time series (unavailable when mizuRoute is not active)
       if(mizuroute_active)then ! build-time capability
        if(summa_struct%config%use_mizuroute)then
-        timeSim(modelTimeStep) = summa_struct%forcStruct%gru(1)%hru(1)%var(iLookFORCE%time)
         call get_mizuroute_streamflow(modelTimeStep, summa_struct, flowSim(modelTimeStep))
        endif
+      endif
+
+      ! record the SUMMA variables any calibration target asked for
+      if(present(series))then
+        call collect_simulated_series(modelTimeStep, summa_struct, series, err, cmessage)
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       endif
 
       ! write the model output
