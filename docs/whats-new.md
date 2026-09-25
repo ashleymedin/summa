@@ -77,7 +77,9 @@ covers the user-facing highlights.
   `noInfExc`), and new `surfRun_SE` decision for saturation-excess surface runoff
   (`homegrown_SE`, `FUSEPRMS`, `FUSEAVIC`, `FUSETOPM`, `zero_SE`). Distinct
   `scalarSurfaceRunoff_IE` / `scalarSurfaceRunoff_SE` output fluxes were added.
-- New `aquiferIni` decision (`fullStart` / `emptyStart`).
+- New `aquiferIni` decision (`fullStart` / `emptyStart`). `emptyStart` empties the aquifer on a
+  cold start only: restart files carry an `aqEmptyStarted` attribute, and a run that reads one
+  keeps the aquifer storage the file holds.
 - Wind-profile / stability changes to fix over-estimated snow sublimation (affects
   `veg_traits = CM_QJRMS1988` most).
 - Soil and snow longwave emissivity updated (0.98/0.99 → 0.96/0.98).
