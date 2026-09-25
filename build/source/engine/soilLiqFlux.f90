@@ -872,7 +872,8 @@ contains
   associate(&
    ! output: derivatives in surface infiltration w.r.t. ...
    dq_dHydStateVec => out_surfaceFlux % dq_dHydStateVec, & ! ... hydrology state in every soil layer (m s-1 or s-1)
-   dq_dNrgStateVec => out_surfaceFlux % dq_dNrgStateVec  & ! ... energy state in every soil layer (m s-1 K-1)
+   dq_dNrgStateVec => out_surfaceFlux % dq_dNrgStateVec , & ! ... energy state in every soil layer (m s-1 K-1)
+   nSoil           => in_surfaceFlux % nSoil             & ! number of hydrologically active soil layers
   &)
    dVolFracLiq_dWat(:)    = 0._rkind
    dVolFracIce_dWat(:)    = 0._rkind
@@ -1722,13 +1723,16 @@ subroutine update_volFracLiq_derivatives
        dInfilRate_dTk(:)  = dxMaxInfilRate_dTk(:)
      end if
      ! Do not need to break into IE and SE components since they are never used separately in the Jacobian assembly
-     dq_dHydStateVec(:) = (1._rkind - scalarFrozenArea)&
-                         * ( dInfilArea_dWat(:)*min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dWat(:) )&
-                         + (-dFrozenArea_dWat(:))*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
+     ! the vectors span the whole column, the surface flux only the layers that carry water
+     dq_dHydStateVec(:) = 0._rkind
+     dq_dNrgStateVec(:) = 0._rkind
+     dq_dHydStateVec(1:nSoil) = (1._rkind - scalarFrozenArea)&
+                         * ( dInfilArea_dWat(1:nSoil)*min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dWat(1:nSoil) )&
+                         + (-dFrozenArea_dWat(1:nSoil))*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
      ! energy state variable is temperature (transformed outside soilLiqFlux_module if needed)
-     dq_dNrgStateVec(:) = (1._rkind - scalarFrozenArea)&
-                         * ( dInfilArea_dTk(:) *min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dTk(:)  )&
-                         + (-dFrozenArea_dTk(:)) *scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
+     dq_dNrgStateVec(1:nSoil) = (1._rkind - scalarFrozenArea)&
+                         * ( dInfilArea_dTk(1:nSoil) *min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dTk(1:nSoil)  )&
+                         + (-dFrozenArea_dTk(1:nSoil)) *scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
    end if
   end associate
 
