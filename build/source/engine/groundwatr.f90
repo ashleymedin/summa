@@ -62,11 +62,7 @@ contains
 ! ************************************************************************************************
 ! public subroutine groundwatr: compute the groundwater sink term in Richards' equation
 ! ************************************************************************************************
-!
-! Method
-! ------
-!
-! Here we assume that water available for shallow groundwater flow includes is all water above
+! We assume that water available for shallow groundwater flow includes is all water above
 ! "field capacity" below the depth zCrit, where zCrit is defined as the lowest point in the soil
 ! profile where the volumetric liquid water content is less than field capacity.
 !
@@ -87,7 +83,6 @@ contains
 ! The outflow from each layer is then (m3 s-1)
 !  mLayerOutflow(iLayer) = trSoil(iLayer)*tan_slope*contourLength
 ! where contourLength is the width of a hillslope (m) parallel to a stream
-!
 ! ************************************************************************************************
 subroutine groundwatr(&
                       ! input: model control, state variables, and diagnostic variables
@@ -356,8 +351,7 @@ subroutine computBaseflow(&
       kAnisotropic_use = kAnisotropic*10._rkind ! if glacier ice layers are present, increase anisotropy factor to reflect higher hydraulic conductivity in glacier debris
     end if
 
-    ! the transmissivity profile is the vertical integral of the hydraulic conductivity profile, so it must
-    ! match the profile satHydCond used to build the conductivity itself
+    ! the transmissivity profile is the vertical integral of the hydraulic conductivity profile, must match the profile satHydCond
     ix_hc_profile = model_decisions(iLookDECISIONS%hc_profile)%iDecision
     if(nGlce>0) ix_hc_profile = expLaw_profile ! must match the override in satHydCond
 
@@ -379,14 +373,10 @@ subroutine computBaseflow(&
     ! set un-used portions of the water table thickness to zero, both profiles give xTrans=0 there
     if (ixSaturation>1) zActive(1:ixSaturation-1) = 0._rkind
 
-    ! compute the maximum transmissivity (m2 s-1) and the dimensionless transmissivity profile xTrans(zActive),
-    ! along with dXdS = d(xTrans)/d(zActive/soilDepth) used to build the derivative matrix below
-    ! NOTE: tran0 can be done as a pre-processing step
+    ! compute the maximum transmissivity (m2 s-1) and the dimensionless transmissivity profile xTrans(zActive), and derivatives
     select case(ix_hc_profile)
 
-      ! K(z) = K_0*exp(-f*z) integrated from the water table up to the base of the soil gives
-      !  T(s) = (K_0/f)*[exp(-f*(D-s)) - exp(-f*D)], for saturated thickness s and soil depth D
-      ! NOTE: written so that no exponential ever takes a positive argument
+      ! K(z) = K_0*exp(-f*z) integrated from the water table up to the base of the soil
       case(expLaw_profile)
         tran0 = kAnisotropic_use*surfaceHydCond_use/f_hydCond
         xTrans(1:nSoil) = exp(-f_hydCond*(soilDepth - zActive(1:nSoil))) - exp(-f_hydCond*soilDepth)
@@ -399,8 +389,7 @@ subroutine computBaseflow(&
         dXdS(1:nSoil)   = zScale_TOPMODEL*(zActive(1:nSoil)/soilDepth)**(zScale_TOPMODEL - 1._rkind)
 
       ! uniform conductivity with depth, so transmissivity is simply linear in the saturated thickness
-      ! NOTE: unreachable, mDecisions does not allow constant with qbaseTopmodel, but kept correct rather than
-      !       lumped in with the power law
+      ! NOTE: unreachable, do not allow constant with qbaseTopmodel, but kept correct rather than lumped in with the power law
       case(constant)
         tran0 = kAnisotropic_use*surfaceHydCond_use*soilDepth
         xTrans(1:nSoil) = zActive(1:nSoil)/soilDepth
@@ -530,11 +519,7 @@ subroutine computBaseflow(&
       dBaseflow_dTk(iLayer,iLayer)     = dBaseflow_dTk(iLayer,iLayer)     + dCap_dLiq(iLayer)*mLayerdTheta_dTk(iLayer)
     end do
 
-    ! trSoil is clamped to zero above the saturated zone, so the outflow of those layers does not respond to
-    ! the state at all and their derivative rows must be zero to match. Without this the rows depend on the
-    ! shape of xTrans near zActive=0, which differs between profiles (and is non-zero for the exponential,
-    ! and for the power law whenever zScale_TOPMODEL=1).
-    ! NOTE: this is done before the exfiltration derivative, which is a real flux and still belongs in row 1
+    ! trSoil is clamped to zero above the saturated zone
     if (ixSaturation>1) then
       dBaseflow_dVolLiq(1:ixSaturation-1,:) = 0._rkind
       dBaseflow_dWat(1:ixSaturation-1,:)    = 0._rkind
@@ -542,7 +527,6 @@ subroutine computBaseflow(&
     end if
 
     ! compute the derivative in the exfiltration flux and add to the baseflow derivative matrix
-    ! NOTE: the vertical boundary fluxes are taken as given, as the lateral inflow is
     if (exfilDrive > 0._rkind .and. logF > tiny(1._rkind)) then
       do iLayer=1,nSoil
         dExfiltrate_dWat(iLayer) = -sum(dBaseflow_dWat(1:nSoil,iLayer))*logF + dLogFunc_dWat(iLayer)*exfilDrive
