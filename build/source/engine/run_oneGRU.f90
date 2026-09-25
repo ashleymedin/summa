@@ -111,7 +111,7 @@ USE mDecisions_module,only:       &
 private
 public::run_oneGRU
 
-! the downHRUindex cascade for one GRU: static, so it is built once and reused every step
+! cached downHRUindex cascade order for one GRU
 type :: cascade_order
   integer(i8b)              :: gru_id = 0
   integer(i4b), allocatable :: downIdx(:)      ! index of the downslope HRU (0 = GRU outlet)
@@ -321,8 +321,7 @@ subroutine run_oneGRU(&
   endif
 
   ! ----- order the HRUs so that an HRU is run after everything that drains into it -----------------------------------------
-  ! the downHRUindex topology does not change, so the order is built once per GRU and cached: the
-  ! match below is O(hruCount^2), which is nothing at four HRUs and the dominant cost at a few hundred
+  ! the topology is static and the match below is O(hruCount^2), so build the order once per GRU
   allocate(downIdx(gruInfo%hruCount), inDegree(gruInfo%hruCount), hruOrder(gruInfo%hruCount), stat=err)
   if(err/=0)then; message=trim(message)//'problem allocating cascade ordering arrays'; return; endif
 
@@ -356,8 +355,7 @@ subroutine run_oneGRU(&
         exit dsHRU
       endif
     enddo dsHRU
-    ! a downHRUindex naming no HRU in this GRU silently becomes an outlet, which hides a typo or a
-    ! topology built across GRU boundaries, so count those separately from a deliberate 0
+    ! a downHRUindex matching no HRU here becomes an outlet silently, so count it apart from a deliberate 0
     if(.not.found)then
       if(typeHRU%hru(iHRU)%var(iLookTYPE%downHRUindex) == 0)then
         nOutlet = nOutlet + 1
