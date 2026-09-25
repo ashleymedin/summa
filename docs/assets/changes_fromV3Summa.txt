@@ -327,3 +327,15 @@ AFTER tag of v4.0.0-exp-Sundials
      (water the aquifer cannot hold normally leaves through the soil column, as an upward flux across the presHead boundary).
      run_oneGRU already rejected loops in the downHRUindex cascade; it now also reports, once per GRU, HRUs whose downHRUindex
      names no HRU in the GRU (silently treated as outlets), HRUs draining to a HIGHER HRU, and how many HRUs drain out of the GRU.
+ 78) aquiferIni=emptyStart empties the aquifer on a cold start only, commit c350f6f2 Sep 25, 2026
+     emptyStart zeroed the aquifer on every run, so a simulation continued from a restart file lost the aquifer it had spun up,
+     and a calibration sample restarting from the shared spin-up emptied it again. writeRestart now stamps the global attribute
+     aqEmptyStarted=1 on every restart file it writes and read_icond reads it back, so emptyStart applies only where the flag is
+     absent - a hand-written initial conditions file. A restart behaves as fullStart, with a warning. Older restart files have no
+     attribute and so keep the old behaviour.
+     aquiferIni is now in the modelDecisions.txt of every bundled test case, with its option block.
+     The aquiferIni and spatial_gw default cases of summa_readRestart set a message but returned err=0, so an unrecognised
+     decision was ignored; both now return err=20. Neither is reachable, mDecisions validating both keywords first.
+     basin__AquiferStorage is neither written to nor read from the restart file, so spatial_gw=singleBasin still starts at the
+     aquiferIni fill level; that store is unreachable in any case, run_oneGRU rejecting singleBasin until the bigBucket basin
+     code is ported.
