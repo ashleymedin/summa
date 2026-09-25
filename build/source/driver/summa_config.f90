@@ -495,6 +495,31 @@ contains
       ! weight used when the targets are scalarized for a single-objective search
       call get_value(target_table, 'weight', config%calib%targets(i)%weight, stat=istat)
 
+      ! format of the observation file: NetCDF unless the target says otherwise
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(target_table, 'obs_format', cvalue, stat=istat)
+      if(istat==0 .and. allocated(cvalue)) config%calib%targets(i)%obs_format = trim(cvalue)
+
+      ! units of the observations, for formats that do not carry them
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(target_table, 'obs_units', cvalue, stat=istat)
+      if(istat==0 .and. allocated(cvalue)) config%calib%targets(i)%obs_units = trim(cvalue)
+
+      ! putting the simulated series on the same footing as the observations
+      call get_value(target_table, 'accumulate', config%calib%targets(i)%accumulate, stat=istat)
+
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(target_table, 'cadence', cvalue, stat=istat)
+      if(istat==0 .and. allocated(cvalue)) config%calib%targets(i)%cadence = trim(cvalue)
+
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(target_table, 'baseline_start', cvalue, stat=istat)
+      if(istat==0 .and. allocated(cvalue)) config%calib%targets(i)%baseline_start = trim(cvalue)
+
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(target_table, 'baseline_end', cvalue, stat=istat)
+      if(istat==0 .and. allocated(cvalue)) config%calib%targets(i)%baseline_end = trim(cvalue)
+
     enddo
 
   end subroutine parse_calibration_targets
