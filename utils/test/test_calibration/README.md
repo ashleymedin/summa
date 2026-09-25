@@ -45,10 +45,16 @@ Within a rank, every sample runs its own complete MODFLOW simulation, started an
 around the SUMMA run, so each trial sees the same aquifer initial condition and trials stay
 comparable.
 
-**The aquifer is not spun up with the soil column.** The calibration's one-year cold-start
-spinup runs coupled, but MODFLOW restarts each sample from the initial head in its own input
-(`STRT`), while SUMMA restarts from the spun-up state. Set `STRT` to a sensible water table
-for the calibration period rather than relying on the spinup to settle it.
+**The aquifer is spun up with the soil column.** The calibration's one-year cold-start spinup
+runs coupled and writes its final head field to `modflow_spinup_heads_rank####.bin` under the
+case's output path; every sample that rank evaluates then starts MODFLOW from that field in
+place of the `STRT` array in the model's own IC package, just as SUMMA starts from the spun-up
+restart file. The spinup itself still begins at `STRT`, so it is worth setting to a sensible
+water table, but the calibration period no longer depends on it.
+
+SUMMA's own aquifer follows the same rule. With `aquiferIni = emptyStart` the aquifer is
+emptied on the cold start only: the spinup's restart file records that a start has already
+happened, so each sample keeps the spun-up aquifer rather than emptying it again.
 
 **This needs mizuRoute as well**, for the same reason every other calibration does: the
 objective compares routed streamflow against gauge observations. A coupled calibration build

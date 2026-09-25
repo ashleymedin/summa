@@ -489,6 +489,16 @@ With the `itertive` alias, the value is forced to `closedForm` for backward comp
 | fullStart | start from the aquifer value in the initial-conditions file (default; for a cold start this is typically full, since draining to equilibrium is easier than filling) |
 | emptyStart | start from an empty aquifer; intended only for comparing solution methods, not for realistic simulation |
 
+`emptyStart` applies to a cold start only. Every restart file SUMMA writes carries the global
+attribute `aqEmptyStarted = 1`, and a run that reads such a file keeps the aquifer storage the
+file holds, exactly as `fullStart` would, with a warning in the log. An initial-conditions file
+written by hand has no such attribute, so the aquifer is emptied there. This keeps a continued
+run, or a spun-up calibration sample, from re-emptying the aquifer at every restart.
+
+With `spatial_gw = singleBasin` the basin-average aquifer storage is not part of the restart
+file, so that configuration always starts at the `aquiferIni` fill level -- full (1 m) or empty
+-- whatever the initial-conditions file holds.
+
 <a id="infratemax"></a>
 ## 41. infRateMax — maximum infiltration rate
 
