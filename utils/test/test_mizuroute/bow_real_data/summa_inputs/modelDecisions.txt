@@ -13,29 +13,29 @@ vegeParTbl                      MODIFIED_IGBP_MODIS_NOAH ! (02) vegetation categ
 soilStress                      NoahType        ! (03) choice of function for the soil moisture control on stomatal resistances
 stomResist                      BallBerry       ! (04) choice of function for stomatal resistances
 ! ***********************************************************************************************************************
-num_method                      itertive        ! (05) choice of numerical method
+num_method                      homegrown       ! (05) choice of numerical method
 fDerivMeth                      analytic        ! (06) method used to calculate flux derivatives
 LAI_method                      specified       ! (07) method used to determine LAI and SAI
-f_Richards                      mixdform        ! (08) choice of groundwater parameterization
-groundwatr                      bigBuckt        ! (09) choice of hydraulic conductivity profile
-hc_profile                      constant        ! (10) choice of upper boundary conditions for thermodynamics
-bcUpprTdyn                      nrg_flux        ! (11) choice of lower boundary conditions for thermodynamics
-bcLowrTdyn                      zeroFlux        ! (12) choice of upper boundary conditions for soil hydrology
-bcUpprSoiH                      liq_flux        ! (13) choice of lower boundary conditions for soil hydrology
-bcLowrSoiH                      drainage        ! (14) choice of parameterization for vegetation roughness length and displacement height
-veg_traits                      Raupach_BLM1994 ! (15) choice of parameterization for canopy emissivity
-canopyEmis                      difTrans        ! (16) choice of parameterization for snow interception
-snowIncept                      lightSnow       ! (17) choice of wind profile
-windPrfile                      logBelowCanopy  ! (18) choice of stability function
-astability                      louisinv        ! (19) choice of canopy shortwave radiation method
-canopySrad                      BeersLaw        ! (20) choice of albedo representation
-alb_method                      conDecay        ! (21) choice of compaction routine
-compaction                      anderson        ! (22) choice of method to combine and sub-divide snow layers
-snowLayers                      CLM_2010        ! (23) choice of thermal conductivity representation for snow
-thCondSnow                      jrdn1991        ! (24) choice of thermal conductivity representation for soil
-thCondSoil                      funcSoilWet     ! (25) choice of method for the spatial representation of groundwater
-spatial_gw                      localColumn     ! (26) choice of method for sub-grid routing
-subRouting                      timeDlay        ! (27) choice of variable in energy equations (BE residual or IDA state variable)
+groundwatr                      bigBuckt        ! (08) choice of groundwater parameterization
+hc_profile                      constant        ! (09) choice of hydraulic conductivity profile
+bcUpprTdyn                      nrg_flux        ! (10) choice of upper boundary conditions for thermodynamics
+bcLowrTdyn                      zeroFlux        ! (11) choice of lower boundary conditions for thermodynamics
+bcUpprSoiH                      liq_flux        ! (12) choice of upper boundary conditions for soil hydrology
+bcLowrSoiH                      drainage        ! (13) choice of lower boundary conditions for soil hydrology
+veg_traits                      Raupach_BLM1994 ! (14) choice of parameterization for vegetation roughness length and displacement height
+canopyEmis                      difTrans        ! (15) choice of parameterization for canopy emissivity
+snowIncept                      lightSnow       ! (16) choice of parameterization for snow interception
+windPrfile                      logBelowCanopy  ! (17) choice of wind profile
+astability                      louisinv        ! (18) choice of stability function
+canopySrad                      BeersLaw        ! (19) choice of canopy shortwave radiation method
+alb_method                      conDecay        ! (20) choice of albedo representation
+compaction                      anderson        ! (21) choice of compaction routine
+snowLayers                      CLM_2010        ! (22) choice of method to combine and sub-divide snow layers
+thCondSnow                      jrdn1991        ! (23) choice of thermal conductivity representation for snow
+thCondSoil                      funcSoilWet     ! (24) choice of thermal conductivity representation for soil
+spatial_gw                      localColumn     ! (25) choice of method for the spatial representation of groundwater
+subRouting                      timeDlay        ! (26) choice of method for sub-grid routing
+nrgConserv                      enthalpyForm    ! (27) choice of variable in energy equations (BE residual or IDA state variable)
 aquiferIni                      fullStart       ! (28) initial fill level of the aquifer
 infRateMax                      GreenAmpt       ! (29) choice of infiltration rate method
 surfRun_SE                      homegrown_SE    ! (30) choice of saturation excess (SE) surface runoff parameterization
@@ -46,7 +46,6 @@ hyporhTdyn                      none            ! (34) hyporheic exchange in a s
 ! ***********************************************************************************************
 ! ***** description of the options available -- nothing below this point is read ****************
 ! ***********************************************************************************************
-! -----------------------------------------------------------------------------------------------
 ! -----------------------------------------------------------------------------------------------
 ! (01) soil-category dataset
 ! STAS      ! STATSGO dataset
@@ -80,14 +79,16 @@ hyporhTdyn                      none            ! (34) hyporheic exchange in a s
 ! specified ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
 ! -----------------------------------------------------------------------------------------------
 ! (08) choice of groundwater parameterization
-! qTopmodl  ! topmodel parameterization
-! bigBuckt  ! a big bucket (lumped aquifer model)
-! noXplict  ! no explicit groundwater parameterization
+! qTopmodl   ! topmodel parameterization
+! bigBuckt   ! a big bucket (lumped aquifer model)
+! noXplict   ! no explicit groundwater parameterization
+! modflow    ! couple with MODFLOW6 (no aquifer modelled in SUMMA)
+! modLatflow ! couple with MODFLOW6 but allow lateral flow in soil column (no aquifer modelled in SUMMA)
 ! -----------------------------------------------------------------------------------------------
 ! (09) choice of hydraulic conductivity profile
 ! constant  ! constant hydraulic conductivity with depth (not allowed with groundwatr == qTopmodl)
 ! pow_prof  ! power-law profile (original TOPMODEL-ish form)
-! exp_prof  ! exponential profile, only for >=v4.1 (used internally for glacier debris; not allowed with groundwatr == qTopmodl)
+! exp_prof  ! exponential profile, only for >=v4.1 (used internally for glacier debris; required with groundwatr == modLatflow; not allowed with groundwatr == qTopmodl)
 ! -----------------------------------------------------------------------------------------------
 ! (10) choice of upper boundary conditions for thermodynamics
 ! presTemp  ! prescribed temperature
