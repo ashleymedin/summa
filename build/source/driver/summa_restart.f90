@@ -244,7 +244,7 @@ contains
    case(fullStart)
     aquifer_start  = 1._rkind ! Start with full aquifer, since easier to spin up by draining than filling (filling we need to wait for precipitation) 
    case(emptyStart)
-    aquifer_start  = 0._rkind ! Start with empty aquifer ! If want to compare model method outputs, empty start leads to quicker equilibrium
+    aquifer_start  = 0._rkind ! Start with empty aquifer, if want to compare model method outputs, empty start leads to quicker equilibrium
    case default
     message=trim(message)//'unable to identify decision for initial aquifer storage'
     return

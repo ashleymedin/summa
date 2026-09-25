@@ -177,7 +177,8 @@ contains
 
  ! define the indices within the layers
  ixNrgLayer = arth(ixTopNrg,nVarSnLaSoGl,nLayers)  ! energy
- if(nLayers>noThetaChange) ixHydLayer(1:nLayers-noThetaChange) = arth(ixTopWat,nVarSnLaSoGl,nLayers-noThetaChange)  ! total water, keep non-used ones at integerMissing
+ ixHydLayer = integerMissing                       ! layers below the ones that carry water keep no hydrology index
+ if(nLayers>noThetaChange) ixHydLayer(1:nLayers-noThetaChange) = arth(ixTopWat,nVarSnLaSoGl,nLayers-noThetaChange)  ! total water
 
  ! define indices for the aquifer
  ixWatAquifer(1) = merge(nState, integerMissing, includeAquifer)
@@ -416,7 +417,8 @@ contains
  ! - preliminaries...
  ! ------------------
 
- ! define the type of variable in the layers
+ ! define the type of variable in the layers, layers with no hydrology state carry none
+ ixHydType(:) = integerMissing
  do concurrent (iLayer=1:nLayers,ixHydLayer(iLayer)/=integerMissing)   ! loop through non-missing hydrology state variables in the layer domains
    ixHydType(iLayer) = ixStateType( ixHydLayer(iLayer) )
  enddo

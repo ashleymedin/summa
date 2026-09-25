@@ -193,9 +193,10 @@ hyporhTdyn                      none            ! (33) hyporheic exchange in a s
 ! writeFullSeries ! write all data for a given output file in a buffered read
 ! -----------------------------------------------------------------------------------------------
 ! (32) choice of deep thermal state below soil, setting groundwater temperature to the channel
-! none        ! the base of the soil column itself, floored at freezing (default)
+! none        ! the base of the soil column itself, floored at freezing
 ! aquiferTemp ! a well-mixed temperature carried by the big-bucket aquifer store
 ! airTempGW   ! groundwater temperature scaled from the air temperature, Wade et al. (2024)
+! bedrockLyrs ! the deepest soil layers carry heat alone, extending the column into bedrock 
 ! -----------------------------------------------------------------------------------------------
 ! (33) hyporheic exchange in a stream domain
 ! none   ! no exchange with the bed (default)

@@ -22,11 +22,16 @@ Still to do:
   properties, and which lower boundary conditions to pair with it.
 - `utils/test/README.md` and `utils/test/test_regression/README.md` do not mention that the
   bundled stream-temperature test also exercises `hyporhTdyn`.
+- `docs/input_output/SUMMA_input.md` does not list `nBedrock` among the initial-conditions
+  variables, beside `nSoil` and `nLakeFrz`.
+- No test case exercises `deepTherml = bedrockLyrs`; it has been run only from a hand-built
+  cold state in a scratch directory.
 
-## Known limitation, not yet fixed
+## Design note worth writing up
 
-- A glacier debris column still leans on the clamped lower-boundary flux
-  (`max(scalarGlceMelt, min(0, scalarDrainage))`) to bring melt up into the debris. Giese et al.
-  (2020, The Cryosphere 14:1555) instead add the melt of the top ice layer to the debris as a
-  mass source, with zero Darcy conductivity at the interface, and give every debris layer a
-  linear-reservoir runoff sink. See the discussion in `changes_fromV3Summa.txt` entry 76.
+- Melt enters a glacier debris column as a bounded lower-boundary flux,
+  `max(scalarGlceMelt, min(0, scalarDrainage))`, with a finite conductivity at the base so
+  capillary suction draws it up. Uptake then follows the column's own moisture state and stops
+  when the column saturates. Giese et al. (2020, The Cryosphere 14:1555) instead inject the melt
+  as a mass source with zero conductivity at the interface, which forces water in whether or not
+  the debris can take it, and needs a per-layer runoff sink to remove it again.
