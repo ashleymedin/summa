@@ -110,6 +110,9 @@ USE mDecisions_module,only:       &
  implicit none
 private
 public::run_oneGRU
+
+! GRU ids whose downHRUindex cascade has been reported; the topology is static, so report it once
+integer(i8b),allocatable,save :: topoReportedIds(:)
 contains
 
 ! ************************************************************************************************
@@ -183,6 +186,12 @@ subroutine run_oneGRU(&
   integer(i4b), allocatable           :: downIdx(:)                     ! index of the downslope HRU (0 = GRU outlet)
   integer(i4b), allocatable           :: inDegree(:)                    ! number of HRUs draining into a given HRU
   integer(i4b), allocatable           :: hruOrder(:)                    ! HRU indices in cascade order, upslope before downslope
+  integer(i4b)                        :: nDangling                      ! HRUs whose downHRUindex names no HRU in this GRU
+  integer(i4b)                        :: nInverted                      ! HRUs draining to a higher HRU
+  integer(i4b)                        :: nOutlet                        ! HRUs with downHRUindex = 0
+  integer(i4b)                        :: ixDangling                     ! first dangling HRU, for the message
+  integer(i4b)                        :: ixInverted                     ! first inverted HRU, for the message
+  logical(lgt)                        :: found                          ! the downslope HRU was found in this GRU
   logical(lgt)                        :: runHRU                         ! flag to run the HRU (it has area)
   logical(lgt)                        :: computeVegFluxFlag             ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
   real(rkind)                         :: fracDOM                        ! fractional area of a given HRU domain in GRU (-)
@@ -307,16 +316,54 @@ subroutine run_oneGRU(&
   allocate(downIdx(gruInfo%hruCount), inDegree(gruInfo%hruCount), hruOrder(gruInfo%hruCount), stat=err)
   if(err/=0)then; message=trim(message)//'problem allocating cascade ordering arrays'; return; endif
   downIdx(:) = 0; inDegree(:) = 0
+  nDangling = 0; nInverted = 0; nOutlet = 0; ixDangling = 0; ixInverted = 0
   do iHRU=1,gruInfo%hruCount
+    found = .false.
     dsHRU: do jHRU=1,gruInfo%hruCount
       if(typeHRU%hru(iHRU)%var(iLookTYPE%downHRUindex) == idHRU%hru(jHRU)%var(iLookID%hruId))then
+        found = .true.
         if(jHRU==ixStreamHRU) exit dsHRU      ! draining to the stream HRU is draining to the channel: treat as a GRU outlet
         downIdx(iHRU) = jHRU                  ! first match wins, as before
         inDegree(jHRU) = inDegree(jHRU) + 1
+        ! draining uphill is a sign the topology was built against the wrong elevations
+        if(attrHRU%hru(jHRU)%var(iLookATTR%elevation) > attrHRU%hru(iHRU)%var(iLookATTR%elevation))then
+          nInverted = nInverted + 1
+          if(ixInverted==0) ixInverted = iHRU
+        endif
         exit dsHRU
       endif
     enddo dsHRU
+    ! a downHRUindex naming no HRU in this GRU silently becomes an outlet, which hides a typo or a
+    ! topology built across GRU boundaries, so count those separately from a deliberate 0
+    if(.not.found)then
+      if(typeHRU%hru(iHRU)%var(iLookTYPE%downHRUindex) == 0)then
+        nOutlet = nOutlet + 1
+      else
+        nDangling = nDangling + 1
+        if(ixDangling==0) ixDangling = iHRU
+      endif
+    endif
   enddo
+
+  ! report the topology once per GRU: it is static, so repeating it every step would only be noise
+  if(.not.allocated(topoReportedIds)) allocate(topoReportedIds(0))
+  if(.not.any(topoReportedIds == gruInfo%gru_id))then
+    topoReportedIds = [topoReportedIds, gruInfo%gru_id]
+    if(nDangling > 0)then
+      write(*,'(a,i0,a,i0,a,i0,a,i0,a)') 'run_oneGRU: WARNING - GRU ', gruInfo%gru_id, ': ', nDangling, &
+        ' of ', gruInfo%hruCount, ' HRUs have a downHRUindex naming no HRU in this GRU (first is local HRU ', &
+        ixDangling, '); they are being treated as GRU outlets'
+    endif
+    if(nInverted > 0)then
+      write(*,'(a,i0,a,i0,a,i0,a)') 'run_oneGRU: WARNING - GRU ', gruInfo%gru_id, ': ', nInverted, &
+        ' HRUs drain to a HIGHER HRU (first is local HRU ', ixInverted, &
+        '); check downHRUindex and elevation in the attributes file'
+    endif
+    if(nOutlet + nDangling > 1)then
+      write(*,'(a,i0,a,i0,a)') 'run_oneGRU: NOTE - GRU ', gruInfo%gru_id, ' has ', nOutlet + nDangling, &
+        ' HRUs draining out of the GRU rather than to a downslope HRU'
+    endif
+  endif
   ! repeatedly take an HRU nothing drains into, then remove its own contribution
   nOrder = 0
   do iHRU=1,gruInfo%hruCount
@@ -425,8 +472,9 @@ subroutine run_oneGRU(&
               flux(iLookFLUX%scalarAquiferBaseflow)%dat(1)  = mfAquiferBaseflow(gruInfo%hruInfo(iHRU)%hru_ix)
               bvar(iLookBVAR%basin__AquiferBaseflow)%dat(1) = bvar(iLookBVAR%basin__AquiferBaseflow)%dat(1) + mfAquiferBaseflow(gruInfo%hruInfo(iHRU)%hru_ix)*fracDOM
             end if
-            ! groundwater discharge at land surface is saturation-excess runoff, not baseflow
+            ! groundwater seepage at land surface, reported separately from SUMMA's own saturation excess
             if(allocated(mfSurfaceDischarge))then
+              fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferSeepage)%dat(1) = mfSurfaceDischarge(gruInfo%hruInfo(iHRU)%hru_ix)
               bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) &
                                                                   + mfSurfaceDischarge(gruInfo%hruInfo(iHRU)%hru_ix)*fracDOM
             end if
