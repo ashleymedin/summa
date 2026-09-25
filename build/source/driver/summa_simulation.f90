@@ -278,9 +278,13 @@ contains
     use var_lookup, only: iLookFREQ
     use globalData,              only: numtim
     use read_flowobs_module,     only: read_observations
+    use read_csvobs_module,      only: read_csv_observations
     use timeseries_alignment,    only: align_timeseries
     use metrics,                 only: compute_metric
     use write_evaluation_module, only: write_evaluation
+    use series_transform,        only: accumulate_series
+    use series_transform,        only: aggregate_monthly
+    use series_transform,        only: remove_baseline_mean
     use simulated_series,        only: sim_series_type
     use simulated_series,        only: init_simulated_series
     use simulated_series,        only: find_simulated_series
@@ -321,6 +325,11 @@ contains
     integer(i4b)                       :: iSeries            ! index of one of them
     real(rkind), allocatable           :: valSim(:)          ! the simulated series for the current target
     character(len=:), allocatable      :: valSimUnits        ! its units
+    real(rkind), allocatable           :: timeUse(:)         ! the time axis that series sits on
+    real(rkind), allocatable           :: valAccum(:)        ! it, integrated from a rate
+    real(rkind), allocatable           :: valMonthly(:)      ! it, averaged by calendar month
+    real(rkind), allocatable           :: timeMonthly(:)     ! the months those averages fall in
+    real(rkind), allocatable           :: valAnom(:)         ! a series as departures from its baseline mean
     character(len=256)                 :: cmessage           ! error message of downwind routine
 
     err=0
@@ -410,7 +419,8 @@ contains
 
       ! the simulated series this target is compared against: routed streamflow from mizuRoute, or
       ! the SUMMA variable of that name, collected over the run just completed
-      if(allocated(valSim)) deallocate(valSim)
+      if(allocated(valSim))  deallocate(valSim)
+      if(allocated(timeUse)) deallocate(timeUse)
       if(is_routed_streamflow(calTarget%variable))then
         valSim=flowSim
         valSimUnits=flowSimUnits
@@ -425,21 +435,91 @@ contains
         valSimUnits=trim(series(iSeries)%units)
       endif
 
-      ! read this target's observations
+      ! read this target's observations, from whichever format holds them
       if(allocated(timeObs)) deallocate(timeObs)
       if(allocated(flowObs)) deallocate(flowObs)
-      call read_observations(trim(calTarget%obs_path),trim(calTarget%obs_file),trim(calTarget%vname_obs), &
-                             timeObs,flowObs,timeObsUnits,flowObsUnits,err,cmessage)
+      select case(trim(calTarget%obs_format))
+        case ('netcdf')
+          call read_observations(trim(calTarget%obs_path),trim(calTarget%obs_file),trim(calTarget%vname_obs), &
+                                 timeObs,flowObs,timeObsUnits,flowObsUnits,err,cmessage)
+        case ('csv')
+          call read_csv_observations(trim(calTarget%obs_path),trim(calTarget%obs_file),trim(calTarget%vname_obs), &
+                                     timeObs,flowObs,timeObsUnits,flowObsUnits,err,cmessage)
+        case default
+          message=trim(message)//'calibration target "'//trim(calTarget%name)//'" asks for observation '// &
+                  'format "'//trim(calTarget%obs_format)//'"; use "netcdf" or "csv"'
+          err=20; return
+      end select
       if(err/=0)then
         message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
         return
+      endif
+
+      ! a format that does not carry its units takes them from the target
+      if(len_trim(calTarget%obs_units) > 0) flowObsUnits=trim(calTarget%obs_units)
+
+      ! -------------------------------------------------------------------------------------------
+      ! Put the two series on the same footing, as far as this target asks for
+      ! -------------------------------------------------------------------------------------------
+
+      ! integrate a simulated rate into the quantity the observations report
+      if(calTarget%accumulate)then
+        call accumulate_series(timeSim,valSim,timeSimUnits,valAccum,err,cmessage)
+        if(err/=0)then
+          message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+          return
+        endif
+        call move_alloc(valAccum,valSim)
+        ! integrating kg m-2 s-1 over seconds leaves kg m-2, which is millimetres of water
+        if(trim(valSimUnits)=='kg m-2 s-1') valSimUnits='mm'
+      endif
+
+      ! average to the cadence the observations are reported at
+      select case(trim(calTarget%cadence))
+        case ('native')
+          ! compared step for step, as streamflow is
+        case ('monthly')
+          call aggregate_monthly(timeSim,valSim,timeSimUnits,timeMonthly,valMonthly,err,cmessage)
+          if(err/=0)then
+            message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+            return
+          endif
+          call move_alloc(timeMonthly,timeUse)
+          call move_alloc(valMonthly,valSim)
+        case default
+          message=trim(message)//'calibration target "'//trim(calTarget%name)//'" asks for cadence "'// &
+                  trim(calTarget%cadence)//'"; use "native" or "monthly"'
+          err=20; return
+      end select
+      if(.not.allocated(timeUse)) timeUse=timeSim
+
+      ! express both sides as departures from the same baseline, which is what an anomaly product
+      ! reports and what removes the constant of integration an accumulated series carries
+      if(allocated(calTarget%baseline_start) .and. allocated(calTarget%baseline_end))then
+        call remove_baseline_mean(timeUse,valSim,timeSimUnits,                              &
+                                  calTarget%baseline_start,calTarget%baseline_end,          &
+                                  valAnom,err,cmessage)
+        if(err/=0)then
+          message=trim(message)//'calibration target "'//trim(calTarget%name)//'" (simulated): '//trim(cmessage)
+          return
+        endif
+        call move_alloc(valAnom,valSim)
+
+        call remove_baseline_mean(timeObs,flowObs,timeObsUnits,                             &
+                                  calTarget%baseline_start,calTarget%baseline_end,          &
+                                  valAnom,err,cmessage)
+        if(err/=0)then
+          message=trim(message)//'calibration target "'//trim(calTarget%name)//'" (observed): '//trim(cmessage)
+          return
+        endif
+        call move_alloc(valAnom,flowObs)
       endif
 
       ! align simulated and observed series
       if(allocated(timeAligned))    deallocate(timeAligned)
       if(allocated(flowSimAligned)) deallocate(flowSimAligned)
       if(allocated(flowObsAligned)) deallocate(flowObsAligned)
-      call align_timeseries(timeSim,valSim,timeSimUnits,valSimUnits,   &
+      call align_timeseries(timeUse,valSim,timeSimUnits,valSimUnits,   &
                             timeObs,flowObs,timeObsUnits,flowObsUnits, &
                             summa1_struc(n)%config%calib%start_date,   &
                             summa1_struc(n)%config%calib%end_date,     &

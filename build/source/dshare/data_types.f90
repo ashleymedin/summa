@@ -100,6 +100,15 @@ MODULE data_types
   character(len=16)              :: obs_transform = 'none'  ! none, log, power, box-cox
   real(rkind)                    :: weight = 1.0_rkind      ! weight given to this target when the objectives
                                                             !  are scalarized for a single-objective search
+  character(len=16)              :: obs_format = 'netcdf'   ! netcdf, csv
+  character(len=64)              :: obs_units = ''          ! units of the observations, when the file omits them
+  ! Putting the simulated and observed series on the same footing.  A satellite storage product, for
+  ! instance, reports a monthly departure from a multi-year mean, while the model carries the rate
+  ! storage is changing at, so that target accumulates, averages monthly, and references a baseline.
+  logical(lgt)                   :: accumulate = .false.    ! integrate the simulated rate into its quantity
+  character(len=16)              :: cadence = 'native'      ! native, monthly
+  character(len=:), allocatable  :: baseline_start          ! start of the anomaly baseline (YYYY-MM-DD)
+  character(len=:), allocatable  :: baseline_end            ! end of the anomaly baseline (YYYY-MM-DD)
  end type target_info
 
  ! -----------------------------------------------------------------------------------------------------------

@@ -112,7 +112,7 @@ contains
     call reference_time_seconds(trim(endDate),evalEnd,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! determine observation time step
+    ! the first observation's period length, which is also the fallback for a series of one
     obsStep = timeObsSec(2)-timeObsSec(1)
     if(obsStep<=0._rkind)then
       message=trim(message)//'observation times are not increasing'
@@ -122,10 +122,13 @@ contains
     ! allow small floating-point differences in time coordinates
     tol = max(1.e-6_rkind,1.e-8_rkind*obsStep)
 
-    ! check that observation time step is regular
-    do iObs=2,size(timeObsSec)-1
-      if(abs((timeObsSec(iObs+1)-timeObsSec(iObs))-obsStep)>tol)then
-        message=trim(message)//'observation time step is not regular'
+    ! Each observation covers the span since the one before it, rather than a single step shared by
+    ! the whole series.  A daily gauge record is unaffected - every span is the same day - but a
+    ! monthly satellite product is irregular by nature, its months being 28 to 31 days long, and
+    ! there is no single step that describes it.
+    do iObs=2,size(timeObsSec)
+      if(timeObsSec(iObs)-timeObsSec(iObs-1) <= 0._rkind)then
+        message=trim(message)//'observation times are not increasing'
         err=20; return
       endif
     enddo
@@ -144,8 +147,13 @@ contains
       ! only process observations within the evaluation period
       if(timeObsSec(iObs) >= evalStart .and. timeObsSec(iObs) <  evalEnd)then
      
-        ! observation timestamps are assumed to be period ending
-        tStart = timeObsSec(iObs)-obsStep
+        ! observation timestamps are assumed to be period ending, so this observation covers the
+        ! span since the previous one; the first covers one step before itself
+        if(iObs > 1)then
+          tStart = timeObsSec(iObs-1)
+        else
+          tStart = timeObsSec(iObs)-obsStep
+        endif
         tEnd   = timeObsSec(iObs)
         do iSim=1,size(timeSimSec)
           if(timeSimSec(iSim)>tStart+tol .and. timeSimSec(iSim)<=tEnd+tol)then
