@@ -316,4 +316,12 @@ AFTER tag of v4.0.0-exp-Sundials
 -73) var_derive.f90 root density normalisation only trims an excess, no longer fills a deficit, commit 0dd366a3 Sep 25, 2026
      scalarAquiferRootFrac was forced to zero, so bigAquifer's aquifer transpiration was unreachable for bigBuckt too.
  74) aquiferIni=emptyStart empties the aquifer on a cold start only, stamping aqEmptyStarted=1 on every restart file, commit c350f6f2 Sep 25, 2026
- 
+  75) T2L_lookup_soil reuses the soil enthalpy table where the van Genuchten parameters repeat, commit 1a809a77 Sep 26, 2026
+     40 million volFracLiq evaluations per HRU were rebuilt for each of them; a 3387-HRU setup spent six minutes in paramSetup, now seven seconds.
+ 76) The MODFLOW 6 coupler runs every GRU in the attributes file, not just the first, commit df783246 Sep 26, 2026
+     apply_command_args pinned it to one GRU; read_dimension now reads a missing -g count as the rest of the file.
+-77) summa_mf6_exchange.f90 indexes by hru_ix, and weights a domain over its own HRU not the GRU, commit 5c9896e7 Sep 26, 2026
+     The flat index assumed equal GRU sizes, and basin__totalArea made the domain weights sum to HRUarea/GRUarea; a stream reach's realMissing drainage is now skipped.
+     Changes any coupled run with more than one HRU in a GRU: domain_sagehen4 sends -3500221.2402350763 where it sent -1395344.3088129074. A one-HRU GRU is unaffected.
+ 78) New coupled test domain_sagehen9, one HRU per MODFLOW cell in 9 D8 subcatchments, commit 4619b3ba Sep 26, 2026
+     tools/build_sagehen9.py builds it from the grid alone; HRU area equals cell area, so the budget's mapping residual falls from 5.19% to round-off.
