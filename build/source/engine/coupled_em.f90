@@ -341,6 +341,7 @@ subroutine coupled_em(&
   logical(lgt)                         :: use_lookup               ! flag to use the lookup table for soil enthalpy, otherwise use analytical solution
   real(rkind), allocatable             :: depthGlceTopLayer(:)     ! depth of the top glacier ice layers at the start of the time step (m)
   integer(i4b)                         :: noThetaChange            ! number of layers with no change in total water content (bottom layers)
+  logical(lgt)                         :: divideLayer              ! flag to denote that a layer was divided
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message="coupled_em/"

@@ -66,7 +66,7 @@ There are 44 model decisions. Defaults (used for `notPopulatedYet` where accepte
 | 42 | [surfRun_SE](#surfrun_se) | **homegrown_SE**, FUSEPRMS, FUSEAVIC, FUSETOPM, zero_SE | saturation-excess surface runoff |
 | 43 | [read_force](#read_force) | **readPerStep**, readFullSeries | how forcing data are read |
 | 44 | [write_buff](#write_buff) | **writePerStep**, writeFullSeries | how model output is buffered before writing |
-| 45 | [deepTherml](#deeptherml) | **none**, aquiferTemp, airTempGW | deep thermal state below the hydrologically active soil column |
+| 45 | [deepTherml](#deeptherml) | **none**, aquiferTemp, airTempGW, bedrockLyrs | deep thermal state below the hydrologically active soil column |
 | 46 | [hyporhTdyn](#hyporhtdyn) | **none**, proxy | hyporheic exchange in a stream domain |
 
 ---
@@ -553,6 +553,7 @@ mechanisms exist in the code, not a fixed set decided up front.
 | none | the base of the hydrologically active soil column itself, floored at freezing (default; also selected by `notPopulatedYet`) |
 | aquiferTemp | a well-mixed temperature carried by the big-bucket aquifer store |
 | airTempGW | groundwater temperature scaled from the air temperature, after Wade et al. (2024) |
+| bedrockLyrs | the deepest soil layers carry heat alone, extending the column into bedrock |
 
 `none` is what SUMMA did before this decision existed, so an existing configuration keeps its
 behaviour on upgrade. The only change is that the temperature is floored at freezing: the water
@@ -600,6 +601,35 @@ groundwater is at or above 0 C. The result is floored at freezing, so the formul
 returns 0 C rather than anything physical. That is why it is a per-basin opt-in rather than a
 default: it is useful in parts of Alaska, not all of it. `aquiferTemp` with a geothermal lower
 boundary ([`bcLowrTdyn`](#bclowrtdyn) `presFlux`) is the process-based cold-region path.
+
+`bedrockLyrs` extends the soil column downward into bedrock. The deepest `nBedrock` soil layers
+keep their energy state but carry no hydrology, the way the `noThetaChange` layers at the base
+of a glacier column do: the Richards solve never reaches them, water leaves the column at the
+base of the active layers, and what they add is thermal memory. Their thermal conductivity and
+porosity come from `thCond_bedrock` and `theta_sat_bedrock` rather than the usual soil texture
+parameters, and `theta_sat_bedrock` also fixes their liquid water content, held fully saturated
+for the whole run.
+
+`nBedrock` is an optional variable in the initial conditions file, beside `nSoil` and
+`nLakeFrz`, and is fixed for the run. It is per domain because it has to agree with that
+domain's `nSoil`, and it is rejected on a glacier column, whose ice already owns the layers
+below, and where it would leave no hydrologically active soil.
+
+Pair it with [`bcLowrTdyn`](#bclowrtdyn) `presFlux`. The bedrock layers are then started on the
+steady gradient that flux holds,
+
+```latex
+T(z) = T_{base} + \frac{q\,(z - z_{base})}{k}
+```
+
+anchored at the deepest active layer, so the column begins in equilibrium with its own lower
+boundary and needs no spin-up, in the same way glacier ice is not spun up. A 30 m column on
+gulkana, eight active layers over seven bedrock layers, drifts 0.09 K at its base over fifteen
+months, against 1.36 K for the same column with every layer hydrologically active and started
+uniform.
+
+`bedrockLyrs` is mutually exclusive with `aquiferTemp` and `airTempGW`: `deepTherml` is a single
+choice, so nothing needs to guard against combining them.
 
 <a id="hyporhtdyn"></a>
 ## 46. hyporhTdyn — hyporheic exchange in a stream domain

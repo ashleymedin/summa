@@ -86,6 +86,9 @@ USE mDecisions_module,only:&
  writePerStep,   &                      ! write data per time step (default)
  writeFullSeries                        ! write all data for a given output file
 
+! named variable for the deep thermal state below the soil column
+USE mDecisions_module,only:bedrockLayers ! thermal-only bedrock layers below the soil column
+
 ! safety: set private unless specified otherwise
 implicit none
 private
@@ -104,6 +107,7 @@ contains
     USE read_attrb_module,only:read_dimension                   ! module to read dimensions of GRU and HRU
     USE read_attrb_module,only:read_mapping_vectors             ! module to define mapping between GRU and HRU
     USE read_icond_module,only:read_icond_nlayers               ! module to read initial condition dimensions
+    USE read_icond_module,only:addBedrockLayers                 ! module to build the bedrock layers below the soil column
     ! subroutines and functions: allocate space
     USE allocspace_module,only:alloc_driver_work                ! module to allocate space for work structures
     USE allocspace_module,only:allocGlobal                      ! module to allocate space for global data structures
@@ -304,16 +308,6 @@ contains
       call read_icond_nlayers(trim(restartFile),nGRU_local,nDOM,indx_meta,err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   
-      ! *****************************************************************************
-      ! *** allocate space for data structures
-      ! *****************************************************************************
-  
-      ! Allocate the non-spatial time structures and the spatial model structures.
-  
-      ! Spatial structures are allocated for the GRUs and HRUs assigned to this rank,
-      ! as defined by the local gru_struc mapping. For a serial run, the local spatial
-      ! domain is identical to the complete run domain.
-  
       ! allocate time structures
       do iStruct=1,4
         select case(iStruct)
@@ -324,6 +318,64 @@ contains
         end select
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       end do  ! looping through time structures
+
+      ! *****************************************************************************
+      ! if using NGEN forcing only need to set the hourly data_step (fixed)
+      ! *****************************************************************************
+      if (ngen_forcing_active) then
+        data_step = 3600._rkind
+      
+      ! *****************************************************************************
+      ! *** read description of model forcing datafile used in each HRU
+      ! *****************************************************************************
+      else
+        call ffile_info(nGRU_local,err,cmessage)
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      endif
+      
+      ! *****************************************************************************
+      ! *** read model decisions
+      ! *****************************************************************************
+      ! NOTE: Must be after ffile_info because mDecisions uses the data_step
+      call mDecisions(err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      
+      ! get the maximum number of snow layers
+      select case(model_decisions(iLookDECISIONS%snowLayers)%iDecision)
+       case(sameRulesAllLayers);    maxSnowLayers = 100
+       case(rulesDependLayerIndex)
+         maxSnowLayers = 5
+         if (maxGlaciers>0) maxSnowLayers = int(maxSnowLayers*2.5_rkind) ! increase the number of snow layers for glaciers for firn development in accumulation zone
+       case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
+      end select ! (option to combine/sub-divide snow layers)
+
+      ! get the maximum total number of layers
+      ! NOTE: maxGlaciers and the soil/lake/glacier-ice maxima are file-wide values set in
+      !       read_mapping_vectors and read_icond_nlayers, so they are the same on every rank.
+      !       Do not recompute them from the GRUs local to this rank -- they feed volicePack,
+      !       so a rank-dependent value changes the physics.
+      maxLayers = maxSnowLayers + maxTotoLayers
+
+      ! *****************************************************************************
+      ! *** build the bedrock layers below the soil column
+      ! *****************************************************************************
+      ! NOTE: before the data structures are allocated, so the layers are sized in from the start
+      if(model_decisions(iLookDECISIONS%deepTherml)%iDecision==bedrockLayers)then
+        call addBedrockLayers(err,cmessage)
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+        maxLayers = maxSnowLayers + maxTotoLayers
+      endif
+
+      ! *****************************************************************************
+      ! *** allocate space for data structures
+      ! *****************************************************************************
+  
+      ! Allocate the non-spatial time structures and the spatial model structures.
+  
+      ! Spatial structures are allocated for the GRUs and HRUs assigned to this rank,
+      ! as defined by the local gru_struc mapping. For a serial run, the local spatial
+      ! domain is identical to the complete run domain.
+  
   
       ! allocate other data structures
       do iStruct=1,size(structInfo)
@@ -391,42 +443,6 @@ contains
   
       end do ! iStruct
   
-      ! *****************************************************************************
-      ! if using NGEN forcing only need to set the hourly data_step (fixed)
-      ! *****************************************************************************
-      if (ngen_forcing_active) then
-        data_step = 3600._rkind
-      
-      ! *****************************************************************************
-      ! *** read description of model forcing datafile used in each HRU
-      ! *****************************************************************************
-      else
-        call ffile_info(nGRU_local,err,cmessage)
-        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-      endif
-      
-      ! *****************************************************************************
-      ! *** read model decisions
-      ! *****************************************************************************
-      ! NOTE: Must be after ffile_info because mDecisions uses the data_step
-      call mDecisions(err,cmessage)
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-      
-      ! get the maximum number of snow layers
-      select case(model_decisions(iLookDECISIONS%snowLayers)%iDecision)
-       case(sameRulesAllLayers);    maxSnowLayers = 100
-       case(rulesDependLayerIndex)
-         maxSnowLayers = 5
-         if (maxGlaciers>0) maxSnowLayers = int(maxSnowLayers*2.5_rkind) ! increase the number of snow layers for glaciers for firn development in accumulation zone
-       case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
-      end select ! (option to combine/sub-divide snow layers)
-
-      ! get the maximum total number of layers
-      ! NOTE: maxGlaciers and the soil/lake/glacier-ice maxima are file-wide values set in
-      !       read_mapping_vectors and read_icond_nlayers, so they are the same on every rank.
-      !       Do not recompute them from the GRUs local to this rank -- they feed volicePack,
-      !       so a rank-dependent value changes the physics.
-      maxLayers = maxSnowLayers + maxTotoLayers
      
       ! get the number of time steps in the output buffer
       select case(model_decisions(iLookDECISIONS%write_buff)%iDecision)

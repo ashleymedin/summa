@@ -203,6 +203,8 @@ MODULE data_types
   integer(i4b)                           :: nLake                         ! number of lake layers
   integer(i4b)                           :: nSoil                         ! number of soil layers
   integer(i4b)                           :: nGlce                         ! number of glacier ice layers
+  integer(i4b)                           :: nBedrock                      ! number of thermal-only bedrock layers at the base of the soil column
+  logical(lgt)                           :: bedrockNew                    ! flag that the bedrock layers were built, so are absent from the initial conditions
  endtype dom_info
 
  ! hru info data structure
@@ -1848,12 +1850,17 @@ contains
   type(var_dlength),intent(inout)       :: flux_data               ! model fluxes for a local HRU
   integer(i4b),intent(out)              :: err                     ! error code
   character(*),intent(out)              :: cmessage                ! error message from groundwatr
+  integer(i4b)                          :: nActive                 ! number of hydrologically active soil layers
   associate(&
    mLayerBaseflow => flux_data%var(iLookFLUX%mLayerBaseflow)%dat ) ! intent(out): [dp(:)]  baseflow from each soil layer (m s-1)
-   ! intent(out) arguments
-   mLayerBaseflow = out_groundwatr % mLayerBaseflow                ! intent(out):   baseflow from each soil layer (m s-1)
-   dBaseflow_dWat = out_groundwatr % dBaseflow_dWat                ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
-   dBaseflow_dTk  = out_groundwatr % dBaseflow_dTk                 ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
+   ! intent(out) arguments, baseflow spans only the soil layers that carry water so any bedrock below it stays dry
+   nActive = size(out_groundwatr % mLayerBaseflow)
+   mLayerBaseflow = 0._rkind
+   dBaseflow_dWat = 0._rkind
+   dBaseflow_dTk  = 0._rkind
+   mLayerBaseflow(1:nActive) = out_groundwatr % mLayerBaseflow              ! intent(out):   baseflow from each soil layer (m s-1)
+   dBaseflow_dWat(1:nActive,1:nActive) = out_groundwatr % dBaseflow_dWat    ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
+   dBaseflow_dTk(1:nActive,1:nActive)  = out_groundwatr % dBaseflow_dTk     ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
    err            = out_groundwatr % err                           ! intent(out):   error code
    cmessage       = out_groundwatr % cmessage                      ! intent(out):   error message
   end associate
