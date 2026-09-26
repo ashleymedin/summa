@@ -318,3 +318,5 @@ AFTER tag of v4.0.0-exp-Sundials
  74) aquiferIni=emptyStart empties the aquifer on a cold start only, stamping aqEmptyStarted=1 on every restart file, commit c350f6f2 Sep 25, 2026
  75) run_oneGRU.f90 cascade order built once per GRU, not every step, commit ea5739d5 Sep 25, 2026
 -76) Fix scalarFrozenArea-- the commented out Gamma frozen fraction of the root zone, not zero, and fixed derivatives commit 6bda206f Sep 26, 2026
+-77) computFlux.f90 calls groundwatr for modLatflow, not qTopmodl alone, commit 0e8947fd Sep 26, 2026
+     Lateral flow was gated out of the flux call, so mLayerColumnOutflow was identically zero in every coupled run.
