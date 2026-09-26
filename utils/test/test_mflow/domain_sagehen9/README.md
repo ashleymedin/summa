@@ -61,9 +61,17 @@ The HRUs are written **GRU by GRU, each GRU's stream HRU last**. `hru_index` in
 order makes the identity map line up; a file ordered by cell instead sends every
 HRU past the first GRU to the wrong cell, which `check_hru_elevation` catches.
 
-Forcing is `domain_sagehen1`'s single-HRU series given to every HRU. The source
-carries no sub-GRU information, so there is nothing finer to distribute; the
-domain tests structure, not a new forcing product.
+Forcing is a single-HRU basin-mean series given to every HRU: the February 2017
+atmospheric river, 2017-02-07 to 2017-02-09, written by
+[`../tools/make_wet_forcing.py`](../tools/make_wet_forcing.py). The source carries
+no sub-GRU information, so there is nothing finer to distribute; the domain tests
+structure, not a new forcing product.
+
+Lateral flow nonetheless moves no water here either: `mLayerColumnOutflow` is zero
+for all 3396 HRUs, because no soil layer saturates and `groundwatr.f90` zeroes the
+transmissivity above the saturated zone. `run_sagehen9.sh` and
+`run_sagehen9_noLatflow.sh` therefore differ in code path but not in water routed.
+See `../domain_sagehen4/README.md` for the diagnosis.
 
 ## Expected at start-up
 

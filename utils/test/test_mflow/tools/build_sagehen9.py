@@ -43,6 +43,10 @@ WSCALE = 0.001                                   # mizuRoute width = WSCALE * sq
 LAKE_DEPTHS = [0.2, 0.8]
 LAKE_TEMP_K = 278.0
 
+# the wet period; bundled August 2019 is the driest month in the record and drains nothing
+FORCING_FILE = "NWAM_SUMMA_forcing_201702.nc"
+SIM_START, SIM_END = "2017-02-07 00:00", "2017-02-09 23:00"
+
 # grid georeference (EPSG:32611), from fitting the TOP valley line to the Copernicus
 # mainstem; the DIS carries none. East-west is pinned by the outlet, north-south to
 # about two cells, which only ever reaches the per-HRU latitude used for solar geometry.
@@ -434,8 +438,7 @@ def write_trial_params(settings, src_set, ids):
 
 
 def write_forcing(settings, forcing, src_set, src_domain, ids, lon, lat):
-    with open(os.path.join(src_set, "forcingFileList.txt")) as f:
-        names = [ln.strip().strip("'\"") for ln in f if ln.strip()]
+    names = [FORCING_FILE]
     n = len(ids)
     for fname in names:
         with Dataset(os.path.join(src_domain, "forcing", "SUMMA_input", fname)) as s, \
@@ -464,7 +467,8 @@ def write_forcing(settings, forcing, src_set, src_domain, ids, lon, lat):
                     src = np.array(v[:])
                     ax = v.dimensions.index("hru")
                     out[:] = np.repeat(src, n, axis=ax) if src.shape[ax] == 1 else src
-    shutil.copy(os.path.join(src_set, "forcingFileList.txt"), settings)
+    with open(os.path.join(settings, "forcingFileList.txt"), "w") as f:
+        f.write(f"'{FORCING_FILE}'\n")
 
 
 def write_map(out_dir, cells, land_slot):
@@ -539,6 +543,10 @@ def write_text_settings(settings, src_set, domain):
             line = line.replace("domain_sagehen1", domain)
             if line.startswith("outFilePrefix"):
                 line = f"outFilePrefix        'run1_{tag}' !\n"
+            if line.startswith("simStartTime"):
+                line = f"simStartTime         '{SIM_START}' !\n"
+            if line.startswith("simEndTime"):
+                line = f"simEndTime           '{SIM_END}' ! 72 hourly steps, matches mf6/sagehen.tdis\n"
             if line.startswith("decisionsFile"):
                 line = f"decisionsFile        'modelDecisions_{tag}.txt' ! Relative to settingsPath\n"
             fm.append(line)

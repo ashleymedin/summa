@@ -2,8 +2,9 @@
 
 A synthetic 4-HRU case built from `domain_sagehen1` (one month of hourly forcing tiled
 across four columns), run through the MODFLOW 6 coupler for 72 hourly steps, the same as
-`ex-gwf-sagehen`. It does two jobs: it exercises `groundwatr = modLatflow`, and it guards
-the HRU cascade ordering in `run_oneGRU`.
+`ex-gwf-sagehen`. The forcing is the February 2017 wet period, 2017-02-07 to 2017-02-09,
+written by `../tools/make_wet_forcing.py`. It does two jobs: it exercises
+`groundwatr = modLatflow`, and it guards the HRU cascade ordering in `run_oneGRU`.
 
     hruId          1       2       3       4
     downHRUindex   0       1       1       0
@@ -45,16 +46,43 @@ so running the pair isolates what lateral flow contributes. They write `run1_lat
 
 ## What to check
 
-An **exact-equality** check on `run1_latflow`, so the size of the difference does not matter:
+**This check is currently inert, and the case cannot detect a cascade regression.** Both
+`run1_latflow` and `run1_noLatflow` report every `mLayerColumnOutflow` and
+`mLayerColumnInflow` as exactly zero, so HRU 1 and its control twin HRU 4 are
+bit-identical for want of any lateral water at all.
+
+The reason is not the forcing. The case was moved from August 2019 -- the driest month in
+the record, 3.8 mm -- to the February 2017 atmospheric river, 128 mm of precipitation in
+the 72 hours run and 121 mm of it rain, and the outflow stayed at zero. The soil ends the
+run wet but nowhere saturated:
+
+    liquid fraction   0.3701 0.3700 0.3684 0.3606 0.3432 0.2723 0.2490 0.3392
+    matric head (m)  -0.112 -0.113 -0.121 -0.159 -0.246 -0.732 -0.993 -0.267
+                     fieldCapacity 0.20, theta_sat 0.55
+
+`groundwatr.f90` zeroes the transmissivity of every layer above the saturated zone
+(`if (ixSaturation>1) trSoil(1:ixSaturation-1) = 0`), so with no saturated layer there is
+no lateral flow to cap or route. The drainable water is ample, well above field capacity,
+so the outflow cap is not what closes this off.
+
+What is odd, and is the thing to chase: with `bcLowrSoiH = presHead` the coupler sets
+`lowerBoundHead = h_mf6 - (z_surface - soil_thickness)`, which for a water table 1.5 m below
+the surface and a 4 m column is about +2.5 m -- the column base ought to be saturated. It is
+not, the upward flux being conductivity-limited at roughly 1.8 mm/h. Until that is resolved
+`groundwatr = modLatflow` moves no water in a coupled run, for any forcing.
+
+For the record, the values this check reported before the lateral outflow cap of
+`changes_fromV3Summa` entry 71:
 
     hru 1 (receiver    ): inflow 4.0458e-02   outflow 3.53643928e-03
     hru 4 (CONTROL twin): inflow 0.0000e+00   outflow 3.49913476e-03   (ratio 1.0107)
 
-**HRU 1 and HRU 4 must not be equal.** If they are bit-identical while HRU 1's inflow is
-non-zero, the cascade ordering has regressed and the inflow is being discarded. Verified both
-ways: with the ordering fix reverted, the two are bit-identical at `3.49912619e-03`.
+**HRU 1 and HRU 4 must not be equal** once lateral flow works again. If they are
+bit-identical while HRU 1's inflow is non-zero, the cascade ordering has regressed and the
+inflow is being discarded. Verified both ways at the time: with the ordering fix reverted,
+the two were bit-identical at `3.49912619e-03`.
 
-Comparing HRU 1 against HRU 2 or 3 does not work — they have a different area and band, so
+Comparing HRU 1 against HRU 2 or 3 does not work -- they have a different area and band, so
 they differ for unrelated reasons. Only HRU 4 is a true control, which is why it shares
 HRU 1's cells and elevation rather than owning a private region.
 
