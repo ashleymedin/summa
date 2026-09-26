@@ -76,6 +76,9 @@ private
 
 public :: run_simulation
 public :: evaluate_objective
+public :: evaluate_objectives
+public :: n_calibration_targets
+public :: scalarize_objectives
 public :: mf6_spinup_phase
 
 ! .true. only while the shared one-year cold-start spin-up is running.  start_modflow reads it to
@@ -136,9 +139,55 @@ contains
   end subroutine run_simulation
   
   ! **************************************************************************************************
+  ! Report the number of calibration targets, which is the number of objectives per parameter trial.
+  !
+  ! A configuration that names no target is a single-objective calibration of the one observed series
+  ! in [observations], which the configuration reader has already expressed as one target.  A run with
+  ! nothing to calibrate against reports zero.
+  ! **************************************************************************************************
+  pure function n_calibration_targets(config) result(nTarget)
+    type(config_info), intent(in) :: config
+    integer(i4b)                  :: nTarget
+
+    nTarget = 0
+    if(allocated(config%calib%targets)) nTarget = size(config%calib%targets)
+
+  end function n_calibration_targets
+
+  ! **************************************************************************************************
+  ! Collapse the per-target objectives into the single value a single-objective search maximizes.
+  !
+  ! Targets are oriented before they are combined: efficiencies count as they stand and error metrics
+  ! count negatively, so a larger scalar is a better fit whatever mix of metrics the targets use.  A
+  ! single target of weight one therefore returns exactly the metric itself, which is what DDS
+  ! maximized before calibration grew a target list.
+  ! **************************************************************************************************
+  pure function scalarize_objectives(config,objective) result(F)
+    use metrics, only: metric_is_maximized
+    type(config_info), intent(in) :: config
+    real(rkind),       intent(in) :: objective(:)   ! one value per calibration target
+    real(rkind)                   :: F              ! scalarized objective
+    integer(i4b) :: iTarget
+
+    F = 0._rkind
+    if(.not.allocated(config%calib%targets)) return
+
+    do iTarget=1,min(size(config%calib%targets),size(objective))
+      if(metric_is_maximized(config%calib%targets(iTarget)%metric))then
+        F = F + config%calib%targets(iTarget)%weight*objective(iTarget)
+      else
+        F = F - config%calib%targets(iTarget)%weight*objective(iTarget)
+      endif
+    enddo
+
+  end function scalarize_objectives
+
+  ! **************************************************************************************************
   ! Evaluate the objective function for a specified parameter vector.
-  ! The routine initializes SUMMA, reads the observed streamflow time series,
-  ! runs the model, computes the objective function, and finalizes the simulation.
+  !
+  ! Retained for callers that want one number: it evaluates every calibration target and returns the
+  ! scalarized objective.  With a single target, which is what a configuration naming no target has,
+  ! that number is the metric itself.
   ! **************************************************************************************************
   subroutine evaluate_objective(config,                            & ! SUMMA configuration structure
                                 domain_parallel,                   & ! MPI context for domain parallelism
@@ -146,28 +195,116 @@ contains
                                 sample_id, param_name,param_value, & ! sample ID + parameter names and values
                                 metric,                            & ! objective function value
                                 err, message)                        ! error code and message
-    use iso_fortran_env, only: output_unit, error_unit
-    use globalData, only: ncid
-    USE globalData, only: output_fileSuffix
-    use var_lookup, only: iLookFREQ
-    use read_flowobs_module,     only: read_flow_observations
-    use timeseries_alignment,    only: align_timeseries
-    use metrics,                 only: compute_metric
-    use write_evaluation_module, only: write_evaluation
     ! dummy arguments
     type(config_info),           intent(inout) :: config
     type(parallel_context_type), intent(in)    :: domain_parallel
     type(parallel_context_type), intent(in)    :: instance_parallel
-    integer(i4b), intent(in)  :: sample_id 
+    integer(i4b), intent(in)  :: sample_id
     character(*), intent(in)  :: param_name(:)
     real(rkind),  intent(in)  :: param_value(:)
     real(rkind),  intent(out) :: metric
     integer(i4b), intent(out) :: err
     character(*), intent(out) :: message
     ! locals
+    real(rkind), allocatable :: objective(:)   ! one value per calibration target
+    integer(i4b)             :: nTarget        ! number of calibration targets
+    character(len=256)       :: cmessage       ! error message of downwind routine
+
+    err=0
+    message='evaluate_objective/'
+    metric=realMissing
+
+    nTarget=max(n_calibration_targets(config),1)
+    allocate(objective(nTarget),stat=err)
+    if(err/=0)then
+      message=trim(message)//'problem allocating the objective vector'
+      return
+    endif
+
+    call evaluate_objectives(config,                              &
+                             domain_parallel,instance_parallel,   &
+                             sample_id, param_name,param_value,   &
+                             objective,                           &
+                             err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    metric=scalarize_objectives(config,objective)
+
+  end subroutine evaluate_objective
+
+  ! **************************************************************************************************
+  ! Return the position of a name in a list, or integerMissing when it is not there.
+  !
+  ! Two targets scoring the same SUMMA variable - the same storage series against two products, say -
+  ! collect it once.
+  ! **************************************************************************************************
+  pure function find_series_name(names,name) result(iName)
+    character(*), intent(in) :: names(:)
+    character(*), intent(in) :: name
+    integer(i4b)             :: iName
+    integer(i4b) :: i
+
+    iName=integerMissing
+    do i=1,size(names)
+      if(trim(names(i))==trim(name))then
+        iName=i
+        return
+      endif
+    enddo
+
+  end function find_series_name
+
+  ! **************************************************************************************************
+  ! Evaluate every calibration target for a specified parameter vector.
+  !
+  ! The routine initializes SUMMA, runs the model once, and then scores that one simulation against
+  ! each configured target in turn, returning one objective value per target.  Running the model once
+  ! for all targets is the point: the targets are different views of the same simulation, so they must
+  ! come from the same run to be comparable.
+  !
+  ! Objectives are returned as the metrics themselves, in the order the targets were configured.  It
+  ! is the caller that decides what to do with them - maximize a weighted sum, or rank a population by
+  ! Pareto dominance - so nothing here assumes which way any of them points.
+  ! **************************************************************************************************
+  subroutine evaluate_objectives(config,                            & ! SUMMA configuration structure
+                                 domain_parallel,                   & ! MPI context for domain parallelism
+                                 instance_parallel,                 & ! MPI context for model-instance parallelism
+                                 sample_id, param_name,param_value, & ! sample ID + parameter names and values
+                                 objective,                         & ! objective value for each target
+                                 err, message)                        ! error code and message
+    use iso_fortran_env, only: output_unit, error_unit
+    use globalData, only: ncid
+    USE globalData, only: output_fileSuffix
+    use var_lookup, only: iLookFREQ
+    use globalData,              only: numtim
+    use read_flowobs_module,     only: read_observations
+    use read_csvobs_module,      only: read_csv_observations
+    use timeseries_alignment,    only: align_timeseries
+    use metrics,                 only: compute_metric
+    use write_evaluation_module, only: write_evaluation
+    use series_transform,        only: accumulate_series
+    use series_transform,        only: aggregate_monthly
+    use series_transform,        only: remove_baseline_mean
+    use simulated_series,        only: sim_series_type
+    use simulated_series,        only: init_simulated_series
+    use simulated_series,        only: find_simulated_series
+    use simulated_series,        only: is_routed_streamflow
+    ! dummy arguments
+    type(config_info),           intent(inout) :: config
+    type(parallel_context_type), intent(in)    :: domain_parallel
+    type(parallel_context_type), intent(in)    :: instance_parallel
+    integer(i4b), intent(in)  :: sample_id
+    character(*), intent(in)  :: param_name(:)
+    real(rkind),  intent(in)  :: param_value(:)
+    real(rkind),  intent(out) :: objective(:)
+    integer(i4b), intent(out) :: err
+    character(*), intent(out) :: message
+    ! locals
     type(summa1_type_dec), allocatable :: summa1_struc(:)    ! top-level SUMMA data structure
     integer(i4b), parameter            :: n=1                ! number of SUMMA data structures
     integer(i4b)                       :: i                  ! looping
+    integer(i4b)                       :: iTarget            ! calibration target index
+    integer(i4b)                       :: nTarget            ! number of calibration targets
     character(len=4)                   :: rankString         ! include rank in the output filename
     character(len=6)                   :: sampleString       ! include sample index in the output filename
     character(len=:), allocatable      :: outputFileSuffix_orig  ! orig suffix (to restore output suffix)
@@ -180,25 +317,42 @@ contains
     character(len=:), allocatable      :: timeObsUnits       ! observed time units
     character(len=:), allocatable      :: flowObsUnits       ! observed flow units
     real(rkind), allocatable           :: timeAligned(:)     ! common time vector
-    real(rkind), allocatable           :: flowSimAligned(:)  ! flow simulations aligned to the common time period 
+    real(rkind), allocatable           :: flowSimAligned(:)  ! flow simulations aligned to the common time period
     real(rkind), allocatable           :: flowObsAligned(:)  ! flow observations aligned to the common time period
+    type(sim_series_type), allocatable :: series(:)          ! SUMMA variables the targets asked for
+    character(len=64),     allocatable :: seriesName(:)      ! names of those variables
+    integer(i4b)                       :: nSeries            ! number of them
+    integer(i4b)                       :: iSeries            ! index of one of them
+    real(rkind), allocatable           :: valSim(:)          ! the simulated series for the current target
+    character(len=:), allocatable      :: valSimUnits        ! its units
+    real(rkind), allocatable           :: timeUse(:)         ! the time axis that series sits on
+    real(rkind), allocatable           :: valAccum(:)        ! it, integrated from a rate
+    real(rkind), allocatable           :: valMonthly(:)      ! it, averaged by calendar month
+    real(rkind), allocatable           :: timeMonthly(:)     ! the months those averages fall in
+    real(rkind), allocatable           :: valAnom(:)         ! a series as departures from its baseline mean
     character(len=256)                 :: cmessage           ! error message of downwind routine
-    logical                            :: hasObs             ! .true. if streamflow observations are configured
-  
+
     err=0
-    message='evaluate_objective/'
- 
+    message='evaluate_objectives/'
+    objective=realMissing
+
+    nTarget=n_calibration_targets(config)
+    if(nTarget > size(objective))then
+      message=trim(message)//'the objective vector is too short for the configured calibration targets'
+      err=20; return
+    endif
+
     ! allocate top-level SUMMA structure
     allocate(summa1_struc(n),stat=err)
     if(err/=0)then
       message=trim(message)//'problem allocating top-level summa structure'
       return
     endif
-  
+
     ! populate domain and model-instance parallel contexts
     summa1_struc(n)%domain_parallel=domain_parallel
     summa1_struc(n)%instance_parallel=instance_parallel
-   
+
     ! define unique output filenames for each rank and sample
     outputFileSuffix_orig=trim(output_fileSuffix)
     if(instance_parallel%size > 1)then
@@ -213,14 +367,10 @@ contains
     ! initialize SUMMA
     call initialize_summa(config, summa1_struc(n), param_name,param_value, err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  
+
     ! an objective function needs observations to compare against; without them this is an
     ! ordinary SUMMA run, so run the model and return rather than failing
-    hasObs = .false.
-    if(allocated(summa1_struc(n)%config%obs%obs_file))then
-      if(len_trim(summa1_struc(n)%config%obs%obs_file) > 0) hasObs = .true.
-    endif
-    if(.not.hasObs)then
+    if(n_calibration_targets(summa1_struc(n)%config) == 0)then
       call run_summa(summa1_struc(n), timeSim,flowSim, timeSimUnits,flowSimUnits, err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       call finalize_summa(summa1_struc(n),err,cmessage)
@@ -232,43 +382,179 @@ contains
     ! calibration run: send model chatter to stderr so stdout carries only the metric, unless a caller owns iulog
     if(iulog == output_unit) iulog = error_unit
 
-    ! read observed streamflow
-    call read_flow_observations(summa1_struc(n), timeObs,flowObs, timeObsUnits,flowObsUnits, err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-    
-    ! run SUMMA
-    call run_summa(summa1_struc(n), timeSim,flowSim, timeSimUnits,flowSimUnits, err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-    ! align simulated and observed streamflow
-    call align_timeseries(timeSim,flowSim,timeSimUnits,flowSimUnits, &
-                          timeObs,flowObs,timeObsUnits,flowObsUnits, &
-                          summa1_struc(n)%config%calib%start_date,   &
-                          summa1_struc(n)%config%calib%end_date,     &
-                          timeAligned,flowSimAligned,flowObsAligned, &
-                          err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-   
-    ! compute objective function
-    call compute_metric(flowObsAligned,flowSimAligned,                 &
-                        summa1_struc(n)%config%calib%metric,           &
-                        summa1_struc(n)%config%calib%obs_transform,    &
-                        metric,err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-    ! write aligned evaluation time series and objective value
-    if(summa1_struc(n)%config%write_timeseries)then
-      call write_evaluation(ncid(iLookFREQ%timestep),                    &
-                            summa1_struc(n)%config%calib%write_aligned,  &
-                            timeAligned,                                 &
-                            flowObsAligned,flowSimAligned,               &
-                            timeObsUnits,flowObsUnits,                   &
-                            summa1_struc(n)%config%calib%metric,         &
-                            summa1_struc(n)%config%calib%obs_transform,  &
-                            metric,                                      &
-                            err,cmessage)
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    ! the SUMMA variables the targets ask for, resolved before the run so an unknown name is refused
+    ! here rather than after a simulation has been paid for.  Routed streamflow is not among them: it
+    ! comes from mizuRoute, not from a SUMMA structure.
+    nSeries=0
+    allocate(seriesName(nTarget),stat=err)
+    if(err/=0)then
+      message=trim(message)//'problem allocating the simulated-series names'
+      return
     endif
+    do iTarget=1,nTarget
+      associate(calTarget => summa1_struc(n)%config%calib%targets(iTarget))
+      if(.not.is_routed_streamflow(calTarget%variable))then
+        if(find_series_name(seriesName(1:nSeries),calTarget%variable) == integerMissing)then
+          nSeries=nSeries+1
+          seriesName(nSeries)=calTarget%variable
+        endif
+      endif
+      end associate
+    enddo
+
+    call init_simulated_series(seriesName(1:nSeries),numtim,series,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! run SUMMA once; every target scores this same simulation
+    if(nSeries > 0)then
+      call run_summa(summa1_struc(n), timeSim,flowSim, timeSimUnits,flowSimUnits, err,cmessage, series=series)
+    else
+      call run_summa(summa1_struc(n), timeSim,flowSim, timeSimUnits,flowSimUnits, err,cmessage)
+    endif
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! score the simulation against each calibration target
+    do iTarget=1,nTarget
+      associate(calTarget => summa1_struc(n)%config%calib%targets(iTarget))
+
+      ! the simulated series this target is compared against: routed streamflow from mizuRoute, or
+      ! the SUMMA variable of that name, collected over the run just completed
+      if(allocated(valSim))  deallocate(valSim)
+      if(allocated(timeUse)) deallocate(timeUse)
+      if(is_routed_streamflow(calTarget%variable))then
+        valSim=flowSim
+        valSimUnits=flowSimUnits
+      else
+        iSeries=find_simulated_series(series,calTarget%variable)
+        if(iSeries == integerMissing)then
+          message=trim(message)//'calibration target "'//trim(calTarget%name)// &
+                  '" asks for simulated variable "'//trim(calTarget%variable)//'", which was not collected'
+          err=20; return
+        endif
+        valSim=series(iSeries)%values
+        valSimUnits=trim(series(iSeries)%units)
+      endif
+
+      ! read this target's observations, from whichever format holds them
+      if(allocated(timeObs)) deallocate(timeObs)
+      if(allocated(flowObs)) deallocate(flowObs)
+      select case(trim(calTarget%obs_format))
+        case ('netcdf')
+          call read_observations(trim(calTarget%obs_path),trim(calTarget%obs_file),trim(calTarget%vname_obs), &
+                                 timeObs,flowObs,timeObsUnits,flowObsUnits,err,cmessage)
+        case ('csv')
+          call read_csv_observations(trim(calTarget%obs_path),trim(calTarget%obs_file),trim(calTarget%vname_obs), &
+                                     timeObs,flowObs,timeObsUnits,flowObsUnits,err,cmessage)
+        case default
+          message=trim(message)//'calibration target "'//trim(calTarget%name)//'" asks for observation '// &
+                  'format "'//trim(calTarget%obs_format)//'"; use "netcdf" or "csv"'
+          err=20; return
+      end select
+      if(err/=0)then
+        message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+        return
+      endif
+
+      ! a format that does not carry its units takes them from the target
+      if(len_trim(calTarget%obs_units) > 0) flowObsUnits=trim(calTarget%obs_units)
+
+      ! -------------------------------------------------------------------------------------------
+      ! Put the two series on the same footing, as far as this target asks for
+      ! -------------------------------------------------------------------------------------------
+
+      ! integrate a simulated rate into the quantity the observations report
+      if(calTarget%accumulate)then
+        call accumulate_series(timeSim,valSim,timeSimUnits,valAccum,err,cmessage)
+        if(err/=0)then
+          message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+          return
+        endif
+        call move_alloc(valAccum,valSim)
+        ! integrating kg m-2 s-1 over seconds leaves kg m-2, which is millimetres of water
+        if(trim(valSimUnits)=='kg m-2 s-1') valSimUnits='mm'
+      endif
+
+      ! average to the cadence the observations are reported at
+      select case(trim(calTarget%cadence))
+        case ('native')
+          ! compared step for step, as streamflow is
+        case ('monthly')
+          call aggregate_monthly(timeSim,valSim,timeSimUnits,timeMonthly,valMonthly,err,cmessage)
+          if(err/=0)then
+            message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+            return
+          endif
+          call move_alloc(timeMonthly,timeUse)
+          call move_alloc(valMonthly,valSim)
+        case default
+          message=trim(message)//'calibration target "'//trim(calTarget%name)//'" asks for cadence "'// &
+                  trim(calTarget%cadence)//'"; use "native" or "monthly"'
+          err=20; return
+      end select
+      if(.not.allocated(timeUse)) timeUse=timeSim
+
+      ! express both sides as departures from the same baseline, which is what an anomaly product
+      ! reports and what removes the constant of integration an accumulated series carries
+      if(allocated(calTarget%baseline_start) .and. allocated(calTarget%baseline_end))then
+        call remove_baseline_mean(timeUse,valSim,timeSimUnits,                              &
+                                  calTarget%baseline_start,calTarget%baseline_end,          &
+                                  valAnom,err,cmessage)
+        if(err/=0)then
+          message=trim(message)//'calibration target "'//trim(calTarget%name)//'" (simulated): '//trim(cmessage)
+          return
+        endif
+        call move_alloc(valAnom,valSim)
+
+        call remove_baseline_mean(timeObs,flowObs,timeObsUnits,                             &
+                                  calTarget%baseline_start,calTarget%baseline_end,          &
+                                  valAnom,err,cmessage)
+        if(err/=0)then
+          message=trim(message)//'calibration target "'//trim(calTarget%name)//'" (observed): '//trim(cmessage)
+          return
+        endif
+        call move_alloc(valAnom,flowObs)
+      endif
+
+      ! align simulated and observed series
+      if(allocated(timeAligned))    deallocate(timeAligned)
+      if(allocated(flowSimAligned)) deallocate(flowSimAligned)
+      if(allocated(flowObsAligned)) deallocate(flowObsAligned)
+      call align_timeseries(timeUse,valSim,timeSimUnits,valSimUnits,   &
+                            timeObs,flowObs,timeObsUnits,flowObsUnits, &
+                            summa1_struc(n)%config%calib%start_date,   &
+                            summa1_struc(n)%config%calib%end_date,     &
+                            timeAligned,flowSimAligned,flowObsAligned, &
+                            err,cmessage)
+      if(err/=0)then
+        message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+        return
+      endif
+
+      ! compute this target's metric
+      call compute_metric(flowObsAligned,flowSimAligned,        &
+                          calTarget%metric,calTarget%obs_transform,   &
+                          objective(iTarget),err,cmessage)
+      if(err/=0)then
+        message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+        return
+      endif
+
+      ! write the aligned evaluation time series and objective value.  The SUMMA output file holds one
+      ! such series, so it holds the first target's; the trials file carries every target's value.
+      if(summa1_struc(n)%config%write_timeseries .and. iTarget == 1)then
+        call write_evaluation(ncid(iLookFREQ%timestep),                    &
+                              summa1_struc(n)%config%calib%write_aligned,  &
+                              timeAligned,                                 &
+                              flowObsAligned,flowSimAligned,               &
+                              timeObsUnits,flowObsUnits,                   &
+                              calTarget%metric,calTarget%obs_transform,          &
+                              objective(iTarget),                          &
+                              err,cmessage)
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      endif
+
+      end associate
+    enddo
 
     ! finalize SUMMA and release model resources
     call finalize_summa(summa1_struc(n),err,cmessage)
@@ -280,16 +566,17 @@ contains
 
     ! write objective function to standard output
     if(instance_parallel%size == 1)then
-      write(output_unit,'(ES24.16)') metric
+      write(output_unit,'(ES24.16)') objective(1)
     else
-      write(output_unit,'(A,A,A,I0,A,F12.9)') &
-           'case=',trim(config%case_name),', rank=',instance_parallel%rank,', objective=',metric
+      write(output_unit,'(A,A,A,I0,A,*(1X,F12.9))') &
+           'case=',trim(config%case_name),', rank=',instance_parallel%rank,', objective=', &
+           (objective(iTarget), iTarget=1,nTarget)
     endif
 
-    ! restore output file suffix 
+    ! restore output file suffix
     output_fileSuffix=outputFileSuffix_orig
 
-  end subroutine evaluate_objective
+  end subroutine evaluate_objectives
 
   ! ---- PRIVATE SUBROUTINES --------------------------------------------------------------------------
 
@@ -361,10 +648,12 @@ contains
   ! **************************************************************************************************
   ! run SUMMA
   ! **************************************************************************************************
-  subroutine run_summa(summa_struct, timeSim,flowSim, timeUnits,flowUnits, err,message)
+  subroutine run_summa(summa_struct, timeSim,flowSim, timeUnits,flowUnits, err,message, series)
     USE var_lookup, only: iLookFORCE
     USE globalData, only: forc_meta
     USE globalData, only: numtim
+    USE simulated_series, only: sim_series_type
+    USE simulated_series, only: collect_simulated_series
 #ifdef MODFLOW_ACTIVE
     USE globalData, only: data_step                            ! length of a SUMMA data step (s)
 #endif
@@ -376,6 +665,8 @@ contains
     character(len=:), allocatable, intent(out) :: flowUnits     ! units for simulated streamflow
     integer(i4b), intent(out)                  :: err           ! error code
     character(*), intent(out)                  :: message       ! error message
+    ! SUMMA variables a calibration target asked for, recorded as the run proceeds
+    type(sim_series_type), optional, intent(inout) :: series(:)
     ! locals
     integer(i4b)                               :: modelTimeStep ! index of model time step
     character(len=512)                         :: cmessage      ! error message of downwind routine
@@ -440,12 +731,21 @@ contains
       ! transfer SUMMA fluxes to OpenWQ
       if(openwq_active) call openwq_run_space_step(summa_struct)
 
+      ! the simulation time axis, which every calibration target shares.  It comes from the forcing,
+      ! not from the routing, so a target that does not need routed flow still has a time coordinate.
+      timeSim(modelTimeStep) = summa_struct%forcStruct%gru(1)%hru(1)%var(iLookFORCE%time)
+
       ! save streamflow time series (unavailable when mizuRoute is not active)
       if(mizuroute_active)then ! build-time capability
        if(summa_struct%config%use_mizuroute)then
-        timeSim(modelTimeStep) = summa_struct%forcStruct%gru(1)%hru(1)%var(iLookFORCE%time)
         call get_mizuroute_streamflow(modelTimeStep, summa_struct, flowSim(modelTimeStep))
        endif
+      endif
+
+      ! record the SUMMA variables any calibration target asked for
+      if(present(series))then
+        call collect_simulated_series(modelTimeStep, summa_struct, series, err, cmessage)
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       endif
 
       ! write the model output

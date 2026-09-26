@@ -10,11 +10,15 @@ module read_flowobs_module
   private
 
   public :: read_flow_observations
+  public :: read_observations
 
 contains
 
   ! **************************************************************************************************
   ! Read observed streamflow and time coordinates from a NetCDF file
+  !
+  ! Thin wrapper over read_observations for the single streamflow series named in the [observations]
+  ! section, which is what a single-objective calibration compares against.
   ! **************************************************************************************************
   subroutine read_flow_observations(summaStruc, timeObs, flowObs, timeUnits, flowUnits, err, message)
     type(summa1_type_dec), intent(in)           :: summaStruc    ! master summa data structure
@@ -24,18 +28,7 @@ contains
     character(len=:), allocatable, intent(out)  :: flowUnits     ! streamflow units
     integer(i4b), intent(out)                   :: err           ! error code
     character(*), intent(out)                   :: message       ! error message
-    integer(i4b) :: ncid
-    integer(i4b) :: dimid
-    integer(i4b) :: varid_time
-    integer(i4b) :: varid_flow
-    integer(i4b) :: nTime
-    integer(i4b) :: attLen
-    integer(i4b) :: err_close
-    logical(lgt) :: file_exists
-    integer(i8b), allocatable :: timeInt(:)
-    character(len=:), allocatable :: units
     character(len=:), allocatable :: vname_obsflow
-    logical :: file_open
     character(len=256) :: cmessage
 
     err = 0
@@ -54,24 +47,65 @@ contains
        err=20; return
     endif
 
-    ! check that the observation file exists
-    inquire(file=trim(obs%obs_path)//trim(obs%obs_file),exist=file_exists)
-    if(.not.file_exists)then
-      message=trim(message)//'observation file does not exist: '// trim(obs%obs_path)//trim(obs%obs_file)
-      err=20; return
-    endif
-
     ! check that the variable name is defined
     if(allocated(obs%vname_obsflow))then
       vname_obsflow = trim(obs%vname_obsflow)
     else
       vname_obsflow = 'q_obs'
     endif
+
+    call read_observations(trim(obs%obs_path), trim(obs%obs_file), vname_obsflow, &
+                           timeObs, flowObs, timeUnits, flowUnits, err, cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    end associate
+
+  end subroutine read_flow_observations
+
+  ! **************************************************************************************************
+  ! Read one observed series and its time coordinate from a NetCDF file
+  !
+  ! The series is named explicitly rather than taken from the configuration, so a calibration with
+  ! several targets can read a different variable, from a different file, for each of them.
+  ! **************************************************************************************************
+  subroutine read_observations(obs_path, obs_file, vname_obs, timeObs, valObs, timeUnits, valUnits, err, message)
+    character(*), intent(in)                    :: obs_path      ! path to the observation file
+    character(*), intent(in)                    :: obs_file      ! observation file
+    character(*), intent(in)                    :: vname_obs     ! name of the observed variable
+    real(rkind), allocatable, intent(out)       :: timeObs(:)    ! observation time coordinate
+    real(rkind), allocatable, intent(out)       :: valObs(:)     ! observed values
+    character(len=:), allocatable, intent(out)  :: timeUnits     ! units and reference time
+    character(len=:), allocatable, intent(out)  :: valUnits      ! units of the observed variable
+    integer(i4b), intent(out)                   :: err           ! error code
+    character(*), intent(out)                   :: message       ! error message
+    integer(i4b) :: ncid
+    integer(i4b) :: dimid
+    integer(i4b) :: varid_time
+    integer(i4b) :: varid_flow
+    integer(i4b) :: nTime
+    integer(i4b) :: attLen
+    integer(i4b) :: err_close
+    logical(lgt) :: file_exists
+    integer(i8b), allocatable :: timeInt(:)
+    character(len=:), allocatable :: units
+    logical :: file_open
+    character(len=256) :: cmessage
+
+    err = 0
+    message = 'read_observations/'
+
+    ! check that the observation file exists
+    inquire(file=trim(obs_path)//trim(obs_file),exist=file_exists)
+    if(.not.file_exists)then
+      message=trim(message)//'observation file does not exist: '// trim(obs_path)//trim(obs_file)
+      err=20; return
+    endif
+
     file_open = .false.
     netcdf_block: block
 
       ! open observation file
-      err = nf90_open(trim(obs%obs_path)// trim(obs%obs_file), NF90_NOWRITE, ncid)
+      err = nf90_open(trim(obs_path)// trim(obs_file), NF90_NOWRITE, ncid)
       if(err/=nf90_noerr) exit netcdf_block
       file_open = .true.
 
@@ -84,11 +118,11 @@ contains
       ! get variable IDs
       err = nf90_inq_varid(ncid, 'time', varid_time)
       if(err/=nf90_noerr) exit netcdf_block
-      err = nf90_inq_varid(ncid, trim(vname_obsflow), varid_flow)
+      err = nf90_inq_varid(ncid, trim(vname_obs), varid_flow)
       if(err/=nf90_noerr) exit netcdf_block
 
       ! allocate time series
-      allocate(timeInt(nTime), timeObs(nTime), flowObs(nTime), stat=err)
+      allocate(timeInt(nTime), timeObs(nTime), valObs(nTime), stat=err)
       if(err/=0)then; message=trim(message)//'problem allocating'; return; endif
 
       ! read time
@@ -96,12 +130,12 @@ contains
       if(err/=nf90_noerr) exit netcdf_block
       timeObs = real(timeInt, rkind)
 
-      ! read streamflow
-      err = nf90_get_var(ncid, varid_flow, flowObs)
+      ! read the observed series
+      err = nf90_get_var(ncid, varid_flow, valObs)
       if(err/=nf90_noerr) exit netcdf_block
 
       ! normalize missing values
-      call normalize_missing_values(ncid,varid_flow,flowObs,err,cmessage)
+      call normalize_missing_values(ncid,varid_flow,valObs,err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! read time units
@@ -113,13 +147,13 @@ contains
       timeUnits = trim(units)
       deallocate(units)
 
-      ! read flow units
+      ! read the units of the observed series
       err = nf90_inquire_attribute(ncid, varid_flow, 'units', len=attLen)
       if(err/=nf90_noerr) exit netcdf_block
       allocate(character(len=attLen) :: units)
       err = nf90_get_att(ncid, varid_flow, 'units', units)
       if(err/=nf90_noerr) exit netcdf_block
-      flowUnits = trim(units)
+      valUnits = trim(units)
       deallocate(units)
 
       ! close observation file
@@ -137,9 +171,7 @@ contains
     endif
     err = 0
 
-    end associate
-
-  end subroutine read_flow_observations
+  end subroutine read_observations
 
   ! **************************************************************************************************
   ! Normalize missing values in a NetCDF variable.
