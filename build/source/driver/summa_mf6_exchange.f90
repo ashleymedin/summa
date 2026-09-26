@@ -41,6 +41,7 @@ module summa_mf6_exchange
   !       silently move every coupled run's HRU->cell mapping, so it is left as it is.
 
   USE nr_type,    only: i4b, rkind
+  USE globalData, only: realMissing  ! a domain that never solved a soil column
   USE multiconst, only: iden_water     ! intrinsic density of liquid water (kg m-3)
   USE summa_type, only: summa1_type_dec
 
@@ -95,7 +96,7 @@ contains
     associate(attrStruct => summa_struct%attrStruct)   ! x%gru(:)%hru(:)%var(:)
       do iGRU = 1, summa_struct%nGRU_local
         do jHRU = 1, gru_struc(iGRU)%hruCount
-          x((iGRU-1) * gru_struc(iGRU)%hruCount + jHRU) = &
+          x(gru_struc(iGRU)%hruInfo(jHRU)%hru_ix) = &
             attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%longitude)
         end do
       end do
@@ -112,7 +113,7 @@ contains
     associate(attrStruct => summa_struct%attrStruct)
       do iGRU = 1, summa_struct%nGRU_local
         do jHRU = 1, gru_struc(iGRU)%hruCount
-          y((iGRU-1) * gru_struc(iGRU)%hruCount + jHRU) = &
+          y(gru_struc(iGRU)%hruInfo(jHRU)%hru_ix) = &
             attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%latitude)
         end do
       end do
@@ -129,7 +130,7 @@ contains
     associate(attrStruct => summa_struct%attrStruct)
       do iGRU = 1, summa_struct%nGRU_local
         do jHRU = 1, gru_struc(iGRU)%hruCount
-          z((iGRU-1) * gru_struc(iGRU)%hruCount + jHRU) = &
+          z(gru_struc(iGRU)%hruInfo(jHRU)%hru_ix) = &
             attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%elevation)
         end do
       end do
@@ -146,7 +147,7 @@ contains
     associate(attrStruct => summa_struct%attrStruct)
       do iGRU = 1, summa_struct%nGRU_local
         do jHRU = 1, gru_struc(iGRU)%hruCount
-          area((iGRU-1) * gru_struc(iGRU)%hruCount + jHRU) = &
+          area(gru_struc(iGRU)%hruInfo(jHRU)%hru_ix) = &
             attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%HRUarea)
         end do
       end do
@@ -166,7 +167,7 @@ contains
               mparStruct => summa_struct%mparStruct)
       do iGRU = 1, summa_struct%nGRU_local
         do jHRU = 1, gru_struc(iGRU)%hruCount
-          i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
+          i = gru_struc(iGRU)%hruInfo(jHRU)%hru_ix
           ixDOM = 1
           do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
             if (indxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1) == 0) then
@@ -197,7 +198,7 @@ contains
               indxStruct => summa_struct%indxStruct)     ! x%gru(:)%hru(:)%dom(:)%var(:)%dat
       do iGRU = 1, summa_struct%nGRU_local
         do jHRU = 1, gru_struc(iGRU)%hruCount
-          i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
+          i = gru_struc(iGRU)%hruInfo(jHRU)%hru_ix
           ! prefer the first non-glacier domain; fall back to domain 1
           ixDOM = 1
           do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
@@ -224,19 +225,26 @@ contains
     real,                  intent(out) :: drainage(:)
     integer(i4b) :: iGRU, jHRU, iDOM, i
     real         :: fracDOM
+    real(rkind)  :: hruArea, drainDOM
     associate(progStruct => summa_struct%progStruct, &
-              fluxStruct => summa_struct%fluxStruct, &
-              bvarStruct => summa_struct%bvarStruct)
+              fluxStruct => summa_struct%fluxStruct)
       drainage = -999.0
       do iGRU = 1, summa_struct%nGRU_local
         do jHRU = 1, gru_struc(iGRU)%hruCount
-          i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
+          i = gru_struc(iGRU)%hruInfo(jHRU)%hru_ix
           drainage(i) = 0._rkind
+          ! the flux handed back is per unit of THIS HRU, so the domain weights sum to one over the HRU
+          hruArea = 0._rkind
           do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
-            fracDOM = progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) &
-                    / bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1)
-            drainage(i) = drainage(i) &
-                        + fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarSoilDrainage)%dat(1) * fracDOM
+            hruArea = hruArea + progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
+          end do
+          if(hruArea <= 0._rkind) cycle
+          do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
+            drainDOM = fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarSoilDrainage)%dat(1)
+            ! a stream reach has no soil column of its own, so it drains nothing to the aquifer
+            if(drainDOM <= realMissing) cycle
+            fracDOM = real(progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) / hruArea)
+            drainage(i) = drainage(i) + drainDOM * fracDOM
           end do
         end do
       end do
@@ -255,7 +263,7 @@ contains
               indxStruct => summa_struct%indxStruct)
       do iGRU = 1, summa_struct%nGRU_local
         do jHRU = 1, gru_struc(iGRU)%hruCount
-          i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
+          i = gru_struc(iGRU)%hruInfo(jHRU)%hru_ix
           do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
             if (indxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1) == 0) &
               mparStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPARAM%lowerBoundHead)%dat(1) = head(i)
@@ -276,7 +284,7 @@ contains
               indxStruct => summa_struct%indxStruct)
       do iGRU = 1, summa_struct%nGRU_local
         do jHRU = 1, gru_struc(iGRU)%hruCount
-          i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
+          i = gru_struc(iGRU)%hruInfo(jHRU)%hru_ix
           do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
             if (indxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1) == 0) &
               progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%scalarAquiferStorage)%dat(1) = storage(i)
@@ -301,7 +309,7 @@ contains
     end if
     do iGRU = 1, summa_struct%nGRU_local
       do jHRU = 1, gru_struc(iGRU)%hruCount
-        i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
+        i = gru_struc(iGRU)%hruInfo(jHRU)%hru_ix
         mfAquiferBaseflow(i) = baseflow(i)
       end do
     end do
@@ -320,7 +328,7 @@ contains
     end if
     do iGRU = 1, summa_struct%nGRU_local
       do jHRU = 1, gru_struc(iGRU)%hruCount
-        i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
+        i = gru_struc(iGRU)%hruInfo(jHRU)%hru_ix
         mfSurfaceDischarge(i) = discharge(i)
       end do
     end do
@@ -338,7 +346,7 @@ contains
     end if
     do iGRU = 1, summa_struct%nGRU_local
       do jHRU = 1, gru_struc(iGRU)%hruCount
-        i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
+        i = gru_struc(iGRU)%hruInfo(jHRU)%hru_ix
         mfAquiferTranspire(i) = transpire(i)
       end do
     end do
@@ -356,7 +364,7 @@ contains
               indxStruct => summa_struct%indxStruct)
       do iGRU = 1, summa_struct%nGRU_local
         do jHRU = 1, gru_struc(iGRU)%hruCount
-          i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
+          i = gru_struc(iGRU)%hruInfo(jHRU)%hru_ix
           do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
             if (indxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1) == 0) &
               diagStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookDIAG%scalarTranspireLimAqfr)%dat(1) = limit(i)
@@ -374,25 +382,28 @@ contains
     type(summa1_type_dec), intent(in)  :: summa_struct
     real,                  intent(out) :: demand(:)
     integer(i4b) :: iGRU, jHRU, iDOM, i
-    real(rkind)  :: fracDOM, frac, tlim
+    real(rkind)  :: fracDOM, frac, tlim, hruArea
     ! weighted as mf6x_get_drainage weights drainage
     associate(progStruct => summa_struct%progStruct, &
               diagStruct => summa_struct%diagStruct, &
-              fluxStruct => summa_struct%fluxStruct, &
-              bvarStruct => summa_struct%bvarStruct)
+              fluxStruct => summa_struct%fluxStruct)
       demand = 0.0
       do iGRU = 1, summa_struct%nGRU_local
         do jHRU = 1, gru_struc(iGRU)%hruCount
-          i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
+          i = gru_struc(iGRU)%hruInfo(jHRU)%hru_ix
           demand(i) = 0._rkind
+          hruArea = 0._rkind
+          do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
+            hruArea = hruArea + progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
+          end do
+          if(hruArea <= 0._rkind) cycle
           do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
             tlim = diagStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookDIAG%scalarTranspireLim)%dat(1)
             if (tlim <= 0._rkind) cycle       ! no transpiration at all, so no aquifer share
             frac = diagStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookDIAG%scalarAquiferRootFrac)%dat(1) &
                  * diagStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookDIAG%scalarTranspireLimAqfr)%dat(1) / tlim
             if (frac <= 0._rkind) cycle       ! no roots below the soil column, or water table out of reach
-            fracDOM = progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) &
-                    / bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1)
+            fracDOM = progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) / hruArea
             ! negated: scalarCanopyTranspiration is negative for water leaving the canopy
             demand(i) = demand(i) &
                       - frac * fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarCanopyTranspiration)%dat(1) &
