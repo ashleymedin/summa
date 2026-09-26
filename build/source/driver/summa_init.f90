@@ -30,6 +30,7 @@ use build_options, only: mizuroute_active
 use build_options, only: ngen_forcing_active
 #ifdef MIZUROUTE_ACTIVE
 USE mizuroute_coupling, only: init_mizuroute_from_summa
+USE mizuroute_coupling, only: init_stream_network_from_summa
 #endif
 
 ! access missing values
@@ -94,6 +95,7 @@ implicit none
 private
 public::init_config
 public::summa_initialize
+public::summa_initStreamNetwork
 contains
 
   ! used to declare and allocate summa data structures and initialize model state to known values
@@ -519,7 +521,57 @@ contains
     !stop 'end of summa_initialize'
   
   end subroutine summa_initialize
-  
+
+  ! **************************************************************************************************
+  ! Attach the stream domains to the river network: which reach of the network each stream HRU stands
+  ! for.  Call after summa_readRestart, when the domain types and the attributes are both known.
+  ! **************************************************************************************************
+  subroutine summa_initStreamNetwork(summa1_struc, err, message)
+    USE globalData,        only: gru_struc                 ! gru-hru mapping structures
+    USE var_lookup,        only: iLookPROG                 ! named variables for prognostic variables
+    USE streamTemp_module, only: stream_domain_map         ! locate the stream HRU and domain of each GRU
+    implicit none
+
+    type(summa1_type_dec), intent(inout) :: summa1_struc
+    integer(i4b),          intent(out)   :: err
+    character(*),          intent(out)   :: message
+
+    integer(i4b), allocatable :: streamSegId(:)   ! per GRU: reach id of the stream HRU (0 = reach mapped from the GRU id)
+    integer(i4b), allocatable :: ixStreamHRU(:)   ! per GRU: index of the stream HRU within the GRU (0 = none)
+    integer(i4b), allocatable :: ixStreamDOM(:)   ! per GRU: index of the stream domain within that HRU
+    real(rkind),  allocatable :: domArea(:)       ! per GRU: planform area of the stream domain (m2)
+    integer(i4b)              :: nStream          ! number of stream HRUs
+    integer(i4b)              :: iGRU             ! GRU index
+    character(len=256)        :: cmessage
+
+    err = 0
+    message = 'summa_initStreamNetwork/'
+
+    allocate(streamSegId(summa1_struc%nGRU_local), ixStreamHRU(summa1_struc%nGRU_local), &
+             ixStreamDOM(summa1_struc%nGRU_local), domArea(summa1_struc%nGRU_local))
+    call stream_domain_map(summa1_struc%nGRU_local, gru_struc, summa1_struc%typeStruct, &
+                           streamSegId, ixStreamHRU, ixStreamDOM, nStream)
+    domArea(:) = 0._rkind
+    do iGRU=1,summa1_struc%nGRU_local
+      if(ixStreamHRU(iGRU) > 0) domArea(iGRU) = summa1_struc%progStruct%gru(iGRU)%hru(ixStreamHRU(iGRU))%dom(ixStreamDOM(iGRU))%var(iLookPROG%DOMarea)%dat(1)
+    end do
+    ! a stream domain is solved in the network pass, so without the river network it keeps the
+    ! temperature it started at: that is what an unrouted control run of a routed domain wants
+    if(nStream > 0 .and. .not.(mizuroute_active .and. summa1_struc%config%use_mizuroute))then
+      write(iulog,'(a,i0,a)') ' WARNING: ',nStream,' stream domains are present but the river network is not running;'
+      write(iulog,'(a)')      '          their temperature stays at its initial value.  Build with mizuRoute and set'
+      write(iulog,'(a)')      '          simulation.use_mizuroute = true to solve the stream columns.'
+    endif
+#ifdef MIZUROUTE_ACTIVE
+    if(summa1_struc%config%use_mizuroute)then
+      call init_stream_network_from_summa(summa1_struc, streamSegId, ixStreamHRU, ixStreamDOM, domArea, err, cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+#endif
+    deallocate(streamSegId, ixStreamHRU, ixStreamDOM, domArea)
+
+  end subroutine summa_initStreamNetwork
+
   ! **************************************************************************************************
   ! Initialize SUMMA configuration and global metadata.
   !

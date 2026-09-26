@@ -25,19 +25,24 @@
 # cell is the row-major horizontal MODFLOW index (irow-1)*ncol + icol; weights are
 # normalised per HRU, so put e.g. 1.0 on every line to spread an HRU over its cells.
 #
-# Usage:  ./coupler_commands.sh -c CONFIG MODFLOW_CASE SUMMA_FILEMANAGER [summa_modflow6.exe]
+# Usage:  ./coupler_commands.sh -c CONFIG [-t TOML] MODFLOW_CASE SUMMA_FILEMANAGER [summa_modflow6.exe]
 #
 #   -c, --config CONFIG   path to this case's summa_modflow6.config (required).  Each case keeps its
 #                         own config beside its settings, so several cases can share one MODFLOW model
 #                         directory while differing in model/package names, HRU->cell map_file and
 #                         feedback.
+#   -t, --toml TOML       path to a SUMMA TOML configuration file, needed only to route with mizuRoute
+#                         as well (an executable built -DUSE_MIZUROUTE=ON, e.g. run_sagehen9_mizuroute.sh).
+#                         Paths inside it are relative to MODFLOW_CASE, like those in CONFIG.
 # ---------------------------------------------------------------------------------------
 set -euo pipefail
 
 CONFIG_ARG=""
+TOML_ARG=""
 while [ $# -gt 0 ]; do
   case $1 in
     -c|--config) CONFIG_ARG=${2:?"$0: -c/--config needs a path"}; shift 2 ;;
+    -t|--toml)   TOML_ARG=${2:?"$0: -t/--toml needs a path"}; shift 2 ;;
     --)          shift; break ;;
     -*)          echo "$0: unknown option $1"; exit 1 ;;
     *)           break ;;
@@ -61,15 +66,21 @@ EXE=$(cd "$(dirname "$EXE")" 2>/dev/null && pwd)/$(basename "$EXE") || true
 FILE_MANAGER=$(cd "$(dirname "$SUMMA_FILEMANAGER")" 2>/dev/null && pwd)/$(basename "$SUMMA_FILEMANAGER") || true
 CONFIG=$(cd "$(dirname "$CONFIG_ARG")" 2>/dev/null && pwd)/$(basename "$CONFIG_ARG") || true
 [ -f "$CONFIG" ] || CONFIG=$CONFIG_ARG   # unresolvable: keep what was typed, for the error below
+TOML=""
+if [ -n "$TOML_ARG" ]; then
+  TOML=$(cd "$(dirname "$TOML_ARG")" 2>/dev/null && pwd)/$(basename "$TOML_ARG") || true
+  [ -f "$TOML" ] || TOML=$TOML_ARG
+fi
 
 [ -x "$EXE" ]                    || { echo "coupler executable not found/executable: $EXE"; exit 1; }
 [ -f "$MODFLOW_CASE/mfsim.nam" ] || { echo "missing $MODFLOW_CASE/mfsim.nam"; exit 1; }
 [ -f "$CONFIG" ]                 || { echo "missing coupler config: $CONFIG"; exit 1; }
 [ -f "$FILE_MANAGER" ]           || { echo "missing $SUMMA_FILEMANAGER"; exit 1; }
+[ -z "$TOML" ] || [ -f "$TOML" ] || { echo "missing TOML configuration: $TOML"; exit 1; }
 
 # MODFLOW 6 is initialized from mfsim.nam in the working directory
 cd "$MODFLOW_CASE"
-"$EXE" "$FILE_MANAGER" "$CONFIG"
+"$EXE" "$FILE_MANAGER" "$CONFIG" ${TOML:+"$TOML"}
 
 echo "done. check (SUMMA output NetCDF vs the MODFLOW 6 listing budget):"
 echo "  - scalarSoilDrainage    <-> RCH (RCHA) inflow          [coupler imposes this on MODFLOW]"

@@ -58,6 +58,7 @@ module summabmi
   USE summa_mf6_exchange, only: mf6x_put_aquifer_storage
   USE summa_mf6_exchange, only: mf6x_put_aquifer_baseflow
   USE summa_init, only: summa_initialize                      ! used to allocate/initialize summa data structures
+  USE summa_init, only: summa_initStreamNetwork               ! used to attach the stream domains to the river network
   USE summa_setup, only: summa_paramSetup                     ! used to initialize parameter data structures (e.g. vegetation and soil parameters)
   USE summa_restart, only: summa_readRestart                  ! used to read restart data and reset the model state
   ! subroutines and functions: model simulation
@@ -170,6 +171,7 @@ module summabmi
      procedure :: get_input_var_names => summa_input_var_names
      procedure :: get_output_var_names => summa_output_var_names
      procedure :: initialize => summa_bmi_initialize
+     procedure :: initialize_toml => summa_bmi_initialize_toml  ! non-BMI: adds the TOML configuration file, which standard BMI initialize() has no room for
      procedure :: initialize_mpi => summa_bmi_initialize_mpi  ! non-BMI: places an MPI communicator/rank/size into the run's parallel context first, so SUMMA GRUs split across ranks
      procedure :: finalize => summa_finalize
      procedure :: get_start_time => summa_start_time
@@ -271,6 +273,19 @@ module summabmi
    end function summa_bmi_initialize
 
    ! *****************************************************************************
+   ! * model setup/initialization with a TOML configuration file (non-BMI: standard BMI
+   ! * initialize() has one argument, the file manager; see the initialize_toml binding above).
+   ! * A host that runs optional components such as mizuRoute gives their configuration here.
+   ! *****************************************************************************
+   function summa_bmi_initialize_toml(this, config_file, toml_file) result (bmi_status)
+     class (summa_bmi), intent(out) :: this
+     character (len=*), intent(in) :: config_file
+     character (len=*), intent(in) :: toml_file
+     integer  :: bmi_status
+     bmi_status = summa_bmi_initialize_core(this, config_file, -1, 0, 1, toml_file=toml_file)
+   end function summa_bmi_initialize_toml
+
+   ! *****************************************************************************
    ! * model setup/initialization, MPI-aware (non-BMI: standard BMI initialize() has no
    ! * room for a communicator/rank/size; see the initialize_mpi binding above)
    ! *****************************************************************************
@@ -282,10 +297,11 @@ module summabmi
      bmi_status = summa_bmi_initialize_core(this, config_file, comm, rank, size)
    end function summa_bmi_initialize_mpi
 
-   function summa_bmi_initialize_core(this, config_file, comm, rank, size) result (bmi_status)
+   function summa_bmi_initialize_core(this, config_file, comm, rank, size, toml_file) result (bmi_status)
      class (summa_bmi), intent(out) :: this
      character (len=*), intent(in) :: config_file
      integer(i4b),       intent(in) :: comm, rank, size          ! MPI parallel context (comm=-1,rank=0,size=1 if serial)
+     character (len=*), optional, intent(in) :: toml_file         ! TOML configuration file, for the optional components
      ! error control
      integer(i4b)                       :: err=0                      ! error code
      character(len=1024)                :: message=''                 ! error message
@@ -356,6 +372,12 @@ module summabmi
 #endif
      endif
 
+     ! the TOML configuration, if the host supplied one through initialize_toml; the command line
+     ! it would otherwise come from (-c) belongs to the host here
+     if(present(toml_file))then
+       if(len_trim(toml_file) > 0) config%config_file = trim(toml_file)
+     endif
+
      ! declare and allocate summa data structures and initialize model state to known values
      ! NOTE: BMI has no command line and no TOML file of its own; the control file comes
      !       from the host, set above. getCommandArguments still runs, but it skips parsing
@@ -375,6 +397,11 @@ module summabmi
 
      ! read restart data and reset the model state
      call summa_readRestart(this%model%summa1_struc(n), err, message)
+     call handle_err(err, message)
+
+     ! stream temperature: which reach of the river network each stream HRU stands for
+     ! NOTE: after the restart read, since the domain types and the attributes are known by then
+     call summa_initStreamNetwork(this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
 
      ! get global variables that are constants throughout the model simulation
