@@ -1167,7 +1167,7 @@ contains
   logical(lgt)                 :: energyConv                  ! flag for energy convergence
   logical(lgt)                 :: aquiferConv                 ! flag for aquifer water balance convergence
   integer(i4b)                 :: iMat                        ! index of a matric head state in the state subset
-  integer(i4b)                 :: iSoil                       ! index of the soil layer carrying that state
+  integer(i4b),dimension(mSoil):: ixSoilMat                   ! soil layer carrying each matric head state
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
   associate(&
@@ -1192,7 +1192,6 @@ contains
    ixNrgOnly               => indx_data%var(iLookINDEX%ixNrgOnly)%dat           ,&  ! intent(in): [i4b(:)] list of indices for all energy states
    ixHydOnly               => indx_data%var(iLookINDEX%ixHydOnly)%dat           ,&  ! intent(in): [i4b(:)] list of indices for all hydrology states
    ixMatOnly               => indx_data%var(iLookINDEX%ixMatOnly)%dat           ,&  ! intent(in): [i4b(:)] list of indices for matric head state variables in the state vector
-   ixMatricHead            => indx_data%var(iLookINDEX%ixMatricHead)%dat        ,&  ! intent(in): [i4b(:)] list of indices for matric head in the soil vector
    ixStateType_subset      => indx_data%var(iLookINDEX%ixStateType_subset)%dat  ,&  ! intent(in): [i4b(:)] type of each state in the state subset
    ixMapSubset2Full        => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat    ,&  ! intent(in): [i4b(:)] index in the full state vector of each state in the subset
    ixControlVolume         => indx_data%var(iLookINDEX%ixControlVolume)%dat     ,&  ! intent(in): [i4b(:)] index of each state within its own domain
@@ -1233,14 +1232,15 @@ contains
     liquidConv = .true.
    end if
 
+   ixSoilMat = ixControlVolume( ixMapSubset2Full(ixMatOnly) ) ! soil layer of each matric head state in the subset
+
    ! check convergence based on the iteration increment for matric head
    ! NOTE: scale by matric head to avoid unnecessarily tight convergence when there is no water or there is saturated flow (matric head is very large)
    if (size(ixMatOnly)>0) then
     psiScale   = abs( xVec(ixMatOnly) ) + xSmall ! avoid divide by zero
     do iMat=1,size(ixMatOnly)
      if (ixStateType_subset(ixMatOnly(iMat))/=iname_lmpLayer) cycle
-     iSoil  = ixControlVolume( ixMapSubset2Full(ixMatOnly(iMat)) )
-     loosen = absConvTol_liquid/( absConvTol_matric*max(abs(dVolTot_dPsi0(iSoil)),epsilon(1._rkind)) )
+     loosen = absConvTol_liquid/( absConvTol_matric*max(abs(dVolTot_dPsi0(ixSoilMat(iMat))),epsilon(1._rkind)) )
      psiScale(iMat) = max(psiScale(iMat),loosen) ! a frozen layer's liquid matric potential moves almost no water
     end do
     matric_max = maxval(abs( xInc(ixMatOnly)/psiScale ) )
@@ -1252,7 +1252,7 @@ contains
 
    ! check convergence based on the soil water balance error (m)
    if (size(ixMatOnly)>0) then
-    soilWatBalErr = sum( real(rVec(ixMatOnly), rkind)*mLayerDepth(nSnow+nLake+ixMatricHead) )
+    soilWatBalErr = sum( real(rVec(ixMatOnly), rkind)*mLayerDepth(nSnow+nLake+ixSoilMat) )
     ! (tighter convergence for the scalar solution)
     if (scalarSolution) then
       watbalConv = (abs(soilWatBalErr) < absConvTol_liquid*scalarTighten)  ! absolute error in total soil water balance (m)
