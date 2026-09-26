@@ -10,8 +10,8 @@
 ! ***********************************************************************************************************************
 soilCatTbl                      ROSETTA         ! (01) soil-category dataset
 vegeParTbl                      MODIFIED_IGBP_MODIS_NOAH ! (02) vegetation category dataset
-soilStress                      NoahType        ! (03) choice of function for the soil moisture control on stomatal resistances
-stomResist                      BallBerry       ! (04) choice of function for stomatal resistances
+soilStress                      NoahType        ! (03) choice of function for the soil moisture control on stomatal resistance
+stomResist                      BallBerry       ! (04) choice of function for stomatal resistance
 ! ***********************************************************************************************************************
 num_method                      homegrown       ! (05) choice of numerical method
 fDerivMeth                      analytic        ! (06) method used to calculate flux derivatives
@@ -88,7 +88,7 @@ hyporhTdyn                      none            ! (34) hyporheic exchange in a s
 ! (09) choice of hydraulic conductivity profile
 ! constant  ! constant hydraulic conductivity with depth (not allowed with groundwatr == qTopmodl)
 ! pow_prof  ! power-law profile (original TOPMODEL-ish form)
-! exp_prof  ! exponential profile,  (for lateral flow inside soil not representing aquifer)
+! exp_prof  ! exponential profile  (for lateral flow inside soil not representing aquifer)
 ! -----------------------------------------------------------------------------------------------
 ! (10) choice of upper boundary conditions for thermodynamics
 ! presTemp  ! prescribed temperature
@@ -202,7 +202,7 @@ hyporhTdyn                      none            ! (34) hyporheic exchange in a s
 ! none        ! the base of the soil column itself, floored at freezing
 ! aquiferTemp ! a well-mixed temperature carried by the big-bucket aquifer store
 ! airTempGW   ! groundwater temperature scaled from the air temperature, Wade et al. (2024)
-! bedrockLyrs ! the deepest soil layers carry heat alone, extending the column into bedrock 
+! bedrockLyrs ! the deepest soil layers carry heat alone, extending the column into bedrock
 ! -----------------------------------------------------------------------------------------------
 ! (34) hyporheic exchange in a stream domain
 ! none   ! no exchange with the bed (default)

@@ -16,7 +16,7 @@ stomResist                      BallBerry       ! (04) choice of function for st
 num_method                      homegrown       ! (05) choice of numerical method
 fDerivMeth                      analytic        ! (06) method used to calculate flux derivatives
 LAI_method                      monTable        ! (07) method used to determine LAI and SAI
-groundwatr                      modLatflow         ! (08) choice of groundwater parameterization
+groundwatr                      modLatflow      ! (08) choice of groundwater parameterization
 hc_profile                      exp_prof        ! (09) choice of hydraulic conductivity profile
 bcUpprTdyn                      nrg_flux        ! (10) choice of upper boundary conditions for thermodynamics
 bcLowrTdyn                      zeroFlux        ! (11) choice of lower boundary conditions for thermodynamics
@@ -37,10 +37,12 @@ spatial_gw                      localColumn     ! (25) choice of method for the 
 subRouting                      timeDlay        ! (26) choice of method for sub-grid routing
 nrgConserv                      enthalpyForm    ! (27) choice of variable in energy equations (BE residual or IDA state variable)
 aquiferIni                      fullStart       ! (28) initial fill level of the aquifer
-infRateMax                      topmodel_GA       ! (29) choice of infiltration rate method
+infRateMax                      topmodel_GA     ! (29) choice of infiltration rate method
 surfRun_SE                      homegrown_SE    ! (30) choice of saturation excess (SE) surface runoff parameterization
 read_force                      readPerStep     ! (31) method used to read forcing data
 write_buff                      writePerStep    ! (32) method used to write model output
+deepTherml                      none            ! (33) choice of deep thermal state below the soil column
+hyporhTdyn                      none            ! (34) hyporheic exchange in a stream domain
 ! ***********************************************************************************************
 ! ***** description of the options available -- nothing below this point is read ****************
 ! ***********************************************************************************************
@@ -86,7 +88,7 @@ write_buff                      writePerStep    ! (32) method used to write mode
 ! (09) choice of hydraulic conductivity profile
 ! constant  ! constant hydraulic conductivity with depth (not allowed with groundwatr == qTopmodl)
 ! pow_prof  ! power-law profile (original TOPMODEL-ish form)
-! exp_prof  ! exponential profile,  (for lateral flow inside soil not representing aquifer)
+! exp_prof  ! exponential profile  (for lateral flow inside soil not representing aquifer)
 ! -----------------------------------------------------------------------------------------------
 ! (10) choice of upper boundary conditions for thermodynamics
 ! presTemp  ! prescribed temperature
@@ -197,9 +199,10 @@ write_buff                      writePerStep    ! (32) method used to write mode
 ! writeFullSeries ! write all data for a given output file in a buffered read
 ! -----------------------------------------------------------------------------------------------
 ! (33) choice of deep thermal state below soil, setting groundwater temperature to the channel
-! none        ! the base of the soil column itself, floored at freezing (default)
+! none        ! the base of the soil column itself, floored at freezing
 ! aquiferTemp ! a well-mixed temperature carried by the big-bucket aquifer store
 ! airTempGW   ! groundwater temperature scaled from the air temperature, Wade et al. (2024)
+! bedrockLyrs ! the deepest soil layers carry heat alone, extending the column into bedrock
 ! -----------------------------------------------------------------------------------------------
 ! (34) hyporheic exchange in a stream domain
 ! none   ! no exchange with the bed (default)
