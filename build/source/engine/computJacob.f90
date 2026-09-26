@@ -296,7 +296,7 @@ subroutine computJacob(&
     ! * cross derivatives in the snow, lake, glce domains...
     ! ----------------------------------------
     if((nSnowOnlyHyd>0 .and. nSnowOnlyNrg>0) .or. (nLakeOnlyHyd>0 .and. nLakeOnlyNrg>0) .or. (nGlceOnlyHyd>0 .and. nGlceOnlyNrg>0))then
-      do qLayer=1,nSnow+nLake+nGlce-noThetaChange ! loop through layers in the snow, lake, glce domains
+      do qLayer=1,nSnow+nLake+nGlce ! loop through layers in the snow, lake, glce domains, those with no water state are skipped below
 
         if(qLayer<=nSnow+nLake)then
           jLayer = qLayer
@@ -697,7 +697,7 @@ subroutine fluxJacAdd(&
     ! * cross derivatives in the snow, lake, glce domains...
     ! ----------------------------------------
     if((nSnowOnlyHyd>0 .and. nSnowOnlyNrg>0) .or. (nLakeOnlyHyd>0 .and. nLakeOnlyNrg>0) .or. (nGlceOnlyHyd>0 .and. nGlceOnlyNrg>0))then
-      do qLayer=1,nSnow+nLake+nGlce-noThetaChange ! loop through layers in the snow, lake, glce domains
+      do qLayer=1,nSnow+nLake+nGlce ! loop through layers in the snow, lake, glce domains, those with no water state are skipped below
 
         if(qLayer<=nSnow+nLake)then
           jLayer = qLayer
