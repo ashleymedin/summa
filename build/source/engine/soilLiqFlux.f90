@@ -753,6 +753,7 @@ subroutine surfaceFlux(io_soilLiqFlux,in_surfaceFlux,io_surfaceFlux,out_surfaceF
   USE soil_utils_module,only:hydCond_psi           ! compute hydraulic conductivity as a function of matric head (m s-1)
   USE soil_utils_module,only:crit_soilT            ! compute critical temperature below which ice exists
   USE soil_utils_module,only:gammp,gammp_complex   ! compute the regularized lower incomplete Gamma function
+  USE soil_utils_module,only:dgammp_dx             ! compute the derivative of the regularized lower incomplete Gamma function
   ! compute infiltraton at the surface and its derivative w.r.t. mass in the upper soil layer
   implicit none
   ! -----------------------------------------------------------------------------------------------------------------------------
@@ -797,6 +798,7 @@ subroutine surfaceFlux(io_soilLiqFlux,in_surfaceFlux,io_surfaceFlux,out_surfaceF
   ! fraction of impermeable area associated with frozen ground
   real(rkind)                      :: alpha                               ! shape parameter in the Gamma distribution
   real(rkind)                      :: xLimg                               ! upper limit of the integral
+  real(rkind)                      :: dFrozenArea_dRootZoneIce            ! derivative in the frozen area w.r.t. the depth of ice in the root zone (m-1)
   ! FUSE
   real(rkind),parameter            :: alpha_LSE=1.e3_rkind                ! smoothness parameter for LSE smoother function
   real(rkind),parameter            :: roundoff_tolerance = 1.e2_rkind * epsilon(1._rkind) ! tolerance for round-off error is near machine epsilon 
@@ -1304,7 +1306,7 @@ subroutine update_volFracLiq_derivatives
      dzeta_crit_dzeta_crit_n = ( n_topmodel*zeta_crit_n**(n_topmodel-1._rkind) ) / zeta_crit_n**n_topmodel
      dx_crit_dzeta_crit = 1._rkind
      dx_crit_dS1 = dx_crit_dzeta_crit * dzeta_crit_dzeta_crit_n * dzeta_crit_n_dS1
-     dgammp_dx_crit = ( (x_crit/chi_topmodel)**(alpha_topmodel-1._rkind) * exp(-x_crit/chi_topmodel) )/chi_topmodel/gamma(alpha_topmodel)
+     dgammp_dx_crit = dgammp_dx(alpha_topmodel,x_crit/chi_topmodel)/chi_topmodel
      dInfilArea_dWat(:) = dgammp_dx_crit * dx_crit_dS1 * dS1_dLiq(:) * dVolFracLiq_dWat(:)     
      dInfilArea_dTk(:)  = dgammp_dx_crit * dx_crit_dS1 * dS1_dLiq(:) * dVolFracLiq_dTk(:)
    endif ! else derivatives are zero
@@ -1597,19 +1599,18 @@ subroutine update_volFracLiq_derivatives
    scalarFrozenArea    => io_surfaceFlux % scalarFrozenArea     & ! fraction of area that is considered impermeable due to soil ice (-)
   &)
    ! define the impermeable area and derivatives due to frozen ground
-   if (rootZoneIce > tiny(rootZoneIce)) then  ! (avoid divide by zero)
-      alpha = 1._rkind/(soilIceCV**2_i4b)     ! shape parameter in the Gamma distribution
-      xLimg = alpha*soilIceScale/rootZoneIce  ! upper limit of the integral
-     !if we use this, we will have a derivative of scalarFrozenArea w.r.t. water and temperature in each layer (through mLayerVolFracIce)
-     ! Should fix to deal with frozen area in the root zone, calculations may be expensive
-     !scalarFrozenArea = 1._rkind - gammp(alpha,xLimg)      ! fraction of frozen area
-     !if(updateInfil)then
-     !  dFrozenArea_dWat(:) = -dgammp_dx(alpha,xLimg)*(-alpha*soilIceScale/rootZoneIce**2_i4b)*dRootZoneIce_dWat(:)
-     !  dFrozenArea_dTk(:)  = -dgammp_dx(alpha,xLimg)*(-alpha*soilIceScale/rootZoneIce**2_i4b)*dRootZoneIce_dTk(:)
-     !end if
-     scalarFrozenArea = 0._rkind
+   if (rootZoneIce > verySmaller) then       ! (avoid divide by zero)
+     alpha = 1._rkind/(soilIceCV**2_i4b)     ! shape parameter in the Gamma distribution
+     xLimg = alpha*soilIceScale/rootZoneIce  ! upper limit of the integral
+     scalarFrozenArea = 1._rkind - gammp(alpha,xLimg) ! fraction of frozen area
+     ! the frozen area depends on the ice in every root layer, so it carries a derivative w.r.t. water and temperature in each of them
+     if(updateInfil)then
+       dFrozenArea_dRootZoneIce = dgammp_dx(alpha,xLimg)*xLimg/rootZoneIce
+       dFrozenArea_dWat(:) = dFrozenArea_dRootZoneIce*dRootZoneIce_dWat(:)
+       dFrozenArea_dTk(:)  = dFrozenArea_dRootZoneIce*dRootZoneIce_dTk(:)
+     end if
    else
-     scalarFrozenArea = 0._rkind
+     scalarFrozenArea = 0._rkind ! derivatives are zero
    end if
   end associate
  end subroutine update_surfaceFlux_liquidFlux_computation_frozen_area
