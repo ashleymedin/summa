@@ -42,13 +42,52 @@ USE globalData,only:glacDbr            ! horizontal domain type for glacier debr
 USE globalData,only:wetland            ! horizontal domain type for wetland areas
 USE globalData,only:stream             ! horizontal domain type for stream reaches
 USE globalData,only:nLakeIceLayers_poss ! number of ice cover layers a lake can grow
+USE globalData,only:nBedrockMax         ! largest number of bedrock layers in any domain
 
 implicit none
 private
 public::read_icond
 public::read_icond_nlayers
+public::addBedrockLayers
 
 contains
+
+ ! ************************************************************************************************
+ ! public subroutine addBedrockLayers: append thermal-only bedrock layers below the soil column
+ ! ************************************************************************************************
+ ! NOTE: called once the model decisions are known, before the data structures are allocated, so the
+ !       bedrock layers are sized in from the start. Domains that already carry bedrock (a restart)
+ !       and glacier domains (their ice already holds the thermal-only layers) are left alone.
+ subroutine addBedrockLayers(err,message)
+ USE globalData,only:gru_struc                      ! gru-hru-dom mapping structure
+ USE globalData,only:nBedrockLayers                 ! number of bedrock layers to build
+ USE globalData,only:maxSoilLayers,maxTotoLayers    ! file-wide layer maxima
+ implicit none
+ integer(i4b),intent(out)    :: err                 ! error code
+ character(*),intent(out)    :: message             ! error message
+ integer(i4b)                :: iGRU,iHRU,iDOM      ! indices of gru, hru and domain
+ err=0; message='addBedrockLayers/'
+
+ if(nBedrockLayers<1)then; message=trim(message)//'nBedrockLayers must be at least 1 for deepTherml = bedrockLyrs'; err=20; return; endif
+
+ do iGRU = 1,size(gru_struc)
+  do iHRU = 1,gru_struc(iGRU)%hruCount
+   do iDOM = 1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
+    associate(domInfo => gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM))
+     if(domInfo%nGlce>0 .or. domInfo%nSoil<1) cycle   ! no bedrock below glacier ice or a column with no soil
+     if(domInfo%nBedrock>0) cycle                     ! the layers came in with the initial conditions
+     domInfo%nBedrock   = nBedrockLayers
+     domInfo%nSoil      = domInfo%nSoil + nBedrockLayers
+     domInfo%bedrockNew = .true.
+     nBedrockMax        = max(nBedrockMax, nBedrockLayers)
+     maxSoilLayers = max(maxSoilLayers, domInfo%nSoil)
+     maxTotoLayers = max(maxTotoLayers, domInfo%nSoil + domInfo%nLake + domInfo%nGlce)
+    end associate
+   end do
+  end do
+ end do
+
+ end subroutine addBedrockLayers
 
  ! ************************************************************************************************
  ! public subroutine read_icond_nlayers: read model initial conditions file for number of snow/soil layers
@@ -81,6 +120,7 @@ contains
  integer(i4b)                :: fileDOM             ! number of domains in netcdf file
  integer(i4b)                :: snowID, soilID      ! netcdf variable ids
  integer(i4b)                :: glceID, lakeID      ! netcdf variable ids
+ integer(i4b)                :: bedrID              ! netcdf variable id for the bedrock layer count
  integer(i4b)                :: iGRU, iHRU, iDOM    ! loop indexes
  integer(i4b)                :: iHRU_global         ! index of HRU in the netcdf file
  integer(i4b)                :: iHRU_file           ! index of HRU when scanning the whole file
@@ -89,11 +129,14 @@ contains
  integer(i4b)                :: nLake_file          ! lake layers for a file HRU/domain
  integer(i4b)                :: nGlce_file          ! glacier ice layers for a file HRU/domain
  logical(lgt)                :: no_glceData         ! flag that no ice data in icond
+ logical(lgt)                :: no_bedrData         ! flag that no bedrock layer count in icond
  logical(lgt)                :: no_lakeData         ! flag that no lake data in icond
  logical(lgt)                :: no_dom              ! flag that no domain variable in file
  integer(i4b),allocatable    :: snowData1(:)        ! number of snow layers in all HRUs
  integer(i4b),allocatable    :: soilData1(:)        ! number of soil layers in all HRUs
  integer(i4b),allocatable    :: glceData1(:)        ! number of glacier ice layers in all HRUs
+ integer(i4b),allocatable    :: bedrData1(:)        ! number of bedrock layers in all HRUs
+ integer(i4b),allocatable    :: bedrData2(:,:)      ! number of bedrock layers in all domains of all HRUs
  integer(i4b),allocatable    :: lakeData1(:)        ! number of lake layers in all HRUs
  integer(i4b),allocatable    :: snowData2(:,:)      ! number of snow layers in all HRUs
  integer(i4b),allocatable    :: soilData2(:,:)      ! number of soil layers in all HRUs
@@ -108,6 +151,7 @@ contains
  err=0
  message = 'read_icond_nlayers/'
  no_glceData = .false.
+ no_bedrData = .false.
  no_lakeData = .false.
  no_dom = .false.
 
@@ -140,10 +184,13 @@ contains
  allocate(snowData1(fileHRU),snowData2(fileDOM,fileHRU))
  allocate(soilData1(fileHRU),soilData2(fileDOM,fileHRU))
  allocate(glceData1(fileHRU),glceData2(fileDOM,fileHRU))
+ allocate(bedrData1(fileHRU),bedrData2(fileDOM,fileHRU))
  allocate(lakeData1(fileHRU),lakeData2(fileDOM,fileHRU))
  snowData1 = 0
  soilData1 = 0
  glceData1 = 0
+ bedrData1 = 0
+ bedrData2 = 0
  lakeData1 = 0
  snowData2 = 0
  soilData2 = 0
@@ -178,17 +225,21 @@ contains
  err = nf90_inq_varid(ncid,trim(indx_meta(iLookINDEX%nSoil)%varName),soilID); call netcdf_err(err,message)
  err = nf90_inq_varid(ncid,trim(indx_meta(iLookINDEX%nGlce)%varName), glceID)
  if(err/=nf90_noerr) no_glceData = .true.
+ err = nf90_inq_varid(ncid,trim(indx_meta(iLookINDEX%nBedrock)%varName), bedrID)
+ if(err/=nf90_noerr) no_bedrData = .true.
 
  ! get nLayer data (reads entire state file)
  if(no_dom)then
    err = nf90_get_var(ncid,snowID,snowData1); call netcdf_err(err,message)
    err = nf90_get_var(ncid,soilID,soilData1); call netcdf_err(err,message)
    if (.not. no_glceData) err = nf90_get_var(ncid,glceID,glceData1); call netcdf_err(err,message)
+   if (.not. no_bedrData) err = nf90_get_var(ncid,bedrID,bedrData1); call netcdf_err(err,message)
    if (.not. no_lakeData) err = nf90_get_var(ncid,lakeID,lakeData1); call netcdf_err(err,message)
  else
    err = nf90_get_var(ncid,snowID,snowData2); call netcdf_err(err,message)
    err = nf90_get_var(ncid,soilID,soilData2); call netcdf_err(err,message)
    if (.not. no_glceData) err = nf90_get_var(ncid,glceID,glceData2); call netcdf_err(err,message)
+   if (.not. no_bedrData) err = nf90_get_var(ncid,bedrID,bedrData2); call netcdf_err(err,message)
    if (.not. no_lakeData) err = nf90_get_var(ncid,lakeID,lakeData2); call netcdf_err(err,message)
  endif
 
@@ -242,11 +293,17 @@ contains
        gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake = lakeData1(iHRU_global)
        gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil = soilData1(iHRU_global)
        gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce = glceData1(iHRU_global)
+       gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nBedrock = bedrData1(iHRU_global)
+       gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%bedrockNew = .false.
+       nBedrockMax = max(nBedrockMax, bedrData1(iHRU_global))
      else
        gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow = snowData2(iDOM,iHRU_global)
        gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake = lakeData2(iDOM,iHRU_global)
        gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil = soilData2(iDOM,iHRU_global)
        gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce = glceData2(iDOM,iHRU_global)
+       gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nBedrock = bedrData2(iDOM,iHRU_global)
+       gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%bedrockNew = .false.
+       nBedrockMax = max(nBedrockMax, bedrData2(iDOM,iHRU_global))
      endif
     end do
   end do
@@ -258,6 +315,7 @@ contains
 
  ! cleanup
  deallocate(snowData1,lakeData1,soilData1,glceData1,snowData2,lakeData2,soilData2,glceData2,dom_type)
+ deallocate(bedrData1,bedrData2)
  deallocate(index_to_gruid,index_to_hrunc)
 
  end subroutine read_icond_nlayers
@@ -267,7 +325,7 @@ contains
  ! ************************************************************************************************
  subroutine read_icond(iconFile,                      & ! intent(in):    name of initial conditions file
                        nGRU_local,                          & ! intent(in):    number of GRUs
-                       mparData,                      & ! intent(in):    model parameters
+                       mparData,                      & ! intent(inout): model parameters
                        progData,                      & ! intent(inout): model prognostic variables
                        bvarData,                      & ! intent(inout): model basin (GRU) variables
                        indxData,                      & ! intent(inout): model indices
@@ -306,7 +364,7 @@ contains
  ! dummies
  character(*)               ,intent(in)    :: iconFile                      ! name of netcdf file containing the initial conditions
  integer(i4b)               ,intent(in)    :: nGRU_local                          ! number of grouped response units in simulation domain
- type(gru_hru_dom_doubleVec),intent(in)    :: mparData                      ! model parameters
+ type(gru_hru_dom_doubleVec),intent(inout) :: mparData                      ! model parameters
  type(gru_hru_dom_doubleVec),intent(inout) :: progData                      ! model prognostic variables
  type(gru_doubleVec)        ,intent(inout) :: bvarData                      ! model basin (GRU) variables
  type(gru_hru_dom_intVec)   ,intent(inout) :: indxData                      ! model indices
@@ -338,9 +396,11 @@ contains
  real(rkind),allocatable                   :: varData2(:,:)                 ! variable data storage
  real(rkind),allocatable                   :: varData3(:,:,:)               ! variable data storage
  integer(i4b)                              :: nSnow,nLake,nSoil,nGlce,nToto ! # layers
+ integer(i4b)                              :: nBedrockNew                  ! # bedrock layers built rather than read
  integer(i4b),allocatable                  :: frzData2(:,:)                 ! number of frozen lake layers in the file (dom,hru)
  logical(lgt)                              :: no_frzData                    ! flag that the number of frozen lake layers is not in the file
  integer(i4b)                              :: noThetaChange                 ! number of layers with no change in total water content (bottom layers)
+ integer(i4b)                              :: nBedrock                      ! number of thermal-only bedrock layers at the base of the soil column
  integer(i4b)                              :: nTDH                          ! number of points in time-delay 
  integer(i4b)                              :: nGlac                         ! number of glaciers in basin
  integer(i4b)                              :: fileglac                      ! max number of glaciers in any GRU
@@ -523,6 +583,10 @@ else
      nSoil = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
      nGlce = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce
      nToto = nSnow + nLake + nSoil + nGlce
+     ! built bedrock layers are absent from the file, so they are filled in check_icond instead of read
+     nBedrockNew = merge(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nBedrock, 0, gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%bedrockNew)
+     nSoil = nSoil - nBedrockNew
+     nToto = nToto - nBedrockNew
 
      ! put the data into data structures and check that none of the values are set to nf90_fill_double
      if(no_dom)then
@@ -599,6 +663,7 @@ else
   if(err/=nf90_noerr)then; message=trim(message)//'problem reading nLakeFrz'; return; endif
  endif
  err = nf90_noerr
+
  do iGRU = 1,nGRU_local
   do iHRU = 1,gru_struc(iGRU)%hruCount
    iHRU_global = index_to_hrunc(iGRU,iHRU) ! index of HRU in the netcdf file
@@ -621,11 +686,33 @@ else
     endif
 
     ! define layers that will not have a change in total water content
+    nBedrock = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nBedrock
     noThetaChange = 0
     if(nGlce>0)then
       noThetaChange = nGlce - nMeltingIceLayers
       ! need at least one glacier top layer with a theta change
       if(noThetaChange>=nGlce)then; err=20; message=trim(message)//'number of glacier ice layers without a change in total water content is not less than the number of glacier ice layers'; return; endif
+      nBedrock = 0 ! a glacier domain already has thermal-only ice layers, so it takes no bedrock
+    elseif(nBedrock>0)then
+      ! the bedrock layers are the deepest soil layers, and at least one soil layer keeps its hydrology
+      if(nBedrock>=nSoil)then; err=20; message=trim(message)//'nBedrock must leave at least one hydrologically active soil layer'; return; endif
+      noThetaChange = nBedrock
+    endif
+    gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nBedrock = nBedrock
+    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nBedrock)%dat(1) = nBedrock
+
+    ! bedrock takes its own conductivity and porosity, set before the soil diagnostics follow from matric head
+    if(nBedrock>0)then
+      associate(&
+       thCond_soil       => mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%thCond_soil)%dat           ,& ! thermal conductivity of soil (W m-1 K-1)
+       theta_sat         => mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%theta_sat)%dat             ,& ! porosity of soil (-)
+       theta_res         => mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%theta_res)%dat             ,& ! residual water content of soil (-)
+       thCond_bedrock    => mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%thCond_bedrock)%dat(1)     ,& ! thermal conductivity of bedrock (W m-1 K-1)
+       theta_sat_bedrock => mparData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%theta_sat_bedrock)%dat(1)   ) ! porosity of bedrock (-)
+       thCond_soil(nSoil-nBedrock+1:nSoil) = thCond_bedrock
+       theta_sat(nSoil-nBedrock+1:nSoil)   = theta_sat_bedrock
+       theta_res(nSoil-nBedrock+1:nSoil)   = min(theta_res(nSoil-nBedrock+1:nSoil), 0.2_rkind*theta_sat_bedrock)
+      end associate
     endif
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%noThetaChange)%dat(1) = noThetaChange
 

@@ -365,6 +365,9 @@ MODULE var_lookup
   integer(i4b)    :: lowerBoundNrgFlux     = integerMissing    ! energy flux into the base of the soil column, the geothermal heat flux (W m-2)
   ! temperature of the groundwater reaching the channel
   integer(i4b)    :: gwTempWindow          = integerMissing    ! averaging window of the air temperature the groundwater follows (days)
+  ! thermal-only bedrock at the base of the soil column
+  integer(i4b)    :: thCond_bedrock        = integerMissing    ! thermal conductivity of the bedrock below the soil column (W m-1 K-1)
+  integer(i4b)    :: theta_sat_bedrock     = integerMissing    ! porosity of the bedrock below the soil column (-)
   ! hyporheic exchange in a stream domain
   integer(i4b)    :: hypFrac               = integerMissing    ! fraction of the reach flow returned as hyporheic flow (-)
   integer(i4b)    :: hypLag                = integerMissing    ! residence time of the hyporheic flow paths (h)
@@ -816,6 +819,7 @@ MODULE var_lookup
   integer(i4b)     :: nNrgState             = integerMissing  ! number of energy state variables                                         (-)
   integer(i4b)     :: nWatState             = integerMissing  ! number of "total water" states (vol. total water content)                (-)
   integer(i4b)     :: noThetaChange         = integerMissing  ! number of layers with no change in total water content (bottom layers)   (-)
+  integer(i4b)     :: nBedrock              = integerMissing  ! number of thermal-only bedrock layers at the base of the soil column     (-)
   integer(i4b)     :: nMatState             = integerMissing  ! number of matric head state variables                                    (-)
   integer(i4b)     :: nMassState            = integerMissing  ! number of hydrology state variables (mass of water)                      (-)
   integer(i4b)     :: nState                = integerMissing  ! total number of model state variables                                    (-)
@@ -1064,7 +1068,7 @@ MODULE var_lookup
                                                                         171,172,173,174,175,176,177,178,179,180,&
                                                                         181,182,183,184,185,186,187,188,189,190,&
                                                                         191,192,193,194,195,196,197,198,199,200,&
-                                                                        201,202,203)
+                                                                        201,202,203,204,205)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -1114,7 +1118,7 @@ MODULE var_lookup
                                                                          41, 42, 43, 44, 45, 46, 47, 48, 49, 50,&
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
-                                                                         71, 72, 73)
+                                                                         71, 72, 73, 74)
  ! named variables: basin-average parameters
  type(iLook_bpar),    public,parameter :: iLookBPAR     =iLook_bpar    (  1,  2,  3,  4,  5,  6,  7,  8, 9,  10,&
                                                                           11, 12, 13)

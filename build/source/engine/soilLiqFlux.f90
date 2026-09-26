@@ -270,15 +270,16 @@ contains
  subroutine update_transpiration_loss_fraction
   ! **** Update the fraction of transpiration loss from each soil layer *****
   associate(&
+   nSoil              => in_soilLiqFlux % nSoil,                             & ! intent(in): number of hydrologically active soil layers
    scalarTranspireLim => diag_data%var(iLookDIAG%scalarTranspireLim)%dat(1), & ! intent(in): weighted average of the transpiration limiting factor (-)
    mLayerRootDensity  => diag_data%var(iLookDIAG%mLayerRootDensity)%dat,     & ! intent(in): root density in each layer (-)
    mLayerTranspireLim => diag_data%var(iLookDIAG%mLayerTranspireLim)%dat     & ! intent(in): transpiration limiting factor in each layer (-)
   &)
    ! transpiration may be non-zero even if the soil moisture limiting factor is zero
    if (scalarTranspireLim > tiny(scalarTranspireLim)) then
-    mLayerTranspireFrac(:) = mLayerRootDensity(:)*mLayerTranspireLim(:)/scalarTranspireLim
+    mLayerTranspireFrac(1:nSoil) = mLayerRootDensity(1:nSoil)*mLayerTranspireLim(1:nSoil)/scalarTranspireLim
    else ! possibility of non-zero conductance and therefore transpiration in this case
-    mLayerTranspireFrac(:) = mLayerRootDensity(:) / sum(mLayerRootDensity)
+    mLayerTranspireFrac(1:nSoil) = mLayerRootDensity(1:nSoil) / sum(mLayerRootDensity(1:nSoil))
    end if
   end associate
  end subroutine update_transpiration_loss_fraction
@@ -318,22 +319,22 @@ contains
    dCanopyTrans_dTCanopy => in_soilLiqFlux % dCanopyTrans_dTCanopy, & ! ... w.r.t. canopy temperature (kg m-2 s-1 K-1)
    dCanopyTrans_dTGround => in_soilLiqFlux % dCanopyTrans_dTGround, & ! ... w.r.t. ground temperature (kg m-2 s-1 K-1)
    ! intent(in): index of the upper boundary conditions for soil hydrology
-   ixBcUpperSoilHydrology => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision &
+   ixBcUpperSoilHydrology => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision, &
+   nSoil                  => in_soilLiqFlux % nSoil &  ! number of hydrologically active soil layers
   &)
-   if (ixBcUpperSoilHydrology==prescribedHead) then ! special case of prescribed head -- no transpiration
-    mLayerTranspire(:)      = 0._rkind
-    ! derivatives in transpiration w.r.t. canopy state variables
-    mLayerdTrans_dCanWat(:) = 0._rkind
-    mLayerdTrans_dTCanair(:)= 0._rkind
-    mLayerdTrans_dTCanopy(:)= 0._rkind
-    mLayerdTrans_dTGround(:)= 0._rkind
-   else
-    mLayerTranspire(:) = mLayerTranspireFrac(:)*scalarCanopyTranspiration/iden_water
+   ! bedrock at the base of the column takes no transpiration
+   mLayerTranspire(:)      = 0._rkind
+   mLayerdTrans_dCanWat(:) = 0._rkind
+   mLayerdTrans_dTCanair(:)= 0._rkind
+   mLayerdTrans_dTCanopy(:)= 0._rkind
+   mLayerdTrans_dTGround(:)= 0._rkind
+   if (ixBcUpperSoilHydrology/=prescribedHead) then ! prescribed head is the special case of no transpiration
+    mLayerTranspire(1:nSoil) = mLayerTranspireFrac(1:nSoil)*scalarCanopyTranspiration/iden_water
     ! * derivatives in transpiration w.r.t. canopy state variables *
-    mLayerdTrans_dCanWat(:)  = mLayerTranspireFrac(:)*dCanopyTrans_dCanWat /iden_water
-    mLayerdTrans_dTCanair(:) = mLayerTranspireFrac(:)*dCanopyTrans_dTCanair/iden_water
-    mLayerdTrans_dTCanopy(:) = mLayerTranspireFrac(:)*dCanopyTrans_dTCanopy/iden_water
-    mLayerdTrans_dTGround(:) = mLayerTranspireFrac(:)*dCanopyTrans_dTGround/iden_water
+    mLayerdTrans_dCanWat(1:nSoil)  = mLayerTranspireFrac(1:nSoil)*dCanopyTrans_dCanWat /iden_water
+    mLayerdTrans_dTCanair(1:nSoil) = mLayerTranspireFrac(1:nSoil)*dCanopyTrans_dTCanair/iden_water
+    mLayerdTrans_dTCanopy(1:nSoil) = mLayerTranspireFrac(1:nSoil)*dCanopyTrans_dTCanopy/iden_water
+    mLayerdTrans_dTGround(1:nSoil) = mLayerTranspireFrac(1:nSoil)*dCanopyTrans_dTGround/iden_water
    end if
   end associate
  end subroutine update_transpiration_loss
@@ -761,6 +762,7 @@ subroutine surfaceFlux(io_soilLiqFlux,in_surfaceFlux,io_surfaceFlux,out_surfaceF
   USE soil_utils_module,only:hydCond_psi           ! compute hydraulic conductivity as a function of matric head (m s-1)
   USE soil_utils_module,only:crit_soilT            ! compute critical temperature below which ice exists
   USE soil_utils_module,only:gammp,gammp_complex   ! compute the regularized lower incomplete Gamma function
+  USE soil_utils_module,only:dgammp_dx             ! compute the derivative of the regularized lower incomplete Gamma function
   ! compute infiltraton at the surface and its derivative w.r.t. mass in the upper soil layer
   implicit none
   ! -----------------------------------------------------------------------------------------------------------------------------
@@ -805,6 +807,7 @@ subroutine surfaceFlux(io_soilLiqFlux,in_surfaceFlux,io_surfaceFlux,out_surfaceF
   ! fraction of impermeable area associated with frozen ground
   real(rkind)                      :: alpha                               ! shape parameter in the Gamma distribution
   real(rkind)                      :: xLimg                               ! upper limit of the integral
+  real(rkind)                      :: dFrozenArea_dRootZoneIce            ! derivative in the frozen area w.r.t. the depth of ice in the root zone (m-1)
   ! FUSE
   real(rkind),parameter            :: alpha_LSE=1.e3_rkind                ! smoothness parameter for LSE smoother function
   real(rkind),parameter            :: roundoff_tolerance = 1.e2_rkind * epsilon(1._rkind) ! tolerance for round-off error is near machine epsilon 
@@ -880,7 +883,8 @@ contains
   associate(&
    ! output: derivatives in surface infiltration w.r.t. ...
    dq_dHydStateVec => out_surfaceFlux % dq_dHydStateVec, & ! ... hydrology state in every soil layer (m s-1 or s-1)
-   dq_dNrgStateVec => out_surfaceFlux % dq_dNrgStateVec  & ! ... energy state in every soil layer (m s-1 K-1)
+   dq_dNrgStateVec => out_surfaceFlux % dq_dNrgStateVec , & ! ... energy state in every soil layer (m s-1 K-1)
+   nSoil           => in_surfaceFlux % nSoil             & ! number of hydrologically active soil layers
   &)
    dVolFracLiq_dWat(:)    = 0._rkind
    dVolFracIce_dWat(:)    = 0._rkind
@@ -1311,7 +1315,7 @@ subroutine update_volFracLiq_derivatives
      dzeta_crit_dzeta_crit_n = ( n_topmodel*zeta_crit_n**(n_topmodel-1._rkind) ) / zeta_crit_n**n_topmodel
      dx_crit_dzeta_crit = 1._rkind
      dx_crit_dS1 = dx_crit_dzeta_crit * dzeta_crit_dzeta_crit_n * dzeta_crit_n_dS1
-     dgammp_dx_crit = ( (x_crit/chi_topmodel)**(alpha_topmodel-1._rkind) * exp(-x_crit/chi_topmodel) )/chi_topmodel/gamma(alpha_topmodel)
+     dgammp_dx_crit = dgammp_dx(alpha_topmodel,x_crit/chi_topmodel)/chi_topmodel
      dInfilArea_dWat(:) = dgammp_dx_crit * dx_crit_dS1 * dS1_dLiq(:) * dVolFracLiq_dWat(:)     
      dInfilArea_dTk(:)  = dgammp_dx_crit * dx_crit_dS1 * dS1_dLiq(:) * dVolFracLiq_dTk(:)
    endif ! else derivatives are zero
@@ -1604,19 +1608,18 @@ subroutine update_volFracLiq_derivatives
    scalarFrozenArea    => io_surfaceFlux % scalarFrozenArea     & ! fraction of area that is considered impermeable due to soil ice (-)
   &)
    ! define the impermeable area and derivatives due to frozen ground
-   if (rootZoneIce > tiny(rootZoneIce)) then  ! (avoid divide by zero)
-      alpha = 1._rkind/(soilIceCV**2_i4b)     ! shape parameter in the Gamma distribution
-      xLimg = alpha*soilIceScale/rootZoneIce  ! upper limit of the integral
-     !if we use this, we will have a derivative of scalarFrozenArea w.r.t. water and temperature in each layer (through mLayerVolFracIce)
-     ! Should fix to deal with frozen area in the root zone, calculations may be expensive
-     !scalarFrozenArea = 1._rkind - gammp(alpha,xLimg)      ! fraction of frozen area
-     !if(updateInfil)then
-     !  dFrozenArea_dWat(:) = -dgammp_dx(alpha,xLimg)*(-alpha*soilIceScale/rootZoneIce**2_i4b)*dRootZoneIce_dWat(:)
-     !  dFrozenArea_dTk(:)  = -dgammp_dx(alpha,xLimg)*(-alpha*soilIceScale/rootZoneIce**2_i4b)*dRootZoneIce_dTk(:)
-     !end if
-     scalarFrozenArea = 0._rkind
+   if (rootZoneIce > verySmaller) then       ! (avoid divide by zero)
+     alpha = 1._rkind/(soilIceCV**2_i4b)     ! shape parameter in the Gamma distribution
+     xLimg = alpha*soilIceScale/rootZoneIce  ! upper limit of the integral
+     scalarFrozenArea = 1._rkind - gammp(alpha,xLimg) ! fraction of frozen area
+     ! the frozen area depends on the ice in every root layer, so it carries a derivative w.r.t. water and temperature in each of them
+     if(updateInfil)then
+       dFrozenArea_dRootZoneIce = dgammp_dx(alpha,xLimg)*xLimg/rootZoneIce
+       dFrozenArea_dWat(:) = dFrozenArea_dRootZoneIce*dRootZoneIce_dWat(:)
+       dFrozenArea_dTk(:)  = dFrozenArea_dRootZoneIce*dRootZoneIce_dTk(:)
+     end if
    else
-     scalarFrozenArea = 0._rkind
+     scalarFrozenArea = 0._rkind ! derivatives are zero
    end if
   end associate
  end subroutine update_surfaceFlux_liquidFlux_computation_frozen_area
@@ -1730,13 +1733,16 @@ subroutine update_volFracLiq_derivatives
        dInfilRate_dTk(:)  = dxMaxInfilRate_dTk(:)
      end if
      ! Do not need to break into IE and SE components since they are never used separately in the Jacobian assembly
-     dq_dHydStateVec(:) = (1._rkind - scalarFrozenArea)&
-                         * ( dInfilArea_dWat(:)*min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dWat(:) )&
-                         + (-dFrozenArea_dWat(:))*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
+     ! the vectors span the whole column, the surface flux only the layers that carry water
+     dq_dHydStateVec(:) = 0._rkind
+     dq_dNrgStateVec(:) = 0._rkind
+     dq_dHydStateVec(1:nSoil) = (1._rkind - scalarFrozenArea)&
+                         * ( dInfilArea_dWat(1:nSoil)*min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dWat(1:nSoil) )&
+                         + (-dFrozenArea_dWat(1:nSoil))*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
      ! energy state variable is temperature (transformed outside soilLiqFlux_module if needed)
-     dq_dNrgStateVec(:) = (1._rkind - scalarFrozenArea)&
-                         * ( dInfilArea_dTk(:) *min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dTk(:)  )&
-                         + (-dFrozenArea_dTk(:)) *scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
+     dq_dNrgStateVec(1:nSoil) = (1._rkind - scalarFrozenArea)&
+                         * ( dInfilArea_dTk(1:nSoil) *min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dTk(1:nSoil)  )&
+                         + (-dFrozenArea_dTk(1:nSoil)) *scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
    end if
   end associate
 

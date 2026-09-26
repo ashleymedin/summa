@@ -298,7 +298,7 @@ subroutine computJacob(&
     ! * cross derivatives in the snow, lake, glce domains...
     ! ----------------------------------------
     if((nSnowOnlyHyd>0 .and. nSnowOnlyNrg>0) .or. (nLakeOnlyHyd>0 .and. nLakeOnlyNrg>0) .or. (nGlceOnlyHyd>0 .and. nGlceOnlyNrg>0))then
-      do qLayer=1,nSnow+nLake+nGlce-noThetaChange ! loop through layers in the snow, lake, glce domains
+      do qLayer=1,nSnow+nLake+nGlce ! loop through layers in the snow, lake, glce domains, those with no water state are skipped below
 
         if(qLayer<=nSnow+nLake)then
           jLayer = qLayer
@@ -452,6 +452,7 @@ subroutine fluxJacAdd(&
   integer(i4b)                         :: endLayerWat                ! index of the last layer in a water domain
   integer(i4b)                         :: endLayerNrg                ! index of the last layer in an energy domain
   integer(i4b)                         :: denseLimit                 ! index of the limiting dense layer
+  integer(i4b)                         :: nSoilHyd                   ! number of hydrologically active soil layers
   logical(i4b)                         :: solid                      ! flag to indicate if layer is solid ice (frozen lake or glacier ice)
   ! conversion factors
   real(rkind)                          :: convLiq2tot                ! factor to convert liquid water derivative to total water derivative
@@ -698,7 +699,7 @@ subroutine fluxJacAdd(&
     ! * cross derivatives in the snow, lake, glce domains...
     ! ----------------------------------------
     if((nSnowOnlyHyd>0 .and. nSnowOnlyNrg>0) .or. (nLakeOnlyHyd>0 .and. nLakeOnlyNrg>0) .or. (nGlceOnlyHyd>0 .and. nGlceOnlyNrg>0))then
-      do qLayer=1,nSnow+nLake+nGlce-noThetaChange ! loop through layers in the snow, lake, glce domains
+      do qLayer=1,nSnow+nLake+nGlce ! loop through layers in the snow, lake, glce domains, those with no water state are skipped below
 
         if(qLayer<=nSnow+nLake)then
           jLayer = qLayer
@@ -849,9 +850,11 @@ subroutine fluxJacAdd(&
     ! ----------------------------------------
     if(ixAqWat/=integerMissing)then
       aJac(ixInd(full,ixAqWat,ixAqWat),ixAqWat) = -dBaseflow_dAquifer*dt + dMat(ixAqWat)
-      if(nSoil>0)then
-        if(ixSoilOnlyNrg(nSoil)/=integerMissing) aJac(ixInd(full,ixAqWat,ixSoilOnlyNrg(nSoil)),ixSoilOnlyNrg(nSoil)) = -dq_dNrgStateAbove(nSoil)*dt ! dAquiferRecharge_dTk  = d_iLayerLiqFluxSoil(nSoil)_dTk
-        if(ixSoilOnlyHyd(nSoil)/=integerMissing) aJac(ixInd(full,ixAqWat,ixSoilOnlyHyd(nSoil)),ixSoilOnlyHyd(nSoil)) = -dq_dHydStateAbove(nSoil)*dt ! dAquiferRecharge_dWat = d_iLayerLiqFluxSoil(nSoil)_dWat
+      ! recharge leaves the lowest soil layer that carries water, which is above any bedrock
+      nSoilHyd = nSoil - merge(noThetaChange, 0, nGlce==0)
+      if(nSoilHyd>0)then
+        if(ixSoilOnlyNrg(nSoilHyd)/=integerMissing) aJac(ixInd(full,ixAqWat,ixSoilOnlyNrg(nSoilHyd)),ixSoilOnlyNrg(nSoilHyd)) = -dq_dNrgStateAbove(nSoilHyd)*dt ! dAquiferRecharge_dTk  = d_iLayerLiqFluxSoil(nSoilHyd)_dTk
+        if(ixSoilOnlyHyd(nSoilHyd)/=integerMissing) aJac(ixInd(full,ixAqWat,ixSoilOnlyHyd(nSoilHyd)),ixSoilOnlyHyd(nSoilHyd)) = -dq_dHydStateAbove(nSoilHyd)*dt ! dAquiferRecharge_dWat = d_iLayerLiqFluxSoil(nSoilHyd)_dWat
       endif
       ! - include derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration)
       if(computeVegFlux)then
