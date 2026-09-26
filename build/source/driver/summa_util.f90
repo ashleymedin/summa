@@ -455,13 +455,15 @@ contains
      ixProgress    = ixProgress_never
      iRunMode      = iRunModeGRU
 
-     config%nGRU_user  = 1
+     ! NextGen runs one catchment per BMI instance; the MODFLOW 6 coupler runs every GRU
+     ! in the attributes file, a missing count meaning the rest of the file
+     config%nGRU_user  = merge(1, integerMissing, ngen_active)
      config%nHRU_check = integerMissing
 
      ! NOTE: startGRU is deliberately not set for NextGen. There it identifies which
      !       catchment this BMI instance is running, and summa_bmi_initialize has
      !       already taken it from the NextGen parameters namelist. The MODFLOW 6
-     !       coupler runs one GRU domain, so it does set it.
+     !       coupler starts at the first GRU, so it does set it.
      if(.not.ngen_active)then
        startGRU  = 1
        ixRestart = ixRestart_never
