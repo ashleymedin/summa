@@ -240,7 +240,7 @@ AFTER tag of v4.0.0-exp-Sundials
  59) New exponential hydraulic conductivity profile, used internally for glacier debris and future for SUMMA coupled to separate aquifer, commits bb2b1344 and 5095074b Sep 10, 2026
       ! constant  ! constant hydraulic conductivity with depth (not allowed with groundwatr == qTopmodl)
       ! pow_prof  ! power-law profile (original TOPMODEL-ish form)
-      ! exp_prof  ! exponential profile, only for >=v4.1 (used internally for glacier debris; not allowed with groundwatr == qTopmodl)
+      ! exp_prof  ! exponential profile (for lateral flow inside soil not representing aquifer)
      New parameter f_hydCond, decay rate of hydraulic conductivity with depth for the exponential profile (m-1), supraglacial debris and weathered shallow till values are default.
       f_hydCond                 |       0.7500 |       0.1000 |      10.0000
      SCOPE: only qTopmodl (and glacier domains) runs computBaseflow, and there exp_prof does not represent a shallow aquifer:

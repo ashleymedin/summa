@@ -88,7 +88,7 @@ hyporhTdyn                      none            ! (34) hyporheic exchange in a s
 ! (09) choice of hydraulic conductivity profile
 ! constant  ! constant hydraulic conductivity with depth (not allowed with groundwatr == qTopmodl)
 ! pow_prof  ! power-law profile (original TOPMODEL-ish form)
-! exp_prof  ! exponential profile,  (for lateral flow inside soil not representing aquifer)
+! exp_prof  ! exponential profile  (for lateral flow inside soil not representing aquifer)
 ! -----------------------------------------------------------------------------------------------
 ! (10) choice of upper boundary conditions for thermodynamics
 ! presTemp  ! prescribed temperature

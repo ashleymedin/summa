@@ -36,12 +36,13 @@ thCondSoil                      funcSoilWet     ! (24) choice of thermal conduct
 spatial_gw                      localColumn     ! (25) choice of method for the spatial representation of groundwater
 subRouting                      timeDlay        ! (26) choice of method for sub-grid routing
 nrgConserv                      enthalpyForm    ! (27) choice of variable in energy equations (BE residual or IDA state variable)
-infRateMax                      GreenAmpt       ! (28) choice of infiltration rate method
-surfRun_SE                      homegrown_SE    ! (29) choice of saturation excess (SE) surface runoff parameterization
-read_force                      readPerStep     ! (30) method used to read forcing data
-write_buff                      writePerStep    ! (31) method used to write model output
-deepTherml                      none            ! (32) choice of deep thermal state below the soil column
-hyporhTdyn                      none            ! (33) hyporheic exchange in a stream domain
+aquiferIni                      fullStart       ! (28) initial fill level of the aquifer
+infRateMax                      GreenAmpt       ! (29) choice of infiltration rate method
+surfRun_SE                      homegrown_SE    ! (30) choice of saturation excess (SE) surface runoff parameterization
+read_force                      readPerStep     ! (31) method used to read forcing data
+write_buff                      writePerStep    ! (32) method used to write model output
+deepTherml                      none            ! (33) choice of deep thermal state below the soil column
+hyporhTdyn                      none            ! (34) hyporheic exchange in a stream domain
 ! ***********************************************************************************************
 ! ***** description of the options available -- nothing below this point is read ****************
 ! ***********************************************************************************************
@@ -78,14 +79,16 @@ hyporhTdyn                      none            ! (33) hyporheic exchange in a s
 ! specified ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
 ! -----------------------------------------------------------------------------------------------
 ! (08) choice of groundwater parameterization
-! qTopmodl  ! topmodel parameterization
-! bigBuckt  ! a big bucket (lumped aquifer model)
-! noXplict  ! no explicit groundwater parameterization
+! qTopmodl   ! topmodel parameterization
+! bigBuckt   ! a big bucket (lumped aquifer model)
+! noXplict   ! no explicit groundwater parameterization
+! modflow    ! couple with MODFLOW6 (no aquifer modelled in SUMMA)
+! modLatflow ! couple with MODFLOW6 but allow lateral flow in soil column (no aquifer modelled in SUMMA)
 ! -----------------------------------------------------------------------------------------------
 ! (09) choice of hydraulic conductivity profile
 ! constant  ! constant hydraulic conductivity with depth (not allowed with groundwatr == qTopmodl)
 ! pow_prof  ! power-law profile (original TOPMODEL-ish form)
-! exp_prof  ! exponential profile, only for >=v4.1 (used internally for glacier debris; not allowed with groundwatr == qTopmodl)
+! exp_prof  ! exponential profile  (for lateral flow inside soil not representing aquifer)
 ! -----------------------------------------------------------------------------------------------
 ! (10) choice of upper boundary conditions for thermodynamics
 ! presTemp  ! prescribed temperature
@@ -94,7 +97,7 @@ hyporhTdyn                      none            ! (33) hyporheic exchange in a s
 ! (11) choice of lower boundary conditions for thermodynamics
 ! presTemp  ! prescribed temperature
 ! zeroFlux  ! zero flux
-! presFlux  ! prescribed energy flux, the geothermal heat flux (parameter lowerBoundNrgFlux)
+! presFlux  ! prescribed energy flux, the geothermal heat flux
 ! -----------------------------------------------------------------------------------------------
 ! (12) choice of upper boundary conditions for soil hydrology
 ! presHead  ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
@@ -171,34 +174,37 @@ hyporhTdyn                      none            ! (33) hyporheic exchange in a s
 ! enthalpyForm    ! use enthalpy with soil temperature-enthalpy lookup tables
 ! enthalpyFormAN  ! use enthalpy with soil temperature-enthalpy analytical solutions
 ! -----------------------------------------------------------------------------------------------
-! (28) choice of infiltration rate method
+! (28) initial fill level of the aquifer
+! fullStart   ! start from the aquifer storage in the initial conditions file
+! emptyStart  ! start from empty aquifer, only on cold start (restart written by SUMMA keeps its aquifer)
+! -----------------------------------------------------------------------------------------------
+! (29) choice of infiltration rate method
 ! GreenAmpt   ! Green-Ampt
 ! topmodel_GA ! Green-Ampt with TOPMODEL conductivity rate
 ! noInfExc    ! no infiltration excess runoff (saturation excess may still occur)
 ! -----------------------------------------------------------------------------------------------
-! (29) choice of saturation excess (SE) surface runoff parameterization
+! (30) choice of saturation excess (SE) surface runoff parameterization
 ! zero_SE      ! zero SE surface runoff
 ! homegrown_SE ! SE component of SUMMA's original liquid flux parameterization (default)
 ! FUSEPRMS     ! FUSE PRMS surface runoff parameterization
 ! FUSEAVIC     ! FUSE ARNO/VIC surface runoff parameterization
 ! FUSETOPM     ! FUSE TOPMODEL surface runoff parameterization
 ! -----------------------------------------------------------------------------------------------
-! (30) method used to read forcing data
+! (31) method used to read forcing data
 ! readPerStep    ! read forcing data per time step (default)
 ! readFullSeries ! read full forcing series in a buffered read
 ! -----------------------------------------------------------------------------------------------
-! (31) method used to write model output
+! (32) method used to write model output
 ! writePerStep    ! write model output per time step (default)
 ! writeFullSeries ! write all data for a given output file in a buffered read
 ! -----------------------------------------------------------------------------------------------
-! (32) choice of deep thermal state below the soil column, which sets the temperature of the
-!     water the groundwater hands to the channel
-! none        ! the base of the soil column itself, floored at freezing (default)
-! aquiferTemp ! a well-mixed temperature carried by the big-bucket aquifer store (needs groundwatr = bigBuckt)
+! (33) choice of deep thermal state below soil, setting groundwater temperature to the channel
+! none        ! the base of the soil column itself, floored at freezing
+! aquiferTemp ! a well-mixed temperature carried by the big-bucket aquifer store
 ! airTempGW   ! groundwater temperature scaled from the air temperature, Wade et al. (2024)
-! bedrockLyrs ! the deepest soil layers carry heat alone, extending the column into bedrock (needs nBedrock in the coldState)
+! bedrockLyrs ! the deepest soil layers carry heat alone, extending the column into bedrock
 ! -----------------------------------------------------------------------------------------------
-! (33) hyporheic exchange in a stream domain
+! (34) hyporheic exchange in a stream domain
 ! none   ! no exchange with the bed (default)
-! proxy  ! a tuned fraction of the flow returns at the temperature the reach had hypLag hours ago, Wade et al. (2024)
+! proxy  ! fraction of the flow returns at temperature reach had hypLag hours ago, Wade et al. (2024)
 ! ***********************************************************************************************
