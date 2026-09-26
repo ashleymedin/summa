@@ -46,30 +46,15 @@ so running the pair isolates what lateral flow contributes. They write `run1_lat
 
 ## What to check
 
-**This check is currently inert, and the case cannot detect a cascade regression.** Both
-`run1_latflow` and `run1_noLatflow` report every `mLayerColumnOutflow` and
-`mLayerColumnInflow` as exactly zero, so HRU 1 and its control twin HRU 4 are
-bit-identical for want of any lateral water at all.
+Run totals over the 72 hours, `run1_latflow`:
 
-The reason is not the forcing. The case was moved from August 2019 -- the driest month in
-the record, 3.8 mm -- to the February 2017 atmospheric river, 128 mm of precipitation in
-the 72 hours run and 121 mm of it rain, and the outflow stayed at zero. The soil ends the
-run wet but nowhere saturated:
+    hru 1 (receiver    ): inflow 14867.42 m3   outflow 1286.26 m3
+    hru 2 (contributor ): inflow     0.00 m3   outflow 7457.77 m3
+    hru 3 (contributor ): inflow     0.00 m3   outflow 7409.66 m3
+    hru 4 (CONTROL twin): inflow     0.00 m3   outflow 1269.03 m3   (ratio 1.0136)
 
-    liquid fraction   0.3701 0.3700 0.3684 0.3606 0.3432 0.2723 0.2490 0.3392
-    matric head (m)  -0.112 -0.113 -0.121 -0.159 -0.246 -0.732 -0.993 -0.267
-                     fieldCapacity 0.20, theta_sat 0.55
-
-`groundwatr.f90` zeroes the transmissivity of every layer above the saturated zone
-(`if (ixSaturation>1) trSoil(1:ixSaturation-1) = 0`), so with no saturated layer there is
-no lateral flow to cap or route. The drainable water is ample, well above field capacity,
-so the outflow cap is not what closes this off.
-
-What is odd, and is the thing to chase: with `bcLowrSoiH = presHead` the coupler sets
-`lowerBoundHead = h_mf6 - (z_surface - soil_thickness)`, which for a water table 1.5 m below
-the surface and a 4 m column is about +2.5 m -- the column base ought to be saturated. It is
-not, the upward flux being conductivity-limited at roughly 1.8 mm/h. Until that is resolved
-`groundwatr = modLatflow` moves no water in a coupled run, for any forcing.
+HRU 1's inflow is HRU 2 plus HRU 3 to the last digit, which is the cascade delivering, and
+HRU 1 outflows more than its twin because of what it received.
 
 For the record, the values this check reported before the lateral outflow cap of
 `changes_fromV3Summa` entry 71:
@@ -77,7 +62,7 @@ For the record, the values this check reported before the lateral outflow cap of
     hru 1 (receiver    ): inflow 4.0458e-02   outflow 3.53643928e-03
     hru 4 (CONTROL twin): inflow 0.0000e+00   outflow 3.49913476e-03   (ratio 1.0107)
 
-**HRU 1 and HRU 4 must not be equal** once lateral flow works again. If they are
+**HRU 1 and HRU 4 must not be equal.** If they are
 bit-identical while HRU 1's inflow is non-zero, the cascade ordering has regressed and the
 inflow is being discarded. Verified both ways at the time: with the ordering fix reverted,
 the two were bit-identical at `3.49912619e-03`.
@@ -87,4 +72,5 @@ they differ for unrelated reasons. Only HRU 4 is a true control, which is why it
 HRU 1's cells and elevation rather than owning a private region.
 
 In `run1_noLatflow` every column outflow is zero, which is the expected contrast rather than
-a second cascade check.
+a second cascade check. The coupled water budget reports -3497221.8988253158 m3 sent with
+lateral flow and -3497160.0041720532 m3 without.

@@ -67,11 +67,10 @@ atmospheric river, 2017-02-07 to 2017-02-09, written by
 no sub-GRU information, so there is nothing finer to distribute; the domain tests
 structure, not a new forcing product.
 
-Lateral flow nonetheless moves no water here either: `mLayerColumnOutflow` is zero
-for all 3396 HRUs, because no soil layer saturates and `groundwatr.f90` zeroes the
-transmissivity above the saturated zone. `run_sagehen9.sh` and
-`run_sagehen9_noLatflow.sh` therefore differ in code path but not in water routed.
-See `../domain_sagehen4/README.md` for the diagnosis.
+Lateral flow runs in every GRU: `mLayerColumnOutflow` is non-zero throughout
+`run1_latflow` and identically zero in `run1_noLatflow`, and the coupled budget
+separates the pair, -3583728.2873723782 m3 sent against -3589055.3876466001 m3.
+The run takes about 2.5 minutes for the 72 steps.
 
 ## Expected at start-up
 
