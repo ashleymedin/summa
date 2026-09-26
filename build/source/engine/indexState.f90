@@ -333,6 +333,7 @@ contains
  integer(i4b)                                    :: iVar            ! variable index
  integer(i4b)                                    :: iLayer          ! layer index
  integer(i4b)                                    :: nSoilHyd        ! number of hydrologically active soil layers
+ integer(i4b)                                    :: nGlceHyd        ! number of hydrologically active glacier ice layers
  integer(i4b)                                    :: ixVegWat        ! index of total water in the vegetation canopy
  integer(i4b)                                    :: ixVegLiq        ! index of liquid water in the vegetation canopy
  integer(i4b)                                    :: ixTopWat        ! index of upper-most total water state in the layers
@@ -543,14 +544,18 @@ contains
 
  ! get list of indices for hydrology
  ! NOTE: layers not in the state subset will be missing
- ixSnLaSoGlHyd = ixMapFull2Subset(ixHydLayer(                  1:nLayers-noThetaChange))  ! all layers
+ ixSnLaSoGlHyd = integerMissing                                                           ! layers below the ones that carry water keep no hydrology index
+ if(nLayers>noThetaChange) ixSnLaSoGlHyd(1:nLayers-noThetaChange) = ixMapFull2Subset(ixHydLayer(1:nLayers-noThetaChange)) ! all layers
  ixSnowOnlyHyd = ixMapFull2Subset(ixHydLayer(                  1:nSnow  ))                ! snow layers only
  ixLakeOnlyHyd = ixMapFull2Subset(ixHydLayer(            nSnow+1:nSnow+nLake))            ! lake layers only
  ixSoilOnlyHyd = integerMissing                                                           ! thermal-only bedrock keeps no hydrology state
  nSoilHyd = nSoil
  if(nGlce==0) nSoilHyd = nSoil - noThetaChange
  if(nSoilHyd>0) ixSoilOnlyHyd(1:nSoilHyd) = ixMapFull2Subset(ixHydLayer(nSnow+nLake+1:nSnow+nLake+nSoilHyd)) ! soil layers only
- ixGlceOnlyHyd = ixMapFull2Subset(ixHydLayer(nSnow+nLake+nSoil+1:nLayers-noThetaChange))  ! glce layer 1 only
+ ixGlceOnlyHyd = integerMissing                                                           ! thermal-only ice keeps no hydrology state
+ nGlceHyd = nGlce
+ if(nGlce>0) nGlceHyd = nGlce - noThetaChange
+ if(nGlceHyd>0) ixGlceOnlyHyd(1:nGlceHyd) = ixMapFull2Subset(ixHydLayer(nSnow+nLake+nSoil+1:nSnow+nLake+nSoil+nGlceHyd)) ! glce layers only
 
  ! define active layers (regardless if the splitting operation is energy or mass)
  ixLayerActive =  merge(ixSnLaSoGlNrg, ixSnLaSoGlHyd, ixSnLaSoGlNrg/=integerMissing)

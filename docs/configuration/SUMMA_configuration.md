@@ -133,3 +133,26 @@ The debris model is controlled by four GRU-level parameters in the
 `debrisConc` (englacial debris concentration, kg m-3), `wallErosionRate` (mm yr-1),
 `debrisCritStress` (Pa) and `latMoraineWidth` (m). All have defaults, so they only need to be
 set when the defaults do not suit a particular glacier.
+
+### Deep thermal bedrock column
+
+[`deepTherml`](SUMMA_model_decisions.md#deeptherml) `bedrockLyrs` extends the upland soil
+column downward with thermal-only layers that carry no hydrology, so a permafrost run can give
+the geothermal flux a deep enough column to relax into rather than hitting the base of the
+hydrologically active soil. There are two ways to get them:
+
+* Supply `nBedrock` (and the layer geometry and state that go with it) directly in the
+  [initial conditions file](../input_output/SUMMA_input.md#infile_initial_conditions), the same
+  way any other layer count is supplied.
+* Leave `nBedrock` out and let SUMMA build the layers itself: `nBedrockLayers` (5, growing
+  geometrically) down to `bedrockDepth` (30 m below the surface). Both are compile-time
+  defaults in `build/source/dshare/globalData.f90` — there is currently no input-file or
+  command-line way to change them for a run without recompiling.
+
+The built layers use `thCond_bedrock` and `theta_sat_bedrock` (both **local** parameters, with
+defaults, in the [local parameters file](../input_output/SUMMA_input.md#infile_local_parameters))
+for thermal conductivity and porosity, in place of the usual soil-texture parameters, and start
+on the steady-state gradient held by the geothermal flux — so pair `bedrockLyrs` with
+[`bcLowrTdyn`](SUMMA_model_decisions.md#bclowrtdyn) `presFlux` and its `lowerBoundNrgFlux`
+parameter, or the column starts uniform and needs its own spin-up. See
+[deepTherml](SUMMA_model_decisions.md#deeptherml) for the full discussion.
