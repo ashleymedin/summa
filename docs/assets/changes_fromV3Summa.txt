@@ -305,4 +305,5 @@ AFTER tag of v4.0.0-exp-Sundials
  73) Add thCond_bedrock, theta_sat_bedrock, gwTempWindow, hypFrac, hypLag, lowerBoundNrgFlux and C_ATGW to the example test cases' param files, commit 72c501c5 Sep 26, 2026
      Previously only reachable through the read_pinit fallback defaults.
  74) Document bedrockLyrs under deepTherml (was misplaced under hyporhTdyn), the deep bedrock column, and nBedrock, commit 09fb1dd4 Sep 26, 2026
-
+-75) computJacob.f90 snow, lake and ice cross derivatives run over the whole domain, not short by noThetaChange, commit 4511fbf5 Sep 26, 2026
+     With bedrock the bound truncated the snow loop and dropped every snow dNrg/dWat entry; solver fallbacks 500 -> 6 in the gulkana bedrock run.
