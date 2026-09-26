@@ -12,6 +12,7 @@ This folder holds the coupler driver script, two MODFLOW 6 models, and five case
 | `./run_sagehen4_noLatflow.sh` | `domain_sagehen4` | 4 | `modflow` | the same four HRUs without lateral flow |
 | `./run_sagehen1_steady.sh` | `domain_sagehen1` | 1 | `modflow` | steady-state first stress period, and a DRN at land surface returning groundwater discharge as surface runoff |
 | `./run_sagehen1_deeproot.sh` | `domain_sagehen1` | 1 | `modflow` | groundwater evapotranspiration through an EVT package |
+| `./run_sagehen9.sh` | `domain_sagehen9` | 3396 | `modLatflow` | one HRU per MODFLOW cell in 9 GRUs; HRU area equals cell area, so there is no aggregation or area error left to correct |
 
 `domain_sagehen4` carries two file managers, `fileManager_latflow.txt` and
 `fileManager_noLatflow.txt`, whose decision files differ on the `groundwatr` line alone, so
@@ -195,6 +196,10 @@ One `iHRU  cell  weight` triple per line, whitespace separated; blank lines and 
 ignored. `cell` is the row-major horizontal MODFLOW index `(irow-1)*ncol + icol`. Weights are
 normalised per HRU, so `1.0` on every line spreads an HRU evenly over its cells. An HRU may
 span any number of lines.
+
+`iHRU` is SUMMA's internal HRU index, which runs GRU by GRU. With one GRU that is the row
+order of `attributes.nc`; with several it is that order only if the file is itself written
+GRU by GRU, which `domain_sagehen9` is.
 
 ## Mapping HRUs to cells
 
