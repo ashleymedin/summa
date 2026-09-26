@@ -105,6 +105,8 @@ utils/test/test_mflow/domain_sagehen1/simulations/run_1/SUMMA/*.nc
 utils/test/test_mflow/domain_sagehen1/simulations/run_1/SUMMA/*.txt
 utils/test/test_mflow/domain_sagehen4/simulations/run_1/SUMMA/*.nc
 utils/test/test_mflow/domain_sagehen4/simulations/run_1/SUMMA/*.txt
+utils/test/test_mflow/domain_sagehen9/simulations/run_1/SUMMA/*.nc
+utils/test/test_mflow/domain_sagehen9/simulations/run_1/SUMMA/*.txt
 utils/test/test_mflow/ex-gwf-sagehen/*.lst
 utils/test/test_mflow/ex-gwf-sagehen/*.hds
 utils/test/test_mflow/ex-gwf-sagehen/*.cbc
