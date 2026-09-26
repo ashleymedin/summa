@@ -1407,10 +1407,7 @@ contains
     if (abs(pct) > 1.d0) write(*,'(a)') '  NOTE: a non-zero mapping residual is the HRU/cell area mismatch, '// &
       'not the coupling lag; see the HRU area warnings at start-up.'
 
-    ! A land-surface drain exists to stop the water table rising above ground, not to move water.
-    ! Water the aquifer cannot hold should normally leave through the soil column, as a head-driven
-    ! upward flux across the prescribed-head lower boundary, so a seepage term of the same order as
-    ! the recharge means the drain is carrying flow the soil column should have taken.
+    ! the drain caps the water table; water the aquifer cannot hold should leave through the soil column
     if (this%have_surfdis .and. abs(this%bud_sent) > 0.d0) then
       if (abs(this%bud_back(ROLE_SURFACE_DISCH)) > 0.1d0*abs(this%bud_sent)) &
         write(*,'(a,f0.1,a)') '  WARNING: land-surface seepage is ', &
