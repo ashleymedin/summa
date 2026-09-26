@@ -6,7 +6,8 @@ use build_options, only: modflow_active
 USE nr_type
 USE summa_type, only: config_info       ! summa configuation info
 USE globalData, only: iulog             ! I/O unit for logging messages
-USE globalData, only: iRunMode, iRunModeFull
+USE globalData, only: startGRU             ! index of the first GRU of the run domain
+USE globalData, only: integerMissing       ! missing integer
 
 #ifdef MIZUROUTE_ACTIVE
 USE mizuroute_config, ONLY: parse_mizuroute_config
@@ -243,9 +244,11 @@ contains
 
     ! ----- checks -----
     ! Coupled mizuRoute requires the complete set of SUMMA GRUs because runoff from upstream
-    ! GRUs may contribute to river reaches outside the selected SUMMA subdomain.
-    if (config%use_mizuroute .and. iRunMode /= iRunModeFull) then
-      message=trim(message)//'The -g subdomain option cannot be used with coupled mizuRoute because '// &
+    ! GRUs may contribute to river reaches outside the selected SUMMA subdomain.  It is the GRU
+    ! range that says whether the run is the whole domain, not the run mode: a host owning the
+    ! command line runs every GRU of the attributes file, but under iRunModeGRU for the file suffix.
+    if (config%use_mizuroute .and. .not.(startGRU == 1 .and. config%nGRU_user == integerMissing)) then
+      message=trim(message)//'A GRU subdomain cannot be used with coupled mizuRoute because '// &
                              'the selected GRUs may not contain the complete upstream river network.'
       err=20; return
     endif

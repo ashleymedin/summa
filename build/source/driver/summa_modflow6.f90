@@ -26,9 +26,11 @@ program summa_modflow6
   ! for the exchange, the &coupler namelist and the HRU->cell map, and
   ! utils/test/test_mflow/README.md for the test cases.
   !
-  ! Usage:  summa_modflow6.exe <fileManager.txt> <summa_modflow6.config>
+  ! Usage:  summa_modflow6.exe <fileManager.txt> <summa_modflow6.config> [<config.toml>]
   !         or through utils/test/test_mflow/coupler_commands.sh, which resolves paths and cds into
-  !         the MODFLOW case directory.
+  !         the MODFLOW case directory.  The TOML is needed only for a build with mizuRoute, whose
+  !         river network it configures; the routing then runs inside SUMMA's own step, taking the
+  !         GRU runoff that already carries the MODFLOW baseflow.
   !
   ! One exchange per SUMMA data step, explicit with a one-step lag.  Steps 1 and 2 are here, steps 3
   ! to 5 are mf6_coupling's mf6_step:
@@ -103,7 +105,7 @@ program summa_modflow6
   integer                :: istat, nHRU, modelTimeStep
   integer                :: err
   character(len=1024)    :: message
-  character(len=1024)    :: file_manager, config_file
+  character(len=1024)    :: file_manager, config_file, toml_file
   real, allocatable      :: drain_hru(:)     ! per-HRU soil drainage        (m s-1)
   real, allocatable      :: head_hru(:)      ! per-HRU prescribed head      (m, matric head at soil base)
   real, allocatable      :: bflow_hru(:)     ! per-HRU aquifer baseflow     (m s-1, + = out of aquifer)  -> scalarAquiferBaseflow
@@ -127,18 +129,26 @@ contains
   ! ==================================================================================
   subroutine initialize_coupler
 
-    ! -- command line: file manager and this case's coupler config, both required --
+    ! -- command line: file manager and this case's coupler config, both required; a TOML
+    !    configuration file follows them when the run also routes with mizuRoute --
     if (command_argument_count() < 2) then
-      write(*,*) 'usage: summa_modflow6 <fileManager.txt> <summa_modflow6.config>'
+      write(*,*) 'usage: summa_modflow6 <fileManager.txt> <summa_modflow6.config> [<config.toml>]'
       write(*,*) '  the config is required: each case keeps its own beside its settings, so several'
       write(*,*) '  cases can share one MODFLOW model directory'
+      write(*,*) '  the TOML is required only to run mizuRoute alongside MODFLOW 6'
       error stop 1
     end if
     call get_command_argument(1, file_manager)
     call get_command_argument(2, config_file)
+    toml_file = ''
+    if (command_argument_count() >= 3) call get_command_argument(3, toml_file)
 
     ! -- initialize SUMMA through its BMI --
-    istat = summa%initialize(trim(file_manager))
+    if (len_trim(toml_file) > 0) then
+      istat = summa%initialize_toml(trim(file_manager), trim(toml_file))
+    else
+      istat = summa%initialize(trim(file_manager))
+    end if
     if (istat /= BMI_OK) then; write(*,*) 'summa_modflow6: SUMMA initialize failed'; error stop 1; end if
 
     ! -- the coupled-groundwater decision must be active --

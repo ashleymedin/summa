@@ -90,3 +90,37 @@ where 200 m of latitude is 0.002°.
     ../run_sagehen9.sh
 
 Needs `bin/summa_modflow6.exe`, built with `-DUSE_MODFLOW6=ON`.
+
+## Routing the nine reaches
+
+    ../run_sagehen9_mizuroute.sh
+
+Needs `bin/summa_modflow6_mizuroute.exe`, built with both `-DUSE_MODFLOW6=ON` and
+`-DUSE_MIZUROUTE=ON`. It is the same run as `run_sagehen9.sh` — the same decisions,
+the same MODFLOW model — with `settings/mizuroute/mizu_control_sagehen9.toml` added,
+which turns `topology.nc` into a live river network. Output goes to
+`run1_mizuroute` so the unrouted run stays for comparison.
+
+The routing needs no remapping file: `hruId` in `topology.nc` is the SUMMA GRU id, one
+for one, so `q_basin` is `averageRoutedRunoff` exactly. `Q_reach` (m3 s-1),
+`q_basin`, `upArea` and the stream-column `T_reach`, `v_reach`, `n_reach` and
+`ice_reach` are written into the SUMMA timestep file.
+
+What to check, over the 72 steps:
+
+- `upArea` of reach 9 is 27434700 m2, the grid's active area, and each junction reach
+  is the sum of its tributaries.
+- the network conserves water. 86878.4 m3 enters as lateral inflow,
+  86352.7 m3 leaves reach 9, and the 525.7 m3 difference (0.61%) is still in the
+  reaches at the end.
+- `Q_reach` tracks `averageRoutedRunoff`, not `basin__TotalRunoff`: the latter is
+  ahead of SUMMA's own time-delay histogram (`subRouting = timeDlay`), which holds
+  back about 40% of the storm over a run this short.
+- the coupled budget is the unrouted run's. MODFLOW receives
+  -3583728.2873723735 m3, as `run1_latflow` does, since nothing the routing
+  does reaches the soil column.
+
+The one difference is the mapping residual, -1107.1 m3 (0.031%) against the unrouted
+run's round-off. Routing solves the nine stream columns, and their soil drainage has no
+cell in `hru2cell_map.txt`, which covers the land HRUs alone. Streambed leakage into the
+aquifer is not represented, so that water is simply dropped.

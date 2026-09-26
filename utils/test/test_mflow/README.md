@@ -1,7 +1,7 @@
 # SUMMA / MODFLOW 6 coupled test cases
 
 A thin BMI coupler runs SUMMA as the land model and MODFLOW 6 as the groundwater model.
-This folder holds the coupler driver script, two MODFLOW 6 models, and five cases.
+This folder holds the coupler driver script, two MODFLOW 6 models, and eight cases.
 
 ## Cases
 
@@ -13,16 +13,23 @@ This folder holds the coupler driver script, two MODFLOW 6 models, and five case
 | `./run_sagehen1_steady.sh` | `domain_sagehen1` | 1 | `modflow` | steady-state first stress period, and a DRN at land surface returning groundwater discharge as surface runoff |
 | `./run_sagehen1_deeproot.sh` | `domain_sagehen1` | 1 | `modflow` | groundwater evapotranspiration through an EVT package |
 | `./run_sagehen9.sh` | `domain_sagehen9` | 3396 | `modLatflow` | one HRU per MODFLOW cell in 9 GRUs; HRU area equals cell area, so there is no aggregation or area error left to correct |
+| `./run_sagehen9_noLatflow.sh` | `domain_sagehen9` | 3396 | `modflow` | the same 3396 HRUs without lateral flow |
+| `./run_sagehen9_mizuroute.sh` | `domain_sagehen9` | 3396 | `modLatflow` | `run_sagehen9.sh` with the 9 reaches routed by mizuRoute; needs a build with both couplers |
 
 `domain_sagehen4` carries two file managers, `fileManager_latflow.txt` and
 `fileManager_noLatflow.txt`, whose decision files differ on the `groundwatr` line alone, so
 running the pair isolates what lateral flow contributes. They write `run1_latflow*` and
 `run1_noLatflow*`, so neither overwrites the other.
 
-The first three share the MODFLOW 6 model in `ex-gwf-sagehen`; the last two use
-`ex-gwf-sagehen-ss`, which adds a steady-state first stress period plus DRN and EVT packages.
-All five run the same 72 hourly steps. Each case carries its own `summa_modflow6.config`, so
-they can differ in package names, roles, HRU→cell map and feedback.
+`run_sagehen1_steady.sh` and `run_sagehen1_deeproot.sh` use `ex-gwf-sagehen-ss`, which adds a
+steady-state first stress period plus DRN and EVT packages; the rest share the MODFLOW 6 model
+in `ex-gwf-sagehen`. All of them run the same 72 hourly steps. Each case carries its own
+`summa_modflow6.config`, so they can differ in package names, roles, HRU→cell map and feedback.
+
+`run_sagehen9_mizuroute.sh` is the only case that also needs a TOML configuration file, which
+`coupler_commands.sh` takes with `-t` and passes to the coupler as a third argument. It
+configures the river network; everything SUMMA needs is still in the file manager. That case
+needs `bin/summa_modflow6_mizuroute.exe`, built with `-DUSE_MODFLOW6=ON -DUSE_MIZUROUTE=ON`.
 
 `run_sagehen1_deeproot.sh` is a mechanism test rather than a realistic Sagehen setup: it sets
 `rootingDepth` to 6 m against a 4 m soil column with `rootProfil = doubleExp` and both root
