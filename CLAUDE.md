@@ -59,9 +59,3 @@ An existing build directory needs these in the environment when it reconfigures:
 ```
 FC=/opt/local/bin/gfortran LIBRARY_LINKS='-llapack' make -j8
 ```
-
-## Tests
-
-`utils/test/test_mflow/` holds five coupled Sagehen cases. Run them all after any
-change to the coupling or the solver, and check the reported coupled water budget
-against the previous run — `sagehen1` should report `-11971448.016178789` sent.
