@@ -37,6 +37,7 @@ program summa_driver_opt
   USE iso_fortran_env, only: output_unit
 
   ! parameter sampling
+  USE summa_parameter_sampling, only: check_search_settings
   USE summa_parameter_sampling, only: initialize_parameter_evaluation
   USE summa_parameter_sampling, only: dispatch_parameter_samples
 
@@ -414,6 +415,10 @@ contains
 
     ! the sample budget is a configuration setting, so it is only known now
     nSamples = config%calib%n_samples
+
+    ! refuse a search the configuration cannot run before the spinup is paid for
+    call check_search_settings(config,err,message)
+    if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
     
     ! configure rank-specific logging
     iulog=99
@@ -461,6 +466,7 @@ contains
       calib_file=trim(OUTPUT_PATH)//trim(config%case_name)//'_calibration.nc'
       call create_calibration_output(calib_file,param_spec,nSamples,instance_parallel%size-1,           &
                                      config%case_name,config%calib%targets,                             &
+                                     config%calib%algorithm,config%calib%nsga2%population_size,         &
                                      ncid_calib,err,message)
       if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
     else

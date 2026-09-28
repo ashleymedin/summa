@@ -192,6 +192,14 @@ contains
           cycle
         endif
 
+        ! ----- NSGA-II settings are parsed as a complete sub-table -----
+        if(trim(sections(i)%key) == "calibration" .and. &
+           trim(keys(j)%key)     == "nsga2")then
+          call parse_nsga2_settings(subtable, config, err, cmessage)
+          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+          cycle
+        endif
+
         ! ----- calibration targets are parsed as a complete array of tables -----
         if(trim(sections(i)%key) == "calibration" .and. &
            trim(keys(j)%key)     == "target")then
@@ -572,6 +580,7 @@ contains
     integer,                   intent(out)   :: ierr
     character(*),              intent(out)   :: message
     type(toml_array), pointer     :: param_list  ! sub-table for the list of parameters to vary
+    character(len=:), allocatable :: cvalue      ! a string value read into a fixed-length field
     character(len=256)            :: cmessage    ! error message from downwind routine
     integer(i4b)                  :: istat       ! error code
 
@@ -652,6 +661,8 @@ contains
 
       ! ---- objective function: flag to write aligned sim/obs time series  ----
       case ("calibration.n_samples"        ); call get_value(subtable, trim(key), calib%n_samples         , stat=istat)
+      case ("calibration.algorithm"        ); call get_value(subtable, trim(key), cvalue                  , stat=istat)
+        if(istat == 0) calib%algorithm = trim(cvalue)
       case ("calibration.write_aligned"    ); call get_value(subtable, trim(key), calib%write_aligned     , stat=istat)
       
       ! ---- default case (something in the table that is not specified above) -----
@@ -1115,6 +1126,58 @@ contains
     enddo
   
   end subroutine parse_parameter_transformations
+
+  ! **************************************************************************************************
+  ! Parse the NSGA-II settings in [calibration.nsga2].  Keys left out keep their defaults.
+  ! **************************************************************************************************
+  subroutine parse_nsga2_settings(calib_table, config, ierr, message)
+    use tomlf_all, only: toml_table, toml_key, get_value
+    use data_types, only: nsga2_info
+    implicit none
+
+    type(toml_table), pointer, intent(in)    :: calib_table
+    type(config_info),         intent(inout) :: config
+    integer(i4b),              intent(out)   :: ierr
+    character(*),              intent(out)   :: message
+    type(toml_table), pointer    :: nsga2_table
+    type(toml_key), allocatable  :: keys(:)
+    integer(i4b) :: i
+    integer(i4b) :: istat
+
+    ierr = 0
+    message = 'parse_nsga2_settings/'
+
+    call get_value(calib_table, 'nsga2', nsga2_table, stat=istat)
+    if(istat/=0 .or. .not.associated(nsga2_table))then
+      message=trim(message)//'unable to read the calibration.nsga2 table'
+      ierr=20; return
+    endif
+
+    ! a multi-case run reuses one config structure, so start from the defaults
+    config%calib%nsga2 = nsga2_info()
+
+    call nsga2_table%get_keys(keys)
+    if(.not.allocated(keys)) return
+    do i=1,size(keys)
+      associate(nsga2 => config%calib%nsga2)
+      select case(trim(keys(i)%key))
+        case('population_size');       call get_value(nsga2_table, trim(keys(i)%key), nsga2%population_size,       stat=istat)
+        case('crossover_probability'); call get_value(nsga2_table, trim(keys(i)%key), nsga2%crossover_probability, stat=istat)
+        case('crossover_eta');         call get_value(nsga2_table, trim(keys(i)%key), nsga2%crossover_eta,         stat=istat)
+        case('mutation_probability');  call get_value(nsga2_table, trim(keys(i)%key), nsga2%mutation_probability,  stat=istat)
+        case('mutation_eta');          call get_value(nsga2_table, trim(keys(i)%key), nsga2%mutation_eta,          stat=istat)
+        case default
+          message=trim(message)//'unexpected entry: calibration.nsga2.'//trim(keys(i)%key)
+          ierr=20; return
+      end select
+      end associate
+      if(istat/=0)then
+        message=trim(message)//'unable to read calibration.nsga2.'//trim(keys(i)%key)
+        ierr=20; return
+      endif
+    enddo
+
+  end subroutine parse_nsga2_settings
 
   ! **************************************************************************************************
   ! Parse parameter dependency configuration.

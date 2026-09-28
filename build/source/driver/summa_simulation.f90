@@ -76,6 +76,7 @@ public :: evaluate_objective
 public :: evaluate_objectives
 public :: n_calibration_targets
 public :: scalarize_objectives
+public :: oriented_objectives
 public :: mf6_spinup_phase
 
 ! .true. only while the shared one-year cold-start spin-up is running.  start_modflow reads it to
@@ -178,6 +179,28 @@ contains
     enddo
 
   end function scalarize_objectives
+
+  ! **************************************************************************************************
+  ! Orient each target's objective so that smaller is better, as a Pareto search compares them:
+  ! efficiencies are negated, error metrics kept. A value that is not finite is the worst possible.
+  ! **************************************************************************************************
+  pure function oriented_objectives(config,objective) result(f)
+    use metrics, only: metric_is_maximized
+    use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
+    type(config_info), intent(in) :: config
+    real(rkind),       intent(in) :: objective(:)   ! one value per calibration target
+    real(rkind)                   :: f(size(objective))
+    integer(i4b) :: iTarget
+
+    f = objective
+    if(.not.allocated(config%calib%targets)) return
+
+    do iTarget=1,min(size(config%calib%targets),size(objective))
+      if(metric_is_maximized(config%calib%targets(iTarget)%metric)) f(iTarget) = -objective(iTarget)
+      if(.not.ieee_is_finite(f(iTarget))) f(iTarget) = 0.1_rkind*huge(1._rkind)
+    enddo
+
+  end function oriented_objectives
 
   ! **************************************************************************************************
   ! Evaluate the objective function for a specified parameter vector.
