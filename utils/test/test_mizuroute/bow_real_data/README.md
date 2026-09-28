@@ -9,11 +9,26 @@ purely to compare against t-route.
 
 ## Layout
 - `summa_inputs/` -- forcing, attributes, parameters, decisions for the Bow
-  at Banff domain.
+  at Banff domain. Two forcing sets, each with its own list:
+  `CAN_05BB001_em_earth_distributed_1980-1990.nc` (`forcingFileList.txt`),
+  hourly EM-Earth on Mountain Standard Time, and
+  `CAN_05BB001_rdrs_2002-2017.nc` (`forcingFileList_rdrs.txt`), hourly RDRS
+  v2.1 on UTC, 2002-04 to 2017-12, which overlaps GRACE. The RDRS file joins
+  the SYMFLUENCE `Bow_at_Banff_multivar` basin-average forcing, with `hruId`
+  set to this domain's 101 and `data_step` added.
+- `observations/` -- observations for the RDRS period, both on UTC and
+  written by `utils/pre-processing/`: daily flow
+  (`CAN_05BB001_daily_flow_2002-2017.nc`, from `acquire_streamflow.py wsc
+  05BB001 2002-04-01 2017-12-31 ... --model-utc-offset 0`) and the JPL GRACE
+  anomaly (`CAN_05BB001_grace_tws.nc`, from `acquire_grace_tws.py
+  --attributes summa_inputs/attributes.nc --gru 101`). The basin sits inside
+  one 3-degree mascon, so the cell holding its centroid is its basin average.
 - `mizuroute_inputs/` -- the real river network (`topology.nc`), the
   lumped-catchment-to-routing-HRU remapping (`lumped_to_hru.nc`), mizuRoute
-  parameters (`mizuroute.param`), and observed daily flow
-  (`CAN_05BB001_daily_flow_observations.nc`) for evaluation.
+  parameters (`mizuroute.param`), and observed daily flow for the EM-Earth
+  period (`CAN_05BB001_daily_flow_observations.nc`, on Mountain Standard Time
+  to match that forcing: `acquire_streamflow.py wsc 05BB001 1950-01-01
+  2021-12-31 ... --model-utc-offset -7`).
 - `settings/summa_fileManager.txt` -- SUMMA file manager for this domain.
 - `settings/mizu_control_CAN_05BB001.toml` -- mizuRoute coupling
   configuration: hydrofabric, remapping, observations, and the `[objective]`
