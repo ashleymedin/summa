@@ -309,6 +309,7 @@ The tables below list the time-varying variables that can be requested in the [o
 | `scalarSurfaceRunoff` | surface runoff | m s-1 |
 | `scalarSurfaceRunoff_IE` | infiltration excess surface runoff | m s-1 |
 | `scalarSurfaceRunoff_SE` | saturation excess surface runoff | m s-1 |
+| `scalarAquiferSeepage` | groundwater seepage at land surface from the coupled aquifer | m s-1 |
 | `mLayerSatHydCondMP` | saturated hydraulic conductivity of macropores in each layer | m s-1 |
 | `mLayerSatHydCond` | saturated hydraulic conductivity in each layer | m s-1 |
 | `iLayerSatHydCond` | saturated hydraulic conductivity in each layer interface | m s-1 |
