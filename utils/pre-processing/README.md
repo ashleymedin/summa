@@ -9,8 +9,9 @@ Helpful scripts for a variety of pre-processing purposes:
 ## Calibration observations
 
 A calibration target reads its observations from a NetCDF file in one form: a `time` coordinate with
-CF units stamping the end of the span each value covers, `time_bnds` giving that span, and one named
-variable carrying its own units. These fetch observations from the web and write that form. They are
+CF units stamping the end of the span each value covers, on the clock the SUMMA forcing is on,
+`time_bnds` giving that span, and one named variable carrying its own units. `acquire_streamflow.py`
+moves each gauge day onto that clock, which it needs as `--model-utc-offset`. These fetch observations from the web and write that form. They are
 worked examples for the bundled test domains, not a general framework.
 
 - `acquire_streamflow.py`: daily streamflow from the Water Survey of Canada or the USGS, in m3 s-1

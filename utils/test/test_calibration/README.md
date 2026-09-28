@@ -87,8 +87,8 @@ the network does not hold is refused at start-up. A variable SUMMA holds once pe
 
 Every target reads its observations the same way, from a NetCDF file shaped like the bundled streamflow
 record: a `time` coordinate with CF units, and the named variable carrying its own units. Each time
-stamps the **end** of the span the value covers, and the simulation is averaged over the span since the
-observation before it, so a monthly product, whose months are 28 to 31 days long, aligns like a daily
+stamps the **end** of the span the value covers, on the clock the forcing is on, as SUMMA stamps its own
+time steps; the simulation is averaged over the span since the observation before it, so a monthly product, whose months are 28 to 31 days long, aligns like a daily
 gauge record. Getting data into that form is a pre-processing job - see `utils/pre-processing/`, whose
 acquisition scripts write it. `obs_units` overrides the units the file states.
 
