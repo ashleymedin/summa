@@ -533,9 +533,15 @@ subroutine run_oneGRU(&
               tempGW = tempBot ! the base of the soil column, already floored at freezing
           end select
           ! the same components as basin__TotalRunoff below: aquifer baseflow with a deep aquifer, soil drainage without one
-          if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == bigBucket)then
+          if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == bigBucket .or. &
+             model_decisions(iLookDECISIONS%groundwatr)%iDecision == modflowCpl .or. &
+             model_decisions(iLookDECISIONS%groundwatr)%iDecision == modLatflow)then
             if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == localColumn) &
               basinNrgFlux = basinNrgFlux + iden_water*Cp_water*fracDOM*flux(iLookFLUX%scalarAquiferBaseflow)%dat(1)*tempGW
+            ! MODFLOW's land-surface seepage joined the surface runoff above, but it is groundwater
+            if(model_decisions(iLookDECISIONS%groundwatr)%iDecision /= bigBucket .and. &
+               model_decisions(iLookDECISIONS%spatial_gw)%iDecision == localColumn .and. allocated(mfSurfaceDischarge)) &
+              basinNrgFlux = basinNrgFlux + iden_water*Cp_water*fracDOM*mfSurfaceDischarge(gruInfo%hruInfo(iHRU)%hru_ix)*tempGW
           else
             basinNrgFlux = basinNrgFlux + iden_water*Cp_water*fracDOM*flux(iLookFLUX%scalarSoilDrainage)%dat(1)*tempGW
           endif
