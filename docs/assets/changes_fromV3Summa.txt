@@ -326,3 +326,5 @@ AFTER tag of v4.0.0-exp-Sundials
  82) NSGA-II calibration (algorithm = "nsga2") on the targets; DDS and NSGA-II share one worker pool, commit cc30ba75 Sep 28, 2026
  83) summa_modelRun.f90 returns a GRU's physics error (with gruId and time step) instead of stopping, commit 6af46679 Sep 28, 2026
  84) calibration keeps going past a failed trial, ranks it last and saves it to failed_trials/ with a serial rerun.sh, commit 66fdb1ef Sep 28, 2026
+-85) summaSolv4homegrown.f90 frozen-layer loosening of the matric convergence test removed; it let mass-split substeps drop their inflow, commit ab74f4de Sep 29, 2026
+ 86) calibration ordered chains can be searched by their gaps (sample_gaps = true), always in order and in bounds, commit aee97bff Sep 29, 2026
