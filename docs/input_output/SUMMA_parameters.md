@@ -207,6 +207,8 @@ These are the spatially constant, HRU-level parameters set in the [local paramet
 | `lakeIceMinThick` | ice cover thinner than this breaks up and returns to the water | m |
 | `lowerBoundNrgFlux` | energy flux at the lower boundary, the geothermal heat flux | W m-2 |
 | `gwTempWindow` | averaging window of the air temperature the groundwater follows | days |
+| `thCond_bedrock` | thermal conductivity of the bedrock below the soil column | W m-1 K-1 |
+| `theta_sat_bedrock` | porosity of the bedrock below the soil column | - |
 | `hypFrac` | fraction of the reach flow returned as hyporheic flow | - |
 | `hypLag` | residence time of the hyporheic flow paths | h |
 
