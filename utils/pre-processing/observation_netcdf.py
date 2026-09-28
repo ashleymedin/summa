@@ -4,10 +4,10 @@ The form is the one the bundled streamflow observations already use: a `time` co
 units, and one named variable carrying its own units, missing values as NaN.  Keeping every kind of
 observation in that one shape is what lets the model read them all with one routine.
 
-Each time stamps the END of the span the value covers, which is how the calibration aligns a series:
-an observation is compared against the simulation averaged over the span since the observation
-before it.  The span itself is written too, as CF `time_bnds`, so the file says what it means
-without the reader having to assume it.
+Each time stamps the END of the span the value covers, on the clock the SUMMA forcing is on, which is
+how SUMMA stamps its own time steps and how the calibration aligns a series: an observation is compared
+against the simulation averaged over the span since the observation before it.  The span itself is
+written too, as CF `time_bnds`, so the file says what it means without the reader having to assume it.
 """
 
 import datetime as dt
@@ -25,12 +25,13 @@ def _minutes(times):
     return np.asarray([(t - TIME_REFERENCE).total_seconds() / 60.0 for t in times], dtype="i8")
 
 
-def write_observations(path, starts, ends, values, varname, units, long_name, attrs=None):
+def write_observations(path, starts, ends, values, varname, units, long_name, attrs=None, time_zone="UTC"):
     """Write one observed series.
 
-    starts, ends: datetimes bounding the span each value covers (end exclusive)
+    starts, ends: datetimes bounding the span each value covers (end exclusive), on the model's clock
     values:       the observations, NaN where there is none
     attrs:        global attributes, typically title / source / history
+    time_zone:    the clock the times are on, which has to be the one the SUMMA forcing is on
     """
     starts, ends = list(starts), list(ends)
     values = np.asarray(values, dtype="f8")
@@ -50,6 +51,7 @@ def write_observations(path, starts, ends, values, varname, units, long_name, at
         time_var.units = TIME_UNITS
         time_var.calendar = "standard"
         time_var.bounds = "time_bnds"
+        time_var.time_zone = time_zone
         time_var.comment = "end of the span each value covers"
         time_var[:] = _minutes(ends)
 
