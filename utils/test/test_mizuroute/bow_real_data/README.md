@@ -11,7 +11,8 @@ purely to compare against t-route.
 - `summa_inputs/` -- forcing, attributes, parameters, decisions for the Bow
   at Banff domain. Two forcing sets, each with its own list:
   `CAN_05BB001_em_earth_distributed_1980-1990.nc` (`forcingFileList.txt`),
-  hourly EM-Earth on Mountain Standard Time, and
+  hourly EM-Earth on Mountain Standard Time, declared as `-7:00` in its time
+  units so that `tmZoneInfo = ncTime` places the sun correctly, and
   `CAN_05BB001_rdrs_2002-2017.nc` (`forcingFileList_rdrs.txt`), hourly RDRS
   v2.1 on UTC, 2002-04 to 2017-12, which overlaps GRACE. The RDRS file joins
   the SYMFLUENCE `Bow_at_Banff_multivar` basin-average forcing, with `hruId`
