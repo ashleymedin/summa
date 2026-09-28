@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(SCR=/private/tmp/claude-598/-Users-amedin-Research-MODFLOW-modflow6-srcextern-summa/deebc2e0-ef5b-4e4f-b8df-2ce3c323076b/scratchpad && mkdir -p $SCR/cache4 && ./run_sagehen4.sh >/dev/null 2>&1 && cp domain_sagehen4/simulations/run_1/SUMMA/*.nc $SCR/cache4/ && ./run_sagehen1.sh 2>&1 | grep -E \"drainage sent|recharge received\"; echo \"--- expect -11971448.016178789 / -11350071.455773551 ---\"; ./run_sagehen4.sh 2>&1 | grep -c \"run_oneGRU: NOTE\"; echo \"^ topology note count, expect 1\")"
+    ],
+    "additionalDirectories": [
+      "/Users/amedin/Research/MODFLOW/modflow6/srcextern/summa/utils/test/test_mflow/domain_sagehen4/simulations/run_1/SUMMA"
+    ]
+  }
+}

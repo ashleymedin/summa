@@ -171,6 +171,13 @@ covers the user-facing highlights.
   `hypLag` 12 h the outlet's mean daily range falls from 0.76 K to 0.35 K. New parameters
   `hypFrac` and `hypLag`, new restart variable `hypTempPast`, and the diagnostic
   `scalarHypTemp`. The default `none` is the previous zero-exchange behaviour.
+- New `deepTherml` option `bedrockLyrs` extends the soil column into bedrock: the deepest
+  `nBedrock` soil layers carry heat but no water, as the layers at the base of a glacier column
+  do. `nBedrock` is a new optional initial-conditions variable. With `bcLowrTdyn = presFlux` the
+  bedrock starts on the steady geothermal gradient, so the deep column needs no spin-up.
+- Fixed: the mass split was solving the lake domain before the snow that drains into it. The
+  order is now glacier, snow, lake, soil, aquifer. Only an open lake was affected, since a
+  frozen one takes no snow drainage.
 - Optional coupling to the OpenWQ water-quality framework (`build/source/openwq/`).
 - Runs as a NextGen submodule; NextGen test cases are in `utils/test/test_ngen/`.
 - Large refactor: object-oriented flux routines, much shorter `computFlux.f90` and the

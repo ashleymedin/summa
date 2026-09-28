@@ -709,6 +709,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
   ! mass balance
   real(rkind)                     :: canopyBalance0,canopyBalance1 ! canopy storage at start/end of time step
   real(rkind)                     :: soilBalance0,soilBalance1     ! soil storage at start/end of time step
+  integer(i4b)                    :: nSoilHyd                      ! number of hydrologically active soil layers
   real(rkind)                     :: vertFlux                      ! change in storage due to vertical fluxes
   real(rkind)                     :: tranSink,baseSink,compSink    ! change in storage due to sink terms
   real(rkind)                     :: liqError                      ! water balance error
@@ -833,7 +834,9 @@ USE getVectorz_module,only:varExtract                              ! extract var
 
     ! get storage at the start of the step
     canopyBalance0 = merge(scalarCanopyLiq + scalarCanopyIce, realMissing, computeVegFlux)
-    if(nSoil>0) soilBalance0 = sum( (mLayerVolFracLiq(nSnow+nLake+1:nSnow+nLake+nSoil) + mLayerVolFracIce(nSnow+nLake+1:nSnow+nLake+nSoil)  )*mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil) )
+    ! bedrock below the soil carries no water state, so the balance spans only the layers that do
+    nSoilHyd = nSoil - merge(indx_data%var(iLookINDEX%noThetaChange)%dat(1), 0, indx_data%var(iLookINDEX%nGlce)%dat(1)==0)
+    if(nSoilHyd>0) soilBalance0 = sum( (mLayerVolFracLiq(nSnow+nLake+1:nSnow+nLake+nSoilHyd) + mLayerVolFracIce(nSnow+nLake+1:nSnow+nLake+nSoilHyd)  )*mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoilHyd) )
 
     ! -----
     ! * update states...
@@ -1172,12 +1175,12 @@ USE getVectorz_module,only:varExtract                              ! extract var
           endif  ! if veg canopy
 
           ! check mass balance for soil domain for step reduction (ida and kinsol should have done this already 
-          if(count(ixSoilOnlyHyd/=integerMissing)==nSoil .and. nSoil>0)then
-            soilBalance1 = sum( (mLayerVolFracLiqTrial(nSnow+nLake+1:nSnow+nLake+nSoil) + mLayerVolFracIceTrial(nSnow+nLake+1:nSnow+nLake+nSoil) )*mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil) )
-            vertFlux     = -(iLayerLiqFluxSoil(nSoil) - iLayerLiqFluxSoil(0))*dt           ! m s-1 --> m
+          if(count(ixSoilOnlyHyd/=integerMissing)==nSoilHyd .and. nSoilHyd>0)then
+            soilBalance1 = sum( (mLayerVolFracLiqTrial(nSnow+nLake+1:nSnow+nLake+nSoilHyd) + mLayerVolFracIceTrial(nSnow+nLake+1:nSnow+nLake+nSoilHyd) )*mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoilHyd) )
+            vertFlux     = -(iLayerLiqFluxSoil(nSoilHyd) - iLayerLiqFluxSoil(0))*dt        ! m s-1 --> m
             tranSink     = sum(mLayerTranspire)*dt                                         ! m s-1 --> m
             baseSink     = sum(mLayerBaseflow)*dt                                          ! m s-1 --> m
-            compSink     = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil) )*dt ! m s-1 --> m
+            compSink     = sum(mLayerCompress(1:nSoilHyd) * mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoilHyd) )*dt ! m s-1 --> m
             liqError     = soilBalance1 - (soilBalance0 + vertFlux + tranSink - baseSink - compSink)
             if(abs(liqError) > absConvTol_liquid*10._rkind)then   ! *10 because of precision issues
               if(printFlag)then

@@ -803,7 +803,7 @@ contains
  integer(i4b),allocatable           :: ncVarID(:)    ! netcdf variable id
  integer(i4b),dimension(7)          :: ngdx          ! intermediate array of loop indices for glacier variables
  integer(i4b),dimension(3)          :: nrdx          ! intermediate array of loop indices for time delay histogram variables
- integer(i4b),dimension(5)          :: nidx          ! intermediate array of loop indices for index variables
+ integer(i4b),dimension(6)          :: nidx          ! intermediate array of loop indices for index variables
  integer(i4b)                       :: nSnow         ! number of snow layers
  integer(i4b)                       :: nLake         ! number of lake layers
  integer(i4b)                       :: nSoil         ! number of soil layers
@@ -864,7 +864,7 @@ contains
  nProgVars = size(prog_meta)
 
  ! index variables
- nidx = (/iLookINDEX%nSnow, iLookINDEX%nLake, iLookINDEX%nSoil, iLookINDEX%nGlce, iLookINDEX%nLakeFrz/)
+ nidx = (/iLookINDEX%nSnow, iLookINDEX%nLake, iLookINDEX%nSoil, iLookINDEX%nGlce, iLookINDEX%nLakeFrz, iLookINDEX%nBedrock/)
 
  ! time delay histogram variables: routed runoff and the energy flux it carries
  nrdx = (/iLookBVAR%routingRunoffFuture, iLookBVAR%routingNrgFuture, iLookBVAR%hypTempPast/)

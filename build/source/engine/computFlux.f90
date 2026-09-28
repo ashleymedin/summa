@@ -72,6 +72,7 @@ USE mDecisions_module,only:       &
 ! look-up values for the choice of groundwater parameterization
 USE mDecisions_module,only:       &
  qbaseTopmodel,                   & ! TOPMODEL-ish baseflow parameterization
+ modLatflow,                      & ! as modflowCpl, plus lateral flow in the soil above
  bigBucket,                       & ! a big bucket (lumped aquifer model)
  noExplicit                         ! no explicit groundwater parameterization
 
@@ -206,6 +207,7 @@ subroutine computFlux(&
   integer(i4b)                       :: iLayer,nStart               ! index control of model layers
   logical(lgt)                       :: doVegNrgFlux                ! flag to compute the energy flux over vegetation
   real(rkind),dimension(nSoil)       :: dHydCond_dMatric            ! derivative in hydraulic conductivity w.r.t matric head (s-1)
+  integer(i4b)                       :: nSoilHyd                    ! number of hydrologically active soil layers
   character(LEN=256)                 :: cmessage                    ! error message of downwind routine
   real(rkind)                        :: surface_flux                ! surface flux (m s-1) into snow, lake, or glacier ice
   real(rkind)                        :: bottom_flux                 ! bottom flux (m s-1) out of snow, lake, or glacier ice
@@ -302,6 +304,7 @@ subroutine computFlux(&
   end associate
 
   ! *** CALCULATE THE LIQUID FLUX THROUGH SOIL ***
+  nSoilHyd = nSoil - merge(indx_data%var(iLookINDEX%noThetaChange)%dat(1), 0, nGlce==0)
   associate(nSoilOnlyHyd => indx_data%var(iLookINDEX%nSoilOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the soil
     if (nSoilOnlyHyd>0) then ! if necessary, calculate the liquid flux through soil
       call initialize_soilLiqFlux
@@ -315,9 +318,9 @@ subroutine computFlux(&
   ! *** CALCULATE THE SHALLOW GROUNDWATER FLOW OR DEBRIS LATERAL FLOW ***
   associate(nSoilOnlyHyd => indx_data%var(iLookINDEX%nSoilOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the soil domain
     if (nSoilOnlyHyd>0) then ! check if computing soil hydrology
-      if (local_ixGroundwater/=qbaseTopmodel .and. nGlce==0) then ! set baseflow fluxes to zero if the topmodel baseflow routine is not used
+      if (local_ixGroundwater/=qbaseTopmodel .and. local_ixGroundwater/=modLatflow .and. nGlce==0) then ! set baseflow fluxes to zero if nothing flows laterally
         call zeroBaseflowFluxes
-      else ! compute the baseflow flux for topmodel-ish shallow groundwater or lateral flow for glacier debris
+      else ! compute the lateral flow: topmodel-ish shallow groundwater, the soil column above MODFLOW, or glacier debris
         call initialize_groundwatr; if(err/=0)then; return; endif
         call groundwatr(in_groundwatr,mpar_data,prog_data,flux_data,io_groundwatr,out_groundwatr)
         call finalize_groundwatr;   if(err/=0)then; return; endif
@@ -838,15 +841,15 @@ contains
 
  ! **** soilLiqFlux ****
  subroutine initialize_soilLiqFlux
-  call in_soilLiqFlux%initialize(nSnow,nLake,nSoil,firstSplitOper,scalarSolution,firstFluxCall,scalarAquiferStorageTrial,&
+  call in_soilLiqFlux%initialize(nSnow,nLake,nSoilHyd,firstSplitOper,scalarSolution,firstFluxCall,scalarAquiferStorageTrial,&
                                 mLayerTempTrial,mLayerMatricHeadTrial,mLayerMatricHeadLiqTrial,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,&
                                 flux_data,deriv_data)
-  call io_soilLiqFlux%initialize(nSoil,dHydCond_dMatric,flux_data,diag_data,deriv_data)
+  call io_soilLiqFlux%initialize(nSoilHyd,dHydCond_dMatric,flux_data,diag_data,deriv_data)
  end subroutine initialize_soilLiqFlux
 
  subroutine finalize_soilLiqFlux
   nStart = nSnow + nLake
-  call io_soilLiqFlux%finalize(nSoil,dHydCond_dMatric,flux_data,diag_data,deriv_data)
+  call io_soilLiqFlux%finalize(nSoilHyd,dHydCond_dMatric,flux_data,diag_data,deriv_data)
   call out_soilLiqFlux%finalize(err,cmessage)
   ! error control
   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
@@ -862,14 +865,16 @@ contains
    scalarGlacierMelt           => flux_data%var(iLookFLUX%scalarGlacierMelt)%dat(1)     ) ! intent(out):   [dp] glacier ice melt plus snow and soil drainage (m s-1)
    ! calculate net liquid water fluxes for each soil layer (s-1)
    if (nStart==0) iLayerLiqFluxSnLaGl(0) = 0._rkind ! then 0 layer is top of soil, iLayerLiqFluxSnLaGl does not exist in soil
+   mLayerLiqFluxSoil(1:nSoil) = 0._rkind ! bedrock at the base of the column takes no water
    do iLayer=1,nSoil
      if(iLayer/=nSoil) iLayerLiqFluxSnLaGl(iLayer+nStart) = realMissing ! iLayerLiqFluxSnLaGl does not exist in soil but could exist at the bottom of the soil domain
      mLayerLiqFluxSnLaGl(iLayer+nStart) = realMissing ! iLayerLiqFluxSnLaGl does not exist in soil
-     mLayerLiqFluxSoil(iLayer) = -(iLayerLiqFluxSoil(iLayer) - iLayerLiqFluxSoil(iLayer-1))/mLayerDepth(iLayer+nStart)
+     if(iLayer<=nSoilHyd) mLayerLiqFluxSoil(iLayer) = -(iLayerLiqFluxSoil(iLayer) - iLayerLiqFluxSoil(iLayer-1))/mLayerDepth(iLayer+nStart)
    end do
    if(nGlce==0) iLayerLiqFluxSnLaGl(nSoil+nStart) = realMissing ! if nothing below the soil domain, then does not exist
    ! compute drainage from the soil zone (needed for mass balance checks and in aquifer recharge)
-   scalarSoilDrainage = iLayerLiqFluxSoil(nSoil)
+   scalarSoilDrainage = iLayerLiqFluxSoil(nSoilHyd)
+   if(nSoilHyd<nSoil) iLayerLiqFluxSoil(nSoilHyd+1:nSoil) = 0._rkind ! bedrock passes water on without storing it
    if(nGlce>0) scalarGlacierMelt = scalarSoilDrainage + scalarSurfaceRunoff - scalarGlceMelt ! save for glacier melt flow calculations, may be overwritten with addition of below domain fluxes
   end associate
 
@@ -886,8 +891,13 @@ contains
    dPsiLiq_dPsi0               => deriv_data%var(iLookDERIV%dPsiLiq_dPsi0)%dat             ) ! intent(in):    [dp(:)] derivative in liquid water matric pot w.r.t. the total water matric pot (-)
    ! expand derivatives to the total water matric potential
    ! NOTE: arrays are offset because computing derivatives in interface fluxes, at the top and bottom of the layer respectively
-   dq_dHydStateAbove(1:nSoil)   = dq_dHydStateAbove(1:nSoil)  *dPsiLiq_dPsi0(1:nSoil)
-   dq_dHydStateBelow(0:nSoil-1) = dq_dHydStateBelow(0:nSoil-1)*dPsiLiq_dPsi0(1:nSoil)
+   dq_dHydStateAbove(1:nSoilHyd)   = dq_dHydStateAbove(1:nSoilHyd)  *dPsiLiq_dPsi0(1:nSoilHyd)
+   dq_dHydStateBelow(0:nSoilHyd-1) = dq_dHydStateBelow(0:nSoilHyd-1)*dPsiLiq_dPsi0(1:nSoilHyd)
+   ! interfaces within the bedrock carry no water state, so their derivatives stay at zero
+   if(nSoilHyd<nSoil)then
+     dq_dHydStateAbove(nSoilHyd+1:nSoil) = 0._rkind; dq_dNrgStateAbove(nSoilHyd+1:nSoil) = 0._rkind
+     dq_dHydStateBelow(nSoilHyd:nSoil)   = 0._rkind; dq_dNrgStateBelow(nSoilHyd:nSoil)   = 0._rkind
+   endif
    if (ixBcUpper==prescribedHead) dq_dHydStateLayerSurfVec(1) = dq_dHydStateLayerSurfVec(1)*dPsiLiq_dPsi0(1)
   ! iLayerLiqFluxSnLaGlDeriv does not exist in soil but could exist at the bottom of the soil domain
    do iLayer=1,nSoil-1
@@ -905,7 +915,7 @@ contains
     message=trim(message)//'expect dBaseflow_dWat and dBaseflow_dTk to be nSoil x nSoil'
     err=20; return
   end if
-  call in_groundwatr%initialize(nSnow,nLake,nSoil,nGlce,firstFluxCall,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,deriv_data)
+  call in_groundwatr%initialize(nSnow,nLake,nSoilHyd,nGlce,firstFluxCall,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,deriv_data)
   call io_groundwatr%initialize(ixSaturation)
  end subroutine initialize_groundwatr
 

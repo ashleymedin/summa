@@ -460,7 +460,7 @@ contains
     if(instance_parallel%rank == 0)then
       calib_file=trim(OUTPUT_PATH)//trim(config%case_name)//'_calibration.nc'
       call create_calibration_output(calib_file,param_spec,nSamples,instance_parallel%size-1,           &
-                                     config%case_name,config%calib%metric,config%calib%obs_transform,   &
+                                     config%case_name,config%calib%targets,                             &
                                      ncid_calib,err,message)
       if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
     else

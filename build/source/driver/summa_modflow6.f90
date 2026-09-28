@@ -26,9 +26,14 @@ program summa_modflow6
   ! for the exchange, the &coupler namelist and the HRU->cell map, and
   ! utils/test/test_mflow/README.md for the test cases.
   !
-  ! Usage:  summa_modflow6.exe <fileManager.txt> <summa_modflow6.config>
+  ! Usage:  summa_modflow6.exe <fileManager.txt> <summa_modflow6.config> [<config.toml>]
+  !                            [--head-restart-read <file>] [--head-restart-write <file>]
   !         or through utils/test/test_mflow/coupler_commands.sh, which resolves paths and cds into
-  !         the MODFLOW case directory.
+  !         the MODFLOW case directory.  The TOML is needed only for a build with mizuRoute, whose
+  !         river network it configures; the routing then runs inside SUMMA's own step, taking the
+  !         GRU runoff that already carries the MODFLOW baseflow.  The restart flags override the
+  !         &coupler namelist; writing one also writes SUMMA's restart on the last step, so a spin-up
+  !         leaves a matched pair, and a restarted run hands SUMMA the saved water table on step 1.
   !
   ! One exchange per SUMMA data step, explicit with a one-step lag.  Steps 1 and 2 are here, steps 3
   ! to 5 are mf6_coupling's mf6_step:
@@ -103,7 +108,9 @@ program summa_modflow6
   integer                :: istat, nHRU, modelTimeStep
   integer                :: err
   character(len=1024)    :: message
-  character(len=1024)    :: file_manager, config_file
+  character(len=1024)    :: file_manager, config_file, toml_file
+  character(len=1024)    :: head_read, head_write, arg
+  integer                :: iarg
   real, allocatable      :: drain_hru(:)     ! per-HRU soil drainage        (m s-1)
   real, allocatable      :: head_hru(:)      ! per-HRU prescribed head      (m, matric head at soil base)
   real, allocatable      :: bflow_hru(:)     ! per-HRU aquifer baseflow     (m s-1, + = out of aquifer)  -> scalarAquiferBaseflow
@@ -127,18 +134,36 @@ contains
   ! ==================================================================================
   subroutine initialize_coupler
 
-    ! -- command line: file manager and this case's coupler config, both required --
+    ! -- command line: file manager and this case's coupler config, both required; a TOML
+    !    configuration file follows them when the run also routes with mizuRoute --
     if (command_argument_count() < 2) then
-      write(*,*) 'usage: summa_modflow6 <fileManager.txt> <summa_modflow6.config>'
+      write(*,*) 'usage: summa_modflow6 <fileManager.txt> <summa_modflow6.config> [<config.toml>]'
+      write(*,*) '         [--head-restart-read <file>] [--head-restart-write <file>]'
       write(*,*) '  the config is required: each case keeps its own beside its settings, so several'
       write(*,*) '  cases can share one MODFLOW model directory'
+      write(*,*) '  the TOML is required only to run mizuRoute alongside MODFLOW 6'
       error stop 1
     end if
     call get_command_argument(1, file_manager)
     call get_command_argument(2, config_file)
+    toml_file = ''; head_read = ''; head_write = ''
+    iarg = 3
+    do while (iarg <= command_argument_count())
+      call get_command_argument(iarg, arg)
+      select case (trim(arg))
+        case ('--head-restart-read');  iarg = iarg + 1; call get_command_argument(iarg, head_read)
+        case ('--head-restart-write'); iarg = iarg + 1; call get_command_argument(iarg, head_write)
+        case default;                  toml_file = arg
+      end select
+      iarg = iarg + 1
+    end do
 
     ! -- initialize SUMMA through its BMI --
-    istat = summa%initialize(trim(file_manager))
+    if (len_trim(toml_file) > 0) then
+      istat = summa%initialize_toml(trim(file_manager), trim(toml_file))
+    else
+      istat = summa%initialize(trim(file_manager))
+    end if
     if (istat /= BMI_OK) then; write(*,*) 'summa_modflow6: SUMMA initialize failed'; error stop 1; end if
 
     ! -- the coupled-groundwater decision must be active --
@@ -171,8 +196,13 @@ contains
     ! -- start MODFLOW 6 and build the HRU -> cell map (run_dir '.': MODFLOW reads mfsim.nam
     !    from the working directory, as this program has always done) --
     call coupler%init(trim(config_file), '.', nHRU, hru_x, hru_y, hru_z, soil_thk, &
-                      numtim, dble(data_step), err, message, hru_area=hru_area, root_reach=root_reach)
+                      numtim, dble(data_step), err, message, hru_area=hru_area, root_reach=root_reach, &
+                      restart_read=trim(head_read), restart_write=trim(head_write))
     if (err /= 0) then; write(*,'(a)') 'summa_modflow6: '//trim(message); error stop 1; end if
+
+    ! -- a coupled restart is both halves: the aquifer heads and SUMMA's own state --
+    if (coupler%writes_restart) istat = summa%write_restart_at_end()
+    call coupler%restart_state(head_hru, stor_hru, gwet_lim_hru)
 
     call coupler%grid_shape(nlay, nrow, ncol)
     write(*,'(a,i0,a,i0,a,i0,a,i0,a)') 'summa_modflow6: coupling ', nHRU, ' SUMMA HRUs to a ', &
@@ -183,8 +213,8 @@ contains
   subroutine run_coupler
     do modelTimeStep = 1, numtim
 
-      ! 1. push last step's MODFLOW state into SUMMA (lagged one step)
-      if (coupler%feedback .and. modelTimeStep > 1) then
+      ! 1. push last step's MODFLOW state into SUMMA (lagged one step; on step 1, a restart's)
+      if (coupler%feedback .and. (modelTimeStep > 1 .or. coupler%restarted)) then
         istat = summa%set_value('soil_water_sat-zone_top__head', head_hru)
         if (coupler%have_sy)    istat = summa%set_value('aquifer_water__storage_thickness', stor_hru)
         if (coupler%have_bflow) istat = summa%set_value('land_surface_water__baseflow_volume_flux', bflow_hru)

@@ -87,7 +87,32 @@ MODULE data_types
  end type ordered_constraint
 
  ! -----------------------------------------------------------------------------------------------------------
- 
+ ! One calibration target: an observed series, the simulated variable it is compared against, and the
+ ! metric that scores the two together.  A calibration owns a list of these and evaluates every one of
+ ! them for each parameter trial, so a single-objective calibration is simply a list of length one.
+ type,public  :: target_info
+  character(len=64)              :: name = ''               ! target name, used to label the output
+  character(len=64)              :: variable = 'streamflow' ! simulated variable compared against the observations
+  character(len=:),  allocatable :: obs_path                ! path to the observation file
+  character(len=:),  allocatable :: obs_file                ! observation file
+  character(len=:),  allocatable :: vname_obs               ! name of the observed variable within that file
+  character(len=16)              :: metric = 'kge'          ! kge, kgep, nse, mae, rmse
+  character(len=16)              :: obs_transform = 'none'  ! none, log, power, box-cox
+  real(rkind)                    :: weight = 1.0_rkind      ! weight given to this target when the objectives
+                                                            !  are scalarized for a single-objective search
+  character(len=16)              :: obs_format = 'netcdf'   ! netcdf, csv
+  character(len=64)              :: obs_units = ''          ! units of the observations, when the file omits them
+  ! Putting the simulated and observed series on the same footing.  A satellite storage product, for
+  ! instance, reports a monthly departure from a multi-year mean, while the model carries the rate
+  ! storage is changing at, so that target accumulates, averages monthly, and references a baseline.
+  logical(lgt)                   :: accumulate = .false.    ! integrate the simulated rate into its quantity
+  character(len=16)              :: cadence = 'native'      ! native, monthly
+  character(len=:), allocatable  :: baseline_start          ! start of the anomaly baseline (YYYY-MM-DD)
+  character(len=:), allocatable  :: baseline_end            ! end of the anomaly baseline (YYYY-MM-DD)
+ end type target_info
+
+ ! -----------------------------------------------------------------------------------------------------------
+
  ! calibration configuration
  type,public  :: calib_info
   character(len=:),  allocatable :: metric             ! KGE, KGEp, NSE, RMSE, MAE
@@ -97,6 +122,7 @@ MODULE data_types
   character(len=64), allocatable :: param_list(:)      ! Parameters included in optimization
   type(param_transform_info), allocatable :: param_transform(:)  ! parameter transformations
   type(ordered_constraint),   allocatable :: ordered(:)          ! ordered parameter constraints
+  type(target_info),          allocatable :: targets(:)          ! calibration targets, one per objective
   integer(i4b)                   :: n_samples = 5000    ! number of parameter samples to evaluate
   logical(lgt)                   :: write_aligned = .false. ! flag to write the aligned sim/obs time series
  end type calib_info
@@ -177,6 +203,8 @@ MODULE data_types
   integer(i4b)                           :: nLake                         ! number of lake layers
   integer(i4b)                           :: nSoil                         ! number of soil layers
   integer(i4b)                           :: nGlce                         ! number of glacier ice layers
+  integer(i4b)                           :: nBedrock                      ! number of thermal-only bedrock layers at the base of the soil column
+  logical(lgt)                           :: bedrockNew                    ! flag that the bedrock layers were built, so are absent from the initial conditions
  endtype dom_info
 
  ! hru info data structure
@@ -1822,12 +1850,17 @@ contains
   type(var_dlength),intent(inout)       :: flux_data               ! model fluxes for a local HRU
   integer(i4b),intent(out)              :: err                     ! error code
   character(*),intent(out)              :: cmessage                ! error message from groundwatr
+  integer(i4b)                          :: nActive                 ! number of hydrologically active soil layers
   associate(&
    mLayerBaseflow => flux_data%var(iLookFLUX%mLayerBaseflow)%dat ) ! intent(out): [dp(:)]  baseflow from each soil layer (m s-1)
-   ! intent(out) arguments
-   mLayerBaseflow = out_groundwatr % mLayerBaseflow                ! intent(out):   baseflow from each soil layer (m s-1)
-   dBaseflow_dWat = out_groundwatr % dBaseflow_dWat                ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
-   dBaseflow_dTk  = out_groundwatr % dBaseflow_dTk                 ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
+   ! intent(out) arguments, baseflow spans only the soil layers that carry water so any bedrock below it stays dry
+   nActive = size(out_groundwatr % mLayerBaseflow)
+   mLayerBaseflow = 0._rkind
+   dBaseflow_dWat = 0._rkind
+   dBaseflow_dTk  = 0._rkind
+   mLayerBaseflow(1:nActive) = out_groundwatr % mLayerBaseflow              ! intent(out):   baseflow from each soil layer (m s-1)
+   dBaseflow_dWat(1:nActive,1:nActive) = out_groundwatr % dBaseflow_dWat    ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
+   dBaseflow_dTk(1:nActive,1:nActive)  = out_groundwatr % dBaseflow_dTk     ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
    err            = out_groundwatr % err                           ! intent(out):   error code
    cmessage       = out_groundwatr % cmessage                      ! intent(out):   error message
   end associate

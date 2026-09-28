@@ -22,6 +22,7 @@ module calibration_output_module
   USE nr_type, only: i4b,rkind,lgt
   USE netcdf
 
+  USE data_types,       only: target_info
   USE parameter_search, only: parameter_spec
 
   implicit none
@@ -43,23 +44,27 @@ contains
   !
   ! Parameter and objective values are written by global trial index along the fixed sample dimension.
   ! **************************************************************************************************
-  subroutine create_calibration_output(filename,spec,nSamples,nWorkers,case,metric,obs_transform,ncid,ierr,message)
+  subroutine create_calibration_output(filename,spec,nSamples,nWorkers,case,targets,ncid,ierr,message)
     implicit none
     character(*),         intent(in)  :: filename
     type(parameter_spec), intent(in)  :: spec
     integer(i4b),         intent(in)  :: nSamples
     integer(i4b),         intent(in)  :: nWorkers
     character(*),         intent(in)  :: case
-    character(*),         intent(in)  :: metric
-    character(*),         intent(in)  :: obs_transform
+    type(target_info),    intent(in)  :: targets(:)
     integer(i4b),         intent(out) :: ncid
     integer(i4b),         intent(out) :: ierr
     character(*),         intent(out) :: message
-    integer(i4b) :: dim_sample,dim_time
+    integer(i4b) :: dim_sample,dim_time,dim_target,dim_name
     integer(i4b) :: varid_sample,varid_objective,varid_param
-    integer(i4b) :: varid_worker_rank
+    integer(i4b) :: varid_worker_rank,varid_target_name
     integer(i4b) :: varid_start_time,varid_end_time
     integer(i4b), dimension(2) :: time_dims
+    integer(i4b), dimension(2) :: objective_dims
+    integer(i4b), dimension(2) :: name_dims
+    integer(i4b) :: iTarget
+    integer(i4b) :: nTarget
+    character(len=len(targets(1)%name))  :: target_name
     integer(i4b) :: iParam
     integer(i4b) :: iConstraint
     integer(i4b) :: iOrdered
@@ -73,6 +78,11 @@ contains
     ierr=0
     message='create_calibration_output/'
     file_open=.false.
+    nTarget=size(targets)
+    if(nTarget < 1)then
+      message=trim(message)//'a calibration output file needs at least one calibration target'
+      ierr=20; return
+    endif
     netcdf_block: block
 
       ! create calibration output file
@@ -96,6 +106,12 @@ contains
       ierr=nf90_def_dim(ncid,'time_component',8,dim_time)
       if(ierr/=nf90_noerr) exit netcdf_block
       time_dims=(/dim_time,dim_sample/)
+
+      ! calibration-target dimension: one objective value per target, per trial
+      ierr=nf90_def_dim(ncid,'target',nTarget,dim_target)
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_def_dim(ncid,'name_length',len(target_name),dim_name)
+      if(ierr/=nf90_noerr) exit netcdf_block
 
       ! -----------------------------------------------------------------------------------------------
       ! Parameter variables and metadata
@@ -189,17 +205,31 @@ contains
       if(ierr/=nf90_noerr) exit netcdf_block
 
       ! -----------------------------------------------------------------------------------------------
-      ! Objective function
+      ! Objective function: one value per calibration target, for every trial
       ! -----------------------------------------------------------------------------------------------
-      ierr=nf90_def_var(ncid,'objective',NF90_DOUBLE,(/dim_sample/),varid_objective)
+      objective_dims=(/dim_target,dim_sample/)
+      ierr=nf90_def_var(ncid,'objective',NF90_DOUBLE,objective_dims,varid_objective)
       if(ierr/=nf90_noerr) exit netcdf_block
       ierr=nf90_put_att(ncid,varid_objective,'long_name','calibration objective function')
       if(ierr/=nf90_noerr) exit netcdf_block
-      ierr=nf90_put_att(ncid,varid_objective,'metric',trim(metric))
-      if(ierr/=nf90_noerr) exit netcdf_block
-      ierr=nf90_put_att(ncid,varid_objective,'obs_transform',trim(obs_transform))
-      if(ierr/=nf90_noerr) exit netcdf_block
       ierr=nf90_put_att(ncid,varid_objective,'units','-')
+      if(ierr/=nf90_noerr) exit netcdf_block
+
+      ! the metric and transformation behind each target's value, in target order
+      ierr=nf90_put_att(ncid,varid_objective,'metric',trim(joined_field(targets,'metric')))
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,varid_objective,'obs_transform',trim(joined_field(targets,'obs_transform')))
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,varid_objective,'target',trim(joined_field(targets,'name')))
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,varid_objective,'variable',trim(joined_field(targets,'variable')))
+      if(ierr/=nf90_noerr) exit netcdf_block
+
+      ! target names, so a reader can label the objectives without parsing an attribute
+      name_dims=(/dim_name,dim_target/)
+      ierr=nf90_def_var(ncid,'target_name',NF90_CHAR,name_dims,varid_target_name)
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,varid_target_name,'long_name','name of each calibration target')
       if(ierr/=nf90_noerr) exit netcdf_block
 
       ! -----------------------------------------------------------------------------------------------
@@ -218,6 +248,14 @@ contains
       ierr=nf90_enddef(ncid)
       if(ierr/=nf90_noerr) exit netcdf_block
 
+      ! target names, written once now that the file holds them
+      do iTarget=1,nTarget
+        target_name=targets(iTarget)%name
+        ierr=nf90_put_var(ncid,varid_target_name,target_name, &
+                          start=(/1,iTarget/),count=(/len(target_name),1/))
+        if(ierr/=nf90_noerr) exit netcdf_block
+      enddo
+
     end block netcdf_block
 
     ! process NetCDF errors
@@ -231,11 +269,38 @@ contains
   end subroutine create_calibration_output
 
   ! **************************************************************************************************
+  ! Join one field of every calibration target into a comma-separated list, in target order.
+  !
+  ! Written as a variable attribute so a reader can see what each objective is without opening the
+  ! configuration that produced it.
+  ! **************************************************************************************************
+  function joined_field(targets,field) result(joined)
+    implicit none
+    type(target_info), intent(in) :: targets(:)
+    character(*),      intent(in) :: field
+    character(len=:), allocatable :: joined
+    integer(i4b) :: iTarget
+
+    joined=''
+    do iTarget=1,size(targets)
+      if(iTarget > 1) joined=joined//', '
+      select case(trim(field))
+        case ('name');          joined=joined//trim(targets(iTarget)%name)
+        case ('variable');      joined=joined//trim(targets(iTarget)%variable)
+        case ('metric');        joined=joined//trim(targets(iTarget)%metric)
+        case ('obs_transform'); joined=joined//trim(targets(iTarget)%obs_transform)
+        case default;           joined=joined//'unknown'
+      end select
+    enddo
+
+  end function joined_field
+
+  ! **************************************************************************************************
   ! Write one calibration trial.
   !
-  ! Writes the complete physical-space parameter override vector and corresponding objective-function
-  ! value for one parameter trial. Parameter names must correspond to variables defined when the
-  ! calibration output file was created.
+  ! Writes the complete physical-space parameter override vector and the objective value of every
+  ! calibration target for one parameter trial. Parameter names must correspond to variables defined
+  ! when the calibration output file was created.
   ! **************************************************************************************************
   subroutine write_calibration_output(ncid,isample,worker_rank,param_names,param_values, &
                                       objective,start_time,end_time,ierr,message)
@@ -245,7 +310,7 @@ contains
     integer(i4b), intent(in) :: worker_rank
     character(*), intent(in) :: param_names(:)
     real(rkind),  intent(in) :: param_values(:)
-    real(rkind),  intent(in) :: objective
+    real(rkind),  intent(in) :: objective(:)
     integer(i4b), intent(in) :: start_time(8)
     integer(i4b), intent(in) :: end_time(8)
     integer(i4b), intent(out) :: ierr
@@ -301,10 +366,11 @@ contains
       ierr=nf90_put_var(ncid,varid_end_time,end_time, start=start2,count=count2)
       if(ierr/=nf90_noerr) exit netcdf_block
 
-      ! objective function
+      ! objective function: every target's value for this trial
       ierr=nf90_inq_varid(ncid,'objective',varid_objective)
       if(ierr/=nf90_noerr) exit netcdf_block
-      ierr=nf90_put_var(ncid,varid_objective,(/objective/),start=start1,count=count1)
+      ierr=nf90_put_var(ncid,varid_objective,objective, &
+                        start=(/1,isample/),count=(/size(objective),1/))
       if(ierr/=nf90_noerr) exit netcdf_block
 
     end block netcdf_block

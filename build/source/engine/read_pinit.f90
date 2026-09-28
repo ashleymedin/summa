@@ -185,6 +185,17 @@ contains
   if (parFallback(iLookPARAM%lakeIceMinThick)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%lakeIceMinThick)%default_val = 0.005_rkind ! 5 mm: the minimum ice thickness of flowing water in Wanders et al. (2019), below which the cover breaks up (m)
   end if
+  ! properties of the thermal-only bedrock layers, only used with deepTherml = bedrockLyrs
+  if (parFallback(iLookPARAM%thCond_bedrock)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%thCond_bedrock)%default_val = 2.5_rkind ! typical of crystalline bedrock (W m-1 K-1)
+    parFallback(iLookPARAM%thCond_bedrock)%lower_limit = 0.1_rkind
+    parFallback(iLookPARAM%thCond_bedrock)%upper_limit = 10._rkind
+  end if
+  if (parFallback(iLookPARAM%theta_sat_bedrock)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%theta_sat_bedrock)%default_val = 0.05_rkind ! fractured rock holds little water (-)
+    parFallback(iLookPARAM%theta_sat_bedrock)%lower_limit = 0.001_rkind
+    parFallback(iLookPARAM%theta_sat_bedrock)%upper_limit = 0.5_rkind
+  end if
   ! averaging window of the air temperature the groundwater follows, only used with deepTherml = airTempGW
   if (parFallback(iLookPARAM%gwTempWindow)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%gwTempWindow)%default_val = 7._rkind ! middle of the 2-14 day range of Wade et al. (2024)

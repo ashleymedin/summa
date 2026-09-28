@@ -171,7 +171,9 @@ contains
     ! parameter search
     USE parameter_search, only: parameter_spec,parameter_search_info
     ! objective-function evaluation
-    USE summa_simulation,         only: evaluate_objective
+    USE summa_simulation,         only: evaluate_objectives
+    USE summa_simulation,         only: n_calibration_targets
+    USE summa_simulation,         only: scalarize_objectives
     ! calibration output
     USE calibration_output_module, only: write_calibration_output
     implicit none
@@ -205,8 +207,10 @@ contains
     integer(i4b) :: next_sample
     integer(i4b) :: nComplete
     logical(lgt) :: stop_worker
-    ! objective value
-    real(rkind) :: objective
+    ! objective values: one per calibration target, and the scalar a single-objective search compares
+    real(rkind), allocatable :: objective(:)
+    real(rkind)  :: F_sample
+    integer(i4b) :: nTarget
     ! error control
     integer(i4b)        :: mpi_err
     character(len=256)  :: cmessage
@@ -222,6 +226,15 @@ contains
     allocate(param_override(size(param_spec%params)),stat=err)
     if(err/=0)then
       message=trim(message)//'unable to allocate parameter override vector'
+      return
+    endif
+
+    ! Every rank reads the same configuration, so every rank agrees on how many objectives a trial
+    ! returns, and the objective messages are the same shape on both sides of the exchange.
+    nTarget=max(n_calibration_targets(config),1)
+    allocate(objective(nTarget),stat=err)
+    if(err/=0)then
+      message=trim(message)//'unable to allocate the objective vector'
       return
     endif
 
@@ -297,9 +310,12 @@ contains
         sample_id=worker_sample(worker)
         call date_and_time(values=endModelRun(:,sample_id))
 
-        ! update best parameter sample
-        if(objective > F_best)then
-          F_best=objective                     ! update best objective value
+        ! update best parameter sample.  DDS searches on one number, so the targets are collapsed
+        ! into the weighted, consistently oriented scalar that scalarize_objectives returns; with a
+        ! single target of weight one that is the metric itself.
+        F_sample=scalarize_objectives(config,objective)
+        if(F_sample > F_best)then
+          F_best=F_sample                      ! update best objective value
           x_best=param_samples(:,sample_id)    ! update best decision-variable vector
           sample_best=sample_id                ! record sample associated with current best
           write(output_unit,'(A,I0,A,F14.6)') 'new DDS best: sample=',sample_best,', objective=',F_best
@@ -375,11 +391,11 @@ contains
         call check_mpi(instance_parallel%rank,mpi_err, 'unable to receive parameter sample')
         if(stop_worker) exit
 
-        ! run SUMMA and evaluate the objective function
-        call evaluate_objective(config,                              & ! SUMMA configuration structure
-                                domain_parallel,instance_parallel,   & ! MPI context for model domain and model-instance parallelism
-                                sample_id,param_name,param_override, & ! complete parameter overrides
-                                objective,err,cmessage)                ! objective function value and error control
+        ! run SUMMA and evaluate every calibration target
+        call evaluate_objectives(config,                              & ! SUMMA configuration structure
+                                 domain_parallel,instance_parallel,   & ! MPI context for model domain and model-instance parallelism
+                                 sample_id,param_name,param_override, & ! complete parameter overrides
+                                 objective,err,cmessage)                ! objective value per target and error control
         if(err/=0)then
           message=trim(message)//trim(cmessage)
           call abort_mpi(instance_parallel%rank,trim(message))
@@ -566,29 +582,32 @@ contains
   end subroutine receive_sample
 
   ! **************************************************************************************************
-  ! Return a completed objective-function value to rank 0.
+  ! Return the objective value of every calibration target to rank 0.
   ! **************************************************************************************************
   subroutine send_objective(objective,comm,mpi_err)
-    real(rkind),  intent(in)  :: objective
+    real(rkind),  intent(in)  :: objective(:)
     integer(i4b), intent(in)  :: comm
     integer(i4b), intent(out) :: mpi_err
 
-    call MPI_Send(objective,1,MPI_DOUBLE_PRECISION,0,tag_done,comm,mpi_err)
+    call MPI_Send(objective,size(objective),MPI_DOUBLE_PRECISION,0,tag_done,comm,mpi_err)
 
   end subroutine send_objective
 
   ! **************************************************************************************************
-  ! Receive an objective-function value from whichever worker finishes first.
+  ! Receive the objective values from whichever worker finishes first.
+  !
+  ! Every rank builds its objective vector from the same configuration, so the message is the length
+  ! the dispatcher expects.
   ! **************************************************************************************************
   subroutine receive_objective(objective,worker,comm,mpi_err)
-    real(rkind),  intent(out) :: objective
+    real(rkind),  intent(out) :: objective(:)
     integer(i4b), intent(out) :: worker
     integer(i4b), intent(in)  :: comm
     integer(i4b), intent(out) :: mpi_err
     integer(i4b) :: status(MPI_STATUS_SIZE)
 
     ! wait for the next completed parameter trial
-    call MPI_Recv(objective,1,MPI_DOUBLE_PRECISION,MPI_ANY_SOURCE,tag_done, comm,status,mpi_err)
+    call MPI_Recv(objective,size(objective),MPI_DOUBLE_PRECISION,MPI_ANY_SOURCE,tag_done, comm,status,mpi_err)
     if(mpi_err/=MPI_SUCCESS) return
 
     ! identify the worker that is now available for additional work

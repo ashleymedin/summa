@@ -218,6 +218,9 @@ MODULE globalData
   real(rkind),save,public                          :: icefrz_mult=10._rkind             ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
   integer(i4b),save,public                         :: nLakeIceLayers_poss=1             ! number of ice layers in a lake that can accumulate 
   integer(i4b),save,public                         :: nMeltingIceLayers=1               ! number of glacier ice layers that can have a change in total water content 
+  integer(i4b),save,public                         :: nBedrockLayers=5                  ! number of thermal-only bedrock layers built below the soil column
+  real(rkind),save,public                          :: bedrockDepth=30._rkind            ! depth of the base of the bedrock layers below the surface (m)
+  integer(i4b),save,public                         :: nBedrockMax=0                     ! largest number of bedrock layers in any domain, which the parameter file does not carry
   real(rkind),save,public                          :: thick4area=0.1                    ! an arbitrary small threshold for glacier thickness to be considered as glacier area (m)
   ! define variables used for horizontal domain type          
   integer(i4b),save,public                         :: upland=1                          ! upland domain

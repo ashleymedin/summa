@@ -268,6 +268,7 @@ The restart file does not have a time dimension, since it represents a specific 
 | nGlce | hru, dom | int | - |  Number of glacier ice layers |
 | nLake | hru, dom | int | - |  Number of lake layers (ice cover and water) |
 | nLakeFrz | hru, dom | int | - |  Number of ice cover layers at the top of the lake layers (optional, 0 when absent) |
+| nBedrock | hru, dom | int | - |  Number of thermal-only bedrock layers at the base of the soil column (optional, 0 when absent; required with [`deepTherml`](../configuration/SUMMA_model_decisions.md#deeptherml) `bedrockLyrs`) |
 | DOMarea | scalarv, hru, dom | double | m2 | Area of the domain |
 | DOMelev | scalarv, hru, dom | double | m | Elevation of the domain |
 | DOMtan_slope | scalarv, hru, dom | double | - | tan local ground surface slope of the domain |

@@ -26,6 +26,7 @@ USE globalData,only:realMissing     ! missing real number
 
 ! input sizes
 USE globalData,only:maxSoilLayers          ! maximum number of soil layers
+USE globalData,only:nBedrockMax            ! largest number of bedrock layers in any domain
 
 ! logging
 USE globalData, only: iulog                ! I/O unit for logging information
@@ -77,6 +78,7 @@ contains
  integer(i4b)                              :: localHRU_ix,iGRU ! index of HRU and GRU within data structure
  integer(i4b)                              :: ixParam          ! index of the model parameter in the data structure
  integer(i4b)                              :: nSoil            ! number of soil layers in the domain
+ integer(i4b)                              :: nSoilUse         ! number of soil layers taken from the parameter file
  ! indices/metadata in the NetCDF file
  integer(i4b)                              :: ncid             ! netcdf id
  integer(i4b)                              :: nDims            ! number of dimensions
@@ -264,7 +266,8 @@ contains
     endif
 
     ! check that the dimension length is correct (maxSoilLayers is the maximum number of soil layers in the model)
-    if(maxSoilLayers /= nSoil_file)then
+    ! NOTE: built bedrock layers are not in the parameter file, so the soil layers the user supplied are also allowed
+    if(maxSoilLayers /= nSoil_file .and. maxSoilLayers-nBedrockMax /= nSoil_file)then
      message=trim(message)//'unexpected number of soil layers in parameter file'
      err=20; return
     endif
@@ -283,8 +286,8 @@ contains
      err=20; return
     endif
 
-    ! check that the dimension length is correct
-    if(maxSoilLayers /= nSoil_file)then
+    ! check that the dimension length is correct, built bedrock layers are not in the parameter file
+    if(maxSoilLayers /= nSoil_file .and. maxSoilLayers-nBedrockMax /= nSoil_file)then
      message=trim(message)//'unexpected number of soil layers in parameter file'
      err=20; return
     endif
@@ -338,11 +341,16 @@ contains
       case(1); mparStruct%gru(iGRU)%hru(localHRU_ix)%dom(iDOM)%var(ixParam)%dat(:) = parVector(1)  ! also distributes scalar across depth dimension
       case(2)
        if(nDOM_file==integerMissing)then
-        mparStruct%gru(iGRU)%hru(localHRU_ix)%dom(iDOM)%var(ixParam)%dat(:) = parVector(1:nSoil)
+        nSoilUse = min(nSoil,parLength)
+        mparStruct%gru(iGRU)%hru(localHRU_ix)%dom(iDOM)%var(ixParam)%dat(1:nSoilUse) = parVector(1:nSoilUse)
+        if(nSoilUse<nSoil) mparStruct%gru(iGRU)%hru(localHRU_ix)%dom(iDOM)%var(ixParam)%dat(nSoilUse+1:nSoil) = parVector(nSoilUse)
        else
         mparStruct%gru(iGRU)%hru(localHRU_ix)%dom(iDOM)%var(ixParam)%dat(:) = parVector(1)
        endif
-      case(3); mparStruct%gru(iGRU)%hru(localHRU_ix)%dom(iDOM)%var(ixParam)%dat(:) = parVector(1:nSoil)
+      case(3)
+       nSoilUse = min(nSoil,parLength)
+       mparStruct%gru(iGRU)%hru(localHRU_ix)%dom(iDOM)%var(ixParam)%dat(1:nSoilUse) = parVector(1:nSoilUse)
+       if(nSoilUse<nSoil) mparStruct%gru(iGRU)%hru(localHRU_ix)%dom(iDOM)%var(ixParam)%dat(nSoilUse+1:nSoil) = parVector(nSoilUse)
       case default; err=20; message=trim(message)//'unexpected number of dimensions for parameter '//trim(parName)
      end select
 

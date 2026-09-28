@@ -2,8 +2,9 @@
 
 A synthetic 4-HRU case built from `domain_sagehen1` (one month of hourly forcing tiled
 across four columns), run through the MODFLOW 6 coupler for 72 hourly steps, the same as
-`ex-gwf-sagehen`. It does two jobs: it exercises `groundwatr = modLatflow`, and it guards
-the HRU cascade ordering in `run_oneGRU`.
+`ex-gwf-sagehen`. The forcing is the February 2017 wet period, 2017-02-07 to 2017-02-09,
+written by `../tools/make_wet_forcing.py`. It does two jobs: it exercises
+`groundwatr = modLatflow`, and it guards the HRU cascade ordering in `run_oneGRU`.
 
     hruId          1       2       3       4
     downHRUindex   0       1       1       0
@@ -45,18 +46,31 @@ so running the pair isolates what lateral flow contributes. They write `run1_lat
 
 ## What to check
 
-An **exact-equality** check on `run1_latflow`, so the size of the difference does not matter:
+Run totals over the 72 hours, `run1_latflow`:
+
+    hru 1 (receiver    ): inflow 14867.42 m3   outflow 1286.26 m3
+    hru 2 (contributor ): inflow     0.00 m3   outflow 7457.77 m3
+    hru 3 (contributor ): inflow     0.00 m3   outflow 7409.66 m3
+    hru 4 (CONTROL twin): inflow     0.00 m3   outflow 1269.03 m3   (ratio 1.0136)
+
+HRU 1's inflow is HRU 2 plus HRU 3 to the last digit, which is the cascade delivering, and
+HRU 1 outflows more than its twin because of what it received.
+
+For the record, the values this check reported before the lateral outflow cap of
+`changes_fromV3Summa` entry 71:
 
     hru 1 (receiver    ): inflow 4.0458e-02   outflow 3.53643928e-03
     hru 4 (CONTROL twin): inflow 0.0000e+00   outflow 3.49913476e-03   (ratio 1.0107)
 
-**HRU 1 and HRU 4 must not be equal.** If they are bit-identical while HRU 1's inflow is
-non-zero, the cascade ordering has regressed and the inflow is being discarded. Verified both
-ways: with the ordering fix reverted, the two are bit-identical at `3.49912619e-03`.
+**HRU 1 and HRU 4 must not be equal.** If they are
+bit-identical while HRU 1's inflow is non-zero, the cascade ordering has regressed and the
+inflow is being discarded. Verified both ways at the time: with the ordering fix reverted,
+the two were bit-identical at `3.49912619e-03`.
 
-Comparing HRU 1 against HRU 2 or 3 does not work — they have a different area and band, so
+Comparing HRU 1 against HRU 2 or 3 does not work -- they have a different area and band, so
 they differ for unrelated reasons. Only HRU 4 is a true control, which is why it shares
 HRU 1's cells and elevation rather than owning a private region.
 
 In `run1_noLatflow` every column outflow is zero, which is the expected contrast rather than
-a second cascade check.
+a second cascade check. The coupled water budget reports -3497221.8988253158 m3 sent with
+lateral flow and -3497160.0041720532 m3 without.
