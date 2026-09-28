@@ -118,6 +118,29 @@ metric         = "rmse"
   period. Doing it to both sides is what removes the constant of integration an accumulated series
   carries, which is what makes an integrated rate comparable to a storage anomaly at all.
 
+## Parameters that must stay in order
+
+Some parameters are only valid in order: SUMMA refuses a soil unless
+`theta_res <= critSoilWilting <= critSoilTranspire <= fieldCapacity <= theta_sat`. An ordered chain
+says so, and keeps adjacent members at least `gap_fraction` of the chain's whole range apart:
+
+```toml
+[[parameter_dependencies.ordered]]
+parameters   = ["theta_res", "critSoilWilting", "critSoilTranspire", "fieldCapacity", "theta_sat"]
+gap_fraction = 0.025
+sample_gaps  = true
+```
+
+Without `sample_gaps`, only the members in `param_list` are searched, the rest stay at their
+defaults, and a trial out of order is drawn again. So calibrating `theta_sat` alone can only move it
+above the default `fieldCapacity`.
+
+With `sample_gaps = true`, every member is searched, whether or not it is in `param_list`. The first is
+searched as itself, up to the highest value that still leaves room for the rest; each later one as the
+fraction of the room between the one before it (plus the gap) and the highest value it can take. Every
+trial is in order and within bounds by construction, so none is drawn again or refused. A later member
+cannot also be given a transformation. The trials file holds the values, not the fractions.
+
 ## Searching for the trade-offs: `algorithm = "nsga2"`
 
 DDS collapses the targets into a weighted sum and returns one parameter set, so when targets pull

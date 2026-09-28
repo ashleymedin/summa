@@ -32,10 +32,15 @@ module parameter_search
   ! param_index contains indices into parameter_spec%params. Adjacent parameters must be separated
   ! by at least gap_fraction times the complete range from the lower bound of the first parameter
   ! to the upper bound of the last parameter.
+  !
+  ! With sample_gaps, every member is searched: the first as itself, each later one as the fraction
+  ! (0-1) of the room between the one before it plus the gap and the highest value that still leaves
+  ! room for the rest, so every trial is ordered and within bounds by construction.
   ! **************************************************************************************************
   type, public :: ordered_constraint
     integer(i4b), allocatable :: param_index(:)
     real(rkind)               :: gap_fraction = 0._rkind
+    logical(lgt)              :: sample_gaps = .false.
   end type ordered_constraint
 
   ! **************************************************************************************************
@@ -55,6 +60,7 @@ module parameter_search
   type :: ordered_search_info
     integer(i4b), allocatable :: param_index(:)
     real(rkind)               :: gap
+    logical(lgt)              :: sample_gaps = .false.
   end type ordered_search_info
 
   ! **************************************************************************************************
@@ -82,6 +88,7 @@ module parameter_search
   public :: transform_parameter
   public :: inverse_transform_parameter
   public :: check_ordered_constraints
+  public :: decode_gap_chains
 
 contains
 
@@ -297,6 +304,9 @@ contains
     integer(i4b), allocatable :: constraint_owner(:)
     real(rkind) :: lower_feasible
     real(rkind) :: previous_value
+    integer(i4b) :: ixSearch
+    real(rkind), allocatable :: upper_room(:)
+    character(len=256) :: cmessage
 
     err = 0
     message = 'initialize_constraints/'
@@ -423,9 +433,96 @@ contains
          previous_value=search%params(ixParam)%trial_value
         endif
       enddo
+
+      ! a chain searched by its gaps: the first member up to the highest value that leaves room for
+      ! the rest, and every later member as a fraction of its room
+      search%ordered(iConstraint)%sample_gaps = spec%ordered(iConstraint)%sample_gaps
+      if(search%ordered(iConstraint)%sample_gaps)then
+        call chain_uppers(spec,iConstraint,upper_room)
+        do i=1,nOrdered
+          ixParam = search%ordered(iConstraint)%param_index(i)
+          ixSearch = search%search_index(ixParam)
+          if(ixSearch == 0)then
+            message=trim(message)//'a chain searched by its gaps needs every member searched: '//trim(search%params(ixParam)%name)
+            err=20; return
+          endif
+          if(upper_room(i) < search%params(ixParam)%lower)then
+            write(message,'(A,ES12.5,A,ES12.5)') trim(message)//'ordered constraint leaves no room for '// &
+              trim(search%params(ixParam)%name)//': highest value that fits = ',upper_room(i),', lower bound = ',search%params(ixParam)%lower
+            err=20; return
+          endif
+          if(i == 1)then
+            search%upper(ixSearch) = upper_room(1)
+            call transform_parameter(upper_room(1),search%transformation(ixSearch),search%search_upper(ixSearch),err,cmessage)
+            if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+          else
+            if(trim(search%transformation(ixSearch)) /= 'none')then
+              message=trim(message)//'a chain searched by its gaps cannot transform a later member: '//trim(search%params(ixParam)%name)
+              err=20; return
+            endif
+            search%lower(ixSearch)=0._rkind;        search%upper(ixSearch)=1._rkind
+            search%search_lower(ixSearch)=0._rkind; search%search_upper(ixSearch)=1._rkind
+          endif
+        enddo
+        deallocate(upper_room)
+      endif
     enddo
 
   end subroutine initialize_constraints
+
+  ! **************************************************************************************************
+  ! The highest value each member of ordered chain iConstraint can take and still leave room, by the
+  ! minimum gap, for every member after it.
+  ! **************************************************************************************************
+  subroutine chain_uppers(spec,iConstraint,upper_room)
+    implicit none
+    type(parameter_spec),     intent(in)  :: spec
+    integer(i4b),             intent(in)  :: iConstraint
+    real(rkind), allocatable, intent(out) :: upper_room(:)
+    integer(i4b) :: i,n
+    real(rkind)  :: gap
+
+    associate(chain => spec%ordered(iConstraint)%param_index)
+    n=size(chain)
+    gap=spec%ordered(iConstraint)%gap_fraction*(spec%params(chain(n))%upper - spec%params(chain(1))%lower)
+    allocate(upper_room(n))
+    upper_room(n)=spec%params(chain(n))%upper
+    do i=n-1,1,-1
+      upper_room(i)=min(spec%params(chain(i))%upper, upper_room(i+1)-gap)
+    enddo
+    end associate
+
+  end subroutine chain_uppers
+
+  ! **************************************************************************************************
+  ! Turn the fractions a chain searched by its gaps carries for its later members into values.
+  !
+  ! param_values is indexed like spec%params and holds the first member's value and the later members'
+  ! fractions (0-1) of their room; on return it holds every member's value.
+  ! **************************************************************************************************
+  subroutine decode_gap_chains(spec,param_values)
+    implicit none
+    type(parameter_spec), intent(in)    :: spec
+    real(rkind),          intent(inout) :: param_values(:)
+    real(rkind), allocatable :: upper_room(:)
+    integer(i4b) :: iConstraint,i,n
+    real(rkind)  :: gap,low
+
+    if(.not.allocated(spec%ordered)) return
+    do iConstraint=1,size(spec%ordered)
+      if(.not.spec%ordered(iConstraint)%sample_gaps) cycle
+      associate(chain => spec%ordered(iConstraint)%param_index)
+      n=size(chain)
+      gap=spec%ordered(iConstraint)%gap_fraction*(spec%params(chain(n))%upper - spec%params(chain(1))%lower)
+      call chain_uppers(spec,iConstraint,upper_room)
+      do i=2,n
+        low=max(spec%params(chain(i))%lower, param_values(chain(i-1))+gap)
+        param_values(chain(i))=low + param_values(chain(i))*(upper_room(i)-low)
+      enddo
+      end associate
+    enddo
+
+  end subroutine decode_gap_chains
 
   ! **************************************************************************************************
   ! Sample parameters uniformly over the feasible search space.
@@ -832,6 +929,7 @@ contains
 
     check_ordered_constraints = .true.
     do iConstraint=1,size(search%ordered)
+      if(search%ordered(iConstraint)%sample_gaps) cycle   ! ordered by construction
       do i=1,size(search%ordered(iConstraint)%param_index)
         ixParam  = search%ordered(iConstraint)%param_index(i)
         ixSearch = search%search_index(ixParam)
