@@ -1,6 +1,6 @@
 module mizuroute_coupling
 
-  USE nr_type, only: i4b, rkind
+  USE nr_type, only: i4b, i8b, rkind
   USE summa_type, only:summa1_type_dec
 
   ! mizuRoute public interface
@@ -20,6 +20,7 @@ module mizuroute_coupling
   public :: define_mizuroute_output_from_summa
   public :: write_mizuroute_output_from_summa
   public :: get_mizuroute_streamflow
+  public :: get_mizuroute_reach_index
   public :: init_stream_network_from_summa
   public :: get_mizuroute_reach_hydraulics
   public :: set_mizuroute_reach_roughness
@@ -393,20 +394,44 @@ contains
   end subroutine write_mizuroute_output_from_summa
 
   !-----------------------------------------------------------------------
-  ! Get mizuRoute streamflow
+  ! Get mizuRoute streamflow (m3/s) at a reach, the network outlet unless
+  ! ixReach names another (an index from get_mizuroute_reach_index)
   !-----------------------------------------------------------------------
-  subroutine get_mizuroute_streamflow(modelTimeStep, summaStruct, simFlow)
-  integer(i4b),          intent(in)  :: modelTimeStep
-  type(summa1_type_dec), intent(in)  :: summaStruct
-  real(rkind),           intent(out) :: simFlow
+  subroutine get_mizuroute_streamflow(modelTimeStep, summaStruct, simFlow, ixReach)
+  integer(i4b),           intent(in)  :: modelTimeStep
+  type(summa1_type_dec),  intent(in)  :: summaStruct
+  real(rkind),            intent(out) :: simFlow
+  integer(i4b), optional, intent(in)  :: ixReach
   integer(i4b) :: idx_buff
   integer(i4b) :: ixSeg
 
   idx_buff = merge(1, modelTimeStep, summaStruct%n_write == 1)
   ixSeg    = summaStruct%config%mizu_info%ntopo%ixSegOut
+  if(present(ixReach)) ixSeg = ixReach
   simFlow = summaStruct%mizu_domain%river_network%driver%method(1)%streamflow(ixSeg,idx_buff)
 
   end subroutine get_mizuroute_streamflow
+
+  !-----------------------------------------------------------------------
+  ! Index of the reach with a given id in the river network, refusing an
+  ! id the network does not hold
+  !-----------------------------------------------------------------------
+  subroutine get_mizuroute_reach_index(summaStruct, segId, ixReach, ierr, message)
+  type(summa1_type_dec), intent(in)  :: summaStruct
+  integer(i8b),          intent(in)  :: segId
+  integer(i4b),          intent(out) :: ixReach
+  integer(i4b),          intent(out) :: ierr
+  character(*),          intent(out) :: message
+
+  ierr = 0
+  message = 'get_mizuroute_reach_index/'
+  ixReach = findloc(summaStruct%mizu_domain%river_network%driver%seg_id, int(segId,i4b), dim=1)
+  if(ixReach < 1)then
+    write(message,'(a,i0,a)') trim(message)//'reach ',segId,' is not a reach of the river network'
+    ierr=20; return
+  endif
+
+  end subroutine get_mizuroute_reach_index
 
   !-----------------------------------------------------------------------
   ! Build the river network as seen by the stream temperature model

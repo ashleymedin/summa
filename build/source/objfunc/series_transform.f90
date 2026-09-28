@@ -22,8 +22,8 @@
 ! Not every observation can be compared against a model variable as it stands.  GRACE reports the
 ! terrestrial water storage of a basin once a month, as a departure in millimetres from a multi-year
 ! mean; SUMMA carries the rate that storage is changing at, every time step.  Comparing them means
-! integrating the rate into a storage, averaging it to the month the satellite reports, and
-! expressing both as departures from the same baseline.
+! integrating the rate into a storage and expressing both as departures from the same baseline.
+! Averaging to the month is the alignment's job, which averages the simulation over each observation.
 !
 ! Each of those is a separate step here, and each is asked for by the target that needs it, so a
 ! target compares what it means to compare and nothing happens to a series that did not ask for it.
@@ -32,13 +32,12 @@ module series_transform
 
   USE nr_type, only: i4b,rkind,lgt
 
-  use, intrinsic :: ieee_arithmetic, only: ieee_is_finite, ieee_value, ieee_quiet_nan
+  use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
 
   implicit none
   private
 
   public :: accumulate_series
-  public :: aggregate_monthly
   public :: remove_baseline_mean
 
 contains
@@ -94,110 +93,6 @@ contains
     enddo
 
   end subroutine accumulate_series
-
-  ! **************************************************************************************************
-  ! Average a series within each calendar month, stamped at the first of that month.
-  !
-  ! A satellite that reports monthly is compared against the month the model simulated, not against
-  ! whichever time step happens to fall nearest the satellite's timestamp.  Months with no finite
-  ! value come back missing rather than as a number nothing supports.
-  ! **************************************************************************************************
-  subroutine aggregate_monthly(time,values,timeUnits,timeOut,valOut,err,message)
-    real(rkind),              intent(in)  :: time(:)      ! time coordinate
-    real(rkind),              intent(in)  :: values(:)    ! values to average
-    character(*),             intent(in)  :: timeUnits    ! units of the time coordinate
-    real(rkind), allocatable, intent(out) :: timeOut(:)   ! first of each month, same units
-    real(rkind), allocatable, intent(out) :: valOut(:)    ! monthly mean
-    integer(i4b),             intent(out) :: err          ! error code
-    character(*),             intent(out) :: message      ! error message
-    real(rkind)  :: scale                                 ! seconds per unit of the time coordinate
-    integer(i4b), allocatable :: monthKey(:)              ! year*12+month of each entry
-    integer(i4b), allocatable :: uniqueKey(:)
-    real(rkind),  allocatable :: total(:)
-    integer(i4b), allocatable :: count(:)
-    integer(i4b) :: refYear,refMonth,refDay
-    integer(i4b) :: year,month,day
-    integer(i4b) :: i,j,nMonth,key
-    logical(lgt) :: found
-
-    err=0
-    message='aggregate_monthly/'
-    if(size(time) /= size(values))then
-      message=trim(message)//'the time and value vectors have different lengths'
-      err=20; return
-    endif
-
-    call time_scale(timeUnits,scale,err,message)
-    if(err/=0) return
-    call reference_date(timeUnits,refYear,refMonth,refDay,err,message)
-    if(err/=0) return
-
-    ! the calendar month each entry falls in
-    allocate(monthKey(size(time)),stat=err)
-    if(err/=0)then
-      message=trim(message)//'problem allocating the month index'
-      return
-    endif
-    do i=1,size(time)
-      call date_from_days(day_number(refYear,refMonth,refDay)+floor(time(i)*scale/86400._rkind), &
-                          year,month,day)
-      monthKey(i)=year*12+(month-1)
-    enddo
-
-    ! the distinct months, in the order they occur
-    allocate(uniqueKey(size(monthKey)),stat=err)
-    if(err/=0)then
-      message=trim(message)//'problem allocating the month list'
-      return
-    endif
-    nMonth=0
-    do i=1,size(monthKey)
-      found=.false.
-      do j=1,nMonth
-        if(uniqueKey(j)==monthKey(i))then
-          found=.true.
-          exit
-        endif
-      enddo
-      if(.not.found)then
-        nMonth=nMonth+1
-        uniqueKey(nMonth)=monthKey(i)
-      endif
-    enddo
-
-    allocate(total(nMonth),count(nMonth),timeOut(nMonth),valOut(nMonth),stat=err)
-    if(err/=0)then
-      message=trim(message)//'problem allocating the monthly series'
-      return
-    endif
-    total=0._rkind
-    count=0
-
-    do i=1,size(values)
-      if(.not.ieee_is_finite(values(i))) cycle
-      do j=1,nMonth
-        if(uniqueKey(j)==monthKey(i))then
-          total(j)=total(j)+values(i)
-          count(j)=count(j)+1
-          exit
-        endif
-      enddo
-    enddo
-
-    do j=1,nMonth
-      key=uniqueKey(j)
-      year=key/12
-      month=modulo(key,12)+1
-      ! the first of the month, back in the units the series came in
-      timeOut(j)=real(day_number(year,month,1)-day_number(refYear,refMonth,refDay),rkind)*86400._rkind/scale
-      if(count(j) > 0)then
-        valOut(j)=total(j)/real(count(j),rkind)
-      else
-        valOut(j)=ieee_value(0._rkind,ieee_quiet_nan)
-      endif
-    enddo
-
-  end subroutine aggregate_monthly
 
   ! **************************************************************************************************
   ! Express a series as a departure from its own mean over a baseline period.
@@ -382,36 +277,6 @@ contains
     days=real(day_number(year,month,day)-day_number(refYear,refMonth,refDay),rkind)
 
   end subroutine date_to_days
-
-  ! **************************************************************************************************
-  ! The calendar date a day number falls on.
-  ! **************************************************************************************************
-  pure subroutine date_from_days(n,year,month,day)
-    integer(i4b), intent(in)  :: n
-    integer(i4b), intent(out) :: year,month,day
-    integer(i4b) :: z,era,doe,yoe,y,doy,mp
-
-    z=n
-    if(z >= 0)then
-      era=z/146097
-    else
-      era=(z-146096)/146097
-    endif
-    doe=z-era*146097
-    yoe=(doe-doe/1460+doe/36524-doe/146096)/365
-    y=yoe+era*400
-    doy=doe-(365*yoe+yoe/4-yoe/100)
-    mp=(5*doy+2)/153
-    day=doy-(153*mp+2)/5+1
-    if(mp < 10)then
-      month=mp+3
-    else
-      month=mp-9
-    endif
-    if(month <= 2) y=y+1
-    year=y
-
-  end subroutine date_from_days
 
   ! **************************************************************************************************
   ! Day number of a proleptic Gregorian date, counted from a fixed epoch.

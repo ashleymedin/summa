@@ -19,7 +19,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 module summa_simulation
 
-USE nr_type, only: i4b, rkind, lgt
+USE nr_type, only: i4b, i8b, rkind, lgt
 USE summa_type, only: config_info
 USE summa_type, only: summa1_type_dec
 USE summa_type, only: parallel_context_type
@@ -40,6 +40,7 @@ USE build_options, only: openwq_active
 
 #ifdef MIZUROUTE_ACTIVE
 USE mizuroute_coupling,        only: get_mizuroute_streamflow
+USE mizuroute_coupling,        only: get_mizuroute_reach_index
 USE finalize_mizuroute_module, only: finalize_mizuroute
 #endif
 
@@ -229,26 +230,33 @@ contains
   end subroutine evaluate_objective
 
   ! **************************************************************************************************
-  ! Return the position of a name in a list, or integerMissing when it is not there.
+  ! Return the position of a variable over a spatial unit in a list, or integerMissing when it is not
+  ! there.
   !
-  ! Two targets scoring the same SUMMA variable - the same storage series against two products, say -
-  ! collect it once.
+  ! Two targets scoring the same variable over the same unit - one storage series against two
+  ! products, say - collect it once.  The same variable over two units is two series.
   ! **************************************************************************************************
-  pure function find_series_name(names,name) result(iName)
+  pure function find_series(names,units,unitIds,name,unitKind,unitId) result(iName)
+    use simulated_series, only: ix_unit_domain
     character(*), intent(in) :: names(:)
+    integer(i4b), intent(in) :: units(:)
+    integer(i8b), intent(in) :: unitIds(:)
     character(*), intent(in) :: name
+    integer(i4b), intent(in) :: unitKind
+    integer(i8b), intent(in) :: unitId
     integer(i4b)             :: iName
     integer(i4b) :: i
 
     iName=integerMissing
     do i=1,size(names)
-      if(trim(names(i))==trim(name))then
-        iName=i
-        return
-      endif
+      if(trim(names(i))/=trim(name)) cycle
+      if(units(i)/=unitKind) cycle
+      if(unitKind/=ix_unit_domain .and. unitIds(i)/=unitId) cycle
+      iName=i
+      return
     enddo
 
-  end function find_series_name
+  end function find_series
 
   ! **************************************************************************************************
   ! Evaluate every calibration target for a specified parameter vector.
@@ -274,17 +282,17 @@ contains
     use var_lookup, only: iLookFREQ
     use globalData,              only: numtim
     use read_flowobs_module,     only: read_observations
-    use read_csvobs_module,      only: read_csv_observations
     use timeseries_alignment,    only: align_timeseries
     use metrics,                 only: compute_metric
     use write_evaluation_module, only: write_evaluation
     use series_transform,        only: accumulate_series
-    use series_transform,        only: aggregate_monthly
     use series_transform,        only: remove_baseline_mean
     use simulated_series,        only: sim_series_type
     use simulated_series,        only: init_simulated_series
     use simulated_series,        only: find_simulated_series
     use simulated_series,        only: is_routed_streamflow
+    use simulated_series,        only: spatial_unit_index
+    use simulated_series,        only: ix_unit_domain, ix_unit_reach
     ! dummy arguments
     type(config_info),           intent(inout) :: config
     type(parallel_context_type), intent(in)    :: domain_parallel
@@ -315,16 +323,16 @@ contains
     real(rkind), allocatable           :: timeAligned(:)     ! common time vector
     real(rkind), allocatable           :: flowSimAligned(:)  ! flow simulations aligned to the common time period
     real(rkind), allocatable           :: flowObsAligned(:)  ! flow observations aligned to the common time period
-    type(sim_series_type), allocatable :: series(:)          ! SUMMA variables the targets asked for
-    character(len=64),     allocatable :: seriesName(:)      ! names of those variables
+    type(sim_series_type), allocatable :: series(:)          ! simulated series the targets asked for
+    character(len=64),     allocatable :: seriesName(:)      ! names of their variables
+    integer(i4b),          allocatable :: seriesUnit(:)      ! spatial unit each is reduced over
+    integer(i8b),          allocatable :: seriesUnitId(:)    ! id of that unit
+    integer(i4b),          allocatable :: targetUnit(:)      ! spatial unit of each target
     integer(i4b)                       :: nSeries            ! number of them
     integer(i4b)                       :: iSeries            ! index of one of them
     real(rkind), allocatable           :: valSim(:)          ! the simulated series for the current target
     character(len=:), allocatable      :: valSimUnits        ! its units
-    real(rkind), allocatable           :: timeUse(:)         ! the time axis that series sits on
     real(rkind), allocatable           :: valAccum(:)        ! it, integrated from a rate
-    real(rkind), allocatable           :: valMonthly(:)      ! it, averaged by calendar month
-    real(rkind), allocatable           :: timeMonthly(:)     ! the months those averages fall in
     real(rkind), allocatable           :: valAnom(:)         ! a series as departures from its baseline mean
     character(len=256)                 :: cmessage           ! error message of downwind routine
 
@@ -378,27 +386,40 @@ contains
     ! calibration run: send model chatter to stderr so stdout carries only the metric, unless a caller owns iulog
     if(iulog == output_unit) iulog = error_unit
 
-    ! the SUMMA variables the targets ask for, resolved before the run so an unknown name is refused
-    ! here rather than after a simulation has been paid for.  Routed streamflow is not among them: it
-    ! comes from mizuRoute, not from a SUMMA structure.
+    ! the simulated series the targets ask for, resolved before the run so an unknown variable or
+    ! spatial unit is refused here rather than after a simulation has been paid for.  Routed streamflow
+    ! at the network outlet is not among them: run_summa returns it for every run.
     nSeries=0
-    allocate(seriesName(nTarget),stat=err)
+    allocate(seriesName(nTarget),seriesUnit(nTarget),seriesUnitId(nTarget),targetUnit(nTarget),stat=err)
     if(err/=0)then
-      message=trim(message)//'problem allocating the simulated-series names'
+      message=trim(message)//'problem allocating the simulated-series list'
       return
     endif
     do iTarget=1,nTarget
       associate(calTarget => summa1_struc(n)%config%calib%targets(iTarget))
-      if(.not.is_routed_streamflow(calTarget%variable))then
-        if(find_series_name(seriesName(1:nSeries),calTarget%variable) == integerMissing)then
-          nSeries=nSeries+1
-          seriesName(nSeries)=calTarget%variable
-        endif
+      targetUnit(iTarget)=spatial_unit_index(calTarget%spatial_unit)
+      if(targetUnit(iTarget) == integerMissing)then
+        message=trim(message)//'calibration target "'//trim(calTarget%name)//'" asks for spatial unit "'// &
+                trim(calTarget%spatial_unit)//'"; use gru, hru or reach'
+        err=20; return
+      endif
+      if(is_routed_streamflow(calTarget%variable) .and. targetUnit(iTarget) == ix_unit_domain) cycle
+      if(find_series(seriesName(1:nSeries),seriesUnit(1:nSeries),seriesUnitId(1:nSeries), &
+                     calTarget%variable,targetUnit(iTarget),calTarget%spatial_id) == integerMissing)then
+        nSeries=nSeries+1
+        seriesName(nSeries)  =calTarget%variable
+        seriesUnit(nSeries)  =targetUnit(iTarget)
+        seriesUnitId(nSeries)=calTarget%spatial_id
       endif
       end associate
     enddo
 
-    call init_simulated_series(seriesName(1:nSeries),numtim,series,err,cmessage)
+    call init_simulated_series(seriesName(1:nSeries),seriesUnit(1:nSeries),seriesUnitId(1:nSeries), &
+                               numtim,series,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! a reach belongs to the river network, so it is resolved against the mizuRoute topology
+    call resolve_reach_series(summa1_struc(n),series,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! run SUMMA once; every target scores this same simulation
@@ -413,15 +434,14 @@ contains
     do iTarget=1,nTarget
       associate(calTarget => summa1_struc(n)%config%calib%targets(iTarget))
 
-      ! the simulated series this target is compared against: routed streamflow from mizuRoute, or
-      ! the SUMMA variable of that name, collected over the run just completed
-      if(allocated(valSim))  deallocate(valSim)
-      if(allocated(timeUse)) deallocate(timeUse)
-      if(is_routed_streamflow(calTarget%variable))then
+      ! the simulated series this target is compared against: routed streamflow at the network
+      ! outlet, or the series collected for its variable over its spatial unit
+      if(allocated(valSim)) deallocate(valSim)
+      if(is_routed_streamflow(calTarget%variable) .and. targetUnit(iTarget) == ix_unit_domain)then
         valSim=flowSim
         valSimUnits=flowSimUnits
       else
-        iSeries=find_simulated_series(series,calTarget%variable)
+        iSeries=find_simulated_series(series,calTarget%variable,targetUnit(iTarget),calTarget%spatial_id)
         if(iSeries == integerMissing)then
           message=trim(message)//'calibration target "'//trim(calTarget%name)// &
                   '" asks for simulated variable "'//trim(calTarget%variable)//'", which was not collected'
@@ -431,27 +451,17 @@ contains
         valSimUnits=trim(series(iSeries)%units)
       endif
 
-      ! read this target's observations, from whichever format holds them
+      ! read this target's observations
       if(allocated(timeObs)) deallocate(timeObs)
       if(allocated(flowObs)) deallocate(flowObs)
-      select case(trim(calTarget%obs_format))
-        case ('netcdf')
-          call read_observations(trim(calTarget%obs_path),trim(calTarget%obs_file),trim(calTarget%vname_obs), &
-                                 timeObs,flowObs,timeObsUnits,flowObsUnits,err,cmessage)
-        case ('csv')
-          call read_csv_observations(trim(calTarget%obs_path),trim(calTarget%obs_file),trim(calTarget%vname_obs), &
-                                     timeObs,flowObs,timeObsUnits,flowObsUnits,err,cmessage)
-        case default
-          message=trim(message)//'calibration target "'//trim(calTarget%name)//'" asks for observation '// &
-                  'format "'//trim(calTarget%obs_format)//'"; use "netcdf" or "csv"'
-          err=20; return
-      end select
+      call read_observations(trim(calTarget%obs_path),trim(calTarget%obs_file),trim(calTarget%vname_obs), &
+                             timeObs,flowObs,timeObsUnits,flowObsUnits,err,cmessage)
       if(err/=0)then
         message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
         return
       endif
 
-      ! a format that does not carry its units takes them from the target
+      ! units the target states override the file's
       if(len_trim(calTarget%obs_units) > 0) flowObsUnits=trim(calTarget%obs_units)
 
       ! -------------------------------------------------------------------------------------------
@@ -470,29 +480,10 @@ contains
         if(trim(valSimUnits)=='kg m-2 s-1') valSimUnits='mm'
       endif
 
-      ! average to the cadence the observations are reported at
-      select case(trim(calTarget%cadence))
-        case ('native')
-          ! compared step for step, as streamflow is
-        case ('monthly')
-          call aggregate_monthly(timeSim,valSim,timeSimUnits,timeMonthly,valMonthly,err,cmessage)
-          if(err/=0)then
-            message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
-            return
-          endif
-          call move_alloc(timeMonthly,timeUse)
-          call move_alloc(valMonthly,valSim)
-        case default
-          message=trim(message)//'calibration target "'//trim(calTarget%name)//'" asks for cadence "'// &
-                  trim(calTarget%cadence)//'"; use "native" or "monthly"'
-          err=20; return
-      end select
-      if(.not.allocated(timeUse)) timeUse=timeSim
-
       ! express both sides as departures from the same baseline, which is what an anomaly product
       ! reports and what removes the constant of integration an accumulated series carries
       if(allocated(calTarget%baseline_start) .and. allocated(calTarget%baseline_end))then
-        call remove_baseline_mean(timeUse,valSim,timeSimUnits,                              &
+        call remove_baseline_mean(timeSim,valSim,timeSimUnits,                              &
                                   calTarget%baseline_start,calTarget%baseline_end,          &
                                   valAnom,err,cmessage)
         if(err/=0)then
@@ -515,7 +506,7 @@ contains
       if(allocated(timeAligned))    deallocate(timeAligned)
       if(allocated(flowSimAligned)) deallocate(flowSimAligned)
       if(allocated(flowObsAligned)) deallocate(flowObsAligned)
-      call align_timeseries(timeUse,valSim,timeSimUnits,valSimUnits,   &
+      call align_timeseries(timeSim,valSim,timeSimUnits,valSimUnits,   &
                             timeObs,flowObs,timeObsUnits,flowObsUnits, &
                             summa1_struc(n)%config%calib%start_date,   &
                             summa1_struc(n)%config%calib%end_date,     &
@@ -617,6 +608,39 @@ contains
   end subroutine initialize_summa
 
   ! **************************************************************************************************
+  ! Resolve the reach of every series scored on one, against the mizuRoute river network.
+  !
+  ! A reach id the network does not hold is refused here, before the run, as an unknown SUMMA variable
+  ! or GRU is; a reach asked for in a run that does not route is refused the same way.
+  ! **************************************************************************************************
+  subroutine resolve_reach_series(summa_struct, series, err, message)
+    use simulated_series, only: sim_series_type
+    use simulated_series, only: ix_unit_reach
+    type(summa1_type_dec), intent(in)    :: summa_struct
+    type(sim_series_type), intent(inout) :: series(:)
+    integer(i4b),          intent(out)   :: err
+    character(*),          intent(out)   :: message
+    integer(i4b)                         :: iSeries
+    character(len=256)                   :: cmessage
+
+    err=0
+    message='resolve_reach_series/'
+
+    do iSeries=1,size(series)
+      if(series(iSeries)%ix_unit /= ix_unit_reach) cycle
+      if(.not.(mizuroute_active .and. summa_struct%config%use_mizuroute))then
+        message=trim(message)//'a calibration target names a reach, which needs mizuRoute routing'
+        err=20; return
+      endif
+      if(mizuroute_active)then ! build-time capability
+        call get_mizuroute_reach_index(summa_struct, series(iSeries)%unit_id, series(iSeries)%ix_seg, err, cmessage)
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      endif
+    enddo
+
+  end subroutine resolve_reach_series
+
+  ! **************************************************************************************************
   ! run SUMMA
   ! **************************************************************************************************
   subroutine run_summa(summa_struct, timeSim,flowSim, timeUnits,flowUnits, err,message, series)
@@ -625,6 +649,7 @@ contains
     USE globalData, only: numtim
     USE simulated_series, only: sim_series_type
     USE simulated_series, only: collect_simulated_series
+    USE simulated_series, only: ix_unit_reach
 #ifdef MODFLOW_ACTIVE
     USE globalData, only: data_step                            ! length of a SUMMA data step (s)
 #endif
@@ -640,6 +665,7 @@ contains
     type(sim_series_type), optional, intent(inout) :: series(:)
     ! locals
     integer(i4b)                               :: modelTimeStep ! index of model time step
+    integer(i4b)                               :: iSeries       ! index of a simulated series
     character(len=512)                         :: cmessage      ! error message of downwind routine
 #ifdef MODFLOW_ACTIVE
     ! coupled MODFLOW 6 state, live only while summa_struct%config%use_modflow is set
@@ -706,10 +732,18 @@ contains
       ! not from the routing, so a target that does not need routed flow still has a time coordinate.
       timeSim(modelTimeStep) = summa_struct%forcStruct%gru(1)%hru(1)%var(iLookFORCE%time)
 
-      ! save streamflow time series (unavailable when mizuRoute is not active)
+      ! save streamflow time series, at the outlet and at any reach a target named (unavailable when
+      ! mizuRoute is not active)
       if(mizuroute_active)then ! build-time capability
        if(summa_struct%config%use_mizuroute)then
         call get_mizuroute_streamflow(modelTimeStep, summa_struct, flowSim(modelTimeStep))
+        if(present(series))then
+          do iSeries=1,size(series)
+            if(series(iSeries)%ix_unit /= ix_unit_reach) cycle
+            call get_mizuroute_streamflow(modelTimeStep, summa_struct, series(iSeries)%values(modelTimeStep), &
+                                          series(iSeries)%ix_seg)
+          enddo
+        endif
        endif
       endif
 

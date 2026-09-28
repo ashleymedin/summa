@@ -5,6 +5,7 @@ use build_options, only: modflow_active
 
 USE nr_type
 USE summa_type, only: config_info       ! summa configuation info
+USE data_types, only: target_info        ! one calibration target
 USE globalData, only: iulog             ! I/O unit for logging messages
 USE globalData, only: startGRU             ! index of the first GRU of the run domain
 USE globalData, only: integerMissing       ! missing integer
@@ -498,22 +499,18 @@ contains
       ! weight used when the targets are scalarized for a single-objective search
       call get_value(target_table, 'weight', config%calib%targets(i)%weight, stat=istat)
 
-      ! format of the observation file: NetCDF unless the target says otherwise
-      if(allocated(cvalue)) deallocate(cvalue)
-      call get_value(target_table, 'obs_format', cvalue, stat=istat)
-      if(istat==0 .and. allocated(cvalue)) config%calib%targets(i)%obs_format = trim(cvalue)
-
-      ! units of the observations, for formats that do not carry them
+      ! units of the observations, overriding the ones the file carries
       if(allocated(cvalue)) deallocate(cvalue)
       call get_value(target_table, 'obs_units', cvalue, stat=istat)
       if(istat==0 .and. allocated(cvalue)) config%calib%targets(i)%obs_units = trim(cvalue)
 
+      ! the spatial unit the simulated variable is scored over, named by its id: one of gru, hru or
+      ! reach, and the whole domain when the target names none
+      call parse_target_spatial_unit(target_table, config%calib%targets(i), ierr, message)
+      if(ierr/=0) return
+
       ! putting the simulated series on the same footing as the observations
       call get_value(target_table, 'accumulate', config%calib%targets(i)%accumulate, stat=istat)
-
-      if(allocated(cvalue)) deallocate(cvalue)
-      call get_value(target_table, 'cadence', cvalue, stat=istat)
-      if(istat==0 .and. allocated(cvalue)) config%calib%targets(i)%cadence = trim(cvalue)
 
       if(allocated(cvalue)) deallocate(cvalue)
       call get_value(target_table, 'baseline_start', cvalue, stat=istat)
@@ -526,6 +523,40 @@ contains
     enddo
 
   end subroutine parse_calibration_targets
+
+  ! **************************************************************************************************
+  ! Read the spatial unit a calibration target scores its simulated variable over.
+  !
+  ! The unit is named by its id under one of the keys gru, hru or reach - the ids the domain and the
+  ! river network use, not positions in a run - and a target names at most one of them.  Naming none
+  ! leaves the whole domain, which is what every configuration written before this did.
+  ! **************************************************************************************************
+  subroutine parse_target_spatial_unit(target_table, calTarget, ierr, message)
+    USE tomlf_all, only: toml_table, get_value
+    type(toml_table), pointer, intent(in)    :: target_table
+    type(target_info),         intent(inout) :: calTarget
+    integer(i4b),              intent(out)   :: ierr
+    character(*),              intent(inout) :: message
+    character(len=5), parameter :: unit_key(3) = ['gru  ','hru  ','reach']
+    integer(i8b) :: id
+    integer(i4b) :: iKey
+    integer(i4b) :: istat
+
+    ierr = 0
+
+    do iKey=1,size(unit_key)
+      call get_value(target_table, trim(unit_key(iKey)), id, stat=istat)
+      if(istat/=0) cycle
+      if(trim(calTarget%spatial_unit) /= 'domain')then
+        message=trim(message)//'calibration target "'//trim(calTarget%name)//'" names both a '// &
+                trim(calTarget%spatial_unit)//' and a '//trim(unit_key(iKey))//'; it scores one spatial unit'
+        ierr=20; return
+      endif
+      calTarget%spatial_unit = trim(unit_key(iKey))
+      calTarget%spatial_id   = id
+    enddo
+
+  end subroutine parse_target_spatial_unit
   
   ! **************************************************************************************************
   ! Parse summa configuration.
