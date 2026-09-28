@@ -322,7 +322,3 @@ AFTER tag of v4.0.0-exp-Sundials
      psiScale of an iname_lmpLayer state is loosened to absConvTol_liquid/(absConvTol_matric*dVolTot_dPsi0), never tighter than the old relative test.
 -78) computFlux.f90 calls groundwatr for modLatflow, not qTopmodl alone, commit 0e8947fd Sep 26, 2026
      Lateral flow was gated out of the flux call, so mLayerColumnOutflow was identically zero in every coupled run.
- 79) summa_modflow6.f90 takes a mizuRoute TOML as a third argument, so MODFLOW 6 and the river network run together, commit 94d83d3c Sep 26, 2026
-     The stream-network init moved to summa_init.f90 for both drivers; domain_sagehen9 routes its 9 reaches.
- 80) summa_init.f90 zeroes an unsolved stream domain's runoff when the river network is not running, commit 37ce9d4e Sep 28, 2026
-     Its missing value went into basin__SurfaceRunoff, clamping basin__TotalRunoff to zero in every unrouted GRU with a stream HRU.
