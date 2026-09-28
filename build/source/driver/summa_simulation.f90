@@ -228,7 +228,7 @@ contains
     ! locals
     real(rkind), allocatable :: objective(:)   ! one value per calibration target
     integer(i4b)             :: nTarget        ! number of calibration targets
-    character(len=256)       :: cmessage       ! error message of downwind routine
+    character(len=1024)      :: cmessage       ! error message of downwind routine
 
     err=0
     message='evaluate_objective/'
@@ -298,7 +298,8 @@ contains
                                  instance_parallel,                 & ! MPI context for model-instance parallelism
                                  sample_id, param_name,param_value, & ! sample ID + parameter names and values
                                  objective,                         & ! objective value for each target
-                                 err, message)                        ! error code and message
+                                 err, message,                      & ! error code and message
+                                 trial_failed)                        ! .true. if the error came from the parameter set's own run
     use iso_fortran_env, only: output_unit, error_unit
     use globalData, only: ncid
     USE globalData, only: output_fileSuffix
@@ -326,7 +327,11 @@ contains
     real(rkind),  intent(out) :: objective(:)
     integer(i4b), intent(out) :: err
     character(*), intent(out) :: message
+    logical(lgt), optional, intent(out) :: trial_failed
     ! locals
+    logical(lgt)                       :: failed             ! the model refused or failed on this parameter set
+    logical(lgt)                       :: unscored           ! no calibration target, so nothing to score
+    integer(i4b)                       :: errFinal           ! error code of finalize_summa
     type(summa1_type_dec), allocatable :: summa1_struc(:)    ! top-level SUMMA data structure
     integer(i4b), parameter            :: n=1                ! number of SUMMA data structures
     integer(i4b)                       :: i                  ! looping
@@ -357,11 +362,13 @@ contains
     character(len=:), allocatable      :: valSimUnits        ! its units
     real(rkind), allocatable           :: valAccum(:)        ! it, integrated from a rate
     real(rkind), allocatable           :: valAnom(:)         ! a series as departures from its baseline mean
-    character(len=256)                 :: cmessage           ! error message of downwind routine
+    character(len=1024)                :: cmessage           ! error message of downwind routine
 
     err=0
     message='evaluate_objectives/'
     objective=realMissing
+    failed=.false.; unscored=.false.
+    if(present(trial_failed)) trial_failed=.false.
 
     nTarget=n_calibration_targets(config)
     if(nTarget > size(objective))then
@@ -391,19 +398,20 @@ contains
       output_fileSuffix=trim(output_fileSuffix)//'_sample'//sampleString
     endif
 
-    ! initialize SUMMA
+    ! the model is released after this block however it is left, so a worker can take the next trial
+    trial: block
+
+    ! initialize SUMMA; a parameter set the model refuses is a failed trial
     call initialize_summa(config, summa1_struc(n), param_name,param_value, err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    if(err/=0)then; message=trim(message)//trim(cmessage); failed=.true.; exit trial; endif
 
     ! an objective function needs observations to compare against; without them this is an
     ! ordinary SUMMA run, so run the model and return rather than failing
     if(n_calibration_targets(summa1_struc(n)%config) == 0)then
-      call run_summa(summa1_struc(n), timeSim,flowSim, timeSimUnits,flowSimUnits, err,cmessage)
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-      call finalize_summa(summa1_struc(n),err,cmessage)
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-      if(allocated(summa1_struc)) deallocate(summa1_struc)
-      return
+      unscored=.true.
+      call run_summa(summa1_struc(n), timeSim,flowSim, timeSimUnits,flowSimUnits, err,cmessage, physics_failed=failed)
+      if(err/=0) message=trim(message)//trim(cmessage)
+      exit trial
     endif
 
     ! calibration run: send model chatter to stderr so stdout carries only the metric, unless a caller owns iulog
@@ -416,7 +424,7 @@ contains
     allocate(seriesName(nTarget),seriesUnit(nTarget),seriesUnitId(nTarget),targetUnit(nTarget),stat=err)
     if(err/=0)then
       message=trim(message)//'problem allocating the simulated-series list'
-      return
+      exit trial
     endif
     do iTarget=1,nTarget
       associate(calTarget => summa1_struc(n)%config%calib%targets(iTarget))
@@ -424,7 +432,7 @@ contains
       if(targetUnit(iTarget) == integerMissing)then
         message=trim(message)//'calibration target "'//trim(calTarget%name)//'" asks for spatial unit "'// &
                 trim(calTarget%spatial_unit)//'"; use gru, hru or reach'
-        err=20; return
+        err=20; exit trial
       endif
       if(is_routed_streamflow(calTarget%variable) .and. targetUnit(iTarget) == ix_unit_domain) cycle
       if(find_series(seriesName(1:nSeries),seriesUnit(1:nSeries),seriesUnitId(1:nSeries), &
@@ -439,19 +447,19 @@ contains
 
     call init_simulated_series(seriesName(1:nSeries),seriesUnit(1:nSeries),seriesUnitId(1:nSeries), &
                                numtim,series,err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    if(err/=0)then; message=trim(message)//trim(cmessage); exit trial; endif
 
     ! a reach belongs to the river network, so it is resolved against the mizuRoute topology
     call resolve_reach_series(summa1_struc(n),series,err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    if(err/=0)then; message=trim(message)//trim(cmessage); exit trial; endif
 
     ! run SUMMA once; every target scores this same simulation
     if(nSeries > 0)then
-      call run_summa(summa1_struc(n), timeSim,flowSim, timeSimUnits,flowSimUnits, err,cmessage, series=series)
+      call run_summa(summa1_struc(n), timeSim,flowSim, timeSimUnits,flowSimUnits, err,cmessage, series=series, physics_failed=failed)
     else
-      call run_summa(summa1_struc(n), timeSim,flowSim, timeSimUnits,flowSimUnits, err,cmessage)
+      call run_summa(summa1_struc(n), timeSim,flowSim, timeSimUnits,flowSimUnits, err,cmessage, physics_failed=failed)
     endif
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    if(err/=0)then; message=trim(message)//trim(cmessage); exit trial; endif
 
     ! score the simulation against each calibration target
     do iTarget=1,nTarget
@@ -468,7 +476,7 @@ contains
         if(iSeries == integerMissing)then
           message=trim(message)//'calibration target "'//trim(calTarget%name)// &
                   '" asks for simulated variable "'//trim(calTarget%variable)//'", which was not collected'
-          err=20; return
+          err=20; exit trial
         endif
         valSim=series(iSeries)%values
         valSimUnits=trim(series(iSeries)%units)
@@ -481,7 +489,7 @@ contains
                              timeObs,flowObs,timeObsUnits,flowObsUnits,err,cmessage)
       if(err/=0)then
         message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
-        return
+        exit trial
       endif
 
       ! units the target states override the file's
@@ -496,7 +504,7 @@ contains
         call accumulate_series(timeSim,valSim,timeSimUnits,valAccum,err,cmessage)
         if(err/=0)then
           message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
-          return
+          exit trial
         endif
         call move_alloc(valAccum,valSim)
         ! integrating kg m-2 s-1 over seconds leaves kg m-2, which is millimetres of water
@@ -511,7 +519,7 @@ contains
                                   valAnom,err,cmessage)
         if(err/=0)then
           message=trim(message)//'calibration target "'//trim(calTarget%name)//'" (simulated): '//trim(cmessage)
-          return
+          exit trial
         endif
         call move_alloc(valAnom,valSim)
 
@@ -520,7 +528,7 @@ contains
                                   valAnom,err,cmessage)
         if(err/=0)then
           message=trim(message)//'calibration target "'//trim(calTarget%name)//'" (observed): '//trim(cmessage)
-          return
+          exit trial
         endif
         call move_alloc(valAnom,flowObs)
       endif
@@ -537,7 +545,7 @@ contains
                             err,cmessage)
       if(err/=0)then
         message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
-        return
+        exit trial
       endif
 
       ! compute this target's metric
@@ -546,7 +554,7 @@ contains
                           objective(iTarget),err,cmessage)
       if(err/=0)then
         message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
-        return
+        exit trial
       endif
 
       ! write the aligned evaluation time series and objective value.  The SUMMA output file holds one
@@ -560,19 +568,26 @@ contains
                               calTarget%metric,calTarget%obs_transform,          &
                               objective(iTarget),                          &
                               err,cmessage)
-        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+        if(err/=0)then; message=trim(message)//trim(cmessage); exit trial; endif
       endif
 
       end associate
     enddo
 
-    ! finalize SUMMA and release model resources
-    call finalize_summa(summa1_struc(n),err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end block trial
+    if(present(trial_failed)) trial_failed=failed
+
+    ! finalize SUMMA and release model resources, keeping the first error
+    call finalize_summa(summa1_struc(n),errFinal,cmessage)
+    if(err==0 .and. errFinal/=0)then; err=errFinal; message=trim(message)//trim(cmessage); endif
 
     ! release top-level SUMMA data structure
     ! NOTE: Deallocate here because finalize_summa operates on a single array element
     if(allocated(summa1_struc)) deallocate(summa1_struc)
+
+    ! restore output file suffix
+    output_fileSuffix=outputFileSuffix_orig
+    if(err/=0 .or. unscored) return
 
     ! write objective function to standard output
     if(instance_parallel%size == 1)then
@@ -582,9 +597,6 @@ contains
            'case=',trim(config%case_name),', rank=',instance_parallel%rank,', objective=', &
            (objective(iTarget), iTarget=1,nTarget)
     endif
-
-    ! restore output file suffix
-    output_fileSuffix=outputFileSuffix_orig
 
   end subroutine evaluate_objectives
 
@@ -666,7 +678,7 @@ contains
   ! **************************************************************************************************
   ! run SUMMA
   ! **************************************************************************************************
-  subroutine run_summa(summa_struct, timeSim,flowSim, timeUnits,flowUnits, err,message, series)
+  subroutine run_summa(summa_struct, timeSim,flowSim, timeUnits,flowUnits, err,message, series, physics_failed)
     USE var_lookup, only: iLookFORCE
     USE globalData, only: forc_meta
     USE globalData, only: numtim
@@ -686,10 +698,12 @@ contains
     character(*), intent(out)                  :: message       ! error message
     ! SUMMA variables a calibration target asked for, recorded as the run proceeds
     type(sim_series_type), optional, intent(inout) :: series(:)
+    ! .true. if the error came from the model physics rather than from reading or writing
+    logical(lgt), optional, intent(out)            :: physics_failed
     ! locals
     integer(i4b)                               :: modelTimeStep ! index of model time step
     integer(i4b)                               :: iSeries       ! index of a simulated series
-    character(len=512)                         :: cmessage      ! error message of downwind routine
+    character(len=1024)                        :: cmessage      ! error message of downwind routine
 #ifdef MODFLOW_ACTIVE
     ! coupled MODFLOW 6 state, live only while summa_struct%config%use_modflow is set
     type(mf6_coupler_type)                     :: coupler       ! the MODFLOW 6 side of the coupling
@@ -698,10 +712,12 @@ contains
     real, allocatable                          :: head_hru(:)   ! per-HRU prescribed head (m), MODFLOW -> SUMMA
     real, allocatable                          :: stor_hru(:)   ! per-HRU aquifer storage (m), MODFLOW -> SUMMA
     real, allocatable                          :: bflow_hru(:)  ! per-HRU aquifer baseflow (m s-1), MODFLOW -> SUMMA
+    integer(i4b)                               :: errFinal      ! error code of the MODFLOW 6 shutdown
 #endif
 
     err=0
     message='run_summa/'
+    if(present(physics_failed)) physics_failed=.false.
 
 #ifdef MODFLOW_ACTIVE
     ! start the coupled MODFLOW 6 model, if this case is configured for one
@@ -739,14 +755,18 @@ contains
 
       ! read model forcing data
       call summa_readForcing(modelTimeStep, summa_struct, err, cmessage)
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      if(err/=0)then; message=trim(message)//trim(cmessage); exit; endif
 
       ! initialize OpenWQ time step
       if(openwq_active) call openwq_run_time_start(summa_struct)
 
       ! run SUMMA physics and mizuRoute
       call summa_runPhysics(modelTimeStep, summa_struct, err, cmessage)
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      if(err/=0)then
+        message=trim(message)//trim(cmessage)
+        if(present(physics_failed)) physics_failed=.true.
+        exit
+      endif
 
       ! transfer SUMMA fluxes to OpenWQ
       if(openwq_active) call openwq_run_space_step(summa_struct)
@@ -773,12 +793,12 @@ contains
       ! record the SUMMA variables any calibration target asked for
       if(present(series))then
         call collect_simulated_series(modelTimeStep, summa_struct, series, err, cmessage)
-        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+        if(err/=0)then; message=trim(message)//trim(cmessage); exit; endif
       endif
 
       ! write the model output
       call summa_writeOutputFiles(modelTimeStep, summa_struct, err, cmessage)
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      if(err/=0)then; message=trim(message)//trim(cmessage); exit; endif
 
 #ifdef MODFLOW_ACTIVE
       ! SUMMA drainage -> MODFLOW recharge, advance MODFLOW one step, read the new water table
@@ -788,7 +808,11 @@ contains
         call coupler%step(modelTimeStep, dble(data_step),           &
                           drain_hru, head_hru, stor_hru, bflow_hru, &
                           err, cmessage)
-        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+        if(err/=0)then
+          message=trim(message)//trim(cmessage)
+          if(present(physics_failed)) physics_failed=.true.
+          exit
+        endif
       endif
 #endif
 
@@ -800,8 +824,8 @@ contains
     ! shut MODFLOW down: the next parameter sample starts its own simulation, from the same
     ! aquifer initial condition this one started from
     if(coupled)then
-      call coupler%finalize(err, cmessage)
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      call coupler%finalize(errFinal, cmessage)
+      if(err==0 .and. errFinal/=0)then; err=errFinal; message=trim(message)//trim(cmessage); endif
     endif
 #endif
 

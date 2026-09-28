@@ -56,6 +56,7 @@ module summa_parameter_sampling
   integer(i4b), parameter :: tag_work=1
   integer(i4b), parameter :: tag_done=2
   integer(i4b), parameter :: tag_stop=3
+  integer(i4b), parameter :: tag_fail=4
 
   ! parameter sampling method
   character(len=*), parameter :: sampling_method='dds'
@@ -65,6 +66,7 @@ module summa_parameter_sampling
     real(rkind),  allocatable :: value(:,:)       ! sampled decision vector (nSampled,nSamples)
     real(rkind),  allocatable :: override(:,:)    ! complete SUMMA override vector (nParam,nSamples)
     real(rkind),  allocatable :: objective(:,:)   ! one value per calibration target (nTarget,nSamples)
+    logical(lgt), allocatable :: failed(:)        ! the model refused or failed on the trial (nSamples)
     integer(i4b), allocatable :: start_time(:,:)  ! dispatch time (8,nSamples)
     integer(i4b), allocatable :: end_time(:,:)    ! completion time (8,nSamples)
   end type trial_ledger
@@ -213,12 +215,14 @@ contains
     allocate(ledger%value(size(search%param_names),nSamples),  &
              ledger%override(size(param_spec%params),nSamples), &
              ledger%objective(nTarget,nSamples),                 &
+             ledger%failed(nSamples),                            &
              ledger%start_time(8,nSamples),                      &
              ledger%end_time(8,nSamples),stat=err)
     if(err/=0)then
       message=trim(message)//'unable to allocate the trial record'
       return
     endif
+    ledger%failed=.false.
 
     select case(trim(config%calib%algorithm))
       case('dds')
@@ -266,6 +270,7 @@ contains
     integer(i4b) :: nActive
     integer(i4b) :: mpi_err
     real(rkind)  :: objective(size(ledger%objective,1))
+    logical(lgt) :: failed
     character(len=256) :: cmessage
 
     err=0
@@ -283,12 +288,15 @@ contains
 
     ! wait for completed trials and immediately refill available workers
     do while(nActive > 0)
-      call receive_objective(objective,worker,instance_parallel%comm,mpi_err)
+      call receive_objective(objective,failed,worker,instance_parallel%comm,mpi_err)
       call check_mpi(instance_parallel%rank,mpi_err,'unable to receive objective value')
       nActive=nActive-1
       sample_id=worker_sample(worker)
       call date_and_time(values=ledger%end_time(:,sample_id))
       ledger%objective(:,sample_id)=objective
+      ledger%failed(sample_id)=failed
+      if(failed) write(output_unit,'(A,I0,A,I0,A)') 'trial ',sample_id,' failed on worker ',worker, &
+                                                    '; it ranks last on every target'
 
       call record_trial(config,sample_id,ledger,x_best,F_best,sample_best)
       call write_calibration_output(ncid_calib,                    &
@@ -296,6 +304,7 @@ contains
                                     param_name,                    &
                                     ledger%override(:,sample_id),  &
                                     ledger%objective(:,sample_id), &
+                                    ledger%failed(sample_id),      &
                                     ledger%start_time(:,sample_id),&
                                     ledger%end_time(:,sample_id),  &
                                     err,cmessage)
@@ -316,7 +325,7 @@ contains
     ! propose trial i if the search has not already, and send it to a worker
     subroutine start_trial(worker,i)
       integer(i4b), intent(in) :: worker,i
-      call propose_trial(config,param_spec,search,i,instance_parallel%size-1,nSamples,x_best,ledger,err,cmessage)
+      call propose_trial(config,param_spec,search,i,instance_parallel%size-1,nSamples,x_best,sample_best,ledger,err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       call date_and_time(values=ledger%start_time(:,i))
       call send_sample(worker,i,ledger%override(:,i),instance_parallel%comm,mpi_err)
@@ -328,10 +337,11 @@ contains
   end subroutine dispatch_trials
 
   ! **************************************************************************************************
-  ! Propose trial i into the ledger. DDS samples at random while it has no best to perturb, which is
-  ! the first round of trials, one per worker; NSGA-II proposes a generation before dispatching it.
+  ! Propose trial i into the ledger. DDS samples at random while it has no best to perturb: the first
+  ! round of trials, one per worker, and after that until a trial succeeds. NSGA-II proposes a
+  ! generation before dispatching it.
   ! **************************************************************************************************
-  subroutine propose_trial(config,param_spec,search,i,nWorkers,nSamples,x_best,ledger,err,message)
+  subroutine propose_trial(config,param_spec,search,i,nWorkers,nSamples,x_best,sample_best,ledger,err,message)
     implicit none
     type(config_info),           intent(in)    :: config
     type(parameter_spec),        intent(in)    :: param_spec
@@ -340,6 +350,7 @@ contains
     integer(i4b),                intent(in)    :: nWorkers
     integer(i4b),                intent(in)    :: nSamples
     real(rkind),                 intent(in)    :: x_best(:)
+    integer(i4b),                intent(in)    :: sample_best       ! 0 until a trial succeeds
     type(trial_ledger),          intent(inout) :: ledger
     integer(i4b),                intent(out)   :: err
     character(*),                intent(out)   :: message
@@ -349,7 +360,7 @@ contains
     message='propose_trial/'
     if(trim(config%calib%algorithm) /= 'dds') return
 
-    if(i <= nWorkers .or. trim(sampling_method) == 'random')then
+    if(i <= nWorkers .or. sample_best == 0 .or. trim(sampling_method) == 'random')then
       call generate_parameter_sample(param_spec,search,ledger%value(:,i),ledger%override(:,i),err,cmessage)
     else
       call generate_dds_sample(param_spec,search,x_best,i,nSamples,ledger%value(:,i),ledger%override(:,i),err,cmessage)
@@ -373,7 +384,7 @@ contains
     integer(i4b),       intent(inout) :: sample_best
     real(rkind) :: F_sample
 
-    if(trim(config%calib%algorithm) /= 'dds') return
+    if(trim(config%calib%algorithm) /= 'dds' .or. ledger%failed(i)) return
     F_sample=scalarize_objectives(config,ledger%objective(:,i))
     if(F_sample > F_best)then
       F_best=F_sample
@@ -386,9 +397,14 @@ contains
 
   ! **************************************************************************************************
   ! Worker loop: evaluate each trial rank 0 sends, return its objectives, until told to stop.
+  !
+  ! A trial the model refuses or fails on is saved as a repro case and reported to rank 0 as failed,
+  ! and the worker goes on to the next; any other error ends the calibration.
   ! **************************************************************************************************
   subroutine serve_trials(config,domain_parallel,instance_parallel,param_name,nParam,nTarget,err,message)
-    USE summa_simulation, only: evaluate_objectives
+    USE globalData,                only: iulog
+    USE summa_simulation,          only: evaluate_objectives
+    USE calibration_output_module, only: write_failed_trial
     implicit none
     type(config_info),           intent(inout) :: config
     type(parallel_context_type), intent(in)    :: domain_parallel
@@ -403,7 +419,9 @@ contains
     integer(i4b) :: sample_id
     integer(i4b) :: mpi_err
     logical(lgt) :: stop_worker
-    character(len=256) :: cmessage
+    logical(lgt) :: failed
+    character(len=:), allocatable :: dir
+    character(len=1024) :: cmessage
 
     err=0
     message='serve_trials/'
@@ -416,13 +434,20 @@ contains
       call evaluate_objectives(config,                              & ! SUMMA configuration structure
                                domain_parallel,instance_parallel,   & ! MPI context for model domain and model-instance parallelism
                                sample_id,param_name,param_override, & ! complete parameter overrides
-                               objective,err,cmessage)                ! objective value per target and error control
-      if(err/=0)then
+                               objective,err,cmessage,failed)         ! objective value per target and error control
+      if(err/=0 .and. .not.failed)then
         message=trim(message)//trim(cmessage)
         call abort_mpi(instance_parallel%rank,trim(message))
       endif
 
-      call send_objective(objective,instance_parallel%comm,mpi_err)
+      if(failed)then
+        call write_failed_trial(config,sample_id,instance_parallel%rank,param_name,param_override,cmessage,dir)
+        write(output_unit,'(A,I0,A)') 'trial ',sample_id,' failed; saved in '//dir//': '//trim(cmessage)
+        write(iulog,'(A,I0,A)') 'trial ',sample_id,' failed; saved in '//dir//': '//trim(cmessage)
+        err=0
+      endif
+
+      call send_objective(objective,failed,instance_parallel%comm,mpi_err)
       call check_mpi(instance_parallel%rank,mpi_err,'unable to send objective value')
     enddo
 
@@ -523,7 +548,11 @@ contains
                            first,last,nSamples,ledger,x_best,F_best,sample_best,err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       do i=first,last
-        f(:,i)=oriented_objectives(config,ledger%objective(:,i))
+        if(ledger%failed(i))then
+          f(:,i)=0.1_rkind*huge(1._rkind)
+        else
+          f(:,i)=oriented_objectives(config,ledger%objective(:,i))
+        endif
       enddo
 
       ! select the population the next generation breeds from
@@ -798,14 +827,15 @@ contains
   end subroutine receive_sample
 
   ! **************************************************************************************************
-  ! Return the objective value of every calibration target to rank 0.
+  ! Return the objective value of every calibration target to rank 0, tagged as failed if the trial was.
   ! **************************************************************************************************
-  subroutine send_objective(objective,comm,mpi_err)
+  subroutine send_objective(objective,failed,comm,mpi_err)
     real(rkind),  intent(in)  :: objective(:)
+    logical(lgt), intent(in)  :: failed
     integer(i4b), intent(in)  :: comm
     integer(i4b), intent(out) :: mpi_err
 
-    call MPI_Send(objective,size(objective),MPI_DOUBLE_PRECISION,0,tag_done,comm,mpi_err)
+    call MPI_Send(objective,size(objective),MPI_DOUBLE_PRECISION,0,merge(tag_fail,tag_done,failed),comm,mpi_err)
 
   end subroutine send_objective
 
@@ -815,16 +845,18 @@ contains
   ! Every rank builds its objective vector from the same configuration, so the message is the length
   ! the dispatcher expects.
   ! **************************************************************************************************
-  subroutine receive_objective(objective,worker,comm,mpi_err)
+  subroutine receive_objective(objective,failed,worker,comm,mpi_err)
     real(rkind),  intent(out) :: objective(:)
+    logical(lgt), intent(out) :: failed
     integer(i4b), intent(out) :: worker
     integer(i4b), intent(in)  :: comm
     integer(i4b), intent(out) :: mpi_err
     integer(i4b) :: status(MPI_STATUS_SIZE)
 
     ! wait for the next completed parameter trial
-    call MPI_Recv(objective,size(objective),MPI_DOUBLE_PRECISION,MPI_ANY_SOURCE,tag_done, comm,status,mpi_err)
+    call MPI_Recv(objective,size(objective),MPI_DOUBLE_PRECISION,MPI_ANY_SOURCE,MPI_ANY_TAG, comm,status,mpi_err)
     if(mpi_err/=MPI_SUCCESS) return
+    failed=(status(MPI_TAG) == tag_fail)
 
     ! identify the worker that is now available for additional work
     worker=status(MPI_SOURCE)
